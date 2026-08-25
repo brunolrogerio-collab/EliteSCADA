@@ -79,6 +79,29 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         return CsvCodec.Write(rows);
     }
 
+    public string ExportDataSourcesCsv()
+    {
+        var rows = new List<IReadOnlyList<string?>>
+        {
+            new[] { "Id", "Key", "Name", "Driver", "Enabled", "SettingsJson", "SecretReferencesJson", "MetadataJson" }
+        };
+        foreach (var dataSource in ExportPackage().DataSources ?? Array.Empty<DataSourceEngineeringDto>())
+        {
+            rows.Add(new[]
+            {
+                dataSource.Id?.ToString(),
+                dataSource.Key,
+                dataSource.Name,
+                dataSource.Driver,
+                dataSource.Enabled.ToString(),
+                JsonMap(dataSource.Settings),
+                JsonMap(dataSource.SecretReferences),
+                JsonMap(dataSource.Metadata)
+            });
+        }
+        return CsvCodec.Write(rows);
+    }
+
     public EngineeringPackage ParseJson(string json)
     {
         var package = JsonSerializer.Deserialize<EngineeringPackage>(json, _json) ?? throw new InvalidDataException("Invalid engineering package.");
@@ -115,6 +138,23 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             Enum.Parse<AlarmType>(Get(r,h,"Type"), true), Enum.Parse<AlarmPriority>(Get(r,h,"Priority"), true), DoubleOrNull(Get(r,h,"Setpoint")), Bool(Get(r,h,"DigitalActiveValue"), true),
             Null(Get(r,h,"Class")), Null(Get(r,h,"Area")), Null(Get(r,h,"Message")), IntOrNull(Get(r,h,"ActivationDelayMilliseconds")), Bool(Get(r,h,"RequiresAcknowledgement"), true), Bool(Get(r,h,"ShelvingAllowed"), true), Bool(Get(r,h,"Enabled"), true), null)).ToArray();
         return Empty() with { Alarms = alarms };
+    }
+
+    public EngineeringPackage ParseDataSourcesCsv(string csv)
+    {
+        var rows = CsvCodec.Read(csv);
+        if (rows.Count == 0) return Empty();
+        var h = Header(rows[0]);
+        var dataSources = rows.Skip(1).Select(r => new DataSourceEngineeringDto(
+            GuidOrNull(Get(r, h, "Id")),
+            Get(r, h, "Key"),
+            Get(r, h, "Name"),
+            Get(r, h, "Driver"),
+            Bool(Get(r, h, "Enabled"), true),
+            ParseMap(Get(r, h, "SettingsJson")),
+            ParseMap(Get(r, h, "SecretReferencesJson")),
+            ParseMap(Get(r, h, "MetadataJson")))).ToArray();
+        return Empty() with { DataSources = dataSources };
     }
 
     public ImportPreview Preview(EngineeringPackage package, ImportMode mode)
@@ -306,6 +346,23 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         Set(result, "historian.deadband", dto.Historian?.Deadband);
         Set(result, "historian.periodMs", dto.Historian?.PeriodMilliseconds);
         return result;
+    }
+
+    private string? JsonMap(IReadOnlyDictionary<string, string>? map) =>
+        map is null || map.Count == 0 ? null : JsonSerializer.Serialize(map, _json);
+
+    private Dictionary<string, string>? ParseMap(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(json, _json)
+                ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException("Invalid JSON map in data source CSV.", ex);
+        }
     }
 
     private static void Set(Dictionary<string,string> map, string key, object? value)

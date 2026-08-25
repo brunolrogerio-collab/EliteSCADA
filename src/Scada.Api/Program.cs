@@ -43,29 +43,14 @@ builder.Services.AddSingleton(sp =>
         new SimulationPoint(Tag("Flow", "Demo.Discharge.Flow", TagDataType.Double, "m³/h"), SimulationSignalType.Sine, 95, 165, 14)
     };
 
-    foreach (var point in points) registry.Register(point.Tag);
     return new SimulationDriver(cache, registry, points, TimeSpan.FromMilliseconds(500));
 });
 builder.Services.AddHostedService<SimulationDriverHostedService>();
 
 var app = builder.Build();
 
-// Resolve singleton services before the hosted driver starts so they subscribe to the event bus.
+// Resolve the historian before the hosted driver starts so it subscribes to the event bus.
 _ = app.Services.GetRequiredService<IHistorian>();
-var alarmEngine = app.Services.GetRequiredService<IAlarmEngine>();
-var registryForAlarms = app.Services.GetRequiredService<ITagRegistry>();
-if (registryForAlarms.TryGetByPath("Demo.Discharge.Pressure", out var pressureTag) && pressureTag is not null)
-{
-    alarmEngine.Register(AlarmDefinition.Create(
-        "High discharge pressure", pressureTag.Id, AlarmType.High, AlarmPriority.High,
-        setpoint: 9.0, area: "Demo", message: "Discharge pressure above 9.0 bar"));
-}
-if (registryForAlarms.TryGetByPath("Demo.P01.Fault", out var faultTag) && faultTag is not null)
-{
-    alarmEngine.Register(AlarmDefinition.Create(
-        "Pump P01 fault", faultTag.Id, AlarmType.Digital, AlarmPriority.Critical,
-        digitalActiveValue: true, area: "Demo", message: "Pump P01 fault active"));
-}
 
 app.UseCors();
 app.UseWebSockets();
@@ -133,7 +118,6 @@ app.MapPost("/api/alarms/{id:guid}/ack", async (Guid id, AlarmAckRequest request
 });
 
 app.MapGet("/api/drivers", (SimulationDriver driver) => Results.Ok(new[] { driver.Status }));
-
 
 app.MapGet("/api/engineering/export/json", (IEngineeringExchangeService exchange) =>
     Results.File(Encoding.UTF8.GetBytes(exchange.ExportJson()), "application/json", "scada-engineering.json"));

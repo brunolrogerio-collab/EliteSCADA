@@ -1,4 +1,4 @@
-name: .NET CI
+name: EliteSCADA CI
 
 on:
   workflow_dispatch:
@@ -12,6 +12,7 @@ on:
       - '**/*.props'
       - '**/*.targets'
       - 'global.json'
+      - 'web/scada-web/**'
       - '.github/workflows/dotnet-ci.yml'
   pull_request:
     branches: [ main ]
@@ -20,38 +21,74 @@ permissions:
   contents: read
 
 jobs:
-  build-test:
+  backend:
+    name: Backend build, test and smoke
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Detect .NET solution
-        id: detect
-        shell: bash
-        run: |
-          if [ -f 'ScadaPlatform.sln' ]; then
-            echo "found=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "ScadaPlatform.sln not found. CI will exit successfully."
-          fi
-
       - name: Setup .NET 10
-        if: steps.detect.outputs.found == 'true'
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
       - name: Restore
-        if: steps.detect.outputs.found == 'true'
         run: dotnet restore ScadaPlatform.sln
 
       - name: Build
-        if: steps.detect.outputs.found == 'true'
         run: dotnet build ScadaPlatform.sln --no-restore --configuration Release
 
       - name: Test
-        if: steps.detect.outputs.found == 'true'
         run: dotnet test ScadaPlatform.sln --no-build --configuration Release --verbosity normal
+
+      - name: Runtime smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ASPNETCORE_URLS=http://127.0.0.1:5080
+          dotnet run --project src/Scada.Api/Scada.Api.csproj --no-build --configuration Release --no-launch-profile > /tmp/scada-api.log 2>&1 &
+          API_PID=$!
+          trap 'kill "$API_PID" 2>/dev/null || true' EXIT
+
+          ready=false
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5080/health > /tmp/health.json; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$ready" != "true" ]; then
+            cat /tmp/scada-api.log
+            exit 1
+          fi
+
+          cat /tmp/health.json
+          TAG_COUNT=$(curl -fsS http://127.0.0.1:5080/api/tags | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')
+          echo "Runtime exposed ${TAG_COUNT} TAGs"
+          test "$TAG_COUNT" -ge 7
+
+  frontend:
+    name: Web build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/scada-web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build React/Vite
+        run: npm run build

@@ -74,9 +74,6 @@ jobs:
   frontend:
     name: Web build
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web/scada-web
 
     steps:
       - name: Checkout
@@ -88,7 +85,52 @@ jobs:
           node-version: '24'
 
       - name: Install dependencies
+        working-directory: web/scada-web
         run: npm install --no-audit --no-fund
 
       - name: Build React/Vite
+        working-directory: web/scada-web
         run: npm run build
+
+  e2e:
+    name: Chromium end-to-end
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Restore backend
+        run: dotnet restore ScadaPlatform.sln
+
+      - name: Install frontend dependencies
+        working-directory: web/scada-web
+        run: npm install --no-audit --no-fund
+
+      - name: Install Chromium
+        working-directory: web/scada-web
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser E2E tests
+        working-directory: web/scada-web
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: web/scada-web/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7

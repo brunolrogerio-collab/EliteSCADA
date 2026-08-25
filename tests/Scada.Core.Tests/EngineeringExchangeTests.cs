@@ -97,6 +97,32 @@ public sealed class EngineeringExchangeTests
     }
 
     [Fact]
+    public void DataSourceCsv_RoundTripsFlexibleSettingsAndSecretReferences()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var dataSources = new InMemoryDataSourceEngineeringRegistry();
+        dataSources.Upsert(new DataSourceEngineeringDto(
+            null,
+            "plant.modbus01",
+            "PLC principal",
+            "modbus.tcp",
+            Settings: new() { ["host"] = "10.10.0.10", ["port"] = "502", ["unitId"] = "1" },
+            SecretReferences: new() { ["credential"] = "vault://plant/modbus01" },
+            Metadata: new() { ["area"] = "EAB5" }));
+        var service = new EngineeringExchangeService(tags, alarms, dataSources);
+
+        var parsed = service.ParseDataSourcesCsv(service.ExportDataSourcesCsv());
+
+        var dataSource = Assert.Single(parsed.DataSources!);
+        Assert.Equal("plant.modbus01", dataSource.Key);
+        Assert.Equal("502", dataSource.Settings!["port"]);
+        Assert.Equal("vault://plant/modbus01", dataSource.SecretReferences!["credential"]);
+        Assert.Equal("EAB5", dataSource.Metadata!["area"]);
+    }
+
+    [Fact]
     public void Preview_RejectsPlaintextSecretInDataSourceSettings()
     {
         var tags = new InMemoryTagRegistry();
@@ -119,6 +145,48 @@ public sealed class EngineeringExchangeTests
 
         Assert.False(preview.CanApply);
         Assert.Contains(preview.Items.SelectMany(x => x.Issues), x => x.Code == "DATASOURCE_PLAINTEXT_SECRET");
+    }
+
+    [Fact]
+    public void Preview_RejectsV2TagReferencingUnknownDataSource()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var service = new EngineeringExchangeService(tags, alarms, new InMemoryDataSourceEngineeringRegistry());
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            new[] { new TagEngineeringDto(null, "Pressure", "Plant.P01.Pressure", TagDataType.Double, Source: "plant.missing") },
+            Array.Empty<AlarmEngineeringDto>(),
+            Array.Empty<DataSourceEngineeringDto>());
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+
+        Assert.False(preview.CanApply);
+        Assert.Contains(preview.Items.SelectMany(x => x.Issues), x => x.Code == "TAG_DATASOURCE_NOT_FOUND");
+    }
+
+    [Fact]
+    public void Preview_AcceptsV2TagWhenDataSourceIsInSamePackage()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var service = new EngineeringExchangeService(tags, alarms, new InMemoryDataSourceEngineeringRegistry());
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            new[] { new TagEngineeringDto(null, "Pressure", "Plant.P01.Pressure", TagDataType.Double, Source: "plant.modbus01") },
+            Array.Empty<AlarmEngineeringDto>(),
+            new[] { new DataSourceEngineeringDto(null, "plant.modbus01", "PLC principal", "modbus.tcp", Settings: new() { ["host"] = "10.10.0.10" }) });
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+
+        Assert.True(preview.CanApply);
+        Assert.Equal(2, preview.CreateCount);
     }
 
     [Fact]

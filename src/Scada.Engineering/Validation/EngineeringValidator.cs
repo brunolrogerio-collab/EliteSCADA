@@ -5,6 +5,22 @@ namespace Scada.Engineering.Validation;
 
 public static class EngineeringValidator
 {
+    private static readonly string[] SensitiveKeyFragments =
+    {
+        "password", "passwd", "pwd", "secret", "token", "apikey", "api_key",
+        "privatekey", "private_key", "credential", "clientsecret", "client_secret"
+    };
+
+    private static readonly string[] SensitiveValueFragments =
+    {
+        "password=", "passwd=", "pwd=", "token=", "apikey=", "api_key=", "clientsecret=", "client_secret="
+    };
+
+    private static readonly string[] AllowedSecretReferencePrefixes =
+    {
+        "secret://", "env://", "vault://", "keyvault://"
+    };
+
     public static IReadOnlyCollection<ImportIssue> ValidateTag(TagEngineeringDto tag)
     {
         var issues = new List<ImportIssue>();
@@ -28,6 +44,49 @@ public static class EngineeringValidator
             issues.Add(Error("ALARM_SETPOINT_REQUIRED", "Analog alarm requires a setpoint.", ImportEntityKind.Alarm, key));
         if (alarm.ActivationDelayMilliseconds < 0)
             issues.Add(Error("ALARM_DELAY_INVALID", "Activation delay cannot be negative.", ImportEntityKind.Alarm, key));
+        return issues;
+    }
+
+    public static IReadOnlyCollection<ImportIssue> ValidateDataSource(DataSourceEngineeringDto dataSource)
+    {
+        var issues = new List<ImportIssue>();
+        var key = string.IsNullOrWhiteSpace(dataSource.Key) ? dataSource.Name : dataSource.Key;
+
+        if (string.IsNullOrWhiteSpace(dataSource.Key))
+            issues.Add(Error("DATASOURCE_KEY_REQUIRED", "Data source key is required.", ImportEntityKind.DataSource, key));
+        if (dataSource.Key?.Any(char.IsWhiteSpace) == true)
+            issues.Add(Error("DATASOURCE_KEY_WHITESPACE", "Data source key cannot contain whitespace.", ImportEntityKind.DataSource, key));
+        if (string.IsNullOrWhiteSpace(dataSource.Name))
+            issues.Add(Error("DATASOURCE_NAME_REQUIRED", "Data source name is required.", ImportEntityKind.DataSource, key));
+        if (string.IsNullOrWhiteSpace(dataSource.Driver))
+            issues.Add(Error("DATASOURCE_DRIVER_REQUIRED", "Data source driver is required.", ImportEntityKind.DataSource, key));
+
+        foreach (var setting in dataSource.Settings ?? [])
+        {
+            var normalizedKey = setting.Key.Replace("-", string.Empty, StringComparison.Ordinal).Replace(".", string.Empty, StringComparison.Ordinal);
+            if (SensitiveKeyFragments.Any(fragment => normalizedKey.Contains(fragment, StringComparison.OrdinalIgnoreCase)) ||
+                SensitiveValueFragments.Any(fragment => setting.Value.Contains(fragment, StringComparison.OrdinalIgnoreCase)))
+            {
+                issues.Add(Error(
+                    "DATASOURCE_PLAINTEXT_SECRET",
+                    $"Setting '{setting.Key}' appears to contain a secret. Store only a reference in secretReferences.",
+                    ImportEntityKind.DataSource,
+                    key));
+            }
+        }
+
+        foreach (var secret in dataSource.SecretReferences ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(secret.Key) || string.IsNullOrWhiteSpace(secret.Value))
+            {
+                issues.Add(Error("DATASOURCE_SECRET_REFERENCE_INVALID", "Secret reference name and value are required.", ImportEntityKind.DataSource, key));
+                continue;
+            }
+
+            if (!AllowedSecretReferencePrefixes.Any(prefix => secret.Value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+                issues.Add(Error("DATASOURCE_SECRET_REFERENCE_INVALID", $"Secret reference '{secret.Key}' must use secret://, env://, vault:// or keyvault://.", ImportEntityKind.DataSource, key));
+        }
+
         return issues;
     }
 

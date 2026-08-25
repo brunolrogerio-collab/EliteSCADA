@@ -1,0 +1,3 @@
+Id,Path,Name,DataType,Unit,Source,Address,ReadOnly,ScaleMinimum,ScaleMaximum,HistorianEnabled,HistorianStrategy,Deadband,PeriodMilliseconds,Description
+,Demo.Tank01.Level,Tank Level,Double,%,builtin.simulation,,True,0,100,True,deadband,0.5,60000,Tank level
+,Demo.P01.Current,Pump Current,Double,A,builtin.simulation,,True,0,100,True,deadband,0.2,60000,Pump motor current

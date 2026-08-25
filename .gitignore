@@ -77,3 +77,4 @@ appsettings.*.Secrets.json
 .DS_Store
 Thumbs.db
 desktop.ini
+web/scada-web/tsconfig.tsbuildinfo

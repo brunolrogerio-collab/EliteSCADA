@@ -1,0 +1,48 @@
+{
+  "schema": "scada.engineering",
+  "schemaVersion": 1,
+  "exportedAt": "2026-08-25T22:00:00Z",
+  "tags": [
+    {
+      "id": null,
+      "name": "Tank Level",
+      "path": "Demo.Tank01.Level",
+      "dataType": "double",
+      "source": "builtin.simulation",
+      "address": null,
+      "engineeringUnit": "%",
+      "description": "Tank level",
+      "readOnly": true,
+      "scaleMinimum": 0,
+      "scaleMaximum": 100,
+      "historian": {
+        "enabled": true,
+        "strategy": "deadband",
+        "deadband": 0.5,
+        "periodMilliseconds": 60000,
+        "maximumPeriodMilliseconds": null
+      },
+      "metadata": {}
+    }
+  ],
+  "alarms": [
+    {
+      "id": null,
+      "name": "High tank level",
+      "tagId": null,
+      "tagPath": "Demo.Tank01.Level",
+      "type": "high",
+      "priority": "high",
+      "setpoint": 90,
+      "digitalActiveValue": true,
+      "alarmClass": "Process",
+      "area": "Demo",
+      "message": "Tank level above 90%",
+      "activationDelayMilliseconds": 2000,
+      "requiresAcknowledgement": true,
+      "shelvingAllowed": true,
+      "enabled": true,
+      "metadata": {}
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+  <ItemGroup>
+    <ProjectReference Include="../Scada.Core/Scada.Core.csproj" />
+    <ProjectReference Include="../Scada.Drivers/Scada.Drivers.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,3 @@
+Id,Name,TagId,TagPath,Type,Priority,Setpoint,DigitalActiveValue,Class,Area,Message,ActivationDelayMilliseconds,RequiresAcknowledgement,ShelvingAllowed,Enabled
+,High tank level,,Demo.Tank01.Level,High,High,90,True,Process,Demo,Tank level above 90%,2000,True,True,True
+,Pump P01 fault,,Demo.P01.Fault,Digital,Critical,,True,Equipment,Demo,Pump P01 fault active,0,True,True,True

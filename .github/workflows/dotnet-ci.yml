@@ -9,6 +9,9 @@ on:
       - '**/*.csproj'
       - '**/*.cs'
       - '**/*.json'
+      - '**/*.props'
+      - '**/*.targets'
+      - 'global.json'
       - '.github/workflows/dotnet-ci.yml'
   pull_request:
     branches: [ main ]
@@ -24,31 +27,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Detect .NET project
+      - name: Detect .NET solution
         id: detect
         shell: bash
         run: |
-          if find . -type f \( -name '*.sln' -o -name '*.csproj' \) -print -quit | grep -q .; then
+          if [ -f 'ScadaPlatform.sln' ]; then
             echo "found=true" >> "$GITHUB_OUTPUT"
           else
             echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "No .NET solution/project found yet. CI will exit successfully."
+            echo "ScadaPlatform.sln not found. CI will exit successfully."
           fi
 
-      - name: Setup .NET
+      - name: Setup .NET 10
         if: steps.detect.outputs.found == 'true'
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Restore
         if: steps.detect.outputs.found == 'true'
-        run: dotnet restore
+        run: dotnet restore ScadaPlatform.sln
 
       - name: Build
         if: steps.detect.outputs.found == 'true'
-        run: dotnet build --no-restore --configuration Release
+        run: dotnet build ScadaPlatform.sln --no-restore --configuration Release
 
       - name: Test
         if: steps.detect.outputs.found == 'true'
-        run: dotnet test --no-build --configuration Release --verbosity normal
+        run: dotnet test ScadaPlatform.sln --no-build --configuration Release --verbosity normal

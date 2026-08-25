@@ -1,0 +1,54 @@
+name: .NET CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - '**/*.sln'
+      - '**/*.csproj'
+      - '**/*.cs'
+      - '**/*.json'
+      - '.github/workflows/dotnet-ci.yml'
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect .NET project
+        id: detect
+        shell: bash
+        run: |
+          if find . -type f \( -name '*.sln' -o -name '*.csproj' \) -print -quit | grep -q .; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "No .NET solution/project found yet. CI will exit successfully."
+          fi
+
+      - name: Setup .NET
+        if: steps.detect.outputs.found == 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        if: steps.detect.outputs.found == 'true'
+        run: dotnet restore
+
+      - name: Build
+        if: steps.detect.outputs.found == 'true'
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Test
+        if: steps.detect.outputs.found == 'true'
+        run: dotnet test --no-build --configuration Release --verbosity normal

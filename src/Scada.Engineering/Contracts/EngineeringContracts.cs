@@ -13,7 +13,8 @@ public enum ImportMode
 public enum ImportEntityKind
 {
     Tag,
-    Alarm
+    Alarm,
+    DataSource
 }
 
 public enum ImportOperation
@@ -64,12 +65,23 @@ public sealed record AlarmEngineeringDto(
     bool Enabled = true,
     Dictionary<string, string>? Metadata = null);
 
+public sealed record DataSourceEngineeringDto(
+    Guid? Id,
+    string Key,
+    string Name,
+    string Driver,
+    bool Enabled = true,
+    Dictionary<string, string>? Settings = null,
+    Dictionary<string, string>? SecretReferences = null,
+    Dictionary<string, string>? Metadata = null);
+
 public sealed record EngineeringPackage(
     string Schema,
     int SchemaVersion,
     DateTimeOffset ExportedAt,
     IReadOnlyCollection<TagEngineeringDto> Tags,
-    IReadOnlyCollection<AlarmEngineeringDto> Alarms);
+    IReadOnlyCollection<AlarmEngineeringDto> Alarms,
+    IReadOnlyCollection<DataSourceEngineeringDto>? DataSources = null);
 
 public sealed record ImportIssue(
     string Code,

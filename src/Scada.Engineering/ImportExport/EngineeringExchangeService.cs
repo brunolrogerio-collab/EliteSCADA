@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using Scada.Core.Alarms;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.DataSources;
 using Scada.Engineering.Validation;
 
 namespace Scada.Engineering.ImportExport;
@@ -11,16 +12,23 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
+    private readonly IDataSourceEngineeringRegistry _dataSources;
     private readonly JsonSerializerOptions _json;
 
     public EngineeringExchangeService(ITagRegistry tags, IAlarmEngine alarms)
+        : this(tags, alarms, new InMemoryDataSourceEngineeringRegistry())
+    {
+    }
+
+    public EngineeringExchangeService(ITagRegistry tags, IAlarmEngine alarms, IDataSourceEngineeringRegistry dataSources)
     {
         _tags = tags;
         _alarms = alarms;
+        _dataSources = dataSources;
         _json = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -34,7 +42,13 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         var tagDtos = _tags.Snapshot().Select(ToDto).ToArray();
         var paths = _tags.Snapshot().ToDictionary(x => x.Id, x => x.Path);
         var alarmDtos = _alarms.Definitions().Select(x => ToDto(x, paths.GetValueOrDefault(x.TagId))).ToArray();
-        return new EngineeringPackage(CurrentSchema, CurrentSchemaVersion, DateTimeOffset.UtcNow, tagDtos, alarmDtos);
+        return new EngineeringPackage(
+            CurrentSchema,
+            CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            tagDtos,
+            alarmDtos,
+            _dataSources.Snapshot());
     }
 
     public string ExportJson(bool indented = true)
@@ -68,9 +82,14 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     public EngineeringPackage ParseJson(string json)
     {
         var package = JsonSerializer.Deserialize<EngineeringPackage>(json, _json) ?? throw new InvalidDataException("Invalid engineering package.");
-        if (!string.Equals(package.Schema, CurrentSchema, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException($"Unsupported schema '{package.Schema}'.");
-        if (package.SchemaVersion > CurrentSchemaVersion) throw new InvalidDataException($"Schema version {package.SchemaVersion} is newer than supported version {CurrentSchemaVersion}.");
-        return package;
+        if (!string.Equals(package.Schema, CurrentSchema, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException($"Unsupported schema '{package.Schema}'.");
+        if (package.SchemaVersion < 1)
+            throw new InvalidDataException($"Schema version {package.SchemaVersion} is invalid.");
+        if (package.SchemaVersion > CurrentSchemaVersion)
+            throw new InvalidDataException($"Schema version {package.SchemaVersion} is newer than supported version {CurrentSchemaVersion}.");
+
+        return package with { DataSources = package.DataSources ?? Array.Empty<DataSourceEngineeringDto>() };
     }
 
     public EngineeringPackage ParseTagsCsv(string csv)
@@ -101,12 +120,38 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     public ImportPreview Preview(EngineeringPackage package, ImportMode mode)
     {
         var items = new List<ImportPreviewItem>();
-        var duplicatePaths = package.Tags.GroupBy(x => x.Path, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var dataSources = package.DataSources ?? Array.Empty<DataSourceEngineeringDto>();
+        var duplicateDataSourceKeys = dataSources
+            .GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        foreach (var dto in dataSources)
+        {
+            var issues = EngineeringValidator.ValidateDataSource(dto).ToList();
+            if (duplicateDataSourceKeys.Contains(dto.Key))
+                issues.Add(new("DATASOURCE_DUPLICATE_IN_FILE", $"Data source key '{dto.Key}' appears more than once in the import package.", ImportEntityKind.DataSource, dto.Key, true));
+            var existing = ResolveExistingDataSource(dto);
+            var op = Decide(existing is not null, mode);
+            if (issues.Any(x => x.IsError)) op = ImportOperation.Error;
+            items.Add(new(ImportEntityKind.DataSource, dto.Key, op, issues));
+        }
+
+        var duplicatePaths = package.Tags.GroupBy(x => x.Path, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var dto in package.Tags)
         {
             var issues = EngineeringValidator.ValidateTag(dto).ToList();
-            if (duplicatePaths.Contains(dto.Path)) issues.Add(new("TAG_DUPLICATE_IN_FILE", $"Tag path '{dto.Path}' appears more than once in the import file.", ImportEntityKind.Tag, dto.Path, true));
+            if (duplicatePaths.Contains(dto.Path))
+                issues.Add(new("TAG_DUPLICATE_IN_FILE", $"Tag path '{dto.Path}' appears more than once in the import file.", ImportEntityKind.Tag, dto.Path, true));
+
+            if (package.SchemaVersion >= 2 && !string.IsNullOrWhiteSpace(dto.Source) &&
+                _dataSources.FindByKey(dto.Source) is null &&
+                !dataSources.Any(x => x.Key.Equals(dto.Source, StringComparison.OrdinalIgnoreCase)))
+            {
+                issues.Add(new("TAG_DATASOURCE_NOT_FOUND", $"Data source '{dto.Source}' referenced by tag '{dto.Path}' was not found.", ImportEntityKind.Tag, dto.Path, true));
+            }
+
             var existing = ResolveExistingTag(dto);
             var op = Decide(existing is not null, mode);
             if (issues.Any(x => x.IsError)) op = ImportOperation.Error;
@@ -116,7 +161,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         foreach (var dto in package.Alarms)
         {
             var issues = EngineeringValidator.ValidateAlarm(dto).ToList();
-            if (ResolveAlarmTagForPreview(dto, package) is null) issues.Add(new("ALARM_TAG_NOT_FOUND", $"Referenced tag for alarm '{dto.Name}' was not found in current registry or package.", ImportEntityKind.Alarm, dto.Name, true));
+            if (ResolveAlarmTagForPreview(dto, package) is null)
+                issues.Add(new("ALARM_TAG_NOT_FOUND", $"Referenced tag for alarm '{dto.Name}' was not found in current registry or package.", ImportEntityKind.Alarm, dto.Name, true));
             var existing = ResolveExistingAlarm(dto);
             var op = Decide(existing is not null, mode);
             if (issues.Any(x => x.IsError)) op = ImportOperation.Error;
@@ -133,8 +179,21 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     public ImportResult Apply(EngineeringPackage package, ImportMode mode)
     {
         var preview = Preview(package, mode);
-        if (!preview.CanApply) return new(mode, 0, 0, preview.SkipCount, preview.Items.SelectMany(x => x.Issues).ToArray());
-        var created = 0; var updated = 0; var skipped = 0;
+        if (!preview.CanApply)
+            return new(mode, 0, 0, preview.SkipCount, preview.Items.SelectMany(x => x.Issues).ToArray());
+
+        var created = 0;
+        var updated = 0;
+        var skipped = 0;
+
+        foreach (var dto in package.DataSources ?? Array.Empty<DataSourceEngineeringDto>())
+        {
+            var existing = ResolveExistingDataSource(dto);
+            var op = Decide(existing is not null, mode);
+            if (op == ImportOperation.Skip) { skipped++; continue; }
+            _dataSources.Upsert(dto with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
+            if (existing is null) created++; else updated++;
+        }
 
         foreach (var dto in package.Tags)
         {
@@ -163,6 +222,16 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         return new(mode, created, updated, skipped, Array.Empty<ImportIssue>());
     }
 
+    private DataSourceEngineeringDto? ResolveExistingDataSource(DataSourceEngineeringDto dto)
+    {
+        if (dto.Id.HasValue)
+        {
+            var byId = _dataSources.Find(dto.Id.Value);
+            if (byId is not null) return byId;
+        }
+        return _dataSources.FindByKey(dto.Key);
+    }
+
     private TagDefinition? ResolveExistingTag(TagEngineeringDto dto)
     {
         if (dto.Id.HasValue && _tags.TryGet(dto.Id.Value, out var byId)) return byId;
@@ -176,7 +245,6 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         return tag is null ? null : _alarms.Definitions().FirstOrDefault(x => x.TagId == tag.Id && x.Name.Equals(dto.Name, StringComparison.OrdinalIgnoreCase));
     }
 
-
     private TagDefinition? ResolveAlarmTagForPreview(AlarmEngineeringDto dto, EngineeringPackage package)
     {
         var existing = ResolveAlarmTag(dto);
@@ -184,7 +252,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
 
         TagEngineeringDto? imported = null;
         if (dto.TagId.HasValue) imported = package.Tags.FirstOrDefault(x => x.Id == dto.TagId);
-        if (imported is null && !string.IsNullOrWhiteSpace(dto.TagPath)) imported = package.Tags.FirstOrDefault(x => x.Path.Equals(dto.TagPath, StringComparison.OrdinalIgnoreCase));
+        if (imported is null && !string.IsNullOrWhiteSpace(dto.TagPath))
+            imported = package.Tags.FirstOrDefault(x => x.Path.Equals(dto.TagPath, StringComparison.OrdinalIgnoreCase));
         if (imported is null) return null;
 
         return new TagDefinition(imported.Id ?? Guid.Empty, imported.Name, imported.Path, imported.DataType, imported.Source, imported.EngineeringUnit, imported.Description, imported.ReadOnly, imported.Metadata);
@@ -226,17 +295,35 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
 
     private static IReadOnlyDictionary<string,string> BuildTagMetadata(TagEngineeringDto dto)
     {
-        var result = dto.Metadata is null ? new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase) : new Dictionary<string,string>(dto.Metadata, StringComparer.OrdinalIgnoreCase);
-        Set(result, "address", dto.Address); Set(result, "scale.minimum", dto.ScaleMinimum); Set(result, "scale.maximum", dto.ScaleMaximum);
-        Set(result, "historian.enabled", dto.Historian?.Enabled); Set(result, "historian.strategy", dto.Historian?.Strategy); Set(result, "historian.deadband", dto.Historian?.Deadband); Set(result, "historian.periodMs", dto.Historian?.PeriodMilliseconds);
+        var result = dto.Metadata is null
+            ? new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string,string>(dto.Metadata, StringComparer.OrdinalIgnoreCase);
+        Set(result, "address", dto.Address);
+        Set(result, "scale.minimum", dto.ScaleMinimum);
+        Set(result, "scale.maximum", dto.ScaleMaximum);
+        Set(result, "historian.enabled", dto.Historian?.Enabled);
+        Set(result, "historian.strategy", dto.Historian?.Strategy);
+        Set(result, "historian.deadband", dto.Historian?.Deadband);
+        Set(result, "historian.periodMs", dto.Historian?.PeriodMilliseconds);
         return result;
     }
 
-    private static void Set(Dictionary<string,string> map, string key, object? value) { if (value is not null) map[key] = Convert.ToString(value, CultureInfo.InvariantCulture)!; }
+    private static void Set(Dictionary<string,string> map, string key, object? value)
+    {
+        if (value is not null) map[key] = Convert.ToString(value, CultureInfo.InvariantCulture)!;
+    }
+
     private static string? Meta(IReadOnlyDictionary<string, string>? metadata, string key) =>
         metadata is not null && metadata.TryGetValue(key, out var value) ? value : null;
 
-    private static EngineeringPackage Empty() => new(CurrentSchema, CurrentSchemaVersion, DateTimeOffset.UtcNow, Array.Empty<TagEngineeringDto>(), Array.Empty<AlarmEngineeringDto>());
+    private static EngineeringPackage Empty() => new(
+        CurrentSchema,
+        CurrentSchemaVersion,
+        DateTimeOffset.UtcNow,
+        Array.Empty<TagEngineeringDto>(),
+        Array.Empty<AlarmEngineeringDto>(),
+        Array.Empty<DataSourceEngineeringDto>());
+
     private static Dictionary<string,int> Header(string[] row) => row.Select((x,i)=>(x,i)).ToDictionary(x=>x.x,x=>x.i,StringComparer.OrdinalIgnoreCase);
     private static string Get(string[] row, Dictionary<string,int> h, string name) => h.TryGetValue(name, out var i) && i < row.Length ? row[i] : string.Empty;
     private static string? Null(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;

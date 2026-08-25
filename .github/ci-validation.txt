@@ -1,1 +1,0 @@
-Temporary CI validation marker for .NET 10 workflow verification.

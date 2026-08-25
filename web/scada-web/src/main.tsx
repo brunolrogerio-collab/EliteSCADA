@@ -28,8 +28,10 @@ type Alarm = {
 
 type HistorySample = { tagId: string; value: unknown; timestamp: string; quality: string; source?: string };
 
-const API = import.meta.env.VITE_SCADA_API ?? 'http://localhost:5080';
-const WS = API.replace(/^http/, 'ws') + '/ws/tags';
+const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
+const WS = API
+  ? API.replace(/^http/, 'ws') + '/ws/tags'
+  : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/tags`;
 
 function n(v: unknown, digits = 1) {
   const numeric = Number(v);

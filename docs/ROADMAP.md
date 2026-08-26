@@ -105,14 +105,15 @@ Next:
 19. Add audit retention/query policy and durable buffering/outbox behavior for temporary storage outages.
 20. Add historian retention/downsampling policies on TimescaleDB.
 21. Implement built-in internal memory TAG sources before any additional external protocol: `builtin.memory.client` scoped per Runtime Client session and `builtin.memory.server` shared/retentive on the server, including typed initial values, retention/migration semantics, scripting scope rules and Engineering Import/Export. See `docs/INTERNAL-MEMORY-TAGS.md`.
-22. Expand runtime communication diagnostics as a common multi-driver capability: per-Data-Source health/state, success/failure/timeout/reconnect counters, timing/data-age metrics, TAG quality aggregation, protected diagnostic APIs, independent failure/recovery tests for simultaneous driver instances, then the Engineering communication-health window defined in `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
-23. Add MQTT driver integration through the same Data Source/driver model.
-24. Add OPC UA integration through the same Data Source/driver model.
-25. Add BACnet communication-driver integration through the same Data Source/driver model.
-26. Introduce the installable/versioned Driver Module framework and public Driver SDK compatibility boundary, including module lifecycle, diagnostics, trust/integrity and Engineering configuration preservation; use Siemens S7 ISO Connection as the first intended installable-module target after the framework is ready.
-27. Add Portuguese (`pt-BR`), English (`en`) and Spanish (`es`) localization across the Engineering/development interface with a developer-selectable language preference and language-neutral Engineering contracts.
-28. Add Engineering XLSX workbook import/export.
-29. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
+22. Implement the protocol-independent Gateway / TAG Bridge as a first-class Engineering/runtime domain: source-TAG to destination-TAG routes, OnChange/Periodic transfer, quality/type/rate policy, cycle and multi-writer rejection, diagnostics, transactional activation and Modbus <-> Server Memory validation. See `docs/TAG-GATEWAY.md`.
+23. Expand runtime communication diagnostics as a common multi-driver capability: per-Data-Source health/state, success/failure/timeout/reconnect counters, timing/data-age metrics, TAG quality aggregation, protected diagnostic APIs, independent failure/recovery tests for simultaneous driver instances, then the Engineering communication-health window defined in `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
+24. Add MQTT driver integration through the same Data Source/driver/TAG Gateway model.
+25. Add OPC UA integration through the same Data Source/driver/TAG Gateway model.
+26. Add BACnet communication-driver integration through the same Data Source/driver/TAG Gateway model.
+27. Introduce the installable/versioned Driver Module framework and public Driver SDK compatibility boundary, including module lifecycle, diagnostics, trust/integrity and Engineering configuration preservation; use Siemens S7 ISO Connection as the first intended installable-module target after the framework is ready.
+28. Add Portuguese (`pt-BR`), English (`en`) and Spanish (`es`) localization across the Engineering/development interface with a developer-selectable language preference and language-neutral Engineering contracts.
+29. Add Engineering XLSX workbook import/export.
+30. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
 
 ## Locked future product requirements
 
@@ -135,20 +136,39 @@ These requirements remain part of the EliteSCADA product north and must be imple
 - Client/server script scope must remain explicit: client scripts may access their Client Memory; server scripts may access Server Memory; server logic must never treat one client's local value as global truth.
 - Full semantics and required validation scenarios are defined in `docs/INTERNAL-MEMORY-TAGS.md`.
 
+### Protocol-independent TAG Gateway
+
+- EliteSCADA must provide a server-side Gateway/TAG Bridge before additional external protocol families are introduced.
+- The authoritative mapping is `Source TAG -> Destination TAG`; Data Sources/protocols are resolved from each TAG's owning source/provider.
+- Concrete communication drivers must never call one another directly for gateway transfer.
+- Gateway routes are first-class versioned Engineering entities and participate in import/export, preview/apply, revisioning, backup/restore and activation.
+- `builtin.memory.server` may be a source or destination; `builtin.memory.client` is rejected as a server Gateway endpoint.
+- Destination TAGs must be active, writable and type-compatible.
+- Initial routing is unidirectional; direct/indirect cycles are rejected.
+- Initial model rejects multiple active Gateway writers to the same destination unless a future explicit arbitration model is defined.
+- Fan-out from one source to several destinations is supported through independent routes.
+- Initial transfer modes include OnChange and Periodic with bounded rate/deadband/coalescing behavior.
+- Safe default quality policy transfers only `Good` source values and does not push stale values when source communication becomes bad.
+- Unsafe implicit type coercion is forbidden; simple explicit deterministic conversions/linear scaling may be supported without scripts.
+- Gateway execution uses a trusted internal runtime/service authority and common TAG/write/provider boundaries; it must not borrow browser identity or expose a generic authorization bypass.
+- Engineering changes/enablement are auditable; cyclic runtime transfers use route diagnostics rather than flooding the human audit trail.
+- Route diagnostics are distinct from driver network diagnostics and include transfer state/counters, quality skips, throttling/coalescing and destination write failures.
+- Full semantics and validation scenarios are defined in `docs/TAG-GATEWAY.md`.
+
 ### Industrial protocols and installable driver modules
 
 - Modbus TCP remains the currently implemented real industrial protocol baseline.
 - Multiple Data Sources/communication instances must be active simultaneously; several instances may use the same Driver type for different PLCs/devices, and different Driver types may run in parallel.
 - TAG communication ownership is through one Data Source per revision plus the protocol-specific address/binding.
 - Driver/Data Source diagnostics are a first-class protected Engineering/runtime capability and must use a common diagnostic contract rather than protocol-private log parsing. See `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
-- MQTT is a locked future protocol/integration target after the internal-memory and common-diagnostics foundations.
-- OPC UA is a locked future industrial interoperability target after the internal-memory and common-diagnostics foundations.
-- BACnet is a locked future communication-driver target, particularly relevant to building automation/BMS and BACnet-capable controllers/devices, after the internal-memory and common-diagnostics foundations.
+- MQTT is a locked future protocol/integration target after the internal-memory, TAG-Gateway and common-diagnostics foundations.
+- OPC UA is a locked future industrial interoperability target after the internal-memory, TAG-Gateway and common-diagnostics foundations.
+- BACnet is a locked future communication-driver target, particularly relevant to building automation/BMS and BACnet-capable controllers/devices, after the internal-memory, TAG-Gateway and common-diagnostics foundations.
 - EliteSCADA must support additional first-party and third-party communication drivers through installable modules rather than requiring every protocol to be compiled into the core product.
 - The first intended installable module target is Siemens S7 communication compatible with S7 ISO Connection; its future implementation research must include relevant public/open-source work such as Node-RED S7 projects where licensing and industrial suitability permit reuse.
 - Allen-Bradley PLC communication is a later explicit research/module target; protocol/library/family scope remains intentionally undecided until public documentation, open-source options, licensing, simulator/hardware access and practical interoperability can be evaluated.
 - The combined Modbus TCP, MQTT, OPC UA, BACnet, Siemens S7 and future Allen-Bradley direction is intended to provide broad practical compatibility across mainstream industrial/building-automation controllers. The user's planning hypothesis that this set can cover more than 90% of practical PLC/controller needs must be validated before being used externally as a measured market statistic.
-- Driver modules use the common Driver SDK/DriverHost boundary and must not bypass TAG/quality, historian, alarms, security, audit or Engineering semantics.
+- Driver modules use the common Driver SDK/DriverHost boundary and must not bypass TAG/quality, historian, alarms, security, audit, Gateway routing or Engineering semantics.
 - A driver module declares stable identity/version, EliteSCADA compatibility, provided driver/Data Source types and a public versioned Engineering configuration schema.
 - The module lifecycle must support installation, discovery/catalog registration, enable/disable, upgrade and removal with compatibility validation before runtime activation.
 - Projects that reference missing, disabled or incompatible modules must preserve their Engineering configuration and expose explicit diagnostics rather than silently dropping data.
@@ -195,7 +215,7 @@ These requirements remain part of the EliteSCADA product north and must be imple
 ### Engineering/development interface localization
 
 - The developer/engineering user must be able to choose the Engineering UI language among Portuguese (Brazil / `pt-BR`), English (`en`) and Spanish (`es`).
-- The selected language applies consistently to Data Sources/drivers, TAGs, database/historian configuration, alarms, templates/equipment/Dynamos, screens/popups, trends, project lifecycle, security/user administration, module administration, diagnostics, menus, property editors, validation messages and product-owned engineering help text.
+- The selected language applies consistently to Data Sources/drivers, TAGs, database/historian configuration, alarms, templates/equipment/Dynamos, screens/popups, trends, project lifecycle, security/user administration, module administration, diagnostics, Gateway/TAG Bridge engineering, menus, property editors, validation messages and product-owned engineering help text.
 - Language selection is a presentation/user preference and must not change stable Engineering IDs, TAG paths, communication addresses, enum/storage values, schema keys, revision identity or runtime semantics.
 - Product-owned UI text should use localization/resource keys instead of persisting translated labels as authoritative engineering values.
 - The language preference should be persistable per user/profile once that subsystem exists.
@@ -219,7 +239,7 @@ These requirements remain part of the EliteSCADA product north and must be imple
 
 The runtime, engineering contract and persistence foundation are strong enough that editor work can begin incrementally after the core backend authentication/enforcement and audit path are established, rather than waiting for every future driver to exist.
 
-The editor must consume the same public engineering model rather than own a private representation of project configuration. Reusable libraries, Engineering Fragments/cross-project copy-paste, trends, access-aware visibility, localization and configurable shell regions are core workflows, not late add-ons.
+The editor must consume the same public engineering model rather than own a private representation of project configuration. Reusable libraries, Engineering Fragments/cross-project copy-paste, trends, access-aware visibility, localization, Gateway/TAG Bridge engineering and configurable shell regions are core workflows, not late add-ons.
 
 The Engineering/development UI must share one Portuguese/English/Spanish localization infrastructure across editor and administrative/engineering surfaces rather than implementing translations independently per screen.
 

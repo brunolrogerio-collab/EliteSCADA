@@ -14,7 +14,10 @@ public enum ImportEntityKind
 {
     Tag,
     Alarm,
-    DataSource
+    DataSource,
+    Template,
+    Equipment,
+    Dynamo
 }
 
 public enum ImportOperation
@@ -23,6 +26,13 @@ public enum ImportOperation
     Update,
     Skip,
     Error
+}
+
+public enum EngineeringBindingKind
+{
+    Tag,
+    Property,
+    Expression
 }
 
 public sealed record HistorianSettingsDto(
@@ -75,13 +85,52 @@ public sealed record DataSourceEngineeringDto(
     Dictionary<string, string>? SecretReferences = null,
     Dictionary<string, string>? Metadata = null);
 
+public sealed record EngineeringBindingDto(
+    string Key,
+    EngineeringBindingKind Kind,
+    string Target,
+    string? Direction = null,
+    Dictionary<string, string>? Metadata = null);
+
+public sealed record EquipmentTemplateEngineeringDto(
+    Guid? Id,
+    string Key,
+    string Name,
+    IReadOnlyCollection<EngineeringBindingDto>? Bindings = null,
+    Dictionary<string, string>? Properties = null,
+    Dictionary<string, string>? Context = null,
+    Dictionary<string, string>? Metadata = null);
+
+public sealed record EquipmentEngineeringDto(
+    Guid? Id,
+    string Path,
+    string Name,
+    string? TemplateKey = null,
+    IReadOnlyCollection<EngineeringBindingDto>? Bindings = null,
+    Dictionary<string, string>? Properties = null,
+    Dictionary<string, string>? Context = null,
+    Dictionary<string, string>? Metadata = null);
+
+public sealed record DynamoEngineeringDto(
+    Guid? Id,
+    string Key,
+    string Name,
+    string? TemplateKey = null,
+    IReadOnlyCollection<EngineeringBindingDto>? Bindings = null,
+    Dictionary<string, string>? Properties = null,
+    Dictionary<string, string>? Context = null,
+    Dictionary<string, string>? Metadata = null);
+
 public sealed record EngineeringPackage(
     string Schema,
     int SchemaVersion,
     DateTimeOffset ExportedAt,
     IReadOnlyCollection<TagEngineeringDto> Tags,
     IReadOnlyCollection<AlarmEngineeringDto> Alarms,
-    IReadOnlyCollection<DataSourceEngineeringDto>? DataSources = null);
+    IReadOnlyCollection<DataSourceEngineeringDto>? DataSources = null,
+    IReadOnlyCollection<EquipmentTemplateEngineeringDto>? Templates = null,
+    IReadOnlyCollection<EquipmentEngineeringDto>? Equipment = null,
+    IReadOnlyCollection<DynamoEngineeringDto>? Dynamos = null);
 
 public sealed record ImportIssue(
     string Code,

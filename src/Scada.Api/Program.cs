@@ -6,6 +6,7 @@ using Scada.Engineering.ImportExport;
 using Scada.Engineering.ProjectPackages;
 using Scada.Engineering.Views;
 using Scada.Api.HostedServices;
+using Scada.Api.Persistence;
 using Scada.Api.ProjectPackages;
 using Scada.Api.Realtime;
 using Scada.Core.Abstractions;
@@ -223,6 +224,7 @@ builder.Services.AddSingleton<IEngineeringViewRegistry>(_ =>
 });
 builder.Services.AddSingleton<IEngineeringExchangeService, EngineeringExchangeService>();
 builder.Services.AddSingleton<IProjectPackageService, ProjectPackageService>();
+builder.AddOptionalEngineeringPersistence();
 builder.Services.AddOpenApi();
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
     policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
@@ -254,11 +256,13 @@ var app = builder.Build();
 
 // Resolve the historian before the hosted driver starts so it subscribes to the event bus.
 _ = app.Services.GetRequiredService<IHistorian>();
+await app.InitializeEngineeringPersistenceAsync();
 
 app.UseCors();
 app.UseWebSockets();
 app.MapOpenApi();
 app.MapProjectPackageEndpoints();
+app.MapEngineeringPersistenceEndpoints();
 
 app.MapGet("/health", (SimulationDriver driver, IHistorian historian, IAlarmEngine alarms) => Results.Ok(new
 {

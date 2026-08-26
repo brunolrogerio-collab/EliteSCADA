@@ -3,7 +3,7 @@ import { createE2eJwt } from './jwt';
 
 const baseURL = 'http://127.0.0.1:5173';
 
-test('API distinguishes unauthenticated, forbidden and developer access', async ({ request }) => {
+test('API distinguishes unauthenticated, invalid, forbidden and developer access', async ({ request }) => {
   const meResponse = await request.get('/api/auth/me');
   expect(meResponse.ok()).toBeTruthy();
   const me = await meResponse.json() as { subjectId: string; displayName: string; roles: string[] };
@@ -22,7 +22,10 @@ test('API distinguishes unauthenticated, forbidden and developer access', async 
   expect(engineeringResponse.ok()).toBeTruthy();
   const engineeringJson = await engineeringResponse.text();
 
-  const anonymous = await playwrightRequest.newContext({ baseURL });
+  const anonymous = await playwrightRequest.newContext({
+    baseURL,
+    extraHTTPHeaders: { Authorization: '' }
+  });
   try {
     expect((await anonymous.get('/api/auth/me')).status()).toBe(401);
     expect((await anonymous.post(`/api/tags/${frequency!.id}/write`, {
@@ -34,6 +37,19 @@ test('API distinguishes unauthenticated, forbidden and developer access', async 
     })).status()).toBe(401);
   } finally {
     await anonymous.dispose();
+  }
+
+  const invalid = await playwrightRequest.newContext({
+    baseURL,
+    extraHTTPHeaders: { Authorization: 'Bearer definitely-not-a-valid-jwt' }
+  });
+  try {
+    expect((await invalid.get('/api/auth/me')).status()).toBe(401);
+    expect((await invalid.post(`/api/tags/${frequency!.id}/write`, {
+      data: { value: 53 }
+    })).status()).toBe(401);
+  } finally {
+    await invalid.dispose();
   }
 
   const operatorToken = createE2eJwt('e2e-operator', ['operator'], 'E2E Operator');

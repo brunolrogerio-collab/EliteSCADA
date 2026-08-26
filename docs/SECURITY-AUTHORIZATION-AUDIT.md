@@ -1,8 +1,8 @@
 # Security, Authorization and Audit Baseline
 
-Status: capability/audit foundation established; security policy engineering serialization is available in schema v6; JWT authentication and the first backend enforcement slice are implemented on the current security branch.
+Status: capability policy, Engineering Schema v6 security roles, JWT authentication, phase-one backend enforcement and durable append-only audit storage are implemented. Security remains incremental: not every API/read/realtime or project-lifecycle workflow is authorization-enforced yet.
 
-This document defines the security boundary used as authentication, user management and audit persistence are added to EliteSCADA. Security remains incremental: the presence of a trusted identity adapter and protected mutations does not mean every API surface or product workflow is already access-controlled.
+This document defines the security boundary used as identity, authorization, audit persistence and future user management are added to EliteSCADA.
 
 ## Principles
 
@@ -14,6 +14,7 @@ This document defines the security boundary used as authentication, user managem
 6. Authentication secrets, password hashes, tokens and private keys are never Engineering Import/Export payloads.
 7. Operational and engineering changes that affect the process or security model must produce audit events.
 8. Runtime authorization policy must correspond to the active engineering revision, not an unsaved or draft workspace state.
+9. Durable audit history is append-only at the database boundary, not merely by API convention.
 
 ## Initial capability vocabulary
 
@@ -87,7 +88,7 @@ This preserves the schema-v5 distinction between `null` and `[]` and avoids an i
 
 ## Authentication boundary
 
-The API now has a first trusted identity adapter using ASP.NET JWT Bearer authentication. When `Authentication:Enabled=true`, the runtime validates a signed JWT before mapping it to the domain `SecurityPrincipal`.
+The API has a trusted identity adapter using ASP.NET JWT Bearer authentication. When `Authentication:Enabled=true`, the runtime validates a signed JWT before mapping it to the domain `SecurityPrincipal`.
 
 The initial JWT configuration requires:
 
@@ -100,7 +101,7 @@ Validation requires issuer, audience, cryptographic signature, signed tokens, li
 - `401 Unauthorized`: no trusted authenticated identity, invalid token or authenticated identity without a stable subject id;
 - `403 Forbidden`: trusted identity exists, but none of its configured roles grants the requested capability/scope.
 
-The signing key is deployment configuration and must be supplied through a protected configuration mechanism. Product signing secrets are never committed to the repository or placed in engineering packages. The Playwright suite uses an explicitly test-only key generated/configured for the test process.
+The signing key is deployment configuration and must be supplied through a protected configuration mechanism. Product signing secrets are never committed to the repository or placed in engineering packages. The Playwright suite uses an explicitly test-only key configured for the test process.
 
 This adapter is intentionally not a user database or token issuer. Login UI, local/external identity-provider integration, user lifecycle and credential management remain separate future work.
 
@@ -128,9 +129,9 @@ Read endpoints, Engineering preview/export, persistence save/publish/activate/ch
 
 The browser E2E security suite proves separate behavior for a valid `developer`, valid but underprivileged `operator`, no credential and invalid Bearer credential.
 
-## Audit baseline
+## Durable audit trail
 
-The security project defines append-oriented audit events with:
+Audit events carry:
 
 - event id;
 - UTC timestamp;
@@ -139,28 +140,42 @@ The security project defines append-oriented audit events with:
 - outcome (`Succeeded`, `Denied`, `Failed`);
 - target kind and target id;
 - optional non-secret details;
-- optional correlation id.
+- correlation id derived from the API request trace identifier.
 
-Initial action keys include:
+Current action keys include:
 
 - `tag.write`
 - `command.execute`
 - `alarm.acknowledge`
 - `alarm.shelve`
+- `engineering.import.apply`
+- `engineering.package.restore`
+- `engineering.checkout`
 - `engineering.save`
 - `engineering.publish`
 - `engineering.activate`
+- `audit.read`
 - `user-role.manage`
 
-The in-memory sink exists for development and tests. Product deployment requires append-only durable persistence, retention/query rules and authorization for viewing the audit trail.
+When `ConnectionStrings:EliteScada` is configured, audit events are stored in PostgreSQL under `elitescada.audit_events`. The database itself enforces append-only behavior through triggers that reject `UPDATE`, `DELETE` and `TRUNCATE`. Integration tests directly attempt all three operations and require PostgreSQL to reject them.
 
-Audit details must never contain passwords, authentication tokens, private keys or Data Source secrets.
+When PostgreSQL is not configured, the same public audit-store contract uses an in-memory implementation for local development and browser tests.
+
+The API records success, denial and operational failure for the currently protected TAG write, alarm acknowledgement, Engineering import apply and project-package restore paths. Anonymous/invalid-token denied attempts use the stable audit subject `anonymous`; authenticated denied attempts retain the trusted JWT subject.
+
+`GET /api/audit` supports bounded filtering by subject, action, outcome and UTC time range and requires `SystemAdmin`. Attempts to read the audit trail are themselves audited.
+
+Audit metadata deliberately excludes process values and import/package payloads. Detail keys that look like passwords, tokens, secrets, signing/private keys or authorization material are filtered before persistence.
+
+Audit persistence errors are logged and do not change the result of an already executed process command. A future reliability slice may add a durable queue/outbox so temporary audit-storage outages cannot create gaps without falsely retrying physical operations.
+
+Persistence lifecycle operations (`save`, `publish`, `activate`, `checkout/apply`) are not yet treated as trusted audit actors because their legacy request contracts still accept caller-supplied `SavedBy`/`PublishedBy`/`ActivatedBy` values. The next security slice replaces those fields as authority with the authenticated principal before declaring their audit records trustworthy.
 
 ## Next implementation slices
 
-1. Extend backend capability enforcement to persistence save/publish/activate/checkout, command endpoints, alarm shelving, sensitive reads and WebSocket/runtime subscriptions where appropriate.
-2. Persist audit events in PostgreSQL with append-only semantics.
-3. Audit successful, denied and failed process/security mutations using the authenticated principal and correlation information.
-4. Add user/role administration with explicit `UserRoleAdmin` authorization.
-5. Add a real login/token-issuance or external identity-provider workflow without coupling credentials to Engineering Import/Export.
+1. Enforce JWT/capability authorization on persistence save/publish/activate/checkout/apply and derive all lifecycle actors from the authenticated principal; audit their succeeded/denied/failed outcomes.
+2. Extend backend enforcement/audit to command endpoints, alarm shelving and sensitive read/realtime/WebSocket surfaces where appropriate.
+3. Add user/role administration with explicit `UserRoleAdmin` authorization.
+4. Add a real login/token-issuance or external identity-provider workflow without coupling credentials to Engineering Import/Export.
+5. Add audit retention/query policy and durable buffering/outbox behavior for temporary storage outages.
 6. Add access-aware UI presentation while keeping backend authorization authoritative.

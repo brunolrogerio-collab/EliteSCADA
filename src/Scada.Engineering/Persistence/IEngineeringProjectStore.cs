@@ -27,6 +27,11 @@ public interface IEngineeringProjectStore
         string projectKey,
         CancellationToken cancellationToken = default);
 
+    Task<EngineeringProjectSnapshot?> LoadRevisionAsync(
+        string projectKey,
+        long revision,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyCollection<EngineeringProjectSnapshot>> ListRevisionsAsync(
         string projectKey,
         int limit = 50,

@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.RateLimiting;
 using Scada.Security.Audit;
 using Scada.Security.Authentication;
 using Scada.Security.Authorization;
@@ -33,9 +32,14 @@ public static class LocalIdentityApi
             HttpContext context,
             ILocalIdentityStore store,
             JwtTokenIssuer issuer,
+            LocalLoginAttemptLimiter limiter,
             ApiAuditService audit,
             CancellationToken ct) =>
         {
+            var remoteKey = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            if (!limiter.TryAcquire(remoteKey))
+                return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+
             if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrEmpty(request.Password))
             {
                 await audit.RecordAsync(
@@ -93,7 +97,7 @@ public static class LocalIdentityApi
                 account.DisplayName,
                 account.Roles,
                 issued.ExpiresAtUtc));
-        }).RequireRateLimiting(LocalIdentityConfiguration.LoginRateLimitPolicy);
+        });
 
         endpoints.MapPost("/api/auth/logout", async (
             HttpContext context,

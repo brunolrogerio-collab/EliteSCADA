@@ -11,7 +11,7 @@
 - PR #35 `Add first-class operational command domain`: open, base `main`, head `fc15adb507db172233ed2893f65d30cdad311963`.
 - PR #36 `Protect runtime read and realtime surfaces`: open, stacked on #35, head `1df64077b235321f0c3318b994f7b89632261cee`.
 - PR #37 `Add Engineering UI foundation and localization`: open, Draft, base `main`, branch `feature/engineering-ui-foundation`.
-- #37 head before this checkpoint commit: `ded2557fe549c08824d719825095d7e72e5da1a1`.
+- #37 head immediately before this checkpoint commit: `16d688b8636ad1d6a976566dc58dd12685754194`.
 - Do not merge #35/#36/#37 without relevant green CI.
 
 ## GitHub Actions
@@ -46,7 +46,7 @@ Mixed real protocols are not implemented yet because the current compiler only p
 
 ## New locked requirement: communication diagnostics window
 
-Created `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md` and updated `PROJECT GOAL.md`.
+Created `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`, updated `PROJECT GOAL.md`, and expanded roadmap item 27 plus the locked industrial-protocol requirements.
 
 Communication diagnostics are first-class runtime/Engineering data, not just log text.
 

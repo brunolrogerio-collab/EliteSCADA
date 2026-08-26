@@ -187,3 +187,66 @@ test('explicit Alarm Delete removes only the requested entity and can be restore
     expect(restore.ok()).toBeTruthy();
   }
 });
+
+test('bulk TAG edit previews affected count and applies only after that Workspace version', async ({ request }) => {
+  const originalResponse = await request.get('/api/engineering/export/json');
+  expect(originalResponse.ok()).toBeTruthy();
+  const originalPackage = await originalResponse.json() as {
+    tags: Array<{ id?: string; path: string; readOnly: boolean }>;
+    [key: string]: unknown;
+  };
+  const tag = originalPackage.tags.find(candidate => candidate.path === 'Demo.P01.Frequency');
+  expect(tag?.id).toBeTruthy();
+
+  const bulkRequest = {
+    entityKind: 'tag',
+    entityIds: [tag!.id],
+    tags: { readOnly: !tag!.readOnly }
+  };
+
+  try {
+    const previewResponse = await request.post('/api/engineering/bulk/preview', {
+      data: bulkRequest
+    });
+    expect(previewResponse.ok()).toBeTruthy();
+    const preview = await previewResponse.json() as {
+      changeVersion: number;
+      entityKind: string;
+      affectedCount: number;
+      preview: { canApply: boolean; updateCount: number; errorCount: number };
+    };
+    expect(preview.entityKind).toBe('tag');
+    expect(preview.affectedCount).toBe(1);
+    expect(preview.preview.canApply).toBeTruthy();
+    expect(preview.preview.updateCount).toBe(1);
+    expect(preview.preview.errorCount).toBe(0);
+
+    const applyResponse = await request.post('/api/engineering/bulk/apply', {
+      headers: { 'x-elitescada-workspace-version': String(preview.changeVersion) },
+      data: bulkRequest
+    });
+    expect(applyResponse.ok()).toBeTruthy();
+    const applied = await applyResponse.json() as {
+      changeVersion: number;
+      affectedCount: number;
+      result: { updated: number };
+    };
+    expect(applied.affectedCount).toBe(1);
+    expect(applied.result.updated).toBe(1);
+    expect(applied.changeVersion).toBeGreaterThan(preview.changeVersion);
+
+    const afterResponse = await request.get('/api/engineering/export/json');
+    expect(afterResponse.ok()).toBeTruthy();
+    const after = await afterResponse.json() as {
+      tags: Array<{ id?: string; path: string; readOnly: boolean }>;
+    };
+    expect(after.tags.length).toBe(originalPackage.tags.length);
+    expect(after.tags.find(candidate => candidate.id === tag!.id)?.readOnly).toBe(!tag!.readOnly);
+  } finally {
+    const restore = await request.post('/api/engineering/import/json/apply', {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      data: originalPackage
+    });
+    expect(restore.ok()).toBeTruthy();
+  }
+});

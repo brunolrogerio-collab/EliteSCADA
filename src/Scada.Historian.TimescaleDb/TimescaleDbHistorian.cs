@@ -102,11 +102,8 @@ public sealed class TimescaleDbHistorian : IHistorian
         return ValueTask.CompletedTask;
     }
 
-    private async Task InitializeAsync(CancellationToken cancellationToken)
-    {
-        await using var command = _dataSource.CreateCommand(TimescaleHistorianSchema.RawInfrastructureSql);
-        await command.ExecuteNonQueryAsync(cancellationToken);
-    }
+    private Task InitializeAsync(CancellationToken cancellationToken) =>
+        TimescaleHistorianInfrastructure.EnsureRawAsync(_dataSource, cancellationToken);
 
     private async Task WriterLoopAsync(CancellationToken cancellationToken)
     {

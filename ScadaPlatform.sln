@@ -16,6 +16,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scada.Core.Tests", "tests/S
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scada.Engineering", "src/Scada.Engineering/Scada.Engineering.csproj", "{A7777777-7777-4777-8777-777777777777}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scada.Persistence.PostgreSql", "src/Scada.Persistence.PostgreSql/Scada.Persistence.PostgreSql.csproj", "{A8888888-8888-4888-8888-888888888888}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scada.Persistence.PostgreSql.Tests", "tests/Scada.Persistence.PostgreSql.Tests/Scada.Persistence.PostgreSql.Tests.csproj", "{A9999999-9999-4999-8999-999999999999}"
+EndProject
 Global
     GlobalSection(SolutionConfigurationPlatforms) = preSolution
         Debug|Any CPU = Debug|Any CPU
@@ -50,5 +54,13 @@ Global
         {A7777777-7777-4777-8777-777777777777}.Debug|Any CPU.Build.0 = Debug|Any CPU
         {A7777777-7777-4777-8777-777777777777}.Release|Any CPU.ActiveCfg = Release|Any CPU
         {A7777777-7777-4777-8777-777777777777}.Release|Any CPU.Build.0 = Release|Any CPU
+        {A8888888-8888-4888-8888-888888888888}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {A8888888-8888-4888-8888-888888888888}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {A8888888-8888-4888-8888-888888888888}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {A8888888-8888-4888-8888-888888888888}.Release|Any CPU.Build.0 = Release|Any CPU
+        {A9999999-9999-4999-8999-999999999999}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {A9999999-9999-4999-8999-999999999999}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {A9999999-9999-4999-8999-999999999999}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {A9999999-9999-4999-8999-999999999999}.Release|Any CPU.Build.0 = Release|Any CPU
     EndGlobalSection
 EndGlobal

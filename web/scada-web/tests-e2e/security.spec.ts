@@ -389,7 +389,9 @@ test('API distinguishes access levels and records protected-operation audit even
 });
 
 test('realtime WebSocket requires identity, filters TAGs and expires with JWT', async ({ browser }) => {
-  const context = await browser.newContext();
+  const context = await browser.newContext({
+    extraHTTPHeaders: { Authorization: '' }
+  });
   const page = await context.newPage();
   try {
     const anonymousResult = await page.evaluate(async () => {

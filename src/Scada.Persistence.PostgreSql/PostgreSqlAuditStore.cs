@@ -51,6 +51,11 @@ public sealed class PostgreSqlAuditStore : IAuditStore, IAsyncDisposable
             BEFORE UPDATE OR DELETE ON elitescada.audit_events
             FOR EACH ROW EXECUTE FUNCTION elitescada.reject_audit_event_mutation();
 
+        DROP TRIGGER IF EXISTS trg_audit_events_no_truncate ON elitescada.audit_events;
+        CREATE TRIGGER trg_audit_events_no_truncate
+            BEFORE TRUNCATE ON elitescada.audit_events
+            FOR EACH STATEMENT EXECUTE FUNCTION elitescada.reject_audit_event_mutation();
+
         INSERT INTO elitescada.schema_migrations (migration_key)
         VALUES ('005_append_only_audit_events')
         ON CONFLICT (migration_key) DO NOTHING;

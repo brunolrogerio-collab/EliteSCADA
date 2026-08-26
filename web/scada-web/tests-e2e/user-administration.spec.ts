@@ -16,7 +16,7 @@ test('Engineering administers local users without exposing credentials and inval
   await create.locator('input[name="new-username"]').fill(username);
   await create.locator('input[name="new-display-name"]').fill('Shift Operator');
   await create.locator('input[name="new-password"]').fill(initialPassword);
-  await create.getByText('Operator', { exact: true }).locator('..').locator('input[type="checkbox"]').check();
+  await create.getByText('Operator', { exact: true }).locator('../..').locator('input[type="checkbox"]').check();
   await create.locator('button[type="submit"]').click();
 
   const row = page.getByTestId('user-list').locator('.user-row').filter({ hasText: username });

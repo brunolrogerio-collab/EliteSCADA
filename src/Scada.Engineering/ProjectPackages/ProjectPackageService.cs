@@ -121,10 +121,10 @@ public sealed class ProjectPackageService : IProjectPackageService
             ValidateManifest(manifest);
 
             var engineeringBytes = ReadEntry(archive.GetEntry(EngineeringPath)!, MaximumEngineeringBytes);
-            var expectedEntry = manifest.Files.Single(x => x.Path.Equals(EngineeringPath, StringComparison.Ordinal));
+            var expectedEntry = manifest.Files.Single(x => string.Equals(x.Path, EngineeringPath, StringComparison.Ordinal));
             if (expectedEntry.Length != engineeringBytes.LongLength)
                 throw new InvalidDataException("Engineering payload length does not match the project package manifest.");
-            if (!expectedEntry.Sha256.Equals(Sha256(engineeringBytes), StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(expectedEntry.Sha256, Sha256(engineeringBytes), StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("Engineering payload checksum does not match the project package manifest.");
 
             string engineeringJson;
@@ -138,7 +138,7 @@ public sealed class ProjectPackageService : IProjectPackageService
             }
 
             var engineering = _engineering.ParseJson(engineeringJson);
-            if (!manifest.EngineeringSchema.Equals(engineering.Schema, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(manifest.EngineeringSchema, engineering.Schema, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("Engineering schema does not match the project package manifest.");
             if (manifest.EngineeringSchemaVersion != engineering.SchemaVersion)
                 throw new InvalidDataException("Engineering schema version does not match the project package manifest.");
@@ -179,8 +179,8 @@ public sealed class ProjectPackageService : IProjectPackageService
         foreach (var entry in entries)
         {
             if (entry.FullName.Contains("..", StringComparison.Ordinal) ||
-                entry.FullName.StartsWith('/', StringComparison.Ordinal) ||
-                entry.FullName.StartsWith('\\'))
+                entry.FullName.StartsWith("/", StringComparison.Ordinal) ||
+                entry.FullName.StartsWith("\\", StringComparison.Ordinal))
                 throw new InvalidDataException($"Unsafe package entry path '{entry.FullName}'.");
         }
 
@@ -191,10 +191,12 @@ public sealed class ProjectPackageService : IProjectPackageService
 
     private static void ValidateManifest(ProjectPackageManifest manifest)
     {
-        if (!manifest.Format.Equals(CurrentFormat, StringComparison.Ordinal))
+        if (!string.Equals(manifest.Format, CurrentFormat, StringComparison.Ordinal))
             throw new InvalidDataException($"Unsupported project package format '{manifest.Format}'.");
         if (manifest.FormatVersion != CurrentFormatVersion)
             throw new InvalidDataException($"Unsupported project package format version {manifest.FormatVersion}.");
+        if (!string.Equals(manifest.Product, "EliteSCADA", StringComparison.Ordinal))
+            throw new InvalidDataException($"Unsupported project package product '{manifest.Product}'.");
         if (manifest.PackageId == Guid.Empty)
             throw new InvalidDataException("Project package ID is invalid.");
         if (string.IsNullOrWhiteSpace(manifest.ProjectKey) || string.IsNullOrWhiteSpace(manifest.ProjectName))
@@ -204,14 +206,16 @@ public sealed class ProjectPackageService : IProjectPackageService
         if (manifest.Files is null || manifest.Files.Count != 1)
             throw new InvalidDataException("Project package v1 manifest must describe exactly one engineering payload.");
 
-        var engineeringEntry = manifest.Files.SingleOrDefault(x => x.Path.Equals(EngineeringPath, StringComparison.Ordinal));
+        var engineeringEntry = manifest.Files.SingleOrDefault(x =>
+            x is not null && string.Equals(x.Path, EngineeringPath, StringComparison.Ordinal));
         if (engineeringEntry is null)
             throw new InvalidDataException("Project package manifest does not describe engineering.json.");
-        if (!engineeringEntry.MediaType.Equals("application/json", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(engineeringEntry.MediaType, "application/json", StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("engineering.json has an unsupported media type in the project package manifest.");
         if (engineeringEntry.Length < 0 || engineeringEntry.Length > MaximumEngineeringBytes)
             throw new InvalidDataException("engineering.json length is invalid in the project package manifest.");
-        if (engineeringEntry.Sha256.Length != 64 || !engineeringEntry.Sha256.All(Uri.IsHexDigit))
+        if (string.IsNullOrWhiteSpace(engineeringEntry.Sha256) || engineeringEntry.Sha256.Length != 64 ||
+            !engineeringEntry.Sha256.All(Uri.IsHexDigit))
             throw new InvalidDataException("engineering.json SHA-256 is invalid in the project package manifest.");
     }
 

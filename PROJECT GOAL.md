@@ -67,7 +67,7 @@ Current technology north:
 - Historian: PostgreSQL + TimescaleDB.
 - Realtime client transport: WebSocket.
 - Public integration: REST API.
-- Industrial protocol/messaging expansion: MQTT and OPC UA.
+- Industrial protocol/messaging expansion: MQTT, OPC UA and BACnet.
 - Scripting/analytics: sandboxed Python in a later phase.
 - Extension direction: public SDK plus installable/versioned driver modules in a later phase.
 
@@ -149,9 +149,12 @@ The locked protocol direction includes:
 - **Modbus TCP** as the currently implemented first real industrial driver;
 - **MQTT** as a planned first-class communication/messaging integration;
 - **OPC UA** as a planned first-class industrial interoperability protocol;
+- **BACnet** as a planned communication-driver protocol, especially relevant to building automation/BMS and devices/controllers that expose BACnet interoperability;
 - additional protocols supplied by first-party or third-party **installable driver modules** through the same public Driver SDK boundary.
 
-MQTT, OPC UA and future modules must use the same Data Source / TAG / Engineering model rather than create protocol-specific configuration islands.
+Together with Siemens S7 and future Allen-Bradley support, these protocol families are intended to give EliteSCADA broad practical compatibility across mainstream PLC, industrial automation and building-automation environments. The user's planning assumption is that this protocol set should cover more than 90% of practical PLC/controller needs encountered in the target market; that percentage is a product-planning hypothesis and must be validated before being presented externally as a measured market statistic.
+
+MQTT, OPC UA, BACnet and future modules must use the same Data Source / TAG / Engineering model rather than create protocol-specific configuration islands.
 
 ### First installable driver target: Siemens S7
 
@@ -313,6 +316,34 @@ Timezone and formatting are presentation concerns and must not alter timestamp s
 
 Future active synchronization of PLC/RTU clocks is a distinct industrial command, permission-controlled and auditable. Displaying a PLC clock TAG must never silently synchronize the device.
 
+## Engineering/development interface localization
+
+The **Engineering/development interface** must allow the developer/engineering user to choose the application UI language among:
+
+- **Português** (Brazilian Portuguese / `pt-BR`);
+- **English** (`en`);
+- **Español** (`es`).
+
+This language choice applies across the complete engineering/development environment, including at minimum:
+
+- Data Sources and communication-driver configuration;
+- TAG engineering;
+- database/historian configuration and diagnostics;
+- alarm engineering;
+- Equipment Templates, Equipment and Dynamos;
+- screen and popup creation/editing;
+- trends;
+- project save/revision/publish/activate workflows;
+- users, roles and security administration;
+- driver/module administration and diagnostics;
+- validation messages, menus, property editors, dialogs and engineering help text provided by the product.
+
+The selected interface language is a **presentation/user preference**. Changing it must never alter stable Engineering identifiers, TAG paths, addresses, internal enum values, public JSON/CSV/XLSX schema keys, revision identity or runtime semantics. Product code should use localization/resource keys rather than persist translated UI labels as authoritative configuration values.
+
+This requirement concerns the EliteSCADA engineering/development UI. Multilingual text inside the **runtime HMI application being engineered** is a separate product capability and must not be assumed to be solved merely because the editor itself is localized.
+
+The language preference should be persistable per user/profile when the user-lifecycle/profile subsystem exists, while the exact fallback/detection behavior is an implementation detail to define when localization is built.
+
 ## Editor direction
 
 The editor must consume the same public Engineering model rather than maintain a private project representation.
@@ -320,6 +351,8 @@ The editor must consume the same public Engineering model rather than maintain a
 Editor development may proceed incrementally on top of the established runtime/security/persistence foundation. Core workflows include reusable objects, Engineering Fragments, trends, access-aware visibility and configurable shell regions.
 
 The graphical editor is an engineering client of the platform, not the platform's authority.
+
+The editor and all other developer-facing Engineering surfaces must share the same localization infrastructure so the Portuguese/English/Spanish choice is consistent across the product instead of being implemented separately by each screen.
 
 ## Development quality rules
 
@@ -333,6 +366,7 @@ The graphical editor is an engineering client of the platform, not the platform'
 - Preserve backward compatibility of supported Engineering schema versions or introduce explicit migration behavior/tests.
 - Documentation and roadmap updates must not accidentally erase locked future product requirements.
 - Additional driver modules must not bypass Engineering validation, security, audit, TAG quality semantics or the DriverHost boundary.
+- Engineering UI localization must not leak translated presentation strings into stable public Engineering contracts or identifiers.
 
 ## Relationship to other repository documents
 

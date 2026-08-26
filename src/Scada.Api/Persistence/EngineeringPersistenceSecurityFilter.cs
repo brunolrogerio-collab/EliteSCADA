@@ -6,7 +6,8 @@ namespace Scada.Api.Persistence;
 
 public sealed class EngineeringPersistenceSecurityFilter(
     ApiAuthorizationService security,
-    ApiAuditService audit) : IEndpointFilter
+    ApiAuditService audit,
+    IConfiguration configuration) : IEndpointFilter
 {
     public async ValueTask<object?> InvokeAsync(
         EndpointFilterInvocationContext invocationContext,
@@ -14,7 +15,7 @@ public sealed class EngineeringPersistenceSecurityFilter(
     {
         var context = invocationContext.HttpContext;
         var operation = ResolveOperation(context.Request.Method, context.Request.Path.Value);
-        if (operation is null)
+        if (operation is null || !AuthenticationEnabled(configuration))
             return await next(invocationContext);
 
         var authorization = security.CheckWorkspace(
@@ -70,6 +71,9 @@ public sealed class EngineeringPersistenceSecurityFilter(
             throw;
         }
     }
+
+    private static bool AuthenticationEnabled(IConfiguration configuration) =>
+        bool.TryParse(configuration["Authentication:Enabled"], out var enabled) && enabled;
 
     private static void ReplaceCallerSuppliedActor(
         EndpointFilterInvocationContext context,

@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Scada.Core.Alarms;
 using Scada.Core.Tags;
 using Scada.Engineering.Assets;
+using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.ImportExport.Handlers;
@@ -14,7 +15,7 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 6;
+    public const int CurrentSchemaVersion = 7;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
@@ -22,6 +23,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly IEngineeringAssetRegistry _assets;
     private readonly IEngineeringViewRegistry _views;
     private readonly ISecurityPolicyEngineeringRegistry _securityPolicies;
+    private readonly ICommandEngineeringRegistry _commands;
     private readonly JsonSerializerOptions _json;
     private readonly EngineeringCsvExchange _csv;
     private readonly DataSourceEngineeringHandler _dataSourceHandler;
@@ -30,6 +32,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly AssetEngineeringHandler _assetHandler;
     private readonly ViewEngineeringHandler _viewHandler;
     private readonly SecurityPolicyEngineeringHandler _securityPolicyHandler;
+    private readonly CommandEngineeringHandler _commandHandler;
 
     public EngineeringExchangeService(ITagRegistry tags, IAlarmEngine alarms)
         : this(
@@ -38,7 +41,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             new InMemoryDataSourceEngineeringRegistry(),
             new InMemoryEngineeringAssetRegistry(),
             new InMemoryEngineeringViewRegistry(),
-            new InMemorySecurityPolicyEngineeringRegistry())
+            new InMemorySecurityPolicyEngineeringRegistry(),
+            new InMemoryCommandEngineeringRegistry())
     {
     }
 
@@ -52,7 +56,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             dataSources,
             new InMemoryEngineeringAssetRegistry(),
             new InMemoryEngineeringViewRegistry(),
-            new InMemorySecurityPolicyEngineeringRegistry())
+            new InMemorySecurityPolicyEngineeringRegistry(),
+            new InMemoryCommandEngineeringRegistry())
     {
     }
 
@@ -67,7 +72,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             dataSources,
             assets,
             new InMemoryEngineeringViewRegistry(),
-            new InMemorySecurityPolicyEngineeringRegistry())
+            new InMemorySecurityPolicyEngineeringRegistry(),
+            new InMemoryCommandEngineeringRegistry())
     {
     }
 
@@ -83,7 +89,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             dataSources,
             assets,
             views,
-            new InMemorySecurityPolicyEngineeringRegistry())
+            new InMemorySecurityPolicyEngineeringRegistry(),
+            new InMemoryCommandEngineeringRegistry())
     {
     }
 
@@ -94,6 +101,25 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         IEngineeringAssetRegistry assets,
         IEngineeringViewRegistry views,
         ISecurityPolicyEngineeringRegistry securityPolicies)
+        : this(
+            tags,
+            alarms,
+            dataSources,
+            assets,
+            views,
+            securityPolicies,
+            new InMemoryCommandEngineeringRegistry())
+    {
+    }
+
+    public EngineeringExchangeService(
+        ITagRegistry tags,
+        IAlarmEngine alarms,
+        IDataSourceEngineeringRegistry dataSources,
+        IEngineeringAssetRegistry assets,
+        IEngineeringViewRegistry views,
+        ISecurityPolicyEngineeringRegistry securityPolicies,
+        ICommandEngineeringRegistry commands)
     {
         _tags = tags;
         _alarms = alarms;
@@ -101,6 +127,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _assets = assets;
         _views = views;
         _securityPolicies = securityPolicies;
+        _commands = commands;
         _json = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -115,6 +142,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _assetHandler = new AssetEngineeringHandler(assets, tags);
         _viewHandler = new ViewEngineeringHandler(views, assets, tags);
         _securityPolicyHandler = new SecurityPolicyEngineeringHandler(securityPolicies);
+        _commandHandler = new CommandEngineeringHandler(commands, tags, assets);
     }
 
     public EngineeringPackage ExportPackage()
@@ -138,7 +166,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             _assets.SnapshotDynamos(),
             _views.SnapshotScreens(),
             _views.SnapshotPopups(),
-            _securityPolicies.SnapshotRoles());
+            _securityPolicies.SnapshotRoles(),
+            _commands.Snapshot());
     }
 
     public string ExportJson(bool indented = true)
@@ -175,7 +204,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             Dynamos = package.Dynamos ?? Array.Empty<DynamoEngineeringDto>(),
             Screens = package.Screens ?? Array.Empty<ScreenEngineeringDto>(),
             Popups = package.Popups ?? Array.Empty<PopupEngineeringDto>(),
-            SecurityRoles = package.SecurityRoles ?? Array.Empty<SecurityRoleEngineeringDto>()
+            SecurityRoles = package.SecurityRoles ?? Array.Empty<SecurityRoleEngineeringDto>(),
+            Commands = package.Commands ?? Array.Empty<CommandEngineeringDto>()
         };
     }
 
@@ -197,6 +227,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _assetHandler.Preview(package, mode, items);
         _viewHandler.Preview(package, mode, items);
         _securityPolicyHandler.Preview(package, mode, items);
+        _commandHandler.Preview(package, mode, items);
 
         return new ImportPreview(
             mode,
@@ -228,6 +259,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _assetHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _viewHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _securityPolicyHandler.Apply(package, mode, ref created, ref updated, ref skipped);
+        _commandHandler.Apply(package, mode, ref created, ref updated, ref skipped);
 
         return new ImportResult(mode, created, updated, skipped, Array.Empty<ImportIssue>());
     }
@@ -244,5 +276,6 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         Array.Empty<DynamoEngineeringDto>(),
         Array.Empty<ScreenEngineeringDto>(),
         Array.Empty<PopupEngineeringDto>(),
-        Array.Empty<SecurityRoleEngineeringDto>());
+        Array.Empty<SecurityRoleEngineeringDto>(),
+        Array.Empty<CommandEngineeringDto>());
 }

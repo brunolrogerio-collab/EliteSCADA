@@ -78,6 +78,9 @@ public static class EngineeringPersistenceApi
 
     public static void MapEngineeringPersistenceEndpoints(this WebApplication app)
     {
+        app.MapGet("/api/engineering/workspace", (EngineeringWorkspace workspace) =>
+            Results.Ok(workspace.Describe()));
+
         var group = app.MapGroup("/api/engineering/persistence");
 
         group.MapGet("/status", (HttpContext context) => Results.Ok(new
@@ -90,6 +93,7 @@ public static class EngineeringPersistenceApi
         group.MapPost("/{projectKey}/save", async (
             string projectKey,
             EngineeringSaveRequest request,
+            EngineeringWorkspace workspace,
             HttpContext context,
             CancellationToken cancellationToken) =>
         {
@@ -98,11 +102,25 @@ public static class EngineeringPersistenceApi
             if (string.IsNullOrWhiteSpace(request.ProjectName))
                 return Results.BadRequest(new { error = "Project name is required." });
 
-            var snapshot = await persistence.SaveCurrentAsync(
+            var before = workspace.Describe();
+            var saveVersion = workspace.CaptureChangeVersion();
+            var basedOnRevision = before.ProjectKey?.Equals(projectKey, StringComparison.OrdinalIgnoreCase) == true
+                ? before.BaseRevision
+                : null;
+
+            var snapshot = await persistence.SaveCurrentDerivedAsync(
                 projectKey,
                 request.ProjectName,
+                basedOnRevision,
                 request.SavedBy,
                 cancellationToken);
+
+            workspace.AcceptSave(
+                snapshot.ProjectKey,
+                snapshot.ProjectName,
+                snapshot.Revision,
+                snapshot.SavedAtUtc,
+                saveVersion);
 
             return Results.Ok(ToMetadata(snapshot));
         });
@@ -391,7 +409,8 @@ public static class EngineeringPersistenceApi
         snapshot.EngineeringSchema,
         snapshot.EngineeringSchemaVersion,
         snapshot.SavedAtUtc,
-        snapshot.SavedBy
+        snapshot.SavedBy,
+        snapshot.BasedOnRevision
     };
 }
 

@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Scada.Core.Alarms;
 using Scada.Core.Tags;
+using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.Validation;
@@ -12,23 +13,34 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
     private readonly IDataSourceEngineeringRegistry _dataSources;
+    private readonly IEngineeringAssetRegistry _assets;
     private readonly JsonSerializerOptions _json;
 
     public EngineeringExchangeService(ITagRegistry tags, IAlarmEngine alarms)
-        : this(tags, alarms, new InMemoryDataSourceEngineeringRegistry())
+        : this(tags, alarms, new InMemoryDataSourceEngineeringRegistry(), new InMemoryEngineeringAssetRegistry())
     {
     }
 
     public EngineeringExchangeService(ITagRegistry tags, IAlarmEngine alarms, IDataSourceEngineeringRegistry dataSources)
+        : this(tags, alarms, dataSources, new InMemoryEngineeringAssetRegistry())
+    {
+    }
+
+    public EngineeringExchangeService(
+        ITagRegistry tags,
+        IAlarmEngine alarms,
+        IDataSourceEngineeringRegistry dataSources,
+        IEngineeringAssetRegistry assets)
     {
         _tags = tags;
         _alarms = alarms;
         _dataSources = dataSources;
+        _assets = assets;
         _json = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -48,7 +60,10 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             DateTimeOffset.UtcNow,
             tagDtos,
             alarmDtos,
-            _dataSources.Snapshot());
+            _dataSources.Snapshot(),
+            _assets.SnapshotTemplates(),
+            _assets.SnapshotEquipment(),
+            _assets.SnapshotDynamos());
     }
 
     public string ExportJson(bool indented = true)
@@ -89,14 +104,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         {
             rows.Add(new[]
             {
-                dataSource.Id?.ToString(),
-                dataSource.Key,
-                dataSource.Name,
-                dataSource.Driver,
-                dataSource.Enabled.ToString(),
-                JsonMap(dataSource.Settings),
-                JsonMap(dataSource.SecretReferences),
-                JsonMap(dataSource.Metadata)
+                dataSource.Id?.ToString(), dataSource.Key, dataSource.Name, dataSource.Driver, dataSource.Enabled.ToString(),
+                JsonMap(dataSource.Settings), JsonMap(dataSource.SecretReferences), JsonMap(dataSource.Metadata)
             });
         }
         return CsvCodec.Write(rows);
@@ -112,7 +121,13 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         if (package.SchemaVersion > CurrentSchemaVersion)
             throw new InvalidDataException($"Schema version {package.SchemaVersion} is newer than supported version {CurrentSchemaVersion}.");
 
-        return package with { DataSources = package.DataSources ?? Array.Empty<DataSourceEngineeringDto>() };
+        return package with
+        {
+            DataSources = package.DataSources ?? Array.Empty<DataSourceEngineeringDto>(),
+            Templates = package.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>(),
+            Equipment = package.Equipment ?? Array.Empty<EquipmentEngineeringDto>(),
+            Dynamos = package.Dynamos ?? Array.Empty<DynamoEngineeringDto>()
+        };
     }
 
     public EngineeringPackage ParseTagsCsv(string csv)
@@ -146,14 +161,9 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         if (rows.Count == 0) return Empty();
         var h = Header(rows[0]);
         var dataSources = rows.Skip(1).Select(r => new DataSourceEngineeringDto(
-            GuidOrNull(Get(r, h, "Id")),
-            Get(r, h, "Key"),
-            Get(r, h, "Name"),
-            Get(r, h, "Driver"),
-            Bool(Get(r, h, "Enabled"), true),
-            ParseMap(Get(r, h, "SettingsJson")),
-            ParseMap(Get(r, h, "SecretReferencesJson")),
-            ParseMap(Get(r, h, "MetadataJson")))).ToArray();
+            GuidOrNull(Get(r, h, "Id")), Get(r, h, "Key"), Get(r, h, "Name"), Get(r, h, "Driver"),
+            Bool(Get(r, h, "Enabled"), true), ParseMap(Get(r, h, "SettingsJson")),
+            ParseMap(Get(r, h, "SecretReferencesJson")), ParseMap(Get(r, h, "MetadataJson")))).ToArray();
         return Empty() with { DataSources = dataSources };
     }
 
@@ -161,41 +171,32 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     {
         var items = new List<ImportPreviewItem>();
         var dataSources = package.DataSources ?? Array.Empty<DataSourceEngineeringDto>();
-        var duplicateDataSourceKeys = dataSources
-            .GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Count() > 1)
-            .Select(g => g.Key)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var templates = package.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>();
+        var equipment = package.Equipment ?? Array.Empty<EquipmentEngineeringDto>();
+        var dynamos = package.Dynamos ?? Array.Empty<DynamoEngineeringDto>();
 
+        var duplicateDataSourceKeys = Duplicates(dataSources.Select(x => x.Key));
         foreach (var dto in dataSources)
         {
             var issues = EngineeringValidator.ValidateDataSource(dto).ToList();
             if (duplicateDataSourceKeys.Contains(dto.Key))
                 issues.Add(new("DATASOURCE_DUPLICATE_IN_FILE", $"Data source key '{dto.Key}' appears more than once in the import package.", ImportEntityKind.DataSource, dto.Key, true));
-            var existing = ResolveExistingDataSource(dto);
-            var op = Decide(existing is not null, mode);
-            if (issues.Any(x => x.IsError)) op = ImportOperation.Error;
-            items.Add(new(ImportEntityKind.DataSource, dto.Key, op, issues));
+            AddPreview(items, ImportEntityKind.DataSource, dto.Key, ResolveExistingDataSource(dto) is not null, mode, issues);
         }
 
-        var duplicatePaths = package.Tags.GroupBy(x => x.Path, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var duplicatePaths = Duplicates(package.Tags.Select(x => x.Path));
         foreach (var dto in package.Tags)
         {
             var issues = EngineeringValidator.ValidateTag(dto).ToList();
             if (duplicatePaths.Contains(dto.Path))
                 issues.Add(new("TAG_DUPLICATE_IN_FILE", $"Tag path '{dto.Path}' appears more than once in the import file.", ImportEntityKind.Tag, dto.Path, true));
-
             if (package.SchemaVersion >= 2 && !string.IsNullOrWhiteSpace(dto.Source) &&
                 _dataSources.FindByKey(dto.Source) is null &&
                 !dataSources.Any(x => x.Key.Equals(dto.Source, StringComparison.OrdinalIgnoreCase)))
             {
                 issues.Add(new("TAG_DATASOURCE_NOT_FOUND", $"Data source '{dto.Source}' referenced by tag '{dto.Path}' was not found.", ImportEntityKind.Tag, dto.Path, true));
             }
-
-            var existing = ResolveExistingTag(dto);
-            var op = Decide(existing is not null, mode);
-            if (issues.Any(x => x.IsError)) op = ImportOperation.Error;
-            items.Add(new(ImportEntityKind.Tag, dto.Path, op, issues));
+            AddPreview(items, ImportEntityKind.Tag, dto.Path, ResolveExistingTag(dto) is not null, mode, issues);
         }
 
         foreach (var dto in package.Alarms)
@@ -203,17 +204,49 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             var issues = EngineeringValidator.ValidateAlarm(dto).ToList();
             if (ResolveAlarmTagForPreview(dto, package) is null)
                 issues.Add(new("ALARM_TAG_NOT_FOUND", $"Referenced tag for alarm '{dto.Name}' was not found in current registry or package.", ImportEntityKind.Alarm, dto.Name, true));
-            var existing = ResolveExistingAlarm(dto);
-            var op = Decide(existing is not null, mode);
-            if (issues.Any(x => x.IsError)) op = ImportOperation.Error;
-            items.Add(new(ImportEntityKind.Alarm, dto.Name, op, issues));
+            AddPreview(items, ImportEntityKind.Alarm, dto.Name, ResolveExistingAlarm(dto) is not null, mode, issues);
+        }
+
+        var duplicateTemplateKeys = Duplicates(templates.Select(x => x.Key));
+        foreach (var dto in templates)
+        {
+            var issues = EngineeringValidator.ValidateTemplate(dto).ToList();
+            if (duplicateTemplateKeys.Contains(dto.Key))
+                issues.Add(new("TEMPLATE_DUPLICATE_IN_FILE", $"Template key '{dto.Key}' appears more than once in the import package.", ImportEntityKind.Template, dto.Key, true));
+            ValidateConcreteTagBindings(dto.Bindings, ImportEntityKind.Template, dto.Key, package, issues);
+            AddPreview(items, ImportEntityKind.Template, dto.Key, ResolveExistingTemplate(dto) is not null, mode, issues);
+        }
+
+        var duplicateEquipmentPaths = Duplicates(equipment.Select(x => x.Path));
+        foreach (var dto in equipment)
+        {
+            var issues = EngineeringValidator.ValidateEquipment(dto).ToList();
+            if (duplicateEquipmentPaths.Contains(dto.Path))
+                issues.Add(new("EQUIPMENT_DUPLICATE_IN_FILE", $"Equipment path '{dto.Path}' appears more than once in the import package.", ImportEntityKind.Equipment, dto.Path, true));
+            if (!string.IsNullOrWhiteSpace(dto.TemplateKey) && !TemplateExists(dto.TemplateKey, package))
+                issues.Add(new("EQUIPMENT_TEMPLATE_NOT_FOUND", $"Template '{dto.TemplateKey}' referenced by equipment '{dto.Path}' was not found.", ImportEntityKind.Equipment, dto.Path, true));
+            ValidateConcreteTagBindings(dto.Bindings, ImportEntityKind.Equipment, dto.Path, package, issues);
+            AddPreview(items, ImportEntityKind.Equipment, dto.Path, ResolveExistingEquipment(dto) is not null, mode, issues);
+        }
+
+        var duplicateDynamoKeys = Duplicates(dynamos.Select(x => x.Key));
+        foreach (var dto in dynamos)
+        {
+            var issues = EngineeringValidator.ValidateDynamo(dto).ToList();
+            if (duplicateDynamoKeys.Contains(dto.Key))
+                issues.Add(new("DYNAMO_DUPLICATE_IN_FILE", $"Dynamo key '{dto.Key}' appears more than once in the import package.", ImportEntityKind.Dynamo, dto.Key, true));
+            if (!string.IsNullOrWhiteSpace(dto.TemplateKey) && !TemplateExists(dto.TemplateKey, package))
+                issues.Add(new("DYNAMO_TEMPLATE_NOT_FOUND", $"Template '{dto.TemplateKey}' referenced by dynamo '{dto.Key}' was not found.", ImportEntityKind.Dynamo, dto.Key, true));
+            ValidateConcreteTagBindings(dto.Bindings, ImportEntityKind.Dynamo, dto.Key, package, issues);
+            AddPreview(items, ImportEntityKind.Dynamo, dto.Key, ResolveExistingDynamo(dto) is not null, mode, issues);
         }
 
         return new(mode,
             items.Count(x => x.Operation == ImportOperation.Create),
             items.Count(x => x.Operation == ImportOperation.Update),
             items.Count(x => x.Operation == ImportOperation.Skip),
-            items.Count(x => x.Operation == ImportOperation.Error), items);
+            items.Count(x => x.Operation == ImportOperation.Error),
+            items);
     }
 
     public ImportResult Apply(EngineeringPackage package, ImportMode mode)
@@ -227,13 +260,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         var skipped = 0;
 
         foreach (var dto in package.DataSources ?? Array.Empty<DataSourceEngineeringDto>())
-        {
-            var existing = ResolveExistingDataSource(dto);
-            var op = Decide(existing is not null, mode);
-            if (op == ImportOperation.Skip) { skipped++; continue; }
-            _dataSources.Upsert(dto with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
-            if (existing is null) created++; else updated++;
-        }
+            ApplyEntity(dto, ResolveExistingDataSource(dto), mode, x => _dataSources.Upsert(x), ref created, ref updated, ref skipped);
 
         foreach (var dto in package.Tags)
         {
@@ -259,8 +286,95 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             if (existing is null) created++; else updated++;
         }
 
+        foreach (var dto in package.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>())
+        {
+            var existing = ResolveExistingTemplate(dto);
+            var op = Decide(existing is not null, mode);
+            if (op == ImportOperation.Skip) { skipped++; continue; }
+            _assets.UpsertTemplate(dto with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
+            if (existing is null) created++; else updated++;
+        }
+
+        foreach (var dto in package.Equipment ?? Array.Empty<EquipmentEngineeringDto>())
+        {
+            var existing = ResolveExistingEquipment(dto);
+            var op = Decide(existing is not null, mode);
+            if (op == ImportOperation.Skip) { skipped++; continue; }
+            _assets.UpsertEquipment(dto with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
+            if (existing is null) created++; else updated++;
+        }
+
+        foreach (var dto in package.Dynamos ?? Array.Empty<DynamoEngineeringDto>())
+        {
+            var existing = ResolveExistingDynamo(dto);
+            var op = Decide(existing is not null, mode);
+            if (op == ImportOperation.Skip) { skipped++; continue; }
+            _assets.UpsertDynamo(dto with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
+            if (existing is null) created++; else updated++;
+        }
+
         return new(mode, created, updated, skipped, Array.Empty<ImportIssue>());
     }
+
+    private static void ApplyEntity(
+        DataSourceEngineeringDto dto,
+        DataSourceEngineeringDto? existing,
+        ImportMode mode,
+        Action<DataSourceEngineeringDto> upsert,
+        ref int created,
+        ref int updated,
+        ref int skipped)
+    {
+        var op = Decide(existing is not null, mode);
+        if (op == ImportOperation.Skip) { skipped++; return; }
+        upsert(dto with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
+        if (existing is null) created++; else updated++;
+    }
+
+    private static void AddPreview(
+        List<ImportPreviewItem> items,
+        ImportEntityKind kind,
+        string key,
+        bool exists,
+        ImportMode mode,
+        IReadOnlyCollection<ImportIssue> issues)
+    {
+        var operation = Decide(exists, mode);
+        if (issues.Any(x => x.IsError)) operation = ImportOperation.Error;
+        items.Add(new(kind, key, operation, issues));
+    }
+
+    private static HashSet<string> Duplicates(IEnumerable<string> keys) =>
+        keys.Where(x => !string.IsNullOrWhiteSpace(x))
+            .GroupBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    private void ValidateConcreteTagBindings(
+        IReadOnlyCollection<EngineeringBindingDto>? bindings,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        foreach (var binding in bindings ?? Array.Empty<EngineeringBindingDto>())
+        {
+            if (binding.Kind != EngineeringBindingKind.Tag || string.IsNullOrWhiteSpace(binding.Target) || ContainsPlaceholder(binding.Target))
+                continue;
+            if (!TagPathExists(binding.Target, package))
+                issues.Add(new("BINDING_TAG_NOT_FOUND", $"TAG '{binding.Target}' referenced by binding '{binding.Key}' was not found.", kind, entityKey, true));
+        }
+    }
+
+    private bool TagPathExists(string path, EngineeringPackage package) =>
+        _tags.TryGetByPath(path, out _) || package.Tags.Any(x => x.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
+
+    private bool TemplateExists(string key, EngineeringPackage package) =>
+        _assets.FindTemplateByKey(key) is not null ||
+        (package.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>()).Any(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+
+    private static bool ContainsPlaceholder(string value) => value.Contains('{', StringComparison.Ordinal) || value.Contains('}', StringComparison.Ordinal);
 
     private DataSourceEngineeringDto? ResolveExistingDataSource(DataSourceEngineeringDto dto)
     {
@@ -270,6 +384,36 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             if (byId is not null) return byId;
         }
         return _dataSources.FindByKey(dto.Key);
+    }
+
+    private EquipmentTemplateEngineeringDto? ResolveExistingTemplate(EquipmentTemplateEngineeringDto dto)
+    {
+        if (dto.Id.HasValue)
+        {
+            var byId = _assets.FindTemplate(dto.Id.Value);
+            if (byId is not null) return byId;
+        }
+        return _assets.FindTemplateByKey(dto.Key);
+    }
+
+    private EquipmentEngineeringDto? ResolveExistingEquipment(EquipmentEngineeringDto dto)
+    {
+        if (dto.Id.HasValue)
+        {
+            var byId = _assets.FindEquipment(dto.Id.Value);
+            if (byId is not null) return byId;
+        }
+        return _assets.FindEquipmentByPath(dto.Path);
+    }
+
+    private DynamoEngineeringDto? ResolveExistingDynamo(DynamoEngineeringDto dto)
+    {
+        if (dto.Id.HasValue)
+        {
+            var byId = _assets.FindDynamo(dto.Id.Value);
+            if (byId is not null) return byId;
+        }
+        return _assets.FindDynamoByKey(dto.Key);
     }
 
     private TagDefinition? ResolveExistingTag(TagEngineeringDto dto)
@@ -379,7 +523,10 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         DateTimeOffset.UtcNow,
         Array.Empty<TagEngineeringDto>(),
         Array.Empty<AlarmEngineeringDto>(),
-        Array.Empty<DataSourceEngineeringDto>());
+        Array.Empty<DataSourceEngineeringDto>(),
+        Array.Empty<EquipmentTemplateEngineeringDto>(),
+        Array.Empty<EquipmentEngineeringDto>(),
+        Array.Empty<DynamoEngineeringDto>());
 
     private static Dictionary<string,int> Header(string[] row) => row.Select((x,i)=>(x,i)).ToDictionary(x=>x.x,x=>x.i,StringComparer.OrdinalIgnoreCase);
     private static string Get(string[] row, Dictionary<string,int> h, string name) => h.TryGetValue(name, out var i) && i < row.Length ? row[i] : string.Empty;

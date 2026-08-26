@@ -1,4 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
+import {
+  createE2eJwt,
+  E2E_AUTH_AUDIENCE,
+  E2E_AUTH_ISSUER,
+  E2E_AUTH_SIGNING_KEY
+} from './tests-e2e/jwt';
+
+const developerToken = createE2eJwt('e2e-developer', ['developer'], 'E2E Developer');
 
 export default defineConfig({
   testDir: './tests-e2e',
@@ -8,6 +16,9 @@ export default defineConfig({
   reporter: [['line'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
   use: {
     baseURL: 'http://127.0.0.1:5173',
+    extraHTTPHeaders: {
+      Authorization: `Bearer ${developerToken}`
+    },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure'
@@ -27,7 +38,11 @@ export default defineConfig({
       env: {
         ASPNETCORE_URLS: 'http://127.0.0.1:5080',
         DOTNET_NOLOGO: 'true',
-        DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+        DOTNET_CLI_TELEMETRY_OPTOUT: '1',
+        Authentication__Enabled: 'true',
+        Authentication__Jwt__Issuer: E2E_AUTH_ISSUER,
+        Authentication__Jwt__Audience: E2E_AUTH_AUDIENCE,
+        Authentication__Jwt__SigningKey: E2E_AUTH_SIGNING_KEY
       }
     },
     {

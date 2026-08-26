@@ -113,10 +113,14 @@ public sealed class ProjectPackageTests
             {
                 var targetEntry = target.CreateEntry(entry.FullName);
                 using var sourceStream = entry.Open();
+                using var payload = new MemoryStream();
+                sourceStream.CopyTo(payload);
+                var bytes = payload.ToArray();
+                if (entry.FullName == ProjectPackageService.EngineeringPath && bytes.Length > 0)
+                    bytes[0] ^= 0x01;
+
                 using var targetStream = targetEntry.Open();
-                sourceStream.CopyTo(targetStream);
-                if (entry.FullName == ProjectPackageService.EngineeringPath)
-                    targetStream.WriteByte((byte)' ');
+                targetStream.Write(bytes, 0, bytes.Length);
             }
         }
         return output.ToArray();

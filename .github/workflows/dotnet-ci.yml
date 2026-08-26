@@ -41,6 +41,7 @@ jobs:
     env:
       ELITESCADA_TEST_POSTGRES: 'Host=127.0.0.1;Port=5432;Database=elitescada_test;Username=postgres;Password=postgres;Pooling=false'
       ConnectionStrings__EliteScada: 'Host=127.0.0.1;Port=5432;Database=elitescada_test;Username=postgres;Password=postgres;Pooling=false'
+      Historian__Provider: 'timescaledb'
 
     steps:
       - name: Checkout
@@ -83,10 +84,50 @@ jobs:
             exit 1
           fi
 
+          historian_ready=false
+          for _ in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:5080/health > /tmp/health.json
+            if python3 - <<'PY'
+          import json, sys
+          with open('/tmp/health.json') as f:
+              health = json.load(f)
+          ok = health['historian']['provider'] == 'timescaledb' and health['historian']['writtenSamples'] >= 1
+          sys.exit(0 if ok else 1)
+          PY
+            then
+              historian_ready=true
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$historian_ready" != "true" ]; then
+            cat /tmp/health.json
+            cat /tmp/scada-api.log
+            exit 1
+          fi
+
           cat /tmp/health.json
-          TAG_COUNT=$(curl -fsS http://127.0.0.1:5080/api/tags | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')
+          curl -fsS http://127.0.0.1:5080/api/tags > /tmp/tags.json
+          TAG_COUNT=$(python3 -c 'import json; print(len(json.load(open("/tmp/tags.json"))))')
           echo "Runtime exposed ${TAG_COUNT} TAGs"
           test "$TAG_COUNT" -ge 7
+
+          TANK_ID=$(python3 - <<'PY'
+          import json
+          with open('/tmp/tags.json') as f:
+              tags = json.load(f)
+          print(next(tag['id'] for tag in tags if tag['path'] == 'Demo.Tank01.Level'))
+          PY
+          )
+          curl -fsS "http://127.0.0.1:5080/api/history/${TANK_ID}?limit=100" > /tmp/history.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/history.json') as f:
+              history = json.load(f)
+          assert len(history) >= 1
+          assert all(sample['quality'] == 0 for sample in history)
+          PY
 
           curl -fsS http://127.0.0.1:5080/api/engineering/persistence/status > /tmp/persistence-status.json
           python3 - <<'PY'

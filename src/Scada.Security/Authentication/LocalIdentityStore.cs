@@ -31,14 +31,14 @@ public sealed class InMemoryLocalIdentityStore : ILocalIdentityStore
         {
             if (!_byUsername.TryGetValue(normalized, out var id) || !_byId.TryGetValue(id, out var account))
                 return Task.FromResult<LocalUserAccount?>(null);
-            return Task.FromResult<LocalUserAccount?>(account.Clone());
+            return Task.FromResult<LocalUserAccount?>(account.DeepCopy());
         }
     }
 
     public Task<LocalUserAccount?> FindByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         lock (_gate)
-            return Task.FromResult(_byId.TryGetValue(id, out var account) ? account.Clone() : null);
+            return Task.FromResult(_byId.TryGetValue(id, out var account) ? account.DeepCopy() : null);
     }
 
     public Task<IReadOnlyCollection<LocalUserAccount>> ListAsync(CancellationToken cancellationToken = default)
@@ -47,7 +47,7 @@ public sealed class InMemoryLocalIdentityStore : ILocalIdentityStore
         {
             IReadOnlyCollection<LocalUserAccount> users = _byId.Values
                 .OrderBy(account => account.Username, StringComparer.OrdinalIgnoreCase)
-                .Select(account => account.Clone())
+                .Select(account => account.DeepCopy())
                 .ToArray();
             return Task.FromResult(users);
         }
@@ -63,7 +63,7 @@ public sealed class InMemoryLocalIdentityStore : ILocalIdentityStore
             if (_byUsername.ContainsKey(account.NormalizedUsername))
                 throw new InvalidOperationException($"Local username '{account.Username}' already exists.");
 
-            var copy = account.Clone();
+            var copy = account.DeepCopy();
             _byId.Add(copy.Id, copy);
             _byUsername.Add(copy.NormalizedUsername, copy.Id);
         }
@@ -84,7 +84,7 @@ public sealed class InMemoryLocalIdentityStore : ILocalIdentityStore
                 throw new InvalidOperationException($"Local username '{account.Username}' already exists.");
 
             _byUsername.Remove(current.NormalizedUsername);
-            var copy = account.Clone();
+            var copy = account.DeepCopy();
             _byId[copy.Id] = copy;
             _byUsername[copy.NormalizedUsername] = copy.Id;
         }

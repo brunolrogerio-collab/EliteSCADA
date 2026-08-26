@@ -157,7 +157,7 @@ Current action keys include:
 - `audit.read`
 - `user-role.manage`
 
-When `ConnectionStrings:EliteScada` is configured, audit events are stored in PostgreSQL under `elitescada.audit_events`. The database itself enforces append-only behavior through a trigger that rejects `UPDATE` and `DELETE`. Integration tests directly attempt both operations and require PostgreSQL to reject them.
+When `ConnectionStrings:EliteScada` is configured, audit events are stored in PostgreSQL under `elitescada.audit_events`. The database itself enforces append-only behavior through triggers that reject `UPDATE`, `DELETE` and `TRUNCATE`. Integration tests directly attempt all three operations and require PostgreSQL to reject them.
 
 When PostgreSQL is not configured, the same public audit-store contract uses an in-memory implementation for local development and browser tests.
 

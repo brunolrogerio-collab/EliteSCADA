@@ -15,6 +15,8 @@ public static class JwtAuthenticationConfiguration
         var issuer = jwt["Issuer"]?.Trim();
         var audience = jwt["Audience"]?.Trim();
         var signingKey = jwt["SigningKey"];
+        var cookieName = section.GetSection("Local")["CookieName"]?.Trim();
+        if (string.IsNullOrWhiteSpace(cookieName)) cookieName = LocalIdentityConfiguration.DefaultCookieName;
 
         if (string.IsNullOrWhiteSpace(issuer))
             throw new InvalidOperationException("Authentication:Jwt:Issuer is required when authentication is enabled.");
@@ -47,13 +49,29 @@ public static class JwtAuthenticationConfiguration
                 {
                     OnMessageReceived = context =>
                     {
+                        var hasBearerHeader = context.Request.Headers.Authorization
+                            .ToString()
+                            .StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase);
+                        if (hasBearerHeader) return Task.CompletedTask;
+
                         // Native browser WebSocket clients cannot set an Authorization header.
-                        // Restrict query-string bearer tokens to the realtime WebSocket endpoint only.
+                        // Explicit query-string tokens remain restricted to the realtime endpoint.
                         if (context.HttpContext.Request.Path.StartsWithSegments("/ws/tags") &&
                             context.Request.Query.TryGetValue("access_token", out var token) &&
                             !string.IsNullOrWhiteSpace(token))
                         {
                             context.Token = token.ToString();
+                            return Task.CompletedTask;
+                        }
+
+                        // The local browser login stores the same signed JWT in an HttpOnly cookie.
+                        // Only API/realtime routes consume it; static browser content never parses credentials.
+                        if ((context.HttpContext.Request.Path.StartsWithSegments("/api") ||
+                             context.HttpContext.Request.Path.StartsWithSegments("/ws/tags")) &&
+                            context.Request.Cookies.TryGetValue(cookieName, out var cookieToken) &&
+                            !string.IsNullOrWhiteSpace(cookieToken))
+                        {
+                            context.Token = cookieToken;
                         }
 
                         return Task.CompletedTask;

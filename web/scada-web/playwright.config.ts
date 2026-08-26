@@ -42,7 +42,13 @@ export default defineConfig({
         Authentication__Enabled: 'true',
         Authentication__Jwt__Issuer: E2E_AUTH_ISSUER,
         Authentication__Jwt__Audience: E2E_AUTH_AUDIENCE,
-        Authentication__Jwt__SigningKey: E2E_AUTH_SIGNING_KEY
+        Authentication__Jwt__SigningKey: E2E_AUTH_SIGNING_KEY,
+        Authentication__Local__Enabled: 'true',
+        Authentication__Local__SecureCookie: 'false',
+        Authentication__Local__Bootstrap__Username: 'local-developer',
+        Authentication__Local__Bootstrap__DisplayName: 'Local Developer',
+        Authentication__Local__Bootstrap__Password: 'E2E-local-password-123!',
+        Authentication__Local__Bootstrap__Roles__0: 'developer'
       }
     },
     {

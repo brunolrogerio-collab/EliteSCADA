@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { AuthGate } from './auth/AuthGate';
 import { EngineeringApp } from './engineering/EngineeringApp';
 import './styles.css';
 
@@ -210,4 +211,8 @@ function Metric({ title, value }: { title: string; value: string }) {
 }
 
 const RootApp = window.location.pathname.startsWith('/engineering') ? EngineeringApp : RuntimeApp;
-createRoot(document.getElementById('root')!).render(<RootApp />);
+createRoot(document.getElementById('root')!).render(
+  <AuthGate>
+    <RootApp />
+  </AuthGate>
+);

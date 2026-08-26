@@ -2,6 +2,7 @@ using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
 using Scada.Core.Tags;
+using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.ImportExport;
@@ -73,7 +74,7 @@ public sealed class EngineeringExchangeTests
     }
 
     [Fact]
-    public void SchemaV2_RoundTripsDataSourceAndSecretReference()
+    public void CurrentSchema_RoundTripsDataSourceAndSecretReference()
     {
         var tags = new InMemoryTagRegistry();
         var bus = new InMemoryScadaEventBus();
@@ -148,7 +149,7 @@ public sealed class EngineeringExchangeTests
     }
 
     [Fact]
-    public void Preview_RejectsV2TagReferencingUnknownDataSource()
+    public void Preview_RejectsTagReferencingUnknownDataSource()
     {
         var tags = new InMemoryTagRegistry();
         var bus = new InMemoryScadaEventBus();
@@ -169,7 +170,7 @@ public sealed class EngineeringExchangeTests
     }
 
     [Fact]
-    public void Preview_AcceptsV2TagWhenDataSourceIsInSamePackage()
+    public void Preview_AcceptsTagWhenDataSourceIsInSamePackage()
     {
         var tags = new InMemoryTagRegistry();
         var bus = new InMemoryScadaEventBus();
@@ -190,7 +191,133 @@ public sealed class EngineeringExchangeTests
     }
 
     [Fact]
-    public void ParseJson_AcceptsSchemaV1WithoutDataSources()
+    public void SchemaV3_RoundTripsTemplateEquipmentAndDynamo()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var dataSources = new InMemoryDataSourceEngineeringRegistry();
+        var assets = new InMemoryEngineeringAssetRegistry();
+
+        assets.UpsertTemplate(new EquipmentTemplateEngineeringDto(
+            null,
+            "pump.standard",
+            "Standard Pump",
+            Bindings: new[] { new EngineeringBindingDto("running", EngineeringBindingKind.Tag, "{equipmentPath}.Running", "read") },
+            Properties: new() { ["category"] = "pump" },
+            Context: new() { ["domain"] = "pumping" }));
+        assets.UpsertEquipment(new EquipmentEngineeringDto(
+            null,
+            "Plant.P01",
+            "Pump P01",
+            "pump.standard",
+            Bindings: new[] { new EngineeringBindingDto("running", EngineeringBindingKind.Tag, "Plant.P01.Running", "read") },
+            Properties: new() { ["displayLabel"] = "P01" },
+            Context: new() { ["area"] = "Plant" }));
+        assets.UpsertDynamo(new DynamoEngineeringDto(
+            null,
+            "dynamo.pump.standard",
+            "Standard Pump Dynamo",
+            "pump.standard",
+            Bindings: new[] { new EngineeringBindingDto("running", EngineeringBindingKind.Tag, "{equipmentPath}.Running", "read") },
+            Properties: new() { ["symbol"] = "pump" }));
+
+        var service = new EngineeringExchangeService(tags, alarms, dataSources, assets);
+        var package = service.ParseJson(service.ExportJson());
+
+        var template = Assert.Single(package.Templates!);
+        var equipment = Assert.Single(package.Equipment!);
+        var dynamo = Assert.Single(package.Dynamos!);
+        Assert.Equal("pump.standard", template.Key);
+        Assert.Equal("P01", equipment.Properties!["displayLabel"]);
+        Assert.Equal("Plant", equipment.Context!["area"]);
+        Assert.Equal("dynamo.pump.standard", dynamo.Key);
+        Assert.Equal("{equipmentPath}.Running", dynamo.Bindings!.Single().Target);
+    }
+
+    [Fact]
+    public void Preview_RejectsEquipmentWhenTemplateDoesNotExist()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var service = new EngineeringExchangeService(tags, alarms, new InMemoryDataSourceEngineeringRegistry(), new InMemoryEngineeringAssetRegistry());
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>(),
+            Equipment: new[] { new EquipmentEngineeringDto(null, "Plant.P01", "Pump P01", "pump.missing") });
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+
+        Assert.False(preview.CanApply);
+        Assert.Contains(preview.Items.SelectMany(x => x.Issues), x => x.Code == "EQUIPMENT_TEMPLATE_NOT_FOUND");
+    }
+
+    [Fact]
+    public void Preview_RejectsEquipmentBindingWhenTagDoesNotExist()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var service = new EngineeringExchangeService(tags, alarms, new InMemoryDataSourceEngineeringRegistry(), new InMemoryEngineeringAssetRegistry());
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>(),
+            Templates: new[] { new EquipmentTemplateEngineeringDto(null, "pump.standard", "Standard Pump") },
+            Equipment: new[]
+            {
+                new EquipmentEngineeringDto(
+                    null,
+                    "Plant.P01",
+                    "Pump P01",
+                    "pump.standard",
+                    Bindings: new[] { new EngineeringBindingDto("running", EngineeringBindingKind.Tag, "Plant.P01.Running", "read") })
+            });
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+
+        Assert.False(preview.CanApply);
+        Assert.Contains(preview.Items.SelectMany(x => x.Issues), x => x.Code == "BINDING_TAG_NOT_FOUND");
+    }
+
+    [Fact]
+    public void Preview_AcceptsEquipmentWhenTemplateAndTagAreInSamePackage()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var service = new EngineeringExchangeService(tags, alarms, new InMemoryDataSourceEngineeringRegistry(), new InMemoryEngineeringAssetRegistry());
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            new[] { new TagEngineeringDto(null, "Running", "Plant.P01.Running", TagDataType.Boolean) },
+            Array.Empty<AlarmEngineeringDto>(),
+            Templates: new[] { new EquipmentTemplateEngineeringDto(null, "pump.standard", "Standard Pump") },
+            Equipment: new[]
+            {
+                new EquipmentEngineeringDto(
+                    null,
+                    "Plant.P01",
+                    "Pump P01",
+                    "pump.standard",
+                    Bindings: new[] { new EngineeringBindingDto("running", EngineeringBindingKind.Tag, "Plant.P01.Running", "read") })
+            });
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+
+        Assert.True(preview.CanApply);
+        Assert.Equal(3, preview.CreateCount);
+    }
+
+    [Fact]
+    public void ParseJson_AcceptsSchemaV1WithoutDataSourcesOrAssets()
     {
         var tags = new InMemoryTagRegistry();
         var bus = new InMemoryScadaEventBus();
@@ -210,5 +337,8 @@ public sealed class EngineeringExchangeTests
 
         Assert.NotNull(package.DataSources);
         Assert.Empty(package.DataSources!);
+        Assert.Empty(package.Templates!);
+        Assert.Empty(package.Equipment!);
+        Assert.Empty(package.Dynamos!);
     }
 }

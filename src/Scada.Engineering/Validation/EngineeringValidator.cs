@@ -90,6 +90,82 @@ public static class EngineeringValidator
         return issues;
     }
 
+    public static IReadOnlyCollection<ImportIssue> ValidateTemplate(EquipmentTemplateEngineeringDto template)
+    {
+        var issues = new List<ImportIssue>();
+        var key = string.IsNullOrWhiteSpace(template.Key) ? template.Name : template.Key;
+        if (string.IsNullOrWhiteSpace(template.Key))
+            issues.Add(Error("TEMPLATE_KEY_REQUIRED", "Template key is required.", ImportEntityKind.Template, key));
+        if (template.Key?.Any(char.IsWhiteSpace) == true)
+            issues.Add(Error("TEMPLATE_KEY_WHITESPACE", "Template key cannot contain whitespace.", ImportEntityKind.Template, key));
+        if (string.IsNullOrWhiteSpace(template.Name))
+            issues.Add(Error("TEMPLATE_NAME_REQUIRED", "Template name is required.", ImportEntityKind.Template, key));
+        issues.AddRange(ValidateBindings(template.Bindings, ImportEntityKind.Template, key, allowTagPlaceholders: true));
+        return issues;
+    }
+
+    public static IReadOnlyCollection<ImportIssue> ValidateEquipment(EquipmentEngineeringDto equipment)
+    {
+        var issues = new List<ImportIssue>();
+        var key = string.IsNullOrWhiteSpace(equipment.Path) ? equipment.Name : equipment.Path;
+        if (string.IsNullOrWhiteSpace(equipment.Path))
+            issues.Add(Error("EQUIPMENT_PATH_REQUIRED", "Equipment path is required.", ImportEntityKind.Equipment, key));
+        if (equipment.Path?.Any(char.IsWhiteSpace) == true)
+            issues.Add(Error("EQUIPMENT_PATH_WHITESPACE", "Equipment path cannot contain whitespace.", ImportEntityKind.Equipment, key));
+        if (string.IsNullOrWhiteSpace(equipment.Name))
+            issues.Add(Error("EQUIPMENT_NAME_REQUIRED", "Equipment name is required.", ImportEntityKind.Equipment, key));
+        if (equipment.TemplateKey?.Any(char.IsWhiteSpace) == true)
+            issues.Add(Error("EQUIPMENT_TEMPLATE_KEY_WHITESPACE", "Equipment template key cannot contain whitespace.", ImportEntityKind.Equipment, key));
+        issues.AddRange(ValidateBindings(equipment.Bindings, ImportEntityKind.Equipment, key, allowTagPlaceholders: false));
+        return issues;
+    }
+
+    public static IReadOnlyCollection<ImportIssue> ValidateDynamo(DynamoEngineeringDto dynamo)
+    {
+        var issues = new List<ImportIssue>();
+        var key = string.IsNullOrWhiteSpace(dynamo.Key) ? dynamo.Name : dynamo.Key;
+        if (string.IsNullOrWhiteSpace(dynamo.Key))
+            issues.Add(Error("DYNAMO_KEY_REQUIRED", "Dynamo key is required.", ImportEntityKind.Dynamo, key));
+        if (dynamo.Key?.Any(char.IsWhiteSpace) == true)
+            issues.Add(Error("DYNAMO_KEY_WHITESPACE", "Dynamo key cannot contain whitespace.", ImportEntityKind.Dynamo, key));
+        if (string.IsNullOrWhiteSpace(dynamo.Name))
+            issues.Add(Error("DYNAMO_NAME_REQUIRED", "Dynamo name is required.", ImportEntityKind.Dynamo, key));
+        if (dynamo.TemplateKey?.Any(char.IsWhiteSpace) == true)
+            issues.Add(Error("DYNAMO_TEMPLATE_KEY_WHITESPACE", "Dynamo template key cannot contain whitespace.", ImportEntityKind.Dynamo, key));
+        issues.AddRange(ValidateBindings(dynamo.Bindings, ImportEntityKind.Dynamo, key, allowTagPlaceholders: true));
+        return issues;
+    }
+
+    private static IEnumerable<ImportIssue> ValidateBindings(
+        IReadOnlyCollection<EngineeringBindingDto>? bindings,
+        ImportEntityKind entityKind,
+        string entityKey,
+        bool allowTagPlaceholders)
+    {
+        if (bindings is null) yield break;
+
+        var duplicates = bindings
+            .Where(x => !string.IsNullOrWhiteSpace(x.Key))
+            .GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var binding in bindings)
+        {
+            if (string.IsNullOrWhiteSpace(binding.Key))
+                yield return Error("BINDING_KEY_REQUIRED", "Binding key is required.", entityKind, entityKey);
+            if (string.IsNullOrWhiteSpace(binding.Target))
+                yield return Error("BINDING_TARGET_REQUIRED", $"Binding '{binding.Key}' requires a target.", entityKind, entityKey);
+            if (!string.IsNullOrWhiteSpace(binding.Key) && duplicates.Contains(binding.Key))
+                yield return Error("BINDING_DUPLICATE", $"Binding key '{binding.Key}' appears more than once.", entityKind, entityKey);
+            if (binding.Kind == EngineeringBindingKind.Tag && !allowTagPlaceholders && ContainsPlaceholder(binding.Target))
+                yield return Error("BINDING_TAG_PLACEHOLDER_NOT_ALLOWED", $"Equipment binding '{binding.Key}' must reference a concrete TAG path.", entityKind, entityKey);
+        }
+    }
+
+    private static bool ContainsPlaceholder(string value) => value.Contains('{', StringComparison.Ordinal) || value.Contains('}', StringComparison.Ordinal);
+
     private static ImportIssue Error(string code, string message, ImportEntityKind kind, string key) =>
         new(code, message, kind, key, true);
 }

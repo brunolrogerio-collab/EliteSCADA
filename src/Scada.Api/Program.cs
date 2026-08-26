@@ -1,4 +1,5 @@
 using System.Text;
+using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.ImportExport;
@@ -37,6 +38,72 @@ builder.Services.AddSingleton<IDataSourceEngineeringRegistry>(_ =>
         {
             ["system"] = "true"
         }));
+    return registry;
+});
+builder.Services.AddSingleton<IEngineeringAssetRegistry>(_ =>
+{
+    var registry = new InMemoryEngineeringAssetRegistry();
+
+    var templateBindings = new[]
+    {
+        new EngineeringBindingDto("running", EngineeringBindingKind.Tag, "{equipmentPath}.Running", "read"),
+        new EngineeringBindingDto("fault", EngineeringBindingKind.Tag, "{equipmentPath}.Fault", "read"),
+        new EngineeringBindingDto("current", EngineeringBindingKind.Tag, "{equipmentPath}.Current", "read"),
+        new EngineeringBindingDto("frequency", EngineeringBindingKind.Tag, "{equipmentPath}.Frequency", "readWrite")
+    };
+
+    registry.UpsertTemplate(new EquipmentTemplateEngineeringDto(
+        Id: null,
+        Key: "pump.standard",
+        Name: "Standard Pump",
+        Bindings: templateBindings,
+        Properties: new Dictionary<string, string>
+        {
+            ["category"] = "pump",
+            ["defaultFrequencyHz"] = "60"
+        },
+        Context: new Dictionary<string, string>
+        {
+            ["domain"] = "pumping"
+        }));
+
+    registry.UpsertEquipment(new EquipmentEngineeringDto(
+        Id: null,
+        Path: "Demo.P01",
+        Name: "Pump P01",
+        TemplateKey: "pump.standard",
+        Bindings: new[]
+        {
+            new EngineeringBindingDto("running", EngineeringBindingKind.Tag, "Demo.P01.Running", "read"),
+            new EngineeringBindingDto("fault", EngineeringBindingKind.Tag, "Demo.P01.Fault", "read"),
+            new EngineeringBindingDto("current", EngineeringBindingKind.Tag, "Demo.P01.Current", "read"),
+            new EngineeringBindingDto("frequency", EngineeringBindingKind.Tag, "Demo.P01.Frequency", "readWrite")
+        },
+        Properties: new Dictionary<string, string>
+        {
+            ["displayLabel"] = "P01"
+        },
+        Context: new Dictionary<string, string>
+        {
+            ["area"] = "Demo",
+            ["process"] = "Discharge"
+        }));
+
+    registry.UpsertDynamo(new DynamoEngineeringDto(
+        Id: null,
+        Key: "dynamo.pump.standard",
+        Name: "Standard Pump Dynamo",
+        TemplateKey: "pump.standard",
+        Bindings: templateBindings,
+        Properties: new Dictionary<string, string>
+        {
+            ["symbol"] = "pump"
+        },
+        Context: new Dictionary<string, string>
+        {
+            ["usage"] = "process-screen"
+        }));
+
     return registry;
 });
 builder.Services.AddSingleton<IEngineeringExchangeService, EngineeringExchangeService>();
@@ -140,6 +207,9 @@ app.MapPost("/api/alarms/{id:guid}/ack", async (Guid id, AlarmAckRequest request
 app.MapGet("/api/drivers", (SimulationDriver driver) => Results.Ok(new[] { driver.Status }));
 
 app.MapGet("/api/engineering/data-sources", (IDataSourceEngineeringRegistry registry) => Results.Ok(registry.Snapshot()));
+app.MapGet("/api/engineering/templates", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotTemplates()));
+app.MapGet("/api/engineering/equipment", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotEquipment()));
+app.MapGet("/api/engineering/dynamos", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotDynamos()));
 
 app.MapGet("/api/engineering/export/json", (IEngineeringExchangeService exchange) =>
     Results.File(Encoding.UTF8.GetBytes(exchange.ExportJson()), "application/json", "scada-engineering.json"));

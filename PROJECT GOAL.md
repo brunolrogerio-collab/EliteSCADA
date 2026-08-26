@@ -19,6 +19,7 @@ This protocol is part of the project and is not optional.
 5. `LAST CHANGE.md` must record enough context for a fresh ChatGPT conversation to resume without reconstructing the previous chat.
 6. Never treat ChatGPT conversation history alone as the source of truth for current project position. Session limits and chat changes are expected.
 7. If chat memory, roadmap and repository disagree, inspect the repository and these two continuity files before acting; do not guess.
+8. Permanent architectural decisions must not remain only in a feature branch. Record them in the official `PROJECT GOAL.md` on `main` even before implementation. `LAST CHANGE.md` must state explicitly whether relevant work is **MERGED**, **IMPLEMENTED IN PR** or **SPECIFIED / NOT IMPLEMENTED**.
 
 ## Product mission
 
@@ -108,14 +109,30 @@ At minimum, the public Engineering model covers and must continue to cover:
 6. **Screens and Popups**: routes, visual definitions, bindings, context and reusable dependencies.
 7. **Security Roles / Policies**: capabilities and scopes used by the application.
 8. **Gateway / TAG Bridge routes**: protocol-independent source-TAG to destination-TAG transfer definitions, quality/type/rate policies and stable endpoint references.
-9. Future engineering domains such as trends, shell regions, commands, libraries and plugins must join the same versioned public model when introduced.
-10. Plugin-owned driver/Data Source configuration must expose a public versioned schema so it participates in Engineering validation, import/export, backup/restore and migration without becoming opaque private state.
+9. **Operational Commands**: first-class command definitions with stable identity, target TAG references, driver-routed execution and security/audit semantics. Commands are already part of Engineering Schema v7.
+10. Future engineering domains such as trends, shell regions, libraries and plugins must join the same versioned public model when introduced.
+11. Plugin-owned driver/Data Source configuration must expose a public versioned schema so it participates in Engineering validation, import/export, backup/restore and migration without becoming opaque private state.
 
 ### Secrets rule
 
 Passwords, authentication tokens, private keys and other secrets must never be serialized in plaintext inside Engineering packages.
 
 Technical configuration uses protected secret references such as environment/vault/key-vault style references. Engineering packages may carry authorization policies, but never user passwords/password hashes or equivalent authentication secrets.
+
+## Current command-domain baseline
+
+The first-class operational command domain is implemented and merged into `main` through PR #35 `Add first-class operational command domain`.
+
+Locked current facts:
+
+- Engineering Schema is at **v7** for the command-domain baseline;
+- command definitions/registries participate in canonical Engineering Import/Export;
+- commands compile into the active runtime and execute through the target TAG's owning driver;
+- `CommandExecute` is enforced with area/equipment/TAG/command scopes;
+- command success, denial and failure are audited without persisting commanded values as configuration;
+- PR #35 merged as commit `2fd568976fc6277d0b069adeeb560f6ea3d8205f`.
+
+Sensitive read/realtime protection remains a separate security slice represented by PR #36 until it is independently validated and merged.
 
 ## Project lifecycle and persistence
 
@@ -198,7 +215,7 @@ The public Data Source concept is broader than a physical device connection: it 
 
 External protocol Data Sources compile into communication drivers. `builtin.memory.server` compiles into an internal server source/provider. `builtin.memory.client` remains a client-owned source definition and must not be forced into one global server `ICommunicationDriver` value store because that would destroy its per-client semantics.
 
-The common runtime architecture may introduce a clearer source-provider abstraction where useful rather than pretending every source is a network driver.
+The common runtime architecture may introduce a clearer **Source Provider** abstraction where useful rather than pretending every source is a network driver.
 
 Future scripting must keep the scope explicit:
 
@@ -231,7 +248,8 @@ Required behavior:
 - transfer modes should include OnChange and Periodic, with bounded intervals, optional deadband/minimum write interval and coalescing to avoid unbounded device writes;
 - startup must wait for an acceptable source value/quality and a writable destination before initial synchronization;
 - default quality policy transfers only `Good` source values and does not push stale values when source communication becomes bad;
-- source/destination type compatibility must be validated before activation, with no unsafe implicit coercion; simple explicit deterministic conversion/linear scaling may be supported without requiring scripts;
+- source/destination type compatibility must be validated before activation, with no unsafe implicit coercion;
+- simple explicit linear transformation may use `destination = source × gain + offset`;
 - complex calculations/sequencing remain the responsibility of future scripts/expressions rather than turning the Gateway into a programming language;
 - Gateway execution is a trusted internal runtime service, not a borrowed browser/user session. Engineering configuration changes are security-sensitive/auditable; cyclic sample transfers should use route diagnostics rather than flooding the human audit trail;
 - route diagnostics must expose state, last successful/failed transfer, counters, quality skips, throttling/coalescing and sanitized write errors independently from communication-driver health.
@@ -264,6 +282,8 @@ The model distinguishes:
 
 A project may therefore contain many Data Sources using the same Driver type and many Data Sources using different Driver types. Driver implementations must not assume they are unique/singleton communication channels for the entire application.
 
+A communication failure in one Data Source must remain isolated: it must not contaminate the runtime health, counters or TAG quality of another independent Data Source.
+
 ### Communication quality and driver diagnostics
 
 Communication diagnostics are a **first-class operational and Engineering capability**, not merely log text.
@@ -274,7 +294,7 @@ At minimum, the diagnostic model should expose, where meaningful for the protoco
 
 - Data Source key/name and driver type;
 - configured non-secret endpoint/device identity suitable for diagnostics;
-- runtime state such as stopped, starting, running, degraded, reconnecting or faulted as the driver model evolves;
+- runtime state such as healthy/running, degraded, reconnecting or faulted/failed as the driver model evolves;
 - last state-change time;
 - last successful communication/sample time;
 - last communication failure time and sanitized last error;
@@ -507,6 +527,8 @@ The graphical editor is an engineering client of the platform, not the platform'
 
 The editor and all other developer-facing Engineering surfaces must share the same localization infrastructure so the Portuguese/English/Spanish choice is consistent across the product instead of being implemented separately by each screen.
 
+The current Engineering UI foundation implemented in PR #37 uses this localization model for `pt-BR`, `en` and `es`. Its structured TAG, Data Source and Alarm editors remain preview-only until a later secured Apply workflow is integrated.
+
 ## Development quality rules
 
 - Prefer small coherent slices with automated validation.
@@ -523,11 +545,13 @@ The editor and all other developer-facing Engineering surfaces must share the sa
 - Client Memory must never be treated as trusted backend/global process state.
 - Server-retained memory values must remain runtime state separate from immutable Engineering revision contents.
 - Engineering UI localization must not leak translated presentation strings into stable public Engineering contracts or identifiers.
+- Architecture order before adding new external protocols is locked as: **internal memory -> TAG-to-TAG Gateway -> common multi-driver diagnostics -> new external drivers/protocols**.
+- Permanent architectural decisions must be consolidated into this official `main` document even before implementation; feature branches may elaborate them but must not be their sole durable home.
 
 ## Relationship to other repository documents
 
 - `PROJECT GOAL.md`: persistent product memory, principles and locked requirements.
-- `LAST CHANGE.md`: exact handoff point between tasks/conversations.
+- `LAST CHANGE.md`: exact handoff point between tasks/conversations and explicit MERGED / IMPLEMENTED IN PR / SPECIFIED status.
 - `docs/ROADMAP.md`: ordered implementation status and next development slices.
 - `docs/ARCHITECTURE.md`: current architectural boundaries and data flow.
 - `docs/ADR-*.md`: specific accepted architectural decisions.

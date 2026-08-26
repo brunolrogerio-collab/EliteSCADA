@@ -10,10 +10,13 @@ using Scada.Api.HostedServices;
 using Scada.Api.Persistence;
 using Scada.Api.ProjectPackages;
 using Scada.Api.Realtime;
+using Scada.Api.Runtime;
 using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
 using Scada.Core.Tags;
+using Scada.DriverHost.Engineering;
+using Scada.DriverHost.Runtime;
 using Scada.Drivers.Simulation;
 using Scada.Historian.Abstractions;
 
@@ -25,6 +28,14 @@ builder.Services.AddSingleton<ITagRegistry, InMemoryTagRegistry>();
 builder.Services.AddSingleton<TagRealtimeHub>();
 builder.AddConfiguredHistorian();
 builder.Services.AddSingleton<IAlarmEngine, InMemoryAlarmEngine>();
+builder.Services.AddSingleton<IEngineeringDriverCompiler, EngineeringDriverCompiler>();
+builder.Services.AddSingleton<IEngineeringRuntimeCoordinator>(sp =>
+    new EngineeringRuntimeCoordinator(
+        sp.GetRequiredService<IScadaEventBus>(),
+        sp.GetRequiredService<IEngineeringDriverCompiler>(),
+        TimeSpan.FromSeconds(Math.Max(
+            1,
+            builder.Configuration.GetValue<double?>("EngineeringRuntime:ActivationTimeoutSeconds") ?? 10))));
 builder.Services.AddSingleton<IDataSourceEngineeringRegistry>(_ =>
 {
     var registry = new InMemoryDataSourceEngineeringRegistry();
@@ -250,6 +261,7 @@ builder.Services.AddSingleton(sp =>
 
     return new SimulationDriver(cache, registry, points, TimeSpan.FromMilliseconds(500));
 });
+builder.Services.AddSingleton<ScadaRuntimeFacade>();
 builder.Services.AddHostedService<SimulationDriverHostedService>();
 
 var app = builder.Build();
@@ -264,24 +276,29 @@ app.MapOpenApi();
 app.MapProjectPackageEndpoints();
 app.MapEngineeringPersistenceEndpoints();
 
-app.MapGet("/health", (SimulationDriver driver, IHistorian historian, IAlarmEngine alarms) => Results.Ok(new
+app.MapGet("/health", (ScadaRuntimeFacade runtime, IHistorian historian) =>
 {
-    status = "ok",
-    service = "scada-api",
-    driver = driver.Status,
-    historian = new
+    var descriptor = runtime.Describe();
+    return Results.Ok(new
     {
-        provider = HistorianConfiguration.DescribeProvider(historian),
-        historian.WrittenSamples,
-        historian.PendingSamples
-    },
-    activeAlarms = alarms.Snapshot(activeOnly: true).Count
-}));
+        status = "ok",
+        service = "scada-api",
+        driver = descriptor.Drivers.FirstOrDefault(),
+        runtime = descriptor,
+        historian = new
+        {
+            provider = HistorianConfiguration.DescribeProvider(historian),
+            historian.WrittenSamples,
+            historian.PendingSamples
+        },
+        activeAlarms = descriptor.ActiveAlarmCount
+    });
+});
 
-app.MapGet("/api/tags", (ITagRegistry registry, ICurrentTagCache cache) =>
+app.MapGet("/api/tags", (ScadaRuntimeFacade runtime) =>
 {
-    var current = cache.Snapshot().ToDictionary(x => x.TagId);
-    var tags = registry.Snapshot().Select(tag => new
+    var current = runtime.CurrentValues().ToDictionary(x => x.TagId);
+    var tags = runtime.Tags().Select(tag => new
     {
         tag.Id,
         tag.Name,
@@ -295,20 +312,20 @@ app.MapGet("/api/tags", (ITagRegistry registry, ICurrentTagCache cache) =>
     return Results.Ok(tags);
 });
 
-app.MapGet("/api/tags/current", (ICurrentTagCache cache) => Results.Ok(cache.Snapshot()));
+app.MapGet("/api/tags/current", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.CurrentValues()));
 
-app.MapGet("/api/tags/by-path/{*path}", (string path, ITagRegistry registry, ICurrentTagCache cache) =>
+app.MapGet("/api/tags/by-path/{*path}", (string path, ScadaRuntimeFacade runtime) =>
 {
-    if (!registry.TryGetByPath(path, out var tag) || tag is null) return Results.NotFound();
-    cache.TryGet(tag.Id, out var current);
+    if (!runtime.TryGetTagByPath(path, out var tag) || tag is null) return Results.NotFound();
+    runtime.TryGetCurrent(tag.Id, out var current);
     return Results.Ok(new { tag, current });
 });
 
-app.MapPost("/api/tags/{id:guid}/write", async (Guid id, TagWriteRequest request, ITagRegistry registry, SimulationDriver driver, CancellationToken ct) =>
+app.MapPost("/api/tags/{id:guid}/write", async (Guid id, TagWriteRequest request, ScadaRuntimeFacade runtime, CancellationToken ct) =>
 {
-    if (!registry.TryGet(id, out var tag) || tag is null) return Results.NotFound();
+    if (!runtime.TryGetTag(id, out var tag) || tag is null) return Results.NotFound();
     if (tag.ReadOnly) return Results.BadRequest(new { error = "Tag is read-only." });
-    await driver.WriteAsync(id, request.Value, ct);
+    await runtime.WriteAsync(id, request.Value, ct);
     return Results.Accepted();
 });
 
@@ -319,18 +336,18 @@ app.MapGet("/api/history/{tagId:guid}", (Guid tagId, DateTimeOffset? from, DateT
     return Results.Ok(historian.Query(tagId, start, end, limit ?? 5000));
 });
 
-app.MapGet("/api/alarms", (bool? activeOnly, IAlarmEngine alarms) =>
-    Results.Ok(alarms.Snapshot(activeOnly ?? false)));
+app.MapGet("/api/alarms", (bool? activeOnly, ScadaRuntimeFacade runtime) =>
+    Results.Ok(runtime.Alarms(activeOnly ?? false)));
 
-app.MapGet("/api/alarms/definitions", (IAlarmEngine alarms) => Results.Ok(alarms.Definitions()));
+app.MapGet("/api/alarms/definitions", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.AlarmDefinitions()));
 
-app.MapPost("/api/alarms/{id:guid}/ack", async (Guid id, AlarmAckRequest request, IAlarmEngine alarms, CancellationToken ct) =>
+app.MapPost("/api/alarms/{id:guid}/ack", async (Guid id, AlarmAckRequest request, ScadaRuntimeFacade runtime, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(request.User)) return Results.BadRequest(new { error = "User is required." });
-    return await alarms.AcknowledgeAsync(id, request.User, ct) ? Results.Ok() : Results.NotFound();
+    return await runtime.AcknowledgeAlarmAsync(id, request.User, ct) ? Results.Ok() : Results.NotFound();
 });
 
-app.MapGet("/api/drivers", (SimulationDriver driver) => Results.Ok(new[] { driver.Status }));
+app.MapGet("/api/drivers", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.Drivers()));
 
 app.MapGet("/api/engineering/data-sources", (IDataSourceEngineeringRegistry registry) => Results.Ok(registry.Snapshot()));
 app.MapGet("/api/engineering/templates", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotTemplates()));

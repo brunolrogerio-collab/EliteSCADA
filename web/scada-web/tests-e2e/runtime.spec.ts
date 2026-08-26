@@ -195,6 +195,17 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   });
   expect(workspaceApplyResponse.ok()).toBeTruthy();
 
+  const workspaceStatusResponse = await request.get('/api/engineering/workspace');
+  expect(workspaceStatusResponse.ok()).toBeTruthy();
+  const workspaceStatus = await workspaceStatusResponse.json() as {
+    isDirty: boolean;
+    changeVersion: number;
+    tagCount: number;
+  };
+  expect(workspaceStatus.isDirty).toBeTruthy();
+  expect(workspaceStatus.changeVersion).toBeGreaterThan(0);
+  expect(workspaceStatus.tagCount).toBe(8);
+
   const mutatedEngineeringResponse = await request.get('/api/engineering/export/json');
   expect(mutatedEngineeringResponse.ok()).toBeTruthy();
   const mutatedEngineering = await mutatedEngineeringResponse.json() as { tags: Array<{ path: string }> };

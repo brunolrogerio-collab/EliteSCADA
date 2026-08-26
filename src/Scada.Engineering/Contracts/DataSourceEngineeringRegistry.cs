@@ -15,6 +15,12 @@ public sealed class InMemoryDataSourceEngineeringRegistry : IDataSourceEngineeri
     private readonly object _sync = new();
     private readonly Dictionary<Guid, DataSourceEngineeringDto> _byId = new();
     private readonly Dictionary<string, Guid> _byKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Action? _changed;
+
+    public InMemoryDataSourceEngineeringRegistry(Action? changed = null)
+    {
+        _changed = changed;
+    }
 
     public IReadOnlyCollection<DataSourceEngineeringDto> Snapshot()
     {
@@ -51,6 +57,7 @@ public sealed class InMemoryDataSourceEngineeringRegistry : IDataSourceEngineeri
             _byId[id] = normalized;
             _byKey[normalized.Key] = id;
         }
+        _changed?.Invoke();
     }
 
     public void Clear()
@@ -60,5 +67,6 @@ public sealed class InMemoryDataSourceEngineeringRegistry : IDataSourceEngineeri
             _byId.Clear();
             _byKey.Clear();
         }
+        _changed?.Invoke();
     }
 }

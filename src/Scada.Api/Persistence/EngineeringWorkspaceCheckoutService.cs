@@ -87,7 +87,11 @@ public sealed class EngineeringWorkspaceCheckoutService(
                     workspace.Describe());
             }
 
-            workspace.SetCheckout(snapshot.ProjectKey, snapshot.ProjectName, snapshot.Revision);
+            workspace.SetCheckout(
+                snapshot.ProjectKey,
+                snapshot.ProjectName,
+                snapshot.Revision,
+                snapshot.SavedAtUtc);
             return new EngineeringWorkspaceCheckoutOutcome(
                 snapshot,
                 preview,

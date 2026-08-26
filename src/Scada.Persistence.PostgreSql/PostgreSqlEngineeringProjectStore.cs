@@ -23,11 +23,35 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
             engineering_schema_version integer NOT NULL CHECK (engineering_schema_version > 0),
             saved_at_utc timestamptz NOT NULL DEFAULT clock_timestamp(),
             saved_by varchar(300) NULL,
+            based_on_revision bigint NULL,
             payload jsonb NOT NULL
         );
 
+        ALTER TABLE elitescada.engineering_revisions
+            ADD COLUMN IF NOT EXISTS based_on_revision bigint NULL;
+
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conname = 'fk_engineering_revisions_based_on_revision'
+                  AND conrelid = 'elitescada.engineering_revisions'::regclass
+            ) THEN
+                ALTER TABLE elitescada.engineering_revisions
+                    ADD CONSTRAINT fk_engineering_revisions_based_on_revision
+                    FOREIGN KEY (based_on_revision)
+                    REFERENCES elitescada.engineering_revisions(revision);
+            END IF;
+        END
+        $$;
+
         CREATE INDEX IF NOT EXISTS ix_engineering_revisions_project_revision
             ON elitescada.engineering_revisions (project_key, revision DESC);
+
+        CREATE INDEX IF NOT EXISTS ix_engineering_revisions_based_on
+            ON elitescada.engineering_revisions (based_on_revision)
+            WHERE based_on_revision IS NOT NULL;
 
         CREATE TABLE IF NOT EXISTS elitescada.project_publications (
             project_key varchar(200) PRIMARY KEY,
@@ -54,6 +78,10 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         INSERT INTO elitescada.schema_migrations (migration_key)
         VALUES ('003_project_activations')
         ON CONFLICT (migration_key) DO NOTHING;
+
+        INSERT INTO elitescada.schema_migrations (migration_key)
+        VALUES ('004_engineering_revision_lineage')
+        ON CONFLICT (migration_key) DO NOTHING;
         """;
 
     private readonly NpgsqlDataSource _dataSource;
@@ -72,17 +100,38 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    public async Task<EngineeringProjectSnapshot> SaveAsync(
+    public Task<EngineeringProjectSnapshot> SaveAsync(
         string projectKey,
         string projectName,
         string engineeringSchema,
         int engineeringSchemaVersion,
         string engineeringJson,
         string? savedBy = null,
+        CancellationToken cancellationToken = default) =>
+        SaveDerivedAsync(
+            projectKey,
+            projectName,
+            engineeringSchema,
+            engineeringSchemaVersion,
+            engineeringJson,
+            null,
+            savedBy,
+            cancellationToken);
+
+    public async Task<EngineeringProjectSnapshot> SaveDerivedAsync(
+        string projectKey,
+        string projectName,
+        string engineeringSchema,
+        int engineeringSchemaVersion,
+        string engineeringJson,
+        long? basedOnRevision,
+        string? savedBy = null,
         CancellationToken cancellationToken = default)
     {
         ValidateIdentity(projectKey, projectName, engineeringSchema, engineeringSchemaVersion);
         ValidateJson(engineeringJson);
+        if (basedOnRevision is < 1)
+            throw new ArgumentOutOfRangeException(nameof(basedOnRevision));
 
         const string sql = """
             INSERT INTO elitescada.engineering_revisions (
@@ -91,14 +140,22 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
                 engineering_schema,
                 engineering_schema_version,
                 saved_by,
+                based_on_revision,
                 payload)
-            VALUES (
+            SELECT
                 @project_key,
                 @project_name,
                 @engineering_schema,
                 @engineering_schema_version,
                 @saved_by,
-                @payload)
+                @based_on_revision,
+                @payload
+            WHERE @based_on_revision IS NULL
+               OR EXISTS (
+                    SELECT 1
+                    FROM elitescada.engineering_revisions parent
+                    WHERE parent.project_key = @project_key
+                      AND parent.revision = @based_on_revision)
             RETURNING revision, saved_at_utc;
             """;
 
@@ -108,11 +165,17 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         command.Parameters.AddWithValue("engineering_schema", engineeringSchema.Trim());
         command.Parameters.AddWithValue("engineering_schema_version", engineeringSchemaVersion);
         command.Parameters.AddWithValue("saved_by", NpgsqlDbType.Varchar, (object?)NormalizeOptional(savedBy) ?? DBNull.Value);
+        command.Parameters.AddWithValue("based_on_revision", NpgsqlDbType.Bigint, (object?)basedOnRevision ?? DBNull.Value);
         command.Parameters.AddWithValue("payload", NpgsqlDbType.Jsonb, engineeringJson);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
-            throw new InvalidOperationException("PostgreSQL did not return the saved engineering revision.");
+        {
+            throw new InvalidOperationException(
+                basedOnRevision.HasValue
+                    ? $"Engineering base revision {basedOnRevision} does not belong to project '{projectKey.Trim()}'."
+                    : "PostgreSQL did not return the saved engineering revision.");
+        }
 
         return new EngineeringProjectSnapshot(
             reader.GetInt64(0),
@@ -122,7 +185,8 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
             engineeringSchemaVersion,
             ReadTimestamp(reader, 1),
             engineeringJson,
-            NormalizeOptional(savedBy));
+            NormalizeOptional(savedBy),
+            basedOnRevision);
     }
 
     public async Task<EngineeringProjectSnapshot?> LoadLatestAsync(
@@ -140,7 +204,8 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
                 engineering_schema_version,
                 saved_at_utc,
                 payload::text,
-                saved_by
+                saved_by,
+                based_on_revision
             FROM elitescada.engineering_revisions
             WHERE project_key = @project_key
             ORDER BY revision DESC
@@ -172,7 +237,8 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
                 engineering_schema_version,
                 saved_at_utc,
                 payload::text,
-                saved_by
+                saved_by,
+                based_on_revision
             FROM elitescada.engineering_revisions
             WHERE project_key = @project_key AND revision = @revision
             LIMIT 1;
@@ -204,7 +270,8 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
                 engineering_schema_version,
                 saved_at_utc,
                 payload::text,
-                saved_by
+                saved_by,
+                based_on_revision
             FROM elitescada.engineering_revisions
             WHERE project_key = @project_key
             ORDER BY revision DESC
@@ -349,7 +416,8 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         reader.GetInt32(4),
         ReadTimestamp(reader, 5),
         reader.GetString(6),
-        reader.IsDBNull(7) ? null : reader.GetString(7));
+        reader.IsDBNull(7) ? null : reader.GetString(7),
+        reader.IsDBNull(8) ? null : reader.GetInt64(8));
 
     private static EngineeringProjectPublication ReadPublication(NpgsqlDataReader reader) => new(
         reader.GetString(0),

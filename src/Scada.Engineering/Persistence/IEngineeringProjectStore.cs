@@ -8,7 +8,8 @@ public sealed record EngineeringProjectSnapshot(
     int EngineeringSchemaVersion,
     DateTimeOffset SavedAtUtc,
     string EngineeringJson,
-    string? SavedBy = null);
+    string? SavedBy = null,
+    long? BasedOnRevision = null);
 
 public enum EngineeringProjectLifecycleStatus
 {
@@ -61,6 +62,24 @@ public interface IEngineeringProjectStore
         string engineeringJson,
         string? savedBy = null,
         CancellationToken cancellationToken = default);
+
+    Task<EngineeringProjectSnapshot> SaveDerivedAsync(
+        string projectKey,
+        string projectName,
+        string engineeringSchema,
+        int engineeringSchemaVersion,
+        string engineeringJson,
+        long? basedOnRevision,
+        string? savedBy = null,
+        CancellationToken cancellationToken = default) =>
+        SaveAsync(
+            projectKey,
+            projectName,
+            engineeringSchema,
+            engineeringSchemaVersion,
+            engineeringJson,
+            savedBy,
+            cancellationToken);
 
     Task<EngineeringProjectSnapshot?> LoadLatestAsync(
         string projectKey,

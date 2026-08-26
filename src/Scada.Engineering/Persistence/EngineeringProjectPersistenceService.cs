@@ -25,6 +25,13 @@ public interface IEngineeringProjectPersistenceService
         string? savedBy = null,
         CancellationToken cancellationToken = default);
 
+    Task<EngineeringProjectSnapshot> SaveCurrentDerivedAsync(
+        string projectKey,
+        string projectName,
+        long? basedOnRevision,
+        string? savedBy = null,
+        CancellationToken cancellationToken = default);
+
     Task<EngineeringProjectSnapshot?> LoadLatestAsync(
         string projectKey,
         CancellationToken cancellationToken = default);
@@ -101,21 +108,35 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
     public Task InitializeAsync(CancellationToken cancellationToken = default) =>
         _store.InitializeAsync(cancellationToken);
 
-    public async Task<EngineeringProjectSnapshot> SaveCurrentAsync(
+    public Task<EngineeringProjectSnapshot> SaveCurrentAsync(
         string projectKey,
         string projectName,
+        string? savedBy = null,
+        CancellationToken cancellationToken = default) =>
+        SaveCurrentDerivedAsync(
+            projectKey,
+            projectName,
+            null,
+            savedBy,
+            cancellationToken);
+
+    public async Task<EngineeringProjectSnapshot> SaveCurrentDerivedAsync(
+        string projectKey,
+        string projectName,
+        long? basedOnRevision,
         string? savedBy = null,
         CancellationToken cancellationToken = default)
     {
         var package = _exchange.ExportPackage();
         var json = _exchange.ExportJson(indented: false);
 
-        return await _store.SaveAsync(
+        return await _store.SaveDerivedAsync(
             projectKey,
             projectName,
             package.Schema,
             package.SchemaVersion,
             json,
+            basedOnRevision,
             savedBy,
             cancellationToken);
     }

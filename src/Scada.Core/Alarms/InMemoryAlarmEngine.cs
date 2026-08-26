@@ -12,10 +12,12 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
     private readonly ConcurrentDictionary<Guid, AlarmInstance> _instances = new();
     private readonly IScadaEventBus _eventBus;
     private readonly IDisposable _subscription;
+    private readonly Action? _definitionsChanged;
 
-    public InMemoryAlarmEngine(IScadaEventBus eventBus)
+    public InMemoryAlarmEngine(IScadaEventBus eventBus, Action? definitionsChanged = null)
     {
         _eventBus = eventBus;
+        _definitionsChanged = definitionsChanged;
         _subscription = eventBus.Subscribe<TagValueChanged>(EvaluateAsync);
     }
 
@@ -35,6 +37,7 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
                 Message = definition.Message,
                 State = definition.Enabled ? current.State : AlarmState.Disabled
             });
+        _definitionsChanged?.Invoke();
         return definition;
     }
 
@@ -66,6 +69,7 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
     {
         _definitions.Clear();
         _instances.Clear();
+        _definitionsChanged?.Invoke();
     }
 
     private async ValueTask EvaluateAsync(TagValueChanged evt)

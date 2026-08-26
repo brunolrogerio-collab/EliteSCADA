@@ -26,6 +26,7 @@ public sealed class InternalMemorySourceProviderTests
         Assert.Equal(SourceProviderOwnerScope.Server, provider.Descriptor.OwnerScope);
         Assert.True(provider.Descriptor.Retentive);
         Assert.False(provider.Descriptor.HasNetworkTransport);
+        Assert.True(provider.Descriptor.HasSingleServerAuthoritativeValue);
     }
 
     [Fact]
@@ -151,7 +152,7 @@ public sealed class InternalMemorySourceProviderTests
         Assert.Equal(SourceProviderOwnerScope.RuntimeClient, clientA.Descriptor.OwnerScope);
         Assert.False(clientA.Descriptor.Retentive);
         Assert.False(clientA.Descriptor.HasNetworkTransport);
-        Assert.False(clientA.Descriptor.SupportsGlobalHistorianAndAlarms);
+        Assert.False(clientA.Descriptor.HasSingleServerAuthoritativeValue);
 
         var newClient = factory.Create("memory.client.ui", "runtime-client-C", [definition]);
         Assert.Equal("initial", Assert.IsType<string>(Assert.IsType<TagValue>(await newClient.ReadAsync(tag.Id)).Value));

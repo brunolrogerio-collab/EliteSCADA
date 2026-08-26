@@ -15,6 +15,7 @@ public static class EngineeringPersistenceApi
         builder.Services.TryAddSingleton<IEngineeringProjectStore>(_ =>
             new PostgreSqlEngineeringProjectStore(connectionString));
         builder.Services.TryAddSingleton<IEngineeringProjectPersistenceService, EngineeringProjectPersistenceService>();
+        builder.Services.TryAddSingleton<IPublishedRuntimeActivationService, PublishedRuntimeActivationService>();
     }
 
     public static async Task InitializeEngineeringPersistenceAsync(
@@ -65,6 +66,37 @@ public static class EngineeringPersistenceApi
             if (persistence is null) return Disabled();
 
             return Results.Ok(await persistence.GetLifecycleAsync(projectKey, cancellationToken));
+        });
+
+        group.MapPost("/{projectKey}/published/activate", async (
+            string projectKey,
+            EngineeringActivateRequest request,
+            HttpContext context,
+            CancellationToken cancellationToken) =>
+        {
+            var activationService = ResolveActivation(context);
+            if (activationService is null) return Disabled();
+
+            var outcome = await activationService.ActivateAsync(
+                projectKey,
+                request.ActivatedBy,
+                cancellationToken);
+
+            if (!outcome.Found || outcome.Snapshot is null)
+                return Results.NotFound(new { error = "Project has no published revision." });
+
+            var response = new
+            {
+                revision = ToMetadata(outcome.Snapshot),
+                activated = outcome.Activated,
+                runtime = outcome.Runtime,
+                activation = outcome.Activation,
+                lifecycle = outcome.Lifecycle
+            };
+
+            return outcome.Activated
+                ? Results.Ok(response)
+                : Results.Json(response, statusCode: StatusCodes.Status422UnprocessableEntity);
         });
 
         group.MapGet("/{projectKey}/revisions", async (
@@ -210,6 +242,9 @@ public static class EngineeringPersistenceApi
     private static IEngineeringProjectPersistenceService? Resolve(HttpContext context) =>
         context.RequestServices.GetService<IEngineeringProjectPersistenceService>();
 
+    private static IPublishedRuntimeActivationService? ResolveActivation(HttpContext context) =>
+        context.RequestServices.GetService<IPublishedRuntimeActivationService>();
+
     private static IResult Disabled() => Results.Json(
         new
         {
@@ -237,3 +272,4 @@ public static class EngineeringPersistenceApi
 
 public sealed record EngineeringSaveRequest(string ProjectName, string? SavedBy = null);
 public sealed record EngineeringPublishRequest(string? PublishedBy = null);
+public sealed record EngineeringActivateRequest(string? ActivatedBy = null);

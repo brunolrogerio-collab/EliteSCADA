@@ -15,7 +15,8 @@ function base64Url(value: string | Buffer): string {
 export function createE2eJwt(
   subject: string,
   roles: string[],
-  displayName = subject
+  displayName = subject,
+  lifetimeSeconds = 3600
 ): string {
   const now = Math.floor(Date.now() / 1000);
   const header = base64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
@@ -27,7 +28,7 @@ export function createE2eJwt(
     role: roles,
     iat: now,
     nbf: now - 5,
-    exp: now + 3600
+    exp: now + lifetimeSeconds
   }));
   const unsigned = `${header}.${payload}`;
   const signature = createHmac('sha256', E2E_AUTH_SIGNING_KEY)

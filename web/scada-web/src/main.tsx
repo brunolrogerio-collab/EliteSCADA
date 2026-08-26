@@ -56,9 +56,20 @@ function RuntimeApp() {
       if (stopped) return;
       ws = new WebSocket(WS);
       ws.onopen = () => setConnected(true);
-      ws.onclose = () => {
+      ws.onclose = event => {
         setConnected(false);
-        if (!stopped) retry = window.setTimeout(connect, 1500);
+        if (stopped) return;
+
+        // The backend uses 1008 for an explicit identity/session revocation. In that case
+        // a transient reconnect loop would keep presenting stale authenticated UI, so reload
+        // once and let AuthGate revalidate /api/auth/me and return to login when appropriate.
+        if (event.code === 1008) {
+          stopped = true;
+          window.location.reload();
+          return;
+        }
+
+        retry = window.setTimeout(connect, 1500);
       };
       ws.onerror = () => ws?.close();
       ws.onmessage = event => {

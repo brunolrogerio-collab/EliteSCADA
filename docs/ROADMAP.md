@@ -60,6 +60,8 @@ A versioned `.escadapkg` project-package format is implemented for engineering b
 
 The former Engineering Exchange monolith has been split into smaller entity handlers so new engineering domains do not have to accumulate inside one service.
 
+Future plugin-owned driver/Data Source configuration must expose versioned public configuration schemas and participate in the same Engineering validation/import/export/backup/migration flow. Missing or incompatible driver modules must be diagnosable without discarding project configuration.
+
 ## Foundation gate completed
 
 The original gate before promoting persistence and real industrial communication is complete:
@@ -103,13 +105,30 @@ Next:
 19. Add audit retention/query policy and durable buffering/outbox behavior for temporary storage outages.
 20. Add historian retention/downsampling policies on TimescaleDB.
 21. Add MQTT driver integration through the same Data Source/driver model.
-22. Add Engineering XLSX workbook import/export.
-23. Expand runtime diagnostics, driver health, offline behavior and operational hardening.
-24. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
+22. Add OPC UA integration through the same Data Source/driver model.
+23. Introduce the installable/versioned Driver Module framework and public Driver SDK compatibility boundary, including module lifecycle, diagnostics, trust/integrity and Engineering configuration preservation.
+24. Add Engineering XLSX workbook import/export.
+25. Expand runtime diagnostics, driver health, offline behavior and operational hardening.
+26. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
 
 ## Locked future product requirements
 
 These requirements remain part of the EliteSCADA product north and must be implemented through the public engineering model.
+
+### Industrial protocols and installable driver modules
+
+- Modbus TCP remains the currently implemented real industrial protocol baseline.
+- MQTT is a locked future protocol/integration target.
+- OPC UA is a locked future industrial interoperability target.
+- EliteSCADA must support additional first-party and third-party communication drivers through installable modules rather than requiring every protocol to be compiled into the core product.
+- Driver modules use the common Driver SDK/DriverHost boundary and must not bypass TAG/quality, historian, alarms, security, audit or Engineering semantics.
+- A driver module declares stable identity/version, EliteSCADA compatibility, provided driver/Data Source types and a public versioned Engineering configuration schema.
+- The module lifecycle must support installation, discovery/catalog registration, enable/disable, upgrade and removal with compatibility validation before runtime activation.
+- Projects that reference missing, disabled or incompatible modules must preserve their Engineering configuration and expose explicit diagnostics rather than silently dropping data.
+- Module package integrity/publisher trust must be evaluated before executable code is enabled; arbitrary untrusted modules must not be silently loaded into an industrial runtime.
+- Module administration is security-sensitive and must be permission-controlled and auditable.
+- The exact package format, signing policy, distribution/catalog UX and isolation strategy are deferred to the dedicated module-framework implementation slice.
+- The accepted architectural decision is recorded in `docs/ADR-007-DRIVER-MODULES-AND-PROTOCOLS.md`.
 
 ### Reusable libraries across applications
 

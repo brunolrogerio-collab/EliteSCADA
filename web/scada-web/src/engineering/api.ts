@@ -2,7 +2,8 @@ import type {
   EngineeringPackageView,
   EngineeringSnapshot,
   EngineeringWorkspaceDescriptor,
-  ImportPreviewView
+  ImportPreviewView,
+  ImportResultView
 } from './types';
 
 const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
@@ -19,9 +20,18 @@ async function getJson<T>(path: string): Promise<T> {
   return await response.json() as T;
 }
 
+async function readError(response: Response): Promise<Error> {
+  const body = await response.text();
+  return new Error(body || `${response.status} ${response.statusText}`);
+}
+
+export async function loadEngineeringWorkspace(): Promise<EngineeringWorkspaceDescriptor> {
+  return await getJson<EngineeringWorkspaceDescriptor>('/api/engineering/workspace');
+}
+
 export async function loadEngineeringSnapshot(): Promise<EngineeringSnapshot> {
   const [workspace, engineeringPackage] = await Promise.all([
-    getJson<EngineeringWorkspaceDescriptor>('/api/engineering/workspace'),
+    loadEngineeringWorkspace(),
     getJson<EngineeringPackageView>('/api/engineering/export/json')
   ]);
 
@@ -54,10 +64,39 @@ export async function previewEngineeringPackage(
     body: JSON.stringify(engineeringPackage)
   });
 
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(body || `${response.status} ${response.statusText}`);
+  if (!response.ok) throw await readError(response);
+  return await response.json() as ImportPreviewView;
+}
+
+export async function applyEngineeringPackage(
+  engineeringPackage: EngineeringPackageView,
+  expectedChangeVersion: number
+): Promise<ImportResultView> {
+  const current = await loadEngineeringWorkspace();
+  if (current.changeVersion !== expectedChangeVersion) {
+    throw new EngineeringWorkspaceConflictError(expectedChangeVersion, current.changeVersion);
   }
 
-  return await response.json() as ImportPreviewView;
+  const response = await fetch(`${API}/api/engineering/import/json/apply`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json; charset=utf-8',
+      'x-elitescada-workspace-version': String(expectedChangeVersion)
+    },
+    body: JSON.stringify(engineeringPackage)
+  });
+
+  if (!response.ok) throw await readError(response);
+  return await response.json() as ImportResultView;
+}
+
+export class EngineeringWorkspaceConflictError extends Error {
+  constructor(
+    public readonly expectedChangeVersion: number,
+    public readonly currentChangeVersion: number
+  ) {
+    super(`Engineering Workspace changed from version ${expectedChangeVersion} to ${currentChangeVersion}. Reload and validate the draft again.`);
+    this.name = 'EngineeringWorkspaceConflictError';
+  }
 }

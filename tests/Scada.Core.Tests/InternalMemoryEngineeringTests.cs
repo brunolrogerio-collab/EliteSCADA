@@ -218,6 +218,108 @@ public sealed class InternalMemoryEngineeringTests
     }
 
     [Fact]
+    public void Preview_RejectsDataSourceTransitionToClientMemoryWhenExistingGlobalConsumersRemain()
+    {
+        var (service, _, _) = CreateService();
+        var tagId = Guid.NewGuid();
+        var seed = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            [new TagEngineeringDto(
+                tagId,
+                "SharedValue",
+                "Memory.Shared.Value",
+                TagDataType.Double,
+                Source: "memory.shared",
+                ReadOnly: false,
+                Historian: new HistorianSettingsDto(Enabled: true),
+                InitialValue: Initial(TagDataType.Double, "1.5"))],
+            [new AlarmEngineeringDto(
+                null,
+                "Shared high",
+                tagId,
+                "Memory.Shared.Value",
+                AlarmType.High,
+                AlarmPriority.Medium,
+                Setpoint: 10)],
+            [new DataSourceEngineeringDto(
+                null,
+                "memory.shared",
+                "Shared Memory",
+                BuiltInSourceProviderDescriptors.ServerMemory.TypeKey)]);
+
+        Assert.Empty(service.Apply(seed, ImportMode.CreateAndUpdate).Issues);
+        var existingDataSource = Assert.Single(service.ExportPackage().DataSources!);
+        var transition = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>(),
+            [existingDataSource with { Driver = BuiltInSourceProviderDescriptors.ClientMemory.TypeKey }]);
+
+        var issues = service.Preview(transition, ImportMode.CreateAndUpdate)
+            .Items.SelectMany(item => item.Issues).ToArray();
+
+        Assert.Contains(issues, issue => issue.Code == "CLIENT_MEMORY_EXISTING_HISTORIAN_NOT_ALLOWED");
+        Assert.Contains(issues, issue => issue.Code == "CLIENT_MEMORY_EXISTING_ALARM_NOT_ALLOWED");
+    }
+
+    [Fact]
+    public void Preview_RejectsTagMoveToExistingClientMemoryWhileGlobalAlarmRemains()
+    {
+        var (service, _, _) = CreateService();
+        var tagId = Guid.NewGuid();
+        var seed = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            [new TagEngineeringDto(
+                tagId,
+                "SharedValue",
+                "Memory.Shared.Value",
+                TagDataType.Double,
+                Source: "memory.server.main",
+                ReadOnly: false,
+                Historian: new HistorianSettingsDto(Enabled: false),
+                InitialValue: Initial(TagDataType.Double, "1.5"))],
+            [new AlarmEngineeringDto(
+                null,
+                "Shared high",
+                tagId,
+                "Memory.Shared.Value",
+                AlarmType.High,
+                AlarmPriority.Medium,
+                Setpoint: 10)],
+            [
+                new DataSourceEngineeringDto(null, "memory.server.main", "Server Memory", BuiltInSourceProviderDescriptors.ServerMemory.TypeKey),
+                new DataSourceEngineeringDto(null, "memory.client.ui", "Client Memory", BuiltInSourceProviderDescriptors.ClientMemory.TypeKey)
+            ]);
+
+        Assert.Empty(service.Apply(seed, ImportMode.CreateAndUpdate).Issues);
+        var transition = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            [new TagEngineeringDto(
+                tagId,
+                "SharedValue",
+                "Memory.Shared.Value",
+                TagDataType.Double,
+                Source: "memory.client.ui",
+                ReadOnly: false,
+                Historian: new HistorianSettingsDto(Enabled: false),
+                InitialValue: Initial(TagDataType.Double, "1.5"))],
+            Array.Empty<AlarmEngineeringDto>());
+
+        var issues = service.Preview(transition, ImportMode.CreateAndUpdate)
+            .Items.SelectMany(item => item.Issues).ToArray();
+
+        Assert.Contains(issues, issue => issue.Code == "CLIENT_MEMORY_EXISTING_ALARM_NOT_ALLOWED");
+    }
+
+    [Fact]
     public void Preview_AllowsServerMemoryHistorianAndAlarm()
     {
         var (service, _, _) = CreateService();

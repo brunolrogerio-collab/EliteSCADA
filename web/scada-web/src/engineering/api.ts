@@ -1,4 +1,9 @@
-import type { EngineeringPackageView, EngineeringSnapshot, EngineeringWorkspaceDescriptor } from './types';
+import type {
+  EngineeringPackageView,
+  EngineeringSnapshot,
+  EngineeringWorkspaceDescriptor,
+  ImportPreviewView
+} from './types';
 
 const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
@@ -35,4 +40,24 @@ export async function loadEngineeringSnapshot(): Promise<EngineeringSnapshot> {
       securityRoles: engineeringPackage.securityRoles ?? []
     }
   };
+}
+
+export async function previewEngineeringPackage(
+  engineeringPackage: EngineeringPackageView
+): Promise<ImportPreviewView> {
+  const response = await fetch(`${API}/api/engineering/import/json/preview`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json; charset=utf-8'
+    },
+    body: JSON.stringify(engineeringPackage)
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(body || `${response.status} ${response.statusText}`);
+  }
+
+  return await response.json() as ImportPreviewView;
 }

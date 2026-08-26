@@ -62,6 +62,8 @@ public static class EngineeringMutationEndpoints
                 audit,
                 "data-source",
                 () => BuildDataSourceDeletePlan(workspace, id)));
+
+        app.MapEngineeringBulkEndpoints();
     }
 
     private static async Task<IResult> DeleteAsync(
@@ -180,6 +182,22 @@ public static class EngineeringMutationEndpoints
                 expectedChangeVersion = conflict.ExpectedChangeVersion,
                 currentChangeVersion = conflict.CurrentChangeVersion
             });
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !context.RequestAborted.IsCancellationRequested)
+        {
+            await audit.RecordAsync(
+                context,
+                authorization.Principal,
+                AuditActions.EngineeringDelete,
+                AuditOutcome.Failed,
+                targetKind,
+                id.ToString(),
+                new Dictionary<string, string>
+                {
+                    ["reason"] = "unexpected-error",
+                    ["errorType"] = ex.GetType().Name
+                });
+            throw;
         }
     }
 

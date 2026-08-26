@@ -17,9 +17,9 @@ The approved development north is preserved, with Engineering Import/Export acti
 
 Every engineering entity introduced must define a stable serialization contract and participate in the common validation/preview/apply pipeline.
 
-Implemented in canonical JSON schema v4:
+Implemented in canonical JSON schema v5:
 
-- Tags.
+- Tags, including explicit read/write/configure access-policy role lists.
 - Alarms.
 - Data Sources / driver configuration with protected secret references.
 - Equipment Templates.
@@ -31,16 +31,23 @@ Implemented in canonical JSON schema v4:
 - Backward-compatible parsing of older package versions.
 - Export -> import preview round-trip testing in CI.
 
-Bulk CSV engineering is implemented for Tags, Alarms and Data Sources.
+Bulk CSV engineering is implemented for Tags, Alarms and Data Sources. TAG CSV preserves historian maximum-period, metadata and access policy; alarm CSV preserves metadata.
+
+A versioned `.escadapkg` project-package format is implemented for engineering backup/restore. Package v1 contains a manifest plus canonical `engineering.json`, with byte-length and SHA-256 integrity validation. Restore reuses the normal engineering preview/apply flow. It is intentionally an engineering-project backup, not a historian/runtime database image.
 
 ## Immediate execution slice
 
 Before PostgreSQL/TimescaleDB persistence and real Modbus TCP are promoted to the main development track:
 
-1. Add explicit TAG permission/access-policy serialization.
-2. Close CSV round-trip fidelity gaps, including historian maximum-period and metadata.
-3. Add a complete project-package manifest for backup/restore.
-4. Add explicit migration tests for historical engineering schema versions.
+Completed:
+
+1. Explicit TAG permission/access-policy serialization.
+2. CSV round-trip fidelity for current bulk-engineering entities.
+3. Complete versioned project-package manifest for engineering backup/restore.
+
+Remaining gate:
+
+4. Add explicit migration/compatibility tests for historical engineering schema versions.
 5. Refactor the Engineering Exchange service into smaller entity handlers before its scope grows further.
 
 After that gate:

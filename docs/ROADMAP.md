@@ -2,7 +2,7 @@
 
 The approved development north is preserved, with Engineering Import/Export acting as a mandatory cross-cutting capability rather than a later utility.
 
-This roadmap distinguishes what is already on `main`, what is implemented in an open PR, and what is only specified. The current development pause permits documentation/continuity maintenance only; functional implementation resumes only by explicit user instruction.
+This roadmap distinguishes what is already on `main`, what is implemented in an open PR, and what is only specified. Functional development was explicitly resumed by the user on 2026-08-26.
 
 ## Runtime foundation established
 
@@ -32,6 +32,7 @@ Implemented and validated on `main`:
 22. Active-runtime authorization policy resolution from the exact persisted Active Revision with fail-closed mismatch behavior.
 23. Browser coverage distinguishing valid developer, underprivileged operator, missing credentials and invalid credentials.
 24. First-class operational command domain merged through PR #35, including Engineering Schema v7 command definitions/registries, runtime compilation/execution through the target TAG's owning driver, scoped `CommandExecute`, audit and command tests. ✓
+25. Sensitive runtime read/realtime protection merged through PR #36: `TagRead` filtering, protected historian/alarm/Engineering/diagnostic reads, JWT-authenticated `/ws/tags`, per-event authorization, JWT-expiration handling, fail-closed runtime-policy checks and minimal public `/health`. ✓
 
 ## Engineering Import/Export status
 
@@ -102,18 +103,13 @@ Completed on `main` in the security/command track:
 15. Alarm shelving/unshelving runtime behavior with `AlarmShelve` authorization, area scoping, trusted actor metadata and succeeded/denied/failed audit coverage. ✓
 16. Browser coverage for developer/operator/anonymous alarm shelving and audit outcomes. ✓
 17. First-class operational command domain, Engineering Schema v7, scoped `CommandExecute`, runtime command routing and command audit through PR #35. ✓
+18. Protected sensitive read/realtime/WebSocket surfaces, detailed Engineering/runtime diagnostic reads and minimal public health through PR #36. ✓
 
 ## Implemented in open PRs, not yet on `main`
 
-### PR #36 — read/realtime security
-
-`Protect runtime read and realtime surfaces` is open and retargeted to `main` after PR #35 merged.
-
-It implements protection for sensitive TAG/historian/alarm reads, authenticated realtime/WebSocket behavior, protected Engineering/runtime diagnostic reads and a minimal public `/health` boundary. It is **not considered integrated** until its current head receives independent successful CI and the PR is merged.
-
 ### PR #37 — Engineering UI foundation
 
-`Add Engineering UI foundation and localization` remains Draft. Its current tested head has a successful CI run #143.
+`Add Engineering UI foundation and localization` remains Draft while its reconciled head is independently revalidated against the merged Schema-v7 command and PR #36 security baseline.
 
 Implemented in that PR:
 
@@ -131,27 +127,26 @@ Implemented in that PR:
 
 The PR intentionally has **no Apply, Delete or bulk-edit workflow**. Drafts and creates are preview-only and do not modify the Engineering Workspace.
 
-## Ordered next implementation slices when development resumes
+## Ordered next implementation slices
 
 The architectural order below is locked. Do not jump to another external protocol merely because protocol code looks more entertaining than foundations.
 
-1. Independently validate and integrate PR #36 read/realtime security into `main`.
-2. Reconcile PR #37 against current `main`/security boundaries and integrate the validated Engineering UI foundation without weakening its preview-only safety boundary.
-3. Add real login/token issuance or an external identity-provider workflow plus user lifecycle/administration.
-4. Add audit retention/query policy and durable buffering/outbox behavior for temporary storage outages.
-5. Add historian retention/downsampling policies on TimescaleDB.
-6. Implement built-in internal memory TAG sources: `builtin.memory.client` and `builtin.memory.server`, typed initial values, Server Memory retention by stable TAG ID, migration/reset behavior, scripting scope and Engineering Import/Export. See `docs/INTERNAL-MEMORY-TAGS.md`.
-7. Implement the protocol-independent Gateway / TAG Bridge as a first-class Engineering/runtime domain: TAG-to-TAG routes, OnChange/Periodic transfer, deadband/minimum interval/coalescing, `Good` quality default, linear gain/offset transform, loop and multi-writer rejection, diagnostics and transactional activation. See `docs/TAG-GATEWAY.md`.
-8. Expand common multi-driver communication diagnostics: per-Data-Source health/state, successes/failures/timeouts/reconnects, rates/latency/data age, TAG quality aggregation, protected APIs, independent failure isolation and Engineering diagnostics UI. See `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
-9. Only after internal memory -> Gateway -> common diagnostics, add MQTT through the same Data Source/Source Provider/TAG Gateway model.
-10. Add OPC UA through the same common model.
-11. Add BACnet through the same common model.
-12. Introduce the installable/versioned Driver Module framework and public Driver SDK compatibility boundary, including lifecycle, diagnostics, trust/integrity and Engineering configuration preservation; Siemens S7 ISO Connection remains the first intended installable-module target after the framework is ready.
-13. Expand the `pt-BR` / `en` / `es` localization foundation from PR #37 across the complete Engineering/development interface.
-14. Add Engineering XLSX workbook import/export.
-15. Continue graphical screen/popup editor, reusable Dynamos/components, bindings/faceplates, configurable shell and Engineering Fragments/cross-project copy-paste through the public Engineering model.
-16. Implement engineered/ad-hoc/saved multi-Pen trends with historical/realtime semantics and expressions where appropriate.
-17. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
+1. Complete current integrated CI for PR #37 and merge the Engineering UI foundation only if Web, Backend/test/smoke and Chromium are green.
+2. Add real login/token issuance or an external identity-provider workflow plus user lifecycle/administration. This is the next product-unblocking security slice because protected browser Engineering/admin flows need a trusted credential-acquisition/profile path.
+3. Add audit retention/query policy and durable buffering/outbox behavior for temporary storage outages.
+4. Add historian retention/downsampling policies on TimescaleDB.
+5. Implement built-in internal memory TAG sources: `builtin.memory.client` and `builtin.memory.server`, typed initial values, Server Memory retention by stable TAG ID, migration/reset behavior, scripting scope and Engineering Import/Export. See `docs/INTERNAL-MEMORY-TAGS.md`.
+6. Implement the protocol-independent Gateway / TAG Bridge as a first-class Engineering/runtime domain: TAG-to-TAG routes, OnChange/Periodic transfer, deadband/minimum interval/coalescing, `Good` quality default, linear gain/offset transform, loop and multi-writer rejection, diagnostics and transactional activation. See `docs/TAG-GATEWAY.md`.
+7. Expand common multi-driver communication diagnostics: per-Data-Source health/state, successes/failures/timeouts/reconnects, rates/latency/data age, TAG quality aggregation, protected APIs, independent failure isolation and Engineering diagnostics UI. See `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
+8. Only after internal memory -> Gateway -> common diagnostics, add MQTT through the same Data Source/Source Provider/TAG Gateway model.
+9. Add OPC UA through the same common model.
+10. Add BACnet through the same common model.
+11. Introduce the installable/versioned Driver Module framework and public Driver SDK compatibility boundary, including lifecycle, diagnostics, trust/integrity and Engineering configuration preservation; Siemens S7 ISO Connection remains the first intended installable-module target after the framework is ready.
+12. Expand the `pt-BR` / `en` / `es` localization foundation across the complete Engineering/development interface.
+13. Add Engineering XLSX workbook import/export.
+14. Continue graphical screen/popup editor, reusable Dynamos/components, bindings/faceplates, configurable shell and Engineering Fragments/cross-project copy-paste through the public Engineering model.
+15. Implement engineered/ad-hoc/saved multi-Pen trends with historical/realtime semantics and expressions where appropriate.
+16. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
 
 ## Locked future product requirements
 

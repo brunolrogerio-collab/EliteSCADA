@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Scada.Security.Authentication;
 
 namespace Scada.Api.Security;
 
@@ -75,6 +76,36 @@ public static class JwtAuthenticationConfiguration
                         }
 
                         return Task.CompletedTask;
+                    },
+                    OnTokenValidated = async context =>
+                    {
+                        var provider = context.Principal?.FindFirst(JwtTokenIssuer.IdentityProviderClaim)?.Value;
+                        if (!string.Equals(provider, JwtTokenIssuer.LocalIdentityProvider, StringComparison.Ordinal))
+                            return;
+
+                        var subject = context.Principal?.FindFirst("sub")?.Value;
+                        var versionText = context.Principal?.FindFirst(JwtTokenIssuer.LocalUserVersionClaim)?.Value;
+                        if (!Guid.TryParse(subject, out var userId) ||
+                            !long.TryParse(versionText, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var tokenVersion))
+                        {
+                            context.Fail("Local identity token is missing required version information.");
+                            return;
+                        }
+
+                        var store = context.HttpContext.RequestServices.GetService<ILocalIdentityStore>();
+                        if (store is null)
+                        {
+                            context.Fail("Local identity validation is unavailable.");
+                            return;
+                        }
+
+                        var account = await store.FindByIdAsync(userId, context.HttpContext.RequestAborted);
+                        if (account is null ||
+                            !account.IsEnabled ||
+                            account.UpdatedAtUtc.ToUnixTimeMilliseconds() != tokenVersion)
+                        {
+                            context.Fail("Local identity token is no longer current.");
+                        }
                     }
                 };
             });

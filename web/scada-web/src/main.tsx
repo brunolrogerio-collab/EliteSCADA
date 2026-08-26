@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { AppNavigation } from './AppNavigation';
+import { AuditApp } from './audit';
 import { AuthGate } from './auth/AuthGate';
 import { EngineeringApp } from './engineering/EngineeringApp';
 import './styles.css';
@@ -221,9 +223,17 @@ function Metric({ title, value }: { title: string; value: string }) {
   return <div className="metric"><span>{title}</span><strong>{value}</strong></div>;
 }
 
-const RootApp = window.location.pathname.startsWith('/engineering') ? EngineeringApp : RuntimeApp;
+const RootApp = window.location.pathname.startsWith('/audit')
+  ? AuditApp
+  : window.location.pathname.startsWith('/engineering')
+    ? EngineeringApp
+    : RuntimeApp;
+
 createRoot(document.getElementById('root')!).render(
   <AuthGate>
-    <RootApp />
+    <>
+      <AppNavigation />
+      <RootApp />
+    </>
   </AuthGate>
 );

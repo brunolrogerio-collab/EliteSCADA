@@ -6,22 +6,23 @@ namespace Scada.Engineering.ImportExport.Handlers;
 
 internal sealed class DataSourceEngineeringHandler
 {
-    private readonly IDataSourceEngineeringRegistry _registry;
+    private readonly IDataSourceEngineeringRegistry _dataSources;
 
-    public DataSourceEngineeringHandler(IDataSourceEngineeringRegistry registry) => _registry = registry;
+    public DataSourceEngineeringHandler(IDataSourceEngineeringRegistry dataSources) => _dataSources = dataSources;
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
     {
         var dataSources = package.DataSources ?? Array.Empty<DataSourceEngineeringDto>();
-        var duplicates = EngineeringHandlerSupport.Duplicates(dataSources.Select(x => x.Key));
+        var duplicateKeys = EngineeringHandlerSupport.Duplicates(dataSources.Select(x => x.Key));
 
         foreach (var dto in dataSources)
         {
             var issues = EngineeringValidator.ValidateDataSource(dto).ToList();
-            if (duplicates.Contains(dto.Key))
+            issues.AddRange(MemoryEngineeringValidator.ValidateDataSource(dto));
+            if (duplicateKeys.Contains(dto.Key))
                 issues.Add(new(
                     "DATASOURCE_DUPLICATE_IN_FILE",
-                    $"Data source key '{dto.Key}' appears more than once in the import package.",
+                    $"Data source key '{dto.Key}' appears more than once in the import file.",
                     ImportEntityKind.DataSource,
                     dto.Key,
                     true));
@@ -48,7 +49,8 @@ internal sealed class DataSourceEngineeringHandler
                 continue;
             }
 
-            _registry.Upsert(dto with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
+            var value = dto with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() };
+            _dataSources.Upsert(value);
             if (existing is null) created++; else updated++;
         }
     }
@@ -57,10 +59,9 @@ internal sealed class DataSourceEngineeringHandler
     {
         if (dto.Id.HasValue)
         {
-            var byId = _registry.Find(dto.Id.Value);
+            var byId = _dataSources.Snapshot().FirstOrDefault(x => x.Id == dto.Id.Value);
             if (byId is not null) return byId;
         }
-
-        return _registry.FindByKey(dto.Key);
+        return _dataSources.FindByKey(dto.Key);
     }
 }

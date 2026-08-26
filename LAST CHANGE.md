@@ -7,121 +7,145 @@
 **Handoff date:** 2026-08-26
 **Development state:** PAUSED by explicit user request.
 
-## Latest task
+## Latest task — project progress assessment
 
-The user added two stable product requirements and asked that they be incorporated into the project memory/roadmap:
+The user requested a realistic assessment of where EliteSCADA currently stands and how much remains to be developed.
 
-1. **BACnet communication-driver support** as an additional future industrial/building-automation protocol target.
-2. **Developer-selectable Engineering/development UI language** among Portuguese, English and Spanish across the engineering environment.
+No runtime/product code was changed in this task. The assessment was based on live `main`, `PROJECT GOAL.md`, `docs/ROADMAP.md`, `docs/ARCHITECTURE.md`, `docs/SECURITY-AUTHORIZATION-AUDIT.md`, `docs/VISUAL-COMPONENT-LIBRARY.md`, current source/test project structure and the current React runtime implementation.
 
-No runtime/product code was developed. This task changed only product-goal/architecture/roadmap documentation, and the development pause remains in effect.
+### Overall assessment
 
-## BACnet requirement added
+Use percentages only as **weighted planning estimates**, not as line-count or contractual completion metrics.
 
-BACnet is now a locked future communication-driver target alongside MQTT and OPC UA.
+- **Core/backend/platform foundation:** approximately **75–80% complete**.
+- **Industrial MVP/pilot foundation using the currently implemented Modbus path:** approximately **65–70% complete**, assuming engineering may still require technical/API/file workflows rather than a finished graphical Engineering environment.
+- **Full product scope currently locked in `PROJECT GOAL.md`: approximately 40–45% complete**.
+- Therefore, roughly **55–60% of the currently defined full-product effort remains**.
 
-The intended protocol direction is now:
+The project is not in an early proof-of-concept stage anymore. It has a strong backend/runtime/engineering foundation, but it is entering the productization/editor phase. The largest remaining blocks are highly visible and substantial: Engineering UI/editor, visual reusable library/Dynamos, trends, real user/login lifecycle, additional protocols and installable Driver Modules, localization, diagnostics/hardening and advanced reuse workflows.
 
-- Modbus TCP — implemented real-driver baseline;
-- MQTT — planned first-class integration;
-- OPC UA — planned first-class interoperability integration;
-- BACnet — planned driver protocol, especially relevant to building automation/BMS and BACnet-capable controllers/devices;
-- Siemens S7 ISO Connection — first intended installable driver-module target;
-- Allen-Bradley — later explicit research/module target;
-- additional first-party/third-party drivers through the installable Driver Module framework.
+### Approximate completion by domain
 
-The user considers this protocol family broad enough to target more than 90% of practical PLC/controller needs in the intended market. Repository documentation records that as a **planning hypothesis**, not an externally verified market statistic. Validate any numerical market-coverage claim before presenting it publicly.
+These are planning estimates used for the current assessment:
 
-All future protocols continue to use the common Driver SDK/DriverHost, Data Source, TAG, quality, Engineering, security, audit and persistence boundaries.
+- Core TAG/runtime/Event Bus/quality/API/realtime foundation: ~90%.
+- Public Engineering model + JSON/CSV Import/Export + validation/migration/package: ~80%.
+- PostgreSQL persistence + Working/Published/Active revision lifecycle + transactional activation/recovery: ~90%.
+- Historian backend baseline: ~60%; full trend product remains much earlier.
+- Alarm engine including ACK and shelving security/audit: ~75%.
+- Security/authORIZATION/audit foundation: ~60%; real login/user lifecycle and complete read/realtime enforcement remain.
+- Current driver infrastructure: strong baseline with Simulation + real Modbus TCP; the **full planned protocol/module ecosystem is only ~20–25% complete**.
+- Runtime HMI/product UI: ~20–25%; current React frontend is a hard-coded demo runtime screen/faceplate rather than the engineered screen system.
+- Graphical Engineering editor: ~5–10%; engineering contracts exist, but the actual developer-facing configuration/editor UX is largely not implemented.
+- Reusable Dínamo/visual-component library and cross-project reuse: ~10% (contracts/planning exist, product implementation largely remains).
+- Trend engine/UI: ~10% (historian/query foundation exists, full multi-Pen engineered/ad-hoc trend system remains).
+- Installable Driver Module framework: concept/ADR only; implementation largely remains.
+- Engineering UI localization (`pt-BR`, `en`, `es`): requirement/ADR only; implementation has not begun.
+- Runtime diagnostics/offline/operational hardening: partial baseline only.
 
-## Engineering/development UI localization requirement added
+### Strongly implemented foundation
 
-The developer/engineering user must be able to select the EliteSCADA Engineering interface language among:
+Current `main` already contains/records:
 
-- Portuguese (Brazil) — `pt-BR`;
-- English — `en`;
-- Spanish — `es`.
+- TAG Engine, quality model, current cache and Event Bus;
+- REST API and WebSocket realtime path;
+- simulation runtime;
+- real Modbus TCP driver with FC01/02/03/04/05/06/16, polling, writes, reconnect and communication quality;
+- Data Source compiler to executable runtime plans;
+- PostgreSQL Engineering revision persistence;
+- isolated Engineering Workspace;
+- Working/Published/Active lifecycle;
+- transactional candidate activation and rollback;
+- fail-closed recovery of the Active Revision;
+- TimescaleDB historian baseline;
+- canonical Engineering JSON schema v6;
+- Import/Export for TAGs, alarms, Data Sources, Equipment Templates/Equipment, Dynamos, Screens, Popups and security roles;
+- CSV bulk engineering for TAGs/alarms/Data Sources;
+- `.escadapkg` engineering backup/restore;
+- schema migration/backward-compatibility tests;
+- capability/scoped authorization model;
+- trusted JWT validation adapter;
+- durable append-only PostgreSQL audit trail;
+- secured TAG writes, alarm ACK, alarm shelving/unshelving and Engineering/persistence lifecycle mutations;
+- automated .NET tests, runtime smoke and Chromium end-to-end testing infrastructure.
 
-The selection applies consistently across developer-facing Engineering surfaces, including:
+### Major remaining product blocks
 
-- Data Sources and driver configuration;
-- TAG engineering;
-- database/historian configuration and diagnostics;
-- alarm engineering;
-- Equipment Templates, Equipment and Dynamos;
-- screen and popup creation/editing;
-- trends;
-- project/revision/save/publish/activate workflows;
-- users, roles and security administration;
-- driver/module administration and diagnostics;
-- menus, dialogs, property editors, validation messages and product-owned engineering help text.
+Immediate/security/productization work still includes:
 
-Changing interface language must **not** change stable Engineering IDs, TAG paths, communication addresses, internal enum/storage values, public schema keys, revision identity or runtime semantics. Product-owned UI strings should use localization/resource keys instead of becoming authoritative engineering data.
+1. First-class operational command domain and `CommandExecute` enforcement/audit.
+2. Authorization of sensitive read/realtime/WebSocket surfaces.
+3. Real login/token issuance or external IdP integration and user lifecycle administration.
+4. Audit buffering/outbox/retention improvements.
+5. Historian retention/downsampling.
+6. Full Engineering/development UI for Data Sources/drivers, TAGs, historian, alarms, security, revisions and administration.
+7. Graphical SVG screen/popup editor consuming the public Engineering model.
+8. Initial reusable Dínamo/component library, bindings, faceplates and command/setpoint widgets.
+9. Full multi-Pen trend engine and engineered/ad-hoc/saved trend UX.
+10. Persistent configurable application shell (header/footer/navigation/alarm regions).
+11. Reusable libraries and controlled version migration/instance overrides.
+12. Engineering Fragments and dependency-aware cross-project copy/paste.
+13. MQTT integration.
+14. OPC UA integration.
+15. BACnet integration.
+16. Installable/versioned Driver Module framework and Driver SDK compatibility/trust/lifecycle.
+17. Siemens S7 ISO Connection as the first intended installable driver target, including future Node-RED/open-source research and license/industrial-suitability review.
+18. Future Allen-Bradley research/module target.
+19. Portuguese/English/Spanish Engineering UI localization.
+20. XLSX Engineering import/export.
+21. Runtime diagnostics, driver health, offline behavior and operational hardening.
+22. Frontend architecture/package stabilization, visual regression and broader product-level tests.
+23. Later sandboxed Python/scripting and public extension SDK/productization work where still applicable.
 
-The language preference should be persistable per user/profile when that subsystem exists.
+### Important interpretation
 
-This requirement is specifically for the Engineering/development interface. Multilingual content inside runtime HMI/process screens is a separate future capability and must not be assumed to exist merely because the editor is localized.
+Do not estimate progress by simply counting roadmap checkmarks, because several completed roadmap items are overlapping foundation slices while some remaining items (especially graphical editor, reusable visual system and Driver Module ecosystem) are individually much larger than a typical backend slice.
 
-## Files changed in this task
+The best current description is:
 
-- `PROJECT GOAL.md`
-  - added BACnet to the locked industrial communication direction;
-  - recorded the broad-market-coverage planning rationale with the >90% figure explicitly treated as unverified until validated;
-  - added the complete Portuguese/English/Spanish Engineering UI localization requirement.
+**EliteSCADA has moved beyond architecture/prototype and has a credible industrial backend foundation. The next major phase is turning that foundation into a usable Engineering and HMI product.**
 
-- `docs/ADR-007-DRIVER-MODULES-AND-PROTOCOLS.md`
-  - added BACnet as an explicit protocol target;
-  - aligned the protocol-coverage rationale with Modbus TCP, MQTT, OPC UA, S7 and future Allen-Bradley support.
+## Current industrial communication north
 
-- `docs/ADR-008-ENGINEERING-UI-LOCALIZATION.md`
-  - new accepted architectural decision defining Portuguese (`pt-BR`), English (`en`) and Spanish (`es`) localization for the Engineering/development interface;
-  - keeps localization as presentation/user preference and Engineering contracts language-neutral;
-  - distinguishes editor localization from future multilingual runtime-HMI content.
-
-- `docs/ROADMAP.md`
-  - added a future BACnet integration slice;
-  - added a future Engineering UI localization slice;
-  - added locked future-requirement sections for BACnet/protocol coverage and Engineering UI localization.
-
-## Repository state before this LAST CHANGE update
-
-Live `main` HEAD observed immediately before updating this file:
-
-`e3c0f36638fd940a3e38211adaeeb983aba64046` — `Add BACnet and engineering UI localization to roadmap`
-
-This `LAST CHANGE.md` update creates a newer commit. Always fetch live `main` HEAD on the next task.
-
-## Previous driver targets still locked
-
+- Modbus TCP: implemented real-driver baseline.
+- MQTT: locked future target.
+- OPC UA: locked future target.
+- BACnet: locked future target.
+- Installable/versioned Driver Module framework: locked requirement.
 - First intended installable module: Siemens S7 ISO Connection.
-- At implementation time, research Node-RED S7 work and other public/open-source implementations; reuse only after license review and industrial suitability validation.
-- Allen-Bradley remains a future research/module target with protocol/library/family scope intentionally undecided until evidence is gathered.
+- Allen-Bradley: later research/module target.
+- The >90% controller-market coverage idea is a planning hypothesis and must be validated before external use as a statistic.
 
-## Previous functional milestone
+## Current Engineering UI north
 
-The latest functional/product milestone before the continuity/documentation work remains:
+The developer-facing Engineering interface must eventually cover Data Sources/drivers, TAGs, historian/database, alarms, Equipment/Templates/Dynamos, screens/popups, trends, security/users, revision lifecycle, modules and diagnostics.
+
+The developer must be able to select the Engineering UI language among Portuguese (`pt-BR`), English (`en`) and Spanish (`es`). Localization is presentation only and must not change Engineering identifiers/contracts/runtime semantics.
+
+## Current functional milestone
+
+The latest functional/product milestone before the documentation/continuity work remains:
 
 `fdaa093f8ba735e447cb871beaf515f4417e7559` — `Secure alarm shelving lifecycle`
 
-Alarm shelving is already integrated into `main`.
+Later commits primarily updated persistent project goals/ADRs/roadmap/continuity documentation.
 
 ## Current development pause
 
-The user previously requested development to stop after a ChatGPT/platform error.
+The user explicitly paused product development after a ChatGPT/platform error.
 
 **Do not continue product implementation automatically.**
 
-Documentation/goal maintenance is allowed when explicitly requested. New product development resumes only after an explicit instruction to continue.
+Repository assessment and product-goal/documentation maintenance are allowed when requested. New product development resumes only after an explicit instruction to continue.
 
 ## Immediate next product slice when development is explicitly resumed
 
-According to the current roadmap, the immediate next technical slice remains:
+According to the current roadmap, the immediate technical sequence remains:
 
 1. introduce a first-class operational command domain;
 2. enforce/audit `CommandExecute` against real command objects;
-3. extend authorization to sensitive read/realtime/WebSocket surfaces.
-
-Later roadmap slices include historian retention/downsampling, MQTT, OPC UA, BACnet, installable Driver Modules with Siemens S7 as first target, Engineering UI localization, XLSX Engineering, diagnostics and frontend hardening.
+3. extend authorization to sensitive read/realtime/WebSocket surfaces;
+4. then continue user/login lifecycle, audit durability/retention, historian retention/downsampling and subsequent product/editor/protocol slices according to `docs/ROADMAP.md`.
 
 ## Resume checklist
 
@@ -131,11 +155,13 @@ Before any EliteSCADA task:
 2. Read this `LAST CHANGE.md` completely.
 3. Fetch live `main` HEAD/recent commits when repository state matters.
 4. Read `docs/ROADMAP.md` when planning implementation.
-5. For protocol/module work, read `docs/ADR-007-DRIVER-MODULES-AND-PROTOCOLS.md`.
-6. For Engineering UI localization work, read `docs/ADR-008-ENGINEERING-UI-LOCALIZATION.md`.
-7. Do not rely on old chat/branch assumptions.
-8. Validate implementation through GitHub CI when .NET cannot be executed locally in the ChatGPT environment.
-9. Immediately before the final user-facing response, update this file again.
+5. Read the relevant ADR/security/Engineering documents for the affected domain.
+6. For visual/editor work, read `docs/VISUAL-COMPONENT-LIBRARY.md`.
+7. For protocol/module work, read `docs/ADR-007-DRIVER-MODULES-AND-PROTOCOLS.md`.
+8. For localization, read `docs/ADR-008-ENGINEERING-UI-LOCALIZATION.md`.
+9. Do not rely on old chat/branch assumptions.
+10. Validate implementation through GitHub CI when .NET cannot be executed locally in the ChatGPT environment.
+11. Immediately before the final user-facing response, update this file again.
 
 ## Permanent continuity rule
 

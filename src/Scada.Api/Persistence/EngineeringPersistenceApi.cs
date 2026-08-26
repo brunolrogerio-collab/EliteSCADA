@@ -24,8 +24,18 @@ public static class EngineeringPersistenceApi
         this WebApplication app,
         CancellationToken cancellationToken = default)
     {
+        var configuredProjectKey = app.Configuration["EngineeringRuntime:ProjectKey"];
         var persistence = app.Services.GetService<IEngineeringProjectPersistenceService>();
-        if (persistence is null) return;
+        if (persistence is null)
+        {
+            if (!string.IsNullOrWhiteSpace(configuredProjectKey))
+            {
+                throw new InvalidOperationException(
+                    "EngineeringRuntime:ProjectKey is configured, but engineering persistence is unavailable. Configure ConnectionStrings:EliteScada before starting a persisted runtime.");
+            }
+
+            return;
+        }
 
         await persistence.InitializeAsync(cancellationToken);
         await app.RecoverConfiguredEngineeringRuntimeAsync(cancellationToken);
@@ -39,10 +49,14 @@ public static class EngineeringPersistenceApi
         if (string.IsNullOrWhiteSpace(projectKey)) return null;
 
         var recovery = app.Services.GetService<IPersistedRuntimeRecoveryService>();
-        if (recovery is null) return null;
+        if (recovery is null)
+        {
+            throw new InvalidOperationException(
+                "Engineering runtime recovery is unavailable although a runtime project is configured.");
+        }
 
         var result = await recovery.RecoverAsync(projectKey, cancellationToken);
-        if (result.Found && !result.Recovered)
+        if (result.PersistedActiveRevision.HasValue && !result.Recovered)
         {
             var issues = result.Runtime is null
                 ? "The persisted active engineering snapshot could not be loaded."
@@ -68,7 +82,8 @@ public static class EngineeringPersistenceApi
         group.MapGet("/status", (HttpContext context) => Results.Ok(new
         {
             enabled = Resolve(context) is not null,
-            provider = Resolve(context) is null ? null : "postgresql"
+            provider = Resolve(context) is null ? null : "postgresql",
+            configuredProjectKey = ResolveConfiguredProjectKey(context)
         }));
 
         group.MapPost("/{projectKey}/save", async (
@@ -121,6 +136,7 @@ public static class EngineeringPersistenceApi
             return Results.Ok(new
             {
                 projectKey,
+                configuredProjectKey = ResolveConfiguredProjectKey(context),
                 consistent,
                 durable = lifecycle,
                 live
@@ -135,6 +151,23 @@ public static class EngineeringPersistenceApi
         {
             var activationService = ResolveActivation(context);
             if (activationService is null) return Disabled();
+
+            var configuredProjectKey = ResolveConfiguredProjectKey(context);
+            if (string.IsNullOrWhiteSpace(configuredProjectKey))
+            {
+                return Results.Conflict(new
+                {
+                    error = "EngineeringRuntime:ProjectKey must be configured before activating a persisted runtime."
+                });
+            }
+
+            if (!configuredProjectKey.Equals(projectKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return Results.Conflict(new
+                {
+                    error = $"This runtime instance is bound to project '{configuredProjectKey}', not '{projectKey}'."
+                });
+            }
 
             var outcome = await activationService.ActivateAsync(
                 projectKey,
@@ -303,6 +336,9 @@ public static class EngineeringPersistenceApi
 
     private static IPublishedRuntimeActivationService? ResolveActivation(HttpContext context) =>
         context.RequestServices.GetService<IPublishedRuntimeActivationService>();
+
+    private static string? ResolveConfiguredProjectKey(HttpContext context) =>
+        context.RequestServices.GetRequiredService<IConfiguration>()["EngineeringRuntime:ProjectKey"];
 
     private static IResult Disabled() => Results.Json(
         new

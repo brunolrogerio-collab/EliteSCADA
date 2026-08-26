@@ -31,6 +31,12 @@ test('API distinguishes access levels and records protected-operation audit even
   const engineeringResponse = await request.get('/api/engineering/export/json');
   expect(engineeringResponse.ok()).toBeTruthy();
   const engineeringJson = await engineeringResponse.text();
+  const engineering = JSON.parse(engineeringJson) as {
+    commands: Array<{ id: string; key: string; targetTagPath?: string }>;
+  };
+  const startCommand = engineering.commands.find(command => command.key === 'demo.p01.start');
+  expect(startCommand).toBeTruthy();
+  expect(startCommand!.targetTagPath).toBe('Demo.P01.Running');
 
   const anonymous = await playwrightRequest.newContext({
     baseURL,
@@ -41,6 +47,7 @@ test('API distinguishes access levels and records protected-operation audit even
     expect((await anonymous.post(`/api/tags/${frequency!.id}/write`, {
       data: { value: 51 }
     })).status()).toBe(401);
+    expect((await anonymous.post(`/api/commands/${startCommand!.id}/execute`)).status()).toBe(401);
     expect((await anonymous.post(`/api/alarms/${shelfableAlarm!.id}/shelve`)).status()).toBe(401);
     expect((await anonymous.post('/api/engineering/import/json/apply', {
       data: engineeringJson,
@@ -62,6 +69,7 @@ test('API distinguishes access levels and records protected-operation audit even
     expect((await invalid.post(`/api/tags/${frequency!.id}/write`, {
       data: { value: 53 }
     })).status()).toBe(401);
+    expect((await invalid.post(`/api/commands/${startCommand!.id}/execute`)).status()).toBe(401);
   } finally {
     await invalid.dispose();
   }
@@ -75,7 +83,8 @@ test('API distinguishes access levels and records protected-operation audit even
     const operatorMe = await operator.get('/api/auth/me');
     expect(operatorMe.ok()).toBeTruthy();
 
-    // The demo operator can execute operational commands, but ProcessValueWrite is deliberately absent.
+    // The demo operator has CommandExecute, but ProcessValueWrite is deliberately absent.
+    expect((await operator.post(`/api/commands/${startCommand!.id}/execute`)).status()).toBe(202);
     expect((await operator.post(`/api/tags/${frequency!.id}/write`, {
       data: { value: 52 }
     })).status()).toBe(403);
@@ -102,6 +111,7 @@ test('API distinguishes access levels and records protected-operation audit even
   expect((await request.post(`/api/tags/${frequency!.id}/write`, {
     data: { value: 54 }
   })).status()).toBe(202);
+  expect((await request.post(`/api/commands/${startCommand!.id}/execute`)).status()).toBe(202);
 
   expect((await request.post(`/api/alarms/${shelfableAlarm!.id}/shelve`)).status()).toBe(200);
   const shelvedAlarmsResponse = await request.get('/api/alarms');
@@ -150,7 +160,7 @@ test('API distinguishes access levels and records protected-operation audit even
     `/api/engineering/persistence/e2e-security/revisions/${saved.revision}/apply`);
   expect(applyResponse.ok()).toBeTruthy();
 
-  const auditResponse = await request.get('/api/audit?limit=100');
+  const auditResponse = await request.get('/api/audit?limit=150');
   expect(auditResponse.ok()).toBeTruthy();
   const events = await auditResponse.json() as Array<{
     subjectId: string;
@@ -176,6 +186,23 @@ test('API distinguishes access levels and records protected-operation audit even
     event.action === 'tag.write' &&
     event.outcome === 1 &&
     event.targetId === 'Demo.P01.Frequency')).toBeTruthy();
+
+  expect(events.some(event =>
+    event.subjectId === 'e2e-developer' &&
+    event.action === 'command.execute' &&
+    event.outcome === 0 &&
+    event.targetId === 'demo.p01.start' &&
+    event.details?.commandId === startCommand!.id)).toBeTruthy();
+  expect(events.some(event =>
+    event.subjectId === 'e2e-operator' &&
+    event.action === 'command.execute' &&
+    event.outcome === 0 &&
+    event.targetId === 'demo.p01.start')).toBeTruthy();
+  expect(events.some(event =>
+    event.subjectId === 'anonymous' &&
+    event.action === 'command.execute' &&
+    event.outcome === 1 &&
+    event.targetId === 'demo.p01.start')).toBeTruthy();
 
   expect(events.some(event =>
     event.subjectId === 'e2e-developer' &&

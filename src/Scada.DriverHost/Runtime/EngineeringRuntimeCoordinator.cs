@@ -47,6 +47,8 @@ public interface IEngineeringRuntimeCoordinator : IAsyncDisposable
     bool TryGetTagByPath(string path, out TagDefinition? tag);
     bool TryGetCurrent(Guid tagId, out TagValue? value);
     ValueTask<bool> AcknowledgeAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default);
+    ValueTask<bool> ShelveAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default);
+    ValueTask<bool> UnshelveAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default);
     ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default);
     Task<RuntimeActivationResult> ActivateAsync(
         string projectKey,
@@ -118,6 +120,18 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         string user,
         CancellationToken cancellationToken = default) =>
         Volatile.Read(ref _active).Alarms.AcknowledgeAsync(alarmId, user, cancellationToken);
+
+    public ValueTask<bool> ShelveAlarmAsync(
+        Guid alarmId,
+        string user,
+        CancellationToken cancellationToken = default) =>
+        Volatile.Read(ref _active).Alarms.ShelveAsync(alarmId, user, cancellationToken);
+
+    public ValueTask<bool> UnshelveAlarmAsync(
+        Guid alarmId,
+        string user,
+        CancellationToken cancellationToken = default) =>
+        Volatile.Read(ref _active).Alarms.UnshelveAsync(alarmId, user, cancellationToken);
 
     public async ValueTask WriteAsync(
         Guid tagId,

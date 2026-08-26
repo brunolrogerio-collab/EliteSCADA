@@ -7,9 +7,9 @@ namespace Scada.Persistence.PostgreSql;
 
 public sealed class PostgreSqlAuditStore : IAuditStore, IAsyncDisposable
 {
-    private const long SchemaInitializationLockKey = 4993446713136202561L;
-
     private const string InitializeSql = """
+        SELECT pg_advisory_xact_lock(4993446713136202561);
+
         CREATE SCHEMA IF NOT EXISTS elitescada;
 
         CREATE TABLE IF NOT EXISTS elitescada.schema_migrations (
@@ -75,24 +75,8 @@ public sealed class PostgreSqlAuditStore : IAuditStore, IAsyncDisposable
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
-        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
-
-        await using (var lockCommand = new NpgsqlCommand(
-                         "SELECT pg_advisory_xact_lock(@lock_key);",
-                         connection,
-                         transaction))
-        {
-            lockCommand.Parameters.AddWithValue("lock_key", SchemaInitializationLockKey);
-            await lockCommand.ExecuteNonQueryAsync(cancellationToken);
-        }
-
-        await using (var command = new NpgsqlCommand(InitializeSql, connection, transaction))
-        {
-            await command.ExecuteNonQueryAsync(cancellationToken);
-        }
-
-        await transaction.CommitAsync(cancellationToken);
+        await using var command = _dataSource.CreateCommand(InitializeSql);
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public async ValueTask WriteAsync(
@@ -191,10 +175,17 @@ public sealed class PostgreSqlAuditStore : IAuditStore, IAsyncDisposable
         command.Parameters.AddWithValue("to_utc", NpgsqlDbType.TimestampTz, (object?)toUtc ?? DBNull.Value);
         command.Parameters.AddWithValue("limit", limit);
 
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var events = new List<AuditEvent>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
+            IReadOnlyDictionary<string, string>? details = null;
+            if (!reader.IsDBNull(8))
+            {
+                details = JsonSerializer.Deserialize<Dictionary<string, string>>(reader.GetString(8))
+                    ?? new Dictionary<string, string>();
+            }
+
             events.Add(new AuditEvent(
                 reader.GetGuid(0),
                 reader.GetFieldValue<DateTimeOffset>(1),
@@ -204,30 +195,31 @@ public sealed class PostgreSqlAuditStore : IAuditStore, IAsyncDisposable
                 (AuditOutcome)reader.GetInt16(5),
                 reader.GetString(6),
                 reader.GetString(7),
-                ReadDetails(reader, 8),
+                details,
                 reader.IsDBNull(9) ? null : reader.GetString(9)));
         }
 
         return events;
     }
 
-    public async ValueTask DisposeAsync() => await _dataSource.DisposeAsync();
-
-    private static IReadOnlyDictionary<string, string>? ReadDetails(NpgsqlDataReader reader, int ordinal)
-    {
-        if (reader.IsDBNull(ordinal)) return null;
-        return JsonSerializer.Deserialize<Dictionary<string, string>>(reader.GetString(ordinal));
-    }
-
     private static void Validate(AuditEvent auditEvent)
     {
-        if (auditEvent.Id == Guid.Empty) throw new ArgumentException("Audit event id is required.", nameof(auditEvent));
-        if (string.IsNullOrWhiteSpace(auditEvent.SubjectId)) throw new ArgumentException("Audit subject id is required.", nameof(auditEvent));
-        if (string.IsNullOrWhiteSpace(auditEvent.Action)) throw new ArgumentException("Audit action is required.", nameof(auditEvent));
-        if (string.IsNullOrWhiteSpace(auditEvent.TargetKind)) throw new ArgumentException("Audit target kind is required.", nameof(auditEvent));
-        if (string.IsNullOrWhiteSpace(auditEvent.TargetId)) throw new ArgumentException("Audit target id is required.", nameof(auditEvent));
+        if (auditEvent.Id == Guid.Empty)
+            throw new ArgumentException("Audit event ID is required.", nameof(auditEvent));
+        if (string.IsNullOrWhiteSpace(auditEvent.SubjectId))
+            throw new ArgumentException("Audit subject ID is required.", nameof(auditEvent));
+        if (string.IsNullOrWhiteSpace(auditEvent.Action))
+            throw new ArgumentException("Audit action is required.", nameof(auditEvent));
+        if (string.IsNullOrWhiteSpace(auditEvent.TargetKind))
+            throw new ArgumentException("Audit target kind is required.", nameof(auditEvent));
+        if (string.IsNullOrWhiteSpace(auditEvent.TargetId))
+            throw new ArgumentException("Audit target ID is required.", nameof(auditEvent));
+        if (!Enum.IsDefined(auditEvent.Outcome))
+            throw new ArgumentOutOfRangeException(nameof(auditEvent), "Audit outcome is invalid.");
     }
 
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    public ValueTask DisposeAsync() => _dataSource.DisposeAsync();
 }

@@ -72,7 +72,7 @@ public sealed class PostgreSqlAuditStoreTests
     }
 
     [Fact]
-    public async Task Store_DatabaseRejectsUpdateAndDelete()
+    public async Task Store_DatabaseRejectsUpdateDeleteAndTruncate()
     {
         var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
@@ -106,6 +106,12 @@ public sealed class PostgreSqlAuditStoreTests
         delete.Parameters.AddWithValue("id", auditEvent.Id);
         var deleteError = await Assert.ThrowsAsync<PostgresException>(() => delete.ExecuteNonQueryAsync());
         Assert.Contains("append-only", deleteError.MessageText, StringComparison.OrdinalIgnoreCase);
+
+        await using var truncate = new NpgsqlCommand(
+            "TRUNCATE TABLE elitescada.audit_events;",
+            connection);
+        var truncateError = await Assert.ThrowsAsync<PostgresException>(() => truncate.ExecuteNonQueryAsync());
+        Assert.Contains("append-only", truncateError.MessageText, StringComparison.OrdinalIgnoreCase);
 
         var persisted = await store.QueryAsync(subjectId: $"append-only-{marker}");
         var stored = Assert.Single(persisted);

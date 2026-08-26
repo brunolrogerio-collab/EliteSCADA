@@ -253,7 +253,7 @@ public sealed class VisualScriptingFoundationTests
             result.Diagnostics,
             diagnostic => diagnostic.Code == "PY_SANDBOX_IMPORT_DENIED");
         Assert.Equal(2, importDiagnostic.Span.Start.Line);
-        Assert.Equal(1, importDiagnostic.Span.Start.Column);
+        Assert.Equal(8, importDiagnostic.Span.Start.Column);
 
         var callDiagnostic = Assert.Single(
             result.Diagnostics,

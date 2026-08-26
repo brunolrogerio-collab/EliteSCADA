@@ -13,6 +13,9 @@ public sealed record EngineeringWorkspaceDescriptor(
     string? ProjectName,
     long? BaseRevision,
     DateTimeOffset? CheckedOutAtUtc,
+    DateTimeOffset? LastSavedAtUtc,
+    bool IsDirty,
+    long ChangeVersion,
     int TagCount,
     int AlarmCount,
     int DataSourceCount,
@@ -30,14 +33,17 @@ public sealed class EngineeringWorkspace : IDisposable
     private string? _projectName;
     private long? _baseRevision;
     private DateTimeOffset? _checkedOutAtUtc;
+    private DateTimeOffset? _lastSavedAtUtc;
+    private bool _isDirty;
+    private long _changeVersion;
 
     public EngineeringWorkspace()
     {
-        Tags = new InMemoryTagRegistry();
-        Alarms = new InMemoryAlarmEngine(_eventBus);
-        DataSources = new InMemoryDataSourceEngineeringRegistry();
-        Assets = new InMemoryEngineeringAssetRegistry();
-        Views = new InMemoryEngineeringViewRegistry();
+        Tags = new InMemoryTagRegistry(MarkDirty);
+        Alarms = new InMemoryAlarmEngine(_eventBus, MarkDirty);
+        DataSources = new InMemoryDataSourceEngineeringRegistry(MarkDirty);
+        Assets = new InMemoryEngineeringAssetRegistry(MarkDirty);
+        Views = new InMemoryEngineeringViewRegistry(MarkDirty);
         SeedDemo();
     }
 
@@ -56,6 +62,9 @@ public sealed class EngineeringWorkspace : IDisposable
                 _projectName,
                 _baseRevision,
                 _checkedOutAtUtc,
+                _lastSavedAtUtc,
+                _isDirty,
+                _changeVersion,
                 Tags.Snapshot().Count,
                 Alarms.Definitions().Count,
                 DataSources.Snapshot().Count,
@@ -67,7 +76,26 @@ public sealed class EngineeringWorkspace : IDisposable
         }
     }
 
-    public void SetCheckout(string projectKey, string projectName, long revision)
+    public long CaptureChangeVersion()
+    {
+        lock (_stateGate)
+            return _changeVersion;
+    }
+
+    public void MarkDirty()
+    {
+        lock (_stateGate)
+        {
+            _isDirty = true;
+            _changeVersion++;
+        }
+    }
+
+    public void SetCheckout(
+        string projectKey,
+        string projectName,
+        long revision,
+        DateTimeOffset? savedAtUtc = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(projectKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(projectName);
@@ -79,6 +107,29 @@ public sealed class EngineeringWorkspace : IDisposable
             _projectName = projectName.Trim();
             _baseRevision = revision;
             _checkedOutAtUtc = DateTimeOffset.UtcNow;
+            _lastSavedAtUtc = savedAtUtc;
+            _isDirty = false;
+        }
+    }
+
+    public void AcceptSave(
+        string projectKey,
+        string projectName,
+        long revision,
+        DateTimeOffset savedAtUtc,
+        long savedChangeVersion)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectName);
+        if (revision < 1) throw new ArgumentOutOfRangeException(nameof(revision));
+
+        lock (_stateGate)
+        {
+            _projectKey = projectKey.Trim();
+            _projectName = projectName.Trim();
+            _baseRevision = revision;
+            _lastSavedAtUtc = savedAtUtc;
+            _isDirty = _changeVersion != savedChangeVersion;
         }
     }
 
@@ -90,6 +141,9 @@ public sealed class EngineeringWorkspace : IDisposable
             _projectName = descriptor.ProjectName;
             _baseRevision = descriptor.BaseRevision;
             _checkedOutAtUtc = descriptor.CheckedOutAtUtc;
+            _lastSavedAtUtc = descriptor.LastSavedAtUtc;
+            _isDirty = descriptor.IsDirty;
+            _changeVersion = descriptor.ChangeVersion;
         }
     }
 
@@ -297,6 +351,9 @@ public sealed class EngineeringWorkspace : IDisposable
             _projectName = "Demo Project";
             _baseRevision = null;
             _checkedOutAtUtc = null;
+            _lastSavedAtUtc = null;
+            _isDirty = false;
+            _changeVersion = 0;
         }
     }
 

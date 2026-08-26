@@ -7,49 +7,53 @@
 **Handoff date:** 2026-08-26
 **Development state:** PAUSED by explicit user request.
 
+## Latest task
+
+The latest task was a continuity test requested by the user: recover what had previously been specified for trend charts without relying on the old ChatGPT conversation.
+
+No product/runtime code was changed and development remains paused.
+
+The continuity protocol worked as intended:
+
+1. `PROJECT GOAL.md` was read first.
+2. `LAST CHANGE.md` was read second.
+3. `docs/ROADMAP.md` was then checked for the exact locked trend-chart requirements.
+
+The recovered trend requirements are:
+
+- engineering-configurable trends with multiple Pens;
+- each Pen may use historical TAG data, a live/runtime binding or an expression;
+- project-defined trends can be placed on screens and popups;
+- ad-hoc and saved runtime trends are supported where access policy allows;
+- historical queries and realtime subscriptions remain distinct even when displayed together;
+- TimescaleDB aggregation/downsampling must be exposed without leaking storage-specific concepts into the Engineering contract;
+- historian retention/downsampling is part of the supporting backend roadmap;
+- trend use/save participates in the configurable application security capability model.
+
+This verifies that the new repository-side continuity mechanism can recover a previously locked product requirement after a chat/session change.
+
 ## Why this file exists
 
 The project has already suffered context loss when a long ChatGPT conversation reached the platform session/duration limit and work continued in another chat. Conversation memory alone is therefore not reliable enough to identify the exact project position.
 
 This file is the repository-side checkpoint. A fresh conversation must be able to read it and resume without reconstructing hundreds of previous messages.
 
-## What changed in the latest task
-
-This task was a continuity/documentation task only. No runtime/product code was intentionally developed.
-
-Created on `main`:
-
-- `PROJECT GOAL.md` — persistent product memory, locked principles and mandatory continuity protocol.
-- `LAST CHANGE.md` — this operational handoff document.
-
-New permanent operating rule:
+## Permanent operating rule
 
 1. Start every EliteSCADA task by reading `PROJECT GOAL.md` and `LAST CHANGE.md`.
 2. If stable project intent changes in ChatGPT, update `PROJECT GOAL.md` in the same task.
 3. Before the final reply to the user on every EliteSCADA task, update `LAST CHANGE.md` with the actual stopping point.
 4. Do not rely on chat history alone to decide what to implement next.
 
-## Repository state observed during this handoff
+## Repository state and latest functional milestone
 
-`main` head observed immediately before writing this `LAST CHANGE.md`:
-
-`60cf92a8439b56edbcb9b154b5d89a089c7c050e` — `Add persistent EliteSCADA project goal`
-
-The commit containing this `LAST CHANGE.md` is necessarily newer than the SHA above. On the next task, fetch the live `main` HEAD after reading this file rather than assuming the SHA above remains current.
-
-Latest functional/product milestone immediately before the continuity-document commits:
+The latest functional/product milestone recorded before the continuity-document work is:
 
 `fdaa093f8ba735e447cb871beaf515f4417e7559` — `Secure alarm shelving lifecycle`
 
-That means alarm shelving work is already integrated into `main`, despite an earlier chat handoff having remembered it as work still in progress.
+Alarm shelving is already integrated into `main`.
 
-At the time checked:
-
-- branch `security/alarm-shelving` had **0 commits ahead of `main`**;
-- it was **1 commit behind `main`**;
-- there were no unique file changes on that branch relative to `main`.
-
-Therefore **do not resume development from that branch based on old chat context**. Inspect current `main` first.
+Do not resume work from old branch/chat assumptions without first inspecting current `main`.
 
 ## Current implemented security/runtime position
 
@@ -98,8 +102,8 @@ Before doing anything else:
 
 1. Read `PROJECT GOAL.md` completely.
 2. Read this `LAST CHANGE.md` completely.
-3. Fetch live `main` HEAD and recent commits.
-4. Read `docs/ROADMAP.md` for ordered implementation status.
+3. Fetch live `main` HEAD and recent commits when repository state matters.
+4. Read `docs/ROADMAP.md` for ordered implementation status when planning development.
 5. If the requested task touches a specific architecture/security/import-export area, read the corresponding ADR/document.
 6. Compare any referenced working branch against current `main`; never assume an old branch is ahead.
 7. Only then plan or modify code.
@@ -108,7 +112,7 @@ Before doing anything else:
 
 ## Last user instruction governing state
 
-The user wants project continuity to survive ChatGPT conversation limits. These two repository files are now part of the project operating process, independent of the roadmap:
+The user wants project continuity to survive ChatGPT conversation limits. These two repository files are part of the project operating process, independent of the roadmap:
 
 - `PROJECT GOAL.md` = persistent global project memory/product north.
 - `LAST CHANGE.md` = exact stopping/resume checkpoint.

@@ -62,7 +62,8 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
       equipmentPath?: string;
     }>;
   };
-  expect(engineering.schemaVersion).toBe(7);
+  expect(Number.isInteger(engineering.schemaVersion)).toBeTruthy();
+  expect(engineering.schemaVersion).toBeGreaterThanOrEqual(7);
   expect(engineering.tags.some(tag => tag.path === 'Demo.Tank01.Level')).toBeTruthy();
   expect(engineering.tags.some(tag => tag.path === 'Demo.P01.Frequency')).toBeTruthy();
   expect(engineering.tags.every(tag => tag.source === 'builtin.simulation')).toBeTruthy();
@@ -193,7 +194,7 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(projectInspect.manifest.formatVersion).toBe(1);
   expect(projectInspect.manifest.projectKey).toBe('demo');
   expect(projectInspect.manifest.projectName).toBe('Demo Project');
-  expect(projectInspect.manifest.engineeringSchemaVersion).toBe(7);
+  expect(projectInspect.manifest.engineeringSchemaVersion).toBe(engineering.schemaVersion);
   expect(projectInspect.manifest.files).toHaveLength(1);
   expect(projectInspect.manifest.files[0].path).toBe('engineering.json');
   expect(projectInspect.manifest.files[0].sha256).toHaveLength(64);

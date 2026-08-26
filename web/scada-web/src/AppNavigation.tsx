@@ -3,7 +3,7 @@ import './app-navigation.css';
 
 const links = [
   { href: '/', label: 'Runtime' },
-  { href: '/engineering', label: 'Engineering', ariaLabel: 'Engineering workspace' },
+  { href: '/engineering', label: 'Engineering', ariaLabel: 'Project workspace' },
   { href: '/audit', label: 'Audit' }
 ];
 

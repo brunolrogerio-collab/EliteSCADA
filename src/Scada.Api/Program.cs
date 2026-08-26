@@ -23,11 +23,14 @@ using Scada.Historian.Abstractions;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton<IScadaEventBus, InMemoryScadaEventBus>();
-builder.Services.AddSingleton<ICurrentTagCache, CurrentTagCache>();
-builder.Services.AddSingleton<ITagRegistry, InMemoryTagRegistry>();
 builder.Services.AddSingleton<TagRealtimeHub>();
 builder.AddConfiguredHistorian();
-builder.Services.AddSingleton<IAlarmEngine, InMemoryAlarmEngine>();
+
+builder.Services.AddSingleton<EngineeringWorkspace>();
+builder.Services.AddSingleton<ITagRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Tags);
+builder.Services.AddSingleton<IAlarmEngine>(sp => sp.GetRequiredService<EngineeringWorkspace>().Alarms);
+builder.Services.AddSingleton<DemoRuntimeServices>();
+
 builder.Services.AddSingleton<IEngineeringDriverCompiler, EngineeringDriverCompiler>();
 builder.Services.AddSingleton<IEngineeringRuntimeCoordinator>(sp =>
     new EngineeringRuntimeCoordinator(
@@ -242,24 +245,12 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 
 builder.Services.AddSingleton(sp =>
 {
-    var cache = sp.GetRequiredService<ICurrentTagCache>();
-    var registry = sp.GetRequiredService<ITagRegistry>();
-
-    static TagDefinition Tag(string name, string path, TagDataType type, string? unit = null, bool readOnly = true) =>
-        TagDefinition.Create(name, path, type, "builtin.simulation", unit, readOnly: readOnly);
-
-    var points = new[]
-    {
-        new SimulationPoint(Tag("Tank Level", "Demo.Tank01.Level", TagDataType.Double, "%"), SimulationSignalType.Sine, 18, 92, 40),
-        new SimulationPoint(Tag("Pump Running", "Demo.P01.Running", TagDataType.Boolean), SimulationSignalType.BooleanToggle, PeriodSeconds: 8),
-        new SimulationPoint(Tag("Pump Fault", "Demo.P01.Fault", TagDataType.Boolean), SimulationSignalType.BooleanToggle, PeriodSeconds: 29),
-        new SimulationPoint(Tag("Pump Current", "Demo.P01.Current", TagDataType.Double, "A"), SimulationSignalType.Sine, 31, 46, 12),
-        new SimulationPoint(Tag("Pump Frequency", "Demo.P01.Frequency", TagDataType.Double, "Hz", readOnly: false), SimulationSignalType.Sine, 42, 60, 18),
-        new SimulationPoint(Tag("Discharge Pressure", "Demo.Discharge.Pressure", TagDataType.Double, "bar"), SimulationSignalType.Sine, 6.8, 9.6, 16),
-        new SimulationPoint(Tag("Flow", "Demo.Discharge.Flow", TagDataType.Double, "m³/h"), SimulationSignalType.Sine, 95, 165, 14)
-    };
-
-    return new SimulationDriver(cache, registry, points, TimeSpan.FromMilliseconds(500));
+    var demoRuntime = sp.GetRequiredService<DemoRuntimeServices>();
+    return new SimulationDriver(
+        demoRuntime.Cache,
+        demoRuntime.Registry,
+        DemoProcessModel.CreateSimulationPoints(),
+        TimeSpan.FromMilliseconds(500));
 });
 builder.Services.AddSingleton<ScadaRuntimeFacade>();
 builder.Services.AddHostedService<SimulationDriverHostedService>();

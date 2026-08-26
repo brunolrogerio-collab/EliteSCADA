@@ -5,151 +5,128 @@
 > **Mandatory:** read this file together with `PROJECT GOAL.md` before starting any EliteSCADA task. Update this file immediately before the final user-facing response of every EliteSCADA task.
 
 **Handoff date:** 2026-08-26
-**Development state:** PAUSED until the user explicitly resumes development in another ChatGPT conversation.
+**Development state:** ACTIVE
 
-## Latest user instruction — cross-chat resume
+## Live repository state
 
-The user explicitly stated that he will open **another ChatGPT chat** and there issue the command to continue EliteSCADA development.
+- `main` HEAD observed: `78a1656160c4317680ed54f0167537f806e104fc`.
+- PR #35 — `Add first-class operational command domain` — open and mergeable, head `fc15adb507db172233ed2893f65d30cdad311963`, base `main`.
+- PR #36 — `Protect runtime read and realtime surfaces` — open and mergeable, head `1df64077b235321f0c3318b994f7b89632261cee`, stacked on PR #35.
+- Independent frontend branch: `feature/engineering-ui-foundation`, created directly from `main` so it does not depend on #35/#36.
+- No changes from #35 or #36 have been merged into `main` without green CI.
 
-This instruction is now part of the operational handoff:
+## GitHub Actions situation
 
-- do **not** resume product implementation in the current chat merely because the project state is known;
-- the current development pause remains in effect until the user gives an explicit resume/continue command in the new chat;
-- when that new chat begins an EliteSCADA task, first read `PROJECT GOAL.md` and this `LAST CHANGE.md` before planning or changing code;
-- after reading the continuity files, fetch the live `main` HEAD and `docs/ROADMAP.md`, then continue from repository truth rather than from remembered chat state;
-- the expected immediate technical sequence on resume remains the operational command/security slice described below unless the user gives a different instruction.
+GitHub Actions has been affected by a service outage / hosted-runner queue disruption. The useful executed diagnosis for PR #35 remains run #129: backend build completed with 0 warnings/0 errors and nearly all tests passed; the single failure was a stale schema-v6 expectation after the command-domain branch moved the current schema to v7. That expectation was corrected before the current #35 head.
 
-The purpose of this note is specifically to make the transition to a new conversation safe. A new chat should not ask the user to reconstruct the project history.
+Later runs remained queued/cancelled at infrastructure level. The user also attempted cancellation through the GitHub UI and received `Failed to cancel workflow`, confirming that the service disruption affected workflow management itself.
 
-## Repository state observed for this handoff
+Do not merge #35 or #36 until CI executes successfully. Do not repeatedly close/reopen PRs merely to manufacture new workflow runs.
 
-Live `main` HEAD observed immediately before writing this update:
+PR #36 adds `concurrency`/`cancel-in-progress` to the workflow so superseded runs of the same PR/ref are automatically cancelled once GitHub Actions is healthy.
 
-`709347a5809cf16542ad19997bda1ee7bc86bc43` — project progress assessment handoff.
+## PR #35 — operational command domain
 
-This `LAST CHANGE.md` update creates a newer commit. Always fetch live `main` HEAD again in the next task.
+Implemented on `feature/operational-command-domain`:
 
-## Current project progress assessment
+- first-class command definitions/registries;
+- Engineering Schema v7 command serialization/import/export;
+- command validation against target TAGs and typed configured values;
+- command compilation into the active runtime;
+- execution through the owning communication driver;
+- `CommandExecute` authorization using area/equipment/TAG/command scopes;
+- succeeded/denied/failed command audit without persisting commanded values;
+- demo start/stop commands;
+- Core/Engineering/Driver/Chromium coverage;
+- `.escadapkg` command round-trip coverage;
+- validation against incoming/post-import TAG state.
 
-Use percentages only as weighted planning estimates, not contractual metrics:
+## PR #36 — read/realtime authorization
 
-- **Core/backend/platform foundation:** approximately **75–80% complete**.
-- **Industrial MVP/pilot foundation with current Modbus path:** approximately **65–70% complete**.
-- **Full currently locked product scope:** approximately **40–45% complete**.
-- Therefore approximately **55–60% of the full defined product effort remains**.
+Implemented on `feature/runtime-read-authorization`:
 
-The project is beyond proof-of-concept. The backend/runtime/engineering foundation is strong; the next major phase is productization through Engineering UI/editor, reusable visual components/Dynamos, trends, real user lifecycle, broader protocols, installable Driver Modules, localization and operational hardening.
+- `TagRead` protection/filtering for TAG lists, current values and historian reads;
+- alarm reads filtered by readable TAG plus `View` area scope;
+- JWT-authenticated `/ws/tags` browser WebSockets;
+- per-event realtime authorization;
+- WebSocket closure at JWT expiration;
+- fail-closed runtime-change checks and canonical live TAG resolution;
+- protected Engineering/diagnostic/project-package read surfaces;
+- minimal public `/health` plus protected runtime diagnostics;
+- group-wide Engineering persistence read/preview authorization;
+- expanded Chromium security coverage;
+- frontend login/token acquisition intentionally deferred to the identity/login slice rather than adding an ad-hoc browser token store.
 
-## Strongly implemented foundation
+## Parallel Engineering UI foundation
 
-Current `main` already contains/records:
+Because GitHub Actions is unstable, development was advanced in a separate frontend-only branch based on `main`: `feature/engineering-ui-foundation`.
 
-- TAG Engine, quality model, current cache and Event Bus;
-- REST API and WebSocket realtime path;
-- simulation runtime;
-- real Modbus TCP driver with FC01/02/03/04/05/06/16, polling, writes, reconnect and communication quality;
-- Data Source compiler to executable runtime plans;
-- PostgreSQL Engineering revision persistence;
-- isolated Engineering Workspace;
-- Working/Published/Active lifecycle;
-- transactional candidate activation and rollback;
-- fail-closed recovery of Active Revision;
-- TimescaleDB historian baseline;
-- canonical Engineering JSON schema v6;
-- Import/Export for TAGs, alarms, Data Sources, Equipment Templates/Equipment, Dynamos, Screens, Popups and security roles;
-- CSV engineering for TAGs/alarms/Data Sources;
-- `.escadapkg` engineering backup/restore;
-- schema migration/backward-compatibility tests;
-- capability/scoped authorization model;
-- trusted JWT validation adapter;
-- durable append-only PostgreSQL audit trail;
-- secured TAG writes, alarm ACK, alarm shelving/unshelving and Engineering/persistence lifecycle mutations;
-- automated .NET tests, runtime smoke and Chromium E2E infrastructure.
+Implemented in this branch:
 
-## Immediate next product slice when the user resumes
+1. `/engineering` developer-facing Engineering Workspace route.
+2. Existing `/` runtime route preserved.
+3. Visible Runtime → Engineering navigation and Engineering → Runtime navigation.
+4. Read-only Engineering shell consuming only public backend contracts:
+   - `GET /api/engineering/workspace`;
+   - `GET /api/engineering/export/json`.
+5. Project/workspace summary showing project identity, public schema/version, base revision, clean/dirty state and loaded snapshot time.
+6. Engineering navigation for:
+   - Overview;
+   - Data Sources;
+   - TAGs;
+   - Alarms;
+   - Equipment Templates;
+   - Equipment;
+   - Dynamos;
+   - Screens;
+   - Popups;
+   - Historian policies;
+   - Security roles/capabilities;
+   - model diagnostics.
+7. Generic read-only Engineering tables displaying real public model entities rather than a browser-private project representation.
+8. Engineering UI localization foundation with resource keys and selectable:
+   - `pt-BR`;
+   - `en`;
+   - `es`.
+9. Locale stored as presentation preference under `elitescada.engineering.locale`; changing language does not alter Engineering identifiers.
+10. Browser-locale detection with deterministic Playwright `pt-BR` test context.
+11. Chromium coverage for:
+   - Runtime → Engineering navigation;
+   - public Engineering-model rendering;
+   - current schema/version read dynamically from the API instead of hard-coding v6, so future schema v7 does not create a false regression;
+   - navigation across current Engineering domains;
+   - Portuguese/English/Spanish switching;
+   - locale persistence;
+   - stable TAG paths while language changes.
+12. `docs/ENGINEERING-UI.md` documenting the editor boundary, localization, UX direction and phased progression.
+13. No new npm dependency was introduced; the foundation uses the existing React/TypeScript stack.
+14. No backend/runtime mutation was introduced in this independent branch.
 
-Unless the user changes priority in the new chat, continue with:
+## Architectural rules for the Engineering UI
 
-1. introduce a **first-class operational command domain**;
-2. enforce and audit `CommandExecute` against real command objects;
-3. extend authorization to sensitive read/realtime/WebSocket surfaces;
-4. then continue user/login lifecycle, audit durability/retention, historian retention/downsampling and subsequent product/editor/protocol slices according to `docs/ROADMAP.md`.
+- The public versioned Engineering model remains authoritative.
+- Browser state may hold presentation/filter/dialog/form draft state, never become the only project representation.
+- The first UI slice is intentionally read-only.
+- Future editor mutations must reuse the platform validation/preview semantics rather than bypass them.
+- Localization is presentation only. IDs, TAG paths, addresses, enum/storage values, schema keys, revision identity and authorization semantics stay stable.
+- Backend authorization remains authoritative; hiding a UI control never grants or denies permission.
+- Do not add hard-coded JWT/localStorage authentication as a shortcut. Authenticated Engineering UI must consume the future trusted login/IdP flow.
+- Screen/popup graphical editing must ultimately serialize to the public Screen/Popup/Dynamo Engineering model, not to an opaque browser-only scene graph.
 
-Important architectural rule: do not create a fake/placeholder command endpoint merely to exercise `CommandExecute`; the command domain must exist first.
+## Immediate continuation
 
-## Major remaining product blocks
+For `feature/engineering-ui-foundation`:
 
-Still substantially outstanding:
-
-- real login/token issuance or external IdP workflow and user lifecycle administration;
-- audit buffering/outbox/retention;
-- historian retention/downsampling;
-- full Engineering/development UI for Data Sources/drivers, TAGs, historian, alarms, security, revisions and administration;
-- graphical SVG screen/popup editor consuming the public Engineering model;
-- reusable Dínamo/component library, bindings, faceplates, commands and setpoints;
-- full multi-Pen engineered/ad-hoc/saved trends;
-- persistent configurable application shell;
-- reusable libraries with controlled migration and instance overrides;
-- Engineering Fragments and dependency-aware cross-project copy/paste;
-- MQTT;
-- OPC UA;
-- BACnet;
-- installable/versioned Driver Module framework;
-- Siemens S7 ISO Connection as first intended installable driver module, including later Node-RED/open-source/license research;
-- Allen-Bradley as later research/module target;
-- Portuguese (`pt-BR`), English (`en`) and Spanish (`es`) Engineering UI localization;
-- XLSX Engineering import/export;
-- runtime diagnostics, driver health, offline behavior and industrial hardening;
-- later sandboxed Python/public SDK expansion where applicable.
-
-## Current industrial communication north
-
-- Modbus TCP: implemented real-driver baseline.
-- MQTT: locked future target.
-- OPC UA: locked future target.
-- BACnet: locked future target.
-- Installable/versioned Driver Module framework: locked requirement.
-- First intended installable module: Siemens S7 ISO Connection.
-- Allen-Bradley: later research/module target.
-- The >90% controller-market-coverage idea is a planning hypothesis and must be validated before external use as a statistic.
-
-For protocol/module work, read `docs/ADR-007-DRIVER-MODULES-AND-PROTOCOLS.md` before designing or coding.
-
-## Current Engineering UI north
-
-The developer-facing Engineering interface must eventually cover Data Sources/drivers, TAGs, historian/database, alarms, Equipment/Templates/Dynamos, screens/popups, trends, security/users, revision lifecycle, modules and diagnostics.
-
-The developer must be able to select the Engineering UI language among Portuguese (`pt-BR`), English (`en`) and Spanish (`es`). Localization is presentation only and must not change Engineering identifiers/contracts/runtime semantics.
-
-For localization work, read `docs/ADR-008-ENGINEERING-UI-LOCALIZATION.md`.
-
-## Current functional milestone
-
-The latest functional/product milestone before the documentation/continuity work remains:
-
-`fdaa093f8ba735e447cb871beaf515f4417e7559` — `Secure alarm shelving lifecycle`.
-
-Later commits primarily updated persistent project goals, ADRs, roadmap and continuity documentation.
-
-## Resume checklist for the NEW CHAT
-
-Before doing anything else on EliteSCADA:
-
-1. Read `PROJECT GOAL.md` completely.
-2. Read this `LAST CHANGE.md` completely.
-3. Fetch live `main` HEAD and recent commits.
-4. Read `docs/ROADMAP.md` for ordered implementation status.
-5. Read the relevant ADR/security/Engineering documents for the affected slice.
-6. For visual/editor work, read `docs/VISUAL-COMPONENT-LIBRARY.md`.
-7. For protocol/module work, read ADR-007.
-8. For localization work, read ADR-008.
-9. Do not rely on old branch/chat assumptions.
-10. Validate implementation through GitHub CI when .NET cannot be executed locally in the ChatGPT environment.
-11. Immediately before every final user-facing response, update this file again.
+1. Keep the branch independent from #35/#36 until their backend changes are validated.
+2. Validate frontend TypeScript build and Chromium E2E when GitHub Actions runners are available.
+3. Fix any build/E2E issue before merge; do not weaken tests.
+4. The next Engineering UI product slice after the foundation is validated should be a structured Data Source/TAG editor with draft form state feeding the public validation/preview/apply model.
+5. When #35 eventually reaches `main`, extend the Engineering UI to expose the new Command domain without creating a second command representation.
+6. When #36 reaches `main`, wire the Engineering UI to the authenticated login/profile flow once that subsystem exists and respect capability-aware presentation while keeping backend enforcement authoritative.
 
 ## Permanent continuity rule
 
 - `PROJECT GOAL.md` = persistent global project memory/product north.
 - `LAST CHANGE.md` = exact stopping/resume checkpoint.
-
-This rule remains in force until the user explicitly changes it.
+- At the start of every EliteSCADA task, read both before changing code.
+- Immediately before every final user-facing response, update this file with actual repository state.

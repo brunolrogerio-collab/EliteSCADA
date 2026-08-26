@@ -21,7 +21,8 @@ public enum ImportEntityKind
     Dynamo,
     Screen,
     Popup,
-    SecurityRole
+    SecurityRole,
+    Command
 }
 
 public enum ImportOperation
@@ -182,6 +183,19 @@ public sealed record SecurityRoleEngineeringDto(
     IReadOnlyCollection<CapabilityGrantEngineeringDto>? Grants = null,
     Dictionary<string, string>? Metadata = null);
 
+public sealed record CommandEngineeringDto(
+    Guid? Id,
+    string Key,
+    string Name,
+    Guid? TagId,
+    string? TagPath,
+    string Value,
+    string? Area = null,
+    string? EquipmentPath = null,
+    bool Enabled = true,
+    string? Description = null,
+    Dictionary<string, string>? Metadata = null);
+
 public sealed record EngineeringPackage(
     string Schema,
     int SchemaVersion,
@@ -194,7 +208,8 @@ public sealed record EngineeringPackage(
     IReadOnlyCollection<DynamoEngineeringDto>? Dynamos = null,
     IReadOnlyCollection<ScreenEngineeringDto>? Screens = null,
     IReadOnlyCollection<PopupEngineeringDto>? Popups = null,
-    IReadOnlyCollection<SecurityRoleEngineeringDto>? SecurityRoles = null);
+    IReadOnlyCollection<SecurityRoleEngineeringDto>? SecurityRoles = null,
+    IReadOnlyCollection<CommandEngineeringDto>? Commands = null);
 
 public sealed record ImportIssue(
     string Code,

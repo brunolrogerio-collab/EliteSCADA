@@ -1,3 +1,4 @@
+using Scada.Api.Realtime;
 using Scada.Api.Runtime;
 using Scada.Engineering.Security;
 using Scada.Security.Audit;
@@ -175,6 +176,7 @@ public static class LocalUserAdministrationApi
             ApiAuthorizationService security,
             ApiAuditService audit,
             ILocalIdentityStore store,
+            TagRealtimeHub realtime,
             CancellationToken ct) =>
         {
             var authorization = await AuthorizeAsync(context, runtime, security, audit, UpdateAction, id.ToString(), ct);
@@ -210,6 +212,7 @@ public static class LocalUserAdministrationApi
             }
 
             await store.UpdateAsync(updated, ct);
+            var revokedRealtimeClients = realtime.RevokeSubject(updated.Id.ToString());
             await audit.RecordAsync(
                 context,
                 authorization.Check!.Principal,
@@ -221,7 +224,8 @@ public static class LocalUserAdministrationApi
                 {
                     ["username"] = updated.Username,
                     ["enabled"] = updated.IsEnabled.ToString(),
-                    ["roles"] = string.Join(",", updated.Roles)
+                    ["roles"] = string.Join(",", updated.Roles),
+                    ["revokedRealtimeClients"] = revokedRealtimeClients.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 });
             return Results.Ok(ToResponse(updated));
         });
@@ -234,6 +238,7 @@ public static class LocalUserAdministrationApi
             ApiAuthorizationService security,
             ApiAuditService audit,
             ILocalIdentityStore store,
+            TagRealtimeHub realtime,
             CancellationToken ct) =>
         {
             var authorization = await AuthorizeAsync(context, runtime, security, audit, ResetPasswordAction, id.ToString(), ct);
@@ -251,6 +256,7 @@ public static class LocalUserAdministrationApi
                     UpdatedAtUtc = NextSecurityVersion(current.UpdatedAtUtc)
                 };
                 await store.UpdateAsync(updated, ct);
+                var revokedRealtimeClients = realtime.RevokeSubject(updated.Id.ToString());
                 await audit.RecordAsync(
                     context,
                     authorization.Check!.Principal,
@@ -258,7 +264,11 @@ public static class LocalUserAdministrationApi
                     AuditOutcome.Succeeded,
                     "local-user",
                     id.ToString(),
-                    new Dictionary<string, string> { ["username"] = updated.Username });
+                    new Dictionary<string, string>
+                    {
+                        ["username"] = updated.Username,
+                        ["revokedRealtimeClients"] = revokedRealtimeClients.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    });
                 return Results.NoContent();
             }
             catch (ArgumentException ex)

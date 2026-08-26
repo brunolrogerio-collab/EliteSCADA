@@ -32,7 +32,7 @@ public sealed class EngineeringSchemaV6SecurityTests
         var service = CreateService(security);
         var parsed = service.ParseJson(service.ExportJson());
 
-        Assert.Equal(6, parsed.SchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, parsed.SchemaVersion);
         var role = Assert.Single(parsed.SecurityRoles!);
         Assert.Equal("area-one-operator", role.Key);
         Assert.Contains(role.Grants!, x =>

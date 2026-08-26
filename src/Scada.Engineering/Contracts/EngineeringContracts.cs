@@ -17,7 +17,9 @@ public enum ImportEntityKind
     DataSource,
     Template,
     Equipment,
-    Dynamo
+    Dynamo,
+    Screen,
+    Popup
 }
 
 public enum ImportOperation
@@ -121,6 +123,37 @@ public sealed record DynamoEngineeringDto(
     Dictionary<string, string>? Context = null,
     Dictionary<string, string>? Metadata = null);
 
+public sealed record VisualElementEngineeringDto(
+    string Key,
+    string Type,
+    string? DynamoKey = null,
+    string? EquipmentPath = null,
+    IReadOnlyCollection<EngineeringBindingDto>? Bindings = null,
+    Dictionary<string, string>? Properties = null,
+    Dictionary<string, string>? Context = null,
+    IReadOnlyCollection<VisualElementEngineeringDto>? Children = null,
+    Dictionary<string, string>? Metadata = null);
+
+public sealed record ScreenEngineeringDto(
+    Guid? Id,
+    string Key,
+    string Name,
+    string? Route = null,
+    IReadOnlyCollection<VisualElementEngineeringDto>? Elements = null,
+    Dictionary<string, string>? Properties = null,
+    Dictionary<string, string>? Context = null,
+    Dictionary<string, string>? Metadata = null);
+
+public sealed record PopupEngineeringDto(
+    Guid? Id,
+    string Key,
+    string Name,
+    string? TemplateKey = null,
+    IReadOnlyCollection<VisualElementEngineeringDto>? Elements = null,
+    Dictionary<string, string>? Properties = null,
+    Dictionary<string, string>? Context = null,
+    Dictionary<string, string>? Metadata = null);
+
 public sealed record EngineeringPackage(
     string Schema,
     int SchemaVersion,
@@ -130,7 +163,9 @@ public sealed record EngineeringPackage(
     IReadOnlyCollection<DataSourceEngineeringDto>? DataSources = null,
     IReadOnlyCollection<EquipmentTemplateEngineeringDto>? Templates = null,
     IReadOnlyCollection<EquipmentEngineeringDto>? Equipment = null,
-    IReadOnlyCollection<DynamoEngineeringDto>? Dynamos = null);
+    IReadOnlyCollection<DynamoEngineeringDto>? Dynamos = null,
+    IReadOnlyCollection<ScreenEngineeringDto>? Screens = null,
+    IReadOnlyCollection<PopupEngineeringDto>? Popups = null);
 
 public sealed record ImportIssue(
     string Code,

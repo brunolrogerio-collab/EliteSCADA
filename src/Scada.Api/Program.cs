@@ -3,6 +3,7 @@ using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.Views;
 using Scada.Api.HostedServices;
 using Scada.Api.Realtime;
 using Scada.Core.Abstractions;
@@ -102,6 +103,118 @@ builder.Services.AddSingleton<IEngineeringAssetRegistry>(_ =>
         Context: new Dictionary<string, string>
         {
             ["usage"] = "process-screen"
+        }));
+
+    return registry;
+});
+builder.Services.AddSingleton<IEngineeringViewRegistry>(_ =>
+{
+    var registry = new InMemoryEngineeringViewRegistry();
+
+    registry.UpsertScreen(new ScreenEngineeringDto(
+        Id: null,
+        Key: "demo.overview",
+        Name: "Demo Overview",
+        Route: "/demo",
+        Elements: new[]
+        {
+            new VisualElementEngineeringDto(
+                Key: "tank01",
+                Type: "tank",
+                Bindings: new[]
+                {
+                    new EngineeringBindingDto("level", EngineeringBindingKind.Tag, "Demo.Tank01.Level", "read")
+                },
+                Properties: new Dictionary<string, string>
+                {
+                    ["label"] = "Reservatório TK01",
+                    ["x"] = "100",
+                    ["y"] = "100"
+                }),
+            new VisualElementEngineeringDto(
+                Key: "pump01",
+                Type: "dynamo",
+                DynamoKey: "dynamo.pump.standard",
+                EquipmentPath: "Demo.P01",
+                Properties: new Dictionary<string, string>
+                {
+                    ["x"] = "430",
+                    ["y"] = "160"
+                }),
+            new VisualElementEngineeringDto(
+                Key: "pressure",
+                Type: "value",
+                Bindings: new[]
+                {
+                    new EngineeringBindingDto("value", EngineeringBindingKind.Tag, "Demo.Discharge.Pressure", "read")
+                },
+                Properties: new Dictionary<string, string>
+                {
+                    ["label"] = "Pressão"
+                }),
+            new VisualElementEngineeringDto(
+                Key: "flow",
+                Type: "value",
+                Bindings: new[]
+                {
+                    new EngineeringBindingDto("value", EngineeringBindingKind.Tag, "Demo.Discharge.Flow", "read")
+                },
+                Properties: new Dictionary<string, string>
+                {
+                    ["label"] = "Vazão"
+                })
+        },
+        Properties: new Dictionary<string, string>
+        {
+            ["canvasWidth"] = "1366",
+            ["canvasHeight"] = "768"
+        },
+        Context: new Dictionary<string, string>
+        {
+            ["area"] = "Demo",
+            ["process"] = "Pumping"
+        }));
+
+    registry.UpsertPopup(new PopupEngineeringDto(
+        Id: null,
+        Key: "popup.pump.standard",
+        Name: "Standard Pump Popup",
+        TemplateKey: "pump.standard",
+        Elements: new[]
+        {
+            new VisualElementEngineeringDto(
+                Key: "current",
+                Type: "value",
+                Bindings: new[]
+                {
+                    new EngineeringBindingDto("value", EngineeringBindingKind.Tag, "{equipmentPath}.Current", "read")
+                },
+                Properties: new Dictionary<string, string> { ["label"] = "Corrente" }),
+            new VisualElementEngineeringDto(
+                Key: "frequency",
+                Type: "value",
+                Bindings: new[]
+                {
+                    new EngineeringBindingDto("value", EngineeringBindingKind.Tag, "{equipmentPath}.Frequency", "readWrite")
+                },
+                Properties: new Dictionary<string, string> { ["label"] = "Frequência" }),
+            new VisualElementEngineeringDto(
+                Key: "fault",
+                Type: "status",
+                Bindings: new[]
+                {
+                    new EngineeringBindingDto("active", EngineeringBindingKind.Tag, "{equipmentPath}.Fault", "read")
+                },
+                Properties: new Dictionary<string, string> { ["label"] = "Falha" })
+        },
+        Properties: new Dictionary<string, string>
+        {
+            ["width"] = "640",
+            ["height"] = "420"
+        },
+        Context: new Dictionary<string, string>
+        {
+            ["role"] = "equipment-details"
         }));
 
     return registry;
@@ -210,6 +323,8 @@ app.MapGet("/api/engineering/data-sources", (IDataSourceEngineeringRegistry regi
 app.MapGet("/api/engineering/templates", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotTemplates()));
 app.MapGet("/api/engineering/equipment", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotEquipment()));
 app.MapGet("/api/engineering/dynamos", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotDynamos()));
+app.MapGet("/api/engineering/screens", (IEngineeringViewRegistry registry) => Results.Ok(registry.SnapshotScreens()));
+app.MapGet("/api/engineering/popups", (IEngineeringViewRegistry registry) => Results.Ok(registry.SnapshotPopups()));
 
 app.MapGet("/api/engineering/export/json", (IEngineeringExchangeService exchange) =>
     Results.File(Encoding.UTF8.GetBytes(exchange.ExportJson()), "application/json", "scada-engineering.json"));

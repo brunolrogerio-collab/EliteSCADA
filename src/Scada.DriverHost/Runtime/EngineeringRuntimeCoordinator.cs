@@ -23,6 +23,11 @@ public sealed record RuntimeActivationResult(
     IReadOnlyCollection<RuntimeActivationIssue> RuntimeIssues,
     DateTimeOffset? ActivatedAtUtc = null);
 
+public sealed record RuntimeActivationCommitContext(
+    string ProjectKey,
+    long Revision,
+    DateTimeOffset ActivatedAtUtc);
+
 public sealed record RuntimeDescriptor(
     string? ProjectKey,
     long? Revision,
@@ -47,6 +52,12 @@ public interface IEngineeringRuntimeCoordinator : IAsyncDisposable
         string projectKey,
         long revision,
         EngineeringPackage package,
+        CancellationToken cancellationToken = default);
+    Task<RuntimeActivationResult> ActivateAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
         CancellationToken cancellationToken = default);
 }
 
@@ -120,11 +131,30 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         await driver.WriteAsync(tagId, value, cancellationToken);
     }
 
-    public async Task<RuntimeActivationResult> ActivateAsync(
+    public Task<RuntimeActivationResult> ActivateAsync(
         string projectKey,
         long revision,
         EngineeringPackage package,
+        CancellationToken cancellationToken = default) =>
+        ActivateCoreAsync(projectKey, revision, package, null, cancellationToken);
+
+    public Task<RuntimeActivationResult> ActivateAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
         CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(commitAsync);
+        return ActivateCoreAsync(projectKey, revision, package, commitAsync, cancellationToken);
+    }
+
+    private async Task<RuntimeActivationResult> ActivateCoreAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task>? commitAsync,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(projectKey))
             throw new ArgumentException("Project key is required.", nameof(projectKey));
@@ -183,6 +213,27 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
                 var activatedAt = DateTimeOffset.UtcNow;
                 candidate.ActivatedAtUtc = activatedAt;
+
+                if (commitAsync is not null)
+                {
+                    try
+                    {
+                        await commitAsync(
+                            new RuntimeActivationCommitContext(projectKey.Trim(), revision, activatedAt),
+                            cancellationToken);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+                    {
+                        runtimeIssues.Add(new(
+                            "RUNTIME_ACTIVATION_COMMIT_FAILED",
+                            $"Candidate runtime was ready, but activation could not be committed: {ex.Message}"));
+                        await candidate.DisposeAsync();
+                        return new RuntimeActivationResult(
+                            projectKey.Trim(), revision, false, compilation.Issues, runtimeIssues);
+                    }
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
 
                 var previous = Volatile.Read(ref _active);
                 previous.EventGate.DisableForwarding();

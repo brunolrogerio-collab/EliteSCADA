@@ -177,9 +177,7 @@ public sealed class ScriptEngineeringValidator
         Guid? scriptId = script.Id == Guid.Empty ? null : script.Id;
 
         if (script.Id == Guid.Empty)
-        {
             Add("SCRIPT_ID_REQUIRED", "Script stable ID is required.");
-        }
 
         if (string.IsNullOrWhiteSpace(script.Path))
         {
@@ -462,29 +460,19 @@ public sealed class ScriptEngineeringValidator
                 : ScriptEngineeringReferenceKeys.VisualDefinition(reference.VisualDefinitionId);
 
             if (reference.VisualDefinitionId == Guid.Empty)
-            {
                 Add("SCRIPT_VISUAL_DEFINITION_ID_REQUIRED", "Visual Script reference requires a visual definition stable ID.");
-            }
 
             if (reference.VisualObjectId == Guid.Empty)
-            {
                 Add("SCRIPT_VISUAL_OBJECT_ID_INVALID", "Visual object stable ID cannot be empty when specified.");
-            }
 
             if (!Enum.IsDefined(typeof(ScriptEngineeringEventKind), reference.EventKind))
-            {
                 Add("SCRIPT_VISUAL_EVENT_INVALID", $"Visual Script event '{reference.EventKind}' is not supported.");
-            }
 
             if (reference.ScriptId == Guid.Empty)
-            {
                 Add("SCRIPT_VISUAL_SCRIPT_ID_REQUIRED", "Visual Script reference requires a Script stable ID.");
-            }
 
             if (string.IsNullOrWhiteSpace(reference.EntryPoint))
-            {
                 Add("SCRIPT_VISUAL_ENTRYPOINT_REQUIRED", "Visual Script reference requires an entry-point handler name.");
-            }
 
             var identity = $"{entityKey}:{(int)reference.EventKind}:{reference.ScriptId:D}:{reference.EntryPoint}:{reference.TargetReference}";
             if (!seen.Add(identity))
@@ -564,7 +552,9 @@ public sealed class ScriptEngineeringValidator
         !string.IsNullOrWhiteSpace(script.LanguageVersion) &&
         script.EntryPoints.All(entryPoint =>
             Enum.IsDefined(typeof(ScriptEngineeringEventKind), entryPoint.EventKind) &&
-            IsPythonIdentifier(entryPoint.HandlerName));
+            IsPythonIdentifier(entryPoint.HandlerName)) &&
+        script.Dependencies.All(dependency =>
+            Enum.IsDefined(typeof(ScriptEngineeringDependencyKind), dependency.Kind));
 
     private static bool IsPythonIdentifier(string value)
     {

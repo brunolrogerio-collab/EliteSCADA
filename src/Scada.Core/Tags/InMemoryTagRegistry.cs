@@ -7,6 +7,12 @@ public sealed class InMemoryTagRegistry : ITagRegistry
     private readonly ConcurrentDictionary<Guid, TagDefinition> _byId = new();
     private readonly ConcurrentDictionary<string, Guid> _byPath = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _gate = new();
+    private readonly Action? _changed;
+
+    public InMemoryTagRegistry(Action? changed = null)
+    {
+        _changed = changed;
+    }
 
     public TagDefinition Register(TagDefinition tag)
     {
@@ -21,6 +27,7 @@ public sealed class InMemoryTagRegistry : ITagRegistry
             _byId[tag.Id] = tag;
             _byPath[tag.Path] = tag.Id;
         }
+        _changed?.Invoke();
         return tag;
     }
 
@@ -39,6 +46,7 @@ public sealed class InMemoryTagRegistry : ITagRegistry
             _byId[tag.Id] = tag;
             _byPath[tag.Path] = tag.Id;
         }
+        _changed?.Invoke();
         return tag;
     }
 
@@ -65,6 +73,7 @@ public sealed class InMemoryTagRegistry : ITagRegistry
             _byId.Clear();
             _byPath.Clear();
         }
+        _changed?.Invoke();
     }
 
     private static void Validate(TagDefinition tag)

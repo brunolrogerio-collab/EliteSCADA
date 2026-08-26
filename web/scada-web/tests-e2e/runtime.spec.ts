@@ -38,8 +38,18 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
     templates: Array<{ key: string; bindings: Array<{ key: string; target: string }> }>;
     equipment: Array<{ path: string; templateKey?: string; bindings: Array<{ key: string; target: string }> }>;
     dynamos: Array<{ key: string; templateKey?: string }>;
+    screens: Array<{
+      key: string;
+      route?: string;
+      elements: Array<{ key: string; type: string; dynamoKey?: string; equipmentPath?: string; bindings?: Array<{ key: string; target: string }> }>;
+    }>;
+    popups: Array<{
+      key: string;
+      templateKey?: string;
+      elements: Array<{ key: string; type: string; bindings?: Array<{ key: string; target: string }> }>;
+    }>;
   };
-  expect(engineering.schemaVersion).toBe(3);
+  expect(engineering.schemaVersion).toBe(4);
   expect(engineering.tags.some(tag => tag.path === 'Demo.Tank01.Level')).toBeTruthy();
   expect(engineering.tags.some(tag => tag.path === 'Demo.P01.Frequency')).toBeTruthy();
   expect(engineering.tags.every(tag => tag.source === 'builtin.simulation')).toBeTruthy();
@@ -55,6 +65,32 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(engineering.dynamos).toHaveLength(1);
   expect(engineering.dynamos[0].key).toBe('dynamo.pump.standard');
   expect(engineering.dynamos[0].templateKey).toBe('pump.standard');
+
+  expect(engineering.screens).toHaveLength(1);
+  expect(engineering.screens[0].key).toBe('demo.overview');
+  expect(engineering.screens[0].route).toBe('/demo');
+  const pumpElement = engineering.screens[0].elements.find(element => element.key === 'pump01');
+  expect(pumpElement).toBeTruthy();
+  expect(pumpElement!.dynamoKey).toBe('dynamo.pump.standard');
+  expect(pumpElement!.equipmentPath).toBe('Demo.P01');
+  const pressureElement = engineering.screens[0].elements.find(element => element.key === 'pressure');
+  expect(pressureElement?.bindings?.some(binding => binding.target === 'Demo.Discharge.Pressure')).toBeTruthy();
+
+  expect(engineering.popups).toHaveLength(1);
+  expect(engineering.popups[0].key).toBe('popup.pump.standard');
+  expect(engineering.popups[0].templateKey).toBe('pump.standard');
+  const popupFrequency = engineering.popups[0].elements.find(element => element.key === 'frequency');
+  expect(popupFrequency?.bindings?.some(binding => binding.target === '{equipmentPath}.Frequency')).toBeTruthy();
+
+  const screensResponse = await request.get('/api/engineering/screens');
+  expect(screensResponse.ok()).toBeTruthy();
+  const screens = await screensResponse.json() as Array<{ key: string }>;
+  expect(screens.map(screen => screen.key)).toContain('demo.overview');
+
+  const popupsResponse = await request.get('/api/engineering/popups');
+  expect(popupsResponse.ok()).toBeTruthy();
+  const popups = await popupsResponse.json() as Array<{ key: string }>;
+  expect(popups.map(popup => popup.key)).toContain('popup.pump.standard');
 
   const packagePreviewResponse = await request.post('/api/engineering/import/json/preview', {
     data: engineeringText,

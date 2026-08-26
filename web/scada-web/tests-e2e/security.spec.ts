@@ -3,7 +3,7 @@ import { createE2eJwt } from './jwt';
 
 const baseURL = 'http://127.0.0.1:5173';
 
-test('API distinguishes unauthenticated, invalid, forbidden and developer access', async ({ request }) => {
+test('API distinguishes access levels and records protected-operation audit events', async ({ request }) => {
   const meResponse = await request.get('/api/auth/me');
   expect(meResponse.ok()).toBeTruthy();
   const me = await meResponse.json() as { subjectId: string; displayName: string; roles: string[] };
@@ -71,7 +71,46 @@ test('API distinguishes unauthenticated, invalid, forbidden and developer access
       data: engineeringJson,
       headers: { 'content-type': 'application/json; charset=utf-8' }
     })).status()).toBe(403);
+
+    // Audit history itself is administrative information.
+    expect((await operator.get('/api/audit')).status()).toBe(403);
   } finally {
     await operator.dispose();
   }
+
+  // The developer role explicitly has ProcessValueWrite and SystemAdmin in the demo policy.
+  expect((await request.post(`/api/tags/${frequency!.id}/write`, {
+    data: { value: 54 }
+  })).status()).toBe(202);
+
+  const auditResponse = await request.get('/api/audit?action=tag.write&limit=100');
+  expect(auditResponse.ok()).toBeTruthy();
+  const events = await auditResponse.json() as Array<{
+    subjectId: string;
+    action: string;
+    outcome: number;
+    targetKind: string;
+    targetId: string;
+    details?: Record<string, string>;
+  }>;
+
+  expect(events.some(event =>
+    event.subjectId === 'e2e-developer' &&
+    event.action === 'tag.write' &&
+    event.outcome === 0 &&
+    event.targetId === 'Demo.P01.Frequency')).toBeTruthy();
+  expect(events.some(event =>
+    event.subjectId === 'e2e-operator' &&
+    event.action === 'tag.write' &&
+    event.outcome === 1 &&
+    event.targetId === 'Demo.P01.Frequency')).toBeTruthy();
+  expect(events.some(event =>
+    event.subjectId === 'anonymous' &&
+    event.action === 'tag.write' &&
+    event.outcome === 1 &&
+    event.targetId === 'Demo.P01.Frequency')).toBeTruthy();
+
+  // Audit metadata is intentionally structural; process values and credentials are not copied into it.
+  expect(events.every(event => !event.details || !('value' in event.details))).toBeTruthy();
+  expect(events.every(event => !event.details || !('authorization' in event.details))).toBeTruthy();
 });

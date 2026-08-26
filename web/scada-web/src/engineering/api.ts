@@ -91,6 +91,40 @@ export async function applyEngineeringPackage(
   return await response.json() as ImportResultView;
 }
 
+export type EngineeringDeleteKind = 'tags' | 'alarms' | 'data-sources';
+
+export type EngineeringDependencyView = {
+  entityKind: string;
+  entityId: string;
+  entityKey: string;
+  relation: string;
+};
+
+export type EngineeringDeleteResult = {
+  deleted: boolean;
+  entityKind: string;
+  entityId: string;
+  entityKey: string;
+  changeVersion: number;
+};
+
+export async function deleteEngineeringEntity(
+  kind: EngineeringDeleteKind,
+  id: string,
+  expectedChangeVersion: number
+): Promise<EngineeringDeleteResult> {
+  const response = await fetch(`${API}/api/engineering/${kind}/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: {
+      accept: 'application/json',
+      'x-elitescada-workspace-version': String(expectedChangeVersion)
+    }
+  });
+
+  if (!response.ok) throw await readError(response);
+  return await response.json() as EngineeringDeleteResult;
+}
+
 export class EngineeringWorkspaceConflictError extends Error {
   constructor(
     public readonly expectedChangeVersion: number,

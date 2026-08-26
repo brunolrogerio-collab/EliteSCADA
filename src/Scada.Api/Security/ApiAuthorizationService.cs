@@ -1,5 +1,7 @@
+using Microsoft.Extensions.DependencyInjection;
 using Scada.Api.Runtime;
 using Scada.Core.Tags;
+using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.Security;
@@ -64,7 +66,7 @@ public sealed class ApiAuthorizationService(
         if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
             return new ApiAuthorizationCheck(principal, null);
 
-        var policies = await ResolveRuntimePoliciesAsync(runtime, capability, cancellationToken);
+        var policies = await ResolveRuntimePoliciesAsync(runtime, cancellationToken);
         if (policies is null)
         {
             return new ApiAuthorizationCheck(
@@ -96,7 +98,7 @@ public sealed class ApiAuthorizationService(
         if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
             return new ApiAuthorizationCheck(principal, null);
 
-        var policies = await ResolveRuntimePoliciesAsync(runtime, capability, cancellationToken);
+        var policies = await ResolveRuntimePoliciesAsync(runtime, cancellationToken);
         if (policies is null)
         {
             return new ApiAuthorizationCheck(
@@ -112,7 +114,6 @@ public sealed class ApiAuthorizationService(
 
     private async Task<InMemoryCapabilityAuthorizationService?> ResolveRuntimePoliciesAsync(
         ScadaRuntimeFacade runtime,
-        SecurityCapability requestedCapability,
         CancellationToken cancellationToken)
     {
         var descriptor = runtime.Describe();
@@ -142,7 +143,7 @@ public sealed class ApiAuthorizationService(
 
         var package = exchange.ParseJson(snapshot.EngineeringJson);
         var compiled = new InMemoryCapabilityAuthorizationService(
-            SecurityPolicyCompiler.Compile(package.SecurityRoles ?? Array.Empty<Scada.Engineering.Contracts.SecurityRoleEngineeringDto>()));
+            SecurityPolicyCompiler.Compile(package.SecurityRoles ?? Array.Empty<SecurityRoleEngineeringDto>()));
 
         // Fail closed if the live runtime changed while the persisted policy was being resolved.
         var afterLoad = runtime.Describe();

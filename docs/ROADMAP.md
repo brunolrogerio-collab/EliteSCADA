@@ -90,7 +90,7 @@ Completed in the security track:
 
 In validation on the current branch:
 
-9. PostgreSQL append-only audit event storage with database-enforced rejection of `UPDATE` and `DELETE`.
+9. PostgreSQL append-only audit event storage with database-enforced rejection of `UPDATE`, `DELETE` and `TRUNCATE`.
 10. Queryable audit trail protected by `SystemAdmin`.
 11. Succeeded/denied/failed audit recording for protected TAG writes, alarm ACK, Engineering import apply and project-package restore apply.
 12. Browser coverage validating trusted/anonymous audit subjects, authorization outcomes and audit-read protection.

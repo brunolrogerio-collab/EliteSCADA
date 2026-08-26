@@ -102,7 +102,9 @@ internal sealed class CommandEngineeringHandler
             ? FindPackageTagByPath(package, command.TargetTagPath) ?? FindRegistryTagByPath(command.TargetTagPath)
             : null;
 
-        if (byId is not null && byPath is not null && byId.Id != byPath.Id)
+        if (byId is not null && byPath is not null &&
+            byId.Id != byPath.Id &&
+            !byId.Path.Equals(byPath.Path, StringComparison.OrdinalIgnoreCase))
         {
             issues.Add(new ImportIssue(
                 "COMMAND_TARGET_TAG_MISMATCH",

@@ -9,115 +9,101 @@
 
 ## Latest task
 
-The latest task was a continuity/product-goal verification requested by the user: confirm whether MQTT, OPC UA and installable/extra driver modules are part of the EliteSCADA project target.
+The user explicitly instructed the project goal to be updated so that MQTT, OPC UA and installable modules for additional communication drivers are formal product requirements.
 
-No product/runtime code was changed and development remains paused.
+No runtime/product code was developed. This task changed project documentation/architecture only, and the development pause remains in effect.
 
-Verified against `PROJECT GOAL.md` and `docs/ROADMAP.md`:
+### Changes made on `main`
 
-- **MQTT is explicitly part of the project north.** `PROJECT GOAL.md` names MQTT as the industrial messaging direction and the Industrial Communication section plans MQTT protocol expansion. `docs/ROADMAP.md` also explicitly lists MQTT driver integration through the same Data Source/driver model as a future implementation slice.
-- **Plugin/SDK-based additional drivers are explicitly part of the architectural direction.** `PROJECT GOAL.md` states an extension direction through a public SDK and says future protocol expansion includes plugin/SDK-based drivers. Future engineering domains also include plugins and must join the same public, versioned Engineering model.
-- **OPC UA is not currently explicitly recorded** in `PROJECT GOAL.md`, `docs/ROADMAP.md`, or repository code search performed for this task.
-- The current wording supports extensible drivers, but a complete **installable driver-module mechanism** (package format, installation, discovery/catalog, enable/disable, version compatibility, isolation, trust/signing and upgrade lifecycle) is not yet explicitly specified as a locked product requirement. Do not assume those details are already decided.
+1. `PROJECT GOAL.md` was updated to lock the following requirements:
+   - MQTT as a planned first-class industrial communication/messaging integration;
+   - OPC UA as a planned first-class industrial interoperability protocol;
+   - ability to add first-party and third-party communication drivers through installable/versioned modules using the common Driver SDK/DriverHost boundary;
+   - plugin-owned Data Source/driver configuration must expose a public versioned Engineering schema and participate in validation, import/export, backup/restore and migration;
+   - module lifecycle must include installation, removal, enable/disable, upgrade, compatibility validation and explicit diagnostics;
+   - project Engineering configuration must be preserved if a required module is missing, disabled or incompatible;
+   - module trust/integrity must be checked before executable code is enabled;
+   - module administration is security-sensitive and must be permission-controlled/auditable when implemented.
 
-This task demonstrates the intended distinction between a broad architecture direction and an explicitly locked product requirement.
+2. Created `docs/ADR-007-DRIVER-MODULES-AND-PROTOCOLS.md`, an accepted architectural decision that defines:
+   - Modbus TCP as current implemented baseline;
+   - MQTT and OPC UA as explicit future protocol targets;
+   - installable driver modules as a locked product capability;
+   - common Data Source/TAG/quality/Engineering boundaries for all protocols;
+   - minimum module manifest/lifecycle/compatibility/trust expectations;
+   - preservation of configuration for unavailable modules;
+   - deferred details such as physical package format, exact signing policy, distribution/catalog UX and isolation strategy.
 
-## Previous continuity test: trend charts
+3. `docs/ROADMAP.md` was updated:
+   - MQTT remains an explicit future slice;
+   - OPC UA now has its own explicit future slice;
+   - a dedicated installable/versioned Driver Module framework slice was added;
+   - a new locked future-requirement section documents the protocol/module rules and points to ADR-007.
 
-The previous task verified recovery of the locked trend requirements without relying on old ChatGPT history:
+### Repository state before this LAST CHANGE update
 
-- engineering-configurable trends with multiple Pens;
-- each Pen may use historical TAG data, a live/runtime binding or an expression;
-- project-defined trends can be placed on screens and popups;
-- ad-hoc and saved runtime trends are supported where access policy allows;
-- historical queries and realtime subscriptions remain distinct even when displayed together;
-- TimescaleDB aggregation/downsampling must be exposed without leaking storage-specific concepts into the Engineering contract;
-- historian retention/downsampling is part of the supporting backend roadmap;
-- trend use/save participates in the configurable application security capability model.
+Live `main` HEAD observed immediately before updating this file:
 
-## Why this file exists
+`7cfdef1fbbf2054e9f262479d50727851f914c96` — `Add OPC UA and installable driver modules to roadmap`
 
-The project has already suffered context loss when a long ChatGPT conversation reached the platform session/duration limit and work continued in another chat. Conversation memory alone is therefore not reliable enough to identify the exact project position.
+This `LAST CHANGE.md` update creates a newer commit. Always fetch live `main` HEAD on the next task.
 
-This file is the repository-side checkpoint. A fresh conversation must be able to read it and resume without reconstructing hundreds of previous messages.
+## Current product direction for industrial communication
 
-## Permanent operating rule
+Locked direction now is:
 
-1. Start every EliteSCADA task by reading `PROJECT GOAL.md` and `LAST CHANGE.md`.
-2. If stable project intent changes in ChatGPT, update `PROJECT GOAL.md` in the same task.
-3. Before the final reply to the user on every EliteSCADA task, update `LAST CHANGE.md` with the actual stopping point.
-4. Do not rely on chat history alone to decide what to implement next.
+- Modbus TCP: implemented real-driver baseline;
+- MQTT: planned first-class integration;
+- OPC UA: planned first-class integration;
+- additional protocols: installable first-party/third-party driver modules;
+- all of them must use the common EliteSCADA Engineering/Data Source/TAG/runtime model;
+- no driver module may bypass TAG quality semantics, alarms, historian, security, audit or project persistence.
 
-## Repository state and latest functional milestone
+The exact implementation details of the module packaging/catalog/signing/isolation mechanism remain intentionally deferred to the dedicated implementation slice. Do not invent them prematurely as if already decided.
 
-The latest functional/product milestone recorded before the continuity-document work is:
+## Previous functional milestone
+
+The latest functional/product milestone before the continuity/documentation work remains:
 
 `fdaa093f8ba735e447cb871beaf515f4417e7559` — `Secure alarm shelving lifecycle`
 
 Alarm shelving is already integrated into `main`.
 
-Do not resume work from old branch/chat assumptions without first inspecting current `main`.
-
-## Current implemented security/runtime position
-
-The repository/roadmap currently records the following security track as completed:
-
-- capability-based authorization and scoped grants;
-- TAG access policies;
-- Engineering Schema v6 security roles;
-- JWT Bearer principal mapping/validation;
-- protected TAG writes and alarm acknowledgement;
-- protected Engineering import/restore and persistence lifecycle operations;
-- trusted authenticated actor for save/publish/activate-style operations instead of caller-supplied authority;
-- PostgreSQL append-only audit storage protected against update/delete/truncate;
-- audit query protection;
-- succeeded/denied/failed audit recording;
-- PostgreSQL-backed browser security coverage;
-- alarm shelving/unshelving runtime behavior;
-- `AlarmShelve` authorization with area scoping;
-- trusted actor metadata and audit coverage for shelving;
-- browser coverage for shelving authorization/audit outcomes.
-
-The Engineering Import/Export cross-cutting requirement remains mandatory and is documented in `PROJECT GOAL.md`, `docs/ROADMAP.md` and the accepted ADRs.
-
 ## Current development pause
 
-The user explicitly requested development to stop after a ChatGPT/platform error.
+The user previously requested development to stop after a ChatGPT/platform error.
 
-**Do not continue implementation automatically.**
+**Do not continue product implementation automatically.**
 
-Repository/document inspection and continuity maintenance are allowed when requested, but new product development should resume only after a new user instruction to continue.
+Documentation/goal maintenance is allowed when explicitly requested. New product development resumes only after an explicit instruction to continue.
 
 ## Next product slice when development is explicitly resumed
 
-According to the current roadmap, the next major technical slice is:
+According to the current roadmap, the immediate next technical slice remains:
 
-1. introduce a **first-class operational command domain**;
-2. only then enforce and audit `CommandExecute` against actual command objects;
-3. extend authorization to sensitive read/realtime/WebSocket surfaces;
-4. continue later security/user-lifecycle, audit durability/retention, historian retention/downsampling, MQTT, XLSX Engineering, diagnostics and frontend hardening according to `docs/ROADMAP.md`.
+1. introduce a first-class operational command domain;
+2. enforce/audit `CommandExecute` against real command objects;
+3. extend authorization to sensitive read/realtime/WebSocket surfaces.
 
-Important architectural rule already established: **do not create a fake/placeholder command endpoint merely to exercise `CommandExecute`; the command domain must exist first.**
+Later roadmap slices now explicitly include historian retention/downsampling, MQTT, OPC UA, the installable Driver Module framework, XLSX Engineering, diagnostics and frontend hardening.
 
-## Resume checklist for the next ChatGPT task
+## Resume checklist
 
-Before doing anything else:
+Before any EliteSCADA task:
 
 1. Read `PROJECT GOAL.md` completely.
 2. Read this `LAST CHANGE.md` completely.
-3. Fetch live `main` HEAD and recent commits when repository state matters.
-4. Read `docs/ROADMAP.md` for ordered implementation status when planning development.
-5. If the requested task touches a specific architecture/security/import-export area, read the corresponding ADR/document.
-6. Compare any referenced working branch against current `main`; never assume an old branch is ahead.
-7. Only then plan or modify code.
-8. Validate changes through GitHub CI when .NET cannot be executed in the ChatGPT local environment.
-9. Immediately before the final user-facing message, update this file again.
+3. Fetch live `main` HEAD/recent commits when repository state matters.
+4. Read `docs/ROADMAP.md` when planning implementation.
+5. For protocol/module work, read `docs/ADR-007-DRIVER-MODULES-AND-PROTOCOLS.md` before designing or coding.
+6. Read other relevant ADR/security/Engineering documents for the affected domain.
+7. Do not rely on old chat/branch assumptions.
+8. Validate implementation through GitHub CI when .NET cannot be executed locally in the ChatGPT environment.
+9. Immediately before the final user-facing response, update this file again.
 
-## Last user instruction governing state
-
-The user wants project continuity to survive ChatGPT conversation limits. These two repository files are part of the project operating process, independent of the roadmap:
+## Permanent continuity rule
 
 - `PROJECT GOAL.md` = persistent global project memory/product north.
 - `LAST CHANGE.md` = exact stopping/resume checkpoint.
 
-That rule remains in force until the user explicitly changes it.
+This rule remains in force until the user explicitly changes it.

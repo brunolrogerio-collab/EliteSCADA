@@ -6,4 +6,6 @@ public interface IAlarmEngine : IDisposable
     IReadOnlyCollection<AlarmDefinition> Definitions();
     IReadOnlyCollection<AlarmInstance> Snapshot(bool activeOnly = false);
     ValueTask<bool> AcknowledgeAsync(Guid definitionId, string user, CancellationToken cancellationToken = default);
+    ValueTask<bool> ShelveAsync(Guid definitionId, string user, CancellationToken cancellationToken = default);
+    ValueTask<bool> UnshelveAsync(Guid definitionId, string user, CancellationToken cancellationToken = default);
 }

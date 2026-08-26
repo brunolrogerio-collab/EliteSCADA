@@ -50,12 +50,16 @@ public sealed class PostgreSqlEngineeringProjectStoreTests
             "integration-test");
 
         var latest = await store.LoadLatestAsync(projectKey);
+        var explicitFirst = await store.LoadRevisionAsync(projectKey, first.Revision);
         var revisions = await store.ListRevisionsAsync(projectKey, 10);
 
         Assert.NotNull(latest);
+        Assert.NotNull(explicitFirst);
         Assert.True(second.Revision > first.Revision);
         Assert.Equal(second.Revision, latest!.Revision);
         Assert.Contains("Plant.Pressure", latest.EngineeringJson);
+        Assert.DoesNotContain("Plant.Pressure", explicitFirst!.EngineeringJson);
+        Assert.Equal(first.Revision, explicitFirst.Revision);
         Assert.Equal("integration-test", latest.SavedBy);
         Assert.Equal(new[] { second.Revision, first.Revision }, revisions.Select(x => x.Revision).ToArray());
     }

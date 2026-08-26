@@ -89,13 +89,18 @@ app.MapAuditEndpoints();
 app.MapAlarmShelvingEndpoints();
 app.MapCommandEndpoints();
 
-app.MapGet("/health", (ScadaRuntimeFacade runtime, IHistorian historian) =>
+// Public health intentionally exposes no plant, driver, project or historian detail.
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "ok",
+    service = "scada-api"
+}));
+
+app.MapGet("/api/diagnostics/runtime", (ScadaRuntimeFacade runtime, IHistorian historian) =>
 {
     var descriptor = runtime.Describe();
     return Results.Ok(new
     {
-        status = "ok",
-        service = "scada-api",
         driver = descriptor.Drivers.FirstOrDefault(),
         runtime = descriptor,
         historian = new
@@ -106,7 +111,7 @@ app.MapGet("/health", (ScadaRuntimeFacade runtime, IHistorian historian) =>
         },
         activeAlarms = descriptor.ActiveAlarmCount
     });
-});
+}).RequireRuntimeEngineeringRead();
 
 app.MapGet("/api/auth/me", (HttpContext context, ApiAuthorizationService security) =>
 {

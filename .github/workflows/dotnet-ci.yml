@@ -172,6 +172,8 @@ jobs:
           assert status['provider'] == 'postgresql'
           PY
 
+          curl -fsS http://127.0.0.1:5080/api/engineering/export/json > /tmp/current-engineering.json
+
           curl -fsS -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/save \
             -H 'content-type: application/json' \
             -d '{"projectName":"CI Demo","savedBy":"github-actions"}' > /tmp/persistence-save.json
@@ -215,9 +217,11 @@ jobs:
           import json
           with open('/tmp/persistence-revisions.json') as f:
               revisions = json.load(f)
+          with open('/tmp/current-engineering.json') as f:
+              engineering = json.load(f)
           assert len(revisions) >= 1
           assert revisions[0]['projectKey'] == 'ci-demo'
-          assert revisions[0]['engineeringSchemaVersion'] == 7
+          assert revisions[0]['engineeringSchemaVersion'] == engineering['schemaVersion']
           assert revisions[0]['basedOnRevision'] is None
           PY
 

@@ -84,14 +84,21 @@ jobs:
             exit 1
           fi
 
-          historian_ready=false
-          for _ in $(seq 1 30); do
-            curl -fsS http://127.0.0.1:5080/health > /tmp/health.json
-            if python3 - <<'PY'
-          import json, sys
+          python3 - <<'PY'
+          import json
           with open('/tmp/health.json') as f:
               health = json.load(f)
-          ok = health['historian']['provider'] == 'timescaledb' and health['historian']['writtenSamples'] >= 1
+          assert health == {'status': 'ok', 'service': 'scada-api'}
+          PY
+
+          historian_ready=false
+          for _ in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:5080/api/diagnostics/runtime > /tmp/runtime-diagnostics.json
+            if python3 - <<'PY'
+          import json, sys
+          with open('/tmp/runtime-diagnostics.json') as f:
+              diagnostics = json.load(f)
+          ok = diagnostics['historian']['provider'] == 'timescaledb' and diagnostics['historian']['writtenSamples'] >= 1
           sys.exit(0 if ok else 1)
           PY
             then
@@ -102,12 +109,13 @@ jobs:
           done
 
           if [ "$historian_ready" != "true" ]; then
-            cat /tmp/health.json
+            cat /tmp/runtime-diagnostics.json
             cat /tmp/scada-api.log
             exit 1
           fi
 
           cat /tmp/health.json
+          cat /tmp/runtime-diagnostics.json
           curl -fsS http://127.0.0.1:5080/api/tags > /tmp/tags.json
           TAG_COUNT=$(python3 -c 'import json; print(len(json.load(open("/tmp/tags.json"))))')
           echo "Runtime exposed ${TAG_COUNT} TAGs"

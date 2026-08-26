@@ -1,5 +1,4 @@
-using System.Threading.RateLimiting;
-using Microsoft.AspNetCore.RateLimiting;
+using System.Collections.Concurrent;
 using Scada.Persistence.PostgreSql;
 using Scada.Security.Authentication;
 
@@ -11,9 +10,47 @@ public sealed record LocalIdentityRuntimeOptions(
     bool SecureCookie,
     string CookieName);
 
+public sealed class LocalLoginAttemptLimiter
+{
+    private readonly ConcurrentDictionary<string, AttemptWindow> _windows = new(StringComparer.Ordinal);
+    private readonly int _permitLimit;
+    private readonly TimeSpan _window;
+
+    public LocalLoginAttemptLimiter(int permitLimit = 10, TimeSpan? window = null)
+    {
+        if (permitLimit < 1) throw new ArgumentOutOfRangeException(nameof(permitLimit));
+        _permitLimit = permitLimit;
+        _window = window ?? TimeSpan.FromMinutes(1);
+    }
+
+    public bool TryAcquire(string key, DateTimeOffset? nowUtc = null)
+    {
+        var now = nowUtc ?? DateTimeOffset.UtcNow;
+        var window = _windows.GetOrAdd(key, _ => new AttemptWindow(now, 0));
+
+        lock (window)
+        {
+            if (now - window.StartedAtUtc >= _window)
+            {
+                window.StartedAtUtc = now;
+                window.Count = 0;
+            }
+
+            if (window.Count >= _permitLimit) return false;
+            window.Count++;
+            return true;
+        }
+    }
+
+    private sealed class AttemptWindow(DateTimeOffset startedAtUtc, int count)
+    {
+        public DateTimeOffset StartedAtUtc { get; set; } = startedAtUtc;
+        public int Count { get; set; } = count;
+    }
+}
+
 public static class LocalIdentityConfiguration
 {
-    public const string LoginRateLimitPolicy = "local-auth-login";
     public const string DefaultCookieName = "elitescada_access";
 
     public static bool AddLocalIdentity(this WebApplicationBuilder builder, bool authenticationEnabled)
@@ -45,6 +82,7 @@ public static class LocalIdentityConfiguration
             secureCookie,
             cookieName));
         builder.Services.AddSingleton<JwtTokenIssuer>();
+        builder.Services.AddSingleton<LocalLoginAttemptLimiter>();
         builder.Services.AddSingleton<ILocalIdentityStore>(sp =>
         {
             var configuration = sp.GetRequiredService<IConfiguration>();
@@ -52,21 +90,6 @@ public static class LocalIdentityConfiguration
             return string.IsNullOrWhiteSpace(connectionString)
                 ? new InMemoryLocalIdentityStore()
                 : new PostgreSqlLocalIdentityStore(connectionString);
-        });
-
-        builder.Services.AddRateLimiter(options =>
-        {
-            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            options.AddPolicy(LoginRateLimitPolicy, context =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    factory: _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = 10,
-                        Window = TimeSpan.FromMinutes(1),
-                        QueueLimit = 0,
-                        AutoReplenishment = true
-                    }));
         });
 
         return true;

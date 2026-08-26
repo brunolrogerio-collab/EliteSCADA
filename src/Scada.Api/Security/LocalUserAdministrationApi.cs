@@ -1,6 +1,5 @@
 using Scada.Api.Realtime;
 using Scada.Api.Runtime;
-using Scada.Engineering.Security;
 using Scada.Security.Audit;
 using Scada.Security.Authentication;
 using Scada.Security.Authorization;
@@ -203,11 +202,11 @@ public static class LocalUserAdministrationApi
 
             var users = await store.ListAsync(ct);
             var projected = users.Select(user => user.Id == id ? updated : user).ToArray();
-            if (!projected.Any(user => user.IsEnabled && GrantsUserAdministration(user.Roles, workspace)))
+            if (!await HasEnabledLocalAdministratorAsync(projected, security, runtime, ct))
             {
                 return Results.BadRequest(new
                 {
-                    error = "At least one enabled local user must retain the UserRoleAdmin capability."
+                    error = "At least one enabled local user must retain UserRoleAdmin or SystemAdmin in the active runtime policy."
                 });
             }
 
@@ -289,21 +288,37 @@ public static class LocalUserAdministrationApi
         string targetId,
         CancellationToken ct)
     {
-        var check = await security.CheckRuntimeAsync(
+        var roleAdmin = await security.CheckRuntimeAsync(
             context,
             runtime,
             SecurityCapability.UserRoleAdmin,
             cancellationToken: ct);
-        var failure = check.FailureResult();
-        if (failure is null) return (check, null);
+        if (roleAdmin.Allowed) return (roleAdmin, null);
 
+        if (roleAdmin.IsAuthenticated)
+        {
+            var systemAdmin = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.SystemAdmin,
+                cancellationToken: ct);
+            if (systemAdmin.Allowed) return (systemAdmin, null);
+        }
+
+        var failure = roleAdmin.FailureResult() ?? Results.Json(
+            new { error = "Forbidden." },
+            statusCode: StatusCodes.Status403Forbidden);
         await audit.RecordAuthorizationDeniedAsync(
             context,
-            check,
+            roleAdmin,
             action,
             "local-user-administration",
-            targetId);
-        return (check, failure);
+            targetId,
+            new Dictionary<string, string>
+            {
+                ["requiredCapabilities"] = "UserRoleAdmin|SystemAdmin"
+            });
+        return (roleAdmin, failure);
     }
 
     private static (IReadOnlyCollection<string> Normalized, string[] Unknown) ValidateRoles(
@@ -325,18 +340,36 @@ public static class LocalUserAdministrationApi
             unknownRoles = unknown
         });
 
-    private static bool GrantsUserAdministration(
-        IReadOnlyCollection<string> roles,
-        EngineeringWorkspace workspace)
+    private static async Task<bool> HasEnabledLocalAdministratorAsync(
+        IEnumerable<LocalUserAccount> users,
+        ApiAuthorizationService security,
+        ScadaRuntimeFacade runtime,
+        CancellationToken ct)
     {
-        var policies = new InMemoryCapabilityAuthorizationService(
-            SecurityPolicyCompiler.Compile(workspace.SecurityPolicies.SnapshotRoles()));
-        var candidate = new SecurityPrincipal(
-            "local-admin-safety-check",
-            "Local admin safety check",
-            roles,
-            true);
-        return policies.Evaluate(candidate, SecurityCapability.UserRoleAdmin).Allowed;
+        foreach (var user in users.Where(user => user.IsEnabled))
+        {
+            var candidate = new SecurityPrincipal(
+                user.Id.ToString(),
+                user.DisplayName,
+                LocalIdentityNormalization.NormalizeRoles(user.Roles),
+                true);
+
+            var roleAdmin = await security.CheckRuntimeAsync(
+                candidate,
+                runtime,
+                SecurityCapability.UserRoleAdmin,
+                cancellationToken: ct);
+            if (roleAdmin.Allowed) return true;
+
+            var systemAdmin = await security.CheckRuntimeAsync(
+                candidate,
+                runtime,
+                SecurityCapability.SystemAdmin,
+                cancellationToken: ct);
+            if (systemAdmin.Allowed) return true;
+        }
+
+        return false;
     }
 
     private static DateTimeOffset NextSecurityVersion(DateTimeOffset previous)

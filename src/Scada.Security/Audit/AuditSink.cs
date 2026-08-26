@@ -19,8 +19,7 @@ public sealed class InMemoryAuditSink : IAuditSink
         return ValueTask.CompletedTask;
     }
 
-    public IReadOnlyCollection<AuditEvent> Snapshot() =>
-        _events.OrderBy(x => x.TimestampUtc).ThenBy(x => x.Id).ToArray();
+    public IReadOnlyCollection<AuditEvent> Snapshot() => _events.ToArray();
 
     public void Clear()
     {

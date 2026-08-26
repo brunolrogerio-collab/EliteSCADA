@@ -52,6 +52,22 @@ test('Engineering administers local users without exposing credentials and inval
     const beforeChange = await localPage.evaluate(async () => (await fetch('/api/auth/me')).status);
     expect(beforeChange).toBe(200);
 
+    await localPage.evaluate(async () => {
+      await new Promise<void>((resolve, reject) => {
+        const socket = new WebSocket(`ws://${window.location.host}/ws/tags`);
+        (window as typeof window & { __adminTestSocket?: WebSocket }).__adminTestSocket = socket;
+        const timeout = window.setTimeout(() => reject(new Error('Realtime test socket did not open.')), 5000);
+        socket.onopen = () => {
+          window.clearTimeout(timeout);
+          resolve();
+        };
+        socket.onerror = () => {
+          window.clearTimeout(timeout);
+          reject(new Error('Realtime test socket failed before opening.'));
+        };
+      });
+    });
+
     const updateStatus = await page.evaluate(async ({ id }) => {
       const response = await fetch(`/api/auth/users/${id}`, {
         method: 'PUT',
@@ -61,6 +77,11 @@ test('Engineering administers local users without exposing credentials and inval
       return response.status;
     }, { id: userId });
     expect(updateStatus).toBe(200);
+
+    await localPage.waitForFunction(() => {
+      const socket = (window as typeof window & { __adminTestSocket?: WebSocket }).__adminTestSocket;
+      return socket?.readyState === WebSocket.CLOSED;
+    });
 
     const afterProfileChange = await localPage.evaluate(async () => (await fetch('/api/auth/me')).status);
     expect(afterProfileChange).toBe(401);

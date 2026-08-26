@@ -122,10 +122,18 @@ app.MapGet("/api/auth/me", (HttpContext context, ApiAuthorizationService securit
     });
 });
 
-app.MapGet("/api/tags", (ScadaRuntimeFacade runtime) =>
+app.MapGet("/api/tags", async (
+    HttpContext context,
+    ScadaRuntimeFacade runtime,
+    ApiAuthorizationService security,
+    CancellationToken ct) =>
 {
+    var access = await security.GetReadableRuntimeTagsAsync(context, runtime, ct);
+    var failure = access.FailureResult();
+    if (failure is not null) return failure;
+
     var current = runtime.CurrentValues().ToDictionary(x => x.TagId);
-    var tags = runtime.Tags().Select(tag => new
+    var tags = access.Tags.Select(tag => new
     {
         tag.Id,
         tag.Name,
@@ -139,11 +147,33 @@ app.MapGet("/api/tags", (ScadaRuntimeFacade runtime) =>
     return Results.Ok(tags);
 });
 
-app.MapGet("/api/tags/current", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.CurrentValues()));
+app.MapGet("/api/tags/current", async (
+    HttpContext context,
+    ScadaRuntimeFacade runtime,
+    ApiAuthorizationService security,
+    CancellationToken ct) =>
+{
+    var access = await security.GetReadableRuntimeTagsAsync(context, runtime, ct);
+    var failure = access.FailureResult();
+    if (failure is not null) return failure;
 
-app.MapGet("/api/tags/by-path/{*path}", (string path, ScadaRuntimeFacade runtime) =>
+    var readableIds = access.Tags.Select(x => x.Id).ToHashSet();
+    return Results.Ok(runtime.CurrentValues().Where(value => readableIds.Contains(value.TagId)));
+});
+
+app.MapGet("/api/tags/by-path/{*path}", async (
+    string path,
+    HttpContext context,
+    ScadaRuntimeFacade runtime,
+    ApiAuthorizationService security,
+    CancellationToken ct) =>
 {
     if (!runtime.TryGetTagByPath(path, out var tag) || tag is null) return Results.NotFound();
+
+    var authorization = await security.CheckRuntimeTagReadAsync(context, runtime, tag, ct);
+    var failure = authorization?.FailureResult();
+    if (failure is not null) return failure;
+
     runtime.TryGetCurrent(tag.Id, out var current);
     return Results.Ok(new { tag, current });
 });
@@ -210,8 +240,23 @@ app.MapPost("/api/tags/{id:guid}/write", async (
     }
 });
 
-app.MapGet("/api/history/{tagId:guid}", (Guid tagId, DateTimeOffset? from, DateTimeOffset? to, int? limit, IHistorian historian) =>
+app.MapGet("/api/history/{tagId:guid}", async (
+    Guid tagId,
+    DateTimeOffset? from,
+    DateTimeOffset? to,
+    int? limit,
+    HttpContext context,
+    ScadaRuntimeFacade runtime,
+    ApiAuthorizationService security,
+    IHistorian historian,
+    CancellationToken ct) =>
 {
+    if (!runtime.TryGetTag(tagId, out var tag) || tag is null) return Results.NotFound();
+
+    var authorization = await security.CheckRuntimeTagReadAsync(context, runtime, tag, ct);
+    var failure = authorization?.FailureResult();
+    if (failure is not null) return failure;
+
     var end = to ?? DateTimeOffset.UtcNow;
     var start = from ?? end.AddMinutes(-15);
     return Results.Ok(historian.Query(tagId, start, end, limit ?? 5000));
@@ -431,15 +476,31 @@ app.MapPost("/api/engineering/import/datasources.csv/apply", async (
         });
 });
 
-app.Map("/ws/tags", async (HttpContext context, TagRealtimeHub hub) =>
+app.Map("/ws/tags", async (
+    HttpContext context,
+    TagRealtimeHub hub,
+    ApiAuthorizationService security) =>
 {
     if (!context.WebSockets.IsWebSocketRequest)
     {
         context.Response.StatusCode = StatusCodes.Status400BadRequest;
         return;
     }
+
+    var principal = security.GetPrincipal(context);
+    if (security.AuthenticationEnabled &&
+        (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId)))
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return;
+    }
+
     var socket = await context.WebSockets.AcceptWebSocketAsync();
-    await hub.HandleAsync(socket, context.RequestAborted);
+    await hub.HandleAsync(
+        socket,
+        principal,
+        security.AuthenticationEnabled,
+        context.RequestAborted);
 });
 
 app.Run();

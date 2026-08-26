@@ -24,6 +24,22 @@ jobs:
   backend:
     name: Backend build, test and smoke
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: elitescada_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ELITESCADA_TEST_POSTGRES: 'Host=127.0.0.1;Port=5432;Database=elitescada_test;Username=postgres;Password=postgres;Pooling=false'
 
     steps:
       - name: Checkout

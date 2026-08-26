@@ -25,8 +25,10 @@ public static class EngineeringPersistenceApi
         CancellationToken cancellationToken = default)
     {
         var persistence = app.Services.GetService<IEngineeringProjectPersistenceService>();
-        if (persistence is not null)
-            await persistence.InitializeAsync(cancellationToken);
+        if (persistence is null) return;
+
+        await persistence.InitializeAsync(cancellationToken);
+        await app.RecoverConfiguredEngineeringRuntimeAsync(cancellationToken);
     }
 
     public static async Task<PersistedRuntimeRecoveryResult?> RecoverConfiguredEngineeringRuntimeAsync(

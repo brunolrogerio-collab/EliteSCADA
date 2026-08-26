@@ -31,8 +31,8 @@ test('Engineering workspace renders the public model and switches locale without
 
   await page.getByRole('button', { name: /TAGs/ }).click();
   await expect(page.getByRole('heading', { name: 'Editor estruturado de TAGs' })).toBeVisible();
-  await expect(page.getByText('Demo.P01.Frequency', { exact: true })).toBeVisible();
-  await expect(page.getByText('Demo.Tank01.Level', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Demo\.P01\.Frequency/ }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /Demo\.Tank01\.Level/ }).first()).toBeVisible();
 
   const locale = page.getByLabel('Idioma');
   await locale.selectOption('en');
@@ -40,13 +40,13 @@ test('Engineering workspace renders the public model and switches locale without
   await expect(navigation.getByText('Project', { exact: true })).toBeVisible();
   await expect(navigation.getByText('Overview', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Structured TAG editor' })).toBeVisible();
-  await expect(page.getByText('Demo.P01.Frequency', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Demo\.P01\.Frequency/ }).first()).toBeVisible();
 
   await page.getByLabel('Language').selectOption('es');
   await expect(navigation.getByText('Proyecto', { exact: true })).toBeVisible();
   await expect(navigation.getByText('Vista general', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Editor estructurado de TAGs' })).toBeVisible();
-  await expect(page.getByText('Demo.P01.Frequency', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Demo\.P01\.Frequency/ }).first()).toBeVisible();
 
   await page.reload();
   await expect(page.getByLabel('Idioma')).toHaveValue('es');

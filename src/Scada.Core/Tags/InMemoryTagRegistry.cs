@@ -50,6 +50,18 @@ public sealed class InMemoryTagRegistry : ITagRegistry
         return tag;
     }
 
+    public bool Remove(Guid tagId)
+    {
+        TagDefinition? removed;
+        lock (_gate)
+        {
+            if (!_byId.TryRemove(tagId, out removed)) return false;
+            _byPath.TryRemove(removed.Path, out _);
+        }
+        _changed?.Invoke();
+        return true;
+    }
+
     public bool TryGet(Guid tagId, out TagDefinition? tag)
     {
         var found = _byId.TryGetValue(tagId, out var value);

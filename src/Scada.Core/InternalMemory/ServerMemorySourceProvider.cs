@@ -163,6 +163,7 @@ public sealed class ServerMemorySourceProvider : ISourceProvider
     /// durable row is removed first and the active value is reset to the current
     /// engineered initial/default value. A later activation may then change the
     /// TAG data type without any implicit conversion of the old retained value.
+    /// This operation is deliberately limited to an active engineered TAG ID.
     /// </summary>
     public async ValueTask ResetRetainedValueAsync(
         Guid tagId,

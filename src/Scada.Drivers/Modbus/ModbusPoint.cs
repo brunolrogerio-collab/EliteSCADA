@@ -49,6 +49,9 @@ public sealed record ModbusPoint(
         _ => throw new ArgumentOutOfRangeException(nameof(ValueType))
     };
 
+    public int ElementCount => Area is ModbusDataArea.Coil or ModbusDataArea.DiscreteInput ? 1 : RegisterCount;
+    public int EndAddressExclusive => Address + ElementCount;
+
     public void Validate()
     {
         ArgumentNullException.ThrowIfNull(Tag);
@@ -56,6 +59,8 @@ public sealed record ModbusPoint(
             throw new ArgumentOutOfRangeException(nameof(Scale), "Modbus scale must be finite and non-zero.");
         if (!double.IsFinite(Offset))
             throw new ArgumentOutOfRangeException(nameof(Offset), "Modbus offset must be finite.");
+        if (EndAddressExclusive > ushort.MaxValue + 1)
+            throw new ArgumentOutOfRangeException(nameof(Address), "Modbus point exceeds the 16-bit address space.");
 
         if (Area is ModbusDataArea.Coil or ModbusDataArea.DiscreteInput && ValueType != ModbusValueType.Boolean)
             throw new ArgumentException("Coil and discrete-input points must use the Boolean value type.");
@@ -65,5 +70,11 @@ public sealed record ModbusPoint(
 
         if (Writable && Tag.ReadOnly)
             throw new ArgumentException($"TAG '{Tag.Path}' is read-only but the Modbus point is marked writable.");
+
+        if (ValueType == ModbusValueType.Boolean && Tag.DataType != TagDataType.Boolean)
+            throw new ArgumentException($"Boolean Modbus point '{Tag.Path}' requires a Boolean TAG.");
+
+        if (ValueType != ModbusValueType.Boolean && Tag.DataType is TagDataType.Boolean or TagDataType.String or TagDataType.DateTime or TagDataType.Enum)
+            throw new ArgumentException($"Numeric Modbus point '{Tag.Path}' requires a numeric TAG type.");
     }
 }

@@ -1,5 +1,6 @@
 using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
+using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.Drivers.Abstractions;
@@ -178,6 +179,8 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                         projectKey.Trim(), revision, false, compilation.Issues, runtimeIssues);
                 }
 
+                await EvaluateCurrentAlarmsAsync(candidate, cancellationToken);
+
                 var activatedAt = DateTimeOffset.UtcNow;
                 candidate.ActivatedAtUtc = activatedAt;
 
@@ -352,6 +355,21 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         }
     }
 
+    private static async Task EvaluateCurrentAlarmsAsync(
+        RuntimeState state,
+        CancellationToken cancellationToken)
+    {
+        foreach (var current in state.Cache.Snapshot())
+        {
+            if (!state.Registry.TryGet(current.TagId, out var tag) || tag is null)
+                continue;
+
+            await state.EventGate.PublishAsync(
+                new TagValueChanged(tag, null, current, DateTimeOffset.UtcNow),
+                cancellationToken);
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         await _activationGate.WaitAsync();
@@ -402,15 +420,18 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         public IReadOnlyCollection<ICommunicationDriver> Drivers { get; }
         public IReadOnlyDictionary<Guid, ICommunicationDriver> DriverByTagId { get; }
 
-        public static RuntimeState Empty(IScadaEventBus externalEventBus) =>
-            new(
+        public static RuntimeState Empty(IScadaEventBus externalEventBus)
+        {
+            var eventGate = new RuntimeEventGate(externalEventBus, forwardingEnabled: true);
+            return new RuntimeState(
                 null,
                 null,
-                new RuntimeEventGate(externalEventBus, forwardingEnabled: true),
+                eventGate,
                 new InMemoryTagRegistry(),
-                new CurrentTagCache(new RuntimeEventGate(externalEventBus, forwardingEnabled: false)),
-                new InMemoryAlarmEngine(new InMemoryScadaEventBus()),
+                new CurrentTagCache(eventGate),
+                new InMemoryAlarmEngine(eventGate),
                 Array.Empty<ICommunicationDriver>());
+        }
 
         public async ValueTask DisposeAsync()
         {

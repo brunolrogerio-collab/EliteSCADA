@@ -7,7 +7,7 @@
 
 ## Permanent `siga` protocol
 
-Before any action, every fixed EliteSCADA chat rereads current `main`: `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, this file, and all documents in its `MustReadSpecific` assignment. Then it verifies the real assigned branch, PR/head and CI.
+Before any action, every fixed EliteSCADA chat rereads current `main`: `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, this file, and every document listed in its `MustReadSpecific` assignment. Then it verifies the real assigned branch, PR/head and CI.
 
 Workers never choose a new task, alter `main`, merge their own PR, work another DEV branch, or broaden their assignment. `WAIT_FOR_COORDINATOR` means stop after delivery.
 
@@ -23,7 +23,7 @@ Repository terminology:
 
 **Role:** `COORDINATOR`
 
-**CurrentTask:** Reconcile merged Audit/Script foundations, stabilize central CI, and prepare Internal Memory integration
+**CurrentTask:** Reconcile the completed parallel wave and finish coordinator-owned Internal Memory integration
 
 **Branch:** `main`
 
@@ -33,7 +33,7 @@ Repository terminology:
 
 **Objective:**
 
-Keep the merged Audit UI and isolated Script Engineering foundation stable, own their central integration hooks, fix coordinator-owned CI assumptions, review DEV 2 Internal Memory completion, and preserve the locked source/protocol and visual dependency chains.
+Preserve the now-merged Audit UI, Script Engineering foundation and Internal Memory Engineering/retention work; complete only the coordinator-owned shared runtime/DI/API/UI hooks required to make Internal Memory a complete product block; keep TAG Gateway blocked until those hooks are actually integrated and validated.
 
 **AllowedScope:** coordinator-owned shared/central files, integration hooks, workflow maintenance, assignment board, handoff/roadmap documentation and merge decisions.
 
@@ -42,40 +42,39 @@ Keep the merged Audit UI and isolated Script Engineering foundation stable, own 
 - no known-failing merge;
 - no force-reset/discard of worker commits;
 - no TAG Gateway before complete Internal Memory product integration is official on `main`;
-- no canonical Script schema integration before DEV 2 central Engineering changes are reconciled;
-- no claim that PR #48 is merged while it remains open.
+- no new worker assignment without updating this board;
+- no claim that the merged PR #48 by itself completes all runtime/client product integration hooks.
 
 **MustReadSpecific:**
 
 - `docs/INTERNAL-MEMORY-TAGS.md`
 - `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`
 - `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
-- active PR #48 body/diff/CI
+- merged PR #48 scope and integration notes
 
 **ObservedGitHubState:**
 
-- PR #47 is **MERGED** as `8a8a52e9e1725fca5b9e06ff9f560f583dab5bbb` after CI #248 passed. It adds the isolated Script Engineering domain only; canonical schema/package integration remains coordinator-owned and dependency-blocked by DEV 2.
-- PR #46 is **MERGED** as `5629f55699d68d70d11d7058c26033d54306b570` after CI #244 passed.
-- Audit central navigation files were added in `04199395fa62037d413781c7e7623bafe857a5e1` and `f1059b89bd41a3b9f9a0af0b602a1a683fef5f14`; `/audit` routing was wired in `838053a85d2382577f15db7da8a431eff92889c0`.
-- PR #48 remains open Draft on `feature/internal-memory-product-integration`; observed current head `d676cae2c3cee76ecf4238d2e8b6c495aa907d4c`.
-- CI #251 on PR #48: Web build PASS; backend restore/build PASS with 0 warnings/errors; all automated tests PASS; runtime smoke FAIL only because the coordinator-owned workflow asserted `engineeringSchemaVersion == 7`; Chromium was skipped after that failure.
-- The hard-coded schema assertion was replaced on `main` by a dynamic persisted-vs-exported schema consistency check in commit `c77d3096e6a6d225d23e4077b07704a341b1993a`.
-- Main CI #257 is the reconciled validation run for the current coordinator head and is in progress at this synchronization.
+- PR #46 Audit UI is **MERGED** as `5629f55699d68d70d11d7058c26033d54306b570` after CI #244 passed.
+- PR #47 Script Engineering foundation is **MERGED** as `8a8a52e9e1725fca5b9e06ff9f560f583dab5bbb` after CI #248 passed.
+- PR #48 Internal Memory Engineering + durable Server Memory retention is **MERGED** as `ad4a7aa8d17e4e7370e5801d470a69f1a096bab4` after final reconciled CI #265 passed Web build, backend build/tests/runtime smoke and Chromium E2E against `main` `35789b3f4910c5ba8130f6de71093e9d2e5fcb14`.
+- Canonical Engineering is now schema v8 on `main`, with v7 backward compatibility for the Internal Memory evolution.
+- Coordinator-owned E2E/schema assumptions were reconciled before PR #48 merge rather than weakened or bypassed.
 
 **Dependencies:**
 
-- Internal Memory complete product integration precedes TAG Gateway.
-- DEV 2 retains exclusive worker ownership of Internal Memory modifications to `EngineeringContracts.cs` until PR #48 handoff.
-- Canonical Script collection/schema/package integration begins only after PR #48 central Engineering changes are accepted/reconciled.
-- Cross-origin exposure of `X-EliteSCADA-Audit-Next-Cursor` remains conditional on a deployment topology that actually uses a distinct browser API origin; same-origin/Vite-proxy operation does not require it.
+- Internal Memory complete product integration still precedes TAG Gateway.
+- PR #48 completes the assigned Engineering/validation/durable-retention worker slice, but runtime/DI/client-session/API/UI composition remains coordinator-owned work.
+- Canonical Script collection/schema/package integration may now proceed only after the coordinator reconciles the shared Engineering v8 state and without reopening DEV 3's completed branch.
 
 **NextActions:**
 
-1. validate main CI #257 after Audit routing/navigation and workflow repair;
-2. let DEV 2 finish PR #48, update its PR body and obtain CI on its final head using the corrected central workflow;
-3. review PR #48 diff/semantics and integrate only after a green reconciled CI;
-4. after Internal Memory is official, perform coordinator-owned canonical Script schema/package integration from the merged PR #47 contracts;
-5. only then consider the next safe worker assignments and the TAG Gateway gate.
+1. validate the post-merge `main` CI for PR #48;
+2. complete coordinator-owned Internal Memory runtime/DI composition, including durable PostgreSQL Server Memory retention wiring and shared TAG cache/Event Bus/realtime behavior;
+3. design/implement per-runtime-client Client Memory composition without turning it into server-global state;
+4. preserve capability authorization/Audit for external Server Memory writes and explicit reset/migration semantics;
+5. expose only appropriate central API/Engineering UI hooks and never fabricate network diagnostics for memory sources;
+6. run full CI and update roadmap/handoff after complete product integration;
+7. keep TAG Gateway blocked until step 6 is satisfied.
 
 **AfterCompletion:** `CONTINUE_COORDINATION`
 
@@ -95,11 +94,9 @@ Keep the merged Audit UI and isolated Script Engineering foundation stable, own 
 
 **MergedCommit:** `5629f55699d68d70d11d7058c26033d54306b570`
 
-**Validation:** CI #244 passed Web build, backend build/tests, runtime smoke and Chromium E2E on the delivered worker head.
+**Validation:** CI #244 passed Web build, backend build/tests, runtime smoke and Chromium E2E.
 
-**CoordinatorIntegration:** `/audit` central routing and Runtime/Engineering/Audit navigation are now on `main`. Cross-origin cursor-header exposure remains deployment-conditional.
-
-**NextActions:** none. Do not create a branch or select another roadmap item. On `siga`, report that the assignment is merged and `WAIT_FOR_COORDINATOR` is active unless this board contains a new task.
+**NextActions:** none. Do not create a branch or select another roadmap item. On `siga`, report that this assignment is merged and `WAIT_FOR_COORDINATOR` is active unless this board contains a new task.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 
@@ -113,63 +110,32 @@ Keep the merged Audit UI and isolated Script Engineering foundation stable, own 
 
 **Branch:** `feature/internal-memory-product-integration`
 
-**Status:** `CI_FAILED / PR_OPEN`
+**Status:** `MERGED / WAITING`
 
-**PullRequest:** `#48` — Draft — **IMPLEMENTED IN PR / NOT MERGED**
+**PullRequest:** `#48` — **MERGED**
 
-**ObservedHead:** `d676cae2c3cee76ecf4238d2e8b6c495aa907d4c`
+**DeliveredHead:** `6c13b4d52b176a977156b4425374f11caccfe264`
 
-**Objective:** complete public/versioned Internal Memory Engineering representation, typed initial values, durable Server Memory retention and explicit Client/Server semantics.
+**MergedCommit:** `ad4a7aa8d17e4e7370e5801d470a69f1a096bab4`
 
-**AllowedScope:**
+**MergedScope:**
 
-- `src/Scada.Core/InternalMemory/**`
-- `src/Scada.Core/Sources/**` when required
-- narrow Internal Memory-only exception to `src/Scada.Engineering/Contracts/EngineeringContracts.cs`
-- relevant `src/Scada.Engineering/ImportExport/**` and `Validation/**`
-- isolated PostgreSQL Server Memory retention storage
-- focused schema/import/export/retention/migration tests
-- PR body/test evidence
+- canonical Engineering schema v8;
+- typed Internal Memory initial/default values in public Engineering;
+- v7 JSON backward compatibility and legacy TAG CSV compatibility;
+- validation for `builtin.memory.server` and `builtin.memory.client`;
+- rejection of fake memory-source network addressing/configuration;
+- Client Memory global Historian/Alarm misuse rejection, including unsafe source transitions;
+- PostgreSQL durable Server Memory retention keyed by stable TAG ID;
+- restart/path-rename preservation;
+- incompatible retained type fail-closed behavior and explicit guarded reset semantics;
+- focused Core/PostgreSQL/schema/import-export tests.
 
-**ForbiddenScope:**
+**Validation:** final reconciled CI #265 passed Web build, backend build/tests, runtime smoke and Chromium E2E against current pre-merge `main`.
 
-- `.github/workflows/**`
-- `src/Scada.Api/Program.cs`
-- central DI/composition unless reassigned
-- frontend routing/shell
-- unrelated Engineering domains
-- TAG Gateway or new protocols
-- globalizing Client Memory or allowing it as global Historian/Alarm truth
-- mutable retained values inside immutable Engineering packages
-- silent incompatible-type coercion
-- coordinator docs
+**IntegrationRequired:** coordinator now owns final runtime/DI composition, per-client Client Memory lifecycle, central API/runtime/security/Audit wiring, appropriate Engineering UI hooks, and explicit reset/migration UX. Those hooks are not a new DEV 2 assignment.
 
-**MustReadSpecific:** `docs/INTERNAL-MEMORY-TAGS.md`, `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`, `docs/ARCHITECTURE.md`, merged PR #40 contracts, current Engineering migration/import-export tests, PostgreSQL persistence conventions.
-
-**ObservedImplementation:**
-
-- Engineering schema v8 and typed `MemoryInitialValueDto`;
-- JSON/CSV round-trip and v7 compatibility;
-- `builtin.memory.server` / `builtin.memory.client` validation;
-- fake network address/config rejection;
-- Client Memory global Historian/Alarm rejection, including unsafe Server→Client transitions with existing consumers;
-- PostgreSQL retained Server Memory keyed by stable TAG ID;
-- restart/path-rename restoration;
-- incompatible retained type fail-closed and explicit reset coverage.
-
-**CurrentValidation:** CI #251 on the current head built cleanly and all automated tests passed. The only failing step was the old coordinator-owned runtime smoke literal `engineeringSchemaVersion == 7`; that workflow defect is fixed on `main` by `c77d3096e6a6d225d23e4077b07704a341b1993a`. A new green CI on the final PR head is still required before handoff/merge.
-
-**IntegrationRequired:** coordinator owns final `Program.cs`/DI/runtime composition, central API/runtime wiring and shared frontend Engineering UI hooks.
-
-**NextActions:**
-
-1. remain on this exact task and branch;
-2. finish any remaining assigned validation, update the PR body to actual final scope and exact `INTEGRATION REQUIRED` hooks;
-3. obtain CI on the final head under the corrected central workflow;
-4. do not start TAG Gateway;
-5. when completion criteria are met, freeze the branch and enter `WAIT_FOR_COORDINATOR`.
-
-**CompletionCriteria:** both memory types and typed initial values public; canonical import/export/preview/migration tested; durable stable-ID retention; rename preservation; incompatible type never silently coerced; Client Memory global Historian/Alarm misuse rejected; no fake network diagnostics; relevant final CI green; central hooks documented.
+**NextActions:** none. Do not start TAG Gateway, do not reopen this branch for new scope, and do not self-assign coordinator integration. On `siga`, report that PR #48 is merged and `WAIT_FOR_COORDINATOR` is active unless this board contains a new task.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 
@@ -189,12 +155,12 @@ Keep the merged Audit UI and isolated Script Engineering foundation stable, own 
 
 **MergedCommit:** `8a8a52e9e1725fca5b9e06ff9f560f583dab5bbb`
 
-**Validation:** CI #248 passed Web build, backend build/tests, runtime smoke and Chromium E2E on the delivered head.
+**Validation:** CI #248 passed Web build, backend build/tests, runtime smoke and Chromium E2E.
 
-**MergedScope:** isolated `src/Scada.Engineering/Scripts/**` contracts, adapters, deterministic validation and focused tests. No central `EngineeringContracts.cs`, Python engine/editor or graphical editor was introduced.
+**MergedScope:** isolated Script Engineering contracts, adapters, deterministic validation and focused tests. No concrete Python engine/editor or graphical editor was introduced.
 
-**IntegrationRequired:** coordinator will add first-class Scripts/references to canonical Engineering schema, migrations, JSON, preview/apply, revision persistence, PostgreSQL and `.escadapkg` only after DEV 2 Internal Memory central Engineering changes are reconciled.
+**IntegrationRequired:** coordinator may now reconcile first-class Scripts/references with the canonical Engineering v8 schema/package path after the Internal Memory shared integration is stable.
 
-**NextActions:** none. Do not start Python editor/sandbox or graphical editor. On `siga`, report that the assignment is merged and `WAIT_FOR_COORDINATOR` is active unless this board contains a new task.
+**NextActions:** none. Do not start Python editor/sandbox or graphical editor. On `siga`, report that this assignment is merged and `WAIT_FOR_COORDINATOR` is active unless this board contains a new task.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`

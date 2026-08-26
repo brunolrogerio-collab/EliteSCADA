@@ -40,7 +40,7 @@ public sealed class EngineeringSchemaV5Tests
         var package = service.ParseJson(service.ExportJson());
         var exported = Assert.Single(package.Tags);
 
-        Assert.Equal(5, package.SchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, package.SchemaVersion);
         Assert.Equal(10000, exported.Historian!.MaximumPeriodMilliseconds);
         Assert.Equal("automation", exported.Metadata!["engineering.owner"]);
         Assert.Equal(new[] { "Operator", "Supervisor" }, exported.AccessPolicy!.ReadRoles);

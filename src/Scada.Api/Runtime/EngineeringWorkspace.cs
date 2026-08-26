@@ -4,7 +4,9 @@ using Scada.Core.Tags;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
+using Scada.Engineering.Security;
 using Scada.Engineering.Views;
+using Scada.Security.Authorization;
 
 namespace Scada.Api.Runtime;
 
@@ -23,7 +25,8 @@ public sealed record EngineeringWorkspaceDescriptor(
     int EquipmentCount,
     int DynamoCount,
     int ScreenCount,
-    int PopupCount);
+    int PopupCount,
+    int SecurityRoleCount);
 
 public sealed class EngineeringWorkspace : IDisposable
 {
@@ -44,6 +47,7 @@ public sealed class EngineeringWorkspace : IDisposable
         DataSources = new InMemoryDataSourceEngineeringRegistry(MarkDirty);
         Assets = new InMemoryEngineeringAssetRegistry(MarkDirty);
         Views = new InMemoryEngineeringViewRegistry(MarkDirty);
+        SecurityPolicies = new InMemorySecurityPolicyEngineeringRegistry(MarkDirty);
         SeedDemo();
     }
 
@@ -52,6 +56,7 @@ public sealed class EngineeringWorkspace : IDisposable
     public InMemoryDataSourceEngineeringRegistry DataSources { get; }
     public InMemoryEngineeringAssetRegistry Assets { get; }
     public InMemoryEngineeringViewRegistry Views { get; }
+    public InMemorySecurityPolicyEngineeringRegistry SecurityPolicies { get; }
 
     public EngineeringWorkspaceDescriptor Describe()
     {
@@ -72,7 +77,8 @@ public sealed class EngineeringWorkspace : IDisposable
                 Assets.SnapshotEquipment().Count,
                 Assets.SnapshotDynamos().Count,
                 Views.SnapshotScreens().Count,
-                Views.SnapshotPopups().Count);
+                Views.SnapshotPopups().Count,
+                SecurityPolicies.SnapshotRoles().Count);
         }
     }
 
@@ -154,6 +160,7 @@ public sealed class EngineeringWorkspace : IDisposable
         DataSources.Clear();
         Assets.Clear();
         Views.Clear();
+        SecurityPolicies.Clear();
     }
 
     private void SeedDemo()
@@ -344,6 +351,29 @@ public sealed class EngineeringWorkspace : IDisposable
             {
                 ["role"] = "equipment-details"
             }));
+
+        SecurityPolicies.UpsertRole(new SecurityRoleEngineeringDto(
+            Id: Guid.Parse("46000000-0000-0000-0000-000000000001"),
+            Key: "operator",
+            Name: "Operator",
+            Description: "Demo operator: may observe, issue operational commands and acknowledge alarms, but may not change process values/setpoints.",
+            Grants: new[]
+            {
+                new CapabilityGrantEngineeringDto(SecurityCapability.View),
+                new CapabilityGrantEngineeringDto(SecurityCapability.TagRead),
+                new CapabilityGrantEngineeringDto(SecurityCapability.CommandExecute),
+                new CapabilityGrantEngineeringDto(SecurityCapability.AlarmAcknowledge),
+                new CapabilityGrantEngineeringDto(SecurityCapability.TrendUse)
+            }));
+
+        SecurityPolicies.UpsertRole(new SecurityRoleEngineeringDto(
+            Id: Guid.Parse("46000000-0000-0000-0000-000000000002"),
+            Key: "developer",
+            Name: "Developer",
+            Description: "Demo engineering/development role with all currently defined capabilities granted explicitly.",
+            Grants: Enum.GetValues<SecurityCapability>()
+                .Select(capability => new CapabilityGrantEngineeringDto(capability))
+                .ToArray()));
 
         lock (_stateGate)
         {

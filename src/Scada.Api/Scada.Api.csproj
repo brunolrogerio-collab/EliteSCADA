@@ -10,5 +10,6 @@
     <ProjectReference Include="../Scada.Historian.TimescaleDb/Scada.Historian.TimescaleDb.csproj" />
     <ProjectReference Include="../Scada.Engineering/Scada.Engineering.csproj" />
     <ProjectReference Include="../Scada.Persistence.PostgreSql/Scada.Persistence.PostgreSql.csproj" />
+    <ProjectReference Include="../Scada.Security/Scada.Security.csproj" />
   </ItemGroup>
 </Project>

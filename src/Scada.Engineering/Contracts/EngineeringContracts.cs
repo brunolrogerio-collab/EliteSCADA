@@ -1,5 +1,6 @@
 using Scada.Core.Alarms;
 using Scada.Core.Tags;
+using Scada.Security.Authorization;
 
 namespace Scada.Engineering.Contracts;
 
@@ -19,7 +20,8 @@ public enum ImportEntityKind
     Equipment,
     Dynamo,
     Screen,
-    Popup
+    Popup,
+    SecurityRole
 }
 
 public enum ImportOperation
@@ -160,6 +162,26 @@ public sealed record PopupEngineeringDto(
     Dictionary<string, string>? Context = null,
     Dictionary<string, string>? Metadata = null);
 
+public sealed record AuthorizationScopeEngineeringDto(
+    string? Area = null,
+    string? EquipmentPath = null,
+    string? ScreenKey = null,
+    string? TagPath = null,
+    string? CommandKey = null);
+
+public sealed record CapabilityGrantEngineeringDto(
+    SecurityCapability Capability,
+    AuthorizationScopeEngineeringDto? Scope = null,
+    Dictionary<string, string>? Metadata = null);
+
+public sealed record SecurityRoleEngineeringDto(
+    Guid? Id,
+    string Key,
+    string Name,
+    string? Description = null,
+    IReadOnlyCollection<CapabilityGrantEngineeringDto>? Grants = null,
+    Dictionary<string, string>? Metadata = null);
+
 public sealed record EngineeringPackage(
     string Schema,
     int SchemaVersion,
@@ -171,7 +193,8 @@ public sealed record EngineeringPackage(
     IReadOnlyCollection<EquipmentEngineeringDto>? Equipment = null,
     IReadOnlyCollection<DynamoEngineeringDto>? Dynamos = null,
     IReadOnlyCollection<ScreenEngineeringDto>? Screens = null,
-    IReadOnlyCollection<PopupEngineeringDto>? Popups = null);
+    IReadOnlyCollection<PopupEngineeringDto>? Popups = null,
+    IReadOnlyCollection<SecurityRoleEngineeringDto>? SecurityRoles = null);
 
 public sealed record ImportIssue(
     string Code,

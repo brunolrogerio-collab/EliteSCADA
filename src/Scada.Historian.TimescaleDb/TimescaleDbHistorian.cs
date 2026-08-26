@@ -11,34 +11,13 @@ namespace Scada.Historian.TimescaleDb;
 
 public sealed class TimescaleDbHistorian : IHistorian
 {
-    private const string InitializeSql = """
-        CREATE EXTENSION IF NOT EXISTS timescaledb;
-        CREATE SCHEMA IF NOT EXISTS elitescada;
-
-        CREATE TABLE IF NOT EXISTS elitescada.tag_history (
-            tag_id uuid NOT NULL,
-            ts timestamptz NOT NULL,
-            quality integer NOT NULL,
-            source text NULL,
-            value jsonb NOT NULL
-        );
-
-        SELECT create_hypertable(
-            'elitescada.tag_history',
-            by_range('ts'),
-            if_not_exists => TRUE);
-
-        CREATE INDEX IF NOT EXISTS ix_tag_history_tag_time
-            ON elitescada.tag_history (tag_id, ts DESC);
-        """;
-
     private const string InsertSql = """
-        INSERT INTO elitescada.tag_history (tag_id, ts, quality, source, value)
-        VALUES (@tag_id, @ts, @quality, @source, @value);
+        INSERT INTO elitescada.tag_history (tag_id, ts, quality, source, value, data_type)
+        VALUES (@tag_id, @ts, @quality, @source, @value, @data_type);
         """;
 
     private readonly NpgsqlDataSource _dataSource;
-    private readonly Channel<TagValue> _queue;
+    private readonly Channel<HistorianWriteSample> _queue;
     private readonly IDisposable _subscription;
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _initializeTask;
@@ -63,7 +42,7 @@ public sealed class TimescaleDbHistorian : IHistorian
 
         _batchSize = batchSize;
         _dataSource = NpgsqlDataSource.Create(connectionString);
-        _queue = Channel.CreateBounded<TagValue>(new BoundedChannelOptions(capacity)
+        _queue = Channel.CreateBounded<HistorianWriteSample>(new BoundedChannelOptions(capacity)
         {
             FullMode = BoundedChannelFullMode.Wait,
             SingleReader = true,
@@ -116,7 +95,7 @@ public sealed class TimescaleDbHistorian : IHistorian
 
     private ValueTask OnTagValueChangedAsync(TagValueChanged evt)
     {
-        if (_queue.Writer.TryWrite(evt.Current))
+        if (_queue.Writer.TryWrite(new HistorianWriteSample(evt.Current, evt.Tag.DataType)))
             Interlocked.Increment(ref _pending);
         else
             Interlocked.Increment(ref _dropped);
@@ -125,7 +104,7 @@ public sealed class TimescaleDbHistorian : IHistorian
 
     private async Task InitializeAsync(CancellationToken cancellationToken)
     {
-        await using var command = _dataSource.CreateCommand(InitializeSql);
+        await using var command = _dataSource.CreateCommand(TimescaleHistorianSchema.RawInfrastructureSql);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -134,7 +113,7 @@ public sealed class TimescaleDbHistorian : IHistorian
         try
         {
             await _initializeTask;
-            var batch = new List<TagValue>(_batchSize);
+            var batch = new List<HistorianWriteSample>(_batchSize);
 
             while (await _queue.Reader.WaitToReadAsync(cancellationToken))
             {
@@ -169,7 +148,9 @@ public sealed class TimescaleDbHistorian : IHistorian
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
     }
 
-    private async Task WriteBatchAsync(IReadOnlyCollection<TagValue> batch, CancellationToken cancellationToken)
+    private async Task WriteBatchAsync(
+        IReadOnlyCollection<HistorianWriteSample> batch,
+        CancellationToken cancellationToken)
     {
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
@@ -180,14 +161,16 @@ public sealed class TimescaleDbHistorian : IHistorian
         var quality = command.Parameters.Add("quality", NpgsqlDbType.Integer);
         var source = command.Parameters.Add("source", NpgsqlDbType.Text);
         var value = command.Parameters.Add("value", NpgsqlDbType.Jsonb);
+        var dataType = command.Parameters.Add("data_type", NpgsqlDbType.Smallint);
 
         foreach (var sample in batch)
         {
-            tagId.Value = sample.TagId;
-            timestamp.Value = sample.Timestamp.UtcDateTime;
-            quality.Value = (int)sample.Quality;
-            source.Value = (object?)sample.Source ?? DBNull.Value;
-            value.Value = JsonSerializer.Serialize(sample.Value);
+            tagId.Value = sample.Value.TagId;
+            timestamp.Value = sample.Value.Timestamp.UtcDateTime;
+            quality.Value = (int)sample.Value.Quality;
+            source.Value = (object?)sample.Value.Source ?? DBNull.Value;
+            value.Value = JsonSerializer.Serialize(sample.Value.Value);
+            dataType.Value = (short)sample.DataType;
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
@@ -226,4 +209,6 @@ public sealed class TimescaleDbHistorian : IHistorian
         await _dataSource.DisposeAsync();
         _cts.Dispose();
     }
+
+    private sealed record HistorianWriteSample(TagValue Value, TagDataType DataType);
 }

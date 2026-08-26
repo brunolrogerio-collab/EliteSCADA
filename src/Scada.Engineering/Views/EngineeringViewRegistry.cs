@@ -23,6 +23,12 @@ public sealed class InMemoryEngineeringViewRegistry : IEngineeringViewRegistry
     private readonly Dictionary<string, Guid> _screensByKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<Guid, PopupEngineeringDto> _popupsById = new();
     private readonly Dictionary<string, Guid> _popupsByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Action? _changed;
+
+    public InMemoryEngineeringViewRegistry(Action? changed = null)
+    {
+        _changed = changed;
+    }
 
     public IReadOnlyCollection<ScreenEngineeringDto> SnapshotScreens()
     {
@@ -61,6 +67,7 @@ public sealed class InMemoryEngineeringViewRegistry : IEngineeringViewRegistry
         ArgumentException.ThrowIfNullOrWhiteSpace(screen.Key);
         var normalized = screen with { Id = screen.Id ?? Guid.NewGuid() };
         lock (_sync) UpsertByKey(normalized, normalized.Id!.Value, normalized.Key, _screensById, _screensByKey, x => x.Key);
+        _changed?.Invoke();
     }
 
     public void UpsertPopup(PopupEngineeringDto popup)
@@ -68,6 +75,7 @@ public sealed class InMemoryEngineeringViewRegistry : IEngineeringViewRegistry
         ArgumentException.ThrowIfNullOrWhiteSpace(popup.Key);
         var normalized = popup with { Id = popup.Id ?? Guid.NewGuid() };
         lock (_sync) UpsertByKey(normalized, normalized.Id!.Value, normalized.Key, _popupsById, _popupsByKey, x => x.Key);
+        _changed?.Invoke();
     }
 
     public void Clear()
@@ -79,6 +87,7 @@ public sealed class InMemoryEngineeringViewRegistry : IEngineeringViewRegistry
             _popupsById.Clear();
             _popupsByKey.Clear();
         }
+        _changed?.Invoke();
     }
 
     private static void UpsertByKey<T>(

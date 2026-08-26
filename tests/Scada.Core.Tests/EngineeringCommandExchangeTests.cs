@@ -110,6 +110,47 @@ public sealed class EngineeringCommandExchangeTests
     }
 
     [Fact]
+    public void Preview_UsesIncomingTagDefinitionWhenPackageChangesTargetToReadOnly()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var existing = TagDefinition.Create("Run", "Plant.P01.Run", TagDataType.Boolean, readOnly: false);
+        tags.Register(existing);
+        var service = CreateService(tags, alarms, new InMemoryCommandEngineeringRegistry());
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            new[]
+            {
+                new TagEngineeringDto(
+                    null,
+                    "Run",
+                    existing.Path,
+                    TagDataType.Boolean,
+                    ReadOnly: true)
+            },
+            Array.Empty<AlarmEngineeringDto>(),
+            Commands: new[]
+            {
+                new CommandEngineeringDto(
+                    null,
+                    "plant.p01.start",
+                    "Start P01",
+                    CommandKind.WriteTagValue,
+                    "true",
+                    existing.Id,
+                    existing.Path)
+            });
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+
+        Assert.False(preview.CanApply);
+        Assert.Contains(preview.Items.SelectMany(x => x.Issues), x => x.Code == "COMMAND_TARGET_TAG_READ_ONLY");
+    }
+
+    [Fact]
     public void Preview_RejectsCommandTargetingReadOnlyTag()
     {
         var tags = new InMemoryTagRegistry();

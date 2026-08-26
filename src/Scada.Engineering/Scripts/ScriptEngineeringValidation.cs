@@ -83,6 +83,7 @@ public sealed class ScriptEngineeringValidationResult
         IReadOnlyCollection<ScriptEngineeringValidationIssue> issues)
     {
         ArgumentNullException.ThrowIfNull(issues);
+
         Issues = Array.AsReadOnly(issues
             .OrderBy(issue => issue.EntityKey ?? string.Empty, StringComparer.Ordinal)
             .ThenBy(issue => issue.ScriptId)
@@ -121,6 +122,10 @@ public sealed class ScriptEngineeringValidator
         {
             ValidateScript(script, scriptsById, referenceCatalog, issues);
         }
+
+        var nonEmptyIdCount = scripts.Count(script => script.Id != Guid.Empty);
+        if (scriptsById.Count == nonEmptyIdCount)
+            ValidateScriptDependencyCycles(scriptsById, issues);
 
         ValidateVisualReferences(model, scriptsById, referenceCatalog, issues);
 
@@ -217,7 +222,8 @@ public sealed class ScriptEngineeringValidator
             var runtimeDefinition = ScriptEngineeringAdapters.ToRuntimeDefinition(script);
             var preflight = new PythonPreflightValidator().Validate(runtimeDefinition);
 
-            foreach (var diagnostic in preflight.Diagnostics.Where(diagnostic => diagnostic.Severity == PythonDiagnosticSeverity.Error))
+            foreach (var diagnostic in preflight.Diagnostics
+                .Where(diagnostic => diagnostic.Severity == PythonDiagnosticSeverity.Error))
             {
                 issues.Add(new ScriptEngineeringValidationIssue(
                     $"SCRIPT_SOURCE_{diagnostic.Code}",
@@ -371,19 +377,17 @@ public sealed class ScriptEngineeringValidator
 
                 if (!scriptsById.TryGetValue(targetScriptId, out var targetScript))
                 {
-                    if (dependency.Required)
-                    {
-                        issues.Add(new ScriptEngineeringValidationIssue(
-                            "SCRIPT_DEPENDENCY_REFERENCE_MISSING",
-                            $"Required Script dependency '{targetScriptId:D}' does not exist in the Script Engineering model.",
-                            true,
-                            scriptId,
-                            entityKey));
-                    }
+                    issues.Add(new ScriptEngineeringValidationIssue(
+                        "SCRIPT_DEPENDENCY_REFERENCE_MISSING",
+                        $"Required Script dependency '{targetScriptId:D}' does not exist in the Script Engineering model.",
+                        true,
+                        scriptId,
+                        entityKey));
                     continue;
                 }
 
-                if (Enum.IsDefined(typeof(ScriptEngineeringScope), script.Scope) && targetScript.Scope != script.Scope)
+                if (Enum.IsDefined(typeof(ScriptEngineeringScope), script.Scope) &&
+                    targetScript.Scope != script.Scope)
                 {
                     issues.Add(new ScriptEngineeringValidationIssue(
                         "SCRIPT_DEPENDENCY_SCOPE_MISMATCH",
@@ -396,8 +400,8 @@ public sealed class ScriptEngineeringValidator
                 continue;
             }
 
-            if (dependency.Required &&
-                (referenceCatalog is null || !referenceCatalog.Contains(dependency.Kind, dependency.StableReference)))
+            if (referenceCatalog is null ||
+                !referenceCatalog.Contains(dependency.Kind, dependency.StableReference))
             {
                 issues.Add(new ScriptEngineeringValidationIssue(
                     "SCRIPT_DEPENDENCY_REFERENCE_MISSING",
@@ -441,19 +445,113 @@ public sealed class ScriptEngineeringValidator
             entityKey));
     }
 
+    private static void ValidateScriptDependencyCycles(
+        IReadOnlyDictionary<Guid, ScriptEngineeringDefinition> scriptsById,
+        ICollection<ScriptEngineeringValidationIssue> issues)
+    {
+        var states = new Dictionary<Guid, int>();
+        var stack = new List<Guid>();
+        var seenCycles = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var scriptId in scriptsById.Keys.OrderBy(id => id))
+        {
+            if (!states.ContainsKey(scriptId))
+                Visit(scriptId);
+        }
+
+        void Visit(Guid scriptId)
+        {
+            states[scriptId] = 1;
+            stack.Add(scriptId);
+
+            var script = scriptsById[scriptId];
+            var dependencies = script.Dependencies
+                .Where(dependency => dependency.Kind == ScriptEngineeringDependencyKind.Script)
+                .Select(dependency => Guid.TryParse(dependency.StableReference, out var targetId)
+                    ? targetId
+                    : Guid.Empty)
+                .Where(targetId =>
+                    targetId != Guid.Empty &&
+                    targetId != scriptId &&
+                    scriptsById.TryGetValue(targetId, out var target) &&
+                    target.Scope == script.Scope)
+                .Distinct()
+                .OrderBy(targetId => targetId)
+                .ToArray();
+
+            foreach (var targetId in dependencies)
+            {
+                if (!states.TryGetValue(targetId, out var state))
+                {
+                    Visit(targetId);
+                    continue;
+                }
+
+                if (state != 1)
+                    continue;
+
+                var cycleStart = stack.IndexOf(targetId);
+                if (cycleStart < 0)
+                    continue;
+
+                var cycle = stack.Skip(cycleStart).ToArray();
+                var normalized = NormalizeCycle(cycle);
+                var signature = string.Join(">", normalized.Select(id => id.ToString("D")));
+
+                if (!seenCycles.Add(signature))
+                    continue;
+
+                var ownerId = normalized[0];
+                var path = normalized
+                    .Select(id => scriptsById[id].Path)
+                    .Append(scriptsById[ownerId].Path);
+
+                issues.Add(new ScriptEngineeringValidationIssue(
+                    "SCRIPT_DEPENDENCY_CYCLE",
+                    $"Script dependency cycle detected: {string.Join(" -> ", path)}.",
+                    true,
+                    ownerId,
+                    scriptsById[ownerId].Path));
+            }
+
+            stack.RemoveAt(stack.Count - 1);
+            states[scriptId] = 2;
+        }
+    }
+
+    private static Guid[] NormalizeCycle(IReadOnlyList<Guid> cycle)
+    {
+        if (cycle.Count == 0)
+            return [];
+
+        var firstIndex = 0;
+        for (var index = 1; index < cycle.Count; index++)
+        {
+            if (cycle[index].CompareTo(cycle[firstIndex]) < 0)
+                firstIndex = index;
+        }
+
+        var normalized = new Guid[cycle.Count];
+        for (var index = 0; index < cycle.Count; index++)
+            normalized[index] = cycle[(firstIndex + index) % cycle.Count];
+
+        return normalized;
+    }
+
     private static void ValidateVisualReferences(
         ScriptEngineeringModel model,
         IReadOnlyDictionary<Guid, ScriptEngineeringDefinition> scriptsById,
         ScriptEngineeringReferenceCatalog? referenceCatalog,
         ICollection<ScriptEngineeringValidationIssue> issues)
     {
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var seenRuntimeHandlers = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var reference in model.VisualEventReferences
             .OrderBy(item => item.VisualDefinitionId)
             .ThenBy(item => item.VisualObjectId)
             .ThenBy(item => item.ScriptId)
-            .ThenBy(item => item.EntryPoint, StringComparer.Ordinal))
+            .ThenBy(item => item.EntryPoint, StringComparer.Ordinal)
+            .ThenBy(item => item.TargetReference ?? string.Empty, StringComparer.Ordinal))
         {
             var entityKey = reference.VisualObjectId is { } objectId
                 ? ScriptEngineeringReferenceKeys.VisualObject(reference.VisualDefinitionId, objectId)
@@ -474,12 +572,13 @@ public sealed class ScriptEngineeringValidator
             if (string.IsNullOrWhiteSpace(reference.EntryPoint))
                 Add("SCRIPT_VISUAL_ENTRYPOINT_REQUIRED", "Visual Script reference requires an entry-point handler name.");
 
-            var identity = $"{entityKey}:{(int)reference.EventKind}:{reference.ScriptId:D}:{reference.EntryPoint}:{reference.TargetReference}";
-            if (!seen.Add(identity))
+            var runtimeIdentity =
+                $"{entityKey}:{(int)reference.EventKind}:{reference.ScriptId:D}:{reference.EntryPoint}";
+            if (!seenRuntimeHandlers.Add(runtimeIdentity))
             {
                 Add(
                     "SCRIPT_VISUAL_REFERENCE_DUPLICATE",
-                    $"Visual Script association '{identity}' is declared more than once.");
+                    $"Visual Script association '{runtimeIdentity}' maps to the same runtime handler more than once.");
             }
 
             if (referenceCatalog is null ||
@@ -550,6 +649,7 @@ public sealed class ScriptEngineeringValidator
         Enum.IsDefined(typeof(ScriptEngineeringScope), script.Scope) &&
         string.Equals(script.Language, "python", StringComparison.OrdinalIgnoreCase) &&
         !string.IsNullOrWhiteSpace(script.LanguageVersion) &&
+        !string.IsNullOrWhiteSpace(script.Source) &&
         script.EntryPoints.All(entryPoint =>
             Enum.IsDefined(typeof(ScriptEngineeringEventKind), entryPoint.EventKind) &&
             IsPythonIdentifier(entryPoint.HandlerName)) &&

@@ -11,11 +11,16 @@ internal sealed class TagEngineeringHandler
 {
     private readonly ITagRegistry _tags;
     private readonly IDataSourceEngineeringRegistry _dataSources;
+    private readonly IAlarmEngine _alarms;
 
-    public TagEngineeringHandler(ITagRegistry tags, IDataSourceEngineeringRegistry dataSources)
+    public TagEngineeringHandler(
+        ITagRegistry tags,
+        IDataSourceEngineeringRegistry dataSources,
+        IAlarmEngine alarms)
     {
         _tags = tags;
         _dataSources = dataSources;
+        _alarms = alarms;
     }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
@@ -27,6 +32,10 @@ internal sealed class TagEngineeringHandler
         {
             var issues = EngineeringValidator.ValidateTag(dto).ToList();
             ValidateAccessPolicy(dto, issues);
+
+            var dataSource = ResolveDataSource(dto.Source, package);
+            issues.AddRange(MemoryEngineeringValidator.ValidateTag(dto, dataSource));
+            ValidateClientMemoryTransition(dto, dataSource, issues);
 
             if (duplicatePaths.Contains(dto.Path))
                 issues.Add(new(
@@ -108,10 +117,7 @@ internal sealed class TagEngineeringHandler
         var existing = ResolveAlarmTag(dto);
         if (existing is not null) return existing;
 
-        TagEngineeringDto? imported = null;
-        if (dto.TagId.HasValue) imported = package.Tags.FirstOrDefault(x => x.Id == dto.TagId);
-        if (imported is null && !string.IsNullOrWhiteSpace(dto.TagPath))
-            imported = package.Tags.FirstOrDefault(x => x.Path.Equals(dto.TagPath, StringComparison.OrdinalIgnoreCase));
+        var imported = ResolveImportedAlarmTag(dto, package);
         if (imported is null) return null;
 
         return new TagDefinition(
@@ -123,8 +129,52 @@ internal sealed class TagEngineeringHandler
             imported.EngineeringUnit,
             imported.Description,
             imported.ReadOnly,
-            imported.Metadata,
+            BuildMetadata(imported),
             BuildAccessPolicy(imported.AccessPolicy));
+    }
+
+    public bool IsClientMemoryAlarmTarget(AlarmEngineeringDto dto, EngineeringPackage package)
+    {
+        var imported = ResolveImportedAlarmTag(dto, package);
+        var source = imported?.Source ?? ResolveAlarmTag(dto)?.Source;
+        return MemoryEngineeringValidator.IsClientMemoryDriver(ResolveDataSource(source, package)?.Driver);
+    }
+
+    private void ValidateClientMemoryTransition(
+        TagEngineeringDto dto,
+        DataSourceEngineeringDto? dataSource,
+        List<ImportIssue> issues)
+    {
+        if (dataSource is null || !MemoryEngineeringValidator.IsClientMemoryDriver(dataSource.Driver))
+            return;
+
+        var existing = ResolveExisting(dto);
+        if (existing is null || !_alarms.Definitions().Any(alarm => alarm.TagId == existing.Id))
+            return;
+
+        issues.Add(new(
+            "CLIENT_MEMORY_EXISTING_ALARM_NOT_ALLOWED",
+            $"TAG '{dto.Path}' cannot move to Client Memory while it remains targeted by the global alarm engine.",
+            ImportEntityKind.Tag,
+            dto.Path,
+            true));
+    }
+
+    private TagEngineeringDto? ResolveImportedAlarmTag(AlarmEngineeringDto dto, EngineeringPackage package)
+    {
+        TagEngineeringDto? imported = null;
+        if (dto.TagId.HasValue) imported = package.Tags.FirstOrDefault(x => x.Id == dto.TagId);
+        if (imported is null && !string.IsNullOrWhiteSpace(dto.TagPath))
+            imported = package.Tags.FirstOrDefault(x => x.Path.Equals(dto.TagPath, StringComparison.OrdinalIgnoreCase));
+        return imported;
+    }
+
+    private DataSourceEngineeringDto? ResolveDataSource(string? source, EngineeringPackage package)
+    {
+        if (string.IsNullOrWhiteSpace(source)) return null;
+        return (package.DataSources ?? Array.Empty<DataSourceEngineeringDto>())
+                   .FirstOrDefault(x => x.Key.Equals(source, StringComparison.OrdinalIgnoreCase))
+               ?? _dataSources.FindByKey(source);
     }
 
     private TagDefinition? ResolveExisting(TagEngineeringDto dto)
@@ -184,6 +234,7 @@ internal sealed class TagEngineeringHandler
         Set(result, "historian.deadband", dto.Historian?.Deadband);
         Set(result, "historian.periodMs", dto.Historian?.PeriodMilliseconds);
         Set(result, "historian.maxPeriodMs", dto.Historian?.MaximumPeriodMilliseconds);
+        MemoryEngineeringValueCodec.WriteToMetadata(result, dto.InitialValue);
         return result;
     }
 

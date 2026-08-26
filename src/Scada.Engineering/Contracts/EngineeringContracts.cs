@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Scada.Core.Alarms;
 using Scada.Core.Commands;
 using Scada.Core.Tags;
@@ -48,6 +49,15 @@ public sealed record HistorianSettingsDto(
     int? PeriodMilliseconds = null,
     int? MaximumPeriodMilliseconds = null);
 
+/// <summary>
+/// Public, versioned Engineering representation for an Internal Memory TAG's
+/// typed startup value. The declared type is repeated deliberately so imports
+/// can reject type drift before runtime activation instead of guessing from JSON.
+/// </summary>
+public sealed record MemoryInitialValueDto(
+    TagDataType DataType,
+    JsonElement Value);
+
 public sealed record TagAccessPolicyDto(
     IReadOnlyCollection<string>? ReadRoles = null,
     IReadOnlyCollection<string>? WriteRoles = null,
@@ -67,7 +77,8 @@ public sealed record TagEngineeringDto(
     double? ScaleMaximum = null,
     HistorianSettingsDto? Historian = null,
     Dictionary<string, string>? Metadata = null,
-    TagAccessPolicyDto? AccessPolicy = null);
+    TagAccessPolicyDto? AccessPolicy = null,
+    MemoryInitialValueDto? InitialValue = null);
 
 public sealed record AlarmEngineeringDto(
     Guid? Id,

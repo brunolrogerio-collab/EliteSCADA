@@ -115,7 +115,9 @@ internal sealed class CommandEngineeringHandler
             return null;
         }
 
-        var target = byId ?? byPath;
+        // Prefer the package TAG resolved by path when both references identify the same logical TAG.
+        // This makes preview validate the post-import definition (type/read-only policy), not stale workspace state.
+        var target = byPath ?? byId;
         if (target is null)
         {
             issues.Add(new ImportIssue(

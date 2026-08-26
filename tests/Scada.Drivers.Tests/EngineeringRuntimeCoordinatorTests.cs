@@ -41,12 +41,17 @@ public sealed class EngineeringRuntimeCoordinatorTests
         Assert.Equal("Plant.Setpoint", activeTag!.Path);
         Assert.True(runtime.TryGetCurrent(tagId, out var current));
         Assert.Equal(123d, Convert.ToDouble(current!.Value));
+        await WaitForAsync(
+            () => runtime.Alarms(activeOnly: true).Any(x => x.DefinitionId == alarmId),
+            TimeSpan.FromSeconds(2));
 
         await runtime.WriteAsync(tagId, (short)77);
         Assert.Equal((ushort)77, server.HoldingRegisters[10]);
 
         await WaitForAsync(() => Volatile.Read(ref forwardedTagEvents) > 0, TimeSpan.FromSeconds(2));
-        await WaitForAsync(() => runtime.Alarms(activeOnly: true).Any(x => x.DefinitionId == alarmId), TimeSpan.FromSeconds(2));
+        await WaitForAsync(
+            () => !runtime.Alarms(activeOnly: true).Any(x => x.DefinitionId == alarmId),
+            TimeSpan.FromSeconds(2));
 
         Assert.Contains(runtime.Describe().Drivers, x => x.DriverId == "modbus.tcp:plc-a");
         Assert.Contains(runtime.AlarmDefinitions(), x => x.Id == alarmId);

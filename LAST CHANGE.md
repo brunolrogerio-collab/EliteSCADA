@@ -3,125 +3,126 @@
 > Operational handoff. Read with `PROJECT GOAL.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md` and `docs/CHAT-WORK-ASSIGNMENTS.md` before every EliteSCADA task.
 
 **Handoff date:** 2026-08-26
-**Development state:** **ACTIVE — THREE WORKER PRs OPEN / NO NEW FUNCTIONAL MERGE YET**
+**Development state:** **ACTIVE — AUDIT UI + SCRIPT FOUNDATION MERGED / INTERNAL MEMORY PR ACTIVE**
 
 Repository truth is separated into **MERGED**, **IMPLEMENTED IN PR** and **SPECIFIED / NOT IMPLEMENTED**.
 
 ## CURRENT CHECKPOINT
 
-The latest official functional/product merge on `main` remains PR #45:
+Two worker deliveries from the current wave are now official `main` state:
 
-`889c989fdce26d8593e86e430e76417412846400`
+- PR #47 — isolated Public Script Engineering integration foundation — merge `8a8a52e9e1725fca5b9e06ff9f560f583dab5bbb`;
+- PR #46 — Audit UI and diagnostics client foundation — merge `5629f55699d68d70d11d7058c26033d54306b570`.
 
-Subsequent coordinator commits are documentation/coordination changes only. The latest assignment synchronization before this handoff is:
+Coordinator-owned Audit integration was added after PR #46:
 
-`b2c58b2397fe2b9f4d678f3bc59c5d4f9f68a198` — synchronize the live assignment board with open PRs #46–#48 and their observed CI state.
+- `04199395fa62037d413781c7e7623bafe857a5e1` — central Runtime / Engineering / Audit navigation component;
+- `f1059b89bd41a3b9f9a0af0b602a1a683fef5f14` — navigation styling;
+- `838053a85d2382577f15db7da8a431eff92889c0` — central `/audit` application routing inside the existing authentication boundary.
 
-The commit containing this `LAST CHANGE.md` is newer than that SHA and must be obtained from current GitHub `main` when resuming.
+The coordinator also repaired a stale CI assumption in:
+
+- `c77d3096e6a6d225d23e4077b07704a341b1993a` — runtime smoke now verifies the persisted Engineering schema version against the schema actually exported by the running application instead of hard-coding schema v7.
+
+The live assignment board was reconciled in:
+
+- `192983b79245691ad44f8329b55fbff16f867360`.
 
 ## MERGED PRODUCT STATE
 
-The established merged baseline remains:
+The established merged baseline now includes:
 
-- PR #35 — Engineering Schema v7 + first-class Operational Commands — merge `2fd568976fc6277d0b069adeeb560f6ea3d8205f`;
-- PR #36 — protected runtime read/realtime surfaces — merge `10b0320149c1ef2109e9517539717a8800b200c2`;
-- PR #37 — Engineering UI foundation/localization — merge `4553aa7ab5ba7e05a209a7c8462286d1a34a1ad6`;
-- PR #38 — local identity/browser login — merge `2a581d279a428cb605429d5939c333ff7ad8d1b4`;
-- PR #39 — protected local user administration — merge `6de8f06a443ad829ccc95c6dfcd9511e906adeff`;
-- PR #40 — Internal Memory / Source Provider foundation — merge `bb38617c9c27cb5c379973a6f65d66006f24eadc`;
-- PR #41 — Python Scripting + Visual Property foundation — merge `fc0731309d5b92d302f019d06d3511d3a247b607`;
-- PR #42 — secured Engineering Apply/Delete/Bulk — merge `6d49b99181fce6dabce838822ce972332e2f77f0`;
-- PR #43 — Historian retention/downsampling foundation — merge `0c5f2aefdd5a7286c0c9367569067e2d12091c81`;
-- PR #44 — Audit durability/query/retention foundation — merge `9406fb2d66c682bd6bde08a0facde0622aa86ff2`;
-- PR #45 — Audit runtime integration — merge `889c989fdce26d8593e86e430e76417412846400`.
+- PR #35 — Engineering Schema v7 + first-class Operational Commands — `2fd568976fc6277d0b069adeeb560f6ea3d8205f`;
+- PR #36 — protected runtime read/realtime surfaces — `10b0320149c1ef2109e9517539717a8800b200c2`;
+- PR #37 — Engineering UI foundation/localization — `4553aa7ab5ba7e05a209a7c8462286d1a34a1ad6`;
+- PR #38 — local identity/browser login — `2a581d279a428cb605429d5939c333ff7ad8d1b4`;
+- PR #39 — protected local user administration — `6de8f06a443ad829ccc95c6dfcd9511e906adeff`;
+- PR #40 — Internal Memory / Source Provider foundation — `bb38617c9c27cb5c379973a6f65d66006f24eadc`;
+- PR #41 — Python Scripting + Visual Property foundation — `fc0731309d5b92d302f019d06d3511d3a247b607`;
+- PR #42 — secured Engineering Apply/Delete/Bulk — `6d49b99181fce6dabce838822ce972332e2f77f0`;
+- PR #43 — Historian retention/downsampling foundation — `0c5f2aefdd5a7286c0c9367569067e2d12091c81`;
+- PR #44 — Audit durability/query/retention foundation — `9406fb2d66c682bd6bde08a0facde0622aa86ff2`;
+- PR #45 — Audit runtime integration — `889c989fdce26d8593e86e430e76417412846400`;
+- PR #46 — Audit UI and diagnostics client foundation — `5629f55699d68d70d11d7058c26033d54306b570`;
+- PR #47 — isolated Public Script Engineering integration foundation — `8a8a52e9e1725fca5b9e06ff9f560f583dab5bbb`.
 
-PR #45 CI #241 was green across Web build, backend build/tests, PostgreSQL/Timescale coverage, runtime smoke and Chromium E2E.
+### Audit UI now merged
 
-No functionality from PRs #46, #47 or #48 is official until merged.
+The merged Audit frontend:
 
-## IMPLEMENTED IN PR / ACTIVE WORK
+- consumes only the protected backend-supported Audit filters;
+- preserves the keyset cursor as an opaque value;
+- exposes explicit loading/empty/unauthenticated/forbidden/query/server states;
+- presents protected Audit storage/buffer/retention diagnostics;
+- renders only already-sanitized Audit metadata;
+- is reachable at `/audit` through central application routing/navigation.
 
-### PR #46 — DEV 1 — Audit UI and diagnostics client foundation
+CI #244 passed Web build, backend build/tests, runtime smoke and Chromium E2E on the DEV 1 delivery head. Cross-origin exposure of `X-EliteSCADA-Audit-Next-Cursor` remains deployment-conditional; same-origin/Vite-proxy operation does not require a CORS exposed-header change.
 
-Branch: `feature/audit-ui`
+### Script Engineering foundation now merged
 
-Observed head: `0659647be5c127a0555f585005a20597255fa990`
-
-State: **OPEN DRAFT / IMPLEMENTED IN PR / NOT MERGED**
-
-Observed scope is isolated to `web/scada-web/src/audit/**` plus focused Audit UI contract testing. It does not alter central routing/application shell or backend Audit semantics.
-
-Implemented in the PR body/diff:
-
-- Audit query UI using only merged backend-supported filters;
-- opaque `X-EliteSCADA-Audit-Next-Cursor` handling;
-- explicit loading/empty/auth/forbidden/query/server error states;
-- protected Audit diagnostics presentation;
-- sanitized metadata presentation;
-- feature-local localization;
-- focused contract test.
-
-`INTEGRATION REQUIRED` remains coordinator-owned:
-
-- central `/audit` route registration in `web/scada-web/src/main.tsx`;
-- central Runtime/Engineering navigation entry;
-- cross-origin CORS exposure for `X-EliteSCADA-Audit-Next-Cursor` if deployment uses a distinct API origin;
-- optional later shared-localization consolidation.
-
-CI observation:
-
-- CI #243 started but was replaced/cancelled;
-- CI #244 is running for the same current head;
-- Web build in #244 is already **SUCCESS**;
-- backend build/tests/runtime smoke and subsequent Chromium completion were still pending at the last coordinator observation.
-
-DEV 1 remains `PR_OPEN`; it must not start a new task. If #244 fails, it fixes only attributable branch failures. If it passes and the PR remains complete, it updates evidence and waits for coordinator.
-
-### PR #47 — DEV 3 — Public Script Engineering integration foundation
-
-Branch: `feature/script-engineering-integration`
-
-Observed head: `da6dd4914741a6fa9ece4c758d245899fb20af92`
-
-State: **OPEN DRAFT / IMPLEMENTED IN PR / NOT MERGED / WORK IN PROGRESS**
-
-Observed diff is isolated to new Script Engineering files and focused tests. No `EngineeringContracts.cs`, `Program.cs`, workflow, coordinator documentation or central frontend routing changes are present.
-
-Implemented direction includes:
+PR #47 merged the isolated `Scada.Engineering.Scripts` domain with:
 
 - stable Script ID/path/name;
 - explicit Client Visual vs Server scope;
 - Python language/version/source/enabled state;
-- entry points/events/dependencies/metadata;
-- deterministic Script/reference validation;
-- adapters to the merged PR #41 scripting/visual runtime contracts.
+- typed entry points/events/dependencies/metadata;
+- deterministic identity, dependency-cycle, scope and visual-reference validation;
+- adapters to the already-merged PR #41 public scripting/visual runtime contracts;
+- focused automated tests.
 
-Coordinator integration remains required later for canonical first-class Scripts in Engineering schema, migration/import-export, preview/apply, revisions, PostgreSQL Engineering persistence, `.escadapkg` and Screen/Popup/Dynamo stable Script references.
+CI #248 passed Web build, backend build/tests, runtime smoke and Chromium E2E on the DEV 3 delivery head.
 
-At the last observation, no PR-triggered workflow run was present for the current head and the PR body explicitly states final CI evidence is still pending. DEV 3 remains `PR_OPEN` and continues only the assigned validation/testing/handoff work.
+This does **not** yet mean Scripts are first-class members of the canonical Engineering package. Central schema/migration/import-export/revision/PostgreSQL/`.escadapkg` integration remains coordinator-owned and intentionally waits until Internal Memory's central Engineering changes are reconciled.
+
+## IMPLEMENTED IN PR / ACTIVE WORK
 
 ### PR #48 — DEV 2 — Internal Memory Engineering + durable Server Memory product integration
 
 Branch: `feature/internal-memory-product-integration`
 
-Observed head: `8ea8f7770322de0c1244b70c26027ab0ba2b5a2a`
+Observed current head: `d676cae2c3cee76ecf4238d2e8b6c495aa907d4c`
 
-State: **OPEN DRAFT / IMPLEMENTED IN PR / NOT MERGED / WORK IN PROGRESS**
-
-Observed branch has 13 worker commits from the assignment baseline. Changes remain inside the authorized Internal Memory/Core/Engineering ImportExport/Validation/PostgreSQL/test domains, including the explicit narrow exception for Internal Memory changes to `EngineeringContracts.cs`.
+State: **OPEN DRAFT / IMPLEMENTED IN PR / NOT MERGED**
 
 Observed implementation includes:
 
-- Internal Memory core/provider evolution;
-- public Engineering typed memory initial-value representation;
-- strict Engineering/Core typed-value codec;
-- Internal Memory validation/import-export changes;
-- PostgreSQL Server Memory retention storage;
-- stable-ID retention/reset focused tests.
+- Engineering schema v8 on the worker branch;
+- typed `MemoryInitialValueDto` public representation;
+- JSON/CSV round-trip and v7 backward compatibility;
+- validation for `builtin.memory.client` and `builtin.memory.server`;
+- rejection of fake network address/configuration for memory sources;
+- rejection of global Historian/Alarm semantics for Client Memory, including unsafe Server→Client transitions with existing consumers;
+- durable PostgreSQL Server Memory retention keyed by stable TAG ID;
+- restart and path-rename restoration;
+- fail-closed incompatible retained type handling and explicit reset coverage.
 
-The PR body still declares remaining product integration/validation work and final CI evidence pending. No PR-triggered workflow run was present for the current observed head.
+### PR #48 CI status
 
-DEV 2 remains `PR_OPEN` and continues the assigned completion criteria. Final `Program.cs`/DI/runtime/API/shared frontend composition remains coordinator-owned `INTEGRATION REQUIRED` work.
+CI #251 ran on current observed head `d676cae2c3cee76ecf4238d2e8b6c495aa907d4c`:
+
+- Web build: **SUCCESS**;
+- backend restore/build: **SUCCESS**, 0 warnings / 0 errors;
+- automated tests: **SUCCESS**, including Internal Memory, PostgreSQL retention, Timescale/Historian, Drivers and Security;
+- runtime smoke: **FAILED only at the coordinator-owned literal `engineeringSchemaVersion == 7` assertion**;
+- Chromium E2E: skipped because the backend job failed at that assertion.
+
+The stale workflow assumption is now repaired on `main` by `c77d3096e6a6d225d23e4077b07704a341b1993a`. DEV 2 correctly did not modify the reserved workflow. A final green PR CI using the corrected base workflow is still required before coordinator review/merge.
+
+DEV 2 must remain on PR #48 until it updates the PR body to the final actual implementation, records exact `INTEGRATION REQUIRED` hooks, obtains final-head CI and freezes at `WAIT_FOR_COORDINATOR`.
+
+## CURRENT MAIN VALIDATION
+
+Main CI #257 validates the merged Audit/Script work, central Audit routing/navigation, and the dynamic Engineering schema smoke check.
+
+At this handoff observation:
+
+- Web build: **SUCCESS**;
+- backend restore/build/tests: **SUCCESS**;
+- runtime smoke: **SUCCESS**;
+- Chromium E2E: **IN PROGRESS**.
+
+Do not describe CI #257 as fully green until Chromium completes successfully.
 
 ## SPECIFIED / NOT IMPLEMENTED
 
@@ -129,45 +130,41 @@ The locked source/protocol order remains:
 
 `Internal Memory complete product integration -> TAG Gateway -> common multi-driver/Data Source diagnostics -> USER INTERFACE VALIDATION PREVIEW -> additional external protocols`
 
-Therefore TAG Gateway remains **SPECIFIED / NOT IMPLEMENTED** and is still blocked until Internal Memory is complete and official on `main`.
+Therefore TAG Gateway remains **SPECIFIED / NOT IMPLEMENTED** and blocked until PR #48 is reviewed, integrated, fully validated and official on `main`.
 
 The visual/Python order remains:
 
 `public Script/visual Engineering integration -> Python editor/sandbox -> visual runtime object/property integration -> graphical Screens/Popups/Dynamos editor -> advanced libraries`
 
-PR #47 advances only the first foundation/integration stage. No concrete Python engine/editor or graphical editor is authorized yet.
+PR #47 completes the isolated Script Engineering domain foundation, but canonical first-class Script package integration is still pending. No concrete Python editor/engine or graphical editor is authorized yet.
 
 ## CURRENT CHAT ASSIGNMENTS
 
 The exact live board is `docs/CHAT-WORK-ASSIGNMENTS.md`.
 
-Current worker state:
+1. **DEV 1 - EliteSCADA** — PR #46 — `MERGED / WAITING`.
+2. **DEV 2 - EliteSCADA** — PR #48 — `CI_FAILED / PR_OPEN` — continues the same Internal Memory assignment.
+3. **DEV 3 - EliteSCADA** — PR #47 — `MERGED / WAITING`.
 
-1. **DEV 1 - EliteSCADA** — PR #46 — `PR_OPEN` — CI #244 running.
-2. **DEV 2 - EliteSCADA** — PR #48 — `PR_OPEN` — implementation/validation still in progress.
-3. **DEV 3 - EliteSCADA** — PR #47 — `PR_OPEN` — focused tests/CI handoff still in progress.
-
-All three have `AfterCompletion: WAIT_FOR_COORDINATOR`.
+All workers retain `AfterCompletion: WAIT_FOR_COORDINATOR`.
 
 ## COORDINATOR RESUME POINT
 
 On the next coordinator `siga`:
 
-1. reread current `main` mandatory documents;
-2. re-check PR #46/#47/#48 heads, diffs, bodies, mergeability and CI;
-3. if PR #46 is green and complete, review its diff and perform only the required central integration before final CI/merge;
-4. do not merge PR #47 before its focused validation/CI is complete and its isolated semantics are reviewed;
-5. prioritize PR #48 because Internal Memory gates the source/protocol chain;
-6. after PR #48 is accepted, reconcile its central Engineering changes before adding coordinator-owned Script canonical-schema hooks from PR #47;
-7. merge only reviewed green work;
-8. update `docs/ROADMAP.md`, this handoff and the assignment board after official merges;
-9. only assign TAG Gateway after Internal Memory completion criteria are satisfied on `main`.
+1. reread current mandatory documents from `main`;
+2. check final status of main CI #257;
+3. check current PR #48 head/body/diff/mergeability and its newest CI;
+4. if DEV 2 is delivered with final green CI, review/reconcile its central Engineering changes and required runtime composition before merge;
+5. after Internal Memory is official, integrate the already-merged Script Engineering domain into the canonical Engineering schema/package in coordinator-owned shared files;
+6. update roadmap/handoff/assignments after each official state change;
+7. do not assign TAG Gateway until Internal Memory completion criteria are actually satisfied on `main`.
 
 ## Permanent continuity rules
 
 - GitHub branch/PR/head/CI state is operational truth.
-- Feature branches and open PRs are **IMPLEMENTED IN PR**, never **MERGED**.
+- Open feature branches/PRs are **IMPLEMENTED IN PR**, never **MERGED**.
 - Workers never choose their own next task or merge their own PR.
-- Shared central integration belongs to the coordinator unless an assignment grants a narrow explicit exception.
+- Shared central integration belongs to the coordinator unless a narrow exception is explicitly assigned.
 - Known-failing work is never merged.
 - `siga` is the canonical short command; `continue` is equivalent.

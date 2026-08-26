@@ -7,6 +7,7 @@ import {
   type EngineeringLocale,
   type TranslationKey
 } from './i18n';
+import { DataSourceEditor, TagEditor } from './StructuredEditors';
 import type { EngineeringPackageView, EngineeringSnapshot } from './types';
 import './engineering.css';
 
@@ -237,31 +238,9 @@ function EngineeringSection({
 
   switch (section) {
     case 'dataSources':
-      return <EntitySection
-        title={t('nav.dataSources')}
-        items={model.dataSources ?? []}
-        t={t}
-        columns={[
-          { key: 'key', title: t('table.key'), render: item => <Code>{item.key}</Code> },
-          { key: 'name', title: t('table.name'), render: item => item.name },
-          { key: 'driver', title: t('table.driver'), render: item => <Code>{item.driver}</Code> },
-          { key: 'enabled', title: t('table.enabled'), render: item => yesNo(item.enabled !== false, t) }
-        ]}
-      />;
+      return <DataSourceEditor model={model} locale={locale} />;
     case 'tags':
-      return <EntitySection
-        title={t('nav.tags')}
-        items={model.tags}
-        t={t}
-        columns={[
-          { key: 'path', title: t('table.path'), render: item => <Code>{item.path}</Code> },
-          { key: 'type', title: t('table.type'), render: item => item.dataType },
-          { key: 'source', title: t('table.source'), render: item => item.source ?? '—' },
-          { key: 'address', title: t('table.address'), render: item => item.address ?? '—' },
-          { key: 'unit', title: t('table.unit'), render: item => item.engineeringUnit ?? '—' },
-          { key: 'readOnly', title: t('table.readOnly'), render: item => yesNo(item.readOnly, t) }
-        ]}
-      />;
+      return <TagEditor model={model} locale={locale} />;
     case 'alarms':
       return <EntitySection
         title={t('nav.alarms')}
@@ -427,8 +406,7 @@ function SecuritySection({ model, t }: { model: EngineeringPackageView; t: Retur
           render: item => <span className="eng-capability-list">{item.grants?.map(grant => grant.capability).join(', ') || '—'}</span>
         }
       ]}
-    />
-  );
+    />;
 }
 
 function DiagnosticsSection({

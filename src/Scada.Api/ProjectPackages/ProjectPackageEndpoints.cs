@@ -1,6 +1,7 @@
 using Scada.Api.Security;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ProjectPackages;
+using Scada.Security.Audit;
 using Scada.Security.Authorization;
 
 namespace Scada.Api.ProjectPackages;
@@ -82,22 +83,91 @@ public static class ProjectPackageEndpoints
             ImportMode? mode,
             IProjectPackageService packages,
             ApiAuthorizationService security,
+            ApiAuditService audit,
             CancellationToken cancellationToken) =>
         {
             var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
             var failure = authorization.FailureResult();
-            if (failure is not null) return failure;
+            if (failure is not null)
+            {
+                await audit.RecordAuthorizationDeniedAsync(
+                    context,
+                    authorization,
+                    AuditActions.EngineeringPackageRestore,
+                    "engineering-workspace",
+                    "current");
+                return failure;
+            }
 
             try
             {
+                var importMode = mode ?? ImportMode.CreateAndUpdate;
                 var bytes = await ReadPackageAsync(request, cancellationToken);
-                var preview = packages.Preview(bytes, mode ?? ImportMode.CreateAndUpdate);
-                if (!preview.CanApply) return Results.BadRequest(preview);
-                return Results.Ok(packages.Apply(bytes, mode ?? ImportMode.CreateAndUpdate));
+                var inspection = packages.Inspect(bytes);
+                var preview = packages.Preview(bytes, importMode);
+                if (!preview.CanApply)
+                {
+                    await audit.RecordAsync(
+                        context,
+                        authorization.Principal,
+                        AuditActions.EngineeringPackageRestore,
+                        AuditOutcome.Failed,
+                        "project-package",
+                        inspection.Manifest.ProjectKey,
+                        new Dictionary<string, string>
+                        {
+                            ["packageId"] = inspection.Manifest.PackageId.ToString(),
+                            ["reason"] = "preview-errors",
+                            ["errorCount"] = preview.ErrorCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                        });
+                    return Results.BadRequest(preview);
+                }
+
+                var result = packages.Apply(bytes, importMode);
+                var hasErrors = result.Issues.Any(x => x.IsError);
+                await audit.RecordAsync(
+                    context,
+                    authorization.Principal,
+                    AuditActions.EngineeringPackageRestore,
+                    hasErrors ? AuditOutcome.Failed : AuditOutcome.Succeeded,
+                    "project-package",
+                    inspection.Manifest.ProjectKey,
+                    new Dictionary<string, string>
+                    {
+                        ["packageId"] = inspection.Manifest.PackageId.ToString(),
+                        ["mode"] = importMode.ToString(),
+                        ["created"] = result.Created.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["updated"] = result.Updated.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    });
+                return hasErrors ? Results.BadRequest(result) : Results.Ok(result);
             }
             catch (InvalidDataException ex)
             {
+                await audit.RecordAsync(
+                    context,
+                    authorization.Principal,
+                    AuditActions.EngineeringPackageRestore,
+                    AuditOutcome.Failed,
+                    "project-package",
+                    "unresolved",
+                    new Dictionary<string, string>
+                    {
+                        ["reason"] = "invalid-package",
+                        ["errorType"] = ex.GetType().Name
+                    });
                 return Results.BadRequest(new { error = ex.Message });
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                await audit.RecordAsync(
+                    context,
+                    authorization.Principal,
+                    AuditActions.EngineeringPackageRestore,
+                    AuditOutcome.Failed,
+                    "project-package",
+                    "unresolved",
+                    new Dictionary<string, string> { ["errorType"] = ex.GetType().Name });
+                throw;
             }
         });
 

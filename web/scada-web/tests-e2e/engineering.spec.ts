@@ -115,6 +115,54 @@ test('TAG editor validates drafts without mutating Engineering Workspace', async
   await expect(page.getByText('TAG_PATH_WHITESPACE', { exact: true })).toBeVisible();
 });
 
+test('TAG editor protects changed drafts when switching entities', async ({ page }) => {
+  await page.goto('/engineering');
+  await page.getByRole('button', { name: /TAGs/ }).click();
+  await page.getByRole('button', { name: /Demo\.P01\.Frequency/ }).click();
+
+  await page.getByLabel('Nome').fill('Protected frequency draft');
+
+  page.once('dialog', async dialog => {
+    expect(dialog.type()).toBe('confirm');
+    expect(dialog.message()).toContain('alterações não aplicadas');
+    await dialog.dismiss();
+  });
+  await page.getByRole('button', { name: /Demo\.Tank01\.Level/ }).click();
+  await expect(page.getByLabel('Nome')).toHaveValue('Protected frequency draft');
+  await expect(page.getByLabel('Path')).toHaveValue('Demo.P01.Frequency');
+
+  page.once('dialog', async dialog => {
+    expect(dialog.type()).toBe('confirm');
+    await dialog.accept();
+  });
+  await page.getByRole('button', { name: /Demo\.Tank01\.Level/ }).click();
+  await expect(page.getByLabel('Path')).toHaveValue('Demo.Tank01.Level');
+});
+
+test('TAG editor previews a new TAG as a create without applying it', async ({ page, request }) => {
+  const beforeResponse = await request.get('/api/engineering/export/json');
+  expect(beforeResponse.ok()).toBeTruthy();
+  const before = await beforeResponse.json() as { tags: Array<{ path: string }> };
+
+  await page.goto('/engineering');
+  await page.getByRole('button', { name: /TAGs/ }).click();
+  await page.getByRole('button', { name: 'Nova TAG' }).click();
+  await expect(page.getByText('Novo', { exact: true })).toBeVisible();
+
+  await page.getByLabel('Nome').fill('Preview Created Tag');
+  await page.getByLabel('Path').fill('Demo.Preview.CreatedTag');
+  await page.getByRole('button', { name: 'Validar preview' }).click();
+
+  await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('preview-create-count')).toContainText('1 criações');
+
+  const afterResponse = await request.get('/api/engineering/export/json');
+  expect(afterResponse.ok()).toBeTruthy();
+  const after = await afterResponse.json() as { tags: Array<{ path: string }> };
+  expect(after.tags).toEqual(before.tags);
+  expect(after.tags.some(tag => tag.path === 'Demo.Preview.CreatedTag')).toBeFalsy();
+});
+
 test('Data Source editor previews public settings without exposing secret values', async ({ page, request }) => {
   const workspaceBeforeResponse = await request.get('/api/engineering/workspace');
   expect(workspaceBeforeResponse.ok()).toBeTruthy();
@@ -134,4 +182,29 @@ test('Data Source editor previews public settings without exposing secret values
   expect(workspaceAfterResponse.ok()).toBeTruthy();
   const workspaceAfter = await workspaceAfterResponse.json() as { isDirty: boolean; changeVersion: number };
   expect(workspaceAfter).toEqual(workspaceBefore);
+});
+
+test('Data Source editor previews a new source as a create without applying it', async ({ page, request }) => {
+  const beforeResponse = await request.get('/api/engineering/export/json');
+  expect(beforeResponse.ok()).toBeTruthy();
+  const before = await beforeResponse.json() as { dataSources: Array<{ key: string }> };
+
+  await page.goto('/engineering');
+  await page.getByRole('button', { name: /Data Sources/ }).click();
+  await page.getByRole('button', { name: 'Novo Data Source' }).click();
+  await expect(page.getByText('Novo', { exact: true })).toBeVisible();
+
+  await page.getByLabel('Nome').fill('Preview Simulation Source');
+  await page.getByLabel('Chave').fill('preview.simulation');
+  await page.getByLabel('Driver').fill('builtin.simulation');
+  await page.getByRole('button', { name: 'Validar preview' }).click();
+
+  await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('preview-create-count')).toContainText('1 criações');
+
+  const afterResponse = await request.get('/api/engineering/export/json');
+  expect(afterResponse.ok()).toBeTruthy();
+  const after = await afterResponse.json() as { dataSources: Array<{ key: string }> };
+  expect(after.dataSources).toEqual(before.dataSources);
+  expect(after.dataSources.some(source => source.key === 'preview.simulation')).toBeFalsy();
 });

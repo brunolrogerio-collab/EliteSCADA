@@ -250,12 +250,14 @@ public sealed class VisualScriptingFoundationTests
         Assert.False(result.IsValid);
 
         var importDiagnostic = Assert.Single(
-            result.Diagnostics.Where(diagnostic => diagnostic.Code == "PY_SANDBOX_IMPORT_DENIED"));
+            result.Diagnostics,
+            diagnostic => diagnostic.Code == "PY_SANDBOX_IMPORT_DENIED");
         Assert.Equal(2, importDiagnostic.Span.Start.Line);
         Assert.Equal(1, importDiagnostic.Span.Start.Column);
 
         var callDiagnostic = Assert.Single(
-            result.Diagnostics.Where(diagnostic => diagnostic.Code == "PY_SANDBOX_CALL_DENIED"));
+            result.Diagnostics,
+            diagnostic => diagnostic.Code == "PY_SANDBOX_CALL_DENIED");
         Assert.Equal(3, callDiagnostic.Span.Start.Line);
         Assert.Equal(1, callDiagnostic.Span.Start.Column);
     }

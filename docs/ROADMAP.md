@@ -3,11 +3,11 @@
 Engineering Import/Export remains a mandatory cross-cutting capability throughout this roadmap. Every new Engineering domain must join the public versioned model, validation/preview/apply workflow, revision lifecycle and backup/restore path.
 
 **Status date:** 2026-08-26
-**Functional development:** ACTIVE
+**Functional development:** ACTIVE — PARALLEL WORK ENABLED
 
 ## Established `main` foundation
 
-The following major capabilities are already integrated and validated:
+The following major capabilities are integrated and validated:
 
 1. Repository architecture and CI/CD foundation.
 2. TAG Engine, quality model, current-value cache and Event Bus.
@@ -29,6 +29,7 @@ The following major capabilities are already integrated and validated:
 18. Engineering UI foundation at `/engineering` with Runtime↔Engineering navigation and `pt-BR` / `en` / `es` localization.
 19. Structured TAG, Data Source and Alarm editors with safe preview-oriented draft behavior.
 20. Local identity/browser-login foundation with PBKDF2-SHA256 credentials, PostgreSQL user persistence, JWT issuance, HttpOnly browser cookie and bootstrap-first-user workflow.
+21. Protected local-user administration with safe DTOs, Engineering role-key assignment, `UserRoleAdmin` / `SystemAdmin`, last-admin protection, JWT security-version invalidation and active WebSocket session revocation.
 
 Important merged PR checkpoints:
 
@@ -36,10 +37,11 @@ Important merged PR checkpoints:
 - PR #36 Runtime read/realtime protection: `10b0320149c1ef2109e9517539717a8800b200c2`.
 - PR #37 Engineering UI foundation: `4553aa7ab5ba7e05a209a7c8462286d1a34a1ad6`.
 - PR #38 Local identity/browser login: `2a581d279a428cb605429d5939c333ff7ad8d1b4`.
+- PR #39 Local user administration: `6de8f06a443ad829ccc95c6dfcd9511e906adeff`.
 
 ## Engineering Import/Export baseline
 
-Canonical Engineering JSON is at Schema v7.
+Canonical Engineering JSON is currently Schema v7.
 
 Current public domains include:
 
@@ -54,55 +56,69 @@ Current public domains include:
 - Security Roles/policies;
 - Operational Commands.
 
-Current bulk/project exchange includes:
+Current bulk/project exchange includes CSV for appropriate TAG/Alarm/Data Source workflows, historical-schema compatibility/migration testing, and `.escadapkg` Engineering project packages with integrity validation.
 
-- CSV support for appropriate TAG/Alarm/Data Source workflows;
-- historical-schema compatibility/migration testing;
-- `.escadapkg` Engineering project package with integrity validation.
+Future Internal Memory, Gateway, Scripts, visual assets/property schemas, trends, shell regions and plugin-owned configuration must use the same public/versioned Engineering principles.
 
-Future internal memory, Gateway, scripts, visual assets/property schemas, trends, shell regions and plugin-owned configuration must use the same public/versioned Engineering principles.
+## Immediate coordinator-owned hardening
 
-## Immediate ordered product-hardening slices
+These slices can progress independently of the worker branches when file ownership is respected.
 
-These are the next product-unblocking slices before the locked source/protocol milestone.
-
-1. **User lifecycle and administration**
-   - user list/profile/enable-disable/password reset/change as appropriate;
-   - role-key assignment without moving role capability definitions out of Engineering;
-   - `UserRoleAdmin`/`SystemAdmin` enforcement;
-   - never expose password hash/salt through administrative APIs or Engineering export.
-
-2. **Secured Engineering mutation workflows**
+1. **Secured Engineering mutation workflows**
    - Apply for validated TAG/Data Source/Alarm drafts;
    - Delete lifecycle;
    - bulk-edit workflow where appropriate;
-   - authorization/audit and dirty/revision semantics;
-   - preserve the public preview/apply boundary.
+   - `EngineeringModify` authorization and audit;
+   - dirty/revision semantics;
+   - preserve the public `parse -> validate -> preview -> apply` boundary;
+   - never create a browser-private source of Engineering truth.
 
-3. **Audit durability and retention hardening**
+2. **Audit durability and retention hardening**
    - retention/query policy;
    - bounded buffering/outbox behavior for temporary database/storage outages;
    - preserve append-only semantics and actor integrity.
 
-4. **Historian retention/downsampling**
+3. **Historian retention/downsampling**
    - TimescaleDB retention policies;
    - aggregation/downsampling baseline;
    - clear separation between storage policy and public trend semantics.
+
+## Parallel foundations currently implemented in Draft PRs
+
+### PR #40 — Internal Memory / Source Provider foundation
+
+**IMPLEMENTED IN PR / NOT MERGED**.
+
+The isolated Worker A slice covers Source Provider contracts, strict typed memory defaults, stable-ID server retention semantics, deterministic in-memory retention, `Good` quality, fail-closed incompatible types, deleted-TAG non-resurrection and per-client Client Memory isolation.
+
+Before merge it must be reconciled with then-current `main`, pass final integrated CI and receive coordinator-owned Engineering/runtime integration where appropriate.
+
+### PR #41 — Python scripting + visual property foundation
+
+**IMPLEMENTED IN PR / NOT MERGED**.
+
+The isolated Worker B slice covers typed visual-property schemas, base/binding/script/animation precedence, runtime presentation overrides, tween contracts, Client Visual vs Server script scopes, sandbox capability boundaries, bounded execution contracts and Python editor-validation diagnostics.
+
+Central Engineering schema/import-export and concrete Python/renderer/editor integration remain coordinator/later slices.
 
 ## Locked source/protocol foundation
 
 The order below is mandatory before adding another external protocol family:
 
-5. **Internal memory TAG sources**
+4. **Internal memory TAG sources — complete product integration**
+   - integrate the PR #40 foundation after review;
    - `builtin.memory.client`;
    - retentive `builtin.memory.server`;
-   - typed initial/default values;
+   - typed initial/default values in public Engineering;
    - stable-ID retention and explicit incompatible-type reset/migration;
+   - runtime cache/Event Bus/realtime integration;
+   - historian/alarm rules;
+   - durable retention implementation;
    - client/server scripting scope boundaries;
    - Engineering Import/Export.
    - See `docs/INTERNAL-MEMORY-TAGS.md`.
 
-6. **Protocol-independent TAG Gateway**
+5. **Protocol-independent TAG Gateway**
    - TAG→TAG routes;
    - OnChange/Periodic;
    - deadband/minimum interval/coalescing;
@@ -113,7 +129,7 @@ The order below is mandatory before adding another external protocol family:
    - transactional activation.
    - See `docs/TAG-GATEWAY.md`.
 
-7. **Common multi-driver/Data-Source diagnostics**
+6. **Common multi-driver/Data-Source diagnostics**
    - per-Data-Source state/health;
    - success/failure/timeout/reconnect counters;
    - latency/failure-rate/data-age metrics where meaningful;
@@ -122,12 +138,12 @@ The order below is mandatory before adding another external protocol family:
    - protected diagnostic APIs and Engineering UI.
    - See `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
 
-8. **USER INTERFACE VALIDATION PREVIEW**
+7. **USER INTERFACE VALIDATION PREVIEW**
    - mandatory product-owner test build before the next external-protocol wave;
-   - primary initial delivery target: Windows x64;
+   - primary initial target: Windows x64;
    - practical startup path, local login/bootstrap, demo project, visible version and short test checklist;
-   - package/startup path must be smoke-tested separately from repository-only development execution;
-   - feedback reviewed before heavy next-protocol investment.
+   - package/startup path smoke-tested separately from repository-only development execution;
+   - product-owner feedback reviewed before heavy next-protocol investment.
    - See `docs/INTERFACE-VALIDATION-MILESTONE.md`.
 
 Locked sequence:
@@ -136,45 +152,44 @@ Locked sequence:
 
 ## External protocol/module wave after preview feedback
 
-9. MQTT through the common Data Source/Source Provider/TAG/Gateway architecture.
-10. OPC UA through the same common model.
-11. BACnet through the same common model.
-12. Installable/versioned Driver Module framework and public Driver SDK compatibility boundary.
-13. Siemens S7 ISO Connection as the first intended installable module target after the framework is ready.
-14. Later Allen-Bradley research based on public documentation/libraries, licensing, testability and representative hardware/simulator access.
+8. MQTT through the common Data Source/Source Provider/TAG/Gateway architecture.
+9. OPC UA through the same common model.
+10. BACnet through the same common model.
+11. Installable/versioned Driver Module framework and public Driver SDK compatibility boundary.
+12. Siemens S7 ISO Connection as the first intended installable module target after the framework is ready.
+13. Later Allen-Bradley research based on public documentation/libraries, licensing, testability and representative hardware/simulator access.
 
 Projects referencing missing/disabled/incompatible modules must preserve their Engineering configuration and surface diagnostics instead of silently deleting configuration.
 
 ## Python scripting and visual-runtime prerequisite
 
-The graphical screen/popup/Dynamo editor has a separate mandatory prerequisite chain. It **must not** invent its own private object/property model first and retrofit scripting later.
+The graphical screen/popup/Dynamo editor has a separate mandatory prerequisite chain. It must not invent a private object/property model first and retrofit scripting later.
 
-Before full graphical visual engineering begins, implement:
-
-15. **Python scripting public contract + visual property schema**
+14. **Python scripting public contract + visual property schema**
+   - integrate/review PR #41 foundation;
    - first-class versioned Script Engineering entities;
    - explicit Client Visual vs Server Script scopes;
    - stable visual object IDs/types/property keys;
    - typed property metadata defining Engineering editability, runtime readability/writability, binding support and animatability;
-   - common properties including x/y, width/height, line thickness, fill/background color, line color, opacity, visibility, rotation, z-order, text/font and image/resource properties where applicable.
+   - common geometry, line, fill/background, opacity, visibility, transform, text/font and image/resource properties.
 
-16. **Python script editor + sandbox**
+15. **Python script editor + sandbox**
    - syntax highlighting and line numbers;
-   - syntax/compile diagnostics with line/column;
+   - engine-backed syntax/compile diagnostics with line/column;
    - EliteSCADA API autocomplete where practical;
    - event/entry-point association;
    - sandboxed test/preview;
    - execution budgets, cancellation and error isolation.
 
-17. **Visual runtime object instances/property API**
-   - design-time Engineering base values separate from runtime presentation overrides;
-   - scripts can change declared runtime-writable object properties without silently changing saved Engineering revisions;
+16. **Visual runtime object instances/property API**
+   - Engineering base values separate from Runtime presentation overrides;
+   - scripts can change declared runtime-writable properties without mutating saved revisions;
    - deterministic lifecycle/disposal of subscriptions and timers;
-   - event model for load/unload, object interaction, TAG/Client-Memory changes and timers;
-   - renderer-native tween/animation primitives callable from Python for smooth procedural animation;
-   - deterministic, diagnosable precedence among base values, TAG/expression bindings, script writes and animations.
+   - load/unload, interaction, TAG/Client-Memory and timer event model;
+   - renderer-native tween/animation primitives callable from Python;
+   - deterministic, diagnosable precedence among base, binding/expression, script and animation layers.
 
-18. **Graphical screen/popup/Dynamo editor**
+17. **Graphical screen/popup/Dynamo editor**
    - object palette/canvas;
    - property inspector consuming the same public property schema as Python;
    - TAG/expression bindings;
@@ -183,7 +198,7 @@ Before full graphical visual engineering begins, implement:
    - script/event association;
    - reusable Dynamo/template composition.
 
-19. **Advanced reusable visual libraries**
+18. **Advanced reusable visual libraries**
    - nested Dynamos/components;
    - version-aware library update/migration;
    - reusable scripted behavior;
@@ -191,11 +206,11 @@ Before full graphical visual engineering begins, implement:
 
 Full locked scripting/visual contract: `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`.
 
-The interface-validation preview in item 8 may occur before items 15–19. The requirement is that items 15–17 occur before item 18.
+The interface-validation preview in item 7 may occur before items 14–18. Items 14–16 are mandatory before item 17.
 
 ## Additional future Engineering/product slices
 
-These remain locked product goals and may be scheduled around the major gates according to dependencies:
+These remain locked product goals and may be scheduled around major gates according to dependencies:
 
 - Engineering XLSX workbook import/export;
 - Engineering Fragments and dependency-aware cross-project copy/paste;
@@ -209,25 +224,6 @@ These remain locked product goals and may be scheduled around the major gates ac
 - public SDK/module lifecycle, trust/integrity and diagnostics;
 - later sandboxed Server Python scripting for shared calculations/automation using Server Memory/shared TAGs.
 
-## Locked scripting/visual architecture summary
-
-Client Visual Scripts:
-
-- run in the Runtime Client;
-- may read permitted shared TAGs and read/write that client's Client Memory;
-- may change explicitly runtime-writable properties of current screen/popup/Dynamo object instances;
-- operate through a stable EliteSCADA object API, not React/DOM internals;
-- may request protected backend writes/commands only through normal authorization boundaries;
-- cannot access arbitrary OS/filesystem/network/secrets/drivers/database.
-
-Server Scripts:
-
-- are a separate server-owned capability;
-- may use shared TAGs/Server Memory under an explicit security model;
-- never manipulate one browser's visual instances or use one client's Client Memory as global truth.
-
-Runtime visual property overrides never silently mutate immutable/saved Engineering configuration.
-
 ## Development quality rules
 
 - Prefer small coherent slices with automated validation.
@@ -238,4 +234,4 @@ Runtime visual property overrides never silently mutate immutable/saved Engineer
 - Preserve supported Engineering schema compatibility or explicit migrations/tests.
 - Keep runtime safety ahead of convenience.
 - New drivers, scripts and UI editors must not bypass Engineering, TAG quality, security, audit or lifecycle boundaries.
-- Documentation changes must preserve locked future requirements.
+- Parallel worker branches never self-merge and coordinator-owned shared files remain centrally controlled.

@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="../Scada.Core/Scada.Core.csproj" />
+    <ProjectReference Include="../Scada.Security/Scada.Security.csproj" />
   </ItemGroup>
 </Project>

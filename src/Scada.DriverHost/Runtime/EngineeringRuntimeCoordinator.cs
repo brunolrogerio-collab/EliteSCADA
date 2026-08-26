@@ -233,8 +233,6 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                     }
                 }
 
-                cancellationToken.ThrowIfCancellationRequested();
-
                 var previous = Volatile.Read(ref _active);
                 previous.EventGate.DisableForwarding();
                 Volatile.Write(ref _active, candidate);

@@ -65,7 +65,7 @@ export function TagEditor({ model, locale }: EditorProps) {
     }
     if (tags[0]) setSelectedIdentity(tagIdentity(tags[0]));
     else setDraft(null);
-  }, [selectedIdentity, tags]); // mutation invalidation is intentionally driven by identity/draft changes
+  }, [selectedIdentity, tags]);
 
   useEffect(() => mutation.invalidate(), [draft]);
 
@@ -496,7 +496,6 @@ function MutationActions({
 
 function PreviewPanel({ mutation, locale }: { mutation: MutationState; locale: EngineeringLocale }) {
   const text = editorTranslator(locale);
-  const extra = mutationText(locale);
   const preview = mutation.preview;
   const issues = preview?.items.flatMap(item => item.issues ?? []) ?? [];
   return (
@@ -508,7 +507,7 @@ function PreviewPanel({ mutation, locale }: { mutation: MutationState; locale: E
             {mutation.error
               ? text('editor.previewFailed')
               : preview
-                ? (preview.canApply ? extra.validAndReady : text('editor.invalid'))
+                ? (preview.canApply ? text('editor.valid') : text('editor.invalid'))
                 : text('editor.notValidated')}
           </strong>
         </div>
@@ -531,7 +530,7 @@ function PreviewPanel({ mutation, locale }: { mutation: MutationState; locale: E
           ))}
         </div>
       )}
-      <footer>{preview?.canApply ? extra.previewReadyHint : text('editor.workspaceUntouched')}</footer>
+      <footer>{text('editor.workspaceUntouched')}</footer>
     </section>
   );
 }
@@ -600,7 +599,7 @@ function DictionaryEditor({ title, hint, value, keyLabel, valueLabel, addLabel, 
       {entries.map(([key, entryValue], index) => (
         <div className="eng-dictionary-row" key={`${key}-${index}`}>
           <label><span>{keyLabel}</span><input value={key} onChange={event => updateEntry(index, event.target.value, entryValue)} /></label>
-          <label><span>{valueLabel}</span><input value={entryValue} onChange={event => updateEntry(index, key, event.target.value)} /></label>
+          <label><span>{valueLabel}</span><input value={entryValue} onChange={event => updateEntry(index, key, entryValue)} /></label>
           <button type="button" onClick={() => removeEntry(index)}>{removeLabel}</button>
         </div>
       ))}
@@ -700,24 +699,21 @@ function mutationText(locale: EngineeringLocale) {
     editing: 'Secured Engineering editing',
     previewGate: 'Preview required before Apply',
     previewGateHint: 'Apply uses the public Engineering import pipeline and is available only after a valid preview. A changed Workspace invalidates the candidate.',
-    apply: 'Apply to Workspace', applying: 'Applying...', validAndReady: 'Validated and ready to Apply',
-    previewReadyHint: 'The Workspace is still unchanged. Apply will mutate the Engineering Workspace through the authorized/audited backend boundary.',
+    apply: 'Apply to Workspace', applying: 'Applying...',
     workspaceChanged: 'The Engineering Workspace changed while this draft was being validated. Reload and validate again.'
   };
   if (locale === 'es') return {
     editing: 'Edición segura de Ingeniería',
     previewGate: 'Preview obligatorio antes de Aplicar',
     previewGateHint: 'Aplicar usa el pipeline público de Engineering y solo se habilita después de un preview válido. Un cambio del Workspace invalida el candidato.',
-    apply: 'Aplicar al Workspace', applying: 'Aplicando...', validAndReady: 'Validado y listo para Aplicar',
-    previewReadyHint: 'El Workspace todavía no fue modificado. Aplicar realizará el cambio mediante el límite backend autorizado y auditado.',
+    apply: 'Aplicar al Workspace', applying: 'Aplicando...',
     workspaceChanged: 'El Engineering Workspace cambió durante la validación. Recargue y valide nuevamente.'
   };
   return {
     editing: 'Edição segura de Engenharia',
     previewGate: 'Preview obrigatório antes do Apply',
     previewGateHint: 'O Apply usa o pipeline público de Engineering e só é habilitado após preview válido. Qualquer mudança no Workspace invalida o candidato.',
-    apply: 'Aplicar ao Workspace', applying: 'Aplicando...', validAndReady: 'Validado e pronto para Apply',
-    previewReadyHint: 'O Workspace ainda não foi alterado. O Apply fará a mutação pela fronteira backend autorizada e auditada.',
+    apply: 'Aplicar ao Workspace', applying: 'Aplicando...',
     workspaceChanged: 'O Engineering Workspace mudou durante a validação deste rascunho. Recarregue e valide novamente.'
   };
 }

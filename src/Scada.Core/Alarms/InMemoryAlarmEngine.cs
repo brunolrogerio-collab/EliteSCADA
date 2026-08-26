@@ -10,6 +10,7 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
 {
     private readonly ConcurrentDictionary<Guid, AlarmDefinition> _definitions = new();
     private readonly ConcurrentDictionary<Guid, AlarmInstance> _instances = new();
+    private readonly ConcurrentDictionary<Guid, AlarmState> _shelvedUnderlyingStates = new();
     private readonly IScadaEventBus _eventBus;
     private readonly IDisposable _subscription;
     private readonly Action? _definitionsChanged;
@@ -37,6 +38,8 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
                 Message = definition.Message,
                 State = definition.Enabled ? current.State : AlarmState.Disabled
             });
+        if (!definition.Enabled)
+            _shelvedUnderlyingStates.TryRemove(definition.Id, out _);
         _definitionsChanged?.Invoke();
         return definition;
     }
@@ -53,15 +56,58 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
     public async ValueTask<bool> AcknowledgeAsync(Guid definitionId, string user, CancellationToken cancellationToken = default)
     {
         if (!_instances.TryGetValue(definitionId, out var current) || current.State != AlarmState.Active) return false;
+        var now = DateTimeOffset.UtcNow;
         var next = current with
         {
             State = AlarmState.Acknowledged,
-            AcknowledgedAt = DateTimeOffset.UtcNow,
+            AcknowledgedAt = now,
             AcknowledgedBy = user,
-            LastTransition = DateTimeOffset.UtcNow
+            LastTransition = now
         };
         _instances[definitionId] = next;
-        await _eventBus.PublishAsync(new AlarmStateChanged(current, next, DateTimeOffset.UtcNow), cancellationToken);
+        await _eventBus.PublishAsync(new AlarmStateChanged(current, next, now), cancellationToken);
+        return true;
+    }
+
+    public async ValueTask<bool> ShelveAsync(Guid definitionId, string user, CancellationToken cancellationToken = default)
+    {
+        if (!_definitions.TryGetValue(definitionId, out var definition) || !definition.ShelvingAllowed) return false;
+        if (!_instances.TryGetValue(definitionId, out var current)) return false;
+        if (current.State is AlarmState.Disabled or AlarmState.Shelved) return false;
+
+        _shelvedUnderlyingStates[definitionId] = current.State;
+        var now = DateTimeOffset.UtcNow;
+        var next = current with
+        {
+            State = AlarmState.Shelved,
+            LastTransition = now,
+            ShelvedAt = now,
+            ShelvedBy = user
+        };
+        _instances[definitionId] = next;
+        await _eventBus.PublishAsync(new AlarmStateChanged(current, next, now), cancellationToken);
+        return true;
+    }
+
+    public async ValueTask<bool> UnshelveAsync(Guid definitionId, string user, CancellationToken cancellationToken = default)
+    {
+        _ = user;
+        if (!_definitions.TryGetValue(definitionId, out var definition)) return false;
+        if (!_instances.TryGetValue(definitionId, out var current) || current.State != AlarmState.Shelved) return false;
+
+        var underlying = _shelvedUnderlyingStates.TryRemove(definitionId, out var stored)
+            ? stored
+            : AlarmState.Normal;
+        var now = DateTimeOffset.UtcNow;
+        var next = current with
+        {
+            State = definition.Enabled ? underlying : AlarmState.Disabled,
+            LastTransition = now,
+            ShelvedAt = null,
+            ShelvedBy = null
+        };
+        _instances[definitionId] = next;
+        await _eventBus.PublishAsync(new AlarmStateChanged(current, next, now), cancellationToken);
         return true;
     }
 
@@ -69,6 +115,7 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
     {
         _definitions.Clear();
         _instances.Clear();
+        _shelvedUnderlyingStates.Clear();
         _definitionsChanged?.Invoke();
     }
 
@@ -78,10 +125,16 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
         {
             var active = IsActive(definition, evt.Current);
             var current = _instances.GetOrAdd(definition.Id, _ => NewNormal(definition));
-            var nextState = active
-                ? current.State == AlarmState.Acknowledged ? AlarmState.Acknowledged : AlarmState.Active
-                : current.State is AlarmState.Active or AlarmState.Acknowledged ? AlarmState.Returned : AlarmState.Normal;
 
+            if (current.State == AlarmState.Shelved)
+            {
+                var underlying = _shelvedUnderlyingStates.GetOrAdd(definition.Id, AlarmState.Normal);
+                _shelvedUnderlyingStates[definition.Id] = NextState(underlying, active);
+                _instances[definition.Id] = current with { LastValue = evt.Current.Value };
+                continue;
+            }
+
+            var nextState = NextState(current.State, active);
             if (nextState == current.State)
             {
                 _instances[definition.Id] = current with { LastValue = evt.Current.Value };
@@ -100,6 +153,11 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
             await _eventBus.PublishAsync(new AlarmStateChanged(current, next, now));
         }
     }
+
+    private static AlarmState NextState(AlarmState current, bool active) =>
+        active
+            ? current == AlarmState.Acknowledged ? AlarmState.Acknowledged : AlarmState.Active
+            : current is AlarmState.Active or AlarmState.Acknowledged ? AlarmState.Returned : AlarmState.Normal;
 
     private static bool IsActive(AlarmDefinition definition, TagValue value)
     {

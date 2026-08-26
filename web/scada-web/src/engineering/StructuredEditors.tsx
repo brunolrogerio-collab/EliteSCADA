@@ -621,7 +621,7 @@ function DictionaryEditor({
     onChange(Object.fromEntries(nextEntries.filter(([entryKey]) => entryKey.length > 0)));
   };
 
-  const removeEntry = (index: number) => onChange(Object.fromEntries(entries.filter((_, current) => current !== index));
+  const removeEntry = (index: number) => onChange(Object.fromEntries(entries.filter((_, current) => current !== index)));
 
   const addEntry = () => {
     let index = 1;

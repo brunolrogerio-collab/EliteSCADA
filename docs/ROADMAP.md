@@ -4,7 +4,7 @@ The approved development north is preserved, with Engineering Import/Export acti
 
 ## Runtime foundation established
 
-Implemented and validated on `main`:
+Implemented and validated on `main` before the current schema-v6 branch:
 
 1. Repository, architecture and CI/CD foundation.
 2. Tag Engine, quality, current-value cache and internal Event Bus.
@@ -23,12 +23,15 @@ Implemented and validated on `main`:
 15. Isolated Engineering Workspace, independent from the simulation/active process runtime.
 16. Transactional checkout of persisted revisions into the Engineering Workspace.
 17. Workspace dirty tracking, change-version-safe saves and immutable revision lineage through `BasedOnRevision`.
+18. Capability-based authorization contracts and audit event/sink foundation.
 
 ## Engineering Import/Export status
 
 Every engineering entity introduced must define a stable serialization contract and participate in the common validation/preview/apply pipeline.
 
-Implemented in canonical JSON schema v5:
+Canonical JSON schema v6 adds application security roles to the schema-v5 foundation.
+
+Implemented engineering entities:
 
 - Tags, including explicit read/write/configure access-policy role lists.
 - Alarms.
@@ -38,14 +41,17 @@ Implemented in canonical JSON schema v5:
 - Dynamos.
 - Screens.
 - Popups.
-- Cross-reference validation.
+- Security Roles with explicit capability grants and optional scopes by area, equipment, screen, TAG and command.
+- Cross-reference and entity validation.
 - Backward-compatible parsing of historical package versions.
-- Explicit migration tests from schema v1 through v5.
+- Explicit migration tests from historical schemas.
 - Export -> import preview round-trip testing in CI.
+
+Security-role engineering carries authorization policy only. Passwords, password hashes, authentication tokens, private keys and other secret authentication material are excluded and rejected when represented as suspicious security metadata.
 
 Bulk CSV engineering is implemented for Tags, Alarms and Data Sources. TAG CSV preserves historian maximum-period, metadata and access policy; alarm CSV preserves metadata.
 
-A versioned `.escadapkg` project-package format is implemented for engineering backup/restore. Package v1 contains a manifest plus canonical `engineering.json`, with byte-length and SHA-256 integrity validation. Restore reuses the normal engineering preview/apply flow. It is intentionally an engineering-project backup, not a historian/runtime database image.
+A versioned `.escadapkg` project-package format is implemented for engineering backup/restore. Package v1 contains a manifest plus canonical `engineering.json`, with byte-length and SHA-256 integrity validation. Because the package carries the canonical engineering JSON, schema-v6 security roles participate in backup/restore without adding credential material. The package remains an engineering-project backup, not a historian/runtime database image.
 
 The former Engineering Exchange monolith has been split into smaller entity handlers so new engineering domains do not have to accumulate inside one service.
 
@@ -64,22 +70,24 @@ The original gate before promoting persistence and real industrial communication
 
 ## Current execution slice
 
-The next work should turn the strong runtime foundation into a secure and engineer-friendly product without weakening the public engineering model.
+The strong runtime foundation is now being turned into a secure and engineer-friendly product without weakening the public engineering model.
 
-In progress:
+Completed in the current security track:
 
-1. Capability-based authorization and audit contracts. Role names remain application-configurable; capability semantics are explicit and backend-oriented. See `docs/SECURITY-AUTHORIZATION-AUDIT.md`.
+1. Capability-based authorization evaluator with configurable role names and explicit scoped grants. ✓
+2. TAG access-policy evaluator preserving `null` versus empty-list semantics. ✓
+3. Audit event and sink contracts. ✓
+4. Versioned Engineering Schema v6 security-role/grant/scope serialization. ✓
 
 Next:
 
-2. Serialize application role/grant/scope definitions as versioned engineering entities.
-3. Add a trusted authenticated-principal provider and enforce backend authorization on protected API operations.
-4. Persist append-only audit events in PostgreSQL and audit successful, denied and failed process/security mutations.
-5. Add historian retention/downsampling policies on TimescaleDB.
-6. Add MQTT driver integration through the same Data Source/driver model.
-7. Add Engineering XLSX workbook import/export.
-8. Expand runtime diagnostics, driver health, offline behavior and operational hardening.
-9. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
+5. Add a trusted authenticated-principal provider and enforce backend authorization on protected API operations.
+6. Persist append-only audit events in PostgreSQL and audit successful, denied and failed process/security mutations.
+7. Add historian retention/downsampling policies on TimescaleDB.
+8. Add MQTT driver integration through the same Data Source/driver model.
+9. Add Engineering XLSX workbook import/export.
+10. Expand runtime diagnostics, driver health, offline behavior and operational hardening.
+11. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
 
 ## Locked future product requirements
 
@@ -135,7 +143,7 @@ These requirements remain part of the EliteSCADA product north and must be imple
 
 ## Editor phase
 
-The runtime, engineering contract and persistence foundation are now strong enough that editor work can begin incrementally after the current security baseline is established, rather than waiting for every future driver to exist.
+The runtime, engineering contract and persistence foundation are strong enough that editor work can begin incrementally after backend authentication/enforcement is established, rather than waiting for every future driver to exist.
 
 The editor must consume the same public engineering model rather than own a private representation of project configuration. Reusable libraries, Engineering Fragments/cross-project copy-paste, trends, access-aware visibility and configurable shell regions are core workflows, not late add-ons.
 

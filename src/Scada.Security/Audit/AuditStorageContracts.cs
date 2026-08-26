@@ -131,6 +131,21 @@ public sealed class AuditRetentionCoordinator
             batchCount,
             backlogMayRemain);
     }
+
+    public async Task RunPeriodicAsync(
+        Func<DateTimeOffset>? utcNow = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_policy.Interval.HasValue)
+            throw new InvalidOperationException("Audit retention Interval must be configured for periodic execution.");
+
+        var clock = utcNow ?? (() => DateTimeOffset.UtcNow);
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            await RunOnceAsync(clock(), cancellationToken);
+            await Task.Delay(_policy.Interval.Value, cancellationToken);
+        }
+    }
 }
 
 public static class AuditQueryValidator

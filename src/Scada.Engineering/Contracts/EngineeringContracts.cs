@@ -173,7 +173,6 @@ public sealed record PopupEngineeringDto(
     IReadOnlyCollection<VisualElementEngineeringDto>? Elements = null,
     Dictionary<string, string>? Properties = null,
     Dictionary<string, string>? Context = null,
-    IReadOnlyCollection<VisualElementEngineeringDto>? Children = null,
     Dictionary<string, string>? Metadata = null);
 
 public sealed record AuthorizationScopeEngineeringDto(

@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+test.use({ locale: 'pt-BR' });
+
 test('Runtime exposes an entry to the Engineering workspace', async ({ page }) => {
   await page.goto('/');
 

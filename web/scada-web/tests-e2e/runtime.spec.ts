@@ -53,8 +53,16 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
       name: string;
       grants: Array<{ capability: string; scope?: { tagPath?: string } }>;
     }>;
+    commands: Array<{
+      id?: string;
+      key: string;
+      name: string;
+      targetTagPath?: string;
+      area?: string;
+      equipmentPath?: string;
+    }>;
   };
-  expect(engineering.schemaVersion).toBe(6);
+  expect(engineering.schemaVersion).toBe(7);
   expect(engineering.tags.some(tag => tag.path === 'Demo.Tank01.Level')).toBeTruthy();
   expect(engineering.tags.some(tag => tag.path === 'Demo.P01.Frequency')).toBeTruthy();
   expect(engineering.tags.every(tag => tag.source === 'builtin.simulation')).toBeTruthy();
@@ -97,6 +105,15 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(developerRole).toBeTruthy();
   expect(developerRole!.grants.some(grant => grant.capability === 'systemAdmin')).toBeTruthy();
 
+  expect(engineering.commands).toHaveLength(2);
+  expect(engineering.commands.map(command => command.key).sort()).toEqual(['demo.p01.start', 'demo.p01.stop']);
+  const startCommand = engineering.commands.find(command => command.key === 'demo.p01.start');
+  expect(startCommand).toBeTruthy();
+  expect(startCommand!.id).toBe('30000000-0000-0000-0000-000000000001');
+  expect(startCommand!.targetTagPath).toBe('Demo.P01.Running');
+  expect(startCommand!.area).toBe('Demo');
+  expect(startCommand!.equipmentPath).toBe('Demo.P01');
+
   const screensResponse = await request.get('/api/engineering/screens');
   expect(screensResponse.ok()).toBeTruthy();
   const screens = await screensResponse.json() as Array<{ key: string }>;
@@ -111,6 +128,12 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(securityRolesResponse.ok()).toBeTruthy();
   const securityRoles = await securityRolesResponse.json() as Array<{ key: string }>;
   expect(securityRoles.map(role => role.key).sort()).toEqual(['developer', 'operator']);
+
+  const commandsResponse = await request.get('/api/engineering/commands');
+  expect(commandsResponse.ok()).toBeTruthy();
+  const commands = await commandsResponse.json() as Array<{ key: string; targetTagPath?: string }>;
+  expect(commands.map(command => command.key).sort()).toEqual(['demo.p01.start', 'demo.p01.stop']);
+  expect(commands.every(command => command.targetTagPath === 'Demo.P01.Running')).toBeTruthy();
 
   const packagePreviewResponse = await request.post('/api/engineering/import/json/preview', {
     data: engineeringText,
@@ -164,13 +187,13 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
       engineeringSchemaVersion: number;
       files: Array<{ path: string; sha256: string }>;
     };
-    engineering: { tags: number; dataSources: number; screens: number; popups: number; securityRoles: number };
+    engineering: { tags: number; dataSources: number; screens: number; popups: number; securityRoles: number; commands: number };
   };
   expect(projectInspect.manifest.format).toBe('elitescada.project-package');
   expect(projectInspect.manifest.formatVersion).toBe(1);
   expect(projectInspect.manifest.projectKey).toBe('demo');
   expect(projectInspect.manifest.projectName).toBe('Demo Project');
-  expect(projectInspect.manifest.engineeringSchemaVersion).toBe(6);
+  expect(projectInspect.manifest.engineeringSchemaVersion).toBe(7);
   expect(projectInspect.manifest.files).toHaveLength(1);
   expect(projectInspect.manifest.files[0].path).toBe('engineering.json');
   expect(projectInspect.manifest.files[0].sha256).toHaveLength(64);
@@ -179,6 +202,7 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(projectInspect.engineering.screens).toBe(1);
   expect(projectInspect.engineering.popups).toBe(1);
   expect(projectInspect.engineering.securityRoles).toBe(2);
+  expect(projectInspect.engineering.commands).toBe(2);
 
   const projectPreviewResponse = await request.post('/api/project-package/import/preview', {
     data: projectPackage,
@@ -206,7 +230,7 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
 
   const workspaceMutation = JSON.parse(engineeringText) as any;
   workspaceMutation.tags.push({
-    id: '30000000-0000-0000-0000-000000000001',
+    id: '50000000-0000-0000-0000-000000000001',
     name: 'Workspace Only',
     path: 'Engineering.Workspace.Only',
     dataType: 'double',
@@ -227,21 +251,25 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
     changeVersion: number;
     tagCount: number;
     securityRoleCount: number;
+    commandCount: number;
   };
   expect(workspaceStatus.isDirty).toBeTruthy();
   expect(workspaceStatus.changeVersion).toBeGreaterThan(0);
   expect(workspaceStatus.tagCount).toBe(8);
   expect(workspaceStatus.securityRoleCount).toBe(2);
+  expect(workspaceStatus.commandCount).toBe(2);
 
   const mutatedEngineeringResponse = await request.get('/api/engineering/export/json');
   expect(mutatedEngineeringResponse.ok()).toBeTruthy();
   const mutatedEngineering = await mutatedEngineeringResponse.json() as {
     tags: Array<{ path: string }>;
     securityRoles: Array<{ key: string }>;
+    commands: Array<{ key: string }>;
   };
   expect(mutatedEngineering.tags).toHaveLength(8);
   expect(mutatedEngineering.tags.some(tag => tag.path === 'Engineering.Workspace.Only')).toBeTruthy();
   expect(mutatedEngineering.securityRoles).toHaveLength(2);
+  expect(mutatedEngineering.commands).toHaveLength(2);
 
   const runtimeAfterWorkspaceEditResponse = await request.get('/api/tags');
   expect(runtimeAfterWorkspaceEditResponse.ok()).toBeTruthy();

@@ -1,6 +1,6 @@
 # Security, Authorization and Audit Baseline
 
-Status: capability policy, Engineering Schema v6 security roles, JWT authentication, protected engineering/runtime mutations, trusted persistence-lifecycle actors and durable append-only audit storage are implemented. Security remains incremental: not every API/read/realtime surface is authorization-enforced yet.
+Status: capability policy, Engineering Schema v6 security roles, JWT authentication, protected engineering/runtime mutations, trusted persistence-lifecycle actors, secured alarm shelving and durable append-only audit storage are implemented. Security remains incremental: not every API/read/realtime surface is authorization-enforced yet.
 
 This document defines the security boundary used as identity, authorization, audit persistence and future user management are added to EliteSCADA.
 
@@ -121,6 +121,7 @@ The current enforcement slices protect mutations with direct process or engineer
 
 - runtime TAG writes require the TAG access-policy write rule or inherited `ProcessValueWrite` capability;
 - alarm acknowledgement requires `AlarmAcknowledge`, with the alarm area supplied as authorization scope;
+- alarm shelving and unshelving require `AlarmShelve`, with the alarm area supplied as authorization scope;
 - Engineering JSON apply requires `EngineeringModify`;
 - Engineering TAG/Alarm/Data Source CSV apply requires `EngineeringModify`;
 - `.escadapkg` project-package restore/apply requires `EngineeringModify`;
@@ -128,11 +129,13 @@ The current enforcement slices protect mutations with direct process or engineer
 
 Alarm acknowledgement no longer trusts a caller-supplied user name as identity. The authenticated JWT principal becomes the actor; the old request-body field is retained temporarily only for compatibility and is ignored.
 
+Alarm shelving is a runtime state, not merely a UI flag. While an alarm is shelved, its underlying process condition continues to be evaluated but it is excluded from the active alarm view/count. Unshelving restores the latest underlying alarm state. `ShelvedBy` is derived from the trusted principal, and alarms whose engineering definition has `ShelvingAllowed=false` reject shelving.
+
 Persistence save/publish/activate requests similarly retain legacy `SavedBy`/`PublishedBy`/`ActivatedBy` body fields for compatibility, but when authentication is enabled those values are replaced before execution with the stable subject id from the trusted JWT principal. The client therefore cannot select the authoritative lifecycle actor.
 
 Sensitive read endpoints, WebSocket subscriptions and other operations are not all authorization-enforced yet. They must not be described as protected merely because mutation enforcement exists.
 
-The browser E2E security suite proves separate behavior for a valid `developer`, valid but underprivileged `operator`, no credential and invalid Bearer credential. PostgreSQL-backed browser coverage also exercises persisted save/publish/checkout/apply and verifies that caller-supplied lifecycle actor values cannot override the JWT subject.
+The browser E2E security suite proves separate behavior for a valid `developer`, valid but underprivileged `operator`, no credential and invalid Bearer credential. PostgreSQL-backed browser coverage also exercises persisted save/publish/checkout/apply, alarm shelving/unshelving and verifies that caller-supplied lifecycle actor values cannot override the JWT subject.
 
 ## Durable audit trail
 
@@ -166,7 +169,7 @@ When `ConnectionStrings:EliteScada` is configured, audit events are stored in Po
 
 When PostgreSQL is not configured, the same public audit-store contract uses an in-memory implementation for local development and browser tests that do not require durable persistence.
 
-The API records success, denial and operational failure for protected TAG writes, alarm acknowledgement, Engineering import apply, project-package restore and persisted Engineering lifecycle mutations. Anonymous/invalid-token denied attempts use the stable audit subject `anonymous`; authenticated denied attempts retain the trusted JWT subject.
+The API records success, denial and operational failure for protected TAG writes, alarm acknowledgement, alarm shelving/unshelving, Engineering import apply, project-package restore and persisted Engineering lifecycle mutations. Shelving and unshelving share the `alarm.shelve` audit action and identify the operation in non-secret audit details. Anonymous/invalid-token denied attempts use the stable audit subject `anonymous`; authenticated denied attempts retain the trusted JWT subject.
 
 `GET /api/audit` supports bounded filtering by subject, action, outcome and UTC time range and requires `SystemAdmin`. Attempts to read the audit trail are themselves audited.
 
@@ -176,7 +179,7 @@ Audit persistence errors are logged and do not change the result of an already e
 
 ## Next implementation slices
 
-1. Extend backend enforcement/audit to command endpoints, alarm shelving and sensitive read/realtime/WebSocket surfaces where appropriate.
+1. Introduce a first-class operational command domain and enforce/audit `CommandExecute`; extend backend protection to sensitive read/realtime/WebSocket surfaces where appropriate.
 2. Add user/role administration with explicit `UserRoleAdmin` authorization.
 3. Add a real login/token-issuance or external identity-provider workflow without coupling credentials to Engineering Import/Export.
 4. Add audit retention/query policy and durable buffering/outbox behavior for temporary storage outages.

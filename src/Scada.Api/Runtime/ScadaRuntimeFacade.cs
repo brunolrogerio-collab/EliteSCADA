@@ -94,6 +94,22 @@ public sealed class ScadaRuntimeFacade(
             ? engineeringRuntime.AcknowledgeAlarmAsync(alarmId, user, cancellationToken)
             : fallback.Alarms.AcknowledgeAsync(alarmId, user, cancellationToken);
 
+    public ValueTask<bool> ShelveAlarmAsync(
+        Guid alarmId,
+        string user,
+        CancellationToken cancellationToken = default) =>
+        IsEngineeringActive
+            ? engineeringRuntime.ShelveAlarmAsync(alarmId, user, cancellationToken)
+            : fallback.Alarms.ShelveAsync(alarmId, user, cancellationToken);
+
+    public ValueTask<bool> UnshelveAlarmAsync(
+        Guid alarmId,
+        string user,
+        CancellationToken cancellationToken = default) =>
+        IsEngineeringActive
+            ? engineeringRuntime.UnshelveAlarmAsync(alarmId, user, cancellationToken)
+            : fallback.Alarms.UnshelveAsync(alarmId, user, cancellationToken);
+
     public ValueTask WriteAsync(
         Guid tagId,
         object? value,

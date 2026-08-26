@@ -4,7 +4,7 @@ using Scada.Core.Tags;
 namespace Scada.Core.Alarms;
 
 public enum AlarmType { Digital, High, HighHigh, Low, LowLow, Communication, System }
-public enum AlarmState { Normal, Active, Acknowledged, Returned, Disabled }
+public enum AlarmState { Normal, Active, Acknowledged, Returned, Disabled, Shelved }
 public enum AlarmPriority { Low = 1, Medium = 2, High = 3, Critical = 4 }
 
 public sealed record AlarmDefinition(
@@ -45,6 +45,8 @@ public sealed record AlarmInstance(
     string? Message,
     DateTimeOffset? ActivatedAt = null,
     DateTimeOffset? AcknowledgedAt = null,
-    string? AcknowledgedBy = null);
+    string? AcknowledgedBy = null,
+    DateTimeOffset? ShelvedAt = null,
+    string? ShelvedBy = null);
 
 public sealed record AlarmStateChanged(AlarmInstance Previous, AlarmInstance Current, DateTimeOffset OccurredAt) : IScadaEvent;

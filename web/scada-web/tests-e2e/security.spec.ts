@@ -18,6 +18,16 @@ test('API distinguishes access levels and records protected-operation audit even
   expect(frequency).toBeTruthy();
   expect(frequency!.readOnly).toBeFalsy();
 
+  const alarmDefinitionsResponse = await request.get('/api/alarms/definitions');
+  expect(alarmDefinitionsResponse.ok()).toBeTruthy();
+  const alarmDefinitions = await alarmDefinitionsResponse.json() as Array<{
+    id: string;
+    name: string;
+    shelvingAllowed: boolean;
+  }>;
+  const shelfableAlarm = alarmDefinitions.find(alarm => alarm.shelvingAllowed);
+  expect(shelfableAlarm).toBeTruthy();
+
   const engineeringResponse = await request.get('/api/engineering/export/json');
   expect(engineeringResponse.ok()).toBeTruthy();
   const engineeringJson = await engineeringResponse.text();
@@ -31,6 +41,7 @@ test('API distinguishes access levels and records protected-operation audit even
     expect((await anonymous.post(`/api/tags/${frequency!.id}/write`, {
       data: { value: 51 }
     })).status()).toBe(401);
+    expect((await anonymous.post(`/api/alarms/${shelfableAlarm!.id}/shelve`)).status()).toBe(401);
     expect((await anonymous.post('/api/engineering/import/json/apply', {
       data: engineeringJson,
       headers: { 'content-type': 'application/json; charset=utf-8' }
@@ -69,6 +80,9 @@ test('API distinguishes access levels and records protected-operation audit even
       data: { value: 52 }
     })).status()).toBe(403);
 
+    // AlarmShelve is deliberately separate from acknowledgement and command authority.
+    expect((await operator.post(`/api/alarms/${shelfableAlarm!.id}/shelve`)).status()).toBe(403);
+
     // Engineering mutations require EngineeringModify, which the operator also does not have.
     expect((await operator.post('/api/engineering/import/json/apply', {
       data: engineeringJson,
@@ -84,10 +98,24 @@ test('API distinguishes access levels and records protected-operation audit even
     await operator.dispose();
   }
 
-  // The developer role explicitly has ProcessValueWrite, EngineeringModify and SystemAdmin in the demo policy.
+  // The developer role explicitly has the protected capabilities used below.
   expect((await request.post(`/api/tags/${frequency!.id}/write`, {
     data: { value: 54 }
   })).status()).toBe(202);
+
+  expect((await request.post(`/api/alarms/${shelfableAlarm!.id}/shelve`)).status()).toBe(200);
+  const shelvedAlarmsResponse = await request.get('/api/alarms');
+  expect(shelvedAlarmsResponse.ok()).toBeTruthy();
+  const shelvedAlarms = await shelvedAlarmsResponse.json() as Array<{
+    definitionId: string;
+    state: number;
+    shelvedBy?: string;
+  }>;
+  const shelvedAlarm = shelvedAlarms.find(alarm => alarm.definitionId === shelfableAlarm!.id);
+  expect(shelvedAlarm).toBeTruthy();
+  expect(shelvedAlarm!.state).toBe(5);
+  expect(shelvedAlarm!.shelvedBy).toBe('E2E Developer');
+  expect((await request.post(`/api/alarms/${shelfableAlarm!.id}/unshelve`)).status()).toBe(200);
 
   const saveResponse = await request.post('/api/engineering/persistence/e2e-security/save', {
     data: { projectName: 'E2E Security', savedBy: 'spoofed-client' }
@@ -148,6 +176,29 @@ test('API distinguishes access levels and records protected-operation audit even
     event.action === 'tag.write' &&
     event.outcome === 1 &&
     event.targetId === 'Demo.P01.Frequency')).toBeTruthy();
+
+  expect(events.some(event =>
+    event.subjectId === 'e2e-developer' &&
+    event.action === 'alarm.shelve' &&
+    event.outcome === 0 &&
+    event.targetId === shelfableAlarm!.id &&
+    event.details?.operation === 'shelve')).toBeTruthy();
+  expect(events.some(event =>
+    event.subjectId === 'e2e-developer' &&
+    event.action === 'alarm.shelve' &&
+    event.outcome === 0 &&
+    event.targetId === shelfableAlarm!.id &&
+    event.details?.operation === 'unshelve')).toBeTruthy();
+  expect(events.some(event =>
+    event.subjectId === 'e2e-operator' &&
+    event.action === 'alarm.shelve' &&
+    event.outcome === 1 &&
+    event.targetId === shelfableAlarm!.id)).toBeTruthy();
+  expect(events.some(event =>
+    event.subjectId === 'anonymous' &&
+    event.action === 'alarm.shelve' &&
+    event.outcome === 1 &&
+    event.targetId === shelfableAlarm!.id)).toBeTruthy();
 
   expect(events.some(event =>
     event.subjectId === 'e2e-developer' &&

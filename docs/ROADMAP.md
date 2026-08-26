@@ -93,17 +93,19 @@ Completed in the security track:
 12. Browser coverage validating trusted/anonymous audit subjects, authorization outcomes and audit-read protection. ✓
 13. Persistence save/publish/activate/checkout/apply protection with `EngineeringModify`, authenticated lifecycle actors and succeeded/denied/failed audit records. ✓
 14. PostgreSQL-backed Chromium lifecycle coverage proving anonymous/operator denial and preventing caller-supplied save/publish actor spoofing. ✓
+15. Alarm shelving/unshelving runtime behavior with `AlarmShelve` authorization, area scoping, trusted actor metadata and succeeded/denied/failed audit coverage. ✓
+16. Browser coverage for developer/operator/anonymous alarm shelving and audit outcomes. ✓
 
 Next:
 
-15. Extend enforcement/audit to commands, alarm shelving and sensitive read/realtime/WebSocket surfaces.
-16. Add a real login/token-issuance or external identity-provider workflow and user lifecycle administration.
-17. Add audit retention/query policy and durable buffering/outbox behavior for temporary storage outages.
-18. Add historian retention/downsampling policies on TimescaleDB.
-19. Add MQTT driver integration through the same Data Source/driver model.
-20. Add Engineering XLSX workbook import/export.
-21. Expand runtime diagnostics, driver health, offline behavior and operational hardening.
-22. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
+17. Introduce a first-class operational command domain, then enforce/audit `CommandExecute`; extend protection to sensitive read/realtime/WebSocket surfaces.
+18. Add a real login/token-issuance or external identity-provider workflow and user lifecycle administration.
+19. Add audit retention/query policy and durable buffering/outbox behavior for temporary storage outages.
+20. Add historian retention/downsampling policies on TimescaleDB.
+21. Add MQTT driver integration through the same Data Source/driver model.
+22. Add Engineering XLSX workbook import/export.
+23. Expand runtime diagnostics, driver health, offline behavior and operational hardening.
+24. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
 
 ## Locked future product requirements
 

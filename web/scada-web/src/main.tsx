@@ -121,7 +121,11 @@ function RuntimeApp() {
   return (
     <main className="shell">
       <header className="topbar">
-        <div><strong>SCADA Platform</strong><span>Runtime 0.1-dev</span></div>
+        <div>
+          <strong>SCADA Platform</strong>
+          <span>Runtime 0.1-dev</span>
+          <a className="runtime-engineering-link" href="/engineering">Engineering</a>
+        </div>
         <div className={`connection ${connected ? 'online' : ''}`}>{connected ? 'ONLINE' : 'OFFLINE'} · {tagCount} TAGs</div>
       </header>
 

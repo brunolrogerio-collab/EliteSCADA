@@ -7,6 +7,7 @@ import {
   type EngineeringLocale,
   type TranslationKey
 } from './i18n';
+import { AlarmEditor } from './AlarmEditor';
 import { DataSourceEditor, TagEditor } from './StructuredEditors';
 import type { EngineeringPackageView, EngineeringSnapshot } from './types';
 import './engineering.css';
@@ -242,19 +243,7 @@ function EngineeringSection({
     case 'tags':
       return <TagEditor model={model} locale={locale} />;
     case 'alarms':
-      return <EntitySection
-        title={t('nav.alarms')}
-        items={model.alarms}
-        t={t}
-        columns={[
-          { key: 'name', title: t('table.name'), render: item => item.name },
-          { key: 'tag', title: t('table.path'), render: item => <Code>{item.tagPath ?? item.tagId ?? '—'}</Code> },
-          { key: 'type', title: t('table.type'), render: item => item.type },
-          { key: 'priority', title: t('table.priority'), render: item => item.priority },
-          { key: 'area', title: t('table.area'), render: item => item.area ?? '—' },
-          { key: 'enabled', title: t('table.enabled'), render: item => yesNo(item.enabled !== false, t) }
-        ]}
-      />;
+      return <AlarmEditor model={model} locale={locale} />;
     case 'templates':
       return <EntitySection
         title={t('nav.templates')}

@@ -4,7 +4,7 @@ The approved development north is preserved, with Engineering Import/Export acti
 
 ## Runtime foundation established
 
-Implemented and validated on `main` before the current JWT enforcement branch:
+Implemented and validated on `main` before the current durable-audit branch:
 
 1. Repository, architecture and CI/CD foundation.
 2. Tag Engine, quality, current-value cache and internal Event Bus.
@@ -25,6 +25,10 @@ Implemented and validated on `main` before the current JWT enforcement branch:
 17. Workspace dirty tracking, change-version-safe saves and immutable revision lineage through `BasedOnRevision`.
 18. Capability-based authorization contracts and audit event/sink foundation.
 19. Engineering Schema v6 authorization roles, explicit capability grants and scoped policies.
+20. Trusted JWT Bearer principal adapter with issuer/audience/signature/lifetime validation.
+21. Phase-one backend enforcement for process-value TAG writes, alarm acknowledgement, Engineering import apply and project-package restore apply.
+22. Active-runtime authorization policy resolution from the exact persisted Active Revision with fail-closed mismatch behavior.
+23. Browser coverage distinguishing valid developer, underprivileged operator, missing credentials and invalid credentials.
 
 ## Engineering Import/Export status
 
@@ -73,30 +77,35 @@ The original gate before promoting persistence and real industrial communication
 
 The strong runtime foundation is now being turned into a secure and engineer-friendly product without weakening the public engineering model.
 
-Completed in the current security track:
+Completed in the security track:
 
 1. Capability-based authorization evaluator with configurable role names and explicit scoped grants. ✓
 2. TAG access-policy evaluator preserving `null` versus empty-list semantics. ✓
 3. Audit event and sink contracts. ✓
 4. Versioned Engineering Schema v6 security-role/grant/scope serialization. ✓
+5. Trusted JWT Bearer principal adapter. ✓
+6. Phase-one backend capability enforcement for critical TAG/alarm/Engineering restore mutations. ✓
+7. Active-runtime policy resolution from the exact persisted Active Revision. ✓
+8. Browser authentication/authorization coverage for developer/operator/anonymous/invalid-token cases. ✓
 
 In validation on the current branch:
 
-5. Trusted JWT Bearer principal adapter with issuer/audience/signature/lifetime validation.
-6. Phase-one backend enforcement for process-value TAG writes, alarm acknowledgement, Engineering import apply and project-package restore apply.
-7. Active-runtime policy resolution from the exact persisted Active Revision, with fail-closed mismatch behavior.
-8. Browser coverage distinguishing valid developer, underprivileged operator, missing credentials and invalid credentials.
+9. PostgreSQL append-only audit event storage with database-enforced rejection of `UPDATE` and `DELETE`.
+10. Queryable audit trail protected by `SystemAdmin`.
+11. Succeeded/denied/failed audit recording for protected TAG writes, alarm ACK, Engineering import apply and project-package restore apply.
+12. Browser coverage validating trusted/anonymous audit subjects, authorization outcomes and audit-read protection.
 
 Next:
 
-9. Extend backend authorization to persistence save/publish/activate/checkout, command operations, alarm shelving and other sensitive API/read/realtime surfaces.
-10. Persist append-only audit events in PostgreSQL and audit successful, denied and failed process/security mutations.
-11. Add a real login/token-issuance or external identity-provider workflow and user lifecycle administration.
-12. Add historian retention/downsampling policies on TimescaleDB.
-13. Add MQTT driver integration through the same Data Source/driver model.
-14. Add Engineering XLSX workbook import/export.
-15. Expand runtime diagnostics, driver health, offline behavior and operational hardening.
-16. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
+13. Protect persistence save/publish/activate/checkout/apply with JWT/capability enforcement, derive lifecycle actors from the authenticated principal and audit those transitions.
+14. Extend enforcement/audit to commands, alarm shelving and sensitive read/realtime/WebSocket surfaces.
+15. Add a real login/token-issuance or external identity-provider workflow and user lifecycle administration.
+16. Add audit retention/query policy and durable buffering/outbox behavior for temporary storage outages.
+17. Add historian retention/downsampling policies on TimescaleDB.
+18. Add MQTT driver integration through the same Data Source/driver model.
+19. Add Engineering XLSX workbook import/export.
+20. Expand runtime diagnostics, driver health, offline behavior and operational hardening.
+21. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
 
 ## Locked future product requirements
 

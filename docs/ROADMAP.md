@@ -106,10 +106,12 @@ Next:
 20. Add historian retention/downsampling policies on TimescaleDB.
 21. Add MQTT driver integration through the same Data Source/driver model.
 22. Add OPC UA integration through the same Data Source/driver model.
-23. Introduce the installable/versioned Driver Module framework and public Driver SDK compatibility boundary, including module lifecycle, diagnostics, trust/integrity and Engineering configuration preservation.
-24. Add Engineering XLSX workbook import/export.
-25. Expand runtime diagnostics, driver health, offline behavior and operational hardening.
-26. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
+23. Add BACnet communication-driver integration through the same Data Source/driver model.
+24. Introduce the installable/versioned Driver Module framework and public Driver SDK compatibility boundary, including module lifecycle, diagnostics, trust/integrity and Engineering configuration preservation; use Siemens S7 ISO Connection as the first intended installable-module target after the framework is ready.
+25. Add Portuguese (`pt-BR`), English (`en`) and Spanish (`es`) localization across the Engineering/development interface with a developer-selectable language preference and language-neutral Engineering contracts.
+26. Add Engineering XLSX workbook import/export.
+27. Expand runtime diagnostics, driver health, offline behavior and operational hardening.
+28. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
 
 ## Locked future product requirements
 
@@ -120,7 +122,11 @@ These requirements remain part of the EliteSCADA product north and must be imple
 - Modbus TCP remains the currently implemented real industrial protocol baseline.
 - MQTT is a locked future protocol/integration target.
 - OPC UA is a locked future industrial interoperability target.
+- BACnet is a locked future communication-driver target, particularly relevant to building automation/BMS and BACnet-capable controllers/devices.
 - EliteSCADA must support additional first-party and third-party communication drivers through installable modules rather than requiring every protocol to be compiled into the core product.
+- The first intended installable module target is Siemens S7 communication compatible with S7 ISO Connection; its future implementation research must include relevant public/open-source work such as Node-RED S7 projects where licensing and industrial suitability permit reuse.
+- Allen-Bradley PLC communication is a later explicit research/module target; protocol/library/family scope remains intentionally undecided until public documentation, open-source options, licensing, simulator/hardware access and practical interoperability can be evaluated.
+- The combined Modbus TCP, MQTT, OPC UA, BACnet, Siemens S7 and future Allen-Bradley direction is intended to provide broad practical compatibility across mainstream industrial/building-automation controllers. The user's planning hypothesis that this set can cover more than 90% of practical PLC/controller needs must be validated before being used externally as a measured market statistic.
 - Driver modules use the common Driver SDK/DriverHost boundary and must not bypass TAG/quality, historian, alarms, security, audit or Engineering semantics.
 - A driver module declares stable identity/version, EliteSCADA compatibility, provided driver/Data Source types and a public versioned Engineering configuration schema.
 - The module lifecycle must support installation, discovery/catalog registration, enable/disable, upgrade and removal with compatibility validation before runtime activation.
@@ -165,6 +171,16 @@ These requirements remain part of the EliteSCADA product north and must be imple
 - Engineering packages may contain role/policy definitions but never authentication secrets or password hashes.
 - Commands, process writes, ACK/shelving, engineering publication/activation and security administration must be auditable.
 
+### Engineering/development interface localization
+
+- The developer/engineering user must be able to choose the Engineering UI language among Portuguese (Brazil / `pt-BR`), English (`en`) and Spanish (`es`).
+- The selected language applies consistently to Data Sources/drivers, TAGs, database/historian configuration, alarms, templates/equipment/Dynamos, screens/popups, trends, project lifecycle, security/user administration, module administration, diagnostics, menus, property editors, validation messages and product-owned engineering help text.
+- Language selection is a presentation/user preference and must not change stable Engineering IDs, TAG paths, communication addresses, enum/storage values, schema keys, revision identity or runtime semantics.
+- Product-owned UI text should use localization/resource keys instead of persisting translated labels as authoritative engineering values.
+- The language preference should be persistable per user/profile once that subsystem exists.
+- Localization of the Engineering UI is distinct from multilingual runtime HMI/application content; runtime screen-language engineering is a separate capability.
+- The accepted architectural decision is recorded in `docs/ADR-008-ENGINEERING-UI-LOCALIZATION.md`.
+
 ### Configurable persistent application shell
 
 - Support reusable/configurable header, footer, navigation, alarm banner/summary and optional side regions that remain fixed while process screens change.
@@ -182,6 +198,8 @@ These requirements remain part of the EliteSCADA product north and must be imple
 
 The runtime, engineering contract and persistence foundation are strong enough that editor work can begin incrementally after the core backend authentication/enforcement and audit path are established, rather than waiting for every future driver to exist.
 
-The editor must consume the same public engineering model rather than own a private representation of project configuration. Reusable libraries, Engineering Fragments/cross-project copy-paste, trends, access-aware visibility and configurable shell regions are core workflows, not late add-ons.
+The editor must consume the same public engineering model rather than own a private representation of project configuration. Reusable libraries, Engineering Fragments/cross-project copy-paste, trends, access-aware visibility, localization and configurable shell regions are core workflows, not late add-ons.
+
+The Engineering/development UI must share one Portuguese/English/Spanish localization infrastructure across editor and administrative/engineering surfaces rather than implementing translations independently per screen.
 
 The initial reusable dynamo/object catalog, common state model, faceplates, trend, shell widgets and reference-research procedure are defined in `docs/VISUAL-COMPONENT-LIBRARY.md`.

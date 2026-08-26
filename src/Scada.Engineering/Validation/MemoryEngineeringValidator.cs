@@ -6,34 +6,38 @@ namespace Scada.Engineering.Validation;
 
 internal static class MemoryEngineeringValidator
 {
-    public static IEnumerable<ImportIssue> ValidateDataSource(DataSourceEngineeringDto dataSource)
+    public static IReadOnlyCollection<ImportIssue> ValidateDataSource(DataSourceEngineeringDto dataSource)
     {
+        var issues = new List<ImportIssue>();
         if (!IsMemoryDriver(dataSource.Driver))
-            yield break;
+            return issues;
 
         if (dataSource.Settings is { Count: > 0 })
         {
-            yield return Error(
+            issues.Add(Error(
                 "MEMORY_DATASOURCE_SETTINGS_NOT_ALLOWED",
                 $"Internal Memory data source '{dataSource.Key}' does not use transport/network settings.",
                 ImportEntityKind.DataSource,
-                dataSource.Key);
+                dataSource.Key));
         }
 
         if (dataSource.SecretReferences is { Count: > 0 })
         {
-            yield return Error(
+            issues.Add(Error(
                 "MEMORY_DATASOURCE_SECRETS_NOT_ALLOWED",
                 $"Internal Memory data source '{dataSource.Key}' does not use network credentials or secret references.",
                 ImportEntityKind.DataSource,
-                dataSource.Key);
+                dataSource.Key));
         }
+
+        return issues;
     }
 
-    public static IEnumerable<ImportIssue> ValidateTag(
+    public static IReadOnlyCollection<ImportIssue> ValidateTag(
         TagEngineeringDto tag,
         DataSourceEngineeringDto? dataSource)
     {
+        var issues = new List<ImportIssue>();
         var isMemory = dataSource is not null && IsMemoryDriver(dataSource.Driver);
         var isClientMemory = dataSource is not null && IsClientMemoryDriver(dataSource.Driver);
 
@@ -41,55 +45,55 @@ internal static class MemoryEngineeringValidator
                 MemoryEngineeringValueCodec.ReservedMetadataPrefix,
                 StringComparison.OrdinalIgnoreCase)) == true)
         {
-            yield return Error(
+            issues.Add(Error(
                 "MEMORY_RESERVED_METADATA_NOT_ALLOWED",
                 $"TAG '{tag.Path}' uses reserved Internal Memory metadata keys. Use initialValue instead.",
                 ImportEntityKind.Tag,
-                tag.Path);
+                tag.Path));
         }
 
         if (!isMemory)
         {
             if (tag.InitialValue is not null)
             {
-                yield return Error(
+                issues.Add(Error(
                     "MEMORY_INITIAL_VALUE_SOURCE_REQUIRED",
                     $"TAG '{tag.Path}' defines initialValue but is not linked to an Internal Memory data source.",
                     ImportEntityKind.Tag,
-                    tag.Path);
+                    tag.Path));
             }
-            yield break;
+            return issues;
         }
 
         if (!string.IsNullOrWhiteSpace(tag.Address))
         {
-            yield return Error(
+            issues.Add(Error(
                 "MEMORY_TAG_ADDRESS_NOT_ALLOWED",
                 $"Internal Memory TAG '{tag.Path}' does not use a network/device address.",
                 ImportEntityKind.Tag,
-                tag.Path);
+                tag.Path));
         }
 
         if (isClientMemory && tag.Historian?.Enabled == true)
         {
-            yield return Error(
+            issues.Add(Error(
                 "CLIENT_MEMORY_HISTORIAN_NOT_ALLOWED",
                 $"Client Memory TAG '{tag.Path}' cannot be configured as a global server historian source.",
                 ImportEntityKind.Tag,
-                tag.Path);
+                tag.Path));
         }
 
         if (tag.InitialValue is null)
-            yield break;
+            return issues;
 
         if (tag.InitialValue.DataType != tag.DataType)
         {
-            yield return Error(
+            issues.Add(Error(
                 "MEMORY_INITIAL_VALUE_TYPE_MISMATCH",
                 $"Internal Memory TAG '{tag.Path}' initial value declares {tag.InitialValue.DataType} but TAG type is {tag.DataType}.",
                 ImportEntityKind.Tag,
-                tag.Path);
-            yield break;
+                tag.Path));
+            return issues;
         }
 
         try
@@ -98,12 +102,14 @@ internal static class MemoryEngineeringValidator
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or FormatException or OverflowException)
         {
-            yield return Error(
+            issues.Add(Error(
                 "MEMORY_INITIAL_VALUE_INVALID",
                 $"Internal Memory TAG '{tag.Path}' initial value is invalid for {tag.DataType}.",
                 ImportEntityKind.Tag,
-                tag.Path);
+                tag.Path));
         }
+
+        return issues;
     }
 
     public static bool IsClientMemoryDriver(string? driver) =>

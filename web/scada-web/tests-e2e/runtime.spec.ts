@@ -30,17 +30,40 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
 
   const exportResponse = await request.get('/api/engineering/export/json');
   expect(exportResponse.ok()).toBeTruthy();
-  const engineering = await exportResponse.json() as {
+  const engineeringText = await exportResponse.text();
+  const engineering = JSON.parse(engineeringText) as {
     schemaVersion: number;
     tags: Array<{ path: string; source?: string }>;
     dataSources: Array<{ key: string; driver: string }>;
+    templates: Array<{ key: string; bindings: Array<{ key: string; target: string }> }>;
+    equipment: Array<{ path: string; templateKey?: string; bindings: Array<{ key: string; target: string }> }>;
+    dynamos: Array<{ key: string; templateKey?: string }>;
   };
-  expect(engineering.schemaVersion).toBe(2);
+  expect(engineering.schemaVersion).toBe(3);
   expect(engineering.tags.some(tag => tag.path === 'Demo.Tank01.Level')).toBeTruthy();
   expect(engineering.tags.some(tag => tag.path === 'Demo.P01.Frequency')).toBeTruthy();
   expect(engineering.tags.every(tag => tag.source === 'builtin.simulation')).toBeTruthy();
   expect(engineering.dataSources).toHaveLength(1);
   expect(engineering.dataSources[0].key).toBe('builtin.simulation');
+  expect(engineering.templates).toHaveLength(1);
+  expect(engineering.templates[0].key).toBe('pump.standard');
+  expect(engineering.templates[0].bindings.some(binding => binding.target === '{equipmentPath}.Running')).toBeTruthy();
+  expect(engineering.equipment).toHaveLength(1);
+  expect(engineering.equipment[0].path).toBe('Demo.P01');
+  expect(engineering.equipment[0].templateKey).toBe('pump.standard');
+  expect(engineering.equipment[0].bindings.some(binding => binding.target === 'Demo.P01.Frequency')).toBeTruthy();
+  expect(engineering.dynamos).toHaveLength(1);
+  expect(engineering.dynamos[0].key).toBe('dynamo.pump.standard');
+  expect(engineering.dynamos[0].templateKey).toBe('pump.standard');
+
+  const packagePreviewResponse = await request.post('/api/engineering/import/json/preview', {
+    data: engineeringText,
+    headers: { 'content-type': 'application/json; charset=utf-8' }
+  });
+  expect(packagePreviewResponse.ok()).toBeTruthy();
+  const packagePreview = await packagePreviewResponse.json() as { errorCount: number; canApply: boolean };
+  expect(packagePreview.errorCount).toBe(0);
+  expect(packagePreview.canApply).toBeTruthy();
 
   const dataSourceCsvResponse = await request.get('/api/engineering/export/datasources.csv');
   expect(dataSourceCsvResponse.ok()).toBeTruthy();

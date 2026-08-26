@@ -1,7 +1,10 @@
 import { expect, test } from '@playwright/test';
 
 test('local login authenticates Runtime and Engineering with an HttpOnly JWT cookie', async ({ browser }) => {
-  const context = await browser.newContext({ baseURL: 'http://127.0.0.1:5173' });
+  const context = await browser.newContext({
+    baseURL: 'http://127.0.0.1:5173',
+    extraHTTPHeaders: { Authorization: '' }
+  });
   const page = await context.newPage();
 
   try {

@@ -11,12 +11,12 @@ public static class ClaimsPrincipalMapper
             return new SecurityPrincipal(string.Empty, null, Array.Empty<string>(), IsAuthenticated: false);
 
         var subjectId = FirstNonBlank(
-            principal.FindFirstValue("sub"),
-            principal.FindFirstValue(ClaimTypes.NameIdentifier));
+            principal.FindFirst("sub")?.Value,
+            principal.FindFirst(ClaimTypes.NameIdentifier)?.Value);
 
         var displayName = FirstNonBlank(
-            principal.FindFirstValue("name"),
-            principal.FindFirstValue(ClaimTypes.Name),
+            principal.FindFirst("name")?.Value,
+            principal.FindFirst(ClaimTypes.Name)?.Value,
             principal.Identity.Name);
 
         var roles = principal.Claims

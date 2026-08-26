@@ -51,12 +51,20 @@ export type TagEngineering = {
 export type AlarmEngineering = {
   id?: string;
   name: string;
-  tagId?: string;
-  tagPath?: string;
+  tagId?: string | null;
+  tagPath?: string | null;
   type: string;
   priority: string;
-  area?: string;
+  setpoint?: number | null;
+  digitalActiveValue?: boolean;
+  alarmClass?: string | null;
+  area?: string | null;
+  message?: string | null;
+  activationDelayMilliseconds?: number | null;
+  requiresAcknowledgement?: boolean;
+  shelvingAllowed?: boolean;
   enabled?: boolean;
+  metadata?: Record<string, string> | null;
 };
 
 export type DataSourceEngineering = {

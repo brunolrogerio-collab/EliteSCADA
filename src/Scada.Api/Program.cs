@@ -85,6 +85,7 @@ app.UseWebSockets();
 app.MapOpenApi();
 app.MapProjectPackageEndpoints();
 app.MapEngineeringPersistenceEndpoints();
+app.MapEngineeringMutationEndpoints();
 app.MapAuditEndpoints();
 app.MapAlarmShelvingEndpoints();
 app.MapCommandEndpoints();

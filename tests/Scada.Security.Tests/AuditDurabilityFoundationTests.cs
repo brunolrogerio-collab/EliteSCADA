@@ -44,8 +44,8 @@ public sealed class AuditDurabilityFoundationTests
             AuditOutcome.Denied,
             "tag",
             "Plant.P01.Setpoint",
-            correlationId: "corr-other",
-            area: "Area2"));
+            CorrelationId: "corr-other",
+            Area: "Area2"));
 
         var firstPage = await store.QueryPageAsync(new AuditQuery(
             PageSize: 2,

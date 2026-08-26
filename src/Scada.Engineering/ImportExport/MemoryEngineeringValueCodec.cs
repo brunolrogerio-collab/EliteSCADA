@@ -33,24 +33,30 @@ public static class MemoryEngineeringValueCodec
 
     internal static MemoryInitialValueDto? ReadFromMetadata(IReadOnlyDictionary<string, string>? metadata)
     {
-        if (metadata is null ||
-            !metadata.TryGetValue(InitialTypeMetadataKey, out var typeText) ||
-            !metadata.TryGetValue(InitialJsonMetadataKey, out var json) ||
-            !Enum.TryParse<TagDataType>(typeText, ignoreCase: true, out var dataType))
-        {
+        if (metadata is null)
             return null;
-        }
+
+        var hasType = metadata.TryGetValue(InitialTypeMetadataKey, out var typeText);
+        var hasJson = metadata.TryGetValue(InitialJsonMetadataKey, out var json);
+        if (!hasType && !hasJson)
+            return null;
+        if (!hasType || !hasJson)
+            throw new InvalidDataException("Internal Memory engineered initial-value metadata is incomplete.");
+        if (!Enum.TryParse<TagDataType>(typeText, ignoreCase: true, out var dataType))
+            throw new InvalidDataException($"Internal Memory engineered initial value has unsupported data type '{typeText}'.");
 
         try
         {
-            using var document = JsonDocument.Parse(json);
+            using var document = JsonDocument.Parse(json!);
             var dto = new MemoryInitialValueDto(dataType, document.RootElement.Clone());
             _ = ToTypedValue(dto);
             return dto;
         }
         catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException or FormatException or OverflowException)
         {
-            return null;
+            throw new InvalidDataException(
+                $"Internal Memory engineered initial value is invalid for data type '{dataType}'.",
+                ex);
         }
     }
 

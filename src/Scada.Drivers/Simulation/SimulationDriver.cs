@@ -41,8 +41,20 @@ public sealed class SimulationDriver : ICommunicationDriver
         if (_loop is { IsCompleted: false }) return Task.CompletedTask;
 
         Status = new(DriverId, Name, DriverState.Starting, DateTimeOffset.UtcNow);
-        foreach (var point in _points) _registry.Register(point.Tag);
+        foreach (var point in _points)
+        {
+            if (_registry.TryGet(point.Tag.Id, out var existing) && existing is not null)
+            {
+                if (!existing.Path.Equals(point.Tag.Path, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException(
+                        $"Simulation tag '{point.Tag.Id}' is already registered with path '{existing.Path}', expected '{point.Tag.Path}'.");
+                continue;
+            }
 
+            _registry.Register(point.Tag);
+        }
+
+        _cts?.Dispose();
         _startedAt = DateTimeOffset.UtcNow;
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _loop = RunAsync(_cts.Token);
@@ -52,15 +64,21 @@ public sealed class SimulationDriver : ICommunicationDriver
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
-        if (_cts is null) return;
+        var cts = _cts;
+        if (cts is null) return;
+
         Status = new(DriverId, Name, DriverState.Stopping, DateTimeOffset.UtcNow);
-        await _cts.CancelAsync();
+        await cts.CancelAsync();
         if (_loop is not null)
         {
             try { await _loop.WaitAsync(cancellationToken); }
             catch (OperationCanceledException) { }
         }
+
         Status = new(DriverId, Name, DriverState.Stopped, DateTimeOffset.UtcNow, UpdatesPublished: _updatesPublished);
+        cts.Dispose();
+        if (ReferenceEquals(_cts, cts)) _cts = null;
+        _loop = null;
     }
 
     public ValueTask<TagValue?> ReadAsync(Guid tagId, CancellationToken cancellationToken = default)
@@ -135,9 +153,5 @@ public sealed class SimulationDriver : ICommunicationDriver
         };
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        await StopAsync();
-        _cts?.Dispose();
-    }
+    public ValueTask DisposeAsync() => new(StopAsync());
 }

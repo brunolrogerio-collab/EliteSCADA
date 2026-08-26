@@ -1,5 +1,6 @@
 using Scada.Core.Alarms;
 using Scada.Core.Tags;
+using Scada.DriverHost.Runtime;
 using Scada.Drivers.Simulation;
 
 namespace Scada.Api.HostedServices;
@@ -7,10 +8,14 @@ namespace Scada.Api.HostedServices;
 public sealed class SimulationDriverHostedService(
     SimulationDriver driver,
     ITagRegistry registry,
-    IAlarmEngine alarmEngine) : IHostedService
+    IAlarmEngine alarmEngine,
+    IEngineeringRuntimeCoordinator engineeringRuntime) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        if (engineeringRuntime.Describe().Revision.HasValue)
+            return;
+
         await driver.StartAsync(cancellationToken);
         RegisterDemoAlarms();
     }

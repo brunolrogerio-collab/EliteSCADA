@@ -5,6 +5,7 @@
   <ItemGroup>
     <ProjectReference Include="../Scada.Core/Scada.Core.csproj" />
     <ProjectReference Include="../Scada.Drivers/Scada.Drivers.csproj" />
+    <ProjectReference Include="../Scada.DriverHost/Scada.DriverHost.csproj" />
     <ProjectReference Include="../Scada.Historian/Scada.Historian.csproj" />
     <ProjectReference Include="../Scada.Historian.TimescaleDb/Scada.Historian.TimescaleDb.csproj" />
     <ProjectReference Include="../Scada.Engineering/Scada.Engineering.csproj" />

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Scada.Api.Runtime;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Persistence;
 using Scada.Persistence.PostgreSql;
@@ -15,15 +16,63 @@ public static class EngineeringPersistenceApi
         builder.Services.TryAddSingleton<IEngineeringProjectStore>(_ =>
             new PostgreSqlEngineeringProjectStore(connectionString));
         builder.Services.TryAddSingleton<IEngineeringProjectPersistenceService, EngineeringProjectPersistenceService>();
+        builder.Services.TryAddSingleton<IPublishedRuntimeActivationService, PublishedRuntimeActivationService>();
+        builder.Services.TryAddSingleton<IPersistedRuntimeRecoveryService, PersistedRuntimeRecoveryService>();
     }
 
     public static async Task InitializeEngineeringPersistenceAsync(
         this WebApplication app,
         CancellationToken cancellationToken = default)
     {
+        var configuredProjectKey = app.Configuration["EngineeringRuntime:ProjectKey"];
         var persistence = app.Services.GetService<IEngineeringProjectPersistenceService>();
-        if (persistence is not null)
-            await persistence.InitializeAsync(cancellationToken);
+        if (persistence is null)
+        {
+            if (!string.IsNullOrWhiteSpace(configuredProjectKey))
+            {
+                throw new InvalidOperationException(
+                    "EngineeringRuntime:ProjectKey is configured, but engineering persistence is unavailable. Configure ConnectionStrings:EliteScada before starting a persisted runtime.");
+            }
+
+            return;
+        }
+
+        await persistence.InitializeAsync(cancellationToken);
+        await app.RecoverConfiguredEngineeringRuntimeAsync(cancellationToken);
+    }
+
+    public static async Task<PersistedRuntimeRecoveryResult?> RecoverConfiguredEngineeringRuntimeAsync(
+        this WebApplication app,
+        CancellationToken cancellationToken = default)
+    {
+        var projectKey = app.Configuration["EngineeringRuntime:ProjectKey"];
+        if (string.IsNullOrWhiteSpace(projectKey)) return null;
+
+        var recovery = app.Services.GetService<IPersistedRuntimeRecoveryService>();
+        if (recovery is null)
+        {
+            throw new InvalidOperationException(
+                "Engineering runtime recovery is unavailable although a runtime project is configured.");
+        }
+
+        var result = await recovery.RecoverAsync(projectKey, cancellationToken);
+        if (result.PersistedActiveRevision.HasValue && !result.Recovered)
+        {
+            var issues = result.Runtime is null
+                ? "The persisted active engineering snapshot could not be loaded."
+                : string.Join("; ",
+                    result.Runtime.CompilationIssues
+                        .Where(x => x.IsError)
+                        .Select(x => $"{x.Code}: {x.Message}")
+                        .Concat(result.Runtime.RuntimeIssues
+                            .Where(x => x.IsError)
+                            .Select(x => $"{x.Code}: {x.Message}")));
+
+            throw new InvalidOperationException(
+                $"Persisted active revision {result.PersistedActiveRevision} for project '{projectKey}' could not be recovered. {issues}");
+        }
+
+        return result;
     }
 
     public static void MapEngineeringPersistenceEndpoints(this WebApplication app)
@@ -33,7 +82,8 @@ public static class EngineeringPersistenceApi
         group.MapGet("/status", (HttpContext context) => Results.Ok(new
         {
             enabled = Resolve(context) is not null,
-            provider = Resolve(context) is null ? null : "postgresql"
+            provider = Resolve(context) is null ? null : "postgresql",
+            configuredProjectKey = ResolveConfiguredProjectKey(context)
         }));
 
         group.MapPost("/{projectKey}/save", async (
@@ -65,6 +115,80 @@ public static class EngineeringPersistenceApi
             if (persistence is null) return Disabled();
 
             return Results.Ok(await persistence.GetLifecycleAsync(projectKey, cancellationToken));
+        });
+
+        group.MapGet("/{projectKey}/runtime", async (
+            string projectKey,
+            ScadaRuntimeFacade runtime,
+            HttpContext context,
+            CancellationToken cancellationToken) =>
+        {
+            var persistence = Resolve(context);
+            if (persistence is null) return Disabled();
+
+            var lifecycle = await persistence.GetLifecycleAsync(projectKey, cancellationToken);
+            var live = runtime.Describe();
+            var consistent = lifecycle.ActiveRevision.HasValue
+                ? live.ProjectKey?.Equals(projectKey, StringComparison.OrdinalIgnoreCase) == true &&
+                  live.Revision == lifecycle.ActiveRevision
+                : live.Revision is null;
+
+            return Results.Ok(new
+            {
+                projectKey,
+                configuredProjectKey = ResolveConfiguredProjectKey(context),
+                consistent,
+                durable = lifecycle,
+                live
+            });
+        });
+
+        group.MapPost("/{projectKey}/published/activate", async (
+            string projectKey,
+            EngineeringActivateRequest request,
+            HttpContext context,
+            CancellationToken cancellationToken) =>
+        {
+            var activationService = ResolveActivation(context);
+            if (activationService is null) return Disabled();
+
+            var configuredProjectKey = ResolveConfiguredProjectKey(context);
+            if (string.IsNullOrWhiteSpace(configuredProjectKey))
+            {
+                return Results.Conflict(new
+                {
+                    error = "EngineeringRuntime:ProjectKey must be configured before activating a persisted runtime."
+                });
+            }
+
+            if (!configuredProjectKey.Equals(projectKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return Results.Conflict(new
+                {
+                    error = $"This runtime instance is bound to project '{configuredProjectKey}', not '{projectKey}'."
+                });
+            }
+
+            var outcome = await activationService.ActivateAsync(
+                projectKey,
+                request.ActivatedBy,
+                cancellationToken);
+
+            if (!outcome.Found || outcome.Snapshot is null)
+                return Results.NotFound(new { error = "Project has no published revision." });
+
+            var response = new
+            {
+                revision = ToMetadata(outcome.Snapshot),
+                activated = outcome.Activated,
+                runtime = outcome.Runtime,
+                activation = outcome.Activation,
+                lifecycle = outcome.Lifecycle
+            };
+
+            return outcome.Activated
+                ? Results.Ok(response)
+                : Results.Json(response, statusCode: StatusCodes.Status422UnprocessableEntity);
         });
 
         group.MapGet("/{projectKey}/revisions", async (
@@ -210,6 +334,12 @@ public static class EngineeringPersistenceApi
     private static IEngineeringProjectPersistenceService? Resolve(HttpContext context) =>
         context.RequestServices.GetService<IEngineeringProjectPersistenceService>();
 
+    private static IPublishedRuntimeActivationService? ResolveActivation(HttpContext context) =>
+        context.RequestServices.GetService<IPublishedRuntimeActivationService>();
+
+    private static string? ResolveConfiguredProjectKey(HttpContext context) =>
+        context.RequestServices.GetRequiredService<IConfiguration>()["EngineeringRuntime:ProjectKey"];
+
     private static IResult Disabled() => Results.Json(
         new
         {
@@ -237,3 +367,4 @@ public static class EngineeringPersistenceApi
 
 public sealed record EngineeringSaveRequest(string ProjectName, string? SavedBy = null);
 public sealed record EngineeringPublishRequest(string? PublishedBy = null);
+public sealed record EngineeringActivateRequest(string? ActivatedBy = null);

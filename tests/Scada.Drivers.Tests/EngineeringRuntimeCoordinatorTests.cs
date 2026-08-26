@@ -106,6 +106,57 @@ public sealed class EngineeringRuntimeCoordinatorTests
     }
 
     [Fact]
+    public async Task ActivateAsync_CommitFailureKeepsPreviousRuntimeAndCandidateEventsGated()
+    {
+        await using var activeServer = new TestModbusTcpServer();
+        activeServer.HoldingRegisters[10] = 90;
+        activeServer.Start();
+
+        await using var candidateServer = new TestModbusTcpServer();
+        candidateServer.HoldingRegisters[20] = 140;
+        candidateServer.Start();
+
+        var activeTagId = Guid.NewGuid();
+        var candidateTagId = Guid.NewGuid();
+        var externalBus = new InMemoryScadaEventBus();
+        var leakedCandidateEvents = 0;
+        using var subscription = externalBus.Subscribe<TagValueChanged>(evt =>
+        {
+            if (evt.Current.TagId == candidateTagId) Interlocked.Increment(ref leakedCandidateEvents);
+            return ValueTask.CompletedTask;
+        });
+
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            externalBus,
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(2));
+
+        Assert.True((await runtime.ActivateAsync(
+            "plant-a",
+            1,
+            CreatePackage(activeServer.Port, activeTagId, Guid.NewGuid(), "holding:10"))).Activated);
+
+        var commitCalled = false;
+        var result = await runtime.ActivateAsync(
+            "plant-a",
+            2,
+            CreatePackage(candidateServer.Port, candidateTagId, Guid.NewGuid(), "holding:20"),
+            (_, _) =>
+            {
+                commitCalled = true;
+                throw new InvalidOperationException("Persistence rejected activation.");
+            });
+
+        Assert.True(commitCalled);
+        Assert.False(result.Activated);
+        Assert.Contains(result.RuntimeIssues, x => x.Code == "RUNTIME_ACTIVATION_COMMIT_FAILED" && x.IsError);
+        Assert.Equal(1, runtime.Describe().Revision);
+        Assert.True(runtime.TryGetTag(activeTagId, out _));
+        Assert.False(runtime.TryGetTag(candidateTagId, out _));
+        Assert.Equal(0, Volatile.Read(ref leakedCandidateEvents));
+    }
+
+    [Fact]
     public async Task ActivateAsync_CompilationFailureDoesNotReplaceActiveRuntime()
     {
         await using var server = new TestModbusTcpServer();

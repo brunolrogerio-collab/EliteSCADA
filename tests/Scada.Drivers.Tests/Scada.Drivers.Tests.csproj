@@ -8,6 +8,7 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../../src/Scada.Api/Scada.Api.csproj" />
     <ProjectReference Include="../../src/Scada.Core/Scada.Core.csproj" />
     <ProjectReference Include="../../src/Scada.Drivers/Scada.Drivers.csproj" />
     <ProjectReference Include="../../src/Scada.Engineering/Scada.Engineering.csproj" />

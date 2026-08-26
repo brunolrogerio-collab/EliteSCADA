@@ -15,6 +15,7 @@ public static class AuditActions
     public const string AlarmShelve = "alarm.shelve";
     public const string EngineeringImportApply = "engineering.import.apply";
     public const string EngineeringPackageRestore = "engineering.package.restore";
+    public const string EngineeringPersistenceApply = "engineering.persistence.apply";
     public const string EngineeringCheckout = "engineering.checkout";
     public const string EngineeringSave = "engineering.save";
     public const string EngineeringPublish = "engineering.publish";

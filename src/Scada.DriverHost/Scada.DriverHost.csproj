@@ -5,5 +5,6 @@
   <ItemGroup>
     <ProjectReference Include="../Scada.Core/Scada.Core.csproj" />
     <ProjectReference Include="../Scada.Drivers/Scada.Drivers.csproj" />
+    <ProjectReference Include="../Scada.Engineering/Scada.Engineering.csproj" />
   </ItemGroup>
 </Project>

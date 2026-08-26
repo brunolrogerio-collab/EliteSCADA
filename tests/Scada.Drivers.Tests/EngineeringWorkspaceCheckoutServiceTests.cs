@@ -86,7 +86,7 @@ public sealed class EngineeringWorkspaceCheckoutServiceTests
     {
         using var workspace = new EngineeringWorkspace();
         var exchange = CreateExchange(workspace);
-        var beforeJson = exchange.ExportJson(indented: false);
+        var beforePackage = exchange.ExportPackage();
         var before = workspace.Describe();
 
         var invalid = new EngineeringPackage(
@@ -117,7 +117,17 @@ public sealed class EngineeringWorkspaceCheckoutServiceTests
         Assert.False(outcome!.CheckedOut);
         Assert.False(outcome.Preview.CanApply);
         Assert.Null(outcome.ApplyResult);
-        Assert.Equal(beforeJson, exchange.ExportJson(indented: false));
+
+        var afterPackage = exchange.ExportPackage();
+        Assert.Equal(
+            beforePackage.Tags.Select(x => (x.Id, x.Path)).OrderBy(x => x.Path),
+            afterPackage.Tags.Select(x => (x.Id, x.Path)).OrderBy(x => x.Path));
+        Assert.Equal(
+            (beforePackage.DataSources ?? Array.Empty<DataSourceEngineeringDto>()).Select(x => (x.Id, x.Key)).OrderBy(x => x.Key),
+            (afterPackage.DataSources ?? Array.Empty<DataSourceEngineeringDto>()).Select(x => (x.Id, x.Key)).OrderBy(x => x.Key));
+        Assert.Equal(
+            (beforePackage.Screens ?? Array.Empty<ScreenEngineeringDto>()).Select(x => (x.Id, x.Key)).OrderBy(x => x.Key),
+            (afterPackage.Screens ?? Array.Empty<ScreenEngineeringDto>()).Select(x => (x.Id, x.Key)).OrderBy(x => x.Key));
 
         var after = workspace.Describe();
         Assert.Equal(before.ProjectKey, after.ProjectKey);

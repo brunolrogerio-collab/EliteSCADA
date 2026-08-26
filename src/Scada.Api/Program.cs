@@ -14,6 +14,7 @@ using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Simulation;
 using Scada.Engineering.Assets;
+using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.ImportExport;
@@ -38,6 +39,7 @@ builder.Services.AddSingleton<IDataSourceEngineeringRegistry>(sp => sp.GetRequir
 builder.Services.AddSingleton<IEngineeringAssetRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Assets);
 builder.Services.AddSingleton<IEngineeringViewRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Views);
 builder.Services.AddSingleton<ISecurityPolicyEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().SecurityPolicies);
+builder.Services.AddSingleton<ICommandEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Commands);
 builder.Services.AddSingleton<DemoRuntimeServices>();
 
 builder.Services.AddSingleton<IEngineeringDriverCompiler, EngineeringDriverCompiler>();
@@ -85,6 +87,7 @@ app.MapProjectPackageEndpoints();
 app.MapEngineeringPersistenceEndpoints();
 app.MapAuditEndpoints();
 app.MapAlarmShelvingEndpoints();
+app.MapCommandEndpoints();
 
 app.MapGet("/health", (ScadaRuntimeFacade runtime, IHistorian historian) =>
 {
@@ -294,6 +297,7 @@ app.MapGet("/api/engineering/dynamos", (IEngineeringAssetRegistry registry) => R
 app.MapGet("/api/engineering/screens", (IEngineeringViewRegistry registry) => Results.Ok(registry.SnapshotScreens()));
 app.MapGet("/api/engineering/popups", (IEngineeringViewRegistry registry) => Results.Ok(registry.SnapshotPopups()));
 app.MapGet("/api/engineering/security-roles", (ISecurityPolicyEngineeringRegistry registry) => Results.Ok(registry.SnapshotRoles()));
+app.MapGet("/api/engineering/commands", (ICommandEngineeringRegistry registry) => Results.Ok(registry.Snapshot()));
 
 app.MapGet("/api/engineering/export/json", (IEngineeringExchangeService exchange) =>
     Results.File(Encoding.UTF8.GetBytes(exchange.ExportJson()), "application/json", "scada-engineering.json"));

@@ -14,7 +14,7 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 4;
+    public const int CurrentSchemaVersion = 5;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
@@ -91,10 +91,27 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     {
         var rows = new List<IReadOnlyList<string?>>
         {
-            new[] { "Id", "Path", "Name", "DataType", "Unit", "Source", "Address", "ReadOnly", "ScaleMinimum", "ScaleMaximum", "HistorianEnabled", "HistorianStrategy", "Deadband", "PeriodMilliseconds", "Description" }
+            new[]
+            {
+                "Id", "Path", "Name", "DataType", "Unit", "Source", "Address", "ReadOnly",
+                "ScaleMinimum", "ScaleMaximum", "HistorianEnabled", "HistorianStrategy", "Deadband",
+                "PeriodMilliseconds", "MaximumPeriodMilliseconds", "Description", "MetadataJson",
+                "ReadRolesJson", "WriteRolesJson", "ConfigureRolesJson"
+            }
         };
         foreach (var t in ExportPackage().Tags)
-            rows.Add(new[] { t.Id?.ToString(), t.Path, t.Name, t.DataType.ToString(), t.EngineeringUnit, t.Source, t.Address, t.ReadOnly.ToString(), CsvCodec.Number(t.ScaleMinimum), CsvCodec.Number(t.ScaleMaximum), (t.Historian?.Enabled ?? false).ToString(), t.Historian?.Strategy, CsvCodec.Number(t.Historian?.Deadband), t.Historian?.PeriodMilliseconds?.ToString(CultureInfo.InvariantCulture), t.Description });
+        {
+            rows.Add(new[]
+            {
+                t.Id?.ToString(), t.Path, t.Name, t.DataType.ToString(), t.EngineeringUnit, t.Source, t.Address,
+                t.ReadOnly.ToString(), CsvCodec.Number(t.ScaleMinimum), CsvCodec.Number(t.ScaleMaximum),
+                (t.Historian?.Enabled ?? false).ToString(), t.Historian?.Strategy, CsvCodec.Number(t.Historian?.Deadband),
+                t.Historian?.PeriodMilliseconds?.ToString(CultureInfo.InvariantCulture),
+                t.Historian?.MaximumPeriodMilliseconds?.ToString(CultureInfo.InvariantCulture), t.Description,
+                JsonMap(t.Metadata), JsonList(t.AccessPolicy?.ReadRoles), JsonList(t.AccessPolicy?.WriteRoles),
+                JsonList(t.AccessPolicy?.ConfigureRoles)
+            });
+        }
         return CsvCodec.Write(rows);
     }
 
@@ -102,10 +119,23 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     {
         var rows = new List<IReadOnlyList<string?>>
         {
-            new[] { "Id", "Name", "TagId", "TagPath", "Type", "Priority", "Setpoint", "DigitalActiveValue", "Class", "Area", "Message", "ActivationDelayMilliseconds", "RequiresAcknowledgement", "ShelvingAllowed", "Enabled" }
+            new[]
+            {
+                "Id", "Name", "TagId", "TagPath", "Type", "Priority", "Setpoint", "DigitalActiveValue",
+                "Class", "Area", "Message", "ActivationDelayMilliseconds", "RequiresAcknowledgement",
+                "ShelvingAllowed", "Enabled", "MetadataJson"
+            }
         };
         foreach (var a in ExportPackage().Alarms)
-            rows.Add(new[] { a.Id?.ToString(), a.Name, a.TagId?.ToString(), a.TagPath, a.Type.ToString(), a.Priority.ToString(), CsvCodec.Number(a.Setpoint), a.DigitalActiveValue.ToString(), a.AlarmClass, a.Area, a.Message, a.ActivationDelayMilliseconds?.ToString(CultureInfo.InvariantCulture), a.RequiresAcknowledgement.ToString(), a.ShelvingAllowed.ToString(), a.Enabled.ToString() });
+        {
+            rows.Add(new[]
+            {
+                a.Id?.ToString(), a.Name, a.TagId?.ToString(), a.TagPath, a.Type.ToString(), a.Priority.ToString(),
+                CsvCodec.Number(a.Setpoint), a.DigitalActiveValue.ToString(), a.AlarmClass, a.Area, a.Message,
+                a.ActivationDelayMilliseconds?.ToString(CultureInfo.InvariantCulture), a.RequiresAcknowledgement.ToString(),
+                a.ShelvingAllowed.ToString(), a.Enabled.ToString(), JsonMap(a.Metadata)
+            });
+        }
         return CsvCodec.Write(rows);
     }
 
@@ -152,11 +182,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         var rows = CsvCodec.Read(csv);
         if (rows.Count == 0) return Empty();
         var h = Header(rows[0]);
-        var tags = rows.Skip(1).Select(r => new TagEngineeringDto(
-            GuidOrNull(Get(r,h,"Id")), Get(r,h,"Name"), Get(r,h,"Path"), Enum.Parse<TagDataType>(Get(r,h,"DataType"), true),
-            Null(Get(r,h,"Source")), Null(Get(r,h,"Address")), Null(Get(r,h,"Unit")), Null(Get(r,h,"Description")), Bool(Get(r,h,"ReadOnly"), true),
-            DoubleOrNull(Get(r,h,"ScaleMinimum")), DoubleOrNull(Get(r,h,"ScaleMaximum")),
-            new HistorianSettingsDto(Bool(Get(r,h,"HistorianEnabled")), Null(Get(r,h,"HistorianStrategy")) ?? "none", DoubleOrNull(Get(r,h,"Deadband")), IntOrNull(Get(r,h,"PeriodMilliseconds"))), null)).ToArray();
+        var tags = rows.Skip(1).Select(r => ParseTagCsvRow(r, h)).ToArray();
         return Empty() with { Tags = tags };
     }
 
@@ -167,8 +193,11 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         var h = Header(rows[0]);
         var alarms = rows.Skip(1).Select(r => new AlarmEngineeringDto(
             GuidOrNull(Get(r,h,"Id")), Get(r,h,"Name"), GuidOrNull(Get(r,h,"TagId")), Null(Get(r,h,"TagPath")),
-            Enum.Parse<AlarmType>(Get(r,h,"Type"), true), Enum.Parse<AlarmPriority>(Get(r,h,"Priority"), true), DoubleOrNull(Get(r,h,"Setpoint")), Bool(Get(r,h,"DigitalActiveValue"), true),
-            Null(Get(r,h,"Class")), Null(Get(r,h,"Area")), Null(Get(r,h,"Message")), IntOrNull(Get(r,h,"ActivationDelayMilliseconds")), Bool(Get(r,h,"RequiresAcknowledgement"), true), Bool(Get(r,h,"ShelvingAllowed"), true), Bool(Get(r,h,"Enabled"), true), null)).ToArray();
+            Enum.Parse<AlarmType>(Get(r,h,"Type"), true), Enum.Parse<AlarmPriority>(Get(r,h,"Priority"), true),
+            DoubleOrNull(Get(r,h,"Setpoint")), Bool(Get(r,h,"DigitalActiveValue"), true), Null(Get(r,h,"Class")),
+            Null(Get(r,h,"Area")), Null(Get(r,h,"Message")), IntOrNull(Get(r,h,"ActivationDelayMilliseconds")),
+            Bool(Get(r,h,"RequiresAcknowledgement"), true), Bool(Get(r,h,"ShelvingAllowed"), true),
+            Bool(Get(r,h,"Enabled"), true), ParseMap(Get(r,h,"MetadataJson")))).ToArray();
         return Empty() with { Alarms = alarms };
     }
 
@@ -207,6 +236,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         foreach (var dto in package.Tags)
         {
             var issues = EngineeringValidator.ValidateTag(dto).ToList();
+            ValidateTagAccessPolicy(dto, issues);
             if (duplicatePaths.Contains(dto.Path))
                 issues.Add(new("TAG_DUPLICATE_IN_FILE", $"Tag path '{dto.Path}' appears more than once in the import file.", ImportEntityKind.Tag, dto.Path, true));
             if (package.SchemaVersion >= 2 && !string.IsNullOrWhiteSpace(dto.Source) &&
@@ -312,7 +342,9 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             var op = Decide(existing is not null, mode);
             if (op == ImportOperation.Skip) { skipped++; continue; }
             var id = existing?.Id ?? dto.Id ?? Guid.NewGuid();
-            var tag = new TagDefinition(id, dto.Name, dto.Path, dto.DataType, dto.Source, dto.EngineeringUnit, dto.Description, dto.ReadOnly, BuildTagMetadata(dto));
+            var tag = new TagDefinition(
+                id, dto.Name, dto.Path, dto.DataType, dto.Source, dto.EngineeringUnit, dto.Description, dto.ReadOnly,
+                BuildTagMetadata(dto), BuildTagAccessPolicy(dto.AccessPolicy));
             if (existing is null) { _tags.Register(tag); created++; } else { _tags.Upsert(tag); updated++; }
         }
 
@@ -411,6 +443,27 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             .Where(g => g.Count() > 1)
             .Select(g => g.Key)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    private static void ValidateTagAccessPolicy(TagEngineeringDto dto, List<ImportIssue> issues)
+    {
+        if (dto.AccessPolicy is null) return;
+        ValidateRoleList(dto.AccessPolicy.ReadRoles, "read", dto.Path, issues);
+        ValidateRoleList(dto.AccessPolicy.WriteRoles, "write", dto.Path, issues);
+        ValidateRoleList(dto.AccessPolicy.ConfigureRoles, "configure", dto.Path, issues);
+    }
+
+    private static void ValidateRoleList(
+        IReadOnlyCollection<string>? roles,
+        string operation,
+        string tagPath,
+        List<ImportIssue> issues)
+    {
+        if (roles is null) return;
+        if (roles.Any(string.IsNullOrWhiteSpace))
+            issues.Add(new("TAG_ACCESS_ROLE_INVALID", $"TAG '{tagPath}' has a blank role in its {operation} access policy.", ImportEntityKind.Tag, tagPath, true));
+        if (roles.Where(x => !string.IsNullOrWhiteSpace(x)).GroupBy(x => x, StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1))
+            issues.Add(new("TAG_ACCESS_ROLE_DUPLICATE", $"TAG '{tagPath}' repeats a role in its {operation} access policy.", ImportEntityKind.Tag, tagPath, true));
+    }
 
     private void ValidateVisualReferences(
         IReadOnlyCollection<VisualElementEngineeringDto>? elements,
@@ -550,7 +603,10 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             imported = package.Tags.FirstOrDefault(x => x.Path.Equals(dto.TagPath, StringComparison.OrdinalIgnoreCase));
         if (imported is null) return null;
 
-        return new TagDefinition(imported.Id ?? Guid.Empty, imported.Name, imported.Path, imported.DataType, imported.Source, imported.EngineeringUnit, imported.Description, imported.ReadOnly, imported.Metadata);
+        return new TagDefinition(
+            imported.Id ?? Guid.Empty, imported.Name, imported.Path, imported.DataType, imported.Source,
+            imported.EngineeringUnit, imported.Description, imported.ReadOnly, imported.Metadata,
+            BuildTagAccessPolicy(imported.AccessPolicy));
     }
 
     private TagDefinition? ResolveAlarmTag(AlarmEngineeringDto dto)
@@ -577,15 +633,50 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         var hStrategy = Meta(t.Metadata, "historian.strategy");
         var deadband = Meta(t.Metadata, "historian.deadband");
         var period = Meta(t.Metadata, "historian.periodMs");
-        return new(t.Id, t.Name, t.Path, t.DataType, t.Source, address, t.EngineeringUnit, t.Description, t.ReadOnly,
-            DoubleOrNull(min), DoubleOrNull(max), new HistorianSettingsDto(Bool(hEnabled), hStrategy ?? "none", DoubleOrNull(deadband), IntOrNull(period)),
-            t.Metadata?.ToDictionary(x => x.Key, x => x.Value));
+        var maximumPeriod = Meta(t.Metadata, "historian.maxPeriodMs");
+        var access = t.AccessPolicy is null
+            ? null
+            : new TagAccessPolicyDto(
+                t.AccessPolicy.ReadRoles?.ToArray(),
+                t.AccessPolicy.WriteRoles?.ToArray(),
+                t.AccessPolicy.ConfigureRoles?.ToArray());
+
+        return new TagEngineeringDto(
+            t.Id, t.Name, t.Path, t.DataType, t.Source, address, t.EngineeringUnit, t.Description, t.ReadOnly,
+            DoubleOrNull(min), DoubleOrNull(max),
+            new HistorianSettingsDto(Bool(hEnabled), hStrategy ?? "none", DoubleOrNull(deadband), IntOrNull(period), IntOrNull(maximumPeriod)),
+            t.Metadata?.ToDictionary(x => x.Key, x => x.Value), access);
     }
 
     private static AlarmEngineeringDto ToDto(AlarmDefinition a, string? tagPath) =>
         new(a.Id, a.Name, a.TagId, tagPath, a.Type, a.Priority, a.Setpoint, a.DigitalActiveValue, a.AlarmClass, a.Area, a.Message,
             a.ActivationDelay.HasValue ? (int)a.ActivationDelay.Value.TotalMilliseconds : null, a.RequiresAcknowledgement,
             a.ShelvingAllowed, a.Enabled, a.Metadata?.ToDictionary(x => x.Key, x => x.Value));
+
+    private TagEngineeringDto ParseTagCsvRow(string[] row, Dictionary<string, int> header)
+    {
+        var readRolesJson = Null(Get(row, header, "ReadRolesJson"));
+        var writeRolesJson = Null(Get(row, header, "WriteRolesJson"));
+        var configureRolesJson = Null(Get(row, header, "ConfigureRolesJson"));
+        var accessPolicy = readRolesJson is null && writeRolesJson is null && configureRolesJson is null
+            ? null
+            : new TagAccessPolicyDto(
+                ParseList(readRolesJson), ParseList(writeRolesJson), ParseList(configureRolesJson));
+
+        return new TagEngineeringDto(
+            GuidOrNull(Get(row, header, "Id")), Get(row, header, "Name"), Get(row, header, "Path"),
+            Enum.Parse<TagDataType>(Get(row, header, "DataType"), true), Null(Get(row, header, "Source")),
+            Null(Get(row, header, "Address")), Null(Get(row, header, "Unit")), Null(Get(row, header, "Description")),
+            Bool(Get(row, header, "ReadOnly"), true), DoubleOrNull(Get(row, header, "ScaleMinimum")),
+            DoubleOrNull(Get(row, header, "ScaleMaximum")),
+            new HistorianSettingsDto(
+                Bool(Get(row, header, "HistorianEnabled")),
+                Null(Get(row, header, "HistorianStrategy")) ?? "none",
+                DoubleOrNull(Get(row, header, "Deadband")),
+                IntOrNull(Get(row, header, "PeriodMilliseconds")),
+                IntOrNull(Get(row, header, "MaximumPeriodMilliseconds"))),
+            ParseMap(Get(row, header, "MetadataJson")), accessPolicy);
+    }
 
     private static IReadOnlyDictionary<string,string> BuildTagMetadata(TagEngineeringDto dto)
     {
@@ -599,11 +690,20 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         Set(result, "historian.strategy", dto.Historian?.Strategy);
         Set(result, "historian.deadband", dto.Historian?.Deadband);
         Set(result, "historian.periodMs", dto.Historian?.PeriodMilliseconds);
+        Set(result, "historian.maxPeriodMs", dto.Historian?.MaximumPeriodMilliseconds);
         return result;
     }
 
+    private static TagAccessPolicy? BuildTagAccessPolicy(TagAccessPolicyDto? dto) =>
+        dto is null
+            ? null
+            : new TagAccessPolicy(dto.ReadRoles?.ToArray(), dto.WriteRoles?.ToArray(), dto.ConfigureRoles?.ToArray());
+
     private string? JsonMap(IReadOnlyDictionary<string, string>? map) =>
         map is null || map.Count == 0 ? null : JsonSerializer.Serialize(map, _json);
+
+    private string? JsonList(IReadOnlyCollection<string>? values) =>
+        values is null ? null : JsonSerializer.Serialize(values, _json);
 
     private Dictionary<string, string>? ParseMap(string? json)
     {
@@ -615,7 +715,20 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         }
         catch (JsonException ex)
         {
-            throw new InvalidDataException("Invalid JSON map in data source CSV.", ex);
+            throw new InvalidDataException("Invalid JSON map in engineering CSV.", ex);
+        }
+    }
+
+    private IReadOnlyCollection<string>? ParseList(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            return JsonSerializer.Deserialize<string[]>(json, _json) ?? Array.Empty<string>();
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException("Invalid JSON role list in TAG engineering CSV.", ex);
         }
     }
 

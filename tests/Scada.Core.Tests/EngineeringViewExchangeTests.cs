@@ -13,7 +13,7 @@ namespace Scada.Core.Tests;
 public sealed class EngineeringViewExchangeTests
 {
     [Fact]
-    public void SchemaV4_RoundTripsScreenAndPopup()
+    public void CurrentSchema_RoundTripsScreenAndPopup()
     {
         var tags = new InMemoryTagRegistry();
         var bus = new InMemoryScadaEventBus();
@@ -56,7 +56,7 @@ public sealed class EngineeringViewExchangeTests
         var service = new EngineeringExchangeService(tags, alarms, dataSources, assets, views);
         var package = service.ParseJson(service.ExportJson());
 
-        Assert.Equal(4, package.SchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, package.SchemaVersion);
         var screen = Assert.Single(package.Screens!);
         var popup = Assert.Single(package.Popups!);
         Assert.Equal("/plant", screen.Route);

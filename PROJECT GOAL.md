@@ -51,9 +51,11 @@ The SCADA Core must remain independent of:
 - a specific database engine;
 - a specific UI technology.
 
-Mandatory runtime flow:
+Mandatory shared/server runtime flow:
 
-`Device/Source -> Driver -> TAG Engine / Current Cache -> Event Bus -> Historian / Alarm Engine / Realtime / Scripts`
+`Device/Server Source -> Driver / Source Provider -> TAG Engine / Current Cache -> Event Bus -> Historian / Alarm Engine / Realtime / Scripts`
+
+Client-local presentation/session state may use the explicit Client Memory source defined below and must not be mistaken for one globally authoritative server TAG value.
 
 The frontend never accesses industrial drivers directly, and drivers never depend on screens/UI.
 
@@ -98,9 +100,9 @@ Supported merge semantics include create-only, update-existing and create-and-up
 
 At minimum, the public Engineering model covers and must continue to cover:
 
-1. **TAGs**: stable ID, path, name, data type, unit, description, Data Source, address, scaling, deadband, historian policy, permissions/access policy and metadata.
+1. **TAGs**: stable ID, path, name, data type, unit, description, Data Source, address/binding where applicable, scaling, deadband, historian policy, permissions/access policy, memory initial/default value where applicable and metadata.
 2. **Alarms**: associated TAG, type, limits/setpoint, priority, class, area, message, delay, ACK behavior, shelving policy and related metadata.
-3. **Data Sources / Drivers**: technical communication configuration and bindings.
+3. **Data Sources / Drivers / Internal Sources**: technical communication configuration, built-in memory-source configuration and bindings.
 4. **Equipment Templates and Equipment instances**: reusable class/instance engineering structures, bindings, properties and context.
 5. **Dynamos / reusable visual definitions**: bindings, properties, context and dependencies.
 6. **Screens and Popups**: routes, visual definitions, bindings, context and reusable dependencies.
@@ -137,6 +139,73 @@ Required behavior:
 - Persistence follows the public Engineering contract, not the reverse.
 
 Project engineering backup/restore uses the versioned `.escadapkg` concept containing canonical engineering data plus integrity metadata. It is an engineering-project package, not a full historian/database image.
+
+## Internal memory TAG sources
+
+Before additional external communication protocols are implemented, EliteSCADA must provide two explicit built-in internal memory source types through the public Engineering/Data Source model:
+
+- **`builtin.memory.client`**: Client Memory scoped to one opened Runtime Client instance/session;
+- **`builtin.memory.server`**: shared Server Memory owned by the EliteSCADA server runtime and retentive by design.
+
+These are internal TAG value sources, not fake PLC/network connections. They do not require protocol addresses and must not expose invented network timeout/reconnect/latency statistics.
+
+### Client Memory
+
+Client Memory is local to each Runtime Client. Different clients may hold different values for the same engineered Client Memory TAG definition.
+
+Required semantics:
+
+- per-client/session value store rather than one server-global scalar value;
+- initialized from a typed engineered initial/default value when the client/session starts;
+- no server retention in the initial implementation;
+- suitable for popup/screen transition variables, selected equipment/context, navigation state, temporary filters, UI flags, local demo controls and future client-side scripts;
+- client-side scripts may read/write Client Memory for their own client;
+- server-side scripts cannot treat Client Memory as one authoritative global value;
+- Client Memory must not be used as authentication/authorization state, safety interlock state, authoritative command permissive, server process sequencing truth or audit identity;
+- Client Memory does not drive the global server historian or server alarm engine in the initial implementation because its value is not globally unique.
+
+The exact browser/session persistence mechanism is an implementation detail, but browser storage must never silently redefine Client Memory as trusted server or user-profile state.
+
+### Server Retentive Memory
+
+Server Memory has one authoritative value per TAG in the active server runtime. All authorized clients observe the same value.
+
+Required semantics:
+
+- shared across Runtime Clients;
+- suitable for simulation variables/parameters, internal sequence state, intermediate values, operator-adjustable internal parameters and future server-side scripts;
+- participates in the normal Current TAG Cache, Event Bus, realtime/WebSocket distribution, authorization, historian/alarm semantics where configured and future server scripting;
+- external writes use the normal backend TAG/process-write security boundary;
+- normally carries `Good` quality because there is no external transport; bad/uncertain quality must represent a real modeled internal failure rather than fake `BadCommunication`.
+
+Server Memory is **retentive by design**. Its mutable runtime value is persisted separately from immutable Engineering revisions/packages.
+
+Retention rules:
+
+- stable TAG ID is the primary identity for retained values;
+- renaming a TAG path while preserving its stable ID preserves its retained value;
+- server restart and compatible runtime/revision reactivation restore the retained value;
+- when no retained value exists, use the engineered typed initial/default value or a deterministic type default;
+- incompatible retained-value/data-type changes must never be silently coerced; validation/activation must surface the incompatibility and use an explicit reset/migration policy;
+- deleting a TAG removes it from active runtime and stale retained state must never resurrect it automatically.
+
+Memory TAG Engineering therefore needs a typed initial/default value in the public versioned contract. Mutable retained runtime values themselves must not be serialized into normal Engineering export/revision data as if they were configuration.
+
+### Relationship to source/driver architecture and scripting
+
+The public Data Source concept is broader than a physical device connection: it identifies the owner/provider of TAG values.
+
+External protocol Data Sources compile into communication drivers. `builtin.memory.server` compiles into an internal server source/provider. `builtin.memory.client` remains a client-owned source definition and must not be forced into one global server `ICommunicationDriver` value store because that would destroy its per-client semantics.
+
+The common runtime architecture may introduce a clearer source-provider abstraction where useful rather than pretending every source is a network driver.
+
+Future scripting must keep the scope explicit:
+
+- client-side scripts may access Client Memory plus permitted shared runtime TAGs;
+- server-side scripts may access Server Memory plus permitted shared runtime TAGs;
+- no server-side API may accidentally choose one client's Client Memory as global truth.
+
+Full semantics and validation scenarios are locked in `docs/INTERNAL-MEMORY-TAGS.md`.
 
 ## Industrial communication
 
@@ -195,9 +264,9 @@ The diagnostic UI should support quick identification of healthy, degraded and f
 The locked protocol direction includes:
 
 - **Modbus TCP** as the currently implemented first real industrial driver;
-- **MQTT** as a planned first-class communication/messaging integration;
-- **OPC UA** as a planned first-class industrial interoperability protocol;
-- **BACnet** as a planned communication-driver protocol, especially relevant to building automation/BMS and devices/controllers that expose BACnet interoperability;
+- **MQTT** as a planned first-class communication/messaging integration after the internal memory sources and common diagnostics foundation;
+- **OPC UA** as a planned first-class industrial interoperability protocol after the internal memory sources and common diagnostics foundation;
+- **BACnet** as a planned communication-driver protocol, especially relevant to building automation/BMS and devices/controllers that expose BACnet interoperability, after the internal memory sources and common diagnostics foundation;
 - additional protocols supplied by first-party or third-party **installable driver modules** through the same public Driver SDK boundary.
 
 Together with Siemens S7 and future Allen-Bradley support, these protocol families are intended to give EliteSCADA broad practical compatibility across mainstream PLC, industrial automation and building-automation environments. The user's planning assumption is that this protocol set should cover more than 90% of practical PLC/controller needs encountered in the target market; that percentage is a product-planning hypothesis and must be validated before being presented externally as a measured market statistic.
@@ -414,6 +483,8 @@ The editor and all other developer-facing Engineering surfaces must share the sa
 - Preserve backward compatibility of supported Engineering schema versions or introduce explicit migration behavior/tests.
 - Documentation and roadmap updates must not accidentally erase locked future product requirements.
 - Additional driver modules must not bypass Engineering validation, security, audit, TAG quality semantics or the DriverHost boundary.
+- Client Memory must never be treated as trusted backend/global process state.
+- Server-retained memory values must remain runtime state separate from immutable Engineering revision contents.
 - Engineering UI localization must not leak translated presentation strings into stable public Engineering contracts or identifiers.
 
 ## Relationship to other repository documents
@@ -425,5 +496,7 @@ The editor and all other developer-facing Engineering surfaces must share the sa
 - `docs/ADR-*.md`: specific accepted architectural decisions.
 - `docs/SECURITY-AUTHORIZATION-AUDIT.md`: security implementation boundary/details.
 - `docs/VISUAL-COMPONENT-LIBRARY.md`: visual/reusable component direction.
+- `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`: multi-driver communication topology and diagnostic contract direction.
+- `docs/INTERNAL-MEMORY-TAGS.md`: Client Memory and retentive Server Memory semantics.
 
 When these documents evolve, they should remain consistent. `PROJECT GOAL.md` wins for explicitly locked product intent; repository code and current `main` win for what is actually implemented; `LAST CHANGE.md` records where work stopped and how to resume.

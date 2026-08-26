@@ -9,6 +9,7 @@ import {
 } from './i18n';
 import { AlarmEditor } from './AlarmEditor';
 import { DataSourceEditor, TagEditor } from './StructuredEditors';
+import { UserAdministration } from './UserAdministration';
 import type { EngineeringPackageView, EngineeringSnapshot } from './types';
 import './engineering.css';
 
@@ -234,7 +235,7 @@ function EngineeringSection({
 
   if (section === 'overview') return <Overview snapshot={snapshot} t={t} />;
   if (section === 'historian') return <HistorianSection model={model} t={t} />;
-  if (section === 'security') return <SecuritySection model={model} t={t} />;
+  if (section === 'security') return <SecuritySection model={model} t={t} locale={locale} />;
   if (section === 'diagnostics') return <DiagnosticsSection model={model} t={t} locale={locale} />;
 
   switch (section) {
@@ -379,23 +380,34 @@ function HistorianSection({ model, t }: { model: EngineeringPackageView; t: Retu
   );
 }
 
-function SecuritySection({ model, t }: { model: EngineeringPackageView; t: ReturnType<typeof translator> }) {
+function SecuritySection({
+  model,
+  t,
+  locale
+}: {
+  model: EngineeringPackageView;
+  t: ReturnType<typeof translator>;
+  locale: EngineeringLocale;
+}) {
   return (
-    <EntitySection
-      title={t('security.title')}
-      description={t('security.description')}
-      items={model.securityRoles ?? []}
-      t={t}
-      columns={[
-        { key: 'key', title: t('table.key'), render: item => <Code>{item.key}</Code> },
-        { key: 'name', title: t('table.name'), render: item => item.name },
-        {
-          key: 'grants',
-          title: t('table.grants'),
-          render: item => <span className="eng-capability-list">{item.grants?.map(grant => grant.capability).join(', ') || '—'}</span>
-        }
-      ]}
-    />
+    <>
+      <EntitySection
+        title={t('security.title')}
+        description={t('security.description')}
+        items={model.securityRoles ?? []}
+        t={t}
+        columns={[
+          { key: 'key', title: t('table.key'), render: item => <Code>{item.key}</Code> },
+          { key: 'name', title: t('table.name'), render: item => item.name },
+          {
+            key: 'grants',
+            title: t('table.grants'),
+            render: item => <span className="eng-capability-list">{item.grants?.map(grant => grant.capability).join(', ') || '—'}</span>
+          }
+        ]}
+      />
+      <UserAdministration locale={locale} />
+    </>
   );
 }
 

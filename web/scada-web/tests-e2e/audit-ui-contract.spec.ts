@@ -30,6 +30,7 @@ test('Audit UI query maps only supported backend filters and transports cursor o
   expect(url.searchParams.get('area')).toBe('Area1');
   expect(url.searchParams.get('correlationId')).toBe('corr-123');
   expect(url.searchParams.get('cursor')).toBe(opaqueCursor);
+  expect(url.searchParams.has('offset')).toBe(false);
   expect(url.searchParams.get('fromUtc')).toBeTruthy();
   expect(url.searchParams.get('toUtc')).toBeTruthy();
   expect(AUDIT_NEXT_CURSOR_HEADER).toBe('X-EliteSCADA-Audit-Next-Cursor');

@@ -18,70 +18,73 @@ Before any EliteSCADA work, every chat must read:
 
 ### Coordinator / integration chat
 
-Branch/PR: existing `feature/local-user-administration` / PR #39 until merged, then integration work from `main`.
+PR #39 local-user administration is **MERGED**. The coordinator now owns the next isolated hardening slice plus cross-PR integration.
 
-Current responsibility:
+Current responsibilities:
 
-- finish and validate local user administration;
-- own integration decisions between concurrent workstreams;
-- reconcile/rebase worker branches after other merges;
-- perform final cross-feature CI validation and merge order;
+- implement secured Engineering Apply/Delete/bulk mutation on a separate coordinator branch;
+- review Worker A / Worker B PRs after their CI completes;
+- reconcile worker branches with then-current `main` without discarding worker commits;
+- perform shared Engineering/runtime integration explicitly marked `INTEGRATION REQUIRED` by workers;
+- decide merge order and run final integrated CI;
 - maintain `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md` and this coordination file.
 
-Primary ownership while PR #39 is active:
+Coordinator-owned domains currently include:
 
-- `src/Scada.Api/Security/**`
-- `src/Scada.Security/**`
-- authentication/session/revocation logic
-- `src/Scada.Api/Realtime/TagRealtimeHub.cs`
-- user administration UI files
+- shared Engineering mutation lifecycle and public schema integration;
+- `src/Scada.Api/Security/**` and authentication/session boundaries;
+- `src/Scada.Api/Realtime/TagRealtimeHub.cs`;
+- central Engineering/Runtime composition and API wiring;
+- shared frontend routing/application-shell integration.
 
 ### Worker A — Internal Memory foundation
 
 Branch: `feature/internal-memory-foundation`
+Draft PR: #40
 
-Goal: implement the isolated foundation for the locked Internal Memory / Source Provider architecture without wiring broad application integration yet.
+Goal: implement the isolated foundation for the locked Internal Memory / Source Provider architecture without broad application integration.
 
-Required scope:
+Current Worker A foundation includes:
 
-- common Source Provider abstraction where needed for non-network TAG ownership;
-- `builtin.memory.server` runtime provider foundation;
+- common Source Provider abstraction for non-network TAG ownership;
+- `builtin.memory.server` and `builtin.memory.client` provider contracts;
 - typed initial/default values;
-- stable TAG-ID retention identity semantics;
-- retention-store abstraction plus deterministic in-memory implementation suitable for tests;
-- incompatible data-type changes fail closed instead of silent coercion;
-- deleted TAGs are not resurrected from stale retained state;
-- normal memory quality is `Good`, with no fabricated communication/reconnect/network metrics;
-- design/test contract for `builtin.memory.client` scope and ownership, without pretending it is one global server scalar;
-- focused automated tests for the above.
+- stable TAG-ID retention identity;
+- retention-store abstraction plus deterministic in-memory implementation;
+- fail-closed incompatible retained data types;
+- deleted TAG non-resurrection;
+- normal memory quality `Good` without fabricated network metrics;
+- per-Runtime-Client Client Memory isolation;
+- focused tests.
 
 Read first: `docs/INTERNAL-MEMORY-TAGS.md`.
 
-Prefer adding new isolated files/classes. Do not perform broad API/UI wiring in this workstream.
+Worker A must leave public Engineering schema, runtime application composition, durable production retention, historian/alarm integration and shared authorization/audit hooks as `INTEGRATION REQUIRED` unless coordinator explicitly assigns them.
 
 ### Worker B — Python scripting + visual property foundation
 
 Branch: `feature/python-scripting-foundation`
+Draft PR: #41
 
-Goal: implement the isolated contracts/foundation that must exist before the graphical Screens/Popups/Dynamos editor.
+Goal: implement the isolated contracts/foundation required before the graphical Screens/Popups/Dynamos editor.
 
-Required scope:
+Current Worker B foundation includes:
 
 - typed public visual-property schema;
-- common properties such as x/y, width/height, rotation, visibility, opacity, z-order, fill/background, stroke/line color, stroke/line width, text/font and image/resource properties where applicable;
-- explicit object-type-specific property declaration;
-- separation of Engineering base values from Runtime presentation overrides;
-- deterministic property-layer/precedence model for base value, binding/expression, script override and animation override;
-- animation/tween request contracts including duration/easing/repeat/ping-pong/cancel semantics;
-- script entity/runtime contracts for Client Visual Script vs Server Script scopes;
-- sandbox capability surface contracts that do not expose arbitrary OS/filesystem/network/database/driver/secrets access;
-- execution budget/cancellation/error-isolation contracts;
-- syntax validation/diagnostic contracts needed by a later Python editor;
-- focused automated tests for property precedence, scope boundaries and validation.
+- common geometry/transform/visibility/fill/stroke/text/image property groups;
+- explicit object-type-specific declaration;
+- Engineering base values separated from Runtime presentation overrides;
+- deterministic `base -> binding/expression -> script -> animation` precedence;
+- animation/tween contracts;
+- explicit Client Visual Script vs Server Script scopes;
+- sandbox capability contracts;
+- execution budget/cancellation/queue/error-isolation contracts;
+- Python validation/diagnostic contracts;
+- focused tests.
 
 Read first: `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`.
 
-This workstream must NOT implement the final graphical editor yet and must NOT create a private browser-only source of truth.
+Worker B must not implement the final graphical editor, concrete central Engineering schema wiring, central runtime composition or a private browser-only source of truth.
 
 ## Shared files reserved to coordinator
 
@@ -97,33 +100,37 @@ Worker chats must not modify these unless the coordinator explicitly assigns a s
 - central application composition/DI files
 - central frontend routing/application-shell files
 - lockfiles
+- `src/Scada.Engineering/Contracts/EngineeringContracts.cs`
 
-`src/Scada.Engineering/Contracts/EngineeringContracts.cs` is also coordinator-owned during parallel work because multiple features may eventually need schema expansion. Worker chats should prefer new contract files/types and document any required integration change instead of editing this central file directly.
+Worker chats should prefer new isolated files/types and record required central changes in the PR body under `INTEGRATION REQUIRED`.
 
 ## Conflict-avoidance rules
 
 1. Prefer new files over editing shared central files.
 2. A worker may refactor only inside its assigned domain.
-3. If a needed change crosses into a coordinator-owned file, implement the isolated side first and record an `INTEGRATION REQUIRED` note in the PR body rather than editing the shared file.
+3. If a needed change crosses into a coordinator-owned file, implement the isolated side first and record `INTEGRATION REQUIRED` rather than editing the shared file.
 4. Do not rename/move files owned by another workstream.
-5. Do not merge `main` into a worker branch while another feature is mid-integration unless the coordinator directs it.
-6. Each worker opens a Draft PR after the first meaningful, buildable slice.
-7. Each worker PR must list changed domains, tests, remaining integration hooks, and any coordinator-owned file changes still required.
-8. CI must be green on the final reconciled head before merge.
-9. Worker chats never merge their own PRs.
+5. Do not force/reset another workstream branch.
+6. Do not merge `main` into a worker branch while another change is being committed to that branch unless the worker/coordinator explicitly coordinates the reconciliation.
+7. Each worker PR remains Draft until the isolated implementation and focused tests are complete.
+8. Each worker PR must list changed domains, tests, remaining integration hooks and coordinator-owned changes still required.
+9. CI must be green on the final reconciled head before merge.
+10. Worker chats never merge their own PRs.
+11. An open worker PR is **IMPLEMENTED IN PR**, never product state.
 
-## Integration order
+## Current integration order
 
-Current preferred order:
+1. PR #39 is complete and merged.
+2. Let current Worker A / Worker B CI runs finish without branch interference.
+3. Coordinator may continue the independent secured Engineering mutation slice in parallel.
+4. Review worker PRs and their `INTEGRATION REQUIRED` items.
+5. Reconcile the smaller/cleaner ready worker PR with then-current `main` first.
+6. Add only the necessary coordinator-owned integration hooks, run full relevant CI and merge when green.
+7. Reconcile the remaining worker PR again against updated `main`, integrate hooks, validate and merge.
+8. Internal Memory must reach full product integration before TAG Gateway starts.
+9. Python/visual foundation must be integrated before the final graphical editor starts, but it does not block the earlier interface-validation preview after driver diagnostics.
 
-1. finish and merge PR #39 user administration;
-2. rebase/reconcile Worker A and Worker B onto the new `main`;
-3. integrate the smaller/cleaner worker PR first;
-4. rebase the remaining worker PR again onto updated `main`;
-5. perform full relevant CI and integration smoke tests;
-6. merge only after shared-file hooks are reviewed by the coordinator.
-
-Internal Memory remains earlier in the operational roadmap than TAG Gateway. Python/visual-property foundation can progress concurrently because it is a prerequisite for the later graphical editor and is architecturally isolated from Internal Memory when the shared-file rules above are respected.
+Internal Memory remains earlier in the operational roadmap than TAG Gateway. Python/visual-property foundation may progress concurrently because it targets a later graphical-editor dependency and is isolated from Internal Memory when these ownership rules are respected.
 
 ## Status vocabulary
 

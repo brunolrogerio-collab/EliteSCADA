@@ -14,6 +14,7 @@ test('API distinguishes access levels and records protected-operation audit even
   const tagsResponse = await request.get('/api/tags');
   expect(tagsResponse.ok()).toBeTruthy();
   const tags = await tagsResponse.json() as Array<{ id: string; path: string; readOnly: boolean }>;
+  expect(tags).toHaveLength(7);
   const frequency = tags.find(tag => tag.path === 'Demo.P01.Frequency');
   expect(frequency).toBeTruthy();
   expect(frequency!.readOnly).toBeFalsy();
@@ -25,6 +26,7 @@ test('API distinguishes access levels and records protected-operation audit even
     name: string;
     shelvingAllowed: boolean;
   }>;
+  expect(alarmDefinitions).toHaveLength(2);
   const shelfableAlarm = alarmDefinitions.find(alarm => alarm.shelvingAllowed);
   expect(shelfableAlarm).toBeTruthy();
 
@@ -44,6 +46,11 @@ test('API distinguishes access levels and records protected-operation audit even
   });
   try {
     expect((await anonymous.get('/api/auth/me')).status()).toBe(401);
+    expect((await anonymous.get('/api/tags')).status()).toBe(401);
+    expect((await anonymous.get('/api/tags/current')).status()).toBe(401);
+    expect((await anonymous.get(`/api/history/${frequency!.id}?limit=5`)).status()).toBe(401);
+    expect((await anonymous.get('/api/alarms')).status()).toBe(401);
+    expect((await anonymous.get('/api/alarms/definitions')).status()).toBe(401);
     expect((await anonymous.post(`/api/tags/${frequency!.id}/write`, {
       data: { value: 51 }
     })).status()).toBe(401);
@@ -66,12 +73,41 @@ test('API distinguishes access levels and records protected-operation audit even
   });
   try {
     expect((await invalid.get('/api/auth/me')).status()).toBe(401);
+    expect((await invalid.get('/api/tags')).status()).toBe(401);
     expect((await invalid.post(`/api/tags/${frequency!.id}/write`, {
       data: { value: 53 }
     })).status()).toBe(401);
     expect((await invalid.post(`/api/commands/${startCommand!.id}/execute`)).status()).toBe(401);
   } finally {
     await invalid.dispose();
+  }
+
+  const noReadToken = createE2eJwt('e2e-no-read', ['role-with-no-grants'], 'E2E No Read');
+  const noRead = await playwrightRequest.newContext({
+    baseURL,
+    extraHTTPHeaders: { Authorization: `Bearer ${noReadToken}` }
+  });
+  try {
+    const noReadTagsResponse = await noRead.get('/api/tags');
+    expect(noReadTagsResponse.ok()).toBeTruthy();
+    expect(await noReadTagsResponse.json()).toEqual([]);
+
+    const noReadCurrentResponse = await noRead.get('/api/tags/current');
+    expect(noReadCurrentResponse.ok()).toBeTruthy();
+    expect(await noReadCurrentResponse.json()).toEqual([]);
+
+    expect((await noRead.get('/api/tags/by-path/Demo.P01.Frequency')).status()).toBe(403);
+    expect((await noRead.get(`/api/history/${frequency!.id}?limit=5`)).status()).toBe(403);
+
+    const noReadAlarmsResponse = await noRead.get('/api/alarms');
+    expect(noReadAlarmsResponse.ok()).toBeTruthy();
+    expect(await noReadAlarmsResponse.json()).toEqual([]);
+
+    const noReadAlarmDefinitionsResponse = await noRead.get('/api/alarms/definitions');
+    expect(noReadAlarmDefinitionsResponse.ok()).toBeTruthy();
+    expect(await noReadAlarmDefinitionsResponse.json()).toEqual([]);
+  } finally {
+    await noRead.dispose();
   }
 
   const operatorToken = createE2eJwt('e2e-operator', ['operator'], 'E2E Operator');
@@ -82,6 +118,12 @@ test('API distinguishes access levels and records protected-operation audit even
   try {
     const operatorMe = await operator.get('/api/auth/me');
     expect(operatorMe.ok()).toBeTruthy();
+
+    const operatorTagsResponse = await operator.get('/api/tags');
+    expect(operatorTagsResponse.ok()).toBeTruthy();
+    expect((await operatorTagsResponse.json()) as Array<unknown>).toHaveLength(7);
+    expect((await operator.get(`/api/history/${frequency!.id}?limit=5`)).ok()).toBeTruthy();
+    expect((await operator.get('/api/alarms/definitions')).ok()).toBeTruthy();
 
     // The demo operator has CommandExecute, but ProcessValueWrite is deliberately absent.
     expect((await operator.post(`/api/commands/${startCommand!.id}/execute`)).status()).toBe(202);
@@ -258,4 +300,80 @@ test('API distinguishes access levels and records protected-operation audit even
   // Audit metadata is intentionally structural; process values and credentials are not copied into it.
   expect(events.every(event => !event.details || !('value' in event.details))).toBeTruthy();
   expect(events.every(event => !event.details || !('authorization' in event.details))).toBeTruthy();
+});
+
+test('realtime WebSocket requires identity and filters TAG events by TagRead', async ({ browser }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  try {
+    const anonymousResult = await page.evaluate(async () => {
+      return await new Promise<string>(resolve => {
+        const socket = new WebSocket('ws://127.0.0.1:5173/ws/tags');
+        const timeout = window.setTimeout(() => {
+          socket.close();
+          resolve('timeout');
+        }, 1500);
+        socket.onopen = () => {
+          window.clearTimeout(timeout);
+          socket.close();
+          resolve('opened');
+        };
+        socket.onerror = () => {
+          window.clearTimeout(timeout);
+          resolve('rejected');
+        };
+      });
+    });
+    expect(anonymousResult).toBe('rejected');
+
+    const developerToken = createE2eJwt('ws-developer', ['developer'], 'WS Developer');
+    const developerMessage = await page.evaluate(async token => {
+      return await new Promise<string>(resolve => {
+        const socket = new WebSocket(`ws://127.0.0.1:5173/ws/tags?access_token=${encodeURIComponent(token)}`);
+        const timeout = window.setTimeout(() => {
+          socket.close();
+          resolve('timeout');
+        }, 3000);
+        socket.onmessage = event => {
+          window.clearTimeout(timeout);
+          socket.close();
+          resolve(event.data);
+        };
+        socket.onerror = () => {
+          window.clearTimeout(timeout);
+          resolve('rejected');
+        };
+      });
+    }, developerToken);
+    expect(developerMessage).not.toBe('timeout');
+    expect(developerMessage).not.toBe('rejected');
+    const parsed = JSON.parse(developerMessage) as { type: string; tag: { path: string } };
+    expect(parsed.type).toBe('tagValueChanged');
+    expect(parsed.tag.path.startsWith('Demo.')).toBeTruthy();
+
+    const noReadToken = createE2eJwt('ws-no-read', ['role-with-no-grants'], 'WS No Read');
+    const noReadResult = await page.evaluate(async token => {
+      return await new Promise<string>(resolve => {
+        const socket = new WebSocket(`ws://127.0.0.1:5173/ws/tags?access_token=${encodeURIComponent(token)}`);
+        let opened = false;
+        const timeout = window.setTimeout(() => {
+          socket.close();
+          resolve(opened ? 'opened-no-message' : 'timeout-before-open');
+        }, 1800);
+        socket.onopen = () => { opened = true; };
+        socket.onmessage = () => {
+          window.clearTimeout(timeout);
+          socket.close();
+          resolve('leaked-message');
+        };
+        socket.onerror = () => {
+          window.clearTimeout(timeout);
+          resolve('rejected');
+        };
+      });
+    }, noReadToken);
+    expect(noReadResult).toBe('opened-no-message');
+  } finally {
+    await context.close();
+  }
 });

@@ -7,9 +7,9 @@ namespace Scada.Persistence.PostgreSql;
 
 public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore, IAsyncDisposable
 {
-    private const long SchemaInitializationLockKey = 4993446713136202561L;
-
     private const string InitializeSql = """
+        SELECT pg_advisory_xact_lock(4993446713136202561);
+
         CREATE SCHEMA IF NOT EXISTS elitescada;
 
         CREATE TABLE IF NOT EXISTS elitescada.schema_migrations (
@@ -98,24 +98,8 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
-        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
-
-        await using (var lockCommand = new NpgsqlCommand(
-                         "SELECT pg_advisory_xact_lock(@lock_key);",
-                         connection,
-                         transaction))
-        {
-            lockCommand.Parameters.AddWithValue("lock_key", SchemaInitializationLockKey);
-            await lockCommand.ExecuteNonQueryAsync(cancellationToken);
-        }
-
-        await using (var command = new NpgsqlCommand(InitializeSql, connection, transaction))
-        {
-            await command.ExecuteNonQueryAsync(cancellationToken);
-        }
-
-        await transaction.CommitAsync(cancellationToken);
+        await using var command = _dataSource.CreateCommand(InitializeSql);
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public Task<EngineeringProjectSnapshot> SaveAsync(
@@ -167,13 +151,13 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
                 @engineering_schema_version,
                 @saved_by,
                 @based_on_revision,
-                CAST(@payload AS jsonb)
+                @payload
             WHERE @based_on_revision IS NULL
                OR EXISTS (
                     SELECT 1
                     FROM elitescada.engineering_revisions parent
-                    WHERE parent.revision = @based_on_revision
-                      AND parent.project_key = @project_key)
+                    WHERE parent.project_key = @project_key
+                      AND parent.revision = @based_on_revision)
             RETURNING revision, saved_at_utc;
             """;
 
@@ -182,29 +166,28 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         command.Parameters.AddWithValue("project_name", projectName.Trim());
         command.Parameters.AddWithValue("engineering_schema", engineeringSchema.Trim());
         command.Parameters.AddWithValue("engineering_schema_version", engineeringSchemaVersion);
-        command.Parameters.AddWithValue("saved_by", NpgsqlDbType.Varchar, (object?)Normalize(savedBy) ?? DBNull.Value);
+        command.Parameters.AddWithValue("saved_by", NpgsqlDbType.Varchar, (object?)NormalizeOptional(savedBy) ?? DBNull.Value);
         command.Parameters.AddWithValue("based_on_revision", NpgsqlDbType.Bigint, (object?)basedOnRevision ?? DBNull.Value);
-        command.Parameters.AddWithValue("payload", engineeringJson);
+        command.Parameters.AddWithValue("payload", NpgsqlDbType.Jsonb, engineeringJson);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
         {
             throw new InvalidOperationException(
-                $"Based-on revision {basedOnRevision} does not belong to project '{projectKey}'.");
+                basedOnRevision.HasValue
+                    ? $"Engineering base revision {basedOnRevision} does not belong to project '{projectKey.Trim()}'."
+                    : "PostgreSQL did not return the saved engineering revision.");
         }
 
-        var revision = reader.GetInt64(0);
-        var savedAtUtc = reader.GetFieldValue<DateTimeOffset>(1);
-
         return new EngineeringProjectSnapshot(
-            revision,
+            reader.GetInt64(0),
             projectKey.Trim(),
             projectName.Trim(),
             engineeringSchema.Trim(),
             engineeringSchemaVersion,
+            ReadTimestamp(reader, 1),
             engineeringJson,
-            savedAtUtc,
-            Normalize(savedBy),
+            NormalizeOptional(savedBy),
             basedOnRevision);
     }
 
@@ -213,10 +196,18 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         CancellationToken cancellationToken = default)
     {
         ValidateProjectKey(projectKey);
+
         const string sql = """
-            SELECT revision, project_key, project_name, engineering_schema,
-                   engineering_schema_version, payload::text, saved_at_utc, saved_by,
-                   based_on_revision
+            SELECT
+                revision,
+                project_key,
+                project_name,
+                engineering_schema,
+                engineering_schema_version,
+                saved_at_utc,
+                payload::text,
+                saved_by,
+                based_on_revision
             FROM elitescada.engineering_revisions
             WHERE project_key = @project_key
             ORDER BY revision DESC
@@ -225,7 +216,9 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
 
         await using var command = _dataSource.CreateCommand(sql);
         command.Parameters.AddWithValue("project_key", projectKey.Trim());
-        return await ReadSingleAsync(command, cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        return await reader.ReadAsync(cancellationToken) ? ReadSnapshot(reader) : null;
     }
 
     public async Task<EngineeringProjectSnapshot?> LoadRevisionAsync(
@@ -234,20 +227,31 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         CancellationToken cancellationToken = default)
     {
         ValidateProjectKey(projectKey);
-        if (revision < 1) throw new ArgumentOutOfRangeException(nameof(revision));
+        if (revision < 1)
+            throw new ArgumentOutOfRangeException(nameof(revision));
 
         const string sql = """
-            SELECT revision, project_key, project_name, engineering_schema,
-                   engineering_schema_version, payload::text, saved_at_utc, saved_by,
-                   based_on_revision
+            SELECT
+                revision,
+                project_key,
+                project_name,
+                engineering_schema,
+                engineering_schema_version,
+                saved_at_utc,
+                payload::text,
+                saved_by,
+                based_on_revision
             FROM elitescada.engineering_revisions
-            WHERE project_key = @project_key AND revision = @revision;
+            WHERE project_key = @project_key AND revision = @revision
+            LIMIT 1;
             """;
 
         await using var command = _dataSource.CreateCommand(sql);
         command.Parameters.AddWithValue("project_key", projectKey.Trim());
         command.Parameters.AddWithValue("revision", revision);
-        return await ReadSingleAsync(command, cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        return await reader.ReadAsync(cancellationToken) ? ReadSnapshot(reader) : null;
     }
 
     public async Task<IReadOnlyCollection<EngineeringProjectSnapshot>> ListRevisionsAsync(
@@ -257,12 +261,19 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
     {
         ValidateProjectKey(projectKey);
         if (limit is < 1 or > 500)
-            throw new ArgumentOutOfRangeException(nameof(limit), "Revision limit must be between 1 and 500.");
+            throw new ArgumentOutOfRangeException(nameof(limit), "Revision list limit must be between 1 and 500.");
 
         const string sql = """
-            SELECT revision, project_key, project_name, engineering_schema,
-                   engineering_schema_version, payload::text, saved_at_utc, saved_by,
-                   based_on_revision
+            SELECT
+                revision,
+                project_key,
+                project_name,
+                engineering_schema,
+                engineering_schema_version,
+                saved_at_utc,
+                payload::text,
+                saved_by,
+                based_on_revision
             FROM elitescada.engineering_revisions
             WHERE project_key = @project_key
             ORDER BY revision DESC
@@ -273,45 +284,12 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         command.Parameters.AddWithValue("project_key", projectKey.Trim());
         command.Parameters.AddWithValue("limit", limit);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        var results = new List<EngineeringProjectSnapshot>();
+
+        var revisions = new List<EngineeringProjectSnapshot>();
         while (await reader.ReadAsync(cancellationToken))
-            results.Add(ReadSnapshot(reader));
-        return results;
-    }
+            revisions.Add(ReadSnapshot(reader));
 
-    public async Task<EngineeringProjectPublication?> PublishRevisionAsync(
-        string projectKey,
-        long revision,
-        string? publishedBy = null,
-        CancellationToken cancellationToken = default)
-    {
-        ValidateProjectKey(projectKey);
-        if (revision < 1) throw new ArgumentOutOfRangeException(nameof(revision));
-
-        const string sql = """
-            INSERT INTO elitescada.project_publications (
-                project_key, published_revision, published_by)
-            SELECT @project_key, revision, @published_by
-            FROM elitescada.engineering_revisions
-            WHERE project_key = @project_key AND revision = @revision
-            ON CONFLICT (project_key) DO UPDATE SET
-                published_revision = EXCLUDED.published_revision,
-                published_at_utc = clock_timestamp(),
-                published_by = EXCLUDED.published_by
-            RETURNING project_key, published_revision, published_at_utc, published_by;
-            """;
-
-        await using var command = _dataSource.CreateCommand(sql);
-        command.Parameters.AddWithValue("project_key", projectKey.Trim());
-        command.Parameters.AddWithValue("revision", revision);
-        command.Parameters.AddWithValue("published_by", NpgsqlDbType.Varchar, (object?)Normalize(publishedBy) ?? DBNull.Value);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (!await reader.ReadAsync(cancellationToken)) return null;
-        return new EngineeringProjectPublication(
-            reader.GetString(0),
-            reader.GetInt64(1),
-            reader.GetFieldValue<DateTimeOffset>(2),
-            reader.IsDBNull(3) ? null : reader.GetString(3));
+        return revisions;
     }
 
     public async Task<EngineeringProjectPublication?> GetPublicationAsync(
@@ -319,6 +297,7 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         CancellationToken cancellationToken = default)
     {
         ValidateProjectKey(projectKey);
+
         const string sql = """
             SELECT project_key, published_revision, published_at_utc, published_by
             FROM elitescada.project_publications
@@ -328,48 +307,47 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         await using var command = _dataSource.CreateCommand(sql);
         command.Parameters.AddWithValue("project_key", projectKey.Trim());
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (!await reader.ReadAsync(cancellationToken)) return null;
-        return new EngineeringProjectPublication(
-            reader.GetString(0),
-            reader.GetInt64(1),
-            reader.GetFieldValue<DateTimeOffset>(2),
-            reader.IsDBNull(3) ? null : reader.GetString(3));
+
+        return await reader.ReadAsync(cancellationToken) ? ReadPublication(reader) : null;
     }
 
-    public async Task<EngineeringProjectActivation?> ActivateRevisionAsync(
+    public async Task<EngineeringProjectPublication?> PublishRevisionAsync(
         string projectKey,
         long revision,
-        string? activatedBy = null,
+        string? publishedBy = null,
         CancellationToken cancellationToken = default)
     {
         ValidateProjectKey(projectKey);
-        if (revision < 1) throw new ArgumentOutOfRangeException(nameof(revision));
+        if (revision < 1)
+            throw new ArgumentOutOfRangeException(nameof(revision));
 
         const string sql = """
-            INSERT INTO elitescada.project_activations (
-                project_key, active_revision, activated_by)
-            SELECT @project_key, @revision, @activated_by
-            FROM elitescada.project_publications publication
-            WHERE publication.project_key = @project_key
-              AND publication.published_revision = @revision
+            INSERT INTO elitescada.project_publications (
+                project_key,
+                published_revision,
+                published_at_utc,
+                published_by)
+            SELECT
+                @project_key,
+                revision,
+                clock_timestamp(),
+                @published_by
+            FROM elitescada.engineering_revisions
+            WHERE project_key = @project_key AND revision = @revision
             ON CONFLICT (project_key) DO UPDATE SET
-                active_revision = EXCLUDED.active_revision,
-                activated_at_utc = clock_timestamp(),
-                activated_by = EXCLUDED.activated_by
-            RETURNING project_key, active_revision, activated_at_utc, activated_by;
+                published_revision = EXCLUDED.published_revision,
+                published_at_utc = EXCLUDED.published_at_utc,
+                published_by = EXCLUDED.published_by
+            RETURNING project_key, published_revision, published_at_utc, published_by;
             """;
 
         await using var command = _dataSource.CreateCommand(sql);
         command.Parameters.AddWithValue("project_key", projectKey.Trim());
         command.Parameters.AddWithValue("revision", revision);
-        command.Parameters.AddWithValue("activated_by", NpgsqlDbType.Varchar, (object?)Normalize(activatedBy) ?? DBNull.Value);
+        command.Parameters.AddWithValue("published_by", NpgsqlDbType.Varchar, (object?)NormalizeOptional(publishedBy) ?? DBNull.Value);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (!await reader.ReadAsync(cancellationToken)) return null;
-        return new EngineeringProjectActivation(
-            reader.GetString(0),
-            reader.GetInt64(1),
-            reader.GetFieldValue<DateTimeOffset>(2),
-            reader.IsDBNull(3) ? null : reader.GetString(3));
+
+        return await reader.ReadAsync(cancellationToken) ? ReadPublication(reader) : null;
     }
 
     public async Task<EngineeringProjectActivation?> GetActivationAsync(
@@ -377,6 +355,7 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         CancellationToken cancellationToken = default)
     {
         ValidateProjectKey(projectKey);
+
         const string sql = """
             SELECT project_key, active_revision, activated_at_utc, activated_by
             FROM elitescada.project_activations
@@ -386,35 +365,79 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         await using var command = _dataSource.CreateCommand(sql);
         command.Parameters.AddWithValue("project_key", projectKey.Trim());
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (!await reader.ReadAsync(cancellationToken)) return null;
-        return new EngineeringProjectActivation(
-            reader.GetString(0),
-            reader.GetInt64(1),
-            reader.GetFieldValue<DateTimeOffset>(2),
-            reader.IsDBNull(3) ? null : reader.GetString(3));
+
+        return await reader.ReadAsync(cancellationToken) ? ReadActivation(reader) : null;
     }
 
-    public async ValueTask DisposeAsync() => await _dataSource.DisposeAsync();
-
-    private static async Task<EngineeringProjectSnapshot?> ReadSingleAsync(
-        NpgsqlCommand command,
-        CancellationToken cancellationToken)
+    public async Task<EngineeringProjectActivation?> RecordActivationAsync(
+        string projectKey,
+        long revision,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default)
     {
+        ValidateProjectKey(projectKey);
+        if (revision < 1)
+            throw new ArgumentOutOfRangeException(nameof(revision));
+
+        const string sql = """
+            INSERT INTO elitescada.project_activations (
+                project_key,
+                active_revision,
+                activated_at_utc,
+                activated_by)
+            SELECT
+                project_key,
+                published_revision,
+                clock_timestamp(),
+                @activated_by
+            FROM elitescada.project_publications
+            WHERE project_key = @project_key AND published_revision = @revision
+            ON CONFLICT (project_key) DO UPDATE SET
+                active_revision = EXCLUDED.active_revision,
+                activated_at_utc = EXCLUDED.activated_at_utc,
+                activated_by = EXCLUDED.activated_by
+            RETURNING project_key, active_revision, activated_at_utc, activated_by;
+            """;
+
+        await using var command = _dataSource.CreateCommand(sql);
+        command.Parameters.AddWithValue("project_key", projectKey.Trim());
+        command.Parameters.AddWithValue("revision", revision);
+        command.Parameters.AddWithValue("activated_by", NpgsqlDbType.Varchar, (object?)NormalizeOptional(activatedBy) ?? DBNull.Value);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        return await reader.ReadAsync(cancellationToken) ? ReadSnapshot(reader) : null;
+
+        return await reader.ReadAsync(cancellationToken) ? ReadActivation(reader) : null;
     }
 
-    private static EngineeringProjectSnapshot ReadSnapshot(NpgsqlDataReader reader) =>
-        new(
-            reader.GetInt64(0),
-            reader.GetString(1),
-            reader.GetString(2),
-            reader.GetString(3),
-            reader.GetInt32(4),
-            reader.GetString(5),
-            reader.GetFieldValue<DateTimeOffset>(6),
-            reader.IsDBNull(7) ? null : reader.GetString(7),
-            reader.IsDBNull(8) ? null : reader.GetInt64(8));
+    public ValueTask DisposeAsync() => _dataSource.DisposeAsync();
+
+    private static EngineeringProjectSnapshot ReadSnapshot(NpgsqlDataReader reader) => new(
+        reader.GetInt64(0),
+        reader.GetString(1),
+        reader.GetString(2),
+        reader.GetString(3),
+        reader.GetInt32(4),
+        ReadTimestamp(reader, 5),
+        reader.GetString(6),
+        reader.IsDBNull(7) ? null : reader.GetString(7),
+        reader.IsDBNull(8) ? null : reader.GetInt64(8));
+
+    private static EngineeringProjectPublication ReadPublication(NpgsqlDataReader reader) => new(
+        reader.GetString(0),
+        reader.GetInt64(1),
+        ReadTimestamp(reader, 2),
+        reader.IsDBNull(3) ? null : reader.GetString(3));
+
+    private static EngineeringProjectActivation ReadActivation(NpgsqlDataReader reader) => new(
+        reader.GetString(0),
+        reader.GetInt64(1),
+        ReadTimestamp(reader, 2),
+        reader.IsDBNull(3) ? null : reader.GetString(3));
+
+    private static DateTimeOffset ReadTimestamp(NpgsqlDataReader reader, int ordinal)
+    {
+        var value = reader.GetFieldValue<DateTime>(ordinal);
+        return new DateTimeOffset(value.Kind == DateTimeKind.Utc ? value : value.ToUniversalTime());
+    }
 
     private static void ValidateIdentity(
         string projectKey,
@@ -423,21 +446,37 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         int engineeringSchemaVersion)
     {
         ValidateProjectKey(projectKey);
-        if (string.IsNullOrWhiteSpace(projectName)) throw new ArgumentException("Project name is required.", nameof(projectName));
-        if (string.IsNullOrWhiteSpace(engineeringSchema)) throw new ArgumentException("Engineering schema is required.", nameof(engineeringSchema));
-        if (engineeringSchemaVersion < 1) throw new ArgumentOutOfRangeException(nameof(engineeringSchemaVersion));
+        if (string.IsNullOrWhiteSpace(projectName))
+            throw new ArgumentException("Project name is required.", nameof(projectName));
+        if (string.IsNullOrWhiteSpace(engineeringSchema))
+            throw new ArgumentException("Engineering schema is required.", nameof(engineeringSchema));
+        if (engineeringSchemaVersion < 1)
+            throw new ArgumentOutOfRangeException(nameof(engineeringSchemaVersion));
     }
 
     private static void ValidateProjectKey(string projectKey)
     {
-        if (string.IsNullOrWhiteSpace(projectKey)) throw new ArgumentException("Project key is required.", nameof(projectKey));
+        if (string.IsNullOrWhiteSpace(projectKey))
+            throw new ArgumentException("Project key is required.", nameof(projectKey));
     }
 
     private static void ValidateJson(string engineeringJson)
     {
-        if (string.IsNullOrWhiteSpace(engineeringJson)) throw new ArgumentException("Engineering JSON is required.", nameof(engineeringJson));
-        using var _ = JsonDocument.Parse(engineeringJson);
+        if (string.IsNullOrWhiteSpace(engineeringJson))
+            throw new ArgumentException("Engineering JSON is required.", nameof(engineeringJson));
+
+        try
+        {
+            using var document = JsonDocument.Parse(engineeringJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                throw new ArgumentException("Engineering JSON root must be an object.", nameof(engineeringJson));
+        }
+        catch (JsonException ex)
+        {
+            throw new ArgumentException("Engineering JSON is invalid.", nameof(engineeringJson), ex);
+        }
     }
 
-    private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

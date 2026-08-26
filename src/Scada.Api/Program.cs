@@ -3,8 +3,10 @@ using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.ProjectPackages;
 using Scada.Engineering.Views;
 using Scada.Api.HostedServices;
+using Scada.Api.ProjectPackages;
 using Scada.Api.Realtime;
 using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
@@ -220,6 +222,7 @@ builder.Services.AddSingleton<IEngineeringViewRegistry>(_ =>
     return registry;
 });
 builder.Services.AddSingleton<IEngineeringExchangeService, EngineeringExchangeService>();
+builder.Services.AddSingleton<IProjectPackageService, ProjectPackageService>();
 builder.Services.AddOpenApi();
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
     policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
@@ -255,6 +258,7 @@ _ = app.Services.GetRequiredService<IHistorian>();
 app.UseCors();
 app.UseWebSockets();
 app.MapOpenApi();
+app.MapProjectPackageEndpoints();
 
 app.MapGet("/health", (SimulationDriver driver, IHistorian historian, IAlarmEngine alarms) => Results.Ok(new
 {

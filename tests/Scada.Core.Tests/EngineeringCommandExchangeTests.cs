@@ -37,7 +37,7 @@ public sealed class EngineeringCommandExchangeTests
 
         var package = service.ParseJson(service.ExportJson());
 
-        Assert.Equal(7, package.SchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, package.SchemaVersion);
         var command = Assert.Single(package.Commands!);
         Assert.Equal("plant.p01.start", command.Key);
         Assert.Equal(tag.Id, command.TargetTagId);
@@ -66,6 +66,47 @@ public sealed class EngineeringCommandExchangeTests
 
         Assert.False(preview.CanApply);
         Assert.Contains(preview.Items.SelectMany(x => x.Issues), x => x.Code == "COMMAND_TARGET_TAG_NOT_FOUND");
+    }
+
+    [Fact]
+    public void Preview_AllowsStableIdAndPathWhenPackageUpdatesExistingTagWithoutRepeatingTagId()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var existing = TagDefinition.Create("Old Run", "Plant.P01.Run", TagDataType.Boolean, readOnly: false);
+        tags.Register(existing);
+        var service = CreateService(tags, alarms, new InMemoryCommandEngineeringRegistry());
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            new[]
+            {
+                new TagEngineeringDto(
+                    null,
+                    "Run",
+                    existing.Path,
+                    TagDataType.Boolean,
+                    ReadOnly: false)
+            },
+            Array.Empty<AlarmEngineeringDto>(),
+            Commands: new[]
+            {
+                new CommandEngineeringDto(
+                    null,
+                    "plant.p01.start",
+                    "Start P01",
+                    CommandKind.WriteTagValue,
+                    "true",
+                    existing.Id,
+                    existing.Path)
+            });
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+
+        Assert.True(preview.CanApply);
+        Assert.DoesNotContain(preview.Items.SelectMany(x => x.Issues), x => x.Code == "COMMAND_TARGET_TAG_MISMATCH");
     }
 
     [Fact]

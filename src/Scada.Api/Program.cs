@@ -1,10 +1,4 @@
 using System.Text;
-using Scada.Engineering.Assets;
-using Scada.Engineering.Contracts;
-using Scada.Engineering.DataSources;
-using Scada.Engineering.ImportExport;
-using Scada.Engineering.ProjectPackages;
-using Scada.Engineering.Views;
 using Scada.Api.Historian;
 using Scada.Api.HostedServices;
 using Scada.Api.Persistence;
@@ -18,6 +12,12 @@ using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Simulation;
+using Scada.Engineering.Assets;
+using Scada.Engineering.Contracts;
+using Scada.Engineering.DataSources;
+using Scada.Engineering.ImportExport;
+using Scada.Engineering.ProjectPackages;
+using Scada.Engineering.Views;
 using Scada.Historian.Abstractions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,6 +29,9 @@ builder.AddConfiguredHistorian();
 builder.Services.AddSingleton<EngineeringWorkspace>();
 builder.Services.AddSingleton<ITagRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Tags);
 builder.Services.AddSingleton<IAlarmEngine>(sp => sp.GetRequiredService<EngineeringWorkspace>().Alarms);
+builder.Services.AddSingleton<IDataSourceEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().DataSources);
+builder.Services.AddSingleton<IEngineeringAssetRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Assets);
+builder.Services.AddSingleton<IEngineeringViewRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Views);
 builder.Services.AddSingleton<DemoRuntimeServices>();
 
 builder.Services.AddSingleton<IEngineeringDriverCompiler, EngineeringDriverCompiler>();
@@ -39,203 +42,7 @@ builder.Services.AddSingleton<IEngineeringRuntimeCoordinator>(sp =>
         TimeSpan.FromSeconds(Math.Max(
             1,
             builder.Configuration.GetValue<double?>("EngineeringRuntime:ActivationTimeoutSeconds") ?? 10))));
-builder.Services.AddSingleton<IDataSourceEngineeringRegistry>(_ =>
-{
-    var registry = new InMemoryDataSourceEngineeringRegistry();
-    registry.Upsert(new DataSourceEngineeringDto(
-        Id: null,
-        Key: "builtin.simulation",
-        Name: "Built-in Simulation",
-        Driver: "builtin.simulation",
-        Enabled: true,
-        Settings: new Dictionary<string, string>
-        {
-            ["scanIntervalMilliseconds"] = "500"
-        },
-        Metadata: new Dictionary<string, string>
-        {
-            ["system"] = "true"
-        }));
-    return registry;
-});
-builder.Services.AddSingleton<IEngineeringAssetRegistry>(_ =>
-{
-    var registry = new InMemoryEngineeringAssetRegistry();
 
-    var templateBindings = new[]
-    {
-        new EngineeringBindingDto("running", EngineeringBindingKind.Tag, "{equipmentPath}.Running", "read"),
-        new EngineeringBindingDto("fault", EngineeringBindingKind.Tag, "{equipmentPath}.Fault", "read"),
-        new EngineeringBindingDto("current", EngineeringBindingKind.Tag, "{equipmentPath}.Current", "read"),
-        new EngineeringBindingDto("frequency", EngineeringBindingKind.Tag, "{equipmentPath}.Frequency", "readWrite")
-    };
-
-    registry.UpsertTemplate(new EquipmentTemplateEngineeringDto(
-        Id: null,
-        Key: "pump.standard",
-        Name: "Standard Pump",
-        Bindings: templateBindings,
-        Properties: new Dictionary<string, string>
-        {
-            ["category"] = "pump",
-            ["defaultFrequencyHz"] = "60"
-        },
-        Context: new Dictionary<string, string>
-        {
-            ["domain"] = "pumping"
-        }));
-
-    registry.UpsertEquipment(new EquipmentEngineeringDto(
-        Id: null,
-        Path: "Demo.P01",
-        Name: "Pump P01",
-        TemplateKey: "pump.standard",
-        Bindings: new[]
-        {
-            new EngineeringBindingDto("running", EngineeringBindingKind.Tag, "Demo.P01.Running", "read"),
-            new EngineeringBindingDto("fault", EngineeringBindingKind.Tag, "Demo.P01.Fault", "read"),
-            new EngineeringBindingDto("current", EngineeringBindingKind.Tag, "Demo.P01.Current", "read"),
-            new EngineeringBindingDto("frequency", EngineeringBindingKind.Tag, "Demo.P01.Frequency", "readWrite")
-        },
-        Properties: new Dictionary<string, string>
-        {
-            ["displayLabel"] = "P01"
-        },
-        Context: new Dictionary<string, string>
-        {
-            ["area"] = "Demo",
-            ["process"] = "Discharge"
-        }));
-
-    registry.UpsertDynamo(new DynamoEngineeringDto(
-        Id: null,
-        Key: "dynamo.pump.standard",
-        Name: "Standard Pump Dynamo",
-        TemplateKey: "pump.standard",
-        Bindings: templateBindings,
-        Properties: new Dictionary<string, string>
-        {
-            ["symbol"] = "pump"
-        },
-        Context: new Dictionary<string, string>
-        {
-            ["usage"] = "process-screen"
-        }));
-
-    return registry;
-});
-builder.Services.AddSingleton<IEngineeringViewRegistry>(_ =>
-{
-    var registry = new InMemoryEngineeringViewRegistry();
-
-    registry.UpsertScreen(new ScreenEngineeringDto(
-        Id: null,
-        Key: "demo.overview",
-        Name: "Demo Overview",
-        Route: "/demo",
-        Elements: new[]
-        {
-            new VisualElementEngineeringDto(
-                Key: "tank01",
-                Type: "tank",
-                Bindings: new[]
-                {
-                    new EngineeringBindingDto("level", EngineeringBindingKind.Tag, "Demo.Tank01.Level", "read")
-                },
-                Properties: new Dictionary<string, string>
-                {
-                    ["label"] = "Reservatório TK01",
-                    ["x"] = "100",
-                    ["y"] = "100"
-                }),
-            new VisualElementEngineeringDto(
-                Key: "pump01",
-                Type: "dynamo",
-                DynamoKey: "dynamo.pump.standard",
-                EquipmentPath: "Demo.P01",
-                Properties: new Dictionary<string, string>
-                {
-                    ["x"] = "430",
-                    ["y"] = "160"
-                }),
-            new VisualElementEngineeringDto(
-                Key: "pressure",
-                Type: "value",
-                Bindings: new[]
-                {
-                    new EngineeringBindingDto("value", EngineeringBindingKind.Tag, "Demo.Discharge.Pressure", "read")
-                },
-                Properties: new Dictionary<string, string>
-                {
-                    ["label"] = "Pressão"
-                }),
-            new VisualElementEngineeringDto(
-                Key: "flow",
-                Type: "value",
-                Bindings: new[]
-                {
-                    new EngineeringBindingDto("value", EngineeringBindingKind.Tag, "Demo.Discharge.Flow", "read")
-                },
-                Properties: new Dictionary<string, string>
-                {
-                    ["label"] = "Vazão"
-                })
-        },
-        Properties: new Dictionary<string, string>
-        {
-            ["canvasWidth"] = "1366",
-            ["canvasHeight"] = "768"
-        },
-        Context: new Dictionary<string, string>
-        {
-            ["area"] = "Demo",
-            ["process"] = "Pumping"
-        }));
-
-    registry.UpsertPopup(new PopupEngineeringDto(
-        Id: null,
-        Key: "popup.pump.standard",
-        Name: "Standard Pump Popup",
-        TemplateKey: "pump.standard",
-        Elements: new[]
-        {
-            new VisualElementEngineeringDto(
-                Key: "current",
-                Type: "value",
-                Bindings: new[]
-                {
-                    new EngineeringBindingDto("value", EngineeringBindingKind.Tag, "{equipmentPath}.Current", "read")
-                },
-                Properties: new Dictionary<string, string> { ["label"] = "Corrente" }),
-            new VisualElementEngineeringDto(
-                Key: "frequency",
-                Type: "value",
-                Bindings: new[]
-                {
-                    new EngineeringBindingDto("value", EngineeringBindingKind.Tag, "{equipmentPath}.Frequency", "readWrite")
-                },
-                Properties: new Dictionary<string, string> { ["label"] = "Frequência" }),
-            new VisualElementEngineeringDto(
-                Key: "fault",
-                Type: "status",
-                Bindings: new[]
-                {
-                    new EngineeringBindingDto("active", EngineeringBindingKind.Tag, "{equipmentPath}.Fault", "read")
-                },
-                Properties: new Dictionary<string, string> { ["label"] = "Falha" })
-        },
-        Properties: new Dictionary<string, string>
-        {
-            ["width"] = "640",
-            ["height"] = "420"
-        },
-        Context: new Dictionary<string, string>
-        {
-            ["role"] = "equipment-details"
-        }));
-
-    return registry;
-});
 builder.Services.AddSingleton<IEngineeringExchangeService, EngineeringExchangeService>();
 builder.Services.AddSingleton<IProjectPackageService, ProjectPackageService>();
 builder.AddOptionalEngineeringPersistence();
@@ -340,6 +147,7 @@ app.MapPost("/api/alarms/{id:guid}/ack", async (Guid id, AlarmAckRequest request
 
 app.MapGet("/api/drivers", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.Drivers()));
 
+app.MapGet("/api/engineering/workspace", (EngineeringWorkspace workspace) => Results.Ok(workspace.Describe()));
 app.MapGet("/api/engineering/data-sources", (IDataSourceEngineeringRegistry registry) => Results.Ok(registry.Snapshot()));
 app.MapGet("/api/engineering/templates", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotTemplates()));
 app.MapGet("/api/engineering/equipment", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotEquipment()));

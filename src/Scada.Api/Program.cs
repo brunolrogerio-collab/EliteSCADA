@@ -84,6 +84,7 @@ app.MapOpenApi();
 app.MapProjectPackageEndpoints();
 app.MapEngineeringPersistenceEndpoints();
 app.MapAuditEndpoints();
+app.MapAlarmShelvingEndpoints();
 
 app.MapGet("/health", (ScadaRuntimeFacade runtime, IHistorian historian) =>
 {

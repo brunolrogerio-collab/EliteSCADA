@@ -40,6 +40,7 @@ jobs:
           --health-retries 10
     env:
       ELITESCADA_TEST_POSTGRES: 'Host=127.0.0.1;Port=5432;Database=elitescada_test;Username=postgres;Password=postgres;Pooling=false'
+      ConnectionStrings__EliteScada: 'Host=127.0.0.1;Port=5432;Database=elitescada_test;Username=postgres;Password=postgres;Pooling=false'
 
     steps:
       - name: Checkout
@@ -86,6 +87,41 @@ jobs:
           TAG_COUNT=$(curl -fsS http://127.0.0.1:5080/api/tags | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')
           echo "Runtime exposed ${TAG_COUNT} TAGs"
           test "$TAG_COUNT" -ge 7
+
+          curl -fsS http://127.0.0.1:5080/api/engineering/persistence/status > /tmp/persistence-status.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/persistence-status.json') as f:
+              status = json.load(f)
+          assert status['enabled'] is True
+          assert status['provider'] == 'postgresql'
+          PY
+
+          curl -fsS -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/save \
+            -H 'content-type: application/json' \
+            -d '{"projectName":"CI Demo","savedBy":"github-actions"}' > /tmp/persistence-save.json
+          REVISION=$(python3 -c 'import json; print(json.load(open("/tmp/persistence-save.json"))["revision"])')
+          echo "Saved engineering revision ${REVISION}"
+          test "$REVISION" -ge 1
+
+          curl -fsS http://127.0.0.1:5080/api/engineering/persistence/ci-demo/revisions > /tmp/persistence-revisions.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/persistence-revisions.json') as f:
+              revisions = json.load(f)
+          assert len(revisions) >= 1
+          assert revisions[0]['projectKey'] == 'ci-demo'
+          assert revisions[0]['engineeringSchemaVersion'] == 5
+          PY
+
+          curl -fsS -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/latest/preview > /tmp/persistence-preview.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/persistence-preview.json') as f:
+              result = json.load(f)
+          assert result['preview']['canApply'] is True
+          assert result['revision']['projectKey'] == 'ci-demo'
+          PY
 
   frontend:
     name: Web build

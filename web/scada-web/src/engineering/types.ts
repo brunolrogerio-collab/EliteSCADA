@@ -17,23 +17,35 @@ export type EngineeringWorkspaceDescriptor = {
   securityRoleCount?: number;
 };
 
+export type HistorianEngineering = {
+  enabled?: boolean;
+  strategy?: string;
+  deadband?: number | null;
+  periodMilliseconds?: number | null;
+  maximumPeriodMilliseconds?: number | null;
+};
+
+export type TagAccessPolicyEngineering = {
+  readRoles?: string[] | null;
+  writeRoles?: string[] | null;
+  configureRoles?: string[] | null;
+};
+
 export type TagEngineering = {
   id?: string;
   name: string;
   path: string;
   dataType: string;
-  source?: string;
-  address?: string;
-  engineeringUnit?: string;
-  description?: string;
+  source?: string | null;
+  address?: string | null;
+  engineeringUnit?: string | null;
+  description?: string | null;
   readOnly: boolean;
-  historian?: {
-    enabled?: boolean;
-    strategy?: string;
-    deadband?: number;
-    periodMilliseconds?: number;
-    maximumPeriodMilliseconds?: number;
-  };
+  scaleMinimum?: number | null;
+  scaleMaximum?: number | null;
+  historian?: HistorianEngineering | null;
+  metadata?: Record<string, string> | null;
+  accessPolicy?: TagAccessPolicyEngineering | null;
 };
 
 export type AlarmEngineering = {
@@ -53,6 +65,9 @@ export type DataSourceEngineering = {
   name: string;
   driver: string;
   enabled?: boolean;
+  settings?: Record<string, string> | null;
+  secretReferences?: Record<string, string> | null;
+  metadata?: Record<string, string> | null;
 };
 
 export type BindingEngineering = {
@@ -122,9 +137,35 @@ export type EngineeringPackageView = {
   screens?: ScreenEngineering[];
   popups?: PopupEngineering[];
   securityRoles?: SecurityRoleEngineering[];
+  [key: string]: unknown;
 };
 
 export type EngineeringSnapshot = {
   workspace: EngineeringWorkspaceDescriptor;
   package: EngineeringPackageView;
+};
+
+export type ImportIssueView = {
+  code: string;
+  message: string;
+  entityKind: string;
+  entityKey: string;
+  isError: boolean;
+};
+
+export type ImportPreviewItemView = {
+  entityKind: string;
+  entityKey: string;
+  operation: string;
+  issues: ImportIssueView[];
+};
+
+export type ImportPreviewView = {
+  mode: string;
+  createCount: number;
+  updateCount: number;
+  skipCount: number;
+  errorCount: number;
+  items: ImportPreviewItemView[];
+  canApply: boolean;
 };

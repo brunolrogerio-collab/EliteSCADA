@@ -14,7 +14,7 @@
 - PR #35 head: `feature/operational-command-domain` at `fc15adb507db172233ed2893f65d30cdad311963`.
 - PR #35 is open, mergeable and intentionally **not merged** until CI completes successfully.
 - Stacked follow-up branch: `feature/runtime-read-authorization`.
-- Stacked branch HEAD before this handoff update: `6714dc7c2ac1b52577d05c8fe74a70d5e0035ee2`.
+- Stacked branch HEAD before this handoff update: `b9d966ddca9b9720b4e24bd24064629e9c66a2be`.
 
 ## CI diagnosis for PR #35
 
@@ -37,6 +37,8 @@ Run #129 results:
 - Driver, historian, persistence and security test projects passed.
 - One test failed: `EngineeringSchemaV6SecurityTests.SchemaV6_RoundTripsSecurityRolesAndCompilesRuntimePolicy` expected schema version 6 while the operational command domain correctly moved the current Engineering schema to version 7.
 - That stale expectation was corrected after #129, before the current PR head.
+
+The user confirmed through the GitHub UI that queued runs can be cancelled manually. It is safe and useful to cancel redundant queued runs #131 and #132 while leaving the newest #133 queued. Cancelling a workflow run does not alter the branch, commits or PR; it only stops that CI instance. It may reduce duplicate repository queue load but does not guarantee immediate hosted-runner allocation for #133.
 
 Do not repeatedly close/reopen or synchronize PR #35 merely to force CI; that creates additional runs without solving hosted-runner availability. Wait for the latest queued run to receive a runner, then inspect its result. Do not merge PR #35 on static review alone.
 

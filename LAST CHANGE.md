@@ -9,49 +9,93 @@
 
 ## Latest task
 
-The user added two future industrial-driver targets and asked that they be preserved for implementation at the appropriate time.
+The user added two stable product requirements and asked that they be incorporated into the project memory/roadmap:
 
-No runtime/product code was developed. This task changed project documentation/architecture only, and the development pause remains in effect.
+1. **BACnet communication-driver support** as an additional future industrial/building-automation protocol target.
+2. **Developer-selectable Engineering/development UI language** among Portuguese, English and Spanish across the engineering environment.
 
-### New locked driver direction
+No runtime/product code was developed. This task changed only product-goal/architecture/roadmap documentation, and the development pause remains in effect.
 
-1. **First installable driver module target: Siemens S7 ISO Connection**
-   - The first intended installable communication-driver module is for Siemens PLC communication compatible with S7 ISO Connection.
-   - This is a future implementation target, not active development now.
-   - When its implementation slice begins, research existing public/open-source S7 work, including relevant Node-RED nodes/libraries and other reusable implementations.
-   - Existing work may be reused only after license/attribution/distribution obligations are checked and the technical behavior is validated for an industrial SCADA runtime.
-   - Research must determine actual Siemens PLC-family coverage, address/data-type support, connection modes, reads/writes, reconnect behavior, diagnostics and failure semantics before production scope is locked.
+## BACnet requirement added
 
-2. **Future Allen-Bradley driver target**
-   - A future installable communication module for Allen-Bradley PLCs is part of the product direction.
-   - No protocol/library/family scope is locked yet.
-   - At the appropriate time, research public protocol documentation, open-source implementations, available libraries, licensing, representative equipment/simulators and legally reusable approaches.
-   - Manufacturer documentation/cooperation should be used when available, but the architectural goal must not depend entirely on obtaining direct manufacturer support.
-   - Implementation scope is decided only after that research produces enough evidence for reliable support.
+BACnet is now a locked future communication-driver target alongside MQTT and OPC UA.
 
-### Files updated
+The intended protocol direction is now:
 
-- `PROJECT GOAL.md` now records Siemens S7 ISO Connection as the first intended installable driver module target and Allen-Bradley as a later research/module target.
-- `docs/ADR-007-DRIVER-MODULES-AND-PROTOCOLS.md` now records the same protocol/module priority and research constraints.
+- Modbus TCP — implemented real-driver baseline;
+- MQTT — planned first-class integration;
+- OPC UA — planned first-class interoperability integration;
+- BACnet — planned driver protocol, especially relevant to building automation/BMS and BACnet-capable controllers/devices;
+- Siemens S7 ISO Connection — first intended installable driver-module target;
+- Allen-Bradley — later explicit research/module target;
+- additional first-party/third-party drivers through the installable Driver Module framework.
 
-### Repository state before this LAST CHANGE update
+The user considers this protocol family broad enough to target more than 90% of practical PLC/controller needs in the intended market. Repository documentation records that as a **planning hypothesis**, not an externally verified market statistic. Validate any numerical market-coverage claim before presenting it publicly.
+
+All future protocols continue to use the common Driver SDK/DriverHost, Data Source, TAG, quality, Engineering, security, audit and persistence boundaries.
+
+## Engineering/development UI localization requirement added
+
+The developer/engineering user must be able to select the EliteSCADA Engineering interface language among:
+
+- Portuguese (Brazil) — `pt-BR`;
+- English — `en`;
+- Spanish — `es`.
+
+The selection applies consistently across developer-facing Engineering surfaces, including:
+
+- Data Sources and driver configuration;
+- TAG engineering;
+- database/historian configuration and diagnostics;
+- alarm engineering;
+- Equipment Templates, Equipment and Dynamos;
+- screen and popup creation/editing;
+- trends;
+- project/revision/save/publish/activate workflows;
+- users, roles and security administration;
+- driver/module administration and diagnostics;
+- menus, dialogs, property editors, validation messages and product-owned engineering help text.
+
+Changing interface language must **not** change stable Engineering IDs, TAG paths, communication addresses, internal enum/storage values, public schema keys, revision identity or runtime semantics. Product-owned UI strings should use localization/resource keys instead of becoming authoritative engineering data.
+
+The language preference should be persistable per user/profile when that subsystem exists.
+
+This requirement is specifically for the Engineering/development interface. Multilingual content inside runtime HMI/process screens is a separate future capability and must not be assumed to exist merely because the editor is localized.
+
+## Files changed in this task
+
+- `PROJECT GOAL.md`
+  - added BACnet to the locked industrial communication direction;
+  - recorded the broad-market-coverage planning rationale with the >90% figure explicitly treated as unverified until validated;
+  - added the complete Portuguese/English/Spanish Engineering UI localization requirement.
+
+- `docs/ADR-007-DRIVER-MODULES-AND-PROTOCOLS.md`
+  - added BACnet as an explicit protocol target;
+  - aligned the protocol-coverage rationale with Modbus TCP, MQTT, OPC UA, S7 and future Allen-Bradley support.
+
+- `docs/ADR-008-ENGINEERING-UI-LOCALIZATION.md`
+  - new accepted architectural decision defining Portuguese (`pt-BR`), English (`en`) and Spanish (`es`) localization for the Engineering/development interface;
+  - keeps localization as presentation/user preference and Engineering contracts language-neutral;
+  - distinguishes editor localization from future multilingual runtime-HMI content.
+
+- `docs/ROADMAP.md`
+  - added a future BACnet integration slice;
+  - added a future Engineering UI localization slice;
+  - added locked future-requirement sections for BACnet/protocol coverage and Engineering UI localization.
+
+## Repository state before this LAST CHANGE update
 
 Live `main` HEAD observed immediately before updating this file:
 
-`4f42a83716590a0cc6c8a083ee9ab8d80a03f05f` — `Record first installable driver targets`
+`e3c0f36638fd940a3e38211adaeeb983aba64046` — `Add BACnet and engineering UI localization to roadmap`
 
 This `LAST CHANGE.md` update creates a newer commit. Always fetch live `main` HEAD on the next task.
 
-## Current industrial communication north
+## Previous driver targets still locked
 
-- Modbus TCP: implemented real-driver baseline.
-- MQTT: planned first-class integration.
-- OPC UA: planned first-class integration.
-- Installable/versioned Driver Module framework: locked product requirement.
 - First intended installable module: Siemens S7 ISO Connection.
-- Later research target: Allen-Bradley PLC communication module.
-- All drivers/modules must remain behind the common Driver SDK/DriverHost, Data Source, TAG, Engineering, security, audit and runtime-quality boundaries.
-- Plugin-owned configuration participates in public/versioned Engineering Import/Export and must remain preservable even when its module is missing/incompatible.
+- At implementation time, research Node-RED S7 work and other public/open-source implementations; reuse only after license review and industrial suitability validation.
+- Allen-Bradley remains a future research/module target with protocol/library/family scope intentionally undecided until evidence is gathered.
 
 ## Previous functional milestone
 
@@ -69,7 +113,7 @@ The user previously requested development to stop after a ChatGPT/platform error
 
 Documentation/goal maintenance is allowed when explicitly requested. New product development resumes only after an explicit instruction to continue.
 
-## Next product slice when development is explicitly resumed
+## Immediate next product slice when development is explicitly resumed
 
 According to the current roadmap, the immediate next technical slice remains:
 
@@ -77,7 +121,7 @@ According to the current roadmap, the immediate next technical slice remains:
 2. enforce/audit `CommandExecute` against real command objects;
 3. extend authorization to sensitive read/realtime/WebSocket surfaces.
 
-Later roadmap/goal slices include historian retention/downsampling, MQTT, OPC UA, installable Driver Modules, Siemens S7 as the first intended module, future Allen-Bradley research, XLSX Engineering, diagnostics and frontend hardening.
+Later roadmap slices include historian retention/downsampling, MQTT, OPC UA, BACnet, installable Driver Modules with Siemens S7 as first target, Engineering UI localization, XLSX Engineering, diagnostics and frontend hardening.
 
 ## Resume checklist
 
@@ -87,10 +131,11 @@ Before any EliteSCADA task:
 2. Read this `LAST CHANGE.md` completely.
 3. Fetch live `main` HEAD/recent commits when repository state matters.
 4. Read `docs/ROADMAP.md` when planning implementation.
-5. For protocol/module work, read `docs/ADR-007-DRIVER-MODULES-AND-PROTOCOLS.md` before designing or coding.
-6. Do not rely on old chat/branch assumptions.
-7. Validate implementation through GitHub CI when .NET cannot be executed locally in the ChatGPT environment.
-8. Immediately before the final user-facing response, update this file again.
+5. For protocol/module work, read `docs/ADR-007-DRIVER-MODULES-AND-PROTOCOLS.md`.
+6. For Engineering UI localization work, read `docs/ADR-008-ENGINEERING-UI-LOCALIZATION.md`.
+7. Do not rely on old chat/branch assumptions.
+8. Validate implementation through GitHub CI when .NET cannot be executed locally in the ChatGPT environment.
+9. Immediately before the final user-facing response, update this file again.
 
 ## Permanent continuity rule
 

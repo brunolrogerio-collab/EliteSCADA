@@ -5,6 +5,7 @@ using Scada.Engineering.DataSources;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.ProjectPackages;
 using Scada.Engineering.Views;
+using Scada.Api.Historian;
 using Scada.Api.HostedServices;
 using Scada.Api.Persistence;
 using Scada.Api.ProjectPackages;
@@ -15,7 +16,6 @@ using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.Drivers.Simulation;
 using Scada.Historian.Abstractions;
-using Scada.Historian.Memory;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,7 +23,7 @@ builder.Services.AddSingleton<IScadaEventBus, InMemoryScadaEventBus>();
 builder.Services.AddSingleton<ICurrentTagCache, CurrentTagCache>();
 builder.Services.AddSingleton<ITagRegistry, InMemoryTagRegistry>();
 builder.Services.AddSingleton<TagRealtimeHub>();
-builder.Services.AddSingleton<IHistorian, BufferedInMemoryHistorian>();
+builder.AddConfiguredHistorian();
 builder.Services.AddSingleton<IAlarmEngine, InMemoryAlarmEngine>();
 builder.Services.AddSingleton<IDataSourceEngineeringRegistry>(_ =>
 {
@@ -269,7 +269,12 @@ app.MapGet("/health", (SimulationDriver driver, IHistorian historian, IAlarmEngi
     status = "ok",
     service = "scada-api",
     driver = driver.Status,
-    historian = new { historian.WrittenSamples, historian.PendingSamples },
+    historian = new
+    {
+        provider = HistorianConfiguration.DescribeProvider(historian),
+        historian.WrittenSamples,
+        historian.PendingSamples
+    },
     activeAlarms = alarms.Snapshot(activeOnly: true).Count
 }));
 

@@ -19,8 +19,15 @@ public static class AuditActions
     public const string EngineeringSave = "engineering.save";
     public const string EngineeringPublish = "engineering.publish";
     public const string EngineeringActivate = "engineering.activate";
+    public const string EngineeringDelete = "engineering.delete";
+    public const string EngineeringBulkEdit = "engineering.bulk-edit";
     public const string AuditRead = "audit.read";
     public const string UserRoleManage = "user-role.manage";
+    public const string AuthenticationLogin = "auth.login";
+    public const string AuthenticationLogout = "auth.logout";
+    public const string UserCreate = "user.create";
+    public const string UserUpdate = "user.update";
+    public const string UserPasswordReset = "user.password-reset";
 }
 
 public sealed record AuditEvent(
@@ -33,7 +40,12 @@ public sealed record AuditEvent(
     string TargetKind,
     string TargetId,
     IReadOnlyDictionary<string, string>? Details = null,
-    string? CorrelationId = null)
+    string? CorrelationId = null,
+    string? Area = null,
+    string? ProjectKey = null,
+    long? Revision = null,
+    IReadOnlyCollection<string>? Roles = null,
+    string? Source = null)
 {
     public static AuditEvent Create(
         string subjectId,
@@ -43,7 +55,12 @@ public sealed record AuditEvent(
         string targetKind,
         string targetId,
         IReadOnlyDictionary<string, string>? details = null,
-        string? correlationId = null) =>
+        string? correlationId = null,
+        string? area = null,
+        string? projectKey = null,
+        long? revision = null,
+        IReadOnlyCollection<string>? roles = null,
+        string? source = null) =>
         new(
             Guid.NewGuid(),
             DateTimeOffset.UtcNow,
@@ -54,5 +71,10 @@ public sealed record AuditEvent(
             targetKind,
             targetId,
             details,
-            correlationId);
+            correlationId,
+            area,
+            projectKey,
+            revision,
+            roles,
+            source);
 }

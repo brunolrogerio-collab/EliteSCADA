@@ -1,26 +1,39 @@
 using System.Collections.Concurrent;
 using System.Net.WebSockets;
-using System.Text;
 using System.Text.Json;
+using Scada.Api.Runtime;
+using Scada.Api.Security;
 using Scada.Core.Events;
+using Scada.Security.Authorization;
 
 namespace Scada.Api.Realtime;
 
 public sealed class TagRealtimeHub : IDisposable
 {
-    private readonly ConcurrentDictionary<Guid, WebSocket> _clients = new();
+    private readonly ConcurrentDictionary<Guid, RealtimeClient> _clients = new();
     private readonly IDisposable _subscription;
+    private readonly ApiAuthorizationService _security;
+    private readonly ScadaRuntimeFacade _runtime;
     private readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
 
-    public TagRealtimeHub(Scada.Core.Abstractions.IScadaEventBus eventBus)
+    public TagRealtimeHub(
+        Scada.Core.Abstractions.IScadaEventBus eventBus,
+        ApiAuthorizationService security,
+        ScadaRuntimeFacade runtime)
     {
+        _security = security;
+        _runtime = runtime;
         _subscription = eventBus.Subscribe<TagValueChanged>(BroadcastAsync);
     }
 
-    public async Task HandleAsync(WebSocket socket, CancellationToken cancellationToken)
+    public async Task HandleAsync(
+        WebSocket socket,
+        SecurityPrincipal principal,
+        bool enforceAuthorization,
+        CancellationToken cancellationToken)
     {
         var clientId = Guid.NewGuid();
-        _clients[clientId] = socket;
+        _clients[clientId] = new RealtimeClient(socket, principal, enforceAuthorization);
         var buffer = new byte[1024];
 
         try
@@ -58,12 +71,31 @@ public sealed class TagRealtimeHub : IDisposable
         }, _jsonOptions);
 
         var dead = new List<Guid>();
-        foreach (var (id, socket) in _clients)
+        foreach (var (id, client) in _clients)
         {
+            var socket = client.Socket;
             if (socket.State != WebSocketState.Open)
             {
                 dead.Add(id);
                 continue;
+            }
+
+            if (client.EnforceAuthorization)
+            {
+                try
+                {
+                    if (!await _security.CanReadRuntimeTagAsync(
+                            client.Principal,
+                            _runtime,
+                            evt.Tag,
+                            CancellationToken.None))
+                        continue;
+                }
+                catch
+                {
+                    // Realtime read authorization fails closed. A policy/persistence problem must never leak TAG data.
+                    continue;
+                }
             }
 
             try
@@ -78,14 +110,19 @@ public sealed class TagRealtimeHub : IDisposable
 
         foreach (var id in dead)
         {
-            if (_clients.TryRemove(id, out var socket)) socket.Dispose();
+            if (_clients.TryRemove(id, out var client)) client.Socket.Dispose();
         }
     }
 
     public void Dispose()
     {
         _subscription.Dispose();
-        foreach (var socket in _clients.Values) socket.Dispose();
+        foreach (var client in _clients.Values) client.Socket.Dispose();
         _clients.Clear();
     }
+
+    private sealed record RealtimeClient(
+        WebSocket Socket,
+        SecurityPrincipal Principal,
+        bool EnforceAuthorization);
 }

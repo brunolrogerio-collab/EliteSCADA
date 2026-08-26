@@ -36,16 +36,21 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
         _acceptLoop = Task.Run(() => AcceptLoopAsync(_cts.Token));
     }
 
-    public async Task StopAsync()
+    public void DropConnections()
     {
-        if (_cts.IsCancellationRequested) return;
-        await _cts.CancelAsync();
-        _listener.Stop();
         foreach (var client in _clients.Values)
         {
             try { client.Dispose(); } catch { }
         }
         _clients.Clear();
+    }
+
+    public async Task StopAsync()
+    {
+        if (_cts.IsCancellationRequested) return;
+        await _cts.CancelAsync();
+        _listener.Stop();
+        DropConnections();
         if (_acceptLoop is not null)
         {
             try { await _acceptLoop; }

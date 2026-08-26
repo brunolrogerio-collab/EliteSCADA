@@ -78,9 +78,6 @@ public static class EngineeringPersistenceApi
 
     public static void MapEngineeringPersistenceEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/engineering/workspace", (EngineeringWorkspace workspace) =>
-            Results.Ok(workspace.Describe()));
-
         var group = app.MapGroup("/api/engineering/persistence");
 
         group.MapGet("/status", (HttpContext context) => Results.Ok(new

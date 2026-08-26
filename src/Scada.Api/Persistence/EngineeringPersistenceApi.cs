@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Scada.Api.Runtime;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Persistence;
 using Scada.Persistence.PostgreSql;
@@ -16,6 +17,7 @@ public static class EngineeringPersistenceApi
             new PostgreSqlEngineeringProjectStore(connectionString));
         builder.Services.TryAddSingleton<IEngineeringProjectPersistenceService, EngineeringProjectPersistenceService>();
         builder.Services.TryAddSingleton<IPublishedRuntimeActivationService, PublishedRuntimeActivationService>();
+        builder.Services.TryAddSingleton<IPersistedRuntimeRecoveryService, PersistedRuntimeRecoveryService>();
     }
 
     public static async Task InitializeEngineeringPersistenceAsync(
@@ -25,6 +27,36 @@ public static class EngineeringPersistenceApi
         var persistence = app.Services.GetService<IEngineeringProjectPersistenceService>();
         if (persistence is not null)
             await persistence.InitializeAsync(cancellationToken);
+    }
+
+    public static async Task<PersistedRuntimeRecoveryResult?> RecoverConfiguredEngineeringRuntimeAsync(
+        this WebApplication app,
+        CancellationToken cancellationToken = default)
+    {
+        var projectKey = app.Configuration["EngineeringRuntime:ProjectKey"];
+        if (string.IsNullOrWhiteSpace(projectKey)) return null;
+
+        var recovery = app.Services.GetService<IPersistedRuntimeRecoveryService>();
+        if (recovery is null) return null;
+
+        var result = await recovery.RecoverAsync(projectKey, cancellationToken);
+        if (result.Found && !result.Recovered)
+        {
+            var issues = result.Runtime is null
+                ? "The persisted active engineering snapshot could not be loaded."
+                : string.Join("; ",
+                    result.Runtime.CompilationIssues
+                        .Where(x => x.IsError)
+                        .Select(x => $"{x.Code}: {x.Message}")
+                        .Concat(result.Runtime.RuntimeIssues
+                            .Where(x => x.IsError)
+                            .Select(x => $"{x.Code}: {x.Message}")));
+
+            throw new InvalidOperationException(
+                $"Persisted active revision {result.PersistedActiveRevision} for project '{projectKey}' could not be recovered. {issues}");
+        }
+
+        return result;
     }
 
     public static void MapEngineeringPersistenceEndpoints(this WebApplication app)
@@ -66,6 +98,31 @@ public static class EngineeringPersistenceApi
             if (persistence is null) return Disabled();
 
             return Results.Ok(await persistence.GetLifecycleAsync(projectKey, cancellationToken));
+        });
+
+        group.MapGet("/{projectKey}/runtime", async (
+            string projectKey,
+            ScadaRuntimeFacade runtime,
+            HttpContext context,
+            CancellationToken cancellationToken) =>
+        {
+            var persistence = Resolve(context);
+            if (persistence is null) return Disabled();
+
+            var lifecycle = await persistence.GetLifecycleAsync(projectKey, cancellationToken);
+            var live = runtime.Describe();
+            var consistent = lifecycle.ActiveRevision.HasValue
+                ? live.ProjectKey?.Equals(projectKey, StringComparison.OrdinalIgnoreCase) == true &&
+                  live.Revision == lifecycle.ActiveRevision
+                : live.Revision is null;
+
+            return Results.Ok(new
+            {
+                projectKey,
+                consistent,
+                durable = lifecycle,
+                live
+            });
         });
 
         group.MapPost("/{projectKey}/published/activate", async (

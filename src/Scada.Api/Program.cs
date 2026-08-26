@@ -562,11 +562,32 @@ app.Map("/ws/tags", async (
         return;
     }
 
+    DateTimeOffset? expiresAtUtc = null;
+    if (security.AuthenticationEnabled)
+    {
+        if (!long.TryParse(context.User.FindFirst("exp")?.Value, out var expiresAtUnix))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+
+        try
+        {
+            expiresAtUtc = DateTimeOffset.FromUnixTimeSeconds(expiresAtUnix);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+    }
+
     var socket = await context.WebSockets.AcceptWebSocketAsync();
     await hub.HandleAsync(
         socket,
         principal,
         security.AuthenticationEnabled,
+        expiresAtUtc,
         context.RequestAborted);
 });
 

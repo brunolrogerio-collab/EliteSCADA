@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { EngineeringApp } from './engineering/EngineeringApp';
 import './styles.css';
 
 type TagMessage = {
@@ -38,7 +39,7 @@ function n(v: unknown, digits = 1) {
   return Number.isFinite(numeric) ? numeric.toFixed(digits) : '--';
 }
 
-function App() {
+function RuntimeApp() {
   const [tags, setTags] = useState<Record<string, LiveTag>>({});
   const [connected, setConnected] = useState(false);
   const [modal, setModal] = useState(false);
@@ -204,4 +205,5 @@ function Metric({ title, value }: { title: string; value: string }) {
   return <div className="metric"><span>{title}</span><strong>{value}</strong></div>;
 }
 
-createRoot(document.getElementById('root')!).render(<App />);
+const RootApp = window.location.pathname.startsWith('/engineering') ? EngineeringApp : RuntimeApp;
+createRoot(document.getElementById('root')!).render(<RootApp />);

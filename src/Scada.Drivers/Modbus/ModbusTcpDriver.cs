@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using Scada.Core.Tags;
 using Scada.Drivers.Abstractions;
 
@@ -160,7 +161,7 @@ public sealed class ModbusTcpDriver : ICommunicationDriver
             {
                 throw;
             }
-            catch (Exception ex) when (ex is IOException or TimeoutException)
+            catch (Exception ex) when (ex is IOException or TimeoutException or SocketException or ObjectDisposedException)
             {
                 failedBlocks++;
                 lastError = ex.Message;

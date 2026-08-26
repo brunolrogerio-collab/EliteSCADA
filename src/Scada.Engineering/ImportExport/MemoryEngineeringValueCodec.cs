@@ -89,7 +89,7 @@ public static class MemoryEngineeringValueCodec
         TagDataType.Double when value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var doubleValue) && double.IsFinite(doubleValue) => doubleValue,
         TagDataType.String when value.ValueKind == JsonValueKind.String => value.GetString()!,
         TagDataType.DateTime when value.ValueKind == JsonValueKind.String && DateTimeOffset.TryParse(
-            value.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dateTimeValue) => dateTimeValue,
+            value.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var dateTimeValue) => dateTimeValue,
         TagDataType.Enum when value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var enumValue) => enumValue,
         _ => throw new ArgumentException(
             $"Engineering initial value is not valid for declared data type {dataType}.",

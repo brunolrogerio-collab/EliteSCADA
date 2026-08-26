@@ -108,21 +108,21 @@ internal static class TimescaleHistorianSchema
                     WHEN quality = {good}
                      AND data_type IN ({numericTypes})
                      AND jsonb_typeof(value) = 'number'
-                    THEN (value #>> '{{}}')::double precision
+                    THEN value::text::double precision
                     ELSE NULL
                 END) AS numeric_minimum,
                 max(CASE
                     WHEN quality = {good}
                      AND data_type IN ({numericTypes})
                      AND jsonb_typeof(value) = 'number'
-                    THEN (value #>> '{{}}')::double precision
+                    THEN value::text::double precision
                     ELSE NULL
                 END) AS numeric_maximum,
                 avg(CASE
                     WHEN quality = {good}
                      AND data_type IN ({numericTypes})
                      AND jsonb_typeof(value) = 'number'
-                    THEN (value #>> '{{}}')::double precision
+                    THEN value::text::double precision
                     ELSE NULL
                 END) AS numeric_average,
                 first(value, ts) AS first_value,

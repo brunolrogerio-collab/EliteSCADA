@@ -7,5 +7,6 @@
     <ProjectReference Include="../Scada.Drivers/Scada.Drivers.csproj" />
     <ProjectReference Include="../Scada.Historian/Scada.Historian.csproj" />
     <ProjectReference Include="../Scada.Engineering/Scada.Engineering.csproj" />
+    <ProjectReference Include="../Scada.Persistence.PostgreSql/Scada.Persistence.PostgreSql.csproj" />
   </ItemGroup>
 </Project>

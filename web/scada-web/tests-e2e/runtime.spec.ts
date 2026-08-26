@@ -189,12 +189,17 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(projectPreview.errorCount).toBe(0);
   expect(projectPreview.canApply).toBeTruthy();
 
-  const alarmResponse = await request.get('/api/alarms?activeOnly=true');
-  expect(alarmResponse.ok()).toBeTruthy();
-  const alarms = await alarmResponse.json() as Array<{ definitionId: string }>;
-  expect(alarms.length).toBeGreaterThan(0);
+  let activeAlarmId: string | undefined;
+  await expect.poll(async () => {
+    const alarmResponse = await request.get('/api/alarms?activeOnly=true');
+    if (!alarmResponse.ok()) return '';
+    const alarms = await alarmResponse.json() as Array<{ definitionId: string }>;
+    activeAlarmId = alarms[0]?.definitionId;
+    return activeAlarmId ?? '';
+  }, { timeout: 15_000 }).not.toBe('');
+  expect(activeAlarmId).toBeTruthy();
 
-  const ackResponse = await request.post(`/api/alarms/${alarms[0].definitionId}/ack`, {
+  const ackResponse = await request.post(`/api/alarms/${activeAlarmId!}/ack`, {
     data: { user: 'e2e-operator' }
   });
   expect(ackResponse.ok()).toBeTruthy();

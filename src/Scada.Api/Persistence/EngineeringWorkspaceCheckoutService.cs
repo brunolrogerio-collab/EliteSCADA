@@ -131,12 +131,19 @@ public sealed class EngineeringWorkspaceCheckoutService(
         string backupJson,
         EngineeringWorkspaceDescriptor backupDescriptor)
     {
-        var backup = exchange.ParseJson(backupJson);
-        workspace.Clear();
-        var restored = exchange.Apply(backup, ImportMode.CreateAndUpdate);
-        workspace.RestoreDescriptor(backupDescriptor);
+        ImportResult? restored = null;
+        try
+        {
+            var backup = exchange.ParseJson(backupJson);
+            workspace.Clear();
+            restored = exchange.Apply(backup, ImportMode.CreateAndUpdate);
+        }
+        finally
+        {
+            workspace.RestoreDescriptor(backupDescriptor);
+        }
 
-        if (restored.Issues.Any(x => x.IsError))
+        if (restored is null || restored.Issues.Any(x => x.IsError))
             throw new InvalidOperationException(
                 "Engineering workspace checkout failed and the previous workspace could not be restored cleanly.");
     }

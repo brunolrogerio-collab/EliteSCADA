@@ -79,8 +79,8 @@ public sealed class PostgreSqlAuditDurabilityTests
                 AuditOutcome.Denied,
                 "command",
                 $"command-{marker}",
-                correlationId: $"corr-{marker}",
-                area: $"area-{marker}"));
+                CorrelationId: $"corr-{marker}",
+                Area: $"area-{marker}"));
         }
 
         await store.WriteAsync(AuditEvent.Create(

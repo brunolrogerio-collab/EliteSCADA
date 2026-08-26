@@ -30,9 +30,35 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
 
   const exportResponse = await request.get('/api/engineering/export/json');
   expect(exportResponse.ok()).toBeTruthy();
-  const engineeringJson = await exportResponse.text();
-  expect(engineeringJson).toContain('Demo.Tank01.Level');
-  expect(engineeringJson).toContain('Demo.P01.Frequency');
+  const engineering = await exportResponse.json() as {
+    schemaVersion: number;
+    tags: Array<{ path: string; source?: string }>;
+    dataSources: Array<{ key: string; driver: string }>;
+  };
+  expect(engineering.schemaVersion).toBe(2);
+  expect(engineering.tags.some(tag => tag.path === 'Demo.Tank01.Level')).toBeTruthy();
+  expect(engineering.tags.some(tag => tag.path === 'Demo.P01.Frequency')).toBeTruthy();
+  expect(engineering.tags.every(tag => tag.source === 'builtin.simulation')).toBeTruthy();
+  expect(engineering.dataSources).toHaveLength(1);
+  expect(engineering.dataSources[0].key).toBe('builtin.simulation');
+
+  const dataSourceCsvResponse = await request.get('/api/engineering/export/datasources.csv');
+  expect(dataSourceCsvResponse.ok()).toBeTruthy();
+  const dataSourceCsv = await dataSourceCsvResponse.text();
+  expect(dataSourceCsv).toContain('builtin.simulation');
+  expect(dataSourceCsv).toContain('scanIntervalMilliseconds');
+
+  const tagsCsvResponse = await request.get('/api/engineering/export/tags.csv');
+  expect(tagsCsvResponse.ok()).toBeTruthy();
+  const tagsCsv = await tagsCsvResponse.text();
+  const tagsPreviewResponse = await request.post('/api/engineering/import/tags.csv/preview', {
+    data: tagsCsv,
+    headers: { 'content-type': 'text/csv; charset=utf-8' }
+  });
+  expect(tagsPreviewResponse.ok()).toBeTruthy();
+  const tagsPreview = await tagsPreviewResponse.json() as { errorCount: number; canApply: boolean };
+  expect(tagsPreview.errorCount).toBe(0);
+  expect(tagsPreview.canApply).toBeTruthy();
 
   const alarmResponse = await request.get('/api/alarms?activeOnly=true');
   expect(alarmResponse.ok()).toBeTruthy();

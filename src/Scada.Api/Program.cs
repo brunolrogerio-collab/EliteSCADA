@@ -1,5 +1,6 @@
 using System.Text;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.DataSources;
 using Scada.Engineering.ImportExport;
 using Scada.Api.HostedServices;
 using Scada.Api.Realtime;
@@ -19,6 +20,25 @@ builder.Services.AddSingleton<ITagRegistry, InMemoryTagRegistry>();
 builder.Services.AddSingleton<TagRealtimeHub>();
 builder.Services.AddSingleton<IHistorian, BufferedInMemoryHistorian>();
 builder.Services.AddSingleton<IAlarmEngine, InMemoryAlarmEngine>();
+builder.Services.AddSingleton<IDataSourceEngineeringRegistry>(_ =>
+{
+    var registry = new InMemoryDataSourceEngineeringRegistry();
+    registry.Upsert(new DataSourceEngineeringDto(
+        Id: null,
+        Key: "builtin.simulation",
+        Name: "Built-in Simulation",
+        Driver: "builtin.simulation",
+        Enabled: true,
+        Settings: new Dictionary<string, string>
+        {
+            ["scanIntervalMilliseconds"] = "500"
+        },
+        Metadata: new Dictionary<string, string>
+        {
+            ["system"] = "true"
+        }));
+    return registry;
+});
 builder.Services.AddSingleton<IEngineeringExchangeService, EngineeringExchangeService>();
 builder.Services.AddOpenApi();
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
@@ -119,6 +139,8 @@ app.MapPost("/api/alarms/{id:guid}/ack", async (Guid id, AlarmAckRequest request
 
 app.MapGet("/api/drivers", (SimulationDriver driver) => Results.Ok(new[] { driver.Status }));
 
+app.MapGet("/api/engineering/data-sources", (IDataSourceEngineeringRegistry registry) => Results.Ok(registry.Snapshot()));
+
 app.MapGet("/api/engineering/export/json", (IEngineeringExchangeService exchange) =>
     Results.File(Encoding.UTF8.GetBytes(exchange.ExportJson()), "application/json", "scada-engineering.json"));
 
@@ -127,6 +149,9 @@ app.MapGet("/api/engineering/export/tags.csv", (IEngineeringExchangeService exch
 
 app.MapGet("/api/engineering/export/alarms.csv", (IEngineeringExchangeService exchange) =>
     Results.File(Encoding.UTF8.GetBytes(exchange.ExportAlarmsCsv()), "text/csv; charset=utf-8", "scada-alarms.csv"));
+
+app.MapGet("/api/engineering/export/datasources.csv", (IEngineeringExchangeService exchange) =>
+    Results.File(Encoding.UTF8.GetBytes(exchange.ExportDataSourcesCsv()), "text/csv; charset=utf-8", "scada-datasources.csv"));
 
 app.MapPost("/api/engineering/import/json/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
 {
@@ -171,6 +196,22 @@ app.MapPost("/api/engineering/import/alarms.csv/apply", async (HttpRequest reque
 {
     using var reader = new StreamReader(request.Body, Encoding.UTF8);
     var package = exchange.ParseAlarmsCsv(await reader.ReadToEndAsync());
+    var preview = exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate);
+    if (!preview.CanApply) return Results.BadRequest(preview);
+    return Results.Ok(exchange.Apply(package, mode ?? ImportMode.CreateAndUpdate));
+});
+
+app.MapPost("/api/engineering/import/datasources.csv/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
+{
+    using var reader = new StreamReader(request.Body, Encoding.UTF8);
+    var package = exchange.ParseDataSourcesCsv(await reader.ReadToEndAsync());
+    return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
+});
+
+app.MapPost("/api/engineering/import/datasources.csv/apply", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
+{
+    using var reader = new StreamReader(request.Body, Encoding.UTF8);
+    var package = exchange.ParseDataSourcesCsv(await reader.ReadToEndAsync());
     var preview = exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate);
     if (!preview.CanApply) return Results.BadRequest(preview);
     return Results.Ok(exchange.Apply(package, mode ?? ImportMode.CreateAndUpdate));

@@ -35,7 +35,7 @@ The product must support the complete lifecycle of an industrial application:
 - security and audit;
 - project revisioning, publication and activation;
 - backup, restore, import and export;
-- future extensibility through public contracts/SDKs.
+- future extensibility through public contracts/SDKs and installable modules.
 
 The long-term direction is comparable in responsibility to established industrial supervisory platforms while keeping an independent EliteSCADA architecture, data model and implementation.
 
@@ -67,9 +67,9 @@ Current technology north:
 - Historian: PostgreSQL + TimescaleDB.
 - Realtime client transport: WebSocket.
 - Public integration: REST API.
-- Industrial messaging direction: MQTT.
+- Industrial protocol/messaging expansion: MQTT and OPC UA.
 - Scripting/analytics: sandboxed Python in a later phase.
-- Extension direction: public SDK in a later phase.
+- Extension direction: public SDK plus installable/versioned driver modules in a later phase.
 
 Technology choices may evolve deliberately, but product contracts must not be coupled unnecessarily to one implementation technology.
 
@@ -106,6 +106,7 @@ At minimum, the public Engineering model covers and must continue to cover:
 6. **Screens and Popups**: routes, visual definitions, bindings, context and reusable dependencies.
 7. **Security Roles / Policies**: capabilities and scopes used by the application.
 8. Future engineering domains such as trends, shell regions, commands, libraries and plugins must join the same versioned public model when introduced.
+9. Plugin-owned driver/Data Source configuration must expose a public versioned schema so it participates in Engineering validation, import/export, backup/restore and migration without becoming opaque private state.
 
 ### Secrets rule
 
@@ -143,7 +144,37 @@ Drivers are accessed through common contracts and Data Source engineering defini
 
 Current baseline includes real Modbus TCP runtime support with polling, writes, reconnect and communication-quality behavior. New protocols must follow the same separation between Engineering configuration, compiled runtime plan and driver execution.
 
-Planned protocol expansion includes MQTT and future plugin/SDK-based drivers.
+The locked protocol direction includes:
+
+- **Modbus TCP** as the currently implemented first real industrial driver;
+- **MQTT** as a planned first-class communication/messaging integration;
+- **OPC UA** as a planned first-class industrial interoperability protocol;
+- additional protocols supplied by first-party or third-party **installable driver modules** through the same public Driver SDK boundary.
+
+MQTT, OPC UA and future modules must use the same Data Source / TAG / Engineering model rather than create protocol-specific configuration islands.
+
+## Installable driver modules and Driver SDK
+
+EliteSCADA must support adding communication drivers without rebuilding the core product for every protocol.
+
+The target is a controlled module/plugin system for first-party and third-party drivers. At minimum, the module model must provide:
+
+- an explicit module/package identity and version;
+- declared compatibility with the EliteSCADA Driver SDK/platform contract;
+- declared driver/Data Source types provided by the module;
+- a public versioned configuration schema for Engineering Import/Export;
+- installation and removal lifecycle;
+- enable/disable lifecycle without deleting Engineering configuration;
+- upgrade/version migration rules;
+- dependency and compatibility validation before activation;
+- publisher/trust/integrity metadata so arbitrary untrusted code is not silently loaded into an industrial runtime;
+- clear diagnostics when a project references a missing, disabled or incompatible module;
+- preservation of project Engineering data even when the corresponding driver module is temporarily unavailable;
+- no plaintext secrets embedded in module packages or exported Engineering configuration.
+
+Driver execution should remain behind the DriverHost/driver boundary so a module does not gain direct access to frontend concerns or become the authority over TAGs, alarms, historian or project configuration.
+
+The exact package format, sandbox/isolation mechanism, signing policy and distribution/catalog UX are implementation decisions to be finalized in a dedicated architectural slice, but the ability to install additional driver modules is a **locked product requirement**.
 
 ## Historian and trends
 
@@ -186,6 +217,8 @@ Scopes may restrict access by area, equipment, screen, TAG or command.
 Authenticated identity used for protected actions must come from a trusted authentication principal/token, not from caller-supplied `...By` request fields.
 
 Sensitive mutations and administrative actions are auditable. Audit history is durable, append-only and protected against ordinary update/delete/truncate mutation at the database boundary.
+
+Module installation, removal, enable/disable and upgrade are security-sensitive administrative operations and must be permission-controlled and auditable when the module system is implemented.
 
 ## Alarm philosophy
 
@@ -269,6 +302,7 @@ The graphical editor is an engineering client of the platform, not the platform'
 - Do not create placeholder security endpoints without an actual domain model behind them.
 - Preserve backward compatibility of supported Engineering schema versions or introduce explicit migration behavior/tests.
 - Documentation and roadmap updates must not accidentally erase locked future product requirements.
+- Additional driver modules must not bypass Engineering validation, security, audit, TAG quality semantics or the DriverHost boundary.
 
 ## Relationship to other repository documents
 

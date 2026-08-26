@@ -17,6 +17,7 @@ internal static class EngineeringDtoMapper
         var deadband = Meta(tag.Metadata, "historian.deadband");
         var period = Meta(tag.Metadata, "historian.periodMs");
         var maximumPeriod = Meta(tag.Metadata, "historian.maxPeriodMs");
+        var initialValue = MemoryEngineeringValueCodec.ReadFromMetadata(tag.Metadata);
         var accessPolicy = tag.AccessPolicy is null
             ? null
             : new TagAccessPolicyDto(
@@ -42,8 +43,9 @@ internal static class EngineeringDtoMapper
                 DoubleOrNull(deadband),
                 IntOrNull(period),
                 IntOrNull(maximumPeriod)),
-            tag.Metadata?.ToDictionary(x => x.Key, x => x.Value),
-            accessPolicy);
+            MemoryEngineeringValueCodec.PublicMetadata(tag.Metadata),
+            accessPolicy,
+            initialValue);
     }
 
     public static AlarmEngineeringDto ToDto(AlarmDefinition alarm, string? tagPath) =>

@@ -1,8 +1,11 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Scada.Api.Runtime;
+using Scada.Api.Security;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Persistence;
 using Scada.Persistence.PostgreSql;
+using Scada.Security.Audit;
+using Scada.Security.Authorization;
 
 namespace Scada.Api.Persistence;
 
@@ -91,35 +94,83 @@ public static class EngineeringPersistenceApi
             string projectKey,
             EngineeringSaveRequest request,
             EngineeringWorkspace workspace,
+            ScadaRuntimeFacade runtime,
             HttpContext context,
             CancellationToken cancellationToken) =>
         {
             var persistence = Resolve(context);
             if (persistence is null) return Disabled();
+
+            var authorization = await AuthorizeEngineeringMutationAsync(context, runtime, cancellationToken);
+            var failure = authorization.FailureResult();
+            if (failure is not null)
+            {
+                await AuditDeniedAsync(context, authorization, AuditActions.EngineeringSave, projectKey);
+                return failure;
+            }
+
+            var audit = ResolveAudit(context);
             if (string.IsNullOrWhiteSpace(request.ProjectName))
+            {
+                await audit.RecordAsync(
+                    context,
+                    authorization.Principal,
+                    AuditActions.EngineeringSave,
+                    AuditOutcome.Failed,
+                    "engineering-project",
+                    projectKey,
+                    new Dictionary<string, string> { ["reason"] = "project-name-required" });
                 return Results.BadRequest(new { error = "Project name is required." });
+            }
 
-            var before = workspace.Describe();
-            var saveVersion = workspace.CaptureChangeVersion();
-            var basedOnRevision = before.ProjectKey?.Equals(projectKey, StringComparison.OrdinalIgnoreCase) == true
-                ? before.BaseRevision
-                : null;
+            try
+            {
+                var before = workspace.Describe();
+                var saveVersion = workspace.CaptureChangeVersion();
+                var basedOnRevision = before.ProjectKey?.Equals(projectKey, StringComparison.OrdinalIgnoreCase) == true
+                    ? before.BaseRevision
+                    : null;
+                var actor = Actor(authorization.Principal);
 
-            var snapshot = await persistence.SaveCurrentDerivedAsync(
-                projectKey,
-                request.ProjectName,
-                basedOnRevision,
-                request.SavedBy,
-                cancellationToken);
+                var snapshot = await persistence.SaveCurrentDerivedAsync(
+                    projectKey,
+                    request.ProjectName,
+                    basedOnRevision,
+                    actor,
+                    cancellationToken);
 
-            workspace.AcceptSave(
-                snapshot.ProjectKey,
-                snapshot.ProjectName,
-                snapshot.Revision,
-                snapshot.SavedAtUtc,
-                saveVersion);
+                workspace.AcceptSave(
+                    snapshot.ProjectKey,
+                    snapshot.ProjectName,
+                    snapshot.Revision,
+                    snapshot.SavedAtUtc,
+                    saveVersion);
 
-            return Results.Ok(ToMetadata(snapshot));
+                await audit.RecordAsync(
+                    context,
+                    authorization.Principal,
+                    AuditActions.EngineeringSave,
+                    AuditOutcome.Succeeded,
+                    "engineering-project",
+                    snapshot.ProjectKey,
+                    new Dictionary<string, string>
+                    {
+                        ["revision"] = snapshot.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["basedOnRevision"] = snapshot.BasedOnRevision?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "none"
+                    });
+
+                return Results.Ok(ToMetadata(snapshot));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                await AuditExceptionAsync(
+                    context,
+                    authorization,
+                    AuditActions.EngineeringSave,
+                    projectKey,
+                    ex);
+                throw;
+            }
         });
 
         group.MapGet("/{projectKey}/lifecycle", async (
@@ -162,15 +213,33 @@ public static class EngineeringPersistenceApi
         group.MapPost("/{projectKey}/published/activate", async (
             string projectKey,
             EngineeringActivateRequest request,
+            ScadaRuntimeFacade runtime,
             HttpContext context,
             CancellationToken cancellationToken) =>
         {
             var activationService = ResolveActivation(context);
             if (activationService is null) return Disabled();
 
+            var authorization = await AuthorizeEngineeringMutationAsync(context, runtime, cancellationToken);
+            var failure = authorization.FailureResult();
+            if (failure is not null)
+            {
+                await AuditDeniedAsync(context, authorization, AuditActions.EngineeringActivate, projectKey);
+                return failure;
+            }
+
+            var audit = ResolveAudit(context);
             var configuredProjectKey = ResolveConfiguredProjectKey(context);
             if (string.IsNullOrWhiteSpace(configuredProjectKey))
             {
+                await audit.RecordAsync(
+                    context,
+                    authorization.Principal,
+                    AuditActions.EngineeringActivate,
+                    AuditOutcome.Failed,
+                    "engineering-project",
+                    projectKey,
+                    new Dictionary<string, string> { ["reason"] = "runtime-project-not-configured" });
                 return Results.Conflict(new
                 {
                     error = "EngineeringRuntime:ProjectKey must be configured before activating a persisted runtime."
@@ -179,32 +248,82 @@ public static class EngineeringPersistenceApi
 
             if (!configuredProjectKey.Equals(projectKey, StringComparison.OrdinalIgnoreCase))
             {
+                await audit.RecordAsync(
+                    context,
+                    authorization.Principal,
+                    AuditActions.EngineeringActivate,
+                    AuditOutcome.Failed,
+                    "engineering-project",
+                    projectKey,
+                    new Dictionary<string, string>
+                    {
+                        ["reason"] = "runtime-project-mismatch",
+                        ["configuredProjectKey"] = configuredProjectKey
+                    });
                 return Results.Conflict(new
                 {
                     error = $"This runtime instance is bound to project '{configuredProjectKey}', not '{projectKey}'."
                 });
             }
 
-            var outcome = await activationService.ActivateAsync(
-                projectKey,
-                request.ActivatedBy,
-                cancellationToken);
-
-            if (!outcome.Found || outcome.Snapshot is null)
-                return Results.NotFound(new { error = "Project has no published revision." });
-
-            var response = new
+            try
             {
-                revision = ToMetadata(outcome.Snapshot),
-                activated = outcome.Activated,
-                runtime = outcome.Runtime,
-                activation = outcome.Activation,
-                lifecycle = outcome.Lifecycle
-            };
+                var actor = Actor(authorization.Principal);
+                _ = request; // Legacy ActivatedBy is ignored; the authenticated principal is authoritative.
+                var outcome = await activationService.ActivateAsync(
+                    projectKey,
+                    actor,
+                    cancellationToken);
 
-            return outcome.Activated
-                ? Results.Ok(response)
-                : Results.Json(response, statusCode: StatusCodes.Status422UnprocessableEntity);
+                if (!outcome.Found || outcome.Snapshot is null)
+                {
+                    await audit.RecordAsync(
+                        context,
+                        authorization.Principal,
+                        AuditActions.EngineeringActivate,
+                        AuditOutcome.Failed,
+                        "engineering-project",
+                        projectKey,
+                        new Dictionary<string, string> { ["reason"] = "published-revision-not-found" });
+                    return Results.NotFound(new { error = "Project has no published revision." });
+                }
+
+                var response = new
+                {
+                    revision = ToMetadata(outcome.Snapshot),
+                    activated = outcome.Activated,
+                    runtime = outcome.Runtime,
+                    activation = outcome.Activation,
+                    lifecycle = outcome.Lifecycle
+                };
+
+                await audit.RecordAsync(
+                    context,
+                    authorization.Principal,
+                    AuditActions.EngineeringActivate,
+                    outcome.Activated ? AuditOutcome.Succeeded : AuditOutcome.Failed,
+                    "engineering-project",
+                    projectKey,
+                    new Dictionary<string, string>
+                    {
+                        ["revision"] = outcome.Snapshot.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["reason"] = outcome.Activated ? "activated" : "runtime-activation-rejected"
+                    });
+
+                return outcome.Activated
+                    ? Results.Ok(response)
+                    : Results.Json(response, statusCode: StatusCodes.Status422UnprocessableEntity);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                await AuditExceptionAsync(
+                    context,
+                    authorization,
+                    AuditActions.EngineeringActivate,
+                    projectKey,
+                    ex);
+                throw;
+            }
         });
 
         group.MapGet("/{projectKey}/revisions", async (
@@ -227,27 +346,80 @@ public static class EngineeringPersistenceApi
         group.MapPost("/{projectKey}/revisions/{revision:long}/checkout", async (
             string projectKey,
             long revision,
+            ScadaRuntimeFacade runtime,
             HttpContext context,
             CancellationToken cancellationToken) =>
         {
             var checkout = ResolveCheckout(context);
             if (checkout is null) return Disabled();
 
-            var outcome = await checkout.CheckoutAsync(projectKey, revision, cancellationToken);
-            if (outcome is null) return Results.NotFound();
-
-            var response = new
+            var authorization = await AuthorizeEngineeringMutationAsync(context, runtime, cancellationToken);
+            var failure = authorization.FailureResult();
+            if (failure is not null)
             {
-                revision = ToMetadata(outcome.Snapshot),
-                checkedOut = outcome.CheckedOut,
-                preview = outcome.Preview,
-                apply = outcome.ApplyResult,
-                workspace = outcome.Workspace
-            };
+                await AuditDeniedAsync(
+                    context,
+                    authorization,
+                    AuditActions.EngineeringCheckout,
+                    projectKey,
+                    RevisionDetails(revision));
+                return failure;
+            }
 
-            return outcome.CheckedOut
-                ? Results.Ok(response)
-                : Results.BadRequest(response);
+            var audit = ResolveAudit(context);
+            try
+            {
+                var outcome = await checkout.CheckoutAsync(projectKey, revision, cancellationToken);
+                if (outcome is null)
+                {
+                    await audit.RecordAsync(
+                        context,
+                        authorization.Principal,
+                        AuditActions.EngineeringCheckout,
+                        AuditOutcome.Failed,
+                        "engineering-project",
+                        projectKey,
+                        MergeDetails(RevisionDetails(revision), "reason", "revision-not-found"));
+                    return Results.NotFound();
+                }
+
+                var response = new
+                {
+                    revision = ToMetadata(outcome.Snapshot),
+                    checkedOut = outcome.CheckedOut,
+                    preview = outcome.Preview,
+                    apply = outcome.ApplyResult,
+                    workspace = outcome.Workspace
+                };
+
+                await audit.RecordAsync(
+                    context,
+                    authorization.Principal,
+                    AuditActions.EngineeringCheckout,
+                    outcome.CheckedOut ? AuditOutcome.Succeeded : AuditOutcome.Failed,
+                    "engineering-project",
+                    projectKey,
+                    new Dictionary<string, string>
+                    {
+                        ["revision"] = revision.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["previewErrors"] = outcome.Preview.ErrorCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    });
+
+                return outcome.CheckedOut
+                    ? Results.Ok(response)
+                    : Results.BadRequest(response);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                await AuditExceptionAsync(
+                    context,
+                    authorization,
+                    AuditActions.EngineeringCheckout,
+                    projectKey,
+                    ex,
+                    RevisionDetails(revision));
+                throw;
+            }
         });
 
         group.MapGet("/{projectKey}/latest", async (
@@ -284,18 +456,87 @@ public static class EngineeringPersistenceApi
         group.MapPost("/{projectKey}/latest/apply", async (
             string projectKey,
             ImportMode? mode,
+            ScadaRuntimeFacade runtime,
             HttpContext context,
             CancellationToken cancellationToken) =>
         {
             var persistence = Resolve(context);
             if (persistence is null) return Disabled();
 
-            var result = await persistence.ApplyLatestAsync(
-                projectKey,
-                mode ?? ImportMode.CreateAndUpdate,
-                cancellationToken);
+            var authorization = await AuthorizeEngineeringMutationAsync(context, runtime, cancellationToken);
+            var importMode = mode ?? ImportMode.CreateAndUpdate;
+            var failure = authorization.FailureResult();
+            if (failure is not null)
+            {
+                await AuditDeniedAsync(
+                    context,
+                    authorization,
+                    AuditActions.EngineeringPersistenceApply,
+                    projectKey,
+                    new Dictionary<string, string>
+                    {
+                        ["source"] = "latest",
+                        ["mode"] = importMode.ToString()
+                    });
+                return failure;
+            }
 
-            return result is null ? Results.NotFound() : ToApplyResult(result);
+            var audit = ResolveAudit(context);
+            try
+            {
+                var result = await persistence.ApplyLatestAsync(projectKey, importMode, cancellationToken);
+                if (result is null)
+                {
+                    await audit.RecordAsync(
+                        context,
+                        authorization.Principal,
+                        AuditActions.EngineeringPersistenceApply,
+                        AuditOutcome.Failed,
+                        "engineering-project",
+                        projectKey,
+                        new Dictionary<string, string>
+                        {
+                            ["source"] = "latest",
+                            ["mode"] = importMode.ToString(),
+                            ["reason"] = "revision-not-found"
+                        });
+                    return Results.NotFound();
+                }
+
+                var hasErrors = result.Issues.Any(x => x.IsError);
+                await audit.RecordAsync(
+                    context,
+                    authorization.Principal,
+                    AuditActions.EngineeringPersistenceApply,
+                    hasErrors ? AuditOutcome.Failed : AuditOutcome.Succeeded,
+                    "engineering-project",
+                    projectKey,
+                    new Dictionary<string, string>
+                    {
+                        ["source"] = "latest",
+                        ["mode"] = importMode.ToString(),
+                        ["created"] = result.Created.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["updated"] = result.Updated.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["skipped"] = result.Skipped.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    });
+
+                return ToApplyResult(result);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                await AuditExceptionAsync(
+                    context,
+                    authorization,
+                    AuditActions.EngineeringPersistenceApply,
+                    projectKey,
+                    ex,
+                    new Dictionary<string, string>
+                    {
+                        ["source"] = "latest",
+                        ["mode"] = importMode.ToString()
+                    });
+                throw;
+            }
         });
 
         group.MapPost("/{projectKey}/revisions/{revision:long}/preview", async (
@@ -323,54 +564,261 @@ public static class EngineeringPersistenceApi
             string projectKey,
             long revision,
             EngineeringPublishRequest request,
+            ScadaRuntimeFacade runtime,
             HttpContext context,
             CancellationToken cancellationToken) =>
         {
             var persistence = Resolve(context);
             if (persistence is null) return Disabled();
 
-            var result = await persistence.PublishRevisionAsync(
-                projectKey,
-                revision,
-                request.PublishedBy,
-                cancellationToken);
+            var authorization = await AuthorizeEngineeringMutationAsync(context, runtime, cancellationToken);
+            var failure = authorization.FailureResult();
+            if (failure is not null)
+            {
+                await AuditDeniedAsync(
+                    context,
+                    authorization,
+                    AuditActions.EngineeringPublish,
+                    projectKey,
+                    RevisionDetails(revision));
+                return failure;
+            }
 
-            if (result is null) return Results.NotFound();
-            if (!result.Published)
-                return Results.BadRequest(new
+            var audit = ResolveAudit(context);
+            try
+            {
+                var actor = Actor(authorization.Principal);
+                _ = request; // Legacy PublishedBy is ignored; the authenticated principal is authoritative.
+                var result = await persistence.PublishRevisionAsync(
+                    projectKey,
+                    revision,
+                    actor,
+                    cancellationToken);
+
+                if (result is null)
+                {
+                    await audit.RecordAsync(
+                        context,
+                        authorization.Principal,
+                        AuditActions.EngineeringPublish,
+                        AuditOutcome.Failed,
+                        "engineering-project",
+                        projectKey,
+                        MergeDetails(RevisionDetails(revision), "reason", "revision-not-found"));
+                    return Results.NotFound();
+                }
+
+                if (!result.Published)
+                {
+                    await audit.RecordAsync(
+                        context,
+                        authorization.Principal,
+                        AuditActions.EngineeringPublish,
+                        AuditOutcome.Failed,
+                        "engineering-project",
+                        projectKey,
+                        new Dictionary<string, string>
+                        {
+                            ["revision"] = revision.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                            ["reason"] = "preview-errors",
+                            ["errorCount"] = result.Preview.ErrorCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                        });
+                    return Results.BadRequest(new
+                    {
+                        revision = ToMetadata(result.Snapshot),
+                        preview = result.Preview,
+                        published = false
+                    });
+                }
+
+                var lifecycle = await persistence.GetLifecycleAsync(projectKey, cancellationToken);
+                await audit.RecordAsync(
+                    context,
+                    authorization.Principal,
+                    AuditActions.EngineeringPublish,
+                    AuditOutcome.Succeeded,
+                    "engineering-project",
+                    projectKey,
+                    RevisionDetails(revision));
+
+                return Results.Ok(new
                 {
                     revision = ToMetadata(result.Snapshot),
-                    preview = result.Preview,
-                    published = false
+                    publication = result.Publication,
+                    lifecycle
                 });
-
-            var lifecycle = await persistence.GetLifecycleAsync(projectKey, cancellationToken);
-            return Results.Ok(new
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
-                revision = ToMetadata(result.Snapshot),
-                publication = result.Publication,
-                lifecycle
-            });
+                await AuditExceptionAsync(
+                    context,
+                    authorization,
+                    AuditActions.EngineeringPublish,
+                    projectKey,
+                    ex,
+                    RevisionDetails(revision));
+                throw;
+            }
         });
 
         group.MapPost("/{projectKey}/revisions/{revision:long}/apply", async (
             string projectKey,
             long revision,
             ImportMode? mode,
+            ScadaRuntimeFacade runtime,
             HttpContext context,
             CancellationToken cancellationToken) =>
         {
             var persistence = Resolve(context);
             if (persistence is null) return Disabled();
 
-            var result = await persistence.ApplyRevisionAsync(
-                projectKey,
-                revision,
-                mode ?? ImportMode.CreateAndUpdate,
-                cancellationToken);
+            var authorization = await AuthorizeEngineeringMutationAsync(context, runtime, cancellationToken);
+            var importMode = mode ?? ImportMode.CreateAndUpdate;
+            var details = new Dictionary<string, string>
+            {
+                ["source"] = "revision",
+                ["revision"] = revision.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["mode"] = importMode.ToString()
+            };
+            var failure = authorization.FailureResult();
+            if (failure is not null)
+            {
+                await AuditDeniedAsync(
+                    context,
+                    authorization,
+                    AuditActions.EngineeringPersistenceApply,
+                    projectKey,
+                    details);
+                return failure;
+            }
 
-            return result is null ? Results.NotFound() : ToApplyResult(result);
+            var audit = ResolveAudit(context);
+            try
+            {
+                var result = await persistence.ApplyRevisionAsync(
+                    projectKey,
+                    revision,
+                    importMode,
+                    cancellationToken);
+
+                if (result is null)
+                {
+                    await audit.RecordAsync(
+                        context,
+                        authorization.Principal,
+                        AuditActions.EngineeringPersistenceApply,
+                        AuditOutcome.Failed,
+                        "engineering-project",
+                        projectKey,
+                        MergeDetails(details, "reason", "revision-not-found"));
+                    return Results.NotFound();
+                }
+
+                var hasErrors = result.Issues.Any(x => x.IsError);
+                var resultDetails = new Dictionary<string, string>(details)
+                {
+                    ["created"] = result.Created.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["updated"] = result.Updated.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["skipped"] = result.Skipped.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                };
+                await audit.RecordAsync(
+                    context,
+                    authorization.Principal,
+                    AuditActions.EngineeringPersistenceApply,
+                    hasErrors ? AuditOutcome.Failed : AuditOutcome.Succeeded,
+                    "engineering-project",
+                    projectKey,
+                    resultDetails);
+
+                return ToApplyResult(result);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                await AuditExceptionAsync(
+                    context,
+                    authorization,
+                    AuditActions.EngineeringPersistenceApply,
+                    projectKey,
+                    ex,
+                    details);
+                throw;
+            }
         });
+    }
+
+    private static async Task<ApiAuthorizationCheck> AuthorizeEngineeringMutationAsync(
+        HttpContext context,
+        ScadaRuntimeFacade runtime,
+        CancellationToken cancellationToken) =>
+        await context.RequestServices
+            .GetRequiredService<ApiAuthorizationService>()
+            .CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.EngineeringModify,
+                cancellationToken: cancellationToken);
+
+    private static ApiAuditService ResolveAudit(HttpContext context) =>
+        context.RequestServices.GetRequiredService<ApiAuditService>();
+
+    private static string Actor(SecurityPrincipal principal) =>
+        string.IsNullOrWhiteSpace(principal.DisplayName)
+            ? principal.SubjectId
+            : principal.DisplayName.Trim();
+
+    private static ValueTask AuditDeniedAsync(
+        HttpContext context,
+        ApiAuthorizationCheck authorization,
+        string action,
+        string projectKey,
+        IReadOnlyDictionary<string, string>? details = null) =>
+        ResolveAudit(context).RecordAuthorizationDeniedAsync(
+            context,
+            authorization,
+            action,
+            "engineering-project",
+            projectKey,
+            details);
+
+    private static ValueTask AuditExceptionAsync(
+        HttpContext context,
+        ApiAuthorizationCheck authorization,
+        string action,
+        string projectKey,
+        Exception exception,
+        IReadOnlyDictionary<string, string>? details = null)
+    {
+        var merged = details is null
+            ? new Dictionary<string, string>()
+            : new Dictionary<string, string>(details);
+        merged["errorType"] = exception.GetType().Name;
+
+        return ResolveAudit(context).RecordAsync(
+            context,
+            authorization.Principal,
+            action,
+            AuditOutcome.Failed,
+            "engineering-project",
+            projectKey,
+            merged);
+    }
+
+    private static Dictionary<string, string> RevisionDetails(long revision) =>
+        new()
+        {
+            ["revision"] = revision.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        };
+
+    private static Dictionary<string, string> MergeDetails(
+        IReadOnlyDictionary<string, string> source,
+        string key,
+        string value)
+    {
+        var merged = new Dictionary<string, string>(source)
+        {
+            [key] = value
+        };
+        return merged;
     }
 
     private static IEngineeringProjectPersistenceService? Resolve(HttpContext context) =>
@@ -411,6 +859,7 @@ public static class EngineeringPersistenceApi
     };
 }
 
+// Legacy actor fields remain for wire compatibility only. The JWT principal is authoritative.
 public sealed record EngineeringSaveRequest(string ProjectName, string? SavedBy = null);
 public sealed record EngineeringPublishRequest(string? PublishedBy = null);
 public sealed record EngineeringActivateRequest(string? ActivatedBy = null);

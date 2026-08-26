@@ -1,126 +1,105 @@
 # LAST CHANGE — EliteSCADA
 
-> Operational handoff between tasks and ChatGPT conversations.
->
-> **Mandatory:** read this file together with `PROJECT GOAL.md` before starting any EliteSCADA task. Update this file immediately before the final user-facing response of every EliteSCADA task.
+> Operational handoff. Read with `PROJECT GOAL.md` before every EliteSCADA task and update before every final response.
 
 **Handoff date:** 2026-08-26
-**Development state:** ACTIVE, with merges blocked on GitHub Actions recovery/green CI.
+**Development state:** ACTIVE
 
-## Repository state
+The user explicitly resumed EliteSCADA development on 2026-08-26. Repository truth remains separated into **MERGED**, **IMPLEMENTED IN PR** and **SPECIFIED / NOT IMPLEMENTED**.
 
-- `main` HEAD last observed: `78a1656160c4317680ed54f0167537f806e104fc`.
-- PR #35 is open: `Add first-class operational command domain`.
-- PR #35 base: `main`.
-- PR #35 head: `feature/operational-command-domain` at `fc15adb507db172233ed2893f65d30cdad311963`.
-- PR #35 is intentionally **not merged** until current-head CI completes successfully.
-- PR #36 is open: `Protect runtime read and realtime surfaces`.
-- PR #36 base: `feature/operational-command-domain` (intentionally stacked on #35).
-- PR #36 head branch: `feature/runtime-read-authorization`.
-- PR #36 was confirmed mergeable with its stacked base.
-- Branch HEAD immediately before this handoff commit: `37e6e363a2211c385a61b5682637bf1f154949d1`; this `LAST CHANGE.md` update advances that branch again.
+## MERGED
 
-## GitHub Actions / PR #35 validation state
+### Current `main`
 
-GitHub Actions suffered a service outage / hosted-runner queue disruption during this work.
+Before this PR #36 refresh, `main` was verified at:
 
-The useful executed run is #129:
+`4f6c9bea29500858cfab3e070f5dcb3bd44e29ab`
 
-- Web build: success.
-- Backend restore/build: success.
-- Backend build: **0 warnings, 0 errors**.
-- PostgreSQL/TimescaleDB service: healthy.
-- Driver, historian, persistence and security test projects passed.
-- Exactly one stale test failed because it expected Engineering Schema v6 while the command domain correctly advanced the current schema to v7.
-- That stale schema assertion was corrected before the current PR #35 head.
+Permanent architecture is already consolidated on `main`, including:
 
-Runs #131/#132/#133 were then left queued without jobs/runners being allocated. The user tried the GitHub UI `Cancel run` action on redundant queued work, but GitHub returned **`Failed to cancel workflow.`** during the outage. Do not record manual cancellation as successful.
+- PR #35 operational command domain / Engineering Schema v7;
+- `docs/INTERNAL-MEMORY-TAGS.md`;
+- `docs/TAG-GATEWAY.md`;
+- `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`;
+- locked implementation order: internal memory -> TAG Gateway -> common multi-driver diagnostics -> new external protocols.
 
-Run #133 was checked again during this task and remained `queued` on PR #35 head `fc15adb...`.
+### PR #35 — Add first-class operational command domain
 
-Do not repeatedly close/reopen/synchronize PR #35 to force CI. Do not merge #35 from static review alone. The existing automation will notify when GitHub Actions returns to normal.
+Merged into `main` as `2fd568976fc6277d0b069adeeb560f6ea3d8205f` after CI run #144 completed green across Web build, Backend build/test/smoke and Chromium E2E.
 
-## PR #35 — first-class operational command domain
+Commands and Engineering Schema v7 are therefore `main` truth, not pending work.
 
-The parent branch implements:
+## IMPLEMENTED IN PR
 
-- first-class command definitions and stable registries;
-- Engineering Schema v7 command serialization/import/export;
-- command target/value validation against the incoming/post-import TAG state;
-- command compilation into the active runtime;
-- execution through the communication driver that owns the target TAG;
-- `CommandExecute` enforcement with area/equipment/TAG/command scopes;
-- succeeded/denied/failed command audit without persisting commanded values;
-- real demo `demo.p01.start` / `demo.p01.stop` commands;
-- Core/Engineering/Driver/Chromium coverage;
-- `.escadapkg` command round-trip and inspection coverage;
-- smoke expectations updated to Engineering Schema v7.
+### PR #36 — Protect runtime read and realtime surfaces
 
-## PR #36 — runtime read/realtime authorization
+Branch: `feature/runtime-read-authorization`.
 
-PR #36 is now a coherent stacked security slice and must not be merged before #35.
+This branch implements the read/realtime security slice on top of the command-domain code:
 
-Implemented:
+- `TagRead` filtering for TAG collections/current values;
+- protected TAG-by-path and historian reads;
+- alarm visibility filtered by readable TAG plus `View` area scope;
+- JWT-authenticated `/ws/tags` using query bearer extraction only on the WebSocket route;
+- per-event realtime authorization and JWT-expiration socket lifetime;
+- fail-closed runtime-policy resolution when the active runtime changes;
+- protected driver/runtime diagnostics through runtime `EngineeringModify`;
+- minimal public `/health` response;
+- protected Engineering workspace/entity/export/import-preview reads;
+- protected persistence metadata/read/preview surfaces;
+- protected project-package export/inspect/import-preview surfaces;
+- authentication-disabled local/smoke compatibility;
+- expanded Chromium security/realtime coverage;
+- GitHub Actions concurrency cancellation for superseded runs.
 
-- `/api/tags` and `/api/tags/current` enforce TAG read policy and filter unreadable TAGs;
-- TAG-by-path and historian reads return 401/403 for unauthorized access;
-- alarm reads require the associated TAG to be readable and the alarm area to satisfy runtime `View`;
-- browser JWT query-token extraction is accepted only for `/ws/tags`;
-- WebSocket connections require trusted identity when authentication is enabled;
-- outbound realtime TAG events are authorization-checked per event;
-- WebSocket lifetime is bound to the validated JWT `exp`; expired credentials terminate the realtime session;
-- realtime socket shutdown handles cancellation/dispose races defensively;
-- runtime authorization canonicalizes supplied TAG definitions against the live runtime;
-- runtime authorization fails closed if the active runtime changes during the authorization decision;
-- `/api/drivers` and `/api/diagnostics/runtime` require runtime `EngineeringModify`;
-- public `/health` is reduced to only `{ status, service }`, with driver/project/revision/historian details moved to protected diagnostics;
-- Engineering workspace entity reads, JSON/CSV exports and import previews require workspace `EngineeringModify`;
-- the entire Engineering persistence group requires `EngineeringModify` when authentication is enabled, including status, lifecycle/revision metadata and previews;
-- `.escadapkg` export, inspect and import-preview require `EngineeringModify`; restore/apply remains an audited protected mutation;
-- authentication-disabled local/demo/smoke behavior remains supported;
-- Chromium security coverage now distinguishes developer, operator, authenticated-no-grant, anonymous and invalid-token cases across runtime and Engineering reads;
-- Chromium realtime coverage checks anonymous rejection, no-`TagRead` event suppression and automatic connection termination after JWT expiration;
-- public health minimality is explicitly tested;
-- the smoke workflow now obtains historian/runtime technical status from the protected diagnostics endpoint in no-auth CI mode;
-- CI now contains a `concurrency` group with `cancel-in-progress: true`, so superseded runs of the same PR/ref automatically cancel when GitHub Actions itself is healthy;
-- `docs/SECURITY-AUTHORIZATION-AUDIT.md` has been updated to the new read/realtime security boundary.
+The previous branch head `1df64077b235321f0c3318b994f7b89632261cee` was preserved before integration work as:
 
-## Frontend authentication boundary
+`archive/runtime-read-authorization-pre-rebase-20260826`
 
-The current React demo runtime screen still has no product login/token-acquisition flow. That is intentional at this stage: user lifecycle / login / external IdP integration is the next identity slice.
+At resume time the PR branch was 25 commits ahead and 8 commits behind current `main`. The differing functional files are the read/realtime security slice; the additional `main` commits are the PR #35 merge finalization and documentation/architecture consolidation.
 
-Do **not** add an ad-hoc production JWT store, hard-coded Vite access token or similar shortcut merely to make authenticated browser mode appear complete. The E2E harness supplies a trusted test-only credential. Local/demo operation with authentication disabled remains supported. A real authenticated UI must consume the future trusted login/IdP token flow.
+This checkpoint commit intentionally refreshes PR #36 after it was retargeted to `main` so GitHub Actions can perform the required independent validation. Do not merge PR #36 unless its refreshed head receives green Web, Backend build/test/smoke and Chromium E2E.
 
-## Validation limitations
+## PR #37 — Engineering UI foundation and localization
 
-- .NET is not installed in the ChatGPT execution container, so the current PR #36 changes could not be compiled locally.
-- Static review was performed across endpoint owners, authorization helpers, persistence group filters, WebSocket behavior, smoke workflow and Chromium coverage.
-- PR #36 is mergeable against its stacked parent but has not received independent full CI validation.
-- The repository workflow triggers pull-request CI for `main`; while #36 targets the feature parent it should remain a stacked review artifact. After #35 merges, retarget/rebase #36 to `main` and validate it independently.
+Still open as Draft. Last verified tested head: `74307b51df65a71ce0a5179deb957ffea958a440`, with CI run #143 green against its older base.
 
-## Immediate continuation point
+Implemented there:
 
-1. Wait for GitHub Actions / run #133 to recover and execute.
-2. Inspect all #35 jobs, not only the combined status. Merge #35 only if the current head is green.
-3. After #35 merges, retarget/rebase `feature/runtime-read-authorization` / PR #36 onto the new `main` and verify the resulting diff contains only the read/realtime slice.
-4. Run full backend build/tests/smoke, frontend build and Chromium E2E for #36. Fix anything found; merge only when green.
-5. Update `docs/ROADMAP.md` after these stacked security milestones are validated/merged so it does not present unvalidated branch work as `main` truth.
-6. Next product/security slice after #36: real login/token issuance or external IdP plus user/role lifecycle (`UserRoleAdmin`), followed by access-aware UI integration using that trusted identity flow.
-7. Continue later roadmap items for audit buffering/retention, historian retention/downsampling, editor/productization and additional protocols/modules.
+- `/engineering` workspace and Runtime <-> Engineering navigation;
+- `pt-BR`, `en`, `es` localization foundation;
+- structured TAG, Data Source and Alarm editors;
+- existing/new browser-local drafts validated through canonical backend preview;
+- metadata preservation and stale-preview/unsaved-draft protection;
+- no Apply, Delete or bulk edit.
 
-## Product north reminders
+PR #37 must be reconciled with current `main` and PR #36 before merge. Do not weaken its preview-only safety boundary during that integration.
 
-- Public versioned Engineering model remains authoritative.
-- Engineering Import/Export is mandatory for every new engineering domain.
-- Backend/API authorization is the security boundary; UI visibility alone never grants or denies authority.
-- Runtime policy must resolve from the exact persisted Active Revision and fail closed on mismatch.
-- Secret material must never be serialized in Engineering packages.
-- Current real industrial-driver baseline is Modbus TCP; future locked targets include MQTT, OPC UA, BACnet, installable Driver Modules, Siemens S7 as the first intended installable module, and later Allen-Bradley research.
-- Engineering UI localization remains locked for `pt-BR`, `en` and `es` without changing stable Engineering identifiers/contracts.
+## SPECIFIED / NOT IMPLEMENTED
+
+Permanent requirements already stored on `main` but not yet functional include:
+
+- general Source Provider architecture;
+- `builtin.memory.client` and retentive `builtin.memory.server` with typed initial values;
+- Server Memory retention keyed primarily by stable TAG ID and explicit incompatible-type reset/migration;
+- protocol-independent TAG-to-TAG Gateway with OnChange/Periodic, deadband, minimum interval, coalescing, Good-quality default, gain/offset, loop/multi-writer rejection and route diagnostics;
+- common per-Data-Source multi-driver diagnostics and independent failure isolation;
+- identity/login/user lifecycle;
+- audit buffering/retention;
+- historian retention/downsampling;
+- complete Engineering Apply lifecycle, screens/popups/Dynamos, trends and later external protocols/modules.
+
+## Immediate continuation
+
+1. Validate this refreshed PR #36 head in GitHub Actions.
+2. If CI is green and GitHub reports a clean merge, merge PR #36 to `main`.
+3. Reconcile PR #37 with the resulting `main`, preserve preview-only editors, rerun full CI and integrate the Engineering UI foundation.
+4. Then continue the roadmap from the integrated baseline. The current ordered roadmap places identity/login, audit durability/retention and historian retention/downsampling before the internal-memory -> Gateway -> diagnostics protocol foundation.
+5. Before every final user-facing EliteSCADA response, update this file again with the actual repository state.
 
 ## Permanent continuity rule
 
-- `PROJECT GOAL.md` = persistent global project memory/product north.
+- `PROJECT GOAL.md` = persistent official product north and permanent architecture.
 - `LAST CHANGE.md` = exact stopping/resume checkpoint.
-- At the start of every EliteSCADA task, read both before changing code.
-- Immediately before every final user-facing response, update this file with actual repository state.
+- `docs/ROADMAP.md` = ordered implementation plan/status.
+- Permanent architectural decisions must not live only in feature branches.

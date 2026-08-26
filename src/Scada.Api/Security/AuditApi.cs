@@ -10,6 +10,11 @@ public static class AuditApi
 {
     public static void AddConfiguredAudit(this WebApplicationBuilder builder)
     {
+        var authenticationEnabled = builder.Configuration
+            .GetSection("Authentication")
+            .GetValue<bool>("Enabled");
+        builder.AddLocalIdentity(authenticationEnabled);
+
         var connectionString = builder.Configuration.GetConnectionString("EliteScada");
         if (string.IsNullOrWhiteSpace(connectionString))
         {
@@ -32,10 +37,13 @@ public static class AuditApi
         CancellationToken cancellationToken = default)
     {
         await app.Services.GetRequiredService<IAuditStore>().InitializeAsync(cancellationToken);
+        await app.InitializeLocalIdentityAsync();
     }
 
     public static void MapAuditEndpoints(this WebApplication app)
     {
+        app.MapLocalIdentityEndpoints();
+
         app.MapGet("/api/audit", async (
             HttpContext context,
             ScadaRuntimeFacade runtime,

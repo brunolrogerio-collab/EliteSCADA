@@ -12,16 +12,78 @@ The Engineering UI is a **client of the public Engineering model**.
 
 It must never become an alternative source of project truth. Browser-only state may represent transient presentation state such as the selected navigation section, filters, dialog state or unsaved form input, but authoritative project configuration must flow through the public Engineering contracts and the common validation/import workflow.
 
-The first UI slice is intentionally read-only. It proves that the browser can render the project directly from:
+The foundation reads project state directly from:
 
 - `GET /api/engineering/workspace`;
 - `GET /api/engineering/export/json`.
 
-Later editing will continue to use the platform flow:
+TAG and Data Source sections now add the first controlled editing stage. Their form values are **transient drafts only**. A draft is cloned into the complete canonical `scada.engineering` package and sent to:
+
+- `POST /api/engineering/import/json/preview`.
+
+The preview uses the same backend parsing, cross-reference checks and validation rules as ordinary Engineering Import/Export. No Apply operation is exposed by these first editors yet. Running preview must not dirty the Working Workspace, mutate the runtime or create a revision.
+
+The intended lifecycle remains:
 
 `edit draft -> validate -> preview -> apply to Working Workspace -> save Revision -> publish -> activate`
 
-The exact endpoint shape for interactive editor mutations may evolve, but it must preserve the same public DTO semantics and validation rules used by Import/Export.
+The exact endpoint shape for later interactive mutations may evolve, but it must preserve the same public DTO semantics and validation rules used by Import/Export.
+
+## Draft and preview semantics
+
+The initial structured editors deliberately separate three states:
+
+1. **Original**: the entity from the public Engineering snapshot loaded from the backend.
+2. **Draft**: transient browser form state for one selected entity.
+3. **Preview result**: the backend validation result for a complete package containing that draft.
+
+Rules:
+
+- selecting another entity discards the current unsaved draft;
+- `Discard draft` restores the entity exactly from the loaded public snapshot;
+- any edit invalidates the previous preview immediately;
+- preview sends a cloned full Engineering package, not an editor-private partial DTO with different semantics;
+- preview never applies the candidate;
+- validation errors and warnings are shown using the backend issue codes/messages;
+- a green preview does not imply the project was changed;
+- future Apply must be a distinct deliberate action and must use backend authorization/audit once the security branch reaches main.
+
+This distinction is important for industrial engineering: a form may be syntactically complete while cross-references, Data Source relationships, scaling, permissions or other package-level rules still make the resulting project invalid.
+
+## Initial structured editors
+
+### TAG editor
+
+The first TAG editor exposes draft fields for:
+
+- name;
+- stable path;
+- data type;
+- Data Source reference;
+- communication address;
+- engineering unit;
+- description;
+- read-only behavior;
+- scale minimum/maximum;
+- historian enabled state;
+- historian strategy;
+- deadband;
+- period;
+- maximum period.
+
+Fields not yet exposed in the form, including metadata and detailed access policy, remain preserved in the cloned canonical entity and are not discarded by preview.
+
+### Data Source editor
+
+The first Data Source editor exposes:
+
+- key;
+- name;
+- driver type;
+- enabled state;
+- public technical settings as key/value pairs.
+
+Secret material is never loaded into the editor. `secretReferences` remain reference strings only and are shown read-only in this first slice. The backend validator continues to reject plaintext-secret-like settings and invalid secret-reference schemes.
 
 ## Initial route and shell
 
@@ -103,15 +165,21 @@ The Engineering UI is not the runtime HMI editor itself. It is the broader devel
 
 ## Planned editor progression
 
-After the read-only foundation is validated:
-
 ### Phase A — engineering data editors
 
-1. Data Sources / driver configuration;
-2. TAG table/tree editor;
-3. alarm editor;
-4. historian policy editor;
-5. security-role policy editor when backend lifecycle is ready.
+Current:
+
+1. Data Source structured draft + backend preview;
+2. TAG structured draft + backend preview.
+
+Next after validation:
+
+3. explicit Apply into the Working Workspace with confirmation and refresh;
+4. create-new and delete workflows with preview;
+5. bulk/multi-selection editing where appropriate;
+6. alarm editor;
+7. historian policy editor;
+8. security-role policy editor when backend lifecycle is ready.
 
 These editors should favor structured tables, property panels and bulk workflows where that is more efficient than modal forms.
 
@@ -151,7 +219,9 @@ Backend authorization remains authoritative.
 
 The Engineering UI may hide or disable controls based on the authenticated principal's capabilities, but this is presentation only. A browser cannot grant itself Engineering or process authority by changing local state.
 
-The read-only foundation is based on current `main`. PRs #35 and #36 add command-domain and read/realtime security changes independently. When those branches merge, this UI must adapt to their authenticated API behavior without introducing ad-hoc hard-coded JWT storage.
+PRs #35 and #36 add command-domain and read/realtime security changes independently. When those branches merge, this UI must adapt to their authenticated API behavior without introducing ad-hoc hard-coded JWT storage.
+
+The current preview-only editor deliberately avoids Apply while those authorization changes remain outside `main`. This keeps the branch independent and prevents a frontend mutation path from getting ahead of the backend security boundary.
 
 ## Testing baseline
 
@@ -164,6 +234,11 @@ The Engineering UI should maintain browser coverage for:
 - locale persistence as a presentation preference;
 - stable Engineering identifiers across language changes;
 - Runtime ↔ Engineering navigation;
+- valid TAG draft preview;
+- invalid TAG draft preview using backend issue codes;
+- valid Data Source draft preview;
+- proof that preview does not change Workspace dirty state/change version;
+- proof that preview does not mutate exported Engineering entities;
 - future authorization-aware visibility once login/profile flow exists.
 
 Backend and browser test failures must be fixed at the source rather than bypassed to make the editor appear functional.

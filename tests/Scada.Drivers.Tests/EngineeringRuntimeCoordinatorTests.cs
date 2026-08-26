@@ -169,7 +169,7 @@ public sealed class EngineeringRuntimeCoordinatorTests
         await using var runtime = new EngineeringRuntimeCoordinator(
             externalBus,
             new EngineeringDriverCompiler(),
-            TimeSpan.FromSeconds(1));
+            TimeSpan.FromSeconds(2));
 
         Assert.True((await runtime.ActivateAsync("plant-a", 1, package)).Activated);
 

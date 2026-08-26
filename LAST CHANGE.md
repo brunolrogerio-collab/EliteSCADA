@@ -1,64 +1,68 @@
 # LAST CHANGE — EliteSCADA
 
-> Operational handoff. Read with `PROJECT GOAL.md`, `docs/ROADMAP.md` and `docs/PARALLEL-WORK.md` before every EliteSCADA task and update before every final response.
+> Operational handoff. Read with `PROJECT GOAL.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md` and `docs/CHAT-WORK-ASSIGNMENTS.md` before every EliteSCADA task.
 
 **Handoff date:** 2026-08-26
 **Development state:** **ACTIVE — PARALLEL WORK ENABLED**
 
 Repository truth is separated into **MERGED**, **IMPLEMENTED IN PR**, and **SPECIFIED / NOT IMPLEMENTED**.
 
+## NEW PERMANENT CHAT COORDINATION MECHANISM
+
+A repository-owned assignment board now exists at:
+
+- `docs/CHAT-WORK-ASSIGNMENTS.md`
+
+Its only purpose is to record **who is doing what now and what each fixed EliteSCADA chat must do when the user says only `continue`**.
+
+Permanent behavior is also established in `docs/PARALLEL-WORK.md`:
+
+1. every EliteSCADA chat reads `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/CHAT-WORK-ASSIGNMENTS.md` and its task-specific documents before working;
+2. the chat identifies itself by fixed name such as `COORDENADOR - EliteSCADA`, `DEV 1 - EliteSCADA`, `DEV 2 - EliteSCADA` or `DEV 3 - EliteSCADA`;
+3. `continue` resumes only the assignment explicitly recorded for that chat;
+4. real GitHub branch/PR/head/CI state remains operational truth;
+5. `WAIT_FOR_COORDINATOR` forbids a worker from selecting new work, creating another branch, resuming an older delivered task as new work, modifying `main` or touching another branch;
+6. only the coordinator may change worker assignments in the assignment board;
+7. workers may record implementation/CI/integration requirements in their own PR bodies but may not self-assign another mission.
+
+The coordination board was introduced on `main` by documentation commit `1da96d1738f34cf982204c8ab7fd7458c5d2c251`; permanent parallel/`continue` rules were updated by `111b888c166413f325a13f11da6f708b61971ae2`.
+
+This mechanism does **not** replace the existing document responsibilities:
+
+- `PROJECT GOAL.md` = stable product/architecture north;
+- `docs/ROADMAP.md` = macro implementation sequence;
+- `docs/PARALLEL-WORK.md` = permanent concurrency/integration rules;
+- `docs/CHAT-WORK-ASSIGNMENTS.md` = live chat assignment board;
+- `LAST CHANGE.md` = technical operational handoff.
+
 ## MERGED
 
-### PR #35 — Add first-class operational command domain
+### PR #35 — First-class operational command domain
 
 - merge commit `2fd568976fc6277d0b069adeeb560f6ea3d8205f`;
 - Engineering Schema v7 and first-class Operational Commands are official state.
 
-### PR #36 — Protect runtime read and realtime surfaces
+### PR #36 — Protected runtime read and realtime surfaces
 
 - merge commit `10b0320149c1ef2109e9517539717a8800b200c2`;
-- protected TAG/historian/alarm/Engineering/diagnostic reads, authenticated `/ws/tags`, per-event authorization, JWT expiration and minimal public `/health` are official state.
+- protected TAG/historian/alarm/Engineering/diagnostic reads and authenticated `/ws/tags` are official state.
 
 ### PR #37 — Engineering UI foundation and localization
 
 - merge commit `4553aa7ab5ba7e05a209a7c8462286d1a34a1ad6`;
-- `/engineering` is official platform UI while `/` remains Runtime HMI;
-- Runtime↔Engineering navigation and `pt-BR` / `en` / `es` localization are on `main`;
-- structured TAG, Data Source and Alarm editors are on `main`;
-- those editors still use preview-oriented mutation behavior until the secured Apply/Delete/bulk slice is merged.
+- `/engineering`, Runtime↔Engineering navigation, localization and structured TAG/Data Source/Alarm editors are official state.
 
 ### PR #38 — Local identity and browser login foundation
 
 - merge commit `2a581d279a428cb605429d5939c333ff7ad8d1b4`;
-- tested head `bdd2003230570387328f5a4083c9c47b9817af50`;
-- CI #167 fully green.
-
-Merged identity behavior includes PBKDF2-SHA256 local credentials, PostgreSQL user persistence, JWT issuance, HttpOnly browser cookie, bootstrap-first-user, login/logout/profile and shared Runtime/Engineering browser authentication. Credentials remain outside Engineering Import/Export; users reference role keys while active Engineering security remains authoritative for capabilities/scopes.
+- trusted local identity/browser login foundation is official state.
 
 ### PR #39 — Protected local user administration
 
-- final integrated head `95462b40cbb2910f291ca5522cb16dcfabac5729`;
-- final CI #183 fully green:
-  - Web build: success;
-  - Backend build/test/runtime smoke: success;
-  - Chromium end-to-end: success;
-- merged into `main` as `6de8f06a443ad829ccc95c6dfcd9511e906adeff`.
+- merge commit `6de8f06a443ad829ccc95c6dfcd9511e906adeff`;
+- protected local-user administration, safe DTOs, role assignment, last-admin protection, security-version invalidation and realtime session revocation are official state.
 
-Official merged administration behavior now includes:
-
-- protected local-user list/create/update/password-reset endpoints;
-- Engineering role catalog for user assignment;
-- role keys validated against Engineering security roles;
-- administration through active Runtime policy using `UserRoleAdmin` or `SystemAdmin`;
-- safe user DTOs that never expose hash/salt/credential material;
-- protection against removing/disabling the last enabled local administrator, evaluated against active Runtime policy rather than an unpublished Workspace draft;
-- local JWT security-version validation so profile, enabled state, role or password changes invalidate older local sessions;
-- active realtime sessions for a changed user are revoked with WebSocket `1008 PolicyViolation`;
-- Runtime treats explicit identity revocation as a session-revalidation event rather than reconnecting indefinitely;
-- Engineering > Security user administration UI with `pt-BR`, `en`, `es`;
-- Chromium coverage for lifecycle, safe DTOs, JWT/session invalidation, realtime revocation and password reset.
-
-### Permanent architecture/documentation consolidated on `main`
+### Permanent architecture/documentation on `main`
 
 Official locked specifications include:
 
@@ -67,136 +71,135 @@ Official locked specifications include:
 - `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`;
 - `docs/INTERFACE-VALIDATION-MILESTONE.md`;
 - `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`;
-- `docs/PARALLEL-WORK.md`.
+- `docs/PARALLEL-WORK.md`;
+- `docs/CHAT-WORK-ASSIGNMENTS.md`.
 
-Permanent gates remain:
+Locked operational sequence remains:
 
 `internal memory -> TAG Gateway -> common multi-driver diagnostics -> USER INTERFACE VALIDATION PREVIEW -> additional external protocols`
 
-and, before the final graphical editor:
+Locked visual sequence remains:
 
 `Python scripting/property contracts -> script editor/sandbox -> visual runtime object/property API -> graphical Screens/Popups/Dynamos editor`.
 
 ## IMPLEMENTED IN PR
 
-### PR #40 — Internal Memory / Source Provider foundation
+### PR #40 — Internal Memory / Source Provider Foundation
 
+- owner history: previous DEV 2 assignment;
 - state: **OPEN / DRAFT / NOT MERGED**;
 - branch: `feature/internal-memory-foundation`;
-- head at this handoff: `77990fd161580f2e70de941632e5398dfac5c6bd`;
-- PR was created from the parallel-work checkpoint before PR #39 merged and therefore must be reconciled with current `main` before integration;
-- CI #184 is running at this handoff.
+- head: `77990fd161580f2e70de941632e5398dfac5c6bd`;
+- CI #184: **SUCCESS**.
 
-Implemented in PR includes:
+Implemented foundation includes protocol-neutral Source Provider contracts, `builtin.memory.server` / `builtin.memory.client`, typed memory defaults, stable-ID retention identity, deterministic in-memory server retention, incompatible-type fail-closed behavior, deleted-TAG non-resurrection, normal `Good` quality and per-client Client Memory isolation.
 
-- protocol-neutral `ISourceProvider` boundary;
-- `builtin.memory.server` and `builtin.memory.client` provider descriptors;
-- strict typed memory values/defaults for current TAG data types;
-- stable TAG-ID retention semantics;
-- `IServerMemoryRetentionStore` plus deterministic in-memory store;
-- server-memory restoration across compatible restart/revision and stable-ID path rename;
-- incompatible retained type fails closed without silent coercion;
-- stale retention cannot enumerate/resurrect deleted TAGs;
-- normal memory quality is `Good` without fabricated network diagnostics;
-- per-Runtime-Client Client Memory isolation;
-- focused automated tests.
+This is a delivered previous task, not DEV 2's current authorized branch. Coordinator integration remains required for public Engineering schema/import-export, central runtime composition, durable production retention, historian/alarm semantics and authorization/audit hooks.
 
-Coordinator integration still required for public Engineering schema/import-export, runtime composition/cache/event wiring, durable production retention, historian/alarm rules and authorization/audit boundaries.
-
-### PR #41 — Python scripting + visual property foundation
+### PR #41 — Python Scripting + Visual Property Foundation — DEV 3
 
 - state: **OPEN / DRAFT / NOT MERGED**;
 - branch: `feature/python-scripting-foundation`;
-- head at this handoff: `49ac730d1e43d60fc3fddc852f985a46b3113a28`;
-- base already includes PR #39 merge (`6de8f06a443ad829ccc95c6dfcd9511e906adeff`);
-- CI #186 is running at this handoff.
+- head: `77d9eb49acd56629aaae96764a48c25784ceb328`;
+- CI #210: **SUCCESS**;
+- assignment status: `READY_FOR_COORDINATOR_REVIEW`;
+- `AfterCompletion: WAIT_FOR_COORDINATOR`.
 
-Implemented in PR includes:
+Implemented foundation includes typed visual-property schemas, Engineering base vs Runtime presentation overrides, deterministic precedence, tween/animation contracts, Client Visual vs Server script scope separation, sandbox capability boundaries, visual runtime instances/object API, bounded event queues/execution coordination/diagnostics and Python validation/editor diagnostic contracts.
 
-- typed public visual-property definitions and per-object schemas;
-- common geometry/transform/visibility/fill/stroke/text/image property groups;
-- immutable Engineering base values separated from Runtime presentation overrides;
-- deterministic precedence `Engineering base -> binding/expression -> script -> animation`;
-- renderer-facing tween contracts with duration/easing/repeat/ping-pong/replace/cancel/completion semantics;
-- explicit Client Visual vs Server Python script scopes and capability surfaces;
-- sandbox boundary contracts denying arbitrary filesystem/OS/shell/network/database/driver/secrets/DOM/storage access;
-- bounded execution policy/cancellation/queue/error-isolation contracts;
-- Python validation/editor diagnostic contracts with line/column information;
-- focused automated tests.
+Central Engineering schema/import-export/revision/package integration, concrete Python engine, renderer/runtime composition and final graphical editor remain coordinator/later integration work.
 
-Coordinator integration still required for canonical Engineering schema/import-export/revisions/packages and later runtime/editor wiring. The final graphical editor and concrete Python engine remain **SPECIFIED / NOT IMPLEMENTED**.
+### PR #42 — Secured Engineering Apply/Delete/Bulk — COORDENADOR
+
+- state: **OPEN / DRAFT / NOT MERGED**;
+- branch: `feature/engineering-secured-apply`;
+- head: `4fcc5ab5de03e5c7d9b194554aef25e97daed98d`;
+- CI #227: **FAILED**;
+- Backend build/tests/runtime smoke: success;
+- Web build: success;
+- Chromium E2E: failure.
+
+Implemented in PR includes preview-gated backend-authoritative Apply, Workspace mutation serialization/version CAS, explicit dependency-aware Delete, safe scoped Bulk Preview/Apply, authorization/audit wiring, UI mutation panels and focused E2E/security coverage.
+
+Current CI failure is a Chromium regression in existing `engineering.spec.ts`: strict `getByText('Demo.P01.Frequency', { exact: true })` now matches three visible/DOM elements after the new mutation panel introduced another representation of the same stable Engineering identifier. The coordinator must fix the locator/assertion without weakening the test and rerun full CI.
+
+### PR #43 — Historian Retention + Downsampling Foundation — DEV 2
+
+- state: **OPEN / DRAFT / NOT MERGED**;
+- branch: `feature/historian-retention-downsampling`;
+- head: `98e75948bac3ebe68f424c3a45ebbaefdf9a9331`;
+- CI #215: **SUCCESS**;
+- assignment status: `READY_FOR_COORDINATOR_REVIEW`;
+- `AfterCompletion: WAIT_FOR_COORDINATOR`.
+
+Implemented foundation includes typed raw-retention/downsampling policy, safety approval for potentially destructive retention changes, 1m/5m/15m/1h aggregation semantics, quality-aware numeric aggregation, data-type-aware raw storage, Timescale continuous aggregates, serialized concurrent DDL initialization, retention/downsampling store abstraction and focused Timescale tests.
+
+Coordinator integration remains required for public/versioned Engineering policy representation, canonical validation/import-export/schema migration, central Historian configuration/DI and later raw-vs-aggregate trend/history selection.
+
+### PR #44 — Audit Durability + Retention + Query Foundation — DEV 1
+
+- state: **OPEN / DRAFT / NOT MERGED**;
+- branch: `feature/audit-durability-retention-query`;
+- head: `8429b1bed28bd998ed25cf1b4a47caf364aef887`;
+- CI #229: **SUCCESS**;
+- assignment status: `READY_FOR_COORDINATOR_REVIEW`;
+- `AfterCompletion: WAIT_FOR_COORDINATOR`.
+
+Implemented foundation includes bounded keyset Audit query/pagination, combined filters, retention execution, health snapshots, optional structural context, PostgreSQL schema/index evolution, controlled batched retention, bounded asynchronous outage buffering/retry, overflow rejection and storage-boundary sensitive-metadata sanitization.
+
+Coordinator integration remains required for API/DI configuration, protected `/api/audit` query evolution, periodic retention hosted-service composition and reconciliation of shared Engineering Delete/Bulk Audit action keys with PR #42.
+
+## CURRENT CHAT ASSIGNMENTS
+
+The exact live assignment details are authoritative in `docs/CHAT-WORK-ASSIGNMENTS.md`.
+
+Current snapshot:
+
+1. **COORDENADOR - EliteSCADA** — PR #42 / `feature/engineering-secured-apply` — `CI_FAILED` — fix Chromium regression, revalidate, then coordinate worker PR review/integration — `AfterCompletion: CONTINUE_COORDINATION`.
+2. **DEV 1 - EliteSCADA** — PR #44 / `feature/audit-durability-retention-query` — `READY_FOR_COORDINATOR_REVIEW` — `AfterCompletion: WAIT_FOR_COORDINATOR`.
+3. **DEV 2 - EliteSCADA** — PR #43 / `feature/historian-retention-downsampling` — `READY_FOR_COORDINATOR_REVIEW` — `AfterCompletion: WAIT_FOR_COORDINATOR`. Previous PR #40 is delivered but not current work.
+4. **DEV 3 - EliteSCADA** — PR #41 / `feature/python-scripting-foundation` — `READY_FOR_COORDINATOR_REVIEW` — `AfterCompletion: WAIT_FOR_COORDINATOR`.
+
+Workers must not self-merge or select new tasks while waiting.
 
 ## SPECIFIED / NOT IMPLEMENTED
 
-### Immediate coordinator-owned product hardening
+Important next product blocks still not official implementation include:
 
-- secured Engineering Apply/Delete/bulk-edit lifecycle for TAG/Data Source/Alarm editors;
-- audit durability/retention/query policy and bounded buffering/outbox for temporary storage failures;
-- historian retention/downsampling.
-
-### Source/protocol milestone
-
-After Internal Memory foundation is integrated:
-
-- complete `builtin.memory.client` / retentive `builtin.memory.server` product integration;
-- protocol-independent TAG→TAG Gateway;
-- common isolated per-Data-Source driver diagnostics and Engineering diagnostics UI;
-- product-owner **USER INTERFACE VALIDATION PREVIEW** before additional external protocols.
-
-The preview must provide a practical Windows x64 test path/package, local login, demo project, visible version and startup/test instructions. It is a development preview, not a production-certified release.
-
-### Python scripting and visual runtime
-
-The final graphical screen/popup/Dynamo editor must not start until the scripting/property prerequisite is integrated. Locked rules include typed script-accessible object properties, Engineering base vs Runtime overrides, deterministic precedence, Client vs Server script scope separation, sandboxing, bounded execution and renderer-native animation/tween primitives rather than Python busy loops.
-
-Full specification: `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`.
-
-### Later product blocks
-
-- MQTT;
-- OPC UA;
-- BACnet;
-- installable/versioned Driver Module framework;
-- Siemens S7 ISO Connection first intended installable module target;
-- later Allen-Bradley research;
-- graphical screens/popups and reusable Dynamos/components after scripting/property prerequisites;
+- full product integration of Internal Memory;
+- protocol-independent TAG Gateway;
+- common isolated per-Data-Source diagnostics and Engineering diagnostics UI;
+- product-owner USER INTERFACE VALIDATION PREVIEW;
+- concrete Python script editor/sandbox and browser runtime engine;
+- graphical Screens/Popups/Dynamos editor;
+- Trend UI and automatic raw/aggregate resolution selection;
+- MQTT, OPC UA, BACnet and later installable driver-module work;
 - Engineering Fragments/cross-project copy-paste;
-- multi-Pen trends;
-- configurable application shell;
-- Engineering XLSX;
-- visual asset/resource management;
-- advanced reusable Equipment/Template/Dynamo libraries;
-- later Server Python scripting expansion.
+- advanced reusable visual/equipment libraries.
 
-## PARALLEL WORK COORDINATION
+See `PROJECT GOAL.md` and `docs/ROADMAP.md` for ordering and architectural constraints.
 
-Parallel development is governed by `docs/PARALLEL-WORK.md`.
+## IMMEDIATE CONTINUATION
 
-Current workstreams:
+### COORDENADOR - EliteSCADA
 
-1. **Coordinator/integration chat** — PR #39 is complete; next isolated coordinator slice is secured Engineering Apply/Delete/bulk mutation while also reviewing/reconciling worker PRs when their CI completes.
-2. **Worker A** — PR #40 / `feature/internal-memory-foundation`.
-3. **Worker B** — PR #41 / `feature/python-scripting-foundation`.
+On `continue`:
 
-Worker chats must not merge their own PRs and must not modify coordinator-owned shared files. Do not force/reset worker branches while work is active.
+1. reread all permanent coordination documents including `docs/CHAT-WORK-ASSIGNMENTS.md`;
+2. verify current `main`, PR #42 head and latest CI;
+3. fix the known Chromium locator regression on PR #42 if still present;
+4. obtain full green CI for the final PR #42 head;
+5. review/reconcile PRs #40, #41, #43 and #44 against then-current `main` and their `INTEGRATION REQUIRED` sections;
+6. choose integration order from real conflict/dependency state;
+7. update the assignment board whenever a DEV receives new authorized work.
 
-## Immediate continuation
+### DEV 1 / DEV 2 / DEV 3
 
-Coordinator:
-
-1. keep PR #40 and PR #41 untouched while their current CI runs complete;
-2. review both worker diffs/tests after CI and reconcile each with then-current `main` before merge;
-3. in parallel, implement secured Engineering mutation workflows on a separate coordinator branch, avoiding Worker A/B domains;
-4. after secured Engineering mutation: audit durability/retention, then historian retention/downsampling;
-5. integrate Internal Memory before TAG Gateway;
-6. continue through Gateway -> multi-driver diagnostics -> USER INTERFACE VALIDATION PREVIEW.
-
-Worker A and Worker B continue according to their PR scope and `docs/PARALLEL-WORK.md` and never self-merge.
+On `continue`, while their assignment remains `READY_FOR_COORDINATOR_REVIEW` with `AfterCompletion: WAIT_FOR_COORDINATOR`, they must report that the current task is delivered and wait. They must not create another branch or choose another roadmap task.
 
 ## Permanent continuity rule
 
-- `PROJECT GOAL.md` = official permanent product north and locked architecture.
-- `LAST CHANGE.md` = exact operational resume point with explicit MERGED / IMPLEMENTED IN PR / SPECIFIED state.
-- `docs/ROADMAP.md` = ordered implementation plan/status.
-- `docs/PARALLEL-WORK.md` = concurrent work ownership, conflict-avoidance and integration rules.
 - Feature branches must never be the sole durable home of permanent architecture decisions.
+- Open PRs remain **IMPLEMENTED IN PR**, never **MERGED**.
+- GitHub branch/PR/head/CI state is operational truth.
+- Worker assignment authority comes only from `docs/CHAT-WORK-ASSIGNMENTS.md` as maintained by the coordinator.

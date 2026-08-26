@@ -1,5 +1,4 @@
-using Scada.Core.Alarms;
-using Scada.Core.Tags;
+using Scada.Api.Runtime;
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Simulation;
 
@@ -7,8 +6,7 @@ namespace Scada.Api.HostedServices;
 
 public sealed class SimulationDriverHostedService(
     SimulationDriver driver,
-    ITagRegistry registry,
-    IAlarmEngine alarmEngine,
+    DemoRuntimeServices demoRuntime,
     IEngineeringRuntimeCoordinator engineeringRuntime) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -17,25 +15,10 @@ public sealed class SimulationDriverHostedService(
             return;
 
         await driver.StartAsync(cancellationToken);
-        RegisterDemoAlarms();
+
+        foreach (var alarm in DemoProcessModel.CreateAlarmDefinitions())
+            demoRuntime.Alarms.Register(alarm);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => driver.StopAsync(cancellationToken);
-
-    private void RegisterDemoAlarms()
-    {
-        if (registry.TryGetByPath("Demo.Discharge.Pressure", out var pressureTag) && pressureTag is not null)
-        {
-            alarmEngine.Register(AlarmDefinition.Create(
-                "High discharge pressure", pressureTag.Id, AlarmType.High, AlarmPriority.High,
-                setpoint: 9.0, area: "Demo", message: "Discharge pressure above 9.0 bar"));
-        }
-
-        if (registry.TryGetByPath("Demo.P01.Fault", out var faultTag) && faultTag is not null)
-        {
-            alarmEngine.Register(AlarmDefinition.Create(
-                "Pump P01 fault", faultTag.Id, AlarmType.Digital, AlarmPriority.Critical,
-                digitalActiveValue: true, area: "Demo", message: "Pump P01 fault active"));
-        }
-    }
 }

@@ -33,7 +33,7 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   const engineeringText = await exportResponse.text();
   const engineering = JSON.parse(engineeringText) as {
     schemaVersion: number;
-    tags: Array<{ path: string; source?: string }>;
+    tags: Array<{ id?: string; path: string; source?: string }>;
     dataSources: Array<{ key: string; driver: string }>;
     templates: Array<{ key: string; bindings: Array<{ key: string; target: string }> }>;
     equipment: Array<{ path: string; templateKey?: string; bindings: Array<{ key: string; target: string }> }>;
@@ -53,6 +53,7 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(engineering.tags.some(tag => tag.path === 'Demo.Tank01.Level')).toBeTruthy();
   expect(engineering.tags.some(tag => tag.path === 'Demo.P01.Frequency')).toBeTruthy();
   expect(engineering.tags.every(tag => tag.source === 'builtin.simulation')).toBeTruthy();
+  expect(engineering.tags.find(tag => tag.path === 'Demo.P01.Frequency')?.id).toBe('10000000-0000-0000-0000-000000000005');
   expect(engineering.dataSources).toHaveLength(1);
   expect(engineering.dataSources[0].key).toBe('builtin.simulation');
   expect(engineering.templates).toHaveLength(1);
@@ -177,4 +178,33 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
     data: { user: 'e2e-operator' }
   });
   expect(ackResponse.ok()).toBeTruthy();
+
+  const workspaceMutation = JSON.parse(engineeringText) as any;
+  workspaceMutation.tags.push({
+    id: '30000000-0000-0000-0000-000000000001',
+    name: 'Workspace Only',
+    path: 'Engineering.Workspace.Only',
+    dataType: 'double',
+    source: 'builtin.simulation',
+    readOnly: true
+  });
+
+  const workspaceApplyResponse = await request.post('/api/engineering/import/json/apply', {
+    data: JSON.stringify(workspaceMutation),
+    headers: { 'content-type': 'application/json; charset=utf-8' }
+  });
+  expect(workspaceApplyResponse.ok()).toBeTruthy();
+
+  const mutatedEngineeringResponse = await request.get('/api/engineering/export/json');
+  expect(mutatedEngineeringResponse.ok()).toBeTruthy();
+  const mutatedEngineering = await mutatedEngineeringResponse.json() as { tags: Array<{ path: string }> };
+  expect(mutatedEngineering.tags).toHaveLength(8);
+  expect(mutatedEngineering.tags.some(tag => tag.path === 'Engineering.Workspace.Only')).toBeTruthy();
+
+  const runtimeAfterWorkspaceEditResponse = await request.get('/api/tags');
+  expect(runtimeAfterWorkspaceEditResponse.ok()).toBeTruthy();
+  const runtimeAfterWorkspaceEdit = await runtimeAfterWorkspaceEditResponse.json() as Array<{ path: string }>;
+  expect(runtimeAfterWorkspaceEdit).toHaveLength(7);
+  expect(runtimeAfterWorkspaceEdit.some(tag => tag.path === 'Engineering.Workspace.Only')).toBeFalsy();
+  await expect(page.getByText(/ONLINE · 7 TAGs/)).toBeVisible();
 });

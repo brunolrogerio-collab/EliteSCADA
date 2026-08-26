@@ -16,9 +16,7 @@ public sealed record ScadaRuntimeDescriptor(
     int ActiveAlarmCount);
 
 public sealed class ScadaRuntimeFacade(
-    ITagRegistry fallbackRegistry,
-    ICurrentTagCache fallbackCache,
-    IAlarmEngine fallbackAlarms,
+    DemoRuntimeServices fallback,
     SimulationDriver fallbackDriver,
     IEngineeringRuntimeCoordinator engineeringRuntime)
 {
@@ -45,21 +43,21 @@ public sealed class ScadaRuntimeFacade(
             null,
             null,
             new[] { fallbackDriver.Status },
-            fallbackRegistry.Snapshot().Count,
-            fallbackAlarms.Snapshot(activeOnly: true).Count);
+            fallback.Registry.Snapshot().Count,
+            fallback.Alarms.Snapshot(activeOnly: true).Count);
     }
 
     public IReadOnlyCollection<TagDefinition> Tags() =>
-        IsEngineeringActive ? engineeringRuntime.Tags() : fallbackRegistry.Snapshot();
+        IsEngineeringActive ? engineeringRuntime.Tags() : fallback.Registry.Snapshot();
 
     public IReadOnlyCollection<TagValue> CurrentValues() =>
-        IsEngineeringActive ? engineeringRuntime.CurrentValues() : fallbackCache.Snapshot();
+        IsEngineeringActive ? engineeringRuntime.CurrentValues() : fallback.Cache.Snapshot();
 
     public IReadOnlyCollection<AlarmDefinition> AlarmDefinitions() =>
-        IsEngineeringActive ? engineeringRuntime.AlarmDefinitions() : fallbackAlarms.Definitions();
+        IsEngineeringActive ? engineeringRuntime.AlarmDefinitions() : fallback.Alarms.Definitions();
 
     public IReadOnlyCollection<AlarmInstance> Alarms(bool activeOnly = false) =>
-        IsEngineeringActive ? engineeringRuntime.Alarms(activeOnly) : fallbackAlarms.Snapshot(activeOnly);
+        IsEngineeringActive ? engineeringRuntime.Alarms(activeOnly) : fallback.Alarms.Snapshot(activeOnly);
 
     public IReadOnlyCollection<DriverStatus> Drivers() =>
         IsEngineeringActive ? engineeringRuntime.Describe().Drivers : new[] { fallbackDriver.Status };
@@ -69,7 +67,7 @@ public sealed class ScadaRuntimeFacade(
         if (IsEngineeringActive)
             return engineeringRuntime.TryGetTag(tagId, out tag);
 
-        return fallbackRegistry.TryGet(tagId, out tag);
+        return fallback.Registry.TryGet(tagId, out tag);
     }
 
     public bool TryGetTagByPath(string path, out TagDefinition? tag)
@@ -77,7 +75,7 @@ public sealed class ScadaRuntimeFacade(
         if (IsEngineeringActive)
             return engineeringRuntime.TryGetTagByPath(path, out tag);
 
-        return fallbackRegistry.TryGetByPath(path, out tag);
+        return fallback.Registry.TryGetByPath(path, out tag);
     }
 
     public bool TryGetCurrent(Guid tagId, out TagValue? value)
@@ -85,7 +83,7 @@ public sealed class ScadaRuntimeFacade(
         if (IsEngineeringActive)
             return engineeringRuntime.TryGetCurrent(tagId, out value);
 
-        return fallbackCache.TryGet(tagId, out value);
+        return fallback.Cache.TryGet(tagId, out value);
     }
 
     public ValueTask<bool> AcknowledgeAlarmAsync(
@@ -94,7 +92,7 @@ public sealed class ScadaRuntimeFacade(
         CancellationToken cancellationToken = default) =>
         IsEngineeringActive
             ? engineeringRuntime.AcknowledgeAlarmAsync(alarmId, user, cancellationToken)
-            : fallbackAlarms.AcknowledgeAsync(alarmId, user, cancellationToken);
+            : fallback.Alarms.AcknowledgeAsync(alarmId, user, cancellationToken);
 
     public ValueTask WriteAsync(
         Guid tagId,

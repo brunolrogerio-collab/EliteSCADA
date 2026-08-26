@@ -153,6 +153,36 @@ The locked protocol direction includes:
 
 MQTT, OPC UA and future modules must use the same Data Source / TAG / Engineering model rather than create protocol-specific configuration islands.
 
+### First installable driver target: Siemens S7
+
+The **first intended installable communication-driver module** is a Siemens S7 driver compatible with **S7 ISO Connection** for Siemens PLC communication.
+
+This is a future implementation target, not active development at the time this requirement was recorded.
+
+When the module-framework and S7 implementation slice is reached:
+
+- research existing public/open-source implementations, including relevant Node-RED S7 communication work and libraries;
+- evaluate whether architecture, protocol handling or code can be reused safely;
+- reuse source code only when its license is compatible with EliteSCADA and all attribution/distribution obligations are understood;
+- independently validate protocol behavior, reconnect handling, address model, data types, PLC-family compatibility, read/write semantics, diagnostics and industrial reliability rather than assuming a Node-RED implementation is production-ready for a SCADA runtime;
+- keep the S7-specific address/configuration model inside the common versioned Data Source/Engineering contract and Driver SDK boundary.
+
+The exact Siemens PLC families, supported address/data types, connection modes and write capabilities will be defined after technical research at the appropriate implementation stage.
+
+### Future Allen-Bradley driver target
+
+EliteSCADA should also pursue a future communication module for **Allen-Bradley PLCs**.
+
+This is intentionally recorded as a research target rather than a prematurely fixed protocol implementation. When its turn arrives:
+
+- research public protocol documentation, open-source projects, existing libraries and legally reusable implementations available at that time;
+- determine which Allen-Bradley PLC families and communication protocols can be supported reliably without depending on unavailable proprietary information;
+- evaluate licensing, interoperability, testability and access to representative equipment/simulators before committing to a production scope;
+- use manufacturer documentation or cooperation when available, but do not make the entire architectural goal depend on obtaining direct manufacturer support;
+- keep any resulting driver behind the same installable module, Driver SDK, Data Source, TAG, security and Engineering boundaries.
+
+No Allen-Bradley protocol/library choice is considered locked yet. The implementation decision must be based on evidence gathered during that future research slice.
+
 ## Installable driver modules and Driver SDK
 
 EliteSCADA must support adding communication drivers without rebuilding the core product for every protocol.

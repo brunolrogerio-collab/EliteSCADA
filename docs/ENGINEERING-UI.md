@@ -17,7 +17,7 @@ The foundation reads project state directly from:
 - `GET /api/engineering/workspace`;
 - `GET /api/engineering/export/json`.
 
-TAG and Data Source sections now add the first controlled editing stage. Their form values are **transient drafts only**. A draft is cloned into the complete canonical `scada.engineering` package and sent to:
+TAG, Data Source and Alarm sections now provide the first controlled editing stage. Their form values are **transient drafts only**. A draft is cloned into the complete canonical `scada.engineering` package and sent to:
 
 - `POST /api/engineering/import/json/preview`.
 
@@ -49,7 +49,7 @@ Rules:
 - a green preview does not imply the project was changed;
 - future Apply must be a distinct deliberate action and must use backend authorization/audit once the security branch reaches main.
 
-This distinction is important for industrial engineering: a form may be syntactically complete while cross-references, Data Source relationships, scaling, permissions or other package-level rules still make the resulting project invalid.
+This distinction is important for industrial engineering: a form may be syntactically complete while cross-references, Data Source relationships, alarm TAG bindings, scaling, permissions or other package-level rules still make the resulting project invalid.
 
 ## Initial structured editors
 
@@ -89,6 +89,37 @@ The first Data Source editor exposes:
 Secret material is never loaded into the editor. `secretReferences` remain reference strings only and are shown read-only in this first slice. The backend validator continues to reject plaintext-secret-like settings and invalid secret-reference schemes.
 
 The editor can also create a **new Data Source draft** with no ID. Like TAG creation, it exists only in the cloned preview candidate and must be classified by the backend as `Create` without mutating the Working Workspace.
+
+### Alarm editor
+
+The Alarm section now follows the same draft/preview model and exposes:
+
+- name;
+- associated TAG path;
+- alarm type (`digital`, `high`, `highHigh`, `low`, `lowLow`, `communication`, `system`);
+- priority (`low`, `medium`, `high`, `critical`);
+- analog setpoint where applicable;
+- digital active value for digital alarms;
+- alarm class;
+- area;
+- message;
+- activation delay in milliseconds;
+- enabled state;
+- acknowledgement requirement;
+- shelving permission.
+
+Existing metadata not exposed by the form remains preserved in the cloned canonical alarm entity.
+
+The public alarm contract can carry both `tagId` and `tagPath`, while backend TAG resolution prefers an existing `tagId` before `tagPath`. Therefore, when the engineer changes the TAG path in the Alarm editor, the draft explicitly clears `tagId`. This forces backend preview to validate the newly selected path rather than accidentally resolving the old TAG identity.
+
+Alarm preview remains backend-authoritative:
+
+- analog alarms without setpoint are rejected by the common validator;
+- negative activation delay is rejected;
+- missing/blank TAG association is rejected;
+- a non-existent TAG reference is rejected with `ALARM_TAG_NOT_FOUND` by the existing cross-reference handler.
+
+The editor can also create a **new Alarm draft** without ID. Valid new alarms are appended only to the cloned candidate package and must be classified as `Create` by preview. They do not appear in the live Engineering export until a future Apply operation exists.
 
 ## Initial route and shell
 
@@ -176,15 +207,15 @@ Current:
 
 1. Data Source structured draft + backend preview, including create preview;
 2. TAG structured draft + backend preview, including create preview;
-3. changed-draft protection when switching entities or leaving the page.
+3. Alarm structured draft + backend preview, including create preview and TAG cross-reference validation;
+4. changed-draft protection when switching entities or leaving the page.
 
 Next after validation:
 
-4. explicit Apply into the Working Workspace with confirmation and refresh;
-5. delete workflows with preview;
-6. bulk/multi-selection editing where appropriate;
-7. alarm editor;
-8. historian policy editor;
+5. explicit Apply into the Working Workspace with confirmation and refresh;
+6. delete workflows with preview;
+7. bulk/multi-selection editing where appropriate;
+8. dedicated historian-policy/bulk editor on top of the TAG historian contract;
 9. security-role policy editor when backend lifecycle is ready.
 
 These editors should favor structured tables, property panels and bulk workflows where that is more efficient than modal forms.
@@ -243,9 +274,12 @@ The Engineering UI should maintain browser coverage for:
 - valid TAG draft preview;
 - invalid TAG draft preview using backend issue codes;
 - valid Data Source draft preview;
+- valid Alarm draft preview;
+- invalid Alarm TAG reference expecting `ALARM_TAG_NOT_FOUND`;
 - changed-draft confirmation when switching entities;
 - new TAG preview classified as create without mutating export;
 - new Data Source preview classified as create without mutating export;
+- new Alarm preview classified as create without mutating export;
 - proof that preview does not change Workspace dirty state/change version;
 - proof that preview does not mutate exported Engineering entities;
 - future authorization-aware visibility once login/profile flow exists.

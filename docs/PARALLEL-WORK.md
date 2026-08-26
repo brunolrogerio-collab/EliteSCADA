@@ -1,99 +1,102 @@
 # PARALLEL WORK — EliteSCADA
 
-This file coordinates concurrent ChatGPT workstreams on the same repository.
+This file defines the permanent rules for concurrent ChatGPT workstreams on the EliteSCADA repository.
 
-## Core rule
+Dynamic assignments are maintained separately in `docs/CHAT-WORK-ASSIGNMENTS.md`.
 
-Each chat owns exactly one branch/workstream. Worker chats must not merge their own pull requests. Integration and shared-file changes are coordinated by the primary integration chat.
+## 1. Core ownership rule
 
-Before any EliteSCADA work, every chat must read:
+Each development chat owns exactly one assigned workstream/branch at a time.
+
+Worker chats:
+
+- work only in the branch and scope currently assigned to their fixed chat name;
+- never merge their own pull requests;
+- never alter `main`;
+- never select their own next roadmap task after finishing an assignment;
+- never modify another workstream's branch or reserved domain unless the coordinator explicitly reassigns that work in `docs/CHAT-WORK-ASSIGNMENTS.md`.
+
+The primary integration chat is `COORDENADOR - EliteSCADA` and owns cross-PR integration, merge ordering, shared-file changes and assignment updates.
+
+## 2. Mandatory read protocol
+
+Before any EliteSCADA work, every chat must read from the current GitHub repository:
 
 1. `PROJECT GOAL.md`
 2. `LAST CHANGE.md`
 3. `docs/ROADMAP.md`
-4. this file
-5. the specification documents relevant to its workstream
+4. `docs/PARALLEL-WORK.md`
+5. `docs/CHAT-WORK-ASSIGNMENTS.md`
+6. every workstream-specific document listed under that chat's `MustReadSpecific` assignment field
 
-## Active workstreams
+The repository must be inspected before editing. Branch, PR, head commit and CI state in GitHub are operational truth; documentation is coordination/handoff state and may lag a newly completed GitHub action.
 
-### Coordinator / integration chat
+## 3. Permanent `continue` rule
 
-PR #39 local-user administration is **MERGED**. The coordinator now owns the next isolated hardening slice plus cross-PR integration.
+When the user says only `continue` in an EliteSCADA chat, the chat must first identify itself by its fixed workstream/chat name and consult `docs/CHAT-WORK-ASSIGNMENTS.md`.
 
-Current responsibilities:
+Recognized fixed names currently include:
 
-- implement secured Engineering Apply/Delete/bulk mutation on a separate coordinator branch;
-- review Worker A / Worker B PRs after their CI completes;
-- reconcile worker branches with then-current `main` without discarding worker commits;
-- perform shared Engineering/runtime integration explicitly marked `INTEGRATION REQUIRED` by workers;
-- decide merge order and run final integrated CI;
-- maintain `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md` and this coordination file.
+- `COORDENADOR - EliteSCADA`
+- `DEV 1 - EliteSCADA`
+- `DEV 2 - EliteSCADA`
+- `DEV 3 - EliteSCADA`
+- future names explicitly added to the assignment board by the coordinator
 
-Coordinator-owned domains currently include:
+The chat then follows these rules:
 
-- shared Engineering mutation lifecycle and public schema integration;
-- `src/Scada.Api/Security/**` and authentication/session boundaries;
-- `src/Scada.Api/Realtime/TagRealtimeHub.cs`;
-- central Engineering/Runtime composition and API wiring;
-- shared frontend routing/application-shell integration.
+### Assigned or active work
 
-### Worker A — Internal Memory foundation
+If its assignment is `ASSIGNED`, `IN_PROGRESS`, `PR_OPEN` or `CI_FAILED`, the chat must verify the real GitHub state and automatically start/continue that exact assigned task without asking the user to repeat the original prompt.
 
-Branch: `feature/internal-memory-foundation`
-Draft PR: #40
+### Completed/delivered work
 
-Goal: implement the isolated foundation for the locked Internal Memory / Source Provider architecture without broad application integration.
+If the current task is delivered, waiting, completed or ready for coordinator review and `AfterCompletion` is `WAIT_FOR_COORDINATOR`, the chat must not create new work.
 
-Current Worker A foundation includes:
+It should respond substantially as:
 
-- common Source Provider abstraction for non-network TAG ownership;
-- `builtin.memory.server` and `builtin.memory.client` provider contracts;
-- typed initial/default values;
-- stable TAG-ID retention identity;
-- retention-store abstraction plus deterministic in-memory implementation;
-- fail-closed incompatible retained data types;
-- deleted TAG non-resurrection;
-- normal memory quality `Good` without fabricated network metrics;
-- per-Runtime-Client Client Memory isolation;
-- focused tests.
+> Tarefa atual concluída e entregue. O coordenador definiu `WAIT_FOR_COORDINATOR`. Não há nova tarefa autorizada para este DEV.
 
-Read first: `docs/INTERNAL-MEMORY-TAGS.md`.
+It must not:
 
-Worker A must leave public Engineering schema, runtime application composition, durable production retention, historian/alarm integration and shared authorization/audit hooks as `INTEGRATION REQUIRED` unless coordinator explicitly assigns them.
+- create a new branch;
+- choose a new roadmap item;
+- resume an older delivered PR as new work;
+- modify `main`;
+- modify another branch;
+- expand its own mission.
 
-### Worker B — Python scripting + visual property foundation
+### Explicit next assignment
 
-Branch: `feature/python-scripting-foundation`
-Draft PR: #41
+If the assignment board contains a new current task, `TAKE_NEXT_ASSIGNED_TASK`, or `NEXT_TASK: <task>` with the required branch/scope information, `continue` means start or continue exactly that explicitly assigned work.
 
-Goal: implement the isolated contracts/foundation required before the graphical Screens/Popups/Dynamos editor.
+### Missing identity
 
-Current Worker B foundation includes:
+If the current fixed chat name is not present in `docs/CHAT-WORK-ASSIGNMENTS.md`, the chat must not infer an assignment from the roadmap, conversation history or nearby branches. It must report that no authorized assignment exists and wait for coordinator action.
 
-- typed public visual-property schema;
-- common geometry/transform/visibility/fill/stroke/text/image property groups;
-- explicit object-type-specific declaration;
-- Engineering base values separated from Runtime presentation overrides;
-- deterministic `base -> binding/expression -> script -> animation` precedence;
-- animation/tween contracts;
-- explicit Client Visual Script vs Server Script scopes;
-- sandbox capability contracts;
-- execution budget/cancellation/queue/error-isolation contracts;
-- Python validation/diagnostic contracts;
-- focused tests.
+## 4. Assignment authority
 
-Read first: `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`.
+Only `COORDENADOR - EliteSCADA` may change the assignments of other DEV chats in `docs/CHAT-WORK-ASSIGNMENTS.md`.
 
-Worker B must not implement the final graphical editor, concrete central Engineering schema wiring, central runtime composition or a private browser-only source of truth.
+Workers may update their own PR body with:
 
-## Shared files reserved to coordinator
+- `IMPLEMENTED IN PR` scope;
+- tests/CI evidence;
+- remaining integration hooks;
+- `INTEGRATION REQUIRED` items;
+- blockers found inside the assigned scope.
 
-Worker chats must not modify these unless the coordinator explicitly assigns a specific change:
+A worker must not modify the assignment board to create, broaden or replace its own mission.
+
+## 5. Shared files reserved to coordinator
+
+Unless an assignment explicitly grants a specific exception, worker chats must not modify:
 
 - `PROJECT GOAL.md`
 - `LAST CHANGE.md`
 - `docs/ROADMAP.md`
 - `docs/PARALLEL-WORK.md`
+- `docs/CHAT-WORK-ASSIGNMENTS.md`
 - `.github/workflows/**`
 - top-level solution/project orchestration files when avoidable
 - `src/Scada.Api/Program.cs`
@@ -102,42 +105,57 @@ Worker chats must not modify these unless the coordinator explicitly assigns a s
 - lockfiles
 - `src/Scada.Engineering/Contracts/EngineeringContracts.cs`
 
-Worker chats should prefer new isolated files/types and record required central changes in the PR body under `INTEGRATION REQUIRED`.
+Workers should prefer isolated new files/types inside their assigned domain and record required central changes under `INTEGRATION REQUIRED` in the PR body.
 
-## Conflict-avoidance rules
+## 6. Conflict-avoidance rules
 
-1. Prefer new files over editing shared central files.
+1. Prefer new isolated files over editing shared central files.
 2. A worker may refactor only inside its assigned domain.
-3. If a needed change crosses into a coordinator-owned file, implement the isolated side first and record `INTEGRATION REQUIRED` rather than editing the shared file.
-4. Do not rename/move files owned by another workstream.
+3. If a required change crosses into coordinator-owned scope, implement the isolated side first and document the integration requirement rather than silently taking the shared file.
+4. Do not rename or move files owned by another active workstream.
 5. Do not force/reset another workstream branch.
-6. Do not merge `main` into a worker branch while another change is being committed to that branch unless the worker/coordinator explicitly coordinates the reconciliation.
-7. Each worker PR remains Draft until the isolated implementation and focused tests are complete.
-8. Each worker PR must list changed domains, tests, remaining integration hooks and coordinator-owned changes still required.
-9. CI must be green on the final reconciled head before merge.
+6. Do not merge/rebase another worker's branch without explicit coordinator reconciliation.
+7. Worker PRs remain Draft until isolated implementation and focused validation are complete unless the coordinator deliberately changes that policy.
+8. Worker PRs must identify changed domains, tests, remaining hooks and coordinator-owned integration requirements.
+9. Final reconciled CI must be green before merge.
 10. Worker chats never merge their own PRs.
-11. An open worker PR is **IMPLEMENTED IN PR**, never product state.
+11. An open feature branch/PR is **IMPLEMENTED IN PR**, never official product state.
+12. If two PRs touch the same shared contract, the coordinator decides integration order and reconciles semantics deliberately rather than accepting whichever merge happens first.
 
-## Current integration order
+## 7. Integration rules
 
-1. PR #39 is complete and merged.
-2. Let current Worker A / Worker B CI runs finish without branch interference.
-3. Coordinator may continue the independent secured Engineering mutation slice in parallel.
-4. Review worker PRs and their `INTEGRATION REQUIRED` items.
-5. Reconcile the smaller/cleaner ready worker PR with then-current `main` first.
-6. Add only the necessary coordinator-owned integration hooks, run full relevant CI and merge when green.
-7. Reconcile the remaining worker PR again against updated `main`, integrate hooks, validate and merge.
-8. Internal Memory must reach full product integration before TAG Gateway starts.
-9. Python/visual foundation must be integrated before the final graphical editor starts, but it does not block the earlier interface-validation preview after driver diagnostics.
+The coordinator must:
 
-Internal Memory remains earlier in the operational roadmap than TAG Gateway. Python/visual-property foundation may progress concurrently because it targets a later graphical-editor dependency and is isolated from Internal Memory when these ownership rules are respected.
+- inspect real PR diffs, tests and CI before integration;
+- reconcile each worker branch with the then-current `main` without discarding valid worker commits;
+- add central/shared integration hooks only after reviewing worker `INTEGRATION REQUIRED` notes;
+- resolve cross-PR contract duplication explicitly;
+- run relevant final CI on reconciled heads;
+- merge only green, reviewed work;
+- update `docs/CHAT-WORK-ASSIGNMENTS.md` when a worker's task/status/next assignment materially changes;
+- keep `LAST CHANGE.md` and `docs/ROADMAP.md` consistent with actual merged state.
 
-## Status vocabulary
+Roadmap dependency ordering remains governed by `PROJECT GOAL.md` and `docs/ROADMAP.md`; the assignment board does not rewrite product architecture.
 
-Every chat must distinguish:
+## 8. Document responsibilities
+
+- `PROJECT GOAL.md` = stable product north and locked architecture.
+- `docs/ROADMAP.md` = macro implementation sequence and dependencies.
+- `docs/PARALLEL-WORK.md` = permanent concurrency/ownership/integration rules.
+- `docs/CHAT-WORK-ASSIGNMENTS.md` = live assignment board: who is doing what **now**, branch/scope/status, and what `continue` means for each chat.
+- `LAST CHANGE.md` = technical operational handoff and exact resume point.
+- PR bodies = branch-local implementation evidence and `INTEGRATION REQUIRED` details.
+
+No one of these documents replaces the others.
+
+## 9. Status vocabulary
+
+Every chat must distinguish repository/product state:
 
 - **MERGED** — official `main` state;
-- **IMPLEMENTED IN PR** — code exists only on an open feature branch/PR;
-- **SPECIFIED / NOT IMPLEMENTED** — architecture is locked but functionality does not yet exist.
+- **IMPLEMENTED IN PR** — implementation exists only in an open feature branch/PR;
+- **SPECIFIED / NOT IMPLEMENTED** — architecture/product intent is documented but functionality does not yet exist.
 
-Never describe an open branch as product state.
+Assignment workflow states are defined in `docs/CHAT-WORK-ASSIGNMENTS.md` and include `ASSIGNED`, `IN_PROGRESS`, `PR_OPEN`, `CI_FAILED`, `READY_FOR_COORDINATOR_REVIEW`, `INTEGRATION_REQUIRED`, `MERGED`, `BLOCKED`, `WAITING` and `COMPLETED`.
+
+Never describe an open branch as merged product state.

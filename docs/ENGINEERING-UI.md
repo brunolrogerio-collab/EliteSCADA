@@ -34,13 +34,14 @@ The exact endpoint shape for later interactive mutations may evolve, but it must
 The initial structured editors deliberately separate three states:
 
 1. **Original**: the entity from the public Engineering snapshot loaded from the backend.
-2. **Draft**: transient browser form state for one selected entity.
+2. **Draft**: transient browser form state for one selected entity or one proposed new entity.
 3. **Preview result**: the backend validation result for a complete package containing that draft.
 
 Rules:
 
-- selecting another entity discards the current unsaved draft;
-- `Discard draft` restores the entity exactly from the loaded public snapshot;
+- selecting another entity while the current draft has changes requires explicit discard confirmation;
+- leaving the page with a changed draft registers browser `beforeunload` protection;
+- `Discard draft` restores an existing entity exactly from the loaded public snapshot or resets a new-entity draft to its empty template;
 - any edit invalidates the previous preview immediately;
 - preview sends a cloned full Engineering package, not an editor-private partial DTO with different semantics;
 - preview never applies the candidate;
@@ -73,6 +74,8 @@ The first TAG editor exposes draft fields for:
 
 Fields not yet exposed in the form, including metadata and detailed access policy, remain preserved in the cloned canonical entity and are not discarded by preview.
 
+The editor can also create a **new TAG draft** with no ID. The draft is appended only to the cloned candidate package. Backend preview must classify a valid unique draft as `Create`; the live Engineering export remains unchanged until a future explicit Apply exists.
+
 ### Data Source editor
 
 The first Data Source editor exposes:
@@ -84,6 +87,8 @@ The first Data Source editor exposes:
 - public technical settings as key/value pairs.
 
 Secret material is never loaded into the editor. `secretReferences` remain reference strings only and are shown read-only in this first slice. The backend validator continues to reject plaintext-secret-like settings and invalid secret-reference schemes.
+
+The editor can also create a **new Data Source draft** with no ID. Like TAG creation, it exists only in the cloned preview candidate and must be classified by the backend as `Create` without mutating the Working Workspace.
 
 ## Initial route and shell
 
@@ -169,17 +174,18 @@ The Engineering UI is not the runtime HMI editor itself. It is the broader devel
 
 Current:
 
-1. Data Source structured draft + backend preview;
-2. TAG structured draft + backend preview.
+1. Data Source structured draft + backend preview, including create preview;
+2. TAG structured draft + backend preview, including create preview;
+3. changed-draft protection when switching entities or leaving the page.
 
 Next after validation:
 
-3. explicit Apply into the Working Workspace with confirmation and refresh;
-4. create-new and delete workflows with preview;
-5. bulk/multi-selection editing where appropriate;
-6. alarm editor;
-7. historian policy editor;
-8. security-role policy editor when backend lifecycle is ready.
+4. explicit Apply into the Working Workspace with confirmation and refresh;
+5. delete workflows with preview;
+6. bulk/multi-selection editing where appropriate;
+7. alarm editor;
+8. historian policy editor;
+9. security-role policy editor when backend lifecycle is ready.
 
 These editors should favor structured tables, property panels and bulk workflows where that is more efficient than modal forms.
 
@@ -237,6 +243,9 @@ The Engineering UI should maintain browser coverage for:
 - valid TAG draft preview;
 - invalid TAG draft preview using backend issue codes;
 - valid Data Source draft preview;
+- changed-draft confirmation when switching entities;
+- new TAG preview classified as create without mutating export;
+- new Data Source preview classified as create without mutating export;
 - proof that preview does not change Workspace dirty state/change version;
 - proof that preview does not mutate exported Engineering entities;
 - future authorization-aware visibility once login/profile flow exists.

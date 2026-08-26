@@ -603,7 +603,6 @@ static async Task<IResult> ApplyEngineeringImportAsync(
     string format,
     Func<Task<EngineeringPackage>> parseAsync)
 {
-    _ = request;
     var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
     var failure = authorization.FailureResult();
     if (failure is not null)
@@ -618,10 +617,44 @@ static async Task<IResult> ApplyEngineeringImportAsync(
         return failure;
     }
 
+    long? expectedChangeVersion = null;
+    if (request.Headers.TryGetValue("x-elitescada-workspace-version", out var expectedHeader))
+    {
+        if (expectedHeader.Count != 1 ||
+            !long.TryParse(
+                expectedHeader.ToString(),
+                System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var parsedExpectedVersion) ||
+            parsedExpectedVersion < 0)
+        {
+            await audit.RecordAsync(
+                context,
+                authorization.Principal,
+                AuditActions.EngineeringImportApply,
+                AuditOutcome.Failed,
+                "engineering-workspace",
+                "current",
+                new Dictionary<string, string>
+                {
+                    ["format"] = format,
+                    ["reason"] = "invalid-workspace-version"
+                });
+            return Results.BadRequest(new { error = "Invalid Engineering Workspace version header." });
+        }
+
+        expectedChangeVersion = parsedExpectedVersion;
+    }
+
     try
     {
         var importMode = mode ?? ImportMode.CreateAndUpdate;
         var package = await parseAsync();
+        var workspace = context.RequestServices.GetRequiredService<EngineeringWorkspace>();
+        await using var mutation = await workspace.AcquireMutationAsync(
+            expectedChangeVersion,
+            context.RequestAborted);
+
         var preview = exchange.Preview(package, importMode);
         if (!preview.CanApply)
         {
@@ -656,9 +689,34 @@ static async Task<IResult> ApplyEngineeringImportAsync(
                 ["mode"] = importMode.ToString(),
                 ["created"] = result.Created.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["updated"] = result.Updated.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                ["skipped"] = result.Skipped.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                ["skipped"] = result.Skipped.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["expectedChangeVersion"] = expectedChangeVersion?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "none",
+                ["resultingChangeVersion"] = workspace.CaptureChangeVersion().ToString(System.Globalization.CultureInfo.InvariantCulture)
             });
         return hasErrors ? Results.BadRequest(result) : Results.Ok(result);
+    }
+    catch (EngineeringWorkspaceVersionConflictException conflict)
+    {
+        await audit.RecordAsync(
+            context,
+            authorization.Principal,
+            AuditActions.EngineeringImportApply,
+            AuditOutcome.Failed,
+            "engineering-workspace",
+            "current",
+            new Dictionary<string, string>
+            {
+                ["format"] = format,
+                ["reason"] = "workspace-version-conflict",
+                ["expectedChangeVersion"] = conflict.ExpectedChangeVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["currentChangeVersion"] = conflict.CurrentChangeVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            });
+        return Results.Conflict(new
+        {
+            error = "Engineering Workspace changed after preview. Reload and validate the draft again.",
+            expectedChangeVersion = conflict.ExpectedChangeVersion,
+            currentChangeVersion = conflict.CurrentChangeVersion
+        });
     }
     catch (Exception ex)
     {

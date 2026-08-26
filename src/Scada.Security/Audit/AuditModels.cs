@@ -14,13 +14,13 @@ public static class AuditActions
     public const string AlarmAcknowledge = "alarm.acknowledge";
     public const string AlarmShelve = "alarm.shelve";
     public const string EngineeringImportApply = "engineering.import.apply";
+    public const string EngineeringDelete = "engineering.delete";
+    public const string EngineeringBulkApply = "engineering.bulk.apply";
     public const string EngineeringPackageRestore = "engineering.package.restore";
     public const string EngineeringCheckout = "engineering.checkout";
     public const string EngineeringSave = "engineering.save";
     public const string EngineeringPublish = "engineering.publish";
     public const string EngineeringActivate = "engineering.activate";
-    public const string EngineeringDelete = "engineering.delete";
-    public const string EngineeringBulkEdit = "engineering.bulk-edit";
     public const string AuditRead = "audit.read";
     public const string UserRoleManage = "user-role.manage";
     public const string AuthenticationLogin = "auth.login";

@@ -82,6 +82,81 @@ public sealed class EngineeringProjectPersistenceServiceTests
     }
 
     [Fact]
+    public async Task Lifecycle_TracksDraftPublishedAndChangesPending()
+    {
+        var tags = new InMemoryTagRegistry();
+        tags.Register(TagDefinition.Create("Pressure", "Plant.Pressure", TagDataType.Double));
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var exchange = new EngineeringExchangeService(tags, alarms);
+        var store = new FakeEngineeringProjectStore();
+        var service = new EngineeringProjectPersistenceService(exchange, store);
+
+        var empty = await service.GetLifecycleAsync("plant-a");
+        Assert.Equal(EngineeringProjectLifecycleStatus.Empty, empty.Status);
+
+        var revision1 = await service.SaveCurrentAsync("plant-a", "Plant A", "engineer");
+        var draft = await service.GetLifecycleAsync("plant-a");
+        Assert.Equal(EngineeringProjectLifecycleStatus.Draft, draft.Status);
+        Assert.Equal(revision1.Revision, draft.WorkingRevision);
+        Assert.Null(draft.PublishedRevision);
+
+        var published = await service.PublishRevisionAsync("plant-a", revision1.Revision, "supervisor");
+        Assert.NotNull(published);
+        Assert.True(published!.Published);
+
+        var current = await service.GetLifecycleAsync("plant-a");
+        Assert.Equal(EngineeringProjectLifecycleStatus.Published, current.Status);
+        Assert.Equal(revision1.Revision, current.PublishedRevision);
+        Assert.Equal("supervisor", current.PublishedBy);
+
+        var revision2 = await service.SaveCurrentAsync("plant-a", "Plant A", "engineer");
+        var pending = await service.GetLifecycleAsync("plant-a");
+        Assert.Equal(EngineeringProjectLifecycleStatus.ChangesPending, pending.Status);
+        Assert.Equal(revision2.Revision, pending.WorkingRevision);
+        Assert.Equal(revision1.Revision, pending.PublishedRevision);
+    }
+
+    [Fact]
+    public async Task PublishRevision_DoesNotPublishPackageThatFailsPreview()
+    {
+        var tags = new InMemoryTagRegistry();
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var exchange = new EngineeringExchangeService(tags, alarms);
+        var store = new FakeEngineeringProjectStore();
+
+        var invalid = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            new[]
+            {
+                new TagEngineeringDto(null, "Pressure", "Plant.Pressure", TagDataType.Double, Source: "missing.datasource")
+            },
+            Array.Empty<AlarmEngineeringDto>());
+
+        var json = System.Text.Json.JsonSerializer.Serialize(invalid, new System.Text.Json.JsonSerializerOptions
+        {
+            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+            Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter(System.Text.Json.JsonNamingPolicy.CamelCase) }
+        });
+
+        var snapshot = await store.SaveAsync(
+            "plant-a",
+            "Plant A",
+            invalid.Schema,
+            invalid.SchemaVersion,
+            json);
+
+        var service = new EngineeringProjectPersistenceService(exchange, store);
+        var result = await service.PublishRevisionAsync("plant-a", snapshot.Revision, "supervisor");
+
+        Assert.NotNull(result);
+        Assert.False(result!.Published);
+        Assert.False(result.Preview.CanApply);
+        Assert.Null(await store.GetPublicationAsync("plant-a"));
+    }
+
+    [Fact]
     public async Task PreviewRevision_RejectsStoredMetadataThatDoesNotMatchPayload()
     {
         var tags = new InMemoryTagRegistry();
@@ -115,11 +190,14 @@ public sealed class EngineeringProjectPersistenceServiceTests
 
         Assert.Null(await service.PreviewRevisionAsync("missing", 99, ImportMode.CreateAndUpdate));
         Assert.Null(await service.ApplyRevisionAsync("missing", 99, ImportMode.CreateAndUpdate));
+        Assert.Null(await service.PublishRevisionAsync("missing", 99, "supervisor"));
     }
 
     private sealed class FakeEngineeringProjectStore : IEngineeringProjectStore
     {
         private readonly List<EngineeringProjectSnapshot> _items = new();
+        private readonly Dictionary<string, EngineeringProjectPublication> _publications =
+            new(StringComparer.OrdinalIgnoreCase);
         private long _nextRevision = 1;
 
         public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -171,6 +249,32 @@ public sealed class EngineeringProjectPersistenceServiceTests
                 .OrderByDescending(x => x.Revision)
                 .Take(limit)
                 .ToArray());
+
+        public Task<EngineeringProjectPublication?> GetPublicationAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(_publications.GetValueOrDefault(projectKey));
+
+        public Task<EngineeringProjectPublication?> PublishRevisionAsync(
+            string projectKey,
+            long revision,
+            string? publishedBy = null,
+            CancellationToken cancellationToken = default)
+        {
+            var snapshot = _items.FirstOrDefault(x =>
+                x.Revision == revision &&
+                x.ProjectKey.Equals(projectKey, StringComparison.OrdinalIgnoreCase));
+            if (snapshot is null)
+                return Task.FromResult<EngineeringProjectPublication?>(null);
+
+            var publication = new EngineeringProjectPublication(
+                projectKey,
+                revision,
+                DateTimeOffset.UtcNow,
+                publishedBy);
+            _publications[projectKey] = publication;
+            return Task.FromResult<EngineeringProjectPublication?>(publication);
+        }
 
         public void Seed(EngineeringProjectSnapshot snapshot)
         {

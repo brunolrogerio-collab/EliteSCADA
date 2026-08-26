@@ -104,18 +104,36 @@ Next:
 18. Add a real login/token-issuance or external identity-provider workflow and user lifecycle administration.
 19. Add audit retention/query policy and durable buffering/outbox behavior for temporary storage outages.
 20. Add historian retention/downsampling policies on TimescaleDB.
-21. Add MQTT driver integration through the same Data Source/driver model.
-22. Add OPC UA integration through the same Data Source/driver model.
-23. Add BACnet communication-driver integration through the same Data Source/driver model.
-24. Introduce the installable/versioned Driver Module framework and public Driver SDK compatibility boundary, including module lifecycle, diagnostics, trust/integrity and Engineering configuration preservation; use Siemens S7 ISO Connection as the first intended installable-module target after the framework is ready.
-25. Add Portuguese (`pt-BR`), English (`en`) and Spanish (`es`) localization across the Engineering/development interface with a developer-selectable language preference and language-neutral Engineering contracts.
-26. Add Engineering XLSX workbook import/export.
-27. Expand runtime communication diagnostics as a common multi-driver capability: per-Data-Source health/state, success/failure/timeout/reconnect counters, timing/data-age metrics, TAG quality aggregation, protected diagnostic APIs, independent failure/recovery tests for simultaneous driver instances, then the Engineering communication-health window defined in `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
-28. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
+21. Implement built-in internal memory TAG sources before any additional external protocol: `builtin.memory.client` scoped per Runtime Client session and `builtin.memory.server` shared/retentive on the server, including typed initial values, retention/migration semantics, scripting scope rules and Engineering Import/Export. See `docs/INTERNAL-MEMORY-TAGS.md`.
+22. Expand runtime communication diagnostics as a common multi-driver capability: per-Data-Source health/state, success/failure/timeout/reconnect counters, timing/data-age metrics, TAG quality aggregation, protected diagnostic APIs, independent failure/recovery tests for simultaneous driver instances, then the Engineering communication-health window defined in `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
+23. Add MQTT driver integration through the same Data Source/driver model.
+24. Add OPC UA integration through the same Data Source/driver model.
+25. Add BACnet communication-driver integration through the same Data Source/driver model.
+26. Introduce the installable/versioned Driver Module framework and public Driver SDK compatibility boundary, including module lifecycle, diagnostics, trust/integrity and Engineering configuration preservation; use Siemens S7 ISO Connection as the first intended installable-module target after the framework is ready.
+27. Add Portuguese (`pt-BR`), English (`en`) and Spanish (`es`) localization across the Engineering/development interface with a developer-selectable language preference and language-neutral Engineering contracts.
+28. Add Engineering XLSX workbook import/export.
+29. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
 
 ## Locked future product requirements
 
 These requirements remain part of the EliteSCADA product north and must be implemented through the public engineering model.
+
+### Internal memory TAG sources
+
+- Internal memory is a built-in TAG source family and must be implemented before MQTT, OPC UA, BACnet, Siemens S7 or other new external protocol work.
+- `builtin.memory.client` is scoped to one opened Runtime Client instance/session. Different clients may hold different values for the same engineered TAG definition.
+- Client Memory is non-retentive server-side in the initial implementation and is intended for popup/screen transition variables, navigation/context state, temporary filters, local demo controls and future client-side scripts.
+- Client Memory is not trusted backend state and must not be used as an authorization source, interlock, server command permissive, global process-sequencing variable or audit identity.
+- Client Memory must not drive global server historian/alarm semantics because there is no single global value.
+- `builtin.memory.server` is one server-owned shared value per TAG, visible consistently to all authorized Runtime Clients.
+- Server Memory is retentive by design and is suitable for shared simulation variables, internal sequence state, intermediate values, retained parameters and future server-side scripts.
+- Server Memory participates in the normal shared TAG runtime path: cache/events/realtime/security and historian/alarm behavior when configured.
+- Retained Server Memory values are runtime state stored separately from immutable Engineering revisions/packages and keyed primarily by stable TAG ID so a path rename does not lose the value.
+- Incompatible retained-value/data-type changes must never be silently coerced; explicit validation/reset/migration behavior is required.
+- Memory TAG Engineering requires a typed initial/default value in the public versioned contract. New Client sessions start from it; Server Memory uses it when no compatible retained value exists.
+- Internal memory sources require no protocol address and must not fabricate network diagnostics such as reconnect, timeout or latency counters.
+- Client/server script scope must remain explicit: client scripts may access their Client Memory; server scripts may access Server Memory; server logic must never treat one client's local value as global truth.
+- Full semantics and required validation scenarios are defined in `docs/INTERNAL-MEMORY-TAGS.md`.
 
 ### Industrial protocols and installable driver modules
 
@@ -123,9 +141,9 @@ These requirements remain part of the EliteSCADA product north and must be imple
 - Multiple Data Sources/communication instances must be active simultaneously; several instances may use the same Driver type for different PLCs/devices, and different Driver types may run in parallel.
 - TAG communication ownership is through one Data Source per revision plus the protocol-specific address/binding.
 - Driver/Data Source diagnostics are a first-class protected Engineering/runtime capability and must use a common diagnostic contract rather than protocol-private log parsing. See `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
-- MQTT is a locked future protocol/integration target.
-- OPC UA is a locked future industrial interoperability target.
-- BACnet is a locked future communication-driver target, particularly relevant to building automation/BMS and BACnet-capable controllers/devices.
+- MQTT is a locked future protocol/integration target after the internal-memory and common-diagnostics foundations.
+- OPC UA is a locked future industrial interoperability target after the internal-memory and common-diagnostics foundations.
+- BACnet is a locked future communication-driver target, particularly relevant to building automation/BMS and BACnet-capable controllers/devices, after the internal-memory and common-diagnostics foundations.
 - EliteSCADA must support additional first-party and third-party communication drivers through installable modules rather than requiring every protocol to be compiled into the core product.
 - The first intended installable module target is Siemens S7 communication compatible with S7 ISO Connection; its future implementation research must include relevant public/open-source work such as Node-RED S7 projects where licensing and industrial suitability permit reuse.
 - Allen-Bradley PLC communication is a later explicit research/module target; protocol/library/family scope remains intentionally undecided until public documentation, open-source options, licensing, simulator/hardware access and practical interoperability can be evaluated.

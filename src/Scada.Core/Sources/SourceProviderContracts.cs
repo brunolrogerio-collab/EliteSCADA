@@ -13,7 +13,7 @@ public sealed record SourceProviderDescriptor(
     SourceProviderOwnerScope OwnerScope,
     bool Retentive,
     bool HasNetworkTransport,
-    bool SupportsGlobalHistorianAndAlarms);
+    bool HasSingleServerAuthoritativeValue);
 
 public static class BuiltInSourceProviderDescriptors
 {
@@ -22,14 +22,14 @@ public static class BuiltInSourceProviderDescriptors
         SourceProviderOwnerScope.Server,
         Retentive: true,
         HasNetworkTransport: false,
-        SupportsGlobalHistorianAndAlarms: true);
+        HasSingleServerAuthoritativeValue: true);
 
     public static SourceProviderDescriptor ClientMemory { get; } = new(
         "builtin.memory.client",
         SourceProviderOwnerScope.RuntimeClient,
         Retentive: false,
         HasNetworkTransport: false,
-        SupportsGlobalHistorianAndAlarms: false);
+        HasSingleServerAuthoritativeValue: false);
 }
 
 /// <summary>

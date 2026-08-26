@@ -40,6 +40,47 @@ test('API distinguishes access levels and records protected-operation audit even
   expect(startCommand).toBeTruthy();
   expect(startCommand!.targetTagPath).toBe('Demo.P01.Running');
 
+  const protectedEngineeringGetPaths = [
+    '/api/drivers',
+    '/api/engineering/workspace',
+    '/api/engineering/data-sources',
+    '/api/engineering/templates',
+    '/api/engineering/equipment',
+    '/api/engineering/dynamos',
+    '/api/engineering/screens',
+    '/api/engineering/popups',
+    '/api/engineering/security-roles',
+    '/api/engineering/commands',
+    '/api/engineering/export/json',
+    '/api/engineering/export/tags.csv',
+    '/api/engineering/export/alarms.csv',
+    '/api/engineering/export/datasources.csv',
+    '/api/engineering/persistence/status'
+  ];
+
+  for (const path of protectedEngineeringGetPaths) {
+    expect((await request.get(path)).ok()).toBeTruthy();
+  }
+
+  expect((await request.post('/api/engineering/import/json/preview', {
+    data: engineeringJson,
+    headers: { 'content-type': 'application/json; charset=utf-8' }
+  })).ok()).toBeTruthy();
+
+  const projectPackageExport = await request.get(
+    '/api/project-package/export?projectKey=e2e-security&projectName=E2E%20Security');
+  expect(projectPackageExport.ok()).toBeTruthy();
+  const projectPackageBytes = await projectPackageExport.body();
+  const packageHeaders = { 'content-type': 'application/vnd.elitescada.project-package' };
+  expect((await request.post('/api/project-package/inspect', {
+    data: projectPackageBytes,
+    headers: packageHeaders
+  })).ok()).toBeTruthy();
+  expect((await request.post('/api/project-package/import/preview', {
+    data: projectPackageBytes,
+    headers: packageHeaders
+  })).ok()).toBeTruthy();
+
   const anonymous = await playwrightRequest.newContext({
     baseURL,
     extraHTTPHeaders: { Authorization: '' }
@@ -51,6 +92,22 @@ test('API distinguishes access levels and records protected-operation audit even
     expect((await anonymous.get(`/api/history/${frequency!.id}?limit=5`)).status()).toBe(401);
     expect((await anonymous.get('/api/alarms')).status()).toBe(401);
     expect((await anonymous.get('/api/alarms/definitions')).status()).toBe(401);
+    for (const path of protectedEngineeringGetPaths) {
+      expect((await anonymous.get(path)).status()).toBe(401);
+    }
+    expect((await anonymous.post('/api/engineering/import/json/preview', {
+      data: engineeringJson,
+      headers: { 'content-type': 'application/json; charset=utf-8' }
+    })).status()).toBe(401);
+    expect((await anonymous.get('/api/project-package/export')).status()).toBe(401);
+    expect((await anonymous.post('/api/project-package/inspect', {
+      data: projectPackageBytes,
+      headers: packageHeaders
+    })).status()).toBe(401);
+    expect((await anonymous.post('/api/project-package/import/preview', {
+      data: projectPackageBytes,
+      headers: packageHeaders
+    })).status()).toBe(401);
     expect((await anonymous.post(`/api/tags/${frequency!.id}/write`, {
       data: { value: 51 }
     })).status()).toBe(401);
@@ -74,6 +131,8 @@ test('API distinguishes access levels and records protected-operation audit even
   try {
     expect((await invalid.get('/api/auth/me')).status()).toBe(401);
     expect((await invalid.get('/api/tags')).status()).toBe(401);
+    expect((await invalid.get('/api/engineering/workspace')).status()).toBe(401);
+    expect((await invalid.get('/api/project-package/export')).status()).toBe(401);
     expect((await invalid.post(`/api/tags/${frequency!.id}/write`, {
       data: { value: 53 }
     })).status()).toBe(401);
@@ -106,6 +165,10 @@ test('API distinguishes access levels and records protected-operation audit even
     const noReadAlarmDefinitionsResponse = await noRead.get('/api/alarms/definitions');
     expect(noReadAlarmDefinitionsResponse.ok()).toBeTruthy();
     expect(await noReadAlarmDefinitionsResponse.json()).toEqual([]);
+
+    expect((await noRead.get('/api/drivers')).status()).toBe(403);
+    expect((await noRead.get('/api/engineering/workspace')).status()).toBe(403);
+    expect((await noRead.get('/api/project-package/export')).status()).toBe(403);
   } finally {
     await noRead.dispose();
   }
@@ -124,6 +187,23 @@ test('API distinguishes access levels and records protected-operation audit even
     expect((await operatorTagsResponse.json()) as Array<unknown>).toHaveLength(7);
     expect((await operator.get(`/api/history/${frequency!.id}?limit=5`)).ok()).toBeTruthy();
     expect((await operator.get('/api/alarms/definitions')).ok()).toBeTruthy();
+
+    for (const path of protectedEngineeringGetPaths) {
+      expect((await operator.get(path)).status()).toBe(403);
+    }
+    expect((await operator.post('/api/engineering/import/json/preview', {
+      data: engineeringJson,
+      headers: { 'content-type': 'application/json; charset=utf-8' }
+    })).status()).toBe(403);
+    expect((await operator.get('/api/project-package/export')).status()).toBe(403);
+    expect((await operator.post('/api/project-package/inspect', {
+      data: projectPackageBytes,
+      headers: packageHeaders
+    })).status()).toBe(403);
+    expect((await operator.post('/api/project-package/import/preview', {
+      data: projectPackageBytes,
+      headers: packageHeaders
+    })).status()).toBe(403);
 
     // The demo operator has CommandExecute, but ProcessValueWrite is deliberately absent.
     expect((await operator.post(`/api/commands/${startCommand!.id}/execute`)).status()).toBe(202);

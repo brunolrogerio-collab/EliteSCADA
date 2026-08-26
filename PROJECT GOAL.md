@@ -53,11 +53,11 @@ The SCADA Core must remain independent of:
 
 Mandatory shared/server runtime flow:
 
-`Device/Server Source -> Driver / Source Provider -> TAG Engine / Current Cache -> Event Bus -> Historian / Alarm Engine / Realtime / Scripts`
+`Device/Server Source -> Driver / Source Provider -> TAG Engine / Current Cache -> Event Bus -> Historian / Alarm Engine / Realtime / Gateway / Scripts`
 
 Client-local presentation/session state may use the explicit Client Memory source defined below and must not be mistaken for one globally authoritative server TAG value.
 
-The frontend never accesses industrial drivers directly, and drivers never depend on screens/UI.
+The frontend never accesses industrial drivers directly, and drivers never depend on screens/UI. Protocol-independent data transfer between devices must happen through TAG-level runtime services, never by making one concrete driver call another concrete driver.
 
 ## Technology baseline
 
@@ -107,8 +107,9 @@ At minimum, the public Engineering model covers and must continue to cover:
 5. **Dynamos / reusable visual definitions**: bindings, properties, context and dependencies.
 6. **Screens and Popups**: routes, visual definitions, bindings, context and reusable dependencies.
 7. **Security Roles / Policies**: capabilities and scopes used by the application.
-8. Future engineering domains such as trends, shell regions, commands, libraries and plugins must join the same versioned public model when introduced.
-9. Plugin-owned driver/Data Source configuration must expose a public versioned schema so it participates in Engineering validation, import/export, backup/restore and migration without becoming opaque private state.
+8. **Gateway / TAG Bridge routes**: protocol-independent source-TAG to destination-TAG transfer definitions, quality/type/rate policies and stable endpoint references.
+9. Future engineering domains such as trends, shell regions, commands, libraries and plugins must join the same versioned public model when introduced.
+10. Plugin-owned driver/Data Source configuration must expose a public versioned schema so it participates in Engineering validation, import/export, backup/restore and migration without becoming opaque private state.
 
 ### Secrets rule
 
@@ -207,6 +208,40 @@ Future scripting must keep the scope explicit:
 
 Full semantics and validation scenarios are locked in `docs/INTERNAL-MEMORY-TAGS.md`.
 
+## Protocol-independent TAG Gateway
+
+Before adding additional external protocol families, EliteSCADA must implement a server-side **Gateway / TAG Bridge** capability that transfers data between server-owned runtime TAGs without coupling communication drivers directly.
+
+Core route semantics:
+
+`Source TAG -> Gateway route -> Destination TAG`
+
+The source and destination may belong to different Data Sources and different source/driver types. The runtime reads the source through the common TAG path and writes the destination through its owning active driver/source provider. No pairwise Modbus-to-S7, S7-to-OPC-UA or similar adapter logic is allowed in the core design.
+
+Required behavior:
+
+- Gateway routes are first-class, serializable, versioned Engineering entities with stable IDs and source/destination TAG references.
+- Data Sources may be used by the UI to filter/select endpoints, but the authoritative mapping is TAG-to-TAG rather than Data-Source-to-Data-Source.
+- `builtin.memory.server` is a valid source or destination.
+- `builtin.memory.client` is not a valid server Gateway endpoint because there is no one global Client Memory value.
+- destination TAG must be active, type-compatible and writable through its owning provider;
+- initial implementation is unidirectional and must reject direct or indirect route cycles;
+- initial implementation should reject multiple active Gateway writers targeting the same destination TAG unless a future explicit arbitration model is introduced;
+- fan-out from one source TAG to several destination TAGs is allowed through separate routes;
+- transfer modes should include OnChange and Periodic, with bounded intervals, optional deadband/minimum write interval and coalescing to avoid unbounded device writes;
+- startup must wait for an acceptable source value/quality and a writable destination before initial synchronization;
+- default quality policy transfers only `Good` source values and does not push stale values when source communication becomes bad;
+- source/destination type compatibility must be validated before activation, with no unsafe implicit coercion; simple explicit deterministic conversion/linear scaling may be supported without requiring scripts;
+- complex calculations/sequencing remain the responsibility of future scripts/expressions rather than turning the Gateway into a programming language;
+- Gateway execution is a trusted internal runtime service, not a borrowed browser/user session. Engineering configuration changes are security-sensitive/auditable; cyclic sample transfers should use route diagnostics rather than flooding the human audit trail;
+- route diagnostics must expose state, last successful/failed transfer, counters, quality skips, throttling/coalescing and sanitized write errors independently from communication-driver health.
+
+A Gateway failure must not corrupt source TAG quality. A destination communication failure affects the route/destination write path independently while the source remains authoritative.
+
+The Gateway is a prerequisite before new external protocol families so the next protocol immediately participates in multiprotocol TAG routing through the common runtime model.
+
+Full semantics and validation scenarios are locked in `docs/TAG-GATEWAY.md`.
+
 ## Industrial communication
 
 Drivers are accessed through common contracts and Data Source engineering definitions.
@@ -264,14 +299,14 @@ The diagnostic UI should support quick identification of healthy, degraded and f
 The locked protocol direction includes:
 
 - **Modbus TCP** as the currently implemented first real industrial driver;
-- **MQTT** as a planned first-class communication/messaging integration after the internal memory sources and common diagnostics foundation;
-- **OPC UA** as a planned first-class industrial interoperability protocol after the internal memory sources and common diagnostics foundation;
-- **BACnet** as a planned communication-driver protocol, especially relevant to building automation/BMS and devices/controllers that expose BACnet interoperability, after the internal memory sources and common diagnostics foundation;
+- **MQTT** as a planned first-class communication/messaging integration after the internal memory sources, TAG Gateway and common diagnostics foundations;
+- **OPC UA** as a planned first-class industrial interoperability protocol after the internal memory sources, TAG Gateway and common diagnostics foundations;
+- **BACnet** as a planned communication-driver protocol, especially relevant to building automation/BMS and devices/controllers that expose BACnet interoperability, after the internal memory sources, TAG Gateway and common diagnostics foundations;
 - additional protocols supplied by first-party or third-party **installable driver modules** through the same public Driver SDK boundary.
 
 Together with Siemens S7 and future Allen-Bradley support, these protocol families are intended to give EliteSCADA broad practical compatibility across mainstream PLC, industrial automation and building-automation environments. The user's planning assumption is that this protocol set should cover more than 90% of practical PLC/controller needs encountered in the target market; that percentage is a product-planning hypothesis and must be validated before being presented externally as a measured market statistic.
 
-MQTT, OPC UA, BACnet and future modules must use the same Data Source / TAG / Engineering model rather than create protocol-specific configuration islands.
+MQTT, OPC UA, BACnet and future modules must use the same Data Source / TAG / Engineering model rather than create protocol-specific configuration islands. Writable/readable TAGs from those providers should become eligible for protocol-independent Gateway routes through the same runtime contract.
 
 ### First installable driver target: Siemens S7
 
@@ -382,7 +417,7 @@ Future alarm UX should support persistent alarm summaries/banner regions in the 
 
 Reusable industrial structures are a product requirement, not a convenience feature.
 
-EliteSCADA must evolve Equipment Templates/Equipment and Dynamos into version-aware reusable libraries, conceptually similar in responsibility to Elipse E3 XObject/XControl while maintaining EliteSCADA's own contracts.
+EliteSCADA must evolve Equipment Templates/Equipment and Dynamos into a version-aware reusable library experience, conceptually similar in responsibility to class/instance systems such as Elipse E3 XObject/XControl while maintaining EliteSCADA's own contracts.
 
 Required direction:
 
@@ -453,6 +488,7 @@ This language choice applies across the complete engineering/development environ
 - project save/revision/publish/activate workflows;
 - users, roles and security administration;
 - driver/module administration and diagnostics;
+- Gateway/TAG Bridge configuration and diagnostics;
 - validation messages, menus, property editors, dialogs and engineering help text provided by the product.
 
 The selected interface language is a **presentation/user preference**. Changing it must never alter stable Engineering identifiers, TAG paths, addresses, internal enum values, public JSON/CSV/XLSX schema keys, revision identity or runtime semantics. Product code should use localization/resource keys rather than persist translated UI labels as authoritative configuration values.
@@ -465,7 +501,7 @@ The language preference should be persistable per user/profile when the user-lif
 
 The editor must consume the same public Engineering model rather than maintain a private project representation.
 
-Editor development may proceed incrementally on top of the established runtime/security/persistence foundation. Core workflows include reusable objects, Engineering Fragments, trends, access-aware visibility and configurable shell regions.
+Editor development may proceed incrementally on top of the established runtime/security/persistence foundation. Core workflows include reusable objects, Engineering Fragments, trends, access-aware visibility, Gateway/TAG Bridge engineering and configurable shell regions.
 
 The graphical editor is an engineering client of the platform, not the platform's authority.
 
@@ -483,6 +519,7 @@ The editor and all other developer-facing Engineering surfaces must share the sa
 - Preserve backward compatibility of supported Engineering schema versions or introduce explicit migration behavior/tests.
 - Documentation and roadmap updates must not accidentally erase locked future product requirements.
 - Additional driver modules must not bypass Engineering validation, security, audit, TAG quality semantics or the DriverHost boundary.
+- Protocol-independent Gateway routes must use common TAG/read/write/source-provider boundaries and must never couple concrete communication drivers directly.
 - Client Memory must never be treated as trusted backend/global process state.
 - Server-retained memory values must remain runtime state separate from immutable Engineering revision contents.
 - Engineering UI localization must not leak translated presentation strings into stable public Engineering contracts or identifiers.
@@ -498,5 +535,6 @@ The editor and all other developer-facing Engineering surfaces must share the sa
 - `docs/VISUAL-COMPONENT-LIBRARY.md`: visual/reusable component direction.
 - `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`: multi-driver communication topology and diagnostic contract direction.
 - `docs/INTERNAL-MEMORY-TAGS.md`: Client Memory and retentive Server Memory semantics.
+- `docs/TAG-GATEWAY.md`: protocol-independent TAG-to-TAG gateway/bridge semantics.
 
 When these documents evolve, they should remain consistent. `PROJECT GOAL.md` wins for explicitly locked product intent; repository code and current `main` win for what is actually implemented; `LAST CHANGE.md` records where work stopped and how to resume.

@@ -11,13 +11,21 @@ test('Runtime exposes an entry to the Engineering workspace', async ({ page }) =
   await expect(page.getByText('EliteSCADA Engineering')).toBeVisible();
 });
 
-test('Engineering workspace renders the public model and switches locale without changing Engineering identifiers', async ({ page }) => {
+test('Engineering workspace renders the public model and switches locale without changing Engineering identifiers', async ({ page, request }) => {
+  const engineeringResponse = await request.get('/api/engineering/export/json');
+  expect(engineeringResponse.ok()).toBeTruthy();
+  const engineering = await engineeringResponse.json() as {
+    schema: string;
+    schemaVersion: number;
+    tags: Array<{ path: string }>;
+  };
+
   await page.goto('/engineering');
 
   await expect(page.getByText('EliteSCADA Engineering')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Visão geral do projeto' })).toBeVisible();
-  await expect(page.getByText('scada.engineering v6')).toBeVisible();
-  await expect(page.getByText('7', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(`${engineering.schema} v${engineering.schemaVersion}`)).toBeVisible();
+  await expect(page.getByText(String(engineering.tags.length), { exact: true }).first()).toBeVisible();
 
   await page.getByRole('button', { name: /TAGs/ }).click();
   await expect(page.getByRole('heading', { name: 'TAGs' })).toBeVisible();

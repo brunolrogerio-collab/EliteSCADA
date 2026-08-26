@@ -129,9 +129,39 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         command.Parameters.AddWithValue("project_key", projectKey.Trim());
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
-        return await reader.ReadAsync(cancellationToken)
-            ? ReadSnapshot(reader)
-            : null;
+        return await reader.ReadAsync(cancellationToken) ? ReadSnapshot(reader) : null;
+    }
+
+    public async Task<EngineeringProjectSnapshot?> LoadRevisionAsync(
+        string projectKey,
+        long revision,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateProjectKey(projectKey);
+        if (revision < 1)
+            throw new ArgumentOutOfRangeException(nameof(revision));
+
+        const string sql = """
+            SELECT
+                revision,
+                project_key,
+                project_name,
+                engineering_schema,
+                engineering_schema_version,
+                saved_at_utc,
+                payload::text,
+                saved_by
+            FROM elitescada.engineering_revisions
+            WHERE project_key = @project_key AND revision = @revision
+            LIMIT 1;
+            """;
+
+        await using var command = _dataSource.CreateCommand(sql);
+        command.Parameters.AddWithValue("project_key", projectKey.Trim());
+        command.Parameters.AddWithValue("revision", revision);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        return await reader.ReadAsync(cancellationToken) ? ReadSnapshot(reader) : null;
     }
 
     public async Task<IReadOnlyCollection<EngineeringProjectSnapshot>> ListRevisionsAsync(

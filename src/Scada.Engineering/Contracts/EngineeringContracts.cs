@@ -44,6 +44,11 @@ public sealed record HistorianSettingsDto(
     int? PeriodMilliseconds = null,
     int? MaximumPeriodMilliseconds = null);
 
+public sealed record TagAccessPolicyDto(
+    IReadOnlyCollection<string>? ReadRoles = null,
+    IReadOnlyCollection<string>? WriteRoles = null,
+    IReadOnlyCollection<string>? ConfigureRoles = null);
+
 public sealed record TagEngineeringDto(
     Guid? Id,
     string Name,
@@ -57,7 +62,8 @@ public sealed record TagEngineeringDto(
     double? ScaleMinimum = null,
     double? ScaleMaximum = null,
     HistorianSettingsDto? Historian = null,
-    Dictionary<string, string>? Metadata = null);
+    Dictionary<string, string>? Metadata = null,
+    TagAccessPolicyDto? AccessPolicy = null);
 
 public sealed record AlarmEngineeringDto(
     Guid? Id,

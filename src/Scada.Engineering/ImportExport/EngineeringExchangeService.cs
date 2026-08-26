@@ -15,7 +15,7 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 7;
+    public const int CurrentSchemaVersion = 8;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;

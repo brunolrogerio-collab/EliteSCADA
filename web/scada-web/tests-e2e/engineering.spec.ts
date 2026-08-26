@@ -57,7 +57,7 @@ test('Engineering navigation exposes current domains and structured preview edit
 
   const sections = [
     { button: /Data Sources/, heading: 'Editor estruturado de Data Sources', expected: 'builtin.simulation' },
-    { button: /Alarmes/, heading: 'Alarmes', expected: 'High discharge pressure' },
+    { button: /Alarmes/, heading: 'Editor estruturado de Alarmes', expected: 'High discharge pressure' },
     { button: /Templates/, heading: 'Templates', expected: 'pump.standard' },
     { button: /Equipamentos/, heading: 'Equipamentos', expected: 'Demo.P01' },
     { button: /Dínamos/, heading: 'Dínamos', expected: 'dynamo.pump.standard' },
@@ -207,4 +207,72 @@ test('Data Source editor previews a new source as a create without applying it',
   const after = await afterResponse.json() as { dataSources: Array<{ key: string }> };
   expect(after.dataSources).toEqual(before.dataSources);
   expect(after.dataSources.some(source => source.key === 'preview.simulation')).toBeFalsy();
+});
+
+test('Alarm editor validates existing drafts and TAG references without mutating Workspace', async ({ page, request }) => {
+  const workspaceBeforeResponse = await request.get('/api/engineering/workspace');
+  expect(workspaceBeforeResponse.ok()).toBeTruthy();
+  const workspaceBefore = await workspaceBeforeResponse.json() as { isDirty: boolean; changeVersion: number };
+
+  const engineeringBeforeResponse = await request.get('/api/engineering/export/json');
+  expect(engineeringBeforeResponse.ok()).toBeTruthy();
+  const engineeringBefore = await engineeringBeforeResponse.json() as {
+    alarms: Array<{ id?: string; name: string; tagPath?: string | null; message?: string | null }>;
+  };
+  const original = engineeringBefore.alarms.find(alarm => alarm.name === 'High discharge pressure');
+  expect(original).toBeTruthy();
+
+  await page.goto('/engineering');
+  await page.getByRole('button', { name: /Alarmes/ }).click();
+  await page.getByRole('button', { name: /High discharge pressure/ }).click();
+  await expect(page.getByLabel('TAG associado')).toHaveValue('Demo.Discharge.Pressure');
+
+  await page.getByLabel('Mensagem').fill('Pressure preview edit');
+  await page.getByRole('button', { name: 'Validar preview' }).click();
+  await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
+
+  const workspaceAfterResponse = await request.get('/api/engineering/workspace');
+  expect(workspaceAfterResponse.ok()).toBeTruthy();
+  const workspaceAfter = await workspaceAfterResponse.json() as { isDirty: boolean; changeVersion: number };
+  expect(workspaceAfter).toEqual(workspaceBefore);
+
+  const engineeringAfterResponse = await request.get('/api/engineering/export/json');
+  expect(engineeringAfterResponse.ok()).toBeTruthy();
+  const engineeringAfter = await engineeringAfterResponse.json() as {
+    alarms: Array<{ id?: string; name: string; message?: string | null }>;
+  };
+  const unchanged = engineeringAfter.alarms.find(alarm => alarm.id === original!.id || alarm.name === original!.name);
+  expect(unchanged?.message).toBe(original!.message);
+
+  await page.getByLabel('TAG associado').fill('Demo.Missing.Tag');
+  await page.getByRole('button', { name: 'Validar preview' }).click();
+  await expect(page.getByText('O rascunho possui erros', { exact: true })).toBeVisible();
+  await expect(page.getByText('ALARM_TAG_NOT_FOUND', { exact: true })).toBeVisible();
+});
+
+test('Alarm editor previews a new alarm as a create without applying it', async ({ page, request }) => {
+  const beforeResponse = await request.get('/api/engineering/export/json');
+  expect(beforeResponse.ok()).toBeTruthy();
+  const before = await beforeResponse.json() as { alarms: Array<{ name: string }> };
+
+  await page.goto('/engineering');
+  await page.getByRole('button', { name: /Alarmes/ }).click();
+  await page.getByRole('button', { name: 'Novo Alarme' }).click();
+  await expect(page.getByText('Novo', { exact: true })).toBeVisible();
+
+  await page.getByLabel('Nome').fill('Preview pressure alarm');
+  await page.getByLabel('TAG associado').fill('Demo.Discharge.Pressure');
+  await page.getByLabel('Setpoint').fill('9.5');
+  await page.getByLabel('Área').fill('Demo');
+  await page.getByLabel('Mensagem').fill('Preview-only pressure alarm');
+  await page.getByRole('button', { name: 'Validar preview' }).click();
+
+  await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('preview-create-count')).toContainText('1 criações');
+
+  const afterResponse = await request.get('/api/engineering/export/json');
+  expect(afterResponse.ok()).toBeTruthy();
+  const after = await afterResponse.json() as { alarms: Array<{ name: string }> };
+  expect(after.alarms).toEqual(before.alarms);
+  expect(after.alarms.some(alarm => alarm.name === 'Preview pressure alarm')).toBeFalsy();
 });

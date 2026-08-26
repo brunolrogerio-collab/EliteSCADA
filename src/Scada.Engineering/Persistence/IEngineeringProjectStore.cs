@@ -18,11 +18,24 @@ public enum EngineeringProjectLifecycleStatus
     ChangesPending
 }
 
+public enum EngineeringRuntimeStatus
+{
+    Inactive,
+    ActivationPending,
+    Active
+}
+
 public sealed record EngineeringProjectPublication(
     string ProjectKey,
     long PublishedRevision,
     DateTimeOffset PublishedAtUtc,
     string? PublishedBy = null);
+
+public sealed record EngineeringProjectActivation(
+    string ProjectKey,
+    long ActiveRevision,
+    DateTimeOffset ActivatedAtUtc,
+    string? ActivatedBy = null);
 
 public sealed record EngineeringProjectLifecycle(
     string ProjectKey,
@@ -30,7 +43,11 @@ public sealed record EngineeringProjectLifecycle(
     long? WorkingRevision,
     long? PublishedRevision,
     DateTimeOffset? PublishedAtUtc = null,
-    string? PublishedBy = null);
+    string? PublishedBy = null,
+    EngineeringRuntimeStatus RuntimeStatus = EngineeringRuntimeStatus.Inactive,
+    long? ActiveRevision = null,
+    DateTimeOffset? ActivatedAtUtc = null,
+    string? ActivatedBy = null);
 
 public interface IEngineeringProjectStore
 {
@@ -67,5 +84,15 @@ public interface IEngineeringProjectStore
         string projectKey,
         long revision,
         string? publishedBy = null,
+        CancellationToken cancellationToken = default);
+
+    Task<EngineeringProjectActivation?> GetActivationAsync(
+        string projectKey,
+        CancellationToken cancellationToken = default);
+
+    Task<EngineeringProjectActivation?> RecordActivationAsync(
+        string projectKey,
+        long revision,
+        string? activatedBy = null,
         CancellationToken cancellationToken = default);
 }

@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test.use({ locale: 'pt-BR' });
+test.describe.configure({ mode: 'serial' });
 
 test('TAG editor only applies the exact candidate after a valid preview', async ({ page, request }) => {
   const originalResponse = await request.get('/api/engineering/export/json');
@@ -113,6 +114,71 @@ test('backend rejects an Engineering candidate when the Workspace version is sta
     expect(afterResponse.ok()).toBeTruthy();
     const after = await afterResponse.json() as { tags: Array<{ id?: string; path: string; description?: string | null }> };
     expect(after.tags.find(tag => tag.id === original!.id || tag.path === original!.path)?.description).toBe(advanceMarker);
+  } finally {
+    const restore = await request.post('/api/engineering/import/json/apply', {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      data: originalPackage
+    });
+    expect(restore.ok()).toBeTruthy();
+  }
+});
+
+test('dependency-aware TAG Delete fails closed and reports blockers', async ({ request }) => {
+  const exportResponse = await request.get('/api/engineering/export/json');
+  expect(exportResponse.ok()).toBeTruthy();
+  const model = await exportResponse.json() as {
+    tags: Array<{ id?: string; path: string }>;
+  };
+  const tag = model.tags.find(candidate => candidate.path === 'Demo.P01.Frequency');
+  expect(tag?.id).toBeTruthy();
+
+  const workspaceResponse = await request.get('/api/engineering/workspace');
+  expect(workspaceResponse.ok()).toBeTruthy();
+  const workspace = await workspaceResponse.json() as { changeVersion: number };
+
+  const deletion = await request.delete(`/api/engineering/tags/${tag!.id}`, {
+    headers: { 'x-elitescada-workspace-version': String(workspace.changeVersion) }
+  });
+  expect(deletion.status()).toBe(409);
+  const conflict = await deletion.json() as {
+    error: string;
+    dependencies: Array<{ entityKind: string; entityKey: string; relation: string }>;
+  };
+  expect(conflict.dependencies.length).toBeGreaterThan(0);
+  expect(conflict.dependencies.some(dependency =>
+    ['alarm', 'command', 'equipment', 'screen', 'popup', 'security-role'].includes(dependency.entityKind))).toBeTruthy();
+
+  const afterResponse = await request.get('/api/engineering/export/json');
+  expect(afterResponse.ok()).toBeTruthy();
+  const after = await afterResponse.json() as { tags: Array<{ id?: string; path: string }> };
+  expect(after.tags.some(candidate => candidate.id === tag!.id || candidate.path === tag!.path)).toBeTruthy();
+});
+
+test('explicit Alarm Delete removes only the requested entity and can be restored', async ({ request }) => {
+  const originalResponse = await request.get('/api/engineering/export/json');
+  expect(originalResponse.ok()).toBeTruthy();
+  const originalPackage = await originalResponse.json() as {
+    alarms: Array<{ id?: string; name: string }>;
+    [key: string]: unknown;
+  };
+  const alarm = originalPackage.alarms.find(candidate => Boolean(candidate.id));
+  expect(alarm?.id).toBeTruthy();
+
+  try {
+    const workspaceResponse = await request.get('/api/engineering/workspace');
+    expect(workspaceResponse.ok()).toBeTruthy();
+    const workspace = await workspaceResponse.json() as { changeVersion: number };
+
+    const deletion = await request.delete(`/api/engineering/alarms/${alarm!.id}`, {
+      headers: { 'x-elitescada-workspace-version': String(workspace.changeVersion) }
+    });
+    expect(deletion.ok()).toBeTruthy();
+
+    const afterResponse = await request.get('/api/engineering/export/json');
+    expect(afterResponse.ok()).toBeTruthy();
+    const after = await afterResponse.json() as { alarms: Array<{ id?: string; name: string }> };
+    expect(after.alarms.some(candidate => candidate.id === alarm!.id)).toBeFalsy();
+    expect(after.alarms.length).toBe(originalPackage.alarms.length - 1);
   } finally {
     const restore = await request.post('/api/engineering/import/json/apply', {
       headers: { 'content-type': 'application/json; charset=utf-8' },

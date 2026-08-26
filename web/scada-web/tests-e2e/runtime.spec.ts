@@ -124,6 +124,50 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(tagsPreview.errorCount).toBe(0);
   expect(tagsPreview.canApply).toBeTruthy();
 
+  const projectPackageResponse = await request.get('/api/project-package/export?projectKey=demo&projectName=Demo%20Project');
+  expect(projectPackageResponse.ok()).toBeTruthy();
+  expect(projectPackageResponse.headers()['content-type']).toContain('application/vnd.elitescada.project-package');
+  const projectPackage = await projectPackageResponse.body();
+  expect(projectPackage.length).toBeGreaterThan(0);
+
+  const projectInspectResponse = await request.post('/api/project-package/inspect', {
+    data: projectPackage,
+    headers: { 'content-type': 'application/vnd.elitescada.project-package' }
+  });
+  expect(projectInspectResponse.ok()).toBeTruthy();
+  const projectInspect = await projectInspectResponse.json() as {
+    manifest: {
+      format: string;
+      formatVersion: number;
+      projectKey: string;
+      projectName: string;
+      engineeringSchemaVersion: number;
+      files: Array<{ path: string; sha256: string }>;
+    };
+    engineering: { tags: number; dataSources: number; screens: number; popups: number };
+  };
+  expect(projectInspect.manifest.format).toBe('elitescada.project-package');
+  expect(projectInspect.manifest.formatVersion).toBe(1);
+  expect(projectInspect.manifest.projectKey).toBe('demo');
+  expect(projectInspect.manifest.projectName).toBe('Demo Project');
+  expect(projectInspect.manifest.engineeringSchemaVersion).toBe(5);
+  expect(projectInspect.manifest.files).toHaveLength(1);
+  expect(projectInspect.manifest.files[0].path).toBe('engineering.json');
+  expect(projectInspect.manifest.files[0].sha256).toHaveLength(64);
+  expect(projectInspect.engineering.tags).toBe(7);
+  expect(projectInspect.engineering.dataSources).toBe(1);
+  expect(projectInspect.engineering.screens).toBe(1);
+  expect(projectInspect.engineering.popups).toBe(1);
+
+  const projectPreviewResponse = await request.post('/api/project-package/import/preview', {
+    data: projectPackage,
+    headers: { 'content-type': 'application/vnd.elitescada.project-package' }
+  });
+  expect(projectPreviewResponse.ok()).toBeTruthy();
+  const projectPreview = await projectPreviewResponse.json() as { errorCount: number; canApply: boolean };
+  expect(projectPreview.errorCount).toBe(0);
+  expect(projectPreview.canApply).toBeTruthy();
+
   const alarmResponse = await request.get('/api/alarms?activeOnly=true');
   expect(alarmResponse.ok()).toBeTruthy();
   const alarms = await alarmResponse.json() as Array<{ definitionId: string }>;

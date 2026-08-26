@@ -94,8 +94,10 @@ public sealed class ApiAuthorizationService(
         if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
             return new ApiAuthorizationCheck(principal, null);
 
+        var before = runtime.Describe();
         var policies = await ResolveRuntimePoliciesAsync(runtime, cancellationToken);
-        if (policies is null)
+        var after = runtime.Describe();
+        if (policies is null || !SameRuntime(before, after))
         {
             return new ApiAuthorizationCheck(
                 principal,
@@ -133,8 +135,21 @@ public sealed class ApiAuthorizationService(
         if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
             return new ApiAuthorizationCheck(principal, null);
 
+        var before = runtime.Describe();
+        if (!runtime.TryGetTag(tag.Id, out var runtimeTag) ||
+            runtimeTag is null ||
+            !runtimeTag.Path.Equals(tag.Path, StringComparison.OrdinalIgnoreCase))
+        {
+            return new ApiAuthorizationCheck(
+                principal,
+                AuthorizationDecision.Denied(
+                    capability,
+                    "The TAG is not part of the current active runtime."));
+        }
+
         var policies = await ResolveRuntimePoliciesAsync(runtime, cancellationToken);
-        if (policies is null)
+        var after = runtime.Describe();
+        if (policies is null || !SameRuntime(before, after))
         {
             return new ApiAuthorizationCheck(
                 principal,
@@ -143,7 +158,7 @@ public sealed class ApiAuthorizationService(
                     "The active runtime authorization policy could not be resolved safely."));
         }
 
-        var decision = new TagAccessAuthorization(policies).Evaluate(principal, tag, operation);
+        var decision = new TagAccessAuthorization(policies).Evaluate(principal, runtimeTag, operation);
         return new ApiAuthorizationCheck(principal, decision);
     }
 
@@ -153,6 +168,7 @@ public sealed class ApiAuthorizationService(
         CancellationToken cancellationToken = default)
     {
         var principal = GetPrincipal(context);
+        var before = runtime.Describe();
         var tags = runtime.Tags();
         if (!_authenticationEnabled)
             return new RuntimeReadableTagsResult(principal, false, true, tags);
@@ -167,7 +183,8 @@ public sealed class ApiAuthorizationService(
         }
 
         var policies = await ResolveRuntimePoliciesAsync(runtime, cancellationToken);
-        if (policies is null)
+        var after = runtime.Describe();
+        if (policies is null || !SameRuntime(before, after))
         {
             return new RuntimeReadableTagsResult(
                 principal,
@@ -249,8 +266,7 @@ public sealed class ApiAuthorizationService(
 
         // Fail closed if the live runtime changed while the persisted policy was being resolved.
         var afterLoad = runtime.Describe();
-        if (afterLoad.Revision != descriptor.Revision ||
-            !string.Equals(afterLoad.ProjectKey, descriptor.ProjectKey, StringComparison.OrdinalIgnoreCase))
+        if (!SameRuntime(descriptor, afterLoad))
             return null;
 
         lock (_activeCacheGate)
@@ -262,4 +278,10 @@ public sealed class ApiAuthorizationService(
 
         return compiled;
     }
+
+    private static bool SameRuntime(ScadaRuntimeDescriptor left, ScadaRuntimeDescriptor right) =>
+        left.Revision == right.Revision &&
+        left.ActivatedAtUtc == right.ActivatedAtUtc &&
+        left.Mode.Equals(right.Mode, StringComparison.Ordinal) &&
+        string.Equals(left.ProjectKey, right.ProjectKey, StringComparison.OrdinalIgnoreCase);
 }

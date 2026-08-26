@@ -50,7 +50,8 @@ public static class ProjectPackageEndpoints
                         dynamos = inspection.Engineering.Dynamos?.Count ?? 0,
                         screens = inspection.Engineering.Screens?.Count ?? 0,
                         popups = inspection.Engineering.Popups?.Count ?? 0,
-                        securityRoles = inspection.Engineering.SecurityRoles?.Count ?? 0
+                        securityRoles = inspection.Engineering.SecurityRoles?.Count ?? 0,
+                        commands = inspection.Engineering.Commands?.Count ?? 0
                     }
                 });
             }

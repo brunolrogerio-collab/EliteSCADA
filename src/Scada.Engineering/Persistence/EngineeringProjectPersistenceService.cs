@@ -29,6 +29,10 @@ public interface IEngineeringProjectPersistenceService
         string projectKey,
         CancellationToken cancellationToken = default);
 
+    Task<EngineeringProjectSnapshot?> LoadPublishedAsync(
+        string projectKey,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyCollection<EngineeringProjectSnapshot>> ListRevisionsAsync(
         string projectKey,
         int limit = 50,
@@ -36,6 +40,16 @@ public interface IEngineeringProjectPersistenceService
 
     Task<EngineeringProjectLifecycle> GetLifecycleAsync(
         string projectKey,
+        CancellationToken cancellationToken = default);
+
+    Task<EngineeringProjectActivation?> GetActivationAsync(
+        string projectKey,
+        CancellationToken cancellationToken = default);
+
+    Task<EngineeringProjectActivation?> RecordActivationAsync(
+        string projectKey,
+        long revision,
+        string? activatedBy = null,
         CancellationToken cancellationToken = default);
 
     Task<EngineeringPublicationResult?> PublishRevisionAsync(
@@ -107,6 +121,16 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         CancellationToken cancellationToken = default) =>
         _store.LoadLatestAsync(projectKey, cancellationToken);
 
+    public async Task<EngineeringProjectSnapshot?> LoadPublishedAsync(
+        string projectKey,
+        CancellationToken cancellationToken = default)
+    {
+        var publication = await _store.GetPublicationAsync(projectKey, cancellationToken);
+        return publication is null
+            ? null
+            : await _store.LoadRevisionAsync(projectKey, publication.PublishedRevision, cancellationToken);
+    }
+
     public Task<IReadOnlyCollection<EngineeringProjectSnapshot>> ListRevisionsAsync(
         string projectKey,
         int limit = 50,
@@ -119,6 +143,7 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
     {
         var latest = await _store.LoadLatestAsync(projectKey, cancellationToken);
         var publication = await _store.GetPublicationAsync(projectKey, cancellationToken);
+        var activation = await _store.GetActivationAsync(projectKey, cancellationToken);
 
         var status = latest is null
             ? EngineeringProjectLifecycleStatus.Empty
@@ -128,14 +153,36 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
                     ? EngineeringProjectLifecycleStatus.Published
                     : EngineeringProjectLifecycleStatus.ChangesPending;
 
+        var runtimeStatus = publication is null
+            ? EngineeringRuntimeStatus.Inactive
+            : activation is not null && activation.ActiveRevision == publication.PublishedRevision
+                ? EngineeringRuntimeStatus.Active
+                : EngineeringRuntimeStatus.ActivationPending;
+
         return new EngineeringProjectLifecycle(
             projectKey,
             status,
             latest?.Revision,
             publication?.PublishedRevision,
             publication?.PublishedAtUtc,
-            publication?.PublishedBy);
+            publication?.PublishedBy,
+            runtimeStatus,
+            activation?.ActiveRevision,
+            activation?.ActivatedAtUtc,
+            activation?.ActivatedBy);
     }
+
+    public Task<EngineeringProjectActivation?> GetActivationAsync(
+        string projectKey,
+        CancellationToken cancellationToken = default) =>
+        _store.GetActivationAsync(projectKey, cancellationToken);
+
+    public Task<EngineeringProjectActivation?> RecordActivationAsync(
+        string projectKey,
+        long revision,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default) =>
+        _store.RecordActivationAsync(projectKey, revision, activatedBy, cancellationToken);
 
     public async Task<EngineeringPublicationResult?> PublishRevisionAsync(
         string projectKey,

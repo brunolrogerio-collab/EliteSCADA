@@ -36,12 +36,23 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
             published_by varchar(300) NULL
         );
 
+        CREATE TABLE IF NOT EXISTS elitescada.project_activations (
+            project_key varchar(200) PRIMARY KEY,
+            active_revision bigint NOT NULL REFERENCES elitescada.engineering_revisions(revision),
+            activated_at_utc timestamptz NOT NULL DEFAULT clock_timestamp(),
+            activated_by varchar(300) NULL
+        );
+
         INSERT INTO elitescada.schema_migrations (migration_key)
         VALUES ('001_engineering_revisions')
         ON CONFLICT (migration_key) DO NOTHING;
 
         INSERT INTO elitescada.schema_migrations (migration_key)
         VALUES ('002_project_publications')
+        ON CONFLICT (migration_key) DO NOTHING;
+
+        INSERT INTO elitescada.schema_migrations (migration_key)
+        VALUES ('003_project_activations')
         ON CONFLICT (migration_key) DO NOTHING;
         """;
 
@@ -270,6 +281,64 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         return await reader.ReadAsync(cancellationToken) ? ReadPublication(reader) : null;
     }
 
+    public async Task<EngineeringProjectActivation?> GetActivationAsync(
+        string projectKey,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateProjectKey(projectKey);
+
+        const string sql = """
+            SELECT project_key, active_revision, activated_at_utc, activated_by
+            FROM elitescada.project_activations
+            WHERE project_key = @project_key;
+            """;
+
+        await using var command = _dataSource.CreateCommand(sql);
+        command.Parameters.AddWithValue("project_key", projectKey.Trim());
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        return await reader.ReadAsync(cancellationToken) ? ReadActivation(reader) : null;
+    }
+
+    public async Task<EngineeringProjectActivation?> RecordActivationAsync(
+        string projectKey,
+        long revision,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateProjectKey(projectKey);
+        if (revision < 1)
+            throw new ArgumentOutOfRangeException(nameof(revision));
+
+        const string sql = """
+            INSERT INTO elitescada.project_activations (
+                project_key,
+                active_revision,
+                activated_at_utc,
+                activated_by)
+            SELECT
+                project_key,
+                published_revision,
+                clock_timestamp(),
+                @activated_by
+            FROM elitescada.project_publications
+            WHERE project_key = @project_key AND published_revision = @revision
+            ON CONFLICT (project_key) DO UPDATE SET
+                active_revision = EXCLUDED.active_revision,
+                activated_at_utc = EXCLUDED.activated_at_utc,
+                activated_by = EXCLUDED.activated_by
+            RETURNING project_key, active_revision, activated_at_utc, activated_by;
+            """;
+
+        await using var command = _dataSource.CreateCommand(sql);
+        command.Parameters.AddWithValue("project_key", projectKey.Trim());
+        command.Parameters.AddWithValue("revision", revision);
+        command.Parameters.AddWithValue("activated_by", NpgsqlDbType.Varchar, (object?)NormalizeOptional(activatedBy) ?? DBNull.Value);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        return await reader.ReadAsync(cancellationToken) ? ReadActivation(reader) : null;
+    }
+
     public ValueTask DisposeAsync() => _dataSource.DisposeAsync();
 
     private static EngineeringProjectSnapshot ReadSnapshot(NpgsqlDataReader reader) => new(
@@ -283,6 +352,12 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         reader.IsDBNull(7) ? null : reader.GetString(7));
 
     private static EngineeringProjectPublication ReadPublication(NpgsqlDataReader reader) => new(
+        reader.GetString(0),
+        reader.GetInt64(1),
+        ReadTimestamp(reader, 2),
+        reader.IsDBNull(3) ? null : reader.GetString(3));
+
+    private static EngineeringProjectActivation ReadActivation(NpgsqlDataReader reader) => new(
         reader.GetString(0),
         reader.GetInt64(1),
         ReadTimestamp(reader, 2),

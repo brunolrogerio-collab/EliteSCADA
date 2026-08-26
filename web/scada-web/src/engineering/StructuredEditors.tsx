@@ -39,6 +39,11 @@ export function TagEditor({ model, locale }: EditorProps) {
     setPreviewError(null);
   }, [selectedIdentity]);
 
+  useEffect(() => {
+    setPreview(null);
+    setPreviewError(null);
+  }, [draft]);
+
   const filtered = tags.filter(tag => {
     const haystack = `${tag.path} ${tag.name} ${tag.source ?? ''} ${tag.address ?? ''}`.toLowerCase();
     return haystack.includes(query.trim().toLowerCase());
@@ -194,6 +199,11 @@ export function DataSourceEditor({ model, locale }: EditorProps) {
     setPreview(null);
     setPreviewError(null);
   }, [selectedIdentity]);
+
+  useEffect(() => {
+    setPreview(null);
+    setPreviewError(null);
+  }, [draft]);
 
   const filtered = sources.filter(source => {
     const haystack = `${source.key} ${source.name} ${source.driver}`.toLowerCase();

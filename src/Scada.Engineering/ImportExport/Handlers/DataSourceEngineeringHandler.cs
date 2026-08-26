@@ -1,3 +1,5 @@
+using Scada.Core.Alarms;
+using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.Validation;
@@ -7,8 +9,18 @@ namespace Scada.Engineering.ImportExport.Handlers;
 internal sealed class DataSourceEngineeringHandler
 {
     private readonly IDataSourceEngineeringRegistry _registry;
+    private readonly ITagRegistry _tags;
+    private readonly IAlarmEngine _alarms;
 
-    public DataSourceEngineeringHandler(IDataSourceEngineeringRegistry registry) => _registry = registry;
+    public DataSourceEngineeringHandler(
+        IDataSourceEngineeringRegistry registry,
+        ITagRegistry tags,
+        IAlarmEngine alarms)
+    {
+        _registry = registry;
+        _tags = tags;
+        _alarms = alarms;
+    }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
     {
@@ -19,6 +31,8 @@ internal sealed class DataSourceEngineeringHandler
         {
             var issues = EngineeringValidator.ValidateDataSource(dto).ToList();
             issues.AddRange(MemoryEngineeringValidator.ValidateDataSource(dto));
+            ValidateClientMemoryTransition(dto, package, issues);
+
             if (duplicates.Contains(dto.Key))
                 issues.Add(new(
                     "DATASOURCE_DUPLICATE_IN_FILE",
@@ -51,6 +65,49 @@ internal sealed class DataSourceEngineeringHandler
 
             _registry.Upsert(dto with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
             if (existing is null) created++; else updated++;
+        }
+    }
+
+    private void ValidateClientMemoryTransition(
+        DataSourceEngineeringDto dataSource,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        if (!MemoryEngineeringValidator.IsClientMemoryDriver(dataSource.Driver))
+            return;
+
+        foreach (var currentTag in _tags.Snapshot()
+                     .Where(tag => string.Equals(tag.Source, dataSource.Key, StringComparison.OrdinalIgnoreCase)))
+        {
+            var imported = package.Tags.FirstOrDefault(tag =>
+                tag.Id == currentTag.Id ||
+                tag.Path.Equals(currentTag.Path, StringComparison.OrdinalIgnoreCase));
+            var effective = imported ?? EngineeringDtoMapper.ToDto(currentTag);
+
+            // A TAG explicitly moved to another source in the same package is no
+            // longer affected by this Data Source driver transition.
+            if (!string.Equals(effective.Source, dataSource.Key, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (effective.Historian?.Enabled == true)
+            {
+                issues.Add(new(
+                    "CLIENT_MEMORY_EXISTING_HISTORIAN_NOT_ALLOWED",
+                    $"Data source '{dataSource.Key}' cannot become Client Memory while TAG '{effective.Path}' remains configured for the global historian.",
+                    ImportEntityKind.DataSource,
+                    dataSource.Key,
+                    true));
+            }
+
+            if (_alarms.Definitions().Any(alarm => alarm.TagId == currentTag.Id))
+            {
+                issues.Add(new(
+                    "CLIENT_MEMORY_EXISTING_ALARM_NOT_ALLOWED",
+                    $"Data source '{dataSource.Key}' cannot become Client Memory while TAG '{effective.Path}' remains targeted by the global alarm engine.",
+                    ImportEntityKind.DataSource,
+                    dataSource.Key,
+                    true));
+            }
         }
     }
 

@@ -12,10 +12,11 @@
 - `main` HEAD observed: `78a1656160c4317680ed54f0167537f806e104fc`.
 - PR #35 — `Add first-class operational command domain` — open and mergeable, head `fc15adb507db172233ed2893f65d30cdad311963`, base `main`.
 - PR #36 — `Protect runtime read and realtime surfaces` — open and mergeable, head `1df64077b235321f0c3318b994f7b89632261cee`, stacked on PR #35.
-- PR #37 — `Add Engineering UI foundation and localization` — open, mergeable and intentionally **draft**, head before this handoff update `b15c1414f412fc0d4bf41578f3d88b66c92371ea`, base `main`.
-- PR #37 branch: `feature/engineering-ui-foundation`, created directly from `main` and independent from #35/#36.
-- This `LAST CHANGE.md` update creates a newer #37 head commit; fetch the live PR head before further work.
-- Nothing from #35, #36 or #37 should be merged without the relevant green CI validation.
+- PR #37 — `Add Engineering UI foundation and localization` — open, mergeable and intentionally **draft**, base `main`.
+- PR #37 head immediately before this handoff update: `095337728577bf010d014eab02a8d1159e3b4cf3`.
+- This handoff update creates a newer #37 head commit; fetch live PR metadata before further work.
+- PR #37 branch remains `feature/engineering-ui-foundation`, created directly from `main` and independent from #35/#36.
+- Nothing from #35, #36 or #37 should be merged without the relevant green validation.
 
 ## GitHub Actions situation
 
@@ -57,47 +58,78 @@ Implemented on `feature/runtime-read-authorization`:
 - expanded Chromium security coverage;
 - frontend login/token acquisition intentionally deferred to the identity/login slice rather than adding an ad-hoc browser token store.
 
-## PR #37 — Engineering UI foundation
+## PR #37 — Engineering UI foundation and preview editors
 
-PR #37 is deliberately independent and draft while CI is unavailable.
+PR #37 is deliberately independent and draft while CI is unstable.
 
-Implemented:
+Foundation already implemented:
 
-1. `/engineering` developer-facing Engineering Workspace route.
-2. Existing `/` runtime route preserved.
-3. Visible Runtime → Engineering and Engineering → Runtime navigation.
-4. Read-only Engineering shell consuming only public backend contracts:
+1. `/engineering` developer-facing Engineering Workspace route while `/` remains the runtime HMI demonstration.
+2. Visible Runtime ↔ Engineering navigation.
+3. Engineering shell consuming public backend contracts:
    - `GET /api/engineering/workspace`;
    - `GET /api/engineering/export/json`.
-5. Project/workspace summary showing project identity, public schema/version, base revision, clean/dirty state and loaded snapshot time.
-6. Navigation and real-model tables for:
-   - Overview;
-   - Data Sources;
-   - TAGs;
-   - Alarms;
-   - Equipment Templates;
-   - Equipment;
-   - Dynamos;
-   - Screens;
-   - Popups;
-   - Historian policies;
-   - Security roles/capabilities;
-   - model diagnostics.
-7. Shared Engineering localization foundation with resource keys and selectable `pt-BR`, `en` and `es`.
-8. Locale stored only as presentation preference under `elitescada.engineering.locale`.
-9. Browser-locale detection with deterministic Playwright `pt-BR` coverage.
-10. Chromium coverage for Runtime → Engineering navigation, model rendering, domain navigation, three-language switching, locale persistence and stable TAG identifiers across language changes.
-11. Schema-version browser coverage reads the actual version from the API instead of hard-coding v6, preventing a false regression when PR #35 introduces schema v7.
-12. `docs/ENGINEERING-UI.md` documents the editor boundary, localization, UX direction and phased implementation.
-13. No new npm dependency.
-14. No backend/runtime mutation in this branch.
+4. Project/workspace summary with project identity, public schema/version, base revision, clean/dirty state and snapshot time.
+5. Navigation/views for Overview, Data Sources, TAGs, Alarms, Templates, Equipment, Dynamos, Screens, Popups, Historian, Security and Diagnostics.
+6. Shared `pt-BR` / `en` / `es` localization with browser preference key `elitescada.engineering.locale`.
+7. Schema/version E2E assertions read the real API value instead of hard-coding v6.
+8. No new npm dependency and no backend/runtime mutation in this branch.
+
+New preview-editor slice completed in this task:
+
+### TAG editor
+
+- structured entity picker/search;
+- transient draft state for the selected TAG;
+- editable name, path, data type, Data Source, address, unit and description;
+- editable read-only flag and scaling limits;
+- editable historian enabled/strategy/deadband/period/maximum-period fields;
+- metadata/access-policy fields not exposed in the form remain preserved in the cloned canonical entity;
+- Data Source and TAG identity remain canonical public-model fields, not browser-only IDs.
+
+### Data Source editor
+
+- structured entity picker/search;
+- transient draft state for the selected Data Source;
+- editable key, name, driver and enabled state;
+- editable public technical `settings` key/value dictionary;
+- `secretReferences` displayed read-only as references only;
+- no secret value is materialized into the editor.
+
+### Preview behavior
+
+- added frontend client for `POST /api/engineering/import/json/preview`;
+- preview clones the **complete** canonical `scada.engineering` package and substitutes the current draft entity;
+- backend parse/cross-reference/validation logic remains authoritative;
+- no Apply action exists in PR #37;
+- preview cannot dirty the Working Workspace, mutate runtime state or create a revision;
+- any field edit invalidates the previous preview immediately so stale green validation is never presented as current;
+- preview result shows create/update/skip/error counts and backend issue codes/messages.
+
+### Browser coverage added
+
+- valid TAG draft preview;
+- invalid TAG path preview expecting backend `TAG_PATH_WHITESPACE`;
+- proof that TAG preview leaves Workspace `isDirty`/`changeVersion` unchanged;
+- proof that TAG preview leaves exported TAG identity/path/name unchanged;
+- valid Data Source draft preview;
+- proof that Data Source preview also leaves Workspace state unchanged;
+- explicit UI copy that secret references are reference-only.
+
+## Validation status of PR #37
+
+- Static review completed against the current public Engineering contracts and validator behavior.
+- Diff remains frontend/documentation only; compare against `main` shows no backend/source project changes and no npm dependency change.
+- The local environment has Node 22 / npm 10 / TypeScript available, but the private GitHub branch cannot be materialized into the container because the container has no external network access and connector content is not directly mounted into the filesystem.
+- Therefore a truthful local `npm build`/Chromium run could not be performed from this environment.
+- Keep PR #37 draft until GitHub Actions can run the frontend build and Chromium E2E. Do not treat static review as CI success.
 
 ## Engineering UI architectural rules
 
 - The public versioned Engineering model remains authoritative.
 - Browser state may hold transient presentation/filter/dialog/form draft state, never become the only project representation.
-- The first UI slice is intentionally read-only.
-- Future editor mutations must reuse public validation/preview semantics rather than bypass them.
+- Most current Engineering sections remain read-only; TAG and Data Source sections are **draft + preview only**, still without Apply.
+- Future Apply must be a distinct deliberate action using backend validation, authorization and audit; do not turn preview into an implicit save.
 - Localization is presentation only; IDs, TAG paths, addresses, enum/storage values, schema keys, revision identity and authorization semantics stay stable.
 - Backend authorization remains authoritative; UI visibility alone is never the security boundary.
 - Do not add hard-coded JWT/localStorage authentication as a shortcut. Authenticated Engineering UI must consume the future trusted login/IdP flow.
@@ -107,11 +139,12 @@ Implemented:
 
 1. Wait for usable GitHub Actions runners and validate PR #35 first.
 2. Merge #35 only after green CI; then retarget/validate #36 against `main`.
-3. PR #37 can be validated independently against `main`; keep it draft until frontend TypeScript build and Chromium E2E are green.
-4. Fix build/E2E failures at the source rather than weakening tests.
-5. After the Engineering UI foundation is validated, the next UI product slice should be a structured Data Source/TAG editor with draft state feeding the public validate/preview/apply model.
-6. After #35 reaches `main`, expose Commands in the Engineering UI through the same public command domain.
-7. After #36 and the future login/profile subsystem reach `main`, make Engineering presentation capability-aware while preserving backend enforcement.
+3. Validate PR #37 independently against `main`; keep it draft until TypeScript/Vite build and Chromium E2E are green.
+4. Fix any #37 compile/E2E failures at the source rather than weakening tests.
+5. Do **not** add Apply to the preview editors until the current preview slice is validated and the Engineering authorization boundary from #36 is available/understood on mainline.
+6. After validation/security integration, the next editor step is explicit Apply into the Working Workspace with confirmation + reload, followed by create-new/delete/bulk workflows.
+7. After #35 reaches `main`, expose Commands in the Engineering UI through the same public command domain.
+8. After #36 and the future login/profile subsystem reach `main`, make Engineering presentation capability-aware while preserving backend enforcement.
 
 ## Permanent continuity rule
 

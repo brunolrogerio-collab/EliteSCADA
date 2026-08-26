@@ -75,6 +75,50 @@ public sealed class TagRealtimeHub : IDisposable
         }
     }
 
+    /// <summary>
+    /// Immediately revokes active realtime sessions for one authenticated subject.
+    /// A WebSocket policy-violation close frame is sent before the server disposes the socket so
+    /// browser clients can distinguish identity revocation from a transient network disconnect.
+    /// </summary>
+    public int RevokeSubject(string subjectId)
+    {
+        if (string.IsNullOrWhiteSpace(subjectId)) return 0;
+
+        var revoked = 0;
+        foreach (var (id, client) in _clients)
+        {
+            if (!string.Equals(client.Principal.SubjectId, subjectId, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (!_clients.TryRemove(id, out var removed)) continue;
+            revoked++;
+            _ = CloseRevokedClientAsync(removed);
+        }
+
+        return revoked;
+    }
+
+    private static async Task CloseRevokedClientAsync(RealtimeClient client)
+    {
+        try
+        {
+            if (client.Socket.State == WebSocketState.Open)
+            {
+                await client.Socket.CloseOutputAsync(
+                    WebSocketCloseStatus.PolicyViolation,
+                    "identity revoked",
+                    CancellationToken.None);
+            }
+        }
+        catch (WebSocketException) { }
+        catch (ObjectDisposedException) { }
+        finally
+        {
+            try { client.Socket.Dispose(); }
+            catch { }
+        }
+    }
+
     private async ValueTask BroadcastAsync(TagValueChanged evt)
     {
         var payload = JsonSerializer.SerializeToUtf8Bytes(new

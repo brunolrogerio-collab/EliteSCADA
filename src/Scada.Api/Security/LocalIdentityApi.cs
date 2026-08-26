@@ -126,6 +126,7 @@ public static class LocalIdentityApi
             return Results.NoContent();
         });
 
+        endpoints.MapLocalUserAdministrationEndpoints();
         return endpoints;
     }
 

@@ -136,6 +136,73 @@ public static class EngineeringValidator
         return issues;
     }
 
+    public static IReadOnlyCollection<ImportIssue> ValidateScreen(ScreenEngineeringDto screen)
+    {
+        var issues = new List<ImportIssue>();
+        var key = string.IsNullOrWhiteSpace(screen.Key) ? screen.Name : screen.Key;
+        if (string.IsNullOrWhiteSpace(screen.Key))
+            issues.Add(Error("SCREEN_KEY_REQUIRED", "Screen key is required.", ImportEntityKind.Screen, key));
+        if (screen.Key?.Any(char.IsWhiteSpace) == true)
+            issues.Add(Error("SCREEN_KEY_WHITESPACE", "Screen key cannot contain whitespace.", ImportEntityKind.Screen, key));
+        if (string.IsNullOrWhiteSpace(screen.Name))
+            issues.Add(Error("SCREEN_NAME_REQUIRED", "Screen name is required.", ImportEntityKind.Screen, key));
+        if (!string.IsNullOrWhiteSpace(screen.Route) && !screen.Route.StartsWith('/', StringComparison.Ordinal))
+            issues.Add(Error("SCREEN_ROUTE_INVALID", "Screen route must start with '/'.", ImportEntityKind.Screen, key));
+        issues.AddRange(ValidateVisualElements(screen.Elements, ImportEntityKind.Screen, key, allowPlaceholders: false));
+        return issues;
+    }
+
+    public static IReadOnlyCollection<ImportIssue> ValidatePopup(PopupEngineeringDto popup)
+    {
+        var issues = new List<ImportIssue>();
+        var key = string.IsNullOrWhiteSpace(popup.Key) ? popup.Name : popup.Key;
+        if (string.IsNullOrWhiteSpace(popup.Key))
+            issues.Add(Error("POPUP_KEY_REQUIRED", "Popup key is required.", ImportEntityKind.Popup, key));
+        if (popup.Key?.Any(char.IsWhiteSpace) == true)
+            issues.Add(Error("POPUP_KEY_WHITESPACE", "Popup key cannot contain whitespace.", ImportEntityKind.Popup, key));
+        if (string.IsNullOrWhiteSpace(popup.Name))
+            issues.Add(Error("POPUP_NAME_REQUIRED", "Popup name is required.", ImportEntityKind.Popup, key));
+        if (popup.TemplateKey?.Any(char.IsWhiteSpace) == true)
+            issues.Add(Error("POPUP_TEMPLATE_KEY_WHITESPACE", "Popup template key cannot contain whitespace.", ImportEntityKind.Popup, key));
+        issues.AddRange(ValidateVisualElements(popup.Elements, ImportEntityKind.Popup, key, allowPlaceholders: true));
+        return issues;
+    }
+
+    private static IEnumerable<ImportIssue> ValidateVisualElements(
+        IReadOnlyCollection<VisualElementEngineeringDto>? elements,
+        ImportEntityKind entityKind,
+        string entityKey,
+        bool allowPlaceholders)
+    {
+        if (elements is null) yield break;
+
+        var duplicates = elements
+            .Where(x => !string.IsNullOrWhiteSpace(x.Key))
+            .GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var element in elements)
+        {
+            if (string.IsNullOrWhiteSpace(element.Key))
+                yield return Error("VISUAL_ELEMENT_KEY_REQUIRED", "Visual element key is required.", entityKind, entityKey);
+            if (string.IsNullOrWhiteSpace(element.Type))
+                yield return Error("VISUAL_ELEMENT_TYPE_REQUIRED", $"Visual element '{element.Key}' requires a type.", entityKind, entityKey);
+            if (!string.IsNullOrWhiteSpace(element.Key) && duplicates.Contains(element.Key))
+                yield return Error("VISUAL_ELEMENT_DUPLICATE", $"Visual element key '{element.Key}' appears more than once at the same level.", entityKind, entityKey);
+            if (!string.IsNullOrWhiteSpace(element.DynamoKey) && element.DynamoKey.Any(char.IsWhiteSpace))
+                yield return Error("VISUAL_DYNAMO_KEY_WHITESPACE", $"Dynamo key on element '{element.Key}' cannot contain whitespace.", entityKind, entityKey);
+            if (!string.IsNullOrWhiteSpace(element.EquipmentPath) && !allowPlaceholders && ContainsPlaceholder(element.EquipmentPath))
+                yield return Error("VISUAL_EQUIPMENT_PLACEHOLDER_NOT_ALLOWED", $"Screen element '{element.Key}' must reference a concrete equipment path.", entityKind, entityKey);
+
+            foreach (var issue in ValidateBindings(element.Bindings, entityKind, entityKey, allowTagPlaceholders: allowPlaceholders))
+                yield return issue;
+            foreach (var issue in ValidateVisualElements(element.Children, entityKind, entityKey, allowPlaceholders))
+                yield return issue;
+        }
+    }
+
     private static IEnumerable<ImportIssue> ValidateBindings(
         IReadOnlyCollection<EngineeringBindingDto>? bindings,
         ImportEntityKind entityKind,
@@ -160,7 +227,7 @@ public static class EngineeringValidator
             if (!string.IsNullOrWhiteSpace(binding.Key) && duplicates.Contains(binding.Key))
                 yield return Error("BINDING_DUPLICATE", $"Binding key '{binding.Key}' appears more than once.", entityKind, entityKey);
             if (binding.Kind == EngineeringBindingKind.Tag && !allowTagPlaceholders && ContainsPlaceholder(binding.Target))
-                yield return Error("BINDING_TAG_PLACEHOLDER_NOT_ALLOWED", $"Equipment binding '{binding.Key}' must reference a concrete TAG path.", entityKind, entityKey);
+                yield return Error("BINDING_TAG_PLACEHOLDER_NOT_ALLOWED", $"Binding '{binding.Key}' must reference a concrete TAG path.", entityKind, entityKey);
         }
     }
 

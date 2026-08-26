@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Scada.Api.HostedServices;
 using Scada.Api.Persistence;
+using Scada.Api.Runtime;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
 using Scada.Core.Tags;
@@ -94,30 +95,27 @@ public sealed class PersistedRuntimeRecoveryServiceTests
         var recovery = new PersistedRuntimeRecoveryService(persistence, exchange, runtime);
         Assert.True((await recovery.RecoverAsync("plant-a")).Recovered);
 
-        var fallbackRegistry = new InMemoryTagRegistry();
-        var fallbackCache = new CurrentTagCache(runtimeBus);
-        using var fallbackAlarms = new InMemoryAlarmEngine(runtimeBus);
+        using var fallback = new DemoRuntimeServices(runtimeBus);
         var fallbackTag = TagDefinition.Create(
             "Demo fallback",
             "Demo.Fallback",
             TagDataType.Double,
             "builtin.simulation");
         await using var simulation = new SimulationDriver(
-            fallbackCache,
-            fallbackRegistry,
+            fallback.Cache,
+            fallback.Registry,
             new[] { new SimulationPoint(fallbackTag, SimulationSignalType.Constant, ConstantValue: 12) },
             TimeSpan.FromMilliseconds(20));
 
         var hosted = new SimulationDriverHostedService(
             simulation,
-            fallbackRegistry,
-            fallbackAlarms,
+            fallback,
             runtime);
 
         await hosted.StartAsync(CancellationToken.None);
 
         Assert.Equal(DriverState.Stopped, simulation.Status.State);
-        Assert.Empty(fallbackRegistry.Snapshot());
+        Assert.Empty(fallback.Registry.Snapshot());
     }
 
     private static EngineeringPackage CreatePackage(

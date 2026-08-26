@@ -62,6 +62,12 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
         return true;
     }
 
+    public void Clear()
+    {
+        _definitions.Clear();
+        _instances.Clear();
+    }
+
     private async ValueTask EvaluateAsync(TagValueChanged evt)
     {
         foreach (var definition in _definitions.Values.Where(x => x.TagId == evt.Tag.Id && x.Enabled))

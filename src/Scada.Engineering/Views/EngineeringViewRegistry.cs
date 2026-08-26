@@ -70,6 +70,17 @@ public sealed class InMemoryEngineeringViewRegistry : IEngineeringViewRegistry
         lock (_sync) UpsertByKey(normalized, normalized.Id!.Value, normalized.Key, _popupsById, _popupsByKey, x => x.Key);
     }
 
+    public void Clear()
+    {
+        lock (_sync)
+        {
+            _screensById.Clear();
+            _screensByKey.Clear();
+            _popupsById.Clear();
+            _popupsByKey.Clear();
+        }
+    }
+
     private static void UpsertByKey<T>(
         T value,
         Guid id,

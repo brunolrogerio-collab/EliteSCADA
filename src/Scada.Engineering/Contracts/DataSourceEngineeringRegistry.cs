@@ -52,4 +52,13 @@ public sealed class InMemoryDataSourceEngineeringRegistry : IDataSourceEngineeri
             _byKey[normalized.Key] = id;
         }
     }
+
+    public void Clear()
+    {
+        lock (_sync)
+        {
+            _byId.Clear();
+            _byKey.Clear();
+        }
+    }
 }

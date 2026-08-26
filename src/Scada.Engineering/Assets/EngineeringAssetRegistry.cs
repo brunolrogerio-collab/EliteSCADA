@@ -99,6 +99,19 @@ public sealed class InMemoryEngineeringAssetRegistry : IEngineeringAssetRegistry
         lock (_sync) UpsertByKey(normalized, normalized.Id!.Value, normalized.Key, _dynamosById, _dynamosByKey, x => x.Key);
     }
 
+    public void Clear()
+    {
+        lock (_sync)
+        {
+            _templatesById.Clear();
+            _templatesByKey.Clear();
+            _equipmentById.Clear();
+            _equipmentByPath.Clear();
+            _dynamosById.Clear();
+            _dynamosByKey.Clear();
+        }
+    }
+
     private static void UpsertByKey<T>(
         T value,
         Guid id,

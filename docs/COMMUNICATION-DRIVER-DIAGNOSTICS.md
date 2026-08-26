@@ -58,6 +58,20 @@ The runtime compiler/DriverHost is responsible for grouping TAGs by Data Source 
 
 The frontend never communicates directly with a PLC/device.
 
+## Internal source boundary
+
+The public Data Source concept also supports non-network internal sources such as `builtin.memory.client` and `builtin.memory.server`, defined in `docs/INTERNAL-MEMORY-TAGS.md`.
+
+Those sources are **not communication drivers** for diagnostic purposes:
+
+- they do not have a PLC/device transport;
+- they do not expose fake reconnect, timeout, request-latency or network-failure counters;
+- `builtin.memory.server` may expose simple internal-provider/retention health in a broader Data Source status view;
+- `builtin.memory.client` may expose client-local availability only within that client;
+- neither should be marked `BadCommunication` merely because it is a memory source.
+
+The dedicated communication-health window is primarily for external/protocol communication instances. A future broader Data Source administration view may include both communication and internal sources while preserving this distinction.
+
 ## Current implementation alignment
 
 The existing Modbus compiler already iterates through every enabled Data Source and creates a separate `ModbusTcpRuntimePlan` for each valid `modbus.tcp` Data Source.
@@ -175,7 +189,7 @@ The existing poll-block grouping already creates a useful unit for several of th
 
 The Engineering/development environment must contain a dedicated communication/driver diagnostics view.
 
-The initial view should present a compact table/card list of active Data Sources with at least:
+The initial view should present a compact table/card list of active communication Data Sources with at least:
 
 - Data Source name/key;
 - Driver type;
@@ -189,7 +203,7 @@ The initial view should present a compact table/card list of active Data Sources
 
 Healthy communication should be visually quiet. Strong warning/error colors are reserved for degraded or failed communication in line with the high-performance-HMI direction.
 
-Selecting a Data Source should open a drill-down panel containing:
+Selecting a communication Data Source should open a drill-down panel containing:
 
 - detailed counters and timestamps;
 - configured non-secret communication parameters;
@@ -232,14 +246,15 @@ Communication alarms should be implemented through the common alarm/event model 
 
 When backend CI is reliable, the recommended implementation order is:
 
-1. evolve the common Driver diagnostics contract without coupling it to Modbus;
-2. instrument Modbus TCP with counters/timestamps/failure/latency statistics;
-3. expose protected runtime diagnostic snapshots per active Data Source;
-4. add unit/integration tests for independent metrics across multiple simultaneous driver instances;
-5. add an Engineering UI communication diagnostics view;
-6. prove TAG-quality aggregation and per-TAG quality remain consistent;
-7. extend the same common diagnostics contract to each future driver/module;
-8. later add retained diagnostics/events/communication alarms if operationally justified.
+1. complete the internal memory-source foundation separately according to `docs/INTERNAL-MEMORY-TAGS.md`;
+2. evolve the common external Driver diagnostics contract without coupling it to Modbus;
+3. instrument Modbus TCP with counters/timestamps/failure/latency statistics;
+4. expose protected runtime diagnostic snapshots per active communication Data Source;
+5. add unit/integration tests for independent metrics across multiple simultaneous driver instances;
+6. add an Engineering UI communication diagnostics view;
+7. prove TAG-quality aggregation and per-TAG quality remain consistent;
+8. extend the same common diagnostics contract to each future external driver/module;
+9. later add retained diagnostics/events/communication alarms if operationally justified.
 
 ## Required multi-driver validation scenarios
 
@@ -251,5 +266,6 @@ Automated validation should eventually include at least:
 - recovery/reconnect of one Data Source while another remains continuously healthy;
 - write routing to the correct owning driver;
 - diagnostic counters isolated per driver/Data Source;
+- internal memory sources excluded from network-failure metrics;
 - simultaneous different Driver types once a second real protocol exists;
 - activation/revision switching correctly stops old instances and starts the candidate set transactionally.

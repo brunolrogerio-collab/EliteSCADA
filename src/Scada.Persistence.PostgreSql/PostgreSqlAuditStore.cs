@@ -10,6 +10,11 @@ public sealed class PostgreSqlAuditStore : IAuditStore, IAsyncDisposable
     private const string InitializeSql = """
         CREATE SCHEMA IF NOT EXISTS elitescada;
 
+        CREATE TABLE IF NOT EXISTS elitescada.schema_migrations (
+            migration_key text PRIMARY KEY,
+            applied_at_utc timestamptz NOT NULL DEFAULT clock_timestamp()
+        );
+
         CREATE TABLE IF NOT EXISTS elitescada.audit_events (
             id uuid PRIMARY KEY,
             timestamp_utc timestamptz NOT NULL,

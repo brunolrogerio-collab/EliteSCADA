@@ -3,7 +3,7 @@ import './app-navigation.css';
 
 const links = [
   { href: '/', label: 'Runtime' },
-  { href: '/engineering', label: 'Engineering' },
+  { href: '/engineering', label: 'Engineering', ariaLabel: 'Engineering workspace' },
   { href: '/audit', label: 'Audit' }
 ];
 
@@ -21,6 +21,7 @@ export function AppNavigation() {
         <a
           key={link.href}
           href={link.href}
+          aria-label={link.ariaLabel}
           className={activeHref === link.href ? 'active' : undefined}
           aria-current={activeHref === link.href ? 'page' : undefined}
         >

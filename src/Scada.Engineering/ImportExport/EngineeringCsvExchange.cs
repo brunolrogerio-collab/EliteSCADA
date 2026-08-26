@@ -21,7 +21,7 @@ internal sealed class EngineeringCsvExchange
                 "Id", "Path", "Name", "DataType", "Unit", "Source", "Address", "ReadOnly",
                 "ScaleMinimum", "ScaleMaximum", "HistorianEnabled", "HistorianStrategy", "Deadband",
                 "PeriodMilliseconds", "MaximumPeriodMilliseconds", "Description", "MetadataJson",
-                "ReadRolesJson", "WriteRolesJson", "ConfigureRolesJson"
+                "ReadRolesJson", "WriteRolesJson", "ConfigureRolesJson", "InitialValueDataType", "InitialValueJson"
             }
         };
 
@@ -35,7 +35,7 @@ internal sealed class EngineeringCsvExchange
                 tag.Historian?.PeriodMilliseconds?.ToString(CultureInfo.InvariantCulture),
                 tag.Historian?.MaximumPeriodMilliseconds?.ToString(CultureInfo.InvariantCulture), tag.Description,
                 JsonMap(tag.Metadata), JsonList(tag.AccessPolicy?.ReadRoles), JsonList(tag.AccessPolicy?.WriteRoles),
-                JsonList(tag.AccessPolicy?.ConfigureRoles)
+                JsonList(tag.AccessPolicy?.ConfigureRoles), tag.InitialValue?.DataType.ToString(), tag.InitialValue?.Value.GetRawText()
             });
         }
 
@@ -146,6 +146,9 @@ internal sealed class EngineeringCsvExchange
                 ParseList(readRolesJson),
                 ParseList(writeRolesJson),
                 ParseList(configureRolesJson));
+        var initialValue = ParseInitialValue(
+            Null(Get(row, header, "InitialValueDataType")),
+            Null(Get(row, header, "InitialValueJson")));
 
         return new TagEngineeringDto(
             GuidOrNull(Get(row, header, "Id")),
@@ -166,7 +169,8 @@ internal sealed class EngineeringCsvExchange
                 IntOrNull(Get(row, header, "PeriodMilliseconds")),
                 IntOrNull(Get(row, header, "MaximumPeriodMilliseconds"))),
             ParseMap(Get(row, header, "MetadataJson")),
-            accessPolicy);
+            accessPolicy,
+            initialValue);
     }
 
     private string? JsonMap(IReadOnlyDictionary<string, string>? map) =>
@@ -199,6 +203,28 @@ internal sealed class EngineeringCsvExchange
         catch (JsonException ex)
         {
             throw new InvalidDataException("Invalid JSON role list in TAG engineering CSV.", ex);
+        }
+    }
+
+    private static MemoryInitialValueDto? ParseInitialValue(string? dataTypeText, string? json)
+    {
+        if (dataTypeText is null && json is null)
+            return null;
+        if (dataTypeText is null || json is null)
+            throw new InvalidDataException("TAG CSV Internal Memory initial value requires both data type and JSON value.");
+        if (!Enum.TryParse<TagDataType>(dataTypeText, ignoreCase: true, out var dataType))
+            throw new InvalidDataException($"TAG CSV Internal Memory initial value has unsupported data type '{dataTypeText}'.");
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var initialValue = new MemoryInitialValueDto(dataType, document.RootElement.Clone());
+            _ = MemoryEngineeringValueCodec.ToTypedValue(initialValue);
+            return initialValue;
+        }
+        catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException or FormatException or OverflowException)
+        {
+            throw new InvalidDataException($"TAG CSV Internal Memory initial value is invalid for data type '{dataType}'.", ex);
         }
     }
 

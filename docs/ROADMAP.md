@@ -107,3 +107,5 @@ These requirements are part of the EliteSCADA product north but are intentionall
 Only after the runtime, engineering contract and persistence layer are stable should the SVG/editor experience become the primary development focus. The editor must consume the same public engineering model rather than own a private representation of project configuration.
 
 When that phase begins, the editor must treat reusable libraries, engineering fragments/cross-project copy-paste, trends, access-aware visibility and configurable shell regions as core workflows rather than late add-ons.
+
+The initial reusable dynamo/object catalog, common state model, faceplates, trend, shell widgets and future reference-research procedure are defined in `docs/VISUAL-COMPONENT-LIBRARY.md`.

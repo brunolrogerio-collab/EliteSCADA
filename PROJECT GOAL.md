@@ -144,6 +144,54 @@ Drivers are accessed through common contracts and Data Source engineering defini
 
 Current baseline includes real Modbus TCP runtime support with polling, writes, reconnect and communication-quality behavior. New protocols must follow the same separation between Engineering configuration, compiled runtime plan and driver execution.
 
+### Multiple communication instances and device topology
+
+EliteSCADA must support **multiple communication drivers/Data Sources active at the same time**, including:
+
+- multiple instances of the same protocol communicating with different PLCs, RTUs, instruments or other devices;
+- different protocol families active simultaneously in the same application;
+- independent connection, scan, timeout, reconnect and diagnostic state per Data Source/communication instance.
+
+The model distinguishes:
+
+- **Driver type**: the protocol/implementation type, for example `modbus.tcp`, future `siemens.s7`, `opc.ua`, `bacnet` or another module-provided type;
+- **Data Source**: one concrete configured runtime instance of a driver type, normally representing one connection/device/channel or another protocol-appropriate communication context;
+- **TAG**: an engineering point associated with exactly one Data Source for its communication ownership in a revision, plus its protocol-specific address/binding.
+
+A project may therefore contain many Data Sources using the same Driver type and many Data Sources using different Driver types. Driver implementations must not assume they are unique/singleton communication channels for the entire application.
+
+### Communication quality and driver diagnostics
+
+Communication diagnostics are a **first-class operational and Engineering capability**, not merely log text.
+
+The Engineering/development interface must provide a communication-diagnostics view where each active Data Source/driver instance can be inspected individually and summarized collectively.
+
+At minimum, the diagnostic model should expose, where meaningful for the protocol:
+
+- Data Source key/name and driver type;
+- configured non-secret endpoint/device identity suitable for diagnostics;
+- runtime state such as stopped, starting, running, degraded, reconnecting or faulted as the driver model evolves;
+- last state-change time;
+- last successful communication/sample time;
+- last communication failure time and sanitized last error;
+- total communication cycles/requests or equivalent protocol operations;
+- successful and failed operation counts;
+- consecutive failure count;
+- timeout count;
+- reconnect/disconnect count;
+- current and/or recent failure rate;
+- last and representative response/round-trip time where the protocol provides a meaningful measurement;
+- configured scan/publish interval and observed data age where applicable;
+- number of associated TAGs and counts by current TAG quality such as Good, BadCommunication and other supported quality states.
+
+The exact metrics may vary by protocol, but all drivers must map their diagnostics into a common public diagnostic contract instead of exposing only protocol-private log strings.
+
+TAG quality remains authoritative per point. A driver-level health summary may aggregate TAG and transport behavior, but it must not erase per-TAG quality or falsely mark every point good merely because the socket/session is connected.
+
+Communication diagnostics must never expose passwords, tokens, private keys or other protected secret values. Diagnostic reads are subject to backend authorization appropriate to Engineering/system diagnostics.
+
+The diagnostic UI should support quick identification of healthy, degraded and failed communication instances and drill-down into an individual Data Source. Longer-term operational hardening may add retained diagnostic history, rate windows and communication events/alarms without making the UI the source of truth.
+
 The locked protocol direction includes:
 
 - **Modbus TCP** as the currently implemented first real industrial driver;
@@ -265,7 +313,7 @@ Future alarm UX should support persistent alarm summaries/banner regions in the 
 
 Reusable industrial structures are a product requirement, not a convenience feature.
 
-EliteSCADA must evolve Equipment Templates/Equipment and Dynamos into version-aware reusable libraries, conceptually similar in responsibility to class/instance systems such as Elipse E3 XObject/XControl while maintaining EliteSCADA's own contracts.
+EliteSCADA must evolve Equipment Templates/Equipment and Dynamos into version-aware reusable libraries, conceptually similar in responsibility to Elipse E3 XObject/XControl while maintaining EliteSCADA's own contracts.
 
 Required direction:
 

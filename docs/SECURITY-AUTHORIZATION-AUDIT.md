@@ -1,27 +1,46 @@
 # Security, Authorization and Audit Baseline
 
-Status: capability policy, Engineering Schema v7 security/operational-command engineering, JWT authentication, protected engineering/runtime mutations, trusted persistence-lifecycle actors, secured alarm shelving, secured first-class command execution, sensitive read/realtime authorization and durable append-only audit storage are implemented on the current security stack. User administration and token issuance remain future slices.
+## Status
 
-This document defines the security boundary used as identity, authorization, audit persistence and future user management are added to EliteSCADA.
+The current `main` security stack includes:
+
+- capability-based authorization;
+- Engineering Schema v7 Security Roles and Operational Commands;
+- trusted JWT authentication;
+- local identity/browser login;
+- protected local user administration;
+- protected engineering/runtime mutations;
+- trusted persistence-lifecycle actors;
+- secured alarm shelving;
+- secured first-class command execution;
+- sensitive read/realtime authorization;
+- durable append-only Audit storage;
+- bounded Audit query/keyset pagination;
+- configurable Audit retention;
+- bounded asynchronous in-memory Audit outage buffering;
+- protected Audit diagnostics.
+
+Relevant merged checkpoints include PRs #35–#39 and, for the latest hardening, PR #42 secured Engineering mutations, PR #44 Audit durability/query/retention foundation and PR #45 Audit runtime integration.
 
 ## Principles
 
 1. Role names are application configuration, not hard-coded security semantics.
-2. Capabilities describe protected operations. A role only has the capabilities explicitly granted to it.
-3. Authorization is enforced by the backend. Hiding or disabling a UI element is presentation behavior, never the security boundary.
+2. Capabilities describe protected operations. A role only has capabilities explicitly granted to it.
+3. Authorization is enforced by the backend. UI hiding/disabling is presentation only.
 4. Grants may be scoped to area, equipment, screen, TAG or command.
-5. An authenticated identity that has no applicable grant is denied by default on protected operations.
+5. Authenticated identity with no applicable grant is denied by default.
 6. Authentication secrets, password hashes, tokens and private keys are never Engineering Import/Export payloads.
-7. Operational and engineering changes that affect the process or security model must produce audit events.
-8. Runtime authorization policy must correspond to the active engineering revision, not an unsaved or draft workspace state.
-9. Durable audit history is append-only at the database boundary, not merely by API convention.
-10. Operational commands are engineered objects with stable identity and configured semantics; command permission never implies arbitrary process-value write permission.
-11. Long-lived realtime connections must not outlive the trusted credential or bypass later policy evaluation.
-12. Public health probes must reveal only service availability, not plant, project, driver or historian topology.
+7. Operational/Engineering changes that affect process or security state are auditable.
+8. Runtime authorization policy corresponds to the Active Engineering revision, not an unsaved draft.
+9. Durable Audit history is append-only at the storage boundary, not merely by API convention.
+10. Operational Commands are engineered objects; command authority never implies arbitrary process-value write authority.
+11. Long-lived realtime sessions must not outlive trusted credentials or bypass current policy evaluation.
+12. Public health probes reveal service availability only, not plant/project/driver/historian topology.
+13. Audit metadata is structural and must not become a secondary store for process values, secrets or request payloads.
 
-## Initial capability vocabulary
+## Capability vocabulary
 
-The first stable capability vocabulary is:
+Current stable capability vocabulary includes:
 
 - `View`
 - `TagRead`
@@ -35,46 +54,23 @@ The first stable capability vocabulary is:
 - `UserRoleAdmin`
 - `SystemAdmin`
 
-These are capabilities, not roles. Applications remain free to define roles such as `operator`, `maintenance`, `night-shift`, `process-engineer` or any customer-specific hierarchy and assign grants to them.
+These are capabilities, not roles. Customer/application roles remain configurable.
 
-`SystemAdmin` is not implicitly granted by a role merely because its name contains `admin`. Likewise, possessing `SystemAdmin` does not silently imply every other capability in the evaluator. Any hierarchy or inheritance must be explicit and reviewable.
+No capability hierarchy is implicit merely from a role/capability name. `SystemAdmin` does not silently imply unrelated capabilities unless the policy explicitly grants them.
 
-## Engineering Schema v7
+## Engineering Schema v7 security and command model
 
-Schema v6 made application authorization policy a first-class engineering entity through `securityRoles`. Schema v7 adds first-class operational `commands` while preserving backward-compatible parsing of older Engineering packages.
+Engineering Security Roles contain stable identity/key/display information, explicit capability grants, optional scopes and non-secret metadata.
 
-Each security role contains:
+Operational Commands contain stable identity/key, display name, command kind, target TAG reference, engineered command value, optional area/equipment context, enabled state and non-secret metadata.
 
-- a stable optional ID;
-- configurable key and display name;
-- optional description;
-- explicit capability grants;
-- optional authorization scope per grant;
-- non-secret metadata.
+The initial command kind `WriteTagValue` represents a pre-engineered operation rather than caller-supplied arbitrary process data.
 
-Each grant can be scoped by area, equipment path, screen key, TAG path and/or command key. The same role definition participates in normal Engineering Import/Export validation, preview, apply, project backup/restore, PostgreSQL revision persistence, checkout and revision lineage.
+Engineering validation rejects invalid/missing command targets, incompatible command values and secret-like policy metadata.
 
-Each operational command contains:
+Local identities remain separate from Engineering policy. Users reference role keys; the active Engineering revision remains authoritative for runtime capabilities/scopes.
 
-- a stable ID and stable command key;
-- a display name and command kind;
-- a target TAG reference by ID/path;
-- an engineered command value compatible with the target TAG data type;
-- optional area and equipment context used for authorization scoping;
-- enabled state and non-secret metadata.
-
-The initial command kind is `WriteTagValue`. It deliberately represents a pre-engineered operation, such as start/stop, rather than accepting an arbitrary value from the runtime caller. Engineering validation rejects missing targets, mismatched TAG references, read-only targets and command values that cannot be converted to the target TAG data type.
-
-Role definitions contain authorization policy only. User credentials, passwords, password hashes, tokens, private keys and other authentication secret material are explicitly outside this engineering contract. Validation rejects metadata keys that appear to represent such secret material.
-
-The demo application intentionally illustrates the distinction between command and setpoint authority:
-
-- `operator`: view, TAG read, command execution, alarm acknowledgement and trend use;
-- `developer`: every currently defined capability, each granted explicitly.
-
-The demo `operator` role does not receive `ProcessValueWrite` or `EngineeringModify`. It may observe the runtime and execute engineered `demo.p01.start` / `demo.p01.stop` commands while remaining unable to submit arbitrary process values, modify process setpoints or retrieve Engineering configuration/diagnostics.
-
-## Scoped grants
+## Scoped grants and TAG access policy
 
 A capability grant may constrain any combination of:
 
@@ -84,176 +80,233 @@ A capability grant may constrain any combination of:
 - TAG path;
 - command key.
 
-The baseline matcher supports exact case-insensitive values, `*` for any value and a trailing `*` for prefix scopes such as `Plant.Area1.*` or `plant.p01.*`.
+TAG access-policy semantics remain:
 
-Runtime authorization consumes the public, serializable policy model rather than editor-private state.
+- `ReadRoles = null`: inherit/fall back to general `TagRead`;
+- `WriteRoles = null`: inherit/fall back to general `ProcessValueWrite`;
+- `ConfigureRoles = null`: inherit/fall back to general `EngineeringModify`;
+- empty role list: explicit deny;
+- non-empty list: at least one current role must match.
 
-For command execution, the backend evaluates `CommandExecute` against the command's canonical area, equipment path, target TAG path and command key together. A command grant can therefore permit one equipment command family without granting command authority over another area/equipment/TAG.
-
-## TAG access policy interaction
-
-TAG access policy remains a local override for TAG-specific operations:
-
-- `ReadRoles = null`: inherit/fall back to the general `TagRead` capability policy.
-- `WriteRoles = null`: inherit/fall back to the general `ProcessValueWrite` capability policy.
-- `ConfigureRoles = null`: inherit/fall back to the general `EngineeringModify` capability policy.
-- an empty role list means explicit deny for that TAG operation;
-- a non-empty role list means at least one assigned role must appear in that list.
-
-This preserves the schema-v5 distinction between `null` and `[]` and avoids an import/export round trip accidentally converting an explicit deny into inherited access.
-
-Operational command execution is intentionally separate from TAG access-policy write semantics. A caller executing a command does not obtain `ProcessValueWrite`; the command's engineered target/value is resolved from the active runtime command object and executed through the owning communication driver only after `CommandExecute` authorization succeeds.
+Operational command execution remains separate from TAG arbitrary-write semantics.
 
 ## Authentication boundary
 
-The API has a trusted identity adapter using ASP.NET JWT Bearer authentication. When `Authentication:Enabled=true`, the runtime validates a signed JWT before mapping it to the domain `SecurityPrincipal`.
+When authentication is enabled, EliteSCADA validates trusted signed JWTs before mapping them to the domain security principal.
 
-The initial JWT configuration requires:
+Current browser/local identity flow includes:
 
-- `Authentication:Jwt:Issuer`;
-- `Authentication:Jwt:Audience`;
-- `Authentication:Jwt:SigningKey`, with at least 32 UTF-8 bytes for the current symmetric-key adapter.
+- PostgreSQL-backed local users;
+- PBKDF2-SHA256 password storage;
+- first-user/bootstrap flow;
+- JWT issuance;
+- HttpOnly browser cookie support;
+- token security-version invalidation after sensitive user changes;
+- active WebSocket revocation/termination behavior where applicable.
 
-Validation requires issuer, audience, cryptographic signature, signed tokens, lifetime and expiration. Role claims are mapped into configurable EliteSCADA role keys. The API distinguishes:
+Authentication secrets and signing keys are deployment configuration and never Engineering payloads.
 
-- `401 Unauthorized`: no trusted authenticated identity, invalid token or authenticated identity without a stable subject id;
-- `403 Forbidden`: trusted identity exists, but none of its configured roles grants the requested capability/scope.
+The API distinguishes:
 
-The signing key is deployment configuration and must be supplied through a protected configuration mechanism. Product signing secrets are never committed to the repository or placed in engineering packages. The Playwright suite uses an explicitly test-only key configured for the test process.
+- `401 Unauthorized`: no valid trusted authenticated identity;
+- `403 Forbidden`: trusted identity exists but lacks the required capability/scope.
 
-This adapter is intentionally not a user database or token issuer. Login UI, local/external identity-provider integration, user lifecycle and credential management remain separate future work.
-
-When authentication is explicitly disabled for local development or CI smoke scenarios, authorization filters preserve the established local/no-auth workflow. This mode is not a trusted-identity deployment mode and caller-supplied lifecycle actor fields must not be interpreted as authenticated identity.
-
-### Browser WebSocket bearer handling
-
-Native browser WebSocket construction does not permit an application to set an arbitrary `Authorization` header. EliteSCADA therefore accepts an `access_token` query parameter only for the `/ws/tags` endpoint. Query-string bearer extraction is not enabled for normal HTTP routes.
-
-A realtime socket is admitted only after normal JWT validation. The validated JWT expiration is then bound to the socket lifetime. The server closes the connection when that credential expires, and TAG authorization is re-evaluated for every outbound event. A long-lived connection therefore cannot become a permanent authorization snapshot.
-
-Deployments must use TLS (`wss://`) for authenticated browser realtime traffic, and reverse-proxy/application access logging must avoid retaining query-string access tokens.
+Native browser WebSocket bearer handling may use the explicitly supported `/ws/tags` access-token path. Deployments must use TLS and avoid retaining query-string credentials in logs.
 
 ## Runtime policy resolution
 
-When the simulation/demo fallback runtime is active, protected operations use the current demo/workspace policy registry.
+When a persisted Engineering runtime is active, authorization resolves security roles from the exact Active Revision corresponding to the live runtime project/revision and fails closed if that trustworthy snapshot cannot be resolved.
 
-When a persisted engineering runtime is active, authorization resolves security roles from the exact PostgreSQL Active Revision corresponding to the live runtime project and revision. The compiled policy is cached by project/revision. If persistence is unavailable, the active snapshot cannot be loaded, the revision does not match or the live runtime changes while policy is being resolved, authorization fails closed.
+Operational commands are compiled from the same Engineering revision as runtime TAGs/drivers/alarms. Command execution checks that runtime revision identity has not changed between authorization and execution.
 
-This prevents a draft role edit in the Engineering Workspace from silently changing authority over an already active process runtime.
-
-Operational commands are compiled into the candidate runtime from the same published Engineering package. The candidate resolves each enabled command to its canonical active TAG and typed configured value before the revision can become active. Commands therefore swap atomically with the same runtime revision as drivers, TAGs and alarms.
-
-The command endpoint performs an additional revision/project check between authorization and physical execution. If the active runtime changes during that window, the request fails with conflict and the operator must retry against the new active runtime rather than allowing an authorization decision from one revision to execute a command from another.
-
-Realtime TAG authorization also resolves against the live runtime policy on each event, so an active-revision transition does not leave an existing socket permanently authorized under a stale policy.
+Realtime TAG authorization is evaluated against current runtime policy rather than becoming a permanent authorization snapshot at socket-open time.
 
 ## Backend enforcement
 
-### Process and runtime mutation
+### Process/runtime mutation
 
-- runtime TAG writes require the TAG access-policy write rule or inherited `ProcessValueWrite` capability;
-- first-class operational command execution requires `CommandExecute` against area, equipment, target TAG and command-key scope;
-- alarm acknowledgement requires `AlarmAcknowledge`, with the alarm area supplied as authorization scope;
-- alarm shelving and unshelving require `AlarmShelve`, with the alarm area supplied as authorization scope.
+- TAG writes require TAG write policy or inherited `ProcessValueWrite`;
+- Operational Commands require `CommandExecute` against canonical scopes;
+- Alarm acknowledgement requires `AlarmAcknowledge`;
+- Alarm shelving/unshelving requires `AlarmShelve`;
+- Engineering Apply/Delete/Bulk and lifecycle mutations require appropriate Engineering authority, principally `EngineeringModify` for current mutation surfaces.
 
-`POST /api/commands/{id}/execute` never accepts a caller-supplied process value. It resolves the active command object by stable ID, authorizes its scopes, verifies that the active runtime did not change after authorization, then executes the command's pre-engineered value through the communication driver that owns the target TAG.
+`POST /api/commands/{id}/execute` never accepts an arbitrary caller process value. It resolves the active engineered command and executes only its configured operation after authorization.
 
-Alarm acknowledgement no longer trusts a caller-supplied user name as identity. The authenticated JWT principal becomes the actor; the old request-body field is retained temporarily only for compatibility and is ignored.
+### Engineering mutations
 
-Alarm shelving is a runtime state, not merely a UI flag. While an alarm is shelved, its underlying process condition continues to be evaluated but it is excluded from the active alarm view/count. Unshelving restores the latest underlying alarm state. `ShelvedBy` is derived from the trusted principal, and alarms whose engineering definition has `ShelvingAllowed=false` reject shelving.
+Current merged mutation safety includes:
 
-### Runtime read and realtime
+- backend-authoritative Preview/Apply;
+- Workspace change-version/CAS preconditions;
+- mutation serialization;
+- explicit dependency-aware Delete;
+- no implicit delete-by-omission;
+- no cascade deletion;
+- safe selected-entity Bulk Preview/Apply;
+- structural Audit for success/denial/failure.
+
+### Runtime read/realtime
 
 When authentication is enabled:
 
-- `/api/tags` and `/api/tags/current` return only TAGs allowed by `TagRead` / TAG access policy;
-- TAG-by-path and historian reads require read authority for the requested TAG and return normal 401/403 failures rather than leaking the value;
-- alarm instances and definitions are filtered to alarms whose associated TAG is readable and whose area is visible through `View`;
-- `/ws/tags` requires a trusted JWT and sends an event only if the principal may currently read that TAG;
-- realtime authorization failures fail closed and do not publish the event to that client;
-- the WebSocket closes when the JWT used for the connection expires;
-- `/api/drivers` and `/api/diagnostics/runtime` require runtime `EngineeringModify` authority because they expose technical runtime topology and diagnostics.
+- TAG reads/history require read authority;
+- alarm visibility is filtered through TAG/area visibility;
+- `/ws/tags` requires trusted authentication and current TAG read authority;
+- technical runtime/driver diagnostics require protected Engineering/system authority according to current endpoint rules;
+- `/health` remains intentionally minimal/public.
 
-`GET /health` remains deliberately public but returns only service availability (`status` and service identity). Driver state, project/revision, TAG/alarm counts and historian information are available only through the protected diagnostics endpoint.
+### Engineering/project data
 
-### Engineering and project data
+Protected Engineering configuration/lifecycle surfaces include canonical Engineering reads/exports, previews/applies, project packages, persistence/revision lifecycle operations and secured mutation endpoints.
 
-When authentication is enabled, `EngineeringModify` protects Engineering configuration and lifecycle surfaces, including:
+Caller-supplied lifecycle actor names are not trusted when authentication is enabled; authoritative actor identity comes from the authenticated principal.
 
-- Engineering workspace entities and command/security-role definitions;
-- canonical JSON and CSV Engineering exports;
-- Engineering import previews and applies;
-- `.escadapkg` export, inspection, import preview and restore/apply;
-- PostgreSQL persistence status, revision metadata, lifecycle/runtime metadata, previews, checkout, save, publish, activate and apply.
+### User administration
 
-Engineering JSON/TAG/Alarm/Data Source apply and project-package restore/apply remain audited mutations. Ordinary Engineering reads/previews are authorization-enforced but intentionally do not generate one audit event per read; otherwise routine editor activity would turn the operational audit trail into noise.
+Protected local-user administration is implemented and uses explicit administrative authority, including current last-admin safety and token/session invalidation semantics.
 
-Persistence save/publish/activate requests retain legacy `SavedBy`/`PublishedBy`/`ActivatedBy` body fields for compatibility, but when authentication is enabled those values are replaced before execution with the stable subject id from the trusted JWT principal. The client therefore cannot select the authoritative lifecycle actor.
+## Durable Audit model
 
-### Administrative information
+Audit events include:
 
-`GET /api/audit` requires `SystemAdmin`. User/role administration will require `UserRoleAdmin` when that subsystem is implemented.
-
-## Browser and integration security coverage
-
-The browser E2E security suite distinguishes:
-
-- a valid `developer`;
-- a valid but operationally constrained `operator`;
-- an authenticated principal with no grants;
-- no credential;
-- an invalid Bearer credential.
-
-Coverage proves process-read filtering, historian protection, alarm visibility, arbitrary TAG-write denial, command execution separation, alarm shelving authority, Engineering read/mutation protection, package export/inspect/preview protection, persistence actor anti-spoofing, audit-read protection and JWT-authenticated WebSocket behavior. Realtime tests also prove that a principal without `TagRead` receives no TAG events and that a valid realtime connection terminates after its JWT expires.
-
-PostgreSQL-backed browser coverage exercises persisted save/publish/checkout/apply and verifies that caller-supplied lifecycle actor values cannot override the JWT subject. Command-domain unit/integration coverage verifies command scoping, Engineering validation and real Modbus-driver execution.
-
-## Durable audit trail
-
-Audit events carry:
-
-- event id;
+- stable event ID;
 - UTC timestamp;
-- stable subject id and optional display name;
+- stable subject ID and optional display name;
 - action;
 - outcome (`Succeeded`, `Denied`, `Failed`);
-- target kind and target id;
-- optional non-secret details;
-- correlation id derived from the API request trace identifier.
+- target kind/ID;
+- optional non-secret structural details;
+- request correlation ID;
+- optional trusted structural context such as area/project/revision/roles/source where available.
 
-Current action keys include:
+Current action vocabulary includes, among others:
 
 - `tag.write`
 - `command.execute`
 - `alarm.acknowledge`
 - `alarm.shelve`
 - `engineering.import.apply`
+- `engineering.delete`
+- `engineering.bulk.apply`
 - `engineering.package.restore`
 - `engineering.checkout`
 - `engineering.save`
 - `engineering.publish`
 - `engineering.activate`
 - `audit.read`
-- `user-role.manage`
+- user/security administration action keys.
 
-When `ConnectionStrings:EliteScada` is configured, audit events are stored in PostgreSQL under `elitescada.audit_events`. The database itself enforces append-only behavior through triggers that reject `UPDATE`, `DELETE` and `TRUNCATE`. Integration tests directly attempt all three operations and require PostgreSQL to reject them.
+The official Engineering bulk action key is `engineering.bulk.apply`; competing `engineering.bulk-edit` vocabulary was removed during integration.
 
-When PostgreSQL is not configured, the same public audit-store contract uses an in-memory implementation for local development and browser tests that do not require durable persistence.
+## Audit storage and sanitization
 
-The API records success, denial and operational failure for protected TAG writes, first-class command execution, alarm acknowledgement, alarm shelving/unshelving, Engineering import apply, project-package restore and persisted Engineering lifecycle mutations. Shelving and unshelving share the `alarm.shelve` audit action and identify the operation in non-secret audit details. Anonymous/invalid-token denied attempts use the stable audit subject `anonymous`; authenticated denied attempts retain the trusted JWT subject.
+When PostgreSQL is configured, events are stored in `elitescada.audit_events`.
 
-Command audit records identify the stable command key/id, kind and target TAG path but deliberately exclude the engineered process value. This prevents the audit metadata path from becoming a secondary store for sensitive process payloads while still preserving who attempted which engineered action and whether it succeeded, was denied or failed operationally.
+Database triggers enforce ordinary append-only behavior by rejecting unauthorized `UPDATE`, `DELETE` and `TRUNCATE` operations.
 
-`GET /api/audit` supports bounded filtering by subject, action, outcome and UTC time range and requires `SystemAdmin`. Attempts to read the audit trail are themselves audited.
+Storage-boundary sanitization is defense-in-depth and removes/redacts sensitive metadata patterns, including password/token/secret/private-key/API-key/authorization/credential/cookie/hash/salt-like material and bearer/JWT-like values.
 
-Audit metadata deliberately excludes process values and import/package payloads. Detail keys that look like passwords, tokens, secrets, signing/private keys or authorization material are filtered before persistence.
+Metadata counts/key/value lengths and similar collections are bounded.
 
-Audit persistence errors are logged and do not change the result of an already executed process command. A future reliability slice may add a durable queue/outbox so temporary audit-storage outages cannot create gaps without falsely retrying physical operations.
+Audit deliberately does not record spontaneous process-value changes and protected command/TAG mutation audit does not copy process values into metadata.
 
-## Next implementation slices
+## Audit query
 
-1. Add user/role administration with explicit `UserRoleAdmin` authorization.
-2. Add a real login/token-issuance or external identity-provider workflow without coupling credentials to Engineering Import/Export.
-3. Add audit retention/query policy and durable buffering/outbox behavior for temporary storage outages.
-4. Add access-aware UI presentation while keeping backend authorization authoritative.
-5. Continue hardening deployment-facing authentication concerns such as TLS/proxy guidance, token storage and query-string log redaction for browser realtime access.
+`GET /api/audit` remains protected by `SystemAdmin` in the current baseline.
+
+The endpoint preserves its established array response contract while internally using bounded keyset pagination.
+
+Supported query semantics include bounded page size and filters for relevant fields such as:
+
+- UTC interval;
+- subject;
+- action;
+- outcome;
+- target kind/id;
+- area;
+- correlation ID.
+
+Newest-first deterministic ordering uses `(timestampUtc, eventId)` keyset semantics.
+
+When another page exists, the opaque cursor is returned through:
+
+`X-EliteSCADA-Audit-Next-Cursor`
+
+Invalid cursors fail explicitly rather than silently changing query meaning.
+
+Audit reads are themselves auditable.
+
+## Audit retention
+
+Retention is configurable and remains disabled by default.
+
+Semantics:
+
+- disabled means no retention deletion;
+- enabled with no `MaximumAge` means explicit indefinite retention;
+- only events strictly older than the UTC cutoff are eligible;
+- deletion runs oldest-first in bounded batches;
+- each run has a bounded maximum batch count;
+- finite configured retention runs through the server hosted-service integration;
+- no manual purge-all endpoint is provided.
+
+Controlled retention uses the narrow storage mechanism designed for that purpose and does not disable the ordinary append-only database protection generally.
+
+## Audit outage buffering
+
+Current writes use a bounded asynchronous `BufferedAuditSink` around the underlying store.
+
+The buffer provides:
+
+- bounded capacity;
+- temporary-failure retry;
+- explicit overflow rejection;
+- bounded shutdown flush;
+- health counters/diagnostics.
+
+This is **in-memory outage protection**, not a persistent outbox.
+
+A process crash while events remain buffered can still create an Audit gap. No claim of crash-durable buffering should be made until a separate persistent disk/database outbox design is implemented and validated.
+
+Audit persistence failure does not cause an already executed physical process command to be blindly retried.
+
+## Protected Audit diagnostics
+
+`GET /api/audit/diagnostics` is currently protected by `SystemAdmin` and exposes bounded operational health for the Audit store, buffer and retention configuration/state without weakening Audit read authority.
+
+Diagnostics/logging must not leak arbitrary storage exception messages or environment secrets.
+
+## Browser/integration security coverage
+
+Current CI/browser coverage exercises, among other things:
+
+- developer/operator/no-grant/anonymous/invalid credential distinctions;
+- runtime read filtering;
+- historian/alarm protection;
+- arbitrary TAG-write denial;
+- Operational Command separation;
+- alarm shelving authority;
+- Engineering read/mutation protection;
+- lifecycle actor anti-spoofing;
+- Audit-read protection;
+- authenticated WebSocket behavior;
+- secured Engineering Apply/Delete/Bulk behavior;
+- Audit buffered-write visibility;
+- keyset cursor pagination;
+- Audit target filtering;
+- invalid cursor rejection;
+- protected Audit diagnostics.
+
+## Still not implemented / future security work
+
+The current merged baseline does not claim:
+
+- persistent crash-durable Audit outbox;
+- manual Audit purge-all;
+- general Audit UI;
+- a weaker dedicated `AuditRead` capability replacing `SystemAdmin`;
+- complete enterprise/external identity-provider integration;
+- every deployment hardening concern around reverse proxies/TLS/key management.
+
+Any future persistent Audit outbox or fail-closed process/Audit coupling requires explicit reliability design because blindly retrying physical operations is unsafe.

@@ -26,7 +26,8 @@ public static class MemoryEngineeringValueCodec
     public static MemoryInitialValueDto FromTypedValue(TypedTagValue value)
     {
         ArgumentNullException.ThrowIfNull(value);
-        using var document = JsonDocument.Parse(JsonSerializer.Serialize(value.Value));
+        var json = JsonSerializer.Serialize(value.Value, value.Value.GetType());
+        using var document = JsonDocument.Parse(json);
         return new MemoryInitialValueDto(value.DataType, document.RootElement.Clone());
     }
 
@@ -81,15 +82,15 @@ public static class MemoryEngineeringValueCodec
     private static object ReadValue(TagDataType dataType, JsonElement value) => dataType switch
     {
         TagDataType.Boolean when value.ValueKind is JsonValueKind.True or JsonValueKind.False => value.GetBoolean(),
-        TagDataType.Int16 when value.ValueKind == JsonValueKind.Number && value.TryGetInt16(out var parsed) => parsed,
-        TagDataType.Int32 when value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var parsed) => parsed,
-        TagDataType.Int64 when value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var parsed) => parsed,
-        TagDataType.Float when value.ValueKind == JsonValueKind.Number && value.TryGetSingle(out var parsed) && float.IsFinite(parsed) => parsed,
-        TagDataType.Double when value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var parsed) && double.IsFinite(parsed) => parsed,
+        TagDataType.Int16 when value.ValueKind == JsonValueKind.Number && value.TryGetInt16(out var int16Value) => int16Value,
+        TagDataType.Int32 when value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var int32Value) => int32Value,
+        TagDataType.Int64 when value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var int64Value) => int64Value,
+        TagDataType.Float when value.ValueKind == JsonValueKind.Number && value.TryGetSingle(out var floatValue) && float.IsFinite(floatValue) => floatValue,
+        TagDataType.Double when value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var doubleValue) && double.IsFinite(doubleValue) => doubleValue,
         TagDataType.String when value.ValueKind == JsonValueKind.String => value.GetString()!,
         TagDataType.DateTime when value.ValueKind == JsonValueKind.String && DateTimeOffset.TryParse(
-            value.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed) => parsed,
-        TagDataType.Enum when value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var parsed) => parsed,
+            value.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dateTimeValue) => dateTimeValue,
+        TagDataType.Enum when value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var enumValue) => enumValue,
         _ => throw new ArgumentException(
             $"Engineering initial value is not valid for declared data type {dataType}.",
             nameof(value))

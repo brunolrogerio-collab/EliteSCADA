@@ -41,6 +41,7 @@ test('API distinguishes access levels and records protected-operation audit even
   expect(startCommand!.targetTagPath).toBe('Demo.P01.Running');
 
   const protectedEngineeringGetPaths = [
+    '/api/diagnostics/runtime',
     '/api/drivers',
     '/api/engineering/workspace',
     '/api/engineering/data-sources',
@@ -86,6 +87,10 @@ test('API distinguishes access levels and records protected-operation audit even
     extraHTTPHeaders: { Authorization: '' }
   });
   try {
+    const publicHealth = await anonymous.get('/health');
+    expect(publicHealth.ok()).toBeTruthy();
+    expect(await publicHealth.json()).toEqual({ status: 'ok', service: 'scada-api' });
+
     expect((await anonymous.get('/api/auth/me')).status()).toBe(401);
     expect((await anonymous.get('/api/tags')).status()).toBe(401);
     expect((await anonymous.get('/api/tags/current')).status()).toBe(401);
@@ -166,6 +171,7 @@ test('API distinguishes access levels and records protected-operation audit even
     expect(noReadAlarmDefinitionsResponse.ok()).toBeTruthy();
     expect(await noReadAlarmDefinitionsResponse.json()).toEqual([]);
 
+    expect((await noRead.get('/api/diagnostics/runtime')).status()).toBe(403);
     expect((await noRead.get('/api/drivers')).status()).toBe(403);
     expect((await noRead.get('/api/engineering/workspace')).status()).toBe(403);
     expect((await noRead.get('/api/project-package/export')).status()).toBe(403);
@@ -382,7 +388,7 @@ test('API distinguishes access levels and records protected-operation audit even
   expect(events.every(event => !event.details || !('authorization' in event.details))).toBeTruthy();
 });
 
-test('realtime WebSocket requires identity and filters TAG events by TagRead', async ({ browser }) => {
+test('realtime WebSocket requires identity, filters TAGs and expires with JWT', async ({ browser }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
   try {
@@ -453,6 +459,26 @@ test('realtime WebSocket requires identity and filters TAG events by TagRead', a
       });
     }, noReadToken);
     expect(noReadResult).toBe('opened-no-message');
+
+    const expiringToken = createE2eJwt('ws-expiring', ['developer'], 'WS Expiring', 5);
+    const expiryResult = await page.evaluate(async token => {
+      return await new Promise<string>(resolve => {
+        const socket = new WebSocket(`ws://127.0.0.1:5173/ws/tags?access_token=${encodeURIComponent(token)}`);
+        let opened = false;
+        let receivedMessage = false;
+        const timeout = window.setTimeout(() => {
+          socket.close();
+          resolve('timeout');
+        }, 9000);
+        socket.onopen = () => { opened = true; };
+        socket.onmessage = () => { receivedMessage = true; };
+        socket.onclose = () => {
+          window.clearTimeout(timeout);
+          resolve(opened && receivedMessage ? 'expired-after-message' : 'closed-too-early');
+        };
+      });
+    }, expiringToken);
+    expect(expiryResult).toBe('expired-after-message');
   } finally {
     await context.close();
   }

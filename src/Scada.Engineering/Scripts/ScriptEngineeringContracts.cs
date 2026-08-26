@@ -39,8 +39,7 @@ public sealed record ScriptEngineeringEntryPoint(
 
 public sealed record ScriptEngineeringDependency(
     ScriptEngineeringDependencyKind Kind,
-    string StableReference,
-    bool Required = true);
+    string StableReference);
 
 public sealed class ScriptEngineeringDefinition
 {

@@ -262,10 +262,58 @@ app.MapGet("/api/history/{tagId:guid}", async (
     return Results.Ok(historian.Query(tagId, start, end, limit ?? 5000));
 });
 
-app.MapGet("/api/alarms", (bool? activeOnly, ScadaRuntimeFacade runtime) =>
-    Results.Ok(runtime.Alarms(activeOnly ?? false)));
+app.MapGet("/api/alarms", async (
+    bool? activeOnly,
+    HttpContext context,
+    ScadaRuntimeFacade runtime,
+    ApiAuthorizationService security,
+    CancellationToken ct) =>
+{
+    var tagAccess = await security.GetReadableRuntimeTagsAsync(context, runtime, ct);
+    var failure = tagAccess.FailureResult();
+    if (failure is not null) return failure;
 
-app.MapGet("/api/alarms/definitions", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.AlarmDefinitions()));
+    var readableTagIds = tagAccess.Tags.Select(tag => tag.Id).ToHashSet();
+    var visible = new List<AlarmInstance>();
+    foreach (var alarm in runtime.Alarms(activeOnly ?? false))
+    {
+        if (!readableTagIds.Contains(alarm.TagId)) continue;
+        if (await security.CanViewRuntimeResourceAsync(
+                tagAccess.Principal,
+                runtime,
+                new AuthorizationResource(Area: alarm.Area),
+                ct))
+            visible.Add(alarm);
+    }
+
+    return Results.Ok(visible);
+});
+
+app.MapGet("/api/alarms/definitions", async (
+    HttpContext context,
+    ScadaRuntimeFacade runtime,
+    ApiAuthorizationService security,
+    CancellationToken ct) =>
+{
+    var tagAccess = await security.GetReadableRuntimeTagsAsync(context, runtime, ct);
+    var failure = tagAccess.FailureResult();
+    if (failure is not null) return failure;
+
+    var readableTagIds = tagAccess.Tags.Select(tag => tag.Id).ToHashSet();
+    var visible = new List<AlarmDefinition>();
+    foreach (var alarm in runtime.AlarmDefinitions())
+    {
+        if (!readableTagIds.Contains(alarm.TagId)) continue;
+        if (await security.CanViewRuntimeResourceAsync(
+                tagAccess.Principal,
+                runtime,
+                new AuthorizationResource(Area: alarm.Area),
+                ct))
+            visible.Add(alarm);
+    }
+
+    return Results.Ok(visible);
+});
 
 app.MapPost("/api/alarms/{id:guid}/ack", async (
     Guid id,

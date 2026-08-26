@@ -1,4 +1,5 @@
 using Scada.Core.Alarms;
+using Scada.Core.Commands;
 using Scada.Core.Tags;
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Abstractions;
@@ -59,6 +60,9 @@ public sealed class ScadaRuntimeFacade(
     public IReadOnlyCollection<AlarmInstance> Alarms(bool activeOnly = false) =>
         IsEngineeringActive ? engineeringRuntime.Alarms(activeOnly) : fallback.Alarms.Snapshot(activeOnly);
 
+    public IReadOnlyCollection<CommandDefinition> Commands() =>
+        IsEngineeringActive ? engineeringRuntime.Commands() : fallback.Commands.Snapshot();
+
     public IReadOnlyCollection<DriverStatus> Drivers() =>
         IsEngineeringActive ? engineeringRuntime.Describe().Drivers : new[] { fallbackDriver.Status };
 
@@ -84,6 +88,14 @@ public sealed class ScadaRuntimeFacade(
             return engineeringRuntime.TryGetCurrent(tagId, out value);
 
         return fallback.Cache.TryGet(tagId, out value);
+    }
+
+    public bool TryGetCommand(Guid commandId, out CommandDefinition? command)
+    {
+        if (IsEngineeringActive)
+            return engineeringRuntime.TryGetCommand(commandId, out command);
+
+        return fallback.Commands.TryGet(commandId, out command);
     }
 
     public ValueTask<bool> AcknowledgeAlarmAsync(
@@ -117,4 +129,20 @@ public sealed class ScadaRuntimeFacade(
         IsEngineeringActive
             ? engineeringRuntime.WriteAsync(tagId, value, cancellationToken)
             : fallbackDriver.WriteAsync(tagId, value, cancellationToken);
+
+    public async ValueTask ExecuteCommandAsync(
+        Guid commandId,
+        CancellationToken cancellationToken = default)
+    {
+        if (IsEngineeringActive)
+        {
+            await engineeringRuntime.ExecuteCommandAsync(commandId, cancellationToken);
+            return;
+        }
+
+        if (!fallback.Commands.TryGet(commandId, out var command) || command is null)
+            throw new KeyNotFoundException($"Runtime command '{commandId}' was not found.");
+
+        await fallbackDriver.WriteAsync(command.TargetTagId, command.Value, cancellationToken);
+    }
 }

@@ -2,6 +2,7 @@ using Scada.Core.Alarms;
 using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.Engineering.Assets;
+using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.Security;
@@ -26,7 +27,8 @@ public sealed record EngineeringWorkspaceDescriptor(
     int DynamoCount,
     int ScreenCount,
     int PopupCount,
-    int SecurityRoleCount);
+    int SecurityRoleCount,
+    int CommandCount);
 
 public sealed class EngineeringWorkspace : IDisposable
 {
@@ -48,6 +50,7 @@ public sealed class EngineeringWorkspace : IDisposable
         Assets = new InMemoryEngineeringAssetRegistry(MarkDirty);
         Views = new InMemoryEngineeringViewRegistry(MarkDirty);
         SecurityPolicies = new InMemorySecurityPolicyEngineeringRegistry(MarkDirty);
+        Commands = new InMemoryCommandEngineeringRegistry(MarkDirty);
         SeedDemo();
     }
 
@@ -57,6 +60,7 @@ public sealed class EngineeringWorkspace : IDisposable
     public InMemoryEngineeringAssetRegistry Assets { get; }
     public InMemoryEngineeringViewRegistry Views { get; }
     public InMemorySecurityPolicyEngineeringRegistry SecurityPolicies { get; }
+    public InMemoryCommandEngineeringRegistry Commands { get; }
 
     public EngineeringWorkspaceDescriptor Describe()
     {
@@ -78,7 +82,8 @@ public sealed class EngineeringWorkspace : IDisposable
                 Assets.SnapshotDynamos().Count,
                 Views.SnapshotScreens().Count,
                 Views.SnapshotPopups().Count,
-                SecurityPolicies.SnapshotRoles().Count);
+                SecurityPolicies.SnapshotRoles().Count,
+                Commands.Snapshot().Count);
         }
     }
 
@@ -161,6 +166,7 @@ public sealed class EngineeringWorkspace : IDisposable
         Assets.Clear();
         Views.Clear();
         SecurityPolicies.Clear();
+        Commands.Clear();
     }
 
     private void SeedDemo()
@@ -170,6 +176,23 @@ public sealed class EngineeringWorkspace : IDisposable
 
         foreach (var alarm in DemoProcessModel.CreateAlarmDefinitions())
             Alarms.Register(alarm);
+
+        foreach (var command in DemoProcessModel.CreateCommandDefinitions())
+        {
+            Commands.Upsert(new CommandEngineeringDto(
+                command.Id,
+                command.Key,
+                command.Name,
+                command.Kind,
+                Convert.ToString(command.Value, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+                command.TargetTagId,
+                command.TargetTagPath,
+                command.Description,
+                command.Area,
+                command.EquipmentPath,
+                Enabled: true,
+                Metadata: command.Metadata is null ? null : new Dictionary<string, string>(command.Metadata)));
+        }
 
         DataSources.Upsert(new DataSourceEngineeringDto(
             Id: Guid.Parse("40000000-0000-0000-0000-000000000001"),

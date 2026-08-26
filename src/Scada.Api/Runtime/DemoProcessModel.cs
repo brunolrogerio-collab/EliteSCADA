@@ -1,4 +1,5 @@
 using Scada.Core.Alarms;
+using Scada.Core.Commands;
 using Scada.Core.Tags;
 using Scada.Drivers.Simulation;
 
@@ -17,10 +18,13 @@ public static class DemoProcessModel
     public static readonly Guid HighPressureAlarmId = Guid.Parse("20000000-0000-0000-0000-000000000001");
     public static readonly Guid PumpFaultAlarmId = Guid.Parse("20000000-0000-0000-0000-000000000002");
 
+    public static readonly Guid PumpStartCommandId = Guid.Parse("30000000-0000-0000-0000-000000000001");
+    public static readonly Guid PumpStopCommandId = Guid.Parse("30000000-0000-0000-0000-000000000002");
+
     public static IReadOnlyList<TagDefinition> CreateTagDefinitions() =>
     [
         Tag(TankLevelTagId, "Tank Level", "Demo.Tank01.Level", TagDataType.Double, "%"),
-        Tag(PumpRunningTagId, "Pump Running", "Demo.P01.Running", TagDataType.Boolean),
+        Tag(PumpRunningTagId, "Pump Running", "Demo.P01.Running", TagDataType.Boolean, readOnly: false),
         Tag(PumpFaultTagId, "Pump Fault", "Demo.P01.Fault", TagDataType.Boolean),
         Tag(PumpCurrentTagId, "Pump Current", "Demo.P01.Current", TagDataType.Double, "A"),
         Tag(PumpFrequencyTagId, "Pump Frequency", "Demo.P01.Frequency", TagDataType.Double, "Hz", readOnly: false),
@@ -63,6 +67,32 @@ public static class DemoProcessModel
             DigitalActiveValue: true,
             Area: "Demo",
             Message: "Pump P01 fault active")
+    ];
+
+    public static IReadOnlyList<CommandDefinition> CreateCommandDefinitions() =>
+    [
+        new CommandDefinition(
+            PumpStartCommandId,
+            "demo.p01.start",
+            "Start Pump P01",
+            CommandKind.WriteTagValue,
+            PumpRunningTagId,
+            "Demo.P01.Running",
+            true,
+            "Starts the demo pump through the operational command domain.",
+            Area: "Demo",
+            EquipmentPath: "Demo.P01"),
+        new CommandDefinition(
+            PumpStopCommandId,
+            "demo.p01.stop",
+            "Stop Pump P01",
+            CommandKind.WriteTagValue,
+            PumpRunningTagId,
+            "Demo.P01.Running",
+            false,
+            "Stops the demo pump through the operational command domain.",
+            Area: "Demo",
+            EquipmentPath: "Demo.P01")
     ];
 
     private static TagDefinition Tag(

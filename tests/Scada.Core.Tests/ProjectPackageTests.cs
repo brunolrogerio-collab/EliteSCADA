@@ -1,10 +1,16 @@
 using System.IO.Compression;
 using Scada.Core.Alarms;
+using Scada.Core.Commands;
 using Scada.Core.Events;
 using Scada.Core.Tags;
+using Scada.Engineering.Assets;
+using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.DataSources;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.ProjectPackages;
+using Scada.Engineering.Security;
+using Scada.Engineering.Views;
 
 namespace Scada.Core.Tests;
 
@@ -46,6 +52,43 @@ public sealed class ProjectPackageTests
         var tag = Assert.Single(inspection.Engineering.Tags);
         Assert.Equal("Plant.P01.Setpoint", tag.Path);
         Assert.Equal(new[] { "Supervisor" }, tag.AccessPolicy!.WriteRoles);
+    }
+
+    [Fact]
+    public void ExportAndInspect_RoundTripsOperationalCommands()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var commands = new InMemoryCommandEngineeringRegistry();
+        var runTag = TagDefinition.Create("Run", "Plant.P01.Run", TagDataType.Boolean, readOnly: false);
+        tags.Register(runTag);
+        commands.Upsert(new CommandEngineeringDto(
+            Guid.NewGuid(),
+            "plant.p01.start",
+            "Start P01",
+            CommandKind.WriteTagValue,
+            "true",
+            runTag.Id,
+            runTag.Path,
+            Area: "Plant",
+            EquipmentPath: "Plant.P01"));
+        var exchange = new EngineeringExchangeService(
+            tags,
+            alarms,
+            new InMemoryDataSourceEngineeringRegistry(),
+            new InMemoryEngineeringAssetRegistry(),
+            new InMemoryEngineeringViewRegistry(),
+            new InMemorySecurityPolicyEngineeringRegistry(),
+            commands);
+        var service = new ProjectPackageService(exchange);
+
+        var inspection = service.Inspect(service.Export("plant-a", "Plant A"));
+
+        var command = Assert.Single(inspection.Engineering.Commands!);
+        Assert.Equal("plant.p01.start", command.Key);
+        Assert.Equal(runTag.Id, command.TargetTagId);
+        Assert.Equal("Plant.P01", command.EquipmentPath);
     }
 
     [Fact]

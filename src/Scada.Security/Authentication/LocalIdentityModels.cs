@@ -4,7 +4,7 @@ namespace Scada.Security.Authentication;
 
 public sealed record PasswordCredential(byte[] Salt, byte[] Hash, int Iterations)
 {
-    public PasswordCredential Clone() => new(Salt.ToArray(), Hash.ToArray(), Iterations);
+    public PasswordCredential DeepCopy() => new(Salt.ToArray(), Hash.ToArray(), Iterations);
 }
 
 public sealed record LocalUserAccount(
@@ -18,10 +18,10 @@ public sealed record LocalUserAccount(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc)
 {
-    public LocalUserAccount Clone() => this with
+    public LocalUserAccount DeepCopy() => this with
     {
         Roles = Roles.ToArray(),
-        Credential = Credential.Clone()
+        Credential = Credential.DeepCopy()
     };
 }
 

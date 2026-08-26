@@ -555,14 +555,16 @@ public sealed class ScriptRuntimeDiagnosticsTracker
                 nameof(result));
         }
 
+        if (result.Duration < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(result),
+                "Execution duration cannot be negative.");
+        }
+
         lock (_sync)
         {
             _executionCount++;
-            if (result.Duration < TimeSpan.Zero)
-                throw new ArgumentOutOfRangeException(
-                    nameof(result),
-                    "Execution duration cannot be negative.");
-
             _lastStatus = result.Status;
             _lastDuration = result.Duration;
             _lastCompletedAt = result.CompletedAt;

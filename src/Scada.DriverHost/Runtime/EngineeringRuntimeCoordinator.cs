@@ -1,5 +1,6 @@
 using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
+using Scada.Core.Commands;
 using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
@@ -43,13 +44,16 @@ public interface IEngineeringRuntimeCoordinator : IAsyncDisposable
     IReadOnlyCollection<TagValue> CurrentValues();
     IReadOnlyCollection<AlarmDefinition> AlarmDefinitions();
     IReadOnlyCollection<AlarmInstance> Alarms(bool activeOnly = false);
+    IReadOnlyCollection<CommandDefinition> Commands();
     bool TryGetTag(Guid tagId, out TagDefinition? tag);
     bool TryGetTagByPath(string path, out TagDefinition? tag);
     bool TryGetCurrent(Guid tagId, out TagValue? value);
+    bool TryGetCommand(Guid commandId, out CommandDefinition? command);
     ValueTask<bool> AcknowledgeAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default);
     ValueTask<bool> ShelveAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default);
     ValueTask<bool> UnshelveAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default);
     ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default);
+    ValueTask ExecuteCommandAsync(Guid commandId, CancellationToken cancellationToken = default);
     Task<RuntimeActivationResult> ActivateAsync(
         string projectKey,
         long revision,
@@ -106,6 +110,8 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
     public IReadOnlyCollection<AlarmInstance> Alarms(bool activeOnly = false) =>
         Volatile.Read(ref _active).Alarms.Snapshot(activeOnly);
 
+    public IReadOnlyCollection<CommandDefinition> Commands() => Volatile.Read(ref _active).Commands.Snapshot();
+
     public bool TryGetTag(Guid tagId, out TagDefinition? tag) =>
         Volatile.Read(ref _active).Registry.TryGet(tagId, out tag);
 
@@ -114,6 +120,9 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
     public bool TryGetCurrent(Guid tagId, out TagValue? value) =>
         Volatile.Read(ref _active).Cache.TryGet(tagId, out value);
+
+    public bool TryGetCommand(Guid commandId, out CommandDefinition? command) =>
+        Volatile.Read(ref _active).Commands.TryGet(commandId, out command);
 
     public ValueTask<bool> AcknowledgeAlarmAsync(
         Guid alarmId,
@@ -143,6 +152,20 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             throw new KeyNotFoundException($"Active runtime has no communication driver for TAG '{tagId}'.");
 
         await driver.WriteAsync(tagId, value, cancellationToken);
+    }
+
+    public async ValueTask ExecuteCommandAsync(
+        Guid commandId,
+        CancellationToken cancellationToken = default)
+    {
+        var state = Volatile.Read(ref _active);
+        if (!state.Commands.TryGet(commandId, out var command) || command is null)
+            throw new KeyNotFoundException($"Active runtime command '{commandId}' was not found.");
+        if (!state.DriverByTagId.TryGetValue(command.TargetTagId, out var driver))
+            throw new KeyNotFoundException(
+                $"Active runtime command '{command.Key}' has no communication driver for target TAG '{command.TargetTagPath}'.");
+
+        await driver.WriteAsync(command.TargetTagId, command.Value, cancellationToken);
     }
 
     public Task<RuntimeActivationResult> ActivateAsync(
@@ -216,6 +239,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 }
 
                 RegisterAlarms(package, candidate, runtimeIssues);
+                RegisterCommands(package, candidate, runtimeIssues);
                 if (runtimeIssues.Any(x => x.IsError))
                 {
                     await candidate.DisposeAsync();
@@ -302,6 +326,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         var registry = new InMemoryTagRegistry();
         var cache = new CurrentTagCache(eventGate);
         var alarms = new InMemoryAlarmEngine(eventGate);
+        var commands = new InMemoryCommandRegistry();
         var drivers = new List<ICommunicationDriver>();
 
         foreach (var plan in compilation.ModbusTcpPlans)
@@ -337,7 +362,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 IsError: true));
         }
 
-        return new RuntimeState(projectKey, revision, eventGate, registry, cache, alarms, drivers);
+        return new RuntimeState(projectKey, revision, eventGate, registry, cache, alarms, commands, drivers);
     }
 
     private static async Task StartDriversAsync(RuntimeState state, CancellationToken cancellationToken)
@@ -418,6 +443,91 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         }
     }
 
+    private static void RegisterCommands(
+        EngineeringPackage package,
+        RuntimeState state,
+        List<RuntimeActivationIssue> issues)
+    {
+        foreach (var dto in (package.Commands ?? Array.Empty<CommandEngineeringDto>()).Where(x => x.Enabled))
+        {
+            TagDefinition? byId = null;
+            TagDefinition? byPath = null;
+            if (dto.TargetTagId.HasValue)
+                state.Registry.TryGet(dto.TargetTagId.Value, out byId);
+            if (!string.IsNullOrWhiteSpace(dto.TargetTagPath))
+                state.Registry.TryGetByPath(dto.TargetTagPath, out byPath);
+
+            if (byId is not null && byPath is not null && byId.Id != byPath.Id)
+            {
+                issues.Add(new(
+                    "RUNTIME_COMMAND_TARGET_MISMATCH",
+                    $"Command '{dto.Key}' TargetTagId and TargetTagPath resolve to different active TAGs.",
+                    dto.Key));
+                continue;
+            }
+
+            var tag = byId ?? byPath;
+            if (tag is null)
+            {
+                issues.Add(new(
+                    "RUNTIME_COMMAND_TAG_NOT_ACTIVE",
+                    $"Command '{dto.Key}' references a TAG that is not present in the candidate runtime.",
+                    dto.Key));
+                continue;
+            }
+
+            if (tag.ReadOnly)
+            {
+                issues.Add(new(
+                    "RUNTIME_COMMAND_TAG_READ_ONLY",
+                    $"Command '{dto.Key}' targets read-only TAG '{tag.Path}'.",
+                    dto.Key));
+                continue;
+            }
+
+            if (dto.Kind != CommandKind.WriteTagValue)
+            {
+                issues.Add(new(
+                    "RUNTIME_COMMAND_KIND_UNSUPPORTED",
+                    $"Command '{dto.Key}' uses unsupported kind '{dto.Kind}'.",
+                    dto.Key));
+                continue;
+            }
+
+            if (!CommandValueParser.TryParse(tag.DataType, dto.Value, out var value))
+            {
+                issues.Add(new(
+                    "RUNTIME_COMMAND_VALUE_INVALID",
+                    $"Command '{dto.Key}' value cannot be converted to target TAG data type '{tag.DataType}'.",
+                    dto.Key));
+                continue;
+            }
+
+            try
+            {
+                state.Commands.Register(new CommandDefinition(
+                    dto.Id ?? Guid.NewGuid(),
+                    dto.Key,
+                    dto.Name,
+                    dto.Kind,
+                    tag.Id,
+                    tag.Path,
+                    value,
+                    dto.Description,
+                    dto.Area,
+                    dto.EquipmentPath,
+                    dto.Metadata));
+            }
+            catch (Exception ex)
+            {
+                issues.Add(new(
+                    "RUNTIME_COMMAND_REGISTRATION_FAILED",
+                    $"Command '{dto.Key}' could not be registered: {ex.Message}",
+                    dto.Key));
+            }
+        }
+    }
+
     private static async Task EvaluateCurrentAlarmsAsync(
         RuntimeState state,
         CancellationToken cancellationToken)
@@ -459,6 +569,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             InMemoryTagRegistry registry,
             CurrentTagCache cache,
             InMemoryAlarmEngine alarms,
+            InMemoryCommandRegistry commands,
             IReadOnlyCollection<ICommunicationDriver> drivers)
         {
             ProjectKey = projectKey;
@@ -467,6 +578,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             Registry = registry;
             Cache = cache;
             Alarms = alarms;
+            Commands = commands;
             Drivers = drivers;
             DriverByTagId = drivers
                 .SelectMany(driver => driver.Tags.Select(tag => (tag.Id, Driver: driver)))
@@ -480,6 +592,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         public InMemoryTagRegistry Registry { get; }
         public CurrentTagCache Cache { get; }
         public InMemoryAlarmEngine Alarms { get; }
+        public InMemoryCommandRegistry Commands { get; }
         public IReadOnlyCollection<ICommunicationDriver> Drivers { get; }
         public IReadOnlyDictionary<Guid, ICommunicationDriver> DriverByTagId { get; }
 
@@ -493,6 +606,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 new InMemoryTagRegistry(),
                 new CurrentTagCache(eventGate),
                 new InMemoryAlarmEngine(eventGate),
+                new InMemoryCommandRegistry(),
                 Array.Empty<ICommunicationDriver>());
         }
 

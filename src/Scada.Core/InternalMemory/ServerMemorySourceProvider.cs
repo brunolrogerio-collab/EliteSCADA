@@ -158,6 +158,39 @@ public sealed class ServerMemorySourceProvider : ISourceProvider
         }
     }
 
+    /// <summary>
+    /// Explicit destructive resolution for an incompatible retained value. The
+    /// durable row is removed first and the active value is reset to the current
+    /// engineered initial/default value. A later activation may then change the
+    /// TAG data type without any implicit conversion of the old retained value.
+    /// </summary>
+    public async ValueTask ResetRetainedValueAsync(
+        Guid tagId,
+        CancellationToken cancellationToken = default)
+    {
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            MemoryTagDefinition definition;
+            lock (_stateGate)
+            {
+                if (!_definitions.TryGetValue(tagId, out definition!))
+                    throw new KeyNotFoundException($"Server Memory TAG '{tagId}' is not active in source '{InstanceKey}'.");
+            }
+
+            await _retentionStore.DeleteAsync(tagId, cancellationToken);
+            var current = CreateGoodValue(tagId, definition.InitialValue.Value, _timeProvider.GetUtcNow());
+            lock (_stateGate)
+            {
+                _values[tagId] = current;
+            }
+        }
+        finally
+        {
+            _mutationGate.Release();
+        }
+    }
+
     private TagValue CreateGoodValue(Guid tagId, object value, DateTimeOffset timestamp) =>
         new(tagId, value, timestamp, TagQuality.Good, InstanceKey);
 }

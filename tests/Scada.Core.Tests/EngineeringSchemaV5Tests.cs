@@ -88,97 +88,97 @@ public sealed class EngineeringSchemaV5Tests
     }
 
     [Fact]
-    public void AlarmCsv_RoundTripsMetadata()
-    {
-        var tags = new InMemoryTagRegistry();
-        var bus = new InMemoryScadaEventBus();
-        using var alarms = new InMemoryAlarmEngine(bus);
-        var tag = TagDefinition.Create("Pressure", "Plant.Pressure", TagDataType.Double);
-        tags.Register(tag);
-        alarms.Register(new AlarmDefinition(
-            Guid.NewGuid(),
-            "High pressure",
-            tag.Id,
-            AlarmType.High,
-            AlarmPriority.High,
-            9.5,
-            true,
-            "Process",
-            "Pumping",
-            "Pressure high",
-            TimeSpan.Zero,
-            true,
-            true,
-            true,
-            new Dictionary<string, string> { ["owner"] = "operations" }));
-        var service = new EngineeringExchangeService(tags, alarms);
-
-        var parsed = service.ParseAlarmsCsv(service.ExportAlarmsCsv());
-        var alarm = Assert.Single(parsed.Alarms);
-
-        Assert.Equal("operations", alarm.Metadata!["owner"]);
-    }
-
-    [Fact]
     public void Apply_PreservesTagAccessPolicyInRuntimeRegistry()
     {
         var tags = new InMemoryTagRegistry();
         var bus = new InMemoryScadaEventBus();
         using var alarms = new InMemoryAlarmEngine(bus);
         var service = new EngineeringExchangeService(tags, alarms);
-        var package = service.ExportPackage() with
-        {
-            Tags = new[]
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            new[]
             {
                 new TagEngineeringDto(
                     null,
                     "Setpoint",
-                    "Plant.Setpoint",
+                    "Plant.P01.Setpoint",
                     TagDataType.Double,
                     ReadOnly: false,
                     AccessPolicy: new TagAccessPolicyDto(
                         new[] { "Operator" },
                         new[] { "Supervisor" },
                         new[] { "Engineering" }))
-            }
-        };
+            },
+            Array.Empty<AlarmEngineeringDto>());
 
         var result = service.Apply(package, ImportMode.CreateAndUpdate);
 
-        Assert.Empty(result.Issues);
-        Assert.True(tags.TryGetByPath("Plant.Setpoint", out var restored));
-        Assert.Equal(new[] { "Operator" }, restored!.AccessPolicy!.ReadRoles);
-        Assert.Equal(new[] { "Supervisor" }, restored.AccessPolicy.WriteRoles);
-        Assert.Equal(new[] { "Engineering" }, restored.AccessPolicy.ConfigureRoles);
+        Assert.Equal(1, result.Created);
+        Assert.True(tags.TryGetByPath("Plant.P01.Setpoint", out var created));
+        Assert.Equal(new[] { "Operator" }, created!.AccessPolicy!.ReadRoles);
+        Assert.Equal(new[] { "Supervisor" }, created.AccessPolicy.WriteRoles);
+        Assert.Equal(new[] { "Engineering" }, created.AccessPolicy.ConfigureRoles);
     }
 
     [Fact]
     public void Preview_RejectsBlankOrDuplicateRolesInTagAccessPolicy()
     {
-        var service = new EngineeringExchangeService(
-            new InMemoryTagRegistry(),
-            new InMemoryAlarmEngine(new InMemoryScadaEventBus()));
-        var package = service.ExportPackage() with
-        {
-            Tags = new[]
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var service = new EngineeringExchangeService(tags, alarms);
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            new[]
             {
                 new TagEngineeringDto(
                     null,
                     "Setpoint",
-                    "Plant.Setpoint",
+                    "Plant.P01.Setpoint",
                     TagDataType.Double,
-                    ReadOnly: false,
                     AccessPolicy: new TagAccessPolicyDto(
-                        new[] { "Operator", "operator", " " },
-                        new[] { "Supervisor" },
+                        new[] { "Operator", "operator" },
+                        new[] { "" },
                         null))
-            }
-        };
+            },
+            Array.Empty<AlarmEngineeringDto>());
 
         var preview = service.Preview(package, ImportMode.CreateAndUpdate);
 
         Assert.False(preview.CanApply);
-        Assert.Contains(preview.Items.SelectMany(x => x.Issues), x => x.Code == "TAG_ACCESS_ROLE_INVALID");
         Assert.Contains(preview.Items.SelectMany(x => x.Issues), x => x.Code == "TAG_ACCESS_ROLE_DUPLICATE");
+        Assert.Contains(preview.Items.SelectMany(x => x.Issues), x => x.Code == "TAG_ACCESS_ROLE_INVALID");
+    }
+
+    [Fact]
+    public void AlarmCsv_RoundTripsMetadata()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var tag = TagDefinition.Create("Pressure", "Plant.P01.Pressure", TagDataType.Double);
+        tags.Register(tag);
+        alarms.Register(AlarmDefinition.Create(
+            "High pressure",
+            tag.Id,
+            AlarmType.High,
+            AlarmPriority.High,
+            setpoint: 9.5,
+            metadata: new Dictionary<string, string>
+            {
+                ["cause"] = "discharge restriction",
+                ["instruction"] = "inspect downstream valve"
+            }));
+        var service = new EngineeringExchangeService(tags, alarms);
+
+        var parsed = service.ParseAlarmsCsv(service.ExportAlarmsCsv());
+        var alarm = Assert.Single(parsed.Alarms);
+
+        Assert.Equal("discharge restriction", alarm.Metadata!["cause"]);
+        Assert.Equal("inspect downstream valve", alarm.Metadata["instruction"]);
     }
 }

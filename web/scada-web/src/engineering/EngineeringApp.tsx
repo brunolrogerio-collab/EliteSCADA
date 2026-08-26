@@ -395,7 +395,8 @@ function SecuritySection({ model, t }: { model: EngineeringPackageView; t: Retur
           render: item => <span className="eng-capability-list">{item.grants?.map(grant => grant.capability).join(', ') || '—'}</span>
         }
       ]}
-    />;
+    />
+  );
 }
 
 function DiagnosticsSection({

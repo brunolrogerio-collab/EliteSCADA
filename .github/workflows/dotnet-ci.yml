@@ -144,6 +144,25 @@ jobs:
           REVISION=$(python3 -c 'import json; print(json.load(open("/tmp/persistence-save.json"))["revision"])')
           echo "Saved engineering revision ${REVISION}"
           test "$REVISION" -ge 1
+          python3 - <<'PY'
+          import json
+          with open('/tmp/persistence-save.json') as f:
+              saved = json.load(f)
+          assert saved['basedOnRevision'] is None
+          PY
+
+          curl -fsS http://127.0.0.1:5080/api/engineering/workspace > /tmp/workspace-after-save.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/workspace-after-save.json') as f:
+              workspace = json.load(f)
+          with open('/tmp/persistence-save.json') as f:
+              saved = json.load(f)
+          assert workspace['projectKey'] == 'ci-demo'
+          assert workspace['baseRevision'] == saved['revision']
+          assert workspace['isDirty'] is False
+          assert workspace['lastSavedAtUtc'] is not None
+          PY
 
           curl -fsS http://127.0.0.1:5080/api/engineering/persistence/ci-demo/lifecycle > /tmp/lifecycle-draft.json
           python3 - <<'PY'
@@ -163,6 +182,7 @@ jobs:
           assert len(revisions) >= 1
           assert revisions[0]['projectKey'] == 'ci-demo'
           assert revisions[0]['engineeringSchemaVersion'] == 5
+          assert revisions[0]['basedOnRevision'] is None
           PY
 
           curl -fsS -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/latest/preview > /tmp/persistence-preview.json
@@ -188,6 +208,26 @@ jobs:
           curl -fsS -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/save \
             -H 'content-type: application/json' \
             -d '{"projectName":"CI Demo","savedBy":"github-actions-after-publish"}' > /tmp/persistence-save-2.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/persistence-save.json') as f:
+              first = json.load(f)
+          with open('/tmp/persistence-save-2.json') as f:
+              second = json.load(f)
+          assert second['revision'] > first['revision']
+          assert second['basedOnRevision'] == first['revision']
+          PY
+
+          curl -fsS http://127.0.0.1:5080/api/engineering/workspace > /tmp/workspace-after-save-2.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/workspace-after-save-2.json') as f:
+              workspace = json.load(f)
+          with open('/tmp/persistence-save-2.json') as f:
+              saved = json.load(f)
+          assert workspace['baseRevision'] == saved['revision']
+          assert workspace['isDirty'] is False
+          PY
 
           curl -fsS http://127.0.0.1:5080/api/engineering/persistence/ci-demo/lifecycle > /tmp/lifecycle-pending.json
           python3 - <<'PY'

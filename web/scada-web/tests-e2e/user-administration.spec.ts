@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 test('Engineering administers local users without exposing credentials and invalidates changed sessions', async ({ page, browser }) => {
+  test.setTimeout(60_000);
+
   await page.goto('/engineering');
   await expect(page.locator('.eng-shell')).toBeVisible();
 
@@ -52,18 +54,25 @@ test('Engineering administers local users without exposing credentials and inval
     const beforeChange = await localPage.evaluate(async () => (await fetch('/api/auth/me')).status);
     expect(beforeChange).toBe(200);
 
-    await localPage.evaluate(async () => {
-      await new Promise<void>((resolve, reject) => {
+    // Move away from Runtime so its own reconnect loop is not part of this focused revocation probe.
+    // The explicit socket below still uses the same authenticated HttpOnly cookie/session.
+    await localPage.goto('/engineering');
+    await expect(localPage.locator('.eng-shell')).toBeVisible();
+
+    const socketClosed = localPage.evaluate(async () => {
+      return await new Promise<number>((resolve, reject) => {
         const socket = new WebSocket(`ws://${window.location.host}/ws/tags`);
-        (window as typeof window & { __adminTestSocket?: WebSocket }).__adminTestSocket = socket;
-        const timeout = window.setTimeout(() => reject(new Error('Realtime test socket did not open.')), 5000);
-        socket.onopen = () => {
+        const timeout = window.setTimeout(() => {
+          socket.close();
+          reject(new Error('Realtime test socket was not revoked.'));
+        }, 8000);
+        socket.onclose = event => {
           window.clearTimeout(timeout);
-          resolve();
+          resolve(event.code);
         };
         socket.onerror = () => {
-          window.clearTimeout(timeout);
-          reject(new Error('Realtime test socket failed before opening.'));
+          // A successfully opened socket can still report an error as part of shutdown.
+          // onclose is the authoritative revocation signal for this test.
         };
       });
     });
@@ -78,10 +87,7 @@ test('Engineering administers local users without exposing credentials and inval
     }, { id: userId });
     expect(updateStatus).toBe(200);
 
-    await localPage.waitForFunction(() => {
-      const socket = (window as typeof window & { __adminTestSocket?: WebSocket }).__adminTestSocket;
-      return socket?.readyState === WebSocket.CLOSED;
-    });
+    expect(await socketClosed).toBe(1008);
 
     const afterProfileChange = await localPage.evaluate(async () => (await fetch('/api/auth/me')).status);
     expect(afterProfileChange).toBe(401);

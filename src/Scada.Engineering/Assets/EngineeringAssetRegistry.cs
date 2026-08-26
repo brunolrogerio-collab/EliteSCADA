@@ -29,6 +29,12 @@ public sealed class InMemoryEngineeringAssetRegistry : IEngineeringAssetRegistry
     private readonly Dictionary<string, Guid> _equipmentByPath = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<Guid, DynamoEngineeringDto> _dynamosById = new();
     private readonly Dictionary<string, Guid> _dynamosByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Action? _changed;
+
+    public InMemoryEngineeringAssetRegistry(Action? changed = null)
+    {
+        _changed = changed;
+    }
 
     public IReadOnlyCollection<EquipmentTemplateEngineeringDto> SnapshotTemplates()
     {
@@ -83,6 +89,7 @@ public sealed class InMemoryEngineeringAssetRegistry : IEngineeringAssetRegistry
         ArgumentException.ThrowIfNullOrWhiteSpace(template.Key);
         var normalized = template with { Id = template.Id ?? Guid.NewGuid() };
         lock (_sync) UpsertByKey(normalized, normalized.Id!.Value, normalized.Key, _templatesById, _templatesByKey, x => x.Key);
+        _changed?.Invoke();
     }
 
     public void UpsertEquipment(EquipmentEngineeringDto equipment)
@@ -90,6 +97,7 @@ public sealed class InMemoryEngineeringAssetRegistry : IEngineeringAssetRegistry
         ArgumentException.ThrowIfNullOrWhiteSpace(equipment.Path);
         var normalized = equipment with { Id = equipment.Id ?? Guid.NewGuid() };
         lock (_sync) UpsertByKey(normalized, normalized.Id!.Value, normalized.Path, _equipmentById, _equipmentByPath, x => x.Path);
+        _changed?.Invoke();
     }
 
     public void UpsertDynamo(DynamoEngineeringDto dynamo)
@@ -97,6 +105,7 @@ public sealed class InMemoryEngineeringAssetRegistry : IEngineeringAssetRegistry
         ArgumentException.ThrowIfNullOrWhiteSpace(dynamo.Key);
         var normalized = dynamo with { Id = dynamo.Id ?? Guid.NewGuid() };
         lock (_sync) UpsertByKey(normalized, normalized.Id!.Value, normalized.Key, _dynamosById, _dynamosByKey, x => x.Key);
+        _changed?.Invoke();
     }
 
     public void Clear()
@@ -110,6 +119,7 @@ public sealed class InMemoryEngineeringAssetRegistry : IEngineeringAssetRegistry
             _dynamosById.Clear();
             _dynamosByKey.Clear();
         }
+        _changed?.Invoke();
     }
 
     private static void UpsertByKey<T>(

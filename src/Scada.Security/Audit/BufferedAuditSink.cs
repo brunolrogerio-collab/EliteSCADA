@@ -67,7 +67,7 @@ public sealed class BufferedAuditSink : IAuditSink, IAsyncDisposable
         {
             SingleReader = true,
             SingleWriter = false,
-            FullMode = BoundedChannelFullMode.DropWrite,
+            FullMode = BoundedChannelFullMode.Wait,
             AllowSynchronousContinuations = false
         });
         _worker = Task.Run(ProcessAsync);

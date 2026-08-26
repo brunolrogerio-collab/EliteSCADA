@@ -11,11 +11,16 @@ internal sealed class TagEngineeringHandler
 {
     private readonly ITagRegistry _tags;
     private readonly IDataSourceEngineeringRegistry _dataSources;
+    private readonly IAlarmEngine _alarms;
 
-    public TagEngineeringHandler(ITagRegistry tags, IDataSourceEngineeringRegistry dataSources)
+    public TagEngineeringHandler(
+        ITagRegistry tags,
+        IDataSourceEngineeringRegistry dataSources,
+        IAlarmEngine alarms)
     {
         _tags = tags;
         _dataSources = dataSources;
+        _alarms = alarms;
     }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
@@ -30,6 +35,7 @@ internal sealed class TagEngineeringHandler
 
             var dataSource = ResolveDataSource(dto.Source, package);
             issues.AddRange(MemoryEngineeringValidator.ValidateTag(dto, dataSource));
+            ValidateClientMemoryTransition(dto, dataSource, issues);
 
             if (duplicatePaths.Contains(dto.Path))
                 issues.Add(new(
@@ -132,6 +138,26 @@ internal sealed class TagEngineeringHandler
         var imported = ResolveImportedAlarmTag(dto, package);
         var source = imported?.Source ?? ResolveAlarmTag(dto)?.Source;
         return MemoryEngineeringValidator.IsClientMemoryDriver(ResolveDataSource(source, package)?.Driver);
+    }
+
+    private void ValidateClientMemoryTransition(
+        TagEngineeringDto dto,
+        DataSourceEngineeringDto? dataSource,
+        List<ImportIssue> issues)
+    {
+        if (dataSource is null || !MemoryEngineeringValidator.IsClientMemoryDriver(dataSource.Driver))
+            return;
+
+        var existing = ResolveExisting(dto);
+        if (existing is null || !_alarms.Definitions().Any(alarm => alarm.TagId == existing.Id))
+            return;
+
+        issues.Add(new(
+            "CLIENT_MEMORY_EXISTING_ALARM_NOT_ALLOWED",
+            $"TAG '{dto.Path}' cannot move to Client Memory while it remains targeted by the global alarm engine.",
+            ImportEntityKind.Tag,
+            dto.Path,
+            true));
     }
 
     private TagEngineeringDto? ResolveImportedAlarmTag(AlarmEngineeringDto dto, EngineeringPackage package)

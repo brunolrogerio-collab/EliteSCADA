@@ -18,9 +18,42 @@ type LocalRole = {
   description?: string | null;
 };
 
-type Strings = typeof strings['pt-BR'];
+type UiStrings = {
+  eyebrow: string;
+  title: string;
+  description: string;
+  notAuthorized: string;
+  loadError: string;
+  retry: string;
+  create: string;
+  username: string;
+  displayName: string;
+  password: string;
+  passwordHint: string;
+  enabled: string;
+  roles: string;
+  noRoles: string;
+  createAction: string;
+  creating: string;
+  edit: string;
+  save: string;
+  saving: string;
+  resetPassword: string;
+  newPassword: string;
+  resetAction: string;
+  resetting: string;
+  none: string;
+  refresh: string;
+  saved: string;
+  createdSuccess: string;
+  passwordSuccess: string;
+  sessionNote: string;
+  unknownError: string;
+  created: string;
+  updated: string;
+};
 
-const strings = {
+const strings: Record<EngineeringLocale, UiStrings> = {
   'pt-BR': {
     eyebrow: 'Identidades locais',
     title: 'Usuários',
@@ -45,18 +78,15 @@ const strings = {
     newPassword: 'Nova senha',
     resetAction: 'Redefinir',
     resetting: 'Redefinindo...',
-    select: 'Selecionar',
-    active: 'Ativo',
-    disabled: 'Desabilitado',
-    created: 'Criado',
-    updated: 'Atualizado',
     none: 'Nenhum usuário local cadastrado.',
     refresh: 'Atualizar',
     saved: 'Usuário atualizado.',
     createdSuccess: 'Usuário criado.',
     passwordSuccess: 'Senha redefinida. Sessões anteriores deste usuário foram invalidadas.',
     sessionNote: 'Alterar papel, estado, perfil ou senha invalida os JWTs locais anteriores desse usuário.',
-    unknownError: 'Falha na operação.'
+    unknownError: 'Falha na operação.',
+    created: 'Criado',
+    updated: 'Atualizado'
   },
   en: {
     eyebrow: 'Local identities',
@@ -82,18 +112,15 @@ const strings = {
     newPassword: 'New password',
     resetAction: 'Reset',
     resetting: 'Resetting...',
-    select: 'Select',
-    active: 'Active',
-    disabled: 'Disabled',
-    created: 'Created',
-    updated: 'Updated',
     none: 'No local users are configured.',
     refresh: 'Refresh',
     saved: 'User updated.',
     createdSuccess: 'User created.',
     passwordSuccess: 'Password reset. Previous local sessions for this user were invalidated.',
     sessionNote: 'Changing roles, status, profile or password invalidates this user’s previous local JWTs.',
-    unknownError: 'Operation failed.'
+    unknownError: 'Operation failed.',
+    created: 'Created',
+    updated: 'Updated'
   },
   es: {
     eyebrow: 'Identidades locales',
@@ -119,34 +146,32 @@ const strings = {
     newPassword: 'Nueva contraseña',
     resetAction: 'Restablecer',
     resetting: 'Restableciendo...',
-    select: 'Seleccionar',
-    active: 'Activo',
-    disabled: 'Deshabilitado',
-    created: 'Creado',
-    updated: 'Actualizado',
     none: 'No hay usuarios locales registrados.',
     refresh: 'Actualizar',
     saved: 'Usuario actualizado.',
     createdSuccess: 'Usuario creado.',
     passwordSuccess: 'Contraseña restablecida. Las sesiones locales anteriores de este usuario fueron invalidadas.',
     sessionNote: 'Cambiar roles, estado, perfil o contraseña invalida los JWT locales anteriores de este usuario.',
-    unknownError: 'La operación falló.'
+    unknownError: 'La operación falló.',
+    created: 'Creado',
+    updated: 'Actualizado'
   }
-} as const;
+};
 
 export function UserAdministration({ locale }: { locale: EngineeringLocale }) {
-  const s: Strings = strings[locale];
+  const s = strings[locale];
   const [users, setUsers] = useState<LocalUser[]>([]);
   const [roles, setRoles] = useState<LocalRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [operationError, setOperationError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setLoadError(null);
     setForbidden(false);
     try {
       const [nextUsers, nextRoles] = await Promise.all([
@@ -155,12 +180,14 @@ export function UserAdministration({ locale }: { locale: EngineeringLocale }) {
       ]);
       setUsers(nextUsers);
       setRoles(nextRoles);
-      setSelectedId(current => current && nextUsers.some(user => user.id === current) ? current : nextUsers[0]?.id ?? null);
+      setSelectedId(current => current && nextUsers.some(user => user.id === current)
+        ? current
+        : nextUsers[0]?.id ?? null);
     } catch (reason) {
       if (reason instanceof HttpError && (reason.status === 401 || reason.status === 403)) {
         setForbidden(true);
       } else {
-        setError(messageOf(reason, s.unknownError));
+        setLoadError(messageOf(reason, s.unknownError));
       }
     } finally {
       setLoading(false);
@@ -189,15 +216,21 @@ export function UserAdministration({ locale }: { locale: EngineeringLocale }) {
     );
   }
 
-  if (error) {
+  if (loadError) {
     return (
       <section className="eng-panel user-admin">
         <header><span>{s.eyebrow}</span><h2>{s.title}</h2></header>
-        <div className="user-admin-state error">{s.loadError}<small>{error}</small></div>
+        <div className="user-admin-state error">{s.loadError}<small>{loadError}</small></div>
         <button type="button" className="user-admin-button" onClick={() => void load()}>{s.retry}</button>
       </section>
     );
   }
+
+  const refreshAfter = async (message: string) => {
+    setOperationError(null);
+    setNotice(message);
+    await load();
+  };
 
   return (
     <section className="eng-panel user-admin" data-testid="user-administration">
@@ -211,6 +244,7 @@ export function UserAdministration({ locale }: { locale: EngineeringLocale }) {
       </header>
 
       {notice && <div className="user-admin-notice" role="status">{notice}</div>}
+      {operationError && <div className="user-admin-state error" role="alert">{operationError}</div>}
       <p className="user-admin-note">{s.sessionNote}</p>
 
       <div className="user-admin-grid">
@@ -218,11 +252,8 @@ export function UserAdministration({ locale }: { locale: EngineeringLocale }) {
           <CreateUserForm
             roles={roles}
             s={s}
-            onCreated={async () => {
-              setNotice(s.createdSuccess);
-              await load();
-            }}
-            onError={setError}
+            onCreated={() => refreshAfter(s.createdSuccess)}
+            onError={setOperationError}
           />
 
           <div className="user-list" data-testid="user-list">
@@ -250,15 +281,9 @@ export function UserAdministration({ locale }: { locale: EngineeringLocale }) {
               roles={roles}
               locale={locale}
               s={s}
-              onSaved={async () => {
-                setNotice(s.saved);
-                await load();
-              }}
-              onPasswordReset={async () => {
-                setNotice(s.passwordSuccess);
-                await load();
-              }}
-              onError={setError}
+              onSaved={() => refreshAfter(s.saved)}
+              onPasswordReset={() => refreshAfter(s.passwordSuccess)}
+              onError={setOperationError}
             />
           ) : (
             <div className="user-admin-state">{s.none}</div>
@@ -276,7 +301,7 @@ function CreateUserForm({
   onError
 }: {
   roles: LocalRole[];
-  s: Strings;
+  s: UiStrings;
   onCreated: () => Promise<void>;
   onError: (message: string) => void;
 }) {
@@ -333,7 +358,7 @@ function EditUserForm({
   user: LocalUser;
   roles: LocalRole[];
   locale: EngineeringLocale;
-  s: Strings;
+  s: UiStrings;
   onSaved: () => Promise<void>;
   onPasswordReset: () => Promise<void>;
   onError: (message: string) => void;

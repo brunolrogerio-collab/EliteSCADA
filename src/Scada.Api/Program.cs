@@ -89,13 +89,18 @@ app.MapAuditEndpoints();
 app.MapAlarmShelvingEndpoints();
 app.MapCommandEndpoints();
 
-app.MapGet("/health", (ScadaRuntimeFacade runtime, IHistorian historian) =>
+// Public health intentionally exposes no plant, driver, project or historian detail.
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "ok",
+    service = "scada-api"
+}));
+
+app.MapGet("/api/diagnostics/runtime", (ScadaRuntimeFacade runtime, IHistorian historian) =>
 {
     var descriptor = runtime.Describe();
     return Results.Ok(new
     {
-        status = "ok",
-        service = "scada-api",
         driver = descriptor.Drivers.FirstOrDefault(),
         runtime = descriptor,
         historian = new
@@ -106,7 +111,7 @@ app.MapGet("/health", (ScadaRuntimeFacade runtime, IHistorian historian) =>
         },
         activeAlarms = descriptor.ActiveAlarmCount
     });
-});
+}).RequireRuntimeEngineeringRead();
 
 app.MapGet("/api/auth/me", (HttpContext context, ApiAuthorizationService security) =>
 {
@@ -122,10 +127,18 @@ app.MapGet("/api/auth/me", (HttpContext context, ApiAuthorizationService securit
     });
 });
 
-app.MapGet("/api/tags", (ScadaRuntimeFacade runtime) =>
+app.MapGet("/api/tags", async (
+    HttpContext context,
+    ScadaRuntimeFacade runtime,
+    ApiAuthorizationService security,
+    CancellationToken ct) =>
 {
+    var access = await security.GetReadableRuntimeTagsAsync(context, runtime, ct);
+    var failure = access.FailureResult();
+    if (failure is not null) return failure;
+
     var current = runtime.CurrentValues().ToDictionary(x => x.TagId);
-    var tags = runtime.Tags().Select(tag => new
+    var tags = access.Tags.Select(tag => new
     {
         tag.Id,
         tag.Name,
@@ -139,11 +152,33 @@ app.MapGet("/api/tags", (ScadaRuntimeFacade runtime) =>
     return Results.Ok(tags);
 });
 
-app.MapGet("/api/tags/current", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.CurrentValues()));
+app.MapGet("/api/tags/current", async (
+    HttpContext context,
+    ScadaRuntimeFacade runtime,
+    ApiAuthorizationService security,
+    CancellationToken ct) =>
+{
+    var access = await security.GetReadableRuntimeTagsAsync(context, runtime, ct);
+    var failure = access.FailureResult();
+    if (failure is not null) return failure;
 
-app.MapGet("/api/tags/by-path/{*path}", (string path, ScadaRuntimeFacade runtime) =>
+    var readableIds = access.Tags.Select(x => x.Id).ToHashSet();
+    return Results.Ok(runtime.CurrentValues().Where(value => readableIds.Contains(value.TagId)));
+});
+
+app.MapGet("/api/tags/by-path/{*path}", async (
+    string path,
+    HttpContext context,
+    ScadaRuntimeFacade runtime,
+    ApiAuthorizationService security,
+    CancellationToken ct) =>
 {
     if (!runtime.TryGetTagByPath(path, out var tag) || tag is null) return Results.NotFound();
+
+    var authorization = await security.CheckRuntimeTagReadAsync(context, runtime, tag, ct);
+    var failure = authorization?.FailureResult();
+    if (failure is not null) return failure;
+
     runtime.TryGetCurrent(tag.Id, out var current);
     return Results.Ok(new { tag, current });
 });
@@ -210,17 +245,80 @@ app.MapPost("/api/tags/{id:guid}/write", async (
     }
 });
 
-app.MapGet("/api/history/{tagId:guid}", (Guid tagId, DateTimeOffset? from, DateTimeOffset? to, int? limit, IHistorian historian) =>
+app.MapGet("/api/history/{tagId:guid}", async (
+    Guid tagId,
+    DateTimeOffset? from,
+    DateTimeOffset? to,
+    int? limit,
+    HttpContext context,
+    ScadaRuntimeFacade runtime,
+    ApiAuthorizationService security,
+    IHistorian historian,
+    CancellationToken ct) =>
 {
+    if (!runtime.TryGetTag(tagId, out var tag) || tag is null) return Results.NotFound();
+
+    var authorization = await security.CheckRuntimeTagReadAsync(context, runtime, tag, ct);
+    var failure = authorization?.FailureResult();
+    if (failure is not null) return failure;
+
     var end = to ?? DateTimeOffset.UtcNow;
     var start = from ?? end.AddMinutes(-15);
     return Results.Ok(historian.Query(tagId, start, end, limit ?? 5000));
 });
 
-app.MapGet("/api/alarms", (bool? activeOnly, ScadaRuntimeFacade runtime) =>
-    Results.Ok(runtime.Alarms(activeOnly ?? false)));
+app.MapGet("/api/alarms", async (
+    bool? activeOnly,
+    HttpContext context,
+    ScadaRuntimeFacade runtime,
+    ApiAuthorizationService security,
+    CancellationToken ct) =>
+{
+    var tagAccess = await security.GetReadableRuntimeTagsAsync(context, runtime, ct);
+    var failure = tagAccess.FailureResult();
+    if (failure is not null) return failure;
 
-app.MapGet("/api/alarms/definitions", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.AlarmDefinitions()));
+    var readableTagIds = tagAccess.Tags.Select(tag => tag.Id).ToHashSet();
+    var visible = new List<AlarmInstance>();
+    foreach (var alarm in runtime.Alarms(activeOnly ?? false))
+    {
+        if (!readableTagIds.Contains(alarm.TagId)) continue;
+        if (await security.CanViewRuntimeResourceAsync(
+                tagAccess.Principal,
+                runtime,
+                new AuthorizationResource(Area: alarm.Area),
+                ct))
+            visible.Add(alarm);
+    }
+
+    return Results.Ok(visible);
+});
+
+app.MapGet("/api/alarms/definitions", async (
+    HttpContext context,
+    ScadaRuntimeFacade runtime,
+    ApiAuthorizationService security,
+    CancellationToken ct) =>
+{
+    var tagAccess = await security.GetReadableRuntimeTagsAsync(context, runtime, ct);
+    var failure = tagAccess.FailureResult();
+    if (failure is not null) return failure;
+
+    var readableTagIds = tagAccess.Tags.Select(tag => tag.Id).ToHashSet();
+    var visible = new List<AlarmDefinition>();
+    foreach (var alarm in runtime.AlarmDefinitions())
+    {
+        if (!readableTagIds.Contains(alarm.TagId)) continue;
+        if (await security.CanViewRuntimeResourceAsync(
+                tagAccess.Principal,
+                runtime,
+                new AuthorizationResource(Area: alarm.Area),
+                ct))
+            visible.Add(alarm);
+    }
+
+    return Results.Ok(visible);
+});
 
 app.MapPost("/api/alarms/{id:guid}/ack", async (
     Guid id,
@@ -287,36 +385,50 @@ app.MapPost("/api/alarms/{id:guid}/ack", async (
     }
 });
 
-app.MapGet("/api/drivers", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.Drivers()));
+app.MapGet("/api/drivers", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.Drivers()))
+    .RequireRuntimeEngineeringRead();
 
-app.MapGet("/api/engineering/workspace", (EngineeringWorkspace workspace) => Results.Ok(workspace.Describe()));
-app.MapGet("/api/engineering/data-sources", (IDataSourceEngineeringRegistry registry) => Results.Ok(registry.Snapshot()));
-app.MapGet("/api/engineering/templates", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotTemplates()));
-app.MapGet("/api/engineering/equipment", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotEquipment()));
-app.MapGet("/api/engineering/dynamos", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotDynamos()));
-app.MapGet("/api/engineering/screens", (IEngineeringViewRegistry registry) => Results.Ok(registry.SnapshotScreens()));
-app.MapGet("/api/engineering/popups", (IEngineeringViewRegistry registry) => Results.Ok(registry.SnapshotPopups()));
-app.MapGet("/api/engineering/security-roles", (ISecurityPolicyEngineeringRegistry registry) => Results.Ok(registry.SnapshotRoles()));
-app.MapGet("/api/engineering/commands", (ICommandEngineeringRegistry registry) => Results.Ok(registry.Snapshot()));
+app.MapGet("/api/engineering/workspace", (EngineeringWorkspace workspace) => Results.Ok(workspace.Describe()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/data-sources", (IDataSourceEngineeringRegistry registry) => Results.Ok(registry.Snapshot()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/templates", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotTemplates()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/equipment", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotEquipment()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/dynamos", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotDynamos()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/screens", (IEngineeringViewRegistry registry) => Results.Ok(registry.SnapshotScreens()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/popups", (IEngineeringViewRegistry registry) => Results.Ok(registry.SnapshotPopups()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/security-roles", (ISecurityPolicyEngineeringRegistry registry) => Results.Ok(registry.SnapshotRoles()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/commands", (ICommandEngineeringRegistry registry) => Results.Ok(registry.Snapshot()))
+    .RequireWorkspaceEngineeringRead();
 
 app.MapGet("/api/engineering/export/json", (IEngineeringExchangeService exchange) =>
-    Results.File(Encoding.UTF8.GetBytes(exchange.ExportJson()), "application/json", "scada-engineering.json"));
+    Results.File(Encoding.UTF8.GetBytes(exchange.ExportJson()), "application/json", "scada-engineering.json"))
+    .RequireWorkspaceEngineeringRead();
 
 app.MapGet("/api/engineering/export/tags.csv", (IEngineeringExchangeService exchange) =>
-    Results.File(Encoding.UTF8.GetBytes(exchange.ExportTagsCsv()), "text/csv; charset=utf-8", "scada-tags.csv"));
+    Results.File(Encoding.UTF8.GetBytes(exchange.ExportTagsCsv()), "text/csv; charset=utf-8", "scada-tags.csv"))
+    .RequireWorkspaceEngineeringRead();
 
 app.MapGet("/api/engineering/export/alarms.csv", (IEngineeringExchangeService exchange) =>
-    Results.File(Encoding.UTF8.GetBytes(exchange.ExportAlarmsCsv()), "text/csv; charset=utf-8", "scada-alarms.csv"));
+    Results.File(Encoding.UTF8.GetBytes(exchange.ExportAlarmsCsv()), "text/csv; charset=utf-8", "scada-alarms.csv"))
+    .RequireWorkspaceEngineeringRead();
 
 app.MapGet("/api/engineering/export/datasources.csv", (IEngineeringExchangeService exchange) =>
-    Results.File(Encoding.UTF8.GetBytes(exchange.ExportDataSourcesCsv()), "text/csv; charset=utf-8", "scada-datasources.csv"));
+    Results.File(Encoding.UTF8.GetBytes(exchange.ExportDataSourcesCsv()), "text/csv; charset=utf-8", "scada-datasources.csv"))
+    .RequireWorkspaceEngineeringRead();
 
 app.MapPost("/api/engineering/import/json/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
 {
     using var reader = new StreamReader(request.Body, Encoding.UTF8);
     var package = exchange.ParseJson(await reader.ReadToEndAsync());
     return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
-});
+}).RequireWorkspaceEngineeringRead();
 
 app.MapPost("/api/engineering/import/json/apply", async (
     HttpRequest request,
@@ -346,7 +458,7 @@ app.MapPost("/api/engineering/import/tags.csv/preview", async (HttpRequest reque
     using var reader = new StreamReader(request.Body, Encoding.UTF8);
     var package = exchange.ParseTagsCsv(await reader.ReadToEndAsync());
     return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
-});
+}).RequireWorkspaceEngineeringRead();
 
 app.MapPost("/api/engineering/import/tags.csv/apply", async (
     HttpRequest request,
@@ -376,7 +488,7 @@ app.MapPost("/api/engineering/import/alarms.csv/preview", async (HttpRequest req
     using var reader = new StreamReader(request.Body, Encoding.UTF8);
     var package = exchange.ParseAlarmsCsv(await reader.ReadToEndAsync());
     return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
-});
+}).RequireWorkspaceEngineeringRead();
 
 app.MapPost("/api/engineering/import/alarms.csv/apply", async (
     HttpRequest request,
@@ -406,7 +518,7 @@ app.MapPost("/api/engineering/import/datasources.csv/preview", async (HttpReques
     using var reader = new StreamReader(request.Body, Encoding.UTF8);
     var package = exchange.ParseDataSourcesCsv(await reader.ReadToEndAsync());
     return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
-});
+}).RequireWorkspaceEngineeringRead();
 
 app.MapPost("/api/engineering/import/datasources.csv/apply", async (
     HttpRequest request,
@@ -431,15 +543,52 @@ app.MapPost("/api/engineering/import/datasources.csv/apply", async (
         });
 });
 
-app.Map("/ws/tags", async (HttpContext context, TagRealtimeHub hub) =>
+app.Map("/ws/tags", async (
+    HttpContext context,
+    TagRealtimeHub hub,
+    ApiAuthorizationService security) =>
 {
     if (!context.WebSockets.IsWebSocketRequest)
     {
         context.Response.StatusCode = StatusCodes.Status400BadRequest;
         return;
     }
+
+    var principal = security.GetPrincipal(context);
+    if (security.AuthenticationEnabled &&
+        (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId)))
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return;
+    }
+
+    DateTimeOffset? expiresAtUtc = null;
+    if (security.AuthenticationEnabled)
+    {
+        if (!long.TryParse(context.User.FindFirst("exp")?.Value, out var expiresAtUnix))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+
+        try
+        {
+            expiresAtUtc = DateTimeOffset.FromUnixTimeSeconds(expiresAtUnix);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+    }
+
     var socket = await context.WebSockets.AcceptWebSocketAsync();
-    await hub.HandleAsync(socket, context.RequestAborted);
+    await hub.HandleAsync(
+        socket,
+        principal,
+        security.AuthenticationEnabled,
+        expiresAtUtc,
+        context.RequestAborted);
 });
 
 app.Run();

@@ -14,25 +14,37 @@ public sealed class EngineeringPersistenceSecurityFilter(
         EndpointFilterDelegate next)
     {
         var context = invocationContext.HttpContext;
-        var operation = ResolveOperation(context.Request.Method, context.Request.Path.Value);
-        if (operation is null || !AuthenticationEnabled(configuration))
+        if (!AuthenticationEnabled(configuration))
             return await next(invocationContext);
 
+        // Every persistence surface exposes Engineering state, revision metadata or
+        // lifecycle behavior. Authorization is therefore group-wide; auditing remains
+        // limited to state-changing lifecycle operations.
+        var operation = ResolveOperation(context.Request.Method, context.Request.Path.Value);
         var authorization = security.CheckWorkspace(
             context,
             SecurityCapability.EngineeringModify);
         var failure = authorization.FailureResult();
         if (failure is not null)
         {
-            await audit.RecordAuthorizationDeniedAsync(
-                context,
-                authorization,
-                operation.Action,
-                operation.TargetKind,
-                ResolveTargetId(context),
-                ResolveDetails(context));
+            if (operation is not null)
+            {
+                await audit.RecordAuthorizationDeniedAsync(
+                    context,
+                    authorization,
+                    operation.Action,
+                    operation.TargetKind,
+                    ResolveTargetId(context),
+                    ResolveDetails(context));
+            }
+
             return failure;
         }
+
+        // Read/preview operations are authorization-only; they do not mutate process or
+        // Engineering state and therefore do not create lifecycle audit entries.
+        if (operation is null)
+            return await next(invocationContext);
 
         ReplaceCallerSuppliedActor(invocationContext, authorization.Principal.SubjectId!);
 

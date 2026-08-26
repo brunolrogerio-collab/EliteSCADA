@@ -24,7 +24,7 @@ public static class ProjectPackageEndpoints
                 content,
                 "application/vnd.elitescada.project-package",
                 $"{SafeFileName(key)}{ProjectPackageService.PackageExtension}");
-        });
+        }).RequireWorkspaceEngineeringRead();
 
         endpoints.MapPost("/api/project-package/inspect", async (
             HttpRequest request,
@@ -59,7 +59,7 @@ public static class ProjectPackageEndpoints
             {
                 return Results.BadRequest(new { error = ex.Message });
             }
-        });
+        }).RequireWorkspaceEngineeringRead();
 
         endpoints.MapPost("/api/project-package/import/preview", async (
             HttpRequest request,
@@ -76,7 +76,7 @@ public static class ProjectPackageEndpoints
             {
                 return Results.BadRequest(new { error = ex.Message });
             }
-        });
+        }).RequireWorkspaceEngineeringRead();
 
         endpoints.MapPost("/api/project-package/import/apply", async (
             HttpRequest request,

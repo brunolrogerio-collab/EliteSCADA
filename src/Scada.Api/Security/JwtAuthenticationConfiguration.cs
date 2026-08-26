@@ -43,6 +43,22 @@ public static class JwtAuthenticationConfiguration
                     RoleClaimType = "role",
                     ClockSkew = TimeSpan.FromSeconds(30)
                 };
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        // Native browser WebSocket clients cannot set an Authorization header.
+                        // Restrict query-string bearer tokens to the realtime WebSocket endpoint only.
+                        if (context.HttpContext.Request.Path.StartsWithSegments("/ws/tags") &&
+                            context.Request.Query.TryGetValue("access_token", out var token) &&
+                            !string.IsNullOrWhiteSpace(token))
+                        {
+                            context.Token = token.ToString();
+                        }
+
+                        return Task.CompletedTask;
+                    }
+                };
             });
 
         return true;

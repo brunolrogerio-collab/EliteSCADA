@@ -2,17 +2,22 @@ using System.Collections.Concurrent;
 
 namespace Scada.Core.InternalMemory;
 
-public sealed record RetainedMemoryValue(
-    Guid TagId,
-    TypedTagValue TypedValue,
-    DateTimeOffset StoredAt)
+public sealed record RetainedMemoryValue
 {
-    public RetainedMemoryValue : this(TagId, TypedValue, StoredAt)
+    public RetainedMemoryValue(Guid tagId, TypedTagValue typedValue, DateTimeOffset storedAt)
     {
-        if (TagId == Guid.Empty)
-            throw new ArgumentException("Retained memory TAG ID cannot be empty.", nameof(TagId));
-        ArgumentNullException.ThrowIfNull(TypedValue);
+        if (tagId == Guid.Empty)
+            throw new ArgumentException("Retained memory TAG ID cannot be empty.", nameof(tagId));
+        ArgumentNullException.ThrowIfNull(typedValue);
+
+        TagId = tagId;
+        TypedValue = typedValue;
+        StoredAt = storedAt;
     }
+
+    public Guid TagId { get; }
+    public TypedTagValue TypedValue { get; }
+    public DateTimeOffset StoredAt { get; }
 }
 
 public interface IServerMemoryRetentionStore

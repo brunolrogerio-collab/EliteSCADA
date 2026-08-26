@@ -1,0 +1,92 @@
+.eng-editor-section { padding-bottom: 32px; }
+.eng-editor-header { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; margin-bottom: 18px; }
+.eng-editor-header > div:first-child { min-width: 0; }
+.eng-editor-header h1 { margin: 4px 0 7px; font-size: 25px; }
+.eng-editor-header p { margin: 0; max-width: 760px; color: #8f9ba8; font-size: 13px; line-height: 1.5; }
+.eng-editor-eyebrow { color: #7ca7ca; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; font-weight: 800; }
+.eng-editor-safety-note { width: min(340px, 38%); padding: 12px 14px; border: 1px solid #3d4f60; border-radius: 9px; background: #18222b; display: flex; flex-direction: column; gap: 4px; }
+.eng-editor-safety-note strong { color: #b7d2e7; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.eng-editor-safety-note span { color: #8fa2b3; font-size: 11px; line-height: 1.45; }
+.eng-editor-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 14px; min-height: 560px; }
+.eng-editor-picker, .eng-editor-form-panel { border: 1px solid #2a333d; border-radius: 10px; background: #171c22; overflow: hidden; }
+.eng-editor-picker { display: flex; flex-direction: column; min-height: 0; }
+.eng-editor-picker > header { padding: 13px; display: grid; gap: 10px; border-bottom: 1px solid #2a333d; }
+.eng-editor-picker > header strong { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: #c7d0da; }
+.eng-editor-picker input[type='search'] { width: 100%; border: 1px solid #35414d; border-radius: 7px; background: #11171d; color: #e8edf4; padding: 8px 9px; outline: none; }
+.eng-editor-picker input[type='search']:focus { border-color: #587c9d; }
+.eng-editor-picker-list { overflow: auto; padding: 6px; display: grid; gap: 4px; align-content: start; }
+.eng-editor-picker-list > button { width: 100%; border: 1px solid transparent; background: transparent; color: #d6dde5; padding: 10px; border-radius: 7px; text-align: left; cursor: pointer; display: grid; gap: 3px; }
+.eng-editor-picker-list > button:hover { background: #1c242c; }
+.eng-editor-picker-list > button.selected { background: #202d38; border-color: #43627c; }
+.eng-editor-picker-list strong { font-size: 12px; }
+.eng-editor-picker-list code { font-size: 11px; color: #aab8c5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eng-editor-picker-list span { color: #758493; font-size: 10px; }
+.eng-editor-picker-empty { padding: 18px 10px; color: #788796; font-size: 12px; }
+.eng-editor-form-panel { padding: 16px; overflow: auto; }
+.eng-editor-empty { min-height: 320px; display: grid; place-items: center; color: #788796; }
+.eng-editor-status { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a333d; padding: 0 0 13px; margin-bottom: 15px; }
+.eng-editor-status > div { display: flex; gap: 9px; align-items: baseline; }
+.eng-editor-status span { color: #7f8d9b; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.eng-editor-status strong { font-size: 12px; color: #cbd5df; }
+.eng-editor-status small { min-width: 26px; padding: 4px 7px; border-radius: 999px; background: #222c35; text-align: center; color: #9dafbf; font-weight: 700; }
+.eng-editor-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.eng-editor-field { display: grid; gap: 5px; min-width: 0; }
+.eng-editor-field > span, .eng-editor-check > span { color: #8e9ba8; font-size: 10px; text-transform: uppercase; letter-spacing: .055em; }
+.eng-editor-field input, .eng-editor-field select, .eng-editor-field textarea { width: 100%; min-width: 0; border: 1px solid #35414d; border-radius: 7px; background: #11171d; color: #e8edf4; padding: 9px 10px; outline: none; }
+.eng-editor-field textarea { resize: vertical; font-family: inherit; }
+.eng-editor-field input:focus, .eng-editor-field select:focus, .eng-editor-field textarea:focus { border-color: #587c9d; }
+.eng-editor-field .mono, .eng-dictionary-row input, .eng-readonly-dictionary code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.eng-editor-field-wide { grid-column: 1 / -1; }
+.eng-editor-check { min-height: 62px; border: 1px solid #303b46; border-radius: 7px; padding: 9px 10px; display: flex; align-items: center; gap: 10px; background: #141b21; }
+.eng-editor-check input { width: 16px; height: 16px; accent-color: #5d8bb1; }
+.eng-dictionary-editor, .eng-readonly-dictionary { margin-top: 18px; padding-top: 15px; border-top: 1px solid #2a333d; }
+.eng-dictionary-editor > header, .eng-readonly-dictionary > header { display: grid; gap: 3px; margin-bottom: 10px; }
+.eng-dictionary-editor > header strong, .eng-readonly-dictionary > header strong { font-size: 12px; }
+.eng-dictionary-editor > header span, .eng-readonly-dictionary > header span { color: #7f8d9b; font-size: 11px; line-height: 1.4; }
+.eng-dictionary-row { display: grid; grid-template-columns: minmax(120px, .8fr) minmax(160px, 1.2fr) auto; gap: 8px; margin-bottom: 8px; align-items: end; }
+.eng-dictionary-row label { display: grid; gap: 4px; }
+.eng-dictionary-row label span { color: #788796; font-size: 9px; text-transform: uppercase; }
+.eng-dictionary-row input { border: 1px solid #35414d; border-radius: 6px; background: #11171d; color: #dce4ec; padding: 8px; }
+.eng-dictionary-row button, .eng-add-setting { border: 1px solid #3b4855; border-radius: 6px; background: #202832; color: #cbd4dd; padding: 8px 10px; cursor: pointer; }
+.eng-dictionary-row button:hover, .eng-add-setting:hover { border-color: #5c7185; }
+.eng-add-setting { margin-top: 3px; }
+.eng-readonly-dictionary > div { display: grid; grid-template-columns: minmax(120px, .8fr) auto minmax(160px, 1.2fr); gap: 10px; align-items: center; padding: 7px 9px; margin-bottom: 5px; border-radius: 6px; background: #141b21; }
+.eng-readonly-dictionary code { color: #a9b9c8; font-size: 11px; overflow-wrap: anywhere; }
+.eng-readonly-dictionary > div span { color: #5e6c79; }
+.eng-readonly-empty { color: #6e7e8d; font-size: 12px; }
+.eng-editor-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; padding-top: 15px; border-top: 1px solid #2a333d; }
+.eng-editor-actions button { border-radius: 7px; padding: 9px 14px; cursor: pointer; font-weight: 700; font-size: 12px; }
+.eng-editor-actions button.primary { border: 1px solid #577fa1; background: #315a78; color: #f0f6fb; }
+.eng-editor-actions button.secondary { border: 1px solid #3b4855; background: #202832; color: #cbd4dd; }
+.eng-editor-actions button:disabled { opacity: .45; cursor: default; }
+.eng-preview-panel { margin-top: 14px; border: 1px solid #303c47; border-radius: 9px; overflow: hidden; background: #131a20; }
+.eng-preview-panel > header { padding: 12px 13px; display: flex; justify-content: space-between; gap: 16px; align-items: center; border-bottom: 1px solid #28323b; }
+.eng-preview-panel > header > div:first-child { display: grid; gap: 3px; }
+.eng-preview-panel > header span { color: #7f8d9b; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
+.eng-preview-panel > header strong { color: #aebbc7; font-size: 12px; }
+.eng-preview-panel > header strong.valid { color: #79c894; }
+.eng-preview-panel > header strong.invalid { color: #e07d82; }
+.eng-preview-counts { display: flex; flex-wrap: wrap; gap: 7px; justify-content: flex-end; }
+.eng-preview-counts span { padding: 4px 7px; border-radius: 5px; background: #1d252d; text-transform: none !important; letter-spacing: 0 !important; }
+.eng-preview-counts b { color: #d4dde5; }
+.eng-preview-issues { padding: 8px; display: grid; gap: 6px; }
+.eng-preview-issues > div { padding: 9px 10px; border-left: 3px solid #7d8b97; background: #182027; display: grid; gap: 3px; }
+.eng-preview-issues > div.error { border-left-color: #b75359; }
+.eng-preview-issues > div.warning { border-left-color: #a98b48; }
+.eng-preview-issues strong { font-size: 11px; }
+.eng-preview-issues span { color: #b6c0c9; font-size: 11px; line-height: 1.4; }
+.eng-preview-issues small { color: #758493; font-size: 10px; }
+.eng-preview-error { margin: 0; padding: 11px; white-space: pre-wrap; color: #e09a9e; background: #25181a; font-size: 11px; }
+.eng-preview-panel footer { padding: 9px 12px; color: #748390; font-size: 10px; border-top: 1px solid #28323b; }
+@media (max-width: 980px) {
+  .eng-editor-header { flex-direction: column; }
+  .eng-editor-safety-note { width: 100%; }
+  .eng-editor-layout { grid-template-columns: 1fr; }
+  .eng-editor-picker { max-height: 260px; }
+}
+@media (max-width: 650px) {
+  .eng-editor-form-grid, .eng-dictionary-row { grid-template-columns: 1fr; }
+  .eng-editor-field-wide { grid-column: auto; }
+  .eng-preview-panel > header { align-items: flex-start; flex-direction: column; }
+  .eng-preview-counts { justify-content: flex-start; }
+}

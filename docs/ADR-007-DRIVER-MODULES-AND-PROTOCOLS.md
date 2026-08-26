@@ -7,7 +7,7 @@ Accepted and active.
 
 EliteSCADA already has a common driver abstraction, Data Source engineering model, DriverHost boundary and a real Modbus TCP implementation. The product must grow beyond protocols compiled directly into the core repository without allowing each protocol to create its own private configuration/runtime model.
 
-The product direction explicitly requires MQTT, OPC UA and the ability to add further communication drivers through installable modules.
+The product direction explicitly requires MQTT, OPC UA, BACnet and the ability to add further communication drivers through installable modules.
 
 ## Decision
 
@@ -18,9 +18,12 @@ The industrial communication roadmap includes, at minimum:
 - Modbus TCP — existing first real industrial driver baseline;
 - MQTT — planned first-class integration;
 - OPC UA — planned first-class industrial interoperability integration;
+- BACnet — planned communication-driver protocol, particularly relevant to building automation/BMS and BACnet-capable controllers/devices;
 - additional first-party or third-party protocols supplied through installable driver modules.
 
 All protocol implementations must use the common EliteSCADA Data Source, TAG, quality, runtime and Engineering boundaries. A protocol plugin must not become a separate configuration island or bypass the public engineering model.
+
+The combined target set of Modbus TCP, MQTT, OPC UA, BACnet, Siemens S7 and future Allen-Bradley support is intended to provide broad practical compatibility across mainstream industrial and building-automation environments. A planning estimate that this could address more than 90% of practical PLC/controller needs must be validated before being used as an external market-coverage claim.
 
 ### First installable module target: Siemens S7 ISO Connection
 
@@ -104,7 +107,7 @@ Package integrity/publisher trust must be validated before enabling executable m
 
 ## Consequences
 
-- MQTT and OPC UA are explicit product requirements rather than incidental future ideas.
+- MQTT, OPC UA and BACnet are explicit product requirements rather than incidental future ideas.
 - The first intended installable driver target is Siemens S7 ISO Connection.
 - Allen-Bradley communication is an explicit future research/module target, with protocol/library scope intentionally deferred.
 - The core repository does not need to contain every future industrial protocol.
@@ -123,4 +126,4 @@ The following are intentionally deferred until the module framework implementati
 - hot reload versus restart requirements;
 - marketplace or private repository distribution model.
 
-Those details may change without changing this ADR's core decision: **EliteSCADA supports MQTT, OPC UA and installable versioned driver modules through a common Driver SDK and Engineering model, with Siemens S7 ISO Connection as the first intended installable driver target and Allen-Bradley as a later research target.**
+Those details may change without changing this ADR's core decision: **EliteSCADA supports MQTT, OPC UA, BACnet and installable versioned driver modules through a common Driver SDK and Engineering model, with Siemens S7 ISO Connection as the first intended installable driver target and Allen-Bradley as a later research target.**

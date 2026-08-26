@@ -21,6 +21,7 @@ using Scada.Engineering.ProjectPackages;
 using Scada.Engineering.Security;
 using Scada.Engineering.Views;
 using Scada.Historian.Abstractions;
+using Scada.Security.Audit;
 using Scada.Security.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -52,6 +53,7 @@ builder.Services.AddSingleton<IEngineeringExchangeService, EngineeringExchangeSe
 builder.Services.AddSingleton<IProjectPackageService, ProjectPackageService>();
 builder.Services.AddSingleton<ApiAuthorizationService>();
 builder.AddOptionalEngineeringPersistence();
+builder.AddConfiguredAudit();
 builder.Services.AddOpenApi();
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
     policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
@@ -73,6 +75,7 @@ var app = builder.Build();
 // Resolve the historian before the hosted driver starts so it subscribes to the event bus.
 _ = app.Services.GetRequiredService<IHistorian>();
 await app.InitializeEngineeringPersistenceAsync();
+await app.InitializeAuditAsync();
 
 app.UseCors();
 if (authenticationEnabled) app.UseAuthentication();
@@ -80,6 +83,7 @@ app.UseWebSockets();
 app.MapOpenApi();
 app.MapProjectPackageEndpoints();
 app.MapEngineeringPersistenceEndpoints();
+app.MapAuditEndpoints();
 
 app.MapGet("/health", (ScadaRuntimeFacade runtime, IHistorian historian) =>
 {
@@ -146,6 +150,7 @@ app.MapPost("/api/tags/{id:guid}/write", async (
     HttpContext context,
     ScadaRuntimeFacade runtime,
     ApiAuthorizationService security,
+    ApiAuditService audit,
     CancellationToken ct) =>
 {
     if (!runtime.TryGetTag(id, out var tag) || tag is null) return Results.NotFound();
@@ -158,10 +163,47 @@ app.MapPost("/api/tags/{id:guid}/write", async (
         TagAccessOperation.Write,
         ct);
     var failure = authorization.FailureResult();
-    if (failure is not null) return failure;
+    if (failure is not null)
+    {
+        await audit.RecordAuthorizationDeniedAsync(
+            context,
+            authorization,
+            AuditActions.TagWrite,
+            "tag",
+            tag.Path,
+            new Dictionary<string, string> { ["tagId"] = tag.Id.ToString() });
+        return failure;
+    }
 
-    await runtime.WriteAsync(id, request.Value, ct);
-    return Results.Accepted();
+    try
+    {
+        await runtime.WriteAsync(id, request.Value, ct);
+        await audit.RecordAsync(
+            context,
+            authorization.Principal,
+            AuditActions.TagWrite,
+            AuditOutcome.Succeeded,
+            "tag",
+            tag.Path,
+            new Dictionary<string, string> { ["tagId"] = tag.Id.ToString() });
+        return Results.Accepted();
+    }
+    catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+    {
+        await audit.RecordAsync(
+            context,
+            authorization.Principal,
+            AuditActions.TagWrite,
+            AuditOutcome.Failed,
+            "tag",
+            tag.Path,
+            new Dictionary<string, string>
+            {
+                ["tagId"] = tag.Id.ToString(),
+                ["errorType"] = ex.GetType().Name
+            });
+        throw;
+    }
 });
 
 app.MapGet("/api/history/{tagId:guid}", (Guid tagId, DateTimeOffset? from, DateTimeOffset? to, int? limit, IHistorian historian) =>
@@ -182,6 +224,7 @@ app.MapPost("/api/alarms/{id:guid}/ack", async (
     HttpContext context,
     ScadaRuntimeFacade runtime,
     ApiAuthorizationService security,
+    ApiAuditService audit,
     CancellationToken ct) =>
 {
     var definition = runtime.AlarmDefinitions().FirstOrDefault(alarm => alarm.Id == id);
@@ -194,11 +237,50 @@ app.MapPost("/api/alarms/{id:guid}/ack", async (
         new AuthorizationResource(Area: definition.Area),
         ct);
     var failure = authorization.FailureResult();
-    if (failure is not null) return failure;
+    if (failure is not null)
+    {
+        await audit.RecordAuthorizationDeniedAsync(
+            context,
+            authorization,
+            AuditActions.AlarmAcknowledge,
+            "alarm",
+            id.ToString(),
+            new Dictionary<string, string> { ["alarmName"] = definition.Name });
+        return failure;
+    }
 
     var acknowledgedBy = authorization.Principal.DisplayName ?? authorization.Principal.SubjectId;
     _ = request; // Legacy body field is intentionally ignored; identity comes from the authenticated token.
-    return await runtime.AcknowledgeAlarmAsync(id, acknowledgedBy, ct) ? Results.Ok() : Results.NotFound();
+
+    try
+    {
+        var acknowledged = await runtime.AcknowledgeAlarmAsync(id, acknowledgedBy, ct);
+        await audit.RecordAsync(
+            context,
+            authorization.Principal,
+            AuditActions.AlarmAcknowledge,
+            acknowledged ? AuditOutcome.Succeeded : AuditOutcome.Failed,
+            "alarm",
+            id.ToString(),
+            new Dictionary<string, string> { ["alarmName"] = definition.Name });
+        return acknowledged ? Results.Ok() : Results.NotFound();
+    }
+    catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+    {
+        await audit.RecordAsync(
+            context,
+            authorization.Principal,
+            AuditActions.AlarmAcknowledge,
+            AuditOutcome.Failed,
+            "alarm",
+            id.ToString(),
+            new Dictionary<string, string>
+            {
+                ["alarmName"] = definition.Name,
+                ["errorType"] = ex.GetType().Name
+            });
+        throw;
+    }
 });
 
 app.MapGet("/api/drivers", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.Drivers()));
@@ -236,17 +318,22 @@ app.MapPost("/api/engineering/import/json/apply", async (
     HttpContext context,
     ImportMode? mode,
     IEngineeringExchangeService exchange,
-    ApiAuthorizationService security) =>
+    ApiAuthorizationService security,
+    ApiAuditService audit) =>
 {
-    var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
-    var failure = authorization.FailureResult();
-    if (failure is not null) return failure;
-
-    using var reader = new StreamReader(request.Body, Encoding.UTF8);
-    var package = exchange.ParseJson(await reader.ReadToEndAsync());
-    var preview = exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate);
-    if (!preview.CanApply) return Results.BadRequest(preview);
-    return Results.Ok(exchange.Apply(package, mode ?? ImportMode.CreateAndUpdate));
+    return await ApplyEngineeringImportAsync(
+        request,
+        context,
+        mode,
+        exchange,
+        security,
+        audit,
+        "json",
+        async () =>
+        {
+            using var reader = new StreamReader(request.Body, Encoding.UTF8);
+            return exchange.ParseJson(await reader.ReadToEndAsync());
+        });
 });
 
 app.MapPost("/api/engineering/import/tags.csv/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
@@ -261,17 +348,22 @@ app.MapPost("/api/engineering/import/tags.csv/apply", async (
     HttpContext context,
     ImportMode? mode,
     IEngineeringExchangeService exchange,
-    ApiAuthorizationService security) =>
+    ApiAuthorizationService security,
+    ApiAuditService audit) =>
 {
-    var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
-    var failure = authorization.FailureResult();
-    if (failure is not null) return failure;
-
-    using var reader = new StreamReader(request.Body, Encoding.UTF8);
-    var package = exchange.ParseTagsCsv(await reader.ReadToEndAsync());
-    var preview = exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate);
-    if (!preview.CanApply) return Results.BadRequest(preview);
-    return Results.Ok(exchange.Apply(package, mode ?? ImportMode.CreateAndUpdate));
+    return await ApplyEngineeringImportAsync(
+        request,
+        context,
+        mode,
+        exchange,
+        security,
+        audit,
+        "tags.csv",
+        async () =>
+        {
+            using var reader = new StreamReader(request.Body, Encoding.UTF8);
+            return exchange.ParseTagsCsv(await reader.ReadToEndAsync());
+        });
 });
 
 app.MapPost("/api/engineering/import/alarms.csv/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
@@ -286,17 +378,22 @@ app.MapPost("/api/engineering/import/alarms.csv/apply", async (
     HttpContext context,
     ImportMode? mode,
     IEngineeringExchangeService exchange,
-    ApiAuthorizationService security) =>
+    ApiAuthorizationService security,
+    ApiAuditService audit) =>
 {
-    var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
-    var failure = authorization.FailureResult();
-    if (failure is not null) return failure;
-
-    using var reader = new StreamReader(request.Body, Encoding.UTF8);
-    var package = exchange.ParseAlarmsCsv(await reader.ReadToEndAsync());
-    var preview = exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate);
-    if (!preview.CanApply) return Results.BadRequest(preview);
-    return Results.Ok(exchange.Apply(package, mode ?? ImportMode.CreateAndUpdate));
+    return await ApplyEngineeringImportAsync(
+        request,
+        context,
+        mode,
+        exchange,
+        security,
+        audit,
+        "alarms.csv",
+        async () =>
+        {
+            using var reader = new StreamReader(request.Body, Encoding.UTF8);
+            return exchange.ParseAlarmsCsv(await reader.ReadToEndAsync());
+        });
 });
 
 app.MapPost("/api/engineering/import/datasources.csv/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
@@ -311,17 +408,22 @@ app.MapPost("/api/engineering/import/datasources.csv/apply", async (
     HttpContext context,
     ImportMode? mode,
     IEngineeringExchangeService exchange,
-    ApiAuthorizationService security) =>
+    ApiAuthorizationService security,
+    ApiAuditService audit) =>
 {
-    var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
-    var failure = authorization.FailureResult();
-    if (failure is not null) return failure;
-
-    using var reader = new StreamReader(request.Body, Encoding.UTF8);
-    var package = exchange.ParseDataSourcesCsv(await reader.ReadToEndAsync());
-    var preview = exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate);
-    if (!preview.CanApply) return Results.BadRequest(preview);
-    return Results.Ok(exchange.Apply(package, mode ?? ImportMode.CreateAndUpdate));
+    return await ApplyEngineeringImportAsync(
+        request,
+        context,
+        mode,
+        exchange,
+        security,
+        audit,
+        "datasources.csv",
+        async () =>
+        {
+            using var reader = new StreamReader(request.Body, Encoding.UTF8);
+            return exchange.ParseDataSourcesCsv(await reader.ReadToEndAsync());
+        });
 });
 
 app.Map("/ws/tags", async (HttpContext context, TagRealtimeHub hub) =>
@@ -336,6 +438,91 @@ app.Map("/ws/tags", async (HttpContext context, TagRealtimeHub hub) =>
 });
 
 app.Run();
+
+static async Task<IResult> ApplyEngineeringImportAsync(
+    HttpRequest request,
+    HttpContext context,
+    ImportMode? mode,
+    IEngineeringExchangeService exchange,
+    ApiAuthorizationService security,
+    ApiAuditService audit,
+    string format,
+    Func<Task<EngineeringPackage>> parseAsync)
+{
+    _ = request;
+    var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
+    var failure = authorization.FailureResult();
+    if (failure is not null)
+    {
+        await audit.RecordAuthorizationDeniedAsync(
+            context,
+            authorization,
+            AuditActions.EngineeringImportApply,
+            "engineering-workspace",
+            "current",
+            new Dictionary<string, string> { ["format"] = format });
+        return failure;
+    }
+
+    try
+    {
+        var importMode = mode ?? ImportMode.CreateAndUpdate;
+        var package = await parseAsync();
+        var preview = exchange.Preview(package, importMode);
+        if (!preview.CanApply)
+        {
+            await audit.RecordAsync(
+                context,
+                authorization.Principal,
+                AuditActions.EngineeringImportApply,
+                AuditOutcome.Failed,
+                "engineering-workspace",
+                "current",
+                new Dictionary<string, string>
+                {
+                    ["format"] = format,
+                    ["reason"] = "preview-errors",
+                    ["errorCount"] = preview.ErrorCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                });
+            return Results.BadRequest(preview);
+        }
+
+        var result = exchange.Apply(package, importMode);
+        var hasErrors = result.Issues.Any(x => x.IsError);
+        await audit.RecordAsync(
+            context,
+            authorization.Principal,
+            AuditActions.EngineeringImportApply,
+            hasErrors ? AuditOutcome.Failed : AuditOutcome.Succeeded,
+            "engineering-workspace",
+            "current",
+            new Dictionary<string, string>
+            {
+                ["format"] = format,
+                ["mode"] = importMode.ToString(),
+                ["created"] = result.Created.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["updated"] = result.Updated.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["skipped"] = result.Skipped.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            });
+        return hasErrors ? Results.BadRequest(result) : Results.Ok(result);
+    }
+    catch (Exception ex)
+    {
+        await audit.RecordAsync(
+            context,
+            authorization.Principal,
+            AuditActions.EngineeringImportApply,
+            AuditOutcome.Failed,
+            "engineering-workspace",
+            "current",
+            new Dictionary<string, string>
+            {
+                ["format"] = format,
+                ["errorType"] = ex.GetType().Name
+            });
+        throw;
+    }
+}
 
 public sealed record TagWriteRequest(object? Value);
 public sealed record AlarmAckRequest(string? User = null);

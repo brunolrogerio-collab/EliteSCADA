@@ -35,6 +35,9 @@ test('API distinguishes access levels and records protected-operation audit even
       data: engineeringJson,
       headers: { 'content-type': 'application/json; charset=utf-8' }
     })).status()).toBe(401);
+    expect((await anonymous.post('/api/engineering/persistence/e2e-security/save', {
+      data: { projectName: 'E2E Security', savedBy: 'spoofed-anonymous' }
+    })).status()).toBe(401);
   } finally {
     await anonymous.dispose();
   }
@@ -71,6 +74,9 @@ test('API distinguishes access levels and records protected-operation audit even
       data: engineeringJson,
       headers: { 'content-type': 'application/json; charset=utf-8' }
     })).status()).toBe(403);
+    expect((await operator.post('/api/engineering/persistence/e2e-security/save', {
+      data: { projectName: 'E2E Security', savedBy: 'spoofed-operator' }
+    })).status()).toBe(403);
 
     // Audit history itself is administrative information.
     expect((await operator.get('/api/audit')).status()).toBe(403);
@@ -78,12 +84,45 @@ test('API distinguishes access levels and records protected-operation audit even
     await operator.dispose();
   }
 
-  // The developer role explicitly has ProcessValueWrite and SystemAdmin in the demo policy.
+  // The developer role explicitly has ProcessValueWrite, EngineeringModify and SystemAdmin in the demo policy.
   expect((await request.post(`/api/tags/${frequency!.id}/write`, {
     data: { value: 54 }
   })).status()).toBe(202);
 
-  const auditResponse = await request.get('/api/audit?action=tag.write&limit=100');
+  const saveResponse = await request.post('/api/engineering/persistence/e2e-security/save', {
+    data: { projectName: 'E2E Security', savedBy: 'spoofed-client' }
+  });
+  expect(saveResponse.ok()).toBeTruthy();
+  const saved = await saveResponse.json() as {
+    revision: number;
+    projectKey: string;
+    savedBy: string;
+  };
+  expect(saved.projectKey).toBe('e2e-security');
+  expect(saved.savedBy).toBe('e2e-developer');
+
+  const publishResponse = await request.post(
+    `/api/engineering/persistence/e2e-security/revisions/${saved.revision}/publish`,
+    { data: { publishedBy: 'spoofed-publisher' } });
+  expect(publishResponse.ok()).toBeTruthy();
+  const published = await publishResponse.json() as {
+    revision: { revision: number };
+    publication: { publishedRevision: number; publishedBy?: string };
+  };
+  expect(published.publication.publishedRevision).toBe(saved.revision);
+  if (published.publication.publishedBy !== undefined) {
+    expect(published.publication.publishedBy).toBe('e2e-developer');
+  }
+
+  const checkoutResponse = await request.post(
+    `/api/engineering/persistence/e2e-security/revisions/${saved.revision}/checkout`);
+  expect(checkoutResponse.ok()).toBeTruthy();
+
+  const applyResponse = await request.post(
+    `/api/engineering/persistence/e2e-security/revisions/${saved.revision}/apply`);
+  expect(applyResponse.ok()).toBeTruthy();
+
+  const auditResponse = await request.get('/api/audit?limit=100');
   expect(auditResponse.ok()).toBeTruthy();
   const events = await auditResponse.json() as Array<{
     subjectId: string;
@@ -109,6 +148,34 @@ test('API distinguishes access levels and records protected-operation audit even
     event.action === 'tag.write' &&
     event.outcome === 1 &&
     event.targetId === 'Demo.P01.Frequency')).toBeTruthy();
+
+  expect(events.some(event =>
+    event.subjectId === 'e2e-developer' &&
+    event.action === 'engineering.save' &&
+    event.outcome === 0 &&
+    event.targetId === 'e2e-security')).toBeTruthy();
+  expect(events.some(event =>
+    event.subjectId === 'e2e-operator' &&
+    event.action === 'engineering.save' &&
+    event.outcome === 1 &&
+    event.targetId === 'e2e-security')).toBeTruthy();
+  expect(events.some(event =>
+    event.subjectId === 'anonymous' &&
+    event.action === 'engineering.save' &&
+    event.outcome === 1 &&
+    event.targetId === 'e2e-security')).toBeTruthy();
+  expect(events.some(event =>
+    event.subjectId === 'e2e-developer' &&
+    event.action === 'engineering.publish' &&
+    event.outcome === 0)).toBeTruthy();
+  expect(events.some(event =>
+    event.subjectId === 'e2e-developer' &&
+    event.action === 'engineering.checkout' &&
+    event.outcome === 0)).toBeTruthy();
+  expect(events.some(event =>
+    event.subjectId === 'e2e-developer' &&
+    event.action === 'engineering.import.apply' &&
+    event.outcome === 0)).toBeTruthy();
 
   // Audit metadata is intentionally structural; process values and credentials are not copied into it.
   expect(events.every(event => !event.details || !('value' in event.details))).toBeTruthy();

@@ -4,7 +4,7 @@ The approved development north is preserved, with Engineering Import/Export acti
 
 ## Runtime foundation established
 
-Implemented and validated on `main` before the current schema-v6 branch:
+Implemented and validated on `main` before the current JWT enforcement branch:
 
 1. Repository, architecture and CI/CD foundation.
 2. Tag Engine, quality, current-value cache and internal Event Bus.
@@ -24,6 +24,7 @@ Implemented and validated on `main` before the current schema-v6 branch:
 16. Transactional checkout of persisted revisions into the Engineering Workspace.
 17. Workspace dirty tracking, change-version-safe saves and immutable revision lineage through `BasedOnRevision`.
 18. Capability-based authorization contracts and audit event/sink foundation.
+19. Engineering Schema v6 authorization roles, explicit capability grants and scoped policies.
 
 ## Engineering Import/Export status
 
@@ -79,15 +80,23 @@ Completed in the current security track:
 3. Audit event and sink contracts. ✓
 4. Versioned Engineering Schema v6 security-role/grant/scope serialization. ✓
 
+In validation on the current branch:
+
+5. Trusted JWT Bearer principal adapter with issuer/audience/signature/lifetime validation.
+6. Phase-one backend enforcement for process-value TAG writes, alarm acknowledgement, Engineering import apply and project-package restore apply.
+7. Active-runtime policy resolution from the exact persisted Active Revision, with fail-closed mismatch behavior.
+8. Browser coverage distinguishing valid developer, underprivileged operator, missing credentials and invalid credentials.
+
 Next:
 
-5. Add a trusted authenticated-principal provider and enforce backend authorization on protected API operations.
-6. Persist append-only audit events in PostgreSQL and audit successful, denied and failed process/security mutations.
-7. Add historian retention/downsampling policies on TimescaleDB.
-8. Add MQTT driver integration through the same Data Source/driver model.
-9. Add Engineering XLSX workbook import/export.
-10. Expand runtime diagnostics, driver health, offline behavior and operational hardening.
-11. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
+9. Extend backend authorization to persistence save/publish/activate/checkout, command operations, alarm shelving and other sensitive API/read/realtime surfaces.
+10. Persist append-only audit events in PostgreSQL and audit successful, denied and failed process/security mutations.
+11. Add a real login/token-issuance or external identity-provider workflow and user lifecycle administration.
+12. Add historian retention/downsampling policies on TimescaleDB.
+13. Add MQTT driver integration through the same Data Source/driver model.
+14. Add Engineering XLSX workbook import/export.
+15. Expand runtime diagnostics, driver health, offline behavior and operational hardening.
+16. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
 
 ## Locked future product requirements
 
@@ -143,7 +152,7 @@ These requirements remain part of the EliteSCADA product north and must be imple
 
 ## Editor phase
 
-The runtime, engineering contract and persistence foundation are strong enough that editor work can begin incrementally after backend authentication/enforcement is established, rather than waiting for every future driver to exist.
+The runtime, engineering contract and persistence foundation are strong enough that editor work can begin incrementally after the core backend authentication/enforcement and audit path are established, rather than waiting for every future driver to exist.
 
 The editor must consume the same public engineering model rather than own a private representation of project configuration. Reusable libraries, Engineering Fragments/cross-project copy-paste, trends, access-aware visibility and configurable shell regions are core workflows, not late add-ons.
 

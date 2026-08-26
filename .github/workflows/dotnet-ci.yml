@@ -277,6 +277,22 @@ jobs:
     name: Chromium end-to-end
     needs: [backend, frontend]
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_e2e
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ConnectionStrings__EliteScada: 'Host=127.0.0.1;Port=5432;Database=elitescada_e2e;Username=postgres;Password=postgres;Pooling=false'
 
     steps:
       - name: Checkout

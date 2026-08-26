@@ -4,7 +4,7 @@ The approved development north is preserved, with Engineering Import/Export acti
 
 ## Runtime foundation established
 
-Implemented and validated on `main` before the current durable-audit branch:
+Implemented and validated on `main` before the current engineering-lifecycle security branch:
 
 1. Repository, architecture and CI/CD foundation.
 2. Tag Engine, quality, current-value cache and internal Event Bus.
@@ -87,25 +87,23 @@ Completed in the security track:
 6. Phase-one backend capability enforcement for critical TAG/alarm/Engineering restore mutations. ✓
 7. Active-runtime policy resolution from the exact persisted Active Revision. ✓
 8. Browser authentication/authorization coverage for developer/operator/anonymous/invalid-token cases. ✓
-
-In validation on the current branch:
-
-9. PostgreSQL append-only audit event storage with database-enforced rejection of `UPDATE`, `DELETE` and `TRUNCATE`.
-10. Queryable audit trail protected by `SystemAdmin`.
-11. Succeeded/denied/failed audit recording for protected TAG writes, alarm ACK, Engineering import apply and project-package restore apply.
-12. Browser coverage validating trusted/anonymous audit subjects, authorization outcomes and audit-read protection.
+9. PostgreSQL append-only audit event storage with database-enforced rejection of `UPDATE`, `DELETE` and `TRUNCATE`. ✓
+10. Queryable audit trail protected by `SystemAdmin`. ✓
+11. Succeeded/denied/failed audit recording for protected TAG writes, alarm ACK, Engineering import apply and project-package restore apply. ✓
+12. Browser coverage validating trusted/anonymous audit subjects, authorization outcomes and audit-read protection. ✓
+13. Persistence save/publish/activate/checkout/apply protection with `EngineeringModify`, authenticated lifecycle actors and succeeded/denied/failed audit records. ✓
+14. PostgreSQL-backed Chromium lifecycle coverage proving anonymous/operator denial and preventing caller-supplied save/publish actor spoofing. ✓
 
 Next:
 
-13. Protect persistence save/publish/activate/checkout/apply with JWT/capability enforcement, derive lifecycle actors from the authenticated principal and audit those transitions.
-14. Extend enforcement/audit to commands, alarm shelving and sensitive read/realtime/WebSocket surfaces.
-15. Add a real login/token-issuance or external identity-provider workflow and user lifecycle administration.
-16. Add audit retention/query policy and durable buffering/outbox behavior for temporary storage outages.
-17. Add historian retention/downsampling policies on TimescaleDB.
-18. Add MQTT driver integration through the same Data Source/driver model.
-19. Add Engineering XLSX workbook import/export.
-20. Expand runtime diagnostics, driver health, offline behavior and operational hardening.
-21. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
+15. Extend enforcement/audit to commands, alarm shelving and sensitive read/realtime/WebSocket surfaces.
+16. Add a real login/token-issuance or external identity-provider workflow and user lifecycle administration.
+17. Add audit retention/query policy and durable buffering/outbox behavior for temporary storage outages.
+18. Add historian retention/downsampling policies on TimescaleDB.
+19. Add MQTT driver integration through the same Data Source/driver model.
+20. Add Engineering XLSX workbook import/export.
+21. Expand runtime diagnostics, driver health, offline behavior and operational hardening.
+22. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
 
 ## Locked future product requirements
 

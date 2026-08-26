@@ -1,6 +1,6 @@
 # Security, Authorization and Audit Baseline
 
-Status: capability policy, Engineering Schema v6 security roles, JWT authentication, phase-one backend enforcement and durable append-only audit storage are implemented. Security remains incremental: not every API/read/realtime or project-lifecycle workflow is authorization-enforced yet.
+Status: capability policy, Engineering Schema v6 security roles, JWT authentication, protected engineering/runtime mutations, trusted persistence-lifecycle actors and durable append-only audit storage are implemented. Security remains incremental: not every API/read/realtime surface is authorization-enforced yet.
 
 This document defines the security boundary used as identity, authorization, audit persistence and future user management are added to EliteSCADA.
 
@@ -105,6 +105,8 @@ The signing key is deployment configuration and must be supplied through a prote
 
 This adapter is intentionally not a user database or token issuer. Login UI, local/external identity-provider integration, user lifecycle and credential management remain separate future work.
 
+When authentication is explicitly disabled for local development or CI smoke scenarios, the persistence-lifecycle security filter is bypassed so those existing no-auth workflows remain usable. This mode is not a trusted-identity deployment mode and caller-supplied lifecycle actor fields must not be interpreted as authenticated identity.
+
 ## Runtime policy resolution
 
 When the simulation/demo fallback runtime is active, protected operations use the current demo/workspace policy registry.
@@ -113,21 +115,24 @@ When a persisted engineering runtime is active, authorization resolves security 
 
 This prevents a draft role edit in the Engineering Workspace from silently changing authority over an already active process runtime.
 
-## Phase-one backend enforcement
+## Backend enforcement
 
-The first enforcement slice protects mutations with direct process or engineering impact:
+The current enforcement slices protect mutations with direct process or engineering impact:
 
 - runtime TAG writes require the TAG access-policy write rule or inherited `ProcessValueWrite` capability;
 - alarm acknowledgement requires `AlarmAcknowledge`, with the alarm area supplied as authorization scope;
 - Engineering JSON apply requires `EngineeringModify`;
 - Engineering TAG/Alarm/Data Source CSV apply requires `EngineeringModify`;
-- `.escadapkg` project-package restore/apply requires `EngineeringModify`.
+- `.escadapkg` project-package restore/apply requires `EngineeringModify`;
+- persisted Engineering save, publish, activate, checkout and apply require `EngineeringModify` when authentication is enabled.
 
 Alarm acknowledgement no longer trusts a caller-supplied user name as identity. The authenticated JWT principal becomes the actor; the old request-body field is retained temporarily only for compatibility and is ignored.
 
-Read endpoints, Engineering preview/export, persistence save/publish/activate/checkout flows, WebSocket subscriptions and other operations are not all authorization-enforced yet. They must not be described as protected merely because phase-one mutation enforcement exists.
+Persistence save/publish/activate requests similarly retain legacy `SavedBy`/`PublishedBy`/`ActivatedBy` body fields for compatibility, but when authentication is enabled those values are replaced before execution with the stable subject id from the trusted JWT principal. The client therefore cannot select the authoritative lifecycle actor.
 
-The browser E2E security suite proves separate behavior for a valid `developer`, valid but underprivileged `operator`, no credential and invalid Bearer credential.
+Sensitive read endpoints, WebSocket subscriptions and other operations are not all authorization-enforced yet. They must not be described as protected merely because mutation enforcement exists.
+
+The browser E2E security suite proves separate behavior for a valid `developer`, valid but underprivileged `operator`, no credential and invalid Bearer credential. PostgreSQL-backed browser coverage also exercises persisted save/publish/checkout/apply and verifies that caller-supplied lifecycle actor values cannot override the JWT subject.
 
 ## Durable audit trail
 
@@ -159,9 +164,9 @@ Current action keys include:
 
 When `ConnectionStrings:EliteScada` is configured, audit events are stored in PostgreSQL under `elitescada.audit_events`. The database itself enforces append-only behavior through triggers that reject `UPDATE`, `DELETE` and `TRUNCATE`. Integration tests directly attempt all three operations and require PostgreSQL to reject them.
 
-When PostgreSQL is not configured, the same public audit-store contract uses an in-memory implementation for local development and browser tests.
+When PostgreSQL is not configured, the same public audit-store contract uses an in-memory implementation for local development and browser tests that do not require durable persistence.
 
-The API records success, denial and operational failure for the currently protected TAG write, alarm acknowledgement, Engineering import apply and project-package restore paths. Anonymous/invalid-token denied attempts use the stable audit subject `anonymous`; authenticated denied attempts retain the trusted JWT subject.
+The API records success, denial and operational failure for protected TAG writes, alarm acknowledgement, Engineering import apply, project-package restore and persisted Engineering lifecycle mutations. Anonymous/invalid-token denied attempts use the stable audit subject `anonymous`; authenticated denied attempts retain the trusted JWT subject.
 
 `GET /api/audit` supports bounded filtering by subject, action, outcome and UTC time range and requires `SystemAdmin`. Attempts to read the audit trail are themselves audited.
 
@@ -169,13 +174,10 @@ Audit metadata deliberately excludes process values and import/package payloads.
 
 Audit persistence errors are logged and do not change the result of an already executed process command. A future reliability slice may add a durable queue/outbox so temporary audit-storage outages cannot create gaps without falsely retrying physical operations.
 
-Persistence lifecycle operations (`save`, `publish`, `activate`, `checkout/apply`) are not yet treated as trusted audit actors because their legacy request contracts still accept caller-supplied `SavedBy`/`PublishedBy`/`ActivatedBy` values. The next security slice replaces those fields as authority with the authenticated principal before declaring their audit records trustworthy.
-
 ## Next implementation slices
 
-1. Enforce JWT/capability authorization on persistence save/publish/activate/checkout/apply and derive all lifecycle actors from the authenticated principal; audit their succeeded/denied/failed outcomes.
-2. Extend backend enforcement/audit to command endpoints, alarm shelving and sensitive read/realtime/WebSocket surfaces where appropriate.
-3. Add user/role administration with explicit `UserRoleAdmin` authorization.
-4. Add a real login/token-issuance or external identity-provider workflow without coupling credentials to Engineering Import/Export.
-5. Add audit retention/query policy and durable buffering/outbox behavior for temporary storage outages.
-6. Add access-aware UI presentation while keeping backend authorization authoritative.
+1. Extend backend enforcement/audit to command endpoints, alarm shelving and sensitive read/realtime/WebSocket surfaces where appropriate.
+2. Add user/role administration with explicit `UserRoleAdmin` authorization.
+3. Add a real login/token-issuance or external identity-provider workflow without coupling credentials to Engineering Import/Export.
+4. Add audit retention/query policy and durable buffering/outbox behavior for temporary storage outages.
+5. Add access-aware UI presentation while keeping backend authorization authoritative.

@@ -8,6 +8,8 @@ namespace Scada.Persistence.PostgreSql;
 public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore, IAsyncDisposable
 {
     private const string InitializeSql = """
+        SELECT pg_advisory_xact_lock(4993446713136202561);
+
         CREATE SCHEMA IF NOT EXISTS elitescada;
 
         CREATE TABLE IF NOT EXISTS elitescada.schema_migrations (

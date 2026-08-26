@@ -64,33 +64,35 @@ public sealed class EngineeringWorkspaceCheckoutService(
 
             var backupJson = exchange.ExportJson(indented: false);
             var backupDescriptor = workspace.Describe();
+            ImportResult apply;
 
+            workspace.Clear();
             try
             {
-                workspace.Clear();
-                var apply = exchange.Apply(package, ImportMode.CreateAndUpdate);
-                if (apply.Issues.Any(x => x.IsError))
-                {
-                    RestoreBackup(backupJson, backupDescriptor);
-                    return new EngineeringWorkspaceCheckoutOutcome(
-                        snapshot,
-                        preview,
-                        apply,
-                        workspace.Describe());
-                }
-
-                workspace.SetCheckout(snapshot.ProjectKey, snapshot.ProjectName, snapshot.Revision);
-                return new EngineeringWorkspaceCheckoutOutcome(
-                    snapshot,
-                    preview,
-                    apply,
-                    workspace.Describe());
+                apply = exchange.Apply(package, ImportMode.CreateAndUpdate);
             }
             catch
             {
                 RestoreBackup(backupJson, backupDescriptor);
                 throw;
             }
+
+            if (apply.Issues.Any(x => x.IsError))
+            {
+                RestoreBackup(backupJson, backupDescriptor);
+                return new EngineeringWorkspaceCheckoutOutcome(
+                    snapshot,
+                    preview,
+                    apply,
+                    workspace.Describe());
+            }
+
+            workspace.SetCheckout(snapshot.ProjectKey, snapshot.ProjectName, snapshot.Revision);
+            return new EngineeringWorkspaceCheckoutOutcome(
+                snapshot,
+                preview,
+                apply,
+                workspace.Describe());
         }
         finally
         {

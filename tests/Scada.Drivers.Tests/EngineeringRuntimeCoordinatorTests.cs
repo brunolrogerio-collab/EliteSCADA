@@ -40,7 +40,7 @@ public sealed class EngineeringRuntimeCoordinatorTests
         Assert.True(runtime.TryGetTag(tagId, out var activeTag));
         Assert.Equal("Plant.Setpoint", activeTag!.Path);
         Assert.True(runtime.TryGetCurrent(tagId, out var current));
-        Assert.Equal((short)123, Assert.IsType<short>(current!.Value));
+        Assert.Equal(123d, Convert.ToDouble(current!.Value));
 
         await runtime.WriteAsync(tagId, (short)77);
         Assert.Equal((ushort)77, server.HoldingRegisters[10]);
@@ -96,7 +96,7 @@ public sealed class EngineeringRuntimeCoordinatorTests
         Assert.True(runtime.TryGetTag(activeTagId, out _));
         Assert.False(runtime.TryGetTag(candidateTagId, out _));
         Assert.True(runtime.TryGetCurrent(activeTagId, out var activeValue));
-        Assert.Equal((short)111, Assert.IsType<short>(activeValue!.Value));
+        Assert.Equal(111d, Convert.ToDouble(activeValue!.Value));
         Assert.Equal(0, Volatile.Read(ref leakedCandidateEvents));
     }
 

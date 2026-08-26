@@ -53,6 +53,10 @@ const ptBR = {
   'editor.dataSourcesDescription': 'Edite a configuração pública de um Data Source e valide o pacote completo antes de qualquer aplicação.',
   'editor.original': 'Original',
   'editor.changed': 'Alterado',
+  'editor.new': 'Novo',
+  'editor.newTag': 'Nova TAG',
+  'editor.newDataSource': 'Novo Data Source',
+  'editor.discardConfirm': 'Este rascunho possui alterações não aplicadas. Deseja descartá-las e trocar de item?',
   'editor.issueEntity': 'Entidade'
 } as const;
 
@@ -111,6 +115,10 @@ const en: Record<EditorTranslationKey, string> = {
   'editor.dataSourcesDescription': 'Edit a Data Source public configuration and validate the complete package before any application.',
   'editor.original': 'Original',
   'editor.changed': 'Changed',
+  'editor.new': 'New',
+  'editor.newTag': 'New TAG',
+  'editor.newDataSource': 'New Data Source',
+  'editor.discardConfirm': 'This draft has unapplied changes. Discard them and switch items?',
   'editor.issueEntity': 'Entity'
 };
 
@@ -167,6 +175,10 @@ const es: Record<EditorTranslationKey, string> = {
   'editor.dataSourcesDescription': 'Edite la configuración pública de un Data Source y valide el paquete completo antes de cualquier aplicación.',
   'editor.original': 'Original',
   'editor.changed': 'Modificado',
+  'editor.new': 'Nuevo',
+  'editor.newTag': 'Nueva TAG',
+  'editor.newDataSource': 'Nuevo Data Source',
+  'editor.discardConfirm': 'Este borrador tiene cambios sin aplicar. ¿Desea descartarlos y cambiar de elemento?',
   'editor.issueEntity': 'Entidad'
 };
 

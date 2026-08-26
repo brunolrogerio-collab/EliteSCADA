@@ -10,6 +10,10 @@ public sealed record IssuedAccessToken(string Token, DateTimeOffset ExpiresAtUtc
 
 public sealed class JwtTokenIssuer
 {
+    public const string IdentityProviderClaim = "elitescada_identity_provider";
+    public const string LocalIdentityProvider = "local";
+    public const string LocalUserVersionClaim = "elitescada_local_user_version";
+
     private readonly string _issuer;
     private readonly string _audience;
     private readonly SigningCredentials _credentials;
@@ -50,7 +54,9 @@ public sealed class JwtTokenIssuer
             new(JwtRegisteredClaimNames.UniqueName, account.Username),
             new("name", account.DisplayName),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
-            new(JwtRegisteredClaimNames.Iat, now.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
+            new(JwtRegisteredClaimNames.Iat, now.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+            new(IdentityProviderClaim, LocalIdentityProvider),
+            new(LocalUserVersionClaim, account.UpdatedAtUtc.ToUnixTimeMilliseconds().ToString(System.Globalization.CultureInfo.InvariantCulture), ClaimValueTypes.Integer64)
         };
         claims.AddRange(LocalIdentityNormalization.NormalizeRoles(account.Roles)
             .Select(role => new Claim("role", role)));

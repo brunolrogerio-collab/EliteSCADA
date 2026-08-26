@@ -380,36 +380,50 @@ app.MapPost("/api/alarms/{id:guid}/ack", async (
     }
 });
 
-app.MapGet("/api/drivers", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.Drivers()));
+app.MapGet("/api/drivers", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.Drivers()))
+    .RequireRuntimeEngineeringRead();
 
-app.MapGet("/api/engineering/workspace", (EngineeringWorkspace workspace) => Results.Ok(workspace.Describe()));
-app.MapGet("/api/engineering/data-sources", (IDataSourceEngineeringRegistry registry) => Results.Ok(registry.Snapshot()));
-app.MapGet("/api/engineering/templates", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotTemplates()));
-app.MapGet("/api/engineering/equipment", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotEquipment()));
-app.MapGet("/api/engineering/dynamos", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotDynamos()));
-app.MapGet("/api/engineering/screens", (IEngineeringViewRegistry registry) => Results.Ok(registry.SnapshotScreens()));
-app.MapGet("/api/engineering/popups", (IEngineeringViewRegistry registry) => Results.Ok(registry.SnapshotPopups()));
-app.MapGet("/api/engineering/security-roles", (ISecurityPolicyEngineeringRegistry registry) => Results.Ok(registry.SnapshotRoles()));
-app.MapGet("/api/engineering/commands", (ICommandEngineeringRegistry registry) => Results.Ok(registry.Snapshot()));
+app.MapGet("/api/engineering/workspace", (EngineeringWorkspace workspace) => Results.Ok(workspace.Describe()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/data-sources", (IDataSourceEngineeringRegistry registry) => Results.Ok(registry.Snapshot()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/templates", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotTemplates()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/equipment", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotEquipment()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/dynamos", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotDynamos()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/screens", (IEngineeringViewRegistry registry) => Results.Ok(registry.SnapshotScreens()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/popups", (IEngineeringViewRegistry registry) => Results.Ok(registry.SnapshotPopups()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/security-roles", (ISecurityPolicyEngineeringRegistry registry) => Results.Ok(registry.SnapshotRoles()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/commands", (ICommandEngineeringRegistry registry) => Results.Ok(registry.Snapshot()))
+    .RequireWorkspaceEngineeringRead();
 
 app.MapGet("/api/engineering/export/json", (IEngineeringExchangeService exchange) =>
-    Results.File(Encoding.UTF8.GetBytes(exchange.ExportJson()), "application/json", "scada-engineering.json"));
+    Results.File(Encoding.UTF8.GetBytes(exchange.ExportJson()), "application/json", "scada-engineering.json"))
+    .RequireWorkspaceEngineeringRead();
 
 app.MapGet("/api/engineering/export/tags.csv", (IEngineeringExchangeService exchange) =>
-    Results.File(Encoding.UTF8.GetBytes(exchange.ExportTagsCsv()), "text/csv; charset=utf-8", "scada-tags.csv"));
+    Results.File(Encoding.UTF8.GetBytes(exchange.ExportTagsCsv()), "text/csv; charset=utf-8", "scada-tags.csv"))
+    .RequireWorkspaceEngineeringRead();
 
 app.MapGet("/api/engineering/export/alarms.csv", (IEngineeringExchangeService exchange) =>
-    Results.File(Encoding.UTF8.GetBytes(exchange.ExportAlarmsCsv()), "text/csv; charset=utf-8", "scada-alarms.csv"));
+    Results.File(Encoding.UTF8.GetBytes(exchange.ExportAlarmsCsv()), "text/csv; charset=utf-8", "scada-alarms.csv"))
+    .RequireWorkspaceEngineeringRead();
 
 app.MapGet("/api/engineering/export/datasources.csv", (IEngineeringExchangeService exchange) =>
-    Results.File(Encoding.UTF8.GetBytes(exchange.ExportDataSourcesCsv()), "text/csv; charset=utf-8", "scada-datasources.csv"));
+    Results.File(Encoding.UTF8.GetBytes(exchange.ExportDataSourcesCsv()), "text/csv; charset=utf-8", "scada-datasources.csv"))
+    .RequireWorkspaceEngineeringRead();
 
 app.MapPost("/api/engineering/import/json/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
 {
     using var reader = new StreamReader(request.Body, Encoding.UTF8);
     var package = exchange.ParseJson(await reader.ReadToEndAsync());
     return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
-});
+}).RequireWorkspaceEngineeringRead();
 
 app.MapPost("/api/engineering/import/json/apply", async (
     HttpRequest request,
@@ -439,7 +453,7 @@ app.MapPost("/api/engineering/import/tags.csv/preview", async (HttpRequest reque
     using var reader = new StreamReader(request.Body, Encoding.UTF8);
     var package = exchange.ParseTagsCsv(await reader.ReadToEndAsync());
     return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
-});
+}).RequireWorkspaceEngineeringRead();
 
 app.MapPost("/api/engineering/import/tags.csv/apply", async (
     HttpRequest request,
@@ -469,7 +483,7 @@ app.MapPost("/api/engineering/import/alarms.csv/preview", async (HttpRequest req
     using var reader = new StreamReader(request.Body, Encoding.UTF8);
     var package = exchange.ParseAlarmsCsv(await reader.ReadToEndAsync());
     return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
-});
+}).RequireWorkspaceEngineeringRead();
 
 app.MapPost("/api/engineering/import/alarms.csv/apply", async (
     HttpRequest request,
@@ -499,7 +513,7 @@ app.MapPost("/api/engineering/import/datasources.csv/preview", async (HttpReques
     using var reader = new StreamReader(request.Body, Encoding.UTF8);
     var package = exchange.ParseDataSourcesCsv(await reader.ReadToEndAsync());
     return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
-});
+}).RequireWorkspaceEngineeringRead();
 
 app.MapPost("/api/engineering/import/datasources.csv/apply", async (
     HttpRequest request,

@@ -10,6 +10,7 @@ namespace Scada.Api.Realtime;
 
 public sealed class TagRealtimeHub : IDisposable
 {
+    private static readonly TimeSpan MaximumCancelAfter = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
     private readonly ConcurrentDictionary<Guid, RealtimeClient> _clients = new();
     private readonly IDisposable _subscription;
     private readonly ApiAuthorizationService _security;
@@ -30,21 +31,36 @@ public sealed class TagRealtimeHub : IDisposable
         WebSocket socket,
         SecurityPrincipal principal,
         bool enforceAuthorization,
+        DateTimeOffset? expiresAtUtc,
         CancellationToken cancellationToken)
     {
+        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        if (enforceAuthorization && expiresAtUtc.HasValue)
+        {
+            var remaining = expiresAtUtc.Value - DateTimeOffset.UtcNow;
+            if (remaining <= TimeSpan.Zero)
+            {
+                socket.Dispose();
+                return;
+            }
+
+            if (remaining <= MaximumCancelAfter)
+                lifetime.CancelAfter(remaining);
+        }
+
         var clientId = Guid.NewGuid();
-        _clients[clientId] = new RealtimeClient(socket, principal, enforceAuthorization);
+        _clients[clientId] = new RealtimeClient(socket, principal, enforceAuthorization, expiresAtUtc);
         var buffer = new byte[1024];
 
         try
         {
-            while (socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
+            while (socket.State == WebSocketState.Open && !lifetime.IsCancellationRequested)
             {
-                var result = await socket.ReceiveAsync(buffer, cancellationToken);
+                var result = await socket.ReceiveAsync(buffer, lifetime.Token);
                 if (result.MessageType == WebSocketMessageType.Close) break;
             }
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
         catch (WebSocketException) { }
         finally
         {
@@ -70,11 +86,20 @@ public sealed class TagRealtimeHub : IDisposable
             source = evt.Current.Source
         }, _jsonOptions);
 
+        var now = DateTimeOffset.UtcNow;
         var dead = new List<Guid>();
         foreach (var (id, client) in _clients)
         {
             var socket = client.Socket;
             if (socket.State != WebSocketState.Open)
+            {
+                dead.Add(id);
+                continue;
+            }
+
+            if (client.EnforceAuthorization &&
+                client.ExpiresAtUtc.HasValue &&
+                client.ExpiresAtUtc.Value <= now)
             {
                 dead.Add(id);
                 continue;
@@ -124,5 +149,6 @@ public sealed class TagRealtimeHub : IDisposable
     private sealed record RealtimeClient(
         WebSocket Socket,
         SecurityPrincipal Principal,
-        bool EnforceAuthorization);
+        bool EnforceAuthorization,
+        DateTimeOffset? ExpiresAtUtc);
 }

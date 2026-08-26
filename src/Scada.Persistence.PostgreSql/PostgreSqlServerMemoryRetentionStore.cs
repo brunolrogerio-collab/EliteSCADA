@@ -18,6 +18,11 @@ public sealed class PostgreSqlServerMemoryRetentionStore : IServerMemoryRetentio
 
         CREATE SCHEMA IF NOT EXISTS elitescada;
 
+        CREATE TABLE IF NOT EXISTS elitescada.schema_migrations (
+            migration_key text PRIMARY KEY,
+            applied_at_utc timestamptz NOT NULL DEFAULT clock_timestamp()
+        );
+
         CREATE TABLE IF NOT EXISTS elitescada.server_memory_retained_values (
             tag_id uuid PRIMARY KEY,
             data_type smallint NOT NULL,
@@ -27,6 +32,10 @@ public sealed class PostgreSqlServerMemoryRetentionStore : IServerMemoryRetentio
 
         CREATE INDEX IF NOT EXISTS ix_server_memory_retained_values_stored_at
             ON elitescada.server_memory_retained_values (stored_at_utc DESC);
+
+        INSERT INTO elitescada.schema_migrations (migration_key)
+        VALUES ('008_server_memory_retention')
+        ON CONFLICT (migration_key) DO NOTHING;
         """;
 
     private readonly NpgsqlDataSource _dataSource;
@@ -131,14 +140,14 @@ public sealed class PostgreSqlServerMemoryRetentionStore : IServerMemoryRetentio
         return dataType switch
         {
             TagDataType.Boolean when value.ValueKind is JsonValueKind.True or JsonValueKind.False => value.GetBoolean(),
-            TagDataType.Int16 when value.ValueKind == JsonValueKind.Number && value.TryGetInt16(out var parsed) => parsed,
-            TagDataType.Int32 when value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var parsed) => parsed,
-            TagDataType.Int64 when value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var parsed) => parsed,
-            TagDataType.Float when value.ValueKind == JsonValueKind.Number && value.TryGetSingle(out var parsed) && float.IsFinite(parsed) => parsed,
-            TagDataType.Double when value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var parsed) && double.IsFinite(parsed) => parsed,
+            TagDataType.Int16 when value.ValueKind == JsonValueKind.Number && value.TryGetInt16(out var int16Value) => int16Value,
+            TagDataType.Int32 when value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var int32Value) => int32Value,
+            TagDataType.Int64 when value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var int64Value) => int64Value,
+            TagDataType.Float when value.ValueKind == JsonValueKind.Number && value.TryGetSingle(out var floatValue) && float.IsFinite(floatValue) => floatValue,
+            TagDataType.Double when value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var doubleValue) && double.IsFinite(doubleValue) => doubleValue,
             TagDataType.String when value.ValueKind == JsonValueKind.String => value.GetString()!,
-            TagDataType.DateTime when value.ValueKind == JsonValueKind.String && value.TryGetDateTimeOffset(out var parsed) => parsed,
-            TagDataType.Enum when value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var parsed) => parsed,
+            TagDataType.DateTime when value.ValueKind == JsonValueKind.String && value.TryGetDateTimeOffset(out var dateTimeValue) => dateTimeValue,
+            TagDataType.Enum when value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var enumValue) => enumValue,
             _ => throw new InvalidDataException($"Retained Server Memory value is invalid for declared data type {dataType}.")
         };
     }

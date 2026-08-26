@@ -22,6 +22,26 @@ The industrial communication roadmap includes, at minimum:
 
 All protocol implementations must use the common EliteSCADA Data Source, TAG, quality, runtime and Engineering boundaries. A protocol plugin must not become a separate configuration island or bypass the public engineering model.
 
+### First installable module target: Siemens S7 ISO Connection
+
+The first intended proof/production target for the installable Driver Module framework is a **Siemens S7 communication driver compatible with S7 ISO Connection** for Siemens PLCs.
+
+This target is deliberately deferred until the module framework and its compatibility boundary are ready enough to host it cleanly.
+
+At implementation time the technical research must include existing public/open-source S7 implementations, including relevant Node-RED nodes/libraries. Existing work may inform architecture or be reused where appropriate, but source reuse requires an explicit license/obligation review first. Industrial runtime suitability must be validated independently, including reconnect behavior, address/data-type mapping, PLC-family compatibility, read/write behavior, diagnostics and failure semantics.
+
+The exact Siemens PLC families, address spaces, data types, connection parameters and supported write operations are not fixed by this ADR and will be decided from evidence gathered in that future research/implementation slice.
+
+### Future Allen-Bradley module research target
+
+A future installable communication module for **Allen-Bradley PLCs** is also part of the product direction.
+
+This is currently a research target, not a locked protocol/library choice. When scheduled, research must examine public protocol documentation, open-source implementations, existing libraries, licensing, representative hardware/simulator access and the practical support matrix across Allen-Bradley families.
+
+Manufacturer documentation/cooperation should be used when available, but EliteSCADA should also investigate legally reusable public implementations and documented interoperability options so the architectural goal does not depend entirely on direct vendor support.
+
+No specific Allen-Bradley protocol, library or PLC-family scope is considered selected until that research is performed.
+
 ### Installable driver modules
 
 EliteSCADA will provide a controlled module/plugin mechanism that allows additional communication drivers to be installed without rebuilding the core product.
@@ -85,6 +105,8 @@ Package integrity/publisher trust must be validated before enabling executable m
 ## Consequences
 
 - MQTT and OPC UA are explicit product requirements rather than incidental future ideas.
+- The first intended installable driver target is Siemens S7 ISO Connection.
+- Allen-Bradley communication is an explicit future research/module target, with protocol/library scope intentionally deferred.
 - The core repository does not need to contain every future industrial protocol.
 - Driver extension cannot bypass Engineering Import/Export or runtime safety boundaries.
 - A module catalog/package/compatibility subsystem becomes a future product slice.
@@ -101,4 +123,4 @@ The following are intentionally deferred until the module framework implementati
 - hot reload versus restart requirements;
 - marketplace or private repository distribution model.
 
-Those details may change without changing this ADR's core decision: **EliteSCADA supports MQTT, OPC UA and installable versioned driver modules through a common Driver SDK and Engineering model.**
+Those details may change without changing this ADR's core decision: **EliteSCADA supports MQTT, OPC UA and installable versioned driver modules through a common Driver SDK and Engineering model, with Siemens S7 ISO Connection as the first intended installable driver target and Allen-Bradley as a later research target.**

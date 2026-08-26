@@ -1,72 +1,69 @@
-# Roadmap baseline
+# EliteSCADA Development Roadmap
 
-The approved development north is preserved, with Engineering Import/Export acting as a mandatory cross-cutting capability rather than a later utility.
+The approved development north is preserved, with Engineering Import/Export acting as a transversal product requirement rather than a late add-on.
 
 ## Runtime foundation established
 
-Implemented and validated on `main` before the current durable-audit branch:
+Implemented and validated on `main` before the current engineering-lifecycle security branch:
 
 1. Repository, architecture and CI/CD foundation.
 2. Tag Engine, quality, current-value cache and internal Event Bus.
-3. Simulation Driver and Driver SDK contract.
-4. REST + WebSocket runtime.
-5. First React runtime screen and equipment modal.
-6. Automated .NET build/test/runtime smoke validation.
-7. Automated Chromium end-to-end validation.
-8. PostgreSQL engineering revision persistence.
-9. Working, Published and Active revision lifecycle.
-10. Transactional activation with candidate runtime isolation and rollback.
-11. Fail-closed recovery of the persisted Active Revision after restart.
-12. TimescaleDB historian implementation used by the runtime.
-13. Real Modbus TCP transport/driver with FC01/02/03/04/05/06/16, grouped polling, writes, reconnect and communication quality.
-14. Engineering Data Source compiler that converts `modbus.tcp` configuration and TAG bindings into executable runtime plans.
-15. Isolated Engineering Workspace, independent from the simulation/active process runtime.
-16. Transactional checkout of persisted revisions into the Engineering Workspace.
-17. Workspace dirty tracking, change-version-safe saves and immutable revision lineage through `BasedOnRevision`.
+3. Simulation driver and runtime smoke coverage.
+4. Alarm engine and acknowledgement flow.
+5. Historian abstraction and buffered in-memory historian.
+6. Realtime WebSocket TAG stream.
+7. Engineering Import/Export public model and JSON exchange.
+8. TAG/Alarm CSV exchange.
+9. Engineering Schema v2 Data Sources and driver configuration.
+10. Engineering Schema v3 Equipment/Templates/Dynamos.
+11. Engineering Schema v4 Screens/Popups and bindings.
+12. Engineering Schema v5 extended visual component model and project package backup/restore.
+13. PostgreSQL engineering persistence and TimescaleDB historian baseline.
+14. Real Modbus TCP driver baseline through the Engineering Data Source model.
+15. Published versus Active engineering revision lifecycle.
+16. Transactional persisted runtime activation and fail-closed recovery.
+17. Isolated editable Engineering Workspace with checkout/save revision lineage.
 18. Capability-based authorization contracts and audit event/sink foundation.
 19. Engineering Schema v6 authorization roles, explicit capability grants and scoped policies.
 20. Trusted JWT Bearer principal adapter with issuer/audience/signature/lifetime validation.
 21. Phase-one backend enforcement for process-value TAG writes, alarm acknowledgement, Engineering import apply and project-package restore apply.
 22. Active-runtime authorization policy resolution from the exact persisted Active Revision with fail-closed mismatch behavior.
-23. Browser coverage distinguishing valid developer, underprivileged operator, missing credentials and invalid credentials.
+23. Durable PostgreSQL append-only audit trail with database-enforced UPDATE/DELETE/TRUNCATE rejection and protected query API.
 
 ## Engineering Import/Export status
 
-Every engineering entity introduced must define a stable serialization contract and participate in the common validation/preview/apply pipeline.
+The original gate before promoting persistence and real industrial communication has been met and remains locked as a product invariant.
 
-Canonical JSON schema v6 adds application security roles to the schema-v5 foundation.
+Completed:
 
-Implemented engineering entities:
+1. Versioned Engineering Package envelope. ✓
+2. TAG serialization and import/export. ✓
+3. Alarm serialization and import/export. ✓
+4. Data Source/driver technical configuration serialization, excluding secrets. ✓
+5. Equipment/Template/Dynamo engineering serialization. ✓
+6. Screen/Popup/binding engineering serialization. ✓
+7. Public JSON import/export APIs independent of the GUI. ✓
+8. CSV TAG and alarm exchange. ✓
+9. Project package backup/restore boundary. ✓
+10. PostgreSQL engineering revision persistence. ✓
+11. Working/Published/Active revision lifecycle. ✓
+12. Transactional checkout/save lineage. ✓
+13. Security roles/grants/scopes in Engineering Schema v6. ✓
 
-- Tags, including explicit read/write/configure access-policy role lists.
-- Alarms.
-- Data Sources / driver configuration with protected secret references.
-- Equipment Templates.
-- Equipment instances.
-- Dynamos.
-- Screens.
-- Popups.
-- Security Roles with explicit capability grants and optional scopes by area, equipment, screen, TAG and command.
-- Cross-reference and entity validation.
-- Backward-compatible parsing of historical package versions.
-- Explicit migration tests from historical schemas.
-- Export -> import preview round-trip testing in CI.
+The following continue as evolutionary extensions rather than prerequisites for the runtime foundation:
 
-Security-role engineering carries authorization policy only. Passwords, password hashes, authentication tokens, private keys and other secret authentication material are excluded and rejected when represented as suspicious security metadata.
+- XLSX workbook exchange;
+- richer reusable libraries and cross-project copy/paste;
+- additional driver configuration schemas;
+- future migration tooling as engineering schemas evolve.
 
-Bulk CSV engineering is implemented for Tags, Alarms and Data Sources. TAG CSV preserves historian maximum-period, metadata and access policy; alarm CSV preserves metadata.
-
-A versioned `.escadapkg` project-package format is implemented for engineering backup/restore. Package v1 contains a manifest plus canonical `engineering.json`, with byte-length and SHA-256 integrity validation. Because the package carries the canonical engineering JSON, schema-v6 security roles participate in backup/restore without adding credential material. The package remains an engineering-project backup, not a historian/runtime database image.
-
-The former Engineering Exchange monolith has been split into smaller entity handlers so new engineering domains do not have to accumulate inside one service.
-
-## Foundation gate completed
+## Persistence and industrial communication gate
 
 The original gate before promoting persistence and real industrial communication is complete:
 
-1. Explicit TAG permission/access-policy serialization. ✓
-2. CSV round-trip fidelity for current bulk-engineering entities. ✓
-3. Versioned project-package manifest for engineering backup/restore. ✓
+1. Engineering Package schema and validation. ✓
+2. JSON round-trip and import preview/apply. ✓
+3. TAG and Alarm CSV import/export. ✓
 4. Historical engineering schema migration/compatibility tests. ✓
 5. Engineering Exchange handler refactor. ✓
 6. PostgreSQL engineering persistence. ✓
@@ -87,25 +84,25 @@ Completed in the security track:
 6. Phase-one backend capability enforcement for critical TAG/alarm/Engineering restore mutations. ✓
 7. Active-runtime policy resolution from the exact persisted Active Revision. ✓
 8. Browser authentication/authorization coverage for developer/operator/anonymous/invalid-token cases. ✓
+9. PostgreSQL append-only audit event storage with database-enforced rejection of `UPDATE`, `DELETE` and `TRUNCATE`. ✓
+10. Queryable audit trail protected by `SystemAdmin`. ✓
+11. Succeeded/denied/failed audit recording for protected TAG writes, alarm ACK, Engineering import apply and project-package restore apply. ✓
+12. Browser coverage validating trusted/anonymous audit subjects, authorization outcomes and audit-read protection. ✓
+13. Persistence save/publish/checkout/apply authorization using `EngineeringModify`, authenticated lifecycle actors and succeeded/denied/failed audit records. ✓
+14. Browser lifecycle coverage backed by PostgreSQL, including rejection of anonymous/operator mutations and proof that caller-supplied save/publish actor fields cannot override the trusted JWT subject. ✓
 
-In validation on the current branch:
-
-9. PostgreSQL append-only audit event storage with database-enforced rejection of `UPDATE`, `DELETE` and `TRUNCATE`.
-10. Queryable audit trail protected by `SystemAdmin`.
-11. Succeeded/denied/failed audit recording for protected TAG writes, alarm ACK, Engineering import apply and project-package restore apply.
-12. Browser coverage validating trusted/anonymous audit subjects, authorization outcomes and audit-read protection.
+Activation is protected by the same lifecycle filter when authentication is enabled and derives `ActivatedBy` from the trusted JWT subject. Activation remains independently constrained by the configured runtime project key and transactional runtime validation.
 
 Next:
 
-13. Protect persistence save/publish/activate/checkout/apply with JWT/capability enforcement, derive lifecycle actors from the authenticated principal and audit those transitions.
-14. Extend enforcement/audit to commands, alarm shelving and sensitive read/realtime/WebSocket surfaces.
-15. Add a real login/token-issuance or external identity-provider workflow and user lifecycle administration.
-16. Add audit retention/query policy and durable buffering/outbox behavior for temporary storage outages.
-17. Add historian retention/downsampling policies on TimescaleDB.
-18. Add MQTT driver integration through the same Data Source/driver model.
-19. Add Engineering XLSX workbook import/export.
-20. Expand runtime diagnostics, driver health, offline behavior and operational hardening.
-21. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
+15. Extend enforcement/audit to commands, alarm shelving and sensitive read/realtime/WebSocket surfaces.
+16. Add a real login/token-issuance or external identity-provider workflow and user lifecycle administration.
+17. Add audit retention/query policy and durable buffering/outbox behavior for temporary storage outages.
+18. Add historian retention/downsampling policies on TimescaleDB.
+19. Add MQTT driver integration through the same Data Source/driver model.
+20. Add Engineering XLSX workbook import/export.
+21. Expand runtime diagnostics, driver health, offline behavior and operational hardening.
+22. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
 
 ## Locked future product requirements
 
@@ -123,46 +120,17 @@ These requirements remain part of the EliteSCADA product north and must be imple
 ### Cross-project copy/paste
 
 - Copy/paste screens, popups, equipment, Dynamos and engineering structures between projects.
-- Represent clipboard payloads as canonical Engineering Fragments rather than browser-private data.
-- Support dependency-aware paste with preview for create/update/conflict/missing dependency and rebinding cases.
-- Offer both selected-only and selected-with-required-dependencies workflows.
+- Preserve bindings and references where possible and report unresolved dependencies explicitly.
+- Keep clipboard/import formats versioned and based on the same public engineering contracts rather than private UI state.
 
-### Trend charts
+### Product engineering UX
 
-- Provide engineering-configurable trends with multiple Pens.
-- Allow each Pen to use historical TAG data, a live/runtime binding or an expression.
-- Support project-defined trends placed on screens/popups.
-- Permit ad-hoc and saved runtime trends where access policy allows.
-- Keep historical query and realtime subscription semantics distinct even when displayed together.
-- Expose suitable aggregation/downsampling for TimescaleDB without leaking storage-specific concepts into the engineering contract.
+- Engineering edits must remain isolated from the operational runtime until explicitly saved/published/activated according to lifecycle semantics.
+- Validation, preview and dependency diagnostics must be available before applying potentially disruptive engineering changes.
+- UI authorization hints may improve usability but backend authorization remains authoritative.
 
-### Users, roles and hierarchy
+### Security and operations
 
-- Roles and access hierarchy are configurable per application, not hard-coded globally.
-- Distinguish at minimum: view, TAG read, operational command, setpoint/process-value write, alarm acknowledgement, alarm shelving, trend use/save, engineering modification, user/role administration and system administration.
-- Allow access scope by area, equipment, screen, TAG or command where required by the application.
-- Permit UI objects/screens/menus to be hidden or disabled based on policy.
-- Never rely on visibility as the security boundary; backend/API authorization must enforce protected operations.
-- Engineering packages may contain role/policy definitions but never authentication secrets or password hashes.
-- Commands, process writes, ACK/shelving, engineering publication/activation and security administration must be auditable.
-
-### Configurable persistent application shell
-
-- Support reusable/configurable header, footer, navigation, alarm banner/summary and optional side regions that remain fixed while process screens change.
-- These shell regions are engineering objects and may be globally defined with controlled application/screen overrides.
-- Common widgets include application identity, logged-in user, navigation, alarm summary and date/time.
-
-### Date/time binding and device clock integration
-
-- Date/time widgets support date+time, date-only and time-only formats.
-- Required time sources: EliteSCADA server clock or a TAG containing time from a PLC/RTU/other source.
-- Timezone/formatting is presentation configuration and must not change timestamp semantics.
-- Future active device-clock synchronization through a communication driver is a separate explicit command, permission-controlled and auditable. Binding a display to a PLC time TAG must never silently synchronize the PLC clock.
-
-## Editor phase
-
-The runtime, engineering contract and persistence foundation are strong enough that editor work can begin incrementally after the core backend authentication/enforcement and audit path are established, rather than waiting for every future driver to exist.
-
-The editor must consume the same public engineering model rather than own a private representation of project configuration. Reusable libraries, Engineering Fragments/cross-project copy-paste, trends, access-aware visibility and configurable shell regions are core workflows, not late add-ons.
-
-The initial reusable dynamo/object catalog, common state model, faceplates, trend, shell widgets and reference-research procedure are defined in `docs/VISUAL-COMPONENT-LIBRARY.md`.
+- Credentials, tokens, private keys and Data Source secrets remain outside Engineering Import/Export payloads.
+- Process-impacting and security-sensitive operations remain auditable using trusted identities.
+- Runtime activation remains transactional and fail closed when the persisted active state cannot be safely recovered.

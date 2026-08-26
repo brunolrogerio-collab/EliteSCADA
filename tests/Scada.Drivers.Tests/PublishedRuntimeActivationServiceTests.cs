@@ -31,9 +31,7 @@ public sealed class PublishedRuntimeActivationServiceTests
         var persistence = CreatePersistence(store, out var exchange);
 
         var externalBus = new InMemoryScadaEventBus();
-        var fallbackRegistry = new InMemoryTagRegistry();
-        var fallbackCache = new CurrentTagCache(externalBus);
-        using var fallbackAlarms = new InMemoryAlarmEngine(externalBus);
+        using var fallback = new DemoRuntimeServices(externalBus);
         var fallbackTag = TagDefinition.Create(
             "Demo fallback",
             "Demo.Fallback",
@@ -41,8 +39,8 @@ public sealed class PublishedRuntimeActivationServiceTests
             "builtin.simulation");
 
         await using var simulation = new SimulationDriver(
-            fallbackCache,
-            fallbackRegistry,
+            fallback.Cache,
+            fallback.Registry,
             new[] { new SimulationPoint(fallbackTag, SimulationSignalType.Constant, ConstantValue: 12) },
             TimeSpan.FromMilliseconds(15));
         await simulation.StartAsync();
@@ -51,12 +49,7 @@ public sealed class PublishedRuntimeActivationServiceTests
             externalBus,
             new EngineeringDriverCompiler(),
             TimeSpan.FromSeconds(2));
-        var facade = new ScadaRuntimeFacade(
-            fallbackRegistry,
-            fallbackCache,
-            fallbackAlarms,
-            simulation,
-            runtime);
+        var facade = new ScadaRuntimeFacade(fallback, simulation, runtime);
         var activation = new PublishedRuntimeActivationService(
             persistence,
             exchange,
@@ -91,9 +84,7 @@ public sealed class PublishedRuntimeActivationServiceTests
         var persistence = CreatePersistence(store, out var exchange);
 
         var externalBus = new InMemoryScadaEventBus();
-        var fallbackRegistry = new InMemoryTagRegistry();
-        var fallbackCache = new CurrentTagCache(externalBus);
-        using var fallbackAlarms = new InMemoryAlarmEngine(externalBus);
+        using var fallback = new DemoRuntimeServices(externalBus);
         var fallbackTag = TagDefinition.Create(
             "Demo fallback",
             "Demo.Fallback",
@@ -101,8 +92,8 @@ public sealed class PublishedRuntimeActivationServiceTests
             "builtin.simulation");
 
         await using var simulation = new SimulationDriver(
-            fallbackCache,
-            fallbackRegistry,
+            fallback.Cache,
+            fallback.Registry,
             new[] { new SimulationPoint(fallbackTag, SimulationSignalType.Constant, ConstantValue: 12) },
             TimeSpan.FromMilliseconds(15));
         await simulation.StartAsync();
@@ -111,12 +102,7 @@ public sealed class PublishedRuntimeActivationServiceTests
             externalBus,
             new EngineeringDriverCompiler(),
             TimeSpan.FromSeconds(2));
-        var facade = new ScadaRuntimeFacade(
-            fallbackRegistry,
-            fallbackCache,
-            fallbackAlarms,
-            simulation,
-            runtime);
+        var facade = new ScadaRuntimeFacade(fallback, simulation, runtime);
         var activation = new PublishedRuntimeActivationService(
             persistence,
             exchange,

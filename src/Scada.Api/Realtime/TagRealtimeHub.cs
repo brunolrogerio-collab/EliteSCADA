@@ -62,6 +62,7 @@ public sealed class TagRealtimeHub : IDisposable
         }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
         catch (WebSocketException) { }
+        catch (ObjectDisposedException) { }
         finally
         {
             _clients.TryRemove(clientId, out _);
@@ -128,6 +129,10 @@ public sealed class TagRealtimeHub : IDisposable
                 await socket.SendAsync(payload, WebSocketMessageType.Text, true, CancellationToken.None);
             }
             catch (WebSocketException)
+            {
+                dead.Add(id);
+            }
+            catch (ObjectDisposedException)
             {
                 dead.Add(id);
             }

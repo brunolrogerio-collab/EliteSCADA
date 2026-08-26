@@ -5,6 +5,7 @@ using Scada.Api.Persistence;
 using Scada.Api.ProjectPackages;
 using Scada.Api.Realtime;
 using Scada.Api.Runtime;
+using Scada.Api.Security;
 using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
@@ -20,8 +21,10 @@ using Scada.Engineering.ProjectPackages;
 using Scada.Engineering.Security;
 using Scada.Engineering.Views;
 using Scada.Historian.Abstractions;
+using Scada.Security.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
+var authenticationEnabled = builder.AddEliteScadaJwtAuthentication();
 
 builder.Services.AddSingleton<IScadaEventBus, InMemoryScadaEventBus>();
 builder.Services.AddSingleton<TagRealtimeHub>();
@@ -47,6 +50,7 @@ builder.Services.AddSingleton<IEngineeringRuntimeCoordinator>(sp =>
 
 builder.Services.AddSingleton<IEngineeringExchangeService, EngineeringExchangeService>();
 builder.Services.AddSingleton<IProjectPackageService, ProjectPackageService>();
+builder.Services.AddSingleton<ApiAuthorizationService>();
 builder.AddOptionalEngineeringPersistence();
 builder.Services.AddOpenApi();
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
@@ -71,6 +75,7 @@ _ = app.Services.GetRequiredService<IHistorian>();
 await app.InitializeEngineeringPersistenceAsync();
 
 app.UseCors();
+if (authenticationEnabled) app.UseAuthentication();
 app.UseWebSockets();
 app.MapOpenApi();
 app.MapProjectPackageEndpoints();
@@ -92,6 +97,20 @@ app.MapGet("/health", (ScadaRuntimeFacade runtime, IHistorian historian) =>
             historian.PendingSamples
         },
         activeAlarms = descriptor.ActiveAlarmCount
+    });
+});
+
+app.MapGet("/api/auth/me", (HttpContext context, ApiAuthorizationService security) =>
+{
+    var principal = security.GetPrincipal(context);
+    if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
+        return Results.Unauthorized();
+
+    return Results.Ok(new
+    {
+        principal.SubjectId,
+        principal.DisplayName,
+        principal.Roles
     });
 });
 
@@ -121,10 +140,26 @@ app.MapGet("/api/tags/by-path/{*path}", (string path, ScadaRuntimeFacade runtime
     return Results.Ok(new { tag, current });
 });
 
-app.MapPost("/api/tags/{id:guid}/write", async (Guid id, TagWriteRequest request, ScadaRuntimeFacade runtime, CancellationToken ct) =>
+app.MapPost("/api/tags/{id:guid}/write", async (
+    Guid id,
+    TagWriteRequest request,
+    HttpContext context,
+    ScadaRuntimeFacade runtime,
+    ApiAuthorizationService security,
+    CancellationToken ct) =>
 {
     if (!runtime.TryGetTag(id, out var tag) || tag is null) return Results.NotFound();
     if (tag.ReadOnly) return Results.BadRequest(new { error = "Tag is read-only." });
+
+    var authorization = await security.CheckRuntimeTagAsync(
+        context,
+        runtime,
+        tag,
+        TagAccessOperation.Write,
+        ct);
+    var failure = authorization.FailureResult();
+    if (failure is not null) return failure;
+
     await runtime.WriteAsync(id, request.Value, ct);
     return Results.Accepted();
 });
@@ -141,10 +176,29 @@ app.MapGet("/api/alarms", (bool? activeOnly, ScadaRuntimeFacade runtime) =>
 
 app.MapGet("/api/alarms/definitions", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.AlarmDefinitions()));
 
-app.MapPost("/api/alarms/{id:guid}/ack", async (Guid id, AlarmAckRequest request, ScadaRuntimeFacade runtime, CancellationToken ct) =>
+app.MapPost("/api/alarms/{id:guid}/ack", async (
+    Guid id,
+    AlarmAckRequest request,
+    HttpContext context,
+    ScadaRuntimeFacade runtime,
+    ApiAuthorizationService security,
+    CancellationToken ct) =>
 {
-    if (string.IsNullOrWhiteSpace(request.User)) return Results.BadRequest(new { error = "User is required." });
-    return await runtime.AcknowledgeAlarmAsync(id, request.User, ct) ? Results.Ok() : Results.NotFound();
+    var definition = runtime.AlarmDefinitions().FirstOrDefault(alarm => alarm.Id == id);
+    if (definition is null) return Results.NotFound();
+
+    var authorization = await security.CheckRuntimeAsync(
+        context,
+        runtime,
+        SecurityCapability.AlarmAcknowledge,
+        new AuthorizationResource(Area: definition.Area),
+        ct);
+    var failure = authorization.FailureResult();
+    if (failure is not null) return failure;
+
+    var acknowledgedBy = authorization.Principal.DisplayName ?? authorization.Principal.SubjectId;
+    _ = request; // Legacy body field is intentionally ignored; identity comes from the authenticated token.
+    return await runtime.AcknowledgeAlarmAsync(id, acknowledgedBy, ct) ? Results.Ok() : Results.NotFound();
 });
 
 app.MapGet("/api/drivers", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.Drivers()));
@@ -177,8 +231,17 @@ app.MapPost("/api/engineering/import/json/preview", async (HttpRequest request, 
     return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
 });
 
-app.MapPost("/api/engineering/import/json/apply", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
+app.MapPost("/api/engineering/import/json/apply", async (
+    HttpRequest request,
+    HttpContext context,
+    ImportMode? mode,
+    IEngineeringExchangeService exchange,
+    ApiAuthorizationService security) =>
 {
+    var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
+    var failure = authorization.FailureResult();
+    if (failure is not null) return failure;
+
     using var reader = new StreamReader(request.Body, Encoding.UTF8);
     var package = exchange.ParseJson(await reader.ReadToEndAsync());
     var preview = exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate);
@@ -193,8 +256,17 @@ app.MapPost("/api/engineering/import/tags.csv/preview", async (HttpRequest reque
     return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
 });
 
-app.MapPost("/api/engineering/import/tags.csv/apply", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
+app.MapPost("/api/engineering/import/tags.csv/apply", async (
+    HttpRequest request,
+    HttpContext context,
+    ImportMode? mode,
+    IEngineeringExchangeService exchange,
+    ApiAuthorizationService security) =>
 {
+    var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
+    var failure = authorization.FailureResult();
+    if (failure is not null) return failure;
+
     using var reader = new StreamReader(request.Body, Encoding.UTF8);
     var package = exchange.ParseTagsCsv(await reader.ReadToEndAsync());
     var preview = exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate);
@@ -209,8 +281,17 @@ app.MapPost("/api/engineering/import/alarms.csv/preview", async (HttpRequest req
     return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
 });
 
-app.MapPost("/api/engineering/import/alarms.csv/apply", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
+app.MapPost("/api/engineering/import/alarms.csv/apply", async (
+    HttpRequest request,
+    HttpContext context,
+    ImportMode? mode,
+    IEngineeringExchangeService exchange,
+    ApiAuthorizationService security) =>
 {
+    var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
+    var failure = authorization.FailureResult();
+    if (failure is not null) return failure;
+
     using var reader = new StreamReader(request.Body, Encoding.UTF8);
     var package = exchange.ParseAlarmsCsv(await reader.ReadToEndAsync());
     var preview = exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate);
@@ -225,8 +306,17 @@ app.MapPost("/api/engineering/import/datasources.csv/preview", async (HttpReques
     return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
 });
 
-app.MapPost("/api/engineering/import/datasources.csv/apply", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
+app.MapPost("/api/engineering/import/datasources.csv/apply", async (
+    HttpRequest request,
+    HttpContext context,
+    ImportMode? mode,
+    IEngineeringExchangeService exchange,
+    ApiAuthorizationService security) =>
 {
+    var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
+    var failure = authorization.FailureResult();
+    if (failure is not null) return failure;
+
     using var reader = new StreamReader(request.Body, Encoding.UTF8);
     var package = exchange.ParseDataSourcesCsv(await reader.ReadToEndAsync());
     var preview = exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate);
@@ -248,4 +338,4 @@ app.Map("/ws/tags", async (HttpContext context, TagRealtimeHub hub) =>
 app.Run();
 
 public sealed record TagWriteRequest(object? Value);
-public sealed record AlarmAckRequest(string User);
+public sealed record AlarmAckRequest(string? User = null);

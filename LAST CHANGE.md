@@ -9,17 +9,22 @@
 
 ## Latest task
 
-The latest task was a continuity test requested by the user: recover what had previously been specified for trend charts without relying on the old ChatGPT conversation.
+The latest task was a continuity/product-goal verification requested by the user: confirm whether MQTT, OPC UA and installable/extra driver modules are part of the EliteSCADA project target.
 
 No product/runtime code was changed and development remains paused.
 
-The continuity protocol worked as intended:
+Verified against `PROJECT GOAL.md` and `docs/ROADMAP.md`:
 
-1. `PROJECT GOAL.md` was read first.
-2. `LAST CHANGE.md` was read second.
-3. `docs/ROADMAP.md` was then checked for the exact locked trend-chart requirements.
+- **MQTT is explicitly part of the project north.** `PROJECT GOAL.md` names MQTT as the industrial messaging direction and the Industrial Communication section plans MQTT protocol expansion. `docs/ROADMAP.md` also explicitly lists MQTT driver integration through the same Data Source/driver model as a future implementation slice.
+- **Plugin/SDK-based additional drivers are explicitly part of the architectural direction.** `PROJECT GOAL.md` states an extension direction through a public SDK and says future protocol expansion includes plugin/SDK-based drivers. Future engineering domains also include plugins and must join the same public, versioned Engineering model.
+- **OPC UA is not currently explicitly recorded** in `PROJECT GOAL.md`, `docs/ROADMAP.md`, or repository code search performed for this task.
+- The current wording supports extensible drivers, but a complete **installable driver-module mechanism** (package format, installation, discovery/catalog, enable/disable, version compatibility, isolation, trust/signing and upgrade lifecycle) is not yet explicitly specified as a locked product requirement. Do not assume those details are already decided.
 
-The recovered trend requirements are:
+This task demonstrates the intended distinction between a broad architecture direction and an explicitly locked product requirement.
+
+## Previous continuity test: trend charts
+
+The previous task verified recovery of the locked trend requirements without relying on old ChatGPT history:
 
 - engineering-configurable trends with multiple Pens;
 - each Pen may use historical TAG data, a live/runtime binding or an expression;
@@ -29,8 +34,6 @@ The recovered trend requirements are:
 - TimescaleDB aggregation/downsampling must be exposed without leaking storage-specific concepts into the Engineering contract;
 - historian retention/downsampling is part of the supporting backend roadmap;
 - trend use/save participates in the configurable application security capability model.
-
-This verifies that the new repository-side continuity mechanism can recover a previously locked product requirement after a chat/session change.
 
 ## Why this file exists
 

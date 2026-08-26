@@ -7,6 +7,8 @@ button { font: inherit; }
 .topbar div:first-child { display: flex; gap: 14px; align-items: baseline; }
 .topbar strong { font-size: 18px; }
 .topbar span { color: #8f9ba8; font-size: 13px; }
+.runtime-engineering-link { color: #9db9cc; font-size: 12px; text-decoration: none; padding: 4px 8px; border: 1px solid #344453; border-radius: 5px; }
+.runtime-engineering-link:hover { color: #d8e6ef; border-color: #526a7e; background: #1b242d; }
 .connection { font-size: 12px; font-weight: 700; color: #de6a6a; }
 .connection.online { color: #72c78d; }
 .process-card { margin: 24px; border: 1px solid #2a333d; border-radius: 12px; overflow: hidden; background: #171c22; }

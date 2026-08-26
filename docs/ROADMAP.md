@@ -110,7 +110,7 @@ Next:
 24. Introduce the installable/versioned Driver Module framework and public Driver SDK compatibility boundary, including module lifecycle, diagnostics, trust/integrity and Engineering configuration preservation; use Siemens S7 ISO Connection as the first intended installable-module target after the framework is ready.
 25. Add Portuguese (`pt-BR`), English (`en`) and Spanish (`es`) localization across the Engineering/development interface with a developer-selectable language preference and language-neutral Engineering contracts.
 26. Add Engineering XLSX workbook import/export.
-27. Expand runtime diagnostics, driver health, offline behavior and operational hardening.
+27. Expand runtime communication diagnostics as a common multi-driver capability: per-Data-Source health/state, success/failure/timeout/reconnect counters, timing/data-age metrics, TAG quality aggregation, protected diagnostic APIs, independent failure/recovery tests for simultaneous driver instances, then the Engineering communication-health window defined in `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
 28. Stabilize frontend package versions/lockfile and continue CI performance/hygiene improvements.
 
 ## Locked future product requirements
@@ -120,6 +120,9 @@ These requirements remain part of the EliteSCADA product north and must be imple
 ### Industrial protocols and installable driver modules
 
 - Modbus TCP remains the currently implemented real industrial protocol baseline.
+- Multiple Data Sources/communication instances must be active simultaneously; several instances may use the same Driver type for different PLCs/devices, and different Driver types may run in parallel.
+- TAG communication ownership is through one Data Source per revision plus the protocol-specific address/binding.
+- Driver/Data Source diagnostics are a first-class protected Engineering/runtime capability and must use a common diagnostic contract rather than protocol-private log parsing. See `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
 - MQTT is a locked future protocol/integration target.
 - OPC UA is a locked future industrial interoperability target.
 - BACnet is a locked future communication-driver target, particularly relevant to building automation/BMS and BACnet-capable controllers/devices.

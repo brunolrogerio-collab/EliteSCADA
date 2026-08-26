@@ -1,8 +1,8 @@
 # Security, Authorization and Audit Baseline
 
-Status: capability/audit foundation established; security policy engineering serialization added in schema v6. API authentication and enforcement remain pending.
+Status: capability/audit foundation established; security policy engineering serialization is available in schema v6; JWT authentication and the first backend enforcement slice are implemented on the current security branch.
 
-This document defines the security boundary that will be used as authentication, user management and audit persistence are added to EliteSCADA. The existence of security contracts does not by itself make the current runtime API authenticated.
+This document defines the security boundary used as authentication, user management and audit persistence are added to EliteSCADA. Security remains incremental: the presence of a trusted identity adapter and protected mutations does not mean every API surface or product workflow is already access-controlled.
 
 ## Principles
 
@@ -10,9 +10,10 @@ This document defines the security boundary that will be used as authentication,
 2. Capabilities describe protected operations. A role only has the capabilities explicitly granted to it.
 3. Authorization is enforced by the backend. Hiding or disabling a UI element is presentation behavior, never the security boundary.
 4. Grants may be scoped to area, equipment, screen, TAG or command.
-5. Once enforcement is enabled, an authenticated identity that has no applicable grant is denied by default.
+5. An authenticated identity that has no applicable grant is denied by default on protected operations.
 6. Authentication secrets, password hashes, tokens and private keys are never Engineering Import/Export payloads.
 7. Operational and engineering changes that affect the process or security model must produce audit events.
+8. Runtime authorization policy must correspond to the active engineering revision, not an unsaved or draft workspace state.
 
 ## Initial capability vocabulary
 
@@ -86,9 +87,46 @@ This preserves the schema-v5 distinction between `null` and `[]` and avoids an i
 
 ## Authentication boundary
 
-The capability evaluator accepts an authenticated principal containing a stable subject id and assigned role keys. It does not authenticate credentials itself.
+The API now has a first trusted identity adapter using ASP.NET JWT Bearer authentication. When `Authentication:Enabled=true`, the runtime validates a signed JWT before mapping it to the domain `SecurityPrincipal`.
 
-A future API authentication adapter will be responsible for establishing that principal from a trusted identity mechanism. Until that adapter exists and endpoints are migrated, EliteSCADA must not describe the current API as access-controlled merely because the capability evaluator and serializable policies exist.
+The initial JWT configuration requires:
+
+- `Authentication:Jwt:Issuer`;
+- `Authentication:Jwt:Audience`;
+- `Authentication:Jwt:SigningKey`, with at least 32 UTF-8 bytes for the current symmetric-key adapter.
+
+Validation requires issuer, audience, cryptographic signature, signed tokens, lifetime and expiration. Role claims are mapped into configurable EliteSCADA role keys. The API distinguishes:
+
+- `401 Unauthorized`: no trusted authenticated identity, invalid token or authenticated identity without a stable subject id;
+- `403 Forbidden`: trusted identity exists, but none of its configured roles grants the requested capability/scope.
+
+The signing key is deployment configuration and must be supplied through a protected configuration mechanism. Product signing secrets are never committed to the repository or placed in engineering packages. The Playwright suite uses an explicitly test-only key generated/configured for the test process.
+
+This adapter is intentionally not a user database or token issuer. Login UI, local/external identity-provider integration, user lifecycle and credential management remain separate future work.
+
+## Runtime policy resolution
+
+When the simulation/demo fallback runtime is active, protected operations use the current demo/workspace policy registry.
+
+When a persisted engineering runtime is active, authorization resolves security roles from the exact PostgreSQL Active Revision corresponding to the live runtime project and revision. The compiled policy is cached by project/revision. If persistence is unavailable, the active snapshot cannot be loaded, the revision does not match or the live runtime changes while policy is being resolved, authorization fails closed.
+
+This prevents a draft role edit in the Engineering Workspace from silently changing authority over an already active process runtime.
+
+## Phase-one backend enforcement
+
+The first enforcement slice protects mutations with direct process or engineering impact:
+
+- runtime TAG writes require the TAG access-policy write rule or inherited `ProcessValueWrite` capability;
+- alarm acknowledgement requires `AlarmAcknowledge`, with the alarm area supplied as authorization scope;
+- Engineering JSON apply requires `EngineeringModify`;
+- Engineering TAG/Alarm/Data Source CSV apply requires `EngineeringModify`;
+- `.escadapkg` project-package restore/apply requires `EngineeringModify`.
+
+Alarm acknowledgement no longer trusts a caller-supplied user name as identity. The authenticated JWT principal becomes the actor; the old request-body field is retained temporarily only for compatibility and is ignored.
+
+Read endpoints, Engineering preview/export, persistence save/publish/activate/checkout flows, WebSocket subscriptions and other operations are not all authorization-enforced yet. They must not be described as protected merely because phase-one mutation enforcement exists.
+
+The browser E2E security suite proves separate behavior for a valid `developer`, valid but underprivileged `operator`, no credential and invalid Bearer credential.
 
 ## Audit baseline
 
@@ -120,9 +158,9 @@ Audit details must never contain passwords, authentication tokens, private keys 
 
 ## Next implementation slices
 
-1. Add a trusted authenticated-principal provider to the API.
-2. Enforce capabilities on TAG reads/writes, commands, alarm actions and engineering mutations.
-3. Persist audit events in PostgreSQL with append-only semantics.
-4. Audit successful, denied and failed process/security mutations.
-5. Add user/role administration with explicit `UserRoleAdmin` authorization.
-6. Add browser tests proving UI visibility and backend enforcement are independent.
+1. Extend backend capability enforcement to persistence save/publish/activate/checkout, command endpoints, alarm shelving, sensitive reads and WebSocket/runtime subscriptions where appropriate.
+2. Persist audit events in PostgreSQL with append-only semantics.
+3. Audit successful, denied and failed process/security mutations using the authenticated principal and correlation information.
+4. Add user/role administration with explicit `UserRoleAdmin` authorization.
+5. Add a real login/token-issuance or external identity-provider workflow without coupling credentials to Engineering Import/Export.
+6. Add access-aware UI presentation while keeping backend authorization authoritative.

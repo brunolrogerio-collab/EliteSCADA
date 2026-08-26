@@ -12,6 +12,9 @@
 .eng-editor-picker { display: flex; flex-direction: column; min-height: 0; }
 .eng-editor-picker > header { padding: 13px; display: grid; gap: 10px; border-bottom: 1px solid #2a333d; }
 .eng-editor-picker > header strong { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: #c7d0da; }
+.eng-editor-picker-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.eng-editor-picker-title > button { border: 1px solid #3e566a; border-radius: 6px; background: #1c2832; color: #b9c9d7; padding: 5px 8px; cursor: pointer; font-size: 10px; font-weight: 700; }
+.eng-editor-picker-title > button:hover, .eng-editor-picker-title > button.active { border-color: #6489a9; background: #243746; color: #e1edf6; }
 .eng-editor-picker input[type='search'] { width: 100%; border: 1px solid #35414d; border-radius: 7px; background: #11171d; color: #e8edf4; padding: 8px 9px; outline: none; }
 .eng-editor-picker input[type='search']:focus { border-color: #587c9d; }
 .eng-editor-picker-list { overflow: auto; padding: 6px; display: grid; gap: 4px; align-content: start; }

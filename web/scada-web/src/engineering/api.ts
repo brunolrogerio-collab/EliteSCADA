@@ -125,6 +125,75 @@ export async function deleteEngineeringEntity(
   return await response.json() as EngineeringDeleteResult;
 }
 
+export type EngineeringBulkEntityKind = 'tag' | 'alarm' | 'data-source';
+
+export type EngineeringBulkRequest = {
+  entityKind: EngineeringBulkEntityKind;
+  entityIds: string[];
+  tags?: {
+    readOnly?: boolean;
+    historianEnabled?: boolean;
+    historianStrategy?: string;
+  };
+  alarms?: {
+    enabled?: boolean;
+    priority?: string;
+    requiresAcknowledgement?: boolean;
+    shelvingAllowed?: boolean;
+  };
+  dataSources?: {
+    enabled?: boolean;
+  };
+};
+
+export type EngineeringBulkPreviewResult = {
+  changeVersion: number;
+  entityKind: EngineeringBulkEntityKind;
+  affectedCount: number;
+  preview: ImportPreviewView;
+};
+
+export type EngineeringBulkApplyResult = {
+  changeVersion: number;
+  entityKind: EngineeringBulkEntityKind;
+  affectedCount: number;
+  result: ImportResultView;
+};
+
+export async function previewEngineeringBulk(
+  request: EngineeringBulkRequest
+): Promise<EngineeringBulkPreviewResult> {
+  const response = await fetch(`${API}/api/engineering/bulk/preview`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json; charset=utf-8'
+    },
+    body: JSON.stringify(request)
+  });
+
+  if (!response.ok) throw await readError(response);
+  return await response.json() as EngineeringBulkPreviewResult;
+}
+
+export async function applyEngineeringBulk(
+  request: EngineeringBulkRequest,
+  expectedChangeVersion: number
+): Promise<EngineeringBulkApplyResult> {
+  const response = await fetch(`${API}/api/engineering/bulk/apply`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json; charset=utf-8',
+      'x-elitescada-workspace-version': String(expectedChangeVersion)
+    },
+    body: JSON.stringify(request)
+  });
+
+  if (!response.ok) throw await readError(response);
+  return await response.json() as EngineeringBulkApplyResult;
+}
+
 export class EngineeringWorkspaceConflictError extends Error {
   constructor(
     public readonly expectedChangeVersion: number,

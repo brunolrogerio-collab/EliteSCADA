@@ -1,90 +1,30 @@
 # CHAT WORK ASSIGNMENTS — EliteSCADA
 
-> Authoritative coordination board for EliteSCADA ChatGPT workstreams.
->
-> Purpose: answer **who is doing what now, on which branch, under which boundaries, and what that chat must do when the user says only `siga`**.
+> Authoritative live coordination board. GitHub branch/PR/head/CI state is operational truth; if this file briefly lags GitHub, GitHub wins and the coordinator reconciles it.
 
 **Coordination protocol introduced:** 2026-08-26
-**Current scheduling baseline:** `main` observed at `529b37259484542ff4f4a8bf6276088c56fd70a6` before this assignment update.
+**Last coordinator synchronization:** 2026-08-26
 
-This file is coordination state, not implementation truth. Before working, every chat must verify the real GitHub branch, PR, head commit and CI state. If this file and GitHub disagree about operational state, GitHub wins and the discrepancy must be reconciled by the coordinator. Stable product/architecture intent remains governed by `PROJECT GOAL.md`.
+## Permanent `siga` protocol
 
-## 1. Permanent `siga` protocol
+The user's canonical short command is `siga`; `continue` is an equivalent alias.
 
-The user's canonical short command is:
+Before any action, every fixed EliteSCADA chat must reread from current `main`:
 
-`siga`
+1. `PROJECT GOAL.md`
+2. `LAST CHANGE.md`
+3. `docs/ROADMAP.md`
+4. `docs/PARALLEL-WORK.md`
+5. `docs/CHAT-WORK-ASSIGNMENTS.md`
+6. all documents listed in its `MustReadSpecific`
 
-`continue` is accepted as a backward-compatible alias with identical meaning.
+Then it must verify its real GitHub branch, PR/head and relevant CI. Workers never choose a new roadmap task, never alter `main`, never merge their own PR and never expand their own assignment. `WAIT_FOR_COORDINATOR` means stop after delivery.
 
-When the user sends only `siga` or `continue` in an EliteSCADA chat, the chat must:
+Repository terminology:
 
-1. identify itself by its fixed workstream/chat name;
-2. read, from current GitHub `main`:
-   - `PROJECT GOAL.md`;
-   - `LAST CHANGE.md`;
-   - `docs/ROADMAP.md`;
-   - `docs/PARALLEL-WORK.md`;
-   - `docs/CHAT-WORK-ASSIGNMENTS.md`;
-   - every document listed in its own `MustReadSpecific` field;
-3. locate its exact assignment section in this file;
-4. verify the real GitHub state of its assigned branch, PR, head commit and relevant CI before editing anything;
-5. obey `Status`, `AllowedScope`, `ForbiddenScope`, `Dependencies`, `IntegrationRequired`, `NextActions`, `CompletionCriteria` and `AfterCompletion`;
-6. continue automatically without asking the user to repeat the original task prompt.
-
-### Decision table
-
-- `ASSIGNED` or `IN_PROGRESS`: start or continue the assigned task.
-- `PR_OPEN`: continue the assigned PR task until its completion criteria are met.
-- `CI_FAILED`: inspect the failed CI, fix the assigned branch only, and revalidate.
-- `READY_FOR_COORDINATOR_REVIEW`, `WAITING` or `COMPLETED` + `AfterCompletion: WAIT_FOR_COORDINATOR`: do **not** start new work.
-- `MERGED` or `COMPLETED` + `AfterCompletion: TAKE_NEXT_ASSIGNED_TASK`: act only if a separate explicit next task is already recorded here.
-- `MERGED` or `COMPLETED` + `AfterCompletion: NEXT_TASK: <task>`: start exactly that named task using its recorded branch/scope rules.
-- assignment not found: do not infer work from roadmap/history/old branches; report no assignment and wait for coordinator action.
-
-A worker must never reinterpret `siga` as permission to choose its own next roadmap item.
-
-## 2. Authority to change assignments
-
-Only **COORDENADOR - EliteSCADA** may add, remove or change work assignments for DEV chats in this file.
-
-Workers may:
-
-- read this file;
-- verify their branch/PR/CI against GitHub;
-- update code and tests inside their authorized branch/scope;
-- update their own PR body with implementation status, CI evidence and `INTEGRATION REQUIRED` notes.
-
-Workers must not:
-
-- edit this file to give themselves new work;
-- change another chat's assignment;
-- create a new task/branch because the current task is complete;
-- alter `main`;
-- merge their own PR;
-- resume an older merged branch as if it were a new assignment;
-- work in another chat's branch or reserved domain unless explicitly reassigned here.
-
-## 3. Status vocabulary
-
-Assignment status values:
-
-- `ASSIGNED`
-- `IN_PROGRESS`
-- `PR_OPEN`
-- `CI_FAILED`
-- `READY_FOR_COORDINATOR_REVIEW`
-- `INTEGRATION_REQUIRED`
-- `MERGED`
-- `BLOCKED`
-- `WAITING`
-- `COMPLETED`
-
-Repository/product terminology:
-
-- **MERGED** — official `main` state;
-- **IMPLEMENTED IN PR** — exists only in a feature branch/open PR;
-- **SPECIFIED / NOT IMPLEMENTED** — architecture/product intent exists but functionality does not.
+- **MERGED** = official `main` state.
+- **IMPLEMENTED IN PR** = exists only in an open worker PR/branch.
+- **SPECIFIED / NOT IMPLEMENTED** = documented product intent without merged implementation.
 
 ---
 
@@ -92,53 +32,64 @@ Repository/product terminology:
 
 **Role:** `COORDINATOR`
 
-**CurrentTask:** Coordinate next dependency-safe parallel development wave
+**CurrentTask:** Coordinate active worker wave and reconcile deliveries safely
 
 **Branch:** `main`
 
 **Status:** `IN_PROGRESS`
 
-**PullRequest:** none; coordinator assignment/documentation updates are maintained on `main`.
+**PullRequest:** none
 
 **Objective:**
 
-Advance the next roadmap wave without violating the locked source/protocol order or creating shared-contract conflicts. Internal Memory remains the next mandatory source/protocol block. Public Script Engineering may advance in parallel. Audit UI may advance as an isolated administrative/frontend slice.
+Review the active DEV 1/2/3 work, preserve the locked dependency order, own central/shared integrations, merge only reviewed green work and keep documentation aligned with actual repository state.
 
 **AllowedScope:**
 
-Coordinator may modify shared/central files and coordination documents when required by integration or scheduling.
+Coordinator-owned shared/central files, integration hooks, assignment board, handoff/roadmap documentation and merge decisions.
 
 **ForbiddenScope:**
 
-Do not silently rewrite worker history, force-reset worker branches, merge known-failing work, invent product state, or schedule Gateway/new external protocols before Internal Memory product integration is complete.
+- no known-failing merge;
+- no force-reset of worker branches;
+- no discarding valid worker commits merely to simplify conflicts;
+- no TAG Gateway before complete Internal Memory product integration;
+- no claim that an open worker PR is merged product state.
 
 **MustReadSpecific:**
 
-- `docs/INTERNAL-MEMORY-TAGS.md`;
-- `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`;
-- `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`;
-- current worker PR bodies and `INTEGRATION REQUIRED` sections during review.
+- `docs/INTERNAL-MEMORY-TAGS.md`
+- `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`
+- `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
+- active PR bodies and `INTEGRATION REQUIRED` sections
 
 **Dependencies:**
 
 - Internal Memory complete product integration precedes TAG Gateway.
-- Public Script Engineering integration precedes concrete script editor/sandbox and later visual runtime/editor work.
-- DEV 2 is the sole worker in this wave authorized to modify the central Engineering contract file.
+- DEV 2 retains exclusive worker ownership of Internal Memory changes in `EngineeringContracts.cs` in this wave.
+- DEV 3 canonical Script-schema integration must occur only after DEV 2 central Engineering changes are reconciled.
+- DEV 1 central Audit route/navigation/CORS hooks remain coordinator-owned.
+
+**ObservedGitHubState:**
+
+- `main` functional/product baseline remains PR #45 plus coordinator documentation commits.
+- PR #46 (`feature/audit-ui`) is open Draft, head `0659647be5c127a0555f585005a20597255fa990`, 8 commits ahead / 0 behind at the pre-sync main baseline; CI run #244 is currently in progress and Web build is already successful.
+- PR #47 (`feature/script-engineering-integration`) is open Draft, head `da6dd4914741a6fa9ece4c758d245899fb20af92`, 6 commits ahead at observation; no PR workflow run was yet present for that head.
+- PR #48 (`feature/internal-memory-product-integration`) is open Draft, head `8ea8f7770322de0c1244b70c26027ab0ba2b5a2a`, 13 commits ahead at observation; no PR workflow run was yet present for that head.
 
 **NextActions:**
 
-1. keep the three assigned branches based on current `main`;
-2. user may now send `siga` to DEV 1, DEV 2 and DEV 3;
-3. review Draft PRs and CI as they appear;
-4. integrate DEV 2 central Engineering changes before any DEV 3 central Script-schema hook;
-5. do not start TAG Gateway until the Internal Memory completion criteria in the roadmap are actually satisfied.
+1. let DEV 1 finish CI #244 and correct only if validation fails;
+2. let DEV 2 continue the Internal Memory completion criteria and obtain CI before handoff;
+3. let DEV 3 finish focused Script Engineering validation and obtain CI before handoff;
+4. review worker diffs and PR bodies on the next coordinator `siga`;
+5. integrate DEV 2 central Engineering work before coordinator-owned Script canonical-schema hooks;
+6. integrate DEV 1 route/navigation/CORS only after PR #46 passes review/CI;
+7. do not start Gateway until Internal Memory is actually complete on `main`.
 
 **CompletionCriteria:**
 
-- all three worker assignments are explicit and non-overlapping;
-- branches/PRs remain attributable to exactly one DEV;
-- shared-contract ownership is unambiguous;
-- worker deliveries are reviewed against CI and dependency order before merge.
+All active worker PRs are reviewed, required integration hooks are reconciled, relevant CI is green, merges follow dependency order, and worker assignments are advanced only after official merged state permits it.
 
 **AfterCompletion:** `CONTINUE_COORDINATION`
 
@@ -152,70 +103,67 @@ Do not silently rewrite worker history, force-reset worker branches, merge known
 
 **Branch:** `feature/audit-ui`
 
-**Status:** `ASSIGNED`
+**Status:** `PR_OPEN`
 
-**PullRequest:** none yet; create a Draft PR after the first coherent implementation commit.
+**PullRequest:** `#46` — Draft — **IMPLEMENTED IN PR / NOT MERGED**
+
+**ObservedHead:** `0659647be5c127a0555f585005a20597255fa990`
 
 **Objective:**
 
-Build an isolated, production-oriented frontend Audit feature on top of the already merged protected `/api/audit` and `/api/audit/diagnostics` surfaces. The feature must support the real bounded/keyset query contract rather than inventing client-side pagination semantics.
+Provide an isolated production-oriented Audit frontend consuming the merged `/api/audit` and `/api/audit/diagnostics` contracts, including opaque keyset cursor handling, supported filters, explicit error/auth states and sanitized diagnostics presentation.
 
 **AllowedScope:**
 
-- new isolated files under `web/scada-web/src/audit/**`;
-- feature-local React components, API client/types, query state, pagination state, diagnostics presentation and feature-local styling;
-- focused frontend/test helpers required only by this feature;
-- tests that exercise the Audit UI/API contract without changing backend production semantics;
-- PR body documentation of integration hooks and CI evidence.
+- `web/scada-web/src/audit/**`
+- feature-local Audit client/types/components/styles
+- focused Audit UI/API contract tests
+- PR body/test evidence and `INTEGRATION REQUIRED`
 
 **ForbiddenScope:**
 
-- `web/scada-web/src/main.tsx` or other central routing/application-shell files;
-- shared/global styles unless explicitly reassigned by the coordinator;
-- backend Audit storage/runtime behavior;
-- `src/Scada.Api/Program.cs`;
-- central DI/composition;
-- Engineering contracts/import-export;
-- adding a weaker Audit authorization capability;
-- exposing sensitive metadata or assuming caller-supplied identity is trusted;
-- modifying coordinator-owned documentation or workflows.
+- `web/scada-web/src/main.tsx` and central application shell/routing
+- global/shared styles without reassignment
+- backend Audit semantics/storage
+- `src/Scada.Api/Program.cs`
+- central DI/composition
+- weaker Audit authorization capability
+- coordinator-owned docs/workflows
 
 **MustReadSpecific:**
 
-- `PROJECT GOAL.md` sections on Security and Audit;
-- `LAST CHANGE.md` PR #44/#45 state;
-- `docs/ROADMAP.md` Audit evolution;
-- current `src/Scada.Security/Audit/**` query/diagnostic contracts;
-- current API implementation for `/api/audit` and `/api/audit/diagnostics`;
-- existing frontend authentication/error-handling patterns.
+- `PROJECT GOAL.md` Security/Audit rules
+- `LAST CHANGE.md` PR #44/#45 state
+- `docs/ROADMAP.md` Audit evolution
+- current Audit query/diagnostic contracts
+- frontend auth/error patterns
 
-**Dependencies:**
-
-PRs #44 and #45 are merged and are the authoritative backend contract. This task must not depend on DEV 2 or DEV 3.
+**Dependencies:** PRs #44/#45 are merged. No dependency on DEV 2/3.
 
 **IntegrationRequired:**
 
-Coordinator will own final central route/navigation registration and any unavoidable shared-shell/localization wiring. DEV 1 must list the exact required hook(s) in the PR body rather than editing reserved central files.
+Coordinator owns `/audit` central route/navigation registration, unavoidable shared localization integration and cross-origin exposure of `X-EliteSCADA-Audit-Next-Cursor` if required by deployment topology.
+
+**CurrentValidation:**
+
+CI #243 was cancelled after a replacement run. CI #244 is in progress for the same current head; Web build has passed while backend/test/smoke/Chromium completion is still pending at the last coordinator observation.
 
 **NextActions:**
 
-1. create/use `feature/audit-ui` from current `main`;
-2. inspect the actual Audit query DTO, supported filters and cursor header before designing UI state;
-3. implement a self-contained Audit feature with loading/empty/error/unauthorized states;
-4. support only filters actually accepted by the backend and preserve the opaque cursor as opaque;
-5. expose diagnostics without leaking sensitive internal exception text;
-6. validate Web build and relevant tests;
-7. open/update Draft PR with `IMPLEMENTED IN PR`, tests and `INTEGRATION REQUIRED`.
+1. do not start new feature scope;
+2. observe CI #244;
+3. if CI fails, fix only failures attributable to this assigned branch without weakening tests;
+4. if CI passes and completion criteria remain satisfied, update PR evidence and move to `WAIT_FOR_COORDINATOR` behavior.
 
 **CompletionCriteria:**
 
-- isolated Audit UI feature compiles successfully;
-- list/query uses backend-supported bounded filters and keyset cursor correctly;
-- next-page navigation does not decode or manufacture cursors;
-- diagnostics and authorization/error states are explicit;
-- no sensitive metadata is newly exposed;
-- central route/shell changes are left as clearly documented coordinator integration;
-- relevant CI is green on the branch.
+- isolated Audit UI compiles;
+- only backend-supported filters are used;
+- cursor remains opaque;
+- diagnostics/auth/error states are explicit and safe;
+- no new sensitive information exposure;
+- central hooks remain documented as integration requirements;
+- relevant CI green.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 
@@ -229,78 +177,79 @@ Coordinator will own final central route/navigation registration and any unavoid
 
 **Branch:** `feature/internal-memory-product-integration`
 
-**Status:** `ASSIGNED`
+**Status:** `PR_OPEN`
 
-**PullRequest:** none yet; create a Draft PR after the first coherent implementation commit.
+**PullRequest:** `#48` — Draft — **IMPLEMENTED IN PR / NOT MERGED**
+
+**ObservedHead:** `8ea8f7770322de0c1244b70c26027ab0ba2b5a2a`
 
 **Objective:**
 
-Advance the **next locked source/protocol block** from merged PR #40 foundation toward complete product integration. This slice owns the public Engineering representation for memory source types/typed initial values and the durable Server Memory retention implementation, with explicit validation for client/server semantics.
+Advance the next locked source/protocol block by completing public/versioned Internal Memory Engineering representation, typed initial values and durable Server Memory retention foundations while preserving client/server memory semantics.
 
 **AllowedScope:**
 
-- `src/Scada.Core/InternalMemory/**` and `src/Scada.Core/Sources/**` as required by the assigned domain;
-- a narrowly scoped exception to `src/Scada.Engineering/Contracts/EngineeringContracts.cs` for Internal Memory fields/entities only;
-- relevant `src/Scada.Engineering/ImportExport/**` and `src/Scada.Engineering/Validation/**` changes for schema migration, canonical JSON, preview validation and round-trip behavior;
-- new/isolated PostgreSQL persistence implementation required for Server Memory retained runtime values under `src/Scada.Persistence.PostgreSql/**`;
-- focused tests for Engineering schema compatibility, import/export, retention, stable-ID rename behavior and incompatible-type handling;
-- PR body documentation of runtime/DI/UI hooks still requiring coordinator integration.
+- `src/Scada.Core/InternalMemory/**`
+- `src/Scada.Core/Sources/**` when required
+- narrow Internal Memory-only exception to `src/Scada.Engineering/Contracts/EngineeringContracts.cs`
+- relevant `src/Scada.Engineering/ImportExport/**` and `Validation/**`
+- isolated PostgreSQL Server Memory retention storage
+- focused schema/import/export/retention/migration tests
 
 **ForbiddenScope:**
 
-- `src/Scada.Api/Program.cs`;
-- central DI/composition files unless separately reassigned;
-- frontend routing/application shell;
-- broad unrelated changes to Engineering entities;
-- TAG Gateway implementation;
-- common multi-driver diagnostics;
-- new external protocols;
-- treating Client Memory as one global server scalar;
-- allowing Client Memory to drive global historian/alarm semantics;
-- serializing mutable retained Server Memory values into immutable Engineering packages;
-- silent coercion of incompatible retained values;
-- modifying coordinator-owned documentation or workflows.
+- `src/Scada.Api/Program.cs`
+- central DI/composition unless reassigned
+- frontend routing/shell
+- unrelated Engineering domains
+- TAG Gateway
+- common multi-driver diagnostics
+- new protocols
+- globalizing Client Memory
+- Client Memory global historian/alarm semantics
+- embedding mutable retained values into immutable Engineering packages
+- silent incompatible-type coercion
+- coordinator-owned docs/workflows
 
 **MustReadSpecific:**
 
-- `docs/INTERNAL-MEMORY-TAGS.md`;
-- `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`;
-- `docs/ARCHITECTURE.md`;
-- current `src/Scada.Core/InternalMemory/**` and `src/Scada.Core/Sources/**` from merged PR #40;
-- current Engineering schema/migration/import-export tests;
-- current PostgreSQL persistence conventions.
+- `docs/INTERNAL-MEMORY-TAGS.md`
+- `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
+- `docs/ARCHITECTURE.md`
+- merged PR #40 Internal Memory/Core source contracts
+- current Engineering migration/import-export tests
+- PostgreSQL persistence conventions
 
-**Dependencies:**
-
-PR #40 is merged. This work is the next mandatory source/protocol block. DEV 2 has exclusive worker ownership of `EngineeringContracts.cs` during this wave so DEV 3 must not edit it.
+**Dependencies:** PR #40 merged. DEV 2 is the sole worker allowed to touch `EngineeringContracts.cs` in this wave.
 
 **IntegrationRequired:**
 
-Coordinator owns final `Program.cs`/DI/runtime composition, central API hookup and any shared frontend Engineering UI wiring. DEV 2 must provide explicit hooks/types and document exactly what remains to connect. If full runtime behavior cannot be validated without central composition, the PR must state that clearly rather than faking integration.
+Coordinator owns final `Program.cs`/DI/runtime composition, central API/runtime wiring and shared frontend Engineering UI hooks.
+
+**ObservedImplementation:**
+
+Current diff remains inside assigned domains and includes Internal Memory core changes, the authorized central Engineering contract change, import/export validation, PostgreSQL retention storage and focused Internal Memory tests. PR body still declares the task in progress.
 
 **NextActions:**
 
-1. create/use `feature/internal-memory-product-integration` from current `main`;
-2. extend the public/versioned Engineering model for `builtin.memory.client` and `builtin.memory.server` plus typed initial/default values;
-3. preserve supported older schema import/migration behavior and canonical round trips;
-4. validate that memory sources require no fake network address/metrics;
-5. implement durable Server Memory retained-value storage keyed by stable TAG ID, separate from immutable Engineering revisions;
-6. make rename preservation and incompatible type/reset-or-migration behavior explicit and testable;
-7. add validation that Client Memory cannot become a global historian/alarm source;
-8. run backend/tests/PostgreSQL coverage as applicable;
-9. open/update Draft PR with precise `INTEGRATION REQUIRED` notes.
+1. complete all PR #48 stated remaining work and update its body to actual state;
+2. preserve schema migration and canonical round-trip compatibility;
+3. complete durable stable-ID retention/reset/type-mismatch coverage;
+4. prove Client Memory global historian/alarm rejection;
+5. obtain relevant backend/PostgreSQL CI;
+6. document exact coordinator integration hooks and stop at `WAIT_FOR_COORDINATOR` when completion criteria are met.
 
 **CompletionCriteria:**
 
-- public Engineering representation for both memory source types and typed initial values exists in the PR;
-- canonical export/import/preview/schema migration behavior is covered by tests;
-- durable Server Memory retention survives restart semantics at the persistence/domain boundary and keys by stable TAG ID;
-- path rename preserves retained value when ID/type remain compatible;
-- incompatible retained type never silently coerces and requires explicit reset/migration semantics;
-- Client Memory global historian/alarm misuse is rejected by validation;
-- no fake network diagnostics are introduced;
-- relevant CI is green;
-- all central composition/UI hooks remaining are documented for coordinator integration.
+- both memory source types and typed initial values represented publicly;
+- canonical import/export/preview/migration tested;
+- durable Server Memory retention keyed by stable TAG ID;
+- rename preserves compatible value;
+- incompatible type never silently coerces;
+- Client Memory global historian/alarm misuse rejected;
+- no fabricated network diagnostics;
+- relevant CI green;
+- central composition/UI hooks explicitly handed off.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 
@@ -314,92 +263,70 @@ Coordinator owns final `Program.cs`/DI/runtime composition, central API hookup a
 
 **Branch:** `feature/script-engineering-integration`
 
-**Status:** `ASSIGNED`
+**Status:** `PR_OPEN`
 
-**PullRequest:** none yet; create a Draft PR after the first coherent implementation commit.
+**PullRequest:** `#47` — Draft — **IMPLEMENTED IN PR / NOT MERGED**
+
+**ObservedHead:** `da6dd4914741a6fa9ece4c758d245899fb20af92`
 
 **Objective:**
 
-Advance roadmap stage 11 by turning the merged PR #41 scripting/visual foundation into an isolated Script Engineering domain ready for central canonical-schema integration, while deliberately avoiding the central Engineering contract file owned by DEV 2 in this wave.
+Create an isolated Script Engineering domain on top of merged PR #41, ready for later coordinator-owned canonical schema/package integration without colliding with DEV 2's central Engineering contract work.
 
 **AllowedScope:**
 
-- `src/Scada.Engineering/VisualScripting/**`;
-- new isolated `src/Scada.Engineering/Scripts/**` files for Script Engineering definitions, validation, dependency/reference rules and adapters;
-- focused Engineering tests for stable Script identity, scope/language markers, source, enabled state, entry-point/event metadata, dependency validation and visual-reference integrity;
-- isolated helpers/adapters that map Script Engineering definitions to the existing PR #41 runtime/sandbox contracts without introducing a renderer-private model;
-- PR body documentation of exact central Engineering/package hooks required after DEV 2 integration.
+- `src/Scada.Engineering/VisualScripting/**`
+- isolated `src/Scada.Engineering/Scripts/**`
+- focused tests for Script identity/scope/language/source/entry points/dependencies/references
+- adapters to merged PR #41 public runtime/sandbox contracts
+- PR `INTEGRATION REQUIRED` documentation
 
 **ForbiddenScope:**
 
-- `src/Scada.Engineering/Contracts/EngineeringContracts.cs` during this wave;
-- central canonical schema version changes/migrations while DEV 2 owns that shared contract;
-- `src/Scada.Api/Program.cs` or central DI/composition;
-- frontend routing/application shell;
-- concrete graphical Screens/Popups/Dynamos editor;
-- concrete browser Python engine/editor implementation before the public Script Engineering integration is reconciled;
-- server Python runtime;
-- direct driver/database/filesystem/network access from scripts;
-- any script API that bypasses normal backend authorization;
-- modifying coordinator-owned documentation or workflows.
+- `src/Scada.Engineering/Contracts/EngineeringContracts.cs` in this wave
+- central schema migration/version changes while DEV 2 owns the contract
+- `src/Scada.Api/Program.cs` / central DI
+- frontend routing/shell
+- concrete Python engine/editor
+- graphical visual editor
+- Server Python runtime
+- script authorization bypasses
+- coordinator-owned docs/workflows
 
 **MustReadSpecific:**
 
-- `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`;
-- `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`;
-- `docs/ROADMAP.md` stages 11–15;
-- current `src/Scada.Engineering/VisualScripting/**` merged from PR #41;
-- current Screen/Popup/Dynamo Engineering contracts for stable-reference compatibility, read-only unless an isolated adapter can avoid editing the central contract.
+- `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`
+- `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
+- `docs/ROADMAP.md` stages 11–15
+- merged `src/Scada.Engineering/VisualScripting/**`
+- existing Screen/Popup/Dynamo contracts as read-only compatibility targets
 
-**Dependencies:**
-
-PR #41 is merged. Final first-class canonical Script collection/schema integration depends on the shared Engineering contract becoming available after DEV 2's Internal Memory schema work is reconciled. This task may proceed in parallel only because it is isolated from that central file.
+**Dependencies:** PR #41 merged. Final canonical Script collection/schema work depends on reconciliation of DEV 2 central Engineering changes.
 
 **IntegrationRequired:**
 
-After DEV 2's central Engineering changes are integrated, the coordinator will reconcile Script entities/references into `EngineeringContracts.cs`, schema migration, canonical JSON, `.escadapkg`, preview/apply and central persistence paths. DEV 3 must list exact insertion points and any semantic assumptions in the PR body.
+Coordinator will later add first-class Scripts/references to the central Engineering schema, migrations, canonical JSON, preview/apply, revisions, PostgreSQL Engineering persistence and `.escadapkg`, preserving DEV 3's isolated semantics.
+
+**ObservedImplementation:**
+
+Current branch is isolated to new Script Engineering contracts, adapters, deterministic validation and focused tests; no central Engineering contract or application-composition files are modified. PR body states CI evidence is still pending.
 
 **NextActions:**
 
-1. create/use `feature/script-engineering-integration` from current `main`;
-2. define an isolated Script Engineering model consistent with locked fields: stable ID/path, scope, language/version, Python source, enabled state, entry points/events, dependencies, description/metadata;
-3. implement deterministic validation for duplicate identity/path, invalid scope/language, missing/invalid referenced entry points and dependency/reference failures;
-4. provide explicit adapters to the existing PR #41 scripting/visual runtime contracts where appropriate;
-5. keep Engineering base values and runtime presentation overrides separate;
-6. add focused tests;
-7. open/update Draft PR with exact central schema/package `INTEGRATION REQUIRED` notes.
+1. complete focused tests and validation invariants;
+2. obtain branch/PR CI;
+3. keep central schema/package work out of this branch;
+4. update the PR body with final test evidence and exact insertion points for coordinator integration;
+5. stop at `WAIT_FOR_COORDINATOR` when completion criteria are met.
 
 **CompletionCriteria:**
 
-- Script Engineering domain is represented by stable typed contracts outside the central shared file;
-- validation covers identity, scope, language/version, source/entry-point metadata and dependency/reference integrity;
-- adapters use the merged PR #41 public scripting/visual contracts rather than a private renderer/DOM model;
-- no central Engineering schema file is modified;
-- no concrete Python engine/editor or graphical editor is started prematurely;
-- relevant CI is green;
-- PR precisely documents the coordinator-owned changes needed to make Scripts first-class in canonical Engineering/import-export/revisions/packages.
+- stable typed Script Engineering contracts exist outside central shared contract;
+- deterministic validation covers identity/scope/language/source/entry points/dependencies/reference integrity;
+- adapters consume PR #41 public contracts rather than renderer/DOM-private models;
+- no central Engineering schema changes;
+- no premature Python engine/editor/graphical editor work;
+- relevant CI green;
+- coordinator integration requirements precise.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
-
----
-
-## 4. Adding future chats/workstreams
-
-When a new fixed EliteSCADA chat is created, the coordinator must add a section before that chat is expected to work from `siga` alone. At minimum every assignment must contain:
-
-- `Role`
-- `CurrentTask`
-- `Branch`
-- `Status`
-- `PullRequest` when one exists
-- `Objective`
-- `AllowedScope`
-- `ForbiddenScope`
-- `MustReadSpecific`
-- `Dependencies`
-- `IntegrationRequired` when applicable
-- `NextActions` when useful
-- `CompletionCriteria`
-- `AfterCompletion`
-
-Every chat must still verify GitHub before acting, regardless of how current this board appears.

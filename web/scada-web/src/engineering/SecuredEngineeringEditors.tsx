@@ -599,7 +599,7 @@ function DictionaryEditor({ title, hint, value, keyLabel, valueLabel, addLabel, 
       {entries.map(([key, entryValue], index) => (
         <div className="eng-dictionary-row" key={`${key}-${index}`}>
           <label><span>{keyLabel}</span><input value={key} onChange={event => updateEntry(index, event.target.value, entryValue)} /></label>
-          <label><span>{valueLabel}</span><input value={entryValue} onChange={event => updateEntry(index, key, entryValue)} /></label>
+          <label><span>{valueLabel}</span><input value={entryValue} onChange={event => updateEntry(index, key, event.target.value)} /></label>
           <button type="button" onClick={() => removeEntry(index)}>{removeLabel}</button>
         </div>
       ))}

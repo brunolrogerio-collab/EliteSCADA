@@ -58,6 +58,15 @@ public sealed class InMemoryTagRegistry : ITagRegistry
     public IReadOnlyCollection<TagDefinition> Snapshot() =>
         _byId.Values.OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase).ToArray();
 
+    public void Clear()
+    {
+        lock (_gate)
+        {
+            _byId.Clear();
+            _byPath.Clear();
+        }
+    }
+
     private static void Validate(TagDefinition tag)
     {
         if (string.IsNullOrWhiteSpace(tag.Path)) throw new ArgumentException("Tag path is required.", nameof(tag));

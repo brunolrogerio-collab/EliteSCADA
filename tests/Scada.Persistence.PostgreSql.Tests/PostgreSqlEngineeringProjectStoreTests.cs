@@ -105,6 +105,54 @@ public sealed class PostgreSqlEngineeringProjectStoreTests
     }
 
     [Fact]
+    public async Task Activation_OnlyAcceptsCurrentPublicationAndDoesNotMoveWhenPublicationChanges()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        await using var store = new PostgreSqlEngineeringProjectStore(connectionString);
+        await store.InitializeAsync();
+
+        var projectKey = $"activation-{Guid.NewGuid():N}";
+        const string json = """
+            {
+              "schema": "scada.engineering",
+              "schemaVersion": 5,
+              "exportedAt": "2026-08-26T00:00:00Z",
+              "tags": [],
+              "alarms": []
+            }
+            """;
+
+        var first = await store.SaveAsync(projectKey, "Activation Plant", "scada.engineering", 5, json);
+        var second = await store.SaveAsync(projectKey, "Activation Plant", "scada.engineering", 5, json);
+
+        Assert.Null(await store.GetActivationAsync(projectKey));
+        Assert.Null(await store.RecordActivationAsync(projectKey, first.Revision, "operator-before-publish"));
+
+        await store.PublishRevisionAsync(projectKey, first.Revision, "supervisor-a");
+        var activatedFirst = await store.RecordActivationAsync(projectKey, first.Revision, "operator-a");
+
+        Assert.NotNull(activatedFirst);
+        Assert.Equal(first.Revision, activatedFirst!.ActiveRevision);
+        Assert.Equal("operator-a", activatedFirst.ActivatedBy);
+
+        await store.PublishRevisionAsync(projectKey, second.Revision, "supervisor-b");
+        var stillActiveFirst = await store.GetActivationAsync(projectKey);
+
+        Assert.NotNull(stillActiveFirst);
+        Assert.Equal(first.Revision, stillActiveFirst!.ActiveRevision);
+        Assert.Null(await store.RecordActivationAsync(projectKey, first.Revision, "operator-stale"));
+
+        var activatedSecond = await store.RecordActivationAsync(projectKey, second.Revision, "operator-b");
+        var storedSecond = await store.GetActivationAsync(projectKey);
+
+        Assert.NotNull(activatedSecond);
+        Assert.Equal(second.Revision, storedSecond!.ActiveRevision);
+        Assert.Equal("operator-b", storedSecond.ActivatedBy);
+    }
+
+    [Fact]
     public async Task PublishRevision_RejectsRevisionOwnedByAnotherProject()
     {
         var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");

@@ -11,7 +11,8 @@
 - PR #35 `Add first-class operational command domain`: open, base `main`, head `fc15adb507db172233ed2893f65d30cdad311963`.
 - PR #36 `Protect runtime read and realtime surfaces`: open, stacked on #35, head `1df64077b235321f0c3318b994f7b89632261cee`.
 - PR #37 `Add Engineering UI foundation and localization`: open, Draft, base `main`, branch `feature/engineering-ui-foundation`.
-- #37 head immediately before this checkpoint commit: `d8bd99d97b8de0f7728ac424f74258c3528e8e22`.
+- #37 head immediately before this checkpoint update: `3cde4d9302676c854bc880fe9c3190ced35c2c59`.
+- This checkpoint commit creates the next #37 head; fetch live PR metadata before continuing.
 - Do not merge #35/#36/#37 without relevant green CI.
 
 ## GitHub Actions
@@ -22,7 +23,7 @@
 
 ## Locked requirement: multi-driver/device communication
 
-Already recorded in `PROJECT GOAL.md` and `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`:
+Recorded in `PROJECT GOAL.md` and `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`:
 
 - multiple communication instances may run simultaneously;
 - many Data Sources may use the same Driver type for different PLCs/devices;
@@ -31,85 +32,110 @@ Already recorded in `PROJECT GOAL.md` and `docs/COMMUNICATION-DRIVER-DIAGNOSTICS
 - current Modbus compiler/runtime already creates one Modbus driver instance per valid enabled Modbus Data Source;
 - communication diagnostics must become a protected common per-Data-Source capability with counters, timestamps, quality aggregation and independent-failure tests.
 
-Current generic `DriverStatus` is insufficient for the future diagnostics window.
+## Locked requirement: internal memory TAG sources
 
-## NEW locked requirement: internal memory TAG sources
+Defined in `docs/INTERNAL-MEMORY-TAGS.md` and the product north. Required before additional external protocols.
 
-User clarified that internal memory sources are required **before additional external communication drivers/protocols**.
+### `builtin.memory.client`
 
-Created `docs/INTERNAL-MEMORY-TAGS.md`, updated `PROJECT GOAL.md`, `docs/ROADMAP.md` and communication-diagnostics semantics.
+- one independent value store per opened Runtime Client/session;
+- non-retentive server-side initially;
+- intended for popup/screen transition variables, selected context, navigation/filter/UI state, local demos and future client scripts;
+- cannot be trusted backend/security/interlock/global sequencing state;
+- cannot drive global server historian/alarms;
+- server-side scripts cannot treat it as one authoritative scalar value.
 
-### Built-in source identities
+### `builtin.memory.server`
 
-- `builtin.memory.client` = Client Memory scoped to one opened Runtime Client instance/session.
-- `builtin.memory.server` = shared Server Memory owned by the EliteSCADA server runtime and retentive by design.
+- one server-authoritative shared value per TAG;
+- visible to all authorized clients;
+- retentive by design;
+- suitable for simulation, internal sequences, intermediate/shared variables, parameters and future server scripts;
+- participates in normal cache/event/realtime/security and optional historian/alarm semantics;
+- retained values are runtime state separate from Engineering revisions and keyed primarily by stable TAG ID;
+- path rename with same ID preserves value;
+- incompatible retained-value/data-type changes require explicit reset/migration behavior;
+- public Engineering contract needs a typed initial/default value.
 
-These are internal TAG sources, not fake PLC/network drivers.
+Internal memory does not fabricate network timeout/reconnect/latency diagnostics.
 
-### Client Memory semantics
+## NEW locked requirement: protocol-independent TAG Gateway
 
-- Different Runtime Clients may have different values for the same engineered Client Memory TAG.
-- Intended for popup/screen transition variables, selected equipment/context, navigation state, temporary filters, UI flags, local demo controls and future client-side scripts.
-- New client/session starts from an engineered typed initial/default value.
-- No server retention in the initial implementation.
-- Client-side scripts may access their own Client Memory.
-- Server-side scripts cannot treat Client Memory as one global authoritative scalar value.
-- Client Memory must never be authentication/authorization state, safety/interlock state, authoritative command permissive, server sequencing truth or audit identity.
-- Client Memory must not drive the global server historian/alarm engine in the initial implementation because there is no single global value.
+User requires a tool that can connect information across different Data Sources/protocols so EliteSCADA can act as a multiprotocol gateway simply by reading/writing TAGs.
 
-### Server Retentive Memory semantics
+Created `docs/TAG-GATEWAY.md`, updated `PROJECT GOAL.md` and reordered `docs/ROADMAP.md`.
 
-- One authoritative shared value per TAG for the active server runtime.
-- All authorized Runtime Clients observe the same value.
-- Intended for simulation variables/parameters, internal sequence state, intermediate values, retained parameters and future server-side scripts.
-- Participates in normal server TAG cache/event/realtime/security semantics and may participate in historian/alarms when engineered.
-- External writes use normal TAG/process-write authorization.
-- Normally has `Good` quality because there is no external transport; do not invent `BadCommunication` for an internal source.
-- Retained mutable values are stored separately from immutable Engineering revisions/packages.
-- Retention identity is the stable TAG ID, not path; path rename with same ID preserves value.
-- Restart and compatible revision reactivation restore the retained value.
-- If no retained value exists, use engineered typed initial/default value or deterministic type default.
-- Incompatible retained-value/data-type changes must not be silently coerced; explicit validation/reset/migration behavior is required.
-- Deleted TAGs must not be resurrected by stale retained state.
+### Architectural rule
 
-### Engineering/schema consequence
+Authoritative mapping is:
 
-- The public versioned TAG Engineering contract needs a typed initial/default value for memory TAGs.
-- Memory TAGs do not require protocol addresses.
-- Mutable retained Server Memory values themselves must NOT be serialized into ordinary Engineering exports/revisions.
-- The implementation may require a new Engineering schema version after the current pending command schema-v7 work; do not hard-code the next version until branch integration is stable.
+`Source TAG -> Gateway route -> Destination TAG`
 
-### Architecture consequence
+- Data Sources/protocols are resolved from each TAG's owning source/provider.
+- Concrete drivers must never call one another directly.
+- The Gateway observes the source through common TAG/event semantics and writes the destination through its owning active driver/source provider.
+- This prevents N×N protocol adapters; every future compliant readable/writable TAG provider automatically becomes Gateway-compatible.
 
-The Data Source abstraction is broader than a physical communication channel: it identifies the provider/owner of TAG values.
+Examples:
 
-- external protocol Data Sources compile into communication drivers;
-- `builtin.memory.server` compiles into an internal server source/provider;
-- `builtin.memory.client` remains client-owned and must not be forced into one server-global `ICommunicationDriver`, otherwise per-client semantics would be destroyed;
-- a clearer source-provider abstraction may be introduced when implementing memory rather than pretending every source is a network driver.
+- Modbus -> future S7;
+- future OPC UA -> Modbus;
+- future PLC TAG -> MQTT writable/publish TAG;
+- Modbus -> Server Memory;
+- Server Memory -> Modbus;
+- later any supported protocol -> any other through TAGs.
 
-### Diagnostics consequence
+### Engineering model
 
-Internal memory sources are excluded from network communication metrics.
+Gateway/Tag Bridge routes are first-class versioned Engineering entities, not hidden scripts/browser state.
 
-- no fake timeout/reconnect/request-latency statistics;
-- Server Memory may later expose internal/retention health in a broader Data Source status view;
-- Client Memory may expose only client-local availability/state;
-- dedicated communication-health UI remains focused on external protocol Data Sources.
+Each route will have stable identity and source/destination TAG references plus transfer/quality/type/rate/startup policy. Routes participate in canonical JSON, validation, preview/apply, revisions and project package backup/restore.
 
-### Required validation later
+Data Sources may be selected/filterable in the UI, but persisted mapping remains TAG-to-TAG.
 
-Must test at minimum:
+Do not hard-code the next Engineering schema version until pending schema-v7 command work is integrated.
 
-1. two clients hold independent Client Memory values;
-2. new client initializes from engineered default;
-3. Server Memory write is visible to all clients;
-4. Server Memory survives restart;
-5. stable-ID path rename preserves retained value;
-6. incompatible data-type migration is surfaced, never silently coerced;
-7. Server Memory participates in realtime and optionally historian/alarms;
-8. Client Memory is rejected as global historian/alarm source;
-9. memory source definitions round-trip through Engineering import/export/backup without embedding mutable retained values.
+### Memory interaction
+
+- `builtin.memory.server` is valid as source or destination.
+- `builtin.memory.client` is rejected by the server Gateway because there is no one global Client Memory value.
+
+### Initial deterministic/safety behavior
+
+- destination must be active, writable and type-compatible;
+- initial routing is unidirectional;
+- direct/indirect route cycles are rejected;
+- more than one active Gateway writer to the same destination is rejected initially unless future explicit arbitration is designed;
+- one source may fan out to several destinations through independent routes;
+- initial transfer modes: OnChange and Periodic;
+- rate/deadband/minimum interval/coalescing prevent unbounded PLC writes;
+- startup waits for acceptable source quality/value and writable destination before initial synchronization;
+- safe default transfers only source quality `Good` and does not push stale values when source quality is bad;
+- unsafe implicit type conversion is prohibited; simple explicit deterministic conversion/linear scaling may be supported;
+- complex logic remains for scripts/expressions rather than turning Gateway into a scripting language.
+
+### Security/diagnostics
+
+- Gateway is a trusted internal server runtime service, not a browser-user session.
+- Engineering configuration/enablement is security-sensitive and auditable.
+- Cyclic sample transfers should not flood the human audit trail; use route runtime diagnostics/events.
+- Route diagnostics include state, last source/transfer/failure times, transfer/failure/quality-skip/throttle/coalesce counters and sanitized last error.
+- Gateway diagnostics are distinct from communication-driver health. Destination write failure must not corrupt source TAG quality.
+
+### Implementation priority
+
+Gateway is now a prerequisite before additional external protocol families.
+
+Recommended order after pending CI/security integration:
+
+1. internal memory Engineering/runtime foundation;
+2. public Gateway/Tag Bridge Engineering contract;
+3. protocol-independent server Gateway runtime engine;
+4. cycle/multi-writer/type/quality/rate validation;
+5. route diagnostics + Engineering configuration/diagnostic UI;
+6. prove Modbus <-> Server Memory routing;
+7. common external communication diagnostics/Modbus instrumentation;
+8. then add MQTT/OPC UA/BACnet/S7 and other drivers, which automatically participate through TAGs.
 
 ## PR #35
 
@@ -132,9 +158,7 @@ Engineering UI currently includes:
 - stale-preview invalidation and unsaved-draft guards;
 - Chromium tests for locale, previews, invalid references and proof previews do not mutate Workspace/export.
 
-Latest Alarm editor supports TAG binding, type, priority, setpoint/digital value, class, area, message, delay, enabled, ACK and shelving. Changing alarm TAG path clears old `tagId` in the draft so backend validates the new path.
-
-Latest documentation additions on #37 now also lock multi-driver diagnostics and internal-memory source architecture. No memory runtime implementation exists yet.
+Latest documentation/product-contract additions on #37 lock multi-driver diagnostics, internal-memory source architecture and the protocol-independent TAG Gateway. No memory/Gateway backend runtime implementation exists yet.
 
 ## Immediate continuation
 
@@ -142,11 +166,12 @@ Latest documentation additions on #37 now also lock multi-driver diagnostics and
 2. Retarget/validate #36 after #35 merges; merge only if green.
 3. Validate #37 TypeScript/Vite + Chromium; keep Draft until green.
 4. Do not add Apply to Engineering editors before validation and #36 security integration.
-5. Before MQTT/OPC UA/BACnet/S7 or another external protocol, implement internal memory foundation from `docs/INTERNAL-MEMORY-TAGS.md`.
-6. Memory implementation order: versioned typed initial-value Engineering contract -> retentive Server Memory -> per-client Client Memory -> security/realtime/historian-alarm restrictions -> UI -> scripting APIs -> restart/multi-client tests.
-7. Then implement common external communication diagnostics + Modbus instrumentation + multi-driver isolation tests + Engineering communication window.
-8. After #35 reaches main, expose Commands in Engineering UI.
-9. Identity/login/user lifecycle remains the next major backend security slice after #35/#36.
+5. Before additional external protocol work, implement internal memory foundation from `docs/INTERNAL-MEMORY-TAGS.md`.
+6. Then implement Gateway foundation from `docs/TAG-GATEWAY.md` and prove Modbus <-> Server Memory routes.
+7. Then common external communication diagnostics + Modbus instrumentation + multi-driver isolation tests + Engineering communication window.
+8. Only after those foundations proceed with MQTT/OPC UA/BACnet/S7 or another external protocol.
+9. After #35 reaches main, expose Commands in Engineering UI.
+10. Identity/login/user lifecycle remains the next major backend security slice after #35/#36.
 
 ## Continuity rule
 

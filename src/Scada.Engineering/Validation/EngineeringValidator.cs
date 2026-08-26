@@ -146,7 +146,7 @@ public static class EngineeringValidator
             issues.Add(Error("SCREEN_KEY_WHITESPACE", "Screen key cannot contain whitespace.", ImportEntityKind.Screen, key));
         if (string.IsNullOrWhiteSpace(screen.Name))
             issues.Add(Error("SCREEN_NAME_REQUIRED", "Screen name is required.", ImportEntityKind.Screen, key));
-        if (!string.IsNullOrWhiteSpace(screen.Route) && !screen.Route.StartsWith('/', StringComparison.Ordinal))
+        if (!string.IsNullOrWhiteSpace(screen.Route) && !screen.Route.StartsWith("/", StringComparison.Ordinal))
             issues.Add(Error("SCREEN_ROUTE_INVALID", "Screen route must start with '/'.", ImportEntityKind.Screen, key));
         issues.AddRange(ValidateVisualElements(screen.Elements, ImportEntityKind.Screen, key, allowPlaceholders: false));
         return issues;

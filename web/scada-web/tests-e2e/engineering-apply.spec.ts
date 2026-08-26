@@ -250,3 +250,70 @@ test('bulk TAG edit previews affected count and applies only after that Workspac
     expect(restore.ok()).toBeTruthy();
   }
 });
+
+test('TAG Delete panel surfaces dependency conflict without removing the TAG', async ({ page, request }) => {
+  const exportResponse = await request.get('/api/engineering/export/json');
+  expect(exportResponse.ok()).toBeTruthy();
+  const model = await exportResponse.json() as { tags: Array<{ id?: string; path: string }> };
+  const tag = model.tags.find(candidate => candidate.path === 'Demo.P01.Frequency');
+  expect(tag?.id).toBeTruthy();
+
+  await page.goto('/engineering');
+  await page.getByRole('button', { name: /TAGs/ }).click();
+  const panel = page.locator('.eng-mutation-panel');
+  await expect(panel).toBeVisible();
+  await panel.getByLabel('Entidade').selectOption(tag!.id!);
+
+  page.once('dialog', dialog => dialog.accept());
+  await panel.getByTestId('engineering-delete').click();
+  await expect(panel.locator('.eng-mutation-error')).toContainText('dependencies');
+
+  const afterResponse = await request.get('/api/engineering/export/json');
+  expect(afterResponse.ok()).toBeTruthy();
+  const after = await afterResponse.json() as { tags: Array<{ id?: string; path: string }> };
+  expect(after.tags.some(candidate => candidate.id === tag!.id)).toBeTruthy();
+});
+
+test('TAG Bulk panel gates Apply behind Preview and shows affected quantity', async ({ page, request }) => {
+  const originalResponse = await request.get('/api/engineering/export/json');
+  expect(originalResponse.ok()).toBeTruthy();
+  const originalPackage = await originalResponse.json() as {
+    tags: Array<{ id?: string; path: string; readOnly: boolean }>;
+    [key: string]: unknown;
+  };
+  const tag = originalPackage.tags.find(candidate => candidate.path === 'Demo.P01.Frequency');
+  expect(tag?.id).toBeTruthy();
+
+  try {
+    await page.goto('/engineering');
+    await page.getByRole('button', { name: /TAGs/ }).click();
+    const panel = page.locator('.eng-mutation-panel');
+    const entity = panel.locator('.eng-bulk-entities label').filter({ hasText: tag!.path });
+    await entity.getByRole('checkbox').check();
+
+    const valueSelect = panel.getByLabel('Valor');
+    await valueSelect.selectOption(String(!tag!.readOnly));
+
+    const apply = panel.getByTestId('engineering-bulk-apply');
+    await expect(apply).toBeDisabled();
+    await panel.getByTestId('engineering-bulk-preview').click();
+    await expect(panel.getByTestId('engineering-bulk-affected')).toHaveText('1');
+    await expect(apply).toBeEnabled();
+
+    page.once('dialog', dialog => dialog.accept());
+    await apply.click();
+
+    await expect.poll(async () => {
+      const response = await request.get('/api/engineering/export/json');
+      if (!response.ok()) return null;
+      const after = await response.json() as { tags: Array<{ id?: string; readOnly: boolean }> };
+      return after.tags.find(candidate => candidate.id === tag!.id)?.readOnly ?? null;
+    }).toBe(!tag!.readOnly);
+  } finally {
+    const restore = await request.post('/api/engineering/import/json/apply', {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      data: originalPackage
+    });
+    expect(restore.ok()).toBeTruthy();
+  }
+});

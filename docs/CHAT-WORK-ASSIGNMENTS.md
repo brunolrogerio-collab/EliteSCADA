@@ -23,7 +23,7 @@ Repository terminology:
 
 **Role:** `COORDINATOR`
 
-**CurrentTask:** Reconcile the completed parallel wave and finish coordinator-owned Internal Memory integration
+**CurrentTask:** Complete coordinator-owned Internal Memory product integration after the merged worker wave
 
 **Branch:** `main`
 
@@ -33,7 +33,7 @@ Repository terminology:
 
 **Objective:**
 
-Preserve the now-merged Audit UI, Script Engineering foundation and Internal Memory Engineering/retention work; complete only the coordinator-owned shared runtime/DI/API/UI hooks required to make Internal Memory a complete product block; keep TAG Gateway blocked until those hooks are actually integrated and validated.
+Preserve the merged Audit UI, Script Engineering foundation and Internal Memory Engineering/retention work; complete only the coordinator-owned shared runtime/DI/API/UI hooks required to make Internal Memory a complete product block; keep TAG Gateway blocked until those hooks are actually integrated and validated.
 
 **AllowedScope:** coordinator-owned shared/central files, integration hooks, workflow maintenance, assignment board, handoff/roadmap documentation and merge decisions.
 
@@ -43,38 +43,39 @@ Preserve the now-merged Audit UI, Script Engineering foundation and Internal Mem
 - no force-reset/discard of worker commits;
 - no TAG Gateway before complete Internal Memory product integration is official on `main`;
 - no new worker assignment without updating this board;
-- no claim that the merged PR #48 by itself completes all runtime/client product integration hooks.
+- no claim that merged PR #48 by itself completes all runtime/client product integration hooks.
 
 **MustReadSpecific:**
 
 - `docs/INTERNAL-MEMORY-TAGS.md`
 - `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`
 - `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
-- merged PR #48 scope and integration notes
+- merged PR #48 final scope/integration notes
 
 **ObservedGitHubState:**
 
 - PR #46 Audit UI is **MERGED** as `5629f55699d68d70d11d7058c26033d54306b570` after CI #244 passed.
 - PR #47 Script Engineering foundation is **MERGED** as `8a8a52e9e1725fca5b9e06ff9f560f583dab5bbb` after CI #248 passed.
-- PR #48 Internal Memory Engineering + durable Server Memory retention is **MERGED** as `ad4a7aa8d17e4e7370e5801d470a69f1a096bab4` after final reconciled CI #265 passed Web build, backend build/tests/runtime smoke and Chromium E2E against `main` `35789b3f4910c5ba8130f6de71093e9d2e5fcb14`.
+- PR #48 Internal Memory Engineering + durable Server Memory retention is **MERGED** as `ad4a7aa8d17e4e7370e5801d470a69f1a096bab4` after final reconciled CI #265 passed Web build, backend build/tests/runtime smoke and Chromium E2E.
+- Post-merge `main` CI #266 also passed Web build, backend build/tests/runtime smoke and Chromium E2E on merge commit `ad4a7aa8d17e4e7370e5801d470a69f1a096bab4`.
 - Canonical Engineering is now schema v8 on `main`, with v7 backward compatibility for the Internal Memory evolution.
-- Coordinator-owned E2E/schema assumptions were reconciled before PR #48 merge rather than weakened or bypassed.
+- Coordinator-owned E2E/schema assumptions were reconciled before merge rather than weakened or bypassed.
 
 **Dependencies:**
 
 - Internal Memory complete product integration still precedes TAG Gateway.
 - PR #48 completes the assigned Engineering/validation/durable-retention worker slice, but runtime/DI/client-session/API/UI composition remains coordinator-owned work.
-- Canonical Script collection/schema/package integration may now proceed only after the coordinator reconciles the shared Engineering v8 state and without reopening DEV 3's completed branch.
+- Canonical Script collection/schema/package integration may proceed only after shared Engineering v8/Internal Memory integration is stable, without reopening DEV 3's completed branch.
 
 **NextActions:**
 
-1. validate the post-merge `main` CI for PR #48;
-2. complete coordinator-owned Internal Memory runtime/DI composition, including durable PostgreSQL Server Memory retention wiring and shared TAG cache/Event Bus/realtime behavior;
-3. design/implement per-runtime-client Client Memory composition without turning it into server-global state;
-4. preserve capability authorization/Audit for external Server Memory writes and explicit reset/migration semantics;
-5. expose only appropriate central API/Engineering UI hooks and never fabricate network diagnostics for memory sources;
-6. run full CI and update roadmap/handoff after complete product integration;
-7. keep TAG Gateway blocked until step 6 is satisfied.
+1. complete coordinator-owned Internal Memory runtime/DI composition, including durable PostgreSQL Server Memory retention wiring and shared TAG cache/Event Bus/realtime behavior;
+2. design/implement per-runtime-client Client Memory composition without turning it into server-global state;
+3. preserve capability authorization/Audit for external Server Memory writes and explicit reset/migration semantics;
+4. expose only appropriate central API/Engineering UI hooks and never fabricate network diagnostics for memory sources;
+5. run full CI and update roadmap/handoff after complete Internal Memory product integration;
+6. keep TAG Gateway blocked until step 5 is satisfied;
+7. schedule canonical Script schema/package reconciliation only when shared Engineering v8 integration is stable.
 
 **AfterCompletion:** `CONTINUE_COORDINATION`
 
@@ -131,9 +132,9 @@ Preserve the now-merged Audit UI, Script Engineering foundation and Internal Mem
 - incompatible retained type fail-closed behavior and explicit guarded reset semantics;
 - focused Core/PostgreSQL/schema/import-export tests.
 
-**Validation:** final reconciled CI #265 passed Web build, backend build/tests, runtime smoke and Chromium E2E against current pre-merge `main`.
+**Validation:** final PR CI #265 and post-merge `main` CI #266 both passed Web build, backend build/tests, runtime smoke and Chromium E2E.
 
-**IntegrationRequired:** coordinator now owns final runtime/DI composition, per-client Client Memory lifecycle, central API/runtime/security/Audit wiring, appropriate Engineering UI hooks, and explicit reset/migration UX. Those hooks are not a new DEV 2 assignment.
+**IntegrationRequired:** coordinator owns final runtime/DI composition, per-client Client Memory lifecycle, central API/runtime/security/Audit wiring, appropriate Engineering UI hooks and explicit reset/migration UX. Those hooks are not a new DEV 2 assignment.
 
 **NextActions:** none. Do not start TAG Gateway, do not reopen this branch for new scope, and do not self-assign coordinator integration. On `siga`, report that PR #48 is merged and `WAIT_FOR_COORDINATOR` is active unless this board contains a new task.
 
@@ -159,7 +160,7 @@ Preserve the now-merged Audit UI, Script Engineering foundation and Internal Mem
 
 **MergedScope:** isolated Script Engineering contracts, adapters, deterministic validation and focused tests. No concrete Python engine/editor or graphical editor was introduced.
 
-**IntegrationRequired:** coordinator may now reconcile first-class Scripts/references with the canonical Engineering v8 schema/package path after the Internal Memory shared integration is stable.
+**IntegrationRequired:** coordinator may reconcile first-class Scripts/references with canonical Engineering v8 after Internal Memory shared integration is stable.
 
 **NextActions:** none. Do not start Python editor/sandbox or graphical editor. On `siga`, report that this assignment is merged and `WAIT_FOR_COORDINATOR` is active unless this board contains a new task.
 

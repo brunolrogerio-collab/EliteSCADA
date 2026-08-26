@@ -49,7 +49,7 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
       elements: Array<{ key: string; type: string; bindings?: Array<{ key: string; target: string }> }>;
     }>;
   };
-  expect(engineering.schemaVersion).toBe(4);
+  expect(engineering.schemaVersion).toBe(5);
   expect(engineering.tags.some(tag => tag.path === 'Demo.Tank01.Level')).toBeTruthy();
   expect(engineering.tags.some(tag => tag.path === 'Demo.P01.Frequency')).toBeTruthy();
   expect(engineering.tags.every(tag => tag.source === 'builtin.simulation')).toBeTruthy();
@@ -110,6 +110,11 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   const tagsCsvResponse = await request.get('/api/engineering/export/tags.csv');
   expect(tagsCsvResponse.ok()).toBeTruthy();
   const tagsCsv = await tagsCsvResponse.text();
+  expect(tagsCsv).toContain('MaximumPeriodMilliseconds');
+  expect(tagsCsv).toContain('MetadataJson');
+  expect(tagsCsv).toContain('ReadRolesJson');
+  expect(tagsCsv).toContain('WriteRolesJson');
+  expect(tagsCsv).toContain('ConfigureRolesJson');
   const tagsPreviewResponse = await request.post('/api/engineering/import/tags.csv/preview', {
     data: tagsCsv,
     headers: { 'content-type': 'text/csv; charset=utf-8' }

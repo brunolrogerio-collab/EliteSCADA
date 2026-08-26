@@ -30,10 +30,24 @@ public sealed record EngineeringWorkspaceDescriptor(
     int SecurityRoleCount,
     int CommandCount);
 
+public sealed class EngineeringWorkspaceVersionConflictException : InvalidOperationException
+{
+    public EngineeringWorkspaceVersionConflictException(long expectedChangeVersion, long currentChangeVersion)
+        : base($"Engineering Workspace changed from version {expectedChangeVersion} to {currentChangeVersion}.")
+    {
+        ExpectedChangeVersion = expectedChangeVersion;
+        CurrentChangeVersion = currentChangeVersion;
+    }
+
+    public long ExpectedChangeVersion { get; }
+    public long CurrentChangeVersion { get; }
+}
+
 public sealed class EngineeringWorkspace : IDisposable
 {
     private readonly InMemoryScadaEventBus _eventBus = new();
     private readonly object _stateGate = new();
+    private readonly SemaphoreSlim _mutationGate = new(1, 1);
     private string? _projectKey;
     private string? _projectName;
     private long? _baseRevision;
@@ -91,6 +105,29 @@ public sealed class EngineeringWorkspace : IDisposable
     {
         lock (_stateGate)
             return _changeVersion;
+    }
+
+    public async ValueTask<IAsyncDisposable> AcquireMutationAsync(
+        long? expectedChangeVersion = null,
+        CancellationToken cancellationToken = default)
+    {
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (expectedChangeVersion.HasValue)
+            {
+                var current = CaptureChangeVersion();
+                if (current != expectedChangeVersion.Value)
+                    throw new EngineeringWorkspaceVersionConflictException(expectedChangeVersion.Value, current);
+            }
+
+            return new MutationLease(_mutationGate);
+        }
+        catch
+        {
+            _mutationGate.Release();
+            throw;
+        }
     }
 
     public void MarkDirty()
@@ -410,5 +447,20 @@ public sealed class EngineeringWorkspace : IDisposable
         }
     }
 
-    public void Dispose() => Alarms.Dispose();
+    public void Dispose()
+    {
+        _mutationGate.Dispose();
+        Alarms.Dispose();
+    }
+
+    private sealed class MutationLease(SemaphoreSlim gate) : IAsyncDisposable
+    {
+        private SemaphoreSlim? _gate = gate;
+
+        public ValueTask DisposeAsync()
+        {
+            Interlocked.Exchange(ref _gate, null)?.Release();
+            return ValueTask.CompletedTask;
+        }
+    }
 }

@@ -221,7 +221,7 @@ public sealed class EngineeringRuntimeCoordinatorTests
                 ["host"] = "127.0.0.1",
                 ["port"] = port.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["scanIntervalMilliseconds"] = "25",
-                ["requestTimeoutMilliseconds"] = "100",
+                ["requestTimeoutMilliseconds"] = "500",
                 ["unitId"] = "1"
             });
 

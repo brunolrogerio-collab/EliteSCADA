@@ -177,3 +177,11 @@ export type ImportPreviewView = {
   items: ImportPreviewItemView[];
   canApply: boolean;
 };
+
+export type ImportResultView = {
+  mode: string;
+  created: number;
+  updated: number;
+  skipped: number;
+  issues: ImportIssueView[];
+};

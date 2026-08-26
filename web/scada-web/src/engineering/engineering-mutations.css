@@ -1,0 +1,252 @@
+.eng-mutation-panel {
+  margin-top: 1.25rem;
+  border: 1px solid var(--eng-border, #d8dee8);
+  border-radius: 14px;
+  background: var(--eng-panel, #fff);
+  overflow: hidden;
+}
+
+.eng-mutation-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--eng-border, #d8dee8);
+}
+
+.eng-mutation-header span,
+.eng-mutation-card header span,
+.eng-mutation-field > span {
+  display: block;
+  font-size: .75rem;
+  color: #64748b;
+}
+
+.eng-mutation-header h2 {
+  margin: .15rem 0 .25rem;
+  font-size: 1.15rem;
+}
+
+.eng-mutation-header p {
+  margin: 0;
+  color: #475569;
+}
+
+.eng-mutation-warning {
+  max-width: 28rem;
+  padding: .7rem .8rem;
+  border: 1px solid #f2c36b;
+  border-radius: 10px;
+  background: #fff8e8;
+  color: #7c4a03;
+  font-size: .78rem;
+  line-height: 1.35;
+}
+
+.eng-mutation-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, .75fr) minmax(360px, 1.5fr);
+  gap: 1rem;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.eng-mutation-card {
+  display: flex;
+  flex-direction: column;
+  gap: .8rem;
+  padding: 1rem;
+  border: 1px solid var(--eng-border, #d8dee8);
+  border-radius: 12px;
+  background: #fafbfd;
+}
+
+.eng-mutation-card header strong {
+  display: block;
+  margin-bottom: .2rem;
+}
+
+.eng-mutation-field {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+
+.eng-mutation-field select,
+.eng-mutation-field input {
+  width: 100%;
+  min-height: 2.35rem;
+  padding: .45rem .55rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.eng-mutation-detail {
+  padding: .55rem .65rem;
+  border-radius: 8px;
+  background: #eef2f7;
+  overflow-wrap: anywhere;
+}
+
+.eng-mutation-card button {
+  min-height: 2.2rem;
+  padding: .45rem .75rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  cursor: pointer;
+}
+
+.eng-mutation-card button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.eng-mutation-card button.danger {
+  border-color: #d34f4f;
+  background: #fff4f4;
+  color: #9f2424;
+  font-weight: 700;
+}
+
+.eng-bulk-select {
+  border: 1px solid #d8dee8;
+  border-radius: 9px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.eng-bulk-select-header {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  padding: .55rem .65rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.eng-bulk-select-header span {
+  margin-right: auto;
+  font-size: .82rem;
+}
+
+.eng-bulk-select-header button {
+  min-height: auto;
+  padding: .25rem .45rem;
+  background: #f8fafc;
+  font-size: .75rem;
+}
+
+.eng-bulk-entities {
+  max-height: 220px;
+  overflow: auto;
+}
+
+.eng-bulk-entities > label {
+  display: flex;
+  gap: .55rem;
+  align-items: flex-start;
+  padding: .55rem .65rem;
+  border-bottom: 1px solid #edf1f5;
+}
+
+.eng-bulk-entities > label:last-child {
+  border-bottom: 0;
+}
+
+.eng-bulk-entities label span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.eng-bulk-entities label strong,
+.eng-bulk-entities label code {
+  overflow-wrap: anywhere;
+}
+
+.eng-bulk-entities label code {
+  margin-top: .1rem;
+  color: #64748b;
+  font-size: .72rem;
+}
+
+.eng-bulk-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .75rem;
+}
+
+.eng-mutation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: .55rem;
+}
+
+.eng-mutation-actions .primary {
+  border-color: #334155;
+  background: #334155;
+  color: #fff;
+  font-weight: 700;
+}
+
+.eng-mutation-actions .secondary {
+  background: #fff;
+}
+
+.eng-bulk-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem 1rem;
+  padding: .65rem .75rem;
+  border-radius: 9px;
+  font-size: .8rem;
+}
+
+.eng-bulk-preview.valid {
+  border: 1px solid #9ac9a4;
+  background: #f2fbf4;
+  color: #255c32;
+}
+
+.eng-bulk-preview.invalid {
+  border: 1px solid #e2a2a2;
+  background: #fff5f5;
+  color: #8a2929;
+}
+
+.eng-bulk-preview small {
+  margin-left: auto;
+}
+
+.eng-mutation-error {
+  margin: 0 1.25rem 1.25rem;
+  padding: .8rem;
+  border: 1px solid #e4a2a2;
+  border-radius: 9px;
+  background: #fff5f5;
+  color: #8a2929;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.eng-mutation-empty {
+  display: block;
+  padding: .75rem;
+  color: #64748b;
+  font-size: .8rem;
+}
+
+@media (max-width: 900px) {
+  .eng-mutation-header,
+  .eng-mutation-grid {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .eng-mutation-warning {
+    max-width: none;
+  }
+
+  .eng-bulk-controls {
+    grid-template-columns: 1fr;
+  }
+}

@@ -44,6 +44,15 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
         return definition;
     }
 
+    public bool Remove(Guid definitionId)
+    {
+        if (!_definitions.TryRemove(definitionId, out _)) return false;
+        _instances.TryRemove(definitionId, out _);
+        _shelvedUnderlyingStates.TryRemove(definitionId, out _);
+        _definitionsChanged?.Invoke();
+        return true;
+    }
+
     public IReadOnlyCollection<AlarmDefinition> Definitions() => _definitions.Values.OrderBy(x => x.Name).ToArray();
 
     public IReadOnlyCollection<AlarmInstance> Snapshot(bool activeOnly = false)

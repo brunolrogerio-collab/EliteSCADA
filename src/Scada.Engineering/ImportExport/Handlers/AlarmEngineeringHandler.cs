@@ -27,6 +27,13 @@ internal sealed class AlarmEngineeringHandler
                     ImportEntityKind.Alarm,
                     dto.Name,
                     true));
+            else if (_tags.IsClientMemoryAlarmTarget(dto, package))
+                issues.Add(new(
+                    "CLIENT_MEMORY_ALARM_NOT_ALLOWED",
+                    $"Alarm '{dto.Name}' targets Client Memory, which is runtime-client-local and cannot feed the global server alarm engine.",
+                    ImportEntityKind.Alarm,
+                    dto.Name,
+                    true));
 
             EngineeringHandlerSupport.AddPreview(
                 items,

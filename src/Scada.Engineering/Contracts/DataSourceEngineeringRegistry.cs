@@ -60,6 +60,18 @@ public sealed class InMemoryDataSourceEngineeringRegistry : IDataSourceEngineeri
         _changed?.Invoke();
     }
 
+    public bool Remove(Guid id)
+    {
+        DataSourceEngineeringDto? removed;
+        lock (_sync)
+        {
+            if (!_byId.Remove(id, out removed)) return false;
+            _byKey.Remove(removed.Key);
+        }
+        _changed?.Invoke();
+        return true;
+    }
+
     public void Clear()
     {
         lock (_sync)

@@ -91,7 +91,7 @@ public sealed class ModbusTcpDriverTests
         Assert.Equal(20d, Convert.ToDouble(Get(cache, speedTag.Id).Value), 3);
         Assert.Equal(3.21d, Convert.ToDouble(Get(cache, inputTag.Id).Value), 3);
 
-        var holdingBlock = Assert.Single(driver.PollBlocks.Where(x => x.Area == ModbusDataArea.HoldingRegister));
+        var holdingBlock = Assert.Single(driver.PollBlocks, x => x.Area == ModbusDataArea.HoldingRegister);
         Assert.Equal((ushort)10, holdingBlock.StartAddress);
         Assert.Equal((ushort)15, holdingBlock.Quantity);
         Assert.Equal(4, holdingBlock.PointCount);

@@ -24,6 +24,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scada.Historian.TimescaleDb
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scada.Historian.TimescaleDb.Tests", "tests/Scada.Historian.TimescaleDb.Tests/Scada.Historian.TimescaleDb.Tests.csproj", "{B2222222-2222-4222-8222-222222222222}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Scada.Drivers.Tests", "tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj", "{C3333333-3333-4333-8333-333333333333}"
+EndProject
 Global
     GlobalSection(SolutionConfigurationPlatforms) = preSolution
         Debug|Any CPU = Debug|Any CPU
@@ -74,5 +76,9 @@ Global
         {B2222222-2222-4222-8222-222222222222}.Debug|Any CPU.Build.0 = Debug|Any CPU
         {B2222222-2222-4222-8222-222222222222}.Release|Any CPU.ActiveCfg = Release|Any CPU
         {B2222222-2222-4222-8222-222222222222}.Release|Any CPU.Build.0 = Release|Any CPU
+        {C3333333-3333-4333-8333-333333333333}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {C3333333-3333-4333-8333-333333333333}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {C3333333-3333-4333-8333-333333333333}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {C3333333-3333-4333-8333-333333333333}.Release|Any CPU.Build.0 = Release|Any CPU
     EndGlobalSection
 EndGlobal

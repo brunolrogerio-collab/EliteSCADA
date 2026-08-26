@@ -5,7 +5,7 @@ using Scada.Security.Audit;
 
 namespace Scada.Persistence.PostgreSql;
 
-public sealed class PostgreSqlAuditStore : IAuditSink, IAsyncDisposable
+public sealed class PostgreSqlAuditStore : IAuditStore, IAsyncDisposable
 {
     private const string InitializeSql = """
         CREATE SCHEMA IF NOT EXISTS elitescada;

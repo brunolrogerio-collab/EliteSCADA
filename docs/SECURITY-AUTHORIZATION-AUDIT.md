@@ -1,8 +1,8 @@
 # Security, Authorization and Audit Baseline
 
-Status: foundation in progress.
+Status: capability/audit foundation established; security policy engineering serialization added in schema v6. API authentication and enforcement remain pending.
 
-This document defines the security boundary that will be used as authentication, user management and audit persistence are added to EliteSCADA. The current foundation deliberately does not claim that the runtime API is authenticated yet.
+This document defines the security boundary that will be used as authentication, user management and audit persistence are added to EliteSCADA. The existence of security contracts does not by itself make the current runtime API authenticated.
 
 ## Principles
 
@@ -34,6 +34,30 @@ These are capabilities, not roles. Applications remain free to define roles such
 
 `SystemAdmin` is not implicitly granted by a role merely because its name contains `admin`. Likewise, possessing `SystemAdmin` does not silently imply every other capability in the evaluator. Any hierarchy or inheritance must be explicit and reviewable.
 
+## Engineering Schema v6
+
+Schema v6 makes application authorization policy a first-class engineering entity through `securityRoles`.
+
+Each security role contains:
+
+- a stable optional ID;
+- configurable key and display name;
+- optional description;
+- explicit capability grants;
+- optional authorization scope per grant;
+- non-secret metadata.
+
+Each grant can be scoped by area, equipment path, screen key, TAG path and/or command key. The same role definition participates in normal Engineering Import/Export validation, preview, apply, project backup/restore, PostgreSQL revision persistence, checkout and revision lineage.
+
+Role definitions contain authorization policy only. User credentials, passwords, password hashes, tokens, private keys and other authentication secret material are explicitly outside this engineering contract. Validation rejects metadata keys that appear to represent such secret material.
+
+The demo application intentionally illustrates the distinction between command and setpoint authority:
+
+- `operator`: view, TAG read, command execution, alarm acknowledgement and trend use;
+- `developer`: every currently defined capability, each granted explicitly.
+
+The demo `operator` role does not receive `ProcessValueWrite`. This demonstrates the intended product behavior where a user can be permitted to start/stop equipment while remaining unable to modify a process setpoint.
+
 ## Scoped grants
 
 A capability grant may constrain any combination of:
@@ -46,7 +70,7 @@ A capability grant may constrain any combination of:
 
 The baseline matcher supports exact case-insensitive values, `*` for any value and a trailing `*` for prefix scopes such as `Plant.Area1.*`.
 
-A later engineering contract can evolve scope syntax, but runtime authorization must always consume the public, serializable policy model rather than editor-private state.
+Runtime authorization consumes the public, serializable policy model rather than editor-private state.
 
 ## TAG access policy interaction
 
@@ -64,7 +88,7 @@ This preserves the schema-v5 distinction between `null` and `[]` and avoids an i
 
 The capability evaluator accepts an authenticated principal containing a stable subject id and assigned role keys. It does not authenticate credentials itself.
 
-A future API authentication adapter will be responsible for establishing that principal from a trusted identity mechanism. Until that adapter exists and endpoints are migrated, EliteSCADA must not describe the current API as access-controlled merely because the capability evaluator exists.
+A future API authentication adapter will be responsible for establishing that principal from a trusted identity mechanism. Until that adapter exists and endpoints are migrated, EliteSCADA must not describe the current API as access-controlled merely because the capability evaluator and serializable policies exist.
 
 ## Audit baseline
 
@@ -96,10 +120,9 @@ Audit details must never contain passwords, authentication tokens, private keys 
 
 ## Next implementation slices
 
-1. Serialize application roles, grants and scopes as versioned engineering entities.
-2. Add an authenticated principal provider to the API.
-3. Enforce capabilities on TAG reads/writes, commands, alarm actions and engineering mutations.
-4. Persist audit events in PostgreSQL with append-only semantics.
-5. Audit successful, denied and failed process/security mutations.
-6. Add user/role administration with explicit `UserRoleAdmin` authorization.
-7. Add browser tests proving UI visibility and backend enforcement are independent.
+1. Add a trusted authenticated-principal provider to the API.
+2. Enforce capabilities on TAG reads/writes, commands, alarm actions and engineering mutations.
+3. Persist audit events in PostgreSQL with append-only semantics.
+4. Audit successful, denied and failed process/security mutations.
+5. Add user/role administration with explicit `UserRoleAdmin` authorization.
+6. Add browser tests proving UI visibility and backend enforcement are independent.

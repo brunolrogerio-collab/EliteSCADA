@@ -16,6 +16,25 @@ public interface IPythonScriptHandlerExecutor
         ScriptExecutionLease lease);
 }
 
+/// <summary>
+/// Explicit opt-in exception for an engine adapter that has already sanitized a developer-facing fault.
+/// Arbitrary exception messages are not trusted for diagnostics because they may contain sensitive host
+/// details or values that must not cross the scripting sandbox boundary.
+/// </summary>
+public sealed class ScriptExecutionDiagnosticException : Exception
+{
+    public ScriptExecutionDiagnosticException(string sanitizedMessage)
+        : base("Script execution failed with a sanitized diagnostic.")
+    {
+        if (string.IsNullOrWhiteSpace(sanitizedMessage))
+            throw new ArgumentException("Sanitized diagnostic message is required.", nameof(sanitizedMessage));
+
+        SanitizedMessage = sanitizedMessage;
+    }
+
+    public string SanitizedMessage { get; }
+}
+
 public enum ScriptRuntimeDispatchStatus
 {
     NoEvent,
@@ -283,11 +302,11 @@ public sealed class ScriptRuntimeExecutionCoordinator : IAsyncDisposable
 
     private static string SanitizeException(Exception exception)
     {
-        var message = string.IsNullOrWhiteSpace(exception.Message)
-            ? exception.GetType().Name
-            : $"{exception.GetType().Name}: {exception.Message}";
+        var diagnostic = exception is ScriptExecutionDiagnosticException trustedDiagnostic
+            ? $"{exception.GetType().Name}: {trustedDiagnostic.SanitizedMessage}"
+            : exception.GetType().Name;
 
-        return message
+        return diagnostic
             .Replace('\r', ' ')
             .Replace('\n', ' ')
             .Trim();

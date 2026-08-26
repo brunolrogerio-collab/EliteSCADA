@@ -1,5 +1,16 @@
 import { expect, test } from '@playwright/test';
 
+test('Runtime exposes an entry to the Engineering workspace', async ({ page }) => {
+  await page.goto('/');
+
+  const engineeringLink = page.getByRole('link', { name: 'Engineering' });
+  await expect(engineeringLink).toBeVisible();
+  await engineeringLink.click();
+
+  await expect(page).toHaveURL(/\/engineering$/);
+  await expect(page.getByText('EliteSCADA Engineering')).toBeVisible();
+});
+
 test('Engineering workspace renders the public model and switches locale without changing Engineering identifiers', async ({ page }) => {
   await page.goto('/engineering');
 

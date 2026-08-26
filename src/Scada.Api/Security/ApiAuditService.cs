@@ -13,9 +13,7 @@ public sealed class ApiAuditService(
         "token",
         "secret",
         "privatekey",
-        "private_key",
         "signingkey",
-        "signing_key",
         "authorization"
     };
 
@@ -87,9 +85,9 @@ public sealed class ApiAuditService(
         var safe = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var pair in details)
         {
+            var normalizedKey = NormalizeKey(pair.Key);
             if (SensitiveKeyFragments.Any(fragment =>
-                    pair.Key.Replace("-", string.Empty, StringComparison.Ordinal)
-                        .Contains(fragment.Replace("_", string.Empty, StringComparison.Ordinal), StringComparison.OrdinalIgnoreCase)))
+                    normalizedKey.Contains(fragment, StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
             }
@@ -99,4 +97,7 @@ public sealed class ApiAuditService(
 
         return safe.Count == 0 ? null : safe;
     }
+
+    private static string NormalizeKey(string value) =>
+        new(value.Where(char.IsLetterOrDigit).ToArray());
 }

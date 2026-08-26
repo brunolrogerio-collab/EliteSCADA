@@ -16,6 +16,7 @@ public static class EngineeringPersistenceApi
         builder.Services.TryAddSingleton<IEngineeringProjectStore>(_ =>
             new PostgreSqlEngineeringProjectStore(connectionString));
         builder.Services.TryAddSingleton<IEngineeringProjectPersistenceService, EngineeringProjectPersistenceService>();
+        builder.Services.TryAddSingleton<IEngineeringWorkspaceCheckoutService, EngineeringWorkspaceCheckoutService>();
         builder.Services.TryAddSingleton<IPublishedRuntimeActivationService, PublishedRuntimeActivationService>();
         builder.Services.TryAddSingleton<IPersistedRuntimeRecoveryService, PersistedRuntimeRecoveryService>();
     }
@@ -208,6 +209,32 @@ public static class EngineeringPersistenceApi
             return Results.Ok(revisions.Select(ToMetadata));
         });
 
+        group.MapPost("/{projectKey}/revisions/{revision:long}/checkout", async (
+            string projectKey,
+            long revision,
+            HttpContext context,
+            CancellationToken cancellationToken) =>
+        {
+            var checkout = ResolveCheckout(context);
+            if (checkout is null) return Disabled();
+
+            var outcome = await checkout.CheckoutAsync(projectKey, revision, cancellationToken);
+            if (outcome is null) return Results.NotFound();
+
+            var response = new
+            {
+                revision = ToMetadata(outcome.Snapshot),
+                checkedOut = outcome.CheckedOut,
+                preview = outcome.Preview,
+                apply = outcome.ApplyResult,
+                workspace = outcome.Workspace
+            };
+
+            return outcome.CheckedOut
+                ? Results.Ok(response)
+                : Results.BadRequest(response);
+        });
+
         group.MapGet("/{projectKey}/latest", async (
             string projectKey,
             HttpContext context,
@@ -333,6 +360,9 @@ public static class EngineeringPersistenceApi
 
     private static IEngineeringProjectPersistenceService? Resolve(HttpContext context) =>
         context.RequestServices.GetService<IEngineeringProjectPersistenceService>();
+
+    private static IEngineeringWorkspaceCheckoutService? ResolveCheckout(HttpContext context) =>
+        context.RequestServices.GetService<IEngineeringWorkspaceCheckoutService>();
 
     private static IPublishedRuntimeActivationService? ResolveActivation(HttpContext context) =>
         context.RequestServices.GetService<IPublishedRuntimeActivationService>();

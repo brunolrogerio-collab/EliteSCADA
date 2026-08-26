@@ -65,6 +65,74 @@ public sealed class PostgreSqlEngineeringProjectStoreTests
     }
 
     [Fact]
+    public async Task PublishRevision_PersistsProjectPublicationAndCanMovePointer()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        await using var store = new PostgreSqlEngineeringProjectStore(connectionString);
+        await store.InitializeAsync();
+
+        var projectKey = $"publication-{Guid.NewGuid():N}";
+        const string json = """
+            {
+              "schema": "scada.engineering",
+              "schemaVersion": 5,
+              "exportedAt": "2026-08-26T00:00:00Z",
+              "tags": [],
+              "alarms": []
+            }
+            """;
+
+        var first = await store.SaveAsync(projectKey, "Publication Plant", "scada.engineering", 5, json);
+        var second = await store.SaveAsync(projectKey, "Publication Plant", "scada.engineering", 5, json);
+
+        Assert.Null(await store.GetPublicationAsync(projectKey));
+
+        var publishedFirst = await store.PublishRevisionAsync(projectKey, first.Revision, "supervisor-a");
+        var storedFirst = await store.GetPublicationAsync(projectKey);
+
+        Assert.NotNull(publishedFirst);
+        Assert.Equal(first.Revision, storedFirst!.PublishedRevision);
+        Assert.Equal("supervisor-a", storedFirst.PublishedBy);
+
+        var publishedSecond = await store.PublishRevisionAsync(projectKey, second.Revision, "supervisor-b");
+        var storedSecond = await store.GetPublicationAsync(projectKey);
+
+        Assert.NotNull(publishedSecond);
+        Assert.Equal(second.Revision, storedSecond!.PublishedRevision);
+        Assert.Equal("supervisor-b", storedSecond.PublishedBy);
+    }
+
+    [Fact]
+    public async Task PublishRevision_RejectsRevisionOwnedByAnotherProject()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        await using var store = new PostgreSqlEngineeringProjectStore(connectionString);
+        await store.InitializeAsync();
+
+        var projectA = $"project-a-{Guid.NewGuid():N}";
+        var projectB = $"project-b-{Guid.NewGuid():N}";
+        const string json = """
+            {
+              "schema": "scada.engineering",
+              "schemaVersion": 5,
+              "exportedAt": "2026-08-26T00:00:00Z",
+              "tags": [],
+              "alarms": []
+            }
+            """;
+
+        var revisionA = await store.SaveAsync(projectA, "Project A", "scada.engineering", 5, json);
+        var result = await store.PublishRevisionAsync(projectB, revisionA.Revision, "intruder");
+
+        Assert.Null(result);
+        Assert.Null(await store.GetPublicationAsync(projectB));
+    }
+
+    [Fact]
     public async Task Save_RejectsInvalidEngineeringJsonBeforeDatabaseWrite()
     {
         var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES")

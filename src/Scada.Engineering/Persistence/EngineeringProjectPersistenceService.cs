@@ -7,6 +7,14 @@ public sealed record EngineeringPersistencePreview(
     EngineeringProjectSnapshot Snapshot,
     ImportPreview Preview);
 
+public sealed record EngineeringPublicationResult(
+    EngineeringProjectSnapshot Snapshot,
+    ImportPreview Preview,
+    EngineeringProjectPublication? Publication)
+{
+    public bool Published => Publication is not null && Preview.CanApply;
+}
+
 public interface IEngineeringProjectPersistenceService
 {
     Task InitializeAsync(CancellationToken cancellationToken = default);
@@ -24,6 +32,16 @@ public interface IEngineeringProjectPersistenceService
     Task<IReadOnlyCollection<EngineeringProjectSnapshot>> ListRevisionsAsync(
         string projectKey,
         int limit = 50,
+        CancellationToken cancellationToken = default);
+
+    Task<EngineeringProjectLifecycle> GetLifecycleAsync(
+        string projectKey,
+        CancellationToken cancellationToken = default);
+
+    Task<EngineeringPublicationResult?> PublishRevisionAsync(
+        string projectKey,
+        long revision,
+        string? publishedBy = null,
         CancellationToken cancellationToken = default);
 
     Task<EngineeringPersistencePreview?> PreviewLatestAsync(
@@ -94,6 +112,52 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         int limit = 50,
         CancellationToken cancellationToken = default) =>
         _store.ListRevisionsAsync(projectKey, limit, cancellationToken);
+
+    public async Task<EngineeringProjectLifecycle> GetLifecycleAsync(
+        string projectKey,
+        CancellationToken cancellationToken = default)
+    {
+        var latest = await _store.LoadLatestAsync(projectKey, cancellationToken);
+        var publication = await _store.GetPublicationAsync(projectKey, cancellationToken);
+
+        var status = latest is null
+            ? EngineeringProjectLifecycleStatus.Empty
+            : publication is null
+                ? EngineeringProjectLifecycleStatus.Draft
+                : publication.PublishedRevision == latest.Revision
+                    ? EngineeringProjectLifecycleStatus.Published
+                    : EngineeringProjectLifecycleStatus.ChangesPending;
+
+        return new EngineeringProjectLifecycle(
+            projectKey,
+            status,
+            latest?.Revision,
+            publication?.PublishedRevision,
+            publication?.PublishedAtUtc,
+            publication?.PublishedBy);
+    }
+
+    public async Task<EngineeringPublicationResult?> PublishRevisionAsync(
+        string projectKey,
+        long revision,
+        string? publishedBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        var snapshot = await _store.LoadRevisionAsync(projectKey, revision, cancellationToken);
+        if (snapshot is null) return null;
+
+        var preview = PreviewSnapshot(snapshot, ImportMode.CreateAndUpdate).Preview;
+        if (!preview.CanApply)
+            return new EngineeringPublicationResult(snapshot, preview, null);
+
+        var publication = await _store.PublishRevisionAsync(
+            projectKey,
+            revision,
+            publishedBy,
+            cancellationToken);
+
+        return new EngineeringPublicationResult(snapshot, preview, publication);
+    }
 
     public async Task<EngineeringPersistencePreview?> PreviewLatestAsync(
         string projectKey,

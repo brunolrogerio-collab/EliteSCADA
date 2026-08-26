@@ -56,6 +56,17 @@ public static class EngineeringPersistenceApi
             return Results.Ok(ToMetadata(snapshot));
         });
 
+        group.MapGet("/{projectKey}/lifecycle", async (
+            string projectKey,
+            HttpContext context,
+            CancellationToken cancellationToken) =>
+        {
+            var persistence = Resolve(context);
+            if (persistence is null) return Disabled();
+
+            return Results.Ok(await persistence.GetLifecycleAsync(projectKey, cancellationToken));
+        });
+
         group.MapGet("/{projectKey}/revisions", async (
             string projectKey,
             int? limit,
@@ -142,6 +153,40 @@ public static class EngineeringPersistenceApi
                 : Results.Ok(new { revision = ToMetadata(preview.Snapshot), preview = preview.Preview });
         });
 
+        group.MapPost("/{projectKey}/revisions/{revision:long}/publish", async (
+            string projectKey,
+            long revision,
+            EngineeringPublishRequest request,
+            HttpContext context,
+            CancellationToken cancellationToken) =>
+        {
+            var persistence = Resolve(context);
+            if (persistence is null) return Disabled();
+
+            var result = await persistence.PublishRevisionAsync(
+                projectKey,
+                revision,
+                request.PublishedBy,
+                cancellationToken);
+
+            if (result is null) return Results.NotFound();
+            if (!result.Published)
+                return Results.BadRequest(new
+                {
+                    revision = ToMetadata(result.Snapshot),
+                    preview = result.Preview,
+                    published = false
+                });
+
+            var lifecycle = await persistence.GetLifecycleAsync(projectKey, cancellationToken);
+            return Results.Ok(new
+            {
+                revision = ToMetadata(result.Snapshot),
+                publication = result.Publication,
+                lifecycle
+            });
+        });
+
         group.MapPost("/{projectKey}/revisions/{revision:long}/apply", async (
             string projectKey,
             long revision,
@@ -191,3 +236,4 @@ public static class EngineeringPersistenceApi
 }
 
 public sealed record EngineeringSaveRequest(string ProjectName, string? SavedBy = null);
+public sealed record EngineeringPublishRequest(string? PublishedBy = null);

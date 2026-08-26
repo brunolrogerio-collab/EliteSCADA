@@ -36,20 +36,21 @@ test('Engineering workspace renders the public model and switches locale without
 
   const locale = page.getByLabel('Idioma');
   await locale.selectOption('en');
-  await expect(page.getByText('Project', { exact: true })).toBeVisible();
-  await expect(page.getByText('Overview', { exact: true })).toBeVisible();
+  const navigation = page.getByRole('navigation');
+  await expect(navigation.getByText('Project', { exact: true })).toBeVisible();
+  await expect(navigation.getByText('Overview', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Structured TAG editor' })).toBeVisible();
   await expect(page.getByText('Demo.P01.Frequency', { exact: true })).toBeVisible();
 
   await page.getByLabel('Language').selectOption('es');
-  await expect(page.getByText('Proyecto', { exact: true })).toBeVisible();
-  await expect(page.getByText('Vista general', { exact: true })).toBeVisible();
+  await expect(navigation.getByText('Proyecto', { exact: true })).toBeVisible();
+  await expect(navigation.getByText('Vista general', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Editor estructurado de TAGs' })).toBeVisible();
   await expect(page.getByText('Demo.P01.Frequency', { exact: true })).toBeVisible();
 
   await page.reload();
   await expect(page.getByLabel('Idioma')).toHaveValue('es');
-  await expect(page.getByText('Proyecto', { exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation').getByText('Proyecto', { exact: true })).toBeVisible();
 });
 
 test('Engineering navigation exposes current domains and structured preview editors', async ({ page }) => {

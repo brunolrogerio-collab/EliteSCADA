@@ -38,8 +38,8 @@ public sealed class ModbusTcpDriverTests
         server.HoldingRegisters[10] = 123;
 
         var floatBits = unchecked((uint)BitConverter.SingleToInt32Bits(25.5f));
-        server.HoldingRegisters[11] = checked((ushort)(floatBits >> 16));
-        server.HoldingRegisters[12] = checked((ushort)floatBits);
+        server.HoldingRegisters[11] = (ushort)(floatBits >> 16);
+        server.HoldingRegisters[12] = (ushort)(floatBits & 0xFFFF);
         server.HoldingRegisters[20] = 0;
         server.HoldingRegisters[21] = 0;
         server.HoldingRegisters[24] = 40;

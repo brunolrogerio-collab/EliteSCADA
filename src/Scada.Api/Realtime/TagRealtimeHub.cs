@@ -75,6 +75,31 @@ public sealed class TagRealtimeHub : IDisposable
         }
     }
 
+    /// <summary>
+    /// Immediately terminates active realtime sessions for one authenticated subject.
+    /// Local identity administration uses this together with JWT security-version invalidation so
+    /// disabling a user, changing roles/profile or resetting a password cannot leave an already-open
+    /// TAG WebSocket authorized until token expiry.
+    /// </summary>
+    public int RevokeSubject(string subjectId)
+    {
+        if (string.IsNullOrWhiteSpace(subjectId)) return 0;
+
+        var revoked = 0;
+        foreach (var (id, client) in _clients)
+        {
+            if (!string.Equals(client.Principal.SubjectId, subjectId, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (!_clients.TryRemove(id, out var removed)) continue;
+            revoked++;
+            try { removed.Socket.Dispose(); }
+            catch { }
+        }
+
+        return revoked;
+    }
+
     private async ValueTask BroadcastAsync(TagValueChanged evt)
     {
         var payload = JsonSerializer.SerializeToUtf8Bytes(new

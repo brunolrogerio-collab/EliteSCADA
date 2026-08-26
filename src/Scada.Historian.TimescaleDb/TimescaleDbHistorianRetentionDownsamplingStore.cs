@@ -19,18 +19,8 @@ public sealed class TimescaleDbHistorianRetentionDownsamplingStore : IHistorianR
         _dataSource = NpgsqlDataSource.Create(connectionString);
     }
 
-    public async Task EnsureInfrastructureAsync(CancellationToken cancellationToken = default)
-    {
-        await using (var command = _dataSource.CreateCommand(TimescaleHistorianSchema.RawInfrastructureSql))
-            await command.ExecuteNonQueryAsync(cancellationToken);
-
-        foreach (var bucket in TimescaleHistorianSchema.SupportedBuckets)
-        {
-            await using var command = _dataSource.CreateCommand(
-                TimescaleHistorianSchema.BuildAggregateInfrastructureSql(bucket));
-            await command.ExecuteNonQueryAsync(cancellationToken);
-        }
-    }
+    public Task EnsureInfrastructureAsync(CancellationToken cancellationToken = default) =>
+        TimescaleHistorianInfrastructure.EnsureAllAsync(_dataSource, cancellationToken);
 
     public async Task<HistorianStoragePolicy?> GetAppliedPolicyAsync(CancellationToken cancellationToken = default)
     {

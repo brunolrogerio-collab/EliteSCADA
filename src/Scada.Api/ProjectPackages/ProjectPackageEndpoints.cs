@@ -1,5 +1,7 @@
+using Scada.Api.Security;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ProjectPackages;
+using Scada.Security.Authorization;
 
 namespace Scada.Api.ProjectPackages;
 
@@ -76,10 +78,16 @@ public static class ProjectPackageEndpoints
 
         endpoints.MapPost("/api/project-package/import/apply", async (
             HttpRequest request,
+            HttpContext context,
             ImportMode? mode,
             IProjectPackageService packages,
+            ApiAuthorizationService security,
             CancellationToken cancellationToken) =>
         {
+            var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
+            var failure = authorization.FailureResult();
+            if (failure is not null) return failure;
+
             try
             {
                 var bytes = await ReadPackageAsync(request, cancellationToken);

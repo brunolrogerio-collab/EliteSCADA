@@ -1,0 +1,199 @@
+.eng-alarm-workspace {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.eng-alarm-workspace__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px;
+  border: 1px solid var(--eng-border, #283544);
+  border-radius: 8px;
+  background: var(--eng-panel, #121922);
+}
+
+.eng-alarm-workspace__header > div:first-child {
+  min-width: 0;
+}
+
+.eng-alarm-workspace__header span,
+.eng-alarm-workspace__detail-heading span,
+.eng-alarm-workspace__message > span {
+  color: var(--eng-muted, #8e9baa);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.eng-alarm-workspace__header h2,
+.eng-alarm-workspace__detail-heading h3 {
+  margin: 4px 0 0;
+  color: var(--eng-text, #e8edf3);
+}
+
+.eng-alarm-workspace__header p {
+  max-width: 780px;
+  margin: 8px 0 0;
+  color: var(--eng-muted, #8e9baa);
+  line-height: 1.5;
+}
+
+.eng-alarm-workspace__count {
+  flex: 0 0 auto;
+  display: grid;
+  min-width: 100px;
+  padding: 10px 14px;
+  border: 1px solid var(--eng-border-soft, #202c39);
+  border-radius: 7px;
+  background: var(--eng-panel-soft, #17212c);
+  text-align: right;
+}
+
+.eng-alarm-workspace__count strong {
+  color: var(--eng-text, #e8edf3);
+  font-size: 1.45rem;
+}
+
+.eng-alarm-workspace__count span {
+  margin-top: 2px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.eng-alarm-workspace__item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.eng-alarm-workspace__item-meta > span,
+.eng-alarm-workspace__badges > span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 7px;
+  border: 1px solid var(--eng-border-soft, #202c39);
+  border-radius: 999px;
+  background: var(--eng-panel-soft, #17212c);
+  color: var(--eng-muted, #8e9baa);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.eng-alarm-workspace__detail {
+  display: grid;
+  gap: 16px;
+}
+
+.eng-alarm-workspace__detail-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--eng-border-soft, #202c39);
+}
+
+.eng-alarm-workspace__badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.eng-alarm-workspace__detail-grid {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.38fr) minmax(0, 1fr);
+  gap: 0;
+  margin: 0;
+  border: 1px solid var(--eng-border-soft, #202c39);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.eng-alarm-workspace__detail-grid dt,
+.eng-alarm-workspace__detail-grid dd {
+  min-width: 0;
+  margin: 0;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--eng-border-soft, #202c39);
+}
+
+.eng-alarm-workspace__detail-grid dt {
+  color: var(--eng-muted, #8e9baa);
+  background: var(--eng-panel-soft, #17212c);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.eng-alarm-workspace__detail-grid dd {
+  color: var(--eng-text, #e8edf3);
+  overflow-wrap: anywhere;
+}
+
+.eng-alarm-workspace__detail-grid dt:nth-last-of-type(1),
+.eng-alarm-workspace__detail-grid dd:nth-last-of-type(1) {
+  border-bottom: 0;
+}
+
+.eng-alarm-workspace__detail-grid code {
+  color: inherit;
+  white-space: normal;
+}
+
+.eng-alarm-workspace__message {
+  padding: 12px 14px;
+  border-left: 3px solid var(--eng-accent, #58a6d6);
+  border-radius: 0 6px 6px 0;
+  background: var(--eng-accent-soft, rgba(88, 166, 214, 0.12));
+}
+
+.eng-alarm-workspace__message p {
+  margin: 6px 0 0;
+  color: var(--eng-text, #e8edf3);
+  line-height: 1.45;
+}
+
+.eng-alarm-workspace__authority-note {
+  margin: 0;
+  color: var(--eng-muted, #8e9baa);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .eng-alarm-workspace__header,
+  .eng-alarm-workspace__detail-heading {
+    flex-direction: column;
+  }
+
+  .eng-alarm-workspace__count {
+    width: 100%;
+    text-align: left;
+  }
+
+  .eng-alarm-workspace__badges {
+    justify-content: flex-start;
+  }
+
+  .eng-alarm-workspace__detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .eng-alarm-workspace__detail-grid dt,
+  .eng-alarm-workspace__detail-grid dd {
+    border-bottom: 0;
+  }
+
+  .eng-alarm-workspace__detail-grid dd {
+    padding-top: 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--eng-border-soft, #202c39);
+  }
+}

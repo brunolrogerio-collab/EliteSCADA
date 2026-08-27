@@ -2,12 +2,11 @@
 
 > Authoritative live coordination board. GitHub branch/PR/head/CI state is operational truth; if this file briefly lags GitHub, GitHub wins and the coordinator reconciles it.
 
-**Coordination protocol introduced:** 2026-08-26  
 **Last coordinator synchronization:** 2026-08-27
 
 ## Permanent `siga` protocol
 
-Before any action, every fixed EliteSCADA chat rereads current `main`: `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, this file, and every document listed in its current `MustReadSpecific`. Then it verifies real branch, PR/head and CI state.
+Before any action, every fixed EliteSCADA chat rereads current `main`: `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, this file, and every document listed in its current `MustReadSpecific`. Then it verifies the real assigned branch, PR/head and CI.
 
 Workers never choose a new task, alter `main`, merge their own PR, work another DEV branch, or broaden their assignment. `WAIT_FOR_COORDINATOR` means stop after delivery.
 
@@ -16,7 +15,24 @@ Repository terminology:
 - **MERGED** = official `main` state.
 - **IMPLEMENTED IN PR** = functional implementation exists only in an open branch/PR.
 - **RESEARCH IN PR** = research/specification exists only in an open PR and is not product implementation.
+- **RESEARCH MERGED / PRODUCTION NOT IMPLEMENTED** = research is part of official `main`, but no runtime/product capability is implied.
 - **SPECIFIED / NOT IMPLEMENTED** = documented product intent without merged implementation.
+
+## Current product gate
+
+Active order remains:
+
+`merged platform foundations -> INTERFACE PRODUCT DEVELOPMENT -> USER INTERFACE VALIDATION BUILD/PACKAGE -> additional external protocols`
+
+The following research is now **MERGED as research only**:
+
+- PR #53 graphical Screen/Popup/Dynamo editor architecture;
+- PR #54 Client Visual Python editor/browser sandbox;
+- PR #62 BACnet/IP + BACnet/SC architecture;
+- PR #63 MQTT industrial Data Source architecture;
+- PR #64 Allen-Bradley EtherNet/IP/CIP Logix architecture.
+
+None of those merges authorizes production graphical editing, Python runtime/editor, MQTT, BACnet or Allen-Bradley implementation.
 
 ---
 
@@ -24,27 +40,26 @@ Repository terminology:
 
 **Role:** `COORDINATOR`
 
-**CurrentTask:** Review delivered future-protocol research and continue Interface Product Development
+**CurrentTask:** Coordinate and integrate the second Interface Product Development wave
 
-**Branch:** `main`
+**Branch:** `main` plus coordinator-owned integration branches as needed
 
-**Status:** `RESEARCH REVIEW / INTERFACE DEVELOPMENT ACTIVE`
+**Status:** `ACTIVE`
 
 **Objective:**
 
-Keep the merged first interface checkpoint stable, review and reconcile the delivered future-protocol research PRs as research-only inputs, and continue coordination of the active Interface Product Development block. Production protocol implementation and the deferred Windows validation package remain behind their product gates.
+Turn the first merged interface checkpoint into a more useful industrial product by coordinating three isolated worker slices: scalable Engineering alarm navigation, Runtime alarm operations/acknowledgement, and Audit workspace ergonomics. Preserve the common product shell and all backend security/Engineering boundaries.
 
-**AllowedScope:** coordinator-owned shared/central frontend shell/routing, `main.tsx`, `AppNavigation.tsx`, global/interface CSS, `EngineeringApp.tsx`, central localization/integration, browser tests, CI, assignment board, roadmap/handoff documentation, worker integration, research review and merge/reconciliation work.
+**AllowedScope:** shared shell/routing/integration, `main.tsx`, `AppNavigation.tsx`, `EngineeringApp.tsx`, cross-product localization/visual system, worker integration, browser tests, CI, assignment board, roadmap/handoff docs.
 
 **ForbiddenScope:**
 
 - no known-failing merge;
-- no force-reset/discard of worker commits;
-- no new production MQTT/OPC UA/BACnet/S7/Allen-Bradley/Driver Module runtime while the product gate remains closed;
-- no completion/handoff of the provisional Windows validation package unless reprioritized;
-- no frontend-only security decisions;
-- no private Engineering truth;
-- no production graphical Screen/Popup/Dynamo editor or Python engine/editor ahead of the locked prerequisite chain.
+- no new production MQTT/OPC UA/BACnet/S7/Allen-Bradley/Driver Module runtime in this block;
+- no production Python engine/editor or graphical Screen/Popup/Dynamo editor;
+- no frontend-only security or private Engineering truth;
+- no weakening Preview/Apply/CAS, TAG quality, Audit or source-provider boundaries;
+- no provisional Windows validation package until interface maturity is reviewed again.
 
 **MustReadSpecific:**
 
@@ -53,38 +68,22 @@ Keep the merged first interface checkpoint stable, review and reconcile the deli
 - `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`
 - `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
 - `docs/TAG-GATEWAY.md`
-- `docs/INTERNAL-MEMORY-TAGS.md`
 
 **ObservedGitHubState:**
 
-- Internal Memory: **MERGED / COMPLETE** through PR #49.
-- TAG Gateway: **MERGED / COMPLETE** through PRs #50 and #55.
-- Common communication diagnostics: **MERGED / COMPLETE** through PRs #56 and #57.
-- Engineering Schema: **v9**.
-- Interface DEV 3 PR #59: **MERGED** (`UserSessionMenu`).
-- Interface DEV 1 PR #60: **MERGED** (`EngineeringEntityBrowser`).
-- Interface DEV 2 PR #61: **MERGED** (`RuntimeOperationsOverview`).
-- Coordinator PR #58: **MERGED** as `f3cc82f0d45a9f0162105b57ae6c42f643af6160` after exact-head CI #378 green.
-- Future protocol research delivered as Draft research PRs: #62 BACnet/IP + BACnet/SC, #63 MQTT, #64 Allen-Bradley EtherNet/IP/CIP Logix. Each original worker head changed exactly one research document and had exact-head green CI before coordinator reconciliation.
-- `integration/interface-validation-preview`: **PARKED / NO PR / DO NOT MERGE YET**.
-- PR #53 and PR #54 remain delivered research inputs, not production implementations.
+- first integrated interface checkpoint: **MERGED** through PR #58;
+- research PRs #53, #54, #62, #63 and #64: **RESEARCH MERGED / PRODUCTION NOT IMPLEMENTED**;
+- `integration/interface-validation-preview`: parked;
+- Engineering Schema remains v9;
+- production external protocol expansion remains postponed.
 
-**Dependencies:**
+**NextActions:**
 
-- canonical Engineering remains authoritative;
-- research may reduce future uncertainty but may not register production Data Sources or alter active runtime composition;
-- graphical HMI editor remains blocked by the Script/visual prerequisite chain;
-- Windows validation packaging resumes only after the interface reaches a materially useful validation state;
-- production additional drivers/protocols remain postponed until the product gate is reopened.
-
-**NextActions on coordinator `siga`:**
-
-1. verify current `main`, open PRs, research branch heads and exact-head CI;
-2. reconcile research PRs #62/#63/#64 with current `main` without modifying their research content, rerun exact-head CI, and merge only fully green semantically sound research;
-3. classify any merged research strictly as **RESEARCH ONLY / PRODUCTION NOT IMPLEMENTED**;
-4. continue Interface Product Development from `docs/INTERFACE-DEVELOPMENT.md` and `docs/ROADMAP.md` without regressing the merged first checkpoint;
-5. if a new worker/interface split is needed, record it here before a DEV starts it;
-6. keep the deferred Windows package and production external protocols behind their product gates.
+1. keep worker scopes isolated;
+2. review each worker PR against exact assignment and current `main`;
+3. require exact-head Web/backend/test/smoke/Chromium CI before merge;
+4. integrate worker surfaces into the common product experience where central composition is required;
+5. after this second interface wave, reassess whether the UI is mature enough for the Windows validation package.
 
 **AfterCompletion:** `CONTINUE_COORDINATION`
 
@@ -94,27 +93,47 @@ Keep the merged first interface checkpoint stable, review and reconcile the deli
 
 **Role:** `WORKER`
 
-**CurrentTask:** MQTT industrial Data Source/driver architecture research
+**CurrentTask:** Engineering Alarm Workspace ergonomics
 
-**Branch:** `research/mqtt-industrial-driver`
+**Branch:** `feature/interface-engineering-alarm-workspace`
 
-**Status:** `READY_FOR_COORDINATOR_REVIEW — RESEARCH ONLY`
+**Status:** `ASSIGNED`
 
-**PullRequest:** `#63` Draft — `RESEARCH IN PR / PRODUCTION NOT IMPLEMENTED`
+**Objective:**
 
-**ExpectedPrimaryDeliverable:** `docs/research/mqtt/MQTT-INDUSTRIAL-DRIVER-RESEARCH.md`
+Create a scalable Engineering alarm-navigation/master-detail primitive that brings Alarm definitions to the same usability level as TAG/Data Source browsing without changing canonical Engineering authority or mutation semantics.
 
-**DeliveredHead:** `36dd986b12895974cd3c2f736be8d02322521c0f` before coordinator reconciliation.
+**AllowedScope:**
 
-**DeliveredEvidence:** exactly one research document; exact-head CI #376 green; no production source/package/schema/DI/API/frontend/workflow/runtime changes.
+- new or narrowly related files under `web/scada-web/src/engineering/**` for an Alarm browser/workspace primitive;
+- reuse `EngineeringEntityBrowser` and current public `EngineeringPackageView` data;
+- dedicated browser/contract tests under `web/scada-web/tests-e2e/**` where needed;
+- localization for `pt-BR`, `en`, `es` within the new surface.
+
+**ForbiddenScope:**
+
+- `main.tsx`, `AppNavigation.tsx`, central routing or product shell;
+- backend/API/schema/persistence changes;
+- changing Alarm mutation Preview/Apply/CAS behavior;
+- runtime alarm acknowledgement;
+- production Screen/Popup/Dynamo or Python work;
+- changing `main` or merging own PR.
 
 **MustReadSpecific:**
 
-- `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
-- `docs/TAG-GATEWAY.md`
+- `docs/INTERFACE-DEVELOPMENT.md`
 - `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
-- `docs/OPC-UA.md`
-- `docs/research/opc-ua/OPC-UA-DISCOVERY-IMPORT-RESEARCH.md`
+- current `EngineeringEntityBrowser.tsx`, `StructuredEditors.tsx`, Alarm editor/mutation components and Engineering types.
+
+**CompletionCriteria:**
+
+1. searchable Alarm definition list suitable for projects larger than demo size;
+2. useful filters derived only from canonical Alarm fields, such as area/severity/type where available;
+3. selected Alarm master-detail summary with stable identity, TAG reference and important Alarm configuration;
+4. loading/empty/no-match/selection states consistent with existing browser primitives;
+5. keyboard/focus behavior and `pt-BR`/`en`/`es` copy;
+6. no private copy of Engineering truth and no mutation outside current protected editors;
+7. Draft PR, exact-head CI green, then `WAIT_FOR_COORDINATOR`.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 
@@ -124,27 +143,47 @@ Keep the merged first interface checkpoint stable, review and reconcile the deli
 
 **Role:** `WORKER`
 
-**CurrentTask:** Allen-Bradley EtherNet/IP + CIP / Logix driver architecture research
+**CurrentTask:** Runtime Alarm Center and protected acknowledgement UX
 
-**Branch:** `research/allen-bradley-ethernet-ip`
+**Branch:** `feature/interface-runtime-alarm-center`
 
-**Status:** `READY_FOR_COORDINATOR_REVIEW — RESEARCH ONLY`
+**Status:** `ASSIGNED`
 
-**PullRequest:** `#64` Draft — `RESEARCH IN PR / PRODUCTION NOT IMPLEMENTED`
+**Objective:**
 
-**ExpectedPrimaryDeliverable:** `docs/research/allen-bradley/ALLEN-BRADLEY-ETHERNET-IP-CIP-RESEARCH.md`
+Build an isolated Runtime alarm-operations surface using the existing protected Alarm APIs, including honest active-alarm visibility and authorized acknowledgement, without changing backend authority.
 
-**DeliveredHead:** `3256546e8fb77d3eb2c1b91629383d7e8d836e4b` before coordinator reconciliation.
+**AllowedScope:**
 
-**DeliveredEvidence:** exactly one research document; exact-head CI #377 green; no production source/package/schema/DI/API/frontend/workflow/runtime changes.
+- new/narrow files under `web/scada-web/src/runtime/**` for Alarm API/model/component styling;
+- existing `/api/alarms?activeOnly=true` and `/api/alarms/{id}/ack` contracts;
+- current authenticated session behavior and backend authorization results;
+- dedicated E2E/contract tests under `web/scada-web/tests-e2e/**`.
+
+**ForbiddenScope:**
+
+- backend authorization changes or frontend-only permission decisions;
+- altering Alarm engine semantics;
+- direct driver access;
+- central `AppNavigation.tsx` / routing / `main.tsx` integration;
+- fake acknowledgement or optimistic success when backend rejects;
+- production protocol/Python/graphical-editor work;
+- changing `main` or merging own PR.
 
 **MustReadSpecific:**
 
-- `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
-- `docs/TAG-GATEWAY.md`
-- `docs/S7-ISO-CONNECTION.md`
-- `docs/research/s7/S7-ISO-CONNECTION-RESEARCH.md`
-- `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
+- `docs/INTERFACE-DEVELOPMENT.md`
+- current `RuntimeOperationsOverview.tsx`, `operationsApi.ts`, Alarm API endpoints in `src/Scada.Api/Program.cs`, auth/session components and existing security tests.
+
+**CompletionCriteria:**
+
+1. active Alarm list sorted for operational attention using actual Alarm fields;
+2. show alarm identity/message/state/area/time/acknowledgement information available from backend;
+3. acknowledge action calls protected backend endpoint and refreshes from authoritative state after success;
+4. 401/403/404/error states remain explicit and never become fake success;
+5. no acknowledgement button is treated as a security boundary by itself;
+6. localized `pt-BR`/`en`/`es`, keyboard/focus accessible;
+7. Draft PR, exact-head CI green, then `WAIT_FOR_COORDINATOR`.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 
@@ -154,26 +193,46 @@ Keep the merged first interface checkpoint stable, review and reconcile the deli
 
 **Role:** `WORKER`
 
-**CurrentTask:** BACnet/IP + BACnet Secure Connect driver architecture research
+**CurrentTask:** Audit workspace ergonomics and cross-product consistency
 
-**Branch:** `research/bacnet-ip-secure-connect`
+**Branch:** `feature/interface-audit-workspace`
 
-**Status:** `READY_FOR_COORDINATOR_REVIEW — RESEARCH ONLY`
+**Status:** `ASSIGNED`
 
-**PullRequest:** `#62` Draft — `RESEARCH IN PR / PRODUCTION NOT IMPLEMENTED`
+**Objective:**
 
-**ExpectedPrimaryDeliverable:** `docs/research/bacnet/BACNET-IP-SC-RESEARCH.md`
+Evolve the existing `/audit` route from a dense technical page into a productive desktop audit workspace while preserving current keyset pagination, backend filters, diagnostics and `SystemAdmin` enforcement.
 
-**DeliveredHead:** `712bf5a7918b77a2df33c4f9822bb1ce86760fda` before coordinator reconciliation.
+**AllowedScope:**
 
-**DeliveredEvidence:** exactly one research document; exact-head CI #375 green after same-head rerun of timing-sensitive unrelated tests; no production source/package/schema/DI/API/frontend/workflow/runtime changes.
+- `web/scada-web/src/audit/**`;
+- Audit-specific E2E/contract tests;
+- layout, filtering ergonomics, result presentation, selected-event detail, diagnostics presentation and localization.
+
+**ForbiddenScope:**
+
+- changing Audit backend authorization/retention/storage contracts;
+- weakening bounded date/query validation or opaque cursor handling;
+- central shell/routing changes;
+- new general AuditRead capability in this slice;
+- production protocol/Python/graphical-editor work;
+- changing `main` or merging own PR.
 
 **MustReadSpecific:**
 
-- `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
-- `docs/TAG-GATEWAY.md`
-- `docs/OPC-UA.md`
-- `docs/research/opc-ua/OPC-UA-DISCOVERY-IMPORT-RESEARCH.md`
-- `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
+- `docs/INTERFACE-DEVELOPMENT.md`
+- current `web/scada-web/src/audit/**`;
+- existing Audit query/UI/security E2E tests.
+
+**CompletionCriteria:**
+
+1. compact desktop-oriented filter workflow with clear active-filter context;
+2. scalable event results with clear timestamp/actor/action/outcome/resource presentation;
+3. selected-event/master-detail view for metadata instead of forcing every detail into the list;
+4. Audit diagnostics remain available but visually secondary when healthy;
+5. keyset pagination and backend filter contract unchanged;
+6. explicit unauthenticated/forbidden/invalid/unavailable states preserved;
+7. localized `pt-BR`/`en`/`es` and keyboard/focus accessible;
+8. Draft PR, exact-head CI green, then `WAIT_FOR_COORDINATOR`.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`

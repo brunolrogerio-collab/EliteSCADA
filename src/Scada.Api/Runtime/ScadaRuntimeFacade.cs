@@ -63,6 +63,11 @@ public sealed class ScadaRuntimeFacade(
     public IReadOnlyCollection<CommandDefinition> Commands() =>
         IsEngineeringActive ? engineeringRuntime.Commands() : fallback.Commands.Snapshot();
 
+    public IReadOnlyCollection<ClientMemoryRuntimeSource> ClientMemorySources() =>
+        IsEngineeringActive
+            ? engineeringRuntime.ClientMemorySources()
+            : Array.Empty<ClientMemoryRuntimeSource>();
+
     public IReadOnlyCollection<DriverStatus> Drivers() =>
         IsEngineeringActive ? engineeringRuntime.Describe().Drivers : new[] { fallbackDriver.Status };
 
@@ -98,6 +103,9 @@ public sealed class ScadaRuntimeFacade(
         return fallback.Commands.TryGet(commandId, out command);
     }
 
+    public bool IsServerMemoryTag(Guid tagId) =>
+        IsEngineeringActive && engineeringRuntime.IsServerMemoryTag(tagId);
+
     public ValueTask<bool> AcknowledgeAlarmAsync(
         Guid alarmId,
         string user,
@@ -129,6 +137,15 @@ public sealed class ScadaRuntimeFacade(
         IsEngineeringActive
             ? engineeringRuntime.WriteAsync(tagId, value, cancellationToken)
             : fallbackDriver.WriteAsync(tagId, value, cancellationToken);
+
+    public ValueTask ResetServerMemoryRetainedValueAsync(
+        Guid tagId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsEngineeringActive)
+            throw new InvalidOperationException("Server Memory retained values exist only in an active Engineering runtime.");
+        return engineeringRuntime.ResetServerMemoryRetainedValueAsync(tagId, cancellationToken);
+    }
 
     public async ValueTask ExecuteCommandAsync(
         Guid commandId,

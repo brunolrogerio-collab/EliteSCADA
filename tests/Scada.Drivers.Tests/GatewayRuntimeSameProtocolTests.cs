@@ -85,8 +85,14 @@ public sealed class GatewayRuntimeSameProtocolTests
         Assert.Equal(0, diagnostic.WriteFailureCount);
 
         sourceServer.HoldingRegisters[0] = 55;
-        await WaitForAsync(() => destinationServer.HoldingRegisters[10] == 55, TimeSpan.FromSeconds(4));
-        Assert.True(Assert.Single(runtime.GatewayDiagnostics()).TransferCount >= 2);
+        await WaitForAsync(() =>
+        {
+            var diagnostics = runtime.GatewayDiagnostics();
+            return destinationServer.HoldingRegisters[10] == 55
+                && diagnostics.Count == 1
+                && diagnostics[0].TransferCount >= 2
+                && diagnostics[0].WriteFailureCount == 0;
+        }, TimeSpan.FromSeconds(4));
     }
 
     private static DataSourceEngineeringDto ModbusSource(string key, string name, int port) => new(

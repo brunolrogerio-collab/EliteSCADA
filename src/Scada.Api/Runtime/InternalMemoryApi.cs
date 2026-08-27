@@ -1,3 +1,4 @@
+using System.Globalization;
 using Scada.Api.Security;
 using Scada.Core.Tags;
 using Scada.Security.Audit;
@@ -47,7 +48,7 @@ public static class InternalMemoryApi
                             tag.Tag.Path,
                             dataType = tag.Tag.DataType.ToString(),
                             tag.Tag.ReadOnly,
-                            initialValue = tag.InitialValue.Value
+                            initialValue = ToClientJsonValue(tag.Tag.DataType, tag.InitialValue.Value)
                         })
                         .ToArray()
                 })
@@ -128,4 +129,9 @@ public static class InternalMemoryApi
             }
         });
     }
+
+    private static object ToClientJsonValue(TagDataType dataType, object value) =>
+        dataType == TagDataType.Int64 && value is long int64Value
+            ? int64Value.ToString(CultureInfo.InvariantCulture)
+            : value;
 }

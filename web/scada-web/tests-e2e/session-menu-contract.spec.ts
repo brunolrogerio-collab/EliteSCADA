@@ -1,9 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import type { AuthProfile } from '../src/auth/AuthGate';
-import { UserSessionMenuView } from '../src/auth/UserSessionMenuView';
 import {
+  buildUserSessionPresentation,
   getSessionDisplayName,
   getSessionInitials,
   getSessionSecondaryIdentity,
@@ -34,33 +32,24 @@ test('session menu locale follows stored product locale before browser language'
   expect(resolveSessionLocale(null, 'en-GB')).toBe('en');
   expect(resolveSessionLocale('invalid', 'es-AR')).toBe('es');
   expect(resolveSessionLocale(undefined, 'pt-BR')).toBe('pt-BR');
+
+  expect(getUserSessionMenuLabels('pt-BR').logout).toBe('Sair');
+  expect(getUserSessionMenuLabels('en').logout).toBe('Sign out');
+  expect(getUserSessionMenuLabels('es').logout).toBe('Salir');
 });
 
-test('session menu view exposes identity and roles without leaking subject identity when friendly identity exists', () => {
-  const labels = getUserSessionMenuLabels('pt-BR');
-  const markup = renderToStaticMarkup(createElement(UserSessionMenuView, {
-    profile,
-    labels,
-    onLogout: async () => undefined
-  }));
+test('session presentation exposes friendly identity and roles without leaking subject identity', () => {
+  const presentation = buildUserSessionPresentation(profile);
 
-  expect(markup).toContain('<details');
-  expect(markup).toContain('<summary');
-  expect(markup).toContain('Bruno Rogerio');
-  expect(markup).toContain('@bruno');
-  expect(markup).toContain('developer');
-  expect(markup).toContain('operator');
-  expect(markup).toContain('type="button"');
-  expect(markup).toContain('Sair');
-  expect(markup).not.toContain('subject-123');
+  expect(presentation).toEqual({
+    displayName: 'Bruno Rogerio',
+    secondaryIdentity: '@bruno',
+    initials: 'BR',
+    roles: ['developer', 'operator']
+  });
+  expect(JSON.stringify(presentation)).not.toContain('subject-123');
 });
 
-test('session menu view renders nothing when authentication is disabled or no profile exists', () => {
-  const markup = renderToStaticMarkup(createElement(UserSessionMenuView, {
-    profile: null,
-    labels: getUserSessionMenuLabels('en'),
-    onLogout: async () => undefined
-  }));
-
-  expect(markup).toBe('');
+test('session presentation is absent when authentication is disabled or no profile exists', () => {
+  expect(buildUserSessionPresentation(null)).toBeNull();
 });

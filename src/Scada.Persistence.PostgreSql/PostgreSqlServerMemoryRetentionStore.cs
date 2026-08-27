@@ -14,7 +14,7 @@ namespace Scada.Persistence.PostgreSql;
 public sealed class PostgreSqlServerMemoryRetentionStore : IServerMemoryRetentionStore, IAsyncDisposable
 {
     private const string InitializeSql = """
-        SELECT pg_advisory_xact_lock(4993446713136202562);
+        SELECT pg_advisory_xact_lock(4993446713136202561);
 
         CREATE SCHEMA IF NOT EXISTS elitescada;
 

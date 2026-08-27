@@ -13,6 +13,7 @@ public sealed record ScadaRuntimeDescriptor(
     long? Revision,
     DateTimeOffset? ActivatedAtUtc,
     IReadOnlyCollection<DriverStatus> Drivers,
+    IReadOnlyCollection<CommunicationDriverDiagnosticSnapshot> CommunicationDrivers,
     int TagCount,
     int ActiveAlarmCount);
 
@@ -34,6 +35,7 @@ public sealed class ScadaRuntimeFacade(
                 engineering.Revision,
                 engineering.ActivatedAtUtc,
                 engineering.Drivers,
+                engineering.CommunicationDrivers,
                 engineering.TagCount,
                 engineering.ActiveAlarmCount);
         }
@@ -44,6 +46,7 @@ public sealed class ScadaRuntimeFacade(
             null,
             null,
             new[] { fallbackDriver.Status },
+            Array.Empty<CommunicationDriverDiagnosticSnapshot>(),
             fallback.Registry.Snapshot().Count,
             fallback.Alarms.Snapshot(activeOnly: true).Count);
     }

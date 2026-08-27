@@ -1,10 +1,12 @@
 import type {
+  CommunicationDriverDiagnostic,
   EngineeringPackageView,
   EngineeringSnapshot,
   EngineeringWorkspaceDescriptor,
   GatewayRuntimeDiagnostic,
   ImportPreviewView,
-  ImportResultView
+  ImportResultView,
+  RuntimeDiagnosticsView
 } from './types';
 
 const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
@@ -56,6 +58,11 @@ export async function loadEngineeringSnapshot(): Promise<EngineeringSnapshot> {
 
 export async function loadGatewayDiagnostics(): Promise<GatewayRuntimeDiagnostic[]> {
   return await getJson<GatewayRuntimeDiagnostic[]>('/api/gateway/diagnostics');
+}
+
+export async function loadCommunicationDiagnostics(): Promise<CommunicationDriverDiagnostic[]> {
+  const diagnostics = await getJson<RuntimeDiagnosticsView>('/api/diagnostics/runtime');
+  return diagnostics.runtime?.communicationDrivers ?? [];
 }
 
 export async function previewEngineeringPackage(

@@ -132,6 +132,64 @@ export type GatewayRuntimeDiagnostic = {
   effectiveIntervalMilliseconds?: number | null;
 };
 
+export type CommunicationDriverCounters = {
+  cycles: number;
+  requests: number;
+  successfulOperations: number;
+  failedOperations: number;
+  consecutiveFailures: number;
+  timeouts: number;
+  connections: number;
+  disconnections: number;
+  reconnects: number;
+  readOperations: number;
+  writeOperations: number;
+  updatesPublished: number;
+};
+
+export type CommunicationTagQualitySummary = {
+  good: number;
+  badCommunication: number;
+  uncertain: number;
+  bad: number;
+  badConfiguration: number;
+  badDevice: number;
+  stale: number;
+  disabled: number;
+  noCurrentSample: number;
+  total: number;
+};
+
+export type CommunicationDriverDiagnostic = {
+  dataSourceKey: string;
+  dataSourceName: string;
+  driverType: string;
+  runtimeInstanceId: string;
+  endpoint?: string | null;
+  state: string | number;
+  stateChangedAt: string;
+  capturedAt: string;
+  lastSuccessfulCommunicationAt?: string | null;
+  lastFailedCommunicationAt?: string | null;
+  lastError?: string | null;
+  dataAge?: string | null;
+  configuredScanInterval?: string | null;
+  lastOperationDuration?: string | null;
+  averageOperationDuration?: string | null;
+  lastScanDuration?: string | null;
+  recentFailureRate: number;
+  associatedTagCount: number;
+  tagQuality: CommunicationTagQualitySummary;
+  counters: CommunicationDriverCounters;
+  protocolDetails?: Record<string, string> | null;
+};
+
+export type RuntimeDiagnosticsView = {
+  runtime?: {
+    communicationDrivers?: CommunicationDriverDiagnostic[];
+  };
+};
+
 export type BindingEngineering = {
   key: string;
   kind: string;

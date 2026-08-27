@@ -2,7 +2,7 @@
 
 > Authoritative live coordination board. GitHub branch/PR/head/CI state is operational truth; if this file briefly lags GitHub, GitHub wins and the coordinator reconciles it.
 
-**Coordination protocol introduced:** 2026-08-26
+**Coordination protocol introduced:** 2026-08-26  
 **Last coordinator synchronization:** 2026-08-26
 
 ## Permanent `siga` protocol
@@ -24,7 +24,7 @@ Repository terminology:
 
 **Role:** `COORDINATOR`
 
-**CurrentTask:** Coordinate TAG Gateway Engineering plus isolated S7 ISO Connection research; OPC UA discovery/import research is merged
+**CurrentTask:** Review and integrate the active TAG Gateway Engineering slice; OPC UA and Siemens S7 research spikes are merged
 
 **Branch:** `main`
 
@@ -32,7 +32,7 @@ Repository terminology:
 
 **Objective:**
 
-Keep DEV 2 on the active functional TAG Gateway Engineering gate while DEV 3 reduces uncertainty around later Siemens S7 integration through a strictly documentation/research-only spike. Preserve the locked implementation order, keep DEV 1 waiting after its merged OPC UA research, and prevent central Engineering/runtime overlap.
+Keep the locked functional sequence moving through TAG Gateway while preserving the merged OPC UA and Siemens S7 research as future implementation inputs only. DEV 1 and DEV 3 remain idle until explicitly reassigned.
 
 **AllowedScope:** coordinator-owned shared/central files, integration hooks, workflow maintenance, assignment board, handoff/roadmap documentation, worker assignment and merge decisions.
 
@@ -40,7 +40,7 @@ Keep DEV 2 on the active functional TAG Gateway Engineering gate while DEV 3 red
 
 - no known-failing merge;
 - no force-reset/discard of worker commits;
-- no production OPC UA or S7 Data Source/runtime implementation before the external-protocol gate opens;
+- no production OPC UA or S7 Data Source/runtime before the external-protocol gate opens;
 - no new external protocol family in Active Runtime before Gateway, common diagnostics and interface-preview gates;
 - no concurrent worker ownership of `src/Scada.Engineering/Contracts/EngineeringContracts.cs`;
 - no canonical Script schema integration while DEV 2 owns overlapping central Engineering contract files.
@@ -51,40 +51,37 @@ Keep DEV 2 on the active functional TAG Gateway Engineering gate while DEV 3 red
 - `docs/INTERNAL-MEMORY-TAGS.md`
 - `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
 - `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
+- `docs/INTERFACE-VALIDATION-MILESTONE.md`
 - `docs/OPC-UA.md`
+- `docs/research/opc-ua/OPC-UA-DISCOVERY-IMPORT-RESEARCH.md`
 - `docs/S7-ISO-CONNECTION.md`
+- `docs/research/s7/S7-ISO-CONNECTION-RESEARCH.md`
 
 **ObservedGitHubState:**
 
-- PR #46 Audit UI: **MERGED** `5629f55699d68d70d11d7058c26033d54306b570`.
-- PR #47 Script Engineering foundation: **MERGED** `8a8a52e9e1725fca5b9e06ff9f560f583dab5bbb`.
-- PR #48 Internal Memory Engineering/retention: **MERGED** `ad4a7aa8d17e4e7370e5801d470a69f1a096bab4`.
 - PR #49 complete Internal Memory runtime/product integration: **MERGED** `18e0c5f55bf33958d040ed3a2f2b948e34d3cc5f`; CI #296 and post-merge CI #297 fully green.
+- Internal Memory: **MERGED / COMPLETE**.
 - PR #51 OPC UA discovery/browse/import research: **MERGED** `aa7735fcc15e00aea5bf19a543f53b2735ef48e3`; research head `6aac0f3cfe8e89cc7c56cc2bf3668d03a8c94994`; CI #299 green.
-- Internal Memory is **MERGED / COMPLETE**.
-- TAG Gateway is the active locked functional block.
-- Canonical Engineering remains schema v8 on `main` until DEV 2's Gateway schema v9 work is reviewed and merged.
-- `docs/OPC-UA.md` plus `docs/research/opc-ua/OPC-UA-DISCOVERY-IMPORT-RESEARCH.md` now provide the merged future OPC UA discovery/browse/import direction; production OPC UA remains blocked.
-- `docs/S7-ISO-CONNECTION.md` locks the later Siemens S7 classic ISO-on-TCP/RFC1006 direction and TIA-assisted import research.
+- PR #52 Siemens S7 ISO Connection research: **MERGED** `bd825682ae0ccfdbdb938fab638a27f6961510bf`; research head `52cc16c9941b5f8c4442a8c135551de6e9f8976b`; CI #300 fully green. The merge is documentation-only, so the `main` push workflow does not run for that merge by path filter.
+- Production OPC UA and Siemens S7 remain **SPECIFIED / NOT IMPLEMENTED** and gated.
+- PR #50 TAG Gateway Engineering remains **DRAFT / OPEN**. It has reconciled the coordinator-owned Internal Memory schema-test fix out of its delta. Its current head is `002f87dd126854c9fd972e453930e229e02f7f30`; CI #304 is the current-head validation and must complete before coordinator merge review.
+- TAG Gateway remains the active locked functional block.
 
 **Dependencies:**
 
-- DEV 2 exclusively owns the functional public/versioned TAG Gateway Engineering slice and Gateway-related central Engineering contract changes.
-- DEV 1 completed the OPC UA research spike and is waiting; no production OPC UA work is authorized.
-- DEV 3 is research-only for Siemens S7 ISO Connection and must not touch production protocol/runtime or DEV 2 central Engineering ownership.
-- Production external protocols remain blocked until Gateway, common diagnostics and interface-validation preview gates are complete.
+- DEV 2 owns the current public/versioned TAG Gateway Engineering slice and its narrow Gateway-related central contract exception.
+- DEV 1 completed OPC UA research and waits.
+- DEV 3 completed Siemens S7 research and waits.
+- Production external protocols remain blocked until Gateway, common diagnostics and interface-validation preview are complete.
 - Canonical Script package/schema integration remains deferred while DEV 2 owns overlapping central Engineering surfaces.
 
 **NextActions:**
 
-1. let DEV 2 continue `feature/tag-gateway-engineering` within its functional Engineering/validation assignment;
-2. keep DEV 1 in `MERGED / WAITING` after PR #51;
-3. let DEV 3 continue `research/s7-iso-connection` as documentation/research only;
-4. inspect all active branches/PRs on the next coordinator `siga`;
-5. merge Gateway Engineering only after review and relevant full CI are green;
-6. review S7 research as a future implementation input only, never as a claim of an implemented driver;
-7. after Gateway Engineering is official, assign the protocol-independent runtime Gateway engine;
-8. keep common diagnostics, interface preview and production external protocols blocked until their prerequisites are satisfied.
+1. monitor/review DEV 2 PR #50 current head and CI #304;
+2. merge Gateway Engineering only after current-head CI is fully green and final diff/semantics remain within assignment;
+3. after Gateway Engineering is official, assign the protocol-independent runtime Gateway engine;
+4. keep DEV 1 and DEV 3 in `MERGED / WAITING`;
+5. preserve common diagnostics -> interface preview -> external protocol gate order.
 
 **AfterCompletion:** `CONTINUE_COORDINATION`
 
@@ -102,14 +99,6 @@ Keep DEV 2 on the active functional TAG Gateway Engineering gate while DEV 3 red
 
 **PullRequest:** `#51 MERGED — aa7735fcc15e00aea5bf19a543f53b2735ef48e3`
 
-**Objective:**
-
-Research/specify the future OPC UA Engineering experience: server/network discovery, endpoint/security/certificate inspection, lazy address-space browse/search, multi-select/subtree import preview, subscription profiles, NodeId + namespace-aware BrowsePath reconciliation and safe rescan. No production OPC UA runtime is authorized.
-
-**AllowedScope:** official Elipse/OPC Foundation research; isolated docs under `docs/research/opc-ua/**`; library/package/license/security/interoperability evaluation; diagrams/examples; documentation-only PR.
-
-**ForbiddenScope:** production OPC UA networking/runtime; production OPC UA dependency; Data Source registration; `Program.cs`; central DI/API; `src/Scada.DriverHost/**` runtime work; `EngineeringContracts.cs`; Gateway/schema files; production frontend routing/UI; workflows; unrelated protocols.
-
 **MustReadSpecific:**
 
 - `docs/OPC-UA.md`
@@ -119,7 +108,7 @@ Research/specify the future OPC UA Engineering experience: server/network discov
 - `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
 - `docs/TAG-GATEWAY.md`
 
-**CompletionCriteria:** **SATISFIED / MERGED** through PR #51. Sourced Elipse comparison; recommended OPC UA .NET stack; discovery/scan limits; endpoint/certificate trust; lazy browse/search; Node identity/re-resolution; datatype/access mapping; subscription profiles; import Preview/Apply proposal; rescan/diff; test-server strategy; future implementation breakdown; no production code/dependency.
+**CompletionCriteria:** **SATISFIED / MERGED** through PR #51. Research covers Elipse comparison, OPC Foundation .NET stack, discovery/scan, endpoint/certificate trust, lazy browse/search, portable node identity, NodeId re-resolution, datatype/access mapping, subscriptions, Preview/Apply import, rescan/diff and interoperability strategy. No production OPC UA code/dependency was introduced.
 
 **NextActions:** no new task. On `siga`, verify PR #51 remains merged and report `MERGED / WAITING`. Do not begin production OPC UA or another task without coordinator reassignment.
 
@@ -135,13 +124,11 @@ Research/specify the future OPC UA Engineering experience: server/network discov
 
 **Branch:** `feature/tag-gateway-engineering`
 
-**Status:** `ASSIGNED`
+**Status:** `IN_PROGRESS / CI_RUNNING`
 
 **PullRequest:** `#50 DRAFT / OPEN`
 
-**Objective:**
-
-Implement the first-class public/versioned Gateway/TAG Bridge Engineering domain and deterministic Preview validation required by `docs/TAG-GATEWAY.md`, without runtime transfer execution, API/DI composition, diagnostics UI or protocol-specific behavior.
+**Objective:** implement the first-class public/versioned Gateway/TAG Bridge Engineering domain and deterministic Preview validation required by `docs/TAG-GATEWAY.md`, without runtime transfer execution, API/DI composition, diagnostics UI or protocol-specific behavior.
 
 **AllowedScope:** new Gateway Engineering files; narrow exclusive Gateway exception for `src/Scada.Engineering/Contracts/EngineeringContracts.cs`; required Gateway integration in Engineering import/export; focused Core/PostgreSQL/package tests; PR evidence.
 
@@ -154,9 +141,9 @@ Implement the first-class public/versioned Gateway/TAG Bridge Engineering domain
 - `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
 - `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
 
-**CompletionCriteria:** first-class Gateway routes; stable endpoints and policies; deliberate schema evolution/compatibility if required; deterministic endpoint/type/cycle/multi-writer/rate validation; Server Memory accepted and Client Memory rejected; fan-out valid; canonical round trips/package persistence; no runtime engine/UI; focused tests and relevant CI green; exact future runtime `INTEGRATION REQUIRED` recorded.
+**CompletionCriteria:** first-class Gateway routes; stable endpoints/policies; deliberate schema evolution/compatibility; deterministic endpoint/type/cycle/multi-writer/rate validation; Server Memory accepted and Client Memory rejected; fan-out valid; canonical round trips/package persistence; no runtime engine/UI; focused tests and current-head CI green; future runtime `INTEGRATION REQUIRED` recorded.
 
-**NextActions:** continue only `feature/tag-gateway-engineering`; reconcile with current `main`, keeping central maintenance fixes coordinator-owned; implement/tests; update Draft PR with `IMPLEMENTED IN PR / NOT MERGED`; correct attributable CI failures; stop when green and complete.
+**NextActions:** remain on PR #50 only. Observe CI #304 for current head `002f87dd126854c9fd972e453930e229e02f7f30`; fix only attributable issues; when green and complete, stop under `WAIT_FOR_COORDINATOR`. Do not merge own PR.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 
@@ -170,81 +157,23 @@ Implement the first-class public/versioned Gateway/TAG Bridge Engineering domain
 
 **Branch:** `research/s7-iso-connection`
 
-**Status:** `ASSIGNED`
+**Status:** `MERGED / WAITING`
 
-**PullRequest:** none yet
+**PullRequest:** `#52 MERGED — bd825682ae0ccfdbdb938fab638a27f6961510bf`
 
-**Objective:**
-
-Research and specify the future EliteSCADA Siemens S7 driver using classic **S7 communication over ISO-on-TCP / RFC1006 (TCP/102)**. Define connection behavior for S7-300/400/1200/1500, Rack/Slot and TSAP modes, PUT/GET/protection constraints, absolute/optimized DB limitations, typed address mapping, efficient batching/reconnect, safe optional network assistance and TIA Portal-assisted TAG import. This is explicitly a non-production spike.
-
-**AllowedScope:**
-
-- research official Siemens documentation, current Elipse M-Prot ISO/TCP behavior and relevant open-source S7 libraries;
-- compare S7.NetPlus, Sharp7 and other justified candidates for licensing, maintenance, correctness, async/cancellation, reconnect, PDU/batching, write semantics and testability;
-- create/update only isolated research documentation under `docs/research/s7/**` or another new S7 research path;
-- document S7-300/400/1200/1500 connection matrix, Rack/Slot/TSAP rules, CPU protection/PUT-GET behavior, optimized DB limitations and diagnostics;
-- define typed S7 area/address/data-type mapping without copying Elipse N/B parameters;
-- investigate TIA Portal Openness and Siemens-supported file export as Engineering-side TAG import sources;
-- design `TIA project/export -> candidates -> validate -> preview -> apply` workflow without editing central Engineering contracts;
-- investigate a bounded, opt-in TCP/102 discovery/connection-test aid that never writes or changes CPU state;
-- define later lab/CI strategy using representative hardware/simulators and note PLCSIM limitations;
-- documentation-only Draft PR may record findings and future implementation slices.
-
-**ForbiddenScope:**
-
-- `main`;
-- production S7 networking/client runtime inside EliteSCADA;
-- registering a Siemens S7 Data Source/driver in Active Runtime;
-- adding S7.NetPlus, Sharp7, Snap7 or another S7 production dependency to EliteSCADA projects;
-- implementing S7commPlus or proprietary Siemens engineering/programming operations;
-- CPU RUN/STOP, program/block upload/download/delete or firmware operations;
-- `src/Scada.Api/Program.cs`, central DI/API/hosted services;
-- `src/Scada.DriverHost/**` functional S7 runtime work;
-- `src/Scada.Engineering/Contracts/EngineeringContracts.cs` or Gateway/schema files owned by DEV 2;
-- frontend central routing/shell or production S7 UI;
-- `.github/workflows/**`;
-- changing the locked protocol order;
-- claiming the S7 driver is implemented because research is complete.
+**Objective:** research/specify future Siemens S7 classic communication over ISO-on-TCP / RFC1006 TCP/102, including S7-300/400/1200/1500 connection behavior, Rack/Slot and explicit TSAP, PUT/GET/protection constraints, optimized DB limitations, typed addressing, batching/reconnect, safe network assistance and TIA-assisted import. Production S7 is not authorized yet.
 
 **MustReadSpecific:**
 
 - `docs/S7-ISO-CONNECTION.md`
+- `docs/research/s7/S7-ISO-CONNECTION-RESEARCH.md`
 - `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
 - `docs/INTERFACE-VALIDATION-MILESTONE.md`
 - `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
 - `docs/TAG-GATEWAY.md`
 
-**Dependencies:**
+**CompletionCriteria:** **SATISFIED / MERGED** through PR #52. CI #300 passed Web, backend build/tests, runtime smoke and Chromium E2E. The merged research covers Elipse M-Prot comparison; S7.NetPlus/Sharp7/Snap7 evaluation; CPU/TSAP matrix; PUT/GET/protection; optimized DB boundary; typed addressing; PDU-aware batching/reconnect; TIA Openness/file import; Preview/Apply candidates; bounded TCP/102 assistance; simulator/hardware test strategy and future implementation slices. No production S7 runtime/dependency was introduced.
 
-- production S7 ISO Connection remains after the interface-preview/external-protocol gate;
-- this spike is allowed early only because it is documentation/research and does not activate protocol runtime behavior;
-- DEV 2 owns central Engineering contract evolution during the current Gateway slice;
-- future S7 runtime must use the common Data Source/Driver/TAG/Gateway/diagnostics/security architecture.
-
-**CompletionCriteria:**
-
-1. Provide sourced comparison of relevant Elipse M-Prot ISO/TCP conveniences and what EliteSCADA should adopt/improve/avoid.
-2. Recommend a .NET S7 stack/library direction with license, support, security, maintenance and testability rationale.
-3. Produce S7-300/400/1200/1500 connection matrix covering Rack/Slot, TSAP, port, CPU-side prerequisites and known differences.
-4. Document PUT/GET/access-control behavior and distinguish permission/protection failures from transport failures where feasible.
-5. Define optimized/non-optimized DB support boundaries and never silently claim classic absolute access for unsupported optimized symbolic data.
-6. Define typed address/data-type mapping for I/Q/M/DB and applicable legacy areas, including unsupported/lossy cases.
-7. Define PDU-aware grouping/batching, scan classes, reconnect and bounded parallelism direction.
-8. Define TIA Portal Openness and file-export TAG import strategy, including hierarchy, addresses, data types, comments, writability and unsupported candidates.
-9. Define canonical import candidate/Preview/Apply contract without touching central schema in this spike.
-10. Define bounded optional network scan/connection-test behavior with no destructive operations.
-11. Define representative hardware/simulator and later CI/interoperability strategy.
-12. Produce a concise later production implementation breakdown.
-13. Do not introduce production S7 runtime code or dependencies.
-
-**NextActions:**
-
-1. create/use only `research/s7-iso-connection` from current `main`;
-2. reread required docs and verify exact branch/assignment;
-3. study Siemens, Elipse M-Prot and candidate library documentation;
-4. write the isolated research deliverable with concrete EliteSCADA recommendations;
-5. open/update a Draft PR containing documentation/research only and wording `RESEARCH IN PR / NOT IMPLEMENTED`;
-6. stop under `WAIT_FOR_COORDINATOR` when complete.
+**NextActions:** no new task. On `siga`, verify PR #52 remains merged and report `MERGED / WAITING`. Do not begin production S7, choose/install a production library or start another task without coordinator reassignment.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`

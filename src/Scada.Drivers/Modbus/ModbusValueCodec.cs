@@ -120,10 +120,10 @@ public static class ModbusValueCodec
 
     private static object CoerceToTagType(double value, TagDataType dataType) => dataType switch
     {
-        TagDataType.Int16 => checked((short)Math.Round(value)),
-        TagDataType.Int32 => checked((int)Math.Round(value)),
-        TagDataType.Int64 => checked((long)Math.Round(value)),
-        TagDataType.Float => checked((float)value),
+        TagDataType.Int16 => (object)checked((short)Math.Round(value)),
+        TagDataType.Int32 => (object)checked((int)Math.Round(value)),
+        TagDataType.Int64 => (object)checked((long)Math.Round(value)),
+        TagDataType.Float => (object)checked((float)value),
         TagDataType.Double => value,
         _ => throw new InvalidOperationException($"TAG data type '{dataType}' is not numeric.")
     };

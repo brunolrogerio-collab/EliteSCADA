@@ -69,7 +69,7 @@ test('Gateway Engineering config uses canonical Preview Apply and shows runtime 
 
   const source = page.getByTestId('gateway-source');
   const destination = page.getByTestId('gateway-destination');
-  await expect(source.locator('option')).toHaveCount(2);
+  await expect(source.locator('option')).toHaveCount(3);
   await expect(source).not.toContainText('UI.Local');
   await source.selectOption(sourceId);
   await destination.selectOption(destinationId);

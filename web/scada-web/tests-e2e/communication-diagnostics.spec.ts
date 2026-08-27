@@ -43,13 +43,15 @@ test('Engineering diagnostics prioritizes communication health, filters sources 
   await expect(page.getByText('100 ms', { exact: true })).toBeVisible();
 
   await page.getByLabel('Filtro').selectOption('attention');
-  await expect(page.getByText('PLC B', { exact: true })).toBeVisible();
-  await expect(page.getByText('PLC A', { exact: true })).toBeHidden();
+  await expect(sourceCards).toHaveCount(1);
+  await expect(sourceCards.nth(0)).toContainText('PLC B');
+  await expect(page.getByRole('heading', { name: 'PLC B' })).toBeVisible();
 
   await page.getByLabel('Filtro').selectOption('all');
   await page.getByLabel('Buscar Data Source, driver ou endpoint').fill('plc.a');
-  await expect(page.getByText('PLC A', { exact: true })).toBeVisible();
-  await expect(page.getByText('PLC B', { exact: true })).toBeHidden();
+  await expect(sourceCards).toHaveCount(1);
+  await expect(sourceCards.nth(0)).toContainText('PLC A');
+  await expect(page.getByRole('heading', { name: 'PLC A' })).toBeVisible();
 
   await page.getByLabel('Idioma').selectOption('en');
   await expect(page.getByRole('heading', { name: 'Active communication' })).toBeVisible();

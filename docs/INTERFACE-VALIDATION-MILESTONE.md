@@ -1,66 +1,88 @@
 # Interface Validation Milestone
 
-Status: **locked intermediate product milestone**.
+Status: **SUPERSEDED AS AN EARLY OWNER-FACING PACKAGE / retained as acceptance history**.
 
-EliteSCADA must produce a practical user-testable build after the common multi-driver communication diagnostics slice is complete and **before development proceeds to additional external protocol families** such as MQTT, OPC UA, BACnet or Siemens S7.
+The earlier milestone proposed an owner-facing Windows interface preview immediately after communication diagnostics. On 2026-08-27 the product owner deliberately changed the first true validation gate.
 
-## Purpose
+The first build presented as the actual EliteSCADA product validation version is now:
 
-This checkpoint exists so the product owner can use the software as a real engineering/runtime application and evaluate the interface, workflows and overall usability before a large amount of additional protocol and driver work is layered on top.
+# EliteSCADA v0.1 — Full Product Validation Preview
 
-It is a development preview, not a production-certified industrial release.
+Authoritative plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.
 
-## Required functional baseline before the preview
+## New gate
 
-The preview milestone is reached only after the current ordered foundation has been integrated and validated:
+The first owner-facing product validation must allow the complete supervisory application path:
 
-1. trusted identity/login and basic user lifecycle;
-2. current authorization/audit boundaries remain enforced;
-3. audit durability/retention reliability slice;
-4. historian retention/downsampling baseline;
-5. built-in Client Memory and retentive Server Memory foundations;
-6. protocol-independent TAG-to-TAG Gateway foundation;
-7. common multi-driver/Data-Source communication diagnostics, including Modbus instrumentation and independent-failure behavior;
-8. Engineering UI exposes the corresponding useful configuration/diagnostic surfaces needed to exercise those foundations.
+```text
+Engineering
+  -> Data Source/TAG/Alarm/Historian
+  -> Screen/Popup/Dynamo
+  -> visual objects/bindings
+  -> Client Visual Python
+  -> Save/Revision
+  -> Publish
+  -> Activate
+  -> graphical Runtime
+  -> restart/recovery of Active Revision
+```
 
-The preview does not require MQTT, OPC UA, BACnet, S7 or other additional external protocols. Modbus TCP, simulation/internal sources and the Gateway are sufficient to validate the platform/interface architecture at this checkpoint.
+Therefore the product-owner package is **not** delivered merely because Runtime/Engineering/Audit and current operational surfaces are usable.
 
-## Delivery characteristics
+Client Visual Python and functional graphical Engineering/Runtime are mandatory before the first build is treated as the true v0.1 validation preview.
 
-The milestone must provide a build/package that the product owner can run locally without needing to reconstruct a developer environment by hand. The exact packaging mechanism may evolve, but the delivery must include:
+## Internal validation before v0.1
 
-- a clear startup procedure;
-- the EliteSCADA backend/runtime and web interface required for the test;
-- a known local login/bootstrap procedure;
-- a sample/demo project suitable for exercising Runtime and Engineering;
-- the database/services required by the build, either packaged/automated or documented with a reliable launcher;
-- a visible build/version identifier so feedback can be tied to an exact software state;
-- a short test checklist covering Runtime, Engineering navigation, TAG/Data Source/alarm work, memory, Gateway and driver diagnostics;
+Internal CI artifacts, packaging spikes and development builds may be created earlier when useful to prove:
+
+- Windows/runtime startup mechanics;
+- PostgreSQL/TimescaleDB service composition;
+- browser/backend packaging;
+- launcher approaches;
+- clean-machine assumptions;
+- CI/package smoke behavior.
+
+Those builds are development evidence only and must not be confused with or branded as the owner-facing `EliteSCADA v0.1 — Full Product Validation Preview`.
+
+## Required v0.1 package characteristics
+
+When Wave 13 is reached, the Windows x64 owner-facing package must include or reliably automate/document:
+
+- EliteSCADA backend/runtime;
+- Web UI;
+- database/services needed for the preview;
+- launcher/startup path;
+- known bootstrap/login procedure;
+- full demo project built through normal product surfaces;
+- visible version/build identity;
+- logs/diagnostics useful for feedback;
 - no production credentials or committed secrets.
 
-For the initial product-owner test, Windows x64 is the primary practical target unless the deployment strategy is deliberately changed before this milestone.
+The owner must not need to reconstruct a developer environment using `dotnet run`, npm/Vite, Git, solution knowledge or manual schema migrations.
 
-## Acceptance gate
+## Acceptance before delivery
 
-Before handing the preview to the product owner:
+The final integrated/package candidate requires:
 
-- relevant .NET tests pass;
-- frontend build passes;
-- runtime smoke passes;
-- Chromium E2E passes;
-- the packaged/startup path is smoke-tested separately from repository-only developer execution;
-- known blocking defects that prevent meaningful interface evaluation are fixed rather than merely documented away.
+- backend build/tests green;
+- frontend build green;
+- runtime smoke green;
+- Chromium E2E green;
+- package/install/startup smoke green;
+- full vertical HMI flow green;
+- restart/Active Revision recovery green;
+- no known P0/P1 issue preventing meaningful validation.
 
-## Feedback gate
+## Relationship to external protocols
 
-After the product owner tests the preview, interface/workflow feedback is reviewed and prioritized before the project invests heavily in the next external protocol wave.
+Additional production protocol families remain postponed until after v0.1 owner validation/correction unless the product owner deliberately changes the gate.
 
-Feedback may change UI/workflow implementation, but must not silently weaken the locked public Engineering model, security boundaries, revision lifecycle, source-provider architecture or protocol-independent Gateway principles.
+Modbus TCP, Simulation, Client/Server Memory and Gateway are sufficient protocol/source coverage for the first product validation.
 
-## Position in development order
+Merged MQTT/OPC UA/BACnet/S7/Allen-Bradley research and Driver SDK convergence remain architecture inputs, not authorization to start production drivers.
 
-The locked sequence around this milestone is:
+Preferred post-v0.1 protocol progression is documented in `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md` and `docs/ROADMAP.md`.
 
-`internal memory -> TAG Gateway -> common multi-driver diagnostics -> USER INTERFACE VALIDATION PREVIEW -> additional external protocols`
+## Historical note
 
-This milestone is therefore an explicit development gate, not an optional demo assembled only if convenient.
+The original interface-preview milestone was useful in forcing the project to prioritize usability before protocol proliferation. That principle remains. What changed is the **depth of the first owner-facing validation**: the owner wants to evaluate a complete SCADA creation/Runtime loop, including Python and graphical Engineering, rather than a pre-graphical platform preview.

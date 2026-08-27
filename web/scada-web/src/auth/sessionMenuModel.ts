@@ -11,6 +11,13 @@ export type UserSessionMenuLabels = {
   logoutFailed: string;
 };
 
+export type UserSessionPresentation = {
+  displayName: string;
+  secondaryIdentity: string | null;
+  initials: string;
+  roles: string[];
+};
+
 const labelsByLocale: Record<SessionLocale, UserSessionMenuLabels> = {
   'pt-BR': {
     account: 'Conta',
@@ -102,4 +109,15 @@ export function getSessionInitials(profile: AuthProfile): string {
   }
 
   return source.slice(0, 2).toLocaleUpperCase();
+}
+
+export function buildUserSessionPresentation(profile: AuthProfile | null): UserSessionPresentation | null {
+  if (!profile) return null;
+
+  return {
+    displayName: getSessionDisplayName(profile),
+    secondaryIdentity: getSessionSecondaryIdentity(profile),
+    initials: getSessionInitials(profile),
+    roles: normalizeSessionRoles(profile.roles)
+  };
 }

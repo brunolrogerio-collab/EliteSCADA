@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Scada.Core.Abstractions;
 using Scada.Core.Events;
 using Scada.Core.Tags;
@@ -19,7 +20,7 @@ public sealed record GatewayRouteRuntimeDiagnostic(
     string Key,
     string Name,
     bool Enabled,
-    GatewayRouteRuntimeState State,
+    [property: JsonConverter(typeof(JsonStringEnumConverter))] GatewayRouteRuntimeState State,
     Guid SourceTagId,
     string SourceTagPath,
     string? SourceDataSource,
@@ -36,7 +37,7 @@ public sealed record GatewayRouteRuntimeDiagnostic(
     int ConsecutiveFailures,
     string? LastError,
     bool HasPendingValue,
-    GatewayTransferMode TransferMode,
+    [property: JsonConverter(typeof(JsonStringEnumConverter))] GatewayTransferMode TransferMode,
     int? EffectiveIntervalMilliseconds);
 
 internal sealed class GatewayRuntimeEngine : IAsyncDisposable
@@ -327,7 +328,7 @@ internal sealed class GatewayRuntimeEngine : IAsyncDisposable
             issues.Add(new RuntimeActivationIssue(
                 $"{prefix}_TAG_MISMATCH",
                 $"Gateway route '{route.Key}' {label} TAG ID and path resolve to different active TAGs.",
-                route.Key));
+                route.Route.Key));
             return null;
         }
 

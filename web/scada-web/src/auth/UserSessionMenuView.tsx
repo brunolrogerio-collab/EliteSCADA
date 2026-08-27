@@ -2,10 +2,7 @@ import { useId, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { AuthProfile } from './AuthGate';
 import {
-  getSessionDisplayName,
-  getSessionInitials,
-  getSessionSecondaryIdentity,
-  normalizeSessionRoles,
+  buildUserSessionPresentation,
   type UserSessionMenuLabels
 } from './sessionMenuModel';
 
@@ -21,13 +18,11 @@ export function UserSessionMenuView({ profile, labels, onLogout }: UserSessionMe
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutFailed, setLogoutFailed] = useState(false);
   const rolesHeadingId = useId();
+  const presentation = buildUserSessionPresentation(profile);
 
-  if (!profile) return null;
+  if (!presentation) return null;
 
-  const displayName = getSessionDisplayName(profile);
-  const secondaryIdentity = getSessionSecondaryIdentity(profile);
-  const initials = getSessionInitials(profile);
-  const roles = normalizeSessionRoles(profile.roles);
+  const { displayName, secondaryIdentity, initials, roles } = presentation;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDetailsElement>) => {
     if (event.key !== 'Escape' || !detailsRef.current?.open) return;

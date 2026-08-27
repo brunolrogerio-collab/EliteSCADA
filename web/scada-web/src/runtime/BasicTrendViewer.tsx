@@ -236,9 +236,9 @@ export function BasicTrendViewer({
   useEffect(() => {
     void refreshHistory();
     if (mode !== 'live' || refreshIntervalMs <= 0) return () => historyAbort.current?.abort();
-    const timer = window.setInterval(() => void refreshHistory(), refreshIntervalMs);
+    const timer = globalThis.setInterval(() => void refreshHistory(), refreshIntervalMs);
     return () => {
-      window.clearInterval(timer);
+      globalThis.clearInterval(timer);
       historyAbort.current?.abort();
     };
   }, [mode, refreshHistory, refreshIntervalMs]);

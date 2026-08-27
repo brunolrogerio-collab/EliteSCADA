@@ -30,29 +30,19 @@ export class ClientMemoryStore {
       credentials: 'same-origin',
       signal
     });
-    if (!response.ok) {
-      throw new Error(`Client Memory definitions request failed with HTTP ${response.status}.`);
-    }
+    if (!response.ok) throw new Error(`Client Memory definitions request failed with HTTP ${response.status}.`);
 
     const sources = await response.json() as ClientMemorySourceDefinition[];
     this.clear();
-    this.sources = sources.map(source => ({
-      ...source,
-      tags: source.tags.map(tag => ({ ...tag }))
-    }));
+    this.sources = sources.map(source => ({ ...source, tags: source.tags.map(tag => ({ ...tag })) }));
 
     for (const source of this.sources) {
       for (const definition of source.tags) {
         const normalizedPath = definition.path.toLowerCase();
-        if (this.byId.has(definition.id))
-          throw new Error(`Duplicate Client Memory TAG id '${definition.id}'.`);
-        if (this.idByPath.has(normalizedPath))
-          throw new Error(`Duplicate Client Memory TAG path '${definition.path}'.`);
-
-        this.byId.set(definition.id, {
-          definition,
-          value: cloneValue(definition.initialValue)
-        });
+        if (this.byId.has(definition.id)) throw new Error(`Duplicate Client Memory TAG id '${definition.id}'.`);
+        if (this.idByPath.has(normalizedPath)) throw new Error(`Duplicate Client Memory TAG path '${definition.path}'.`);
+        validateClientValue(definition.dataType, definition.initialValue);
+        this.byId.set(definition.id, { definition, value: cloneValue(definition.initialValue) });
         this.idByPath.set(normalizedPath, definition.id);
       }
     }
@@ -60,28 +50,20 @@ export class ClientMemoryStore {
     return this.byId.size;
   }
 
-  get size(): number {
-    return this.byId.size;
-  }
+  get size(): number { return this.byId.size; }
 
   snapshotSources(): ClientMemorySourceDefinition[] {
-    return this.sources.map(source => ({
-      ...source,
-      tags: source.tags.map(tag => ({ ...tag }))
-    }));
+    return this.sources.map(source => ({ ...source, tags: source.tags.map(tag => ({ ...tag })) }));
   }
 
   read(pathOrId: string): unknown {
-    const entry = this.resolve(pathOrId);
-    return cloneValue(entry?.value);
+    return cloneValue(this.resolve(pathOrId)?.value);
   }
 
   write(pathOrId: string, value: unknown): void {
     const entry = this.resolve(pathOrId);
     if (!entry) throw new Error(`Client Memory TAG '${pathOrId}' was not found in this runtime client.`);
-    if (entry.definition.readOnly)
-      throw new Error(`Client Memory TAG '${entry.definition.path}' is read-only.`);
-
+    if (entry.definition.readOnly) throw new Error(`Client Memory TAG '${entry.definition.path}' is read-only.`);
     validateClientValue(entry.definition.dataType, value);
     entry.value = cloneValue(value);
   }
@@ -110,23 +92,31 @@ export const clientMemory = new ClientMemoryStore();
 
 function validateClientValue(dataType: string, value: unknown) {
   const normalized = dataType.toLowerCase();
-  const fail = () => {
-    throw new TypeError(`Client Memory value is incompatible with data type '${dataType}'.`);
-  };
+  const fail = () => { throw new TypeError(`Client Memory value is incompatible with data type '${dataType}'.`); };
 
   switch (normalized) {
     case 'boolean':
       if (typeof value !== 'boolean') fail();
       return;
     case 'int16':
-      if (!Number.isInteger(value) || (value as number) < -32768 || (value as number) > 32767) fail();
+      if (typeof value !== 'number' || !Number.isInteger(value) || value < -32768 || value > 32767) fail();
       return;
     case 'int32':
     case 'enum':
-      if (!Number.isInteger(value) || (value as number) < -2147483648 || (value as number) > 2147483647) fail();
+      if (typeof value !== 'number' || !Number.isInteger(value) || value < -2147483648 || value > 2147483647) fail();
       return;
     case 'int64':
-      if (!(typeof value === 'number' && Number.isSafeInteger(value)) && typeof value !== 'string') fail();
+      if (typeof value === 'number') {
+        if (!Number.isSafeInteger(value)) fail();
+        return;
+      }
+      if (typeof value === 'string') {
+        if (!/^-?(0|[1-9][0-9]*)$/.test(value)) fail();
+        const parsed = BigInt(value);
+        if (parsed < -9223372036854775808n || parsed > 9223372036854775807n) fail();
+        return;
+      }
+      fail();
       return;
     case 'float':
     case 'double':

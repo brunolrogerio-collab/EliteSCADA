@@ -84,6 +84,54 @@ export type DataSourceEngineering = {
   metadata?: Record<string, string> | null;
 };
 
+export type GatewayEngineering = {
+  id?: string;
+  key: string;
+  name: string;
+  sourceTagId?: string | null;
+  sourceTagPath?: string | null;
+  destinationTagId?: string | null;
+  destinationTagPath?: string | null;
+  transferMode?: 'OnChange' | 'Periodic' | string;
+  qualityPolicy?: 'GoodOnly' | string;
+  conversionPolicy?: 'Exact' | 'CheckedNumeric' | string;
+  initialTransferPolicy?: 'WaitForNextAcceptableValue' | 'SynchronizeFirstAcceptableValue' | string;
+  gain?: number | null;
+  offset?: number | null;
+  deadband?: number | null;
+  minimumIntervalMilliseconds?: number | null;
+  periodMilliseconds?: number | null;
+  description?: string | null;
+  enabled?: boolean;
+  metadata?: Record<string, string> | null;
+};
+
+export type GatewayRuntimeDiagnostic = {
+  routeId: string;
+  key: string;
+  name: string;
+  enabled: boolean;
+  state: string;
+  sourceTagId: string;
+  sourceTagPath: string;
+  sourceDataSource?: string | null;
+  destinationTagId: string;
+  destinationTagPath: string;
+  destinationDataSource?: string | null;
+  lastSourceUpdateAtUtc?: string | null;
+  lastSuccessfulTransferAtUtc?: string | null;
+  lastFailedTransferAtUtc?: string | null;
+  transferCount: number;
+  skippedTransferCount: number;
+  coalescedUpdateCount: number;
+  writeFailureCount: number;
+  consecutiveFailures: number;
+  lastError?: string | null;
+  hasPendingValue: boolean;
+  transferMode: string;
+  effectiveIntervalMilliseconds?: number | null;
+};
+
 export type BindingEngineering = {
   key: string;
   kind: string;
@@ -151,6 +199,7 @@ export type EngineeringPackageView = {
   screens?: ScreenEngineering[];
   popups?: PopupEngineering[];
   securityRoles?: SecurityRoleEngineering[];
+  gateways?: GatewayEngineering[];
   [key: string]: unknown;
 };
 

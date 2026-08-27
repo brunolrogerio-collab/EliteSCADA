@@ -22,6 +22,7 @@ public static class AuditActions
     public const string EngineeringSave = "engineering.save";
     public const string EngineeringPublish = "engineering.publish";
     public const string EngineeringActivate = "engineering.activate";
+    public const string ServerMemoryRetentionReset = "server-memory.retention.reset";
     public const string AuditRead = "audit.read";
     public const string UserRoleManage = "user-role.manage";
     public const string AuthenticationLogin = "auth.login";

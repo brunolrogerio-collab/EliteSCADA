@@ -124,14 +124,18 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
                     package,
                     async (context, ct) =>
                     {
-                        if (commitAsync is not null)
-                            await commitAsync(context, ct);
-
+                        // Stop automated writes before the external commit callback can
+                        // persist/promote the candidate Active Revision. If that callback
+                        // later fails, the wrapper restarts the previous Gateway while the
+                        // proven inner coordinator keeps the previous runtime active.
                         if (previousGateway is not null)
                         {
                             await previousGateway.StopAsync();
                             previousGatewayStopped = true;
                         }
+
+                        if (commitAsync is not null)
+                            await commitAsync(context, ct);
                     },
                     cancellationToken);
 
@@ -180,9 +184,14 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
             if (string.IsNullOrWhiteSpace(dto.Source) || !dataSources.TryGetValue(dto.Source, out var dataSource))
                 continue;
 
+            // Client Memory has no server-authoritative scalar value and the built-in
+            // simulation source is not part of the active Engineering runtime. All other
+            // enabled server-owned sources remain protocol-neutral here: unsupported
+            // communication drivers are rejected by the normal runtime compiler, while
+            // future supported drivers become Gateway-eligible without editing this class.
             var sharedRuntimeSource =
-                dataSource.Driver.Equals(EngineeringDriverCompiler.ModbusTcpDriverKey, StringComparison.OrdinalIgnoreCase) ||
-                InternalMemoryRuntimePlanner.IsServerMemoryDriver(dataSource.Driver);
+                !InternalMemoryRuntimePlanner.IsClientMemoryDriver(dataSource.Driver) &&
+                !dataSource.Driver.Equals(EngineeringDriverCompiler.SimulationDriverKey, StringComparison.OrdinalIgnoreCase);
             if (!sharedRuntimeSource)
                 continue;
 

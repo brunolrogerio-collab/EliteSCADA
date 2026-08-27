@@ -25,8 +25,7 @@ const memoryDefinitions = [
   }
 ];
 
-test('Client Memory is isolated per opened runtime page and preserves exact Int64 values', async ({ browser }) => {
-  const context = await browser.newContext();
+test('Client Memory is isolated per opened runtime page and preserves exact Int64 values', async ({ context }) => {
   const first = await context.newPage();
   const second = await context.newPage();
 
@@ -68,8 +67,6 @@ test('Client Memory is isolated per opened runtime page and preserves exact Int6
     }
   });
   expect(invalidInt64Rejected).toBeTruthy();
-
-  await context.close();
 });
 
 test('Engineering TAG view previews and applies typed Internal Memory initial value', async ({ page }) => {

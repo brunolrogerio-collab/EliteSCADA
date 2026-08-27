@@ -38,6 +38,15 @@ public sealed record RuntimeDescriptor(
     int TagCount,
     int ActiveAlarmCount);
 
+public sealed record ClientMemoryRuntimeTag(
+    TagDefinition Tag,
+    TypedTagValue InitialValue);
+
+public sealed record ClientMemoryRuntimeSource(
+    string DataSourceKey,
+    string Name,
+    IReadOnlyCollection<ClientMemoryRuntimeTag> Tags);
+
 public interface IEngineeringRuntimeCoordinator : IAsyncDisposable
 {
     RuntimeDescriptor Describe();
@@ -46,14 +55,17 @@ public interface IEngineeringRuntimeCoordinator : IAsyncDisposable
     IReadOnlyCollection<AlarmDefinition> AlarmDefinitions();
     IReadOnlyCollection<AlarmInstance> Alarms(bool activeOnly = false);
     IReadOnlyCollection<CommandDefinition> Commands();
+    IReadOnlyCollection<ClientMemoryRuntimeSource> ClientMemorySources();
     bool TryGetTag(Guid tagId, out TagDefinition? tag);
     bool TryGetTagByPath(string path, out TagDefinition? tag);
     bool TryGetCurrent(Guid tagId, out TagValue? value);
     bool TryGetCommand(Guid commandId, out CommandDefinition? command);
+    bool IsServerMemoryTag(Guid tagId);
     ValueTask<bool> AcknowledgeAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default);
     ValueTask<bool> ShelveAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default);
     ValueTask<bool> UnshelveAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default);
     ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default);
+    ValueTask ResetServerMemoryRetainedValueAsync(Guid tagId, CancellationToken cancellationToken = default);
     ValueTask ExecuteCommandAsync(Guid commandId, CancellationToken cancellationToken = default);
     Task<RuntimeActivationResult> ActivateAsync(
         string projectKey,
@@ -116,6 +128,16 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
     public IReadOnlyCollection<CommandDefinition> Commands() => Volatile.Read(ref _active).Commands.Snapshot();
 
+    public IReadOnlyCollection<ClientMemoryRuntimeSource> ClientMemorySources() =>
+        Volatile.Read(ref _active).ClientMemoryPlans
+            .Select(plan => new ClientMemoryRuntimeSource(
+                plan.DataSourceKey,
+                plan.Name,
+                plan.Tags
+                    .Select(tag => new ClientMemoryRuntimeTag(tag.Tag, tag.InitialValue))
+                    .ToArray()))
+            .ToArray();
+
     public bool TryGetTag(Guid tagId, out TagDefinition? tag) =>
         Volatile.Read(ref _active).Registry.TryGet(tagId, out tag);
 
@@ -127,6 +149,9 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
     public bool TryGetCommand(Guid commandId, out CommandDefinition? command) =>
         Volatile.Read(ref _active).Commands.TryGet(commandId, out command);
+
+    public bool IsServerMemoryTag(Guid tagId) =>
+        Volatile.Read(ref _active).ServerMemoryByTagId.ContainsKey(tagId);
 
     public ValueTask<bool> AcknowledgeAlarmAsync(
         Guid alarmId,
@@ -165,6 +190,17 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         }
 
         throw new KeyNotFoundException($"Active runtime has no writable source for TAG '{tagId}'.");
+    }
+
+    public async ValueTask ResetServerMemoryRetainedValueAsync(
+        Guid tagId,
+        CancellationToken cancellationToken = default)
+    {
+        var state = Volatile.Read(ref _active);
+        if (!state.ServerMemoryByTagId.TryGetValue(tagId, out var memorySource))
+            throw new KeyNotFoundException($"Active runtime Server Memory TAG '{tagId}' was not found.");
+
+        await memorySource.ResetRetainedValueAsync(tagId, cancellationToken);
     }
 
     public async ValueTask ExecuteCommandAsync(

@@ -98,7 +98,10 @@ export function buildRuntimeTagInspectorSummary(tags: readonly RuntimeTagListIte
   };
 
   for (const tag of tags) {
-    summary[runtimeTagQualityBucket(tag)] += 1;
+    const bucket = runtimeTagQualityBucket(tag);
+    if (bucket === 'no-sample') summary.noSample += 1;
+    else summary[bucket] += 1;
+
     if (tag.readOnly) summary.readOnly += 1;
     else summary.writable += 1;
   }

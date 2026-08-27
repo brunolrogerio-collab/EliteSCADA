@@ -468,6 +468,8 @@ internal sealed class GatewayRuntimeEngine : IAsyncDisposable
         private readonly SemaphoreSlim _writeGate = new(1, 1);
         private TagValue? _pending;
         private Task? _workerTask;
+        private object? _lastObservedGoodSourceValue;
+        private TagQuality? _lastObservedQuality;
         private object? _lastSuccessfulSourceValue;
         private DateTimeOffset? _lastWriteAttemptAtUtc;
         private GatewayRouteRuntimeState _state = GatewayRouteRuntimeState.Stopped;
@@ -515,6 +517,8 @@ internal sealed class GatewayRuntimeEngine : IAsyncDisposable
             {
                 _state = GatewayRouteRuntimeState.Stopped;
                 _pending = null;
+                _lastObservedGoodSourceValue = null;
+                _lastObservedQuality = null;
             }
         }
 
@@ -525,9 +529,21 @@ internal sealed class GatewayRuntimeEngine : IAsyncDisposable
                 _lastSourceUpdateAtUtc = current.Timestamp;
                 if (current.Quality != TagQuality.Good)
                 {
+                    _lastObservedQuality = current.Quality;
                     _pending = null;
                     _skippedTransferCount++;
                     _state = GatewayRouteRuntimeState.WaitingForSource;
+                    return;
+                }
+
+                var unchangedWhileGood =
+                    _lastObservedQuality == TagQuality.Good &&
+                    Equals(_lastObservedGoodSourceValue, current.Value);
+                _lastObservedQuality = TagQuality.Good;
+                _lastObservedGoodSourceValue = current.Value;
+                if (unchangedWhileGood)
+                {
+                    _skippedTransferCount++;
                     return;
                 }
 
@@ -592,6 +608,7 @@ internal sealed class GatewayRuntimeEngine : IAsyncDisposable
             bool applyDeadband,
             CancellationToken cancellationToken)
         {
+            _ = signaled; // The current cache is authoritative; signaled only schedules/coalesces work.
             await _writeGate.WaitAsync(cancellationToken);
             try
             {

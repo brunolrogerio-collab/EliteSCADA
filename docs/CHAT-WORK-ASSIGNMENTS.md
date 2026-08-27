@@ -15,7 +15,7 @@ Repository terminology:
 
 - **MERGED** = official `main` state.
 - **IMPLEMENTED IN PR** = functional implementation exists only in an open branch/PR.
-- **RESEARCH IN PR** = research/specification exists only in an open branch/PR and is not product implementation.
+- **RESEARCH IN PR** = research/specification exists only in an open PR and is not product implementation.
 - **SPECIFIED / NOT IMPLEMENTED** = documented product intent without merged implementation.
 
 ---
@@ -24,7 +24,7 @@ Repository terminology:
 
 **Role:** `COORDINATOR`
 
-**CurrentTask:** Interface product development and central UX integration
+**CurrentTask:** Integrate the first Interface Product Development checkpoint
 
 **Branch:** `main` + `feature/interface-product-development`
 
@@ -32,19 +32,19 @@ Repository terminology:
 
 **Objective:**
 
-Prioritize the real product interface now that Internal Memory, TAG Gateway and common communication diagnostics are complete. Evolve EliteSCADA from technical proof surfaces into a coherent industrial application across Runtime, Engineering and Audit before returning to the provisional Windows validation build or additional drivers.
+Turn the merged worker UI primitives plus the coordinator product shell into one coherent industrial application experience across Runtime, Engineering and Audit. Keep new drivers and the provisional Windows presentation package postponed until this interface checkpoint is integrated and user-testable.
 
-**AllowedScope:** coordinator-owned shared/central frontend shell/routing, `main.tsx`, `AppNavigation.tsx`, global/interface CSS, `EngineeringApp.tsx`, central localization/integration, browser tests, CI, assignment board, roadmap/handoff documentation and integration of worker-delivered isolated UI components.
+**AllowedScope:** coordinator-owned shared/central frontend shell/routing, `main.tsx`, `AppNavigation.tsx`, global/interface CSS, `EngineeringApp.tsx`, central localization/integration, browser tests, CI, assignment board, roadmap/handoff documentation and worker integration.
 
 **ForbiddenScope:**
 
 - no known-failing merge;
 - no force-reset/discard of worker commits;
 - no new production MQTT/OPC UA/BACnet/S7/Driver Module runtime during this block;
-- no completion/handoff of the provisional Windows presentation package unless the product owner reprioritizes it;
+- no completion/handoff of the provisional Windows presentation package unless reprioritized;
 - no frontend-only security decisions;
 - no private Engineering truth;
-- no production graphical Screen/Popup/Dynamo editor or Python engine/editor ahead of the locked Script/visual prerequisite chain.
+- no production graphical Screen/Popup/Dynamo editor or Python engine/editor ahead of the locked prerequisite chain.
 
 **MustReadSpecific:**
 
@@ -60,33 +60,34 @@ Prioritize the real product interface now that Internal Memory, TAG Gateway and 
 - Internal Memory: **MERGED / COMPLETE** through PR #49.
 - TAG Gateway: **MERGED / COMPLETE** through PRs #50 and #55.
 - Common communication diagnostics: **MERGED / COMPLETE** through PRs #56 and #57.
-- PR #57 merge SHA: `c8190cc119a2e288834d619084396107103b2f56`; CI #350 and post-merge CI #351 green.
 - Engineering Schema: **v9**.
-- `integration/interface-validation-preview` exists with two unmerged preparatory commits touching `Program.cs` and `AppNavigation.tsx`; branch is intentionally **PARKED / NO PR / DO NOT MERGE YET**.
-- active interface coordinator branch: `feature/interface-product-development`.
-- PR #53 and PR #54 remain delivered research inputs and are not production implementations.
+- Interface worker slice DEV 3: PR #59 **MERGED** as `b0b58964f119f83356cf2edc8fecf5939fb905da`; exact-head CI #363 green.
+- Interface worker slice DEV 1: PR #60 **MERGED** as `a7e6105fb65079ad1af8bcb56f8484225ff3dc8c`; exact-head CI #359 green.
+- Interface worker slice DEV 2: PR #61 **MERGED** as `49c9e7261d63047b601f4b3c4f6e788168c8ee5c`; exact-head CI #360 green.
+- Coordinator PR #58 remains Draft/Open on `feature/interface-product-development`; it contains the central product shell/navigation work and now requires reconciliation with current `main` plus worker integration.
+- `integration/interface-validation-preview` remains **PARKED / NO PR / DO NOT MERGE YET**.
+- PR #53 and PR #54 remain delivered research inputs, not production implementations.
 
 **Dependencies:**
 
 - canonical Engineering remains authoritative;
-- UI work may consume existing Runtime/Engineering/Audit APIs but must not bypass them;
-- worker UI slices must remain isolated until coordinator integration;
+- merged worker components are isolated primitives and still require central composition;
 - graphical HMI editor remains blocked by the Script/visual prerequisite chain;
-- Windows validation packaging resumes after the interface reaches a more valuable user-testable state;
+- Windows validation packaging resumes after the interface reaches a materially useful validation state;
 - additional drivers/protocols remain postponed.
 
 **NextActions:**
 
-1. replace floating/developer-like global navigation with a coherent EliteSCADA application shell;
-2. normalize Runtime/Engineering/Audit visual language and route context;
-3. integrate DEV 1 Engineering workspace ergonomics primitives;
-4. integrate DEV 2 Runtime operational overview primitives;
-5. integrate DEV 3 authenticated session/user-menu UX;
-6. improve Engineering information architecture, search/navigation, scalable entity presentation and editor consistency;
-7. improve Runtime operational context without pretending the future graphical HMI editor already exists;
-8. extend Chromium E2E to the integrated UX and keep existing functional/security behavior green;
-9. merge only reviewed current-head green interface slices;
-10. return to the Windows validation package only after the interface development checkpoint is materially useful for product-owner feedback.
+1. reconcile `feature/interface-product-development` with current `main` without discarding PR #58 shell work;
+2. integrate merged `UserSessionMenu` into the product shell;
+3. integrate merged `EngineeringEntityBrowser` into the Engineering workspace without weakening Preview/Apply/CAS semantics;
+4. integrate merged `RuntimeOperationsOverview` into Runtime while preserving the process demo;
+5. normalize locale and visual behavior across the integrated surfaces;
+6. extend Chromium coverage for the integrated UX;
+7. run full Web/backend/smoke/Chromium CI on the reconciled candidate head;
+8. merge PR #58 only when the integrated head is green and reviewed;
+9. after integration, decide the next interface slice before assigning new worker missions;
+10. keep drivers and provisional Windows packaging postponed unless product priority changes.
 
 **AfterCompletion:** `CONTINUE_COORDINATION`
 
@@ -100,50 +101,21 @@ Prioritize the real product interface now that Internal Memory, TAG Gateway and 
 
 **Branch:** `feature/engineering-workspace-ux`
 
-**Status:** `ASSIGNED`
+**Status:** `MERGED / WAITING`
 
-**PullRequest:** none yet
+**PullRequest:** `#60 — MERGED / a7e6105fb65079ad1af8bcb56f8484225ff3dc8c`
 
-**Objective:**
+**Delivered:**
 
-Build isolated reusable Engineering UI primitives that make large entity collections practical: compact searchable/filterable list/master-detail behavior suitable for TAGs, Data Sources, alarms and future Engineering entities. Deliver primitives only; coordinator owns wiring into `EngineeringApp.tsx` and central routing/localization.
+- reusable controlled `EngineeringEntityBrowser<T>` master/detail primitive;
+- search/filter, scalable list selection and keyboard navigation;
+- explicit loading/empty/no-match/no-selection states;
+- caller-owned authoritative Engineering values and selection;
+- focused contract tests.
 
-**AllowedScope:**
+**Validation:** exact worker head `ab8e7e0b698a8533ea6a08048deb3c464840e843`; CI #359 **SUCCESS**.
 
-- new files under `web/scada-web/src/engineering/**` specifically for reusable entity browser/workspace UI;
-- component-local CSS under the same directory;
-- focused frontend/E2E tests for the isolated component where practical;
-- existing Engineering type imports may be consumed read-only.
-
-**ForbiddenScope:**
-
-- `main`;
-- `web/scada-web/src/engineering/EngineeringApp.tsx`;
-- `web/scada-web/src/main.tsx`;
-- `AppNavigation.tsx` and global shell/routing;
-- `api.ts`, central backend/API/DI, Engineering schema/contracts;
-- graphical Screen/Popup/Dynamo editor implementation;
-- Python/editor runtime;
-- drivers/protocols, workflows or lockfiles.
-
-**MustReadSpecific:**
-
-- `docs/INTERFACE-DEVELOPMENT.md`
-- `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`
-- `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
-- research PR #53 document as optional UX input.
-
-**CompletionCriteria:**
-
-1. reusable component supports search/filter and scalable selection/list navigation;
-2. selected entity has a clear detail surface without forcing a huge always-expanded form;
-3. keyboard/focus behavior is sane for desktop Engineering;
-4. empty/loading/no-match states are explicit;
-5. component does not create private Engineering state or mutate backend directly;
-6. focused tests/Web build are green;
-7. Draft PR opened as **IMPLEMENTED IN PR / NOT MERGED**, then stop.
-
-**NextActions:** work only on `feature/engineering-workspace-ux`, deliver isolated primitives, open Draft PR, wait.
+**NextActions:** none. On `siga`, verify PR #60 is merged and report `MERGED / WAITING`. Do not begin another task until coordinator records a new assignment.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 
@@ -157,50 +129,22 @@ Build isolated reusable Engineering UI primitives that make large entity collect
 
 **Branch:** `feature/runtime-operations-ux`
 
-**Status:** `ASSIGNED`
+**Status:** `MERGED / WAITING`
 
-**PullRequest:** none yet
+**PullRequest:** `#61 — MERGED / 49c9e7261d63047b601f4b3c4f6e788168c8ee5c`
 
-**Objective:**
+**Delivered:**
 
-Build an isolated Runtime operational overview component using existing protected EliteSCADA APIs. The component should complement the current process demo with platform-level operational context: runtime status, communication health, active alarms/TAG quality and Gateway/diagnostic summary where already available.
+- isolated `RuntimeOperationsOverview` component;
+- protected read-only diagnostics/Gateway/alarm aggregation;
+- per-Data-Source communication health and TAG-quality summary;
+- neutral handling of Simulation/no-external-source and restricted/partial diagnostics;
+- loading/error/partial/empty states and localized copy;
+- focused model/contract tests.
 
-**AllowedScope:**
+**Validation:** exact worker head `7fbd564c93af5ad3d4c83d2ddc8d5ed782d2957d`; CI #360 **SUCCESS**.
 
-- new files under `web/scada-web/src/runtime/**` for the operational overview;
-- component-local CSS;
-- focused frontend/E2E tests and local types/helpers inside that runtime slice;
-- read-only consumption of existing `/api` endpoints.
-
-**ForbiddenScope:**
-
-- `main`;
-- `web/scada-web/src/main.tsx` and global `styles.css`;
-- central navigation/shell;
-- backend/API contract changes;
-- Engineering schema/contracts;
-- direct driver/device access;
-- new drivers/protocols;
-- graphical HMI editor;
-- workflows/lockfiles/dependencies.
-
-**MustReadSpecific:**
-
-- `docs/INTERFACE-DEVELOPMENT.md`
-- `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
-- `docs/TAG-GATEWAY.md`
-- `docs/INTERNAL-MEMORY-TAGS.md`
-
-**CompletionCriteria:**
-
-1. isolated runtime overview presents useful operational summary from existing APIs;
-2. communication abnormalities are emphasized while healthy states remain visually quiet;
-3. component handles loading/error/empty states cleanly;
-4. no direct device/driver access or fabricated metrics;
-5. focused tests/Web build are green;
-6. Draft PR opened as **IMPLEMENTED IN PR / NOT MERGED**, then stop.
-
-**NextActions:** work only on `feature/runtime-operations-ux`, deliver isolated component, open Draft PR, wait.
+**NextActions:** none. On `siga`, verify PR #61 is merged and report `MERGED / WAITING`. Do not begin another task until coordinator records a new assignment.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 
@@ -214,45 +158,21 @@ Build an isolated Runtime operational overview component using existing protecte
 
 **Branch:** `feature/session-ux`
 
-**Status:** `ASSIGNED`
+**Status:** `MERGED / WAITING`
 
-**PullRequest:** none yet for this task; research PR #54 remains separate and unchanged
+**PullRequest:** `#59 — MERGED / b0b58964f119f83356cf2edc8fecf5939fb905da`
 
-**Objective:**
+**Delivered:**
 
-Build an isolated authenticated-session UI primitive using the existing `useAuth()` context. It should make current user identity, roles and logout discoverable in the future product shell without changing authentication semantics.
+- `UserSessionMenu` using the existing trusted `useAuth()` context;
+- authenticated display identity, roles and logout;
+- keyboard/Escape behavior and clean disabled-auth degradation;
+- `pt-BR` / `en` / `es` presentation contract;
+- no token/security/backend semantic changes;
+- focused contract tests.
 
-**AllowedScope:**
+**Validation:** exact worker head `f0b120c3ec3e268b9c7875fc73450a150e1dda5a`; CI #363 **SUCCESS**.
 
-- new files under `web/scada-web/src/auth/**` for a `UserSessionMenu`-style component and component-local CSS;
-- focused frontend tests;
-- read-only use of the existing Auth context/profile/logout API.
-
-**ForbiddenScope:**
-
-- `main`;
-- changing `AuthGate.tsx` authentication logic unless coordinator explicitly expands scope after review;
-- global `main.tsx`, `AppNavigation.tsx` or shell routing;
-- backend identity/JWT/security changes;
-- Engineering schema/contracts;
-- Python/editor runtime despite the older research PR;
-- drivers/protocols/workflows/lockfiles.
-
-**MustReadSpecific:**
-
-- `docs/INTERFACE-DEVELOPMENT.md`
-- `docs/INTERFACE-VALIDATION-MILESTONE.md`
-- `docs/PARALLEL-WORK.md`
-
-**CompletionCriteria:**
-
-1. component clearly shows authenticated display name/username and role context without exposing tokens;
-2. logout uses the existing trusted Auth context behavior;
-3. keyboard/focus/menu behavior is usable;
-4. unauthenticated/disabled-auth states degrade cleanly;
-5. focused tests/Web build are green;
-6. Draft PR opened as **IMPLEMENTED IN PR / NOT MERGED**, then stop.
-
-**NextActions:** work only on `feature/session-ux`, deliver isolated component, open Draft PR, wait.
+**NextActions:** none. On `siga`, verify PR #59 is merged and report `MERGED / WAITING`. Research PR #54 remains separate. Do not begin another task until coordinator records a new assignment.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`

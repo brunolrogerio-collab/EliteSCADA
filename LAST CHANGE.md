@@ -3,7 +3,7 @@
 > Operational handoff. A new coordinator must be able to resume from GitHub without depending on chat history.
 
 **Handoff date:** 2026-08-27  
-**Development state:** **INTERFACE-WAVE-03 ACTIVE**
+**Development state:** **INTERFACE-WAVE-04 ACTIVE**
 
 Repository truth remains separated into `MERGED`, `IMPLEMENTED IN PR`, `RESEARCH MERGED / PRODUCTION NOT IMPLEMENTED` and `SPECIFIED / NOT IMPLEMENTED`.
 
@@ -23,121 +23,78 @@ Before any EliteSCADA action read current `main`:
 
 GitHub branch/PR/head/CI state is operational truth.
 
-## Wave 00 / second interface wave — MERGED
+## Wave 00 / persistence hardening — MERGED
 
-Worker PRs #65, #66 and #67 are merged. Coordinator PR #69 `Integrate second-wave Runtime operations surfaces` is merged:
+Second interface-wave coordinator PR #69 is merged with exact-head CI #403 green. PostgreSQL schema-initialization concurrency hardening PR #70 is merged with exact-head CI #405 green; merge `0aae8317aff5b0640eb713c1ce404224ccbcbbc2`.
 
-- final head `c493709a221614a093717b6e6a16bf8821226e91`;
-- exact-head CI #403 SUCCESS: Web, backend/tests, runtime smoke and Chromium PASS;
-- merge `ee65ab51a39cd74ef6f14395d27b0ee16b8c6970`.
+## INTERFACE-WAVE-03 — MERGED
 
-PR #69 mounts Runtime Alarm Center in the actual Runtime composition, removes the duplicate legacy alarm polling/list/ACK path and removes the legacy client-supplied ACK identity path. Backend identity/authorization remains authoritative.
+Wave 03 objective was the coherent non-graphical cycle:
 
-## PostgreSQL schema initialization race — FIXED / MERGED
+`Engineering -> Save Revision -> Publish -> Activate -> Runtime operation`
 
-The concurrency blocker discovered during PR #69 integration is resolved through PR #70 `Harden PostgreSQL schema initialization concurrency`.
+Worker deliveries:
 
-Root cause confirmed:
+- PR #71 — Runtime TAG Inspector + Recent History; final head `c4f1b8cf48c4231119fdaf17b805852c2347c00f`; CI #411 SUCCESS;
+- PR #72 — Interface Validation Readiness Harness; final head `9a21d1402edd2a3ee9188576263d280dca4faa67`; CI #412 SUCCESS;
+- PR #73 — Engineering Lifecycle Workspace; final head `360b156c60c2d75d63dd05de1c2894a75d07ad2e`; CI #410 SUCCESS.
 
-- Engineering, Audit and Local Identity initialization used `pg_advisory_xact_lock(4993446713136202561)` but executed the initialization batch without an explicit transaction protecting the full DDL sequence;
-- Server Memory used an explicit transaction but a different lock key even though it also creates the shared `elitescada` schema.
+Coordinator PR #74 `Integrate Interface Wave 03` is **MERGED**:
 
-PR #70:
+- frozen WaveBaseSHA: `0aae8317aff5b0640eb713c1ce404224ccbcbbc2`;
+- final integration head: `41d44d513d337e8ef6d3cc0e04ef0cf07a697b41`;
+- exact integration CI #418 / run `33124948655`: Web SUCCESS, backend/full tests SUCCESS, Runtime smoke SUCCESS, Chromium SUCCESS;
+- merge commit: **`37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`**.
 
-- Engineering/Audit/LocalIdentity now open explicit connection + transaction, execute the lock and entire DDL batch inside it, then commit;
-- Server Memory now uses the same shared schema advisory-lock key;
-- `PostgreSqlConcurrentInitializationTests` runs all four stores repeatedly/concurrently to regress the catalog-collision failure;
-- no schema redesign, frontend change or CI retry weakening.
+### Important integration findings now MERGED
 
-Evidence:
+The Lifecycle UI no longer treats `ActiveRevision = null` plus live Runtime revision `null` as meaningful Active consistency. With no durable Active revision it explicitly reports that none exists.
 
-- final PR head `25b01e2d792d98d4013fa43c97ad27f06e68a8a2`;
-- exact-head CI #405 SUCCESS;
-- Web PASS;
-- backend Release build + full tests PASS;
-- runtime smoke PASS;
-- Chromium PASS;
-- merge SHA **`0aae8317aff5b0640eb713c1ce404224ccbcbbc2`**.
+The integrated Chromium gate initially exposed and preserved the backend protection `RUNTIME_NO_ACTIVE_SOURCES`: a persisted Engineering revision containing only the legacy `builtin.simulation` fallback cannot masquerade as a valid published Runtime activation. The test was corrected rather than the guard weakened.
 
-This merge SHA is the logical product-code base for Interface Wave 03.
+Final acceptance builds a canonical Server Memory candidate through Engineering Preview/Apply, saves a persisted revision, publishes it through the Lifecycle Workspace, activates it through the protected backend path, proves durable Active/live Runtime revision consistency and verifies the active Server Memory TAG in the mounted Runtime TAG Inspector.
 
-## INTERFACE-WAVE-03 — ACTIVE
+This is the first integrated browser proof in the current wave model of a supported persisted source crossing the full lifecycle into Runtime.
 
-**WaveBaseSHA:** `0aae8317aff5b0640eb713c1ce404224ccbcbbc2`  
-**IntegrationBranch:** `integration/interface-wave-03`
+## INTERFACE-WAVE-04 — ACTIVE
 
-All four branches were created from the exact same WaveBaseSHA:
+**WaveBaseSHA:** `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`  
+**IntegrationBranch:** `integration/interface-wave-04`
 
-- coordinator: `integration/interface-wave-03`;
-- DEV 1: `feature/interface-wave-03-lifecycle-workspace`;
-- DEV 2: `feature/interface-wave-03-runtime-tag-inspector`;
-- DEV 3: `test/interface-wave-03-acceptance-harness`.
+All Wave 04 product branches were created from the exact merge commit above:
 
-The WaveBaseSHA remains immutable for the wave. Later documentation/coordination commits on `main` do not invalidate it or require workers to reconcile. Keep unrelated product-code changes out of `main` until the wave closes.
+- coordinator: `integration/interface-wave-04`;
+- DEV 1: `feature/interface-wave-04-project-management`;
+- DEV 2: `feature/interface-wave-04-trend-viewer`;
+- DEV 3: `feature/interface-wave-04-administration-workspace`.
 
-### Definition of Ready evidence
-
-DEV 1 does not require a new backend lifecycle contract. Existing protected persistence API already exposes:
-
-- persistence status;
-- lifecycle;
-- revisions;
-- Save;
-- Checkout;
-- Publish;
-- Activate Published;
-- live Runtime vs durable Active consistency.
-
-`EngineeringPersistenceSecurityFilter` requires `EngineeringModify` and replaces caller-supplied SavedBy/PublishedBy/ActivatedBy with the authenticated principal for protected lifecycle operations. Frontend identity is therefore not authority.
-
-DEV 2 does not require a new backend Runtime contract. Existing protected surfaces already expose:
-
-- `/api/tags`;
-- `/api/tags/current`;
-- `/api/tags/by-path/{*path}`;
-- `/api/history/{tagId}`;
-- `/ws/tags` realtime.
-
-The worker slice is explicitly read-only and must not call the existing TAG write endpoint.
-
-DEV 3 uses the existing Playwright/Chromium product acceptance infrastructure and owns test-only cross-product readiness coverage rather than product fixes.
-
-## Active worker assignments
-
-The authoritative details are in `docs/CHAT-WORK-ASSIGNMENTS.md`.
+Documentation/coordination commits after the WaveBaseSHA do not invalidate the logical product base. Keep unrelated product-code changes out of `main` until the wave closes.
 
 ### DEV 1 — ACTIVE
 
-`Engineering Lifecycle Workspace`
+`Project Management / Portability Workspace`
 
-Goal: make Working -> Save Revision -> Publish -> Activate -> Active understandable and operable, showing dirty/base/revisions/published/active/runtime consistency and protected critical actions. Central `EngineeringApp.tsx` integration remains coordinator-owned.
+Goal: make canonical project portability understandable and usable: JSON Export, JSON Import with Preview before Apply/CAS, and every backup/restore/`.escadapkg` operation that current public contracts genuinely support. Do not invent a fake package format or bypass canonical Engineering authority.
 
 ### DEV 2 — ACTIVE
 
-`Runtime TAG Inspector + Recent History`
+`Basic Trend Viewer`
 
-Goal: read-only search/filter/master-detail over TAG metadata/current values/quality/timestamps with realtime/refresh and recent historian data. Central Runtime mounting remains coordinator-owned. No process writes/setpoints.
+Goal: bounded historical visualization from existing TAG/historian contracts with TAG selection, interval/window, timestamp/value/quality, refresh and live-vs-historical context. Multiple pens only if current contracts support them without a premature new architecture.
 
 ### DEV 3 — ACTIVE
 
-`Interface Validation Readiness Harness`
+`Administration Workspace ergonomics`
 
-Goal: Chromium acceptance across login/session, Runtime/Operations/Alarm Center, Engineering Data Sources/TAGs/Alarms/Memory/Gateway/diagnostics/lifecycle, Audit, administration authorization, navigation and major `pt-BR`/`en`/`es` states. Product issues are classified `BLOCKER`, `MAJOR UX`, `MINOR UX`, `TEST GAP`; DEV 3 does not silently fix cross-domain defects.
+Goal: coherent user/role/session administration using existing backend-authoritative local identity contracts: supported create/update, enable/disable, role assignment, password operation, confirmations, authorization/session consequences and `pt-BR`/`en`/`es` states. No frontend-trusted authority or credential leakage.
 
-Each worker opens a Draft PR early and finishes with exact-head green evidence plus PR body sections `IMPLEMENTED IN PR`, `INTEGRATION REQUIRED`, `SPECIFIED / NOT IMPLEMENTED`, then `WAIT_FOR_COORDINATOR`.
+Exact scope, ReservedFiles, validation and completion criteria are authoritative in `docs/CHAT-WORK-ASSIGNMENTS.md`.
 
-## Coordinator Wave 03 responsibility
+## Next architectural gate — Wave 05
 
-When workers deliver:
+Wave 05 remains **QUEUED**, not executable by workers yet.
 
-1. inspect each real PR/head/diff/CI;
-2. perform Early Contract / Integration / Delivery reviews based on actual state;
-3. integrate accepted slices into `integration/interface-wave-03` without unnecessary worker reconciliation for unrelated main movement;
-4. add coordinator-owned `EngineeringApp.tsx`, `main.tsx`, routing/shell/localization hooks;
-5. remove/avoid duplicate old/new UI paths;
-6. run final integrated Web + backend/full tests + runtime smoke + Chromium CI;
-7. merge Wave 03 only if the integrated gate is green;
-8. update roadmap/handoff and decide/open Wave 04.
+It is an architecture-first wave. The coordinator must first stabilize the canonical Script Engineering contract in the integration branch before worker slices begin: Scripts collection/entity identity, source/scope/enabled state, references/events/dependencies, import/export/migration, Preview/Apply, revision/PostgreSQL and `.escadapkg` compatibility.
 
 ## First owner validation product gate — LOCKED
 
@@ -147,28 +104,19 @@ The first true product-owner validation build remains:
 
 Authoritative scope/order: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.
 
-It must include the complete vertical path:
+It requires the complete vertical path:
 
 `Engineering -> TAG/Alarm/History -> Screen/Popup/Dynamo -> assets/bindings -> Client Visual Python -> Save/Revision -> Publish -> Activate -> graphical Runtime -> restart/Active recovery`.
 
-Modbus TCP is sufficient as the real industrial protocol for v0.1. Production MQTT, OPC UA, BACnet, S7, Allen-Bradley and final Driver Module expansion stay after v0.1 owner validation unless the product owner deliberately changes the gate.
-
-## Visual image/assets requirement — LOCKED FOR v0.1
-
-`docs/VISUAL-ASSETS-AND-IMAGES.md` is normative.
-
-Required raster import includes JPG/JPEG, BMP and PNG; PNG alpha transparency must survive import, Engineering, package/revision/publish/activate and Runtime rendering. Imported images are stable project assets/resources, not loose absolute filesystem paths. Original workstation files may be moved/deleted after successful import without breaking the project.
-
-Implementation order: Wave 07 asset contract -> Wave 08 asset import/Image object -> Wave 09 Screen/Popup/Dynamo dependencies -> Wave 11 demo -> Wave 12 hardening -> Wave 13 package.
+Modbus TCP is sufficient as the real industrial protocol for v0.1. Production MQTT, OPC UA, BACnet, S7, Allen-Bradley and final Driver Module expansion remain post-v0.1 owner validation unless the product owner deliberately changes the gate.
 
 ## Permanent continuity rules
 
 - No permanent product/coordination decision may exist only in chat history.
-- Workers never choose their own next task or merge their own PR.
+- Workers never choose their own next task, modify `main`, merge their own PR or broaden their mission.
 - Final wave quality is proven on integrated composition, not inferred from isolated worker PRs.
 - Documentation-only coordination commits do not invalidate the logical WaveBaseSHA.
 - Research merge is not production implementation.
 - Python/visual dependency order remains canonical Script -> Python editor/sandbox -> visual Runtime property/asset model -> graphical editor.
 - The editor/renderer never becomes private project truth; canonical Engineering remains authoritative.
-- Imported visual assets are project-authoritative resources, not external developer file paths.
-- Known failing work is never merged.
+- Known failing work is never merged and tests/security/runtime guards are never weakened merely to make CI green.

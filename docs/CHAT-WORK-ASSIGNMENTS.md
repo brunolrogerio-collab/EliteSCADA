@@ -24,33 +24,34 @@ Repository terminology:
 
 **Role:** `COORDINATOR`
 
-**CurrentTask:** Complete common multi-driver/Data Source diagnostics product integration
+**CurrentTask:** Build USER INTERFACE VALIDATION PREVIEW infrastructure and Windows x64 validation package
 
-**Branch:** `main` + coordinator integration branch as needed
+**Branch:** `main` + `integration/interface-validation-preview`
 
 **Status:** `IN_PROGRESS`
 
 **Objective:**
 
-Implement the common external communication diagnostics product block required by `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md` after complete TAG Gateway integration. Keep Data Source identity distinct from Driver type, instrument per-instance runtime facts, preserve independent failure isolation and expose protected backend + Engineering diagnostics without fabricating network semantics for Internal Memory or simulation.
+Implement the locked interface-validation milestone after complete Internal Memory, TAG Gateway and common communication diagnostics. Produce a reproducible product-owner validation path with a single practical startup experience, production-built Web UI, required PostgreSQL/TimescaleDB services, controlled local login/bootstrap, demo/readiness, visible build identity and package smoke. Continue improving product readiness without handing the actual preview to the product owner until explicitly requested.
 
-**AllowedScope:** coordinator-owned shared/central files, DriverHost aggregation/composition, protected API/authorization, Engineering diagnostics UI, central tests, workflows if necessary, assignment board, roadmap/handoff documentation, worker assignment and merge decisions.
+**AllowedScope:** coordinator-owned shared/central files, API/static-host composition, build/package scripts, Windows launcher, validation-only service orchestration, demo/bootstrap integration, build/version surface, package smoke, workflows, central UI shell/routing when required, assignment board, roadmap/handoff documentation, worker assignment and merge decisions.
 
 **ForbiddenScope:**
 
 - no known-failing merge;
 - no force-reset/discard of worker commits;
-- no new production external protocol family before the interface-preview gate;
-- no fake reconnect/timeout/network metrics for Internal Memory or built-in simulation;
-- no direct frontend-to-device diagnostics path;
+- no MQTT/OPC UA/BACnet/S7/Driver Module production runtime before preview delivery + product-owner feedback;
+- no committed production credentials, signing secrets or reusable private keys;
+- no weakening authentication/authorization/Audit merely to make preview startup easier;
+- no private Engineering truth or demo path that bypasses canonical Engineering/revision lifecycle;
 - no production graphical editor or Python engine/editor ahead of the locked Script/visual chain.
 
 **MustReadSpecific:**
 
+- `docs/INTERFACE-VALIDATION-MILESTONE.md`
 - `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
 - `docs/TAG-GATEWAY.md`
 - `docs/INTERNAL-MEMORY-TAGS.md`
-- `docs/INTERFACE-VALIDATION-MILESTONE.md`
 - `docs/PARALLEL-WORK.md`
 - `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`
 
@@ -58,32 +59,37 @@ Implement the common external communication diagnostics product block required b
 
 - Internal Memory: **MERGED / COMPLETE** through PR #49.
 - TAG Gateway Engineering + runtime/product: **MERGED / COMPLETE** through PRs #50 and #55.
+- Common communication diagnostics foundation + product integration: **MERGED / COMPLETE** through PRs #56 and #57.
+- PR #57 merge SHA: `c8190cc119a2e288834d619084396107103b2f56`.
+- PR #57 exact-head CI #350: all green.
+- Post-merge main CI #351 on `c8190cc...`: all green.
 - Engineering Schema: **v9**.
-- PR #55 merge SHA: `41bc437ba64f60fba26754794a9dc5a4e9a034f7`.
-- Gateway post-merge stabilization: `cb4d2c423c31cf7a52ea6ebe6de494c281901f3f`; main CI #336 all green.
 - PR #53 visual-editor architecture research: Draft/Open, delivered, waiting.
 - PR #54 Client Python editor/sandbox research: Draft/Open, delivered, waiting.
-- common multi-driver diagnostics is now the active source/protocol block.
+- USER INTERFACE VALIDATION PREVIEW is now the active locked source/protocol gate.
 
 **Dependencies:**
 
-- common communication diagnostics must remain protocol-neutral at the public contract boundary;
-- DEV 2 owns only the isolated Abstractions + Modbus instrumentation slice below;
-- coordinator owns DriverHost/API/DI/UI and cross-instance acceptance;
-- Internal Memory and built-in simulation remain outside transport/network diagnostics;
-- USER INTERFACE VALIDATION PREVIEW remains blocked until this diagnostics product block is complete.
+- package must exercise official `main` product boundaries rather than introduce preview-only bypasses;
+- PostgreSQL Engineering persistence requires `ConnectionStrings:EliteScada` and therefore the validation launcher must provide a reliable database/service path;
+- TimescaleDB historian should be exercised through the existing configured provider path;
+- local identity bootstrap must keep JWT secrets/password material out of committed production configuration;
+- existing Vite proxy remains developer tooling; validation package should converge on a single practical entry point/same-origin Web+API composition;
+- actual preview handoff remains intentionally postponed until the product owner asks for it;
+- additional external protocol runtime remains blocked until preview feedback.
 
 **NextActions:**
 
-1. monitor DEV 2 current-head implementation/CI and review semantics rather than only compilation;
-2. integrate protocol-neutral snapshots with active DriverHost/Data Source identity and lifecycle;
-3. expose protected runtime diagnostics endpoint with authorization and no secrets;
-4. build Engineering communication diagnostics table + drill-down with quiet healthy-state presentation;
-5. aggregate current TAG quality per active Data Source without replacing point-level quality authority;
-6. prove two active Modbus Data Sources with independent endpoints, failure/recovery, counters, quality and write ownership;
-7. ensure internal memory/simulation never surface fabricated network-failure metrics;
-8. run full CI, merge only green current heads and reconcile docs;
-9. after complete diagnostics is green on `main`, start USER INTERFACE VALIDATION PREVIEW before any additional external protocol runtime.
+1. create `integration/interface-validation-preview` from synchronized green `main`;
+2. integrate production-built React assets with the packaged API/runtime using one practical browser entry point while preserving Vite dev mode;
+3. add safe build/version identity visible to the validation user without exposing secrets/process detail;
+4. define reliable Windows x64 package build and launcher flow;
+5. automate/check PostgreSQL/TimescaleDB service startup for the validation environment;
+6. implement controlled first-run local identity bootstrap without committed credentials;
+7. provide/verify a canonical demo/readiness path suitable for Runtime + Engineering + Memory + Gateway + diagnostics validation;
+8. add validation checklist and package/startup smoke separate from repository-only execution;
+9. run full CI on each candidate head and merge only green slices;
+10. do not declare preview DELIVERED until the product owner explicitly requests the build and it passes the final package smoke gate.
 
 **AfterCompletion:** `CONTINUE_COORDINATION`
 
@@ -133,33 +139,21 @@ Implement the common external communication diagnostics product block required b
 
 **Branch:** `feature/communication-driver-diagnostics`
 
-**Status:** `ASSIGNED`
+**Status:** `MERGED / WAIT_FOR_COORDINATOR`
 
-**PullRequest:** none yet
+**PullRequest:** `#56 — MERGED`
 
-**Objective:**
+**Objective:** completed isolated backend driver-layer foundation for `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
 
-Implement the isolated backend driver-layer foundation for `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`: evolve a protocol-neutral diagnostic contract in `Scada.Drivers.Abstractions`, instrument the current Modbus TCP driver/transport with meaningful per-instance metrics, and prove independent diagnostics across simultaneous Modbus Data Sources. Do not build API/UI/DI integration.
+**Delivered:**
 
-**AllowedScope:**
+- protocol-neutral communication diagnostics contract in `Scada.Drivers.Abstractions`;
+- optional communication diagnostics capability so Internal Memory/simulation do not fabricate network semantics;
+- Modbus TCP per-instance diagnostics/counters/state/timestamps and safe protocol details;
+- focused multi-instance/failure-isolation/recovery test coverage;
+- exact worker slice merged through PR #56 and then centrally integrated by PR #57.
 
-- `src/Scada.Drivers/Abstractions/**`;
-- `src/Scada.Drivers/Modbus/**`;
-- focused `tests/Scada.Drivers.Tests/**` and existing test helpers only as required;
-- additive protocol-neutral types/interfaces and Modbus-specific detail types inside the above directories.
-
-**ForbiddenScope:**
-
-- `main`;
-- `src/Scada.Api/**` and `Program.cs`;
-- central DriverHost/runtime composition;
-- frontend/UI/routing;
-- `EngineeringContracts.cs` or Engineering schema/version changes;
-- Internal Memory implementation;
-- production MQTT/OPC UA/BACnet/S7 or Driver Module work;
-- workflows/lockfiles/dependencies;
-- fake network metrics on `builtin.memory.*` or `builtin.simulation`;
-- changing Simulation semantics merely to satisfy a new mandatory diagnostics interface. Prefer an optional communication-diagnostics capability/interface so non-network sources need not lie.
+**ForbiddenScope:** no new task, branch expansion, API/UI/DI work, protocol runtime, workflow or `main` mutation until coordinator assigns a new mission.
 
 **MustReadSpecific:**
 
@@ -168,30 +162,7 @@ Implement the isolated backend driver-layer foundation for `docs/COMMUNICATION-D
 - `docs/TAG-GATEWAY.md`
 - `docs/INTERFACE-VALIDATION-MILESTONE.md`
 
-**RequiredContractDirection:**
-
-- preserve `Driver type != Data Source` and per-instance identity;
-- extend beyond current minimal `DriverStatus` without leaking Modbus concepts into common abstractions;
-- common snapshot should support stable identity/context, operational state and state-change time, last success/failure, sanitized error, associated TAG count, monotonic counters and useful bounded latency/scan information where meaningful;
-- support at least healthy running vs degraded/reconnecting vs faulted semantics, with staged enum evolution if needed;
-- expose TAG-quality summary hooks/counts without replacing per-TAG quality;
-- Modbus detail may include safe host/port, scan interval, request timeout, poll-block count, represented Unit IDs, failed blocks/cycles, reconnects/timeouts, last poll and latency;
-- secrets must never be returned;
-- counters are isolated per runtime driver instance and monotonic for that instance lifetime;
-- timeout and ordinary communication failure should be distinguishable where transport evidence permits;
-- one Data Source failure must not contaminate another instance's counters/state/TAG quality.
-
-**CompletionCriteria:**
-
-1. common protocol-neutral diagnostics contract exists in `Scada.Drivers.Abstractions` and remains usable by future protocols;
-2. Modbus TCP exposes meaningful per-instance diagnostics matching the documented fields where technically available;
-3. current runtime behavior/read/write/poll semantics are preserved;
-4. tests cover two independent Modbus instances, failure isolation, recovery/reconnect, counters, state/timestamps and TAG-quality summary;
-5. no Internal Memory/simulation fake transport metrics are introduced;
-6. build/tests/CI are green on the exact worker head;
-7. Draft PR opened with clear **IMPLEMENTED IN PR / NOT MERGED** status and exact limitations.
-
-**NextActions:** create/use only `feature/communication-driver-diagnostics`; implement this slice; run CI; open Draft PR; stop after delivery.
+**NextActions:** none. Wait for coordinator.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 

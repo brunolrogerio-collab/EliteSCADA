@@ -8,7 +8,7 @@ import type {
   ProjectPortabilityWorkspace
 } from './projectPortabilityTypes';
 
-const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
+const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 const PACKAGE_MEDIA_TYPE = 'application/vnd.elitescada.project-package';
 
 export class ProjectPortabilityApiError extends Error {

@@ -3,7 +3,7 @@
 > Operational handoff. Read with `PROJECT GOAL.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/CHAT-WORK-ASSIGNMENTS.md` and the current task-specific documents before every EliteSCADA action.
 
 **Handoff date:** 2026-08-27  
-**Development state:** **ACTIVE — INTERFACE PRODUCT DEVELOPMENT / CENTRAL INTEGRATION**
+**Development state:** **INTERFACE CENTRAL INTEGRATION PAUSED BY PRODUCT OWNER / FUTURE PROTOCOL RESEARCH ACTIVE**
 
 Repository truth remains separated into **MERGED**, **IMPLEMENTED IN PR**, **RESEARCH IN PR** and **SPECIFIED / NOT IMPLEMENTED**.
 
@@ -16,86 +16,117 @@ Merged platform foundations remain:
 - common multi-driver/Data Source diagnostics: **MERGED / COMPLETE** through PRs #56 and #57;
 - canonical Engineering: **Schema v9**;
 - current production external protocol baseline remains Modbus TCP plus built-in Simulation/Internal Memory;
-- additional MQTT/OPC UA/BACnet/S7/Driver Module production work remains postponed;
-- provisional Windows x64 validation/presentation packaging remains postponed until the interface matures further.
+- provisional Windows x64 validation/presentation packaging remains postponed;
+- production MQTT/OPC UA/BACnet/S7/Allen-Bradley/Driver Module work remains postponed.
 
-The active order remains:
+The active product order remains:
 
 `merged platform foundations -> interface product development -> user validation build/package -> additional external drivers/protocols`
 
-## INTERFACE WORKER SLICES — NOW MERGED
+Research/specification spikes may run earlier only to reduce uncertainty. They do not authorize production runtime, Data Source registration or bypass of the product gate.
 
-All three worker assignments created for the first interface block are complete, reviewed, exact-head green and merged into official `main`.
+## FIRST INTERFACE WORKER SLICES — MERGED
 
-### DEV 3 — session/user menu
+All three interface worker assignments were reviewed, exact-head green and merged into official `main`:
 
-PR #59 `Add authenticated session user-menu primitive`
+- DEV 3 / PR #59 session user menu: head `f0b120c3ec3e268b9c7875fc73450a150e1dda5a`, CI #363 green, merge `b0b58964f119f83356cf2edc8fecf5939fb905da`;
+- DEV 1 / PR #60 Engineering entity browser: head `ab8e7e0b698a8533ea6a08048deb3c464840e843`, CI #359 green, merge `a7e6105fb65079ad1af8bcb56f8484225ff3dc8c`;
+- DEV 2 / PR #61 Runtime operational overview: head `7fbd564c93af5ad3d4c83d2ddc8d5ed782d2957d`, CI #360 green, merge `49c9e7261d63047b601f4b3c4f6e788168c8ee5c`.
 
-- final worker head: `f0b120c3ec3e268b9c7875fc73450a150e1dda5a`;
-- CI #363: **SUCCESS**;
-- reviewed scope: exactly five authorized auth/session UI/test files;
-- merge commit: `b0b58964f119f83356cf2edc8fecf5939fb905da`;
-- status: **MERGED / WAITING**.
-
-### DEV 1 — Engineering entity browser
-
-PR #60 `Add Engineering entity browser workspace primitives`
-
-- final worker head: `ab8e7e0b698a8533ea6a08048deb3c464840e843`;
-- CI #359: **SUCCESS**;
-- reviewed scope: exactly four authorized Engineering UI/test files;
-- merge commit: `a7e6105fb65079ad1af8bcb56f8484225ff3dc8c`;
-- status: **MERGED / WAITING**.
-
-### DEV 2 — Runtime operational overview
-
-PR #61 `Add runtime operational overview UI primitives`
-
-- final worker head: `7fbd564c93af5ad3d4c83d2ddc8d5ed782d2957d`;
-- CI #360: **SUCCESS**;
-- reviewed scope: seven authorized Runtime UI/helper/test files;
-- diagnostics remain read-only and protected; Simulation/restricted states do not fabricate communication failure;
-- merge commit: `49c9e7261d63047b601f4b3c4f6e788168c8ee5c`;
-- status: **MERGED / WAITING**.
-
-The assignment board was reconciled in main commit `2996ca88cd58add0575962bc0440866012b0e90b`.
-
-## COORDINATOR PR #58
+## COORDINATOR PR #58 — PAUSED UNTIL USER `siga`
 
 `feature/interface-product-development` / PR #58 remains **IMPLEMENTED IN PR / DRAFT / NOT MERGED**.
 
-Current known head before reconciliation with the worker merges:
+Known pre-reconciliation head: `bc6ba6cd760649064984208b0b0584f9a9c28042`.
 
-`bc6ba6cd760649064984208b0b0584f9a9c28042`
-
-It contains the coordinator product-shell/navigation slice. CI #357 on that head produced:
+CI #357 on that head:
 
 - Web build: **PASS**;
 - backend build/tests/runtime smoke: **PASS**;
 - Chromium E2E: **FAIL**.
 
-Therefore PR #58 must not be merged yet. The coordinator must reconcile the branch with current `main`, integrate the three newly merged worker components, fix the Chromium failure at the root and rerun the full CI.
+The product owner explicitly asked the coordinator not to continue its own interface integration yet. On the next coordinator `siga`, reconcile #58 with then-current `main`, integrate the three merged worker components, fix Chromium at the root and rerun full CI.
 
-## PARKED WORK
+## NEW PARALLEL RESEARCH ASSIGNMENTS
 
-`integration/interface-validation-preview` remains **PARKED / NO PR / NOT MERGED**. Its preparatory work is preserved but is not the active branch.
+The product owner explicitly authorized future-driver research now, comparable to the earlier OPC UA and Siemens S7 spikes, so that later production implementation can be coordinated from evidence instead of guesswork.
 
-PR #53 graphical visual editor architecture and PR #54 Client Python editor/browser sandbox remain **RESEARCH IN PR / DELIVERED**, not production implementations.
+Assignment board commit: `76018909264511d7090db3e7d9fb2181763fe4ca`.
+
+### DEV 1 — MQTT industrial driver research
+
+Branch: `research/mqtt-industrial-driver`
+
+Status: **ASSIGNED — RESEARCH ONLY**.
+
+Expected primary deliverable:
+
+`docs/research/mqtt/MQTT-INDUSTRIAL-DRIVER-RESEARCH.md`
+
+Required direction includes MQTT 3.1.1/5.0, sessions/reconnect, QoS, retained messages, Last Will, TLS/mTLS and protected secret references, Topic↔TAG/payload mapping, write/publish semantics, honest topic discovery, common diagnostics, multi-broker behavior, library/broker comparison, test matrix and a strict separation between raw MQTT and optional Sparkplug B semantics.
+
+No production MQTT dependency/runtime/Data Source may be added.
+
+### DEV 2 — Allen-Bradley EtherNet/IP/CIP Logix research
+
+Branch: `research/allen-bradley-ethernet-ip`
+
+Status: **ASSIGNED — RESEARCH ONLY**.
+
+Expected primary deliverable:
+
+`docs/research/allen-bradley/ALLEN-BRADLEY-ETHERNET-IP-CIP-RESEARCH.md`
+
+Required direction includes ControlLogix/CompactLogix-first scope, EtherNet/IP + CIP explicit messaging, routing/slot paths, controller/program symbolic TAGs, arrays/UDTs/common Logix types, External Access/write safety, browse/import, L5X/L5K investigation, batching/fragmentation/connection constraints, CIP Security implications, library/license comparison and real-hardware acceptance strategy. Generic implicit I/O and destructive controller engineering must not be silently treated as the first SCADA-driver scope.
+
+No production Allen-Bradley dependency/runtime/Data Source may be added.
+
+### DEV 3 — BACnet/IP + BACnet/SC research
+
+Branch: `research/bacnet-ip-secure-connect`
+
+Status: **ASSIGNED — RESEARCH ONLY**.
+
+Expected primary deliverable:
+
+`docs/research/bacnet/BACNET-IP-SC-RESEARCH.md`
+
+Required direction includes BACnet/IP discovery (Who-Is/I-Am), device/object/property identity, BBMD/Foreign Device/cross-subnet behavior, ReadProperty/ReadPropertyMultiple, WriteProperty, COV/polling, segmentation/APDU constraints, Present_Value plus status/reliability/unit semantics, write priority/relinquish, proprietary object visibility, common diagnostics, and forward-compatible BACnet/SC TLS/WebSocket/certificate/hub behavior. BACnet/SC and MS/TP must be classified explicitly rather than conflated with BACnet/IP.
+
+No production BACnet dependency/runtime/Data Source may be added.
+
+## WHY THESE RESEARCH SPIKES ARE SAFE NOW
+
+- each worker is restricted to research documents under its own `docs/research/**` domain;
+- no Engineering schema, Program.cs, DI, DriverHost, frontend, workflow or package dependency changes are allowed;
+- no worker may register a new Data Source or create an active protocol runtime;
+- Draft PR + exact-head CI + coordinator review remain mandatory;
+- after delivery each DEV returns to `WAIT_FOR_COORDINATOR`.
+
+These spikes prepare future decisions while the active production priority remains the interface.
+
+## PARKED / EXISTING RESEARCH
+
+- `integration/interface-validation-preview`: **PARKED / NO PR / NOT MERGED**;
+- PR #53 graphical visual editor architecture: **RESEARCH IN PR / DELIVERED**;
+- PR #54 Client Python editor/browser sandbox: **RESEARCH IN PR / DELIVERED**;
+- merged OPC UA research remains the reference style for discovery/import/security/acceptance research;
+- merged Siemens S7 research remains the reference style for protocol/library/test-lab analysis.
 
 ## COORDINATOR RESUME POINT
 
-On the next coordinator `siga`:
+Until the product owner sends the next coordinator `siga`, do not continue PR #58 implementation.
 
-1. reread mandatory docs from current `main`;
-2. verify live `main`, PR #58/head/CI and worker merge state;
-3. reconcile `feature/interface-product-development` with current `main` without discarding shell work;
-4. wire merged `UserSessionMenu` into the global product shell;
-5. wire merged `EngineeringEntityBrowser` into the Engineering workspace while preserving Preview/Apply/CAS semantics;
-6. wire merged `RuntimeOperationsOverview` into Runtime while preserving the process demo;
-7. fix the current Chromium failure and add integrated UX coverage;
-8. run full Web/backend/smoke/Chromium CI and merge only a green reviewed PR #58;
-9. keep DEV 1/2/3 idle until the coordinator explicitly assigns the next interface slice;
-10. do not resume new drivers or provisional Windows packaging unless product priority changes.
+When `siga` arrives:
+
+1. reread mandatory current-main docs;
+2. verify live main, research PRs/heads/CI and PR #58 state;
+3. review/merge any completed research PRs that are exact-head green and semantically sound;
+4. keep those merges classified as **RESEARCH ONLY / PRODUCTION NOT IMPLEMENTED**;
+5. then resume the coordinator interface integration from PR #58, reconciling with current main;
+6. integrate `UserSessionMenu`, `EngineeringEntityBrowser` and `RuntimeOperationsOverview` centrally;
+7. fix Chromium failure and run full CI before any #58 merge;
+8. do not resume production protocol or provisional Windows package work unless priority changes.
 
 ## Permanent continuity rules
 

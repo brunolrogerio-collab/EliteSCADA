@@ -5,6 +5,7 @@ import { AuditApp } from './audit';
 import { AuthGate } from './auth/AuthGate';
 import { EngineeringApp } from './engineering/EngineeringApp';
 import { clientMemory } from './runtime/clientMemory';
+import { RuntimeAlarmCenter, RuntimeOperationsOverview, type RuntimeAlarmCenterLocale } from './runtime/operations';
 import './styles.css';
 
 type TagMessage = {
@@ -17,20 +18,6 @@ type TagMessage = {
 };
 
 type LiveTag = TagMessage['tag'] & { value: unknown; quality: string; timestamp: string };
-type Alarm = {
-  definitionId: string;
-  name: string;
-  tagId: string;
-  type: string;
-  priority: string;
-  state: string;
-  lastTransition: string;
-  lastValue: unknown;
-  area?: string;
-  message?: string;
-  acknowledgedBy?: string;
-};
-
 type HistorySample = { tagId: string; value: unknown; timestamp: string; quality: string; source?: string };
 
 const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
@@ -43,13 +30,18 @@ function n(v: unknown, digits = 1) {
   return Number.isFinite(numeric) ? numeric.toFixed(digits) : '--';
 }
 
+function resolveRuntimeLocale(): RuntimeAlarmCenterLocale {
+  const stored = window.localStorage.getItem('elitescada.engineering.locale');
+  return stored === 'en' || stored === 'es' ? stored : 'pt-BR';
+}
+
 function RuntimeApp() {
   const [tags, setTags] = useState<Record<string, LiveTag>>({});
   const [connected, setConnected] = useState(false);
   const [modal, setModal] = useState(false);
-  const [alarms, setAlarms] = useState<Alarm[]>([]);
   const [history, setHistory] = useState<HistorySample[]>([]);
   const [clientMemoryCount, setClientMemoryCount] = useState(0);
+  const locale = useMemo(resolveRuntimeLocale, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -118,19 +110,6 @@ function RuntimeApp() {
     };
   }, []);
 
-  useEffect(() => {
-    let stopped = false;
-    const load = async () => {
-      try {
-        const response = await fetch(`${API}/api/alarms?activeOnly=true`);
-        if (response.ok && !stopped) setAlarms(await response.json());
-      } catch { /* runtime keeps operating if alarm endpoint is temporarily unavailable */ }
-    };
-    void load();
-    const timer = window.setInterval(load, 1500);
-    return () => { stopped = true; window.clearInterval(timer); };
-  }, []);
-
   const get = (path: string) => tags[path]?.value;
   const level = Number(get('Demo.Tank01.Level') ?? 0);
   const running = Boolean(get('Demo.P01.Running'));
@@ -150,14 +129,6 @@ function RuntimeApp() {
     void loadPumpHistory();
   };
 
-  const acknowledge = async (alarm: Alarm) => {
-    await fetch(`${API}/api/alarms/${alarm.definitionId}/ack`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ user: 'demo-operator' })
-    });
-  };
-
   return (
     <main className="shell">
       <header className="topbar">
@@ -170,12 +141,8 @@ function RuntimeApp() {
         </div>
       </header>
 
-      {alarms.length > 0 && (
-        <section className="alarm-banner">
-          <strong>{alarms.length} alarme{alarms.length > 1 ? 's' : ''} ativo{alarms.length > 1 ? 's' : ''}</strong>
-          <span>{alarms[0].message ?? alarms[0].name}</span>
-        </section>
-      )}
+      <RuntimeOperationsOverview locale={locale} />
+      <RuntimeAlarmCenter locale={locale} />
 
       <section className="process-card">
         <div className="process-title">Demo · Estação Elevatória</div>
@@ -212,18 +179,6 @@ function RuntimeApp() {
         <Metric title="Frequência P01" value={`${n(get('Demo.P01.Frequency'))} Hz`} />
         <Metric title="Qualidade" value={tags['Demo.P01.Current']?.quality ?? '--'} />
       </section>
-
-      {alarms.length > 0 && (
-        <section className="alarm-list">
-          <div className="section-heading"><strong>Alarmes ativos</strong><span>Alarm Engine</span></div>
-          {alarms.map(alarm => (
-            <div className="alarm-row" key={alarm.definitionId}>
-              <div><strong>{alarm.name}</strong><span>{alarm.message ?? alarm.type}</span></div>
-              <div className="alarm-meta"><span>{alarm.priority}</span><span>{alarm.state}</span><button onClick={() => acknowledge(alarm)}>ACK</button></div>
-            </div>
-          ))}
-        </section>
-      )}
 
       {modal && (
         <div className="modal-backdrop" onMouseDown={() => setModal(false)}>

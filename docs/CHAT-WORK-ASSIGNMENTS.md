@@ -14,7 +14,6 @@ Repository terminology:
 
 - **MERGED** = official `main` state.
 - **IMPLEMENTED IN PR** = functional implementation exists only in an open branch/PR.
-- **RESEARCH IN PR** = research/specification exists only in an open PR and is not product implementation.
 - **RESEARCH MERGED / PRODUCTION NOT IMPLEMENTED** = research is part of official `main`, but no runtime/product capability is implied.
 - **SPECIFIED / NOT IMPLEMENTED** = documented product intent without merged implementation.
 
@@ -24,15 +23,9 @@ Active order remains:
 
 `merged platform foundations -> INTERFACE PRODUCT DEVELOPMENT -> USER INTERFACE VALIDATION BUILD/PACKAGE -> additional external protocols`
 
-The following research is now **MERGED as research only**:
+Driver SDK research convergence is **MERGED** through PR #68. It is architectural hardening only and does not authorize production external protocol implementation.
 
-- PR #53 graphical Screen/Popup/Dynamo editor architecture;
-- PR #54 Client Visual Python editor/browser sandbox;
-- PR #62 BACnet/IP + BACnet/SC architecture;
-- PR #63 MQTT industrial Data Source architecture;
-- PR #64 Allen-Bradley EtherNet/IP/CIP Logix architecture.
-
-None of those merges authorizes production graphical editing, Python runtime/editor, MQTT, BACnet or Allen-Bradley implementation.
+Current `main` at this synchronization: `8b5060e42c0d03eddb950a32e745d1273cf19f30`.
 
 ---
 
@@ -40,7 +33,7 @@ None of those merges authorizes production graphical editing, Python runtime/edi
 
 **Role:** `COORDINATOR`
 
-**CurrentTask:** Coordinate and integrate the second Interface Product Development wave
+**CurrentTask:** Reconcile, review and integrate the second Interface Product Development wave
 
 **Branch:** `main` plus coordinator-owned integration branches as needed
 
@@ -48,7 +41,7 @@ None of those merges authorizes production graphical editing, Python runtime/edi
 
 **Objective:**
 
-Turn the first merged interface checkpoint into a more useful industrial product by coordinating three isolated worker slices: scalable Engineering alarm navigation, Runtime alarm operations/acknowledgement, and Audit workspace ergonomics. Preserve the common product shell and all backend security/Engineering boundaries.
+Bring PRs #65, #66 and #67 onto current `main`, verify their exact delivered scope and CI, then integrate them into the common product experience without opening a new product wave prematurely.
 
 **AllowedScope:** shared shell/routing/integration, `main.tsx`, `AppNavigation.tsx`, `EngineeringApp.tsx`, cross-product localization/visual system, worker integration, browser tests, CI, assignment board, roadmap/handoff docs.
 
@@ -65,25 +58,26 @@ Turn the first merged interface checkpoint into a more useful industrial product
 
 - `docs/INTERFACE-DEVELOPMENT.md`
 - `docs/INTERFACE-VALIDATION-MILESTONE.md`
-- `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`
-- `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
-- `docs/TAG-GATEWAY.md`
+- `docs/RESEARCH-CONVERGENCE-READINESS.md`
+- `docs/DRIVER-SDK-RESEARCH-CONVERGENCE.md`
 
 **ObservedGitHubState:**
 
-- first integrated interface checkpoint: **MERGED** through PR #58;
-- research PRs #53, #54, #62, #63 and #64: **RESEARCH MERGED / PRODUCTION NOT IMPLEMENTED**;
-- `integration/interface-validation-preview`: parked;
+- PR #65 Engineering Alarm Workspace: delivered green worker head, currently diverged and 17 commits behind `main`;
+- PR #66 Audit workspace ergonomics: delivered green worker head, currently diverged and 17 commits behind `main`;
+- PR #67 Runtime Alarm Center: delivered green worker head, currently diverged and 17 commits behind `main`;
+- PR #68 Driver SDK research convergence: **MERGED**;
 - Engineering Schema remains v9;
 - production external protocol expansion remains postponed.
 
 **NextActions:**
 
-1. keep worker scopes isolated;
-2. review each worker PR against exact assignment and current `main`;
+1. workers reconcile only their existing PRs with current `main`;
+2. review each reconciled PR against exact assignment and changed-file scope;
 3. require exact-head Web/backend/test/smoke/Chromium CI before merge;
-4. integrate worker surfaces into the common product experience where central composition is required;
-5. after this second interface wave, reassess whether the UI is mature enough for the Windows validation package.
+4. integrate Runtime Alarm Center centrally where required;
+5. perform cross-product browser acceptance after worker merges;
+6. reassess interface maturity for the Windows validation package only after the second wave is integrated.
 
 **AfterCompletion:** `CONTINUE_COORDINATION`
 
@@ -93,7 +87,7 @@ Turn the first merged interface checkpoint into a more useful industrial product
 
 **Role:** `WORKER`
 
-**CurrentTask:** Engineering Alarm Workspace ergonomics
+**CurrentTask:** Reconcile PR #65 Engineering Alarm Workspace with current `main`
 
 **Branch:** `feature/interface-engineering-alarm-workspace`
 
@@ -101,39 +95,41 @@ Turn the first merged interface checkpoint into a more useful industrial product
 
 **Objective:**
 
-Create a scalable Engineering alarm-navigation/master-detail primitive that brings Alarm definitions to the same usability level as TAG/Data Source browsing without changing canonical Engineering authority or mutation semantics.
+Reconcile the already delivered Engineering Alarm Workspace implementation with current `main` after PR #68 and continuity-document updates, preserving the previously approved worker scope and behavior.
 
 **AllowedScope:**
 
-- new or narrowly related files under `web/scada-web/src/engineering/**` for an Alarm browser/workspace primitive;
-- reuse `EngineeringEntityBrowser` and current public `EngineeringPackageView` data;
-- dedicated browser/contract tests under `web/scada-web/tests-e2e/**` where needed;
-- localization for `pt-BR`, `en`, `es` within the new surface.
+- update/rebase/merge current `main` into the assigned branch using normal Git reconciliation;
+- resolve conflicts only inside files already changed by PR #65 or mechanically required by the reconciliation;
+- adjust the existing Alarm workspace only where current-main API/types/build changes require it;
+- dedicated existing tests for this slice;
+- update PR #65 description/evidence with the new exact head and CI result.
 
 **ForbiddenScope:**
 
-- `main.tsx`, `AppNavigation.tsx`, central routing or product shell;
-- backend/API/schema/persistence changes;
-- changing Alarm mutation Preview/Apply/CAS behavior;
-- runtime alarm acknowledgement;
-- production Screen/Popup/Dynamo or Python work;
-- changing `main` or merging own PR.
+- no new feature beyond the delivered Alarm workspace;
+- no `main.tsx`, `AppNavigation.tsx`, central routing or product shell;
+- no backend/API/schema/persistence changes;
+- no Alarm mutation semantic change;
+- no Runtime Alarm Center work;
+- no protocol/Python/graphical-editor work;
+- no merge of own PR and no modification of `main`.
 
 **MustReadSpecific:**
 
 - `docs/INTERFACE-DEVELOPMENT.md`
 - `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
-- current `EngineeringEntityBrowser.tsx`, `StructuredEditors.tsx`, Alarm editor/mutation components and Engineering types.
+- `docs/RESEARCH-CONVERGENCE-READINESS.md`
+- current PR #65 changed files and current-main equivalents.
 
 **CompletionCriteria:**
 
-1. searchable Alarm definition list suitable for projects larger than demo size;
-2. useful filters derived only from canonical Alarm fields, such as area/severity/type where available;
-3. selected Alarm master-detail summary with stable identity, TAG reference and important Alarm configuration;
-4. loading/empty/no-match/selection states consistent with existing browser primitives;
-5. keyboard/focus behavior and `pt-BR`/`en`/`es` copy;
-6. no private copy of Engineering truth and no mutation outside current protected editors;
-7. Draft PR, exact-head CI green, then `WAIT_FOR_COORDINATOR`.
+1. branch is reconciled with current `main` and no longer behind it;
+2. original PR #65 feature behavior and scope are preserved;
+3. changed-file delta remains limited to the assigned Engineering Alarm slice plus unavoidable reconciliation metadata;
+4. exact-head Web/backend/test/smoke/Chromium CI is green;
+5. PR #65 records the reconciled head and evidence;
+6. then `WAIT_FOR_COORDINATOR`.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 
@@ -143,7 +139,7 @@ Create a scalable Engineering alarm-navigation/master-detail primitive that brin
 
 **Role:** `WORKER`
 
-**CurrentTask:** Runtime Alarm Center and protected acknowledgement UX
+**CurrentTask:** Reconcile PR #67 Runtime Alarm Center with current `main`
 
 **Branch:** `feature/interface-runtime-alarm-center`
 
@@ -151,39 +147,41 @@ Create a scalable Engineering alarm-navigation/master-detail primitive that brin
 
 **Objective:**
 
-Build an isolated Runtime alarm-operations surface using the existing protected Alarm APIs, including honest active-alarm visibility and authorized acknowledgement, without changing backend authority.
+Reconcile the already delivered Runtime Alarm Center + protected acknowledgement UX with current `main`, preserving backend authority and the previously delivered isolated Runtime slice.
 
 **AllowedScope:**
 
-- new/narrow files under `web/scada-web/src/runtime/**` for Alarm API/model/component styling;
-- existing `/api/alarms?activeOnly=true` and `/api/alarms/{id}/ack` contracts;
-- current authenticated session behavior and backend authorization results;
-- dedicated E2E/contract tests under `web/scada-web/tests-e2e/**`.
+- update/rebase/merge current `main` into the assigned branch using normal Git reconciliation;
+- resolve conflicts only inside files already changed by PR #67 or mechanically required by the reconciliation;
+- adjust existing Runtime Alarm Center code only where current-main types/build/API contracts require it;
+- dedicated existing tests for this slice;
+- update PR #67 description/evidence with the new exact head and CI result.
 
 **ForbiddenScope:**
 
-- backend authorization changes or frontend-only permission decisions;
-- altering Alarm engine semantics;
-- direct driver access;
-- central `AppNavigation.tsx` / routing / `main.tsx` integration;
-- fake acknowledgement or optimistic success when backend rejects;
-- production protocol/Python/graphical-editor work;
-- changing `main` or merging own PR.
+- no new Runtime feature beyond the delivered Alarm Center;
+- no central `AppNavigation.tsx`, routing or `main.tsx` integration;
+- no backend authorization/Alarm-engine change;
+- no fake/optimistic acknowledgement;
+- no direct driver access;
+- no protocol/Python/graphical-editor work;
+- no merge of own PR and no modification of `main`.
 
 **MustReadSpecific:**
 
 - `docs/INTERFACE-DEVELOPMENT.md`
-- current `RuntimeOperationsOverview.tsx`, `operationsApi.ts`, Alarm API endpoints in `src/Scada.Api/Program.cs`, auth/session components and existing security tests.
+- `docs/RESEARCH-CONVERGENCE-READINESS.md`
+- current PR #67 changed files;
+- current Alarm API/auth/session contracts from `main`.
 
 **CompletionCriteria:**
 
-1. active Alarm list sorted for operational attention using actual Alarm fields;
-2. show alarm identity/message/state/area/time/acknowledgement information available from backend;
-3. acknowledge action calls protected backend endpoint and refreshes from authoritative state after success;
-4. 401/403/404/error states remain explicit and never become fake success;
-5. no acknowledgement button is treated as a security boundary by itself;
-6. localized `pt-BR`/`en`/`es`, keyboard/focus accessible;
-7. Draft PR, exact-head CI green, then `WAIT_FOR_COORDINATOR`.
+1. branch is reconciled with current `main` and no longer behind it;
+2. existing protected ACK behavior remains backend-authoritative;
+3. original PR #67 functionality and scope are preserved without central integration;
+4. exact-head Web/backend/test/smoke/Chromium CI is green;
+5. PR #67 records the reconciled head and evidence;
+6. then `WAIT_FOR_COORDINATOR`.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 
@@ -193,7 +191,7 @@ Build an isolated Runtime alarm-operations surface using the existing protected 
 
 **Role:** `WORKER`
 
-**CurrentTask:** Audit workspace ergonomics and cross-product consistency
+**CurrentTask:** Reconcile PR #66 Audit Workspace with current `main`
 
 **Branch:** `feature/interface-audit-workspace`
 
@@ -201,38 +199,39 @@ Build an isolated Runtime alarm-operations surface using the existing protected 
 
 **Objective:**
 
-Evolve the existing `/audit` route from a dense technical page into a productive desktop audit workspace while preserving current keyset pagination, backend filters, diagnostics and `SystemAdmin` enforcement.
+Reconcile the already delivered Audit workspace ergonomics with current `main`, preserving keyset pagination, backend filtering, diagnostics and `SystemAdmin` enforcement exactly as delivered.
 
 **AllowedScope:**
 
-- `web/scada-web/src/audit/**`;
-- Audit-specific E2E/contract tests;
-- layout, filtering ergonomics, result presentation, selected-event detail, diagnostics presentation and localization.
+- update/rebase/merge current `main` into the assigned branch using normal Git reconciliation;
+- resolve conflicts only inside files already changed by PR #66 or mechanically required by the reconciliation;
+- adjust existing Audit UI only where current-main build/types/contracts require it;
+- dedicated existing Audit tests;
+- update PR #66 description/evidence with the new exact head and CI result.
 
 **ForbiddenScope:**
 
-- changing Audit backend authorization/retention/storage contracts;
-- weakening bounded date/query validation or opaque cursor handling;
-- central shell/routing changes;
-- new general AuditRead capability in this slice;
-- production protocol/Python/graphical-editor work;
-- changing `main` or merging own PR.
+- no new Audit feature beyond the delivered ergonomics slice;
+- no backend authorization/retention/storage changes;
+- no weakening query/date/cursor semantics;
+- no central shell/routing changes;
+- no new AuditRead capability;
+- no protocol/Python/graphical-editor work;
+- no merge of own PR and no modification of `main`.
 
 **MustReadSpecific:**
 
 - `docs/INTERFACE-DEVELOPMENT.md`
-- current `web/scada-web/src/audit/**`;
-- existing Audit query/UI/security E2E tests.
+- `docs/RESEARCH-CONVERGENCE-READINESS.md`
+- current PR #66 changed files and current-main Audit equivalents.
 
 **CompletionCriteria:**
 
-1. compact desktop-oriented filter workflow with clear active-filter context;
-2. scalable event results with clear timestamp/actor/action/outcome/resource presentation;
-3. selected-event/master-detail view for metadata instead of forcing every detail into the list;
-4. Audit diagnostics remain available but visually secondary when healthy;
-5. keyset pagination and backend filter contract unchanged;
-6. explicit unauthenticated/forbidden/invalid/unavailable states preserved;
-7. localized `pt-BR`/`en`/`es` and keyboard/focus accessible;
-8. Draft PR, exact-head CI green, then `WAIT_FOR_COORDINATOR`.
+1. branch is reconciled with current `main` and no longer behind it;
+2. original PR #66 behavior, backend contract and keyset semantics are preserved;
+3. changed-file delta remains within the assigned Audit slice plus unavoidable reconciliation metadata;
+4. exact-head Web/backend/test/smoke/Chromium CI is green;
+5. PR #66 records the reconciled head and evidence;
+6. then `WAIT_FOR_COORDINATOR`.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`

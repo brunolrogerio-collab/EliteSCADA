@@ -15,15 +15,17 @@ The three worker deliveries from the current parallel wave are now official `mai
 - PR #47 — isolated Public Script Engineering integration foundation — merge `8a8a52e9e1725fca5b9e06ff9f560f583dab5bbb`;
 - PR #48 — Internal Memory Engineering + durable Server Memory retention — merge `ad4a7aa8d17e4e7370e5801d470a69f1a096bab4`.
 
-PR #48 was merged only after final reconciled CI #265 passed against pre-merge `main` `35789b3f4910c5ba8130f6de71093e9d2e5fcb14`:
+PR #48 final reconciled CI #265 passed against pre-merge `main` `35789b3f4910c5ba8130f6de71093e9d2e5fcb14`, and post-merge `main` CI #266 independently passed on merge commit `ad4a7aa8d17e4e7370e5801d470a69f1a096bab4`.
+
+For both decisive validations, the relevant stack is green:
 
 - Web build: **SUCCESS**;
 - backend restore/build: **SUCCESS**;
-- all automated tests: **SUCCESS**;
+- automated tests: **SUCCESS**;
 - runtime smoke: **SUCCESS**;
 - Chromium E2E: **SUCCESS**.
 
-The coordinator reconciled two stale central assumptions before the final validation: Engineering schema checks no longer hard-code v7, and central Audit navigation no longer makes the legacy Engineering E2E locator ambiguous.
+Before merge, the coordinator reconciled two stale central assumptions instead of weakening tests: Engineering schema checks no longer hard-code v7, and central Audit navigation no longer makes the legacy Engineering E2E locator ambiguous.
 
 ## MERGED PRODUCT STATE ADDED BY PR #48
 
@@ -90,12 +92,11 @@ All three workers retain `AfterCompletion: WAIT_FOR_COORDINATOR` and currently h
 On the next coordinator `siga`:
 
 1. reread current mandatory documents from `main`;
-2. verify the post-merge `main` CI for PR #48;
-3. complete coordinator-owned Internal Memory runtime/DI/client-session/security/Audit/API/UI integration;
-4. validate that complete product integration with full CI;
-5. only after that milestone may TAG Gateway be assigned;
-6. separately, canonical Script schema/package integration may be scheduled after shared Engineering v8 reconciliation is stable;
-7. update roadmap/handoff/assignments after every official state change.
+2. complete coordinator-owned Internal Memory runtime/DI/client-session/security/Audit/API/UI integration;
+3. validate complete Internal Memory product integration with full CI;
+4. only after that milestone may TAG Gateway be assigned;
+5. separately, canonical Script schema/package integration may be scheduled after shared Engineering v8/Internal Memory integration is stable;
+6. update roadmap/handoff/assignments after every official state change.
 
 ## Permanent continuity rules
 

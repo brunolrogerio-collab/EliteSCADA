@@ -2,6 +2,7 @@ using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
 using Scada.Core.Commands;
 using Scada.Core.Events;
+using Scada.Core.InternalMemory;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.Drivers.Abstractions;
@@ -37,6 +38,15 @@ public sealed record RuntimeDescriptor(
     int TagCount,
     int ActiveAlarmCount);
 
+public sealed record ClientMemoryRuntimeTag(
+    TagDefinition Tag,
+    TypedTagValue InitialValue);
+
+public sealed record ClientMemoryRuntimeSource(
+    string DataSourceKey,
+    string Name,
+    IReadOnlyCollection<ClientMemoryRuntimeTag> Tags);
+
 public interface IEngineeringRuntimeCoordinator : IAsyncDisposable
 {
     RuntimeDescriptor Describe();
@@ -45,14 +55,17 @@ public interface IEngineeringRuntimeCoordinator : IAsyncDisposable
     IReadOnlyCollection<AlarmDefinition> AlarmDefinitions();
     IReadOnlyCollection<AlarmInstance> Alarms(bool activeOnly = false);
     IReadOnlyCollection<CommandDefinition> Commands();
+    IReadOnlyCollection<ClientMemoryRuntimeSource> ClientMemorySources();
     bool TryGetTag(Guid tagId, out TagDefinition? tag);
     bool TryGetTagByPath(string path, out TagDefinition? tag);
     bool TryGetCurrent(Guid tagId, out TagValue? value);
     bool TryGetCommand(Guid commandId, out CommandDefinition? command);
+    bool IsServerMemoryTag(Guid tagId);
     ValueTask<bool> AcknowledgeAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default);
     ValueTask<bool> ShelveAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default);
     ValueTask<bool> UnshelveAlarmAsync(Guid alarmId, string user, CancellationToken cancellationToken = default);
     ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default);
+    ValueTask ResetServerMemoryRetainedValueAsync(Guid tagId, CancellationToken cancellationToken = default);
     ValueTask ExecuteCommandAsync(Guid commandId, CancellationToken cancellationToken = default);
     Task<RuntimeActivationResult> ActivateAsync(
         string projectKey,
@@ -71,6 +84,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 {
     private readonly IScadaEventBus _externalEventBus;
     private readonly IEngineeringDriverCompiler _compiler;
+    private readonly IServerMemoryRetentionStore _serverMemoryRetentionStore;
     private readonly TimeSpan _activationTimeout;
     private readonly SemaphoreSlim _activationGate = new(1, 1);
     private RuntimeState _active;
@@ -78,10 +92,12 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
     public EngineeringRuntimeCoordinator(
         IScadaEventBus externalEventBus,
         IEngineeringDriverCompiler compiler,
-        TimeSpan? activationTimeout = null)
+        TimeSpan? activationTimeout = null,
+        IServerMemoryRetentionStore? serverMemoryRetentionStore = null)
     {
         _externalEventBus = externalEventBus ?? throw new ArgumentNullException(nameof(externalEventBus));
         _compiler = compiler ?? throw new ArgumentNullException(nameof(compiler));
+        _serverMemoryRetentionStore = serverMemoryRetentionStore ?? new InMemoryServerMemoryRetentionStore();
         _activationTimeout = activationTimeout ?? TimeSpan.FromSeconds(10);
         if (_activationTimeout <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(activationTimeout));
@@ -112,6 +128,16 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
     public IReadOnlyCollection<CommandDefinition> Commands() => Volatile.Read(ref _active).Commands.Snapshot();
 
+    public IReadOnlyCollection<ClientMemoryRuntimeSource> ClientMemorySources() =>
+        Volatile.Read(ref _active).ClientMemoryPlans
+            .Select(plan => new ClientMemoryRuntimeSource(
+                plan.DataSourceKey,
+                plan.Name,
+                plan.Tags
+                    .Select(tag => new ClientMemoryRuntimeTag(tag.Tag, tag.InitialValue))
+                    .ToArray()))
+            .ToArray();
+
     public bool TryGetTag(Guid tagId, out TagDefinition? tag) =>
         Volatile.Read(ref _active).Registry.TryGet(tagId, out tag);
 
@@ -123,6 +149,9 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
     public bool TryGetCommand(Guid commandId, out CommandDefinition? command) =>
         Volatile.Read(ref _active).Commands.TryGet(commandId, out command);
+
+    public bool IsServerMemoryTag(Guid tagId) =>
+        Volatile.Read(ref _active).ServerMemoryByTagId.ContainsKey(tagId);
 
     public ValueTask<bool> AcknowledgeAlarmAsync(
         Guid alarmId,
@@ -148,10 +177,30 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         CancellationToken cancellationToken = default)
     {
         var state = Volatile.Read(ref _active);
-        if (!state.DriverByTagId.TryGetValue(tagId, out var driver))
-            throw new KeyNotFoundException($"Active runtime has no communication driver for TAG '{tagId}'.");
+        if (state.DriverByTagId.TryGetValue(tagId, out var driver))
+        {
+            await driver.WriteAsync(tagId, value, cancellationToken);
+            return;
+        }
 
-        await driver.WriteAsync(tagId, value, cancellationToken);
+        if (state.ServerMemoryByTagId.TryGetValue(tagId, out var memorySource))
+        {
+            await memorySource.WriteAsync(tagId, value, cancellationToken);
+            return;
+        }
+
+        throw new KeyNotFoundException($"Active runtime has no writable source for TAG '{tagId}'.");
+    }
+
+    public async ValueTask ResetServerMemoryRetainedValueAsync(
+        Guid tagId,
+        CancellationToken cancellationToken = default)
+    {
+        var state = Volatile.Read(ref _active);
+        if (!state.ServerMemoryByTagId.TryGetValue(tagId, out var memorySource))
+            throw new KeyNotFoundException($"Active runtime Server Memory TAG '{tagId}' was not found.");
+
+        await memorySource.ResetRetainedValueAsync(tagId, cancellationToken);
     }
 
     public async ValueTask ExecuteCommandAsync(
@@ -161,11 +210,21 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         var state = Volatile.Read(ref _active);
         if (!state.Commands.TryGet(commandId, out var command) || command is null)
             throw new KeyNotFoundException($"Active runtime command '{commandId}' was not found.");
-        if (!state.DriverByTagId.TryGetValue(command.TargetTagId, out var driver))
-            throw new KeyNotFoundException(
-                $"Active runtime command '{command.Key}' has no communication driver for target TAG '{command.TargetTagPath}'.");
 
-        await driver.WriteAsync(command.TargetTagId, command.Value, cancellationToken);
+        if (state.DriverByTagId.TryGetValue(command.TargetTagId, out var driver))
+        {
+            await driver.WriteAsync(command.TargetTagId, command.Value, cancellationToken);
+            return;
+        }
+
+        if (state.ServerMemoryByTagId.TryGetValue(command.TargetTagId, out var memorySource))
+        {
+            await memorySource.WriteAsync(command.TargetTagId, command.Value, cancellationToken);
+            return;
+        }
+
+        throw new KeyNotFoundException(
+            $"Active runtime command '{command.Key}' has no writable source for target TAG '{command.TargetTagPath}'.");
     }
 
     public Task<RuntimeActivationResult> ActivateAsync(
@@ -202,14 +261,16 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         await _activationGate.WaitAsync(cancellationToken);
         try
         {
-            var compilation = _compiler.Compile(package);
-            if (!compilation.CanActivate)
+            var memoryCompilation = InternalMemoryRuntimePlanner.Compile(package);
+            var compilation = _compiler.Compile(memoryCompilation.CommunicationPackage);
+            var compilationIssues = memoryCompilation.Issues.Concat(compilation.Issues).ToArray();
+            if (compilationIssues.Any(x => x.IsError))
             {
                 return new RuntimeActivationResult(
                     projectKey.Trim(),
                     revision,
                     false,
-                    compilation.Issues,
+                    compilationIssues,
                     Array.Empty<RuntimeActivationIssue>());
             }
 
@@ -217,25 +278,30 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             RuntimeState? candidate = null;
             try
             {
-                candidate = BuildCandidate(projectKey.Trim(), revision, compilation, runtimeIssues);
+                candidate = BuildCandidate(
+                    projectKey.Trim(),
+                    revision,
+                    compilation,
+                    memoryCompilation,
+                    runtimeIssues);
                 if (runtimeIssues.Any(x => x.IsError))
                 {
                     await candidate.DisposeAsync();
                     return new RuntimeActivationResult(
-                        projectKey.Trim(), revision, false, compilation.Issues, runtimeIssues);
+                        projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
                 }
 
-                await StartDriversAsync(candidate, cancellationToken);
+                await StartRuntimeSourcesAsync(candidate, cancellationToken);
                 var ready = await WaitUntilReadyAsync(candidate, cancellationToken);
                 if (!ready)
                 {
                     runtimeIssues.Add(new(
                         "RUNTIME_CANDIDATE_NOT_READY",
-                        $"Candidate runtime did not reach Good quality for all communication TAGs within {_activationTimeout}.",
+                        $"Candidate runtime did not reach Good quality for all shared runtime TAGs within {_activationTimeout}.",
                         IsError: true));
                     await candidate.DisposeAsync();
                     return new RuntimeActivationResult(
-                        projectKey.Trim(), revision, false, compilation.Issues, runtimeIssues);
+                        projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
                 }
 
                 RegisterAlarms(package, candidate, runtimeIssues);
@@ -244,7 +310,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 {
                     await candidate.DisposeAsync();
                     return new RuntimeActivationResult(
-                        projectKey.Trim(), revision, false, compilation.Issues, runtimeIssues);
+                        projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
                 }
 
                 await EvaluateCurrentAlarmsAsync(candidate, cancellationToken);
@@ -267,7 +333,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                             $"Candidate runtime was ready, but activation could not be committed: {ex.Message}"));
                         await candidate.DisposeAsync();
                         return new RuntimeActivationResult(
-                            projectKey.Trim(), revision, false, compilation.Issues, runtimeIssues);
+                            projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
                     }
                 }
 
@@ -293,7 +359,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                     projectKey.Trim(),
                     revision,
                     true,
-                    compilation.Issues,
+                    compilationIssues,
                     runtimeIssues,
                     activatedAt);
             }
@@ -307,7 +373,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 if (candidate is not null) await candidate.DisposeAsync();
                 runtimeIssues.Add(new("RUNTIME_ACTIVATION_FAILED", ex.Message));
                 return new RuntimeActivationResult(
-                    projectKey.Trim(), revision, false, compilation.Issues, runtimeIssues);
+                    projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
             }
         }
         finally
@@ -320,6 +386,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         string projectKey,
         long revision,
         EngineeringDriverCompilation compilation,
+        InternalMemoryRuntimeCompilation memoryCompilation,
         List<RuntimeActivationIssue> runtimeIssues)
     {
         var eventGate = new RuntimeEventGate(_externalEventBus, forwardingEnabled: false);
@@ -354,19 +421,42 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 plan.MaxGapElements));
         }
 
-        if (drivers.Count == 0)
+        var serverMemorySources = memoryCompilation.ServerMemoryPlans
+            .Where(x => x.Tags.Count > 0)
+            .Select(plan => new ServerMemoryRuntimeSource(
+                plan,
+                _serverMemoryRetentionStore,
+                cache,
+                registry))
+            .ToArray();
+
+        var clientMemoryTagCount = memoryCompilation.ClientMemoryPlans.Sum(x => x.Tags.Count);
+        if (drivers.Count == 0 && serverMemorySources.Length == 0 && clientMemoryTagCount == 0)
         {
             runtimeIssues.Add(new(
-                "RUNTIME_NO_COMMUNICATION_DRIVERS",
-                "Published engineering produced no supported communication drivers.",
+                "RUNTIME_NO_ACTIVE_SOURCES",
+                "Published engineering produced no supported active runtime sources.",
                 IsError: true));
         }
 
-        return new RuntimeState(projectKey, revision, eventGate, registry, cache, alarms, commands, drivers);
+        return new RuntimeState(
+            projectKey,
+            revision,
+            eventGate,
+            registry,
+            cache,
+            alarms,
+            commands,
+            drivers,
+            serverMemorySources,
+            memoryCompilation.ClientMemoryPlans);
     }
 
-    private static async Task StartDriversAsync(RuntimeState state, CancellationToken cancellationToken)
+    private static async Task StartRuntimeSourcesAsync(RuntimeState state, CancellationToken cancellationToken)
     {
+        foreach (var source in state.ServerMemorySources)
+            await source.ActivateAsync(cancellationToken);
+
         foreach (var driver in state.Drivers)
             await driver.StartAsync(cancellationToken);
     }
@@ -376,10 +466,12 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         var expectedTagIds = state.Drivers
             .SelectMany(x => x.Tags)
             .Select(x => x.Id)
+            .Concat(state.ServerMemorySources.SelectMany(x => x.Tags).Select(x => x.Id))
             .Distinct()
             .ToArray();
 
-        if (expectedTagIds.Length == 0) return false;
+        if (expectedTagIds.Length == 0)
+            return state.ClientMemoryPlans.SelectMany(x => x.Tags).Any();
 
         var deadline = DateTimeOffset.UtcNow + _activationTimeout;
         while (DateTimeOffset.UtcNow < deadline)
@@ -570,7 +662,9 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             CurrentTagCache cache,
             InMemoryAlarmEngine alarms,
             InMemoryCommandRegistry commands,
-            IReadOnlyCollection<ICommunicationDriver> drivers)
+            IReadOnlyCollection<ICommunicationDriver> drivers,
+            IReadOnlyCollection<ServerMemoryRuntimeSource> serverMemorySources,
+            IReadOnlyCollection<InternalMemoryRuntimePlan> clientMemoryPlans)
         {
             ProjectKey = projectKey;
             Revision = revision;
@@ -580,9 +674,14 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             Alarms = alarms;
             Commands = commands;
             Drivers = drivers;
+            ServerMemorySources = serverMemorySources;
+            ClientMemoryPlans = clientMemoryPlans;
             DriverByTagId = drivers
                 .SelectMany(driver => driver.Tags.Select(tag => (tag.Id, Driver: driver)))
                 .ToDictionary(x => x.Id, x => x.Driver);
+            ServerMemoryByTagId = serverMemorySources
+                .SelectMany(source => source.Tags.Select(tag => (tag.Id, Source: source)))
+                .ToDictionary(x => x.Id, x => x.Source);
         }
 
         public string? ProjectKey { get; }
@@ -594,7 +693,10 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         public InMemoryAlarmEngine Alarms { get; }
         public InMemoryCommandRegistry Commands { get; }
         public IReadOnlyCollection<ICommunicationDriver> Drivers { get; }
+        public IReadOnlyCollection<ServerMemoryRuntimeSource> ServerMemorySources { get; }
+        public IReadOnlyCollection<InternalMemoryRuntimePlan> ClientMemoryPlans { get; }
         public IReadOnlyDictionary<Guid, ICommunicationDriver> DriverByTagId { get; }
+        public IReadOnlyDictionary<Guid, ServerMemoryRuntimeSource> ServerMemoryByTagId { get; }
 
         public static RuntimeState Empty(IScadaEventBus externalEventBus)
         {
@@ -607,7 +709,9 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 new CurrentTagCache(eventGate),
                 new InMemoryAlarmEngine(eventGate),
                 new InMemoryCommandRegistry(),
-                Array.Empty<ICommunicationDriver>());
+                Array.Empty<ICommunicationDriver>(),
+                Array.Empty<ServerMemoryRuntimeSource>(),
+                Array.Empty<InternalMemoryRuntimePlan>());
         }
 
         public async ValueTask DisposeAsync()

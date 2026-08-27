@@ -9,6 +9,7 @@ using Scada.Api.Security;
 using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
+using Scada.Core.InternalMemory;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
@@ -31,6 +32,7 @@ var authenticationEnabled = builder.AddEliteScadaJwtAuthentication();
 builder.Services.AddSingleton<IScadaEventBus, InMemoryScadaEventBus>();
 builder.Services.AddSingleton<TagRealtimeHub>();
 builder.AddConfiguredHistorian();
+builder.AddConfiguredServerMemoryRetention();
 
 builder.Services.AddSingleton<EngineeringWorkspace>();
 builder.Services.AddSingleton<ITagRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Tags);
@@ -49,7 +51,8 @@ builder.Services.AddSingleton<IEngineeringRuntimeCoordinator>(sp =>
         sp.GetRequiredService<IEngineeringDriverCompiler>(),
         TimeSpan.FromSeconds(Math.Max(
             1,
-            builder.Configuration.GetValue<double?>("EngineeringRuntime:ActivationTimeoutSeconds") ?? 10))));
+            builder.Configuration.GetValue<double?>("EngineeringRuntime:ActivationTimeoutSeconds") ?? 10)),
+        sp.GetRequiredService<IServerMemoryRetentionStore>()));
 
 builder.Services.AddSingleton<IEngineeringExchangeService, EngineeringExchangeService>();
 builder.Services.AddSingleton<IProjectPackageService, ProjectPackageService>();
@@ -76,6 +79,7 @@ var app = builder.Build();
 
 // Resolve the historian before the hosted driver starts so it subscribes to the event bus.
 _ = app.Services.GetRequiredService<IHistorian>();
+await app.InitializeServerMemoryRetentionAsync();
 await app.InitializeEngineeringPersistenceAsync();
 await app.InitializeAuditAsync();
 
@@ -89,6 +93,7 @@ app.MapEngineeringMutationEndpoints();
 app.MapAuditEndpoints();
 app.MapAlarmShelvingEndpoints();
 app.MapCommandEndpoints();
+app.MapInternalMemoryEndpoints();
 
 // Public health intentionally exposes no plant, driver, project or historian detail.
 app.MapGet("/health", () => Results.Ok(new

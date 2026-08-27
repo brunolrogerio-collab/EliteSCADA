@@ -1,5 +1,6 @@
 using Scada.Core.Alarms;
 using Scada.Core.Tags;
+using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.Validation;
@@ -11,15 +12,18 @@ internal sealed class DataSourceEngineeringHandler
     private readonly IDataSourceEngineeringRegistry _registry;
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
+    private readonly ICommandEngineeringRegistry _commands;
 
     public DataSourceEngineeringHandler(
         IDataSourceEngineeringRegistry registry,
         ITagRegistry tags,
-        IAlarmEngine alarms)
+        IAlarmEngine alarms,
+        ICommandEngineeringRegistry commands)
     {
         _registry = registry;
         _tags = tags;
         _alarms = alarms;
+        _commands = commands;
     }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
@@ -104,6 +108,32 @@ internal sealed class DataSourceEngineeringHandler
                 issues.Add(new(
                     "CLIENT_MEMORY_EXISTING_ALARM_NOT_ALLOWED",
                     $"Data source '{dataSource.Key}' cannot become Client Memory while TAG '{effective.Path}' remains targeted by the global alarm engine.",
+                    ImportEntityKind.DataSource,
+                    dataSource.Key,
+                    true));
+            }
+
+            var currentCommands = _commands.Snapshot().Where(command =>
+                command.TargetTagId == currentTag.Id ||
+                (!string.IsNullOrWhiteSpace(command.TargetTagPath) &&
+                 command.TargetTagPath.Equals(currentTag.Path, StringComparison.OrdinalIgnoreCase)));
+
+            foreach (var currentCommand in currentCommands)
+            {
+                var importedCommand = (package.Commands ?? Array.Empty<CommandEngineeringDto>()).FirstOrDefault(command =>
+                    (currentCommand.Id.HasValue && command.Id == currentCommand.Id) ||
+                    command.Key.Equals(currentCommand.Key, StringComparison.OrdinalIgnoreCase));
+                var effectiveCommand = importedCommand ?? currentCommand;
+                var stillTargetsClientTag =
+                    effectiveCommand.TargetTagId == currentTag.Id ||
+                    (!string.IsNullOrWhiteSpace(effectiveCommand.TargetTagPath) &&
+                     effectiveCommand.TargetTagPath.Equals(effective.Path, StringComparison.OrdinalIgnoreCase));
+                if (!stillTargetsClientTag)
+                    continue;
+
+                issues.Add(new(
+                    "CLIENT_MEMORY_EXISTING_COMMAND_NOT_ALLOWED",
+                    $"Data source '{dataSource.Key}' cannot become Client Memory while TAG '{effective.Path}' remains targeted by server-side Command '{effectiveCommand.Key}'.",
                     ImportEntityKind.DataSource,
                     dataSource.Key,
                     true));

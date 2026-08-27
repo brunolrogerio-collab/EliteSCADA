@@ -4,6 +4,7 @@ using Scada.Core.Abstractions;
 using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.Historian.Abstractions;
+using Scada.Historian.Policies;
 
 namespace Scada.Historian.Memory;
 
@@ -43,6 +44,9 @@ public sealed class BufferedInMemoryHistorian : IHistorian
 
     private ValueTask OnTagValueChangedAsync(TagValueChanged evt)
     {
+        if (!HistorianCapturePolicy.ShouldCapture(evt.Tag))
+            return ValueTask.CompletedTask;
+
         if (_queue.Writer.TryWrite(evt.Current)) Interlocked.Increment(ref _pending);
         return ValueTask.CompletedTask;
     }

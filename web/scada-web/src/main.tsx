@@ -4,6 +4,7 @@ import { AppNavigation } from './AppNavigation';
 import { AuditApp } from './audit';
 import { AuthGate } from './auth/AuthGate';
 import { EngineeringApp } from './engineering/EngineeringApp';
+import { clientMemory } from './runtime/clientMemory';
 import './styles.css';
 
 type TagMessage = {
@@ -48,6 +49,31 @@ function RuntimeApp() {
   const [modal, setModal] = useState(false);
   const [alarms, setAlarms] = useState<Alarm[]>([]);
   const [history, setHistory] = useState<HistorySample[]>([]);
+  const [clientMemoryCount, setClientMemoryCount] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let disposed = false;
+
+    const initializeClientMemory = async () => {
+      try {
+        const count = await clientMemory.initialize(controller.signal);
+        if (!disposed) setClientMemoryCount(count);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        console.error('Client Memory initialization failed.', error);
+        clientMemory.clear();
+        if (!disposed) setClientMemoryCount(0);
+      }
+    };
+
+    void initializeClientMemory();
+    return () => {
+      disposed = true;
+      controller.abort();
+      clientMemory.clear();
+    };
+  }, []);
 
   useEffect(() => {
     let ws: WebSocket | undefined;
@@ -140,7 +166,9 @@ function RuntimeApp() {
           <span>Runtime 0.1-dev</span>
           <a className="runtime-engineering-link" href="/engineering">Engineering</a>
         </div>
-        <div className={`connection ${connected ? 'online' : ''}`}>{connected ? 'ONLINE' : 'OFFLINE'} · {tagCount} TAGs</div>
+        <div className={`connection ${connected ? 'online' : ''}`}>
+          {connected ? 'ONLINE' : 'OFFLINE'} · {tagCount} TAGs{clientMemoryCount > 0 ? ` · ${clientMemoryCount} Client Memory` : ''}
+        </div>
       </header>
 
       {alarms.length > 0 && (

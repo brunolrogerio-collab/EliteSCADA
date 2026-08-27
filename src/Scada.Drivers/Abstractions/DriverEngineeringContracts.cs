@@ -144,7 +144,7 @@ public sealed record DriverBrowseRequest(
     IReadOnlyDictionary<string, string>? Parameters = null);
 
 /// <summary>
-/// Transient browse/import evidence. PortableAddress is the protocol-owned,
+/// Transient browse evidence. PortableAddress is the protocol-owned,
 /// library-independent identity that may later become a canonical TAG binding
 /// only through normal validate/preview/apply processing.
 /// </summary>
@@ -167,24 +167,82 @@ public sealed record DriverBrowsePage(
     bool IsPartial = false,
     IReadOnlyCollection<DriverEngineeringIssue>? Issues = null);
 
+public sealed record DriverImportRequest(
+    DriverEngineeringDataSourceContext? Context,
+    string SourceName,
+    string? ContentType = null,
+    IReadOnlyDictionary<string, string>? Parameters = null);
+
+public sealed record DriverImportCandidate(
+    string CandidateId,
+    string StableIdentity,
+    string DisplayName,
+    string PortableAddress,
+    bool IsReadable,
+    bool IsWritable,
+    TagDataType? SuggestedDataType = null,
+    string? EngineeringUnit = null,
+    IReadOnlyDictionary<string, string>? Metadata = null,
+    IReadOnlyCollection<DriverEngineeringIssue>? Issues = null);
+
+public sealed record DriverReconcileRequest(
+    DriverEngineeringDataSourceContext Context,
+    IReadOnlyCollection<string> PortableAddresses,
+    IReadOnlyDictionary<string, string>? Parameters = null);
+
+public sealed record DriverReconcileResult(
+    string PortableAddress,
+    string Status,
+    string? ResolvedIdentity = null,
+    string? ResolvedPortableAddress = null,
+    TagDataType? ObservedDataType = null,
+    bool? IsReadable = null,
+    bool? IsWritable = null,
+    IReadOnlyDictionary<string, string>? Metadata = null,
+    IReadOnlyCollection<DriverEngineeringIssue>? Issues = null);
+
 /// <summary>
-/// Optional Engineering adapter for communication Driver types. Runtime driver
-/// instances must not implement discovery/browse merely to satisfy this API;
-/// tooling may use a short-lived protected protocol session instead.
+/// Common descriptor surface. Feature-specific Engineering interfaces are split
+/// so a protocol never has to pretend it supports discovery, browse or file
+/// import merely because another protocol does.
 /// </summary>
-public interface ICommunicationDriverEngineeringAdapter
+public interface ICommunicationDriverDescriptorProvider
 {
     CommunicationDriverTypeDescriptor Descriptor { get; }
+}
 
+public interface ICommunicationDriverConnectionTester : ICommunicationDriverDescriptorProvider
+{
     ValueTask<DriverConnectionTestResult> TestConnectionAsync(
         DriverEngineeringDataSourceContext context,
         CancellationToken cancellationToken = default);
+}
 
+public interface ICommunicationDriverDiscoverySource : ICommunicationDriverDescriptorProvider
+{
     IAsyncEnumerable<DriverDiscoveryCandidate> DiscoverAsync(
         DriverDiscoveryRequest request,
         CancellationToken cancellationToken = default);
+}
 
+public interface ICommunicationDriverBrowser : ICommunicationDriverDescriptorProvider
+{
     ValueTask<DriverBrowsePage> BrowseAsync(
         DriverBrowseRequest request,
+        CancellationToken cancellationToken = default);
+}
+
+public interface ICommunicationDriverFileImporter : ICommunicationDriverDescriptorProvider
+{
+    IAsyncEnumerable<DriverImportCandidate> ImportAsync(
+        DriverImportRequest request,
+        Stream content,
+        CancellationToken cancellationToken = default);
+}
+
+public interface ICommunicationDriverReconciler : ICommunicationDriverDescriptorProvider
+{
+    IAsyncEnumerable<DriverReconcileResult> ReconcileAsync(
+        DriverReconcileRequest request,
         CancellationToken cancellationToken = default);
 }

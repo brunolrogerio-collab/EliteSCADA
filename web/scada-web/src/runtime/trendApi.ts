@@ -2,7 +2,7 @@ import { classifyRuntimeTagEndpointIssue } from './tagInspectorModel';
 import { clampTrendSampleLimit, validateTrendRange } from './trendModel';
 import type { RuntimeTagEndpointIssue, RuntimeTagHistorySample, RuntimeTagListItem } from './trendTypes';
 
-const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
+const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
 export class BasicTrendApiError extends Error {
   constructor(

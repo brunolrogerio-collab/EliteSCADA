@@ -1,244 +1,209 @@
 # EliteSCADA Roadmap
 
-Engineering Import/Export remains a mandatory cross-cutting capability throughout this roadmap. Every new Engineering domain must join the public versioned model, validation/preview/apply workflow, revision lifecycle and backup/restore path.
-
 **Status date:** 2026-08-27  
-**Functional development:** **ACTIVE — INTERFACE PRODUCT DEVELOPMENT / SECOND WAVE DELIVERED**
+**Active direction:** **FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
 
-## Established `main` foundation
+Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
+Parallel execution model: `docs/DEVELOPMENT-WAVES.md`.
 
-The current merged platform includes repository/CI foundation, TAG Engine and quality/current cache, Event Bus, Simulation and Modbus TCP drivers, common Driver SDK/DriverHost boundaries, REST/WebSocket runtime, PostgreSQL Engineering persistence, Working/Revision/Published/Active lifecycle, TimescaleDB historian foundations, canonical import/export, protected Engineering Workspace/CAS mutations, JWT/local identity and authorization, durable Audit, Engineering UI, structured TAG/Data Source/Alarm editors, local user administration, Internal Memory, Python/Visual public contract foundations, isolated Script Engineering, Engineering Schema v9 TAG Gateway, complete protocol-independent TAG Gateway, common multi-Data-Source diagnostics, the first integrated Interface Product Development checkpoint and the merged research-convergence hardening of the Driver SDK.
+Engineering Import/Export remains cross-cutting: every new canonical Engineering domain joins versioned JSON, validation/Preview/Apply, revision lifecycle, PostgreSQL persistence where applicable and `.escadapkg` backup/restore.
 
-Important current checkpoints:
+## Current merged foundation
 
-- Internal Memory: complete through PR #49;
-- TAG Gateway: complete through PRs #50 and #55;
-- communication diagnostics: complete through PRs #56 and #57;
-- first integrated interface checkpoint: PR #58, merge `f3cc82f0d45a9f0162105b57ae6c42f643af6160`, exact-head CI #378 green;
-- Driver SDK research convergence: PR #68, merge `ec82389d1f27c9929b680e8174b38ca72bcf3b54`, exact-head CI #391 green;
-- canonical Engineering JSON remains **Schema v9**.
+The platform already includes, in `main`, substantial foundations across:
 
-## Current development order
+- TAG Engine/current cache/quality and Event Bus;
+- Simulation and real Modbus TCP;
+- PostgreSQL Engineering persistence;
+- TimescaleDB historian foundation;
+- Working/Revision/Published/Active lifecycle and transactional activation/recovery foundations;
+- canonical Engineering import/export and Preview/Apply/CAS;
+- authentication, local users, authorization and Audit;
+- Client Memory and retentive Server Memory;
+- protocol-independent TAG Gateway;
+- common multi-Data-Source communication diagnostics;
+- Runtime/Engineering/Audit product shell;
+- Engineering Data Source/TAG/Alarm workspace ergonomics;
+- Runtime Operations Overview and Alarm Center/ACK UX;
+- Audit workspace ergonomics;
+- public Python/visual contract foundations and isolated Script Engineering foundation;
+- merged Python/editor/protocol research;
+- Driver SDK research convergence through PR #68.
 
-The product order remains:
+Canonical Engineering remains **Schema v9** until a deliberate migration wave changes it with compatibility tests.
 
-`merged platform foundations -> INTERFACE PRODUCT DEVELOPMENT -> USER INTERFACE VALIDATION BUILD/PACKAGE -> additional external protocols`
+## Wave 00 — current interface closeout
 
-This is a scheduling decision, not an architectural rollback. Source/provider/security/Engineering boundaries remain unchanged.
+**FUNCTIONAL INTEGRATION COMPLETE.**
 
-## 1. Internal Memory TAG sources
+PRs #65, #66 and #67 are merged. Coordinator PR #69 integrated the Runtime Alarm Center into the actual Runtime composition, removed the legacy duplicate alarm path and preserved backend-authoritative ACK identity.
 
-**COMPLETE / MERGED.**
+PR #69:
 
-Client Memory remains per-runtime-client/local and non-global. Server Memory remains shared/server-owned and retentive by stable TAG ID. Internal sources do not fabricate network diagnostics.
+- final head `c493709a221614a093717b6e6a16bf8821226e91`;
+- exact-head CI #403: Web PASS, backend/tests/smoke PASS, Chromium PASS;
+- merge `ee65ab51a39cd74ef6f14395d27b0ee16b8c6970`.
 
-See `docs/INTERNAL-MEMORY-TAGS.md`.
+Before freezing Wave 03 base, coordinator must address or deliberately isolate the PostgreSQL concurrent schema-initialization race observed during CI. It is infrastructure hardening, not a new product feature.
 
-## 2. Protocol-independent TAG Gateway
+## Ordered path to v0.1
 
-**COMPLETE / MERGED.**
+The approved sequence is:
 
-Schema v9 Gateway routes, Preview/Apply/revision/package persistence, validation, Server Memory support, OnChange/Periodic execution, quality policy, conversion/scaling, transactional runtime replacement, diagnostics and Engineering UI are merged.
+```text
+Wave 03  Operational lifecycle + Runtime TAG Inspector + acceptance foundation
+Wave 04  Project portability + basic Trends + Administration
+Wave 05  Canonical Script Engineering
+Wave 06  Python Editor + Client Visual sandbox
+Wave 07  Visual Runtime Object Model
+Wave 08  Graphical Editor Foundation
+Wave 09  Screens + Popups + Dynamos
+Wave 10  Python visual events + animation + preview
+Wave 11  Complete HMI Runtime demo vertical slice
+Wave 12  Hardening
+Wave 13  Windows x64 product package
+Wave 14  Product-owner validation
+Wave 15  Feedback/corrections
+FINAL    EliteSCADA v0.1 — Full Product Validation Preview
+```
 
-See `docs/TAG-GATEWAY.md`.
+Do not skip dependencies simply because later research already exists.
 
-## 3. Common multi-driver/Data Source diagnostics
+## Wave 03 — complete operational lifecycle
 
-**COMPLETE / MERGED.**
+Goal: prove `edit -> save -> publish -> activate -> operate` as a coherent user workflow.
 
-Protocol-neutral per-Data-Source communication diagnostics, Modbus instrumentation, independent multi-instance failure/recovery/counters/quality behavior, protected backend snapshots and Engineering diagnostics UX are merged.
+Preferred parallel slices:
 
-See `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
+- DEV 1: Engineering Lifecycle Workspace;
+- DEV 2: read-only Runtime TAG Inspector + recent history;
+- DEV 3: cross-product Interface Validation Readiness Harness;
+- Coordinator: integration branch, central hooks, final CI and gate decision.
 
-## 4. Driver SDK research convergence
+Wave details/assignments are created only after Definition of Ready and a frozen `WaveBaseSHA`.
 
-**COMPLETE / MERGED THROUGH PR #68 — ARCHITECTURE FOUNDATION, NOT PROTOCOL IMPLEMENTATION.**
+## Wave 04 — portability + historian + administration
 
-The merged MQTT, OPC UA, BACnet/IP + BACnet/SC, Siemens S7 ISO Connection and Allen-Bradley Logix research has been reconciled into one common Driver SDK direction. Client Python and graphical-editor research were also cross-checked to preserve the same authority boundaries.
+- Project Management surface for canonical JSON Import/Export, Preview/Apply and `.escadapkg` backup/restore;
+- basic live + historical Trend Viewer;
+- Administration workspace ergonomics.
 
-Official foundations now include:
+Gate: practically usable non-graphical SCADA/platform workflow before canonical scripting/visual product integration.
 
-- active `ICommunicationDriver` remains the small Runtime communication boundary;
-- connection test, discovery, browse, file import and reconciliation are separate optional protected Engineering capabilities;
-- one Driver type may honestly support only the capabilities its protocol provides;
-- Driver type descriptors carry stable runtime/Engineering capabilities, acquisition-mode metadata and versioned public configuration-schema direction;
-- public descriptor fields can expose localization resource keys for `pt-BR` / `en` / `es`;
-- acquisition may be Polling, Subscription, EventDriven or Hybrid without bypassing the common TAG/cache/event path;
-- `TagValue` preserves local `Timestamp` plus optional real `SourceTimestamp` and `ServerTimestamp` when a protocol provides them;
-- Driver reconciliation outcomes use typed status values;
-- protocol-library handles, browse/session indexes and subscription objects remain implementation details rather than canonical Engineering;
-- writes remain through the owning-provider boundary and Gateway remains protocol independent;
-- common communication diagnostics remain authoritative, with protocol-specific sanitized details only where meaningful.
+## Wave 05 — canonical Script Engineering
 
-Authoritative reading:
+**ARCHITECTURE-FIRST WAVE.**
 
-- `docs/ADR-009-DRIVER-SDK-ENGINEERING-BOUNDARIES.md`;
-- `docs/DRIVER-SDK-RESEARCH-CONVERGENCE.md`;
-- `docs/RESEARCH-CONVERGENCE-READINESS.md`;
-- `docs/ADR-002-DRIVER-SDK-AND-REALTIME.md`;
-- `docs/ADR-007-DRIVER-MODULES-AND-PROTOCOLS.md`.
+Coordinator first stabilizes shared canonical Script contracts in the wave integration branch: Engineering schema/model, Scripts collection, stable references, import/export/migration, Preview/Apply, revision/PostgreSQL and `.escadapkg`.
 
-### Deliberately deferred
+Workers then build isolated Script workspace/reference/compatibility slices against that contract.
 
-PR #68 does not implement:
+Gate: Script source/scope/events/dependencies/references/enabled state survive canonical round-trip, revision and package flows.
 
-- any new external protocol runtime;
-- final protocol package/library selection;
-- Driver Module loader/runtime registration;
-- the final rich canonical protocol TAG-binding DTO/schema migration;
-- host secret resolver/trust-store infrastructure;
-- Python runtime/editor;
-- graphical Screen/Popup/Dynamo editor.
+## Wave 06 — Python Editor + Client Visual sandbox
 
-Current Schema v9 remains authoritative until a dedicated schema migration can include validation, Preview/Apply, revision persistence, package round-trip, module-missing behavior and frontend editor generation together.
+Production Client Visual Python begins only after canonical Script integration.
 
-## 5. Interface product development
+Required result includes practical code editor, safe browser sandbox, narrow versioned EliteSCADA API, cancellation/time budgets/bounded queues/isolation and meaningful diagnostics.
 
-**ACTIVE PRODUCT BLOCK — FIRST CHECKPOINT MERGED / SECOND WAVE DELIVERED IN OPEN PRS.**
+No direct driver/database/filesystem/shell/arbitrary-network/credential access.
 
-Authoritative task direction: `docs/INTERFACE-DEVELOPMENT.md`.
+## Wave 07 — Visual Runtime Object Model
 
-The first checkpoint through PR #58 established:
+**ARCHITECTURE-FIRST WAVE.**
 
-- persistent coherent Runtime / Engineering / Audit navigation;
-- localized shell identity in `pt-BR` / `en` / `es`;
-- authenticated user/session affordance;
-- Runtime operational overview using protected facts;
-- Engineering Data Source and TAG browser/search surfaces over canonical Engineering;
-- existing Preview/Apply/CAS flows preserved.
+Coordinator stabilizes canonical visual identity/runtime-instance/property-resolution rules before parallel implementation.
 
-### Second interface wave
+Locked precedence:
 
-The three worker slices are now delivered but remain **IMPLEMENTED IN PR / NOT MERGED** pending coordinator reconciliation with the post-PR-#68 `main`:
+`Animation > Script > Binding/Expression > Engineering Base`
 
-1. **DEV 1 / PR #65 — Engineering Alarm Workspace ergonomics**: scalable searchable/filterable Alarm definition navigation/master-detail over canonical Engineering; exact worker head `071b56b532cf14039d1c0cab9891fc06a27f9873`; CI #388 green.
-2. **DEV 2 / PR #67 — Runtime Alarm Center + protected acknowledgement UX**: existing protected active-alarm and ACK APIs, backend-authoritative refresh and authorization/Audit; exact worker head `0c2baae9f3eabe501fa4b1790f4f1607bd04771b`; CI #387 green after retrying an unrelated transient existing Modbus diagnostics failure on the same head.
-3. **DEV 3 / PR #66 — Audit workspace ergonomics**: compact filters, scalable results/master-detail and quieter diagnostics while preserving keyset pagination and `SystemAdmin` backend enforcement; exact worker head `fdb622df821fefd14e5af9244ad0df4cd9eb1302`; CI #386 green.
-4. **COORDINATOR**: reconcile each worker branch with current `main`, review semantics, integrate Runtime Alarm Center placement, normalize cross-product UX and require exact-head green CI before merge.
+Gate: a canonical visual definition can render, bind, be changed by Python/animation and dispose deterministically without mutating saved Engineering.
 
-Detailed scope is authoritative in `docs/CHAT-WORK-ASSIGNMENTS.md`.
+## Wave 08 — Graphical Editor Foundation
 
-### Guardrails
+Canvas/selection + shared Property Inspector + initial Object Palette/bindings.
 
-This UI block does not authorize private frontend Engineering, frontend-only security, direct frontend-to-driver access, fake diagnostics, production Python, the graphical Screen/Popup/Dynamo editor or new production external drivers.
+The editor consumes canonical Engineering and the common Visual Property Registry. Renderer/canvas private state never becomes project truth.
 
-## 6. User interface validation build/package
+Gate: create Screen, place/manipulate objects, edit properties, save/reopen and export/import.
 
-**DEFERRED / STILL REQUIRED.**
+## Wave 09 — Screens + Popups + Dynamos
 
-`docs/INTERFACE-VALIDATION-MILESTONE.md` remains valid. Windows x64 packaging/launcher is postponed until the interface has materially matured. The parked `integration/interface-validation-preview` branch remains unmerged.
+Multiple Screen navigation, Popup runtime/definition behavior and first reusable Dynamo definition/instance/public-parameter model.
 
-After the second interface wave, the coordinator must explicitly reassess whether the interface is mature enough to resume this validation package.
+Gate: Screen + objects + Dynamo + button -> Popup works through normal Engineering publication/activation and Runtime.
 
-## 7. Research consolidation
+## Wave 10 — Python visual events + animation
 
-The architecture research backlog is incorporated into official `main` as **RESEARCH MERGED / PRODUCTION NOT IMPLEMENTED**:
+Event association, renderer-native animation/tween and Engineering Python Preview/Test.
 
-- PR #53 — graphical Screen/Popup/Dynamo editor architecture, CI #383 green, merge `491ee337bf2723d13d2759bc677300edd34e1fca`;
-- PR #54 — Client Visual Python editor/browser sandbox, CI #384 green, merge `80d06ea467c7c844807c0548940308ccf74a7510`;
-- PR #62 — BACnet/IP + BACnet/SC architecture, CI #380 green, merge `c60c611465bd82a898ee30d5f67fe79234381b8c`;
-- PR #63 — MQTT industrial Data Source architecture, CI #381 green, merge `05df6bc63893cb025f87899d27a5988b2e1cf896`;
-- PR #64 — Allen-Bradley EtherNet/IP/CIP Logix architecture, CI #382 green, merge `a71ce2d962d6b122714b61b5851465d9c284e7b6`;
-- merged OPC UA and Siemens S7 research remain additional architecture inputs;
-- PR #68 converts the common cross-research conclusions into official platform contracts without implementing the protocols themselves.
+Gate: an engineered button can execute controlled Python that reads a TAG, changes Client Memory, changes another object's Runtime presentation, opens a Popup and requests animation.
 
-Research merge means the evidence is official. It does **not** select final production dependencies, register Data Sources, change runtime composition or bypass any prerequisite/product gate.
+## Wave 11 — complete HMI vertical slice
 
-## 8. External protocol/module wave
+Build `Estação Elevatória EliteSCADA Demo` only through normal product APIs/tools.
 
-**PRODUCTION POSTPONED UNTIL AFTER INTERFACE DEVELOPMENT + VALIDATION FEEDBACK.**
+It proves graphical Runtime, bindings, Python, alarms/ACK, historian, diagnostics, Gateway, memory and optional laboratory Modbus connection as one SCADA application.
 
-Planned order remains broadly:
+Hidden DB/private JSON/manual developer intervention is a product gap, not acceptance.
 
-1. MQTT through the common Data Source/Source Provider/TAG/Gateway architecture;
-2. OPC UA through the same model;
-3. BACnet through the same model;
-4. installable/versioned Driver Module framework and public Driver SDK compatibility boundary;
-5. Siemens S7 ISO Connection as an intended installable-module target;
-6. later Allen-Bradley production work based on the merged research, licensing/security review and real-hardware acceptance.
+## Wave 12 — hardening
 
-When this wave opens, every protocol task must read ADR-009, the Driver SDK convergence/readiness documents and its protocol-specific research together. New protocol work must extend the common descriptor/Engineering-capability/TAG/diagnostics/Gateway model rather than create a protocol-private architecture.
+No major feature family. Stress Engineering lifecycle/portability, visual model, Python failure/isolation, Runtime communication/reconnect/quality/alarm/historian/Gateway, persistence/restart/Active recovery and browser/session/localization behavior.
 
-No production work in this wave is authorized by the current assignment board.
+## Wave 13 — Windows x64 package
 
-## Historian and trends
+Create the first owner-facing product package only after graphical Engineering + Client Visual Python + complete HMI runtime path exist.
 
-Storage foundations exist. Still required:
+Internal packaging spikes may happen earlier, but are development evidence only.
 
-- canonical Engineering retention/downsampling policy;
-- raw vs aggregate query/resolution selection;
-- engineered, ad-hoc and saved multi-Pen trends;
-- historical + live trend integration;
-- expressions where appropriate.
+Owner package must not require `dotnet run`, npm/Vite, Git, solution knowledge or manual migrations.
 
-Interface work may expose honest entry points using current APIs, but must not invent historian semantics.
+## Wave 14 — owner validation
 
-## Audit evolution
+Owner tests Demo, project creation from scratch, real Modbus, Dynamo reuse, Popup + Python + Client Memory and restart/Active recovery.
 
-Current merged Audit includes append-only PostgreSQL storage, bounded query/filtering, runtime integration, retention and `/audit` UI.
+The core acceptance is:
 
-The active DEV 3 delivery is interface ergonomics only until its PR is coordinator-merged. Future backend items remain:
+`create project -> source/TAG/alarm -> Screen/object/binding -> Python behavior -> save -> publish -> activate -> Runtime -> restart -> recover Active application`.
 
-- persistent crash-surviving outbox while events are buffered;
-- manual purge-all endpoint;
-- weaker/general AuditRead capability separate from `SystemAdmin`.
+## Wave 15 — feedback/corrections
 
-## Python scripting and visual-runtime prerequisite chain
+Classify P0 BLOCKER, P1 MAJOR, P2 WORKFLOW, P3 UX, P4 COSMETIC.
 
-The locked order remains:
+v0.1 requires P0=0, P1=0, required CI/package smoke green and restart/Active recovery green.
 
-`canonical Script integration -> script editor/sandbox -> visual runtime object/property integration -> graphical Screen/Popup/Dynamo editor -> advanced visual libraries`
+## v0.1 protocol boundary
 
-### Canonical Script integration
+Required real industrial protocol: **Modbus TCP**.
 
-**PARTIALLY MERGED — ISOLATED DOMAIN COMPLETE / CANONICAL PACKAGE INTEGRATION PENDING.**
+Also available/required for product validation: Simulation, Client Memory, Server Memory and Gateway.
 
-Still required before production Python editor/runtime work:
+Production MQTT, OPC UA, BACnet, S7, Allen-Bradley and final Driver Module framework remain **POST-v0.1 OWNER VALIDATION**.
 
-- first-class Scripts collection/entity kind in canonical Engineering;
-- stable visual Script references;
-- schema migration and JSON round-trip;
-- Preview/Apply integration;
-- Revision/PostgreSQL persistence and `.escadapkg` backup/restore;
-- authoritative TAG/Client Memory/Server Memory/resource-reference catalogs.
+Research for those protocols is already merged and the Driver SDK is architecturally converged. Research readiness does not equal an open production gate.
 
-### Python editor/sandbox
+## Post-v0.1 protocol direction
 
-Research is **MERGED through PR #54 / PRODUCTION NOT IMPLEMENTED**. Pyodide/Monaco remain research recommendations only. Production work remains blocked by canonical Script integration and the active product schedule.
+Preferred progression:
 
-### Visual runtime object instances/property API
+`MQTT reference implementation -> OPC UA -> BACnet -> Driver Module framework -> Siemens S7 -> Allen-Bradley`.
 
-**SPECIFIED / NOT IMPLEMENTED AS PRODUCT INTEGRATION.**
+MQTT should first prove the common Driver SDK/Engineering/runtime/diagnostics model as one coordinated protocol wave. Do not initially assign three different protocols to three workers while the production SDK pattern remains unproved.
 
-Runtime precedence remains:
+## Python/visual dependency chain remains locked
 
-`Animation > Script > BindingOrExpression > EngineeringBase`
+`canonical Script Engineering -> Python editor/sandbox -> visual Runtime object/property model -> graphical editor -> advanced visual libraries`.
 
-### Graphical Screen/Popup/Dynamo editor
+The detailed architecture remains in `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md` and merged research documents.
 
-Research is **MERGED through PR #53 / PRODUCTION NOT IMPLEMENTED**. Production graphical-editor work remains behind the locked prerequisite chain.
+## Development quality
 
-## Additional future Engineering/product slices
-
-Still planned according to dependencies and ownership safety:
-
-- Engineering XLSX import/export;
-- Engineering Fragments and dependency-aware cross-project copy/paste;
-- configurable application shell regions;
-- visual asset/resource package management;
-- reusable Equipment/Template/Dynamo class-instance libraries;
-- runtime-HMI multilingual content separate from Engineering UI localization;
-- public SDK/module lifecycle, trust/integrity and diagnostics;
-- later sandboxed Server Python.
-
-## Development quality rules
-
-- Prefer small coherent slices with automated validation.
-- Never merge a known-failing change into `main`.
-- Use GitHub CI as the external .NET validation environment when local .NET execution is unavailable.
-- Validate affected backend behavior, Web build and Chromium E2E.
-- Fix root causes rather than weakening tests/security/concurrency.
-- Preserve Engineering schema compatibility and lifecycle boundaries.
-- Keep runtime safety ahead of UI convenience.
-- Interface changes must not bypass Engineering, TAG quality, security, Audit or source-provider architecture.
-- Worker branches never self-merge and coordinator-owned central files remain centrally controlled unless a narrow exception is explicitly assigned.
+- use Development Waves with a frozen logical base and coordinator integration train;
+- never merge known-failing work;
+- fix root causes rather than weaken tests/security/concurrency;
+- preserve canonical Engineering and backend authority;
+- require final integrated CI for every wave;
+- do not move `main` with unrelated product work during an active wave unless an allowed exception applies;
+- keep the assignment board synchronized because `siga` depends on it.

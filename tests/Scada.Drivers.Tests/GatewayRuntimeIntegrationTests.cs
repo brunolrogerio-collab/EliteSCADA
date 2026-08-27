@@ -36,7 +36,13 @@ public sealed class GatewayRuntimeIntegrationTests
             },
             gateways: new[]
             {
-                Route("modbus-to-memory", sourceId, "PLC.Source", destinationId, "Server.Destination")
+                Route(
+                    "modbus-to-memory",
+                    sourceId,
+                    "PLC.Source",
+                    destinationId,
+                    "Server.Destination",
+                    initialTransferPolicy: GatewayInitialTransferPolicy.SynchronizeFirstAcceptableValue)
             });
 
         var activation = await runtime.ActivateAsync("gateway-modbus-memory", 1, package);
@@ -345,7 +351,8 @@ public sealed class GatewayRuntimeIntegrationTests
         Guid destinationId,
         string destinationPath,
         double? deadband = null,
-        int? minimumIntervalMilliseconds = null) => new(
+        int? minimumIntervalMilliseconds = null,
+        GatewayInitialTransferPolicy initialTransferPolicy = GatewayInitialTransferPolicy.WaitForNextAcceptableValue) => new(
             Guid.NewGuid(),
             key,
             key,
@@ -354,7 +361,7 @@ public sealed class GatewayRuntimeIntegrationTests
             destinationId,
             destinationPath,
             TransferMode: GatewayTransferMode.OnChange,
-            InitialTransferPolicy: GatewayInitialTransferPolicy.WaitForNextAcceptableValue,
+            InitialTransferPolicy: initialTransferPolicy,
             Deadband: deadband,
             MinimumIntervalMilliseconds: minimumIntervalMilliseconds);
 

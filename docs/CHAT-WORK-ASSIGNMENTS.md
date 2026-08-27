@@ -8,274 +8,189 @@
 
 Every fixed EliteSCADA chat first rereads current `main`: `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/DEVELOPMENT-WAVES.md`, this board, current `MustReadSpecific` and `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.
 
-Then verify real GitHub branch/PR/head/CI and execute only the current authorized assignment.
+Then verify real GitHub branch/PR/head/CI and execute only the current authorized assignment. Workers never modify `main`, never merge their own PR, never work another DEV branch and never enlarge their own mission.
 
-`NextQueuedTask` is planning only. A worker never starts queued work unless this board promotes it to `ACTIVE` and its `StartCondition` is true.
+`NextQueuedTask` is planning only. A worker starts queued work only when this board promotes it to `ACTIVE` and its `StartCondition` is true.
 
 ## Current product gate
 
-`INTERFACE-WAVE-03` is **ACTIVE**.
+`INTERFACE-WAVE-04` is **ACTIVE**.
 
-**WaveBaseSHA:** `0aae8317aff5b0640eb713c1ce404224ccbcbbc2`  
-**IntegrationBranch:** `integration/interface-wave-03`  
-**Product objective:** prove the complete non-graphical operational cycle `edit -> save revision -> publish -> activate -> operate` while adding Runtime TAG inspection and cross-product acceptance evidence.
+**WaveBaseSHA:** `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`  
+**IntegrationBranch:** `integration/interface-wave-04`  
+**Product objective:** make the non-graphical platform practically usable through project portability/backup, basic Trends and stronger local administration while preserving the Wave 03 lifecycle/runtime path.
 
-The WaveBaseSHA is the immutable logical product-code base for this wave. Documentation/coordination commits on `main` after this SHA do not invalidate worker branches or require reconciliation. Unrelated product-code changes must stay out of `main` while the wave is active.
+The WaveBaseSHA is the immutable logical product-code base for this wave. Documentation/coordination commits on `main` after this SHA do not invalidate worker branches. Unrelated product-code changes remain frozen until the coordinator closes the wave.
 
-PostgreSQL schema-initialization concurrency hardening is **MERGED** through PR #70, merge `0aae8317aff5b0640eb713c1ce404224ccbcbbc2`, exact-head CI #405 green.
+### Previous wave evidence
+
+`INTERFACE-WAVE-03` is **MERGED** through PR #74.
+
+- worker PR #71 Runtime TAG Inspector: exact-head CI #411 green;
+- worker PR #72 Acceptance Harness: exact-head CI #412 green;
+- worker PR #73 Engineering Lifecycle Workspace: exact-head CI #410 green;
+- integration head `41d44d513d337e8ef6d3cc0e04ef0cf07a697b41`;
+- integration CI #418 / run `33124948655`: Web, backend/full tests, Runtime smoke and Chromium all SUCCESS;
+- merge commit: `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`;
+- integrated Chromium proves canonical Engineering Preview/Apply -> Save Revision -> Publish -> Activate -> durable Active/live Runtime consistency -> Server Memory TAG visible in Runtime TAG Inspector;
+- `RUNTIME_NO_ACTIVE_SOURCES` remains enforced; no test/security/runtime guard was weakened.
 
 First owner-facing validation remains `EliteSCADA v0.1 — Full Product Validation Preview`, after the Python + graphical Engineering path defined in `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.
-
-Production MQTT/OPC UA/BACnet/S7/Allen-Bradley remains unauthorized before that gate unless the product owner deliberately changes the roadmap.
 
 ---
 
 # COORDENADOR - EliteSCADA
 
-**Role:** `COORDINATOR`
-
-**Wave:** `INTERFACE-WAVE-03`
-
-**CurrentTask:** Coordinate Wave 03 worker delivery and integrate accepted slices
-
-**Branch:** `integration/interface-wave-03` plus `main` for coordination-only documentation
-
-**Status:** `ACTIVE`
-
-**BaseSHA:** `0aae8317aff5b0640eb713c1ce404224ccbcbbc2`
-
+**Role:** `COORDINATOR`  
+**Wave:** `INTERFACE-WAVE-04`  
+**CurrentTask:** coordinate portability + Trends + Administration delivery and integrate accepted slices  
+**Branch:** `integration/interface-wave-04` plus `main` for coordination-only documentation  
+**Status:** `ACTIVE`  
+**BaseSHA:** `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`  
 **StartCondition:** `TRUE`
 
-**DependsOn:** PR #70 merged; CI #405 green; WaveBase frozen; worker branches created.
+**DependsOn:** Wave 03 PR #74 merged; CI #418 green; Wave 04 branches created from exact BaseSHA.
 
-**ParallelSafeWith:** all three worker slices, subject to reserved-file boundaries below.
+**Objective:** review worker PRs at Early Contract / Integration / Delivery events, own central composition/routing if needed, preserve the Wave 03 lifecycle path, integrate accepted slices once, run final Web/backend/tests/Runtime smoke/Chromium, merge only a coherent green Wave 04 and decide Wave 05 central Script contract gate.
 
-**Objective:**
+**ReservedFiles:** `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/DEVELOPMENT-WAVES.md`, `docs/CHAT-WORK-ASSIGNMENTS.md`, `.github/workflows/**`, `src/Scada.Api/Program.cs`, `web/scada-web/src/engineering/EngineeringApp.tsx`, `web/scada-web/src/main.tsx`, `web/scada-web/src/AppNavigation.tsx`, central routing/shell/composition files.
 
-1. keep product-code `main` stable during the wave;
-2. review worker Draft PRs at Early Contract / Integration / Delivery events;
-3. integrate accepted slices into `integration/interface-wave-03` without forcing unrelated worker rebases;
-4. own central `EngineeringApp.tsx`, `main.tsx`, routing/shell and any required composition hooks;
-5. run final integrated Web/backend/tests/runtime smoke/Chromium CI;
-6. merge only a coherent green Wave 03 composition;
-7. update roadmap/handoff and decide the Wave 04 gate.
+**ForbiddenScope:** protocol expansion, Python/graphical editor implementation before their planned waves, weakening security/CAS/lifecycle/runtime authority, or worker-owned feature implementation without a demonstrated integration blocker.
 
-**AllowedScope:** coordinator-owned shared hooks, integration branch, cross-domain composition, review/merge, assignment board, roadmap/handoff, CI root-cause corrections that block the wave.
-
-**ForbiddenScope:** new protocols; premature Python/graphical editor work; unrelated product features; weakening tests/security/CAS/runtime authority; merging known failures.
-
-**MustReadSpecific:**
-
-- `docs/DEVELOPMENT-WAVES.md`
-- `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`
-- `docs/INTERFACE-DEVELOPMENT.md`
-- `docs/INTERFACE-VALIDATION-MILESTONE.md`
-- current worker PRs and `INTEGRATION REQUIRED` notes
-
-**ReservedFiles:** `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/DEVELOPMENT-WAVES.md`, `docs/CHAT-WORK-ASSIGNMENTS.md`, `.github/workflows/**`, `src/Scada.Api/Program.cs`, `web/scada-web/src/engineering/EngineeringApp.tsx`, `web/scada-web/src/main.tsx`, `web/scada-web/src/AppNavigation.tsx`, central shell/routing/composition files.
-
-**IntegrationRequired:** yes, all worker slices compose here.
-
-**IntegrationTarget:** `integration/interface-wave-03`
-
-**ValidationMatrix:** final Web build + backend Release build/full tests + Runtime smoke + Chromium E2E, with lifecycle/TAG/history/authorization acceptance included.
-
-**CompletionCriteria:** all accepted worker slices integrated; no duplicate old/new product paths; lifecycle cycle works; TAG Inspector works read-only; acceptance harness passes/classifies findings; final exact integrated CI green.
-
+**IntegrationTarget:** `integration/interface-wave-04`  
+**ValidationMatrix:** final Web build + backend Release/full tests + Runtime smoke + Chromium cross-product acceptance.  
+**CompletionCriteria:** all three accepted slices integrated; no duplicate paths; portability round trip usable; basic Trend usable; Administration coherent; Wave 03 lifecycle/Runtime acceptance remains green.  
 **AfterCompletion:** `CONTINUE_COORDINATION`
 
 ---
 
 # DEV 1 - EliteSCADA
 
-**Role:** `WORKER`
+**Role:** `WORKER`  
+**Wave:** `INTERFACE-WAVE-04`  
+**CurrentTask:** `Project Management / Portability Workspace`  
+**Branch:** `feature/interface-wave-04-project-management`  
+**Status:** `ACTIVE`  
+**BaseSHA:** `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`  
+**StartCondition:** `TRUE — branch created from exact WaveBaseSHA`
 
-**Wave:** `INTERFACE-WAVE-03`
+**DependsOn:** canonical Engineering import/export, Preview/Apply/CAS, persisted revision lifecycle and existing backup/package foundations. No new hidden frontend authority is allowed.
 
-**CurrentTask:** `Engineering Lifecycle Workspace`
+**ParallelSafeWith:** DEV 2 Basic Trend Viewer and DEV 3 Administration Workspace.
 
-**Branch:** `feature/interface-wave-03-lifecycle-workspace`
+**Objective:** provide one understandable Engineering project-management surface for portability and recovery. At minimum expose JSON Export, JSON Import with Preview before Apply, project/package backup and restore using existing public contracts, and `.escadapkg` where the repository already provides the package contract. Preserve stable IDs, canonical schema/version and lifecycle semantics. Import/restore must never bypass Preview/validation/CAS when the underlying operation is an Engineering mutation.
 
-**Status:** `ACTIVE`
+**AllowedScope:** isolated project-management UI/API adapters/types/styles and focused tests under `web/scada-web/src/engineering/`; narrowly related existing portability/package adapters when required by real contracts.
 
-**BaseSHA:** `0aae8317aff5b0640eb713c1ce404224ccbcbbc2`
+**ForbiddenScope:** inventing a second Engineering model; direct database manipulation; plaintext secret export; changing central `EngineeringApp.tsx`/routing; redesigning lifecycle; protocols/Python/graphical editor; implementing a fake `.escadapkg` format if backend/public package support is not actually present. If a required package operation is only specified and not implemented, report `INTEGRATION REQUIRED` or `SPECIFIED / NOT IMPLEMENTED` rather than fabricating it.
 
-**StartCondition:** `TRUE — WaveBase frozen and branch created from exact BaseSHA`
+**ReservedFiles:** prefer new `ProjectManagementWorkspace*`, `projectPortabilityApi*`, `projectPackage*` and focused tests. Coordinator owns central mounts.
 
-**DependsOn:** existing protected Engineering persistence/lifecycle endpoints; no new backend contract required.
+**IntegrationRequired:** coordinator mounts the accepted workspace and resolves central navigation/composition.  
+**IntegrationTarget:** `integration/interface-wave-04`
 
-**ParallelSafeWith:** DEV 2 Runtime TAG Inspector and DEV 3 Acceptance Harness.
+**ValidationMatrix:** TypeScript/Web build; JSON export/import round trip; Preview-before-Apply/CAS evidence; package/backup/restore focused tests for contracts that actually exist; exact worker-head CI green.
 
-**Objective:** expose the authoritative lifecycle as a clear Engineering workspace:
+**CompletionCriteria:** user can understand/export a project, select/import a candidate, inspect Preview/errors before Apply, and exercise every currently real backup/package recovery operation without schema/identity loss or secret leakage. PR body includes `IMPLEMENTED IN PR`, `INTEGRATION REQUIRED`, `SPECIFIED / NOT IMPLEMENTED`.
 
-`Working -> Save Revision -> Publish -> Published -> Activate -> Active`
-
-Show project/workspace identity, Dirty/Clean, Base Revision, revision list, Published Revision, Active Revision, live Runtime Revision and Runtime-vs-Active consistency/divergence.
-
-Provide Save, Checkout, Publish and Activate UX with explicit confirmation for critical operations and understandable validation/error states including authorization/conflict/unavailable semantics (`401/403/409/422/503` as applicable). Support `pt-BR`, `en`, `es`.
-
-**AllowedScope:** new isolated lifecycle workspace component/model/API adapter/styles and focused tests under `web/scada-web/src/engineering/` plus worker-owned contract/E2E tests when isolated.
-
-**ForbiddenScope:**
-
-- do not modify backend lifecycle/schema/persistence/security;
-- do not modify `EngineeringApp.tsx`, central routing/shell or `main.tsx`;
-- do not send trusted operator identity as frontend authority; request actor fields may be omitted/null because backend filter replaces identity from authenticated principal;
-- do not change Preview/Apply/CAS semantics;
-- no unrelated Engineering features, protocols, Python or graphical editor.
-
-**ReservedFiles:** prefer new `EngineeringLifecycleWorkspace*`, `engineeringLifecycleApi*`, `engineering-lifecycle-workspace.css` and focused test files. Existing `web/scada-web/src/engineering/api.ts` / `types.ts` may be changed only if narrowly required and no competing worker touches them. Coordinator-owned files remain forbidden.
-
-**IntegrationRequired:** coordinator mounts the finished workspace into `EngineeringApp.tsx` and resolves any shared localization/shell hook.
-
-**IntegrationTarget:** `integration/interface-wave-03`
-
-**ValidationMatrix:** TypeScript/Web build; focused lifecycle model/API/contract tests; relevant Chromium tests where independently mountable; exact worker head CI must be green before Delivery Review.
-
-**CompletionCriteria:** lifecycle facts/actions represented from real backend contracts; dirty/base/revision/published/active/runtime consistency visible; Save/Checkout/Publish/Activate handled; critical confirmations; required error/localization states; no frontend identity authority; Draft PR body has `IMPLEMENTED IN PR`, `INTEGRATION REQUIRED`, `SPECIFIED / NOT IMPLEMENTED`.
-
-**AfterCompletion:** `WAIT_FOR_COORDINATOR`
-
-**NextQueuedTask:** `Wave 04 Project Management / portability surface`
-
-**NextStartCondition:** `QUEUED_ONLY — Wave 03 merged and coordinator promotes Wave 04 task`
+**AfterCompletion:** `WAIT_FOR_COORDINATOR`  
+**NextQueuedTask:** `Wave 05 Script Engineering Workspace foundation`  
+**NextStartCondition:** `QUEUED_ONLY — Wave 04 merged, coordinator central Script contract stabilized, board promotes task`
 
 **MustReadSpecific:**
-
 - `docs/DEVELOPMENT-WAVES.md`
 - `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`
-- `src/Scada.Api/Persistence/EngineeringPersistenceApi.cs`
-- `src/Scada.Api/Persistence/EngineeringPersistenceSecurityFilter.cs`
-- `src/Scada.Api/Runtime/EngineeringWorkspace.cs`
+- canonical Engineering import/export/package docs and contracts discovered in current `main`
 - `web/scada-web/src/engineering/api.ts`
-- `web/scada-web/src/engineering/types.ts`
-- existing lifecycle/persistence tests under `tests/Scada.Core.Tests` and `tests/Scada.Drivers.Tests`
+- existing Engineering import/export/preview/apply/package tests
+- persistence lifecycle APIs relevant to backup/restore
 
 ---
 
 # DEV 2 - EliteSCADA
 
-**Role:** `WORKER`
+**Role:** `WORKER`  
+**Wave:** `INTERFACE-WAVE-04`  
+**CurrentTask:** `Basic Trend Viewer`  
+**Branch:** `feature/interface-wave-04-trend-viewer`  
+**Status:** `ACTIVE`  
+**BaseSHA:** `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`  
+**StartCondition:** `TRUE — branch created from exact WaveBaseSHA`
 
-**Wave:** `INTERFACE-WAVE-03`
+**DependsOn:** existing Runtime TAG catalog/current values, TimescaleDB historian APIs and TAG quality semantics. No historian redesign required.
 
-**CurrentTask:** `Runtime TAG Inspector + Recent History`
+**ParallelSafeWith:** DEV 1 Project Management and DEV 3 Administration Workspace.
 
-**Branch:** `feature/interface-wave-03-runtime-tag-inspector`
+**Objective:** create a basic operator Trend Viewer that lets the user choose a TAG, select a bounded interval/window, see historical samples with quality, refresh, and understand live-vs-historical context. Add simple multiple pens only if it fits the existing API/data model without introducing a new architecture contract.
 
-**Status:** `ACTIVE`
+**AllowedScope:** isolated Runtime trend components/model/API/types/styles and focused tests under `web/scada-web/src/runtime/` or a clearly isolated trend folder.
 
-**BaseSHA:** `0aae8317aff5b0640eb713c1ce404224ccbcbbc2`
+**ForbiddenScope:** new historian storage/query semantics; unbounded queries; custom database access; advanced Trend Designer; write/setpoint UI; central `main.tsx`/routing; protocols/Python/graphical editor.
 
-**StartCondition:** `TRUE — WaveBase frozen and branch created from exact BaseSHA`
+**ReservedFiles:** prefer new `BasicTrendViewer*`, `trendApi*`, `trendModel*`, `trendTypes*`, styles and tests. Avoid DEV 1 Engineering and DEV 3 administration files.
 
-**DependsOn:** existing protected `/api/tags`, `/api/tags/current`, `/api/tags/by-path/{path}`, `/api/history/{tagId}` and `/ws/tags`; no backend change required.
+**IntegrationRequired:** coordinator chooses the final Runtime placement/navigation.  
+**IntegrationTarget:** `integration/interface-wave-04`
 
-**ParallelSafeWith:** DEV 1 Lifecycle Workspace and DEV 3 Acceptance Harness.
+**ValidationMatrix:** TypeScript/Web build; bounded historian query contract; quality/timestamp rendering; empty/unavailable/auth states; live refresh behavior if used; exact worker-head CI green.
 
-**Objective:** create a read-only operational TAG Inspector showing Path, Name, Value, DataType, Unit, Quality, Timestamp, Source/Data Source context where available, Description and ReadOnly state, with search/filter, master-detail selection, realtime/refresh and recent history.
+**CompletionCriteria:** at least one TAG can be selected and its bounded historical series displayed with timestamp/value/quality, interval control and clear error/empty states; no historian semantic invention; PR body has required evidence sections.
 
-Handle Good/Bad/other qualities honestly and distinguish authorization/unavailable/loading/empty states. Support `pt-BR`, `en`, `es`.
-
-**AllowedScope:** new isolated Runtime TAG Inspector component/model/types/API adapter/styles and focused tests under `web/scada-web/src/runtime/`.
-
-**ForbiddenScope:**
-
-- no setpoint/process write UI and no call to `/api/tags/{id}/write`;
-- no backend/history semantic redesign;
-- no direct driver access;
-- no `main.tsx`, `AppNavigation.tsx`, central routing/shell changes;
-- no protocols, Python or graphical editor.
-
-**ReservedFiles:** prefer new `RuntimeTagInspector*`, `tagInspectorApi*`, `tagInspectorModel*`, `tagInspectorTypes*`, `runtime-tag-inspector.css` and focused test files. Do not modify DEV 1 Engineering files or DEV 3 acceptance harness files.
-
-**IntegrationRequired:** coordinator chooses/mounts final Runtime placement in central composition after review.
-
-**IntegrationTarget:** `integration/interface-wave-03`
-
-**ValidationMatrix:** TypeScript/Web build; focused model/API tests; realtime/history contract evidence; exact worker head CI green before Delivery Review.
-
-**CompletionCriteria:** scalable read-only browser/search/filter/master-detail; current values/quality/timestamps; recent history; realtime or explicit refresh behavior using existing contracts; required auth/unavailable/localization states; no process writes; Draft PR body has required three evidence sections.
-
-**AfterCompletion:** `WAIT_FOR_COORDINATOR`
-
-**NextQueuedTask:** `Wave 04 Basic Trend Viewer`
-
-**NextStartCondition:** `QUEUED_ONLY — Wave 03 merged and coordinator promotes Wave 04 task`
+**AfterCompletion:** `WAIT_FOR_COORDINATOR`  
+**NextQueuedTask:** `Wave 05 Script Reference Runtime Adapter`  
+**NextStartCondition:** `QUEUED_ONLY — Wave 04 merged, coordinator central Script contract stabilized, board promotes task`
 
 **MustReadSpecific:**
-
 - `docs/DEVELOPMENT-WAVES.md`
 - `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`
-- `src/Scada.Api/Program.cs` TAG/history/realtime endpoints
-- `src/Scada.Api/Realtime/TagRealtimeHub.cs`
-- `web/scada-web/src/runtime/RuntimeOperationsOverview.tsx`
-- `web/scada-web/src/runtime/operationsTypes.ts`
-- `web/scada-web/src/runtime/operationsApi.ts`
-- `web/scada-web/tests-e2e/runtime.spec.ts`
+- historian/TimescaleDB docs and current history endpoints in `main`
+- `web/scada-web/src/runtime/RuntimeTagInspector.tsx` and its API/model contracts
+- existing historian/runtime E2E tests
 
 ---
 
 # DEV 3 - EliteSCADA
 
-**Role:** `WORKER`
+**Role:** `WORKER`  
+**Wave:** `INTERFACE-WAVE-04`  
+**CurrentTask:** `Administration Workspace ergonomics`  
+**Branch:** `feature/interface-wave-04-administration-workspace`  
+**Status:** `ACTIVE`  
+**BaseSHA:** `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`  
+**StartCondition:** `TRUE — branch created from exact WaveBaseSHA`
 
-**Wave:** `INTERFACE-WAVE-03`
+**DependsOn:** existing local user/session/authorization APIs and backend-trusted identity/role enforcement. No security redesign required.
 
-**CurrentTask:** `Interface Validation Readiness Harness`
+**ParallelSafeWith:** DEV 1 Project Management and DEV 2 Basic Trend Viewer.
 
-**Branch:** `test/interface-wave-03-acceptance-harness`
+**Objective:** improve the existing local Administration experience for users, roles and sessions: clear user list/detail, create/update flows supported by current backend, enable/disable, role assignment, password-change/reset operation where current contract permits, explicit session/authorization consequences, confirmations and understandable 401/403/409/422 states. Support `pt-BR`, `en`, `es`.
 
-**Status:** `ACTIVE`
+**AllowedScope:** isolated administration UI/API/model/styles/tests and narrowly related current user-administration components.
 
-**BaseSHA:** `0aae8317aff5b0640eb713c1ce404224ccbcbbc2`
+**ForbiddenScope:** authentication protocol redesign; frontend-trusted identity/roles; exposing credentials/hashes; weakening invalidation/authorization; central `EngineeringApp.tsx`/routing unless coordinator explicitly integrates; protocols/Python/graphical editor.
 
-**StartCondition:** `TRUE — WaveBase frozen and branch created from exact BaseSHA`
+**ReservedFiles:** administration/user/session-specific components and focused tests. Do not take DEV 1 portability or DEV 2 Trend files.
 
-**DependsOn:** existing product surfaces and Playwright conventions. Harness may establish baseline on WaveBase and evolve tests for the Wave 03 integrated target without taking ownership of DEV 1/2 product code.
+**IntegrationRequired:** coordinator mounts/reconciles any central navigation hook.  
+**IntegrationTarget:** `integration/interface-wave-04`
 
-**ParallelSafeWith:** DEV 1 Lifecycle Workspace and DEV 2 Runtime TAG Inspector.
+**ValidationMatrix:** Web build; focused admin API/model tests; Chromium role/enable-disable/password/session consequences; authorization negative cases; localization; exact worker-head CI green.
 
-**Objective:** build cross-product Chromium acceptance evidence covering login/session, Runtime, Runtime Operations, Alarm Center, Engineering navigation/Data Sources/TAGs/Alarms/Internal Memory/Gateway/communication diagnostics/lifecycle, Audit, user administration authorization, Runtime↔Engineering↔Audit navigation and meaningful `pt-BR`/`en`/`es` states.
+**CompletionCriteria:** existing backend capabilities are exposed coherently without leaking credentials or claiming authority client-side; destructive/session-affecting actions are explicit; required error/localization states covered; PR body has required evidence sections.
 
-**AllowedScope:** isolated Playwright acceptance specs/helpers/fixtures under `web/scada-web/tests-e2e/`, plus test-only support that does not change product behavior.
-
-**ForbiddenScope:**
-
-- do not silently fix cross-domain product defects;
-- do not modify DEV 1/2 implementation files;
-- do not weaken authorization, assertions or existing tests merely for green CI;
-- no product feature expansion, protocols, Python or graphical editor.
-
-**ReservedFiles:** new Wave 03 acceptance spec/helper files. Existing shared E2E helpers may be changed only narrowly when unavoidable; avoid `app-shell.spec.ts` unless coordinator explicitly authorizes because it is an integration-sensitive shared acceptance surface.
-
-**IntegrationRequired:** findings that require product changes are reported to coordinator; coordinator assigns repair. Test slice itself integrates into `integration/interface-wave-03`.
-
-**IntegrationTarget:** `integration/interface-wave-03`
-
-**IssueClassification:** every discovered gap is classified `BLOCKER`, `MAJOR UX`, `MINOR UX`, or `TEST GAP` with reproducible evidence; do not broaden own mission to repair it.
-
-**ValidationMatrix:** Playwright Chromium focused/new acceptance; existing relevant E2E must remain green; Web build; exact worker head CI green before Delivery Review.
-
-**CompletionCriteria:** cross-product harness covers the required surfaces/auth/navigation/languages; findings classified; no scope creep; Draft PR body has `IMPLEMENTED IN PR`, `INTEGRATION REQUIRED`, `SPECIFIED / NOT IMPLEMENTED` and a readiness conclusion for the current wave.
-
-**AfterCompletion:** `WAIT_FOR_COORDINATOR`
-
-**NextQueuedTask:** `Wave 04 Administration Workspace ergonomics`
-
-**NextStartCondition:** `QUEUED_ONLY — Wave 03 merged and coordinator promotes Wave 04 task`
+**AfterCompletion:** `WAIT_FOR_COORDINATOR`  
+**NextQueuedTask:** `Wave 05 Script validation / compatibility`  
+**NextStartCondition:** `QUEUED_ONLY — Wave 04 merged, coordinator central Script contract stabilized, board promotes task`
 
 **MustReadSpecific:**
-
 - `docs/DEVELOPMENT-WAVES.md`
 - `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`
-- `web/scada-web/playwright.config.ts`
-- current `web/scada-web/tests-e2e/*.spec.ts` conventions
 - `docs/SECURITY-AUTHORIZATION-AUDIT.md`
-- `docs/INTERFACE-DEVELOPMENT.md`
+- current local-auth/user-administration/session components and tests
+- backend local identity/session authorization endpoints in current `main`
 
 ---
 
 ## Coordinator note for future chats
 
-Wave 03 is open. All three worker tasks above are `ACTIVE`; `siga` in each fixed DEV chat means start/continue exactly that assignment from the recorded branch/BaseSHA. The coordinator must not merge unrelated product code to `main` during the wave. Documentation-only coordination commits may advance `main` without invalidating `WaveBaseSHA`.
+Wave 03 is MERGED. Wave 04 is ACTIVE from logical BaseSHA `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`; all three worker branches were created from that exact commit. `siga` in each fixed DEV chat means start/continue only the Wave 04 assignment recorded above. Product-code `main` stays relatively frozen until integration; coordination/documentation commits do not invalidate WaveBaseSHA.

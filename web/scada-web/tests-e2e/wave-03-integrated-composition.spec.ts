@@ -38,6 +38,7 @@ test('Wave 03 integrated composition publishes, activates and operates through m
   await expect(activationConfirmation).toContainText('Ativar a revisão Published?');
   await activationConfirmation.getByRole('button', { name: 'Ativar Published' }).click();
 
+  await expect(lifecycle.getByRole('status')).toContainText('A revisão Published foi ativada com sucesso.');
   await expect(lifecycle).toContainText('Coincide com Active durável');
 
   const runtimeState = await request.get(`/api/engineering/persistence/${projectKey}/runtime`);

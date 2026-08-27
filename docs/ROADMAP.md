@@ -1,7 +1,7 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-08-27  
-**Active direction:** **INTERFACE-WAVE-03 / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
+**Active direction:** **INTERFACE-WAVE-04 / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
 
 Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
 Parallel execution model: `docs/DEVELOPMENT-WAVES.md`.  
@@ -11,7 +11,7 @@ Engineering Import/Export remains cross-cutting: every new canonical Engineering
 
 ## Current merged foundation
 
-The platform already includes, in `main`, substantial foundations across TAG Engine/current cache/quality/Event Bus, Simulation and real Modbus TCP, PostgreSQL Engineering persistence, TimescaleDB historian foundations, Working/Revision/Published/Active lifecycle, canonical Import/Export + Preview/Apply/CAS, authentication/users/authorization/Audit, Client/Server Memory, TAG Gateway, common Data Source diagnostics, Runtime/Engineering/Audit shell, Engineering Data Source/TAG/Alarm workspaces, Runtime Operations/Alarm Center, Audit workspace, Python/visual public foundations, isolated Script Engineering and merged Driver SDK/research convergence.
+The platform already includes, in `main`, substantial foundations across TAG Engine/current cache/quality/Event Bus, Simulation and real Modbus TCP, PostgreSQL Engineering persistence, TimescaleDB historian foundations, Working/Revision/Published/Active lifecycle, canonical Import/Export + Preview/Apply/CAS, authentication/users/authorization/Audit, Client/Server Memory, TAG Gateway, common Data Source diagnostics, Runtime/Engineering/Audit shell, Engineering Data Source/TAG/Alarm workspaces, Runtime Operations/Alarm Center, Runtime TAG Inspector + Recent History, Engineering Lifecycle Workspace, Audit workspace, cross-product Chromium acceptance foundations, Python/visual public foundations, isolated Script Engineering and merged Driver SDK/research convergence.
 
 Canonical Engineering remains **Schema v9** until a deliberate migration wave changes it with compatibility tests.
 
@@ -19,42 +19,65 @@ Canonical Engineering remains **Schema v9** until a deliberate migration wave ch
 
 **COMPLETE / MERGED.**
 
-PRs #65, #66 and #67 are merged. Coordinator PR #69 integrated Runtime Alarm Center into actual Runtime composition, removed the legacy duplicate alarm path and preserved backend-authoritative ACK identity.
+PRs #65, #66 and #67 are merged. Coordinator PR #69 integrated Runtime Alarm Center into actual Runtime composition, removed the legacy duplicate alarm path and preserved backend-authoritative ACK identity. PR #69 exact-head CI #403 green; merge `ee65ab51a39cd74ef6f14395d27b0ee16b8c6970`.
 
-PR #69: final head `c493709a221614a093717b6e6a16bf8821226e91`; exact-head CI #403 green; merge `ee65ab51a39cd74ef6f14395d27b0ee16b8c6970`.
-
-The PostgreSQL concurrent schema-initialization defect discovered during that integration is also **FIXED / MERGED** through PR #70. Engineering, Audit and Local Identity initialization now hold the shared transaction-scoped advisory lock through the complete DDL batch; Server Memory uses the same shared schema lock. A concurrent multi-store regression was added. PR #70 exact-head CI #405 passed Web, backend/tests/runtime smoke and Chromium; merge `0aae8317aff5b0640eb713c1ce404224ccbcbbc2`.
+PostgreSQL concurrent schema initialization is also **FIXED / MERGED** through PR #70, exact-head CI #405 green; merge `0aae8317aff5b0640eb713c1ce404224ccbcbbc2`.
 
 ## Wave 03 — complete operational lifecycle
 
+**COMPLETE / MERGED.**
+
+Worker PRs #71, #72 and #73 are merged into coordinator PR #74.
+
+Final Wave 03 evidence:
+
+- frozen WaveBaseSHA `0aae8317aff5b0640eb713c1ce404224ccbcbbc2`;
+- integration head `41d44d513d337e8ef6d3cc0e04ef0cf07a697b41`;
+- CI #418 / run `33124948655`: Web, backend/full tests, Runtime smoke and Chromium all SUCCESS;
+- merge commit `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`.
+
+Merged product outcome:
+
+- Engineering Lifecycle Workspace exposes Working/base/revisions/Published/Active/live Runtime consistency and protected Save/Checkout/Publish/Activate UX;
+- Runtime TAG Inspector provides read-only TAG/current/quality/detail/recent-history operation;
+- cross-product acceptance covers session/navigation/Runtime/Engineering/Audit/security/localization;
+- central product composition mounts the new surfaces exactly once;
+- lifecycle UI does not mislabel null/null state as an Active match;
+- integrated Chromium proves canonical Preview/Apply -> Save Revision -> Publish -> Activate -> durable Active/live Runtime consistency -> Server Memory TAG visible in Runtime TAG Inspector;
+- backend `RUNTIME_NO_ACTIVE_SOURCES` remains enforced.
+
+## Wave 04 — portability + historian + administration
+
 **ACTIVE.**
 
-**WaveBaseSHA:** `0aae8317aff5b0640eb713c1ce404224ccbcbbc2`  
-**Integration branch:** `integration/interface-wave-03`
+**WaveBaseSHA:** `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`  
+**Integration branch:** `integration/interface-wave-04`
 
-Goal: prove `edit -> save revision -> publish -> activate -> operate` as a coherent user workflow while adding honest Runtime TAG inspection and cross-product acceptance evidence.
+Parallel slices:
 
-Active parallel slices:
+- DEV 1: Project Management / Portability Workspace on `feature/interface-wave-04-project-management`;
+- DEV 2: Basic Trend Viewer on `feature/interface-wave-04-trend-viewer`;
+- DEV 3: Administration Workspace ergonomics on `feature/interface-wave-04-administration-workspace`;
+- Coordinator: integration train, central mounts/navigation, cross-domain review, final full CI and Wave 05 gate.
 
-- DEV 1: Engineering Lifecycle Workspace on `feature/interface-wave-03-lifecycle-workspace`;
-- DEV 2: read-only Runtime TAG Inspector + Recent History on `feature/interface-wave-03-runtime-tag-inspector`;
-- DEV 3: Interface Validation Readiness Harness on `test/interface-wave-03-acceptance-harness`;
-- Coordinator: integration branch, central `EngineeringApp.tsx`/Runtime composition hooks, review, final CI and wave gate.
+Wave 04 product objective is a practically usable non-graphical platform before canonical scripting/visual integration:
 
-The existing backend already supplies protected lifecycle status/revisions/save/checkout/publish/activate/runtime-consistency endpoints and protected TAG/current/by-path/history/WebSocket surfaces. Wave 03 UI workers consume those contracts rather than inventing parallel authority.
+- project JSON Import/Export with Preview/Apply/CAS and real backup/restore/package capabilities without inventing a parallel project model;
+- bounded basic historical Trends with TAG selection/value/time/quality and clear live/historical context;
+- coherent local user/role/session Administration using backend-authoritative security contracts.
 
-Wave 03 Definition of Done requires accepted worker slices integrated, no duplicate product paths, lifecycle gate operational, TAG Inspector read-only and useful, acceptance findings classified, and final integrated Web/backend/tests/runtime-smoke/Chromium CI green.
+Wave 04 Definition of Done requires all accepted slices integrated with no duplicate paths and final Web/backend/full tests/Runtime-smoke/Chromium green while preserving the complete Wave 03 lifecycle acceptance.
 
-Documentation-only coordination commits after the WaveBaseSHA do not invalidate worker branches. Unrelated product-code changes should not enter `main` until this wave closes.
+Documentation-only coordination commits after the WaveBaseSHA do not invalidate worker branches. Unrelated product-code changes should not enter `main` until the wave closes.
 
 ## Ordered path to v0.1
 
 ```text
-Wave 03  Operational lifecycle + Runtime TAG Inspector + acceptance foundation
-Wave 04  Project portability + basic Trends + Administration
-Wave 05  Canonical Script Engineering
+Wave 03  Operational lifecycle + Runtime TAG Inspector + acceptance foundation       COMPLETE
+Wave 04  Project portability + basic Trends + Administration                        ACTIVE
+Wave 05  Canonical Script Engineering                                                QUEUED / architecture-first
 Wave 06  Python Editor + Client Visual sandbox
-Wave 07  Visual Runtime Object Model + visual Asset contract
+Wave 07  Visual Runtime Object Model + visual Asset contract                         architecture-first
 Wave 08  Graphical Editor Foundation + image import/object
 Wave 09  Screens + Popups + Dynamos + asset dependencies
 Wave 10  Python visual events + animation + preview
@@ -67,12 +90,6 @@ FINAL    EliteSCADA v0.1 — Full Product Validation Preview
 ```
 
 Do not skip dependencies simply because later research already exists.
-
-## Wave 04 — portability + historian + administration
-
-Planned after Wave 03 gate: Project Management surface for canonical JSON Import/Export, Preview/Apply and `.escadapkg` backup/restore; basic live + historical Trend Viewer; Administration workspace ergonomics.
-
-Gate: practically usable non-graphical SCADA/platform workflow before canonical scripting/visual product integration.
 
 ## Wave 05 — canonical Script Engineering
 
@@ -96,7 +113,7 @@ Gate: canonical visual definitions can render, bind, be changed by Python/animat
 
 ## Wave 08 — Graphical Editor Foundation
 
-Canvas/selection + shared Property Inspector + initial Object Palette/bindings + project image import/Image object. The editor consumes canonical Engineering and the common Visual Property/Asset contracts. Renderer/canvas state never becomes project truth.
+Canvas/selection + shared Property Inspector + initial Object Palette/bindings + project image import/Image object. The editor consumes canonical Engineering and common Visual Property/Asset contracts. Renderer/canvas state never becomes project truth.
 
 Gate: create Screen, place/manipulate objects including imported images, edit properties, save/reopen and export/import while preserving asset references/transparency.
 

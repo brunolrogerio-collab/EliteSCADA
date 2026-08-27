@@ -14,12 +14,23 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
     private readonly object _requestsGate = new();
     private Task? _acceptLoop;
     private int _clientId;
+    private long _responseDelayTicks;
 
     public ConcurrentDictionary<ushort, bool> Coils { get; } = new();
     public ConcurrentDictionary<ushort, bool> DiscreteInputs { get; } = new();
     public ConcurrentDictionary<ushort, ushort> HoldingRegisters { get; } = new();
     public ConcurrentDictionary<ushort, ushort> InputRegisters { get; } = new();
     public bool RejectWrites { get; set; }
+
+    public TimeSpan ResponseDelay
+    {
+        get => TimeSpan.FromTicks(Interlocked.Read(ref _responseDelayTicks));
+        set
+        {
+            if (value < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(value));
+            Interlocked.Exchange(ref _responseDelayTicks, value.Ticks);
+        }
+    }
 
     public int Port => ((IPEndPoint)_listener.LocalEndpoint).Port;
 
@@ -126,6 +137,9 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
             var pdu = new byte[length - 1];
             await stream.ReadExactlyAsync(pdu, cancellationToken);
             var responsePdu = HandlePdu(unitId, pdu);
+            var delay = ResponseDelay;
+            if (delay > TimeSpan.Zero)
+                await Task.Delay(delay, cancellationToken);
 
             var response = new byte[7 + responsePdu.Length];
             BinaryPrimitives.WriteUInt16BigEndian(response.AsSpan(0, 2), transactionId);
@@ -133,7 +147,18 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
             BinaryPrimitives.WriteUInt16BigEndian(response.AsSpan(4, 2), checked((ushort)(responsePdu.Length + 1)));
             response[6] = unitId;
             responsePdu.CopyTo(response, 7);
-            await stream.WriteAsync(response, cancellationToken);
+            try
+            {
+                await stream.WriteAsync(response, cancellationToken);
+            }
+            catch (IOException)
+            {
+                return;
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
         }
     }
 

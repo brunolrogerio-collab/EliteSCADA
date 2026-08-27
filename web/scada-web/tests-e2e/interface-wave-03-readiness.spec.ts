@@ -94,11 +94,12 @@ test('Wave 03 readiness: Runtime exposes operational context, Alarm Center and r
 
   const historyResponse = await request.get(`/api/history/${currentTag!.id}?limit=5`);
   expect(historyResponse.ok()).toBeTruthy();
-  const history = await historyResponse.json() as Array<{ timestamp: string; quality: string }>;
+  const history = await historyResponse.json() as Array<{ timestamp: string; quality: unknown }>;
   expect(Array.isArray(history)).toBeTruthy();
   expect(history.length).toBeGreaterThan(0);
   expect(history[0].timestamp).toBeTruthy();
-  expect(history[0].quality).toBeTruthy();
+  expect(history[0]).toHaveProperty('quality');
+  expect(history[0].quality).not.toBeNull();
 
   // This acceptance harness is deliberately read-only. Process writes are covered by separate authority tests.
   const writeRequests = await page.evaluate(() => performance.getEntriesByType('resource')

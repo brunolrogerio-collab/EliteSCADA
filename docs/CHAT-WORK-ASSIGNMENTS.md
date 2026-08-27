@@ -15,7 +15,7 @@ Repository terminology:
 
 - **MERGED** = official `main` state.
 - **IMPLEMENTED IN PR** = functional implementation exists only in an open branch/PR.
-- **RESEARCH IN PR** = research/specification exists only in an open branch/PR and is not product implementation.
+- **RESEARCH IN PR** = research/specification exists only in an open PR and is not product implementation.
 - **SPECIFIED / NOT IMPLEMENTED** = documented product intent without merged implementation.
 
 ---
@@ -24,27 +24,27 @@ Repository terminology:
 
 **Role:** `COORDINATOR`
 
-**CurrentTask:** Interface product development and central UX integration
+**CurrentTask:** Integrate the first Interface Product Development checkpoint
 
 **Branch:** `main` + `feature/interface-product-development`
 
-**Status:** `IN_PROGRESS`
+**Status:** `PAUSED BY PRODUCT OWNER UNTIL NEXT siga`
 
 **Objective:**
 
-Prioritize the real product interface now that Internal Memory, TAG Gateway and common communication diagnostics are complete. Evolve EliteSCADA from technical proof surfaces into a coherent industrial application across Runtime, Engineering and Audit before returning to the provisional Windows validation build or additional drivers.
+Turn the merged worker UI primitives plus the coordinator product shell into one coherent industrial application experience across Runtime, Engineering and Audit. The product owner explicitly paused continuation of this coordinator implementation until giving the next `siga`, while authorizing isolated research spikes for future protocol work in parallel.
 
-**AllowedScope:** coordinator-owned shared/central frontend shell/routing, `main.tsx`, `AppNavigation.tsx`, global/interface CSS, `EngineeringApp.tsx`, central localization/integration, browser tests, CI, assignment board, roadmap/handoff documentation and integration of worker-delivered isolated UI components.
+**AllowedScope:** coordinator-owned shared/central frontend shell/routing, `main.tsx`, `AppNavigation.tsx`, global/interface CSS, `EngineeringApp.tsx`, central localization/integration, browser tests, CI, assignment board, roadmap/handoff documentation and worker integration.
 
 **ForbiddenScope:**
 
 - no known-failing merge;
 - no force-reset/discard of worker commits;
-- no new production MQTT/OPC UA/BACnet/S7/Driver Module runtime during this block;
-- no completion/handoff of the provisional Windows presentation package unless the product owner reprioritizes it;
+- no new production MQTT/OPC UA/BACnet/S7/Allen-Bradley/Driver Module runtime during this block;
+- no completion/handoff of the provisional Windows presentation package unless reprioritized;
 - no frontend-only security decisions;
 - no private Engineering truth;
-- no production graphical Screen/Popup/Dynamo editor or Python engine/editor ahead of the locked Script/visual prerequisite chain.
+- no production graphical Screen/Popup/Dynamo editor or Python engine/editor ahead of the locked prerequisite chain.
 
 **MustReadSpecific:**
 
@@ -60,33 +60,31 @@ Prioritize the real product interface now that Internal Memory, TAG Gateway and 
 - Internal Memory: **MERGED / COMPLETE** through PR #49.
 - TAG Gateway: **MERGED / COMPLETE** through PRs #50 and #55.
 - Common communication diagnostics: **MERGED / COMPLETE** through PRs #56 and #57.
-- PR #57 merge SHA: `c8190cc119a2e288834d619084396107103b2f56`; CI #350 and post-merge CI #351 green.
 - Engineering Schema: **v9**.
-- `integration/interface-validation-preview` exists with two unmerged preparatory commits touching `Program.cs` and `AppNavigation.tsx`; branch is intentionally **PARKED / NO PR / DO NOT MERGE YET**.
-- active interface coordinator branch: `feature/interface-product-development`.
-- PR #53 and PR #54 remain delivered research inputs and are not production implementations.
+- Interface DEV 3 PR #59 **MERGED** as `b0b58964f119f83356cf2edc8fecf5939fb905da`; CI #363 green.
+- Interface DEV 1 PR #60 **MERGED** as `a7e6105fb65079ad1af8bcb56f8484225ff3dc8c`; CI #359 green.
+- Interface DEV 2 PR #61 **MERGED** as `49c9e7261d63047b601f4b3c4f6e788168c8ee5c`; CI #360 green.
+- Coordinator PR #58 remains Draft/Open on `feature/interface-product-development`; CI #357 had Web/backend/tests/smoke green and Chromium failure. It remains unmerged and must be reconciled/integrated only after the product owner sends the next `siga` here.
+- `integration/interface-validation-preview` remains **PARKED / NO PR / DO NOT MERGE YET**.
+- PR #53 and PR #54 remain delivered research inputs, not production implementations.
+- Future protocol research is explicitly authorized now, but production protocol implementation remains postponed.
 
 **Dependencies:**
 
 - canonical Engineering remains authoritative;
-- UI work may consume existing Runtime/Engineering/Audit APIs but must not bypass them;
-- worker UI slices must remain isolated until coordinator integration;
+- research may reduce future uncertainty but may not register production Data Sources or alter active runtime composition;
 - graphical HMI editor remains blocked by the Script/visual prerequisite chain;
-- Windows validation packaging resumes after the interface reaches a more valuable user-testable state;
-- additional drivers/protocols remain postponed.
+- Windows validation packaging resumes after the interface reaches a materially useful validation state;
+- production additional drivers/protocols remain postponed until the product gate is reopened.
 
-**NextActions:**
+**NextActions after next coordinator `siga`:**
 
-1. replace floating/developer-like global navigation with a coherent EliteSCADA application shell;
-2. normalize Runtime/Engineering/Audit visual language and route context;
-3. integrate DEV 1 Engineering workspace ergonomics primitives;
-4. integrate DEV 2 Runtime operational overview primitives;
-5. integrate DEV 3 authenticated session/user-menu UX;
-6. improve Engineering information architecture, search/navigation, scalable entity presentation and editor consistency;
-7. improve Runtime operational context without pretending the future graphical HMI editor already exists;
-8. extend Chromium E2E to the integrated UX and keep existing functional/security behavior green;
-9. merge only reviewed current-head green interface slices;
-10. return to the Windows validation package only after the interface development checkpoint is materially useful for product-owner feedback.
+1. reconcile `feature/interface-product-development` with current `main` without discarding PR #58 shell work;
+2. integrate merged `UserSessionMenu` into the product shell;
+3. integrate merged `EngineeringEntityBrowser` into Engineering without weakening Preview/Apply/CAS semantics;
+4. integrate merged `RuntimeOperationsOverview` while preserving the process demo;
+5. normalize locale/visual behavior and extend Chromium coverage;
+6. run full CI and merge only a reviewed green current head.
 
 **AfterCompletion:** `CONTINUE_COORDINATION`
 
@@ -96,54 +94,57 @@ Prioritize the real product interface now that Internal Memory, TAG Gateway and 
 
 **Role:** `WORKER`
 
-**CurrentTask:** Engineering workspace/entity-browser ergonomics primitives
+**CurrentTask:** MQTT industrial Data Source/driver architecture research
 
-**Branch:** `feature/engineering-workspace-ux`
+**Branch:** `research/mqtt-industrial-driver`
 
-**Status:** `ASSIGNED`
+**Status:** `ASSIGNED — RESEARCH ONLY`
 
 **PullRequest:** none yet
 
 **Objective:**
 
-Build isolated reusable Engineering UI primitives that make large entity collections practical: compact searchable/filterable list/master-detail behavior suitable for TAGs, Data Sources, alarms and future Engineering entities. Deliver primitives only; coordinator owns wiring into `EngineeringApp.tsx` and central routing/localization.
+Produce an EliteSCADA-specific research/specification spike for a future MQTT Data Source/driver, comparable in rigor to the merged OPC UA and Siemens S7 research. Define how MQTT fits the existing Data Source -> TAG -> EventBus/Gateway architecture without implementing production runtime. Keep raw MQTT and Sparkplug B explicitly separated.
 
 **AllowedScope:**
 
-- new files under `web/scada-web/src/engineering/**` specifically for reusable entity browser/workspace UI;
-- component-local CSS under the same directory;
-- focused frontend/E2E tests for the isolated component where practical;
-- existing Engineering type imports may be consumed read-only.
+- exactly one primary research document under `docs/research/mqtt/**` plus small supporting research-only diagrams/tables in that folder if genuinely needed;
+- inspect current EliteSCADA source/contracts read-only;
+- current official MQTT/OASIS, Eclipse Sparkplug and relevant library/broker documentation;
+- compare candidate .NET client libraries and test brokers without adding dependencies.
 
 **ForbiddenScope:**
 
-- `main`;
-- `web/scada-web/src/engineering/EngineeringApp.tsx`;
-- `web/scada-web/src/main.tsx`;
-- `AppNavigation.tsx` and global shell/routing;
-- `api.ts`, central backend/API/DI, Engineering schema/contracts;
-- graphical Screen/Popup/Dynamo editor implementation;
-- Python/editor runtime;
-- drivers/protocols, workflows or lockfiles.
+- production source code, package references or lockfiles;
+- `Program.cs`, DI, DriverHost/runtime composition, Engineering schema/contracts, API/frontend/workflows;
+- registering an MQTT Data Source;
+- implementing MQTT connection/publish/subscribe runtime;
+- changing `main` or merging own PR.
 
 **MustReadSpecific:**
 
-- `docs/INTERFACE-DEVELOPMENT.md`
-- `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`
+- `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
+- `docs/TAG-GATEWAY.md`
 - `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
-- research PR #53 document as optional UX input.
+- `docs/OPC-UA.md`
+- `docs/research/opc-ua/OPC-UA-DISCOVERY-IMPORT-RESEARCH.md`
 
-**CompletionCriteria:**
+**ResearchQuestions / CompletionCriteria:**
 
-1. reusable component supports search/filter and scalable selection/list navigation;
-2. selected entity has a clear detail surface without forcing a huge always-expanded form;
-3. keyboard/focus behavior is sane for desktop Engineering;
-4. empty/loading/no-match states are explicit;
-5. component does not create private Engineering state or mutate backend directly;
-6. focused tests/Web build are green;
-7. Draft PR opened as **IMPLEMENTED IN PR / NOT MERGED**, then stop.
+1. define first production target between MQTT 3.1.1 and MQTT 5.0 while preserving compatibility strategy;
+2. define broker endpoint/TLS/mTLS/username-secret-reference/client-ID/session/keepalive/reconnect configuration without plaintext secrets;
+3. analyze QoS 0/1/2, duplicate delivery, ordering, retained messages, Last Will, Clean Start/session expiry, topic aliases and subscription options, and state clearly what does **not** equal SCADA TAG quality;
+4. define Topic Filter -> TAG mapping, wildcard behavior, payload extraction for scalar/text/JSON/binary, timestamp/source-time policy and writable TAG -> publish semantics;
+5. define browse/discovery UX honestly: MQTT has no OPC-UA-style address-space browse; research observed-topic/topic-template/import approaches without fabricating standard discovery;
+6. define connection diagnostics using the common Data Source contract and stale/data-age semantics;
+7. separate raw MQTT from Sparkplug B; analyze Sparkplug Birth/Death certificates, metrics, aliases, sequence/state and whether Sparkplug should be a mode/module rather than silently changing raw MQTT semantics;
+8. compare current .NET MQTT client candidates, licenses, maintenance, MQTT 5/TLS support and packaging implications; recommend laboratory candidates only, not a production dependency by decree;
+9. define multi-broker/multi-Data-Source behavior and Gateway interaction;
+10. define software CI plus broker integration/lab test matrix, including reconnect, retained/session recovery, QoS duplicates and security failures;
+11. record explicit first implementation slices and `INTEGRATION REQUIRED` items;
+12. open Draft PR as **RESEARCH IN PR / PRODUCTION NOT IMPLEMENTED**, include exact-head CI evidence, then stop.
 
-**NextActions:** work only on `feature/engineering-workspace-ux`, deliver isolated primitives, open Draft PR, wait.
+**ExpectedPrimaryDeliverable:** `docs/research/mqtt/MQTT-INDUSTRIAL-DRIVER-RESEARCH.md`
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 
@@ -153,54 +154,59 @@ Build isolated reusable Engineering UI primitives that make large entity collect
 
 **Role:** `WORKER`
 
-**CurrentTask:** Runtime operational overview UI primitives
+**CurrentTask:** Allen-Bradley EtherNet/IP + CIP / Logix driver architecture research
 
-**Branch:** `feature/runtime-operations-ux`
+**Branch:** `research/allen-bradley-ethernet-ip`
 
-**Status:** `ASSIGNED`
+**Status:** `ASSIGNED — RESEARCH ONLY`
 
 **PullRequest:** none yet
 
 **Objective:**
 
-Build an isolated Runtime operational overview component using existing protected EliteSCADA APIs. The component should complement the current process demo with platform-level operational context: runtime status, communication health, active alarms/TAG quality and Gateway/diagnostic summary where already available.
+Produce a rigorous future-driver research spike for Rockwell Automation / Allen-Bradley Logix-family controllers, centered on EtherNet/IP + CIP and SCADA/HMI tag access. Research must distinguish standard ODVA EtherNet/IP/CIP behavior from Rockwell/Logix-specific symbolic-tag services and must not imply that EtherNet/IP generic I/O equals the intended SCADA driver.
 
 **AllowedScope:**
 
-- new files under `web/scada-web/src/runtime/**` for the operational overview;
-- component-local CSS;
-- focused frontend/E2E tests and local types/helpers inside that runtime slice;
-- read-only consumption of existing `/api` endpoints.
+- exactly one primary research document under `docs/research/allen-bradley/**` plus research-only supporting material there if necessary;
+- inspect current EliteSCADA contracts read-only;
+- use current ODVA and Rockwell official public documentation plus candidate library documentation/license sources;
+- compare library/test approaches without adding dependencies.
 
 **ForbiddenScope:**
 
-- `main`;
-- `web/scada-web/src/main.tsx` and global `styles.css`;
-- central navigation/shell;
-- backend/API contract changes;
-- Engineering schema/contracts;
-- direct driver/device access;
-- new drivers/protocols;
-- graphical HMI editor;
-- workflows/lockfiles/dependencies.
+- production runtime/source/package changes;
+- `Program.cs`, DI, DriverHost, Engineering schema/contracts, API/frontend/workflows;
+- controller program download/upload, mode RUN/STOP changes, firmware, safety programming or other destructive engineering operations;
+- registering a production Allen-Bradley Data Source;
+- changing `main` or self-merging.
 
 **MustReadSpecific:**
 
-- `docs/INTERFACE-DEVELOPMENT.md`
 - `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
 - `docs/TAG-GATEWAY.md`
-- `docs/INTERNAL-MEMORY-TAGS.md`
+- `docs/S7-ISO-CONNECTION.md`
+- `docs/research/s7/S7-ISO-CONNECTION-RESEARCH.md`
+- `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
 
-**CompletionCriteria:**
+**ResearchQuestions / CompletionCriteria:**
 
-1. isolated runtime overview presents useful operational summary from existing APIs;
-2. communication abnormalities are emphasized while healthy states remain visually quiet;
-3. component handles loading/error/empty states cleanly;
-4. no direct device/driver access or fabricated metrics;
-5. focused tests/Web build are green;
-6. Draft PR opened as **IMPLEMENTED IN PR / NOT MERGED**, then stop.
+1. define initial controller family target, prioritizing ControlLogix/CompactLogix and explicitly classify Micro800/legacy PLC families rather than pretending one path fits all;
+2. explain EtherNet/IP/CIP messaging classes relevant to SCADA: explicit connected/unconnected messaging versus implicit I/O, and recommend a bounded first-driver scope;
+3. define endpoint/routing path semantics including chassis/backplane/slot/bridge routes where applicable;
+4. research controller-scoped/program-scoped symbolic TAG access, arrays, structures/UDTs, BOOL packing, strings and common Logix primitive types;
+5. define External Access/constant/writeability handling and fail-closed writes;
+6. research symbolic browse/tag-list capabilities, exact service/public-documentation constraints and how stable EliteSCADA binding identity should survive browse/import refresh;
+7. research L5X/L5K or other supported Rockwell export/import paths for Engineering candidate import, licensing/tool dependencies and Preview/Apply flow; do not make runtime depend on Studio 5000;
+8. analyze connection/session limits, packet/request sizing, batching/multi-service packets, fragmentation and scan/reconnect strategy;
+9. cover CIP Security / FactoryTalk policy implications and define honest unsupported/secured-controller diagnostics for first releases;
+10. compare current candidate libraries such as libplctag/.NET wrappers and managed EtherNet/IP/CIP alternatives, including licenses, native packaging, maintenance and Logix feature coverage; recommend lab candidates only;
+11. define diagnostics mapping to the common Data Source contract and independent multi-controller behavior;
+12. define test plan using software/emulation where legally/practically available plus real CompactLogix/ControlLogix hardware acceptance; identify what cannot be credibly CI-only;
+13. explicitly exclude destructive controller engineering/safety operations from the SCADA driver;
+14. open Draft PR as **RESEARCH IN PR / PRODUCTION NOT IMPLEMENTED**, include exact-head CI evidence, then stop.
 
-**NextActions:** work only on `feature/runtime-operations-ux`, deliver isolated component, open Draft PR, wait.
+**ExpectedPrimaryDeliverable:** `docs/research/allen-bradley/ALLEN-BRADLEY-ETHERNET-IP-CIP-RESEARCH.md`
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 
@@ -210,49 +216,57 @@ Build an isolated Runtime operational overview component using existing protecte
 
 **Role:** `WORKER`
 
-**CurrentTask:** Authenticated session/user-menu UX primitive
+**CurrentTask:** BACnet/IP + BACnet Secure Connect driver architecture research
 
-**Branch:** `feature/session-ux`
+**Branch:** `research/bacnet-ip-secure-connect`
 
-**Status:** `ASSIGNED`
+**Status:** `ASSIGNED — RESEARCH ONLY`
 
-**PullRequest:** none yet for this task; research PR #54 remains separate and unchanged
+**PullRequest:** none yet for this task; older research PR #54 remains separate and unchanged
 
 **Objective:**
 
-Build an isolated authenticated-session UI primitive using the existing `useAuth()` context. It should make current user identity, roles and logout discoverable in the future product shell without changing authentication semantics.
+Use the additional research capacity authorized by the product owner to prepare the future BACnet direction. Focus on BACnet/IP first while designing forward compatibility for BACnet Secure Connect (BACnet/SC), object/property semantics and industrial-quality discovery/import/diagnostics.
 
 **AllowedScope:**
 
-- new files under `web/scada-web/src/auth/**` for a `UserSessionMenu`-style component and component-local CSS;
-- focused frontend tests;
-- read-only use of the existing Auth context/profile/logout API.
+- exactly one primary research document under `docs/research/bacnet/**` plus research-only support files there if necessary;
+- inspect current EliteSCADA contracts read-only;
+- use current ASHRAE/BACnet International public material and candidate library documentation/licenses;
+- compare implementation/test candidates without adding dependencies.
 
 **ForbiddenScope:**
 
-- `main`;
-- changing `AuthGate.tsx` authentication logic unless coordinator explicitly expands scope after review;
-- global `main.tsx`, `AppNavigation.tsx` or shell routing;
-- backend identity/JWT/security changes;
-- Engineering schema/contracts;
-- Python/editor runtime despite the older research PR;
-- drivers/protocols/workflows/lockfiles.
+- production BACnet source/package/runtime changes;
+- `Program.cs`, DI, DriverHost, Engineering schema/contracts, API/frontend/workflows;
+- production BACnet/IP or BACnet/SC Data Source registration;
+- proprietary-device reverse engineering presented as standard behavior;
+- changing `main` or self-merging.
 
 **MustReadSpecific:**
 
-- `docs/INTERFACE-DEVELOPMENT.md`
-- `docs/INTERFACE-VALIDATION-MILESTONE.md`
-- `docs/PARALLEL-WORK.md`
+- `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
+- `docs/TAG-GATEWAY.md`
+- `docs/OPC-UA.md`
+- `docs/research/opc-ua/OPC-UA-DISCOVERY-IMPORT-RESEARCH.md`
+- `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
 
-**CompletionCriteria:**
+**ResearchQuestions / CompletionCriteria:**
 
-1. component clearly shows authenticated display name/username and role context without exposing tokens;
-2. logout uses the existing trusted Auth context behavior;
-3. keyboard/focus/menu behavior is usable;
-4. unauthenticated/disabled-auth states degrade cleanly;
-5. focused tests/Web build are green;
-6. Draft PR opened as **IMPLEMENTED IN PR / NOT MERGED**, then stop.
+1. define BACnet/IP first-driver scope and explicitly classify BACnet/SC and MS/TP instead of silently conflating transports;
+2. research Who-Is/I-Am discovery, device instance identity, network numbers/routers and cross-subnet BBMD/Foreign Device behavior;
+3. define canonical object/property binding identity using Device Instance + Object Identifier + Property Identifier, with names/descriptions as metadata rather than sole identity;
+4. cover ReadProperty/ReadPropertyMultiple, WriteProperty, COV subscriptions, polling fallback, segmentation/APDU limits and reconnect/resubscribe behavior;
+5. cover Present_Value, Status_Flags, Reliability, Out_Of_Service, Units and quality mapping without reducing BACnet object semantics to a naked number;
+6. define write priority 1..16/relinquish behavior explicitly and fail closed rather than choosing a dangerous implicit priority;
+7. research device/object browse/import UX, proprietary object/property visibility and Preview/Apply candidate handling;
+8. define BACnet/IP diagnostics, broadcast/discovery limitations and multi-Data-Source isolation using the common diagnostics contract;
+9. research BACnet/SC TLS/WebSocket/certificate trust, primary/failover hub behavior and how secret/certificate references fit EliteSCADA without plaintext credentials;
+10. compare current .NET/C BACnet library candidates, licenses, BACnet/IP/COV/segmentation/BACnet-SC coverage and packaging implications; recommend lab candidates only;
+11. define interoperability test plan using open BACnet stacks/simulators where appropriate plus real multi-vendor/BTL-class devices, BBMD and BACnet/SC scenarios;
+12. record explicit production slices and `INTEGRATION REQUIRED` dependencies;
+13. open Draft PR as **RESEARCH IN PR / PRODUCTION NOT IMPLEMENTED**, include exact-head CI evidence, then stop.
 
-**NextActions:** work only on `feature/session-ux`, deliver isolated component, open Draft PR, wait.
+**ExpectedPrimaryDeliverable:** `docs/research/bacnet/BACNET-IP-SC-RESEARCH.md`
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`

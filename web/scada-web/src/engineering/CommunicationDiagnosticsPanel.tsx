@@ -29,6 +29,7 @@ type Copy = {
   reads: string;
   writes: string;
   quality: string;
+  noSample: string;
   errorMessage: string;
 };
 
@@ -43,7 +44,7 @@ const copy: Record<EngineeringLocale, Copy> = {
     failures: 'Falhas', timeouts: 'Timeouts', reconnects: 'Reconexões', tags: 'TAGs', details: 'Detalhes',
     instance: 'Instância runtime', lastFailure: 'Última falha', failureRate: 'Taxa recente de falha', scan: 'Scan configurado',
     latency: 'Latência média', cycles: 'Ciclos', requests: 'Requests', reads: 'Leituras', writes: 'Escritas',
-    quality: 'Qualidade das TAGs', errorMessage: 'Último erro'
+    quality: 'Qualidade das TAGs', noSample: 'Sem amostra', errorMessage: 'Último erro'
   },
   en: {
     title: 'Active communication',
@@ -55,7 +56,7 @@ const copy: Record<EngineeringLocale, Copy> = {
     failures: 'Failures', timeouts: 'Timeouts', reconnects: 'Reconnects', tags: 'TAGs', details: 'Details',
     instance: 'Runtime instance', lastFailure: 'Last failure', failureRate: 'Recent failure rate', scan: 'Configured scan',
     latency: 'Average latency', cycles: 'Cycles', requests: 'Requests', reads: 'Reads', writes: 'Writes',
-    quality: 'TAG quality', errorMessage: 'Last error'
+    quality: 'TAG quality', noSample: 'No sample', errorMessage: 'Last error'
   },
   es: {
     title: 'Comunicación activa',
@@ -67,7 +68,7 @@ const copy: Record<EngineeringLocale, Copy> = {
     failures: 'Fallos', timeouts: 'Timeouts', reconnects: 'Reconexiones', tags: 'TAGs', details: 'Detalles',
     instance: 'Instancia runtime', lastFailure: 'Último fallo', failureRate: 'Tasa reciente de fallo', scan: 'Scan configurado',
     latency: 'Latencia media', cycles: 'Ciclos', requests: 'Requests', reads: 'Lecturas', writes: 'Escrituras',
-    quality: 'Calidad de TAGs', errorMessage: 'Último error'
+    quality: 'Calidad de TAGs', noSample: 'Sin muestra', errorMessage: 'Último error'
   }
 };
 
@@ -177,7 +178,7 @@ export function CommunicationDiagnosticsPanel({ locale }: { locale: EngineeringL
                 <Metric label={text.requests} value={String(selected.counters.requests)} />
                 <Metric label={text.reads} value={String(selected.counters.readOperations)} />
                 <Metric label={text.writes} value={String(selected.counters.writeOperations)} />
-                <Metric label={text.quality} value={`Good ${selected.tagQuality.good} · BadComm ${selected.tagQuality.badCommunication} · Sem amostra ${selected.tagQuality.noCurrentSample}`} />
+                <Metric label={text.quality} value={`Good ${selected.tagQuality.good} · BadComm ${selected.tagQuality.badCommunication} · ${text.noSample} ${selected.tagQuality.noCurrentSample}`} />
                 <Metric label={text.errorMessage} value={selected.lastError ?? '—'} />
               </div>
             </div>

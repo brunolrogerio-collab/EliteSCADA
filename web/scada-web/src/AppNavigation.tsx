@@ -7,9 +7,9 @@ type ShellLocale = 'pt-BR' | 'en' | 'es';
 type ShellCopy = { subtitle: string; currentArea: string; runtime: string; runtimeDescription: string; engineering: string; engineeringDescription: string; audit: string; auditDescription: string; };
 const localeKey = 'elitescada.engineering.locale';
 const copy: Record<ShellLocale, ShellCopy> = {
-  'pt-BR': { subtitle: 'Plataforma industrial', currentArea: 'Área atual', runtime: 'Runtime', runtimeDescription: 'Operação', engineering: 'Engineering', engineeringDescription: 'Projeto', audit: 'Auditoria', auditDescription: 'Rastreabilidade' },
-  en: { subtitle: 'Industrial platform', currentArea: 'Current area', runtime: 'Runtime', runtimeDescription: 'Operations', engineering: 'Engineering', engineeringDescription: 'Project', audit: 'Audit', auditDescription: 'Traceability' },
-  es: { subtitle: 'Plataforma industrial', currentArea: 'Área actual', runtime: 'Runtime', runtimeDescription: 'Operación', engineering: 'Engineering', engineeringDescription: 'Proyecto', audit: 'Auditoría', auditDescription: 'Trazabilidad' }
+  'pt-BR': { subtitle: 'Plataforma industrial', currentArea: 'Área atual', runtime: 'Runtime', runtimeDescription: 'Operação', engineering: 'Engineering', engineeringDescription: 'Área de projeto', audit: 'Auditoria', auditDescription: 'Rastreabilidade' },
+  en: { subtitle: 'Industrial platform', currentArea: 'Current area', runtime: 'Runtime', runtimeDescription: 'Operations', engineering: 'Engineering', engineeringDescription: 'Project area', audit: 'Audit', auditDescription: 'Traceability' },
+  es: { subtitle: 'Plataforma industrial', currentArea: 'Área actual', runtime: 'Runtime', runtimeDescription: 'Operación', engineering: 'Engineering', engineeringDescription: 'Área de proyecto', audit: 'Auditoría', auditDescription: 'Trazabilidad' }
 };
 function resolveLocale(): ShellLocale {
   const stored = window.localStorage.getItem(localeKey);

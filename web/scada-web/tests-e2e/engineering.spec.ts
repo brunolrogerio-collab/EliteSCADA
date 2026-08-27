@@ -175,7 +175,8 @@ test('Data Source editor previews public settings without exposing secret values
   await expect(page.getByText('Referências de segredo', { exact: true })).toBeVisible();
   await expect(page.getByText('Somente referências são exibidas; nenhum segredo é materializado no editor.', { exact: true })).toBeVisible();
 
-  await page.getByLabel('Nome').fill('Simulation preview edit');
+  const form = page.locator('.eng-editor-form-panel');
+  await form.getByLabel('Nome').fill('Simulation preview edit');
   await page.getByRole('button', { name: 'Validar preview' }).click();
   await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
 
@@ -195,9 +196,10 @@ test('Data Source editor previews a new source as a create without applying it',
   await page.getByRole('button', { name: 'Novo Data Source' }).click();
   await expect(page.getByText('Novo', { exact: true })).toBeVisible();
 
-  await page.getByLabel('Nome').fill('Preview Simulation Source');
-  await page.getByLabel('Chave').fill('preview.simulation');
-  await page.getByLabel('Driver').fill('builtin.simulation');
+  const form = page.locator('.eng-editor-form-panel');
+  await form.getByLabel('Nome').fill('Preview Simulation Source');
+  await form.getByLabel('Chave').fill('preview.simulation');
+  await form.getByLabel('Driver').fill('builtin.simulation');
   await page.getByRole('button', { name: 'Validar preview' }).click();
 
   await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();

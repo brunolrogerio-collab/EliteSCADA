@@ -1,0 +1,184 @@
+.engineering-entity-browser {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  min-height: 520px;
+  border: 1px solid var(--eng-border, #283544);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--eng-panel, #121922);
+  color: var(--eng-text, #e8edf3);
+}
+
+.engineering-entity-browser__master {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--eng-border, #283544);
+  background: var(--eng-panel, #121922);
+}
+
+.engineering-entity-browser__toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 0.55fr);
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid var(--eng-border-soft, #202c39);
+  background: var(--eng-panel-soft, #17212c);
+}
+
+.engineering-entity-browser__search,
+.engineering-entity-browser__filter {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.engineering-entity-browser__search > span,
+.engineering-entity-browser__filter > span {
+  color: var(--eng-muted, #8e9baa);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.engineering-entity-browser input,
+.engineering-entity-browser select {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  border: 1px solid var(--eng-border, #283544);
+  border-radius: 6px;
+  background: var(--eng-bg, #0b1016);
+  color: var(--eng-text, #e8edf3);
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 9px;
+  outline: none;
+}
+
+.engineering-entity-browser input:focus-visible,
+.engineering-entity-browser select:focus-visible,
+.engineering-entity-browser__item:focus-visible {
+  border-color: var(--eng-accent, #58a6d6);
+  box-shadow: 0 0 0 2px var(--eng-accent-soft, rgba(88, 166, 214, 0.12));
+}
+
+.engineering-entity-browser__summary {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--eng-border-soft, #202c39);
+  color: var(--eng-muted, #8e9baa);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.engineering-entity-browser__list {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 6px;
+}
+
+.engineering-entity-browser__item {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.engineering-entity-browser__item:hover {
+  background: var(--eng-panel-soft, #17212c);
+}
+
+.engineering-entity-browser__item.is-selected {
+  border-color: var(--eng-accent, #58a6d6);
+  background: var(--eng-accent-soft, rgba(88, 166, 214, 0.12));
+}
+
+.engineering-entity-browser__item-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.engineering-entity-browser__item-copy strong,
+.engineering-entity-browser__item-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.engineering-entity-browser__item-copy strong {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.engineering-entity-browser__item-copy span {
+  color: var(--eng-muted, #8e9baa);
+  font-size: 11px;
+}
+
+.engineering-entity-browser__item-meta {
+  color: var(--eng-muted, #8e9baa);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.engineering-entity-browser__detail {
+  min-width: 0;
+  overflow: auto;
+  background: var(--eng-bg, #0b1016);
+}
+
+.engineering-entity-browser__state {
+  min-height: 150px;
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  padding: 24px;
+  text-align: center;
+}
+
+.engineering-entity-browser__state strong {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.engineering-entity-browser__state span {
+  max-width: 420px;
+  color: var(--eng-muted, #8e9baa);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .engineering-entity-browser {
+    grid-template-columns: 1fr;
+  }
+
+  .engineering-entity-browser__master {
+    max-height: 420px;
+    border-right: 0;
+    border-bottom: 1px solid var(--eng-border, #283544);
+  }
+}
+
+@media (max-width: 560px) {
+  .engineering-entity-browser__toolbar {
+    grid-template-columns: 1fr;
+  }
+}

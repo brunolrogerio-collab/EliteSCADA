@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Net.Sockets;
 
 namespace Scada.Drivers.Modbus;
@@ -10,8 +11,20 @@ public sealed class ModbusTcpTransport : IAsyncDisposable
     private readonly int _port;
     private readonly TimeSpan _requestTimeout;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly object _diagnosticsGate = new();
     private TcpClient? _client;
     private int _transactionId;
+    private long _connectionCount;
+    private long _disconnectionCount;
+    private long _reconnectCount;
+    private long _requestAttempts;
+    private long _successfulRequestAttempts;
+    private long _failedRequestAttempts;
+    private long _timeoutCount;
+    private long _lastRequestDurationTicks;
+    private long _totalRequestDurationTicks;
+    private DateTimeOffset? _lastConnectedAt;
+    private DateTimeOffset? _lastDisconnectedAt;
 
     public ModbusTcpTransport(string host, int port = 502, TimeSpan? requestTimeout = null)
     {
@@ -23,7 +36,37 @@ public sealed class ModbusTcpTransport : IAsyncDisposable
         if (_requestTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(requestTimeout));
     }
 
+    public string Host => _host;
+    public int Port => _port;
+    public TimeSpan RequestTimeout => _requestTimeout;
     public bool IsConnected => _client?.Connected == true;
+
+    public ModbusTcpTransportDiagnosticSnapshot GetDiagnostics()
+    {
+        var connected = IsConnected;
+        lock (_diagnosticsGate)
+        {
+            var average = _requestAttempts == 0
+                ? (TimeSpan?)null
+                : TimeSpan.FromTicks(_totalRequestDurationTicks / _requestAttempts);
+            return new ModbusTcpTransportDiagnosticSnapshot(
+                _host,
+                _port,
+                _requestTimeout,
+                connected,
+                _connectionCount,
+                _disconnectionCount,
+                _reconnectCount,
+                _requestAttempts,
+                _successfulRequestAttempts,
+                _failedRequestAttempts,
+                _timeoutCount,
+                _requestAttempts == 0 ? null : TimeSpan.FromTicks(_lastRequestDurationTicks),
+                average,
+                _lastConnectedAt,
+                _lastDisconnectedAt);
+        }
+    }
 
     public async Task<bool[]> ReadBitsAsync(
         byte unitId,
@@ -149,19 +192,24 @@ public sealed class ModbusTcpTransport : IAsyncDisposable
             Exception? last = null;
             for (var attempt = 0; attempt < attempts; attempt++)
             {
+                var started = Stopwatch.GetTimestamp();
                 try
                 {
                     using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                     timeout.CancelAfter(_requestTimeout);
-                    return await SendOnceAsync(unitId, pdu, timeout.Token);
+                    var response = await SendOnceAsync(unitId, pdu, timeout.Token);
+                    RecordRequest(success: true, timeout: false, Stopwatch.GetElapsedTime(started));
+                    return response;
                 }
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
+                    RecordRequest(success: false, timeout: true, Stopwatch.GetElapsedTime(started));
                     ResetConnection();
                     last = new TimeoutException($"Modbus TCP request to {_host}:{_port} timed out after {_requestTimeout}.");
                 }
                 catch (Exception ex) when (ex is IOException or SocketException or ObjectDisposedException)
                 {
+                    RecordRequest(success: false, timeout: false, Stopwatch.GetElapsedTime(started));
                     ResetConnection();
                     last = ex;
                 }
@@ -218,6 +266,7 @@ public sealed class ModbusTcpTransport : IAsyncDisposable
         {
             await client.ConnectAsync(_host, _port, cancellationToken);
             _client = client;
+            RecordConnected();
             return client;
         }
         catch
@@ -249,10 +298,44 @@ public sealed class ModbusTcpTransport : IAsyncDisposable
             throw new IOException($"Modbus FC{function:X2} response does not match the request.");
     }
 
+    private void RecordRequest(bool success, bool timeout, TimeSpan duration)
+    {
+        lock (_diagnosticsGate)
+        {
+            _requestAttempts++;
+            if (success) _successfulRequestAttempts++; else _failedRequestAttempts++;
+            if (timeout) _timeoutCount++;
+            _lastRequestDurationTicks = duration.Ticks;
+            _totalRequestDurationTicks += duration.Ticks;
+        }
+    }
+
+    private void RecordConnected()
+    {
+        lock (_diagnosticsGate)
+        {
+            _connectionCount++;
+            if (_connectionCount > 1) _reconnectCount++;
+            _lastConnectedAt = DateTimeOffset.UtcNow;
+        }
+    }
+
+    private void RecordDisconnected()
+    {
+        lock (_diagnosticsGate)
+        {
+            _disconnectionCount++;
+            _lastDisconnectedAt = DateTimeOffset.UtcNow;
+        }
+    }
+
     private void ResetConnection()
     {
-        try { _client?.Dispose(); } catch { }
+        var client = _client;
         _client = null;
+        if (client is null) return;
+        try { client.Dispose(); } catch { }
+        RecordDisconnected();
     }
 
     public async ValueTask DisposeAsync()

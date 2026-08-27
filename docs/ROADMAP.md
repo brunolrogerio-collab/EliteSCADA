@@ -32,7 +32,8 @@ The current merged platform includes:
 21. Engineering Schema v9 with first-class TAG Gateway routes;
 22. complete protocol-independent TAG Gateway runtime/product integration;
 23. complete protocol-neutral multi-driver/Data Source diagnostics with Modbus instrumentation and multi-instance acceptance;
-24. elaborated communication diagnostics UX in Engineering.
+24. elaborated communication diagnostics UX in Engineering;
+25. first integrated Interface Product Development checkpoint with persistent localized product shell, authenticated user/session affordance, Runtime operational overview, and Engineering Data Source/TAG entity-browser navigation.
 
 Important recent merged checkpoints:
 
@@ -50,7 +51,8 @@ Important recent merged checkpoints:
 - PR #55 complete TAG Gateway runtime/product integration: `41bc437ba64f60fba26754794a9dc5a4e9a034f7`;
 - PRs #56-#57 complete communication diagnostics product;
 - PR #57 merge SHA: `c8190cc119a2e288834d619084396107103b2f56`;
-- exact-head CI #350 and post-merge main CI #351: fully green.
+- PR #58 first integrated interface product checkpoint: `f3cc82f0d45a9f0162105b57ae6c42f643af6160`, exact-head CI #378 fully green;
+- worker interface slices PR #59 / #60 / #61 were integrated through PR #58.
 
 Canonical Engineering JSON on official `main` remains **Schema v9**.
 
@@ -90,26 +92,35 @@ See `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
 
 ## 4. Interface product development
 
-**ACTIVE PRODUCT BLOCK.**
+**ACTIVE PRODUCT BLOCK — FIRST INTEGRATED CHECKPOINT MERGED.**
 
 Authoritative task direction: `docs/INTERFACE-DEVELOPMENT.md`.
 
-Primary implementation areas:
+The first acceptance checkpoint is now merged through PR #58. It establishes the common product shell plus central integration of the first worker primitives. Interface development remains active; this merge is not the end of the block and does not by itself reopen the external-protocol or Windows-package gates.
+
+Merged first-checkpoint behavior includes:
+
+- persistent coherent Runtime / Engineering / Audit navigation;
+- localized shell identity in `pt-BR` / `en` / `es`;
+- authenticated user/session affordance;
+- Runtime operational overview using existing protected facts while preserving the process demo;
+- Engineering Data Source and TAG browser/search surfaces over the canonical model;
+- existing Preview/Apply/CAS protected mutation flows preserved;
+- full exact-head Web/backend/smoke/Chromium acceptance on PR #58.
+
+Primary continuing implementation areas:
 
 ### Product shell
 
-- coherent Runtime / Engineering / Audit navigation;
-- consistent route/page identity;
-- authenticated session/user affordance;
+- continue consistent route/page identity and cross-product context;
 - consistent loading/error/empty/status patterns;
 - desktop-first responsive application structure;
 - shared restrained industrial visual language.
 
 ### Engineering workspace
 
-- improved information architecture;
-- search/filter/direct navigation;
-- scalable entity-browser and master/detail patterns;
+- continue improved information architecture;
+- extend scalable entity-browser/master-detail patterns where useful;
 - compact large-project tables;
 - clear Working/Revision/Published/Active and dirty-state context;
 - consistent structured editors and actionable validation feedback;
@@ -118,8 +129,8 @@ Primary implementation areas:
 
 ### Runtime operations
 
-- preserve the current process demo;
-- add useful platform-level operational overview;
+- preserve the process demo;
+- continue useful platform-level operational overview;
 - communication/Data Source health;
 - alarms and TAG-quality visibility;
 - Gateway/diagnostic context where useful;
@@ -128,16 +139,9 @@ Primary implementation areas:
 
 ### Session/admin/Audit consistency
 
-- visible authenticated identity and roles;
+- maintain visible authenticated identity and roles;
 - understandable logout/session behavior;
 - administration and Audit aligned with the same product shell.
-
-Parallel work split is authoritative in `docs/CHAT-WORK-ASSIGNMENTS.md`:
-
-- coordinator: central shell/routing/integration;
-- DEV 1: Engineering entity/workspace ergonomics primitives;
-- DEV 2: Runtime operational overview primitives;
-- DEV 3: authenticated session/user-menu primitive.
 
 ### Guardrails
 
@@ -173,7 +177,7 @@ The package should contain the improved product resulting from the active interf
 
 ## 6. External protocol/module wave
 
-**POSTPONED UNTIL AFTER INTERFACE DEVELOPMENT + VALIDATION FEEDBACK.**
+**PRODUCTION POSTPONED UNTIL AFTER INTERFACE DEVELOPMENT + VALIDATION FEEDBACK. RESEARCH MAY PROCEED.**
 
 Planned order remains broadly:
 
@@ -182,9 +186,9 @@ Planned order remains broadly:
 3. BACnet through the same model;
 4. installable/versioned Driver Module framework and public Driver SDK compatibility boundary;
 5. Siemens S7 ISO Connection as an intended installable-module target;
-6. later Allen-Bradley research based on public documentation, licensing and testability.
+6. later Allen-Bradley based on public documentation, licensing and testability.
 
-OPC UA and Siemens S7 research already merged as architecture inputs. Research does not authorize production runtimes ahead of the product gate.
+OPC UA and Siemens S7 research already exist as architecture inputs. MQTT, BACnet/IP + BACnet/SC, and Allen-Bradley EtherNet/IP/CIP research were assigned in parallel on 2026-08-27. Research documents, branches and research PRs do not authorize production runtime, Data Source registration, dependency selection or bypass of the product gate.
 
 ## Historian and trends
 

@@ -3,7 +3,7 @@
 > Operational handoff. Read with `PROJECT GOAL.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md` and `docs/CHAT-WORK-ASSIGNMENTS.md` before every EliteSCADA task.
 
 **Handoff date:** 2026-08-26
-**Development state:** **ACTIVE — TAG GATEWAY ENGINEERING + OPC UA/S7 RESEARCH SPIKES**
+**Development state:** **ACTIVE — TAG GATEWAY ENGINEERING + S7 RESEARCH / OPC UA RESEARCH MERGED**
 
 Repository truth is separated into **MERGED**, **IMPLEMENTED IN PR**, **RESEARCH IN PR** and **SPECIFIED / NOT IMPLEMENTED**.
 
@@ -33,7 +33,11 @@ Non-production documentation/research spikes are allowed early when they do not 
 
 `docs/OPC-UA.md` locks a future Engineering experience with server/network discovery, endpoint/security/certificate inspection, lazy address-space browsing, search/filter, multi-select/subtree import preview, subscription profiles, NodeId + namespace-aware BrowsePath reconciliation and safe rescan/diff.
 
-DEV 1 owns the documentation-only `research/opc-ua-discovery-import` spike. Production OPC UA remains blocked.
+DEV 1 completed the documentation-only OPC UA spike through PR #51. The research is **MERGED** as `aa7735fcc15e00aea5bf19a543f53b2735ef48e3`; research head `6aac0f3cfe8e89cc7c56cc2bf3668d03a8c94994`; CI #299 passed. The merged research document is `docs/research/opc-ua/OPC-UA-DISCOVERY-IMPORT-RESEARCH.md`.
+
+Key merged research direction includes the official OPC Foundation .NET stack, layered standard discovery with bounded fallback scan, explicit certificate trust, lazy Browse/BrowseNext, namespace-URI-aware BrowsePath plus last NodeId identity, deterministic NodeId refresh/rescan, scalar-safe type mapping, subscription profiles, canonical candidate -> Preview -> Apply import and reference/interoperability test-server strategy.
+
+DEV 1 is now **MERGED / WAITING**. Production OPC UA remains **SPECIFIED / NOT IMPLEMENTED** and blocked by Gateway, common diagnostics and interface-preview gates.
 
 ## SIEMENS S7 ISO CONNECTION DIRECTION
 
@@ -66,16 +70,19 @@ S7.NetPlus and Sharp7 are initial .NET library candidates to evaluate; no produc
 
 - Task: `OPC UA discovery, address-space browse and TAG-import Engineering research spike`;
 - Branch: `research/opc-ua-discovery-import`;
-- Status: `ASSIGNED`;
-- research/documentation only;
+- PR #51: **MERGED** `aa7735fcc15e00aea5bf19a543f53b2735ef48e3`;
+- Status: `MERGED / WAITING`;
+- research is merged; production OPC UA remains blocked;
 - AfterCompletion: `WAIT_FOR_COORDINATOR`.
 
 ### DEV 2 - EliteSCADA
 
 - Task: `Public TAG Gateway Engineering contract and deterministic validation foundation`;
 - Branch: `feature/tag-gateway-engineering`;
+- PR #50: Draft/Open;
 - Status: `ASSIGNED`;
 - owns the only active functional central Engineering contract slice;
+- coordinator fixed the legacy Internal Memory schema assertion on `main`; DEV 2 must reconcile rather than own unrelated maintenance;
 - runtime Gateway/API/UI remain out of this worker slice;
 - AfterCompletion: `WAIT_FOR_COORDINATOR`.
 
@@ -95,12 +102,12 @@ S7.NetPlus and Sharp7 are initial .NET library candidates to evaluate; no produc
 On the next coordinator `siga`:
 
 1. reread mandatory docs from current `main`;
-2. inspect DEV 2 `feature/tag-gateway-engineering` branch/PR/head/diff/CI;
-3. inspect DEV 1 `research/opc-ua-discovery-import` documentation PR/state;
+2. inspect DEV 2 `feature/tag-gateway-engineering` / PR #50 head, reconciliation with current `main`, diff and CI;
+3. confirm DEV 1 remains `MERGED / WAITING` after PR #51;
 4. inspect DEV 3 `research/s7-iso-connection` documentation PR/state;
-5. enforce that DEV 1 and DEV 3 remain research-only;
+5. enforce that DEV 3 remains research-only and that DEV 1 does not self-start production OPC UA;
 6. merge Gateway Engineering only after the public/versioned contract and validation/compatibility coverage are reviewed and relevant CI is green;
-7. review OPC UA/S7 research as future implementation inputs, not implemented product state;
+7. review S7 research as future implementation input, not implemented product state;
 8. after Gateway Engineering is official on `main`, assign the protocol-independent Gateway runtime engine;
 9. preserve the common diagnostics and interface-preview gates before production external drivers.
 

@@ -100,7 +100,7 @@ export function AppNavigation() {
         })}
       </nav>
 
-      <div className="app-context" aria-label={text.currentArea}>
+      <div className="app-context">
         <span>{text.currentArea}</span>
         <strong>{active.label}</strong>
       </div>

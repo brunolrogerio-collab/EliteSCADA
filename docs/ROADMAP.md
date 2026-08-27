@@ -3,7 +3,7 @@
 Engineering Import/Export remains a mandatory cross-cutting capability throughout this roadmap. Every new Engineering domain must join the public versioned model, validation/preview/apply workflow, revision lifecycle and backup/restore path.
 
 **Status date:** 2026-08-27  
-**Functional development:** **ACTIVE — COMMON MULTI-DRIVER / DATA SOURCE DIAGNOSTICS**
+**Functional development:** **ACTIVE — USER INTERFACE VALIDATION PREVIEW**
 
 ## Established `main` foundation
 
@@ -36,6 +36,7 @@ The following major capabilities are integrated:
 25. Isolated Public Script Engineering domain with stable identities/scopes/events/dependencies.
 26. Engineering Schema v9 with first-class TAG Gateway routes, deterministic validation and package/revision persistence.
 27. Complete protocol-independent TAG Gateway runtime/product integration, including Engineering UI and route diagnostics.
+28. Complete protocol-neutral multi-driver/Data Source communication diagnostics with Modbus instrumentation, multi-instance acceptance and elaborated Engineering diagnostics UX.
 
 Important merged checkpoints:
 
@@ -58,8 +59,10 @@ Important merged checkpoints:
 - PR #51 OPC UA research: `aa7735fcc15e00aea5bf19a543f53b2735ef48e3`.
 - PR #52 Siemens S7 research: `bd825682ae0ccfdbdb938fab638a27f6961510bf`.
 - PR #55 complete TAG Gateway runtime/product integration: `41bc437ba64f60fba26754794a9dc5a4e9a034f7`.
+- PR #56 common communication-driver diagnostics + Modbus instrumentation foundation: merged into `main` before PR #57.
+- PR #57 complete common communication diagnostics product integration: `c8190cc119a2e288834d619084396107103b2f56`.
 
-Gateway post-merge test stabilization is on `main` through `cb4d2c423c31cf7a52ea6ebe6de494c281901f3f`; CI #336 passed Web build, backend build/tests, runtime smoke and Chromium E2E.
+PR #57 final head `9fffd193153f50a937be3b8343c255a498701808` passed CI #350. Post-merge main CI #351 on `c8190cc...` passed Web build, backend build/tests, runtime smoke and Chromium E2E.
 
 ## Engineering Import/Export baseline
 
@@ -85,64 +88,58 @@ PRs #40, #48 and #49 provide public typed Engineering defaults, stable-ID durabl
 
 **COMPLETE / MERGED.**
 
-PRs #50 and #55 provide:
-
-- canonical Schema v9 Gateway routes using stable TAG IDs/paths;
-- Preview/Apply/revision/package persistence and deterministic validation;
-- direct/indirect cycle rejection and multiple-writer rejection;
-- fan-out;
-- Server Memory support and Client Memory rejection;
-- protocol-independent runtime transfer over common TAG/Event Bus/write ownership;
-- OnChange/Periodic, quality policy, deadband/rate/coalescing and startup synchronization;
-- Exact/CheckedNumeric conversion with optional gain/offset;
-- transactional Active Revision replacement;
-- route-local diagnostics;
-- protected diagnostics API and Engineering Gateway configuration/diagnostic UI;
-- automated Modbus<->Server Memory and independent Modbus<->Modbus proof.
+PRs #50 and #55 provide canonical Schema v9 Gateway routes, Preview/Apply/revision/package persistence, deterministic cycle/multiple-writer validation, fan-out, Server Memory support, protocol-independent runtime transfer, OnChange/Periodic execution, quality policy, deadband/rate/coalescing/startup synchronization, checked conversion/scaling, transactional Active Revision replacement, route-local diagnostics, protected API and Engineering Gateway UI.
 
 See `docs/TAG-GATEWAY.md`.
 
 ### 3. Common multi-driver/Data Source diagnostics
 
-**ACTIVE PRODUCT BLOCK.**
+**COMPLETE / MERGED.**
 
-The architecture must preserve `Driver type != Data Source`. Multiple simultaneous Data Sources using the same or different Driver types remain first-class.
+PRs #56 and #57 provide:
 
-Required current implementation:
-
-- evolve the common external communication diagnostics contract without Modbus-specific leakage;
-- expose Data Source identity, Driver type/instance identity and safe endpoint/configuration context;
-- operational state with healthy/degraded/reconnecting/faulted distinction;
-- last success/failure/state-change timestamps and sanitized message;
-- monotonic cycle/request/success/failure/consecutive-failure/timeout/connect/reconnect/read/write/update counters where meaningful;
-- recent failure/latency/data-age/effective-scan information where meaningful and bounded;
-- TAG-quality summary by active Data Source;
-- instrument current Modbus TCP runtime using poll blocks/Unit IDs as useful protocol detail;
-- prove two simultaneous independent Modbus Data Sources, isolated failure/recovery/counters/quality and correct write ownership;
-- protected backend diagnostic snapshots and Engineering diagnostics UI;
-- do not fabricate transport/network metrics for Internal Memory or built-in simulation.
-
-DEV 2 owns the isolated common-contract + Modbus instrumentation slice. Coordinator owns DriverHost/API/DI/UI composition and final product integration.
+- protocol-neutral external communication diagnostic snapshots;
+- strict `Driver type != Data Source != runtime instance` identity;
+- healthy/degraded/reconnecting/faulted operational state and state-change timestamps;
+- last success/failure and sanitized error information;
+- isolated cycles/requests/successes/failures/consecutive failures/timeouts/connections/reconnects/read/write/update counters where meaningful;
+- recent failure rate, latency, data age and scan timing;
+- TAG-quality aggregation by active Data Source;
+- current Modbus TCP instrumentation with safe protocol detail;
+- proof of two simultaneous independent Modbus Data Sources with isolated failure/recovery/counters/quality and write ownership;
+- no fabricated transport/network semantics for Internal Memory or built-in simulation;
+- protected backend integration and elaborated Engineering diagnostics UX with health summary, severity ordering, search/filter, refresh, master/detail drill-down and localized copy.
 
 See `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
 
 ### 4. USER INTERFACE VALIDATION PREVIEW
 
-**SPECIFIED / NOT IMPLEMENTED — BLOCKED BY COMMON DIAGNOSTICS.**
+**ACTIVE PRODUCT BLOCK.**
 
-Before the next external-protocol wave, produce a practical Windows x64 product-owner validation build with:
+The prerequisite functional baseline is now complete and green on `main`.
 
-- practical startup path;
-- local login/bootstrap;
-- demo project;
-- visible version identification;
-- short validation checklist;
-- package/startup smoke separate from repository-only execution;
-- product-owner feedback before heavy protocol investment.
+The product-owner direction is to continue elaborating/advancing the interface and product while postponing handoff of the actual preview until requested. Implementation therefore proceeds on the packaging/startup/readiness infrastructure now, but the preview is not considered delivered or feedback-complete yet.
+
+Required current implementation:
+
+- practical Windows x64 target;
+- one reliable entry/startup path instead of requiring separate developer API/Vite terminals;
+- production-style React build integrated into the validation package;
+- PostgreSQL/TimescaleDB and required services launched/checked reliably;
+- known local identity/login bootstrap without committed production credentials;
+- sample/demo project suitable for Runtime and Engineering use;
+- visible build/version identifier tied to exact source state;
+- short product-owner validation checklist;
+- package/startup smoke separate from repository-only development execution;
+- maintain authorization, Audit, Engineering revision lifecycle, TAG quality, Internal Memory, Gateway and diagnostics behavior.
+
+The first packaging slice should prefer a reproducible launcher and same-origin Web/API composition. The existing Vite proxy remains a development convenience, not the product-owner deployment model.
 
 See `docs/INTERFACE-VALIDATION-MILESTONE.md`.
 
 ## External protocol/module wave after preview feedback
+
+**BLOCKED UNTIL PREVIEW DELIVERY + PRODUCT-OWNER FEEDBACK.**
 
 5. MQTT through the common Data Source/Source Provider/TAG/Gateway architecture.
 6. OPC UA through the same common model.
@@ -251,12 +248,12 @@ Parallel work is allowed only where dependency order and central ownership remai
 
 Current split:
 
-- **COORDENADOR:** common diagnostics product integration, central DriverHost/API/DI/UI, acceptance, CI, merges and docs;
-- **DEV 2:** isolated protocol-neutral diagnostics contract + Modbus TCP instrumentation/tests on `feature/communication-driver-diagnostics`;
+- **COORDENADOR:** USER INTERFACE VALIDATION PREVIEW packaging/startup/same-origin Web+API integration, database/service launcher, login/bootstrap, build identity, demo/readiness, package smoke, CI, merges and docs;
 - **DEV 1:** research PR #53 delivered, waiting;
+- **DEV 2:** diagnostics foundation delivered and merged through PR #56, waiting;
 - **DEV 3:** research PR #54 delivered, waiting.
 
-Do not start canonical Script schema integration or new protocol runtime work merely because workers are idle if that creates avoidable central Engineering/API/DI conflicts.
+Do not start canonical Script schema integration or new protocol runtime work merely because workers are idle if that violates the preview gate or creates avoidable central Engineering/API/DI conflicts.
 
 ## Development quality rules
 

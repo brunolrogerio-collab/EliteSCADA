@@ -23,7 +23,7 @@ Repository terminology:
 
 **Role:** `COORDINATOR`
 
-**CurrentTask:** Coordinate the first TAG Gateway Engineering slice after completed Internal Memory product integration
+**CurrentTask:** Coordinate TAG Gateway Engineering while DEV 1 performs the isolated OPC UA discovery/import research spike
 
 **Branch:** `main`
 
@@ -33,7 +33,7 @@ Repository terminology:
 
 **Objective:**
 
-Treat Internal Memory as a completed merged product block, preserve the mandatory source/protocol order, give one worker exclusive ownership of the first public/versioned TAG Gateway Engineering contract, and keep runtime Gateway implementation blocked until that contract is reviewed and official on `main`.
+Keep DEV 2 on the active functional TAG Gateway Engineering gate, allow DEV 1 to reduce uncertainty around the later OPC UA protocol through a strictly non-production discovery/browse/import spike, preserve the locked implementation order, and avoid central Engineering/runtime overlap.
 
 **AllowedScope:** coordinator-owned shared/central files, integration hooks, workflow maintenance, assignment board, handoff/roadmap documentation, worker assignment and merge decisions.
 
@@ -42,9 +42,10 @@ Treat Internal Memory as a completed merged product block, preserve the mandator
 - no known-failing merge;
 - no force-reset/discard of worker commits;
 - no runtime TAG Gateway implementation that bypasses the public/versioned Engineering contract;
-- no new external protocol family before Gateway and common diagnostics/interface preview gates;
+- no production OPC UA Data Source/runtime implementation before the external-protocol gate opens;
+- no new external protocol family in Active Runtime before Gateway, common diagnostics and interface-preview gates;
 - no concurrent worker ownership of `src/Scada.Engineering/Contracts/EngineeringContracts.cs`;
-- no canonical Script schema integration while the active Gateway Engineering worker owns overlapping central Engineering contract files.
+- no canonical Script schema integration while DEV 2 owns overlapping central Engineering contract files.
 
 **MustReadSpecific:**
 
@@ -52,34 +53,37 @@ Treat Internal Memory as a completed merged product block, preserve the mandator
 - `docs/INTERNAL-MEMORY-TAGS.md`
 - `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
 - `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
+- `docs/OPC-UA.md`
 
 **ObservedGitHubState:**
 
 - PR #46 Audit UI is **MERGED** as `5629f55699d68d70d11d7058c26033d54306b570` after CI #244 passed.
 - PR #47 Script Engineering foundation is **MERGED** as `8a8a52e9e1725fca5b9e06ff9f560f583dab5bbb` after CI #248 passed.
 - PR #48 Internal Memory Engineering + durable Server Memory retention is **MERGED** as `ad4a7aa8d17e4e7370e5801d470a69f1a096bab4` after CI #265 and post-merge CI #266 passed.
-- PR #49 complete Internal Memory runtime/product integration is **MERGED** as `18e0c5f55bf33958d040ed3a2f2b948e34d3cc5f`.
-- PR #49 final head `f12e4dc7b65f4ab41f47f26aca779dcd9aa0fde9` passed CI #296 across Web, backend build/tests/runtime smoke and Chromium E2E.
-- Post-merge `main` CI #297 passed the same full stack on merge commit `18e0c5f55bf33958d040ed3a2f2b948e34d3cc5f`.
-- Internal Memory complete product integration is therefore **MERGED / COMPLETE** and no longer blocks TAG Gateway.
+- PR #49 complete Internal Memory runtime/product integration is **MERGED** as `18e0c5f55bf33958d040ed3a2f2b948e34d3cc5f` after final CI #296 and post-merge CI #297 passed.
+- Internal Memory complete product integration is **MERGED / COMPLETE** and no longer blocks TAG Gateway.
 - Canonical Engineering remains schema v8 until the Gateway Engineering worker deliberately evolves it with compatibility coverage.
+- `docs/OPC-UA.md` now locks the future OPC UA discovery, endpoint/security inspection, browse, multi-select import, NodeId re-resolution and rescan experience.
+- No production OPC UA implementation is authorized by this research assignment.
 
 **Dependencies:**
 
-- TAG Gateway is now the active locked source/protocol block.
-- The first Gateway implementation slice is the public/versioned Engineering contract and deterministic validation; runtime execution follows only after that contract is official.
-- DEV 2 has exclusive worker ownership of central Gateway Engineering contract changes for this slice.
-- DEV 1 and DEV 3 remain `WAIT_FOR_COORDINATOR` to avoid artificial overlap.
-- Canonical Script package/schema integration remains valid future work but is deferred while DEV 2 owns overlapping central Engineering contract surfaces.
+- TAG Gateway remains the active locked functional source/protocol block.
+- DEV 2 exclusively owns the public/versioned Gateway Engineering contract and central Gateway-related `EngineeringContracts.cs` changes.
+- DEV 1 may work only on the isolated non-production OPC UA research/specification slice; it must not touch runtime protocol composition or DEV 2 central Engineering ownership.
+- DEV 3 remains `WAIT_FOR_COORDINATOR`.
+- Canonical Script package/schema integration remains deferred while DEV 2 owns overlapping central Engineering contract surfaces.
 
 **NextActions:**
 
-1. let DEV 2 create `feature/tag-gateway-engineering` from the current assignment baseline and implement only the assigned Engineering/validation slice;
-2. inspect DEV 2 branch/PR/head/diff/CI on the next coordinator `siga`;
-3. reconcile and merge only after focused tests and full relevant CI are green;
-4. after the Gateway Engineering contract is official on `main`, assign the protocol-independent runtime Gateway engine as the next slice;
-5. keep common multi-driver diagnostics and interface-validation preview blocked until their preceding gates are complete;
-6. keep DEV 1 and DEV 3 idle until a non-conflicting explicit assignment is recorded.
+1. let DEV 2 create/use `feature/tag-gateway-engineering` and implement only the assigned Engineering/validation slice;
+2. let DEV 1 create/use `research/opc-ua-discovery-import` and produce the assigned OPC UA research/specification deliverable without production protocol code;
+3. inspect each worker branch/PR/head/diff/CI or documentation evidence on the next coordinator `siga`;
+4. merge functional Gateway Engineering only after focused tests and relevant full CI are green;
+5. review DEV 1 OPC UA findings for incorporation into the later production protocol assignment, without changing the current runtime gate;
+6. after the Gateway Engineering contract is official on `main`, assign the protocol-independent runtime Gateway engine as the next functional slice;
+7. keep common multi-driver diagnostics and interface-validation preview blocked until preceding gates are complete;
+8. keep DEV 3 idle until a non-conflicting explicit assignment is recorded.
 
 **AfterCompletion:** `CONTINUE_COORDINATION`
 
@@ -89,19 +93,82 @@ Treat Internal Memory as a completed merged product block, preserve the mandator
 
 **Role:** `WORKER`
 
-**CurrentTask:** Audit UI and diagnostics client foundation
+**CurrentTask:** OPC UA discovery, address-space browse and TAG-import Engineering research spike
 
-**Branch:** `feature/audit-ui`
+**Branch:** `research/opc-ua-discovery-import`
 
-**Status:** `MERGED / WAITING`
+**Status:** `ASSIGNED`
 
-**PullRequest:** `#46` — **MERGED**
+**PullRequest:** none yet
 
-**MergedCommit:** `5629f55699d68d70d11d7058c26033d54306b570`
+**Objective:**
 
-**Validation:** CI #244 passed Web build, backend build/tests, runtime smoke and Chromium E2E.
+Research and specify the future EliteSCADA OPC UA client Engineering workflow, taking useful conveniences from the Elipse E3 OPC UA experience and improving them for EliteSCADA: network/server discovery, endpoint/security inspection, certificate trust, lazy address-space browsing, search/filter, multi-select/subtree TAG import preview, subscription profiles, NodeId/BrowsePath reconciliation and safe rescan. This is explicitly a non-production spike and must not activate an OPC UA runtime Data Source.
 
-**NextActions:** none. Do not create a branch or select another roadmap item. On `siga`, report that this assignment is merged and `WAIT_FOR_COORDINATOR` is active unless this board contains a new task.
+**AllowedScope:**
+
+- research official Elipse E3 OPC UA manuals and relevant OPC Foundation specifications/reference client behavior;
+- evaluate the official OPC Foundation UA .NET Standard client stack as the primary implementation candidate, including current package/version/licensing/security/interoperability considerations;
+- create/update only workstream-specific research documentation under `docs/research/opc-ua/**` or another new isolated OPC-UA research path agreed by this assignment;
+- document proposed discovery modes, bounded network scan, endpoint/security/certificate model, address-space browse/search model, Node identity/re-resolution strategy, TAG type/access mapping, subscription profile model, import-preview UX/data contracts, simulator/test-server strategy and known risks;
+- create diagrams/tables/examples inside the research documentation when useful;
+- PR body may record research findings, sources, decisions proposed for coordinator review and exact future `INTEGRATION REQUIRED` implementation slices.
+
+**ForbiddenScope:**
+
+- `main`;
+- production OPC UA networking/client execution inside EliteSCADA runtime;
+- adding/registering an OPC UA Data Source or driver type in Active Runtime;
+- adding OPC UA NuGet/runtime dependencies to production projects;
+- `src/Scada.Api/Program.cs`, central DI/composition, hosted services or API endpoints;
+- `src/Scada.DriverHost/**` functional OPC UA runtime work;
+- `src/Scada.Engineering/Contracts/EngineeringContracts.cs` or any Gateway/schema file currently owned by DEV 2;
+- frontend central routing/shell or production OPC UA UI;
+- `.github/workflows/**`;
+- changing the locked source/protocol order;
+- implementing MQTT/BACnet/S7 or unrelated protocol code;
+- insecure certificate auto-trust as a proposed product default;
+- claiming the OPC UA driver is implemented merely because the spike is complete.
+
+**MustReadSpecific:**
+
+- `docs/OPC-UA.md`
+- `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
+- `docs/INTERFACE-VALIDATION-MILESTONE.md`
+- `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
+- `docs/TAG-GATEWAY.md`
+
+**Dependencies:**
+
+- production OPC UA remains after the interface-preview/external-protocol gate;
+- this spike is allowed early only because it does not register protocol runtime behavior;
+- DEV 2 owns central Engineering contract evolution during the current Gateway slice;
+- future OPC UA production implementation must use the common Data Source/Source Provider/TAG/Gateway/diagnostics/security architecture.
+
+**CompletionCriteria:**
+
+1. Provide a sourced comparison of relevant Elipse E3 OPC UA conveniences and what EliteSCADA should adopt, improve or intentionally avoid.
+2. Recommend an OPC UA .NET client stack/package/version direction, with license/security/support rationale and no private-protocol reinvention without cause.
+3. Define manual endpoint, standard discovery and bounded/cancellable network-scan behavior, including duplicate result reconciliation and industrial-network safety limits.
+4. Define endpoint inspection and certificate trust workflow, including fail-closed unexpected certificate/server identity changes.
+5. Define lazy address-space browse, continuation/pagination strategy, search/filter behavior and large-server limits/cancellation.
+6. Define node identity using NodeId plus namespace-aware portable BrowsePath/namespace URI reconciliation, including Refresh/Re-resolve Node IDs and mismatch handling.
+7. Define OPC UA -> EliteSCADA TAG data-type/access mapping, including explicit unsupported/lossy cases.
+8. Define subscription/monitored-item Engineering profiles and how imported TAGs choose/default them.
+9. Define multi-select/subtree import candidate workflow and canonical Engineering Preview/Apply integration contract without editing the central schema in this spike.
+10. Define Rescan/diff behavior for new/missing/changed nodes without silent Engineering deletion.
+11. Identify representative OPC UA test servers/simulators and a later CI/interoperability test strategy.
+12. Produce a concise recommended implementation breakdown for the future production driver after the gate opens.
+13. Do not introduce production OPC UA runtime code or dependencies.
+
+**NextActions:**
+
+1. create/use only `research/opc-ua-discovery-import` from current `main`;
+2. reread the required repository docs and verify the branch/assignment before research;
+3. study current Elipse E3 OPC UA manuals and official OPC Foundation client/discovery/subscription references;
+4. write the isolated research deliverable with concrete EliteSCADA recommendations;
+5. open/update a Draft PR to `main` containing documentation/research only and wording `RESEARCH IN PR / NOT IMPLEMENTED`;
+6. stop under `WAIT_FOR_COORDINATOR` when the completion criteria are met.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 

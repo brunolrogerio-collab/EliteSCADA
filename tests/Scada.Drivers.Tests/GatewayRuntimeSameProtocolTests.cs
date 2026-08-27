@@ -76,7 +76,13 @@ public sealed class GatewayRuntimeSameProtocolTests
         var activation = await runtime.ActivateAsync("gateway-modbus-modbus", 1, package);
         Assert.True(activation.Activated, Describe(activation));
 
-        await WaitForAsync(() => destinationServer.HoldingRegisters[10] == 42, TimeSpan.FromSeconds(4));
+        await WaitForAsync(() =>
+        {
+            var diagnostics = runtime.GatewayDiagnostics();
+            return destinationServer.HoldingRegisters[10] == 42
+                && diagnostics.Count == 1
+                && diagnostics.Any(item => item.TransferCount >= 1 && item.WriteFailureCount == 0);
+        }, TimeSpan.FromSeconds(4));
         var diagnostic = Assert.Single(runtime.GatewayDiagnostics());
         Assert.Equal("plc.a", diagnostic.SourceDataSource);
         Assert.Equal("plc.b", diagnostic.DestinationDataSource);

@@ -3,127 +3,99 @@
 > Operational handoff. Read with `PROJECT GOAL.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/CHAT-WORK-ASSIGNMENTS.md` and the current task-specific documents before every EliteSCADA action.
 
 **Handoff date:** 2026-08-27  
-**Development state:** **ACTIVE — INTERFACE PRODUCT DEVELOPMENT**
+**Development state:** **ACTIVE — INTERFACE PRODUCT DEVELOPMENT / CENTRAL INTEGRATION**
 
 Repository truth remains separated into **MERGED**, **IMPLEMENTED IN PR**, **RESEARCH IN PR** and **SPECIFIED / NOT IMPLEMENTED**.
 
 ## CURRENT CHECKPOINT
 
-Merged platform foundations now include:
+Merged platform foundations remain:
 
 - Internal Memory: **MERGED / COMPLETE** through PR #49;
 - TAG Gateway: **MERGED / COMPLETE** through PRs #50 and #55;
 - common multi-driver/Data Source diagnostics: **MERGED / COMPLETE** through PRs #56 and #57;
-- PR #57 merge SHA: `c8190cc119a2e288834d619084396107103b2f56`;
-- PR #57 exact-head CI #350 and post-merge main CI #351: **all green**;
 - canonical Engineering: **Schema v9**;
 - current production external protocol baseline remains Modbus TCP plus built-in Simulation/Internal Memory;
-- additional MQTT/OPC UA/BACnet/S7/Driver Module production work is postponed;
-- provisional Windows x64 validation/presentation packaging is postponed until the interface matures further.
+- additional MQTT/OPC UA/BACnet/S7/Driver Module production work remains postponed;
+- provisional Windows x64 validation/presentation packaging remains postponed until the interface matures further.
 
-The product owner explicitly reprioritized development on 2026-08-27:
+The active order remains:
 
-> focus on interface development now because it provides more value than additional drivers or the provisional presentation build.
+`merged platform foundations -> interface product development -> user validation build/package -> additional external drivers/protocols`
 
-The active sequence is therefore:
+## INTERFACE WORKER SLICES — NOW MERGED
 
-`merged foundations -> interface product development -> user validation build/package -> additional external drivers/protocols`
+All three worker assignments created for the first interface block are complete, reviewed, exact-head green and merged into official `main`.
 
-This scheduling change does not weaken the stable architecture in `PROJECT GOAL.md`; it inserts a deliberate product-UX maturation block before the existing preview/driver gate.
+### DEV 3 — session/user menu
 
-## ACTIVE PRODUCT BLOCK — INTERFACE DEVELOPMENT
+PR #59 `Add authenticated session user-menu primitive`
 
-Authoritative direction: `docs/INTERFACE-DEVELOPMENT.md`.
+- final worker head: `f0b120c3ec3e268b9c7875fc73450a150e1dda5a`;
+- CI #363: **SUCCESS**;
+- reviewed scope: exactly five authorized auth/session UI/test files;
+- merge commit: `b0b58964f119f83356cf2edc8fecf5939fb905da`;
+- status: **MERGED / WAITING**.
 
-Primary goals:
+### DEV 1 — Engineering entity browser
 
-1. coherent EliteSCADA application shell across Runtime, Engineering and Audit;
-2. replace floating/developer-style navigation with a proper product navigation model;
-3. improve Engineering information architecture, search, scalable entity browsing, master/detail behavior and editor consistency;
-4. evolve Runtime beyond a hard-coded demo surface by adding a useful operational overview while preserving the demo process screen;
-5. expose authenticated session/user context cleanly;
-6. align loading/error/empty/status patterns, responsive behavior and `pt-BR` / `en` / `es` experience;
-7. keep healthy states visually quiet and abnormal industrial conditions appropriately emphasized;
-8. preserve backend-enforced security, Audit, Engineering lifecycle, TAG quality, Gateway and diagnostics semantics.
+PR #60 `Add Engineering entity browser workspace primitives`
 
-The future graphical Screen/Popup/Dynamo editor is **not** opened by this block. It remains governed by the locked chain:
+- final worker head: `ab8e7e0b698a8533ea6a08048deb3c464840e843`;
+- CI #359: **SUCCESS**;
+- reviewed scope: exactly four authorized Engineering UI/test files;
+- merge commit: `a7e6105fb65079ad1af8bcb56f8484225ff3dc8c`;
+- status: **MERGED / WAITING**.
 
-`canonical Script integration -> script editor/sandbox -> visual runtime object/property integration -> graphical editor -> advanced visual libraries`
+### DEV 2 — Runtime operational overview
 
-## BRANCH / PARALLEL STATE
+PR #61 `Add runtime operational overview UI primitives`
 
-### Coordinator
+- final worker head: `7fbd564c93af5ad3d4c83d2ddc8d5ed782d2957d`;
+- CI #360: **SUCCESS**;
+- reviewed scope: seven authorized Runtime UI/helper/test files;
+- diagnostics remain read-only and protected; Simulation/restricted states do not fabricate communication failure;
+- merge commit: `49c9e7261d63047b601f4b3c4f6e788168c8ee5c`;
+- status: **MERGED / WAITING**.
 
-Active branch:
+The assignment board was reconciled in main commit `2996ca88cd58add0575962bc0440866012b0e90b`.
 
-`feature/interface-product-development`
+## COORDINATOR PR #58
 
-Coordinator owns central product shell, `main.tsx`, `AppNavigation.tsx`, global UX integration, `EngineeringApp.tsx`, central localization, worker integration, browser tests, CI, merges and docs.
+`feature/interface-product-development` / PR #58 remains **IMPLEMENTED IN PR / DRAFT / NOT MERGED**.
 
-### Parked preview branch
+Current known head before reconciliation with the worker merges:
 
-`integration/interface-validation-preview`
+`bc6ba6cd760649064984208b0b0584f9a9c28042`
 
-State at reprioritization:
+It contains the coordinator product-shell/navigation slice. CI #357 on that head produced:
 
-- **PARKED / NO PR / NOT MERGED**;
-- two commits ahead of the earlier `main` base;
-- touched only `src/Scada.Api/Program.cs` and `web/scada-web/src/AppNavigation.tsx`;
-- preparatory work is preserved but must not be merged merely to avoid losing it;
-- Windows packaging/launcher work resumes later from current product state, not from this older UX snapshot.
+- Web build: **PASS**;
+- backend build/tests/runtime smoke: **PASS**;
+- Chromium E2E: **FAIL**.
 
-### DEV 1
+Therefore PR #58 must not be merged yet. The coordinator must reconcile the branch with current `main`, integrate the three newly merged worker components, fix the Chromium failure at the root and rerun the full CI.
 
-New assignment: Engineering workspace/entity-browser ergonomics primitives.
+## PARKED WORK
 
-Branch:
+`integration/interface-validation-preview` remains **PARKED / NO PR / NOT MERGED**. Its preparatory work is preserved but is not the active branch.
 
-`feature/engineering-workspace-ux`
-
-Status: **ASSIGNED**.
-
-### DEV 2
-
-New assignment: Runtime operational overview UI primitives.
-
-Branch:
-
-`feature/runtime-operations-ux`
-
-Status: **ASSIGNED**.
-
-### DEV 3
-
-New assignment: authenticated session/user-menu UX primitive.
-
-Branch:
-
-`feature/session-ux`
-
-Status: **ASSIGNED**.
-
-Research PR #54 remains separate and unchanged.
-
-Full worker scopes and forbidden files are authoritative in `docs/CHAT-WORK-ASSIGNMENTS.md`.
-
-## OPEN RESEARCH INPUTS
-
-- PR #53 graphical visual editor architecture/UX: **RESEARCH IN PR / DELIVERED**, not production editor implementation.
-- PR #54 Client Python editor/browser sandbox: **RESEARCH IN PR / DELIVERED**, not production Python/editor implementation.
-
-These remain useful design inputs but do not override the current interface task scopes or prerequisite chains.
+PR #53 graphical visual editor architecture and PR #54 Client Python editor/browser sandbox remain **RESEARCH IN PR / DELIVERED**, not production implementations.
 
 ## COORDINATOR RESUME POINT
 
 On the next coordinator `siga`:
 
 1. reread mandatory docs from current `main`;
-2. verify `main`, `feature/interface-product-development`, worker branches, PRs and CI;
-3. continue central application-shell/navigation work;
-4. review and integrate worker UI PRs only after they are delivered and green;
-5. improve Engineering and Runtime UX in coherent slices with Chromium coverage;
-6. do not resume new drivers or provisional Windows packaging unless product-owner priority changes again;
-7. merge only current-head green work and update this handoff after material integration.
+2. verify live `main`, PR #58/head/CI and worker merge state;
+3. reconcile `feature/interface-product-development` with current `main` without discarding shell work;
+4. wire merged `UserSessionMenu` into the global product shell;
+5. wire merged `EngineeringEntityBrowser` into the Engineering workspace while preserving Preview/Apply/CAS semantics;
+6. wire merged `RuntimeOperationsOverview` into Runtime while preserving the process demo;
+7. fix the current Chromium failure and add integrated UX coverage;
+8. run full Web/backend/smoke/Chromium CI and merge only a green reviewed PR #58;
+9. keep DEV 1/2/3 idle until the coordinator explicitly assigns the next interface slice;
+10. do not resume new drivers or provisional Windows packaging unless product priority changes.
 
 ## Permanent continuity rules
 

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import {
+  classifyAdministrationStatus,
   countAdministrationUsers,
   filterAdministrationUsers,
   sameRoles,
@@ -56,4 +57,14 @@ test('Administration model reports only changed security/profile dimensions', ()
 
 test('Administration summary keeps enabled and disabled counts explicit', () => {
   expect(countAdministrationUsers(users)).toEqual({ total: 2, enabled: 1, disabled: 1 });
+});
+
+test('Administration classifies authorization, conflict and validation HTTP states without collapsing them', () => {
+  expect(classifyAdministrationStatus(400)).toBe('validation');
+  expect(classifyAdministrationStatus(422)).toBe('validation');
+  expect(classifyAdministrationStatus(401)).toBe('unauthorized');
+  expect(classifyAdministrationStatus(403)).toBe('forbidden');
+  expect(classifyAdministrationStatus(404)).toBe('not-found');
+  expect(classifyAdministrationStatus(409)).toBe('conflict');
+  expect(classifyAdministrationStatus(503)).toBe('unknown');
 });

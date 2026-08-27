@@ -27,9 +27,9 @@ export function AlarmEditor({ model, locale }: { model: EngineeringPackageView; 
       enabled: copy.enabled,
       disabled: copy.disabled,
       requiresAck: copy.requiresAck,
-      priority: copy.priority,
-      area: copy.area,
-      type: copy.type
+      priority: copy.filterPriority,
+      area: copy.filterArea,
+      type: copy.filterType
     }),
     [alarms, copy]
   );
@@ -158,11 +158,13 @@ function alarmWorkspaceCopy(locale: EngineeringLocale) {
     emptyDescription: 'The canonical Engineering model does not contain Alarm definitions.', noMatches: 'No matching alarms',
     noMatchesDescription: 'Change the search text or filter to inspect other Alarm definitions.', select: 'Select an Alarm',
     selectDescription: 'Choose an Alarm definition to inspect its canonical configuration.', of: 'of',
-    enabled: 'Enabled', disabled: 'Disabled', requiresAck: 'Requires ACK', priority: 'Priority', area: 'Area', type: 'Type',
-    identity: 'Stable ID', tag: 'TAG reference', alarmClass: 'Alarm class', condition: 'Condition', delay: 'Activation delay',
-    acknowledgement: 'Acknowledgement', shelving: 'Shelving', status: 'Status', message: 'Operator message',
-    noMessage: 'No operator message configured.', required: 'Required', notRequired: 'Not required', allowed: 'Allowed',
-    notAllowed: 'Not allowed', notConfigured: 'Not configured', notPersisted: 'No persisted stable ID', immediate: 'Immediate',
+    enabled: 'Enabled', disabled: 'Disabled', requiresAck: 'Requires ACK',
+    filterPriority: 'Severity', filterArea: 'Zone', filterType: 'Kind',
+    priority: 'Priority', area: 'Area', type: 'Type', identity: 'Stable ID', tag: 'TAG reference',
+    alarmClass: 'Alarm class', condition: 'Condition', delay: 'Activation delay', acknowledgement: 'Acknowledgement',
+    shelving: 'Shelving', status: 'Status', message: 'Operator message', noMessage: 'No operator message configured.',
+    required: 'Required', notRequired: 'Not required', allowed: 'Allowed', notAllowed: 'Not allowed',
+    notConfigured: 'Not configured', notPersisted: 'No persisted stable ID', immediate: 'Immediate',
     detailEyebrow: 'Selected definition', summaryLabel: 'Alarm summary',
     authorityNote: 'This browser is read-only. Changes remain subject to the existing protected Engineering Preview / Apply / CAS workflow.'
   };
@@ -176,11 +178,13 @@ function alarmWorkspaceCopy(locale: EngineeringLocale) {
     emptyDescription: 'El modelo canónico de Engineering no contiene definiciones de Alarmas.', noMatches: 'Sin alarmas coincidentes',
     noMatchesDescription: 'Cambie la búsqueda o el filtro para inspeccionar otras definiciones de Alarmas.', select: 'Seleccione una Alarma',
     selectDescription: 'Elija una definición de Alarma para inspeccionar su configuración canónica.', of: 'de',
-    enabled: 'Habilitada', disabled: 'Deshabilitada', requiresAck: 'Requiere ACK', priority: 'Prioridad', area: 'Área', type: 'Tipo',
-    identity: 'ID estable', tag: 'Referencia TAG', alarmClass: 'Clase de Alarma', condition: 'Condición', delay: 'Retardo de activación',
-    acknowledgement: 'Reconocimiento', shelving: 'Shelving', status: 'Estado', message: 'Mensaje al operador',
-    noMessage: 'No hay mensaje al operador configurado.', required: 'Requerido', notRequired: 'No requerido', allowed: 'Permitido',
-    notAllowed: 'No permitido', notConfigured: 'No configurado', notPersisted: 'Sin ID estable persistido', immediate: 'Inmediato',
+    enabled: 'Habilitada', disabled: 'Deshabilitada', requiresAck: 'Requiere ACK',
+    filterPriority: 'Nivel', filterArea: 'Zona', filterType: 'Categoría',
+    priority: 'Prioridad', area: 'Área', type: 'Tipo', identity: 'ID estable', tag: 'Referencia TAG',
+    alarmClass: 'Clase de Alarma', condition: 'Condición', delay: 'Retardo de activación', acknowledgement: 'Reconocimiento',
+    shelving: 'Shelving', status: 'Estado', message: 'Mensaje al operador', noMessage: 'No hay mensaje al operador configurado.',
+    required: 'Requerido', notRequired: 'No requerido', allowed: 'Permitido', notAllowed: 'No permitido',
+    notConfigured: 'No configurado', notPersisted: 'Sin ID estable persistido', immediate: 'Inmediato',
     detailEyebrow: 'Definición seleccionada', summaryLabel: 'Resumen de Alarma',
     authorityNote: 'Este navegador es de solo lectura. Los cambios continúan sujetos al flujo protegido Preview / Apply / CAS de Engineering.'
   };
@@ -194,11 +198,13 @@ function alarmWorkspaceCopy(locale: EngineeringLocale) {
     emptyDescription: 'O modelo canônico de Engineering não contém definições de Alarmes.', noMatches: 'Nenhum alarme correspondente',
     noMatchesDescription: 'Altere a pesquisa ou o filtro para inspecionar outras definições de Alarmes.', select: 'Selecione um Alarme',
     selectDescription: 'Escolha uma definição de Alarme para inspecionar sua configuração canônica.', of: 'de',
-    enabled: 'Habilitado', disabled: 'Desabilitado', requiresAck: 'Exige ACK', priority: 'Prioridade', area: 'Área', type: 'Tipo',
-    identity: 'ID estável', tag: 'Referência TAG', alarmClass: 'Classe do Alarme', condition: 'Condição', delay: 'Atraso de ativação',
-    acknowledgement: 'Reconhecimento', shelving: 'Shelving', status: 'Status', message: 'Mensagem ao operador',
-    noMessage: 'Nenhuma mensagem ao operador configurada.', required: 'Obrigatório', notRequired: 'Não obrigatório', allowed: 'Permitido',
-    notAllowed: 'Não permitido', notConfigured: 'Não configurado', notPersisted: 'Sem ID estável persistido', immediate: 'Imediato',
+    enabled: 'Habilitado', disabled: 'Desabilitado', requiresAck: 'Exige ACK',
+    filterPriority: 'Nível', filterArea: 'Setor', filterType: 'Condição',
+    priority: 'Prioridade', area: 'Área', type: 'Tipo', identity: 'ID estável', tag: 'Referência TAG',
+    alarmClass: 'Classe do Alarme', condition: 'Condição', delay: 'Atraso de ativação', acknowledgement: 'Reconhecimento',
+    shelving: 'Shelving', status: 'Status', message: 'Mensagem ao operador', noMessage: 'Nenhuma mensagem ao operador configurada.',
+    required: 'Obrigatório', notRequired: 'Não obrigatório', allowed: 'Permitido', notAllowed: 'Não permitido',
+    notConfigured: 'Não configurado', notPersisted: 'Sem ID estável persistido', immediate: 'Imediato',
     detailEyebrow: 'Definição selecionada', summaryLabel: 'Resumo do Alarme',
     authorityNote: 'Este navegador é somente leitura. Alterações continuam sujeitas ao fluxo protegido Preview / Apply / CAS do Engineering.'
   };

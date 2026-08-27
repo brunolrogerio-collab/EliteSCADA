@@ -10,7 +10,7 @@ test('Administration requires confirmation before session-affecting account chan
   const admin = page.getByTestId('user-administration');
   await expect(admin).toBeVisible();
   await expect(page.getByTestId('admin-summary')).toBeVisible();
-  await expect(page.getByText('Session consequence', { exact: true })).toBeVisible();
+  await expect(admin.locator('.user-admin-session-policy strong')).toHaveText('Session consequence');
   await expect(page.getByText(/does not enumerate individual sessions/)).toBeVisible();
 
   const username = `ergonomics-${Date.now()}`;

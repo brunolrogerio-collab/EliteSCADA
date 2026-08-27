@@ -3,68 +3,27 @@
 Engineering Import/Export remains a mandatory cross-cutting capability throughout this roadmap. Every new Engineering domain must join the public versioned model, validation/preview/apply workflow, revision lifecycle and backup/restore path.
 
 **Status date:** 2026-08-27  
-**Functional development:** **ACTIVE — INTERFACE PRODUCT DEVELOPMENT**
+**Functional development:** **ACTIVE — INTERFACE PRODUCT DEVELOPMENT / SECOND WAVE**
 
 ## Established `main` foundation
 
-The current merged platform includes:
+The current merged platform includes repository/CI foundation, TAG Engine and quality/current cache, Event Bus, Simulation and Modbus TCP drivers, common Driver SDK/DriverHost boundaries, REST/WebSocket runtime, PostgreSQL Engineering persistence, Working/Revision/Published/Active lifecycle, TimescaleDB historian foundations, canonical import/export, protected Engineering Workspace/CAS mutations, JWT/local identity and authorization, durable Audit, Engineering UI, structured TAG/Data Source/Alarm editors, local user administration, Internal Memory, Python/Visual public contract foundations, isolated Script Engineering, Engineering Schema v9 TAG Gateway, complete protocol-independent TAG Gateway, common multi-Data-Source diagnostics and the first integrated Interface Product Development checkpoint.
 
-1. repository architecture and CI/CD foundation;
-2. TAG Engine, quality model, current-value cache and Event Bus;
-3. Simulation driver and common Driver SDK/DriverHost boundary;
-4. REST API + WebSocket realtime runtime;
-5. React runtime client baseline;
-6. PostgreSQL Engineering persistence;
-7. Working / immutable Revision / Published / Active lifecycle;
-8. transactional activation and fail-closed persisted-runtime recovery;
-9. TimescaleDB historian baseline plus retention/downsampling foundation;
-10. real Modbus TCP runtime with grouped polling, writes, reconnect and communication quality;
-11. Engineering Data Source compilation into runtime plans;
-12. isolated Engineering Workspace and CAS-protected mutation flows;
-13. capability-based authorization, trusted JWT/local identity and durable Audit foundations;
-14. protected runtime read, historian, alarm, Engineering, diagnostics and realtime surfaces;
-15. Engineering UI at `/engineering` plus Runtime/Engineering/Audit navigation and localization baseline;
-16. structured TAG, Data Source and Alarm editors;
-17. local user administration;
-18. complete Client/Server Internal Memory product integration;
-19. Python Scripting + Visual Property public contract foundation;
-20. isolated Public Script Engineering domain;
-21. Engineering Schema v9 with first-class TAG Gateway routes;
-22. complete protocol-independent TAG Gateway runtime/product integration;
-23. complete protocol-neutral multi-driver/Data Source diagnostics with Modbus instrumentation and multi-instance acceptance;
-24. elaborated communication diagnostics UX in Engineering;
-25. first integrated Interface Product Development checkpoint with persistent localized product shell, authenticated user/session affordance, Runtime operational overview, and Engineering Data Source/TAG entity-browser navigation.
+Important current checkpoints:
 
-Important recent merged checkpoints:
-
-- PR #35 Commands: `2fd568976fc6277d0b069adeeb560f6ea3d8205f`;
-- PR #37 Engineering UI foundation: `4553aa7ab5ba7e05a209a7c8462286d1a34a1ad6`;
-- PR #38 Local identity/browser login: `2a581d279a428cb605429d5939c333ff7ad8d1b4`;
-- PR #40 Internal Memory foundation: `bb38617c9c27cb5c379973a6f65d66006f24eadc`;
-- PR #41 Python/Visual foundation: `fc0731309d5b92d302f019d06d3511d3a247b607`;
-- PR #42 secured Engineering mutations: `6d49b99181fce6dabce838822ce972332e2f77f0`;
-- PR #43 Historian retention/downsampling: `0c5f2aefdd5a7286c0c9367569067e2d12091c81`;
-- PRs #44-#46 Audit durability/runtime/UI;
-- PR #47 isolated Script Engineering foundation: `8a8a52e9e1725fca5b9e06ff9f560f583dab5bbb`;
-- PRs #48-#49 complete Internal Memory product integration;
-- PR #50 TAG Gateway Engineering / Schema v9: `7a039c0eda8802a8ed2851fe9223fd831859fc61`;
-- PR #55 complete TAG Gateway runtime/product integration: `41bc437ba64f60fba26754794a9dc5a4e9a034f7`;
-- PRs #56-#57 complete communication diagnostics product;
-- PR #57 merge SHA: `c8190cc119a2e288834d619084396107103b2f56`;
-- PR #58 first integrated interface product checkpoint: `f3cc82f0d45a9f0162105b57ae6c42f643af6160`, exact-head CI #378 fully green;
-- worker interface slices PR #59 / #60 / #61 were integrated through PR #58.
-
-Canonical Engineering JSON on official `main` remains **Schema v9**.
+- Internal Memory: complete through PR #49;
+- TAG Gateway: complete through PRs #50 and #55;
+- communication diagnostics: complete through PRs #56 and #57;
+- first integrated interface checkpoint: PR #58, merge `f3cc82f0d45a9f0162105b57ae6c42f643af6160`, exact-head CI #378 green;
+- canonical Engineering JSON remains **Schema v9**.
 
 ## Current development order
 
-The product owner reprioritized work on 2026-08-27 to gain more value from the interface before additional drivers or a provisional presentation package.
-
-The active order is now:
+The product order remains:
 
 `merged platform foundations -> INTERFACE PRODUCT DEVELOPMENT -> USER INTERFACE VALIDATION BUILD/PACKAGE -> additional external protocols`
 
-This is a scheduling refinement, not an architectural rollback. The stable source/provider/security/Engineering boundaries remain unchanged.
+This is a scheduling decision, not an architectural rollback. Source/provider/security/Engineering boundaries remain unchanged.
 
 ## 1. Internal Memory TAG sources
 
@@ -78,7 +37,7 @@ See `docs/INTERNAL-MEMORY-TAGS.md`.
 
 **COMPLETE / MERGED.**
 
-Canonical Schema v9 Gateway routes, Preview/Apply/revision/package persistence, cycle/multiple-writer validation, fan-out, Server Memory support, OnChange/Periodic execution, quality policy, deadband/rate/coalescing/startup synchronization, checked conversion/scaling, transactional active-runtime replacement, diagnostics and Engineering UI are merged.
+Schema v9 Gateway routes, Preview/Apply/revision/package persistence, validation, Server Memory support, OnChange/Periodic execution, quality policy, conversion/scaling, transactional runtime replacement, diagnostics and Engineering UI are merged.
 
 See `docs/TAG-GATEWAY.md`.
 
@@ -86,45 +45,65 @@ See `docs/TAG-GATEWAY.md`.
 
 **COMPLETE / MERGED.**
 
-Current product supports protocol-neutral per-Data-Source communication diagnostics, Modbus instrumentation, independent multi-instance failure/recovery/counters/quality behavior, protected backend snapshots and Engineering diagnostics UX.
+Protocol-neutral per-Data-Source communication diagnostics, Modbus instrumentation, independent multi-instance failure/recovery/counters/quality behavior, protected backend snapshots and Engineering diagnostics UX are merged.
 
 See `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
 
 ## 4. Interface product development
 
-**ACTIVE PRODUCT BLOCK — FIRST INTEGRATED CHECKPOINT MERGED.**
+**ACTIVE PRODUCT BLOCK — FIRST CHECKPOINT MERGED / SECOND WAVE ASSIGNED.**
 
 Authoritative task direction: `docs/INTERFACE-DEVELOPMENT.md`.
 
-The first acceptance checkpoint is merged through PR #58. It establishes the common product shell plus central integration of the first worker primitives. Interface development remains active; this merge is not the end of the block and does not reopen the external-protocol or Windows-package gates.
-
-Merged first-checkpoint behavior includes:
+The first checkpoint through PR #58 established:
 
 - persistent coherent Runtime / Engineering / Audit navigation;
 - localized shell identity in `pt-BR` / `en` / `es`;
 - authenticated user/session affordance;
-- Runtime operational overview using existing protected facts while preserving the process demo;
-- Engineering Data Source and TAG browser/search surfaces over the canonical model;
-- existing Preview/Apply/CAS protected mutation flows preserved;
-- full exact-head Web/backend/smoke/Chromium acceptance on PR #58.
+- Runtime operational overview using protected facts;
+- Engineering Data Source and TAG browser/search surfaces over canonical Engineering;
+- existing Preview/Apply/CAS flows preserved.
 
-Primary continuing implementation areas remain product-shell consistency, Engineering workspace ergonomics, Runtime operational usability and Session/Admin/Audit consistency according to `docs/INTERFACE-DEVELOPMENT.md`.
+### Second interface wave
+
+The next parallel implementation wave is:
+
+1. **DEV 1 — Engineering Alarm Workspace ergonomics**: scalable searchable/filterable Alarm definition navigation/master-detail over canonical Engineering, without altering mutation semantics;
+2. **DEV 2 — Runtime Alarm Center + protected acknowledgement UX**: use existing protected active-alarm and ACK APIs, refresh from authoritative backend state and preserve backend authorization/Audit;
+3. **DEV 3 — Audit workspace ergonomics**: compact filters, scalable results/master-detail and quieter diagnostics while preserving keyset pagination, query validation and `SystemAdmin` backend enforcement;
+4. **COORDINATOR — central integration** after worker delivery, cross-product consistency, browser acceptance and CI.
+
+Detailed scope is authoritative in `docs/CHAT-WORK-ASSIGNMENTS.md`.
 
 ### Guardrails
 
-This active UI block does not authorize a private frontend Engineering model, frontend-only security, direct frontend-to-driver access, fake diagnostics, the full graphical Screen/Popup/Dynamo editor ahead of Script/visual prerequisites, or new production external drivers.
+This UI block does not authorize private frontend Engineering, frontend-only security, direct frontend-to-driver access, fake diagnostics, production Python, the graphical Screen/Popup/Dynamo editor or new production external drivers.
 
 ## 5. User interface validation build/package
 
 **DEFERRED / STILL REQUIRED.**
 
-The milestone in `docs/INTERFACE-VALIDATION-MILESTONE.md` remains valid, but its Windows x64 packaging/launcher deliverable is postponed until the interface has materially matured.
+`docs/INTERFACE-VALIDATION-MILESTONE.md` remains valid. Windows x64 packaging/launcher is postponed until the interface has materially matured. The parked `integration/interface-validation-preview` branch remains unmerged.
 
-The parked branch `integration/interface-validation-preview` remains unmerged and is not an active integration candidate.
+After the second interface wave, the coordinator must explicitly reassess whether the interface is mature enough to resume this validation package.
 
-## 6. External protocol/module wave
+## 6. Research consolidation
 
-**PRODUCTION POSTPONED UNTIL AFTER INTERFACE DEVELOPMENT + VALIDATION FEEDBACK. RESEARCH MAY PROCEED.**
+The architecture research backlog that was previously held in open PRs is now incorporated into official `main` as **RESEARCH MERGED / PRODUCTION NOT IMPLEMENTED**:
+
+- PR #53 — graphical Screen/Popup/Dynamo editor architecture, CI #383 green, merge `491ee337bf2723d13d2759bc677300edd34e1fca`;
+- PR #54 — Client Visual Python editor/browser sandbox, CI #384 green, merge `80d06ea467c7c844807c0548940308ccf74a7510`;
+- PR #62 — BACnet/IP + BACnet/SC architecture, CI #380 green, merge `c60c611465bd82a898ee30d5f67fe79234381b8c`;
+- PR #63 — MQTT industrial Data Source architecture, CI #381 green, merge `05df6bc63893cb025f87899d27a5988b2e1cf896`;
+- PR #64 — Allen-Bradley EtherNet/IP/CIP Logix architecture, CI #382 green, merge `a71ce2d962d6b122714b61b5851465d9c284e7b6`.
+
+Merged OPC UA and Siemens S7 research remain additional architecture inputs.
+
+Research merge means the evidence is official. It does **not** select final production dependencies, register Data Sources, change runtime composition or bypass any prerequisite/product gate.
+
+## 7. External protocol/module wave
+
+**PRODUCTION POSTPONED UNTIL AFTER INTERFACE DEVELOPMENT + VALIDATION FEEDBACK.**
 
 Planned order remains broadly:
 
@@ -133,27 +112,27 @@ Planned order remains broadly:
 3. BACnet through the same model;
 4. installable/versioned Driver Module framework and public Driver SDK compatibility boundary;
 5. Siemens S7 ISO Connection as an intended installable-module target;
-6. later Allen-Bradley based on public documentation, licensing and testability.
+6. later Allen-Bradley based on research, licensing and real-hardware acceptance.
 
-OPC UA and Siemens S7 research already exist as architecture inputs. MQTT, BACnet/IP + BACnet/SC, and Allen-Bradley EtherNet/IP/CIP research were delivered as research-only PRs on 2026-08-27. These research documents do not authorize production runtime, Data Source registration, dependency selection or bypass of the product gate.
+No production work in this wave is authorized by the current assignment board.
 
 ## Historian and trends
 
 Storage foundations exist. Still required:
 
-- canonical Engineering representation for retention/downsampling policy;
+- canonical Engineering retention/downsampling policy;
 - raw vs aggregate query/resolution selection;
 - engineered, ad-hoc and saved multi-Pen trends;
 - historical + live trend integration;
 - expressions where appropriate.
 
-The active interface block may create useful trend entry points only where current APIs support them honestly; it must not invent unimplemented historian semantics.
+Interface work may expose honest entry points using current APIs, but must not invent historian semantics.
 
 ## Audit evolution
 
 Current merged Audit includes append-only PostgreSQL storage, bounded query/filtering, runtime integration, retention and `/audit` UI.
 
-Still future:
+The active DEV 3 task is interface ergonomics only. Future backend items remain:
 
 - persistent crash-surviving outbox while events are buffered;
 - manual purge-all endpoint;
@@ -180,7 +159,7 @@ Still required before production Python editor/runtime work:
 
 ### Python editor/sandbox
 
-PR #54 remains **RESEARCH IN PR / PRODUCTION NOT IMPLEMENTED**.
+Research is now **MERGED through PR #54 / PRODUCTION NOT IMPLEMENTED**. Pyodide/Monaco remain research recommendations only. Production work remains blocked by canonical Script integration and the active product schedule.
 
 ### Visual runtime object instances/property API
 
@@ -192,9 +171,7 @@ Runtime precedence remains:
 
 ### Graphical Screen/Popup/Dynamo editor
 
-PR #53 remains **RESEARCH IN PR / PRODUCTION NOT IMPLEMENTED**.
-
-Production graphical-editor work must not begin merely because general interface development is active.
+Research is now **MERGED through PR #53 / PRODUCTION NOT IMPLEMENTED**. Production graphical-editor work remains behind the locked prerequisite chain.
 
 ## Additional future Engineering/product slices
 
@@ -207,7 +184,7 @@ Still planned according to dependencies and ownership safety:
 - reusable Equipment/Template/Dynamo class-instance libraries;
 - runtime-HMI multilingual content separate from Engineering UI localization;
 - public SDK/module lifecycle, trust/integrity and diagnostics;
-- later sandboxed Server Python for shared calculations/automation.
+- later sandboxed Server Python.
 
 ## Development quality rules
 
@@ -216,7 +193,7 @@ Still planned according to dependencies and ownership safety:
 - Use GitHub CI as the external .NET validation environment when local .NET execution is unavailable.
 - Validate affected backend behavior, Web build and Chromium E2E.
 - Fix root causes rather than weakening tests/security/concurrency.
-- Preserve Engineering schema compatibility and current lifecycle boundaries.
+- Preserve Engineering schema compatibility and lifecycle boundaries.
 - Keep runtime safety ahead of UI convenience.
 - Interface changes must not bypass Engineering, TAG quality, security, Audit or source-provider architecture.
 - Worker branches never self-merge and coordinator-owned central files remain centrally controlled unless a narrow exception is explicitly assigned.

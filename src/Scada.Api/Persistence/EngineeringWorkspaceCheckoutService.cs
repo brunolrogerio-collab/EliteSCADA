@@ -33,7 +33,7 @@ public sealed class EngineeringWorkspaceCheckoutService(
     IEngineeringProjectStore store,
     IEngineeringExchangeService exchange,
     EngineeringWorkspace workspace,
-    IGatewayEngineeringRegistry gateways) : IEngineeringWorkspaceCheckoutService
+    IGatewayEngineeringRegistry? gateways = null) : IEngineeringWorkspaceCheckoutService
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
 
@@ -159,6 +159,6 @@ public sealed class EngineeringWorkspaceCheckoutService(
     private void ClearWorkspace()
     {
         workspace.Clear();
-        gateways.Clear();
+        gateways?.Clear();
     }
 }

@@ -77,6 +77,7 @@ test('Wave 03 readiness: Runtime exposes operational context, Alarm Center and r
 
   await expect(page.getByRole('region', { name: 'Visão operacional' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Central de alarmes' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Inspector de TAGs' })).toBeVisible();
   await expect(page.getByText(/ONLINE · 7 TAGs/)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('Reservatório TK01')).toBeVisible();
 
@@ -113,9 +114,9 @@ test('Wave 03 readiness: Engineering exposes the configured domains, Gateway, di
   await expect(page.locator('.eng-shell')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Visão geral do projeto' })).toBeVisible();
 
-  const lifecycle = page.locator('.eng-lifecycle');
+  const lifecycle = page.locator('.eng-lifecycle-workspace');
+  await expect(lifecycle).toBeVisible();
   await expect(lifecycle).toContainText('Working');
-  await expect(lifecycle).toContainText('Revision');
   await expect(lifecycle).toContainText('Published');
   await expect(lifecycle).toContainText('Active');
 
@@ -138,7 +139,7 @@ test('Wave 03 readiness: Engineering exposes the configured domains, Gateway, di
       testInfo,
       'TEST GAP',
       'Internal Memory acceptance fixture',
-      'The WaveBase demo has no Client Memory definitions, so the default cross-product journey cannot exercise the Memory settings UI. Dedicated internal-memory.spec.ts covers the product contract; the integrated validation fixture should add a canonical memory entity.'
+      'The WaveBase demo has no Client Memory definitions, so the default cross-product journey cannot exercise the Memory settings UI. Dedicated internal-memory.spec.ts covers the product contract; a later integrated demo fixture should add a canonical memory entity.'
     );
   }
 
@@ -155,24 +156,10 @@ test('Wave 03 readiness: Engineering exposes the configured domains, Gateway, di
     configuredProjectKey?: string | null;
   };
 
-  if (!persistenceStatus.enabled || !persistenceStatus.configuredProjectKey) {
-    annotateReadinessIssue(
-      testInfo,
-      'TEST GAP',
-      'Lifecycle acceptance fixture',
-      'The worker Playwright environment does not expose a configured persisted Runtime project, so Save/Publish/Activate cannot be exercised here without changing product configuration. Wave 03 integrated acceptance must cover the mounted Lifecycle Workspace with a persisted project fixture.'
-    );
-  } else {
-    const lifecycleResponse = await request.get(`/api/engineering/persistence/${encodeURIComponent(persistenceStatus.configuredProjectKey)}/lifecycle`);
-    expect(lifecycleResponse.ok()).toBeTruthy();
-  }
-
-  annotateReadinessIssue(
-    testInfo,
-    'TEST GAP',
-    'Wave 03 sibling integration',
-    'Engineering Lifecycle Workspace (DEV 1) and Runtime TAG Inspector (DEV 2) are intentionally absent from the immutable WaveBase. Their final browser acceptance belongs on the coordinator integration target after those slices are mounted.'
-  );
+  expect(persistenceStatus.enabled).toBeTruthy();
+  expect(persistenceStatus.configuredProjectKey).toBeTruthy();
+  const lifecycleResponse = await request.get(`/api/engineering/persistence/${encodeURIComponent(persistenceStatus.configuredProjectKey!)}/lifecycle`);
+  expect(lifecycleResponse.ok()).toBeTruthy();
 });
 
 test('Wave 03 readiness: Audit and user administration remain backend-authorized', async ({ request }) => {

@@ -172,6 +172,28 @@ Locked sequence:
 
 Projects referencing missing/disabled/incompatible modules must preserve Engineering configuration and surface diagnostics instead of silently deleting configuration.
 
+### Early OPC UA discovery/import research spike
+
+**RESEARCH / SPECIFICATION ASSIGNED — PRODUCTION DRIVER STILL BLOCKED.**
+
+DEV 1 may work in parallel on the non-production OPC UA discovery/browse/import spike defined by `docs/OPC-UA.md` because this research does not register an OPC UA runtime Data Source or alter active driver composition.
+
+The spike is intended to resolve before implementation:
+
+- official OPC Foundation .NET client package/version/licensing choice;
+- OPC UA discovery mechanisms and the bounded network-scan UX;
+- endpoint/security/certificate trust model;
+- address-space lazy browse/search/filter behavior;
+- namespace-aware BrowsePath + NodeId reconciliation;
+- TAG type/access mapping;
+- subscription/profile model;
+- multi-select/subtree TAG import preview;
+- representative simulator/test-server and CI strategy.
+
+It may produce research documentation, architecture/UX contracts and non-runtime analysis only. It must **not** add the production OPC UA client package to runtime projects, register a new OPC UA Data Source, touch central DI/API, perform live protocol execution in the product or move OPC UA ahead of the locked implementation gate.
+
+The future production OPC UA implementation remains stage 6 after the interface-preview gate unless the product roadmap is explicitly changed later.
+
 ## Historian and trend evolution
 
 PR #43 storage foundations are merged. Still required:
@@ -197,7 +219,7 @@ Still not implemented/claimed:
 - manual purge-all endpoint;
 - weaker/general AuditRead capability separate from `SystemAdmin`.
 
-Cross-origin browser access may require exposing `X-EliteSCADA-Audit-Next-Cursor` through deployment CORS policy; same-origin/Vite-proxy use is unaffected.
+Cross-origin browser access may require exposing `X-EliteSCADA-Audit-Next-Cursor` through the deployment CORS policy; same-origin/Vite-proxy use is unaffected.
 
 ## Python scripting and visual-runtime prerequisite chain
 
@@ -297,7 +319,9 @@ These remain locked product goals and may be scheduled according to dependencies
 
 The coordinator may run independent workstreams in parallel only when doing so does not violate locked dependencies or create avoidable ownership conflicts in central Engineering contracts, DI/composition or frontend shell files.
 
-DEV 2 is now `ASSIGNED` to the first TAG Gateway Engineering contract slice. DEV 1 and DEV 3 remain `MERGED / WAITING`. This is intentional: the current slice owns `EngineeringContracts.cs`, so starting canonical Script schema work or a second Gateway contract worker in parallel would create avoidable semantic/file conflicts.
+DEV 2 is `ASSIGNED` to the first TAG Gateway Engineering contract slice. DEV 1 is `ASSIGNED` to a non-production OPC UA discovery/browse/import research spike that must not touch the active protocol runtime or central Engineering contract owned by DEV 2. DEV 3 remains `MERGED / WAITING`.
+
+This pairing is intentional: DEV 2 owns the current functional source/protocol gate, while DEV 1 reduces uncertainty around a later protocol without changing the implementation order. Starting canonical Script schema work in parallel would still create avoidable central Engineering conflicts.
 
 After the Gateway Engineering contract is reviewed and merged, the coordinator may assign the runtime Gateway engine and reconsider other non-conflicting workstreams.
 

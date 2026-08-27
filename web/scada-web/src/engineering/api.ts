@@ -2,6 +2,7 @@ import type {
   EngineeringPackageView,
   EngineeringSnapshot,
   EngineeringWorkspaceDescriptor,
+  GatewayRuntimeDiagnostic,
   ImportPreviewView,
   ImportResultView
 } from './types';
@@ -47,9 +48,14 @@ export async function loadEngineeringSnapshot(): Promise<EngineeringSnapshot> {
       dynamos: engineeringPackage.dynamos ?? [],
       screens: engineeringPackage.screens ?? [],
       popups: engineeringPackage.popups ?? [],
-      securityRoles: engineeringPackage.securityRoles ?? []
+      securityRoles: engineeringPackage.securityRoles ?? [],
+      gateways: engineeringPackage.gateways ?? []
     }
   };
+}
+
+export async function loadGatewayDiagnostics(): Promise<GatewayRuntimeDiagnostic[]> {
+  return await getJson<GatewayRuntimeDiagnostic[]>('/api/gateway/diagnostics');
 }
 
 export async function previewEngineeringPackage(

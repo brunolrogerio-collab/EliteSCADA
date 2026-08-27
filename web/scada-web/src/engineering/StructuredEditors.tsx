@@ -1,13 +1,21 @@
 import React from 'react';
 import {
-  DataSourceEditor,
+  DataSourceEditor as BaseDataSourceEditor,
   TagEditor as BaseTagEditor
 } from './EngineeringMutationPanels';
+import { GatewayEngineeringPanel } from './GatewayEngineeringPanel';
 import { MemoryTagSettingsPanel } from './MemoryTagSettingsPanel';
 import type { EngineeringLocale } from './i18n';
 import type { EngineeringPackageView } from './types';
 
-export { DataSourceEditor };
+export function DataSourceEditor({ model, locale }: { model: EngineeringPackageView; locale: EngineeringLocale }) {
+  return (
+    <>
+      <BaseDataSourceEditor model={model} locale={locale} />
+      <GatewayEngineeringPanel model={model} locale={locale} />
+    </>
+  );
+}
 
 export function TagEditor({ model, locale }: { model: EngineeringPackageView; locale: EngineeringLocale }) {
   return (

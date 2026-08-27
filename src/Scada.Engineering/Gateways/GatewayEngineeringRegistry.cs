@@ -8,6 +8,8 @@ public interface IGatewayEngineeringRegistry
     GatewayRouteEngineeringDto? Find(Guid id);
     GatewayRouteEngineeringDto? FindByKey(string key);
     void Upsert(GatewayRouteEngineeringDto route);
+    bool Remove(Guid id);
+    void Clear();
 }
 
 public sealed class InMemoryGatewayEngineeringRegistry : IGatewayEngineeringRegistry

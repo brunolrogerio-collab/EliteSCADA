@@ -18,6 +18,7 @@ using Scada.Engineering.Assets;
 using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
+using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.ProjectPackages;
 using Scada.Engineering.Security;
@@ -42,17 +43,25 @@ builder.Services.AddSingleton<IEngineeringAssetRegistry>(sp => sp.GetRequiredSer
 builder.Services.AddSingleton<IEngineeringViewRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Views);
 builder.Services.AddSingleton<ISecurityPolicyEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().SecurityPolicies);
 builder.Services.AddSingleton<ICommandEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Commands);
+builder.Services.AddSingleton<IGatewayEngineeringRegistry>(sp =>
+    new InMemoryGatewayEngineeringRegistry(sp.GetRequiredService<EngineeringWorkspace>().MarkDirty));
 builder.Services.AddSingleton<DemoRuntimeServices>();
 
 builder.Services.AddSingleton<IEngineeringDriverCompiler, EngineeringDriverCompiler>();
+builder.Services.AddSingleton<GatewayEngineeringRuntimeCoordinator>(sp =>
+    new GatewayEngineeringRuntimeCoordinator(
+        new EngineeringRuntimeCoordinator(
+            sp.GetRequiredService<IScadaEventBus>(),
+            sp.GetRequiredService<IEngineeringDriverCompiler>(),
+            TimeSpan.FromSeconds(Math.Max(
+                1,
+                builder.Configuration.GetValue<double?>("EngineeringRuntime:ActivationTimeoutSeconds") ?? 10)),
+            sp.GetRequiredService<IServerMemoryRetentionStore>()),
+        sp.GetRequiredService<IScadaEventBus>()));
 builder.Services.AddSingleton<IEngineeringRuntimeCoordinator>(sp =>
-    new EngineeringRuntimeCoordinator(
-        sp.GetRequiredService<IScadaEventBus>(),
-        sp.GetRequiredService<IEngineeringDriverCompiler>(),
-        TimeSpan.FromSeconds(Math.Max(
-            1,
-            builder.Configuration.GetValue<double?>("EngineeringRuntime:ActivationTimeoutSeconds") ?? 10)),
-        sp.GetRequiredService<IServerMemoryRetentionStore>()));
+    sp.GetRequiredService<GatewayEngineeringRuntimeCoordinator>());
+builder.Services.AddSingleton<IGatewayRuntimeDiagnosticsProvider>(sp =>
+    sp.GetRequiredService<GatewayEngineeringRuntimeCoordinator>());
 
 builder.Services.AddSingleton<IEngineeringExchangeService, EngineeringExchangeService>();
 builder.Services.AddSingleton<IProjectPackageService, ProjectPackageService>();
@@ -118,6 +127,10 @@ app.MapGet("/api/diagnostics/runtime", (ScadaRuntimeFacade runtime, IHistorian h
         activeAlarms = descriptor.ActiveAlarmCount
     });
 }).RequireRuntimeEngineeringRead();
+
+app.MapGet("/api/gateway/diagnostics", (IGatewayRuntimeDiagnosticsProvider gateway) =>
+    Results.Ok(gateway.GatewayDiagnostics()))
+    .RequireRuntimeEngineeringRead();
 
 app.MapGet("/api/auth/me", (HttpContext context, ApiAuthorizationService security) =>
 {
@@ -411,6 +424,8 @@ app.MapGet("/api/engineering/popups", (IEngineeringViewRegistry registry) => Res
 app.MapGet("/api/engineering/security-roles", (ISecurityPolicyEngineeringRegistry registry) => Results.Ok(registry.SnapshotRoles()))
     .RequireWorkspaceEngineeringRead();
 app.MapGet("/api/engineering/commands", (ICommandEngineeringRegistry registry) => Results.Ok(registry.Snapshot()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/gateways", (IGatewayEngineeringRegistry registry) => Results.Ok(registry.Snapshot()))
     .RequireWorkspaceEngineeringRead();
 
 app.MapGet("/api/engineering/export/json", (IEngineeringExchangeService exchange) =>

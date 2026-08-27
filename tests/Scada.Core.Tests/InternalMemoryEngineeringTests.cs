@@ -47,7 +47,7 @@ public sealed class InternalMemoryEngineeringTests
         var tag = Assert.Single(exported.Tags);
         var dataSource = Assert.Single(exported.DataSources!);
 
-        Assert.Equal(8, exported.SchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, exported.SchemaVersion);
         Assert.Equal(BuiltInSourceProviderDescriptors.ServerMemory.TypeKey, dataSource.Driver);
         Assert.NotNull(tag.InitialValue);
         Assert.Equal(TagDataType.Int32, tag.InitialValue!.DataType);

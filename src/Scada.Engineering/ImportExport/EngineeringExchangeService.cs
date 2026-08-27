@@ -6,6 +6,7 @@ using Scada.Engineering.Assets;
 using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
+using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport.Handlers;
 using Scada.Engineering.Security;
 using Scada.Engineering.Views;
@@ -15,7 +16,7 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 8;
+    public const int CurrentSchemaVersion = 9;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
@@ -24,6 +25,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly IEngineeringViewRegistry _views;
     private readonly ISecurityPolicyEngineeringRegistry _securityPolicies;
     private readonly ICommandEngineeringRegistry _commands;
+    private readonly IGatewayEngineeringRegistry _gateways;
     private readonly JsonSerializerOptions _json;
     private readonly EngineeringCsvExchange _csv;
     private readonly DataSourceEngineeringHandler _dataSourceHandler;
@@ -33,6 +35,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly ViewEngineeringHandler _viewHandler;
     private readonly SecurityPolicyEngineeringHandler _securityPolicyHandler;
     private readonly CommandEngineeringHandler _commandHandler;
+    private readonly GatewayEngineeringHandler _gatewayHandler;
 
     public EngineeringExchangeService(ITagRegistry tags, IAlarmEngine alarms)
         : this(
@@ -120,6 +123,27 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         IEngineeringViewRegistry views,
         ISecurityPolicyEngineeringRegistry securityPolicies,
         ICommandEngineeringRegistry commands)
+        : this(
+            tags,
+            alarms,
+            dataSources,
+            assets,
+            views,
+            securityPolicies,
+            commands,
+            new InMemoryGatewayEngineeringRegistry())
+    {
+    }
+
+    public EngineeringExchangeService(
+        ITagRegistry tags,
+        IAlarmEngine alarms,
+        IDataSourceEngineeringRegistry dataSources,
+        IEngineeringAssetRegistry assets,
+        IEngineeringViewRegistry views,
+        ISecurityPolicyEngineeringRegistry securityPolicies,
+        ICommandEngineeringRegistry commands,
+        IGatewayEngineeringRegistry gateways)
     {
         _tags = tags;
         _alarms = alarms;
@@ -128,6 +152,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _views = views;
         _securityPolicies = securityPolicies;
         _commands = commands;
+        _gateways = gateways;
         _json = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -143,6 +168,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _viewHandler = new ViewEngineeringHandler(views, assets, tags);
         _securityPolicyHandler = new SecurityPolicyEngineeringHandler(securityPolicies);
         _commandHandler = new CommandEngineeringHandler(commands, tags, dataSources);
+        _gatewayHandler = new GatewayEngineeringHandler(gateways, tags, dataSources);
     }
 
     public EngineeringPackage ExportPackage()
@@ -167,7 +193,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             _views.SnapshotScreens(),
             _views.SnapshotPopups(),
             _securityPolicies.SnapshotRoles(),
-            _commands.Snapshot());
+            _commands.Snapshot(),
+            _gateways.Snapshot());
     }
 
     public string ExportJson(bool indented = true)
@@ -205,7 +232,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             Screens = package.Screens ?? Array.Empty<ScreenEngineeringDto>(),
             Popups = package.Popups ?? Array.Empty<PopupEngineeringDto>(),
             SecurityRoles = package.SecurityRoles ?? Array.Empty<SecurityRoleEngineeringDto>(),
-            Commands = package.Commands ?? Array.Empty<CommandEngineeringDto>()
+            Commands = package.Commands ?? Array.Empty<CommandEngineeringDto>(),
+            Gateways = package.Gateways ?? Array.Empty<GatewayRouteEngineeringDto>()
         };
     }
 
@@ -227,6 +255,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _assetHandler.Preview(package, mode, items);
         _viewHandler.Preview(package, mode, items);
         _commandHandler.Preview(package, mode, items);
+        _gatewayHandler.Preview(package, mode, items);
         _securityPolicyHandler.Preview(package, mode, items);
 
         return new ImportPreview(
@@ -259,6 +288,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _assetHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _viewHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _commandHandler.Apply(package, mode, ref created, ref updated, ref skipped);
+        _gatewayHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _securityPolicyHandler.Apply(package, mode, ref created, ref updated, ref skipped);
 
         return new ImportResult(mode, created, updated, skipped, Array.Empty<ImportIssue>());
@@ -277,5 +307,6 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         Array.Empty<ScreenEngineeringDto>(),
         Array.Empty<PopupEngineeringDto>(),
         Array.Empty<SecurityRoleEngineeringDto>(),
-        Array.Empty<CommandEngineeringDto>());
+        Array.Empty<CommandEngineeringDto>(),
+        Array.Empty<GatewayRouteEngineeringDto>());
 }

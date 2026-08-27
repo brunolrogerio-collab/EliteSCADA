@@ -1,110 +1,129 @@
 # LAST CHANGE — EliteSCADA
 
-> Operational handoff. Read with `PROJECT GOAL.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md` and `docs/CHAT-WORK-ASSIGNMENTS.md` before every EliteSCADA task.
+> Operational handoff. Read with `PROJECT GOAL.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/CHAT-WORK-ASSIGNMENTS.md` and the current task-specific documents before every EliteSCADA action.
 
 **Handoff date:** 2026-08-27  
-**Development state:** **ACTIVE — COMMON DIAGNOSTICS COMPLETE / USER INTERFACE VALIDATION PREVIEW NEXT**
+**Development state:** **ACTIVE — INTERFACE PRODUCT DEVELOPMENT**
 
-Repository truth is separated into **MERGED**, **IMPLEMENTED IN PR**, **RESEARCH IN PR** and **SPECIFIED / NOT IMPLEMENTED**.
+Repository truth remains separated into **MERGED**, **IMPLEMENTED IN PR**, **RESEARCH IN PR** and **SPECIFIED / NOT IMPLEMENTED**.
 
 ## CURRENT CHECKPOINT
 
-The locked functional source/protocol sequence remains:
-
-`Internal Memory -> TAG Gateway -> common multi-driver diagnostics -> USER INTERFACE VALIDATION PREVIEW -> additional external protocols`
-
-The locked visual/scripting prerequisite chain remains:
-
-`canonical Script integration -> script editor/sandbox -> visual runtime object/property integration -> graphical Screen/Popup/Dynamo editor -> advanced visual libraries`
-
-Current functional state:
+Merged platform foundations now include:
 
 - Internal Memory: **MERGED / COMPLETE** through PR #49;
 - TAG Gateway: **MERGED / COMPLETE** through PRs #50 and #55;
 - common multi-driver/Data Source diagnostics: **MERGED / COMPLETE** through PRs #56 and #57;
+- PR #57 merge SHA: `c8190cc119a2e288834d619084396107103b2f56`;
+- PR #57 exact-head CI #350 and post-merge main CI #351: **all green**;
 - canonical Engineering: **Schema v9**;
-- USER INTERFACE VALIDATION PREVIEW: **ACTIVE NEXT PRODUCT BLOCK**;
-- production MQTT/OPC UA/BACnet/S7 and Driver Module implementation remain blocked until product-owner preview/feedback;
-- isolated Script Engineering foundation: **MERGED**, canonical package/schema integration still pending;
-- production Python editor/sandbox, visual runtime integration and graphical editor remain **SPECIFIED / NOT IMPLEMENTED**.
+- current production external protocol baseline remains Modbus TCP plus built-in Simulation/Internal Memory;
+- additional MQTT/OPC UA/BACnet/S7/Driver Module production work is postponed;
+- provisional Windows x64 validation/presentation packaging is postponed until the interface matures further.
 
-## COMMON COMMUNICATION / DATA SOURCE DIAGNOSTICS — COMPLETE ON `main`
+The product owner explicitly reprioritized development on 2026-08-27:
 
-PR #56 merged the isolated protocol-neutral diagnostics contract and Modbus TCP instrumentation foundation into `main` at base checkpoint `5520d0190d74618addeeea40b05507e3cb772d21`.
+> focus on interface development now because it provides more value than additional drivers or the provisional presentation build.
 
-PR #57 `Integrate common communication diagnostics product` then merged as:
+The active sequence is therefore:
 
-`c8190cc119a2e288834d619084396107103b2f56`
+`merged foundations -> interface product development -> user validation build/package -> additional external drivers/protocols`
 
-The final PR #57 head was:
+This scheduling change does not weaken the stable architecture in `PROJECT GOAL.md`; it inserts a deliberate product-UX maturation block before the existing preview/driver gate.
 
-`9fffd193153f50a937be3b8343c255a498701808`
+## ACTIVE PRODUCT BLOCK — INTERFACE DEVELOPMENT
 
-CI #350 passed Web build, backend build/tests, runtime smoke and Chromium E2E on that exact head. Post-merge main CI #351 (`33086312673`) also completed **SUCCESS** for all three jobs on merge SHA `c8190cc...`.
+Authoritative direction: `docs/INTERFACE-DEVELOPMENT.md`.
 
-Merged diagnostic capabilities now include:
+Primary goals:
 
-- protocol-neutral communication diagnostic snapshots only for real communication-capable drivers;
-- canonical Data Source identity kept distinct from Driver type and runtime instance identity;
-- healthy/degraded/reconnecting/faulted operational semantics with state timestamps;
-- request/success/failure/timeout/connect/reconnect/read/write/update counters where meaningful;
-- last successful/failed communication, sanitized error, recent failure rate, latency, data age and scan timing;
-- TAG-quality aggregation per active Data Source without replacing point-level quality authority;
-- Modbus TCP instrumentation with safe protocol details;
-- automated proof with two simultaneous Modbus Data Sources, isolated failure/recovery/counters/TAG quality and correct write ownership;
-- Simulation and Internal Memory excluded from fabricated network/reconnect/timeout semantics;
-- protected runtime diagnostics surfaced through the existing diagnostics boundary;
-- elaborated Engineering diagnostics UX with health summary, severity ordering, search, filters, automatic/manual refresh, master/detail navigation, quality/activity/timing/protocol drill-down, responsive layout and `pt-BR` / `en` / `es` copy.
+1. coherent EliteSCADA application shell across Runtime, Engineering and Audit;
+2. replace floating/developer-style navigation with a proper product navigation model;
+3. improve Engineering information architecture, search, scalable entity browsing, master/detail behavior and editor consistency;
+4. evolve Runtime beyond a hard-coded demo surface by adding a useful operational overview while preserving the demo process screen;
+5. expose authenticated session/user context cleanly;
+6. align loading/error/empty/status patterns, responsive behavior and `pt-BR` / `en` / `es` experience;
+7. keep healthy states visually quiet and abnormal industrial conditions appropriately emphasized;
+8. preserve backend-enforced security, Audit, Engineering lifecycle, TAG quality, Gateway and diagnostics semantics.
 
-The diagnostics gate is therefore closed as **MERGED / COMPLETE**.
+The future graphical Screen/Popup/Dynamo editor is **not** opened by this block. It remains governed by the locked chain:
 
-## ACTIVE NEXT BLOCK — USER INTERFACE VALIDATION PREVIEW
+`canonical Script integration -> script editor/sandbox -> visual runtime object/property integration -> graphical editor -> advanced visual libraries`
 
-The next official block is `docs/INTERFACE-VALIDATION-MILESTONE.md`.
+## BRANCH / PARALLEL STATE
 
-The user explicitly requested that interface work be elaborated and that the project advance, while postponing delivery of the actual visual preview until a later request. Therefore the current coordinator work is to build the preview infrastructure/package now without presenting the preview as delivered yet.
+### Coordinator
 
-Required implementation direction:
+Active branch:
 
-- primary practical target: Windows x64;
-- single practical startup path rather than separate developer-only API/Vite terminals;
-- built React application served from the packaged EliteSCADA runtime or an equivalently reliable single entry point;
-- PostgreSQL/TimescaleDB and required services started through a reliable launcher/automation rather than hand reconstruction;
-- local identity/login bootstrap without committed production credentials or secrets;
-- sample/demo project suitable for Runtime and Engineering validation;
-- visible build/version identity tied to an exact source state;
-- short validation checklist;
-- package/startup smoke test separate from repository-only `dotnet run` / Vite execution;
-- preserve security, Audit, Engineering revision lifecycle, TAG quality, Gateway and diagnostics boundaries.
+`feature/interface-product-development`
 
-No new production external protocol family is authorized until this preview is actually handed to the product owner and feedback is reviewed.
+Coordinator owns central product shell, `main.tsx`, `AppNavigation.tsx`, global UX integration, `EngineeringApp.tsx`, central localization, worker integration, browser tests, CI, merges and docs.
 
-## RESEARCH DELIVERIES WAITING FOR COORDINATOR
+### Parked preview branch
 
-### DEV 1 — graphical visual editor architecture/UX
+`integration/interface-validation-preview`
 
-Draft PR #53, branch `research/visual-editor-architecture`, head `15e74e3b3915de7de6639e5c296fdcc2e229793a`.
+State at reprioritization:
 
-Status: **RESEARCH IN PR / DELIVERED / WAIT_FOR_COORDINATOR**. No production editor code or dependency is authorized by this research.
+- **PARKED / NO PR / NOT MERGED**;
+- two commits ahead of the earlier `main` base;
+- touched only `src/Scada.Api/Program.cs` and `web/scada-web/src/AppNavigation.tsx`;
+- preparatory work is preserved but must not be merged merely to avoid losing it;
+- Windows packaging/launcher work resumes later from current product state, not from this older UX snapshot.
 
-### DEV 3 — Client Python editor/browser sandbox
+### DEV 1
 
-Draft PR #54, branch `research/client-python-editor-sandbox`, head `d3bef9636f6ffd44a7be6f56a144296e38744474`.
+New assignment: Engineering workspace/entity-browser ergonomics primitives.
 
-Status: **RESEARCH IN PR / DELIVERED / WAIT_FOR_COORDINATOR**. The Pyodide/Monaco direction remains a research recommendation, not a selected production dependency.
+Branch:
+
+`feature/engineering-workspace-ux`
+
+Status: **ASSIGNED**.
+
+### DEV 2
+
+New assignment: Runtime operational overview UI primitives.
+
+Branch:
+
+`feature/runtime-operations-ux`
+
+Status: **ASSIGNED**.
+
+### DEV 3
+
+New assignment: authenticated session/user-menu UX primitive.
+
+Branch:
+
+`feature/session-ux`
+
+Status: **ASSIGNED**.
+
+Research PR #54 remains separate and unchanged.
+
+Full worker scopes and forbidden files are authoritative in `docs/CHAT-WORK-ASSIGNMENTS.md`.
+
+## OPEN RESEARCH INPUTS
+
+- PR #53 graphical visual editor architecture/UX: **RESEARCH IN PR / DELIVERED**, not production editor implementation.
+- PR #54 Client Python editor/browser sandbox: **RESEARCH IN PR / DELIVERED**, not production Python/editor implementation.
+
+These remain useful design inputs but do not override the current interface task scopes or prerequisite chains.
 
 ## COORDINATOR RESUME POINT
 
 On the next coordinator `siga`:
 
-1. reread mandatory docs from current `main` and verify GitHub branch/PR/CI truth;
-2. continue the coordinator-owned USER INTERFACE VALIDATION PREVIEW implementation;
-3. preserve the product-owner direction that the preview itself is not handed off until requested, while continuing package/startup/UI-readiness work;
-4. build a reliable Windows x64 package path with database/services launcher, local login/bootstrap, demo, build identity and validation checklist;
-5. add package/startup smoke validation separate from repository developer execution;
-6. merge only current-head green work and reconcile docs after each completed integration slice;
-7. do not start MQTT/OPC UA/BACnet/S7/Driver Module production runtime before preview delivery and feedback;
-8. keep DEV 1/DEV 3 research as non-production inputs until their prerequisite chains are explicitly opened.
+1. reread mandatory docs from current `main`;
+2. verify `main`, `feature/interface-product-development`, worker branches, PRs and CI;
+3. continue central application-shell/navigation work;
+4. review and integrate worker UI PRs only after they are delivered and green;
+5. improve Engineering and Runtime UX in coherent slices with Chromium coverage;
+6. do not resume new drivers or provisional Windows packaging unless product-owner priority changes again;
+7. merge only current-head green work and update this handoff after material integration.
 
 ## Permanent continuity rules
 

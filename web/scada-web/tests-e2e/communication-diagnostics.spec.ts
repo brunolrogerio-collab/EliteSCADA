@@ -25,14 +25,14 @@ test('Engineering diagnostics prioritizes communication health, filters sources 
   await page.getByRole('button', { name: /Diagnósticos/ }).click();
 
   await expect(page.getByRole('heading', { name: 'Comunicação ativa' })).toBeVisible();
-  await expect(page.getByText('Saudável', { exact: true })).toBeVisible();
-  await expect(page.getByText('Reconectando', { exact: true })).toBeVisible();
   await expect(page.getByText('Atenção', { exact: true })).toBeVisible();
 
   const sourceCards = page.locator('.eng-comm-source');
   await expect(sourceCards).toHaveCount(2);
   await expect(sourceCards.nth(0)).toContainText('PLC B');
+  await expect(sourceCards.nth(0).locator('.eng-comm-status')).toHaveText(/Reconectando/);
   await expect(sourceCards.nth(1)).toContainText('PLC A');
+  await expect(sourceCards.nth(1).locator('.eng-comm-status')).toHaveText(/Saudável/);
 
   await page.getByRole('button', { name: /PLC B/ }).click();
   await expect(page.getByText(runtimeInstanceB, { exact: true })).toBeVisible();
@@ -52,7 +52,7 @@ test('Engineering diagnostics prioritizes communication health, filters sources 
 
   await page.getByLabel('Idioma').selectOption('en');
   await expect(page.getByRole('heading', { name: 'Active communication' })).toBeVisible();
-  await expect(page.getByText('Healthy', { exact: true })).toBeVisible();
+  await expect(page.locator('.eng-comm-source').locator('.eng-comm-status')).toHaveText(/Healthy/);
 });
 
 function diagnostic(

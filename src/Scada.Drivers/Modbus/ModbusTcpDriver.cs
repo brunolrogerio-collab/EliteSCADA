@@ -1,20 +1,47 @@
+using System.Diagnostics;
+using System.Globalization;
 using System.Net.Sockets;
 using Scada.Core.Tags;
 using Scada.Drivers.Abstractions;
 
 namespace Scada.Drivers.Modbus;
 
-public sealed class ModbusTcpDriver : ICommunicationDriver
+public sealed class ModbusTcpDriver : ICommunicationDriver, ICommunicationDiagnosticsSource
 {
+    private const int RecentOutcomeWindow = 100;
     private readonly ICurrentTagCache _cache;
     private readonly ITagRegistry _registry;
     private readonly IReadOnlyList<ModbusPoint> _points;
     private readonly IReadOnlyList<ModbusPollBlock> _pollBlocks;
     private readonly ModbusTcpTransport _transport;
     private readonly Dictionary<Guid, ModbusPoint> _pointsByTagId;
+    private readonly object _diagnosticsGate = new();
+    private readonly Queue<bool> _recentFailures = new();
+    private readonly string _runtimeInstanceId = Guid.NewGuid().ToString("N");
     private CancellationTokenSource? _cts;
     private Task? _loop;
     private long _updatesPublished;
+    private CommunicationDriverOperationalState _communicationState;
+    private DateTimeOffset _stateChangedAt;
+    private DateTimeOffset? _lastSuccessfulCommunicationAt;
+    private DateTimeOffset? _lastFailedCommunicationAt;
+    private string? _lastError;
+    private long _pollCycles;
+    private long _operationCount;
+    private long _successfulOperations;
+    private long _failedOperations;
+    private long _consecutiveFailures;
+    private long _readOperations;
+    private long _writeOperations;
+    private long _successfulPollBlocks;
+    private long _failedPollBlocks;
+    private long _failedPollCycles;
+    private long _consecutiveFailedCycles;
+    private DateTimeOffset? _lastSuccessfulPollAt;
+    private DateTimeOffset? _lastFailedPollAt;
+    private long _lastOperationDurationTicks;
+    private long _totalOperationDurationTicks;
+    private long _lastScanDurationTicks;
 
     public ModbusTcpDriver(
         string driverId,
@@ -50,7 +77,10 @@ public sealed class ModbusTcpDriver : ICommunicationDriver
         _transport = new ModbusTcpTransport(host, port, requestTimeout);
         ScanRate = scanRate ?? TimeSpan.FromSeconds(1);
         if (ScanRate <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(scanRate));
-        Status = new DriverStatus(DriverId, Name, DriverState.Stopped, DateTimeOffset.UtcNow);
+        var now = DateTimeOffset.UtcNow;
+        _communicationState = CommunicationDriverOperationalState.Stopped;
+        _stateChangedAt = now;
+        Status = new DriverStatus(DriverId, Name, DriverState.Stopped, now);
     }
 
     public string DriverId { get; }
@@ -68,6 +98,7 @@ public sealed class ModbusTcpDriver : ICommunicationDriver
         if (_loop is { IsCompleted: false }) return Task.CompletedTask;
 
         Status = new DriverStatus(DriverId, Name, DriverState.Starting, DateTimeOffset.UtcNow);
+        TransitionCommunicationState(CommunicationDriverOperationalState.Starting);
         foreach (var point in _points) _registry.Register(point.Tag);
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _loop = RunAsync(_cts.Token);
@@ -79,6 +110,7 @@ public sealed class ModbusTcpDriver : ICommunicationDriver
     {
         if (_cts is null) return;
         Status = new DriverStatus(DriverId, Name, DriverState.Stopping, DateTimeOffset.UtcNow, UpdatesPublished: _updatesPublished);
+        TransitionCommunicationState(CommunicationDriverOperationalState.Stopping);
         await _cts.CancelAsync();
         if (_loop is not null)
         {
@@ -87,6 +119,7 @@ public sealed class ModbusTcpDriver : ICommunicationDriver
         }
         await _transport.DisconnectAsync();
         Status = new DriverStatus(DriverId, Name, DriverState.Stopped, DateTimeOffset.UtcNow, UpdatesPublished: _updatesPublished);
+        TransitionCommunicationState(CommunicationDriverOperationalState.Stopped);
     }
 
     public ValueTask<TagValue?> ReadAsync(Guid tagId, CancellationToken cancellationToken = default)
@@ -105,24 +138,126 @@ public sealed class ModbusTcpDriver : ICommunicationDriver
         if (!point.Writable)
             throw new InvalidOperationException($"Modbus TAG '{point.Tag.Path}' is not writable.");
 
+        Func<Task> writeOperation;
         if (point.Area == ModbusDataArea.Coil)
         {
-            await _transport.WriteSingleCoilAsync(point.UnitId, point.Address, ModbusValueCodec.EncodeBit(point, value), cancellationToken);
+            var encoded = ModbusValueCodec.EncodeBit(point, value);
+            writeOperation = () => _transport.WriteSingleCoilAsync(point.UnitId, point.Address, encoded, cancellationToken);
         }
         else if (point.Area == ModbusDataArea.HoldingRegister)
         {
             var registers = ModbusValueCodec.EncodeRegisters(point, value);
-            if (registers.Length == 1)
-                await _transport.WriteSingleRegisterAsync(point.UnitId, point.Address, registers[0], cancellationToken);
-            else
-                await _transport.WriteMultipleRegistersAsync(point.UnitId, point.Address, registers, cancellationToken);
+            writeOperation = registers.Length == 1
+                ? () => _transport.WriteSingleRegisterAsync(point.UnitId, point.Address, registers[0], cancellationToken)
+                : () => _transport.WriteMultipleRegistersAsync(point.UnitId, point.Address, registers, cancellationToken);
         }
         else
         {
             throw new InvalidOperationException($"Modbus area '{point.Area}' is read-only.");
         }
 
+        var started = Stopwatch.GetTimestamp();
+        try
+        {
+            await writeOperation();
+            RecordOperation(success: true, read: false, write: true, Stopwatch.GetElapsedTime(started), null);
+        }
+        catch (Exception ex) when (IsCommunicationException(ex))
+        {
+            RecordOperation(success: false, read: false, write: true, Stopwatch.GetElapsedTime(started), ex);
+            TransitionCommunicationState(CommunicationDriverOperationalState.Degraded);
+            throw;
+        }
+
         await PublishAsync(point, value, TagQuality.Good, cancellationToken);
+    }
+
+    public CommunicationDriverDiagnosticSnapshot GetCommunicationDiagnostics()
+    {
+        var capturedAt = DateTimeOffset.UtcNow;
+        var transport = _transport.GetDiagnostics();
+        var quality = BuildQualitySummary();
+        lock (_diagnosticsGate)
+        {
+            var averageDuration = _operationCount == 0
+                ? (TimeSpan?)null
+                : TimeSpan.FromTicks(_totalOperationDurationTicks / _operationCount);
+            var failureRate = _recentFailures.Count == 0
+                ? 0d
+                : _recentFailures.Count(x => x) / (double)_recentFailures.Count;
+            var dataReference = _lastSuccessfulPollAt ?? _lastSuccessfulCommunicationAt;
+            var dataAge = dataReference.HasValue ? capturedAt - dataReference.Value : (TimeSpan?)null;
+            var protocolDetails = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["host"] = _transport.Host,
+                ["port"] = _transport.Port.ToString(CultureInfo.InvariantCulture),
+                ["requestTimeoutMs"] = _transport.RequestTimeout.TotalMilliseconds.ToString("0.###", CultureInfo.InvariantCulture),
+                ["pollBlockCount"] = _pollBlocks.Count.ToString(CultureInfo.InvariantCulture),
+                ["unitIds"] = string.Join(",", _points.Select(x => x.UnitId).Distinct().OrderBy(x => x)),
+                ["successfulPollBlocks"] = _successfulPollBlocks.ToString(CultureInfo.InvariantCulture),
+                ["failedPollBlocks"] = _failedPollBlocks.ToString(CultureInfo.InvariantCulture),
+                ["failedPollCycles"] = _failedPollCycles.ToString(CultureInfo.InvariantCulture),
+                ["consecutiveFailedCycles"] = _consecutiveFailedCycles.ToString(CultureInfo.InvariantCulture)
+            };
+
+            return new CommunicationDriverDiagnosticSnapshot(
+                DriverId,
+                Name,
+                "modbus.tcp",
+                _runtimeInstanceId,
+                $"{_transport.Host}:{_transport.Port}",
+                _communicationState,
+                _stateChangedAt,
+                capturedAt,
+                _lastSuccessfulCommunicationAt,
+                _lastFailedCommunicationAt,
+                _lastError,
+                dataAge,
+                ScanRate,
+                _operationCount == 0 ? null : TimeSpan.FromTicks(_lastOperationDurationTicks),
+                averageDuration,
+                _pollCycles == 0 ? null : TimeSpan.FromTicks(_lastScanDurationTicks),
+                failureRate,
+                _points.Count,
+                quality,
+                new CommunicationDriverCounters(
+                    _pollCycles,
+                    transport.RequestAttempts,
+                    _successfulOperations,
+                    _failedOperations,
+                    _consecutiveFailures,
+                    transport.TimeoutCount,
+                    transport.ConnectionCount,
+                    transport.DisconnectionCount,
+                    transport.ReconnectCount,
+                    _readOperations,
+                    _writeOperations,
+                    Interlocked.Read(ref _updatesPublished)),
+                protocolDetails);
+        }
+    }
+
+    public ModbusTcpDiagnosticSnapshot GetModbusDiagnostics()
+    {
+        var transport = _transport.GetDiagnostics();
+        lock (_diagnosticsGate)
+        {
+            return new ModbusTcpDiagnosticSnapshot(
+                _transport.Host,
+                _transport.Port,
+                ScanRate,
+                _transport.RequestTimeout,
+                _pollBlocks.Count,
+                _points.Select(x => x.UnitId).Distinct().OrderBy(x => x).ToArray(),
+                _successfulPollBlocks,
+                _failedPollBlocks,
+                _failedPollCycles,
+                _consecutiveFailedCycles,
+                _lastSuccessfulPollAt,
+                _lastFailedPollAt,
+                _pollCycles == 0 ? null : TimeSpan.FromTicks(_lastScanDurationTicks),
+                transport);
+        }
     }
 
     private async Task RunAsync(CancellationToken cancellationToken)
@@ -139,34 +274,61 @@ public sealed class ModbusTcpDriver : ICommunicationDriver
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (Exception ex)
         {
-            Status = new DriverStatus(DriverId, Name, DriverState.Faulted, DateTimeOffset.UtcNow, ex.Message, _updatesPublished);
+            RecordFailureOnly(ex);
+            TransitionCommunicationState(CommunicationDriverOperationalState.Faulted);
+            Status = new DriverStatus(DriverId, Name, DriverState.Faulted, DateTimeOffset.UtcNow, SanitizeError(ex), _updatesPublished);
         }
     }
 
     private async Task PollOnceAsync(CancellationToken cancellationToken)
     {
+        var cycleStarted = Stopwatch.GetTimestamp();
         var failedBlocks = 0;
         string? lastError = null;
 
         foreach (var block in _pollBlocks)
         {
+            var operationStarted = Stopwatch.GetTimestamp();
             try
             {
                 if (block.Area is ModbusDataArea.Coil or ModbusDataArea.DiscreteInput)
                     await PollBitsAsync(block, cancellationToken);
                 else
                     await PollRegistersAsync(block, cancellationToken);
+                RecordOperation(success: true, read: true, write: false, Stopwatch.GetElapsedTime(operationStarted), null);
+                lock (_diagnosticsGate) _successfulPollBlocks++;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
             }
-            catch (Exception ex) when (ex is IOException or TimeoutException or SocketException or ObjectDisposedException)
+            catch (Exception ex) when (IsCommunicationException(ex))
             {
                 failedBlocks++;
-                lastError = ex.Message;
+                lastError = SanitizeError(ex);
+                RecordOperation(success: false, read: true, write: false, Stopwatch.GetElapsedTime(operationStarted), ex);
+                lock (_diagnosticsGate) _failedPollBlocks++;
                 foreach (var point in block.Points)
                     await PublishCommunicationFailureAsync(point, cancellationToken);
+            }
+        }
+
+        var scanDuration = Stopwatch.GetElapsedTime(cycleStarted);
+        var now = DateTimeOffset.UtcNow;
+        lock (_diagnosticsGate)
+        {
+            _pollCycles++;
+            _lastScanDurationTicks = scanDuration.Ticks;
+            if (failedBlocks == 0)
+            {
+                _consecutiveFailedCycles = 0;
+                _lastSuccessfulPollAt = now;
+            }
+            else
+            {
+                _failedPollCycles++;
+                _consecutiveFailedCycles++;
+                _lastFailedPollAt = now;
             }
         }
 
@@ -174,6 +336,12 @@ public sealed class ModbusTcpDriver : ICommunicationDriver
             ? null
             : $"{failedBlocks} of {_pollBlocks.Count} Modbus poll block(s) failed. Last error: {lastError}";
         Status = new DriverStatus(DriverId, Name, DriverState.Running, DateTimeOffset.UtcNow, message, _updatesPublished);
+        if (failedBlocks == 0)
+            TransitionCommunicationState(CommunicationDriverOperationalState.Healthy);
+        else if (failedBlocks < _pollBlocks.Count)
+            TransitionCommunicationState(CommunicationDriverOperationalState.Degraded);
+        else
+            TransitionCommunicationState(CommunicationDriverOperationalState.Reconnecting);
     }
 
     private async Task PollBitsAsync(ModbusPollBlock block, CancellationToken cancellationToken)
@@ -220,6 +388,110 @@ public sealed class ModbusTcpDriver : ICommunicationDriver
         var sample = new TagValue(point.Tag.Id, value, DateTimeOffset.UtcNow, quality, DriverId);
         await _cache.UpdateAsync(point.Tag, sample, cancellationToken);
         Interlocked.Increment(ref _updatesPublished);
+    }
+
+    private void RecordOperation(bool success, bool read, bool write, TimeSpan duration, Exception? error)
+    {
+        var now = DateTimeOffset.UtcNow;
+        lock (_diagnosticsGate)
+        {
+            _operationCount++;
+            if (read) _readOperations++;
+            if (write) _writeOperations++;
+            _lastOperationDurationTicks = duration.Ticks;
+            _totalOperationDurationTicks += duration.Ticks;
+            _recentFailures.Enqueue(!success);
+            while (_recentFailures.Count > RecentOutcomeWindow) _recentFailures.Dequeue();
+
+            if (success)
+            {
+                _successfulOperations++;
+                _consecutiveFailures = 0;
+                _lastSuccessfulCommunicationAt = now;
+            }
+            else
+            {
+                _failedOperations++;
+                _consecutiveFailures++;
+                _lastFailedCommunicationAt = now;
+                _lastError = SanitizeError(error);
+            }
+        }
+    }
+
+    private void RecordFailureOnly(Exception error)
+    {
+        lock (_diagnosticsGate)
+        {
+            _lastFailedCommunicationAt = DateTimeOffset.UtcNow;
+            _lastError = SanitizeError(error);
+        }
+    }
+
+    private void TransitionCommunicationState(CommunicationDriverOperationalState state)
+    {
+        lock (_diagnosticsGate)
+        {
+            if (_communicationState == state) return;
+            _communicationState = state;
+            _stateChangedAt = DateTimeOffset.UtcNow;
+        }
+    }
+
+    private CommunicationTagQualitySummary BuildQualitySummary()
+    {
+        var good = 0;
+        var badCommunication = 0;
+        var uncertain = 0;
+        var bad = 0;
+        var badConfiguration = 0;
+        var badDevice = 0;
+        var stale = 0;
+        var disabled = 0;
+        var noSample = 0;
+
+        foreach (var point in _points)
+        {
+            if (!_cache.TryGet(point.Tag.Id, out var sample) || sample is null)
+            {
+                noSample++;
+                continue;
+            }
+
+            switch (sample.Quality)
+            {
+                case TagQuality.Good: good++; break;
+                case TagQuality.BadCommunication: badCommunication++; break;
+                case TagQuality.Uncertain: uncertain++; break;
+                case TagQuality.Bad: bad++; break;
+                case TagQuality.BadConfiguration: badConfiguration++; break;
+                case TagQuality.BadDevice: badDevice++; break;
+                case TagQuality.Stale: stale++; break;
+                case TagQuality.Disabled: disabled++; break;
+                default: bad++; break;
+            }
+        }
+
+        return new CommunicationTagQualitySummary(
+            good,
+            badCommunication,
+            uncertain,
+            bad,
+            badConfiguration,
+            badDevice,
+            stale,
+            disabled,
+            noSample);
+    }
+
+    private static bool IsCommunicationException(Exception ex) =>
+        ex is IOException or TimeoutException or SocketException or ObjectDisposedException;
+
+    private static string SanitizeError(Exception? error)
+    {
+        if (error is null) return string.Empty;
+        var message = error.Message.Replace('\r', ' ').Replace('\n', ' ').Trim();
+        return message.Length <= 512 ? message : message[..512];
     }
 
     private static IReadOnlyList<ModbusPollBlock> BuildPollBlocks(IReadOnlyList<ModbusPoint> points, int maxGapElements)

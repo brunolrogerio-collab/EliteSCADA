@@ -3,100 +3,99 @@
 > Operational handoff. Read with `PROJECT GOAL.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md` and `docs/CHAT-WORK-ASSIGNMENTS.md` before every EliteSCADA task.
 
 **Handoff date:** 2026-08-26
-**Development state:** **ACTIVE — PARALLEL WORKER WAVE MERGED / INTERNAL MEMORY CENTRAL INTEGRATION NEXT**
+**Development state:** **ACTIVE — INTERNAL MEMORY COMPLETE / TAG GATEWAY ENGINEERING SLICE ASSIGNED**
 
 Repository truth is separated into **MERGED**, **IMPLEMENTED IN PR** and **SPECIFIED / NOT IMPLEMENTED**.
 
 ## CURRENT CHECKPOINT
 
-The three worker deliveries from the current parallel wave are now official `main` state:
+Internal Memory complete product integration is now official `main` state.
 
-- PR #46 — Audit UI and diagnostics client foundation — merge `5629f55699d68d70d11d7058c26033d54306b570`;
-- PR #47 — isolated Public Script Engineering integration foundation — merge `8a8a52e9e1725fca5b9e06ff9f560f583dab5bbb`;
-- PR #48 — Internal Memory Engineering + durable Server Memory retention — merge `ad4a7aa8d17e4e7370e5801d470a69f1a096bab4`.
+Coordinator PR #49, **Integrate Internal Memory into engineering runtime**, was merged as:
 
-PR #48 final reconciled CI #265 passed against pre-merge `main` `35789b3f4910c5ba8130f6de71093e9d2e5fcb14`, and post-merge `main` CI #266 independently passed on merge commit `ad4a7aa8d17e4e7370e5801d470a69f1a096bab4`.
+`18e0c5f55bf33958d040ed3a2f2b948e34d3cc5f`
 
-For both decisive validations, the relevant stack is green:
+Its reviewed final head was:
 
-- Web build: **SUCCESS**;
-- backend restore/build: **SUCCESS**;
-- automated tests: **SUCCESS**;
-- runtime smoke: **SUCCESS**;
-- Chromium E2E: **SUCCESS**.
+`f12e4dc7b65f4ab41f47f26aca779dcd9aa0fde9`
 
-Before merge, the coordinator reconciled two stale central assumptions instead of weakening tests: Engineering schema checks no longer hard-code v7, and central Audit navigation no longer makes the legacy Engineering E2E locator ambiguous.
+Validation is complete at both required levels:
 
-## MERGED PRODUCT STATE ADDED BY PR #48
+- PR CI #296: Web build **SUCCESS**, backend build/tests **SUCCESS**, runtime smoke **SUCCESS**, Chromium E2E **SUCCESS**;
+- post-merge `main` CI #297 on `18e0c5f55bf33958d040ed3a2f2b948e34d3cc5f`: Web build **SUCCESS**, backend build/tests **SUCCESS**, runtime smoke **SUCCESS**, Chromium E2E **SUCCESS**.
 
-Canonical Engineering is now **schema v8** on `main` for the Internal Memory evolution.
+Therefore Internal Memory complete product integration is **MERGED / COMPLETE** and no longer blocks TAG Gateway.
 
-Merged capabilities include:
+## MERGED PRODUCT STATE ADDED BY PR #49
 
-- public typed Internal Memory initial/default values through `MemoryInitialValueDto`;
-- v7 JSON backward compatibility and re-export through current schema;
-- TAG CSV typed initial-value exchange with legacy CSV compatibility;
-- explicit Engineering validation for `builtin.memory.server` and `builtin.memory.client`;
-- rejection of fabricated protocol/network configuration for memory sources;
-- strict typed-value validation without silent numeric/cross-type coercion;
-- Client Memory rejection as a global Historian or Alarm source, including unsafe Server→Client transitions;
-- PostgreSQL durable Server Memory retained-value storage keyed by stable TAG ID rather than path;
-- retained-value restoration across provider/store restart and TAG path rename when ID/type remain compatible;
-- fail-closed incompatible retained data types;
-- explicit guarded retained-value reset semantics;
-- focused Core, schema/import-export and real PostgreSQL retention coverage.
+PR #48 remains the public Engineering/durable-retention foundation. PR #49 completes its coordinator-owned product/runtime integration.
 
-Mutable Server Memory retained runtime values remain separate from immutable/versioned Engineering packages.
+Official `main` now includes:
 
-## MERGED AUDIT AND SCRIPT STATE
+- Engineered `builtin.memory.server` Data Sources/TAGs composed into the shared Server Memory runtime provider;
+- Server Memory registration in normal TAG registry/current-cache/Event-Bus paths;
+- shared realtime and Alarm Engine participation through normal TAG events;
+- Historian capture honoring explicit `historian.enabled` while preserving legacy TAG behavior when the metadata is absent;
+- generic TAG writes and Operational Commands routed to Server Memory without pretending it is a communication driver;
+- PostgreSQL Server Memory retention wired into actual API/runtime startup before persisted runtime recovery;
+- stable-ID retention across restart/path rename and fail-closed incompatible-type semantics;
+- explicit retained-value reset requiring confirmation, authorization and Audit action `server-memory.retention.reset`;
+- transactional/serialized PostgreSQL retention-schema initialization with narrow retry for known concurrent DDL collisions;
+- Client Memory definitions exposed only to authorized runtime clients while mutable values remain page/tab-local and never server-global;
+- exact Int64 browser handling through decimal strings and signed-range validation;
+- practical Internal Memory initial/default-value Engineering UI using the canonical Preview/Apply + Workspace CAS path;
+- Client Memory rejection from server-side Operational Commands in Engineering Preview;
+- no fake Internal Memory network diagnostics.
 
-PR #46 remains the merged Audit UI foundation and is centrally reachable at `/audit` through the authenticated application routing/navigation.
+Mutable Server Memory retained values remain separate from immutable/versioned Engineering revisions/packages.
 
-PR #47 remains the merged isolated Script Engineering domain with stable identity, Client Visual vs Server scope, source/events/dependencies, deterministic validation and adapters to the PR #41 public scripting/visual runtime foundation.
+## DEFECTS CAUGHT DURING FINAL INTEGRATION
 
-Scripts are still not first-class members of the canonical Engineering package. Their central schema/migration/import-export/revision/`.escadapkg` integration remains coordinator-owned future work.
+Two real defects were discovered by final CI and fixed rather than hidden:
 
-## INTERNAL MEMORY PRODUCT STATUS
+1. CI #294 exposed a React lifecycle regression where the optional Internal Memory TAG panel could throw `ReferenceError: Cannot access 'invalidate' before initialization` in ordinary projects with no memory TAGs. The panel is now mounted only when actual memory TAGs exist, preserving the existing structured TAG editor.
+2. CI #295 exposed a PostgreSQL schema-initialization race. `pg_advisory_xact_lock` had been executed without one encompassing explicit transaction, so the lock could be released before DDL. Initialization now executes under an explicit transaction with narrowly bounded retry for known concurrent DDL collisions.
 
-PR #48 completes the **DEV 2 assigned worker slice**. DEV 2 is now `MERGED / WAITING` and must not start TAG Gateway or reopen its branch for additional scope.
+CI #296 and post-merge CI #297 validate both corrections.
 
-However, do **not** describe Internal Memory as complete product integration yet. The following central/shared work remains coordinator-owned:
+## SOURCE/PROTOCOL GATE STATUS
 
-- compile engineered `builtin.memory.server` Data Sources/TAGs into the shared Server Memory runtime provider;
-- wire `PostgreSqlServerMemoryRetentionStore` into actual runtime composition;
-- publish authoritative Server Memory values through the shared TAG cache/Event Bus/realtime path and configured Historian/Alarm semantics;
-- compose Client Memory per opened runtime client/session rather than as one global server store;
-- preserve capability authorization and Audit for external Server Memory writes;
-- provide explicit reset/migration handling when retained type is incompatible;
-- expose appropriate central API/Engineering UI configuration hooks;
-- avoid fake network diagnostics for Internal Memory.
+The locked sequence remains:
 
-Therefore the locked source/protocol order remains:
+`Internal Memory -> TAG Gateway -> common multi-driver diagnostics -> USER INTERFACE VALIDATION PREVIEW -> additional external protocols`
 
-`Internal Memory complete product integration -> TAG Gateway -> common multi-driver/Data Source diagnostics -> USER INTERFACE VALIDATION PREVIEW -> additional external protocols`
+Current state:
 
-**TAG Gateway remains SPECIFIED / NOT IMPLEMENTED and blocked.**
+- Internal Memory: **MERGED / COMPLETE**;
+- TAG Gateway: **ACTIVE LOCKED BLOCK — FIRST ENGINEERING SLICE ASSIGNED**;
+- common multi-driver diagnostics: **SPECIFIED / NOT IMPLEMENTED — BLOCKED BY GATEWAY**;
+- interface validation preview: **SPECIFIED / NOT IMPLEMENTED — BLOCKED BY DIAGNOSTICS**;
+- additional external protocols: still blocked by the preceding gates.
 
-## CURRENT CHAT ASSIGNMENTS
+## NEW WORKER ASSIGNMENT
 
-The exact live board is `docs/CHAT-WORK-ASSIGNMENTS.md`.
+**DEV 2 - EliteSCADA** now owns the first TAG Gateway slice:
 
-1. **DEV 1 - EliteSCADA** — PR #46 — `MERGED / WAITING`.
-2. **DEV 2 - EliteSCADA** — PR #48 — `MERGED / WAITING`.
-3. **DEV 3 - EliteSCADA** — PR #47 — `MERGED / WAITING`.
+- CurrentTask: `Public TAG Gateway Engineering contract and deterministic validation foundation`;
+- Branch: `feature/tag-gateway-engineering`;
+- Status: `ASSIGNED`;
+- MustRead: `docs/TAG-GATEWAY.md`, `docs/INTERNAL-MEMORY-TAGS.md`, `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`, `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`;
+- exclusive narrow permission for Gateway-related changes in `src/Scada.Engineering/Contracts/EngineeringContracts.cs` plus required Gateway import/export integration;
+- no Gateway runtime engine, API/DI, frontend, diagnostics UI or protocol-specific driver work in this slice;
+- AfterCompletion: `WAIT_FOR_COORDINATOR`.
 
-All three workers retain `AfterCompletion: WAIT_FOR_COORDINATOR` and currently have no new assignment.
+DEV 1 and DEV 3 remain `MERGED / WAITING`. Canonical Script package/schema integration is intentionally deferred while DEV 2 owns overlapping central Engineering contract files.
 
 ## COORDINATOR RESUME POINT
 
 On the next coordinator `siga`:
 
-1. reread current mandatory documents from `main`;
-2. complete coordinator-owned Internal Memory runtime/DI/client-session/security/Audit/API/UI integration;
-3. validate complete Internal Memory product integration with full CI;
-4. only after that milestone may TAG Gateway be assigned;
-5. separately, canonical Script schema/package integration may be scheduled after shared Engineering v8/Internal Memory integration is stable;
-6. update roadmap/handoff/assignments after every official state change.
+1. reread mandatory docs from current `main`;
+2. inspect the real `feature/tag-gateway-engineering` branch, PR/head/diff and CI;
+3. enforce the exact DEV 2 assignment and `docs/TAG-GATEWAY.md` semantics;
+4. merge only after the public/versioned Gateway Engineering contract, deterministic graph/type/endpoint validation, compatibility tests and relevant full CI are green;
+5. only after that contract is official on `main`, assign the protocol-independent Gateway runtime engine slice;
+6. keep DEV 1 and DEV 3 idle unless a clearly non-conflicting new assignment is explicitly recorded.
 
 ## Permanent continuity rules
 

@@ -19,6 +19,7 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
     public ConcurrentDictionary<ushort, bool> DiscreteInputs { get; } = new();
     public ConcurrentDictionary<ushort, ushort> HoldingRegisters { get; } = new();
     public ConcurrentDictionary<ushort, ushort> InputRegisters { get; } = new();
+    public bool RejectWrites { get; set; }
 
     public int Port => ((IPEndPoint)_listener.LocalEndpoint).Port;
 
@@ -148,9 +149,9 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
                 0x02 => ReadBits(unitId, function, pdu, DiscreteInputs),
                 0x03 => ReadRegisters(unitId, function, pdu, HoldingRegisters),
                 0x04 => ReadRegisters(unitId, function, pdu, InputRegisters),
-                0x05 => WriteSingleCoil(unitId, pdu),
-                0x06 => WriteSingleRegister(unitId, pdu),
-                0x10 => WriteMultipleRegisters(unitId, pdu),
+                0x05 => RejectWrites ? RejectWrite(unitId, function, pdu) : WriteSingleCoil(unitId, pdu),
+                0x06 => RejectWrites ? RejectWrite(unitId, function, pdu) : WriteSingleRegister(unitId, pdu),
+                0x10 => RejectWrites ? RejectWrite(unitId, function, pdu) : WriteMultipleRegisters(unitId, pdu),
                 _ => new byte[] { (byte)(function | 0x80), 0x01 }
             };
         }
@@ -158,6 +159,16 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
         {
             return new byte[] { (byte)(function | 0x80), 0x03 };
         }
+    }
+
+    private byte[] RejectWrite(byte unitId, byte function, byte[] pdu)
+    {
+        var address = pdu.Length >= 3 ? BinaryPrimitives.ReadUInt16BigEndian(pdu.AsSpan(1, 2)) : (ushort)0;
+        var quantity = function == 0x10 && pdu.Length >= 5
+            ? BinaryPrimitives.ReadUInt16BigEndian(pdu.AsSpan(3, 2))
+            : (ushort)1;
+        Record(unitId, function, address, quantity);
+        return new byte[] { (byte)(function | 0x80), 0x04 };
     }
 
     private byte[] ReadBits(byte unitId, byte function, byte[] pdu, ConcurrentDictionary<ushort, bool> source)

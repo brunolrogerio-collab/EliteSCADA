@@ -5,7 +5,7 @@ import { AuditApp } from './audit';
 import { AuthGate } from './auth/AuthGate';
 import { EngineeringApp } from './engineering/EngineeringApp';
 import { clientMemory } from './runtime/clientMemory';
-import { RuntimeAlarmCenter, RuntimeOperationsOverview, type RuntimeAlarmCenterLocale } from './runtime/operations';
+import { RuntimeAlarmCenter, type RuntimeAlarmCenterLocale } from './runtime/operations';
 import './styles.css';
 
 type TagMessage = {
@@ -23,7 +23,7 @@ type HistorySample = { tagId: string; value: unknown; timestamp: string; quality
 const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
 const WS = API
   ? API.replace(/^http/, 'ws') + '/ws/tags'
-  : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/tags`;
+  : `${window.location.protocol === 'https:' ? 'wss:' : 'ws'}//${window.location.host}/ws/tags`;
 
 function n(v: unknown, digits = 1) {
   const numeric = Number(v);
@@ -79,16 +79,11 @@ function RuntimeApp() {
       ws.onclose = event => {
         setConnected(false);
         if (stopped) return;
-
-        // The backend uses 1008 for an explicit identity/session revocation. In that case
-        // a transient reconnect loop would keep presenting stale authenticated UI, so reload
-        // once and let AuthGate revalidate /api/auth/me and return to login when appropriate.
         if (event.code === 1008) {
           stopped = true;
           window.location.reload();
           return;
         }
-
         retry = window.setTimeout(connect, 1500);
       };
       ws.onerror = () => ws?.close();
@@ -141,7 +136,6 @@ function RuntimeApp() {
         </div>
       </header>
 
-      <RuntimeOperationsOverview locale={locale} />
       <RuntimeAlarmCenter locale={locale} />
 
       <section className="process-card">
@@ -154,9 +148,7 @@ function RuntimeApp() {
             </div>
             <label>Reservatório TK01</label>
           </div>
-
           <div className="pipe horizontal first" />
-
           <button className={`pump ${pumpClass}`} onClick={openPump} title="Abrir detalhes da bomba">
             <svg viewBox="0 0 120 90" aria-label="Bomba P01">
               <circle cx="48" cy="45" r="30" />
@@ -165,7 +157,6 @@ function RuntimeApp() {
             </svg>
             <strong>P01</strong><small>{fault ? 'FALHA' : running ? 'OPERANDO' : 'PARADA'}</small>
           </button>
-
           <div className="pipe horizontal second" />
           <div className="line-values">
             <div><span>Pressão</span><strong>{n(get('Demo.Discharge.Pressure'))} bar</strong></div>

@@ -2,6 +2,8 @@ using Scada.Core.Commands;
 using Scada.Core.Tags;
 using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.DataSources;
+using Scada.Engineering.Validation;
 
 namespace Scada.Engineering.ImportExport.Handlers;
 
@@ -9,11 +11,16 @@ internal sealed class CommandEngineeringHandler
 {
     private readonly ICommandEngineeringRegistry _registry;
     private readonly ITagRegistry _tags;
+    private readonly IDataSourceEngineeringRegistry _dataSources;
 
-    public CommandEngineeringHandler(ICommandEngineeringRegistry registry, ITagRegistry tags)
+    public CommandEngineeringHandler(
+        ICommandEngineeringRegistry registry,
+        ITagRegistry tags,
+        IDataSourceEngineeringRegistry dataSources)
     {
         _registry = registry;
         _tags = tags;
+        _dataSources = dataSources;
     }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
@@ -37,6 +44,16 @@ internal sealed class CommandEngineeringHandler
             var target = ResolveTarget(package, command, issues);
             if (target is not null && issues.All(x => x.Code != "COMMAND_TARGET_TAG_MISMATCH"))
             {
+                if (IsClientMemoryTarget(package, target.Source))
+                {
+                    issues.Add(new ImportIssue(
+                        "CLIENT_MEMORY_COMMAND_TARGET_NOT_ALLOWED",
+                        $"Command '{command.Key}' cannot target Client Memory TAG '{target.Path}' because Commands execute in the shared server runtime.",
+                        ImportEntityKind.Command,
+                        command.Key,
+                        true));
+                }
+
                 var tag = new TagDefinition(
                     target.Id,
                     target.Name,
@@ -115,8 +132,6 @@ internal sealed class CommandEngineeringHandler
             return null;
         }
 
-        // Prefer the package TAG resolved by path when both references identify the same logical TAG.
-        // This makes preview validate the post-import definition (type/read-only policy), not stale workspace state.
         var target = byPath ?? byId;
         if (target is null)
         {
@@ -129,6 +144,15 @@ internal sealed class CommandEngineeringHandler
         }
 
         return target;
+    }
+
+    private bool IsClientMemoryTarget(EngineeringPackage package, string? sourceKey)
+    {
+        if (string.IsNullOrWhiteSpace(sourceKey)) return false;
+        var dataSource = (package.DataSources ?? Array.Empty<DataSourceEngineeringDto>())
+            .FirstOrDefault(source => source.Key.Equals(sourceKey, StringComparison.OrdinalIgnoreCase))
+            ?? _dataSources.FindByKey(sourceKey);
+        return dataSource is not null && MemoryEngineeringValidator.IsClientMemoryDriver(dataSource.Driver);
     }
 
     private static TagTarget? FindPackageTagById(EngineeringPackage package, Guid id)

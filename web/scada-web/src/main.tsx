@@ -6,6 +6,7 @@ import { AuthGate } from './auth/AuthGate';
 import { EngineeringApp } from './engineering/EngineeringApp';
 import { clientMemory } from './runtime/clientMemory';
 import { RuntimeAlarmCenter, type RuntimeAlarmCenterLocale } from './runtime/operations';
+import { RuntimeTagInspector } from './runtime/RuntimeTagInspector';
 import './styles.css';
 
 type TagMessage = {
@@ -137,6 +138,7 @@ function RuntimeApp() {
       </header>
 
       <RuntimeAlarmCenter locale={locale} />
+      <RuntimeTagInspector locale={locale} />
 
       <section className="process-card">
         <div className="process-title">Demo · Estação Elevatória</div>

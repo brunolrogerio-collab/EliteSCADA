@@ -1,4 +1,5 @@
 import React from 'react';
+import { UserSessionMenu } from './auth/UserSessionMenu';
 import './app-navigation.css';
 
 type ShellLocale = 'pt-BR' | 'en' | 'es';
@@ -18,34 +19,16 @@ const localeKey = 'elitescada.engineering.locale';
 
 const copy: Record<ShellLocale, ShellCopy> = {
   'pt-BR': {
-    subtitle: 'Plataforma industrial',
-    currentArea: 'Área atual',
-    runtime: 'Runtime',
-    runtimeDescription: 'Operação',
-    engineering: 'Engineering',
-    engineeringDescription: 'Projeto',
-    audit: 'Auditoria',
-    auditDescription: 'Rastreabilidade'
+    subtitle: 'Plataforma industrial', currentArea: 'Área atual', runtime: 'Runtime', runtimeDescription: 'Operação',
+    engineering: 'Engineering', engineeringDescription: 'Projeto', audit: 'Auditoria', auditDescription: 'Rastreabilidade'
   },
   en: {
-    subtitle: 'Industrial platform',
-    currentArea: 'Current area',
-    runtime: 'Runtime',
-    runtimeDescription: 'Operations',
-    engineering: 'Engineering',
-    engineeringDescription: 'Project',
-    audit: 'Audit',
-    auditDescription: 'Traceability'
+    subtitle: 'Industrial platform', currentArea: 'Current area', runtime: 'Runtime', runtimeDescription: 'Operations',
+    engineering: 'Engineering', engineeringDescription: 'Project', audit: 'Audit', auditDescription: 'Traceability'
   },
   es: {
-    subtitle: 'Plataforma industrial',
-    currentArea: 'Área actual',
-    runtime: 'Runtime',
-    runtimeDescription: 'Operación',
-    engineering: 'Engineering',
-    engineeringDescription: 'Proyecto',
-    audit: 'Auditoría',
-    auditDescription: 'Trazabilidad'
+    subtitle: 'Plataforma industrial', currentArea: 'Área actual', runtime: 'Runtime', runtimeDescription: 'Operación',
+    engineering: 'Engineering', engineeringDescription: 'Proyecto', audit: 'Auditoría', auditDescription: 'Trazabilidad'
   }
 };
 
@@ -59,13 +42,10 @@ function resolveLocale(): ShellLocale {
 }
 
 export function AppNavigation() {
-  const text = copy[resolveLocale()];
+  const locale = resolveLocale();
+  const text = copy[locale];
   const path = window.location.pathname;
-  const activeHref = path.startsWith('/audit')
-    ? '/audit'
-    : path.startsWith('/engineering')
-      ? '/engineering'
-      : '/';
+  const activeHref = path.startsWith('/audit') ? '/audit' : path.startsWith('/engineering') ? '/engineering' : '/';
   const links = [
     { href: '/', label: text.runtime, description: text.runtimeDescription },
     { href: '/engineering', label: text.engineering, description: text.engineeringDescription },
@@ -77,32 +57,21 @@ export function AppNavigation() {
     <header className="app-bar">
       <a className="app-brand" href="/" aria-label="EliteSCADA Runtime">
         <span className="app-brand-mark" aria-hidden="true">E</span>
-        <span className="app-brand-copy">
-          <strong>EliteSCADA</strong>
-          <small>{text.subtitle}</small>
-        </span>
+        <span className="app-brand-copy"><strong>EliteSCADA</strong><small>{text.subtitle}</small></span>
       </a>
-
       <nav className="app-navigation" aria-label="EliteSCADA">
         {links.map(link => {
           const isActive = activeHref === link.href;
           return (
-            <a
-              key={link.href}
-              href={link.href}
-              className={isActive ? 'active' : undefined}
-              aria-current={isActive ? 'page' : undefined}
-            >
-              <span>{link.label}</span>
-              <small>{link.description}</small>
+            <a key={link.href} href={link.href} className={isActive ? 'active' : undefined} aria-current={isActive ? 'page' : undefined}>
+              <span>{link.label}</span><small>{link.description}</small>
             </a>
           );
         })}
       </nav>
-
-      <div className="app-context">
-        <span>{text.currentArea}</span>
-        <strong>{active.label}</strong>
+      <div className="app-shell-actions">
+        <div className="app-context"><span>{text.currentArea}</span><strong>{active.label}</strong></div>
+        <UserSessionMenu locale={locale} />
       </div>
     </header>
   );

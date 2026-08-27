@@ -67,7 +67,7 @@ public sealed class EngineeringRuntimeCommunicationDiagnosticsTests
         {
             var diagnostics = runtime.Describe().CommunicationDrivers;
             return diagnostics.Count == 2
-                && diagnostics.All(item => item.State == CommunicationOperationalState.Healthy)
+                && diagnostics.All(item => item.State == CommunicationDriverOperationalState.Healthy)
                 && diagnostics.All(item => item.TagQuality.Good == 1);
         }, TimeSpan.FromSeconds(4));
 
@@ -83,9 +83,9 @@ public sealed class EngineeringRuntimeCommunicationDiagnosticsTests
         await WaitForAsync(() =>
         {
             var diagnostics = runtime.Describe().CommunicationDrivers.ToDictionary(item => item.DataSourceKey);
-            return diagnostics["plc.b"].State == CommunicationOperationalState.Reconnecting
+            return diagnostics["plc.b"].State == CommunicationDriverOperationalState.Reconnecting
                 && diagnostics["plc.b"].Counters.Timeouts >= 1
-                && diagnostics["plc.a"].State == CommunicationOperationalState.Healthy;
+                && diagnostics["plc.a"].State == CommunicationDriverOperationalState.Healthy;
         }, TimeSpan.FromSeconds(5));
 
         Assert.True(runtime.TryGetCurrent(tagAId, out var currentA));
@@ -100,10 +100,10 @@ public sealed class EngineeringRuntimeCommunicationDiagnosticsTests
         await WaitForAsync(() =>
         {
             var diagnostics = runtime.Describe().CommunicationDrivers.ToDictionary(item => item.DataSourceKey);
-            return diagnostics["plc.b"].State == CommunicationOperationalState.Healthy
+            return diagnostics["plc.b"].State == CommunicationDriverOperationalState.Healthy
                 && diagnostics["plc.b"].Counters.ConsecutiveFailures == 0
                 && diagnostics["plc.b"].Counters.Reconnects >= 1
-                && diagnostics["plc.a"].State == CommunicationOperationalState.Healthy;
+                && diagnostics["plc.a"].State == CommunicationDriverOperationalState.Healthy;
         }, TimeSpan.FromSeconds(5));
 
         await runtime.WriteAsync(tagBId, (short)77);

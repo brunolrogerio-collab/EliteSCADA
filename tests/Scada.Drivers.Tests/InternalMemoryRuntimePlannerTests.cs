@@ -33,15 +33,47 @@ public sealed class InternalMemoryRuntimePlannerTests
         var server = Assert.Single(result.ServerMemoryPlans);
         Assert.Equal("memory.server", server.DataSourceKey);
         Assert.False(server.IsClientMemory);
-        Assert.Equal(12, Assert.Single(server.Tags).InitialValue.Value);
+        var serverTag = Assert.Single(server.Tags);
+        Assert.Equal(12, serverTag.InitialValue.Value);
+        Assert.Equal("False", serverTag.Tag.Metadata!["historian.enabled"]);
 
         var client = Assert.Single(result.ClientMemoryPlans);
         Assert.True(client.IsClientMemory);
-        Assert.Equal("P01", Assert.Single(client.Tags).InitialValue.Value);
+        var clientTag = Assert.Single(client.Tags);
+        Assert.Equal("P01", clientTag.InitialValue.Value);
+        Assert.Equal("False", clientTag.Tag.Metadata!["historian.enabled"]);
 
         var communicationSource = Assert.Single(result.CommunicationPackage.DataSources!);
         Assert.Equal("simulation", communicationSource.Key);
         Assert.DoesNotContain(result.Issues, x => x.IsError);
+    }
+
+    [Fact]
+    public void Compile_ServerMemoryHistorian_IsExplicitlyEnabledOnlyWhenEngineered()
+    {
+        var tagId = Guid.NewGuid();
+        var package = Package(
+            new[]
+            {
+                Tag(
+                    tagId,
+                    "Plant.HistorizedCounter",
+                    TagDataType.Int32,
+                    "memory.server",
+                    7,
+                    new HistorianSettingsDto(Enabled: true, Strategy: "change"))
+            },
+            new[]
+            {
+                new DataSourceEngineeringDto(null, "memory.server", "Server Memory", InternalMemoryRuntimePlanner.ServerMemoryDriverKey)
+            });
+
+        var result = InternalMemoryRuntimePlanner.Compile(package);
+
+        Assert.True(result.CanActivate);
+        var tag = Assert.Single(Assert.Single(result.ServerMemoryPlans).Tags).Tag;
+        Assert.Equal("True", tag.Metadata!["historian.enabled"]);
+        Assert.Equal("change", tag.Metadata["historian.strategy"]);
     }
 
     [Fact]
@@ -70,13 +102,20 @@ public sealed class InternalMemoryRuntimePlannerTests
         Assert.Contains(result.Issues, x => x.Code == "MEMORY_TAG_STABLE_ID_REQUIRED" && x.IsError);
     }
 
-    private static TagEngineeringDto Tag(Guid id, string path, TagDataType type, string source, object value) => new(
+    private static TagEngineeringDto Tag(
+        Guid id,
+        string path,
+        TagDataType type,
+        string source,
+        object value,
+        HistorianSettingsDto? historian = null) => new(
         id,
         path.Split('.').Last(),
         path,
         type,
         Source: source,
         ReadOnly: false,
+        Historian: historian,
         InitialValue: Initial(type, value));
 
     private static MemoryInitialValueDto Initial(TagDataType type, object value) =>

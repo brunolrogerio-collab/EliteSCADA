@@ -3,7 +3,7 @@
 > Operational handoff. Read with `PROJECT GOAL.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md` and `docs/CHAT-WORK-ASSIGNMENTS.md` before every EliteSCADA task.
 
 **Handoff date:** 2026-08-27  
-**Development state:** **ACTIVE — TAG GATEWAY COMPLETE / COMMON MULTI-DRIVER DIAGNOSTICS NEXT**
+**Development state:** **ACTIVE — COMMON DIAGNOSTICS COMPLETE / USER INTERFACE VALIDATION PREVIEW NEXT**
 
 Repository truth is separated into **MERGED**, **IMPLEMENTED IN PR**, **RESEARCH IN PR** and **SPECIFIED / NOT IMPLEMENTED**.
 
@@ -21,64 +21,63 @@ Current functional state:
 
 - Internal Memory: **MERGED / COMPLETE** through PR #49;
 - TAG Gateway: **MERGED / COMPLETE** through PRs #50 and #55;
-- canonical Engineering: **Schema v9**, with first-class Gateway routes;
-- common multi-driver/Data Source diagnostics: **ACTIVE NEXT PRODUCT BLOCK**;
-- USER INTERFACE VALIDATION PREVIEW: **SPECIFIED / NOT IMPLEMENTED — BLOCKED BY COMMON DIAGNOSTICS**;
-- production MQTT/OPC UA/BACnet/S7 and Driver Module implementation remain gated by the preview;
+- common multi-driver/Data Source diagnostics: **MERGED / COMPLETE** through PRs #56 and #57;
+- canonical Engineering: **Schema v9**;
+- USER INTERFACE VALIDATION PREVIEW: **ACTIVE NEXT PRODUCT BLOCK**;
+- production MQTT/OPC UA/BACnet/S7 and Driver Module implementation remain blocked until product-owner preview/feedback;
 - isolated Script Engineering foundation: **MERGED**, canonical package/schema integration still pending;
 - production Python editor/sandbox, visual runtime integration and graphical editor remain **SPECIFIED / NOT IMPLEMENTED**.
 
-## TAG GATEWAY — COMPLETE ON `main`
+## COMMON COMMUNICATION / DATA SOURCE DIAGNOSTICS — COMPLETE ON `main`
 
-PR #50 merged the canonical public/versioned Gateway Engineering foundation and Schema v9.
+PR #56 merged the isolated protocol-neutral diagnostics contract and Modbus TCP instrumentation foundation into `main` at base checkpoint `5520d0190d74618addeeea40b05507e3cb772d21`.
 
-PR #55 `Complete protocol-independent TAG Gateway runtime` merged as:
+PR #57 `Integrate common communication diagnostics product` then merged as:
 
-`41bc437ba64f60fba26754794a9dc5a4e9a034f7`
+`c8190cc119a2e288834d619084396107103b2f56`
 
-Validated Gateway capabilities now include:
+The final PR #57 head was:
 
-- protocol-independent TAG-to-TAG routing over the common TAG/Event Bus/write boundary;
-- destination writes through active runtime ownership rather than driver-to-driver coupling;
-- OnChange and Periodic execution;
-- Good-only source quality gating;
-- startup synchronization policy;
-- deadband, minimum interval and newest-value coalescing;
-- Exact and CheckedNumeric conversion with gain/offset and checked overflow/narrowing;
-- fan-out and canonical cycle/multiple-writer validation;
-- Server Memory as valid server endpoint and Client Memory rejected;
-- route-local diagnostics/counters without contaminating source TAG quality;
-- transactional Active Revision route replacement;
-- protected Gateway diagnostics API;
-- Engineering Data Sources Gateway tool using canonical Preview/Apply + Workspace CAS;
-- runtime diagnostics UI.
+`9fffd193153f50a937be3b8343c255a498701808`
 
-Automated runtime proof includes Modbus -> Server Memory, Server Memory -> Modbus, independent Modbus -> Modbus, quality suppression, destination failure/recovery, cadence/coalescing, conversion/overflow, fan-out and revision switching.
+CI #350 passed Web build, backend build/tests, runtime smoke and Chromium E2E on that exact head. Post-merge main CI #351 (`33086312673`) also completed **SUCCESS** for all three jobs on merge SHA `c8190cc...`.
 
-PR #55 branch CI #333 was fully green.
+Merged diagnostic capabilities now include:
 
-The first post-merge main CI #334 exposed two timing-sensitive tests. The coordinator hardened only the tests, not product semantics. Commit `782c65fe3c44061b6e2bb13f1a6b905db6b1c102` increased deterministic waits, and commit `cb4d2c423c31cf7a52ea6ebe6de494c281901f3f` corrected the resulting collection-access compile mistake. Main CI #336 on `cb4d2c42...` completed **SUCCESS** for Web build, backend build/tests, runtime smoke and Chromium E2E.
+- protocol-neutral communication diagnostic snapshots only for real communication-capable drivers;
+- canonical Data Source identity kept distinct from Driver type and runtime instance identity;
+- healthy/degraded/reconnecting/faulted operational semantics with state timestamps;
+- request/success/failure/timeout/connect/reconnect/read/write/update counters where meaningful;
+- last successful/failed communication, sanitized error, recent failure rate, latency, data age and scan timing;
+- TAG-quality aggregation per active Data Source without replacing point-level quality authority;
+- Modbus TCP instrumentation with safe protocol details;
+- automated proof with two simultaneous Modbus Data Sources, isolated failure/recovery/counters/TAG quality and correct write ownership;
+- Simulation and Internal Memory excluded from fabricated network/reconnect/timeout semantics;
+- protected runtime diagnostics surfaced through the existing diagnostics boundary;
+- elaborated Engineering diagnostics UX with health summary, severity ordering, search, filters, automatic/manual refresh, master/detail navigation, quality/activity/timing/protocol drill-down, responsive layout and `pt-BR` / `en` / `es` copy.
 
-The TAG Gateway gate is therefore closed as **MERGED / COMPLETE**.
+The diagnostics gate is therefore closed as **MERGED / COMPLETE**.
 
-## ACTIVE NEXT BLOCK — COMMON COMMUNICATION / DATA SOURCE DIAGNOSTICS
+## ACTIVE NEXT BLOCK — USER INTERFACE VALIDATION PREVIEW
 
-The next official product block is `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
+The next official block is `docs/INTERFACE-VALIDATION-MILESTONE.md`.
 
-Required direction:
+The user explicitly requested that interface work be elaborated and that the project advance, while postponing delivery of the actual visual preview until a later request. Therefore the current coordinator work is to build the preview infrastructure/package now without presenting the preview as delivered yet.
 
-- protocol-neutral diagnostic snapshot for external communication Data Sources;
-- Data Source identity kept separate from Driver type;
-- healthy/degraded/reconnecting/faulted operational distinction;
-- success/failure/timeout/reconnect/request/read/write/update counters;
-- last success/failure and sanitized error timestamps/messages;
-- useful latency, failure-rate, data-age and observed-scan metrics where meaningful;
-- per-Data-Source TAG-quality aggregation;
-- strict isolation between simultaneous Data Sources;
-- no fabricated transport/network metrics for Internal Memory or built-in simulation;
-- protected backend diagnostic API and Engineering diagnostics UI owned by coordinator integration.
+Required implementation direction:
 
-DEV 2 is assigned the isolated common-contract + Modbus instrumentation foundation. Coordinator retains central DriverHost/API/DI/UI integration and final multi-instance acceptance.
+- primary practical target: Windows x64;
+- single practical startup path rather than separate developer-only API/Vite terminals;
+- built React application served from the packaged EliteSCADA runtime or an equivalently reliable single entry point;
+- PostgreSQL/TimescaleDB and required services started through a reliable launcher/automation rather than hand reconstruction;
+- local identity/login bootstrap without committed production credentials or secrets;
+- sample/demo project suitable for Runtime and Engineering validation;
+- visible build/version identity tied to an exact source state;
+- short validation checklist;
+- package/startup smoke test separate from repository-only `dotnet run` / Vite execution;
+- preserve security, Audit, Engineering revision lifecycle, TAG quality, Gateway and diagnostics boundaries.
+
+No new production external protocol family is authorized until this preview is actually handed to the product owner and feedback is reviewed.
 
 ## RESEARCH DELIVERIES WAITING FOR COORDINATOR
 
@@ -99,12 +98,13 @@ Status: **RESEARCH IN PR / DELIVERED / WAIT_FOR_COORDINATOR**. The Pyodide/Monac
 On the next coordinator `siga`:
 
 1. reread mandatory docs from current `main` and verify GitHub branch/PR/CI truth;
-2. monitor DEV 2 `feature/communication-driver-diagnostics` against its exact assignment;
-3. prepare coordinator-owned protected diagnostics API/DriverHost composition and Engineering diagnostics UI without overlapping DEV 2 files;
-4. validate two simultaneous Modbus Data Sources with independent failure/recovery/counters/TAG quality;
-5. merge only after current-head CI is fully green;
-6. after common diagnostics is complete and green on `main`, create the USER INTERFACE VALIDATION PREVIEW build before any new production external protocol;
-7. keep DEV 1/DEV 3 research as non-production inputs until their prerequisite chains are explicitly opened.
+2. continue the coordinator-owned USER INTERFACE VALIDATION PREVIEW implementation;
+3. preserve the product-owner direction that the preview itself is not handed off until requested, while continuing package/startup/UI-readiness work;
+4. build a reliable Windows x64 package path with database/services launcher, local login/bootstrap, demo, build identity and validation checklist;
+5. add package/startup smoke validation separate from repository developer execution;
+6. merge only current-head green work and reconcile docs after each completed integration slice;
+7. do not start MQTT/OPC UA/BACnet/S7/Driver Module production runtime before preview delivery and feedback;
+8. keep DEV 1/DEV 3 research as non-production inputs until their prerequisite chains are explicitly opened.
 
 ## Permanent continuity rules
 

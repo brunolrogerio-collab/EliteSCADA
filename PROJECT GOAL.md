@@ -249,6 +249,8 @@ The architectural sequence is:
 
 The interface preview is an explicit product gate. It must provide a practical Windows x64 test path with local login, demo project, required services/startup automation or reliable instructions, visible version identification and a short validation checklist. Feedback is reviewed before investing heavily in the next protocol wave.
 
+Research/specification spikes for future protocols may run earlier only when they do not register a production Data Source, alter active runtime composition or bypass the locked gate. Their purpose is to reduce uncertainty, not to smuggle protocol implementation ahead of the product sequence.
+
 Full milestone: `docs/INTERFACE-VALIDATION-MILESTONE.md`.
 
 ## Python scripting and visual runtime foundation
@@ -405,6 +407,31 @@ After the prerequisite foundation and interface-preview gate:
 
 Driver modules declare stable identity/version, EliteSCADA compatibility, provided driver/Data Source types and public versioned Engineering configuration schema. Missing/disabled/incompatible modules preserve project configuration and expose explicit diagnostics. Module installation/upgrade/removal is security-sensitive and auditable. Package integrity/trust must be evaluated before executable code is enabled.
 
+### OPC UA Engineering/discovery experience
+
+When OPC UA reaches production implementation, EliteSCADA must provide more than manual endpoint/NodeId entry.
+
+Locked OPC UA product direction:
+
+- manual endpoint configuration plus standard server/endpoint discovery;
+- an opt-in, bounded and cancellable **Scan network for OPC UA devices/servers** tool using standard OPC UA discovery mechanisms where available and controlled host/port probing only as fallback;
+- endpoint inspection covering transport, security mode/policy, supported authentication/user-token types and server-certificate identity;
+- explicit certificate trust with fail-closed handling for unexpected server identity changes rather than silently trusting arbitrary servers;
+- connection test before importing TAGs;
+- lazy, searchable/filterable address-space tree browser;
+- multiple selection and optional subtree candidate collection;
+- import preview mapping OPC UA variables into canonical EliteSCADA TAG Engineering before Apply;
+- subscription/update profiles so imported TAGs use native OPC UA monitored-item/subscription semantics;
+- imported bindings preserve NodeId plus namespace-aware portable BrowsePath/namespace URI information so nodes can be safely re-resolved after server/namespace changes;
+- a Refresh/Re-resolve Node IDs workflow with preview and deterministic mismatch/type-change handling;
+- Rescan/diff workflow for new, missing and changed server nodes without silently deleting EliteSCADA Engineering or historian data;
+- unsupported/lossy data types are reported explicitly, never silently coerced;
+- production runtime continues to use normal TAG/security/Audit/Gateway/diagnostic boundaries and never creates a private protocol bypass.
+
+The official OPC Foundation UA .NET Standard client stack is the primary implementation candidate and must be evaluated during the technical spike/implementation slice rather than reimplementing OPC UA privately without cause.
+
+Full locked semantics and the permitted early non-production spike: `docs/OPC-UA.md`.
+
 ## Development quality rules
 
 - Prefer small coherent slices with automated validation.
@@ -431,6 +458,7 @@ Driver modules declare stable identity/version, EliteSCADA compatibility, provid
 - `docs/TAG-GATEWAY.md`: TAG Gateway semantics.
 - `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`: multi-driver diagnostic contract.
 - `docs/INTERFACE-VALIDATION-MILESTONE.md`: mandatory product-owner preview gate.
+- `docs/OPC-UA.md`: OPC UA discovery, browse, import, security and future driver Engineering experience.
 - `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`: Python scripting, script editor, visual property schema and runtime visual-state contract.
 
 These documents must remain consistent. `PROJECT GOAL.md` wins for locked product intent; current repository code/`main` wins for implementation truth; `LAST CHANGE.md` records the exact handoff.

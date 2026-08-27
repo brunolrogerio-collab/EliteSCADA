@@ -85,6 +85,9 @@ builder.Services.AddSingleton<ScadaRuntimeFacade>();
 builder.Services.AddHostedService<SimulationDriverHostedService>();
 
 var app = builder.Build();
+var packagedWebRoot = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+var packagedWebIndex = Path.Combine(packagedWebRoot, "index.html");
+var hasPackagedWebUi = File.Exists(packagedWebIndex);
 
 // Resolve the historian before the hosted driver starts so it subscribes to the event bus.
 _ = app.Services.GetRequiredService<IHistorian>();
@@ -95,6 +98,11 @@ await app.InitializeAuditAsync();
 app.UseCors();
 if (authenticationEnabled) app.UseAuthentication();
 app.UseWebSockets();
+if (hasPackagedWebUi)
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+}
 app.MapOpenApi();
 app.MapProjectPackageEndpoints();
 app.MapEngineeringPersistenceEndpoints();
@@ -611,6 +619,12 @@ app.Map("/ws/tags", async (
         expiresAtUtc,
         context.RequestAborted);
 });
+
+if (hasPackagedWebUi)
+{
+    app.MapGet("/engineering", () => Results.File(packagedWebIndex, "text/html; charset=utf-8"));
+    app.MapGet("/audit", () => Results.File(packagedWebIndex, "text/html; charset=utf-8"));
+}
 
 app.Run();
 

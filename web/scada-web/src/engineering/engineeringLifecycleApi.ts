@@ -1,5 +1,5 @@
+import { engineeringLifecycleRequestBody } from './engineeringLifecycleContract';
 import type {
-  EngineeringLifecycleAction,
   EngineeringLifecycleState,
   EngineeringPersistenceStatus,
   EngineeringProjectLifecycle,
@@ -19,15 +19,6 @@ export class EngineeringLifecycleApiError extends Error {
     super(extractErrorMessage(responseData) ?? (responseBody || `HTTP ${status}`));
     this.name = 'EngineeringLifecycleApiError';
   }
-}
-
-export function engineeringLifecycleRequestBody(
-  action: EngineeringLifecycleAction,
-  projectName?: string
-): Record<string, unknown> | undefined {
-  if (action === 'save') return { projectName: projectName ?? '' };
-  if (action === 'publish' || action === 'activate') return {};
-  return undefined;
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {

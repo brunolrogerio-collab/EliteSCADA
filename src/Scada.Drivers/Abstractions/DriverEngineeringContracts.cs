@@ -53,10 +53,26 @@ public enum DriverEngineeringIssueSeverity
     Error
 }
 
+public enum DriverReconcileStatus
+{
+    Unchanged,
+    IdentityChanged,
+    AddressChanged,
+    AccessChanged,
+    DataTypeChangedCompatible,
+    DataTypeChangedBreaking,
+    Missing,
+    Ambiguous,
+    Unsupported,
+    Error
+}
+
 /// <summary>
 /// Public description of one driver-owned configuration field. A concrete
 /// protocol library may use richer internal types, but canonical Engineering
 /// remains library-independent and versioned through this schema identity.
+/// Resource keys allow the host/module localization catalog to provide pt-BR,
+/// en and es labels while DisplayName/Description remain invariant fallbacks.
 /// </summary>
 public sealed record DriverConfigurationFieldDescriptor(
     string Key,
@@ -68,7 +84,9 @@ public sealed record DriverConfigurationFieldDescriptor(
     IReadOnlyCollection<string>? AllowedValues = null,
     double? Minimum = null,
     double? Maximum = null,
-    bool Advanced = false);
+    bool Advanced = false,
+    string? DisplayNameResourceKey = null,
+    string? DescriptionResourceKey = null);
 
 public sealed record DriverConfigurationSchemaDescriptor(
     string SchemaId,
@@ -90,7 +108,9 @@ public sealed record CommunicationDriverTypeDescriptor(
     IReadOnlyCollection<DriverAcquisitionMode> AcquisitionModes,
     DriverConfigurationSchemaDescriptor ConfigurationSchema,
     bool SupportsSharedTransportInfrastructure = false,
-    string? Description = null);
+    string? Description = null,
+    string? DisplayNameResourceKey = null,
+    string? DescriptionResourceKey = null);
 
 /// <summary>
 /// Non-authoritative snapshot passed to protected Engineering tooling. Settings
@@ -108,7 +128,8 @@ public sealed record DriverEngineeringIssue(
     string Code,
     DriverEngineeringIssueSeverity Severity,
     string Message,
-    string? FieldKey = null);
+    string? FieldKey = null,
+    string? MessageResourceKey = null);
 
 public sealed record DriverConnectionTestResult(
     bool Succeeded,
@@ -192,7 +213,7 @@ public sealed record DriverReconcileRequest(
 
 public sealed record DriverReconcileResult(
     string PortableAddress,
-    string Status,
+    DriverReconcileStatus Status,
     string? ResolvedIdentity = null,
     string? ResolvedPortableAddress = null,
     TagDataType? ObservedDataType = null,

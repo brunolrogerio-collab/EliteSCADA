@@ -31,6 +31,11 @@ export type TagAccessPolicyEngineering = {
   configureRoles?: string[] | null;
 };
 
+export type MemoryInitialValueEngineering = {
+  dataType: string;
+  value: unknown;
+};
+
 export type TagEngineering = {
   id?: string;
   name: string;
@@ -46,6 +51,7 @@ export type TagEngineering = {
   historian?: HistorianEngineering | null;
   metadata?: Record<string, string> | null;
   accessPolicy?: TagAccessPolicyEngineering | null;
+  initialValue?: MemoryInitialValueEngineering | null;
 };
 
 export type AlarmEngineering = {

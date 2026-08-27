@@ -71,22 +71,20 @@ public sealed class GatewayRuntimeConversionTests
         Assert.True(activation.Activated, Describe(activation));
 
         await runtime.WriteAsync(transformedSourceId, (short)11);
-        await WaitForAsync(
-            () => CurrentValue<int>(runtime, transformedDestinationId) == 27,
-            TimeSpan.FromSeconds(2));
-
+        await WaitForRouteActivityAsync(runtime, "transform", TimeSpan.FromSeconds(2));
         var transformed = Assert.Single(runtime.GatewayDiagnostics(), route => route.Key == "transform");
+        Assert.True(
+            transformed.TransferCount == 1 && transformed.WriteFailureCount == 0,
+            DiagnosticText(transformed));
+        Assert.Equal(27, CurrentValue<int>(runtime, transformedDestinationId));
         Assert.Equal(GatewayRouteRuntimeState.Running, transformed.State);
-        Assert.Equal(1, transformed.TransferCount);
-        Assert.Equal(0, transformed.WriteFailureCount);
 
         await runtime.WriteAsync(overflowSourceId, 40_000);
-        await WaitForAsync(
-            () => Assert.Single(runtime.GatewayDiagnostics(), route => route.Key == "overflow").WriteFailureCount == 1,
-            TimeSpan.FromSeconds(2));
+        await WaitForRouteActivityAsync(runtime, "overflow", TimeSpan.FromSeconds(2));
 
         var overflow = Assert.Single(runtime.GatewayDiagnostics(), route => route.Key == "overflow");
         Assert.Equal(GatewayRouteRuntimeState.Degraded, overflow.State);
+        Assert.Equal(1, overflow.WriteFailureCount);
         Assert.Equal(1, overflow.ConsecutiveFailures);
         Assert.Contains("Overflow", overflow.LastError, StringComparison.OrdinalIgnoreCase);
         Assert.Equal((short)0, CurrentValue<short>(runtime, overflowDestinationId));
@@ -128,17 +126,25 @@ public sealed class GatewayRuntimeConversionTests
     private static T CurrentValue<T>(IEngineeringRuntimeCoordinator runtime, Guid tagId) =>
         Assert.IsType<T>(Current(runtime, tagId).Value);
 
-    private static async Task WaitForAsync(Func<bool> predicate, TimeSpan timeout)
+    private static async Task WaitForRouteActivityAsync(
+        GatewayEngineeringRuntimeCoordinator runtime,
+        string key,
+        TimeSpan timeout)
     {
         var deadline = DateTimeOffset.UtcNow + timeout;
         while (DateTimeOffset.UtcNow < deadline)
         {
-            if (predicate()) return;
+            var route = runtime.GatewayDiagnostics().Single(item => item.Key == key);
+            if (route.TransferCount > 0 || route.WriteFailureCount > 0) return;
             await Task.Delay(20);
         }
 
-        Assert.True(predicate(), $"Condition was not met within {timeout}.");
+        var diagnostic = runtime.GatewayDiagnostics().Single(item => item.Key == key);
+        Assert.Fail($"Gateway route produced no transfer activity within {timeout}. {DiagnosticText(diagnostic)}");
     }
+
+    private static string DiagnosticText(GatewayRouteRuntimeDiagnostic route) =>
+        $"state={route.State}; transfers={route.TransferCount}; failures={route.WriteFailureCount}; skipped={route.SkippedTransferCount}; pending={route.HasPendingValue}; error={route.LastError ?? "<none>"}";
 
     private static string Describe(RuntimeActivationResult result) =>
         string.Join(" | ",

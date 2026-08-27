@@ -5,7 +5,7 @@ test.use({ locale: 'pt-BR' });
 const runtimeInstanceA = '11111111111111111111111111111111';
 const runtimeInstanceB = '22222222222222222222222222222222';
 
-test('Engineering diagnostics renders protected per-Data-Source communication state and drill-down', async ({ page }) => {
+test('Engineering diagnostics prioritizes communication health, filters sources and exposes technical drill-down', async ({ page }) => {
   await page.route('**/api/diagnostics/runtime', async route => {
     await route.fulfill({
       status: 200,
@@ -25,19 +25,34 @@ test('Engineering diagnostics renders protected per-Data-Source communication st
   await page.getByRole('button', { name: /Diagnósticos/ }).click();
 
   await expect(page.getByRole('heading', { name: 'Comunicação ativa' })).toBeVisible();
-  await expect(page.getByText('PLC A', { exact: true })).toBeVisible();
-  await expect(page.getByText('PLC B', { exact: true })).toBeVisible();
-  await expect(page.getByText('Healthy', { exact: true })).toBeVisible();
-  await expect(page.getByText('Reconnecting', { exact: true })).toBeVisible();
+  await expect(page.getByText('Saudável', { exact: true })).toBeVisible();
+  await expect(page.getByText('Reconectando', { exact: true })).toBeVisible();
+  await expect(page.getByText('Atenção', { exact: true })).toBeVisible();
+
+  const sourceCards = page.locator('.eng-comm-source');
+  await expect(sourceCards).toHaveCount(2);
+  await expect(sourceCards.nth(0)).toContainText('PLC B');
+  await expect(sourceCards.nth(1)).toContainText('PLC A');
 
   await page.getByRole('button', { name: /PLC B/ }).click();
   await expect(page.getByText(runtimeInstanceB, { exact: true })).toBeVisible();
   await expect(page.getByText('request timed out', { exact: true })).toBeVisible();
-  await expect(page.getByText('Good 0 · BadComm 1 · Sem amostra 0', { exact: true })).toBeVisible();
+  await expect(page.getByText('BadCommunication', { exact: true })).toBeVisible();
+  await expect(page.getByText('10.0.0.2', { exact: true })).toBeVisible();
+  await expect(page.getByText('100 ms', { exact: true })).toBeVisible();
+
+  await page.getByLabel('Filtro').selectOption('attention');
+  await expect(page.getByText('PLC B', { exact: true })).toBeVisible();
+  await expect(page.getByText('PLC A', { exact: true })).toBeHidden();
+
+  await page.getByLabel('Filtro').selectOption('all');
+  await page.getByLabel('Buscar Data Source, driver ou endpoint').fill('plc.a');
+  await expect(page.getByText('PLC A', { exact: true })).toBeVisible();
+  await expect(page.getByText('PLC B', { exact: true })).toBeHidden();
 
   await page.getByLabel('Idioma').selectOption('en');
   await expect(page.getByRole('heading', { name: 'Active communication' })).toBeVisible();
-  await expect(page.getByText('Good 0 · BadComm 1 · No sample 0', { exact: true })).toBeVisible();
+  await expect(page.getByText('Healthy', { exact: true })).toBeVisible();
 });
 
 function diagnostic(

@@ -139,10 +139,14 @@ public static class InternalMemoryRuntimePlanner
             metadata["scale.minimum"] = dto.ScaleMinimum.Value.ToString(CultureInfo.InvariantCulture);
         if (dto.ScaleMaximum.HasValue)
             metadata["scale.maximum"] = dto.ScaleMaximum.Value.ToString(CultureInfo.InvariantCulture);
+
+        // Internal Memory is opt-in for Historian capture. This explicit false
+        // also lets runtime Historians preserve legacy capture behavior for old
+        // TAG definitions that predate historian.enabled metadata.
+        metadata["historian.enabled"] = (dto.Historian?.Enabled == true).ToString();
+        metadata["historian.strategy"] = dto.Historian?.Strategy ?? "none";
         if (dto.Historian is not null)
         {
-            metadata["historian.enabled"] = dto.Historian.Enabled.ToString();
-            metadata["historian.strategy"] = dto.Historian.Strategy;
             Set(metadata, "historian.deadband", dto.Historian.Deadband);
             Set(metadata, "historian.periodMs", dto.Historian.PeriodMilliseconds);
             Set(metadata, "historian.maxPeriodMs", dto.Historian.MaximumPeriodMilliseconds);

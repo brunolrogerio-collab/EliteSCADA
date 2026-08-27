@@ -90,8 +90,7 @@ public sealed class GatewayRuntimeSameProtocolTests
             var diagnostics = runtime.GatewayDiagnostics();
             return destinationServer.HoldingRegisters[10] == 55
                 && diagnostics.Count == 1
-                && diagnostics[0].TransferCount >= 2
-                && diagnostics[0].WriteFailureCount == 0;
+                && diagnostics.Any(item => item.TransferCount >= 2 && item.WriteFailureCount == 0);
         }, TimeSpan.FromSeconds(4));
     }
 

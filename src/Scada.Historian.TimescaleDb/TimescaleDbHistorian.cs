@@ -6,6 +6,7 @@ using Scada.Core.Abstractions;
 using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.Historian.Abstractions;
+using Scada.Historian.Policies;
 
 namespace Scada.Historian.TimescaleDb;
 
@@ -95,6 +96,9 @@ public sealed class TimescaleDbHistorian : IHistorian
 
     private ValueTask OnTagValueChangedAsync(TagValueChanged evt)
     {
+        if (!HistorianCapturePolicy.ShouldCapture(evt.Tag))
+            return ValueTask.CompletedTask;
+
         if (_queue.Writer.TryWrite(new HistorianWriteSample(evt.Current, evt.Tag.DataType)))
             Interlocked.Increment(ref _pending);
         else
@@ -180,20 +184,28 @@ public sealed class TimescaleDbHistorian : IHistorian
         var root = document.RootElement;
         return root.ValueKind switch
         {
-            JsonValueKind.Null => null,
             JsonValueKind.True => true,
             JsonValueKind.False => false,
-            JsonValueKind.String => root.GetString(),
             JsonValueKind.Number when root.TryGetInt64(out var integer) => integer,
             JsonValueKind.Number => root.GetDouble(),
+            JsonValueKind.String => root.GetString(),
+            JsonValueKind.Null => null,
             _ => root.GetRawText()
         };
     }
 
     private static DateTimeOffset ReadTimestamp(NpgsqlDataReader reader, int ordinal)
     {
-        var value = reader.GetFieldValue<DateTime>(ordinal);
-        return new DateTimeOffset(value.Kind == DateTimeKind.Utc ? value : value.ToUniversalTime());
+        try
+        {
+            return reader.GetFieldValue<DateTimeOffset>(ordinal);
+        }
+        catch (InvalidCastException)
+        {
+            var value = reader.GetDateTime(ordinal);
+            if (value.Kind != DateTimeKind.Utc) value = DateTime.SpecifyKind(value, DateTimeKind.Utc);
+            return new DateTimeOffset(value);
+        }
     }
 
     public async ValueTask DisposeAsync()

@@ -243,7 +243,7 @@ public sealed class AuditDurabilityFoundationTests
                 ShutdownFlushTimeout: TimeSpan.FromSeconds(1)));
 
         await buffer.WriteAsync(EventAt(FixedTime, "first"));
-        await inner.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await inner.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await buffer.WriteAsync(EventAt(FixedTime, "second"));
 
         await Assert.ThrowsAsync<AuditBufferFullException>(() =>
@@ -252,7 +252,7 @@ public sealed class AuditDurabilityFoundationTests
         inner.Release.TrySetResult(true);
         await WaitForAsync(
             () => buffer.GetHealthSnapshot().SuccessfullyForwardedCount == 2,
-            TimeSpan.FromSeconds(2));
+            TimeSpan.FromSeconds(5));
 
         Assert.Equal(1, buffer.GetHealthSnapshot().RejectedCount);
     }

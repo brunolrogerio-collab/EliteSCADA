@@ -5,6 +5,7 @@ using Scada.Core.Tags;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
+using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.Views;
@@ -31,7 +32,8 @@ public interface IEngineeringWorkspaceCheckoutService
 public sealed class EngineeringWorkspaceCheckoutService(
     IEngineeringProjectStore store,
     IEngineeringExchangeService exchange,
-    EngineeringWorkspace workspace) : IEngineeringWorkspaceCheckoutService
+    EngineeringWorkspace workspace,
+    IGatewayEngineeringRegistry? gateways = null) : IEngineeringWorkspaceCheckoutService
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
 
@@ -66,7 +68,7 @@ public sealed class EngineeringWorkspaceCheckoutService(
             var backupDescriptor = workspace.Describe();
             ImportResult apply;
 
-            workspace.Clear();
+            ClearWorkspace();
             try
             {
                 apply = exchange.Apply(package, ImportMode.CreateAndUpdate);
@@ -141,7 +143,7 @@ public sealed class EngineeringWorkspaceCheckoutService(
         try
         {
             var backup = exchange.ParseJson(backupJson);
-            workspace.Clear();
+            ClearWorkspace();
             restored = exchange.Apply(backup, ImportMode.CreateAndUpdate);
         }
         finally
@@ -152,5 +154,11 @@ public sealed class EngineeringWorkspaceCheckoutService(
         if (restored is null || restored.Issues.Any(x => x.IsError))
             throw new InvalidOperationException(
                 "Engineering workspace checkout failed and the previous workspace could not be restored cleanly.");
+    }
+
+    private void ClearWorkspace()
+    {
+        workspace.Clear();
+        gateways?.Clear();
     }
 }

@@ -1,102 +1,106 @@
 # LAST CHANGE — EliteSCADA
 
-> Operational handoff. Read with `PROJECT GOAL.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md` and `docs/CHAT-WORK-ASSIGNMENTS.md` before every EliteSCADA task.
+> Operational handoff. Read with `PROJECT GOAL.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/CHAT-WORK-ASSIGNMENTS.md` and the current task-specific documents before every EliteSCADA action.
 
-**Handoff date:** 2026-08-26  
-**Development state:** **ACTIVE — TAG GATEWAY REVIEW + VISUAL EDITOR / CLIENT PYTHON RESEARCH IN PARALLEL**
+**Handoff date:** 2026-08-27  
+**Development state:** **FIRST INTERFACE PRODUCT CHECKPOINT MERGED / INTERFACE DEVELOPMENT REMAINS ACTIVE / FUTURE PROTOCOL RESEARCH ACTIVE**
 
-Repository truth is separated into **MERGED**, **IMPLEMENTED IN PR**, **RESEARCH IN PR** and **SPECIFIED / NOT IMPLEMENTED**.
+Repository truth remains separated into **MERGED**, **IMPLEMENTED IN PR**, **RESEARCH IN PR** and **SPECIFIED / NOT IMPLEMENTED**.
 
 ## CURRENT CHECKPOINT
 
-The locked functional source/protocol sequence remains:
-
-`Internal Memory -> TAG Gateway -> common multi-driver diagnostics -> USER INTERFACE VALIDATION PREVIEW -> additional external protocols`
-
-The locked visual/scripting prerequisite chain remains:
-
-`canonical Script integration -> script editor/sandbox -> visual runtime object/property integration -> graphical Screen/Popup/Dynamo editor -> advanced visual libraries`
-
-Current functional state:
+Official `main` includes:
 
 - Internal Memory: **MERGED / COMPLETE** through PR #49;
-- TAG Gateway Engineering/validation: **IMPLEMENTED IN PR #50 / READY FOR COORDINATOR REVIEW**;
-- common multi-driver diagnostics: **SPECIFIED / NOT IMPLEMENTED — BLOCKED BY GATEWAY**;
-- interface validation preview: **SPECIFIED / NOT IMPLEMENTED — BLOCKED BY DIAGNOSTICS**;
-- production MQTT/OPC UA/BACnet/S7 remain gated;
-- isolated Script Engineering foundation: **MERGED**, but canonical package/schema integration remains pending;
-- production Python editor/sandbox, visual runtime integration and graphical editor remain **SPECIFIED / NOT IMPLEMENTED**.
+- TAG Gateway: **MERGED / COMPLETE** through PRs #50 and #55;
+- common multi-driver/Data Source diagnostics: **MERGED / COMPLETE** through PRs #56 and #57;
+- canonical Engineering: **Schema v9**;
+- first Interface Product Development checkpoint: **MERGED** through PR #58;
+- production external protocol baseline remains Modbus TCP plus built-in Simulation/Internal Memory.
 
-## TAG GATEWAY — DEV 2 DELIVERED FOR REVIEW
+Active product order remains:
 
-PR #50 `Add TAG Gateway Engineering foundation` is Draft/Open and mergeable.
+`merged platform foundations -> interface product development -> user validation build/package -> additional external drivers/protocols`
 
-Current head:
+The Windows x64 validation package remains deferred until the interface is materially ready for product-owner validation. Production MQTT/OPC UA/BACnet/S7/Allen-Bradley/Driver Module implementation remains postponed. Research spikes are allowed only as research/specification inputs.
 
-`002f87dd126854c9fd972e453930e229e02f7f30`
+## FIRST INTERFACE PRODUCT CHECKPOINT — MERGED
 
-Current-head CI #304 completed **SUCCESS**. The worker reports a reconciled Gateway-only delta with schema v9, first-class routes, endpoint/type/rate validation, direct/indirect cycle rejection, multiple-writer rejection, Server Memory support, Client Memory rejection and canonical package/revision persistence coverage. Runtime Gateway execution/API/UI/DI/diagnostics remain outside this worker slice.
+Worker primitives merged before central integration:
 
-DEV 2 is now `READY_FOR_COORDINATOR_REVIEW / WAIT_FOR_COORDINATOR` and must not start another task.
+- DEV 3 / PR #59 `UserSessionMenu`: merge `b0b58964f119f83356cf2edc8fecf5939fb905da`, CI #363 green;
+- DEV 1 / PR #60 `EngineeringEntityBrowser`: merge `a7e6105fb65079ad1af8bcb56f8484225ff3dc8c`, CI #359 green;
+- DEV 2 / PR #61 `RuntimeOperationsOverview`: merge `49c9e7261d63047b601f4b3c4f6e788168c8ee5c`, CI #360 green.
 
-## MERGED PROTOCOL RESEARCH
+Coordinator PR #58 was reconciled with current `main`, integrated those primitives centrally and is now **MERGED**.
 
-### OPC UA
+- feature head merged: `af98359c41a432ea34635c10024cf459c453d1eb`;
+- exact-head CI #378 (`33097585182`): Web **PASS**, backend build/tests/runtime smoke **PASS**, Chromium E2E **PASS**;
+- merge SHA: `f3cc82f0d45a9f0162105b57ae6c42f643af6160`.
 
-DEV 1's previous research PR #51 is **MERGED** as `aa7735fcc15e00aea5bf19a543f53b2735ef48e3`. Production OPC UA remains gated.
+Merged interface behavior now includes:
 
-### Siemens S7 ISO Connection
+- persistent localized EliteSCADA product shell across Runtime / Engineering / Audit;
+- authenticated user/session menu in the common shell;
+- Runtime operational overview using existing protected runtime/diagnostic facts while preserving the process demo;
+- Engineering Data Source and TAG entity-browser/search surfaces using the canonical Engineering model;
+- existing protected structured Preview/Apply/CAS mutation flows preserved;
+- Chromium coverage of the integrated shell and entity-browser path.
 
-DEV 3's previous research PR #52 is **MERGED** as `bd825682ae0ccfdbdb938fab638a27f6961510bf`. Production S7 remains gated. S7.NetPlus is only the preferred first future laboratory candidate, not a selected production dependency.
+The earlier Chromium failures were not merged. CI #374 isolated the last failure to an ambiguous new test locator; it was scoped correctly and the final exact head passed CI #378 completely.
 
-## NEW PARALLEL VISUAL/EDITOR RESEARCH ASSIGNMENTS
+## PARALLEL FUTURE-PROTOCOL RESEARCH
 
-The product owner requested use of idle DEV capacity to advance the future screen editor and adjacent prerequisites without violating the locked dependency chain.
+These assignments remain **RESEARCH ONLY / PRODUCTION NOT IMPLEMENTED**:
 
-### DEV 1 — Graphical visual editor architecture/UX research
+### DEV 1 — MQTT
 
-Assigned branch:
+Branch: `research/mqtt-industrial-driver`  
+Expected deliverable: `docs/research/mqtt/MQTT-INDUSTRIAL-DRIVER-RESEARCH.md`
 
-`research/visual-editor-architecture`
+Research must cover MQTT 3.1.1/5.0, sessions/reconnect, QoS/duplicates/order, retained/LWT, TLS/mTLS and secret references, Topic↔TAG/payload mapping, writable publish semantics, honest discovery/import, common diagnostics, multi-broker behavior, candidate libraries/test brokers and strict raw-MQTT versus Sparkplug B separation. No production MQTT dependency/runtime/Data Source may be added.
 
-Status: **ASSIGNED**.
+### DEV 2 — Allen-Bradley EtherNet/IP/CIP Logix
 
-Scope is documentation/research only. DEV 1 must define the future Screen/Popup/Dynamo authoring model, including renderer/editor direction, palette/canvas, selection/multi-select, transforms, grid/guides/snap, z-order/groups, property inspector using the public visual property schema, TAG/expression bindings, scripts/events, undo/redo, copy/paste/Engineering Fragments, resources, Dynamo composition, large-screen performance and implementation slices.
+Branch: `research/allen-bradley-ethernet-ip`  
+Expected deliverable: `docs/research/allen-bradley/ALLEN-BRADLEY-ETHERNET-IP-CIP-RESEARCH.md`
 
-Forbidden: production editor code, dependencies/lockfiles, central frontend routing, central Engineering schema, Python runtime implementation or visual runtime composition.
+Research must cover ControlLogix/CompactLogix-first scope, explicit CIP messaging versus implicit I/O, routing/slot paths, symbolic TAGs, arrays/UDTs/types, External Access/write safety, browse/import and L5X/L5K, batching/fragmentation/limits, CIP Security implications, library/license comparison and real-hardware acceptance. No production Allen-Bradley runtime/Data Source may be added.
 
-### DEV 3 — Client Python editor/sandbox technology research
+### DEV 3 — BACnet/IP + BACnet/SC
 
-Assigned branch:
+Branch: `research/bacnet-ip-secure-connect`  
+Expected deliverable: `docs/research/bacnet/BACNET-IP-SC-RESEARCH.md`
 
-`research/client-python-editor-sandbox`
+Research must cover BACnet/IP discovery, device/object/property identity, BBMD/Foreign Device/cross-subnet behavior, ReadProperty/ReadPropertyMultiple/WriteProperty, COV/polling, segmentation/APDU limits, status/reliability/unit semantics, write priority/relinquish, proprietary objects, common diagnostics and forward-compatible BACnet/SC TLS/WebSocket/certificate/hub behavior. BACnet/SC and MS/TP must remain explicitly classified. No production BACnet runtime/Data Source may be added.
 
-Status: **ASSIGNED**.
+At this handoff the three research branches had no delivered research PR yet. GitHub state wins if that changes before the next coordinator action.
 
-Scope is documentation/research only. DEV 3 must compare browser/WASM Python engines and editor technology, define worker/sandbox isolation, time/memory/event budgets, cancellation, EliteSCADA API injection, line/column diagnostics, autocomplete/stubs, test/preview semantics, CSP/network/package restrictions, offline packaging and benchmark/security test strategy.
+## PARKED / EXISTING RESEARCH
 
-Forbidden: production dependencies, lockfiles, production Python runtime/editor, central Script schema integration, server Python, central routing or graphical editor/runtime code.
-
-These assignments deliberately reduce future implementation uncertainty while DEV 2's central Gateway contract ownership finishes. They do not authorize production graphical editor work before Script/sandbox/runtime prerequisites are official.
+- `integration/interface-validation-preview`: **PARKED / NO PR / NOT MERGED**;
+- PR #53 graphical visual editor architecture: **RESEARCH IN PR / DELIVERED / PRODUCTION NOT IMPLEMENTED**;
+- PR #54 Client Python editor/browser sandbox: **RESEARCH IN PR / DELIVERED / PRODUCTION NOT IMPLEMENTED**;
+- merged OPC UA and Siemens S7 research remain architecture inputs only.
 
 ## COORDINATOR RESUME POINT
 
 On the next coordinator `siga`:
 
-1. reread mandatory docs from current `main`;
-2. perform final semantic/diff review of PR #50 now that CI #304 is green;
-3. merge Gateway Engineering only if the reviewed current head remains clean and within assignment;
-4. after merge, reconcile official schema/roadmap state and assign the protocol-independent Gateway runtime engine;
-5. monitor DEV 1 `research/visual-editor-architecture` and DEV 3 `research/client-python-editor-sandbox` for research-only compliance;
-6. after Gateway central-contract ownership clears, resume canonical Script package/schema integration before any production Python editor or graphical editor implementation;
-7. preserve both locked dependency chains.
+1. reread all mandatory current-main documents and coordinator `MustReadSpecific` files;
+2. verify live `main`, open PRs, research branch heads and exact-head CI;
+3. review/merge any completed research PRs only if their scope is research-only, semantically sound and exact-head green;
+4. keep research merges classified as **RESEARCH ONLY / PRODUCTION NOT IMPLEMENTED**;
+5. verify whether post-merge CI on `main` exists for merge `f3cc82f0d45a9f0162105b57ae6c42f643af6160` and investigate any failure before further interface work;
+6. continue Interface Product Development according to `docs/INTERFACE-DEVELOPMENT.md` and roadmap dependencies; do not invent production protocol work or resume the Windows package ahead of the product gate;
+7. if no explicit next interface slice has been recorded yet, coordinate from the current roadmap and repository facts without undoing the merged first checkpoint.
 
 ## Permanent continuity rules
 
 - GitHub branch/PR/head/CI state is operational truth.
 - Open functional PRs are **IMPLEMENTED IN PR**, not MERGED.
-- Research branches/PRs are architecture inputs, not implemented product functionality.
+- Research branches/PRs are architecture inputs, not product functionality.
 - Workers never choose their own next task or merge their own PR.
-- Shared central integration belongs to the coordinator unless a narrow exception is explicitly assigned.
+- Shared central integration belongs to the coordinator unless explicitly delegated.
 - Known-failing work is never merged.
 - `siga` is the canonical short command; `continue` is equivalent.

@@ -35,6 +35,7 @@ public sealed record RuntimeDescriptor(
     long? Revision,
     DateTimeOffset? ActivatedAtUtc,
     IReadOnlyCollection<DriverStatus> Drivers,
+    IReadOnlyCollection<CommunicationDriverDiagnosticSnapshot> CommunicationDrivers,
     int TagCount,
     int ActiveAlarmCount);
 
@@ -108,13 +109,30 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
     public RuntimeDescriptor Describe()
     {
         var state = Volatile.Read(ref _active);
+        var communicationDrivers = state.Drivers
+            .OfType<ICommunicationDiagnosticsSource>()
+            .Select(source => NormalizeCommunicationDiagnostics(source.GetCommunicationDiagnostics()))
+            .ToArray();
+
         return new RuntimeDescriptor(
             state.ProjectKey,
             state.Revision,
             state.ActivatedAtUtc,
             state.Drivers.Select(x => x.Status).ToArray(),
+            communicationDrivers,
             state.Registry.Snapshot().Count,
             state.Alarms.Snapshot(activeOnly: true).Count);
+    }
+
+    private static CommunicationDriverDiagnosticSnapshot NormalizeCommunicationDiagnostics(
+        CommunicationDriverDiagnosticSnapshot snapshot)
+    {
+        var dataSourceKey = snapshot.DataSourceKey;
+        var driverPrefix = $"{snapshot.DriverType}:";
+        if (dataSourceKey.StartsWith(driverPrefix, StringComparison.OrdinalIgnoreCase))
+            dataSourceKey = dataSourceKey[driverPrefix.Length..];
+
+        return snapshot with { DataSourceKey = dataSourceKey };
     }
 
     public IReadOnlyCollection<TagDefinition> Tags() => Volatile.Read(ref _active).Registry.Snapshot();

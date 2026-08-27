@@ -8,6 +8,7 @@ import {
   type TranslationKey
 } from './i18n';
 import { AlarmEditor } from './AlarmEditor';
+import { CommunicationDiagnosticsPanel } from './CommunicationDiagnosticsPanel';
 import { DataSourceEditor, TagEditor } from './StructuredEditors';
 import { UserAdministration } from './UserAdministration';
 import type { EngineeringPackageView, EngineeringSnapshot } from './types';
@@ -439,6 +440,7 @@ function DiagnosticsSection({
         <Diagnostic label={t('diagnostics.exportedAt')} value={formatDate(model.exportedAt, locale)} />
         <Diagnostic label={t('diagnostics.totalEntities')} value={String(total)} />
       </div>
+      <CommunicationDiagnosticsPanel locale={locale} />
     </div>
   );
 }

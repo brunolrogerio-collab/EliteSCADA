@@ -14,11 +14,23 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
     private readonly object _requestsGate = new();
     private Task? _acceptLoop;
     private int _clientId;
+    private long _responseDelayTicks;
 
     public ConcurrentDictionary<ushort, bool> Coils { get; } = new();
     public ConcurrentDictionary<ushort, bool> DiscreteInputs { get; } = new();
     public ConcurrentDictionary<ushort, ushort> HoldingRegisters { get; } = new();
     public ConcurrentDictionary<ushort, ushort> InputRegisters { get; } = new();
+    public bool RejectWrites { get; set; }
+
+    public TimeSpan ResponseDelay
+    {
+        get => TimeSpan.FromTicks(Interlocked.Read(ref _responseDelayTicks));
+        set
+        {
+            if (value < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(value));
+            Interlocked.Exchange(ref _responseDelayTicks, value.Ticks);
+        }
+    }
 
     public int Port => ((IPEndPoint)_listener.LocalEndpoint).Port;
 
@@ -125,6 +137,9 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
             var pdu = new byte[length - 1];
             await stream.ReadExactlyAsync(pdu, cancellationToken);
             var responsePdu = HandlePdu(unitId, pdu);
+            var delay = ResponseDelay;
+            if (delay > TimeSpan.Zero)
+                await Task.Delay(delay, cancellationToken);
 
             var response = new byte[7 + responsePdu.Length];
             BinaryPrimitives.WriteUInt16BigEndian(response.AsSpan(0, 2), transactionId);
@@ -132,7 +147,18 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
             BinaryPrimitives.WriteUInt16BigEndian(response.AsSpan(4, 2), checked((ushort)(responsePdu.Length + 1)));
             response[6] = unitId;
             responsePdu.CopyTo(response, 7);
-            await stream.WriteAsync(response, cancellationToken);
+            try
+            {
+                await stream.WriteAsync(response, cancellationToken);
+            }
+            catch (IOException)
+            {
+                return;
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
         }
     }
 
@@ -148,9 +174,9 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
                 0x02 => ReadBits(unitId, function, pdu, DiscreteInputs),
                 0x03 => ReadRegisters(unitId, function, pdu, HoldingRegisters),
                 0x04 => ReadRegisters(unitId, function, pdu, InputRegisters),
-                0x05 => WriteSingleCoil(unitId, pdu),
-                0x06 => WriteSingleRegister(unitId, pdu),
-                0x10 => WriteMultipleRegisters(unitId, pdu),
+                0x05 => RejectWrites ? RejectWrite(unitId, function, pdu) : WriteSingleCoil(unitId, pdu),
+                0x06 => RejectWrites ? RejectWrite(unitId, function, pdu) : WriteSingleRegister(unitId, pdu),
+                0x10 => RejectWrites ? RejectWrite(unitId, function, pdu) : WriteMultipleRegisters(unitId, pdu),
                 _ => new byte[] { (byte)(function | 0x80), 0x01 }
             };
         }
@@ -158,6 +184,16 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
         {
             return new byte[] { (byte)(function | 0x80), 0x03 };
         }
+    }
+
+    private byte[] RejectWrite(byte unitId, byte function, byte[] pdu)
+    {
+        var address = pdu.Length >= 3 ? BinaryPrimitives.ReadUInt16BigEndian(pdu.AsSpan(1, 2)) : (ushort)0;
+        var quantity = function == 0x10 && pdu.Length >= 5
+            ? BinaryPrimitives.ReadUInt16BigEndian(pdu.AsSpan(3, 2))
+            : (ushort)1;
+        Record(unitId, function, address, quantity);
+        return new byte[] { (byte)(function | 0x80), 0x04 };
     }
 
     private byte[] ReadBits(byte unitId, byte function, byte[] pdu, ConcurrentDictionary<ushort, bool> source)

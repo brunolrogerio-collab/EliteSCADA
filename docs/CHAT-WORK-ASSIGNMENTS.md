@@ -24,7 +24,7 @@ Repository terminology:
 
 **Role:** `COORDINATOR`
 
-**CurrentTask:** Coordinate TAG Gateway Engineering plus isolated OPC UA and S7 ISO Connection research spikes
+**CurrentTask:** Coordinate TAG Gateway Engineering plus isolated S7 ISO Connection research; OPC UA discovery/import research is merged
 
 **Branch:** `main`
 
@@ -32,7 +32,7 @@ Repository terminology:
 
 **Objective:**
 
-Keep DEV 2 on the active functional TAG Gateway Engineering gate while DEV 1 and DEV 3 reduce uncertainty around later external protocols through strictly documentation/research-only spikes. Preserve the locked implementation order and prevent central Engineering/runtime overlap.
+Keep DEV 2 on the active functional TAG Gateway Engineering gate while DEV 3 reduces uncertainty around later Siemens S7 integration through a strictly documentation/research-only spike. Preserve the locked implementation order, keep DEV 1 waiting after its merged OPC UA research, and prevent central Engineering/runtime overlap.
 
 **AllowedScope:** coordinator-owned shared/central files, integration hooks, workflow maintenance, assignment board, handoff/roadmap documentation, worker assignment and merge decisions.
 
@@ -60,16 +60,17 @@ Keep DEV 2 on the active functional TAG Gateway Engineering gate while DEV 1 and
 - PR #47 Script Engineering foundation: **MERGED** `8a8a52e9e1725fca5b9e06ff9f560f583dab5bbb`.
 - PR #48 Internal Memory Engineering/retention: **MERGED** `ad4a7aa8d17e4e7370e5801d470a69f1a096bab4`.
 - PR #49 complete Internal Memory runtime/product integration: **MERGED** `18e0c5f55bf33958d040ed3a2f2b948e34d3cc5f`; CI #296 and post-merge CI #297 fully green.
+- PR #51 OPC UA discovery/browse/import research: **MERGED** `aa7735fcc15e00aea5bf19a543f53b2735ef48e3`; research head `6aac0f3cfe8e89cc7c56cc2bf3668d03a8c94994`; CI #299 green.
 - Internal Memory is **MERGED / COMPLETE**.
 - TAG Gateway is the active locked functional block.
-- Canonical Engineering remains schema v8 until DEV 2 deliberately evolves it with compatibility coverage.
-- `docs/OPC-UA.md` locks the later OPC UA discovery/browse/import experience.
+- Canonical Engineering remains schema v8 on `main` until DEV 2's Gateway schema v9 work is reviewed and merged.
+- `docs/OPC-UA.md` plus `docs/research/opc-ua/OPC-UA-DISCOVERY-IMPORT-RESEARCH.md` now provide the merged future OPC UA discovery/browse/import direction; production OPC UA remains blocked.
 - `docs/S7-ISO-CONNECTION.md` locks the later Siemens S7 classic ISO-on-TCP/RFC1006 direction and TIA-assisted import research.
 
 **Dependencies:**
 
 - DEV 2 exclusively owns the functional public/versioned TAG Gateway Engineering slice and Gateway-related central Engineering contract changes.
-- DEV 1 is research-only for OPC UA and must not touch production protocol/runtime or DEV 2 central Engineering ownership.
+- DEV 1 completed the OPC UA research spike and is waiting; no production OPC UA work is authorized.
 - DEV 3 is research-only for Siemens S7 ISO Connection and must not touch production protocol/runtime or DEV 2 central Engineering ownership.
 - Production external protocols remain blocked until Gateway, common diagnostics and interface-validation preview gates are complete.
 - Canonical Script package/schema integration remains deferred while DEV 2 owns overlapping central Engineering surfaces.
@@ -77,11 +78,11 @@ Keep DEV 2 on the active functional TAG Gateway Engineering gate while DEV 1 and
 **NextActions:**
 
 1. let DEV 2 continue `feature/tag-gateway-engineering` within its functional Engineering/validation assignment;
-2. let DEV 1 continue `research/opc-ua-discovery-import` as documentation/research only;
-3. let DEV 3 create/use `research/s7-iso-connection` as documentation/research only;
+2. keep DEV 1 in `MERGED / WAITING` after PR #51;
+3. let DEV 3 continue `research/s7-iso-connection` as documentation/research only;
 4. inspect all active branches/PRs on the next coordinator `siga`;
 5. merge Gateway Engineering only after review and relevant full CI are green;
-6. review protocol research PRs as design inputs only, never as claims of implemented drivers;
+6. review S7 research as a future implementation input only, never as a claim of an implemented driver;
 7. after Gateway Engineering is official, assign the protocol-independent runtime Gateway engine;
 8. keep common diagnostics, interface preview and production external protocols blocked until their prerequisites are satisfied.
 
@@ -97,9 +98,9 @@ Keep DEV 2 on the active functional TAG Gateway Engineering gate while DEV 1 and
 
 **Branch:** `research/opc-ua-discovery-import`
 
-**Status:** `ASSIGNED`
+**Status:** `MERGED / WAITING`
 
-**PullRequest:** none yet
+**PullRequest:** `#51 MERGED — aa7735fcc15e00aea5bf19a543f53b2735ef48e3`
 
 **Objective:**
 
@@ -112,14 +113,15 @@ Research/specify the future OPC UA Engineering experience: server/network discov
 **MustReadSpecific:**
 
 - `docs/OPC-UA.md`
+- `docs/research/opc-ua/OPC-UA-DISCOVERY-IMPORT-RESEARCH.md`
 - `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
 - `docs/INTERFACE-VALIDATION-MILESTONE.md`
 - `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
 - `docs/TAG-GATEWAY.md`
 
-**CompletionCriteria:** sourced Elipse comparison; recommended OPC UA .NET stack; discovery/scan limits; endpoint/certificate trust; lazy browse/search; Node identity/re-resolution; datatype/access mapping; subscription profiles; import Preview/Apply proposal; rescan/diff; test-server strategy; future implementation breakdown; no production code/dependency.
+**CompletionCriteria:** **SATISFIED / MERGED** through PR #51. Sourced Elipse comparison; recommended OPC UA .NET stack; discovery/scan limits; endpoint/certificate trust; lazy browse/search; Node identity/re-resolution; datatype/access mapping; subscription profiles; import Preview/Apply proposal; rescan/diff; test-server strategy; future implementation breakdown; no production code/dependency.
 
-**NextActions:** create/use only `research/opc-ua-discovery-import`, produce a Draft documentation PR marked `RESEARCH IN PR / NOT IMPLEMENTED`, then stop.
+**NextActions:** no new task. On `siga`, verify PR #51 remains merged and report `MERGED / WAITING`. Do not begin production OPC UA or another task without coordinator reassignment.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 
@@ -135,7 +137,7 @@ Research/specify the future OPC UA Engineering experience: server/network discov
 
 **Status:** `ASSIGNED`
 
-**PullRequest:** none yet
+**PullRequest:** `#50 DRAFT / OPEN`
 
 **Objective:**
 
@@ -154,7 +156,7 @@ Implement the first-class public/versioned Gateway/TAG Bridge Engineering domain
 
 **CompletionCriteria:** first-class Gateway routes; stable endpoints and policies; deliberate schema evolution/compatibility if required; deterministic endpoint/type/cycle/multi-writer/rate validation; Server Memory accepted and Client Memory rejected; fan-out valid; canonical round trips/package persistence; no runtime engine/UI; focused tests and relevant CI green; exact future runtime `INTEGRATION REQUIRED` recorded.
 
-**NextActions:** create/use only `feature/tag-gateway-engineering`; implement/tests; open/update Draft PR with `IMPLEMENTED IN PR / NOT MERGED`; correct attributable CI failures; stop when green and complete.
+**NextActions:** continue only `feature/tag-gateway-engineering`; reconcile with current `main`, keeping central maintenance fixes coordinator-owned; implement/tests; update Draft PR with `IMPLEMENTED IN PR / NOT MERGED`; correct attributable CI failures; stop when green and complete.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 

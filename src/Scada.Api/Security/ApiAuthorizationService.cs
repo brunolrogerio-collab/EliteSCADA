@@ -165,11 +165,23 @@ public sealed class ApiAuthorizationService(
     public async Task<RuntimeReadableTagsResult> GetReadableRuntimeTagsAsync(
         HttpContext context,
         ScadaRuntimeFacade runtime,
+        CancellationToken cancellationToken = default) =>
+        await GetReadableRuntimeTagDefinitionsAsync(
+            context,
+            runtime,
+            runtime.Tags(),
+            cancellationToken);
+
+    public async Task<RuntimeReadableTagsResult> GetReadableRuntimeTagDefinitionsAsync(
+        HttpContext context,
+        ScadaRuntimeFacade runtime,
+        IReadOnlyCollection<TagDefinition> tags,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(tags);
+
         var principal = GetPrincipal(context);
         var before = runtime.Describe();
-        var tags = runtime.Tags();
         if (!_authenticationEnabled)
             return new RuntimeReadableTagsResult(principal, false, true, tags);
 

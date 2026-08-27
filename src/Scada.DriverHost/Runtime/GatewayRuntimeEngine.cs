@@ -448,9 +448,9 @@ internal sealed class GatewayRuntimeEngine : IAsyncDisposable
 
         return destinationType switch
         {
-            TagDataType.Int16 => checked((short)result),
-            TagDataType.Int32 => checked((int)result),
-            TagDataType.Int64 => checked((long)result),
+            TagDataType.Int16 => (object)checked((short)result),
+            TagDataType.Int32 => (object)checked((int)result),
+            TagDataType.Int64 => (object)checked((long)result),
             _ => throw new InvalidOperationException($"Unsupported Gateway numeric destination type '{destinationType}'.")
         };
     }

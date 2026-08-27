@@ -24,26 +24,26 @@ Repository terminology:
 
 **Role:** `COORDINATOR`
 
-**CurrentTask:** Review and integrate the active TAG Gateway Engineering slice; OPC UA and Siemens S7 research spikes are merged
+**CurrentTask:** Integrate TAG Gateway Engineering and complete the coordinator-owned protocol-independent Gateway runtime/product block
 
-**Branch:** `main`
+**Branch:** `main` + coordinator integration branch after PR #50 merge
 
 **Status:** `IN_PROGRESS`
 
 **Objective:**
 
-Keep the locked functional sequence moving through TAG Gateway while preserving the merged OPC UA and Siemens S7 research as future implementation inputs only. DEV 1 and DEV 3 remain idle until explicitly reassigned.
+Finish the complete TAG Gateway product block required by `docs/TAG-GATEWAY.md`. DEV 2 has delivered the canonical Engineering/validation foundation; the coordinator now owns integration and the remaining runtime engine, active-revision staging, provider-routed destination writes, rate/quality/conversion semantics, trusted runtime authority, diagnostics, central API/UI/DI hooks and Modbus↔Server Memory runtime proof. DEV 1 and DEV 3 continue only their isolated research assignments.
 
-**AllowedScope:** coordinator-owned shared/central files, integration hooks, workflow maintenance, assignment board, handoff/roadmap documentation, worker assignment and merge decisions.
+**AllowedScope:** coordinator-owned shared/central files, integration hooks, Gateway runtime/API/UI/DI, workflow maintenance, assignment board, handoff/roadmap documentation, worker assignment and merge decisions.
 
 **ForbiddenScope:**
 
 - no known-failing merge;
 - no force-reset/discard of worker commits;
+- no concrete driver-to-driver Gateway coupling;
 - no production OPC UA or S7 Data Source/runtime before the external-protocol gate opens;
 - no new external protocol family in Active Runtime before Gateway, common diagnostics and interface-preview gates;
-- no concurrent worker ownership of `src/Scada.Engineering/Contracts/EngineeringContracts.cs`;
-- no canonical Script schema integration while DEV 2 owns overlapping central Engineering contract files.
+- no production graphical Screen/Popup/Dynamo editor before the Script/property prerequisite chain is satisfied.
 
 **MustReadSpecific:**
 
@@ -52,36 +52,37 @@ Keep the locked functional sequence moving through TAG Gateway while preserving 
 - `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
 - `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
 - `docs/INTERFACE-VALIDATION-MILESTONE.md`
-- `docs/OPC-UA.md`
-- `docs/research/opc-ua/OPC-UA-DISCOVERY-IMPORT-RESEARCH.md`
-- `docs/S7-ISO-CONNECTION.md`
-- `docs/research/s7/S7-ISO-CONNECTION-RESEARCH.md`
+- `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`
 
 **ObservedGitHubState:**
 
-- PR #49 complete Internal Memory runtime/product integration: **MERGED** `18e0c5f55bf33958d040ed3a2f2b948e34d3cc5f`; CI #296 and post-merge CI #297 fully green.
-- Internal Memory: **MERGED / COMPLETE**.
-- PR #51 OPC UA discovery/browse/import research: **MERGED** `aa7735fcc15e00aea5bf19a543f53b2735ef48e3`; research head `6aac0f3cfe8e89cc7c56cc2bf3668d03a8c94994`; CI #299 green.
-- PR #52 Siemens S7 ISO Connection research: **MERGED** `bd825682ae0ccfdbdb938fab638a27f6961510bf`; research head `52cc16c9941b5f8c4442a8c135551de6e9f8976b`; CI #300 fully green. The merge is documentation-only, so the `main` push workflow does not run for that merge by path filter.
-- Production OPC UA and Siemens S7 remain **SPECIFIED / NOT IMPLEMENTED** and gated.
-- PR #50 TAG Gateway Engineering remains **DRAFT / OPEN**. It has reconciled the coordinator-owned Internal Memory schema-test fix out of its delta. Its current head is `002f87dd126854c9fd972e453930e229e02f7f30`; CI #304 is the current-head validation and must complete before coordinator merge review.
-- TAG Gateway remains the active locked functional block.
+- Internal Memory: **MERGED / COMPLETE** through PR #49.
+- PR #50 TAG Gateway Engineering: DEV 2 delivery complete; schema v9/Engineering/validation slice passed CI #305 on worker head and is being coordinator-reconciled with current `main` for final merge.
+- PR #51 OPC UA research: **MERGED**.
+- PR #52 Siemens S7 research: **MERGED**.
+- DEV 1 visual-editor architecture research: assigned, research-only.
+- DEV 3 Client Python editor/sandbox research: assigned, research-only.
+- Complete TAG Gateway runtime/product integration remains **NOT YET MERGED** and is the coordinator's active block.
 
 **Dependencies:**
 
-- DEV 2 owns the current public/versioned TAG Gateway Engineering slice and its narrow Gateway-related central contract exception.
-- DEV 1 completed OPC UA research and waits.
-- DEV 3 completed Siemens S7 research and waits.
-- Production external protocols remain blocked until Gateway, common diagnostics and interface-validation preview are complete.
-- Canonical Script package/schema integration remains deferred while DEV 2 owns overlapping central Engineering surfaces.
+- integrate PR #50 first so schema v9 and Gateway Engineering are official;
+- runtime must use common TAG Event Bus/current cache and owning provider/driver write boundary;
+- `builtin.memory.server` is valid; `builtin.memory.client` is forbidden;
+- Gateway failures remain route diagnostics and do not corrupt source TAG quality;
+- common multi-driver diagnostics remains the next product gate only after complete Gateway product integration.
 
 **NextActions:**
 
-1. monitor/review DEV 2 PR #50 current head and CI #304;
-2. merge Gateway Engineering only after current-head CI is fully green and final diff/semantics remain within assignment;
-3. after Gateway Engineering is official, assign the protocol-independent runtime Gateway engine;
-4. keep DEV 1 and DEV 3 in `MERGED / WAITING`;
-5. preserve common diagnostics -> interface preview -> external protocol gate order.
+1. reconcile PR #50 with current `main`, validate full CI and merge with exact head SHA;
+2. build coordinator Gateway runtime service with transactional active-route replacement;
+3. route destination writes through common active runtime ownership, supporting communication drivers and Server Memory without protocol coupling;
+4. implement Good-only gating, startup synchronization, OnChange deadband/minimum interval/coalescing, Periodic cadence and checked numeric conversion/gain/offset;
+5. implement bounded per-route diagnostics/state/counters and trusted internal runtime authority semantics without human-style audit flood;
+6. add protected diagnostic/configuration hooks and practical Engineering UI Gateway tool as appropriate to the existing UI architecture;
+7. prove Modbus→Server Memory and Server Memory→Modbus plus quality suppression, recovery, fan-out, cadence/coalescing and active-revision switching;
+8. run full CI, merge coordinator integration, run post-merge main CI and reconcile roadmap/handoff;
+9. only after complete Gateway is green on `main`, unlock common multi-driver diagnostics as the next source/protocol gate.
 
 **AfterCompletion:** `CONTINUE_COORDINATION`
 
@@ -91,26 +92,29 @@ Keep the locked functional sequence moving through TAG Gateway while preserving 
 
 **Role:** `WORKER`
 
-**CurrentTask:** OPC UA discovery, address-space browse and TAG-import Engineering research spike
+**CurrentTask:** Graphical Screen/Popup/Dynamo editor architecture and Engineering UX research spike
 
-**Branch:** `research/opc-ua-discovery-import`
+**Branch:** `research/visual-editor-architecture`
 
-**Status:** `MERGED / WAITING`
+**Status:** `ASSIGNED`
 
-**PullRequest:** `#51 MERGED — aa7735fcc15e00aea5bf19a543f53b2735ef48e3`
+**PullRequest:** none yet
+
+**Objective:** Research and specify the future graphical Engineering editor for Screens, Popups and Dynamos. Architecture/UX research only; no production editor.
+
+**AllowedScope:** isolated documentation under `docs/research/visual-editor/**`; renderer/editor comparison; canvas/palette/selection/transforms/grid/guides/snap/z-order/groups; property inspector consuming public schema; TAG/expression bindings; scripts/events; Dynamo composition; resources; undo/redo; Engineering Fragments; performance/test strategy.
+
+**ForbiddenScope:** `main`; production editor/renderer; dependencies/lockfiles; central routing/shell; `EngineeringContracts.cs`; Script canonical integration; Python engine/editor; visual runtime composition; Gateway/runtime/protocol work; workflows.
 
 **MustReadSpecific:**
-
-- `docs/OPC-UA.md`
-- `docs/research/opc-ua/OPC-UA-DISCOVERY-IMPORT-RESEARCH.md`
-- `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
-- `docs/INTERFACE-VALIDATION-MILESTONE.md`
+- `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`
 - `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
-- `docs/TAG-GATEWAY.md`
+- `docs/INTERFACE-VALIDATION-MILESTONE.md`
+- `docs/ROADMAP.md`
 
-**CompletionCriteria:** **SATISFIED / MERGED** through PR #51. Research covers Elipse comparison, OPC Foundation .NET stack, discovery/scan, endpoint/certificate trust, lazy browse/search, portable node identity, NodeId re-resolution, datatype/access mapping, subscriptions, Preview/Apply import, rescan/diff and interoperability strategy. No production OPC UA code/dependency was introduced.
+**CompletionCriteria:** credible renderer direction; full authoring interaction model; schema-driven property inspector; bindings/script association UX; Screen/Popup/Dynamo composition; resource handling; undo/redo/fragments; performance targets; future slices; no production code/dependencies.
 
-**NextActions:** no new task. On `siga`, verify PR #51 remains merged and report `MERGED / WAITING`. Do not begin production OPC UA or another task without coordinator reassignment.
+**NextActions:** continue only `research/visual-editor-architecture`; Draft research PR; stop under `WAIT_FOR_COORDINATOR` when complete.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 
@@ -124,26 +128,15 @@ Keep the locked functional sequence moving through TAG Gateway while preserving 
 
 **Branch:** `feature/tag-gateway-engineering`
 
-**Status:** `IN_PROGRESS / CI_RUNNING`
+**Status:** `DELIVERED / WAIT_FOR_COORDINATOR`
 
-**PullRequest:** `#50 DRAFT / OPEN`
+**PullRequest:** `#50 — coordinator integration in progress`
 
-**Objective:** implement the first-class public/versioned Gateway/TAG Bridge Engineering domain and deterministic Preview validation required by `docs/TAG-GATEWAY.md`, without runtime transfer execution, API/DI composition, diagnostics UI or protocol-specific behavior.
+**Objective:** completed worker slice: canonical public/versioned Gateway Engineering contract, schema v9, validation and persistence/package round trips.
 
-**AllowedScope:** new Gateway Engineering files; narrow exclusive Gateway exception for `src/Scada.Engineering/Contracts/EngineeringContracts.cs`; required Gateway integration in Engineering import/export; focused Core/PostgreSQL/package tests; PR evidence.
+**CompletionCriteria:** **SATISFIED BY WORKER DELIVERY.** Runtime execution/API/UI/DI/diagnostics were intentionally outside this assignment and are now coordinator-owned integration work.
 
-**ForbiddenScope:** `main`; Program.cs/API/central DI; DriverHost Gateway runtime; TAG event/write execution; frontend Gateway UI; workflows; protocol-specific code; common diagnostics; Script canonical integration; Client Memory Gateway endpoints; silent coercion.
-
-**MustReadSpecific:**
-
-- `docs/TAG-GATEWAY.md`
-- `docs/INTERNAL-MEMORY-TAGS.md`
-- `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
-- `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
-
-**CompletionCriteria:** first-class Gateway routes; stable endpoints/policies; deliberate schema evolution/compatibility; deterministic endpoint/type/cycle/multi-writer/rate validation; Server Memory accepted and Client Memory rejected; fan-out valid; canonical round trips/package persistence; no runtime engine/UI; focused tests and current-head CI green; future runtime `INTEGRATION REQUIRED` recorded.
-
-**NextActions:** remain on PR #50 only. Observe CI #304 for current head `002f87dd126854c9fd972e453930e229e02f7f30`; fix only attributable issues; when green and complete, stop under `WAIT_FOR_COORDINATOR`. Do not merge own PR.
+**NextActions:** no new task. Keep branch/PR unchanged unless coordinator explicitly requests a focused correction. Do not implement runtime Gateway and do not merge own PR.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`
 
@@ -153,27 +146,29 @@ Keep the locked functional sequence moving through TAG Gateway while preserving 
 
 **Role:** `WORKER`
 
-**CurrentTask:** Siemens S7 ISO Connection architecture, TIA import and interoperability research spike
+**CurrentTask:** Client Python script editor, browser sandbox and execution-engine technology research spike
 
-**Branch:** `research/s7-iso-connection`
+**Branch:** `research/client-python-editor-sandbox`
 
-**Status:** `MERGED / WAITING`
+**Status:** `ASSIGNED`
 
-**PullRequest:** `#52 MERGED — bd825682ae0ccfdbdb938fab638a27f6961510bf`
+**PullRequest:** none yet
 
-**Objective:** research/specify future Siemens S7 classic communication over ISO-on-TCP / RFC1006 TCP/102, including S7-300/400/1200/1500 connection behavior, Rack/Slot and explicit TSAP, PUT/GET/protection constraints, optimized DB limitations, typed addressing, batching/reconnect, safe network assistance and TIA-assisted import. Production S7 is not authorized yet.
+**Objective:** Research/specify browser/WASM Client Visual Python editor/sandbox technology. Research only; no production engine/editor.
+
+**AllowedScope:** isolated docs under `docs/research/python-client/**`; Pyodide/MicroPython/WASM comparisons; editor options; Worker isolation; budgets/cancellation/event queues; EliteSCADA API injection/security; validation/diagnostics/autocomplete; preview; CSP/offline packaging; benchmarks/tests.
+
+**ForbiddenScope:** `main`; production dependencies/lockfiles; production Python runtime/editor; central routing/shell; `EngineeringContracts.cs`; canonical Script integration; server Python; direct DOM/filesystem/shell/arbitrary network/drivers/database; production visual editor/runtime; workflows.
 
 **MustReadSpecific:**
-
-- `docs/S7-ISO-CONNECTION.md`
-- `docs/research/s7/S7-ISO-CONNECTION-RESEARCH.md`
-- `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`
-- `docs/INTERFACE-VALIDATION-MILESTONE.md`
+- `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`
 - `docs/ADR-004-ENGINEERING-IMPORT-EXPORT.md`
-- `docs/TAG-GATEWAY.md`
+- `docs/INTERNAL-MEMORY-TAGS.md`
+- `docs/INTERFACE-VALIDATION-MILESTONE.md`
+- `docs/ROADMAP.md`
 
-**CompletionCriteria:** **SATISFIED / MERGED** through PR #52. CI #300 passed Web, backend build/tests, runtime smoke and Chromium E2E. The merged research covers Elipse M-Prot comparison; S7.NetPlus/Sharp7/Snap7 evaluation; CPU/TSAP matrix; PUT/GET/protection; optimized DB boundary; typed addressing; PDU-aware batching/reconnect; TIA Openness/file import; Preview/Apply candidates; bounded TCP/102 assistance; simulator/hardware test strategy and future implementation slices. No production S7 runtime/dependency was introduced.
+**CompletionCriteria:** browser Python engine recommendation; editor direction; isolation/budgets/cancellation; public API security boundary; diagnostics flow; sandbox preview; offline strategy; benchmarks/tests; future slices; no production dependency/code.
 
-**NextActions:** no new task. On `siga`, verify PR #52 remains merged and report `MERGED / WAITING`. Do not begin production S7, choose/install a production library or start another task without coordinator reassignment.
+**NextActions:** continue only `research/client-python-editor-sandbox`; Draft research PR; stop under `WAIT_FOR_COORDINATOR` when complete.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`

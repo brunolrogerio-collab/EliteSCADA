@@ -21,8 +21,9 @@ test('primary shell keeps Runtime, Engineering and Audit navigation coherent', a
 
   const engineeringNavigation = page.locator('.eng-nav');
   await engineeringNavigation.getByRole('button', { name: /TAGs/ }).click();
-  await expect(page.getByRole('searchbox', { name: 'Pesquisar' })).toBeVisible();
-  await expect(page.getByRole('listbox', { name: /TAGs: lista de entidades/ })).toBeVisible();
+  const entityBrowser = page.locator('.engineering-entity-browser');
+  await expect(entityBrowser.getByRole('searchbox')).toBeVisible();
+  await expect(entityBrowser.getByRole('listbox', { name: /TAGs: lista de entidades/ })).toBeVisible();
 
   await navigation.getByRole('link', { name: /Auditoria/ }).click();
   await expect(page).toHaveURL(/\/audit$/);

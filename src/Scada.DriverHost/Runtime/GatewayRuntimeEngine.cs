@@ -328,7 +328,7 @@ internal sealed class GatewayRuntimeEngine : IAsyncDisposable
             issues.Add(new RuntimeActivationIssue(
                 $"{prefix}_TAG_MISMATCH",
                 $"Gateway route '{route.Key}' {label} TAG ID and path resolve to different active TAGs.",
-                route.Route.Key));
+                route.Key));
             return null;
         }
 

@@ -50,8 +50,26 @@ public sealed class PostgreSqlServerMemoryRetentionStore : IServerMemoryRetentio
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        await using var command = _dataSource.CreateCommand(InitializeSql);
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        const int maximumAttempts = 3;
+
+        for (var attempt = 1; attempt <= maximumAttempts; attempt++)
+        {
+            await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                await using var command = new NpgsqlCommand(InitializeSql, connection, transaction);
+                await command.ExecuteNonQueryAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return;
+            }
+            catch (PostgresException ex) when (attempt < maximumAttempts && IsConcurrentDdlCollision(ex))
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+                await Task.Delay(TimeSpan.FromMilliseconds(50 * attempt), cancellationToken);
+            }
+        }
     }
 
     public async ValueTask<RetainedMemoryValue?> ReadAsync(
@@ -131,6 +149,9 @@ public sealed class PostgreSqlServerMemoryRetentionStore : IServerMemoryRetentio
     }
 
     public ValueTask DisposeAsync() => _dataSource.DisposeAsync();
+
+    private static bool IsConcurrentDdlCollision(PostgresException exception) =>
+        exception.SqlState is "23505" or "42P06" or "42P07";
 
     private static object DeserializeValue(TagDataType dataType, string json)
     {

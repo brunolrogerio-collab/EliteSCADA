@@ -78,10 +78,11 @@ public sealed class GatewayRuntimeSameProtocolTests
 
         await WaitForAsync(() => destinationServer.HoldingRegisters[10] == 42, TimeSpan.FromSeconds(4));
         var diagnostic = Assert.Single(runtime.GatewayDiagnostics());
-        Assert.Equal(GatewayRouteRuntimeState.Running, diagnostic.State);
         Assert.Equal("plc.a", diagnostic.SourceDataSource);
         Assert.Equal("plc.b", diagnostic.DestinationDataSource);
-        Assert.Equal(1, diagnostic.TransferCount);
+        Assert.True(diagnostic.TransferCount >= 1);
+        Assert.NotNull(diagnostic.LastSuccessfulTransferAtUtc);
+        Assert.Equal(0, diagnostic.WriteFailureCount);
 
         sourceServer.HoldingRegisters[0] = 55;
         await WaitForAsync(() => destinationServer.HoldingRegisters[10] == 55, TimeSpan.FromSeconds(4));

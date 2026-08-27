@@ -96,7 +96,7 @@ See `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
 
 Authoritative task direction: `docs/INTERFACE-DEVELOPMENT.md`.
 
-The first acceptance checkpoint is now merged through PR #58. It establishes the common product shell plus central integration of the first worker primitives. Interface development remains active; this merge is not the end of the block and does not by itself reopen the external-protocol or Windows-package gates.
+The first acceptance checkpoint is merged through PR #58. It establishes the common product shell plus central integration of the first worker primitives. Interface development remains active; this merge is not the end of the block and does not reopen the external-protocol or Windows-package gates.
 
 Merged first-checkpoint behavior includes:
 
@@ -108,51 +108,11 @@ Merged first-checkpoint behavior includes:
 - existing Preview/Apply/CAS protected mutation flows preserved;
 - full exact-head Web/backend/smoke/Chromium acceptance on PR #58.
 
-Primary continuing implementation areas:
-
-### Product shell
-
-- continue consistent route/page identity and cross-product context;
-- consistent loading/error/empty/status patterns;
-- desktop-first responsive application structure;
-- shared restrained industrial visual language.
-
-### Engineering workspace
-
-- continue improved information architecture;
-- extend scalable entity-browser/master-detail patterns where useful;
-- compact large-project tables;
-- clear Working/Revision/Published/Active and dirty-state context;
-- consistent structured editors and actionable validation feedback;
-- keyboard/focus/accessibility improvements;
-- localized touched surfaces.
-
-### Runtime operations
-
-- preserve the process demo;
-- continue useful platform-level operational overview;
-- communication/Data Source health;
-- alarms and TAG-quality visibility;
-- Gateway/diagnostic context where useful;
-- clear online/offline/degraded semantics;
-- future trend entry points based on existing historian capabilities.
-
-### Session/admin/Audit consistency
-
-- maintain visible authenticated identity and roles;
-- understandable logout/session behavior;
-- administration and Audit aligned with the same product shell.
+Primary continuing implementation areas remain product-shell consistency, Engineering workspace ergonomics, Runtime operational usability and Session/Admin/Audit consistency according to `docs/INTERFACE-DEVELOPMENT.md`.
 
 ### Guardrails
 
-This active UI block does not authorize:
-
-- a private frontend Engineering model;
-- frontend-only security;
-- direct frontend-to-driver access;
-- fake diagnostics;
-- the full graphical Screen/Popup/Dynamo editor ahead of Script/visual prerequisites;
-- new production external drivers.
+This active UI block does not authorize a private frontend Engineering model, frontend-only security, direct frontend-to-driver access, fake diagnostics, the full graphical Screen/Popup/Dynamo editor ahead of Script/visual prerequisites, or new production external drivers.
 
 ## 5. User interface validation build/package
 
@@ -160,20 +120,7 @@ This active UI block does not authorize:
 
 The milestone in `docs/INTERFACE-VALIDATION-MILESTONE.md` remains valid, but its Windows x64 packaging/launcher deliverable is postponed until the interface has materially matured.
 
-The parked branch `integration/interface-validation-preview` preserves two preparatory unmerged commits but has no PR and is not an active integration candidate.
-
-When resumed, the validation deliverable still requires:
-
-- practical Windows x64 startup;
-- built React + backend/runtime entry path;
-- reliable PostgreSQL/TimescaleDB service startup/check;
-- controlled local login/bootstrap;
-- canonical demo/readiness path;
-- visible exact build identity;
-- validation checklist;
-- package/startup smoke separate from repository-only execution.
-
-The package should contain the improved product resulting from the active interface block, not freeze the older demo-oriented UI merely to satisfy a checkpoint.
+The parked branch `integration/interface-validation-preview` remains unmerged and is not an active integration candidate.
 
 ## 6. External protocol/module wave
 
@@ -188,7 +135,7 @@ Planned order remains broadly:
 5. Siemens S7 ISO Connection as an intended installable-module target;
 6. later Allen-Bradley based on public documentation, licensing and testability.
 
-OPC UA and Siemens S7 research already exist as architecture inputs. MQTT, BACnet/IP + BACnet/SC, and Allen-Bradley EtherNet/IP/CIP research were assigned in parallel on 2026-08-27. Research documents, branches and research PRs do not authorize production runtime, Data Source registration, dependency selection or bypass of the product gate.
+OPC UA and Siemens S7 research already exist as architecture inputs. MQTT, BACnet/IP + BACnet/SC, and Allen-Bradley EtherNet/IP/CIP research were delivered as research-only PRs on 2026-08-27. These research documents do not authorize production runtime, Data Source registration, dependency selection or bypass of the product gate.
 
 ## Historian and trends
 

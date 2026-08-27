@@ -9,6 +9,7 @@ import {
 } from './i18n';
 import { AlarmEditor } from './AlarmEditor';
 import { CommunicationDiagnosticsPanel } from './CommunicationDiagnosticsPanel';
+import { EngineeringLifecycleWorkspace } from './EngineeringLifecycleWorkspace';
 import { DataSourceEditor, TagEditor } from './StructuredEditors';
 import { UserAdministration } from './UserAdministration';
 import type { EngineeringPackageView, EngineeringSnapshot } from './types';
@@ -234,7 +235,12 @@ function EngineeringSection({
 }) {
   const model = snapshot.package;
 
-  if (section === 'overview') return <Overview snapshot={snapshot} t={t} />;
+  if (section === 'overview') return (
+    <>
+      <Overview snapshot={snapshot} t={t} />
+      <EngineeringLifecycleWorkspace locale={locale} />
+    </>
+  );
   if (section === 'historian') return <HistorianSection model={model} t={t} />;
   if (section === 'security') return <SecuritySection model={model} t={t} locale={locale} />;
   if (section === 'diagnostics') return <DiagnosticsSection model={model} t={t} locale={locale} />;
@@ -336,19 +342,6 @@ function Overview({ snapshot, t }: { snapshot: EngineeringSnapshot; t: ReturnTyp
               </div>
             ))}
           </div>
-        </section>
-
-        <section className="eng-panel">
-          <h2>{t('overview.lifecycle')}</h2>
-          <div className="eng-lifecycle" aria-label={t('overview.lifecycle')}>
-            {['Working', 'Revision', 'Published', 'Active'].map((stage, index) => (
-              <React.Fragment key={stage}>
-                <span>{stage}</span>
-                {index < 3 && <b>→</b>}
-              </React.Fragment>
-            ))}
-          </div>
-          <p>{t('overview.lifecycleHint')}</p>
         </section>
 
         <section className="eng-panel eng-wide-panel">

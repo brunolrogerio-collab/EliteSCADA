@@ -11,6 +11,8 @@ test('primary shell keeps Runtime, Engineering and Audit navigation coherent', a
   await expect(navigation.getByRole('link', { name: /Runtime/ })).toHaveAttribute('aria-current', 'page');
   await expect(context).toContainText('Área atual');
   await expect(context).toContainText('Runtime');
+  await expect(page.getByRole('region', { name: 'Visão operacional' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Central de alarmes' })).toBeVisible();
 
   await navigation.getByRole('link', { name: /Engineering/ }).click();
   await expect(page).toHaveURL(/\/engineering$/);

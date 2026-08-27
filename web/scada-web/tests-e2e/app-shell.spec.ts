@@ -19,6 +19,11 @@ test('primary shell keeps Runtime, Engineering and Audit navigation coherent', a
   await expect(navigation.getByRole('link', { name: /Engineering/ })).toHaveAttribute('aria-current', 'page');
   await expect(context).toContainText('Engineering');
 
+  const engineeringNavigation = page.locator('.eng-nav');
+  await engineeringNavigation.getByRole('button', { name: /TAGs/ }).click();
+  await expect(page.getByRole('searchbox', { name: 'Pesquisar' })).toBeVisible();
+  await expect(page.getByRole('listbox', { name: /TAGs: lista de entidades/ })).toBeVisible();
+
   await navigation.getByRole('link', { name: /Auditoria/ }).click();
   await expect(page).toHaveURL(/\/audit$/);
   navigation = page.getByRole('navigation', { name: 'EliteSCADA' });

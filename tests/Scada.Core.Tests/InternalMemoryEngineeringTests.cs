@@ -47,7 +47,7 @@ public sealed class InternalMemoryEngineeringTests
         var tag = Assert.Single(exported.Tags);
         var dataSource = Assert.Single(exported.DataSources!);
 
-        Assert.Equal(8, exported.SchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, exported.SchemaVersion);
         Assert.Equal(BuiltInSourceProviderDescriptors.ServerMemory.TypeKey, dataSource.Driver);
         Assert.NotNull(tag.InitialValue);
         Assert.Equal(TagDataType.Int32, tag.InitialValue!.DataType);
@@ -137,7 +137,6 @@ public sealed class InternalMemoryEngineeringTests
         Assert.Equal(TagDataType.Int32, tag.DataType);
         Assert.Null(tag.InitialValue);
     }
-
     [Fact]
     public void SchemaV7_WithoutMemoryInitialValue_StillImportsAndReExportsAsCurrent()
     {
@@ -418,7 +417,6 @@ public sealed class InternalMemoryEngineeringTests
 
         var issues = service.Preview(package, ImportMode.CreateAndUpdate)
             .Items.SelectMany(item => item.Issues).ToArray();
-
         Assert.Contains(issues, issue => issue.Code == "MEMORY_INITIAL_VALUE_TYPE_MISMATCH");
         Assert.Contains(issues, issue => issue.Code == "MEMORY_INITIAL_VALUE_SOURCE_REQUIRED");
     }

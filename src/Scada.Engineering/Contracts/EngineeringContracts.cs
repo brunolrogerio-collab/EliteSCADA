@@ -24,7 +24,8 @@ public enum ImportEntityKind
     Screen,
     Popup,
     SecurityRole,
-    Command
+    Command,
+    Gateway
 }
 
 public enum ImportOperation
@@ -40,6 +41,29 @@ public enum EngineeringBindingKind
     Tag,
     Property,
     Expression
+}
+
+public enum GatewayTransferMode
+{
+    OnChange,
+    Periodic
+}
+
+public enum GatewayQualityPolicy
+{
+    GoodOnly
+}
+
+public enum GatewayConversionPolicy
+{
+    Exact,
+    CheckedNumeric
+}
+
+public enum GatewayInitialTransferPolicy
+{
+    WaitForNextAcceptableValue,
+    SynchronizeFirstAcceptableValue
 }
 
 public sealed record HistorianSettingsDto(
@@ -209,6 +233,32 @@ public sealed record CommandEngineeringDto(
     bool Enabled = true,
     Dictionary<string, string>? Metadata = null);
 
+/// <summary>
+/// Public, versioned TAG-to-TAG gateway route. Stable TAG IDs are the runtime
+/// identity while paths are retained as portable reconciliation context.
+/// Mutable runtime counters/state do not belong in this Engineering contract.
+/// </summary>
+public sealed record GatewayRouteEngineeringDto(
+    Guid? Id,
+    string Key,
+    string Name,
+    Guid? SourceTagId = null,
+    string? SourceTagPath = null,
+    Guid? DestinationTagId = null,
+    string? DestinationTagPath = null,
+    GatewayTransferMode TransferMode = GatewayTransferMode.OnChange,
+    GatewayQualityPolicy QualityPolicy = GatewayQualityPolicy.GoodOnly,
+    GatewayConversionPolicy ConversionPolicy = GatewayConversionPolicy.Exact,
+    GatewayInitialTransferPolicy InitialTransferPolicy = GatewayInitialTransferPolicy.SynchronizeFirstAcceptableValue,
+    double? Gain = null,
+    double? Offset = null,
+    double? Deadband = null,
+    int? MinimumIntervalMilliseconds = null,
+    int? PeriodMilliseconds = null,
+    string? Description = null,
+    bool Enabled = true,
+    Dictionary<string, string>? Metadata = null);
+
 public sealed record EngineeringPackage(
     string Schema,
     int SchemaVersion,
@@ -222,7 +272,8 @@ public sealed record EngineeringPackage(
     IReadOnlyCollection<ScreenEngineeringDto>? Screens = null,
     IReadOnlyCollection<PopupEngineeringDto>? Popups = null,
     IReadOnlyCollection<SecurityRoleEngineeringDto>? SecurityRoles = null,
-    IReadOnlyCollection<CommandEngineeringDto>? Commands = null);
+    IReadOnlyCollection<CommandEngineeringDto>? Commands = null,
+    IReadOnlyCollection<GatewayRouteEngineeringDto>? Gateways = null);
 
 public sealed record ImportIssue(
     string Code,

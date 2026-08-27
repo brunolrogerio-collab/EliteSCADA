@@ -18,7 +18,8 @@ Before any EliteSCADA action read current `main`:
 5. `docs/DEVELOPMENT-WAVES.md`;
 6. `docs/CHAT-WORK-ASSIGNMENTS.md`;
 7. `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`;
-8. current assignment `MustReadSpecific`.
+8. `docs/VISUAL-ASSETS-AND-IMAGES.md`;
+9. current assignment `MustReadSpecific`.
 
 GitHub branch/PR/head/CI state is operational truth.
 
@@ -74,6 +75,27 @@ Modbus TCP is sufficient as the real industrial protocol for v0.1. Production MQ
 
 `docs/INTERFACE-VALIDATION-MILESTONE.md` now records this supersession.
 
+## Visual image/assets requirement — LOCKED FOR v0.1
+
+`docs/VISUAL-ASSETS-AND-IMAGES.md` is now an explicit v0.1 product requirement.
+
+The graphical Engineering environment must allow a normal engineer to import project image resources and use them in Screens, Popups and Dynamos. Required v0.1 raster formats include:
+
+- JPG/JPEG;
+- BMP;
+- PNG;
+- PNG alpha transparency preserved end-to-end.
+
+Other safe/common raster formats such as WebP may be supported when practical. SVG is a separate future/security decision and is not implicitly required by this raster requirement.
+
+Imported images are canonical project assets/resources with stable identity, not loose absolute filesystem paths. They must survive save/reopen, revision, publish/activate, Runtime rendering, `.escadapkg` backup/restore and the supported project portability path. Moving/deleting the original source file after successful import must not break the project.
+
+The basic Image visual object must use the common property model for geometry/visibility/opacity/z-order/rotation where supported and explicit fit/aspect behavior. PNG alpha must remain transparent rather than being flattened to an arbitrary background.
+
+Runtime must load assets from the Active project/package without depending on the Engineering workstation's original path. Client Visual Python may manipulate image objects only through the public Visual Object API; image support does not grant arbitrary filesystem/network access.
+
+Implementation placement is explicitly Wave 07 contract -> Wave 08 asset import/Image object -> Wave 09 Screen/Popup/Dynamo asset dependencies -> Wave 11 demo use -> Wave 12 hardening -> Wave 13 packaged resources.
+
 ## Ordered v0.1 waves
 
 - Wave 03: Lifecycle + Runtime TAG Inspector + acceptance foundation;
@@ -81,17 +103,17 @@ Modbus TCP is sufficient as the real industrial protocol for v0.1. Production MQ
 - Wave 05: canonical Script Engineering (architecture-first);
 - Wave 06: Python Editor + Client Visual sandbox;
 - Wave 07: Visual Runtime Object Model (architecture-first);
-- Wave 08: Graphical Editor Foundation;
-- Wave 09: Screens + Popups + Dynamos;
+- Wave 08: Graphical Editor Foundation, including project image asset import and basic Image object;
+- Wave 09: Screens + Popups + Dynamos with portable asset dependencies;
 - Wave 10: Python visual events + animation + preview;
-- Wave 11: complete Estação Elevatória HMI demo vertical slice;
+- Wave 11: complete Estação Elevatória HMI demo vertical slice, including real imported visual assets;
 - Wave 12: hardening;
 - Wave 13: Windows x64 owner package;
 - Wave 14: owner validation;
 - Wave 15: feedback/corrections;
 - FINAL: EliteSCADA v0.1 Full Product Validation Preview.
 
-Detailed gates are in the v0.1 plan; do not reconstruct them from conversation memory.
+Detailed gates are in the v0.1 plan and visual-asset document; do not reconstruct them from conversation memory.
 
 ## Current worker state
 
@@ -113,20 +135,25 @@ Existing code uses `pg_advisory_xact_lock`, but the observed design executes ini
 
 A retry of the unchanged head passed, confirming concurrency sensitivity rather than a deterministic UI regression. This defect must be fixed or deliberately isolated with evidence before freezing the next wave base. Do not merely weaken/retry CI and forget it.
 
+Coordinator maintenance branch already created from the current checkpoint:
+
+`maintenance/postgresql-schema-init-concurrency`
+
+Inspection confirmed three stores use advisory key `4993446713136202561` without an explicit transaction protecting the entire initialization batch, while `PostgreSqlServerMemoryRetentionStore` does use an explicit transaction but uses a different key `4993446713136202562` even though it also creates the shared `elitescada` schema. The correction should provide one transactionally held schema-initialization exclusion mechanism across all relevant stores plus concurrent regression coverage.
+
 ## Coordinator resume point
 
 On next coordinator `siga`:
 
 1. reread mandatory docs and real GitHub state;
-2. inspect PostgreSQL store initialization/advisory-lock code and affected tests;
-3. implement a dedicated root-cause concurrency hardening change, preferably isolating it from Wave 03 product work;
-4. add/strengthen concurrent initialization regression coverage;
-5. require relevant exact-head CI green;
-6. merge the maintenance change;
-7. confirm healthy `main` and freeze exact `WaveBaseSHA`;
-8. create `integration/interface-wave-03`;
-9. promote DEV 1/2/3 queued Wave 03 assignments to ACTIVE with complete Wave/BaseSHA/ReservedFiles/IntegrationTarget/ValidationMatrix fields;
-10. keep unrelated product/research work out of `main` while the wave runs.
+2. continue dedicated PostgreSQL schema initialization concurrency hardening on `maintenance/postgresql-schema-init-concurrency`;
+3. add/strengthen concurrent initialization regression coverage;
+4. require relevant exact-head CI green;
+5. merge the maintenance change;
+6. confirm healthy `main` and freeze exact `WaveBaseSHA`;
+7. create `integration/interface-wave-03`;
+8. promote DEV 1/2/3 queued Wave 03 assignments to ACTIVE with complete Wave/BaseSHA/ReservedFiles/IntegrationTarget/ValidationMatrix fields;
+9. keep unrelated product/research work out of `main` while the wave runs.
 
 ## Permanent continuity rules
 
@@ -136,5 +163,6 @@ On next coordinator `siga`:
 - Documentation-only coordination commits do not invalidate the logical WaveBaseSHA.
 - Research merge is not production implementation.
 - Python/visual dependency order remains canonical Script -> Python editor/sandbox -> visual Runtime model -> graphical editor.
+- Imported visual assets are project-authoritative resources, not external developer file paths.
 - The editor/renderer never becomes private project truth; canonical Engineering remains authoritative.
 - Known failing work is never merged.

@@ -77,7 +77,11 @@ public sealed class EngineeringRuntimeCommunicationDiagnosticsTests
         Assert.Equal("PLC B", initial["plc.b"].DataSourceName);
         Assert.Equal(EngineeringDriverCompiler.ModbusTcpDriverKey, initial["plc.a"].DriverType);
         Assert.Equal(EngineeringDriverCompiler.ModbusTcpDriverKey, initial["plc.b"].DriverType);
-        Assert.StartsWith("modbus.tcp:", initial["plc.a"].RuntimeInstanceId, StringComparison.OrdinalIgnoreCase);
+        Assert.False(string.IsNullOrWhiteSpace(initial["plc.a"].RuntimeInstanceId));
+        Assert.False(string.IsNullOrWhiteSpace(initial["plc.b"].RuntimeInstanceId));
+        Assert.NotEqual(initial["plc.a"].RuntimeInstanceId, initial["plc.b"].RuntimeInstanceId);
+        Assert.NotEqual(initial["plc.a"].DataSourceKey, initial["plc.a"].RuntimeInstanceId);
+        Assert.NotEqual(initial["plc.b"].DataSourceKey, initial["plc.b"].RuntimeInstanceId);
 
         serverB.ResponseDelay = TimeSpan.FromMilliseconds(350);
         await WaitForAsync(() =>

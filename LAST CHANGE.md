@@ -3,62 +3,17 @@
 > Operational handoff. Read with `PROJECT GOAL.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md` and `docs/CHAT-WORK-ASSIGNMENTS.md` before every EliteSCADA task.
 
 **Handoff date:** 2026-08-26
-**Development state:** **ACTIVE — TAG GATEWAY ENGINEERING + OPC UA DISCOVERY/IMPORT RESEARCH**
+**Development state:** **ACTIVE — TAG GATEWAY ENGINEERING + OPC UA/S7 RESEARCH SPIKES**
 
-Repository truth is separated into **MERGED**, **IMPLEMENTED IN PR** and **SPECIFIED / NOT IMPLEMENTED**.
+Repository truth is separated into **MERGED**, **IMPLEMENTED IN PR**, **RESEARCH IN PR** and **SPECIFIED / NOT IMPLEMENTED**.
 
 ## CURRENT CHECKPOINT
 
-Internal Memory complete product integration remains official `main` state.
-
-Coordinator PR #49, **Integrate Internal Memory into engineering runtime**, was merged as:
+Internal Memory complete product integration remains **MERGED / COMPLETE** through coordinator PR #49, merge:
 
 `18e0c5f55bf33958d040ed3a2f2b948e34d3cc5f`
 
-Its reviewed final head was:
-
-`f12e4dc7b65f4ab41f47f26aca779dcd9aa0fde9`
-
-Validation is complete at both required levels:
-
-- PR CI #296: Web build **SUCCESS**, backend build/tests **SUCCESS**, runtime smoke **SUCCESS**, Chromium E2E **SUCCESS**;
-- post-merge `main` CI #297 on `18e0c5f55bf33958d040ed3a2f2b948e34d3cc5f`: Web build **SUCCESS**, backend build/tests **SUCCESS**, runtime smoke **SUCCESS**, Chromium E2E **SUCCESS**.
-
-Therefore Internal Memory complete product integration is **MERGED / COMPLETE** and no longer blocks TAG Gateway.
-
-## MERGED PRODUCT STATE ADDED BY PR #49
-
-PR #48 remains the public Engineering/durable-retention foundation. PR #49 completes its coordinator-owned product/runtime integration.
-
-Official `main` includes:
-
-- Engineered `builtin.memory.server` Data Sources/TAGs composed into the shared Server Memory runtime provider;
-- Server Memory registration in normal TAG registry/current-cache/Event-Bus paths;
-- shared realtime and Alarm Engine participation through normal TAG events;
-- Historian capture honoring explicit `historian.enabled` while preserving legacy TAG behavior when the metadata is absent;
-- generic TAG writes and Operational Commands routed to Server Memory without pretending it is a communication driver;
-- PostgreSQL Server Memory retention wired into actual API/runtime startup before persisted runtime recovery;
-- stable-ID retention across restart/path rename and fail-closed incompatible-type semantics;
-- explicit retained-value reset requiring confirmation, authorization and Audit action `server-memory.retention.reset`;
-- transactional/serialized PostgreSQL retention-schema initialization with narrow retry for known concurrent DDL collisions;
-- Client Memory definitions exposed only to authorized runtime clients while mutable values remain page/tab-local and never server-global;
-- exact Int64 browser handling through decimal strings and signed-range validation;
-- practical Internal Memory initial/default-value Engineering UI using the canonical Preview/Apply + Workspace CAS path;
-- Client Memory rejection from server-side Operational Commands in Engineering Preview;
-- no fake Internal Memory network diagnostics.
-
-Mutable Server Memory retained values remain separate from immutable/versioned Engineering revisions/packages.
-
-## DEFECTS CAUGHT DURING FINAL INTEGRATION
-
-Two real defects were discovered by final CI and fixed rather than hidden:
-
-1. CI #294 exposed a React lifecycle regression where the optional Internal Memory TAG panel could throw `ReferenceError: Cannot access 'invalidate' before initialization` in ordinary projects with no memory TAGs. The panel is now mounted only when actual memory TAGs exist, preserving the existing structured TAG editor.
-2. CI #295 exposed a PostgreSQL schema-initialization race. `pg_advisory_xact_lock` had been executed without one encompassing explicit transaction, so the lock could be released before DDL. Initialization now executes under an explicit transaction with narrowly bounded retry for known concurrent DDL collisions.
-
-CI #296 and post-merge CI #297 validate both corrections.
-
-## SOURCE/PROTOCOL GATE STATUS
+PR CI #296 and post-merge `main` CI #297 passed Web build, backend build/tests, runtime smoke and Chromium E2E.
 
 The locked functional sequence remains:
 
@@ -67,84 +22,93 @@ The locked functional sequence remains:
 Current functional state:
 
 - Internal Memory: **MERGED / COMPLETE**;
-- TAG Gateway: **ACTIVE LOCKED BLOCK — FIRST ENGINEERING SLICE ASSIGNED TO DEV 2**;
+- TAG Gateway: **ACTIVE LOCKED BLOCK — ENGINEERING/VALIDATION SLICE ASSIGNED TO DEV 2**;
 - common multi-driver diagnostics: **SPECIFIED / NOT IMPLEMENTED — BLOCKED BY GATEWAY**;
 - interface validation preview: **SPECIFIED / NOT IMPLEMENTED — BLOCKED BY DIAGNOSTICS**;
-- production MQTT/OPC UA/BACnet and later external protocols remain blocked by the preceding gates.
+- production MQTT/OPC UA/BACnet/S7 and other external protocols remain blocked by the preceding gates.
 
-A non-production research/specification spike for a later protocol is permitted when it does not register runtime protocol behavior or alter the active implementation order.
+Non-production documentation/research spikes are allowed early when they do not register runtime protocol behavior, alter central Engineering contracts or change the implementation order.
 
-## OPC UA PRODUCT DIRECTION ADDED
+## OPC UA RESEARCH DIRECTION
 
-The product owner requested that the future OPC UA driver include an Engineering experience comparable to and improved from the Elipse E3 OPC UA workflow rather than requiring manual NodeId entry.
+`docs/OPC-UA.md` locks a future Engineering experience with server/network discovery, endpoint/security/certificate inspection, lazy address-space browsing, search/filter, multi-select/subtree import preview, subscription profiles, NodeId + namespace-aware BrowsePath reconciliation and safe rescan/diff.
 
-`docs/OPC-UA.md` now locks the intended direction, including:
+DEV 1 owns the documentation-only `research/opc-ua-discovery-import` spike. Production OPC UA remains blocked.
 
-- manual endpoint plus standard OPC UA server/endpoint discovery;
-- an opt-in, bounded and cancellable **Scan network for OPC UA devices/servers** workflow;
-- endpoint/security/authentication inspection;
-- explicit certificate trust and fail-closed unexpected server identity changes;
-- connection test before import;
-- lazy address-space tree browser;
-- search/filter for large servers;
-- multiple selection and subtree import candidates;
-- canonical Engineering Preview/Apply for TAG imports;
-- native subscription/monitored-item update profiles;
-- NodeId plus namespace-aware BrowsePath/namespace URI identity so imported nodes can be safely re-resolved;
-- Refresh/Re-resolve Node IDs with preview rather than blind rebinding;
-- Rescan/diff for new/missing/changed nodes without silent deletion of EliteSCADA TAG Engineering or historian data;
-- explicit unsupported/lossy data-type handling;
-- official OPC Foundation UA .NET Standard client stack as the primary technical candidate to evaluate.
+## SIEMENS S7 ISO CONNECTION DIRECTION
 
-This direction was informed by the current Elipse E3 manuals for OPC UA server selection/endpoints, multiple TAG import, subscriptions and NodeId refresh/re-resolution, while deliberately choosing stronger certificate-trust behavior for EliteSCADA.
+The product owner confirmed Siemens S7 through **ISO Connection** as a desired later protocol path.
+
+`docs/S7-ISO-CONNECTION.md` now defines this as classic Siemens S7 communication over **ISO-on-TCP / RFC1006, TCP port 102**, not generic PROFINET I/O, OPC UA or an implicit S7commPlus implementation.
+
+Locked/research direction includes:
+
+- S7-300/400/1200/1500 connection matrix;
+- Rack/Slot and explicit TSAP connection modes;
+- CPU family/profile-aware defaults while keeping all critical parameters explicit;
+- PUT/GET and access-control constraints for modern S7-1200/1500;
+- explicit treatment of optimized vs non-optimized DB access limitations;
+- typed I/Q/M/DB address model rather than Elipse-style opaque N/B parameters;
+- PDU-aware batching, scan classes, reconnect and bounded parallelism;
+- optional bounded TCP/102 network assistance that performs no destructive operation;
+- TIA Portal Openness and Siemens-supported file exports as Engineering-side TAG import sources;
+- canonical `candidates -> validate -> preview -> apply` import workflow;
+- no dependency on TIA Portal in the production Runtime service;
+- no CPU RUN/STOP, program/block manipulation or firmware operation through the normal SCADA TAG path.
+
+The Elipse M-Prot ISO/TCP driver is a useful workflow reference: it exposes Rack/Slot or TSAP, connection type, additional connections/max simultaneous requests and a TIA Portal importer/Tag Browser. EliteSCADA will adopt useful concepts while keeping its own public Engineering contracts and stronger diagnostics/safety boundaries.
+
+S7.NetPlus and Sharp7 are initial .NET library candidates to evaluate; no production dependency has been selected or added.
 
 ## ACTIVE WORKER ASSIGNMENTS
 
-### DEV 2 - EliteSCADA
-
-Continues to own the first functional TAG Gateway slice:
-
-- CurrentTask: `Public TAG Gateway Engineering contract and deterministic validation foundation`;
-- Branch: `feature/tag-gateway-engineering`;
-- Status: `ASSIGNED`;
-- exclusive narrow permission for Gateway-related changes in `src/Scada.Engineering/Contracts/EngineeringContracts.cs` plus required Gateway import/export integration;
-- no Gateway runtime engine, API/DI, frontend, diagnostics UI or protocol-specific driver work in this slice;
-- AfterCompletion: `WAIT_FOR_COORDINATOR`.
-
 ### DEV 1 - EliteSCADA
 
-Now owns a parallel non-production research spike:
-
-- CurrentTask: `OPC UA discovery, address-space browse and TAG-import Engineering research spike`;
+- Task: `OPC UA discovery, address-space browse and TAG-import Engineering research spike`;
 - Branch: `research/opc-ua-discovery-import`;
 - Status: `ASSIGNED`;
-- MustRead includes `docs/OPC-UA.md`, common diagnostics, interface-validation milestone, Engineering import/export ADR and TAG Gateway architecture;
-- deliverable is research/specification only, with sourced Elipse E3/OPC Foundation analysis and concrete EliteSCADA recommendations;
-- no production OPC UA networking/runtime, Data Source registration, OPC UA production dependency, central DI/API, DriverHost runtime, central Engineering contracts or production frontend UI;
+- research/documentation only;
+- AfterCompletion: `WAIT_FOR_COORDINATOR`.
+
+### DEV 2 - EliteSCADA
+
+- Task: `Public TAG Gateway Engineering contract and deterministic validation foundation`;
+- Branch: `feature/tag-gateway-engineering`;
+- Status: `ASSIGNED`;
+- owns the only active functional central Engineering contract slice;
+- runtime Gateway/API/UI remain out of this worker slice;
 - AfterCompletion: `WAIT_FOR_COORDINATOR`.
 
 ### DEV 3 - EliteSCADA
 
-Remains `MERGED / WAITING`. Canonical Script package/schema integration is intentionally deferred while DEV 2 owns overlapping central Engineering contract files.
+- Task: `Siemens S7 ISO Connection architecture, TIA import and interoperability research spike`;
+- Branch: `research/s7-iso-connection`;
+- Status: `ASSIGNED`;
+- research/documentation only;
+- must compare Siemens/Elipse guidance and S7.NetPlus/Sharp7 candidates;
+- must define Rack/Slot/TSAP, PUT/GET/protection, optimized DB boundaries, typed addressing, batching/reconnect, TIA import and test strategy;
+- no production S7 runtime, dependency, central Engineering schema, DI/API, DriverHost or frontend work;
+- AfterCompletion: `WAIT_FOR_COORDINATOR`.
 
 ## COORDINATOR RESUME POINT
 
 On the next coordinator `siga`:
 
 1. reread mandatory docs from current `main`;
-2. inspect the real `feature/tag-gateway-engineering` branch/PR/head/diff/CI for DEV 2;
-3. inspect the real `research/opc-ua-discovery-import` branch/PR/head and research deliverable for DEV 1;
-4. enforce that DEV 1 remains research-only and does not introduce production OPC UA runtime work;
-5. enforce DEV 2 ownership of Gateway central Engineering contract changes;
-6. merge functional Gateway Engineering only after public/versioned contract validation/compatibility tests and relevant full CI are green;
-7. review DEV 1 OPC UA findings and fold approved decisions into the future OPC UA implementation assignment after the external-protocol gate opens;
-8. only after Gateway Engineering is official on `main`, assign the protocol-independent Gateway runtime engine slice;
-9. keep DEV 3 idle unless a clearly non-conflicting new assignment is explicitly recorded.
+2. inspect DEV 2 `feature/tag-gateway-engineering` branch/PR/head/diff/CI;
+3. inspect DEV 1 `research/opc-ua-discovery-import` documentation PR/state;
+4. inspect DEV 3 `research/s7-iso-connection` documentation PR/state;
+5. enforce that DEV 1 and DEV 3 remain research-only;
+6. merge Gateway Engineering only after the public/versioned contract and validation/compatibility coverage are reviewed and relevant CI is green;
+7. review OPC UA/S7 research as future implementation inputs, not implemented product state;
+8. after Gateway Engineering is official on `main`, assign the protocol-independent Gateway runtime engine;
+9. preserve the common diagnostics and interface-preview gates before production external drivers.
 
 ## Permanent continuity rules
 
 - GitHub branch/PR/head/CI state is operational truth.
-- Open feature branches/PRs are **IMPLEMENTED IN PR** or **RESEARCH IN PR**, never **MERGED**.
+- Open functional PRs are **IMPLEMENTED IN PR**, not MERGED.
+- Open protocol research PRs are **RESEARCH IN PR**, not implemented drivers.
 - Workers never choose their own next task or merge their own PR.
 - Shared central integration belongs to the coordinator unless a narrow exception is explicitly assigned.
 - Known-failing work is never merged.

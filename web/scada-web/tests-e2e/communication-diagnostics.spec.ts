@@ -2,6 +2,9 @@ import { expect, test } from '@playwright/test';
 
 test.use({ locale: 'pt-BR' });
 
+const runtimeInstanceA = '11111111111111111111111111111111';
+const runtimeInstanceB = '22222222222222222222222222222222';
+
 test('Engineering diagnostics renders protected per-Data-Source communication state and drill-down', async ({ page }) => {
   await page.route('**/api/diagnostics/runtime', async route => {
     await route.fulfill({
@@ -10,8 +13,8 @@ test('Engineering diagnostics renders protected per-Data-Source communication st
       body: JSON.stringify({
         runtime: {
           communicationDrivers: [
-            diagnostic('plc.a', 'PLC A', 2, 0, null),
-            diagnostic('plc.b', 'PLC B', 4, 3, 'request timed out')
+            diagnostic('plc.a', 'PLC A', runtimeInstanceA, 2, 0, null),
+            diagnostic('plc.b', 'PLC B', runtimeInstanceB, 4, 3, 'request timed out')
           ]
         }
       })
@@ -28,17 +31,19 @@ test('Engineering diagnostics renders protected per-Data-Source communication st
   await expect(page.getByText('Reconnecting', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: /PLC B/ }).click();
-  await expect(page.getByText('modbus.tcp:plc.b#instance-2', { exact: true })).toBeVisible();
+  await expect(page.getByText(runtimeInstanceB, { exact: true })).toBeVisible();
   await expect(page.getByText('request timed out', { exact: true })).toBeVisible();
   await expect(page.getByText('Good 0 · BadComm 1 · Sem amostra 0', { exact: true })).toBeVisible();
 
   await page.getByLabel('Idioma').selectOption('en');
   await expect(page.getByRole('heading', { name: 'Active communication' })).toBeVisible();
+  await expect(page.getByText('Good 0 · BadComm 1 · No sample 0', { exact: true })).toBeVisible();
 });
 
 function diagnostic(
   key: string,
   name: string,
+  runtimeInstanceId: string,
   state: number,
   timeouts: number,
   lastError: string | null
@@ -47,7 +52,7 @@ function diagnostic(
     dataSourceKey: key,
     dataSourceName: name,
     driverType: 'modbus.tcp',
-    runtimeInstanceId: `modbus.tcp:${key}#instance-${key === 'plc.a' ? 1 : 2}`,
+    runtimeInstanceId,
     endpoint: key === 'plc.a' ? '10.0.0.1:502' : '10.0.0.2:502',
     state,
     stateChangedAt: '2026-08-27T11:00:00Z',

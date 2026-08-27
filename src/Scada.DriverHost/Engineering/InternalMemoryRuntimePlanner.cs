@@ -72,7 +72,7 @@ public static class InternalMemoryRuntimePlanner
                         : MemoryEngineeringValueCodec.ToTypedValue(dto.InitialValue);
                     definitions.Add(new MemoryTagDefinition(tag, initialValue));
                 }
-                catch (Exception ex) when (ex is ArgumentException or ArgumentNullException or InvalidOperationException or FormatException)
+                catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or FormatException)
                 {
                     issues.Add(new EngineeringDriverIssue(
                         "MEMORY_TAG_RUNTIME_INVALID",

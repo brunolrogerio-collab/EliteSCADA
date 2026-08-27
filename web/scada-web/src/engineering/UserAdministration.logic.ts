@@ -1,6 +1,7 @@
 import type { LocalUser } from './userAdministrationApi';
 
 export type UserStatusFilter = 'all' | 'enabled' | 'disabled';
+export type AdministrationErrorKind = 'validation' | 'unauthorized' | 'forbidden' | 'not-found' | 'conflict' | 'unknown';
 
 export type UserDraft = {
   displayName: string;
@@ -54,4 +55,22 @@ export function countAdministrationUsers(users: readonly LocalUser[]) {
     },
     { total: users.length, enabled: 0, disabled: 0 }
   );
+}
+
+export function classifyAdministrationStatus(status: number): AdministrationErrorKind {
+  switch (status) {
+    case 400:
+    case 422:
+      return 'validation';
+    case 401:
+      return 'unauthorized';
+    case 403:
+      return 'forbidden';
+    case 404:
+      return 'not-found';
+    case 409:
+      return 'conflict';
+    default:
+      return 'unknown';
+  }
 }

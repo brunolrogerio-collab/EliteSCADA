@@ -136,13 +136,13 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         };
 
         _csv = new EngineeringCsvExchange(_json);
-        _dataSourceHandler = new DataSourceEngineeringHandler(dataSources, tags, alarms);
+        _dataSourceHandler = new DataSourceEngineeringHandler(dataSources, tags, alarms, commands);
         _tagHandler = new TagEngineeringHandler(tags, dataSources, alarms);
         _alarmHandler = new AlarmEngineeringHandler(alarms, _tagHandler);
         _assetHandler = new AssetEngineeringHandler(assets, tags);
         _viewHandler = new ViewEngineeringHandler(views, assets, tags);
         _securityPolicyHandler = new SecurityPolicyEngineeringHandler(securityPolicies);
-        _commandHandler = new CommandEngineeringHandler(commands, tags);
+        _commandHandler = new CommandEngineeringHandler(commands, tags, dataSources);
     }
 
     public EngineeringPackage ExportPackage()

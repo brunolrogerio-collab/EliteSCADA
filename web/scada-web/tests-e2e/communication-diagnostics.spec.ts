@@ -37,7 +37,8 @@ test('Engineering diagnostics prioritizes communication health, filters sources 
   await page.getByRole('button', { name: /PLC B/ }).click();
   await expect(page.getByText(runtimeInstanceB, { exact: true })).toBeVisible();
   await expect(page.getByText('request timed out', { exact: true })).toBeVisible();
-  await expect(page.getByText('BadCommunication', { exact: true })).toBeVisible();
+  await expect(page.locator('.eng-comm-quality-item.badcomm')).toContainText('1');
+  await expect(page.locator('.eng-comm-quality-item.badcomm')).toContainText('BadCommunication');
   await expect(page.getByText('10.0.0.2', { exact: true })).toBeVisible();
   await expect(page.getByText('100 ms', { exact: true })).toBeVisible();
 

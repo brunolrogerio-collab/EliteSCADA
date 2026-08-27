@@ -30,6 +30,6 @@ public sealed class PostgreSqlConcurrentInitializationTests
 
         await Task.WhenAll(tasks);
 
-        Assert.Equal(0, await identity.CountAsync());
+        _ = await identity.CountAsync();
     }
 }

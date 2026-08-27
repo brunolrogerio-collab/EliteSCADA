@@ -2,8 +2,8 @@
 
 Engineering Import/Export remains a mandatory cross-cutting capability throughout this roadmap. Every new Engineering domain must join the public versioned model, validation/preview/apply workflow, revision lifecycle and backup/restore path.
 
-**Status date:** 2026-08-26
-**Functional development:** ACTIVE — TAG GATEWAY ENGINEERING CONTRACT
+**Status date:** 2026-08-27  
+**Functional development:** **ACTIVE — COMMON MULTI-DRIVER / DATA SOURCE DIAGNOSTICS**
 
 ## Established `main` foundation
 
@@ -23,25 +23,21 @@ The following major capabilities are integrated:
 12. Engineering Data Source compilation into runtime plans.
 13. Isolated Engineering Workspace and transactional checkout/save lineage.
 14. Capability-based authorization and durable append-only Audit foundation.
-15. Engineering Schema v8, including Security Roles, first-class Operational Commands and typed Internal Memory initial/default values.
-16. Trusted JWT validation and backend protection of critical process/Engineering operations.
-17. Protected runtime read, historian, alarm, Engineering/diagnostic and `/ws/tags` realtime surfaces.
-18. Engineering UI at `/engineering`, Runtime/Engineering/Audit navigation and `pt-BR` / `en` / `es` localization.
-19. Structured TAG, Data Source and Alarm editors.
-20. Local identity/browser-login foundation with PostgreSQL users, PBKDF2-SHA256 credentials, JWT, HttpOnly browser cookie and first-user bootstrap.
-21. Protected local-user administration, Engineering role-key assignment, last-admin protection, JWT security-version invalidation and active WebSocket revocation.
-22. Protocol-neutral Internal Memory / Source Provider foundation with `builtin.memory.server` and `builtin.memory.client`, typed defaults, stable-ID retention semantics and per-client isolation contracts.
-23. Python Scripting + Visual Property foundation with typed public visual properties, runtime overrides, script scopes, sandbox boundaries, tween contracts, runtime instances, event queues and diagnostics.
-24. Secured backend-authoritative Engineering Apply/Delete/Bulk workflows with workspace CAS/version protection, dependency-aware delete, authorization, Audit and confirmation/preview gates.
-25. Historian retention/downsampling foundation with typed policies, 1m/5m/15m/1h aggregates, quality-aware aggregation, Timescale continuous aggregates and explicit destructive-retention approval.
-26. Audit durability/query/retention foundation with stable keyset pagination, bounded query policy, sanitization, controlled retention and bounded asynchronous outage buffering.
-27. Audit runtime integration with configured query/retention/buffer policies, protected diagnostics, cursor header and periodic retention service.
-28. Audit UI and diagnostics client at `/audit`, with opaque keyset cursor handling, supported filters, safe error/auth states and central navigation.
-29. Isolated Public Script Engineering domain with stable identities, ClientVisual/Server scopes, Python metadata/source, events, dependencies, deterministic validation and adapters to public visual scripting runtime contracts.
-30. Internal Memory public Engineering integration and durable Server Memory PostgreSQL retention through PR #48, including v7 compatibility, typed initial values, Client Memory global Historian/Alarm rejection, stable-ID rename retention and fail-closed incompatible-type handling.
-31. Complete Internal Memory product/runtime integration through PR #49, including shared Server Memory runtime composition, per-client browser Client Memory lifecycle, authorized/Audited retained reset, Historian opt-in capture, Engineering UI hooks and startup-race hardening.
+15. Trusted JWT validation and backend protection of critical process/Engineering operations.
+16. Protected runtime read, historian, alarm, Engineering/diagnostic and `/ws/tags` realtime surfaces.
+17. Engineering UI at `/engineering`, Runtime/Engineering/Audit navigation and `pt-BR` / `en` / `es` localization.
+18. Structured TAG, Data Source and Alarm editors.
+19. Local identity/browser-login and protected local-user administration.
+20. Protocol-neutral Internal Memory foundation and complete product integration for `builtin.memory.server` / `builtin.memory.client`.
+21. Python Scripting + Visual Property public contract foundation.
+22. Secured backend-authoritative Engineering Apply/Delete/Bulk workflows with Workspace CAS.
+23. Historian retention/downsampling foundation and quality-aware aggregates.
+24. Audit durability/query/retention, runtime integration and `/audit` UI.
+25. Isolated Public Script Engineering domain with stable identities/scopes/events/dependencies.
+26. Engineering Schema v9 with first-class TAG Gateway routes, deterministic validation and package/revision persistence.
+27. Complete protocol-independent TAG Gateway runtime/product integration, including Engineering UI and route diagnostics.
 
-Important merged PR checkpoints:
+Important merged checkpoints:
 
 - PR #35 Commands: `2fd568976fc6277d0b069adeeb560f6ea3d8205f`.
 - PR #36 Runtime read/realtime protection: `10b0320149c1ef2109e9517539717a8800b200c2`.
@@ -58,85 +54,75 @@ Important merged PR checkpoints:
 - PR #47 isolated Script Engineering foundation: `8a8a52e9e1725fca5b9e06ff9f560f583dab5bbb`.
 - PR #48 Internal Memory Engineering + durable retention: `ad4a7aa8d17e4e7370e5801d470a69f1a096bab4`.
 - PR #49 complete Internal Memory product integration: `18e0c5f55bf33958d040ed3a2f2b948e34d3cc5f`.
+- PR #50 TAG Gateway Engineering / Schema v9: `7a039c0eda8802a8ed2851fe9223fd831859fc61`.
+- PR #51 OPC UA research: `aa7735fcc15e00aea5bf19a543f53b2735ef48e3`.
+- PR #52 Siemens S7 research: `bd825682ae0ccfdbdb938fab638a27f6961510bf`.
+- PR #55 complete TAG Gateway runtime/product integration: `41bc437ba64f60fba26754794a9dc5a4e9a034f7`.
 
-PR #49 final CI #296 and post-merge `main` CI #297 both passed Web build, backend build/tests, runtime smoke and Chromium E2E.
+Gateway post-merge test stabilization is on `main` through `cb4d2c423c31cf7a52ea6ebe6de494c281901f3f`; CI #336 passed Web build, backend build/tests, runtime smoke and Chromium E2E.
 
 ## Engineering Import/Export baseline
 
-Canonical Engineering JSON on official `main` is now **Schema v8**.
+Canonical Engineering JSON on official `main` is **Schema v9**.
 
-Current canonical public domains include TAGs, Alarms, Data Sources/driver configuration, Equipment Templates, Equipment instances, Dynamos, Screens, Popups, Security Roles/policies and Operational Commands. Internal Memory TAGs carry typed initial/default values through the public TAG Engineering contract.
+Current first-class domains include TAGs, Alarms, Data Sources/driver configuration, Equipment Templates, Equipment instances, Dynamos, Screens, Popups, Security Roles/policies, Operational Commands and TAG Gateway routes. Internal Memory TAGs carry typed initial/default values.
 
-Current exchange includes canonical JSON, CSV for appropriate TAG/Alarm/Data Source workflows, historical-schema compatibility/migration testing and `.escadapkg` Engineering packages with integrity validation. PR #48 preserves v7 JSON compatibility and legacy TAG CSV compatibility while exporting the current v8 representation.
+Canonical exchange includes JSON, CSV where appropriate and `.escadapkg` packages with integrity validation plus historical schema compatibility/migration testing. Preview/Apply remains the public mutation path for imported Engineering candidates.
 
-The isolated Script Engineering model from PR #47 is merged, but its first-class canonical package/schema integration remains pending. Gateway routes are the next required first-class Engineering domain. Visual assets/property schema integration, trends, shell regions and plugin-owned configuration must use the same public/versioned Engineering infrastructure.
+The isolated Script Engineering model from PR #47 is merged but is not yet a first-class canonical package collection. Visual assets/property schema integration, trends, shell regions and future module-owned configuration must use the same public/versioned Engineering authority rather than private parallel truth.
 
-## Current source/protocol chain
+## Locked source/protocol chain
 
-The order below is mandatory before another external protocol family.
+`Internal Memory -> TAG Gateway -> common multi-driver diagnostics -> USER INTERFACE VALIDATION PREVIEW -> additional external protocols`
 
-### 1. Internal Memory TAG sources — complete product integration
+### 1. Internal Memory TAG sources
 
 **COMPLETE / MERGED.**
 
-PRs #40, #48 and #49 now provide the full currently required product block:
-
-- public/versioned `builtin.memory.client` and `builtin.memory.server` Engineering semantics;
-- typed initial/default values in canonical Engineering v8;
-- v7 compatibility and JSON/CSV round-trip/preview validation;
-- rejection of fake network configuration for memory sources;
-- Client Memory prohibition from global Historian/Alarm semantics and server-side Operational Command targets;
-- durable PostgreSQL Server Memory retention keyed by stable TAG ID;
-- restart/path-rename retention and fail-closed incompatible retained type behavior;
-- actual Server Memory runtime/DI composition through normal TAG cache/Event Bus/realtime/Alarm paths;
-- Historian participation only when explicitly engineered, while legacy TAGs without the metadata retain prior behavior;
-- explicit authorized/Audited retained reset handling;
-- Client Memory ownership per opened runtime client/page rather than server-global state;
-- practical Engineering UI/API hooks without fabricated network diagnostics;
-- exact browser Int64 handling;
-- transactional PostgreSQL retention-store initialization robust against concurrent DDL startup races;
-- full PR and post-merge CI validation against `docs/INTERNAL-MEMORY-TAGS.md` semantics.
-
-Internal Memory no longer blocks the next source/protocol stage.
+PRs #40, #48 and #49 provide public typed Engineering defaults, stable-ID durable Server Memory retention, per-runtime-client Client Memory isolation, shared Server Memory runtime composition, authorized/Audited retained reset, Historian opt-in behavior and Engineering/runtime UI/API hooks without fake network diagnostics.
 
 ### 2. Protocol-independent TAG Gateway
 
-**ACTIVE LOCKED SOURCE/PROTOCOL BLOCK — FIRST ENGINEERING CONTRACT SLICE ASSIGNED.**
+**COMPLETE / MERGED.**
 
-The first active implementation slice is the public/versioned Gateway/TAG Bridge Engineering contract and deterministic validation. DEV 2 owns this slice exclusively in `feature/tag-gateway-engineering`.
+PRs #50 and #55 provide:
 
-Required overall Gateway direction remains:
-
-- TAG→TAG routes using stable TAG references rather than driver-to-driver coupling;
-- OnChange/Periodic modes;
-- deadband/minimum interval/coalescing and bounded periodic cadence;
-- `Good` source-quality default;
-- explicit deterministic type/conversion policy and optional gain/offset transform;
-- direct/indirect cycle rejection;
-- multiple active writers to one destination rejected initially;
-- fan-out allowed;
-- `builtin.memory.server` valid as source/destination and `builtin.memory.client` rejected;
-- independent route diagnostics;
-- transactional activation;
-- public/versioned Engineering, Preview/Apply, revisions and project-package round trips.
-
-Current slice intentionally excludes the runtime transfer engine, central API/DI, diagnostics UI and protocol-specific code. Those follow after the Engineering contract is official on `main`.
+- canonical Schema v9 Gateway routes using stable TAG IDs/paths;
+- Preview/Apply/revision/package persistence and deterministic validation;
+- direct/indirect cycle rejection and multiple-writer rejection;
+- fan-out;
+- Server Memory support and Client Memory rejection;
+- protocol-independent runtime transfer over common TAG/Event Bus/write ownership;
+- OnChange/Periodic, quality policy, deadband/rate/coalescing and startup synchronization;
+- Exact/CheckedNumeric conversion with optional gain/offset;
+- transactional Active Revision replacement;
+- route-local diagnostics;
+- protected diagnostics API and Engineering Gateway configuration/diagnostic UI;
+- automated Modbus<->Server Memory and independent Modbus<->Modbus proof.
 
 See `docs/TAG-GATEWAY.md`.
 
-### 3. Common multi-driver/Data-Source diagnostics
+### 3. Common multi-driver/Data Source diagnostics
 
-**SPECIFIED / NOT IMPLEMENTED — BLOCKED BY COMPLETE GATEWAY FOUNDATION.**
+**ACTIVE PRODUCT BLOCK.**
 
-Required direction:
+The architecture must preserve `Driver type != Data Source`. Multiple simultaneous Data Sources using the same or different Driver types remain first-class.
 
-- per-Data-Source health/state;
-- success/failure/timeout/reconnect counters;
-- latency/failure-rate/data-age metrics where meaningful;
-- TAG quality aggregation;
-- independent failure isolation;
-- protected diagnostic APIs and Engineering UI;
-- no fabricated network metrics for Internal Memory sources.
+Required current implementation:
+
+- evolve the common external communication diagnostics contract without Modbus-specific leakage;
+- expose Data Source identity, Driver type/instance identity and safe endpoint/configuration context;
+- operational state with healthy/degraded/reconnecting/faulted distinction;
+- last success/failure/state-change timestamps and sanitized message;
+- monotonic cycle/request/success/failure/consecutive-failure/timeout/connect/reconnect/read/write/update counters where meaningful;
+- recent failure/latency/data-age/effective-scan information where meaningful and bounded;
+- TAG-quality summary by active Data Source;
+- instrument current Modbus TCP runtime using poll blocks/Unit IDs as useful protocol detail;
+- prove two simultaneous independent Modbus Data Sources, isolated failure/recovery/counters/quality and correct write ownership;
+- protected backend diagnostic snapshots and Engineering diagnostics UI;
+- do not fabricate transport/network metrics for Internal Memory or built-in simulation.
+
+DEV 2 owns the isolated common-contract + Modbus instrumentation slice. Coordinator owns DriverHost/API/DI/UI composition and final product integration.
 
 See `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
 
@@ -144,22 +130,17 @@ See `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
 
 **SPECIFIED / NOT IMPLEMENTED — BLOCKED BY COMMON DIAGNOSTICS.**
 
-Mandatory product-owner test build before the next external-protocol wave:
+Before the next external-protocol wave, produce a practical Windows x64 product-owner validation build with:
 
-- Windows x64 primary target;
 - practical startup path;
 - local login/bootstrap;
 - demo project;
 - visible version identification;
 - short validation checklist;
-- package/startup smoke separate from repository-only development execution;
-- product-owner feedback before heavy next-protocol investment.
+- package/startup smoke separate from repository-only execution;
+- product-owner feedback before heavy protocol investment.
 
 See `docs/INTERFACE-VALIDATION-MILESTONE.md`.
-
-Locked sequence:
-
-`Internal Memory -> TAG Gateway -> common multi-driver diagnostics -> USER INTERFACE VALIDATION PREVIEW -> additional external protocols`
 
 ## External protocol/module wave after preview feedback
 
@@ -167,40 +148,20 @@ Locked sequence:
 6. OPC UA through the same common model.
 7. BACnet through the same common model.
 8. Installable/versioned Driver Module framework and public Driver SDK compatibility boundary.
-9. Siemens S7 ISO Connection as the first intended installable module target after the framework is ready.
+9. Siemens S7 ISO Connection as the first intended installable-module target after the framework is ready.
 10. Later Allen-Bradley research based on public documentation/libraries, licensing and testability.
 
 Projects referencing missing/disabled/incompatible modules must preserve Engineering configuration and surface diagnostics instead of silently deleting configuration.
 
-### Early OPC UA discovery/import research spike
-
-**RESEARCH / SPECIFICATION ASSIGNED — PRODUCTION DRIVER STILL BLOCKED.**
-
-DEV 1 may work in parallel on the non-production OPC UA discovery/browse/import spike defined by `docs/OPC-UA.md` because this research does not register an OPC UA runtime Data Source or alter active driver composition.
-
-The spike is intended to resolve before implementation:
-
-- official OPC Foundation .NET client package/version/licensing choice;
-- OPC UA discovery mechanisms and the bounded network-scan UX;
-- endpoint/security/certificate trust model;
-- address-space lazy browse/search/filter behavior;
-- namespace-aware BrowsePath + NodeId reconciliation;
-- TAG type/access mapping;
-- subscription/profile model;
-- multi-select/subtree TAG import preview;
-- representative simulator/test-server and CI strategy.
-
-It may produce research documentation, architecture/UX contracts and non-runtime analysis only. It must **not** add the production OPC UA client package to runtime projects, register a new OPC UA Data Source, touch central DI/API, perform live protocol execution in the product or move OPC UA ahead of the locked implementation gate.
-
-The future production OPC UA implementation remains stage 6 after the interface-preview gate unless the product roadmap is explicitly changed later.
+OPC UA and Siemens S7 research are merged architecture inputs, not authorization to start production protocol runtimes before the preview gate.
 
 ## Historian and trend evolution
 
 PR #43 storage foundations are merged. Still required:
 
-- public/versioned Engineering representation for retention/downsampling storage policy;
+- public/versioned Engineering representation for retention/downsampling policy;
 - canonical validation/import-export/schema migration;
-- central Historian configuration/DI application from approved Engineering/runtime configuration;
+- central Historian configuration from approved Engineering/runtime configuration;
 - explicit legacy raw-type migration policy;
 - raw vs aggregate query/resolution selection;
 - engineered, ad-hoc and saved multi-Pen trends;
@@ -211,7 +172,7 @@ TAG definition deletion remains separate from historian data purge.
 
 ## Audit evolution
 
-PRs #44, #45 and #46 plus coordinator routing provide append-only PostgreSQL Audit storage, bounded keyset query/filtering, protected diagnostics, configurable retention, bounded asynchronous in-memory outage buffering, storage-boundary sanitization and the `/audit` UI.
+PRs #44, #45 and #46 plus coordinator routing provide append-only PostgreSQL Audit storage, bounded keyset query/filtering, protected diagnostics, configurable retention, bounded asynchronous in-memory outage buffering, storage-boundary sanitization and `/audit` UI.
 
 Still not implemented/claimed:
 
@@ -219,111 +180,83 @@ Still not implemented/claimed:
 - manual purge-all endpoint;
 - weaker/general AuditRead capability separate from `SystemAdmin`.
 
-Cross-origin browser access may require exposing `X-EliteSCADA-Audit-Next-Cursor` through the deployment CORS policy; same-origin/Vite-proxy use is unaffected.
-
 ## Python scripting and visual-runtime prerequisite chain
 
-PR #41 provides the scripting/visual runtime contract foundation. PR #47 provides a merged isolated Script Engineering domain. The graphical editor must consume these public contracts rather than inventing a private object/property model.
+`canonical Script integration -> script editor/sandbox -> visual runtime object/property integration -> graphical Screen/Popup/Dynamo editor -> advanced visual libraries`
+
+PR #41 provides public scripting/visual runtime contracts. PR #47 provides an isolated Script Engineering domain. Neither authorizes the graphical editor to create a private model.
 
 ### 11. Public Script Engineering integration
 
 **PARTIALLY MERGED — ISOLATED DOMAIN COMPLETE / CANONICAL PACKAGE INTEGRATION PENDING.**
 
-Merged through PR #47:
-
-- stable typed Script Engineering definitions outside the central shared contract;
-- ClientVisual/Server scope separation;
-- Python source/language/version/enabled state;
-- typed event/entry-point and dependency model;
-- deterministic identity, scope, dependency-cycle and visual-reference validation;
-- adapters to PR #41 public runtime contracts.
-
-Coordinator-owned work still required:
+Still required:
 
 - first-class Scripts collection/entity kind in canonical Engineering;
-- stable visual Script references in Screen/Popup/Dynamo/visual definitions;
+- stable visual Script references;
 - schema migration and canonical JSON round-trip;
-- import/export preview/apply integration;
-- Engineering revision and PostgreSQL persistence;
-- `.escadapkg` backup/restore;
-- authoritative TAG/Client Memory/Server Memory/resource reference catalog wiring.
+- Preview/Apply integration;
+- Revision/PostgreSQL persistence and `.escadapkg` backup/restore;
+- authoritative TAG/Client Memory/Server Memory/resource-reference catalogs.
 
-Internal Memory is now stable, but canonical Script integration is temporarily deferred while the active Gateway Engineering assignment exclusively owns overlapping central Engineering contract files. It may resume after that conflict boundary clears.
-
-Until those items are complete, stage 12 must not begin as production implementation.
+No production Python editor/sandbox may precede this integration.
 
 ### 12. Python script editor + sandbox
 
-**SPECIFIED / NOT IMPLEMENTED.**
+**RESEARCH IN PR #54 / PRODUCTION NOT IMPLEMENTED.**
 
-- client Python engine technical selection;
-- syntax highlighting and line numbers;
-- engine-backed diagnostics with line/column;
-- EliteSCADA API autocomplete where practical;
-- event/entry-point association;
-- sandboxed test/preview;
-- execution budgets, cancellation and fault isolation.
+DEV 3 research recommends Pyodide as the first laboratory candidate and Monaco as the first desktop Engineering editor candidate, with per-runtime-instance Worker isolation, restricted JS globals/RPC and hard Worker termination fallback. Those are research recommendations, not selected production dependencies.
 
 ### 13. Visual runtime object instances/property API integration
 
 **SPECIFIED / NOT IMPLEMENTED AS PRODUCT INTEGRATION.**
 
-- browser/client runtime composition;
-- Engineering base values separated from runtime presentation overrides;
-- TAG/Client Memory/event adapters;
-- deterministic lifecycle/disposal;
-- renderer implementation behind tween scheduler;
-- authorization-aware backend operation adapters;
-- deterministic base/binding/script/animation precedence.
+Runtime property precedence remains:
 
-### 14. Graphical screen/popup/Dynamo editor
+`Animation > Script > BindingOrExpression > EngineeringBase`
 
-**SPECIFIED / NOT IMPLEMENTED.**
+The browser runtime must use canonical visual/property contracts and deterministic lifecycle/disposal.
 
-- object palette/canvas;
-- property inspector consuming the same public property schema as Python;
-- TAG/expression bindings;
-- images/resources;
-- navigation/popups;
-- script/event association;
-- reusable Dynamo/template composition.
+### 14. Graphical Screen/Popup/Dynamo editor
+
+**RESEARCH IN PR #53 / PRODUCTION NOT IMPLEMENTED.**
+
+DEV 1 research recommends canonical Engineering authority with SVG/DOM-first authoring and renderer-independent geometry/interaction services. Production work remains blocked by Script/editor/runtime prerequisites.
 
 ### 15. Advanced reusable visual libraries
 
 **SPECIFIED / NOT IMPLEMENTED.**
 
-- nested Dynamos/components;
-- version-aware library update/migration;
-- reusable scripted behavior;
-- controlled instance overrides.
+Includes nested Dynamos/components, version-aware library migration, reusable scripted behavior and controlled instance overrides.
 
 Full locked contract: `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`.
 
-The source/protocol interface-validation preview may occur before this visual-editor chain is complete. Once graphical screen/Dynamo development starts, the Script/property prerequisites are mandatory.
-
 ## Additional future Engineering/product slices
 
-These remain locked product goals and may be scheduled according to dependencies and file-ownership safety:
+These remain locked goals and may be scheduled according to dependencies and ownership safety:
 
-- Engineering XLSX workbook import/export;
+- Engineering XLSX import/export;
 - Engineering Fragments and dependency-aware cross-project copy/paste;
-- configurable application shell with header/footer/navigation/alarm summary/optional side regions;
+- configurable application shell;
 - visual asset/resource package management;
 - reusable Equipment/Template/Dynamo class-instance libraries;
 - runtime-HMI multilingual content separate from Engineering UI localization;
 - complete `pt-BR` / `en` / `es` Engineering/development UI coverage;
 - public SDK/module lifecycle, trust/integrity and diagnostics;
-- later sandboxed Server Python scripting for shared calculations/automation using Server Memory/shared TAGs.
+- later sandboxed Server Python for shared calculations/automation using Server Memory/shared TAGs.
 
 ## Parallel scheduling rule
 
-The coordinator may run independent workstreams in parallel only when doing so does not violate locked dependencies or create avoidable ownership conflicts in central Engineering contracts, DI/composition or frontend shell files.
+Parallel work is allowed only where dependency order and central ownership remain clean.
 
-DEV 2 is `ASSIGNED` to the first TAG Gateway Engineering contract slice. DEV 1 is `ASSIGNED` to a non-production OPC UA discovery/browse/import research spike that must not touch the active protocol runtime or central Engineering contract owned by DEV 2. DEV 3 remains `MERGED / WAITING`.
+Current split:
 
-This pairing is intentional: DEV 2 owns the current functional source/protocol gate, while DEV 1 reduces uncertainty around a later protocol without changing the implementation order. Starting canonical Script schema work in parallel would still create avoidable central Engineering conflicts.
+- **COORDENADOR:** common diagnostics product integration, central DriverHost/API/DI/UI, acceptance, CI, merges and docs;
+- **DEV 2:** isolated protocol-neutral diagnostics contract + Modbus TCP instrumentation/tests on `feature/communication-driver-diagnostics`;
+- **DEV 1:** research PR #53 delivered, waiting;
+- **DEV 3:** research PR #54 delivered, waiting.
 
-After the Gateway Engineering contract is reviewed and merged, the coordinator may assign the runtime Gateway engine and reconsider other non-conflicting workstreams.
+Do not start canonical Script schema integration or new protocol runtime work merely because workers are idle if that creates avoidable central Engineering/API/DI conflicts.
 
 ## Development quality rules
 

@@ -2,8 +2,8 @@
 
 > Operational handoff. Read with `PROJECT GOAL.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md` and `docs/CHAT-WORK-ASSIGNMENTS.md` before every EliteSCADA task.
 
-**Handoff date:** 2026-08-26  
-**Development state:** **ACTIVE — TAG GATEWAY REVIEW + VISUAL EDITOR / CLIENT PYTHON RESEARCH IN PARALLEL**
+**Handoff date:** 2026-08-27  
+**Development state:** **ACTIVE — TAG GATEWAY COMPLETE / COMMON MULTI-DRIVER DIAGNOSTICS NEXT**
 
 Repository truth is separated into **MERGED**, **IMPLEMENTED IN PR**, **RESEARCH IN PR** and **SPECIFIED / NOT IMPLEMENTED**.
 
@@ -20,76 +20,91 @@ The locked visual/scripting prerequisite chain remains:
 Current functional state:
 
 - Internal Memory: **MERGED / COMPLETE** through PR #49;
-- TAG Gateway Engineering/validation: **IMPLEMENTED IN PR #50 / READY FOR COORDINATOR REVIEW**;
-- common multi-driver diagnostics: **SPECIFIED / NOT IMPLEMENTED — BLOCKED BY GATEWAY**;
-- interface validation preview: **SPECIFIED / NOT IMPLEMENTED — BLOCKED BY DIAGNOSTICS**;
-- production MQTT/OPC UA/BACnet/S7 remain gated;
-- isolated Script Engineering foundation: **MERGED**, but canonical package/schema integration remains pending;
+- TAG Gateway: **MERGED / COMPLETE** through PRs #50 and #55;
+- canonical Engineering: **Schema v9**, with first-class Gateway routes;
+- common multi-driver/Data Source diagnostics: **ACTIVE NEXT PRODUCT BLOCK**;
+- USER INTERFACE VALIDATION PREVIEW: **SPECIFIED / NOT IMPLEMENTED — BLOCKED BY COMMON DIAGNOSTICS**;
+- production MQTT/OPC UA/BACnet/S7 and Driver Module implementation remain gated by the preview;
+- isolated Script Engineering foundation: **MERGED**, canonical package/schema integration still pending;
 - production Python editor/sandbox, visual runtime integration and graphical editor remain **SPECIFIED / NOT IMPLEMENTED**.
 
-## TAG GATEWAY — DEV 2 DELIVERED FOR REVIEW
+## TAG GATEWAY — COMPLETE ON `main`
 
-PR #50 `Add TAG Gateway Engineering foundation` is Draft/Open and mergeable.
+PR #50 merged the canonical public/versioned Gateway Engineering foundation and Schema v9.
 
-Current head:
+PR #55 `Complete protocol-independent TAG Gateway runtime` merged as:
 
-`002f87dd126854c9fd972e453930e229e02f7f30`
+`41bc437ba64f60fba26754794a9dc5a4e9a034f7`
 
-Current-head CI #304 completed **SUCCESS**. The worker reports a reconciled Gateway-only delta with schema v9, first-class routes, endpoint/type/rate validation, direct/indirect cycle rejection, multiple-writer rejection, Server Memory support, Client Memory rejection and canonical package/revision persistence coverage. Runtime Gateway execution/API/UI/DI/diagnostics remain outside this worker slice.
+Validated Gateway capabilities now include:
 
-DEV 2 is now `READY_FOR_COORDINATOR_REVIEW / WAIT_FOR_COORDINATOR` and must not start another task.
+- protocol-independent TAG-to-TAG routing over the common TAG/Event Bus/write boundary;
+- destination writes through active runtime ownership rather than driver-to-driver coupling;
+- OnChange and Periodic execution;
+- Good-only source quality gating;
+- startup synchronization policy;
+- deadband, minimum interval and newest-value coalescing;
+- Exact and CheckedNumeric conversion with gain/offset and checked overflow/narrowing;
+- fan-out and canonical cycle/multiple-writer validation;
+- Server Memory as valid server endpoint and Client Memory rejected;
+- route-local diagnostics/counters without contaminating source TAG quality;
+- transactional Active Revision route replacement;
+- protected Gateway diagnostics API;
+- Engineering Data Sources Gateway tool using canonical Preview/Apply + Workspace CAS;
+- runtime diagnostics UI.
 
-## MERGED PROTOCOL RESEARCH
+Automated runtime proof includes Modbus -> Server Memory, Server Memory -> Modbus, independent Modbus -> Modbus, quality suppression, destination failure/recovery, cadence/coalescing, conversion/overflow, fan-out and revision switching.
 
-### OPC UA
+PR #55 branch CI #333 was fully green.
 
-DEV 1's previous research PR #51 is **MERGED** as `aa7735fcc15e00aea5bf19a543f53b2735ef48e3`. Production OPC UA remains gated.
+The first post-merge main CI #334 exposed two timing-sensitive tests. The coordinator hardened only the tests, not product semantics. Commit `782c65fe3c44061b6e2bb13f1a6b905db6b1c102` increased deterministic waits, and commit `cb4d2c423c31cf7a52ea6ebe6de494c281901f3f` corrected the resulting collection-access compile mistake. Main CI #336 on `cb4d2c42...` completed **SUCCESS** for Web build, backend build/tests, runtime smoke and Chromium E2E.
 
-### Siemens S7 ISO Connection
+The TAG Gateway gate is therefore closed as **MERGED / COMPLETE**.
 
-DEV 3's previous research PR #52 is **MERGED** as `bd825682ae0ccfdbdb938fab638a27f6961510bf`. Production S7 remains gated. S7.NetPlus is only the preferred first future laboratory candidate, not a selected production dependency.
+## ACTIVE NEXT BLOCK — COMMON COMMUNICATION / DATA SOURCE DIAGNOSTICS
 
-## NEW PARALLEL VISUAL/EDITOR RESEARCH ASSIGNMENTS
+The next official product block is `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`.
 
-The product owner requested use of idle DEV capacity to advance the future screen editor and adjacent prerequisites without violating the locked dependency chain.
+Required direction:
 
-### DEV 1 — Graphical visual editor architecture/UX research
+- protocol-neutral diagnostic snapshot for external communication Data Sources;
+- Data Source identity kept separate from Driver type;
+- healthy/degraded/reconnecting/faulted operational distinction;
+- success/failure/timeout/reconnect/request/read/write/update counters;
+- last success/failure and sanitized error timestamps/messages;
+- useful latency, failure-rate, data-age and observed-scan metrics where meaningful;
+- per-Data-Source TAG-quality aggregation;
+- strict isolation between simultaneous Data Sources;
+- no fabricated transport/network metrics for Internal Memory or built-in simulation;
+- protected backend diagnostic API and Engineering diagnostics UI owned by coordinator integration.
 
-Assigned branch:
+DEV 2 is assigned the isolated common-contract + Modbus instrumentation foundation. Coordinator retains central DriverHost/API/DI/UI integration and final multi-instance acceptance.
 
-`research/visual-editor-architecture`
+## RESEARCH DELIVERIES WAITING FOR COORDINATOR
 
-Status: **ASSIGNED**.
+### DEV 1 — graphical visual editor architecture/UX
 
-Scope is documentation/research only. DEV 1 must define the future Screen/Popup/Dynamo authoring model, including renderer/editor direction, palette/canvas, selection/multi-select, transforms, grid/guides/snap, z-order/groups, property inspector using the public visual property schema, TAG/expression bindings, scripts/events, undo/redo, copy/paste/Engineering Fragments, resources, Dynamo composition, large-screen performance and implementation slices.
+Draft PR #53, branch `research/visual-editor-architecture`, head `15e74e3b3915de7de6639e5c296fdcc2e229793a`.
 
-Forbidden: production editor code, dependencies/lockfiles, central frontend routing, central Engineering schema, Python runtime implementation or visual runtime composition.
+Status: **RESEARCH IN PR / DELIVERED / WAIT_FOR_COORDINATOR**. No production editor code or dependency is authorized by this research.
 
-### DEV 3 — Client Python editor/sandbox technology research
+### DEV 3 — Client Python editor/browser sandbox
 
-Assigned branch:
+Draft PR #54, branch `research/client-python-editor-sandbox`, head `d3bef9636f6ffd44a7be6f56a144296e38744474`.
 
-`research/client-python-editor-sandbox`
-
-Status: **ASSIGNED**.
-
-Scope is documentation/research only. DEV 3 must compare browser/WASM Python engines and editor technology, define worker/sandbox isolation, time/memory/event budgets, cancellation, EliteSCADA API injection, line/column diagnostics, autocomplete/stubs, test/preview semantics, CSP/network/package restrictions, offline packaging and benchmark/security test strategy.
-
-Forbidden: production dependencies, lockfiles, production Python runtime/editor, central Script schema integration, server Python, central routing or graphical editor/runtime code.
-
-These assignments deliberately reduce future implementation uncertainty while DEV 2's central Gateway contract ownership finishes. They do not authorize production graphical editor work before Script/sandbox/runtime prerequisites are official.
+Status: **RESEARCH IN PR / DELIVERED / WAIT_FOR_COORDINATOR**. The Pyodide/Monaco direction remains a research recommendation, not a selected production dependency.
 
 ## COORDINATOR RESUME POINT
 
 On the next coordinator `siga`:
 
-1. reread mandatory docs from current `main`;
-2. perform final semantic/diff review of PR #50 now that CI #304 is green;
-3. merge Gateway Engineering only if the reviewed current head remains clean and within assignment;
-4. after merge, reconcile official schema/roadmap state and assign the protocol-independent Gateway runtime engine;
-5. monitor DEV 1 `research/visual-editor-architecture` and DEV 3 `research/client-python-editor-sandbox` for research-only compliance;
-6. after Gateway central-contract ownership clears, resume canonical Script package/schema integration before any production Python editor or graphical editor implementation;
-7. preserve both locked dependency chains.
+1. reread mandatory docs from current `main` and verify GitHub branch/PR/CI truth;
+2. monitor DEV 2 `feature/communication-driver-diagnostics` against its exact assignment;
+3. prepare coordinator-owned protected diagnostics API/DriverHost composition and Engineering diagnostics UI without overlapping DEV 2 files;
+4. validate two simultaneous Modbus Data Sources with independent failure/recovery/counters/TAG quality;
+5. merge only after current-head CI is fully green;
+6. after common diagnostics is complete and green on `main`, create the USER INTERFACE VALIDATION PREVIEW build before any new production external protocol;
+7. keep DEV 1/DEV 3 research as non-production inputs until their prerequisite chains are explicitly opened.
 
 ## Permanent continuity rules
 

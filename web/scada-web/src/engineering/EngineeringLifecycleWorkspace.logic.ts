@@ -1,4 +1,3 @@
-import { EngineeringLifecycleApiError } from './engineeringLifecycleApi';
 import type {
   EngineeringLifecycleAction,
   EngineeringLifecycleState,
@@ -8,12 +7,9 @@ import type {
 import type { EngineeringLocale } from './i18n';
 
 export type LifecycleStepState = 'complete' | 'current' | 'pending' | 'warning';
+export type LifecycleStep = { key: 'working' | 'revision' | 'published' | 'active'; state: LifecycleStepState; revision: number | null };
 
-export type LifecycleStep = {
-  key: 'working' | 'revision' | 'published' | 'active';
-  state: LifecycleStepState;
-  revision: number | null;
-};
+type ApiErrorLike = Error & { status: number };
 
 export function buildLifecycleSteps(state: EngineeringLifecycleState): LifecycleStep[] {
   const lifecycle = state.lifecycle;
@@ -21,7 +17,6 @@ export function buildLifecycleSteps(state: EngineeringLifecycleState): Lifecycle
   const latestRevision = state.revisions[0]?.revision ?? baseRevision;
   const publishedRevision = lifecycle?.publishedRevision ?? null;
   const activeRevision = lifecycle?.activeRevision ?? null;
-
   return [
     { key: 'working', state: state.workspace.isDirty ? 'warning' : 'current', revision: baseRevision },
     { key: 'revision', state: latestRevision ? (state.workspace.isDirty ? 'complete' : 'current') : 'pending', revision: latestRevision ?? null },
@@ -31,8 +26,7 @@ export function buildLifecycleSteps(state: EngineeringLifecycleState): Lifecycle
 }
 
 export function canSaveWorkspace(state: EngineeringLifecycleState): boolean {
-  if (!state.persistence.enabled) return false;
-  if (!state.projectKey || !state.workspace.projectName?.trim()) return false;
+  if (!state.persistence.enabled || !state.projectKey || !state.workspace.projectName?.trim()) return false;
   return state.workspace.isDirty || !state.workspace.baseRevision;
 }
 
@@ -43,17 +37,9 @@ export function canActivatePublished(state: EngineeringLifecycleState): boolean 
   return configured.toLocaleLowerCase() === state.projectKey.toLocaleLowerCase();
 }
 
-export function isRevisionPublished(revision: EngineeringRevisionMetadata, lifecycle: EngineeringProjectLifecycle | null): boolean {
-  return lifecycle?.publishedRevision === revision.revision;
-}
-
-export function isRevisionActive(revision: EngineeringRevisionMetadata, lifecycle: EngineeringProjectLifecycle | null): boolean {
-  return lifecycle?.activeRevision === revision.revision;
-}
-
-export function isWorkspaceBaseRevision(revision: EngineeringRevisionMetadata, state: EngineeringLifecycleState): boolean {
-  return state.workspace.baseRevision === revision.revision;
-}
+export function isRevisionPublished(revision: EngineeringRevisionMetadata, lifecycle: EngineeringProjectLifecycle | null): boolean { return lifecycle?.publishedRevision === revision.revision; }
+export function isRevisionActive(revision: EngineeringRevisionMetadata, lifecycle: EngineeringProjectLifecycle | null): boolean { return lifecycle?.activeRevision === revision.revision; }
+export function isWorkspaceBaseRevision(revision: EngineeringRevisionMetadata, state: EngineeringLifecycleState): boolean { return state.workspace.baseRevision === revision.revision; }
 
 export function projectLifecycleName(value: string | number | null | undefined): string {
   if (typeof value === 'number') return ['Empty', 'Draft', 'Published', 'ChangesPending'][value] ?? String(value);
@@ -67,7 +53,7 @@ export function runtimeLifecycleName(value: string | number | null | undefined):
 
 export function lifecycleErrorText(error: unknown, locale: EngineeringLocale): string {
   const messages = errorCopy(locale);
-  if (error instanceof EngineeringLifecycleApiError) {
+  if (isApiError(error)) {
     if (error.status === 401) return messages.unauthorized;
     if (error.status === 403) return messages.forbidden;
     if (error.status === 409) return `${messages.conflict} ${error.message}`.trim();
@@ -84,6 +70,10 @@ export function confirmationText(action: EngineeringLifecycleAction, locale: Eng
   if (action === 'publish') return { title: copy.publishTitle, description: copy.publishDescription.replace('{revision}', String(revision ?? '—')), confirm: copy.publishConfirm };
   if (action === 'activate') return { title: copy.activateTitle, description: copy.activateDescription, confirm: copy.activateConfirm };
   return { title: copy.saveTitle, description: copy.saveDescription, confirm: copy.saveConfirm };
+}
+
+function isApiError(error: unknown): error is ApiErrorLike {
+  return error instanceof Error && 'status' in error && typeof (error as { status?: unknown }).status === 'number';
 }
 
 function errorCopy(locale: EngineeringLocale) {

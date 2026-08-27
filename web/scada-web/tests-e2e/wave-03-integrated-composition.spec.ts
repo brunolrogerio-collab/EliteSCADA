@@ -3,6 +3,10 @@ import { expect, test } from '@playwright/test';
 const projectKey = 'e2e-wave03';
 
 test('Wave 03 integrated composition publishes, activates and operates through mounted product surfaces', async ({ page, request }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('elitescada.engineering.locale', 'pt-BR');
+  });
+
   const seeded = await request.post(`/api/engineering/persistence/${projectKey}/save`, {
     data: { projectName: 'Wave 03 E2E' }
   });
@@ -11,8 +15,9 @@ test('Wave 03 integrated composition publishes, activates and operates through m
   await page.goto('/engineering');
 
   const lifecycle = page.locator('.eng-lifecycle-workspace');
+  await expect(lifecycle).toHaveCount(1);
   await expect(lifecycle).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Ciclo do Engineering' })).toHaveCount(1);
+  await expect(lifecycle.getByRole('heading', { name: 'Ciclo do Engineering' })).toBeVisible();
   await expect(lifecycle).toContainText('Wave 03 E2E');
   await expect(lifecycle).toContainText(/r\d+/);
 

@@ -1,7 +1,7 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-08-28  
-**Active direction:** **VISUAL-RUNTIME-WAVE-07 CANONICAL CONVERGENCE REVIEW COMPLETE / CI_DEFERRED / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
+**Active direction:** **VISUAL-RUNTIME-WAVE-07 STATIC AUDIT CORRECTIONS COMPLETE / CI_DEFERRED / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
 
 Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
 Parallel execution model: `docs/DEVELOPMENT-WAVES.md`.  
@@ -54,7 +54,7 @@ Wave 03  Operational lifecycle + Runtime TAG Inspector + acceptance foundation  
 Wave 04  Project portability + basic Trends + Administration                        COMPLETE
 Wave 05  Canonical Script Engineering                                                COMPLETE
 Wave 06  Python Editor + Client Visual sandbox                                       COMPLETE
-Wave 07  Visual Runtime Object Model + visual Asset contract                         CONVERGENCE REVIEW COMPLETE / CI_DEFERRED
+Wave 07  Visual Runtime Object Model + visual Asset contract                         STATIC AUDIT CORRECTIONS COMPLETE / CI_DEFERRED
 Wave 08  Graphical Editor Foundation + image import/object                           WAITING
 Wave 09  Screens + Popups + Dynamos + asset dependencies
 Wave 10  Python visual events + animation + preview
@@ -70,12 +70,12 @@ Do not skip dependencies simply because later research already exists.
 
 ## Wave 07 — Visual Runtime Object Model
 
-**CANONICAL CONVERGENCE REVIEW COMPLETE / CI_DEFERRED / NOT MERGE-READY.**
+**STATIC AUDIT CORRECTIONS COMPLETE / CI_DEFERRED / NOT MERGE-READY.**
 
 - Logical WaveBaseSHA: `cc79713434c1d7b5988158b843b137eaf488d923`
 - ContractSHA: `06faf079bc5185689712bd2c9a225c2bb8d90999`
 - Integration branch: `integration/visual-runtime-wave-07`
-- Exact current integration head: `0c00413e2dc96d770a905cf0a416833764af59e7`
+- Exact current integration head: `63878f6fe28a0a9ac101d622628f8b95658899a7`
 - Integration PR: intentionally not open while Actions are deferred
 - Implementation contract: `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`
 - Canonical convergence/readiness contract: `docs/VISUAL-CANONICAL-CONVERGENCE-07-TO-08.md`
@@ -119,7 +119,14 @@ Worker deliveries integrated:
 - **DEV 2:** `d6c1e997178e0ce525233079effd442f59743386`
 - **DEV 3:** `25ebac63a957c1c0c5b8e2557caec152d9d36bfc`
 - worker integration commit: `295bdabba5c25b2e4a729228130185976735d939`
-- exact coordinator-reviewed integration head: `0c00413e2dc96d770a905cf0a416833764af59e7`
+
+Static audit correction commits:
+
+- `cd2753f64a8191df3d2861871bb53077b74cc7a2` — identity-only AssetReference source contract;
+- `c3f9cc15a6715bf6434b1553878ba7c6121e0783` — browser acceptance aligned to `assetRef = { assetId }`;
+- `63878f6fe28a0a9ac101d622628f8b95658899a7` — projection tests aligned to actual registry API and canonical asset shape.
+
+These corrections remove deterministic test drift discovered by repository audit. They remain **CI_DEFERRED** and are not execution evidence.
 
 ### Transitional persistence caveat
 
@@ -129,7 +136,7 @@ Canonical JSON-native typed visual property persistence and migration must be de
 
 ### Current no-CI stop state
 
-The coordinator static review found no additional concrete blocker after head `0c00413e...`. The no-Actions stop condition is reached: do not continue speculative Wave 07 code merely to make progress visible.
+After correcting the concrete deterministic test blockers, the no-Actions stop condition is reached again. Do not continue speculative Wave 07 code merely to make progress visible.
 
 The owner most recently reported approximately 19 included GitHub Actions minutes remaining. Until the owner explicitly reports reset:
 - do not open the Wave 07 PR;

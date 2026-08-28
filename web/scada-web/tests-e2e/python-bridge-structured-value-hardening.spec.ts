@@ -4,6 +4,7 @@ import {
   cloneBridgeValue,
   dispatchClientVisualPythonCapability
 } from '../src/python-runtime/clientVisualPythonCapabilities';
+import { CLIENT_VISUAL_PYTHON_POLICY } from '../src/python-runtime/pythonRuntimeContracts';
 
 const context = {
   scriptId: 'script:bridge-hardening',
@@ -27,6 +28,26 @@ test('structured bridge cloning preserves __proto__ only as inert own data and d
   expect(Object.hasOwn(clone, '__proto__')).toBe(true);
   expect(clone.__proto__).toEqual({ polluted: true });
   expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
+});
+
+test('structured bridge values are bounded by depth, node count and string length', () => {
+  const root: Record<string, unknown> = {};
+  let cursor = root;
+  for (let index = 0; index <= CLIENT_VISUAL_PYTHON_POLICY.maxBridgeDepth; index++) {
+    const next: Record<string, unknown> = {};
+    cursor.next = next;
+    cursor = next;
+  }
+  expect(() => cloneBridgeValue(root)).toThrow(/bounded structured-value size or depth/);
+
+  const tooManyNodes = Array.from(
+    { length: CLIENT_VISUAL_PYTHON_POLICY.maxBridgeNodes + 1 },
+    () => 1
+  );
+  expect(() => cloneBridgeValue(tooManyNodes)).toThrow(/bounded structured-value size or depth/);
+
+  const tooLong = 'x'.repeat(CLIENT_VISUAL_PYTHON_POLICY.maxBridgeStringLength + 1);
+  expect(() => cloneBridgeValue({ text: tooLong })).toThrow(/supported bounded structured bridge value/);
 });
 
 test('capability arguments cannot be satisfied by inherited properties', async () => {

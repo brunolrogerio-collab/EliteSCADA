@@ -2,7 +2,7 @@
 
 > Authoritative live execution board. GitHub branch/PR/head/CI state is operational truth. Permanent rules: `docs/DEVELOPMENT-WAVES.md`, `docs/PARALLEL-WORK.md`, `docs/CI-USAGE-POLICY.md`.
 
-**Last coordinator synchronization:** 2026-08-28 — third static audit hardening completed on Wave 07 after repository review found concrete Python-clear, fail-closed validation, Int32 parity and stale Wave-06 policy-test blockers; exact current integration head is `d184fdd5b65f2ce0c0e6ca28cd092644be080555`; all workers remain stopped; Wave 08 is not active.
+**Last coordinator synchronization:** 2026-08-28 — fourth static audit hardening completed on Wave 07 after repository review found top-level malformed-view Preview gaps, stale current-schema Script tests, missing canonical `VisualObject` Script reference catalog, dropped prospective errors on existing Scripts and v10 visual-identity projection mismatches; exact current integration head is `e376b37d2772906dd667afa199a6d8882abd43ae`; all workers remain stopped; Wave 08 is not active.
 
 ## Mandatory `siga`
 
@@ -10,13 +10,13 @@ Every fixed EliteSCADA chat first rereads current `main`: `PROJECT GOAL.md`, `LA
 
 ## Current product gate
 
-`VISUAL-RUNTIME-WAVE-07` is **THIRD STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED / NOT MERGE-READY**.
+`VISUAL-RUNTIME-WAVE-07` is **FOURTH STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED / NOT MERGE-READY**.
 
 - Wave 06: MERGED through PR #83; final CI #487 SUCCESS
 - Wave 07 Logical WaveBaseSHA: `cc79713434c1d7b5988158b843b137eaf488d923`
 - ContractSHA: `06faf079bc5185689712bd2c9a225c2bb8d90999`
 - Integration branch: `integration/visual-runtime-wave-07`
-- Exact current integration head: `d184fdd5b65f2ce0c0e6ca28cd092644be080555`
+- Exact current integration head: `e376b37d2772906dd667afa199a6d8882abd43ae`
 - Integration PR: NOT OPEN
 - CI mode: CONSTRAINED
 - Owner-reported remaining allowance: approximately 19 included minutes until explicitly superseded by a reset report
@@ -46,15 +46,25 @@ Coordinator hardening/convergence covers:
 - explicit Python Script override set/clear path through dispatcher, provider composition and actual Pyodide Worker module;
 - fail-closed malformed/null visual Engineering Preview paths;
 - signed-Int32 TypeScript/C# integer parity;
-- stale Wave 06 policy snapshot reconciled to Wave 07 structured-value limits.
+- stale Wave 06 policy snapshot reconciled to Wave 07 structured-value limits;
+- top-level Screen/Popup malformed JSON fail-closed handling;
+- canonical `VisualObject` Script dependency and object-scoped event resolution using stable `definitionId/objectId` identity;
+- package-derived recursive nested visual object reference resolution;
+- malformed Script/reference collections blocked during Preview rather than deferred to Apply;
+- prospective validation issues on already-saved Scripts surfaced as blocking `script-model` issues;
+- legacy v10 Screen/Popup child identity projection aligned with Apply/key-preservation semantics;
+- prospective Screen/Popup/Dynamo definition identity precedence aligned with the real import handlers.
 
 Earlier deterministic test corrections:
 - `cd2753f64a8191df3d2861871bb53077b74cc7a2` — corrected stale AssetReference source-contract expectation;
 - `c3f9cc15a6715bf6434b1553878ba7c6121e0783` — aligned browser registry acceptance to identity-only asset references;
 - `63878f6fe28a0a9ac101d622628f8b95658899a7` — aligned Engineering projection tests to `createDefaultValues()` and identity-only asset shape.
 
-Third static audit hardening ends at:
-- `d184fdd5b65f2ce0c0e6ca28cd092644be080555` — exact current integration head after Python clear, malformed Preview, Int32 parity and Wave-06 policy-test correction.
+Third static audit hardening ended at:
+- `d184fdd5b65f2ce0c0e6ca28cd092644be080555` — Python clear, malformed nested visual Preview, Int32 parity and Wave-06 policy-test correction.
+
+Fourth static audit hardening ends at:
+- `e376b37d2772906dd667afa199a6d8882abd43ae` — top-level malformed-view handling, current-schema test correction, canonical nested visual Script references, prospective existing-Script integrity and v10 identity projection reconciliation.
 
 ### Temporary no-Actions rule
 
@@ -72,9 +82,9 @@ Until the owner explicitly reports reset:
 
 **Role:** `COORDINATOR`  
 **Wave:** `VISUAL-RUNTIME-WAVE-07 / WAVE-08 READINESS`  
-**Status:** `WAIT_FOR_OWNER_CI_RESET — THIRD STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED`  
+**Status:** `WAIT_FOR_OWNER_CI_RESET — FOURTH STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED`  
 **IntegrationBranch:** `integration/visual-runtime-wave-07`  
-**CurrentIntegrationHead:** `d184fdd5b65f2ce0c0e6ca28cd092644be080555`
+**CurrentIntegrationHead:** `e376b37d2772906dd667afa199a6d8882abd43ae`
 
 **CurrentTask:** no further speculative product-code work. On `siga`, re-read current `main` and verify real branch/PR/CI state. Resume implementation only if the owner explicitly reports Actions reset or repository review demonstrates another concrete correctness blocker that can safely be addressed without CI.
 
@@ -98,16 +108,19 @@ Until the owner explicitly reports reset:
 7. schema-guided transition codecs isolate current string persistence;
 8. official Engineering -> Runtime projection seam exists;
 9. backend Preview validates built-in visual schema/property/binding authority;
-10. Python visual Script overrides now have explicit set **and clear** semantics without null sentinel;
-11. malformed visual Engineering data remains on the Preview/ImportIssue path instead of throwing through later validation layers;
+10. Python visual Script overrides have explicit set **and clear** semantics without null sentinel;
+11. malformed nested and top-level visual Engineering data remains on the Preview/ImportIssue path instead of throwing through later validation layers;
 12. integer visual properties use the same signed-Int32 domain in TS and C#;
-13. deterministic test drift discovered by static audits has been corrected on the integration head.
+13. canonical Script Engineering can resolve nested visual objects by stable `definitionId/objectId` for dependencies and visual events;
+14. prospective validation surfaces existing Scripts invalidated by incoming Engineering changes rather than silently dropping those issues;
+15. legacy v10 Screen/Popup identity projection preserves existing child IDs by key when Apply would preserve them and rejects removed referenced children;
+16. deterministic test drift discovered by static audits has been corrected on the integration head.
 
 **Remaining readiness blockers before Wave 08 activation:**
 - canonical JSON-native typed visual property persistence/migration is not yet settled; `VisualElementEngineeringDto.Properties` remains `Dictionary<string,string>` and the codec is transitional only;
 - Wave 07 exact-final-head CI/merge remains mandatory.
 
-**Lower-priority convergence items attached to typed-persistence/readiness work:** transitional numeric text is not guaranteed byte-identical between C# and JavaScript for every exponent representation; canonical `Tag` versus `Property` binding source discrimination should be retained before the graphical binding engine consumes it.
+**Lower-priority convergence items attached to typed-persistence/readiness work:** transitional numeric text is not guaranteed byte-identical between C# and JavaScript for every exponent representation; canonical `Tag` versus `Property` binding source discrimination should be retained before the graphical binding engine consumes it; older non-visual Engineering collections retain broader null/empty-ID hardening debt that is not current Wave 07 authorization.
 
 Stable `assetRef` identity is sufficient to define the future Image/import slice. The first-class project asset entity, binary import/storage/serving and renderer remain Wave 08 implementation work.
 
@@ -119,7 +132,7 @@ Stable `assetRef` identity is sufficient to define the future Image/import slice
 
 **ValidationMatrix:** DEFERRED. Final exact Wave 07 head still requires Web + backend Release/full PostgreSQL tests + Runtime smoke + Chromium + visual/Python acceptance before merge.
 
-**StopCondition:** REACHED again after third static audit hardening. Remain stopped until explicit Actions reset unless another new concrete safe blocker is demonstrated.
+**StopCondition:** REACHED again after fourth static audit hardening. Remain stopped until explicit Actions reset unless another new concrete safe blocker is demonstrated.
 
 ---
 

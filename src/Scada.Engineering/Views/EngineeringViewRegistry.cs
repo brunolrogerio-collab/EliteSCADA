@@ -1,4 +1,5 @@
 using Scada.Engineering.Contracts;
+using Scada.Engineering.VisualScripting;
 
 namespace Scada.Engineering.Views;
 
@@ -72,10 +73,11 @@ public sealed class InMemoryEngineeringViewRegistry : IEngineeringViewRegistry
         {
             var existing = ResolveExisting(screen.Id, screen.Key, _screensById, _screensByKey);
             var normalizedId = screen.Id ?? existing?.Id ?? Guid.NewGuid();
+            var identityNormalizedElements = VisualElementIdentity.Normalize(screen.Elements, existing?.Elements);
             var normalized = screen with
             {
                 Id = normalizedId,
-                Elements = VisualElementIdentity.Normalize(screen.Elements, existing?.Elements)
+                Elements = VisualEngineeringPropertyMigration.NormalizeCurrentElements(identityNormalizedElements)
             };
 
             UpsertByKey(normalized, normalizedId, normalized.Key, _screensById, _screensByKey, x => x.Key);
@@ -94,10 +96,11 @@ public sealed class InMemoryEngineeringViewRegistry : IEngineeringViewRegistry
         {
             var existing = ResolveExisting(popup.Id, popup.Key, _popupsById, _popupsByKey);
             var normalizedId = popup.Id ?? existing?.Id ?? Guid.NewGuid();
+            var identityNormalizedElements = VisualElementIdentity.Normalize(popup.Elements, existing?.Elements);
             var normalized = popup with
             {
                 Id = normalizedId,
-                Elements = VisualElementIdentity.Normalize(popup.Elements, existing?.Elements)
+                Elements = VisualEngineeringPropertyMigration.NormalizeCurrentElements(identityNormalizedElements)
             };
 
             UpsertByKey(normalized, normalizedId, normalized.Key, _popupsById, _popupsByKey, x => x.Key);

@@ -8,25 +8,21 @@ The objective is not to reduce validation quality. It is to avoid spending full 
 
 ## Current budget mode
 
-**Mode:** `CONSTRAINED`  
-**Reason:** GitHub Actions monthly included usage is near exhaustion.  
-**Current remaining allowance reported by the product owner on 2026-08-28:** approximately 50 included minutes.  
-**Expected reset:** 2026-09-01.
+**Mode:** `NORMAL`  
+**Owner report:** on 2026-08-28 the product owner reported a GitHub configuration change expected to provide approximately **1000 additional Actions minutes**.  
+**Operational verification:** run #488, attempt 2, reran only the historical Wave 06 `Web build` job (`98990802140`). A hosted runner was allocated and Checkout, Node setup, dependency installation and `npm run build` all completed successfully.  
+**Billing note:** repository tooling verifies execution availability, not the account billing balance itself; the exact remaining-minute number remains owner/account evidence.
 
-Until the reset, all EliteSCADA chats must treat GitHub Actions minutes as a scarce operational resource.
+The former temporary Wave 07 no-Actions freeze is therefore **lifted**. Normal CI execution may resume, while the permanent efficiency and exact-final-head rules below remain mandatory.
 
-Wave 06 has priority over the remaining allowance because it still requires its exact-final-head integration gate before merge. Do not spend the remaining allowance on Wave 07 CI while Wave 06 is open.
-
-After Wave 06 is merged, Wave 07 implementation may proceed if explicitly promoted by the coordinator, but GitHub Actions execution for Wave 07 is temporarily deferred until the product owner explicitly reports that the Actions allowance has reset. Wave 07 code may be implemented, reviewed and supported by static/focused evidence that does not consume Actions, but it must be labeled `IMPLEMENTED / CI_DEFERRED` or an equivalent explicit non-final state. It must not be called validated, complete or merge-ready on the basis of deferred CI.
-
-After the monthly reset, the coordinator may return the project to `NORMAL` mode by updating this document or the current handoff/assignment board. The permanent efficiency principles below remain valid even in NORMAL mode.
+The probe is availability evidence only. It ran against historical Wave 06 merge head `cc79713434c1d7b5988158b843b137eaf488d923` and does **not** validate the current Wave 07 integration head.
 
 ## Non-negotiable quality rule
 
 CI economy must **never** be achieved by:
 
 - weakening or deleting tests;
-- relaxing security, CAS, lifecycle, persistence or Runtime guards;
+- relaxing security, CAS, lifecycle, persistence, Runtime or Python sandbox guards;
 - ignoring a failing exact-head validation;
 - merging known-failing work;
 - declaring a worker or wave complete without the validation required by its Definition of Done;
@@ -34,46 +30,35 @@ CI economy must **never** be achieved by:
 
 The optimization target is **when and how often CI runs**, not what the final product must prove.
 
-## Constrained-mode execution rules
+## Normal-mode execution rules
 
 ### Workers — DEV 1 / DEV 2 / DEV 3
 
-During `CONSTRAINED` mode:
-
-1. Prefer local/static reasoning and focused tests during implementation.
-2. Batch related edits before pushing instead of pushing every tiny correction separately.
-3. Do not intentionally trigger a full Actions run merely to inspect an intermediate Draft state.
-4. Draft PRs remain useful for review, but a green full matrix is not required after every intermediate commit unless the assignment explicitly says otherwise.
-5. Use the smallest validation that proves the changed domain when tooling permits.
-6. If CI fails with a localized and understood cause, fix that cause first. Do not rerun unchanged heads simply hoping for green.
-7. Avoid cosmetic/documentation-only commits on worker branches while Actions usage is constrained unless required for delivery correctness.
-8. Before declaring `READY_FOR_COORDINATOR_REVIEW`, provide focused evidence and identify whether a full exact-head workflow has already run. Do not manufacture another run if equivalent evidence already exists and the coordinator can safely defer full validation to integration.
-9. Never merge the worker PR. Return to `WAIT_FOR_COORDINATOR` after delivery as usual.
-10. During the temporary Wave 07 CI deferral, do not trigger Actions merely to validate Wave 07 worker branches. Preserve tests in code and record validation as deferred until the owner reports the allowance reset.
+1. Run the focused validation required by the active assignment.
+2. Batch coherent implementation changes rather than triggering full matrices on every trivial commit.
+3. If CI fails with a localized cause, diagnose and fix the cause before another expensive full run.
+4. Do not rerun unchanged heads merely hoping for green.
+5. Never merge worker work directly to `main`.
+6. Never broaden an assignment merely because CI capacity exists.
 
 ### Coordinator
 
-During `CONSTRAINED` mode:
-
-1. Reuse valid exact-head CI evidence whenever the head has not changed semantically.
-2. Do not rerun successful matrices for reassurance alone.
-3. Review worker diffs/contracts before requesting expensive full CI.
-4. Prefer Early Contract Review and focused validation before integrating obviously incomplete work.
-5. Integrate accepted slices deliberately so the full matrix is spent on meaningful composition checkpoints, not every merge step.
-6. When a full CI fails, inspect the exact failed job/log first; apply a targeted correction before another full run.
-7. Documentation-only coordination movement in `main` does not justify revalidating unchanged product heads.
-8. Preserve the final wave gate: before merging the wave integration PR to `main`, the required integrated matrix must still be green on the exact final product head.
-9. If remaining Actions minutes become insufficient for the required final matrix, pause the final merge rather than weakening validation. Development/review may continue with focused evidence until the allowance resets or billing policy deliberately changes.
-10. Until the owner reports the allowance reset, reserve the remaining approximately 50 minutes for Wave 06 final validation. Do not run Wave 07 Actions.
+1. Review contracts/diffs before spending full integration matrices.
+2. Reuse valid exact-head evidence when the head has not changed semantically.
+3. Reconcile integration with real `main` before final wave validation.
+4. Reserve the full matrix for meaningful integration/final checkpoints.
+5. When a run fails, inspect the failed job/log first and apply a targeted correction.
+6. Documentation-only movement in `main` does not require revalidating an unchanged product head.
+7. Before merging any functional wave, the required integrated matrix must be green on the exact final product head.
 
 ## CI evidence hierarchy
 
-Use the cheapest evidence that is sufficient for the current decision:
+Use the cheapest evidence sufficient for the current decision:
 
 1. code/diff/contract inspection;
-2. focused unit/component test for the changed domain;
-3. focused build or backend/frontend validation;
-4. worker exact-head CI when needed for delivery confidence;
+2. focused unit/component validation;
+3. focused backend/frontend build/test;
+4. worker exact-head CI where required;
 5. full integration matrix at meaningful integration/final gates.
 
 Higher-cost evidence is not automatically better if lower-cost evidence already answers the current question. Conversely, lower-cost evidence does not replace a required final wave matrix.
@@ -88,17 +73,15 @@ A rerun is justified when:
 
 A rerun is **not** justified merely because a product/test failure is inconvenient. Fix the cause first.
 
-## Draft PR policy
+## Pull request policy
 
-Opening a Draft PR early remains required for event-driven review. Draft status does not mean every commit deserves a complete CI expenditure.
+Normal Draft/integration PR review is restored. Opening a PR to `main` triggers the repository workflow, so do it only when the branch is at a meaningful validation checkpoint.
 
-Workers should group implementation into coherent checkpoints. Coordinator reviews may happen against Draft PRs even when only focused validation exists, provided no one mislabels that state as final delivery evidence.
+For Wave 07 specifically, do not open the integration PR merely to prove Actions availability. First finish the coordinator-owned readiness work, reconcile with current `main`, prepare the candidate exact head, then use the PR/full matrix as product evidence.
 
 ## Final wave policy
 
-`CONSTRAINED` mode does not change the Wave Definition of Done.
-
-Before a wave merge to `main`, the coordinator still requires the final integrated validation matrix defined by the wave, normally:
+Before a wave merge to `main`, the coordinator requires the final integrated validation matrix defined by the wave, normally:
 
 - Web build;
 - backend Release build;
@@ -107,18 +90,16 @@ Before a wave merge to `main`, the coordinator still requires the final integrat
 - Chromium E2E;
 - wave-specific acceptance checks.
 
-If the budget cannot support that matrix, the correct state is `BLOCKED_BY_CI_BUDGET`, not `MERGED`.
+If a future budget constraint again prevents that matrix, the correct state is `IMPLEMENTED / CI_DEFERRED` or `BLOCKED_BY_CI_BUDGET`, not `MERGED`.
 
-The temporary Wave 07 development-only period does not waive this rule. Deferred Wave 07 CI remains a debt to be executed after the owner confirms the Actions reset and before Wave 07 can satisfy its final gate.
+## Wave 06 evidence note
 
-## Normal mode
+Wave 06 final integration head `d665dc13b0922938a15252d9775ef6604e41bff4` passed CI #487 fully and was merged through PR #83 as `cc79713434c1d7b5988158b843b137eaf488d923`.
 
-When Actions allowance is healthy, the project returns to `NORMAL` mode. Even then:
+Original run #488 attempt 1 allocated no runners/product steps and remained infrastructure evidence rather than a product regression. On 2026-08-28, after the owner's Actions configuration change, attempt 2 reran only its `Web build` job as an availability probe; that job completed successfully. The overall historical run can still display failure because the backend job was intentionally not rerun and Chromium therefore remained skipped.
 
-- avoid redundant unchanged-head reruns;
-- batch trivial commits where practical;
-- keep event-based reviews;
-- reserve complete integration matrices for meaningful checkpoints;
-- preserve exact-head final CI before merge.
+## Budget-mode fallback
+
+If Actions capacity becomes constrained again, the coordinator may explicitly switch this document back to `CONSTRAINED`. Such a switch changes validation frequency only, never the final quality gate.
 
 CI minutes are a project resource. Use them to buy evidence, not ceremony.

@@ -3,70 +3,146 @@
 > Operational handoff. Resume from GitHub, not chat history.
 
 **Handoff date:** 2026-08-28  
-**Development state:** **PYTHON-WAVE-06 IMPLEMENTED IN PR / FINAL MERGE BLOCKED_BY_CI_BUDGET + E2E HARNESS RELIABILITY**  
-**CI budget mode:** **CONSTRAINED until owner explicitly reports reset**
+**Development state:** **WAVE-07 FOURTH STATIC AUDIT COMPLETE / CI AVAILABLE / PRE-FINALIZATION / NOT MERGE-READY**  
+**CI budget mode:** **NORMAL**
 
 ## Mandatory resume reading
 
-Before any action read current `main`: `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/DEVELOPMENT-WAVES.md`, `docs/CHAT-WORK-ASSIGNMENTS.md`, `docs/CI-USAGE-POLICY.md`, `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`, plus the current wave-specific documents and source/tests.
+Before any action read current `main`: `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/DEVELOPMENT-WAVES.md`, `docs/CHAT-WORK-ASSIGNMENTS.md`, `docs/CI-USAGE-POLICY.md`, `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`, `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`, `docs/VISUAL-CANONICAL-CONVERGENCE-07-TO-08.md`, plus current source/tests.
 
-GitHub branch/PR/head/CI is operational truth. Never call a red exact-head gate green because the remaining failure appears flaky.
+GitHub branch/PR/head/CI is operational truth.
 
-## Official main state
+## Wave 06 — merged baseline
 
-Wave 05 is **MERGED**. Wave 06 remains **NOT MERGED TO MAIN**.
+- PR #83: MERGED
+- final product head: `d665dc13b0922938a15252d9775ef6604e41bff4`
+- final CI #487: fully green
+- main merge: `cc79713434c1d7b5988158b843b137eaf488d923`
 
-Current Wave 06 integration PR: #83 `Establish Wave 06 Client Visual Python foundation`.
+## Actions availability restored
 
-- branch: `integration/python-wave-06`
-- exact product head: `86b80ff72690d0b14cde9c1a315b908763ad4b49`
-- PR remains Open / Draft / mergeable / NOT MERGED
+The previous no-Actions freeze is lifted.
 
-## What changed after the previous handoff
+On 2026-08-28 the owner reported a GitHub configuration change expected to provide approximately **1000 additional Actions minutes**. Repository tooling cannot independently read the billing balance, so the exact minute total remains owner/account evidence.
 
-The primary Wave 06 Pyodide compile-diagnostics defect is resolved. The corrected sandbox keeps Pyodide engine internals intact outside user execution and scopes denied import/native escape guards to user execution boundaries.
+A controlled availability probe was performed by rerunning only the historical Wave 06 `Web build` job from run #488:
 
-CI #485 on head `89f892ba29858d8a2def2ecece473609deba52ed` proved:
-- Web build SUCCESS;
-- backend build/full tests/Runtime smoke SUCCESS;
-- Chromium: 122 passed / 1 failed;
-- all Wave 06 Python editor/runtime/real-Pyodide sandbox/native-escape tests passed;
-- the only failure was the legacy multilingual Wave 03 readiness test with Vite WebSocket `ECONNRESET` and browser/session navigation instability.
+- run: #488 / ID `33194817294`
+- attempt: 2
+- job: `Web build`
+- job ID: `98990802140`
+- hosted runner allocated successfully
+- Checkout: SUCCESS
+- Node setup: SUCCESS
+- dependency install: SUCCESS
+- `npm run build`: SUCCESS
+- complete job: SUCCESS
 
-A targeted test-composition correction was then promoted as commit `86b80ff72690d0b14cde9c1a315b908763ad4b49` (`Stabilize locale readiness through SPA navigation`). It replaced repeated hard Engineering/Audit route reloads inside the multilingual loop with the existing SPA navigation links, preserving the route and localization assertions. No timeout was increased and no test/security/CAS/lifecycle/persistence guard was weakened.
+This proves Actions execution is available again. It does **not** validate Wave 07 because the probe ran against historical head `cc79713434c1d7b5988158b843b137eaf488d923`.
 
-## Latest exact-head CI — #486 FAILED ONLY ON LEGACY HARNESS RELIABILITY
+The overall historical run #488 may still display failure because only Web build was intentionally rerun; the old Backend failure-without-runner was not rerun and Chromium remained skipped.
 
-Run `33191736584` on exact Wave 06 head `86b80ff72690d0b14cde9c1a315b908763ad4b49`:
+## Wave 07 — exact current state
 
-- Web build: **SUCCESS**
-- backend build/full tests/Runtime smoke: **SUCCESS**
-- Chromium: **122 passed / 1 failed**
-- all Wave 06 Python editor/runtime/sandbox tests: **PASS**
+Wave 07 remains **NOT MERGED** and **NOT MERGE-READY**, but it is no longer blocked by CI budget.
 
-The sole failure remained `interface-wave-03-readiness.spec.ts` multilingual readiness. The first attempt lost the Chromium session while waiting for `.user-session-menu`, accompanied by Vite WS `ECONNRESET`; the retry timed out loading `/`. The remaining failure is therefore outside the Wave 06 Python functionality, but the exact-head integration matrix is still red and must not be ignored.
+- Logical WaveBaseSHA: `cc79713434c1d7b5988158b843b137eaf488d923`
+- ContractSHA: `06faf079bc5185689712bd2c9a225c2bb8d90999`
+- integration branch: `integration/visual-runtime-wave-07`
+- exact current integration head: `e376b37d2772906dd667afa199a6d8882abd43ae`
+- integration PR: not open yet
+- exact integration head has not yet received final integrated CI
 
-## Current decision
+Worker deliveries remain integrated and workers remain stopped:
+- DEV 1 `ed8d9af027173e6d265ff382dbc9c115bcd2e284`
+- DEV 2 `d6c1e997178e0ce525233079effd442f59743386`
+- DEV 3 `25ebac63a957c1c0c5b8e2557caec152d9d36bfc`
 
-**Do not merge PR #83 yet.** The required final integrated matrix is not fully green.
+## Wave 07 implemented/converged foundation
 
-**Do not trigger another unchanged or speculative full Actions run while the allowance is constrained.** The product owner reported about 50 included Actions minutes before this final attempt; CI #486 consumed part of that budget.
+The integration branch contains:
 
-Correct state: **BLOCKED_BY_CI_BUDGET / FINAL E2E RELIABILITY EVIDENCE PENDING**.
+- typed Visual Property Registry and renderer-independent Runtime Visual Instance;
+- stable visual definition/object identity, lifecycle and per-client isolation;
+- deterministic `Animation > Script > Binding/Expression > Engineering Base > Default` precedence;
+- runtime-readable/runtime-writable/animatable/binding authority checks;
+- canonical `assetRef = null | { assetId }` with path/URL rejection;
+- transitional Engineering Schema v11 with stable nested visual IDs and v1-v10 compatibility;
+- canonical binding semantics (`Key` = destination visual property, `Target` = source reference);
+- typed frontend visual Engineering projection;
+- C#/TypeScript common property catalog and `core.*` built-in schema parity;
+- schema-guided transitional string-property codecs;
+- official frontend Engineering -> Runtime adapter;
+- backend Preview enforcement for built-in schemas/properties/binding capabilities;
+- Client Visual Python visual-property read/write/explicit-clear on the exact current Runtime Visual Instance;
+- bounded/prototype-safe structured Python bridge;
+- canonical Script Engineering resolution of nested visual objects for dependencies and object-scoped events;
+- prospective existing-Script validation against incoming Engineering changes;
+- legacy v10 visual identity projection aligned with Apply semantics.
 
-When sufficient Actions allowance is available, first address or isolate the real harness/session reliability cause without weakening acceptance, then obtain one fully green exact-head Wave 06 matrix. Only then mark PR #83 Ready and merge.
+## Static audit history
 
-## Wave 07 temporary rule
+Earlier audits corrected deterministic AssetReference/API-test drift through `63878f6fe28a0a9ac101d622628f8b95658899a7`.
 
-Wave 07 remains queued while Wave 06 is unmerged. After Wave 06 is merged and explicitly promoted, Wave 07 may proceed with implementation while GitHub Actions validation is deferred until the product owner explicitly reports that the Actions allowance has reset.
+Third audit head `d184fdd5b65f2ce0c0e6ca28cd092644be080555` additionally corrected:
 
-During that temporary period, worker deliveries must remain `IMPLEMENTED / CI_DEFERRED` or equivalent and cannot be called fully validated, complete or merge-ready.
+- actual Python visual-property clear path;
+- malformed nested visual JSON fail-closed behavior;
+- TS signed-Int32 parity;
+- stale Wave 06 Python policy snapshot that would have failed Chromium.
 
-Queued Wave 07 slices:
-- DEV 1: Visual Property Registry / Engineering projection;
-- DEV 2: Visual Runtime Instance;
-- DEV 3: Python <-> Visual API acceptance.
+Fourth audit head `e376b37d2772906dd667afa199a6d8882abd43ae` additionally corrected:
 
-## Permanent rules
+- top-level malformed Screen/Popup fail-closed paths;
+- stale current-schema Script assertions after Schema v11;
+- canonical `VisualObject` Script reference catalog and nested package resolver;
+- malformed Script/reference collections blocked in Preview;
+- dropped prospective errors on already-saved Scripts;
+- v10 Screen/Popup child identity preservation/removal semantics;
+- prospective Screen/Popup/Dynamo definition identity precedence matching Apply.
 
-Workers never modify `main`, merge their own PR, self-assign or broaden scope. Canonical Engineering remains authority. Research is not production implementation. CI economy changes frequency only, never final quality. A red exact-head matrix remains red even when 122 of 123 tests pass.
+All fourth-audit code still needs actual build/test execution on the final candidate head.
+
+## Remaining readiness work before final Wave 07 CI
+
+### Canonical typed visual persistence
+
+`VisualElementEngineeringDto.Properties` still persists as `Dictionary<string,string>`. Schema v11 is transitional identity/convergence, not final JSON-native typed visual persistence.
+
+Before Wave 08 activation, settle and validate the typed representation/migration so the graphical editor consumes canonical Engineering rather than an editor-private/stringly model.
+
+### Reproducibility blockers worth settling before expensive final validation
+
+Repository audit also identified:
+
+- frontend dependencies floating on `latest` with no committed `package-lock.json` and CI using `npm install` rather than `npm ci`;
+- no `global.json` while .NET language/compiler selection is floating;
+- `tests-e2e` outside normal frontend typecheck.
+
+Resolve deliberately if needed for trustworthy exact-head validation rather than using CI capacity as an excuse for unrelated refactors.
+
+### Lower-priority convergence debt
+
+- transitional C# and JavaScript numeric serializers can spell some exponent values differently;
+- canonical `Tag` versus `Property` binding source discrimination should be retained before the graphical binding engine resolves sources itself;
+- older non-visual Engineering collections have broader null/empty-ID hardening debt;
+- production CORS and `main` branch protection remain repository/product hardening items.
+
+## Current coordinator state
+
+**READY_FOR_WAVE07_FINALIZATION — CI AVAILABLE.**
+
+Do not activate Wave 08 yet. Do not open the Wave 07 PR merely to test Actions availability; that availability is already proven.
+
+Next coordinator execution should:
+
+1. re-read current `main` and verify exact branch state;
+2. reconcile `integration/visual-runtime-wave-07` with current documentation-only `main` history;
+3. settle canonical typed visual property persistence/migration and required compatibility coverage;
+4. settle the minimum reproducibility blockers needed for trustworthy CI;
+5. prepare the exact final candidate head;
+6. open one Wave 07 integration PR;
+7. run Web + backend Release/full PostgreSQL tests + Runtime smoke + Chromium + Wave-specific visual/Python acceptance;
+8. fix root causes only and rerun changed exact heads as needed;
+9. merge Wave 07 only fully green;
+10. activate Wave 08 only after its Definition of Ready is satisfied.

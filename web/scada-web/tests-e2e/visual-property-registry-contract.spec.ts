@@ -110,7 +110,7 @@ test('object schema selects registered properties and defaults without creating 
 
   expect(schema.propertyKeys).toEqual(['x', 'y', 'width', 'height', 'assetRef', 'imageFit']);
   expect(schema.declares('opacity')).toBeFalsy();
-  expect(schema.createDefaultBaseValues()).toEqual({
+  expect(schema.createDefaultValues()).toEqual({
     x: 0,
     y: 0,
     width: 100,

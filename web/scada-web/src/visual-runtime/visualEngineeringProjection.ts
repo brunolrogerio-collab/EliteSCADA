@@ -168,13 +168,14 @@ function projectScriptEventReference(
 function assertUniqueBindingTargets(bindings: readonly VisualDefinitionBindingDescriptor[]): void {
   const targets = new Set<string>();
   for (const binding of bindings) {
-    if (!targets.add(binding.propertyKey)) {
+    if (targets.has(binding.propertyKey)) {
       throw new VisualPropertyContractError(
         'projection.duplicateBinding',
         `Visual property '${binding.propertyKey}' has more than one definition-level binding.`,
         binding.propertyKey
       );
     }
+    targets.add(binding.propertyKey);
   }
 }
 
@@ -182,12 +183,13 @@ function assertUniqueScriptEventReferences(references: readonly VisualDefinition
   const identities = new Set<string>();
   for (const reference of references) {
     const identity = `${reference.eventKey}\u0000${reference.scriptId}\u0000${reference.entryPoint}`;
-    if (!identities.add(identity)) {
+    if (identities.has(identity)) {
       throw new VisualPropertyContractError(
         'projection.duplicateScriptEventReference',
         `Duplicate Script event reference '${reference.eventKey}/${reference.entryPoint}'.`
       );
     }
+    identities.add(identity);
   }
 }
 

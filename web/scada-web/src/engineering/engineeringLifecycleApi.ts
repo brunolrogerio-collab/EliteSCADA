@@ -8,7 +8,7 @@ import type {
   EngineeringLifecycleWorkspaceDescriptor
 } from './engineeringLifecycleTypes';
 
-const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
+const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
 export class EngineeringLifecycleApiError extends Error {
   constructor(

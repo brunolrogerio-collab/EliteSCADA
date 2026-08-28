@@ -18,14 +18,14 @@ function rectangleSchema() {
   ]);
 }
 
-test('canonical visual element projects legacy properties and bindings through the shared schema', () => {
+test('canonical visual element projects typed properties and bindings through the shared schema', () => {
   const projected = projectCanonicalVisualElementForRuntime({
     id: '550e8400-e29b-41d4-a716-446655440001',
     key: 'pump01',
     type: 'core.rectangle',
     properties: {
-      x: '12.5',
-      visible: 'false',
+      x: 12.5,
+      visible: false,
       fillColor: '#11223344'
     },
     bindings: [

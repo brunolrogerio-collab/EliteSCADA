@@ -106,7 +106,7 @@ public static class VisualEngineeringPropertyCodec
             VisualPropertyValueKind.Boolean => DecodeBoolean(definition.Key, serialized),
             VisualPropertyValueKind.Number => DecodeNumber(definition.Key, serialized),
             VisualPropertyValueKind.Integer => DecodeInteger(definition.Key, serialized),
-            VisualPropertyValueKind.String => DecodeString(definition.Key, serialized),
+            VisualPropertyValueKind.String => new VisualStringValue(DecodeString(definition.Key, serialized)),
             VisualPropertyValueKind.Color => new VisualColorValue(DecodeString(definition.Key, serialized)),
             VisualPropertyValueKind.ResourceReference => new VisualResourceReferenceValue(DecodeString(definition.Key, serialized)),
             VisualPropertyValueKind.AssetReference => DecodeAssetReference(definition.Key, serialized),

@@ -3,7 +3,7 @@
 > Operational handoff. Resume from GitHub, not chat history.
 
 **Handoff date:** 2026-08-28  
-**Development state:** **PYTHON-WAVE-06 MERGED / WAVE-07 DEVELOPMENT ACTIVE + CI_DEFERRED**  
+**Development state:** **WAVE-07 IMPLEMENTED ON INTEGRATION / CI_DEFERRED / WAITING FOR ACTIONS RESET**  
 **CI budget mode:** **CONSTRAINED until owner explicitly reports reset**
 
 ## Mandatory resume reading
@@ -14,60 +14,88 @@ GitHub branch/PR/head/CI is operational truth.
 
 ## Wave 06 — MERGED
 
-Wave 06 is **MERGED** through PR #83 `Establish Wave 06 Client Visual Python foundation`.
+Wave 06 is **MERGED** through PR #83.
 
-- final integration head: `d665dc13b0922938a15252d9775ef6604e41bff4`
-- merge commit: `cc79713434c1d7b5988158b843b137eaf488d923`
-- final validation: CI #487 / run `33194041390`
-- Web build: **SUCCESS**
-- backend Release/full tests including PostgreSQL + Runtime smoke: **SUCCESS**
-- Chromium E2E: **SUCCESS**
+- final product head: `d665dc13b0922938a15252d9775ef6604e41bff4`
+- final CI: #487 / run `33194041390` — fully green
+- main merge: `cc79713434c1d7b5988158b843b137eaf488d923`
 
-The final reliability correction preserved every Runtime, Engineering, Audit, session and locale assertion while splitting pt-BR, en and es into independent Playwright journeys. No timeout or acceptance requirement was weakened.
+Automatic post-merge CI #488 did not execute product steps because no runner was allocated; it is infrastructure evidence, not a product regression.
 
-Official `main` now includes Monaco Python Engineering editing, compile-before-Preview/Apply/CAS, pinned/self-hosted Pyodide, isolated module Web Worker execution behind bridge v1, authorized TAG reads, owning-client Client Memory read/write, bounded execution/cancellation/queue/disposal/failure throttling, real-Pyodide adversarial acceptance and native escape denial.
+## Wave 07 — integrated implementation, validation deferred
 
-### Post-merge CI note
-
-Automatic `main` push CI #488 / run `33194817294` did not execute product steps: Backend and Web ended with empty step lists and `runner_id: 0`; Chromium was skipped. This is unavailable runner evidence, not a product test failure.
-
-The merge commit `cc79713...` differs from the exact green product head `d665dc1...` only in Markdown coordination/architecture documentation, so no production source changed after CI #487.
-
-## Wave 07 — DEVELOPMENT ACTIVE / CI DEFERRED
-
-Wave 07 is explicitly promoted for implementation only.
+Wave 07 development has reached the useful limit allowed under the current Actions constraint.
 
 - Logical WaveBaseSHA: `cc79713434c1d7b5988158b843b137eaf488d923`
-- Integration branch: `integration/visual-runtime-wave-07`
-- DEV 1 branch: `feature/visual-wave-07-property-registry`
-- DEV 2 branch: `feature/visual-wave-07-runtime-instance`
-- DEV 3 branch: `test/visual-wave-07-python-api-acceptance`
+- ContractSHA: `06faf079bc5185689712bd2c9a225c2bb8d90999`
+- integration branch: `integration/visual-runtime-wave-07`
+- current integration head: `ffde3b03a3b647acb2f0c484c11b956c602237d6`
+- integration PR: **not open intentionally**
+- validation state: **CI_DEFERRED**
 
-All four branches were created from the exact WaveBaseSHA.
+### Worker deliveries integrated
 
-### Temporary Actions rule
+DEV 1 head `ed8d9af027173e6d265ff382dbc9c115bcd2e284` delivered:
+- typed Visual Property Registry;
+- explicit `number`, `boolean`, `string`, `color`, `enum`, `assetRef` property types;
+- common property definitions/defaults/constraints;
+- stable AssetReference validation;
+- renderer-independent Engineering visual-definition projection;
+- focused contract tests.
 
-The product owner most recently reported about **19 included Actions minutes remaining**.
+DEV 2 head `d6c1e997178e0ce525233079effd442f59743386` delivered:
+- Runtime Visual Instance identity;
+- per-instance Engineering/binding/script/animation layers;
+- deterministic precedence `animation > script > binding > engineering > default`;
+- source diagnostics;
+- invalid-layer fail-closed behavior;
+- instance isolation and disposal semantics;
+- focused tests.
 
-Until the owner explicitly reports the allowance reset:
-- **do not run GitHub Actions for Wave 07**;
-- because opening a PR triggers the full `pull_request` workflow, **do not open Wave 07 PRs yet**;
-- workers may implement, commit, write tests and provide static/source-level evidence on their assigned branches;
-- delivery status must be `IMPLEMENTED / CI_DEFERRED` or equivalent, never fully validated or merge-ready;
-- do not weaken or delete tests to accommodate the deferral.
+DEV 3 head `25ebac63a957c1c0c5b8e2557caec152d9d36bfc` delivered:
+- Python ↔ Visual capability boundary coverage;
+- unregistered/unreadable/unwritable property denial;
+- runtime-instance isolation and disposal acceptance;
+- AssetReference path/URL denial;
+- structured bridge value checks and renderer/DOM-private authority denial.
 
-When the owner reports reset, open/reconcile the required PRs, execute worker/integration validation, and obtain the full final Wave 07 matrix before merge.
+Coordinator integrated all three worker heads in commit `295bdabba5c25b2e4a729228130185976735d939`, then reconciled their intentionally separate interfaces by:
+- adapting the typed Visual Property Registry/schema to the narrow Runtime Visual Instance consumer port;
+- allowing Runtime Visual Instance construction from the public Visual Object schema;
+- exposing stable `runtimeInstanceId`, `objectId`, `objectKey`, `objectType` accessors;
+- exposing `readPropertyState()` while preserving DEV 2's detailed `readEffective()` API;
+- exporting the integrated visual runtime public surface.
 
-## Wave 07 objective
+Current integrated head is `ffde3b03a3b647acb2f0c484c11b956c602237d6`.
 
-Stabilize the Visual Runtime Object Model and visual Asset contract before graphical Engineering:
-- stable canonical visual identity;
-- typed public Visual Property Registry;
-- Runtime Visual Instance identity/state/lifecycle;
-- deterministic precedence `Animation > Script > Binding/Expression > Engineering Base`;
-- runtime overrides never silently mutate Engineering;
-- stable project-owned Asset/Resource references, never arbitrary filesystem paths;
-- explicit Python-to-Visual property API without direct DOM authority.
+## Scope check
+
+The Wave 07 integration is confined to new `web/scada-web/src/visual-runtime/**` modules and Wave 07 test files.
+
+Still **not implemented / not authorized in Wave 07**:
+- graphical editor/canvas;
+- Screen/Popup/Dynamo authoring UI;
+- image renderer/object palette;
+- asset binary importer/storage;
+- production animation/tween scheduler;
+- Server Python;
+- new industrial protocols;
+- direct Python DOM/renderer/filesystem/network authority.
+
+## Current decision
+
+Do not open the Wave 07 PR and do not run GitHub Actions while the owner-reported allowance remains constrained.
+
+All workers are now `WAIT_FOR_COORDINATOR — IMPLEMENTED / CI_DEFERRED / INTEGRATED`.
+
+When the owner explicitly reports Actions reset:
+1. reread current `main` and Wave 07 documents;
+2. reconcile `integration/visual-runtime-wave-07` with current `main`;
+3. open the integration PR;
+4. run the required exact-head Web + backend Release/full PostgreSQL tests + Runtime smoke + Chromium + Wave-specific visual/Python acceptance;
+5. correct concrete failures without weakening tests/security;
+6. merge only after full green evidence;
+7. then promote Wave 08.
 
 ## Permanent rules
 

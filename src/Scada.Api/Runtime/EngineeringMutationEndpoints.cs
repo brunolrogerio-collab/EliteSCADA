@@ -1,6 +1,7 @@
 using Scada.Api.Security;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Scripts;
 using Scada.Security.Audit;
 using Scada.Security.Authorization;
 
@@ -62,6 +63,21 @@ public static class EngineeringMutationEndpoints
                 audit,
                 "data-source",
                 () => BuildDataSourceDeletePlan(workspace, id)));
+
+        app.MapDelete("/api/engineering/scripts/{id:guid}", (
+            Guid id,
+            HttpContext context,
+            EngineeringWorkspace workspace,
+            ApiAuthorizationService security,
+            ApiAuditService audit) =>
+            DeleteAsync(
+                id,
+                context,
+                workspace,
+                security,
+                audit,
+                "script",
+                () => BuildScriptDeletePlan(workspace, id)));
 
         app.MapEngineeringBulkEndpoints();
     }
@@ -234,6 +250,32 @@ public static class EngineeringMutationEndpoints
             source.Key,
             dependencies,
             () => workspace.DataSources.Remove(id));
+    }
+
+    private static DeletePlan? BuildScriptDeletePlan(EngineeringWorkspace workspace, Guid id)
+    {
+        var script = workspace.Scripts.Find(id);
+        if (script is null) return null;
+
+        var stableReference = ScriptEngineeringReferenceKeys.Script(id);
+        var dependencies = workspace.Scripts.SnapshotScripts()
+            .Where(candidate => candidate.Id != id)
+            .Where(candidate => candidate.Dependencies.Any(dependency =>
+                dependency.Kind == ScriptEngineeringDependencyKind.Script &&
+                string.Equals(dependency.StableReference, stableReference, StringComparison.Ordinal)))
+            .Select(candidate => new EngineeringDependency(
+                "script",
+                candidate.Id.ToString("D"),
+                candidate.Path,
+                "scriptDependency"))
+            .ToArray();
+
+        return new DeletePlan(
+            "script",
+            script.Id.ToString("D"),
+            script.Path,
+            dependencies,
+            () => workspace.Scripts.Remove(script.Id));
     }
 
     private static DeletePlan? BuildTagDeletePlan(EngineeringWorkspace workspace, Guid id)

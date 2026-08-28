@@ -79,6 +79,35 @@ public static partial class VisualAssetEngineeringValidator
         if (!actualHash.Equals(normalizedHash, StringComparison.Ordinal))
             issues.Add(Error("VISUAL_ASSET_PAYLOAD_HASH_MISMATCH", "Visual asset payload SHA-256 does not match canonical metadata.", key));
 
+        try
+        {
+            var inspection = RasterImageInspector.Inspect(payload.Content);
+            if (!inspection.MediaType.Equals(asset.MediaType, StringComparison.OrdinalIgnoreCase) ||
+                !inspection.MediaType.Equals(payload.MediaType, StringComparison.OrdinalIgnoreCase))
+            {
+                issues.Add(Error(
+                    "VISUAL_ASSET_PAYLOAD_SIGNATURE_MISMATCH",
+                    "Visual asset detected raster format does not match canonical media metadata.",
+                    key));
+            }
+
+            if ((asset.PixelWidth.HasValue && asset.PixelWidth.Value != inspection.PixelWidth) ||
+                (asset.PixelHeight.HasValue && asset.PixelHeight.Value != inspection.PixelHeight))
+            {
+                issues.Add(Error(
+                    "VISUAL_ASSET_PAYLOAD_DIMENSIONS_MISMATCH",
+                    "Visual asset detected dimensions do not match canonical metadata.",
+                    key));
+            }
+        }
+        catch (InvalidDataException ex)
+        {
+            issues.Add(Error(
+                "VISUAL_ASSET_PAYLOAD_INVALID",
+                $"Visual asset payload is not a structurally valid supported raster image: {ex.Message}",
+                key));
+        }
+
         return issues;
     }
 

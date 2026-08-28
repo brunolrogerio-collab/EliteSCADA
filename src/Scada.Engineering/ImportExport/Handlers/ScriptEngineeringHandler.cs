@@ -247,7 +247,8 @@ internal sealed class ScriptEngineeringHandler
             AddId(replacedScreenIds, byId?.Id);
             AddId(replacedScreenIds, byKey?.Id);
 
-            var effectiveId = StableId(incoming.Id) ?? byId?.Id ?? byKey?.Id;
+            var existing = byId ?? byKey;
+            var effectiveId = existing?.Id ?? StableId(incoming.Id);
             if (effectiveId is { } id)
                 yield return new ScriptEngineeringVisualDefinitionIdentity(id, "screen", incoming.Key);
         }
@@ -269,7 +270,8 @@ internal sealed class ScriptEngineeringHandler
             AddId(replacedPopupIds, byId?.Id);
             AddId(replacedPopupIds, byKey?.Id);
 
-            var effectiveId = StableId(incoming.Id) ?? byId?.Id ?? byKey?.Id;
+            var existing = byId ?? byKey;
+            var effectiveId = existing?.Id ?? StableId(incoming.Id);
             if (effectiveId is { } id)
                 yield return new ScriptEngineeringVisualDefinitionIdentity(id, "popup", incoming.Key);
         }
@@ -291,9 +293,12 @@ internal sealed class ScriptEngineeringHandler
             AddId(replacedDynamoIds, byId?.Id);
             AddId(replacedDynamoIds, byKey?.Id);
 
-            // Dynamo registry generates a new ID when a legacy incoming Dynamo omits it,
-            // so only an explicitly supplied stable ID is knowable during Preview.
-            if (StableId(incoming.Id) is { } id)
+            // Import/Apply preserves the resolved existing Dynamo ID before
+            // considering an incoming ID, and allocates a new ID only for a new
+            // legacy Dynamo that has neither an existing match nor a supplied ID.
+            var existing = byId ?? byKey;
+            var effectiveId = existing?.Id ?? StableId(incoming.Id);
+            if (effectiveId is { } id)
                 yield return new ScriptEngineeringVisualDefinitionIdentity(id, "dynamo", incoming.Key);
         }
 
@@ -318,7 +323,7 @@ internal sealed class ScriptEngineeringHandler
             AddId(replacedScreenIds, byKey?.Id);
 
             var existing = byId ?? byKey;
-            var definitionId = StableId(incoming.Id) ?? existing?.Id;
+            var definitionId = existing?.Id ?? StableId(incoming.Id);
             if (definitionId is not { } id)
                 continue;
 
@@ -347,7 +352,7 @@ internal sealed class ScriptEngineeringHandler
             AddId(replacedPopupIds, byKey?.Id);
 
             var existing = byId ?? byKey;
-            var definitionId = StableId(incoming.Id) ?? existing?.Id;
+            var definitionId = existing?.Id ?? StableId(incoming.Id);
             if (definitionId is not { } id)
                 continue;
 

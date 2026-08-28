@@ -216,6 +216,6 @@ test('Wave 03 readiness: major Runtime, Engineering, Audit and session states fo
     await expect(engineeringNavigation.getByRole('link', { name: new RegExp(expected.audit) })).toHaveAttribute('href', '/audit');
     await page.goto('/audit');
     await expect(page).toHaveURL(/\/audit$/);
-    await expect(page.getByRole('heading', { name: expected.audit })).toBeVisible();
+    await expect(page.getByRole('heading', { name: expected.audit, exact: true })).toBeVisible();
   }
 });

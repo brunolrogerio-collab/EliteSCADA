@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import type { PythonSourceDiagnostic } from '../../python-runtime/pythonRuntimeContracts';
 import type { EngineeringLocale } from '../i18n';
+import {
+  PythonMonacoEditor,
+  type PythonEditorDiagnosticState
+} from '../python-editor/PythonMonacoEditor';
+import { hasBlockingPythonDiagnostics } from '../python-editor/pythonEditorDiagnostics';
 import {
   applyScriptMutation,
   deleteScriptDefinition,
@@ -34,7 +40,15 @@ import type {
 } from './scriptEngineeringTypes';
 import './script-engineering-workspace.css';
 
-export function ScriptEngineeringWorkspace({ locale }: { locale: EngineeringLocale }) {
+type ScriptEngineeringWorkspaceProps = {
+  locale: EngineeringLocale;
+  pythonDiagnosticsByScriptId?: Readonly<Record<string, readonly PythonSourceDiagnostic[] | undefined>>;
+};
+
+export function ScriptEngineeringWorkspace({
+  locale,
+  pythonDiagnosticsByScriptId
+}: ScriptEngineeringWorkspaceProps) {
   const copy = useMemo(() => scriptWorkspaceCopy(locale), [locale]);
   const [context, setContext] = useState<ScriptEngineeringContext | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -85,6 +99,18 @@ export function ScriptEngineeringWorkspace({ locale }: { locale: EngineeringLoca
   const currentPackage = draft ? buildCanonicalScriptPackage(draft, context?.visualEventReferences ?? []) : null;
   const previewCurrent = Boolean(currentPackage && previewToken && previewTokenMatches(previewToken, currentPackage, mode));
   const localIssues = draft ? validateScriptDraft(draft) : [];
+  const pythonDiagnostics = useMemo<PythonEditorDiagnosticState>(() => {
+    if (!draft || !pythonDiagnosticsByScriptId ||
+        !Object.prototype.hasOwnProperty.call(pythonDiagnosticsByScriptId, draft.id)) {
+      return { status: 'unavailable' };
+    }
+    return {
+      status: 'ready',
+      diagnostics: pythonDiagnosticsByScriptId[draft.id] ?? []
+    };
+  }, [draft?.id, pythonDiagnosticsByScriptId]);
+  const blockingPythonDiagnostics = pythonDiagnostics.status === 'ready' &&
+    hasBlockingPythonDiagnostics(pythonDiagnostics.diagnostics);
 
   function selectScript(script: ScriptEngineeringDefinition) {
     setSelectedId(script.id);
@@ -113,7 +139,7 @@ export function ScriptEngineeringWorkspace({ locale }: { locale: EngineeringLoca
   }
 
   async function runPreview() {
-    if (!context || !draft || localIssues.length > 0) return;
+    if (!context || !draft || localIssues.length > 0 || blockingPythonDiagnostics) return;
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -178,7 +204,7 @@ export function ScriptEngineeringWorkspace({ locale }: { locale: EngineeringLoca
     <section className="script-workspace" aria-label={copy.title}>
       <header className="script-workspace__header">
         <div>
-          <div className="script-workspace__eyebrow">SCRIPT-WAVE-05</div>
+          <div className="script-workspace__eyebrow">PYTHON-WAVE-06</div>
           <h2>{copy.title}</h2>
           <p>{copy.subtitle}</p>
         </div>
@@ -253,10 +279,20 @@ export function ScriptEngineeringWorkspace({ locale }: { locale: EngineeringLoca
                 <textarea rows={2} value={draft.description ?? ''} onChange={event => patchDraft({ description: event.target.value })} />
               </label>
 
-              <label>{copy.source}
-                <textarea className="script-source" rows={14} value={draft.source} onChange={event => patchDraft({ source: event.target.value })} spellCheck={false} />
+              <div className="script-source-field">
+                <span className="script-source-field__label">{copy.source}</span>
+                <PythonMonacoEditor
+                  scriptId={draft.id}
+                  path={draft.path}
+                  source={draft.source}
+                  scope={draft.scope}
+                  entryPoints={draft.entryPoints}
+                  locale={locale}
+                  diagnostics={pythonDiagnostics}
+                  onSourceChange={source => patchDraft({ source })}
+                />
                 <small className="script-muted">{copy.sourceHint}</small>
-              </label>
+              </div>
 
               <EditorCollectionHeader title={copy.entryPoints} hint={copy.entryPointsHint} action={copy.addEntryPoint} onAdd={() => patchDraft({ entryPoints: [...draft.entryPoints, { eventKind: 'initialize', handlerName: 'initialize', targetReference: null }] })} />
               <div className="script-rows">
@@ -311,7 +347,7 @@ export function ScriptEngineeringWorkspace({ locale }: { locale: EngineeringLoca
               )}
 
               <div className="script-actions">
-                <button type="button" onClick={() => void runPreview()} disabled={busy || localIssues.length > 0}>{copy.preview}</button>
+                <button type="button" onClick={() => void runPreview()} disabled={busy || localIssues.length > 0 || blockingPythonDiagnostics}>{copy.preview}</button>
                 <button type="button" onClick={() => void applyPreview()} disabled={busy || !previewCurrent || !previewToken?.preview.canApply}>{copy.apply}</button>
                 {context?.scripts.some(script => script.id === draft.id) && !deleteConfirm && <button type="button" className="danger" onClick={() => setDeleteConfirm(true)} disabled={busy}>{copy.delete}</button>}
                 {deleteConfirm && (

@@ -2,7 +2,7 @@
 
 > Authoritative live execution board. GitHub branch/PR/head/CI state is operational truth. Permanent rules: `docs/DEVELOPMENT-WAVES.md`, `docs/PARALLEL-WORK.md`, `docs/CI-USAGE-POLICY.md`.
 
-**Last coordinator synchronization:** 2026-08-28 — fourth static audit hardening completed on Wave 07 after repository review found top-level malformed-view Preview gaps, stale current-schema Script tests, missing canonical `VisualObject` Script reference catalog, dropped prospective errors on existing Scripts and v10 visual-identity projection mismatches; exact current integration head is `e376b37d2772906dd667afa199a6d8882abd43ae`; all workers remain stopped; Wave 08 is not active.
+**Last coordinator synchronization:** 2026-08-28 — fourth Wave 07 static audit remains the current functional head `e376b37d2772906dd667afa199a6d8882abd43ae`; owner reported expanded GitHub Actions allowance and a controlled Web-build probe successfully received a hosted runner and completed green; CI mode is now NORMAL; workers remain stopped; Wave 08 is not active.
 
 ## Mandatory `siga`
 
@@ -10,7 +10,7 @@ Every fixed EliteSCADA chat first rereads current `main`: `PROJECT GOAL.md`, `LA
 
 ## Current product gate
 
-`VISUAL-RUNTIME-WAVE-07` is **FOURTH STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED / NOT MERGE-READY**.
+`VISUAL-RUNTIME-WAVE-07` is **FOURTH STATIC AUDIT COMPLETE / CI AVAILABLE / PRE-FINALIZATION / NOT MERGE-READY**.
 
 - Wave 06: MERGED through PR #83; final CI #487 SUCCESS
 - Wave 07 Logical WaveBaseSHA: `cc79713434c1d7b5988158b843b137eaf488d923`
@@ -18,9 +18,9 @@ Every fixed EliteSCADA chat first rereads current `main`: `PROJECT GOAL.md`, `LA
 - Integration branch: `integration/visual-runtime-wave-07`
 - Exact current integration head: `e376b37d2772906dd667afa199a6d8882abd43ae`
 - Integration PR: NOT OPEN
-- CI mode: CONSTRAINED
-- Owner-reported remaining allowance: approximately 19 included minutes until explicitly superseded by a reset report
-- Latest Actions run: #488; no Wave 07 Actions triggered
+- CI mode: NORMAL
+- Availability probe: run #488 attempt 2, Web build job `98990802140`, SUCCESS
+- Probe target: historical Wave 06 merge head only; it is not Wave 07 validation
 - Workers: stopped
 - Wave 08: NOT ACTIVE
 
@@ -29,52 +29,22 @@ Integrated worker heads:
 - DEV 2 `d6c1e997178e0ce525233079effd442f59743386`
 - DEV 3 `25ebac63a957c1c0c5b8e2557caec152d9d36bfc`
 
-Coordinator hardening/convergence covers:
-- truthful `Default` versus explicit `Engineering Base` semantics;
-- typed `VisualObjectPropertySchema` authority;
-- stable nested visual object IDs and transitional Schema v11;
-- canonical binding semantics (`Key` = destination visual property, `Target` = source reference);
-- frontend typed visual element projection;
-- C#/TypeScript common property catalog parity;
-- renderer-independent `core.*` built-in object schemas;
-- canonical `assetRef = null | { assetId }` authority;
-- schema-guided transitional string-property codecs;
-- official frontend Engineering -> Runtime visual adapter;
-- backend Preview enforcement for built-in schemas/properties/binding capabilities;
-- exact-current-instance Python visual provider composition;
-- prototype-safe and bounded Python bridge structured values;
-- explicit Python Script override set/clear path through dispatcher, provider composition and actual Pyodide Worker module;
-- fail-closed malformed/null visual Engineering Preview paths;
-- signed-Int32 TypeScript/C# integer parity;
-- stale Wave 06 policy snapshot reconciled to Wave 07 structured-value limits;
-- top-level Screen/Popup malformed JSON fail-closed handling;
-- canonical `VisualObject` Script dependency and object-scoped event resolution using stable `definitionId/objectId` identity;
-- package-derived recursive nested visual object reference resolution;
-- malformed Script/reference collections blocked during Preview rather than deferred to Apply;
-- prospective validation issues on already-saved Scripts surfaced as blocking `script-model` issues;
-- legacy v10 Screen/Popup child identity projection aligned with Apply/key-preservation semantics;
-- prospective Screen/Popup/Dynamo definition identity precedence aligned with the real import handlers.
-
-Earlier deterministic test corrections:
-- `cd2753f64a8191df3d2861871bb53077b74cc7a2` — corrected stale AssetReference source-contract expectation;
-- `c3f9cc15a6715bf6434b1553878ba7c6121e0783` — aligned browser registry acceptance to identity-only asset references;
-- `63878f6fe28a0a9ac101d622628f8b95658899a7` — aligned Engineering projection tests to `createDefaultValues()` and identity-only asset shape.
-
-Third static audit hardening ended at:
-- `d184fdd5b65f2ce0c0e6ca28cd092644be080555` — Python clear, malformed nested visual Preview, Int32 parity and Wave-06 policy-test correction.
-
-Fourth static audit hardening ends at:
-- `e376b37d2772906dd667afa199a6d8882abd43ae` — top-level malformed-view handling, current-schema test correction, canonical nested visual Script references, prospective existing-Script integrity and v10 identity projection reconciliation.
-
-### Temporary no-Actions rule
-
-Until the owner explicitly reports reset:
-1. do not open Wave 07 PR;
-2. do not manually dispatch/rerun Actions;
-3. do not merge Wave 07 into `main`;
-4. do not activate Wave 08 workers;
-5. do not implement Wave 08 graphical functionality;
-6. preserve all final CI requirements.
+Coordinator convergence/hardening already covers:
+- stable nested visual object identity through transitional Schema v11;
+- typed Visual Property Registry and `core.*` parity;
+- `Default` versus Engineering Base semantics;
+- canonical `assetRef = null | { assetId }`;
+- canonical binding target semantics;
+- Engineeering -> Runtime adapter and schema-guided transitional codecs;
+- runtime property layering/isolation/disposal;
+- Client Visual Python visual read/write/explicit-clear on the exact current instance;
+- bounded/prototype-safe Python bridge values;
+- malformed nested/top-level visual Engineering fail-closed Preview paths;
+- signed-Int32 TS/C# parity;
+- canonical nested `VisualObject` Script dependencies and object-scoped event references;
+- prospective validation of existing Scripts against incoming Engineering changes;
+- legacy v10 visual identity projection aligned with Apply semantics;
+- deterministic stale tests found during audits corrected on the integration branch.
 
 ---
 
@@ -82,11 +52,11 @@ Until the owner explicitly reports reset:
 
 **Role:** `COORDINATOR`  
 **Wave:** `VISUAL-RUNTIME-WAVE-07 / WAVE-08 READINESS`  
-**Status:** `WAIT_FOR_OWNER_CI_RESET — FOURTH STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED`  
+**Status:** `READY_FOR_WAVE07_FINALIZATION — CI AVAILABLE`  
 **IntegrationBranch:** `integration/visual-runtime-wave-07`  
 **CurrentIntegrationHead:** `e376b37d2772906dd667afa199a6d8882abd43ae`
 
-**CurrentTask:** no further speculative product-code work. On `siga`, re-read current `main` and verify real branch/PR/CI state. Resume implementation only if the owner explicitly reports Actions reset or repository review demonstrates another concrete correctness blocker that can safely be addressed without CI.
+**CurrentTask:** finalize Wave 07 deliberately now that CI is available. Do not spend the final full matrix until the candidate head is ready.
 
 **MustReadSpecific:**
 - `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`
@@ -96,49 +66,29 @@ Until the owner explicitly reports reset:
 - canonical Engineering contracts/import-export/validation/views/scripts
 - existing C# `VisualScripting` foundation
 - integrated TypeScript `web/scada-web/src/visual-runtime/**`
-- Client Visual Python dispatcher/provider/Worker tests when reviewing visual scripting authority.
-
-**Canonical convergence settled:**
-1. stable nested visual object identity is established through transitional Schema v11;
-2. visual binding target semantics are explicit without adding a redundant field;
-3. frontend Screen/Popup element projection is typed;
-4. C# and TypeScript runtime source semantics distinguish registry Default from Engineering Base;
-5. common visual property catalog and built-in `core.*` schema sets are aligned structurally;
-6. `assetRef` identity/authority semantics are aligned as `null | { assetId }`;
-7. schema-guided transition codecs isolate current string persistence;
-8. official Engineering -> Runtime projection seam exists;
-9. backend Preview validates built-in visual schema/property/binding authority;
-10. Python visual Script overrides have explicit set **and clear** semantics without null sentinel;
-11. malformed nested and top-level visual Engineering data remains on the Preview/ImportIssue path instead of throwing through later validation layers;
-12. integer visual properties use the same signed-Int32 domain in TS and C#;
-13. canonical Script Engineering can resolve nested visual objects by stable `definitionId/objectId` for dependencies and visual events;
-14. prospective validation surfaces existing Scripts invalidated by incoming Engineering changes rather than silently dropping those issues;
-15. legacy v10 Screen/Popup identity projection preserves existing child IDs by key when Apply would preserve them and rejects removed referenced children;
-16. deterministic test drift discovered by static audits has been corrected on the integration head.
+- Client Visual Python dispatcher/provider/Worker tests.
 
 **Remaining readiness blockers before Wave 08 activation:**
-- canonical JSON-native typed visual property persistence/migration is not yet settled; `VisualElementEngineeringDto.Properties` remains `Dictionary<string,string>` and the codec is transitional only;
-- Wave 07 exact-final-head CI/merge remains mandatory.
+1. canonical JSON-native typed visual property persistence/migration is not yet settled; `VisualElementEngineeringDto.Properties` remains `Dictionary<string,string>` and the codec is transitional only;
+2. Wave 07 exact-final-head full CI/merge remains mandatory;
+3. reconcile integration with current documentation-only `main` history before final candidate validation;
+4. settle the minimum reproducibility blockers needed for trustworthy final CI.
 
-**Lower-priority convergence items attached to typed-persistence/readiness work:** transitional numeric text is not guaranteed byte-identical between C# and JavaScript for every exponent representation; canonical `Tag` versus `Property` binding source discrimination should be retained before the graphical binding engine consumes it; older non-visual Engineering collections retain broader null/empty-ID hardening debt that is not current Wave 07 authorization.
+**Repository-wide audit debt, not automatic scope expansion:** frontend dependency/lockfile reproducibility; .NET SDK/compiler pinning; branch protection for `main`; production CORS hardening; earlier typecheck for `tests-e2e`; cheaper separation of contract/unit checks from full Playwright.
 
-Stable `assetRef` identity is sufficient to define the future Image/import slice. The first-class project asset entity, binary import/storage/serving and renderer remain Wave 08 implementation work.
+**AllowedScope now:** coordinator-owned Wave 07 finalization, canonical typed visual persistence/migration, compatibility coverage, minimal reproducibility fixes required for trustworthy validation, branch reconciliation, integration PR and exact-head validation.
 
-**Repository-wide debt identified by audit, not current-scope authorization:** frontend lockfile/version reproducibility; .NET SDK/compiler pinning; branch protection for `main`; production CORS hardening; earlier typecheck for `tests-e2e`; cheaper separation of unit/source contract tests from full Playwright.
+**ForbiddenScope until Wave 07 is merged:** Canvas; graphical editor; zoom/pan/grid/snap; Property Inspector UI; Object Palette UI; image importer/storage/renderer; Screen/Popup/Dynamo graphical authoring; production animation/tween engine; Wave 09/10 functionality.
 
-**AllowedScope while waiting:** official documentation/state verification; review/correction of newly demonstrated concrete correctness blockers only. After explicit Actions reset, coordinator may reconcile the branch, finalize typed visual persistence/migration, open the integration PR strategically and run the required exact-head validation.
+**ValidationMatrix:** final exact head requires Web + backend Release/full PostgreSQL tests + Runtime smoke + Chromium + visual/Python acceptance, preserving Wave 06 sandbox/native-escape/cancellation regressions.
 
-**ForbiddenScope:** Canvas; graphical editor; zoom/pan/grid/snap; selection/drag/resize/rotation UI; Property Inspector UI; Object Palette UI; image importer/storage/renderer; Screen/Popup/Dynamo graphical authoring; production animation/tween engine; Wave 09/10 functionality; speculative refactors without CI.
-
-**ValidationMatrix:** DEFERRED. Final exact Wave 07 head still requires Web + backend Release/full PostgreSQL tests + Runtime smoke + Chromium + visual/Python acceptance before merge.
-
-**StopCondition:** REACHED again after fourth static audit hardening. Remain stopped until explicit Actions reset unless another new concrete safe blocker is demonstrated.
+**CompletionCriteria:** final integrated Wave 07 head fully green and merged; docs synchronized; Wave 08 Definition of Ready then evaluated.
 
 ---
 
 # DEV 1 - EliteSCADA
 
-**Status:** `WAIT_FOR_COORDINATOR — IMPLEMENTED / CI_DEFERRED / INTEGRATED`  
+**Status:** `WAIT_FOR_COORDINATOR — IMPLEMENTED / INTEGRATED`  
 **DeliveryHead:** `ed8d9af027173e6d265ff382dbc9c115bcd2e284`  
 **AfterCompletion:** remain stopped. No Wave 08 work authorized.
 
@@ -146,7 +96,7 @@ Stable `assetRef` identity is sufficient to define the future Image/import slice
 
 # DEV 2 - EliteSCADA
 
-**Status:** `WAIT_FOR_COORDINATOR — IMPLEMENTED / CI_DEFERRED / INTEGRATED`  
+**Status:** `WAIT_FOR_COORDINATOR — IMPLEMENTED / INTEGRATED`  
 **DeliveryHead:** `d6c1e997178e0ce525233079effd442f59743386`  
 **AfterCompletion:** remain stopped. No Wave 08 work authorized.
 
@@ -154,10 +104,10 @@ Stable `assetRef` identity is sufficient to define the future Image/import slice
 
 # DEV 3 - EliteSCADA
 
-**Status:** `WAIT_FOR_COORDINATOR — IMPLEMENTED / CI_DEFERRED / INTEGRATED`  
+**Status:** `WAIT_FOR_COORDINATOR — IMPLEMENTED / INTEGRATED`  
 **DeliveryHead:** `25ebac63a957c1c0c5b8e2557caec152d9d36bfc`  
 **AfterCompletion:** remain stopped. No Wave 08 work authorized.
 
 ## Coordinator note
 
-Do not create work merely to keep workers busy. Wave 08 becomes executable only after Wave 07 final validation/merge and the readiness conditions in `docs/VISUAL-CANONICAL-CONVERGENCE-07-TO-08.md` are satisfied.
+Do not create work merely to keep workers busy. CI capacity does not itself authorize Wave 08. Wave 08 becomes executable only after Wave 07 final validation/merge and the readiness conditions in `docs/VISUAL-CANONICAL-CONVERGENCE-07-TO-08.md` are satisfied.

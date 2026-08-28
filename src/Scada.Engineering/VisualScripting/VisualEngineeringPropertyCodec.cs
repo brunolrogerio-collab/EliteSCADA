@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Text.Json;
+using Scada.Engineering.Contracts;
 
 namespace Scada.Engineering.VisualScripting;
 

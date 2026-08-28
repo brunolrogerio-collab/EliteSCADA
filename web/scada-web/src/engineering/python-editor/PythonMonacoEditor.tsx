@@ -64,11 +64,13 @@ export function PythonMonacoEditor({
   const modelRef = useRef<monaco.editor.ITextModel | null>(null);
   const onSourceChangeRef = useRef(onSourceChange);
   const entryPointsRef = useRef(entryPoints);
+  const sourceRef = useRef(source);
   const [cursor, setCursor] = useState({ line: 1, column: 1 });
   const [editorError, setEditorError] = useState<string | null>(null);
 
   onSourceChangeRef.current = onSourceChange;
   entryPointsRef.current = entryPoints;
+  sourceRef.current = source;
 
   const projection = useMemo(
     () => diagnostics.status === 'ready'
@@ -96,7 +98,7 @@ export function PythonMonacoEditor({
     let editor: monaco.editor.IStandaloneCodeEditor | null = null;
     try {
       monaco.editor.getModel(uri)?.dispose();
-      model = monaco.editor.createModel(source, 'python', uri);
+      model = monaco.editor.createModel(sourceRef.current, 'python', uri);
       editor = monaco.editor.create(container, {
         model,
         automaticLayout: true,
@@ -123,7 +125,7 @@ export function PythonMonacoEditor({
 
       const contentDisposable = editor.onDidChangeModelContent(() => {
         const next = model?.getValue() ?? '';
-        if (next !== source) onSourceChangeRef.current(next);
+        if (next !== sourceRef.current) onSourceChangeRef.current(next);
       });
       const cursorDisposable = editor.onDidChangeCursorPosition(event => {
         setCursor({ line: event.position.lineNumber, column: event.position.column });

@@ -21,12 +21,13 @@ test('visual property foundation stays renderer independent and contains no arbi
   expect(combined).not.toContain('window.');
 });
 
-test('AssetReference source does not expose URL or filesystem path fields or fake sentinel assets', async () => {
+test('AssetReference source exposes only stable project asset identity and no URL or filesystem authority', async () => {
   const types = await source('../src/visual-runtime/visualPropertyTypes.ts');
   const registry = await source('../src/visual-runtime/visualPropertyRegistry.ts');
 
-  expect(types).toContain("new Set(['assetId', 'name', 'mediaType'])");
-  expect(types).not.toMatch(/\b(path|url|href|filePath)\??:\s*string/);
+  expect(types).toContain('assetId: string;');
+  expect(types).toContain("keys.length === 1 && keys[0] === 'assetId'");
+  expect(types).not.toMatch(/\b(name|mediaType|path|url|href|filePath)\??:\s*string/);
   expect(registry).toContain('defaultValue: null');
   expect(registry).not.toContain('asset:none');
   expect(registry).toContain('if (value === null) return success(definition.key, null);');

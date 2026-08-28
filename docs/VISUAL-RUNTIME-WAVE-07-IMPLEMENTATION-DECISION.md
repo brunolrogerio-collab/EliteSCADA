@@ -190,9 +190,13 @@ Wave 07 defines reference semantics, not the binary importer.
 
 A visual asset reference is a stable project-owned identifier, never a filesystem path or arbitrary URL.
 
-The public reference shape must contain or resolve through at least a stable asset ID. Optional developer-facing name/type metadata may accompany it, but identity is the stable ID.
+The canonical Wave 07 public reference shape is deliberately narrow:
 
-Wave 07 property validation must therefore accept/reject asset references structurally without loading files.
+`assetRef = null | { assetId }`
+
+Only the stable project asset ID travels in a visual property reference. Developer-facing name, original filename, media/MIME type, dimensions, hash and other descriptive metadata belong to the future first-class project asset entity and must not be duplicated into `assetRef` as competing authority.
+
+Wave 07 property validation must therefore accept/reject asset references structurally without loading files and reject additional path/URL/metadata fields on the reference object.
 
 Required v0.1 raster families remain JPG/JPEG, PNG including alpha, and BMP. Their actual import, storage, preview and Runtime rendering are later-wave responsibilities.
 

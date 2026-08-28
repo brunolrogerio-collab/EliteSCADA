@@ -10,7 +10,7 @@ import {
 
 export type VisualPythonPropertyCapabilityProvider = Pick<
   ClientVisualPythonCapabilityProvider,
-  'readVisualProperty' | 'writeVisualProperty'
+  'readVisualProperty' | 'writeVisualProperty' | 'clearVisualProperty'
 >;
 
 export type VisualPythonPropertyWriteAcknowledgement = Readonly<{
@@ -24,7 +24,7 @@ export type VisualPythonPropertyWriteAcknowledgement = Readonly<{
  * Runtime Visual Instance without exposing renderer, DOM or React authority.
  *
  * Read policy is enforced by RuntimeVisualInstance.readPropertyState().
- * Write policy is enforced by RuntimeVisualInstance.setScriptOverride().
+ * Write/clear policy is enforced by the RuntimeVisualInstance Script layer.
  */
 export function createVisualPythonPropertyCapabilityProvider(
   instance: RuntimeVisualInstance
@@ -47,12 +47,29 @@ export function createVisualPythonPropertyCapabilityProvider(
     ): VisualPythonPropertyWriteAcknowledgement {
       assertCurrentVisualTarget(instance, targetReference, context);
       instance.setScriptOverride(propertyKey, value);
-      return Object.freeze({
-        accepted: true,
-        propertyKey,
-        visualRuntimeInstanceId: instance.runtimeInstanceId
-      });
+      return acknowledgement(instance, propertyKey);
+    },
+
+    clearVisualProperty(
+      targetReference: string,
+      propertyKey: string,
+      context: ClientVisualPythonCapabilityContext
+    ): VisualPythonPropertyWriteAcknowledgement {
+      assertCurrentVisualTarget(instance, targetReference, context);
+      instance.clearScriptOverride(propertyKey);
+      return acknowledgement(instance, propertyKey);
     }
+  });
+}
+
+function acknowledgement(
+  instance: RuntimeVisualInstance,
+  propertyKey: string
+): VisualPythonPropertyWriteAcknowledgement {
+  return Object.freeze({
+    accepted: true,
+    propertyKey,
+    visualRuntimeInstanceId: instance.runtimeInstanceId
   });
 }
 

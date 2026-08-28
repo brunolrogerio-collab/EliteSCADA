@@ -53,6 +53,20 @@ internal sealed class VisualAssetEngineeringHandler
                     true));
             }
 
+            if (asset?.Id is not null)
+            {
+                var existingByKey = _registry.FindAssetByKey(asset.Key);
+                if (existingByKey?.Id is not null && existingByKey.Id.Value != asset.Id.Value)
+                {
+                    issues.Add(new ImportIssue(
+                        "VISUAL_ASSET_ID_KEY_CONFLICT",
+                        $"Visual asset key '{asset.Key}' already belongs to stable asset ID '{existingByKey.Id}'. Import cannot silently replace that identity with '{asset.Id}'.",
+                        ImportEntityKind.VisualAsset,
+                        key,
+                        true));
+                }
+            }
+
             EngineeringHandlerSupport.AddPreview(
                 items,
                 ImportEntityKind.VisualAsset,

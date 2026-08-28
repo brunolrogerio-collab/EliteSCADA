@@ -30,7 +30,7 @@ test('primary shell keeps Runtime, Engineering and Audit navigation coherent', a
   await expect(entityBrowser.getByRole('listbox', { name: /TAGs: lista de entidades/ })).toBeVisible();
 
   await engineeringNavigation.getByRole('button', { name: /Segurança|Security/ }).click();
-  await expect(page.locator('.user-administration')).toBeVisible();
+  await expect(page.getByTestId('user-administration')).toBeVisible();
 
   await navigation.getByRole('link', { name: /Auditoria/ }).click();
   await expect(page).toHaveURL(/\/audit$/);

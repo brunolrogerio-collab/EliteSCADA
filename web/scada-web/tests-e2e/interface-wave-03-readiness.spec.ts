@@ -203,18 +203,18 @@ test('Wave 03 readiness: major Runtime, Engineering, Audit and session states fo
     await expect(page.getByRole('region', { name: expected.operations })).toBeVisible();
     await expect(page.getByRole('region', { name: expected.alarms })).toBeVisible();
     await expect(page.locator('.user-session-menu')).toBeVisible();
-    await expect(runtimeNavigation.getByRole('link', { name: /Engineering/ })).toHaveAttribute('href', '/engineering');
 
-    // Navigation behavior itself is exercised by the dedicated shell/session readiness tests.
-    // This acceptance keeps the locale loop focused on deterministic localized route state.
-    await page.goto('/engineering');
+    const engineeringLink = runtimeNavigation.getByRole('link', { name: /Engineering/ });
+    await expect(engineeringLink).toHaveAttribute('href', '/engineering');
+    await engineeringLink.click();
     await expect(page).toHaveURL(/\/engineering$/);
     await expect(page.locator('.eng-shell')).toBeVisible();
     await expect(page.locator('#engineering-locale')).toHaveValue(expected.locale);
 
     const engineeringNavigation = page.getByRole('navigation', { name: 'EliteSCADA' });
-    await expect(engineeringNavigation.getByRole('link', { name: new RegExp(expected.audit) })).toHaveAttribute('href', '/audit');
-    await page.goto('/audit');
+    const auditLink = engineeringNavigation.getByRole('link', { name: new RegExp(expected.audit) });
+    await expect(auditLink).toHaveAttribute('href', '/audit');
+    await auditLink.click();
     await expect(page).toHaveURL(/\/audit$/);
     await expect(page.getByRole('heading', { name: expected.audit, exact: true })).toBeVisible();
   }

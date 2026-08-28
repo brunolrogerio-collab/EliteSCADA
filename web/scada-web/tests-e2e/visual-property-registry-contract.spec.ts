@@ -75,14 +75,11 @@ test('color, enum and AssetReference values fail closed', () => {
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.assetRef, null))
     .toMatchObject({ ok: true, value: null });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.assetRef, {
-    assetId: 'asset:plant-logo',
-    name: 'Plant logo',
-    mediaType: 'image/png'
+    assetId: 'asset:plant-logo'
   })).toMatchObject({ ok: true });
 
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.assetRef, {
-    assetId: '550e8400-e29b-41d4-a716-446655440000',
-    mediaType: 'image/jpeg'
+    assetId: '550e8400-e29b-41d4-a716-446655440000'
   })).toMatchObject({ ok: true });
 
   const invalidAssets = [
@@ -91,8 +88,8 @@ test('color, enum and AssetReference values fail closed', () => {
     { assetId: 'file:logo.png' },
     { assetId: 'C:\\plant\\logo.png' },
     { assetId: 'asset:plant-logo', url: 'https://example.invalid/logo.png' },
-    { assetId: 'asset:plant-logo', mediaType: 'text/html' },
-    { assetId: 'asset:plant-logo', name: ' Plant logo ' }
+    { assetId: 'asset:plant-logo', mediaType: 'image/png' },
+    { assetId: 'asset:plant-logo', name: 'Plant logo' }
   ];
 
   for (const candidate of invalidAssets) {

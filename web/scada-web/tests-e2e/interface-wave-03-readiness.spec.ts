@@ -197,18 +197,24 @@ test('Wave 03 readiness: major Runtime, Engineering, Audit and session states fo
     await setProductLocale(page, expected.locale);
     await page.goto('/');
 
-    const navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+    const runtimeNavigation = page.getByRole('navigation', { name: 'EliteSCADA' });
     await expect(page.getByText(expected.subtitle, { exact: true })).toBeVisible();
     await expect(page.locator('.app-context')).toContainText(expected.currentArea);
     await expect(page.getByRole('region', { name: expected.operations })).toBeVisible();
     await expect(page.getByRole('region', { name: expected.alarms })).toBeVisible();
     await expect(page.locator('.user-session-menu')).toBeVisible();
+    await expect(runtimeNavigation.getByRole('link', { name: /Engineering/ })).toHaveAttribute('href', '/engineering');
 
-    await navigation.getByRole('link', { name: /Engineering/ }).click();
+    // Navigation behavior itself is exercised by the dedicated shell/session readiness tests.
+    // This acceptance keeps the locale loop focused on deterministic localized route state.
+    await page.goto('/engineering');
     await expect(page).toHaveURL(/\/engineering$/);
+    await expect(page.locator('.eng-shell')).toBeVisible();
     await expect(page.locator('#engineering-locale')).toHaveValue(expected.locale);
 
-    await page.getByRole('navigation', { name: 'EliteSCADA' }).getByRole('link', { name: new RegExp(expected.audit) }).click();
+    const engineeringNavigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+    await expect(engineeringNavigation.getByRole('link', { name: new RegExp(expected.audit) })).toHaveAttribute('href', '/audit');
+    await page.goto('/audit');
     await expect(page).toHaveURL(/\/audit$/);
     await expect(page.getByRole('heading', { name: expected.audit })).toBeVisible();
   }

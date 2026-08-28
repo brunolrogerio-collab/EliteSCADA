@@ -38,7 +38,8 @@ public sealed class VisualEngineeringMalformedInputTests
         var builtinIssues = BuiltinVisualEngineeringValidation.Validate(
             malformed,
             ImportEntityKind.Screen,
-            screen.Key);
+            screen.Key,
+            VisualEngineeringPropertyCodec.TypedSchemaVersion);
 
         Assert.Contains(issues, issue => issue.Code == "BINDING_NULL" && issue.IsError);
         Assert.Contains(issues, issue => issue.Code == "BINDING_KEY_REQUIRED" && issue.IsError);

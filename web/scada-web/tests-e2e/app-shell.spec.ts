@@ -13,6 +13,7 @@ test('primary shell keeps Runtime, Engineering and Audit navigation coherent', a
   await expect(context).toContainText('Runtime');
   await expect(page.getByRole('region', { name: 'Visão operacional' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Central de alarmes' })).toBeVisible();
+  await expect(page.getByText('Trend básico', { exact: true })).toBeVisible();
 
   await navigation.getByRole('link', { name: /Engineering/ }).click();
   await expect(page).toHaveURL(/\/engineering$/);
@@ -20,12 +21,16 @@ test('primary shell keeps Runtime, Engineering and Audit navigation coherent', a
   context = page.locator('.app-context');
   await expect(navigation.getByRole('link', { name: /Engineering/ })).toHaveAttribute('aria-current', 'page');
   await expect(context).toContainText('Engineering');
+  await expect(page.getByText(/Gestão do projeto|Project Management/, { exact: true })).toBeVisible();
 
   const engineeringNavigation = page.locator('.eng-nav');
   await engineeringNavigation.getByRole('button', { name: /TAGs/ }).click();
   const entityBrowser = page.locator('.engineering-entity-browser');
   await expect(entityBrowser.getByRole('searchbox')).toBeVisible();
   await expect(entityBrowser.getByRole('listbox', { name: /TAGs: lista de entidades/ })).toBeVisible();
+
+  await engineeringNavigation.getByRole('button', { name: /Segurança|Security/ }).click();
+  await expect(page.locator('.user-administration')).toBeVisible();
 
   await navigation.getByRole('link', { name: /Auditoria/ }).click();
   await expect(page).toHaveURL(/\/audit$/);
@@ -45,4 +50,5 @@ test('primary shell follows the stored Engineering locale', async ({ page }) => 
   await expect(page.getByText('Industrial platform', { exact: true })).toBeVisible();
   await expect(context).toContainText('Current area');
   await expect(context).toContainText('Engineering');
+  await expect(page.getByText('Project Management', { exact: true })).toBeVisible();
 });

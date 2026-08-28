@@ -13,9 +13,7 @@ test('integrated visual registry denies unregistered properties and arbitrary as
     const assetDefinition = registry.getRequired('assetRef');
     const missing = registry.validate('notRegistered', 123);
     const validAsset = registry.validate('assetRef', {
-      assetId: 'asset:project-logo',
-      name: 'Project logo',
-      mediaType: 'image/png'
+      assetId: 'asset:project-logo'
     });
 
     const invalidAssets = [
@@ -24,7 +22,9 @@ test('integrated visual registry denies unregistered properties and arbitrary as
       registry.validate('assetRef', { assetId: 'C:\\temp\\logo.png' }),
       registry.validate('assetRef', { assetId: '../logo.png' }),
       registry.validate('assetRef', { assetId: 'asset:logo', url: 'https://evil.example/logo.png' }),
-      registry.validate('assetRef', { assetId: 'asset:logo', path: 'C:\\temp\\logo.png' })
+      registry.validate('assetRef', { assetId: 'asset:logo', path: 'C:\\temp\\logo.png' }),
+      registry.validate('assetRef', { assetId: 'asset:logo', name: 'Project logo' }),
+      registry.validate('assetRef', { assetId: 'asset:logo', mediaType: 'image/png' })
     ];
 
     return {

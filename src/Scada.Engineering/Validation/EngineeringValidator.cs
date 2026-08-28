@@ -148,7 +148,12 @@ public static class EngineeringValidator
             issues.Add(Error("SCREEN_NAME_REQUIRED", "Screen name is required.", ImportEntityKind.Screen, key));
         if (!string.IsNullOrWhiteSpace(screen.Route) && !screen.Route.StartsWith("/", StringComparison.Ordinal))
             issues.Add(Error("SCREEN_ROUTE_INVALID", "Screen route must start with '/'.", ImportEntityKind.Screen, key));
-        issues.AddRange(ValidateVisualElements(screen.Elements, ImportEntityKind.Screen, key, allowPlaceholders: false));
+        issues.AddRange(ValidateVisualElements(
+            screen.Elements,
+            ImportEntityKind.Screen,
+            key,
+            allowPlaceholders: false,
+            new HashSet<Guid>()));
         return issues;
     }
 
@@ -164,7 +169,12 @@ public static class EngineeringValidator
             issues.Add(Error("POPUP_NAME_REQUIRED", "Popup name is required.", ImportEntityKind.Popup, key));
         if (popup.TemplateKey?.Any(char.IsWhiteSpace) == true)
             issues.Add(Error("POPUP_TEMPLATE_KEY_WHITESPACE", "Popup template key cannot contain whitespace.", ImportEntityKind.Popup, key));
-        issues.AddRange(ValidateVisualElements(popup.Elements, ImportEntityKind.Popup, key, allowPlaceholders: true));
+        issues.AddRange(ValidateVisualElements(
+            popup.Elements,
+            ImportEntityKind.Popup,
+            key,
+            allowPlaceholders: true,
+            new HashSet<Guid>()));
         return issues;
     }
 
@@ -172,7 +182,8 @@ public static class EngineeringValidator
         IReadOnlyCollection<VisualElementEngineeringDto>? elements,
         ImportEntityKind entityKind,
         string entityKey,
-        bool allowPlaceholders)
+        bool allowPlaceholders,
+        HashSet<Guid> visualIds)
     {
         if (elements is null) yield break;
 
@@ -191,6 +202,10 @@ public static class EngineeringValidator
                 yield return Error("VISUAL_ELEMENT_TYPE_REQUIRED", $"Visual element '{element.Key}' requires a type.", entityKind, entityKey);
             if (!string.IsNullOrWhiteSpace(element.Key) && duplicates.Contains(element.Key))
                 yield return Error("VISUAL_ELEMENT_DUPLICATE", $"Visual element key '{element.Key}' appears more than once at the same level.", entityKind, entityKey);
+            if (element.Id == Guid.Empty)
+                yield return Error("VISUAL_ELEMENT_ID_EMPTY", $"Visual element '{element.Key}' cannot use an empty Id.", entityKind, entityKey);
+            else if (element.Id.HasValue && !visualIds.Add(element.Id.Value))
+                yield return Error("VISUAL_ELEMENT_ID_DUPLICATE", $"Visual element Id '{element.Id.Value:D}' appears more than once in the same visual definition.", entityKind, entityKey);
             if (!string.IsNullOrWhiteSpace(element.DynamoKey) && element.DynamoKey.Any(char.IsWhiteSpace))
                 yield return Error("VISUAL_DYNAMO_KEY_WHITESPACE", $"Dynamo key on element '{element.Key}' cannot contain whitespace.", entityKind, entityKey);
             if (!string.IsNullOrWhiteSpace(element.EquipmentPath) && !allowPlaceholders && ContainsPlaceholder(element.EquipmentPath))
@@ -198,7 +213,7 @@ public static class EngineeringValidator
 
             foreach (var issue in ValidateBindings(element.Bindings, entityKind, entityKey, allowTagPlaceholders: allowPlaceholders))
                 yield return issue;
-            foreach (var issue in ValidateVisualElements(element.Children, entityKind, entityKey, allowPlaceholders))
+            foreach (var issue in ValidateVisualElements(element.Children, entityKind, entityKey, allowPlaceholders, visualIds))
                 yield return issue;
         }
     }

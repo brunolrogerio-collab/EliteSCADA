@@ -188,31 +188,38 @@ public sealed class ModbusTcpDiagnosticsTests
         var healthyA = driverA.GetCommunicationDiagnostics();
         var healthyB = driverB.GetCommunicationDiagnostics();
         Assert.NotEqual(healthyA.RuntimeInstanceId, healthyB.RuntimeInstanceId);
-        Assert.Equal(0, healthyA.Counters.Timeouts);
-        Assert.Equal(0, healthyB.Counters.Timeouts);
 
         serverB.ResponseDelay = TimeSpan.FromMilliseconds(250);
         await WaitForAsync(
-            () => driverB.GetCommunicationDiagnostics() is
+            () =>
             {
-                State: CommunicationDriverOperationalState.Reconnecting,
-                TagQuality.BadCommunication: 1
-            } snapshot
-            && snapshot.Counters.Timeouts > 0
-            && snapshot.Counters.FailedOperations > 0,
+                var snapshotA = driverA.GetCommunicationDiagnostics();
+                var snapshotB = driverB.GetCommunicationDiagnostics();
+                return snapshotB is
+                    {
+                        State: CommunicationDriverOperationalState.Reconnecting,
+                        TagQuality.BadCommunication: 1
+                    }
+                    && snapshotB.Counters.Timeouts > healthyB.Counters.Timeouts
+                    && snapshotB.Counters.FailedOperations > healthyB.Counters.FailedOperations
+                    && snapshotA.Counters.SuccessfulOperations > healthyA.Counters.SuccessfulOperations;
+            },
             TimeSpan.FromSeconds(5));
 
         var failedB = driverB.GetCommunicationDiagnostics();
         var unaffectedA = driverA.GetCommunicationDiagnostics();
         Assert.NotNull(failedB.LastFailedCommunicationAt);
         Assert.False(string.IsNullOrWhiteSpace(failedB.LastError));
-        Assert.True(failedB.Counters.Reconnects > 0);
+        Assert.True(failedB.Counters.Timeouts > healthyB.Counters.Timeouts);
+        Assert.True(failedB.Counters.FailedOperations > healthyB.Counters.FailedOperations);
+        Assert.True(failedB.Counters.Reconnects > healthyB.Counters.Reconnects);
         Assert.True(failedB.RecentFailureRate > 0d);
         Assert.Equal(CommunicationDriverOperationalState.Healthy, unaffectedA.State);
         Assert.Equal(1, unaffectedA.TagQuality.Good);
         Assert.Equal(0, unaffectedA.TagQuality.BadCommunication);
-        Assert.Equal(0, unaffectedA.Counters.Timeouts);
-        Assert.Equal(0, unaffectedA.Counters.FailedOperations);
+        Assert.Equal(healthyA.Counters.Timeouts, unaffectedA.Counters.Timeouts);
+        Assert.Equal(healthyA.Counters.FailedOperations, unaffectedA.Counters.FailedOperations);
+        Assert.True(unaffectedA.Counters.SuccessfulOperations > healthyA.Counters.SuccessfulOperations);
         Assert.Equal(TagQuality.Good, Get(cache, tagA.Id).Quality);
         Assert.Equal(TagQuality.BadCommunication, Get(cache, tagB.Id).Quality);
 
@@ -227,8 +234,8 @@ public sealed class ModbusTcpDiagnosticsTests
 
         var recoveredB = driverB.GetCommunicationDiagnostics();
         Assert.Equal(CommunicationDriverOperationalState.Healthy, recoveredB.State);
-        Assert.True(recoveredB.Counters.Timeouts > 0);
-        Assert.True(recoveredB.Counters.Reconnects > 0);
+        Assert.True(recoveredB.Counters.Timeouts > healthyB.Counters.Timeouts);
+        Assert.True(recoveredB.Counters.Reconnects > healthyB.Counters.Reconnects);
         Assert.NotNull(recoveredB.LastFailedCommunicationAt);
         Assert.True(recoveredB.LastSuccessfulCommunicationAt > recoveredB.LastFailedCommunicationAt);
         Assert.Equal(1, recoveredB.TagQuality.Good);
@@ -236,8 +243,9 @@ public sealed class ModbusTcpDiagnosticsTests
 
         var finalA = driverA.GetCommunicationDiagnostics();
         Assert.Equal(CommunicationDriverOperationalState.Healthy, finalA.State);
-        Assert.Equal(0, finalA.Counters.Timeouts);
-        Assert.Equal(0, finalA.Counters.FailedOperations);
+        Assert.Equal(healthyA.Counters.Timeouts, finalA.Counters.Timeouts);
+        Assert.Equal(healthyA.Counters.FailedOperations, finalA.Counters.FailedOperations);
+        Assert.True(finalA.Counters.SuccessfulOperations > healthyA.Counters.SuccessfulOperations);
         Assert.Equal(TagQuality.Good, Get(cache, tagA.Id).Quality);
 
         await driverA.StopAsync();

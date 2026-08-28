@@ -1,79 +1,35 @@
 import { test, expect } from '@playwright/test';
 import {
+  COMMON_VISUAL_PROPERTY_REGISTRY,
   RuntimeVisualInstance,
   RuntimeVisualInstanceError,
-  type RuntimeVisualDefinitionProjection
-} from '../src/visual-runtime/runtimeVisualInstance';
-import type {
-  VisualRuntimePropertyDefinitionPort,
-  VisualRuntimePropertyRegistryPort,
-  VisualRuntimePropertyValidation
-} from '../src/visual-runtime/runtimeVisualPropertyPort';
+  VisualObjectPropertySchema,
+  VisualPropertyRegistry,
+  type RuntimeVisualDefinitionProjection,
+  type VisualPropertyDefinition
+} from '../src/visual-runtime';
 
-const definitions: VisualRuntimePropertyDefinitionPort[] = [
-  {
-    key: 'width',
-    defaultValue: 80,
-    runtimeReadable: true,
-    runtimeWritable: true,
-    supportsBinding: true,
-    animatable: true
-  },
-  {
-    key: 'opacity',
-    defaultValue: 1,
-    runtimeReadable: true,
-    runtimeWritable: true,
-    supportsBinding: true,
-    animatable: true
-  },
-  {
-    key: 'engineeringOnly',
-    defaultValue: 'locked',
-    runtimeReadable: false,
-    runtimeWritable: false,
-    supportsBinding: false,
-    animatable: false
-  },
-  {
-    key: 'assetRef',
-    defaultValue: { assetId: 'default-asset' },
-    runtimeReadable: true,
-    runtimeWritable: true,
-    supportsBinding: false,
-    animatable: false
-  }
-];
+const engineeringOnly = {
+  key: 'engineeringOnly',
+  type: 'string',
+  defaultValue: 'locked',
+  engineeringEditable: true,
+  runtimeReadable: false,
+  runtimeWritable: false,
+  supportsBinding: false,
+  animatable: false
+} satisfies VisualPropertyDefinition;
 
-const registry: VisualRuntimePropertyRegistryPort = {
-  find(propertyKey) {
-    return definitions.find(item => item.key === propertyKey);
-  },
-  validate(propertyKey, value): VisualRuntimePropertyValidation {
-    if (!definitions.some(item => item.key === propertyKey)) {
-      return { valid: false, code: 'TEST_UNREGISTERED', reason: 'Property is not registered.' };
-    }
-    if (propertyKey === 'width') {
-      return typeof value === 'number' && Number.isFinite(value) && value >= 0
-        ? { valid: true }
-        : { valid: false, code: 'TEST_WIDTH_INVALID', reason: 'Width must be a finite non-negative number.' };
-    }
-    if (propertyKey === 'opacity') {
-      return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1
-        ? { valid: true }
-        : { valid: false, code: 'TEST_OPACITY_INVALID', reason: 'Opacity must be between 0 and 1.' };
-    }
-    if (propertyKey === 'engineeringOnly') {
-      return typeof value === 'string'
-        ? { valid: true }
-        : { valid: false, code: 'TEST_STRING_INVALID', reason: 'Value must be a string.' };
-    }
-    const candidate = value as { assetId?: unknown } | null;
-    return candidate !== null && typeof candidate === 'object' && typeof candidate.assetId === 'string'
-      ? { valid: true }
-      : { valid: false, code: 'TEST_ASSET_INVALID', reason: 'Asset reference requires a stable assetId.' };
-  }
-};
+const registry = new VisualPropertyRegistry([
+  ...COMMON_VISUAL_PROPERTY_REGISTRY.list(),
+  engineeringOnly
+]);
+
+const schema = new VisualObjectPropertySchema(
+  'symbol',
+  ['width', 'opacity', 'engineeringOnly', 'assetRef'],
+  registry
+);
 
 function definition(baseProperties: Readonly<Record<string, unknown>> = {}): RuntimeVisualDefinitionProjection {
   return {
@@ -90,7 +46,7 @@ function instance(
 ): RuntimeVisualInstance {
   return new RuntimeVisualInstance({
     definition: definition(baseProperties),
-    registry,
+    schema,
     runtimeInstanceId,
     visualContextInstanceId: 'screen-instance-1'
   });
@@ -127,8 +83,8 @@ test('invalid layer values fail closed and keep the lower authoritative value', 
   expect(diagnostic.validationFailures).toContainEqual({
     propertyKey: 'opacity',
     layer: 'binding',
-    code: 'TEST_OPACITY_INVALID',
-    reason: 'Opacity must be between 0 and 1.'
+    code: 'number.maximum',
+    reason: 'number.maximum'
   });
 
   runtime.setBindingValue('opacity', 0.6);
@@ -142,8 +98,8 @@ test('invalid Engineering base value falls through to registry default with sour
   expect(runtime.getPropertyDiagnostic('opacity').validationFailures).toContainEqual({
     propertyKey: 'opacity',
     layer: 'engineering',
-    code: 'TEST_OPACITY_INVALID',
-    reason: 'Opacity must be between 0 and 1.'
+    code: 'number.maximum',
+    reason: 'number.maximum'
   });
 });
 
@@ -151,6 +107,12 @@ test('runtime policy rejects unregistered, non-readable, non-writable, non-bindi
   const runtime = instance('runtime-policy', { engineeringOnly: 'base' });
 
   expect(() => runtime.readRuntimeReadable('engineeringOnly')).toThrow(/not runtime-readable/);
+  expect(() => runtime.readPropertyState('engineeringOnly')).toThrow(/not runtime-readable/);
+  expect(runtime.readEffective('engineeringOnly')).toEqual({
+    propertyKey: 'engineeringOnly',
+    value: 'base',
+    source: 'engineering'
+  });
   expect(() => runtime.setScriptOverride('engineeringOnly', 'script')).toThrow(/not runtime-writable/);
   expect(() => runtime.clearScriptOverride('engineeringOnly')).toThrow(/not runtime-writable/);
   expect(() => runtime.setBindingValue('engineeringOnly', 'binding')).toThrow(/does not support binding/);
@@ -161,19 +123,40 @@ test('runtime policy rejects unregistered, non-readable, non-writable, non-bindi
 });
 
 test('engineering base snapshot and runtime presentation state remain instance-local and immutable', () => {
-  const asset = { assetId: 'asset-a' };
+  const asset = { assetId: 'asset:a' };
   const base = { width: 95, assetRef: asset };
   const first = instance('runtime-a', base);
   const second = instance('runtime-b', base);
 
-  asset.assetId = 'mutated-outside';
+  asset.assetId = 'asset:mutated-outside';
   first.setScriptOverride('width', 140);
 
   expect(first.readEffective('width')).toEqual({ propertyKey: 'width', value: 140, source: 'script' });
   expect(second.readEffective('width')).toEqual({ propertyKey: 'width', value: 95, source: 'engineering' });
-  expect(first.engineeringBaseSnapshot).toEqual({ width: 95, assetRef: { assetId: 'asset-a' } });
-  expect(second.engineeringBaseSnapshot).toEqual({ width: 95, assetRef: { assetId: 'asset-a' } });
+  expect(first.engineeringBaseSnapshot).toEqual({ width: 95, assetRef: { assetId: 'asset:a' } });
+  expect(second.engineeringBaseSnapshot).toEqual({ width: 95, assetRef: { assetId: 'asset:a' } });
   expect(base.width).toBe(95);
+});
+
+test('constructor rejects schema/definition type mismatch and malformed explicit runtime identities', () => {
+  expect(() => new RuntimeVisualInstance({
+    definition: { ...definition(), objectType: 'other' },
+    schema,
+    runtimeInstanceId: 'runtime-mismatch'
+  })).toThrow(/does not match schema/);
+
+  expect(() => new RuntimeVisualInstance({
+    definition: definition(),
+    schema,
+    runtimeInstanceId: ' runtime-with-space '
+  })).toThrow(/stable non-empty token/);
+
+  expect(() => new RuntimeVisualInstance({
+    definition: definition(),
+    schema,
+    runtimeInstanceId: 'runtime-valid',
+    visualContextInstanceId: '   '
+  })).toThrow(/stable non-empty token/);
 });
 
 test('dispose clears runtime layers, runs owned cleanup once and prevents further writes', () => {

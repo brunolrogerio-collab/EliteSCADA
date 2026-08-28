@@ -192,8 +192,8 @@ test('Wave 03 readiness: Audit and user administration remain backend-authorized
   }
 });
 
-test('Wave 03 readiness: major Runtime, Engineering, Audit and session states follow pt-BR, en and es', async ({ page }) => {
-  for (const expected of localeExpectations) {
+for (const expected of localeExpectations) {
+  test(`Wave 03 readiness: Runtime, Engineering, Audit and session states follow ${expected.locale}`, async ({ page }) => {
     await setProductLocale(page, expected.locale);
     await page.goto('/');
 
@@ -217,5 +217,5 @@ test('Wave 03 readiness: major Runtime, Engineering, Audit and session states fo
     await auditLink.click();
     await expect(page).toHaveURL(/\/audit$/);
     await expect(page.getByRole('heading', { name: expected.audit, exact: true })).toBeVisible();
-  }
-});
+  });
+}

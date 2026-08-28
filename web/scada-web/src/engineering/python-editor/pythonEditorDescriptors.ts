@@ -62,7 +62,8 @@ export function buildEntryPointCompletions(
 
   for (const entryPoint of entryPoints) {
     const handler = entryPoint.handlerName.trim();
-    if (!isPythonIdentifier(handler) || !seen.add(handler)) continue;
+    if (!isPythonIdentifier(handler) || seen.has(handler)) continue;
+    seen.add(handler);
 
     const target = entryPoint.targetReference?.trim();
     const context = target

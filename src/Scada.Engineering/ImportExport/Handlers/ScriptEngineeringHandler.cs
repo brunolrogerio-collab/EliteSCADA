@@ -138,8 +138,9 @@ internal sealed class ScriptEngineeringHandler
             .SelectMany(script => new[] { script.Id.ToString("D"), script.Path })
             .ToHashSet(StringComparer.Ordinal);
         var unassigned = validation.Issues
-            .Where(issue => issue.ScriptId is null &&
-                (issue.EntityKey is null || !assignedIssueKeys.Contains(issue.EntityKey)))
+            .Where(issue => issue.ScriptId is { } issueScriptId
+                ? !incomingIds.Contains(issueScriptId)
+                : issue.EntityKey is null || !assignedIssueKeys.Contains(issue.EntityKey))
             .ToArray();
         if (unassigned.Length > 0)
         {

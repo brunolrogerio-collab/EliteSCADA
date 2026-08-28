@@ -1,3 +1,14 @@
+.script-source-field {
+  display: grid;
+  gap: .35rem;
+  min-width: 0;
+}
+
+.script-source-field__label {
+  font-size: .84rem;
+  font-weight: 600;
+}
+
 .python-editor {
   display: grid;
   gap: .65rem;

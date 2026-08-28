@@ -120,6 +120,11 @@ internal sealed class ViewEngineeringHandler
     {
         foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
         {
+            // EngineeringValidator already records a null element as invalid input.
+            // Reference/schema traversal must stop at that node instead of throwing.
+            if (element is null)
+                continue;
+
             issues.AddRange(BuiltinVisualEngineeringValidation.Validate(element, kind, entityKey));
 
             EngineeringHandlerSupport.ValidateConcreteTagBindings(

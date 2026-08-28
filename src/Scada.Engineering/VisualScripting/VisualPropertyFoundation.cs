@@ -9,7 +9,8 @@ public enum VisualPropertyValueKind
     Integer,
     String,
     Color,
-    ResourceReference
+    ResourceReference,
+    AssetReference
 }
 
 public abstract record VisualPropertyValue(VisualPropertyValueKind Kind);
@@ -29,8 +30,20 @@ public sealed record VisualStringValue(string Value)
 public sealed record VisualColorValue(string Value)
     : VisualPropertyValue(VisualPropertyValueKind.Color);
 
+/// <summary>
+/// Legacy resource reference retained for compatibility with the pre-Wave-07
+/// visual foundation. New image-capable schemas use VisualAssetReferenceValue.
+/// </summary>
 public sealed record VisualResourceReferenceValue(string ResourceId)
     : VisualPropertyValue(VisualPropertyValueKind.ResourceReference);
+
+/// <summary>
+/// Stable project-asset identity. Null means no asset is selected. Descriptive
+/// metadata such as name, media type, dimensions and content hash belongs to the
+/// canonical asset entity rather than being duplicated into property values.
+/// </summary>
+public sealed record VisualAssetReferenceValue(string? AssetId)
+    : VisualPropertyValue(VisualPropertyValueKind.AssetReference);
 
 public sealed record VisualPropertyConstraints
 {
@@ -127,6 +140,12 @@ public sealed class VisualPropertyDefinition
                 if (string.IsNullOrWhiteSpace(resource.ResourceId))
                     throw new ArgumentException($"Property '{Key}' requires a non-empty resource reference.", nameof(value));
                 break;
+            case VisualAssetReferenceValue asset:
+                if (asset.AssetId is not null && !IsStableAssetId(asset.AssetId))
+                    throw new ArgumentException(
+                        $"Property '{Key}' requires a stable project asset identity rather than a path or URL.",
+                        nameof(value));
+                break;
         }
     }
 
@@ -176,6 +195,32 @@ public sealed class VisualPropertyDefinition
         for (var index = 1; index < value.Length; index++)
         {
             if (!Uri.IsHexDigit(value[index]))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static bool IsStableAssetId(string value)
+    {
+        if (value.Length is < 1 or > 128 || !string.Equals(value, value.Trim(), StringComparison.Ordinal))
+            return false;
+        if (value.Any(character => character is '/' or '\\' || character < ' ' || character == '\u007f'))
+            return false;
+
+        var candidate = value.StartsWith("asset:", StringComparison.Ordinal)
+            ? value["asset:".Length..]
+            : value;
+        if (value.Contains(':') && !value.StartsWith("asset:", StringComparison.Ordinal))
+            return false;
+        if (candidate.Length == 0 || candidate.Contains(':'))
+            return false;
+
+        for (var index = 0; index < candidate.Length; index++)
+        {
+            var character = candidate[index];
+            var allowed = character is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9' or '.' or '_' or '-';
+            if (!allowed || (index == 0 && character is '.' or '_' or '-'))
                 return false;
         }
 
@@ -284,10 +329,13 @@ public static class VisualPropertyKeys
     public const string FontStyle = "fontStyle";
     public const string HorizontalAlignment = "horizontalAlignment";
     public const string VerticalAlignment = "verticalAlignment";
-    public const string ImageResourceId = "imageResourceId";
+    public const string AssetRef = "assetRef";
     public const string ImageFit = "imageFit";
     public const string ImagePositionX = "imagePositionX";
     public const string ImagePositionY = "imagePositionY";
+
+    // Pre-Wave-07 compatibility constant. New visual schemas use AssetRef.
+    public const string ImageResourceId = "imageResourceId";
 }
 
 public static class CommonVisualPropertyDefinitions
@@ -343,11 +391,15 @@ public static class CommonVisualPropertyDefinitions
     public static IReadOnlyList<VisualPropertyDefinition> Image { get; } =
     [
         new VisualPropertyDefinition(
-            VisualPropertyKeys.ImageResourceId,
-            new VisualResourceReferenceValue("resource:none"),
+            VisualPropertyKeys.AssetRef,
+            new VisualAssetReferenceValue(null),
+            engineeringEditable: true,
+            runtimeReadable: true,
+            runtimeWritable: false,
+            supportsBinding: false,
             animatable: false,
-            presentationHint: "resource"),
-        EnumString(VisualPropertyKeys.ImageFit, "contain", ["contain", "cover", "fill", "none"]),
+            presentationHint: "project-asset"),
+        EnumString(VisualPropertyKeys.ImageFit, "contain", ["contain", "cover", "fill", "native"]),
         Number(VisualPropertyKeys.ImagePositionX, 0, minimum: 0, maximum: 1, animatable: true),
         Number(VisualPropertyKeys.ImagePositionY, 0, minimum: 0, maximum: 1, animatable: true)
     ];

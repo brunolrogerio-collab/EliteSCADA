@@ -188,7 +188,7 @@ public static class EngineeringValidator
         if (elements is null) yield break;
 
         var duplicates = elements
-            .Where(x => !string.IsNullOrWhiteSpace(x.Key))
+            .Where(x => x is not null && !string.IsNullOrWhiteSpace(x.Key))
             .GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key)
@@ -196,6 +196,12 @@ public static class EngineeringValidator
 
         foreach (var element in elements)
         {
+            if (element is null)
+            {
+                yield return Error("VISUAL_ELEMENT_NULL", "Visual element cannot be null.", entityKind, entityKey);
+                continue;
+            }
+
             if (string.IsNullOrWhiteSpace(element.Key))
                 yield return Error("VISUAL_ELEMENT_KEY_REQUIRED", "Visual element key is required.", entityKind, entityKey);
             if (string.IsNullOrWhiteSpace(element.Type))
@@ -227,7 +233,7 @@ public static class EngineeringValidator
         if (bindings is null) yield break;
 
         var duplicates = bindings
-            .Where(x => !string.IsNullOrWhiteSpace(x.Key))
+            .Where(x => x is not null && !string.IsNullOrWhiteSpace(x.Key))
             .GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key)
@@ -235,18 +241,31 @@ public static class EngineeringValidator
 
         foreach (var binding in bindings)
         {
+            if (binding is null)
+            {
+                yield return Error("BINDING_NULL", "Binding cannot be null.", entityKind, entityKey);
+                continue;
+            }
+
             if (string.IsNullOrWhiteSpace(binding.Key))
                 yield return Error("BINDING_KEY_REQUIRED", "Binding key is required.", entityKind, entityKey);
             if (string.IsNullOrWhiteSpace(binding.Target))
                 yield return Error("BINDING_TARGET_REQUIRED", $"Binding '{binding.Key}' requires a target.", entityKind, entityKey);
             if (!string.IsNullOrWhiteSpace(binding.Key) && duplicates.Contains(binding.Key))
                 yield return Error("BINDING_DUPLICATE", $"Binding key '{binding.Key}' appears more than once.", entityKind, entityKey);
-            if (binding.Kind == EngineeringBindingKind.Tag && !allowTagPlaceholders && ContainsPlaceholder(binding.Target))
+            if (binding.Kind == EngineeringBindingKind.Tag &&
+                !allowTagPlaceholders &&
+                !string.IsNullOrWhiteSpace(binding.Target) &&
+                ContainsPlaceholder(binding.Target))
+            {
                 yield return Error("BINDING_TAG_PLACEHOLDER_NOT_ALLOWED", $"Binding '{binding.Key}' must reference a concrete TAG path.", entityKind, entityKey);
+            }
         }
     }
 
-    private static bool ContainsPlaceholder(string value) => value.Contains('{', StringComparison.Ordinal) || value.Contains('}', StringComparison.Ordinal);
+    private static bool ContainsPlaceholder(string? value) =>
+        value?.Contains('{', StringComparison.Ordinal) == true ||
+        value?.Contains('}', StringComparison.Ordinal) == true;
 
     private static ImportIssue Error(string code, string message, ImportEntityKind kind, string key) =>
         new(code, message, kind, key, true);

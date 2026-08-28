@@ -41,8 +41,8 @@ public sealed class PostgreSqlCanonicalScriptPersistenceTests
         Assert.NotNull(storedFirst);
         Assert.NotNull(storedSecond);
         Assert.NotNull(latest);
-        Assert.Equal(10, storedFirst!.SchemaVersion);
-        Assert.Equal(10, storedSecond!.SchemaVersion);
+        Assert.Equal(10, storedFirst!.EngineeringSchemaVersion);
+        Assert.Equal(10, storedSecond!.EngineeringSchemaVersion);
         Assert.Equal(second.Revision, latest!.Revision);
 
         AssertScript(storedFirst.EngineeringJson, scriptId, "value = 1", enabled: true);

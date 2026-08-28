@@ -21,6 +21,7 @@ using Scada.Engineering.DataSources;
 using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.ProjectPackages;
+using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
 using Scada.Engineering.Views;
 using Scada.Historian.Abstractions;
@@ -43,6 +44,7 @@ builder.Services.AddSingleton<IEngineeringAssetRegistry>(sp => sp.GetRequiredSer
 builder.Services.AddSingleton<IEngineeringViewRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Views);
 builder.Services.AddSingleton<ISecurityPolicyEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().SecurityPolicies);
 builder.Services.AddSingleton<ICommandEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Commands);
+builder.Services.AddSingleton<IScriptEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Scripts);
 builder.Services.AddSingleton<IGatewayEngineeringRegistry>(sp =>
     new InMemoryGatewayEngineeringRegistry(sp.GetRequiredService<EngineeringWorkspace>().MarkDirty));
 builder.Services.AddSingleton<DemoRuntimeServices>();
@@ -371,7 +373,7 @@ app.MapPost("/api/alarms/{id:guid}/ack", async (
     }
 
     var acknowledgedBy = authorization.Principal.DisplayName ?? authorization.Principal.SubjectId;
-    _ = request; // Legacy body field is intentionally ignored; identity comes from the authenticated token.
+    _ = request;
 
     try
     {
@@ -426,6 +428,10 @@ app.MapGet("/api/engineering/security-roles", (ISecurityPolicyEngineeringRegistr
 app.MapGet("/api/engineering/commands", (ICommandEngineeringRegistry registry) => Results.Ok(registry.Snapshot()))
     .RequireWorkspaceEngineeringRead();
 app.MapGet("/api/engineering/gateways", (IGatewayEngineeringRegistry registry) => Results.Ok(registry.Snapshot()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/scripts", (IScriptEngineeringRegistry registry) => Results.Ok(registry.SnapshotScripts()))
+    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/script-visual-event-references", (IScriptEngineeringRegistry registry) => Results.Ok(registry.SnapshotVisualEventReferences()))
     .RequireWorkspaceEngineeringRead();
 
 app.MapGet("/api/engineering/export/json", (IEngineeringExchangeService exchange) =>

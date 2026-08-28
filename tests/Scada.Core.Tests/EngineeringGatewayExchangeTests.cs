@@ -45,7 +45,7 @@ public sealed class EngineeringGatewayExchangeTests
         var json = sourceService.ExportJson(indented: false);
         var package = sourceService.ParseJson(json);
 
-        Assert.Equal(9, package.SchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, package.SchemaVersion);
         var exportedRoute = Assert.Single(package.Gateways!);
         Assert.Equal(routeId, exportedRoute.Id);
         Assert.Equal(source.Id, exportedRoute.SourceTagId);
@@ -93,7 +93,6 @@ public sealed class EngineeringGatewayExchangeTests
 
         var current = service.ParseJson(service.ExportJson());
         Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, current.SchemaVersion);
-        Assert.Equal(9, current.SchemaVersion);
         Assert.Empty(current.Gateways!);
     }
 

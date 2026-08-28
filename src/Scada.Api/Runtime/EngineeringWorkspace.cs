@@ -5,6 +5,7 @@ using Scada.Engineering.Assets;
 using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
+using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
 using Scada.Engineering.Views;
 using Scada.Security.Authorization;
@@ -65,6 +66,7 @@ public sealed class EngineeringWorkspace : IDisposable
         Views = new InMemoryEngineeringViewRegistry(MarkDirty);
         SecurityPolicies = new InMemorySecurityPolicyEngineeringRegistry(MarkDirty);
         Commands = new InMemoryCommandEngineeringRegistry(MarkDirty);
+        Scripts = new InMemoryScriptEngineeringRegistry(MarkDirty);
         SeedDemo();
     }
 
@@ -75,6 +77,7 @@ public sealed class EngineeringWorkspace : IDisposable
     public InMemoryEngineeringViewRegistry Views { get; }
     public InMemorySecurityPolicyEngineeringRegistry SecurityPolicies { get; }
     public InMemoryCommandEngineeringRegistry Commands { get; }
+    public InMemoryScriptEngineeringRegistry Scripts { get; }
 
     public EngineeringWorkspaceDescriptor Describe()
     {
@@ -204,6 +207,7 @@ public sealed class EngineeringWorkspace : IDisposable
         Views.Clear();
         SecurityPolicies.Clear();
         Commands.Clear();
+        Scripts.Clear();
     }
 
     private void SeedDemo()

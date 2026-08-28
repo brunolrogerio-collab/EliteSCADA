@@ -2,6 +2,7 @@ using System.Text.Json;
 using Scada.Core.Alarms;
 using Scada.Core.Commands;
 using Scada.Core.Tags;
+using Scada.Engineering.Scripts;
 using Scada.Security.Authorization;
 
 namespace Scada.Engineering.Contracts;
@@ -25,7 +26,8 @@ public enum ImportEntityKind
     Popup,
     SecurityRole,
     Command,
-    Gateway
+    Gateway,
+    Script
 }
 
 public enum ImportOperation
@@ -273,7 +275,9 @@ public sealed record EngineeringPackage(
     IReadOnlyCollection<PopupEngineeringDto>? Popups = null,
     IReadOnlyCollection<SecurityRoleEngineeringDto>? SecurityRoles = null,
     IReadOnlyCollection<CommandEngineeringDto>? Commands = null,
-    IReadOnlyCollection<GatewayRouteEngineeringDto>? Gateways = null);
+    IReadOnlyCollection<GatewayRouteEngineeringDto>? Gateways = null,
+    IReadOnlyCollection<ScriptEngineeringDefinition>? Scripts = null,
+    IReadOnlyCollection<ScriptVisualEventReference>? ScriptVisualEventReferences = null);
 
 public sealed record ImportIssue(
     string Code,

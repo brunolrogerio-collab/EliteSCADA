@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+import * as monaco from 'monaco-editor';
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import 'monaco-editor/esm/vs/basic-languages/python/python.contribution';
 import type { EngineeringLocale } from '../i18n';
 import type {
   ScriptEngineeringEntryPoint,

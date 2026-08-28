@@ -4,8 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/sync-pyodide.mjs",
     "dev": "vite",
+    "prebuild": "node scripts/sync-pyodide.mjs",
     "build": "tsc -b && vite build",
+    "prepreview": "node scripts/sync-pyodide.mjs",
     "preview": "vite preview",
     "test:e2e": "playwright test"
   },
@@ -14,7 +17,9 @@
     "vite": "latest",
     "typescript": "latest",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "monaco-editor": "0.56.0",
+    "pyodide": "314.0.6"
   },
   "devDependencies": {
     "@playwright/test": "latest",

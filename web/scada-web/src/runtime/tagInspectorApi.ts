@@ -7,7 +7,7 @@ import type {
   RuntimeTagRealtimeEvent
 } from './tagInspectorTypes';
 
-const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
+const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
 export class RuntimeTagInspectorApiError extends Error {
   constructor(

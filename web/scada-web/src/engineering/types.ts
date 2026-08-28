@@ -190,11 +190,39 @@ export type RuntimeDiagnosticsView = {
   };
 };
 
+/**
+ * In a visual element, key is the destination visual-property/slot key and
+ * target is the TAG/property/expression source reference. This mirrors the
+ * current canonical EngineeringBindingDto instead of inventing editor-local
+ * binding semantics.
+ */
 export type BindingEngineering = {
   key: string;
   kind: string;
   target: string;
-  direction?: string;
+  direction?: string | null;
+  metadata?: Record<string, string> | null;
+};
+
+/**
+ * Schema-v10 visual properties are still represented canonically as strings.
+ * Wave 07/08 readiness code must not reinterpret that limitation as permission
+ * for an editor-private model. A future schema migration will replace this
+ * legacy serialization with typed JSON deliberately.
+ */
+export type LegacyVisualEngineeringPropertyMap = Record<string, string>;
+
+export type VisualElementEngineering = {
+  id?: string | null;
+  key: string;
+  type: string;
+  dynamoKey?: string | null;
+  equipmentPath?: string | null;
+  bindings?: BindingEngineering[] | null;
+  properties?: LegacyVisualEngineeringPropertyMap | null;
+  context?: Record<string, string> | null;
+  children?: VisualElementEngineering[] | null;
+  metadata?: Record<string, string> | null;
 };
 
 export type TemplateEngineering = {
@@ -224,16 +252,22 @@ export type ScreenEngineering = {
   id?: string;
   key: string;
   name: string;
-  route?: string;
-  elements?: unknown[];
+  route?: string | null;
+  elements?: VisualElementEngineering[] | null;
+  properties?: Record<string, string> | null;
+  context?: Record<string, string> | null;
+  metadata?: Record<string, string> | null;
 };
 
 export type PopupEngineering = {
   id?: string;
   key: string;
   name: string;
-  templateKey?: string;
-  elements?: unknown[];
+  templateKey?: string | null;
+  elements?: VisualElementEngineering[] | null;
+  properties?: Record<string, string> | null;
+  context?: Record<string, string> | null;
+  metadata?: Record<string, string> | null;
 };
 
 export type SecurityRoleEngineering = {

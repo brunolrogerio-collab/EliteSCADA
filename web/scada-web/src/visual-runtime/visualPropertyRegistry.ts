@@ -150,7 +150,7 @@ export class VisualObjectPropertySchema {
     return Object.freeze(this.#propertyKeys.map(key => this.#registry.getRequired(key)));
   }
 
-  createDefaultBaseValues(): Readonly<Record<string, VisualPropertyValue>> {
+  createDefaultValues(): Readonly<Record<string, VisualPropertyValue>> {
     const values: Record<string, VisualPropertyValue> = Object.create(null) as Record<string, VisualPropertyValue>;
     for (const propertyKey of this.#propertyKeys) {
       const definition = this.#registry.getRequired(propertyKey);

@@ -13,17 +13,17 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "typescript": "latest",
+    "@vitejs/plugin-react": "6.1.1",
+    "vite": "8.2.2",
+    "typescript": "7.0.2",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "monaco-editor": "0.56.0",
     "pyodide": "314.0.6"
   },
   "devDependencies": {
-    "@playwright/test": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest"
+    "@playwright/test": "1.62.1",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5"
   }
 }

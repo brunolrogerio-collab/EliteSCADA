@@ -180,6 +180,7 @@ function numberProperty(
   options: Readonly<{
     minimum?: number;
     maximum?: number;
+    integer?: boolean;
     animatable?: boolean;
     unit?: string;
     category?: string;
@@ -193,6 +194,7 @@ function numberProperty(
     animatable: options.animatable ?? false,
     minimum: options.minimum,
     maximum: options.maximum,
+    integer: options.integer,
     unit: options.unit,
     category: options.category
   };
@@ -268,7 +270,7 @@ const COMMON_VISUAL_PROPERTY_DEFINITIONS: readonly VisualPropertyDefinition[] = 
   numberProperty(VISUAL_PROPERTY_KEYS.rotation, 0, { animatable: true, unit: 'deg', category: 'geometry' }),
   numberProperty(VISUAL_PROPERTY_KEYS.scaleX, 1, { minimum: 0, animatable: true, category: 'geometry' }),
   numberProperty(VISUAL_PROPERTY_KEYS.scaleY, 1, { minimum: 0, animatable: true, category: 'geometry' }),
-  numberProperty(VISUAL_PROPERTY_KEYS.zIndex, 0, { category: 'geometry' }),
+  numberProperty(VISUAL_PROPERTY_KEYS.zIndex, 0, { integer: true, category: 'geometry' }),
   booleanProperty(VISUAL_PROPERTY_KEYS.visible, true, 'appearance'),
   numberProperty(VISUAL_PROPERTY_KEYS.opacity, 1, { minimum: 0, maximum: 1, animatable: true, category: 'appearance' }),
   colorProperty(VISUAL_PROPERTY_KEYS.fillColor, '#00000000', 'appearance'),
@@ -354,6 +356,7 @@ function validateValueForDefinition(
     case 'number': {
       if (typeof value !== 'number') return failure(definition.key, 'value.type', 'Expected number.');
       if (!Number.isFinite(value)) return failure(definition.key, 'number.nonFinite');
+      if (definition.integer === true && !Number.isInteger(value)) return failure(definition.key, 'number.integer');
       if (definition.minimum !== undefined && value < definition.minimum) return failure(definition.key, 'number.minimum');
       if (definition.maximum !== undefined && value > definition.maximum) return failure(definition.key, 'number.maximum');
       return success(definition.key, value);

@@ -5,9 +5,15 @@ import type { ClientVisualPythonCapabilityProvider } from './clientVisualPythonC
 
 export type ClientVisualPythonTagReader = (reference: string) => Promise<RuntimeTagDetailResponse>;
 
+export type ClientVisualPythonVisualPropertyProvider = Pick<
+  ClientVisualPythonCapabilityProvider,
+  'readVisualProperty' | 'writeVisualProperty'
+>;
+
 export type ClientVisualPythonCapabilityProviderOptions = {
   tagReader?: ClientVisualPythonTagReader;
   memoryStore?: ClientMemoryStore;
+  visualPropertyProvider?: ClientVisualPythonVisualPropertyProvider;
 };
 
 export function createClientVisualPythonCapabilityProvider(
@@ -15,6 +21,7 @@ export function createClientVisualPythonCapabilityProvider(
 ): ClientVisualPythonCapabilityProvider {
   const tagReader = options.tagReader ?? loadRuntimeTagDetail;
   const memoryStore = options.memoryStore ?? clientMemory;
+  const visualPropertyProvider = options.visualPropertyProvider;
 
   return {
     async readTag(reference) {
@@ -46,6 +53,9 @@ export function createClientVisualPythonCapabilityProvider(
     writeClientMemory(reference, value) {
       memoryStore.write(reference, value);
       return memoryStore.read(reference) ?? null;
-    }
+    },
+
+    readVisualProperty: visualPropertyProvider?.readVisualProperty,
+    writeVisualProperty: visualPropertyProvider?.writeVisualProperty
   };
 }

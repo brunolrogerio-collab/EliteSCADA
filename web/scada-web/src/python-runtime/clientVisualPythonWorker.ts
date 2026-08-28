@@ -195,12 +195,16 @@ function installDeniedPythonImportGuard() {
 import sys
 
 class _EliteScadaDeniedImportFinder:
-    _blocked = ("micropip", "pyodide.http")
+    _blocked = ("micropip", "pyodide", "pyodide_js")
 
     def find_spec(self, fullname, path=None, target=None):
         if any(fullname == item or fullname.startswith(item + ".") for item in self._blocked):
             raise ImportError("Module is unavailable in the EliteSCADA Client Visual sandbox.")
         return None
+
+for _module_name in tuple(sys.modules):
+    if any(_module_name == item or _module_name.startswith(item + ".") for item in _EliteScadaDeniedImportFinder._blocked):
+        sys.modules.pop(_module_name, None)
 
 sys.meta_path.insert(0, _EliteScadaDeniedImportFinder())
 `);

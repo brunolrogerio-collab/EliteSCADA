@@ -1,7 +1,7 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-08-28  
-**Active direction:** **VISUAL-RUNTIME-WAVE-07 FOURTH STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
+**Active direction:** **VISUAL-RUNTIME-WAVE-07 FOURTH STATIC AUDIT COMPLETE / CI AVAILABLE / PRE-FINALIZATION / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
 
 Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
 Parallel execution model: `docs/DEVELOPMENT-WAVES.md`.  
@@ -23,11 +23,20 @@ Canonical Engineering in merged `main` remains **Schema v10**. Wave 07 visual-ru
 - **Wave 03 — COMPLETE / MERGED.** Main merge `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`; final CI #418 green.
 - **Wave 04 — COMPLETE / MERGED.** Main merge `e9e596f482c83bf5864b34a7f54d9fd3b0b67baa`; final CI #446 green.
 - **Wave 05 — COMPLETE / MERGED.** Final CI #466 green; PR #79 merged; main merge `7f629bf660bb16fd46fbf6abeb72b9ca1676e087`.
-- **Wave 06 — COMPLETE / MERGED.** Final integration head `d665dc13b0922938a15252d9775ef6604e41bff4`; final CI #487 fully green; PR #83 merged; main merge `cc79713434c1d7b5988158b843b137eaf488d923`.
+- **Wave 06 — COMPLETE / MERGED.** Final integration head `d665dc13b0922938a15252d9775ef6604e41bff4`; final CI #487 green; PR #83 merged; main merge `cc79713434c1d7b5988158b843b137eaf488d923`.
 
-Wave 06 delivered Monaco Python editing/diagnostics, pinned/self-hosted Pyodide, isolated Worker runtime behind bridge v1, compile-before-Preview/Apply/CAS, authorized TAG read, owning-client Client Memory read/write, bounded execution/cancellation/queue/disposal/failure throttling, controlled handler preview, real-Pyodide adversarial acceptance and native escape denial.
+## GitHub Actions availability
 
-Automatic run #488 after the Wave 06 merge allocated no runner/product steps and is infrastructure evidence, not a product regression.
+The previous CI-budget freeze is lifted.
+
+On 2026-08-28 the owner reported an account/repository configuration change expected to provide roughly 1000 additional Actions minutes. Repository tooling cannot verify billing balance directly, but a controlled probe proved execution availability:
+
+- historical run #488, attempt 2;
+- reran only Web build job `98990802140`;
+- hosted runner allocated;
+- checkout/setup/install/build all SUCCESS.
+
+This probe validates Actions availability only, not Wave 07 product correctness.
 
 ## Ordered path to v0.1
 
@@ -36,7 +45,7 @@ Wave 03  Operational lifecycle + Runtime TAG Inspector + acceptance foundation  
 Wave 04  Project portability + basic Trends + Administration                        COMPLETE
 Wave 05  Canonical Script Engineering                                                COMPLETE
 Wave 06  Python Editor + Client Visual sandbox                                       COMPLETE
-Wave 07  Visual Runtime Object Model + visual Asset contract                         FOURTH STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED
+Wave 07  Visual Runtime Object Model + visual Asset contract                         PRE-FINALIZATION / CI AVAILABLE
 Wave 08  Graphical Editor Foundation + image import/object                           WAITING
 Wave 09  Screens + Popups + Dynamos + asset dependencies/navigation
 Wave 10  Python visual events + animation + preview
@@ -48,103 +57,64 @@ Wave 15  Feedback/corrections
 FINAL    EliteSCADA v0.1 — Full Product Validation Preview
 ```
 
-Do not skip dependencies simply because later research already exists.
+Do not skip dependencies simply because CI capacity or later research exists.
 
 ## Wave 07 — Visual Runtime Object Model
 
-**FOURTH STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED / NOT MERGE-READY.**
+**FOURTH STATIC AUDIT COMPLETE / CI AVAILABLE / PRE-FINALIZATION / NOT MERGE-READY.**
 
 - Logical WaveBaseSHA: `cc79713434c1d7b5988158b843b137eaf488d923`
 - ContractSHA: `06faf079bc5185689712bd2c9a225c2bb8d90999`
 - Integration branch: `integration/visual-runtime-wave-07`
 - Exact current integration head: `e376b37d2772906dd667afa199a6d8882abd43ae`
-- Integration PR: intentionally not open
+- Integration PR: not open yet
 
-Wave 07 integration currently contains:
+Current integration includes:
 
-- typed common Visual Property Registry and renderer-independent built-in `core.*` schemas;
-- signed-Int32 parity for integer visual properties;
+- typed common Visual Property Registry and `core.*` built-in schemas;
+- signed-Int32 parity for integer properties;
 - stable `assetRef = null | { assetId }` authority;
-- Runtime Visual Instance identity/lifecycle/isolation and deterministic `Animation > Script > Binding/Expression > Engineering Base > Default` resolution;
+- Runtime Visual Instance identity/lifecycle/isolation and deterministic precedence;
 - stable nested visual IDs through transitional Engineering Schema v11 with v1-v10 compatibility;
-- canonical visual binding semantics and typed frontend visual Engineering projection;
-- schema-guided transitional legacy property codecs in C# and TypeScript;
+- canonical visual binding semantics and typed frontend Engineering projection;
+- schema-guided transitional property codecs in C# and TypeScript;
 - official Engineering -> Runtime adapter;
-- backend Preview enforcement of `core.*` schema/property/binding authority;
-- Client Visual Python property read/write/explicit-clear bound to the exact current Runtime Visual Instance;
-- real Worker exposure of `elite_scada.visual_property_clear` through existing bridge-v1 `visualProperty.write` capability + operation `clear`;
+- backend Preview enforcement for built-in schema/property/binding authority;
+- Client Visual Python property read/write/explicit-clear bound to the exact current instance;
+- real Worker exposure of `elite_scada.visual_property_clear`;
 - fail-closed malformed/null visual and Script Engineering Preview handling;
-- canonical Script Engineering resolution of stable nested `VisualObject` IDs for dependencies and object-scoped visual events;
-- prospective validation that surfaces already-saved Scripts invalidated by incoming Engineering changes;
-- legacy v10 Screen/Popup identity projection aligned with Apply so child IDs preserved by key remain valid and removed referenced children fail before Apply;
-- adversarial structured-value/sandbox/property authority coverage committed but not yet executed on the final head.
+- canonical nested `VisualObject` Script dependency/event resolution;
+- prospective validation of already-saved Scripts against incoming Engineering changes;
+- legacy v10 visual identity projection aligned with Apply semantics.
 
 Integrated worker heads remain:
 
 - DEV 1 `ed8d9af027173e6d265ff382dbc9c115bcd2e284`
 - DEV 2 `d6c1e997178e0ce525233079effd442f59743386`
 - DEV 3 `25ebac63a957c1c0c5b8e2557caec152d9d36bfc`
-- worker integration commit `295bdabba5c25b2e4a729228130185976735d939`
 
 ### Static audit history
 
-Earlier deterministic contract-test drift around AssetReference and `createDefaultValues()` was corrected through `63878f6fe28a0a9ac101d622628f8b95658899a7`.
+- AssetReference/API test drift corrected through `63878f6fe28a0a9ac101d622628f8b95658899a7`.
+- Third audit corrected Python clear, malformed nested visual Preview, Int32 parity and stale Wave 06 policy snapshot through `d184fdd5b65f2ce0c0e6ca28cd092644be080555`.
+- Fourth audit corrected top-level malformed views, stale current-schema Script tests, nested visual Script references, malformed Script arrays, prospective existing-Script integrity and v10 visual identity projection through `e376b37d2772906dd667afa199a6d8882abd43ae`.
 
-The third audit then corrected:
+These corrections still require execution proof on the final candidate head.
 
-1. missing actual-Python clear path for Script overrides;
-2. malformed visual JSON paths that could throw after generic validation instead of staying as `ImportIssue` diagnostics;
-3. TypeScript integer values outside the backend C# Int32 domain;
-4. a stale Wave 06 exact policy snapshot missing Wave 07 structured-value bounds, which would deterministically fail Chromium.
+### Remaining Wave 07 readiness blockers
 
-That sequence ended at `d184fdd5b65f2ce0c0e6ca28cd092644be080555`.
+1. `VisualElementEngineeringDto.Properties` still persists as `Dictionary<string,string>`; canonical JSON-native typed visual property persistence/migration must be settled before Wave 08.
+2. Integration must be reconciled with current documentation-only `main` history.
+3. Minimum reproducibility blockers needed for trustworthy final validation should be settled deliberately, notably frontend lockfile/version pinning and .NET SDK/compiler pinning if chosen.
+4. Final exact-head Web + backend Release/full PostgreSQL + Runtime smoke + Chromium + Wave-specific visual/Python acceptance must be green before merge.
 
-The fourth audit then corrected:
-
-1. top-level malformed Screen/Popup paths that could still escape fail-closed Preview;
-2. three current-schema Script assertions left hard-coded to schema v10 after the Wave 07 v11 transition;
-3. the missing canonical `VisualObject` Script reference catalog for both dependencies and object-scoped visual events;
-4. the same missing nested-object coverage in `ScriptEngineeringReferenceResolver.FromEngineeringPackage`;
-5. null Script/reference collections that could be tolerated by Preview and then fail during Apply;
-6. prospective validation issues on already-saved Scripts that were computed but not surfaced;
-7. legacy v10 Screen/Popup object-ID preservation/removal semantics so Script referential integrity matches actual Apply behavior;
-8. prospective Screen/Popup/Dynamo definition identity precedence aligned with the real import handlers.
-
-Exact resulting integration head: `e376b37d2772906dd667afa199a6d8882abd43ae`.
-
-These are **CI_DEFERRED** corrections, not execution evidence.
-
-### Transitional persistence caveat
-
-`VisualElementEngineeringDto.Properties` remains `Dictionary<string,string>`. Schema v11 is therefore transitional stable-identity/convergence, not final typed visual persistence.
-
-Before Wave 08 becomes ACTIVE, settle and validate canonical JSON-native typed property persistence/migration. The graphical editor must consume canonical typed Engineering rather than create an editor-private string/object model.
-
-Lower-priority items to resolve with that readiness work:
-
-- transitional C# and JavaScript numeric serializers can spell some exponent values differently;
-- canonical `Tag` versus `Property` binding source discrimination should be retained before the graphical binding engine resolves sources itself;
-- older Engineering collections still have broader null/empty-ID hardening debt outside the current Wave 07 visual correction scope.
-
-### Current stop state
-
-The no-Actions stop condition is reached again. Until explicit owner report of Actions reset:
-
-- do not open Wave 07 PR;
-- do not run/rerun Actions;
-- do not merge Wave 07;
-- do not activate Wave 08 workers;
-- do not implement graphical Wave 08 functionality.
-
-Every current `main` change after the Wave 06 merge is documentation-only. No functional `main` code delta is hidden from the Wave 07 branch, though historical reconciliation with current `main` remains mandatory before final exact-head CI.
-
-After reset: reconcile integration with `main`, finalize typed persistence/migration, resolve any reproducibility blocker needed for trustworthy validation, then require exact-final-head Web + backend Release/full PostgreSQL + Runtime smoke + Chromium + Wave-specific visual/Python acceptance before merge.
+Lower-priority items remain numeric textual canonicalization, `Tag` versus `Property` binding-source discrimination, broader legacy import null/empty-ID hardening, production CORS and branch protection.
 
 ## Wave 08 — Graphical Editor Foundation
 
 **WAITING FOR WAVE 07 FINAL VALIDATION/MERGE AND WAVE-08 DEFINITION OF READY.**
 
-Planned scope remains Canvas/selection + shared Property Inspector + initial Object Palette/bindings + project image import/Image object. Stable `assetRef` identity is already defined; the first-class asset entity/import/storage/payload/renderer remains intentional Wave 08 functionality.
+Planned scope remains Canvas/selection + shared Property Inspector + initial Object Palette/bindings + project image import/Image object. Stable `assetRef` identity is defined; first-class asset entity/import/storage/payload/renderer remains Wave 08 functionality.
 
 No Wave 08 worker is active.
 
@@ -153,16 +123,16 @@ No Wave 08 worker is active.
 - **Wave 09:** multiple Screens, Popups, reusable Dynamos and deterministic asset dependencies.
 - **Wave 10:** Python visual events, renderer-native animation/tween and Engineering visual Preview/Test.
 - **Wave 11:** build `Estação Elevatória EliteSCADA Demo` only through normal product APIs/tools.
-- **Wave 12:** hardening of lifecycle, portability, visual/assets, Python failure/isolation, communication, alarms/historian/Gateway, persistence/restart/Active recovery and browser/session/localization.
+- **Wave 12:** hardening.
 - **Wave 13:** Windows x64 product package.
-- **Wave 14:** owner validation of the complete Engineering -> publish/activate -> Runtime -> restart/recover path.
+- **Wave 14:** owner validation.
 - **Wave 15:** feedback/corrections; v0.1 requires P0=0, P1=0 and all required validation green.
 
 ## v0.1 protocol boundary
 
 Required real industrial protocol: **Modbus TCP**. Simulation, Client Memory, Server Memory and Gateway are also part of product validation.
 
-Production MQTT, OPC UA, BACnet, S7, Allen-Bradley and final Driver Module framework remain **POST-v0.1 OWNER VALIDATION**. Preferred later progression: `MQTT -> OPC UA -> BACnet -> Driver Module framework -> Siemens S7 -> Allen-Bradley`.
+Production MQTT, OPC UA, BACnet, S7, Allen-Bradley and final Driver Module framework remain **POST-v0.1 OWNER VALIDATION**.
 
 ## Python/visual dependency chain remains locked
 
@@ -177,5 +147,4 @@ Production MQTT, OPC UA, BACnet, S7, Allen-Bradley and final Driver Module frame
 - preserve canonical Engineering and backend authority;
 - require final integrated CI for every functional wave;
 - economize Actions timing, never final quality;
-- stop speculative product changes when meaningful validation is unavailable;
 - keep assignment board/handoff synchronized because `siga` depends on them.

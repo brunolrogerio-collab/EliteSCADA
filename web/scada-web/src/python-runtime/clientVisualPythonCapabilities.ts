@@ -52,7 +52,7 @@ export async function dispatchClientVisualPythonCapability(
     case 'clientMemory.write': {
       requireOperation(operation, 'write', capability);
       const reference = requireStringArgument(argumentsValue, 'reference');
-      const value = requireObject(argumentsValue, 'arguments').value;
+      const value = requireOwnArgument(argumentsValue, 'value');
       assertBridgeValue(value, 'value');
       return normalizeProviderResult(await requireProvider(provider.writeClientMemory, capability)(reference, value, context));
     }
@@ -68,7 +68,7 @@ export async function dispatchClientVisualPythonCapability(
       requireOperation(operation, 'write', capability);
       const targetReference = requireStringArgument(argumentsValue, 'targetReference');
       const propertyKey = requireStringArgument(argumentsValue, 'propertyKey');
-      const value = requireObject(argumentsValue, 'arguments').value;
+      const value = requireOwnArgument(argumentsValue, 'value');
       assertBridgeValue(value, 'value');
       return normalizeProviderResult(await requireProvider(provider.writeVisualProperty, capability)(targetReference, propertyKey, value, context));
     }
@@ -125,7 +125,7 @@ function requireOperation(
 }
 
 function requireStringArgument(value: unknown, key: string): string {
-  const candidate = requireObject(value, 'arguments')[key];
+  const candidate = requireOwnArgument(value, key);
   if (typeof candidate !== 'string' || !candidate.trim()) {
     throw new ClientVisualPythonCapabilityError(
       'PYTHON_CAPABILITY_ARGUMENT_INVALID',
@@ -133,6 +133,17 @@ function requireStringArgument(value: unknown, key: string): string {
     );
   }
   return candidate;
+}
+
+function requireOwnArgument(value: unknown, key: string): unknown {
+  const object = requireObject(value, 'arguments');
+  if (!Object.hasOwn(object, key)) {
+    throw new ClientVisualPythonCapabilityError(
+      'PYTHON_CAPABILITY_ARGUMENT_INVALID',
+      `Capability argument '${key}' must be provided as an own property.`
+    );
+  }
+  return object[key];
 }
 
 function requireObject(value: unknown, label: string): Record<string, unknown> {
@@ -158,7 +169,12 @@ export function cloneBridgeValue(value: unknown): unknown {
 
   const clone: Record<string, unknown> = {};
   for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-    clone[key] = cloneBridgeValue(item);
+    Object.defineProperty(clone, key, {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: cloneBridgeValue(item)
+    });
   }
   return clone;
 }

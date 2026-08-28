@@ -19,18 +19,40 @@ test('Monaco editor provides Python editing, markers and canonical entry-point c
   expect(editor).not.toContain('backendOperation.request(');
 });
 
-test('Script workspace keeps Monaco source inside the existing canonical Preview Apply CAS workflow', async () => {
+test('Script workspace compiles the exact Client Visual draft before canonical Preview Apply CAS', async () => {
   const workspace = await source('../src/engineering/scripts/ScriptEngineeringWorkspace.tsx');
+  const previewHost = await source('../src/python-runtime/engineeringPythonPreview.ts');
   const api = await source('../src/engineering/scripts/scriptEngineeringApi.ts');
 
   expect(workspace).toContain('PythonMonacoEditor');
   expect(workspace).toContain('onSourceChange={source => patchDraft({ source })}');
+  expect(workspace).toContain('compileEngineeringClientVisualPython');
+  expect(workspace).toContain('hasBlockingPythonDiagnostics(compiled.diagnostics)');
   expect(workspace).toContain('previewScriptMutation');
   expect(workspace).toContain('applyScriptMutation');
-  expect(workspace).toContain('blockingPythonDiagnostics');
+  expect(workspace.indexOf('compileEngineeringClientVisualPython({')).toBeLessThan(workspace.indexOf('previewScriptMutation(draft'));
+  expect(previewHost).toContain('source: request.source');
+  expect(previewHost).toContain('await runtime.compileSource(request.source)');
   expect(api).toContain("'x-elitescada-workspace-version'");
   expect(api).toContain('/api/engineering/import/json/preview');
   expect(api).toContain('/api/engineering/import/json/apply');
+});
+
+test('controlled Engineering handler preview uses the sandbox host without gaining direct process authority', async () => {
+  const workspace = await source('../src/engineering/scripts/ScriptEngineeringWorkspace.tsx');
+  const previewHost = await source('../src/python-runtime/engineeringPythonPreview.ts');
+  const provider = await source('../src/python-runtime/createClientVisualPythonCapabilityProvider.ts');
+
+  expect(workspace).toContain('runEngineeringClientVisualPythonHandler');
+  expect(workspace).toContain('data-testid="python-sandbox-preview"');
+  expect(previewHost).toContain('createClientVisualPythonCapabilityProvider');
+  expect(previewHost).toContain("`engineering-preview:${request.handlerName}`");
+  expect(provider).toContain('readTag(reference)');
+  expect(provider).toContain('readClientMemory(reference)');
+  expect(provider).toContain('writeClientMemory(reference, value)');
+  expect(provider).not.toContain('writeTag');
+  expect(provider).not.toContain('serverMemory');
+  expect(provider).not.toContain('requestBackendOperation');
 });
 
 test('editor API help derives from the reserved bridge capability contract instead of inventing a Python module authority', async () => {

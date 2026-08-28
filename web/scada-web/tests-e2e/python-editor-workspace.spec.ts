@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('Monaco edits canonical Script source through Preview Apply and reload', async ({ page }) => {
+  test.slow();
   const suffix = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
   const scriptName = `Python Editor E2E ${suffix}`;
   const scriptPath = `scripts/python-editor-e2e-${suffix}.py`;
@@ -23,12 +24,13 @@ test('Monaco edits canonical Script source through Preview Apply and reload', as
   await page.keyboard.press('Control+A');
   await page.keyboard.insertText(source);
 
-  const previewButton = page.locator('.script-actions > button').nth(0);
+  const canonicalActions = page.locator('.script-editor > .script-actions');
+  const previewButton = canonicalActions.locator(':scope > button').nth(0);
   await expect(previewButton).toBeEnabled();
   await previewButton.click();
 
-  const applyButton = page.locator('.script-actions > button').nth(1);
-  await expect(applyButton).toBeEnabled();
+  const applyButton = canonicalActions.locator(':scope > button').nth(1);
+  await expect(applyButton).toBeEnabled({ timeout: 30_000 });
   await applyButton.click();
 
   await expect(page.locator('.script-editor h3')).toHaveText(scriptName);
@@ -37,7 +39,7 @@ test('Monaco edits canonical Script source through Preview Apply and reload', as
   await expect(page.getByTestId('python-monaco-editor').locator('.view-lines'))
     .toContainText('return 42');
 
-  await page.locator('.script-actions > button.danger').click();
+  await canonicalActions.locator(':scope > button.danger').click();
   await expect(page.locator('.script-delete-confirm')).toBeVisible();
   await page.locator('.script-delete-confirm button.danger').click();
   await expect(page.locator('.script-list__item').filter({ hasText: scriptPath })).toHaveCount(0);

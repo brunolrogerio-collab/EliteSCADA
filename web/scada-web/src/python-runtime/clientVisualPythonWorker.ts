@@ -318,9 +318,9 @@ function getCompileDiagnostics(source: string): PythonSourceDiagnostic[] {
 import json
 try:
     compile(__elitescada_compile_source, "<EliteSCADA Script>", "exec")
-    json.dumps([])
+    _elitescada_result_json = json.dumps([])
 except SyntaxError as exc:
-    json.dumps([{
+    _elitescada_result_json = json.dumps([{
         "severity": "error",
         "code": "PYTHON_SYNTAX_ERROR",
         "message": str(exc.msg or "Invalid Python syntax."),
@@ -329,6 +329,7 @@ except SyntaxError as exc:
         "endLine": max(1, int(exc.end_lineno or exc.lineno or 1)),
         "endColumn": max(1, int(exc.end_offset or exc.offset or 1))
     }])
+_elitescada_result_json
 `);
     return parseDiagnostics(raw);
   } catch {
@@ -373,16 +374,17 @@ try:
     _required_handlers = json.loads(__elitescada_handlers_json)
     _missing_handlers = [name for name in _required_handlers if not callable(__elitescada_runtime_globals.get(name))]
     if _missing_handlers:
-        json.dumps({"ok": False, "code": "PYTHON_HANDLER_MISSING", "line": 1})
+        _elitescada_result_json = json.dumps({"ok": False, "code": "PYTHON_HANDLER_MISSING", "line": 1})
     else:
-        json.dumps({"ok": True})
+        _elitescada_result_json = json.dumps({"ok": True})
 except KeyboardInterrupt:
-    json.dumps({"ok": False, "code": "PYTHON_INITIALIZE_CANCELLED", "line": 1})
+    _elitescada_result_json = json.dumps({"ok": False, "code": "PYTHON_INITIALIZE_CANCELLED", "line": 1})
 except BaseException as exc:
     _frames = traceback.extract_tb(exc.__traceback__)
     _script_frames = [frame for frame in _frames if frame.filename == "<EliteSCADA Script>"]
     _line = _script_frames[-1].lineno if _script_frames else 1
-    json.dumps({"ok": False, "code": "PYTHON_INITIALIZE_FAULT", "line": max(1, int(_line)), "type": type(exc).__name__})
+    _elitescada_result_json = json.dumps({"ok": False, "code": "PYTHON_INITIALIZE_FAULT", "line": max(1, int(_line)), "type": type(exc).__name__})
+_elitescada_result_json
 `);
 
     const outcome = parseJsonObject(raw);
@@ -468,20 +470,21 @@ import inspect, json, traceback
 try:
     _handler = globals().get(__elitescada_handler_name)
     if not callable(_handler):
-        json.dumps({"ok": False, "type": "MissingHandler", "line": 1})
+        _elitescada_result_json = json.dumps({"ok": False, "type": "MissingHandler", "line": 1})
     else:
         with __elitescada_sandbox_guard():
             _result = _handler(__elitescada_event_payload)
             if inspect.isawaitable(_result):
                 await _result
-        json.dumps({"ok": True})
+        _elitescada_result_json = json.dumps({"ok": True})
 except KeyboardInterrupt:
-    json.dumps({"ok": False, "cancelled": True})
+    _elitescada_result_json = json.dumps({"ok": False, "cancelled": True})
 except BaseException as exc:
     _frames = traceback.extract_tb(exc.__traceback__)
     _script_frames = [frame for frame in _frames if frame.filename == "<EliteSCADA Script>"]
     _line = _script_frames[-1].lineno if _script_frames else 1
-    json.dumps({"ok": False, "type": type(exc).__name__, "line": max(1, int(_line))})
+    _elitescada_result_json = json.dumps({"ok": False, "type": type(exc).__name__, "line": max(1, int(_line))})
+_elitescada_result_json
 `, { globals });
     return parseJsonObject(raw);
   } finally {

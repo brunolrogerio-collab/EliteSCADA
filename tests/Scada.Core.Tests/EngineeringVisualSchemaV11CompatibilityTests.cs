@@ -5,6 +5,7 @@ using Scada.Engineering.Assets;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Views;
+using Scada.Engineering.VisualScripting;
 
 namespace Scada.Core.Tests;
 
@@ -55,12 +56,13 @@ public sealed class EngineeringVisualSchemaV11CompatibilityTests
         Assert.NotEqual(Guid.Empty, storedChild.Id);
 
         var exported = service.ExportPackage();
-        Assert.Equal(11, exported.SchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, exported.SchemaVersion);
+        Assert.Equal(VisualEngineeringPropertyCodec.TypedSchemaVersion, exported.SchemaVersion);
         Assert.Equal(storedRoot.Id, Assert.Single(Assert.Single(exported.Screens!).Elements!).Id);
     }
 
     [Fact]
-    public void SchemaV11RoundTrip_PreservesExplicitVisualElementIds()
+    public void SchemaV11IdentityRoundTrip_ReExportsAsCurrentSchemaAndPreservesExplicitIds()
     {
         var views = new InMemoryEngineeringViewRegistry();
         var service = CreateService(views);
@@ -82,7 +84,7 @@ public sealed class EngineeringVisualSchemaV11CompatibilityTests
         var element = Assert.Single(Assert.Single(roundTrip.Screens!).Elements!);
 
         Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, roundTrip.SchemaVersion);
-        Assert.Equal(11, roundTrip.SchemaVersion);
+        Assert.Equal(VisualEngineeringPropertyCodec.TypedSchemaVersion, roundTrip.SchemaVersion);
         Assert.Equal(objectId, element.Id);
     }
 

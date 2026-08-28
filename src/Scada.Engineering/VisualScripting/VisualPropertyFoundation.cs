@@ -401,6 +401,7 @@ public static class CommonVisualPropertyDefinitions
 
 public sealed class VisualEngineeringPropertySet
 {
+    private readonly IReadOnlyDictionary<string, VisualPropertyValue> _engineeredValues;
     private readonly IReadOnlyDictionary<string, VisualPropertyValue> _baseValues;
 
     public VisualEngineeringPropertySet(
@@ -410,11 +411,7 @@ public sealed class VisualEngineeringPropertySet
         ArgumentNullException.ThrowIfNull(schema);
         Schema = schema;
 
-        var values = schema.Properties.ToDictionary(
-            pair => pair.Key,
-            pair => pair.Value.DefaultValue,
-            StringComparer.Ordinal);
-
+        var explicitValues = new Dictionary<string, VisualPropertyValue>(StringComparer.Ordinal);
         foreach (var pair in engineeredValues ?? new Dictionary<string, VisualPropertyValue>())
         {
             var definition = schema.GetRequired(pair.Key);
@@ -423,20 +420,48 @@ public sealed class VisualEngineeringPropertySet
                     $"Property '{pair.Key}' is not editable in Engineering.");
 
             definition.ValidateValue(pair.Value);
-            values[pair.Key] = pair.Value;
+            explicitValues[pair.Key] = pair.Value;
         }
 
-        _baseValues = new ReadOnlyDictionary<string, VisualPropertyValue>(values);
+        _engineeredValues = new ReadOnlyDictionary<string, VisualPropertyValue>(explicitValues);
+
+        // Compatibility surface: callers that historically used BaseValues/GetBaseValue
+        // still receive an effective design-time value. Runtime source diagnostics must
+        // use EngineeredValues/TryGetEngineeredValue so registry defaults are not falsely
+        // reported as user-authored Engineering Base values.
+        var effectiveValues = schema.Properties.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value.DefaultValue,
+            StringComparer.Ordinal);
+        foreach (var pair in explicitValues)
+            effectiveValues[pair.Key] = pair.Value;
+
+        _baseValues = new ReadOnlyDictionary<string, VisualPropertyValue>(effectiveValues);
     }
 
     public VisualObjectPropertySchema Schema { get; }
 
+    public IReadOnlyDictionary<string, VisualPropertyValue> EngineeredValues => _engineeredValues;
+
     public IReadOnlyDictionary<string, VisualPropertyValue> BaseValues => _baseValues;
+
+    public bool TryGetEngineeredValue(string propertyKey, out VisualPropertyValue value)
+    {
+        Schema.GetRequired(propertyKey);
+        if (_engineeredValues.TryGetValue(propertyKey, out var engineered))
+        {
+            value = engineered;
+            return true;
+        }
+
+        value = null!;
+        return false;
+    }
 
     public VisualPropertyValue GetBaseValue(string propertyKey)
     {
         if (!_baseValues.TryGetValue(propertyKey, out var value))
-            throw new KeyNotFoundException($"Engineering base value for '{propertyKey}' is not declared.");
+            throw new KeyNotFoundException($"Engineering base/default value for '{propertyKey}' is not declared.");
 
         return value;
     }
@@ -447,7 +472,8 @@ public enum VisualPropertyRuntimeSource
     EngineeringBase,
     BindingOrExpression,
     Script,
-    Animation
+    Animation,
+    Default
 }
 
 public sealed record VisualResolvedPropertyValue(
@@ -495,10 +521,10 @@ public sealed class VisualRuntimePropertyState
         if (layers?.Binding is not null)
             return new(propertyKey, layers.Binding, VisualPropertyRuntimeSource.BindingOrExpression);
 
-        return new(
-            propertyKey,
-            Engineering.GetBaseValue(propertyKey),
-            VisualPropertyRuntimeSource.EngineeringBase);
+        if (Engineering.TryGetEngineeredValue(propertyKey, out var engineered))
+            return new(propertyKey, engineered, VisualPropertyRuntimeSource.EngineeringBase);
+
+        return new(propertyKey, definition.DefaultValue, VisualPropertyRuntimeSource.Default);
     }
 
     public void SetBindingOverride(string propertyKey, VisualPropertyValue value)

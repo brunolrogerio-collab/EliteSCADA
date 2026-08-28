@@ -204,13 +204,22 @@ export type BindingEngineering = {
   metadata?: Record<string, string> | null;
 };
 
+export type VisualEngineeringAssetReference = Readonly<{
+  assetId: string;
+}>;
+
 /**
- * Schema-v10 visual properties are still represented canonically as strings.
- * Wave 07/08 readiness code must not reinterpret that limitation as permission
- * for an editor-private model. A future schema migration will replace this
- * legacy serialization with typed JSON deliberately.
+ * Schema-v12 visual properties are JSON-native. Color/enum values remain stable
+ * strings, while numeric/boolean/asset values preserve their actual JSON type.
  */
-export type LegacyVisualEngineeringPropertyMap = Record<string, string>;
+export type VisualEngineeringPropertyValue =
+  | number
+  | boolean
+  | string
+  | VisualEngineeringAssetReference
+  | null;
+
+export type VisualEngineeringPropertyMap = Record<string, VisualEngineeringPropertyValue>;
 
 export type VisualElementEngineering = {
   id?: string | null;
@@ -219,7 +228,7 @@ export type VisualElementEngineering = {
   dynamoKey?: string | null;
   equipmentPath?: string | null;
   bindings?: BindingEngineering[] | null;
-  properties?: LegacyVisualEngineeringPropertyMap | null;
+  properties?: VisualEngineeringPropertyMap | null;
   context?: Record<string, string> | null;
   children?: VisualElementEngineering[] | null;
   metadata?: Record<string, string> | null;

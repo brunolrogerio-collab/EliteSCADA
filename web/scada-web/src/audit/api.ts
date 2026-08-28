@@ -1,7 +1,7 @@
 import { AUDIT_NEXT_CURSOR_HEADER, buildAuditQueryPath } from './contract';
 import type { AuditDiagnostics, AuditEventView, AuditFilterState } from './types';
 
-const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
+const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
 export type AuditApiErrorKind = 'unauthenticated' | 'forbidden' | 'invalid-query' | 'unavailable' | 'server';
 

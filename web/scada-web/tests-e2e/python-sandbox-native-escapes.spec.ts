@@ -27,6 +27,9 @@ def pyodide_js_probe(event):
     except ImportError:
         return None
 
+    load_package = getattr(pyodide_js, "loadPackage", None)
+    if load_package is not None:
+        raise RuntimeError("pyodide_js exposed native package-loading authority")
     raise RuntimeError("pyodide_js exposed the native Pyodide JavaScript API")
 `;
 

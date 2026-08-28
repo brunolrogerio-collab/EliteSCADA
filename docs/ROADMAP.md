@@ -1,7 +1,7 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-08-28  
-**Active direction:** **VISUAL-RUNTIME-WAVE-07 IMPLEMENTED ON INTEGRATION / CI_DEFERRED / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
+**Active direction:** **VISUAL-RUNTIME-WAVE-07 INTEGRATED + INTERFACE-HARDENED / CI_DEFERRED / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
 
 Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
 Parallel execution model: `docs/DEVELOPMENT-WAVES.md`.  
@@ -53,7 +53,7 @@ Wave 03  Operational lifecycle + Runtime TAG Inspector + acceptance foundation  
 Wave 04  Project portability + basic Trends + Administration                        COMPLETE
 Wave 05  Canonical Script Engineering                                                COMPLETE
 Wave 06  Python Editor + Client Visual sandbox                                       COMPLETE
-Wave 07  Visual Runtime Object Model + visual Asset contract                         INTEGRATED / CI_DEFERRED
+Wave 07  Visual Runtime Object Model + visual Asset contract                         HARDENED INTEGRATION / CI_DEFERRED
 Wave 08  Graphical Editor Foundation + image import/object                           WAITING
 Wave 09  Screens + Popups + Dynamos + asset dependencies
 Wave 10  Python visual events + animation + preview
@@ -69,37 +69,43 @@ Do not skip dependencies simply because later research already exists.
 
 ## Wave 07 — Visual Runtime Object Model
 
-**IMPLEMENTED ON INTEGRATION / CI_DEFERRED / NOT MERGE-READY.**
+**INTEGRATED + INTERFACE-HARDENED / CI_DEFERRED / NOT MERGE-READY.**
 
 - Logical WaveBaseSHA: `cc79713434c1d7b5988158b843b137eaf488d923`
 - ContractSHA: `06faf079bc5185689712bd2c9a225c2bb8d90999`
 - Integration branch: `integration/visual-runtime-wave-07`
-- Current integration head: `ffde3b03a3b647acb2f0c484c11b956c602237d6`
+- Current hardened integration head: `590a51b24b79e1c43417a03492b1a5712b9ab584`
 - Integration PR: intentionally not open while Actions are deferred
 - Implementation contract: `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`
 
-Implemented on the integration branch:
+Implemented and hardened on the integration branch:
 
 - typed Visual Property Registry with explicit `number`, `boolean`, `string`, `color`, `enum`, `assetRef` types;
-- stable common property keys, defaults and constraints;
-- stable project-owned AssetReference validation with arbitrary path/URL rejection;
+- stable common property keys, defaults and constraints, including integer-only `zIndex`;
+- stable project-owned AssetReference validation with path/URL-like authority rejection and bounded image metadata;
 - renderer-independent Engineering visual-definition projection;
+- explicit separation between **Engineering Base** and **registry Default** so runtime source diagnostics remain truthful;
 - Runtime Visual Instance identity/lifecycle;
 - independent Engineering, Binding, Script and Animation layers;
 - deterministic precedence `Animation > Script > Binding/Expression > Engineering Base > Default`;
 - source diagnostics and fail-closed invalid-layer handling;
 - per-instance isolation and disposal semantics;
-- typed Registry/schema → Runtime consumer adapter;
-- public Runtime Visual Instance surface suitable for future Python visual capability providers;
-- Python ↔ Visual acceptance/adversarial tests covering property authority, instance isolation, disposal, AssetReference restrictions and DOM/renderer-private authority denial.
+- public Runtime construction through the typed `VisualObjectPropertySchema`, with internal registry-port seams hidden from the public index;
+- definition/schema type matching and stable explicit runtime/context identity validation;
+- validated-value propagation into Runtime layers instead of storing unchecked pre-normalization candidates;
+- runtime-readable enforcement on the public property-state read surface;
+- renderer-independent `createVisualPythonPropertyCapabilityProvider()` binding Python visual read/write to the exact current Runtime Visual Instance and stable target ID/key;
+- official Client Visual Python provider composition for TAG + Client Memory + visual-property authority without changing the Pyodide sandbox Worker;
+- Python ↔ Visual acceptance/adversarial tests covering property authority, instance isolation, disposal, AssetReference restrictions, current-instance/current-target enforcement and DOM/renderer-private authority denial;
+- source/public-surface tests preventing internal registry adapter seams from becoming public API accidentally.
 
-Worker deliveries now integrated:
+Worker deliveries integrated:
 
 - **DEV 1:** `ed8d9af027173e6d265ff382dbc9c115bcd2e284`
 - **DEV 2:** `d6c1e997178e0ce525233079effd442f59743386`
 - **DEV 3:** `25ebac63a957c1c0c5b8e2557caec152d9d36bfc`
 - worker integration commit: `295bdabba5c25b2e4a729228130185976735d939`
-- coordinator reconciliation head: `ffde3b03a3b647acb2f0c484c11b956c602237d6`
+- current coordinator-hardened integration head: `590a51b24b79e1c43417a03492b1a5712b9ab584`
 
 The owner most recently reported approximately 19 included GitHub Actions minutes remaining. Until the owner explicitly reports reset, Wave 07 remains frozen at `IMPLEMENTED / CI_DEFERRED`: do not open the PR, run Actions, merge to `main`, or start Wave 08 functional implementation.
 

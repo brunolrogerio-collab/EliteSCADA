@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace Scada.Engineering.VisualScripting;
 
@@ -13,6 +14,14 @@ namespace Scada.Engineering.VisualScripting;
 /// </summary>
 public static class LegacyVisualEngineeringPropertyCodec
 {
+    private static readonly Regex CanonicalInteger = new(
+        @"^-?(?:0|[1-9][0-9]*)$",
+        RegexOptions.CultureInvariant);
+
+    private static readonly Regex CanonicalNumber = new(
+        @"^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$",
+        RegexOptions.CultureInvariant);
+
     public static IReadOnlyDictionary<string, VisualPropertyValue> Decode(
         VisualObjectPropertySchema schema,
         IReadOnlyDictionary<string, string>? serializedValues)
@@ -80,7 +89,8 @@ public static class LegacyVisualEngineeringPropertyCodec
 
     private static VisualPropertyValue DecodeNumber(string propertyKey, string serialized)
     {
-        if (!double.TryParse(
+        if (!CanonicalNumber.IsMatch(serialized) ||
+            !double.TryParse(
                 serialized,
                 NumberStyles.Float,
                 CultureInfo.InvariantCulture,
@@ -89,7 +99,7 @@ public static class LegacyVisualEngineeringPropertyCodec
             double.IsInfinity(value))
         {
             throw new InvalidDataException(
-                $"Visual property '{propertyKey}' requires a finite invariant-culture number.");
+                $"Visual property '{propertyKey}' requires a canonical finite invariant-culture number.");
         }
 
         return new VisualNumberValue(value);
@@ -97,14 +107,15 @@ public static class LegacyVisualEngineeringPropertyCodec
 
     private static VisualPropertyValue DecodeInteger(string propertyKey, string serialized)
     {
-        if (!int.TryParse(
+        if (!CanonicalInteger.IsMatch(serialized) ||
+            !int.TryParse(
                 serialized,
-                NumberStyles.Integer,
+                NumberStyles.AllowLeadingSign,
                 CultureInfo.InvariantCulture,
                 out var value))
         {
             throw new InvalidDataException(
-                $"Visual property '{propertyKey}' requires a 32-bit invariant-culture integer.");
+                $"Visual property '{propertyKey}' requires a canonical 32-bit invariant-culture integer.");
         }
 
         return new VisualIntegerValue(value);

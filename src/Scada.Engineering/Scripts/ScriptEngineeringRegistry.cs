@@ -8,6 +8,7 @@ public interface IScriptEngineeringRegistry
     ScriptEngineeringDefinition? FindByPath(string path);
     void Upsert(ScriptEngineeringDefinition script);
     void ReplaceVisualEventReferences(Guid scriptId, IReadOnlyCollection<ScriptVisualEventReference> references);
+    bool Remove(Guid id);
     void Clear();
 }
 
@@ -103,6 +104,22 @@ public sealed class InMemoryScriptEngineeringRegistry : IScriptEngineeringRegist
         }
 
         _changed?.Invoke();
+    }
+
+    public bool Remove(Guid id)
+    {
+        ScriptEngineeringDefinition? removed;
+        lock (_sync)
+        {
+            if (!_byId.Remove(id, out removed))
+                return false;
+
+            _byPath.Remove(removed.Path);
+            _visualEventReferences.RemoveAll(reference => reference.ScriptId == id);
+        }
+
+        _changed?.Invoke();
+        return true;
     }
 
     public void Clear()

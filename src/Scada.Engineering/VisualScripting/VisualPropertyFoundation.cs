@@ -9,7 +9,8 @@ public enum VisualPropertyValueKind
     Integer,
     String,
     Color,
-    ResourceReference
+    ResourceReference,
+    AssetReference
 }
 
 public abstract record VisualPropertyValue(VisualPropertyValueKind Kind);
@@ -29,8 +30,20 @@ public sealed record VisualStringValue(string Value)
 public sealed record VisualColorValue(string Value)
     : VisualPropertyValue(VisualPropertyValueKind.Color);
 
+/// <summary>
+/// Legacy resource reference retained for compatibility with the pre-Wave-07
+/// visual foundation. New image-capable schemas use VisualAssetReferenceValue.
+/// </summary>
 public sealed record VisualResourceReferenceValue(string ResourceId)
     : VisualPropertyValue(VisualPropertyValueKind.ResourceReference);
+
+/// <summary>
+/// Stable project-asset identity. Null means no asset is selected. Descriptive
+/// metadata such as name, media type, dimensions and content hash belongs to the
+/// canonical asset entity rather than being duplicated into property values.
+/// </summary>
+public sealed record VisualAssetReferenceValue(string? AssetId)
+    : VisualPropertyValue(VisualPropertyValueKind.AssetReference);
 
 public sealed record VisualPropertyConstraints
 {
@@ -127,6 +140,12 @@ public sealed class VisualPropertyDefinition
                 if (string.IsNullOrWhiteSpace(resource.ResourceId))
                     throw new ArgumentException($"Property '{Key}' requires a non-empty resource reference.", nameof(value));
                 break;
+            case VisualAssetReferenceValue asset:
+                if (asset.AssetId is not null && !IsStableAssetId(asset.AssetId))
+                    throw new ArgumentException(
+                        $"Property '{Key}' requires a stable project asset identity rather than a path or URL.",
+                        nameof(value));
+                break;
         }
     }
 
@@ -176,6 +195,32 @@ public sealed class VisualPropertyDefinition
         for (var index = 1; index < value.Length; index++)
         {
             if (!Uri.IsHexDigit(value[index]))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static bool IsStableAssetId(string value)
+    {
+        if (value.Length is < 1 or > 128 || !string.Equals(value, value.Trim(), StringComparison.Ordinal))
+            return false;
+        if (value.Any(character => character is '/' or '\\' || character < ' ' || character == '\u007f'))
+            return false;
+
+        var candidate = value.StartsWith("asset:", StringComparison.Ordinal)
+            ? value["asset:".Length..]
+            : value;
+        if (value.Contains(':') && !value.StartsWith("asset:", StringComparison.Ordinal))
+            return false;
+        if (candidate.Length == 0 || candidate.Contains(':'))
+            return false;
+
+        for (var index = 0; index < candidate.Length; index++)
+        {
+            var character = candidate[index];
+            var allowed = character is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9' or '.' or '_' or '-';
+            if (!allowed || (index == 0 && character is '.' or '_' or '-'))
                 return false;
         }
 
@@ -284,10 +329,13 @@ public static class VisualPropertyKeys
     public const string FontStyle = "fontStyle";
     public const string HorizontalAlignment = "horizontalAlignment";
     public const string VerticalAlignment = "verticalAlignment";
-    public const string ImageResourceId = "imageResourceId";
+    public const string AssetRef = "assetRef";
     public const string ImageFit = "imageFit";
     public const string ImagePositionX = "imagePositionX";
     public const string ImagePositionY = "imagePositionY";
+
+    // Pre-Wave-07 compatibility constant. New visual schemas use AssetRef.
+    public const string ImageResourceId = "imageResourceId";
 }
 
 public static class CommonVisualPropertyDefinitions
@@ -343,11 +391,15 @@ public static class CommonVisualPropertyDefinitions
     public static IReadOnlyList<VisualPropertyDefinition> Image { get; } =
     [
         new VisualPropertyDefinition(
-            VisualPropertyKeys.ImageResourceId,
-            new VisualResourceReferenceValue("resource:none"),
+            VisualPropertyKeys.AssetRef,
+            new VisualAssetReferenceValue(null),
+            engineeringEditable: true,
+            runtimeReadable: true,
+            runtimeWritable: false,
+            supportsBinding: false,
             animatable: false,
-            presentationHint: "resource"),
-        EnumString(VisualPropertyKeys.ImageFit, "contain", ["contain", "cover", "fill", "none"]),
+            presentationHint: "project-asset"),
+        EnumString(VisualPropertyKeys.ImageFit, "contain", ["contain", "cover", "fill", "native"]),
         Number(VisualPropertyKeys.ImagePositionX, 0, minimum: 0, maximum: 1, animatable: true),
         Number(VisualPropertyKeys.ImagePositionY, 0, minimum: 0, maximum: 1, animatable: true)
     ];
@@ -401,6 +453,7 @@ public static class CommonVisualPropertyDefinitions
 
 public sealed class VisualEngineeringPropertySet
 {
+    private readonly IReadOnlyDictionary<string, VisualPropertyValue> _engineeredValues;
     private readonly IReadOnlyDictionary<string, VisualPropertyValue> _baseValues;
 
     public VisualEngineeringPropertySet(
@@ -410,11 +463,7 @@ public sealed class VisualEngineeringPropertySet
         ArgumentNullException.ThrowIfNull(schema);
         Schema = schema;
 
-        var values = schema.Properties.ToDictionary(
-            pair => pair.Key,
-            pair => pair.Value.DefaultValue,
-            StringComparer.Ordinal);
-
+        var explicitValues = new Dictionary<string, VisualPropertyValue>(StringComparer.Ordinal);
         foreach (var pair in engineeredValues ?? new Dictionary<string, VisualPropertyValue>())
         {
             var definition = schema.GetRequired(pair.Key);
@@ -423,20 +472,48 @@ public sealed class VisualEngineeringPropertySet
                     $"Property '{pair.Key}' is not editable in Engineering.");
 
             definition.ValidateValue(pair.Value);
-            values[pair.Key] = pair.Value;
+            explicitValues[pair.Key] = pair.Value;
         }
 
-        _baseValues = new ReadOnlyDictionary<string, VisualPropertyValue>(values);
+        _engineeredValues = new ReadOnlyDictionary<string, VisualPropertyValue>(explicitValues);
+
+        // Compatibility surface: callers that historically used BaseValues/GetBaseValue
+        // still receive an effective design-time value. Runtime source diagnostics must
+        // use EngineeredValues/TryGetEngineeredValue so registry defaults are not falsely
+        // reported as user-authored Engineering Base values.
+        var effectiveValues = schema.Properties.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value.DefaultValue,
+            StringComparer.Ordinal);
+        foreach (var pair in explicitValues)
+            effectiveValues[pair.Key] = pair.Value;
+
+        _baseValues = new ReadOnlyDictionary<string, VisualPropertyValue>(effectiveValues);
     }
 
     public VisualObjectPropertySchema Schema { get; }
 
+    public IReadOnlyDictionary<string, VisualPropertyValue> EngineeredValues => _engineeredValues;
+
     public IReadOnlyDictionary<string, VisualPropertyValue> BaseValues => _baseValues;
+
+    public bool TryGetEngineeredValue(string propertyKey, out VisualPropertyValue value)
+    {
+        Schema.GetRequired(propertyKey);
+        if (_engineeredValues.TryGetValue(propertyKey, out var engineered))
+        {
+            value = engineered;
+            return true;
+        }
+
+        value = null!;
+        return false;
+    }
 
     public VisualPropertyValue GetBaseValue(string propertyKey)
     {
         if (!_baseValues.TryGetValue(propertyKey, out var value))
-            throw new KeyNotFoundException($"Engineering base value for '{propertyKey}' is not declared.");
+            throw new KeyNotFoundException($"Engineering base/default value for '{propertyKey}' is not declared.");
 
         return value;
     }
@@ -447,7 +524,8 @@ public enum VisualPropertyRuntimeSource
     EngineeringBase,
     BindingOrExpression,
     Script,
-    Animation
+    Animation,
+    Default
 }
 
 public sealed record VisualResolvedPropertyValue(
@@ -495,10 +573,10 @@ public sealed class VisualRuntimePropertyState
         if (layers?.Binding is not null)
             return new(propertyKey, layers.Binding, VisualPropertyRuntimeSource.BindingOrExpression);
 
-        return new(
-            propertyKey,
-            Engineering.GetBaseValue(propertyKey),
-            VisualPropertyRuntimeSource.EngineeringBase);
+        if (Engineering.TryGetEngineeredValue(propertyKey, out var engineered))
+            return new(propertyKey, engineered, VisualPropertyRuntimeSource.EngineeringBase);
+
+        return new(propertyKey, definition.DefaultValue, VisualPropertyRuntimeSource.Default);
     }
 
     public void SetBindingOverride(string propertyKey, VisualPropertyValue value)

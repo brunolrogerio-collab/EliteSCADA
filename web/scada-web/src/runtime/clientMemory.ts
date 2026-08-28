@@ -18,7 +18,7 @@ type ClientMemoryEntry = {
   value: unknown;
 };
 
-const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
+const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
 export class ClientMemoryStore {
   private readonly byId = new Map<string, ClientMemoryEntry>();

@@ -9,7 +9,7 @@ import type {
   RuntimeDiagnosticsView
 } from './types';
 
-const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
+const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(`${API}${path}`, {

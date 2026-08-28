@@ -134,6 +134,12 @@ public sealed record DataSourceEngineeringDto(
     Dictionary<string, string>? SecretReferences = null,
     Dictionary<string, string>? Metadata = null);
 
+/// <summary>
+/// Generic Engineering binding. In a visual-element binding, <see cref="Key"/>
+/// is the destination visual-property/slot key and <see cref="Target"/> is the
+/// TAG/property/expression reference. Keeping that distinction explicit avoids
+/// an editor-private binding model later.
+/// </summary>
 public sealed record EngineeringBindingDto(
     string Key,
     EngineeringBindingKind Kind,
@@ -170,16 +176,26 @@ public sealed record DynamoEngineeringDto(
     Dictionary<string, string>? Context = null,
     Dictionary<string, string>? Metadata = null);
 
+/// <summary>
+/// Canonical Engineering node for a visual-object tree. Id is the stable object
+/// identity used by Runtime/script references. It remains optional on input so
+/// legacy schema-v10/v11 packages can still be parsed; view registries assign and
+/// then preserve an identity when such legacy elements are first materialized.
+/// Properties are JSON-native from schema v12 onward; legacy string-valued bags
+/// remain readable only through the explicit schema migration boundary.
+/// Key remains the developer-facing sibling-local name and is not identity.
+/// </summary>
 public sealed record VisualElementEngineeringDto(
     string Key,
     string Type,
     string? DynamoKey = null,
     string? EquipmentPath = null,
     IReadOnlyCollection<EngineeringBindingDto>? Bindings = null,
-    Dictionary<string, string>? Properties = null,
+    Dictionary<string, JsonElement>? Properties = null,
     Dictionary<string, string>? Context = null,
     IReadOnlyCollection<VisualElementEngineeringDto>? Children = null,
-    Dictionary<string, string>? Metadata = null);
+    Dictionary<string, string>? Metadata = null,
+    Guid? Id = null);
 
 public sealed record ScreenEngineeringDto(
     Guid? Id,

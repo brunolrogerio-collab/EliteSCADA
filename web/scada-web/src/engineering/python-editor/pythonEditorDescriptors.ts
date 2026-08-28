@@ -29,7 +29,7 @@ const capabilityHelp: Record<ClientVisualPythonCapability, Omit<PythonApiHelpDes
   },
   'visualProperty.write': {
     title: 'Visual property write',
-    summary: 'Write a visual property only when the public property contract marks it runtime-writable.'
+    summary: 'Set or explicitly clear a Script override only when the visual property contract marks it runtime-writable.'
   },
   'visualTween.request': {
     title: 'Visual tween request',

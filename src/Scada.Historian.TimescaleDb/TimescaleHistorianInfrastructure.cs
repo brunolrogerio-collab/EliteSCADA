@@ -5,10 +5,12 @@ namespace Scada.Historian.TimescaleDb;
 
 internal static class TimescaleHistorianInfrastructure
 {
-    // Stable database-scoped advisory lock key used only while reconciling historian DDL.
-    // PostgreSQL IF NOT EXISTS checks are not sufficient to make concurrent CREATE TABLE
-    // calls race-free because catalog object creation itself can still collide.
-    private const long InfrastructureLockKey = 0x454C495445484953; // "ELITEHIS"
+    // Database-scoped infrastructure lock shared with Scada.Persistence.PostgreSql.
+    // Every subsystem that creates or mutates objects in the shared `elitescada`
+    // schema must coordinate on this key. PostgreSQL `IF NOT EXISTS` is not itself
+    // race-free when two sessions concurrently create the same catalog object.
+    // Hex: 0x454C495445534341 == "ELITESCA".
+    private const long InfrastructureLockKey = 4993446713136202561;
 
     public static Task EnsureRawAsync(
         NpgsqlDataSource dataSource,

@@ -54,7 +54,7 @@ jobs:
       - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.400'
 
       - name: Restore
         run: dotnet restore ScadaPlatform.sln
@@ -289,11 +289,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '24.19.0'
 
       - name: Install dependencies
         working-directory: web/scada-web
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Build React/Vite
         working-directory: web/scada-web
@@ -327,19 +327,19 @@ jobs:
       - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.400'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '24.19.0'
 
       - name: Restore backend
         run: dotnet restore ScadaPlatform.sln
 
       - name: Install frontend dependencies
         working-directory: web/scada-web
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Install Chromium
         working-directory: web/scada-web

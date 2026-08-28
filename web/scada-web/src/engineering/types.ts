@@ -190,11 +190,48 @@ export type RuntimeDiagnosticsView = {
   };
 };
 
+/**
+ * In a visual element, key is the destination visual-property/slot key and
+ * target is the TAG/property/expression source reference. This mirrors the
+ * current canonical EngineeringBindingDto instead of inventing editor-local
+ * binding semantics.
+ */
 export type BindingEngineering = {
   key: string;
   kind: string;
   target: string;
-  direction?: string;
+  direction?: string | null;
+  metadata?: Record<string, string> | null;
+};
+
+export type VisualEngineeringAssetReference = Readonly<{
+  assetId: string;
+}>;
+
+/**
+ * Schema-v12 visual properties are JSON-native. Color/enum values remain stable
+ * strings, while numeric/boolean/asset values preserve their actual JSON type.
+ */
+export type VisualEngineeringPropertyValue =
+  | number
+  | boolean
+  | string
+  | VisualEngineeringAssetReference
+  | null;
+
+export type VisualEngineeringPropertyMap = Record<string, VisualEngineeringPropertyValue>;
+
+export type VisualElementEngineering = {
+  id?: string | null;
+  key: string;
+  type: string;
+  dynamoKey?: string | null;
+  equipmentPath?: string | null;
+  bindings?: BindingEngineering[] | null;
+  properties?: VisualEngineeringPropertyMap | null;
+  context?: Record<string, string> | null;
+  children?: VisualElementEngineering[] | null;
+  metadata?: Record<string, string> | null;
 };
 
 export type TemplateEngineering = {
@@ -224,16 +261,22 @@ export type ScreenEngineering = {
   id?: string;
   key: string;
   name: string;
-  route?: string;
-  elements?: unknown[];
+  route?: string | null;
+  elements?: VisualElementEngineering[] | null;
+  properties?: Record<string, string> | null;
+  context?: Record<string, string> | null;
+  metadata?: Record<string, string> | null;
 };
 
 export type PopupEngineering = {
   id?: string;
   key: string;
   name: string;
-  templateKey?: string;
-  elements?: unknown[];
+  templateKey?: string | null;
+  elements?: VisualElementEngineering[] | null;
+  properties?: Record<string, string> | null;
+  context?: Record<string, string> | null;
+  metadata?: Record<string, string> | null;
 };
 
 export type SecurityRoleEngineering = {

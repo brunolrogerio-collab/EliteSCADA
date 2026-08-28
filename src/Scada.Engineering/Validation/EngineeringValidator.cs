@@ -148,7 +148,12 @@ public static class EngineeringValidator
             issues.Add(Error("SCREEN_NAME_REQUIRED", "Screen name is required.", ImportEntityKind.Screen, key));
         if (!string.IsNullOrWhiteSpace(screen.Route) && !screen.Route.StartsWith("/", StringComparison.Ordinal))
             issues.Add(Error("SCREEN_ROUTE_INVALID", "Screen route must start with '/'.", ImportEntityKind.Screen, key));
-        issues.AddRange(ValidateVisualElements(screen.Elements, ImportEntityKind.Screen, key, allowPlaceholders: false));
+        issues.AddRange(ValidateVisualElements(
+            screen.Elements,
+            ImportEntityKind.Screen,
+            key,
+            allowPlaceholders: false,
+            new HashSet<Guid>()));
         return issues;
     }
 
@@ -164,7 +169,12 @@ public static class EngineeringValidator
             issues.Add(Error("POPUP_NAME_REQUIRED", "Popup name is required.", ImportEntityKind.Popup, key));
         if (popup.TemplateKey?.Any(char.IsWhiteSpace) == true)
             issues.Add(Error("POPUP_TEMPLATE_KEY_WHITESPACE", "Popup template key cannot contain whitespace.", ImportEntityKind.Popup, key));
-        issues.AddRange(ValidateVisualElements(popup.Elements, ImportEntityKind.Popup, key, allowPlaceholders: true));
+        issues.AddRange(ValidateVisualElements(
+            popup.Elements,
+            ImportEntityKind.Popup,
+            key,
+            allowPlaceholders: true,
+            new HashSet<Guid>()));
         return issues;
     }
 
@@ -172,12 +182,13 @@ public static class EngineeringValidator
         IReadOnlyCollection<VisualElementEngineeringDto>? elements,
         ImportEntityKind entityKind,
         string entityKey,
-        bool allowPlaceholders)
+        bool allowPlaceholders,
+        HashSet<Guid> visualIds)
     {
         if (elements is null) yield break;
 
         var duplicates = elements
-            .Where(x => !string.IsNullOrWhiteSpace(x.Key))
+            .Where(x => x is not null && !string.IsNullOrWhiteSpace(x.Key))
             .GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key)
@@ -185,12 +196,22 @@ public static class EngineeringValidator
 
         foreach (var element in elements)
         {
+            if (element is null)
+            {
+                yield return Error("VISUAL_ELEMENT_NULL", "Visual element cannot be null.", entityKind, entityKey);
+                continue;
+            }
+
             if (string.IsNullOrWhiteSpace(element.Key))
                 yield return Error("VISUAL_ELEMENT_KEY_REQUIRED", "Visual element key is required.", entityKind, entityKey);
             if (string.IsNullOrWhiteSpace(element.Type))
                 yield return Error("VISUAL_ELEMENT_TYPE_REQUIRED", $"Visual element '{element.Key}' requires a type.", entityKind, entityKey);
             if (!string.IsNullOrWhiteSpace(element.Key) && duplicates.Contains(element.Key))
                 yield return Error("VISUAL_ELEMENT_DUPLICATE", $"Visual element key '{element.Key}' appears more than once at the same level.", entityKind, entityKey);
+            if (element.Id == Guid.Empty)
+                yield return Error("VISUAL_ELEMENT_ID_EMPTY", $"Visual element '{element.Key}' cannot use an empty Id.", entityKind, entityKey);
+            else if (element.Id.HasValue && !visualIds.Add(element.Id.Value))
+                yield return Error("VISUAL_ELEMENT_ID_DUPLICATE", $"Visual element Id '{element.Id.Value:D}' appears more than once in the same visual definition.", entityKind, entityKey);
             if (!string.IsNullOrWhiteSpace(element.DynamoKey) && element.DynamoKey.Any(char.IsWhiteSpace))
                 yield return Error("VISUAL_DYNAMO_KEY_WHITESPACE", $"Dynamo key on element '{element.Key}' cannot contain whitespace.", entityKind, entityKey);
             if (!string.IsNullOrWhiteSpace(element.EquipmentPath) && !allowPlaceholders && ContainsPlaceholder(element.EquipmentPath))
@@ -198,7 +219,7 @@ public static class EngineeringValidator
 
             foreach (var issue in ValidateBindings(element.Bindings, entityKind, entityKey, allowTagPlaceholders: allowPlaceholders))
                 yield return issue;
-            foreach (var issue in ValidateVisualElements(element.Children, entityKind, entityKey, allowPlaceholders))
+            foreach (var issue in ValidateVisualElements(element.Children, entityKind, entityKey, allowPlaceholders, visualIds))
                 yield return issue;
         }
     }
@@ -212,7 +233,7 @@ public static class EngineeringValidator
         if (bindings is null) yield break;
 
         var duplicates = bindings
-            .Where(x => !string.IsNullOrWhiteSpace(x.Key))
+            .Where(x => x is not null && !string.IsNullOrWhiteSpace(x.Key))
             .GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key)
@@ -220,18 +241,31 @@ public static class EngineeringValidator
 
         foreach (var binding in bindings)
         {
+            if (binding is null)
+            {
+                yield return Error("BINDING_NULL", "Binding cannot be null.", entityKind, entityKey);
+                continue;
+            }
+
             if (string.IsNullOrWhiteSpace(binding.Key))
                 yield return Error("BINDING_KEY_REQUIRED", "Binding key is required.", entityKind, entityKey);
             if (string.IsNullOrWhiteSpace(binding.Target))
                 yield return Error("BINDING_TARGET_REQUIRED", $"Binding '{binding.Key}' requires a target.", entityKind, entityKey);
             if (!string.IsNullOrWhiteSpace(binding.Key) && duplicates.Contains(binding.Key))
                 yield return Error("BINDING_DUPLICATE", $"Binding key '{binding.Key}' appears more than once.", entityKind, entityKey);
-            if (binding.Kind == EngineeringBindingKind.Tag && !allowTagPlaceholders && ContainsPlaceholder(binding.Target))
+            if (binding.Kind == EngineeringBindingKind.Tag &&
+                !allowTagPlaceholders &&
+                !string.IsNullOrWhiteSpace(binding.Target) &&
+                ContainsPlaceholder(binding.Target))
+            {
                 yield return Error("BINDING_TAG_PLACEHOLDER_NOT_ALLOWED", $"Binding '{binding.Key}' must reference a concrete TAG path.", entityKind, entityKey);
+            }
         }
     }
 
-    private static bool ContainsPlaceholder(string value) => value.Contains('{', StringComparison.Ordinal) || value.Contains('}', StringComparison.Ordinal);
+    private static bool ContainsPlaceholder(string? value) =>
+        value?.Contains('{', StringComparison.Ordinal) == true ||
+        value?.Contains('}', StringComparison.Ordinal) == true;
 
     private static ImportIssue Error(string code, string message, ImportEntityKind kind, string key) =>
         new(code, message, kind, key, true);

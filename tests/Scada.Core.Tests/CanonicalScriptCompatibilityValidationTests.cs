@@ -190,7 +190,7 @@ public sealed class CanonicalScriptCompatibilityValidationTests
     }
 
     [Fact]
-    public void SchemaV9_AppliesAndReExportsAsV10WithoutPhantomScripts()
+    public void SchemaV9_AppliesAndReExportsAsCurrentSchemaWithoutPhantomScripts()
     {
         using var harness = new Harness();
         const string legacyJson = """
@@ -219,7 +219,7 @@ public sealed class CanonicalScriptCompatibilityValidationTests
 
         Assert.True(preview.CanApply);
         Assert.Empty(apply.Issues);
-        Assert.Equal(10, migrated.SchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, migrated.SchemaVersion);
         Assert.NotNull(migrated.Scripts);
         Assert.Empty(migrated.Scripts!);
         Assert.NotNull(migrated.ScriptVisualEventReferences);

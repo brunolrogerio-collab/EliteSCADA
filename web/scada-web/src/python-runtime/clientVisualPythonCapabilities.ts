@@ -1,6 +1,7 @@
-import type {
-  ClientVisualPythonCapability,
-  PythonRuntimeIdentity
+import {
+  CLIENT_VISUAL_PYTHON_POLICY,
+  type ClientVisualPythonCapability,
+  type PythonRuntimeIdentity
 } from './pythonRuntimeContracts';
 
 export type ClientVisualPythonCapabilityContext = PythonRuntimeIdentity & {
@@ -13,6 +14,7 @@ export interface ClientVisualPythonCapabilityProvider {
   writeClientMemory?(reference: string, value: unknown, context: ClientVisualPythonCapabilityContext): Promise<unknown> | unknown;
   readVisualProperty?(targetReference: string, propertyKey: string, context: ClientVisualPythonCapabilityContext): Promise<unknown> | unknown;
   writeVisualProperty?(targetReference: string, propertyKey: string, value: unknown, context: ClientVisualPythonCapabilityContext): Promise<unknown> | unknown;
+  clearVisualProperty?(targetReference: string, propertyKey: string, context: ClientVisualPythonCapabilityContext): Promise<unknown> | unknown;
   requestVisualTween?(argumentsValue: unknown, context: ClientVisualPythonCapabilityContext): Promise<unknown> | unknown;
   requestBackendOperation?(operation: string, argumentsValue: unknown, context: ClientVisualPythonCapabilityContext): Promise<unknown> | unknown;
 }
@@ -52,7 +54,7 @@ export async function dispatchClientVisualPythonCapability(
     case 'clientMemory.write': {
       requireOperation(operation, 'write', capability);
       const reference = requireStringArgument(argumentsValue, 'reference');
-      const value = requireObject(argumentsValue, 'arguments').value;
+      const value = requireOwnArgument(argumentsValue, 'value');
       assertBridgeValue(value, 'value');
       return normalizeProviderResult(await requireProvider(provider.writeClientMemory, capability)(reference, value, context));
     }
@@ -65,10 +67,15 @@ export async function dispatchClientVisualPythonCapability(
     }
 
     case 'visualProperty.write': {
-      requireOperation(operation, 'write', capability);
       const targetReference = requireStringArgument(argumentsValue, 'targetReference');
       const propertyKey = requireStringArgument(argumentsValue, 'propertyKey');
-      const value = requireObject(argumentsValue, 'arguments').value;
+
+      if (operation === 'clear') {
+        return normalizeProviderResult(await requireProvider(provider.clearVisualProperty, capability)(targetReference, propertyKey, context));
+      }
+
+      requireOperation(operation, 'write', capability);
+      const value = requireOwnArgument(argumentsValue, 'value');
       assertBridgeValue(value, 'value');
       return normalizeProviderResult(await requireProvider(provider.writeVisualProperty, capability)(targetReference, propertyKey, value, context));
     }
@@ -125,7 +132,7 @@ function requireOperation(
 }
 
 function requireStringArgument(value: unknown, key: string): string {
-  const candidate = requireObject(value, 'arguments')[key];
+  const candidate = requireOwnArgument(value, key);
   if (typeof candidate !== 'string' || !candidate.trim()) {
     throw new ClientVisualPythonCapabilityError(
       'PYTHON_CAPABILITY_ARGUMENT_INVALID',
@@ -133,6 +140,17 @@ function requireStringArgument(value: unknown, key: string): string {
     );
   }
   return candidate;
+}
+
+function requireOwnArgument(value: unknown, key: string): unknown {
+  const object = requireObject(value, 'arguments');
+  if (!Object.hasOwn(object, key)) {
+    throw new ClientVisualPythonCapabilityError(
+      'PYTHON_CAPABILITY_ARGUMENT_INVALID',
+      `Capability argument '${key}' must be provided as an own property.`
+    );
+  }
+  return object[key];
 }
 
 function requireObject(value: unknown, label: string): Record<string, unknown> {
@@ -147,32 +165,55 @@ function requireObject(value: unknown, label: string): Record<string, unknown> {
 
 function normalizeProviderResult(value: unknown): unknown {
   if (value === undefined) return null;
-  assertBridgeValue(value, 'result');
   return cloneBridgeValue(value);
 }
 
 export function cloneBridgeValue(value: unknown): unknown {
   assertBridgeValue(value, 'value');
+  return cloneValidatedBridgeValue(value);
+}
+
+function cloneValidatedBridgeValue(value: unknown): unknown {
   if (value === null || typeof value !== 'object') return value;
-  if (Array.isArray(value)) return value.map(item => cloneBridgeValue(item));
+  if (Array.isArray(value)) return value.map(item => cloneValidatedBridgeValue(item));
 
   const clone: Record<string, unknown> = {};
   for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-    clone[key] = cloneBridgeValue(item);
+    Object.defineProperty(clone, key, {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: cloneValidatedBridgeValue(item)
+    });
   }
   return clone;
 }
 
 export function assertBridgeValue(value: unknown, label = 'value'): void {
   const seen = new Set<object>();
-  visit(value, label, seen);
+  const state = { nodes: 0 };
+  visit(value, label, seen, state, 0);
 }
 
-function visit(value: unknown, label: string, seen: Set<object>): void {
+function visit(
+  value: unknown,
+  label: string,
+  seen: Set<object>,
+  state: { nodes: number },
+  depth: number
+): void {
+  state.nodes++;
+  if (state.nodes > CLIENT_VISUAL_PYTHON_POLICY.maxBridgeNodes ||
+      depth > CLIENT_VISUAL_PYTHON_POLICY.maxBridgeDepth) {
+    throwBridgeValueInvalid(label, 'exceeds the bounded structured-value size or depth');
+  }
+
   if (value === null) return;
 
   switch (typeof value) {
     case 'string':
+      if (value.length <= CLIENT_VISUAL_PYTHON_POLICY.maxBridgeStringLength) return;
+      break;
     case 'boolean':
       return;
     case 'number':
@@ -184,7 +225,7 @@ function visit(value: unknown, label: string, seen: Set<object>): void {
 
       if (Array.isArray(value)) {
         for (let index = 0; index < value.length; index++) {
-          visit(value[index], `${label}[${index}]`, seen);
+          visit(value[index], `${label}[${index}]`, seen, state, depth + 1);
         }
         seen.delete(value);
         return;
@@ -193,15 +234,19 @@ function visit(value: unknown, label: string, seen: Set<object>): void {
       const prototype = Object.getPrototypeOf(value);
       if (prototype !== Object.prototype && prototype !== null) break;
       for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-        visit(item, `${label}.${key}`, seen);
+        visit(item, `${label}.${key}`, seen, state, depth + 1);
       }
       seen.delete(value);
       return;
     }
   }
 
+  throwBridgeValueInvalid(label, 'is not a supported bounded structured bridge value');
+}
+
+function throwBridgeValueInvalid(label: string, detail: string): never {
   throw new ClientVisualPythonCapabilityError(
     'PYTHON_BRIDGE_VALUE_INVALID',
-    `${label} is not a supported structured bridge value.`
+    `${label} ${detail}.`
   );
 }

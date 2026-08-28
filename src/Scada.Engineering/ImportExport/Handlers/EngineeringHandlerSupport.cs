@@ -49,7 +49,10 @@ internal static class EngineeringHandlerSupport
     {
         foreach (var binding in bindings ?? Array.Empty<EngineeringBindingDto>())
         {
-            if (binding.Kind != EngineeringBindingKind.Tag ||
+            // Generic validation records null/malformed entries. Reference
+            // validation must not turn the same untrusted input into an exception.
+            if (binding is null ||
+                binding.Kind != EngineeringBindingKind.Tag ||
                 string.IsNullOrWhiteSpace(binding.Target) ||
                 ContainsPlaceholder(binding.Target))
                 continue;

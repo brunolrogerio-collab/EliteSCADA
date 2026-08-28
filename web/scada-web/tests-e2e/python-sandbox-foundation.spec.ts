@@ -47,6 +47,9 @@ test('Client Visual bridge v1 keeps the safe execution policy and capability sur
     maxQueuedEvents: 128,
     minimumTimerIntervalMs: 50,
     maxConsecutiveFailuresBeforeThrottle: 5,
+    maxBridgeDepth: 32,
+    maxBridgeNodes: 4096,
+    maxBridgeStringLength: 65536,
     queueOverflowStrategy: 'coalesce-by-event-key',
     faultIsolationScope: 'script-runtime-instance'
   });

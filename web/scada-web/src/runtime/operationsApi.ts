@@ -6,7 +6,7 @@ import type {
   RuntimeOperationsSnapshot
 } from './operationsTypes';
 
-const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
+const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
 async function requestEndpoint<T>(path: string, signal?: AbortSignal): Promise<RuntimeOperationsEndpoint<T>> {
   try {

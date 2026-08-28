@@ -3,7 +3,7 @@
 > Operational handoff. Resume from GitHub, not chat history.
 
 **Handoff date:** 2026-08-28  
-**Development state:** **WAVE-07 STATIC AUDIT CORRECTIONS COMPLETE / CI_DEFERRED / NOT MERGE-READY**  
+**Development state:** **WAVE-07 THIRD STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED / NOT MERGE-READY**  
 **CI budget mode:** **CONSTRAINED until owner explicitly reports reset**
 
 ## Mandatory resume reading
@@ -20,14 +20,14 @@ GitHub branch/PR/head/CI is operational truth.
 - main merge: `cc79713434c1d7b5988158b843b137eaf488d923`
 - automatic post-merge run #488 allocated no runner and executed no product steps; it remains infrastructure evidence, not a product regression.
 
-## Wave 07 — static audit corrections complete, validation deferred
+## Wave 07 — third static audit hardening complete, validation deferred
 
 Wave 07 remains **NOT MERGED**, **CI_DEFERRED** and **NOT MERGE-READY**.
 
 - Logical WaveBaseSHA: `cc79713434c1d7b5988158b843b137eaf488d923`
 - ContractSHA: `06faf079bc5185689712bd2c9a225c2bb8d90999`
 - integration branch: `integration/visual-runtime-wave-07`
-- exact current integration head: `63878f6fe28a0a9ac101d622628f8b95658899a7`
+- exact current integration head: `d184fdd5b65f2ce0c0e6ca28cd092644be080555`
 - integration PR: intentionally not open
 - latest Actions run remains #488; no Wave 07 Actions were triggered
 - owner-reported remaining Actions allowance remains approximately 19 included minutes until an explicit reset report supersedes it.
@@ -39,7 +39,7 @@ Worker deliveries remain integrated and workers remain stopped:
 
 ## Wave 07 implemented foundation
 
-The integration branch contains the worker implementation plus coordinator hardening for:
+The integration branch contains the worker implementation plus coordinator convergence/hardening for:
 
 - typed Visual Property Registry;
 - Runtime Visual Instance identity/lifecycle/isolation;
@@ -48,7 +48,7 @@ The integration branch contains the worker implementation plus coordinator harde
 - schema/definition identity checks and validated-value propagation;
 - runtime-readable/runtime-writable enforcement;
 - stable `assetRef` authority with path/URL denial;
-- Client Visual Python visual-property provider bound to the exact current runtime instance;
+- Client Visual Python property authority bound to the exact current Runtime Visual Instance;
 - TAG + Client Memory + visual-property provider composition without weakening the Wave 06 Pyodide sandbox;
 - structured bridge hardening and bounded structured values;
 - visual/Python acceptance and adversarial tests committed but not yet executed on the final head.
@@ -68,32 +68,76 @@ The coordinator no-Actions convergence established:
 9. official frontend Engineering -> Runtime adapter;
 10. backend Preview enforcement for built-in schemas/properties/binding capabilities.
 
-## Newly discovered deterministic test blockers — CORRECTED / CI_DEFERRED
+## Earlier deterministic test drift — CORRECTED / CI_DEFERRED
 
-A repository-wide static audit after the earlier stop point found three deterministic Chromium/Wave-07 test inconsistencies against the already-settled canonical contract. These were concrete correctness blockers, so coordinator correction was authorized even during the no-CI interval.
+Repository audit previously found stale Wave 07 tests that contradicted the settled asset/property API. Corrections ended at:
 
-Corrections on `integration/visual-runtime-wave-07`:
+- `cd2753f64a8191df3d2861871bb53077b74cc7a2` — AssetReference source contract aligned to identity-only authority;
+- `c3f9cc15a6715bf6434b1553878ba7c6121e0783` — browser acceptance aligned to `assetRef = { assetId }`;
+- `63878f6fe28a0a9ac101d622628f8b95658899a7` — projection tests aligned to `createDefaultValues()` and identity-only assets.
 
-- `cd2753f64a8191df3d2861871bb53077b74cc7a2` — removes obsolete source-contract expectation that `AssetReference` contains `assetId/name/mediaType`; the test now enforces identity-only authority.
-- `c3f9cc15a6715bf6434b1553878ba7c6121e0783` — fixes Wave 07 browser acceptance so valid `assetRef` is `{ assetId }` and name/mediaType/path/URL extras are explicitly rejected.
-- `63878f6fe28a0a9ac101d622628f8b95658899a7` — replaces obsolete `createDefaultBaseValues()` test calls with the actual `createDefaultValues()` API and aligns Engineering projection asset tests with identity-only references.
+The implementation decision in `main` was clarified so visual references contain only `assetId`; asset name/MIME/dimensions/hash belong to the future asset entity.
 
-Static compare/search after the correction found no remaining `createDefaultBaseValues` reference and no remaining obsolete three-field AssetReference expectation in the Wave 07 delta. This remains source evidence only, not execution proof.
+## Third static audit — concrete blockers corrected / CI_DEFERRED
 
-The main Wave-07 implementation decision was also clarified so the earlier permissive wording cannot recreate the same drift: canonical visual references contain only `assetId`; asset name/MIME/dimensions/hash belong to the future asset entity.
+A subsequent full-project/Wave-07 audit found three product-contract blockers plus one deterministic legacy test failure. These were safe, concrete correctness corrections and therefore authorized during the no-CI interval.
 
-## Repository-wide audit findings — tracked, not silently fixed during CI freeze
+### 1. Client Visual Python Script override clear
 
-The same audit found several project-quality issues outside the immediate Wave 07 correctness blockers:
+The Wave 07 contract requires Python to set **and clear** a runtime-writable Script override. Runtime already had `clearScriptOverride`, but the public Python path only exposed write.
 
-- frontend reproducibility is weak: several dependencies use `latest`, there is no committed `package-lock.json`, and CI uses `npm install` rather than `npm ci`;
-- backend SDK/compiler reproducibility is not fully pinned: no `global.json` is present while `LangVersion` is `latest` and CI selects `10.0.x`;
-- `main` is currently unprotected at GitHub level, so the green-CI-before-merge rule is procedural rather than enforced by branch protection;
-- API CORS currently allows any origin/header/method globally, acceptable as a development convenience but too permissive as a final industrial-product default;
-- `tests-e2e` are outside the frontend `tsconfig` build include, so test TypeScript/API drift can escape the Web build and surface only in the later Chromium job;
-- many source/contract tests run under the full Playwright/WebServer path, increasing CI cost and delaying cheap failures.
+The integration branch now keeps bridge v1 and the existing `visualProperty.write` capability while adding explicit operation `clear`:
 
-These items are real hardening/reproducibility debt. They are **not authorization to broaden Wave 07 during the current no-CI interval**. Address them deliberately when CI budget permits and before the v0.1 packaging/hardening gates where applicable.
+- dispatcher/provider interface includes `clearVisualProperty`;
+- concrete visual provider maps clear to `RuntimeVisualInstance.clearScriptOverride`;
+- official composed Client Visual provider forwards the same authority;
+- the actual Pyodide Worker module now exposes `elite_scada.visual_property_clear(target, property)` and sends `visualProperty.write` + operation `clear` with no value/null sentinel;
+- tests cover set -> clear -> fallback to Engineering Base, current-target/current-instance authority, and the real Worker source surface;
+- Python editor help now states that the capability can set or explicitly clear Script overrides.
+
+Key commits in this slice include `815259ceb1e7ce0e58bfa6ed10099377fd0c3b85`, `e25aa5dcbcf20371e9ffa9bb0614f5810dd41f5a`, `42e641cea77e61edb813701bab0f595b93c369e5`, `f0ef61b96ed4461eb5225903647bfc6d16806702` and associated tests.
+
+### 2. Malformed visual Engineering fails closed in Preview
+
+Static review found that JSON-deserialized null visual nodes/bindings/keys/targets could be diagnosed by generic validation and then dereferenced by later built-in/reference validation, turning invalid user input into an exception instead of `ImportIssue` output.
+
+The integration branch now:
+
+- reports `VISUAL_ELEMENT_NULL` and `BINDING_NULL` rather than dereferencing malformed collection entries;
+- avoids placeholder checks on null targets;
+- keeps built-in schema validation from dereferencing null/blank binding keys;
+- keeps `ViewEngineeringHandler` recursive reference traversal null-safe;
+- keeps `EngineeringHandlerSupport.ValidateConcreteTagBindings` null-safe;
+- includes direct validator tests and a full `EngineeringExchangeService.Preview` malformed-tree test proving the expected fail-closed path structurally.
+
+Key commits include `59953a34ff5178138a5f2cc59d65a311769f2180`, `edc01655c311483c8996de104c856c414a67e452`, `d687599ef0909a1363a3d6eac121f7c1dd63c29a`, `a69446f0497d1c0dca1bca0dcb791312335b7102`, `92c0ec2a188c157db8154477c5e742b239b674fb` and `f89ce79cbd7ec791d8c329e80091b2623103dc3b`.
+
+### 3. TypeScript integer domain aligned with C# Int32
+
+C# visual integer values use `int`; the TypeScript legacy codec already enforced signed Int32, but the general Visual Property Registry previously accepted any JavaScript integer.
+
+The registry now rejects integer values outside `-2147483648..2147483647` using the existing `number.integer` validation code, with boundary tests committed. Commit: `231eed9f63d2d953d541fd348a4f584ef9379b1b` plus test `d8b09a925a6e30d012cd5d9d8d17c822bd0ce93b`.
+
+### 4. Wave 06 sandbox policy snapshot drift
+
+`python-sandbox-foundation.spec.ts` still compared `CLIENT_VISUAL_PYTHON_POLICY` to the old Wave 06 exact object, while Wave 07 structured-value hardening had already added `maxBridgeDepth`, `maxBridgeNodes` and `maxBridgeStringLength`. That test would deterministically fail in Chromium.
+
+The expectation was reconciled without removing any security bound. Final correction commit: `d184fdd5b65f2ce0c0e6ca28cd092644be080555`.
+
+All corrections remain **static/source evidence only** until CI reset and exact-head execution.
+
+## Repository-wide audit findings — tracked, not silently broadened
+
+The audits also identified project-quality debt outside the immediate Wave 07 correctness blockers:
+
+- frontend dependencies use floating `latest` versions, no committed `package-lock.json`, and CI uses `npm install` rather than `npm ci`;
+- no `global.json` pins the .NET SDK while `LangVersion` is `latest`;
+- `main` is not protected by required branch checks;
+- API CORS is globally permissive;
+- `tests-e2e` are outside the normal frontend TypeScript build include;
+- many cheap source/contract tests execute only through the full Playwright/WebServer path.
+
+These are tracked hardening/reproducibility issues, not authorization to expand Wave 07 while CI is frozen.
 
 ## Deliberately unresolved before Wave 08 activation
 
@@ -101,11 +145,18 @@ These items are real hardening/reproducibility debt. They are **not authorizatio
 
 `VisualElementEngineeringDto.Properties` is still `Dictionary<string,string>`. Schema v11 is therefore a transitional identity/convergence schema, not the final typed visual persistence model.
 
-The legacy codec is containment for this mismatch, not permission for the graphical editor to persist a private/stringly model. Before Wave 08 becomes ACTIVE, the canonical JSON-native typed property representation and migration strategy must be deliberately settled and validated.
+The codec contains the mismatch; it does not authorize an editor-private/stringly persistence model. Before Wave 08 becomes ACTIVE, canonical JSON-native typed property representation and migration strategy must be deliberately settled and validated.
 
-### 2. Wave 07 final validation and merge
+### 2. Known lower-priority convergence items
 
-The exact final integration head still requires full integrated CI. Wave 08 cannot start merely because static review and deterministic test corrections are complete.
+Static review also noted two items to resolve deliberately with the typed-persistence/readiness work rather than stretching Wave 07 indefinitely:
+
+- C# `double.ToString("R")` and JavaScript `String(number)` can produce different textual spellings for some exponent values, so the transitional codec should not be treated as byte-canonical across runtimes;
+- the frontend Engineering -> Runtime projection currently collapses canonical `Tag` and `Property` binding kinds into a generic Runtime `binding` kind, which is acceptable while values are externally resolved but should retain sufficient source discrimination before the graphical binding engine depends on it.
+
+### 3. Wave 07 final validation and merge
+
+The exact final integration head still requires full integrated CI. Wave 08 cannot start merely because static review is clean.
 
 ## Current coordinator state
 
@@ -117,12 +168,14 @@ Until the owner explicitly reports Actions reset:
 - do not merge Wave 07 into `main`;
 - do not activate Wave 08 workers;
 - do not implement Canvas, Property Inspector, Object Palette, image import/storage/renderer or other Wave 08 UI;
-- only resume product-code changes if repository review exposes another concrete correctness blocker that can safely be addressed without CI.
+- only resume product-code changes if another concrete correctness blocker is demonstrated safely by repository review.
+
+The 24 commits currently present on `main` after Wave 06 modify documentation only, so no unmerged functional main change is currently hidden from the integration branch. Reconciliation with current `main` remains required before final exact-head CI, but it is not a source-code conflict at this stop point.
 
 ## When Actions reset
 
 1. Re-read `main` and verify exact integration head/state.
-2. Reconcile `integration/visual-runtime-wave-07` with current `main` if required.
+2. Reconcile `integration/visual-runtime-wave-07` with current `main`.
 3. Resolve/finalize canonical typed visual property persistence deliberately, with migration/compatibility coverage, before Wave 08 activation.
 4. Resolve any remaining reproducibility/CI blocker necessary to make the final run trustworthy; do not casually broaden functional scope.
 5. Open one Wave 07 integration PR only when ready to spend CI.

@@ -26,17 +26,14 @@ export type PythonEngineBootstrapFailure = {
   sanitizedError: string;
 };
 
+type PythonBridgeRequestEnvelope = PythonWorkerEnvelope<PythonWorkerRequest> & { kind?: never };
+type PythonBridgeResponseEnvelope = PythonWorkerEnvelope<PythonWorkerResponse> & { kind?: never };
+
 export type ClientVisualPythonPrivateWorkerRequest =
   | PythonEngineBootstrapRequest
-  | PythonWorkerEnvelope<PythonWorkerRequest>;
+  | PythonBridgeRequestEnvelope;
 
 export type ClientVisualPythonPrivateWorkerResponse =
   | PythonEngineBootstrapResponse
   | PythonEngineBootstrapFailure
-  | PythonWorkerEnvelope<PythonWorkerResponse>;
-
-export function isPythonWorkerEnvelope(
-  value: ClientVisualPythonPrivateWorkerRequest | ClientVisualPythonPrivateWorkerResponse
-): value is PythonWorkerEnvelope<PythonWorkerRequest | PythonWorkerResponse> {
-  return typeof value === 'object' && value !== null && 'bridgeVersion' in value && 'message' in value;
-}
+  | PythonBridgeResponseEnvelope;

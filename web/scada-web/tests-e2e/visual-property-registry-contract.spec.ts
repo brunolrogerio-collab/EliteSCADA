@@ -20,17 +20,26 @@ const expectedCommonKeys = [
   'visible',
   'opacity',
   'fillColor',
+  'backgroundColor',
   'strokeColor',
   'strokeWidth',
+  'strokeStyle',
   'cornerRadius',
   'text',
   'textColor',
+  'fontFamily',
   'fontSize',
+  'fontWeight',
+  'fontStyle',
+  'horizontalAlignment',
+  'verticalAlignment',
   'assetRef',
-  'imageFit'
+  'imageFit',
+  'imagePositionX',
+  'imagePositionY'
 ];
 
-test('common registry exposes the locked Wave 07 property family and image fit enum', () => {
+test('common registry exposes the converged Wave 07 property family and image fit enum', () => {
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.list().map(definition => definition.key)).toEqual(expectedCommonKeys);
   expect(IMAGE_FIT_VALUES).toEqual(['contain', 'cover', 'fill', 'native']);
 
@@ -40,6 +49,17 @@ test('common registry exposes the locked Wave 07 property family and image fit e
   expect(assetDefinition.runtimeReadable).toBeTruthy();
   expect(assetDefinition.runtimeWritable).toBeFalsy();
   expect(assetDefinition.supportsBinding).toBeFalsy();
+
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.strokeStyle))
+    .toMatchObject({ type: 'enum', defaultValue: 'solid', allowedValues: ['solid', 'dashed', 'dotted'] });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.fontWeight))
+    .toMatchObject({ type: 'number', defaultValue: 400, integer: true, minimum: 100, maximum: 900 });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.horizontalAlignment))
+    .toMatchObject({ type: 'enum', defaultValue: 'left' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.verticalAlignment))
+    .toMatchObject({ type: 'enum', defaultValue: 'middle' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.imagePositionX))
+    .toMatchObject({ type: 'number', defaultValue: 0, minimum: 0, maximum: 1, animatable: true });
 });
 
 test('numeric constraints reject non-finite, fractional integer-only and out-of-range values without coercion', () => {
@@ -58,6 +78,8 @@ test('numeric constraints reject non-finite, fractional integer-only and out-of-
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.zIndex, 3))
     .toMatchObject({ ok: true, value: 3 });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.zIndex, 3.5))
+    .toMatchObject({ ok: false, code: 'number.integer' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.fontWeight, 450.5))
     .toMatchObject({ ok: false, code: 'number.integer' });
 });
 

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
 using Scada.Core.Tags;
@@ -324,21 +325,21 @@ public sealed class EngineeringWorkspace : IDisposable
                     {
                         new EngineeringBindingDto("level", EngineeringBindingKind.Tag, "Demo.Tank01.Level", "read")
                     },
-                    Properties: new Dictionary<string, string>
+                    Properties: new Dictionary<string, JsonElement>
                     {
-                        ["label"] = "Reservatório TK01",
-                        ["x"] = "100",
-                        ["y"] = "100"
+                        ["label"] = JsonSerializer.SerializeToElement("Reservatório TK01"),
+                        ["x"] = JsonSerializer.SerializeToElement(100d),
+                        ["y"] = JsonSerializer.SerializeToElement(100d)
                     }),
                 new VisualElementEngineeringDto(
                     Key: "pump01",
                     Type: "dynamo",
                     DynamoKey: "dynamo.pump.standard",
                     EquipmentPath: "Demo.P01",
-                    Properties: new Dictionary<string, string>
+                    Properties: new Dictionary<string, JsonElement>
                     {
-                        ["x"] = "430",
-                        ["y"] = "160"
+                        ["x"] = JsonSerializer.SerializeToElement(430d),
+                        ["y"] = JsonSerializer.SerializeToElement(160d)
                     }),
                 new VisualElementEngineeringDto(
                     Key: "pressure",
@@ -347,9 +348,9 @@ public sealed class EngineeringWorkspace : IDisposable
                     {
                         new EngineeringBindingDto("value", EngineeringBindingKind.Tag, "Demo.Discharge.Pressure", "read")
                     },
-                    Properties: new Dictionary<string, string>
+                    Properties: new Dictionary<string, JsonElement>
                     {
-                        ["label"] = "Pressão"
+                        ["label"] = JsonSerializer.SerializeToElement("Pressão")
                     }),
                 new VisualElementEngineeringDto(
                     Key: "flow",
@@ -358,9 +359,9 @@ public sealed class EngineeringWorkspace : IDisposable
                     {
                         new EngineeringBindingDto("value", EngineeringBindingKind.Tag, "Demo.Discharge.Flow", "read")
                     },
-                    Properties: new Dictionary<string, string>
+                    Properties: new Dictionary<string, JsonElement>
                     {
-                        ["label"] = "Vazão"
+                        ["label"] = JsonSerializer.SerializeToElement("Vazão")
                     })
             },
             Properties: new Dictionary<string, string>
@@ -388,7 +389,10 @@ public sealed class EngineeringWorkspace : IDisposable
                     {
                         new EngineeringBindingDto("value", EngineeringBindingKind.Tag, "{equipmentPath}.Current", "read")
                     },
-                    Properties: new Dictionary<string, string> { ["label"] = "Corrente" }),
+                    Properties: new Dictionary<string, JsonElement>
+                    {
+                        ["label"] = JsonSerializer.SerializeToElement("Corrente")
+                    }),
                 new VisualElementEngineeringDto(
                     Key: "frequency",
                     Type: "value",
@@ -396,7 +400,10 @@ public sealed class EngineeringWorkspace : IDisposable
                     {
                         new EngineeringBindingDto("value", EngineeringBindingKind.Tag, "{equipmentPath}.Frequency", "readWrite")
                     },
-                    Properties: new Dictionary<string, string> { ["label"] = "Frequência" }),
+                    Properties: new Dictionary<string, JsonElement>
+                    {
+                        ["label"] = JsonSerializer.SerializeToElement("Frequência")
+                    }),
                 new VisualElementEngineeringDto(
                     Key: "fault",
                     Type: "status",
@@ -404,7 +411,10 @@ public sealed class EngineeringWorkspace : IDisposable
                     {
                         new EngineeringBindingDto("active", EngineeringBindingKind.Tag, "{equipmentPath}.Fault", "read")
                     },
-                    Properties: new Dictionary<string, string> { ["label"] = "Falha" })
+                    Properties: new Dictionary<string, JsonElement>
+                    {
+                        ["label"] = JsonSerializer.SerializeToElement("Falha")
+                    })
             },
             Properties: new Dictionary<string, string>
             {

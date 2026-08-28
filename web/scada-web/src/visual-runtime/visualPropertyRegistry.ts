@@ -25,14 +25,23 @@ export const VISUAL_PROPERTY_KEYS = {
   visible: 'visible',
   opacity: 'opacity',
   fillColor: 'fillColor',
+  backgroundColor: 'backgroundColor',
   strokeColor: 'strokeColor',
   strokeWidth: 'strokeWidth',
+  strokeStyle: 'strokeStyle',
   cornerRadius: 'cornerRadius',
   text: 'text',
   textColor: 'textColor',
+  fontFamily: 'fontFamily',
   fontSize: 'fontSize',
+  fontWeight: 'fontWeight',
+  fontStyle: 'fontStyle',
+  horizontalAlignment: 'horizontalAlignment',
+  verticalAlignment: 'verticalAlignment',
   assetRef: 'assetRef',
-  imageFit: 'imageFit'
+  imageFit: 'imageFit',
+  imagePositionX: 'imagePositionX',
+  imagePositionY: 'imagePositionY'
 } as const;
 
 export type CommonVisualPropertyKey = typeof VISUAL_PROPERTY_KEYS[keyof typeof VISUAL_PROPERTY_KEYS];
@@ -274,12 +283,19 @@ const COMMON_VISUAL_PROPERTY_DEFINITIONS: readonly VisualPropertyDefinition[] = 
   booleanProperty(VISUAL_PROPERTY_KEYS.visible, true, 'appearance'),
   numberProperty(VISUAL_PROPERTY_KEYS.opacity, 1, { minimum: 0, maximum: 1, animatable: true, category: 'appearance' }),
   colorProperty(VISUAL_PROPERTY_KEYS.fillColor, '#00000000', 'appearance'),
+  colorProperty(VISUAL_PROPERTY_KEYS.backgroundColor, '#00000000', 'appearance'),
   colorProperty(VISUAL_PROPERTY_KEYS.strokeColor, '#000000', 'appearance'),
   numberProperty(VISUAL_PROPERTY_KEYS.strokeWidth, 1, { minimum: 0, animatable: true, unit: 'px', category: 'appearance' }),
+  enumProperty(VISUAL_PROPERTY_KEYS.strokeStyle, 'solid', ['solid', 'dashed', 'dotted'], 'appearance'),
   numberProperty(VISUAL_PROPERTY_KEYS.cornerRadius, 0, { minimum: 0, animatable: true, unit: 'px', category: 'appearance' }),
   stringProperty(VISUAL_PROPERTY_KEYS.text, '', 'text'),
   colorProperty(VISUAL_PROPERTY_KEYS.textColor, '#000000', 'text'),
+  stringProperty(VISUAL_PROPERTY_KEYS.fontFamily, 'system', 'text'),
   numberProperty(VISUAL_PROPERTY_KEYS.fontSize, 14, { minimum: 1, animatable: true, unit: 'px', category: 'text' }),
+  numberProperty(VISUAL_PROPERTY_KEYS.fontWeight, 400, { minimum: 100, maximum: 900, integer: true, category: 'text' }),
+  enumProperty(VISUAL_PROPERTY_KEYS.fontStyle, 'normal', ['normal', 'italic'], 'text'),
+  enumProperty(VISUAL_PROPERTY_KEYS.horizontalAlignment, 'left', ['left', 'center', 'right'], 'text'),
+  enumProperty(VISUAL_PROPERTY_KEYS.verticalAlignment, 'middle', ['top', 'middle', 'bottom'], 'text'),
   {
     key: VISUAL_PROPERTY_KEYS.assetRef,
     type: 'assetRef',
@@ -292,7 +308,9 @@ const COMMON_VISUAL_PROPERTY_DEFINITIONS: readonly VisualPropertyDefinition[] = 
     category: 'image',
     presentationHint: 'project-asset'
   } satisfies AssetRefVisualPropertyDefinition,
-  enumProperty(VISUAL_PROPERTY_KEYS.imageFit, 'contain', IMAGE_FIT_VALUES, 'image')
+  enumProperty(VISUAL_PROPERTY_KEYS.imageFit, 'contain', IMAGE_FIT_VALUES, 'image'),
+  numberProperty(VISUAL_PROPERTY_KEYS.imagePositionX, 0, { minimum: 0, maximum: 1, animatable: true, category: 'image' }),
+  numberProperty(VISUAL_PROPERTY_KEYS.imagePositionY, 0, { minimum: 0, maximum: 1, animatable: true, category: 'image' })
 ];
 
 export const COMMON_VISUAL_PROPERTY_REGISTRY = new VisualPropertyRegistry(

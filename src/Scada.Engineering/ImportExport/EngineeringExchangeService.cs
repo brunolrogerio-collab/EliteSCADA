@@ -176,7 +176,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _alarmHandler = new AlarmEngineeringHandler(alarms, _tagHandler);
         _assetHandler = new AssetEngineeringHandler(assets, tags);
         _visualAssetHandler = new VisualAssetEngineeringHandler(_visualAssets);
-        _viewHandler = new ViewEngineeringHandler(views, assets, tags);
+        _viewHandler = new ViewEngineeringHandler(views, assets, tags, _visualAssets);
         _securityPolicyHandler = new SecurityPolicyEngineeringHandler(securityPolicies);
         _commandHandler = new CommandEngineeringHandler(commands, tags, dataSources);
         _gatewayHandler = new GatewayEngineeringHandler(gateways, tags, dataSources);

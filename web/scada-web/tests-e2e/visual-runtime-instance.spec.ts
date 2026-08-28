@@ -6,7 +6,8 @@ import {
   VisualObjectPropertySchema,
   VisualPropertyRegistry,
   type RuntimeVisualDefinitionProjection,
-  type VisualPropertyDefinition
+  type VisualPropertyDefinition,
+  type VisualPropertyValue
 } from '../src/visual-runtime';
 
 const engineeringOnly = {
@@ -31,14 +32,16 @@ const schema = new VisualObjectPropertySchema(
   registry
 );
 
-function definition(baseProperties: Readonly<Record<string, unknown>> = {}): RuntimeVisualDefinitionProjection {
+function definition(
+  baseProperties: Readonly<Record<string, VisualPropertyValue>> = {}
+): RuntimeVisualDefinitionProjection {
   return {
     objectId: 'object-1',
     key: 'pumpSymbol',
     objectType: 'symbol',
     parentObjectId: null,
     propertyKeys: schema.propertyKeys,
-    baseProperties: baseProperties as RuntimeVisualDefinitionProjection['baseProperties'],
+    baseProperties,
     bindings: [],
     scriptEventReferences: [],
     metadata: {}
@@ -47,7 +50,7 @@ function definition(baseProperties: Readonly<Record<string, unknown>> = {}): Run
 
 function instance(
   runtimeInstanceId: string,
-  baseProperties: Readonly<Record<string, unknown>> = {}
+  baseProperties: Readonly<Record<string, VisualPropertyValue>> = {}
 ): RuntimeVisualInstance {
   return new RuntimeVisualInstance({
     definition: definition(baseProperties),

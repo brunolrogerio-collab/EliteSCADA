@@ -1,3 +1,4 @@
+import type { VisualEngineeringDefinitionProjection } from './visualEngineeringProjection';
 import type { VisualObjectPropertySchema } from './visualPropertyRegistry';
 import { isStableVisualToken } from './visualPropertyTypes';
 import { createRuntimeVisualPropertyRegistryPort } from './runtimeVisualPropertyAdapter';
@@ -16,13 +17,8 @@ export type RuntimeVisualPropertySource =
 
 export type RuntimeVisualPropertyLayer = Exclude<RuntimeVisualPropertySource, 'default'>;
 
-export type RuntimeVisualDefinitionProjection = {
-  objectId: string;
-  key: string;
-  objectType: string;
-  parentObjectId?: string | null;
-  baseProperties?: Readonly<Record<string, unknown>>;
-};
+/** Compatibility name only. Runtime consumes the same Engineering projection contract. */
+export type RuntimeVisualDefinitionProjection = VisualEngineeringDefinitionProjection;
 
 export type RuntimeVisualInstanceIdentity = {
   runtimeInstanceId: string;
@@ -58,7 +54,7 @@ export type RuntimeVisualPropertyDiagnostic = RuntimeVisualResolvedProperty & {
 };
 
 export type RuntimeVisualInstanceOptions = {
-  definition: RuntimeVisualDefinitionProjection;
+  definition: VisualEngineeringDefinitionProjection;
   schema: VisualObjectPropertySchema;
   runtimeInstanceId?: string;
   visualContextInstanceId?: string;
@@ -104,6 +100,7 @@ export class RuntimeVisualInstance {
         `Runtime visual definition type '${definition.objectType}' does not match schema '${schema.objectTypeKey}'.`
       );
     }
+    assertProjectionSchemaMatch(definition, schema);
 
     this.registry = createRuntimeVisualPropertyRegistryPort(schema);
     const runtimeInstanceId = options.runtimeInstanceId ?? createRuntimeInstanceId();
@@ -119,7 +116,7 @@ export class RuntimeVisualInstance {
     });
     this.sourceParentObjectId = normalizeOptionalIdentity(definition.parentObjectId, 'parentObjectId');
 
-    for (const [propertyKey, value] of Object.entries(definition.baseProperties ?? {})) {
+    for (const [propertyKey, value] of Object.entries(definition.baseProperties)) {
       const property = this.requireRegistered(propertyKey);
       const validation = this.registry.validate(property.key, value);
       if (!validation.valid) {
@@ -357,20 +354,20 @@ export class RuntimeVisualInstance {
   }
 
   private requireRegistered(propertyKey: string): VisualRuntimePropertyDefinitionPort {
-    const normalized = propertyKey.trim();
-    if (!normalized) {
+    if (!propertyKey || propertyKey !== propertyKey.trim()) {
       throw new RuntimeVisualInstanceError(
-        'VISUAL_PROPERTY_KEY_REQUIRED',
-        'Visual property key is required.'
+        'VISUAL_PROPERTY_KEY_INVALID',
+        'Visual property key must be a stable exact key with no surrounding whitespace.',
+        propertyKey
       );
     }
 
-    const property = this.registry.find(normalized);
+    const property = this.registry.find(propertyKey);
     if (!property) {
       throw new RuntimeVisualInstanceError(
         'VISUAL_PROPERTY_NOT_REGISTERED',
-        `Visual property '${normalized}' is not registered for this visual object type.`,
-        normalized
+        `Visual property '${propertyKey}' is not registered for this visual object type.`,
+        propertyKey
       );
     }
     return property;
@@ -408,6 +405,20 @@ export class RuntimeVisualInstance {
     throw new RuntimeVisualInstanceError(
       'VISUAL_RUNTIME_INSTANCE_DISPOSED',
       `Runtime visual instance '${this.identity.runtimeInstanceId}' is disposed.`
+    );
+  }
+}
+
+function assertProjectionSchemaMatch(
+  definition: VisualEngineeringDefinitionProjection,
+  schema: VisualObjectPropertySchema
+): void {
+  const expected = schema.propertyKeys;
+  const actual = definition.propertyKeys;
+  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
+    throw new RuntimeVisualInstanceError(
+      'VISUAL_RUNTIME_PROPERTY_SCHEMA_MISMATCH',
+      `Runtime visual definition property schema does not match object type '${schema.objectTypeKey}'.`
     );
   }
 }

@@ -26,7 +26,7 @@ test('primary shell keeps Runtime, Engineering and Audit navigation coherent', a
   const engineeringNavigation = page.locator('.eng-nav');
   await engineeringNavigation.getByRole('button', { name: /Scripts/ }).click();
   await expect(page.getByRole('heading', { name: 'Scripts de Engenharia' })).toBeVisible();
-  await expect(page.getByText('Sem execução Python nesta wave', { exact: true })).toBeVisible();
+  await expect(page.getByText('Editor sem autoridade de execução', { exact: true })).toBeVisible();
 
   await engineeringNavigation.getByRole('button', { name: /TAGs/ }).click();
   const entityBrowser = page.locator('.engineering-entity-browser');

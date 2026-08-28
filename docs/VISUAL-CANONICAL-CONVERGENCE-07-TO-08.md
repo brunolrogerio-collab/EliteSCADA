@@ -1,8 +1,8 @@
 # EliteSCADA — Visual Canonical Convergence 07 -> 08
 
-Status: **COORDINATOR THIRD STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED / STOP CONDITION REACHED**  
+Status: **COORDINATOR FOURTH STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED / STOP CONDITION REACHED**  
 Date: 2026-08-28  
-Exact reviewed integration head: `d184fdd5b65f2ce0c0e6ca28cd092644be080555`
+Exact reviewed integration head: `e376b37d2772906dd667afa199a6d8882abd43ae`
 
 This document records coordinator-only visual convergence and correctness hardening performed while Wave 07 waits for final GitHub Actions validation and before Wave 08 graphical-editor implementation is authorized.
 
@@ -19,6 +19,8 @@ The no-Actions interval is restricted to canonical convergence/readiness and new
 The integration branch uses transitional Engineering **Schema v11**. `VisualElementEngineeringDto` has an optional stable `Guid? Id`. Missing IDs from legacy inputs are materialized/preserved by the view registry; empty/duplicate IDs are rejected across a visual definition.
 
 Older schema versions remain readable. Merged `main` remains Schema v10 until Wave 07 is validated and merged.
+
+The fourth audit also aligned prospective Script-reference validation with the same Screen/Popup identity rules used by Apply: existing resolved definition identity is preserved, legacy v10 child elements inherit existing IDs by unique sibling key when applicable, and removed referenced children disappear from the prospective catalog before Apply.
 
 ### Visual binding target semantics
 
@@ -55,7 +57,7 @@ C# and TypeScript share the intended common visual property family and renderer-
 - `core.valueDisplay`
 - `core.button`
 
-TypeScript integer visual properties now use the same signed Int32 domain as C# `VisualIntegerValue(int)`.
+TypeScript integer visual properties use the same signed Int32 domain as C# `VisualIntegerValue(int)`.
 
 Backend Preview validates known `core.*` properties/binding capabilities and fails closed for unknown built-in types. Non-core future custom/Dynamo/plugin types remain extensible.
 
@@ -80,19 +82,33 @@ Bridge v1 retains the existing `visualProperty.write` capability with operations
 
 `null` is not a clear sentinel. The actual Worker module exposes `elite_scada.visual_property_clear(target, property)` and routes it through the trusted capability dispatcher. Target, current-instance, lifecycle, registration and runtime-writable checks remain authoritative.
 
-### Malformed visual Engineering fail-closed Preview
+### Malformed Engineering fail-closed Preview
 
-The third audit found that JSON-deserialized null nodes/bindings/fields could be diagnosed generically and then dereferenced by later validation stages. The full visual Preview path is now null-safe:
+The third audit found that JSON-deserialized null visual nodes/bindings/fields could be diagnosed generically and then dereferenced by later validation stages. The full nested visual Preview path was made null-safe.
 
-- null visual node -> `VISUAL_ELEMENT_NULL`;
-- null binding -> `BINDING_NULL`;
-- blank/null key/target -> normal required-field issue;
-- no placeholder dereference on null target;
-- built-in validation skips malformed binding keys already owned by generic validation;
-- recursive reference traversal skips diagnosed null nodes;
-- concrete TAG-binding validation skips diagnosed null/malformed entries.
+The fourth audit extended fail-closed handling to the remaining top-level view and Script paths:
 
-Direct tests and a full `EngineeringExchangeService.Preview` malformed-tree test are committed. Execution proof remains deferred.
+- null Screen/Popup entries no longer reach duplicate/reference/existing-resolution code;
+- null/blank top-level view keys stay on the `ImportIssue` path;
+- null Script definitions produce `SCRIPT_NULL`;
+- null Script visual-event references produce `SCRIPT_VISUAL_REFERENCE_NULL`;
+- malformed Script collections cannot Preview green and then fail during Apply.
+
+Direct and full `EngineeringExchangeService.Preview` tests are committed. Execution proof remains deferred.
+
+### Canonical Script -> VisualObject reference convergence
+
+Wave 05 Script Engineering already defined stable visual-object references as `definitionId/objectId`. Wave 07 supplied the missing stable nested object identities, but the real Engineering reference catalog initially registered only visual definitions.
+
+The fourth audit corrected that cross-wave gap:
+
+- `ScriptEngineeringDependencyKind.VisualObject` can resolve canonical Screen/Popup nested object IDs;
+- object-scoped `ScriptVisualEventReference.VisualObjectId` is checked against the same catalog;
+- `ScriptEngineeringReferenceResolver.FromEngineeringPackage` recursively derives nested visual object references from canonical package data;
+- prospective validation now surfaces failures attached to already-saved Scripts when incoming TAG/Data Source/visual changes invalidate their dependencies;
+- v10 Screen/Popup updates that preserve a child by unique key retain its stable ID for validation, while removing the child invalidates the Script before Apply.
+
+No renderer or DOM authority was introduced by this reference convergence.
 
 ## Transitional string-property codec
 
@@ -110,20 +126,41 @@ An earlier audit corrected deterministic stale expectations around three-field A
 
 ### Third audit hardening
 
-The later full-project audit found four additional blockers:
+The third audit found four additional blockers:
 
 1. actual Python Worker had no visual-property clear function even though Runtime could clear Script overrides;
-2. malformed/null visual JSON could throw in later Preview layers;
+2. malformed/null nested visual JSON could throw in later Preview layers;
 3. TypeScript integer validation exceeded the C# Int32 domain;
 4. `python-sandbox-foundation.spec.ts` still expected the old exact Wave 06 policy and omitted Wave 07 `maxBridgeDepth`, `maxBridgeNodes` and `maxBridgeStringLength`, guaranteeing a Chromium failure.
 
-All four were corrected without weakening sandbox/security authority. Exact integration head after this hardening:
+All four were corrected without weakening sandbox/security authority. Exact integration head after that hardening:
 
 `d184fdd5b65f2ce0c0e6ca28cd092644be080555`
 
-The Worker clear change was verified as four additive lines with no deletion/rewrite of sandbox logic. The capability list remains unchanged because clear is an operation of the existing visual-property write authority, not a new authority class.
+### Fourth audit hardening
+
+The fourth audit found additional deterministic and referential-integrity blockers:
+
+1. top-level malformed Screen/Popup entries could still escape fail-closed Preview;
+2. three current-export Script tests still hard-coded schema v10 after current Engineering moved to transitional v11;
+3. stable nested `VisualObject` IDs were absent from the actual Script Engineering reference catalog;
+4. the package-derived public reference resolver had the same nested-object gap;
+5. null Script/reference collections could survive Preview handling and fail later in Apply;
+6. validation already computed errors on existing Scripts invalidated by incoming Engineering changes but the handler discarded them;
+7. legacy v10 Screen/Popup object identity used by prospective Script validation did not fully mirror registry/Apply preservation semantics;
+8. prospective Screen/Popup/Dynamo definition identity precedence did not initially match the real import handlers.
+
+All were corrected on the integration branch with focused source-level tests. Exact integration head after this hardening:
+
+`e376b37d2772906dd667afa199a6d8882abd43ae`
 
 All corrections remain **CI_DEFERRED**.
+
+## Reviewed hypotheses deliberately not changed
+
+- Bare historical visual `Type` strings such as `group`/`text` were not automatically aliased to `core.group`/`core.text`, because the legacy type surface was extensible and could represent custom types.
+- Script-only mutation packages remain schema v10 intentionally. They do not carry the v11 visual-ID surface and continue to exercise a supported compatibility boundary.
+- C# Runtime visual `Clear*` methods do not re-check every corresponding write/binding/animation flag as strictly as the TypeScript path. No current public capability can create a forbidden layer and then use clear as stronger authority, so this remains semantic-convergence debt rather than a current security blocker.
 
 ## Deliberately unresolved blocker: typed visual property persistence
 
@@ -131,11 +168,13 @@ All corrections remain **CI_DEFERRED**.
 
 Before Wave 08 becomes ACTIVE, settle and validate canonical JSON-native typed visual property representation and migration/compatibility. The editor must consume that canonical model rather than establish a second private persistence format.
 
-## Lower-priority binding-source convergence
+## Lower-priority binding/source and import hardening
 
 Canonical Engineering distinguishes `Tag`, `Property` and `Expression`. The current frontend projection reduces `Tag` and `Property` to generic Runtime `binding` while values are externally resolved.
 
 That is not the present Wave 07 execution blocker, but sufficient source-kind discrimination must be retained before the graphical binding engine resolves references itself.
+
+Older Engineering collections also retain broader null/empty-ID robustness debt. The fourth audit corrected the concrete visual/Script paths it demonstrated, but did not expand the frozen Wave 07 scope into a repository-wide rewrite of every historical import handler.
 
 ## Repository-wide debt observed during audit
 
@@ -153,7 +192,7 @@ These findings do not authorize speculative functional expansion during the CI f
 
 ## Main/integration reconciliation fact
 
-Every current `main` change after the Wave 06 merge is documentation-only. No functional `main` code delta is hidden from the Wave 07 integration branch.
+Every current `main` change after the Wave 06 merge is coordination/documentation-only. No functional `main` code delta is hidden from the Wave 07 integration branch.
 
 Historical reconciliation with current `main` remains mandatory before final exact-head CI.
 
@@ -187,7 +226,7 @@ Items 3, 4 and 6 are structurally settled; the foundation for 5/7 exists. Items 
 
 ## Current stop state
 
-Exact integration head: `d184fdd5b65f2ce0c0e6ca28cd092644be080555`.
+Exact integration head: `e376b37d2772906dd667afa199a6d8882abd43ae`.
 
 **Stop condition reached again.** Until explicit owner report of Actions reset:
 

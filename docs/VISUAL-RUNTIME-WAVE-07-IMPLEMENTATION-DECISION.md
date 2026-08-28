@@ -1,274 +1,135 @@
 # Wave 07 — Visual Runtime Object Model Implementation Decision
 
-Status: **LOCKED WAVE 07 IMPLEMENTATION CONTRACT**  
+Status: **LOCKED / COMPLETE / MERGED / POST-MERGE GREEN**  
 Date: 2026-08-28  
-Product base: `cc79713434c1d7b5988158b843b137eaf488d923`
+Logical product base: `cc79713434c1d7b5988158b843b137eaf488d923`  
+Final integration product head: `6d869109af23b25d1ae95cd35610e1930a16791c`  
+Main merge: `8de706882ba20afedd666532ac41ae11115d06b3`
 
-This document turns the locked product architecture in `PROJECT GOAL.md`, `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md` and `docs/VISUAL-ASSETS-AND-IMAGES.md` into the executable Wave 07 boundary.
+This document is the completed Wave 07 architecture contract. It remains normative input to Wave 08 and later visual/Python work.
 
-Wave 07 is architecture-first. It establishes the public client visual runtime model consumed later by the graphical editor, Screens, Popups, Dynamos and Python visual APIs. It does **not** implement the graphical editor itself.
+## Delivered objective
 
-## Wave objective
+Wave 07 established one deterministic, renderer-independent visual Runtime foundation with:
 
-Deliver one deterministic visual runtime foundation with:
-
-1. stable visual object definition identity;
-2. a typed public Visual Property Registry;
-3. per-client Runtime Visual Instance identity and lifecycle;
+1. stable visual definition/object identity;
+2. typed public Visual Property Registry;
+3. per-client Runtime Visual Instance identity/lifecycle/isolation;
 4. deterministic property-source resolution;
 5. runtime override isolation from saved Engineering;
-6. stable project Asset/Resource reference semantics;
-7. a renderer-independent property API that Python can later consume without DOM authority.
+6. stable project asset-reference semantics;
+7. capability-bounded Client Visual Python property access;
+8. canonical JSON-native typed visual Engineering persistence via Schema v12.
 
 Locked precedence:
 
-`Animation > Script > Binding/Expression > Engineering Base`
+`Animation > Script > Binding/Expression > Engineering Base > Default`
 
-## Non-goals
+## Public property model
 
-Wave 07 does not implement:
+The registry supports explicit serializable property families including number/integer, boolean, string, color, enum and `assetRef`. Consumers do not infer public types from arbitrary JavaScript values.
 
-- graphical canvas/editor;
-- Screen/Popup/Dynamo authoring UI;
-- asset file importer or binary persistence;
-- image renderer/object palette;
-- production animation scheduler/tween engine;
-- final Python visual API spelling;
-- Server Python;
-- new industrial protocols;
-- direct DOM access from Python;
-- arbitrary URL/filesystem assets.
+Every public property definition carries stable key/type/default plus authority such as Engineering editability, runtime readability/writability, binding support and animation capability. Validation remains centralized through the registry.
 
-These remain later waves.
+The common catalog includes geometry/transform, visibility/appearance, stroke/fill, text/font/alignment and Image properties required by the initial built-in object schemas.
 
-## Visual property type system
+Built-in renderer-independent object type keys are:
+- `core.group`
+- `core.rectangle`
+- `core.ellipse`
+- `core.line`
+- `core.text`
+- `core.image`
+- `core.valueDisplay`
+- `core.button`
 
-The first registry must support a small explicit serializable type family sufficient for the common v0.1 visual contract:
+## Canonical Engineering representation
 
-- `number`;
-- `boolean`;
-- `string`;
-- `color` using a stable serialized color value;
-- `enum` with an explicit allowed-value set;
-- `assetRef` using a stable project asset identity.
+Engineering Schema v12 persists visual properties as native typed JSON values. Historical v10/v11 string properties migrate only through declared built-in schemas; the system does not guess types for arbitrary custom legacy objects.
 
-The implementation may use TypeScript discriminated unions or equivalent internal representation, but consumers must not infer types from default JavaScript values.
+Nested visual objects carry stable IDs. Legacy missing IDs are materialized/preserved by explicit compatibility rules and duplicate/empty IDs fail closed.
 
-No `any`-shaped arbitrary renderer property bag becomes public authority.
+A visual binding uses:
+- `Key` as the destination visual property key;
+- `Target` as the canonical source reference;
+- `Kind` as the source interpretation.
 
-## VisualPropertyDefinition
+The graphical editor must edit this canonical Engineering representation rather than introduce private persisted canvas state.
 
-Every public property definition exposes at least:
+## RuntimeVisualInstance semantics
 
-- stable `key`;
-- declared `type`;
-- typed `defaultValue`;
-- optional numeric min/max constraints;
-- optional enum allowed values;
-- `engineeringEditable`;
-- `runtimeReadable`;
-- `runtimeWritable`;
-- `supportsBinding`;
-- `animatable`;
-- optional presentation/unit metadata that does not alter semantics.
+A runtime visual instance is client-local presentation state created from one visual definition. Multiple clients/instances remain isolated.
 
-Validation is centralized through the registry. The graphical Property Inspector, future Engineering projection and Python visual property API must consume the same definitions.
+Effective value resolution is deterministic:
+1. Animation override;
+2. Script override;
+3. valid Binding/Expression value;
+4. explicit Engineering Base;
+5. registry Default.
 
-## Initial common property registry
+The API supports effective reads/source diagnostics, binding apply/clear, permitted Script override set/clear, permitted Animation override set/clear and deterministic disposal. Runtime writes never implicitly save into Engineering.
 
-Wave 07 must establish stable common keys for at least:
-
-Geometry/layout:
-- `x`
-- `y`
-- `width`
-- `height`
-- `rotation`
-- `scaleX`
-- `scaleY`
-- `zIndex`
-
-Visibility/appearance:
-- `visible`
-- `opacity`
-- `fillColor`
-- `strokeColor`
-- `strokeWidth`
-- `cornerRadius`
-
-Text-capable foundation:
-- `text`
-- `textColor`
-- `fontSize`
-
-Image/resource foundation:
-- `assetRef`
-- `imageFit`
-
-`imageFit` must be an explicit enum compatible with later image behavior, initially covering concepts equivalent to `contain`, `cover`, `fill` and `native`.
-
-Defaults and constraints must be deterministic. At minimum, opacity is bounded and geometry must reject non-finite numeric values.
-
-## Visual object definition identity
-
-Wave 07 runtime contracts model an Engineering-owned visual definition without inventing a private renderer truth.
-
-A definition projection requires at least:
-
-- stable `objectId`;
-- developer-visible stable `key` within its visual scope;
-- stable `objectType` key;
-- optional parent object identity;
-- design/base property values keyed only by registered property keys;
-- optional binding/expression descriptors or resolved binding inputs behind an explicit boundary;
-- script/event references only through stable IDs/entry-point references when present;
-- metadata treated as metadata, not runtime authority.
-
-Because full Screen/Popup/Dynamo canonical persistence is implemented later, Wave 07 may use a frontend/public projection interface. It must remain intentionally mappable to the canonical Engineering model and may not become a second persisted project format.
-
-## RuntimeVisualInstance
-
-A runtime visual instance is client-local presentation state created from one visual definition.
-
-Each instance has at least:
-
-- unique `runtimeInstanceId`;
-- source `objectId`;
-- source object `key` and `objectType`;
-- optional owning visual-context/parent instance identity;
-- immutable Engineering base snapshot for the instance lifetime;
-- independent binding layer;
-- independent script-override layer;
-- independent animation-override layer;
-- disposed/not-disposed lifecycle state.
-
-Two runtime clients or two instances of the same reusable definition may hold different runtime presentation values without changing Engineering.
-
-Closing/disposing an instance clears subscriptions/runtime overrides and prevents further writes through that disposed instance.
-
-## Property resolution
-
-For each registered property, effective value resolution is deterministic:
-
-1. use Animation override when present;
-2. otherwise use Script override when present;
-3. otherwise use Binding/Expression value when present and valid;
-4. otherwise use Engineering Base value;
-5. otherwise use the property registry default.
-
-The runtime must be able to report the active source of the effective value as one of:
-
-- `animation`;
-- `script`;
-- `binding`;
-- `engineering`;
-- `default`.
-
-Invalid layer values fail closed for that layer and must not corrupt the lower authoritative value.
-
-Timing accidents must not determine writer precedence.
-
-## Runtime property API
-
-The runtime instance boundary must support explicit operations equivalent to:
-
-- read effective property value;
-- read effective value plus active source;
-- apply/clear a binding value;
-- set/clear a Script override only when the property is `runtimeWritable`;
-- set/clear an Animation override only when the property is `animatable`;
-- clear runtime layers on disposal;
-- query disposed state.
-
-The implementation names may differ, but semantics are fixed.
-
-Script writes do not modify the Engineering base snapshot. There is no implicit "save this runtime value" behavior.
+Invalid/unregistered/non-readable/non-writable/non-animatable operations fail closed according to property authority.
 
 ## AssetReference
 
-Wave 07 defines reference semantics, not the binary importer.
-
-A visual asset reference is a stable project-owned identifier, never a filesystem path or arbitrary URL.
-
-The canonical Wave 07 public reference shape is deliberately narrow:
+Canonical public shape:
 
 `assetRef = null | { assetId }`
 
-Only the stable project asset ID travels in a visual property reference. Developer-facing name, original filename, media/MIME type, dimensions, hash and other descriptive metadata belong to the future first-class project asset entity and must not be duplicated into `assetRef` as competing authority.
+Only stable project-owned identity belongs in the reference. Filesystem paths, arbitrary URLs and duplicated metadata are not reference authority. First-class asset entity/import/storage/rendering are Wave 08/later responsibilities.
 
-Wave 07 property validation must therefore accept/reject asset references structurally without loading files and reject additional path/URL/metadata fields on the reference object.
+## Client Visual Python boundary
 
-Required v0.1 raster families remain JPG/JPEG, PNG including alpha, and BMP. Their actual import, storage, preview and Runtime rendering are later-wave responsibilities.
+Client Visual Python can locate permitted visual instances within its current visual context, read registered runtime-readable properties and set/clear registered runtime-writable Script overrides through the trusted capability dispatcher.
 
-## Python boundary preparation
+Python does not receive DOM nodes, React components, renderer handles, arbitrary JavaScript objects, storage APIs, filesystem, drivers, database or unrestricted networking.
 
-Wave 07 does not expose direct renderer or DOM handles.
+Structured bridge values are bounded and prototype-safe. Disposal, timeout/cancellation and sandbox/native-escape regressions remain required acceptance coverage.
 
-The future Client Visual Python bridge must be able to map explicit capabilities onto the runtime instance API:
+## Engineering/Script referential integrity
 
-- locate permitted object instance by stable ID/key within current visual context;
-- read a registered runtime-readable property;
-- set/clear a registered runtime-writable Script override;
-- request animation only through an explicit animation capability later.
+Canonical Script `VisualObject` dependencies and object-scoped event references resolve against the same nested stable visual identities used by Engineering. Prospective Screen/Popup changes that would invalidate existing Script references fail during Preview rather than after Apply.
 
-No JavaScript object, React component, DOM node, CSS selector, storage API or renderer-private object shape becomes part of the public Python surface.
+Duplicate definition-level binding writers and duplicate Script event references fail closed.
 
-## Diagnostics
+## Historical non-goals preserved
 
-Property/runtime diagnostics must be structurally available for later UI exposure:
+Wave 07 deliberately did **not** implement:
+- graphical Canvas/editor;
+- Property Inspector UI;
+- Object Palette UI;
+- binary asset importer/storage;
+- production graphical Screen/Popup/Dynamo authoring;
+- production renderer/tween scheduler;
+- Wave 09 navigation/Popup/Dynamo product semantics;
+- Wave 10 event editor/animation preview;
+- Server Python;
+- new industrial protocols.
 
-- property key;
-- effective value;
-- active source;
-- validation failure reason where applicable;
-- runtime instance identity;
-- disposed state.
+Those boundaries remain important when reviewing Wave 08 worker scope.
 
-Do not require translated human text inside the core model. Stable diagnostic codes/details may be localized by UI later.
+## Validation and merge evidence
 
-## Worker ownership
+Final exact-head CI:
+- CI #508 / run `33217787482`
+- exact product head `6d869109af23b25d1ae95cd35610e1930a16791c`
+- Web: SUCCESS
+- backend Release/full PostgreSQL+Timescale tests: SUCCESS
+- Runtime smoke: SUCCESS
+- Chromium: SUCCESS
+- Wave 07 visual/Python acceptance: SUCCESS
+- Wave 06 sandbox/native-escape/timeout/cancellation regressions: SUCCESS
 
-### DEV 1 — Visual Property Registry / Engineering projection
+Merge:
+- PR #89
+- merge commit `8de706882ba20afedd666532ac41ae11115d06b3`
 
-Owns registry/type/validation/projection logic and focused tests within its allowed files. Does not implement runtime instance layering or central shell composition.
+Post-merge main health:
+- CI #510 / run `33218282760`
+- conclusion: SUCCESS
+- Web, backend/full tests, Runtime smoke and Chromium all SUCCESS.
 
-### DEV 2 — Runtime Visual Instance
+The earlier temporary CI-deferral rule is **historical and no longer active**. Current CI policy is defined only by `docs/CI-USAGE-POLICY.md`.
 
-Owns per-instance state/lifecycle/property-layer resolution using the locked registry contract. Does not modify the registry's public semantics or Engineering central composition.
-
-### DEV 3 — Python ↔ Visual acceptance contract
-
-Owns contract/adversarial acceptance proving only registered readable/writable capabilities are exposed and runtime overrides remain client-instance-local. Under temporary CI deferral, tests are written but not run through GitHub Actions until owner reset.
-
-### Coordinator
-
-Owns cross-slice contract reconciliation, shared exports/composition, canonical Engineering decisions, integration branch and final validation/merge.
-
-## Temporary CI rule
-
-Wave 07 is currently **DEVELOPMENT ACTIVE / CI_DEFERRED** because the owner reported approximately 19 included GitHub Actions minutes remaining.
-
-Until the owner explicitly reports reset:
-
-- do not open Wave 07 PRs because `pull_request` triggers the full CI workflow;
-- do not manually dispatch Wave 07 Actions;
-- branches may receive implementation commits;
-- tests must still be written;
-- delivery is `IMPLEMENTED / CI_DEFERRED`, never fully validated or merge-ready.
-
-After reset, normal worker/integration validation resumes and the Wave Definition of Done remains unchanged.
-
-## Wave 07 final gate after CI reset
-
-The final integrated product must prove:
-
-`definition -> registered base properties -> runtime instance -> binding layer -> script override -> animation override -> deterministic effective source -> disposal -> recreated deterministic instance`
-
-and must prove that:
-
-- runtime writes never mutate Engineering;
-- invalid/unregistered/non-writable properties fail closed;
-- asset references cannot become arbitrary paths/URLs;
-- Python-facing capability cannot recover DOM/renderer authority;
-- multiple instances remain isolated;
-- final Web + backend/full tests + Runtime smoke + Chromium + Wave-specific acceptance are green before merge.
+Wave 07 is closed. New functionality belongs to the explicitly activated later wave and must not silently amend this completed contract.

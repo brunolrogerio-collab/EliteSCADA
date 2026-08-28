@@ -181,7 +181,7 @@ public static class VisualEngineeringPropertyCodec
         VisualColorValue color => JsonSerializer.SerializeToElement(color.Value),
         VisualResourceReferenceValue resource => JsonSerializer.SerializeToElement(resource.ResourceId),
         VisualAssetReferenceValue { AssetId: null } => JsonSerializer.SerializeToElement<string?>(null),
-        VisualAssetReferenceValue asset => JsonSerializer.SerializeToElement(new AssetReferenceJson(asset.AssetId!)),
+        VisualAssetReferenceValue asset => JsonSerializer.SerializeToElement(new { assetId = asset.AssetId! }),
         _ => throw new InvalidDataException($"Unsupported visual property value kind '{value.Kind}'.")
     };
 
@@ -196,8 +196,6 @@ public static class VisualEngineeringPropertyCodec
 
     private static IReadOnlyDictionary<string, VisualPropertyValue> EmptyTyped() =>
         new Dictionary<string, VisualPropertyValue>(StringComparer.Ordinal);
-
-    private sealed record AssetReferenceJson(string AssetId);
 }
 
 /// <summary>

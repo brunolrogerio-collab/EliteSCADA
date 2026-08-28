@@ -46,10 +46,10 @@ public sealed class ProjectPackageService : IProjectPackageService
     public const string EngineeringPath = "engineering.json";
     public const string AssetDirectory = "assets/";
     public const string PackageExtension = ".escadapkg";
+    public const int MaximumPackageBytes = 128 * 1024 * 1024;
 
     private const int MaximumManifestBytes = 1024 * 1024;
     private const int MaximumEngineeringBytes = 50 * 1024 * 1024;
-    private const int MaximumPackageBytes = 256 * 1024 * 1024;
     private const int MaximumPayloadFiles = 1024;
 
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);

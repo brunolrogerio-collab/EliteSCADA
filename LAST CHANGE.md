@@ -3,104 +3,70 @@
 > Operational handoff. Resume from GitHub, not chat history.
 
 **Handoff date:** 2026-08-28  
-**Development state:** **PYTHON-WAVE-06 ACTIVE — FINAL INTEGRATION DEFECT CORRECTION / COORDINATOR HANDOFF**  
-**CI budget mode:** **CONSTRAINED until 2026-09-01**
+**Development state:** **PYTHON-WAVE-06 IMPLEMENTED IN PR / FINAL MERGE BLOCKED_BY_CI_BUDGET + E2E HARNESS RELIABILITY**  
+**CI budget mode:** **CONSTRAINED until owner explicitly reports reset**
 
 ## Mandatory resume reading
 
-Before any action read current `main`: `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/DEVELOPMENT-WAVES.md`, `docs/CHAT-WORK-ASSIGNMENTS.md`, `docs/CI-USAGE-POLICY.md`, `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`, `docs/PYTHON-WAVE-06-IMPLEMENTATION-DECISION.md`, `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`, python-client research and current Wave 06 source/tests.
+Before any action read current `main`: `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/DEVELOPMENT-WAVES.md`, `docs/CHAT-WORK-ASSIGNMENTS.md`, `docs/CI-USAGE-POLICY.md`, `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`, plus the current wave-specific documents and source/tests.
 
-GitHub branch/PR/head/CI state is operational truth. Distinguish `MERGED`, `MERGED_TO_INTEGRATION`, `IMPLEMENTED IN PR`, `RESEARCH MERGED / PRODUCTION NOT IMPLEMENTED`, and `SPECIFIED / NOT IMPLEMENTED`.
+GitHub branch/PR/head/CI is operational truth. Never call a red exact-head gate green because the remaining failure appears flaky.
 
 ## Official main state
 
-Current `main` before this handoff update: `4fd7dc7ac858734e2e5811e731ac5e94c0d900f5` plus this documentation-only handoff commit.
+Wave 05 is **MERGED**. Wave 06 remains **NOT MERGED TO MAIN**.
 
-Wave 05 is **MERGED** via PR #79 / merge `7f629bf660bb16fd46fbf6abeb72b9ca1676e087`; final CI #466 was fully green. Canonical Engineering schema v10 includes first-class Scripts and Script Engineering Workspace.
+Current Wave 06 integration PR: #83 `Establish Wave 06 Client Visual Python foundation`.
 
-Wave 06 remains **NOT MERGED TO MAIN**.
+- branch: `integration/python-wave-06`
+- exact product head: `86b80ff72690d0b14cde9c1a315b908763ad4b49`
+- PR remains Open / Draft / mergeable / NOT MERGED
 
-## PYTHON-WAVE-06 exact state
+## What changed after the previous handoff
 
-- Logical WaveBaseSHA: `7f629bf660bb16fd46fbf6abeb72b9ca1676e087`
-- Central ContractSHA: `01d5b3092cf9c33ffa41c12b79133157b24cd148`
-- Integration branch: `integration/python-wave-06`
-- Integration PR: #83 `Establish Wave 06 Client Visual Python foundation`
-- PR state: **OPEN / DRAFT / mergeable / NOT MERGED**
-- Current integration head: **`79546d9a8fb39786eec7b0bd34f87723c9261a8d`**
-- Contract CI #468: fully green
-- DEV 2 exact-head CI #469: fully green
+The primary Wave 06 Pyodide compile-diagnostics defect is resolved. The corrected sandbox keeps Pyodide engine internals intact outside user execution and scopes denied import/native escape guards to user execution boundaries.
 
-### MERGED_TO_INTEGRATION / NOT MAIN
+CI #485 on head `89f892ba29858d8a2def2ecece473609deba52ed` proved:
+- Web build SUCCESS;
+- backend build/full tests/Runtime smoke SUCCESS;
+- Chromium: 122 passed / 1 failed;
+- all Wave 06 Python editor/runtime/real-Pyodide sandbox/native-escape tests passed;
+- the only failure was the legacy multilingual Wave 03 readiness test with Vite WebSocket `ECONNRESET` and browser/session navigation instability.
 
-- PR #85 DEV 1: Monaco Python Editor UX.
-- PR #86 DEV 2: Client Visual Pyodide/Web Worker runtime adapter.
-- PR #84 DEV 3: foundation/static sandbox acceptance.
-- same-origin pinned Pyodide publication at `/pyodide/` for dev/build/acceptance;
-- trusted capability provider binding `tag.read` to authenticated Runtime TAG read and `clientMemory.read/write` to the owning browser Client Memory store;
-- dynamic real-Pyodide adversarial Playwright acceptance;
-- native Pyodide escape coverage;
-- compile-before-canonical-Preview integration for `ClientVisual` drafts;
-- controlled Engineering handler preview that does not save/publish/activate Engineering;
-- Python entry-point completion deduplication fix;
-- shell acceptance updated from the obsolete Wave 05 `Sem execução Python nesta wave` message;
-- attempted Pyodide hardening correction preserving engine internals while denying `micropip`, `pyodide.http`, `pyodide_js` and `pyodide.code.run_js` exposure.
+A targeted test-composition correction was then promoted as commit `86b80ff72690d0b14cde9c1a315b908763ad4b49` (`Stabilize locale readiness through SPA navigation`). It replaced repeated hard Engineering/Audit route reloads inside the multilingual loop with the existing SPA navigation links, preserving the route and localization assertions. No timeout was increased and no test/security/CAS/lifecycle/persistence guard was weakened.
 
-The temporary coordinator correction branch `fix/python-wave-06-final-integration` ended at `13d960ff3bfe74d387bb25a4912fe6863e4b8a8b` and is already an ancestor of integration head `79546d9...`; it currently contains no unique work that must be separately integrated.
+## Latest exact-head CI — #486 FAILED ONLY ON LEGACY HARNESS RELIABILITY
 
-## Latest integrated CI — #483 FAILED
+Run `33191736584` on exact Wave 06 head `86b80ff72690d0b14cde9c1a315b908763ad4b49`:
 
-Run: `33183960875` on integration head `79546d9a8fb39786eec7b0bd34f87723c9261a8d`.
+- Web build: **SUCCESS**
+- backend build/full tests/Runtime smoke: **SUCCESS**
+- Chromium: **122 passed / 1 failed**
+- all Wave 06 Python editor/runtime/sandbox tests: **PASS**
 
-- **Web build: SUCCESS**
-- **Backend build/full tests/Runtime smoke: SUCCESS**
-- **Chromium E2E: FAILURE**
-- Browser result: **118 passed / 5 failed**
+The sole failure remained `interface-wave-03-readiness.spec.ts` multilingual readiness. The first attempt lost the Chromium session while waiting for `.user-session-menu`, accompanied by Vite WS `ECONNRESET`; the retry timed out loading `/`. The remaining failure is therefore outside the Wave 06 Python functionality, but the exact-head integration matrix is still red and must not be ignored.
 
-### Open Chromium failures
+## Current decision
 
-1. `interface-wave-03-readiness.spec.ts` locale loop timed out navigating to Engineering / finding `#engineering-locale`. This test has shown intermittent behavior in earlier CI and the log includes Vite WebSocket `EPIPE`; treat as an open targeted reliability finding, not automatically as a product regression.
-2. `python-editor-workspace.spec.ts`: `Apply Preview` remains disabled after editing/Preview. This is downstream of the new compile-before-Preview path and must not be worked around by weakening the test.
-3. `python-sandbox-dynamic.spec.ts` real sandbox capability/client-local-state case fails during runtime initialization with `PYTHON_COMPILE_FAILED`.
-4. `python-sandbox-dynamic.spec.ts` timeout/cancellation/queue/disposal case fails during initialization with the same `PYTHON_COMPILE_FAILED`.
-5. `python-sandbox-native-escapes.spec.ts` fails during initialization with the same `PYTHON_COMPILE_FAILED`.
+**Do not merge PR #83 yet.** The required final integrated matrix is not fully green.
 
-The **primary Wave 06 product blocker is the real Pyodide engine compile-diagnostics path**. Bootstrap succeeds far enough to initialize the runtime, but `getCompileDiagnostics()` catches an exception from its `runPython()` compile helper and returns the sanitized fallback `Python source could not be compiled safely.` The previous import-guard correction was insufficient.
+**Do not trigger another unchanged or speculative full Actions run while the allowance is constrained.** The product owner reported about 50 included Actions minutes before this final attempt; CI #486 consumed part of that budget.
 
-Do **not** rerun CI #483 unchanged hoping for green.
+Correct state: **BLOCKED_BY_CI_BUDGET / FINAL E2E RELIABILITY EVIDENCE PENDING**.
 
-## Worker state at handoff
+When sufficient Actions allowance is available, first address or isolate the real harness/session reliability cause without weakening acceptance, then obtain one fully green exact-head Wave 06 matrix. Only then mark PR #83 Ready and merge.
 
-### DEV 1
-`WAIT_FOR_COORDINATOR — DELIVERY_ACCEPTED`. No executable task. Wave 07 queue remains non-executable.
+## Wave 07 temporary rule
 
-### DEV 2
-`WAIT_FOR_COORDINATOR — DELIVERY_ACCEPTED`. No executable task. Wave 07 queue remains non-executable.
+Wave 07 remains queued while Wave 06 is unmerged. After Wave 06 is merged and explicitly promoted, Wave 07 may proceed with implementation while GitHub Actions validation is deferred until the product owner explicitly reports that the Actions allowance has reset.
 
-### DEV 3
-`WAIT_FOR_COORDINATOR — DYNAMIC TESTS INTEGRATED / FINDINGS OPEN`.
+During that temporary period, worker deliveries must remain `IMPLEMENTED / CI_DEFERRED` or equivalent and cannot be called fully validated, complete or merge-ready.
 
-The original DEV 3 chat reached a practical conversation limitation, so the coordinator temporarily executed the dynamic acceptance continuation. The relevant dynamic tests are already in `integration/python-wave-06`; branch `test/python-wave-06-sandbox-safety` is behind the integration train and must not be treated as containing additional unintegrated delivery. Do not start a new DEV 3 mission unless the new coordinator explicitly reassigns one.
-
-## New coordinator next sequence
-
-1. Verify current `main`, PR #83, `integration/python-wave-06`, head and CI again before writing anything.
-2. Diagnose the **real Pyodide compile failure first**, using code inspection and focused evidence. Inspect `clientVisualPythonWorker.ts`, especially `getCompileDiagnostics`, Pyodide `runPython()`/globals behavior, `jsglobals`, import guard changes and Python proxy/return-value handling.
-3. Prefer a coordinator correction branch with no PR while iterating so every tiny fix does not spend a full PR matrix. Promote to `integration/python-wave-06` only at a coherent checkpoint.
-4. Ensure the canonical path remains: exact `ClientVisual` draft -> engine compile diagnostics -> diagnostic snapshot -> canonical Preview/Apply/CAS. Do not bypass engine diagnostics merely to re-enable Apply.
-5. Keep the controlled handler preview sandboxed and non-authoritative. It must not save, publish, activate or gain direct process/driver/database/filesystem/network/credential authority.
-6. Diagnose the locale readiness timeout separately with targeted evidence; do not mask it by raising timeouts indiscriminately.
-7. Once blockers are fixed, run one meaningful exact-head Wave 06 matrix: Web + backend Release/full tests including PostgreSQL + Runtime smoke + Chromium + sandbox acceptance.
-8. If Actions allowance cannot support the required final matrix, use `BLOCKED_BY_CI_BUDGET`. Do not weaken final quality.
-9. Mark PR #83 Ready and merge only after the exact final head is fully green.
-10. After merge, synchronize official docs and only then prepare Wave 07 architecture-first Definition of Ready.
-
-## Wave 06 final gate remains
-
-`canonical ClientVisual Script -> Monaco edit -> engine compile diagnostics -> isolated Pyodide execution -> permitted TAG read -> owning-client Client Memory read/write -> controlled event -> bounded timeout/failure -> understandable diagnostics`
-
-A faulty Script must not destabilize unrelated Runtime clients, UI or backend.
+Queued Wave 07 slices:
+- DEV 1: Visual Property Registry / Engineering projection;
+- DEV 2: Visual Runtime Instance;
+- DEV 3: Python <-> Visual API acceptance.
 
 ## Permanent rules
 
-Workers never modify `main`, merge their own PR, choose new work or broaden scope. Canonical Engineering remains authority. Research is not production implementation. CI economy changes frequency only, never security/tests/CAS/lifecycle/persistence/Runtime guards/final evidence. Wave 07 remains queued until Wave 06 is merged and green.
+Workers never modify `main`, merge their own PR, self-assign or broaden scope. Canonical Engineering remains authority. Research is not production implementation. CI economy changes frequency only, never final quality. A red exact-head matrix remains red even when 122 of 123 tests pass.

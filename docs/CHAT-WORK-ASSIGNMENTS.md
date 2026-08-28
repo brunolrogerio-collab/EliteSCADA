@@ -2,52 +2,40 @@
 
 > Authoritative live execution board. GitHub branch/PR/head/CI state is operational truth. Permanent rules: `docs/DEVELOPMENT-WAVES.md`, `docs/PARALLEL-WORK.md`, `docs/CI-USAGE-POLICY.md`.
 
-**Last coordinator synchronization:** 2026-08-28 — Wave 06 final correction candidate prepared under ~50-minute Actions constraint
+**Last coordinator synchronization:** 2026-08-28 — Wave 06 product functionality green; final integrated gate blocked by legacy E2E harness reliability and constrained Actions budget.
 
 ## Mandatory `siga`
 
-Every fixed EliteSCADA chat first rereads current `main`: `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/DEVELOPMENT-WAVES.md`, this board, `docs/CI-USAGE-POLICY.md`, `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`, `docs/PYTHON-WAVE-06-IMPLEMENTATION-DECISION.md` when Wave 06 is relevant, and current `MustReadSpecific`. Then verify real branch/PR/head/CI and execute only the current authorized assignment.
+Every fixed EliteSCADA chat first rereads current `main`: `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/DEVELOPMENT-WAVES.md`, this board, `docs/CI-USAGE-POLICY.md`, `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`, and current wave-specific `MustReadSpecific`. Then verify real branch/PR/head/CI and execute only the current authorized assignment.
 
 Workers never modify `main`, merge their own PR, choose a new mission or broaden scope. `NextQueuedTask` is planning only.
 
 ## Current product gate
 
-`PYTHON-WAVE-06` is **ACTIVE — FINAL INTEGRATION DEFECT CORRECTION**.
+`PYTHON-WAVE-06` is **IMPLEMENTED IN PR / FINAL MERGE BLOCKED_BY_CI_BUDGET + E2E HARNESS RELIABILITY**.
 
 - Logical WaveBaseSHA: `7f629bf660bb16fd46fbf6abeb72b9ca1676e087`
 - Central ContractSHA: `01d5b3092cf9c33ffa41c12b79133157b24cd148`
 - Integration branch: `integration/python-wave-06`
-- Integration PR: #83 Draft
-- Current integration head before candidate promotion: `79546d9a8fb39786eec7b0bd34f87723c9261a8d`
-- Coordinator correction branch: `fix/python-wave-06-compile-guard`
-- Current correction candidate: `f98dbb0827e86317c6195ac10c6b3c0cf4d3ddfe`
-- Candidate diff versus integration: 2 commits / 2 files; Pyodide guard isolation + targeted locale-readiness reliability correction
-- Contract CI #468: fully green
-- DEV 2 exact-head CI #469: fully green
-- Latest integrated CI #483 / run `33183960875`: Web SUCCESS, backend/full tests/Runtime smoke SUCCESS, Chromium FAILURE, 118 passed / 5 failed
-- CI mode: `CONSTRAINED` until 2026-09-01
-- Remaining included Actions allowance reported by product owner: approximately 50 minutes
+- Integration PR: #83 Draft / Open / NOT MERGED
+- Current integration head: `86b80ff72690d0b14cde9c1a315b908763ad4b49`
+- CI mode: `CONSTRAINED` until owner explicitly reports reset
 
-Wave 06 remains **IMPLEMENTED IN PR / NOT MERGED TO MAIN** until the correction is promoted, exact-final-head CI is fully green and PR #83 is merged.
+### Exact-head evidence
 
-### Current correction candidate
+CI #485 on `89f892ba...`: Web green; backend/full tests/Runtime smoke green; Chromium 122/123. Every Wave 06 Python editor/runtime/real-Pyodide sandbox/native-escape test passed. Only the legacy multilingual Wave 03 readiness test failed with Vite `ECONNRESET` / navigation-session instability.
 
-The CI #483 Python failures share one root boundary: the previous sandbox hardening permanently altered Pyodide engine-visible modules before later engine `runPython()` compile diagnostics. Candidate commit `092221f069064ff7c8e543259959f19e376197e6` keeps the Pyodide engine intact outside user execution and applies the denied-import/native-escape guard only around user top-level execution and handlers.
+Coordinator then promoted `86b80ff...` to use SPA navigation inside that multilingual loop without weakening assertions or increasing timeout.
 
-The separate locale-readiness failure is treated as test-composition reliability, not as a generic timeout problem. Candidate commit `f98dbb0827e86317c6195ac10c6b3c0cf4d3ddfe` keeps dedicated navigation coverage elsewhere and makes the multilingual readiness loop validate deterministic localized route state directly rather than repeatedly coupling locale acceptance to SPA navigation timing.
+CI #486 / run `33191736584` on exact head `86b80ff...`: Web green; backend/full tests/Runtime smoke green; Chromium again 122/123. All Wave 06 Python tests remained green. The sole failure remained the legacy multilingual readiness test, this time with Chromium session closure while waiting for `.user-session-menu`, Vite `ECONNRESET`, and retry timeout loading `/`.
 
-No CI has been intentionally triggered on the no-PR correction branch. The next expensive step is promotion of a coherent candidate to the integration branch and one exact-head Wave 06 matrix.
+No further speculative or unchanged-head Actions run is authorized while budget remains constrained.
 
 ### Temporary Wave 07 Actions rule
 
-After Wave 06 is merged and Wave 07 is explicitly promoted, Wave 07 implementation may proceed while the Actions allowance is constrained, but **Wave 07 GitHub Actions runs are deferred until the product owner explicitly reports that the allowance has reset**.
+Wave 07 does **not** start before Wave 06 is merged. Once Wave 06 is fully green, merged, and Wave 07 is explicitly promoted, Wave 07 implementation may proceed while the Actions allowance remains constrained, but GitHub Actions validation is deferred until the product owner explicitly reports that the allowance has reset.
 
-During that interval:
-- workers may implement assigned Wave 07 slices and preserve/write the required tests;
-- review/static/focused evidence that does not consume GitHub Actions is allowed;
-- worker delivery state must explicitly remain `IMPLEMENTED / CI_DEFERRED` or equivalent;
-- no Wave 07 slice or wave may be labeled fully validated, complete or merge-ready solely because CI was deferred;
-- once the owner reports the reset, deferred Wave 07 validation resumes before the Wave 07 final gate.
+During that interval workers may implement assigned slices and write/preserve required tests, but delivery status must remain `IMPLEMENTED / CI_DEFERRED` or equivalent. No worker slice or wave may be labeled fully validated, complete or merge-ready solely because CI was deferred.
 
 ---
 
@@ -55,44 +43,20 @@ During that interval:
 
 **Role:** `COORDINATOR`  
 **Wave:** `PYTHON-WAVE-06`  
-**Status:** `ACTIVE — FINAL_DEFECT_CORRECTION / CANDIDATE_READY_FOR_INTEGRATION_GATE`  
-**CurrentTask:** review the no-PR correction candidate, promote it to `integration/python-wave-06` only as a coherent checkpoint, inspect the resulting exact-head CI, fix any real remaining failure without unchanged-head reruns, and merge PR #83 only if fully green.  
+**Status:** `BLOCKED_BY_CI_BUDGET — FINAL E2E RELIABILITY EVIDENCE PENDING`  
+**CurrentTask:** preserve the validated Wave 06 product correction, do not rerun unchanged/speculative CI under constrained budget, and when sufficient Actions allowance is available resolve/contain the legacy multilingual E2E harness session instability without weakening acceptance; then obtain one fully green exact-head matrix and merge PR #83.  
 **IntegrationBranch:** `integration/python-wave-06`  
-**CurrentIntegrationHead:** `79546d9a8fb39786eec7b0bd34f87723c9261a8d` before candidate promotion  
-**CorrectionBranch:** `fix/python-wave-06-compile-guard`  
-**CorrectionCandidate:** `f98dbb0827e86317c6195ac10c6b3c0cf4d3ddfe`  
-**LogicalBaseSHA:** `7f629bf660bb16fd46fbf6abeb72b9ca1676e087`  
-**ContractSHA:** `01d5b3092cf9c33ffa41c12b79133157b24cd148`
+**CurrentIntegrationHead:** `86b80ff72690d0b14cde9c1a315b908763ad4b49`
 
-**Coordinator-owned integrated work already present:**
-- same-origin pinned Pyodide assets at `/pyodide/`;
-- authorized `tag.read` provider;
-- owning-client `clientMemory.read/write` provider;
-- dynamic real-Pyodide adversarial tests;
-- native Pyodide escape tests;
-- compile-before-canonical-Preview integration;
-- controlled Engineering handler preview;
-- entry-point deduplication correction;
-- shell acceptance correction;
-- Pyodide import/escape hardening attempt.
+**Known good Wave 06 evidence:** Monaco compile/Preview/Apply path, trusted capability provider, real Pyodide dynamic sandbox, cancellation/timeout/queue/disposal, native escape denial and Script workspace acceptance all pass in CI #485 and #486.
 
-**Candidate correction evidence before CI:**
-- code inspection shows `getCompileDiagnostics()` now runs while Pyodide internals are intact;
-- denied `micropip`, `pyodide.http`, `pyodide_js` and `pyodide.code.run_js` are isolated during user execution rather than removed permanently from the engine;
-- dynamic sandbox and Script Workspace both depend on the same engine compile path that failed in CI #483;
-- multilingual readiness no longer duplicates the separately-covered Runtime -> Engineering -> Audit SPA navigation journey inside every locale iteration;
-- no security/CAS/lifecycle/persistence gate is bypassed;
-- no generic timeout was increased.
+**Remaining blocker:** legacy `interface-wave-03-readiness.spec.ts` multilingual harness/session reliability under full CI. Do not mislabel it as a Wave 06 Python regression, but do not waive the red exact-head gate either.
 
-**Execution rule:** approximately 50 included Actions minutes remain. Do not rerun unchanged failing heads. Reserve Actions for Wave 06 final integration evidence. Prefer code inspection/no-PR correction work between expensive runs.
+**ForbiddenScope:** Server Python; Wave 07+ visual implementation before Wave 06 merge; new protocols; weakening security/CAS/lifecycle/persistence/tests; bypassing engine compile diagnostics; direct Python driver/database/filesystem/shell/arbitrary-network/credential authority.
 
-**ReservedFiles:** coordination docs, `.github/workflows/**`, `web/scada-web/package.json`, `web/scada-web/vite.config.ts`, Python bridge/runtime central files, `web/scada-web/src/engineering/EngineeringApp.tsx`, central Script/Python composition, `main.tsx`, canonical Engineering schema/contracts and backend central composition.
+**CompletionCriteria:** one exact final integration head passes Web + backend Release/full tests incl. PostgreSQL + Runtime smoke + Chromium + Wave 06 sandbox acceptance; PR #83 Ready and merged; docs synchronized.
 
-**ForbiddenScope:** Server Python; Wave 07+ visual implementation before Wave 06 merge; new protocols; weakening security/CAS/lifecycle/persistence; bypassing engine compile diagnostics to force Preview green; direct Python driver/database/filesystem/shell/arbitrary-network/credential authority.
-
-**CompletionCriteria:** root causes fixed; exact final integration head passes Web + backend Release/full tests incl. PostgreSQL + Runtime smoke + Chromium + Wave 06 sandbox acceptance; PR #83 Ready and merged; docs synchronized.
-
-**AfterCompletion:** freeze Wave 07 architecture-first Definition of Ready, explicitly promote Wave 07 assignments, and apply the temporary `IMPLEMENTED / CI_DEFERRED` rule until the owner reports Actions reset.
+**AfterCompletion:** freeze/promote Wave 07 architecture-first Definition of Ready. Under the owner's temporary budget rule, Wave 07 development is allowed after promotion but Actions validation remains deferred until owner reports reset.
 
 **MustReadSpecific:** `docs/PYTHON-WAVE-06-IMPLEMENTATION-DECISION.md`, `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`, `docs/research/python-client/CLIENT-PYTHON-EDITOR-SANDBOX-RESEARCH.md`, current `web/scada-web/src/python-runtime/**`, current Python editor/Script workspace files and Wave 06 E2E tests.
 
@@ -104,10 +68,10 @@ During that interval:
 **Wave:** `PYTHON-WAVE-06`  
 **Status:** `WAIT_FOR_COORDINATOR — DELIVERY_ACCEPTED`  
 **CurrentTask:** none executable.  
-**Delivery:** PR #85 `Add Monaco Python editor UX`, head `35f46fd8b74aa710c924c02374900540f24e73ad`, already integrated.
+**Delivery:** PR #85 `Add Monaco Python editor UX`, already integrated.
 
 **NextQueuedTask:** Wave 07 Visual Property Registry / Engineering projection — `QUEUED`, not executable.  
-**NextStartCondition:** Wave 06 merged and explicit Wave 07 promotion. Once promoted under the current budget constraint, implementation is allowed but GitHub Actions validation remains deferred until owner reports reset.
+**NextStartCondition:** Wave 06 merged and explicit Wave 07 promotion. Once promoted under constrained budget, implement without GitHub Actions and return `IMPLEMENTED / CI_DEFERRED` until owner reports reset.
 
 ---
 
@@ -117,10 +81,10 @@ During that interval:
 **Wave:** `PYTHON-WAVE-06`  
 **Status:** `WAIT_FOR_COORDINATOR — DELIVERY_ACCEPTED`  
 **CurrentTask:** none executable.  
-**Delivery:** PR #86 `Implement Client Visual Python worker runtime`, head `d8db6e15829d16ee06eb471a7d2afb3f7f869f3c`, exact-head CI #469 fully green, already integrated.
+**Delivery:** PR #86 `Implement Client Visual Python worker runtime`, already integrated.
 
 **NextQueuedTask:** Wave 07 Visual Runtime Instance — `QUEUED`, not executable.  
-**NextStartCondition:** Wave 06 merged and explicit Wave 07 promotion. Once promoted under the current budget constraint, implementation is allowed but GitHub Actions validation remains deferred until owner reports reset.
+**NextStartCondition:** Wave 06 merged and explicit Wave 07 promotion. Once promoted under constrained budget, implement without GitHub Actions and return `IMPLEMENTED / CI_DEFERRED` until owner reports reset.
 
 ---
 
@@ -128,18 +92,14 @@ During that interval:
 
 **Role:** `WORKER`  
 **Wave:** `PYTHON-WAVE-06`  
-**Status:** `WAIT_FOR_COORDINATOR — DYNAMIC TESTS INTEGRATED / FINDINGS UNDER COORDINATOR CORRECTION`  
-**CurrentTask:** none executable.
-
-The original DEV 3 chat reached a practical conversation limitation. The coordinator temporarily executed its authorized dynamic sandbox acceptance continuation. Relevant dynamic/adversarial tests are already in `integration/python-wave-06`. Branch `test/python-wave-06-sandbox-safety` is behind the integration train and does not contain an additional delivery that needs merging.
-
-The test findings are coordinator integration defects. Current no-PR correction candidate is recorded above. Do not create a new DEV 3 task or branch unless the coordinator explicitly reassigns one.
+**Status:** `WAIT_FOR_COORDINATOR — DYNAMIC TESTS INTEGRATED`  
+**CurrentTask:** none executable. Dynamic/adversarial Wave 06 tests are integrated and green in CI #485/#486.
 
 **NextQueuedTask:** Wave 07 Python <-> Visual API acceptance — `QUEUED`, not executable.  
-**NextStartCondition:** Wave 06 merged and explicit Wave 07 promotion. Once promoted under the current budget constraint, implementation is allowed but GitHub Actions validation remains deferred until owner reports reset.
+**NextStartCondition:** Wave 06 merged and explicit Wave 07 promotion. Once promoted under constrained budget, implement/write tests without GitHub Actions and return `IMPLEMENTED / CI_DEFERRED` until owner reports reset.
 
 ---
 
 ## Coordinator note
 
-Current execution boundary: **all three worker chats are stopped**. The next executable work belongs to the **COORDENADOR** on Wave 06 final defect correction. No Wave 07 implementation starts before Wave 06 exact-head final gate and merge. After Wave 06 closes, Wave 07 may be promoted for development while its Actions-based validation remains explicitly deferred.
+All three worker chats remain stopped. Wave 07 is prepared in queue but is not authorized until Wave 06 is fully green and merged. The temporary no-Actions rule applies to Wave 07 only after that promotion.

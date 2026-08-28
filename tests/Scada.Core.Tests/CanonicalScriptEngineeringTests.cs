@@ -131,6 +131,46 @@ public sealed class CanonicalScriptEngineeringTests
             issue.Code is "SCRIPT_PATH_OWNED_BY_DIFFERENT_ID" or "SCRIPT_PATH_DUPLICATE");
     }
 
+    [Fact]
+    public void Registry_RemoveReleasesStablePathAndOwnedVisualReferences()
+    {
+        var changed = 0;
+        var registry = new InMemoryScriptEngineeringRegistry(() => changed++);
+        var scriptId = Guid.NewGuid();
+        var screenId = Guid.NewGuid();
+        var script = new ScriptEngineeringDefinition(
+            scriptId,
+            "scripts/client/removable",
+            "Removable",
+            ScriptEngineeringScope.ClientVisual,
+            "def on_load():\n    pass",
+            entryPoints: [new ScriptEngineeringEntryPoint(ScriptEngineeringEventKind.Initialize, "on_load")]);
+
+        registry.Upsert(script);
+        registry.ReplaceVisualEventReferences(
+            scriptId,
+            [new ScriptVisualEventReference(
+                screenId,
+                null,
+                ScriptEngineeringEventKind.Initialize,
+                scriptId,
+                "on_load")]);
+
+        Assert.True(registry.Remove(scriptId));
+        Assert.Null(registry.Find(scriptId));
+        Assert.Null(registry.FindByPath(script.Path));
+        Assert.Empty(registry.SnapshotVisualEventReferences());
+        Assert.Equal(3, changed);
+
+        registry.Upsert(new ScriptEngineeringDefinition(
+            Guid.NewGuid(),
+            script.Path,
+            "Replacement",
+            ScriptEngineeringScope.ClientVisual,
+            "value = 2"));
+        Assert.NotNull(registry.FindByPath(script.Path));
+    }
+
     private static Harness CreateHarnessWithScripts()
     {
         var harness = new Harness();

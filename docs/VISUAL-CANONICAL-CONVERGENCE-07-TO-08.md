@@ -1,22 +1,20 @@
 # EliteSCADA — Visual Canonical Convergence 07 -> 08
 
-Status: **COORDINATOR REVIEW + STATIC AUDIT CORRECTIONS COMPLETE / CI_DEFERRED / STOP CONDITION REACHED**  
+Status: **COORDINATOR THIRD STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED / STOP CONDITION REACHED**  
 Date: 2026-08-28  
-Exact reviewed integration head: `63878f6fe28a0a9ac101d622628f8b95658899a7`
+Exact reviewed integration head: `d184fdd5b65f2ce0c0e6ca28cd092644be080555`
 
-This document records the coordinator-only canonical visual convergence and subsequent repository-wide static audit corrections performed while Wave 07 waits for final GitHub Actions validation and before Wave 08 graphical-editor implementation is authorized.
+This document records the coordinator-only canonical visual convergence and subsequent repository-wide static-audit corrections performed while Wave 07 waits for final GitHub Actions validation and before Wave 08 graphical-editor implementation is authorized.
 
 ## Decision
 
 Do **not** absorb the full Wave 08 graphical editor into Wave 07.
 
-The no-Actions interval was used for coordinator-only canonical visual convergence/readiness work. DEV 1, DEV 2 and DEV 3 remain stopped.
-
-After the original convergence stop point, a broader static audit found deterministic test-contract drift. Because those were concrete correctness blockers rather than speculative features, the coordinator corrected them on the integration branch. No Canvas/editor/product UI work was authorized or implemented.
+The no-Actions interval has been used only for coordinator-owned canonical convergence/readiness and newly demonstrated correctness blockers. DEV 1, DEV 2 and DEV 3 remain stopped. No Canvas/editor/product UI work is authorized or implemented.
 
 ## Why this phase existed
 
-The review originally found that the frontend Wave 07 runtime foundation and existing canonical/backend visual contracts were not yet one model:
+The original review found that the frontend Wave 07 runtime foundation and existing canonical/backend visual contracts were not yet one model:
 
 1. canonical `VisualElementEngineeringDto.Properties` was `Dictionary<string,string>` while the Wave 07 registry requires typed number/boolean/string/color/enum/assetRef values;
 2. canonical visual elements had `Key`/`Type` but no stable nested object ID while Script visual-event references already require stable object identity;
@@ -57,7 +55,7 @@ C# and TypeScript now preserve the same source model:
 
 `Animation > Script > Binding/Expression > Engineering Base > Default`.
 
-Registry defaults are not materialized as though the engineer explicitly authored them. Compatibility APIs may expose effective design-time values, but runtime source diagnostics distinguish explicit Engineering Base from registry Default.
+Registry defaults are not materialized as though the engineer explicitly authored them. Compatibility APIs may expose effective design-time values, but Runtime source diagnostics distinguish explicit Engineering Base from registry Default.
 
 ### Frontend Engineering projection — SETTLED
 
@@ -74,14 +72,9 @@ The official frontend Engineering -> Runtime adapter:
 
 ### Property registry parity — SETTLED STRUCTURALLY / EXECUTION VALIDATION DEFERRED
 
-C# and TypeScript now expose the intended common visual property family for:
+C# and TypeScript expose the intended common visual property family for geometry/transform, visibility/opacity, fill/background, stroke/style/corner radius, text/font/alignment and `assetRef`/image properties.
 
-- geometry/transform;
-- visibility/opacity;
-- fill/background;
-- stroke/style/corner radius;
-- text/font/alignment;
-- `assetRef`, `imageFit`, and image positioning.
+The third static audit tightened integer parity: TypeScript integer visual properties now use the same signed Int32 domain as C# `VisualIntegerValue(int)`, rejecting values outside `-2147483648..2147483647` instead of accepting JavaScript integers the backend cannot represent.
 
 Built-in renderer-independent object schemas are established for:
 
@@ -112,19 +105,51 @@ The legacy C# `imageResourceId`/`ResourceReference` shape remains compatibility 
 
 The first-class project asset entity, binary payload/import/storage/serving, image decoding and visual renderer remain intentional Wave 08 implementation work. They were not pulled into Wave 07.
 
+### Client Visual Python property authority — SET/CLEAR SETTLED STRUCTURALLY
+
+The Wave 07 contract requires the current Client Visual Python execution to read declared runtime-readable visual properties and set **or clear** a Script override only when the property is runtime-writable and the target belongs to the current Runtime Visual Instance.
+
+The integration branch now preserves bridge v1 and the existing `visualProperty.write` capability while using explicit operations:
+
+- operation `write` carries `targetReference`, `propertyKey`, `value` and calls `RuntimeVisualInstance.setScriptOverride`;
+- operation `clear` carries `targetReference`, `propertyKey` only and calls `RuntimeVisualInstance.clearScriptOverride`;
+- `null` is not overloaded as a clear sentinel;
+- the official provider composition forwards both operations without exposing DOM/renderer authority;
+- the actual Pyodide Worker module exposes `elite_scada.visual_property_clear(target, property)` and routes it through `visualProperty.write` + `clear`;
+- current visual instance, target, lifecycle, registration and runtime-writable checks remain the authority boundary.
+
+Committed tests cover set -> clear -> fallback to Engineering Base and the real Worker source surface. Execution validation remains deferred.
+
+### Malformed visual Engineering — FAIL-CLOSED PREVIEW SETTLED STRUCTURALLY
+
+The third static audit found a validation-order hole: JSON can deserialize null entries/fields into nominally non-null C# DTO collections. Generic validation could correctly record an issue and later built-in/reference validation could still dereference the same malformed node/binding, throwing instead of returning an `ImportPreview`.
+
+The integration branch now keeps the full visual Preview path null-safe:
+
+- null visual nodes produce `VISUAL_ELEMENT_NULL`;
+- null bindings produce `BINDING_NULL`;
+- blank/null keys and targets remain normal required-field issues;
+- placeholder checks do not dereference null targets;
+- built-in visual schema validation skips malformed binding keys already owned by generic validation;
+- recursive View reference validation skips diagnosed null nodes;
+- concrete TAG-binding validation skips diagnosed null/malformed bindings;
+- direct validation tests and a full `EngineeringExchangeService.Preview` malformed-tree test are committed.
+
+Invalid visual Engineering should therefore remain on `parse -> validate -> preview`, not turn into a null-reference exception. Final execution proof remains deferred.
+
 ### Transitional string-property codec — CONTAINED, NOT FINAL
 
-A schema-guided transition codec exists in both C# and TypeScript for the current string-valued visual property bag.
+A schema-guided transition codec exists in both C# and TypeScript for the current string-valued visual property bag. The declared `VisualObjectPropertySchema` determines value type; neither side guesses types from textual contents.
 
-The declared `VisualObjectPropertySchema` determines the value type. Neither side guesses types from textual contents.
+The review aligned accepted canonical boolean/numeric text forms, but this codec must not be mistaken for a cross-runtime byte-canonical storage format. C# `double.ToString("R")` and JavaScript `String(number)` can spell some exponent values differently even when the numeric value is equivalent.
 
-The final static review aligned canonical boolean/numeric text semantics so backend and frontend reject the same non-canonical forms rather than accepting different project representations.
+This is another reason to finish JSON-native typed persistence deliberately instead of polishing the temporary string representation forever.
 
-This codec exists to contain the current persistence mismatch. It is **not** the desired final persisted visual model.
+## Static audit correction history
 
-## Post-convergence static audit correction
+### Asset/property test drift correction
 
-A broader repository audit after the earlier reviewed head `0c00413e2dc96d770a905cf0a416833764af59e7` found deterministic test expectations that no longer matched the already-settled canonical contract:
+A repository audit after the earlier convergence head found deterministic test expectations that no longer matched the settled canonical contract:
 
 1. a source-contract test still required an old three-field AssetReference shape containing `assetId`, `name` and `mediaType`;
 2. browser acceptance simultaneously treated descriptive asset metadata as valid while another contract test correctly rejected it;
@@ -137,9 +162,20 @@ These were corrected without weakening product code:
 - `c3f9cc15a6715bf6434b1553878ba7c6121e0783`
 - `63878f6fe28a0a9ac101d622628f8b95658899a7`
 
-Static search on the resulting Wave 07 delta found no remaining obsolete `createDefaultBaseValues` reference and no remaining three-field AssetReference validity expectation. Metadata-bearing references now appear only as deliberate invalid cases.
+### Third static audit hardening
 
-The Wave 07 implementation decision in `main` was also clarified to remove older permissive wording that could recreate the same drift.
+A later full-project audit then found:
+
+1. Python could set Script override but the actual Python Worker module had no public clear function;
+2. malformed/null visual JSON could escape generic diagnosis and throw in later Preview validation layers;
+3. TypeScript registry integer validation was wider than the C# Int32 model;
+4. `python-sandbox-foundation.spec.ts` still compared the bridge policy to the exact Wave 06 object and omitted Wave 07 `maxBridgeDepth`, `maxBridgeNodes` and `maxBridgeStringLength`, making the Chromium test deterministically fail.
+
+All four were corrected while preserving the existing security/authority contracts. The exact reviewed integration head after this hardening is:
+
+`d184fdd5b65f2ce0c0e6ca28cd092644be080555`
+
+The Worker change itself was verified by commit comparison as an additive four-line public bridge exposure, with no deletion/rewrite of sandbox logic. The Wave 06 capability list remains unchanged because clear is an explicit operation of the existing visual-property write capability rather than a new authority class.
 
 All of this remains **CI_DEFERRED**. Static correction is not execution proof.
 
@@ -149,22 +185,19 @@ All of this remains **CI_DEFERRED**. Static correction is not execution proof.
 
 Therefore Schema v11 is a **transitional stable-identity/convergence schema**, not final JSON-native typed visual persistence.
 
-Before Wave 08 becomes ACTIVE, the coordinator must deliberately settle the canonical typed visual property representation and migration/compatibility strategy. The editor must then consume that canonical representation rather than establish its own string/object persistence rules.
+Before Wave 08 becomes ACTIVE, the coordinator must deliberately settle the canonical typed visual property representation and migration/compatibility strategy. The editor must consume that canonical representation rather than establish its own string/object persistence rules.
 
-The target remains native typed values validated by the public Visual Property Registry, including at least:
+The target remains native typed values validated by the public Visual Property Registry, including at least finite number, boolean, string, color string, enum string and null/stable project `assetRef` object. Registry Default remains distinct from explicitly engineered base state.
 
-- finite number;
-- boolean;
-- string;
-- color string;
-- enum string;
-- null or stable project `assetRef` object.
+## Lower-priority binding-source convergence
 
-Registry Default remains distinct from explicitly engineered base state.
+The canonical Engineering contract distinguishes `Tag`, `Property` and `Expression` binding kinds. The current frontend Engineering -> Runtime projection intentionally reduces `Tag` and `Property` to a generic Runtime `binding` source while values are externally resolved.
+
+That is not a current Wave 07 execution blocker, but the graphical binding engine must retain enough source-kind discrimination before Wave 08/09 depends on resolving those references itself. Resolve it deliberately with typed persistence/readiness work rather than introducing a second editor-private binding model.
 
 ## Repository-wide debt observed during audit
 
-The audit also found non-functional quality/reproducibility debt outside the immediate Wave 07 test blocker:
+The audits also found non-functional quality/reproducibility debt outside the immediate Wave 07 correctness blockers:
 
 - frontend dependencies include floating `latest` versions and no committed `package-lock.json`;
 - CI uses `npm install` rather than `npm ci`;
@@ -176,17 +209,21 @@ The audit also found non-functional quality/reproducibility debt outside the imm
 
 These findings should be addressed deliberately in the appropriate hardening/reproducibility scope. They do not authorize speculative functional expansion while Wave 07 CI is frozen.
 
+## Main/integration reconciliation fact
+
+The current `main` history after the Wave 06 merge contains 24 commits and changes only six documentation files. No functional code change in current `main` is missing from the Wave 07 integration branch.
+
+The integration branch is still historically diverged and must be reconciled with current `main` before final exact-head CI, but the present divergence is documentation-only rather than a hidden product-code conflict.
+
 ## Wave 07 final validation boundary
 
-Wave 07 still requires its deferred exact-head CI before merge. This review does not waive or replace:
+Wave 07 still requires deferred exact-head CI before merge. Static review does not waive or replace:
 
 - Web build;
 - backend Release/full PostgreSQL tests;
 - Runtime smoke;
 - Chromium;
-- Wave-specific visual/Python acceptance.
-
-All convergence code and committed tests remain **CI_DEFERRED**. Static review is not compilation or execution evidence.
+- Wave-specific visual/Python acceptance, including Wave 06 sandbox/native-escape/cancellation regressions.
 
 If typed-persistence work changes the Wave 07 final product head after Actions reset, final CI must validate that exact later head.
 
@@ -207,7 +244,7 @@ At the current no-CI stop point, items 3, 4, 6 and the structural foundation for
 
 ## Current stop state
 
-The exact integration head after deterministic static-audit corrections is `63878f6fe28a0a9ac101d622628f8b95658899a7`.
+Exact integration head: `d184fdd5b65f2ce0c0e6ca28cd092644be080555`.
 
 **Stop condition reached again.** Until the owner explicitly reports Actions reset:
 
@@ -218,12 +255,12 @@ The exact integration head after deterministic static-audit corrections is `6387
 - do not activate Wave 08 workers;
 - do not implement Canvas/editor/image-import/renderer functionality.
 
-Resume code only for another newly discovered concrete safe correctness blocker, or after the Actions reset permits deliberate typed-persistence work plus full validation.
+Resume code only for another newly demonstrated concrete safe correctness blocker, or after the Actions reset permits deliberate typed-persistence work plus full validation.
 
 ## After Actions reset
 
 1. Verify real `main`, integration head, PR and CI state.
-2. Reconcile the integration branch with current `main` if necessary.
+2. Reconcile the integration branch with current `main`.
 3. Finalize canonical typed visual property persistence/migration with compatibility tests.
 4. Resolve any remaining reproducibility blocker necessary for trustworthy final validation without broadening functional scope.
 5. Open one Wave 07 integration PR when ready to spend CI.

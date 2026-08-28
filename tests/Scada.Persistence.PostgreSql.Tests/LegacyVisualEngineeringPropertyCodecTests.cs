@@ -61,6 +61,34 @@ public sealed class LegacyVisualEngineeringPropertyCodecTests
                 new Dictionary<string, string> { [VisualPropertyKeys.Visible] = serialized }));
     }
 
+    [Theory]
+    [InlineData(" 12.5 ")]
+    [InlineData("+12.5")]
+    [InlineData(".5")]
+    [InlineData("12.")]
+    public void Codec_RejectsNonCanonicalNumberText(string serialized)
+    {
+        var schema = CreateSchema();
+        Assert.Throws<InvalidDataException>(() =>
+            LegacyVisualEngineeringPropertyCodec.Decode(
+                schema,
+                new Dictionary<string, string> { [VisualPropertyKeys.X] = serialized }));
+    }
+
+    [Theory]
+    [InlineData(" 3 ")]
+    [InlineData("+3")]
+    [InlineData("03")]
+    [InlineData("3.0")]
+    public void Codec_RejectsNonCanonicalIntegerText(string serialized)
+    {
+        var schema = CreateSchema();
+        Assert.Throws<InvalidDataException>(() =>
+            LegacyVisualEngineeringPropertyCodec.Decode(
+                schema,
+                new Dictionary<string, string> { [VisualPropertyKeys.ZIndex] = serialized }));
+    }
+
     [Fact]
     public void Codec_RejectsUnknownPropertyAndInvalidAssetReference()
     {

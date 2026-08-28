@@ -1,7 +1,7 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-08-28  
-**Active direction:** **VISUAL-RUNTIME-WAVE-07 THIRD STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
+**Active direction:** **VISUAL-RUNTIME-WAVE-07 FOURTH STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
 
 Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
 Parallel execution model: `docs/DEVELOPMENT-WAVES.md`.  
@@ -36,9 +36,9 @@ Wave 03  Operational lifecycle + Runtime TAG Inspector + acceptance foundation  
 Wave 04  Project portability + basic Trends + Administration                        COMPLETE
 Wave 05  Canonical Script Engineering                                                COMPLETE
 Wave 06  Python Editor + Client Visual sandbox                                       COMPLETE
-Wave 07  Visual Runtime Object Model + visual Asset contract                         THIRD STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED
+Wave 07  Visual Runtime Object Model + visual Asset contract                         FOURTH STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED
 Wave 08  Graphical Editor Foundation + image import/object                           WAITING
-Wave 09  Screens + Popups + Dynamos + asset dependencies
+Wave 09  Screens + Popups + Dynamos + asset dependencies/navigation
 Wave 10  Python visual events + animation + preview
 Wave 11  Complete HMI Runtime demo vertical slice
 Wave 12  Hardening
@@ -52,12 +52,12 @@ Do not skip dependencies simply because later research already exists.
 
 ## Wave 07 — Visual Runtime Object Model
 
-**THIRD STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED / NOT MERGE-READY.**
+**FOURTH STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED / NOT MERGE-READY.**
 
 - Logical WaveBaseSHA: `cc79713434c1d7b5988158b843b137eaf488d923`
 - ContractSHA: `06faf079bc5185689712bd2c9a225c2bb8d90999`
 - Integration branch: `integration/visual-runtime-wave-07`
-- Exact current integration head: `d184fdd5b65f2ce0c0e6ca28cd092644be080555`
+- Exact current integration head: `e376b37d2772906dd667afa199a6d8882abd43ae`
 - Integration PR: intentionally not open
 
 Wave 07 integration currently contains:
@@ -73,7 +73,10 @@ Wave 07 integration currently contains:
 - backend Preview enforcement of `core.*` schema/property/binding authority;
 - Client Visual Python property read/write/explicit-clear bound to the exact current Runtime Visual Instance;
 - real Worker exposure of `elite_scada.visual_property_clear` through existing bridge-v1 `visualProperty.write` capability + operation `clear`;
-- fail-closed malformed/null visual Engineering Preview handling;
+- fail-closed malformed/null visual and Script Engineering Preview handling;
+- canonical Script Engineering resolution of stable nested `VisualObject` IDs for dependencies and object-scoped visual events;
+- prospective validation that surfaces already-saved Scripts invalidated by incoming Engineering changes;
+- legacy v10 Screen/Popup identity projection aligned with Apply so child IDs preserved by key remain valid and removed referenced children fail before Apply;
 - adversarial structured-value/sandbox/property authority coverage committed but not yet executed on the final head.
 
 Integrated worker heads remain:
@@ -94,7 +97,20 @@ The third audit then corrected:
 3. TypeScript integer values outside the backend C# Int32 domain;
 4. a stale Wave 06 exact policy snapshot missing Wave 07 structured-value bounds, which would deterministically fail Chromium.
 
-Exact resulting integration head: `d184fdd5b65f2ce0c0e6ca28cd092644be080555`.
+That sequence ended at `d184fdd5b65f2ce0c0e6ca28cd092644be080555`.
+
+The fourth audit then corrected:
+
+1. top-level malformed Screen/Popup paths that could still escape fail-closed Preview;
+2. three current-schema Script assertions left hard-coded to schema v10 after the Wave 07 v11 transition;
+3. the missing canonical `VisualObject` Script reference catalog for both dependencies and object-scoped visual events;
+4. the same missing nested-object coverage in `ScriptEngineeringReferenceResolver.FromEngineeringPackage`;
+5. null Script/reference collections that could be tolerated by Preview and then fail during Apply;
+6. prospective validation issues on already-saved Scripts that were computed but not surfaced;
+7. legacy v10 Screen/Popup object-ID preservation/removal semantics so Script referential integrity matches actual Apply behavior;
+8. prospective Screen/Popup/Dynamo definition identity precedence aligned with the real import handlers.
+
+Exact resulting integration head: `e376b37d2772906dd667afa199a6d8882abd43ae`.
 
 These are **CI_DEFERRED** corrections, not execution evidence.
 
@@ -107,7 +123,8 @@ Before Wave 08 becomes ACTIVE, settle and validate canonical JSON-native typed p
 Lower-priority items to resolve with that readiness work:
 
 - transitional C# and JavaScript numeric serializers can spell some exponent values differently;
-- canonical `Tag` versus `Property` binding source discrimination should be retained before the graphical binding engine resolves sources itself.
+- canonical `Tag` versus `Property` binding source discrimination should be retained before the graphical binding engine resolves sources itself;
+- older Engineering collections still have broader null/empty-ID hardening debt outside the current Wave 07 visual correction scope.
 
 ### Current stop state
 

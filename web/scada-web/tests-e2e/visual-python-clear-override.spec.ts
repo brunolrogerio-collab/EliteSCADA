@@ -94,4 +94,4 @@ test('clear preserves the same instance, target and runtime-writable authority c
     { targetReference: instance.objectKey, propertyKey: 'unknown' },
     context
   )).rejects.toThrow(/not registered/);
-}
+});

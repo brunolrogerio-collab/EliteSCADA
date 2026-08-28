@@ -43,6 +43,12 @@ public static class BuiltinVisualEngineeringValidation
 
         foreach (var binding in element.Bindings ?? Array.Empty<EngineeringBindingDto>())
         {
+            // Generic Engineering validation owns malformed/null binding diagnostics.
+            // Built-in schema validation must never turn the same untrusted input
+            // into an exception while Preview is collecting issues.
+            if (binding is null || string.IsNullOrWhiteSpace(binding.Key))
+                continue;
+
             if (!schema.Declares(binding.Key))
             {
                 issues.Add(Error(

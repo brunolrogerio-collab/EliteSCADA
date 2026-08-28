@@ -3,7 +3,7 @@
 > Operational handoff. Resume from GitHub, not chat history.
 
 **Handoff date:** 2026-08-27  
-**Development state:** **INTERFACE-WAVE-04 FINAL INTEGRATION CI**
+**Development state:** **SCRIPT-WAVE-05 ACTIVE — PARALLEL WORKER PHASE**
 
 Repository truth remains separated into `MERGED`, `IMPLEMENTED IN PR`, `MERGED_TO_INTEGRATION`, `RESEARCH MERGED / PRODUCTION NOT IMPLEMENTED` and `SPECIFIED / NOT IMPLEMENTED`.
 
@@ -22,80 +22,89 @@ Read current `main` before action:
 
 GitHub branch/PR/head/CI state is operational truth.
 
-## Wave 03 — MERGED
+## Wave 04 — MERGED
 
-Coordinator PR #74 merged Wave 03. Final integration head `41d44d513d337e8ef6d3cc0e04ef0cf07a697b41`; CI #418 fully green; merge `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`. This is the immutable logical WaveBaseSHA for Wave 04.
+Coordinator PR #78 closed Wave 04.
 
-## INTERFACE-WAVE-04 — FINAL INTEGRATION
+- WaveBaseSHA: `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`;
+- final integration head: `f0762d12814496a223abe740c57eb995ca472e97`;
+- final CI #446: Web, backend/full tests, Runtime smoke and Chromium SUCCESS;
+- main merge: `e9e596f482c83bf5864b34a7f54d9fd3b0b67baa`.
 
-**WaveBaseSHA:** `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`  
-**IntegrationBranch:** `integration/interface-wave-04`  
-**Integration PR:** #78 `Integrate Interface Wave 04` — DRAFT pending final exact-head CI.
+Merged product includes Project Management/Portability, Basic Trend Viewer and Administration Workspace integrated with the existing Wave 03 product composition. This merge is the logical WaveBaseSHA for Wave 05.
 
-### DEV 3 Administration — ACCEPTED / MERGED_TO_INTEGRATION
+## SCRIPT-WAVE-05 — CENTRAL CONTRACT STABILIZED / WORKERS ACTIVE
 
-PR #75 final worker head `8cdf2dae80dee5d0a761d773b780bf8e33cdde00`; CI #436 SUCCESS; integration merge `467007c7471f042df7a94096a9639b72103e6c3d`. Existing Engineering Security section hosts Administration; backend remains authority.
+**Logical WaveBaseSHA:** `e9e596f482c83bf5864b34a7f54d9fd3b0b67baa`  
+**IntegrationBranch:** `integration/interface-wave-05`  
+**Integration PR:** #79 `Canonicalize Script Engineering for Wave 05` — Draft integration train  
+**Frozen central ContractSHA:** `b08b45201bf25a6d4d403b07c511cc34444177db`  
+**Contract CI:** #458 fully green: Web, backend Release/full tests including PostgreSQL, Runtime smoke and Chromium.
 
-### DEV 2 Basic Trend Viewer — ACCEPTED / MERGED_TO_INTEGRATION
+### Central Script contract — IMPLEMENTED IN PR #79 / NOT MERGED TO MAIN
 
-PR #76 final worker head `0bae66f1b5a11d8bbccf95f6c308dbb5121c8751`; CI #432 SUCCESS; integrated through `c72ab5f703a6a54db1c5c177856442570d4fb969`. Coordinator mounts Basic Trend Viewer exactly once in Runtime after Alarm Center and TAG Inspector.
+The coordinator architecture-first slice now provides:
 
-### DEV 1 Project Management / Portability — CORRECTED / ACCEPTED / MERGED_TO_INTEGRATION
+- canonical Engineering schema v10 with first-class `Scripts` and `ScriptVisualEventReferences`;
+- backward compatibility for v9 packages with absent Script collections normalized safely;
+- stable Script ID/path ownership through a Workspace-owned registry;
+- Script mutations participate in normal Workspace dirty/changeVersion semantics;
+- canonical JSON Export/Import and Preview/Apply use the existing Script Engineering validator rather than a competing model;
+- stable dependency boundaries for Script, TAG, Client Memory, Server Memory and visual definitions;
+- protected read endpoints for Scripts and visual Script references;
+- canonical Script delete through the normal Engineering mutation CAS/security/Audit path;
+- deletion refuses a Script still referenced by another Script dependency and removes the target Script's owned visual-event associations;
+- `.escadapkg` preserves canonical Script content through `engineering.json`;
+- PostgreSQL immutable revision tests preserve Script identity/path/source/scope/language/enabled state between revisions;
+- existing Gateway schema tests were corrected to assert `CurrentSchemaVersion` instead of hard-coding v9.
 
-PR #77 targeted CAS correction is complete.
+No production Python interpreter/editor/sandbox, graphical editor, new protocol or direct driver/database/filesystem/network Script authority has been introduced.
 
-Final corrected worker head: `e84a762b5c5f511448f5f23600e4b592abed203c`; exact-head CI #439 SUCCESS.
+## Active worker assignments
 
-Coordinator verified:
+All worker execution branches were created **from the frozen ContractSHA**, because their tasks depend on the central architecture. The logical WaveBase remains the Wave 04 merge for lineage.
 
-- package Apply requires `x-elitescada-workspace-version`;
-- missing header returns `400` before package mutation;
-- invalid/multiple/negative header returns `400`;
-- stale version remains `409` with expected/current versions;
-- missing/invalid-header test proves Workspace `changeVersion` remains unchanged;
-- authorization is evaluated before the version requirement and Audit remains backend-owned;
-- package format/schema/persistence/lifecycle semantics are unchanged.
+### DEV 1 — ACTIVE
 
-PR #77 was retargeted to `integration/interface-wave-04`, marked Ready by coordinator and merged with exact worker head. Integration merge commit: `6f0ee17f0faa25827d1f5ed03561724fefd1f909`.
+Branch: `feature/script-wave-05-engineering-workspace`  
+Task: Script Engineering Workspace foundation.
 
-Coordinator mounts `EngineeringProjectManagementWorkspace` in the Engineering project overview alongside `EngineeringLifecycleWorkspace`, keeping lifecycle and project portability together without creating a parallel project model.
+Build isolated frontend list/select/create/edit/delete UX for canonical Scripts. Plain multiline source editing only; no Monaco/Python execution. Create/update must use canonical Preview before Apply with Workspace CAS. Delete uses `/api/engineering/scripts/{id}`. Coordinator owns final `EngineeringApp.tsx` placement.
 
-## Coordinator PR #78 — CURRENT EXACT STATE
+### DEV 2 — ACTIVE
 
-Current integration head: `4ccc84e4230b024f3a2cb9e13b9b4abcf282763b`.
+Branch: `feature/script-wave-05-reference-validation`  
+Task: Script Reference Runtime / validation adapter.
 
-Coordinator added integrated shell acceptance that explicitly verifies:
+Build isolated reusable stable-reference/catalog/diagnostic helpers over canonical TAG, Client Memory, Server Memory and visual-definition identities. No direct driver/runtime authority and no central DI/handler edits; report integration hooks for coordinator.
 
-- Runtime Operations + Alarm Center + Basic Trend Viewer;
-- Engineering Project Management visibility;
-- existing TAG Engineering path;
-- Administration through the Security section;
-- Audit navigation;
-- stored Engineering locale behavior.
+### DEV 3 — ACTIVE
 
-Final CI #445 / run `33133437843` is running on exact head `4ccc84e4230b024f3a2cb9e13b9b4abcf282763b`.
+Branch: `test/script-wave-05-compatibility`  
+Task: Script compatibility validation.
 
-Last observed state:
+Independently attack v9→v10 compatibility, JSON/package/revision fidelity, stable identities, dependency cycles/missing references/invalid scope-event-language-source, delete safety and deterministic validation. Production source remains reserved.
 
-- Web build: SUCCESS;
-- backend build/test/smoke: IN PROGRESS;
-- Chromium: waits on backend.
+Full AllowedScope, ReservedFiles, ValidationMatrix, CompletionCriteria and AfterCompletion rules are in `docs/CHAT-WORK-ASSIGNMENTS.md`.
 
-Do not mark PR #78 Ready or merge until this exact-head matrix is fully green.
+## Coordinator next sequence
 
-## Next coordinator sequence
+1. user sends `SIGA` in DEV 1, DEV 2 and DEV 3 chats;
+2. workers reread current `main`, verify their branches start at ContractSHA and open Draft PRs early;
+3. coordinator performs Early Contract Reviews as PRs appear;
+4. accepted slices are integrated into `integration/interface-wave-05` / PR #79, not directly into `main`;
+5. coordinator owns central `EngineeringApp.tsx` placement/composition and any central handler wiring explicitly reported as integration-required;
+6. run final full Wave 05 exact-head CI after all accepted slices are composed;
+7. only then mark PR #79 Ready and merge to `main`;
+8. synchronize docs and prepare architecture/implementation readiness for Wave 06.
 
-1. inspect CI #445 final result;
-2. if any job fails, inspect root cause and fix without weakening tests/security/CAS;
-3. if Web + backend/full tests + Runtime smoke + Chromium all pass, mark PR #78 Ready;
-4. merge PR #78 to `main` with exact-head guard;
-5. verify post-merge main health;
-6. update `docs/ROADMAP.md`, `docs/CHAT-WORK-ASSIGNMENTS.md` and this handoff to Wave 04 MERGED;
-7. only then open architecture-first Wave 05 canonical Script Engineering.
+## Wave 05 final gate
 
-## Wave 05 — QUEUED ONLY
+Exporting/importing and revisioning a project containing Scripts must preserve source, scope, events, dependencies/references and enabled state deterministically. The product must also expose a practical Script Engineering workspace without bypassing canonical Engineering, Preview/Apply/CAS or backend authority.
 
-Canonical Script Engineering is the next gate. Coordinator first stabilizes the shared canonical Script contract: Scripts collection/entity identity, scope/source/enabled state, events/references/dependencies, import/export/migration, Preview/Apply, revision/PostgreSQL and `.escadapkg` compatibility. Workers may not start until Wave 04 is merged and the board explicitly promotes assignments.
+## Wave 06 — QUEUED ONLY
+
+Python Editor + Client Visual sandbox remains queued. Production Python execution must not start merely because Script schema v10 exists in PR #79. Wave 06 begins only after Wave 05 is fully integrated/merged and its sandbox implementation decision/Definition of Ready is pinned.
 
 ## First owner validation gate — LOCKED
 
@@ -104,6 +113,7 @@ The first true owner-facing build remains **EliteSCADA v0.1 — Full Product Val
 ## Permanent continuity rules
 
 - workers never choose their own next task, modify `main`, merge their own PR or broaden scope;
+- workers depending on an architecture-first contract start from its frozen green ContractSHA;
 - final wave quality is proven on the integrated composition, not worker CI alone;
 - documentation-only `main` movement does not invalidate logical WaveBaseSHA;
 - known failing work is never merged;

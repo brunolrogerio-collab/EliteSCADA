@@ -7,7 +7,8 @@ public static class BuiltinVisualEngineeringValidation
     public static IReadOnlyCollection<ImportIssue> Validate(
         VisualElementEngineeringDto element,
         ImportEntityKind entityKind,
-        string entityKey)
+        string entityKey,
+        int schemaVersion)
     {
         ArgumentNullException.ThrowIfNull(element);
 
@@ -30,7 +31,10 @@ public static class BuiltinVisualEngineeringValidation
 
         try
         {
-            _ = LegacyVisualEngineeringPropertyCodec.Decode(schema, element.Properties);
+            _ = VisualEngineeringPropertyCodec.Decode(
+                schema,
+                element.Properties,
+                allowLegacyStringValues: schemaVersion < VisualEngineeringPropertyCodec.TypedSchemaVersion);
         }
         catch (Exception error) when (error is KeyNotFoundException or InvalidDataException or ArgumentException)
         {

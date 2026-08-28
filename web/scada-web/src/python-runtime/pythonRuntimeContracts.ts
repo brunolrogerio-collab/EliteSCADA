@@ -6,6 +6,9 @@ export const CLIENT_VISUAL_PYTHON_POLICY = {
   maxQueuedEvents: 128,
   minimumTimerIntervalMs: 50,
   maxConsecutiveFailuresBeforeThrottle: 5,
+  maxBridgeDepth: 32,
+  maxBridgeNodes: 4096,
+  maxBridgeStringLength: 65536,
   queueOverflowStrategy: 'coalesce-by-event-key',
   faultIsolationScope: 'script-runtime-instance'
 } as const;

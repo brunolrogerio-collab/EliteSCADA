@@ -36,7 +36,12 @@ function definition(baseProperties: Readonly<Record<string, unknown>> = {}): Run
     objectId: 'object-1',
     key: 'pumpSymbol',
     objectType: 'symbol',
-    baseProperties
+    parentObjectId: null,
+    propertyKeys: schema.propertyKeys,
+    baseProperties: baseProperties as RuntimeVisualDefinitionProjection['baseProperties'],
+    bindings: [],
+    scriptEventReferences: [],
+    metadata: {}
   };
 }
 
@@ -103,7 +108,7 @@ test('invalid Engineering base value falls through to registry default with sour
   });
 });
 
-test('runtime policy rejects unregistered, non-readable, non-writable, non-binding and non-animatable access', () => {
+test('runtime policy rejects unregistered, malformed, non-readable, non-writable, non-binding and non-animatable access', () => {
   const runtime = instance('runtime-policy', { engineeringOnly: 'base' });
 
   expect(() => runtime.readRuntimeReadable('engineeringOnly')).toThrow(/not runtime-readable/);
@@ -120,6 +125,7 @@ test('runtime policy rejects unregistered, non-readable, non-writable, non-bindi
   expect(() => runtime.setAnimationOverride('engineeringOnly', 'animation')).toThrow(/not animatable/);
   expect(() => runtime.clearAnimationOverride('engineeringOnly')).toThrow(/not animatable/);
   expect(() => runtime.readEffective('unknown')).toThrow(/not registered/);
+  expect(() => runtime.readEffective(' width ')).toThrow(/stable exact key/);
 });
 
 test('engineering base snapshot and runtime presentation state remain instance-local and immutable', () => {
@@ -138,12 +144,18 @@ test('engineering base snapshot and runtime presentation state remain instance-l
   expect(base.width).toBe(95);
 });
 
-test('constructor rejects schema/definition type mismatch and malformed explicit runtime identities', () => {
+test('constructor rejects schema/definition mismatch and malformed explicit runtime identities', () => {
   expect(() => new RuntimeVisualInstance({
     definition: { ...definition(), objectType: 'other' },
     schema,
     runtimeInstanceId: 'runtime-mismatch'
   })).toThrow(/does not match schema/);
+
+  expect(() => new RuntimeVisualInstance({
+    definition: { ...definition(), propertyKeys: ['width'] },
+    schema,
+    runtimeInstanceId: 'runtime-property-mismatch'
+  })).toThrow(/property schema does not match/);
 
   expect(() => new RuntimeVisualInstance({
     definition: definition(),

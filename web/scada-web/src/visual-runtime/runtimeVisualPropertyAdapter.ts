@@ -16,7 +16,7 @@ type VisualPropertyLookupSource = Readonly<{
 }>;
 
 /**
- * Coordinator-owned adapter between the typed Engineering property registry/schema
+ * Coordinator-owned internal adapter between the typed Engineering property registry/schema
  * and the narrow Runtime Visual Instance consumer port.
  */
 export function createRuntimeVisualPropertyRegistryPort(
@@ -31,7 +31,12 @@ export function createRuntimeVisualPropertyRegistryPort(
 
     validate(propertyKey: string, value: unknown): VisualRuntimePropertyValidation {
       const result = source.validate(propertyKey, value);
-      if (result.ok) return { valid: true };
+      if (result.ok) {
+        return {
+          valid: true,
+          value: result.value
+        };
+      }
       return {
         valid: false,
         code: result.code,

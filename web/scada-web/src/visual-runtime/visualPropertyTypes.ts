@@ -15,7 +15,7 @@ export type AssetReference = Readonly<{
   mediaType?: string;
 }>;
 
-export type VisualPropertyValue = number | boolean | string | AssetReference;
+export type VisualPropertyValue = number | boolean | string | AssetReference | null;
 
 export type VisualPropertyDefinitionBase<TType extends VisualPropertyType, TValue> = Readonly<{
   key: string;
@@ -45,7 +45,7 @@ export type EnumVisualPropertyDefinition = VisualPropertyDefinitionBase<'enum', 
   allowedValues: readonly string[];
 }>;
 
-export type AssetRefVisualPropertyDefinition = VisualPropertyDefinitionBase<'assetRef', AssetReference>;
+export type AssetRefVisualPropertyDefinition = VisualPropertyDefinitionBase<'assetRef', AssetReference | null>;
 
 export type VisualPropertyDefinition =
   | NumberVisualPropertyDefinition
@@ -97,7 +97,7 @@ export class VisualPropertyContractError extends Error {
 }
 
 export function cloneVisualPropertyValue(value: VisualPropertyValue): VisualPropertyValue {
-  if (typeof value !== 'object') return value;
+  if (value === null || typeof value !== 'object') return value;
   return Object.freeze({ ...value });
 }
 

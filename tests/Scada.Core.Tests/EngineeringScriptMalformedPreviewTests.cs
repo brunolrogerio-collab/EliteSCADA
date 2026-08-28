@@ -1,6 +1,7 @@
 using Scada.Core.Alarms;
 using Scada.Core.Events;
 using Scada.Core.Tags;
+using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
 
 namespace Scada.Core.Tests;

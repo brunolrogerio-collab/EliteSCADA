@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Validation;
 using Scada.Engineering.Views;
@@ -46,7 +47,10 @@ public sealed class VisualElementEngineeringIdentityTests
                     "group",
                     Children:
                     [
-                        new VisualElementEngineeringDto("label", "text", Properties: new() { ["text"] = "P-01" })
+                        new VisualElementEngineeringDto(
+                            "label",
+                            "text",
+                            Properties: new() { ["text"] = JsonSerializer.SerializeToElement("P-01") })
                     ])
             ]));
 
@@ -57,7 +61,7 @@ public sealed class VisualElementEngineeringIdentityTests
         Assert.Equal(first.Id, second.Id);
         Assert.Equal(firstRoot.Id, secondRoot.Id);
         Assert.Equal(firstChild.Id, secondChild.Id);
-        Assert.Equal("P-01", secondChild.Properties!["text"]);
+        Assert.Equal("P-01", secondChild.Properties!["text"].GetString());
     }
 
     [Fact]

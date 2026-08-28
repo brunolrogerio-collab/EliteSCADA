@@ -51,9 +51,10 @@ internal sealed class ScriptEngineeringHandler
             .Where(reference => selectedIds.Contains(reference.ScriptId));
         var prospectiveReferences = currentReferences.Concat(incomingReferences).ToArray();
 
+        var referenceResolver = BuildReferenceResolver(package);
         var validation = _validator.Validate(
             new ScriptEngineeringModel(prospectiveScripts, prospectiveReferences),
-            BuildReferenceCatalog(package));
+            referenceResolver.ToValidationCatalog());
 
         foreach (var script in incoming)
         {
@@ -116,6 +117,22 @@ internal sealed class ScriptEngineeringHandler
                 ImportOperation.Error,
                 unassigned.Select(issue => ToImportIssue(issue, issue.EntityKey ?? "script-model")).ToArray()));
         }
+
+        if (prospectiveScripts.Length > 0 && referenceResolver.CatalogIssues.Count > 0)
+        {
+            items.Add(new ImportPreviewItem(
+                ImportEntityKind.Script,
+                "script-reference-catalog",
+                ImportOperation.Error,
+                referenceResolver.CatalogIssues
+                    .Select(issue => new ImportIssue(
+                        issue.Code,
+                        issue.Message,
+                        ImportEntityKind.Script,
+                        issue.EntityKey,
+                        true))
+                    .ToArray()));
+        }
     }
 
     public void Apply(EngineeringPackage package, ImportMode mode, ref int created, ref int updated, ref int skipped)
@@ -141,46 +158,28 @@ internal sealed class ScriptEngineeringHandler
         }
     }
 
-    private ScriptEngineeringReferenceCatalog BuildReferenceCatalog(EngineeringPackage package)
+    private ScriptEngineeringReferenceResolver BuildReferenceResolver(EngineeringPackage package)
     {
-        var references = new List<ScriptEngineeringReference>();
-        var incomingDataSources = (package.DataSources ?? Array.Empty<DataSourceEngineeringDto>())
+        var tags = CurrentTags()
+            .Concat(package.Tags)
+            .GroupBy(tag => tag.Id)
+            .Select(group => group.Last())
+            .ToArray();
+
+        var dataSources = _dataSources.Snapshot()
+            .Concat(package.DataSources ?? Array.Empty<DataSourceEngineeringDto>())
             .Where(source => !string.IsNullOrWhiteSpace(source.Key))
-            .ToDictionary(source => source.Key, source => source, StringComparer.OrdinalIgnoreCase);
+            .GroupBy(source => source.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .ToArray();
 
-        foreach (var tag in CurrentTags().Concat(package.Tags).GroupBy(tag => tag.Id).Select(group => group.Last()))
-        {
-            if (!tag.Id.HasValue || tag.Id.Value == Guid.Empty) continue;
+        var visualDefinitions = CurrentVisualDefinitions()
+            .Concat(PackageVisualDefinitions(package))
+            .GroupBy(definition => definition.Id)
+            .Select(group => group.Last())
+            .ToArray();
 
-            references.Add(new ScriptEngineeringReference(
-                ScriptEngineeringDependencyKind.Tag,
-                ScriptEngineeringReferenceKeys.Tag(tag.Id.Value)));
-
-            var source = ResolveDataSource(tag.Source, incomingDataSources);
-            if (source is null) continue;
-
-            if (MemoryEngineeringValidator.IsClientMemoryDriver(source.Driver))
-            {
-                references.Add(new ScriptEngineeringReference(
-                    ScriptEngineeringDependencyKind.ClientMemoryTag,
-                    ScriptEngineeringReferenceKeys.Tag(tag.Id.Value)));
-            }
-            else if (MemoryEngineeringValidator.IsServerMemoryDriver(source.Driver))
-            {
-                references.Add(new ScriptEngineeringReference(
-                    ScriptEngineeringDependencyKind.ServerMemoryTag,
-                    ScriptEngineeringReferenceKeys.Tag(tag.Id.Value)));
-            }
-        }
-
-        foreach (var id in CurrentVisualDefinitionIds().Concat(PackageVisualDefinitionIds(package)).Distinct())
-        {
-            references.Add(new ScriptEngineeringReference(
-                ScriptEngineeringDependencyKind.VisualDefinition,
-                ScriptEngineeringReferenceKeys.VisualDefinition(id)));
-        }
-
-        return new ScriptEngineeringReferenceCatalog(references);
+        return ScriptEngineeringReferenceResolver.Create(tags, dataSources, visualDefinitions);
     }
 
     private IEnumerable<TagEngineeringDto> CurrentTags() =>
@@ -194,32 +193,30 @@ internal sealed class ScriptEngineeringHandler
             Description: tag.Description,
             ReadOnly: tag.ReadOnly));
 
-    private DataSourceEngineeringDto? ResolveDataSource(
-        string? sourceKey,
-        IReadOnlyDictionary<string, DataSourceEngineeringDto> incoming)
-    {
-        if (string.IsNullOrWhiteSpace(sourceKey)) return null;
-        return incoming.GetValueOrDefault(sourceKey) ?? _dataSources.FindByKey(sourceKey);
-    }
-
-    private IEnumerable<Guid> CurrentVisualDefinitionIds()
+    private IEnumerable<ScriptEngineeringVisualDefinitionIdentity> CurrentVisualDefinitions()
     {
         foreach (var screen in _views.SnapshotScreens())
-            if (screen.Id is { } id && id != Guid.Empty) yield return id;
+            if (screen.Id is { } id && id != Guid.Empty)
+                yield return new ScriptEngineeringVisualDefinitionIdentity(id, "screen", screen.Key);
         foreach (var popup in _views.SnapshotPopups())
-            if (popup.Id is { } id && id != Guid.Empty) yield return id;
+            if (popup.Id is { } id && id != Guid.Empty)
+                yield return new ScriptEngineeringVisualDefinitionIdentity(id, "popup", popup.Key);
         foreach (var dynamo in _assets.SnapshotDynamos())
-            if (dynamo.Id is { } id && id != Guid.Empty) yield return id;
+            if (dynamo.Id is { } id && id != Guid.Empty)
+                yield return new ScriptEngineeringVisualDefinitionIdentity(id, "dynamo", dynamo.Key);
     }
 
-    private static IEnumerable<Guid> PackageVisualDefinitionIds(EngineeringPackage package)
+    private static IEnumerable<ScriptEngineeringVisualDefinitionIdentity> PackageVisualDefinitions(EngineeringPackage package)
     {
         foreach (var screen in package.Screens ?? Array.Empty<ScreenEngineeringDto>())
-            if (screen.Id is { } id && id != Guid.Empty) yield return id;
+            if (screen.Id is { } id && id != Guid.Empty)
+                yield return new ScriptEngineeringVisualDefinitionIdentity(id, "screen", screen.Key);
         foreach (var popup in package.Popups ?? Array.Empty<PopupEngineeringDto>())
-            if (popup.Id is { } id && id != Guid.Empty) yield return id;
+            if (popup.Id is { } id && id != Guid.Empty)
+                yield return new ScriptEngineeringVisualDefinitionIdentity(id, "popup", popup.Key);
         foreach (var dynamo in package.Dynamos ?? Array.Empty<DynamoEngineeringDto>())
-            if (dynamo.Id is { } id && id != Guid.Empty) yield return id;
+            if (dynamo.Id is { } id && id != Guid.Empty)
+                yield return new ScriptEngineeringVisualDefinitionIdentity(id, "dynamo", dynamo.Key);
     }
 
     private static ImportIssue ToImportIssue(ScriptEngineeringValidationIssue issue, string fallbackKey) =>

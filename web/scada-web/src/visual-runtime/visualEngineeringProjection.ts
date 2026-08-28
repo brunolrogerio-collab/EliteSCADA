@@ -51,10 +51,9 @@ export function projectVisualEngineeringDefinition(
 ): VisualEngineeringDefinitionProjection {
   assertDefinitionIdentity(input, schema);
 
+  // Keep only explicitly engineered values here. Registry defaults belong to the
+  // property schema and remain a distinct lower-priority Runtime source.
   const baseProperties: Record<string, VisualPropertyValue> = Object.create(null) as Record<string, VisualPropertyValue>;
-  for (const [propertyKey, defaultValue] of Object.entries(schema.createDefaultBaseValues())) {
-    baseProperties[propertyKey] = cloneVisualPropertyValue(defaultValue);
-  }
 
   for (const [propertyKey, candidate] of Object.entries(input.baseProperties ?? {})) {
     const definition = schema.getRequired(propertyKey);

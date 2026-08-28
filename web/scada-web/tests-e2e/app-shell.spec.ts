@@ -21,7 +21,7 @@ test('primary shell keeps Runtime, Engineering and Audit navigation coherent', a
   context = page.locator('.app-context');
   await expect(navigation.getByRole('link', { name: /Engineering/ })).toHaveAttribute('aria-current', 'page');
   await expect(context).toContainText('Engineering');
-  await expect(page.getByText(/Gestão do projeto|Project Management/, { exact: true })).toBeVisible();
+  await expect(page.getByText(/Gerenciamento do projeto|Project Management/, { exact: true })).toBeVisible();
 
   const engineeringNavigation = page.locator('.eng-nav');
   await engineeringNavigation.getByRole('button', { name: /TAGs/ }).click();

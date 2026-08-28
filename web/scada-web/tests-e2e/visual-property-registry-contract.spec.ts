@@ -41,7 +41,7 @@ test('common registry exposes the locked Wave 07 property family and image fit e
   expect(assetDefinition.supportsBinding).toBeFalsy();
 });
 
-test('numeric constraints reject non-finite and out-of-range values without coercion', () => {
+test('numeric constraints reject non-finite, fractional integer-only and out-of-range values without coercion', () => {
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.opacity, 0.5))
     .toMatchObject({ ok: true, value: 0.5 });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.opacity, Number.NaN))
@@ -54,6 +54,10 @@ test('numeric constraints reject non-finite and out-of-range values without coer
     .toMatchObject({ ok: false, code: 'number.minimum' });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.width, '100'))
     .toMatchObject({ ok: false, code: 'value.type' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.zIndex, 3))
+    .toMatchObject({ ok: true, value: 3 });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.zIndex, 3.5))
+    .toMatchObject({ ok: false, code: 'number.integer' });
 });
 
 test('color, enum and AssetReference values fail closed', () => {
@@ -74,15 +78,24 @@ test('color, enum and AssetReference values fail closed', () => {
   })).toMatchObject({ ok: true });
 
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.assetRef, {
-    assetId: 'https://example.invalid/logo.png'
-  })).toMatchObject({ ok: false });
-  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.assetRef, {
-    assetId: 'C:\\plant\\logo.png'
-  })).toMatchObject({ ok: false });
-  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.assetRef, {
-    assetId: 'asset:plant-logo',
-    url: 'https://example.invalid/logo.png'
-  })).toMatchObject({ ok: false });
+    assetId: '550e8400-e29b-41d4-a716-446655440000',
+    mediaType: 'image/jpeg'
+  })).toMatchObject({ ok: true });
+
+  const invalidAssets = [
+    { assetId: 'https://example.invalid/logo.png' },
+    { assetId: 'http:example.invalid' },
+    { assetId: 'file:logo.png' },
+    { assetId: 'C:\\plant\\logo.png' },
+    { assetId: 'asset:plant-logo', url: 'https://example.invalid/logo.png' },
+    { assetId: 'asset:plant-logo', mediaType: 'text/html' },
+    { assetId: 'asset:plant-logo', name: ' Plant logo ' }
+  ];
+
+  for (const candidate of invalidAssets) {
+    expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.assetRef, candidate))
+      .toMatchObject({ ok: false, code: 'assetRef.shape' });
+  }
 });
 
 test('object schema selects registered properties and defaults without creating an arbitrary property bag', () => {
@@ -122,6 +135,20 @@ test('registry rejects invalid definitions instead of accepting ambiguous semant
   } satisfies VisualPropertyDefinition;
 
   expect(() => new VisualPropertyRegistry([invalidEnum])).toThrow(/Default value/);
+
+  const invalidIntegerDefault = {
+    key: 'stack',
+    type: 'number',
+    defaultValue: 1.5,
+    integer: true,
+    engineeringEditable: true,
+    runtimeReadable: true,
+    runtimeWritable: true,
+    supportsBinding: true,
+    animatable: false
+  } satisfies VisualPropertyDefinition;
+
+  expect(() => new VisualPropertyRegistry([invalidIntegerDefault])).toThrow(/Default value/);
 
   const duplicate = {
     key: 'enabled',

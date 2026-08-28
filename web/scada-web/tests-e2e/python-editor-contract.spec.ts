@@ -9,7 +9,8 @@ import {
 } from '../src/engineering/python-editor/pythonEditorDescriptors';
 import {
   hasBlockingPythonDiagnostics,
-  projectPythonDiagnostics
+  projectPythonDiagnostics,
+  resolvePythonDiagnosticSnapshot
 } from '../src/engineering/python-editor/pythonEditorDiagnostics';
 
 test('Python diagnostics preserve valid 1-based line/column markers and reject invalid positions', () => {
@@ -61,6 +62,26 @@ test('Python diagnostics preserve valid 1-based line/column markers and reject i
   ]);
   expect(hasBlockingPythonDiagnostics(diagnostics)).toBeTruthy();
   expect(hasBlockingPythonDiagnostics([{ ...diagnostics[1]!, severity: 'warning' }])).toBeFalsy();
+});
+
+test('compile diagnostics are accepted only for the exact source snapshot', () => {
+  const diagnostics: PythonSourceDiagnostic[] = [{
+    severity: 'error',
+    code: 'PY_SYNTAX',
+    message: 'invalid syntax',
+    line: 1,
+    column: 1
+  }];
+
+  expect(resolvePythonDiagnosticSnapshot('print(1)\n', undefined)).toEqual({ status: 'unavailable' });
+  expect(resolvePythonDiagnosticSnapshot('print(2)\n', {
+    source: 'print(1)\n',
+    diagnostics
+  })).toEqual({ status: 'stale' });
+  expect(resolvePythonDiagnosticSnapshot('print(1)\n', {
+    source: 'print(1)\n',
+    diagnostics
+  })).toEqual({ status: 'ready', diagnostics });
 });
 
 test('Client Visual editor help is a projection of every stable bridge v1 capability', () => {

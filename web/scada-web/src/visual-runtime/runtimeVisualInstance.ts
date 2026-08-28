@@ -1,3 +1,5 @@
+import type { VisualObjectPropertySchema } from './visualPropertyRegistry';
+import { createRuntimeVisualPropertyRegistryPort } from './runtimeVisualPropertyAdapter';
 import type {
   VisualRuntimePropertyDefinitionPort,
   VisualRuntimePropertyRegistryPort,
@@ -17,7 +19,7 @@ export type RuntimeVisualDefinitionProjection = {
   objectId: string;
   key: string;
   objectType: string;
-  parentObjectId?: string;
+  parentObjectId?: string | null;
   baseProperties?: Readonly<Record<string, unknown>>;
 };
 
@@ -36,6 +38,11 @@ export type RuntimeVisualResolvedProperty = {
   source: RuntimeVisualPropertySource;
 };
 
+export type RuntimeVisualPropertyState = Readonly<{
+  value: unknown;
+  source: RuntimeVisualPropertySource;
+}>;
+
 export type RuntimeVisualPropertyFailure = {
   propertyKey: string;
   layer: RuntimeVisualPropertyLayer;
@@ -51,7 +58,8 @@ export type RuntimeVisualPropertyDiagnostic = RuntimeVisualResolvedProperty & {
 
 export type RuntimeVisualInstanceOptions = {
   definition: RuntimeVisualDefinitionProjection;
-  registry: VisualRuntimePropertyRegistryPort;
+  registry?: VisualRuntimePropertyRegistryPort;
+  schema?: VisualObjectPropertySchema;
   runtimeInstanceId?: string;
   visualContextInstanceId?: string;
   parentRuntimeInstanceId?: string;
@@ -85,7 +93,8 @@ export class RuntimeVisualInstance {
   readonly sourceParentObjectId?: string;
 
   constructor(options: RuntimeVisualInstanceOptions) {
-    const { definition, registry } = options;
+    const { definition } = options;
+    const registry = resolveRuntimeRegistry(options);
     requireIdentityPart(definition.objectId, 'objectId');
     requireIdentityPart(definition.key, 'key');
     requireIdentityPart(definition.objectType, 'objectType');
@@ -113,6 +122,22 @@ export class RuntimeVisualInstance {
     }
   }
 
+  get runtimeInstanceId(): string {
+    return this.identity.runtimeInstanceId;
+  }
+
+  get objectId(): string {
+    return this.identity.objectId;
+  }
+
+  get objectKey(): string {
+    return this.identity.objectKey;
+  }
+
+  get objectType(): string {
+    return this.identity.objectType;
+  }
+
   get isDisposed(): boolean {
     return this.disposed;
   }
@@ -128,6 +153,14 @@ export class RuntimeVisualInstance {
   readEffective(propertyKey: string): RuntimeVisualResolvedProperty {
     const property = this.requireRegistered(propertyKey);
     return this.resolve(property);
+  }
+
+  readPropertyState(propertyKey: string): RuntimeVisualPropertyState {
+    const resolved = this.readEffective(propertyKey);
+    return Object.freeze({
+      value: resolved.value,
+      source: resolved.source
+    });
   }
 
   readRuntimeReadable(propertyKey: string): RuntimeVisualResolvedProperty {
@@ -367,6 +400,21 @@ export class RuntimeVisualInstance {
   }
 }
 
+function resolveRuntimeRegistry(options: RuntimeVisualInstanceOptions): VisualRuntimePropertyRegistryPort {
+  if (options.registry && options.schema) {
+    throw new RuntimeVisualInstanceError(
+      'VISUAL_RUNTIME_REGISTRY_AMBIGUOUS',
+      'Runtime Visual Instance accepts either a registry port or a Visual Object schema, not both.'
+    );
+  }
+  if (options.registry) return options.registry;
+  if (options.schema) return createRuntimeVisualPropertyRegistryPort(options.schema);
+  throw new RuntimeVisualInstanceError(
+    'VISUAL_RUNTIME_REGISTRY_REQUIRED',
+    'Runtime Visual Instance requires a visual property registry or schema.'
+  );
+}
+
 function firstPresent(
   propertyKey: string,
   ...layers: readonly (readonly [RuntimeVisualPropertyLayer, ReadonlyMap<string, unknown>])[]
@@ -399,8 +447,8 @@ function requireIdentityPart(value: string, field: string): void {
   }
 }
 
-function normalizeOptionalIdentity(value: string | undefined): string | undefined {
-  if (value === undefined) return undefined;
+function normalizeOptionalIdentity(value: string | null | undefined): string | undefined {
+  if (value === undefined || value === null) return undefined;
   const normalized = value.trim();
   return normalized || undefined;
 }

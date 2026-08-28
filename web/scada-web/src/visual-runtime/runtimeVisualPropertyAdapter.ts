@@ -1,36 +1,27 @@
-import type {
-  VisualPropertyDefinition,
-  VisualPropertyValidationResult
-} from './visualPropertyTypes';
+import type { VisualObjectPropertySchema } from './visualPropertyRegistry';
+import type { VisualPropertyDefinition } from './visualPropertyTypes';
 import type {
   VisualRuntimePropertyDefinitionPort,
   VisualRuntimePropertyRegistryPort,
   VisualRuntimePropertyValidation
 } from './runtimeVisualPropertyPort';
 
-type VisualPropertyLookupSource = Readonly<{
-  getRequired(propertyKey: string): VisualPropertyDefinition;
-  get?: (propertyKey: string) => VisualPropertyDefinition | undefined;
-  declares?: (propertyKey: string) => boolean;
-  validate(propertyKey: string, value: unknown): VisualPropertyValidationResult;
-}>;
-
 /**
- * Coordinator-owned internal adapter between the typed Engineering property registry/schema
- * and the narrow Runtime Visual Instance consumer port.
+ * Internal adapter between the authoritative typed Visual Object schema and the
+ * narrow Runtime Visual Instance consumer port. It intentionally accepts only
+ * VisualObjectPropertySchema so Runtime cannot acquire a second registry authority.
  */
 export function createRuntimeVisualPropertyRegistryPort(
-  source: VisualPropertyLookupSource
+  schema: VisualObjectPropertySchema
 ): VisualRuntimePropertyRegistryPort {
   return Object.freeze({
     find(propertyKey: string): VisualRuntimePropertyDefinitionPort | undefined {
-      const definition = findDefinition(source, propertyKey);
-      if (!definition) return undefined;
-      return toRuntimeDefinition(definition);
+      if (!schema.declares(propertyKey)) return undefined;
+      return toRuntimeDefinition(schema.getRequired(propertyKey));
     },
 
     validate(propertyKey: string, value: unknown): VisualRuntimePropertyValidation {
-      const result = source.validate(propertyKey, value);
+      const result = schema.validate(propertyKey, value);
       if (result.ok) {
         return {
           valid: true,
@@ -44,16 +35,6 @@ export function createRuntimeVisualPropertyRegistryPort(
       };
     }
   });
-}
-
-function findDefinition(
-  source: VisualPropertyLookupSource,
-  propertyKey: string
-): VisualPropertyDefinition | undefined {
-  if (source.declares) {
-    return source.declares(propertyKey) ? source.getRequired(propertyKey) : undefined;
-  }
-  return source.get?.(propertyKey);
 }
 
 function toRuntimeDefinition(

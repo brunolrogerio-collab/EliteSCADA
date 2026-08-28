@@ -4,6 +4,7 @@ import { AppNavigation } from './AppNavigation';
 import { AuditApp } from './audit';
 import { AuthGate } from './auth/AuthGate';
 import { EngineeringApp } from './engineering/EngineeringApp';
+import { BasicTrendViewer } from './runtime/BasicTrendViewer';
 import { clientMemory } from './runtime/clientMemory';
 import { RuntimeAlarmCenter, type RuntimeAlarmCenterLocale } from './runtime/operations';
 import { RuntimeTagInspector } from './runtime/RuntimeTagInspector';
@@ -139,6 +140,7 @@ function RuntimeApp() {
 
       <RuntimeAlarmCenter locale={locale} />
       <RuntimeTagInspector locale={locale} />
+      <BasicTrendViewer locale={locale} />
 
       <section className="process-card">
         <div className="process-title">Demo · Estação Elevatória</div>

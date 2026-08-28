@@ -1,4 +1,5 @@
 import type { VisualObjectPropertySchema } from './visualPropertyRegistry';
+import { isStableVisualToken } from './visualPropertyTypes';
 import { createRuntimeVisualPropertyRegistryPort } from './runtimeVisualPropertyAdapter';
 import type {
   VisualRuntimePropertyDefinitionPort,
@@ -58,8 +59,7 @@ export type RuntimeVisualPropertyDiagnostic = RuntimeVisualResolvedProperty & {
 
 export type RuntimeVisualInstanceOptions = {
   definition: RuntimeVisualDefinitionProjection;
-  registry?: VisualRuntimePropertyRegistryPort;
-  schema?: VisualObjectPropertySchema;
+  schema: VisualObjectPropertySchema;
   runtimeInstanceId?: string;
   visualContextInstanceId?: string;
   parentRuntimeInstanceId?: string;
@@ -93,23 +93,31 @@ export class RuntimeVisualInstance {
   readonly sourceParentObjectId?: string;
 
   constructor(options: RuntimeVisualInstanceOptions) {
-    const { definition } = options;
-    const registry = resolveRuntimeRegistry(options);
+    const { definition, schema } = options;
     requireIdentityPart(definition.objectId, 'objectId');
     requireIdentityPart(definition.key, 'key');
     requireIdentityPart(definition.objectType, 'objectType');
 
-    this.registry = registry;
+    if (definition.objectType !== schema.objectTypeKey) {
+      throw new RuntimeVisualInstanceError(
+        'VISUAL_RUNTIME_OBJECT_TYPE_MISMATCH',
+        `Runtime visual definition type '${definition.objectType}' does not match schema '${schema.objectTypeKey}'.`
+      );
+    }
+
+    this.registry = createRuntimeVisualPropertyRegistryPort(schema);
+    const runtimeInstanceId = options.runtimeInstanceId ?? createRuntimeInstanceId();
+    requireIdentityPart(runtimeInstanceId, 'runtimeInstanceId');
+
     this.identity = Object.freeze({
-      runtimeInstanceId: options.runtimeInstanceId ?? createRuntimeInstanceId(),
+      runtimeInstanceId,
       objectId: definition.objectId,
       objectKey: definition.key,
       objectType: definition.objectType,
-      visualContextInstanceId: normalizeOptionalIdentity(options.visualContextInstanceId),
-      parentRuntimeInstanceId: normalizeOptionalIdentity(options.parentRuntimeInstanceId)
+      visualContextInstanceId: normalizeOptionalIdentity(options.visualContextInstanceId, 'visualContextInstanceId'),
+      parentRuntimeInstanceId: normalizeOptionalIdentity(options.parentRuntimeInstanceId, 'parentRuntimeInstanceId')
     });
-    requireIdentityPart(this.identity.runtimeInstanceId, 'runtimeInstanceId');
-    this.sourceParentObjectId = normalizeOptionalIdentity(definition.parentObjectId);
+    this.sourceParentObjectId = normalizeOptionalIdentity(definition.parentObjectId, 'parentObjectId');
 
     for (const [propertyKey, value] of Object.entries(definition.baseProperties ?? {})) {
       const property = this.requireRegistered(propertyKey);
@@ -118,7 +126,7 @@ export class RuntimeVisualInstance {
         this.recordFailure(property.key, 'engineering', validation);
         continue;
       }
-      this.engineeringBase.set(property.key, cloneRuntimeValue(value));
+      this.engineeringBase.set(property.key, cloneRuntimeValue(validation.value));
     }
   }
 
@@ -150,13 +158,17 @@ export class RuntimeVisualInstance {
     return Object.freeze(snapshot);
   }
 
+  /**
+   * Engine/diagnostic read that intentionally bypasses runtimeReadable.
+   * Script/public capability adapters must use readPropertyState/readRuntimeReadable.
+   */
   readEffective(propertyKey: string): RuntimeVisualResolvedProperty {
     const property = this.requireRegistered(propertyKey);
     return this.resolve(property);
   }
 
   readPropertyState(propertyKey: string): RuntimeVisualPropertyState {
-    const resolved = this.readEffective(propertyKey);
+    const resolved = this.readRuntimeReadable(propertyKey);
     return Object.freeze({
       value: resolved.value,
       source: resolved.source
@@ -294,7 +306,7 @@ export class RuntimeVisualInstance {
 
     return {
       propertyKey: property.key,
-      value: cloneRuntimeValue(property.defaultValue),
+      value: cloneRuntimeValue(defaultValidation.value),
       source: 'default'
     };
   }
@@ -315,7 +327,7 @@ export class RuntimeVisualInstance {
       );
     }
 
-    target.set(property.key, cloneRuntimeValue(value));
+    target.set(property.key, cloneRuntimeValue(validation.value));
     this.clearFailure(property.key, layer);
   }
 
@@ -357,7 +369,7 @@ export class RuntimeVisualInstance {
     if (!property) {
       throw new RuntimeVisualInstanceError(
         'VISUAL_PROPERTY_NOT_REGISTERED',
-        `Visual property '${normalized}' is not registered.`,
+        `Visual property '${normalized}' is not registered for this visual object type.`,
         normalized
       );
     }
@@ -400,21 +412,6 @@ export class RuntimeVisualInstance {
   }
 }
 
-function resolveRuntimeRegistry(options: RuntimeVisualInstanceOptions): VisualRuntimePropertyRegistryPort {
-  if (options.registry && options.schema) {
-    throw new RuntimeVisualInstanceError(
-      'VISUAL_RUNTIME_REGISTRY_AMBIGUOUS',
-      'Runtime Visual Instance accepts either a registry port or a Visual Object schema, not both.'
-    );
-  }
-  if (options.registry) return options.registry;
-  if (options.schema) return createRuntimeVisualPropertyRegistryPort(options.schema);
-  throw new RuntimeVisualInstanceError(
-    'VISUAL_RUNTIME_REGISTRY_REQUIRED',
-    'Runtime Visual Instance requires a visual property registry or schema.'
-  );
-}
-
 function firstPresent(
   propertyKey: string,
   ...layers: readonly (readonly [RuntimeVisualPropertyLayer, ReadonlyMap<string, unknown>])[]
@@ -439,18 +436,21 @@ function createRuntimeInstanceId(): string {
 }
 
 function requireIdentityPart(value: string, field: string): void {
-  if (!value.trim()) {
+  if (!isStableVisualToken(value)) {
     throw new RuntimeVisualInstanceError(
-      'VISUAL_RUNTIME_IDENTITY_REQUIRED',
-      `Runtime visual identity field '${field}' is required.`
+      'VISUAL_RUNTIME_IDENTITY_INVALID',
+      `Runtime visual identity field '${field}' must be a stable non-empty token.`
     );
   }
 }
 
-function normalizeOptionalIdentity(value: string | null | undefined): string | undefined {
+function normalizeOptionalIdentity(
+  value: string | null | undefined,
+  field: string
+): string | undefined {
   if (value === undefined || value === null) return undefined;
-  const normalized = value.trim();
-  return normalized || undefined;
+  requireIdentityPart(value, field);
+  return value;
 }
 
 function cloneRuntimeValue<T>(value: T): T {

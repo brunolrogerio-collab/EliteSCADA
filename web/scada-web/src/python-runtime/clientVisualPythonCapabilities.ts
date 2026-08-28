@@ -14,6 +14,7 @@ export interface ClientVisualPythonCapabilityProvider {
   writeClientMemory?(reference: string, value: unknown, context: ClientVisualPythonCapabilityContext): Promise<unknown> | unknown;
   readVisualProperty?(targetReference: string, propertyKey: string, context: ClientVisualPythonCapabilityContext): Promise<unknown> | unknown;
   writeVisualProperty?(targetReference: string, propertyKey: string, value: unknown, context: ClientVisualPythonCapabilityContext): Promise<unknown> | unknown;
+  clearVisualProperty?(targetReference: string, propertyKey: string, context: ClientVisualPythonCapabilityContext): Promise<unknown> | unknown;
   requestVisualTween?(argumentsValue: unknown, context: ClientVisualPythonCapabilityContext): Promise<unknown> | unknown;
   requestBackendOperation?(operation: string, argumentsValue: unknown, context: ClientVisualPythonCapabilityContext): Promise<unknown> | unknown;
 }
@@ -66,9 +67,14 @@ export async function dispatchClientVisualPythonCapability(
     }
 
     case 'visualProperty.write': {
-      requireOperation(operation, 'write', capability);
       const targetReference = requireStringArgument(argumentsValue, 'targetReference');
       const propertyKey = requireStringArgument(argumentsValue, 'propertyKey');
+
+      if (operation === 'clear') {
+        return normalizeProviderResult(await requireProvider(provider.clearVisualProperty, capability)(targetReference, propertyKey, context));
+      }
+
+      requireOperation(operation, 'write', capability);
       const value = requireOwnArgument(argumentsValue, 'value');
       assertBridgeValue(value, 'value');
       return normalizeProviderResult(await requireProvider(provider.writeVisualProperty, capability)(targetReference, propertyKey, value, context));

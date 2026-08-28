@@ -36,7 +36,9 @@ internal sealed class ViewEngineeringHandler
             var existing = ResolveExistingScreen(dto);
             var operation = EngineeringHandlerSupport.Decide(existing is not null, mode);
             if (operation == ImportOperation.Skip) { skipped++; continue; }
-            _views.UpsertScreen(dto with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
+
+            var normalized = VisualEngineeringPropertyMigration.NormalizeScreen(dto, package.SchemaVersion);
+            _views.UpsertScreen(normalized with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
             if (existing is null) created++; else updated++;
         }
 
@@ -45,7 +47,9 @@ internal sealed class ViewEngineeringHandler
             var existing = ResolveExistingPopup(dto);
             var operation = EngineeringHandlerSupport.Decide(existing is not null, mode);
             if (operation == ImportOperation.Skip) { skipped++; continue; }
-            _views.UpsertPopup(dto with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
+
+            var normalized = VisualEngineeringPropertyMigration.NormalizePopup(dto, package.SchemaVersion);
+            _views.UpsertPopup(normalized with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
             if (existing is null) created++; else updated++;
         }
     }
@@ -163,7 +167,11 @@ internal sealed class ViewEngineeringHandler
             if (element is null)
                 continue;
 
-            issues.AddRange(BuiltinVisualEngineeringValidation.Validate(element, kind, entityKey));
+            issues.AddRange(BuiltinVisualEngineeringValidation.Validate(
+                element,
+                kind,
+                entityKey,
+                package.SchemaVersion));
 
             EngineeringHandlerSupport.ValidateConcreteTagBindings(
                 _tags, element.Bindings, kind, entityKey, package, issues);

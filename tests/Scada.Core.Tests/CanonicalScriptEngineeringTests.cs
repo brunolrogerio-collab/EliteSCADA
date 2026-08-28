@@ -17,14 +17,14 @@ namespace Scada.Core.Tests;
 public sealed class CanonicalScriptEngineeringTests
 {
     [Fact]
-    public void SchemaV10_JsonRoundTripPreservesCanonicalScriptsAndVisualReferences()
+    public void CurrentSchema_JsonRoundTripPreservesCanonicalScriptsAndVisualReferences()
     {
         using var source = CreateHarnessWithScripts();
 
         var json = source.Exchange.ExportJson(indented: false);
         var package = source.Exchange.ParseJson(json);
 
-        Assert.Equal(10, package.SchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, package.SchemaVersion);
         Assert.Equal(2, package.Scripts!.Count);
         Assert.Single(package.ScriptVisualEventReferences!);
 
@@ -91,7 +91,7 @@ public sealed class CanonicalScriptEngineeringTests
         var targetPackages = new ProjectPackageService(target.Exchange);
         var inspection = targetPackages.Inspect(bytes);
 
-        Assert.Equal(10, inspection.Manifest.EngineeringSchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, inspection.Manifest.EngineeringSchemaVersion);
         Assert.Equal(2, inspection.Engineering.Scripts!.Count);
         Assert.Single(inspection.Engineering.ScriptVisualEventReferences!);
 

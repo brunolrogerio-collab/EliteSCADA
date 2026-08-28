@@ -47,6 +47,7 @@ public interface IVisualAssetEngineeringRegistry
     VisualAssetEngineeringDto? FindAssetByKey(string key);
     void UpsertAsset(VisualAssetEngineeringDto asset);
     bool RemoveAsset(Guid id);
+    void Clear();
 
     bool HasPayload(string sha256);
     VisualAssetPayload? FindPayload(string sha256);
@@ -128,6 +129,20 @@ public sealed class InMemoryVisualAssetEngineeringRegistry : IVisualAssetEnginee
 
         if (removed) _changed?.Invoke();
         return removed;
+    }
+
+    public void Clear()
+    {
+        bool changed;
+        lock (_sync)
+        {
+            changed = _assetsById.Count != 0 || _payloadsByHash.Count != 0;
+            _assetsById.Clear();
+            _assetIdsByKey.Clear();
+            _payloadsByHash.Clear();
+        }
+
+        if (changed) _changed?.Invoke();
     }
 
     public bool HasPayload(string sha256)

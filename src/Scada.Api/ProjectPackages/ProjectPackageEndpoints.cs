@@ -102,6 +102,22 @@ public static class ProjectPackageEndpoints
                 return failure;
             }
 
+            if (!request.Headers.ContainsKey("x-elitescada-workspace-version"))
+            {
+                await audit.RecordAsync(
+                    context,
+                    authorization.Principal,
+                    AuditActions.EngineeringPackageRestore,
+                    AuditOutcome.Failed,
+                    "project-package",
+                    "unresolved",
+                    new Dictionary<string, string>
+                    {
+                        ["reason"] = "missing-workspace-version"
+                    });
+                return Results.BadRequest(new { error = "Engineering Workspace version header is required." });
+            }
+
             if (!TryReadExpectedChangeVersion(request, out var expectedChangeVersion))
             {
                 await audit.RecordAsync(
@@ -144,7 +160,7 @@ public static class ProjectPackageEndpoints
                             ["packageId"] = inspection.Manifest.PackageId.ToString(),
                             ["reason"] = "preview-errors",
                             ["errorCount"] = preview.ErrorCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                            ["expectedChangeVersion"] = expectedChangeVersion?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "none"
+                            ["expectedChangeVersion"] = expectedChangeVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)
                         });
                     return Results.BadRequest(preview);
                 }
@@ -164,7 +180,7 @@ public static class ProjectPackageEndpoints
                         ["mode"] = importMode.ToString(),
                         ["created"] = result.Created.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         ["updated"] = result.Updated.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                        ["expectedChangeVersion"] = expectedChangeVersion?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "none",
+                        ["expectedChangeVersion"] = expectedChangeVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         ["resultingChangeVersion"] = workspace.CaptureChangeVersion().ToString(System.Globalization.CultureInfo.InvariantCulture)
                     });
                 return hasErrors ? Results.BadRequest(result) : Results.Ok(result);
@@ -224,11 +240,11 @@ public static class ProjectPackageEndpoints
         return endpoints;
     }
 
-    private static bool TryReadExpectedChangeVersion(HttpRequest request, out long? expectedChangeVersion)
+    private static bool TryReadExpectedChangeVersion(HttpRequest request, out long expectedChangeVersion)
     {
-        expectedChangeVersion = null;
+        expectedChangeVersion = 0;
         if (!request.Headers.TryGetValue("x-elitescada-workspace-version", out var expectedHeader))
-            return true;
+            return false;
 
         if (expectedHeader.Count != 1 ||
             !long.TryParse(

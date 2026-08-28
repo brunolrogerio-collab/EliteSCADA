@@ -13,6 +13,9 @@ import {
   type VisualPropertyValue
 } from './visualPropertyTypes';
 
+const INT32_MIN = -2147483648;
+const INT32_MAX = 2147483647;
+
 export const VISUAL_PROPERTY_KEYS = {
   x: 'x',
   y: 'y',
@@ -374,7 +377,10 @@ function validateValueForDefinition(
     case 'number': {
       if (typeof value !== 'number') return failure(definition.key, 'value.type', 'Expected number.');
       if (!Number.isFinite(value)) return failure(definition.key, 'number.nonFinite');
-      if (definition.integer === true && !Number.isInteger(value)) return failure(definition.key, 'number.integer');
+      if (definition.integer === true &&
+          (!Number.isInteger(value) || value < INT32_MIN || value > INT32_MAX)) {
+        return failure(definition.key, 'number.integer', 'Expected a signed 32-bit integer.');
+      }
       if (definition.minimum !== undefined && value < definition.minimum) return failure(definition.key, 'number.minimum');
       if (definition.maximum !== undefined && value > definition.maximum) return failure(definition.key, 'number.maximum');
       return success(definition.key, value);

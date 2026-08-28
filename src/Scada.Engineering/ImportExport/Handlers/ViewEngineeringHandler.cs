@@ -3,6 +3,7 @@ using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Validation;
 using Scada.Engineering.Views;
+using Scada.Engineering.VisualScripting;
 
 namespace Scada.Engineering.ImportExport.Handlers;
 
@@ -119,6 +120,8 @@ internal sealed class ViewEngineeringHandler
     {
         foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
         {
+            issues.AddRange(BuiltinVisualEngineeringValidation.Validate(element, kind, entityKey));
+
             EngineeringHandlerSupport.ValidateConcreteTagBindings(
                 _tags, element.Bindings, kind, entityKey, package, issues);
 

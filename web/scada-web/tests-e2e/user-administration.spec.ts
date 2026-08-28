@@ -14,6 +14,7 @@ test('Engineering administers local users without exposing credentials and inval
   const initialPassword = 'Initial-user-password-123!';
   const replacementPassword = 'Replacement-password-456!';
 
+  await page.getByTestId('admin-create-toggle').click();
   const create = page.getByTestId('create-user-form');
   await create.locator('input[name="new-username"]').fill(username);
   await create.locator('input[name="new-display-name"]').fill('Shift Operator');

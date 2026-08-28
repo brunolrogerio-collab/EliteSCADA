@@ -33,7 +33,37 @@ internal sealed class ScriptEngineeringHandler
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
     {
-        var incoming = (package.Scripts ?? Array.Empty<ScriptEngineeringDefinition>())
+        var rawIncoming = package.Scripts ?? Array.Empty<ScriptEngineeringDefinition>();
+        if (rawIncoming.Any(script => script is null))
+        {
+            items.Add(new ImportPreviewItem(
+                ImportEntityKind.Script,
+                "<null-script>",
+                ImportOperation.Error,
+                [new ImportIssue(
+                    "SCRIPT_NULL",
+                    "Script definition cannot be null.",
+                    ImportEntityKind.Script,
+                    "<null-script>",
+                    true)]));
+        }
+
+        var rawReferences = package.ScriptVisualEventReferences ?? Array.Empty<ScriptVisualEventReference>();
+        if (rawReferences.Any(reference => reference is null))
+        {
+            items.Add(new ImportPreviewItem(
+                ImportEntityKind.Script,
+                "script-visual-references",
+                ImportOperation.Error,
+                [new ImportIssue(
+                    "SCRIPT_VISUAL_REFERENCE_NULL",
+                    "Visual Script reference cannot be null.",
+                    ImportEntityKind.Script,
+                    "script-visual-references",
+                    true)]));
+        }
+
+        var incoming = rawIncoming
             .Where(script => script is not null)
             .ToArray();
         var incomingIds = incoming.Select(script => script.Id).ToHashSet();
@@ -49,7 +79,7 @@ internal sealed class ScriptEngineeringHandler
 
         var currentReferences = _registry.SnapshotVisualEventReferences()
             .Where(reference => !selectedIds.Contains(reference.ScriptId));
-        var incomingReferences = (package.ScriptVisualEventReferences ?? Array.Empty<ScriptVisualEventReference>())
+        var incomingReferences = rawReferences
             .Where(reference => reference is not null && selectedIds.Contains(reference.ScriptId));
         var prospectiveReferences = currentReferences.Concat(incomingReferences).ToArray();
 
@@ -87,7 +117,7 @@ internal sealed class ScriptEngineeringHandler
                 issues);
         }
 
-        var orphanReferences = (package.ScriptVisualEventReferences ?? Array.Empty<ScriptVisualEventReference>())
+        var orphanReferences = rawReferences
             .Where(reference => reference is not null && !incomingIds.Contains(reference.ScriptId))
             .ToArray();
         if (orphanReferences.Length > 0)

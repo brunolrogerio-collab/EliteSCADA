@@ -15,6 +15,8 @@ export type EngineeringWorkspaceDescriptor = {
   screenCount: number;
   popupCount: number;
   securityRoleCount?: number;
+  commandCount?: number;
+  visualAssetCount?: number;
 };
 
 export type HistorianEngineering = {
@@ -208,8 +210,22 @@ export type VisualEngineeringAssetReference = Readonly<{
   assetId: string;
 }>;
 
+export type VisualAssetEngineering = {
+  id?: string | null;
+  key: string;
+  name: string;
+  originalFileName: string;
+  mediaType: 'image/png' | 'image/jpeg' | 'image/bmp' | string;
+  byteLength: number;
+  sha256: string;
+  pixelWidth?: number | null;
+  pixelHeight?: number | null;
+  description?: string | null;
+  metadata?: Record<string, string> | null;
+};
+
 /**
- * Schema-v12 visual properties are JSON-native. Color/enum values remain stable
+ * Schema-v12+ visual properties are JSON-native. Color/enum values remain stable
  * strings, while numeric/boolean/asset values preserve their actual JSON type.
  */
 export type VisualEngineeringPropertyValue =
@@ -301,6 +317,7 @@ export type EngineeringPackageView = {
   popups?: PopupEngineering[];
   securityRoles?: SecurityRoleEngineering[];
   gateways?: GatewayEngineering[];
+  visualAssets?: VisualAssetEngineering[];
   [key: string]: unknown;
 };
 

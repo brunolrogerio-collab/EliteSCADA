@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import type { PythonSourceDiagnostic } from '../../python-runtime/pythonRuntimeContracts';
 import type { EngineeringLocale } from '../i18n';
+import { PythonMonacoEditor } from '../python-editor/PythonMonacoEditor';
 import {
-  PythonMonacoEditor,
-  type PythonEditorDiagnosticState
-} from '../python-editor/PythonMonacoEditor';
-import { hasBlockingPythonDiagnostics } from '../python-editor/pythonEditorDiagnostics';
+  hasBlockingPythonDiagnostics,
+  resolvePythonDiagnosticSnapshot,
+  type PythonEditorDiagnosticSnapshot
+} from '../python-editor/pythonEditorDiagnostics';
 import {
   applyScriptMutation,
   deleteScriptDefinition,
@@ -42,7 +42,7 @@ import './script-engineering-workspace.css';
 
 type ScriptEngineeringWorkspaceProps = {
   locale: EngineeringLocale;
-  pythonDiagnosticsByScriptId?: Readonly<Record<string, readonly PythonSourceDiagnostic[] | undefined>>;
+  pythonDiagnosticsByScriptId?: Readonly<Record<string, PythonEditorDiagnosticSnapshot | undefined>>;
 };
 
 export function ScriptEngineeringWorkspace({
@@ -99,16 +99,13 @@ export function ScriptEngineeringWorkspace({
   const currentPackage = draft ? buildCanonicalScriptPackage(draft, context?.visualEventReferences ?? []) : null;
   const previewCurrent = Boolean(currentPackage && previewToken && previewTokenMatches(previewToken, currentPackage, mode));
   const localIssues = draft ? validateScriptDraft(draft) : [];
-  const pythonDiagnostics = useMemo<PythonEditorDiagnosticState>(() => {
-    if (!draft || !pythonDiagnosticsByScriptId ||
-        !Object.prototype.hasOwnProperty.call(pythonDiagnosticsByScriptId, draft.id)) {
-      return { status: 'unavailable' };
-    }
-    return {
-      status: 'ready',
-      diagnostics: pythonDiagnosticsByScriptId[draft.id] ?? []
-    };
-  }, [draft?.id, pythonDiagnosticsByScriptId]);
+  const pythonDiagnostics = useMemo(
+    () => resolvePythonDiagnosticSnapshot(
+      draft?.source ?? '',
+      draft ? pythonDiagnosticsByScriptId?.[draft.id] : undefined
+    ),
+    [draft?.id, draft?.source, pythonDiagnosticsByScriptId]
+  );
   const blockingPythonDiagnostics = pythonDiagnostics.status === 'ready' &&
     hasBlockingPythonDiagnostics(pythonDiagnostics.diagnostics);
 

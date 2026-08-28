@@ -213,6 +213,16 @@ test('projection validates identity and Script event references without renderer
     ]
   }, schema)).toThrow(/Python identifier/);
 
+  expect(() => projectVisualEngineeringDefinition({
+    objectId: 'object:rect-3',
+    key: 'rect3',
+    objectType: 'basic.rectangle',
+    scriptEventReferences: [
+      { eventKey: 'click', scriptId: 'script:1', entryPoint: 'on_click' },
+      { eventKey: 'click', scriptId: 'script:1', entryPoint: 'on_click' }
+    ]
+  }, schema)).toThrow(/Duplicate Script event reference/);
+
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.has('domNode')).toBeFalsy();
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.has('renderer')).toBeFalsy();
 });

@@ -65,16 +65,44 @@ public sealed class InMemoryEngineeringViewRegistry : IEngineeringViewRegistry
     public void UpsertScreen(ScreenEngineeringDto screen)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(screen.Key);
-        var normalized = screen with { Id = screen.Id ?? Guid.NewGuid() };
-        lock (_sync) UpsertByKey(normalized, normalized.Id!.Value, normalized.Key, _screensById, _screensByKey, x => x.Key);
+        if (screen.Id == Guid.Empty)
+            throw new ArgumentException("Screen Id cannot be empty.", nameof(screen));
+
+        lock (_sync)
+        {
+            var existing = ResolveExisting(screen.Id, screen.Key, _screensById, _screensByKey);
+            var normalizedId = screen.Id ?? existing?.Id ?? Guid.NewGuid();
+            var normalized = screen with
+            {
+                Id = normalizedId,
+                Elements = VisualElementIdentity.Normalize(screen.Elements, existing?.Elements)
+            };
+
+            UpsertByKey(normalized, normalizedId, normalized.Key, _screensById, _screensByKey, x => x.Key);
+        }
+
         _changed?.Invoke();
     }
 
     public void UpsertPopup(PopupEngineeringDto popup)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(popup.Key);
-        var normalized = popup with { Id = popup.Id ?? Guid.NewGuid() };
-        lock (_sync) UpsertByKey(normalized, normalized.Id!.Value, normalized.Key, _popupsById, _popupsByKey, x => x.Key);
+        if (popup.Id == Guid.Empty)
+            throw new ArgumentException("Popup Id cannot be empty.", nameof(popup));
+
+        lock (_sync)
+        {
+            var existing = ResolveExisting(popup.Id, popup.Key, _popupsById, _popupsByKey);
+            var normalizedId = popup.Id ?? existing?.Id ?? Guid.NewGuid();
+            var normalized = popup with
+            {
+                Id = normalizedId,
+                Elements = VisualElementIdentity.Normalize(popup.Elements, existing?.Elements)
+            };
+
+            UpsertByKey(normalized, normalizedId, normalized.Key, _popupsById, _popupsByKey, x => x.Key);
+        }
+
         _changed?.Invoke();
     }
 
@@ -88,6 +116,21 @@ public sealed class InMemoryEngineeringViewRegistry : IEngineeringViewRegistry
             _popupsByKey.Clear();
         }
         _changed?.Invoke();
+    }
+
+    private static T? ResolveExisting<T>(
+        Guid? id,
+        string key,
+        Dictionary<Guid, T> byId,
+        Dictionary<string, Guid> byKey)
+        where T : class
+    {
+        if (id.HasValue && byId.TryGetValue(id.Value, out var byStableId))
+            return byStableId;
+
+        return byKey.TryGetValue(key, out var existingId)
+            ? byId.GetValueOrDefault(existingId)
+            : null;
     }
 
     private static void UpsertByKey<T>(

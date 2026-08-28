@@ -192,20 +192,30 @@ function lockGlobal(name: string, value: unknown) {
 
 function installDeniedPythonImportGuard() {
   requirePyodide().runPython(`
+import builtins
 import sys
 
-class _EliteScadaDeniedImportFinder:
-    _blocked = ("micropip", "pyodide", "pyodide_js")
+_BLOCKED_ELITESCADA_IMPORTS = (
+    "micropip",
+    "pyodide.http",
+    "pyodide.code",
+    "pyodide_js",
+)
 
+class _EliteScadaDeniedImportFinder:
     def find_spec(self, fullname, path=None, target=None):
-        if any(fullname == item or fullname.startswith(item + ".") for item in self._blocked):
+        if any(fullname == item or fullname.startswith(item + ".") for item in _BLOCKED_ELITESCADA_IMPORTS):
             raise ImportError("Module is unavailable in the EliteSCADA Client Visual sandbox.")
         return None
 
-for _module_name in tuple(sys.modules):
-    if any(_module_name == item or _module_name.startswith(item + ".") for item in _EliteScadaDeniedImportFinder._blocked):
-        sys.modules.pop(_module_name, None)
+_elitescada_original_import = builtins.__import__
 
+def _elitescada_guarded_import(name, globals=None, locals=None, fromlist=(), level=0):
+    if level == 0 and any(name == item or name.startswith(item + ".") for item in _BLOCKED_ELITESCADA_IMPORTS):
+        raise ImportError("Module is unavailable in the EliteSCADA Client Visual sandbox.")
+    return _elitescada_original_import(name, globals, locals, fromlist, level)
+
+builtins.__import__ = _elitescada_guarded_import
 sys.meta_path.insert(0, _EliteScadaDeniedImportFinder())
 `);
 }

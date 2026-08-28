@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Scada.Api.Runtime;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Persistence;
+using Scada.Engineering.VisualAssets;
 using Scada.Persistence.PostgreSql;
 
 namespace Scada.Api.Persistence;
@@ -10,6 +11,9 @@ public static class EngineeringPersistenceApi
 {
     public static void AddOptionalEngineeringPersistence(this WebApplicationBuilder builder)
     {
+        builder.Services.TryAddSingleton<IVisualAssetEngineeringRegistry>(sp =>
+            sp.GetRequiredService<EngineeringWorkspace>().VisualAssets);
+
         var connectionString = builder.Configuration.GetConnectionString("EliteScada");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 

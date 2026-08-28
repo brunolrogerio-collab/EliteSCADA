@@ -195,12 +195,6 @@ function installDeniedPythonImportGuard() {
 import sys
 import pyodide.code as _elitescada_pyodide_code
 
-# Pyodide's own runPython implementation depends on the core pyodide package.
-# Preserve that engine module while removing the native JavaScript escape helper
-# from the script-visible pyodide.code surface.
-if hasattr(_elitescada_pyodide_code, "run_js"):
-    delattr(_elitescada_pyodide_code, "run_js")
-
 class _EliteScadaDeniedImportFinder:
     _blocked = ("micropip", "pyodide.http", "pyodide_js")
 
@@ -209,11 +203,33 @@ class _EliteScadaDeniedImportFinder:
             raise ImportError("Module is unavailable in the EliteSCADA Client Visual sandbox.")
         return None
 
-for _module_name in tuple(sys.modules):
-    if any(_module_name == item or _module_name.startswith(item + ".") for item in _EliteScadaDeniedImportFinder._blocked):
-        sys.modules.pop(_module_name, None)
+_elitescada_denied_import_finder = _EliteScadaDeniedImportFinder()
 
-sys.meta_path.insert(0, _EliteScadaDeniedImportFinder())
+class _EliteScadaSandboxImportGuard:
+    def __enter__(self):
+        self._removed_modules = {}
+        for module_name in tuple(sys.modules):
+            if any(module_name == item or module_name.startswith(item + ".") for item in _EliteScadaDeniedImportFinder._blocked):
+                self._removed_modules[module_name] = sys.modules.pop(module_name)
+
+        self._had_run_js = hasattr(_elitescada_pyodide_code, "run_js")
+        self._run_js = getattr(_elitescada_pyodide_code, "run_js", None)
+        if self._had_run_js:
+            delattr(_elitescada_pyodide_code, "run_js")
+
+        sys.meta_path.insert(0, _elitescada_denied_import_finder)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback_value):
+        sys.meta_path[:] = [finder for finder in sys.meta_path if finder is not _elitescada_denied_import_finder]
+        if self._had_run_js:
+            setattr(_elitescada_pyodide_code, "run_js", self._run_js)
+        for module_name, module in self._removed_modules.items():
+            sys.modules[module_name] = module
+        return False
+
+def _elitescada_sandbox_guard():
+    return _EliteScadaSandboxImportGuard()
 `);
 }
 
@@ -347,9 +363,13 @@ async function initializeScript(message: Extract<PythonWorkerRequest, { kind: 'i
   try {
     const raw = await engine.runPythonAsync(`
 import json, traceback
-__elitescada_runtime_globals = {"__name__": "__elitescada_script__"}
+__elitescada_runtime_globals = {
+    "__name__": "__elitescada_script__",
+    "__elitescada_sandbox_guard": _elitescada_sandbox_guard
+}
 try:
-    exec(compile(__elitescada_source, "<EliteSCADA Script>", "exec"), __elitescada_runtime_globals, __elitescada_runtime_globals)
+    with _elitescada_sandbox_guard():
+        exec(compile(__elitescada_source, "<EliteSCADA Script>", "exec"), __elitescada_runtime_globals, __elitescada_runtime_globals)
     _required_handlers = json.loads(__elitescada_handlers_json)
     _missing_handlers = [name for name in _required_handlers if not callable(__elitescada_runtime_globals.get(name))]
     if _missing_handlers:
@@ -450,9 +470,10 @@ try:
     if not callable(_handler):
         json.dumps({"ok": False, "type": "MissingHandler", "line": 1})
     else:
-        _result = _handler(__elitescada_event_payload)
-        if inspect.isawaitable(_result):
-            await _result
+        with __elitescada_sandbox_guard():
+            _result = _handler(__elitescada_event_payload)
+            if inspect.isawaitable(_result):
+                await _result
         json.dumps({"ok": True})
 except KeyboardInterrupt:
     json.dumps({"ok": False, "cancelled": True})

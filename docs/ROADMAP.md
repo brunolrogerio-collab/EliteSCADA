@@ -1,42 +1,56 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-08-28  
-**Active direction:** **PYTHON-WAVE-06 ACTIVE / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
+**Active direction:** **VISUAL-RUNTIME-WAVE-07 DEVELOPMENT ACTIVE / CI_DEFERRED / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
 
 Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
 Parallel execution model: `docs/DEVELOPMENT-WAVES.md`.  
 Live worker ownership: `docs/CHAT-WORK-ASSIGNMENTS.md`.  
-Wave 06 implementation boundary: `docs/PYTHON-WAVE-06-IMPLEMENTATION-DECISION.md`.  
+Wave 07 implementation boundary: `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`.  
 CI usage mode: `docs/CI-USAGE-POLICY.md`.
 
 Engineering Import/Export remains cross-cutting: every canonical Engineering domain joins versioned JSON, validation/Preview/Apply, revision lifecycle, PostgreSQL persistence where applicable and `.escadapkg` backup/restore.
 
 ## Current merged foundation
 
-The merged product includes TAG Engine/current cache/quality/Event Bus, Simulation and real Modbus TCP, PostgreSQL Engineering persistence, TimescaleDB historian foundations, Working/Revision/Published/Active lifecycle, canonical Import/Export + Preview/Apply/CAS, authentication/users/authorization/Audit, Client/Server Memory, TAG Gateway, common Data Source diagnostics, Runtime/Engineering/Audit shell, Engineering Data Source/TAG/Alarm workspaces, Runtime Operations/Alarm Center, Runtime TAG Inspector + Recent History, Lifecycle, Project Management/Portability, Basic Trend Viewer, Administration, Driver SDK/research convergence and **canonical Script Engineering schema v10 with a practical Script Engineering Workspace**.
+The merged product includes TAG Engine/current cache/quality/Event Bus, Simulation and real Modbus TCP, PostgreSQL Engineering persistence, TimescaleDB historian foundations, Working/Revision/Published/Active lifecycle, canonical Import/Export + Preview/Apply/CAS, authentication/users/authorization/Audit, Client/Server Memory, TAG Gateway, common Data Source diagnostics, Runtime/Engineering/Audit shell, Engineering Data Source/TAG/Alarm workspaces, Runtime Operations/Alarm Center, Runtime TAG Inspector + Recent History, Lifecycle, Project Management/Portability, Basic Trend Viewer, Administration, Driver SDK/research convergence, canonical Script Engineering schema v10, practical Script Engineering Workspace and the **merged Wave 06 Client Visual Python foundation**.
 
-Canonical Engineering in merged `main` is **Schema v10**. Production Client Visual Python is now under active Wave 06 implementation and is **not yet merged product state**.
+Canonical Engineering in merged `main` remains **Schema v10**. Client Visual Python is now official merged product state.
 
-## Wave 03 — complete operational lifecycle
+## Completed waves
+
+### Wave 03 — operational lifecycle
 
 **COMPLETE / MERGED.** Main merge `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`; final CI #418 fully green.
 
-## Wave 04 — portability + historian + administration
+### Wave 04 — portability + historian + administration
 
 **COMPLETE / MERGED.** Main merge `e9e596f482c83bf5864b34a7f54d9fd3b0b67baa`; final CI #446 fully green.
 
-## Wave 05 — canonical Script Engineering
+### Wave 05 — canonical Script Engineering
 
 **COMPLETE / MERGED.**
 
 - Logical WaveBaseSHA: `e9e596f482c83bf5864b34a7f54d9fd3b0b67baa`
-- Central ContractSHA: `b08b45201bf25a6d4d403b07c511cc34444177db`
 - Final integration head: `13d3f8283275dc957d9d6168fc7fb165df992d7e`
-- Final CI #466 / run `33139334379`: Web, backend Release/full tests including PostgreSQL, Runtime smoke and Chromium all SUCCESS
-- Coordinator PR #79: MERGED
+- Final CI #466 / run `33139334379`: fully green
+- PR #79: MERGED
 - Main merge: `7f629bf660bb16fd46fbf6abeb72b9ca1676e087`
 
-Merged outcome includes first-class canonical Scripts/visual-event references, stable identity and dependencies, canonical round-trip/revision/package fidelity, dependency-safe CAS/security/Audit mutation and a practical Script Engineering Workspace. Python execution remained intentionally deferred to Wave 06.
+### Wave 06 — Python Editor + Client Visual sandbox
+
+**COMPLETE / MERGED.**
+
+- Logical WaveBaseSHA: `7f629bf660bb16fd46fbf6abeb72b9ca1676e087`
+- Central ContractSHA: `01d5b3092cf9c33ffa41c12b79133157b24cd148`
+- Final integration head: `d665dc13b0922938a15252d9775ef6604e41bff4`
+- Final CI #487 / run `33194041390`: Web, backend Release/full tests including PostgreSQL, Runtime smoke and Chromium all SUCCESS
+- PR #83: MERGED
+- Main merge: `cc79713434c1d7b5988158b843b137eaf488d923`
+
+Merged outcome includes Monaco Python editor/diagnostics, pinned/self-hosted Pyodide, isolated module Web Worker runtime behind bridge v1, compile-before-Preview/Apply/CAS, authorized TAG read, owning-client Client Memory read/write, bounded execution/cancellation/queue/disposal/failure throttling, controlled handler preview, real-Pyodide adversarial acceptance and native escape denial.
+
+The automatic post-merge push run #488 did not execute product steps because no runner was allocated; the merged product source is identical to the exact green #487 head aside from Markdown documentation movement.
 
 ## Ordered path to v0.1
 
@@ -44,8 +58,8 @@ Merged outcome includes first-class canonical Scripts/visual-event references, s
 Wave 03  Operational lifecycle + Runtime TAG Inspector + acceptance foundation       COMPLETE
 Wave 04  Project portability + basic Trends + Administration                        COMPLETE
 Wave 05  Canonical Script Engineering                                                COMPLETE
-Wave 06  Python Editor + Client Visual sandbox                                       ACTIVE
-Wave 07  Visual Runtime Object Model + visual Asset contract                         architecture-first
+Wave 06  Python Editor + Client Visual sandbox                                       COMPLETE
+Wave 07  Visual Runtime Object Model + visual Asset contract                         ACTIVE / CI_DEFERRED
 Wave 08  Graphical Editor Foundation + image import/object
 Wave 09  Screens + Popups + Dynamos + asset dependencies
 Wave 10  Python visual events + animation + preview
@@ -59,52 +73,35 @@ FINAL    EliteSCADA v0.1 — Full Product Validation Preview
 
 Do not skip dependencies simply because later research already exists.
 
-## Wave 06 — Python Editor + Client Visual sandbox
-
-**ACTIVE — PARALLEL WORKER PHASE.**
-
-**Logical WaveBaseSHA:** `7f629bf660bb16fd46fbf6abeb72b9ca1676e087`  
-**Central ContractSHA:** `01d5b3092cf9c33ffa41c12b79133157b24cd148`  
-**Integration branch:** `integration/python-wave-06`  
-**Integration PR:** #83 `Establish Wave 06 Client Visual Python foundation` — Draft integration train  
-**Contract CI:** #468 / run `33140329634` fully green: Web, backend Release/full tests including PostgreSQL, Runtime smoke and Chromium.  
-**Implementation decision:** `docs/PYTHON-WAVE-06-IMPLEMENTATION-DECISION.md`.
-
-Architecture-first central foundation is **IMPLEMENTED IN PR #83 / NOT MERGED TO MAIN**:
-
-- pinned Pyodide `314.0.6` as the first Client Visual browser engine adapter;
-- pinned Monaco Editor `0.56.0` as the first Engineering Python editor;
-- dedicated module Web Worker / Script Runtime Instance isolation direction;
-- bridge v1 request/response and runtime-identity contracts;
-- existing safe execution policy preserved: 250 ms handler budget, queue 128, timer minimum 50 ms, five failures before throttle, coalescing and per-instance isolation;
-- initial 50 ms hard-stop grace after soft interrupt, then Worker termination and interpreter discard;
-- explicit Client Visual capability and denied-boundary model;
-- COOP/COEP development/acceptance host configuration for SharedArrayBuffer interruption;
-- canonical Engineering v10 remains Script-definition authority.
-
-Active worker slices, all created from ContractSHA `01d5b3092cf9c33ffa41c12b79133157b24cd148`:
-
-- **DEV 1:** `feature/python-wave-06-editor` — Monaco-backed Python Editor UX over canonical Scripts;
-- **DEV 2:** `feature/python-wave-06-client-runtime` — Pyodide/Web Worker Client Visual runtime adapter behind bridge v1;
-- **DEV 3:** `test/python-wave-06-sandbox-safety` — adversarial sandbox execution safety and acceptance.
-
-Coordinator owns shared dependencies/bridge policy, central Engineering/Runtime hooks, actual authorized TAG/Client Memory/backend capability wiring, integration into PR #83 and final Wave CI.
-
-### Wave 06 gate
-
-The integrated product must prove:
-
-`canonical ClientVisual Script -> edit/compile diagnostics -> isolated execution -> permitted TAG read -> owning-client Client Memory read/write -> controlled event -> bounded timeout/failure -> understandable diagnostics`
-
-One faulty Script must not destabilize unrelated Runtime/backend state. Client Visual Python must not receive direct driver, database, filesystem, shell/process, arbitrary-network, credential, browser-DOM/storage, Server Memory write or direct shared/process TAG write authority.
-
-Under `CONSTRAINED` CI mode, workers use focused evidence during iteration. The final exact-head integration must still pass Web + backend Release/full tests + Runtime smoke + Chromium plus Wave-specific sandbox acceptance before PR #83 can merge. If the budget cannot support the final matrix, the wave becomes `BLOCKED_BY_CI_BUDGET`, not partially accepted.
-
 ## Wave 07 — Visual Runtime Object Model
 
-**ARCHITECTURE-FIRST WAVE.** Stabilize canonical visual identity/runtime-instance/property-resolution and Asset/Resource rules. Locked property precedence: `Animation > Script > Binding/Expression > Engineering Base`.
+**DEVELOPMENT ACTIVE / CI_DEFERRED.**
 
-Visual Assets are project-authoritative stable resources, never arbitrary filesystem paths. JPG/JPEG, BMP and PNG with alpha are required for v0.1. Full rules: `docs/VISUAL-ASSETS-AND-IMAGES.md`.
+- Logical WaveBaseSHA: `cc79713434c1d7b5988158b843b137eaf488d923`
+- ContractSHA: `06faf079bc5185689712bd2c9a225c2bb8d90999`
+- Integration branch: `integration/visual-runtime-wave-07`
+- Integration PR: intentionally not open while Actions are deferred
+- Implementation contract: `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`
+
+Wave 07 stabilizes:
+
+- canonical visual definition identity;
+- typed public Visual Property Registry;
+- Runtime Visual Instance identity/lifecycle;
+- deterministic property precedence `Animation > Script > Binding/Expression > Engineering Base`;
+- runtime presentation overrides isolated from Engineering;
+- stable project-owned AssetReference semantics;
+- renderer-independent visual property boundaries suitable for future Client Visual Python.
+
+Active development slices:
+
+- **DEV 1:** Visual Property Registry / Engineering projection — `feature/visual-wave-07-property-registry`
+- **DEV 2:** Runtime Visual Instance — `feature/visual-wave-07-runtime-instance`
+- **DEV 3:** Python ↔ Visual API acceptance — `test/visual-wave-07-python-api-acceptance`
+
+The owner reported approximately 19 included GitHub Actions minutes remaining. Until the owner explicitly reports reset, Wave 07 is development-only: workers write code/tests and commit to branches, but do not open PRs or trigger Actions. Deliveries are `IMPLEMENTED / CI_DEFERRED`, never fully validated or merge-ready.
+
+After reset, worker/integration validation resumes. Final Wave 07 still requires Web + backend Release/full tests + Runtime smoke + Chromium + visual/Python acceptance green before merge.
 
 ## Wave 08 — Graphical Editor Foundation
 
@@ -160,5 +157,5 @@ Preferred post-v0.1 progression: `MQTT -> OPC UA -> BACnet -> Driver Module fram
 - fix root causes rather than weaken tests/security/concurrency;
 - preserve canonical Engineering and backend authority;
 - require final integrated CI for every functional wave;
-- while `docs/CI-USAGE-POLICY.md` is `CONSTRAINED`, economize CI frequency, never final quality;
+- while CI is deferred, economize Actions timing, never final quality;
 - keep assignment board/handoff synchronized because `siga` depends on them.

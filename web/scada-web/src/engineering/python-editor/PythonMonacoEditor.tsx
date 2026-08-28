@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import 'monaco-editor/esm/vs/basic-languages/python/python.contribution';
-import type { PythonSourceDiagnostic } from '../../python-runtime/pythonRuntimeContracts';
 import type { EngineeringLocale } from '../i18n';
 import type {
   ScriptEngineeringEntryPoint,
@@ -12,7 +11,10 @@ import {
   buildEntryPointCompletions,
   CLIENT_VISUAL_PYTHON_API_HELP
 } from './pythonEditorDescriptors';
-import { projectPythonDiagnostics } from './pythonEditorDiagnostics';
+import {
+  projectPythonDiagnostics,
+  type PythonEditorDiagnosticState
+} from './pythonEditorDiagnostics';
 import { pythonEditorCopy } from './pythonEditorCopy';
 import './python-editor.css';
 
@@ -28,10 +30,6 @@ if (!monacoGlobal.MonacoEnvironment) {
     getWorker: () => new EditorWorker()
   };
 }
-
-export type PythonEditorDiagnosticState =
-  | { status: 'ready'; diagnostics: readonly PythonSourceDiagnostic[] }
-  | { status: 'unavailable'; message?: string };
 
 export type PythonMonacoEditorProps = {
   scriptId: string;
@@ -254,6 +252,8 @@ export function PythonMonacoEditor({
             {copy.diagnosticsReady}: {errorCount} {copy.errors}, {warningCount} {copy.warnings}
             {projection.rejectedCount > 0 ? ` · ${projection.rejectedCount} ${copy.diagnosticsRejected}` : ''}
           </strong>
+        ) : diagnostics.status === 'stale' ? (
+          <strong className="python-editor__muted">{copy.diagnosticsStale}</strong>
         ) : (
           <strong className="python-editor__muted">
             {diagnostics.message ?? copy.diagnosticsUnavailable}

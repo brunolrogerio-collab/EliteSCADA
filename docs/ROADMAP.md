@@ -1,7 +1,7 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-08-28  
-**Active direction:** **VISUAL-RUNTIME-WAVE-07 DEVELOPMENT ACTIVE / CI_DEFERRED / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
+**Active direction:** **VISUAL-RUNTIME-WAVE-07 IMPLEMENTED ON INTEGRATION / CI_DEFERRED / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
 
 Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
 Parallel execution model: `docs/DEVELOPMENT-WAVES.md`.  
@@ -13,9 +13,9 @@ Engineering Import/Export remains cross-cutting: every canonical Engineering dom
 
 ## Current merged foundation
 
-The merged product includes TAG Engine/current cache/quality/Event Bus, Simulation and real Modbus TCP, PostgreSQL Engineering persistence, TimescaleDB historian foundations, Working/Revision/Published/Active lifecycle, canonical Import/Export + Preview/Apply/CAS, authentication/users/authorization/Audit, Client/Server Memory, TAG Gateway, common Data Source diagnostics, Runtime/Engineering/Audit shell, Engineering Data Source/TAG/Alarm workspaces, Runtime Operations/Alarm Center, Runtime TAG Inspector + Recent History, Lifecycle, Project Management/Portability, Basic Trend Viewer, Administration, Driver SDK/research convergence, canonical Script Engineering schema v10, practical Script Engineering Workspace and the **merged Wave 06 Client Visual Python foundation**.
+The merged product includes TAG Engine/current cache/quality/Event Bus, Simulation and real Modbus TCP, PostgreSQL Engineering persistence, TimescaleDB historian foundations, Working/Revision/Published/Active lifecycle, canonical Import/Export + Preview/Apply/CAS, authentication/users/authorization/Audit, Client/Server Memory, TAG Gateway, common Data Source diagnostics, Runtime/Engineering/Audit shell, Engineering Data Source/TAG/Alarm workspaces, Runtime Operations/Alarm Center, Runtime TAG Inspector + Recent History, Lifecycle, Project Management/Portability, Basic Trend Viewer, Administration, Driver SDK/research convergence, canonical Script Engineering schema v10, practical Script Engineering Workspace and the merged Wave 06 Client Visual Python foundation.
 
-Canonical Engineering in merged `main` remains **Schema v10**. Client Visual Python is now official merged product state.
+Canonical Engineering in merged `main` remains **Schema v10**. Client Visual Python is official merged product state. Wave 07 visual-runtime implementation currently exists only on its integration branch until final validation can run.
 
 ## Completed waves
 
@@ -29,13 +29,7 @@ Canonical Engineering in merged `main` remains **Schema v10**. Client Visual Pyt
 
 ### Wave 05 — canonical Script Engineering
 
-**COMPLETE / MERGED.**
-
-- Logical WaveBaseSHA: `e9e596f482c83bf5864b34a7f54d9fd3b0b67baa`
-- Final integration head: `13d3f8283275dc957d9d6168fc7fb165df992d7e`
-- Final CI #466 / run `33139334379`: fully green
-- PR #79: MERGED
-- Main merge: `7f629bf660bb16fd46fbf6abeb72b9ca1676e087`
+**COMPLETE / MERGED.** Final integration head `13d3f8283275dc957d9d6168fc7fb165df992d7e`; final CI #466 fully green; PR #79 merged; main merge `7f629bf660bb16fd46fbf6abeb72b9ca1676e087`.
 
 ### Wave 06 — Python Editor + Client Visual sandbox
 
@@ -50,7 +44,7 @@ Canonical Engineering in merged `main` remains **Schema v10**. Client Visual Pyt
 
 Merged outcome includes Monaco Python editor/diagnostics, pinned/self-hosted Pyodide, isolated module Web Worker runtime behind bridge v1, compile-before-Preview/Apply/CAS, authorized TAG read, owning-client Client Memory read/write, bounded execution/cancellation/queue/disposal/failure throttling, controlled handler preview, real-Pyodide adversarial acceptance and native escape denial.
 
-The automatic post-merge push run #488 did not execute product steps because no runner was allocated; the merged product source is identical to the exact green #487 head aside from Markdown documentation movement.
+Automatic post-merge run #488 did not execute product steps because no runner was allocated; it is infrastructure evidence, not a product regression.
 
 ## Ordered path to v0.1
 
@@ -59,8 +53,8 @@ Wave 03  Operational lifecycle + Runtime TAG Inspector + acceptance foundation  
 Wave 04  Project portability + basic Trends + Administration                        COMPLETE
 Wave 05  Canonical Script Engineering                                                COMPLETE
 Wave 06  Python Editor + Client Visual sandbox                                       COMPLETE
-Wave 07  Visual Runtime Object Model + visual Asset contract                         ACTIVE / CI_DEFERRED
-Wave 08  Graphical Editor Foundation + image import/object
+Wave 07  Visual Runtime Object Model + visual Asset contract                         INTEGRATED / CI_DEFERRED
+Wave 08  Graphical Editor Foundation + image import/object                           WAITING
 Wave 09  Screens + Popups + Dynamos + asset dependencies
 Wave 10  Python visual events + animation + preview
 Wave 11  Complete HMI Runtime demo vertical slice
@@ -75,37 +69,45 @@ Do not skip dependencies simply because later research already exists.
 
 ## Wave 07 — Visual Runtime Object Model
 
-**DEVELOPMENT ACTIVE / CI_DEFERRED.**
+**IMPLEMENTED ON INTEGRATION / CI_DEFERRED / NOT MERGE-READY.**
 
 - Logical WaveBaseSHA: `cc79713434c1d7b5988158b843b137eaf488d923`
 - ContractSHA: `06faf079bc5185689712bd2c9a225c2bb8d90999`
 - Integration branch: `integration/visual-runtime-wave-07`
+- Current integration head: `ffde3b03a3b647acb2f0c484c11b956c602237d6`
 - Integration PR: intentionally not open while Actions are deferred
 - Implementation contract: `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`
 
-Wave 07 stabilizes:
+Implemented on the integration branch:
 
-- canonical visual definition identity;
-- typed public Visual Property Registry;
+- typed Visual Property Registry with explicit `number`, `boolean`, `string`, `color`, `enum`, `assetRef` types;
+- stable common property keys, defaults and constraints;
+- stable project-owned AssetReference validation with arbitrary path/URL rejection;
+- renderer-independent Engineering visual-definition projection;
 - Runtime Visual Instance identity/lifecycle;
-- deterministic property precedence `Animation > Script > Binding/Expression > Engineering Base`;
-- runtime presentation overrides isolated from Engineering;
-- stable project-owned AssetReference semantics;
-- renderer-independent visual property boundaries suitable for future Client Visual Python.
+- independent Engineering, Binding, Script and Animation layers;
+- deterministic precedence `Animation > Script > Binding/Expression > Engineering Base > Default`;
+- source diagnostics and fail-closed invalid-layer handling;
+- per-instance isolation and disposal semantics;
+- typed Registry/schema → Runtime consumer adapter;
+- public Runtime Visual Instance surface suitable for future Python visual capability providers;
+- Python ↔ Visual acceptance/adversarial tests covering property authority, instance isolation, disposal, AssetReference restrictions and DOM/renderer-private authority denial.
 
-Active development slices:
+Worker deliveries now integrated:
 
-- **DEV 1:** Visual Property Registry / Engineering projection — `feature/visual-wave-07-property-registry`
-- **DEV 2:** Runtime Visual Instance — `feature/visual-wave-07-runtime-instance`
-- **DEV 3:** Python ↔ Visual API acceptance — `test/visual-wave-07-python-api-acceptance`
+- **DEV 1:** `ed8d9af027173e6d265ff382dbc9c115bcd2e284`
+- **DEV 2:** `d6c1e997178e0ce525233079effd442f59743386`
+- **DEV 3:** `25ebac63a957c1c0c5b8e2557caec152d9d36bfc`
+- worker integration commit: `295bdabba5c25b2e4a729228130185976735d939`
+- coordinator reconciliation head: `ffde3b03a3b647acb2f0c484c11b956c602237d6`
 
-The owner reported approximately 19 included GitHub Actions minutes remaining. Until the owner explicitly reports reset, Wave 07 is development-only: workers write code/tests and commit to branches, but do not open PRs or trigger Actions. Deliveries are `IMPLEMENTED / CI_DEFERRED`, never fully validated or merge-ready.
+The owner most recently reported approximately 19 included GitHub Actions minutes remaining. Until the owner explicitly reports reset, Wave 07 remains frozen at `IMPLEMENTED / CI_DEFERRED`: do not open the PR, run Actions, merge to `main`, or start Wave 08 functional implementation.
 
-After reset, worker/integration validation resumes. Final Wave 07 still requires Web + backend Release/full tests + Runtime smoke + Chromium + visual/Python acceptance green before merge.
+After reset, reconcile the integration branch with current `main`, open the integration PR, then require exact-final-head Web + backend Release/full tests + Runtime smoke + Chromium + Wave-specific visual/Python acceptance green before merge.
 
 ## Wave 08 — Graphical Editor Foundation
 
-Canvas/selection + shared Property Inspector + initial Object Palette/bindings + project image import/Image object.
+**WAITING FOR WAVE 07 FINAL VALIDATION/MERGE.** Canvas/selection + shared Property Inspector + initial Object Palette/bindings + project image import/Image object.
 
 ## Wave 09 — Screens + Popups + Dynamos
 

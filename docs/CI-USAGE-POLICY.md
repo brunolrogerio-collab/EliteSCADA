@@ -9,11 +9,15 @@ The objective is not to reduce validation quality. It is to avoid spending full 
 ## Current budget mode
 
 **Mode:** `CONSTRAINED`  
-**Reason:** GitHub Actions monthly included usage reached approximately 1,800 / 2,000 minutes (90%).  
-**Current remaining allowance:** approximately 200 included minutes.  
+**Reason:** GitHub Actions monthly included usage is near exhaustion.  
+**Current remaining allowance reported by the product owner on 2026-08-28:** approximately 50 included minutes.  
 **Expected reset:** 2026-09-01.
 
 Until the reset, all EliteSCADA chats must treat GitHub Actions minutes as a scarce operational resource.
+
+Wave 06 has priority over the remaining allowance because it still requires its exact-final-head integration gate before merge. Do not spend the remaining allowance on Wave 07 CI while Wave 06 is open.
+
+After Wave 06 is merged, Wave 07 implementation may proceed if explicitly promoted by the coordinator, but GitHub Actions execution for Wave 07 is temporarily deferred until the product owner explicitly reports that the Actions allowance has reset. Wave 07 code may be implemented, reviewed and supported by static/focused evidence that does not consume Actions, but it must be labeled `IMPLEMENTED / CI_DEFERRED` or an equivalent explicit non-final state. It must not be called validated, complete or merge-ready on the basis of deferred CI.
 
 After the monthly reset, the coordinator may return the project to `NORMAL` mode by updating this document or the current handoff/assignment board. The permanent efficiency principles below remain valid even in NORMAL mode.
 
@@ -45,6 +49,7 @@ During `CONSTRAINED` mode:
 7. Avoid cosmetic/documentation-only commits on worker branches while Actions usage is constrained unless required for delivery correctness.
 8. Before declaring `READY_FOR_COORDINATOR_REVIEW`, provide focused evidence and identify whether a full exact-head workflow has already run. Do not manufacture another run if equivalent evidence already exists and the coordinator can safely defer full validation to integration.
 9. Never merge the worker PR. Return to `WAIT_FOR_COORDINATOR` after delivery as usual.
+10. During the temporary Wave 07 CI deferral, do not trigger Actions merely to validate Wave 07 worker branches. Preserve tests in code and record validation as deferred until the owner reports the allowance reset.
 
 ### Coordinator
 
@@ -59,6 +64,7 @@ During `CONSTRAINED` mode:
 7. Documentation-only coordination movement in `main` does not justify revalidating unchanged product heads.
 8. Preserve the final wave gate: before merging the wave integration PR to `main`, the required integrated matrix must still be green on the exact final product head.
 9. If remaining Actions minutes become insufficient for the required final matrix, pause the final merge rather than weakening validation. Development/review may continue with focused evidence until the allowance resets or billing policy deliberately changes.
+10. Until the owner reports the allowance reset, reserve the remaining approximately 50 minutes for Wave 06 final validation. Do not run Wave 07 Actions.
 
 ## CI evidence hierarchy
 
@@ -102,6 +108,8 @@ Before a wave merge to `main`, the coordinator still requires the final integrat
 - wave-specific acceptance checks.
 
 If the budget cannot support that matrix, the correct state is `BLOCKED_BY_CI_BUDGET`, not `MERGED`.
+
+The temporary Wave 07 development-only period does not waive this rule. Deferred Wave 07 CI remains a debt to be executed after the owner confirms the Actions reset and before Wave 07 can satisfy its final gate.
 
 ## Normal mode
 

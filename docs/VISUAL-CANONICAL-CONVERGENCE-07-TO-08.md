@@ -1,47 +1,52 @@
 # EliteSCADA — Visual Canonical Convergence 07 -> 08
 
-Status: **COORDINATOR FOURTH STATIC AUDIT COMPLETE / CI AVAILABLE / PRE-FINALIZATION**  
-Date: 2026-08-28  
-Exact reviewed integration head: `e376b37d2772906dd667afa199a6d8882abd43ae`
+Status: **WAVE 07 CLOSED / WAVE 08 DEFINITION OF READY SATISFIED**  
+Date: 2026-08-28
 
-This document records coordinator-owned convergence between Wave 07 and Wave 08. The graphical editor is still not authorized until Wave 07 is finalized, validated and merged.
+This document records the canonical convergence completed before the graphical editor wave. It is historical authority for the 07 -> 08 boundary; Wave 08 must not reopen these decisions casually.
 
-## Decision
+## Wave 07 closure evidence
 
-Do **not** absorb the full Wave 08 graphical editor into Wave 07.
+- Final integration product head: `6d869109af23b25d1ae95cd35610e1930a16791c`
+- Final exact-head CI: #508 / run `33217787482` — **SUCCESS**
+- Merge PR: #89
+- Main merge commit: `8de706882ba20afedd666532ac41ae11115d06b3`
+- Post-merge main CI: #510 / run `33218282760` — **SUCCESS**
+- Web build: SUCCESS
+- backend Release build + full PostgreSQL/Timescale tests: SUCCESS
+- Runtime smoke: SUCCESS
+- Chromium E2E: SUCCESS
+- Wave 07 visual/Python acceptance: SUCCESS
+- Wave 06 Pyodide sandbox/native-escape/timeout/cancellation regressions: SUCCESS
 
-The previous no-Actions freeze is lifted after an owner-reported Actions allowance increase and a successful hosted-runner Web-build probe. CI capacity is available again, but it does not change the dependency order. DEV 1, DEV 2 and DEV 3 remain stopped until Wave 08 is explicitly activated.
+PR #88 was the original Draft integration PR. It was closed unmerged only because the available connector could not transition Draft -> Ready after validation. PR #89 replaced it on the **same exact product head**, with no product commit between #508 and the replacement PR.
 
-## Actions availability evidence
+## Canonical convergence settled
 
-On 2026-08-28 the owner reported a GitHub configuration change expected to provide roughly 1000 additional Actions minutes. Repository tooling cannot read the billing balance directly.
+### Engineering Schema v12 typed visual persistence
 
-Availability was verified by rerunning only the historical Wave 06 Web-build job from run #488:
+Wave 07 replaced the transitional string property bag for canonical built-in visual properties with JSON-native typed visual properties in Engineering Schema v12.
 
-- attempt 2;
-- job `98990802140`;
-- hosted runner allocated;
-- Checkout/setup/install/build all SUCCESS.
+Compatibility is explicit:
+- historical v10/v11 string properties remain readable through schema-guided migration for registered built-ins;
+- v12 built-in visual properties must use native JSON types;
+- custom legacy types are not guessed/coerced into invented semantics;
+- revision/package/import-export paths preserve the canonical representation.
 
-That probe proves Actions availability only. It is not Wave 07 product-validation evidence.
-
-## Canonical convergence settled structurally
+The graphical editor must edit this canonical model. It must not create a second persisted canvas/property JSON authority.
 
 ### Stable visual identity
 
-The integration branch uses transitional Engineering **Schema v11**. `VisualElementEngineeringDto` has optional stable `Guid? Id`; legacy missing IDs are materialized/preserved through registry rules; empty/duplicate IDs are rejected across a visual definition.
-
-Prospective Script-reference validation mirrors Screen/Popup Apply identity rules, including legacy v10 child-ID preservation by unique sibling key and removal of references when a child disappears.
+Nested visual elements have stable IDs. Legacy missing IDs are materialized/preserved under explicit rules; empty/duplicate IDs fail closed. Script `VisualObject` references resolve against the same stable identity model.
 
 ### Visual binding semantics
 
-For bindings attached to a visual element:
-
+For a visual binding:
 - `EngineeringBindingDto.Key` = destination visual property/slot;
 - `EngineeringBindingDto.Target` = source TAG/property/expression reference;
 - `Kind` identifies source interpretation.
 
-No redundant editor-private target field exists.
+No editor-private competing destination field is authorized.
 
 ### Runtime source semantics
 
@@ -49,16 +54,15 @@ C# and TypeScript preserve:
 
 `Animation > Script > Binding/Expression > Engineering Base > Default`.
 
-Registry defaults remain distinct from explicitly engineered values.
+Registry defaults remain distinct from explicitly engineered values. Runtime writes never silently mutate Engineering.
 
 ### Frontend Engineering -> Runtime seam
 
-Screen/Popup visual elements are typed. The official adapter requires stable ID, declared schema, shared transition codec and canonical bindings, preserves parent identity and does not create editor-private persisted state.
+The official adapter consumes canonical typed visual Engineering, requires stable identity and declared schemas, preserves hierarchy and does not establish private persisted editor state.
 
 ### Property registry and built-ins
 
-C# and TypeScript structurally align the common visual-property family and renderer-independent built-in types:
-
+C# and TypeScript align the common public visual-property family and renderer-independent built-in object types:
 - `core.group`
 - `core.rectangle`
 - `core.ellipse`
@@ -68,118 +72,52 @@ C# and TypeScript structurally align the common visual-property family and rende
 - `core.valueDisplay`
 - `core.button`
 
-TypeScript integer visual properties use the same signed Int32 domain as C#.
+Integer properties share signed Int32 semantics. Duplicate definition-level binding writers and duplicate Script event references fail closed.
 
 ### AssetReference
 
-Canonical visual property semantics remain:
+Canonical visual reference semantics remain:
 
 `assetRef = null | { assetId }`
 
-Only project-owned stable identity belongs in the reference. Name, original filename, MIME, dimensions, hash and payload belong to the future first-class asset entity. Paths/URLs are rejected.
+The reference contains stable project-owned identity only. Paths/URLs and duplicated asset metadata are rejected. First-class asset entity/import/storage/payload/preview are Wave 08 functionality, not a reason to change the reference contract.
 
 ### Client Visual Python property authority
 
-Wave 07 supports read plus explicit Script-override set/clear within the exact current Runtime Visual Instance.
-
-Bridge v1 keeps the existing `visualProperty.write` capability with operations `write` and `clear`. `null` is not a clear sentinel. The Worker exposes `elite_scada.visual_property_clear(target, property)` through the trusted dispatcher.
+Client Visual Python can read permitted registered properties and set/clear Script overrides on the exact current Runtime Visual Instance through capability boundaries. `null` is not a clear sentinel. DOM/React/renderer/storage/private JavaScript authority remains inaccessible.
 
 ### Fail-closed Engineering Preview
 
-Static audits closed demonstrated malformed visual/Script paths:
+Demonstrated malformed visual/Script paths are rejected before Apply, including null/malformed view nodes, bindings, Script definitions/references and prospective removal of visual objects still referenced by saved Scripts.
 
-- null nested visual nodes/bindings;
-- null/blank binding keys/targets;
-- null Screen/Popup entries;
-- null/blank view keys;
-- null Script definitions;
-- null Script visual-event references;
-- no Preview-green/Apply-crash path for those demonstrated cases.
+## Reproducibility settled for active development
 
-### Canonical Script -> VisualObject references
+Final Wave 07 validation used:
+- .NET SDK `10.0.400` pinned by repository configuration;
+- Node `24.19.0` in CI;
+- pinned direct frontend dependencies;
+- committed `package-lock.json`;
+- `npm ci` in CI.
 
-Wave 07 closes the Wave 05/07 reference gap:
+## Lower-priority debt that does not block Wave 08
 
-- `VisualObject` dependencies resolve stable `definitionId/objectId` references;
-- object-scoped visual-event references use the same catalog;
-- `ScriptEngineeringReferenceResolver.FromEngineeringPackage` recursively derives nested Screen/Popup object references;
-- existing Scripts invalidated by incoming Engineering changes surface blocking Preview errors;
-- v10 Screen/Popup updates preserve referenced child identity when Apply would preserve it and reject removed referenced children before Apply.
+- broader legacy non-visual import null/empty-ID hardening;
+- production CORS hardening;
+- repository branch protection policy;
+- further CI cost optimization / separation of cheap contract tests from full browser acceptance;
+- later binding-engine semantics beyond the canonical source/destination contract already frozen.
 
-## Transitional typed-persistence blocker
+These items do not authorize Wave 08 workers to broaden scope.
 
-`VisualElementEngineeringDto.Properties` still persists as `Dictionary<string,string>`.
+## Wave 08 Definition of Ready — FINAL
 
-The schema-driven C#/TypeScript codec contains this mismatch but is not the desired final persistence model. Before Wave 08 becomes ACTIVE, settle and validate canonical JSON-native typed visual property representation and migration/compatibility.
+1. Wave 07 final integration green and merged — **SATISFIED**.
+2. Canonical typed visual property persistence/migration settled — **SATISFIED, Schema v12**.
+3. Stable visual definition/object identity settled — **SATISFIED**.
+4. Visual-property binding target semantics settled — **SATISFIED**.
+5. Frontend/backend property-registry parity validated — **SATISFIED by CI #508/#510**.
+6. Asset-reference identity sufficient for Image/import — **SATISFIED**.
+7. Editor can consume canonical visual definitions without private persistence — **SATISFIED by canonical typed Engineering + official adapter**.
+8. Worker scopes and reserved central files frozen — **SATISFIED by `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`**.
 
-The editor must consume canonical typed Engineering rather than establish a second private persistence model.
-
-## Reproducibility readiness
-
-Before spending the final Wave 07 matrix, deliberately settle the minimum reproducibility blockers needed for trustworthy evidence. Audit findings include:
-
-- frontend floating `latest` dependencies;
-- no committed `package-lock.json`;
-- CI currently using `npm install` rather than `npm ci`;
-- no `global.json` while .NET SDK/compiler selection floats;
-- `tests-e2e` outside normal frontend typecheck.
-
-These findings do not authorize unrelated refactoring. Fix only what is justified for deterministic final validation.
-
-## Lower-priority convergence debt
-
-- transitional C# `double.ToString("R")` and JavaScript `String(number)` may spell some exponent values differently;
-- canonical `Tag` versus `Property` binding source discrimination should remain available before the graphical binding engine resolves sources itself;
-- older Engineering collections retain broader null/empty-ID hardening debt;
-- production CORS and `main` branch protection remain product/repository hardening items.
-
-## Main/integration reconciliation fact
-
-Functional Wave 07 code remains on `integration/visual-runtime-wave-07`. Current `main` movement after Wave 06 is coordination/documentation-only, but historical reconciliation with current `main` remains mandatory before final exact-head CI.
-
-## Wave 07 final validation boundary
-
-Static review does not replace:
-
-- Web build;
-- backend Release/full PostgreSQL tests;
-- Runtime smoke;
-- Chromium;
-- Wave-specific visual/Python acceptance;
-- Wave 06 sandbox/native-escape/cancellation regressions.
-
-If typed-persistence or reproducibility work changes the product head, final CI must validate that exact later head.
-
-## Wave 08 Definition of Ready
-
-Wave 08 may be activated only when:
-
-1. Wave 07 final integration is green and merged;
-2. canonical typed visual property persistence/migration is settled;
-3. stable visual definition/object identity is settled;
-4. visual-property binding target semantics are settled;
-5. frontend/backend property-registry parity is validated;
-6. asset-reference identity is sufficient for Image/import;
-7. the editor can consume canonical visual definitions without private persistence;
-8. worker scopes and reserved central files are frozen.
-
-Items 3, 4 and 6 are structurally settled. Items 1, 2 and execution validation for 5/7 remain gating.
-
-## Current coordinator state
-
-Exact integration head: `e376b37d2772906dd667afa199a6d8882abd43ae`.
-
-**CI is available. Finalization may resume.**
-
-Next coordinator execution should:
-
-1. verify current `main`/integration/PR/CI state;
-2. reconcile integration with current `main`;
-3. finalize typed visual property persistence/migration with compatibility tests;
-4. resolve the minimum reproducibility blockers required for trustworthy final validation;
-5. prepare the exact final candidate head;
-6. open one Wave 07 integration PR;
-7. execute the full required matrix;
-8. fix root causes only;
-9. merge Wave 07 only fully green;
-10. activate Wave 08 only after every Definition-of-Ready item is satisfied.
+Wave 08 is therefore eligible for explicit coordinator activation. Functional Wave 09/10 scope remains forbidden until its own gate.

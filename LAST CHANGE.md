@@ -29,7 +29,8 @@ Wave 07 remains **NOT MERGED**, **CI_DEFERRED** and **NOT MERGE-READY**.
 - integration branch: `integration/visual-runtime-wave-07`
 - exact current integration head: `e376b37d2772906dd667afa199a6d8882abd43ae`
 - integration PR: intentionally not open
-- latest known Actions run remains #488; no Wave 07 Actions have been intentionally triggered
+- latest Actions run remains #488; no Wave 07 Actions were triggered
+- exact integration head has no associated workflow run
 - owner-reported remaining Actions allowance remains approximately 19 included minutes until explicitly superseded by a reset report.
 
 Worker deliveries remain integrated and workers remain stopped:
@@ -54,7 +55,10 @@ The integration branch contains:
 - official frontend Engineering -> Runtime adapter;
 - backend Preview enforcement for built-in schemas/properties/binding capabilities;
 - Client Visual Python visual-property authority bound to the exact current Runtime Visual Instance;
-- structured bridge hardening and bounded structured values.
+- structured bridge hardening and bounded structured values;
+- canonical Script Engineering resolution of stable nested visual objects for dependencies and object-scoped events;
+- prospective existing-Script validation against incoming Engineering changes;
+- legacy v10 visual identity projection aligned with Apply semantics.
 
 ## Static audit corrections already applied
 
@@ -136,6 +140,8 @@ These are hardening/reproducibility debt, not authorization to broaden Wave 07 n
 ## Main/integration fact
 
 All functional Wave 07 code remains on `integration/visual-runtime-wave-07`; current `main` changes after the Wave 06 merge are coordination/documentation only. Historical reconciliation is still required before final exact-head CI.
+
+Fourth-audit coordination synchronization is complete on `main`: `docs/ROADMAP.md`, `docs/CHAT-WORK-ASSIGNMENTS.md`, `docs/VISUAL-CANONICAL-CONVERGENCE-07-TO-08.md` and this handoff all describe the same Wave 07 head/state.
 
 ## Current coordinator state
 

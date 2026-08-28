@@ -36,6 +36,7 @@ test('common registry exposes the locked Wave 07 property family and image fit e
 
   const assetDefinition = COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.assetRef);
   expect(assetDefinition.type).toBe('assetRef');
+  expect(assetDefinition.defaultValue).toBeNull();
   expect(assetDefinition.runtimeReadable).toBeTruthy();
   expect(assetDefinition.runtimeWritable).toBeFalsy();
   expect(assetDefinition.supportsBinding).toBeFalsy();
@@ -71,6 +72,8 @@ test('color, enum and AssetReference values fail closed', () => {
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.imageFit, 'none'))
     .toMatchObject({ ok: false, code: 'enum.value' });
 
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.assetRef, null))
+    .toMatchObject({ ok: true, value: null });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.assetRef, {
     assetId: 'asset:plant-logo',
     name: 'Plant logo',
@@ -115,7 +118,7 @@ test('object schema selects registered properties and defaults without creating 
     y: 0,
     width: 100,
     height: 100,
-    assetRef: { assetId: 'asset:none' },
+    assetRef: null,
     imageFit: 'contain'
   });
   expect(schema.validate('opacity', 1)).toMatchObject({ ok: false, code: 'property.unregistered' });

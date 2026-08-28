@@ -8,13 +8,13 @@ export type VisualRuntimePropertyDefinitionPort = {
 };
 
 export type VisualRuntimePropertyValidation =
-  | { valid: true }
+  | { valid: true; value: unknown }
   | { valid: false; code: string; reason: string };
 
 /**
- * Narrow consumer port for the Wave 07 Runtime Visual Instance.
- * DEV 1 owns the concrete typed registry and validation semantics; the coordinator
- * reconciles that registry to this port during integration.
+ * Narrow internal consumer port for Runtime Visual Instance resolution.
+ * The public runtime constructor consumes a VisualObjectPropertySchema; this port
+ * exists only to keep runtime resolution independent from registry implementation details.
  */
 export interface VisualRuntimePropertyRegistryPort {
   find(propertyKey: string): VisualRuntimePropertyDefinitionPort | undefined;

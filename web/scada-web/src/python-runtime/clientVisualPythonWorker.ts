@@ -250,6 +250,10 @@ function createEliteScadaBridge(): Record<string, unknown> {
       propertyKey: normalizeBridgeValue(propertyKey),
       value: normalizeBridgeValue(value)
     }),
+    visual_property_clear: (targetReference: unknown, propertyKey: unknown) => requestCapability('visualProperty.write', 'clear', {
+      targetReference: normalizeBridgeValue(targetReference),
+      propertyKey: normalizeBridgeValue(propertyKey)
+    }),
     visual_tween_request: (argumentsValue: unknown) => requestCapability('visualTween.request', 'request', normalizeBridgeValue(argumentsValue)),
     backend_operation_request: (operation: unknown, argumentsValue: unknown) => requestCapability(
       'backendOperation.request',

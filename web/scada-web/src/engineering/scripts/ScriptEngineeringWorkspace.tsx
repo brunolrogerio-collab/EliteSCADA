@@ -1,4 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  compileEngineeringClientVisualPython,
+  runEngineeringClientVisualPythonHandler
+} from '../../python-runtime/engineeringPythonPreview';
 import type { EngineeringLocale } from '../i18n';
 import { PythonMonacoEditor } from '../python-editor/PythonMonacoEditor';
 import {
@@ -32,6 +36,7 @@ import {
   scopeLabel,
   scriptWorkspaceCopy
 } from './ScriptEngineeringWorkspace.copy';
+import { scriptPythonPreviewCopy } from './scriptPythonPreviewCopy';
 import type {
   ScriptDeleteDependency,
   ScriptEngineeringContext,
@@ -39,6 +44,11 @@ import type {
   ScriptMutationPreviewToken
 } from './scriptEngineeringTypes';
 import './script-engineering-workspace.css';
+
+type LocalPythonDiagnosticSnapshot = {
+  scriptId: string;
+  snapshot: PythonEditorDiagnosticSnapshot;
+};
 
 type ScriptEngineeringWorkspaceProps = {
   locale: EngineeringLocale;
@@ -50,6 +60,7 @@ export function ScriptEngineeringWorkspace({
   pythonDiagnosticsByScriptId
 }: ScriptEngineeringWorkspaceProps) {
   const copy = useMemo(() => scriptWorkspaceCopy(locale), [locale]);
+  const pythonCopy = useMemo(() => scriptPythonPreviewCopy(locale), [locale]);
   const [context, setContext] = useState<ScriptEngineeringContext | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ScriptEngineeringDefinition | null>(null);
@@ -61,6 +72,10 @@ export function ScriptEngineeringWorkspace({
   const [previewToken, setPreviewToken] = useState<ScriptMutationPreviewToken | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleteDependencies, setDeleteDependencies] = useState<ScriptDeleteDependency[]>([]);
+  const [localPythonDiagnostics, setLocalPythonDiagnostics] = useState<LocalPythonDiagnosticSnapshot | null>(null);
+  const [pythonPreviewHandler, setPythonPreviewHandler] = useState('');
+  const [pythonPreviewNotice, setPythonPreviewNotice] = useState<string | null>(null);
+  const [pythonPreviewRunning, setPythonPreviewRunning] = useState(false);
 
   const refresh = useCallback(async (preferId?: string) => {
     setLoading(true);
@@ -76,6 +91,9 @@ export function ScriptEngineeringWorkspace({
       setPreviewToken(null);
       setDeleteConfirm(false);
       setDeleteDependencies([]);
+      setLocalPythonDiagnostics(null);
+      setPythonPreviewHandler(selected?.entryPoints[0]?.handlerName ?? '');
+      setPythonPreviewNotice(null);
     } catch (cause) {
       setError(errorText(cause, copy.errors));
     } finally {
@@ -99,15 +117,30 @@ export function ScriptEngineeringWorkspace({
   const currentPackage = draft ? buildCanonicalScriptPackage(draft, context?.visualEventReferences ?? []) : null;
   const previewCurrent = Boolean(currentPackage && previewToken && previewTokenMatches(previewToken, currentPackage, mode));
   const localIssues = draft ? validateScriptDraft(draft) : [];
+  const pythonDiagnosticSnapshot = draft && localPythonDiagnostics?.scriptId === draft.id
+    ? localPythonDiagnostics.snapshot
+    : draft ? pythonDiagnosticsByScriptId?.[draft.id] : undefined;
   const pythonDiagnostics = useMemo(
-    () => resolvePythonDiagnosticSnapshot(
-      draft?.source ?? '',
-      draft ? pythonDiagnosticsByScriptId?.[draft.id] : undefined
-    ),
-    [draft?.id, draft?.source, pythonDiagnosticsByScriptId]
+    () => resolvePythonDiagnosticSnapshot(draft?.source ?? '', pythonDiagnosticSnapshot),
+    [draft?.source, pythonDiagnosticSnapshot]
   );
   const blockingPythonDiagnostics = pythonDiagnostics.status === 'ready' &&
     hasBlockingPythonDiagnostics(pythonDiagnostics.diagnostics);
+  const pythonHandlerNames = useMemo(() => {
+    if (!draft) return [];
+    const seen = new Set<string>();
+    const handlers: string[] = [];
+    for (const entryPoint of draft.entryPoints) {
+      const handler = entryPoint.handlerName.trim();
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(handler) || seen.has(handler)) continue;
+      seen.add(handler);
+      handlers.push(handler);
+    }
+    return handlers;
+  }, [draft?.entryPoints]);
+  const selectedPythonPreviewHandler = pythonHandlerNames.includes(pythonPreviewHandler)
+    ? pythonPreviewHandler
+    : pythonHandlerNames[0] ?? '';
 
   function selectScript(script: ScriptEngineeringDefinition) {
     setSelectedId(script.id);
@@ -117,6 +150,9 @@ export function ScriptEngineeringWorkspace({
     setError(null);
     setDeleteConfirm(false);
     setDeleteDependencies([]);
+    setLocalPythonDiagnostics(null);
+    setPythonPreviewHandler(script.entryPoints[0]?.handlerName ?? '');
+    setPythonPreviewNotice(null);
   }
 
   function startNewScript() {
@@ -128,20 +164,46 @@ export function ScriptEngineeringWorkspace({
     setError(null);
     setDeleteConfirm(false);
     setDeleteDependencies([]);
+    setLocalPythonDiagnostics(null);
+    setPythonPreviewHandler(next.entryPoints[0]?.handlerName ?? '');
+    setPythonPreviewNotice(null);
   }
 
   function patchDraft(patch: Partial<ScriptEngineeringDefinition>) {
     setDraft(current => current ? { ...current, ...patch } : current);
     setNotice(null);
+    setPythonPreviewNotice(null);
   }
 
   async function runPreview() {
-    if (!context || !draft || localIssues.length > 0 || blockingPythonDiagnostics) return;
+    if (!context || !draft || localIssues.length > 0) return;
     setBusy(true);
     setError(null);
     setNotice(null);
     setDeleteDependencies([]);
     try {
+      if (draft.scope === 'clientVisual') {
+        let compiled: PythonEditorDiagnosticSnapshot;
+        try {
+          compiled = await compileEngineeringClientVisualPython({
+            scriptId: draft.id,
+            source: draft.source,
+            handlerNames: pythonHandlerNames
+          });
+        } catch {
+          setPreviewToken(null);
+          setError(pythonCopy.compileUnavailable);
+          return;
+        }
+
+        setLocalPythonDiagnostics({ scriptId: draft.id, snapshot: compiled });
+        if (hasBlockingPythonDiagnostics(compiled.diagnostics)) {
+          setPreviewToken(null);
+          setNotice(pythonCopy.compileFailed);
+          return;
+        }
+      }
+
       const token = await previewScriptMutation(draft, context.visualEventReferences, mode);
       setPreviewToken(token);
       setNotice(token.preview.canApply ? copy.previewReady : copy.previewInvalid);
@@ -153,8 +215,39 @@ export function ScriptEngineeringWorkspace({
     }
   }
 
+  async function runPythonHandlerPreview() {
+    if (!draft || draft.scope !== 'clientVisual' || !selectedPythonPreviewHandler || localIssues.length > 0) return;
+    setBusy(true);
+    setPythonPreviewRunning(true);
+    setError(null);
+    setPythonPreviewNotice(null);
+    try {
+      const result = await runEngineeringClientVisualPythonHandler({
+        scriptId: draft.id,
+        source: draft.source,
+        handlerNames: pythonHandlerNames,
+        handlerName: selectedPythonPreviewHandler
+      });
+      setLocalPythonDiagnostics({ scriptId: draft.id, snapshot: result.diagnostics });
+
+      if (hasBlockingPythonDiagnostics(result.diagnostics.diagnostics)) {
+        setPythonPreviewNotice(pythonCopy.compileFailed);
+      } else if (result.status === 'completed') {
+        setPythonPreviewNotice(pythonCopy.completed);
+      } else {
+        const detail = result.sanitizedError ? `: ${result.sanitizedError}` : '';
+        setPythonPreviewNotice(`${pythonCopy.failed} (${result.status})${detail}`);
+      }
+    } catch {
+      setPythonPreviewNotice(pythonCopy.unavailable);
+    } finally {
+      setPythonPreviewRunning(false);
+      setBusy(false);
+    }
+  }
+
   async function applyPreview() {
-    if (!previewToken || !previewCurrent || !previewToken.preview.canApply) return;
+    if (!previewToken || !previewCurrent || !previewToken.preview.canApply || blockingPythonDiagnostics) return;
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -291,6 +384,35 @@ export function ScriptEngineeringWorkspace({
                 <small className="script-muted">{copy.sourceHint}</small>
               </div>
 
+              {draft.scope === 'clientVisual' && (
+                <div className="script-preserved" data-testid="python-sandbox-preview">
+                  <strong>{pythonCopy.title}</strong>
+                  <span>{pythonCopy.hint}</span>
+                  {pythonHandlerNames.length > 0 ? (
+                    <div className="script-actions">
+                      <label>{pythonCopy.handler}
+                        <select
+                          value={selectedPythonPreviewHandler}
+                          onChange={event => setPythonPreviewHandler(event.target.value)}
+                          disabled={busy}
+                        >
+                          {pythonHandlerNames.map(handler => <option key={handler} value={handler}>{handler}</option>)}
+                        </select>
+                      </label>
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => void runPythonHandlerPreview()}
+                        disabled={busy || localIssues.length > 0}
+                      >
+                        {pythonPreviewRunning ? pythonCopy.running : pythonCopy.run}
+                      </button>
+                    </div>
+                  ) : <span className="script-muted">{pythonCopy.noHandler}</span>}
+                  {pythonPreviewNotice && <span role="status">{pythonPreviewNotice}</span>}
+                </div>
+              )}
+
               <EditorCollectionHeader title={copy.entryPoints} hint={copy.entryPointsHint} action={copy.addEntryPoint} onAdd={() => patchDraft({ entryPoints: [...draft.entryPoints, { eventKind: 'initialize', handlerName: 'initialize', targetReference: null }] })} />
               <div className="script-rows">
                 {draft.entryPoints.map((entry, index) => (
@@ -344,8 +466,8 @@ export function ScriptEngineeringWorkspace({
               )}
 
               <div className="script-actions">
-                <button type="button" onClick={() => void runPreview()} disabled={busy || localIssues.length > 0 || blockingPythonDiagnostics}>{copy.preview}</button>
-                <button type="button" onClick={() => void applyPreview()} disabled={busy || !previewCurrent || !previewToken?.preview.canApply}>{copy.apply}</button>
+                <button type="button" onClick={() => void runPreview()} disabled={busy || localIssues.length > 0}>{copy.preview}</button>
+                <button type="button" onClick={() => void applyPreview()} disabled={busy || !previewCurrent || !previewToken?.preview.canApply || blockingPythonDiagnostics}>{copy.apply}</button>
                 {context?.scripts.some(script => script.id === draft.id) && !deleteConfirm && <button type="button" className="danger" onClick={() => setDeleteConfirm(true)} disabled={busy}>{copy.delete}</button>}
                 {deleteConfirm && (
                   <div className="script-delete-confirm">

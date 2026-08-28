@@ -1,12 +1,13 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-08-28  
-**Active direction:** **VISUAL-RUNTIME-WAVE-07 INTEGRATED + INTERFACE-HARDENED / CI_DEFERRED / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
+**Active direction:** **VISUAL-RUNTIME-WAVE-07 CANONICAL CONVERGENCE REVIEW COMPLETE / CI_DEFERRED / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
 
 Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
 Parallel execution model: `docs/DEVELOPMENT-WAVES.md`.  
 Live worker ownership: `docs/CHAT-WORK-ASSIGNMENTS.md`.  
 Wave 07 implementation boundary: `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`.  
+Wave 07 -> 08 readiness boundary: `docs/VISUAL-CANONICAL-CONVERGENCE-07-TO-08.md`.  
 CI usage mode: `docs/CI-USAGE-POLICY.md`.
 
 Engineering Import/Export remains cross-cutting: every canonical Engineering domain joins versioned JSON, validation/Preview/Apply, revision lifecycle, PostgreSQL persistence where applicable and `.escadapkg` backup/restore.
@@ -15,7 +16,7 @@ Engineering Import/Export remains cross-cutting: every canonical Engineering dom
 
 The merged product includes TAG Engine/current cache/quality/Event Bus, Simulation and real Modbus TCP, PostgreSQL Engineering persistence, TimescaleDB historian foundations, Working/Revision/Published/Active lifecycle, canonical Import/Export + Preview/Apply/CAS, authentication/users/authorization/Audit, Client/Server Memory, TAG Gateway, common Data Source diagnostics, Runtime/Engineering/Audit shell, Engineering Data Source/TAG/Alarm workspaces, Runtime Operations/Alarm Center, Runtime TAG Inspector + Recent History, Lifecycle, Project Management/Portability, Basic Trend Viewer, Administration, Driver SDK/research convergence, canonical Script Engineering schema v10, practical Script Engineering Workspace and the merged Wave 06 Client Visual Python foundation.
 
-Canonical Engineering in merged `main` remains **Schema v10**. Client Visual Python is official merged product state. Wave 07 visual-runtime implementation currently exists only on its integration branch until final validation can run.
+Canonical Engineering in merged `main` remains **Schema v10**. Client Visual Python is official merged product state. Wave 07 visual-runtime/convergence implementation currently exists only on `integration/visual-runtime-wave-07` until final validation can run.
 
 ## Completed waves
 
@@ -53,7 +54,7 @@ Wave 03  Operational lifecycle + Runtime TAG Inspector + acceptance foundation  
 Wave 04  Project portability + basic Trends + Administration                        COMPLETE
 Wave 05  Canonical Script Engineering                                                COMPLETE
 Wave 06  Python Editor + Client Visual sandbox                                       COMPLETE
-Wave 07  Visual Runtime Object Model + visual Asset contract                         HARDENED INTEGRATION / CI_DEFERRED
+Wave 07  Visual Runtime Object Model + visual Asset contract                         CONVERGENCE REVIEW COMPLETE / CI_DEFERRED
 Wave 08  Graphical Editor Foundation + image import/object                           WAITING
 Wave 09  Screens + Popups + Dynamos + asset dependencies
 Wave 10  Python visual events + animation + preview
@@ -69,35 +70,48 @@ Do not skip dependencies simply because later research already exists.
 
 ## Wave 07 — Visual Runtime Object Model
 
-**INTEGRATED + INTERFACE-HARDENED / CI_DEFERRED / NOT MERGE-READY.**
+**CANONICAL CONVERGENCE REVIEW COMPLETE / CI_DEFERRED / NOT MERGE-READY.**
 
 - Logical WaveBaseSHA: `cc79713434c1d7b5988158b843b137eaf488d923`
 - ContractSHA: `06faf079bc5185689712bd2c9a225c2bb8d90999`
 - Integration branch: `integration/visual-runtime-wave-07`
-- Current hardened integration head: `590a51b24b79e1c43417a03492b1a5712b9ab584`
+- Exact current integration head: `0c00413e2dc96d770a905cf0a416833764af59e7`
 - Integration PR: intentionally not open while Actions are deferred
 - Implementation contract: `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`
+- Canonical convergence/readiness contract: `docs/VISUAL-CANONICAL-CONVERGENCE-07-TO-08.md`
 
-Implemented and hardened on the integration branch:
+Implemented/hardened on the integration branch:
 
 - typed Visual Property Registry with explicit `number`, `boolean`, `string`, `color`, `enum`, `assetRef` types;
 - stable common property keys, defaults and constraints, including integer-only `zIndex`;
-- stable project-owned AssetReference validation with path/URL-like authority rejection and bounded image metadata;
+- stable project-owned AssetReference validation with path/URL-like authority rejection and null no-asset state;
 - renderer-independent Engineering visual-definition projection;
-- explicit separation between **Engineering Base** and **registry Default** so runtime source diagnostics remain truthful;
-- Runtime Visual Instance identity/lifecycle;
+- explicit separation between **Engineering Base** and **registry Default**;
+- Runtime Visual Instance identity/lifecycle and per-client isolation;
 - independent Engineering, Binding, Script and Animation layers;
 - deterministic precedence `Animation > Script > Binding/Expression > Engineering Base > Default`;
 - source diagnostics and fail-closed invalid-layer handling;
-- per-instance isolation and disposal semantics;
-- public Runtime construction through the typed `VisualObjectPropertySchema`, with internal registry-port seams hidden from the public index;
-- definition/schema type matching and stable explicit runtime/context identity validation;
-- validated-value propagation into Runtime layers instead of storing unchecked pre-normalization candidates;
-- runtime-readable enforcement on the public property-state read surface;
-- renderer-independent `createVisualPythonPropertyCapabilityProvider()` binding Python visual read/write to the exact current Runtime Visual Instance and stable target ID/key;
-- official Client Visual Python provider composition for TAG + Client Memory + visual-property authority without changing the Pyodide sandbox Worker;
+- public Runtime construction through the typed `VisualObjectPropertySchema`;
+- definition/schema type matching and stable runtime/context identity validation;
+- validated-value propagation into Runtime layers;
+- `runtimeReadable`/`runtimeWritable` enforcement;
+- renderer-independent Client Visual Python property capability bound to the exact current Runtime Visual Instance and stable target ID/key;
+- official Client Visual Python provider composition for TAG + Client Memory + visual-property authority without changing the sandbox Worker;
 - Python ↔ Visual acceptance/adversarial tests covering property authority, instance isolation, disposal, AssetReference restrictions, current-instance/current-target enforcement and DOM/renderer-private authority denial;
-- source/public-surface tests preventing internal registry adapter seams from becoming public API accidentally.
+- source/public-surface tests preventing internal registry seams from leaking as public API.
+
+Coordinator canonical convergence additionally established:
+
+- transitional **Engineering Schema v11** on the integration branch, adding stable nested visual object IDs while keeping older v1-v10 packages readable;
+- recursive ID materialization/preservation and duplicate/empty-ID validation;
+- canonical visual binding semantics: `EngineeringBindingDto.Key` is the destination visual property/slot, `Target` is the source reference;
+- explicit frontend `VisualElementEngineering` instead of Screen/Popup `unknown[]`;
+- C#/TypeScript common property catalog parity for geometry, appearance, stroke, typography and image/resource properties;
+- renderer-independent built-in object schema catalog for `core.group`, `core.rectangle`, `core.ellipse`, `core.line`, `core.text`, `core.image`, `core.valueDisplay` and `core.button`;
+- canonical `assetRef = null | { assetId }` semantics without duplicated name/MIME/path/URL authority;
+- schema-guided transitional legacy property codecs in C# and TypeScript with aligned canonical numeric/boolean serialization semantics;
+- an official frontend Engineering -> Runtime adapter using stable IDs, declared schemas and canonical binding semantics;
+- backend Preview enforcement of known `core.*` schemas/properties/binding capabilities while leaving non-core future custom/Dynamo types extensible.
 
 Worker deliveries integrated:
 
@@ -105,15 +119,34 @@ Worker deliveries integrated:
 - **DEV 2:** `d6c1e997178e0ce525233079effd442f59743386`
 - **DEV 3:** `25ebac63a957c1c0c5b8e2557caec152d9d36bfc`
 - worker integration commit: `295bdabba5c25b2e4a729228130185976735d939`
-- current coordinator-hardened integration head: `590a51b24b79e1c43417a03492b1a5712b9ab584`
+- exact coordinator-reviewed integration head: `0c00413e2dc96d770a905cf0a416833764af59e7`
 
-The owner most recently reported approximately 19 included GitHub Actions minutes remaining. Until the owner explicitly reports reset, Wave 07 remains frozen at `IMPLEMENTED / CI_DEFERRED`: do not open the PR, run Actions, merge to `main`, or start Wave 08 functional implementation.
+### Transitional persistence caveat
 
-After reset, reconcile the integration branch with current `main`, open the integration PR, then require exact-final-head Web + backend Release/full tests + Runtime smoke + Chromium + Wave-specific visual/Python acceptance green before merge.
+`VisualElementEngineeringDto.Properties` remains `Dictionary<string,string>` on the current Wave 07 integration head. Schema v11 is therefore a transitional stable-identity/convergence schema, **not final typed visual property persistence**. The shared codecs contain this mismatch but do not make string persistence the desired editor model.
+
+Canonical JSON-native typed visual property persistence and migration must be deliberately settled before Wave 08 becomes ACTIVE.
+
+### Current no-CI stop state
+
+The coordinator static review found no additional concrete blocker after head `0c00413e...`. The no-Actions stop condition is reached: do not continue speculative Wave 07 code merely to make progress visible.
+
+The owner most recently reported approximately 19 included GitHub Actions minutes remaining. Until the owner explicitly reports reset:
+- do not open the Wave 07 PR;
+- do not run Actions;
+- do not merge to `main`;
+- do not activate Wave 08 workers;
+- do not implement Wave 08 graphical functionality.
+
+After reset, reconcile the integration branch with current `main`, settle/finalize typed visual persistence with migration coverage, then require exact-final-head Web + backend Release/full tests + Runtime smoke + Chromium + Wave-specific visual/Python acceptance green before merge.
 
 ## Wave 08 — Graphical Editor Foundation
 
-**WAITING FOR WAVE 07 FINAL VALIDATION/MERGE.** Canvas/selection + shared Property Inspector + initial Object Palette/bindings + project image import/Image object.
+**WAITING FOR WAVE 07 FINAL VALIDATION/MERGE AND WAVE-08 DEFINITION OF READY.**
+
+Planned scope remains Canvas/selection + shared Property Inspector + initial Object Palette/bindings + project image import/Image object. Stable `assetRef` identity is already defined; first-class asset entity/import/storage/payload/renderer remains intentional Wave 08 functionality.
+
+No Wave 08 worker is active.
 
 ## Wave 09 — Screens + Popups + Dynamos
 
@@ -166,4 +199,5 @@ Preferred post-v0.1 progression: `MQTT -> OPC UA -> BACnet -> Driver Module fram
 - preserve canonical Engineering and backend authority;
 - require final integrated CI for every functional wave;
 - while CI is deferred, economize Actions timing, never final quality;
+- stop speculative product changes when meaningful validation is unavailable;
 - keep assignment board/handoff synchronized because `siga` depends on them.

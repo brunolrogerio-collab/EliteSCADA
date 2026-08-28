@@ -115,9 +115,11 @@ internal static class MemoryEngineeringValidator
     public static bool IsClientMemoryDriver(string? driver) =>
         string.Equals(driver, BuiltInSourceProviderDescriptors.ClientMemory.TypeKey, StringComparison.OrdinalIgnoreCase);
 
-    public static bool IsMemoryDriver(string? driver) =>
-        IsClientMemoryDriver(driver) ||
+    public static bool IsServerMemoryDriver(string? driver) =>
         string.Equals(driver, BuiltInSourceProviderDescriptors.ServerMemory.TypeKey, StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsMemoryDriver(string? driver) =>
+        IsClientMemoryDriver(driver) || IsServerMemoryDriver(driver);
 
     private static ImportIssue Error(string code, string message, ImportEntityKind kind, string key) =>
         new(code, message, kind, key, true);

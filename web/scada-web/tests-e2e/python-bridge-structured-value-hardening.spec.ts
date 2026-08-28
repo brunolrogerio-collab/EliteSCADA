@@ -30,6 +30,7 @@ test('structured bridge cloning preserves __proto__ only as inert own data and d
 });
 
 test('capability arguments cannot be satisfied by inherited properties', async () => {
+  const previousDescriptor = Object.getOwnPropertyDescriptor(Object.prototype, 'targetReference');
   Object.defineProperty(Object.prototype, 'targetReference', {
     configurable: true,
     enumerable: false,
@@ -51,6 +52,10 @@ test('capability arguments cannot be satisfied by inherited properties', async (
       code: 'PYTHON_CAPABILITY_ARGUMENT_INVALID'
     } satisfies Partial<ClientVisualPythonCapabilityError>);
   } finally {
-    delete (Object.prototype as Record<string, unknown>).targetReference;
+    if (previousDescriptor) {
+      Object.defineProperty(Object.prototype, 'targetReference', previousDescriptor);
+    } else {
+      delete (Object.prototype as { targetReference?: unknown }).targetReference;
+    }
   }
 });

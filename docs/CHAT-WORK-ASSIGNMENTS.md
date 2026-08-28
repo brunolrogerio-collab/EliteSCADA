@@ -12,127 +12,110 @@ Every fixed EliteSCADA chat first rereads current `main`: `PROJECT GOAL.md`, `LA
 
 ## Current product gate
 
-`INTERFACE-WAVE-04` is **ACTIVE / INTEGRATION IN PROGRESS**.
+`SCRIPT-WAVE-05` is **ACTIVE — ARCHITECTURE-FIRST COORDINATOR PHASE**.
 
-**WaveBaseSHA:** `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`  
-**IntegrationBranch:** `integration/interface-wave-04`  
-**Integration PR:** #78 `Integrate Interface Wave 04` — DRAFT  
-**Product objective:** practical non-graphical platform through project portability/backup, basic Trends and stronger local Administration while preserving Wave 03 lifecycle/runtime acceptance.
+**WaveBaseSHA:** `e9e596f482c83bf5864b34a7f54d9fd3b0b67baa`  
+**IntegrationBranch:** `integration/interface-wave-05`  
+**Product objective:** make Scripts first-class canonical Engineering entities whose source, scope, enabled state, entry points, dependencies and stable references survive canonical JSON, Preview/Apply, revisions/PostgreSQL and `.escadapkg` before production Python editor/runtime work begins.
 
-Documentation-only coordination commits after WaveBaseSHA do not invalidate worker evidence. Unrelated product-code `main` remains frozen until the wave closes.
+Wave 04 is **MERGED** through PR #78. Final integration head `f0762d12814496a223abe740c57eb995ca472e97`; CI #446 fully green; main merge `e9e596f482c83bf5864b34a7f54d9fd3b0b67baa`.
 
-Previous Wave 03 is **MERGED** through PR #74, integration CI #418 green, merge `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`.
+Documentation-only coordination commits after WaveBaseSHA do not invalidate the logical base. Product-code `main` remains frozen while the Wave 05 central contract is stabilized.
 
 ---
 
 # COORDENADOR - EliteSCADA
 
 **Role:** `COORDINATOR`  
-**Wave:** `INTERFACE-WAVE-04`  
-**CurrentTask:** integrate accepted Wave 04 slices, enforce portability CAS, mount central surfaces and prove final composition  
-**Branch:** `integration/interface-wave-04` plus `main` for coordination docs  
-**Status:** `ACTIVE`  
-**BaseSHA:** `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`  
+**Wave:** `SCRIPT-WAVE-05`  
+**CurrentTask:** stabilize canonical Script Engineering contract before worker start  
+**Branch:** `integration/interface-wave-05` plus `main` for coordination docs  
+**Status:** `ACTIVE — ARCHITECTURE_FIRST`  
+**BaseSHA:** `e9e596f482c83bf5864b34a7f54d9fd3b0b67baa`  
 **StartCondition:** `TRUE`
 
-**DependsOn:** Wave 03 merged/green; DEV 2 and DEV 3 accepted; DEV 1 targeted correction outstanding.
+**DependsOn:** Wave 04 merged/green; merged isolated Script/VisualScripting foundations; canonical Engineering v9 and project lifecycle/package infrastructure.
 
-**ParallelSafeWith:** DEV 1 targeted correction.
+**Objective:** promote the existing isolated Script Engineering foundation into the authoritative canonical Engineering model without creating a parallel script store/model.
 
-**Objective:** preserve product-code `main`, integrate only accepted slices, own central mounts/composition, require package restore CAS, add integrated Wave 04 acceptance, run final Web/backend/tests/Runtime-smoke/Chromium and merge only exact-head green PR #78.
+**Required central work:**
 
-**ReservedFiles:** `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, coordination docs, `.github/workflows/**`, `src/Scada.Api/Program.cs`, `web/scada-web/src/engineering/EngineeringApp.tsx`, `web/scada-web/src/main.tsx`, `web/scada-web/src/AppNavigation.tsx`, central routing/shell/composition.
+- evolve canonical Engineering schema deliberately from v9 to v10 with backward compatibility;
+- first-class canonical Scripts collection/entity kind;
+- stable Script/event/dependency references using the merged Script foundation;
+- Workspace-owned Script registry with normal dirty/changeVersion semantics;
+- canonical JSON Export/Import + Preview/Apply;
+- deterministic validation using existing `ScriptEngineeringValidator` and reference catalogs;
+- revision/PostgreSQL fidelity through canonical persisted JSON;
+- `.escadapkg` fidelity through canonical `engineering.json`;
+- focused compatibility/round-trip/package/revision tests;
+- exact-head CI on the integration branch before worker promotion.
 
-**ForbiddenScope:** protocol expansion; Wave 05 Python/Script production work before Wave 04 closes; graphical editor; weakening security/CAS/lifecycle/runtime authority.
+**ReservedFiles:** `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, coordination docs, `.github/workflows/**`, `src/Scada.Api/Program.cs`, `src/Scada.Api/Runtime/EngineeringWorkspace.cs`, canonical Engineering schema/contracts, central DI/composition, `EngineeringApp.tsx`, `main.tsx`.
 
-**IntegrationRequired:** yes.  
-**IntegrationTarget:** `integration/interface-wave-04` / PR #78.  
-**ValidationMatrix:** Web build + backend Release/full tests + Runtime smoke + Chromium cross-product acceptance, preserving Wave 03 lifecycle acceptance.  
-**CompletionCriteria:** DEV 1 corrected/accepted; all three slices integrated; no duplicate paths; portability Preview/Apply/CAS usable; Trend mounted; Administration coherent; final exact integration CI green.  
-**AfterCompletion:** `CONTINUE_COORDINATION` to architecture-first Wave 05.
+**ForbiddenScope:** production Python interpreter/editor/sandbox; graphical editor; new protocol production work; weakening canonical Engineering, Preview/Apply/CAS, security or lifecycle authority.
+
+**ValidationMatrix:** Web + backend Release/full tests + Runtime smoke + Chromium after the shared contract compiles; focused schema-v10, v9 compatibility, Script validation, revision and package tests.
+
+**CompletionCriteria:** central Script contract is canonical, compatible, persisted/package-safe and exact-head green; worker branches are then created from the frozen WaveBaseSHA and board tasks promoted with complete Definition of Ready.
+
+**AfterCompletion:** promote DEV 1/2/3 Wave 05 slices and continue integration reviews.
+
+**MustReadSpecific:** `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`, `docs/research/python-client/CLIENT-PYTHON-EDITOR-SANDBOX-RESEARCH.md`, `src/Scada.Engineering/Scripts/**`, canonical Import/Export/Persistence/ProjectPackages contracts/tests.
 
 ---
 
 # DEV 1 - EliteSCADA
 
 **Role:** `WORKER`  
-**Wave:** `INTERFACE-WAVE-04`  
-**CurrentTask:** `Project Management / Portability Workspace — targeted CAS correction`  
-**Branch:** `feature/interface-wave-04-project-management`  
-**PR:** #77  
-**Status:** `ACTIVE — TARGETED_CORRECTION_REQUIRED`  
-**BaseSHA:** `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`  
-**StartCondition:** `TRUE — coordinator Delivery Review comment on PR #77`
+**Wave:** `SCRIPT-WAVE-05`  
+**Status:** `WAIT_FOR_COORDINATOR — QUEUED_ONLY`  
+**CurrentTask:** none executable yet.
 
-**DependsOn:** existing canonical JSON Import/Export, Preview/Apply/CAS and `.escadapkg` contracts.
+**NextQueuedTask:** `Script Engineering Workspace foundation`.
 
-**ParallelSafeWith:** coordinator integration work. DEV 2/3 are already integrated.
+**PlannedObjective:** list/create/delete/select/edit canonical Script metadata and source foundation using only the coordinator-stabilized schema/API: name/path, scope, enabled, description, entry points and dependency information. No Monaco/Python execution yet.
 
-**Objective:** complete the already implemented Project Management surface and close one blocking CAS hole in package restore.
-
-**RequiredCorrection:** `/api/project-package/import/apply` must require `x-elitescada-workspace-version`. Missing or invalid header must be rejected before final mutation; stale version remains `409`; authorization/Audit authority remains backend-owned. Add explicit test that Apply without header is rejected and Working is not mutated.
-
-**AllowedScope:** existing PR #77 files only, especially `src/Scada.Api/ProjectPackages/ProjectPackageEndpoints.cs` and focused package-CAS tests.
-
-**ForbiddenScope:** no package-format/schema/persistence redesign; no central `EngineeringApp.tsx`/routing; no Trend/Admin; no protocols/Python/graphical editor; do not weaken Preview/CAS/security.
-
-**ReservedFiles:** existing PR #77 Project Management/package files. Coordinator owns central mounts.
-
-**IntegrationRequired:** coordinator retargets/merges accepted corrected PR into `integration/interface-wave-04` and mounts `EngineeringProjectManagementWorkspace`.
-
-**IntegrationTarget:** `integration/interface-wave-04`.
-
-**ValidationMatrix:** missing-header rejection/no mutation; invalid-header rejection; stale-version `409`; existing Preview/Apply/package tests; exact new head CI green.
-
-**CompletionCriteria:** mandatory CAS cannot be omitted; existing portability scope remains green; PR body/evidence updated; stop at `WAIT_FOR_COORDINATOR`.
+**NextStartCondition:** coordinator central Script contract exact-head CI green; worker branch/AllowedScope/ReservedFiles/ValidationMatrix written here; task promoted to ACTIVE.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`.
-
-**NextQueuedTask:** `Wave 05 Script Engineering Workspace foundation`.  
-**NextStartCondition:** `QUEUED_ONLY — Wave 04 merged, coordinator central Script contract stabilized, board promotes task`.
-
-**MustReadSpecific:** `docs/DEVELOPMENT-WAVES.md`, `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`, PR #77 coordinator comment, package endpoints/tests and current portability files.
 
 ---
 
 # DEV 2 - EliteSCADA
 
 **Role:** `WORKER`  
-**Wave:** `INTERFACE-WAVE-04`  
-**CurrentTask:** `Basic Trend Viewer`  
-**Branch:** `feature/interface-wave-04-trend-viewer`  
-**PR:** #76  
-**Status:** `MERGED_TO_INTEGRATION / WAIT_FOR_COORDINATOR`  
-**BaseSHA:** `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`
+**Wave:** `SCRIPT-WAVE-05`  
+**Status:** `WAIT_FOR_COORDINATOR — QUEUED_ONLY`  
+**CurrentTask:** none executable yet.
 
-**Evidence:** final worker head `0bae66f1b5a11d8bbccf95f6c308dbb5121c8751`; CI #432 SUCCESS; coordinator Delivery Review accepted; PR #76 merged into `integration/interface-wave-04` as `c72ab5f703a6a54db1c5c177856442570d4fb969` lineage after DEV 3 integration. Basic Trend Viewer is mounted by coordinator exactly once in Runtime.
+**NextQueuedTask:** `Script Reference Runtime / validation adapter`.
+
+**PlannedObjective:** stable dependency/reference catalogs for TAGs, Client Memory, Server Memory and visual-definition boundaries over the coordinator-stabilized canonical Script model; preserve narrow runtime contracts and no direct driver access.
+
+**NextStartCondition:** coordinator central Script contract exact-head CI green; worker branch/AllowedScope/ReservedFiles/ValidationMatrix written here; task promoted to ACTIVE.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`.
-
-**NextQueuedTask:** `Wave 05 Script Reference Runtime Adapter`.  
-**NextStartCondition:** `QUEUED_ONLY — Wave 04 merged and central Script contract stabilized/promoted`.
 
 ---
 
 # DEV 3 - EliteSCADA
 
 **Role:** `WORKER`  
-**Wave:** `INTERFACE-WAVE-04`  
-**CurrentTask:** `Administration Workspace ergonomics`  
-**Branch:** `feature/interface-wave-04-administration-workspace`  
-**PR:** #75  
-**Status:** `MERGED_TO_INTEGRATION / WAIT_FOR_COORDINATOR`  
-**BaseSHA:** `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`
+**Wave:** `SCRIPT-WAVE-05`  
+**Status:** `WAIT_FOR_COORDINATOR — QUEUED_ONLY`  
+**CurrentTask:** none executable yet.
 
-**Evidence:** final worker head `8cdf2dae80dee5d0a761d773b780bf8e33cdde00`; CI #436 SUCCESS; coordinator Delivery Review accepted; PR #75 merged into `integration/interface-wave-04` as merge `467007c7471f042df7a94096a9639b72103e6c3d`. Existing Engineering Security section continues to host Administration; no duplicate central path is required.
+**NextQueuedTask:** `Script compatibility validation`.
+
+**PlannedObjective:** independent compatibility/acceptance coverage for canonical JSON round-trip, revision/package fidelity, dependencies/cycles, missing references, invalid scope and migration determinism.
+
+**NextStartCondition:** coordinator central Script contract exact-head CI green; worker branch/AllowedScope/ReservedFiles/ValidationMatrix written here; task promoted to ACTIVE.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`.
-
-**NextQueuedTask:** `Wave 05 Script validation / compatibility`.  
-**NextStartCondition:** `QUEUED_ONLY — Wave 04 merged and central Script contract stabilized/promoted`.
 
 ---
 
 ## Coordinator note for future chats
 
-Current action boundary: **only DEV 1 has executable worker work**. `siga` in DEV 1 means perform the targeted mandatory-CAS correction recorded above on PR #77. DEV 2 and DEV 3 must remain stopped. Coordinator continues PR #78 integration and final validation once DEV 1 returns green.
+Current action boundary: **workers must remain stopped**. Coordinator alone is executable until the Wave 05 canonical Script contract is stabilized and proven green. A `siga` in DEV 1/2/3 before promotion means reread the board and remain `WAIT_FOR_COORDINATOR`.

@@ -193,9 +193,16 @@ function lockGlobal(name: string, value: unknown) {
 function installDeniedPythonImportGuard() {
   requirePyodide().runPython(`
 import sys
+import pyodide.code as _elitescada_pyodide_code
+
+# Pyodide's own runPython implementation depends on the core pyodide package.
+# Preserve that engine module while removing the native JavaScript escape helper
+# from the script-visible pyodide.code surface.
+if hasattr(_elitescada_pyodide_code, "run_js"):
+    delattr(_elitescada_pyodide_code, "run_js")
 
 class _EliteScadaDeniedImportFinder:
-    _blocked = ("micropip", "pyodide", "pyodide_js")
+    _blocked = ("micropip", "pyodide.http", "pyodide_js")
 
     def find_spec(self, fullname, path=None, target=None):
         if any(fullname == item or fullname.startswith(item + ".") for item in self._blocked):

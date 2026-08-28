@@ -307,7 +307,7 @@ public sealed class ProjectPackageService : IProjectPackageService
                 throw new InvalidDataException($"Unsafe package entry path '{entry.FullName}'.");
             if (!seen.Add(entry.FullName))
                 throw new InvalidDataException($"Project package contains duplicate entry '{entry.FullName}'.");
-            if (entry.FullName.EndsWith('/', StringComparison.Ordinal))
+            if (entry.FullName.EndsWith("/", StringComparison.Ordinal))
                 throw new InvalidDataException($"Project package directory entry '{entry.FullName}' is not allowed.");
 
             totalUncompressed = checked(totalUncompressed + entry.Length);

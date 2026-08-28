@@ -7,7 +7,10 @@ test('real Client Visual Python Worker exposes explicit visual property clear wi
     'utf8'
   );
 
-  expect(worker).toContain('visual_property_clear:');
-  expect(worker).toContain("requestCapability('visualProperty.write', 'clear'");
-  expect(worker).not.toMatch(/visual_property_clear[^]*value:\s*null/);
+  expect(worker).toContain(
+    "visual_property_clear: (targetReference: unknown, propertyKey: unknown) => requestCapability('visualProperty.write', 'clear', {\n" +
+    '      targetReference: normalizeBridgeValue(targetReference),\n' +
+    '      propertyKey: normalizeBridgeValue(propertyKey)\n' +
+    '    }),'
+  );
 });

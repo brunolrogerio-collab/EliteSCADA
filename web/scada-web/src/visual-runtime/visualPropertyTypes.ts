@@ -9,10 +9,13 @@ export const VISUAL_PROPERTY_TYPES = [
 
 export type VisualPropertyType = typeof VISUAL_PROPERTY_TYPES[number];
 
+/**
+ * A visual property references a project asset only by stable identity.
+ * Name, media type, dimensions, hash and other descriptive metadata belong to
+ * the canonical asset entity and must not be copied into every property value.
+ */
 export type AssetReference = Readonly<{
   assetId: string;
-  name?: string;
-  mediaType?: string;
 }>;
 
 export type VisualPropertyValue = number | boolean | string | AssetReference | null;
@@ -103,14 +106,8 @@ export function cloneVisualPropertyValue(value: VisualPropertyValue): VisualProp
 
 export function isAssetReference(value: unknown): value is AssetReference {
   if (!isPlainRecord(value)) return false;
-
-  const allowedKeys = new Set(['assetId', 'name', 'mediaType']);
-  if (Object.keys(value).some(key => !allowedKeys.has(key))) return false;
-  if (!isStableAssetId(value.assetId)) return false;
-  if (value.name !== undefined && !isSafeAssetDisplayName(value.name)) return false;
-  if (value.mediaType !== undefined && !isSafeImageMediaType(value.mediaType)) return false;
-
-  return true;
+  const keys = Object.keys(value);
+  return keys.length === 1 && keys[0] === 'assetId' && isStableAssetId(value.assetId);
 }
 
 /**
@@ -137,20 +134,6 @@ export function isStableVisualToken(value: unknown): value is string {
     value.length <= 160 &&
     value === value.trim() &&
     !/[\u0000-\u001F\u007F]/.test(value);
-}
-
-function isSafeAssetDisplayName(value: unknown): value is string {
-  return typeof value === 'string' &&
-    value.length >= 1 &&
-    value.length <= 256 &&
-    value === value.trim() &&
-    !/[\u0000-\u001F\u007F]/.test(value);
-}
-
-function isSafeImageMediaType(value: unknown): value is string {
-  return typeof value === 'string' &&
-    value.length <= 96 &&
-    /^image\/[A-Za-z0-9][A-Za-z0-9.+-]*$/.test(value);
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {

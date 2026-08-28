@@ -48,4 +48,40 @@ public sealed class EngineeringVisualMalformedPreviewTests
         Assert.Contains(issues, issue => issue.Code == "BINDING_KEY_REQUIRED" && issue.IsError);
         Assert.Contains(issues, issue => issue.Code == "BINDING_TARGET_REQUIRED" && issue.IsError);
     }
+
+    [Fact]
+    public void Preview_ReturnsIssuesForNullOrKeylessScreenAndPopupJsonInsteadOfThrowing()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var service = new EngineeringExchangeService(tags, alarms);
+        const string json = """
+        {
+          "schema": "scada.engineering",
+          "schemaVersion": 11,
+          "exportedAt": "2026-08-28T00:00:00Z",
+          "tags": [],
+          "alarms": [],
+          "screens": [
+            null,
+            { "key": null, "name": "Invalid Screen", "elements": [] }
+          ],
+          "popups": [
+            null,
+            { "key": null, "name": "Invalid Popup", "elements": [] }
+          ]
+        }
+        """;
+
+        var package = service.ParseJson(json);
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+        var issues = preview.Items.SelectMany(item => item.Issues).ToArray();
+
+        Assert.False(preview.CanApply);
+        Assert.Contains(issues, issue => issue.Code == "SCREEN_NULL" && issue.IsError);
+        Assert.Contains(issues, issue => issue.Code == "SCREEN_KEY_REQUIRED" && issue.IsError);
+        Assert.Contains(issues, issue => issue.Code == "POPUP_NULL" && issue.IsError);
+        Assert.Contains(issues, issue => issue.Code == "POPUP_KEY_REQUIRED" && issue.IsError);
+    }
 }

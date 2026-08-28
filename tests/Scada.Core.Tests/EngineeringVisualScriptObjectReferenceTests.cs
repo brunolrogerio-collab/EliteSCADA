@@ -17,7 +17,7 @@ namespace Scada.Core.Tests;
 public sealed class EngineeringVisualScriptObjectReferenceTests
 {
     [Fact]
-    public void Preview_AcceptsClientScriptDependencyOnCanonicalVisualObjectInSamePackage()
+    public void Preview_AcceptsClientScriptDependencyAndEventReferenceOnCanonicalVisualObjectInSamePackage()
     {
         using var harness = new Harness();
         var screenId = Guid.Parse("91000000-0000-0000-0000-000000000001");
@@ -30,7 +30,8 @@ public sealed class EngineeringVisualScriptObjectReferenceTests
         Assert.True(preview.CanApply);
         Assert.DoesNotContain(
             preview.Items.SelectMany(item => item.Issues),
-            issue => issue.Code == "SCRIPT_DEPENDENCY_REFERENCE_MISSING");
+            issue => issue.Code is "SCRIPT_DEPENDENCY_REFERENCE_MISSING" or
+                "SCRIPT_VISUAL_OBJECT_REFERENCE_MISSING");
     }
 
     [Fact]
@@ -73,13 +74,27 @@ public sealed class EngineeringVisualScriptObjectReferenceTests
             "scripts/client/object-reference",
             "Object reference",
             ScriptEngineeringScope.ClientVisual,
-            "value = 1",
+            "def on_click():\n    return None\n",
+            entryPoints:
+            [
+                new ScriptEngineeringEntryPoint(
+                    ScriptEngineeringEventKind.ObjectInteraction,
+                    "on_click",
+                    "rectangle")
+            ],
             dependencies:
             [
                 new ScriptEngineeringDependency(
                     ScriptEngineeringDependencyKind.VisualObject,
                     ScriptEngineeringReferenceKeys.VisualObject(screenId, dependencyObjectId))
             ]);
+        var visualReference = new ScriptVisualEventReference(
+            screenId,
+            objectId,
+            ScriptEngineeringEventKind.ObjectInteraction,
+            scriptId,
+            "on_click",
+            "rectangle");
 
         return new EngineeringPackage(
             EngineeringExchangeService.CurrentSchema,
@@ -88,7 +103,8 @@ public sealed class EngineeringVisualScriptObjectReferenceTests
             Array.Empty<TagEngineeringDto>(),
             Array.Empty<AlarmEngineeringDto>(),
             Screens: [screen],
-            Scripts: [script]);
+            Scripts: [script],
+            ScriptVisualEventReferences: [visualReference]);
     }
 
     private sealed class Harness : IDisposable

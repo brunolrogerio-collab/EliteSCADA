@@ -34,6 +34,7 @@ export type VisualPropertyDefinitionBase<TType extends VisualPropertyType, TValu
 export type NumberVisualPropertyDefinition = VisualPropertyDefinitionBase<'number', number> & Readonly<{
   minimum?: number;
   maximum?: number;
+  integer?: boolean;
 }>;
 
 export type BooleanVisualPropertyDefinition = VisualPropertyDefinitionBase<'boolean', boolean>;
@@ -58,6 +59,7 @@ export type VisualPropertyValidationCode =
   | 'property.unregistered'
   | 'value.type'
   | 'number.nonFinite'
+  | 'number.integer'
   | 'number.minimum'
   | 'number.maximum'
   | 'color.format'
@@ -105,17 +107,28 @@ export function isAssetReference(value: unknown): value is AssetReference {
   const allowedKeys = new Set(['assetId', 'name', 'mediaType']);
   if (Object.keys(value).some(key => !allowedKeys.has(key))) return false;
   if (!isStableAssetId(value.assetId)) return false;
-  if (value.name !== undefined && typeof value.name !== 'string') return false;
-  if (value.mediaType !== undefined && typeof value.mediaType !== 'string') return false;
+  if (value.name !== undefined && !isSafeAssetDisplayName(value.name)) return false;
+  if (value.mediaType !== undefined && !isSafeImageMediaType(value.mediaType)) return false;
 
   return true;
 }
 
+/**
+ * Accept a stable project-owned asset identity, never a filesystem path or URL.
+ * Bare opaque IDs are allowed for future canonical backends. If a namespace is
+ * present, Wave 07 reserves only the explicit project `asset:` namespace.
+ */
 export function isStableAssetId(value: unknown): value is string {
-  return typeof value === 'string' &&
-    value.length >= 1 &&
-    value.length <= 128 &&
-    /^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(value);
+  if (typeof value !== 'string' || value.length < 1 || value.length > 128 || value !== value.trim()) {
+    return false;
+  }
+  if (/[\\/\u0000-\u001F\u007F]/.test(value)) return false;
+
+  const candidate = value.startsWith('asset:') ? value.slice('asset:'.length) : value;
+  if (value.includes(':') && !value.startsWith('asset:')) return false;
+  if (!candidate || candidate.includes(':')) return false;
+
+  return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(candidate);
 }
 
 export function isStableVisualToken(value: unknown): value is string {
@@ -124,6 +137,20 @@ export function isStableVisualToken(value: unknown): value is string {
     value.length <= 160 &&
     value === value.trim() &&
     !/[\u0000-\u001F\u007F]/.test(value);
+}
+
+function isSafeAssetDisplayName(value: unknown): value is string {
+  return typeof value === 'string' &&
+    value.length >= 1 &&
+    value.length <= 256 &&
+    value === value.trim() &&
+    !/[\u0000-\u001F\u007F]/.test(value);
+}
+
+function isSafeImageMediaType(value: unknown): value is string {
+  return typeof value === 'string' &&
+    value.length <= 96 &&
+    /^image\/[A-Za-z0-9][A-Za-z0-9.+-]*$/.test(value);
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {

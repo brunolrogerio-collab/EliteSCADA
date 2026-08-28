@@ -1,4 +1,5 @@
 import { expect, request as playwrightRequest, test } from '@playwright/test';
+import type { APIRequestContext } from '@playwright/test';
 import {
   buildCanonicalScriptPackage,
   canonicalScriptPackageFingerprint,
@@ -12,8 +13,7 @@ import type {
   CanonicalScriptPackage,
   ScriptEngineeringDefinition,
   ScriptImportPreview,
-  ScriptMutationPreviewToken,
-  ScriptVisualEventReference
+  ScriptMutationPreviewToken
 } from '../src/engineering/scripts/scriptEngineeringTypes';
 import { createE2eJwt } from './jwt';
 
@@ -216,14 +216,14 @@ function previewResult(canApply: boolean, createCount: number, updateCount: numb
   return { mode: 0, createCount, updateCount, skipCount: 0, errorCount: canApply ? 0 : 1, items: [], canApply };
 }
 
-async function workspace(request: Parameters<typeof preview>[0]): Promise<{ changeVersion: number }> {
+async function workspace(request: APIRequestContext): Promise<{ changeVersion: number }> {
   const response = await request.get('/api/engineering/workspace');
   expect(response.ok()).toBeTruthy();
   return await response.json() as { changeVersion: number };
 }
 
 async function preview(
-  request: { post: Function },
+  request: APIRequestContext,
   packageData: CanonicalScriptPackage,
   mode: 'CreateOnly' | 'UpdateExisting'
 ): Promise<ScriptImportPreview> {
@@ -236,7 +236,7 @@ async function preview(
 }
 
 async function apply(
-  request: { post: Function },
+  request: APIRequestContext,
   packageData: CanonicalScriptPackage,
   mode: 'CreateOnly' | 'UpdateExisting',
   expectedChangeVersion: number
@@ -247,7 +247,7 @@ async function apply(
   });
 }
 
-async function bestEffortDelete(request: { get: Function; delete: Function }, scriptId: string): Promise<void> {
+async function bestEffortDelete(request: APIRequestContext, scriptId: string): Promise<void> {
   const current = await request.get('/api/engineering/workspace');
   if (!current.ok()) return;
   const descriptor = await current.json() as { changeVersion: number };

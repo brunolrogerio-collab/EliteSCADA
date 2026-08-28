@@ -179,8 +179,10 @@ public sealed record DynamoEngineeringDto(
 /// <summary>
 /// Canonical Engineering node for a visual-object tree. Id is the stable object
 /// identity used by Runtime/script references. It remains optional on input so
-/// legacy schema-v10 packages can still be parsed; view registries assign and
+/// legacy schema-v10/v11 packages can still be parsed; view registries assign and
 /// then preserve an identity when such legacy elements are first materialized.
+/// Properties are JSON-native from schema v12 onward; legacy string-valued bags
+/// remain readable only through the explicit schema migration boundary.
 /// Key remains the developer-facing sibling-local name and is not identity.
 /// </summary>
 public sealed record VisualElementEngineeringDto(
@@ -189,7 +191,7 @@ public sealed record VisualElementEngineeringDto(
     string? DynamoKey = null,
     string? EquipmentPath = null,
     IReadOnlyCollection<EngineeringBindingDto>? Bindings = null,
-    Dictionary<string, string>? Properties = null,
+    Dictionary<string, JsonElement>? Properties = null,
     Dictionary<string, string>? Context = null,
     IReadOnlyCollection<VisualElementEngineeringDto>? Children = null,
     Dictionary<string, string>? Metadata = null,

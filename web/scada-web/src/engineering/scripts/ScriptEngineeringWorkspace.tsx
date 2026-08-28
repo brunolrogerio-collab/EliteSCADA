@@ -261,7 +261,7 @@ export function ScriptEngineeringWorkspace({ locale }: { locale: EngineeringLoca
               <EditorCollectionHeader title={copy.entryPoints} hint={copy.entryPointsHint} action={copy.addEntryPoint} onAdd={() => patchDraft({ entryPoints: [...draft.entryPoints, { eventKind: 'initialize', handlerName: 'initialize', targetReference: null }] })} />
               <div className="script-rows">
                 {draft.entryPoints.map((entry, index) => (
-                  <div className="script-row script-row--entry" key={`${index}-${entry.eventKind}-${entry.handlerName}`}>
+                  <div className="script-row script-row--entry" key={`entry-${index}`}>
                     <label>{copy.event}<select value={entry.eventKind} onChange={event => patchDraft({ entryPoints: draft.entryPoints.map((item, itemIndex) => itemIndex === index ? { ...item, eventKind: event.target.value as typeof entry.eventKind } : item) })}>{SCRIPT_EVENT_KINDS.map(kind => <option key={kind} value={kind}>{eventKindLabel(kind)}</option>)}</select></label>
                     <label>{copy.handler}<input value={entry.handlerName} onChange={event => patchDraft({ entryPoints: draft.entryPoints.map((item, itemIndex) => itemIndex === index ? { ...item, handlerName: event.target.value } : item) })} /></label>
                     <label>{copy.target}<input value={entry.targetReference ?? ''} onChange={event => patchDraft({ entryPoints: draft.entryPoints.map((item, itemIndex) => itemIndex === index ? { ...item, targetReference: event.target.value || null } : item) })} /></label>
@@ -273,7 +273,7 @@ export function ScriptEngineeringWorkspace({ locale }: { locale: EngineeringLoca
               <EditorCollectionHeader title={copy.dependencies} hint={copy.dependenciesHint} action={copy.addDependency} onAdd={() => patchDraft({ dependencies: [...draft.dependencies, { kind: 'script', stableReference: '' }] })} />
               <div className="script-rows">
                 {draft.dependencies.map((dependency, index) => (
-                  <div className="script-row script-row--dependency" key={`${index}-${dependency.kind}-${dependency.stableReference}`}>
+                  <div className="script-row script-row--dependency" key={`dependency-${index}`}>
                     <label>{copy.kind}<select value={dependency.kind} onChange={event => patchDraft({ dependencies: draft.dependencies.map((item, itemIndex) => itemIndex === index ? { ...item, kind: event.target.value as typeof dependency.kind } : item) })}>{SCRIPT_DEPENDENCY_KINDS.map(kind => <option key={kind} value={kind}>{dependencyKindLabel(kind)}</option>)}</select></label>
                     <label>{copy.stableReference}<input value={dependency.stableReference} onChange={event => patchDraft({ dependencies: draft.dependencies.map((item, itemIndex) => itemIndex === index ? { ...item, stableReference: event.target.value } : item) })} /></label>
                     <button type="button" className="danger ghost" onClick={() => patchDraft({ dependencies: draft.dependencies.filter((_, itemIndex) => itemIndex !== index) })}>{copy.remove}</button>

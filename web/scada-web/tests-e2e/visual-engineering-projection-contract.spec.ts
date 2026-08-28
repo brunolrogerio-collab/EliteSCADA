@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import {
   COMMON_VISUAL_PROPERTY_REGISTRY,
+  RuntimeVisualInstance,
   VISUAL_PROPERTY_KEYS,
   VisualObjectPropertySchema,
   VisualPropertyRegistry,
@@ -8,7 +9,7 @@ import {
   type VisualPropertyDefinition
 } from '../src/visual-runtime';
 
-test('Engineering projection applies registered defaults and validated base values only', () => {
+test('Engineering projection preserves only explicit validated base values while registry defaults stay separate', () => {
   const schema = new VisualObjectPropertySchema('basic.rectangle', [
     VISUAL_PROPERTY_KEYS.x,
     VISUAL_PROPERTY_KEYS.y,
@@ -47,13 +48,25 @@ test('Engineering projection applies registered defaults and validated base valu
   expect({ ...projection.baseProperties }).toEqual({
     x: 12.5,
     y: 40,
-    width: 100,
-    height: 100,
-    visible: true,
     opacity: 0.65,
     fillColor: '#336699CC',
     text: 'Pump A'
   });
+  expect(schema.createDefaultBaseValues()).toMatchObject({
+    width: 100,
+    height: 100,
+    visible: true
+  });
+
+  const runtime = new RuntimeVisualInstance({
+    definition: projection,
+    schema,
+    runtimeInstanceId: 'runtime:rect-1'
+  });
+  expect(runtime.readEffective('x')).toEqual({ propertyKey: 'x', value: 12.5, source: 'engineering' });
+  expect(runtime.readEffective('width')).toEqual({ propertyKey: 'width', value: 100, source: 'default' });
+  expect(runtime.readEffective('visible')).toEqual({ propertyKey: 'visible', value: true, source: 'default' });
+
   expect(projection.bindings).toEqual([
     { propertyKey: 'visible', sourceKind: 'binding', sourceReference: 'tag:pump-running' }
   ]);
@@ -134,7 +147,7 @@ test('projection rejects undeclared properties, unsupported bindings and duplica
   }, xOnly)).toThrow(/more than one definition-level binding/);
 });
 
-test('projection respects Engineering editability from the same registry definition', () => {
+test('projection respects Engineering editability without silently materializing registry defaults', () => {
   const lockedDefinition = {
     key: 'internalValue',
     type: 'number',
@@ -153,7 +166,19 @@ test('projection respects Engineering editability from the same registry definit
     key: 'internal1',
     objectType: 'internal.object'
   }, schema);
-  expect(defaults.baseProperties.internalValue).toBe(1);
+  expect({ ...defaults.baseProperties }).toEqual({});
+  expect(schema.createDefaultBaseValues().internalValue).toBe(1);
+
+  const runtime = new RuntimeVisualInstance({
+    definition: defaults,
+    schema,
+    runtimeInstanceId: 'runtime:internal-1'
+  });
+  expect(runtime.readEffective('internalValue')).toEqual({
+    propertyKey: 'internalValue',
+    value: 1,
+    source: 'default'
+  });
 
   expect(() => projectVisualEngineeringDefinition({
     objectId: 'object:internal-2',

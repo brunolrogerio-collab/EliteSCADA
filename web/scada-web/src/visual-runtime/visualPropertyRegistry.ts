@@ -283,7 +283,7 @@ const COMMON_VISUAL_PROPERTY_DEFINITIONS: readonly VisualPropertyDefinition[] = 
   {
     key: VISUAL_PROPERTY_KEYS.assetRef,
     type: 'assetRef',
-    defaultValue: { assetId: 'asset:none' },
+    defaultValue: null,
     engineeringEditable: true,
     runtimeReadable: true,
     runtimeWritable: false,
@@ -380,9 +380,10 @@ function validateValueForDefinition(
         ? success(definition.key, value)
         : failure(definition.key, 'enum.value');
     case 'assetRef':
+      if (value === null) return success(definition.key, null);
       return isAssetReference(value)
         ? success(definition.key, Object.freeze({ ...value }))
-        : failure(definition.key, 'assetRef.shape', 'Expected a stable project AssetReference.');
+        : failure(definition.key, 'assetRef.shape', 'Expected null or a stable project AssetReference.');
   }
 }
 
@@ -408,7 +409,9 @@ function freezeDefinition(definition: VisualPropertyDefinition): VisualPropertyD
   if (definition.type === 'assetRef') {
     return Object.freeze({
       ...definition,
-      defaultValue: Object.freeze({ ...definition.defaultValue })
+      defaultValue: definition.defaultValue === null
+        ? null
+        : Object.freeze({ ...definition.defaultValue })
     });
   }
   return Object.freeze({ ...definition });

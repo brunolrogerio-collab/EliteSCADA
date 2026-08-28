@@ -1,8 +1,10 @@
+using System.Text.Json;
 using Scada.Core.Tags;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Validation;
 using Scada.Engineering.Views;
+using Scada.Engineering.VisualAssets;
 using Scada.Engineering.VisualScripting;
 
 namespace Scada.Engineering.ImportExport.Handlers;
@@ -12,15 +14,18 @@ internal sealed class ViewEngineeringHandler
     private readonly IEngineeringViewRegistry _views;
     private readonly IEngineeringAssetRegistry _assets;
     private readonly ITagRegistry _tags;
+    private readonly IVisualAssetEngineeringRegistry _visualAssets;
 
     public ViewEngineeringHandler(
         IEngineeringViewRegistry views,
         IEngineeringAssetRegistry assets,
-        ITagRegistry tags)
+        ITagRegistry tags,
+        IVisualAssetEngineeringRegistry? visualAssets = null)
     {
         _views = views;
         _assets = assets;
         _tags = tags;
+        _visualAssets = visualAssets ?? new InMemoryVisualAssetEngineeringRegistry();
     }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
@@ -173,6 +178,8 @@ internal sealed class ViewEngineeringHandler
                 entityKey,
                 package.SchemaVersion));
 
+            ValidateVisualAssetReference(element, kind, entityKey, package, issues);
+
             EngineeringHandlerSupport.ValidateConcreteTagBindings(
                 _tags, element.Bindings, kind, entityKey, package, issues);
 
@@ -199,6 +206,67 @@ internal sealed class ViewEngineeringHandler
             ValidateVisualReferences(element.Children, kind, entityKey, package, issues);
         }
     }
+
+    private void ValidateVisualAssetReference(
+        VisualElementEngineeringDto element,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        // First-class project image assets were introduced in schema v13. Older
+        // packages retain the Wave-07 syntactic assetRef contract without having
+        // a project asset collection to resolve against.
+        if (package.SchemaVersion < 13 ||
+            !element.Type.Equals("core.image", StringComparison.Ordinal) ||
+            element.Properties is null ||
+            !element.Properties.TryGetValue("assetRef", out var serialized) ||
+            serialized.ValueKind == JsonValueKind.Null)
+            return;
+
+        if (serialized.ValueKind != JsonValueKind.Object)
+            return; // BuiltinVisualEngineeringValidation reports the malformed value.
+
+        var fields = serialized.EnumerateObject().ToArray();
+        if (fields.Length != 1 ||
+            !fields[0].NameEquals("assetId") ||
+            fields[0].Value.ValueKind != JsonValueKind.String)
+            return; // The property-schema validator owns shape diagnostics.
+
+        var reference = fields[0].Value.GetString();
+        if (string.IsNullOrWhiteSpace(reference))
+            return; // The public property validator already rejects an unstable identity.
+
+        var guidText = reference.StartsWith("asset:", StringComparison.Ordinal)
+            ? reference["asset:".Length..]
+            : reference;
+
+        if (!Guid.TryParse(guidText, out var assetId) || assetId == Guid.Empty)
+        {
+            issues.Add(new ImportIssue(
+                "VISUAL_ASSET_REFERENCE_ID_INVALID",
+                $"Visual element '{element.Key}' assetRef must identify a stable Visual Asset GUID.",
+                kind,
+                entityKey,
+                true));
+            return;
+        }
+
+        if (VisualAssetExists(assetId, package))
+            return;
+
+        issues.Add(new ImportIssue(
+            "VISUAL_ASSET_REFERENCE_NOT_FOUND",
+            $"Visual element '{element.Key}' references Visual Asset '{reference}', which does not exist in the prospective Engineering model.",
+            kind,
+            entityKey,
+            true));
+    }
+
+    private bool VisualAssetExists(Guid id, EngineeringPackage package) =>
+        _visualAssets.FindAsset(id) is not null ||
+        (package.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>())
+            .Any(x => x is not null && x.Id == id);
 
     private bool TemplateExists(string key, EngineeringPackage package) =>
         _assets.FindTemplateByKey(key) is not null ||

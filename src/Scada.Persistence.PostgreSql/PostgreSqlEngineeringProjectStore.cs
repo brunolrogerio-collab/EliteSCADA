@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using Npgsql;
 using NpgsqlTypes;
@@ -69,6 +70,28 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
             activated_by varchar(300) NULL
         );
 
+        CREATE TABLE IF NOT EXISTS elitescada.engineering_asset_blobs (
+            sha256 char(64) PRIMARY KEY,
+            media_type varchar(100) NOT NULL,
+            byte_length bigint NOT NULL CHECK (byte_length > 0),
+            payload bytea NOT NULL,
+            created_at_utc timestamptz NOT NULL DEFAULT clock_timestamp()
+        );
+
+        CREATE TABLE IF NOT EXISTS elitescada.engineering_revision_assets (
+            revision bigint NOT NULL REFERENCES elitescada.engineering_revisions(revision) ON DELETE CASCADE,
+            project_key varchar(200) NOT NULL,
+            asset_id uuid NOT NULL,
+            sha256 char(64) NOT NULL REFERENCES elitescada.engineering_asset_blobs(sha256),
+            PRIMARY KEY (revision, asset_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS ix_engineering_revision_assets_project_revision
+            ON elitescada.engineering_revision_assets (project_key, revision);
+
+        CREATE INDEX IF NOT EXISTS ix_engineering_revision_assets_sha256
+            ON elitescada.engineering_revision_assets (sha256);
+
         INSERT INTO elitescada.schema_migrations (migration_key)
         VALUES ('001_engineering_revisions')
         ON CONFLICT (migration_key) DO NOTHING;
@@ -83,6 +106,10 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
 
         INSERT INTO elitescada.schema_migrations (migration_key)
         VALUES ('004_engineering_revision_lineage')
+        ON CONFLICT (migration_key) DO NOTHING;
+
+        INSERT INTO elitescada.schema_migrations (migration_key)
+        VALUES ('005_engineering_visual_asset_blobs')
         ON CONFLICT (migration_key) DO NOTHING;
         """;
 
@@ -113,17 +140,18 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         string engineeringJson,
         string? savedBy = null,
         CancellationToken cancellationToken = default) =>
-        SaveDerivedAsync(
+        SaveDerivedWithAssetsAsync(
             projectKey,
             projectName,
             engineeringSchema,
             engineeringSchemaVersion,
             engineeringJson,
             null,
+            Array.Empty<EngineeringRevisionAssetPayload>(),
             savedBy,
             cancellationToken);
 
-    public async Task<EngineeringProjectSnapshot> SaveDerivedAsync(
+    public Task<EngineeringProjectSnapshot> SaveDerivedAsync(
         string projectKey,
         string projectName,
         string engineeringSchema,
@@ -131,14 +159,39 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         string engineeringJson,
         long? basedOnRevision,
         string? savedBy = null,
+        CancellationToken cancellationToken = default) =>
+        SaveDerivedWithAssetsAsync(
+            projectKey,
+            projectName,
+            engineeringSchema,
+            engineeringSchemaVersion,
+            engineeringJson,
+            basedOnRevision,
+            Array.Empty<EngineeringRevisionAssetPayload>(),
+            savedBy,
+            cancellationToken);
+
+    public async Task<EngineeringProjectSnapshot> SaveDerivedWithAssetsAsync(
+        string projectKey,
+        string projectName,
+        string engineeringSchema,
+        int engineeringSchemaVersion,
+        string engineeringJson,
+        long? basedOnRevision,
+        IReadOnlyCollection<EngineeringRevisionAssetPayload> assets,
+        string? savedBy = null,
         CancellationToken cancellationToken = default)
     {
         ValidateIdentity(projectKey, projectName, engineeringSchema, engineeringSchemaVersion);
         ValidateJson(engineeringJson);
+        ArgumentNullException.ThrowIfNull(assets);
         if (basedOnRevision is < 1)
             throw new ArgumentOutOfRangeException(nameof(basedOnRevision));
 
-        const string sql = """
+        var normalizedProjectKey = projectKey.Trim();
+        var normalizedAssets = NormalizeAssets(assets);
+
+        const string insertRevisionSql = """
             INSERT INTO elitescada.engineering_revisions (
                 project_key,
                 project_name,
@@ -164,8 +217,10 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
             RETURNING revision, saved_at_utc;
             """;
 
-        await using var command = _dataSource.CreateCommand(sql);
-        command.Parameters.AddWithValue("project_key", projectKey.Trim());
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(insertRevisionSql, connection, transaction);
+        command.Parameters.AddWithValue("project_key", normalizedProjectKey);
         command.Parameters.AddWithValue("project_name", projectName.Trim());
         command.Parameters.AddWithValue("engineering_schema", engineeringSchema.Trim());
         command.Parameters.AddWithValue("engineering_schema_version", engineeringSchemaVersion);
@@ -173,25 +228,100 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         command.Parameters.AddWithValue("based_on_revision", NpgsqlDbType.Bigint, (object?)basedOnRevision ?? DBNull.Value);
         command.Parameters.AddWithValue("payload", NpgsqlDbType.Jsonb, engineeringJson);
 
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (!await reader.ReadAsync(cancellationToken))
+        long revision;
+        DateTimeOffset savedAtUtc;
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
         {
-            throw new InvalidOperationException(
-                basedOnRevision.HasValue
-                    ? $"Engineering base revision {basedOnRevision} does not belong to project '{projectKey.Trim()}'."
-                    : "PostgreSQL did not return the saved engineering revision.");
+            if (!await reader.ReadAsync(cancellationToken))
+            {
+                throw new InvalidOperationException(
+                    basedOnRevision.HasValue
+                        ? $"Engineering base revision {basedOnRevision} does not belong to project '{normalizedProjectKey}'."
+                        : "PostgreSQL did not return the saved engineering revision.");
+            }
+
+            revision = reader.GetInt64(0);
+            savedAtUtc = ReadTimestamp(reader, 1);
         }
 
+        foreach (var payload in normalizedAssets
+                     .GroupBy(x => x.Sha256, StringComparer.OrdinalIgnoreCase)
+                     .Select(x => x.First()))
+            await EnsureBlobAsync(connection, transaction, payload, cancellationToken);
+
+        const string linkSql = """
+            INSERT INTO elitescada.engineering_revision_assets (
+                revision,
+                project_key,
+                asset_id,
+                sha256)
+            VALUES (@revision, @project_key, @asset_id, @sha256);
+            """;
+
+        foreach (var payload in normalizedAssets)
+        {
+            await using var link = new NpgsqlCommand(linkSql, connection, transaction);
+            link.Parameters.AddWithValue("revision", revision);
+            link.Parameters.AddWithValue("project_key", normalizedProjectKey);
+            link.Parameters.AddWithValue("asset_id", payload.AssetId);
+            link.Parameters.AddWithValue("sha256", payload.Sha256);
+            await link.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+
         return new EngineeringProjectSnapshot(
-            reader.GetInt64(0),
-            projectKey.Trim(),
+            revision,
+            normalizedProjectKey,
             projectName.Trim(),
             engineeringSchema.Trim(),
             engineeringSchemaVersion,
-            ReadTimestamp(reader, 1),
+            savedAtUtc,
             engineeringJson,
             NormalizeOptional(savedBy),
             basedOnRevision);
+    }
+
+    public async Task<IReadOnlyCollection<EngineeringRevisionAssetPayload>> LoadRevisionAssetsAsync(
+        string projectKey,
+        long revision,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateProjectKey(projectKey);
+        if (revision < 1)
+            throw new ArgumentOutOfRangeException(nameof(revision));
+
+        const string sql = """
+            SELECT
+                links.asset_id,
+                links.sha256,
+                blobs.media_type,
+                blobs.payload
+            FROM elitescada.engineering_revision_assets links
+            INNER JOIN elitescada.engineering_asset_blobs blobs ON blobs.sha256 = links.sha256
+            INNER JOIN elitescada.engineering_revisions revisions ON revisions.revision = links.revision
+            WHERE links.project_key = @project_key
+              AND links.revision = @revision
+              AND revisions.project_key = @project_key
+            ORDER BY links.asset_id;
+            """;
+
+        await using var command = _dataSource.CreateCommand(sql);
+        command.Parameters.AddWithValue("project_key", projectKey.Trim());
+        command.Parameters.AddWithValue("revision", revision);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var assets = new List<EngineeringRevisionAssetPayload>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            assets.Add(new EngineeringRevisionAssetPayload(
+                reader.GetGuid(0),
+                reader.GetString(1).Trim(),
+                reader.GetString(2),
+                reader.GetFieldValue<byte[]>(3)));
+        }
+
+        return assets;
     }
 
     public async Task<EngineeringProjectSnapshot?> LoadLatestAsync(
@@ -412,6 +542,75 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
     }
 
     public ValueTask DisposeAsync() => _dataSource.DisposeAsync();
+
+    private static async Task EnsureBlobAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        EngineeringRevisionAssetPayload payload,
+        CancellationToken cancellationToken)
+    {
+        const string insertSql = """
+            INSERT INTO elitescada.engineering_asset_blobs (sha256, media_type, byte_length, payload)
+            VALUES (@sha256, @media_type, @byte_length, @payload)
+            ON CONFLICT (sha256) DO NOTHING;
+            """;
+
+        await using (var insert = new NpgsqlCommand(insertSql, connection, transaction))
+        {
+            insert.Parameters.AddWithValue("sha256", payload.Sha256);
+            insert.Parameters.AddWithValue("media_type", payload.MediaType);
+            insert.Parameters.AddWithValue("byte_length", payload.ByteLength);
+            insert.Parameters.AddWithValue("payload", NpgsqlDbType.Bytea, payload.Content);
+            await insert.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        const string verifySql = """
+            SELECT media_type, byte_length, payload
+            FROM elitescada.engineering_asset_blobs
+            WHERE sha256 = @sha256;
+            """;
+        await using var verify = new NpgsqlCommand(verifySql, connection, transaction);
+        verify.Parameters.AddWithValue("sha256", payload.Sha256);
+        await using var reader = await verify.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+            throw new InvalidDataException($"Visual asset blob '{payload.Sha256}' could not be persisted.");
+
+        var storedMediaType = reader.GetString(0);
+        var storedLength = reader.GetInt64(1);
+        var storedPayload = reader.GetFieldValue<byte[]>(2);
+        if (!storedMediaType.Equals(payload.MediaType, StringComparison.OrdinalIgnoreCase) ||
+            storedLength != payload.ByteLength ||
+            !storedPayload.AsSpan().SequenceEqual(payload.Content))
+            throw new InvalidDataException($"Visual asset blob '{payload.Sha256}' conflicts with previously persisted content.");
+    }
+
+    private static EngineeringRevisionAssetPayload[] NormalizeAssets(
+        IReadOnlyCollection<EngineeringRevisionAssetPayload> assets)
+    {
+        var duplicateAssetId = assets.GroupBy(x => x.AssetId).FirstOrDefault(x => x.Count() > 1);
+        if (duplicateAssetId is not null)
+            throw new InvalidDataException($"Visual asset ID '{duplicateAssetId.Key}' appears more than once in the revision payload set.");
+
+        return assets.Select(asset =>
+        {
+            if (asset.AssetId == Guid.Empty)
+                throw new InvalidDataException("Visual asset revision payload requires a non-empty asset ID.");
+            if (string.IsNullOrWhiteSpace(asset.MediaType))
+                throw new InvalidDataException($"Visual asset '{asset.AssetId}' media type is required.");
+            if (asset.Content is null || asset.Content.Length == 0)
+                throw new InvalidDataException($"Visual asset '{asset.AssetId}' content is required.");
+
+            var actualHash = Convert.ToHexString(SHA256.HashData(asset.Content)).ToLowerInvariant();
+            if (!actualHash.Equals(asset.Sha256, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException($"Visual asset '{asset.AssetId}' SHA-256 does not match its content.");
+
+            return asset with
+            {
+                Sha256 = actualHash,
+                Content = asset.Content.ToArray()
+            };
+        }).ToArray();
+    }
 
     private static EngineeringProjectSnapshot ReadSnapshot(NpgsqlDataReader reader) => new(
         reader.GetInt64(0),

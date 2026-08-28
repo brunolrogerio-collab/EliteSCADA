@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
@@ -34,7 +35,7 @@ public sealed class EngineeringViewExchangeTests
                     "pressure",
                     "value",
                     Bindings: new[] { new EngineeringBindingDto("value", EngineeringBindingKind.Tag, "Plant.Pressure", "read") },
-                    Properties: new() { ["label"] = "Pressure" },
+                    Properties: new() { ["label"] = JsonSerializer.SerializeToElement("Pressure") },
                     Context: new() { ["area"] = "Plant" })
             },
             Properties: new() { ["canvasWidth"] = "1366" }));
@@ -60,7 +61,7 @@ public sealed class EngineeringViewExchangeTests
         var screen = Assert.Single(package.Screens!);
         var popup = Assert.Single(package.Popups!);
         Assert.Equal("/plant", screen.Route);
-        Assert.Equal("Pressure", screen.Elements!.Single().Properties!["label"]);
+        Assert.Equal("Pressure", screen.Elements!.Single().Properties!["label"].GetString());
         Assert.Equal("pump.standard", popup.TemplateKey);
         Assert.Equal("{equipmentPath}.Current", popup.Elements!.Single().Bindings!.Single().Target);
         Assert.Equal("equipment-details", popup.Context!["role"]);

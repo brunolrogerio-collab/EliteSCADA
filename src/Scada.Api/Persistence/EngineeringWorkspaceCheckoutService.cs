@@ -9,6 +9,7 @@ using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.Views;
+using Scada.Engineering.VisualAssets;
 
 namespace Scada.Api.Persistence;
 
@@ -53,8 +54,8 @@ public sealed class EngineeringWorkspaceCheckoutService(
             var snapshot = await store.LoadRevisionAsync(projectKey.Trim(), revision, cancellationToken);
             if (snapshot is null) return null;
 
-            var package = ParseAndValidate(snapshot);
-            var preview = PreviewInIsolation(package);
+            var (package, importContext) = await ParseAndValidateAsync(snapshot, cancellationToken);
+            var preview = PreviewInIsolation(package, importContext);
             if (!preview.CanApply)
             {
                 return new EngineeringWorkspaceCheckoutOutcome(
@@ -64,24 +65,32 @@ public sealed class EngineeringWorkspaceCheckoutService(
                     workspace.Describe());
             }
 
+            await using var mutation = await workspace.AcquireMutationAsync(cancellationToken: cancellationToken);
+
             var backupJson = exchange.ExportJson(indented: false);
+            var backupPackage = exchange.ParseJson(backupJson);
+            var backupHashes = (backupPackage.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>())
+                .Select(x => x.Sha256)
+                .ToArray();
+            var backupContext = new EngineeringImportContext(
+                workspace.VisualAssets.SnapshotPayloads(backupHashes));
             var backupDescriptor = workspace.Describe();
             ImportResult apply;
 
             ClearWorkspace();
             try
             {
-                apply = exchange.Apply(package, ImportMode.CreateAndUpdate);
+                apply = exchange.Apply(package, ImportMode.CreateAndUpdate, importContext);
             }
             catch
             {
-                RestoreBackup(backupJson, backupDescriptor);
+                RestoreBackup(backupPackage, backupContext, backupDescriptor);
                 throw;
             }
 
             if (apply.Issues.Any(x => x.IsError))
             {
-                RestoreBackup(backupJson, backupDescriptor);
+                RestoreBackup(backupPackage, backupContext, backupDescriptor);
                 return new EngineeringWorkspaceCheckoutOutcome(
                     snapshot,
                     preview,
@@ -106,7 +115,9 @@ public sealed class EngineeringWorkspaceCheckoutService(
         }
     }
 
-    private EngineeringPackage ParseAndValidate(EngineeringProjectSnapshot snapshot)
+    private async Task<(EngineeringPackage Package, EngineeringImportContext Context)> ParseAndValidateAsync(
+        EngineeringProjectSnapshot snapshot,
+        CancellationToken cancellationToken)
     {
         var package = exchange.ParseJson(snapshot.EngineeringJson);
 
@@ -118,10 +129,52 @@ public sealed class EngineeringWorkspaceCheckoutService(
             throw new InvalidDataException(
                 $"Stored engineering schema version {snapshot.EngineeringSchemaVersion} does not match payload version {package.SchemaVersion}.");
 
-        return package;
+        var metadata = package.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>();
+        var stored = await store.LoadRevisionAssetsAsync(
+            snapshot.ProjectKey,
+            snapshot.Revision,
+            cancellationToken);
+
+        if (metadata.Count == 0)
+        {
+            if (stored.Count != 0)
+                throw new InvalidDataException("Stored revision contains unexpected visual asset payload links.");
+            return (package, EngineeringImportContext.Empty);
+        }
+
+        if (stored.Count != metadata.Count)
+            throw new InvalidDataException("Stored revision visual asset payload count does not match canonical metadata.");
+
+        var byAssetId = stored.ToDictionary(x => x.AssetId);
+        var byHash = new Dictionary<string, VisualAssetPayload>(StringComparer.OrdinalIgnoreCase);
+        foreach (var asset in metadata)
+        {
+            if (!asset.Id.HasValue || asset.Id.Value == Guid.Empty)
+                throw new InvalidDataException($"Stored visual asset '{asset.Key}' is missing a stable ID.");
+            if (!byAssetId.TryGetValue(asset.Id.Value, out var storedPayload))
+                throw new InvalidDataException($"Stored visual asset '{asset.Key}' payload link is missing.");
+            if (!storedPayload.Sha256.Equals(asset.Sha256, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException($"Stored visual asset '{asset.Key}' payload hash does not match canonical metadata.");
+
+            var payload = new VisualAssetPayload(
+                storedPayload.Sha256.ToLowerInvariant(),
+                storedPayload.MediaType,
+                storedPayload.Content.ToArray());
+
+            if (byHash.TryGetValue(payload.Sha256, out var existing) &&
+                (!existing.MediaType.Equals(payload.MediaType, StringComparison.OrdinalIgnoreCase) ||
+                 !existing.Content.AsSpan().SequenceEqual(payload.Content)))
+                throw new InvalidDataException($"Stored visual asset hash '{payload.Sha256}' maps to conflicting payloads.");
+
+            byHash[payload.Sha256] = payload;
+        }
+
+        return (package, new EngineeringImportContext(byHash));
     }
 
-    private static ImportPreview PreviewInIsolation(EngineeringPackage package)
+    private static ImportPreview PreviewInIsolation(
+        EngineeringPackage package,
+        EngineeringImportContext context)
     {
         var bus = new InMemoryScadaEventBus();
         using var alarms = new InMemoryAlarmEngine(bus);
@@ -132,19 +185,19 @@ public sealed class EngineeringWorkspaceCheckoutService(
             new InMemoryEngineeringAssetRegistry(),
             new InMemoryEngineeringViewRegistry());
 
-        return isolated.Preview(package, ImportMode.CreateAndUpdate);
+        return isolated.Preview(package, ImportMode.CreateAndUpdate, context);
     }
 
     private void RestoreBackup(
-        string backupJson,
+        EngineeringPackage backupPackage,
+        EngineeringImportContext backupContext,
         EngineeringWorkspaceDescriptor backupDescriptor)
     {
         ImportResult? restored = null;
         try
         {
-            var backup = exchange.ParseJson(backupJson);
             ClearWorkspace();
-            restored = exchange.Apply(backup, ImportMode.CreateAndUpdate);
+            restored = exchange.Apply(backupPackage, ImportMode.CreateAndUpdate, backupContext);
         }
         finally
         {

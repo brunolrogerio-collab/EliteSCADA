@@ -55,7 +55,13 @@ export function createClientVisualPythonCapabilityProvider(
       return memoryStore.read(reference) ?? null;
     },
 
-    readVisualProperty: visualPropertyProvider?.readVisualProperty,
+    readVisualProperty: visualPropertyProvider?.readVisualProperty
+      ? (targetReference, propertyKey, context) =>
+          visualPropertyProvider.readVisualProperty!(targetReference, propertyKey, context)
+      : undefined,
     writeVisualProperty: visualPropertyProvider?.writeVisualProperty
+      ? (targetReference, propertyKey, value, context) =>
+          visualPropertyProvider.writeVisualProperty!(targetReference, propertyKey, value, context)
+      : undefined
   };
 }

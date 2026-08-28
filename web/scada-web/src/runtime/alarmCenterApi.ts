@@ -4,7 +4,7 @@ import type {
   RuntimeAlarmCenterItem
 } from './alarmCenterTypes';
 
-const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
+const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
 export async function loadActiveRuntimeAlarms(
   signal?: AbortSignal

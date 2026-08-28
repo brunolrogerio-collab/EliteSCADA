@@ -1,7 +1,7 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-08-28  
-**Active direction:** **VISUAL-RUNTIME-WAVE-07 STATIC AUDIT CORRECTIONS COMPLETE / CI_DEFERRED / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
+**Active direction:** **VISUAL-RUNTIME-WAVE-07 THIRD STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
 
 Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
 Parallel execution model: `docs/DEVELOPMENT-WAVES.md`.  
@@ -54,7 +54,7 @@ Wave 03  Operational lifecycle + Runtime TAG Inspector + acceptance foundation  
 Wave 04  Project portability + basic Trends + Administration                        COMPLETE
 Wave 05  Canonical Script Engineering                                                COMPLETE
 Wave 06  Python Editor + Client Visual sandbox                                       COMPLETE
-Wave 07  Visual Runtime Object Model + visual Asset contract                         STATIC AUDIT CORRECTIONS COMPLETE / CI_DEFERRED
+Wave 07  Visual Runtime Object Model + visual Asset contract                         THIRD STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED
 Wave 08  Graphical Editor Foundation + image import/object                           WAITING
 Wave 09  Screens + Popups + Dynamos + asset dependencies
 Wave 10  Python visual events + animation + preview
@@ -70,12 +70,12 @@ Do not skip dependencies simply because later research already exists.
 
 ## Wave 07 — Visual Runtime Object Model
 
-**STATIC AUDIT CORRECTIONS COMPLETE / CI_DEFERRED / NOT MERGE-READY.**
+**THIRD STATIC AUDIT HARDENING COMPLETE / CI_DEFERRED / NOT MERGE-READY.**
 
 - Logical WaveBaseSHA: `cc79713434c1d7b5988158b843b137eaf488d923`
 - ContractSHA: `06faf079bc5185689712bd2c9a225c2bb8d90999`
 - Integration branch: `integration/visual-runtime-wave-07`
-- Exact current integration head: `63878f6fe28a0a9ac101d622628f8b95658899a7`
+- Exact current integration head: `d184fdd5b65f2ce0c0e6ca28cd092644be080555`
 - Integration PR: intentionally not open while Actions are deferred
 - Implementation contract: `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`
 - Canonical convergence/readiness contract: `docs/VISUAL-CANONICAL-CONVERGENCE-07-TO-08.md`
@@ -83,7 +83,7 @@ Do not skip dependencies simply because later research already exists.
 Implemented/hardened on the integration branch:
 
 - typed Visual Property Registry with explicit `number`, `boolean`, `string`, `color`, `enum`, `assetRef` types;
-- stable common property keys, defaults and constraints, including integer-only `zIndex`;
+- stable common property keys/defaults/constraints and signed-Int32 parity for integer properties;
 - stable project-owned AssetReference validation with path/URL-like authority rejection and null no-asset state;
 - renderer-independent Engineering visual-definition projection;
 - explicit separation between **Engineering Base** and **registry Default**;
@@ -96,7 +96,10 @@ Implemented/hardened on the integration branch:
 - validated-value propagation into Runtime layers;
 - `runtimeReadable`/`runtimeWritable` enforcement;
 - renderer-independent Client Visual Python property capability bound to the exact current Runtime Visual Instance and stable target ID/key;
-- official Client Visual Python provider composition for TAG + Client Memory + visual-property authority without changing the sandbox Worker;
+- explicit Python Script override **set and clear** semantics without using null as a clear sentinel;
+- official Client Visual Python provider composition for TAG + Client Memory + visual-property authority;
+- actual Pyodide Worker module exposure of `elite_scada.visual_property_clear` through the existing bridge-v1 `visualProperty.write` capability with operation `clear`;
+- malformed visual Engineering input handled as Preview issues rather than null-dereference exceptions through generic, built-in, reference and concrete-TAG validation paths;
 - Python ↔ Visual acceptance/adversarial tests covering property authority, instance isolation, disposal, AssetReference restrictions, current-instance/current-target enforcement and DOM/renderer-private authority denial;
 - source/public-surface tests preventing internal registry seams from leaking as public API.
 
@@ -109,8 +112,8 @@ Coordinator canonical convergence additionally established:
 - C#/TypeScript common property catalog parity for geometry, appearance, stroke, typography and image/resource properties;
 - renderer-independent built-in object schema catalog for `core.group`, `core.rectangle`, `core.ellipse`, `core.line`, `core.text`, `core.image`, `core.valueDisplay` and `core.button`;
 - canonical `assetRef = null | { assetId }` semantics without duplicated name/MIME/path/URL authority;
-- schema-guided transitional legacy property codecs in C# and TypeScript with aligned canonical numeric/boolean serialization semantics;
-- an official frontend Engineering -> Runtime adapter using stable IDs, declared schemas and canonical binding semantics;
+- schema-guided transitional legacy property codecs in C# and TypeScript;
+- official frontend Engineering -> Runtime adapter using stable IDs, declared schemas and canonical binding semantics;
 - backend Preview enforcement of known `core.*` schemas/properties/binding capabilities while leaving non-core future custom/Dynamo types extensible.
 
 Worker deliveries integrated:
@@ -120,13 +123,22 @@ Worker deliveries integrated:
 - **DEV 3:** `25ebac63a957c1c0c5b8e2557caec152d9d36bfc`
 - worker integration commit: `295bdabba5c25b2e4a729228130185976735d939`
 
-Static audit correction commits:
+### Static audit hardening history
+
+First deterministic test-contract correction sequence:
 
 - `cd2753f64a8191df3d2861871bb53077b74cc7a2` — identity-only AssetReference source contract;
 - `c3f9cc15a6715bf6434b1553878ba7c6121e0783` — browser acceptance aligned to `assetRef = { assetId }`;
 - `63878f6fe28a0a9ac101d622628f8b95658899a7` — projection tests aligned to actual registry API and canonical asset shape.
 
-These corrections remove deterministic test drift discovered by repository audit. They remain **CI_DEFERRED** and are not execution evidence.
+Third static audit then corrected:
+
+- missing Python clear path from dispatcher/provider/composition through the real Worker module;
+- null/malformed visual Engineering paths that could throw during Preview instead of returning `ImportIssue` diagnostics;
+- TypeScript integer validation outside the C# signed-Int32 domain;
+- stale Wave 06 exact policy expectation that omitted Wave 07 structured-value limits and would deterministically fail Chromium.
+
+The exact resulting integration head is `d184fdd5b65f2ce0c0e6ca28cd092644be080555`. These corrections remain **CI_DEFERRED** and are not execution evidence.
 
 ### Transitional persistence caveat
 
@@ -134,9 +146,14 @@ These corrections remove deterministic test drift discovered by repository audit
 
 Canonical JSON-native typed visual property persistence and migration must be deliberately settled before Wave 08 becomes ACTIVE.
 
+Two lower-priority convergence items remain deliberately attached to that work rather than extending the current no-CI coding interval indefinitely:
+
+- C# `double.ToString("R")` and JavaScript `String(number)` need not produce byte-identical exponent spellings in the transitional string codec;
+- canonical `Tag` and `Property` binding kinds are currently projected into the same generic Runtime binding source kind and should retain enough source discrimination before the graphical binding engine depends on it.
+
 ### Current no-CI stop state
 
-After correcting the concrete deterministic test blockers, the no-Actions stop condition is reached again. Do not continue speculative Wave 07 code merely to make progress visible.
+After the third static audit hardening, the no-Actions stop condition is reached again. Do not continue speculative Wave 07 code merely to make progress visible.
 
 The owner most recently reported approximately 19 included GitHub Actions minutes remaining. Until the owner explicitly reports reset:
 - do not open the Wave 07 PR;
@@ -144,6 +161,8 @@ The owner most recently reported approximately 19 included GitHub Actions minute
 - do not merge to `main`;
 - do not activate Wave 08 workers;
 - do not implement Wave 08 graphical functionality.
+
+The 24 commits on `main` since the Wave 06 merge modify documentation only. Reconciliation with current `main` is still required before final exact-head CI, but no functional main delta is currently missing from the Wave 07 branch.
 
 After reset, reconcile the integration branch with current `main`, settle/finalize typed visual persistence with migration coverage, then require exact-final-head Web + backend Release/full tests + Runtime smoke + Chromium + Wave-specific visual/Python acceptance green before merge.
 

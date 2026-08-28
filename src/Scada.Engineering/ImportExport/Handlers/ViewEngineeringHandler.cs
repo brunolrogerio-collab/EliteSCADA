@@ -53,18 +53,32 @@ internal sealed class ViewEngineeringHandler
     private void PreviewScreens(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
     {
         var screens = package.Screens ?? Array.Empty<ScreenEngineeringDto>();
-        var duplicateKeys = EngineeringHandlerSupport.Duplicates(screens.Select(x => x.Key));
-        var duplicateRoutes = EngineeringHandlerSupport.Duplicates(screens.Select(x => x.Route ?? string.Empty));
+        var validScreens = screens.Where(x => x is not null).ToArray();
+        var duplicateKeys = EngineeringHandlerSupport.Duplicates(validScreens.Select(x => x.Key));
+        var duplicateRoutes = EngineeringHandlerSupport.Duplicates(validScreens.Select(x => x.Route ?? string.Empty));
 
         foreach (var dto in screens)
         {
+            if (dto is null)
+            {
+                EngineeringHandlerSupport.AddPreview(
+                    items,
+                    ImportEntityKind.Screen,
+                    "<null>",
+                    false,
+                    mode,
+                    [new("SCREEN_NULL", "Screen cannot be null.", ImportEntityKind.Screen, "<null>", true)]);
+                continue;
+            }
+
+            var entityKey = string.IsNullOrWhiteSpace(dto.Key) ? "<invalid-screen>" : dto.Key;
             var issues = EngineeringValidator.ValidateScreen(dto).ToList();
-            if (duplicateKeys.Contains(dto.Key))
+            if (!string.IsNullOrWhiteSpace(dto.Key) && duplicateKeys.Contains(dto.Key))
                 issues.Add(new(
                     "SCREEN_DUPLICATE_IN_FILE",
                     $"Screen key '{dto.Key}' appears more than once in the import package.",
                     ImportEntityKind.Screen,
-                    dto.Key,
+                    entityKey,
                     true));
 
             if (!string.IsNullOrWhiteSpace(dto.Route) && duplicateRoutes.Contains(dto.Route))
@@ -72,29 +86,48 @@ internal sealed class ViewEngineeringHandler
                     "SCREEN_ROUTE_DUPLICATE",
                     $"Screen route '{dto.Route}' appears more than once in the import package.",
                     ImportEntityKind.Screen,
-                    dto.Key,
+                    entityKey,
                     true));
 
-            ValidateVisualReferences(dto.Elements, ImportEntityKind.Screen, dto.Key, package, issues);
+            ValidateVisualReferences(dto.Elements, ImportEntityKind.Screen, entityKey, package, issues);
             EngineeringHandlerSupport.AddPreview(
-                items, ImportEntityKind.Screen, dto.Key, ResolveExistingScreen(dto) is not null, mode, issues);
+                items,
+                ImportEntityKind.Screen,
+                entityKey,
+                ResolveExistingScreen(dto) is not null,
+                mode,
+                issues);
         }
     }
 
     private void PreviewPopups(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
     {
         var popups = package.Popups ?? Array.Empty<PopupEngineeringDto>();
-        var duplicateKeys = EngineeringHandlerSupport.Duplicates(popups.Select(x => x.Key));
+        var validPopups = popups.Where(x => x is not null).ToArray();
+        var duplicateKeys = EngineeringHandlerSupport.Duplicates(validPopups.Select(x => x.Key));
 
         foreach (var dto in popups)
         {
+            if (dto is null)
+            {
+                EngineeringHandlerSupport.AddPreview(
+                    items,
+                    ImportEntityKind.Popup,
+                    "<null>",
+                    false,
+                    mode,
+                    [new("POPUP_NULL", "Popup cannot be null.", ImportEntityKind.Popup, "<null>", true)]);
+                continue;
+            }
+
+            var entityKey = string.IsNullOrWhiteSpace(dto.Key) ? "<invalid-popup>" : dto.Key;
             var issues = EngineeringValidator.ValidatePopup(dto).ToList();
-            if (duplicateKeys.Contains(dto.Key))
+            if (!string.IsNullOrWhiteSpace(dto.Key) && duplicateKeys.Contains(dto.Key))
                 issues.Add(new(
                     "POPUP_DUPLICATE_IN_FILE",
                     $"Popup key '{dto.Key}' appears more than once in the import package.",
                     ImportEntityKind.Popup,
-                    dto.Key,
+                    entityKey,
                     true));
 
             if (!string.IsNullOrWhiteSpace(dto.TemplateKey) && !TemplateExists(dto.TemplateKey, package))
@@ -102,12 +135,17 @@ internal sealed class ViewEngineeringHandler
                     "POPUP_TEMPLATE_NOT_FOUND",
                     $"Template '{dto.TemplateKey}' referenced by popup '{dto.Key}' was not found.",
                     ImportEntityKind.Popup,
-                    dto.Key,
+                    entityKey,
                     true));
 
-            ValidateVisualReferences(dto.Elements, ImportEntityKind.Popup, dto.Key, package, issues);
+            ValidateVisualReferences(dto.Elements, ImportEntityKind.Popup, entityKey, package, issues);
             EngineeringHandlerSupport.AddPreview(
-                items, ImportEntityKind.Popup, dto.Key, ResolveExistingPopup(dto) is not null, mode, issues);
+                items,
+                ImportEntityKind.Popup,
+                entityKey,
+                ResolveExistingPopup(dto) is not null,
+                mode,
+                issues);
         }
     }
 
@@ -176,7 +214,7 @@ internal sealed class ViewEngineeringHandler
             var byId = _views.FindScreen(dto.Id.Value);
             if (byId is not null) return byId;
         }
-        return _views.FindScreenByKey(dto.Key);
+        return string.IsNullOrWhiteSpace(dto.Key) ? null : _views.FindScreenByKey(dto.Key);
     }
 
     private PopupEngineeringDto? ResolveExistingPopup(PopupEngineeringDto dto)
@@ -186,6 +224,6 @@ internal sealed class ViewEngineeringHandler
             var byId = _views.FindPopup(dto.Id.Value);
             if (byId is not null) return byId;
         }
-        return _views.FindPopupByKey(dto.Key);
+        return string.IsNullOrWhiteSpace(dto.Key) ? null : _views.FindPopupByKey(dto.Key);
     }
 }

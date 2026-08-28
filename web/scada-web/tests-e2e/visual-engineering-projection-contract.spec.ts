@@ -52,7 +52,7 @@ test('Engineering projection preserves only explicit validated base values while
     fillColor: '#336699CC',
     text: 'Pump A'
   });
-  expect(schema.createDefaultBaseValues()).toMatchObject({
+  expect(schema.createDefaultValues()).toMatchObject({
     width: 100,
     height: 100,
     visible: true
@@ -76,13 +76,13 @@ test('Engineering projection preserves only explicit validated base values while
   expect(projection.metadata).toEqual({ area: 'North' });
 });
 
-test('AssetReference is copied into immutable Engineering base projection and cannot carry a URL/path', () => {
+test('AssetReference is copied into immutable Engineering base projection and carries only stable identity', () => {
   const schema = new VisualObjectPropertySchema('basic.image', [
     VISUAL_PROPERTY_KEYS.assetRef,
     VISUAL_PROPERTY_KEYS.imageFit,
     VISUAL_PROPERTY_KEYS.opacity
   ]);
-  const asset = { assetId: 'asset:logo-1', name: 'Logo', mediaType: 'image/png' };
+  const asset = { assetId: 'asset:logo-1' };
 
   const projection = projectVisualEngineeringDefinition({
     objectId: 'object:image-1',
@@ -96,9 +96,7 @@ test('AssetReference is copied into immutable Engineering base projection and ca
 
   asset.assetId = 'asset:changed-outside';
   expect(projection.baseProperties.assetRef).toEqual({
-    assetId: 'asset:logo-1',
-    name: 'Logo',
-    mediaType: 'image/png'
+    assetId: 'asset:logo-1'
   });
   expect(Object.isFrozen(projection.baseProperties)).toBeTruthy();
   expect(Object.isFrozen(projection.baseProperties.assetRef)).toBeTruthy();
@@ -109,6 +107,15 @@ test('AssetReference is copied into immutable Engineering base projection and ca
     objectType: 'basic.image',
     baseProperties: {
       assetRef: { assetId: '/tmp/logo.png' }
+    }
+  }, schema)).toThrow(/invalid/);
+
+  expect(() => projectVisualEngineeringDefinition({
+    objectId: 'object:image-3',
+    key: 'metadataLogo',
+    objectType: 'basic.image',
+    baseProperties: {
+      assetRef: { assetId: 'asset:logo-2', name: 'Duplicated asset metadata' }
     }
   }, schema)).toThrow(/invalid/);
 });
@@ -167,7 +174,7 @@ test('projection respects Engineering editability without silently materializing
     objectType: 'internal.object'
   }, schema);
   expect({ ...defaults.baseProperties }).toEqual({});
-  expect(schema.createDefaultBaseValues().internalValue).toBe(1);
+  expect(schema.createDefaultValues().internalValue).toBe(1);
 
   const runtime = new RuntimeVisualInstance({
     definition: defaults,

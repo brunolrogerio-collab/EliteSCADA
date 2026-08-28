@@ -1,3 +1,4 @@
+using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ProjectPackages;
@@ -83,6 +84,7 @@ public static class ProjectPackageEndpoints
             HttpContext context,
             ImportMode? mode,
             IProjectPackageService packages,
+            EngineeringWorkspace workspace,
             ApiAuthorizationService security,
             ApiAuditService audit,
             CancellationToken cancellationToken) =>
@@ -100,11 +102,49 @@ public static class ProjectPackageEndpoints
                 return failure;
             }
 
+            if (!request.Headers.ContainsKey("x-elitescada-workspace-version"))
+            {
+                await audit.RecordAsync(
+                    context,
+                    authorization.Principal,
+                    AuditActions.EngineeringPackageRestore,
+                    AuditOutcome.Failed,
+                    "project-package",
+                    "unresolved",
+                    new Dictionary<string, string>
+                    {
+                        ["reason"] = "missing-workspace-version"
+                    });
+                return Results.BadRequest(new { error = "Engineering Workspace version header is required." });
+            }
+
+            if (!TryReadExpectedChangeVersion(request, out var expectedChangeVersion))
+            {
+                await audit.RecordAsync(
+                    context,
+                    authorization.Principal,
+                    AuditActions.EngineeringPackageRestore,
+                    AuditOutcome.Failed,
+                    "project-package",
+                    "unresolved",
+                    new Dictionary<string, string>
+                    {
+                        ["reason"] = "invalid-workspace-version"
+                    });
+                return Results.BadRequest(new { error = "Invalid Engineering Workspace version header." });
+            }
+
+            ProjectPackageInspection? inspection = null;
             try
             {
                 var importMode = mode ?? ImportMode.CreateAndUpdate;
                 var bytes = await ReadPackageAsync(request, cancellationToken);
-                var inspection = packages.Inspect(bytes);
+                inspection = packages.Inspect(bytes);
+
+                await using var mutation = await workspace.AcquireMutationAsync(
+                    expectedChangeVersion,
+                    cancellationToken);
+
                 var preview = packages.Preview(bytes, importMode);
                 if (!preview.CanApply)
                 {
@@ -119,7 +159,8 @@ public static class ProjectPackageEndpoints
                         {
                             ["packageId"] = inspection.Manifest.PackageId.ToString(),
                             ["reason"] = "preview-errors",
-                            ["errorCount"] = preview.ErrorCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                            ["errorCount"] = preview.ErrorCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                            ["expectedChangeVersion"] = expectedChangeVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)
                         });
                     return Results.BadRequest(preview);
                 }
@@ -138,9 +179,33 @@ public static class ProjectPackageEndpoints
                         ["packageId"] = inspection.Manifest.PackageId.ToString(),
                         ["mode"] = importMode.ToString(),
                         ["created"] = result.Created.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                        ["updated"] = result.Updated.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                        ["updated"] = result.Updated.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["expectedChangeVersion"] = expectedChangeVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["resultingChangeVersion"] = workspace.CaptureChangeVersion().ToString(System.Globalization.CultureInfo.InvariantCulture)
                     });
                 return hasErrors ? Results.BadRequest(result) : Results.Ok(result);
+            }
+            catch (EngineeringWorkspaceVersionConflictException conflict)
+            {
+                await audit.RecordAsync(
+                    context,
+                    authorization.Principal,
+                    AuditActions.EngineeringPackageRestore,
+                    AuditOutcome.Failed,
+                    "project-package",
+                    inspection?.Manifest.ProjectKey ?? "unresolved",
+                    new Dictionary<string, string>
+                    {
+                        ["reason"] = "workspace-version-conflict",
+                        ["expectedChangeVersion"] = conflict.ExpectedChangeVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["currentChangeVersion"] = conflict.CurrentChangeVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    });
+                return Results.Conflict(new
+                {
+                    error = "Engineering Workspace changed after preview. Reload and validate the project package again.",
+                    expectedChangeVersion = conflict.ExpectedChangeVersion,
+                    currentChangeVersion = conflict.CurrentChangeVersion
+                });
             }
             catch (InvalidDataException ex)
             {
@@ -150,7 +215,7 @@ public static class ProjectPackageEndpoints
                     AuditActions.EngineeringPackageRestore,
                     AuditOutcome.Failed,
                     "project-package",
-                    "unresolved",
+                    inspection?.Manifest.ProjectKey ?? "unresolved",
                     new Dictionary<string, string>
                     {
                         ["reason"] = "invalid-package",
@@ -166,13 +231,32 @@ public static class ProjectPackageEndpoints
                     AuditActions.EngineeringPackageRestore,
                     AuditOutcome.Failed,
                     "project-package",
-                    "unresolved",
+                    inspection?.Manifest.ProjectKey ?? "unresolved",
                     new Dictionary<string, string> { ["errorType"] = ex.GetType().Name });
                 throw;
             }
         });
 
         return endpoints;
+    }
+
+    private static bool TryReadExpectedChangeVersion(HttpRequest request, out long expectedChangeVersion)
+    {
+        expectedChangeVersion = 0;
+        if (!request.Headers.TryGetValue("x-elitescada-workspace-version", out var expectedHeader))
+            return false;
+
+        if (expectedHeader.Count != 1 ||
+            !long.TryParse(
+                expectedHeader.ToString(),
+                System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var parsedExpectedVersion) ||
+            parsedExpectedVersion < 0)
+            return false;
+
+        expectedChangeVersion = parsedExpectedVersion;
+        return true;
     }
 
     private static async Task<byte[]> ReadPackageAsync(HttpRequest request, CancellationToken cancellationToken)

@@ -1,0 +1,115 @@
+.basic-trend {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #253247;
+  border-radius: 0.75rem;
+  background: #111827;
+  color: #e5e7eb;
+}
+
+.basic-trend-header,
+.basic-trend-toolbar,
+.basic-trend-context,
+.basic-trend-summary,
+.basic-trend-time-axis {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.basic-trend-header { justify-content: space-between; align-items: flex-start; }
+.basic-trend-header h2 { margin: 0.1rem 0 0.25rem; font-size: 1.35rem; }
+.basic-trend-header p { margin: 0; color: #9ca3af; max-width: 54rem; }
+.basic-trend-eyebrow { color: #7dd3fc; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.basic-trend button,
+.basic-trend select,
+.basic-trend input {
+  border: 1px solid #3b4b63;
+  border-radius: 0.45rem;
+  background: #172033;
+  color: #e5e7eb;
+  padding: 0.55rem 0.7rem;
+}
+
+.basic-trend button { cursor: pointer; font-weight: 700; }
+.basic-trend button:disabled { cursor: default; opacity: 0.55; }
+
+.basic-trend-toolbar { flex-wrap: wrap; align-items: end; }
+.basic-trend-toolbar label { display: grid; gap: 0.3rem; min-width: 9rem; }
+.basic-trend-toolbar label:first-child { flex: 1 1 24rem; }
+.basic-trend-toolbar label span { color: #9ca3af; font-size: 0.76rem; font-weight: 700; text-transform: uppercase; }
+
+.basic-trend-context {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+.basic-trend-context > div,
+.basic-trend-summary-card {
+  padding: 0.75rem;
+  border: 1px solid #253247;
+  border-radius: 0.55rem;
+  background: #0f172a;
+}
+.basic-trend-context > div { display: grid; gap: 0.25rem; }
+.basic-trend-context span,
+.basic-trend-summary-card span { color: #94a3b8; font-size: 0.72rem; text-transform: uppercase; }
+.basic-trend-context strong { overflow-wrap: anywhere; }
+.basic-trend-context-wide { grid-column: 1 / -1; }
+.basic-trend-note { margin: -0.35rem 0 0; color: #94a3b8; font-size: 0.8rem; }
+
+.basic-trend-summary { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.basic-trend-summary-card { display: grid; gap: 0.2rem; }
+.basic-trend-summary-card strong { font-size: 1.05rem; }
+.basic-trend-summary-card.tone-good { border-color: #166534; }
+.basic-trend-summary-card.tone-attention { border-color: #a16207; }
+.basic-trend-summary-card.tone-bad { border-color: #b91c1c; }
+
+.basic-trend-chart {
+  position: relative;
+  padding: 1rem 0 1.4rem;
+  border: 1px solid #253247;
+  border-radius: 0.6rem;
+  background: #0b1220;
+  min-height: 18rem;
+}
+.basic-trend-chart svg { width: 100%; height: 18rem; overflow: visible; }
+.basic-trend-grid { stroke: #263449; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.basic-trend-line { fill: none; stroke: #60a5fa; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.basic-trend-point { stroke: #0b1220; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.basic-trend-point.tone-good,
+.basic-trend-quality.tone-good { fill: #22c55e; color: #86efac; }
+.basic-trend-point.tone-attention,
+.basic-trend-quality.tone-attention { fill: #f59e0b; color: #fcd34d; }
+.basic-trend-point.tone-bad,
+.basic-trend-quality.tone-bad { fill: #ef4444; color: #fca5a5; }
+.basic-trend-point.tone-unknown,
+.basic-trend-quality.tone-unknown { fill: #94a3b8; color: #cbd5e1; }
+.basic-trend-axis { position: absolute; left: 0.55rem; color: #94a3b8; font-size: 0.72rem; }
+.basic-trend-axis-top { top: 0.25rem; }
+.basic-trend-axis-bottom { bottom: 1.45rem; }
+.basic-trend-time-axis { justify-content: space-between; padding: 0 0.7rem; color: #94a3b8; font-size: 0.72rem; }
+
+.basic-trend-message,
+.basic-trend-state {
+  padding: 0.9rem;
+  border: 1px dashed #3b4b63;
+  border-radius: 0.55rem;
+  color: #cbd5e1;
+}
+.basic-trend-error { border-style: solid; border-color: #b91c1c; color: #fecaca; background: #2a1216; }
+
+.basic-trend-table-wrap { overflow: auto; max-height: 21rem; border: 1px solid #253247; border-radius: 0.55rem; }
+.basic-trend-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.basic-trend-table th,
+.basic-trend-table td { padding: 0.55rem 0.65rem; border-bottom: 1px solid #253247; text-align: left; white-space: nowrap; }
+.basic-trend-table th { position: sticky; top: 0; z-index: 1; background: #172033; color: #cbd5e1; }
+.basic-trend-quality { font-weight: 700; }
+
+@media (max-width: 920px) {
+  .basic-trend-context { grid-template-columns: 1fr; }
+  .basic-trend-context-wide { grid-column: auto; }
+  .basic-trend-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

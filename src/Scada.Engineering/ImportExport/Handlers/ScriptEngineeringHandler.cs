@@ -33,7 +33,9 @@ internal sealed class ScriptEngineeringHandler
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
     {
-        var incoming = (package.Scripts ?? Array.Empty<ScriptEngineeringDefinition>()).ToArray();
+        var incoming = (package.Scripts ?? Array.Empty<ScriptEngineeringDefinition>())
+            .Where(script => script is not null)
+            .ToArray();
         var incomingIds = incoming.Select(script => script.Id).ToHashSet();
         var selected = incoming
             .Where(script => EngineeringHandlerSupport.Decide(_registry.Find(script.Id) is not null, mode) != ImportOperation.Skip)
@@ -48,7 +50,7 @@ internal sealed class ScriptEngineeringHandler
         var currentReferences = _registry.SnapshotVisualEventReferences()
             .Where(reference => !selectedIds.Contains(reference.ScriptId));
         var incomingReferences = (package.ScriptVisualEventReferences ?? Array.Empty<ScriptVisualEventReference>())
-            .Where(reference => selectedIds.Contains(reference.ScriptId));
+            .Where(reference => reference is not null && selectedIds.Contains(reference.ScriptId));
         var prospectiveReferences = currentReferences.Concat(incomingReferences).ToArray();
 
         var referenceResolver = BuildReferenceResolver(package);
@@ -86,7 +88,7 @@ internal sealed class ScriptEngineeringHandler
         }
 
         var orphanReferences = (package.ScriptVisualEventReferences ?? Array.Empty<ScriptVisualEventReference>())
-            .Where(reference => !incomingIds.Contains(reference.ScriptId))
+            .Where(reference => reference is not null && !incomingIds.Contains(reference.ScriptId))
             .ToArray();
         if (orphanReferences.Length > 0)
         {
@@ -168,7 +170,7 @@ internal sealed class ScriptEngineeringHandler
 
         var dataSources = _dataSources.Snapshot()
             .Concat(package.DataSources ?? Array.Empty<DataSourceEngineeringDto>())
-            .Where(source => !string.IsNullOrWhiteSpace(source.Key))
+            .Where(source => source is not null && !string.IsNullOrWhiteSpace(source.Key))
             .GroupBy(source => source.Key, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
             .ToArray();
@@ -179,7 +181,16 @@ internal sealed class ScriptEngineeringHandler
             .Select(group => group.Last())
             .ToArray();
 
-        return ScriptEngineeringReferenceResolver.Create(tags, dataSources, visualDefinitions);
+        var visualObjectReferences = ProspectiveVisualObjectReferences(package)
+            .GroupBy(reference => (reference.Kind, reference.StableReference))
+            .Select(group => group.Last())
+            .ToArray();
+
+        return ScriptEngineeringReferenceResolver.Create(
+            tags,
+            dataSources,
+            visualDefinitions,
+            visualObjectReferences);
     }
 
     private IEnumerable<TagEngineeringDto> CurrentTags() =>
@@ -209,14 +220,87 @@ internal sealed class ScriptEngineeringHandler
     private static IEnumerable<ScriptEngineeringVisualDefinitionIdentity> PackageVisualDefinitions(EngineeringPackage package)
     {
         foreach (var screen in package.Screens ?? Array.Empty<ScreenEngineeringDto>())
-            if (screen.Id is { } id && id != Guid.Empty)
+            if (screen is not null && screen.Id is { } id && id != Guid.Empty)
                 yield return new ScriptEngineeringVisualDefinitionIdentity(id, "screen", screen.Key);
         foreach (var popup in package.Popups ?? Array.Empty<PopupEngineeringDto>())
-            if (popup.Id is { } id && id != Guid.Empty)
+            if (popup is not null && popup.Id is { } id && id != Guid.Empty)
                 yield return new ScriptEngineeringVisualDefinitionIdentity(id, "popup", popup.Key);
         foreach (var dynamo in package.Dynamos ?? Array.Empty<DynamoEngineeringDto>())
-            if (dynamo.Id is { } id && id != Guid.Empty)
+            if (dynamo is not null && dynamo.Id is { } id && id != Guid.Empty)
                 yield return new ScriptEngineeringVisualDefinitionIdentity(id, "dynamo", dynamo.Key);
+    }
+
+    private IEnumerable<ScriptEngineeringReference> ProspectiveVisualObjectReferences(EngineeringPackage package)
+    {
+        var incomingDefinitionIds = PackageViewDefinitionIds(package).ToHashSet();
+
+        foreach (var screen in _views.SnapshotScreens())
+        {
+            if (screen.Id is not { } definitionId || definitionId == Guid.Empty || incomingDefinitionIds.Contains(definitionId))
+                continue;
+
+            foreach (var reference in VisualObjectReferences(definitionId, screen.Elements))
+                yield return reference;
+        }
+
+        foreach (var popup in _views.SnapshotPopups())
+        {
+            if (popup.Id is not { } definitionId || definitionId == Guid.Empty || incomingDefinitionIds.Contains(definitionId))
+                continue;
+
+            foreach (var reference in VisualObjectReferences(definitionId, popup.Elements))
+                yield return reference;
+        }
+
+        foreach (var screen in package.Screens ?? Array.Empty<ScreenEngineeringDto>())
+        {
+            if (screen is null || screen.Id is not { } definitionId || definitionId == Guid.Empty)
+                continue;
+
+            foreach (var reference in VisualObjectReferences(definitionId, screen.Elements))
+                yield return reference;
+        }
+
+        foreach (var popup in package.Popups ?? Array.Empty<PopupEngineeringDto>())
+        {
+            if (popup is null || popup.Id is not { } definitionId || definitionId == Guid.Empty)
+                continue;
+
+            foreach (var reference in VisualObjectReferences(definitionId, popup.Elements))
+                yield return reference;
+        }
+    }
+
+    private static IEnumerable<Guid> PackageViewDefinitionIds(EngineeringPackage package)
+    {
+        foreach (var screen in package.Screens ?? Array.Empty<ScreenEngineeringDto>())
+            if (screen is not null && screen.Id is { } id && id != Guid.Empty)
+                yield return id;
+
+        foreach (var popup in package.Popups ?? Array.Empty<PopupEngineeringDto>())
+            if (popup is not null && popup.Id is { } id && id != Guid.Empty)
+                yield return id;
+    }
+
+    private static IEnumerable<ScriptEngineeringReference> VisualObjectReferences(
+        Guid definitionId,
+        IReadOnlyCollection<VisualElementEngineeringDto>? elements)
+    {
+        foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
+        {
+            if (element is null)
+                continue;
+
+            if (element.Id is { } objectId && objectId != Guid.Empty)
+            {
+                yield return new ScriptEngineeringReference(
+                    ScriptEngineeringDependencyKind.VisualObject,
+                    ScriptEngineeringReferenceKeys.VisualObject(definitionId, objectId));
+            }
+
+            foreach (var nested in VisualObjectReferences(definitionId, element.Children))
+                yield return nested;
+        }
     }
 
     private static ImportIssue ToImportIssue(ScriptEngineeringValidationIssue issue, string fallbackKey) =>

@@ -17,6 +17,25 @@ export type PythonEditorDiagnosticProjection = {
   rejectedCount: number;
 };
 
+export type PythonEditorDiagnosticSnapshot = {
+  source: string;
+  diagnostics: readonly PythonSourceDiagnostic[];
+};
+
+export type PythonEditorDiagnosticState =
+  | { status: 'ready'; diagnostics: readonly PythonSourceDiagnostic[] }
+  | { status: 'stale' }
+  | { status: 'unavailable'; message?: string };
+
+export function resolvePythonDiagnosticSnapshot(
+  source: string,
+  snapshot: PythonEditorDiagnosticSnapshot | null | undefined
+): PythonEditorDiagnosticState {
+  if (!snapshot) return { status: 'unavailable' };
+  if (snapshot.source !== source) return { status: 'stale' };
+  return { status: 'ready', diagnostics: snapshot.diagnostics };
+}
+
 export function projectPythonDiagnostics(
   diagnostics: readonly PythonSourceDiagnostic[] | null | undefined
 ): PythonEditorDiagnosticProjection {

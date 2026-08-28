@@ -7,7 +7,7 @@ export type ClientVisualPythonTagReader = (reference: string) => Promise<Runtime
 
 export type ClientVisualPythonVisualPropertyProvider = Pick<
   ClientVisualPythonCapabilityProvider,
-  'readVisualProperty' | 'writeVisualProperty'
+  'readVisualProperty' | 'writeVisualProperty' | 'clearVisualProperty'
 >;
 
 export type ClientVisualPythonCapabilityProviderOptions = {
@@ -62,6 +62,10 @@ export function createClientVisualPythonCapabilityProvider(
     writeVisualProperty: visualPropertyProvider?.writeVisualProperty
       ? (targetReference, propertyKey, value, context) =>
           visualPropertyProvider.writeVisualProperty!(targetReference, propertyKey, value, context)
+      : undefined,
+    clearVisualProperty: visualPropertyProvider?.clearVisualProperty
+      ? (targetReference, propertyKey, context) =>
+          visualPropertyProvider.clearVisualProperty!(targetReference, propertyKey, context)
       : undefined
   };
 }

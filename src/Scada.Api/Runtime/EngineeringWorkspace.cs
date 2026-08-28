@@ -9,6 +9,7 @@ using Scada.Engineering.DataSources;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
 using Scada.Engineering.Views;
+using Scada.Engineering.VisualAssets;
 using Scada.Security.Authorization;
 
 namespace Scada.Api.Runtime;
@@ -30,7 +31,8 @@ public sealed record EngineeringWorkspaceDescriptor(
     int ScreenCount,
     int PopupCount,
     int SecurityRoleCount,
-    int CommandCount);
+    int CommandCount,
+    int VisualAssetCount = 0);
 
 public sealed class EngineeringWorkspaceVersionConflictException : InvalidOperationException
 {
@@ -68,6 +70,7 @@ public sealed class EngineeringWorkspace : IDisposable
         SecurityPolicies = new InMemorySecurityPolicyEngineeringRegistry(MarkDirty);
         Commands = new InMemoryCommandEngineeringRegistry(MarkDirty);
         Scripts = new InMemoryScriptEngineeringRegistry(MarkDirty);
+        VisualAssets = new InMemoryVisualAssetEngineeringRegistry(MarkDirty);
         SeedDemo();
     }
 
@@ -79,6 +82,7 @@ public sealed class EngineeringWorkspace : IDisposable
     public InMemorySecurityPolicyEngineeringRegistry SecurityPolicies { get; }
     public InMemoryCommandEngineeringRegistry Commands { get; }
     public InMemoryScriptEngineeringRegistry Scripts { get; }
+    public InMemoryVisualAssetEngineeringRegistry VisualAssets { get; }
 
     public EngineeringWorkspaceDescriptor Describe()
     {
@@ -101,7 +105,8 @@ public sealed class EngineeringWorkspace : IDisposable
                 Views.SnapshotScreens().Count,
                 Views.SnapshotPopups().Count,
                 SecurityPolicies.SnapshotRoles().Count,
-                Commands.Snapshot().Count);
+                Commands.Snapshot().Count,
+                VisualAssets.SnapshotAssets().Count);
         }
     }
 
@@ -209,6 +214,7 @@ public sealed class EngineeringWorkspace : IDisposable
         SecurityPolicies.Clear();
         Commands.Clear();
         Scripts.Clear();
+        VisualAssets.Clear();
     }
 
     private void SeedDemo()

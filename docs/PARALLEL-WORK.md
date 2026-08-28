@@ -1,6 +1,6 @@
 # PARALLEL WORK — EliteSCADA
 
-This file defines the permanent concurrent-work safety rules. The detailed Development Wave execution model is authoritative in `docs/DEVELOPMENT-WAVES.md` and must be read with this file.
+This file defines the permanent concurrent-work safety rules. The detailed Development Wave execution model is authoritative in `docs/DEVELOPMENT-WAVES.md` and must be read with this file. GitHub Actions consumption rules are defined in `docs/CI-USAGE-POLICY.md`.
 
 ## 1. Core ownership
 
@@ -27,7 +27,8 @@ Before any EliteSCADA action, every fixed chat reads current `main`:
 4. `docs/PARALLEL-WORK.md`;
 5. `docs/DEVELOPMENT-WAVES.md`;
 6. `docs/CHAT-WORK-ASSIGNMENTS.md`;
-7. every current `MustReadSpecific` document.
+7. `docs/CI-USAGE-POLICY.md`;
+8. every current `MustReadSpecific` document.
 
 For product planning through first owner validation, coordinator and relevant workers also read `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.
 
@@ -74,7 +75,24 @@ If a semantic conflict is isolated to one worker, the coordinator returns only t
 
 Final wave quality remains strict: no wave merge without green integrated validation required by its matrix, normally including Web build, backend build/tests, runtime smoke and Chromium E2E.
 
-## 6. Shared files reserved to coordinator
+## 6. GitHub Actions budget discipline
+
+`docs/CI-USAGE-POLICY.md` governs CI frequency for both workers and coordinator.
+
+When its mode is `CONSTRAINED`:
+
+- workers batch coherent implementation changes and prefer focused validation during iteration;
+- opening/updating a Draft PR does not mean every intermediate commit requires a full workflow matrix;
+- unchanged-head reruns for reassurance are not allowed;
+- a localized CI failure must be diagnosed and corrected before another expensive full run, except for demonstrably transient infrastructure failures;
+- coordinator reuses valid exact-head evidence and reserves complete matrices for meaningful integration/final checkpoints;
+- documentation-only `main` changes do not invalidate unchanged product CI evidence;
+- final integrated Wave Definition of Done remains unchanged;
+- if available Actions minutes cannot support the required final matrix, the correct state is `BLOCKED_BY_CI_BUDGET`, never a weakened merge.
+
+CI economy changes **frequency**, not assertions, security, CAS, lifecycle, persistence, Runtime guards or final acceptance requirements.
+
+## 7. Shared files reserved to coordinator
 
 Unless an assignment grants a narrow explicit exception, workers do not modify:
 
@@ -83,6 +101,7 @@ Unless an assignment grants a narrow explicit exception, workers do not modify:
 - `docs/ROADMAP.md`;
 - `docs/PARALLEL-WORK.md`;
 - `docs/DEVELOPMENT-WAVES.md`;
+- `docs/CI-USAGE-POLICY.md`;
 - `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`;
 - `docs/CHAT-WORK-ASSIGNMENTS.md`;
 - `.github/workflows/**`;
@@ -94,7 +113,7 @@ Unless an assignment grants a narrow explicit exception, workers do not modify:
 
 Workers prefer isolated files/types and record required central changes in PR `INTEGRATION REQUIRED` notes.
 
-## 7. Worker PR requirements
+## 8. Worker PR requirements
 
 Draft PRs are opened early enough for event-driven reviews:
 
@@ -102,7 +121,7 @@ Draft PRs are opened early enough for event-driven reviews:
 - Integration Review;
 - Delivery Review.
 
-Worker delivery requires focused tests/assigned CI, exact head evidence, changed-domain description, no scope violation and a PR body separating:
+Worker delivery requires focused tests/assigned CI, exact head evidence appropriate to the active CI budget mode, changed-domain description, no scope violation and a PR body separating:
 
 - `IMPLEMENTED IN PR`;
 - `INTEGRATION REQUIRED`;
@@ -110,7 +129,9 @@ Worker delivery requires focused tests/assigned CI, exact head evidence, changed
 
 No permanent architectural decision may live only in a worker branch.
 
-## 8. Assignment authority and queue
+Under `CONSTRAINED` CI mode, a worker may reach coordinator review with focused evidence when the board/policy permits deferring the complete matrix to integration. This never authorizes merging a known-failing worker head or bypassing a specifically required worker validation.
+
+## 9. Assignment authority and queue
 
 Only the coordinator changes worker missions in `docs/CHAT-WORK-ASSIGNMENTS.md`.
 
@@ -122,7 +143,7 @@ Future work may be preplanned, using:
 
 A worker starts only ACTIVE/explicitly authorized work whose StartCondition is satisfied. Queue preparation exists to reduce idle coordination, not to grant autonomy over roadmap selection.
 
-## 9. Preferred specialization
+## 10. Preferred specialization
 
 Preferences, not rigid ownership:
 
@@ -133,7 +154,7 @@ Preferences, not rigid ownership:
 
 Coordinator may redistribute work when dependency or parallel-safety analysis requires it.
 
-## 10. Status vocabulary
+## 11. Status vocabulary
 
 Product/repository:
 
@@ -142,17 +163,18 @@ Product/repository:
 - `RESEARCH MERGED / PRODUCTION NOT IMPLEMENTED` — architecture/evidence is official but no production capability is implied;
 - `SPECIFIED / NOT IMPLEMENTED` — locked intent with no merged implementation.
 
-Execution states may include `QUEUED`, `READY`, `ACTIVE`, `IN_PROGRESS`, `PR_OPEN`, `CI_FAILED`, `READY_FOR_COORDINATOR_REVIEW`, `INTEGRATION_REQUIRED`, `WAIT_FOR_COORDINATOR`, `BLOCKED`, `MERGED` and `COMPLETED`.
+Execution states may include `QUEUED`, `READY`, `ACTIVE`, `IN_PROGRESS`, `PR_OPEN`, `CI_FAILED`, `READY_FOR_COORDINATOR_REVIEW`, `INTEGRATION_REQUIRED`, `WAIT_FOR_COORDINATOR`, `BLOCKED`, `BLOCKED_BY_CI_BUDGET`, `MERGED` and `COMPLETED`.
 
 Never describe an open branch as merged product state.
 
-## 11. Document responsibilities
+## 12. Document responsibilities
 
 - `PROJECT GOAL.md` = long-lived architecture/product north;
 - `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md` = locked first owner-validation product scope and ordered waves;
 - `docs/ROADMAP.md` = macro current implementation order/status;
 - `docs/DEVELOPMENT-WAVES.md` = permanent scheduling/integration model;
 - `docs/PARALLEL-WORK.md` = concurrent safety/ownership rules;
+- `docs/CI-USAGE-POLICY.md` = CI budget modes, evidence hierarchy and rerun discipline;
 - `docs/CHAT-WORK-ASSIGNMENTS.md` = live execution board;
 - `LAST CHANGE.md` = exact operational handoff;
 - PR bodies = branch-local delivery evidence.

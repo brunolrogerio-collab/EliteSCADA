@@ -1,6 +1,7 @@
-import type {
-  ClientVisualPythonCapability,
-  PythonRuntimeIdentity
+import {
+  CLIENT_VISUAL_PYTHON_POLICY,
+  type ClientVisualPythonCapability,
+  type PythonRuntimeIdentity
 } from './pythonRuntimeContracts';
 
 export type ClientVisualPythonCapabilityContext = PythonRuntimeIdentity & {
@@ -158,14 +159,17 @@ function requireObject(value: unknown, label: string): Record<string, unknown> {
 
 function normalizeProviderResult(value: unknown): unknown {
   if (value === undefined) return null;
-  assertBridgeValue(value, 'result');
   return cloneBridgeValue(value);
 }
 
 export function cloneBridgeValue(value: unknown): unknown {
   assertBridgeValue(value, 'value');
+  return cloneValidatedBridgeValue(value);
+}
+
+function cloneValidatedBridgeValue(value: unknown): unknown {
   if (value === null || typeof value !== 'object') return value;
-  if (Array.isArray(value)) return value.map(item => cloneBridgeValue(item));
+  if (Array.isArray(value)) return value.map(item => cloneValidatedBridgeValue(item));
 
   const clone: Record<string, unknown> = {};
   for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
@@ -173,7 +177,7 @@ export function cloneBridgeValue(value: unknown): unknown {
       configurable: true,
       enumerable: true,
       writable: true,
-      value: cloneBridgeValue(item)
+      value: cloneValidatedBridgeValue(item)
     });
   }
   return clone;
@@ -181,14 +185,29 @@ export function cloneBridgeValue(value: unknown): unknown {
 
 export function assertBridgeValue(value: unknown, label = 'value'): void {
   const seen = new Set<object>();
-  visit(value, label, seen);
+  const state = { nodes: 0 };
+  visit(value, label, seen, state, 0);
 }
 
-function visit(value: unknown, label: string, seen: Set<object>): void {
+function visit(
+  value: unknown,
+  label: string,
+  seen: Set<object>,
+  state: { nodes: number },
+  depth: number
+): void {
+  state.nodes++;
+  if (state.nodes > CLIENT_VISUAL_PYTHON_POLICY.maxBridgeNodes ||
+      depth > CLIENT_VISUAL_PYTHON_POLICY.maxBridgeDepth) {
+    throwBridgeValueInvalid(label, 'exceeds the bounded structured-value size or depth');
+  }
+
   if (value === null) return;
 
   switch (typeof value) {
     case 'string':
+      if (value.length <= CLIENT_VISUAL_PYTHON_POLICY.maxBridgeStringLength) return;
+      break;
     case 'boolean':
       return;
     case 'number':
@@ -200,7 +219,7 @@ function visit(value: unknown, label: string, seen: Set<object>): void {
 
       if (Array.isArray(value)) {
         for (let index = 0; index < value.length; index++) {
-          visit(value[index], `${label}[${index}]`, seen);
+          visit(value[index], `${label}[${index}]`, seen, state, depth + 1);
         }
         seen.delete(value);
         return;
@@ -209,15 +228,19 @@ function visit(value: unknown, label: string, seen: Set<object>): void {
       const prototype = Object.getPrototypeOf(value);
       if (prototype !== Object.prototype && prototype !== null) break;
       for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-        visit(item, `${label}.${key}`, seen);
+        visit(item, `${label}.${key}`, seen, state, depth + 1);
       }
       seen.delete(value);
       return;
     }
   }
 
+  throwBridgeValueInvalid(label, 'is not a supported bounded structured bridge value');
+}
+
+function throwBridgeValueInvalid(label: string, detail: string): never {
   throw new ClientVisualPythonCapabilityError(
     'PYTHON_BRIDGE_VALUE_INVALID',
-    `${label} is not a supported structured bridge value.`
+    `${label} ${detail}.`
   );
 }

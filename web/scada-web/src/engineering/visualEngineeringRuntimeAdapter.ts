@@ -3,7 +3,7 @@ import type {
   VisualElementEngineering
 } from './types';
 import {
-  decodeLegacyVisualEngineeringProperties,
+  decodeVisualEngineeringProperties,
   projectVisualEngineeringDefinition,
   VisualObjectPropertySchema,
   VisualPropertyContractError,
@@ -13,9 +13,9 @@ import {
 
 /**
  * Projects one canonical Engineering visual element into the renderer-independent
- * Wave 07 Runtime definition. This is the only frontend seam that understands
- * the legacy schema-v11 string property bag; editor and Runtime consumers should
- * not reimplement coercion or binding interpretation.
+ * Wave 07 Runtime definition. Current Engineering is JSON-native and is validated
+ * against the same property schema consumed by Runtime. Legacy string migration
+ * is owned by the backend import/apply boundary rather than reimplemented here.
  */
 export function projectCanonicalVisualElementForRuntime(
   element: VisualElementEngineering,
@@ -29,7 +29,7 @@ export function projectCanonicalVisualElementForRuntime(
     );
   }
 
-  const baseProperties = decodeLegacyVisualEngineeringProperties(element.properties, schema);
+  const baseProperties = decodeVisualEngineeringProperties(element.properties, schema);
   const bindings = (element.bindings ?? []).map(projectCanonicalBinding);
 
   return projectVisualEngineeringDefinition({

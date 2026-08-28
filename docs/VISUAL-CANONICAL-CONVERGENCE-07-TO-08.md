@@ -1,18 +1,18 @@
 # EliteSCADA — Visual Canonical Convergence 07 -> 08
 
-Status: **COORDINATOR REVIEW COMPLETE / CI_DEFERRED / STOP CONDITION REACHED**  
+Status: **COORDINATOR REVIEW + STATIC AUDIT CORRECTIONS COMPLETE / CI_DEFERRED / STOP CONDITION REACHED**  
 Date: 2026-08-28  
-Exact reviewed integration head: `0c00413e2dc96d770a905cf0a416833764af59e7`
+Exact reviewed integration head: `63878f6fe28a0a9ac101d622628f8b95658899a7`
 
-This document records the coordinator-only canonical visual convergence performed while Wave 07 waits for final GitHub Actions validation and before Wave 08 graphical-editor implementation is authorized.
+This document records the coordinator-only canonical visual convergence and subsequent repository-wide static audit corrections performed while Wave 07 waits for final GitHub Actions validation and before Wave 08 graphical-editor implementation is authorized.
 
 ## Decision
 
 Do **not** absorb the full Wave 08 graphical editor into Wave 07.
 
-The no-Actions interval was used for a coordinator-only canonical visual convergence/readiness pass. DEV 1, DEV 2 and DEV 3 remain stopped.
+The no-Actions interval was used for coordinator-only canonical visual convergence/readiness work. DEV 1, DEV 2 and DEV 3 remain stopped.
 
-The useful no-CI convergence work is now complete for the current repository state. No Canvas/editor/product UI work was authorized or implemented.
+After the original convergence stop point, a broader static audit found deterministic test-contract drift. Because those were concrete correctness blockers rather than speculative features, the coordinator corrected them on the integration branch. No Canvas/editor/product UI work was authorized or implemented.
 
 ## Why this phase existed
 
@@ -106,6 +106,8 @@ Canonical visual property semantics are:
 
 The reference carries only stable project-owned identity. It does not copy asset name/MIME as competing authority and cannot be an arbitrary filesystem path or URL.
 
+The first-class project asset entity owns future descriptive metadata such as name, original filename, MIME type, dimensions, hash and payload metadata. Those fields do not travel inside each visual `assetRef`.
+
 The legacy C# `imageResourceId`/`ResourceReference` shape remains compatibility surface only; the new canonical visual contract uses `assetRef`.
 
 The first-class project asset entity, binary payload/import/storage/serving, image decoding and visual renderer remain intentional Wave 08 implementation work. They were not pulled into Wave 07.
@@ -119,6 +121,27 @@ The declared `VisualObjectPropertySchema` determines the value type. Neither sid
 The final static review aligned canonical boolean/numeric text semantics so backend and frontend reject the same non-canonical forms rather than accepting different project representations.
 
 This codec exists to contain the current persistence mismatch. It is **not** the desired final persisted visual model.
+
+## Post-convergence static audit correction
+
+A broader repository audit after the earlier reviewed head `0c00413e2dc96d770a905cf0a416833764af59e7` found deterministic test expectations that no longer matched the already-settled canonical contract:
+
+1. a source-contract test still required an old three-field AssetReference shape containing `assetId`, `name` and `mediaType`;
+2. browser acceptance simultaneously treated descriptive asset metadata as valid while another contract test correctly rejected it;
+3. Engineering projection tests still called obsolete `createDefaultBaseValues()` even though the public schema API is `createDefaultValues()`;
+4. the same projection tests still treated name/MIME metadata as part of a visual asset reference.
+
+These were corrected without weakening product code:
+
+- `cd2753f64a8191df3d2861871bb53077b74cc7a2`
+- `c3f9cc15a6715bf6434b1553878ba7c6121e0783`
+- `63878f6fe28a0a9ac101d622628f8b95658899a7`
+
+Static search on the resulting Wave 07 delta found no remaining obsolete `createDefaultBaseValues` reference and no remaining three-field AssetReference validity expectation. Metadata-bearing references now appear only as deliberate invalid cases.
+
+The Wave 07 implementation decision in `main` was also clarified to remove older permissive wording that could recreate the same drift.
+
+All of this remains **CI_DEFERRED**. Static correction is not execution proof.
 
 ## Deliberately unresolved blocker: typed visual property persistence
 
@@ -138,6 +161,20 @@ The target remains native typed values validated by the public Visual Property R
 - null or stable project `assetRef` object.
 
 Registry Default remains distinct from explicitly engineered base state.
+
+## Repository-wide debt observed during audit
+
+The audit also found non-functional quality/reproducibility debt outside the immediate Wave 07 test blocker:
+
+- frontend dependencies include floating `latest` versions and no committed `package-lock.json`;
+- CI uses `npm install` rather than `npm ci`;
+- no `global.json` pins the .NET SDK while `LangVersion` is `latest`;
+- `main` is not protected by required branch checks;
+- API CORS is globally permissive;
+- `tests-e2e` are not included in the normal frontend TypeScript build;
+- many cheap source/contract tests run only through the expensive Playwright/WebServer path.
+
+These findings should be addressed deliberately in the appropriate hardening/reproducibility scope. They do not authorize speculative functional expansion while Wave 07 CI is frozen.
 
 ## Wave 07 final validation boundary
 
@@ -170,9 +207,9 @@ At the current no-CI stop point, items 3, 4, 6 and the structural foundation for
 
 ## Current stop state
 
-The coordinator static review at exact integration head `0c00413e2dc96d770a905cf0a416833764af59e7` found no further concrete convergence blocker that should be addressed without CI.
+The exact integration head after deterministic static-audit corrections is `63878f6fe28a0a9ac101d622628f8b95658899a7`.
 
-**Stop condition reached.** Until the owner explicitly reports Actions reset:
+**Stop condition reached again.** Until the owner explicitly reports Actions reset:
 
 - do not continue speculative Wave 07 implementation;
 - do not open the Wave 07 PR;
@@ -181,15 +218,16 @@ The coordinator static review at exact integration head `0c00413e2dc96d770a905cf
 - do not activate Wave 08 workers;
 - do not implement Canvas/editor/image-import/renderer functionality.
 
-Resume code only for a newly discovered concrete safe correctness blocker, or after the Actions reset permits deliberate typed-persistence work plus full validation.
+Resume code only for another newly discovered concrete safe correctness blocker, or after the Actions reset permits deliberate typed-persistence work plus full validation.
 
 ## After Actions reset
 
 1. Verify real `main`, integration head, PR and CI state.
 2. Reconcile the integration branch with current `main` if necessary.
 3. Finalize canonical typed visual property persistence/migration with compatibility tests.
-4. Open one Wave 07 integration PR when ready to spend CI.
-5. Validate the exact final head across Web, backend Release/full PostgreSQL tests, Runtime smoke, Chromium and Wave-specific visual/Python acceptance.
-6. Fix root causes only; do not weaken sandbox/security/validation contracts.
-7. Merge Wave 07 only fully green.
-8. Freeze and activate Wave 08 worker assignments only after every Definition-of-Ready item is satisfied.
+4. Resolve any remaining reproducibility blocker necessary for trustworthy final validation without broadening functional scope.
+5. Open one Wave 07 integration PR when ready to spend CI.
+6. Validate the exact final head across Web, backend Release/full PostgreSQL tests, Runtime smoke, Chromium and Wave-specific visual/Python acceptance.
+7. Fix root causes only; do not weaken sandbox/security/validation contracts.
+8. Merge Wave 07 only fully green.
+9. Freeze and activate Wave 08 worker assignments only after every Definition-of-Ready item is satisfied.

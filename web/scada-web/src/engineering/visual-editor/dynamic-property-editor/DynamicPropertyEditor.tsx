@@ -6,6 +6,7 @@ import type {
   VisualExpressionDependencyEngineering,
   VisualPropertyExpressionEngineering
 } from '../../types';
+import { supportsAnalogFill } from '../../../visual-runtime';
 import type {
   VisualEditorBindingSourceCatalogItem,
   VisualEditorMutationIntent
@@ -374,10 +375,6 @@ function effectiveMode(element: VisualElementEngineering, propertyKey: string): 
   if (element.propertyExpressions?.some(item => item.propertyKey === propertyKey)) return 'Expression';
   if (element.bindings?.some(item => item.key === propertyKey)) return 'DirectBinding';
   return 'Constant';
-}
-
-function supportsAnalogFill(objectType: string): boolean {
-  return objectType === 'core.rectangle' || objectType === 'core.ellipse';
 }
 
 function hasBitCapability(source: VisualEditorBindingSourceCatalogItem): boolean {

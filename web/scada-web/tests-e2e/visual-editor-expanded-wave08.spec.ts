@@ -40,7 +40,7 @@ test('Wave 08 creates a closed free polygon and a dynamic text binding through c
 
   try {
     await page.goto('/engineering');
-    await page.locator('.eng-nav').getByRole('button', { name: 'Telas', exact: true }).click();
+    await page.locator('.eng-nav').getByRole('button', { name: /^Telas\b/ }).click();
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: screen!.key }).click();
 
     const palette = page.getByTestId('visual-object-palette');

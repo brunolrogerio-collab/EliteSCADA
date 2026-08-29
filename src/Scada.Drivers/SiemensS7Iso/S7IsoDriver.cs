@@ -261,8 +261,15 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
 
         try
         {
-            var results = await _transport.ReadAsync(_points, cancellationToken);
-            foreach (var result in results)
+            var read = await _transport.ReadDetailedAsync(_points, cancellationToken);
+            foreach (var configurationFailure in read.ConfigurationFailures)
+            {
+                failures++;
+                lastError = configurationFailure.Value;
+                await PublishPreviousAsync(configurationFailure.Key, TagQuality.BadConfiguration, cancellationToken);
+            }
+
+            foreach (var result in read.Items)
             {
                 if (!result.Succeeded)
                 {

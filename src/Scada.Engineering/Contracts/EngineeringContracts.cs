@@ -139,16 +139,18 @@ public sealed record DataSourceEngineeringDto(
 
 /// <summary>
 /// Generic Engineering binding. In a visual-element binding, <see cref="Key"/>
-/// is the destination visual-property/slot key and <see cref="Target"/> is the
-/// TAG/property/expression reference. Keeping that distinction explicit avoids
-/// an editor-private binding model later.
+/// is the destination visual-property/slot key. <see cref="Target"/> remains the
+/// friendly/portable authoring text, while <see cref="TagReference"/> is the
+/// canonical stable identity for concrete TAG bindings when available. This keeps
+/// path rename and bit selection out of editor-private metadata.
 /// </summary>
 public sealed record EngineeringBindingDto(
     string Key,
     EngineeringBindingKind Kind,
     string Target,
     string? Direction = null,
-    Dictionary<string, string>? Metadata = null);
+    Dictionary<string, string>? Metadata = null,
+    TagValueReference? TagReference = null);
 
 public sealed record EquipmentTemplateEngineeringDto(
     Guid? Id,

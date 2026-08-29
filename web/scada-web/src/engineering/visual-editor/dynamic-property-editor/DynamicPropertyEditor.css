@@ -1,0 +1,102 @@
+.dynamic-property-editor {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-color, #d4d8de);
+  border-radius: 8px;
+  background: var(--panel-background, #fff);
+}
+
+.dynamic-property-editor > header {
+  display: grid;
+  gap: 2px;
+}
+
+.dynamic-property-editor > header span,
+.dynamic-property-editor label > span,
+.dynamic-property-editor__panel > p,
+.dynamic-property-editor__warning {
+  font-size: 12px;
+  color: var(--muted-text, #667085);
+}
+
+.dynamic-property-editor label {
+  display: grid;
+  gap: 4px;
+}
+
+.dynamic-property-editor select,
+.dynamic-property-editor input,
+.dynamic-property-editor textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.dynamic-property-editor textarea {
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.dynamic-property-editor__panel,
+.dynamic-property-editor__analog-fill {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-color, #d4d8de);
+  border-radius: 6px;
+}
+
+.dynamic-property-editor__analog-fill {
+  margin: 4px 0 0;
+}
+
+.dynamic-property-editor__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dynamic-property-editor__check {
+  display: flex !important;
+  align-items: center;
+  gap: 7px !important;
+}
+
+.dynamic-property-editor__check input {
+  width: auto;
+}
+
+.dynamic-property-editor__insert {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.dynamic-property-editor__dependencies {
+  display: grid;
+  gap: 4px;
+  max-height: 120px;
+  overflow: auto;
+}
+
+.dynamic-property-editor__dependencies code {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.dynamic-property-editor__error,
+.dynamic-property-editor__warning {
+  margin: 0;
+}
+
+.dynamic-property-editor__error {
+  font-size: 12px;
+  color: var(--danger-color, #b42318);
+}
+
+@media (max-width: 900px) {
+  .dynamic-property-editor__grid,
+  .dynamic-property-editor__insert {
+    grid-template-columns: 1fr;
+  }
+}

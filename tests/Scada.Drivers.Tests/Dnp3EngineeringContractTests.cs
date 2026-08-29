@@ -24,6 +24,8 @@ public sealed class Dnp3EngineeringContractTests
         Assert.Throws<ArgumentOutOfRangeException>(() => (options with { MasterAddress = 0xFFF0 }).Validate());
         Assert.Throws<ArgumentOutOfRangeException>(() => (options with { OutstationAddress = ushort.MaxValue }).Validate());
         Assert.Throws<ArgumentException>(() => (options with { Host = " station.example " }).Validate());
+        Assert.Throws<ArgumentException>(() => (options with { Host = "https://station.example/path" }).Validate());
+        Assert.Throws<ArgumentException>(() => (options with { Host = "user:secret@station.example" }).Validate());
         Assert.Throws<ArgumentOutOfRangeException>(() => (options with { Port = 0 }).Validate());
         Assert.Throws<ArgumentOutOfRangeException>(() => (options with { ConnectTimeout = TimeSpan.Zero }).Validate());
     }

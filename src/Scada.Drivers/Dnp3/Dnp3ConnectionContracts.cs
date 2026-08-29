@@ -1,3 +1,5 @@
+using System.Net;
+
 namespace Scada.Drivers.Dnp3;
 
 /// <summary>
@@ -33,6 +35,8 @@ public sealed record Dnp3TcpConnectionOptions
             throw new ArgumentException("DNP3 TCP host must not contain leading or trailing whitespace.", nameof(Host));
         if (Host.Contains('\r') || Host.Contains('\n') || Host.Contains('\0'))
             throw new ArgumentException("DNP3 TCP host contains invalid control characters.", nameof(Host));
+        if (!IsPlainHostOrIp(Host))
+            throw new ArgumentException("DNP3 TCP host must be a plain DNS hostname or IP address without scheme, credentials, path or embedded port.", nameof(Host));
         if (Port is < 1 or > 65535)
             throw new ArgumentOutOfRangeException(nameof(Port), "DNP3 TCP port must be between 1 and 65535.");
         if (MasterAddress > MaxIndividualLinkAddress)
@@ -43,6 +47,12 @@ public sealed record Dnp3TcpConnectionOptions
             throw new ArgumentException("DNP3 master and outstation link addresses must be different.", nameof(OutstationAddress));
         if (ConnectTimeout <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(ConnectTimeout), "DNP3 connect timeout must be positive.");
+    }
+
+    private static bool IsPlainHostOrIp(string value)
+    {
+        if (IPAddress.TryParse(value, out _)) return true;
+        return Uri.CheckHostName(value) == UriHostNameType.Dns;
     }
 }
 

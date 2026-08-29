@@ -74,7 +74,7 @@ public sealed class BacnetContractTests
     [InlineData(0u, true, TagQuality.Good)]
     [InlineData(2u, true, TagQuality.Uncertain)]
     [InlineData(10u, true, TagQuality.BadConfiguration)]
-    [InlineData(11u, true, TagQuality.BadCommunication)]
+    [InlineData(11u, true, TagQuality.BadDevice)]
     [InlineData(7u, true, TagQuality.BadDevice)]
     [InlineData(999u, true, TagQuality.Uncertain)]
     [InlineData(null, false, TagQuality.BadCommunication)]

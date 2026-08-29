@@ -46,17 +46,23 @@ public static class LogixL5kImporter
             yield break;
         }
 
-        IReadOnlyList<RawTag> tags;
+        IReadOnlyList<RawTag> tags = Array.Empty<RawTag>();
+        DriverImportCandidate? parseError = null;
         try
         {
             tags = ParseRawTags(source, maximumTagCount, maximumStatementChars, cancellationToken);
         }
         catch (Exception ex) when (ex is InvalidDataException or ArgumentException)
         {
-            yield return ErrorCandidate(
+            parseError = ErrorCandidate(
                 request.SourceName,
                 "LOGIX_L5K_PARSE_FAILED",
                 Sanitize(ex.Message));
+        }
+
+        if (parseError is not null)
+        {
+            yield return parseError;
             yield break;
         }
 
@@ -243,7 +249,7 @@ public static class LogixL5kImporter
     {
         var issues = new List<DriverEngineeringIssue>();
         var effective = tag;
-        string? aliasFor = tag.AliasFor;
+        var aliasFor = tag.AliasFor;
         if (aliasFor is not null)
         {
             if (TryResolveSimpleAlias(tag, aliasFor, lookup, out var resolved))
@@ -401,10 +407,20 @@ public static class LogixL5kImporter
         if (target.Length == 0 || target.IndexOfAny(['.', '[', ']']) >= 0)
             return false;
 
-        if (lookup.TryGetValue(ScopeKey(alias.Scope, alias.ProgramName, target), out resolved))
+        if (lookup.TryGetValue(ScopeKey(alias.Scope, alias.ProgramName, target), out var sameScope) && sameScope is not null)
+        {
+            resolved = sameScope;
             return true;
-        if (alias.Scope == LogixTagScope.Program && lookup.TryGetValue(ScopeKey(LogixTagScope.Controller, null, target), out resolved))
+        }
+
+        if (alias.Scope == LogixTagScope.Program &&
+            lookup.TryGetValue(ScopeKey(LogixTagScope.Controller, null, target), out var controllerScope) &&
+            controllerScope is not null)
+        {
+            resolved = controllerScope;
             return true;
+        }
+
         return false;
     }
 
@@ -559,7 +575,7 @@ public static class LogixL5kImporter
         for (var index = 0; index <= text.Length - delimiter.Length; index++)
         {
             if (text[index] == '"' && !IsDollarEscaped(text, index)) inQuote = !inQuote;
-            if (!inQuote && text.AsSpan(index).StartsWith(delimiter, StringComparison.Ordinal)) return index;
+            if (!inQuote && text.AsSpan(index).StartsWith(delimiter, StringComparison.OrdinalIgnoreCase)) return index;
         }
         return -1;
     }

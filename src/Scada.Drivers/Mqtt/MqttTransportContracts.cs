@@ -17,13 +17,16 @@ public sealed record MqttConnectionSettings(
     TimeSpan? ReconnectMinimumDelay = null,
     TimeSpan? ReconnectMaximumDelay = null,
     bool CleanSession = false,
-    uint SessionExpirySeconds = 3600,
-    int MaximumInboundPayloadBytes = 1_048_576)
+    bool CleanStart = false,
+    uint? SessionExpirySeconds = null,
+    int MaximumInboundPayloadBytes = 1_048_576,
+    int MaximumConsecutiveConnectFailures = 5)
 {
     public TimeSpan EffectiveKeepAlive => KeepAlive ?? TimeSpan.FromSeconds(30);
     public TimeSpan EffectiveConnectTimeout => ConnectTimeout ?? TimeSpan.FromSeconds(10);
     public TimeSpan EffectiveReconnectMinimumDelay => ReconnectMinimumDelay ?? TimeSpan.FromSeconds(1);
     public TimeSpan EffectiveReconnectMaximumDelay => ReconnectMaximumDelay ?? TimeSpan.FromSeconds(30);
+    public uint EffectiveSessionExpirySeconds => SessionExpirySeconds ?? 3600U;
 
     public void Validate()
     {
@@ -47,17 +50,25 @@ public sealed record MqttConnectionSettings(
             throw new ArgumentOutOfRangeException(nameof(ReconnectMaximumDelay));
         if (MaximumInboundPayloadBytes < 1)
             throw new ArgumentOutOfRangeException(nameof(MaximumInboundPayloadBytes));
+        if (MaximumConsecutiveConnectFailures < 1)
+            throw new ArgumentOutOfRangeException(nameof(MaximumConsecutiveConnectFailures));
 
-        if (ProtocolMode == MqttProtocolMode.Mqtt311 && SessionExpirySeconds != 3600)
+        if (ProtocolMode == MqttProtocolMode.Mqtt311)
         {
-            throw new InvalidOperationException(
-                "MQTT 3.1.1 does not support Session Expiry Interval; use CleanSession to control session persistence.");
+            if (CleanStart)
+                throw new InvalidOperationException("MQTT 3.1.1 does not support Clean Start; use CleanSession.");
+            if (SessionExpirySeconds.HasValue)
+                throw new InvalidOperationException("MQTT 3.1.1 does not support Session Expiry Interval.");
         }
-
-        if (ProtocolMode == MqttProtocolMode.Mqtt5 && !CleanSession && SessionExpirySeconds == 0)
+        else
         {
-            throw new InvalidOperationException(
-                "Persistent MQTT 5 sessions require a Session Expiry Interval greater than zero.");
+            if (CleanSession)
+                throw new InvalidOperationException("MQTT 5 uses Clean Start plus Session Expiry instead of MQTT 3.1.1 CleanSession.");
+            if (!CleanStart && EffectiveSessionExpirySeconds == 0)
+            {
+                throw new InvalidOperationException(
+                    "Persistent MQTT 5 sessions require a Session Expiry Interval greater than zero.");
+            }
         }
     }
 }
@@ -85,6 +96,17 @@ public sealed record MqttPublishRequest(
     ReadOnlyMemory<byte> Payload,
     MqttQosLevel Qos,
     bool Retain);
+
+public class MqttTransportException : IOException
+{
+    public MqttTransportException(string message, bool isPermanent = false, Exception? innerException = null)
+        : base(message, innerException)
+    {
+        IsPermanent = isPermanent;
+    }
+
+    public bool IsPermanent { get; }
+}
 
 public interface IMqttClientTransport : IAsyncDisposable
 {

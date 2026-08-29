@@ -90,9 +90,10 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
         if (cancelled) return;
         setClientMemoryDefinitions(Object.freeze(definitions.map(definition => Object.freeze({
           name: definition.name,
+          path: definition.path,
           dataType: definition.dataType,
           initialValue: definition.initialValue,
-          readOnly: false
+          readOnly: definition.readOnly
         }))));
       })
       .catch(() => {

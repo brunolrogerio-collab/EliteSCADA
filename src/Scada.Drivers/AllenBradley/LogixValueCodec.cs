@@ -171,10 +171,10 @@ public static class LogixValueCodec
         if (index < 0 || index >= width) throw new ArgumentOutOfRangeException(nameof(index));
         return nativeType switch
         {
-            LogixNativeType.Sint when currentNativeValue is sbyte v => unchecked((sbyte)ApplyMask((byte)v, index, bitValue)),
-            LogixNativeType.Int when currentNativeValue is short v => unchecked((short)ApplyMask((ushort)v, index, bitValue)),
-            LogixNativeType.Dint when currentNativeValue is int v => unchecked((int)ApplyMask((uint)v, index, bitValue)),
-            LogixNativeType.Lint when currentNativeValue is long v => unchecked((long)ApplyMask((ulong)v, index, bitValue)),
+            LogixNativeType.Sint when currentNativeValue is sbyte v => (object)unchecked((sbyte)ApplyMask((byte)v, index, bitValue)),
+            LogixNativeType.Int when currentNativeValue is short v => (object)unchecked((short)ApplyMask((ushort)v, index, bitValue)),
+            LogixNativeType.Dint when currentNativeValue is int v => (object)unchecked((int)ApplyMask((uint)v, index, bitValue)),
+            LogixNativeType.Lint when currentNativeValue is long v => (object)unchecked((long)ApplyMask((ulong)v, index, bitValue)),
             _ => throw InvalidValue(nativeType, currentNativeValue)
         };
     }

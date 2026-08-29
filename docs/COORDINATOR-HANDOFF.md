@@ -5,7 +5,7 @@
 **Handoff date:** 2026-08-28  
 **Current wave:** `GRAPHICAL-EDITOR-WAVE-08`  
 **Wave status:** **ACTIVE — CENTRAL SCREEN EDITOR FOUNDATION IMPLEMENTED / NOT CI VALIDATED**  
-**CI policy:** `NORMAL`; avoid consuming Actions until owner access/quota is available  
+**CI policy:** `NORMAL`; Actions are authorized, but usage must remain conservative  
 **Workers:** **STOPPED / WAIT_FOR_COORDINATOR**
 
 ## Exact GitHub checkpoint
@@ -15,12 +15,28 @@
 - Wave 08 contract/base: `7a445d3dd94cabd09807291a0ee94276559fcb0e`.
 - Integration branch: `integration/graphical-editor-wave-08`.
 - Main reconciliation merge on integration: `011d3c649bb868bfcf8d13bfafe896bb0863a153`.
-- Latest coordinator **code** checkpoint before this documentation sync: `a2cdc39a9d7a8dcf425aab6a253d6bb0694faab1`.
+- Latest coordinator implementation-contract checkpoint before the CI-policy documentation update: `f3968eba629a97c5b85936ae9b908732e78a4e3a`.
 - After reconciliation, GitHub compare reported integration **0 behind `main`**.
 - No Wave 08 GitHub Actions validation exists yet.
 - No Wave 08 integration PR exists yet.
 
 Documentation-only commits after the code checkpoint are valid successors; always verify the live branch head before acting.
+
+## Actions budget rule
+
+The product owner explicitly authorized GitHub Actions use for Wave 08, with conservative consumption.
+
+Operational rule:
+
+- use static/diff/contract review first when it answers the question;
+- prefer focused build/test evidence before a full workflow matrix;
+- batch coherent changes rather than trigger CI for every small commit;
+- do not rerun unchanged heads merely for reassurance;
+- inspect and fix the cause of a localized failure before spending another full run;
+- use PR-triggered/full matrix validation only at meaningful integration/final checkpoints;
+- never weaken tests, security, CAS, persistence, Runtime or final acceptance to save minutes.
+
+The final integrated Wave 08 head still requires the complete validation matrix before merge.
 
 Worker branches remain preserved at the contract base unless GitHub proves otherwise:
 
@@ -79,6 +95,7 @@ Coordinator-owned central composition now exists under:
 - `web/scada-web/src/engineering/visual-editor/VisualEditorWorkspace.tsx`;
 - `web/scada-web/src/engineering/visual-editor/CanonicalVisualRenderer.tsx`;
 - `web/scada-web/src/engineering/visual-editor/visualEditorCanonicalModel.ts`;
+- `web/scada-web/src/engineering/visual-editor/visualEditorContracts.ts`;
 - `web/scada-web/src/engineering/visual-editor/VisualEditorWorkspace.css`;
 - `web/scada-web/src/engineering/EngineeringApp.tsx` integration.
 
@@ -95,6 +112,7 @@ Current behavior:
 - Apply uses the existing protected public Engineering Apply path with the retained expected Workspace version;
 - backend mutation lock/CAS/authorization/Audit therefore remain the mutation authority;
 - successful Apply reloads canonical Engineering;
+- `visualEditorContracts.ts` separates UI-only selection/viewport state from canonical object/property/binding intents so worker modules share one integration vocabulary;
 - central copy is present in PT-BR, EN and ES.
 
 ### 4. Renderer behavior and legacy compatibility
@@ -124,14 +142,15 @@ The test:
 1. exports the original Engineering package;
 2. opens `Engineering -> Telas`;
 3. selects the seeded Screen;
-4. edits its canonical route;
-5. proves Apply is disabled before Preview;
-6. runs Preview and requires a valid candidate;
-7. applies through the UI;
-8. confirms the canonical exported Screen changed;
-9. confirms the editor reopens with the persisted route;
-10. verifies Workspace version advanced;
-11. restores the original package in `finally`.
+4. verifies the seeded visual preview opens without renderer-error cards;
+5. edits its canonical route;
+6. proves Apply is disabled before Preview;
+7. runs Preview and requires a valid candidate;
+8. applies through the UI;
+9. confirms the canonical exported Screen changed;
+10. confirms the editor reopens with the persisted route;
+11. verifies Workspace version advanced;
+12. restores the original package in `finally`.
 
 This test is committed but **has not been executed by GitHub Actions yet**.
 
@@ -148,7 +167,10 @@ Important implementation checkpoints include:
 - `011d3c649bb868bfcf8d13bfafe896bb0863a153` — merge current `main` coordination state into integration;
 - `2c5dbbf80346b61350ee344dd01ca8da2fc218cb` — Screen Preview/Apply/reopen E2E;
 - `6b089c3190b594b0a8c71ab9aaffa69090df4670` — legacy visual compatibility placeholders;
-- `a2cdc39a9d7a8dcf425aab6a253d6bb0694faab1` — placeholder styling / latest code checkpoint before docs sync.
+- `a2cdc39a9d7a8dcf425aab6a253d6bb0694faab1` — placeholder styling;
+- `8a7da6cd6208c19314fbf33281402c7df6b9d588` — assert Screen preview has no renderer errors;
+- `d49182474e3275e798b2a1434c48466d1b846ac1` — shared Wave 08 editor integration contracts;
+- `f3968eba629a97c5b85936ae9b908732e78a4e3a` — record the shared integration contract in the operational checkpoint.
 
 ## Current validation evidence and limits
 
@@ -160,7 +182,7 @@ Available:
 - existing secured TAG/Data Source/Alarm editors confirmed as precedent for full-package candidate Preview/Apply;
 - integration reconciled with current `main` and verified 0 behind at the checkpoint;
 - new focused E2E test committed;
-- new TypeScript/TSX files were syntax-reviewed locally, but that is not equivalent to the repository build.
+- shared typed worker/coordinator intent boundary committed.
 
 Not available yet:
 
@@ -203,12 +225,12 @@ On the next `COORDENADOR - EliteSCADA` execution:
 1. read current `main`: `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/DEVELOPMENT-WAVES.md`, `docs/CHAT-WORK-ASSIGNMENTS.md`, `docs/CI-USAGE-POLICY.md`, `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`, this handoff and Wave 08 MustReadSpecific docs;
 2. verify real main/integration/worker heads, PRs and Actions;
 3. treat all workers as STOPPED unless deliberately restarted;
-4. continue from `integration/graphical-editor-wave-08`; use `a2cdc39a9d7a8dcf425aab6a253d6bb0694faab1` as the last known code checkpoint before documentation successors;
-5. if Actions access is still unavailable, do not create an unnecessary PR merely to trigger a run; static review and safe coordinator-only cleanup may continue, but do not label it validated;
-6. when Actions is available, run the cheapest meaningful exact-head validation and fix failures before broadening scope;
-7. restart worker chats only deliberately and preserve their existing ownership boundaries;
+4. continue from `integration/graphical-editor-wave-08` and verify its live head;
+5. use Actions conservatively, selecting the cheapest validation that answers the current decision; do not rerun unchanged heads for reassurance;
+6. fix any build/test failure before broadening scope;
+7. restart worker chats only deliberately and preserve their existing ownership boundaries plus the shared `visualEditorContracts.ts` seam;
 8. integrate worker heads only after explicit delivery;
-9. exercise the complete Wave 08 product gate and full exact-head CI;
+9. exercise the complete Wave 08 product gate and full exact-head CI at the meaningful final integration checkpoint;
 10. merge only green, verify post-merge `main`, synchronize docs, close Wave 08, then activate Wave 09.
 
 ## Wave 08 final product gate

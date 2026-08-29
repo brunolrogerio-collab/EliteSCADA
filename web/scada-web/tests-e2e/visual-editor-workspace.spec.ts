@@ -34,7 +34,7 @@ const ONE_PIXEL_PNG = Buffer.from(
   'base64'
 );
 
-test('Wave 08 composes Canvas, palette, properties, binding, image asset and canonical save/reopen', async ({ page, request }) => {
+test('Wave 08 composes Canvas, palette, properties, project-source binding, image asset and canonical save/reopen', async ({ page, request }) => {
   const originalResponse = await request.get('/api/engineering/export/json');
   expect(originalResponse.ok()).toBeTruthy();
   const originalPackage = await originalResponse.json() as ExportedPackage;
@@ -110,11 +110,17 @@ test('Wave 08 composes Canvas, palette, properties, binding, image asset and can
     const bindingEditor = page.getByTestId('visual-binding-editor');
     await expect(bindingEditor).toBeVisible();
     await bindingEditor.getByLabel('Propriedade visual').selectOption(bindingProperty);
-    const sourceSelect = bindingEditor.getByLabel('TAG de origem');
+    const sourceSelect = bindingEditor.getByLabel('Fonte do projeto');
     const sourceOption = sourceSelect.locator('option').filter({ hasText: bindingTag!.path }).first();
     const sourceLabel = await sourceOption.textContent();
     expect(sourceLabel).toBeTruthy();
     await sourceSelect.selectOption({ label: sourceLabel! });
+
+    await bindingEditor.getByRole('button', { name: 'Procurar referências do projeto' }).click();
+    await expect(bindingEditor.getByTestId('project-reference-browser')).toBeVisible();
+    await expect(bindingEditor.getByTestId('project-reference-browser').locator('details')).not.toHaveCount(0);
+    await bindingEditor.getByRole('button', { name: 'Procurar referências do projeto' }).click();
+
     await bindingEditor.getByRole('button', { name: 'Aplicar binding' }).click();
 
     await route.fill(nextRoute);

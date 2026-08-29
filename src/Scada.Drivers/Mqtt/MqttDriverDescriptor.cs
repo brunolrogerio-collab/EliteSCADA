@@ -38,7 +38,8 @@ public sealed class MqttDriverDescriptorProvider : ICommunicationDriverDescripto
                 new("mqtt5.cleanStart", DriverConfigurationValueKind.Boolean, DefaultValue: "false", Advanced: true),
                 new("mqtt5.sessionExpirySeconds", DriverConfigurationValueKind.Integer, DefaultValue: "3600", Minimum: 0, Maximum: uint.MaxValue, Advanced: true),
                 new("maximumInboundPayloadBytes", DriverConfigurationValueKind.Integer, DefaultValue: "1048576", Minimum: 1, Maximum: 67108864, Advanced: true),
-                new("maximumConsecutiveConnectFailures", DriverConfigurationValueKind.Integer, DefaultValue: "5", Minimum: 1, Maximum: 1000, Advanced: true)
+                new("maximumConsecutiveConnectFailures", DriverConfigurationValueKind.Integer, DefaultValue: "5", Minimum: 1, Maximum: 1000, Advanced: true),
+                new("maximumBufferedMessages", DriverConfigurationValueKind.Integer, DefaultValue: "4096", Minimum: 1, Maximum: 1000000, Advanced: true)
             ],
             TagBindingFields:
             [
@@ -47,6 +48,7 @@ public sealed class MqttDriverDescriptorProvider : ICommunicationDriverDescripto
                 new("mqtt.jsonPointer", DriverConfigurationValueKind.String),
                 new("mqtt.sourceTimestampJsonPointer", DriverConfigurationValueKind.String),
                 new("mqtt.sourceTimestampRequired", DriverConfigurationValueKind.Boolean, DefaultValue: "false"),
+                new("mqtt.freshnessTimeoutMilliseconds", DriverConfigurationValueKind.Integer, Minimum: 1, Maximum: int.MaxValue, Description: "Optional TAG freshness timeout. A valid sample becomes Stale when no fresher sample arrives before this interval."),
                 new("mqtt.retainedValuePolicy", DriverConfigurationValueKind.Enum, DefaultValue: "staleWithoutSourceTimestamp", AllowedValues: ["staleWithoutSourceTimestamp", "acceptAsCurrent"]),
                 new("mqtt.qos", DriverConfigurationValueKind.Enum, DefaultValue: "1", AllowedValues: ["0", "1", "2"]),
                 new("mqtt.publishTopic", DriverConfigurationValueKind.String),

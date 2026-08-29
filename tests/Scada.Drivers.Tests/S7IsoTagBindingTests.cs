@@ -23,7 +23,7 @@ public sealed class S7IsoTagBindingTests
         Assert.NotNull(binding);
 
         var portable = binding!.ToPortableAddress();
-        Assert.StartsWith("s7iso:v1;", portable, StringComparison.Ordinal);
+        Assert.StartsWith("s7iso:v1;", portable);
         Assert.True(S7IsoTagBinding.TryParsePortableAddress(portable, out var parsed, out var parseError), parseError);
         Assert.Equal(binding, parsed);
 

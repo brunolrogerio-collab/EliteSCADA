@@ -84,6 +84,10 @@ export type VisualEditorMutationIntent =
       operation: VisualEditorZOrderOperation;
     }>
   | Readonly<{
+      kind: 'polygon.create';
+      points: readonly VisualEditorPoint[];
+    }>
+  | Readonly<{
       kind: 'polygon.points.set';
       objectId: string;
       points: readonly VisualEditorPoint[];
@@ -110,10 +114,6 @@ export type VisualEditorMutationIntent =
       propertyKey: string;
     }>;
 
-/**
- * Coordinator-provided read-only source catalog boundary. It carries canonical
- * project references, source-family metadata and type information, never driver-private objects.
- */
 export type VisualEditorBindingSourceCatalogItem = Readonly<{
   kind: BindingEngineering['kind'];
   target: string;
@@ -131,6 +131,8 @@ export type VisualEditorCanvasContractProps = Readonly<{
   viewport: VisualEditorViewport;
   onUiIntent: (intent: VisualEditorUiIntent) => void;
   onMutationIntent: (intent: VisualEditorMutationIntent) => void;
+  polygonToolActive?: boolean;
+  onPolygonToolCancel?: () => void;
 }>;
 
 export type VisualEditorPropertyInspectorContractProps = Readonly<{

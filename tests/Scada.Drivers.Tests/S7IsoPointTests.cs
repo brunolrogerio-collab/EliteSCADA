@@ -69,6 +69,31 @@ public sealed class S7IsoPointTests
         new S7IsoPoint(Tag(TagDataType.Int64), S7IsoArea.Merker, 0, S7IsoValueType.UInt32).Validate();
     }
 
+    [Fact]
+    public void UndefinedProtocolEnums_AreRejectedAtPointValidation()
+    {
+        var invalidArea = new S7IsoPoint(
+            Tag(TagDataType.Int16),
+            (S7IsoArea)0xFF,
+            0,
+            S7IsoValueType.Int16);
+        var invalidType = new S7IsoPoint(
+            Tag(TagDataType.Int16),
+            S7IsoArea.Merker,
+            0,
+            (S7IsoValueType)999);
+        var invalidOrder = new S7IsoPoint(
+            Tag(TagDataType.Int16),
+            S7IsoArea.Merker,
+            0,
+            S7IsoValueType.Int16,
+            ValueOrder: (S7IsoValueOrder)999);
+
+        Assert.Throws<ArgumentOutOfRangeException>(invalidArea.Validate);
+        Assert.Throws<ArgumentOutOfRangeException>(invalidType.Validate);
+        Assert.Throws<ArgumentOutOfRangeException>(invalidOrder.Validate);
+    }
+
     private static TagDefinition Tag(TagDataType type) => new(
         Guid.NewGuid(),
         "T",

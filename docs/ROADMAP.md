@@ -9,7 +9,7 @@ Live worker ownership: `docs/CHAT-WORK-ASSIGNMENTS.md`.
 Current coordinator checkpoint: `docs/COORDINATOR-HANDOFF.md`.  
 Wave 08 execution contract: `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`.  
 Wave 08 asset storage contract: `docs/VISUAL-ASSET-STORAGE-WAVE-08.md`.  
-Visual Boolean Conditions + Analog Fill follow-up: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.  
+Visual Expressions + Boolean Conditions + Analog Fill follow-up: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.  
 Wave 07 historical contract: `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`.  
 Visual 07 -> 08 convergence: `docs/VISUAL-CANONICAL-CONVERGENCE-07-TO-08.md`.  
 CI policy: `docs/CI-USAGE-POLICY.md`.
@@ -62,7 +62,7 @@ Wave 05  Canonical Script Engineering                                           
 Wave 06  Python Editor + Client Visual sandbox                                       COMPLETE
 Wave 07  Visual Runtime Object Model + typed visual Engineering                      COMPLETE
 Wave 08  Graphical Editor Foundation + image import/object                           ACTIVE
-08-FOLLOW Visual Boolean Conditions + Analog Fill                                   QUEUED AFTER CURRENT WORKER DELIVERY
+08-FOLLOW Typed Visual Expressions + Boolean Conditions + Analog Fill                QUEUED AFTER CURRENT WORKER DELIVERY
 Wave 09  Screens + Popups + Dynamos + asset dependencies/navigation                 WAITING
 Wave 10  Python visual events + animation + preview                                  WAITING
 Wave 11  Complete HMI Runtime demo vertical slice                                    WAITING
@@ -157,22 +157,28 @@ Contract: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.
 
 Required direction:
 
+- visual properties that declare Binding/Expression support accept a typed, side-effect-free expression over canonical TAGs and Client Memory;
+- boolean expressions support `and`, `or`, `not`, comparisons and parentheses;
+- numeric expressions support arithmetic such as `(nivel1 + nivel2) * 3`, with deterministic mathematical precedence;
+- result type must match the destination property; numeric/boolean conversion is explicit, never silently coerced;
+- a bounded whitelist of pure helpers such as `abs`, `min`, `max`, `clamp`, `round`, `floor`, `ceil`, `bool` and `number` is allowed;
+- expression dependencies must resolve canonically for validation/import/export rather than relying on ambiguous display labels;
+- expression evaluation is reactive to source changes, bounded and cannot execute JavaScript/Python/arbitrary code;
 - every renderable Screen/Popup/Dynamo object exposes `visible: boolean`;
-- every boolean visual property supports direct boolean binding and numeric interval -> boolean evaluation;
-- unavailable/bad-quality condition sources fall back through normal precedence instead of silently forcing false;
-- condition semantics are first-class canonical Engineering, never opaque metadata or renderer-only logic;
-- fill-capable closed shapes support numeric analog scaling to a proportional `0..100%` region;
+- every boolean visual property supports direct boolean binding, numeric interval -> boolean evaluation and typed boolean expressions;
+- unavailable/bad-quality dependencies fall back through normal precedence instead of silently forcing false/zero;
+- fill-capable closed shapes support numeric analog scaling to a proportional `0..100%` region, and Analog Fill may consume a numeric expression rather than only one raw TAG;
 - initial fill directions: bottom->top, top->bottom, left->right, right->left;
 - filled-region color is explicit while the unfilled region preserves the normal base/background appearance;
-- condition/fill configuration round-trips through import/export/revisions/packages;
+- expression/condition/fill configuration round-trips through import/export/revisions/packages;
 - runtime-calculated results remain presentation state and are never saved automatically;
-- visual conditions are never process safety/interlock authority.
+- visual expressions/conditions are never process safety/interlock authority.
 
 This follow-up requires its own focused implementation/acceptance and CI evidence before the visual foundation is considered ready to proceed into Screen/Popup/Dynamo expansion.
 
 ## Remaining v0.1 sequence
 
-- **08-FOLLOW:** Visual Boolean Conditions + Analog Fill, after current worker integration and before Wave 09.
+- **08-FOLLOW:** Typed Visual Expressions + Boolean Conditions + Analog Fill, after current worker integration and before Wave 09.
 - **Wave 09:** multiple Screens, Popups, reusable Dynamos, navigation and deterministic asset dependencies.
 - **Wave 10:** Python visual events, renderer-native animation/tween and Engineering visual Preview/Test.
 - **Wave 11:** build `Estação Elevatória EliteSCADA Demo` only through normal product APIs/tools.

@@ -135,6 +135,11 @@ internal sealed class S7IsoTransport : IAsyncDisposable
                     var response = await ExchangeUnsafeAsync(request, _options.RequestTimeout, cancellationToken);
                     results.AddRange(S7IsoProtocol.ParseReadResponse(response, reference, batch));
                 }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    DisconnectUnsafe();
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     RecordFailure(S7IsoFailureClassifier.Classify(ex, S7IsoFailurePhase.Read));
@@ -179,6 +184,11 @@ internal sealed class S7IsoTransport : IAsyncDisposable
             {
                 var response = await ExchangeUnsafeAsync(request, _options.RequestTimeout, cancellationToken);
                 S7IsoProtocol.ParseWriteResponse(response, reference);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                DisconnectUnsafe();
+                throw;
             }
             catch (S7IsoProtocolException ex) when (ex.ReturnCode.HasValue)
             {
@@ -266,6 +276,10 @@ internal sealed class S7IsoTransport : IAsyncDisposable
                         $"Timed out connecting to S7 ISO endpoint {_options.SanitizedEndpoint}.",
                         ex);
                 }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     RecordFailure(S7IsoFailureClassifier.Classify(ex, S7IsoFailurePhase.ConnectTransport));
@@ -283,6 +297,10 @@ internal sealed class S7IsoTransport : IAsyncDisposable
                     _options.RequestTimeout,
                     cancellationToken);
                 S7IsoProtocol.ValidateConnectionConfirm(connectionConfirm);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -302,6 +320,10 @@ internal sealed class S7IsoTransport : IAsyncDisposable
                     cancellationToken);
                 negotiatedPdu = S7IsoProtocol.ParseSetupCommunicationResponse(setupResponse, setupReference);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 RecordFailure(S7IsoFailureClassifier.Classify(ex, S7IsoFailurePhase.SetupCommunication));
@@ -317,6 +339,11 @@ internal sealed class S7IsoTransport : IAsyncDisposable
                 _lastConnectedAt = DateTimeOffset.UtcNow;
                 _negotiatedPduSize = negotiatedPdu;
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            client.Dispose();
+            throw;
         }
         catch
         {

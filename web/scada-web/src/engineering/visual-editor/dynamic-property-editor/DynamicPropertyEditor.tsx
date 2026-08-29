@@ -4,9 +4,7 @@ import type {
   VisualBooleanConditionEngineering,
   VisualElementEngineering,
   VisualExpressionDependencyEngineering,
-  VisualExpressionEngineering,
-  VisualPropertyExpressionEngineering,
-  VisualValueSourceEngineering
+  VisualPropertyExpressionEngineering
 } from '../../types';
 import type {
   VisualEditorBindingSourceCatalogItem,
@@ -187,7 +185,10 @@ function DirectBindingMode({
   onRemoveExpression: DynamicPropertyEditorProps['onRemoveExpression'];
   onRemoveBooleanCondition: DynamicPropertyEditorProps['onRemoveBooleanCondition'];
 }>) {
-  const sources = useMemo(() => compatibleBindingSources(destination, sourceCatalog), [destination, sourceCatalog]);
+  const sources = useMemo(
+    () => compatibleBindingSources({ key: destination.propertyKey, type: destination.propertyType }, sourceCatalog),
+    [destination.propertyKey, destination.propertyType, sourceCatalog]
+  );
   const [selected, setSelected] = useState(sources[0]?.target ?? '');
   const [error, setError] = useState<string | null>(null);
   const source = sources.find(item => item.target === selected) ?? sources[0];

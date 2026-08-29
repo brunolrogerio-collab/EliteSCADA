@@ -123,17 +123,13 @@ public static class MqttPayloadCodec
 
         return dataType switch
         {
-            TagDataType.Boolean when bool.TryParse(trimmed, out var value) => value,
-            TagDataType.Int16 when short.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) => value,
-            TagDataType.Int32 when int.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) => value,
-            TagDataType.Int64 when long.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) => value,
-            TagDataType.Float when float.TryParse(trimmed, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && float.IsFinite(value) => value,
-            TagDataType.Double when double.TryParse(trimmed, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && double.IsFinite(value) => value,
-            TagDataType.DateTime when DateTimeOffset.TryParse(
-                trimmed,
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                out var value) => value,
+            TagDataType.Boolean => ParseBoolean(trimmed),
+            TagDataType.Int16 => ParseInt16(trimmed),
+            TagDataType.Int32 => ParseInt32(trimmed),
+            TagDataType.Int64 => ParseInt64(trimmed),
+            TagDataType.Float => ParseFloat(trimmed),
+            TagDataType.Double => ParseDouble(trimmed),
+            TagDataType.DateTime => ParseDateTime(trimmed),
             _ => throw new MqttPayloadException($"MQTT scalar payload is invalid for TAG type '{dataType}'.")
         };
     }
@@ -142,17 +138,108 @@ public static class MqttPayloadCodec
     {
         return dataType switch
         {
-            TagDataType.Boolean when element.ValueKind is JsonValueKind.True or JsonValueKind.False => element.GetBoolean(),
+            TagDataType.Boolean => DecodeJsonBoolean(element),
             TagDataType.Int16 => CheckedInteger(element, short.MinValue, short.MaxValue, value => (short)value),
             TagDataType.Int32 => CheckedInteger(element, int.MinValue, int.MaxValue, value => (int)value),
             TagDataType.Int64 => CheckedInteger(element, long.MinValue, long.MaxValue, value => value),
-            TagDataType.Float when element.ValueKind == JsonValueKind.Number && element.TryGetSingle(out var value) && float.IsFinite(value) => value,
-            TagDataType.Double when element.ValueKind == JsonValueKind.Number && element.TryGetDouble(out var value) && double.IsFinite(value) => value,
-            TagDataType.String when element.ValueKind == JsonValueKind.String => element.GetString() ?? string.Empty,
-            TagDataType.Enum when element.ValueKind == JsonValueKind.String => element.GetString() ?? string.Empty,
-            TagDataType.DateTime when element.ValueKind == JsonValueKind.String => DecodeDateTimeString(element.GetString()),
+            TagDataType.Float => DecodeJsonFloat(element),
+            TagDataType.Double => DecodeJsonDouble(element),
+            TagDataType.String => DecodeJsonString(element, TagDataType.String),
+            TagDataType.Enum => DecodeJsonString(element, TagDataType.Enum),
+            TagDataType.DateTime => DecodeJsonDateTime(element),
             _ => throw new MqttPayloadException($"MQTT JSON value is invalid for TAG type '{dataType}'.")
         };
+    }
+
+    private static bool ParseBoolean(string text)
+    {
+        if (!bool.TryParse(text, out var value))
+            throw new MqttPayloadException("MQTT scalar payload must be 'true' or 'false' for a Boolean TAG.");
+        return value;
+    }
+
+    private static short ParseInt16(string text)
+    {
+        if (!short.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+            throw new MqttPayloadException("MQTT scalar payload is invalid for an Int16 TAG.");
+        return value;
+    }
+
+    private static int ParseInt32(string text)
+    {
+        if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+            throw new MqttPayloadException("MQTT scalar payload is invalid for an Int32 TAG.");
+        return value;
+    }
+
+    private static long ParseInt64(string text)
+    {
+        if (!long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+            throw new MqttPayloadException("MQTT scalar payload is invalid for an Int64 TAG.");
+        return value;
+    }
+
+    private static float ParseFloat(string text)
+    {
+        if (!float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) || !float.IsFinite(value))
+            throw new MqttPayloadException("MQTT scalar payload is invalid for a finite Float TAG.");
+        return value;
+    }
+
+    private static double ParseDouble(string text)
+    {
+        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) || !double.IsFinite(value))
+            throw new MqttPayloadException("MQTT scalar payload is invalid for a finite Double TAG.");
+        return value;
+    }
+
+    private static DateTimeOffset ParseDateTime(string text)
+    {
+        if (!DateTimeOffset.TryParse(
+                text,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                out var value))
+        {
+            throw new MqttPayloadException("MQTT scalar payload is invalid for a DateTime TAG.");
+        }
+
+        return value;
+    }
+
+    private static bool DecodeJsonBoolean(JsonElement element)
+    {
+        if (element.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            throw new MqttPayloadException("MQTT JSON value is invalid for a Boolean TAG.");
+        return element.GetBoolean();
+    }
+
+    private static float DecodeJsonFloat(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Number || !element.TryGetSingle(out var value) || !float.IsFinite(value))
+            throw new MqttPayloadException("MQTT JSON value is invalid for a finite Float TAG.");
+        return value;
+    }
+
+    private static double DecodeJsonDouble(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Number || !element.TryGetDouble(out var value) || !double.IsFinite(value))
+            throw new MqttPayloadException("MQTT JSON value is invalid for a finite Double TAG.");
+        return value;
+    }
+
+    private static string DecodeJsonString(JsonElement element, TagDataType dataType)
+    {
+        if (element.ValueKind != JsonValueKind.String)
+            throw new MqttPayloadException($"MQTT JSON value is invalid for a {dataType} TAG.");
+        return element.GetString() ?? string.Empty;
+    }
+
+    private static DateTimeOffset DecodeJsonDateTime(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.String)
+            throw new MqttPayloadException("MQTT JSON value is invalid for a DateTime TAG.");
+        return DecodeDateTimeString(element.GetString());
     }
 
     private static object CheckedInteger(

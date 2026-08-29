@@ -78,6 +78,12 @@ public sealed record S7IsoPoint(
     public void Validate()
     {
         ArgumentNullException.ThrowIfNull(Tag);
+        if (!Enum.IsDefined(Area))
+            throw new ArgumentOutOfRangeException(nameof(Area), "S7 area is not supported.");
+        if (!Enum.IsDefined(ValueType))
+            throw new ArgumentOutOfRangeException(nameof(ValueType), "S7 value type is not supported.");
+        if (!Enum.IsDefined(ValueOrder))
+            throw new ArgumentOutOfRangeException(nameof(ValueOrder), "S7 value order is not supported.");
         if (ByteOffset < 0 || ByteOffset > 2_097_151)
             throw new ArgumentOutOfRangeException(nameof(ByteOffset), "S7 byte offset exceeds the 24-bit S7ANY address range.");
         if (BitOffset > 7)

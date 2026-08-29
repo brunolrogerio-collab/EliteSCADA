@@ -17,6 +17,16 @@ function idGenerator(...ids: string[]): () => string {
   };
 }
 
+const levelSource = {
+  kind: 'Tag', valueType: 'Number', target: 'Plant.Level',
+  tagReference: { tagId: '22222222-2222-2222-2222-222222222222' }, version: 1
+} as const;
+
+const boolSource = {
+  kind: 'Tag', valueType: 'Boolean', target: 'Plant.Running',
+  tagReference: { tagId: '11111111-1111-1111-1111-111111111111' }, version: 1
+} as const;
+
 test('canonical reducer adds registered objects without materializing unrelated defaults', () => {
   const original = screen([]);
   const next = applyVisualEditorMutationIntent(original, {
@@ -98,6 +108,80 @@ test('property and binding intents stay behind the shared schema authority', () 
   expect(() => applyVisualEditorMutationIntent(base, {
     kind: 'property.set', objectIds: ['text-1'], propertyKey: VISUAL_PROPERTY_KEYS.assetRef, value: null
   })).toThrow(/does not declare|not registered/);
+});
+
+test('FOLLOW-B expression and condition set/remove are immutable, deterministic and type-checked', () => {
+  const base = screen([{ id: 'rect-1', key: 'rect', type: BUILTIN_VISUAL_OBJECT_TYPES.rectangle, properties: {} }]);
+  const expressionA = {
+    propertyKey: 'visible',
+    expression: {
+      text: 'running', resultType: 'Boolean',
+      dependencies: [{ symbol: 'running', kind: 'Tag', valueType: 'Boolean', tagReference: boolSource.tagReference, target: boolSource.target, version: 1 }],
+      version: 1
+    }, version: 1
+  } as const;
+  const expressionB = { ...expressionA, expression: { ...expressionA.expression, text: 'not running' } } as const;
+
+  const withExpression = applyVisualEditorMutationIntent(base, {
+    kind: 'propertyExpression.set', objectId: 'rect-1', configuration: expressionA
+  });
+  const replacedExpression = applyVisualEditorMutationIntent(withExpression, {
+    kind: 'propertyExpression.set', objectId: 'rect-1', configuration: expressionB
+  });
+  expect(withExpression).not.toBe(base);
+  expect(base.elements?.[0].propertyExpressions).toBeUndefined();
+  expect(replacedExpression.elements?.[0].propertyExpressions).toHaveLength(1);
+  expect(replacedExpression.elements?.[0].propertyExpressions?.[0].expression.text).toBe('not running');
+
+  const condition = {
+    propertyKey: 'visible', kind: 'NumericInterval', source: levelSource,
+    minimum: 20, maximum: 80, minimumInclusive: true, maximumInclusive: true,
+    intervalMode: 'Inside', negate: false, version: 1
+  } as const;
+  const withCondition = applyVisualEditorMutationIntent(replacedExpression, {
+    kind: 'booleanCondition.set', objectId: 'rect-1', configuration: condition
+  });
+  expect(withCondition.elements?.[0].booleanConditions).toHaveLength(1);
+
+  const removed = applyVisualEditorMutationIntent(
+    applyVisualEditorMutationIntent(withCondition, {
+      kind: 'propertyExpression.remove', objectId: 'rect-1', propertyKey: 'visible'
+    }),
+    { kind: 'booleanCondition.remove', objectId: 'rect-1', propertyKey: 'visible' }
+  );
+  expect(removed.elements?.[0].propertyExpressions).toEqual([]);
+  expect(removed.elements?.[0].booleanConditions).toEqual([]);
+  expect(applyVisualEditorMutationIntent(removed, {
+    kind: 'booleanCondition.remove', objectId: 'rect-1', propertyKey: 'visible'
+  }).elements?.[0].booleanConditions).toEqual([]);
+
+  expect(() => applyVisualEditorMutationIntent(base, {
+    kind: 'propertyExpression.set', objectId: 'rect-1',
+    configuration: { ...expressionA, propertyKey: 'x' }
+  })).toThrow(/incompatible/);
+});
+
+test('FOLLOW-B Analog Fill uses shared eligibility and supports idempotent removal', () => {
+  const base = screen([
+    { id: 'rect-1', key: 'rect', type: BUILTIN_VISUAL_OBJECT_TYPES.rectangle, properties: {} },
+    { id: 'text-1', key: 'text', type: BUILTIN_VISUAL_OBJECT_TYPES.text, properties: {} }
+  ]);
+  const fill = {
+    source: levelSource, inputMinimum: 0, inputMaximum: 100,
+    fillColor: '#00AAFF', clamp: true, invertScale: false, direction: 'BottomToTop', version: 1
+  } as const;
+
+  const withFill = applyVisualEditorMutationIntent(base, {
+    kind: 'analogFill.set', objectId: 'rect-1', configuration: fill
+  });
+  expect(withFill.elements?.[0].analogFill).toEqual(fill);
+  const removed = applyVisualEditorMutationIntent(withFill, { kind: 'analogFill.remove', objectId: 'rect-1' });
+  expect(removed.elements?.[0].analogFill).toBeNull();
+  expect(applyVisualEditorMutationIntent(removed, { kind: 'analogFill.remove', objectId: 'rect-1' }).elements?.[0].analogFill).toBeNull();
+
+  expect(() => applyVisualEditorMutationIntent(base, {
+    kind: 'analogFill.set', objectId: 'text-1', configuration: fill
+  })).toThrow(/does not support Analog Fill/);
 });
 
 test('duplicate and delete preserve hierarchy while minting new canonical identities centrally', () => {

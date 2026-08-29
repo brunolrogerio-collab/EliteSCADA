@@ -68,4 +68,26 @@ public sealed class Iec104PointListExporterTests
 
         Assert.Contains("unsupported monitored Type ID 45", exception.Message);
     }
+
+    [Fact]
+    public async Task ExportAsync_RejectsMultilineDisplayNameUntilImporterSupportsMultilineRecords()
+    {
+        var candidate = new DriverImportCandidate(
+            CandidateId: "ca=1;ioa=6",
+            StableIdentity: "ca=1;ioa=6",
+            DisplayName: "Line one\nLine two",
+            PortableAddress: "ca=1;ioa=6",
+            IsReadable: true,
+            IsWritable: false,
+            Metadata: new Dictionary<string, string>
+            {
+                ["declaredTypeIds"] = "1"
+            });
+        await using var destination = new MemoryStream();
+
+        var exception = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            Iec104PointListExporter.ExportAsync(new[] { candidate }, destination));
+
+        Assert.Contains("cannot contain CR/LF", exception.Message);
+    }
 }

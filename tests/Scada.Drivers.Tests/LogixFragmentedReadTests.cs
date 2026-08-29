@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using Scada.Drivers.AllenBradley;
 
 namespace Scada.Drivers.Tests;
@@ -19,6 +20,40 @@ public sealed class LogixFragmentedReadTests
             0xEA, 0x01, 0x00, 0x00
         ];
         Assert.Equal(expected, request);
+    }
+
+    [Fact]
+    public async Task ReadCompleteAsync_AdvancesByteOffsetsUntilOneCompletePayloadExists()
+    {
+        var reference = new LogixSymbolReference(LogixTagScope.Controller, "TotalCount", LogixNativeType.Sint);
+        var source = Enumerable.Range(0, 1750).Select(static value => (byte)(value & 0xFF)).ToArray();
+        var lengths = new[] { 490, 490, 490, 280 };
+        var requestOffsets = new List<uint>();
+        var requestIndex = 0;
+
+        var assembled = await LogixFragmentedRead.ReadCompleteAsync(
+            reference,
+            1750,
+            (request, _) =>
+            {
+                var offset = BinaryPrimitives.ReadUInt32LittleEndian(request.AsSpan(request.Length - 4, 4));
+                requestOffsets.Add(offset);
+                var length = lengths[requestIndex++];
+                var responseData = new byte[2 + length];
+                responseData[0] = 0xC2;
+                responseData[1] = 0x00;
+                source.AsSpan((int)offset, length).CopyTo(responseData.AsSpan(2));
+                var hasMore = offset + (uint)length < (uint)source.Length;
+                return ValueTask.FromResult(new LogixCipResponse(
+                    0xD2,
+                    hasMore ? (byte)0x06 : (byte)0x00,
+                    Array.Empty<ushort>(),
+                    responseData));
+            });
+
+        Assert.Equal(source, assembled);
+        Assert.Equal(new uint[] { 0, 490, 980, 1470 }, requestOffsets);
+        Assert.Equal(4, requestIndex);
     }
 
     [Fact]
@@ -81,6 +116,23 @@ public sealed class LogixFragmentedReadTests
             [new LogixReadFragment(0, typeCode, [1, 2, 3, 4, 5, 6, 7, 8], false)],
             maximumValueBytes: 4));
         Assert.Equal(LogixProtocolError.FragmentationFailed, oversized.Error);
+    }
+
+    [Fact]
+    public async Task ReadCompleteAsync_StopsAtConfiguredFragmentBound()
+    {
+        var reference = new LogixSymbolReference(LogixTagScope.Controller, "ArrayTag", LogixNativeType.Sint);
+        var error = await Assert.ThrowsAsync<LogixCipException>(async () => await LogixFragmentedRead.ReadCompleteAsync(
+            reference,
+            10,
+            (_, _) => ValueTask.FromResult(new LogixCipResponse(
+                0xD2,
+                0x06,
+                Array.Empty<ushort>(),
+                [0xC2, 0x00, 0x01])),
+            maximumFragments: 2));
+
+        Assert.Equal(LogixProtocolError.FragmentationFailed, error.Error);
     }
 
     [Fact]

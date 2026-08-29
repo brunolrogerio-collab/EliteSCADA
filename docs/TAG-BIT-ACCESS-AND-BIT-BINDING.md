@@ -167,17 +167,48 @@ A display such as `400001` / `4xxxxx` is a human addressing convention, while Mo
 
 Bit selection is applied after the register address is resolved. The bit index is always `0..15` for one Modbus register.
 
-## 8. Driver-independent contract
+## 8. Driver-independent mandatory contract
 
-Direct physical bit binding is not conceptually Modbus-only.
+Direct physical bit binding is not Modbus-only and is a permanent driver requirement.
 
-Future drivers may expose word/byte/bit addressing through their public versioned TagBinding schema. Each driver declares:
+Every future production driver that exposes physical byte/word/register/integer storage from which individual bits can be meaningfully addressed **must** expose that bit capability through its public versioned TagBinding/capability schema rather than forcing masks, scripts or driver-private address strings.
+
+For each such storage family the driver declares:
 
 - whether bit selection is supported;
 - allowed storage widths/types;
-- readable/writable behavior;
-- valid bit range;
-- whether a native atomic bit-write primitive exists.
+- valid bit range and numbering;
+- readable behavior;
+- writable behavior;
+- whether the underlying protocol/address is intrinsically read-only;
+- whether a native atomic bit-write primitive exists;
+- the fallback coordination strategy when native atomic bit write is unavailable;
+- whether multiple bit points can share/coalesce the same physical read.
+
+### Mandatory read behavior
+
+If the protocol permits reading the underlying byte/word/register, Engineering must be able to expose a Boolean TAG/reference for a valid selected bit.
+
+The selected bit inherits the same communication quality/source context as the underlying read. Communication failure must not be converted to Boolean false.
+
+### Mandatory write behavior
+
+If the underlying protocol/address is writable, the driver must support writing an engineered Boolean bit point without corrupting unrelated bits.
+
+The preferred order is:
+
+1. use a protocol-native atomic bit/mask operation when one exists and is deliberately supported;
+2. otherwise perform a coordinated read-modify-write against the same physical write authority.
+
+Concurrent EliteSCADA writes targeting different bits of the same physical word must not lose one another through an uncoordinated local race.
+
+A driver must never claim bit-write support when the protocol/address itself is read-only. Read-only areas remain explicitly read-only; the product requirement is to expose the real capability, not fabricate impossible writes.
+
+Native Boolean protocol points do not need an artificial word-bit selector merely to satisfy this contract.
+
+### Driver conformance rule
+
+Bit access becomes part of the standard acceptance matrix for every future driver with bit-addressable scalar storage. A new driver is not considered feature-complete for that storage family until its declared bit read/write behavior, range validation, quality propagation, unrelated-bit preservation and concurrency guarantees are covered by focused tests.
 
 Canonical TAG Engineering must represent the logical Boolean result without leaking a protocol library object into Core.
 
@@ -250,7 +281,9 @@ Before this contract is considered implemented, automated validation must prove 
 10. concurrent EliteSCADA writes to two bits of the same register do not lose one another;
 11. multiple bit TAGs sharing a register are not required to perform duplicate physical reads when they can share one poll result;
 12. import/export/revision/package round-trip preserves bit binding configuration;
-13. existing whole-register/coil/discrete-input Modbus behavior remains green.
+13. existing whole-register/coil/discrete-input Modbus behavior remains green;
+14. every future driver with bit-addressable word/byte/register storage passes a common bit-read conformance test for its declared width/range;
+15. every writable bit-capable future driver proves unrelated-bit preservation and local concurrent-write safety, while read-only protocol areas explicitly reject writes.
 
 ## 14. Implementation ordering
 

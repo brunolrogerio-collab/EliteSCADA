@@ -200,8 +200,8 @@ test('FOLLOW-B mounted editor persists expression, Boolean Condition and Analog 
     const conditionPanel = dynamic.locator('.dynamic-property-editor__panel');
     await conditionPanel.getByLabel('Condition preset').selectOption('NumericInterval');
     await selectSourceByPath(conditionPanel.getByLabel('Canonical source'), numericTag!.path);
-    await conditionPanel.getByLabel('Minimum').fill('20');
-    await conditionPanel.getByLabel('Maximum').fill('80');
+    await conditionPanel.getByRole('spinbutton', { name: 'Minimum', exact: true }).fill('20');
+    await conditionPanel.getByRole('spinbutton', { name: 'Maximum', exact: true }).fill('80');
     await conditionPanel.getByRole('button', { name: 'Apply condition' }).click();
 
     await dynamic.getByLabel('Visual property').selectOption('x');

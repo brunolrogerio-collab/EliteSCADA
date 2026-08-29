@@ -17,6 +17,9 @@ public sealed class S7IsoEngineeringTests
         Assert.Contains(DriverAcquisitionMode.Polling, descriptor.AcquisitionModes);
         Assert.DoesNotContain(descriptor.ConfigurationSchema.DataSourceFields, field => field.ValueKind == DriverConfigurationValueKind.SecretReference);
         Assert.Contains(descriptor.ConfigurationSchema.TagBindingFields, field => field.Key == "valueOrder");
+        var writeEnabled = Assert.Single(descriptor.ConfigurationSchema.DataSourceFields, field => field.Key == "writeEnabled");
+        Assert.Equal(DriverConfigurationValueKind.Boolean, writeEnabled.ValueKind);
+        Assert.Equal("false", writeEnabled.DefaultValue);
     }
 
     [Fact]
@@ -42,13 +45,34 @@ public sealed class S7IsoEngineeringTests
             ["cpuFamily"] = nameof(S7CpuFamily.S7400),
             ["connectionMode"] = nameof(S7IsoConnectionMode.ExplicitTsap),
             ["sourceTsap"] = "0x0100",
-            ["destinationTsap"] = "03.03"
+            ["destinationTsap"] = "03.03",
+            ["writeEnabled"] = "true"
         };
 
         Assert.True(S7IsoEngineeringAdapter.TryCreateOptions(settings, out var options, out var issues));
         Assert.Empty(issues);
         Assert.Equal((ushort)0x0303, options!.EffectiveDestinationTsap);
         Assert.Equal(S7IsoConnectionMode.ExplicitTsap, options.ConnectionMode);
+        Assert.True(options.WriteEnabled);
+    }
+
+    [Fact]
+    public void InvalidWriteEnabled_IsRejectedInsteadOfFallingBackSilently()
+    {
+        var settings = new Dictionary<string, string>
+        {
+            ["host"] = "plc",
+            ["cpuFamily"] = nameof(S7CpuFamily.S71500),
+            ["connectionMode"] = nameof(S7IsoConnectionMode.RackSlot),
+            ["rack"] = "0",
+            ["slot"] = "1",
+            ["connectionRole"] = nameof(S7IsoConnectionRole.Basic),
+            ["writeEnabled"] = "sometimes"
+        };
+
+        Assert.False(S7IsoEngineeringAdapter.TryCreateOptions(settings, out var options, out var issues));
+        Assert.Null(options);
+        Assert.Contains(issues, issue => issue.FieldKey == "writeEnabled");
     }
 
     [Fact]
@@ -78,5 +102,6 @@ public sealed class S7IsoEngineeringTests
         Assert.True(result.Succeeded, string.Join(" | ", result.Issues?.Select(issue => issue.Message) ?? Array.Empty<string>()));
         Assert.Equal("480", result.ObservedProperties!["negotiatedPduSize"]);
         Assert.Equal("0x0301", result.ObservedProperties["destinationTsap"]);
+        Assert.Equal("false", result.ObservedProperties["writeEnabled"]);
     }
 }

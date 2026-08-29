@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { VisualEditorBindingEditorContractProps } from '../visualEditorContracts';
 import {
+  compatibleBindingSources,
   createBindingRemoveIntent,
   createBindingSetIntent,
   findVisualBinding,
   listBindableVisualProperties,
-  normalizeBindingSourceCatalog,
   type BindableVisualProperty
 } from './bindingEditorModel';
 
@@ -36,7 +36,7 @@ const DEFAULT_COPY: BindingEditorCopy = {
   apply: 'Apply binding',
   remove: 'Remove binding',
   noDestinations: 'This object has no bindable visual properties.',
-  noSources: 'No canonical binding sources are available.',
+  noSources: 'No compatible canonical binding sources are available for this property.',
   current: 'Current binding'
 };
 
@@ -53,12 +53,7 @@ export function BindingEditor({
     () => computeDestinations(element.type),
     [element.type]
   );
-  const sourceResult = useMemo(
-    () => computeSources(sourceCatalog),
-    [sourceCatalog]
-  );
   const destinations = destinationResult.value;
-  const sources = sourceResult.value;
 
   const firstBoundDestination = destinations.find(item =>
     element.bindings?.some(binding => binding.key === item.key)
@@ -69,6 +64,13 @@ export function BindingEditor({
     if (destinations.some(item => item.key === propertyKey)) return;
     setPropertyKey(firstBoundDestination ?? destinations[0]?.key ?? '');
   }, [destinations, firstBoundDestination, propertyKey]);
+
+  const selectedDestination = destinations.find(item => item.key === propertyKey);
+  const sourceResult = useMemo(
+    () => computeSources(sourceCatalog, selectedDestination),
+    [sourceCatalog, selectedDestination]
+  );
+  const sources = sourceResult.value;
 
   const existing = propertyKey ? findVisualBinding(element, propertyKey) : undefined;
   const existingSourceKey = existing
@@ -198,17 +200,19 @@ function computeDestinations(objectType: string): Computed<readonly BindableVisu
 }
 
 function computeSources(
-  sourceCatalog: VisualEditorBindingEditorContractProps['sourceCatalog']
-): Computed<ReturnType<typeof normalizeBindingSourceCatalog>> {
+  sourceCatalog: VisualEditorBindingEditorContractProps['sourceCatalog'],
+  destination: BindableVisualProperty | undefined
+): Computed<readonly VisualEditorBindingEditorContractProps['sourceCatalog'][number][]> {
+  if (!destination) return { value: [], error: null };
   try {
-    return { value: normalizeBindingSourceCatalog(sourceCatalog), error: null };
+    return { value: compatibleBindingSources(destination.type, sourceCatalog), error: null };
   } catch (cause) {
     return { value: [], error: errorText(cause) };
   }
 }
 
 function sourceIdentity(kind: string, target: string): string {
-  return `${kind}\u0000${target}`;
+  return `${kind.trim().toLowerCase()}\u0000${target}`;
 }
 
 function errorText(cause: unknown): string {

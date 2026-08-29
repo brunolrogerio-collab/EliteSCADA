@@ -9,6 +9,7 @@ Live worker ownership: `docs/CHAT-WORK-ASSIGNMENTS.md`.
 Current coordinator checkpoint: `docs/COORDINATOR-HANDOFF.md`.  
 Wave 08 execution contract: `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`.  
 Wave 08 asset storage contract: `docs/VISUAL-ASSET-STORAGE-WAVE-08.md`.  
+Visual Boolean Conditions + Analog Fill follow-up: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.  
 Wave 07 historical contract: `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`.  
 Visual 07 -> 08 convergence: `docs/VISUAL-CANONICAL-CONVERGENCE-07-TO-08.md`.  
 CI policy: `docs/CI-USAGE-POLICY.md`.
@@ -61,6 +62,7 @@ Wave 05  Canonical Script Engineering                                           
 Wave 06  Python Editor + Client Visual sandbox                                       COMPLETE
 Wave 07  Visual Runtime Object Model + typed visual Engineering                      COMPLETE
 Wave 08  Graphical Editor Foundation + image import/object                           ACTIVE
+08-FOLLOW Visual Boolean Conditions + Analog Fill                                   QUEUED AFTER CURRENT WORKER DELIVERY
 Wave 09  Screens + Popups + Dynamos + asset dependencies/navigation                 WAITING
 Wave 10  Python visual events + animation + preview                                  WAITING
 Wave 11  Complete HMI Runtime demo vertical slice                                    WAITING
@@ -147,8 +149,30 @@ Transient Canvas selection/viewport/hover/adornment/drag-preview state must not 
 
 Final integrated CI must preserve all Wave 07 visual/Python and Wave 06 sandbox regressions. PR #90 remains Draft until this full gate is green.
 
+## Mandatory visual follow-up before Wave 09
+
+A newly locked product requirement must be implemented **after the current DEV 1/2/3 deliveries are reviewed/integrated and before Wave 09 is activated**. The current worker missions are not expanded mid-delivery.
+
+Contract: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.
+
+Required direction:
+
+- every renderable Screen/Popup/Dynamo object exposes `visible: boolean`;
+- every boolean visual property supports direct boolean binding and numeric interval -> boolean evaluation;
+- unavailable/bad-quality condition sources fall back through normal precedence instead of silently forcing false;
+- condition semantics are first-class canonical Engineering, never opaque metadata or renderer-only logic;
+- fill-capable closed shapes support numeric analog scaling to a proportional `0..100%` region;
+- initial fill directions: bottom->top, top->bottom, left->right, right->left;
+- filled-region color is explicit while the unfilled region preserves the normal base/background appearance;
+- condition/fill configuration round-trips through import/export/revisions/packages;
+- runtime-calculated results remain presentation state and are never saved automatically;
+- visual conditions are never process safety/interlock authority.
+
+This follow-up requires its own focused implementation/acceptance and CI evidence before the visual foundation is considered ready to proceed into Screen/Popup/Dynamo expansion.
+
 ## Remaining v0.1 sequence
 
+- **08-FOLLOW:** Visual Boolean Conditions + Analog Fill, after current worker integration and before Wave 09.
 - **Wave 09:** multiple Screens, Popups, reusable Dynamos, navigation and deterministic asset dependencies.
 - **Wave 10:** Python visual events, renderer-native animation/tween and Engineering visual Preview/Test.
 - **Wave 11:** build `Estação Elevatória EliteSCADA Demo` only through normal product APIs/tools.

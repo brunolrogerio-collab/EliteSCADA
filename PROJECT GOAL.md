@@ -115,6 +115,28 @@ Plugin-owned driver/Data Source configuration must expose a public versioned sch
 
 Passwords, tokens, private keys and equivalent secrets never appear in plaintext Engineering packages. Credentials/password hashes are not Engineering configuration. Technical configuration uses protected secret references.
 
+## TAG bit access and bit-level driver binding
+
+Integer TAGs must expose deterministic Boolean bit selectors as a reusable public reference capability. The preferred Engineering notation is `<TAG>.NN`, for example `Word_comando.00` for bit 0 and `Word_comando.07` for bit 7. Canonical persistence must resolve this to stable TAG identity plus bit index rather than depending only on the display text.
+
+Initial fixed-width semantics are:
+
+- `Int16`: bits `00..15`;
+- `Int32`: bits `00..31`;
+- `Int64`: bits `00..63`;
+- bit `00` is the LSB;
+- signed integer selectors use the fixed-width two's-complement representation.
+
+A bit selector is a Boolean projection of the authoritative integer TAG. It inherits source quality/timestamp and must not convert an unavailable/bad source into `false`. It may be consumed by visual expressions/bindings, alarms and scripting/reference surfaces wherever a Boolean TAG reference is valid.
+
+Drivers may also expose first-class **physical bit binding** for Boolean TAGs. For Modbus, a Boolean TAG may bind to one bit `0..15` of a Holding Register or Input Register while retaining the normal register address/area semantics. Input Registers remain read-only; writable Holding Register bit writes must preserve all unrelated bits through a native mask-write operation where supported or through a concurrency-safe coordinated read-modify-write path.
+
+The product must distinguish human register notation such as `4xxxxx` from the zero-based Modbus wire offset and make that conversion policy explicit in Engineering. Multiple bit TAGs sharing one register should reuse/coalesce the same physical read where practical.
+
+A logical bit selector is not automatically a separate historian series. If the engineer needs independent retention/alarm identity for a physical bit, they create a first-class Boolean TAG bound to that bit.
+
+Full locked semantics: `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`.
+
 ## Current merged platform baseline
 
 The following important slices are already official `main` state:
@@ -187,7 +209,7 @@ Full locked semantics: `docs/INTERNAL-MEMORY-TAGS.md`.
 
 ## Protocol-independent TAG Gateway
 
-Before additional external protocols, EliteSCADA must implement a server-side first-class Gateway/TAG Bridge:
+Before additional external protocol families, EliteSCADA must implement a server-side first-class Gateway/TAG Bridge:
 
 `Source TAG -> Gateway route -> Destination TAG`
 
@@ -308,9 +330,10 @@ Minimum expression direction includes:
 - a bounded whitelist of deterministic pure helpers such as `abs`, `min`, `max`, `clamp`, `round`, `floor`, `ceil`, `bool` and `number`;
 - canonical dependency resolution so expressions survive validation, rename/import/export and do not bind silently to ambiguous display labels;
 - reactive reevaluation when referenced sources change;
+- integer TAG bit selectors such as `Word_status.03` as typed Boolean dependencies once the TAG-bit contract is implemented;
 - bounded parsing/evaluation with no arbitrary JavaScript/Python code, loops, assignments, driver/database/network/DOM access or arbitrary function invocation.
 
-Examples include boolean expressions such as `falha_inversor1 or falha_bomba1` and numeric formulas such as `(nivel1 + nivel2) * 3`. A numeric expression driving a boolean property must convert explicitly, for example `(falha_inversor1 + falha_bomba1) > 0` or `bool(falha_inversor1 + falha_bomba1)` when those fault TAGs are numeric.
+Examples include boolean expressions such as `falha_inversor1 or falha_bomba1`, bit-aware expressions such as `Word_status.03 or falha_bomba1`, and numeric formulas such as `(nivel1 + nivel2) * 3`. A numeric expression driving a boolean property must convert explicitly, for example `(falha_inversor1 + falha_bomba1) > 0` or `bool(falha_inversor1 + falha_bomba1)` when those fault TAGs are numeric.
 
 More generally, every public visual property whose schema type is boolean must support declarative boolean evaluation in the Binding/Expression layer without requiring Python. Simple direct-boolean and numeric-interval authoring remain required as convenient structured presets over the same expression semantics.
 
@@ -486,6 +509,7 @@ Full locked semantics and the permitted early non-production spike: `docs/OPC-UA
 - `docs/VISUAL-COMPONENT-LIBRARY.md`: reusable visual-component direction.
 - `docs/INTERNAL-MEMORY-TAGS.md`: Client/Server Memory semantics.
 - `docs/TAG-GATEWAY.md`: TAG Gateway semantics.
+- `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`: integer TAG bit selectors and protocol bit-level Boolean binding semantics.
 - `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`: multi-driver diagnostic contract.
 - `docs/INTERFACE-VALIDATION-MILESTONE.md`: mandatory product-owner preview gate.
 - `docs/OPC-UA.md`: OPC UA discovery, browse, import, security and future driver Engineering experience.

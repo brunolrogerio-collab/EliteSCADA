@@ -221,6 +221,16 @@ public sealed class OpcUaEngineeringAdapter :
             ["securityPolicyUri"] = endpoint.SecurityPolicyUri
         };
 
+        if (!string.IsNullOrWhiteSpace(endpoint.ApplicationUri))
+        {
+            settings["serverApplicationUri"] = endpoint.ApplicationUri.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(endpoint.ServerCertificateThumbprint))
+        {
+            settings["serverCertificateSha256"] = endpoint.ServerCertificateThumbprint.Trim();
+        }
+
         var authenticationMode = SelectAuthenticationMode(endpoint.UserTokenTypes);
         if (authenticationMode is not null)
         {

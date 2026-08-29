@@ -74,6 +74,32 @@ public sealed class S7IsoConnectionOptionsTests
     }
 
     [Fact]
+    public void UndefinedEnums_AreRejectedAtConstructionBoundary()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new S7IsoConnectionOptions(
+            "plc",
+            (S7CpuFamily)999,
+            S7IsoConnectionMode.RackSlot,
+            rack: 0,
+            slot: 1));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => new S7IsoConnectionOptions(
+            "plc",
+            S7CpuFamily.S71500,
+            (S7IsoConnectionMode)999,
+            rack: 0,
+            slot: 1));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => new S7IsoConnectionOptions(
+            "plc",
+            S7CpuFamily.S71500,
+            S7IsoConnectionMode.RackSlot,
+            rack: 0,
+            slot: 1,
+            connectionRole: (S7IsoConnectionRole)0xFF));
+    }
+
+    [Fact]
     public void Writes_AreDisabledByDefaultAndRequireExplicitOptIn()
     {
         var safeDefault = new S7IsoConnectionOptions(

@@ -12,6 +12,7 @@ Wave 08 Development Monitor contract: `docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE
 TAG bit contract: `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`.  
 Visual expression follow-up: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.  
 Wave 09 historical data context: `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`.  
+Wave 09 reporting contract: `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`.  
 CI policy: `docs/CI-USAGE-POLICY.md`.
 
 Engineering Import/Export remains cross-cutting: canonical Engineering entities participate in versioned JSON, validation/Preview/Apply, Working/revision lifecycle, PostgreSQL persistence where applicable and `.escadapkg` backup/restore.
@@ -58,7 +59,7 @@ Wave 07      Visual Runtime Object Model + typed visual Engineering             
 Wave 08      Graphical Editor + Image + Engineering Development Monitor                  COMPLETE
 08-FOLLOW-A  TAG Bit Access + Driver Bit-Level Boolean Binding                           ACTIVE
 08-FOLLOW-B  Typed Visual Expressions + Boolean Conditions + Analog Fill                 WAITING ON 08-FOLLOW-A
-Wave 09      Screens + Popups + Dynamos + navigation + Historical Data Browser          WAITING
+Wave 09      Screens + Popups + Dynamos + navigation + Historical Data + Reporting       WAITING
 Wave 10      Python visual events + animation + preview                                  WAITING
 Wave 11      Complete HMI Runtime demo vertical slice                                    WAITING
 Wave 12      Hardening                                                                   WAITING
@@ -120,7 +121,8 @@ Required semantics:
 - bit references become reusable through existing canonical source/reference seams;
 - Development Monitor and Project Reference Tree later consume the same reference contract, never a private `.NN` parser;
 - optional authorized logical bit writes preserve all unrelated bits and coordinate concurrent EliteSCADA mutations;
-- Boolean TAGs may bind directly to a physical driver word/register bit when driver capability declares support.
+- Boolean TAGs may bind directly to a physical driver word/register bit when driver capability declares support;
+- every future driver with bit-addressable word/byte/register storage must expose structured bit read capability and, where the underlying protocol/address is writable, safe unrelated-bit-preserving bit writes.
 
 ### Required Modbus behavior
 
@@ -176,16 +178,32 @@ Wave 09 remains blocked until Follow-A and Follow-B are green.
 
 ## Wave 09 — locked future expansion / NOT ACTIVE
 
-Wave 09 keeps Screens + Popups + Dynamos + navigation and also includes the locked Historical Data Browser context in:
+Wave 09 keeps Screens + Popups + Dynamos + navigation and includes two data/presentation capabilities:
 
-`docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`
+- Historical Data Browser context: `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`;
+- canonical Reporting/Report Designer: `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`.
 
-Initial protected logical datasets:
+Initial protected logical datasets include:
 
 - `historian.samples`;
 - `alarm.events`.
 
-Required direction includes relative/absolute time ranges, typed server-side filters, bounded sortable tabular results, exact values/quality, parameterized PostgreSQL/TimescaleDB queries and strict separation between current operational Alarm Center commands and read-only historical alarm browsing.
+Required historical-data direction includes relative/absolute time ranges, typed server-side filters, bounded sortable tabular results, exact values/quality, parameterized PostgreSQL/TimescaleDB queries and strict separation between current operational Alarm Center commands and read-only historical alarm browsing.
+
+Required Reporting direction includes:
+
+- first-class versioned Report Engineering;
+- Report/Page/Group Header/Footer plus repeatable Detail sections;
+- nested groups and deterministic section/group ordering;
+- visual Report Designer with typed fields, text, images, Boolean fields, barcode, charts, shapes and page breaks;
+- graphical typed query/parameter configuration over protected datasets rather than arbitrary SQL;
+- runtime date/time/filter parameters and requery without dirtying Engineering;
+- declarative grouping, count/sum/average/min/max and time-bucket summaries;
+- page setup, page numbering, preview and printing;
+- PDF, XLSX, HTML, RTF, Text and CSV export through bounded authorized server/product paths;
+- canonical JSON/Preview/Apply/revision/PostgreSQL/`.escadapkg` fidelity;
+- shared time-range/filter/provider semantics with Historical Data Browser and Trends;
+- no unrestricted scripting or arbitrary SQL in the first Wave 09 reporting slice.
 
 Do not activate Wave 09 or distribute its work until the mandatory 08-FOLLOW stages are closed.
 
@@ -193,7 +211,7 @@ Do not activate Wave 09 or distribute its work until the mandatory 08-FOLLOW sta
 
 - **08-FOLLOW-A:** TAG Bit Access + Driver Bit-Level Boolean Binding.
 - **08-FOLLOW-B:** Typed Visual Expressions + Boolean Conditions + Analog Fill.
-- **Wave 09:** Screens/Popups/Dynamos/navigation + Historical Data Browser.
+- **Wave 09:** Screens/Popups/Dynamos/navigation + Historical Data Browser + Reporting/Report Designer.
 - **Wave 10:** Python visual events, renderer-native animation/tween and Engineering visual Preview/Test.
 - **Wave 11:** complete owner-testable HMI Runtime demo vertical slice.
 - **Wave 12:** hardening.
@@ -205,7 +223,7 @@ Do not activate Wave 09 or distribute its work until the mandatory 08-FOLLOW sta
 
 Required real industrial protocol: **Modbus TCP**. Simulation, Client Memory, Server Memory and Gateway remain part of product validation.
 
-Production MQTT, OPC UA, BACnet, S7, Allen-Bradley and final Driver Module framework remain post-v0.1 owner validation.
+Production MQTT, OPC UA, BACnet, S7, Allen-Bradley and final Driver Module framework remain post-v0.1 owner validation. When those drivers are developed, the permanent bit-level driver conformance contract applies to every bit-addressable word/byte/register storage family, including safe writes where the protocol/address is writable.
 
 ## Development quality
 

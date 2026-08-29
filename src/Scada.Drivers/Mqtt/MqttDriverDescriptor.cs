@@ -16,7 +16,7 @@ public sealed class MqttDriverDescriptorProvider : ICommunicationDriverDescripto
                              DriverCapabilities.Subscribe |
                              DriverCapabilities.Diagnostics |
                              DriverCapabilities.SourceTimestamp,
-        EngineeringCapabilities: DriverEngineeringCapabilities.ConnectionTest,
+        EngineeringCapabilities: DriverEngineeringCapabilities.None,
         AcquisitionModes: [DriverAcquisitionMode.EventDriven],
         ConfigurationSchema: new DriverConfigurationSchemaDescriptor(
             SchemaId,

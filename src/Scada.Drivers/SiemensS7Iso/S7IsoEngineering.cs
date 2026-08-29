@@ -26,14 +26,14 @@ public sealed class S7IsoEngineeringAdapter :
         {
             await transport.ConnectAsync(cancellationToken);
             var diagnostics = transport.GetDiagnostics();
-            var observed = ConnectionObservedProperties(validOptions, diagnostics);
+            var observed = ConnectionObservedProperties(validOptions, diagnostics, pointAccessProven: false);
 
             return new DriverConnectionTestResult(
                 true,
                 validOptions.SanitizedEndpoint,
                 null,
                 observed,
-                Array.Empty<DriverEngineeringIssue>());
+                ConnectionSuccessIssues(validOptions));
         }
         catch (Exception ex) when (ex is IOException or TimeoutException or SocketException or InvalidOperationException)
         {
@@ -43,7 +43,7 @@ public sealed class S7IsoEngineeringAdapter :
                 false,
                 validOptions.SanitizedEndpoint,
                 null,
-                ConnectionObservedProperties(validOptions, diagnostics),
+                ConnectionObservedProperties(validOptions, diagnostics, pointAccessProven: false),
                 new[]
                 {
                     new DriverEngineeringIssue(
@@ -221,7 +221,8 @@ public sealed class S7IsoEngineeringAdapter :
 
     private static IReadOnlyDictionary<string, string> ConnectionObservedProperties(
         S7IsoConnectionOptions options,
-        S7IsoTransportDiagnosticSnapshot diagnostics) =>
+        S7IsoTransportDiagnosticSnapshot diagnostics,
+        bool pointAccessProven) =>
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["connectionMode"] = options.ConnectionMode.ToString(),
@@ -230,8 +231,24 @@ public sealed class S7IsoEngineeringAdapter :
             ["requestedPduSize"] = options.RequestedPduSize.ToString(CultureInfo.InvariantCulture),
             ["negotiatedPduSize"] = diagnostics.NegotiatedPduSize?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
             ["writeEnabled"] = options.WriteEnabled ? "true" : "false",
+            ["sessionEstablished"] = diagnostics.Connected ? "true" : "false",
+            ["pointAccessProven"] = pointAccessProven ? "true" : "false",
             ["failureKind"] = diagnostics.LastFailureKind?.ToString() ?? string.Empty
         };
+
+    private static IReadOnlyCollection<DriverEngineeringIssue> ConnectionSuccessIssues(S7IsoConnectionOptions options)
+    {
+        if (options.CpuFamily is not (S7CpuFamily.S71200 or S7CpuFamily.S71500))
+            return Array.Empty<DriverEngineeringIssue>();
+
+        return new[]
+        {
+            new DriverEngineeringIssue(
+                "S7_CLASSIC_ACCESS_NOT_PROVEN",
+                DriverEngineeringIssueSeverity.Warning,
+                "The S7 ISO session was established, but classic absolute point access, PUT/GET permission and non-optimized DB compatibility were not proven by this non-destructive connection test.")
+        };
+    }
 
     private static string ConnectionFailureIssueCode(S7IsoFailureKind? kind) => kind switch
     {

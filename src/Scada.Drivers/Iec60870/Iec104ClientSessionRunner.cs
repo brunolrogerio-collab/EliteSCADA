@@ -11,6 +11,7 @@ public sealed class Iec104ClientSessionRunner
     private readonly byte _originatorAddress;
     private readonly Iec104SessionStateMachine _stateMachine = new();
     private readonly Dictionary<ushort, Iec104GeneralInterrogationTransaction> _generalInterrogations = new();
+    private readonly Iec104CommandCoordinator _commandCoordinator;
 
     public Iec104ClientSessionRunner(
         IIec104ClientAdapter adapter,
@@ -19,7 +20,8 @@ public sealed class Iec104ClientSessionRunner
         Iec104SessionOptions options,
         TimeZoneInfo stationTimeZone,
         IEnumerable<ushort> commonAddresses,
-        byte originatorAddress = 0)
+        byte originatorAddress = 0,
+        Iec104CommandExecutionOptions? commandOptions = null)
     {
         ArgumentNullException.ThrowIfNull(adapter);
         ArgumentNullException.ThrowIfNull(options);
@@ -33,6 +35,13 @@ public sealed class Iec104ClientSessionRunner
         if (addresses.Length == 0)
             throw new ArgumentException("IEC-104 session requires at least one Common Address for the initial General Interrogation profile.", nameof(commonAddresses));
 
+        var effectiveCommandOptions = commandOptions ?? new Iec104CommandExecutionOptions
+        {
+            ConfirmationTimeout = options.T1,
+            CompletionTimeout = options.T1
+        };
+        effectiveCommandOptions.Validate();
+
         _adapter = adapter;
         _host = host.Trim();
         _port = port;
@@ -40,12 +49,34 @@ public sealed class Iec104ClientSessionRunner
         _stationTimeZone = stationTimeZone;
         _commonAddresses = addresses;
         _originatorAddress = originatorAddress;
+        _commandCoordinator = new Iec104CommandCoordinator(adapter, effectiveCommandOptions);
     }
 
     public Iec104SessionState State => _stateMachine.State;
 
+    public int InFlightCommandCount => _commandCoordinator.InFlightCount;
+
     public IReadOnlyDictionary<ushort, Iec104GeneralInterrogationState> GeneralInterrogationStates =>
         _generalInterrogations.ToDictionary(static pair => pair.Key, static pair => pair.Value.State);
+
+    public Task<Iec104CommandResult> ExecuteCommandAsync(
+        Iec104CommandTransaction transaction,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(transaction);
+
+        if (State != Iec104SessionState.Running || !_adapter.IsConnected)
+        {
+            return Task.FromResult(new Iec104CommandResult(
+                Iec104CommandOutcome.Rejected,
+                transaction.State,
+                ExecuteWasTransmitted: false,
+                WasAccepted: false,
+                "IEC-104 session is not in Running state; command was not sent."));
+        }
+
+        return _commandCoordinator.ExecuteAsync(transaction, cancellationToken);
+    }
 
     public async Task RunAsync(
         Func<Iec104DecodedPoint, CancellationToken, ValueTask> onObservedPoint,
@@ -79,6 +110,8 @@ public sealed class Iec104ClientSessionRunner
 
             await foreach (var asdu in _adapter.ReadAsync(cancellationToken).WithCancellation(cancellationToken).ConfigureAwait(false))
             {
+                if (_commandCoordinator.TryObserveResponse(asdu))
+                    continue;
                 if (TryObserveGeneralInterrogation(asdu))
                     continue;
                 if (!Iec104InformationObjectDecoder.IsSupported(asdu.Header.TypeId))
@@ -92,6 +125,7 @@ public sealed class Iec104ClientSessionRunner
         catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
         {
             operationFailure = ex;
+            _commandCoordinator.FailAll(ex);
             if (State is not (Iec104SessionState.Stopped or Iec104SessionState.Stopping or Iec104SessionState.Faulted))
                 _stateMachine.TransitionTo(Iec104SessionState.Stopping);
             throw;
@@ -99,12 +133,16 @@ public sealed class Iec104ClientSessionRunner
         catch (Exception ex)
         {
             operationFailure = ex;
+            _commandCoordinator.FailAll(ex);
             if (State is not (Iec104SessionState.Faulted or Iec104SessionState.Stopped))
                 _stateMachine.TransitionTo(Iec104SessionState.Faulted);
             throw;
         }
         finally
         {
+            if (operationFailure is null)
+                _commandCoordinator.FailAll(new IOException("IEC-104 session ended before pending command outcomes were resolved."));
+
             try
             {
                 await StopTransportAsync(dataTransferStarted).ConfigureAwait(false);

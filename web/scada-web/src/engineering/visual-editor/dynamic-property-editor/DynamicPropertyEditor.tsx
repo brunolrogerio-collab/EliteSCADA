@@ -112,6 +112,7 @@ export function DynamicPropertyEditor({
     /> : null}
 
     {mode === 'DirectBinding' ? <DirectBindingMode
+      key={`binding:${destination.propertyKey}`}
       destination={destination}
       element={element}
       sourceCatalog={sourceCatalog}
@@ -121,6 +122,7 @@ export function DynamicPropertyEditor({
     /> : null}
 
     {mode === 'BooleanCondition' && destination.propertyType === 'boolean' ? <BooleanConditionMode
+      key={`condition:${destination.propertyKey}`}
       destination={destination}
       sourceCatalog={sourceCatalog}
       onSetBooleanCondition={onSetBooleanCondition}
@@ -130,6 +132,7 @@ export function DynamicPropertyEditor({
     /> : null}
 
     {mode === 'Expression' ? <ExpressionMode
+      key={`expression:${destination.propertyKey}`}
       destination={destination}
       sourceCatalog={sourceCatalog}
       onSetExpression={onSetExpression}
@@ -139,6 +142,7 @@ export function DynamicPropertyEditor({
     /> : null}
 
     {supportsAnalogFill(element.type) ? <AnalogFillMode
+      key={`analog-fill:${element.id ?? element.key}`}
       element={element}
       sourceCatalog={sourceCatalog}
       onSetAnalogFill={onSetAnalogFill}

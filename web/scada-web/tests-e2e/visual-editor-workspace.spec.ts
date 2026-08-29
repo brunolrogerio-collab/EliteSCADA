@@ -65,7 +65,7 @@ test('Wave 08 composes Canvas, palette, properties, binding, image asset and can
     const screenList = page.locator('.visual-editor-screen-list');
     await screenList.getByRole('button').filter({ hasText: originalScreen!.key }).click();
 
-    const route = page.getByLabel('Rota');
+    const route = page.getByRole('textbox', { name: 'Rota', exact: true });
     await expect(route).toHaveValue(originalScreen!.route ?? '');
 
     const assetInput = page.locator('.visual-editor-file-import input[type="file"]');
@@ -88,7 +88,7 @@ test('Wave 08 composes Canvas, palette, properties, binding, image asset and can
     });
 
     await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
-    await expect(page.getByLabel('Rota')).toHaveValue(originalScreen!.route ?? '');
+    await expect(page.getByRole('textbox', { name: 'Rota', exact: true })).toHaveValue(originalScreen!.route ?? '');
 
     await page.locator('[data-object-type="core.image"]').click();
     const imageObject = page.locator('[data-canvas-object-type="core.image"]').last();
@@ -160,7 +160,7 @@ test('Wave 08 composes Canvas, palette, properties, binding, image asset and can
     expect(JSON.stringify(persisted.screen)).not.toContain('hoveredObjectId');
 
     await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
-    await expect(page.getByLabel('Rota')).toHaveValue(nextRoute);
+    await expect(page.getByRole('textbox', { name: 'Rota', exact: true })).toHaveValue(nextRoute);
     await expect(page.locator('.visual-editor-object-error')).toHaveCount(0);
 
     const persistedImageObject = page.locator('[data-canvas-object-type="core.image"]').last();

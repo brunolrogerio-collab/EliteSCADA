@@ -25,6 +25,11 @@ public sealed record S7IsoTagBinding(
     public const int CurrentSchemaVersion = 1;
     public const string PortablePrefix = "s7iso:v";
 
+    private static readonly HashSet<string> PortableFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "area", "db", "byte", "bit", "type", "string", "writable", "order"
+    };
+
     public S7IsoPoint ToPoint(TagDefinition tag)
     {
         ArgumentNullException.ThrowIfNull(tag);
@@ -54,7 +59,7 @@ public sealed record S7IsoTagBinding(
         $"bit={BitOffset.ToString(CultureInfo.InvariantCulture)}",
         $"type={ValueType}",
         $"string={StringLength.ToString(CultureInfo.InvariantCulture)}",
-        $"writable={Writable.ToString(CultureInfo.InvariantCulture).ToLowerInvariant()}",
+        $"writable={(Writable ? "true" : "false")}",
         $"order={ValueOrder}");
 
     public static bool TryCreateFromSettings(
@@ -138,6 +143,11 @@ public sealed record S7IsoTagBinding(
 
             var key = parts[i][..separator].Trim();
             var value = parts[i][(separator + 1)..].Trim();
+            if (!PortableFields.Contains(key))
+            {
+                error = $"S7 ISO portable address field '{key}' is not supported by schema v{CurrentSchemaVersion}.";
+                return false;
+            }
             if (!values.TryAdd(key, value))
             {
                 error = $"S7 ISO portable address field '{key}' appears more than once.";
@@ -183,7 +193,7 @@ public sealed record S7IsoTagBinding(
 
         if (binding.ValueOrder != S7IsoValueOrder.Normal && !multiByteNumeric)
             errors.Add(new S7IsoBindingIssue("valueOrder", "S7 byte/word ordering is valid only for multi-byte numeric bindings."));
-        if (binding.ValueOrder is S7IsoValueOrder.WordSwap or S7IsoValueOrder.ByteAndWordSwap &&
+        if ((binding.ValueOrder is S7IsoValueOrder.WordSwap or S7IsoValueOrder.ByteAndWordSwap) &&
             binding.ValueType is S7IsoValueType.UInt16 or S7IsoValueType.Int16)
             errors.Add(new S7IsoBindingIssue("valueOrder", "S7 word swap requires a value at least 32 bits wide."));
     }

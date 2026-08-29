@@ -294,22 +294,33 @@ Common properties include, as applicable:
 
 Type-specific objects may add explicit schema properties.
 
-#### Declarative visual conditions and Analog Fill
+#### Declarative visual expressions, conditions and Analog Fill
 
 Every renderable Screen/Popup/Dynamo object must expose the public boolean `visible` property, defaulting to `true` unless a deliberate schema rule says otherwise.
 
-More generally, every public visual property whose schema type is boolean must support declarative boolean evaluation in the Binding/Expression layer without requiring Python. At minimum this includes:
+Visual properties that declare Binding/Expression support must accept a typed, side-effect-free expression over canonical runtime data sources, initially TAGs and Client Memory. Expressions belong to the existing Binding/Expression precedence layer and never become a second scripting system.
 
-- direct boolean source, with explicit optional inversion;
-- numeric interval evaluation with lower/upper bounds, inclusive/exclusive edges, one-sided intervals and `inside`/`outside` semantics.
+Minimum expression direction includes:
 
-Bad/unavailable/wrong-type sources must not silently coerce to `false`; that binding evaluation becomes unavailable and normal property precedence falls back with diagnostics.
+- boolean `and`, `or`, `not`, comparisons and parentheses;
+- numeric `+`, `-`, `*`, `/`, `%`, unary sign and normal mathematical precedence;
+- explicit type conversion between boolean/numeric domains where needed, never implicit coercion;
+- a bounded whitelist of deterministic pure helpers such as `abs`, `min`, `max`, `clamp`, `round`, `floor`, `ceil`, `bool` and `number`;
+- canonical dependency resolution so expressions survive validation, rename/import/export and do not bind silently to ambiguous display labels;
+- reactive reevaluation when referenced sources change;
+- bounded parsing/evaluation with no arbitrary JavaScript/Python code, loops, assignments, driver/database/network/DOM access or arbitrary function invocation.
 
-Closed visual objects that opt into fill capability must support Analog Fill: a numeric source is scaled through configured engineering minimum/maximum to a clamped `0..100%` filled region, with explicit direction (`bottom->top`, `top->bottom`, `left->right`, `right->left`) and a filled-region color distinct from the unfilled/base appearance.
+Examples include boolean expressions such as `falha_inversor1 or falha_bomba1` and numeric formulas such as `(nivel1 + nivel2) * 3`. A numeric expression driving a boolean property must convert explicitly, for example `(falha_inversor1 + falha_bomba1) > 0` or `bool(falha_inversor1 + falha_bomba1)` when those fault TAGs are numeric.
 
-These are canonical, versioned Engineering behaviors and participate in import/export, Preview/Apply, revisions and project packages. Runtime-evaluated boolean results and fill percentages remain presentation state and never become saved base values automatically.
+More generally, every public visual property whose schema type is boolean must support declarative boolean evaluation in the Binding/Expression layer without requiring Python. Simple direct-boolean and numeric-interval authoring remain required as convenient structured presets over the same expression semantics.
 
-Visual conditions are presentation behavior only. They must never become safety/interlock/permissive authority.
+Bad/unavailable/wrong-type dependencies must not silently coerce to `false` or `0`; that Binding/Expression evaluation becomes unavailable and normal property precedence falls back with diagnostics.
+
+Closed visual objects that opt into fill capability must support Analog Fill: a compatible numeric Binding/Expression result is scaled through configured engineering minimum/maximum to a clamped `0..100%` filled region, with explicit direction (`bottom->top`, `top->bottom`, `left->right`, `right->left`) and a filled-region color distinct from the unfilled/base appearance.
+
+These are canonical, versioned Engineering behaviors and participate in import/export, Preview/Apply, revisions and project packages. Runtime-evaluated expression results, boolean results and fill percentages remain presentation state and never become saved base values automatically.
+
+Visual expressions/conditions are presentation behavior only. They must never become safety/interlock/permissive authority.
 
 Full locked semantics and deferred implementation boundary: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.
 
@@ -325,7 +336,7 @@ This separation is mandatory:
 
 ### Script editor and animation
 
-Before the graphical editor, Engineering must provide a practical Python code editor with syntax highlighting, line/column diagnostics, validation, script scope/event association, API autocomplete where practical and a sandboxed test/preview workflow.
+Before the graphical editor, Engineering must provide a practical Python code editor with syntax highlighting, line numbers, indentation, API autocomplete where practical, line/column diagnostics, validation, script scope/event association, API autocomplete where practical and a sandboxed test/preview workflow.
 
 Scripts are first-class versioned Engineering entities and participate in import/export, revisions, `.escadapkg`, dependency validation and Engineering Fragments.
 
@@ -479,6 +490,6 @@ Full locked semantics and the permitted early non-production spike: `docs/OPC-UA
 - `docs/INTERFACE-VALIDATION-MILESTONE.md`: mandatory product-owner preview gate.
 - `docs/OPC-UA.md`: OPC UA discovery, browse, import, security and future driver Engineering experience.
 - `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`: Python scripting, script editor, visual property schema and runtime visual-state contract.
-- `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`: universal boolean visual conditions and analog proportional fill direction.
+- `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`: typed visual expressions, universal boolean visual conditions and analog proportional fill direction.
 
 These documents must remain consistent. `PROJECT GOAL.md` wins for locked product intent; current repository code/`main` wins for implementation truth; `LAST CHANGE.md` records the exact handoff.

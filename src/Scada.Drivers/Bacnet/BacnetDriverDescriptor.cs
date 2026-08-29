@@ -23,6 +23,7 @@ public static class BacnetDriverDescriptor
             DataSourceFields: new DriverConfigurationFieldDescriptor[]
             {
                 new("deviceInstance", DriverConfigurationValueKind.Integer, Required: true, DisplayName: "Device instance", Minimum: 0, Maximum: BacnetBinding.MaximumDeviceInstance),
+                new("targetAddress", DriverConfigurationValueKind.String, Required: false, DisplayName: "Manual target IPv4 address", Description: "Optional IPv4 address with UDP port, for example 192.168.1.20:47808."),
                 new("localPort", DriverConfigurationValueKind.Port, DefaultValue: "47808", DisplayName: "Local BACnet/IP UDP port", Advanced: true),
                 new("scanIntervalMilliseconds", DriverConfigurationValueKind.Duration, DefaultValue: "1000", DisplayName: "Polling interval", Minimum: 50, Maximum: 600000),
                 new("requestTimeoutMilliseconds", DriverConfigurationValueKind.Duration, DefaultValue: "3000", DisplayName: "Request timeout", Minimum: 100, Maximum: 60000),

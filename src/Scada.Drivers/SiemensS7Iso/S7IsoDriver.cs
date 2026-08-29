@@ -146,21 +146,18 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
         }
         catch (S7IsoProtocolException ex) when (ex.ReturnCode.HasValue)
         {
-            await PublishPreviousAsync(point, MapReturnCodeQuality(ex.ReturnCode.Value), cancellationToken);
             RecordOperations(0, 1, 0, 1, Stopwatch.GetElapsedTime(started), ex);
             SetCommunicationState(CommunicationDriverOperationalState.Degraded);
             throw;
         }
         catch (S7IsoConfigurationException ex)
         {
-            await PublishPreviousAsync(point, TagQuality.BadConfiguration, cancellationToken);
             RecordOperations(0, 1, 0, 1, Stopwatch.GetElapsedTime(started), ex);
             SetCommunicationState(CommunicationDriverOperationalState.Degraded);
             throw;
         }
         catch (Exception ex) when (IsCommunicationException(ex))
         {
-            await PublishPreviousAsync(point, TagQuality.BadCommunication, cancellationToken);
             RecordOperations(0, 1, 0, 1, Stopwatch.GetElapsedTime(started), ex);
             SetCommunicationState(CommunicationDriverOperationalState.Reconnecting);
             throw;

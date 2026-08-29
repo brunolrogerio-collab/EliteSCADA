@@ -27,6 +27,13 @@ public static class BuiltinVisualObjectSchemas
             .Concat(CommonVisualPropertyDefinitions.Image)
             .ToDictionary(property => property.Key, StringComparer.Ordinal);
 
+    private static readonly HashSet<string> AnalogFillCapableTypes =
+        new(StringComparer.Ordinal)
+        {
+            RectangleType,
+            EllipseType
+        };
+
     private static readonly string[] Base =
     [
         VisualPropertyKeys.X,
@@ -132,6 +139,14 @@ public static class BuiltinVisualObjectSchemas
         ValueDisplay,
         Button
     ];
+
+    /// <summary>
+    /// Public object-capability declaration for FOLLOW-B Analog Fill. Eligibility
+    /// is explicit and renderer-independent; renderers must not infer it from CSS,
+    /// geometry implementation or the mere presence of a color property.
+    /// </summary>
+    public static bool SupportsAnalogFill(string objectType) =>
+        !string.IsNullOrWhiteSpace(objectType) && AnalogFillCapableTypes.Contains(objectType);
 
     public static VisualObjectPropertySchema GetRequired(string objectType)
     {

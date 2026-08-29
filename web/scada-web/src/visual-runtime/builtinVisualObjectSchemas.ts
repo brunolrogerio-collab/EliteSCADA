@@ -18,6 +18,11 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
 
 export type BuiltinVisualObjectType = typeof BUILTIN_VISUAL_OBJECT_TYPES[keyof typeof BUILTIN_VISUAL_OBJECT_TYPES];
 
+const ANALOG_FILL_CAPABLE_TYPES = new Set<string>([
+  BUILTIN_VISUAL_OBJECT_TYPES.rectangle,
+  BUILTIN_VISUAL_OBJECT_TYPES.ellipse
+]);
+
 const GEOMETRY: readonly CommonVisualPropertyKey[] = [
   VISUAL_PROPERTY_KEYS.x,
   VISUAL_PROPERTY_KEYS.y,
@@ -104,6 +109,10 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     ...TEXT
   ])]
 ]);
+
+export function supportsAnalogFill(objectType: string): boolean {
+  return ANALOG_FILL_CAPABLE_TYPES.has(objectType);
+}
 
 export function getBuiltinVisualObjectSchema(objectType: string): VisualObjectPropertySchema {
   const result = schemas.get(objectType as BuiltinVisualObjectType);

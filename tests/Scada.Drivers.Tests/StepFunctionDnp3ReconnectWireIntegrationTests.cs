@@ -94,7 +94,7 @@ public sealed class StepFunctionDnp3ReconnectWireIntegrationTests
 
         try
         {
-            initialHost = Dnp3OutstationHost.Start(port, binaryInputValue: true, initialTimestamp);
+            initialHost = Dnp3OutstationHost.Start(port, binaryInputValue: false);
 
             await driver.StartAsync();
             await WaitUntilAsync(
@@ -102,13 +102,16 @@ public sealed class StepFunctionDnp3ReconnectWireIntegrationTests
                 TimeSpan.FromSeconds(10),
                 "Initial DNP3 association did not reach Online.");
             await WaitUntilAsync(
-                () => HasBoolean(cache, binaryInputTag.Id, true, TagQuality.Good) &&
+                () => HasBoolean(cache, binaryInputTag.Id, false, TagQuality.Good) &&
                       HasBoolean(cache, binaryOutputTag.Id, false, TagQuality.Good),
                 TimeSpan.FromSeconds(10),
                 "Initial startup integrity did not populate the configured TAGs.");
 
-            Assert.True(cache.TryGet(binaryInputTag.Id, out var initialValue));
-            Assert.Equal(initialTimestamp.ToUnixTimeMilliseconds(), initialValue?.SourceTimestamp?.ToUnixTimeMilliseconds());
+            initialHost.PublishBinaryInput(true, initialTimestamp);
+            await WaitUntilAsync(
+                () => HasBooleanWithTimestamp(cache, binaryInputTag.Id, true, TagQuality.Good, initialTimestamp),
+                TimeSpan.FromSeconds(10),
+                "Timed Class 1 Binary Input event did not reach CurrentTagCache before disconnect.");
 
             initialHost.Shutdown();
             initialHost = null;
@@ -135,7 +138,7 @@ public sealed class StepFunctionDnp3ReconnectWireIntegrationTests
             await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await driver.WriteAsync(binaryOutputTag.Id, true));
 
-            recoveredHost = Dnp3OutstationHost.Start(port, binaryInputValue: false, recoveredTimestamp);
+            recoveredHost = Dnp3OutstationHost.Start(port, binaryInputValue: false);
 
             await WaitUntilAsync(
                 () => session.State == Dnp3SessionState.Online,
@@ -147,9 +150,11 @@ public sealed class StepFunctionDnp3ReconnectWireIntegrationTests
                 TimeSpan.FromSeconds(10),
                 "Recovered startup integrity did not restore Good quality from fresh outstation data.");
 
-            Assert.True(cache.TryGet(binaryInputTag.Id, out var recoveredValue));
-            Assert.Equal(false, recoveredValue?.Value);
-            Assert.Equal(recoveredTimestamp.ToUnixTimeMilliseconds(), recoveredValue?.SourceTimestamp?.ToUnixTimeMilliseconds());
+            recoveredHost.PublishBinaryInput(true, recoveredTimestamp);
+            await WaitUntilAsync(
+                () => HasBooleanWithTimestamp(cache, binaryInputTag.Id, true, TagQuality.Good, recoveredTimestamp),
+                TimeSpan.FromSeconds(10),
+                "Timed Binary Input event after reconnect did not replace the stale device timestamp.");
 
             await Task.Delay(250);
             Assert.Equal(0, recoveredHost.ControlHandler.OperateCount);
@@ -172,6 +177,20 @@ public sealed class StepFunctionDnp3ReconnectWireIntegrationTests
     {
         if (!cache.TryGet(tagId, out var value) || value is null) return false;
         return value.Quality == expectedQuality && value.Value is bool boolean && boolean == expected;
+    }
+
+    private static bool HasBooleanWithTimestamp(
+        CurrentTagCache cache,
+        Guid tagId,
+        bool expected,
+        TagQuality expectedQuality,
+        DateTimeOffset expectedSourceTimestamp)
+    {
+        if (!cache.TryGet(tagId, out var value) || value is null) return false;
+        return value.Quality == expectedQuality &&
+               value.Value is bool boolean &&
+               boolean == expected &&
+               value.SourceTimestamp?.ToUnixTimeMilliseconds() == expectedSourceTimestamp.ToUnixTimeMilliseconds();
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout, string message)
@@ -221,7 +240,7 @@ public sealed class StepFunctionDnp3ReconnectWireIntegrationTests
 
         public LoopbackControlHandler ControlHandler { get; }
 
-        public static Dnp3OutstationHost Start(int port, bool binaryInputValue, DateTimeOffset sourceTimestamp)
+        public static Dnp3OutstationHost Start(int port, bool binaryInputValue)
         {
             var runtime = new Step.Runtime(new Step.RuntimeConfig { NumCoreThreads = 1 });
             var server = Step.OutstationServer.CreateTcpServer(
@@ -248,7 +267,7 @@ public sealed class StepFunctionDnp3ReconnectWireIntegrationTests
                 db.AddBinaryOutputStatus(1, Step.EventClass.Class1, new Step.BinaryOutputStatusConfig());
 
                 var flags = new Step.Flags(Step.Flag.Online);
-                var timestamp = Step.Timestamp.SynchronizedTimestamp((ulong)sourceTimestamp.ToUnixTimeMilliseconds());
+                var timestamp = Step.Timestamp.SynchronizedTimestamp((ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
                 db.UpdateBinaryInput(
                     new Step.BinaryInput(0, binaryInputValue, flags, timestamp),
                     Step.UpdateOptions.NoEvent());
@@ -260,6 +279,21 @@ public sealed class StepFunctionDnp3ReconnectWireIntegrationTests
             server.Bind();
             outstation.Enable();
             return new Dnp3OutstationHost(runtime, server, outstation, controlHandler);
+        }
+
+        public void PublishBinaryInput(bool value, DateTimeOffset sourceTimestamp)
+        {
+            if (Volatile.Read(ref _shutdown) != 0)
+                throw new InvalidOperationException("DNP3 outstation is shut down.");
+
+            _outstation.Transaction(db =>
+                db.UpdateBinaryInput(
+                    new Step.BinaryInput(
+                        0,
+                        value,
+                        new Step.Flags(Step.Flag.Online),
+                        Step.Timestamp.SynchronizedTimestamp((ulong)sourceTimestamp.ToUnixTimeMilliseconds())),
+                    Step.UpdateOptions.DetectEvent()));
         }
 
         public void Shutdown()

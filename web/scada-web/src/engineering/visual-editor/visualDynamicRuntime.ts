@@ -11,6 +11,7 @@ import type {
   VisualAnalogFillEngineering,
   VisualBooleanConditionEngineering,
   VisualElementEngineering,
+  VisualExpressionDependencyEngineering,
   VisualExpressionEngineering,
   VisualExpressionValueTypeEngineering,
   VisualValueSourceEngineering
@@ -65,7 +66,7 @@ export function resolveVisualDynamicState(
   for (const binding of element.bindings ?? []) {
     const kind = binding.kind?.trim().toLowerCase();
     if (kind !== 'tag' && kind !== 'clientmemory') continue;
-    if (!(binding.key in values)) continue;
+    if (binding.key === 'text' || !(binding.key in values)) continue;
 
     const resolved = resolveBinding(binding, values[binding.key], samples);
     if (resolved.ok) values[binding.key] = resolved.value;
@@ -244,8 +245,7 @@ function resolveExpression(
   return Object.freeze({ ok: true, value: evaluated.value, valueType: evaluated.valueType });
 }
 
-function toRuntimeDependency(dependency: VisualExpressionEngineering['dependencies'] extends readonly (infer T)[] | null | undefined ? T : never): VisualExpressionDependency {
-  if (!dependency) throw new Error('Expression dependency is required.');
+function toRuntimeDependency(dependency: VisualExpressionDependencyEngineering): VisualExpressionDependency {
   return Object.freeze({
     symbol: dependency.symbol,
     kind: dependency.kind === 'ClientMemory' ? 'clientMemory' : 'tag',

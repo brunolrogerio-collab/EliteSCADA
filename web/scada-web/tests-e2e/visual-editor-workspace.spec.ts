@@ -99,7 +99,9 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
     await expect(assetPicker).toBeVisible();
     await assetPicker.selectOption(importedAssetId);
 
-    const widthInput = page.getByLabel('width');
+    const widthInput = page
+      .getByTestId('visual-property-inspector')
+      .getByRole('spinbutton', { name: 'width', exact: true });
     await widthInput.fill('180');
     await widthInput.press('Enter');
 

@@ -144,6 +144,8 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
         engineeringUnit: reference.engineeringUnit ?? null,
         writable: reference.writable,
         family: reference.family,
+        tagReference: reference.tagReference ?? null,
+        selectorCapability: reference.selectorCapability ?? null,
         bindable: true
       }))
   ), [projectReferences]);

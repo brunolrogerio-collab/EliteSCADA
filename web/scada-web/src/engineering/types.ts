@@ -230,6 +230,10 @@ export type VisualAssetEngineering = {
  * object-specific structural payloads such as core.polygon points remain typed
  * by the owning visual-object contract.
  */
+export interface VisualEngineeringPropertyObject {
+  readonly [key: string]: VisualEngineeringPropertyValue;
+}
+
 export type VisualEngineeringPropertyValue =
   | number
   | boolean
@@ -237,7 +241,7 @@ export type VisualEngineeringPropertyValue =
   | null
   | VisualEngineeringAssetReference
   | readonly VisualEngineeringPropertyValue[]
-  | Readonly<Record<string, VisualEngineeringPropertyValue>>;
+  | VisualEngineeringPropertyObject;
 
 export type VisualEngineeringPropertyMap = Record<string, VisualEngineeringPropertyValue>;
 

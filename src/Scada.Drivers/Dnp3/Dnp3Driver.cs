@@ -84,7 +84,18 @@ public sealed class Dnp3Driver : ICommunicationDriver, ICommunicationDiagnostics
             if (_cts is { IsCancellationRequested: false }) return;
 
             Status = new DriverStatus(DriverId, Name, DriverState.Starting, DateTimeOffset.UtcNow, UpdatesPublished: Interlocked.Read(ref _updatesPublished));
-            foreach (var point in _points) _registry.Register(point.Tag);
+            foreach (var point in _points)
+            {
+                if (_registry.TryGet(point.Tag.Id, out var existing) && existing is not null)
+                {
+                    if (!existing.Path.Equals(point.Tag.Path, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidOperationException(
+                            $"DNP3 TAG '{point.Tag.Id}' is already registered with path '{existing.Path}', expected '{point.Tag.Path}'.");
+                    continue;
+                }
+
+                _registry.Register(point.Tag);
+            }
 
             _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             try

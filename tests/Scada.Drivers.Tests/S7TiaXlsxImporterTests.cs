@@ -19,7 +19,7 @@ public sealed class S7TiaXlsxImporterTests
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         var candidates = await ImportAsync(new S7IsoEngineeringAdapter(), request, workbook);
 
-        Assert.Equal(3, candidates.Count);
+        Assert.Equal(5, candidates.Count);
 
         var run = Assert.Single(candidates, candidate => candidate.DisplayName == "Run");
         Assert.True(run.IsReadable);
@@ -43,6 +43,23 @@ public sealed class S7TiaXlsxImporterTests
         Assert.Equal(4, speedBinding.ByteOffset);
         Assert.Equal(S7IsoValueType.Float32, speedBinding.ValueType);
         Assert.False(speedBinding.Writable);
+
+        var dbValue = Assert.Single(candidates, candidate => candidate.DisplayName == "DbValue");
+        Assert.True(S7IsoTagBinding.TryParsePortableAddress(dbValue.PortableAddress, out var dbBinding, out var dbError), dbError);
+        Assert.Equal(S7IsoArea.DataBlock, dbBinding!.Area);
+        Assert.Equal((ushort)1, dbBinding.DbNumber);
+        Assert.Equal(10, dbBinding.ByteOffset);
+        Assert.Equal(S7IsoValueType.Int16, dbBinding.ValueType);
+        Assert.True(dbBinding.Writable);
+
+        var germanInput = Assert.Single(candidates, candidate => candidate.DisplayName == "GermanInput");
+        Assert.True(germanInput.IsReadable);
+        Assert.False(germanInput.IsWritable);
+        Assert.True(S7IsoTagBinding.TryParsePortableAddress(germanInput.PortableAddress, out var inputBinding, out var inputError), inputError);
+        Assert.Equal(S7IsoArea.Input, inputBinding!.Area);
+        Assert.Equal(0, inputBinding.ByteOffset);
+        Assert.Equal((byte)1, inputBinding.BitOffset);
+        Assert.False(inputBinding.Writable);
 
         var structured = Assert.Single(candidates, candidate => candidate.DisplayName == "Structured");
         Assert.False(structured.IsReadable);
@@ -134,6 +151,8 @@ public sealed class S7TiaXlsxImporterTests
             new[] { "Name", "Path", "Data Type", "Logical Address", "Comment", "Hmi Visible", "Hmi Accessible", "Hmi Writeable" },
             new[] { "Run", "Main/Tags", "Bool", "%M0.0", "Run flag", "TRUE", "TRUE", "TRUE" },
             new[] { "Speed", "Main/Tags", "Real", "%MD4", "Speed", "TRUE", "TRUE", "<no value>" },
+            new[] { "DbValue", "Main/Tags", "Int", "%DB1.DBW10", "DB value", "TRUE", "TRUE", "TRUE" },
+            new[] { "GermanInput", "Main/Tags", "Bool", "%E0.1", "Input using German mnemonic", "TRUE", "TRUE", "TRUE" },
             new[] { "Structured", "Main/Tags", "MyUdt", "%MD8", "Unsupported UDT", "TRUE", "TRUE", "TRUE" }
         };
 

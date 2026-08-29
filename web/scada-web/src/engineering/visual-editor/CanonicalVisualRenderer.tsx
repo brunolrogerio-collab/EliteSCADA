@@ -6,6 +6,7 @@ import {
   decodeVisualEngineeringProperties,
   getBuiltinVisualObjectSchema,
   VISUAL_PROPERTY_KEYS,
+  type VisualObjectPropertySchema,
   type VisualPropertyValue
 } from '../../visual-runtime';
 import { polygonBounds, polygonPointsAttribute, readPolygonPoints } from './polygonGeometry';
@@ -33,7 +34,7 @@ function CanonicalElement({ element }: { element: VisualElementEngineering }) {
     const schema = getBuiltinVisualObjectSchema(element.type);
     const values: Readonly<Record<string, VisualPropertyValue>> = {
       ...schema.createDefaultValues(),
-      ...decodeVisualEngineeringProperties(element.properties, schema)
+      ...decodeVisualEngineeringProperties(registeredScalarProperties(element, schema), schema)
     };
     const style = elementStyle(values);
 
@@ -87,6 +88,14 @@ function CanonicalElement({ element }: { element: VisualElementEngineering }) {
   } catch (reason) {
     return <div className="visual-editor-object-error" title={reason instanceof Error ? reason.message : String(reason)}>{element.key || element.type || 'invalid visual object'}</div>;
   }
+}
+
+function registeredScalarProperties(element: VisualElementEngineering, schema: VisualObjectPropertySchema): Readonly<Record<string, unknown>> {
+  const projected: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
+  for (const [key, value] of Object.entries(element.properties ?? {})) {
+    if (schema.declares(key)) projected[key] = value;
+  }
+  return projected;
 }
 
 function LegacyCompatibilityElement({ element }: { element: VisualElementEngineering }) {

@@ -139,6 +139,60 @@ public sealed class S7IsoDriverTests
         Assert.True(diagnostics.Counters.FailedOperations >= 2);
     }
 
+    [Fact]
+    public async Task MixedPduCompatibility_KeepsHealthyTagGoodWhileOversizedTagIsBadConfiguration()
+    {
+        await using var server = new TestS7IsoServer(240);
+        server.SetBytes(S7IsoArea.DataBlock, 1, 300, new byte[] { 0x23, 0x45 });
+
+        var healthyTag = S7IsoTransportTests.Tag(TagDataType.Int16);
+        var oversizedTag = S7IsoTransportTests.Tag(TagDataType.String);
+        var healthyPoint = new S7IsoPoint(
+            healthyTag,
+            S7IsoArea.DataBlock,
+            300,
+            S7IsoValueType.Int16,
+            DbNumber: 1);
+        var oversizedPoint = new S7IsoPoint(
+            oversizedTag,
+            S7IsoArea.DataBlock,
+            0,
+            S7IsoValueType.String,
+            DbNumber: 1,
+            StringLength: 254);
+
+        var cache = new CurrentTagCache(new InMemoryScadaEventBus());
+        var registry = new InMemoryTagRegistry();
+        await using var driver = new S7IsoDriver(
+            "s7-pdu-mixed",
+            "S7 PDU Mixed",
+            S7IsoTransportTests.Options(server.Port),
+            cache,
+            registry,
+            new[] { oversizedPoint, healthyPoint },
+            TimeSpan.FromMilliseconds(20));
+
+        await driver.StartAsync();
+        await WaitUntilAsync(
+            () =>
+                cache.TryGet(healthyTag.Id, out var healthy) && healthy?.Quality == TagQuality.Good &&
+                cache.TryGet(oversizedTag.Id, out var oversized) && oversized?.Quality == TagQuality.BadConfiguration,
+            TimeSpan.FromSeconds(2));
+
+        var healthyValue = Assert.IsType<TagValue>((await driver.ReadAsync(healthyTag.Id))!);
+        var oversizedValue = Assert.IsType<TagValue>((await driver.ReadAsync(oversizedTag.Id))!);
+        Assert.Equal((short)0x2345, Assert.IsType<short>(healthyValue.Value));
+        Assert.Equal(TagQuality.Good, healthyValue.Quality);
+        Assert.Null(oversizedValue.Value);
+        Assert.Equal(TagQuality.BadConfiguration, oversizedValue.Quality);
+
+        var diagnostics = driver.GetCommunicationDiagnostics();
+        Assert.Equal(CommunicationDriverOperationalState.Degraded, diagnostics.State);
+        Assert.True(diagnostics.Counters.Requests >= 1);
+        Assert.True(diagnostics.Counters.SuccessfulOperations >= 1);
+        Assert.True(diagnostics.Counters.FailedOperations >= 1);
+    }
+
     private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
     {
         var deadline = DateTimeOffset.UtcNow + timeout;

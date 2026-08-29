@@ -40,7 +40,7 @@ public static class BacnetValueCodec
     {
         ArgumentNullException.ThrowIfNull(binding);
         if (value is null)
-            return new[] { new BacnetValue(BacnetApplicationTags.BACNET_APPLICATION_TAG_NULL, null!) };
+            throw new InvalidOperationException("BACnet null is reserved for explicit priority relinquish. Use EncodeRelinquish/RelinquishAsync instead of a generic null write.");
 
         BacnetValue encoded = sourceType switch
         {
@@ -58,6 +58,15 @@ public static class BacnetValueCodec
         };
 
         return new[] { encoded };
+    }
+
+    public static IReadOnlyCollection<BacnetValue> EncodeRelinquish(BacnetBinding binding)
+    {
+        ArgumentNullException.ThrowIfNull(binding);
+        binding.Validate();
+        if (!binding.WritePriority.HasValue)
+            throw new InvalidOperationException("BACnet relinquish requires an explicit write priority from 1 to 16.");
+        return new[] { new BacnetValue(BacnetApplicationTags.BACNET_APPLICATION_TAG_NULL, null!) };
     }
 
     private static bool DecodeBoolean(object raw, BacnetBinding binding)

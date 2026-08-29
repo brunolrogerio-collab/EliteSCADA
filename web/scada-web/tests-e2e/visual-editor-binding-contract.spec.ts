@@ -3,6 +3,7 @@ import { BUILTIN_VISUAL_OBJECT_TYPES } from '../src/visual-runtime/builtinVisual
 import { VISUAL_PROPERTY_KEYS } from '../src/visual-runtime/visualPropertyRegistry';
 import type { VisualElementEngineering } from '../src/engineering/types';
 import {
+  bindingSourceIdentity,
   compatibleBindingSources,
   createBindingRemoveIntent,
   createBindingSetIntent,
@@ -28,6 +29,18 @@ const catalog = [
   { kind: 'Property', target: 'Context.SelectedPump', label: 'Selected pump' },
   { kind: 'Expression', target: 'tag("Plant.Level") > 80', label: 'High level expression' }
 ] as const;
+
+const bitSource = {
+  kind: 'Tag',
+  target: 'Plant.Status.03',
+  label: 'Status.03',
+  dataType: 'Boolean',
+  writable: true,
+  tagReference: {
+    tagId: '33333333-3333-3333-3333-333333333333',
+    selector: { kind: 'bit', index: 3 }
+  }
+} as const;
 
 test('bindable destinations come only from the registered schema supportsBinding contract', () => {
   const destinations = listBindableVisualProperties(rectangle);
@@ -61,12 +74,43 @@ test('binding.set uses canonical destination/source fields and stable object ide
   expect(Object.isFrozen(intent.binding)).toBe(true);
 });
 
+test('TAG bit binding persists stable TAG identity plus selector instead of only friendly .NN text', () => {
+  const intent = createBindingSetIntent(rectangle, VISUAL_PROPERTY_KEYS.visible, bitSource);
+
+  expect(intent.binding).toEqual({
+    key: VISUAL_PROPERTY_KEYS.visible,
+    kind: 'Tag',
+    target: 'Plant.Status.03',
+    tagReference: {
+      tagId: '33333333-3333-3333-3333-333333333333',
+      selector: { kind: 'bit', index: 3 }
+    }
+  });
+  expect(Object.isFrozen(intent.binding.tagReference)).toBe(true);
+  expect(Object.isFrozen(intent.binding.tagReference?.selector)).toBe(true);
+});
+
+test('stable TAG source identity ignores friendly path changes but includes the bit selector', () => {
+  const renamed = { ...bitSource, target: 'Plant.RenamedStatus.03', label: 'Renamed status.03' };
+  const otherBit = {
+    ...bitSource,
+    target: 'Plant.Status.04',
+    tagReference: { ...bitSource.tagReference, selector: { kind: 'bit' as const, index: 4 } }
+  };
+
+  expect(bindingSourceIdentity(bitSource)).toBe(bindingSourceIdentity(renamed));
+  expect(bindingSourceIdentity(bitSource)).not.toBe(bindingSourceIdentity(otherBit));
+  expect(normalizeBindingSourceCatalog([bitSource, renamed])).toHaveLength(1);
+});
+
 test('typed TAG compatibility fails early instead of deferring obvious errors to Runtime', () => {
   expect(isBindingSourceCompatible('boolean', catalog[0])).toBe(true);
   expect(isBindingSourceCompatible('boolean', catalog[2])).toBe(false);
   expect(isBindingSourceCompatible('number', catalog[2])).toBe(true);
   expect(isBindingSourceCompatible('number', catalog[0])).toBe(false);
   expect(isBindingSourceCompatible('color', catalog[1])).toBe(true);
+  expect(isBindingSourceCompatible('boolean', bitSource)).toBe(true);
+  expect(isBindingSourceCompatible('number', bitSource)).toBe(false);
 
   expect(compatibleBindingSources('boolean', catalog).map(source => source.target)).toEqual([
     'Plant.Pump.Running',
@@ -126,6 +170,10 @@ test('source catalog accepts only canonical Tag/Property/Expression references a
   expect(() => normalizeBindingSourceCatalog([
     { kind: 'Tag', target: ' Plant.Level ', label: 'Bad target' }
   ])).toThrow(/stable non-empty reference/);
+
+  expect(() => normalizeBindingSourceCatalog([
+    { ...bitSource, tagReference: { tagId: bitSource.tagReference.tagId, selector: { kind: 'bit', index: -1 } } }
+  ])).toThrow(/non-negative integer bit selector/);
 });
 
 test('source catalog filtering stays within coordinator-provided canonical entries', () => {

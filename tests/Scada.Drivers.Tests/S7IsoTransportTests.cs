@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using Scada.Core.Tags;
 using Scada.Drivers.SiemensS7Iso;
 
@@ -89,6 +90,44 @@ public sealed class S7IsoTransportTests
         Assert.Equal(new byte[] { 0x5A }, server.GetBytes(S7IsoArea.Output, 0, 4, 1));
         Assert.Equal(new byte[] { 0x08 }, server.GetBytes(S7IsoArea.Merker, 0, 6, 1));
         Assert.Equal(2L, transport.GetDiagnostics().RequestAttempts);
+    }
+
+    [Fact]
+    public async Task DroppedSession_FailsOnceThenReconnectsAndRenegotiates()
+    {
+        await using var server = new TestS7IsoServer();
+        server.SetBytes(S7IsoArea.Merker, 0, 20, new byte[] { 0x12, 0x34 });
+        var point = new S7IsoPoint(
+            Tag(TagDataType.Int16),
+            S7IsoArea.Merker,
+            20,
+            S7IsoValueType.Int16);
+        await using var transport = new S7IsoTransport(Options(server.Port));
+
+        var initial = Assert.Single(await transport.ReadAsync(new[] { point }));
+        Assert.Equal((short)0x1234, Assert.IsType<short>(S7IsoValueCodec.Decode(point, initial.Data!)));
+
+        server.DropActiveConnection();
+        var failure = await Record.ExceptionAsync(async () =>
+        {
+            await transport.ReadAsync(new[] { point });
+        });
+        Assert.NotNull(failure);
+        Assert.True(
+            failure is IOException or SocketException or ObjectDisposedException,
+            $"Unexpected dropped-session exception: {failure.GetType().FullName}: {failure.Message}");
+
+        server.SetBytes(S7IsoArea.Merker, 0, 20, new byte[] { 0x45, 0x67 });
+        var recovered = Assert.Single(await transport.ReadAsync(new[] { point }));
+        Assert.Equal((short)0x4567, Assert.IsType<short>(S7IsoValueCodec.Decode(point, recovered.Data!)));
+
+        var diagnostics = transport.GetDiagnostics();
+        Assert.True(diagnostics.Connected);
+        Assert.Equal((ushort)480, diagnostics.NegotiatedPduSize);
+        Assert.Equal(2L, diagnostics.ConnectionCount);
+        Assert.Equal(1L, diagnostics.ReconnectCount);
+        Assert.True(diagnostics.DisconnectionCount >= 1);
+        Assert.True(diagnostics.RequestAttempts >= 3);
     }
 
     [Fact]

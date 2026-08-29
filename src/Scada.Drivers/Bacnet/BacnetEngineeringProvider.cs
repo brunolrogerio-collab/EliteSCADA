@@ -155,34 +155,42 @@ public sealed class BacnetEngineeringProvider :
         foreach (var address in request.PortableAddresses)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!BacnetBinding.TryParse(address, out var binding, out var error) || binding is null)
-            {
-                yield return new DriverReconcileResult(
-                    address,
-                    DriverReconcileStatus.Error,
-                    Issues: new[] { Issue("BACNET_BINDING_INVALID", DriverEngineeringIssueSeverity.Error, error ?? "Invalid BACnet binding.") });
-                continue;
-            }
-            try
-            {
-                var result = await session.ReadAsync(binding, cancellationToken).ConfigureAwait(false);
-                var observedType = result.Values.Count == 0 ? null : GuessTagDataType(result.Values[0], binding.ObjectType);
-                yield return new DriverReconcileResult(
-                    address,
-                    DriverReconcileStatus.Unchanged,
-                    binding.StableIdentity,
-                    binding.PortableAddress,
-                    observedType,
-                    IsReadable: true,
-                    IsWritable: null);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                yield return new DriverReconcileResult(
-                    address,
-                    DriverReconcileStatus.Missing,
-                    Issues: new[] { Issue("BACNET_POINT_UNAVAILABLE", DriverEngineeringIssueSeverity.Warning, Sanitize(ex.Message)) });
-            }
+            yield return await ReconcileOneAsync(session, address, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task<DriverReconcileResult> ReconcileOneAsync(
+        IBacnetSession session,
+        string address,
+        CancellationToken cancellationToken)
+    {
+        if (!BacnetBinding.TryParse(address, out var binding, out var error) || binding is null)
+        {
+            return new DriverReconcileResult(
+                address,
+                DriverReconcileStatus.Error,
+                Issues: new[] { Issue("BACNET_BINDING_INVALID", DriverEngineeringIssueSeverity.Error, error ?? "Invalid BACnet binding.") });
+        }
+
+        try
+        {
+            var result = await session.ReadAsync(binding, cancellationToken).ConfigureAwait(false);
+            var observedType = result.Values.Count == 0 ? null : GuessTagDataType(result.Values[0], binding.ObjectType);
+            return new DriverReconcileResult(
+                address,
+                DriverReconcileStatus.Unchanged,
+                binding.StableIdentity,
+                binding.PortableAddress,
+                observedType,
+                IsReadable: true,
+                IsWritable: null);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return new DriverReconcileResult(
+                address,
+                DriverReconcileStatus.Missing,
+                Issues: new[] { Issue("BACNET_POINT_UNAVAILABLE", DriverEngineeringIssueSeverity.Warning, Sanitize(ex.Message)) });
         }
     }
 
@@ -323,7 +331,7 @@ public sealed class BacnetEngineeringProvider :
         var timeoutMs = ParseInt(settings, "requestTimeoutMilliseconds", 3000, 100, 60000);
         var discoveryMs = ParseInt(settings, "discoveryWindowMilliseconds", 1500, 100, 30000);
         var bbmd = Get(settings, "bbmdAddress");
-        var ttl = TryGetInt(settings, "foreignDeviceTtlSeconds", 30, 32767);
+        var ttl = TryGetInt(settings, "foreignDeviceTtlSeconds", 30, short.MaxValue);
         return new BacnetSessionOptions(
             localPort,
             TimeSpan.FromMilliseconds(timeoutMs),
@@ -385,7 +393,9 @@ public sealed class BacnetEngineeringProvider :
 
     private static string Sanitize(string? message)
     {
-        var value = string.IsNullOrWhiteSpace(message) ? "BACnet operation failed." : message.Replace('\r', ' ').Replace('\n', ' ').Trim();
+        var value = string.IsNullOrWhiteSpace(message)
+            ? "BACnet operation failed."
+            : message.Replace('\r', ' ').Replace('\n', ' ').Trim();
         return value.Length <= 512 ? value : value[..512];
     }
 }

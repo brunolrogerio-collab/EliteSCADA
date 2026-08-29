@@ -141,7 +141,9 @@ function resolveBooleanCondition(
   if (condition.kind === 'Direct') {
     const source = resolveValueSource(condition.source, samples);
     if (!source.ok) return source;
-    if (source.valueType !== 'boolean') return Object.freeze({ ok: false, message: 'Direct Boolean Condition requires a Boolean source.' });
+    if (source.valueType !== 'boolean' || typeof source.value !== 'boolean') {
+      return Object.freeze({ ok: false, message: 'Direct Boolean Condition requires a Boolean source.' });
+    }
     return Object.freeze({ ok: true, value: condition.negate ? !source.value : source.value, valueType: 'boolean' });
   }
 
@@ -151,7 +153,10 @@ function resolveBooleanCondition(
 
   const source = resolveValueSource(condition.source, samples);
   if (!source.ok) return source;
-  if (source.valueType !== 'number') return Object.freeze({ ok: false, message: 'Numeric interval requires a Number source.' });
+  if (source.valueType !== 'number' || typeof source.value !== 'number') {
+    return Object.freeze({ ok: false, message: 'Numeric interval requires a Number source.' });
+  }
+  const numericValue = source.value;
 
   const minimum = condition.minimum ?? null;
   const maximum = condition.maximum ?? null;
@@ -162,10 +167,10 @@ function resolveBooleanCondition(
 
   const lower = minimum === null
     ? true
-    : condition.minimumInclusive === false ? source.value > minimum : source.value >= minimum;
+    : condition.minimumInclusive === false ? numericValue > minimum : numericValue >= minimum;
   const upper = maximum === null
     ? true
-    : condition.maximumInclusive === false ? source.value < maximum : source.value <= maximum;
+    : condition.maximumInclusive === false ? numericValue < maximum : numericValue <= maximum;
   const inside = lower && upper;
   const intervalResult = (condition.intervalMode ?? 'Inside') === 'Outside' ? !inside : inside;
   const value = condition.negate ? !intervalResult : intervalResult;
@@ -178,7 +183,9 @@ function resolveAnalogFill(
 ): Readonly<{ ok: true; value: NonNullable<VisualDynamicResolution['analogFill']> }> | Readonly<{ ok: false; message: string }> {
   const source = resolveValueSource(config.source, samples);
   if (!source.ok) return source;
-  if (source.valueType !== 'number') return Object.freeze({ ok: false, message: 'Analog Fill requires a Number source.' });
+  if (source.valueType !== 'number' || typeof source.value !== 'number') {
+    return Object.freeze({ ok: false, message: 'Analog Fill requires a Number source.' });
+  }
 
   try {
     const presentation = computeAnalogFillPresentation({

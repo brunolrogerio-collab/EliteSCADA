@@ -23,7 +23,7 @@ Before any action read current `main`:
 - `docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE-08.md`
 - `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`
 - `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`
-- `docs/WAVE-09-ELIPSE-E3-ALARM-HISTORIAN-DATA-BROWSER-RESEARCH.md`
+- `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`
 - current assignment `MustReadSpecific`.
 
 Then verify live GitHub branch/PR/head/CI. GitHub is operational truth.
@@ -115,15 +115,13 @@ After Development Monitor implementation, run final exact-head integrated CI, me
 - **08-FOLLOW-B:** Typed Visual Expressions + Boolean Conditions + Analog Fill.
 - **Wave 09:** remains NOT ACTIVE until required preceding work is green.
 
-## Wave 09 research context — LOCKED / NOT ACTIVE
+## Wave 09 historical data context — LOCKED / NOT ACTIVE
 
-Owner requested research of Elipse E3 alarm, database, E3Browser/query and historian workflows, especially period/date selection and filtering by type, area and name/source.
+The Wave 09 historical alarm, historian, period/date and tabular-query requirements are persisted in:
 
-Research result is persisted in:
+`docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`
 
-`docs/WAVE-09-ELIPSE-E3-ALARM-HISTORIAN-DATA-BROWSER-RESEARCH.md`
-
-Wave 09 now keeps Screens/Popups/Dynamos/navigation and also requires a web-native Historical Data Browser over protected logical datasets, initially:
+Wave 09 keeps Screens/Popups/Dynamos/navigation and also requires a web-native Historical Data Browser over protected logical datasets, initially:
 
 - `historian.samples`;
 - `alarm.events`.
@@ -148,10 +146,8 @@ Do not activate or distribute Wave 09 yet. Freeze exact implementation contract,
 
 1. verify current `main`, integration head, PR #90 and CI evidence;
 2. keep graphical checkpoint `a7176a4...` as validated evidence while its code is unchanged;
-3. inspect existing TAG realtime, Client/Server Memory and Data Source diagnostic seams;
-4. freeze a Development Monitor provider/catalog architecture that reuses authoritative sources rather than creating a second variable model;
-5. create explicit parallel-safe worker assignment(s) if useful;
-6. integrate and validate the Development Monitor;
-7. run one final full Wave 08 matrix on the exact combined head;
-8. merge only after both Wave 08 gates are green and verify post-merge main;
-9. preserve the Wave 09 alarm/historian/data-browser research contract for later activation without pulling that implementation into Wave 08.
+3. continue the centralized Wave 08 implementation already underway;
+4. complete focused tests for the Development Monitor and the expanded graphical requirements;
+5. run one final full Wave 08 matrix on the exact combined head;
+6. merge only after all Wave 08 gates are green and verify post-merge main;
+7. preserve the Wave 09 historical-data contract for later activation without pulling that implementation into Wave 08.

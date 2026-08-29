@@ -217,6 +217,74 @@ export type BindingEngineering = {
   tagReference?: TagValueReferenceEngineering | null;
 };
 
+export type VisualExpressionValueTypeEngineering = 'Boolean' | 'Number';
+export type VisualExpressionDependencyKindEngineering = 'Tag' | 'ClientMemory';
+export type VisualValueSourceKindEngineering = 'Tag' | 'ClientMemory' | 'Expression';
+
+export type VisualExpressionDependencyEngineering = Readonly<{
+  symbol: string;
+  kind: VisualExpressionDependencyKindEngineering;
+  valueType: VisualExpressionValueTypeEngineering;
+  tagReference: TagValueReferenceEngineering;
+  target?: string | null;
+  version?: number;
+}>;
+
+export type VisualExpressionEngineering = Readonly<{
+  text: string;
+  resultType: VisualExpressionValueTypeEngineering;
+  dependencies?: readonly VisualExpressionDependencyEngineering[] | null;
+  version?: number;
+}>;
+
+export type VisualValueSourceEngineering = Readonly<{
+  kind: VisualValueSourceKindEngineering;
+  valueType: VisualExpressionValueTypeEngineering;
+  target?: string | null;
+  tagReference?: TagValueReferenceEngineering | null;
+  expression?: VisualExpressionEngineering | null;
+  version?: number;
+}>;
+
+export type VisualPropertyExpressionEngineering = Readonly<{
+  propertyKey: string;
+  expression: VisualExpressionEngineering;
+  version?: number;
+}>;
+
+export type VisualBooleanConditionKindEngineering = 'Direct' | 'NumericInterval';
+export type VisualNumericIntervalModeEngineering = 'Inside' | 'Outside';
+
+export type VisualBooleanConditionEngineering = Readonly<{
+  propertyKey: string;
+  kind: VisualBooleanConditionKindEngineering;
+  source: VisualValueSourceEngineering;
+  negate?: boolean;
+  minimum?: number | null;
+  minimumInclusive?: boolean;
+  maximum?: number | null;
+  maximumInclusive?: boolean;
+  intervalMode?: VisualNumericIntervalModeEngineering;
+  version?: number;
+}>;
+
+export type VisualAnalogFillDirectionEngineering =
+  | 'BottomToTop'
+  | 'TopToBottom'
+  | 'LeftToRight'
+  | 'RightToLeft';
+
+export type VisualAnalogFillEngineering = Readonly<{
+  source: VisualValueSourceEngineering;
+  inputMinimum: number;
+  inputMaximum: number;
+  fillColor: string;
+  clamp?: boolean;
+  invertScale?: boolean;
+  direction?: VisualAnalogFillDirectionEngineering;
+  version?: number;
+}>;
+
 export type VisualEngineeringAssetReference = Readonly<{
   assetId: string;
 }>;
@@ -267,6 +335,9 @@ export type VisualElementEngineering = {
   context?: Record<string, string> | null;
   children?: VisualElementEngineering[] | null;
   metadata?: Record<string, string> | null;
+  propertyExpressions?: readonly VisualPropertyExpressionEngineering[] | null;
+  booleanConditions?: readonly VisualBooleanConditionEngineering[] | null;
+  analogFill?: VisualAnalogFillEngineering | null;
 };
 
 export type TemplateEngineering = {

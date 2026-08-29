@@ -37,6 +37,61 @@ public sealed class S7IsoTransportTests
     }
 
     [Fact]
+    public async Task ReadAcrossInputOutputMerkerAndDb_PreservesAreaIdentityAndPadding()
+    {
+        await using var server = new TestS7IsoServer();
+        server.SetBytes(S7IsoArea.Input, 0, 0, new byte[] { 0x11 });
+        server.SetBytes(S7IsoArea.Output, 0, 1, new byte[] { 0x22 });
+        server.SetBytes(S7IsoArea.Merker, 0, 2, new byte[] { 0x33 });
+        server.SetBytes(S7IsoArea.DataBlock, 5, 3, new byte[] { 0x44 });
+
+        var points = new[]
+        {
+            new S7IsoPoint(Tag(TagDataType.Int16), S7IsoArea.Input, 0, S7IsoValueType.Byte),
+            new S7IsoPoint(Tag(TagDataType.Int16), S7IsoArea.Output, 1, S7IsoValueType.Byte),
+            new S7IsoPoint(Tag(TagDataType.Int16), S7IsoArea.Merker, 2, S7IsoValueType.Byte),
+            new S7IsoPoint(Tag(TagDataType.Int16), S7IsoArea.DataBlock, 3, S7IsoValueType.Byte, DbNumber: 5)
+        };
+        await using var transport = new S7IsoTransport(Options(server.Port));
+
+        var results = await transport.ReadAsync(points);
+
+        Assert.Equal(4, results.Count);
+        Assert.Equal((short)0x11, Assert.IsType<short>(S7IsoValueCodec.Decode(points[0], results[0].Data!)));
+        Assert.Equal((short)0x22, Assert.IsType<short>(S7IsoValueCodec.Decode(points[1], results[1].Data!)));
+        Assert.Equal((short)0x33, Assert.IsType<short>(S7IsoValueCodec.Decode(points[2], results[2].Data!)));
+        Assert.Equal((short)0x44, Assert.IsType<short>(S7IsoValueCodec.Decode(points[3], results[3].Data!)));
+        Assert.Equal(1L, transport.GetDiagnostics().RequestAttempts);
+    }
+
+    [Fact]
+    public async Task WriteOutputAndMerker_UpdatesOnlyRequestedProcessAreas()
+    {
+        await using var server = new TestS7IsoServer();
+        var output = new S7IsoPoint(
+            Tag(TagDataType.Int16),
+            S7IsoArea.Output,
+            4,
+            S7IsoValueType.Byte,
+            Writable: true);
+        var merker = new S7IsoPoint(
+            Tag(TagDataType.Boolean),
+            S7IsoArea.Merker,
+            6,
+            S7IsoValueType.Boolean,
+            BitOffset: 3,
+            Writable: true);
+        await using var transport = new S7IsoTransport(Options(server.Port));
+
+        await transport.WriteAsync(output, S7IsoValueCodec.Encode(output, (short)0x5A));
+        await transport.WriteAsync(merker, S7IsoValueCodec.Encode(merker, true));
+
+        Assert.Equal(new byte[] { 0x5A }, server.GetBytes(S7IsoArea.Output, 0, 4, 1));
+        Assert.Equal(new byte[] { 0x08 }, server.GetBytes(S7IsoArea.Merker, 0, 6, 1));
+        Assert.Equal(2L, transport.GetDiagnostics().RequestAttempts);
+    }
+
+    [Fact]
     public async Task OversizedPoint_IsRejectedLocallyAgainstNegotiatedPdu()
     {
         await using var server = new TestS7IsoServer(240);

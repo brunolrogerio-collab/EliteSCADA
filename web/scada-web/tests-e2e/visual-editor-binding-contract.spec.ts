@@ -130,11 +130,11 @@ test('source catalog accepts only canonical Tag/Property/Expression references a
 
 test('source catalog filtering stays within coordinator-provided canonical entries', () => {
   expect(filterBindingSourceCatalog(catalog, 'level')).toEqual([
-    catalog[2],
-    catalog[4]
+    { ...catalog[2], bindable: true },
+    { ...catalog[4], bindable: true }
   ]);
   expect(filterBindingSourceCatalog(catalog, 'boolean')).toEqual([
-    catalog[0]
+    { ...catalog[0], bindable: true }
   ]);
   expect(filterBindingSourceCatalog(catalog, '')).toHaveLength(5);
 });

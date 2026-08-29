@@ -9,12 +9,11 @@ public sealed class MqttEventDrivenReadinessTests
     [Fact]
     public async Task ConnectedAndSubscribedIsHealthyBeforeFirstTelemetrySample()
     {
-        var tag = new TagDefinition(
-            Guid.NewGuid(),
+        var tag = TagDefinition.Create(
             "Temperature",
             "Plant.Area01.Temperature",
             TagDataType.Double,
-            "mqtt.raw:plant",
+            source: "mqtt.raw:plant",
             readOnly: true);
         var point = new MqttPoint(tag, "plant/area01/temperature");
         var cache = new CurrentTagCache(new InMemoryScadaEventBus());

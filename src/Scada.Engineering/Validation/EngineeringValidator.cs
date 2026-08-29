@@ -46,7 +46,7 @@ public static class EngineeringValidator
         if ((alarm.Type is AlarmType.High or AlarmType.HighHigh or AlarmType.Low or AlarmType.LowLow) && alarm.Setpoint is null)
             issues.Add(Error("ALARM_SETPOINT_REQUIRED", "Analog alarm requires a setpoint.", ImportEntityKind.Alarm, key));
         if (alarm.ActivationDelayMilliseconds < 0)
-            issues.Add(Error("ALARM_DELAY_INVALID", "Activation delay cannot be negative.", ImportEntityKind.Alarm, key));
+            issues.Add(Error("ALARM_DELAY_INVALID", "Alarm activation delay cannot be negative.", ImportEntityKind.Alarm, key));
         return issues;
     }
 
@@ -224,7 +224,9 @@ public static class EngineeringValidator
         ImportEntityKind entityKind,
         string entityKey)
     {
-        var hasPoints = element.Properties?.TryGetValue("points", out var pointsElement) == true;
+        JsonElement pointsElement = default;
+        var hasPoints = element.Properties is not null &&
+                        element.Properties.TryGetValue("points", out pointsElement);
         if (!string.Equals(element.Type, "core.polygon", StringComparison.Ordinal))
         {
             if (hasPoints)

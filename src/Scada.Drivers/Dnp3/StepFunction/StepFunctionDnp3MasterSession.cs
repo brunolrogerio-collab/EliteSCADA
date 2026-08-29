@@ -52,7 +52,6 @@ public sealed class StepFunctionDnp3MasterSession : IDnp3MasterSession
     private long _class3Scans;
     private long _unsolicitedResponses;
     private long _restartDetections;
-    private long _eventBufferOverflowDetections;
 
     public StepFunctionDnp3MasterSession(Dnp3TcpConnectionOptions connectionOptions)
     {
@@ -340,7 +339,7 @@ public sealed class StepFunctionDnp3MasterSession : IDnp3MasterSession
             Interlocked.Read(ref _class3Scans),
             Interlocked.Read(ref _unsolicitedResponses),
             Interlocked.Read(ref _restartDetections),
-            Interlocked.Read(ref _eventBufferOverflowDetections),
+            0,
             total == 0 ? 0d : (double)failure / total);
     }
 

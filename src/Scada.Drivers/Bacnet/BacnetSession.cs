@@ -11,6 +11,8 @@ public sealed record BacnetSessionOptions(
     int? ForeignDeviceTtlSeconds = null,
     string? TargetAddress = null)
 {
+    public const int DefaultCovSubscriptionLifetimeSeconds = 300;
+
     public TimeSpan EffectiveRequestTimeout => RequestTimeout ?? TimeSpan.FromSeconds(3);
     public TimeSpan EffectiveDiscoveryWindow => DiscoveryWindow ?? TimeSpan.FromMilliseconds(1500);
     public TimeSpan? EffectiveForeignDeviceRenewalInterval => ForeignDeviceTtlSeconds.HasValue
@@ -19,6 +21,13 @@ public sealed record BacnetSessionOptions(
     public TimeSpan? EffectiveForeignDeviceRetryInterval => ForeignDeviceTtlSeconds.HasValue
         ? TimeSpan.FromSeconds(Math.Clamp(ForeignDeviceTtlSeconds.Value * 0.10d, 5d, 30d))
         : null;
+
+    // First-cut COV lifecycle policy is intentionally fixed until simulator and
+    // multi-vendor evidence justifies exposing another Engineering tuning knob.
+    // A bounded lease lets a normal renewal repair silent remote subscription loss.
+    public TimeSpan EffectiveCovSubscriptionLifetime => TimeSpan.FromSeconds(DefaultCovSubscriptionLifetimeSeconds);
+    public TimeSpan EffectiveCovRenewalInterval => TimeSpan.FromSeconds(DefaultCovSubscriptionLifetimeSeconds * 0.75d);
+    public TimeSpan EffectiveCovRetryInterval => TimeSpan.FromSeconds(30);
 
     public void Validate()
     {

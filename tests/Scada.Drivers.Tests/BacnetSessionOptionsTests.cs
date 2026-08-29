@@ -64,4 +64,16 @@ public sealed class BacnetSessionOptionsTests
         Assert.Null(options.EffectiveForeignDeviceRenewalInterval);
         Assert.Null(options.EffectiveForeignDeviceRetryInterval);
     }
+
+    [Fact]
+    public void CovSubscriptionPolicy_UsesFiniteLeaseWithPreExpiryRenewalAndBoundedRetry()
+    {
+        var options = new BacnetSessionOptions();
+
+        Assert.Equal(TimeSpan.FromSeconds(300), options.EffectiveCovSubscriptionLifetime);
+        Assert.Equal(TimeSpan.FromSeconds(225), options.EffectiveCovRenewalInterval);
+        Assert.Equal(TimeSpan.FromSeconds(30), options.EffectiveCovRetryInterval);
+        Assert.True(options.EffectiveCovRenewalInterval < options.EffectiveCovSubscriptionLifetime);
+        Assert.True(options.EffectiveCovRetryInterval < options.EffectiveCovRenewalInterval);
+    }
 }

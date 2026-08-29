@@ -262,6 +262,7 @@ public sealed class SystemIoBacnetSession :
         var device = await ResolveDeviceAsync(binding.DeviceInstance, cancellationToken).ConfigureAwait(false);
         var subscriptionId = checked((uint)Interlocked.Increment(ref _subscriptionId));
         var objectId = new BacnetObjectId((BacnetObjectTypes)binding.ObjectType, binding.ObjectInstance);
+        var lifetimeSeconds = checked((uint)_options.EffectiveCovSubscriptionLifetime.TotalSeconds);
         Interlocked.Increment(ref _covSubscribeRequests);
         try
         {
@@ -271,7 +272,7 @@ public sealed class SystemIoBacnetSession :
                 subscriptionId,
                 cancel: false,
                 issueConfirmedNotifications: false,
-                lifetime: 0,
+                lifetime: lifetimeSeconds,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
@@ -291,6 +292,7 @@ public sealed class SystemIoBacnetSession :
             _covRoutes.Add(route);
             _covLastErrorType = null;
         }
+        route.StartRenewal(RenewCovSubscriptionAsync(route, route.RenewalToken));
         return new Subscription(this, route);
     }
 
@@ -386,9 +388,57 @@ public sealed class SystemIoBacnetSession :
             _nextForeignDeviceRegistrationAttemptAt = nextAttemptAt;
     }
 
+    private async Task RenewCovSubscriptionAsync(CovRoute route, CancellationToken cancellationToken)
+    {
+        var lifetimeSeconds = checked((uint)_options.EffectiveCovSubscriptionLifetime.TotalSeconds);
+        var renewalInterval = _options.EffectiveCovRenewalInterval;
+        var retryInterval = _options.EffectiveCovRetryInterval;
+        var delay = renewalInterval;
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+
+            Interlocked.Increment(ref _covSubscribeRequests);
+            try
+            {
+                await _client.SubscribeCOVAsync(
+                    route.Address,
+                    route.ObjectId,
+                    route.SubscriptionId,
+                    cancel: false,
+                    issueConfirmedNotifications: false,
+                    lifetime: lifetimeSeconds,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                lock (_covGate) _covLastErrorType = null;
+                delay = renewalInterval;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                Interlocked.Increment(ref _covSubscribeFailures);
+                SetCovLastError(ex);
+                // Polling remains active as a safety net. Retry the same subscriber
+                // identity promptly so silent peer-side subscription loss can heal.
+                delay = retryInterval;
+            }
+        }
+    }
+
     private async ValueTask CancelCovSubscriptionAsync(CovRoute route)
     {
         RemoveCovRoute(route);
+        await route.StopRenewalAsync().ConfigureAwait(false);
         if (!route.TryBeginRemoteCancel()) return;
 
         Interlocked.Increment(ref _covCancelRequests);
@@ -677,6 +727,9 @@ public sealed class SystemIoBacnetSession :
         uint subscriptionId,
         Func<BacnetPropertyReadResult, ValueTask> handler)
     {
+        private readonly CancellationTokenSource _renewalCts = new();
+        private Task? _renewalTask;
+        private int _renewalStopped;
         private int _remoteCancelStarted;
 
         public BacnetBinding Binding { get; } = binding;
@@ -684,6 +737,27 @@ public sealed class SystemIoBacnetSession :
         public BacnetObjectId ObjectId { get; } = objectId;
         public uint SubscriptionId { get; } = subscriptionId;
         public Func<BacnetPropertyReadResult, ValueTask> Handler { get; } = handler;
+        public CancellationToken RenewalToken => _renewalCts.Token;
+
+        public void StartRenewal(Task renewalTask) => _renewalTask = renewalTask;
+
+        public void CancelRenewal()
+        {
+            if (Volatile.Read(ref _renewalStopped) != 0) return;
+            try { _renewalCts.Cancel(); } catch (ObjectDisposedException) { }
+        }
+
+        public async ValueTask StopRenewalAsync()
+        {
+            if (Interlocked.Exchange(ref _renewalStopped, 1) != 0) return;
+            await _renewalCts.CancelAsync().ConfigureAwait(false);
+            if (_renewalTask is not null)
+            {
+                try { await _renewalTask.ConfigureAwait(false); }
+                catch (OperationCanceledException) when (_renewalCts.IsCancellationRequested) { }
+            }
+            _renewalCts.Dispose();
+        }
 
         public bool TryBeginRemoteCancel() => Interlocked.Exchange(ref _remoteCancelStarted, 1) == 0;
     }
@@ -696,7 +770,10 @@ public sealed class SystemIoBacnetSession :
         public void Dispose()
         {
             if (Interlocked.Exchange(ref _localDisposed, 1) == 0)
+            {
+                route.CancelRenewal();
                 owner.RemoveCovRoute(route);
+            }
         }
 
         public async ValueTask DisposeAsync()

@@ -154,6 +154,8 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         if (!_pointsByTagId.TryGetValue(tagId, out var point))
             throw new KeyNotFoundException($"BACnet TAG '{tagId}' was not found in driver '{DriverId}'.");
         if (!point.Writable) throw new InvalidOperationException($"BACnet TAG '{point.Tag.Path}' is not writable.");
+        if (value is null)
+            throw new InvalidOperationException("BACnet null writes are reserved for explicit priority relinquish. Use RelinquishAsync instead.");
 
         await _writeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         var started = Stopwatch.GetTimestamp();
@@ -165,6 +167,46 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
             await _session.WriteAsync(point.Binding, encoded, cancellationToken).ConfigureAwait(false);
             RecordOperation(true, Stopwatch.GetElapsedTime(started), null);
             await PublishAsync(point, value, TagQuality.Good, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            RecordOperation(false, Stopwatch.GetElapsedTime(started), ex);
+            TransitionState(CommunicationDriverOperationalState.Degraded);
+            throw;
+        }
+        finally
+        {
+            _writeGate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Explicitly relinquishes this point's configured BACnet command priority by
+    /// writing BACnet NULL at that priority, then reads back the effective value.
+    /// </summary>
+    public async ValueTask RelinquishAsync(Guid tagId, CancellationToken cancellationToken = default)
+    {
+        if (!_pointsByTagId.TryGetValue(tagId, out var point))
+            throw new KeyNotFoundException($"BACnet TAG '{tagId}' was not found in driver '{DriverId}'.");
+        if (!point.Writable) throw new InvalidOperationException($"BACnet TAG '{point.Tag.Path}' is not writable.");
+        if (!point.Binding.WritePriority.HasValue)
+            throw new InvalidOperationException($"BACnet TAG '{point.Tag.Path}' requires an explicit write priority before it can be relinquished.");
+
+        await _writeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var started = Stopwatch.GetTimestamp();
+        try
+        {
+            Interlocked.Increment(ref _requests);
+            Interlocked.Increment(ref _writeOperations);
+            await _session.WriteAsync(
+                point.Binding,
+                BacnetValueCodec.EncodeRelinquish(point.Binding),
+                cancellationToken).ConfigureAwait(false);
+            RecordOperation(true, Stopwatch.GetElapsedTime(started), null);
+
+            // BACnet priority arbitration determines the effective value after a
+            // relinquish. Never publish null as though it were that resulting value.
+            await PollPointAsync(point, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -325,7 +367,8 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         if (sample.Values.Count == 0)
             throw new InvalidOperationException($"BACnet read for '{point.Tag.Path}' returned no values.");
         var decoded = BacnetValueCodec.Decode(sample.Values[0], point.Tag.DataType, point.Binding);
-        await PublishAsync(point, decoded, TagQuality.Good, CancellationToken.None).ConfigureAwait(false);
+        var quality = BacnetQualityMapper.FromObjectState(sample.ObjectState);
+        await PublishAsync(point, decoded, quality, CancellationToken.None).ConfigureAwait(false);
     }
 
     private async ValueTask PublishAsync(BacnetPoint point, object? value, TagQuality quality, CancellationToken cancellationToken)

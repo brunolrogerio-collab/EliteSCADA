@@ -30,8 +30,8 @@ public sealed record S7IsoConnectionOptions
         string host,
         S7CpuFamily cpuFamily,
         S7IsoConnectionMode connectionMode,
-        byte rack = 0,
-        byte slot = 0,
+        byte? rack = null,
+        byte? slot = null,
         S7IsoConnectionRole connectionRole = S7IsoConnectionRole.OperatorPanel,
         ushort sourceTsap = 0x0100,
         ushort? destinationTsap = null,
@@ -47,10 +47,14 @@ public sealed record S7IsoConnectionOptions
             throw new ArgumentOutOfRangeException(nameof(port));
         if (!Enum.IsDefined(connectionRole))
             throw new ArgumentOutOfRangeException(nameof(connectionRole));
-        if (rack > 7)
+        if (rack is > 7)
             throw new ArgumentOutOfRangeException(nameof(rack), "S7 rack must be from 0 to 7.");
-        if (slot > 31)
+        if (slot is > 31)
             throw new ArgumentOutOfRangeException(nameof(slot), "S7 slot must be from 0 to 31.");
+        if (connectionMode == S7IsoConnectionMode.RackSlot && rack is null)
+            throw new ArgumentException("Rack/Slot mode requires an explicit rack.", nameof(rack));
+        if (connectionMode == S7IsoConnectionMode.RackSlot && slot is null)
+            throw new ArgumentException("Rack/Slot mode requires an explicit slot.", nameof(slot));
         if (connectionMode == S7IsoConnectionMode.ExplicitTsap && destinationTsap is null)
             throw new ArgumentException("Explicit TSAP mode requires a destination TSAP.", nameof(destinationTsap));
 
@@ -81,8 +85,8 @@ public sealed record S7IsoConnectionOptions
     public string Host { get; }
     public S7CpuFamily CpuFamily { get; }
     public S7IsoConnectionMode ConnectionMode { get; }
-    public byte Rack { get; }
-    public byte Slot { get; }
+    public byte? Rack { get; }
+    public byte? Slot { get; }
     public S7IsoConnectionRole ConnectionRole { get; }
     public ushort SourceTsap { get; }
     public ushort? DestinationTsap { get; }
@@ -96,7 +100,7 @@ public sealed record S7IsoConnectionOptions
 
     public ushort EffectiveDestinationTsap => ConnectionMode switch
     {
-        S7IsoConnectionMode.RackSlot => checked((ushort)(((byte)ConnectionRole << 8) | (Rack * 32 + Slot))),
+        S7IsoConnectionMode.RackSlot => checked((ushort)(((byte)ConnectionRole << 8) | (Rack!.Value * 32 + Slot!.Value))),
         S7IsoConnectionMode.ExplicitTsap => DestinationTsap!.Value,
         _ => throw new ArgumentOutOfRangeException(nameof(ConnectionMode))
     };

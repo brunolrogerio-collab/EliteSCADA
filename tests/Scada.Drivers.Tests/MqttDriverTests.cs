@@ -32,7 +32,7 @@ public sealed class MqttDriverTests
         Assert.Equal(73.25d, value!.Value);
         Assert.Equal(DateTimeOffset.Parse("2026-08-29T15:00:00Z"), value.Timestamp);
         Assert.Equal("mqtt.raw:test", value.Source);
-        Assert.Contains(driver.Capabilities, DriverCapabilities.Subscribe);
+        Assert.True(driver.Capabilities.HasFlag(DriverCapabilities.Subscribe));
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public sealed class MqttDriverTests
             "broker.local",
             1883,
             UseTls: false,
-            "elite-test",
+            ClientId: "elite-test",
             ReconnectMinimumDelay: TimeSpan.FromMilliseconds(5),
             ReconnectMaximumDelay: TimeSpan.FromMilliseconds(10));
         var cache = new CurrentTagCache(new InMemoryScadaEventBus());
@@ -155,7 +155,11 @@ public sealed class MqttDriverTests
         new(
             "mqtt.raw:test",
             "MQTT test",
-            new MqttConnectionSettings("broker.local", 1883, UseTls: false, "elite-test"),
+            new MqttConnectionSettings(
+                "broker.local",
+                1883,
+                UseTls: false,
+                ClientId: "elite-test"),
             cache,
             registry,
             points,

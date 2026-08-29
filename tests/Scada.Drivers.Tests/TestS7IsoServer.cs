@@ -10,8 +10,10 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
     private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
     private readonly CancellationTokenSource _cts = new();
     private readonly object _memoryGate = new();
+    private readonly object _clientGate = new();
     private readonly Dictionary<(byte Area, ushort Db), byte[]> _memory = new();
     private readonly Task _loop;
+    private TcpClient? _activeClient;
 
     public TestS7IsoServer(ushort negotiatedPduSize = 480)
     {
@@ -44,6 +46,16 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
         }
     }
 
+    public void DropActiveConnection()
+    {
+        lock (_clientGate)
+        {
+            if (_activeClient is null) return;
+            try { _activeClient.Client.Shutdown(SocketShutdown.Both); } catch { }
+            try { _activeClient.Dispose(); } catch { }
+        }
+    }
+
     private async Task RunAsync(CancellationToken cancellationToken)
     {
         try
@@ -51,7 +63,24 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
             while (!cancellationToken.IsCancellationRequested)
             {
                 using var client = await _listener.AcceptTcpClientAsync(cancellationToken);
-                await HandleClientAsync(client, cancellationToken);
+                lock (_clientGate) _activeClient = client;
+                try
+                {
+                    await HandleClientAsync(client, cancellationToken);
+                }
+                catch (Exception ex) when (
+                    !cancellationToken.IsCancellationRequested &&
+                    (ex is IOException or SocketException or ObjectDisposedException))
+                {
+                    // A test-triggered session drop must not stop the listener.
+                }
+                finally
+                {
+                    lock (_clientGate)
+                    {
+                        if (ReferenceEquals(_activeClient, client)) _activeClient = null;
+                    }
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
@@ -258,6 +287,7 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await _cts.CancelAsync();
+        DropActiveConnection();
         _listener.Stop();
         try { await _loop; }
         catch (OperationCanceledException) { }

@@ -68,8 +68,24 @@ public sealed class Iec104SequenceState
 
     public ushort MarkReceiveAcknowledged()
     {
-        _lastAcknowledgedReceiveSequence = _expectedReceiveSequence;
-        return checked((ushort)_expectedReceiveSequence);
+        var receiveSequence = checked((ushort)_expectedReceiveSequence);
+        MarkReceiveAcknowledged(receiveSequence);
+        return receiveSequence;
+    }
+
+    public void MarkReceiveAcknowledged(ushort receiveSequence)
+    {
+        ValidateSequence(receiveSequence, nameof(receiveSequence));
+
+        var pending = PendingReceiveAcknowledgementCount;
+        var acknowledged = Distance(_lastAcknowledgedReceiveSequence, receiveSequence);
+        if (acknowledged > pending)
+        {
+            throw new Iec104ProtocolException(
+                $"IEC-104 local acknowledgement N(R) {receiveSequence} advances beyond the {pending} received I-format frame(s) awaiting acknowledgement.");
+        }
+
+        _lastAcknowledgedReceiveSequence = receiveSequence;
     }
 
     public void Reset()

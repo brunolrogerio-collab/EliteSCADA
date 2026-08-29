@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using Scada.Drivers.Abstractions;
 
@@ -8,6 +10,8 @@ internal static partial class S7TiaImportValidation
     public static DriverImportCandidate ValidateAddressWidth(DriverImportCandidate candidate)
     {
         ArgumentNullException.ThrowIfNull(candidate);
+        candidate = NormalizeStableIdentity(candidate);
+
         if (!S7IsoTagBinding.TryParsePortableAddress(candidate.PortableAddress, out var binding, out _))
             return candidate;
         if (candidate.Metadata is null ||
@@ -77,6 +81,42 @@ internal static partial class S7TiaImportValidation
         error = $"TIA logical address '{logicalAddress}' uses {DescribeWidth(width)} notation, " +
                 $"but Siemens data type '{valueType}' requires {DescribeWidth(expected)} notation for this classic absolute binding.";
         return false;
+    }
+
+    private static DriverImportCandidate NormalizeStableIdentity(DriverImportCandidate candidate)
+    {
+        if (candidate.Metadata is null ||
+            !candidate.Metadata.TryGetValue("sourceKind", out var sourceKind) ||
+            !candidate.Metadata.TryGetValue("sourceName", out var sourceName))
+            return candidate;
+
+        candidate.Metadata.TryGetValue("tiaPath", out var path);
+        candidate.Metadata.TryGetValue("tiaName", out var name);
+        if (string.IsNullOrWhiteSpace(name)) name = candidate.DisplayName;
+
+        var stableIdentity = string.Join(
+            "|",
+            sourceKind.Trim(),
+            sourceName.Trim(),
+            path?.Trim() ?? string.Empty,
+            name.Trim());
+        var candidateId = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(stableIdentity)))
+            .ToLowerInvariant()[..24];
+        if (candidate.StableIdentity == stableIdentity && candidate.CandidateId == candidateId)
+            return candidate;
+
+        var portableAddress = candidate.PortableAddress;
+        var unsupportedMarker = ":unsupported:";
+        var markerIndex = portableAddress.IndexOf(unsupportedMarker, StringComparison.Ordinal);
+        if (markerIndex >= 0)
+            portableAddress = portableAddress[..(markerIndex + unsupportedMarker.Length)] + candidateId;
+
+        return candidate with
+        {
+            CandidateId = candidateId,
+            StableIdentity = stableIdentity,
+            PortableAddress = portableAddress
+        };
     }
 
     private static string? ExpectedWidth(S7IsoValueType valueType) => valueType switch

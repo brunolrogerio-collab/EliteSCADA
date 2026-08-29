@@ -22,6 +22,8 @@ test('Screen editor previews, applies and reopens canonical Screen metadata', as
     await page.goto('/engineering');
     await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
     await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
+    await expect(page.getByTestId('visual-editor-canonical-renderer')).toBeVisible();
+    await expect(page.locator('.visual-editor-object-error')).toHaveCount(0);
 
     const screenList = page.locator('.visual-editor-screen-list');
     await screenList.getByRole('button').filter({ hasText: originalScreen!.key }).click();

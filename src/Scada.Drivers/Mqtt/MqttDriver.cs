@@ -182,7 +182,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
             Interlocked.Increment(ref _writeOperations);
             RecordOperation(success: true, Stopwatch.GetElapsedTime(started), null);
         }
-        catch (Exception ex) when (ex is MqttTransportException or IOException or TimeoutException)
+        catch (Exception ex) when (ex is IOException or TimeoutException)
         {
             if (ex is TimeoutException) Interlocked.Increment(ref _timeouts);
             Interlocked.Increment(ref _writeOperations);
@@ -236,10 +236,10 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
                 _lastFailedCommunicationAt,
                 _lastError,
                 dataAge,
-                ConfiguredScanInterval: null,
+                null,
                 _timedOperations == 0 ? null : TimeSpan.FromTicks(_lastOperationDurationTicks),
                 averageDuration,
-                LastScanDuration: null,
+                null,
                 failureRate,
                 _points.Count,
                 BuildQualitySummary(),
@@ -292,7 +292,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
             {
                 break;
             }
-            catch (Exception ex) when (ex is MqttTransportException or IOException or TimeoutException)
+            catch (Exception ex) when (ex is IOException or TimeoutException)
             {
                 if (ex is TimeoutException) Interlocked.Increment(ref _timeouts);
                 RecordFailureOnly(ex);
@@ -365,7 +365,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
             var subscriptions = _pointsByTopic
                 .Select(pair => new MqttSubscription(
                     pair.Key,
-                    pair.Value.Max(point => point.Qos)))
+                    (MqttQosLevel)pair.Value.Max(point => (int)point.Qos)))
                 .ToArray();
 
             if (subscriptions.Length > 0)

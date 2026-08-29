@@ -12,7 +12,7 @@ test('Development Monitor quick-adds a canonical TAG and exposes source, type, q
   expect(tag, 'seeded Engineering must expose at least one TAG for monitor acceptance').toBeTruthy();
 
   await page.goto('/engineering');
-  await page.locator('.eng-nav').getByRole('button', { name: 'Monitoramento', exact: true }).click();
+  await page.locator('.eng-nav').getByRole('button', { name: /^Monitoramento\b/ }).click();
   await expect(page.getByTestId('engineering-development-monitor')).toBeVisible();
   await expect(page.getByTestId('project-reference-browser')).toBeVisible();
 
@@ -30,7 +30,7 @@ test('Development Monitor quick-adds a canonical TAG and exposes source, type, q
   await expect(cells.nth(5)).not.toHaveText('');
 
   await page.reload();
-  await page.locator('.eng-nav').getByRole('button', { name: 'Monitoramento', exact: true }).click();
+  await page.locator('.eng-nav').getByRole('button', { name: /^Monitoramento\b/ }).click();
   await expect(page.locator(`[data-monitor-reference="${escapeCssAttribute(tag!.path)}"]`)).toBeVisible();
 
   await page.getByTestId('engineering-development-monitor').getByRole('button', { name: 'Limpar', exact: true }).click();

@@ -250,13 +250,13 @@ test('FOLLOW-B mounted editor persists expression, Boolean Condition and Analog 
     });
 
     expect(persisted.booleanConditions?.[0]).toMatchObject({
-      propertyKey: 'visible', kind: 'NumericInterval', minimum: 20, maximum: 80
+      propertyKey: 'visible', kind: 'numericInterval', minimum: 20, maximum: 80
     });
-    expect(persisted.propertyExpressions?.find(item => item.propertyKey === 'x')?.expression).toMatchObject({ resultType: 'Number' });
+    expect(persisted.propertyExpressions?.find(item => item.propertyKey === 'x')?.expression).toMatchObject({ resultType: 'number' });
     expect(persisted.propertyExpressions?.find(item => item.propertyKey === 'x')?.expression.dependencies?.[0].tagReference.tagId).toBe(numericTag!.id);
     expect(persisted.analogFill).toMatchObject({
-      inputMinimum: 0, inputMaximum: 100, fillColor: '#12AB34', direction: 'LeftToRight',
-      source: { kind: 'Tag', tagReference: { tagId: numericTag!.id } }
+      inputMinimum: 0, inputMaximum: 100, fillColor: '#12AB34', direction: 'leftToRight',
+      source: { kind: 'tag', tagReference: { tagId: numericTag!.id } }
     });
 
     await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();

@@ -82,6 +82,28 @@ public sealed class S7IsoValueCodecTests
         Assert.Equal(4_294_967_295L, Assert.IsType<long>(decoded));
     }
 
+    [Fact]
+    public void UnsignedWrites_RejectNegativeAndOverflowInsteadOfTruncating()
+    {
+        var bytePoint = Point(TagDataType.Int16, S7IsoValueType.Byte);
+        var uint16Point = Point(TagDataType.Int32, S7IsoValueType.UInt16);
+        var uint32Point = Point(TagDataType.Int64, S7IsoValueType.UInt32);
+
+        Assert.Equal(new byte[] { 0xFF }, S7IsoValueCodec.Encode(bytePoint, (short)255));
+        Assert.Throws<OverflowException>(() => S7IsoValueCodec.Encode(bytePoint, (short)-1));
+        Assert.Throws<OverflowException>(() => S7IsoValueCodec.Encode(bytePoint, 256));
+
+        Assert.Equal(new byte[] { 0xFF, 0xFF }, S7IsoValueCodec.Encode(uint16Point, 65_535));
+        Assert.Throws<OverflowException>(() => S7IsoValueCodec.Encode(uint16Point, -1));
+        Assert.Throws<OverflowException>(() => S7IsoValueCodec.Encode(uint16Point, 65_536));
+
+        Assert.Equal(
+            new byte[] { 0xFF, 0xFF, 0xFF, 0xFF },
+            S7IsoValueCodec.Encode(uint32Point, 4_294_967_295L));
+        Assert.Throws<OverflowException>(() => S7IsoValueCodec.Encode(uint32Point, -1L));
+        Assert.Throws<OverflowException>(() => S7IsoValueCodec.Encode(uint32Point, 4_294_967_296L));
+    }
+
     private static S7IsoPoint Point(
         TagDataType tagType,
         S7IsoValueType valueType,

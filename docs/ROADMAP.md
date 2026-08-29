@@ -9,6 +9,7 @@ Live worker ownership: `docs/CHAT-WORK-ASSIGNMENTS.md`.
 Current coordinator checkpoint: `docs/COORDINATOR-HANDOFF.md`.  
 Wave 08 execution contract: `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`.  
 Wave 08 asset storage contract: `docs/VISUAL-ASSET-STORAGE-WAVE-08.md`.  
+TAG bit access + bit-level driver binding follow-up: `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`.  
 Visual Expressions + Boolean Conditions + Analog Fill follow-up: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.  
 Wave 07 historical contract: `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`.  
 Visual 07 -> 08 convergence: `docs/VISUAL-CANONICAL-CONVERGENCE-07-TO-08.md`.  
@@ -56,21 +57,22 @@ Wave 08 Schema v13 assets/editor work exists in Draft PR #90 and is **not merged
 ## Ordered path to v0.1
 
 ```text
-Wave 03  Operational lifecycle + Runtime TAG Inspector + acceptance foundation       COMPLETE
-Wave 04  Project portability + basic Trends + Administration                        COMPLETE
-Wave 05  Canonical Script Engineering                                                COMPLETE
-Wave 06  Python Editor + Client Visual sandbox                                       COMPLETE
-Wave 07  Visual Runtime Object Model + typed visual Engineering                      COMPLETE
-Wave 08  Graphical Editor Foundation + image import/object                           ACTIVE
-08-FOLLOW Typed Visual Expressions + Boolean Conditions + Analog Fill                QUEUED AFTER CURRENT WORKER DELIVERY
-Wave 09  Screens + Popups + Dynamos + asset dependencies/navigation                 WAITING
-Wave 10  Python visual events + animation + preview                                  WAITING
-Wave 11  Complete HMI Runtime demo vertical slice                                    WAITING
-Wave 12  Hardening                                                                   WAITING
-Wave 13  Windows x64 product package                                                 WAITING
-Wave 14  Product-owner validation                                                    WAITING
-Wave 15  Feedback/corrections                                                        WAITING
-FINAL    EliteSCADA v0.1 — Full Product Validation Preview
+Wave 03      Operational lifecycle + Runtime TAG Inspector + acceptance foundation       COMPLETE
+Wave 04      Project portability + basic Trends + Administration                        COMPLETE
+Wave 05      Canonical Script Engineering                                                COMPLETE
+Wave 06      Python Editor + Client Visual sandbox                                       COMPLETE
+Wave 07      Visual Runtime Object Model + typed visual Engineering                      COMPLETE
+Wave 08      Graphical Editor Foundation + image import/object                           ACTIVE
+08-FOLLOW-A  TAG Bit Access + Driver Bit-Level Boolean Binding                           QUEUED AFTER CURRENT WORKER DELIVERY
+08-FOLLOW-B  Typed Visual Expressions + Boolean Conditions + Analog Fill                 WAITING ON 08-FOLLOW-A
+Wave 09      Screens + Popups + Dynamos + asset dependencies/navigation                 WAITING
+Wave 10      Python visual events + animation + preview                                  WAITING
+Wave 11      Complete HMI Runtime demo vertical slice                                    WAITING
+Wave 12      Hardening                                                                   WAITING
+Wave 13      Windows x64 product package                                                 WAITING
+Wave 14      Product-owner validation                                                    WAITING
+Wave 15      Feedback/corrections                                                        WAITING
+FINAL        EliteSCADA v0.1 — Full Product Validation Preview
 ```
 
 ## Wave 08 — Graphical Editor Foundation
@@ -149,15 +151,39 @@ Transient Canvas selection/viewport/hover/adornment/drag-preview state must not 
 
 Final integrated CI must preserve all Wave 07 visual/Python and Wave 06 sandbox regressions. PR #90 remains Draft until this full gate is green.
 
-## Mandatory visual follow-up before Wave 09
+## Mandatory TAG-bit follow-up before visual expressions
 
-A newly locked product requirement must be implemented **after the current DEV 1/2/3 deliveries are reviewed/integrated and before Wave 09 is activated**. The current worker missions are not expanded mid-delivery.
+The owner has locked a first-class TAG/driver requirement that must be implemented after the current Wave 08 interaction work is integrated and before typed visual expressions depend on bit notation.
+
+Contract: `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`.
+
+Required direction:
+
+- integer TAGs expose Boolean bit selectors with friendly notation such as `Word_comando.00` and `Word_status.07`;
+- canonical persistence stores stable TAG identity plus bit index, not only the display string;
+- Int16/Int32/Int64 expose `00..15`, `00..31`, `00..63` respectively, with bit 0 = LSB and signed values interpreted through fixed-width two's-complement representation;
+- bit selectors inherit source value quality/timestamp and never turn bad/unavailable source into false;
+- bit selectors become reusable Boolean references for bindings, visual expressions, alarms and scripting/reference surfaces where permitted;
+- drivers may expose first-class Boolean TAG bindings to a bit within a physical word/register;
+- Modbus Holding/Input Registers support bit `0..15` as a Boolean source; Input Register remains read-only;
+- writable Holding Register bit operations preserve all unrelated bits and use a native mask-write operation where supported or coordinated concurrency-safe read-modify-write otherwise;
+- multiple bit TAGs on the same Modbus register should reuse/coalesce physical reads where practical;
+- Modbus human `4xxxxx` notation and zero-based wire offsets must have one explicit Engineering conversion policy;
+- logical bit views do not automatically create duplicate historian series; a first-class bit-bound Boolean TAG is used when independent history/alarm identity is required;
+- configuration round-trips through import/export/revisions/packages and keeps normal authorization/Audit boundaries.
+
+The TAG-bit follow-up must have focused Core/driver/Engineering tests before 08-FOLLOW-B can use `.NN` syntax as a typed expression dependency.
+
+## Mandatory visual-expression follow-up before Wave 09
+
+After TAG bit access/binding is stabilized, the queued visual behavior must be implemented before Wave 09 activates. The current worker missions are not expanded mid-delivery.
 
 Contract: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.
 
 Required direction:
 
 - visual properties that declare Binding/Expression support accept a typed, side-effect-free expression over canonical TAGs and Client Memory;
+- canonical integer TAG bit selectors such as `Word_status.03` may participate as Boolean expression dependencies;
 - boolean expressions support `and`, `or`, `not`, comparisons and parentheses;
 - numeric expressions support arithmetic such as `(nivel1 + nivel2) * 3`, with deterministic mathematical precedence;
 - result type must match the destination property; numeric/boolean conversion is explicit, never silently coerced;
@@ -178,7 +204,8 @@ This follow-up requires its own focused implementation/acceptance and CI evidenc
 
 ## Remaining v0.1 sequence
 
-- **08-FOLLOW:** Typed Visual Expressions + Boolean Conditions + Analog Fill, after current worker integration and before Wave 09.
+- **08-FOLLOW-A:** TAG Bit Access + Driver Bit-Level Boolean Binding, after current Wave 08 worker integration.
+- **08-FOLLOW-B:** Typed Visual Expressions + Boolean Conditions + Analog Fill, after TAG-bit semantics are green and before Wave 09.
 - **Wave 09:** multiple Screens, Popups, reusable Dynamos, navigation and deterministic asset dependencies.
 - **Wave 10:** Python visual events, renderer-native animation/tween and Engineering visual Preview/Test.
 - **Wave 11:** build `Estação Elevatória EliteSCADA Demo` only through normal product APIs/tools.

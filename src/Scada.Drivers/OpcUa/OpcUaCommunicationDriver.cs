@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-using System.Threading.Channels;
 using Scada.Core.Tags;
 using Scada.Drivers.Abstractions;
 
@@ -7,65 +5,79 @@ namespace Scada.Drivers.OpcUa;
 
 public sealed class OpcUaCommunicationDriver : ICommunicationDriver
 {
+    private readonly ICurrentTagCache _cache;
+    private readonly ITagRegistry _registry;
+    private readonly IReadOnlyList<OpcUaRuntimeBinding> _bindings;
+    private readonly IReadOnlyDictionary<Guid, OpcUaRuntimeBinding> _bindingsByTagId;
     private readonly OpcUaRuntimeSessionSupervisor _sessions;
-    private readonly ConcurrentDictionary<Guid, TagValue> _cache = new();
-    private readonly Channel<TagValue> _updates = Channel.CreateBounded<TagValue>(
-        new BoundedChannelOptions(4096) { FullMode = BoundedChannelFullMode.DropOldest });
     private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
-    private IReadOnlyDictionary<Guid, OpcUaRuntimeBinding> _bindings = new Dictionary<Guid, OpcUaRuntimeBinding>();
     private CancellationTokenSource? _runtimeCts;
     private Task? _subscriptionLoop;
     private long _updatesPublished;
     private int _disposed;
-    private DriverStatus _status;
 
     public OpcUaCommunicationDriver(
         string driverId,
         string name,
+        ICurrentTagCache cache,
+        ITagRegistry registry,
+        IEnumerable<TagDefinition> tags,
         IOpcUaRuntimeSessionFactory sessionFactory,
         IReadOnlyList<TimeSpan>? reconnectDelays = null)
     {
         if (string.IsNullOrWhiteSpace(driverId)) throw new ArgumentException("Driver ID is required.", nameof(driverId));
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Driver name is required.", nameof(name));
+        ArgumentNullException.ThrowIfNull(cache);
+        ArgumentNullException.ThrowIfNull(registry);
+        ArgumentNullException.ThrowIfNull(tags);
+        ArgumentNullException.ThrowIfNull(sessionFactory);
+
         DriverId = driverId.Trim();
         Name = name.Trim();
+        _cache = cache;
+        _registry = registry;
+        _bindings = tags.Select(OpcUaRuntimeBinding.FromTag).ToArray();
+        if (_bindings.Count == 0) throw new ArgumentException("At least one OPC UA TAG is required.", nameof(tags));
+        if (_bindings.Select(x => x.Tag.Id).Distinct().Count() != _bindings.Count)
+            throw new ArgumentException("Each OPC UA binding must reference a unique TAG ID.", nameof(tags));
+
+        _bindingsByTagId = _bindings.ToDictionary(x => x.Tag.Id);
         _sessions = new OpcUaRuntimeSessionSupervisor(sessionFactory, reconnectDelays);
-        _status = NewStatus(DriverState.Stopped);
+        Status = NewStatus(DriverState.Stopped);
     }
 
     public string DriverId { get; }
     public string Name { get; }
-    public DriverCapabilities Capabilities => DriverCapabilities.Read |
+    public DriverCapabilities Capabilities =>
+        DriverCapabilities.Read |
         DriverCapabilities.Write |
         DriverCapabilities.Subscribe |
-        DriverCapabilities.Diagnostics |
         DriverCapabilities.SourceTimestamp |
         DriverCapabilities.ServerTimestamp;
-    public DriverStatus Status => _status;
+    public DriverStatus Status { get; private set; }
+    public IReadOnlyCollection<TagDefinition> Tags => _bindings.Select(x => x.Tag).ToArray();
 
-    public async Task StartAsync(IReadOnlyCollection<TagDefinition> tags, CancellationToken cancellationToken)
+    public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        ArgumentNullException.ThrowIfNull(tags);
         await _lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (_runtimeCts is { IsCancellationRequested: false }) return;
-            _status = NewStatus(DriverState.Starting);
-            var bindings = BuildBindings(tags);
+            Status = NewStatus(DriverState.Starting);
+            RegisterTags();
 
             try
             {
-                await _sessions.ConnectAsync(bindings.Values.ToArray(), cancellationToken).ConfigureAwait(false);
-                _bindings = bindings;
-                _cache.Clear();
+                await _sessions.ConnectAsync(_bindings, cancellationToken).ConfigureAwait(false);
                 _runtimeCts = new CancellationTokenSource();
-                _status = NewStatus(DriverState.Running);
+                Status = NewStatus(DriverState.Running);
                 _subscriptionLoop = PumpSubscriptionsAsync(_runtimeCts.Token);
             }
-            catch
+            catch (Exception ex)
             {
-                _status = NewStatus(DriverState.Faulted, "OPC UA runtime session could not be started.");
+                await _sessions.DisconnectAsync().ConfigureAwait(false);
+                Status = NewStatus(DriverState.Faulted, ex.Message);
                 throw;
             }
         }
@@ -75,7 +87,7 @@ public sealed class OpcUaCommunicationDriver : ICommunicationDriver
         }
     }
 
-    public async Task StopAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         await _lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -84,23 +96,28 @@ public sealed class OpcUaCommunicationDriver : ICommunicationDriver
             if (cts is null)
             {
                 await _sessions.DisconnectAsync().ConfigureAwait(false);
-                _status = NewStatus(DriverState.Stopped);
+                Status = NewStatus(DriverState.Stopped);
                 return;
             }
 
-            _status = NewStatus(DriverState.Stopping);
+            Status = NewStatus(DriverState.Stopping);
             await cts.CancelAsync().ConfigureAwait(false);
             if (_subscriptionLoop is not null)
             {
-                try { await _subscriptionLoop.WaitAsync(cancellationToken).ConfigureAwait(false); }
-                catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
+                try
+                {
+                    await _subscriptionLoop.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cts.IsCancellationRequested)
+                {
+                }
             }
 
+            await _sessions.DisconnectAsync().ConfigureAwait(false);
             cts.Dispose();
             _runtimeCts = null;
             _subscriptionLoop = null;
-            await _sessions.DisconnectAsync().ConfigureAwait(false);
-            _status = NewStatus(DriverState.Stopped);
+            Status = NewStatus(DriverState.Stopped);
         }
         finally
         {
@@ -108,132 +125,138 @@ public sealed class OpcUaCommunicationDriver : ICommunicationDriver
         }
     }
 
-    public async Task<TagValue> ReadAsync(TagDefinition tag, CancellationToken cancellationToken)
+    public ValueTask<TagValue?> ReadAsync(Guid tagId, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        var binding = GetBinding(tag);
-        if (_cache.TryGetValue(tag.Id, out var cached)) return cached;
-        var session = _sessions.CurrentSession
-            ?? throw new InvalidOperationException("OPC UA runtime session is not available.");
-        var observed = await session.ReadAsync(binding, cancellationToken).ConfigureAwait(false);
-        if (observed.TagId != tag.Id)
-            throw new InvalidOperationException($"OPC UA read returned TAG '{observed.TagId}' instead of '{tag.Id}'.");
-        return Publish(observed);
+        cancellationToken.ThrowIfCancellationRequested();
+        GetBinding(tagId);
+        _cache.TryGet(tagId, out var value);
+        return ValueTask.FromResult(value);
     }
 
-    public async Task<IReadOnlyDictionary<Guid, TagValue>> ReadManyAsync(
-        IReadOnlyCollection<TagDefinition> tags,
-        CancellationToken cancellationToken)
+    public async ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        ArgumentNullException.ThrowIfNull(tags);
-        var result = new Dictionary<Guid, TagValue>(tags.Count);
-        foreach (var tag in tags)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            result[tag.Id] = await ReadAsync(tag, cancellationToken).ConfigureAwait(false);
-        }
-        return result;
-    }
-
-    public async Task WriteAsync(TagDefinition tag, object? value, CancellationToken cancellationToken)
-    {
-        ThrowIfDisposed();
-        var binding = GetBinding(tag);
+        var binding = GetBinding(tagId);
         OpcUaRuntimeValueValidator.ValidateWrite(binding.Tag, value);
         var session = _sessions.CurrentSession
             ?? throw new InvalidOperationException("OPC UA runtime session is not available.");
-        await session.WriteAsync(binding, value!, cancellationToken).ConfigureAwait(false);
-    }
 
-    public IAsyncEnumerable<TagValue> SubscribeAsync(CancellationToken cancellationToken)
-    {
-        ThrowIfDisposed();
-        return _updates.Reader.ReadAllAsync(cancellationToken);
+        await session.WriteAsync(binding, value!, cancellationToken).ConfigureAwait(false);
+        await PublishAsync(new OpcUaRuntimeDataValue(tagId, value, TagQuality.Good), cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private async Task PumpSubscriptionsAsync(CancellationToken cancellationToken)
     {
-        while (!cancellationToken.IsCancellationRequested)
+        try
         {
-            var session = _sessions.CurrentSession;
-            if (session is null)
+            while (!cancellationToken.IsCancellationRequested)
             {
-                session = await _sessions.ReconnectUntilAvailableAsync(
-                    _bindings.Values.ToArray(),
-                    attempt => _status = NewStatus(DriverState.Faulted, $"OPC UA reconnect attempt {attempt} failed."),
-                    cancellationToken).ConfigureAwait(false);
-                _status = NewStatus(DriverState.Running, "OPC UA runtime session reconnected.");
-            }
-
-            try
-            {
-                await foreach (var observed in session.SubscribeAsync(cancellationToken).WithCancellation(cancellationToken))
+                var session = _sessions.CurrentSession;
+                if (session is null)
                 {
-                    if (_bindings.ContainsKey(observed.TagId)) Publish(observed);
+                    session = await _sessions.ReconnectUntilAvailableAsync(
+                        _bindings,
+                        attempt => Status = NewStatus(
+                            DriverState.Faulted,
+                            $"OPC UA reconnect attempt {attempt} failed."),
+                        cancellationToken).ConfigureAwait(false);
+                    Status = NewStatus(DriverState.Running, "OPC UA runtime session reconnected.");
                 }
-                if (!cancellationToken.IsCancellationRequested)
-                    throw new InvalidOperationException("OPC UA subscription ended unexpectedly.");
+
+                try
+                {
+                    await foreach (var observed in session.SubscribeAsync(cancellationToken).WithCancellation(cancellationToken))
+                    {
+                        if (_bindingsByTagId.ContainsKey(observed.TagId))
+                            await PublishAsync(observed, cancellationToken).ConfigureAwait(false);
+                    }
+
+                    if (!cancellationToken.IsCancellationRequested)
+                        throw new InvalidOperationException("OPC UA subscription ended unexpectedly.");
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch
+                {
+                    Status = NewStatus(DriverState.Faulted, "OPC UA subscription interrupted. Reconnecting.");
+                    await PublishCommunicationFailureAsync(cancellationToken).ConfigureAwait(false);
+                    await _sessions.InvalidateAsync(session).ConfigureAwait(false);
+                }
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch
-            {
-                _status = NewStatus(DriverState.Faulted, "OPC UA subscription interrupted. Reconnecting.");
-                PublishCommunicationFailure();
-                await _sessions.InvalidateAsync(session).ConfigureAwait(false);
-            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            Status = NewStatus(DriverState.Faulted, ex.Message);
         }
     }
 
-    private void PublishCommunicationFailure()
+    private async Task PublishCommunicationFailureAsync(CancellationToken cancellationToken)
     {
-        foreach (var binding in _bindings.Values)
+        foreach (var binding in _bindings)
         {
-            _cache.TryGetValue(binding.Tag.Id, out var previous);
-            Publish(new TagValue(binding.Tag.Id, previous?.Value, DateTimeOffset.UtcNow, TagQuality.BadCommunication, DriverId)
+            _cache.TryGet(binding.Tag.Id, out var previous);
+            var failed = new TagValue(
+                binding.Tag.Id,
+                previous?.Value,
+                DateTimeOffset.UtcNow,
+                TagQuality.BadCommunication,
+                DriverId)
             {
                 SourceTimestamp = previous?.SourceTimestamp,
                 ServerTimestamp = previous?.ServerTimestamp
-            });
+            };
+            await UpdateCacheAsync(binding.Tag, failed, cancellationToken).ConfigureAwait(false);
         }
     }
 
-    private TagValue Publish(OpcUaRuntimeDataValue observed) => Publish(new TagValue(
-        observed.TagId, observed.Value, DateTimeOffset.UtcNow, observed.Quality, DriverId)
+    private Task PublishAsync(OpcUaRuntimeDataValue observed, CancellationToken cancellationToken)
     {
-        SourceTimestamp = observed.SourceTimestamp,
-        ServerTimestamp = observed.ServerTimestamp
-    });
-
-    private TagValue Publish(TagValue value)
-    {
-        _cache[value.TagId] = value;
-        var count = Interlocked.Increment(ref _updatesPublished);
-        _updates.Writer.TryWrite(value);
-        _status = _status with { Timestamp = DateTimeOffset.UtcNow, UpdatesPublished = count };
-        return value;
-    }
-
-    private OpcUaRuntimeBinding GetBinding(TagDefinition tag)
-    {
-        ArgumentNullException.ThrowIfNull(tag);
-        return _bindings.TryGetValue(tag.Id, out var binding)
-            ? binding
-            : throw new KeyNotFoundException($"OPC UA TAG '{tag.Id}' is not registered in driver '{DriverId}'.");
-    }
-
-    private static IReadOnlyDictionary<Guid, OpcUaRuntimeBinding> BuildBindings(IReadOnlyCollection<TagDefinition> tags)
-    {
-        var result = new Dictionary<Guid, OpcUaRuntimeBinding>(tags.Count);
-        foreach (var tag in tags)
+        var binding = GetBinding(observed.TagId);
+        var value = new TagValue(
+            observed.TagId,
+            observed.Value,
+            DateTimeOffset.UtcNow,
+            observed.Quality,
+            DriverId)
         {
-            if (!result.TryAdd(tag.Id, OpcUaRuntimeBinding.FromTag(tag)))
-                throw new InvalidOperationException($"OPC UA TAG '{tag.Id}' is registered more than once.");
+            SourceTimestamp = observed.SourceTimestamp,
+            ServerTimestamp = observed.ServerTimestamp
+        };
+        return UpdateCacheAsync(binding.Tag, value, cancellationToken);
+    }
+
+    private async Task UpdateCacheAsync(TagDefinition tag, TagValue value, CancellationToken cancellationToken)
+    {
+        await _cache.UpdateAsync(tag, value, cancellationToken).ConfigureAwait(false);
+        var count = Interlocked.Increment(ref _updatesPublished);
+        Status = Status with { Timestamp = DateTimeOffset.UtcNow, UpdatesPublished = count };
+    }
+
+    private OpcUaRuntimeBinding GetBinding(Guid tagId) =>
+        _bindingsByTagId.TryGetValue(tagId, out var binding)
+            ? binding
+            : throw new KeyNotFoundException($"OPC UA TAG '{tagId}' was not found in driver '{DriverId}'.");
+
+    private void RegisterTags()
+    {
+        foreach (var binding in _bindings)
+        {
+            if (_registry.TryGet(binding.Tag.Id, out var existing) && existing is not null)
+            {
+                if (!existing.Path.Equals(binding.Tag.Path, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException(
+                        $"OPC UA TAG '{binding.Tag.Id}' is already registered with path '{existing.Path}', expected '{binding.Tag.Path}'.");
+                continue;
+            }
+            _registry.Register(binding.Tag);
         }
-        return result;
     }
 
     private DriverStatus NewStatus(DriverState state, string? message = null) =>
@@ -247,8 +270,6 @@ public sealed class OpcUaCommunicationDriver : ICommunicationDriver
         if (Volatile.Read(ref _disposed) != 0) return;
         await StopAsync(CancellationToken.None).ConfigureAwait(false);
         await _sessions.DisposeAsync().ConfigureAwait(false);
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _updates.Writer.TryComplete();
-        _lifecycleGate.Dispose();
+        if (Interlocked.Exchange(ref _disposed, 1) == 0) _lifecycleGate.Dispose();
     }
 }

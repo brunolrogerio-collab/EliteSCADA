@@ -43,7 +43,7 @@ Frozen contract:
 - Logical WaveBaseSHA: `8de706882ba20afedd666532ac41ae11115d06b3`
 - ContractSHA / branch base: `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 - Integration: `integration/graphical-editor-wave-08`
-- Latest coordinator **code** checkpoint before this documentation sync: `a2cdc39a9d7a8dcf425aab6a253d6bb0694faab1`
+- Latest coordinator implementation-contract checkpoint before this documentation sync: `d49182474e3275e798b2a1434c48466d1b846ac1`
 - Integration has been reconciled with `main` and was verified **0 commits behind** after merge commit `011d3c649bb868bfcf8d13bfafe896bb0863a153`.
 - No Wave 08 Actions validation yet.
 - No Wave 08 integration PR yet.
@@ -99,8 +99,9 @@ Now also implemented on the integration branch:
 - `core.image` resolves project image content through stable `assetRef`;
 - old demo visual types (`tank`, `dynamo`, `value`, etc.) render as non-authoritative compatibility placeholders rather than being silently converted into a competing model;
 - Screen mutation helpers include stable Screen identity, canonical package replacement, visual-tree update-by-object-ID and recursive object counting;
+- `visualEditorContracts.ts` now defines the shared worker/coordinator boundary: UI-only selection/viewport intents are distinct from canonical object/property/binding mutation intents, and Canvas/Inspector/Palette/Binding component prop contracts are explicit;
 - PT-BR/EN/ES editor copy is present in the central composition;
-- new Playwright coverage `visual-editor-workspace.spec.ts` exercises Screen route edit -> Preview -> Apply -> canonical export verification -> UI reopen -> restore original package.
+- new Playwright coverage `visual-editor-workspace.spec.ts` exercises Screen route edit -> Preview -> Apply -> canonical export verification -> UI reopen -> restore original package and asserts the seeded visual preview opens without renderer errors.
 
 Important: Canvas gestures, Property Inspector typed editing and Object Palette/binding authoring are still intentionally worker-owned and not implemented by this coordinator pass.
 
@@ -110,7 +111,8 @@ In addition to earlier asset defects, this pass found and corrected:
 
 1. integration was 8 commits behind `main`; all were coordination/documentation-only and were merged into the integration branch without product-code conflict;
 2. a newly applied Screen can receive a backend GUID, so selection matching now accepts canonical ID or key identity during refresh;
-3. the demo seed still contains historical visual object types while the new registry uses `core.*`; the editor now renders explicit compatibility placeholders instead of presenting them as malformed new-registry objects.
+3. the demo seed still contains historical visual object types while the new registry uses `core.*`; the editor now renders explicit compatibility placeholders instead of presenting them as malformed new-registry objects;
+4. worker deliverables referenced generic “intents” but had no single typed integration boundary; `visualEditorContracts.ts` now freezes that coordinator-owned seam before worker restart.
 
 ## Validation boundary
 
@@ -141,12 +143,12 @@ Wave 09/10 remain NOT ACTIVE.
 1. reread mandatory current `main` documents and this handoff;
 2. verify real `main`, integration, worker heads, PRs and Actions;
 3. preserve workers as STOPPED unless deliberately restarted;
-4. continue from `integration/graphical-editor-wave-08` and verify the code checkpoint `a2cdc39a9d7a8dcf425aab6a253d6bb0694faab1` or its documented successor;
-5. when Actions access is available, run the cheapest meaningful exact-head validation first; opening the integration PR is acceptable once the branch is ready because PR-to-main triggers CI;
-6. fix build/test failures before expanding scope;
-7. restart the three worker slices only when useful, without changing their fixed ownership boundaries;
-8. integrate worker deliveries through the Wave 08 integration branch;
-9. run focused tests and then the full exact-head CI matrix;
+4. continue from `integration/graphical-editor-wave-08` and verify checkpoint `d49182474e3275e798b2a1434c48466d1b846ac1` or its documented successor;
+5. make every restarted worker consume `web/scada-web/src/engineering/visual-editor/visualEditorContracts.ts` rather than inventing a competing intent format;
+6. when Actions access is available, run the cheapest meaningful exact-head validation first; opening the integration PR is acceptable once the branch is ready because PR-to-main triggers CI;
+7. fix build/test failures before expanding scope;
+8. restart the three worker slices only when useful, without changing their fixed ownership boundaries;
+9. integrate worker deliveries through the Wave 08 integration branch, run focused tests and then the full exact-head CI matrix;
 10. merge only fully green, confirm post-merge `main`, close Wave 08, then and only then activate Wave 09.
 
 ## Wave 08 product gate

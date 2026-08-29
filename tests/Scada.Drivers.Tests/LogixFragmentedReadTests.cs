@@ -31,7 +31,7 @@ public sealed class LogixFragmentedReadTests
         uint offset = 0;
         foreach (var length in new[] { 490, 490, 490, 280 })
         {
-            var hasMore = offset + length < source.Length;
+            var hasMore = offset + (uint)length < (uint)source.Length;
             var responseData = new byte[2 + length];
             responseData[0] = 0xC2;
             responseData[1] = 0x00;

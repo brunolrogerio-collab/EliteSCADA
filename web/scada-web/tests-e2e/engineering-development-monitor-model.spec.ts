@@ -3,6 +3,7 @@ import type { CommunicationDriverDiagnostic } from '../src/engineering/types';
 import type { ProjectReferenceDescriptor } from '../src/engineering/project-reference/projectReferenceModel';
 import {
   applyMonitorRealtimeMessage,
+  formatMonitorQuality,
   mergeMonitorBatchSamples,
   resolveMonitorQuickAdd
 } from '../src/engineering/development-monitor/developmentMonitorModel';
@@ -55,7 +56,7 @@ test('Development Monitor resolves exact quick-add and rejects ambiguous/not-fou
 test('Development Monitor merges 100 monitored TAGs through one shared batch while preserving quality, timestamp and exact Int64', () => {
   const references = Array.from({ length: 100 }, (_, index) => tagReference(index));
   const selected = references.map(reference => reference.reference);
-  const descriptors = new Map(references.map(reference => [reference.reference, reference]));
+  const descriptors = new Map<string, ProjectReferenceDescriptor>(references.map(reference => [reference.reference, reference] as const));
   const tags = Array.from({ length: 100 }, (_, index) => runtimeTag(index, index));
 
   const int64Reference = Object.freeze({ ...tagReference(99, 'Int64'), reference: 'Plant.Area.Counter64', label: 'Counter64' });
@@ -86,12 +87,15 @@ test('Development Monitor merges 100 monitored TAGs through one shared batch whi
     quality: 'Uncertain',
     sourceTimestamp: '2026-08-29T03:58:00Z'
   });
+  expect(formatMonitorQuality({
+    reference: 'quality', value: 1, dataType: 'Int32', quality: 3, observedAt: '2026-08-29T04:00:00Z'
+  })).toBe('BadCommunication');
 });
 
 test('realtime update changes only a selected canonical TAG reference', () => {
   const first = tagReference(1);
   const second = tagReference(2);
-  const descriptors = new Map([[first.reference, first], [second.reference, second]]);
+  const descriptors = new Map<string, ProjectReferenceDescriptor>([[first.reference, first], [second.reference, second]]);
   const current = new Map([[first.reference, Object.freeze({
     reference: first.reference,
     value: 1,

@@ -1,6 +1,7 @@
 import React, { type CSSProperties } from 'react';
 import { visualAssetContentUrl } from '../api';
-import type { VisualElementEngineering, VisualEngineeringPropertyValue } from '../types';
+import type { EngineeringLocale } from '../i18n';
+import type { BindingEngineering, VisualElementEngineering, VisualEngineeringPropertyValue } from '../types';
 import {
   BUILTIN_VISUAL_OBJECT_TYPES,
   decodeVisualEngineeringProperties,
@@ -10,24 +11,44 @@ import {
   type VisualPropertyValue
 } from '../../visual-runtime';
 import { polygonBounds, polygonPointsAttribute, readPolygonPoints } from './polygonGeometry';
+import {
+  formatVisualScalarText,
+  useVisualBindingSamples,
+  type VisualLiveScalarSample
+} from './visualEditorLiveValues';
 
 export type CanonicalVisualRendererProps = {
   elements: readonly VisualElementEngineering[] | null | undefined;
   emptyLabel: string;
+  locale?: EngineeringLocale;
 };
 
 const builtinVisualTypes = new Set<string>(Object.values(BUILTIN_VISUAL_OBJECT_TYPES));
 
-export function CanonicalVisualRenderer({ elements, emptyLabel }: CanonicalVisualRendererProps) {
+export function CanonicalVisualRenderer({ elements, emptyLabel, locale = 'pt-BR' }: CanonicalVisualRendererProps) {
   const rootElements = elements ?? [];
+  const liveSamples = useVisualBindingSamples(rootElements);
   if (rootElements.length === 0) return <div className="visual-editor-renderer-empty">{emptyLabel}</div>;
 
   return <div className="visual-editor-renderer-stage" data-testid="visual-editor-canonical-renderer">
-    {rootElements.map((element, index) => <CanonicalElement key={element.id ?? `${element.key}-${index}`} element={element} />)}
+    {rootElements.map((element, index) => <CanonicalElement
+      key={element.id ?? `${element.key}-${index}`}
+      element={element}
+      locale={locale}
+      liveSamples={liveSamples}
+    />)}
   </div>;
 }
 
-function CanonicalElement({ element }: { element: VisualElementEngineering }) {
+function CanonicalElement({
+  element,
+  locale,
+  liveSamples
+}: {
+  element: VisualElementEngineering;
+  locale: EngineeringLocale;
+  liveSamples: ReadonlyMap<string, VisualLiveScalarSample>;
+}) {
   if (!builtinVisualTypes.has(element.type)) return <LegacyCompatibilityElement element={element} />;
 
   try {
@@ -40,7 +61,12 @@ function CanonicalElement({ element }: { element: VisualElementEngineering }) {
 
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.group) {
       return <div className="visual-editor-object visual-editor-group" style={style} data-object-id={element.id ?? undefined}>
-        {(element.children ?? []).map((child, index) => <CanonicalElement key={child.id ?? `${child.key}-${index}`} element={child} />)}
+        {(element.children ?? []).map((child, index) => <CanonicalElement
+          key={child.id ?? `${child.key}-${index}`}
+          element={child}
+          locale={locale}
+          liveSamples={liveSamples}
+        />)}
       </div>;
     }
 
@@ -78,16 +104,29 @@ function CanonicalElement({ element }: { element: VisualElementEngineering }) {
       </div>;
     }
 
-    const text = stringValue(values[VISUAL_PROPERTY_KEYS.text]);
-    const className = `visual-editor-object visual-editor-${element.type.replace('core.', '')}`;
-    const content = text || element.key;
+    const staticText = stringValue(values[VISUAL_PROPERTY_KEYS.text]);
+    const textBinding = dynamicTextBinding(element.bindings);
+    const dynamicText = textBinding
+      ? formatVisualScalarText(liveSamples.get(textBinding.target), textBinding, locale)
+      : null;
+    const className = `visual-editor-object visual-editor-${element.type.replace('core.', '')}${dynamicText && !dynamicText.available ? ' visual-editor-dynamic-unavailable' : ''}`;
+    const content = dynamicText?.text || staticText || element.key;
+    const title = dynamicText ? `${textBinding!.target} · ${dynamicText.state}` : undefined;
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.button) {
-      return <button type="button" tabIndex={-1} className={className} style={style} data-object-id={element.id ?? undefined}>{content}</button>;
+      return <button type="button" tabIndex={-1} className={className} style={style} data-object-id={element.id ?? undefined} title={title}>{content}</button>;
     }
-    return <div className={className} style={style} data-object-id={element.id ?? undefined}>{content}</div>;
+    return <div className={className} style={style} data-object-id={element.id ?? undefined} title={title} data-dynamic-reference={textBinding?.target}>{content}</div>;
   } catch (reason) {
     return <div className="visual-editor-object-error" title={reason instanceof Error ? reason.message : String(reason)}>{element.key || element.type || 'invalid visual object'}</div>;
   }
+}
+
+function dynamicTextBinding(bindings: readonly BindingEngineering[] | null | undefined): BindingEngineering | null {
+  const binding = bindings?.find(candidate => {
+    const kind = candidate.kind?.trim().toLowerCase();
+    return candidate.key === VISUAL_PROPERTY_KEYS.text && (kind === 'tag' || kind === 'clientmemory');
+  });
+  return binding ?? null;
 }
 
 function registeredScalarProperties(element: VisualElementEngineering, schema: VisualObjectPropertySchema): Readonly<Record<string, unknown>> {

@@ -191,7 +191,7 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
     engineering: { tags: number; dataSources: number; screens: number; popups: number; securityRoles: number; commands: number };
   };
   expect(projectInspect.manifest.format).toBe('elitescada.project-package');
-  expect(projectInspect.manifest.formatVersion).toBe(1);
+  expect(projectInspect.manifest.formatVersion).toBe(2);
   expect(projectInspect.manifest.projectKey).toBe('demo');
   expect(projectInspect.manifest.projectName).toBe('Demo Project');
   expect(projectInspect.manifest.engineeringSchemaVersion).toBe(engineering.schemaVersion);

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Scada.Core.Alarms;
 using Scada.Engineering.Contracts;
 
@@ -5,6 +6,8 @@ namespace Scada.Engineering.Validation;
 
 public static class EngineeringValidator
 {
+    private const int MaximumPolygonVertices = 4096;
+
     private static readonly string[] SensitiveKeyFragments =
     {
         "password", "passwd", "pwd", "secret", "token", "apikey", "api_key",
@@ -43,7 +46,7 @@ public static class EngineeringValidator
         if ((alarm.Type is AlarmType.High or AlarmType.HighHigh or AlarmType.Low or AlarmType.LowLow) && alarm.Setpoint is null)
             issues.Add(Error("ALARM_SETPOINT_REQUIRED", "Analog alarm requires a setpoint.", ImportEntityKind.Alarm, key));
         if (alarm.ActivationDelayMilliseconds < 0)
-            issues.Add(Error("ALARM_DELAY_INVALID", "Activation delay cannot be negative.", ImportEntityKind.Alarm, key));
+            issues.Add(Error("ALARM_DELAY_INVALID", "Alarm activation delay cannot be negative.", ImportEntityKind.Alarm, key));
         return issues;
     }
 
@@ -148,12 +151,7 @@ public static class EngineeringValidator
             issues.Add(Error("SCREEN_NAME_REQUIRED", "Screen name is required.", ImportEntityKind.Screen, key));
         if (!string.IsNullOrWhiteSpace(screen.Route) && !screen.Route.StartsWith("/", StringComparison.Ordinal))
             issues.Add(Error("SCREEN_ROUTE_INVALID", "Screen route must start with '/'.", ImportEntityKind.Screen, key));
-        issues.AddRange(ValidateVisualElements(
-            screen.Elements,
-            ImportEntityKind.Screen,
-            key,
-            allowPlaceholders: false,
-            new HashSet<Guid>()));
+        issues.AddRange(ValidateVisualElements(screen.Elements, ImportEntityKind.Screen, key, allowPlaceholders: false, new HashSet<Guid>()));
         return issues;
     }
 
@@ -169,12 +167,7 @@ public static class EngineeringValidator
             issues.Add(Error("POPUP_NAME_REQUIRED", "Popup name is required.", ImportEntityKind.Popup, key));
         if (popup.TemplateKey?.Any(char.IsWhiteSpace) == true)
             issues.Add(Error("POPUP_TEMPLATE_KEY_WHITESPACE", "Popup template key cannot contain whitespace.", ImportEntityKind.Popup, key));
-        issues.AddRange(ValidateVisualElements(
-            popup.Elements,
-            ImportEntityKind.Popup,
-            key,
-            allowPlaceholders: true,
-            new HashSet<Guid>()));
+        issues.AddRange(ValidateVisualElements(popup.Elements, ImportEntityKind.Popup, key, allowPlaceholders: true, new HashSet<Guid>()));
         return issues;
     }
 
@@ -217,11 +210,95 @@ public static class EngineeringValidator
             if (!string.IsNullOrWhiteSpace(element.EquipmentPath) && !allowPlaceholders && ContainsPlaceholder(element.EquipmentPath))
                 yield return Error("VISUAL_EQUIPMENT_PLACEHOLDER_NOT_ALLOWED", $"Screen element '{element.Key}' must reference a concrete equipment path.", entityKind, entityKey);
 
+            foreach (var issue in ValidatePolygonGeometry(element, entityKind, entityKey))
+                yield return issue;
             foreach (var issue in ValidateBindings(element.Bindings, entityKind, entityKey, allowTagPlaceholders: allowPlaceholders))
                 yield return issue;
             foreach (var issue in ValidateVisualElements(element.Children, entityKind, entityKey, allowPlaceholders, visualIds))
                 yield return issue;
         }
+    }
+
+    private static IEnumerable<ImportIssue> ValidatePolygonGeometry(
+        VisualElementEngineeringDto element,
+        ImportEntityKind entityKind,
+        string entityKey)
+    {
+        JsonElement pointsElement = default;
+        var hasPoints = element.Properties is not null &&
+                        element.Properties.TryGetValue("points", out pointsElement);
+        if (!string.Equals(element.Type, "core.polygon", StringComparison.Ordinal))
+        {
+            if (hasPoints)
+                yield return Error("VISUAL_POLYGON_POINTS_UNEXPECTED", $"Visual element '{element.Key}' is not core.polygon and cannot declare polygon points.", entityKind, entityKey);
+            yield break;
+        }
+
+        if (!hasPoints)
+        {
+            yield return Error("VISUAL_POLYGON_POINTS_REQUIRED", $"Polygon '{element.Key}' requires canonical points.", entityKind, entityKey);
+            yield break;
+        }
+
+        if (pointsElement.ValueKind != JsonValueKind.Array)
+        {
+            yield return Error("VISUAL_POLYGON_POINTS_INVALID", $"Polygon '{element.Key}' points must be a JSON array.", entityKind, entityKey);
+            yield break;
+        }
+
+        var length = pointsElement.GetArrayLength();
+        if (length < 3)
+        {
+            yield return Error("VISUAL_POLYGON_POINTS_MINIMUM", $"Polygon '{element.Key}' requires at least three vertices.", entityKind, entityKey);
+            yield break;
+        }
+        if (length > MaximumPolygonVertices)
+        {
+            yield return Error("VISUAL_POLYGON_POINTS_LIMIT", $"Polygon '{element.Key}' exceeds the {MaximumPolygonVertices} vertex limit.", entityKind, entityKey);
+            yield break;
+        }
+
+        var points = new List<(double X, double Y)>(length);
+        var invalid = false;
+        foreach (var point in pointsElement.EnumerateArray())
+        {
+            if (point.ValueKind != JsonValueKind.Object ||
+                !point.TryGetProperty("x", out var xNode) ||
+                !point.TryGetProperty("y", out var yNode) ||
+                xNode.ValueKind != JsonValueKind.Number ||
+                yNode.ValueKind != JsonValueKind.Number ||
+                !xNode.TryGetDouble(out var x) ||
+                !yNode.TryGetDouble(out var y) ||
+                !double.IsFinite(x) ||
+                !double.IsFinite(y))
+            {
+                invalid = true;
+                break;
+            }
+            points.Add((x, y));
+        }
+
+        if (invalid)
+        {
+            yield return Error("VISUAL_POLYGON_POINT_INVALID", $"Polygon '{element.Key}' contains a malformed or non-finite vertex.", entityKind, entityKey);
+            yield break;
+        }
+
+        if (points.Distinct().Count() < 3)
+        {
+            yield return Error("VISUAL_POLYGON_POINTS_DISTINCT", $"Polygon '{element.Key}' requires at least three distinct vertices.", entityKind, entityKey);
+            yield break;
+        }
+
+        var twiceArea = 0d;
+        for (var index = 0; index < points.Count; index++)
+        {
+            var current = points[index];
+            var next = points[(index + 1) % points.Count];
+            twiceArea += current.X * next.Y - next.X * current.Y;
+        }
+        if (!double.IsFinite(twiceArea) || Math.Abs(twiceArea) <= 1e-9)
+            yield return Error("VISUAL_POLYGON_DEGENERATE", $"Polygon '{element.Key}' vertices must form a non-degenerate closed area.", entityKind, entityKey);
     }
 
     private static IEnumerable<ImportIssue> ValidateBindings(
@@ -253,13 +330,8 @@ public static class EngineeringValidator
                 yield return Error("BINDING_TARGET_REQUIRED", $"Binding '{binding.Key}' requires a target.", entityKind, entityKey);
             if (!string.IsNullOrWhiteSpace(binding.Key) && duplicates.Contains(binding.Key))
                 yield return Error("BINDING_DUPLICATE", $"Binding key '{binding.Key}' appears more than once.", entityKind, entityKey);
-            if (binding.Kind == EngineeringBindingKind.Tag &&
-                !allowTagPlaceholders &&
-                !string.IsNullOrWhiteSpace(binding.Target) &&
-                ContainsPlaceholder(binding.Target))
-            {
+            if (binding.Kind == EngineeringBindingKind.Tag && !allowTagPlaceholders && !string.IsNullOrWhiteSpace(binding.Target) && ContainsPlaceholder(binding.Target))
                 yield return Error("BINDING_TAG_PLACEHOLDER_NOT_ALLOWED", $"Binding '{binding.Key}' must reference a concrete TAG path.", entityKind, entityKey);
-            }
         }
     }
 

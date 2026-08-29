@@ -1,4 +1,5 @@
 using Scada.Engineering.Contracts;
+using Scada.Engineering.VisualAssets;
 
 namespace Scada.Engineering.ImportExport;
 
@@ -16,5 +17,18 @@ public interface IEngineeringExchangeService
     EngineeringPackage ParseDataSourcesCsv(string csv);
 
     ImportPreview Preview(EngineeringPackage package, ImportMode mode);
+
+    ImportPreview Preview(
+        EngineeringPackage package,
+        ImportMode mode,
+        EngineeringImportContext? context) =>
+        Preview(package, mode);
+
     ImportResult Apply(EngineeringPackage package, ImportMode mode);
+
+    ImportResult Apply(
+        EngineeringPackage package,
+        ImportMode mode,
+        EngineeringImportContext? context) =>
+        Apply(package, mode);
 }

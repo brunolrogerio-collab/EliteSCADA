@@ -1,5 +1,7 @@
+using System.Security.Cryptography;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.VisualAssets;
 
 namespace Scada.Engineering.Persistence;
 
@@ -96,13 +98,16 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
 {
     private readonly IEngineeringExchangeService _exchange;
     private readonly IEngineeringProjectStore _store;
+    private readonly IVisualAssetEngineeringRegistry? _visualAssets;
 
     public EngineeringProjectPersistenceService(
         IEngineeringExchangeService exchange,
-        IEngineeringProjectStore store)
+        IEngineeringProjectStore store,
+        IVisualAssetEngineeringRegistry? visualAssets = null)
     {
         _exchange = exchange;
         _store = store;
+        _visualAssets = visualAssets;
     }
 
     public Task InitializeAsync(CancellationToken cancellationToken = default) =>
@@ -129,14 +134,16 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
     {
         var package = _exchange.ExportPackage();
         var json = _exchange.ExportJson(indented: false);
+        var revisionAssets = BuildCurrentRevisionAssets(package);
 
-        return await _store.SaveDerivedAsync(
+        return await _store.SaveDerivedWithAssetsAsync(
             projectKey,
             projectName,
             package.Schema,
             package.SchemaVersion,
             json,
             basedOnRevision,
+            revisionAssets,
             savedBy,
             cancellationToken);
     }
@@ -228,7 +235,7 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         var snapshot = await _store.LoadRevisionAsync(projectKey, revision, cancellationToken);
         if (snapshot is null) return null;
 
-        var preview = PreviewSnapshot(snapshot, ImportMode.CreateAndUpdate).Preview;
+        var preview = (await PreviewSnapshotAsync(snapshot, ImportMode.CreateAndUpdate, cancellationToken)).Preview;
         if (!preview.CanApply)
             return new EngineeringPublicationResult(snapshot, preview, null);
 
@@ -247,7 +254,9 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         CancellationToken cancellationToken = default)
     {
         var snapshot = await _store.LoadLatestAsync(projectKey, cancellationToken);
-        return snapshot is null ? null : PreviewSnapshot(snapshot, mode);
+        return snapshot is null
+            ? null
+            : await PreviewSnapshotAsync(snapshot, mode, cancellationToken);
     }
 
     public async Task<EngineeringPersistencePreview?> PreviewRevisionAsync(
@@ -257,7 +266,9 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         CancellationToken cancellationToken = default)
     {
         var snapshot = await _store.LoadRevisionAsync(projectKey, revision, cancellationToken);
-        return snapshot is null ? null : PreviewSnapshot(snapshot, mode);
+        return snapshot is null
+            ? null
+            : await PreviewSnapshotAsync(snapshot, mode, cancellationToken);
     }
 
     public async Task<ImportResult?> ApplyLatestAsync(
@@ -266,7 +277,9 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         CancellationToken cancellationToken = default)
     {
         var snapshot = await _store.LoadLatestAsync(projectKey, cancellationToken);
-        return snapshot is null ? null : ApplySnapshot(snapshot, mode);
+        return snapshot is null
+            ? null
+            : await ApplySnapshotAsync(snapshot, mode, cancellationToken);
     }
 
     public async Task<ImportResult?> ApplyRevisionAsync(
@@ -276,26 +289,32 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         CancellationToken cancellationToken = default)
     {
         var snapshot = await _store.LoadRevisionAsync(projectKey, revision, cancellationToken);
-        return snapshot is null ? null : ApplySnapshot(snapshot, mode);
+        return snapshot is null
+            ? null
+            : await ApplySnapshotAsync(snapshot, mode, cancellationToken);
     }
 
-    private EngineeringPersistencePreview PreviewSnapshot(
+    private async Task<EngineeringPersistencePreview> PreviewSnapshotAsync(
         EngineeringProjectSnapshot snapshot,
-        ImportMode mode)
+        ImportMode mode,
+        CancellationToken cancellationToken)
     {
-        var package = ParseAndValidate(snapshot);
-        return new EngineeringPersistencePreview(snapshot, _exchange.Preview(package, mode));
+        var (package, context) = await ParseAndValidateAsync(snapshot, cancellationToken);
+        return new EngineeringPersistencePreview(snapshot, _exchange.Preview(package, mode, context));
     }
 
-    private ImportResult ApplySnapshot(
+    private async Task<ImportResult> ApplySnapshotAsync(
         EngineeringProjectSnapshot snapshot,
-        ImportMode mode)
+        ImportMode mode,
+        CancellationToken cancellationToken)
     {
-        var package = ParseAndValidate(snapshot);
-        return _exchange.Apply(package, mode);
+        var (package, context) = await ParseAndValidateAsync(snapshot, cancellationToken);
+        return _exchange.Apply(package, mode, context);
     }
 
-    private EngineeringPackage ParseAndValidate(EngineeringProjectSnapshot snapshot)
+    private async Task<(EngineeringPackage Package, EngineeringImportContext Context)> ParseAndValidateAsync(
+        EngineeringProjectSnapshot snapshot,
+        CancellationToken cancellationToken)
     {
         var package = _exchange.ParseJson(snapshot.EngineeringJson);
 
@@ -307,6 +326,97 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
             throw new InvalidDataException(
                 $"Stored engineering schema version {snapshot.EngineeringSchemaVersion} does not match payload version {package.SchemaVersion}.");
 
-        return package;
+        var context = await BuildRevisionImportContextAsync(snapshot, package, cancellationToken);
+        return (package, context);
+    }
+
+    private IReadOnlyCollection<EngineeringRevisionAssetPayload> BuildCurrentRevisionAssets(EngineeringPackage package)
+    {
+        var assets = package.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>();
+        if (assets.Count == 0)
+            return Array.Empty<EngineeringRevisionAssetPayload>();
+        if (_visualAssets is null)
+            throw new InvalidOperationException("Visual asset payload registry is required to save a project containing visual assets.");
+
+        var result = new List<EngineeringRevisionAssetPayload>(assets.Count);
+        foreach (var asset in assets)
+        {
+            if (!asset.Id.HasValue || asset.Id.Value == Guid.Empty)
+                throw new InvalidDataException($"Visual asset '{asset.Key}' requires a stable ID before revision save.");
+
+            var payload = _visualAssets.FindPayload(asset.Sha256)
+                ?? throw new InvalidDataException($"Visual asset '{asset.Key}' payload '{asset.Sha256}' is unavailable.");
+            ValidatePayloadAgainstMetadata(asset, payload);
+            result.Add(new EngineeringRevisionAssetPayload(
+                asset.Id.Value,
+                asset.Sha256.ToLowerInvariant(),
+                asset.MediaType,
+                payload.Content.ToArray()));
+        }
+
+        return result;
+    }
+
+    private async Task<EngineeringImportContext> BuildRevisionImportContextAsync(
+        EngineeringProjectSnapshot snapshot,
+        EngineeringPackage package,
+        CancellationToken cancellationToken)
+    {
+        var metadata = package.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>();
+        var stored = await _store.LoadRevisionAssetsAsync(
+            snapshot.ProjectKey,
+            snapshot.Revision,
+            cancellationToken);
+
+        if (metadata.Count == 0)
+        {
+            if (stored.Count != 0)
+                throw new InvalidDataException("Stored revision contains unexpected visual asset payload links.");
+            return EngineeringImportContext.Empty;
+        }
+
+        var byAssetId = stored.ToDictionary(x => x.AssetId);
+        if (byAssetId.Count != metadata.Count)
+            throw new InvalidDataException("Stored revision visual asset payload count does not match canonical metadata.");
+
+        var byHash = new Dictionary<string, VisualAssetPayload>(StringComparer.OrdinalIgnoreCase);
+        foreach (var asset in metadata)
+        {
+            if (!asset.Id.HasValue || asset.Id.Value == Guid.Empty)
+                throw new InvalidDataException($"Stored visual asset '{asset.Key}' is missing a stable ID.");
+            if (!byAssetId.TryGetValue(asset.Id.Value, out var storedPayload))
+                throw new InvalidDataException($"Stored visual asset '{asset.Key}' payload link is missing.");
+            if (!storedPayload.Sha256.Equals(asset.Sha256, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException($"Stored visual asset '{asset.Key}' payload hash does not match canonical metadata.");
+
+            var payload = new VisualAssetPayload(
+                storedPayload.Sha256.ToLowerInvariant(),
+                storedPayload.MediaType,
+                storedPayload.Content.ToArray());
+            ValidatePayloadAgainstMetadata(asset, payload);
+
+            if (byHash.TryGetValue(payload.Sha256, out var existing) &&
+                (!existing.MediaType.Equals(payload.MediaType, StringComparison.OrdinalIgnoreCase) ||
+                 !existing.Content.AsSpan().SequenceEqual(payload.Content)))
+                throw new InvalidDataException($"Stored visual asset hash '{payload.Sha256}' maps to conflicting payloads.");
+
+            byHash[payload.Sha256] = payload;
+        }
+
+        return new EngineeringImportContext(byHash);
+    }
+
+    private static void ValidatePayloadAgainstMetadata(
+        VisualAssetEngineeringDto metadata,
+        VisualAssetPayload payload)
+    {
+        if (!payload.MediaType.Equals(metadata.MediaType, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException($"Visual asset '{metadata.Key}' payload media type does not match canonical metadata.");
+        if (payload.ByteLength != metadata.ByteLength)
+            throw new InvalidDataException($"Visual asset '{metadata.Key}' payload length does not match canonical metadata.");
+
+        var actualHash = Convert.ToHexString(SHA256.HashData(payload.Content)).ToLowerInvariant();
+        if (!actualHash.Equals(metadata.Sha256, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException($"Visual asset '{metadata.Key}' payload hash does not match canonical metadata.");
     }
 }

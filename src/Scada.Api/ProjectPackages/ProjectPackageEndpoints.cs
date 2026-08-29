@@ -1,5 +1,6 @@
 using Scada.Api.Runtime;
 using Scada.Api.Security;
+using Scada.Api.VisualAssets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ProjectPackages;
 using Scada.Security.Audit;
@@ -9,10 +10,12 @@ namespace Scada.Api.ProjectPackages;
 
 public static class ProjectPackageEndpoints
 {
-    private const int MaximumRequestBytes = 64 * 1024 * 1024;
+    private const int MaximumRequestBytes = 128 * 1024 * 1024;
 
     public static IEndpointRouteBuilder MapProjectPackageEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapVisualAssetEndpoints();
+
         endpoints.MapGet("/api/project-package/export", (
             string? projectKey,
             string? projectName,
@@ -52,7 +55,8 @@ public static class ProjectPackageEndpoints
                         screens = inspection.Engineering.Screens?.Count ?? 0,
                         popups = inspection.Engineering.Popups?.Count ?? 0,
                         securityRoles = inspection.Engineering.SecurityRoles?.Count ?? 0,
-                        commands = inspection.Engineering.Commands?.Count ?? 0
+                        commands = inspection.Engineering.Commands?.Count ?? 0,
+                        visualAssets = inspection.Engineering.VisualAssets?.Count ?? 0
                     }
                 });
             }

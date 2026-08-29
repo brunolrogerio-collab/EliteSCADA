@@ -241,10 +241,40 @@ public static class VisualEngineeringPropertyMigration
         IReadOnlyDictionary<string, JsonElement>? properties;
         if (schema is not null)
         {
-            properties = VisualEngineeringPropertyCodec.Normalize(
+            var scalarProperties = element.Properties;
+            JsonElement? polygonPoints = null;
+
+            if (element.Type.Equals(BuiltinVisualObjectSchemas.PolygonType, StringComparison.Ordinal) &&
+                element.Properties is not null &&
+                element.Properties.TryGetValue("points", out var points))
+            {
+                polygonPoints = points.Clone();
+                scalarProperties = element.Properties
+                    .Where(property => !property.Key.Equals("points", StringComparison.Ordinal))
+                    .ToDictionary(
+                        property => property.Key,
+                        property => property.Value.Clone(),
+                        StringComparer.Ordinal);
+            }
+
+            var normalizedScalars = VisualEngineeringPropertyCodec.Normalize(
                 schema,
-                element.Properties,
+                scalarProperties,
                 sourceSchemaVersion);
+
+            if (polygonPoints.HasValue)
+            {
+                var withStructuralGeometry = normalizedScalars.ToDictionary(
+                    pair => pair.Key,
+                    pair => pair.Value.Clone(),
+                    StringComparer.Ordinal);
+                withStructuralGeometry["points"] = polygonPoints.Value.Clone();
+                properties = new ReadOnlyDictionary<string, JsonElement>(withStructuralGeometry);
+            }
+            else
+            {
+                properties = normalizedScalars;
+            }
         }
         else
         {

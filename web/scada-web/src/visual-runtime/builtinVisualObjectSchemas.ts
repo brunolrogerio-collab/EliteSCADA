@@ -9,6 +9,7 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   rectangle: 'core.rectangle',
   ellipse: 'core.ellipse',
   line: 'core.line',
+  polygon: 'core.polygon',
   text: 'core.text',
   image: 'core.image',
   valueDisplay: 'core.valueDisplay',
@@ -70,6 +71,11 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.line, schema(BUILTIN_VISUAL_OBJECT_TYPES.line, [
     ...BASE,
+    ...STROKE
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.polygon, schema(BUILTIN_VISUAL_OBJECT_TYPES.polygon, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.fillColor,
     ...STROKE
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.text, schema(BUILTIN_VISUAL_OBJECT_TYPES.text, [

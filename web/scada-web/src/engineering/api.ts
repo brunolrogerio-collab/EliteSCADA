@@ -6,7 +6,9 @@ import type {
   GatewayRuntimeDiagnostic,
   ImportPreviewView,
   ImportResultView,
-  RuntimeDiagnosticsView
+  RuntimeDiagnosticsView,
+  VisualAssetEngineering,
+  VisualEngineeringAssetReference
 } from './types';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
@@ -51,9 +53,53 @@ export async function loadEngineeringSnapshot(): Promise<EngineeringSnapshot> {
       screens: engineeringPackage.screens ?? [],
       popups: engineeringPackage.popups ?? [],
       securityRoles: engineeringPackage.securityRoles ?? [],
-      gateways: engineeringPackage.gateways ?? []
+      gateways: engineeringPackage.gateways ?? [],
+      visualAssets: engineeringPackage.visualAssets ?? []
     }
   };
+}
+
+export async function loadVisualAssets(): Promise<VisualAssetEngineering[]> {
+  return await getJson<VisualAssetEngineering[]>('/api/engineering/visual-assets');
+}
+
+export type VisualAssetImportResult = {
+  asset: VisualAssetEngineering;
+  assetRef: VisualEngineeringAssetReference;
+  workspaceVersion: number;
+};
+
+export async function importVisualAsset(
+  file: Blob,
+  expectedChangeVersion: number,
+  options?: {
+    fileName?: string;
+    key?: string;
+    name?: string;
+  }
+): Promise<VisualAssetImportResult> {
+  const query = new URLSearchParams();
+  const inferredFileName = options?.fileName ?? (file instanceof File ? file.name : undefined);
+  if (inferredFileName) query.set('fileName', inferredFileName);
+  if (options?.key) query.set('key', options.key);
+  if (options?.name) query.set('name', options.name);
+
+  const suffix = query.size > 0 ? `?${query.toString()}` : '';
+  const response = await fetch(`${API}/api/engineering/visual-assets/import${suffix}`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'x-elitescada-workspace-version': String(expectedChangeVersion)
+    },
+    body: file
+  });
+
+  if (!response.ok) throw await readError(response);
+  return await response.json() as VisualAssetImportResult;
+}
+
+export function visualAssetContentUrl(assetId: string): string {
+  return `${API}/api/engineering/visual-assets/${encodeURIComponent(assetId)}/content`;
 }
 
 export async function loadGatewayDiagnostics(): Promise<GatewayRuntimeDiagnostic[]> {

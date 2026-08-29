@@ -13,9 +13,9 @@ import {
 
 /**
  * Projects one canonical Engineering visual element into the renderer-independent
- * Wave 07 Runtime definition. Current Engineering is JSON-native and is validated
- * against the same property schema consumed by Runtime. Legacy string migration
- * is owned by the backend import/apply boundary rather than reimplemented here.
+ * Runtime definition. Structural visual geometry, such as core.polygon points,
+ * remains in the canonical visual element and is not misclassified as a scalar
+ * Visual Property Registry value.
  */
 export function projectCanonicalVisualElementForRuntime(
   element: VisualElementEngineering,
@@ -29,7 +29,7 @@ export function projectCanonicalVisualElementForRuntime(
     );
   }
 
-  const baseProperties = decodeVisualEngineeringProperties(element.properties, schema);
+  const baseProperties = decodeVisualEngineeringProperties(registeredScalarProperties(element, schema), schema);
   const bindings = (element.bindings ?? []).map(projectCanonicalBinding);
 
   return projectVisualEngineeringDefinition({
@@ -43,11 +43,6 @@ export function projectCanonicalVisualElementForRuntime(
   }, schema);
 }
 
-/**
- * Flattens a canonical visual tree into parent-before-child Runtime definitions.
- * The schema resolver remains external so the object palette/type registry is a
- * separate contract rather than hidden inside this adapter.
- */
 export function projectCanonicalVisualTreeForRuntime(
   elements: readonly VisualElementEngineering[] | null | undefined,
   resolveSchema: (objectType: string) => VisualObjectPropertySchema,
@@ -56,20 +51,23 @@ export function projectCanonicalVisualTreeForRuntime(
   const projected: VisualEngineeringDefinitionProjection[] = [];
 
   for (const element of elements ?? []) {
-    const definition = projectCanonicalVisualElementForRuntime(
-      element,
-      resolveSchema(element.type),
-      parentObjectId
-    );
+    const definition = projectCanonicalVisualElementForRuntime(element, resolveSchema(element.type), parentObjectId);
     projected.push(definition);
-    projected.push(...projectCanonicalVisualTreeForRuntime(
-      element.children,
-      resolveSchema,
-      definition.objectId
-    ));
+    projected.push(...projectCanonicalVisualTreeForRuntime(element.children, resolveSchema, definition.objectId));
   }
 
   return Object.freeze(projected);
+}
+
+function registeredScalarProperties(
+  element: VisualElementEngineering,
+  schema: VisualObjectPropertySchema
+): Readonly<Record<string, unknown>> {
+  const projected: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
+  for (const [key, value] of Object.entries(element.properties ?? {})) {
+    if (schema.declares(key)) projected[key] = value;
+  }
+  return projected;
 }
 
 function projectCanonicalBinding(binding: BindingEngineering) {
@@ -81,8 +79,10 @@ function projectCanonicalBinding(binding: BindingEngineering) {
 }
 
 function toRuntimeBindingKind(kind: string): VisualBindingSourceKind {
-  switch (kind) {
+  const normalized = kind.trim().toLowerCase();
+  switch (normalized) {
     case 'tag':
+    case 'clientmemory':
     case 'property':
     case 'binding':
       return 'binding';

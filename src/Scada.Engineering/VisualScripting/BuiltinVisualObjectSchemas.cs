@@ -11,6 +11,7 @@ public static class BuiltinVisualObjectSchemas
     public const string RectangleType = "core.rectangle";
     public const string EllipseType = "core.ellipse";
     public const string LineType = "core.line";
+    public const string PolygonType = "core.polygon";
     public const string TextType = "core.text";
     public const string ImageType = "core.image";
     public const string ValueDisplayType = "core.valueDisplay";
@@ -78,6 +79,17 @@ public static class BuiltinVisualObjectSchemas
         LineType,
         Base.Concat(Stroke));
 
+    /// <summary>
+    /// Polygon points are structural geometry owned by the core.polygon contract,
+    /// not a scalar Visual Property Registry value. Only common transform/
+    /// appearance properties belong to the shared property schema.
+    /// </summary>
+    public static VisualObjectPropertySchema Polygon { get; } = Create(
+        PolygonType,
+        Base
+            .Concat([VisualPropertyKeys.FillColor])
+            .Concat(Stroke));
+
     public static VisualObjectPropertySchema Text { get; } = Create(
         TextType,
         Base.Concat(TextProperties));
@@ -114,6 +126,7 @@ public static class BuiltinVisualObjectSchemas
         Rectangle,
         Ellipse,
         Line,
+        Polygon,
         Text,
         Image,
         ValueDisplay,

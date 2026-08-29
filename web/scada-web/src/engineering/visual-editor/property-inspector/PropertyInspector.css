@@ -1,0 +1,103 @@
+.property-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 16rem;
+  max-width: 22rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color, #d7dde5);
+  border-radius: 0.5rem;
+  background: var(--panel-background, #ffffff);
+  color: inherit;
+}
+
+.property-inspector__header,
+.property-inspector__field-heading,
+.property-inspector__field-meta,
+.property-inspector__boolean-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.property-inspector__header span,
+.property-inspector__field-meta,
+.property-inspector__state {
+  font-size: 0.75rem;
+  opacity: 0.72;
+}
+
+.property-inspector__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.property-inspector__group h3 {
+  margin: 0.25rem 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.72;
+}
+
+.property-inspector__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--border-color, #e5e9ef);
+}
+
+.property-inspector__field:last-child {
+  border-bottom: 0;
+}
+
+.property-inspector__field input[type='text'],
+.property-inspector__field input[type='number'],
+.property-inspector__field select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border-color, #c7ced8);
+  border-radius: 0.35rem;
+  background: inherit;
+  color: inherit;
+}
+
+.property-inspector__boolean-control {
+  justify-content: flex-start;
+  min-height: 2rem;
+}
+
+.property-inspector__reset {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.property-inspector__reset:disabled {
+  cursor: default;
+  opacity: 0.45;
+  text-decoration: none;
+}
+
+.property-inspector__error,
+.property-inspector__validation {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #a12828;
+}
+
+.property-inspector__empty {
+  margin: 0;
+  opacity: 0.72;
+}
+
+.property-inspector__state--mixed {
+  font-weight: 600;
+}

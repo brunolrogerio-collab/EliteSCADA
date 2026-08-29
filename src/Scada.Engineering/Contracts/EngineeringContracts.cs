@@ -27,7 +27,8 @@ public enum ImportEntityKind
     SecurityRole,
     Command,
     Gateway,
-    Script
+    Script,
+    VisualAsset
 }
 
 public enum ImportOperation
@@ -41,6 +42,7 @@ public enum ImportOperation
 public enum EngineeringBindingKind
 {
     Tag,
+    ClientMemory,
     Property,
     Expression
 }
@@ -217,6 +219,25 @@ public sealed record PopupEngineeringDto(
     Dictionary<string, string>? Context = null,
     Dictionary<string, string>? Metadata = null);
 
+/// <summary>
+/// First-class Wave 08 project image asset metadata. Raw raster bytes are not
+/// embedded in canonical Engineering JSON; Sha256 identifies the exact immutable
+/// content stored in the project/revision asset blob boundary. Id is the stable
+/// project reference used by visual assetRef values.
+/// </summary>
+public sealed record VisualAssetEngineeringDto(
+    Guid? Id,
+    string Key,
+    string Name,
+    string OriginalFileName,
+    string MediaType,
+    long ByteLength,
+    string Sha256,
+    int? PixelWidth = null,
+    int? PixelHeight = null,
+    string? Description = null,
+    Dictionary<string, string>? Metadata = null);
+
 public sealed record AuthorizationScopeEngineeringDto(
     string? Area = null,
     string? EquipmentPath = null,
@@ -293,7 +314,8 @@ public sealed record EngineeringPackage(
     IReadOnlyCollection<CommandEngineeringDto>? Commands = null,
     IReadOnlyCollection<GatewayRouteEngineeringDto>? Gateways = null,
     IReadOnlyCollection<ScriptEngineeringDefinition>? Scripts = null,
-    IReadOnlyCollection<ScriptVisualEventReference>? ScriptVisualEventReferences = null);
+    IReadOnlyCollection<ScriptVisualEventReference>? ScriptVisualEventReferences = null,
+    IReadOnlyCollection<VisualAssetEngineeringDto>? VisualAssets = null);
 
 public sealed record ImportIssue(
     string Code,

@@ -14,7 +14,7 @@ namespace Scada.Core.Tests;
 public sealed class VisualEngineeringSchemaV12TypedPropertiesTests
 {
     [Fact]
-    public void SchemaV11StringProperties_MigrateToTypedV12OnApplyAndExport()
+    public void SchemaV11StringProperties_MigrateToTypedCurrentSchemaOnApplyAndExport()
     {
         var views = new InMemoryEngineeringViewRegistry();
         using var harness = new Harness(views);
@@ -67,7 +67,8 @@ public sealed class VisualEngineeringSchemaV12TypedPropertiesTests
 
         var exported = harness.Exchange.ExportPackage();
         Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, exported.SchemaVersion);
-        Assert.Equal(VisualEngineeringPropertyCodec.TypedSchemaVersion, exported.SchemaVersion);
+        Assert.True(exported.SchemaVersion >= VisualEngineeringPropertyCodec.TypedSchemaVersion);
+        Assert.Equal(12, VisualEngineeringPropertyCodec.TypedSchemaVersion);
     }
 
     [Fact]
@@ -108,7 +109,7 @@ public sealed class VisualEngineeringSchemaV12TypedPropertiesTests
     }
 
     [Fact]
-    public void SchemaV12_ExportsNativeJsonTypesIncludingAssetReferenceObjectAndNull()
+    public void SchemaV12TypedEncoding_RemainsNativeWhenExportedAsCurrentSchema()
     {
         var views = new InMemoryEngineeringViewRegistry();
         using var harness = new Harness(views);
@@ -139,7 +140,7 @@ public sealed class VisualEngineeringSchemaV12TypedPropertiesTests
             .GetProperty("elements")[0]
             .GetProperty("properties");
 
-        Assert.Equal(12, root.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, root.GetProperty("schemaVersion").GetInt32());
         Assert.Equal(JsonValueKind.Number, propertyBag.GetProperty("x").ValueKind);
         Assert.Equal(JsonValueKind.True, propertyBag.GetProperty("visible").ValueKind);
         Assert.Equal(JsonValueKind.Object, propertyBag.GetProperty("assetRef").ValueKind);

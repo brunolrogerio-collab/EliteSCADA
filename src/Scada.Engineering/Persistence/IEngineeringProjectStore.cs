@@ -11,6 +11,17 @@ public sealed record EngineeringProjectSnapshot(
     string? SavedBy = null,
     long? BasedOnRevision = null);
 
+public sealed record EngineeringRevisionAssetPayload(
+    Guid AssetId,
+    string Sha256,
+    string MediaType,
+    byte[] Content)
+{
+    public long ByteLength => Content.LongLength;
+
+    public EngineeringRevisionAssetPayload Copy() => this with { Content = Content.ToArray() };
+}
+
 public enum EngineeringProjectLifecycleStatus
 {
     Empty,
@@ -80,6 +91,39 @@ public interface IEngineeringProjectStore
             engineeringJson,
             savedBy,
             cancellationToken);
+
+    async Task<EngineeringProjectSnapshot> SaveDerivedWithAssetsAsync(
+        string projectKey,
+        string projectName,
+        string engineeringSchema,
+        int engineeringSchemaVersion,
+        string engineeringJson,
+        long? basedOnRevision,
+        IReadOnlyCollection<EngineeringRevisionAssetPayload> assets,
+        string? savedBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(assets);
+        if (assets.Count != 0)
+            throw new NotSupportedException("This Engineering project store does not support revision asset payloads.");
+
+        return await SaveDerivedAsync(
+            projectKey,
+            projectName,
+            engineeringSchema,
+            engineeringSchemaVersion,
+            engineeringJson,
+            basedOnRevision,
+            savedBy,
+            cancellationToken);
+    }
+
+    Task<IReadOnlyCollection<EngineeringRevisionAssetPayload>> LoadRevisionAssetsAsync(
+        string projectKey,
+        long revision,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyCollection<EngineeringRevisionAssetPayload>>(
+            Array.Empty<EngineeringRevisionAssetPayload>());
 
     Task<EngineeringProjectSnapshot?> LoadLatestAsync(
         string projectKey,

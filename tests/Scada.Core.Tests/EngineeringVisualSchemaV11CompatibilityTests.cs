@@ -57,7 +57,7 @@ public sealed class EngineeringVisualSchemaV11CompatibilityTests
 
         var exported = service.ExportPackage();
         Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, exported.SchemaVersion);
-        Assert.Equal(VisualEngineeringPropertyCodec.TypedSchemaVersion, exported.SchemaVersion);
+        Assert.True(exported.SchemaVersion >= VisualEngineeringPropertyCodec.TypedSchemaVersion);
         Assert.Equal(storedRoot.Id, Assert.Single(Assert.Single(exported.Screens!).Elements!).Id);
     }
 
@@ -84,7 +84,7 @@ public sealed class EngineeringVisualSchemaV11CompatibilityTests
         var element = Assert.Single(Assert.Single(roundTrip.Screens!).Elements!);
 
         Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, roundTrip.SchemaVersion);
-        Assert.Equal(VisualEngineeringPropertyCodec.TypedSchemaVersion, roundTrip.SchemaVersion);
+        Assert.True(roundTrip.SchemaVersion >= VisualEngineeringPropertyCodec.TypedSchemaVersion);
         Assert.Equal(objectId, element.Id);
     }
 

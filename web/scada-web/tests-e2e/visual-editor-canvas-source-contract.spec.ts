@@ -55,7 +55,8 @@ test('dragging an already selected object preserves the existing multiselect set
   const canvas = await source('../src/engineering/visual-editor/canvas/VisualEditorCanvas.tsx');
 
   expect(canvas).toContain("const preserveExistingSelection = mode === 'replace' && selectionSet.has(projection.objectId);");
-  expect(canvas).toContain('const dragObjectIds = preserveExistingSelection');
+  expect(canvas).toContain('const requestedSelection = preserveExistingSelection');
+  expect(canvas).toContain('const dragObjectIds = collapseHierarchySelection(screen.elements ?? [], requestedSelection);');
   expect(canvas).toContain('if (!preserveExistingSelection)');
   expect(canvas).not.toContain("emitSelection([projection.objectId], mode);\n    const localSelection");
 });

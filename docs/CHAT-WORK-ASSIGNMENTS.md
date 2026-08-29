@@ -2,15 +2,15 @@
 
 > Authoritative live execution board. GitHub branch/PR/head/CI state is operational truth. Permanent rules: `docs/DEVELOPMENT-WAVES.md`, `docs/PARALLEL-WORK.md`, `docs/CI-USAGE-POLICY.md`.
 
-**Last coordinator synchronization:** 2026-08-28 — Wave 08 remains ACTIVE; coordinator Visual Asset/revision/package plus central Screen editor foundation exist on integration and are NOT CI validated; integration was reconciled to `main`; GitHub Actions is authorized with conservative usage; owner explicitly stopped DEV 1/2/3.
+**Last coordinator synchronization:** 2026-08-28 — Wave 08 remains ACTIVE. Coordinator Visual Asset/revision/package and central Screen editor foundation are validated on exact product head `b48b489660ae953029fd2416aa18b149eaa18258` by CI #515 / run `33225051402` SUCCESS. Draft PR #90 remains open. Actions is authorized with conservative usage. DEV 1/2/3 remain explicitly STOPPED.
 
 ## Mandatory `siga`
 
-Every fixed EliteSCADA chat first rereads current `main`: `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/DEVELOPMENT-WAVES.md`, this board, `docs/CI-USAGE-POLICY.md`, `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`, `docs/COORDINATOR-HANDOFF.md`, and current MustReadSpecific documents. Then verify real branch/head/CI and execute only the current authorized assignment.
+Every fixed EliteSCADA chat first rereads current `main`: `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/DEVELOPMENT-WAVES.md`, this board, `docs/CI-USAGE-POLICY.md`, `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`, `docs/COORDINATOR-HANDOFF.md`, and current MustReadSpecific documents. Then verify real branch/head/PR/CI and execute only the current authorized assignment.
 
 ## Current product gate
 
-`GRAPHICAL-EDITOR-WAVE-08` is **ACTIVE**, but worker execution is currently stopped.
+`GRAPHICAL-EDITOR-WAVE-08` is **ACTIVE**. Worker execution is currently stopped.
 
 Wave 07 closure:
 - final integration product head: `6d869109af23b25d1ae95cd35610e1930a16791c`
@@ -23,30 +23,32 @@ Wave 08:
 - Logical WaveBaseSHA: `8de706882ba20afedd666532ac41ae11115d06b3`
 - ContractSHA / branch base: `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 - Integration branch: `integration/graphical-editor-wave-08`
-- last known coordinator implementation-contract checkpoint before the CI-policy synchronization: `f3968eba629a97c5b85936ae9b908732e78a4e3a`
 - main reconciliation merge: `011d3c649bb868bfcf8d13bfafe896bb0863a153`
-- integration was verified 0 behind `main` at that checkpoint
-- DEV 1 branch: `feature/graphical-editor-wave-08-canvas` @ contract base, STOPPED unless GitHub proves a later authorized change
-- DEV 2 branch: `feature/graphical-editor-wave-08-property-inspector` @ contract base, STOPPED unless GitHub proves a later authorized change
-- DEV 3 branch: `feature/graphical-editor-wave-08-palette-bindings` @ contract base, STOPPED unless GitHub proves a later authorized change
-- integration Actions validation: none yet
-- integration PR: none yet
-- CI mode: NORMAL; Actions authorized, but use conservatively according to `docs/CI-USAGE-POLICY.md` and the Wave 08 checkpoint
+- Draft integration PR: **#90**
+- exact validated central-foundation product head: **`b48b489660ae953029fd2416aa18b149eaa18258`**
+- CI #515 / run `33225051402`: **SUCCESS**
+- Web build: SUCCESS
+- backend build/full tests/Runtime smoke: SUCCESS
+- Chromium E2E: SUCCESS
+- `visual-editor-workspace.spec.ts`: SUCCESS
+- later documentation-only successors may use `[skip ci]`; they do not invalidate unchanged product evidence
+- DEV 1 branch: `feature/graphical-editor-wave-08-canvas` @ contract base at last verification, STOPPED
+- DEV 2 branch: `feature/graphical-editor-wave-08-property-inspector` @ contract base at last verification, STOPPED
+- DEV 3 branch: `feature/graphical-editor-wave-08-palette-bindings` @ contract base at last verification, STOPPED
+- CI mode: NORMAL; Actions authorized but conservative
 - Wave 09/10: NOT ACTIVE
 
 Wave 08 execution contract: `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`.  
-Current coordinator implementation checkpoint: `docs/COORDINATOR-HANDOFF.md`.
+Detailed coordinator checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 
 ### Wave 08 Actions discipline
 
-Actions may be used. Conservative usage means:
-
-- prefer static review/focused evidence before a full matrix;
+- prefer static/focused evidence before a complete matrix where sufficient;
 - batch coherent changes;
-- do not rerun unchanged heads for reassurance;
-- diagnose localized failures before another expensive run;
-- reserve PR-triggered/full exact-head matrices for meaningful integration/final checkpoints;
-- never weaken the required final gate to save minutes.
+- no unchanged-head reassurance reruns;
+- diagnose/fix localized failures before another expensive run;
+- reserve complete matrices for meaningful integrated product checkpoints;
+- never weaken the final Wave gate to save minutes.
 
 ---
 
@@ -54,13 +56,15 @@ Actions may be used. Conservative usage means:
 
 **Role:** `COORDINATOR`  
 **Wave:** `GRAPHICAL-EDITOR-WAVE-08`  
-**Status:** `ACTIVE — CENTRAL SCREEN EDITOR FOUNDATION IMPLEMENTED / NOT CI VALIDATED`  
+**Status:** `ACTIVE — CENTRAL FOUNDATION VALIDATED / WORKER INTERACTION SLICES PENDING`  
 **IntegrationBranch:** `integration/graphical-editor-wave-08`  
-**LastImplementationCheckpoint:** `f3968eba629a97c5b85936ae9b908732e78a4e3a` before CI-policy documentation successors  
+**DraftPR:** `#90`  
+**ValidatedProductHead:** `b48b489660ae953029fd2416aa18b149eaa18258`  
+**ValidatedCI:** `#515 / 33225051402 — SUCCESS`  
 **LogicalWaveBaseSHA:** `8de706882ba20afedd666532ac41ae11115d06b3`  
 **ContractSHA:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 
-**CurrentTask:** preserve and review the coordinator foundation; obtain exact-head build/test evidence using Actions conservatively; then deliberately restart/integrate the three fixed worker slices needed to complete the Wave 08 interaction gate.
+**CurrentTask:** preserve the validated coordinator foundation; deliberately restart and integrate the three fixed worker slices when authorized/useful; complete the Wave 08 interaction/product gate; validate the final integrated head; merge only when fully green.
 
 **MustReadSpecific:**
 - `docs/COORDINATOR-HANDOFF.md`
@@ -77,23 +81,22 @@ Actions may be used. Conservative usage means:
 
 **AllowedScope:** coordinator-owned canonical Engineering/API/persistence/assets, integration branch, central editor workspace/routing/composition/renderer/localization, shared mutation helpers/exports, cross-slice tests, worker integration, final PR/CI/merge.
 
-**ForbiddenScope:** do not absorb Wave 09 Screen navigation/Popup/Dynamo product semantics; do not implement Wave 10 Python event editor/production tween/visual Preview; no new protocols; no Server Python.
+**ForbiddenScope:** Wave 09 Screen navigation/Popup/Dynamo product semantics; Wave 10 Python event editor/production tween/visual Preview; new protocols; Server Python.
 
-**ReservedFiles:** all files listed under `ReservedFiles` in the Wave 08 implementation decision remain coordinator-only unless explicitly reassigned.
+**CurrentStateBoundary:** Schema v13 Visual Assets/revision/package foundation plus central Screen editor composition have exact-head CI evidence. Canonical Engineering Preview/Apply/CAS remains mutation authority. `visualEditorContracts.ts` is the shared worker/coordinator intent seam. This does not imply Canvas/Inspector/Palette/Binding are implemented.
 
-**CurrentStateBoundary:** Visual Asset Schema v13/revision/package foundation and the central Screen editor composition are implemented on integration. The Screen editor already uses canonical Engineering Preview/Apply/CAS, reloads canonical state, renders registered `core.*` objects through the shared property registry, preserves legacy seeded visual types as non-authoritative compatibility placeholders and exposes the shared `visualEditorContracts.ts` worker/coordinator intent seam. The focused Screen Preview/Apply/reopen Playwright test exists. None of this has exact-head CI evidence yet.
-
-**CompletionCriteria:** exact integrated Wave 08 head proves create Screen -> add/move/resize/rotate -> edit properties -> canonical binding -> image asset by stable `assetRef` -> save/reopen -> export/import, with transient Canvas state absent from persisted authority; full required CI green; merged main post-merge healthy; docs synchronized.
+**CompletionCriteria:** exact integrated Wave 08 head proves create Screen -> add/move/resize/rotate -> edit properties -> canonical binding -> image asset by stable `assetRef` -> save/reopen -> export/import, with transient Canvas state absent from persisted authority; full final required CI green; merged main post-merge healthy; docs synchronized.
 
 **NextActions:**
-1. verify live branch/PR/CI state;
-2. obtain the cheapest meaningful exact-head validation using Actions conservatively;
-3. fix any build/test failure before expansion and avoid unchanged-head reruns;
-4. deliberately restart DEV 1/2/3 only when useful;
-5. require all worker slices to consume `visualEditorContracts.ts` rather than invent competing intent formats;
-6. integrate delivered worker intents into canonical Screen draft mutations;
-7. run complete Wave 08 gate and full exact-head CI at a meaningful final integration checkpoint;
-8. merge only green and verify post-merge `main`.
+1. verify live PR #90/integration/worker heads before changes;
+2. reuse CI #515 while central product code is unchanged;
+3. restart DEV 1/2/3 only deliberately;
+4. require `visualEditorContracts.ts` in all worker slices;
+5. review delivery diffs/contracts before integration;
+6. integrate into canonical Screen drafts without private persistence;
+7. use focused validation while composing slices;
+8. run the next full matrix only at a meaningful integrated product checkpoint;
+9. merge PR #90 only after the complete Wave 08 gate is green and then verify post-merge main.
 
 ---
 
@@ -186,4 +189,4 @@ Actions may be used. Conservative usage means:
 
 ## Coordinator note
 
-Workers are intentionally stopped by owner instruction. Queued scope is preserved only so a future coordinator can restart each fixed chat without reconstructing the assignment. A stopped worker is not authorized to act merely because its task text remains present. Workers do not open/merge their own main PR, do not edit `main`, do not expand scope to solve coordinator dependencies and stop after delivery.
+Workers are intentionally stopped. Preserved task text is not execution authorization. Workers never alter main, merge their own PR, broaden scope, or work around coordinator-owned dependencies; they stop after delivery.

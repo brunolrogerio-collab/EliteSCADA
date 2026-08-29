@@ -19,7 +19,7 @@ public sealed record EngineeringRevisionAssetPayload(
 {
     public long ByteLength => Content.LongLength;
 
-    public EngineeringRevisionAssetPayload Clone() => this with { Content = Content.ToArray() };
+    public EngineeringRevisionAssetPayload Copy() => this with { Content = Content.ToArray() };
 }
 
 public enum EngineeringProjectLifecycleStatus

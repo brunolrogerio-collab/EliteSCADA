@@ -16,9 +16,12 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
 {
     private readonly MqttClientFactory _factory;
     private readonly IMqttClient _client;
-    private readonly Channel<TransportItem> _received;
     private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
+    private Channel<TransportItem>? _received;
+    private CancellationTokenSource? _receiveWriteCts;
+    private int? _bufferCapacity;
     private long _activeGeneration;
+    private bool _acceptInboundEvents;
     private bool _intentionalDisconnect;
     private bool _disposed;
 
@@ -31,12 +34,6 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
     {
         _factory = factory ?? throw new ArgumentNullException(nameof(factory));
         _client = _factory.CreateMqttClient();
-        _received = Channel.CreateUnbounded<TransportItem>(new UnboundedChannelOptions
-        {
-            SingleReader = true,
-            SingleWriter = false,
-            AllowSynchronousContinuations = false
-        });
 
         _client.ApplicationMessageReceivedAsync += OnApplicationMessageReceivedAsync;
         _client.DisconnectedAsync += OnDisconnectedAsync;
@@ -68,8 +65,11 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
             if (_client.IsConnected)
                 throw new MqttTransportException("MQTT client is already connected.");
 
-            var generation = Interlocked.Increment(ref _activeGeneration);
-            DrainStaleItems(generation);
+            EnsureReceiveChannel(settings.MaximumBufferedMessages);
+            _acceptInboundEvents = false;
+            Interlocked.Increment(ref _activeGeneration);
+            DrainBufferedItems();
+            ResetReceiveWriteCancellation();
             _intentionalDisconnect = false;
 
             byte[]? passwordBuffer = null;
@@ -119,6 +119,8 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
                         $"MQTT broker rejected the connection with CONNACK '{result.ResultCode}'.",
                         IsPermanentConnectFailure(result.ResultCode));
                 }
+
+                _acceptInboundEvents = true;
             }
             catch (OperationCanceledException)
             {
@@ -205,10 +207,11 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
     public async ValueTask<MqttTransportMessage> ReceiveAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
+        var channel = _received ?? throw new MqttTransportException("MQTT receive buffer is not initialized; connect before receiving.");
 
         while (true)
         {
-            var item = await _received.Reader.ReadAsync(cancellationToken);
+            var item = await channel.Reader.ReadAsync(cancellationToken);
             var activeGeneration = Interlocked.Read(ref _activeGeneration);
             if (item.Generation != activeGeneration) continue;
             if (item.Error is not null) throw item.Error;
@@ -275,6 +278,8 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
         {
             if (_disposed) return;
             _intentionalDisconnect = true;
+            _acceptInboundEvents = false;
+            _receiveWriteCts?.Cancel();
             try
             {
                 if (_client.IsConnected)
@@ -315,12 +320,16 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
             if (_disposed) return;
             _disposed = true;
             _intentionalDisconnect = true;
+            _acceptInboundEvents = false;
             Interlocked.Increment(ref _activeGeneration);
+            _receiveWriteCts?.Cancel();
 
             _client.ApplicationMessageReceivedAsync -= OnApplicationMessageReceivedAsync;
             _client.DisconnectedAsync -= OnDisconnectedAsync;
-            _received.Writer.TryComplete();
+            _received?.Writer.TryComplete();
             _client.Dispose();
+            _receiveWriteCts?.Dispose();
+            _receiveWriteCts = null;
         }
         finally
         {
@@ -329,9 +338,12 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
         }
     }
 
-    private Task OnApplicationMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs args)
+    private async Task OnApplicationMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs args)
     {
-        if (_disposed) return Task.CompletedTask;
+        var channel = _received;
+        var writeCancellation = _receiveWriteCts;
+        if (_disposed || !_acceptInboundEvents || channel is null || writeCancellation is null)
+            return;
 
         var message = args.ApplicationMessage;
         var generation = Interlocked.Read(ref _activeGeneration);
@@ -342,33 +354,83 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
             message.Retain,
             FromMqttNetQos(message.QualityOfServiceLevel),
             DateTimeOffset.UtcNow);
-        _received.Writer.TryWrite(TransportItem.FromMessage(generation, received));
-        return Task.CompletedTask;
+
+        try
+        {
+            await channel.Writer.WriteAsync(
+                TransportItem.FromMessage(generation, received),
+                writeCancellation.Token);
+        }
+        catch (OperationCanceledException) when (_disposed || !_acceptInboundEvents || writeCancellation.IsCancellationRequested)
+        {
+        }
+        catch (ChannelClosedException) when (_disposed)
+        {
+        }
     }
 
-    private Task OnDisconnectedAsync(MqttClientDisconnectedEventArgs args)
+    private async Task OnDisconnectedAsync(MqttClientDisconnectedEventArgs args)
     {
-        if (_disposed || _intentionalDisconnect) return Task.CompletedTask;
+        var channel = _received;
+        var writeCancellation = _receiveWriteCts;
+        if (_disposed || _intentionalDisconnect || !_acceptInboundEvents || channel is null || writeCancellation is null)
+            return;
 
+        _acceptInboundEvents = false;
         var generation = Interlocked.Read(ref _activeGeneration);
         var reason = string.IsNullOrWhiteSpace(args.ReasonString)
             ? "MQTT broker connection was lost."
             : $"MQTT broker connection was lost: {Sanitize(args.ReasonString)}";
-        _received.Writer.TryWrite(TransportItem.FromError(
-            generation,
-            new MqttTransportException(reason)));
-        return Task.CompletedTask;
+
+        try
+        {
+            await channel.Writer.WriteAsync(
+                TransportItem.FromError(generation, new MqttTransportException(reason)),
+                writeCancellation.Token);
+        }
+        catch (OperationCanceledException) when (_disposed || _intentionalDisconnect || writeCancellation.IsCancellationRequested)
+        {
+        }
+        catch (ChannelClosedException) when (_disposed)
+        {
+        }
     }
 
-    private void DrainStaleItems(long currentGeneration)
+    private void EnsureReceiveChannel(int capacity)
     {
-        while (_received.Reader.TryRead(out var item))
+        if (_received is not null)
         {
-            if (item.Generation == currentGeneration)
+            if (_bufferCapacity != capacity)
             {
-                _received.Writer.TryWrite(item);
-                return;
+                throw new MqttTransportException(
+                    $"MQTT transport buffer capacity is already fixed at {_bufferCapacity}; requested {capacity}.",
+                    isPermanent: true);
             }
+            return;
+        }
+
+        _bufferCapacity = capacity;
+        _received = Channel.CreateBounded<TransportItem>(new BoundedChannelOptions(capacity)
+        {
+            SingleReader = true,
+            SingleWriter = false,
+            AllowSynchronousContinuations = false,
+            FullMode = BoundedChannelFullMode.Wait
+        });
+    }
+
+    private void ResetReceiveWriteCancellation()
+    {
+        _receiveWriteCts?.Cancel();
+        _receiveWriteCts?.Dispose();
+        _receiveWriteCts = new CancellationTokenSource();
+    }
+
+    private void DrainBufferedItems()
+    {
+        if (_received is null) return;
+        while (_received.Reader.TryRead(out _))
+        {
         }
     }
 

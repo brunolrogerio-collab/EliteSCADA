@@ -147,7 +147,7 @@ public sealed class StepFunctionDnp3DriverWireIntegrationTests
 
             var diagnostics = driver.GetCommunicationDiagnostics();
             Assert.Equal("dnp3.master", diagnostics.DriverType);
-            Assert.Equal(endpoint, diagnostics.SanitizedEndpoint);
+            Assert.Equal(endpoint, diagnostics.Endpoint);
             Assert.True(diagnostics.Counters.Connections >= 1);
             Assert.True(diagnostics.Counters.ReadOperations >= 1);
             Assert.True(diagnostics.Counters.WriteOperations >= 1);

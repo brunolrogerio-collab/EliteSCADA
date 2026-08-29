@@ -2,7 +2,7 @@
 
 > Authoritative live execution board. GitHub branch/PR/head/CI state is operational truth. Permanent rules: `docs/DEVELOPMENT-WAVES.md`, `docs/PARALLEL-WORK.md`, `docs/CI-USAGE-POLICY.md`.
 
-**Last coordinator synchronization:** 2026-08-28 — Wave 08 remains ACTIVE. Coordinator Visual Asset/revision/package and central Screen editor foundation are validated on exact product head `b48b489660ae953029fd2416aa18b149eaa18258` by CI #515 / run `33225051402` SUCCESS. Draft PR #90 remains open. Actions is authorized with conservative usage. DEV 1/2/3 remain explicitly STOPPED.
+**Last coordinator synchronization:** 2026-08-28 — Wave 08 remains ACTIVE. Coordinator Visual Asset/revision/package and central Screen editor foundation are validated on exact product head `b48b489660ae953029fd2416aa18b149eaa18258` by CI #515 / run `33225051402` SUCCESS. Draft PR #90 remains open. Actions is authorized with conservative usage. DEV 1/2/3 remain explicitly STOPPED; each branch has only the coordinator-seeded shared intent contract on top of the frozen logical base.
 
 ## Mandatory `siga`
 
@@ -21,7 +21,7 @@ Wave 07 closure:
 
 Wave 08:
 - Logical WaveBaseSHA: `8de706882ba20afedd666532ac41ae11115d06b3`
-- ContractSHA / branch base: `7a445d3dd94cabd09807291a0ee94276559fcb0e`
+- ContractSHA / logical branch base: `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 - Integration branch: `integration/graphical-editor-wave-08`
 - main reconciliation merge: `011d3c649bb868bfcf8d13bfafe896bb0863a153`
 - Draft integration PR: **#90**
@@ -31,10 +31,10 @@ Wave 08:
 - backend build/full tests/Runtime smoke: SUCCESS
 - Chromium E2E: SUCCESS
 - `visual-editor-workspace.spec.ts`: SUCCESS
-- later documentation-only successors may use `[skip ci]`; they do not invalidate unchanged product evidence
-- DEV 1 branch: `feature/graphical-editor-wave-08-canvas` @ contract base at last verification, STOPPED
-- DEV 2 branch: `feature/graphical-editor-wave-08-property-inspector` @ contract base at last verification, STOPPED
-- DEV 3 branch: `feature/graphical-editor-wave-08-palette-bindings` @ contract base at last verification, STOPPED
+- later documentation-only successors use `[skip ci]`; they do not invalidate unchanged product evidence
+- DEV 1 branch head: `57521312914e21e303976a81bc81c84ad5aa9cbb` — coordinator dependency seed only / STOPPED
+- DEV 2 branch head: `3e942ed641d96afe848966f123fb10eaeaa99ed7` — coordinator dependency seed only / STOPPED
+- DEV 3 branch head: `df3cd6c332a19bb3011373c95d010f33754c0c12` — coordinator dependency seed only / STOPPED
 - CI mode: NORMAL; Actions authorized but conservative
 - Wave 09/10: NOT ACTIVE
 
@@ -106,12 +106,12 @@ Detailed coordinator checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 **Wave:** `GRAPHICAL-EDITOR-WAVE-08`  
 **Status:** `STOPPED — WAIT_FOR_COORDINATOR`  
 **Branch:** `feature/graphical-editor-wave-08-canvas`  
-**Head:** `7a445d3dd94cabd09807291a0ee94276559fcb0e` at last verified worker checkpoint  
+**Head:** `57521312914e21e303976a81bc81c84ad5aa9cbb` — coordinator dependency seed only  
 **Base:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 
 **CurrentTask when explicitly restarted:** Canvas / Selection.
 
-**MustReadSpecific:** `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`, its DEV 1 section, and coordinator-owned `web/scada-web/src/engineering/visual-editor/visualEditorContracts.ts`.
+**MustReadSpecific:** `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`, its DEV 1 section, and seeded `web/scada-web/src/engineering/visual-editor/visualEditorContracts.ts`.
 
 **AllowedScope:**
 - `web/scada-web/src/engineering/visual-editor/canvas/**`
@@ -125,7 +125,7 @@ Detailed coordinator checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`.
 
-**Authorization state:** NOT AUTHORIZED TO EXECUTE until owner/coordinator explicitly restarts this worker.
+**Authorization state:** NOT AUTHORIZED TO EXECUTE until owner/coordinator explicitly restarts this worker. The current head contains no worker implementation.
 
 ---
 
@@ -135,12 +135,12 @@ Detailed coordinator checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 **Wave:** `GRAPHICAL-EDITOR-WAVE-08`  
 **Status:** `STOPPED — WAIT_FOR_COORDINATOR`  
 **Branch:** `feature/graphical-editor-wave-08-property-inspector`  
-**Head:** `7a445d3dd94cabd09807291a0ee94276559fcb0e` at last verified worker checkpoint  
+**Head:** `3e942ed641d96afe848966f123fb10eaeaa99ed7` — coordinator dependency seed only  
 **Base:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 
 **CurrentTask when explicitly restarted:** Property Inspector.
 
-**MustReadSpecific:** `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`, its DEV 2 section, and coordinator-owned `web/scada-web/src/engineering/visual-editor/visualEditorContracts.ts`.
+**MustReadSpecific:** `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`, its DEV 2 section, and seeded `web/scada-web/src/engineering/visual-editor/visualEditorContracts.ts`.
 
 **AllowedScope:**
 - `web/scada-web/src/engineering/visual-editor/property-inspector/**`
@@ -154,7 +154,7 @@ Detailed coordinator checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`.
 
-**Authorization state:** NOT AUTHORIZED TO EXECUTE until owner/coordinator explicitly restarts this worker.
+**Authorization state:** NOT AUTHORIZED TO EXECUTE until owner/coordinator explicitly restarts this worker. The current head contains no worker implementation.
 
 ---
 
@@ -164,12 +164,12 @@ Detailed coordinator checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 **Wave:** `GRAPHICAL-EDITOR-WAVE-08`  
 **Status:** `STOPPED — WAIT_FOR_COORDINATOR`  
 **Branch:** `feature/graphical-editor-wave-08-palette-bindings`  
-**Head:** `7a445d3dd94cabd09807291a0ee94276559fcb0e` at last verified worker checkpoint  
+**Head:** `df3cd6c332a19bb3011373c95d010f33754c0c12` — coordinator dependency seed only  
 **Base:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 
 **CurrentTask when explicitly restarted:** Object Palette / Binding Foundation.
 
-**MustReadSpecific:** `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`, its DEV 3 section, and coordinator-owned `web/scada-web/src/engineering/visual-editor/visualEditorContracts.ts`.
+**MustReadSpecific:** `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`, its DEV 3 section, and seeded `web/scada-web/src/engineering/visual-editor/visualEditorContracts.ts`.
 
 **AllowedScope:**
 - `web/scada-web/src/engineering/visual-editor/object-palette/**`
@@ -185,8 +185,8 @@ Detailed coordinator checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`.
 
-**Authorization state:** NOT AUTHORIZED TO EXECUTE until owner/coordinator explicitly restarts this worker.
+**Authorization state:** NOT AUTHORIZED TO EXECUTE until owner/coordinator explicitly restarts this worker. The current head contains no worker implementation.
 
 ## Coordinator note
 
-Workers are intentionally stopped. Preserved task text is not execution authorization. Workers never alter main, merge their own PR, broaden scope, or work around coordinator-owned dependencies; they stop after delivery.
+Workers are intentionally stopped. The coordinator-seeded dependency commit is preparation only, not task execution. Preserved task text is not execution authorization. Workers never alter main, merge their own PR, broaden scope, or work around coordinator-owned dependencies; they stop after delivery.

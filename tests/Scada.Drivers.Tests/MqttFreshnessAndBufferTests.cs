@@ -138,7 +138,7 @@ public sealed class MqttFreshnessAndBufferTests
     }
 
     [Fact]
-    public async Task OldMappedSourceTimestampIsStaleOnArrival()
+    public async Task OldMappedSourceTimestampDoesNotShortCircuitReceiveFreshness()
     {
         var tag = TagDefinition.Create(
             "Value",
@@ -153,7 +153,7 @@ public sealed class MqttFreshnessAndBufferTests
             JsonPointer: "/value",
             SourceTimestampJsonPointer: "/timestamp",
             SourceTimestampRequired: true,
-            FreshnessTimeout: TimeSpan.FromMilliseconds(100));
+            FreshnessTimeout: TimeSpan.FromMilliseconds(250));
         var transport = new QueueTransport();
         var cache = new CurrentTagCache(new InMemoryScadaEventBus());
         await using var driver = CreateDriver(point, transport, cache);
@@ -171,11 +171,16 @@ public sealed class MqttFreshnessAndBufferTests
             MqttQosLevel.AtLeastOnce,
             receivedAt));
 
+        await WaitUntilAsync(() => cache.TryGet(tag.Id, out var sample) && sample?.Quality == TagQuality.Good);
+        Assert.True(cache.TryGet(tag.Id, out var fresh));
+        Assert.Equal(sourceTimestamp.ToUniversalTime(), fresh!.SourceTimestamp);
+        Assert.Equal(42.5d, fresh.Value);
+
         await WaitUntilAsync(() => cache.TryGet(tag.Id, out var sample) && sample?.Quality == TagQuality.Stale);
 
-        Assert.True(cache.TryGet(tag.Id, out var current));
-        Assert.Equal(sourceTimestamp.ToUniversalTime(), current!.SourceTimestamp);
-        Assert.Equal(42.5d, current.Value);
+        Assert.True(cache.TryGet(tag.Id, out var stale));
+        Assert.Equal(sourceTimestamp.ToUniversalTime(), stale!.SourceTimestamp);
+        Assert.Equal(42.5d, stale.Value);
     }
 
     private static MqttDriver CreateDriver(

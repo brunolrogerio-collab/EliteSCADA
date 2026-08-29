@@ -258,8 +258,8 @@ internal static class S7IsoProtocol
 
     private static int DecodeResponsePayloadLength(byte transportSize, ushort encodedLength) => transportSize switch
     {
-        0x03 or 0x04 or 0x05 or 0x07 => (encodedLength + 7) / 8,
-        0x09 => encodedLength,
+        0x03 or 0x04 or 0x05 => (encodedLength + 7) / 8,
+        0x06 or 0x07 or 0x09 => encodedLength,
         _ => throw new S7IsoProtocolException(
             $"Unsupported S7 response transport size 0x{transportSize:X2}.")
     };

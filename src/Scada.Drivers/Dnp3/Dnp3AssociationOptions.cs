@@ -71,7 +71,8 @@ public sealed record Dnp3AssociationOptions
             throw new ArgumentException("Only DNP3 event Classes 1, 2 and 3 are valid for this setting.", parameterName);
     }
 
-    private static bool HasUnknownClasses(Dnp3ClassSet value) => (value & ~Dnp3ClassSet.All) != 0;
+    private static bool HasUnknownClasses(Dnp3ClassSet value) =>
+        (value & ~Dnp3ClassSet.All) != Dnp3ClassSet.None;
 
     private static void ValidateOptionalPositive(TimeSpan? value, string parameterName)
     {

@@ -35,6 +35,13 @@ public sealed class MqttRuntimeFactory
         ArgumentNullException.ThrowIfNull(cache);
         ArgumentNullException.ThrowIfNull(registry);
 
+        if (string.IsNullOrWhiteSpace(plan.DataSourceKey))
+            throw new ArgumentException("MQTT runtime plan requires a data source key.", nameof(plan));
+        if (string.IsNullOrWhiteSpace(plan.DriverId))
+            throw new ArgumentException("MQTT runtime plan requires a driver ID.", nameof(plan));
+        if (string.IsNullOrWhiteSpace(plan.Name))
+            throw new ArgumentException("MQTT runtime plan requires a display name.", nameof(plan));
+
         plan.Connection.Validate();
         if (plan.Points.Count == 0)
             throw new ArgumentException("MQTT runtime plan must contain at least one point.", nameof(plan));

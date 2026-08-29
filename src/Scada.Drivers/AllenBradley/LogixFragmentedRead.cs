@@ -12,6 +12,8 @@ public static class LogixFragmentedRead
 {
     public const int DefaultMaximumValueBytes = 1024 * 1024;
     public const int HardMaximumValueBytes = 16 * 1024 * 1024;
+    public const int DefaultMaximumFragments = 4096;
+    public const int HardMaximumFragments = 65535;
 
     public static byte[] BuildRequest(
         LogixSymbolReference reference,
@@ -67,6 +69,53 @@ public static class LogixFragmentedRead
         return new LogixReadFragment(requestedByteOffset, typeCode, payload, response.GeneralStatus == 0x06);
     }
 
+    public static async ValueTask<byte[]> ReadCompleteAsync(
+        LogixSymbolReference reference,
+        ushort elementCount,
+        Func<byte[], CancellationToken, ValueTask<LogixCipResponse>> executeRequest,
+        int maximumValueBytes = DefaultMaximumValueBytes,
+        int maximumFragments = DefaultMaximumFragments,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        ArgumentNullException.ThrowIfNull(executeRequest);
+        var expectedBytes = ValidateAndGetExpectedValueBytes(reference, elementCount, maximumValueBytes);
+        if (maximumFragments is <= 0 or > HardMaximumFragments)
+            throw new ArgumentOutOfRangeException(nameof(maximumFragments), $"Fragment count limit must be from 1 to {HardMaximumFragments}.");
+
+        var fragments = new List<LogixReadFragment>();
+        uint byteOffset = 0;
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (fragments.Count >= maximumFragments)
+                throw new LogixCipException(
+                    LogixProtocolError.FragmentationFailed,
+                    0,
+                    $"Fragmented read exceeded the configured {maximumFragments}-fragment limit.");
+
+            var request = BuildRequest(reference, elementCount, byteOffset);
+            var response = await executeRequest(request, cancellationToken);
+            var fragment = ParseResponse(reference, byteOffset, response);
+            fragments.Add(fragment);
+
+            var nextOffset = NextByteOffset(fragment);
+            if (nextOffset > (uint)expectedBytes)
+                throw new InvalidDataException("Fragmented read returned more value bytes than requested.");
+            if (!fragment.HasMore)
+                break;
+            if (nextOffset >= (uint)expectedBytes)
+                throw new LogixCipException(
+                    LogixProtocolError.FragmentationFailed,
+                    response.GeneralStatus,
+                    "Controller reported partial transfer after the complete requested value length had already been received.");
+
+            byteOffset = nextOffset;
+        }
+
+        return AssembleCompletePayload(reference, elementCount, fragments, maximumValueBytes);
+    }
+
     public static byte[] AssembleCompletePayload(
         LogixSymbolReference reference,
         ushort elementCount,
@@ -75,17 +124,7 @@ public static class LogixFragmentedRead
     {
         ArgumentNullException.ThrowIfNull(reference);
         ArgumentNullException.ThrowIfNull(fragments);
-        if (elementCount == 0) throw new ArgumentOutOfRangeException(nameof(elementCount));
-        if (maximumValueBytes is <= 0 or > HardMaximumValueBytes)
-            throw new ArgumentOutOfRangeException(nameof(maximumValueBytes), $"Fragmented read maximum must be from 1 to {HardMaximumValueBytes} bytes.");
-
-        var nativeWidth = GetSupportedAtomicByteWidth(reference.NativeType);
-        var expectedBytes = checked(nativeWidth * elementCount);
-        if (expectedBytes > maximumValueBytes)
-            throw new LogixCipException(
-                LogixProtocolError.FragmentationFailed,
-                0,
-                $"Fragmented read requires {expectedBytes} bytes, exceeding the configured {maximumValueBytes}-byte limit.");
+        var expectedBytes = ValidateAndGetExpectedValueBytes(reference, elementCount, maximumValueBytes);
         if (fragments.Count == 0)
             throw new InvalidDataException("Fragmented read did not return any fragments.");
 
@@ -129,6 +168,25 @@ public static class LogixFragmentedRead
         if (fragment.Payload is null || fragment.Payload.Length == 0)
             throw new InvalidDataException("Cannot advance a fragmented read after an empty fragment.");
         return checked(fragment.ByteOffset + (uint)fragment.Payload.Length);
+    }
+
+    private static int ValidateAndGetExpectedValueBytes(
+        LogixSymbolReference reference,
+        ushort elementCount,
+        int maximumValueBytes)
+    {
+        if (elementCount == 0) throw new ArgumentOutOfRangeException(nameof(elementCount));
+        if (maximumValueBytes is <= 0 or > HardMaximumValueBytes)
+            throw new ArgumentOutOfRangeException(nameof(maximumValueBytes), $"Fragmented read maximum must be from 1 to {HardMaximumValueBytes} bytes.");
+
+        var nativeWidth = GetSupportedAtomicByteWidth(reference.NativeType);
+        var expectedBytes = checked(nativeWidth * elementCount);
+        if (expectedBytes > maximumValueBytes)
+            throw new LogixCipException(
+                LogixProtocolError.FragmentationFailed,
+                0,
+                $"Fragmented read requires {expectedBytes} bytes, exceeding the configured {maximumValueBytes}-byte limit.");
+        return expectedBytes;
     }
 
     private static void EnsureSupportedAtomicArrayType(LogixNativeType nativeType) =>

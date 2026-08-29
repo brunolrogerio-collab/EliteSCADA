@@ -13,14 +13,19 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
     private readonly Dictionary<(byte Area, ushort Db), byte[]> _memory = new();
     private readonly Task _loop;
 
-    public TestS7IsoServer()
+    public TestS7IsoServer(ushort negotiatedPduSize = 480)
     {
+        if (negotiatedPduSize < 240)
+            throw new ArgumentOutOfRangeException(nameof(negotiatedPduSize));
+
+        NegotiatedPduSize = negotiatedPduSize;
         _listener.Start();
         Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
         _loop = RunAsync(_cts.Token);
     }
 
     public int Port { get; }
+    public ushort NegotiatedPduSize { get; }
 
     public void SetBytes(S7IsoArea area, ushort dbNumber, int byteOffset, ReadOnlySpan<byte> data)
     {
@@ -66,7 +71,14 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
             stream,
             AckData(
                 setupReference,
-                new byte[] { 0xF0, 0x00, 0x00, 0x01, 0x00, 0x01, 0x01, 0xE0 },
+                new byte[]
+                {
+                    0xF0, 0x00,
+                    0x00, 0x01,
+                    0x00, 0x01,
+                    (byte)(NegotiatedPduSize >> 8),
+                    (byte)NegotiatedPduSize
+                },
                 Array.Empty<byte>()),
             cancellationToken);
 

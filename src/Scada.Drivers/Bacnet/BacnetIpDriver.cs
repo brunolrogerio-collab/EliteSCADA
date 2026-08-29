@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
+using System.Net.Sockets;
 using Scada.Core.Tags;
 using Scada.Drivers.Abstractions;
 
@@ -27,6 +28,12 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
     private DateTimeOffset? _lastSuccessfulCommunicationAt;
     private DateTimeOffset? _lastFailedCommunicationAt;
     private string? _lastError;
+    private bool? _deviceReachable;
+    private DateTimeOffset? _lastReachabilityEstablishedAt;
+    private DateTimeOffset? _lastReachabilityLostAt;
+    private long _connections;
+    private long _disconnections;
+    private long _reconnects;
     private long _cycles;
     private long _requests;
     private long _successfulOperations;
@@ -136,6 +143,7 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         _covSubscriptions.Clear();
         _covTagIds.Clear();
         _nextCovFallbackPollAt.Clear();
+        lock (_diagnosticsGate) _deviceReachable = null;
         Status = new DriverStatus(DriverId, Name, DriverState.Stopped, DateTimeOffset.UtcNow, UpdatesPublished: _updatesPublished);
         TransitionState(CommunicationDriverOperationalState.Stopped);
     }
@@ -159,19 +167,23 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
 
         await _writeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         var started = Stopwatch.GetTimestamp();
+        var communicationAttempted = false;
         try
         {
             var encoded = BacnetValueCodec.Encode(value, point.Tag.DataType, point.Binding);
             Interlocked.Increment(ref _requests);
             Interlocked.Increment(ref _writeOperations);
+            communicationAttempted = true;
             await _session.WriteAsync(point.Binding, encoded, cancellationToken).ConfigureAwait(false);
-            RecordOperation(true, Stopwatch.GetElapsedTime(started), null);
+            RecordOperation(true, Stopwatch.GetElapsedTime(started), null, communicationEvidence: true);
             await PublishAsync(point, value, TagQuality.Good, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            RecordOperation(false, Stopwatch.GetElapsedTime(started), ex);
-            TransitionState(CommunicationDriverOperationalState.Degraded);
+            RecordOperation(false, Stopwatch.GetElapsedTime(started), ex, communicationEvidence: communicationAttempted);
+            TransitionState(communicationAttempted && IsReachabilityFailure(ex)
+                ? CommunicationDriverOperationalState.Reconnecting
+                : CommunicationDriverOperationalState.Degraded);
             throw;
         }
         finally
@@ -202,7 +214,7 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
                 point.Binding,
                 BacnetValueCodec.EncodeRelinquish(point.Binding),
                 cancellationToken).ConfigureAwait(false);
-            RecordOperation(true, Stopwatch.GetElapsedTime(started), null);
+            RecordOperation(true, Stopwatch.GetElapsedTime(started), null, communicationEvidence: true);
 
             // BACnet priority arbitration determines the effective value after a
             // relinquish. Never publish null as though it were that resulting value.
@@ -210,8 +222,10 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         }
         catch (Exception ex)
         {
-            RecordOperation(false, Stopwatch.GetElapsedTime(started), ex);
-            TransitionState(CommunicationDriverOperationalState.Degraded);
+            RecordOperation(false, Stopwatch.GetElapsedTime(started), ex, communicationEvidence: true);
+            TransitionState(IsReachabilityFailure(ex)
+                ? CommunicationDriverOperationalState.Reconnecting
+                : CommunicationDriverOperationalState.Degraded);
             throw;
         }
         finally
@@ -237,8 +251,14 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
                 ["polledTagCount"] = (_points.Count - _covTagIds.Count).ToString(CultureInfo.InvariantCulture),
                 ["covFallbackPollSeconds"] = CovFallbackPollInterval.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture),
                 ["transport"] = "BACnet/IP UDP",
+                ["connectionModel"] = "device-reachability",
+                ["deviceReachable"] = _deviceReachable.HasValue ? (_deviceReachable.Value ? "true" : "false") : "unknown",
                 ["bacnetSecureConnect"] = "not-implemented"
             };
+            if (_lastReachabilityEstablishedAt.HasValue)
+                protocolDetails["lastReachabilityEstablishedAtUtc"] = _lastReachabilityEstablishedAt.Value.ToString("O", CultureInfo.InvariantCulture);
+            if (_lastReachabilityLostAt.HasValue)
+                protocolDetails["lastReachabilityLostAtUtc"] = _lastReachabilityLostAt.Value.ToString("O", CultureInfo.InvariantCulture);
             AppendForeignDeviceRegistrationDiagnostics(protocolDetails);
             return new CommunicationDriverDiagnosticSnapshot(
                 DriverId,
@@ -267,9 +287,9 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
                     _failedOperations,
                     _consecutiveFailures,
                     _timeouts,
-                    Connections: _lastSuccessfulCommunicationAt.HasValue ? 1 : 0,
-                    Disconnections: 0,
-                    Reconnects: 0,
+                    _connections,
+                    _disconnections,
+                    _reconnects,
                     _readOperations,
                     _writeOperations,
                     _updatesPublished),
@@ -327,19 +347,23 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         var started = Stopwatch.GetTimestamp();
         Interlocked.Increment(ref _requests);
         Interlocked.Increment(ref _readOperations);
+        var communicationCompleted = false;
         try
         {
             var sample = await _session.ReadAsync(point.Binding, cancellationToken).ConfigureAwait(false);
-            RecordOperation(true, Stopwatch.GetElapsedTime(started), null);
+            communicationCompleted = true;
+            RecordOperation(true, Stopwatch.GetElapsedTime(started), null, communicationEvidence: true);
             await PublishSampleAsync(point, sample).ConfigureAwait(false);
             return true;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            RecordOperation(false, Stopwatch.GetElapsedTime(started), ex);
+            RecordOperation(false, Stopwatch.GetElapsedTime(started), ex, communicationEvidence: !communicationCompleted);
             _cache.TryGet(point.Tag.Id, out var current);
             await PublishAsync(point, current?.Value, TagQuality.BadCommunication, cancellationToken).ConfigureAwait(false);
-            TransitionState(CommunicationDriverOperationalState.Degraded);
+            TransitionState(!communicationCompleted && IsReachabilityFailure(ex)
+                ? CommunicationDriverOperationalState.Reconnecting
+                : CommunicationDriverOperationalState.Degraded);
             return false;
         }
     }
@@ -347,16 +371,17 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
     private async ValueTask HandleCovSampleAsync(BacnetPoint point, BacnetPropertyReadResult sample)
     {
         var started = Stopwatch.GetTimestamp();
+        RecordReachabilitySuccess(DateTimeOffset.UtcNow);
         try
         {
             await PublishSampleAsync(point, sample).ConfigureAwait(false);
-            RecordOperation(true, Stopwatch.GetElapsedTime(started), null);
+            RecordOperation(true, Stopwatch.GetElapsedTime(started), null, communicationEvidence: false);
             _nextCovFallbackPollAt[point.Tag.Id] = DateTimeOffset.UtcNow + CovFallbackPollInterval;
             TransitionState(CommunicationDriverOperationalState.Healthy);
         }
         catch (Exception ex)
         {
-            RecordOperation(false, Stopwatch.GetElapsedTime(started), ex);
+            RecordOperation(false, Stopwatch.GetElapsedTime(started), ex, communicationEvidence: false);
             _nextCovFallbackPollAt[point.Tag.Id] = DateTimeOffset.UtcNow;
             TransitionState(CommunicationDriverOperationalState.Degraded);
             throw;
@@ -379,8 +404,9 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         Interlocked.Increment(ref _updatesPublished);
     }
 
-    private void RecordOperation(bool success, TimeSpan duration, Exception? error)
+    private void RecordOperation(bool success, TimeSpan duration, Exception? error, bool communicationEvidence)
     {
+        var now = DateTimeOffset.UtcNow;
         lock (_diagnosticsGate)
         {
             _lastOperationDurationTicks = duration.Ticks;
@@ -389,20 +415,44 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
             {
                 _successfulOperations++;
                 _consecutiveFailures = 0;
-                _lastSuccessfulCommunicationAt = DateTimeOffset.UtcNow;
+                _lastSuccessfulCommunicationAt = now;
                 _lastError = null;
+                if (communicationEvidence) RecordReachabilitySuccessNoLock(now);
             }
             else
             {
                 _failedOperations++;
                 _consecutiveFailures++;
-                _lastFailedCommunicationAt = DateTimeOffset.UtcNow;
+                _lastFailedCommunicationAt = now;
                 _lastError = Sanitize(error?.Message);
                 if (error is TimeoutException) _timeouts++;
+                if (communicationEvidence && IsReachabilityFailure(error)) RecordReachabilityFailureNoLock(now);
             }
             _recentFailures.Enqueue(!success);
             while (_recentFailures.Count > 100) _recentFailures.Dequeue();
         }
+    }
+
+    private void RecordReachabilitySuccess(DateTimeOffset observedAt)
+    {
+        lock (_diagnosticsGate) RecordReachabilitySuccessNoLock(observedAt);
+    }
+
+    private void RecordReachabilitySuccessNoLock(DateTimeOffset observedAt)
+    {
+        if (_deviceReachable == true) return;
+        _deviceReachable = true;
+        _connections++;
+        if (_connections > 1) _reconnects++;
+        _lastReachabilityEstablishedAt = observedAt;
+    }
+
+    private void RecordReachabilityFailureNoLock(DateTimeOffset observedAt)
+    {
+        if (_deviceReachable == false) return;
+        if (_deviceReachable == true) _disconnections++;
+        _deviceReachable = false;
+        _lastReachabilityLostAt = observedAt;
     }
 
     private void TransitionState(CommunicationDriverOperationalState next)
@@ -457,6 +507,9 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         if (!string.IsNullOrWhiteSpace(snapshot.LastErrorType))
             protocolDetails["fdrLastErrorType"] = snapshot.LastErrorType;
     }
+
+    private static bool IsReachabilityFailure(Exception? error)
+        => error is TimeoutException or IOException or SocketException or ObjectDisposedException;
 
     private static string? Sanitize(string? message)
     {

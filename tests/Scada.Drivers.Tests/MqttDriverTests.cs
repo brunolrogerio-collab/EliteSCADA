@@ -148,6 +148,30 @@ public sealed class MqttDriverTests
         Assert.Null(diagnostics.LastScanDuration);
     }
 
+    [Fact]
+    public async Task DriverCanStopAndRestartWithoutDuplicateTagRegistration()
+    {
+        var tag = CreateTag(TagDataType.Double);
+        var point = new MqttPoint(tag, "plant/restart/value");
+        var transport = new FakeMqttTransport();
+        var registry = new InMemoryTagRegistry();
+        var cache = new CurrentTagCache(new InMemoryScadaEventBus());
+        await using var driver = CreateDriver(cache, registry, transport, point);
+
+        await driver.StartAsync();
+        await WaitUntilAsync(() => transport.ConnectCount == 1 && transport.SubscribeCount == 1);
+        await driver.StopAsync();
+
+        Assert.Equal(DriverState.Stopped, driver.Status.State);
+        Assert.Single(registry.Snapshot());
+
+        await driver.StartAsync();
+        await WaitUntilAsync(() => transport.ConnectCount == 2 && transport.SubscribeCount == 2);
+
+        Assert.Equal(DriverState.Running, driver.Status.State);
+        Assert.Single(registry.Snapshot());
+    }
+
     private static MqttDriver CreateDriver(
         ICurrentTagCache cache,
         ITagRegistry registry,

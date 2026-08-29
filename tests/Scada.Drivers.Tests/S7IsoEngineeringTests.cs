@@ -76,7 +76,7 @@ public sealed class S7IsoEngineeringTests
     }
 
     [Fact]
-    public async Task ConnectionTest_ReportsNegotiatedPduWithoutCreatingRuntimeDriver()
+    public async Task ConnectionTest_ReportsNegotiatedPduWithoutClaimingPointAccess()
     {
         await using var server = new TestS7IsoServer();
         var settings = new Dictionary<string, string>
@@ -103,5 +103,10 @@ public sealed class S7IsoEngineeringTests
         Assert.Equal("480", result.ObservedProperties!["negotiatedPduSize"]);
         Assert.Equal("0x0301", result.ObservedProperties["destinationTsap"]);
         Assert.Equal("false", result.ObservedProperties["writeEnabled"]);
+        Assert.Equal("true", result.ObservedProperties["sessionEstablished"]);
+        Assert.Equal("false", result.ObservedProperties["pointAccessProven"]);
+        var warning = Assert.Single(result.Issues!);
+        Assert.Equal("S7_CLASSIC_ACCESS_NOT_PROVEN", warning.Code);
+        Assert.Equal(DriverEngineeringIssueSeverity.Warning, warning.Severity);
     }
 }

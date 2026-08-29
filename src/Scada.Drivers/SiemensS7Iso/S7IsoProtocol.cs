@@ -144,6 +144,10 @@ internal static class S7IsoProtocol
                     : DecodeResponsePayloadLength(transportSize, encodedLength);
             if (cursor + payloadLength > dataEnd)
                 throw new S7IsoProtocolException("Truncated S7 Read Var item payload.");
+            if (returnCode == ReturnCodeSuccess && payloadLength != points[index].ByteLength)
+                throw new S7IsoProtocolException(
+                    $"S7 Read Var item for '{points[index].Tag.Path}' returned {payloadLength} byte(s), " +
+                    $"expected exactly {points[index].ByteLength}.");
 
             byte[]? payload = null;
             if (returnCode == ReturnCodeSuccess)

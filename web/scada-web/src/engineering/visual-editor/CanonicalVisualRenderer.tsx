@@ -1,6 +1,6 @@
 import React, { type CSSProperties } from 'react';
 import { visualAssetContentUrl } from '../api';
-import type { VisualElementEngineering } from '../types';
+import type { VisualElementEngineering, VisualEngineeringPropertyValue } from '../types';
 import {
   BUILTIN_VISUAL_OBJECT_TYPES,
   decodeVisualEngineeringProperties,
@@ -14,6 +14,8 @@ export type CanonicalVisualRendererProps = {
   emptyLabel: string;
 };
 
+const builtinVisualTypes = new Set<string>(Object.values(BUILTIN_VISUAL_OBJECT_TYPES));
+
 export function CanonicalVisualRenderer({ elements, emptyLabel }: CanonicalVisualRendererProps) {
   const rootElements = elements ?? [];
   if (rootElements.length === 0) return <div className="visual-editor-renderer-empty">{emptyLabel}</div>;
@@ -24,6 +26,8 @@ export function CanonicalVisualRenderer({ elements, emptyLabel }: CanonicalVisua
 }
 
 function CanonicalElement({ element }: { element: VisualElementEngineering }) {
+  if (!builtinVisualTypes.has(element.type)) return <LegacyCompatibilityElement element={element} />;
+
   try {
     const schema = getBuiltinVisualObjectSchema(element.type);
     const values: Readonly<Record<string, VisualPropertyValue>> = {
@@ -67,6 +71,22 @@ function CanonicalElement({ element }: { element: VisualElementEngineering }) {
   } catch (reason) {
     return <div className="visual-editor-object-error" title={reason instanceof Error ? reason.message : String(reason)}>{element.key || element.type || 'invalid visual object'}</div>;
   }
+}
+
+function LegacyCompatibilityElement({ element }: { element: VisualElementEngineering }) {
+  const x = legacyNumber(element.properties?.x, 18);
+  const y = legacyNumber(element.properties?.y, 18);
+  const label = legacyString(element.properties?.label) || element.key || element.type;
+  return <div
+    className="visual-editor-object visual-editor-legacy-placeholder"
+    style={{ left: x, top: y }}
+    data-object-id={element.id ?? undefined}
+    data-legacy-object-type={element.type}
+    title={`Legacy visual type: ${element.type}`}
+  >
+    <strong>{label}</strong>
+    <span>{element.type}</span>
+  </div>;
 }
 
 function elementStyle(values: Readonly<Record<string, VisualPropertyValue>>): CSSProperties {
@@ -117,6 +137,8 @@ function percent(value: VisualPropertyValue | undefined): number { return Math.m
 function numberValue(value: VisualPropertyValue | undefined, fallback = 0): number { return typeof value === 'number' && Number.isFinite(value) ? value : fallback; }
 function booleanValue(value: VisualPropertyValue | undefined, fallback: boolean): boolean { return typeof value === 'boolean' ? value : fallback; }
 function stringValue(value: VisualPropertyValue | undefined, fallback = ''): string { return typeof value === 'string' ? value : fallback; }
+function legacyNumber(value: VisualEngineeringPropertyValue | undefined, fallback: number): number { return typeof value === 'number' && Number.isFinite(value) ? value : fallback; }
+function legacyString(value: VisualEngineeringPropertyValue | undefined): string { return typeof value === 'string' ? value : ''; }
 function normalizeFontFamily(value: string): string | undefined { return !value ? undefined : value === 'system' ? 'system-ui, sans-serif' : value; }
 function verticalAlignment(value: VisualPropertyValue | undefined): CSSProperties['alignItems'] {
   const alignment = stringValue(value, 'middle');

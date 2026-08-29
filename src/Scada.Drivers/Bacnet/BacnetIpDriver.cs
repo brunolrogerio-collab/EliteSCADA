@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using Scada.Core.Tags;
@@ -13,6 +14,7 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
     private readonly IReadOnlyList<BacnetPoint> _points;
     private readonly Dictionary<Guid, BacnetPoint> _pointsByTagId;
     private readonly HashSet<Guid> _covTagIds = new();
+    private readonly ConcurrentDictionary<Guid, DateTimeOffset> _nextCovFallbackPollAt = new();
     private readonly List<IDisposable> _covSubscriptions = new();
     private readonly SemaphoreSlim _writeGate = new(1, 1);
     private readonly object _diagnosticsGate = new();
@@ -45,7 +47,8 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         ITagRegistry registry,
         IEnumerable<BacnetPoint> points,
         IBacnetSession session,
-        TimeSpan? scanRate = null)
+        TimeSpan? scanRate = null,
+        TimeSpan? covFallbackPollInterval = null)
     {
         if (string.IsNullOrWhiteSpace(driverId)) throw new ArgumentException("Driver ID is required.", nameof(driverId));
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Driver name is required.", nameof(name));
@@ -70,6 +73,8 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         _pointsByTagId = _points.ToDictionary(x => x.Tag.Id);
         ScanRate = scanRate ?? TimeSpan.FromSeconds(1);
         if (ScanRate <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(scanRate));
+        CovFallbackPollInterval = covFallbackPollInterval ?? TimeSpan.FromSeconds(Math.Max(30d, ScanRate.TotalSeconds * 30d));
+        if (CovFallbackPollInterval <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(covFallbackPollInterval));
         Status = new DriverStatus(DriverId, Name, DriverState.Stopped, DateTimeOffset.UtcNow);
     }
 
@@ -79,6 +84,7 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
     public DriverStatus Status { get; private set; }
     public IReadOnlyCollection<TagDefinition> Tags => _points.Select(x => x.Tag).ToArray();
     public TimeSpan ScanRate { get; }
+    public TimeSpan CovFallbackPollInterval { get; }
     public uint DeviceInstance => _points[0].Binding.DeviceInstance;
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -93,11 +99,15 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         {
             try
             {
-                var subscription = await _session.TrySubscribeCovAsync(point.Binding, sample => PublishSampleAsync(point, sample), cancellationToken).ConfigureAwait(false);
+                var subscription = await _session.TrySubscribeCovAsync(
+                    point.Binding,
+                    sample => HandleCovSampleAsync(point, sample),
+                    cancellationToken).ConfigureAwait(false);
                 if (subscription is not null)
                 {
                     _covSubscriptions.Add(subscription);
                     _covTagIds.Add(point.Tag.Id);
+                    _nextCovFallbackPollAt[point.Tag.Id] = DateTimeOffset.UtcNow + CovFallbackPollInterval;
                 }
             }
             catch
@@ -125,6 +135,7 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         foreach (var subscription in _covSubscriptions) subscription.Dispose();
         _covSubscriptions.Clear();
         _covTagIds.Clear();
+        _nextCovFallbackPollAt.Clear();
         Status = new DriverStatus(DriverId, Name, DriverState.Stopped, DateTimeOffset.UtcNow, UpdatesPublished: _updatesPublished);
         TransitionState(CommunicationDriverOperationalState.Stopped);
     }
@@ -182,6 +193,7 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
                 ["deviceInstance"] = DeviceInstance.ToString(CultureInfo.InvariantCulture),
                 ["covTagCount"] = _covTagIds.Count.ToString(CultureInfo.InvariantCulture),
                 ["polledTagCount"] = (_points.Count - _covTagIds.Count).ToString(CultureInfo.InvariantCulture),
+                ["covFallbackPollSeconds"] = CovFallbackPollInterval.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture),
                 ["transport"] = "BACnet/IP UDP",
                 ["bacnetSecureConnect"] = "not-implemented"
             };
@@ -236,11 +248,17 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         while (!cancellationToken.IsCancellationRequested)
         {
             var scanStarted = Stopwatch.GetTimestamp();
-            var polled = _points.Where(x => !_covTagIds.Contains(x.Tag.Id)).ToArray();
+            var now = DateTimeOffset.UtcNow;
+            var polled = _points.Where(point => ShouldPoll(point, now)).ToArray();
             foreach (var point in polled)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await PollPointAsync(point, cancellationToken).ConfigureAwait(false);
+                var succeeded = await PollPointAsync(point, cancellationToken).ConfigureAwait(false);
+                if (_covTagIds.Contains(point.Tag.Id))
+                {
+                    _nextCovFallbackPollAt[point.Tag.Id] = DateTimeOffset.UtcNow +
+                        (succeeded ? CovFallbackPollInterval : ScanRate);
+                }
             }
             Interlocked.Increment(ref _cycles);
             Interlocked.Exchange(ref _lastScanDurationTicks, Stopwatch.GetElapsedTime(scanStarted).Ticks);
@@ -255,7 +273,13 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         }
     }
 
-    private async Task PollPointAsync(BacnetPoint point, CancellationToken cancellationToken)
+    private bool ShouldPoll(BacnetPoint point, DateTimeOffset now)
+    {
+        if (!_covTagIds.Contains(point.Tag.Id)) return true;
+        return !_nextCovFallbackPollAt.TryGetValue(point.Tag.Id, out var nextPoll) || now >= nextPoll;
+    }
+
+    private async Task<bool> PollPointAsync(BacnetPoint point, CancellationToken cancellationToken)
     {
         var started = Stopwatch.GetTimestamp();
         Interlocked.Increment(ref _requests);
@@ -265,6 +289,7 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
             var sample = await _session.ReadAsync(point.Binding, cancellationToken).ConfigureAwait(false);
             RecordOperation(true, Stopwatch.GetElapsedTime(started), null);
             await PublishSampleAsync(point, sample).ConfigureAwait(false);
+            return true;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -272,6 +297,26 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
             _cache.TryGet(point.Tag.Id, out var current);
             await PublishAsync(point, current?.Value, TagQuality.BadCommunication, cancellationToken).ConfigureAwait(false);
             TransitionState(CommunicationDriverOperationalState.Degraded);
+            return false;
+        }
+    }
+
+    private async ValueTask HandleCovSampleAsync(BacnetPoint point, BacnetPropertyReadResult sample)
+    {
+        var started = Stopwatch.GetTimestamp();
+        try
+        {
+            await PublishSampleAsync(point, sample).ConfigureAwait(false);
+            RecordOperation(true, Stopwatch.GetElapsedTime(started), null);
+            _nextCovFallbackPollAt[point.Tag.Id] = DateTimeOffset.UtcNow + CovFallbackPollInterval;
+            TransitionState(CommunicationDriverOperationalState.Healthy);
+        }
+        catch (Exception ex)
+        {
+            RecordOperation(false, Stopwatch.GetElapsedTime(started), ex);
+            _nextCovFallbackPollAt[point.Tag.Id] = DateTimeOffset.UtcNow;
+            TransitionState(CommunicationDriverOperationalState.Degraded);
+            throw;
         }
     }
 

@@ -44,7 +44,7 @@ internal static partial class S7TiaXlsxImporter
 
             if (headers is null)
             {
-                headers = cells.ToDictionary(pair => pair.Key, pair => pair.Value.Trim(), EqualityComparer<int>.Default);
+                headers = cells.ToDictionary(pair => pair.Key, pair => pair.Value.Trim());
                 ValidateHeaders(headers);
                 continue;
             }
@@ -114,7 +114,7 @@ internal static partial class S7TiaXlsxImporter
             }
             else
             {
-                var writable = hmiWriteable != false && addressMapping.Area != S7IsoArea.Input;
+                var writable = hmiWriteable == true && addressMapping.Area != S7IsoArea.Input;
                 var candidateBinding = new S7IsoTagBinding(
                     S7IsoTagBinding.CurrentSchemaVersion,
                     addressMapping.Area,
@@ -138,11 +138,7 @@ internal static partial class S7TiaXlsxImporter
                     ["valueOrder"] = candidateBinding.ValueOrder.ToString()
                 };
 
-                if (S7IsoTagBinding.TryCreateFromSettings(bindingSettings, out binding, out var bindingIssues))
-                {
-                    // The neutral candidate remains transient until Preview/Apply.
-                }
-                else
+                if (!S7IsoTagBinding.TryCreateFromSettings(bindingSettings, out binding, out var bindingIssues))
                 {
                     foreach (var bindingIssue in bindingIssues)
                         issues.Add(Issue("S7_TIA_BINDING_INVALID", DriverEngineeringIssueSeverity.Error, bindingIssue.Message));
@@ -160,6 +156,11 @@ internal static partial class S7TiaXlsxImporter
                 "S7_TIA_HMI_NOT_VISIBLE",
                 DriverEngineeringIssueSeverity.Information,
                 "TIA marks this PLC tag as not HMI Visible."));
+        if (hmiWriteable is null)
+            issues.Add(Issue(
+                "S7_TIA_HMI_WRITEABILITY_UNKNOWN",
+                DriverEngineeringIssueSeverity.Information,
+                "TIA export does not provide Hmi Writeable; imported write intent remains disabled until explicitly engineered."));
 
         var metadata = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -265,8 +266,20 @@ internal static partial class S7TiaXlsxImporter
             }
 
             var format = db.Groups[2].Value;
+            var hasBit = db.Groups[4].Success;
+            if (format == "X" && !hasBit)
+            {
+                error = $"TIA DBX logical address '{raw}' requires an explicit bit index.";
+                return false;
+            }
+            if (format != "X" && hasBit)
+            {
+                error = $"TIA logical address '{raw}' may use a bit index only with DBX addressing.";
+                return false;
+            }
+
             byte? bit = null;
-            if (format == "X")
+            if (hasBit)
             {
                 if (!byte.TryParse(db.Groups[4].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedBit) || parsedBit > 7)
                 {
@@ -294,6 +307,19 @@ internal static partial class S7TiaXlsxImporter
         }
 
         var areaText = absolute.Groups[1].Value;
+        var width = absolute.Groups[2].Value;
+        var hasAbsoluteBit = absolute.Groups[4].Success;
+        if (hasAbsoluteBit && width.Length > 0)
+        {
+            error = $"TIA bit logical address '{raw}' must not include B/W/D width notation.";
+            return false;
+        }
+        if (!hasAbsoluteBit && width.Length == 0)
+        {
+            error = $"TIA non-bit logical address '{raw}' requires B, W or D width notation.";
+            return false;
+        }
+
         var area = areaText switch
         {
             "I" or "E" => S7IsoArea.Input,
@@ -308,7 +334,7 @@ internal static partial class S7TiaXlsxImporter
         }
 
         byte? bitOffset = null;
-        if (absolute.Groups[4].Success)
+        if (hasAbsoluteBit)
         {
             if (!byte.TryParse(absolute.Groups[4].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedBit) || parsedBit > 7)
             {
@@ -457,8 +483,12 @@ internal static partial class S7TiaXlsxImporter
     private static ZipArchiveEntry GetRequiredEntry(ZipArchive archive, string path) =>
         archive.GetEntry(path) ?? throw new InvalidDataException($"TIA XLSX archive entry '{path}' is missing.");
 
-    private static string? Get(IReadOnlyDictionary<string, string> values, string key) =>
-        values.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value) ? value.Trim() : null;
+    private static string? Get(IReadOnlyDictionary<string, string> values, string key)
+    {
+        if (!values.TryGetValue(key, out var value) || string.IsNullOrWhiteSpace(value)) return null;
+        var trimmed = value.Trim();
+        return trimmed.Equals("<no value>", StringComparison.OrdinalIgnoreCase) ? null : trimmed;
+    }
 
     private static bool? ParseOptionalBoolean(string? value)
     {

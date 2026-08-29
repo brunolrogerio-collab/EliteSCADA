@@ -6,7 +6,7 @@ Accepted as product direction. Not scheduled for immediate implementation.
 ## Context
 EliteSCADA must support applications that can be engineered once, reused across projects, and adapted to different operational organizations without forking core code.
 
-The design takes conceptual inspiration from proven SCADA library patterns such as Elipse E3 XObjects and XControls, while keeping EliteSCADA's own public engineering model and implementation. In Elipse E3, XObjects are reusable server/data objects and XControls are reusable graphical objects whose exported properties can be linked to real application data. EliteSCADA will pursue the same class/instance reuse principle without copying proprietary implementation details.
+The product therefore adopts a generic class/instance reuse model for both server/data structures and graphical components. Reusable definitions expose explicit public properties, bindings and context, while instances retain stable links to their definitions and application-specific overrides. All reuse semantics remain part of EliteSCADA's own public Engineering model and implementation.
 
 ## Decision 1 — Reusable application libraries
 

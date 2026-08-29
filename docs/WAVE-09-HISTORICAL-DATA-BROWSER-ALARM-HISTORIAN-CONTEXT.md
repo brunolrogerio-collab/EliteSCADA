@@ -38,13 +38,13 @@ Remains the operational authority for:
 
 Is a read-only query over persisted alarm/event records.
 
-A historical row never becomes a back door for changing current alarm state, acknowledgement or shelving.
+A historical row must never become a back door for acknowledging, shelving or otherwise changing current alarm state.
 
-# 3. Typed query model
+Historian recording policy is also distinct from historian query period. Recording configuration controls what is persisted; browser filters control what portion of persisted data is requested for presentation.
 
-Historical browsing must use a public typed query descriptor rather than arbitrary SQL from the browser.
+# 3. Typed query contract
 
-Conceptually the query descriptor contains:
+Introduce or stabilize a public typed query descriptor. Exact implementation names are not locked, but the contract conceptually contains:
 
 - dataset/provider identity;
 - selected fields/columns;
@@ -52,133 +52,122 @@ Conceptually the query descriptor contains:
 - typed filters;
 - sort order;
 - page/limit/cursor;
-- optional presentation metadata when the view itself is canonical Engineering.
+- optional presentation metadata when the view itself is engineered.
 
 Rules:
 
-- browser never connects directly to PostgreSQL/TimescaleDB;
-- browser never receives database credentials;
-- normal product API never accepts arbitrary SQL from the browser;
-- server validates dataset, field and operator combinations;
-- server converts validated descriptors into parameterized queries;
+- the browser never connects directly to PostgreSQL/TimescaleDB;
+- the browser never submits arbitrary SQL as the normal product path;
+- the backend translates validated descriptors into parameterized database queries;
+- dataset providers expose only supported fields and operators;
 - authorization is enforced server-side;
-- query limits are server-enforced;
+- server-side result bounds are mandatory;
 - invalid filters fail explicitly;
-- cancellation/timeouts prevent abandoned queries from consuming resources indefinitely.
+- abandoned queries must support cancellation/timeout behavior.
+
+A future administrative raw-query tool, if ever created, is a separate security/product decision and is not part of Wave 09.
 
 # 4. Shared time-range model
 
-Historical Data Browser and compatible Trend/history consumers should share one time-range contract.
+Wave 09 must provide one reusable time-range contract for Data Browser and compatible Trend/history consumers.
 
 ## Relative period
 
-At minimum support useful presets and configurable relative periods such as:
+Required examples:
 
 - last 15 minutes;
 - last 1 hour;
 - last 8 hours;
 - last 24 hours;
 - last 7 days;
-- configurable amount + supported unit where appropriate.
+- configurable amount + unit where permitted.
 
 ## Absolute interval
 
-Support:
+Required inputs:
 
 - start date/time;
-- end date/time;
-- explicit boundary validation before database execution.
+- end date/time.
 
-## Timestamp semantics
+Rules:
 
-- persisted/query timestamp identity remains canonical UTC;
-- locale/timezone affect display and interpretation of user-entered local times, not stored event identity;
-- UI makes the effective interval visible;
+- invalid ranges are rejected before database execution;
+- canonical storage/query timestamps remain UTC;
+- locale/timezone affect user input interpretation and display, not event identity;
+- the effective interval must be visible to the user;
 - refresh/requery preserves the active filter configuration.
+
+Temporary Runtime date choices are presentation/session state and must not silently dirty Engineering.
 
 # 5. Historical alarm filters
 
-Wave 09 must support combining at least:
+The first Wave 09 browser must support combining independent filters without requiring filter code.
+
+Minimum filters:
 
 - relative or absolute period;
 - alarm/event type;
 - alarm category/type where available;
-- subcondition such as HI/HIHI/LO/LOLO/digital where applicable;
-- area with hierarchical/prefix discovery;
+- subcondition such as HI, HIHI, LO, LOLO or digital where applicable;
+- area, including hierarchical/prefix discovery where the project uses area hierarchy;
 - source/name/path search;
 - message search;
 - severity/priority;
-- active/inactive state when represented by persisted facts;
+- active/inactive state where represented by persisted event facts;
 - acknowledged/unacknowledged;
 - acknowledgement-required state;
-- shelved/not-shelved state when persisted.
+- shelved/not-shelved where persisted.
 
-The first UI must provide normal controls for these filters. v0.1 must not require an operator to write a filter expression language.
+Useful persisted alarm facts include event/entry/exit/ack timestamps, source identity, area, category, subcondition, message, severity, current/formatted value, quality, acknowledgement actor and shelving information when available.
+
+Filtering and visual emphasis must derive from typed alarm facts rather than being encoded only as row color or CSS state.
 
 # 6. Historian sample filters
 
-At minimum:
+Minimum historian query behavior:
 
-- one or more canonical TAG references;
-- relative or absolute period;
+- select one or more canonical TAG references;
+- choose relative or absolute period;
 - optional quality filter;
-- deterministic timestamp order;
-- selected columns including timestamp, TAG/path/name, value, quality and engineering unit when available.
+- deterministic timestamp ordering;
+- selectable columns including timestamp, TAG/path/name, value, quality and engineering unit when available.
 
-The result path preserves exact typed values. Int64, Boolean and timestamps are not lossily converted merely because the result table is heterogeneous.
+The query/result path must preserve exact typed values. `Int64`, Boolean and timestamp values must not be lossy-converted merely because the result table is heterogeneous.
+
+Historian recording policies remain owned by the existing historian Engineering model, including strategy, deadband, period and maximum period. Wave 09 consumes and validates those persisted samples rather than creating a second historian engine.
+
+Quality transitions remain meaningful historical data and must not be flattened into normal values.
 
 # 7. Table/browser ergonomics
 
-Minimum behavior:
+Minimum product behavior:
 
 - configurable visible columns;
 - sortable columns;
 - deterministic default sort;
 - server-side filtering;
-- bounded result window with pagination/cursor as appropriate;
+- pagination/cursor or another bounded result window;
 - explicit loading, empty, error and unauthorized states;
-- row presentation based on typed alarm severity/state facts;
-- visible active-filter summary;
+- typed row presentation, especially for alarm severity/state and historian quality;
+- visible filter summary;
 - clear/reset filters;
 - refresh/requery;
-- large result sets must not be loaded unbounded into browser memory.
+- responsive handling of large result sets without loading an unbounded table into browser memory.
 
 Useful later extensions, not mandatory for the first Wave 09 slice:
 
 - saved personal Runtime views;
 - CSV export;
 - multi-level sort UI;
-- advanced filter builder;
+- advanced filter-expression builder;
 - aggregation/downsampling controls;
-- reusable user query templates.
+- reusable user-defined query templates beyond engineered project definitions.
 
-# 8. Historian recording and query relationship
+# 8. Engineering persistence
 
-Historian recording policy and historian query period are separate concepts.
+If a Historical Data Browser is placed/configured in a Screen or Popup, its engineered configuration must be canonical Engineering and participate in:
 
-EliteSCADA already carries historian Engineering settings such as strategy, deadband, period and maximum period. Wave 09 consumes and validates the existing historian authority rather than creating another storage model.
-
-Relevant product requirements:
-
-- periodic and change/event-oriented recording policies remain explicit;
-- deadband may reduce unnecessary samples;
-- maximum recording interval avoids indefinite gaps when configured;
-- quality transitions remain meaningful data;
-- query time range does not mutate historian recording policy.
-
-# 9. Trend relationship
-
-Historical table browsing and Trends should use compatible time-range semantics.
-
-Historical and realtime data remain distinct source semantics even when presented together in a future Trend/view.
-
-Do not create separate, incompatible date rules for each component.
-
-# 10. Engineering persistence
-
-If a Historical Data Browser is configured on a Screen/Popup, its engineered configuration participates in:
-
-- canonical JSON Import/Export;
+- JSON Import/Export;
 - Preview/Apply/CAS;
 - Working;
 - immutable revisions;
@@ -186,69 +175,84 @@ If a Historical Data Browser is configured on a Screen/Popup, its engineered con
 - `.escadapkg`;
 - Screen/Popup/Dynamo dependency analysis where applicable.
 
-Runtime-selected temporary dates and ad-hoc filters are session/presentation state unless a deliberate save action exists.
+The persisted configuration may include dataset identity, allowed/default fields, initial filter configuration, initial time-range mode, sort order and presentation settings.
 
-Selecting `last 8 hours` at Runtime must not silently dirty Engineering.
+Runtime-selected temporary dates and ad-hoc filters remain presentation/session state unless the user deliberately saves an engineered or explicitly supported personal view.
 
-# 11. Database/performance requirements
+# 9. Database and performance requirements
 
-Use existing PostgreSQL/TimescaleDB authority.
+Wave 09 uses the existing PostgreSQL/TimescaleDB authority.
 
-Required principles:
+Required design principles:
 
-- historian predicates are optimized around time + TAG identity where applicable;
-- alarm-history predicates are optimized around event time and supported alarm dimensions;
-- indexes/hypertable strategy supports common time windows;
-- maximum page/result sizes are server-enforced;
-- stable cursor/keyset pagination is preferred for large historical lists where appropriate;
-- all user-controlled query values are parameterized;
-- query diagnostics do not expose credentials or sensitive database internals;
-- TimescaleDB aggregation/downsampling may be used when useful, but a sophisticated aggregation designer is not required for the first Wave 09 slice.
+- historian queries are optimized around time + TAG identity where applicable;
+- alarm history queries are optimized around event time plus supported alarm dimensions;
+- indexes/hypertable strategy supports common time-window filters;
+- maximum page/result size is server-enforced;
+- prefer stable cursor/keyset pagination for large histories where practical;
+- all user-controlled values are parameterized;
+- database credentials and physical table authority are never exposed to the browser;
+- query cancellation/timeouts prevent abandoned requests from consuming database work indefinitely;
+- diagnostics expose useful query failures without leaking credentials or sensitive SQL internals.
 
-# 12. Wave 09 product gate addition
+TimescaleDB-native aggregation/downsampling may be used where needed for performance, but a sophisticated aggregation designer is not required for the first Wave 09 Data Browser.
 
-Wave 09 keeps its original visual-navigation gate and additionally proves:
+# 10. Relationship with Trends
 
-`Runtime/Data Browser -> historian dataset -> TAG(s) -> relative period -> typed historical rows`
+Historical Data Browser and Trends should reuse the same typed time-range semantics and historian authority.
 
-`Runtime/Data Browser -> absolute start/end -> deterministic historical rows`
+Historical and realtime values remain conceptually distinct even when a Trend presents them together.
+
+Do not create separate incompatible rules for relative periods, absolute intervals or quality handling between tabular history and charts.
+
+# 11. Wave 09 product gate
+
+Wave 09 must still prove:
+
+`Screen containing normal objects + Dynamo -> navigation -> Popup -> Runtime lifecycle`
+
+and additionally:
+
+`Runtime/Data Browser -> historian.samples -> choose TAG(s) -> relative period -> typed historical rows`
+
+`Runtime/Data Browser -> absolute start/end -> deterministic filtered rows`
 
 `Historical Alarm Browser -> period + area + source/name + type/severity -> correct persisted alarm events`
 
-`change filter -> requery -> no Engineering mutation`
+`change Runtime filter -> requery -> no Engineering mutation`
 
-`configured Data Browser on Screen/Popup -> save -> revision -> publish/activate -> reopen -> same engineered query/view configuration`
+`configured Data Browser on Screen/Popup -> save -> revision -> publish/activate -> reopen -> same engineered view configuration`
 
-Correctness checks include:
+Required correctness checks:
 
-- deterministic UTC interval boundaries;
-- invalid ranges rejected before database execution;
-- server-side authorization;
-- explicit bad/uncertain historical quality;
-- exact typed serialization;
-- historical view cannot perform current Alarm Center operations;
-- bounded large result sets.
+- UTC interval boundaries are deterministic;
+- invalid ranges fail before database execution;
+- no arbitrary SQL reaches the normal browser API;
+- authorization is enforced server-side;
+- bad/uncertain historian quality remains visible;
+- exact typed values survive query/serialization;
+- current Alarm Center command/ACK semantics are not duplicated by historical browsing;
+- large result sets remain bounded.
 
-# 13. Explicit non-goals
+# 12. Explicit non-goals
 
 Do not expand the first Wave 09 slice into:
 
-- arbitrary SQL console;
-- unrestricted database table explorer;
+- arbitrary SQL console/query editor;
+- unrestricted generic database table explorer;
 - direct browser-to-database access;
-- multi-database compatibility beyond the locked v0.1 PostgreSQL/TimescaleDB platform;
+- multi-database compatibility beyond the project's PostgreSQL/TimescaleDB direction;
 - report designer;
-- full historian analytics language;
-- a second historian engine;
+- full analytics/data-science environment;
+- replacement historian engine;
 - alarm safety/interlock logic;
-- changing current alarm state from historical rows;
-- playback subsystem;
-- advanced data-science analytics.
+- changing current alarm state from a historical record;
+- advanced playback/replay subsystem.
 
-# 14. Product architecture direction
+# 13. Architecture summary
 
-The locked composition is:
+Wave 09 follows this product composition:
 
-`PostgreSQL/Timescale domain stores -> typed protected query providers -> shared time/filter model -> Historical Data Browser / Trend / alarm-history presentation`
+`PostgreSQL/Timescale domain stores -> typed protected query providers -> shared time/filter model -> Historical Data Browser / Trend / historical alarm presentation`
 
-Database details remain behind public APIs, filters remain reusable, and Screens/Popups/Dynamos can host historical information without making React or SQL the project authority.
+This keeps database details behind public APIs, makes period/date/filter behavior reusable and allows Screens/Popups/Dynamos to host useful historical information without making React or SQL the project authority.

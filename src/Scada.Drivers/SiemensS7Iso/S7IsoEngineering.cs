@@ -71,7 +71,8 @@ public sealed class S7IsoEngineeringAdapter :
             yield break;
         }
 
-        IReadOnlyList<DriverImportCandidate> candidates;
+        IReadOnlyList<DriverImportCandidate> candidates = Array.Empty<DriverImportCandidate>();
+        DriverImportCandidate? parseFailure = null;
         try
         {
             candidates = S7TiaXlsxImporter.Parse(request.SourceName, content, cancellationToken);
@@ -82,7 +83,7 @@ public sealed class S7IsoEngineeringAdapter :
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or NotSupportedException or FormatException or System.Xml.XmlException)
         {
-            yield return new DriverImportCandidate(
+            parseFailure = new DriverImportCandidate(
                 "tia-xlsx-parse-error",
                 $"TiaXlsx|{request.SourceName}",
                 request.SourceName,
@@ -96,6 +97,11 @@ public sealed class S7IsoEngineeringAdapter :
                         DriverEngineeringIssueSeverity.Error,
                         SanitizeError(ex))
                 });
+        }
+
+        if (parseFailure is not null)
+        {
+            yield return parseFailure;
             yield break;
         }
 

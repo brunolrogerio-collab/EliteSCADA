@@ -7,11 +7,15 @@ import {
   compatibleBindingSources,
   createBindingRemoveIntent,
   createBindingSetIntent,
+  createTagBitBindingSource,
   filterBindingSourceCatalog,
+  findBindingSourceForBinding,
   findVisualBinding,
   isBindingSourceCompatible,
+  isBitSelectorAuthoringSource,
   listBindableVisualProperties,
   normalizeBindingSourceCatalog,
+  resolveBindingSourceReference,
   VisualBindingEditorError
 } from '../src/engineering/visual-editor/binding-editor/bindingEditorModel';
 
@@ -30,17 +34,23 @@ const catalog = [
   { kind: 'Expression', target: 'tag("Plant.Level") > 80', label: 'High level expression' }
 ] as const;
 
-const bitSource = {
+const baseBitSource = {
   kind: 'Tag',
-  target: 'Plant.Status.03',
-  label: 'Status.03',
-  dataType: 'Boolean',
+  target: 'Plant.Status',
+  label: 'Status',
+  dataType: 'Int16',
   writable: true,
   tagReference: {
-    tagId: '33333333-3333-3333-3333-333333333333',
-    selector: { kind: 'bit', index: 3 }
+    tagId: '33333333-3333-3333-3333-333333333333'
+  },
+  selectorCapability: {
+    kind: 'bit',
+    minIndex: 0,
+    maxIndex: 15
   }
 } as const;
+
+const bitSource = createTagBitBindingSource(baseBitSource, 3);
 
 test('bindable destinations come only from the registered schema supportsBinding contract', () => {
   const destinations = listBindableVisualProperties(rectangle);
@@ -74,9 +84,31 @@ test('binding.set uses canonical destination/source fields and stable object ide
   expect(Object.isFrozen(intent.binding)).toBe(true);
 });
 
-test('TAG bit binding persists stable TAG identity plus selector instead of only friendly .NN text', () => {
-  const intent = createBindingSetIntent(rectangle, VISUAL_PROPERTY_KEYS.visible, bitSource);
+test('integer TAG is offered for Boolean authoring only through an explicit bit selector', () => {
+  expect(isBindingSourceCompatible('boolean', baseBitSource)).toBe(false);
+  expect(isBitSelectorAuthoringSource('boolean', baseBitSource)).toBe(true);
+  expect(compatibleBindingSources('boolean', [...catalog, baseBitSource]).map(source => source.target)).toEqual([
+    'Plant.Pump.Running',
+    'Context.SelectedPump',
+    'tag("Plant.Level") > 80',
+    'Plant.Status'
+  ]);
+  expect(() => createBindingSetIntent(rectangle, VISUAL_PROPERTY_KEYS.visible, baseBitSource))
+    .toThrow(/not compatible/);
+});
 
+test('on-demand bit source uses friendly .NN text while persisting stable TAG identity plus selector', () => {
+  expect(bitSource).toMatchObject({
+    target: 'Plant.Status.03',
+    label: 'Status.03',
+    dataType: 'Boolean',
+    tagReference: {
+      tagId: '33333333-3333-3333-3333-333333333333',
+      selector: { kind: 'bit', index: 3 }
+    }
+  });
+
+  const intent = createBindingSetIntent(rectangle, VISUAL_PROPERTY_KEYS.visible, bitSource);
   expect(intent.binding).toEqual({
     key: VISUAL_PROPERTY_KEYS.visible,
     kind: 'Tag',
@@ -88,15 +120,23 @@ test('TAG bit binding persists stable TAG identity plus selector instead of only
   });
   expect(Object.isFrozen(intent.binding.tagReference)).toBe(true);
   expect(Object.isFrozen(intent.binding.tagReference?.selector)).toBe(true);
+  expect(findBindingSourceForBinding(intent.binding, [baseBitSource])).toMatchObject({ target: 'Plant.Status' });
+});
+
+test('exact reference authoring resolves non-padded bit notation without expanding the project tree', () => {
+  const resolved = resolveBindingSourceReference([baseBitSource], 'Plant.Status.3');
+  expect(resolved.status).toBe('found');
+  expect(resolved.source).toMatchObject({
+    target: 'Plant.Status.03',
+    dataType: 'Boolean',
+    tagReference: { selector: { kind: 'bit', index: 3 } }
+  });
+  expect(resolveBindingSourceReference([baseBitSource], 'Plant.Status.16')).toEqual({ status: 'notFound' });
 });
 
 test('stable TAG source identity ignores friendly path changes but includes the bit selector', () => {
   const renamed = { ...bitSource, target: 'Plant.RenamedStatus.03', label: 'Renamed status.03' };
-  const otherBit = {
-    ...bitSource,
-    target: 'Plant.Status.04',
-    tagReference: { ...bitSource.tagReference, selector: { kind: 'bit' as const, index: 4 } }
-  };
+  const otherBit = createTagBitBindingSource(baseBitSource, 4);
 
   expect(bindingSourceIdentity(bitSource)).toBe(bindingSourceIdentity(renamed));
   expect(bindingSourceIdentity(bitSource)).not.toBe(bindingSourceIdentity(otherBit));
@@ -151,6 +191,7 @@ test('binding authoring fails closed for unregistered/non-bindable destinations 
     .toThrow(/not declared/);
   expect(() => createBindingSetIntent({ ...rectangle, id: null }, VISUAL_PROPERTY_KEYS.visible, catalog[0]))
     .toThrow(/stable visual object ID/);
+  expect(() => createTagBitBindingSource(baseBitSource, 16)).toThrow(/between 0 and 15/);
 });
 
 test('source catalog accepts only canonical Tag/Property/Expression references and deduplicates identities', () => {
@@ -172,7 +213,7 @@ test('source catalog accepts only canonical Tag/Property/Expression references a
   ])).toThrow(/stable non-empty reference/);
 
   expect(() => normalizeBindingSourceCatalog([
-    { ...bitSource, tagReference: { tagId: bitSource.tagReference.tagId, selector: { kind: 'bit', index: -1 } } }
+    { ...bitSource, tagReference: { tagId: bitSource.tagReference!.tagId, selector: { kind: 'bit', index: -1 } } }
   ])).toThrow(/non-negative integer bit selector/);
 });
 

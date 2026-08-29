@@ -148,15 +148,19 @@ Locked direction includes:
 - runtime requery with relative/absolute time and other typed parameters without dirtying Engineering;
 - count/sum/average/min/max and grouped/time-bucket summaries;
 - print preview, page numbering and printing;
-- PDF, XLSX, HTML, RTF, Text and CSV export;
+- **mandatory PDF (`.pdf`) export**;
+- **mandatory Microsoft Excel (`.xlsx`) export with typed cells where practical**;
+- optional/additional HTML, RTF, Text and CSV export may also be provided;
 - authorization, parameterization, cancellation/timeouts and result/output bounds;
 - canonical JSON/Preview/Apply/Working/revision/PostgreSQL/`.escadapkg` fidelity.
+
+PDF and Excel are now explicit Wave 09 acceptance-gate outputs. Reporting is not considered complete if either mandatory export is missing.
 
 Unrestricted report scripting is deliberately not pulled into the first Wave 09 slice. If later required it must use normal sandboxed Script Engineering and respect the Wave 10 event/scripting boundary.
 
 Wave 09 remains **NOT ACTIVE** until 08-FOLLOW-A and 08-FOLLOW-B are green.
 
-## Documentation commits from this task
+## Documentation commits from current product-contract work
 
 All changes are documentation/product-contract only and use `[skip ci]`; no Actions were spent.
 
@@ -165,7 +169,8 @@ All changes are documentation/product-contract only and use `[skip ci]`; no Acti
 - `ed4868d192f1c623d5d5aac19829e9bb16205b74` — expand Roadmap Wave 09 with Reporting;
 - `2fab92471d5d3050ca16adbf3bd6c435b5ff41b5` — align Historical Data Browser with Reporting;
 - `7d680463b084a4189d8cb1949422bc4613439a10` — lock Reporting and future-driver bit conformance in product north;
-- `f2d89f5b727327ca6566efbd1f2c288a6f32e998` — add Reporting to the authoritative v0.1 plan.
+- `f2d89f5b727327ca6566efbd1f2c288a6f32e998` — add Reporting to the authoritative v0.1 plan;
+- `e3a1b68a437c5e90da45f019f52f97ed62182372` — make PDF and Excel/XLSX mandatory Wave 09 report outputs.
 
 No repository document names or attributes the external benchmark used during product research. The repository records only EliteSCADA's own generic product requirements.
 

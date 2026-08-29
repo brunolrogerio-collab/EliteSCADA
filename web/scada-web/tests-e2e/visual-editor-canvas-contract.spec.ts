@@ -4,6 +4,7 @@ import {
   MAX_CANVAS_ZOOM,
   MIN_CANVAS_ZOOM,
   clientDeltaToCanvas,
+  collapseHierarchySelection,
   nextSelection,
   normalizeSelection,
   normalizeViewport,
@@ -91,6 +92,28 @@ test('selection is deterministic for replace add and toggle multiselect modes', 
   expect(selectionModeFromModifiers({ shiftKey: false, ctrlKey: false, metaKey: false })).toBe('replace');
   expect(selectionModeFromModifiers({ shiftKey: true, ctrlKey: false, metaKey: false })).toBe('add');
   expect(selectionModeFromModifiers({ shiftKey: false, ctrlKey: true, metaKey: false })).toBe('toggle');
+});
+
+test('hierarchical move selection collapses selected descendants under selected ancestors', () => {
+  const elements: NonNullable<ScreenEngineering['elements']> = [
+    {
+      id: 'parent',
+      key: 'parent',
+      type: 'core.group',
+      children: [
+        { id: 'child', key: 'child', type: 'core.rectangle' },
+        { id: 'sibling', key: 'sibling', type: 'core.ellipse' }
+      ]
+    },
+    { id: 'root-2', key: 'root-2', type: 'core.rectangle' }
+  ];
+
+  expect(collapseHierarchySelection(elements, ['parent', 'child', 'root-2']))
+    .toEqual(['parent', 'root-2']);
+  expect(collapseHierarchySelection(elements, ['child', 'sibling']))
+    .toEqual(['child', 'sibling']);
+  expect(collapseHierarchySelection(elements, ['missing']))
+    .toEqual([]);
 });
 
 test('grid snap and viewport math are finite bounded and deterministic', () => {

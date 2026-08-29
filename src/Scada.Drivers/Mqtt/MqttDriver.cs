@@ -23,6 +23,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
     private readonly MqttCredentialResolver _credentialResolver;
     private readonly TimeSpan? _freshnessCheckInterval;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
+    private readonly SemaphoreSlim _freshnessGate = new(1, 1);
     private readonly object _diagnosticsGate = new();
     private readonly Queue<bool> _recentFailures = new();
     private readonly string _runtimeInstanceId = Guid.NewGuid().ToString("N");
@@ -286,6 +287,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
         {
             _cts?.Dispose();
             _writeGate.Dispose();
+            _freshnessGate.Dispose();
             await _transport.DisposeAsync();
         }
     }
@@ -370,27 +372,35 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
 
             foreach (var point in _freshnessPoints)
             {
-                DateTimeOffset reference;
-                lock (_diagnosticsGate)
+                await _freshnessGate.WaitAsync(cancellationToken);
+                try
                 {
-                    if (!_freshnessReferenceByTagId.TryGetValue(point.Tag.Id, out reference))
+                    DateTimeOffset reference;
+                    lock (_diagnosticsGate)
+                    {
+                        if (!_freshnessReferenceByTagId.TryGetValue(point.Tag.Id, out reference))
+                            continue;
+                    }
+
+                    var timeout = point.FreshnessTimeout!.Value;
+                    if (now - reference <= timeout)
                         continue;
+                    if (!_cache.TryGet(point.Tag.Id, out var current) || current is null || current.Quality != TagQuality.Good)
+                        continue;
+
+                    var stale = current with
+                    {
+                        Timestamp = now,
+                        Quality = TagQuality.Stale
+                    };
+                    await _cache.UpdateAsync(point.Tag, stale, cancellationToken);
+                    Interlocked.Increment(ref _updatesPublished);
+                    lock (_diagnosticsGate) _freshnessTransitions++;
                 }
-
-                var timeout = point.FreshnessTimeout!.Value;
-                if (now - reference <= timeout)
-                    continue;
-                if (!_cache.TryGet(point.Tag.Id, out var current) || current is null || current.Quality != TagQuality.Good)
-                    continue;
-
-                var stale = current with
+                finally
                 {
-                    Timestamp = now,
-                    Quality = TagQuality.Stale
-                };
-                await _cache.UpdateAsync(point.Tag, stale, cancellationToken);
-                Interlocked.Increment(ref _updatesPublished);
-                lock (_diagnosticsGate) _freshnessTransitions++;
+                    _freshnessGate.Release();
+                }
             }
         }
     }
@@ -504,15 +514,8 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
                 {
                     SourceTimestamp = decoded.SourceTimestamp
                 };
-                await _cache.UpdateAsync(point.Tag, sample, cancellationToken);
-                Interlocked.Increment(ref _updatesPublished);
+                await PublishAcceptedSampleAsync(point, sample, freshnessReference, message.ReceivedAtUtc, cancellationToken);
                 RecordUntimedOutcome(success: true, null);
-                lock (_diagnosticsGate)
-                {
-                    _lastAcceptedMessageAt = message.ReceivedAtUtc;
-                    if (point.FreshnessTimeout.HasValue)
-                        _freshnessReferenceByTagId[point.Tag.Id] = freshnessReference;
-                }
             }
             catch (MqttPayloadException ex)
             {
@@ -536,7 +539,58 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
         }
     }
 
+    private async Task PublishAcceptedSampleAsync(
+        MqttPoint point,
+        TagValue sample,
+        DateTimeOffset freshnessReference,
+        DateTimeOffset receivedAtUtc,
+        CancellationToken cancellationToken)
+    {
+        if (!point.FreshnessTimeout.HasValue)
+        {
+            await _cache.UpdateAsync(point.Tag, sample, cancellationToken);
+            Interlocked.Increment(ref _updatesPublished);
+            lock (_diagnosticsGate) _lastAcceptedMessageAt = receivedAtUtc;
+            return;
+        }
+
+        await _freshnessGate.WaitAsync(cancellationToken);
+        try
+        {
+            await _cache.UpdateAsync(point.Tag, sample, cancellationToken);
+            Interlocked.Increment(ref _updatesPublished);
+            lock (_diagnosticsGate)
+            {
+                _lastAcceptedMessageAt = receivedAtUtc;
+                _freshnessReferenceByTagId[point.Tag.Id] = freshnessReference;
+            }
+        }
+        finally
+        {
+            _freshnessGate.Release();
+        }
+    }
+
     private async Task PublishFailureAsync(MqttPoint point, TagQuality quality, CancellationToken cancellationToken)
+    {
+        if (!point.FreshnessTimeout.HasValue)
+        {
+            await PublishFailureCoreAsync(point, quality, cancellationToken);
+            return;
+        }
+
+        await _freshnessGate.WaitAsync(cancellationToken);
+        try
+        {
+            await PublishFailureCoreAsync(point, quality, cancellationToken);
+        }
+        finally
+        {
+            _freshnessGate.Release();
+        }
+    }
+
+    private async Task PublishFailureCoreAsync(MqttPoint point, TagQuality quality, CancellationToken cancellationToken)
     {
         _cache.TryGet(point.Tag.Id, out var previous);
         var sample = new TagValue(

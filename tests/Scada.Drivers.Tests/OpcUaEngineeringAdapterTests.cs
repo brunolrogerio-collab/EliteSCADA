@@ -5,6 +5,10 @@ namespace Scada.Drivers.Tests;
 
 public sealed class OpcUaEngineeringAdapterTests
 {
+    private const string Basic256Sha256 = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256";
+    private const string Aes128Sha256RsaOaep = "http://opcfoundation.org/UA/SecurityPolicy#Aes128_Sha256_RsaOaep";
+    private const string SecurityPolicyNone = "http://opcfoundation.org/UA/SecurityPolicy#None";
+
     [Fact]
     public async Task DiscoverAsync_DeduplicatesBoundsAndSanitizesCandidates()
     {
@@ -104,17 +108,123 @@ public sealed class OpcUaEngineeringAdapterTests
             await adapter.BrowseAsync(new DriverBrowseRequest(CreateContext(), PageSize: 1)));
     }
 
-    private static OpcUaEndpointDiscoveryEvidence CreateEndpoint(string endpointUrl, string applicationUri) =>
+    [Fact]
+    public async Task Adapter_AllowsIndependentDiscoveryAndBrowseTransports()
+    {
+        var discovery = new DiscoveryOnlyTransport([CreateEndpoint("opc.tcp://plc01:4840", "urn:plant:plc01")]);
+        var browse = new BrowseOnlyTransport(new OpcUaBrowseTransportPage(
+            [new OpcUaBrowseNodeEvidence("ns=1;i=1", null, "Area", "Area", OpcUaBrowseNodeClass.Object, false, false)]));
+        var adapter = new OpcUaEngineeringAdapter(discovery, browse);
+
+        var candidates = new List<DriverDiscoveryCandidate>();
+        await foreach (var candidate in adapter.DiscoverAsync(new DriverDiscoveryRequest(MaximumResults: 1)))
+        {
+            candidates.Add(candidate);
+        }
+
+        var page = await adapter.BrowseAsync(new DriverBrowseRequest(CreateContext(), PageSize: 1));
+
+        Assert.Single(candidates);
+        Assert.Single(page.Nodes);
+        Assert.NotNull(discovery.LastRequest);
+        Assert.NotNull(browse.LastRequest);
+    }
+
+    [Fact]
+    public void EndpointSelector_PrefersTrustedEncryptedEndpointDeterministically()
+    {
+        var sign = CreateEndpoint(
+            "opc.tcp://plc01:4840/sign",
+            "urn:plant:plc01",
+            securityMode: "Sign",
+            securityPolicyUri: Basic256Sha256,
+            trusted: true);
+        var encrypted = CreateEndpoint(
+            "opc.tcp://plc01:4840/encrypted",
+            "urn:plant:plc01",
+            securityMode: "SignAndEncrypt",
+            securityPolicyUri: Aes128Sha256RsaOaep,
+            trusted: true);
+
+        var result = OpcUaEndpointSelector.Select(new OpcUaEndpointSelectionRequest([sign, encrypted]));
+
+        Assert.True(result.Success);
+        Assert.Same(encrypted, result.Endpoint);
+        Assert.Empty(result.Issues);
+    }
+
+    [Fact]
+    public void EndpointSelector_DoesNotDowngradeExplicitSecurityPolicy()
+    {
+        var endpoint = CreateEndpoint(
+            "opc.tcp://plc01:4840",
+            "urn:plant:plc01",
+            securityPolicyUri: Basic256Sha256,
+            trusted: true);
+
+        var result = OpcUaEndpointSelector.Select(new OpcUaEndpointSelectionRequest(
+            [endpoint],
+            SecurityMode: "SignAndEncrypt",
+            SecurityPolicyUri: Aes128Sha256RsaOaep));
+
+        Assert.False(result.Success);
+        Assert.Null(result.Endpoint);
+        Assert.Contains(result.Issues, issue => issue.Code == "OPCUA_ENDPOINT_SELECTION_NO_MATCH");
+    }
+
+    [Fact]
+    public void EndpointSelector_RequiresTrustedCertificateByDefault()
+    {
+        var endpoint = CreateEndpoint(
+            "opc.tcp://plc01:4840",
+            "urn:plant:plc01",
+            trusted: false);
+
+        var result = OpcUaEndpointSelector.Select(new OpcUaEndpointSelectionRequest([endpoint]));
+
+        Assert.False(result.Success);
+        Assert.Null(result.Endpoint);
+    }
+
+    [Fact]
+    public void EndpointSelector_AllowsInsecureEndpointOnlyWithExplicitRelaxationAndWarning()
+    {
+        var endpoint = CreateEndpoint(
+            "opc.tcp://lab-plc:4840",
+            "urn:lab:plc",
+            securityMode: "None",
+            securityPolicyUri: SecurityPolicyNone,
+            trusted: null);
+
+        var result = OpcUaEndpointSelector.Select(new OpcUaEndpointSelectionRequest(
+            [endpoint],
+            RequireTrustedServerCertificate: false,
+            AllowSecurityModeNone: true,
+            AllowDeprecatedSecurityPolicy: true));
+
+        Assert.True(result.Success);
+        Assert.Contains(result.Issues, issue => issue.Code == "OPCUA_ENDPOINT_INSECURE_MODE");
+        Assert.Contains(result.Issues, issue => issue.Code == "OPCUA_ENDPOINT_DEPRECATED_POLICY");
+    }
+
+    private static OpcUaEndpointDiscoveryEvidence CreateEndpoint(
+        string endpointUrl,
+        string applicationUri,
+        string securityMode = "SignAndEncrypt",
+        string securityPolicyUri = Basic256Sha256,
+        bool? trusted = true,
+        IReadOnlyCollection<string>? userTokenTypes = null) =>
         new(
             EndpointUrl: endpointUrl,
             ApplicationUri: applicationUri,
             ApplicationName: "Plant OPC UA",
             ProductUri: "urn:vendor:product",
             TransportProfileUri: "http://opcfoundation.org/UA-Profile/Transport/uatcp-uasc-uabinary",
-            SecurityMode: "SignAndEncrypt",
-            SecurityPolicyUri: "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
-            UserTokenTypes: ["Anonymous", "UserName"],
-            ServerCertificateThumbprint: "AABBCC");
+            SecurityMode: securityMode,
+            SecurityPolicyUri: securityPolicyUri,
+            UserTokenTypes: userTokenTypes ?? ["Anonymous", "UserName"],
+            ServerCertificateThumbprint: "AABBCC",
+            IsServerCertificateTrusted: trusted);
 
     private static DriverEngineeringDataSourceContext CreateContext() =>
         new(
@@ -125,7 +235,7 @@ public sealed class OpcUaEngineeringAdapterTests
             {
                 ["endpointUrl"] = "opc.tcp://plc01:4840",
                 ["securityMode"] = "SignAndEncrypt",
-                ["securityPolicyUri"] = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256"
+                ["securityPolicyUri"] = Basic256Sha256
             },
             SecretReferences: new Dictionary<string, string>());
 
@@ -166,6 +276,52 @@ public sealed class OpcUaEngineeringAdapterTests
             cancellationToken.ThrowIfCancellationRequested();
             LastBrowseRequest = request;
             return ValueTask.FromResult(_browsePage);
+        }
+    }
+
+    private sealed class DiscoveryOnlyTransport : IOpcUaEndpointDiscoveryTransport
+    {
+        private readonly IReadOnlyCollection<OpcUaEndpointDiscoveryEvidence> _endpoints;
+
+        public DiscoveryOnlyTransport(IReadOnlyCollection<OpcUaEndpointDiscoveryEvidence> endpoints)
+        {
+            _endpoints = endpoints;
+        }
+
+        public OpcUaEndpointDiscoveryRequest? LastRequest { get; private set; }
+
+        public async IAsyncEnumerable<OpcUaEndpointDiscoveryEvidence> DiscoverEndpointsAsync(
+            OpcUaEndpointDiscoveryRequest request,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            LastRequest = request;
+            foreach (var endpoint in _endpoints)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await Task.Yield();
+                yield return endpoint;
+            }
+        }
+    }
+
+    private sealed class BrowseOnlyTransport : IOpcUaBrowseTransport
+    {
+        private readonly OpcUaBrowseTransportPage _page;
+
+        public BrowseOnlyTransport(OpcUaBrowseTransportPage page)
+        {
+            _page = page;
+        }
+
+        public OpcUaBrowseTransportRequest? LastRequest { get; private set; }
+
+        public ValueTask<OpcUaBrowseTransportPage> BrowseAsync(
+            OpcUaBrowseTransportRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            LastRequest = request;
+            return ValueTask.FromResult(_page);
         }
     }
 }

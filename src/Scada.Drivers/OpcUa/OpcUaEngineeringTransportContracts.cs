@@ -75,17 +75,33 @@ public sealed record OpcUaBrowseTransportPage(
     IReadOnlyCollection<DriverEngineeringIssue>? Issues = null);
 
 /// <summary>
-/// Narrow transport seam used by Engineering. The official OPC Foundation client
-/// stack will live behind this interface so its session, endpoint and continuation
-/// point types never become public EliteSCADA contracts.
+/// Discovery-only seam. Implementations may enumerate endpoints without opening
+/// an authenticated OPC UA Session and without depending on browse/session state.
 /// </summary>
-public interface IOpcUaEngineeringTransport
+public interface IOpcUaEndpointDiscoveryTransport
 {
     IAsyncEnumerable<OpcUaEndpointDiscoveryEvidence> DiscoverEndpointsAsync(
         OpcUaEndpointDiscoveryRequest request,
         CancellationToken cancellationToken = default);
+}
 
+/// <summary>
+/// Browse-only seam. Implementations may require a protected temporary session,
+/// but SDK session and continuation-point types stay private to the transport.
+/// </summary>
+public interface IOpcUaBrowseTransport
+{
     ValueTask<OpcUaBrowseTransportPage> BrowseAsync(
         OpcUaBrowseTransportRequest request,
         CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Convenience aggregate for transports that provide both discovery and browse.
+/// Consumers should depend on the narrower interfaces whenever only one capability is needed.
+/// </summary>
+public interface IOpcUaEngineeringTransport :
+    IOpcUaEndpointDiscoveryTransport,
+    IOpcUaBrowseTransport
+{
 }

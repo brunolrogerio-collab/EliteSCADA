@@ -18,11 +18,20 @@ public sealed class OpcUaEngineeringAdapter :
     public const int DefaultBrowsePageSize = 200;
     public const int HardBrowsePageSize = 500;
 
-    private readonly IOpcUaEngineeringTransport _transport;
+    private readonly IOpcUaEndpointDiscoveryTransport _discoveryTransport;
+    private readonly IOpcUaBrowseTransport _browseTransport;
 
     public OpcUaEngineeringAdapter(IOpcUaEngineeringTransport transport)
+        : this(transport, transport)
     {
-        _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+    }
+
+    public OpcUaEngineeringAdapter(
+        IOpcUaEndpointDiscoveryTransport discoveryTransport,
+        IOpcUaBrowseTransport browseTransport)
+    {
+        _discoveryTransport = discoveryTransport ?? throw new ArgumentNullException(nameof(discoveryTransport));
+        _browseTransport = browseTransport ?? throw new ArgumentNullException(nameof(browseTransport));
     }
 
     public CommunicationDriverTypeDescriptor Descriptor => OpcUaDriverDescriptorProvider.Definition;
@@ -44,7 +53,7 @@ public sealed class OpcUaEngineeringAdapter :
         var identities = new HashSet<string>(StringComparer.Ordinal);
         var emitted = 0;
 
-        await foreach (var endpoint in _transport.DiscoverEndpointsAsync(transportRequest, cancellationToken))
+        await foreach (var endpoint in _discoveryTransport.DiscoverEndpointsAsync(transportRequest, cancellationToken))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -91,7 +100,7 @@ public sealed class OpcUaEngineeringAdapter :
             pageSize,
             request.Parameters);
 
-        var transportPage = await _transport.BrowseAsync(transportRequest, cancellationToken);
+        var transportPage = await _browseTransport.BrowseAsync(transportRequest, cancellationToken);
         if (transportPage.Nodes.Count > pageSize)
         {
             throw new InvalidOperationException(

@@ -8,6 +8,7 @@ import {
 } from '../src/engineering/project-reference/projectReferenceModel';
 
 const STATUS_TAG_ID = '11111111-2222-3333-4444-555555555555';
+const CLIENT_MEMORY_ID = '66666666-7777-8888-9999-aaaaaaaaaaaa';
 
 const packageView: EngineeringPackageView = {
   schema: 'elite-scada-engineering',
@@ -20,8 +21,9 @@ const packageView: EngineeringPackageView = {
   alarms: []
 };
 
-test('Client Memory keeps canonical path separate from display name in the shared project reference catalog', () => {
+test('Client Memory keeps friendly path plus stable canonical ID in the shared project reference catalog', () => {
   const catalog = buildProjectReferenceCatalog(packageView, [{
+    id: CLIENT_MEMORY_ID,
     name: 'Operator selection',
     path: 'Client.UI.OperatorSelection',
     dataType: 'Int64',
@@ -35,14 +37,30 @@ test('Client Memory keeps canonical path separate from display name in the share
     label: 'Operator selection',
     dataType: 'Int64',
     bindingKind: 'ClientMemory',
-    writable: true
+    writable: true,
+    tagReference: { tagId: CLIENT_MEMORY_ID },
+    selectorCapability: null
   });
   expect(memory?.pathSegments).toEqual(['Client', 'UI', 'OperatorSelection']);
+  expect(projectReferenceIdentity(memory!)).toBe(`tag:${CLIENT_MEMORY_ID}`);
+});
+
+test('Client Memory canonical identity survives a friendly path rename', () => {
+  const before = buildProjectReferenceCatalog(packageView, [{
+    id: CLIENT_MEMORY_ID, name: 'Selection', path: 'Client.Selection', dataType: 'Boolean'
+  }]).find(item => item.family === 'clientMemory')!;
+  const after = buildProjectReferenceCatalog(packageView, [{
+    id: CLIENT_MEMORY_ID, name: 'Selection renamed', path: 'Client.UI.SelectionRenamed', dataType: 'Boolean'
+  }]).find(item => item.family === 'clientMemory')!;
+
+  expect(before.reference).not.toBe(after.reference);
+  expect(projectReferenceIdentity(before)).toBe(projectReferenceIdentity(after));
+  expect(after.tagReference).toEqual({ tagId: CLIENT_MEMORY_ID });
 });
 
 test('shared reference compatibility is strict for typed properties but permits scalar dynamic text', () => {
   const catalog = buildProjectReferenceCatalog(packageView, [{
-    name: 'Counter', path: 'Client.Counter', dataType: 'Int64', initialValue: '0'
+    id: CLIENT_MEMORY_ID, name: 'Counter', path: 'Client.Counter', dataType: 'Int64', initialValue: '0'
   }]);
   const boolTag = catalog.find(item => item.reference === 'Plant.P01.Running')!;
   const counter = catalog.find(item => item.reference === 'Client.Counter')!;

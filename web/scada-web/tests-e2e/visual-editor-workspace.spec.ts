@@ -270,10 +270,9 @@ test('FOLLOW-B mounted editor persists expression, Boolean Condition and Analog 
 });
 
 async function selectSourceByPath(select: import('@playwright/test').Locator, path: string): Promise<void> {
-  const option = select.locator('option').filter({ hasText: path }).first();
-  const label = await option.textContent();
-  expect(label, `expected canonical source option for ${path}`).toBeTruthy();
-  await select.selectOption({ label: label! });
+  const option = select.locator(`option[value="${path.replaceAll('"', '\\"')}"]`);
+  await expect(option, `expected canonical source option for ${path}`).toHaveCount(1);
+  await select.selectOption(path);
 }
 
 function flatten(elements: readonly ExportedVisualElement[]): ExportedVisualElement[] {

@@ -1,238 +1,220 @@
 # COORDINATOR HANDOFF — EliteSCADA
 
-> Persistent coordinator resume checkpoint. New coordinator chats must use this document together with the mandatory current `main` documents and then verify the real GitHub branch/PR/CI state before acting.
+> Persistent coordinator resume checkpoint. New coordinator chats must use this document together with the mandatory current `main` documents and then verify real GitHub branch/PR/CI state before acting.
 
 **Handoff date:** 2026-08-28  
 **Current wave:** `GRAPHICAL-EDITOR-WAVE-08`  
-**Wave status:** **ACTIVE — PARTIAL COORDINATOR FOUNDATION / NOT CI VALIDATED**  
-**CI mode:** `NORMAL`  
+**Wave status:** **ACTIVE — CENTRAL SCREEN EDITOR FOUNDATION IMPLEMENTED / NOT CI VALIDATED**  
+**CI policy:** `NORMAL`; avoid consuming Actions until owner access/quota is available  
 **Workers:** **STOPPED / WAIT_FOR_COORDINATOR**
 
-## Exact GitHub state at handoff
+## Exact GitHub checkpoint
 
-- `main`: `17fd61a8aca7be09550999120a5347b21b0e58c5` before this handoff-doc synchronization.
+- `main` reconciled commit at this pass: `6399464cadda96aaaa075aff83bed2ce5b67da89`.
+- Wave 08 logical base: `8de706882ba20afedd666532ac41ae11115d06b3`.
 - Wave 08 contract/base: `7a445d3dd94cabd09807291a0ee94276559fcb0e`.
 - Integration branch: `integration/graphical-editor-wave-08`.
-- Exact integration head: `4f8a71f59c5d033265c38c1c0beca2add9bb117b`.
-- Integration vs `main`: diverged; 33 commits ahead / 4 behind; merge-base `7a445d3dd94cabd09807291a0ee94276559fcb0e` at this checkpoint.
-- No GitHub Actions workflow run exists yet for `integration/graphical-editor-wave-08`.
-- No Wave 08 integration PR is open from this coordinator work.
+- Main reconciliation merge on integration: `011d3c649bb868bfcf8d13bfafe896bb0863a153`.
+- Latest coordinator **code** checkpoint before this documentation sync: `a2cdc39a9d7a8dcf425aab6a253d6bb0694faab1`.
+- After reconciliation, GitHub compare reported integration **0 behind `main`**.
+- No Wave 08 GitHub Actions validation exists yet.
+- No Wave 08 integration PR exists yet.
 
-Worker branch heads are all still exactly at the Wave 08 contract base and contain no worker implementation:
+Documentation-only commits after the code checkpoint are valid successors; always verify the live branch head before acting.
+
+Worker branches remain preserved at the contract base unless GitHub proves otherwise:
 
 - DEV 1 `feature/graphical-editor-wave-08-canvas`: `7a445d3dd94cabd09807291a0ee94276559fcb0e`.
 - DEV 2 `feature/graphical-editor-wave-08-property-inspector`: `7a445d3dd94cabd09807291a0ee94276559fcb0e`.
 - DEV 3 `feature/graphical-editor-wave-08-palette-bindings`: `7a445d3dd94cabd09807291a0ee94276559fcb0e`.
 
-Owner explicitly instructed that the DEV chats are stopped. Do not assume background or pending worker deliveries.
+Owner explicitly stopped the DEV chats. Preserved assignments do not authorize execution.
 
-## Coordinator implementation already present on integration
+## Coordinator implementation present on integration
 
-### Engineering Schema v13 / first-class Visual Assets
+### 1. Engineering Schema v13 / first-class Visual Assets
 
-Wave 08 advances the integration branch to Engineering Schema v13 for first-class raster asset metadata while preserving historical schema compatibility.
+Implemented and source-reviewed, but not yet exact-head CI validated:
+
+- `VisualAssetEngineeringDto` canonical metadata entity;
+- stable project/reference identity via `VisualAssetEngineeringDto.Id`;
+- developer-facing `Key` remains separate from canonical identity;
+- content-addressed SHA-256 Working payload registry;
+- canonical `assetRef = null | { assetId }` unchanged;
+- Schema v13 `core.image.assetRef.assetId` resolves by stable Visual Asset `Id`;
+- unknown/dangling asset references fail closed;
+- same-Key/different-Id imports fail closed;
+- Schema v12 remains readable as asset-free historical Engineering.
+
+Identity rule remains locked:
+
+`Id = stable project/reference identity`  
+`Key = developer-facing key`  
+`Sha256 = immutable content identity`
+
+Do not convert references to key-based resolution.
+
+### 2. Raster safety / project package / revision persistence
 
 Implemented:
 
-- `VisualAssetEngineeringDto` canonical metadata entity;
-- stable project-reference identity via `VisualAssetEngineeringDto.Id`;
-- `Key` remains developer-facing and is not canonical reference identity;
-- asset payload registry with content-addressed SHA-256 bytes;
-- canonical `assetRef = null | { assetId }` remains unchanged;
-- for Schema v13 `core.image.assetRef.assetId` resolves against stable Visual Asset `Id`, not `Key`;
-- unknown/dangling v13 asset references fail closed;
-- same-Key/different-Id import conflicts fail closed to prevent identity substitution;
-- Schema v12 remains readable as asset-free historical Engineering.
+- bounded PNG/JPEG/BMP structural inspection;
+- 16 MiB maximum raster payload;
+- 16384 maximum pixel dimension;
+- Working Visual Asset authority owned by `EngineeringWorkspace`;
+- PostgreSQL content-addressed asset blobs plus immutable revision links;
+- revision save/load/Preview/Apply/checkout/rollback includes exact asset payload state;
+- `.escadapkg` v2 contains `manifest.json`, `engineering.json`, and `assets/<lowercase-sha256>` sidecars;
+- v1 asset-free package compatibility remains;
+- malformed, unexpected, missing or metadata-inconsistent sidecars fail closed;
+- protected Visual Asset API uses Engineering CAS/authorization/Audit;
+- frontend has asset catalog/import/content seams using project-controlled stable identities.
 
-Important identity rule:
+Earlier source review corrected several concrete defects: invalid C# `EndsWith` overload, asset registry authority outside Workspace, checkout payload omission, rollback payload omission, malformed raster package bypass, and key/ID substitution risk.
 
-`VisualAssetEngineeringDto.Id` = stable project/reference identity.  
-`VisualAssetEngineeringDto.Key` = developer-facing key only.  
-`Sha256` = immutable content identity.
+### 3. Central graphical Screen editor foundation
 
-Do not change this into key-based reference resolution.
+Coordinator-owned central composition now exists under:
 
-### Raster validation / safety
+- `web/scada-web/src/engineering/visual-editor/VisualEditorWorkspace.tsx`;
+- `web/scada-web/src/engineering/visual-editor/CanonicalVisualRenderer.tsx`;
+- `web/scada-web/src/engineering/visual-editor/visualEditorCanonicalModel.ts`;
+- `web/scada-web/src/engineering/visual-editor/VisualEditorWorkspace.css`;
+- `web/scada-web/src/engineering/EngineeringApp.tsx` integration.
 
-Implemented backend validation for Wave 08 supported families:
+Current behavior:
 
-- PNG;
-- JPEG/JPG;
-- BMP.
+- Engineering `Telas` opens the graphical editor foundation instead of the prior read-only table;
+- the left surface selects existing Screens or starts a new Screen draft;
+- central composition reserves explicit Object Palette / Canvas / Property Inspector boundaries for worker delivery;
+- Screen name/key/route are edited on a canonical `ScreenEngineering` draft;
+- no private Canvas document/project persistence exists;
+- helper functions clone canonical Engineering, replace only the selected Screen candidate, update visual tree nodes by stable object ID and recursively count objects;
+- Preview builds the candidate from the public Engineering package and uses the existing `/api/engineering/import/json/preview` authority;
+- Workspace `changeVersion` is checked before and after Preview so validation fails if canonical Working changed during the preview window;
+- Apply uses the existing protected public Engineering Apply path with the retained expected Workspace version;
+- backend mutation lock/CAS/authorization/Audit therefore remain the mutation authority;
+- successful Apply reloads canonical Engineering;
+- central copy is present in PT-BR, EN and ES.
 
-Limits remain locked by `docs/VISUAL-ASSET-STORAGE-WAVE-08.md`:
+### 4. Renderer behavior and legacy compatibility
 
-- 16 MiB maximum per raster payload;
-- 16384 maximum pixel dimension.
+For Wave 07/08 registered object types:
 
-`RasterImageInspector` now validates bounded structural shape rather than trusting filename/MIME alone:
+- renderer uses the shared built-in `core.*` schema registry;
+- registry defaults are used only as runtime/editor projection defaults and are not persisted merely by rendering;
+- explicit canonical Engineering values are decoded through the shared property codec;
+- `core.image` content resolves through stable project `assetRef` via the existing asset content endpoint;
+- groups recurse through canonical `children`.
 
-- PNG requires signature, canonical IHDR, chunk traversal, IDAT and terminal IEND;
-- JPEG requires SOF/SOS and terminal EOI with bounded segment traversal;
-- BMP validates header/DIB/pixel offset/declared size coherence;
-- malformed/truncated payloads fail closed.
+Important compatibility boundary discovered during this pass:
 
-`VisualAssetEngineeringValidator` also calls the raster inspector when bytes are available, so `.escadapkg`, revision restore and direct upload use the same structural validation rather than leaving a package-side bypass.
+The current demo seed still contains historical visual types such as `tank`, `dynamo`, `value` and `status`. These are not silently migrated by the frontend and are not treated as new registered `core.*` objects. The central renderer shows them as non-authoritative compatibility placeholders using only their existing canonical label/x/y when available. This prevents an ugly error-only demo while avoiding a second property/type authority.
 
-### Working asset authority / composition
+Do not turn this compatibility projection into persisted migration logic. Backend/schema migration remains the proper authority for any future formal conversion.
 
-A single canonical Working Visual Asset registry is owned by `EngineeringWorkspace` and shared through DI with:
+### 5. Screen Preview/Apply/reopen test
 
-- `EngineeringExchangeService`;
-- project persistence;
-- project package service;
-- Visual Asset API;
-- view/reference validation.
+Added:
 
-This corrected an earlier integration defect where asset state could exist outside `EngineeringWorkspace` and survive checkout/clear incorrectly.
+`web/scada-web/tests-e2e/visual-editor-workspace.spec.ts`
 
-### Persistence / revision semantics
+The test:
 
-Implemented asset-aware revision persistence:
+1. exports the original Engineering package;
+2. opens `Engineering -> Telas`;
+3. selects the seeded Screen;
+4. edits its canonical route;
+5. proves Apply is disabled before Preview;
+6. runs Preview and requires a valid candidate;
+7. applies through the UI;
+8. confirms the canonical exported Screen changed;
+9. confirms the editor reopens with the persisted route;
+10. verifies Workspace version advanced;
+11. restores the original package in `finally`.
 
-- PostgreSQL content-addressed blob table;
-- immutable revision-to-asset links;
-- save revision JSON + required asset payload links transactionally;
-- load exact revision asset payload set;
-- Preview/Apply validates metadata/hash/length/media/structure;
-- checkout now loads revision payloads before Preview/Apply;
-- checkout rollback preserves both Engineering JSON and asset payload state;
-- same logical Asset ID may point to a new hash in a later revision without mutating the older revision.
+This test is committed but **has not been executed by GitHub Actions yet**.
 
-This fixed a concrete lifecycle bug discovered during review: checkout originally loaded only `engineering.json`, so a revision containing an image would report missing payload and rollback could lose Working asset bytes.
+## Commits from this coordinator continuation
 
-### `.escadapkg` v2
+Important implementation checkpoints include:
 
-Implemented Project Package format v2 foundation:
+- `40575736afa88d022135d337047e3d7e751b93ce` — canonical Screen editor mutation helpers;
+- `b60b1e8773c8f6dce4ccec728951176c9cde37f6` — canonical visual preview renderer;
+- `f24ca883688655c0b4939982546fa483a270fcde` — central Screen editor workspace;
+- `82d1a5d3be3347cfd182022eeb8b3611d08be71f` — editor composition styling;
+- `14614ba1ef6ce6ea1cfc84fc066843de34706c64` — connect Screen editor into Engineering;
+- `280c5509dc1253587ba1886a6364e9ea5660917e` — tolerate backend-assigned Screen ID when matching selection;
+- `011d3c649bb868bfcf8d13bfafe896bb0863a153` — merge current `main` coordination state into integration;
+- `2c5dbbf80346b61350ee344dd01ca8da2fc218cb` — Screen Preview/Apply/reopen E2E;
+- `6b089c3190b594b0a8c71ab9aaffa69090df4670` — legacy visual compatibility placeholders;
+- `a2cdc39a9d7a8dcf425aab6a253d6bb0694faab1` — placeholder styling / latest code checkpoint before docs sync.
 
-- `manifest.json`;
-- `engineering.json`;
-- `assets/<lowercase-sha256>` sidecars;
-- sidecar/hash/length/media checks;
-- unexpected/missing sidecars fail closed;
-- Inspect/Preview do not mutate Working;
-- Apply receives payloads only through the validated import context;
-- v1 asset-free package compatibility retained.
+## Current validation evidence and limits
 
-A deterministic compile blocker in the initial package implementation was found and fixed before CI (`EndsWith(char, StringComparison)` invalid overload).
+Available:
 
-Package request/service total size handling was aligned to a common bounded policy in the integration work. Recheck the exact current constants before changing them.
+- static/source review against actual GitHub branch contents;
+- backend Preview/Apply CAS/Audit path inspected and reused rather than duplicated;
+- Screen validator and View handler inspected;
+- existing secured TAG/Data Source/Alarm editors confirmed as precedent for full-package candidate Preview/Apply;
+- integration reconciled with current `main` and verified 0 behind at the checkpoint;
+- new focused E2E test committed;
+- new TypeScript/TSX files were syntax-reviewed locally, but that is not equivalent to the repository build.
 
-### Visual Asset API / frontend seam
+Not available yet:
 
-Coordinator-owned API foundation exists for project-controlled Visual Assets, including:
+- authoritative `npm run build` on the exact integration head;
+- .NET Release build/full tests;
+- PostgreSQL/Timescale integration tests;
+- Runtime smoke;
+- Playwright Chromium execution;
+- full exact-head GitHub Actions matrix.
 
-- asset catalog/read seam;
-- binary image import under Engineering Workspace CAS;
-- `EngineeringModify` authorization;
-- Audit recording;
-- validated content serving by stable asset identity;
-- canonical response/reference data without source filesystem authority.
+Do not call Wave 08 validated or merge-ready.
 
-Frontend Engineering contracts now include Visual Asset metadata plus API helpers for:
+## Remaining Wave 08 work
 
-- loading asset catalog;
-- binary asset import with expected Workspace version;
-- project-controlled asset content URL;
-- `visualAssets` in the Engineering snapshot.
+Coordinator foundation is advanced, but the actual interactive graphical editor still needs the preserved worker slices:
 
-This is infrastructure only. No Canvas/Property Inspector/Object Palette functional implementation was added by the coordinator.
+- DEV 1: Canvas/selection, zoom/pan/grid/snap, move/resize/rotate, duplicate/delete/z-order intents;
+- DEV 2: Property Inspector driven only by the shared Visual Property Registry;
+- DEV 3: registered Object Palette + canonical binding authoring foundation.
 
-## Source-level defects found and corrected during this pass
+After worker delivery, coordinator must integrate their intents into canonical Screen draft mutation without letting transient selection/viewport/adornment state become persisted Engineering.
 
-Do not regress these fixes:
+Still pending globally:
 
-1. invalid C# `EndsWith(char, StringComparison)` overload in package path validation;
-2. Visual Asset registry originally outside `EngineeringWorkspace`, allowing stale/ghost asset state across checkout;
-3. checkout/revision restore originally omitted revision asset payloads;
-4. checkout rollback originally backed up only JSON, not Working asset bytes;
-5. `.escadapkg` could otherwise carry hash-correct but structurally invalid raster bytes if only upload performed deep validation;
-6. same developer `Key` with a different stable asset `Id` could otherwise cause Apply to preserve old ID while screens referenced the imported new ID;
-7. existing Wave 07 Schema-v12/current-version test expectations needed adjustment after current Engineering advanced to v13.
+- exact-head build/test evidence for coordinator code;
+- worker implementation/integration;
+- object creation and geometry editing through the integrated UI;
+- registered property editing;
+- canonical binding authoring;
+- image object workflow using stable `assetRef`;
+- complete save/reopen/export/import gate;
+- final Wave 08 PR/CI/merge/post-merge health.
 
-The last three compatibility commits on integration are:
+Wave 09/10 remain forbidden/not active.
 
-- `a1ac34e3e31fa1635a637e0696c424169fe98e85` — keep Schema v12 visual tests compatible with current v13;
-- `941e73a2f049286ce4b76a5b7106deb932f9cf21` — preserve visual identity compatibility through Schema v13;
-- `4f8a71f59c5d033265c38c1c0beca2add9bb117b` — prove Schema v12 asset-free compatibility with v13.
+## Resume procedure
 
-## Tests added on integration but NOT YET EXECUTED IN CI
+On the next `COORDENADOR - EliteSCADA` execution:
 
-Focused source tests now cover:
+1. read current `main`: `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/DEVELOPMENT-WAVES.md`, `docs/CHAT-WORK-ASSIGNMENTS.md`, `docs/CI-USAGE-POLICY.md`, `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`, this handoff and Wave 08 MustReadSpecific docs;
+2. verify real main/integration/worker heads, PRs and Actions;
+3. treat all workers as STOPPED unless deliberately restarted;
+4. continue from `integration/graphical-editor-wave-08`; use `a2cdc39a9d7a8dcf425aab6a253d6bb0694faab1` as the last known code checkpoint before documentation successors;
+5. if Actions access is still unavailable, do not create an unnecessary PR merely to trigger a run; static review and safe coordinator-only cleanup may continue, but do not label it validated;
+6. when Actions is available, run the cheapest meaningful exact-head validation and fix failures before broadening scope;
+7. restart worker chats only deliberately and preserve their existing ownership boundaries;
+8. integrate worker heads only after explicit delivery;
+9. exercise the complete Wave 08 product gate and full exact-head CI;
+10. merge only green, verify post-merge `main`, synchronize docs, close Wave 08, then activate Wave 09.
 
-- supported raster family inspection;
-- structurally truncated raster rejection;
-- validator rejection of hash-correct malformed raster;
-- Schema v13 Visual Asset metadata round-trip;
-- prospective `core.image.assetRef` stable-ID resolution and unknown-ID rejection;
-- `.escadapkg` v2 asset round-trip;
-- Inspect/Preview non-mutation of Working;
-- missing sidecar rejection;
-- `.escadapkg` v1 asset-free compatibility;
-- same-Key/different-Id conflict rejection;
-- PostgreSQL two-revision same-Asset-ID/different-hash immutability.
-
-Files include:
-
-- `tests/Scada.Core.Tests/EngineeringSchemaV13CompatibilityTests.cs`;
-- `tests/Scada.Core.Tests/VisualAssetWave08Tests.cs`;
-- `tests/Scada.Core.Tests/VisualAssetIdentityConflictTests.cs`;
-- `tests/Scada.Persistence.PostgreSql.Tests/PostgreSqlVisualAssetRevisionTests.cs`;
-- updated Wave 07 Schema v11/v12 compatibility tests.
-
-These are implementation evidence only until build/test/CI succeeds on the exact integration head.
-
-## Explicitly NOT complete
-
-Wave 08 is not closeable yet.
-
-Not completed/validated at this checkpoint:
-
-- no Actions run for the Wave 08 integration branch;
-- no exact-head build/test evidence yet for the coordinator asset changes;
-- no Wave 08 integration PR;
-- integration branch is behind current `main` coordination/doc commits and must be reconciled before final exact-head CI;
-- coordinator-owned canonical Screen graphical mutation/save/reopen seam is not yet finished;
-- central graphical editor workspace/route/renderer/localization composition is not yet finished;
-- DEV 1 Canvas/Selection implementation has not started;
-- DEV 2 Property Inspector implementation has not started;
-- DEV 3 Object Palette/Binding implementation has not started;
-- full integrated product gate has not been exercised;
-- Wave 09/10 remain forbidden/not active.
-
-Do not label Wave 08 validated, merge-ready or complete.
-
-## Resume procedure for the next Coordinator chat
-
-On the next `COORDENADOR - EliteSCADA` chat, before changing code:
-
-1. read current `main` mandatory documents:
-   - `PROJECT GOAL.md`;
-   - `LAST CHANGE.md`;
-   - `docs/ROADMAP.md`;
-   - `docs/PARALLEL-WORK.md`;
-   - `docs/DEVELOPMENT-WAVES.md`;
-   - `docs/CHAT-WORK-ASSIGNMENTS.md`;
-   - `docs/CI-USAGE-POLICY.md`;
-   - `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`;
-   - this `docs/COORDINATOR-HANDOFF.md`;
-   - Wave 08 MustReadSpecific documents;
-2. verify real `main`, integration and worker branch heads plus open PR/Actions state;
-3. treat workers as STOPPED unless the owner explicitly restarts them;
-4. continue from `integration/graphical-editor-wave-08`, not from chat memory;
-5. first perform a static/build-risk review of exact integration head `4f8a71f59c5d033265c38c1c0beca2add9bb117b` and reconcile it with current `main` before any final CI/PR;
-6. finish coordinator-owned Screen mutation/save/reopen and central editor composition seams;
-7. only restart/authorize worker chats deliberately, with their scopes unchanged unless the coordinator updates the board;
-8. integrate worker heads only after explicit deliveries;
-9. run focused tests, then full exact-head Wave 08 CI;
-10. merge only after the complete product gate is green and post-merge `main` is healthy.
-
-## Wave 08 final product gate remains unchanged
+## Wave 08 final product gate
 
 The integrated wave must prove:
 
 `Create Screen -> add objects -> move/resize/rotate -> edit registered properties -> canonical binding -> image asset by stable assetRef -> save -> reopen -> export/import`
 
 Transient selection/viewport/adornment state must never become canonical persisted Engineering authority.
-
-Wave 09/10 functionality remains out of scope until Wave 08 is formally closed.

@@ -10,7 +10,7 @@ public sealed record VisualAssetPayload(
 {
     public long ByteLength => Content.LongLength;
 
-    public VisualAssetPayload Clone() => this with { Content = Content.ToArray() };
+    public VisualAssetPayload Copy() => this with { Content = Content.ToArray() };
 
     public static VisualAssetPayload Create(string mediaType, ReadOnlySpan<byte> content)
     {
@@ -157,7 +157,7 @@ public sealed class InMemoryVisualAssetEngineeringRegistry : IVisualAssetEnginee
         if (string.IsNullOrWhiteSpace(sha256)) return null;
         lock (_sync)
             return _payloadsByHash.TryGetValue(sha256, out var payload)
-                ? payload.Clone()
+                ? payload.Copy()
                 : null;
     }
 
@@ -195,7 +195,7 @@ public sealed class InMemoryVisualAssetEngineeringRegistry : IVisualAssetEnginee
 
             return selected.ToDictionary(
                 x => x.Key,
-                x => x.Value.Clone(),
+                x => x.Value.Copy(),
                 StringComparer.OrdinalIgnoreCase);
         }
     }
@@ -224,7 +224,7 @@ public sealed class InMemoryVisualAssetEngineeringRegistry : IVisualAssetEnginee
 
         var normalizedPayloads = payloads.ToDictionary(
             x => x.Sha256,
-            x => x.Clone(),
+            x => x.Copy(),
             StringComparer.OrdinalIgnoreCase);
 
         foreach (var asset in normalizedAssets)

@@ -5,7 +5,7 @@
 **Handoff date:** 2026-08-28  
 **Development state:** **WAVE 08 ACTIVE — CENTRAL FOUNDATION CI GREEN / INTERACTIVE WORKER SLICES STILL PENDING**  
 **CI mode:** **NORMAL — Actions authorized with conservative usage**  
-**DEV workers:** **STOPPED / WAIT_FOR_COORDINATOR**
+**DEV workers:** **STOPPED / WAIT_FOR_COORDINATOR; branches dependency-prepared only**
 
 ## Mandatory resume reading
 
@@ -51,7 +51,7 @@ CI #515 proved on that exact product head:
 - Runtime smoke: **SUCCESS**;
 - Chromium E2E: **SUCCESS**;
 - new `visual-editor-workspace.spec.ts`: **SUCCESS**;
-- prior Wave 06/07 Python/visual regressions executed inside the browser matrix remained green.
+- prior Wave 06/07 Python/visual regressions inside the browser matrix remained green.
 
 Documentation-only successors after `b48b489...` do **not** invalidate that unchanged product evidence. They use `[skip ci]` deliberately to avoid spending Actions on handoff synchronization.
 
@@ -90,17 +90,17 @@ The integration branch contains and CI #515 validates the current central Wave 0
 
 This validation does **not** close Wave 08. PR #90 remains Draft and must not be merged yet.
 
-## Worker state
+## Worker state — STOPPED but dependency-prepared
 
 Owner explicitly stopped the DEV chats. Keep them stopped unless deliberately restarted.
 
-Last verified worker branches remain at contract base unless GitHub proves otherwise:
+The logical worker Base remains `7a445d3dd94cabd09807291a0ee94276559fcb0e`. Coordinator has now seeded only the shared `visualEditorContracts.ts` dependency into each worker branch so they can consume the frozen integration vocabulary without rebasing onto the whole integration branch:
 
-- DEV 1 `feature/graphical-editor-wave-08-canvas` — Canvas / Selection;
-- DEV 2 `feature/graphical-editor-wave-08-property-inspector` — Property Inspector;
-- DEV 3 `feature/graphical-editor-wave-08-palette-bindings` — Object Palette / Binding.
+- DEV 1 `feature/graphical-editor-wave-08-canvas` head **`57521312914e21e303976a81bc81c84ad5aa9cbb`** — coordinator dependency seed only, worker still STOPPED;
+- DEV 2 `feature/graphical-editor-wave-08-property-inspector` head **`3e942ed641d96afe848966f123fb10eaeaa99ed7`** — coordinator dependency seed only, worker still STOPPED;
+- DEV 3 `feature/graphical-editor-wave-08-palette-bindings` head **`df3cd6c332a19bb3011373c95d010f33754c0c12`** — coordinator dependency seed only, worker still STOPPED.
 
-When restarted, all three must consume coordinator-owned `web/scada-web/src/engineering/visual-editor/visualEditorContracts.ts`; they must not invent competing shared intent contracts.
+Those commits are not worker implementation and do not authorize execution. When restarted, all three must consume `web/scada-web/src/engineering/visual-editor/visualEditorContracts.ts`; they must not invent competing shared intent contracts.
 
 ## Actions rule
 
@@ -133,7 +133,7 @@ Wave 09/10 remain NOT ACTIVE.
 1. verify live `main`, PR #90, integration and worker heads before changes;
 2. reuse CI #515 evidence for unchanged central foundation rather than rerunning it;
 3. preserve workers as STOPPED until deliberately restarted;
-4. when restarting them, preserve fixed scopes and require `visualEditorContracts.ts` integration;
+4. if restarting them, use the prepared branch heads above, preserve fixed scopes and require `visualEditorContracts.ts` integration;
 5. review worker deliveries before integrating;
 6. integrate through `integration/graphical-editor-wave-08` only;
 7. use focused validation during integration and reserve the next complete matrix for a meaningful product checkpoint;

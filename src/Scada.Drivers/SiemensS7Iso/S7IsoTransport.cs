@@ -21,6 +21,8 @@ internal sealed record S7IsoTransportDiagnosticSnapshot(
 
 internal sealed class S7IsoTransport : IAsyncDisposable
 {
+    private const int Rfc1006AndCotpHeaderLength = 7;
+
     private readonly S7IsoConnectionOptions _options;
     private readonly SemaphoreSlim _ioGate = new(1, 1);
     private readonly object _diagnosticsGate = new();
@@ -70,9 +72,17 @@ internal sealed class S7IsoTransport : IAsyncDisposable
         {
             await EnsureConnectedUnsafeAsync(cancellationToken);
             var pduSize = _negotiatedPduSize ?? _options.RequestedPduSize;
-            var batches = S7IsoBatchPlanner.PlanReads(points, pduSize);
-            var results = new List<S7IsoReadItemResult>(points.Count);
+            IReadOnlyList<IReadOnlyList<S7IsoPoint>> batches;
+            try
+            {
+                batches = S7IsoBatchPlanner.PlanReads(points, pduSize);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new S7IsoConfigurationException(ex.Message);
+            }
 
+            var results = new List<S7IsoReadItemResult>(points.Count);
             foreach (var batch in batches)
             {
                 var reference = NextPduReference();
@@ -117,8 +127,16 @@ internal sealed class S7IsoTransport : IAsyncDisposable
             await EnsureConnectedUnsafeAsync(cancellationToken);
             var reference = NextPduReference();
             var request = S7IsoProtocol.BuildWriteRequest(reference, point, data.Span);
-            IncrementRequestAttempts();
+            var pduSize = _negotiatedPduSize ?? _options.RequestedPduSize;
+            var requestPduLength = request.Length - Rfc1006AndCotpHeaderLength;
+            if (requestPduLength > pduSize)
+            {
+                throw new S7IsoConfigurationException(
+                    $"S7 write for '{point.Tag.Path}' requires a {requestPduLength}-byte PDU, " +
+                    $"but the peer negotiated {pduSize} bytes.");
+            }
 
+            IncrementRequestAttempts();
             try
             {
                 var response = await ExchangeUnsafeAsync(request, _options.RequestTimeout, cancellationToken);

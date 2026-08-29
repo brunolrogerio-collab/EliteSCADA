@@ -19,6 +19,10 @@ internal sealed record S7IsoTransportDiagnosticSnapshot(
     DateTimeOffset? LastConnectedAt,
     DateTimeOffset? LastDisconnectedAt);
 
+internal sealed record S7IsoReadCollectionResult(
+    IReadOnlyList<S7IsoReadItemResult> Items,
+    IReadOnlyDictionary<S7IsoPoint, string> ConfigurationFailures);
+
 internal sealed class S7IsoTransport : IAsyncDisposable
 {
     private const int Rfc1006AndCotpHeaderLength = 7;
@@ -63,26 +67,61 @@ internal sealed class S7IsoTransport : IAsyncDisposable
         IReadOnlyList<S7IsoPoint> points,
         CancellationToken cancellationToken = default)
     {
+        var detailed = await ReadDetailedAsync(points, cancellationToken);
+        if (detailed.ConfigurationFailures.Count > 0)
+        {
+            throw new S7IsoConfigurationException(string.Join(
+                " ",
+                detailed.ConfigurationFailures.Select(failure => failure.Value)));
+        }
+        return detailed.Items;
+    }
+
+    public async Task<S7IsoReadCollectionResult> ReadDetailedAsync(
+        IReadOnlyList<S7IsoPoint> points,
+        CancellationToken cancellationToken = default)
+    {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(points);
-        if (points.Count == 0) return Array.Empty<S7IsoReadItemResult>();
+        if (points.Count == 0)
+            return new S7IsoReadCollectionResult(
+                Array.Empty<S7IsoReadItemResult>(),
+                new Dictionary<S7IsoPoint, string>());
 
         await _ioGate.WaitAsync(cancellationToken);
         try
         {
             await EnsureConnectedUnsafeAsync(cancellationToken);
             var pduSize = _negotiatedPduSize ?? _options.RequestedPduSize;
+            var validPoints = new List<S7IsoPoint>(points.Count);
+            var configurationFailures = new Dictionary<S7IsoPoint, string>();
+
+            foreach (var point in points)
+            {
+                try
+                {
+                    _ = S7IsoBatchPlanner.PlanReads(new[] { point }, pduSize);
+                    validPoints.Add(point);
+                }
+                catch (ArgumentException ex)
+                {
+                    configurationFailures[point] = ex.Message;
+                }
+            }
+
             IReadOnlyList<IReadOnlyList<S7IsoPoint>> batches;
             try
             {
-                batches = S7IsoBatchPlanner.PlanReads(points, pduSize);
+                batches = validPoints.Count == 0
+                    ? Array.Empty<IReadOnlyList<S7IsoPoint>>()
+                    : S7IsoBatchPlanner.PlanReads(validPoints, pduSize);
             }
             catch (ArgumentException ex)
             {
                 throw new S7IsoConfigurationException(ex.Message);
             }
 
-            var results = new List<S7IsoReadItemResult>(points.Count);
+            var results = new List<S7IsoReadItemResult>(validPoints.Count);
             foreach (var batch in batches)
             {
                 var reference = NextPduReference();
@@ -105,7 +144,7 @@ internal sealed class S7IsoTransport : IAsyncDisposable
                 }
             }
 
-            return results;
+            return new S7IsoReadCollectionResult(results, configurationFailures);
         }
         finally
         {

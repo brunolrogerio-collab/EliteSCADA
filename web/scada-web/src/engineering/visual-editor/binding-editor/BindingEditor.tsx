@@ -1,11 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import type { EngineeringLocale } from '../../i18n';
+import { ProjectReferenceBrowser } from '../../project-reference/ProjectReferenceBrowser';
+import type { ProjectReferenceDescriptor } from '../../project-reference/projectReferenceModel';
 import type { VisualEditorBindingEditorContractProps } from '../visualEditorContracts';
 import {
   compatibleBindingSources,
   createBindingRemoveIntent,
   createBindingSetIntent,
   findVisualBinding,
+  isBindingSourceCompatible,
   listBindableVisualProperties,
+  normalizeBindingSourceCatalog,
   type BindableVisualProperty
 } from './bindingEditorModel';
 
@@ -18,10 +23,15 @@ export type BindingEditorCopy = Readonly<{
   noDestinations: string;
   noSources: string;
   current: string;
+  browse: string;
+  exactReference: string;
+  exactReferencePlaceholder: string;
+  exactNotFound: string;
 }>;
 
 export type BindingEditorProps = VisualEditorBindingEditorContractProps & Readonly<{
   copy?: Partial<BindingEditorCopy>;
+  locale?: EngineeringLocale;
 }>;
 
 type Computed<T> = Readonly<{
@@ -37,22 +47,26 @@ const DEFAULT_COPY: BindingEditorCopy = {
   remove: 'Remove binding',
   noDestinations: 'This object has no bindable visual properties.',
   noSources: 'No compatible canonical binding sources are available for this property.',
-  current: 'Current binding'
+  current: 'Current binding',
+  browse: 'Browse project references',
+  exactReference: 'Exact reference',
+  exactReferencePlaceholder: 'Type the exact canonical path/reference',
+  exactNotFound: 'No compatible source matches this exact reference.'
 };
 
 export function BindingEditor({
   element,
   sourceCatalog,
   onMutationIntent,
-  copy
+  copy,
+  locale = 'pt-BR'
 }: BindingEditorProps) {
   const text: BindingEditorCopy = { ...DEFAULT_COPY, ...copy };
   const [actionError, setActionError] = useState<string | null>(null);
+  const [browserOpen, setBrowserOpen] = useState(false);
+  const [exactReference, setExactReference] = useState('');
 
-  const destinationResult = useMemo(
-    () => computeDestinations(element.type),
-    [element.type]
-  );
+  const destinationResult = useMemo(() => computeDestinations(element.type), [element.type]);
   const destinations = destinationResult.value;
 
   const firstBoundDestination = destinations.find(item =>
@@ -73,9 +87,7 @@ export function BindingEditor({
   const sources = sourceResult.value;
 
   const existing = propertyKey ? findVisualBinding(element, propertyKey) : undefined;
-  const existingSourceKey = existing
-    ? sourceIdentity(existing.kind, existing.target)
-    : undefined;
+  const existingSourceKey = existing ? sourceIdentity(existing.kind, existing.target) : undefined;
   const [sourceKey, setSourceKey] = useState(
     existingSourceKey && sources.some(item => sourceIdentity(item.kind, item.target) === existingSourceKey)
       ? existingSourceKey
@@ -87,10 +99,13 @@ export function BindingEditor({
     const currentKey = current ? sourceIdentity(current.kind, current.target) : '';
     if (currentKey && sources.some(item => sourceIdentity(item.kind, item.target) === currentKey)) {
       setSourceKey(currentKey);
+      setExactReference(current.target);
       return;
     }
     if (!sources.some(item => sourceIdentity(item.kind, item.target) === sourceKey)) {
-      setSourceKey(sources[0] ? sourceIdentity(sources[0].kind, sources[0].target) : '');
+      const first = sources[0];
+      setSourceKey(first ? sourceIdentity(first.kind, first.target) : '');
+      setExactReference(first?.target ?? '');
     }
   }, [element, propertyKey, sourceKey, sources]);
 
@@ -99,12 +114,7 @@ export function BindingEditor({
     const source = sources.find(item => sourceIdentity(item.kind, item.target) === sourceKey);
     if (!source || !propertyKey) return;
     try {
-      onMutationIntent(createBindingSetIntent(
-        element,
-        propertyKey,
-        source,
-        existing?.direction
-      ));
+      onMutationIntent(createBindingSetIntent(element, propertyKey, source, existing?.direction));
     } catch (cause) {
       setActionError(errorText(cause));
     }
@@ -120,6 +130,23 @@ export function BindingEditor({
     }
   }
 
+  function resolveExactReference() {
+    setActionError(null);
+    const target = exactReference.trim();
+    if (!target || !selectedDestination) return;
+    const matches = sources.filter(item => item.target === target);
+    if (matches.length !== 1) {
+      setActionError(text.exactNotFound);
+      return;
+    }
+    setSourceKey(sourceIdentity(matches[0].kind, matches[0].target));
+  }
+
+  const browserReferences = useMemo(
+    () => normalizeBindingSourceCatalog(sourceCatalog).map(toProjectReference),
+    [sourceCatalog]
+  );
+  const selectedSource = sources.find(item => sourceIdentity(item.kind, item.target) === sourceKey);
   const error = actionError ?? destinationResult.error ?? sourceResult.error;
 
   return (
@@ -157,6 +184,8 @@ export function BindingEditor({
               onChange={event => {
                 setActionError(null);
                 setSourceKey(event.target.value);
+                const selected = sources.find(item => sourceIdentity(item.kind, item.target) === event.target.value);
+                setExactReference(selected?.target ?? '');
               }}
             >
               {sources.length === 0 ? (
@@ -169,19 +198,51 @@ export function BindingEditor({
             </select>
           </label>
 
+          <label className="visual-binding-editor__exact-reference">
+            <span>{text.exactReference}</span>
+            <div>
+              <input
+                value={exactReference}
+                placeholder={text.exactReferencePlaceholder}
+                onChange={event => setExactReference(event.currentTarget.value)}
+                onKeyDown={event => { if (event.key === 'Enter') resolveExactReference(); }}
+              />
+              <button type="button" onClick={resolveExactReference}>OK</button>
+            </div>
+          </label>
+
+          <button type="button" onClick={() => setBrowserOpen(open => !open)} aria-expanded={browserOpen}>
+            {text.browse}
+          </button>
+
+          {browserOpen && selectedDestination ? (
+            <ProjectReferenceBrowser
+              references={browserReferences}
+              locale={locale}
+              selectedReference={selectedSource?.target ?? null}
+              isSelectable={reference => isBrowserReferenceCompatible(selectedDestination, reference, sources)}
+              onSelect={reference => {
+                const source = sources.find(item => item.target === reference.reference);
+                if (!source) return;
+                setSourceKey(sourceIdentity(source.kind, source.target));
+                setExactReference(source.target);
+                setBrowserOpen(false);
+                setActionError(null);
+              }}
+              title={text.browse}
+            />
+          ) : null}
+
           {existing && (
             <p data-testid="visual-binding-current">
               <strong>{text.current}:</strong> {existing.kind} · {existing.target}
+              {existing.metadata?.presentationMode === 'scalar-text' ? ' · scalar text' : ''}
             </p>
           )}
 
           <div className="visual-binding-editor__actions">
-            <button type="button" onClick={apply} disabled={!propertyKey || !sourceKey}>
-              {text.apply}
-            </button>
-            <button type="button" onClick={remove} disabled={!existing}>
-              {text.remove}
-            </button>
+            <button type="button" onClick={apply} disabled={!propertyKey || !sourceKey}>{text.apply}</button>
+            <button type="button" onClick={remove} disabled={!existing}>{text.remove}</button>
           </div>
         </>
       )}
@@ -205,10 +266,36 @@ function computeSources(
 ): Computed<readonly VisualEditorBindingEditorContractProps['sourceCatalog'][number][]> {
   if (!destination) return { value: [], error: null };
   try {
-    return { value: compatibleBindingSources(destination.type, sourceCatalog), error: null };
+    return { value: compatibleBindingSources(destination, sourceCatalog), error: null };
   } catch (cause) {
     return { value: [], error: errorText(cause) };
   }
+}
+
+function toProjectReference(source: VisualEditorBindingEditorContractProps['sourceCatalog'][number]): ProjectReferenceDescriptor {
+  return Object.freeze({
+    reference: source.target,
+    label: source.label,
+    family: source.family ?? inferFamily(source.kind),
+    dataType: source.dataType ?? 'Unknown',
+    engineeringUnit: source.engineeringUnit ?? null,
+    writable: source.writable,
+    bindingKind: source.kind === 'ClientMemory' ? 'ClientMemory' : source.kind === 'Tag' ? 'Tag' : undefined,
+    pathSegments: Object.freeze(source.target.split(/[/.\\]+/g).filter(Boolean))
+  });
+}
+
+function isBrowserReferenceCompatible(
+  destination: BindableVisualProperty,
+  reference: ProjectReferenceDescriptor,
+  sources: readonly VisualEditorBindingEditorContractProps['sourceCatalog'][number][]
+): boolean {
+  const source = sources.find(item => item.target === reference.reference);
+  return source ? isBindingSourceCompatible(destination, source) : false;
+}
+
+function inferFamily(kind: string): ProjectReferenceDescriptor['family'] {
+  return kind === 'ClientMemory' ? 'clientMemory' : 'tag';
 }
 
 function sourceIdentity(kind: string, target: string): string {

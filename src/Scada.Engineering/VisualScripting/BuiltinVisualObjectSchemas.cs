@@ -27,6 +27,13 @@ public static class BuiltinVisualObjectSchemas
             .Concat(CommonVisualPropertyDefinitions.Image)
             .ToDictionary(property => property.Key, StringComparer.Ordinal);
 
+    private static readonly HashSet<string> AnalogFillCapableTypes =
+        new(StringComparer.Ordinal)
+        {
+            RectangleType,
+            EllipseType
+        };
+
     private static readonly string[] Base =
     [
         VisualPropertyKeys.X,
@@ -67,15 +74,13 @@ public static class BuiltinVisualObjectSchemas
         Base
             .Concat([VisualPropertyKeys.FillColor])
             .Concat(Stroke)
-            .Concat([VisualPropertyKeys.CornerRadius]),
-        supportsAnalogFill: true);
+            .Concat([VisualPropertyKeys.CornerRadius]));
 
     public static VisualObjectPropertySchema Ellipse { get; } = Create(
         EllipseType,
         Base
             .Concat([VisualPropertyKeys.FillColor])
-            .Concat(Stroke),
-        supportsAnalogFill: true);
+            .Concat(Stroke));
 
     public static VisualObjectPropertySchema Line { get; } = Create(
         LineType,
@@ -135,6 +140,14 @@ public static class BuiltinVisualObjectSchemas
         Button
     ];
 
+    /// <summary>
+    /// Public object-capability declaration for FOLLOW-B Analog Fill. Eligibility
+    /// is explicit and renderer-independent; renderers must not infer it from CSS,
+    /// geometry implementation or the mere presence of a color property.
+    /// </summary>
+    public static bool SupportsAnalogFill(string objectType) =>
+        !string.IsNullOrWhiteSpace(objectType) && AnalogFillCapableTypes.Contains(objectType);
+
     public static VisualObjectPropertySchema GetRequired(string objectType)
     {
         var schema = All.SingleOrDefault(
@@ -145,8 +158,7 @@ public static class BuiltinVisualObjectSchemas
 
     private static VisualObjectPropertySchema Create(
         string objectType,
-        IEnumerable<string> propertyKeys,
-        bool supportsAnalogFill = false)
+        IEnumerable<string> propertyKeys)
     {
         var builder = new VisualPropertySchemaBuilder(objectType);
         foreach (var propertyKey in propertyKeys)
@@ -156,10 +168,6 @@ public static class BuiltinVisualObjectSchemas
                     $"Built-in object type '{objectType}' references unknown visual property '{propertyKey}'.");
             builder.Add(definition);
         }
-
-        if (supportsAnalogFill)
-            builder.EnableAnalogFill();
-
         return builder.Build();
     }
 }

@@ -28,15 +28,15 @@ public sealed class VisualDynamicEngineeringTests
             Assert.True(Assert.IsType<VisualBooleanValue>(visible.DefaultValue).Value);
         }
 
-        Assert.True(BuiltinVisualObjectSchemas.Rectangle.SupportsAnalogFill);
-        Assert.True(BuiltinVisualObjectSchemas.Ellipse.SupportsAnalogFill);
-        Assert.False(BuiltinVisualObjectSchemas.Group.SupportsAnalogFill);
-        Assert.False(BuiltinVisualObjectSchemas.Line.SupportsAnalogFill);
-        Assert.False(BuiltinVisualObjectSchemas.Polygon.SupportsAnalogFill);
-        Assert.False(BuiltinVisualObjectSchemas.Text.SupportsAnalogFill);
-        Assert.False(BuiltinVisualObjectSchemas.Image.SupportsAnalogFill);
-        Assert.False(BuiltinVisualObjectSchemas.ValueDisplay.SupportsAnalogFill);
-        Assert.False(BuiltinVisualObjectSchemas.Button.SupportsAnalogFill);
+        Assert.True(BuiltinVisualObjectSchemas.SupportsAnalogFill(BuiltinVisualObjectSchemas.RectangleType));
+        Assert.True(BuiltinVisualObjectSchemas.SupportsAnalogFill(BuiltinVisualObjectSchemas.EllipseType));
+        Assert.False(BuiltinVisualObjectSchemas.SupportsAnalogFill(BuiltinVisualObjectSchemas.GroupType));
+        Assert.False(BuiltinVisualObjectSchemas.SupportsAnalogFill(BuiltinVisualObjectSchemas.LineType));
+        Assert.False(BuiltinVisualObjectSchemas.SupportsAnalogFill(BuiltinVisualObjectSchemas.PolygonType));
+        Assert.False(BuiltinVisualObjectSchemas.SupportsAnalogFill(BuiltinVisualObjectSchemas.TextType));
+        Assert.False(BuiltinVisualObjectSchemas.SupportsAnalogFill(BuiltinVisualObjectSchemas.ImageType));
+        Assert.False(BuiltinVisualObjectSchemas.SupportsAnalogFill(BuiltinVisualObjectSchemas.ValueDisplayType));
+        Assert.False(BuiltinVisualObjectSchemas.SupportsAnalogFill(BuiltinVisualObjectSchemas.ButtonType));
     }
 
     [Fact]

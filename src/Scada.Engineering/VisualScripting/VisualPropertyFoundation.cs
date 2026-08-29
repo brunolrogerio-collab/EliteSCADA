@@ -234,14 +234,12 @@ public sealed class VisualObjectPropertySchema
 
     internal VisualObjectPropertySchema(
         string objectTypeKey,
-        IReadOnlyDictionary<string, VisualPropertyDefinition> properties,
-        bool supportsAnalogFill = false)
+        IReadOnlyDictionary<string, VisualPropertyDefinition> properties)
     {
         if (string.IsNullOrWhiteSpace(objectTypeKey))
             throw new ArgumentException("Visual object type key is required.", nameof(objectTypeKey));
 
         ObjectTypeKey = objectTypeKey;
-        SupportsAnalogFill = supportsAnalogFill;
         _properties = new ReadOnlyDictionary<string, VisualPropertyDefinition>(
             properties.ToDictionary(
                 pair => pair.Key,
@@ -252,12 +250,6 @@ public sealed class VisualObjectPropertySchema
     public string ObjectTypeKey { get; }
 
     public IReadOnlyDictionary<string, VisualPropertyDefinition> Properties => _properties;
-
-    /// <summary>
-    /// Public renderer-independent capability declaration. False means Analog Fill
-    /// must fail closed even if a renderer could technically draw such an effect.
-    /// </summary>
-    public bool SupportsAnalogFill { get; }
 
     public bool Declares(string propertyKey) => _properties.ContainsKey(propertyKey);
 
@@ -275,7 +267,6 @@ public sealed class VisualPropertySchemaBuilder
 {
     private readonly Dictionary<string, VisualPropertyDefinition> _properties =
         new(StringComparer.Ordinal);
-    private bool _supportsAnalogFill;
 
     public VisualPropertySchemaBuilder(string objectTypeKey)
     {
@@ -308,14 +299,8 @@ public sealed class VisualPropertySchemaBuilder
         return this;
     }
 
-    public VisualPropertySchemaBuilder EnableAnalogFill()
-    {
-        _supportsAnalogFill = true;
-        return this;
-    }
-
     public VisualObjectPropertySchema Build() =>
-        new(ObjectTypeKey, _properties, _supportsAnalogFill);
+        new(ObjectTypeKey, _properties);
 }
 
 public static class VisualPropertyKeys
@@ -531,5 +516,142 @@ public sealed class VisualEngineeringPropertySet
             throw new KeyNotFoundException($"Engineering base/default value for '{propertyKey}' is not declared.");
 
         return value;
+    }
+}
+
+public enum VisualPropertyRuntimeSource
+{
+    EngineeringBase,
+    BindingOrExpression,
+    Script,
+    Animation,
+    Default
+}
+
+public sealed record VisualResolvedPropertyValue(
+    string PropertyKey,
+    VisualPropertyValue Value,
+    VisualPropertyRuntimeSource Source);
+
+public sealed class VisualRuntimePropertyState
+{
+    private readonly Dictionary<string, RuntimeLayers> _runtimeLayers =
+        new(StringComparer.Ordinal);
+
+    public VisualRuntimePropertyState(
+        string runtimeInstanceId,
+        VisualEngineeringPropertySet engineering)
+    {
+        if (string.IsNullOrWhiteSpace(runtimeInstanceId))
+            throw new ArgumentException("Runtime visual instance ID is required.", nameof(runtimeInstanceId));
+
+        ArgumentNullException.ThrowIfNull(engineering);
+
+        RuntimeInstanceId = runtimeInstanceId;
+        Engineering = engineering;
+    }
+
+    public string RuntimeInstanceId { get; }
+
+    public VisualEngineeringPropertySet Engineering { get; }
+
+    public VisualResolvedPropertyValue Resolve(string propertyKey)
+    {
+        var definition = Engineering.Schema.GetRequired(propertyKey);
+        if (!definition.RuntimeReadable)
+            throw new InvalidOperationException(
+                $"Property '{propertyKey}' is not readable at runtime.");
+
+        _runtimeLayers.TryGetValue(propertyKey, out var layers);
+
+        if (layers?.Animation is not null)
+            return new(propertyKey, layers.Animation, VisualPropertyRuntimeSource.Animation);
+
+        if (layers?.Script is not null)
+            return new(propertyKey, layers.Script, VisualPropertyRuntimeSource.Script);
+
+        if (layers?.Binding is not null)
+            return new(propertyKey, layers.Binding, VisualPropertyRuntimeSource.BindingOrExpression);
+
+        if (Engineering.TryGetEngineeredValue(propertyKey, out var engineered))
+            return new(propertyKey, engineered, VisualPropertyRuntimeSource.EngineeringBase);
+
+        return new(propertyKey, definition.DefaultValue, VisualPropertyRuntimeSource.Default);
+    }
+
+    public void SetBindingOverride(string propertyKey, VisualPropertyValue value)
+    {
+        var definition = Engineering.Schema.GetRequired(propertyKey);
+        if (!definition.SupportsBinding)
+            throw new InvalidOperationException(
+                $"Property '{propertyKey}' does not support bindings/expressions.");
+
+        definition.ValidateValue(value);
+        GetOrCreateLayers(propertyKey).Binding = value;
+    }
+
+    public void SetScriptOverride(string propertyKey, VisualPropertyValue value)
+    {
+        var definition = Engineering.Schema.GetRequired(propertyKey);
+        if (!definition.RuntimeWritable)
+            throw new InvalidOperationException(
+                $"Property '{propertyKey}' is not writable by a client visual script.");
+
+        definition.ValidateValue(value);
+        GetOrCreateLayers(propertyKey).Script = value;
+    }
+
+    public void SetAnimationOverride(string propertyKey, VisualPropertyValue value)
+    {
+        var definition = Engineering.Schema.GetRequired(propertyKey);
+        if (!definition.Animatable)
+            throw new InvalidOperationException(
+                $"Property '{propertyKey}' is not animatable.");
+
+        definition.ValidateValue(value);
+        GetOrCreateLayers(propertyKey).Animation = value;
+    }
+
+    public void ClearBindingOverride(string propertyKey) =>
+        ClearLayer(propertyKey, static layers => layers.Binding = null);
+
+    public void ClearScriptOverride(string propertyKey) =>
+        ClearLayer(propertyKey, static layers => layers.Script = null);
+
+    public void ClearAnimationOverride(string propertyKey) =>
+        ClearLayer(propertyKey, static layers => layers.Animation = null);
+
+    public void ClearAllRuntimeOverrides() => _runtimeLayers.Clear();
+
+    private RuntimeLayers GetOrCreateLayers(string propertyKey)
+    {
+        if (_runtimeLayers.TryGetValue(propertyKey, out var existing))
+            return existing;
+
+        var created = new RuntimeLayers();
+        _runtimeLayers.Add(propertyKey, created);
+        return created;
+    }
+
+    private void ClearLayer(string propertyKey, Action<RuntimeLayers> clear)
+    {
+        Engineering.Schema.GetRequired(propertyKey);
+
+        if (!_runtimeLayers.TryGetValue(propertyKey, out var layers))
+            return;
+
+        clear(layers);
+
+        if (layers.Binding is null && layers.Script is null && layers.Animation is null)
+            _runtimeLayers.Remove(propertyKey);
+    }
+
+    private sealed class RuntimeLayers
+    {
+        public VisualPropertyValue? Binding { get; set; }
+
+        public VisualPropertyValue? Script { get; set; }
+
+        public VisualPropertyValue? Animation { get; set; }
     }
 }

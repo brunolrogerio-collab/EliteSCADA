@@ -4,7 +4,7 @@ using System.IO.BACnet;
 
 namespace Scada.Drivers.Bacnet;
 
-public sealed class SystemIoBacnetSession : IBacnetSession
+public sealed class SystemIoBacnetSession : IBacnetSession, IBacnetForeignDeviceRegistrationDiagnostics
 {
     private static readonly BacnetPropertyIds[] CompanionPropertyIds =
     {
@@ -20,6 +20,14 @@ public sealed class SystemIoBacnetSession : IBacnetSession
     private readonly ConcurrentDictionary<uint, TaskCompletionSource<BacnetDeviceObservation>> _deviceWaiters = new();
     private readonly object _covGate = new();
     private readonly List<CovRoute> _covRoutes = new();
+    private readonly object _foreignDeviceGate = new();
+    private CancellationTokenSource? _foreignDeviceRenewalCts;
+    private Task? _foreignDeviceRenewalTask;
+    private DateTimeOffset? _lastForeignDeviceRegistrationRequestAt;
+    private DateTimeOffset? _nextForeignDeviceRegistrationAttemptAt;
+    private long _foreignDeviceRegistrationRequestsSent;
+    private long _foreignDeviceRegistrationFailures;
+    private string? _foreignDeviceRegistrationLastErrorType;
     private int _subscriptionId;
     private bool _started;
     private bool _disposed;
@@ -42,10 +50,33 @@ public sealed class SystemIoBacnetSession : IBacnetSession
         ThrowIfDisposed();
         if (_started) return Task.CompletedTask;
         _client.Start();
-        if (!string.IsNullOrWhiteSpace(_options.BbmdAddress) && _options.ForeignDeviceTtlSeconds.HasValue)
-            _client.RegisterAsForeignDevice(_options.BbmdAddress, checked((short)_options.ForeignDeviceTtlSeconds.Value));
+        if (IsForeignDeviceRegistrationConfigured())
+        {
+            SendForeignDeviceRegistration();
+            _foreignDeviceRenewalCts = new CancellationTokenSource();
+            var renewalInterval = _options.EffectiveForeignDeviceRenewalInterval!.Value;
+            SetNextForeignDeviceRegistrationAttempt(DateTimeOffset.UtcNow + renewalInterval);
+            _foreignDeviceRenewalTask = RenewForeignDeviceRegistrationAsync(_foreignDeviceRenewalCts.Token);
+        }
         _started = true;
         return Task.CompletedTask;
+    }
+
+    public BacnetForeignDeviceRegistrationSnapshot GetForeignDeviceRegistrationDiagnostics()
+    {
+        lock (_foreignDeviceGate)
+        {
+            return new BacnetForeignDeviceRegistrationSnapshot(
+                Configured: IsForeignDeviceRegistrationConfigured(),
+                TtlSeconds: _options.ForeignDeviceTtlSeconds,
+                RenewalInterval: _options.EffectiveForeignDeviceRenewalInterval,
+                RetryInterval: _options.EffectiveForeignDeviceRetryInterval,
+                LastRegistrationRequestAt: _lastForeignDeviceRegistrationRequestAt,
+                NextRegistrationAttemptAt: _nextForeignDeviceRegistrationAttemptAt,
+                RegistrationRequestsSent: _foreignDeviceRegistrationRequestsSent,
+                RegistrationFailures: _foreignDeviceRegistrationFailures,
+                LastErrorType: _foreignDeviceRegistrationLastErrorType);
+        }
     }
 
     public async Task<BacnetDeviceObservation> ResolveDeviceAsync(uint deviceInstance, CancellationToken cancellationToken = default)
@@ -231,15 +262,93 @@ public sealed class SystemIoBacnetSession : IBacnetSession
         });
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        if (_disposed) return ValueTask.CompletedTask;
+        if (_disposed) return;
         _disposed = true;
+        if (_foreignDeviceRenewalCts is not null)
+        {
+            await _foreignDeviceRenewalCts.CancelAsync().ConfigureAwait(false);
+            if (_foreignDeviceRenewalTask is not null)
+            {
+                try { await _foreignDeviceRenewalTask.ConfigureAwait(false); }
+                catch (OperationCanceledException) when (_foreignDeviceRenewalCts.IsCancellationRequested) { }
+            }
+        }
         _client.OnIam -= OnIam;
         _client.OnCOVNotification -= OnCovNotification;
         _client.Dispose();
+        _foreignDeviceRenewalCts?.Dispose();
         lock (_covGate) _covRoutes.Clear();
-        return ValueTask.CompletedTask;
+    }
+
+    private bool IsForeignDeviceRegistrationConfigured()
+        => !string.IsNullOrWhiteSpace(_options.BbmdAddress) && _options.ForeignDeviceTtlSeconds.HasValue;
+
+    private void SendForeignDeviceRegistration()
+    {
+        var requestedAt = DateTimeOffset.UtcNow;
+        try
+        {
+            _client.RegisterAsForeignDevice(
+                _options.BbmdAddress!,
+                checked((short)_options.ForeignDeviceTtlSeconds!.Value));
+            lock (_foreignDeviceGate)
+            {
+                _lastForeignDeviceRegistrationRequestAt = requestedAt;
+                _foreignDeviceRegistrationRequestsSent++;
+                _foreignDeviceRegistrationLastErrorType = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            lock (_foreignDeviceGate)
+            {
+                _lastForeignDeviceRegistrationRequestAt = requestedAt;
+                _foreignDeviceRegistrationFailures++;
+                _foreignDeviceRegistrationLastErrorType = ex.GetType().Name;
+            }
+            throw;
+        }
+    }
+
+    private async Task RenewForeignDeviceRegistrationAsync(CancellationToken cancellationToken)
+    {
+        var renewalInterval = _options.EffectiveForeignDeviceRenewalInterval!.Value;
+        var retryInterval = _options.EffectiveForeignDeviceRetryInterval!.Value;
+        var delay = renewalInterval;
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+
+            try
+            {
+                SendForeignDeviceRegistration();
+                delay = renewalInterval;
+            }
+            catch
+            {
+                // FDR renewal is network reachability state, not process-fatal
+                // state. Retry before the lease can remain expired indefinitely.
+                delay = retryInterval;
+            }
+
+            SetNextForeignDeviceRegistrationAttempt(DateTimeOffset.UtcNow + delay);
+        }
+    }
+
+    private void SetNextForeignDeviceRegistrationAttempt(DateTimeOffset nextAttemptAt)
+    {
+        lock (_foreignDeviceGate)
+            _nextForeignDeviceRegistrationAttemptAt = nextAttemptAt;
     }
 
     private static IList<BacnetPropertyReference> BuildReadPropertyReferences(BacnetBinding binding)

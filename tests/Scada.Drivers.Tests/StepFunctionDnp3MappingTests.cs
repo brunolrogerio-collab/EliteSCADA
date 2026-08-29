@@ -1,3 +1,4 @@
+using Scada.Drivers.Dnp3;
 using Scada.Drivers.Dnp3.StepFunction;
 using Step = dnp3;
 

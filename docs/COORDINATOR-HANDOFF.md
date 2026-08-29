@@ -106,13 +106,7 @@ If a category has no public read-only seam, add only the minimum bounded API/pro
 
 The live samples are not Engineering.
 
-Never save/export/package current:
-
-- values;
-- qualities;
-- timestamps;
-- transient communication state;
-- observed errors.
+Never save/export/package current values, qualities, timestamps, transient communication state or observed errors.
 
 The watchlist itself may initially be session/user-workspace state. If persisted for convenience, only canonical references/order/display preferences may be stored and must remain separate from process logic. Named project-portable Watch Tables require a later explicit decision if desired.
 
@@ -137,8 +131,6 @@ After Gate B implementation:
 - synchronize docs.
 
 ## Follow-up order after Wave 08
-
-The owner-locked order remains:
 
 1. `08-FOLLOW-A` — TAG Bit Access + Driver Bit-Level Boolean Binding;
 2. `08-FOLLOW-B` — Typed Visual Expressions + Boolean Conditions + Analog Fill;

@@ -143,6 +143,7 @@ internal static partial class S7TiaImportCandidateFactory
             .ToLowerInvariant()[..24];
         var unsupportedPrefix = record.SourceKind switch
         {
+            "TiaXlsx" => "tia-xlsx",
             "TiaXml" => "tia-xml",
             "TiaSdf" => "tia-sdf",
             _ => "tia-export"
@@ -151,7 +152,7 @@ internal static partial class S7TiaImportCandidateFactory
         var readable = !record.IsConstant && record.HmiAccessible != false && binding is not null;
         var writableCandidate = readable && record.HmiWriteable == true && binding?.Writable == true;
 
-        return new DriverImportCandidate(
+        return S7TiaImportValidation.ValidateAddressWidth(new DriverImportCandidate(
             candidateId,
             stableIdentity,
             name,
@@ -160,7 +161,7 @@ internal static partial class S7TiaImportCandidateFactory
             writableCandidate,
             binding is null ? null : typeMapping?.TagDataType,
             Metadata: metadata,
-            Issues: issues);
+            Issues: issues));
     }
 
     public static bool? ParseOptionalBoolean(string? raw)

@@ -1,27 +1,17 @@
 # LAST CHANGE — EliteSCADA
 
-> Operational handoff for the Wave 08 integration train. Always read current `main` coordination first; live GitHub state wins.
+> Operational handoff. Resume from GitHub, not chat history.
 
 **Handoff date:** 2026-08-28  
-**Wave:** **WAVE 08 ACTIVE — CENTRAL FOUNDATION CI GREEN / WORKERS ACTIVE / CANONICAL INTENT REDUCER IMPLEMENTED, CI DEFERRED**  
+**Merged product state:** **WAVE 07 CLOSED / WAVE 08 NOT MERGED**  
+**Active development state:** **WAVE 08 ACTIVE — CENTRAL FOUNDATION VALIDATED IN DRAFT PR #90 / DEV 1-2-3 ACTIVE**  
+**Next mandatory follow-up A:** **TAG BIT ACCESS + DRIVER BIT-LEVEL BOOLEAN BINDING — SPECIFIED / NOT IMPLEMENTED**  
+**Next mandatory follow-up B:** **TYPED VISUAL EXPRESSIONS + BOOLEAN CONDITIONS + ANALOG FILL — SPECIFIED / NOT IMPLEMENTED**  
 **CI mode:** **NORMAL — Actions authorized with conservative usage**
 
-## Current operational state
+## Mandatory resume reading
 
-- official merged product remains Wave 07; Wave 08 is **IMPLEMENTED IN DRAFT PR / NOT MERGED**;
-- integration branch: `integration/graphical-editor-wave-08`;
-- Draft PR: **#90**;
-- exact central-foundation product head validated: **`b48b489660ae953029fd2416aa18b149eaa18258`**;
-- CI #515 / run `33225051402`: **SUCCESS**;
-- current coordinator code/test checkpoint before this documentation successor: **`9c4cecf55f55a9e55d049646ce854872467c02bc`**;
-- commits after `b48b489...` that change product/test code are intentionally **not covered by CI #515**;
-- no full matrix was triggered for the new intent reducer because DEV 1/2/3 were just activated and a complete run would immediately become stale during worker integration.
-
-Current `main` coordination authorizes all three worker slices. Do not use the older STOPPED text from historical integration commits.
-
-## Mandatory resume
-
-Read current `main` first:
+Before any action read current `main`:
 - `PROJECT GOAL.md`
 - `LAST CHANGE.md`
 - `docs/ROADMAP.md`
@@ -31,124 +21,197 @@ Read current `main` first:
 - `docs/CI-USAGE-POLICY.md`
 - `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`
 - `docs/COORDINATOR-HANDOFF.md`
-- current MustReadSpecific.
+- `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`
+- `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`
+- current assignment `MustReadSpecific`.
 
-Then verify PR #90, integration/worker heads and CI.
+Then verify live GitHub branch/PR/head/CI. GitHub is operational truth.
 
-## Wave 07 — CLOSED
+## Wave 07 — MERGED / CLOSED
 
-- main merge `8de706882ba20afedd666532ac41ae11115d06b3`;
-- final integration CI #508 green;
-- post-merge CI #510 green.
+- final integration product head: `6d869109af23b25d1ae95cd35610e1930a16791c`
+- exact-head CI #508 / run `33217787482`: **SUCCESS**
+- merge PR #89
+- main merge: `8de706882ba20afedd666532ac41ae11115d06b3`
+- post-merge CI #510 / run `33218282760`: **SUCCESS**
 
-## Wave 08 frozen identity
+## Wave 08 — IMPLEMENTED IN PR / ACTIVE / NOT MERGED
 
-- Logical WaveBaseSHA: `8de706882ba20afedd666532ac41ae11115d06b3`;
-- ContractSHA / logical worker base: `7a445d3dd94cabd09807291a0ee94276559fcb0e`;
-- integration: `integration/graphical-editor-wave-08`;
-- Draft PR #90 remains the integration train;
-- Wave 09/10 remain NOT ACTIVE.
+Frozen identity:
 
-## Validated central foundation — CI #515
+- Logical WaveBaseSHA: `8de706882ba20afedd666532ac41ae11115d06b3`
+- ContractSHA / logical worker base: `7a445d3dd94cabd09807291a0ee94276559fcb0e`
+- Integration: `integration/graphical-editor-wave-08`
+- Draft integration PR: **#90 — `Wave 08: graphical editor foundation integration`**
+- exact validated central-foundation product head: **`b48b489660ae953029fd2416aa18b149eaa18258`**
+- validation: **CI #515 / run `33225051402` — SUCCESS**
 
-CI #515 on exact product head `b48b489...` proved:
+CI #515 proved on that exact product head:
 
-- Web React/Vite/TypeScript build;
-- backend Release build;
-- full backend tests including PostgreSQL/Timescale;
-- Runtime smoke;
-- Chromium E2E;
-- Screen editor Preview -> Apply -> canonical export -> reopen coverage;
-- prior Wave 06/07 Python/visual regressions.
+- Web React/Vite/TypeScript build: **SUCCESS**;
+- backend Release build: **SUCCESS**;
+- full backend tests including PostgreSQL/Timescale coverage: **SUCCESS**;
+- Runtime smoke: **SUCCESS**;
+- Chromium E2E: **SUCCESS**;
+- `visual-editor-workspace.spec.ts`: **SUCCESS**;
+- existing Wave 06/07 Python/visual regressions remained green.
 
-Validated central capabilities in that checkpoint include:
+Documentation-only successors use `[skip ci]`; they do not invalidate unchanged product evidence from `b48b489...`.
 
-- Engineering Schema v13 first-class Visual Assets;
-- stable Asset ID / SHA-256 payload identity;
+PR #90 remains Draft and must not merge until the complete Wave 08 interaction gate is implemented and the final integrated head is green.
+
+## Validated coordinator foundation in PR #90
+
+Implemented in the Wave 08 integration branch, not yet merged product state:
+
+- Engineering Schema v13 first-class Visual Asset metadata;
+- stable Visual Asset `Id` reference identity separated from developer `Key` and content SHA-256;
 - bounded PNG/JPEG/BMP validation;
 - canonical Working asset authority;
-- PostgreSQL asset revision blobs/links;
-- `.escadapkg` v2 sidecars with v1 compatibility;
-- protected Visual Asset CAS/authorization/Audit API;
-- central `Engineering -> Telas` `VisualEditorWorkspace`;
-- canonical Screen Preview/Apply/CAS/reload;
-- shared `core.*` renderer and stable `assetRef`;
-- legacy visual compatibility placeholders;
-- shared `visualEditorContracts.ts` worker/coordinator vocabulary.
+- PostgreSQL asset blobs + immutable revision links;
+- asset-aware revision save/load/checkout/rollback;
+- `.escadapkg` v2 asset sidecars with v1 asset-free compatibility;
+- protected Visual Asset API with CAS/authorization/Audit;
+- frontend asset catalog/import/content seams;
+- `Engineering -> Telas` central `VisualEditorWorkspace`;
+- Screen draft Preview/Apply through canonical Engineering + Workspace CAS;
+- canonical snapshot reload after Apply;
+- renderer consuming shared `core.*` Visual Property Registry and stable `assetRef`;
+- explicit non-authoritative compatibility placeholders for historical demo visual types;
+- `visualEditorCanonicalModel.ts` Screen mutation helpers;
+- shared `visualEditorContracts.ts` separating transient UI state from canonical object/property/binding mutation intents;
+- PT-BR/EN/ES editor composition;
+- Screen Preview -> Apply -> canonical export -> reopen E2E.
 
-## New coordinator-owned integration seam after CI #515
+## CI defects corrected before green checkpoint
 
-Checkpoint `9c4cecf55f55a9e55d049646ce854872467c02bc` adds the coordinator-owned canonical consumer for the shared worker intents plus focused pure tests.
+The first meaningful PR validation found and corrected three deterministic issues:
 
-`applyVisualEditorMutationIntent(...)` now handles:
+1. TypeScript readonly/mutable mismatch in the Screen element clone path;
+2. forbidden `Clone` helper names on C# records, renamed to `Copy`;
+3. stale broad Runtime E2E expecting `.escadapkg` v1 after current Wave 08 export advanced to v2; current expectation updated while dedicated v1 compatibility coverage remains.
 
-- `object.add` with coordinator-minted stable ID/key and registered built-in type validation;
-- `object.move` using registry defaults only as a starting value when interaction makes x/y explicit;
-- `object.resize` and `object.rotate` with registry validation;
-- hierarchy-aware `object.duplicate` with new IDs/keys and no duplicate child action when an ancestor is selected;
-- `object.delete`;
-- `object.zOrder` through explicit canonical `zIndex` interaction results;
-- `property.set` / `property.remove` only through the shared schema and Engineering editability;
-- `binding.set` / `binding.remove` only for registered binding-capable destinations;
-- fail-closed missing IDs, unknown types, invalid values and invalid binding destinations.
+No unchanged-head reassurance reruns were used.
 
-Important authority rule: renderer/schema defaults are not materialized merely by viewing/selection. They become explicit Engineering values only when an edit operation needs to change that property.
+## Worker state — ACTIVE / AUTHORIZED
 
-Focused test file:
+The previous owner stop has been deliberately lifted by the coordinator after CI #515 proved the central foundation and after the shared intent contract was seeded into each worker branch.
 
-- `web/scada-web/tests-e2e/visual-editor-canonical-model.spec.ts`
+The logical worker Base remains `7a445d3dd94cabd09807291a0ee94276559fcb0e`. Before worker implementation, each branch is exactly one coordinator dependency-seed commit ahead of that base:
 
-It covers add/default separation, geometry mutation, property/binding authority, hierarchy duplicate/delete and z-order behavior. These new reducer tests are **written but not yet executed by Actions**.
+- DEV 1 `feature/graphical-editor-wave-08-canvas` authorization head `57521312914e21e303976a81bc81c84ad5aa9cbb` — **ACTIVE / Canvas + Selection**;
+- DEV 2 `feature/graphical-editor-wave-08-property-inspector` authorization head `3e942ed641d96afe848966f123fb10eaeaa99ed7` — **ACTIVE / Property Inspector**;
+- DEV 3 `feature/graphical-editor-wave-08-palette-bindings` authorization head `df3cd6c332a19bb3011373c95d010f33754c0c12` — **ACTIVE / Object Palette + Binding Foundation**.
 
-## Workers — ACTIVE / AUTHORIZED
+Each worker starts on `siga` after rereading current `main`, then uses the seeded `web/scada-web/src/engineering/visual-editor/visualEditorContracts.ts` from its own branch. The contract seed is not worker implementation and is not merged product state.
 
-Current `main` execution board deliberately reactivated all three workers after CI #515 and after the shared contract seed was placed in each branch.
+Workers must preserve their fixed AllowedScope/ForbiddenScope, use focused validation, report exact delivery head and stop at `WAIT_FOR_COORDINATOR` after delivery.
 
-- DEV 1 `feature/graphical-editor-wave-08-canvas` authorization/seed head `57521312914e21e303976a81bc81c84ad5aa9cbb` — Canvas / Selection;
-- DEV 2 `feature/graphical-editor-wave-08-property-inspector` authorization/seed head `3e942ed641d96afe848966f123fb10eaeaa99ed7` — Property Inspector;
-- DEV 3 `feature/graphical-editor-wave-08-palette-bindings` authorization/seed head `df3cd6c332a19bb3011373c95d010f33754c0c12` — Object Palette / Binding Foundation.
+## Newly locked TAG bit behavior — SPECIFIED / NOT IMPLEMENTED
 
-At authorization each branch was exactly one coordinator dependency-seed commit ahead of ContractSHA and contained no worker implementation. Verify live heads because worker execution may have begun after this checkpoint.
+The owner added a transversal TAG/driver requirement while the current Wave 08 worker slices were already active. Their missions remain **unchanged mid-delivery**.
 
-Workers must consume their seeded `visualEditorContracts.ts`, remain inside fixed scopes, use focused validation and stop at `WAIT_FOR_COORDINATOR` after delivery.
+Canonical contract:
 
-## Actions discipline
+`docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`
 
-- CI #515 remains valid evidence only for unchanged code at/before `b48b489...`;
-- new reducer code/test is currently `CI_DEFERRED`, not validated;
-- do not run a full matrix solely for this intermediate seam while active worker slices are expected to change the composition;
-- static review and focused worker evidence come first;
-- diagnose failures before rerun;
-- next full matrix should be triggered at a meaningful integrated checkpoint after one or more worker slices are composed;
-- final exact Wave 08 head still requires the complete matrix before merge.
+This follow-up must be implemented after the current Wave 08 interaction delivery is reviewed/integrated and **before** the typed visual-expression follow-up relies on `.NN` bit syntax.
 
-## Still pending
+Locked behavior includes:
 
-- DEV 1 Canvas slice;
-- DEV 2 Property Inspector slice;
-- DEV 3 Palette/Binding slice;
-- wire delivered worker components to the central `VisualEditorWorkspace` using the reducer and transient UI-state boundary;
-- coordinator-provided canonical binding source catalog;
-- practical Image asset selection/import flow through stable `assetRef`;
-- integrated create/add/move/resize/rotate/property/binding/image/save/reopen/export/import gate;
-- proof selection/viewport/hover/adornment/drag preview never persist;
-- full exact-head CI;
-- PR #90 merge and post-merge main health.
+- integer TAGs expose deterministic Boolean bit selectors with preferred notation such as `Word_comando.00`, `Word_comando.07` and `Word_status.15`;
+- canonical references store stable TAG identity + bit index rather than relying only on a display string;
+- initial supported widths are Int16 `00..15`, Int32 `00..31`, Int64 `00..63`;
+- bit 0 is LSB and signed integer extraction uses the fixed-width two's-complement representation;
+- Float/Double/String/DateTime/Enum do not receive normal bit selectors;
+- bit selectors inherit source quality/timestamp and do not turn unavailable/bad source into false;
+- bit selectors are reusable Boolean references for visual bindings/expressions, alarms and scripting/reference surfaces where normal authorization permits;
+- optional writes to a writable logical integer TAG bit must change only that bit and preserve all other bits with concurrency-safe coordination;
+- drivers may expose first-class physical bit binding for a Boolean TAG within a word/register;
+- Modbus Holding/Input Register Boolean bit bindings use bit `0..15` after the register address is resolved;
+- Input Register remains read-only; Coil remains native Boolean and needs no register-bit selector;
+- writable Holding Register bit operations must preserve all unrelated bits using native Mask Write Register when supported or coordinated read-modify-write otherwise;
+- multiple Boolean bit TAGs sharing one register should share/coalesce the physical register read where practical;
+- Modbus human `4xxxxx` addressing and zero-based wire offset must have an explicit Engineering conversion policy;
+- a logical bit selector is only a view and does not automatically create a second historian series; independent history/alarm identity uses a first-class Boolean TAG bound to the physical bit;
+- bit references/bindings participate in JSON import/export, Preview/Apply, revisions, PostgreSQL and `.escadapkg` and never bypass security/Audit.
 
-## Next coordinator actions
+This follow-up is ordered as **08-FOLLOW-A**.
 
-1. reread/verify current-main coordination and live GitHub state;
-2. inspect each worker branch/PR for Early Contract or Delivery Review evidence;
-3. do not duplicate worker UI scope;
-4. review the reducer diff/tests before any semantic expansion;
-5. integrate reviewed worker deliveries into this branch;
-6. connect transient UI intents in central composition only after worker contracts are concrete;
-7. use focused validation while composing;
-8. run the next complete CI matrix at a meaningful integrated checkpoint;
-9. merge only fully green and confirm post-merge `main` before Wave 09.
+## Newly locked visual behavior — SPECIFIED / NOT IMPLEMENTED
 
-## Final Wave 08 gate
+The owner expanded the mandatory visual-engineering follow-up while the three current worker slices were already active. Their missions remain **unchanged mid-delivery**.
 
-`Create Screen -> add objects -> move/resize/rotate -> edit registered properties -> canonical binding -> image asset by stable assetRef -> save -> reopen -> export/import`
+Canonical contract:
 
-Transient Canvas selection/viewport/adornment state must never become persisted project authority.
+`docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`
+
+This follow-up is ordered as **08-FOLLOW-B** and runs after TAG bit semantics are stabilized and before Wave 09 is activated.
+
+Locked behavior now includes:
+
+- visual properties declaring Binding/Expression support accept typed, side-effect-free expressions over canonical TAGs and Client Memory;
+- canonical integer TAG bit selectors such as `Word_status.03` may be used as Boolean expression dependencies;
+- boolean expressions support `and`, `or`, `not`, comparisons and parentheses, e.g. `falha_inversor1 or falha_bomba1`;
+- numeric expressions support `+`, `-`, `*`, `/`, `%`, unary sign and parentheses, e.g. `(nivel1 + nivel2) * 3`;
+- boolean/numeric destination type compatibility is enforced and conversions are explicit, e.g. `bool(falha_inversor1 + falha_bomba1)` or `(falha_inversor1 + falha_bomba1) > 0` when source TAGs are numeric;
+- a small whitelist of deterministic pure helpers such as `abs`, `min`, `max`, `clamp`, `round`, `floor`, `ceil`, `bool` and `number` is allowed;
+- expression dependencies are canonical and validated rather than relying only on ambiguous display labels;
+- evaluation is reactive to source changes, bounded and cannot execute arbitrary JavaScript/Python/user code;
+- every renderable Screen/Popup/Dynamo object exposes public `visible: boolean`;
+- every public boolean visual property can be driven by a direct boolean source, numeric interval evaluation or compatible typed boolean expression;
+- interval conditions support lower/upper bounds, inclusive/exclusive edges, one-sided intervals and inside/outside semantics;
+- bad/unavailable/wrong-type dependencies do not silently coerce to false/zero; the Binding/Expression layer becomes unavailable and normal precedence falls back with diagnostics;
+- all of this remains inside the existing `Animation > Script > Binding/Expression > Engineering Base > Default` resolution model;
+- closed fill-capable shapes such as rectangle and ellipse/circle support Analog Fill;
+- Analog Fill accepts a compatible numeric binding/expression, then scales configured engineering min/max to a clamped 0..100% filled region;
+- first fill directions are bottom->top, top->bottom, left->right and right->left;
+- filled-region color is explicit while unfilled geometry keeps normal base/background appearance;
+- expression/condition/fill configuration is first-class canonical Engineering and must round-trip through JSON, Preview/Apply, revisions and `.escadapkg`;
+- runtime expression results, condition results and calculated fill percentages are presentation state and are not persisted as Engineering base values;
+- visual expressions/conditions must never be treated as safety/interlock/permissive process authority.
+
+The first expression follow-up is intentionally an expression language, not a general-purpose programming language: no assignments, loops, arbitrary functions, JavaScript/Python evaluation or direct driver/database/network/DOM access.
+
+## Actions rule
+
+Actions is authorized, but use remains conservative:
+
+- use static/diff/contract review first when sufficient;
+- workers batch coherent changes and use focused validation in owned scope;
+- do not rerun unchanged heads for reassurance;
+- diagnose and fix localized failures before another expensive run;
+- coordinator reuses CI #515 while validated central product code is unchanged;
+- full integration matrices are reserved for meaningful composed/final checkpoints;
+- final Wave Definition of Done is never weakened to save minutes.
+
+## Still pending for current Wave 08 delivery
+
+- DEV 1 Canvas/selection, zoom/pan/grid/snap and move/resize/rotate/duplicate/delete/z-order intents;
+- DEV 2 schema-driven typed Property Inspector;
+- DEV 3 registered Object Palette + canonical Binding authoring;
+- coordinator canonical application of worker mutation intents into Screen drafts;
+- cross-slice UI composition;
+- practical Image workflow through stable `assetRef`;
+- complete product gate:
+  `Create Screen -> add objects -> move/resize/rotate -> edit properties -> canonical binding -> image asset -> save -> reopen -> export/import`;
+- proof that transient Canvas selection/viewport/adornment state is not persisted;
+- final exact-head full Wave 08 CI after worker integration;
+- PR #90 readiness/merge;
+- post-merge `main` health confirmation.
+
+Wave 09/10 remain NOT ACTIVE.
+
+## Next coordinator execution
+
+1. verify actual `main`, PR #90, integration and all worker heads;
+2. monitor worker Draft PRs/diffs at Early Contract Review and Integration Review checkpoints;
+3. do not duplicate worker UI scopes in the integration branch;
+4. implement coordinator-owned canonical intent application/composition hooks as needed;
+5. integrate only reviewed worker deliveries;
+6. use focused validation during composition and preserve CI #515 evidence only for unchanged validated code;
+7. run the next full matrix on a meaningful integrated product checkpoint;
+8. finish/merge the current Wave 08 interaction work only when exact-head CI is green;
+9. execute **08-FOLLOW-A TAG Bit Access + Driver Bit-Level Boolean Binding** under `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`, with its own assignments and validation;
+10. after 08-FOLLOW-A is green, execute **08-FOLLOW-B Typed Visual Expressions + Boolean Conditions + Analog Fill** under `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`;
+11. only after both mandatory follow-ups are green and documentation is synchronized may Wave 09 activate.

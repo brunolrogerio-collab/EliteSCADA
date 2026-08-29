@@ -61,6 +61,34 @@ public sealed class S7TiaImportValidationTests
         Assert.StartsWith("tia-sdf:unsupported:", candidate.PortableAddress);
     }
 
+    [Fact]
+    public async Task StableIdentity_SeparatesDifferentSourceExportsWithoutUsingAddress()
+    {
+        const string first = """
+            <Tagtable name="Tags">
+              <Tag type="Real" hmiVisible="True" hmiAccessible="True" addr="%MD4">Speed</Tag>
+            </Tagtable>
+            """;
+        const string second = """
+            <Tagtable name="Tags">
+              <Tag type="Real" hmiVisible="True" hmiAccessible="True" addr="%MD40">Speed</Tag>
+            </Tagtable>
+            """;
+
+        using var sourceAOriginal = Utf8(first);
+        using var sourceAMoved = Utf8(second);
+        using var sourceB = Utf8(first);
+        var original = Assert.Single(await ImportAsync(new DriverImportRequest(null, "project-a.xml"), sourceAOriginal));
+        var moved = Assert.Single(await ImportAsync(new DriverImportRequest(null, "project-a.xml"), sourceAMoved));
+        var otherSource = Assert.Single(await ImportAsync(new DriverImportRequest(null, "project-b.xml"), sourceB));
+
+        Assert.Equal(original.StableIdentity, moved.StableIdentity);
+        Assert.Equal(original.CandidateId, moved.CandidateId);
+        Assert.NotEqual(original.PortableAddress, moved.PortableAddress);
+        Assert.NotEqual(original.StableIdentity, otherSource.StableIdentity);
+        Assert.NotEqual(original.CandidateId, otherSource.CandidateId);
+    }
+
     private static async Task<IReadOnlyList<DriverImportCandidate>> ImportAsync(
         DriverImportRequest request,
         Stream content)

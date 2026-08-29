@@ -46,6 +46,7 @@ const clientFlag = {
   label: 'Selection enabled',
   dataType: 'Boolean',
   family: 'clientMemory',
+  tagReference: { tagId: '44444444-4444-4444-4444-444444444444' },
   bindable: true
 } as const;
 
@@ -114,16 +115,31 @@ test('direct and numeric interval presets create canonical first-class condition
   });
 });
 
-test('direct Client Memory preserves its canonical client-local path without inventing a TagId', () => {
+test('Client Memory direct and expression sources retain friendly path plus real stable ID', () => {
   const source = createValueSource('Boolean', clientFlag);
   expect(source).toEqual({
     kind: 'ClientMemory',
     valueType: 'Boolean',
     target: 'client.selection.enabled',
+    tagReference: { tagId: clientFlag.tagReference.tagId },
     version: 1
   });
-  expect(() => createExpressionDependency('clientFlag', 'Boolean', clientFlag))
-    .toThrow(/no canonical stable identity in the current integrated contract/);
+
+  const dependency = createExpressionDependency('clientFlag', 'Boolean', clientFlag);
+  expect(dependency).toEqual({
+    symbol: 'clientFlag',
+    kind: 'ClientMemory',
+    valueType: 'Boolean',
+    tagReference: { tagId: clientFlag.tagReference.tagId },
+    target: 'client.selection.enabled',
+    version: 1
+  });
+
+  const expression = createVisualExpressionEngineering('Boolean', 'not clientFlag', [dependency]);
+  expect(expression.dependencies?.[0]).toMatchObject({
+    kind: 'ClientMemory',
+    tagReference: { tagId: clientFlag.tagReference.tagId }
+  });
 });
 
 test('expression value source and Analog Fill retain canonical typed configuration only', () => {

@@ -6,7 +6,7 @@
 **Current wave:** `GRAPHICAL-EDITOR-WAVE-08`  
 **Wave status:** **ACTIVE — CENTRAL FOUNDATION VALIDATED / INTERACTIVE WORKER SLICES PENDING**  
 **CI policy:** `NORMAL`; Actions authorized with conservative usage  
-**Workers:** **STOPPED / WAIT_FOR_COORDINATOR**
+**Workers:** **STOPPED / WAIT_FOR_COORDINATOR; dependency-prepared only**
 
 ## Exact validated checkpoint
 
@@ -48,8 +48,6 @@ Owner explicitly authorized Actions, conservatively:
 The coordinator followed that policy in this checkpoint: each new run was caused by a concrete corrective commit, never an unchanged rerun.
 
 ## CI defects found and corrected
-
-The first validation cycles exposed three deterministic issues:
 
 1. **TypeScript readonly/mutable mismatch** in `visualEditorCanonicalModel.ts` when replacing `Screen.elements`; fixed by cloning to a mutable array.
 2. **C# record reserved method name**: `EngineeringRevisionAssetPayload.Clone()` and `VisualAssetPayload.Clone()` caused CS8859; helpers renamed to `Copy()` and call sites updated.
@@ -112,30 +110,21 @@ Validated behavior:
 
 ### Screen save/reopen E2E
 
-`web/scada-web/tests-e2e/visual-editor-workspace.spec.ts` now has real CI evidence from #515. It proves:
+`web/scada-web/tests-e2e/visual-editor-workspace.spec.ts` has real CI evidence from #515. It proves canonical Screen load, error-free seeded preview, route edit, Preview-before-Apply, canonical Apply/export, UI reopen, Workspace version advance and test cleanup/restore.
 
-1. canonical Screen load;
-2. seeded preview without renderer-error cards;
-3. route edit;
-4. Apply disabled before Preview;
-5. valid Preview;
-6. UI Apply through canonical authority;
-7. canonical export reflects the change;
-8. UI reload/reopen reflects persisted value;
-9. Workspace version advances;
-10. test restores original Engineering package.
+## Worker branches — prepared dependency, still STOPPED
 
-## Worker state
+Logical worker Base remains `7a445d3dd94cabd09807291a0ee94276559fcb0e`.
 
-All workers remain STOPPED unless deliberately restarted. Last verified branches were still at contract base:
+The coordinator seeded **only** the shared `visualEditorContracts.ts` into each worker branch. No worker implementation has started and no integration-branch rebase was performed:
 
-- DEV 1 `feature/graphical-editor-wave-08-canvas` — Canvas / Selection;
-- DEV 2 `feature/graphical-editor-wave-08-property-inspector` — Property Inspector;
-- DEV 3 `feature/graphical-editor-wave-08-palette-bindings` — Object Palette / Binding.
+- DEV 1 `feature/graphical-editor-wave-08-canvas` head **`57521312914e21e303976a81bc81c84ad5aa9cbb`** — dependency seed only;
+- DEV 2 `feature/graphical-editor-wave-08-property-inspector` head **`3e942ed641d96afe848966f123fb10eaeaa99ed7`** — dependency seed only;
+- DEV 3 `feature/graphical-editor-wave-08-palette-bindings` head **`df3cd6c332a19bb3011373c95d010f33754c0c12`** — dependency seed only.
 
-When restarted, each must read coordinator-owned `visualEditorContracts.ts` and consume its shared intents rather than inventing a competing integration format.
+All three remain **STOPPED / WAIT_FOR_COORDINATOR**. These coordinator commits are not worker delivery and do not authorize execution.
 
-Reserved central files/domains remain those frozen by `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`.
+When restarted, each must consume the seeded coordinator-owned contract rather than inventing competing intents. Reserved central files/domains remain those frozen by `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`.
 
 ## Remaining Wave 08 work
 
@@ -161,7 +150,7 @@ Wave 09/10 remain NOT ACTIVE.
 2. verify live `main`, PR #90, integration and all worker heads/CI;
 3. reuse CI #515 evidence while the central product code is unchanged;
 4. keep workers STOPPED unless deliberately restarted;
-5. when restarting, preserve fixed scopes and require `visualEditorContracts.ts`;
+5. when restarting, start from the dependency-prepared heads above, preserve fixed scopes and require the shared `visualEditorContracts.ts` contract;
 6. review worker deliveries before integration;
 7. integrate only through `integration/graphical-editor-wave-08`;
 8. use focused validation while composing slices;

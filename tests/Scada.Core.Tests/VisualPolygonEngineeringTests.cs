@@ -17,7 +17,7 @@ public sealed class VisualPolygonEngineeringTests
         Assert.True(schema.Declares(VisualPropertyKeys.StrokeColor));
         Assert.False(schema.Declares("points"));
 
-        var element = Polygon("[[0,0],[1,0],[0,1]]");
+        var element = Polygon("[{\"x\":0,\"y\":0},{\"x\":1,\"y\":0},{\"x\":0,\"y\":1}]");
         var issues = BuiltinVisualEngineeringValidation.Validate(
             element,
             ImportEntityKind.Screen,
@@ -35,17 +35,17 @@ public sealed class VisualPolygonEngineeringTests
             "screen",
             "Screen",
             "/screen",
-            [Polygon("[[0,0],[100,0],[100,80],[20,90]]")]);
+            [Polygon("[{\"x\":0,\"y\":0},{\"x\":100,\"y\":0},{\"x\":100,\"y\":80},{\"x\":20,\"y\":90}]")]);
 
         var validIssues = EngineeringValidator.ValidateScreen(valid);
         Assert.DoesNotContain(validIssues, issue => issue.Code.StartsWith("VISUAL_POLYGON_", StringComparison.Ordinal));
 
         var degenerate = valid with
         {
-            Elements = [Polygon("[[0,0],[10,10],[20,20]]")]
+            Elements = [Polygon("[{\"x\":0,\"y\":0},{\"x\":10,\"y\":10},{\"x\":20,\"y\":20}]")]
         };
         var invalidIssues = EngineeringValidator.ValidateScreen(degenerate);
-        Assert.Contains(invalidIssues, issue => issue.Code == "VISUAL_POLYGON_AREA_INVALID" && issue.IsError);
+        Assert.Contains(invalidIssues, issue => issue.Code == "VISUAL_POLYGON_DEGENERATE" && issue.IsError);
     }
 
     [Fact]
@@ -56,11 +56,11 @@ public sealed class VisualPolygonEngineeringTests
             "core.rectangle",
             Properties: new Dictionary<string, JsonElement>
             {
-                ["points"] = Points("[[0,0],[1,0],[0,1]]")
+                ["points"] = Points("[{\"x\":0,\"y\":0},{\"x\":1,\"y\":0},{\"x\":0,\"y\":1}]")
             },
             Id: Guid.NewGuid());
 
-        var tooSmall = Polygon("[[0,0],[1,0]]");
+        var tooSmall = Polygon("[{\"x\":0,\"y\":0},{\"x\":1,\"y\":0}]");
         var screen = new ScreenEngineeringDto(Guid.NewGuid(), "screen", "Screen", "/screen", [nonPolygon, tooSmall]);
         var issues = EngineeringValidator.ValidateScreen(screen);
 
@@ -68,18 +68,8 @@ public sealed class VisualPolygonEngineeringTests
         Assert.Contains(issues, issue => issue.Code == "VISUAL_POLYGON_POINTS_MINIMUM" && issue.IsError);
     }
 
-    private static VisualElementEngineeringDto Polygon(string compactPairs)
-    {
-        using var source = JsonDocument.Parse(compactPairs);
-        var points = source.RootElement.EnumerateArray()
-            .Select(pair => new
-            {
-                x = pair[0].GetDouble(),
-                y = pair[1].GetDouble()
-            })
-            .ToArray();
-        var element = JsonSerializer.SerializeToElement(points);
-        return new VisualElementEngineeringDto(
+    private static VisualElementEngineeringDto Polygon(string pointsJson) =>
+        new(
             "polygon",
             "core.polygon",
             Properties: new Dictionary<string, JsonElement>
@@ -89,17 +79,13 @@ public sealed class VisualPolygonEngineeringTests
                 ["width"] = JsonSerializer.SerializeToElement(100d),
                 ["height"] = JsonSerializer.SerializeToElement(100d),
                 ["fillColor"] = JsonSerializer.SerializeToElement("#336699"),
-                ["points"] = element
+                ["points"] = Points(pointsJson)
             },
             Id: Guid.NewGuid());
-    }
 
-    private static JsonElement Points(string compactPairs)
+    private static JsonElement Points(string json)
     {
-        using var source = JsonDocument.Parse(compactPairs);
-        var points = source.RootElement.EnumerateArray()
-            .Select(pair => new { x = pair[0].GetDouble(), y = pair[1].GetDouble() })
-            .ToArray();
-        return JsonSerializer.SerializeToElement(points);
+        using var source = JsonDocument.Parse(json);
+        return source.RootElement.Clone();
     }
 }

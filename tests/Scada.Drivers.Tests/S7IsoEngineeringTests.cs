@@ -11,7 +11,9 @@ public sealed class S7IsoEngineeringTests
         var descriptor = new S7IsoEngineeringAdapter().Descriptor;
 
         Assert.Equal("siemens.s7.iso", descriptor.DriverType);
-        Assert.Equal(DriverEngineeringCapabilities.ConnectionTest, descriptor.EngineeringCapabilities);
+        Assert.Equal(
+            DriverEngineeringCapabilities.ConnectionTest | DriverEngineeringCapabilities.FileImport,
+            descriptor.EngineeringCapabilities);
         Assert.Contains(DriverAcquisitionMode.Polling, descriptor.AcquisitionModes);
         Assert.DoesNotContain(descriptor.ConfigurationSchema.DataSourceFields, field => field.ValueKind == DriverConfigurationValueKind.SecretReference);
         Assert.Contains(descriptor.ConfigurationSchema.TagBindingFields, field => field.Key == "valueOrder");

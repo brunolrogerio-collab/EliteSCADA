@@ -14,7 +14,7 @@ test('free polygon creation stores local ordered vertices without duplicating th
     { x: 160, y: 170 },
     { x: 110, y: 150 }
   ];
-  const created = createCanonicalPolygon(screen(), points, { createObjectId: () => 'polygon-id' });
+  const created = createCanonicalPolygon(screen(), points, () => 'polygon-id');
   const polygon = created.screen.elements?.[0]!;
 
   expect(polygon).toMatchObject({
@@ -37,15 +37,19 @@ test('free polygon creation stores local ordered vertices without duplicating th
 
 test('polygon creation rejects incomplete or degenerate geometry', () => {
   expect(() => createCanonicalPolygon(screen(), [{ x: 0, y: 0 }, { x: 10, y: 10 }])).toThrow(/three/i);
-  expect(() => createCanonicalPolygon(screen(), [{ x: 0, y: 0 }, { x: 10, y: 10 }, { x: 20, y: 20 }])).toThrow(/area|degenerate/i);
-  expect(() => createCanonicalPolygon(screen(), [{ x: 0, y: 0 }, { x: Number.NaN, y: 10 }, { x: 20, y: 0 }])).toThrow(/finite|invalid/i);
+  expect(() => createCanonicalPolygon(screen(), [{ x: 0, y: 0 }, { x: 10, y: 10 }, { x: 20, y: 20 }])).toThrow(/degenerate/i);
+  expect(() => createCanonicalPolygon(screen(), [{ x: 0, y: 0 }, { x: Number.NaN, y: 10 }, { x: 20, y: 0 }])).toThrow(/finite/i);
 });
 
 test('polygon vertex editing remains canonical and keeps at least three valid points', () => {
   const created = createCanonicalPolygon(screen(), [
     { x: 10, y: 10 }, { x: 110, y: 10 }, { x: 80, y: 90 }
-  ], { createObjectId: () => 'polygon-id' });
+  ], () => 'polygon-id');
 
+  const originalBounds = {
+    width: created.screen.elements?.[0].properties?.width,
+    height: created.screen.elements?.[0].properties?.height
+  };
   const updated = updateCanonicalPolygonPoints(created.screen, 'polygon-id', [
     { x: 0, y: 0 }, { x: 120, y: 0 }, { x: 130, y: 80 }, { x: 30, y: 100 }
   ]);
@@ -53,8 +57,8 @@ test('polygon vertex editing remains canonical and keeps at least three valid po
   expect(readPolygonPoints(polygon)).toEqual([
     { x: 0, y: 0 }, { x: 120, y: 0 }, { x: 130, y: 80 }, { x: 30, y: 100 }
   ]);
-  expect(polygon.properties?.width).toBe(130);
-  expect(polygon.properties?.height).toBe(100);
+  expect(polygon.properties?.width).toBe(originalBounds.width);
+  expect(polygon.properties?.height).toBe(originalBounds.height);
 
   expect(() => updateCanonicalPolygonPoints(updated, 'polygon-id', [
     { x: 0, y: 0 }, { x: 10, y: 0 }

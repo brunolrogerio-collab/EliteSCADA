@@ -17,6 +17,7 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
     private readonly MqttClientFactory _factory;
     private readonly IMqttClient _client;
     private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
+    private readonly object _callbackStateGate = new();
     private Channel<TransportItem>? _received;
     private CancellationTokenSource? _receiveWriteCts;
     private int? _bufferCapacity;
@@ -279,7 +280,7 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
             if (_disposed) return;
             _intentionalDisconnect = true;
             _acceptInboundEvents = false;
-            _receiveWriteCts?.Cancel();
+            CancelReceiveWriters();
             try
             {
                 if (_client.IsConnected)
@@ -322,14 +323,20 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
             _intentionalDisconnect = true;
             _acceptInboundEvents = false;
             Interlocked.Increment(ref _activeGeneration);
-            _receiveWriteCts?.Cancel();
+            CancelReceiveWriters();
 
             _client.ApplicationMessageReceivedAsync -= OnApplicationMessageReceivedAsync;
             _client.DisconnectedAsync -= OnDisconnectedAsync;
             _received?.Writer.TryComplete();
             _client.Dispose();
-            _receiveWriteCts?.Dispose();
-            _receiveWriteCts = null;
+
+            CancellationTokenSource? receiveWriteCts;
+            lock (_callbackStateGate)
+            {
+                receiveWriteCts = _receiveWriteCts;
+                _receiveWriteCts = null;
+            }
+            receiveWriteCts?.Dispose();
         }
         finally
         {
@@ -345,9 +352,7 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
         if (requiresAcknowledgement)
             args.AutoAcknowledge = false;
 
-        var channel = _received;
-        var writeCancellation = _receiveWriteCts;
-        if (_disposed || !_acceptInboundEvents || channel is null || writeCancellation is null)
+        if (!TryCaptureCallbackState(out var channel, out var writeCancellation))
         {
             if (requiresAcknowledgement) args.ProcessingFailed = true;
             return;
@@ -366,10 +371,10 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
         {
             await channel.Writer.WriteAsync(
                 TransportItem.FromMessage(generation, received),
-                writeCancellation.Token);
+                writeCancellation);
 
             if (requiresAcknowledgement)
-                await args.AcknowledgeAsync(CancellationToken.None);
+                await args.AcknowledgeAsync(writeCancellation);
         }
         catch (OperationCanceledException) when (_disposed || !_acceptInboundEvents || writeCancellation.IsCancellationRequested)
         {
@@ -383,12 +388,13 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
 
     private async Task OnDisconnectedAsync(MqttClientDisconnectedEventArgs args)
     {
-        var channel = _received;
-        var writeCancellation = _receiveWriteCts;
-        if (_disposed || _intentionalDisconnect || !_acceptInboundEvents || channel is null || writeCancellation is null)
+        if (_disposed || _intentionalDisconnect || !_acceptInboundEvents)
             return;
 
         _acceptInboundEvents = false;
+        if (!TryCaptureCallbackState(out var channel, out var writeCancellation, requireAcceptingEvents: false))
+            return;
+
         var generation = Interlocked.Read(ref _activeGeneration);
         var reason = string.IsNullOrWhiteSpace(args.ReasonString)
             ? "MQTT broker connection was lost."
@@ -398,13 +404,36 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
         {
             await channel.Writer.WriteAsync(
                 TransportItem.FromError(generation, new MqttTransportException(reason)),
-                writeCancellation.Token);
+                writeCancellation);
         }
         catch (OperationCanceledException) when (_disposed || _intentionalDisconnect || writeCancellation.IsCancellationRequested)
         {
         }
         catch (ChannelClosedException) when (_disposed)
         {
+        }
+    }
+
+    private bool TryCaptureCallbackState(
+        out Channel<TransportItem> channel,
+        out CancellationToken writeCancellation,
+        bool requireAcceptingEvents = true)
+    {
+        lock (_callbackStateGate)
+        {
+            if (_disposed ||
+                (requireAcceptingEvents && !_acceptInboundEvents) ||
+                _received is null ||
+                _receiveWriteCts is null)
+            {
+                channel = null!;
+                writeCancellation = default;
+                return false;
+            }
+
+            channel = _received;
+            writeCancellation = _receiveWriteCts.Token;
+            return true;
         }
     }
 
@@ -433,9 +462,22 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
 
     private void ResetReceiveWriteCancellation()
     {
-        _receiveWriteCts?.Cancel();
-        _receiveWriteCts?.Dispose();
-        _receiveWriteCts = new CancellationTokenSource();
+        CancellationTokenSource? previous;
+        lock (_callbackStateGate)
+        {
+            previous = _receiveWriteCts;
+            _receiveWriteCts = new CancellationTokenSource();
+        }
+
+        previous?.Cancel();
+        previous?.Dispose();
+    }
+
+    private void CancelReceiveWriters()
+    {
+        CancellationTokenSource? source;
+        lock (_callbackStateGate) source = _receiveWriteCts;
+        source?.Cancel();
     }
 
     private void DrainBufferedItems()

@@ -18,7 +18,7 @@ internal sealed class EngineeringCsvExchange
         {
             new[]
             {
-                "Id", "Path", "Name", "DataType", "Unit", "Source", "Address", "ReadOnly",
+                "Id", "Path", "Name", "DataType", "Unit", "Source", "Address", "AddressSelectorKind", "AddressSelectorIndex", "ReadOnly",
                 "ScaleMinimum", "ScaleMaximum", "HistorianEnabled", "HistorianStrategy", "Deadband",
                 "PeriodMilliseconds", "MaximumPeriodMilliseconds", "Description", "MetadataJson",
                 "ReadRolesJson", "WriteRolesJson", "ConfigureRolesJson", "InitialValueDataType", "InitialValueJson"
@@ -30,6 +30,7 @@ internal sealed class EngineeringCsvExchange
             rows.Add(new[]
             {
                 tag.Id?.ToString(), tag.Path, tag.Name, tag.DataType.ToString(), tag.EngineeringUnit, tag.Source, tag.Address,
+                tag.AddressSelector?.Kind.ToString(), tag.AddressSelector?.Index.ToString(CultureInfo.InvariantCulture),
                 tag.ReadOnly.ToString(), CsvCodec.Number(tag.ScaleMinimum), CsvCodec.Number(tag.ScaleMaximum),
                 (tag.Historian?.Enabled ?? false).ToString(), tag.Historian?.Strategy, CsvCodec.Number(tag.Historian?.Deadband),
                 tag.Historian?.PeriodMilliseconds?.ToString(CultureInfo.InvariantCulture),
@@ -149,6 +150,9 @@ internal sealed class EngineeringCsvExchange
         var initialValue = ParseInitialValue(
             Null(Get(row, header, "InitialValueDataType")),
             Null(Get(row, header, "InitialValueJson")));
+        var addressSelector = ParseAddressSelector(
+            Null(Get(row, header, "AddressSelectorKind")),
+            Null(Get(row, header, "AddressSelectorIndex")));
 
         return new TagEngineeringDto(
             GuidOrNull(Get(row, header, "Id")),
@@ -170,7 +174,8 @@ internal sealed class EngineeringCsvExchange
                 IntOrNull(Get(row, header, "MaximumPeriodMilliseconds"))),
             ParseMap(Get(row, header, "MetadataJson")),
             accessPolicy,
-            initialValue);
+            initialValue,
+            addressSelector);
     }
 
     private string? JsonMap(IReadOnlyDictionary<string, string>? map) =>
@@ -226,6 +231,20 @@ internal sealed class EngineeringCsvExchange
         {
             throw new InvalidDataException($"TAG CSV Internal Memory initial value is invalid for data type '{dataType}'.", ex);
         }
+    }
+
+    private static TagValueSelector? ParseAddressSelector(string? kindText, string? indexText)
+    {
+        if (kindText is null && indexText is null)
+            return null;
+        if (kindText is null || indexText is null)
+            throw new InvalidDataException("TAG CSV address selector requires both kind and index.");
+        if (!Enum.TryParse<TagValueSelectorKind>(kindText, ignoreCase: true, out var kind))
+            throw new InvalidDataException($"TAG CSV address selector has unsupported kind '{kindText}'.");
+        if (!int.TryParse(indexText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var index))
+            throw new InvalidDataException($"TAG CSV address selector index '{indexText}' is invalid.");
+
+        return new TagValueSelector(kind, index);
     }
 
     private static Dictionary<string, int> Header(string[] row) =>

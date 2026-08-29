@@ -89,7 +89,7 @@ public sealed class S7IsoEngineeringAdapter :
         {
             throw;
         }
-        catch (Exception ex) when (ex is InvalidDataException or IOException or NotSupportedException or FormatException or System.Xml.XmlException or DecoderFallbackException)
+        catch (Exception ex) when (ex is InvalidDataException or IOException or NotSupportedException or FormatException or System.Xml.XmlException or System.Text.DecoderFallbackException)
         {
             parseFailure = InvalidImportCandidate(format, request.SourceName, ex);
         }

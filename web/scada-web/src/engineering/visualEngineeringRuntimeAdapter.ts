@@ -79,7 +79,8 @@ function projectCanonicalBinding(binding: BindingEngineering) {
 }
 
 function toRuntimeBindingKind(kind: string): VisualBindingSourceKind {
-  switch (kind) {
+  const normalized = kind.trim().toLowerCase();
+  switch (normalized) {
     case 'tag':
     case 'clientmemory':
     case 'property':

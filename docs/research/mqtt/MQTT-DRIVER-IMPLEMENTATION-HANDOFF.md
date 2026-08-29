@@ -19,6 +19,8 @@ This document records the implementation state of the raw MQTT industrial driver
 - Broker loss marks affected TAGs `BadCommunication` and moves communication diagnostics through reconnect/fault states.
 - Malformed payloads fail closed per mapped point and do not silently coerce values to `0`, `false` or another guessed type.
 - Retained values without a trustworthy configured source timestamp are `Stale` by default. `acceptAsCurrent` is an explicit opt-in policy.
+- Optional per-TAG freshness timeout transitions a previously valid `Good` sample to `Stale` when no fresher value arrives in time. A mapped source timestamp is used as the freshness reference when available; otherwise receive time is used.
+- The MQTTnet inbound adapter uses a bounded channel with `FullMode.Wait`. Callback completion therefore applies backpressure instead of silently dropping newest/oldest telemetry or allowing an unbounded memory queue.
 - Writable TAGs publish through the normal driver write path and do not pretend that a successful MQTT publish means the remote process accepted the command.
 - Runtime diagnostics use `CommunicationDriverDiagnosticSnapshot`; scan interval, cycle count and scan duration remain absent/zero for the event-driven driver.
 
@@ -62,6 +64,7 @@ The driver uses the existing public `DataSourceEngineeringDto.Settings` and `Sec
 | `mqtt5.sessionExpirySeconds` | MQTT 5 session expiry | 3600 |
 | `maximumInboundPayloadBytes` | inbound payload bound | 1048576 |
 | `maximumConsecutiveConnectFailures` | fault threshold | 5 |
+| `maximumBufferedMessages` | maximum queued inbound MQTT events | 4096; bounded 1..1000000 |
 
 Protocol-specific MQTT 3.1.1 and MQTT 5 settings are mutually validated. Configuration for the wrong protocol version fails before activation.
 
@@ -85,6 +88,7 @@ Supported MQTT metadata keys:
 | `mqtt.jsonPointer` | JSON value extraction pointer |
 | `mqtt.sourceTimestampJsonPointer` | JSON source timestamp pointer |
 | `mqtt.sourceTimestampRequired` | fail if source timestamp is absent/invalid |
+| `mqtt.freshnessTimeoutMilliseconds` | optional age limit before a valid sample becomes `Stale` |
 | `mqtt.retainedValuePolicy` | `staleWithoutSourceTimestamp` or `acceptAsCurrent` |
 | `mqtt.qos` | subscription QoS 0/1/2 |
 | `mqtt.publishTopic` | exact publish topic for writable TAG |
@@ -92,6 +96,33 @@ Supported MQTT metadata keys:
 | `mqtt.publishRetain` | publish retain flag |
 
 Wildcard traffic never creates canonical TAGs automatically.
+
+### Freshness semantics
+
+Freshness is independent from broker connectivity and MQTT QoS.
+
+- A valid incoming sample starts or refreshes the point freshness clock.
+- When a trustworthy mapped source timestamp exists, that timestamp is the freshness reference.
+- Otherwise the MQTT receive timestamp is the freshness reference.
+- If the reference is already older than the configured timeout when the message arrives, the sample is published as `Stale` immediately.
+- A `Good` sample that later exceeds its timeout is republished as `Stale` while preserving value and source timestamp.
+- A later valid fresh message recovers the point to `Good`.
+- Freshness expiration does not fabricate a communication failure or force the broker connection out of `Healthy` by itself.
+
+## Inbound buffering and backpressure
+
+`maximumBufferedMessages` configures the bounded queue between MQTTnet callbacks and canonical TAG processing.
+
+The channel uses:
+
+- one canonical reader;
+- multiple possible MQTTnet callback writers;
+- `BoundedChannelFullMode.Wait`;
+- cancellation of blocked writers during intentional disconnect/dispose.
+
+This intentionally avoids `DropOldest`, `DropNewest` and unbounded buffering. When the process cannot consume MQTT messages fast enough, callback completion waits for capacity, allowing pressure to propagate toward the protocol library instead of silently corrupting application-level telemetry history.
+
+This does not turn MQTT QoS into an EliteSCADA transaction guarantee. A process failure after broker delivery but before canonical cache processing can still interrupt application processing; packet identifiers are not treated as application event identity.
 
 ## Engineering Import/Export
 
@@ -104,6 +135,8 @@ Covered paths:
 - Data Source CSV export/import including Settings and SecretReferences;
 - TAG CSV export/import including Address and MQTT metadata;
 - public package/revision-compatible DTO representation.
+
+The freshness and inbound-buffer settings live in those same public maps and therefore round-trip through the existing package/CSV contracts without MQTT-private persistence.
 
 No plaintext password/private key is introduced by the MQTT-specific code.
 
@@ -129,8 +162,9 @@ This keeps MQTTnet classes behind `IMqttClientTransport` and prevents the protoc
 - `MqttEventDrivenReadinessTests`
 - `MqttRuntimeFactoryTests`
 - `MqttCredentialLifetimeTests`
+- `MqttFreshnessAndBufferTests`
 
-The tests cover exact-topic validation, typed payloads, JSON Pointer, retained semantics, malformed payload isolation, event-driven cache updates, writes, reconnect/resubscribe, Engineering compilation, public Import/Export fidelity, secret reference enforcement, runtime composition and credential zeroization.
+The tests cover exact-topic validation, typed payloads, JSON Pointer, retained semantics, malformed payload isolation, event-driven cache updates, writes, reconnect/resubscribe, Engineering compilation, public Import/Export fidelity, secret reference enforcement, runtime composition, credential zeroization, freshness expiration/recovery, source-timestamp freshness and bounded-buffer configuration limits.
 
 The current execution environment does not contain the .NET 10 SDK, so these tests still require execution in an authorized .NET 10 build environment. GitHub Actions should not be spent merely as reassurance CI; run the focused suite when Coordinator integration or a justified driver validation run is scheduled.
 
@@ -152,7 +186,8 @@ The MQTT implementation establishes the intended semantics:
 
 - connected + subscriptions accepted => communication state `Healthy`;
 - a TAG with no received sample remains `NoCurrentSample`;
-- absence of first telemetry is not itself a broker communication failure.
+- absence of first telemetry is not itself a broker communication failure;
+- a configured freshness expiration may make an existing sample `Stale` without implying broker failure.
 
 The common activation policy needs a protocol-neutral readiness contract that can represent this distinction.
 
@@ -168,13 +203,16 @@ Before production integration, validate with at least two independent broker imp
    - retained messages;
    - persistent session reconnect;
    - broker restart and network interruption;
-   - malformed and oversized payload behavior.
+   - malformed and oversized payload behavior;
+   - burst traffic above configured inbound capacity to verify bounded backpressure and shutdown behavior;
+   - freshness timeout and recovery under real broker traffic.
 
 2. Independent implementation such as HiveMQ Community Edition
    - connection/session interoperability;
    - subscription and publish acknowledgements;
    - QoS and retained interoperability;
-   - TLS hostname/chain failures.
+   - TLS hostname/chain failures;
+   - sustained burst/backpressure interoperability.
 
 Vendor/cloud broker validation should be added when a concrete deployment target is selected.
 

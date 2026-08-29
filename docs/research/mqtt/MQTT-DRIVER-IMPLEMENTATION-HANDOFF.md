@@ -19,7 +19,8 @@ This document records the implementation state of the raw MQTT industrial driver
 - Broker loss marks affected TAGs `BadCommunication` and moves communication diagnostics through reconnect/fault states.
 - Malformed payloads fail closed per mapped point and do not silently coerce values to `0`, `false` or another guessed type.
 - Retained values without a trustworthy configured source timestamp are `Stale` by default. `acceptAsCurrent` is an explicit opt-in policy.
-- Optional per-TAG freshness timeout transitions a previously valid `Good` sample to `Stale` when no fresher value arrives in time. A mapped source timestamp is used as the freshness reference when available; otherwise receive time is used.
+- Optional per-TAG freshness timeout transitions a previously valid `Good` sample to `Stale` when no newer accepted MQTT sample arrives in time. The freshness clock starts from local sample acceptance and is deliberately independent from mapped source timestamps.
+- Freshness uses the monotonic `Stopwatch` clock, so wall-clock adjustment cannot prematurely expire or extend a point freshness interval.
 - Freshness-managed cache updates are serialized with freshness expiry transitions so an older expiry decision cannot overwrite a newer accepted sample or communication failure.
 - The MQTTnet inbound adapter uses a bounded channel with `FullMode.Wait`. Callback completion therefore applies backpressure instead of silently dropping newest/oldest telemetry or allowing an unbounded memory queue.
 - Inbound QoS 1/2 acknowledgement is deferred until the application message has been admitted to the bounded EliteSCADA transport queue. A canceled or rejected enqueue is not acknowledged.
@@ -90,7 +91,7 @@ Supported MQTT metadata keys:
 | `mqtt.jsonPointer` | JSON value extraction pointer |
 | `mqtt.sourceTimestampJsonPointer` | JSON source timestamp pointer |
 | `mqtt.sourceTimestampRequired` | fail if source timestamp is absent/invalid |
-| `mqtt.freshnessTimeoutMilliseconds` | optional age limit before a valid sample becomes `Stale` |
+| `mqtt.freshnessTimeoutMilliseconds` | optional silence limit after the last accepted sample before a `Good` value becomes `Stale` |
 | `mqtt.retainedValuePolicy` | `staleWithoutSourceTimestamp` or `acceptAsCurrent` |
 | `mqtt.qos` | subscription QoS 0/1/2 |
 | `mqtt.publishTopic` | exact publish topic for writable TAG |
@@ -101,14 +102,14 @@ Wildcard traffic never creates canonical TAGs automatically.
 
 ### Freshness semantics
 
-Freshness is independent from broker connectivity and MQTT QoS.
+Freshness is independent from broker connectivity, MQTT QoS and process/source clock age.
 
-- A valid incoming sample starts or refreshes the point freshness clock.
-- When a trustworthy mapped source timestamp exists, that timestamp is the freshness reference.
-- Otherwise the MQTT receive timestamp is the freshness reference.
-- If the reference is already older than the configured timeout when the message arrives, the sample is published as `Stale` immediately.
-- A `Good` sample that later exceeds its timeout is republished as `Stale` while preserving value and source timestamp.
-- A later valid fresh message recovers the point to `Good`.
+- A valid incoming sample starts or refreshes the point freshness clock only after the sample is accepted into the canonical current-value cache.
+- The freshness interval is measured with the local monotonic clock from that acceptance event.
+- A mapped `SourceTimestamp` is preserved as process provenance but never used to shorten or extend the MQTT freshness interval.
+- A newly received value with an old but valid source timestamp can therefore still be `Good`; source age and communication silence are intentionally different dimensions.
+- A `Good` sample that later exceeds its receive/acceptance timeout is republished as `Stale` while preserving value and source timestamp.
+- A later valid accepted message recovers the point to the quality determined by payload/retained policy and restarts the freshness clock when applicable.
 - Accepted samples, freshness expiry and communication/decode failure quality updates are serialized for freshness-managed TAGs, preventing an older expiry decision from overwriting a newer state.
 - Freshness expiration does not fabricate a communication failure or force the broker connection out of `Healthy` by itself.
 
@@ -171,7 +172,7 @@ This keeps MQTTnet classes behind `IMqttClientTransport` and prevents the protoc
 - `MqttCredentialLifetimeTests`
 - `MqttFreshnessAndBufferTests`
 
-The tests cover exact-topic validation, typed payloads, JSON Pointer, retained semantics, malformed payload isolation, event-driven cache updates, writes, reconnect/resubscribe, Engineering compilation, public Import/Export fidelity, secret reference enforcement, runtime composition, credential zeroization, freshness expiration/recovery, source-timestamp freshness and bounded-buffer configuration limits.
+The tests cover exact-topic validation, typed payloads, JSON Pointer, retained semantics, malformed payload isolation, event-driven cache updates, writes, reconnect/resubscribe, Engineering compilation, public Import/Export fidelity, secret reference enforcement, runtime composition, credential zeroization, freshness expiration/recovery, separation of source-time age from receive freshness and bounded-buffer configuration limits.
 
 The current execution environment does not contain the .NET 10 SDK, so these tests still require execution in an authorized .NET 10 build environment. GitHub Actions should not be spent merely as reassurance CI; run the focused suite when Coordinator integration or a justified driver validation run is scheduled.
 

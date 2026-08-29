@@ -130,7 +130,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
     {
         if (_loop is { IsCompleted: false }) return Task.CompletedTask;
 
-        foreach (var point in _points) _registry.Register(point.Tag);
+        foreach (var point in _points) _registry.Upsert(point.Tag);
         Status = new DriverStatus(DriverId, Name, DriverState.Starting, DateTimeOffset.UtcNow);
         TransitionCommunicationState(CommunicationDriverOperationalState.Starting);
 
@@ -145,27 +145,39 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
-        if (_cts is null) return;
+        var cts = _cts;
+        if (cts is null) return;
 
+        var loop = _loop;
+        var freshnessLoop = _freshnessLoop;
         Status = new DriverStatus(DriverId, Name, DriverState.Stopping, DateTimeOffset.UtcNow, UpdatesPublished: Interlocked.Read(ref _updatesPublished));
         TransitionCommunicationState(CommunicationDriverOperationalState.Stopping);
-        await _cts.CancelAsync();
+        await cts.CancelAsync();
 
-        if (_loop is not null)
+        if (loop is not null)
         {
-            try { await _loop.WaitAsync(cancellationToken); }
-            catch (OperationCanceledException) when (_cts.IsCancellationRequested) { }
+            try { await loop.WaitAsync(cancellationToken); }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
         }
 
-        if (_freshnessLoop is not null)
+        if (freshnessLoop is not null)
         {
-            try { await _freshnessLoop.WaitAsync(cancellationToken); }
-            catch (OperationCanceledException) when (_cts.IsCancellationRequested) { }
+            try { await freshnessLoop.WaitAsync(cancellationToken); }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
         }
 
         await DisconnectTransportAsync(cancellationToken);
+        lock (_diagnosticsGate) _freshnessReferenceByTagId.Clear();
         Status = new DriverStatus(DriverId, Name, DriverState.Stopped, DateTimeOffset.UtcNow, UpdatesPublished: Interlocked.Read(ref _updatesPublished));
         TransitionCommunicationState(CommunicationDriverOperationalState.Stopped);
+
+        if (ReferenceEquals(_cts, cts))
+        {
+            _cts = null;
+            _loop = null;
+            _freshnessLoop = null;
+            cts.Dispose();
+        }
     }
 
     public ValueTask<TagValue?> ReadAsync(Guid tagId, CancellationToken cancellationToken = default)

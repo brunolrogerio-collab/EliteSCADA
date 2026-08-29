@@ -15,6 +15,7 @@ import type {
 import {
   DEFAULT_CANVAS_GRID_SIZE,
   clientDeltaToCanvas,
+  collapseHierarchySelection,
   hasMeaningfulDelta,
   nextSelection,
   normalizeSelection,
@@ -112,9 +113,10 @@ export function VisualEditorCanvas({
 
     const mode = selectionModeFromModifiers(event);
     const preserveExistingSelection = mode === 'replace' && selectionSet.has(projection.objectId);
-    const dragObjectIds = preserveExistingSelection
+    const requestedSelection = preserveExistingSelection
       ? selection
       : nextSelection(selection, projection.objectId, mode);
+    const dragObjectIds = collapseHierarchySelection(screen.elements ?? [], requestedSelection);
     if (!preserveExistingSelection) {
       emitSelection([projection.objectId], mode);
     }

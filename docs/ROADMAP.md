@@ -1,7 +1,7 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-08-28  
-**Active direction:** **WAVE 08 — GRAPHICAL EDITOR FOUNDATION / COORDINATOR FOUNDATION PARTIAL / WORKERS STOPPED / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
+**Active direction:** **WAVE 08 — GRAPHICAL EDITOR FOUNDATION / CENTRAL FOUNDATION CI GREEN / DEV 1-2-3 ACTIVE / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
 
 Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
 Parallel execution model: `docs/DEVELOPMENT-WAVES.md`.  
@@ -17,7 +17,7 @@ Engineering Import/Export remains cross-cutting: canonical Engineering domains j
 
 ## Current merged foundation
 
-Merged `main` now includes the complete Wave 07 visual-runtime foundation in addition to the earlier SCADA platform layers:
+Official `main` product state includes the complete Wave 07 foundation and all earlier SCADA layers:
 
 - TAG Engine/current cache/quality/Event Bus;
 - Simulation + real Modbus TCP;
@@ -34,15 +34,15 @@ Merged `main` now includes the complete Wave 07 visual-runtime foundation in add
 - Runtime Operations/Alarm Center/TAG Inspector/Recent History;
 - Lifecycle, Project Management/Portability, Basic Trends, Administration;
 - canonical Script Engineering;
-- practical Python editor and Client Visual Python sandbox;
-- canonical **Engineering Schema v12** JSON-native typed visual properties;
+- Python editor and Client Visual sandbox;
+- Engineering Schema v12 JSON-native typed visual properties;
 - stable nested visual object identity and Script `VisualObject` references;
-- typed Visual Property Registry and `core.*` built-in object schemas;
+- typed Visual Property Registry and `core.*` built-ins;
 - deterministic Runtime Visual Instance layering/isolation/disposal;
-- capability-bounded Client Visual Python visual property read/write/clear;
+- bounded Client Visual Python visual property read/write/clear;
 - canonical `assetRef = null | { assetId }` identity contract.
 
-Wave 08 coordinator work described below exists only on the integration branch until validated and merged. Do not describe Schema v13 Visual Assets as merged `main` capability yet.
+Wave 08 Schema v13 assets/editor work exists in Draft PR #90 and is **not merged product state yet**.
 
 ## Completed waves
 
@@ -50,7 +50,7 @@ Wave 08 coordinator work described below exists only on the integration branch u
 - **Wave 04 — COMPLETE / MERGED.** Main merge `e9e596f482c83bf5864b34a7f54d9fd3b0b67baa`; CI #446 green.
 - **Wave 05 — COMPLETE / MERGED.** Main merge `7f629bf660bb16fd46fbf6abeb72b9ca1676e087`; CI #466 green.
 - **Wave 06 — COMPLETE / MERGED.** Main merge `cc79713434c1d7b5988158b843b137eaf488d923`; CI #487 green.
-- **Wave 07 — COMPLETE / MERGED / POST-MERGE GREEN.** Final integration head `6d869109af23b25d1ae95cd35610e1930a16791c`; exact-head CI #508 green; PR #89 merged as `8de706882ba20afedd666532ac41ae11115d06b3`; post-merge CI #510 green.
+- **Wave 07 — COMPLETE / MERGED / POST-MERGE GREEN.** Final integration head `6d869109af23b25d1ae95cd35610e1930a16791c`; CI #508 green; PR #89 merged as `8de706882ba20afedd666532ac41ae11115d06b3`; post-merge CI #510 green.
 
 ## Ordered path to v0.1
 
@@ -71,73 +71,71 @@ Wave 15  Feedback/corrections                                                   
 FINAL    EliteSCADA v0.1 — Full Product Validation Preview
 ```
 
-## Wave 07 closure
-
-Wave 07 delivered and validated:
-- typed common Visual Property Registry and built-in schema parity;
-- stable nested visual definition/object IDs;
-- native typed visual Engineering persistence in Schema v12 with v10/v11 migration;
-- canonical binding destination/source semantics;
-- deterministic `Animation > Script > Binding/Expression > Engineering Base > Default` source resolution;
-- per-client Runtime Visual Instance isolation/disposal;
-- canonical `assetRef` stable identity and path/URL rejection;
-- Client Visual Python property read/write/explicit-clear without DOM/renderer authority;
-- canonical Script -> nested `VisualObject` reference integrity;
-- fail-closed malformed visual/Script Preview paths;
-- reproducible .NET/Node/npm validation baseline;
-- cross-subsystem PostgreSQL/Timescale schema-DDL locking.
-
-Final evidence is recorded in `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`.
-
 ## Wave 08 — Graphical Editor Foundation
 
-**ACTIVE — PARTIAL COORDINATOR FOUNDATION / NOT CI VALIDATED.**
+**ACTIVE — CENTRAL FOUNDATION VALIDATED IN DRAFT PR #90 / WORKER INTERACTION SLICES ACTIVE.**
 
 - Logical WaveBaseSHA: `8de706882ba20afedd666532ac41ae11115d06b3`
-- ContractSHA / branch base: `7a445d3dd94cabd09807291a0ee94276559fcb0e`
+- ContractSHA / logical worker base: `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 - Integration: `integration/graphical-editor-wave-08`
-- coordinator integration head at the current handoff: `4f8a71f59c5d033265c38c1c0beca2add9bb117b`
-- integration Actions runs at handoff: none
-- DEV 1: `feature/graphical-editor-wave-08-canvas` @ contract base, STOPPED
-- DEV 2: `feature/graphical-editor-wave-08-property-inspector` @ contract base, STOPPED
-- DEV 3: `feature/graphical-editor-wave-08-palette-bindings` @ contract base, STOPPED
+- Draft integration PR: **#90**
+- exact validated central-foundation product head: **`b48b489660ae953029fd2416aa18b149eaa18258`**
+- CI #515 / run `33225051402`: **SUCCESS**
+- Actions mode: NORMAL, conservative usage
 
-The editor is a projection/editor of canonical Engineering. Private canvas persistence is forbidden.
+CI #515 validated Web build/typecheck, backend Release/full tests including PostgreSQL/Timescale, Runtime smoke, Chromium E2E, the new Screen editor save/reopen test and prior Wave 06/07 visual/Python browser regressions.
 
-### Coordinator foundation already on integration
+### Validated central foundation in PR #90
 
-Implemented but not yet exact-head CI validated:
+Implemented in PR, not merged:
 
 - Engineering Schema v13 first-class Visual Asset metadata;
-- stable Visual Asset project/reference `Id` separated from developer `Key` and content SHA-256 identity;
-- Working content-addressed raster registry shared by Engineering Exchange, persistence, package, validation and API;
-- bounded PNG/JPEG/BMP structural validation;
-- v13 `core.image.assetRef` prospective stable-ID integrity and identity-conflict rejection;
-- PostgreSQL immutable asset blob + revision link persistence;
-- asset-aware revision save/load/checkout/rollback;
-- `.escadapkg` v2 sidecars with v1 asset-free compatibility;
-- protected Visual Asset API and frontend metadata/import/content seams;
-- focused Core/PostgreSQL source tests and v11/v12 compatibility updates.
+- stable Visual Asset ID + SHA-256 content identity;
+- bounded PNG/JPEG/BMP validation;
+- canonical Working asset authority;
+- PostgreSQL revision asset blobs/links;
+- `.escadapkg` v2 asset sidecars with v1 compatibility;
+- protected Visual Asset API with Engineering CAS/authorization/Audit;
+- frontend asset catalog/import/content seams;
+- `Engineering -> Telas` central `VisualEditorWorkspace`;
+- canonical Screen Preview/Apply/CAS and reload;
+- shared `core.*` preview renderer + stable `assetRef`;
+- legacy visual compatibility placeholders without silent migration;
+- shared `visualEditorContracts.ts` separating transient UI state from canonical mutation intents;
+- Screen Preview -> Apply -> canonical export -> reopen E2E.
 
-Detailed state, defects already corrected, exact commits and resume sequence are in `docs/COORDINATOR-HANDOFF.md`.
+The editor remains a projection/editor of canonical Engineering. Private Canvas persistence is forbidden.
 
-### Parallel slices when explicitly restarted
+### Parallel worker phase — ACTIVE
 
-Owner currently has all three DEV chats stopped. Their assignments are preserved but are not authorization to execute.
+The coordinator deliberately activated all three slices only after CI #515 and after seeding the shared intent contract into each worker branch.
 
-- **DEV 1:** Canvas / selection, zoom/pan/grid/snap, move/resize/rotate, duplicate/delete/z-order interaction intents.
-- **DEV 2:** Property Inspector consuming the shared Visual Property Registry only.
-- **DEV 3:** Object Palette + canonical binding authoring foundation.
-- **Coordinator:** canonical Screen mutation/save/reopen integration, first-class project image asset authority, central Engineering route/workspace/renderer/localization, cross-slice integration.
+- **DEV 1 — Canvas / Selection**  
+  Branch seed head `57521312914e21e303976a81bc81c84ad5aa9cbb`.  
+  Owns viewport, zoom/pan/grid/snap, selection/multiselect, move/resize/rotate, duplicate/delete/z-order interaction intents and UI-only adornment state.
 
-### Wave 08 still pending
+- **DEV 2 — Property Inspector**  
+  Branch seed head `3e942ed641d96afe848966f123fb10eaeaa99ed7`.  
+  Owns shared-schema-driven typed property controls, explicit Default vs Engineering behavior, validation/mixed-value behavior and property set/remove intents.
 
-- exact-head build/test/CI evidence for current coordinator integration;
-- integration reconciliation with current `main` before final CI/PR;
-- canonical Screen graphical mutation/save/reopen seam;
-- central editor workspace/route/renderer/localization composition;
-- Canvas/Property Inspector/Object Palette worker implementations after deliberate restart;
-- integrated product gate, final PR/CI/merge and post-merge health confirmation.
+- **DEV 3 — Object Palette / Binding Foundation**  
+  Branch seed head `df3cd6c332a19bb3011373c95d010f33754c0c12`.  
+  Owns registered `core.*` palette, object-add intents, canonical binding authoring foundation, source-catalog boundary and Image palette entry using existing `assetRef`.
+
+All three are parallel-safe because central route/workspace/schema/API/persistence remain coordinator-reserved and the worker modules communicate through the single seeded `visualEditorContracts.ts` seam.
+
+### Coordinator work during worker phase
+
+Coordinator owns:
+
+- canonical application of worker mutation intents into Screen drafts;
+- central selection/viewport orchestration boundaries;
+- source-catalog composition without direct driver authority;
+- cross-slice integration and acceptance tests;
+- worker review/integration;
+- PR #90 final CI/merge.
+
+Coordinator must not duplicate Canvas gesture implementation, Property Inspector controls or Palette/Binding UI while those worker slices are active.
 
 ### Wave 08 gate
 
@@ -145,9 +143,9 @@ Integrated product must prove:
 
 `Create Screen -> add objects -> move/resize/rotate -> edit registered properties -> canonical binding -> image asset by stable assetRef -> save -> reopen -> export/import`
 
-Transient Canvas selection/viewport state must not become persisted Engineering authority.
+Transient Canvas selection/viewport/hover/adornment/drag-preview state must not become persisted Engineering authority.
 
-Final integrated CI must preserve all Wave 07 visual/Python and Wave 06 sandbox regressions.
+Final integrated CI must preserve all Wave 07 visual/Python and Wave 06 sandbox regressions. PR #90 remains Draft until this full gate is green.
 
 ## Remaining v0.1 sequence
 
@@ -165,20 +163,14 @@ Required real industrial protocol: **Modbus TCP**. Simulation, Client Memory, Se
 
 Production MQTT, OPC UA, BACnet, S7, Allen-Bradley and final Driver Module framework remain post-v0.1 owner validation.
 
-## Python/visual dependency chain
-
-`canonical Script Engineering -> Python editor/sandbox -> visual Runtime object/property/asset model -> graphical editor -> advanced visual libraries`.
-
-Wave 08 is now the active graphical-editor stage. Wave 09/10 functionality must not leak backward merely because adjacent code looks convenient to edit.
-
 ## Development quality
 
-- use Development Waves with frozen bases and coordinator integration trains;
-- exactly one ACTIVE assignment per worker when workers are authorized to execute;
-- stopped workers are not authorized merely because their preserved task text exists;
+- use Development Waves with frozen logical bases and coordinator integration trains;
+- exactly one ACTIVE assignment per worker;
 - workers edit only owned scopes and stop after delivery;
 - never merge known-failing work;
 - fix root causes instead of weakening tests/security/concurrency;
 - preserve canonical Engineering/backend authority;
+- use Actions to buy evidence, not ceremony;
 - require final integrated CI and healthy post-merge `main` for every functional wave;
 - keep assignment board/handoff synchronized because `siga` depends on them.

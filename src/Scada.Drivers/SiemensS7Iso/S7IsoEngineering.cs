@@ -31,7 +31,8 @@ public sealed class S7IsoEngineeringAdapter :
                 ["sourceTsap"] = S7IsoConnectionOptions.FormatTsap(options.EffectiveSourceTsap),
                 ["destinationTsap"] = S7IsoConnectionOptions.FormatTsap(options.EffectiveDestinationTsap),
                 ["requestedPduSize"] = options.RequestedPduSize.ToString(CultureInfo.InvariantCulture),
-                ["negotiatedPduSize"] = diagnostics.NegotiatedPduSize?.ToString(CultureInfo.InvariantCulture) ?? string.Empty
+                ["negotiatedPduSize"] = diagnostics.NegotiatedPduSize?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+                ["writeEnabled"] = options.WriteEnabled ? "true" : "false"
             };
 
             return new DriverConnectionTestResult(
@@ -146,6 +147,7 @@ public sealed class S7IsoEngineeringAdapter :
         var requestTimeoutMs = ParseInt(settings, "requestTimeoutMs", 3000, 1, 300_000, errors);
         var reconnectDelayMs = ParseInt(settings, "reconnectDelayMs", 1000, 0, 300_000, errors);
         var requestedPduSize = ParseInt(settings, "requestedPduSize", 480, 240, 960, errors);
+        var writeEnabled = ParseBool(settings, "writeEnabled", false, errors);
 
         if (errors.Count == 0)
         {
@@ -164,7 +166,8 @@ public sealed class S7IsoEngineeringAdapter :
                     TimeSpan.FromMilliseconds(connectTimeoutMs),
                     TimeSpan.FromMilliseconds(requestTimeoutMs),
                     TimeSpan.FromMilliseconds(reconnectDelayMs),
-                    checked((ushort)requestedPduSize));
+                    checked((ushort)requestedPduSize),
+                    writeEnabled);
             }
             catch (Exception ex) when (ex is ArgumentException or OverflowException)
             {
@@ -190,6 +193,7 @@ public sealed class S7IsoEngineeringAdapter :
             Field("rack", DriverConfigurationValueKind.Integer, minimum: 0, maximum: 7),
             Field("slot", DriverConfigurationValueKind.Integer, minimum: 0, maximum: 31),
             Field("connectionRole", DriverConfigurationValueKind.Enum, allowed: Enum.GetNames<S7IsoConnectionRole>()),
+            Field("writeEnabled", DriverConfigurationValueKind.Boolean, defaultValue: "false", display: "Enable writes"),
             Field("sourceTsap", DriverConfigurationValueKind.Identifier, defaultValue: "0x0100", advanced: true),
             Field("destinationTsap", DriverConfigurationValueKind.Identifier, advanced: true),
             Field("connectTimeoutMs", DriverConfigurationValueKind.Integer, defaultValue: "5000", minimum: 1, maximum: 300000, advanced: true),
@@ -328,6 +332,21 @@ public sealed class S7IsoEngineeringAdapter :
 
         errors.Add(Issue(key, $"S7 setting '{key}' must be an integer from {minimum} to {maximum}."));
         return minimum;
+    }
+
+    private static bool ParseBool(
+        IReadOnlyDictionary<string, string> settings,
+        string key,
+        bool defaultValue,
+        List<DriverEngineeringIssue> errors)
+    {
+        if (!settings.TryGetValue(key, out var text) || string.IsNullOrWhiteSpace(text))
+            return defaultValue;
+        if (bool.TryParse(text, out var value))
+            return value;
+
+        errors.Add(Issue(key, $"S7 setting '{key}' must be true or false."));
+        return defaultValue;
     }
 
     private static T ParseRequiredEnum<T>(

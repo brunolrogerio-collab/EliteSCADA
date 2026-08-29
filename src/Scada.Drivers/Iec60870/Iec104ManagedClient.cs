@@ -8,6 +8,8 @@ namespace Scada.Drivers.Iec60870;
 /// </summary>
 public sealed class Iec104ManagedClient
 {
+    private const int MaximumDiagnosticErrorLength = 512;
+
     private readonly Func<IIec104ClientAdapter> _adapterFactory;
     private readonly string _host;
     private readonly int _port;
@@ -19,9 +21,26 @@ public sealed class Iec104ManagedClient
     private readonly Iec104CommandExecutionOptions _commandOptions;
     private readonly Func<TimeSpan, CancellationToken, Task> _delayAsync;
     private readonly object _gate = new();
+    private readonly string _runtimeInstanceId = Guid.NewGuid().ToString("N");
 
     private Iec104ClientSessionRunner? _activeSession;
     private int _attempt;
+    private long _sessionFailures;
+    private long _observedPointUpdates;
+    private long _commandsRequested;
+    private long _commandsAccepted;
+    private long _commandsCompleted;
+    private long _commandsRejected;
+    private long _commandsTimedOut;
+    private long _commandsAmbiguous;
+    private long _commandsCancelled;
+    private DateTimeOffset? _lastSessionAttemptAt;
+    private DateTimeOffset? _lastObservedPointAt;
+    private DateTimeOffset? _lastFailureAt;
+    private string? _lastError;
+    private int? _lastFailedAttempt;
+    private TimeSpan? _lastReconnectDelay;
+    private bool? _lastBackoffWasReset;
 
     public Iec104ManagedClient(
         Func<IIec104ClientAdapter> adapterFactory,
@@ -88,27 +107,73 @@ public sealed class Iec104ManagedClient
         }
     }
 
-    public Task<Iec104CommandResult> ExecuteCommandAsync(
+    public Iec104ManagedDiagnosticSnapshot GetDiagnostics()
+    {
+        lock (_gate)
+        {
+            return new Iec104ManagedDiagnosticSnapshot(
+                _runtimeInstanceId,
+                _host,
+                _port,
+                _activeSession?.State ?? Iec104SessionState.Stopped,
+                Volatile.Read(ref _attempt),
+                _activeSession?.InFlightCommandCount ?? 0,
+                _commonAddresses.ToArray(),
+                _sessionOptions.T0,
+                _sessionOptions.T1,
+                _sessionOptions.T2,
+                _sessionOptions.T3,
+                _sessionOptions.K,
+                _sessionOptions.W,
+                Interlocked.Read(ref _sessionFailures),
+                Interlocked.Read(ref _observedPointUpdates),
+                DateTimeOffset.UtcNow,
+                _lastSessionAttemptAt,
+                _lastObservedPointAt,
+                _lastFailureAt,
+                _lastError,
+                _lastFailedAttempt,
+                _lastReconnectDelay,
+                _lastBackoffWasReset,
+                new Iec104CommandDiagnosticCounters(
+                    Interlocked.Read(ref _commandsRequested),
+                    Interlocked.Read(ref _commandsAccepted),
+                    Interlocked.Read(ref _commandsCompleted),
+                    Interlocked.Read(ref _commandsRejected),
+                    Interlocked.Read(ref _commandsTimedOut),
+                    Interlocked.Read(ref _commandsAmbiguous),
+                    Interlocked.Read(ref _commandsCancelled)));
+        }
+    }
+
+    public async Task<Iec104CommandResult> ExecuteCommandAsync(
         Iec104CommandTransaction transaction,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(transaction);
+        Interlocked.Increment(ref _commandsRequested);
 
         Iec104ClientSessionRunner? session;
         lock (_gate)
             session = _activeSession;
 
+        Iec104CommandResult result;
         if (session is null)
         {
-            return Task.FromResult(new Iec104CommandResult(
+            result = new Iec104CommandResult(
                 Iec104CommandOutcome.Rejected,
                 transaction.State,
                 ExecuteWasTransmitted: false,
                 WasAccepted: false,
-                "IEC-104 Data Source has no active session; command was not queued for replay."));
+                "IEC-104 Data Source has no active session; command was not queued for replay.");
+        }
+        else
+        {
+            result = await session.ExecuteCommandAsync(transaction, cancellationToken).ConfigureAwait(false);
         }
 
-        return session.ExecuteCommandAsync(transaction, cancellationToken);
+        RecordCommandOutcome(result.Outcome);
+        return result;
     }
 
     public async Task RunAsync(
@@ -121,11 +186,22 @@ public sealed class Iec104ManagedClient
         var backoff = new Iec104ReconnectBackoff(_reconnectPolicy);
         Volatile.Write(ref _attempt, 0);
 
+        async ValueTask ObservePointAsync(Iec104DecodedPoint point, CancellationToken pointCancellationToken)
+        {
+            Interlocked.Increment(ref _observedPointUpdates);
+            lock (_gate)
+                _lastObservedPointAt = DateTimeOffset.UtcNow;
+            await onObservedPoint(point, pointCancellationToken).ConfigureAwait(false);
+        }
+
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var attempt = Interlocked.Increment(ref _attempt);
             var startedTimestamp = Stopwatch.GetTimestamp();
+
+            lock (_gate)
+                _lastSessionAttemptAt = DateTimeOffset.UtcNow;
 
             await using var adapter = _adapterFactory()
                 ?? throw new InvalidOperationException("IEC-104 adapter factory returned null.");
@@ -144,7 +220,7 @@ public sealed class Iec104ManagedClient
 
             try
             {
-                await session.RunAsync(onObservedPoint, cancellationToken).ConfigureAwait(false);
+                await session.RunAsync(ObservePointAsync, cancellationToken).ConfigureAwait(false);
                 if (!cancellationToken.IsCancellationRequested)
                     throw new IOException("IEC-104 managed session ended without cancellation; reconnect is required.");
             }
@@ -160,10 +236,21 @@ public sealed class Iec104ManagedClient
                     backoff.Reset();
 
                 var delay = backoff.NextDelay();
+                var reconnectFailure = new Iec104ReconnectFailure(attempt, failure, sessionDuration, delay, reset);
+                Interlocked.Increment(ref _sessionFailures);
+                lock (_gate)
+                {
+                    _lastFailureAt = DateTimeOffset.UtcNow;
+                    _lastError = SanitizeError(failure);
+                    _lastFailedAttempt = attempt;
+                    _lastReconnectDelay = delay;
+                    _lastBackoffWasReset = reset;
+                }
+
                 if (onReconnectFailure is not null)
                 {
                     await onReconnectFailure(
-                        new Iec104ReconnectFailure(attempt, failure, sessionDuration, delay, reset),
+                        reconnectFailure,
                         cancellationToken).ConfigureAwait(false);
                 }
 
@@ -184,5 +271,40 @@ public sealed class Iec104ManagedClient
                 }
             }
         }
+    }
+
+    private void RecordCommandOutcome(Iec104CommandOutcome outcome)
+    {
+        switch (outcome)
+        {
+            case Iec104CommandOutcome.Accepted:
+                Interlocked.Increment(ref _commandsAccepted);
+                break;
+            case Iec104CommandOutcome.Completed:
+                Interlocked.Increment(ref _commandsCompleted);
+                break;
+            case Iec104CommandOutcome.Rejected:
+                Interlocked.Increment(ref _commandsRejected);
+                break;
+            case Iec104CommandOutcome.TimedOut:
+                Interlocked.Increment(ref _commandsTimedOut);
+                break;
+            case Iec104CommandOutcome.Ambiguous:
+                Interlocked.Increment(ref _commandsAmbiguous);
+                break;
+            case Iec104CommandOutcome.Cancelled:
+                Interlocked.Increment(ref _commandsCancelled);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "Unknown IEC-104 command outcome.");
+        }
+    }
+
+    private static string SanitizeError(Exception exception)
+    {
+        var message = exception.Message.Replace('\r', ' ').Replace('\n', ' ').Trim();
+        return message.Length <= MaximumDiagnosticErrorLength
+            ? message
+            : message[..MaximumDiagnosticErrorLength];
     }
 }

@@ -116,20 +116,20 @@ internal static class StepFunctionDnp3Mapping
     public static object MapCounter(uint value, Dnp3ObjectVariation variation) => (variation.Group, variation.Variation) switch
     {
         (20, 2) or (20, 6) or (21, 2) or (21, 6) or (21, 10) or
-        (22, 2) or (22, 6) or (23, 2) or (23, 6) => checked((ushort)value),
+        (22, 2) or (22, 6) or (23, 2) or (23, 6) => (object)checked((ushort)value),
         _ => value
     };
 
     public static object MapAnalog(double value, Dnp3ObjectVariation variation) => (variation.Group, variation.Variation) switch
     {
         (30, 1) or (30, 3) or (32, 1) or (32, 3) or
-        (40, 1) or (42, 1) or (42, 3) => checked((int)value),
+        (40, 1) or (42, 1) or (42, 3) => (object)checked((int)value),
 
         (30, 2) or (30, 4) or (32, 2) or (32, 4) or
-        (40, 2) or (42, 2) or (42, 4) => checked((short)value),
+        (40, 2) or (42, 2) or (42, 4) => (object)checked((short)value),
 
         (30, 5) or (32, 5) or (32, 7) or
-        (40, 3) or (42, 5) or (42, 7) => (float)value,
+        (40, 3) or (42, 5) or (42, 7) => (object)(float)value,
 
         _ => value
     };

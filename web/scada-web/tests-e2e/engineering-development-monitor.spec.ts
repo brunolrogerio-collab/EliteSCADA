@@ -16,7 +16,7 @@ test('Development Monitor quick-adds a canonical TAG and exposes source, type, q
   await expect(page.getByTestId('engineering-development-monitor')).toBeVisible();
   await expect(page.getByTestId('project-reference-browser')).toBeVisible();
 
-  const quickAdd = page.getByPlaceholder('Digite uma referência canônica ou path de TAG');
+  const quickAdd = page.getByLabel('Adicionar referência exata');
   await quickAdd.fill(tag!.path);
   await page.locator('.development-monitor__add').getByRole('button', { name: 'Adicionar', exact: true }).click();
 

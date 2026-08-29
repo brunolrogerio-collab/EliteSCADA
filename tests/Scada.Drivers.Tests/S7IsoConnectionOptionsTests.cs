@@ -42,6 +42,22 @@ public sealed class S7IsoConnectionOptionsTests
     }
 
     [Fact]
+    public void RackSlot_RequiresBothValuesExplicitly()
+    {
+        Assert.Throws<ArgumentException>(() => new S7IsoConnectionOptions(
+            "plc",
+            S7CpuFamily.S7300,
+            S7IsoConnectionMode.RackSlot,
+            rack: 0));
+
+        Assert.Throws<ArgumentException>(() => new S7IsoConnectionOptions(
+            "plc",
+            S7CpuFamily.S7300,
+            S7IsoConnectionMode.RackSlot,
+            slot: 2));
+    }
+
+    [Fact]
     public void RackAndSlot_AreRangeValidated()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new S7IsoConnectionOptions(

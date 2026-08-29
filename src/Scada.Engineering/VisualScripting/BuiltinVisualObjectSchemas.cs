@@ -67,13 +67,15 @@ public static class BuiltinVisualObjectSchemas
         Base
             .Concat([VisualPropertyKeys.FillColor])
             .Concat(Stroke)
-            .Concat([VisualPropertyKeys.CornerRadius]));
+            .Concat([VisualPropertyKeys.CornerRadius]),
+        supportsAnalogFill: true);
 
     public static VisualObjectPropertySchema Ellipse { get; } = Create(
         EllipseType,
         Base
             .Concat([VisualPropertyKeys.FillColor])
-            .Concat(Stroke));
+            .Concat(Stroke),
+        supportsAnalogFill: true);
 
     public static VisualObjectPropertySchema Line { get; } = Create(
         LineType,
@@ -143,7 +145,8 @@ public static class BuiltinVisualObjectSchemas
 
     private static VisualObjectPropertySchema Create(
         string objectType,
-        IEnumerable<string> propertyKeys)
+        IEnumerable<string> propertyKeys,
+        bool supportsAnalogFill = false)
     {
         var builder = new VisualPropertySchemaBuilder(objectType);
         foreach (var propertyKey in propertyKeys)
@@ -153,6 +156,10 @@ public static class BuiltinVisualObjectSchemas
                     $"Built-in object type '{objectType}' references unknown visual property '{propertyKey}'.");
             builder.Add(definition);
         }
+
+        if (supportsAnalogFill)
+            builder.EnableAnalogFill();
+
         return builder.Build();
     }
 }

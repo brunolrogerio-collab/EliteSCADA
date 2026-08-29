@@ -55,6 +55,45 @@ public sealed class ProjectPackageTests
     }
 
     [Fact]
+    public void ExportAndInspect_RoundTripsLogicalTagBitBindingReference()
+    {
+        var tags = new InMemoryTagRegistry();
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var status = TagDefinition.Create("Status", "Plant.P01.Status", TagDataType.Int16);
+        tags.Register(status);
+        var assets = new InMemoryEngineeringAssetRegistry();
+        assets.UpsertEquipment(new EquipmentEngineeringDto(
+            null,
+            "Plant.P01",
+            "Pump P01",
+            Bindings:
+            [
+                new EngineeringBindingDto(
+                    "running",
+                    EngineeringBindingKind.Tag,
+                    "Plant.P01.Status.03",
+                    TagReference: new TagValueReference(
+                        status.Id,
+                        new TagValueSelector(TagValueSelectorKind.Bit, 3)))
+            ]));
+        var exchange = new EngineeringExchangeService(
+            tags,
+            alarms,
+            new InMemoryDataSourceEngineeringRegistry(),
+            assets);
+        var service = new ProjectPackageService(exchange);
+
+        var inspection = service.Inspect(service.Export("plant-bit", "Plant Bit"));
+        var binding = Assert.Single(Assert.Single(inspection.Engineering.Equipment!).Bindings!);
+
+        Assert.Equal("Plant.P01.Status.03", binding.Target);
+        Assert.NotNull(binding.TagReference);
+        Assert.Equal(status.Id, binding.TagReference!.TagId);
+        Assert.Equal(TagValueSelectorKind.Bit, binding.TagReference.Selector!.Kind);
+        Assert.Equal(3, binding.TagReference.Selector.Index);
+    }
+
+    [Fact]
     public void ExportAndInspect_RoundTripsOperationalCommands()
     {
         var tags = new InMemoryTagRegistry();

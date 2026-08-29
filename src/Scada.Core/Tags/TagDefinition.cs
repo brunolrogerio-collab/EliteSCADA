@@ -15,7 +15,8 @@ public sealed record TagDefinition(
     string? Description,
     bool ReadOnly,
     IReadOnlyDictionary<string, string>? Metadata = null,
-    TagAccessPolicy? AccessPolicy = null)
+    TagAccessPolicy? AccessPolicy = null,
+    TagValueSelector? AddressSelector = null)
 {
     public static TagDefinition Create(
         string name,
@@ -26,6 +27,7 @@ public sealed record TagDefinition(
         string? description = null,
         bool readOnly = false,
         IReadOnlyDictionary<string, string>? metadata = null,
-        TagAccessPolicy? accessPolicy = null)
-        => new(Guid.NewGuid(), name, path, dataType, source, engineeringUnit, description, readOnly, metadata, accessPolicy);
+        TagAccessPolicy? accessPolicy = null,
+        TagValueSelector? addressSelector = null)
+        => new(Guid.NewGuid(), name, path, dataType, source, engineeringUnit, description, readOnly, metadata, accessPolicy, addressSelector);
 }

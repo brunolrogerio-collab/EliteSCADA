@@ -1,195 +1,162 @@
 # COORDINATOR HANDOFF — EliteSCADA
 
-> Persistent coordinator resume checkpoint. New coordinator chats must use this document together with the mandatory current `main` documents and then verify live GitHub branch/PR/CI state before acting.
+> Persistent coordinator resume checkpoint. Read this with the mandatory current `main` documents, then verify live GitHub branch/PR/head/CI before acting.
 
-**Handoff date:** 2026-08-28  
+**Handoff date:** 2026-08-29  
 **Current wave:** `GRAPHICAL-EDITOR-WAVE-08`  
-**Merged product:** Wave 07 closed; Wave 08 remains unmerged  
-**Wave status:** **ACTIVE — CENTRAL FOUNDATION VALIDATED IN DRAFT PR #90 / DEV 1-2-3 ACTIVE**  
+**Merged product:** Wave 07 closed; Wave 08 unmerged  
+**Wave status:** **ACTIVE — GRAPHICAL EDITOR/IMAGE GATE GREEN / ENGINEERING DEVELOPMENT MONITOR REQUIRED**  
 **CI policy:** `NORMAL`; Actions authorized with conservative usage
 
 ## Exact checkpoint
 
-- current coordination `main` includes the worker activation board and this handoff; verify the live main SHA before acting;
-- Wave 08 logical base: `8de706882ba20afedd666532ac41ae11115d06b3`;
-- Wave 08 ContractSHA / logical worker base: `7a445d3dd94cabd09807291a0ee94276559fcb0e`;
 - integration branch: `integration/graphical-editor-wave-08`;
 - Draft integration PR: **#90**;
-- exact central-foundation product head validated before documentation successors: **`b48b489660ae953029fd2416aa18b149eaa18258`**;
-- CI #515 / run `33225051402`: **SUCCESS**;
-- later coordination/documentation successors use `[skip ci]` and do not invalidate unchanged product evidence.
+- graphical product head: **`a7176a44df3a0af5bc1a271b25101d333da7a161`**;
+- full CI #525 / run `33230239968`: **SUCCESS**;
+- documentation-only successors use `[skip ci]` and do not alter graphical product behavior;
+- PR #90 remains Draft because the owner expanded Wave 08 with a mandatory Development Monitor before merge.
 
-PR #90 remains Draft. It is not merge-ready because the three interactive worker slices and final integrated product gate are still pending.
+## Graphical gate — validated
 
-## CI #515 evidence
-
-On exact product head `b48b489...`:
+CI #525 proved the fully composed graphical editor/image path:
 
 - Web React/Vite/TypeScript build: SUCCESS;
 - backend Release build: SUCCESS;
-- full backend tests including PostgreSQL/Timescale: SUCCESS;
+- full PostgreSQL/Timescale tests: SUCCESS;
 - Runtime smoke: SUCCESS;
 - Chromium E2E: SUCCESS;
-- `visual-editor-workspace.spec.ts`: SUCCESS;
-- Wave 06/07 Python/visual browser regressions remained green.
+- Canvas + selection/move/resize/rotate;
+- Property Inspector;
+- Object Palette;
+- canonical Binding authoring with early type compatibility validation;
+- project Image import + stable `assetRef`;
+- Preview/Apply/CAS -> export -> reopen;
+- transient Canvas state not persisted;
+- prior visual/Python/security/runtime regressions green.
 
-The validation checkpoint found and corrected before success:
+Worker deliveries incorporated into the integration train:
 
-1. TypeScript readonly/mutable mismatch in canonical Screen clone logic;
-2. C# record helpers named `Clone`, which is reserved by records; renamed to `Copy`;
-3. broad Runtime E2E still expected `.escadapkg` format v1 while current Wave 08 export is v2; expectation updated while dedicated v1 compatibility remains.
+- DEV 1 head `d6542643014e955b013756fd8ee53a5629b8e82a`; PR #93 closed unmerged after coordinator integration.
+- DEV 2 head `2c974cadafbcc773a4645864440c190f128ea808`; PR #91 closed unmerged after coordinator integration.
+- DEV 3 head `d614a00dda0903a0f7c78641dc0b803dfd8085df`; PR #92 closed unmerged after coordinator integration.
 
-No unchanged-head reassurance reruns were used.
+All three worker chats are now STOPPED / WAIT_FOR_COORDINATOR.
 
-## Coordinator foundation implemented and validated in PR #90
+## New mandatory Wave 08 requirement
 
-### Visual Assets / Schema v13
+Canonical contract:
 
-- first-class `VisualAssetEngineeringDto` metadata;
-- stable project/reference identity by Visual Asset `Id`;
-- developer `Key` remains separate from canonical reference identity;
-- SHA-256 content-addressed Working payload authority;
-- canonical `assetRef = null | { assetId }`;
-- unknown/dangling references fail closed;
-- same-Key/different-Id identity conflicts fail closed;
-- v12 remains readable as asset-free historical Engineering;
-- bounded PNG/JPEG/BMP structural validation;
-- 16 MiB max raster payload and 16384 max pixel dimension per locked storage contract;
-- PostgreSQL content-addressed asset blobs + immutable revision links;
-- revision save/load/checkout/rollback restores exact asset payload state;
-- `.escadapkg` v2 contains asset sidecars and retains v1 asset-free compatibility;
-- protected Visual Asset API uses Engineering CAS/authorization/Audit;
-- frontend asset catalog/import/content seams use project-controlled stable identity.
+`docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE-08.md`
 
-Identity remains locked:
+Owner intent: provide a development/commissioning Watch Table inside Engineering so an engineer can inspect variable behavior without creating a temporary HMI or temporary code.
 
-`Id = stable project/reference identity`  
-`Key = developer-facing key`  
-`Sha256 = immutable content identity`
+Minimum flow:
 
-Do not convert asset references to key/path/URL authority.
+`open monitor -> search OR type exact canonical reference -> add -> see live value/type/quality/state/timestamp -> observe changes -> remove/clear`
 
-### Central Screen editor foundation
+Initial provider families:
 
-Coordinator-owned files include:
+- TAGs;
+- Client Memory;
+- Server Memory;
+- authoritative System/Runtime variables/diagnostics;
+- Data Source / driver diagnostics.
 
-- `web/scada-web/src/engineering/visual-editor/VisualEditorWorkspace.tsx`;
-- `web/scada-web/src/engineering/visual-editor/CanonicalVisualRenderer.tsx`;
-- `web/scada-web/src/engineering/visual-editor/visualEditorCanonicalModel.ts`;
-- `web/scada-web/src/engineering/visual-editor/visualEditorContracts.ts`;
-- `web/scada-web/src/engineering/visual-editor/VisualEditorWorkspace.css`;
-- central `EngineeringApp.tsx` composition.
+The architecture must use a unified provider/catalog seam. Do not build separate unrelated tables or a second variable namespace for each family.
 
-Current validated behavior:
+### Locked monitor semantics
 
-- `Engineering -> Telas` opens the central editor foundation;
-- Screen key/name/route drafts edit canonical `ScreenEngineering`;
-- Preview creates a candidate from canonical Engineering and uses public Engineering Preview;
-- Workspace `changeVersion` remains the CAS boundary;
-- Apply reuses the protected canonical Engineering Apply authority with authorization/Audit;
-- successful Apply reloads canonical Engineering;
-- `core.*` rendering consumes the shared Visual Property Registry/defaults without persisting renderer defaults merely by viewing;
-- `core.image` resolves project content through stable `assetRef`;
-- historical demo visual types are shown as non-authoritative compatibility placeholders, not silently migrated;
-- `visualEditorContracts.ts` separates UI-only selection/viewport state from canonical mutation intents;
-- central composition has explicit Canvas / Property Inspector / Object Palette + Binding integration slots;
-- PT-BR/EN/ES copy exists;
-- `visual-editor-workspace.spec.ts` proves Screen route edit -> Preview -> Apply -> canonical export -> reopen -> restore original package.
+- search by canonical name/path/reference and useful metadata;
+- direct exact-reference quick-add when the engineer already knows the TAG/variable;
+- explicit not-found/ambiguous behavior, no silent fuzzy substitution;
+- heterogeneous rows in one table;
+- minimum facts: reference/name, source kind, current value, canonical data type, quality or diagnostic state, timestamp/last update;
+- preserve exact typed values, especially Int64;
+- missing/bad/unavailable/stale/disconnected is explicit and never coerced into normal values;
+- reuse existing realtime/Event Bus/WebSocket/subscription paths when authoritative;
+- bounded/coalesced polling only where needed;
+- never one independent backend poll loop per row;
+- acceptance proves at least 100 simultaneous rows using shared provider batching/subscription infrastructure;
+- monitor is strictly read-only;
+- adding/removing monitor rows must not alter scan rate, driver configuration, TAG policy or process outputs;
+- current monitored samples are Runtime/diagnostic state and never authored Engineering/project package state.
 
-## Worker authorization state
+## Important scope decision
 
-The previous stop is deliberately lifted. All three worker slices are now **ACTIVE / AUTHORIZED** because the coordinator foundation is green and each branch has the shared intent contract seeded.
+The new owner requirement does **not** reopen the completed DEV 1/2/3 graphical missions automatically.
 
-Logical BaseSHA remains `7a445d3dd94cabd09807291a0ee94276559fcb0e`.
+Before any worker starts Development Monitor code, the coordinator must inspect the existing authoritative source seams, define parallel-safe ownership and update `docs/CHAT-WORK-ASSIGNMENTS.md` with a new explicit assignment.
 
-### DEV 1 — Canvas / Selection
+## Existing authorities to inspect before implementation
 
-- branch: `feature/graphical-editor-wave-08-canvas`;
-- authorization/seed head: `57521312914e21e303976a81bc81c84ad5aa9cbb`;
-- before worker implementation, exactly one commit ahead of ContractSHA containing only `visualEditorContracts.ts`;
-- status: **ACTIVE — AUTHORIZED**;
-- owns only `visual-editor/canvas/**` and focused `visual-editor-canvas*.spec.ts` tests;
-- deliver zoom/pan/grid/snap, selection/multiselect, move/resize/rotate, duplicate/delete/z-order intents and transient adornment state.
+On next execution, inspect rather than reinvent:
 
-### DEV 2 — Property Inspector
+1. TAG registry/current-value cache and protected Runtime TAG read/realtime WebSocket/Event Bus paths;
+2. Client Memory contracts and browser-local runtime identity/lifecycle;
+3. Server Memory contracts and protected read endpoints;
+4. current Data Source/common driver diagnostics model/API;
+5. Runtime/service/system diagnostic facts already public;
+6. Engineering shell/navigation/localization/security patterns;
+7. batching/subscription possibilities so the monitor does not poll per row.
 
-- branch: `feature/graphical-editor-wave-08-property-inspector`;
-- authorization/seed head: `3e942ed641d96afe848966f123fb10eaeaa99ed7`;
-- before worker implementation, exactly one commit ahead of ContractSHA containing only `visualEditorContracts.ts`;
-- status: **ACTIVE — AUTHORIZED**;
-- owns only `visual-editor/property-inspector/**` and focused tests;
-- deliver schema-driven typed controls, Default vs Engineering behavior, validation/mixed-value behavior and property set/remove intents.
+If a category has no public read-only seam, add only the minimum bounded API/provider needed. Do not expose private driver objects or secrets.
 
-### DEV 3 — Object Palette / Binding Foundation
+## Development Monitor persistence boundary
 
-- branch: `feature/graphical-editor-wave-08-palette-bindings`;
-- authorization/seed head: `df3cd6c332a19bb3011373c95d010f33754c0c12`;
-- before worker implementation, exactly one commit ahead of ContractSHA containing only `visualEditorContracts.ts`;
-- status: **ACTIVE — AUTHORIZED**;
-- owns only `visual-editor/object-palette/**`, `visual-editor/binding-editor/**` and focused tests;
-- deliver registered `core.*` palette, object-add intents, canonical binding authoring foundation, source-catalog boundary, binding destination validation and Image palette entry consuming existing `assetRef`.
+The live samples are not Engineering.
 
-Workers read current-main coordination first, then the seeded `visualEditorContracts.ts` from their own branch. They must not create competing intent types, edit reserved files, broaden scope, merge themselves or work around coordinator-owned dependencies. After delivery each returns to `WAIT_FOR_COORDINATOR`.
+Never save/export/package current:
 
-## Coordinator work while workers execute
+- values;
+- qualities;
+- timestamps;
+- transient communication state;
+- observed errors.
 
-Coordinator may continue only coordinator-owned integration work, especially:
+The watchlist itself may initially be session/user-workspace state. If persisted for convenience, only canonical references/order/display preferences may be stored and must remain separate from process logic. Named project-portable Watch Tables require a later explicit decision if desired.
 
-- canonical application of `VisualEditorMutationIntent` into immutable Screen drafts;
-- source-catalog composition for DEV 3 without direct driver authority;
-- central selection/viewport orchestration boundaries;
-- cross-slice composition and tests;
-- Early Contract / Integration / Delivery reviews;
-- integrating accepted worker heads into `integration/graphical-editor-wave-08`.
+## Current Wave 08 Definition of Done
 
-Do **not** implement Canvas gestures, Property Inspector controls or Palette/Binding UI inside coordinator scope while workers own them.
+Wave 08 now closes only after both are green:
 
-## Actions discipline
+### Gate A — Graphical Editor/Image
 
-Actions is available, but minutes remain a project resource:
+**GREEN** at `a7176a4...`, CI #525.
 
-- workers batch coherent changes and run focused assignment validation;
-- open/update Draft PRs when they provide review value, not per trivial commit;
-- do not rerun unchanged heads for reassurance;
-- diagnose/fix deterministic failures before another expensive run;
-- coordinator reuses CI #515 while central validated product code is unchanged;
-- full matrices are reserved for meaningful integrated/final checkpoints;
-- final Wave 08 head still requires full Web/backend/tests/smoke/Chromium acceptance before merge.
+### Gate B — Engineering Development Monitor
 
-## Remaining Wave 08 product work
+**SPECIFIED / NOT IMPLEMENTED.** Acceptance is defined in `docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE-08.md`.
 
-- DEV 1 interactive Canvas slice;
-- DEV 2 Property Inspector slice;
-- DEV 3 Palette/Binding slice;
-- coordinator reducer/application of worker mutation intents into canonical Screen definitions;
-- practical object creation + geometry editing composition;
-- image object flow using stable `assetRef`;
-- canonical property/binding composition;
-- save/reopen/export/import of integrated authored Screen;
-- proof transient Canvas selection/viewport/adornment state is not persisted;
-- final exact-head integrated CI;
-- PR #90 merge only after full green gate;
-- post-merge `main` health and documentation synchronization.
+After Gate B implementation:
 
-Wave 09/10 remain forbidden/not active.
+- run final full Web/backend/tests/smoke/Chromium on one exact combined head;
+- PR #90 may leave Draft only after exact-head evidence is green;
+- merge to `main`;
+- verify post-merge main health;
+- synchronize docs.
+
+## Follow-up order after Wave 08
+
+The owner-locked order remains:
+
+1. `08-FOLLOW-A` — TAG Bit Access + Driver Bit-Level Boolean Binding;
+2. `08-FOLLOW-B` — Typed Visual Expressions + Boolean Conditions + Analog Fill;
+3. Wave 09 only after required preceding work is green.
+
+Bit selectors introduced in 08-FOLLOW-A must later participate through the same monitor provider/catalog seam, not through monitor-private `.NN` parsing.
 
 ## Resume procedure
 
-On every coordinator `siga`:
+On coordinator `siga`:
 
-1. read mandatory current-main docs;
-2. verify live main, PR #90, integration, worker branches/PRs and Actions;
-3. reconcile stale documentation promptly;
-4. review any new worker work before duplicating or integrating it;
-5. keep worker ownership boundaries intact;
-6. continue coordinator-only canonical integration seams;
-7. integrate reviewed deliveries into the Wave 08 integration train;
-8. use focused CI while assembling and one full matrix at a meaningful final checkpoint;
-9. merge only green;
-10. verify post-merge main, close Wave 08, then activate Wave 09.
-
-## Wave 08 final product gate
-
-`Create Screen -> add objects -> move/resize/rotate -> edit registered properties -> canonical binding -> image asset by stable assetRef -> save -> reopen -> export/import`
-
-Transient selection/viewport/hover/adornment/drag-preview state must never become canonical persisted Engineering authority.
+1. reread current-main mandatory docs and the Development Monitor spec;
+2. verify live main/integration/PR #90/CI and that DEV 1/2/3 remain stopped unless explicitly reassigned;
+3. preserve CI #525 as graphical checkpoint while graphical code is unchanged;
+4. inspect TAG/memory/diagnostic source seams and authorization;
+5. freeze monitor source descriptor/sample/provider contract;
+6. split implementation into parallel-safe worker scopes if useful and explicitly authorize them;
+7. integrate Development Monitor behind the read-only authority boundary;
+8. validate focused behavior and capacity architecture;
+9. run one final combined full matrix;
+10. merge only green.

@@ -140,7 +140,13 @@ public static class Iec104PointListExporter
         if (string.IsNullOrEmpty(value))
             return string.Empty;
 
-        var requiresQuotes = value.IndexOfAny(new[] { ',', '"', '\r', '\n' }) >= 0;
+        if (value.IndexOfAny(new[] { '\r', '\n' }) >= 0)
+        {
+            throw new InvalidDataException(
+                "IEC-104 point-list display names cannot contain CR/LF while the paired CSV importer uses one physical line per record.");
+        }
+
+        var requiresQuotes = value.IndexOfAny(new[] { ',', '"' }) >= 0;
         if (!requiresQuotes)
             return value;
 

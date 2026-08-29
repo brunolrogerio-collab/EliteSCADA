@@ -35,5 +35,7 @@ public sealed record Iec104ManagedDiagnosticSnapshot(
     DateTimeOffset? LastObservedPointAt,
     DateTimeOffset? LastFailureAt,
     string? LastError,
-    Iec104ReconnectFailure? LastReconnectFailure,
+    int? LastFailedAttempt,
+    TimeSpan? LastReconnectDelay,
+    bool? LastBackoffWasReset,
     Iec104CommandDiagnosticCounters Commands);

@@ -3,6 +3,7 @@ import {
   BUILTIN_VISUAL_OBJECT_TYPES,
   getBuiltinVisualObjectSchema,
   listBuiltinVisualObjectSchemas,
+  supportsAnalogFill,
   VISUAL_PROPERTY_KEYS
 } from '../src/visual-runtime';
 
@@ -44,6 +45,15 @@ test('built-in schemas expose only relevant shared visual properties', () => {
   expect(button.declares(VISUAL_PROPERTY_KEYS.backgroundColor)).toBeTruthy();
   expect(button.declares(VISUAL_PROPERTY_KEYS.cornerRadius)).toBeTruthy();
   expect(button.declares(VISUAL_PROPERTY_KEYS.text)).toBeTruthy();
+});
+
+test('Analog Fill eligibility is explicit in the shared object capability contract', () => {
+  expect(supportsAnalogFill(BUILTIN_VISUAL_OBJECT_TYPES.rectangle)).toBe(true);
+  expect(supportsAnalogFill(BUILTIN_VISUAL_OBJECT_TYPES.ellipse)).toBe(true);
+  expect(supportsAnalogFill(BUILTIN_VISUAL_OBJECT_TYPES.polygon)).toBe(false);
+  expect(supportsAnalogFill(BUILTIN_VISUAL_OBJECT_TYPES.line)).toBe(false);
+  expect(supportsAnalogFill(BUILTIN_VISUAL_OBJECT_TYPES.text)).toBe(false);
+  expect(supportsAnalogFill('core.unknown')).toBe(false);
 });
 
 test('unknown built-in type fails closed rather than falling back to a generic object', () => {

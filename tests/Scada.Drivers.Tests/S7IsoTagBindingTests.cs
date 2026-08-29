@@ -74,6 +74,22 @@ public sealed class S7IsoTagBindingTests
     }
 
     [Fact]
+    public void Settings_RejectPayloadThatCrossesS7AnyAddressSpace()
+    {
+        var settings = new Dictionary<string, string>
+        {
+            ["area"] = nameof(S7IsoArea.DataBlock),
+            ["dbNumber"] = "1",
+            ["byteOffset"] = "2097150",
+            ["valueType"] = nameof(S7IsoValueType.Float64)
+        };
+
+        Assert.False(S7IsoTagBinding.TryCreateFromSettings(settings, out var binding, out var issues));
+        Assert.Null(binding);
+        Assert.Contains(issues, issue => issue.FieldKey == "byteOffset");
+    }
+
+    [Fact]
     public void ToPoint_RejectsCanonicalTagTypeMismatch()
     {
         var binding = new S7IsoTagBinding(

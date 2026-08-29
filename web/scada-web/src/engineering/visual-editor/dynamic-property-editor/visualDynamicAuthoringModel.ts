@@ -130,15 +130,11 @@ export function createExpressionDependency(
   valueType: VisualExpressionValueTypeEngineering,
   source: VisualEditorBindingSourceCatalogItem
 ): VisualExpressionDependencyEngineering {
-  const normalized = normalizeBindingSourceCatalog([source])[0];
-  if (!normalized) throw new Error('Expression dependency source is not bindable.');
-  if (normalized.kind !== 'Tag' && normalized.kind !== 'ClientMemory') {
-    throw new Error(`Expression dependency kind '${normalized.kind}' is not supported.`);
-  }
+  const normalized = normalizeDynamicValueSource(source);
   if (!normalized.tagReference?.tagId) {
     throw new Error(
       normalized.kind === 'ClientMemory'
-        ? `Client Memory expression dependency '${symbol}' has no canonical stable identity in the current integrated contract.`
+        ? `Client Memory expression dependency '${symbol}' requires canonical stable identity.`
         : `Expression dependency '${symbol}' requires canonical stable source identity.`
     );
   }
@@ -157,22 +153,20 @@ export function createValueSource(
   valueType: VisualExpressionValueTypeEngineering,
   source: VisualEditorBindingSourceCatalogItem
 ): VisualValueSourceEngineering {
-  const normalized = normalizeBindingSourceCatalog([source])[0];
-  if (!normalized) throw new Error('Visual source is not bindable.');
-  if (normalized.kind !== 'Tag' && normalized.kind !== 'ClientMemory') {
-    throw new Error(`Visual value source kind '${normalized.kind}' is not supported.`);
-  }
-  if (normalized.kind === 'Tag' && !normalized.tagReference?.tagId) {
-    throw new Error(`Visual TAG source '${normalized.target}' requires canonical stable source identity.`);
+  const normalized = normalizeDynamicValueSource(source);
+  if (!normalized.tagReference?.tagId) {
+    throw new Error(
+      normalized.kind === 'ClientMemory'
+        ? `Client Memory visual source '${normalized.target}' requires canonical stable identity.`
+        : `Visual TAG source '${normalized.target}' requires canonical stable source identity.`
+    );
   }
 
   return Object.freeze({
     kind: normalized.kind,
     valueType,
     target: normalized.target,
-    ...(normalized.tagReference?.tagId
-      ? { tagReference: snapshotTagReference(normalized.tagReference) }
-      : {}),
+    tagReference: snapshotTagReference(normalized.tagReference),
     version: 1
   });
 }
@@ -269,6 +263,36 @@ export function createAnalogFillEngineering(
   });
 }
 
+function normalizeDynamicValueSource(source: VisualEditorBindingSourceCatalogItem): Readonly<{
+  kind: 'Tag' | 'ClientMemory';
+  target: string;
+  tagReference?: TagValueReferenceEngineering;
+}> {
+  if (source.bindable === false) throw new Error('Visual source is not bindable.');
+  if (source.kind === 'Tag') {
+    const normalized = normalizeBindingSourceCatalog([source])[0];
+    if (!normalized) throw new Error('Visual source is not bindable.');
+    return Object.freeze({
+      kind: 'Tag',
+      target: requireTarget(normalized.target),
+      ...(normalized.tagReference ? { tagReference: snapshotTagReference(normalized.tagReference) } : {})
+    });
+  }
+  if (source.kind !== 'ClientMemory') {
+    throw new Error(`Visual value source kind '${source.kind}' is not supported.`);
+  }
+  const target = requireTarget(source.target);
+  const reference = source.tagReference;
+  if (reference?.selector) {
+    throw new Error('Client Memory sources cannot carry TAG bit selectors.');
+  }
+  return Object.freeze({
+    kind: 'ClientMemory',
+    target,
+    ...(reference?.tagId ? { tagReference: Object.freeze({ tagId: requireTarget(reference.tagId) }) } : {})
+  });
+}
+
 function snapshotDependency(dependency: VisualExpressionDependencyEngineering): VisualExpressionDependencyEngineering {
   return Object.freeze({
     ...dependency,
@@ -294,5 +318,11 @@ function requireSymbol(symbol: string): string {
 function requirePropertyKey(propertyKey: string): string {
   const normalized = propertyKey.trim();
   if (!normalized) throw new Error('Visual property key is required.');
+  return normalized;
+}
+
+function requireTarget(target: string): string {
+  const normalized = target.trim();
+  if (!normalized) throw new Error('Visual source target is required.');
   return normalized;
 }

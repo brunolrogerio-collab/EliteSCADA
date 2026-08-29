@@ -48,12 +48,65 @@ public sealed class S7IsoDriverTests
         Assert.Equal("siemens.s7.iso", diagnostics.DriverType);
         Assert.Equal(CommunicationDriverOperationalState.Healthy, diagnostics.State);
         Assert.Equal("480", diagnostics.ProtocolDetails!["negotiatedPduSize"]);
+        Assert.Equal("true", diagnostics.ProtocolDetails["writeEnabled"]);
         Assert.True(diagnostics.Counters.Requests >= 2);
         Assert.True(diagnostics.Counters.ReadOperations >= 1);
         Assert.Equal(1L, diagnostics.Counters.WriteOperations);
 
         await driver.StopAsync();
         Assert.Equal(DriverState.Stopped, driver.Status.State);
+    }
+
+    [Fact]
+    public async Task WritePolicy_DisabledByDefaultRejectsWriteWithoutCorruptingReadQuality()
+    {
+        await using var server = new TestS7IsoServer();
+        server.SetBytes(S7IsoArea.DataBlock, 1, 0, new byte[] { 0x12, 0x34 });
+        var tag = S7IsoTransportTests.Tag(TagDataType.Int16);
+        var point = new S7IsoPoint(
+            tag,
+            S7IsoArea.DataBlock,
+            0,
+            S7IsoValueType.Int16,
+            DbNumber: 1,
+            Writable: true);
+        var options = new S7IsoConnectionOptions(
+            "127.0.0.1",
+            S7CpuFamily.S71500,
+            S7IsoConnectionMode.RackSlot,
+            rack: 0,
+            slot: 1,
+            connectionRole: S7IsoConnectionRole.Basic,
+            port: server.Port,
+            reconnectDelay: TimeSpan.Zero);
+        var cache = new CurrentTagCache(new InMemoryScadaEventBus());
+        var registry = new InMemoryTagRegistry();
+        await using var driver = new S7IsoDriver(
+            "s7-readonly-policy",
+            "S7 Readonly Policy",
+            options,
+            cache,
+            registry,
+            new[] { point },
+            TimeSpan.FromMilliseconds(20));
+
+        await driver.StartAsync();
+        await WaitUntilAsync(() => cache.TryGet(tag.Id, out var sample) && sample?.Quality == TagQuality.Good, TimeSpan.FromSeconds(2));
+
+        var rejected = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await driver.WriteAsync(tag.Id, (short)0x4567);
+        });
+        Assert.Contains("writeEnabled", rejected.Message, StringComparison.Ordinal);
+
+        Assert.Equal(new byte[] { 0x12, 0x34 }, server.GetBytes(S7IsoArea.DataBlock, 1, 0, 2));
+        var current = Assert.IsType<TagValue>((await driver.ReadAsync(tag.Id))!);
+        Assert.Equal((short)0x1234, Assert.IsType<short>(current.Value));
+        Assert.Equal(TagQuality.Good, current.Quality);
+
+        var diagnostics = driver.GetCommunicationDiagnostics();
+        Assert.Equal("false", diagnostics.ProtocolDetails!["writeEnabled"]);
+        Assert.Equal(0L, diagnostics.Counters.WriteOperations);
     }
 
     [Fact]

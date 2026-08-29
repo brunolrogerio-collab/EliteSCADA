@@ -17,7 +17,6 @@ public sealed class OpcUaDataTypeMapperTests
     public void Map_PreservesDirectScalarTypes(OpcUaBuiltInDataType source, TagDataType expected)
     {
         var result = OpcUaDataTypeMapper.Map(source);
-
         Assert.True(result.Supported);
         Assert.False(result.RequiresAdaptation);
         Assert.Equal(expected, result.DataType);
@@ -30,10 +29,9 @@ public sealed class OpcUaDataTypeMapperTests
     [InlineData(OpcUaBuiltInDataType.UInt32, TagDataType.Int64)]
     [InlineData(OpcUaBuiltInDataType.Guid, TagDataType.String)]
     [InlineData(OpcUaBuiltInDataType.LocalizedText, TagDataType.String)]
-    public void Map_UsesExplicitLosslessOrTextAdaptationWhenRequired(OpcUaBuiltInDataType source, TagDataType expected)
+    public void Map_UsesExplicitAdaptationWhenRequired(OpcUaBuiltInDataType source, TagDataType expected)
     {
         var result = OpcUaDataTypeMapper.Map(source);
-
         Assert.True(result.Supported);
         Assert.True(result.RequiresAdaptation);
         Assert.Equal(expected, result.DataType);
@@ -45,10 +43,9 @@ public sealed class OpcUaDataTypeMapperTests
     [InlineData(OpcUaBuiltInDataType.ByteString)]
     [InlineData(OpcUaBuiltInDataType.ExtensionObject)]
     [InlineData(OpcUaBuiltInDataType.Variant)]
-    public void Map_RejectsTypesWithoutCanonicalLosslessStrategy(OpcUaBuiltInDataType source)
+    public void Map_RejectsTypesWithoutCanonicalStrategy(OpcUaBuiltInDataType source)
     {
         var result = OpcUaDataTypeMapper.Map(source);
-
         Assert.False(result.Supported);
         Assert.Null(result.DataType);
         Assert.False(string.IsNullOrWhiteSpace(result.Reason));
@@ -58,8 +55,8 @@ public sealed class OpcUaDataTypeMapperTests
     public void Map_RejectsArraysUntilArrayStrategyIsExplicit()
     {
         var result = OpcUaDataTypeMapper.Map(OpcUaBuiltInDataType.Int32, valueRank: 1);
-
         Assert.False(result.Supported);
-        Assert.Contains("scalar", result.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(result.Reason);
+        Assert.Contains("scalar", result.Reason!, StringComparison.OrdinalIgnoreCase);
     }
 }

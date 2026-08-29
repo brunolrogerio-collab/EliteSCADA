@@ -130,7 +130,8 @@ public sealed class S7IsoTransportTests
         slot: 1,
         connectionRole: S7IsoConnectionRole.Basic,
         port: port,
-        reconnectDelay: TimeSpan.Zero);
+        reconnectDelay: TimeSpan.Zero,
+        writeEnabled: true);
 
     internal static TagDefinition Tag(TagDataType type, bool readOnly = false) => new(
         Guid.NewGuid(),

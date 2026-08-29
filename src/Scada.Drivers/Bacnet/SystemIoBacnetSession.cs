@@ -136,7 +136,7 @@ public sealed class SystemIoBacnetSession : IBacnetSession
                 subscriptionId,
                 cancel: false,
                 issueConfirmedNotifications: false,
-                lifetime: 300,
+                lifetime: 0,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         catch
@@ -166,7 +166,15 @@ public sealed class SystemIoBacnetSession : IBacnetSession
     {
         var low = lowLimit.HasValue ? checked((int)lowLimit.Value) : -1;
         var high = highLimit.HasValue ? checked((int)highLimit.Value) : -1;
-        _client.WhoIs(low, high);
+        if (!string.IsNullOrWhiteSpace(_options.TargetAddress))
+        {
+            var receiver = new BacnetAddress(BacnetAddressTypes.IP, _options.TargetAddress.Trim());
+            _client.WhoIs(low, high, receiver);
+        }
+        else
+        {
+            _client.WhoIs(low, high);
+        }
         if (!string.IsNullOrWhiteSpace(_options.BbmdAddress))
             _client.RemoteWhoIs(_options.BbmdAddress, lowLimit: low, highLimit: high);
     }

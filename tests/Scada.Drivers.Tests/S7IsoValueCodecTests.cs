@@ -68,6 +68,7 @@ public sealed class S7IsoValueCodecTests
         var encoded = S7IsoValueCodec.Encode(point, expected);
         var decoded = Assert.IsType<DateTime>(S7IsoValueCodec.Decode(point, encoded));
 
+        Assert.Equal(new byte[] { 0x26, 0x08, 0x29, 0x14, 0x35, 0x42, 0x12, 0x37 }, encoded);
         Assert.Equal(expected, decoded);
     }
 

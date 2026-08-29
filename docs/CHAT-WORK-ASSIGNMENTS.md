@@ -2,7 +2,7 @@
 
 > Authoritative live execution board. GitHub branch/PR/head/CI state is operational truth. Permanent rules: `docs/DEVELOPMENT-WAVES.md`, `docs/PARALLEL-WORK.md`, `docs/CI-USAGE-POLICY.md`.
 
-**Last coordinator synchronization:** 2026-08-28 — Wave 08 remains ACTIVE; coordinator Visual Asset/revision/package plus central Screen editor foundation exist on integration and are NOT CI validated; integration was reconciled to `main`; owner explicitly stopped DEV 1/2/3.
+**Last coordinator synchronization:** 2026-08-28 — Wave 08 remains ACTIVE; coordinator Visual Asset/revision/package plus central Screen editor foundation exist on integration and are NOT CI validated; integration was reconciled to `main`; GitHub Actions is authorized with conservative usage; owner explicitly stopped DEV 1/2/3.
 
 ## Mandatory `siga`
 
@@ -23,7 +23,7 @@ Wave 08:
 - Logical WaveBaseSHA: `8de706882ba20afedd666532ac41ae11115d06b3`
 - ContractSHA / branch base: `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 - Integration branch: `integration/graphical-editor-wave-08`
-- last known coordinator code checkpoint before documentation synchronization: `a2cdc39a9d7a8dcf425aab6a253d6bb0694faab1`
+- last known coordinator implementation-contract checkpoint before the CI-policy synchronization: `f3968eba629a97c5b85936ae9b908732e78a4e3a`
 - main reconciliation merge: `011d3c649bb868bfcf8d13bfafe896bb0863a153`
 - integration was verified 0 behind `main` at that checkpoint
 - DEV 1 branch: `feature/graphical-editor-wave-08-canvas` @ contract base, STOPPED unless GitHub proves a later authorized change
@@ -31,11 +31,22 @@ Wave 08:
 - DEV 3 branch: `feature/graphical-editor-wave-08-palette-bindings` @ contract base, STOPPED unless GitHub proves a later authorized change
 - integration Actions validation: none yet
 - integration PR: none yet
-- CI mode: NORMAL; do not deliberately spend Actions while owner access/quota is unavailable
+- CI mode: NORMAL; Actions authorized, but use conservatively according to `docs/CI-USAGE-POLICY.md` and the Wave 08 checkpoint
 - Wave 09/10: NOT ACTIVE
 
 Wave 08 execution contract: `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`.  
 Current coordinator implementation checkpoint: `docs/COORDINATOR-HANDOFF.md`.
+
+### Wave 08 Actions discipline
+
+Actions may be used. Conservative usage means:
+
+- prefer static review/focused evidence before a full matrix;
+- batch coherent changes;
+- do not rerun unchanged heads for reassurance;
+- diagnose localized failures before another expensive run;
+- reserve PR-triggered/full exact-head matrices for meaningful integration/final checkpoints;
+- never weaken the required final gate to save minutes.
 
 ---
 
@@ -45,11 +56,11 @@ Current coordinator implementation checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 **Wave:** `GRAPHICAL-EDITOR-WAVE-08`  
 **Status:** `ACTIVE — CENTRAL SCREEN EDITOR FOUNDATION IMPLEMENTED / NOT CI VALIDATED`  
 **IntegrationBranch:** `integration/graphical-editor-wave-08`  
-**LastCodeCheckpoint:** `a2cdc39a9d7a8dcf425aab6a253d6bb0694faab1`  
+**LastImplementationCheckpoint:** `f3968eba629a97c5b85936ae9b908732e78a4e3a` before CI-policy documentation successors  
 **LogicalWaveBaseSHA:** `8de706882ba20afedd666532ac41ae11115d06b3`  
 **ContractSHA:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 
-**CurrentTask:** preserve and review the coordinator foundation; obtain exact-head build/test evidence when Actions access is available; then deliberately restart/integrate the three fixed worker slices needed to complete the Wave 08 interaction gate.
+**CurrentTask:** preserve and review the coordinator foundation; obtain exact-head build/test evidence using Actions conservatively; then deliberately restart/integrate the three fixed worker slices needed to complete the Wave 08 interaction gate.
 
 **MustReadSpecific:**
 - `docs/COORDINATOR-HANDOFF.md`
@@ -70,18 +81,19 @@ Current coordinator implementation checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 
 **ReservedFiles:** all files listed under `ReservedFiles` in the Wave 08 implementation decision remain coordinator-only unless explicitly reassigned.
 
-**CurrentStateBoundary:** Visual Asset Schema v13/revision/package foundation and the central Screen editor composition are implemented on integration. The Screen editor already uses canonical Engineering Preview/Apply/CAS, reloads canonical state, renders registered `core.*` objects through the shared property registry, and preserves legacy seeded visual types as non-authoritative compatibility placeholders. The focused Screen Preview/Apply/reopen Playwright test exists. None of this has exact-head CI evidence yet.
+**CurrentStateBoundary:** Visual Asset Schema v13/revision/package foundation and the central Screen editor composition are implemented on integration. The Screen editor already uses canonical Engineering Preview/Apply/CAS, reloads canonical state, renders registered `core.*` objects through the shared property registry, preserves legacy seeded visual types as non-authoritative compatibility placeholders and exposes the shared `visualEditorContracts.ts` worker/coordinator intent seam. The focused Screen Preview/Apply/reopen Playwright test exists. None of this has exact-head CI evidence yet.
 
 **CompletionCriteria:** exact integrated Wave 08 head proves create Screen -> add/move/resize/rotate -> edit properties -> canonical binding -> image asset by stable `assetRef` -> save/reopen -> export/import, with transient Canvas state absent from persisted authority; full required CI green; merged main post-merge healthy; docs synchronized.
 
 **NextActions:**
 1. verify live branch/PR/CI state;
-2. if Actions is unavailable, continue only safe static/coordinator cleanup and keep status unvalidated;
-3. when Actions is available, obtain exact-head build/test evidence and fix failures before expansion;
+2. obtain the cheapest meaningful exact-head validation using Actions conservatively;
+3. fix any build/test failure before expansion and avoid unchanged-head reruns;
 4. deliberately restart DEV 1/2/3 only when useful;
-5. integrate delivered worker intents into canonical Screen draft mutations;
-6. run complete Wave 08 gate and full exact-head CI;
-7. merge only green and verify post-merge `main`.
+5. require all worker slices to consume `visualEditorContracts.ts` rather than invent competing intent formats;
+6. integrate delivered worker intents into canonical Screen draft mutations;
+7. run complete Wave 08 gate and full exact-head CI at a meaningful final integration checkpoint;
+8. merge only green and verify post-merge `main`.
 
 ---
 
@@ -96,15 +108,15 @@ Current coordinator implementation checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 
 **CurrentTask when explicitly restarted:** Canvas / Selection.
 
-**MustReadSpecific:** `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md` and its DEV 1 section.
+**MustReadSpecific:** `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`, its DEV 1 section, and coordinator-owned `web/scada-web/src/engineering/visual-editor/visualEditorContracts.ts`.
 
 **AllowedScope:**
 - `web/scada-web/src/engineering/visual-editor/canvas/**`
 - `web/scada-web/tests-e2e/visual-editor-canvas*.spec.ts`
 
-**Deliver:** viewport zoom/pan/grid/snap, selection/multiselect, move/resize/rotate interaction intents, duplicate/delete/z-order intents, deterministic UI-only selection/adornment state and focused tests.
+**Deliver:** viewport zoom/pan/grid/snap, selection/multiselect, move/resize/rotate interaction intents, duplicate/delete/z-order intents, deterministic UI-only selection/adornment state and focused tests, using the shared coordinator intent contracts.
 
-**ForbiddenScope:** ReservedFiles; canonical schema/API/persistence; central workspace/route; Property Inspector; Object Palette/binding; asset backend/storage; public Visual Runtime/Python semantics; another worker branch.
+**ForbiddenScope:** ReservedFiles; canonical schema/API/persistence; central workspace/route; Property Inspector; Object Palette/binding; asset backend/storage; public Visual Runtime/Python semantics; another worker branch; competing private intent types for already-defined shared operations.
 
 **CompletionCriteria:** focused implementation/tests committed on own branch; supplied canonical definitions are not mutated directly; delivery head reported; then STOP.
 
@@ -125,15 +137,15 @@ Current coordinator implementation checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 
 **CurrentTask when explicitly restarted:** Property Inspector.
 
-**MustReadSpecific:** `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md` and its DEV 2 section.
+**MustReadSpecific:** `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`, its DEV 2 section, and coordinator-owned `web/scada-web/src/engineering/visual-editor/visualEditorContracts.ts`.
 
 **AllowedScope:**
 - `web/scada-web/src/engineering/visual-editor/property-inspector/**`
 - `web/scada-web/tests-e2e/visual-editor-property-inspector*.spec.ts`
 
-**Deliver:** inspector driven only by shared schema, typed property controls, explicit Default vs Engineering behavior, validation/error contract, deterministic supported multiselect behavior, change/remove intents and focused tests.
+**Deliver:** inspector driven only by shared schema, typed property controls, explicit Default vs Engineering behavior, validation/error contract, deterministic supported multiselect behavior, change/remove intents and focused tests, using the shared coordinator intent contracts.
 
-**ForbiddenScope:** duplicate property registries/defaults; ReservedFiles; canonical schema/API/persistence; central workspace/route; Canvas; Object Palette/binding; asset backend/storage; Runtime/Python writes; another worker branch.
+**ForbiddenScope:** duplicate property registries/defaults; ReservedFiles; canonical schema/API/persistence; central workspace/route; Canvas; Object Palette/binding; asset backend/storage; Runtime/Python writes; another worker branch; competing private property-mutation intent types for already-defined shared operations.
 
 **CompletionCriteria:** focused implementation/tests committed on own branch; no competing property authority; delivery head reported; then STOP.
 
@@ -154,7 +166,7 @@ Current coordinator implementation checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 
 **CurrentTask when explicitly restarted:** Object Palette / Binding Foundation.
 
-**MustReadSpecific:** `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md` and its DEV 3 section.
+**MustReadSpecific:** `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`, its DEV 3 section, and coordinator-owned `web/scada-web/src/engineering/visual-editor/visualEditorContracts.ts`.
 
 **AllowedScope:**
 - `web/scada-web/src/engineering/visual-editor/object-palette/**`
@@ -162,9 +174,9 @@ Current coordinator implementation checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 - `web/scada-web/tests-e2e/visual-editor-palette*.spec.ts`
 - `web/scada-web/tests-e2e/visual-editor-binding*.spec.ts`
 
-**Deliver:** registered `core.*` palette, object-add intents, canonical binding authoring foundation, coordinator-provided source catalog boundary, validation of binding-capable destinations, Image palette entry using existing `assetRef`, focused tests.
+**Deliver:** registered `core.*` palette, object-add intents, canonical binding authoring foundation, coordinator-provided source catalog boundary, validation of binding-capable destinations, Image palette entry using existing `assetRef`, focused tests, using the shared coordinator intent contracts.
 
-**ForbiddenScope:** ReservedFiles; canonical schema/API/persistence; central workspace/route; Canvas; Property Inspector; asset backend/storage/import authority; Wave 07 property/Python contract changes; another worker branch.
+**ForbiddenScope:** ReservedFiles; canonical schema/API/persistence; central workspace/route; Canvas; Property Inspector; asset backend/storage/import authority; Wave 07 property/Python contract changes; another worker branch; competing private add/binding intent types for already-defined shared operations.
 
 **CompletionCriteria:** focused implementation/tests committed on own branch; no private persistence or direct driver source catalog; delivery head reported; then STOP.
 

@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+
 namespace Scada.Drivers.Mqtt;
 
 public enum MqttProtocolMode
@@ -73,11 +75,48 @@ public sealed record MqttConnectionSettings(
     }
 }
 
-public sealed record MqttResolvedCredentials(
-    string? Username,
-    ReadOnlyMemory<byte> Password)
+/// <summary>
+/// Short-lived resolved authentication material. The instance owns its password
+/// buffer and clears it when disposed. Callers must not reuse an owned byte array
+/// after passing it to this type.
+/// </summary>
+public sealed class MqttResolvedCredentials : IDisposable
 {
-    public static MqttResolvedCredentials None { get; } = new(null, ReadOnlyMemory<byte>.Empty);
+    private byte[] _password;
+    private bool _disposed;
+
+    public MqttResolvedCredentials(string? username, byte[]? password = null)
+    {
+        Username = username;
+        _password = password ?? Array.Empty<byte>();
+    }
+
+    public MqttResolvedCredentials(string? username, ReadOnlyMemory<byte> password)
+        : this(username, password.IsEmpty ? Array.Empty<byte>() : password.ToArray())
+    {
+    }
+
+    public string? Username { get; }
+
+    public ReadOnlyMemory<byte> Password
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return _password;
+        }
+    }
+
+    public static MqttResolvedCredentials None => new(null);
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        if (_password.Length > 0)
+            CryptographicOperations.ZeroMemory(_password);
+        _password = Array.Empty<byte>();
+        _disposed = true;
+    }
 }
 
 public sealed record MqttSubscription(

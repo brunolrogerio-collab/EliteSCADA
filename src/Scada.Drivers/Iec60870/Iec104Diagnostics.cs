@@ -38,4 +38,5 @@ public sealed record Iec104ManagedDiagnosticSnapshot(
     int? LastFailedAttempt,
     TimeSpan? LastReconnectDelay,
     bool? LastBackoffWasReset,
-    Iec104CommandDiagnosticCounters Commands);
+    Iec104CommandDiagnosticCounters Commands,
+    Iec104TcpAdapterDiagnosticSnapshot? Transport);

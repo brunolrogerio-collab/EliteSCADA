@@ -2,15 +2,15 @@
 
 > Authoritative live execution board. GitHub branch/PR/head/CI state is operational truth. Permanent rules: `docs/DEVELOPMENT-WAVES.md`, `docs/PARALLEL-WORK.md`, `docs/CI-USAGE-POLICY.md`.
 
-**Last coordinator synchronization:** 2026-08-28 — Wave 07 merged and post-merge green; Wave 08 Definition of Ready satisfied; graphical editor branches created from the frozen Wave 08 contract; DEV 1/2/3 assignments are now ACTIVE.
+**Last coordinator synchronization:** 2026-08-28 — Wave 08 remains ACTIVE; coordinator-only Visual Asset/revision/package foundation exists on integration and is NOT CI validated; owner explicitly stopped DEV 1/2/3; all worker branches remain untouched at the Wave 08 contract base.
 
 ## Mandatory `siga`
 
-Every fixed EliteSCADA chat first rereads current `main`: `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/DEVELOPMENT-WAVES.md`, this board, `docs/CI-USAGE-POLICY.md`, `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`, and current MustReadSpecific documents. Then verify real branch/head/CI and execute only the current authorized assignment.
+Every fixed EliteSCADA chat first rereads current `main`: `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/DEVELOPMENT-WAVES.md`, this board, `docs/CI-USAGE-POLICY.md`, `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`, `docs/COORDINATOR-HANDOFF.md`, and current MustReadSpecific documents. Then verify real branch/head/CI and execute only the current authorized assignment.
 
 ## Current product gate
 
-`GRAPHICAL-EDITOR-WAVE-08` is **ACTIVE**.
+`GRAPHICAL-EDITOR-WAVE-08` is **ACTIVE**, but worker execution is currently stopped.
 
 Wave 07 closure:
 - final integration product head: `6d869109af23b25d1ae95cd35610e1930a16791c`
@@ -23,13 +23,16 @@ Wave 08:
 - Logical WaveBaseSHA: `8de706882ba20afedd666532ac41ae11115d06b3`
 - ContractSHA / branch base: `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 - Integration branch: `integration/graphical-editor-wave-08`
-- DEV 1 branch: `feature/graphical-editor-wave-08-canvas`
-- DEV 2 branch: `feature/graphical-editor-wave-08-property-inspector`
-- DEV 3 branch: `feature/graphical-editor-wave-08-palette-bindings`
+- exact coordinator integration head at this synchronization: `4f8a71f59c5d033265c38c1c0beca2add9bb117b`
+- DEV 1 branch: `feature/graphical-editor-wave-08-canvas` @ `7a445d3dd94cabd09807291a0ee94276559fcb0e`
+- DEV 2 branch: `feature/graphical-editor-wave-08-property-inspector` @ `7a445d3dd94cabd09807291a0ee94276559fcb0e`
+- DEV 3 branch: `feature/graphical-editor-wave-08-palette-bindings` @ `7a445d3dd94cabd09807291a0ee94276559fcb0e`
+- integration Actions runs: none yet
 - CI mode: NORMAL
 - Wave 09/10: NOT ACTIVE
 
 Wave 08 execution contract: `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`.
+Current coordinator implementation checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 
 ---
 
@@ -37,15 +40,18 @@ Wave 08 execution contract: `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISI
 
 **Role:** `COORDINATOR`  
 **Wave:** `GRAPHICAL-EDITOR-WAVE-08`  
-**Status:** `ACTIVE — CENTRAL CANONICAL INTEGRATION`  
+**Status:** `ACTIVE — PARTIAL CENTRAL FOUNDATION / NOT CI VALIDATED`  
 **IntegrationBranch:** `integration/graphical-editor-wave-08`  
+**CurrentIntegrationHead:** `4f8a71f59c5d033265c38c1c0beca2add9bb117b`  
 **LogicalWaveBaseSHA:** `8de706882ba20afedd666532ac41ae11115d06b3`  
 **ContractSHA:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 
-**CurrentTask:** establish and integrate the coordinator-owned canonical Screen editor seam, first-class project image asset authority, central Engineering workspace/route/renderer composition, then integrate worker deliveries without weakening the Wave 07 contracts.
+**CurrentTask:** resume coordinator-only Wave 08 integration from the persistent handoff, preserve the completed Visual Asset/revision/package foundation, finish canonical Screen graphical mutation/save/reopen plus central editor composition, then deliberately restart/integrate worker slices only when authorized.
 
 **MustReadSpecific:**
+- `docs/COORDINATOR-HANDOFF.md`
 - `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`
+- `docs/VISUAL-ASSET-STORAGE-WAVE-08.md`
 - `docs/VISUAL-CANONICAL-CONVERGENCE-07-TO-08.md`
 - `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`
 - `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`
@@ -60,6 +66,8 @@ Wave 08 execution contract: `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISI
 
 **ReservedFiles:** all files listed under `ReservedFiles` in the Wave 08 implementation decision remain coordinator-only unless explicitly reassigned.
 
+**CurrentStateBoundary:** Visual Asset Schema v13, Working asset authority, raster validation, PostgreSQL revision blobs/links, `.escadapkg` v2, protected asset API/frontend seam and focused source tests are implemented on integration but have no exact-head CI evidence yet. Do not call this validated or merge-ready.
+
 **CompletionCriteria:** exact integrated Wave 08 head proves create Screen -> add/move/resize/rotate -> edit properties -> canonical binding -> image asset by stable `assetRef` -> save/reopen -> export/import, with transient Canvas state absent from persisted authority; full required CI green; merged main post-merge healthy; docs synchronized.
 
 ---
@@ -68,11 +76,12 @@ Wave 08 execution contract: `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISI
 
 **Role:** `WORKER`  
 **Wave:** `GRAPHICAL-EDITOR-WAVE-08`  
-**Status:** `ACTIVE`  
+**Status:** `STOPPED — WAIT_FOR_COORDINATOR`  
 **Branch:** `feature/graphical-editor-wave-08-canvas`  
+**Head:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`  
 **Base:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 
-**CurrentTask:** Canvas / Selection.
+**CurrentTask when explicitly restarted:** Canvas / Selection.
 
 **MustReadSpecific:** `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md` and its DEV 1 section.
 
@@ -88,17 +97,20 @@ Wave 08 execution contract: `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISI
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`.
 
+**Authorization state:** NOT AUTHORIZED TO EXECUTE until owner/coordinator explicitly restarts this worker.
+
 ---
 
 # DEV 2 - EliteSCADA
 
 **Role:** `WORKER`  
 **Wave:** `GRAPHICAL-EDITOR-WAVE-08`  
-**Status:** `ACTIVE`  
+**Status:** `STOPPED — WAIT_FOR_COORDINATOR`  
 **Branch:** `feature/graphical-editor-wave-08-property-inspector`  
+**Head:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`  
 **Base:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 
-**CurrentTask:** Property Inspector.
+**CurrentTask when explicitly restarted:** Property Inspector.
 
 **MustReadSpecific:** `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md` and its DEV 2 section.
 
@@ -114,17 +126,20 @@ Wave 08 execution contract: `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISI
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`.
 
+**Authorization state:** NOT AUTHORIZED TO EXECUTE until owner/coordinator explicitly restarts this worker.
+
 ---
 
 # DEV 3 - EliteSCADA
 
 **Role:** `WORKER`  
 **Wave:** `GRAPHICAL-EDITOR-WAVE-08`  
-**Status:** `ACTIVE`  
+**Status:** `STOPPED — WAIT_FOR_COORDINATOR`  
 **Branch:** `feature/graphical-editor-wave-08-palette-bindings`  
+**Head:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`  
 **Base:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 
-**CurrentTask:** Object Palette / Binding Foundation.
+**CurrentTask when explicitly restarted:** Object Palette / Binding Foundation.
 
 **MustReadSpecific:** `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md` and its DEV 3 section.
 
@@ -142,6 +157,8 @@ Wave 08 execution contract: `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISI
 
 **AfterCompletion:** `WAIT_FOR_COORDINATOR`.
 
+**Authorization state:** NOT AUTHORIZED TO EXECUTE until owner/coordinator explicitly restarts this worker.
+
 ## Coordinator note
 
-Exactly one ACTIVE assignment exists per worker. Queued future work is not authorization. Workers do not open/merge their own main PR, do not edit `main`, do not expand scope to solve coordinator dependencies and stop after delivery.
+Workers are intentionally stopped by owner instruction. Queued scope is preserved only so a future coordinator can restart each fixed chat without reconstructing the assignment. A stopped worker is not authorized to act merely because its task text remains present. Workers do not open/merge their own main PR, do not edit `main`, do not expand scope to solve coordinator dependencies and stop after delivery.

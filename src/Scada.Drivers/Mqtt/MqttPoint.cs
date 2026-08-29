@@ -34,7 +34,8 @@ public sealed record MqttPoint(
     bool Writable = false,
     string? PublishTopic = null,
     MqttQosLevel PublishQos = MqttQosLevel.AtLeastOnce,
-    bool PublishRetain = false)
+    bool PublishRetain = false,
+    TimeSpan? FreshnessTimeout = null)
 {
     public void Validate()
     {
@@ -44,6 +45,9 @@ public sealed record MqttPoint(
         ValidateQos(PublishQos, nameof(PublishQos));
         ValidateJsonPointer(JsonPointer, nameof(JsonPointer));
         ValidateJsonPointer(SourceTimestampJsonPointer, nameof(SourceTimestampJsonPointer));
+
+        if (FreshnessTimeout.HasValue && FreshnessTimeout.Value <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(FreshnessTimeout), "MQTT freshness timeout must be greater than zero when configured.");
 
         if (PayloadFormat != MqttPayloadFormat.Json && JsonPointer is not null)
             throw new InvalidOperationException("JSON Pointer can only be configured for JSON MQTT payloads.");

@@ -50,6 +50,34 @@ public sealed class Iec104TcpClientAdapterTests
             await adapter.DisconnectAsync(timeout.Token);
             await serverTask;
             Assert.False(adapter.IsConnected);
+
+            var diagnostics = adapter.GetTransportDiagnostics();
+            Assert.False(diagnostics.IsConnected);
+            Assert.False(diagnostics.IsDataTransferStarted);
+            Assert.Equal(1, diagnostics.Connections);
+            Assert.Equal(1, diagnostics.Disconnections);
+            Assert.Equal(1, diagnostics.IFramesSent);
+            Assert.Equal(1, diagnostics.IFramesReceived);
+            Assert.Equal(1, diagnostics.SFramesSent);
+            Assert.Equal(1, diagnostics.SFramesReceived);
+            Assert.Equal(2, diagnostics.UFramesSent);
+            Assert.Equal(2, diagnostics.UFramesReceived);
+            Assert.Equal(1, diagnostics.AsdusSent);
+            Assert.Equal(1, diagnostics.AsdusReceived);
+            Assert.Equal(1, diagnostics.StartDtActivationsSent);
+            Assert.Equal(1, diagnostics.StartDtConfirmationsReceived);
+            Assert.Equal(1, diagnostics.StopDtActivationsSent);
+            Assert.Equal(1, diagnostics.StopDtConfirmationsReceived);
+            Assert.Equal((ushort)0, diagnostics.NextSendSequence);
+            Assert.Equal((ushort)0, diagnostics.ExpectedReceiveSequence);
+            Assert.Equal(0, diagnostics.UnacknowledgedSendCount);
+            Assert.Equal(0, diagnostics.PendingReceiveAcknowledgementCount);
+            Assert.Equal(0, diagnostics.ProtocolErrors);
+            Assert.Equal(0, diagnostics.SessionFailures);
+            Assert.NotNull(diagnostics.LastActivityAt);
+            Assert.NotNull(diagnostics.LastFrameSentAt);
+            Assert.NotNull(diagnostics.LastFrameReceivedAt);
+            Assert.Null(diagnostics.LastFailure);
         }
         finally
         {
@@ -86,6 +114,15 @@ public sealed class Iec104TcpClientAdapterTests
             await adapter.StopDataTransferAsync(timeout.Token);
             await adapter.DisconnectAsync(timeout.Token);
             await serverTask;
+
+            var diagnostics = adapter.GetTransportDiagnostics();
+            Assert.Equal(1, diagnostics.TestFrameActivationsReceived);
+            Assert.Equal(1, diagnostics.TestFrameConfirmationsSent);
+            Assert.Equal(0, diagnostics.TestFrameActivationsSent);
+            Assert.Equal(0, diagnostics.TestFrameConfirmationsReceived);
+            Assert.Equal(3, diagnostics.UFramesSent);
+            Assert.Equal(3, diagnostics.UFramesReceived);
+            Assert.Equal(0, diagnostics.SessionFailures);
         }
         finally
         {

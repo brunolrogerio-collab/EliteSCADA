@@ -50,3 +50,12 @@ test('Canvas keeps viewport selection hover and adornment state out of canonical
   expect(canvas).not.toContain('screen.properties');
   expect(canvas).not.toContain('selectedObjectIds.push');
 });
+
+test('dragging an already selected object preserves the existing multiselect set', async () => {
+  const canvas = await source('../src/engineering/visual-editor/canvas/VisualEditorCanvas.tsx');
+
+  expect(canvas).toContain("const preserveExistingSelection = mode === 'replace' && selectionSet.has(projection.objectId);");
+  expect(canvas).toContain('const dragObjectIds = preserveExistingSelection');
+  expect(canvas).toContain('if (!preserveExistingSelection)');
+  expect(canvas).not.toContain("emitSelection([projection.objectId], mode);\n    const localSelection");
+});

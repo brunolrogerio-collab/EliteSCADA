@@ -1,7 +1,7 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-08-29  
-**Active direction:** **WAVE 08 — GRAPHICAL EDITOR FOUNDATION + ENGINEERING DEVELOPMENT MONITOR / GRAPHICAL GATE GREEN / MONITOR IMPLEMENTATION PENDING**
+**Active direction:** **08-FOLLOW-A — TAG BIT ACCESS + DRIVER BIT-LEVEL BOOLEAN BINDING**
 
 Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
 Parallel execution model: `docs/DEVELOPMENT-WAVES.md`.  
@@ -9,17 +9,34 @@ Live worker ownership: `docs/CHAT-WORK-ASSIGNMENTS.md`.
 Current coordinator checkpoint: `docs/COORDINATOR-HANDOFF.md`.  
 Wave 08 execution contract: `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`.  
 Wave 08 Development Monitor contract: `docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE-08.md`.  
-Wave 08 asset storage contract: `docs/VISUAL-ASSET-STORAGE-WAVE-08.md`.  
-TAG bit access + bit-level driver binding follow-up: `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`.  
-Visual Expressions + Boolean Conditions + Analog Fill follow-up: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.  
-Wave 09 historical alarm/historian/query context: `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`.  
+TAG bit contract: `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`.  
+Visual expression follow-up: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.  
+Wave 09 historical data context: `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`.  
 CI policy: `docs/CI-USAGE-POLICY.md`.
 
-Engineering Import/Export remains cross-cutting: canonical Engineering domains join versioned JSON, validation/Preview/Apply, revision lifecycle, PostgreSQL persistence where applicable and `.escadapkg` backup/restore.
+Engineering Import/Export remains cross-cutting: canonical Engineering entities participate in versioned JSON, validation/Preview/Apply, Working/revision lifecycle, PostgreSQL persistence where applicable and `.escadapkg` backup/restore.
 
 ## Current merged foundation
 
-Official `main` product state includes the complete Wave 07 foundation and all earlier SCADA layers. Wave 08 remains unmerged.
+Official `main` includes all product work through **Wave 08**.
+
+Wave 08 final integration head:
+
+`9ea0eace15aa925133005f40e16403a2c0f3deb1`
+
+Final integration CI:
+
+- #531 / run `33236703599`: **SUCCESS**.
+
+Merged through replacement non-Draft PR **#96** after Draft PR #90 was administratively superseded because the available connector could not remove Draft state.
+
+Main merge:
+
+`bfd17d035d905e9bcae263f68244cfb2b6453aa2`
+
+Post-merge CI:
+
+- #533 / run `33236999366`: **SUCCESS**.
 
 ## Completed waves
 
@@ -28,6 +45,7 @@ Official `main` product state includes the complete Wave 07 foundation and all e
 - **Wave 05 — COMPLETE / MERGED.** Main merge `7f629bf660bb16fd46fbf6abeb72b9ca1676e087`; CI #466 green.
 - **Wave 06 — COMPLETE / MERGED.** Main merge `cc79713434c1d7b5988158b843b137eaf488d923`; CI #487 green.
 - **Wave 07 — COMPLETE / MERGED / POST-MERGE GREEN.** Main merge `8de706882ba20afedd666532ac41ae11115d06b3`; post-merge CI #510 green.
+- **Wave 08 — COMPLETE / MERGED / POST-MERGE GREEN.** Main merge `bfd17d035d905e9bcae263f68244cfb2b6453aa2`; final integration CI #531 and post-merge CI #533 green.
 
 ## Ordered path to v0.1
 
@@ -37,8 +55,8 @@ Wave 04      Project portability + basic Trends + Administration                
 Wave 05      Canonical Script Engineering                                                COMPLETE
 Wave 06      Python Editor + Client Visual sandbox                                       COMPLETE
 Wave 07      Visual Runtime Object Model + typed visual Engineering                      COMPLETE
-Wave 08      Graphical Editor + Image + Engineering Development Monitor                  ACTIVE
-08-FOLLOW-A  TAG Bit Access + Driver Bit-Level Boolean Binding                           WAITING FOR WAVE 08
+Wave 08      Graphical Editor + Image + Engineering Development Monitor                  COMPLETE
+08-FOLLOW-A  TAG Bit Access + Driver Bit-Level Boolean Binding                           ACTIVE
 08-FOLLOW-B  Typed Visual Expressions + Boolean Conditions + Analog Fill                 WAITING ON 08-FOLLOW-A
 Wave 09      Screens + Popups + Dynamos + navigation + Historical Data Browser          WAITING
 Wave 10      Python visual events + animation + preview                                  WAITING
@@ -50,163 +68,137 @@ Wave 15      Feedback/corrections                                               
 FINAL        EliteSCADA v0.1 — Full Product Validation Preview
 ```
 
-## Wave 08 — Graphical Editor + Engineering Development Monitor
+## Wave 08 — CLOSED
 
-**ACTIVE / NOT MERGED.**
+Wave 08 delivered the first practical graphical Engineering foundation plus development monitoring:
 
-Integration: `integration/graphical-editor-wave-08`  
-Draft integration PR: **#90**
-
-### Gate A — Graphical Editor/Image
-
-**GREEN.** Exact graphical product head: `a7176a44df3a0af5bc1a271b25101d333da7a161`.  
-CI #525 / run `33230239968`: **SUCCESS**.
-
-The integrated graphical path now covers:
-
-- Engineering Schema v13 first-class Visual Assets;
-- stable asset identity + package/revision persistence;
-- Canvas zoom/pan/grid/snap, selection/multiselect and geometry operations;
+- canonical Screen editor;
+- Canvas interactions and transient UI-state boundary;
 - schema-driven Property Inspector;
 - registered Object Palette;
-- canonical TAG binding authoring with early type compatibility checks;
-- project image import/selection by stable `assetRef`;
-- canonical Preview/Apply/CAS;
-- save/reopen/export/import acceptance;
-- transient Canvas UI state excluded from canonical Engineering.
+- canonical source binding foundation;
+- project image assets and stable `assetRef`;
+- `core.text` with explicit typed scalar dynamic display;
+- shared Project Reference Tree;
+- canonical closed free `core.polygon` with point authoring/editing and persisted structural geometry;
+- Engineering Development Monitor with search and exact-reference quick-add;
+- heterogeneous read-only monitored rows for available canonical source families;
+- typed value, quality/state and timestamp presentation;
+- shared batching/subscription architecture with 100-row acceptance;
+- Preview/Apply/CAS and save/reopen/export/import fidelity.
 
-DEV 1/2/3 original graphical worker deliveries are integrated. Their worker PRs #91/#92/#93 are closed without direct merge to main. Workers are stopped until explicitly reassigned.
+The final defect found by CI #529 was a Preview/Apply mismatch for polygon `points`. The final implementation preserves `points` as structural geometry instead of sending them through the scalar Visual Property codec. CI #531 and #533 prove the corrected path.
 
-### Gate B — Engineering Development Monitor
+## 08-FOLLOW-A — TAG Bit Access + Driver Bit-Level Boolean Binding
 
-**OWNER-LOCKED / SPECIFIED / NOT IMPLEMENTED.**
+**ACTIVE — ARCHITECTURE-FIRST.**
 
-Contract: `docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE-08.md`.
+Canonical contract:
 
-Purpose: allow development/commissioning engineers to watch live variables and diagnostics during application development without building temporary HMI objects or code.
+`docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`
 
-Required workflow:
+Logical BaseSHA:
 
-`open Monitor -> search OR type exact canonical reference -> add row -> observe value/type/quality-state/timestamp -> source changes -> row updates -> remove/clear`
+`bfd17d035d905e9bcae263f68244cfb2b6453aa2`
 
-Required initial source families:
+Integration branch:
 
-- TAGs;
-- Client Memory;
-- Server Memory;
-- authoritative System/Runtime variables and diagnostics;
-- Data Source / driver diagnostics.
+`integration/tag-bit-access-wave-08-follow-a`
 
-Required table facts:
+### Product objective
 
-- canonical name/reference/path;
-- source category;
-- current value;
-- canonical data type;
-- quality or authoritative diagnostic state;
-- timestamp / last update when defined.
+Make bit-oriented PLC/driver data a first-class canonical capability rather than visual-editor syntax or driver-private metadata.
 
-Architecture rules:
+Required semantics:
 
-- unified provider/catalog seam, not a separate variable model per domain;
-- search/browse plus exact-reference quick-add;
-- explicit not-found/ambiguous behavior;
-- heterogeneous source rows together;
-- strict read-only boundary;
-- preserve exact typed values including Int64;
-- unavailable/bad/stale/disconnected state is explicit and never coerced to normal values;
-- reuse realtime/subscription infrastructure where possible;
-- bounded/coalesced polling only where needed;
-- never one independent backend poll loop per row;
-- acceptance proves at least 100 simultaneous monitored entries through shared batching/subscription;
-- current monitored values/qualities/timestamps are Runtime/diagnostic state and never canonical Engineering/project package state.
+- friendly logical syntax such as `Word_status.03`, backed by stable TAG identity + bit index;
+- Int16 bits `00..15`, Int32 `00..31`, Int64 `00..63`;
+- bit 0 = LSB;
+- signed values use fixed-width two's-complement representation;
+- result is Boolean but inherits source quality/timestamp/context;
+- bad/unavailable integer source never silently becomes Boolean false;
+- bit references become reusable through existing canonical source/reference seams;
+- Development Monitor and Project Reference Tree later consume the same reference contract, never a private `.NN` parser;
+- optional authorized logical bit writes preserve all unrelated bits and coordinate concurrent EliteSCADA mutations;
+- Boolean TAGs may bind directly to a physical driver word/register bit when driver capability declares support.
 
-The monitor is explicitly not a force/write table, command console, historian or alarm-control surface.
+### Required Modbus behavior
 
-### Wave 08 final gate
+- Holding/Input Register Boolean bit binding uses bit `0..15` of one 16-bit register;
+- Holding Register may be writable when authorized/configured;
+- Input Register remains read-only;
+- Coil remains native Boolean and does not need a register bit selector;
+- DiscreteInput remains read-only;
+- bit write changes only the selected bit;
+- prefer native Mask Write Register if the supported transport/device contract deliberately enables it;
+- otherwise use coordinated read-modify-write against the same source/address;
+- simultaneous EliteSCADA bit writes to one word must not lose each other;
+- multiple logical bit TAGs on one physical register should share/coalesce physical reads where practical;
+- Engineering must distinguish human register notation from zero-based wire offset instead of hiding another Modbus off-by-one trap in a string.
 
-Wave 08 closes only when both Gate A and Gate B are green on the final integrated product and one final full CI is green.
+### Persistence and safety gate
 
-PR #90 stays Draft until then.
+Bit references and physical bit bindings must round-trip through canonical JSON, Preview/Apply/CAS, Working, immutable revisions, PostgreSQL and `.escadapkg`.
 
-## Mandatory TAG-bit follow-up before visual expressions
+Authorization/Audit remain normal product boundaries. A bit selector is not a security shortcut.
 
-After complete Wave 08 closure, execute `08-FOLLOW-A` under `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`.
+### Current execution rule
 
-When first-class TAG bit selectors are implemented, they must participate through the same Development Monitor provider/catalog seam instead of monitor-private `.NN` parsing.
+Coordinator first inspects and reconciles the actual current:
 
-## Mandatory visual-expression follow-up before Wave 09
+- TAG definition/reference DTOs;
+- Engineering exchange/validation/persistence contracts;
+- Runtime/current-value reference resolution;
+- Modbus point/codec/poll/write paths;
+- Project Reference Tree and Development Monitor catalog seams;
+- Python/reference consumers that must eventually accept the same stable bit identity.
 
-After 08-FOLLOW-A is green, execute `08-FOLLOW-B` under `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.
+DEV 1/2/3 remain stopped until explicit bounded assignments are published. No worker infers a Follow-A task merely because this stage is active.
 
-Wave 09 remains blocked until required preceding work is green.
+## 08-FOLLOW-B — mandatory after Follow-A
 
-## Wave 09 — locked historical data expansion
+Contract:
 
-Wave 09 keeps its original **Screens + Popups + Dynamos + navigation** objective and also incorporates the locked historical alarm/historian/query context under:
+`docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`
+
+This stage consumes the canonical bit-reference semantics from Follow-A and adds:
+
+- typed side-effect-free visual expressions over canonical TAGs/Client Memory/bit selectors;
+- boolean `and`/`or`/`not`, comparisons and parentheses;
+- numeric arithmetic and bounded pure helpers;
+- universal public `visible` behavior;
+- direct Boolean, interval and expression-driven Boolean conditions;
+- Analog Fill for supported closed shapes;
+- canonical dependency identity and reactive quality-aware evaluation;
+- no arbitrary JavaScript/Python evaluation.
+
+Wave 09 remains blocked until Follow-A and Follow-B are green.
+
+## Wave 09 — locked future expansion / NOT ACTIVE
+
+Wave 09 keeps Screens + Popups + Dynamos + navigation and also includes the locked Historical Data Browser context in:
 
 `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`
 
-The locked product direction is a web-native **Historical Data Browser** over protected typed datasets, not an arbitrary SQL console.
-
-Required first datasets:
+Initial protected logical datasets:
 
 - `historian.samples`;
 - `alarm.events`.
 
-Required shared query behavior:
+Required direction includes relative/absolute time ranges, typed server-side filters, bounded sortable tabular results, exact values/quality, parameterized PostgreSQL/TimescaleDB queries and strict separation between current operational Alarm Center commands and read-only historical alarm browsing.
 
-- relative periods such as last N minutes/hours/days;
-- absolute start/end date and time;
-- canonical UTC query semantics with localized display/input;
-- visible effective filter interval;
-- configurable/sortable bounded tabular results;
-- server-side parameterized filtering and authorization;
-- exact typed historian values and explicit quality.
-
-Required historical alarm filters include at least:
-
-- alarm/event type;
-- alarm category/subcondition where available;
-- area/hierarchical area discovery;
-- source/name/path;
-- message;
-- severity/priority;
-- active/inactive persisted state;
-- acknowledged/unacknowledged and ACK-required state;
-- shelved state where persisted;
-- time period.
-
-Required historian filters include at least:
-
-- one or more canonical TAG references;
-- relative or absolute period;
-- optional quality filter;
-- deterministic timestamp ordering.
-
-Architecture boundaries:
-
-- current Alarm Center remains operational authority for current alarm state and protected ACK/shelving;
-- Historical Alarm Browser is read-only;
-- browser never connects directly to PostgreSQL/TimescaleDB;
-- normal product path never sends arbitrary SQL from browser to backend;
-- validated typed query descriptors map to protected dataset providers and parameterized DB queries;
-- temporary Runtime period/filter changes never silently dirty Engineering;
-- engineered Data Browser configuration on a Screen/Popup participates in canonical JSON, Preview/Apply, revision lifecycle and `.escadapkg`.
-
-Wave 09 assignments remain **NOT ACTIVE**. Exact slices and base SHA are frozen only after Wave 08 + 08-FOLLOW-A + 08-FOLLOW-B are green.
+Do not activate Wave 09 or distribute its work until the mandatory 08-FOLLOW stages are closed.
 
 ## Remaining v0.1 sequence
 
-- **Wave 08:** finish Engineering Development Monitor and final combined CI/merge.
 - **08-FOLLOW-A:** TAG Bit Access + Driver Bit-Level Boolean Binding.
 - **08-FOLLOW-B:** Typed Visual Expressions + Boolean Conditions + Analog Fill.
-- **Wave 09:** multiple Screens, Popups, reusable Dynamos, navigation, deterministic asset dependencies and Historical Data Browser for historian/alarm events with typed period/filter queries.
+- **Wave 09:** Screens/Popups/Dynamos/navigation + Historical Data Browser.
 - **Wave 10:** Python visual events, renderer-native animation/tween and Engineering visual Preview/Test.
-- **Wave 11:** build `Estação Elevatória EliteSCADA Demo` only through normal product APIs/tools.
+- **Wave 11:** complete owner-testable HMI Runtime demo vertical slice.
 - **Wave 12:** hardening.
 - **Wave 13:** Windows x64 product package.
-- **Wave 14:** owner validation.
+- **Wave 14:** product-owner validation.
 - **Wave 15:** feedback/corrections; v0.1 requires P0=0, P1=0 and required validation green.
 
 ## v0.1 protocol boundary

@@ -97,7 +97,7 @@ export function BindingEditor({
   useEffect(() => {
     const current = propertyKey ? findVisualBinding(element, propertyKey) : undefined;
     const currentKey = current ? sourceIdentity(current.kind, current.target) : '';
-    if (currentKey && sources.some(item => sourceIdentity(item.kind, item.target) === currentKey)) {
+    if (current && currentKey && sources.some(item => sourceIdentity(item.kind, item.target) === currentKey)) {
       setSourceKey(currentKey);
       setExactReference(current.target);
       return;

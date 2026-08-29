@@ -17,6 +17,8 @@ This document records the implementation state of the raw MQTT industrial driver
 - QoS 0, 1 and 2 are supported for subscriptions and publishes. QoS is never converted into TAG quality.
 - Reconnect uses bounded exponential delay and deterministic resubscription.
 - Broker loss marks affected TAGs `BadCommunication` and moves communication diagnostics through reconnect/fault states.
+- Passive receive-side transport loss is counted as a failed communication operation and a disconnection even when the transport has already observed the socket/session as disconnected.
+- Explicit stop/start is supported without duplicate canonical TAG registration; completed cancellation state and freshness references are released/reset between starts.
 - Malformed payloads fail closed per mapped point and do not silently coerce values to `0`, `false` or another guessed type.
 - Retained values without a trustworthy configured source timestamp are `Stale` by default. `acceptAsCurrent` is an explicit opt-in policy.
 - Optional per-TAG freshness timeout transitions a previously valid `Good` sample to `Stale` when no newer accepted MQTT sample arrives in time. The freshness clock starts from local sample acceptance and is deliberately independent from mapped source timestamps.
@@ -172,7 +174,7 @@ This keeps MQTTnet classes behind `IMqttClientTransport` and prevents the protoc
 - `MqttCredentialLifetimeTests`
 - `MqttFreshnessAndBufferTests`
 
-The tests cover exact-topic validation, typed payloads, JSON Pointer, retained semantics, malformed payload isolation, event-driven cache updates, writes, reconnect/resubscribe, Engineering compilation, public Import/Export fidelity, secret reference enforcement, runtime composition, credential zeroization, freshness expiration/recovery, separation of source-time age from receive freshness and bounded-buffer configuration limits.
+The tests cover exact-topic validation, typed payloads, JSON Pointer, retained semantics, malformed payload isolation, event-driven cache updates, writes, reconnect/resubscribe, Engineering compilation, public Import/Export fidelity, secret reference enforcement, runtime composition, credential zeroization, freshness expiration/recovery, separation of source-time age from receive freshness, stop/restart lifecycle, passive-disconnect diagnostics and bounded-buffer configuration limits.
 
 The current execution environment does not contain the .NET 10 SDK, so these tests still require execution in an authorized .NET 10 build environment. GitHub Actions should not be spent merely as reassurance CI; run the focused suite when Coordinator integration or a justified driver validation run is scheduled.
 

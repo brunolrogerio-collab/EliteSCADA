@@ -3,9 +3,9 @@
 > Operational handoff. Resume from GitHub, not chat history.
 
 **Handoff date:** 2026-08-28  
-**Development state:** **WAVE 08 ACTIVE — PARTIAL COORDINATOR FOUNDATION / NOT CI VALIDATED**  
-**CI mode:** **NORMAL**  
-**DEV workers:** **STOPPED / WAIT_FOR_COORDINATOR**
+**Merged product state:** **WAVE 07 CLOSED / WAVE 08 NOT MERGED**  
+**Active development state:** **WAVE 08 ACTIVE — CENTRAL FOUNDATION VALIDATED IN DRAFT PR #90 / DEV 1-2-3 ACTIVE**  
+**CI mode:** **NORMAL — Actions authorized with conservative usage**
 
 ## Mandatory resume reading
 
@@ -21,106 +21,125 @@ Before any action read current `main`:
 - `docs/COORDINATOR-HANDOFF.md`
 - current assignment `MustReadSpecific`.
 
-GitHub branch/PR/head/CI is operational truth.
+Then verify live GitHub branch/PR/head/CI. GitHub is operational truth.
 
-## Wave 07 — CLOSED
+## Wave 07 — MERGED / CLOSED
 
-Wave 07 Visual Runtime Object Model is fully merged and validated.
+- final integration product head: `6d869109af23b25d1ae95cd35610e1930a16791c`
+- exact-head CI #508 / run `33217787482`: **SUCCESS**
+- merge PR #89
+- main merge: `8de706882ba20afedd666532ac41ae11115d06b3`
+- post-merge CI #510 / run `33218282760`: **SUCCESS**
 
-- Logical WaveBaseSHA: `cc79713434c1d7b5988158b843b137eaf488d923`
-- Final integration product head: `6d869109af23b25d1ae95cd35610e1930a16791c`
-- Final exact-head CI: #508 / run `33217787482` — **SUCCESS**
-- Merge PR: #89
-- Main merge: `8de706882ba20afedd666532ac41ae11115d06b3`
-- Post-merge CI: #510 / run `33218282760` — **SUCCESS**
+## Wave 08 — IMPLEMENTED IN PR / ACTIVE / NOT MERGED
 
-Post-merge #510 proved Web build, backend Release/full PostgreSQL+Timescale tests, Runtime smoke and Chromium all green on the actual merge commit.
-
-Historical/final contract: `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`.
-
-## Wave 08 — ACTIVE
-
-Wave 08 contract remains frozen:
+Frozen identity:
 
 - Logical WaveBaseSHA: `8de706882ba20afedd666532ac41ae11115d06b3`
-- ContractSHA / branch base: `7a445d3dd94cabd09807291a0ee94276559fcb0e`
+- ContractSHA / logical worker base: `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 - Integration: `integration/graphical-editor-wave-08`
-- Current exact integration head at this handoff: `4f8a71f59c5d033265c38c1c0beca2add9bb117b`
-- No Actions run yet for the Wave 08 integration branch.
-- No Wave 08 integration PR yet.
+- Draft integration PR: **#90 — `Wave 08: graphical editor foundation integration`**
+- exact validated central-foundation product head: **`b48b489660ae953029fd2416aa18b149eaa18258`**
+- validation: **CI #515 / run `33225051402` — SUCCESS**
 
-Contract: `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`.
-Asset persistence contract: `docs/VISUAL-ASSET-STORAGE-WAVE-08.md`.
-Detailed current coordinator checkpoint: `docs/COORDINATOR-HANDOFF.md`.
+CI #515 proved on that exact product head:
 
-## Worker state
+- Web React/Vite/TypeScript build: **SUCCESS**;
+- backend Release build: **SUCCESS**;
+- full backend tests including PostgreSQL/Timescale coverage: **SUCCESS**;
+- Runtime smoke: **SUCCESS**;
+- Chromium E2E: **SUCCESS**;
+- `visual-editor-workspace.spec.ts`: **SUCCESS**;
+- existing Wave 06/07 Python/visual regressions remained green.
 
-Owner explicitly stopped the DEV chats.
+Documentation-only successors use `[skip ci]`; they do not invalidate unchanged product evidence from `b48b489...`.
 
-All three worker branches remain untouched at the Wave 08 contract base `7a445d3dd94cabd09807291a0ee94276559fcb0e`:
+PR #90 remains Draft and must not merge until the complete Wave 08 interaction gate is implemented and the final integrated head is green.
 
-- DEV 1 `feature/graphical-editor-wave-08-canvas` — STOPPED / no implementation commits;
-- DEV 2 `feature/graphical-editor-wave-08-property-inspector` — STOPPED / no implementation commits;
-- DEV 3 `feature/graphical-editor-wave-08-palette-bindings` — STOPPED / no implementation commits.
+## Validated coordinator foundation in PR #90
 
-Do not assume any background worker activity. Restart them only on explicit owner/coordinator authorization.
-
-## Coordinator work already implemented on integration
-
-The coordinator-only Wave 08 foundation now includes:
+Implemented in the Wave 08 integration branch, not yet merged product state:
 
 - Engineering Schema v13 first-class Visual Asset metadata;
-- stable Visual Asset `Id` as canonical project/reference identity;
-- content-addressed SHA-256 Working payload registry;
-- shared Working registry composition through Engineering Exchange, persistence, package, View validation and API;
-- PNG/JPEG/BMP structural validation and bounded import safety;
-- v13 `core.image.assetRef` prospective reference integrity;
-- same-Key/different-Id identity conflict rejection;
+- stable Visual Asset `Id` reference identity separated from developer `Key` and content SHA-256;
+- bounded PNG/JPEG/BMP validation;
+- canonical Working asset authority;
 - PostgreSQL asset blobs + immutable revision links;
-- asset-aware revision save/load/Preview/Apply/checkout/rollback;
+- asset-aware revision save/load/checkout/rollback;
 - `.escadapkg` v2 asset sidecars with v1 asset-free compatibility;
-- project-controlled Visual Asset API with Engineering CAS/authorization/Audit;
-- frontend Visual Asset metadata/catalog/import/content seams;
-- focused Core/PostgreSQL tests for raster, package, identity and revision behavior;
-- compatibility adjustments proving v11/v12 remain historical input while current Engineering is v13.
+- protected Visual Asset API with CAS/authorization/Audit;
+- frontend asset catalog/import/content seams;
+- `Engineering -> Telas` central `VisualEditorWorkspace`;
+- Screen draft Preview/Apply through canonical Engineering + Workspace CAS;
+- canonical snapshot reload after Apply;
+- renderer consuming shared `core.*` Visual Property Registry and stable `assetRef`;
+- explicit non-authoritative compatibility placeholders for historical demo visual types;
+- `visualEditorCanonicalModel.ts` Screen mutation helpers;
+- shared `visualEditorContracts.ts` separating transient UI state from canonical object/property/binding mutation intents;
+- PT-BR/EN/ES editor composition;
+- Screen Preview -> Apply -> canonical export -> reopen E2E.
 
-During static review, several concrete defects were found and corrected before CI, including an invalid C# `EndsWith` overload, checkout asset-state leakage/missing payload restore, package-side malformed-raster bypass and Visual Asset key/identity substitution risk.
+## CI defects corrected before green checkpoint
 
-See `docs/COORDINATOR-HANDOFF.md` for the detailed list and exact commits.
+The first meaningful PR validation found and corrected three deterministic issues:
 
-## Important status boundary
+1. TypeScript readonly/mutable mismatch in the Screen element clone path;
+2. forbidden `Clone` helper names on C# records, renamed to `Copy`;
+3. stale broad Runtime E2E expecting `.escadapkg` v1 after current Wave 08 export advanced to v2; current expectation updated while dedicated v1 compatibility coverage remains.
 
-Wave 08 is **not validated, not merge-ready and not complete**.
+No unchanged-head reassurance reruns were used.
 
-Still pending:
+## Worker state — ACTIVE / AUTHORIZED
 
-- exact-head build/test evidence for current integration;
-- reconciliation of integration with current `main` before final CI/PR;
-- canonical Screen graphical mutation/save/reopen seam;
-- central graphical editor workspace/route/renderer/localization composition;
-- all three worker UI slices, because workers are currently stopped and branches untouched;
-- integrated Wave 08 product gate;
-- final exact-head CI matrix, merge and post-merge health confirmation.
+The previous owner stop has been deliberately lifted by the coordinator after CI #515 proved the central foundation and after the shared intent contract was seeded into each worker branch.
+
+The logical worker Base remains `7a445d3dd94cabd09807291a0ee94276559fcb0e`. Before worker implementation, each branch is exactly one coordinator dependency-seed commit ahead of that base:
+
+- DEV 1 `feature/graphical-editor-wave-08-canvas` authorization head `57521312914e21e303976a81bc81c84ad5aa9cbb` — **ACTIVE / Canvas + Selection**;
+- DEV 2 `feature/graphical-editor-wave-08-property-inspector` authorization head `3e942ed641d96afe848966f123fb10eaeaa99ed7` — **ACTIVE / Property Inspector**;
+- DEV 3 `feature/graphical-editor-wave-08-palette-bindings` authorization head `df3cd6c332a19bb3011373c95d010f33754c0c12` — **ACTIVE / Object Palette + Binding Foundation**.
+
+Each worker starts on `siga` after rereading current `main`, then uses the seeded `web/scada-web/src/engineering/visual-editor/visualEditorContracts.ts` from its own branch. The contract seed is not worker implementation and is not merged product state.
+
+Workers must preserve their fixed AllowedScope/ForbiddenScope, use focused validation, report exact delivery head and stop at `WAIT_FOR_COORDINATOR` after delivery.
+
+## Actions rule
+
+Actions is authorized, but use remains conservative:
+
+- use static/diff/contract review first when sufficient;
+- workers batch coherent changes and use focused validation in owned scope;
+- do not rerun unchanged heads for reassurance;
+- diagnose and fix localized failures before another expensive run;
+- coordinator reuses CI #515 while validated central product code is unchanged;
+- full integration matrices are reserved for meaningful composed/final checkpoints;
+- final Wave Definition of Done is never weakened to save minutes.
+
+## Still pending for Wave 08
+
+- DEV 1 Canvas/selection, zoom/pan/grid/snap and move/resize/rotate/duplicate/delete/z-order intents;
+- DEV 2 schema-driven typed Property Inspector;
+- DEV 3 registered Object Palette + canonical Binding authoring;
+- coordinator canonical application of worker mutation intents into Screen drafts;
+- cross-slice UI composition;
+- practical Image workflow through stable `assetRef`;
+- complete product gate:
+  `Create Screen -> add objects -> move/resize/rotate -> edit properties -> canonical binding -> image asset -> save -> reopen -> export/import`;
+- proof that transient Canvas selection/viewport/adornment state is not persisted;
+- final exact-head full Wave 08 CI after worker integration;
+- PR #90 readiness/merge;
+- post-merge `main` health confirmation.
 
 Wave 09/10 remain NOT ACTIVE.
 
 ## Next coordinator execution
 
-1. reread all mandatory `main` documents including `docs/COORDINATOR-HANDOFF.md`;
-2. verify real `main`, integration, worker heads, PRs and Actions before changing code;
-3. treat all DEV workers as STOPPED unless explicitly restarted;
-4. resume from exact integration head `4f8a71f59c5d033265c38c1c0beca2add9bb117b` or its verified successor;
-5. review build-risk and reconcile integration with current `main` before final CI/PR;
-6. finish coordinator-owned Screen mutation/save/reopen and central editor composition seams;
-7. deliberately restart worker chats only when useful, preserving their fixed scopes;
-8. integrate delivered worker heads through the Wave 08 integration branch;
-9. run focused tests, then the full exact-head CI matrix;
-10. merge only fully green, confirm post-merge `main`, then close Wave 08 and only then activate Wave 09.
-
-## Wave 08 product gate
-
-The integrated wave must prove:
-
-`Create Screen -> add objects -> move/resize/rotate -> edit registered properties -> canonical binding -> image asset by stable assetRef -> save -> reopen -> export/import`
-
-Transient Canvas selection/viewport/adornment state must never become persisted project authority.
+1. verify actual `main`, PR #90, integration and all worker heads;
+2. monitor worker Draft PRs/diffs at Early Contract Review and Integration Review checkpoints;
+3. do not duplicate worker UI scopes in the integration branch;
+4. implement coordinator-owned canonical intent application/composition hooks as needed;
+5. integrate only reviewed worker deliveries;
+6. use focused validation during composition and preserve CI #515 evidence for unchanged central code;
+7. run the next full matrix only on a meaningful integrated product checkpoint;
+8. merge PR #90 only after the complete gate and exact-head CI are green;
+9. verify post-merge main, synchronize docs, close Wave 08, then and only then activate Wave 09.

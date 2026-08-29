@@ -5,6 +5,8 @@
 
 This document records the EliteSCADA product requirements for historical alarm browsing, historian queries and reusable tabular data views. It is architecture/product input for **Wave 09** and does not authorize Wave 09 before Wave 08 and the mandatory 08-FOLLOW work are closed.
 
+Wave 09 Reporting is defined separately in `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`. Historical Data Browser, Trends and Reporting must share compatible protected provider, time-range, filter, quality and TAG-identity semantics rather than grow three unrelated query systems.
+
 # 1. Product objective
 
 Wave 09 expands the existing Screens/Popups/Dynamos/navigation objective with a web-native **Historical Data Browser** for persisted supervisory data.
@@ -69,7 +71,7 @@ A future administrative raw-query tool, if ever created, is a separate security/
 
 # 4. Shared time-range model
 
-Wave 09 must provide one reusable time-range contract for Data Browser and compatible Trend/history consumers.
+Wave 09 must provide one reusable time-range contract for Data Browser, Reporting and compatible Trend/history consumers.
 
 ## Relative period
 
@@ -154,14 +156,16 @@ Minimum product behavior:
 - refresh/requery;
 - responsive handling of large result sets without loading an unbounded table into browser memory.
 
-Useful later extensions, not mandatory for the first Wave 09 slice:
+Useful later extensions, not mandatory for the first Data Browser slice:
 
 - saved personal Runtime views;
-- CSV export;
+- direct CSV export from the browser surface;
 - multi-level sort UI;
 - advanced filter-expression builder;
 - aggregation/downsampling controls;
 - reusable user-defined query templates beyond engineered project definitions.
+
+Wave 09 Reporting provides the engineered paginated/export path and should reuse the same protected query authority rather than duplicating it here.
 
 # 8. Engineering persistence
 
@@ -195,15 +199,21 @@ Required design principles:
 - query cancellation/timeouts prevent abandoned requests from consuming database work indefinitely;
 - diagnostics expose useful query failures without leaking credentials or sensitive SQL internals.
 
-TimescaleDB-native aggregation/downsampling may be used where needed for performance, but a sophisticated aggregation designer is not required for the first Wave 09 Data Browser.
+TimescaleDB-native aggregation/downsampling may be used where needed for performance, but a sophisticated aggregation designer is not required for the first Data Browser slice. Report grouping/summary requirements are governed by the dedicated Reporting contract and should call through protected provider/query capabilities.
 
-# 10. Relationship with Trends
+# 10. Relationship with Trends and Reporting
 
-Historical Data Browser and Trends should reuse the same typed time-range semantics and historian authority.
+Historical Data Browser, Reporting and Trends should reuse the same typed time-range semantics and historian authority.
 
-Historical and realtime values remain conceptually distinct even when a Trend presents them together.
+Historical and realtime values remain conceptually distinct even when a Trend or Report presents them together.
 
-Do not create separate incompatible rules for relative periods, absolute intervals or quality handling between tabular history and charts.
+Do not create separate incompatible rules for relative periods, absolute intervals or quality handling between tabular history, paginated reports and charts.
+
+The product roles remain distinct:
+
+- Historical Data Browser: interactive tabular exploration;
+- Reporting: engineered paginated presentation, print and export;
+- Trends: chart-oriented time-series exploration/presentation.
 
 # 11. Wave 09 product gate
 
@@ -223,6 +233,8 @@ and additionally:
 
 `configured Data Browser on Screen/Popup -> save -> revision -> publish/activate -> reopen -> same engineered view configuration`
 
+Reporting has its additional Wave 09 acceptance gate in `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`.
+
 Required correctness checks:
 
 - UTC interval boundaries are deterministic;
@@ -236,23 +248,24 @@ Required correctness checks:
 
 # 12. Explicit non-goals
 
-Do not expand the first Wave 09 slice into:
+Do not expand the first Historical Data Browser slice into:
 
 - arbitrary SQL console/query editor;
 - unrestricted generic database table explorer;
 - direct browser-to-database access;
 - multi-database compatibility beyond the project's PostgreSQL/TimescaleDB direction;
-- report designer;
 - full analytics/data-science environment;
 - replacement historian engine;
 - alarm safety/interlock logic;
 - changing current alarm state from a historical record;
 - advanced playback/replay subsystem.
 
+Reporting/Report Designer is deliberately part of Wave 09 but is governed by its own bounded product contract rather than being hidden inside the Data Browser implementation.
+
 # 13. Architecture summary
 
-Wave 09 follows this product composition:
+Wave 09 historical browsing follows this product composition:
 
-`PostgreSQL/Timescale domain stores -> typed protected query providers -> shared time/filter model -> Historical Data Browser / Trend / historical alarm presentation`
+`PostgreSQL/Timescale domain stores -> typed protected query providers -> shared time/filter model -> Historical Data Browser / Reporting / Trend presentation`
 
-This keeps database details behind public APIs, makes period/date/filter behavior reusable and allows Screens/Popups/Dynamos to host useful historical information without making React or SQL the project authority.
+This keeps database details behind public APIs, makes period/date/filter behavior reusable and allows Screens/Popups/Dynamos and Reports to consume useful historical information without making React or SQL the project authority.

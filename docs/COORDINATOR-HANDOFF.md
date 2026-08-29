@@ -3,152 +3,176 @@
 > Persistent coordinator resume checkpoint. Read this with the mandatory current `main` documents, then verify live GitHub branch/PR/head/CI before acting.
 
 **Handoff date:** 2026-08-29  
-**Current wave:** `GRAPHICAL-EDITOR-WAVE-08`  
-**Merged product:** Wave 07 closed; Wave 08 unmerged  
-**Wave status:** **ACTIVE — GRAPHICAL EDITOR/IMAGE GATE GREEN / ENGINEERING DEVELOPMENT MONITOR REQUIRED**  
+**Current stage:** `08-FOLLOW-A — TAG BIT ACCESS + DRIVER BIT-LEVEL BOOLEAN BINDING`  
+**Merged product:** **Wave 08 CLOSED / post-merge green**  
+**Current status:** **FOLLOW-A INTEGRATED CANDIDATE — CI IN PROGRESS / NOT MERGED**  
 **CI policy:** `NORMAL`; Actions authorized with conservative usage
 
-## Exact checkpoint
+## Wave 08 closure
 
-- integration branch: `integration/graphical-editor-wave-08`;
-- Draft integration PR: **#90**;
-- graphical product head: **`a7176a44df3a0af5bc1a271b25101d333da7a161`**;
-- full CI #525 / run `33230239968`: **SUCCESS**;
-- documentation-only successors use `[skip ci]` and do not alter graphical product behavior;
-- PR #90 remains Draft because the owner expanded Wave 08 with a mandatory Development Monitor before merge.
+- final integration CI #531 / run `33236703599`: **SUCCESS**;
+- PR #96 merged;
+- main merge: `bfd17d035d905e9bcae263f68244cfb2b6453aa2`;
+- post-merge CI #533 / run `33236999366`: **SUCCESS**.
 
-## Graphical gate — validated
+## Follow-A live train — authoritative checkpoint
 
-CI #525 proved the fully composed graphical editor/image path:
+Canonical product contract:
 
-- Web React/Vite/TypeScript build: SUCCESS;
-- backend Release build: SUCCESS;
-- full PostgreSQL/Timescale tests: SUCCESS;
-- Runtime smoke: SUCCESS;
-- Chromium E2E: SUCCESS;
-- Canvas + selection/move/resize/rotate;
-- Property Inspector;
-- Object Palette;
-- canonical Binding authoring with early type compatibility validation;
-- project Image import + stable `assetRef`;
-- Preview/Apply/CAS -> export -> reopen;
-- transient Canvas state not persisted;
-- prior visual/Python/security/runtime regressions green.
+`docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`
 
-Worker deliveries incorporated into the integration train:
+Logical product BaseSHA:
 
-- DEV 1 head `d6542643014e955b013756fd8ee53a5629b8e82a`; PR #93 closed unmerged after coordinator integration.
-- DEV 2 head `2c974cadafbcc773a4645864440c190f128ea808`; PR #91 closed unmerged after coordinator integration.
-- DEV 3 head `d614a00dda0903a0f7c78641dc0b803dfd8085df`; PR #92 closed unmerged after coordinator integration.
+`bfd17d035d905e9bcae263f68244cfb2b6453aa2`
 
-All three worker chats are now STOPPED / WAIT_FOR_COORDINATOR.
+Integration branch:
 
-## New mandatory Wave 08 requirement
+`integration/tag-bit-access-wave-08-follow-a`
 
-Canonical contract:
+Current exact integration head at chat handoff:
 
-`docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE-08.md`
+`4e8a3c76753c1ead815c790407601852c6f888e3`
 
-Owner intent: provide a development/commissioning Watch Table inside Engineering so an engineer can inspect variable behavior without creating a temporary HMI or temporary code.
+Central Draft PR:
 
-Minimum flow:
+**#105 — FOLLOW-A: TAG bit access and Modbus bit-level binding**
 
-`open monitor -> search OR type exact canonical reference -> add -> see live value/type/quality/state/timestamp -> observe changes -> remove/clear`
+Exact-head CI at handoff:
 
-Initial provider families:
+**CI #541 / run `33255556172` — IN PROGRESS** on `4e8a3c76753c1ead815c790407601852c6f888e3`.
 
-- TAGs;
-- Client Memory;
-- Server Memory;
-- authoritative System/Runtime variables/diagnostics;
-- Data Source / driver diagnostics.
+Do not modify the integration head until #541 finishes unless a proven blocker requires it. Inspect job/log evidence first.
 
-The architecture must use a unified provider/catalog seam. Do not build separate unrelated tables or a second variable namespace for each family.
+## Important Git topology state
 
-### Locked monitor semantics
+At handoff:
 
-- search by canonical name/path/reference and useful metadata;
-- direct exact-reference quick-add when the engineer already knows the TAG/variable;
-- explicit not-found/ambiguous behavior, no silent fuzzy substitution;
-- heterogeneous rows in one table;
-- minimum facts: reference/name, source kind, current value, canonical data type, quality or diagnostic state, timestamp/last update;
-- preserve exact typed values, especially Int64;
-- missing/bad/unavailable/stale/disconnected is explicit and never coerced into normal values;
-- reuse existing realtime/Event Bus/WebSocket/subscription paths when authoritative;
-- bounded/coalesced polling only where needed;
-- never one independent backend poll loop per row;
-- acceptance proves at least 100 simultaneous rows using shared provider batching/subscription infrastructure;
-- monitor is strictly read-only;
-- adding/removing monitor rows must not alter scan rate, driver configuration, TAG policy or process outputs;
-- current monitored samples are Runtime/diagnostic state and never authored Engineering/project package state.
+- `main` head before this handoff-doc commit was `10e25b6d1de436ea86cca47096bd7629b2765773`;
+- integration and main diverge from Wave 08 merge base `bfd17d035d905e9bcae263f68244cfb2b6453aa2`;
+- integration is ahead with Follow-A product work;
+- main is ahead with documentation/product-north updates including Reporting, mandatory PDF/XLSX and DNP3 as a future driver;
+- before final Follow-A merge, reconcile current `main` into the integration train without dropping either product code or current documentation.
 
-## Important scope decision
+## Worker slices — ALREADY INTEGRATED
 
-The new owner requirement does **not** reopen the completed DEV 1/2/3 graphical missions automatically.
+Do **not** integrate these again.
 
-Before any worker starts Development Monitor code, the coordinator must inspect the existing authoritative source seams, define parallel-safe ownership and update `docs/CHAT-WORK-ASSIGNMENTS.md` with a new explicit assignment.
+Accepted exact worker delivery heads were:
 
-## Existing authorities to inspect before implementation
+- DEV 1 Core: `80b0911eda92b96a7c1945307cea402cf9ad4417`, CI #534 SUCCESS;
+- DEV 2 Engineering: `bcd65ac4ee81ac399fb2d1882e426d90f419a225`, CI #537 SUCCESS;
+- DEV 3 Modbus: `e0365c6dd0d81cd938ccc41e44b208726c73392e`, CI #535 SUCCESS.
 
-On next execution, inspect rather than reinvent:
+They are already composed into the current integration train. Worker scope is no longer the next action.
 
-1. TAG registry/current-value cache and protected Runtime TAG read/realtime WebSocket/Event Bus paths;
-2. Client Memory contracts and browser-local runtime identity/lifecycle;
-3. Server Memory contracts and protected read endpoints;
-4. current Data Source/common driver diagnostics model/API;
-5. Runtime/service/system diagnostic facts already public;
-6. Engineering shell/navigation/localization/security patterns;
-7. batching/subscription possibilities so the monitor does not poll per row.
+## Follow-A implementation currently present in integration
 
-If a category has no public read-only seam, add only the minimum bounded API/provider needed. Do not expose private driver objects or secrets.
+### Core / logical TAG bit semantics
 
-## Development Monitor persistence boundary
+- `TagValueSelectorKind.Bit`;
+- `TagValueSelector(Kind, Index)`;
+- `TagValueReference(TagId, Selector?)` with stable Guid authority;
+- Int16/Int32/Int64 zero-based LSB bit semantics;
+- fixed-width two's-complement behavior including sign bit;
+- Boolean projection preserves source quality/timestamps/context;
+- logical bit writes preserve unrelated bits.
 
-The live samples are not Engineering.
+### Engineering / persistence
 
-Never save/export/package current values, qualities, timestamps, transient communication state or observed errors.
+- `TagDefinition.AddressSelector` and `TagEngineeringDto.AddressSelector`;
+- structured AddressSelector JSON/CSV/Preview/Apply/Export support;
+- public `EngineeringBindingDto.TagReference` / frontend `BindingEngineering.tagReference` seam for stable logical TAG value references;
+- concrete TAG binding validation prefers TagId + selector over friendly path;
+- rename stability: friendly `Target` may change, authoritative TagId remains the same;
+- bit range validated against TAG data width;
+- schema-v13 content without selectors remains backward compatible.
 
-The watchlist itself may initially be session/user-workspace state. If persisted for convenience, only canonical references/order/display preferences may be stored and must remain separate from process logic. Named project-portable Watch Tables require a later explicit decision if desired.
+### Modbus physical bit binding
 
-## Current Wave 08 Definition of Done
+- Holding/Input Register selected-bit reads `0..15`;
+- Input Register selected-bit bindings are read-only;
+- Holding Register bit writes use coordinated fresh-read RMW preserving unrelated bits;
+- same-authority EliteSCADA writes are serialized to prevent lost updates;
+- same-register physical reads remain coalesced where practical;
+- whole-register/Coil behavior remains separate.
 
-Wave 08 now closes only after both are green:
+### Shared web reference seam
 
-### Gate A — Graphical Editor/Image
+Current integration includes coordinator-owned work for:
 
-**GREEN** at `a7176a4...`, CI #525.
+- Project Reference catalog carrying stable `tagId` and bit-selector capability without expanding every integer TAG into 16/32/64 permanent tree nodes;
+- friendly `.NN` resolver producing a Boolean derived source with `{ tagId, selector:{kind:'bit', index} }`;
+- invalid/out-of-range bit suffixes fail closed;
+- Binding Editor deduplication and persistence by stable TagId + selector when available;
+- Binding Editor supports on-demand bit source authoring rather than coercing the whole integer TAG to Boolean;
+- Development Monitor uses stable TAG identity and shared TAG-bit value projection;
+- shared web bit projection preserves Quality/timestamps and does not map unavailable/bad data to false.
 
-### Gate B — Engineering Development Monitor
+Latest integration commits include monitor quick-add stabilization and shared web TAG-bit projection. Re-fetch actual files/head before editing.
 
-**SPECIFIED / NOT IMPLEMENTED.** Acceptance is defined in `docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE-08.md`.
+## Friendly notation versus authority
 
-After Gate B implementation:
+`Word_status.03` is authoring/display syntax only.
 
-- run final full Web/backend/tests/smoke/Chromium on one exact combined head;
-- PR #90 may leave Draft only after exact-head evidence is green;
-- merge to `main`;
-- verify post-merge main health;
-- synchronize docs.
+Canonical identity is:
 
-## Follow-up order after Wave 08
+`TagId + { kind: bit, index: 3 }`
 
-1. `08-FOLLOW-A` — TAG Bit Access + Driver Bit-Level Boolean Binding;
-2. `08-FOLLOW-B` — Typed Visual Expressions + Boolean Conditions + Analog Fill;
-3. Wave 09 only after required preceding work is green.
+Do not introduce a second private `.NN` parser, metadata-only identity, or path-only bit persistence.
 
-Bit selectors introduced in 08-FOLLOW-A must later participate through the same monitor provider/catalog seam, not through monitor-private `.NN` parsing.
+## Final Follow-A gate
 
-## Resume procedure
+The final candidate must prove:
 
-On coordinator `siga`:
+1. stable logical reference = TAG Guid + structured bit selector;
+2. Int16 bits `00..15`, Int32 `00..31`, Int64 `00..63`, including sign bit;
+3. bad/unavailable quality preserved, never silently converted to good `false`;
+4. logical bit writes preserve unrelated bits;
+5. structured/versioned physical Boolean bit binding;
+6. Modbus HR/IR selected-bit reads;
+7. safe HR selected-bit writes preserving unrelated register bits;
+8. concurrent same-register EliteSCADA writes do not lose updates;
+9. same-register reads remain coalesced where practical;
+10. JSON/CSV/Preview/Apply/revision/PostgreSQL/package fidelity;
+11. Project Reference Tree, Binding Editor and Development Monitor use the same canonical reference seam;
+12. existing whole-register/Coil/DiscreteInput and prior-wave regressions remain green;
+13. exact-head full CI green;
+14. reconcile current `main`, final PR merge, then post-merge `main` CI green.
 
-1. reread current-main mandatory docs and the Development Monitor spec;
-2. verify live main/integration/PR #90/CI and that DEV 1/2/3 remain stopped unless explicitly reassigned;
-3. preserve CI #525 as graphical checkpoint while graphical code is unchanged;
-4. inspect TAG/memory/diagnostic source seams and authorization;
-5. freeze monitor source descriptor/sample/provider contract;
-6. split implementation into parallel-safe worker scopes if useful and explicitly authorize them;
-7. integrate Development Monitor behind the read-only authority boundary;
-8. validate focused behavior and capacity architecture;
-9. run one final combined full matrix;
-10. merge only green.
+## Permanent future-driver rule
+
+Bit access is driver-independent product direction.
+
+Every future production driver exposing bit-addressable byte/word/register/integer storage must publish structured bit capability. If writable, bit writes must preserve unrelated bits via native atomic/mask operation where available or coordinated RMW otherwise. Read-only protocol areas remain read-only.
+
+Future driver roadmap includes MQTT, OPC UA, BACnet, S7, Allen-Bradley and **DNP3** as applicable to each protocol's data model/capabilities. DNP3 is post-v0.1 and is not active development now.
+
+## Wave 09 locked additions
+
+Wave 09 remains NOT ACTIVE until Follow-A and Follow-B are green.
+
+It already includes:
+
+- Screens / Popups / Dynamos / navigation;
+- Historical Data Browser / alarm history / historian queries;
+- first-class Reporting and Report Designer;
+- mandatory **PDF (`.pdf`)** report export;
+- mandatory **Microsoft Excel (`.xlsx`)** report export with typed cells where practical.
+
+Repository documentation contains only EliteSCADA generic requirements, not names of external products used during research.
+
+## Next coordinator actions in a new chat
+
+On `siga`:
+
+1. read mandatory current-main documents;
+2. verify live `main`, integration head, PR #105 and CI #541;
+3. if #541 failed, inspect only failing job/log and fix proven cause; do not reassurance-rerun unchanged head;
+4. if #541 is green, review exact-head Follow-A acceptance and inspect PR #105 diff;
+5. reconcile current `main` documentation into integration while preserving Follow-A code;
+6. run a final exact-head CI only if reconciliation changes the tested tree materially;
+7. make the final non-Draft merge path if the connector Draft limitation still exists, using the already-established replacement-PR procedure rather than weakening gates;
+8. merge Follow-A only when green and verify post-merge `main` health;
+9. mark Follow-A CLOSED, update handoff/assignments;
+10. then activate **08-FOLLOW-B — Typed Visual Expressions + Boolean Conditions + Analog Fill**;
+11. Wave 09 stays blocked until Follow-B is green.

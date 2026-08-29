@@ -3,13 +3,14 @@
 > Operational handoff. Resume from GitHub, not chat history.
 
 **Handoff date:** 2026-08-29  
-**Merged product state:** **WAVE 07 CLOSED / WAVE 08 NOT MERGED**  
-**Active development state:** **WAVE 08 ACTIVE — GRAPHICAL EDITOR GATE GREEN / ENGINEERING DEVELOPMENT MONITOR NOW REQUIRED**  
+**Merged product state:** **WAVE 08 CLOSED / POST-MERGE GREEN**  
+**Active development state:** **08-FOLLOW-A — INTEGRATED CANDIDATE / CI IN PROGRESS / NOT MERGED**  
 **CI mode:** **NORMAL — Actions authorized with conservative usage**
 
 ## Mandatory resume reading
 
 Before any action read current `main`:
+
 - `PROJECT GOAL.md`
 - `LAST CHANGE.md`
 - `docs/ROADMAP.md`
@@ -19,135 +20,106 @@ Before any action read current `main`:
 - `docs/CI-USAGE-POLICY.md`
 - `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`
 - `docs/COORDINATOR-HANDOFF.md`
-- `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`
-- `docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE-08.md`
 - `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`
 - `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`
 - `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`
-- current assignment `MustReadSpecific`.
+- `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`
 
 Then verify live GitHub branch/PR/head/CI. GitHub is operational truth.
 
-## Wave 07 — CLOSED
+## Wave 08 — CLOSED
 
-- main merge: `8de706882ba20afedd666532ac41ae11115d06b3`
-- post-merge CI #510 / run `33218282760`: **SUCCESS**
+- PR #96 merged;
+- `main` product merge: `bfd17d035d905e9bcae263f68244cfb2b6453aa2`;
+- integration CI #531: **SUCCESS**;
+- post-merge CI #533: **SUCCESS**.
 
-## Wave 08 — ACTIVE / NOT MERGED
-
-Integration branch: `integration/graphical-editor-wave-08`  
-Draft integration PR: **#90**
-
-### Graphical Editor/Image checkpoint — GREEN
-
-Exact graphical product head: **`a7176a44df3a0af5bc1a271b25101d333da7a161`**  
-CI #525 / run `33230239968`: **SUCCESS**
-
-CI #525 proved Web build, backend Release build, full PostgreSQL/Timescale tests, Runtime smoke, Chromium E2E, integrated Canvas/Inspector/Palette/Binding/Image workflow and prior visual/Python/security/runtime regressions.
-
-DEV 1/2/3 original graphical slices were reviewed and integrated by the coordinator. Their worker PRs #91/#92/#93 are closed without direct merge to `main` because their content is incorporated into the central integration train.
-
-Later `[skip ci]` documentation commits do not invalidate CI #525 evidence for unchanged graphical product code, but **CI #525 is no longer the final Wave 08 Definition-of-Done gate** because the owner expanded Wave 08 before merge.
-
-## New owner-locked Wave 08 scope — Engineering Development Monitor
+## Current active work — 08-FOLLOW-A
 
 Canonical contract:
 
-`docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE-08.md`
+`docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`
 
-Wave 08 now also requires a read-only Engineering Watch/Monitor Table for development and commissioning analysis.
+Integration branch:
 
-Required user workflow:
+`integration/tag-bit-access-wave-08-follow-a`
 
-`search OR type exact canonical reference -> add monitored row -> observe live value/type/quality/state/timestamp -> source changes -> row updates -> remove/clear`
+Exact integration head at this handoff:
 
-Initial source families:
+`4e8a3c76753c1ead815c790407601852c6f888e3`
 
-- TAG current values;
-- Client Memory and Server Memory;
-- authoritative system/runtime variables/diagnostics;
-- Data Source / driver diagnostics;
-- provider seam extensible to future canonical bit selectors and other development sources.
+Central PR:
 
-Required row facts:
+**#105 — FOLLOW-A: TAG bit access and Modbus bit-level binding — OPEN / DRAFT**
 
-- name/reference/path;
-- source kind;
-- current value;
-- canonical data type;
-- quality or authoritative diagnostic state;
-- source timestamp / last update when defined.
+Exact-head CI:
 
-Locked behavior:
+**#541 / run `33255556172` — IN PROGRESS** at handoff.
 
-- engineer may search/browse or type a known exact TAG/reference directly;
-- ambiguous/not-found references fail explicitly rather than silently matching another source;
-- live updates reuse shared realtime/subscription paths where available and bounded/coalesced polling otherwise;
-- no independent polling loop per monitored row;
-- acceptance must prove at least 100 simultaneous monitored entries through shared batching/subscription infrastructure;
-- bad/unavailable/stale/disconnected state remains explicit and is never coerced to `0`, `false`, empty string or fake `Good`;
-- Int64/exact typed values remain exact;
-- monitor is strictly read-only: no TAG/memory writes, forcing, commands, ACK, driver changes or scan-rate changes;
-- current values/qualities/timestamps are Runtime/diagnostic state and never become canonical Engineering merely because they are monitored.
+Do not edit the integration head merely to provoke another run. Read #541 result/logs first.
 
-## Worker state
+## What is already integrated
 
-- DEV 1: **STOPPED / WAIT_FOR_COORDINATOR** — original Canvas delivery integrated.
-- DEV 2: **STOPPED / WAIT_FOR_COORDINATOR** — original Property Inspector delivery integrated.
-- DEV 3: **STOPPED / WAIT_FOR_COORDINATOR** — original Palette/Binding delivery integrated.
+The three reviewed worker slices are already in the train. Do not integrate them again:
 
-The Development Monitor requirement does **not** silently reopen any old worker mission. A new assignment must be explicitly recorded on `docs/CHAT-WORK-ASSIGNMENTS.md` before a worker starts it.
+- Core logical bits: worker head `80b0911eda92b96a7c1945307cea402cf9ad4417`, CI #534 SUCCESS;
+- Engineering persistence/validation: `bcd65ac4ee81ac399fb2d1882e426d90f419a225`, CI #537 SUCCESS;
+- Modbus physical bit binding: `e0365c6dd0d81cd938ccc41e44b208726c73392e`, CI #535 SUCCESS.
 
-## PR #90 merge gate
+Current integration includes:
 
-PR #90 stays **DRAFT / DO NOT MERGE**.
+- `TagValueReference(TagId, Selector?)` and `TagValueSelector(Bit, Index)`;
+- Int16/Int32/Int64 bit read/write semantics;
+- source quality/timestamp/context inheritance;
+- structured `AddressSelector` Engineering persistence;
+- Modbus HR/IR selected-bit read support;
+- safe coordinated HR RMW preserving unrelated bits;
+- stable visual `BindingEngineering.tagReference` / backend binding `TagReference`;
+- concrete binding validation preferring stable TagId + selector over friendly path;
+- Project Reference bit capability without expanding every integer TAG into permanent bit nodes;
+- friendly `.NN` resolution to a Boolean derived reference;
+- Binding Editor on-demand bit authoring and stable identity/deduplication;
+- Development Monitor stable TagId-based bit entries;
+- shared web TAG bit projection preserving Quality/timestamps.
 
-Wave 08 now closes only after both gates are green:
+Friendly `Word_status.03` is display/authoring syntax only. Persisted authority is TagId + bit index.
 
-1. **Graphical Editor/Image gate** — currently green at `a7176a4...`, CI #525.
-2. **Engineering Development Monitor gate** — specified, not implemented yet.
+## Git topology note
 
-After Development Monitor implementation, run final exact-head integrated CI, merge PR #90 only if green, then confirm post-merge `main` health.
+Current `main` contains later product-documentation changes that are not yet reconciled into the Follow-A branch, including:
 
-## Ordered work after Wave 08
+- Wave 09 Reporting;
+- mandatory PDF and XLSX report exports;
+- future-driver bit-conformance rule;
+- DNP3 queued as future/post-v0.1 driver.
 
-- **08-FOLLOW-A:** TAG Bit Access + Driver Bit-Level Boolean Binding.
-- **08-FOLLOW-B:** Typed Visual Expressions + Boolean Conditions + Analog Fill.
-- **Wave 09:** remains NOT ACTIVE until required preceding work is green.
+Before final Follow-A merge, reconcile current `main` into the integration train without discarding either code or documentation.
 
-## Wave 09 historical data context — LOCKED / NOT ACTIVE
+## Permanent future-driver bit rule
 
-The Wave 09 historical alarm, historian, period/date and tabular-query requirements are persisted in:
+Future drivers exposing bit-addressable word/byte/register/integer storage must publish structured bit capability. Where writable, a bit write must preserve unrelated bits using native atomic/mask support or coordinated RMW. Read-only protocol areas remain read-only.
 
-`docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`
+Future drivers include MQTT, OPC UA, BACnet, S7, Allen-Bradley and **DNP3** as applicable. DNP3 is not active now.
 
-Wave 09 keeps Screens/Popups/Dynamos/navigation and also requires a web-native Historical Data Browser over protected logical datasets, initially:
+## Wave 09 — SPECIFIED / NOT ACTIVE
 
-- `historian.samples`;
-- `alarm.events`.
+Wave 09 includes Screens/Popups/Dynamos/navigation, Historical Data Browser and Reporting.
 
-Locked direction:
+Reporting requires mandatory export to:
 
-- relative period and absolute start/end time queries;
-- typed filters for alarm/event type, category/subcondition, area, source/name/path, message, severity, active/ack/shelved state where persisted;
-- historian filters by canonical TAG(s), period and optional quality;
-- bounded sortable tables with typed values/quality;
-- current Alarm Center stays operational ACK/current-state authority;
-- historical alarm browsing is read-only;
-- browser never receives DB credentials or direct PostgreSQL access;
-- normal browser API does not accept arbitrary SQL;
-- typed query descriptors are validated/authorized and translated server-side into parameterized PostgreSQL/TimescaleDB queries;
-- temporary Runtime filter/date changes do not dirty Engineering;
-- engineered browser configuration on a Screen/Popup must participate in canonical Engineering/revision/package lifecycle.
+- **PDF (`.pdf`)**;
+- **Microsoft Excel (`.xlsx`)** with typed cells where practical.
 
-Do not activate or distribute Wave 09 yet. Freeze exact implementation contract, BaseSHA and assignments only after Wave 08 + 08-FOLLOW-A + 08-FOLLOW-B are green.
+Wave 09 remains blocked until 08-FOLLOW-A and 08-FOLLOW-B are green.
 
-## Next coordinator execution
+## Next ordered actions
 
-1. verify current `main`, integration head, PR #90 and CI evidence;
-2. keep graphical checkpoint `a7176a4...` as validated evidence while its code is unchanged;
-3. continue the centralized Wave 08 implementation already underway;
-4. complete focused tests for the Development Monitor and the expanded graphical requirements;
-5. run one final full Wave 08 matrix on the exact combined head;
-6. merge only after all Wave 08 gates are green and verify post-merge main;
-7. preserve the Wave 09 historical-data contract for later activation without pulling that implementation into Wave 08.
+1. inspect CI #541 on exact head `4e8a3c76753c1ead815c790407601852c6f888e3`;
+2. if failed, fix only the proven cause and retest coherently;
+3. if green, complete Follow-A acceptance review;
+4. reconcile current `main` into integration;
+5. obtain final exact-head green evidence if the tested tree changed;
+6. merge Follow-A and verify post-merge `main`;
+7. close Follow-A in docs/assignments;
+8. activate **08-FOLLOW-B — Typed Visual Expressions + Boolean Conditions + Analog Fill**;
+9. do not activate Wave 09 before Follow-B closes.

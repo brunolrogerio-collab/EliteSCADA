@@ -4,7 +4,7 @@
 >
 > This file preserves stable product goals and locked architecture across ChatGPT conversations, developers and tooling. It defines intent, not merely current implementation state.
 
-**Last reviewed:** 2026-08-28
+**Last reviewed:** 2026-08-29
 
 ## Mandatory continuity protocol
 
@@ -28,7 +28,7 @@ The product must support the complete application lifecycle:
 - communication drivers and internal value sources;
 - live runtime;
 - commands, alarms and events;
-- historian and trends;
+- historian, trends and industrial reporting;
 - Python scripting;
 - security, identity and audit;
 - project revisioning, publication and activation;
@@ -66,7 +66,7 @@ Current direction:
 - Scripting language: Python.
 - Client visual scripting: sandboxed Python runtime, with exact browser/WASM implementation selected by technical spike.
 - Server scripting: separately sandboxed Python host/runtime in a later server-scripting slice.
-- External protocol expansion: MQTT, OPC UA, BACnet and installable modules including Siemens S7; later Allen-Bradley research.
+- External protocol expansion: MQTT, OPC UA, BACnet and DNP3, plus installable modules including Siemens S7; later Allen-Bradley research.
 - Extension direction: public SDK plus installable/versioned driver modules.
 
 Implementation technologies may evolve deliberately, but public product contracts should remain decoupled from incidental frameworks.
@@ -104,10 +104,11 @@ The public model covers or must evolve to cover:
 6. **Screens and Popups** with routes, visual-object trees, properties, bindings, assets and script/event references.
 7. **Visual assets/resources** such as project images through stable IDs/references, not arbitrary filesystem paths.
 8. **Python Scripts**: stable ID/path, scope, language/version, source, event/entry-point references, dependencies and metadata.
-9. **Security Roles / Policies**.
-10. **Gateway / TAG Bridge routes**.
-11. **Operational Commands**.
-12. Future trends, shell regions, libraries, Engineering Fragments and plugin-owned configuration.
+9. **Reports**: stable identity, page/layout configuration, typed provider/query definitions, runtime parameters/defaults, ordered sections/groups, report controls, aggregation/formatting rules and dependency metadata.
+10. **Security Roles / Policies**.
+11. **Gateway / TAG Bridge routes**.
+12. **Operational Commands**.
+13. Future trends, shell regions, libraries, Engineering Fragments and plugin-owned configuration.
 
 Plugin-owned driver/Data Source configuration must expose a public versioned schema so it can participate in validation, import/export, backup/restore and migration without becoming opaque private state.
 
@@ -129,7 +130,11 @@ Initial fixed-width semantics are:
 
 A bit selector is a Boolean projection of the authoritative integer TAG. It inherits source quality/timestamp and must not convert an unavailable/bad source into `false`. It may be consumed by visual expressions/bindings, alarms and scripting/reference surfaces wherever a Boolean TAG reference is valid.
 
-Drivers may also expose first-class **physical bit binding** for Boolean TAGs. For Modbus, a Boolean TAG may bind to one bit `0..15` of a Holding Register or Input Register while retaining the normal register address/area semantics. Input Registers remain read-only; writable Holding Register bit writes must preserve all unrelated bits through a native mask-write operation where supported or through a concurrency-safe coordinated read-modify-write path.
+Physical bit binding is a permanent driver capability contract, not a Modbus-only convenience. Every future production driver that exposes bit-addressable byte/word/register/integer storage must expose structured bit reads through its public versioned binding/capability schema. Where the underlying protocol/address is writable, the driver must also support a safe Boolean bit write that preserves unrelated bits. Intrinsically read-only protocol areas remain explicitly read-only rather than fabricating impossible write support.
+
+For Modbus, a Boolean TAG may bind to one bit `0..15` of a Holding Register or Input Register while retaining the normal register address/area semantics. Input Registers remain read-only; writable Holding Register bit writes must preserve all unrelated bits through a native mask-write operation where supported or through a concurrency-safe coordinated read-modify-write path.
+
+The same principles apply to later drivers: declared width/range, LSB/MSB policy, quality propagation, read/write capability, native atomic bit-write support where available, coordinated fallback when needed and common conformance tests. Concurrent EliteSCADA writes to different bits of the same physical word must not lose each other through an unsafe local race.
 
 The product must distinguish human register notation such as `4xxxxx` from the zero-based Modbus wire offset and make that conversion policy explicit in Engineering. Multiple bit TAGs sharing one register should reuse/coalesce the same physical read where practical.
 
@@ -359,7 +364,7 @@ This separation is mandatory:
 
 ### Script editor and animation
 
-Before the graphical editor, Engineering must provide a practical Python code editor with syntax highlighting, line numbers, indentation, API autocomplete where practical, line/column diagnostics, validation, script scope/event association, API autocomplete where practical and a sandboxed test/preview workflow.
+Before the graphical editor, Engineering must provide a practical Python code editor with syntax highlighting, line numbers, indentation, API autocomplete where practical, line/column diagnostics, validation, script scope/event association and a sandboxed test/preview workflow.
 
 Scripts are first-class versioned Engineering entities and participate in import/export, revisions, `.escadapkg`, dependency validation and Engineering Fragments.
 
@@ -390,11 +395,34 @@ Equipment Templates/Equipment and Dynamos evolve into version-aware reusable cla
 
 Cross-project copy/paste uses canonical **Engineering Fragments**, with dependency-aware preview, conflict handling, rebinding and selected-only/selected-with-dependencies modes. Browser clipboard state is not authoritative Engineering data.
 
-## Historian and trends
+## Historian, trends and reporting
 
 TimescaleDB remains the historian direction. Required evolution includes retention, aggregation/downsampling, multiple-Pen trends, historical/live sources, engineered and ad-hoc/saved trends and expressions where appropriate.
 
 Historian storage implementation details must not leak into public Engineering concepts.
+
+Wave 09 must also provide a first-class canonical **Reporting / Report Designer** capability. A Report is versioned Engineering, not a generated PDF file or browser-only layout.
+
+Required Reporting direction includes:
+
+- section-based layouts with Report Header/Footer, Page Header/Footer, repeatable Detail and nested Group Header/Footer;
+- a visual designer with typed fields, text, Boolean state fields, project images/resources, barcode, charts, shapes and deliberate page breaks;
+- layout ergonomics such as grid/snap, alignment, z-order, borders, fonts, pan/zoom and page configuration;
+- protected typed query providers shared with Historical Data Browser/Trends, including historian and alarm/event datasets;
+- graphical parameter/filter authoring and runtime requery without requiring arbitrary SQL;
+- declarative count/sum/average/min/max and deterministic grouped/time-bucket summaries;
+- runtime parameters such as relative/absolute time, TAG selection, area, alarm type/severity and context identifiers;
+- print preview, page numbering, printing and bounded authorized export to PDF, XLSX, HTML, RTF, text and CSV;
+- canonical JSON/Preview/Apply/Working/revision/PostgreSQL/`.escadapkg` fidelity;
+- server-side authorization, parameterized database access, cancellation/timeouts and output/result bounds;
+- no unrestricted report scripting or arbitrary SQL in the first Wave 09 slice.
+
+Historical Data Browser, Reporting and Trends share data/query authority but have distinct jobs: interactive tabular exploration, engineered paginated presentation/export and chart-oriented time-series visualization.
+
+Full locked Wave 09 data/reporting semantics:
+
+- `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`;
+- `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`.
 
 ## Security and audit
 
@@ -439,7 +467,7 @@ The complete Engineering/development interface supports:
 - English (`en`);
 - Español (`es`).
 
-Localization includes Data Sources, TAGs, historian/diagnostics, alarms, equipment/Dynamos, scripts, screen/popup editing, trends, lifecycle, users/security, modules, Gateway, property editors, dialogs and validation/help text.
+Localization includes Data Sources, TAGs, historian/diagnostics, alarms, equipment/Dynamos, scripts, screen/popup editing, trends, reports/report designer, lifecycle, users/security, modules, Gateway, property editors, dialogs and validation/help text.
 
 Language is a presentation/user preference. It never changes stable Engineering IDs, paths, enum values, public schema keys, script API identifiers or runtime semantics.
 
@@ -454,11 +482,14 @@ After the prerequisite foundation and interface-preview gate:
 1. MQTT;
 2. OPC UA;
 3. BACnet;
-4. installable/versioned Driver Module framework;
-5. Siemens S7 ISO Connection as the first intended installable module target;
-6. later Allen-Bradley research based on public documentation/libraries, licensing, testability and representative hardware/simulator access.
+4. DNP3;
+5. installable/versioned Driver Module framework;
+6. Siemens S7 ISO Connection as the first intended installable module target;
+7. later Allen-Bradley research based on public documentation/libraries, licensing, testability and representative hardware/simulator access.
 
 Driver modules declare stable identity/version, EliteSCADA compatibility, provided driver/Data Source types and public versioned Engineering configuration schema. Missing/disabled/incompatible modules preserve project configuration and expose explicit diagnostics. Module installation/upgrade/removal is security-sensitive and auditable. Package integrity/trust must be evaluated before executable code is enabled.
+
+Every future driver with bit-addressable word/byte/register storage is subject to the common bit conformance contract: structured read selection, safe bit write where the protocol/address is writable, quality propagation, range validation, unrelated-bit preservation and concurrency-focused tests. Native read-only areas remain read-only, and native Boolean points do not need artificial word-bit selectors.
 
 ### OPC UA Engineering/discovery experience
 
@@ -509,11 +540,13 @@ Full locked semantics and the permitted early non-production spike: `docs/OPC-UA
 - `docs/VISUAL-COMPONENT-LIBRARY.md`: reusable visual-component direction.
 - `docs/INTERNAL-MEMORY-TAGS.md`: Client/Server Memory semantics.
 - `docs/TAG-GATEWAY.md`: TAG Gateway semantics.
-- `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`: integer TAG bit selectors and protocol bit-level Boolean binding semantics.
+- `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`: integer TAG bit selectors and protocol bit-level Boolean binding semantics, including mandatory future-driver conformance.
 - `docs/COMMUNICATION-DRIVER-DIAGNOSTICS.md`: multi-driver diagnostic contract.
 - `docs/INTERFACE-VALIDATION-MILESTONE.md`: mandatory product-owner preview gate.
 - `docs/OPC-UA.md`: OPC UA discovery, browse, import, security and future driver Engineering experience.
 - `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`: Python scripting, script editor, visual property schema and runtime visual-state contract.
 - `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`: typed visual expressions, universal boolean visual conditions and analog proportional fill direction.
+- `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`: Wave 09 protected historical browsing/query contract.
+- `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`: Wave 09 canonical reporting, report designer, preview/print/export contract.
 
 These documents must remain consistent. `PROJECT GOAL.md` wins for locked product intent; current repository code/`main` wins for implementation truth; `LAST CHANGE.md` records the exact handoff.

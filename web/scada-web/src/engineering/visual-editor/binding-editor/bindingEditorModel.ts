@@ -9,7 +9,7 @@ import type {
   VisualEditorMutationIntent
 } from '../visualEditorContracts';
 
-export const CANONICAL_VISUAL_BINDING_KINDS = ['Tag', 'Property', 'Expression'] as const;
+export const CANONICAL_VISUAL_BINDING_KINDS = ['Tag', 'ClientMemory', 'Property', 'Expression'] as const;
 export type CanonicalVisualBindingKind = typeof CANONICAL_VISUAL_BINDING_KINDS[number];
 
 export type BindableVisualProperty = Readonly<{
@@ -49,6 +49,7 @@ export function normalizeBindingSourceCatalog(
   const normalized: VisualEditorBindingSourceCatalogItem[] = [];
 
   for (const item of sourceCatalog) {
+    if (item.bindable === false) continue;
     const kind = requireCanonicalKind(item.kind);
     const target = requireStableReference(item.target, 'binding source target');
     const label = requireDisplayLabel(item.label);
@@ -62,7 +63,9 @@ export function normalizeBindingSourceCatalog(
       label,
       ...(item.dataType !== undefined ? { dataType: item.dataType } : {}),
       ...(item.engineeringUnit !== undefined ? { engineeringUnit: item.engineeringUnit } : {}),
-      ...(item.writable !== undefined ? { writable: item.writable } : {})
+      ...(item.writable !== undefined ? { writable: item.writable } : {}),
+      ...(item.family !== undefined ? { family: item.family } : {}),
+      bindable: true
     }));
   }
 
@@ -70,25 +73,29 @@ export function normalizeBindingSourceCatalog(
 }
 
 export function compatibleBindingSources(
-  destinationType: VisualPropertyType,
+  destination: Pick<BindableVisualProperty, 'key' | 'type'>,
   sourceCatalog: readonly VisualEditorBindingSourceCatalogItem[]
 ): readonly VisualEditorBindingSourceCatalogItem[] {
   const normalized = normalizeBindingSourceCatalog(sourceCatalog);
-  return Object.freeze(normalized.filter(source => isBindingSourceCompatible(destinationType, source)));
+  return Object.freeze(normalized.filter(source => isBindingSourceCompatible(destination, source)));
 }
 
 export function isBindingSourceCompatible(
-  destinationType: VisualPropertyType,
+  destination: Pick<BindableVisualProperty, 'key' | 'type'> | VisualPropertyType,
   source: VisualEditorBindingSourceCatalogItem
 ): boolean {
-  // Property/expression contracts do not yet expose a dependable result type in
-  // Wave 08. They remain authorable only when a future coordinator catalog
-  // supplies one. Current central composition exposes TAGs only.
+  const destinationType = typeof destination === 'string' ? destination : destination.type;
+  const destinationKey = typeof destination === 'string' ? '' : destination.key;
+
   if (source.dataType === undefined || source.dataType === null || !source.dataType.trim()) {
-    return source.kind !== 'Tag';
+    return source.kind !== 'Tag' && source.kind !== 'ClientMemory';
   }
 
   const dataType = source.dataType.trim().toLowerCase();
+  if (destinationKey === 'text') {
+    return ['boolean', 'int16', 'int32', 'int64', 'float', 'double', 'string', 'enum', 'datetime'].includes(dataType);
+  }
+
   switch (destinationType) {
     case 'number':
       return ['int16', 'int32', 'int64', 'float', 'double'].includes(dataType);
@@ -122,7 +129,7 @@ export function createBindingSetIntent(
   const destination = requireBindableDestination(element.type, propertyKey);
   const kind = requireCanonicalKind(source.kind);
   const target = requireStableReference(source.target, 'binding source target');
-  if (!isBindingSourceCompatible(destination.type, source)) {
+  if (!isBindingSourceCompatible({ key: propertyKey, type: destination.type }, source)) {
     throw new VisualBindingEditorError(
       'binding.source.typeMismatch',
       `Binding source '${target}' data type '${source.dataType ?? 'unknown'}' is not compatible with visual property '${propertyKey}' type '${destination.type}'.`,
@@ -130,12 +137,20 @@ export function createBindingSetIntent(
     );
   }
   const normalizedDirection = normalizeDirection(direction);
+  const scalarText = propertyKey === 'text' && source.dataType != null;
 
   const binding: BindingEngineering = {
     key: propertyKey,
     kind,
     target,
-    ...(normalizedDirection !== undefined ? { direction: normalizedDirection } : {})
+    ...(normalizedDirection !== undefined ? { direction: normalizedDirection } : {}),
+    ...(scalarText ? {
+      metadata: {
+        presentationMode: 'scalar-text',
+        sourceDataType: source.dataType!,
+        ...(source.engineeringUnit ? { engineeringUnit: source.engineeringUnit } : {})
+      }
+    } : {})
   };
 
   return Object.freeze({

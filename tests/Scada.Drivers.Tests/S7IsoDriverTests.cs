@@ -67,6 +67,7 @@ public sealed class S7IsoDriverTests
             "127.0.0.1",
             S7CpuFamily.S7300,
             S7IsoConnectionMode.RackSlot,
+            rack: 0,
             slot: 2,
             connectionRole: S7IsoConnectionRole.Basic,
             port: 1,

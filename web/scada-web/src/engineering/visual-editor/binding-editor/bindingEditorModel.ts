@@ -1,10 +1,12 @@
 import type {
   BindingEngineering,
+  TagValueReferenceEngineering,
   VisualElementEngineering
 } from '../../types';
 import { getBuiltinVisualObjectSchema } from '../../../visual-runtime/builtinVisualObjectSchemas';
 import type { VisualPropertyDefinition, VisualPropertyType } from '../../../visual-runtime/visualPropertyTypes';
 import type {
+  VisualEditorBindingSelectorCapability,
   VisualEditorBindingSourceCatalogItem,
   VisualEditorMutationIntent
 } from '../visualEditorContracts';
@@ -42,6 +44,13 @@ export function listBindableVisualProperties(
     })));
 }
 
+export function bindingSourceIdentity(source: VisualEditorBindingSourceCatalogItem): string {
+  const kind = requireCanonicalKind(source.kind);
+  const target = requireStableReference(source.target, 'binding source target');
+  const tagReference = normalizeTagValueReference(source, kind);
+  return sourceIdentity(kind, target, tagReference);
+}
+
 export function normalizeBindingSourceCatalog(
   sourceCatalog: readonly VisualEditorBindingSourceCatalogItem[]
 ): readonly VisualEditorBindingSourceCatalogItem[] {
@@ -53,7 +62,9 @@ export function normalizeBindingSourceCatalog(
     const kind = requireCanonicalKind(item.kind);
     const target = requireStableReference(item.target, 'binding source target');
     const label = requireDisplayLabel(item.label);
-    const identity = `${kind}\u0000${target}`;
+    const tagReference = normalizeTagValueReference(item, kind);
+    const selectorCapability = normalizeSelectorCapability(item.selectorCapability, kind);
+    const identity = sourceIdentity(kind, target, tagReference);
     if (identities.has(identity)) continue;
     identities.add(identity);
 
@@ -65,6 +76,8 @@ export function normalizeBindingSourceCatalog(
       ...(item.engineeringUnit !== undefined ? { engineeringUnit: item.engineeringUnit } : {}),
       ...(item.writable !== undefined ? { writable: item.writable } : {}),
       ...(item.family !== undefined ? { family: item.family } : {}),
+      ...(tagReference !== undefined ? { tagReference } : {}),
+      ...(selectorCapability !== undefined ? { selectorCapability } : {}),
       bindable: true
     }));
   }
@@ -129,6 +142,7 @@ export function createBindingSetIntent(
   const destination = requireBindableDestination(element.type, propertyKey);
   const kind = requireCanonicalKind(source.kind);
   const target = requireStableReference(source.target, 'binding source target');
+  const tagReference = normalizeTagValueReference(source, kind);
   if (!isBindingSourceCompatible({ key: propertyKey, type: destination.type }, source)) {
     throw new VisualBindingEditorError(
       'binding.source.typeMismatch',
@@ -150,7 +164,8 @@ export function createBindingSetIntent(
         sourceDataType: source.dataType!,
         ...(source.engineeringUnit ? { engineeringUnit: source.engineeringUnit } : {})
       }
-    } : {})
+    } : {}),
+    ...(tagReference !== undefined ? { tagReference } : {})
   };
 
   return Object.freeze({
@@ -181,8 +196,70 @@ export function filterBindingSourceCatalog(
     item.label.toLocaleLowerCase().includes(needle) ||
     item.target.toLocaleLowerCase().includes(needle) ||
     String(item.kind).toLocaleLowerCase().includes(needle) ||
-    (item.dataType ?? '').toLocaleLowerCase().includes(needle)
+    (item.dataType ?? '').toLocaleLowerCase().includes(needle) ||
+    (item.tagReference?.tagId ?? '').toLocaleLowerCase().includes(needle)
   ));
+}
+
+function sourceIdentity(
+  kind: CanonicalVisualBindingKind,
+  target: string,
+  tagReference: TagValueReferenceEngineering | undefined
+): string {
+  if (kind === 'Tag' && tagReference?.tagId) {
+    const selector = tagReference.selector;
+    return selector
+      ? `Tag\u0000${tagReference.tagId.toLocaleLowerCase()}\u0000${selector.kind}\u0000${selector.index}`
+      : `Tag\u0000${tagReference.tagId.toLocaleLowerCase()}`;
+  }
+  return `${kind}\u0000${target}`;
+}
+
+function normalizeTagValueReference(
+  source: Pick<VisualEditorBindingSourceCatalogItem, 'tagReference'>,
+  kind: CanonicalVisualBindingKind
+): TagValueReferenceEngineering | undefined {
+  const reference = source.tagReference;
+  if (reference === undefined || reference === null) return undefined;
+  if (kind !== 'Tag') {
+    throw new VisualBindingEditorError(
+      'binding.source.tagReferenceKind',
+      'A canonical TAG value reference can only be attached to a Tag binding source.'
+    );
+  }
+
+  const tagId = requireStableReference(reference.tagId, 'TAG identity');
+  const selector = reference.selector;
+  if (selector === undefined || selector === null) {
+    return Object.freeze({ tagId });
+  }
+  if (selector.kind !== 'bit' || !Number.isInteger(selector.index) || selector.index < 0) {
+    throw new VisualBindingEditorError(
+      'binding.source.selector',
+      'TAG selector must be a non-negative integer bit selector.'
+    );
+  }
+
+  return Object.freeze({
+    tagId,
+    selector: Object.freeze({ kind: 'bit', index: selector.index })
+  });
+}
+
+function normalizeSelectorCapability(
+  capability: VisualEditorBindingSelectorCapability | null | undefined,
+  kind: CanonicalVisualBindingKind
+): VisualEditorBindingSelectorCapability | undefined {
+  if (capability === undefined || capability === null) return undefined;
+  if (kind !== 'Tag' || capability.kind !== 'bit' ||
+      !Number.isInteger(capability.minIndex) || !Number.isInteger(capability.maxIndex) ||
+      capability.minIndex < 0 || capability.maxIndex < capability.minIndex) {
+    throw new VisualBindingEditorError(
+      'binding.source.selectorCapability',
+      'TAG bit selector capability must declare a valid non-negative index range.'
+    );
+  }
+  return Object.freeze({ kind: 'bit', minIndex: capability.minIndex, maxIndex: capability.maxIndex });
 }
 
 function requireBindableDestination(objectType: string, propertyKey: string): VisualPropertyDefinition {

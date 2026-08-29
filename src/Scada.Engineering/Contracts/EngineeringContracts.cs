@@ -106,7 +106,8 @@ public sealed record TagEngineeringDto(
     HistorianSettingsDto? Historian = null,
     Dictionary<string, string>? Metadata = null,
     TagAccessPolicyDto? AccessPolicy = null,
-    MemoryInitialValueDto? InitialValue = null);
+    MemoryInitialValueDto? InitialValue = null,
+    TagValueSelector? AddressSelector = null);
 
 public sealed record AlarmEngineeringDto(
     Guid? Id,

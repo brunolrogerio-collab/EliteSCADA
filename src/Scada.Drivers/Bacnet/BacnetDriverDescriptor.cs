@@ -11,7 +11,7 @@ public static class BacnetDriverDescriptor
         DriverType,
         "BACnet/IP",
         DriverContractVersion: 1,
-        RuntimeCapabilities: DriverCapabilities.Read | DriverCapabilities.Write | DriverCapabilities.Diagnostics,
+        RuntimeCapabilities: DriverCapabilities.Read | DriverCapabilities.Write | DriverCapabilities.Subscribe | DriverCapabilities.Diagnostics,
         EngineeringCapabilities: DriverEngineeringCapabilities.ConnectionTest |
                                  DriverEngineeringCapabilities.Discover |
                                  DriverEngineeringCapabilities.Browse |
@@ -28,7 +28,7 @@ public static class BacnetDriverDescriptor
                 new("requestTimeoutMilliseconds", DriverConfigurationValueKind.Duration, DefaultValue: "3000", DisplayName: "Request timeout", Minimum: 100, Maximum: 60000),
                 new("discoveryWindowMilliseconds", DriverConfigurationValueKind.Duration, DefaultValue: "1500", DisplayName: "Discovery window", Minimum: 100, Maximum: 30000, Advanced: true),
                 new("bbmdAddress", DriverConfigurationValueKind.Host, Required: false, DisplayName: "BBMD address", Advanced: true),
-                new("foreignDeviceTtlSeconds", DriverConfigurationValueKind.Integer, Required: false, DisplayName: "Foreign device TTL", Minimum: 30, Maximum: 65535, Advanced: true)
+                new("foreignDeviceTtlSeconds", DriverConfigurationValueKind.Integer, Required: false, DisplayName: "Foreign device TTL", Minimum: 30, Maximum: 32767, Advanced: true)
             },
             TagBindingFields: new DriverConfigurationFieldDescriptor[]
             {

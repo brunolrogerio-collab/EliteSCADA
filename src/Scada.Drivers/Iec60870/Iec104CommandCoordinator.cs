@@ -76,13 +76,24 @@ public sealed class Iec104CommandCoordinator : IDisposable
         ArgumentNullException.ThrowIfNull(transaction);
         ThrowIfDisposed();
 
+        bool admitted;
         try
         {
-            await _concurrency.WaitAsync(cancellationToken).ConfigureAwait(false);
+            admitted = await _concurrency.WaitAsync(TimeSpan.Zero, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            return Result(transaction, Iec104CommandOutcome.Cancelled, false, false, "Command was cancelled before entering the bounded IEC-104 execution queue.");
+            return Result(transaction, Iec104CommandOutcome.Cancelled, false, false, "Command was cancelled before IEC-104 execution admission.");
+        }
+
+        if (!admitted)
+        {
+            return Result(
+                transaction,
+                Iec104CommandOutcome.Rejected,
+                false,
+                false,
+                "IEC-104 Data Source command concurrency limit is already reached; command was not queued or sent.");
         }
 
         var key = new Iec104CommandPointKey(transaction.CommonAddress, transaction.InformationObjectAddress.Value);

@@ -2,12 +2,16 @@ import type {
   BindingEngineering,
   EngineeringPackageView,
   ScreenEngineering,
+  VisualAnalogFillEngineering,
+  VisualBooleanConditionEngineering,
   VisualElementEngineering,
-  VisualEngineeringPropertyValue
+  VisualEngineeringPropertyValue,
+  VisualPropertyExpressionEngineering
 } from '../types';
 import {
   BUILTIN_VISUAL_OBJECT_TYPES,
   getBuiltinVisualObjectSchema,
+  supportsAnalogFill,
   VISUAL_PROPERTY_KEYS,
   type VisualObjectPropertySchema
 } from '../../visual-runtime';
@@ -95,12 +99,9 @@ export function countVisualElements(elements: readonly VisualElementEngineering[
 }
 
 /**
- * Coordinator-owned canonical mutation seam for Wave 08 worker intents.
- *
- * Workers emit intents only. This reducer owns object identity/key creation and
- * immutable mutation of the Screen Engineering draft. Registry defaults remain
- * defaults: they are read when an interaction needs a starting value but are
- * not materialized merely because an object was rendered or selected.
+ * Canonical visual mutation seam. UI components emit intents only; this reducer
+ * owns immutable mutation of the Screen Engineering draft so dynamic authoring
+ * cannot become a second persistence authority.
  */
 export function applyVisualEditorMutationIntent(
   screen: ScreenEngineering,
@@ -135,6 +136,18 @@ export function applyVisualEditorMutationIntent(
       return setVisualBinding(screen, intent.objectId, intent.binding);
     case 'binding.remove':
       return removeVisualBinding(screen, intent.objectId, intent.propertyKey);
+    case 'propertyExpression.set':
+      return setVisualPropertyExpression(screen, intent.objectId, intent.configuration);
+    case 'propertyExpression.remove':
+      return removeVisualPropertyExpression(screen, intent.objectId, intent.propertyKey);
+    case 'booleanCondition.set':
+      return setVisualBooleanCondition(screen, intent.objectId, intent.configuration);
+    case 'booleanCondition.remove':
+      return removeVisualBooleanCondition(screen, intent.objectId, intent.propertyKey);
+    case 'analogFill.set':
+      return setVisualAnalogFill(screen, intent.objectId, intent.configuration);
+    case 'analogFill.remove':
+      return removeVisualAnalogFill(screen, intent.objectId);
   }
 }
 
@@ -378,6 +391,121 @@ function removeVisualBinding(
     ...current,
     bindings: (current.bindings ?? []).filter(binding => binding.key !== propertyKey)
   }));
+}
+
+function setVisualPropertyExpression(
+  screen: ScreenEngineering,
+  objectId: string,
+  configuration: VisualPropertyExpressionEngineering
+): ScreenEngineering {
+  const element = requireVisualElement(screen, objectId);
+  validateDynamicDestination(element, configuration.propertyKey, configuration.expression.resultType);
+  return updateScreenElement(screen, objectId, current => ({
+    ...current,
+    propertyExpressions: [
+      ...(current.propertyExpressions ?? []).filter(item => item.propertyKey !== configuration.propertyKey),
+      cloneEngineeringValue(configuration)
+    ]
+  }));
+}
+
+function removeVisualPropertyExpression(
+  screen: ScreenEngineering,
+  objectId: string,
+  propertyKey: string
+): ScreenEngineering {
+  const element = requireVisualElement(screen, objectId);
+  validateDynamicDestinationProperty(element, propertyKey);
+  return updateScreenElement(screen, objectId, current => ({
+    ...current,
+    propertyExpressions: (current.propertyExpressions ?? []).filter(item => item.propertyKey !== propertyKey)
+  }));
+}
+
+function setVisualBooleanCondition(
+  screen: ScreenEngineering,
+  objectId: string,
+  configuration: VisualBooleanConditionEngineering
+): ScreenEngineering {
+  const element = requireVisualElement(screen, objectId);
+  validateDynamicDestination(element, configuration.propertyKey, 'Boolean');
+  if (configuration.kind === 'Direct' && configuration.source.valueType !== 'Boolean') {
+    throw new Error('Direct Boolean Condition requires a Boolean source.');
+  }
+  if (configuration.kind === 'NumericInterval' && configuration.source.valueType !== 'Number') {
+    throw new Error('Numeric interval condition requires a Number source.');
+  }
+  return updateScreenElement(screen, objectId, current => ({
+    ...current,
+    booleanConditions: [
+      ...(current.booleanConditions ?? []).filter(item => item.propertyKey !== configuration.propertyKey),
+      cloneEngineeringValue(configuration)
+    ]
+  }));
+}
+
+function removeVisualBooleanCondition(
+  screen: ScreenEngineering,
+  objectId: string,
+  propertyKey: string
+): ScreenEngineering {
+  const element = requireVisualElement(screen, objectId);
+  validateDynamicDestination(element, propertyKey, 'Boolean');
+  return updateScreenElement(screen, objectId, current => ({
+    ...current,
+    booleanConditions: (current.booleanConditions ?? []).filter(item => item.propertyKey !== propertyKey)
+  }));
+}
+
+function setVisualAnalogFill(
+  screen: ScreenEngineering,
+  objectId: string,
+  configuration: VisualAnalogFillEngineering
+): ScreenEngineering {
+  const element = requireVisualElement(screen, objectId);
+  if (!supportsAnalogFill(element.type)) {
+    throw new Error(`Visual object type '${element.type}' does not support Analog Fill.`);
+  }
+  if (configuration.source.valueType !== 'Number') {
+    throw new Error('Analog Fill requires a Number source.');
+  }
+  if (!Number.isFinite(configuration.inputMinimum) || !Number.isFinite(configuration.inputMaximum) || configuration.inputMinimum === configuration.inputMaximum) {
+    throw new Error('Analog Fill requires finite and different input limits.');
+  }
+  return updateScreenElement(screen, objectId, current => ({
+    ...current,
+    analogFill: cloneEngineeringValue(configuration)
+  }));
+}
+
+function removeVisualAnalogFill(screen: ScreenEngineering, objectId: string): ScreenEngineering {
+  requireVisualElement(screen, objectId);
+  return updateScreenElement(screen, objectId, current => ({ ...current, analogFill: null }));
+}
+
+function validateDynamicDestinationProperty(element: VisualElementEngineering, propertyKey: string): 'Boolean' | 'Number' {
+  const schema = getBuiltinVisualObjectSchema(element.type);
+  const definition = schema.getRequired(propertyKey);
+  if (!definition.engineeringEditable) {
+    throw new Error(`Visual property '${propertyKey}' is not Engineering-editable for '${element.type}'.`);
+  }
+  if (!definition.supportsBinding) {
+    throw new Error(`Visual property '${propertyKey}' does not support Binding/Expression.`);
+  }
+  if (definition.type === 'boolean') return 'Boolean';
+  if (definition.type === 'number') return 'Number';
+  throw new Error(`Visual property '${propertyKey}' is not a Boolean/Number dynamic destination.`);
+}
+
+function validateDynamicDestination(
+  element: VisualElementEngineering,
+  propertyKey: string,
+  resultType: 'Boolean' | 'Number'
+): void {
+  const expected = validateDynamicDestinationProperty(element, propertyKey);
+  if (expected !== resultType) {
+    throw new Error(`Dynamic result type '${resultType}' is incompatible with visual property '${propertyKey}' type '${expected}'.`);
+  }
 }
 
 function validateEditableProperty(

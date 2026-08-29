@@ -3,146 +3,124 @@
 > Operational handoff. Resume from GitHub, not chat history.
 
 **Handoff date:** 2026-08-28  
-**Development state:** **WAVE-07 FOURTH STATIC AUDIT COMPLETE / CI AVAILABLE / PRE-FINALIZATION / NOT MERGE-READY**  
-**CI budget mode:** **NORMAL**
+**Development state:** **WAVE 08 ACTIVE — PARTIAL COORDINATOR FOUNDATION / NOT CI VALIDATED**  
+**CI mode:** **NORMAL**  
+**DEV workers:** **STOPPED / WAIT_FOR_COORDINATOR**
 
 ## Mandatory resume reading
 
-Before any action read current `main`: `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, `docs/PARALLEL-WORK.md`, `docs/DEVELOPMENT-WAVES.md`, `docs/CHAT-WORK-ASSIGNMENTS.md`, `docs/CI-USAGE-POLICY.md`, `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`, `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`, `docs/VISUAL-CANONICAL-CONVERGENCE-07-TO-08.md`, plus current source/tests.
+Before any action read current `main`:
+- `PROJECT GOAL.md`
+- `LAST CHANGE.md`
+- `docs/ROADMAP.md`
+- `docs/PARALLEL-WORK.md`
+- `docs/DEVELOPMENT-WAVES.md`
+- `docs/CHAT-WORK-ASSIGNMENTS.md`
+- `docs/CI-USAGE-POLICY.md`
+- `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`
+- `docs/COORDINATOR-HANDOFF.md`
+- current assignment `MustReadSpecific`.
 
 GitHub branch/PR/head/CI is operational truth.
 
-## Wave 06 — merged baseline
+## Wave 07 — CLOSED
 
-- PR #83: MERGED
-- final product head: `d665dc13b0922938a15252d9775ef6604e41bff4`
-- final CI #487: fully green
-- main merge: `cc79713434c1d7b5988158b843b137eaf488d923`
-
-## Actions availability restored
-
-The previous no-Actions freeze is lifted.
-
-On 2026-08-28 the owner reported a GitHub configuration change expected to provide approximately **1000 additional Actions minutes**. Repository tooling cannot independently read the billing balance, so the exact minute total remains owner/account evidence.
-
-A controlled availability probe was performed by rerunning only the historical Wave 06 `Web build` job from run #488:
-
-- run: #488 / ID `33194817294`
-- attempt: 2
-- job: `Web build`
-- job ID: `98990802140`
-- hosted runner allocated successfully
-- Checkout: SUCCESS
-- Node setup: SUCCESS
-- dependency install: SUCCESS
-- `npm run build`: SUCCESS
-- complete job: SUCCESS
-
-This proves Actions execution is available again. It does **not** validate Wave 07 because the probe ran against historical head `cc79713434c1d7b5988158b843b137eaf488d923`.
-
-The overall historical run #488 may still display failure because only Web build was intentionally rerun; the old Backend failure-without-runner was not rerun and Chromium remained skipped.
-
-## Wave 07 — exact current state
-
-Wave 07 remains **NOT MERGED** and **NOT MERGE-READY**, but it is no longer blocked by CI budget.
+Wave 07 Visual Runtime Object Model is fully merged and validated.
 
 - Logical WaveBaseSHA: `cc79713434c1d7b5988158b843b137eaf488d923`
-- ContractSHA: `06faf079bc5185689712bd2c9a225c2bb8d90999`
-- integration branch: `integration/visual-runtime-wave-07`
-- exact current integration head: `e376b37d2772906dd667afa199a6d8882abd43ae`
-- integration PR: not open yet
-- exact integration head has not yet received final integrated CI
+- Final integration product head: `6d869109af23b25d1ae95cd35610e1930a16791c`
+- Final exact-head CI: #508 / run `33217787482` — **SUCCESS**
+- Merge PR: #89
+- Main merge: `8de706882ba20afedd666532ac41ae11115d06b3`
+- Post-merge CI: #510 / run `33218282760` — **SUCCESS**
 
-Worker deliveries remain integrated and workers remain stopped:
-- DEV 1 `ed8d9af027173e6d265ff382dbc9c115bcd2e284`
-- DEV 2 `d6c1e997178e0ce525233079effd442f59743386`
-- DEV 3 `25ebac63a957c1c0c5b8e2557caec152d9d36bfc`
+Post-merge #510 proved Web build, backend Release/full PostgreSQL+Timescale tests, Runtime smoke and Chromium all green on the actual merge commit.
 
-## Wave 07 implemented/converged foundation
+Historical/final contract: `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`.
 
-The integration branch contains:
+## Wave 08 — ACTIVE
 
-- typed Visual Property Registry and renderer-independent Runtime Visual Instance;
-- stable visual definition/object identity, lifecycle and per-client isolation;
-- deterministic `Animation > Script > Binding/Expression > Engineering Base > Default` precedence;
-- runtime-readable/runtime-writable/animatable/binding authority checks;
-- canonical `assetRef = null | { assetId }` with path/URL rejection;
-- transitional Engineering Schema v11 with stable nested visual IDs and v1-v10 compatibility;
-- canonical binding semantics (`Key` = destination visual property, `Target` = source reference);
-- typed frontend visual Engineering projection;
-- C#/TypeScript common property catalog and `core.*` built-in schema parity;
-- schema-guided transitional string-property codecs;
-- official frontend Engineering -> Runtime adapter;
-- backend Preview enforcement for built-in schemas/properties/binding capabilities;
-- Client Visual Python visual-property read/write/explicit-clear on the exact current Runtime Visual Instance;
-- bounded/prototype-safe structured Python bridge;
-- canonical Script Engineering resolution of nested visual objects for dependencies and object-scoped events;
-- prospective existing-Script validation against incoming Engineering changes;
-- legacy v10 visual identity projection aligned with Apply semantics.
+Wave 08 contract remains frozen:
 
-## Static audit history
+- Logical WaveBaseSHA: `8de706882ba20afedd666532ac41ae11115d06b3`
+- ContractSHA / branch base: `7a445d3dd94cabd09807291a0ee94276559fcb0e`
+- Integration: `integration/graphical-editor-wave-08`
+- Current exact integration head at this handoff: `4f8a71f59c5d033265c38c1c0beca2add9bb117b`
+- No Actions run yet for the Wave 08 integration branch.
+- No Wave 08 integration PR yet.
 
-Earlier audits corrected deterministic AssetReference/API-test drift through `63878f6fe28a0a9ac101d622628f8b95658899a7`.
+Contract: `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`.
+Asset persistence contract: `docs/VISUAL-ASSET-STORAGE-WAVE-08.md`.
+Detailed current coordinator checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 
-Third audit head `d184fdd5b65f2ce0c0e6ca28cd092644be080555` additionally corrected:
+## Worker state
 
-- actual Python visual-property clear path;
-- malformed nested visual JSON fail-closed behavior;
-- TS signed-Int32 parity;
-- stale Wave 06 Python policy snapshot that would have failed Chromium.
+Owner explicitly stopped the DEV chats.
 
-Fourth audit head `e376b37d2772906dd667afa199a6d8882abd43ae` additionally corrected:
+All three worker branches remain untouched at the Wave 08 contract base `7a445d3dd94cabd09807291a0ee94276559fcb0e`:
 
-- top-level malformed Screen/Popup fail-closed paths;
-- stale current-schema Script assertions after Schema v11;
-- canonical `VisualObject` Script reference catalog and nested package resolver;
-- malformed Script/reference collections blocked in Preview;
-- dropped prospective errors on already-saved Scripts;
-- v10 Screen/Popup child identity preservation/removal semantics;
-- prospective Screen/Popup/Dynamo definition identity precedence matching Apply.
+- DEV 1 `feature/graphical-editor-wave-08-canvas` — STOPPED / no implementation commits;
+- DEV 2 `feature/graphical-editor-wave-08-property-inspector` — STOPPED / no implementation commits;
+- DEV 3 `feature/graphical-editor-wave-08-palette-bindings` — STOPPED / no implementation commits.
 
-All fourth-audit code still needs actual build/test execution on the final candidate head.
+Do not assume any background worker activity. Restart them only on explicit owner/coordinator authorization.
 
-## Remaining readiness work before final Wave 07 CI
+## Coordinator work already implemented on integration
 
-### Canonical typed visual persistence
+The coordinator-only Wave 08 foundation now includes:
 
-`VisualElementEngineeringDto.Properties` still persists as `Dictionary<string,string>`. Schema v11 is transitional identity/convergence, not final JSON-native typed visual persistence.
+- Engineering Schema v13 first-class Visual Asset metadata;
+- stable Visual Asset `Id` as canonical project/reference identity;
+- content-addressed SHA-256 Working payload registry;
+- shared Working registry composition through Engineering Exchange, persistence, package, View validation and API;
+- PNG/JPEG/BMP structural validation and bounded import safety;
+- v13 `core.image.assetRef` prospective reference integrity;
+- same-Key/different-Id identity conflict rejection;
+- PostgreSQL asset blobs + immutable revision links;
+- asset-aware revision save/load/Preview/Apply/checkout/rollback;
+- `.escadapkg` v2 asset sidecars with v1 asset-free compatibility;
+- project-controlled Visual Asset API with Engineering CAS/authorization/Audit;
+- frontend Visual Asset metadata/catalog/import/content seams;
+- focused Core/PostgreSQL tests for raster, package, identity and revision behavior;
+- compatibility adjustments proving v11/v12 remain historical input while current Engineering is v13.
 
-Before Wave 08 activation, settle and validate the typed representation/migration so the graphical editor consumes canonical Engineering rather than an editor-private/stringly model.
+During static review, several concrete defects were found and corrected before CI, including an invalid C# `EndsWith` overload, checkout asset-state leakage/missing payload restore, package-side malformed-raster bypass and Visual Asset key/identity substitution risk.
 
-### Reproducibility blockers worth settling before expensive final validation
+See `docs/COORDINATOR-HANDOFF.md` for the detailed list and exact commits.
 
-Repository audit also identified:
+## Important status boundary
 
-- frontend dependencies floating on `latest` with no committed `package-lock.json` and CI using `npm install` rather than `npm ci`;
-- no `global.json` while .NET language/compiler selection is floating;
-- `tests-e2e` outside normal frontend typecheck.
+Wave 08 is **not validated, not merge-ready and not complete**.
 
-Resolve deliberately if needed for trustworthy exact-head validation rather than using CI capacity as an excuse for unrelated refactors.
+Still pending:
 
-### Lower-priority convergence debt
+- exact-head build/test evidence for current integration;
+- reconciliation of integration with current `main` before final CI/PR;
+- canonical Screen graphical mutation/save/reopen seam;
+- central graphical editor workspace/route/renderer/localization composition;
+- all three worker UI slices, because workers are currently stopped and branches untouched;
+- integrated Wave 08 product gate;
+- final exact-head CI matrix, merge and post-merge health confirmation.
 
-- transitional C# and JavaScript numeric serializers can spell some exponent values differently;
-- canonical `Tag` versus `Property` binding source discrimination should be retained before the graphical binding engine resolves sources itself;
-- older non-visual Engineering collections have broader null/empty-ID hardening debt;
-- production CORS and `main` branch protection remain repository/product hardening items.
+Wave 09/10 remain NOT ACTIVE.
 
-## Current coordinator state
+## Next coordinator execution
 
-**READY_FOR_WAVE07_FINALIZATION — CI AVAILABLE.**
+1. reread all mandatory `main` documents including `docs/COORDINATOR-HANDOFF.md`;
+2. verify real `main`, integration, worker heads, PRs and Actions before changing code;
+3. treat all DEV workers as STOPPED unless explicitly restarted;
+4. resume from exact integration head `4f8a71f59c5d033265c38c1c0beca2add9bb117b` or its verified successor;
+5. review build-risk and reconcile integration with current `main` before final CI/PR;
+6. finish coordinator-owned Screen mutation/save/reopen and central editor composition seams;
+7. deliberately restart worker chats only when useful, preserving their fixed scopes;
+8. integrate delivered worker heads through the Wave 08 integration branch;
+9. run focused tests, then the full exact-head CI matrix;
+10. merge only fully green, confirm post-merge `main`, then close Wave 08 and only then activate Wave 09.
 
-Do not activate Wave 08 yet. Do not open the Wave 07 PR merely to test Actions availability; that availability is already proven.
+## Wave 08 product gate
 
-Next coordinator execution should:
+The integrated wave must prove:
 
-1. re-read current `main` and verify exact branch state;
-2. reconcile `integration/visual-runtime-wave-07` with current documentation-only `main` history;
-3. settle canonical typed visual property persistence/migration and required compatibility coverage;
-4. settle the minimum reproducibility blockers needed for trustworthy CI;
-5. prepare the exact final candidate head;
-6. open one Wave 07 integration PR;
-7. run Web + backend Release/full PostgreSQL tests + Runtime smoke + Chromium + Wave-specific visual/Python acceptance;
-8. fix root causes only and rerun changed exact heads as needed;
-9. merge Wave 07 only fully green;
-10. activate Wave 08 only after its Definition of Ready is satisfied.
+`Create Screen -> add objects -> move/resize/rotate -> edit registered properties -> canonical binding -> image asset by stable assetRef -> save -> reopen -> export/import`
+
+Transient Canvas selection/viewport/adornment state must never become persisted project authority.

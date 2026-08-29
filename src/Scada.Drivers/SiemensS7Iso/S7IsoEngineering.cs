@@ -68,8 +68,8 @@ public sealed class S7IsoEngineeringAdapter : ICommunicationDriverConnectionTest
         var mode = ParseRequiredEnum<S7IsoConnectionMode>(settings, "connectionMode", errors);
         var port = ParseInt(settings, "port", 102, 1, 65535, errors);
 
-        byte rack = 0;
-        byte slot = 0;
+        byte? rack = null;
+        byte? slot = null;
         var role = S7IsoConnectionRole.OperatorPanel;
         if (mode == S7IsoConnectionMode.RackSlot)
         {

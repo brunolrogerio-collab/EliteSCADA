@@ -44,10 +44,14 @@ public sealed record S7IsoConnectionOptions
     {
         if (string.IsNullOrWhiteSpace(host))
             throw new ArgumentException("S7 ISO host is required.", nameof(host));
-        if (port is < 1 or > 65535)
-            throw new ArgumentOutOfRangeException(nameof(port));
+        if (!Enum.IsDefined(cpuFamily))
+            throw new ArgumentOutOfRangeException(nameof(cpuFamily));
+        if (!Enum.IsDefined(connectionMode))
+            throw new ArgumentOutOfRangeException(nameof(connectionMode));
         if (!Enum.IsDefined(connectionRole))
             throw new ArgumentOutOfRangeException(nameof(connectionRole));
+        if (port is < 1 or > 65535)
+            throw new ArgumentOutOfRangeException(nameof(port));
         if (rack is > 7)
             throw new ArgumentOutOfRangeException(nameof(rack), "S7 rack must be from 0 to 7.");
         if (slot is > 31)

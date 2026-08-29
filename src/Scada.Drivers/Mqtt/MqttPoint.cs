@@ -77,7 +77,7 @@ public sealed record MqttPoint(
         if (topic.IndexOf('\0') >= 0)
             throw new ArgumentException("MQTT topic must not contain a null character.", parameterName);
 
-        if (topic.IndexOfAny(['+', '#']) >= 0)
+        if (topic.Contains('+', StringComparison.Ordinal) || topic.Contains('#', StringComparison.Ordinal))
             throw new ArgumentException(
                 "Authoritative MQTT TAG mappings require an exact topic; wildcard filters are not persisted as TAG identity.",
                 parameterName);

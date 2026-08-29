@@ -184,7 +184,8 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
                 ["destinationTsap"] = S7IsoConnectionOptions.FormatTsap(_options.EffectiveDestinationTsap),
                 ["requestedPduSize"] = _options.RequestedPduSize.ToString(CultureInfo.InvariantCulture),
                 ["negotiatedPduSize"] = transport.NegotiatedPduSize?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
-                ["writeEnabled"] = _options.WriteEnabled ? "true" : "false"
+                ["writeEnabled"] = _options.WriteEnabled ? "true" : "false",
+                ["lastFailureKind"] = transport.LastFailureKind?.ToString() ?? string.Empty
             };
             if (_options.ConnectionMode == S7IsoConnectionMode.RackSlot)
             {

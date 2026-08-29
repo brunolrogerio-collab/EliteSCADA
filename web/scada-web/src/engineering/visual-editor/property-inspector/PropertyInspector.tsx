@@ -19,10 +19,58 @@ import {
 } from './propertyInspectorModel';
 import './PropertyInspector.css';
 
+export type PropertyInspectorCopy = Readonly<{
+  title: string;
+  noSelection: string;
+  selectHint: string;
+  selected: (count: number) => string;
+  useDefault: string;
+  mixed: string;
+  trueLabel: string;
+  falseLabel: string;
+  noAsset: string;
+  defaultState: string;
+  engineeringState: string;
+  mixedState: (explicitCount: number, selectionCount: number) => string;
+  category: Readonly<Record<string, string>>;
+}>;
+
+export type PropertyInspectorProps = VisualEditorPropertyInspectorContractProps & Readonly<{
+  copy?: Partial<PropertyInspectorCopy>;
+}>;
+
+const DEFAULT_COPY: PropertyInspectorCopy = {
+  title: 'Properties',
+  noSelection: 'No selection',
+  selectHint: 'Select a visual object to inspect its registered properties.',
+  selected: count => `${count} selected`,
+  useDefault: 'Use default',
+  mixed: 'Mixed',
+  trueLabel: 'True',
+  falseLabel: 'False',
+  noAsset: 'No asset',
+  defaultState: 'Default',
+  engineeringState: 'Engineering',
+  mixedState: (explicitCount, selectionCount) => `Mixed · ${explicitCount}/${selectionCount} explicit`,
+  category: {
+    general: 'General',
+    geometry: 'Geometry',
+    appearance: 'Appearance',
+    text: 'Text',
+    image: 'Image'
+  }
+};
+
 export function PropertyInspector({
   selectedElements,
-  onMutationIntent
-}: VisualEditorPropertyInspectorContractProps) {
+  onMutationIntent,
+  copy
+}: PropertyInspectorProps) {
+  const text: PropertyInspectorCopy = {
+    ...DEFAULT_COPY,
+    ...copy,
+    category: { ...DEFAULT_COPY.category, ...(copy?.category ?? {}) }
+  };
   const model = useMemo(() => buildPropertyInspectorModel(selectedElements), [selectedElements]);
   const groupedRows = useMemo(() => groupRows(model.rows), [model.rows]);
 
@@ -30,10 +78,10 @@ export function PropertyInspector({
     return (
       <aside className="property-inspector" data-testid="visual-property-inspector">
         <header className="property-inspector__header">
-          <strong>Properties</strong>
-          <span>No selection</span>
+          <strong>{text.title}</strong>
+          <span>{text.noSelection}</span>
         </header>
-        <p className="property-inspector__empty">Select a visual object to inspect its registered properties.</p>
+        <p className="property-inspector__empty">{text.selectHint}</p>
       </aside>
     );
   }
@@ -42,8 +90,8 @@ export function PropertyInspector({
     return (
       <aside className="property-inspector" data-testid="visual-property-inspector">
         <header className="property-inspector__header">
-          <strong>Properties</strong>
-          <span>{selectedElements.length} selected</span>
+          <strong>{text.title}</strong>
+          <span>{text.selected(selectedElements.length)}</span>
         </header>
         <p className="property-inspector__error" role="alert">{model.error}</p>
       </aside>
@@ -53,18 +101,19 @@ export function PropertyInspector({
   return (
     <aside className="property-inspector" data-testid="visual-property-inspector">
       <header className="property-inspector__header">
-        <strong>Properties</strong>
-        <span>{selectedElements.length === 1 ? selectedElements[0].key : `${selectedElements.length} selected`}</span>
+        <strong>{text.title}</strong>
+        <span>{selectedElements.length === 1 ? selectedElements[0].key : text.selected(selectedElements.length)}</span>
       </header>
 
       {groupedRows.map(([category, rows]) => (
         <section className="property-inspector__group" key={category}>
-          <h3>{category}</h3>
+          <h3>{text.category[category] ?? category}</h3>
           {rows.map(row => (
             <PropertyField
               key={row.definition.key}
               model={model}
               row={row}
+              text={text}
               onMutationIntent={onMutationIntent}
             />
           ))}
@@ -77,10 +126,11 @@ export function PropertyInspector({
 type PropertyFieldProps = Readonly<{
   model: PropertyInspectorModel;
   row: PropertyInspectorRow;
+  text: PropertyInspectorCopy;
   onMutationIntent: VisualEditorPropertyInspectorContractProps['onMutationIntent'];
 }>;
 
-function PropertyField({ model, row, onMutationIntent }: PropertyFieldProps) {
+function PropertyField({ model, row, text, onMutationIntent }: PropertyFieldProps) {
   const [error, setError] = useState<string | null>(null);
   const definition = row.definition;
 
@@ -109,10 +159,10 @@ function PropertyField({ model, row, onMutationIntent }: PropertyFieldProps) {
     <div className="property-inspector__field" data-property-key={definition.key}>
       <div className="property-inspector__field-heading">
         <label htmlFor={`visual-property-${definition.key}`}>{definition.key}</label>
-        <span className={`property-inspector__state property-inspector__state--${row.state}`}>{stateLabel(row)}</span>
+        <span className={`property-inspector__state property-inspector__state--${row.state}`}>{stateLabel(row, text)}</span>
       </div>
 
-      <EditorControl definition={definition} row={row} commit={commit} setError={setError} />
+      <EditorControl definition={definition} row={row} text={text} commit={commit} setError={setError} />
 
       <div className="property-inspector__field-meta">
         <span>{definition.type}{definition.unit ? ` · ${definition.unit}` : ''}</span>
@@ -122,7 +172,7 @@ function PropertyField({ model, row, onMutationIntent }: PropertyFieldProps) {
           disabled={row.state === 'default' || !definition.engineeringEditable}
           onClick={remove}
         >
-          Use default
+          {text.useDefault}
         </button>
       </div>
 
@@ -134,23 +184,24 @@ function PropertyField({ model, row, onMutationIntent }: PropertyFieldProps) {
 type EditorControlProps = Readonly<{
   definition: VisualPropertyDefinition;
   row: PropertyInspectorRow;
+  text: PropertyInspectorCopy;
   commit: (value: VisualEngineeringPropertyValue) => boolean;
   setError: (message: string | null) => void;
 }>;
 
-function EditorControl({ definition, row, commit, setError }: EditorControlProps) {
+function EditorControl({ definition, row, text, commit, setError }: EditorControlProps) {
   if (definition.type === 'boolean') {
-    return <BooleanControl definition={definition} row={row} commit={commit} />;
+    return <BooleanControl definition={definition} row={row} text={text} commit={commit} />;
   }
 
   if (definition.type === 'enum') {
-    return <EnumControl definition={definition} row={row} commit={commit} />;
+    return <EnumControl definition={definition} row={row} text={text} commit={commit} />;
   }
 
-  return <TextualControl definition={definition} row={row} commit={commit} setError={setError} />;
+  return <TextualControl definition={definition} row={row} text={text} commit={commit} setError={setError} />;
 }
 
-function BooleanControl({ definition, row, commit }: Omit<EditorControlProps, 'setError'>) {
+function BooleanControl({ definition, row, text, commit }: Omit<EditorControlProps, 'setError'>) {
   const inputRef = useRef<HTMLInputElement>(null);
   const displayValue = row.state === 'mixed' ? false : Boolean(row.value);
 
@@ -168,12 +219,12 @@ function BooleanControl({ definition, row, commit }: Omit<EditorControlProps, 's
         disabled={!definition.engineeringEditable}
         onChange={event => commit(event.currentTarget.checked)}
       />
-      <span>{row.state === 'mixed' ? 'Mixed' : displayValue ? 'True' : 'False'}</span>
+      <span>{row.state === 'mixed' ? text.mixed : displayValue ? text.trueLabel : text.falseLabel}</span>
     </label>
   );
 }
 
-function EnumControl({ definition, row, commit }: Omit<EditorControlProps, 'setError'>) {
+function EnumControl({ definition, row, text, commit }: Omit<EditorControlProps, 'setError'>) {
   if (definition.type !== 'enum') return null;
   const value = row.state === 'mixed' ? '__mixed__' : String(row.value);
 
@@ -184,13 +235,13 @@ function EnumControl({ definition, row, commit }: Omit<EditorControlProps, 'setE
       disabled={!definition.engineeringEditable}
       onChange={event => commit(event.currentTarget.value)}
     >
-      {row.state === 'mixed' ? <option value="__mixed__" disabled>Mixed</option> : null}
+      {row.state === 'mixed' ? <option value="__mixed__" disabled>{text.mixed}</option> : null}
       {definition.allowedValues.map(option => <option key={option} value={option}>{option}</option>)}
     </select>
   );
 }
 
-function TextualControl({ definition, row, commit, setError }: EditorControlProps) {
+function TextualControl({ definition, row, text, commit, setError }: EditorControlProps) {
   const displayValue = row.state === 'mixed' ? '' : formatPropertyInspectorValue(row.value ?? row.defaultValue);
   const [draft, setDraft] = useState(displayValue);
   const [dirty, setDirty] = useState(false);
@@ -230,7 +281,7 @@ function TextualControl({ definition, row, commit, setError }: EditorControlProp
       id={`visual-property-${definition.key}`}
       type={definition.type === 'number' ? 'number' : 'text'}
       value={draft}
-      placeholder={row.state === 'mixed' ? 'Mixed' : definition.type === 'assetRef' && row.defaultValue === null ? 'No asset' : undefined}
+      placeholder={row.state === 'mixed' ? text.mixed : definition.type === 'assetRef' && row.defaultValue === null ? text.noAsset : undefined}
       min={definition.type === 'number' ? definition.minimum : undefined}
       max={definition.type === 'number' ? definition.maximum : undefined}
       step={definition.type === 'number' ? (definition.integer ? 1 : 'any') : undefined}
@@ -258,11 +309,11 @@ function groupRows(rows: readonly PropertyInspectorRow[]): readonly [string, rea
   return [...groups.entries()];
 }
 
-function stateLabel(row: PropertyInspectorRow): string {
+function stateLabel(row: PropertyInspectorRow, text: PropertyInspectorCopy): string {
   switch (row.state) {
-    case 'default': return 'Default';
-    case 'engineered': return 'Engineering';
-    case 'mixed': return `Mixed · ${row.explicitCount}/${row.selectionCount} explicit`;
+    case 'default': return text.defaultState;
+    case 'engineered': return text.engineeringState;
+    case 'mixed': return text.mixedState(row.explicitCount, row.selectionCount);
   }
 }
 

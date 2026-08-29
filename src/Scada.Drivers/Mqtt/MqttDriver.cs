@@ -14,11 +14,14 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
     private readonly ICurrentTagCache _cache;
     private readonly ITagRegistry _registry;
     private readonly IReadOnlyList<MqttPoint> _points;
+    private readonly IReadOnlyList<MqttPoint> _freshnessPoints;
     private readonly IReadOnlyDictionary<Guid, MqttPoint> _pointsByTagId;
     private readonly IReadOnlyDictionary<string, IReadOnlyList<MqttPoint>> _pointsByTopic;
+    private readonly Dictionary<Guid, DateTimeOffset> _freshnessReferenceByTagId = new();
     private readonly MqttConnectionSettings _settings;
     private readonly IMqttClientTransport _transport;
     private readonly MqttCredentialResolver _credentialResolver;
+    private readonly TimeSpan? _freshnessCheckInterval;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
     private readonly object _diagnosticsGate = new();
     private readonly Queue<bool> _recentFailures = new();
@@ -26,6 +29,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
 
     private CancellationTokenSource? _cts;
     private Task? _loop;
+    private Task? _freshnessLoop;
     private CommunicationDriverOperationalState _communicationState;
     private DateTimeOffset _stateChangedAt;
     private DateTimeOffset? _lastSuccessfulCommunicationAt;
@@ -49,6 +53,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
     private long _unexpectedMessages;
     private long _connectAttempts;
     private long _subscribeRequests;
+    private long _freshnessTransitions;
     private long _lastOperationDurationTicks;
     private long _totalOperationDurationTicks;
     private long _timedOperations;
@@ -86,6 +91,8 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
         _cache = cache;
         _registry = registry;
         _points = pointArray;
+        _freshnessPoints = pointArray.Where(point => point.FreshnessTimeout.HasValue).ToArray();
+        _freshnessCheckInterval = ComputeFreshnessCheckInterval(_freshnessPoints);
         _pointsByTagId = pointArray.ToDictionary(point => point.Tag.Id);
         _pointsByTopic = pointArray
             .GroupBy(point => point.SubscribeTopic, StringComparer.Ordinal)
@@ -128,6 +135,9 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
 
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _loop = RunAsync(_cts.Token);
+        _freshnessLoop = _freshnessCheckInterval.HasValue
+            ? RunFreshnessAsync(_freshnessCheckInterval.Value, _cts.Token)
+            : null;
         Status = new DriverStatus(DriverId, Name, DriverState.Running, DateTimeOffset.UtcNow);
         return Task.CompletedTask;
     }
@@ -143,6 +153,12 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
         if (_loop is not null)
         {
             try { await _loop.WaitAsync(cancellationToken); }
+            catch (OperationCanceledException) when (_cts.IsCancellationRequested) { }
+        }
+
+        if (_freshnessLoop is not null)
+        {
+            try { await _freshnessLoop.WaitAsync(cancellationToken); }
             catch (OperationCanceledException) when (_cts.IsCancellationRequested) { }
         }
 
@@ -215,6 +231,9 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
                 ["tls"] = _settings.UseTls ? "true" : "false",
                 ["clientId"] = _settings.ClientId,
                 ["subscriptionCount"] = _pointsByTopic.Count.ToString(CultureInfo.InvariantCulture),
+                ["maximumBufferedMessages"] = _settings.MaximumBufferedMessages.ToString(CultureInfo.InvariantCulture),
+                ["freshnessPointCount"] = _freshnessPoints.Count.ToString(CultureInfo.InvariantCulture),
+                ["freshnessTransitions"] = _freshnessTransitions.ToString(CultureInfo.InvariantCulture),
                 ["messagesReceived"] = _messagesReceived.ToString(CultureInfo.InvariantCulture),
                 ["retainedMessages"] = _retainedMessages.ToString(CultureInfo.InvariantCulture),
                 ["decodeFailures"] = _decodeFailures.ToString(CultureInfo.InvariantCulture),
@@ -342,6 +361,40 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
         }
     }
 
+    private async Task RunFreshnessAsync(TimeSpan checkInterval, CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            await Task.Delay(checkInterval, cancellationToken);
+            var now = DateTimeOffset.UtcNow;
+
+            foreach (var point in _freshnessPoints)
+            {
+                DateTimeOffset reference;
+                lock (_diagnosticsGate)
+                {
+                    if (!_freshnessReferenceByTagId.TryGetValue(point.Tag.Id, out reference))
+                        continue;
+                }
+
+                var timeout = point.FreshnessTimeout!.Value;
+                if (now - reference <= timeout)
+                    continue;
+                if (!_cache.TryGet(point.Tag.Id, out var current) || current is null || current.Quality != TagQuality.Good)
+                    continue;
+
+                var stale = current with
+                {
+                    Timestamp = now,
+                    Quality = TagQuality.Stale
+                };
+                await _cache.UpdateAsync(point.Tag, stale, cancellationToken);
+                Interlocked.Increment(ref _updatesPublished);
+                lock (_diagnosticsGate) _freshnessTransitions++;
+            }
+        }
+    }
+
     private async Task ConnectAndSubscribeAsync(CancellationToken cancellationToken)
     {
         using var credentials = await _credentialResolver(cancellationToken);
@@ -439,12 +492,14 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
                     message.Payload.Span,
                     message.Retained,
                     message.ReceivedAtUtc);
+                var freshnessReference = decoded.SourceTimestamp ?? message.ReceivedAtUtc;
+                var quality = ApplyInitialFreshness(point, decoded.Quality, freshnessReference, message.ReceivedAtUtc);
 
                 var sample = new TagValue(
                     point.Tag.Id,
                     decoded.Value,
                     message.ReceivedAtUtc,
-                    decoded.Quality,
+                    quality,
                     DriverId)
                 {
                     SourceTimestamp = decoded.SourceTimestamp
@@ -452,7 +507,12 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
                 await _cache.UpdateAsync(point.Tag, sample, cancellationToken);
                 Interlocked.Increment(ref _updatesPublished);
                 RecordUntimedOutcome(success: true, null);
-                lock (_diagnosticsGate) _lastAcceptedMessageAt = message.ReceivedAtUtc;
+                lock (_diagnosticsGate)
+                {
+                    _lastAcceptedMessageAt = message.ReceivedAtUtc;
+                    if (point.FreshnessTimeout.HasValue)
+                        _freshnessReferenceByTagId[point.Tag.Id] = freshnessReference;
+                }
             }
             catch (MqttPayloadException ex)
             {
@@ -629,6 +689,31 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
             stale,
             disabled,
             noSample);
+    }
+
+    private static TagQuality ApplyInitialFreshness(
+        MqttPoint point,
+        TagQuality quality,
+        DateTimeOffset freshnessReference,
+        DateTimeOffset receivedAtUtc)
+    {
+        if (quality != TagQuality.Good || !point.FreshnessTimeout.HasValue)
+            return quality;
+
+        return receivedAtUtc - freshnessReference > point.FreshnessTimeout.Value
+            ? TagQuality.Stale
+            : TagQuality.Good;
+    }
+
+    private static TimeSpan? ComputeFreshnessCheckInterval(IReadOnlyCollection<MqttPoint> points)
+    {
+        if (points.Count == 0) return null;
+
+        var minimumTimeoutTicks = points.Min(point => point.FreshnessTimeout!.Value.Ticks);
+        var proposedTicks = Math.Max(1, minimumTimeoutTicks / 4);
+        var minimumCheckTicks = TimeSpan.FromMilliseconds(25).Ticks;
+        var maximumCheckTicks = TimeSpan.FromSeconds(1).Ticks;
+        return TimeSpan.FromTicks(Math.Clamp(proposedTicks, minimumCheckTicks, maximumCheckTicks));
     }
 
     private static string SanitizeError(Exception? error)

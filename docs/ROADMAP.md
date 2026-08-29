@@ -1,50 +1,24 @@
 # EliteSCADA Roadmap
 
-**Status date:** 2026-08-28  
-**Active direction:** **WAVE 08 — GRAPHICAL EDITOR FOUNDATION / CENTRAL FOUNDATION CI GREEN / DEV 1-2-3 ACTIVE / FULL PRODUCT PATH TO v0.1 OWNER VALIDATION**
+**Status date:** 2026-08-29  
+**Active direction:** **WAVE 08 — GRAPHICAL EDITOR FOUNDATION + ENGINEERING DEVELOPMENT MONITOR / GRAPHICAL GATE GREEN / MONITOR IMPLEMENTATION PENDING**
 
 Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
 Parallel execution model: `docs/DEVELOPMENT-WAVES.md`.  
 Live worker ownership: `docs/CHAT-WORK-ASSIGNMENTS.md`.  
 Current coordinator checkpoint: `docs/COORDINATOR-HANDOFF.md`.  
 Wave 08 execution contract: `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`.  
+Wave 08 Development Monitor contract: `docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE-08.md`.  
 Wave 08 asset storage contract: `docs/VISUAL-ASSET-STORAGE-WAVE-08.md`.  
 TAG bit access + bit-level driver binding follow-up: `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`.  
 Visual Expressions + Boolean Conditions + Analog Fill follow-up: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.  
-Wave 07 historical contract: `docs/VISUAL-RUNTIME-WAVE-07-IMPLEMENTATION-DECISION.md`.  
-Visual 07 -> 08 convergence: `docs/VISUAL-CANONICAL-CONVERGENCE-07-TO-08.md`.  
 CI policy: `docs/CI-USAGE-POLICY.md`.
 
 Engineering Import/Export remains cross-cutting: canonical Engineering domains join versioned JSON, validation/Preview/Apply, revision lifecycle, PostgreSQL persistence where applicable and `.escadapkg` backup/restore.
 
 ## Current merged foundation
 
-Official `main` product state includes the complete Wave 07 foundation and all earlier SCADA layers:
-
-- TAG Engine/current cache/quality/Event Bus;
-- Simulation + real Modbus TCP;
-- PostgreSQL Engineering persistence;
-- TimescaleDB historian;
-- Working/Revision/Published/Active lifecycle;
-- canonical Import/Export + Preview/Apply/CAS + `.escadapkg`;
-- authentication/users/authorization/Audit;
-- Client Memory / Server Memory;
-- TAG Gateway;
-- common Data Source diagnostics;
-- Runtime/Engineering/Audit product shells;
-- Engineering Data Source/TAG/Alarm workspaces;
-- Runtime Operations/Alarm Center/TAG Inspector/Recent History;
-- Lifecycle, Project Management/Portability, Basic Trends, Administration;
-- canonical Script Engineering;
-- Python editor and Client Visual sandbox;
-- Engineering Schema v12 JSON-native typed visual properties;
-- stable nested visual object identity and Script `VisualObject` references;
-- typed Visual Property Registry and `core.*` built-ins;
-- deterministic Runtime Visual Instance layering/isolation/disposal;
-- bounded Client Visual Python visual property read/write/clear;
-- canonical `assetRef = null | { assetId }` identity contract.
-
-Wave 08 Schema v13 assets/editor work exists in Draft PR #90 and is **not merged product state yet**.
+Official `main` product state includes the complete Wave 07 foundation and all earlier SCADA layers. Wave 08 remains unmerged.
 
 ## Completed waves
 
@@ -52,7 +26,7 @@ Wave 08 Schema v13 assets/editor work exists in Draft PR #90 and is **not merged
 - **Wave 04 — COMPLETE / MERGED.** Main merge `e9e596f482c83bf5864b34a7f54d9fd3b0b67baa`; CI #446 green.
 - **Wave 05 — COMPLETE / MERGED.** Main merge `7f629bf660bb16fd46fbf6abeb72b9ca1676e087`; CI #466 green.
 - **Wave 06 — COMPLETE / MERGED.** Main merge `cc79713434c1d7b5988158b843b137eaf488d923`; CI #487 green.
-- **Wave 07 — COMPLETE / MERGED / POST-MERGE GREEN.** Final integration head `6d869109af23b25d1ae95cd35610e1930a16791c`; CI #508 green; PR #89 merged as `8de706882ba20afedd666532ac41ae11115d06b3`; post-merge CI #510 green.
+- **Wave 07 — COMPLETE / MERGED / POST-MERGE GREEN.** Main merge `8de706882ba20afedd666532ac41ae11115d06b3`; post-merge CI #510 green.
 
 ## Ordered path to v0.1
 
@@ -62,8 +36,8 @@ Wave 04      Project portability + basic Trends + Administration                
 Wave 05      Canonical Script Engineering                                                COMPLETE
 Wave 06      Python Editor + Client Visual sandbox                                       COMPLETE
 Wave 07      Visual Runtime Object Model + typed visual Engineering                      COMPLETE
-Wave 08      Graphical Editor Foundation + image import/object                           ACTIVE
-08-FOLLOW-A  TAG Bit Access + Driver Bit-Level Boolean Binding                           QUEUED AFTER CURRENT WORKER DELIVERY
+Wave 08      Graphical Editor + Image + Engineering Development Monitor                  ACTIVE
+08-FOLLOW-A  TAG Bit Access + Driver Bit-Level Boolean Binding                           WAITING FOR WAVE 08
 08-FOLLOW-B  Typed Visual Expressions + Boolean Conditions + Analog Fill                 WAITING ON 08-FOLLOW-A
 Wave 09      Screens + Popups + Dynamos + asset dependencies/navigation                 WAITING
 Wave 10      Python visual events + animation + preview                                  WAITING
@@ -75,137 +49,102 @@ Wave 15      Feedback/corrections                                               
 FINAL        EliteSCADA v0.1 — Full Product Validation Preview
 ```
 
-## Wave 08 — Graphical Editor Foundation
+## Wave 08 — Graphical Editor + Engineering Development Monitor
 
-**ACTIVE — CENTRAL FOUNDATION VALIDATED IN DRAFT PR #90 / WORKER INTERACTION SLICES ACTIVE.**
+**ACTIVE / NOT MERGED.**
 
-- Logical WaveBaseSHA: `8de706882ba20afedd666532ac41ae11115d06b3`
-- ContractSHA / logical worker base: `7a445d3dd94cabd09807291a0ee94276559fcb0e`
-- Integration: `integration/graphical-editor-wave-08`
-- Draft integration PR: **#90**
-- exact validated central-foundation product head: **`b48b489660ae953029fd2416aa18b149eaa18258`**
-- CI #515 / run `33225051402`: **SUCCESS**
-- Actions mode: NORMAL, conservative usage
+Integration: `integration/graphical-editor-wave-08`  
+Draft integration PR: **#90**
 
-CI #515 validated Web build/typecheck, backend Release/full tests including PostgreSQL/Timescale, Runtime smoke, Chromium E2E, the new Screen editor save/reopen test and prior Wave 06/07 visual/Python browser regressions.
+### Gate A — Graphical Editor/Image
 
-### Validated central foundation in PR #90
+**GREEN.** Exact graphical product head: `a7176a44df3a0af5bc1a271b25101d333da7a161`.  
+CI #525 / run `33230239968`: **SUCCESS**.
 
-Implemented in PR, not merged:
+The integrated graphical path now covers:
 
-- Engineering Schema v13 first-class Visual Asset metadata;
-- stable Visual Asset ID + SHA-256 content identity;
-- bounded PNG/JPEG/BMP validation;
-- canonical Working asset authority;
-- PostgreSQL revision asset blobs/links;
-- `.escadapkg` v2 asset sidecars with v1 compatibility;
-- protected Visual Asset API with Engineering CAS/authorization/Audit;
-- frontend asset catalog/import/content seams;
-- `Engineering -> Telas` central `VisualEditorWorkspace`;
-- canonical Screen Preview/Apply/CAS and reload;
-- shared `core.*` preview renderer + stable `assetRef`;
-- legacy visual compatibility placeholders without silent migration;
-- shared `visualEditorContracts.ts` separating transient UI state from canonical mutation intents;
-- Screen Preview -> Apply -> canonical export -> reopen E2E.
+- Engineering Schema v13 first-class Visual Assets;
+- stable asset identity + package/revision persistence;
+- Canvas zoom/pan/grid/snap, selection/multiselect and geometry operations;
+- schema-driven Property Inspector;
+- registered Object Palette;
+- canonical TAG binding authoring with early type compatibility checks;
+- project image import/selection by stable `assetRef`;
+- canonical Preview/Apply/CAS;
+- save/reopen/export/import acceptance;
+- transient Canvas UI state excluded from canonical Engineering.
 
-The editor remains a projection/editor of canonical Engineering. Private Canvas persistence is forbidden.
+DEV 1/2/3 original graphical worker deliveries are integrated. Their worker PRs #91/#92/#93 are closed without direct merge to main. Workers are stopped until explicitly reassigned.
 
-### Parallel worker phase — ACTIVE
+### Gate B — Engineering Development Monitor
 
-The coordinator deliberately activated all three slices only after CI #515 and after seeding the shared intent contract into each worker branch.
+**OWNER-LOCKED / SPECIFIED / NOT IMPLEMENTED.**
 
-- **DEV 1 — Canvas / Selection**  
-  Branch seed head `57521312914e21e303976a81bc81c84ad5aa9cbb`.  
-  Owns viewport, zoom/pan/grid/snap, selection/multiselect, move/resize/rotate, duplicate/delete/z-order interaction intents and UI-only adornment state.
+Contract: `docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE-08.md`.
 
-- **DEV 2 — Property Inspector**  
-  Branch seed head `3e942ed641d96afe848966f123fb10eaeaa99ed7`.  
-  Owns shared-schema-driven typed property controls, explicit Default vs Engineering behavior, validation/mixed-value behavior and property set/remove intents.
+Purpose: allow development/commissioning engineers to watch live variables and diagnostics during application development without building temporary HMI objects or code.
 
-- **DEV 3 — Object Palette / Binding Foundation**  
-  Branch seed head `df3cd6c332a19bb3011373c95d010f33754c0c12`.  
-  Owns registered `core.*` palette, object-add intents, canonical binding authoring foundation, source-catalog boundary and Image palette entry using existing `assetRef`.
+Required workflow:
 
-All three are parallel-safe because central route/workspace/schema/API/persistence remain coordinator-reserved and the worker modules communicate through the single seeded `visualEditorContracts.ts` seam.
+`open Monitor -> search OR type exact canonical reference -> add row -> observe value/type/quality-state/timestamp -> source changes -> row updates -> remove/clear`
 
-### Coordinator work during worker phase
+Required initial source families:
 
-Coordinator owns:
+- TAGs;
+- Client Memory;
+- Server Memory;
+- authoritative System/Runtime variables and diagnostics;
+- Data Source / driver diagnostics.
 
-- canonical application of worker mutation intents into Screen drafts;
-- central selection/viewport orchestration boundaries;
-- source-catalog composition without direct driver authority;
-- cross-slice integration and acceptance tests;
-- worker review/integration;
-- PR #90 final CI/merge.
+Required table facts:
 
-Coordinator must not duplicate Canvas gesture implementation, Property Inspector controls or Palette/Binding UI while those worker slices are active.
+- canonical name/reference/path;
+- source category;
+- current value;
+- canonical data type;
+- quality or authoritative diagnostic state;
+- timestamp / last update when defined.
 
-### Wave 08 gate
+Architecture rules:
 
-Integrated product must prove:
+- unified provider/catalog seam, not a separate variable model per domain;
+- search/browse plus exact-reference quick-add;
+- explicit not-found/ambiguous behavior;
+- heterogeneous source rows together;
+- strict read-only boundary;
+- preserve exact typed values including Int64;
+- unavailable/bad/stale/disconnected state is explicit and never coerced to normal values;
+- reuse realtime/subscription infrastructure where possible;
+- bounded/coalesced polling only where needed;
+- never one independent backend poll loop per row;
+- acceptance proves at least 100 simultaneous monitored entries through shared batching/subscription;
+- current monitored values/qualities/timestamps are Runtime/diagnostic state and never canonical Engineering/project package state.
 
-`Create Screen -> add objects -> move/resize/rotate -> edit registered properties -> canonical binding -> image asset by stable assetRef -> save -> reopen -> export/import`
+The monitor is explicitly not a force/write table, command console, historian or alarm-control surface.
 
-Transient Canvas selection/viewport/hover/adornment/drag-preview state must not become persisted Engineering authority.
+### Wave 08 final gate
 
-Final integrated CI must preserve all Wave 07 visual/Python and Wave 06 sandbox regressions. PR #90 remains Draft until this full gate is green.
+Wave 08 closes only when both Gate A and Gate B are green on the final integrated product and one final full CI is green.
+
+PR #90 stays Draft until then.
 
 ## Mandatory TAG-bit follow-up before visual expressions
 
-The owner has locked a first-class TAG/driver requirement that must be implemented after the current Wave 08 interaction work is integrated and before typed visual expressions depend on bit notation.
+After complete Wave 08 closure, execute `08-FOLLOW-A` under `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`.
 
-Contract: `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`.
-
-Required direction:
-
-- integer TAGs expose Boolean bit selectors with friendly notation such as `Word_comando.00` and `Word_status.07`;
-- canonical persistence stores stable TAG identity plus bit index, not only the display string;
-- Int16/Int32/Int64 expose `00..15`, `00..31`, `00..63` respectively, with bit 0 = LSB and signed values interpreted through fixed-width two's-complement representation;
-- bit selectors inherit source value quality/timestamp and never turn bad/unavailable source into false;
-- bit selectors become reusable Boolean references for bindings, visual expressions, alarms and scripting/reference surfaces where permitted;
-- drivers may expose first-class Boolean TAG bindings to a bit within a physical word/register;
-- Modbus Holding/Input Registers support bit `0..15` as a Boolean source; Input Register remains read-only;
-- writable Holding Register bit operations preserve all unrelated bits and use a native mask-write operation where supported or coordinated concurrency-safe read-modify-write otherwise;
-- multiple bit TAGs on the same Modbus register should reuse/coalesce physical reads where practical;
-- Modbus human `4xxxxx` notation and zero-based wire offsets must have one explicit Engineering conversion policy;
-- logical bit views do not automatically create duplicate historian series; a first-class bit-bound Boolean TAG is used when independent history/alarm identity is required;
-- configuration round-trips through import/export/revisions/packages and keeps normal authorization/Audit boundaries.
-
-The TAG-bit follow-up must have focused Core/driver/Engineering tests before 08-FOLLOW-B can use `.NN` syntax as a typed expression dependency.
+When first-class TAG bit selectors are implemented, they must participate through the same Development Monitor provider/catalog seam instead of monitor-private `.NN` parsing.
 
 ## Mandatory visual-expression follow-up before Wave 09
 
-After TAG bit access/binding is stabilized, the queued visual behavior must be implemented before Wave 09 activates. The current worker missions are not expanded mid-delivery.
+After 08-FOLLOW-A is green, execute `08-FOLLOW-B` under `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.
 
-Contract: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.
-
-Required direction:
-
-- visual properties that declare Binding/Expression support accept a typed, side-effect-free expression over canonical TAGs and Client Memory;
-- canonical integer TAG bit selectors such as `Word_status.03` may participate as Boolean expression dependencies;
-- boolean expressions support `and`, `or`, `not`, comparisons and parentheses;
-- numeric expressions support arithmetic such as `(nivel1 + nivel2) * 3`, with deterministic mathematical precedence;
-- result type must match the destination property; numeric/boolean conversion is explicit, never silently coerced;
-- a bounded whitelist of pure helpers such as `abs`, `min`, `max`, `clamp`, `round`, `floor`, `ceil`, `bool` and `number` is allowed;
-- expression dependencies must resolve canonically for validation/import/export rather than relying on ambiguous display labels;
-- expression evaluation is reactive to source changes, bounded and cannot execute JavaScript/Python/arbitrary code;
-- every renderable Screen/Popup/Dynamo object exposes `visible: boolean`;
-- every boolean visual property supports direct boolean binding, numeric interval -> boolean evaluation and typed boolean expressions;
-- unavailable/bad-quality dependencies fall back through normal precedence instead of silently forcing false/zero;
-- fill-capable closed shapes support numeric analog scaling to a proportional `0..100%` region, and Analog Fill may consume a numeric expression rather than only one raw TAG;
-- initial fill directions: bottom->top, top->bottom, left->right, right->left;
-- filled-region color is explicit while the unfilled region preserves the normal base/background appearance;
-- expression/condition/fill configuration round-trips through import/export/revisions/packages;
-- runtime-calculated results remain presentation state and are never saved automatically;
-- visual expressions/conditions are never process safety/interlock authority.
-
-This follow-up requires its own focused implementation/acceptance and CI evidence before the visual foundation is considered ready to proceed into Screen/Popup/Dynamo expansion.
+Wave 09 remains blocked until required preceding work is green.
 
 ## Remaining v0.1 sequence
 
-- **08-FOLLOW-A:** TAG Bit Access + Driver Bit-Level Boolean Binding, after current Wave 08 worker integration.
-- **08-FOLLOW-B:** Typed Visual Expressions + Boolean Conditions + Analog Fill, after TAG-bit semantics are green and before Wave 09.
+- **Wave 08:** finish Engineering Development Monitor and final combined CI/merge.
+- **08-FOLLOW-A:** TAG Bit Access + Driver Bit-Level Boolean Binding.
+- **08-FOLLOW-B:** Typed Visual Expressions + Boolean Conditions + Analog Fill.
 - **Wave 09:** multiple Screens, Popups, reusable Dynamos, navigation and deterministic asset dependencies.
 - **Wave 10:** Python visual events, renderer-native animation/tween and Engineering visual Preview/Test.
 - **Wave 11:** build `Estação Elevatória EliteSCADA Demo` only through normal product APIs/tools.

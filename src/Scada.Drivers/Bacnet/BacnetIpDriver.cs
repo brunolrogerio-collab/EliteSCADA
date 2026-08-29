@@ -239,6 +239,7 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
                 ["transport"] = "BACnet/IP UDP",
                 ["bacnetSecureConnect"] = "not-implemented"
             };
+            AppendForeignDeviceRegistrationDiagnostics(protocolDetails);
             return new CommunicationDriverDiagnosticSnapshot(
                 DriverId,
                 Name,
@@ -434,6 +435,27 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
             }
         }
         return new CommunicationTagQualitySummary(good, badComm, uncertain, bad, badConfig, badDevice, stale, disabled, noSample);
+    }
+
+    private void AppendForeignDeviceRegistrationDiagnostics(IDictionary<string, string> protocolDetails)
+    {
+        if (_session is not IBacnetForeignDeviceRegistrationDiagnostics source) return;
+        var snapshot = source.GetForeignDeviceRegistrationDiagnostics();
+        protocolDetails["fdrConfigured"] = snapshot.Configured ? "true" : "false";
+        if (snapshot.TtlSeconds.HasValue)
+            protocolDetails["fdrTtlSeconds"] = snapshot.TtlSeconds.Value.ToString(CultureInfo.InvariantCulture);
+        if (snapshot.RenewalInterval.HasValue)
+            protocolDetails["fdrRenewalSeconds"] = snapshot.RenewalInterval.Value.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture);
+        if (snapshot.RetryInterval.HasValue)
+            protocolDetails["fdrRetrySeconds"] = snapshot.RetryInterval.Value.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture);
+        protocolDetails["fdrRegistrationRequestsSent"] = snapshot.RegistrationRequestsSent.ToString(CultureInfo.InvariantCulture);
+        protocolDetails["fdrRegistrationFailures"] = snapshot.RegistrationFailures.ToString(CultureInfo.InvariantCulture);
+        if (snapshot.LastRegistrationRequestAt.HasValue)
+            protocolDetails["fdrLastRegistrationRequestAtUtc"] = snapshot.LastRegistrationRequestAt.Value.ToString("O", CultureInfo.InvariantCulture);
+        if (snapshot.NextRegistrationAttemptAt.HasValue)
+            protocolDetails["fdrNextRegistrationAttemptAtUtc"] = snapshot.NextRegistrationAttemptAt.Value.ToString("O", CultureInfo.InvariantCulture);
+        if (!string.IsNullOrWhiteSpace(snapshot.LastErrorType))
+            protocolDetails["fdrLastErrorType"] = snapshot.LastErrorType;
     }
 
     private static string? Sanitize(string? message)

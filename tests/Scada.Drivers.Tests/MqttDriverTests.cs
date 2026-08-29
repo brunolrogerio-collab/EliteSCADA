@@ -143,6 +143,8 @@ public sealed class MqttDriverTests
 
         var diagnostics = driver.GetCommunicationDiagnostics();
         Assert.True(diagnostics.Counters.Reconnects >= 1);
+        Assert.True(diagnostics.Counters.Disconnections >= 1);
+        Assert.True(diagnostics.Counters.FailedOperations >= 1);
         Assert.Equal(0, diagnostics.Counters.Cycles);
         Assert.Null(diagnostics.ConfiguredScanInterval);
         Assert.Null(diagnostics.LastScanDuration);

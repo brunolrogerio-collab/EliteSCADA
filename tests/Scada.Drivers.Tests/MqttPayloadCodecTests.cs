@@ -46,6 +46,28 @@ public sealed class MqttPayloadCodecTests
     }
 
     [Fact]
+    public void DateTimeScalarRequiresExplicitUtcOrOffset()
+    {
+        var point = new MqttPoint(CreateTag(TagDataType.DateTime), "plant/event/time");
+
+        var error = Assert.Throws<MqttPayloadException>(() => MqttPayloadCodec.Decode(
+            point,
+            Encoding.UTF8.GetBytes("2026-08-29T16:15:00"),
+            retained: false,
+            DateTimeOffset.UtcNow));
+
+        Assert.Contains("explicit", error.Message, StringComparison.OrdinalIgnoreCase);
+
+        var decoded = MqttPayloadCodec.Decode(
+            point,
+            Encoding.UTF8.GetBytes("2026-08-29T16:15:00-03:00"),
+            retained: false,
+            DateTimeOffset.UtcNow);
+
+        Assert.Equal(DateTimeOffset.Parse("2026-08-29T19:15:00Z"), decoded.Value);
+    }
+
+    [Fact]
     public void JsonPointerExtractsValueAndSourceTimestamp()
     {
         var point = new MqttPoint(
@@ -69,6 +91,26 @@ public sealed class MqttPayloadCodecTests
         Assert.Equal(DateTimeOffset.Parse("2026-08-29T14:01:02Z"), decoded.SourceTimestamp);
         Assert.Equal(TagQuality.Good, decoded.Quality);
         Assert.True(decoded.Retained);
+    }
+
+    [Fact]
+    public void JsonSourceTimestampRequiresExplicitUtcOrOffset()
+    {
+        var point = new MqttPoint(
+            CreateTag(TagDataType.Double),
+            "plant/tank/state",
+            MqttPayloadFormat.Json,
+            JsonPointer: "/value",
+            SourceTimestampJsonPointer: "/timestamp",
+            SourceTimestampRequired: true);
+
+        var error = Assert.Throws<MqttPayloadException>(() => MqttPayloadCodec.Decode(
+            point,
+            Encoding.UTF8.GetBytes("{\"value\":1.5,\"timestamp\":\"2026-08-29T14:01:02\"}"),
+            retained: false,
+            DateTimeOffset.UtcNow));
+
+        Assert.Contains("explicit", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -105,6 +147,24 @@ public sealed class MqttPayloadCodecTests
     }
 
     [Fact]
+    public void JsonArrayPointerRejectsLeadingZeroIndex()
+    {
+        var point = new MqttPoint(
+            CreateTag(TagDataType.Int32),
+            "plant/array",
+            MqttPayloadFormat.Json,
+            JsonPointer: "/values/01");
+
+        var error = Assert.Throws<MqttPayloadException>(() => MqttPayloadCodec.Decode(
+            point,
+            Encoding.UTF8.GetBytes("{\"values\":[10,20]}"),
+            retained: false,
+            DateTimeOffset.UtcNow));
+
+        Assert.Contains("not found", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void MissingConfiguredJsonFieldFailsClosed()
     {
         var point = new MqttPoint(
@@ -134,6 +194,21 @@ public sealed class MqttPayloadCodecTests
 
         Assert.Equal("125", Encoding.UTF8.GetString(MqttPayloadCodec.Encode(point, 125)));
         Assert.Throws<MqttPayloadException>(() => MqttPayloadCodec.Encode(point, 125L));
+    }
+
+    [Fact]
+    public void DateTimeWriteRejectsUnspecifiedKind()
+    {
+        var point = new MqttPoint(
+            CreateTag(TagDataType.DateTime, readOnly: false),
+            "plant/time/readback",
+            Writable: true,
+            PublishTopic: "plant/time/command");
+        var ambiguous = new DateTime(2026, 8, 29, 16, 30, 0, DateTimeKind.Unspecified);
+
+        var error = Assert.Throws<MqttPayloadException>(() => MqttPayloadCodec.Encode(point, ambiguous));
+
+        Assert.Contains("ambiguous", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

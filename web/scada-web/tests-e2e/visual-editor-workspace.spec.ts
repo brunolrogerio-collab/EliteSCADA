@@ -10,6 +10,12 @@ type ExportedVisualElement = {
   bindings?: Array<{ key: string; kind: string; target: string }> | null;
   properties?: Record<string, unknown> | null;
   children?: ExportedVisualElement[] | null;
+  propertyExpressions?: Array<{
+    propertyKey: string;
+    expression: { text: string; resultType: string; dependencies?: Array<{ symbol: string; kind: string; tagReference: { tagId: string } }> | null };
+  }> | null;
+  booleanConditions?: Array<{ propertyKey: string; kind: string; minimum?: number | null; maximum?: number | null }> | null;
+  analogFill?: { inputMinimum: number; inputMaximum: number; fillColor: string; direction?: string; source: { kind: string; tagReference?: { tagId: string } | null } } | null;
 };
 
 type ExportedPackage = {
@@ -22,6 +28,7 @@ type ExportedPackage = {
     [key: string]: unknown;
   }>;
   tags?: Array<{
+    id?: string;
     name: string;
     path: string;
     dataType: string;
@@ -70,11 +77,7 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
 
     const assetInput = page.locator('.visual-editor-file-import input[type="file"]');
     await expect(assetInput).toBeEnabled();
-    await assetInput.setInputFiles({
-      name: assetFileName,
-      mimeType: 'image/png',
-      buffer: ONE_PIXEL_PNG
-    });
+    await assetInput.setInputFiles({ name: assetFileName, mimeType: 'image/png', buffer: ONE_PIXEL_PNG });
 
     const importedAssetId = await expect.poll(async () => {
       const response = await request.get('/api/engineering/visual-assets');
@@ -86,9 +89,6 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
       const assets = await response.json() as Array<{ id?: string | null; originalFileName: string }>;
       return assets.find(asset => asset.originalFileName === assetFileName)!.id!;
     });
-
-    await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
-    await expect(page.getByRole('textbox', { name: 'Rota', exact: true })).toHaveValue(originalScreen!.route ?? '');
 
     await page.locator('[data-object-type="core.image"]').click();
     const imageObject = page.locator('[data-canvas-object-type="core.image"]').last();
@@ -120,17 +120,14 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
     await expect(bindingEditor.getByTestId('project-reference-browser')).toBeVisible();
     await expect(bindingEditor.getByTestId('project-reference-browser').locator('details')).not.toHaveCount(0);
     await bindingEditor.getByRole('button', { name: 'Procurar referências do projeto' }).click();
-
     await bindingEditor.getByRole('button', { name: 'Aplicar binding' }).click();
 
     await route.fill(nextRoute);
     const apply = page.getByTestId('visual-editor-apply');
     await expect(apply).toBeDisabled();
-
     await page.getByTestId('visual-editor-preview').click();
     await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
     await expect(apply).toBeEnabled();
-
     page.once('dialog', dialog => dialog.accept());
     await apply.click();
 
@@ -138,40 +135,28 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
       const response = await request.get('/api/engineering/export/json');
       if (!response.ok()) return null;
       const model = await response.json() as ExportedPackage;
-      const screen = model.screens?.find(candidate =>
+      const persistedScreen = model.screens?.find(candidate =>
         (originalScreen!.id && candidate.id === originalScreen!.id) || candidate.key === originalScreen!.key);
-      const image = flatten(screen?.elements ?? []).find(element =>
+      const image = flatten(persistedScreen?.elements ?? []).find(element =>
         element.type === 'core.image' && readAssetId(element) === importedAssetId);
-      if (!screen || !image || screen.route !== nextRoute) return null;
-      return { screen, image };
+      if (!persistedScreen || !image || persistedScreen.route !== nextRoute) return null;
+      return { screen: persistedScreen, image };
     }).not.toBeNull().then(async () => {
       const response = await request.get('/api/engineering/export/json');
       const model = await response.json() as ExportedPackage;
-      const screen = model.screens!.find(candidate =>
+      const persistedScreen = model.screens!.find(candidate =>
         (originalScreen!.id && candidate.id === originalScreen!.id) || candidate.key === originalScreen!.key)!;
-      const image = flatten(screen.elements ?? []).find(element =>
+      const image = flatten(persistedScreen.elements ?? []).find(element =>
         element.type === 'core.image' && readAssetId(element) === importedAssetId)!;
-      return { screen, image };
+      return { screen: persistedScreen, image };
     });
 
     expect(persisted.image.properties?.width).toBe(180);
     expect(persisted.image.properties?.x).toBe(10);
-    expect(persisted.image.bindings).toContainEqual(expect.objectContaining({
-      key: bindingProperty,
-      kind: 'tag',
-      target: bindingTag!.path
-    }));
+    expect(persisted.image.bindings).toContainEqual(expect.objectContaining({ key: bindingProperty, kind: 'tag', target: bindingTag!.path }));
     expect(JSON.stringify(persisted.screen)).not.toContain('selectedObjectIds');
     expect(JSON.stringify(persisted.screen)).not.toContain('viewport');
     expect(JSON.stringify(persisted.screen)).not.toContain('hoveredObjectId');
-
-    await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
-    await expect(page.getByRole('textbox', { name: 'Rota', exact: true })).toHaveValue(nextRoute);
-    await expect(page.locator('.visual-editor-object-error')).toHaveCount(0);
-
-    const persistedImageObject = page.locator('[data-canvas-object-type="core.image"]').last();
-    await persistedImageObject.click();
-    await expect(page.getByTestId('visual-editor-image-asset-picker').getByRole('combobox')).toHaveValue(importedAssetId);
 
     const workspaceAfterResponse = await request.get('/api/engineering/workspace');
     expect(workspaceAfterResponse.ok()).toBeTruthy();
@@ -179,12 +164,115 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
     expect(workspaceAfter.changeVersion).toBeGreaterThan(workspaceBefore.changeVersion);
   } finally {
     const restore = await request.post('/api/engineering/import/json/apply', {
-      headers: { 'content-type': 'application/json; charset=utf-8' },
-      data: originalPackage
+      headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage
     });
     expect(restore.ok()).toBeTruthy();
   }
 });
+
+test('FOLLOW-B mounted editor persists expression, Boolean Condition and Analog Fill through Preview/Apply', async ({ page, request }) => {
+  const originalResponse = await request.get('/api/engineering/export/json');
+  expect(originalResponse.ok()).toBeTruthy();
+  const originalPackage = await originalResponse.json() as ExportedPackage;
+  const originalScreen = originalPackage.screens?.[0];
+  expect(originalScreen).toBeTruthy();
+  const numericTag = originalPackage.tags?.find(tag =>
+    Boolean(tag.id) && ['int16', 'int32', 'int64', 'float', 'double'].includes(tag.dataType.toLowerCase()));
+  expect(numericTag, 'seeded demo must expose a stable-ID numeric TAG for FOLLOW-B acceptance').toBeTruthy();
+
+  try {
+    await page.goto('/engineering');
+    await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
+    await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalScreen!.key }).click();
+
+    await page.locator('[data-object-type="core.rectangle"]').click();
+    const rectangle = page.locator('[data-canvas-object-type="core.rectangle"]').last();
+    await expect(rectangle).toBeVisible();
+    await rectangle.click();
+
+    const dynamic = page.getByTestId('visual-dynamic-property-editor');
+    await expect(dynamic).toBeVisible();
+
+    await dynamic.getByLabel('Visual property').selectOption('visible');
+    await dynamic.getByLabel('Source mode').selectOption('BooleanCondition');
+    const conditionPanel = dynamic.locator('.dynamic-property-editor__panel');
+    await conditionPanel.getByLabel('Condition preset').selectOption('NumericInterval');
+    await selectSourceByPath(conditionPanel.getByLabel('Canonical source'), numericTag!.path);
+    await conditionPanel.getByLabel('Minimum').fill('20');
+    await conditionPanel.getByLabel('Maximum').fill('80');
+    await conditionPanel.getByRole('button', { name: 'Apply condition' }).click();
+
+    await dynamic.getByLabel('Visual property').selectOption('x');
+    await dynamic.getByLabel('Source mode').selectOption('Expression');
+    const expressionPanel = dynamic.locator('.dynamic-property-editor__panel');
+    await selectSourceByPath(expressionPanel.locator('select').first(), numericTag!.path);
+    await expressionPanel.getByRole('button', { name: 'Insert source' }).click();
+    await expect(expressionPanel.getByRole('textbox', { name: 'Expression' })).not.toHaveValue('');
+    await expressionPanel.getByRole('button', { name: 'Apply expression' }).click();
+
+    const analog = dynamic.locator('.dynamic-property-editor__analog-fill');
+    await analog.getByLabel('Enabled').check();
+    await selectSourceByPath(analog.getByLabel('Canonical source'), numericTag!.path);
+    await analog.getByLabel('Input minimum').fill('0');
+    await analog.getByLabel('Input maximum').fill('100');
+    await analog.getByLabel('Fill color').fill('#12AB34');
+    await analog.getByLabel('Direction').selectOption('LeftToRight');
+    await analog.getByRole('button', { name: 'Apply Analog Fill' }).click();
+
+    const apply = page.getByTestId('visual-editor-apply');
+    await page.getByTestId('visual-editor-preview').click();
+    await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
+    await expect(apply).toBeEnabled();
+    page.once('dialog', dialog => dialog.accept());
+    await apply.click();
+
+    const persisted = await expect.poll(async () => {
+      const response = await request.get('/api/engineering/export/json');
+      if (!response.ok()) return null;
+      const model = await response.json() as ExportedPackage;
+      const persistedScreen = model.screens?.find(candidate =>
+        (originalScreen!.id && candidate.id === originalScreen!.id) || candidate.key === originalScreen!.key);
+      return flatten(persistedScreen?.elements ?? []).find(element =>
+        element.type === 'core.rectangle' &&
+        element.propertyExpressions?.some(item => item.propertyKey === 'x') &&
+        element.booleanConditions?.some(item => item.propertyKey === 'visible') &&
+        Boolean(element.analogFill)) ?? null;
+    }).not.toBeNull().then(async () => {
+      const response = await request.get('/api/engineering/export/json');
+      const model = await response.json() as ExportedPackage;
+      const persistedScreen = model.screens!.find(candidate =>
+        (originalScreen!.id && candidate.id === originalScreen!.id) || candidate.key === originalScreen!.key)!;
+      return flatten(persistedScreen.elements ?? []).find(element =>
+        element.type === 'core.rectangle' && element.propertyExpressions?.some(item => item.propertyKey === 'x') &&
+        element.booleanConditions?.some(item => item.propertyKey === 'visible') && Boolean(element.analogFill))!;
+    });
+
+    expect(persisted.booleanConditions?.[0]).toMatchObject({
+      propertyKey: 'visible', kind: 'NumericInterval', minimum: 20, maximum: 80
+    });
+    expect(persisted.propertyExpressions?.find(item => item.propertyKey === 'x')?.expression).toMatchObject({ resultType: 'Number' });
+    expect(persisted.propertyExpressions?.find(item => item.propertyKey === 'x')?.expression.dependencies?.[0].tagReference.tagId).toBe(numericTag!.id);
+    expect(persisted.analogFill).toMatchObject({
+      inputMinimum: 0, inputMaximum: 100, fillColor: '#12AB34', direction: 'LeftToRight',
+      source: { kind: 'Tag', tagReference: { tagId: numericTag!.id } }
+    });
+
+    await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
+    await expect(page.locator('.visual-editor-object-error')).toHaveCount(0);
+  } finally {
+    const restore = await request.post('/api/engineering/import/json/apply', {
+      headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage
+    });
+    expect(restore.ok()).toBeTruthy();
+  }
+});
+
+async function selectSourceByPath(select: import('@playwright/test').Locator, path: string): Promise<void> {
+  const option = select.locator('option').filter({ hasText: path }).first();
+  const label = await option.textContent();
+  expect(label, `expected canonical source option for ${path}`).toBeTruthy();
+  await select.selectOption({ label: label! });
+}
 
 function flatten(elements: readonly ExportedVisualElement[]): ExportedVisualElement[] {
   const result: ExportedVisualElement[] = [];

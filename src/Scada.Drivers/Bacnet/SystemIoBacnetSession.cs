@@ -141,7 +141,19 @@ public sealed class SystemIoBacnetSession : IBacnetSession
                 (BacnetPropertyIds)binding.PropertyIdentifier,
                 arrayIndex: binding.ArrayIndex ?? uint.MaxValue,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
-            return new BacnetPropertyReadResult(binding, fallbackValues.ToArray(), DateTimeOffset.UtcNow);
+            var values = fallbackValues.ToArray();
+            var objectState = await ReadCompanionObjectStateFallbackAsync(
+                device.Address,
+                objectId,
+                binding,
+                values,
+                cancellationToken).ConfigureAwait(false);
+            return new BacnetPropertyReadResult(
+                binding,
+                values,
+                DateTimeOffset.UtcNow,
+                objectState,
+                UsedReadPropertyMultiple: false);
         }
         catch (OperationCanceledException)
         {
@@ -242,6 +254,61 @@ public sealed class SystemIoBacnetSession : IBacnetSession
             references.Add(new BacnetPropertyReference(companion));
         }
         return references;
+    }
+
+    private async Task<BacnetObjectState?> ReadCompanionObjectStateFallbackAsync(
+        BacnetAddress address,
+        BacnetObjectId objectId,
+        BacnetBinding binding,
+        IReadOnlyList<BacnetValue> engineeredValues,
+        CancellationToken cancellationToken)
+    {
+        var properties = new List<BacnetPropertyValue>();
+        if (!binding.ArrayIndex.HasValue && CompanionPropertyIds.Any(x => (uint)x == binding.PropertyIdentifier))
+        {
+            properties.Add(new BacnetPropertyValue
+            {
+                property = new BacnetPropertyReference(binding.PropertyIdentifier, uint.MaxValue),
+                value = engineeredValues.ToList()
+            });
+        }
+
+        foreach (var companion in CompanionPropertyIds)
+        {
+            if ((uint)companion == binding.PropertyIdentifier && !binding.ArrayIndex.HasValue) continue;
+            try
+            {
+                var values = await _client.ReadPropertyAsync(
+                    address,
+                    objectId,
+                    companion,
+                    arrayIndex: uint.MaxValue,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (values.Count == 0) continue;
+                properties.Add(new BacnetPropertyValue
+                {
+                    property = new BacnetPropertyReference(companion),
+                    value = values.ToList()
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (TimeoutException)
+            {
+                // The engineered value already succeeded. Stop optional state
+                // enrichment on timeout so fallback cannot multiply scan latency.
+                break;
+            }
+            catch
+            {
+                // Optional companion properties vary widely by object/device.
+                // Preserve any state already acquired and continue with the rest.
+            }
+        }
+
+        return ParseObjectState(properties);
     }
 
     private static IReadOnlyList<BacnetValue> ExtractPropertyValues(

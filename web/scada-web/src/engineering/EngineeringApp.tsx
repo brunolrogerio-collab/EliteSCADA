@@ -9,6 +9,7 @@ import {
 } from './i18n';
 import { AlarmEditor } from './AlarmEditor';
 import { CommunicationDiagnosticsPanel } from './CommunicationDiagnosticsPanel';
+import { DevelopmentMonitorWorkspace } from './development-monitor/DevelopmentMonitorWorkspace';
 import { EngineeringLifecycleWorkspace } from './EngineeringLifecycleWorkspace';
 import { EngineeringProjectManagementWorkspace } from './EngineeringProjectManagementWorkspace';
 import { ScriptEngineeringWorkspace } from './scripts/ScriptEngineeringWorkspace';
@@ -31,9 +32,10 @@ type SectionId =
   | 'popups'
   | 'historian'
   | 'security'
+  | 'monitor'
   | 'diagnostics';
 
-type NavItem = { id: SectionId; label?: TranslationKey };
+type NavItem = { id: SectionId; label?: TranslationKey; literalLabel?: Record<EngineeringLocale, string> };
 type NavGroup = { label: TranslationKey; items: NavItem[] };
 
 const navigation: NavGroup[] = [
@@ -43,7 +45,10 @@ const navigation: NavGroup[] = [
   { label: 'nav.visualization', items: [{ id: 'screens', label: 'nav.screens' }, { id: 'popups', label: 'nav.popups' }] },
   { label: 'nav.historian', items: [{ id: 'historian', label: 'nav.historian' }] },
   { label: 'nav.security', items: [{ id: 'security', label: 'nav.security' }] },
-  { label: 'nav.diagnostics', items: [{ id: 'diagnostics', label: 'nav.diagnostics' }] }
+  { label: 'nav.diagnostics', items: [
+    { id: 'monitor', literalLabel: { 'pt-BR': 'Monitoramento', en: 'Development Monitor', es: 'Monitor de Desarrollo' } },
+    { id: 'diagnostics', label: 'nav.diagnostics' }
+  ] }
 ];
 
 export function EngineeringApp() {
@@ -107,7 +112,7 @@ export function EngineeringApp() {
                 {group.items.map(item => (
                   <button key={item.id} type="button" className={section === item.id ? 'active' : ''} onClick={() => setSection(item.id)}>
                     <NavIcon section={item.id}/>
-                    <span>{item.label ? t(item.label) : scriptNavLabel(locale)}</span>
+                    <span>{item.literalLabel ? item.literalLabel[locale] : item.label ? t(item.label) : scriptNavLabel(locale)}</span>
                     {snapshot && <small>{sectionCount(snapshot.package, item.id)}</small>}
                   </button>
                 ))}
@@ -152,6 +157,7 @@ function EngineeringSection({ section, snapshot, t, locale, onReload }: {
   if (section === 'scripts') return <ScriptEngineeringWorkspace locale={locale}/>;
   if (section === 'historian') return <HistorianSection model={model} t={t}/>;
   if (section === 'security') return <SecuritySection model={model} t={t} locale={locale}/>;
+  if (section === 'monitor') return <DevelopmentMonitorWorkspace snapshot={snapshot} locale={locale}/>;
   if (section === 'diagnostics') return <DiagnosticsSection model={model} t={t} locale={locale}/>;
 
   switch (section) {
@@ -182,6 +188,7 @@ function EngineeringSection({ section, snapshot, t, locale, onReload }: {
       { key: 'template', title: t('table.template'), render: item => item.templateKey ? <Code>{item.templateKey}</Code> : '—' },
       { key: 'elements', title: t('section.count'), render: item => item.elements?.length ?? 0 }
     ]}/>;
+    default: return null;
   }
 }
 
@@ -287,6 +294,7 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'security': return model.securityRoles?.length ?? 0;
     case 'scripts':
     case 'overview':
+    case 'monitor':
     case 'diagnostics': return '•';
   }
 }
@@ -296,6 +304,6 @@ function formatDate(value: string, locale: EngineeringLocale) {
 }
 function scriptNavLabel(_locale: EngineeringLocale) { return 'Scripts'; }
 function NavIcon({ section }: { section: SectionId }) {
-  const symbols: Record<SectionId, string> = { overview: '⌂', scripts: '</>', dataSources: '⇄', tags: '#', alarms: '!', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', security: '◆', diagnostics: '⋯' };
+  const symbols: Record<SectionId, string> = { overview: '⌂', scripts: '</>', dataSources: '⇄', tags: '#', alarms: '!', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', security: '◆', monitor: '◉', diagnostics: '⋯' };
   return <i aria-hidden="true">{symbols[section]}</i>;
 }

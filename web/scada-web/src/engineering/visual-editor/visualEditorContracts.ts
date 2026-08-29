@@ -2,8 +2,11 @@ import type {
   BindingEngineering,
   ScreenEngineering,
   TagValueReferenceEngineering,
+  VisualAnalogFillEngineering,
+  VisualBooleanConditionEngineering,
   VisualElementEngineering,
-  VisualEngineeringPropertyValue
+  VisualEngineeringPropertyValue,
+  VisualPropertyExpressionEngineering
 } from '../types';
 
 /**
@@ -113,6 +116,35 @@ export type VisualEditorMutationIntent =
       kind: 'binding.remove';
       objectId: string;
       propertyKey: string;
+    }>
+  | Readonly<{
+      kind: 'propertyExpression.set';
+      objectId: string;
+      configuration: VisualPropertyExpressionEngineering;
+    }>
+  | Readonly<{
+      kind: 'propertyExpression.remove';
+      objectId: string;
+      propertyKey: string;
+    }>
+  | Readonly<{
+      kind: 'booleanCondition.set';
+      objectId: string;
+      configuration: VisualBooleanConditionEngineering;
+    }>
+  | Readonly<{
+      kind: 'booleanCondition.remove';
+      objectId: string;
+      propertyKey: string;
+    }>
+  | Readonly<{
+      kind: 'analogFill.set';
+      objectId: string;
+      configuration: VisualAnalogFillEngineering;
+    }>
+  | Readonly<{
+      kind: 'analogFill.remove';
+      objectId: string;
     }>;
 
 export type VisualEditorBindingSelectorCapability = Readonly<{

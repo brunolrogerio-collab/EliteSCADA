@@ -199,7 +199,8 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
             dto.Description,
             dto.ReadOnly,
             metadata,
-            access);
+            access,
+            dto.AddressSelector);
     }
 
     private static bool TryParseAddress(

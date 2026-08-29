@@ -92,17 +92,17 @@ public sealed class S7TiaXlsxImporterTests
     }
 
     [Fact]
-    public async Task ImportNonXlsx_ReturnsExplicitUnsupportedFormatCandidate()
+    public async Task ImportUnknownFormat_ReturnsExplicitUnsupportedFormatCandidate()
     {
-        using var content = new MemoryStream(Encoding.UTF8.GetBytes("<Tags />"));
-        var request = new DriverImportRequest(null, "plc-tags.xml", "application/xml");
+        using var content = new MemoryStream(Encoding.UTF8.GetBytes("name,address"));
+        var request = new DriverImportRequest(null, "plc-tags.csv", "text/csv");
 
         var candidates = await ImportAsync(new S7IsoEngineeringAdapter(), request, content);
 
         var candidate = Assert.Single(candidates);
         Assert.False(candidate.IsReadable);
         Assert.Contains(candidate.Issues!, issue => issue.Code == "S7_TIA_FORMAT_NOT_IMPLEMENTED");
-        Assert.Equal("xlsx", candidate.Metadata!["supportedFormat"]);
+        Assert.Equal("xlsx,xml,sdf", candidate.Metadata!["supportedFormats"]);
     }
 
     [Fact]

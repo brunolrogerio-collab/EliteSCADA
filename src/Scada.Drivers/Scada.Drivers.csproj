@@ -2,4 +2,7 @@
   <ItemGroup>
     <ProjectReference Include="../Scada.Core/Scada.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="dnp3" Version="1.6.0" />
+  </ItemGroup>
 </Project>

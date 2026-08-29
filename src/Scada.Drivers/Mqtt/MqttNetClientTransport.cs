@@ -405,9 +405,7 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
     private static bool IsPermanentPublishFailure(MqttClientPublishReasonCode reasonCode) => reasonCode is
         MqttClientPublishReasonCode.NotAuthorized or
         MqttClientPublishReasonCode.TopicNameInvalid or
-        MqttClientPublishReasonCode.PayloadFormatInvalid or
-        MqttClientPublishReasonCode.RetainNotSupported or
-        MqttClientPublishReasonCode.QoSNotSupported;
+        MqttClientPublishReasonCode.PayloadFormatInvalid;
 
     private static string Sanitize(string text)
     {

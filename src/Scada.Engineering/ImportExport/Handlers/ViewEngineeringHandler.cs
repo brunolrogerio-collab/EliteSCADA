@@ -179,6 +179,7 @@ internal sealed class ViewEngineeringHandler
                 package.SchemaVersion));
 
             ValidateVisualAssetReference(element, kind, entityKey, package, issues);
+            ValidateDynamicReferences(element, kind, entityKey, package, issues);
 
             EngineeringHandlerSupport.ValidateConcreteTagBindings(
                 _tags, element.Bindings, kind, entityKey, package, issues);
@@ -206,6 +207,158 @@ internal sealed class ViewEngineeringHandler
             ValidateVisualReferences(element.Children, kind, entityKey, package, issues);
         }
     }
+
+    private void ValidateDynamicReferences(
+        VisualElementEngineeringDto element,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        foreach (var propertyExpression in element.PropertyExpressions ?? Array.Empty<VisualPropertyExpressionEngineeringDto>())
+        {
+            if (propertyExpression?.Expression is not null)
+                ValidateExpressionDependencies(propertyExpression.Expression, kind, entityKey, package, issues);
+        }
+
+        foreach (var condition in element.BooleanConditions ?? Array.Empty<VisualBooleanConditionEngineeringDto>())
+        {
+            if (condition?.Source is not null)
+                ValidateValueSourceReferences(condition.Source, kind, entityKey, package, issues);
+        }
+
+        if (element.AnalogFill?.Source is not null)
+            ValidateValueSourceReferences(element.AnalogFill.Source, kind, entityKey, package, issues);
+    }
+
+    private void ValidateValueSourceReferences(
+        VisualValueSourceEngineeringDto source,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        switch (source.Kind)
+        {
+            case VisualValueSourceKind.Tag:
+            case VisualValueSourceKind.ClientMemory:
+                if (source.TagReference is not null)
+                    ValidateDynamicTagReference(source.TagReference, source.ValueType, source.Target, kind, entityKey, package, issues);
+                break;
+            case VisualValueSourceKind.Expression:
+                if (source.Expression is not null)
+                    ValidateExpressionDependencies(source.Expression, kind, entityKey, package, issues);
+                break;
+        }
+    }
+
+    private void ValidateExpressionDependencies(
+        VisualExpressionEngineeringDto expression,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        foreach (var dependency in expression.Dependencies ?? Array.Empty<VisualExpressionDependencyEngineeringDto>())
+        {
+            if (dependency?.TagReference is null)
+                continue;
+            ValidateDynamicTagReference(
+                dependency.TagReference,
+                dependency.ValueType,
+                dependency.Target ?? dependency.Symbol,
+                kind,
+                entityKey,
+                package,
+                issues);
+        }
+    }
+
+    private void ValidateDynamicTagReference(
+        TagValueReference reference,
+        VisualExpressionValueType declaredType,
+        string? displayTarget,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        var label = string.IsNullOrWhiteSpace(displayTarget) ? reference.TagId.ToString("D") : displayTarget;
+        if (reference.TagId == Guid.Empty)
+            return; // Structural validator owns the empty-ID diagnostic.
+
+        if (!TryResolveTagDataType(reference.TagId, package, out var dataType))
+        {
+            issues.Add(new(
+                "VISUAL_DYNAMIC_REFERENCE_NOT_FOUND",
+                $"Visual dynamic source '{label}' references TAG identity '{reference.TagId:D}', which was not found in the prospective Engineering model.",
+                kind,
+                entityKey,
+                true));
+            return;
+        }
+
+        if (reference.Selector is not null && !TagBitSemantics.TryValidateSelector(dataType, reference.Selector, out var selectorError))
+        {
+            issues.Add(new(
+                "VISUAL_DYNAMIC_REFERENCE_SELECTOR_INVALID",
+                $"Visual dynamic source '{label}' has an invalid TAG selector: {selectorError}",
+                kind,
+                entityKey,
+                true));
+            return;
+        }
+
+        var actualType = reference.Selector is not null
+            ? VisualExpressionValueType.Boolean
+            : ToExpressionValueType(dataType);
+        if (!actualType.HasValue)
+        {
+            issues.Add(new(
+                "VISUAL_DYNAMIC_REFERENCE_TYPE_INVALID",
+                $"Visual dynamic source '{label}' references TAG type '{dataType}', which is not a supported Boolean/numeric expression dependency.",
+                kind,
+                entityKey,
+                true));
+            return;
+        }
+
+        if (actualType.Value != declaredType)
+        {
+            issues.Add(new(
+                "VISUAL_DYNAMIC_REFERENCE_TYPE_MISMATCH",
+                $"Visual dynamic source '{label}' declares {declaredType} but resolves to {actualType.Value}.",
+                kind,
+                entityKey,
+                true));
+        }
+    }
+
+    private bool TryResolveTagDataType(Guid tagId, EngineeringPackage package, out TagDataType dataType)
+    {
+        if (_tags.TryGet(tagId, out var existing) && existing is not null)
+        {
+            dataType = existing.DataType;
+            return true;
+        }
+
+        var prospective = package.Tags.FirstOrDefault(tag => tag is not null && tag.Id == tagId);
+        if (prospective is not null)
+        {
+            dataType = prospective.DataType;
+            return true;
+        }
+
+        dataType = default;
+        return false;
+    }
+
+    private static VisualExpressionValueType? ToExpressionValueType(TagDataType dataType) => dataType switch
+    {
+        TagDataType.Boolean => VisualExpressionValueType.Boolean,
+        TagDataType.Int16 or TagDataType.Int32 or TagDataType.Int64 or TagDataType.Float or TagDataType.Double => VisualExpressionValueType.Number,
+        _ => null
+    };
 
     private void ValidateVisualAssetReference(
         VisualElementEngineeringDto element,

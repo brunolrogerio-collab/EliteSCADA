@@ -189,6 +189,8 @@ public sealed record DynamoEngineeringDto(
 /// Properties are JSON-native from schema v12 onward; legacy string-valued bags
 /// remain readable only through the explicit schema migration boundary.
 /// Key remains the developer-facing sibling-local name and is not identity.
+/// FOLLOW-B dynamic behavior is optional and additive so schema-v13 payloads that
+/// predate it remain readable without manufacturing state.
 /// </summary>
 public sealed record VisualElementEngineeringDto(
     string Key,
@@ -200,7 +202,10 @@ public sealed record VisualElementEngineeringDto(
     Dictionary<string, string>? Context = null,
     IReadOnlyCollection<VisualElementEngineeringDto>? Children = null,
     Dictionary<string, string>? Metadata = null,
-    Guid? Id = null);
+    Guid? Id = null,
+    IReadOnlyCollection<VisualPropertyExpressionEngineeringDto>? PropertyExpressions = null,
+    IReadOnlyCollection<VisualBooleanConditionEngineeringDto>? BooleanConditions = null,
+    VisualAnalogFillEngineeringDto? AnalogFill = null);
 
 public sealed record ScreenEngineeringDto(
     Guid? Id,

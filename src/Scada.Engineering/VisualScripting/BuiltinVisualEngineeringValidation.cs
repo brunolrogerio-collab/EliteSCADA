@@ -74,6 +74,7 @@ public static class BuiltinVisualEngineeringValidation
             }
         }
 
+        issues.AddRange(VisualDynamicEngineeringValidation.Validate(element, schema, entityKind, entityKey));
         return issues;
     }
 

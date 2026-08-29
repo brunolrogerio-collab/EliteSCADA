@@ -20,16 +20,17 @@ public sealed class S7IsoEngineeringAdapter :
         if (!TryCreateOptions(context.Settings, out var options, out var issues))
             return new DriverConnectionTestResult(false, null, null, Issues: issues);
 
-        await using var transport = new S7IsoTransport(options!);
+        var validOptions = options!;
+        await using var transport = new S7IsoTransport(validOptions);
         try
         {
             await transport.ConnectAsync(cancellationToken);
             var diagnostics = transport.GetDiagnostics();
-            var observed = ConnectionObservedProperties(options!, diagnostics);
+            var observed = ConnectionObservedProperties(validOptions, diagnostics);
 
             return new DriverConnectionTestResult(
                 true,
-                options.SanitizedEndpoint,
+                validOptions.SanitizedEndpoint,
                 null,
                 observed,
                 Array.Empty<DriverEngineeringIssue>());
@@ -40,9 +41,9 @@ public sealed class S7IsoEngineeringAdapter :
             var failureKind = diagnostics.LastFailureKind;
             return new DriverConnectionTestResult(
                 false,
-                options!.SanitizedEndpoint,
+                validOptions.SanitizedEndpoint,
                 null,
-                ConnectionObservedProperties(options, diagnostics),
+                ConnectionObservedProperties(validOptions, diagnostics),
                 new[]
                 {
                     new DriverEngineeringIssue(

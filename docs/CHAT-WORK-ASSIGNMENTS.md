@@ -2,7 +2,7 @@
 
 > Authoritative live execution board. GitHub branch/PR/head/CI state is operational truth. Permanent rules: `docs/DEVELOPMENT-WAVES.md`, `docs/PARALLEL-WORK.md`, `docs/CI-USAGE-POLICY.md`.
 
-**Last coordinator synchronization:** 2026-08-28 — Wave 08 remains ACTIVE; coordinator-only Visual Asset/revision/package foundation exists on integration and is NOT CI validated; owner explicitly stopped DEV 1/2/3; all worker branches remain untouched at the Wave 08 contract base.
+**Last coordinator synchronization:** 2026-08-28 — Wave 08 remains ACTIVE; coordinator Visual Asset/revision/package plus central Screen editor foundation exist on integration and are NOT CI validated; integration was reconciled to `main`; owner explicitly stopped DEV 1/2/3.
 
 ## Mandatory `siga`
 
@@ -23,15 +23,18 @@ Wave 08:
 - Logical WaveBaseSHA: `8de706882ba20afedd666532ac41ae11115d06b3`
 - ContractSHA / branch base: `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 - Integration branch: `integration/graphical-editor-wave-08`
-- exact coordinator integration head at this synchronization: `4f8a71f59c5d033265c38c1c0beca2add9bb117b`
-- DEV 1 branch: `feature/graphical-editor-wave-08-canvas` @ `7a445d3dd94cabd09807291a0ee94276559fcb0e`
-- DEV 2 branch: `feature/graphical-editor-wave-08-property-inspector` @ `7a445d3dd94cabd09807291a0ee94276559fcb0e`
-- DEV 3 branch: `feature/graphical-editor-wave-08-palette-bindings` @ `7a445d3dd94cabd09807291a0ee94276559fcb0e`
-- integration Actions runs: none yet
-- CI mode: NORMAL
+- last known coordinator code checkpoint before documentation synchronization: `a2cdc39a9d7a8dcf425aab6a253d6bb0694faab1`
+- main reconciliation merge: `011d3c649bb868bfcf8d13bfafe896bb0863a153`
+- integration was verified 0 behind `main` at that checkpoint
+- DEV 1 branch: `feature/graphical-editor-wave-08-canvas` @ contract base, STOPPED unless GitHub proves a later authorized change
+- DEV 2 branch: `feature/graphical-editor-wave-08-property-inspector` @ contract base, STOPPED unless GitHub proves a later authorized change
+- DEV 3 branch: `feature/graphical-editor-wave-08-palette-bindings` @ contract base, STOPPED unless GitHub proves a later authorized change
+- integration Actions validation: none yet
+- integration PR: none yet
+- CI mode: NORMAL; do not deliberately spend Actions while owner access/quota is unavailable
 - Wave 09/10: NOT ACTIVE
 
-Wave 08 execution contract: `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`.
+Wave 08 execution contract: `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`.  
 Current coordinator implementation checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 
 ---
@@ -40,13 +43,13 @@ Current coordinator implementation checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 
 **Role:** `COORDINATOR`  
 **Wave:** `GRAPHICAL-EDITOR-WAVE-08`  
-**Status:** `ACTIVE — PARTIAL CENTRAL FOUNDATION / NOT CI VALIDATED`  
+**Status:** `ACTIVE — CENTRAL SCREEN EDITOR FOUNDATION IMPLEMENTED / NOT CI VALIDATED`  
 **IntegrationBranch:** `integration/graphical-editor-wave-08`  
-**CurrentIntegrationHead:** `4f8a71f59c5d033265c38c1c0beca2add9bb117b`  
+**LastCodeCheckpoint:** `a2cdc39a9d7a8dcf425aab6a253d6bb0694faab1`  
 **LogicalWaveBaseSHA:** `8de706882ba20afedd666532ac41ae11115d06b3`  
 **ContractSHA:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 
-**CurrentTask:** resume coordinator-only Wave 08 integration from the persistent handoff, preserve the completed Visual Asset/revision/package foundation, finish canonical Screen graphical mutation/save/reopen plus central editor composition, then deliberately restart/integrate worker slices only when authorized.
+**CurrentTask:** preserve and review the coordinator foundation; obtain exact-head build/test evidence when Actions access is available; then deliberately restart/integrate the three fixed worker slices needed to complete the Wave 08 interaction gate.
 
 **MustReadSpecific:**
 - `docs/COORDINATOR-HANDOFF.md`
@@ -59,16 +62,26 @@ Current coordinator implementation checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 - canonical Engineering Screen/View contracts/import-export/Preview/Apply/persistence/package code
 - `web/scada-web/src/visual-runtime/**`
 - `web/scada-web/src/engineering/visualEngineeringRuntimeAdapter.ts`
+- `web/scada-web/src/engineering/visual-editor/**`
 
-**AllowedScope:** coordinator-owned canonical Engineering/API/persistence/assets, integration branch, central editor workspace/routing/composition/renderer/localization, shared exports, cross-slice tests, worker integration, final PR/CI/merge.
+**AllowedScope:** coordinator-owned canonical Engineering/API/persistence/assets, integration branch, central editor workspace/routing/composition/renderer/localization, shared mutation helpers/exports, cross-slice tests, worker integration, final PR/CI/merge.
 
 **ForbiddenScope:** do not absorb Wave 09 Screen navigation/Popup/Dynamo product semantics; do not implement Wave 10 Python event editor/production tween/visual Preview; no new protocols; no Server Python.
 
 **ReservedFiles:** all files listed under `ReservedFiles` in the Wave 08 implementation decision remain coordinator-only unless explicitly reassigned.
 
-**CurrentStateBoundary:** Visual Asset Schema v13, Working asset authority, raster validation, PostgreSQL revision blobs/links, `.escadapkg` v2, protected asset API/frontend seam and focused source tests are implemented on integration but have no exact-head CI evidence yet. Do not call this validated or merge-ready.
+**CurrentStateBoundary:** Visual Asset Schema v13/revision/package foundation and the central Screen editor composition are implemented on integration. The Screen editor already uses canonical Engineering Preview/Apply/CAS, reloads canonical state, renders registered `core.*` objects through the shared property registry, and preserves legacy seeded visual types as non-authoritative compatibility placeholders. The focused Screen Preview/Apply/reopen Playwright test exists. None of this has exact-head CI evidence yet.
 
 **CompletionCriteria:** exact integrated Wave 08 head proves create Screen -> add/move/resize/rotate -> edit properties -> canonical binding -> image asset by stable `assetRef` -> save/reopen -> export/import, with transient Canvas state absent from persisted authority; full required CI green; merged main post-merge healthy; docs synchronized.
+
+**NextActions:**
+1. verify live branch/PR/CI state;
+2. if Actions is unavailable, continue only safe static/coordinator cleanup and keep status unvalidated;
+3. when Actions is available, obtain exact-head build/test evidence and fix failures before expansion;
+4. deliberately restart DEV 1/2/3 only when useful;
+5. integrate delivered worker intents into canonical Screen draft mutations;
+6. run complete Wave 08 gate and full exact-head CI;
+7. merge only green and verify post-merge `main`.
 
 ---
 
@@ -78,7 +91,7 @@ Current coordinator implementation checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 **Wave:** `GRAPHICAL-EDITOR-WAVE-08`  
 **Status:** `STOPPED — WAIT_FOR_COORDINATOR`  
 **Branch:** `feature/graphical-editor-wave-08-canvas`  
-**Head:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`  
+**Head:** `7a445d3dd94cabd09807291a0ee94276559fcb0e` at last verified worker checkpoint  
 **Base:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 
 **CurrentTask when explicitly restarted:** Canvas / Selection.
@@ -107,7 +120,7 @@ Current coordinator implementation checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 **Wave:** `GRAPHICAL-EDITOR-WAVE-08`  
 **Status:** `STOPPED — WAIT_FOR_COORDINATOR`  
 **Branch:** `feature/graphical-editor-wave-08-property-inspector`  
-**Head:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`  
+**Head:** `7a445d3dd94cabd09807291a0ee94276559fcb0e` at last verified worker checkpoint  
 **Base:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 
 **CurrentTask when explicitly restarted:** Property Inspector.
@@ -136,7 +149,7 @@ Current coordinator implementation checkpoint: `docs/COORDINATOR-HANDOFF.md`.
 **Wave:** `GRAPHICAL-EDITOR-WAVE-08`  
 **Status:** `STOPPED — WAIT_FOR_COORDINATOR`  
 **Branch:** `feature/graphical-editor-wave-08-palette-bindings`  
-**Head:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`  
+**Head:** `7a445d3dd94cabd09807291a0ee94276559fcb0e` at last verified worker checkpoint  
 **Base:** `7a445d3dd94cabd09807291a0ee94276559fcb0e`
 
 **CurrentTask when explicitly restarted:** Object Palette / Binding Foundation.

@@ -30,6 +30,7 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
     public ushort NegotiatedPduSize { get; }
     public byte ReadReturnCode { get; set; } = S7IsoProtocol.ReturnCodeSuccess;
     public byte WriteReturnCode { get; set; } = S7IsoProtocol.ReturnCodeSuccess;
+    public int? DropBeforeDataRequestNumber { get; set; }
 
     public void SetBytes(S7IsoArea area, ushort dbNumber, int byteOffset, ReadOnlySpan<byte> data)
     {
@@ -113,11 +114,19 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
                 Array.Empty<byte>()),
             cancellationToken);
 
+        var dataRequestNumber = 0;
         while (!cancellationToken.IsCancellationRequested)
         {
             var request = await ReadPacketAsync(stream, cancellationToken);
             if (request is null) return;
             if (request.Length < 19) return;
+
+            dataRequestNumber++;
+            if (DropBeforeDataRequestNumber == dataRequestNumber)
+            {
+                try { client.Client.Shutdown(SocketShutdown.Both); } catch { }
+                return;
+            }
 
             var reference = BinaryPrimitives.ReadUInt16BigEndian(request.AsSpan(11, 2));
             switch (request[17])

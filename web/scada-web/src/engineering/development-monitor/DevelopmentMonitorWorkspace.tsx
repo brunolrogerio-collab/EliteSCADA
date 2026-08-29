@@ -7,6 +7,7 @@ import type {
 import { loadCommunicationDiagnostics } from '../api';
 import {
   buildProjectReferenceCatalog,
+  resolveProjectReference,
   type ClientMemoryDefinitionView,
   type ProjectReferenceDescriptor
 } from '../project-reference/projectReferenceModel';
@@ -78,10 +79,17 @@ export function DevelopmentMonitorWorkspace({
     { driverKeys }
   ), [snapshot.package, clientDefinitions, driverKeys]);
 
-  const descriptorByReference = useMemo(
-    () => new Map(catalog.map(item => [item.reference, item])),
-    [catalog]
-  );
+  const descriptorByReference = useMemo(() => {
+    const descriptors = new Map<string, ProjectReferenceDescriptor>(catalog.map(item => [item.reference, item] as const));
+    for (const reference of selectedReferences) {
+      const resolved = resolveProjectReference(catalog, reference);
+      if (resolved.status === 'found' && resolved.descriptor) {
+        descriptors.set(reference, resolved.descriptor);
+        descriptors.set(resolved.descriptor.reference, resolved.descriptor);
+      }
+    }
+    return descriptors;
+  }, [catalog, selectedReferences]);
   const selectedReferenceSet = useMemo(() => new Set(selectedReferences), [selectedReferences]);
 
   useEffect(() => {
@@ -158,13 +166,15 @@ export function DevelopmentMonitorWorkspace({
   }, [selectedReferences, selectedReferenceSet, descriptorByReference]);
 
   const addReference = (reference: string) => {
-    if (!descriptorByReference.has(reference)) {
-      setMessage(copy.notFound);
+    const resolved = resolveProjectReference(catalog, reference);
+    if (resolved.status !== 'found' || !resolved.descriptor) {
+      setMessage(resolved.status === 'ambiguous' ? copy.ambiguous : copy.notFound);
       return;
     }
-    setSelectedReferences(current => current.includes(reference)
+    const canonicalReference = resolved.descriptor.reference;
+    setSelectedReferences(current => current.includes(canonicalReference)
       ? current
-      : Object.freeze([...current, reference]));
+      : Object.freeze([...current, canonicalReference]));
     setQuickAdd('');
     setMessage(null);
   };
@@ -271,27 +281,27 @@ function monitorCopy(locale: EngineeringLocale) {
     eyebrow: 'Engineering diagnostics', title: 'Development Monitor',
     description: 'Observe live TAGs, internal memories and runtime/driver diagnostics while developing the application.',
     readOnly: 'Read-only observation', readOnlyHint: 'Monitoring never writes or forces process values.',
-    quickAdd: 'Exact quick-add', quickAddPlaceholder: 'Type a canonical reference or TAG path', add: 'Add', browse: 'Browse project references',
+    quickAdd: 'Exact quick-add', quickAddPlaceholder: 'Type a canonical reference or TAG path, including Word_status.03', add: 'Add', browse: 'Browse project references',
     notFound: 'Reference not found.', ambiguous: 'Reference is ambiguous; choose it from the tree.', watchTable: 'Watch table', entries: 'entries', clear: 'Clear',
     reference: 'Name / Reference', source: 'Source', value: 'Value', dataType: 'Data type', quality: 'Quality / State', timestamp: 'Last update', remove: 'Remove',
-    empty: 'No variables are being monitored.', architectureHint: 'TAGs share one realtime connection; diagnostics and browser-local memory use bounded batch refreshes.'
+    empty: 'No variables are being monitored.', architectureHint: 'TAGs and TAG-bit views share one realtime connection; diagnostics and browser-local memory use bounded batch refreshes.'
   };
   if (locale === 'es') return {
     eyebrow: 'Diagnóstico de Engineering', title: 'Monitor de Desarrollo',
     description: 'Observe TAGs, memorias internas y diagnósticos de runtime/drivers mientras desarrolla la aplicación.',
     readOnly: 'Observación de solo lectura', readOnlyHint: 'El monitor nunca escribe ni fuerza valores de proceso.',
-    quickAdd: 'Agregar referencia exacta', quickAddPlaceholder: 'Escriba una referencia canónica o path de TAG', add: 'Agregar', browse: 'Explorar referencias del proyecto',
+    quickAdd: 'Agregar referencia exacta', quickAddPlaceholder: 'Escriba una referencia canónica, incluso Word_status.03', add: 'Agregar', browse: 'Explorar referencias del proyecto',
     notFound: 'Referencia no encontrada.', ambiguous: 'La referencia es ambigua; selecciónela en el árbol.', watchTable: 'Tabla de monitoreo', entries: 'entradas', clear: 'Limpiar',
     reference: 'Nombre / Referencia', source: 'Fuente', value: 'Valor', dataType: 'Tipo', quality: 'Calidad / Estado', timestamp: 'Última actualización', remove: 'Eliminar',
-    empty: 'No hay variables monitoreadas.', architectureHint: 'Los TAGs comparten una conexión realtime; los diagnósticos y la memoria local usan actualizaciones agrupadas.'
+    empty: 'No hay variables monitoreadas.', architectureHint: 'Los TAGs y sus vistas de bit comparten una conexión realtime; los diagnósticos y la memoria local usan actualizaciones agrupadas.'
   };
   return {
     eyebrow: 'Diagnóstico de Engenharia', title: 'Monitoramento de Desenvolvimento',
     description: 'Observe TAGs, memórias internas e diagnósticos de Runtime/Drivers durante o desenvolvimento da aplicação.',
     readOnly: 'Observação somente leitura', readOnlyHint: 'O monitor nunca escreve nem força valores de processo.',
-    quickAdd: 'Adicionar referência exata', quickAddPlaceholder: 'Digite uma referência canônica ou path de TAG', add: 'Adicionar', browse: 'Procurar referências do projeto',
+    quickAdd: 'Adicionar referência exata', quickAddPlaceholder: 'Digite uma referência canônica, inclusive Word_status.03', add: 'Adicionar', browse: 'Procurar referências do projeto',
     notFound: 'Referência não encontrada.', ambiguous: 'A referência é ambígua; selecione-a na árvore.', watchTable: 'Tabela de monitoramento', entries: 'itens', clear: 'Limpar',
     reference: 'Nome / Referência', source: 'Fonte', value: 'Valor', dataType: 'Tipo', quality: 'Qualidade / Estado', timestamp: 'Última atualização', remove: 'Remover',
-    empty: 'Nenhuma variável está sendo monitorada.', architectureHint: 'TAGs compartilham uma conexão realtime; diagnósticos e memória local usam atualização agrupada e limitada.'
+    empty: 'Nenhuma variável está sendo monitorada.', architectureHint: 'TAGs e suas vistas de bit compartilham uma conexão realtime; diagnósticos e memória local usam atualização agrupada e limitada.'
   };
 }

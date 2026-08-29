@@ -21,9 +21,9 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
     private CancellationTokenSource? _receiveWriteCts;
     private int? _bufferCapacity;
     private long _activeGeneration;
-    private bool _acceptInboundEvents;
-    private bool _intentionalDisconnect;
-    private bool _disposed;
+    private volatile bool _acceptInboundEvents;
+    private volatile bool _intentionalDisconnect;
+    private volatile bool _disposed;
 
     public MqttNetClientTransport()
         : this(new MqttClientFactory())
@@ -340,12 +340,19 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
 
     private async Task OnApplicationMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs args)
     {
+        var message = args.ApplicationMessage;
+        var requiresAcknowledgement = message.QualityOfServiceLevel != MqttQualityOfServiceLevel.AtMostOnce;
+        if (requiresAcknowledgement)
+            args.AutoAcknowledge = false;
+
         var channel = _received;
         var writeCancellation = _receiveWriteCts;
         if (_disposed || !_acceptInboundEvents || channel is null || writeCancellation is null)
+        {
+            if (requiresAcknowledgement) args.ProcessingFailed = true;
             return;
+        }
 
-        var message = args.ApplicationMessage;
         var generation = Interlocked.Read(ref _activeGeneration);
         var payload = message.Payload.IsEmpty ? Array.Empty<byte>() : message.Payload.ToArray();
         var received = new MqttTransportMessage(
@@ -360,12 +367,17 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
             await channel.Writer.WriteAsync(
                 TransportItem.FromMessage(generation, received),
                 writeCancellation.Token);
+
+            if (requiresAcknowledgement)
+                await args.AcknowledgeAsync(CancellationToken.None);
         }
         catch (OperationCanceledException) when (_disposed || !_acceptInboundEvents || writeCancellation.IsCancellationRequested)
         {
+            if (requiresAcknowledgement) args.ProcessingFailed = true;
         }
         catch (ChannelClosedException) when (_disposed)
         {
+            if (requiresAcknowledgement) args.ProcessingFailed = true;
         }
     }
 

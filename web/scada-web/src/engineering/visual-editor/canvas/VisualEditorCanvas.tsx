@@ -111,11 +111,13 @@ export function VisualEditorCanvas({
     event.stopPropagation();
 
     const mode = selectionModeFromModifiers(event);
-    emitSelection([projection.objectId], mode);
-    const localSelection = nextSelection(selection, projection.objectId, mode);
-    const dragObjectIds = mode === 'replace' && selectionSet.has(projection.objectId)
+    const preserveExistingSelection = mode === 'replace' && selectionSet.has(projection.objectId);
+    const dragObjectIds = preserveExistingSelection
       ? selection
-      : localSelection;
+      : nextSelection(selection, projection.objectId, mode);
+    if (!preserveExistingSelection) {
+      emitSelection([projection.objectId], mode);
+    }
 
     event.currentTarget.setPointerCapture(event.pointerId);
     setInteraction({

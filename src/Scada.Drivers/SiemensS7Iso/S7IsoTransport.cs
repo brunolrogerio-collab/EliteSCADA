@@ -17,7 +17,8 @@ internal sealed record S7IsoTransportDiagnosticSnapshot(
     long DisconnectionCount,
     long ReconnectCount,
     DateTimeOffset? LastConnectedAt,
-    DateTimeOffset? LastDisconnectedAt);
+    DateTimeOffset? LastDisconnectedAt,
+    S7IsoFailureKind? LastFailureKind);
 
 internal sealed record S7IsoReadCollectionResult(
     IReadOnlyList<S7IsoReadItemResult> Items,
@@ -41,6 +42,7 @@ internal sealed class S7IsoTransport : IAsyncDisposable
     private long _reconnectCount;
     private DateTimeOffset? _lastConnectedAt;
     private DateTimeOffset? _lastDisconnectedAt;
+    private S7IsoFailureKind? _lastFailureKind;
     private bool _disposed;
 
     public S7IsoTransport(S7IsoConnectionOptions options)
@@ -133,12 +135,9 @@ internal sealed class S7IsoTransport : IAsyncDisposable
                     var response = await ExchangeUnsafeAsync(request, _options.RequestTimeout, cancellationToken);
                     results.AddRange(S7IsoProtocol.ParseReadResponse(response, reference, batch));
                 }
-                catch (S7IsoProtocolException ex) when (ex.ReturnCode.HasValue)
+                catch (Exception ex)
                 {
-                    throw;
-                }
-                catch
-                {
+                    RecordFailure(S7IsoFailureClassifier.Classify(ex, S7IsoFailurePhase.Read));
                     DisconnectUnsafe();
                     throw;
                 }
@@ -183,10 +182,12 @@ internal sealed class S7IsoTransport : IAsyncDisposable
             }
             catch (S7IsoProtocolException ex) when (ex.ReturnCode.HasValue)
             {
+                RecordFailure(S7IsoFailureClassifier.Classify(ex, S7IsoFailurePhase.Write));
                 throw;
             }
-            catch
+            catch (Exception ex)
             {
+                RecordFailure(S7IsoFailureClassifier.Classify(ex, S7IsoFailurePhase.Write));
                 DisconnectUnsafe();
                 throw;
             }
@@ -229,7 +230,8 @@ internal sealed class S7IsoTransport : IAsyncDisposable
                 _disconnectionCount,
                 _reconnectCount,
                 _lastConnectedAt,
-                _lastDisconnectedAt);
+                _lastDisconnectedAt,
+                _lastFailureKind);
         }
     }
 
@@ -259,29 +261,52 @@ internal sealed class S7IsoTransport : IAsyncDisposable
                 catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
                 {
                     IncrementTimeout();
+                    RecordFailure(S7IsoFailureKind.Timeout);
                     throw new TimeoutException(
                         $"Timed out connecting to S7 ISO endpoint {_options.SanitizedEndpoint}.",
                         ex);
                 }
+                catch (Exception ex)
+                {
+                    RecordFailure(S7IsoFailureClassifier.Classify(ex, S7IsoFailurePhase.ConnectTransport));
+                    throw;
+                }
             }
 
             var stream = client.GetStream();
-            var connectionRequest = S7IsoProtocol.BuildConnectionRequest(_options);
-            var connectionConfirm = await ExchangeOnStreamAsync(
-                stream,
-                connectionRequest,
-                _options.RequestTimeout,
-                cancellationToken);
-            S7IsoProtocol.ValidateConnectionConfirm(connectionConfirm);
+            try
+            {
+                var connectionRequest = S7IsoProtocol.BuildConnectionRequest(_options);
+                var connectionConfirm = await ExchangeOnStreamAsync(
+                    stream,
+                    connectionRequest,
+                    _options.RequestTimeout,
+                    cancellationToken);
+                S7IsoProtocol.ValidateConnectionConfirm(connectionConfirm);
+            }
+            catch (Exception ex)
+            {
+                RecordFailure(S7IsoFailureClassifier.Classify(ex, S7IsoFailurePhase.CotpConnect));
+                throw;
+            }
 
-            var setupReference = NextPduReference();
-            var setupRequest = S7IsoProtocol.BuildSetupCommunication(setupReference, _options.RequestedPduSize);
-            var setupResponse = await ExchangeOnStreamAsync(
-                stream,
-                setupRequest,
-                _options.RequestTimeout,
-                cancellationToken);
-            var negotiatedPdu = S7IsoProtocol.ParseSetupCommunicationResponse(setupResponse, setupReference);
+            ushort negotiatedPdu;
+            try
+            {
+                var setupReference = NextPduReference();
+                var setupRequest = S7IsoProtocol.BuildSetupCommunication(setupReference, _options.RequestedPduSize);
+                var setupResponse = await ExchangeOnStreamAsync(
+                    stream,
+                    setupRequest,
+                    _options.RequestTimeout,
+                    cancellationToken);
+                negotiatedPdu = S7IsoProtocol.ParseSetupCommunicationResponse(setupResponse, setupReference);
+            }
+            catch (Exception ex)
+            {
+                RecordFailure(S7IsoFailureClassifier.Classify(ex, S7IsoFailurePhase.SetupCommunication));
+                throw;
+            }
 
             _client = client;
             _stream = stream;
@@ -386,6 +411,11 @@ internal sealed class S7IsoTransport : IAsyncDisposable
     private void IncrementTimeout()
     {
         lock (_diagnosticsGate) _timeoutCount++;
+    }
+
+    private void RecordFailure(S7IsoFailureKind kind)
+    {
+        lock (_diagnosticsGate) _lastFailureKind = kind;
     }
 
     private void DisconnectUnsafe()

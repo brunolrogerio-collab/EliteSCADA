@@ -92,6 +92,53 @@ public sealed class S7IsoDriverTests
         Assert.Equal(CommunicationDriverOperationalState.Reconnecting, driver.GetCommunicationDiagnostics().State);
     }
 
+    [Fact]
+    public async Task OversizedBinding_PublishesBadConfigurationWithoutFakeReconnect()
+    {
+        await using var server = new TestS7IsoServer(240);
+        var tag = S7IsoTransportTests.Tag(TagDataType.String);
+        var point = new S7IsoPoint(
+            tag,
+            S7IsoArea.DataBlock,
+            0,
+            S7IsoValueType.String,
+            DbNumber: 1,
+            Writable: true,
+            StringLength: 254);
+        var cache = new CurrentTagCache(new InMemoryScadaEventBus());
+        var registry = new InMemoryTagRegistry();
+        await using var driver = new S7IsoDriver(
+            "s7-pdu",
+            "S7 PDU",
+            S7IsoTransportTests.Options(server.Port),
+            cache,
+            registry,
+            new[] { point },
+            TimeSpan.FromMilliseconds(20));
+
+        await driver.StartAsync();
+        await WaitUntilAsync(
+            () => cache.TryGet(tag.Id, out var sample) && sample?.Quality == TagQuality.BadConfiguration,
+            TimeSpan.FromSeconds(2));
+
+        var polled = Assert.IsType<TagValue>((await driver.ReadAsync(tag.Id))!);
+        Assert.Null(polled.Value);
+        Assert.Equal(TagQuality.BadConfiguration, polled.Quality);
+        Assert.Equal(CommunicationDriverOperationalState.Degraded, driver.GetCommunicationDiagnostics().State);
+
+        await Assert.ThrowsAsync<S7IsoConfigurationException>(async () =>
+        {
+            await driver.WriteAsync(tag.Id, "TEST");
+        });
+
+        var written = Assert.IsType<TagValue>((await driver.ReadAsync(tag.Id))!);
+        Assert.Equal(TagQuality.BadConfiguration, written.Quality);
+        var diagnostics = driver.GetCommunicationDiagnostics();
+        Assert.Equal(CommunicationDriverOperationalState.Degraded, diagnostics.State);
+        Assert.Equal(0L, diagnostics.Counters.Requests);
+        Assert.True(diagnostics.Counters.FailedOperations >= 2);
+    }
+
     private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
     {
         var deadline = DateTimeOffset.UtcNow + timeout;

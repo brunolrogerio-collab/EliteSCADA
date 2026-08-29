@@ -195,7 +195,7 @@ public sealed class S7IsoDriverTests
         Assert.Equal(CommunicationDriverOperationalState.Healthy, diagnostics.State);
         Assert.True(diagnostics.Counters.Connections >= 2);
         Assert.True(diagnostics.Counters.Reconnects >= 1);
-        Assert.True(diagnostics.Counters.Failures >= 1);
+        Assert.True(diagnostics.Counters.FailedOperations >= 1);
     }
 
     [Fact]

@@ -223,7 +223,7 @@ Do not activate Wave 09 or distribute its work until the mandatory 08-FOLLOW sta
 
 Required real industrial protocol: **Modbus TCP**. Simulation, Client Memory, Server Memory and Gateway remain part of product validation.
 
-Production MQTT, OPC UA, BACnet, S7, Allen-Bradley and final Driver Module framework remain post-v0.1 owner validation. When those drivers are developed, the permanent bit-level driver conformance contract applies to every bit-addressable word/byte/register storage family, including safe writes where the protocol/address is writable.
+Production MQTT, OPC UA, BACnet, DNP3, S7, Allen-Bradley and final Driver Module framework remain post-v0.1 owner validation. When those drivers are developed, the permanent bit-level driver conformance contract applies to every bit-addressable word/byte/register storage family, including safe writes where the protocol/address is writable.
 
 ## Development quality
 

@@ -145,7 +145,57 @@ public sealed class BacnetContractTests
         await driver.StopAsync();
     }
 
-    private sealed class StubSession(BacnetPropertyReadResult sample) : IBacnetSession
+    [Fact]
+    public async Task DriverDiagnostics_ProjectOptionalForeignDeviceLeaseState()
+    {
+        var cache = new CurrentTagCache(new InMemoryScadaEventBus());
+        var registry = new InMemoryTagRegistry();
+        var tag = TagDefinition.Create("AI1", "Plant.Bacnet.AI1", TagDataType.Double, source: "bacnet-test");
+        var binding = new BacnetBinding(10, 0, 1, 85, UseCov: false);
+        var point = new BacnetPoint(tag, binding);
+        var lastRequestAt = new DateTimeOffset(2026, 8, 29, 15, 0, 0, TimeSpan.Zero);
+        var nextAttemptAt = lastRequestAt.AddSeconds(90);
+        var fdr = new BacnetForeignDeviceRegistrationSnapshot(
+            Configured: true,
+            TtlSeconds: 120,
+            RenewalInterval: TimeSpan.FromSeconds(90),
+            RetryInterval: TimeSpan.FromSeconds(12),
+            LastRegistrationRequestAt: lastRequestAt,
+            NextRegistrationAttemptAt: nextAttemptAt,
+            RegistrationRequestsSent: 3,
+            RegistrationFailures: 1,
+            LastErrorType: nameof(TimeoutException));
+        await using var session = new StubSession(
+            new BacnetPropertyReadResult(
+                binding,
+                new[] { new BacnetValue(BacnetApplicationTags.BACNET_APPLICATION_TAG_REAL, 12.5f) },
+                DateTimeOffset.UtcNow),
+            fdr);
+        await using var driver = new BacnetIpDriver(
+            "bacnet-test",
+            "BACnet Test",
+            cache,
+            registry,
+            new[] { point },
+            session);
+
+        var diagnostics = driver.GetCommunicationDiagnostics();
+        Assert.NotNull(diagnostics.ProtocolDetails);
+        Assert.Equal("true", diagnostics.ProtocolDetails!["fdrConfigured"]);
+        Assert.Equal("120", diagnostics.ProtocolDetails["fdrTtlSeconds"]);
+        Assert.Equal("90", diagnostics.ProtocolDetails["fdrRenewalSeconds"]);
+        Assert.Equal("12", diagnostics.ProtocolDetails["fdrRetrySeconds"]);
+        Assert.Equal("3", diagnostics.ProtocolDetails["fdrRegistrationRequestsSent"]);
+        Assert.Equal("1", diagnostics.ProtocolDetails["fdrRegistrationFailures"]);
+        Assert.Equal(lastRequestAt.ToString("O"), diagnostics.ProtocolDetails["fdrLastRegistrationRequestAtUtc"]);
+        Assert.Equal(nextAttemptAt.ToString("O"), diagnostics.ProtocolDetails["fdrNextRegistrationAttemptAtUtc"]);
+        Assert.Equal(nameof(TimeoutException), diagnostics.ProtocolDetails["fdrLastErrorType"]);
+    }
+
+    private sealed class StubSession(
+        BacnetPropertyReadResult sample,
+        BacnetForeignDeviceRegistrationSnapshot? foreignDeviceRegistration = null)
+        : IBacnetSession, IBacnetForeignDeviceRegistrationDiagnostics
     {
         public Task StartAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<BacnetDeviceObservation> ResolveDeviceAsync(uint deviceInstance, CancellationToken cancellationToken = default)
@@ -161,6 +211,17 @@ public sealed class BacnetContractTests
             => Task.CompletedTask;
         public Task<IDisposable?> TrySubscribeCovAsync(BacnetBinding binding, Func<BacnetPropertyReadResult, ValueTask> onNotification, CancellationToken cancellationToken = default)
             => Task.FromResult<IDisposable?>(null);
+        public BacnetForeignDeviceRegistrationSnapshot GetForeignDeviceRegistrationDiagnostics()
+            => foreignDeviceRegistration ?? new BacnetForeignDeviceRegistrationSnapshot(
+                Configured: false,
+                TtlSeconds: null,
+                RenewalInterval: null,
+                RetryInterval: null,
+                LastRegistrationRequestAt: null,
+                NextRegistrationAttemptAt: null,
+                RegistrationRequestsSent: 0,
+                RegistrationFailures: 0,
+                LastErrorType: null);
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

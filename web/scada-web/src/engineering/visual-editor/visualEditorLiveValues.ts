@@ -1,35 +1,43 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { EngineeringLocale } from '../i18n';
-import type { BindingEngineering, VisualElementEngineering } from '../types';
+import type {
+  BindingEngineering,
+  TagValueReferenceEngineering,
+  VisualElementEngineering,
+  VisualExpressionEngineering,
+  VisualValueSourceEngineering
+} from '../types';
 import { initializeClientMemory, readClientMemoryValue } from '../../runtime/clientMemory';
 import {
   loadReadableRuntimeTags,
   openRuntimeTagSocket,
   parseRuntimeTagRealtimeMessage
 } from '../../runtime/liveTagTransport';
+import { visualTagSampleKey, type VisualDynamicSample } from './visualDynamicRuntime';
 
-export type VisualLiveScalarSample = Readonly<{
-  reference: string;
-  value: unknown;
-  dataType: string;
-  quality?: string | number | null;
-  state?: string | null;
-  timestamp?: string | null;
+export type VisualLiveScalarSample = VisualDynamicSample;
+
+type RuntimeSourceRequest = Readonly<{
+  kind: 'tag' | 'clientmemory';
+  target: string;
+  tagReference?: TagValueReferenceEngineering | null;
+  dataType?: string | null;
 }>;
 
 export function useVisualBindingSamples(
   elements: readonly VisualElementEngineering[] | null | undefined
 ): ReadonlyMap<string, VisualLiveScalarSample> {
-  const bindings = useMemo(() => collectScalarBindings(elements), [elements]);
-  const tagBindings = useMemo(() => bindings.filter(binding => binding.kind.toLowerCase() === 'tag'), [bindings]);
-  const clientBindings = useMemo(() => bindings.filter(binding => binding.kind.toLowerCase() === 'clientmemory'), [bindings]);
+  const bindings = useMemo(() => collectBindings(elements), [elements]);
+  const requests = useMemo(() => collectRuntimeSourceRequests(elements), [elements]);
+  const tagRequests = useMemo(() => requests.filter(request => request.kind === 'tag'), [requests]);
+  const clientRequests = useMemo(() => requests.filter(request => request.kind === 'clientmemory'), [requests]);
   const [samples, setSamples] = useState<ReadonlyMap<string, VisualLiveScalarSample>>(() => new Map());
 
   useEffect(() => {
-    if (tagBindings.length === 0) return undefined;
+    if (tagRequests.length === 0) return undefined;
     let cancelled = false;
-    const tagPaths = Object.freeze([...new Set(tagBindings.map(binding => binding.target))]);
-    const wanted = new Set(tagPaths);
+    const wantedIds = new Set(tagRequests.map(request => request.tagReference?.tagId?.trim().toLocaleLowerCase()).filter(Boolean) as string[]);
+    const wantedPaths = new Set(tagRequests.map(request => request.target).filter(Boolean));
 
     const refresh = async () => {
       try {
@@ -37,31 +45,49 @@ export function useVisualBindingSamples(
         if (cancelled) return;
         setSamples(current => {
           const next = new Map(current);
-          const seen = new Set<string>();
+          const seenIds = new Set<string>();
+          const seenPaths = new Set<string>();
           for (const tag of tags) {
-            if (!wanted.has(tag.path)) continue;
-            seen.add(tag.path);
+            const id = tag.id.trim().toLocaleLowerCase();
+            if (!wantedIds.has(id) && !wantedPaths.has(tag.path)) continue;
+            seenIds.add(id);
+            seenPaths.add(tag.path);
             const currentValue = tag.current;
-            next.set(tag.path, currentValue ? Object.freeze({
+            const sample: VisualLiveScalarSample = currentValue ? Object.freeze({
               reference: tag.path,
+              tagId: tag.id,
               value: currentValue.value,
               dataType: tag.dataType,
               quality: currentValue.quality ?? null,
               timestamp: currentValue.sourceTimestamp ?? currentValue.serverTimestamp ?? currentValue.timestamp ?? null
             }) : Object.freeze({
               reference: tag.path,
+              tagId: tag.id,
               value: null,
               dataType: tag.dataType,
               state: 'Unavailable'
-            }));
+            });
+            next.set(tag.path, sample);
+            next.set(visualTagSampleKey(tag.id), sample);
           }
-          for (const path of tagPaths) {
-            if (!seen.has(path)) next.set(path, Object.freeze({ reference: path, value: null, dataType: bindingDataType(bindings, path), state: 'Unavailable' }));
+          for (const request of tagRequests) {
+            const id = request.tagReference?.tagId?.trim().toLocaleLowerCase();
+            const found = (id && seenIds.has(id)) || seenPaths.has(request.target);
+            if (found) continue;
+            const unavailable = Object.freeze({
+              reference: request.target,
+              tagId: request.tagReference?.tagId ?? null,
+              value: null,
+              dataType: request.dataType ?? bindingDataType(bindings, request.target),
+              state: 'Unavailable'
+            });
+            if (request.target) next.set(request.target, unavailable);
+            if (request.tagReference?.tagId) next.set(visualTagSampleKey(request.tagReference.tagId), unavailable);
           }
           return next;
         });
       } catch {
-        if (!cancelled) markUnavailable(setSamples, tagPaths, bindings);
+        if (!cancelled) markRequestsUnavailable(setSamples, tagRequests, bindings);
       }
     };
 
@@ -70,22 +96,27 @@ export function useVisualBindingSamples(
     const socket = openRuntimeTagSocket();
     socket.addEventListener('message', event => {
       const message = parseRuntimeTagRealtimeMessage(String(event.data));
-      if (!message || !wanted.has(message.tag.path)) return;
+      if (!message) return;
+      const id = message.tag.id.trim().toLocaleLowerCase();
+      if (!wantedIds.has(id) && !wantedPaths.has(message.tag.path)) return;
       setSamples(current => {
         const next = new Map(current);
-        const existing = next.get(message.tag.path);
-        next.set(message.tag.path, Object.freeze({
+        const existing = next.get(visualTagSampleKey(message.tag.id)) ?? next.get(message.tag.path);
+        const sample = Object.freeze({
           reference: message.tag.path,
+          tagId: message.tag.id,
           value: message.value,
-          dataType: existing?.dataType ?? bindingDataType(bindings, message.tag.path),
+          dataType: existing?.dataType ?? requestDataType(tagRequests, message.tag.id, message.tag.path),
           quality: message.quality,
           timestamp: message.timestamp
-        }));
+        });
+        next.set(message.tag.path, sample);
+        next.set(visualTagSampleKey(message.tag.id), sample);
         return next;
       });
     });
     socket.addEventListener('close', () => {
-      if (!cancelled) markUnavailable(setSamples, tagPaths, bindings, true);
+      if (!cancelled) markRequestsUnavailable(setSamples, tagRequests, bindings, true);
     });
 
     return () => {
@@ -93,36 +124,39 @@ export function useVisualBindingSamples(
       window.clearInterval(refreshTimer);
       socket.close();
     };
-  }, [tagBindings, bindings]);
+  }, [tagRequests, bindings]);
 
   useEffect(() => {
-    if (clientBindings.length === 0) return undefined;
+    if (clientRequests.length === 0) return undefined;
     let cancelled = false;
-    const references = Object.freeze([...new Set(clientBindings.map(binding => binding.target))]);
+    const unique = uniqueRequests(clientRequests);
     const refresh = () => {
       if (cancelled) return;
       const now = new Date().toISOString();
       setSamples(current => {
         const next = new Map(current);
-        for (const reference of references) {
-          next.set(reference, Object.freeze({
-            reference,
-            value: readClientMemoryValue(reference),
-            dataType: bindingDataType(bindings, reference),
+        for (const request of unique) {
+          const sample = Object.freeze({
+            reference: request.target,
+            tagId: request.tagReference?.tagId ?? null,
+            value: readClientMemoryValue(request.target),
+            dataType: request.dataType ?? bindingDataType(bindings, request.target),
             state: 'LocalSession',
             timestamp: now
-          }));
+          });
+          next.set(request.target, sample);
+          if (request.tagReference?.tagId) next.set(visualTagSampleKey(request.tagReference.tagId), sample);
         }
         return next;
       });
     };
-    void initializeClientMemory().then(refresh).catch(() => markUnavailable(setSamples, references, bindings));
+    void initializeClientMemory().then(refresh).catch(() => markRequestsUnavailable(setSamples, unique, bindings));
     const timer = window.setInterval(refresh, 500);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [clientBindings, bindings]);
+  }, [clientRequests, bindings]);
 
   return samples;
 }
@@ -173,16 +207,71 @@ export function formatVisualScalarText(
   return Object.freeze({ text: joined, available: true, state: state.label });
 }
 
-function collectScalarBindings(elements: readonly VisualElementEngineering[] | null | undefined): readonly BindingEngineering[] {
+function collectBindings(elements: readonly VisualElementEngineering[] | null | undefined): readonly BindingEngineering[] {
   const result: BindingEngineering[] = [];
   const visit = (element: VisualElementEngineering) => {
-    for (const binding of element.bindings ?? []) {
-      const kind = binding.kind?.trim().toLowerCase();
-      if (binding.key === 'text' && (kind === 'tag' || kind === 'clientmemory')) result.push(binding);
-    }
+    for (const binding of element.bindings ?? []) result.push(binding);
     for (const child of element.children ?? []) visit(child);
   };
   for (const element of elements ?? []) visit(element);
+  return Object.freeze(result);
+}
+
+function collectRuntimeSourceRequests(elements: readonly VisualElementEngineering[] | null | undefined): readonly RuntimeSourceRequest[] {
+  const result: RuntimeSourceRequest[] = [];
+  const addExpression = (expression: VisualExpressionEngineering | null | undefined) => {
+    for (const dependency of expression?.dependencies ?? []) {
+      result.push(Object.freeze({
+        kind: dependency.kind === 'ClientMemory' ? 'clientmemory' : 'tag',
+        target: dependency.target ?? dependency.symbol,
+        tagReference: dependency.tagReference,
+        dataType: dependency.valueType === 'Boolean' ? 'Boolean' : null
+      }));
+    }
+  };
+  const addSource = (source: VisualValueSourceEngineering | null | undefined) => {
+    if (!source) return;
+    if (source.kind === 'Expression') {
+      addExpression(source.expression);
+      return;
+    }
+    result.push(Object.freeze({
+      kind: source.kind === 'ClientMemory' ? 'clientmemory' : 'tag',
+      target: source.target ?? source.tagReference?.tagId ?? '',
+      tagReference: source.tagReference ?? null,
+      dataType: source.valueType === 'Boolean' ? 'Boolean' : null
+    }));
+  };
+  const visit = (element: VisualElementEngineering) => {
+    for (const binding of element.bindings ?? []) {
+      const kind = binding.kind?.trim().toLowerCase();
+      if (kind === 'tag' || kind === 'clientmemory') {
+        result.push(Object.freeze({
+          kind,
+          target: binding.target,
+          tagReference: binding.tagReference ?? null,
+          dataType: binding.metadata?.sourceDataType ?? null
+        }));
+      }
+    }
+    for (const configured of element.propertyExpressions ?? []) addExpression(configured.expression);
+    for (const condition of element.booleanConditions ?? []) addSource(condition.source);
+    addSource(element.analogFill?.source);
+    for (const child of element.children ?? []) visit(child);
+  };
+  for (const element of elements ?? []) visit(element);
+  return Object.freeze(uniqueRequests(result));
+}
+
+function uniqueRequests(requests: readonly RuntimeSourceRequest[]): readonly RuntimeSourceRequest[] {
+  const seen = new Set<string>();
+  const result: RuntimeSourceRequest[] = [];
+  for (const request of requests) {
+    const key = `${request.kind}|${request.tagReference?.tagId?.toLocaleLowerCase() ?? ''}|${request.target}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(request);
+  }
   return Object.freeze(result);
 }
 
@@ -190,24 +279,34 @@ function bindingDataType(bindings: readonly BindingEngineering[], reference: str
   return bindings.find(binding => binding.target === reference)?.metadata?.sourceDataType ?? 'String';
 }
 
-function markUnavailable(
+function requestDataType(requests: readonly RuntimeSourceRequest[], tagId: string, path: string): string {
+  const normalizedId = tagId.trim().toLocaleLowerCase();
+  return requests.find(request => request.tagReference?.tagId?.trim().toLocaleLowerCase() === normalizedId || request.target === path)?.dataType ?? 'String';
+}
+
+function markRequestsUnavailable(
   setter: (value: (current: ReadonlyMap<string, VisualLiveScalarSample>) => ReadonlyMap<string, VisualLiveScalarSample>) => void,
-  references: readonly string[],
+  requests: readonly RuntimeSourceRequest[],
   bindings: readonly BindingEngineering[],
   disconnected = false
 ) {
   setter(current => {
     const next = new Map(current);
-    for (const reference of references) {
-      const existing = next.get(reference);
-      next.set(reference, Object.freeze({
-        reference,
+    for (const request of requests) {
+      const existing = request.tagReference?.tagId
+        ? next.get(visualTagSampleKey(request.tagReference.tagId)) ?? next.get(request.target)
+        : next.get(request.target);
+      const sample = Object.freeze({
+        reference: request.target,
+        tagId: request.tagReference?.tagId ?? existing?.tagId ?? null,
         value: existing?.value ?? null,
-        dataType: existing?.dataType ?? bindingDataType(bindings, reference),
+        dataType: existing?.dataType ?? request.dataType ?? bindingDataType(bindings, request.target),
         quality: existing?.quality ?? null,
         state: disconnected ? 'Disconnected' : 'Unavailable',
         timestamp: existing?.timestamp ?? null
-      }));
+      });
+      if (request.target) next.set(request.target, sample);
+      if (request.tagReference?.tagId) next.set(visualTagSampleKey(request.tagReference.tagId), sample);
     }
     return next;
   });

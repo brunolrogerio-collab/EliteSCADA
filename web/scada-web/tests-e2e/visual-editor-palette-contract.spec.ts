@@ -17,6 +17,7 @@ test('palette is derived from the complete registered Wave 08 built-in set', () 
     BUILTIN_VISUAL_OBJECT_TYPES.rectangle,
     BUILTIN_VISUAL_OBJECT_TYPES.ellipse,
     BUILTIN_VISUAL_OBJECT_TYPES.line,
+    BUILTIN_VISUAL_OBJECT_TYPES.polygon,
     BUILTIN_VISUAL_OBJECT_TYPES.text,
     BUILTIN_VISUAL_OBJECT_TYPES.image,
     BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay,

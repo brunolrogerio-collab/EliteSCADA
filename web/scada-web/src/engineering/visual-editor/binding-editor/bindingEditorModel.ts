@@ -20,6 +20,11 @@ export type BindableVisualProperty = Readonly<{
   category?: string;
 }>;
 
+export type BindingSourceResolution = Readonly<{
+  status: 'found' | 'ambiguous' | 'notFound';
+  source?: VisualEditorBindingSourceCatalogItem;
+}>;
+
 export class VisualBindingEditorError extends Error {
   constructor(
     public readonly code: string,
@@ -90,7 +95,9 @@ export function compatibleBindingSources(
   sourceCatalog: readonly VisualEditorBindingSourceCatalogItem[]
 ): readonly VisualEditorBindingSourceCatalogItem[] {
   const normalized = normalizeBindingSourceCatalog(sourceCatalog);
-  return Object.freeze(normalized.filter(source => isBindingSourceCompatible(destination, source)));
+  return Object.freeze(normalized.filter(source =>
+    isBindingSourceCompatible(destination, source) || isBitSelectorAuthoringSource(destination, source)
+  ));
 }
 
 export function isBindingSourceCompatible(
@@ -123,6 +130,106 @@ export function isBindingSourceCompatible(
     case 'assetRef':
       return false;
   }
+}
+
+export function isBitSelectorAuthoringSource(
+  destination: Pick<BindableVisualProperty, 'key' | 'type'> | VisualPropertyType,
+  source: VisualEditorBindingSourceCatalogItem
+): boolean {
+  const destinationType = typeof destination === 'string' ? destination : destination.type;
+  const capability = source.selectorCapability;
+  return destinationType === 'boolean' &&
+    source.kind === 'Tag' &&
+    Boolean(source.tagReference?.tagId) &&
+    capability?.kind === 'bit' &&
+    Number.isInteger(capability.minIndex) &&
+    Number.isInteger(capability.maxIndex) &&
+    capability.minIndex >= 0 &&
+    capability.maxIndex >= capability.minIndex;
+}
+
+export function createTagBitBindingSource(
+  source: VisualEditorBindingSourceCatalogItem,
+  bitIndex: number
+): VisualEditorBindingSourceCatalogItem {
+  const kind = requireCanonicalKind(source.kind);
+  if (kind !== 'Tag') {
+    throw new VisualBindingEditorError('binding.source.bitKind', 'Bit selectors require a canonical Tag source.');
+  }
+  const capability = normalizeSelectorCapability(source.selectorCapability, kind);
+  const baseReference = normalizeTagValueReference(source, kind);
+  if (!capability || !baseReference?.tagId) {
+    throw new VisualBindingEditorError('binding.source.bitUnsupported', 'This TAG source does not support bit selection.');
+  }
+  if (!Number.isInteger(bitIndex) || bitIndex < capability.minIndex || bitIndex > capability.maxIndex) {
+    throw new VisualBindingEditorError(
+      'binding.source.bitRange',
+      `Bit index must be between ${capability.minIndex} and ${capability.maxIndex}.`
+    );
+  }
+
+  const suffix = bitIndex.toString().padStart(2, '0');
+  return Object.freeze({
+    ...source,
+    target: `${source.target}.${suffix}`,
+    label: `${source.label}.${suffix}`,
+    dataType: 'Boolean',
+    engineeringUnit: null,
+    tagReference: Object.freeze({
+      tagId: baseReference.tagId,
+      selector: Object.freeze({ kind: 'bit', index: bitIndex })
+    }),
+    selectorCapability: null,
+    bindable: true
+  });
+}
+
+export function resolveBindingSourceReference(
+  sourceCatalog: readonly VisualEditorBindingSourceCatalogItem[],
+  rawReference: string
+): BindingSourceResolution {
+  const candidate = rawReference.trim();
+  if (!candidate) return Object.freeze({ status: 'notFound' });
+  const normalized = normalizeBindingSourceCatalog(sourceCatalog);
+
+  const exact = normalized.filter(source => source.target === candidate || source.label === candidate);
+  if (exact.length === 1) return Object.freeze({ status: 'found', source: exact[0] });
+  if (exact.length > 1) return Object.freeze({ status: 'ambiguous' });
+
+  const bitMatch = /^(.*)\.(\d{1,2})$/.exec(candidate);
+  if (!bitMatch) return Object.freeze({ status: 'notFound' });
+  const baseText = bitMatch[1];
+  const bitIndex = Number(bitMatch[2]);
+  const derived = normalized
+    .filter(source => source.target === baseText || source.label === baseText)
+    .map(source => {
+      try { return createTagBitBindingSource(source, bitIndex); }
+      catch { return null; }
+    })
+    .filter((source): source is VisualEditorBindingSourceCatalogItem => source !== null);
+
+  if (derived.length === 1) return Object.freeze({ status: 'found', source: derived[0] });
+  if (derived.length > 1) return Object.freeze({ status: 'ambiguous' });
+  return Object.freeze({ status: 'notFound' });
+}
+
+export function findBindingSourceForBinding(
+  binding: BindingEngineering,
+  sourceCatalog: readonly VisualEditorBindingSourceCatalogItem[]
+): VisualEditorBindingSourceCatalogItem | undefined {
+  const normalized = normalizeBindingSourceCatalog(sourceCatalog);
+  if (binding.kind === 'Tag' && binding.tagReference?.tagId) {
+    const tagId = binding.tagReference.tagId.toLocaleLowerCase();
+    return normalized.find(source =>
+      source.kind === 'Tag' &&
+      source.tagReference?.tagId?.toLocaleLowerCase() === tagId &&
+      !source.tagReference?.selector
+    );
+  }
+  const kind = binding.kind.trim().toLocaleLowerCase();
+  return normalized.find(source =>
+    source.kind.trim().toLocaleLowerCase() === kind && source.target === binding.target
+  );
 }
 
 export function findVisualBinding(

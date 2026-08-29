@@ -22,7 +22,8 @@ internal sealed record S7IsoTransportDiagnosticSnapshot(
 
 internal sealed record S7IsoReadCollectionResult(
     IReadOnlyList<S7IsoReadItemResult> Items,
-    IReadOnlyDictionary<S7IsoPoint, string> ConfigurationFailures);
+    IReadOnlyDictionary<S7IsoPoint, string> ConfigurationFailures,
+    IReadOnlyDictionary<S7IsoPoint, string> CommunicationFailures);
 
 internal sealed class S7IsoTransport : IAsyncDisposable
 {
@@ -70,6 +71,12 @@ internal sealed class S7IsoTransport : IAsyncDisposable
         CancellationToken cancellationToken = default)
     {
         var detailed = await ReadDetailedAsync(points, cancellationToken);
+        if (detailed.CommunicationFailures.Count > 0)
+        {
+            throw new IOException(string.Join(
+                " ",
+                detailed.CommunicationFailures.Select(failure => failure.Value).Distinct(StringComparer.Ordinal)));
+        }
         if (detailed.ConfigurationFailures.Count > 0)
         {
             throw new S7IsoConfigurationException(string.Join(
@@ -88,12 +95,30 @@ internal sealed class S7IsoTransport : IAsyncDisposable
         if (points.Count == 0)
             return new S7IsoReadCollectionResult(
                 Array.Empty<S7IsoReadItemResult>(),
+                new Dictionary<S7IsoPoint, string>(),
                 new Dictionary<S7IsoPoint, string>());
 
         await _ioGate.WaitAsync(cancellationToken);
         try
         {
-            await EnsureConnectedUnsafeAsync(cancellationToken);
+            var communicationFailures = new Dictionary<S7IsoPoint, string>();
+            try
+            {
+                await EnsureConnectedUnsafeAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                foreach (var point in points) communicationFailures[point] = ex.Message;
+                return new S7IsoReadCollectionResult(
+                    Array.Empty<S7IsoReadItemResult>(),
+                    new Dictionary<S7IsoPoint, string>(),
+                    communicationFailures);
+            }
+
             var pduSize = _negotiatedPduSize ?? _options.RequestedPduSize;
             var validPoints = new List<S7IsoPoint>(points.Count);
             var configurationFailures = new Dictionary<S7IsoPoint, string>();
@@ -124,8 +149,9 @@ internal sealed class S7IsoTransport : IAsyncDisposable
             }
 
             var results = new List<S7IsoReadItemResult>(validPoints.Count);
-            foreach (var batch in batches)
+            for (var batchIndex = 0; batchIndex < batches.Count; batchIndex++)
             {
+                var batch = batches[batchIndex];
                 var reference = NextPduReference();
                 var request = S7IsoProtocol.BuildReadRequest(reference, batch);
                 IncrementRequestAttempts();
@@ -150,11 +176,16 @@ internal sealed class S7IsoTransport : IAsyncDisposable
                 {
                     RecordFailure(S7IsoFailureClassifier.Classify(ex, S7IsoFailurePhase.Read));
                     DisconnectUnsafe();
-                    throw;
+                    for (var failedBatchIndex = batchIndex; failedBatchIndex < batches.Count; failedBatchIndex++)
+                    {
+                        foreach (var failedPoint in batches[failedBatchIndex])
+                            communicationFailures[failedPoint] = ex.Message;
+                    }
+                    break;
                 }
             }
 
-            return new S7IsoReadCollectionResult(results, configurationFailures);
+            return new S7IsoReadCollectionResult(results, configurationFailures, communicationFailures);
         }
         finally
         {

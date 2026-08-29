@@ -146,6 +146,59 @@ public sealed class S7IsoDriverTests
     }
 
     [Fact]
+    public async Task DroppedSession_PreservesLastValueThenRecoversWithoutDriverRestart()
+    {
+        await using var server = new TestS7IsoServer();
+        server.SetBytes(S7IsoArea.Merker, 0, 10, new byte[] { 0x12, 0x34 });
+        var tag = S7IsoTransportTests.Tag(TagDataType.Int16);
+        var point = new S7IsoPoint(tag, S7IsoArea.Merker, 10, S7IsoValueType.Int16);
+        var cache = new CurrentTagCache(new InMemoryScadaEventBus());
+        var registry = new InMemoryTagRegistry();
+        await using var driver = new S7IsoDriver(
+            "s7-recovery",
+            "S7 Recovery",
+            S7IsoTransportTests.Options(server.Port),
+            cache,
+            registry,
+            new[] { point },
+            TimeSpan.FromMilliseconds(100));
+
+        await driver.StartAsync();
+        await WaitUntilAsync(
+            () => cache.TryGet(tag.Id, out var sample) && sample?.Quality == TagQuality.Good,
+            TimeSpan.FromSeconds(2));
+        var initial = Assert.IsType<TagValue>((await driver.ReadAsync(tag.Id))!);
+        Assert.Equal((short)0x1234, Assert.IsType<short>(initial.Value));
+
+        server.DropActiveConnection();
+        await WaitUntilAsync(
+            () => cache.TryGet(tag.Id, out var sample) && sample?.Quality == TagQuality.BadCommunication,
+            TimeSpan.FromSeconds(2));
+
+        var interrupted = Assert.IsType<TagValue>((await driver.ReadAsync(tag.Id))!);
+        Assert.Equal((short)0x1234, Assert.IsType<short>(interrupted.Value));
+        Assert.Equal(TagQuality.BadCommunication, interrupted.Quality);
+        Assert.Equal(CommunicationDriverOperationalState.Reconnecting, driver.GetCommunicationDiagnostics().State);
+
+        server.SetBytes(S7IsoArea.Merker, 0, 10, new byte[] { 0x45, 0x67 });
+        await WaitUntilAsync(
+            () =>
+                cache.TryGet(tag.Id, out var sample) &&
+                sample?.Quality == TagQuality.Good &&
+                driver.GetCommunicationDiagnostics().Counters.Reconnects >= 1,
+            TimeSpan.FromSeconds(2));
+
+        var recovered = Assert.IsType<TagValue>((await driver.ReadAsync(tag.Id))!);
+        Assert.Equal((short)0x4567, Assert.IsType<short>(recovered.Value));
+        Assert.Equal(TagQuality.Good, recovered.Quality);
+        var diagnostics = driver.GetCommunicationDiagnostics();
+        Assert.Equal(CommunicationDriverOperationalState.Healthy, diagnostics.State);
+        Assert.True(diagnostics.Counters.Connections >= 2);
+        Assert.True(diagnostics.Counters.Reconnects >= 1);
+        Assert.True(diagnostics.Counters.Failures >= 1);
+    }
+
+    [Fact]
     public async Task OversizedBinding_PublishesBadConfigurationWithoutFakeReconnect()
     {
         await using var server = new TestS7IsoServer(240);

@@ -19,7 +19,7 @@ public sealed record BacnetSessionOptions(
         if (EffectiveRequestTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(RequestTimeout));
         if (Retries is < 1 or > 10) throw new ArgumentOutOfRangeException(nameof(Retries));
         if (EffectiveDiscoveryWindow <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(DiscoveryWindow));
-        if (ForeignDeviceTtlSeconds is < 30 or > 65535) throw new ArgumentOutOfRangeException(nameof(ForeignDeviceTtlSeconds));
+        if (ForeignDeviceTtlSeconds is < 30 or > short.MaxValue) throw new ArgumentOutOfRangeException(nameof(ForeignDeviceTtlSeconds));
         if (ForeignDeviceTtlSeconds.HasValue && string.IsNullOrWhiteSpace(BbmdAddress))
             throw new ArgumentException("BACnet Foreign Device Registration requires a BBMD address.");
     }

@@ -46,19 +46,19 @@ test('Wave 08 creates a closed free polygon and a dynamic text binding through c
     const palette = page.getByTestId('visual-object-palette');
     await palette.locator('[data-object-type="core.polygon"]').click();
     const surface = page.locator('.visual-editor-canvas__surface');
-    const box = await surface.boundingBox();
-    expect(box).toBeTruthy();
+    await expect(surface).toBeVisible();
 
     await surface.click({ position: { x: 80, y: 80 } });
     await surface.click({ position: { x: 220, y: 90 } });
     await surface.click({ position: { x: 190, y: 210 } });
     await surface.click({ position: { x: 100, y: 190 } });
+    await surface.focus();
     await surface.press('Enter');
 
     const polygon = page.locator('[data-canvas-object-type="core.polygon"]').last();
     await expect(polygon).toBeVisible();
     await polygon.click();
-    await expect(page.locator('.visual-editor-canvas__vertex-handle')).toHaveCount(4);
+    await expect(page.locator('.visual-editor-canvas__polygon-vertex')).toHaveCount(4);
 
     await palette.locator('[data-object-type="core.text"]').click();
     const textObject = page.locator('[data-canvas-object-type="core.text"]').last();

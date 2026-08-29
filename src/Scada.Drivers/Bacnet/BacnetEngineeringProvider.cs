@@ -332,13 +332,15 @@ public sealed class BacnetEngineeringProvider :
         var discoveryMs = ParseInt(settings, "discoveryWindowMilliseconds", 1500, 100, 30000);
         var bbmd = Get(settings, "bbmdAddress");
         var ttl = TryGetInt(settings, "foreignDeviceTtlSeconds", 30, short.MaxValue);
+        var targetAddress = Get(settings, "targetAddress");
         return new BacnetSessionOptions(
             localPort,
             TimeSpan.FromMilliseconds(timeoutMs),
             Retries: 2,
             TimeSpan.FromMilliseconds(discoveryMs),
             bbmd,
-            ttl);
+            ttl,
+            targetAddress);
     }
 
     private static uint RequireDeviceInstance(IReadOnlyDictionary<string, string> settings)

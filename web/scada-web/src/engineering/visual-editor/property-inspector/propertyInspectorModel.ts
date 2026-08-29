@@ -1,5 +1,6 @@
 import type {
   VisualElementEngineering,
+  VisualEngineeringAssetReference,
   VisualEngineeringPropertyValue
 } from '../../types';
 import {
@@ -213,7 +214,8 @@ export function parsePropertyInspectorInput(
 
 export function formatPropertyInspectorValue(value: VisualEngineeringPropertyValue): string {
   if (value === null) return '';
-  if (typeof value === 'object') return value.assetId;
+  if (isAssetReference(value)) return value.assetId;
+  if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
 }
 
@@ -230,9 +232,18 @@ function valuesEqual(
 ): boolean {
   if (left === right) return true;
   if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object') return false;
-  return left.assetId === right.assetId;
+  if (isAssetReference(left) || isAssetReference(right)) {
+    return isAssetReference(left) && isAssetReference(right) && left.assetId === right.assetId;
+  }
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function cloneEngineeringValue(value: VisualEngineeringPropertyValue): VisualEngineeringPropertyValue {
-  return value !== null && typeof value === 'object' ? Object.freeze({ ...value }) : value;
+  if (value === null || typeof value !== 'object') return value;
+  return JSON.parse(JSON.stringify(value)) as VisualEngineeringPropertyValue;
+}
+
+function isAssetReference(value: VisualEngineeringPropertyValue): value is VisualEngineeringAssetReference {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  return typeof (value as { assetId?: unknown }).assetId === 'string';
 }

@@ -4,25 +4,49 @@ Date: 2026-08-29
 
 ## Current checkpoint
 
-Wave 08 FOLLOW-A is **CLOSED / MERGED / POST-MERGE GREEN**.
+Wave 08 FOLLOW-A and FOLLOW-B are **CLOSED / MERGED / POST-MERGE GREEN**.
 
-- PR #105 `FOLLOW-A: TAG bit access and Modbus bit-level binding` is merged into `main`.
-- Merge/main commit: `bb0186cddc54946e8cc829c04a04b99495462304`.
-- Pre-merge exact product head: `4e8a3c76753c1ead815c790407601852c6f888e3`.
-- CI #541 passed on that exact product head.
-- Current `main` was reconciled into FOLLOW-A before merge; reconciliation changed documentation only.
-- Post-merge CI #543 passed on exact `main` commit `bb0186cddc54946e8cc829c04a04b99495462304`, including Web build, backend build/test/smoke and Chromium end-to-end.
+Final validated product baseline on `main`:
+
+`dededaca980fdb72b5d4955685ab1161aca441fd`
+
+FOLLOW-A evidence:
+
+- PR #105 merged;
+- exact pre-merge product CI #541 green;
+- exact post-merge `main` CI #543 green.
+
+FOLLOW-B evidence:
+
+- canonical contract: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`;
+- final integrated/product head: `dededaca980fdb72b5d4955685ab1161aca441fd`;
+- CI #657 green on that exact final FOLLOW-B head, including Web, backend build/tests/smoke and Chromium E2E;
+- FOLLOW-B was fast-forwarded into `main` without force;
+- post-merge/push CI #658 green on exact `main` head `dededaca980fdb72b5d4955685ab1161aca441fd`, including Chromium E2E.
+
+FOLLOW-B therefore no longer blocks downstream product work.
 
 ## Active stage
 
-Wave 08 FOLLOW-B is now the active gate: **Visual Expressions, Boolean Conditions and Analog Fill**.
+**Wave 09 is ACTIVE.**
 
-Canonical contract: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.
+Initial Wave 09 substage is the shared historical/navigation foundation:
 
-FOLLOW-B must consume the stable TAG-bit identity defined and delivered by FOLLOW-A: stable `TagId + selector`; `.NN` is authoring/display syntax only.
+- protected typed Historical Query v1 shared by Browser, Reporting and Trends;
+- initial datasets `historian.samples` and `alarm.events`;
+- canonical Popup/Dynamo/navigation Engineering over the existing Screen/visual runtime;
+- Historical Data Browser consuming the shared query contract.
 
-Wave 09 remains **BLOCKED** until FOLLOW-B is implemented, accepted, merged and post-merge green.
+Canonical planning contracts:
+
+- `docs/WAVE-09-HISTORICAL-QUERY-CONTRACT.md`;
+- `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`;
+- `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`.
+
+Reporting/Report Designer remains part of Wave 09, but its implementation slice starts only after the shared Historical Query contract is integrated and accepted. This is sequencing inside an active Wave, not a separate product gate.
+
+Parallel protocol Drivers remain isolated and parked from `main`; Wave work has priority.
 
 ## CI policy
 
-CI mode remains **NORMAL**. Do not run reassurance CI on unchanged product trees. Final integration/product heads require exact-head green evidence before merge/activation transitions.
+CI mode remains **NORMAL**. Do not run reassurance CI on unchanged product trees. Exact final integration/product heads require green evidence before merge/stage transitions. Documentation-only coordination commits use `[skip ci]`.

@@ -1,82 +1,104 @@
 # CHAT WORK ASSIGNMENTS — EliteSCADA
 
 Date: 2026-08-29
-Stage: **Wave 08 FOLLOW-B — ACTIVE**
+Stage: **Wave 09-A — SHARED HISTORICAL / NAVIGATION FOUNDATION — ACTIVE**
 Integration owner: **Coordinator**
-Integration branch: `integration/visual-expressions-wave-08-follow-b`
+Integration branch: `integration/wave-09-historical-navigation-foundation`
+Product BaseSHA: `dededaca980fdb72b5d4955685ab1161aca441fd`
 
-All workers must start from the approved FOLLOW-B baseline and must not edit `main` or the integration branch directly.
+All workers start from the coordinator-created Wave 09 activation baseline. They must not edit `main` or the integration branch directly.
 
-## DEV 1 — Typed Expression Core
+## DEV 1 — Shared Historical Query Core
 
-Branch: `dev1/follow-b-expression-core`
+Branch: `dev1/wave-09-historical-query-core`
 Status: **ACTIVE**
 
 Ownership:
 
-- typed parser/evaluator and constrained expression representation;
-- deterministic type rules, operators, comparisons and whitelisted pure helpers;
-- explicit `bool(number)` / `number(boolean)` conversion semantics;
-- dependency representation sufficient to consume canonical TAG identity and integer TAG selectors;
-- unavailable/bad-quality evaluation behavior and diagnostics contracts;
-- bounded evaluation limits and rejection of unsupported/arbitrary execution;
-- focused unit tests for parsing, typing, precedence, arithmetic, comparisons, bit dependencies and failure cases.
+- implement the public/versioned Historical Query v1 contract from `docs/WAVE-09-HISTORICAL-QUERY-CONTRACT.md`;
+- shared typed dataset/query/result model;
+- relative and absolute time-range resolution with one deterministic server anchor per query;
+- bounded allowlisted filter/order/page semantics and opaque cursor contract;
+- protected backend query surface and authorization/cancellation boundaries;
+- initial provider adapters for `historian.samples` and `alarm.events`;
+- parameterized PostgreSQL/TimescaleDB access where persistence is queried;
+- exact Int64 transport semantics, quality and timestamp fidelity;
+- focused core/API/persistence tests, including invalid/boundary queries and cancellation.
+
+Relevant existing seams include `src/Scada.Historian/Abstractions/IHistorian.cs`, `src/Scada.Historian.TimescaleDb/TimescaleDbHistorian.cs`, existing alarm domain/persistence/API surfaces and their tests.
 
 Must not:
 
-- create a second TAG-bit identity/parser independent of FOLLOW-A;
-- implement persistence as opaque metadata;
-- use JavaScript `eval`/`Function`, Python or arbitrary dynamic invocation;
-- take ownership of Property Inspector/rendering UX except where a minimal public contract is required.
+- implement Browser or Report Designer UX;
+- accept arbitrary SQL, arbitrary field names or unbounded result sets;
+- invent dataset-specific time/filter DTOs outside the shared contract;
+- weaken current Alarm Center authorization/operational semantics.
 
-## DEV 2 — Engineering and Persistence
+## DEV 2 — Popup / Dynamo / Navigation Engineering
 
-Branch: `dev2/follow-b-engineering`
+Branch: `dev2/wave-09-popup-dynamo-navigation`
 Status: **ACTIVE**
 
 Ownership:
 
-- public/versioned Engineering representation for expressions, Boolean Conditions and Analog Fill;
-- public `visible: boolean` property registration/default semantics for renderable objects;
-- validation and deterministic dependency persistence using stable identities;
-- JSON/CSV where applicable, Preview/Apply, revision and project-package round-trip fidelity;
-- compatibility/migration behavior for existing Engineering payloads;
-- tests proving canonical serialization, validation, import/export and persistence behavior.
+- canonical first-class Popup and Dynamo Engineering representation around the existing Screen/visual object model;
+- deterministic navigation/action references between Screens/Popups where required by the Wave 09 contract;
+- Dynamo reusable-instance identity and parameter/reference semantics without copying renderer-private state into Engineering;
+- validation, Preview/Apply/CAS, revision, PostgreSQL and `.escadapkg` fidelity for new canonical entities;
+- runtime composition using the existing visual registry/runtime/property precedence;
+- compatibility/migration and focused Engineering/runtime tests.
 
 Must not:
 
-- invent renderer-only state or undocumented `metadata` conventions;
-- change FOLLOW-A bit semantics;
-- implement a separate evaluator or web-only persistence format.
+- create a second visual property registry/runtime;
+- duplicate TAG-bit, expression or Client Memory identity rules;
+- own the Historical Query contract;
+- persist DOM/React/CSS/renderer handles or undocumented metadata as canonical state.
 
-## DEV 3 — Web Editor and Visual Runtime
+## DEV 3 — Historical Data Browser
 
-Branch: `dev3/follow-b-web-visuals`
+Branch: `dev3/wave-09-historical-browser`
 Status: **ACTIVE**
 
 Ownership:
 
-- Property Inspector authoring modes for constants, direct bindings, integer TAG bit selectors, Boolean Conditions and typed expressions;
-- source insertion/autocomplete and validation UX using canonical source identity;
-- application of Binding/Expression results to public visual properties, including `visible`;
-- Analog Fill rendering for eligible objects, scaling, clamping and required directions;
-- user-facing diagnostics/effective-source visibility where practical;
-- browser E2E coverage for representative FOLLOW-B acceptance scenarios.
+- interactive Historical Data Browser UX/runtime;
+- dataset selection using canonical keys, initially `historian.samples` and `alarm.events`;
+- relative/absolute time presets and typed filter builder projected from the shared Historical Query contract;
+- bounded sortable/paged result table with explicit loading/empty/error/authorization states;
+- exact typed value presentation, quality/state and timestamps, including Int64 without precision loss;
+- read-only historical alarm event context/drill-down that remains distinct from current Alarm Center commands;
+- representative browser E2E and focused frontend contract tests.
+
+Integration rule:
+
+- consume `docs/WAVE-09-HISTORICAL-QUERY-CONTRACT.md` and the DEV 1 public API/types once integrated;
+- before that seam lands, UI scaffolding may use view-local form state, but **must not** establish an alternative persisted/public query DTO or backend endpoint.
 
 Must not:
 
-- invent a local `.NN` identity model or duplicate evaluator semantics;
-- save canonical configuration only in React state/CSS/renderer internals;
-- silently coerce bad/unavailable values to `false` or `0`.
+- implement arbitrary SQL/query text;
+- duplicate provider/time/filter semantics in frontend-only persistence;
+- turn historical alarm rows into acknowledge/shelve/command authority;
+- take ownership of Report Designer in this first substage.
+
+## Reporting / Report Designer sequencing
+
+Reporting remains **IN WAVE 09**, but implementation is intentionally sequenced after DEV 1's shared Historical Query contract is accepted into integration. The next Wave 09 assignment will reuse the same dataset/query/time/filter/result semantics for canonical Report Engineering and the Report Designer.
+
+This is not permission to create an independent reporting query model in parallel.
 
 ## Shared integration constraints
 
-- Canonical contract: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.
-- TAG-bit dependency contract: `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`.
-- Property precedence remains `Animation > Script > Binding/Expression > Engineering Base > Default`.
-- Coordinate shared DTO/interface edits before touching the same file from multiple worker branches.
-- Keep commits narrow and attributable to the assigned slice.
-- Do not run reassurance CI after every small commit. CI policy is **NORMAL**.
+- Historical Query authority: `docs/WAVE-09-HISTORICAL-QUERY-CONTRACT.md`.
+- Historical Browser/alarm context: `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`.
+- Reporting direction: `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`.
+- Existing visual precedence remains `Animation > Script > Binding/Expression > Engineering Base > Default`.
+- Engineering Import/Export, Preview/Apply/CAS, revisions and project-package fidelity remain mandatory for new canonical Engineering entities.
+- Coordinate shared DTO/API edits before touching the same file from multiple worker branches.
+- Keep commits narrow and attributable.
+- CI policy is **NORMAL**; do not run reassurance CI after every small commit.
+- Parallel Driver work remains lower priority and parked from `main`.
 
 ## Required worker handoff
 
@@ -88,6 +110,4 @@ Each worker handoff must report:
 4. tests executed and results;
 5. known limitations/risks;
 6. confirmation that no unassigned files were changed;
-7. any shared contract decision that the coordinator must reconcile.
-
-Wave 09 remains **STOPPED**. No Wave 09 implementation branch is authorized until FOLLOW-B is merged and post-merge green.
+7. any shared contract decision requiring Coordinator reconciliation.

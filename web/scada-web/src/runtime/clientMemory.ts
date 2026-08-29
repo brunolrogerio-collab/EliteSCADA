@@ -24,30 +24,32 @@ export class ClientMemoryStore {
   private readonly byId = new Map<string, ClientMemoryEntry>();
   private readonly idByPath = new Map<string, string>();
   private sources: ClientMemorySourceDefinition[] = [];
+  private initialized = false;
+  private initialization: Promise<number> | null = null;
 
+  /**
+   * Explicitly reloads Client Memory definitions and resets this browser-local
+   * value set to the engineered initial values. Runtime bootstrap uses this path.
+   */
   async initialize(signal?: AbortSignal): Promise<number> {
-    const response = await fetch(`${API}/api/internal-memory/client/definitions`, {
-      credentials: 'same-origin',
-      signal
-    });
-    if (!response.ok) throw new Error(`Client Memory definitions request failed with HTTP ${response.status}.`);
+    return await this.loadDefinitions(signal);
+  }
 
-    const sources = await response.json() as ClientMemorySourceDefinition[];
-    this.clear();
-    this.sources = sources.map(source => ({ ...source, tags: source.tags.map(tag => ({ ...tag })) }));
+  /**
+   * Ensures definitions exist without resetting values that this browser session
+   * may already have changed. Concurrent Engineering consumers share one load.
+   */
+  async ensureInitialized(signal?: AbortSignal): Promise<number> {
+    if (this.initialized) return this.byId.size;
+    if (this.initialization) return await this.initialization;
 
-    for (const source of this.sources) {
-      for (const definition of source.tags) {
-        const normalizedPath = definition.path.toLowerCase();
-        if (this.byId.has(definition.id)) throw new Error(`Duplicate Client Memory TAG id '${definition.id}'.`);
-        if (this.idByPath.has(normalizedPath)) throw new Error(`Duplicate Client Memory TAG path '${definition.path}'.`);
-        validateClientValue(definition.dataType, definition.initialValue);
-        this.byId.set(definition.id, { definition, value: cloneValue(definition.initialValue) });
-        this.idByPath.set(normalizedPath, definition.id);
-      }
+    const pending = this.loadDefinitions(signal);
+    this.initialization = pending;
+    try {
+      return await pending;
+    } finally {
+      if (this.initialization === pending) this.initialization = null;
     }
-
-    return this.byId.size;
   }
 
   get size(): number { return this.byId.size; }
@@ -75,6 +77,38 @@ export class ClientMemoryStore {
   }
 
   clear(): void {
+    this.resetStorage();
+    this.initialized = false;
+    this.initialization = null;
+  }
+
+  private async loadDefinitions(signal?: AbortSignal): Promise<number> {
+    const response = await fetch(`${API}/api/internal-memory/client/definitions`, {
+      credentials: 'same-origin',
+      signal
+    });
+    if (!response.ok) throw new Error(`Client Memory definitions request failed with HTTP ${response.status}.`);
+
+    const sources = await response.json() as ClientMemorySourceDefinition[];
+    this.resetStorage();
+    this.sources = sources.map(source => ({ ...source, tags: source.tags.map(tag => ({ ...tag })) }));
+
+    for (const source of this.sources) {
+      for (const definition of source.tags) {
+        const normalizedPath = definition.path.toLowerCase();
+        if (this.byId.has(definition.id)) throw new Error(`Duplicate Client Memory TAG id '${definition.id}'.`);
+        if (this.idByPath.has(normalizedPath)) throw new Error(`Duplicate Client Memory TAG path '${definition.path}'.`);
+        validateClientValue(definition.dataType, definition.initialValue);
+        this.byId.set(definition.id, { definition, value: cloneValue(definition.initialValue) });
+        this.idByPath.set(normalizedPath, definition.id);
+      }
+    }
+
+    this.initialized = true;
+    return this.byId.size;
+  }
+
+  private resetStorage(): void {
     this.byId.clear();
     this.idByPath.clear();
     this.sources = [];
@@ -89,6 +123,22 @@ export class ClientMemoryStore {
 }
 
 export const clientMemory = new ClientMemoryStore();
+
+/**
+ * Engineering-facing helper. It is intentionally idempotent so a Canvas,
+ * Development Monitor and dynamic text renderer can coexist without resetting
+ * one another's Client Memory values.
+ */
+export async function initializeClientMemory(signal?: AbortSignal): Promise<readonly ClientMemoryTagDefinition[]> {
+  await clientMemory.ensureInitialized(signal);
+  return Object.freeze(clientMemory.snapshotSources().flatMap(source =>
+    source.tags.map(tag => Object.freeze({ ...tag }))
+  ));
+}
+
+export function readClientMemoryValue(pathOrId: string): unknown {
+  return clientMemory.read(pathOrId);
+}
 
 function validateClientValue(dataType: string, value: unknown) {
   const normalized = dataType.toLowerCase();

@@ -71,6 +71,27 @@ public sealed class S7TiaXlsxImporterTests
     }
 
     [Fact]
+    public async Task ImportXlsx_AddressMoveChangesBindingButNotStableSymbolIdentity()
+    {
+        using var originalWorkbook = CreateWorkbook("%MD4");
+        using var movedWorkbook = CreateWorkbook("%MD40");
+        var request = new DriverImportRequest(null, "plc-tags.xlsx");
+
+        var original = Assert.Single(
+            await ImportAsync(new S7IsoEngineeringAdapter(), request, originalWorkbook),
+            candidate => candidate.DisplayName == "Speed");
+        var moved = Assert.Single(
+            await ImportAsync(new S7IsoEngineeringAdapter(), request, movedWorkbook),
+            candidate => candidate.DisplayName == "Speed");
+
+        Assert.Equal(original.StableIdentity, moved.StableIdentity);
+        Assert.Equal(original.CandidateId, moved.CandidateId);
+        Assert.NotEqual(original.PortableAddress, moved.PortableAddress);
+        Assert.Equal("%MD4", original.Metadata!["logicalAddress"]);
+        Assert.Equal("%MD40", moved.Metadata!["logicalAddress"]);
+    }
+
+    [Fact]
     public async Task ImportNonXlsx_ReturnsExplicitUnsupportedFormatCandidate()
     {
         using var content = new MemoryStream(Encoding.UTF8.GetBytes("<Tags />"));
@@ -111,7 +132,7 @@ public sealed class S7TiaXlsxImporterTests
         return result;
     }
 
-    private static MemoryStream CreateWorkbook()
+    private static MemoryStream CreateWorkbook(string speedAddress = "%MD4")
     {
         var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
@@ -137,20 +158,20 @@ public sealed class S7TiaXlsxImporterTests
                                 Target="worksheets/sheet1.xml" />
                 </Relationships>
                 """);
-            WriteEntry(archive, "xl/worksheets/sheet1.xml", CreateSheet().ToString(SaveOptions.DisableFormatting));
+            WriteEntry(archive, "xl/worksheets/sheet1.xml", CreateSheet(speedAddress).ToString(SaveOptions.DisableFormatting));
         }
         stream.Position = 0;
         return stream;
     }
 
-    private static XDocument CreateSheet()
+    private static XDocument CreateSheet(string speedAddress)
     {
         XNamespace ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
         var rows = new[]
         {
             new[] { "Name", "Path", "Data Type", "Logical Address", "Comment", "Hmi Visible", "Hmi Accessible", "Hmi Writeable" },
             new[] { "Run", "Main/Tags", "Bool", "%M0.0", "Run flag", "TRUE", "TRUE", "TRUE" },
-            new[] { "Speed", "Main/Tags", "Real", "%MD4", "Speed", "TRUE", "TRUE", "<no value>" },
+            new[] { "Speed", "Main/Tags", "Real", speedAddress, "Speed", "TRUE", "TRUE", "<no value>" },
             new[] { "DbValue", "Main/Tags", "Int", "%DB1.DBW10", "DB value", "TRUE", "TRUE", "TRUE" },
             new[] { "GermanInput", "Main/Tags", "Bool", "%E0.1", "Input using German mnemonic", "TRUE", "TRUE", "TRUE" },
             new[] { "Structured", "Main/Tags", "MyUdt", "%MD8", "Unsupported UDT", "TRUE", "TRUE", "TRUE" }

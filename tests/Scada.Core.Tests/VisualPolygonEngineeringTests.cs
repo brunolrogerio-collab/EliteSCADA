@@ -28,6 +28,28 @@ public sealed class VisualPolygonEngineeringTests
     }
 
     [Fact]
+    public void PropertyMigration_PreservesPolygonStructuralPointsWhileNormalizingScalarProperties()
+    {
+        var expectedPoints = "[{\"x\":0,\"y\":0},{\"x\":100,\"y\":0},{\"x\":20,\"y\":80}]";
+        var screen = new ScreenEngineeringDto(
+            Guid.NewGuid(),
+            "screen",
+            "Screen",
+            "/screen",
+            [Polygon(expectedPoints)]);
+
+        var normalized = VisualEngineeringPropertyMigration.NormalizeScreen(screen, sourceSchemaVersion: 13);
+        var element = Assert.Single(normalized.Elements!);
+
+        Assert.NotNull(element.Properties);
+        Assert.True(element.Properties!.TryGetValue("points", out var points));
+        Assert.Equal(JsonValueKind.Array, points.ValueKind);
+        Assert.Equal(3, points.GetArrayLength());
+        Assert.Equal(100d, points[1].GetProperty("x").GetDouble());
+        Assert.Equal("#336699", element.Properties["fillColor"].GetString());
+    }
+
+    [Fact]
     public void ScreenValidator_AcceptsValidClosedPolygonGeometryAndRejectsDegenerateGeometry()
     {
         var valid = new ScreenEngineeringDto(

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Scada.Core.Alarms;
+using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
 
 namespace Scada.Engineering.Validation;
@@ -7,6 +8,7 @@ namespace Scada.Engineering.Validation;
 public static class EngineeringValidator
 {
     private const int MaximumPolygonVertices = 4096;
+    private const int MaximumAddressSelectorBitIndex = 63;
 
     private static readonly string[] SensitiveKeyFragments =
     {
@@ -33,7 +35,44 @@ public static class EngineeringValidator
         if (tag.Path?.Any(char.IsWhiteSpace) == true) issues.Add(Error("TAG_PATH_WHITESPACE", "Tag path cannot contain whitespace.", ImportEntityKind.Tag, key));
         if (tag.ScaleMinimum.HasValue && tag.ScaleMaximum.HasValue && tag.ScaleMinimum >= tag.ScaleMaximum)
             issues.Add(Error("TAG_SCALE_INVALID", "ScaleMinimum must be less than ScaleMaximum.", ImportEntityKind.Tag, key));
+        if (tag.AddressSelector is not null)
+            issues.AddRange(ValidateTagAddressSelector(tag, key));
         return issues;
+    }
+
+    private static IEnumerable<ImportIssue> ValidateTagAddressSelector(TagEngineeringDto tag, string key)
+    {
+        var selector = tag.AddressSelector!;
+        if (selector.Kind != TagValueSelectorKind.Bit)
+            yield return Error(
+                "TAG_ADDRESS_SELECTOR_KIND_UNSUPPORTED",
+                $"TAG '{key}' uses unsupported address selector kind '{selector.Kind}'.",
+                ImportEntityKind.Tag,
+                key);
+        if (tag.DataType != TagDataType.Boolean)
+            yield return Error(
+                "TAG_ADDRESS_SELECTOR_BOOLEAN_REQUIRED",
+                $"TAG '{key}' must use Boolean data type when an address selector is configured.",
+                ImportEntityKind.Tag,
+                key);
+        if (string.IsNullOrWhiteSpace(tag.Source))
+            yield return Error(
+                "TAG_ADDRESS_SELECTOR_SOURCE_REQUIRED",
+                $"TAG '{key}' requires a source when an address selector is configured.",
+                ImportEntityKind.Tag,
+                key);
+        if (string.IsNullOrWhiteSpace(tag.Address))
+            yield return Error(
+                "TAG_ADDRESS_SELECTOR_ADDRESS_REQUIRED",
+                $"TAG '{key}' requires an address when an address selector is configured.",
+                ImportEntityKind.Tag,
+                key);
+        if (selector.Index < 0 || selector.Index > MaximumAddressSelectorBitIndex)
+            yield return Error(
+                "TAG_ADDRESS_SELECTOR_INDEX_INVALID",
+                $"TAG '{key}' address selector bit index must be between 0 and {MaximumAddressSelectorBitIndex} at the generic Engineering boundary.",
+                ImportEntityKind.Tag,
+                key);
     }
 
     public static IReadOnlyCollection<ImportIssue> ValidateAlarm(AlarmEngineeringDto alarm)

@@ -45,7 +45,8 @@ internal static class EngineeringDtoMapper
                 IntOrNull(maximumPeriod)),
             MemoryEngineeringValueCodec.PublicMetadata(tag.Metadata),
             accessPolicy,
-            initialValue);
+            initialValue,
+            tag.AddressSelector);
     }
 
     public static AlarmEngineeringDto ToDto(AlarmDefinition alarm, string? tagPath) =>

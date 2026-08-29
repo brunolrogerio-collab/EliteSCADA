@@ -133,13 +133,25 @@ public sealed class SystemIoBacnetSession : IBacnetSession
             // the deterministic compatibility fallback for the engineered value.
         }
 
-        var fallbackValues = await _client.ReadPropertyAsync(
-            device.Address,
-            objectId,
-            (BacnetPropertyIds)binding.PropertyIdentifier,
-            arrayIndex: binding.ArrayIndex ?? uint.MaxValue,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
-        return new BacnetPropertyReadResult(binding, fallbackValues.ToArray(), DateTimeOffset.UtcNow);
+        try
+        {
+            var fallbackValues = await _client.ReadPropertyAsync(
+                device.Address,
+                objectId,
+                (BacnetPropertyIds)binding.PropertyIdentifier,
+                arrayIndex: binding.ArrayIndex ?? uint.MaxValue,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+            return new BacnetPropertyReadResult(binding, fallbackValues.ToArray(), DateTimeOffset.UtcNow);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            InvalidateDevice(binding.DeviceInstance);
+            throw;
+        }
     }
 
     public async Task WriteAsync(BacnetBinding binding, IReadOnlyCollection<BacnetValue> values, CancellationToken cancellationToken = default)
@@ -149,14 +161,26 @@ public sealed class SystemIoBacnetSession : IBacnetSession
         binding.Validate();
         if (values.Count == 0) throw new ArgumentException("At least one BACnet value is required.", nameof(values));
         var device = await ResolveDeviceAsync(binding.DeviceInstance, cancellationToken).ConfigureAwait(false);
-        await _client.WritePropertyAsync(
-            device.Address,
-            new BacnetObjectId((BacnetObjectTypes)binding.ObjectType, binding.ObjectInstance),
-            (BacnetPropertyIds)binding.PropertyIdentifier,
-            values,
-            priority: binding.WritePriority,
-            arrayIndex: binding.ArrayIndex ?? uint.MaxValue,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _client.WritePropertyAsync(
+                device.Address,
+                new BacnetObjectId((BacnetObjectTypes)binding.ObjectType, binding.ObjectInstance),
+                (BacnetPropertyIds)binding.PropertyIdentifier,
+                values,
+                priority: binding.WritePriority,
+                arrayIndex: binding.ArrayIndex ?? uint.MaxValue,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            InvalidateDevice(binding.DeviceInstance);
+            throw;
+        }
     }
 
     public async Task<IDisposable?> TrySubscribeCovAsync(
@@ -297,6 +321,9 @@ public sealed class SystemIoBacnetSession : IBacnetSession
         try { return flags[bit]; }
         catch (ArgumentOutOfRangeException) { return null; }
     }
+
+    private void InvalidateDevice(uint deviceInstance)
+        => _devices.TryRemove(deviceInstance, out _);
 
     private void SendWhoIs(uint? lowLimit, uint? highLimit)
     {

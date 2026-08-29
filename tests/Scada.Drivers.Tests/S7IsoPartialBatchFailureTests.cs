@@ -19,7 +19,7 @@ public sealed class S7IsoPartialBatchFailureTests
         var points = Enumerable.Range(0, 30)
             .Select(index =>
             {
-                Span<byte> bytes = stackalloc byte[4];
+                var bytes = new byte[4];
                 BinaryPrimitives.WriteInt32BigEndian(bytes, index + 1);
                 server.SetBytes(S7IsoArea.Merker, 0, index * 4, bytes);
                 return new S7IsoPoint(

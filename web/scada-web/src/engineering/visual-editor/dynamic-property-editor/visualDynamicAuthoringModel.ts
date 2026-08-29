@@ -5,6 +5,7 @@ import {
 import { getBuiltinVisualObjectSchema } from '../../../visual-runtime/builtinVisualObjectSchemas';
 import type { VisualPropertyDefinition } from '../../../visual-runtime/visualPropertyTypes';
 import type {
+  TagValueReferenceEngineering,
   VisualAnalogFillDirectionEngineering,
   VisualAnalogFillEngineering,
   VisualBooleanConditionEngineering,
@@ -135,7 +136,11 @@ export function createExpressionDependency(
     throw new Error(`Expression dependency kind '${normalized.kind}' is not supported.`);
   }
   if (!normalized.tagReference?.tagId) {
-    throw new Error(`Expression dependency '${symbol}' requires canonical stable source identity.`);
+    throw new Error(
+      normalized.kind === 'ClientMemory'
+        ? `Client Memory expression dependency '${symbol}' has no canonical stable identity in the current integrated contract.`
+        : `Expression dependency '${symbol}' requires canonical stable source identity.`
+    );
   }
 
   return Object.freeze({
@@ -157,15 +162,17 @@ export function createValueSource(
   if (normalized.kind !== 'Tag' && normalized.kind !== 'ClientMemory') {
     throw new Error(`Visual value source kind '${normalized.kind}' is not supported.`);
   }
-  if (!normalized.tagReference?.tagId) {
-    throw new Error(`Visual value source '${normalized.target}' requires canonical stable source identity.`);
+  if (normalized.kind === 'Tag' && !normalized.tagReference?.tagId) {
+    throw new Error(`Visual TAG source '${normalized.target}' requires canonical stable source identity.`);
   }
 
   return Object.freeze({
     kind: normalized.kind,
     valueType,
     target: normalized.target,
-    tagReference: snapshotTagReference(normalized.tagReference),
+    ...(normalized.tagReference?.tagId
+      ? { tagReference: snapshotTagReference(normalized.tagReference) }
+      : {}),
     version: 1
   });
 }
@@ -269,7 +276,7 @@ function snapshotDependency(dependency: VisualExpressionDependencyEngineering): 
   });
 }
 
-function snapshotTagReference(reference: NonNullable<VisualEditorBindingSourceCatalogItem['tagReference']>) {
+function snapshotTagReference(reference: TagValueReferenceEngineering): TagValueReferenceEngineering {
   return Object.freeze({
     tagId: reference.tagId,
     ...(reference.selector

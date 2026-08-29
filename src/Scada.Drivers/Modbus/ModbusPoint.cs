@@ -40,6 +40,8 @@ public sealed record ModbusPoint(
     double Scale = 1d,
     double Offset = 0d)
 {
+    public TagValueSelector? AddressSelector => Tag.AddressSelector;
+
     public int RegisterCount => ValueType switch
     {
         ModbusValueType.Boolean => Area is ModbusDataArea.Coil or ModbusDataArea.DiscreteInput ? 0 : 1,
@@ -76,5 +78,16 @@ public sealed record ModbusPoint(
 
         if (ValueType != ModbusValueType.Boolean && Tag.DataType is TagDataType.Boolean or TagDataType.String or TagDataType.DateTime or TagDataType.Enum)
             throw new ArgumentException($"Numeric Modbus point '{Tag.Path}' requires a numeric TAG type.");
+
+        if (AddressSelector is null) return;
+
+        if (AddressSelector.Kind != TagValueSelectorKind.Bit)
+            throw new ArgumentException($"Modbus point '{Tag.Path}' uses an unsupported address selector kind '{AddressSelector.Kind}'.");
+        if (AddressSelector.Index is < 0 or > 15)
+            throw new ArgumentOutOfRangeException(nameof(Tag.AddressSelector), $"Modbus register bit selector for '{Tag.Path}' must be from 0 to 15.");
+        if (Area is not (ModbusDataArea.HoldingRegister or ModbusDataArea.InputRegister))
+            throw new ArgumentException($"Modbus bit selector for '{Tag.Path}' is valid only for HoldingRegister or InputRegister areas.");
+        if (ValueType != ModbusValueType.Boolean || Tag.DataType != TagDataType.Boolean)
+            throw new ArgumentException($"Modbus register bit selector for '{Tag.Path}' requires a Boolean Modbus point and Boolean TAG.");
     }
 }

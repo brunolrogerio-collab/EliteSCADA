@@ -1,0 +1,203 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import type { VisualEditorBindingEditorContractProps } from '../visualEditorContracts';
+import {
+  createBindingRemoveIntent,
+  createBindingSetIntent,
+  findVisualBinding,
+  listBindableVisualProperties,
+  normalizeBindingSourceCatalog,
+  type BindableVisualProperty
+} from './bindingEditorModel';
+
+export type BindingEditorCopy = Readonly<{
+  title: string;
+  destination: string;
+  source: string;
+  apply: string;
+  remove: string;
+  noDestinations: string;
+  noSources: string;
+  current: string;
+}>;
+
+export type BindingEditorProps = VisualEditorBindingEditorContractProps & Readonly<{
+  copy?: Partial<BindingEditorCopy>;
+}>;
+
+const DEFAULT_COPY: BindingEditorCopy = {
+  title: 'Binding',
+  destination: 'Visual property',
+  source: 'Source',
+  apply: 'Apply binding',
+  remove: 'Remove binding',
+  noDestinations: 'This object has no bindable visual properties.',
+  noSources: 'No canonical binding sources are available.',
+  current: 'Current binding'
+};
+
+export function BindingEditor({
+  element,
+  sourceCatalog,
+  onMutationIntent,
+  copy
+}: BindingEditorProps) {
+  const text = { ...DEFAULT_COPY, ...copy };
+  const [error, setError] = useState<string | null>(null);
+
+  const destinations = useMemo(
+    () => safeDestinations(element.type, setError),
+    [element.type]
+  );
+  const sources = useMemo(
+    () => safeSources(sourceCatalog, setError),
+    [sourceCatalog]
+  );
+
+  const firstBoundDestination = destinations.find(item =>
+    element.bindings?.some(binding => binding.key === item.key)
+  )?.key;
+  const [propertyKey, setPropertyKey] = useState(firstBoundDestination ?? destinations[0]?.key ?? '');
+
+  useEffect(() => {
+    if (destinations.some(item => item.key === propertyKey)) return;
+    setPropertyKey(firstBoundDestination ?? destinations[0]?.key ?? '');
+  }, [destinations, firstBoundDestination, propertyKey]);
+
+  const existing = propertyKey ? findVisualBinding(element, propertyKey) : undefined;
+  const existingSourceKey = existing
+    ? sourceIdentity(existing.kind, existing.target)
+    : undefined;
+  const [sourceKey, setSourceKey] = useState(
+    existingSourceKey && sources.some(item => sourceIdentity(item.kind, item.target) === existingSourceKey)
+      ? existingSourceKey
+      : sources[0] ? sourceIdentity(sources[0].kind, sources[0].target) : ''
+  );
+
+  useEffect(() => {
+    const current = propertyKey ? findVisualBinding(element, propertyKey) : undefined;
+    const currentKey = current ? sourceIdentity(current.kind, current.target) : '';
+    if (currentKey && sources.some(item => sourceIdentity(item.kind, item.target) === currentKey)) {
+      setSourceKey(currentKey);
+      return;
+    }
+    if (!sources.some(item => sourceIdentity(item.kind, item.target) === sourceKey)) {
+      setSourceKey(sources[0] ? sourceIdentity(sources[0].kind, sources[0].target) : '');
+    }
+  }, [element, propertyKey, sourceKey, sources]);
+
+  function apply() {
+    setError(null);
+    const source = sources.find(item => sourceIdentity(item.kind, item.target) === sourceKey);
+    if (!source || !propertyKey) return;
+    try {
+      onMutationIntent(createBindingSetIntent(
+        element,
+        propertyKey,
+        source,
+        existing?.direction
+      ));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  }
+
+  function remove() {
+    setError(null);
+    if (!propertyKey) return;
+    try {
+      onMutationIntent(createBindingRemoveIntent(element, propertyKey));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  }
+
+  return (
+    <section className="visual-binding-editor" aria-label={text.title} data-testid="visual-binding-editor">
+      <header><strong>{text.title}</strong></header>
+
+      {destinations.length === 0 ? (
+        <p>{text.noDestinations}</p>
+      ) : (
+        <>
+          <label>
+            <span>{text.destination}</span>
+            <select
+              aria-label={text.destination}
+              value={propertyKey}
+              onChange={event => setPropertyKey(event.target.value)}
+            >
+              {destinations.map(destination => (
+                <option key={destination.key} value={destination.key}>
+                  {destination.key} · {destination.type}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            <span>{text.source}</span>
+            <select
+              aria-label={text.source}
+              value={sourceKey}
+              disabled={sources.length === 0}
+              onChange={event => setSourceKey(event.target.value)}
+            >
+              {sources.length === 0 ? (
+                <option value="">{text.noSources}</option>
+              ) : sources.map(source => (
+                <option key={sourceIdentity(source.kind, source.target)} value={sourceIdentity(source.kind, source.target)}>
+                  {source.label} · {source.kind} · {source.target}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {existing && (
+            <p data-testid="visual-binding-current">
+              <strong>{text.current}:</strong> {existing.kind} · {existing.target}
+            </p>
+          )}
+
+          <div className="visual-binding-editor__actions">
+            <button type="button" onClick={apply} disabled={!propertyKey || !sourceKey}>
+              {text.apply}
+            </button>
+            <button type="button" onClick={remove} disabled={!existing}>
+              {text.remove}
+            </button>
+          </div>
+        </>
+      )}
+
+      {error && <div role="alert">{error}</div>}
+    </section>
+  );
+}
+
+function safeDestinations(
+  objectType: string,
+  setError: (value: string | null) => void
+): readonly BindableVisualProperty[] {
+  try {
+    return listBindableVisualProperties({ type: objectType });
+  } catch (cause) {
+    queueMicrotask(() => setError(cause instanceof Error ? cause.message : String(cause)));
+    return [];
+  }
+}
+
+function safeSources(
+  sourceCatalog: VisualEditorBindingEditorContractProps['sourceCatalog'],
+  setError: (value: string | null) => void
+) {
+  try {
+    return normalizeBindingSourceCatalog(sourceCatalog);
+  } catch (cause) {
+    queueMicrotask(() => setError(cause instanceof Error ? cause.message : String(cause)));
+    return [];
+  }
+}
+
+function sourceIdentity(kind: string, target: string): string {
+  return `${kind}\u0000${target}`;
+}

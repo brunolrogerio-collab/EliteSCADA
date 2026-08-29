@@ -42,19 +42,11 @@ Draft integration PR: **#90**
 Exact graphical product head: **`a7176a44df3a0af5bc1a271b25101d333da7a161`**  
 CI #525 / run `33230239968`: **SUCCESS**
 
-CI #525 proved on that exact product head:
-
-- Web React/Vite/TypeScript build: SUCCESS;
-- backend Release build: SUCCESS;
-- full backend tests including PostgreSQL/Timescale: SUCCESS;
-- Runtime smoke: SUCCESS;
-- Chromium E2E: SUCCESS;
-- integrated Canvas + Property Inspector + Object Palette + Binding + Image asset workflow: green;
-- existing visual/Python/security/runtime regressions remained green.
+CI #525 proved Web build, backend Release build, full PostgreSQL/Timescale tests, Runtime smoke, Chromium E2E, integrated Canvas/Inspector/Palette/Binding/Image workflow and prior visual/Python/security/runtime regressions.
 
 DEV 1/2/3 original graphical slices were reviewed and integrated by the coordinator. Their worker PRs #91/#92/#93 are closed without direct merge to `main` because their content is incorporated into the central integration train.
 
-The later `[skip ci]` documentation commits that lock the Development Monitor requirement do not invalidate CI #525 evidence for the unchanged graphical product code, but **CI #525 is no longer the final Wave 08 Definition-of-Done gate** because the owner expanded Wave 08 before merge.
+Later `[skip ci]` documentation commits do not invalidate CI #525 evidence for unchanged graphical product code, but **CI #525 is no longer the final Wave 08 Definition-of-Done gate** because the owner expanded Wave 08 before merge.
 
 ## New owner-locked Wave 08 scope — Engineering Development Monitor
 

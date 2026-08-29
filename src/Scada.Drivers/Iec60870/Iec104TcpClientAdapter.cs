@@ -219,7 +219,7 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter
                 {
                     await WriteFrameCoreAsync(frame, linkedCts.Token).ConfigureAwait(false);
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+                catch (Exception ex)
                 {
                     SignalSessionFailure(ex);
                     throw;

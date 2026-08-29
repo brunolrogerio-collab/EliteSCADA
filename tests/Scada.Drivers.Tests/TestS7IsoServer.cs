@@ -28,6 +28,8 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
 
     public int Port { get; }
     public ushort NegotiatedPduSize { get; }
+    public byte ReadReturnCode { get; set; } = S7IsoProtocol.ReturnCodeSuccess;
+    public byte WriteReturnCode { get; set; } = S7IsoProtocol.ReturnCodeSuccess;
 
     public void SetBytes(S7IsoArea area, ushort dbNumber, int byteOffset, ReadOnlySpan<byte> data)
     {
@@ -138,6 +140,15 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
         var data = new List<byte>();
         for (var item = 0; item < count; item++)
         {
+            if (ReadReturnCode != S7IsoProtocol.ReturnCodeSuccess)
+            {
+                data.Add(ReadReturnCode);
+                data.Add(0x00);
+                data.Add(0x00);
+                data.Add(0x00);
+                continue;
+            }
+
             var specOffset = 19 + item * 12;
             var transport = request[specOffset + 3];
             var elementCount = BinaryPrimitives.ReadUInt16BigEndian(request.AsSpan(specOffset + 4, 2));
@@ -166,6 +177,9 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
 
     private byte[] HandleWrite(ushort reference, byte[] request)
     {
+        if (WriteReturnCode != S7IsoProtocol.ReturnCodeSuccess)
+            return AckData(reference, new byte[] { 0x05, 0x01 }, new[] { WriteReturnCode });
+
         var specOffset = 19;
         var transport = request[specOffset + 3];
         var dbNumber = BinaryPrimitives.ReadUInt16BigEndian(request.AsSpan(specOffset + 6, 2));

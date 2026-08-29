@@ -113,9 +113,9 @@ export function BindingEditor({
     const current = propertyKey ? findVisualBinding(element, propertyKey) : undefined;
     const currentSource = current ? findBindingSourceForBinding(current, sources) : undefined;
     const currentKey = currentSource ? bindingSourceIdentity(currentSource) : '';
-    if (currentSource && currentKey && sources.some(item => bindingSourceIdentity(item) === currentKey)) {
+    if (current && currentSource && currentKey && sources.some(item => bindingSourceIdentity(item) === currentKey)) {
       setSourceKey(currentKey);
-      setBitIndex(current?.tagReference?.selector?.kind === 'bit'
+      setBitIndex(current.tagReference?.selector?.kind === 'bit'
         ? current.tagReference.selector.index
         : initialBitIndex(selectedDestination, currentSource));
       setExactReference(current.target);

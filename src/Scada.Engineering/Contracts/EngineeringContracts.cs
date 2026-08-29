@@ -42,6 +42,7 @@ public enum ImportOperation
 public enum EngineeringBindingKind
 {
     Tag,
+    ClientMemory,
     Property,
     Expression
 }

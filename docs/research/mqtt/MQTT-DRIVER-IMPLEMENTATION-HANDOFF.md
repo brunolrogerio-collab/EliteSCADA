@@ -20,12 +20,13 @@ This document records the implementation state of the raw MQTT industrial driver
 - Passive receive-side transport loss is counted as a failed communication operation and a disconnection even when the transport has already observed the socket/session as disconnected.
 - Explicit stop/start is supported without duplicate canonical TAG registration; completed cancellation state and freshness references are released/reset between starts.
 - Malformed payloads fail closed per mapped point and do not silently coerce values to `0`, `false` or another guessed type.
+- Inbound payload size is checked at the MQTTnet callback boundary before EliteSCADA copies the MQTTnet payload into an application-owned byte array. An oversized payload stops new inbound admission and faults the Data Source rather than allocating/copying the oversized application payload.
 - Retained values without a trustworthy configured source timestamp are `Stale` by default. `acceptAsCurrent` is an explicit opt-in policy.
 - Optional per-TAG freshness timeout transitions a previously valid `Good` sample to `Stale` when no newer accepted MQTT sample arrives in time. The freshness clock starts from local sample acceptance and is deliberately independent from mapped source timestamps.
 - Freshness uses the monotonic `Stopwatch` clock, so wall-clock adjustment cannot prematurely expire or extend a point freshness interval.
 - Freshness-managed cache updates are serialized with freshness expiry transitions so an older expiry decision cannot overwrite a newer accepted sample or communication failure.
 - The MQTTnet inbound adapter uses a bounded channel with `FullMode.Wait`. Callback completion therefore applies backpressure instead of silently dropping newest/oldest telemetry or allowing an unbounded memory queue.
-- Inbound QoS 1/2 acknowledgement is deferred until the application message has been admitted to the bounded EliteSCADA transport queue. A canceled or rejected enqueue is not acknowledged.
+- Inbound QoS 1/2 acknowledgement is deferred until the application message has been admitted to the bounded EliteSCADA transport queue. A canceled, rejected or oversized message is not acknowledged.
 - Writable TAGs publish through the normal driver write path and do not pretend that a successful MQTT publish means the remote process accepted the command.
 - Runtime diagnostics use `CommunicationDriverDiagnosticSnapshot`; scan interval, cycle count and scan duration remain absent/zero for the event-driven driver.
 
@@ -38,13 +39,17 @@ Implemented payload formats:
    - Int16 / Int32 / Int64: invariant integer parsing with range checks.
    - Float / Double: invariant finite numeric parsing.
    - String / Enum: UTF-8 text.
-   - DateTime: unambiguous date/time parsing normalized to UTC.
+   - DateTime: date/time strings require an explicit `Z` UTC designator or numeric offset and are normalized to UTC. Offset-less timestamps are rejected rather than interpreted in the host time zone.
 
 2. `json`
    - deterministic JSON scalar extraction;
    - RFC 6901 JSON Pointer including `~0` and `~1` escapes;
+   - array index tokens are canonical decimal indices (`0` or a non-zero digit followed by digits); leading-zero forms such as `01` are rejected;
    - optional JSON Pointer source timestamp extraction;
-   - optional required-source-timestamp policy.
+   - optional required-source-timestamp policy;
+   - mapped DateTime/source-time strings require an explicit `Z` or numeric offset.
+
+`DateTime` writes accept `DateTimeOffset`, UTC/local `DateTime`, and reject `DateTimeKind.Unspecified` because it does not identify an unambiguous instant.
 
 JSON field extraction is read-only for non-root writes in this slice. Publishing a JSON sub-field would require an explicit envelope/template contract and is rejected rather than guessed.
 
@@ -130,9 +135,19 @@ This intentionally avoids `DropOldest`, `DropNewest` and unbounded buffering. Wh
 
 For inbound QoS 1 and QoS 2, MQTTnet automatic acknowledgement is disabled for the callback. The transport calls the library's deferred acknowledgement API only after the message has successfully entered the bounded EliteSCADA queue. If queue admission is canceled during disconnect/dispose, the message remains unacknowledged so broker/session semantics may redeliver it where applicable.
 
-The acknowledgement boundary is deliberately **queue admission**, not canonical TAG transaction completion. This avoids acknowledging messages that were discarded by local backpressure while still keeping MQTT protocol handling outside the TAG cache. A process failure after queue admission but before TAG processing can therefore still cause application-level replay/loss scenarios according to broker/session/QoS behavior. Packet identifiers are not treated as durable event identity and no deduplication is invented from them.
+Before `ReadOnlySequence<byte>.ToArray()` creates an EliteSCADA-owned payload copy, the callback compares MQTTnet's payload length with `maximumInboundPayloadBytes`. If the limit is exceeded:
 
-The queue is bounded by message count and each individual payload is separately limited by `maximumInboundPayloadBytes`. This is a deterministic bound, but it is not a separate aggregate-byte memory quota; real burst validation is still required before choosing production capacities.
+- no EliteSCADA payload byte-array copy is created;
+- new inbound admissions are stopped for that transport session;
+- QoS 1/2 is marked processing-failed and is not acknowledged by EliteSCADA;
+- a permanent transport error is queued to the runtime;
+- the runtime marks communication failure, disconnects once and transitions the Data Source to `Faulted` rather than reconnecting forever into the same retained/oversized message.
+
+This protects the EliteSCADA application allocation boundary. MQTTnet necessarily still owns/observes the protocol packet that reached its callback, so this is **not** a claim that the protocol library allocated zero memory for an oversized network packet. MQTT 5 also exposes a Maximum Packet Size property, but packet size and configured payload size are different contracts and are not conflated here; MQTT 3.1.1 has no equivalent property.
+
+The acknowledgement boundary for normal-sized messages is deliberately **queue admission**, not canonical TAG transaction completion. This avoids acknowledging messages that were discarded by local backpressure while still keeping MQTT protocol handling outside the TAG cache. A process failure after queue admission but before TAG processing can therefore still cause application-level replay/loss scenarios according to broker/session/QoS behavior. Packet identifiers are not treated as durable event identity and no deduplication is invented from them.
+
+The queue is bounded by message count and each individual payload is separately limited by `maximumInboundPayloadBytes`. This is deterministic per-message protection, but it is not a separate aggregate-byte memory quota; real burst validation is still required before choosing production capacities.
 
 ## Engineering Import/Export
 
@@ -173,8 +188,9 @@ This keeps MQTTnet classes behind `IMqttClientTransport` and prevents the protoc
 - `MqttRuntimeFactoryTests`
 - `MqttCredentialLifetimeTests`
 - `MqttFreshnessAndBufferTests`
+- `MqttTransportSafetyTests`
 
-The tests cover exact-topic validation, typed payloads, JSON Pointer, retained semantics, malformed payload isolation, event-driven cache updates, writes, reconnect/resubscribe, Engineering compilation, public Import/Export fidelity, secret reference enforcement, runtime composition, credential zeroization, freshness expiration/recovery, separation of source-time age from receive freshness, stop/restart lifecycle, passive-disconnect diagnostics and bounded-buffer configuration limits.
+The tests cover exact-topic validation, typed payloads, strict UTC/offset timestamp parsing, canonical JSON array indices, JSON Pointer, retained semantics, malformed payload isolation, ambiguous DateTime write rejection, event-driven cache updates, writes, reconnect/resubscribe, permanent transport-fault behavior, Engineering compilation, public Import/Export fidelity, secret reference enforcement, runtime composition, credential zeroization, freshness expiration/recovery, separation of source-time age from receive freshness, stop/restart lifecycle, passive-disconnect diagnostics and bounded-buffer configuration limits.
 
 The current execution environment does not contain the .NET 10 SDK, so these tests still require execution in an authorized .NET 10 build environment. GitHub Actions should not be spent merely as reassurance CI; run the focused suite when Coordinator integration or a justified driver validation run is scheduled.
 
@@ -213,7 +229,8 @@ Before production integration, validate with at least two independent broker imp
    - retained messages;
    - persistent session reconnect;
    - broker restart and network interruption;
-   - malformed and oversized payload behavior;
+   - malformed and oversized payload behavior, including confirmation that oversized payloads fault without an EliteSCADA application payload copy;
+   - oversized retained QoS 1/2 behavior and broker redelivery after operator remediation/restart;
    - burst traffic above configured inbound capacity to verify bounded backpressure and shutdown behavior;
    - QoS 1/2 redelivery when bounded queue admission is interrupted before acknowledgement;
    - freshness timeout and recovery under real broker traffic.
@@ -224,6 +241,7 @@ Before production integration, validate with at least two independent broker imp
    - QoS and retained interoperability;
    - TLS hostname/chain failures;
    - sustained burst/backpressure interoperability;
+   - oversized-payload policy interoperability;
    - deferred QoS acknowledgement during broker disconnect/reconnect.
 
 Vendor/cloud broker validation should be added when a concrete deployment target is selected.

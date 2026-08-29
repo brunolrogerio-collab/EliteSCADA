@@ -22,7 +22,18 @@ public sealed class S7IsoTagBindingTests
         Assert.Empty(issues);
         Assert.NotNull(binding);
 
-        var portable = binding!.ToPortableAddress();
+        var normalizedSettings = binding!.ToSettings();
+        Assert.Equal(nameof(S7IsoArea.DataBlock), normalizedSettings["area"]);
+        Assert.Equal("7", normalizedSettings["dbNumber"]);
+        Assert.Equal("12", normalizedSettings["byteOffset"]);
+        Assert.Equal(nameof(S7IsoValueType.Float32), normalizedSettings["valueType"]);
+        Assert.Equal("true", normalizedSettings["writable"]);
+        Assert.Equal(nameof(S7IsoValueOrder.WordSwap), normalizedSettings["valueOrder"]);
+        Assert.True(S7IsoTagBinding.TryCreateFromSettings(normalizedSettings, out var fromNormalizedSettings, out var normalizedIssues));
+        Assert.Empty(normalizedIssues);
+        Assert.Equal(binding, fromNormalizedSettings);
+
+        var portable = binding.ToPortableAddress();
         Assert.StartsWith("s7iso:v1;", portable);
         Assert.True(S7IsoTagBinding.TryParsePortableAddress(portable, out var parsed, out var parseError), parseError);
         Assert.Equal(binding, parsed);
@@ -87,6 +98,19 @@ public sealed class S7IsoTagBindingTests
         Assert.False(S7IsoTagBinding.TryCreateFromSettings(settings, out var binding, out var issues));
         Assert.Null(binding);
         Assert.Contains(issues, issue => issue.FieldKey == "byteOffset");
+    }
+
+    [Fact]
+    public void DirectInvalidBinding_CannotBeSerializedAsEngineeringTruth()
+    {
+        var invalid = new S7IsoTagBinding(
+            S7IsoTagBinding.CurrentSchemaVersion,
+            (S7IsoArea)0xFF,
+            0,
+            S7IsoValueType.Int16);
+
+        Assert.Throws<ArgumentException>(() => invalid.ToSettings());
+        Assert.Throws<ArgumentException>(() => invalid.ToPortableAddress());
     }
 
     [Fact]

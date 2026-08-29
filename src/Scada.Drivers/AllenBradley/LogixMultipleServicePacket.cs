@@ -15,8 +15,8 @@ public static class LogixMultipleServicePacket
         if (serviceRequests.Any(static request => request is null || request.Length < 2))
             throw new ArgumentException("Each embedded CIP service request must contain at least service and path-size bytes.", nameof(serviceRequests));
 
-        var replyTableLength = checked(2 + (serviceRequests.Count * 2));
-        var requestDataLength = replyTableLength;
+        var offsetTableLength = checked(2 + (serviceRequests.Count * 2));
+        var requestDataLength = offsetTableLength;
         foreach (var serviceRequest in serviceRequests)
             requestDataLength = checked(requestDataLength + serviceRequest.Length);
         if (requestDataLength > ushort.MaxValue)
@@ -32,7 +32,7 @@ public static class LogixMultipleServicePacket
 
         var data = request.AsSpan(RequestHeaderLength);
         BinaryPrimitives.WriteUInt16LittleEndian(data, checked((ushort)serviceRequests.Count));
-        var serviceOffset = replyTableLength;
+        var serviceOffset = offsetTableLength;
         for (var index = 0; index < serviceRequests.Count; index++)
         {
             BinaryPrimitives.WriteUInt16LittleEndian(data.Slice(2 + (index * 2), 2), checked((ushort)serviceOffset));
@@ -86,6 +86,6 @@ public static class LogixMultipleServicePacket
     {
         ArgumentNullException.ThrowIfNull(references);
         if (references.Count == 0) throw new ArgumentException("At least one Logix reference is required.", nameof(references));
-        return BuildRequest(references.Select(LogixCipCodec.BuildReadTagRequest).ToArray());
+        return BuildRequest(references.Select(static reference => LogixCipCodec.BuildReadTagRequest(reference)).ToArray());
     }
 }

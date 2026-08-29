@@ -46,6 +46,31 @@ public sealed class Iec104SequenceStateTests
     }
 
     [Fact]
+    public void ExactLocalAcknowledgementDoesNotConsumeLaterReceivedFrames()
+    {
+        var state = new Iec104SequenceState();
+        state.AcceptReceivedIFrame(0, 0);
+        var capturedAcknowledgement = state.ReceiveAcknowledgementSequence;
+        state.AcceptReceivedIFrame(1, 0);
+
+        state.MarkReceiveAcknowledged(capturedAcknowledgement);
+
+        Assert.Equal(1, state.PendingReceiveAcknowledgementCount);
+        Assert.Equal((ushort)2, state.MarkReceiveAcknowledged());
+        Assert.Equal(0, state.PendingReceiveAcknowledgementCount);
+    }
+
+    [Fact]
+    public void ExactLocalAcknowledgementCannotAdvanceBeyondReceivedFrames()
+    {
+        var state = new Iec104SequenceState();
+        state.AcceptReceivedIFrame(0, 0);
+
+        Assert.Throws<Iec104ProtocolException>(() => state.MarkReceiveAcknowledged(2));
+        Assert.Equal(1, state.PendingReceiveAcknowledgementCount);
+    }
+
+    [Fact]
     public void SequenceNumbersWrapAt32768()
     {
         var state = new Iec104SequenceState(32767, 32767);

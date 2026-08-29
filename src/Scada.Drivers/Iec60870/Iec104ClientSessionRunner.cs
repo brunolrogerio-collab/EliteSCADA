@@ -56,6 +56,9 @@ public sealed class Iec104ClientSessionRunner
 
     public int InFlightCommandCount => _commandCoordinator.InFlightCount;
 
+    public Iec104TcpAdapterDiagnosticSnapshot? GetTransportDiagnostics() =>
+        (_adapter as IIec104TransportDiagnosticsSource)?.GetTransportDiagnostics();
+
     public IReadOnlyDictionary<ushort, Iec104GeneralInterrogationState> GeneralInterrogationStates =>
         _generalInterrogations.ToDictionary(static pair => pair.Key, static pair => pair.Value.State);
 

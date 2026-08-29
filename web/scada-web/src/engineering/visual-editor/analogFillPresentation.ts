@@ -1,8 +1,8 @@
 export const ANALOG_FILL_DIRECTIONS = [
-  'bottom-to-top',
-  'top-to-bottom',
-  'left-to-right',
-  'right-to-left'
+  'BottomToTop',
+  'TopToBottom',
+  'LeftToRight',
+  'RightToLeft'
 ] as const;
 
 export type AnalogFillDirection = typeof ANALOG_FILL_DIRECTIONS[number];
@@ -13,6 +13,7 @@ export type AnalogFillPresentationInput = Readonly<{
   inputMaximum: number;
   direction: AnalogFillDirection;
   clamp?: boolean;
+  invertScale?: boolean;
 }>;
 
 export type AnalogFillPresentation = Readonly<{
@@ -22,12 +23,9 @@ export type AnalogFillPresentation = Readonly<{
 }>;
 
 /**
- * Pure renderer-side projection for canonical Analog Fill configuration.
- *
- * This helper deliberately owns no Engineering DTO, expression evaluation or
- * persistence semantics. FOLLOW-B Engineering/evaluator contracts provide the
- * already-resolved numeric input and canonical scale/direction; this function
- * only turns that resolved presentation state into deterministic clipping.
+ * Pure renderer-side projection for the canonical FOLLOW-B Analog Fill contract.
+ * Engineering/evaluator code supplies an already-resolved numeric value plus the
+ * persisted scale/direction flags; this helper owns presentation math only.
  */
 export function computeAnalogFillPresentation(
   input: AnalogFillPresentationInput
@@ -48,7 +46,8 @@ export function computeAnalogFillPresentation(
     throw new Error('Analog Fill normalization produced a non-finite result.');
   }
 
-  const normalized = input.clamp === false ? raw : clamp01(raw);
+  const scaled = input.invertScale === true ? 1 - raw : raw;
+  const normalized = input.clamp === false ? scaled : clamp01(scaled);
   const percent = normalized * 100;
 
   return Object.freeze({
@@ -59,17 +58,15 @@ export function computeAnalogFillPresentation(
 }
 
 function clipPathFor(direction: AnalogFillDirection, normalized: number): string {
-  // CSS inset percentages are allowed outside 0..100 when canonical Engineering
-  // deliberately disables clamping. The default path remains bounded.
   const remaining = (1 - normalized) * 100;
   switch (direction) {
-    case 'bottom-to-top':
+    case 'BottomToTop':
       return `inset(${formatPercent(remaining)} 0 0 0)`;
-    case 'top-to-bottom':
+    case 'TopToBottom':
       return `inset(0 0 ${formatPercent(remaining)} 0)`;
-    case 'left-to-right':
+    case 'LeftToRight':
       return `inset(0 ${formatPercent(remaining)} 0 0)`;
-    case 'right-to-left':
+    case 'RightToLeft':
       return `inset(0 0 0 ${formatPercent(remaining)})`;
   }
 }

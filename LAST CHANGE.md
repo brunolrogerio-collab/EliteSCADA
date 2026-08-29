@@ -4,7 +4,7 @@
 
 **Handoff date:** 2026-08-28  
 **Development state:** **WAVE 08 ACTIVE — CENTRAL SCREEN EDITOR FOUNDATION IMPLEMENTED / NOT CI VALIDATED**  
-**CI mode:** **NORMAL, but do not spend Actions until owner access/quota is available**  
+**CI mode:** **NORMAL — Actions authorized with conservative usage**  
 **DEV workers:** **STOPPED / WAIT_FOR_COORDINATOR**
 
 ## Mandatory resume reading
@@ -123,7 +123,20 @@ Evidence currently available:
 - GitHub static/source review of the current integration changes;
 - integration reconciled to current `main` at the checkpoint above;
 - focused source tests have been added but not executed by GitHub Actions;
-- no Wave 08 PR has been opened, intentionally avoiding an automatic Actions run while owner Actions access/quota is unavailable.
+- no Wave 08 PR has been opened yet.
+
+### Actions usage rule for Wave 08
+
+Actions is explicitly authorized by the owner, but must be used conservatively:
+
+- prefer static review and focused validation before a full matrix;
+- batch coherent changes before triggering CI;
+- do not rerun unchanged heads for reassurance;
+- diagnose localized failures before another expensive run;
+- opening/updating a PR is appropriate only at a meaningful validation checkpoint;
+- preserve the full exact-head matrix for integration/final evidence required by the Wave Definition of Done.
+
+CI economy changes frequency, never assertions or the final quality gate.
 
 Still pending:
 
@@ -145,7 +158,7 @@ Wave 09/10 remain NOT ACTIVE.
 3. preserve workers as STOPPED unless deliberately restarted;
 4. continue from `integration/graphical-editor-wave-08` and verify checkpoint `d49182474e3275e798b2a1434c48466d1b846ac1` or its documented successor;
 5. make every restarted worker consume `web/scada-web/src/engineering/visual-editor/visualEditorContracts.ts` rather than inventing a competing intent format;
-6. when Actions access is available, run the cheapest meaningful exact-head validation first; opening the integration PR is acceptable once the branch is ready because PR-to-main triggers CI;
+6. use Actions conservatively: run the cheapest meaningful exact-head validation that answers the current decision, and reserve full matrices for meaningful integration/final checkpoints;
 7. fix build/test failures before expanding scope;
 8. restart the three worker slices only when useful, without changing their fixed ownership boundaries;
 9. integrate worker deliveries through the Wave 08 integration branch, run focused tests and then the full exact-head CI matrix;

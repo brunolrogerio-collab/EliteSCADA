@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { EngineeringLocale } from '../i18n';
 import type {
   CommunicationDriverDiagnostic,
-  EngineeringSnapshot,
-  RuntimeDiagnosticsView
+  EngineeringSnapshot
 } from '../types';
+import { loadCommunicationDiagnostics } from '../api';
 import {
   buildProjectReferenceCatalog,
   type ClientMemoryDefinitionView,
@@ -15,33 +15,23 @@ import {
   initializeClientMemory,
   readClientMemoryValue
 } from '../../runtime/clientMemory';
+import {
+  loadReadableRuntimeTags,
+  openRuntimeTagSocket,
+  parseRuntimeTagRealtimeMessage,
+  type RuntimeTagSnapshot
+} from '../../runtime/liveTagTransport';
+import {
+  applyMonitorRealtimeMessage,
+  formatMonitorQuality,
+  formatMonitorValue,
+  markMonitorUnavailable,
+  mergeMonitorBatchSamples,
+  monitorQualityClass,
+  resolveMonitorQuickAdd,
+  type MonitorSample
+} from './developmentMonitorModel';
 import './development-monitor.css';
-
-type TagSnapshot = Readonly<{
-  path: string;
-  type: string;
-  value: unknown;
-  quality?: string | number | null;
-  sourceTimestamp?: string | null;
-  serverTimestamp?: string | null;
-}>;
-
-type MonitorSample = Readonly<{
-  reference: string;
-  value: unknown;
-  dataType: string;
-  quality?: string | number | null;
-  state?: string | number | null;
-  sourceTimestamp?: string | null;
-  observedAt: string;
-  detail?: string | null;
-}>;
-
-type RuntimeTagMessage = Readonly<{
-  type?: string;
-  tag?: TagSnapshot;
-  state?: string;
-}>;
 
 export function DevelopmentMonitorWorkspace({
   snapshot,
@@ -50,6 +40,7 @@ export function DevelopmentMonitorWorkspace({
   const copy = monitorCopy(locale);
   const [clientDefinitions, setClientDefinitions] = useState<readonly ClientMemoryDefinitionView[]>([]);
   const [driverDiagnostics, setDriverDiagnostics] = useState<readonly CommunicationDriverDiagnostic[]>([]);
+  const [runtimeTags, setRuntimeTags] = useState<readonly RuntimeTagSnapshot[]>([]);
   const [selectedReferences, setSelectedReferences] = useState<readonly string[]>(() => loadWatchList());
   const [samples, setSamples] = useState<ReadonlyMap<string, MonitorSample>>(() => new Map());
   const [quickAdd, setQuickAdd] = useState('');
@@ -63,9 +54,10 @@ export function DevelopmentMonitorWorkspace({
         if (cancelled) return;
         setClientDefinitions(Object.freeze(definitions.map(definition => Object.freeze({
           name: definition.name,
+          path: definition.path,
           dataType: definition.dataType,
           initialValue: definition.initialValue,
-          readOnly: false
+          readOnly: definition.readOnly
         }))));
       })
       .catch(() => {
@@ -78,41 +70,33 @@ export function DevelopmentMonitorWorkspace({
     sessionStorage.setItem('elitescada.engineering.monitor.watchlist', JSON.stringify(selectedReferences));
   }, [selectedReferences]);
 
+  const driverKeySignature = useMemo(() => [...new Set(driverDiagnostics.map(driver => driver.dataSourceKey))].sort().join('\u0000'), [driverDiagnostics]);
+  const driverKeys = useMemo(() => driverKeySignature ? driverKeySignature.split('\u0000') : [], [driverKeySignature]);
   const catalog = useMemo(() => buildProjectReferenceCatalog(
     snapshot.package,
     clientDefinitions,
-    { driverKeys: driverDiagnostics.map(driver => driver.dataSourceKey) }
-  ), [snapshot.package, clientDefinitions, driverDiagnostics]);
+    { driverKeys }
+  ), [snapshot.package, clientDefinitions, driverKeys]);
 
   const descriptorByReference = useMemo(
     () => new Map(catalog.map(item => [item.reference, item])),
     [catalog]
   );
+  const selectedReferenceSet = useMemo(() => new Set(selectedReferences), [selectedReferences]);
 
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
       try {
-        const [tagResponse, diagnosticResponse] = await Promise.all([
-          fetch('/api/tags', { credentials: 'same-origin' }),
-          fetch('/api/diagnostics/runtime', { credentials: 'same-origin' })
+        const [tags, drivers] = await Promise.all([
+          loadReadableRuntimeTags(),
+          loadCommunicationDiagnostics()
         ]);
-        const tags = tagResponse.ok ? await tagResponse.json() as TagSnapshot[] : [];
-        const diagnostics = diagnosticResponse.ok ? await diagnosticResponse.json() as RuntimeDiagnosticsView : {};
         if (cancelled) return;
-        const drivers = diagnostics.runtime?.communicationDrivers ?? [];
+        setRuntimeTags(tags);
         setDriverDiagnostics(Object.freeze([...drivers]));
-        setSamples(current => mergeBatchSamples(
-          current,
-          selectedReferences,
-          descriptorByReference,
-          tags,
-          drivers,
-          clientDefinitions
-        ));
       } catch {
-        if (cancelled) return;
-        setSamples(current => markUnavailable(current, selectedReferences, descriptorByReference));
+        if (!cancelled) setSamples(current => markMonitorUnavailable(current, selectedReferences, descriptorByReference));
       }
     };
 
@@ -122,51 +106,56 @@ export function DevelopmentMonitorWorkspace({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [selectedReferences, descriptorByReference, clientDefinitions]);
+  }, [selectedReferences, descriptorByReference]);
+
+  useEffect(() => {
+    setSamples(current => mergeMonitorBatchSamples(
+      current,
+      selectedReferences,
+      descriptorByReference,
+      runtimeTags,
+      driverDiagnostics,
+      clientDefinitions,
+      readClientMemoryValue
+    ));
+  }, [selectedReferences, descriptorByReference, runtimeTags, driverDiagnostics, clientDefinitions]);
 
   useEffect(() => {
     socketRef.current?.close();
     socketRef.current = null;
 
-    const tagPaths = selectedReferences
-      .map(reference => descriptorByReference.get(reference))
-      .filter((descriptor): descriptor is ProjectReferenceDescriptor =>
-        descriptor != null && (descriptor.family === 'tag' || descriptor.family === 'serverMemory'))
-      .map(descriptor => descriptor.reference);
-    if (tagPaths.length === 0) return undefined;
-
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socket = new WebSocket(`${protocol}//${window.location.host}/api/realtime`);
-    socketRef.current = socket;
-    socket.addEventListener('open', () => {
-      socket.send(JSON.stringify({ paths: tagPaths }));
+    const hasTagReferences = selectedReferences.some(reference => {
+      const descriptor = descriptorByReference.get(reference);
+      return descriptor?.family === 'tag' || descriptor?.family === 'serverMemory';
     });
+    if (!hasTagReferences) return undefined;
+
+    const socket = openRuntimeTagSocket();
+    socketRef.current = socket;
     socket.addEventListener('message', event => {
-      try {
-        const message = JSON.parse(String(event.data)) as RuntimeTagMessage;
-        if (message.type !== 'tag' || !message.tag?.path) return;
-        const tag = message.tag;
-        setSamples(current => {
-          const next = new Map(current);
-          next.set(tag.path, Object.freeze({
-            reference: tag.path,
-            value: tag.value,
-            dataType: tag.type,
-            quality: tag.quality ?? null,
-            sourceTimestamp: tag.sourceTimestamp ?? tag.serverTimestamp ?? null,
-            observedAt: new Date().toISOString()
-          }));
-          return next;
+      const realtime = parseRuntimeTagRealtimeMessage(String(event.data));
+      if (!realtime) return;
+      setSamples(current => applyMonitorRealtimeMessage(
+        current,
+        realtime,
+        selectedReferenceSet,
+        descriptorByReference
+      ));
+    });
+    socket.addEventListener('close', () => {
+      setSamples(current => {
+        const tagReferences = selectedReferences.filter(reference => {
+          const descriptor = descriptorByReference.get(reference);
+          return descriptor?.family === 'tag' || descriptor?.family === 'serverMemory';
         });
-      } catch {
-        // Malformed realtime data is ignored; the bounded batch refresh remains fallback evidence.
-      }
+        return markMonitorUnavailable(current, tagReferences, descriptorByReference);
+      });
     });
     return () => {
       socket.close();
       if (socketRef.current === socket) socketRef.current = null;
     };
-  }, [selectedReferences, descriptorByReference]);
+  }, [selectedReferences, selectedReferenceSet, descriptorByReference]);
 
   const addReference = (reference: string) => {
     if (!descriptorByReference.has(reference)) {
@@ -181,18 +170,12 @@ export function DevelopmentMonitorWorkspace({
   };
 
   const quickAddReference = () => {
-    const candidate = quickAdd.trim();
-    if (!candidate) return;
-    const exact = catalog.filter(item => item.reference === candidate || item.label === candidate);
-    if (exact.length === 1) {
-      addReference(exact[0].reference);
+    const result = resolveMonitorQuickAdd(catalog, quickAdd);
+    if (result.status === 'found' && result.reference) {
+      addReference(result.reference);
       return;
     }
-    if (exact.length > 1) {
-      setMessage(copy.ambiguous);
-      return;
-    }
-    setMessage(copy.notFound);
+    setMessage(result.status === 'ambiguous' ? copy.ambiguous : copy.notFound);
   };
 
   return <div className="eng-section development-monitor" data-testid="engineering-development-monitor">
@@ -241,10 +224,10 @@ export function DevelopmentMonitorWorkspace({
               const sample = samples.get(reference);
               return <tr key={reference} data-monitor-reference={reference}>
                 <td><strong>{descriptor?.label ?? reference}</strong><code>{reference}</code></td>
-                <td>{descriptor?.family ?? '—'}</td>
+                <td>{descriptor ? projectSourceLabel(descriptor, locale) : '—'}</td>
                 <td className="mono">{formatMonitorValue(sample?.value)}</td>
                 <td>{sample?.dataType ?? descriptor?.dataType ?? '—'}</td>
-                <td className={qualityClass(sample)}>{formatQuality(sample)}</td>
+                <td className={monitorQualityClass(sample)} title={sample?.detail ?? undefined}>{formatMonitorQuality(sample)}</td>
                 <td>{formatTimestamp(sample?.sourceTimestamp ?? sample?.observedAt, locale)}</td>
                 <td><button type="button" aria-label={`${copy.remove} ${reference}`} onClick={() => setSelectedReferences(current => Object.freeze(current.filter(item => item !== reference)))}>×</button></td>
               </tr>;
@@ -257,130 +240,13 @@ export function DevelopmentMonitorWorkspace({
   </div>;
 }
 
-function mergeBatchSamples(
-  current: ReadonlyMap<string, MonitorSample>,
-  selected: readonly string[],
-  descriptors: ReadonlyMap<string, ProjectReferenceDescriptor>,
-  tags: readonly TagSnapshot[],
-  drivers: readonly CommunicationDriverDiagnostic[],
-  clientDefinitions: readonly ClientMemoryDefinitionView[]
-): ReadonlyMap<string, MonitorSample> {
-  const next = new Map(current);
-  const tagByPath = new Map(tags.map(tag => [tag.path, tag]));
-  const driverByKey = new Map(drivers.map(driver => [driver.dataSourceKey, driver]));
-  const now = new Date().toISOString();
-
-  for (const reference of selected) {
-    const descriptor = descriptors.get(reference);
-    if (!descriptor) continue;
-
-    if (descriptor.family === 'tag' || descriptor.family === 'serverMemory') {
-      const tag = tagByPath.get(reference);
-      next.set(reference, tag ? Object.freeze({
-        reference,
-        value: tag.value,
-        dataType: tag.type || descriptor.dataType,
-        quality: tag.quality ?? null,
-        sourceTimestamp: tag.sourceTimestamp ?? tag.serverTimestamp ?? null,
-        observedAt: now
-      }) : unavailableSample(descriptor, now));
-      continue;
-    }
-
-    if (descriptor.family === 'clientMemory') {
-      const definition = clientDefinitions.find(candidate => candidate.name === reference);
-      next.set(reference, Object.freeze({
-        reference,
-        value: definition ? readClientMemoryValue(reference) : null,
-        dataType: definition?.dataType ?? descriptor.dataType,
-        state: definition ? 'LocalSession' : 'Unavailable',
-        sourceTimestamp: null,
-        observedAt: now
-      }));
-      continue;
-    }
-
-    if (reference === 'system.runtime.tagCount') {
-      next.set(reference, sample(reference, tags.length, 'Int32', 'Available', now));
-      continue;
-    }
-    if (reference === 'system.runtime.driverCount') {
-      next.set(reference, sample(reference, drivers.length, 'Int32', 'Available', now));
-      continue;
-    }
-
-    if (descriptor.family === 'driverDiagnostic') {
-      const parts = reference.split(':');
-      const driverKey = parts[1] ?? '';
-      const field = parts.slice(2).join(':');
-      const driver = driverByKey.get(driverKey);
-      if (!driver) {
-        next.set(reference, unavailableSample(descriptor, now));
-        continue;
-      }
-      const driverRecord = driver as unknown as Record<string, unknown>;
-      next.set(reference, Object.freeze({
-        reference,
-        value: driverRecord[field] ?? null,
-        dataType: descriptor.dataType,
-        state: driver.state,
-        sourceTimestamp: driver.capturedAt ?? driver.stateChangedAt ?? null,
-        observedAt: now,
-        detail: driver.lastError ?? null
-      }));
-    }
-  }
-  return next;
-}
-
-function markUnavailable(
-  current: ReadonlyMap<string, MonitorSample>,
-  selected: readonly string[],
-  descriptors: ReadonlyMap<string, ProjectReferenceDescriptor>
-): ReadonlyMap<string, MonitorSample> {
-  const next = new Map(current);
-  const now = new Date().toISOString();
-  for (const reference of selected) {
-    const descriptor = descriptors.get(reference);
-    if (descriptor) next.set(reference, unavailableSample(descriptor, now));
-  }
-  return next;
-}
-
-function unavailableSample(descriptor: ProjectReferenceDescriptor, now: string): MonitorSample {
-  return Object.freeze({
-    reference: descriptor.reference,
-    value: null,
-    dataType: descriptor.dataType,
-    state: 'Unavailable',
-    sourceTimestamp: null,
-    observedAt: now
-  });
-}
-
-function sample(reference: string, value: unknown, dataType: string, state: string, observedAt: string): MonitorSample {
-  return Object.freeze({ reference, value, dataType, state, observedAt });
-}
-
-function formatMonitorValue(value: unknown): string {
-  if (value === null || value === undefined) return '—';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'boolean') return value ? 'true' : 'false';
-  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '—';
-  try { return JSON.stringify(value); } catch { return String(value); }
-}
-
-function formatQuality(sample: MonitorSample | undefined): string {
-  if (!sample) return 'Unavailable';
-  if (sample.quality !== undefined && sample.quality !== null) return String(sample.quality);
-  if (sample.state !== undefined && sample.state !== null) return String(sample.state);
-  return 'N/A';
-}
-
-function qualityClass(sample: MonitorSample | undefined): string {
-  const value = formatQuality(sample).toLowerCase();
-  return value.includes('good') || value.includes('available') || value.includes('connected') || value.includes('localsession') ? 'is-good'
-    : value === 'n/a' ? '' : 'is-bad';
+function projectSourceLabel(descriptor: ProjectReferenceDescriptor, locale: EngineeringLocale): string {
+  const labels = {
+    'pt-BR': { tag: 'TAG', serverMemory: 'Memória do Servidor', clientMemory: 'Memória do Cliente', system: 'Sistema', driverDiagnostic: 'Driver', asset: 'Asset' },
+    en: { tag: 'TAG', serverMemory: 'Server Memory', clientMemory: 'Client Memory', system: 'System', driverDiagnostic: 'Driver', asset: 'Asset' },
+    es: { tag: 'TAG', serverMemory: 'Memoria del Servidor', clientMemory: 'Memoria del Cliente', system: 'Sistema', driverDiagnostic: 'Driver', asset: 'Asset' }
+  } as const;
+  return labels[locale][descriptor.family];
 }
 
 function formatTimestamp(value: string | null | undefined, locale: EngineeringLocale): string {
@@ -408,24 +274,24 @@ function monitorCopy(locale: EngineeringLocale) {
     quickAdd: 'Exact quick-add', quickAddPlaceholder: 'Type a canonical reference or TAG path', add: 'Add', browse: 'Browse project references',
     notFound: 'Reference not found.', ambiguous: 'Reference is ambiguous; choose it from the tree.', watchTable: 'Watch table', entries: 'entries', clear: 'Clear',
     reference: 'Name / Reference', source: 'Source', value: 'Value', dataType: 'Data type', quality: 'Quality / State', timestamp: 'Last update', remove: 'Remove',
-    empty: 'No variables are being monitored.', architectureHint: 'TAGs share one realtime subscription; diagnostics and browser-local memory use bounded batch refreshes.'
+    empty: 'No variables are being monitored.', architectureHint: 'TAGs share one realtime connection; diagnostics and browser-local memory use bounded batch refreshes.'
   };
   if (locale === 'es') return {
-    eyebrow: 'Diagnóstico de Ingeniería', title: 'Monitor de Desarrollo',
-    description: 'Observe TAGs, memorias internas y diagnósticos de runtime/driver durante el desarrollo.',
+    eyebrow: 'Diagnóstico de Engineering', title: 'Monitor de Desarrollo',
+    description: 'Observe TAGs, memorias internas y diagnósticos de runtime/drivers mientras desarrolla la aplicación.',
     readOnly: 'Observación de solo lectura', readOnlyHint: 'El monitor nunca escribe ni fuerza valores de proceso.',
     quickAdd: 'Agregar referencia exacta', quickAddPlaceholder: 'Escriba una referencia canónica o path de TAG', add: 'Agregar', browse: 'Explorar referencias del proyecto',
     notFound: 'Referencia no encontrada.', ambiguous: 'La referencia es ambigua; selecciónela en el árbol.', watchTable: 'Tabla de monitoreo', entries: 'entradas', clear: 'Limpiar',
-    reference: 'Nombre / Referencia', source: 'Fuente', value: 'Valor', dataType: 'Tipo', quality: 'Calidad / Estado', timestamp: 'Última actualización', remove: 'Quitar',
-    empty: 'No hay variables monitoreadas.', architectureHint: 'Los TAGs comparten una suscripción realtime; diagnósticos y memoria local usan actualización agrupada.'
+    reference: 'Nombre / Referencia', source: 'Fuente', value: 'Valor', dataType: 'Tipo', quality: 'Calidad / Estado', timestamp: 'Última actualización', remove: 'Eliminar',
+    empty: 'No hay variables monitoreadas.', architectureHint: 'Los TAGs comparten una conexión realtime; los diagnósticos y la memoria local usan actualizaciones agrupadas.'
   };
   return {
-    eyebrow: 'Diagnóstico de Engenharia', title: 'Monitor de Desenvolvimento',
-    description: 'Observe TAGs, memórias internas e diagnósticos de Runtime/driver enquanto desenvolve a aplicação.',
+    eyebrow: 'Diagnóstico de Engenharia', title: 'Monitoramento de Desenvolvimento',
+    description: 'Observe TAGs, memórias internas e diagnósticos de Runtime/Drivers durante o desenvolvimento da aplicação.',
     readOnly: 'Observação somente leitura', readOnlyHint: 'O monitor nunca escreve nem força valores de processo.',
     quickAdd: 'Adicionar referência exata', quickAddPlaceholder: 'Digite uma referência canônica ou path de TAG', add: 'Adicionar', browse: 'Procurar referências do projeto',
-    notFound: 'Referência não encontrada.', ambiguous: 'A referência é ambígua; selecione-a na árvore.', watchTable: 'Tabela de monitoramento', entries: 'entradas', clear: 'Limpar',
+    notFound: 'Referência não encontrada.', ambiguous: 'A referência é ambígua; selecione-a na árvore.', watchTable: 'Tabela de monitoramento', entries: 'itens', clear: 'Limpar',
     reference: 'Nome / Referência', source: 'Fonte', value: 'Valor', dataType: 'Tipo', quality: 'Qualidade / Estado', timestamp: 'Última atualização', remove: 'Remover',
-    empty: 'Nenhuma variável está sendo monitorada.', architectureHint: 'TAGs compartilham uma assinatura realtime; diagnósticos e memória local usam atualização agrupada e limitada.'
+    empty: 'Nenhuma variável está sendo monitorada.', architectureHint: 'TAGs compartilham uma conexão realtime; diagnósticos e memória local usam atualização agrupada e limitada.'
   };
 }

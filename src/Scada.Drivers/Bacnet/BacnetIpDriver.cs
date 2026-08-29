@@ -15,9 +15,12 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
     private readonly IReadOnlyList<BacnetPoint> _points;
     private readonly Dictionary<Guid, BacnetPoint> _pointsByTagId;
     private readonly HashSet<Guid> _covTagIds = new();
+    private readonly HashSet<Guid> _covManagedTagIds = new();
+    private readonly Dictionary<Guid, IDisposable> _covSubscriptions = new();
     private readonly ConcurrentDictionary<Guid, DateTimeOffset> _nextCovFallbackPollAt = new();
-    private readonly List<IDisposable> _covSubscriptions = new();
+    private readonly SemaphoreSlim _covLifecycleGate = new(1, 1);
     private readonly SemaphoreSlim _writeGate = new(1, 1);
+    private readonly object _covStateGate = new();
     private readonly object _diagnosticsGate = new();
     private readonly Queue<bool> _recentFailures = new();
     private readonly string _runtimeInstanceId = Guid.NewGuid().ToString("N");
@@ -31,6 +34,10 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
     private bool? _deviceReachable;
     private DateTimeOffset? _lastReachabilityEstablishedAt;
     private DateTimeOffset? _lastReachabilityLostAt;
+    private DateTimeOffset? _nextCovRecreationAttemptAt;
+    private int _covRecreatePending;
+    private long _covRecreationAttempts;
+    private long _covRecreationFailures;
     private long _connections;
     private long _disconnections;
     private long _reconnects;
@@ -55,7 +62,8 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         IEnumerable<BacnetPoint> points,
         IBacnetSession session,
         TimeSpan? scanRate = null,
-        TimeSpan? covFallbackPollInterval = null)
+        TimeSpan? covFallbackPollInterval = null,
+        TimeSpan? covRecreationRetryInterval = null)
     {
         if (string.IsNullOrWhiteSpace(driverId)) throw new ArgumentException("Driver ID is required.", nameof(driverId));
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Driver name is required.", nameof(name));
@@ -82,6 +90,8 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         if (ScanRate <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(scanRate));
         CovFallbackPollInterval = covFallbackPollInterval ?? TimeSpan.FromSeconds(Math.Max(30d, ScanRate.TotalSeconds * 30d));
         if (CovFallbackPollInterval <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(covFallbackPollInterval));
+        CovRecreationRetryInterval = covRecreationRetryInterval ?? TimeSpan.FromSeconds(5);
+        if (CovRecreationRetryInterval <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(covRecreationRetryInterval));
         Status = new DriverStatus(DriverId, Name, DriverState.Stopped, DateTimeOffset.UtcNow);
     }
 
@@ -92,6 +102,7 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
     public IReadOnlyCollection<TagDefinition> Tags => _points.Select(x => x.Tag).ToArray();
     public TimeSpan ScanRate { get; }
     public TimeSpan CovFallbackPollInterval { get; }
+    public TimeSpan CovRecreationRetryInterval { get; }
     public uint DeviceInstance => _points[0].Binding.DeviceInstance;
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -102,25 +113,15 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         foreach (var point in _points) _registry.Register(point.Tag);
 
         await _session.StartAsync(cancellationToken).ConfigureAwait(false);
-        foreach (var point in _points.Where(x => x.Binding.UseCov))
+        await _covLifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            try
-            {
-                var subscription = await _session.TrySubscribeCovAsync(
-                    point.Binding,
-                    sample => HandleCovSampleAsync(point, sample),
-                    cancellationToken).ConfigureAwait(false);
-                if (subscription is not null)
-                {
-                    _covSubscriptions.Add(subscription);
-                    _covTagIds.Add(point.Tag.Id);
-                    _nextCovFallbackPollAt[point.Tag.Id] = DateTimeOffset.UtcNow + CovFallbackPollInterval;
-                }
-            }
-            catch
-            {
-                // Subscription is an optimization/capability. Polling remains authoritative fallback.
-            }
+            foreach (var point in _points.Where(x => x.Binding.UseCov))
+                await TryCreateCovSubscriptionNoGateAsync(point, markManaged: true, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _covLifecycleGate.Release();
         }
 
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -139,11 +140,33 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
             try { await _loop.WaitAsync(cancellationToken).ConfigureAwait(false); }
             catch (OperationCanceledException) when (_cts.IsCancellationRequested) { }
         }
-        foreach (var subscription in _covSubscriptions) subscription.Dispose();
-        _covSubscriptions.Clear();
-        _covTagIds.Clear();
+
+        await _covLifecycleGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        try
+        {
+            IDisposable[] subscriptions;
+            lock (_covStateGate)
+            {
+                subscriptions = _covSubscriptions.Values.ToArray();
+                _covSubscriptions.Clear();
+                _covTagIds.Clear();
+                _covManagedTagIds.Clear();
+            }
+            foreach (var subscription in subscriptions)
+                await DisposeCovSubscriptionAsync(subscription).ConfigureAwait(false);
+        }
+        finally
+        {
+            _covLifecycleGate.Release();
+        }
+
         _nextCovFallbackPollAt.Clear();
-        lock (_diagnosticsGate) _deviceReachable = null;
+        Interlocked.Exchange(ref _covRecreatePending, 0);
+        lock (_diagnosticsGate)
+        {
+            _nextCovRecreationAttemptAt = null;
+            _deviceReachable = null;
+        }
         Status = new DriverStatus(DriverId, Name, DriverState.Stopped, DateTimeOffset.UtcNow, UpdatesPublished: _updatesPublished);
         TransitionState(CommunicationDriverOperationalState.Stopped);
     }
@@ -176,6 +199,7 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
             communicationAttempted = true;
             await _session.WriteAsync(point.Binding, encoded, cancellationToken).ConfigureAwait(false);
             RecordOperation(true, Stopwatch.GetElapsedTime(started), null, communicationEvidence: true);
+            await TryRecreateCovSubscriptionsIfPendingAsync(cancellationToken).ConfigureAwait(false);
             await PublishAsync(point, value, TagQuality.Good, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -238,6 +262,7 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
     {
         var capturedAt = DateTimeOffset.UtcNow;
         var quality = BuildQualitySummary();
+        var covCounts = GetCovCounts();
         lock (_diagnosticsGate)
         {
             var operations = _successfulOperations + _failedOperations;
@@ -247,19 +272,27 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
             var protocolDetails = new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["deviceInstance"] = DeviceInstance.ToString(CultureInfo.InvariantCulture),
-                ["covTagCount"] = _covTagIds.Count.ToString(CultureInfo.InvariantCulture),
-                ["polledTagCount"] = (_points.Count - _covTagIds.Count).ToString(CultureInfo.InvariantCulture),
+                ["covTagCount"] = covCounts.Active.ToString(CultureInfo.InvariantCulture),
+                ["covManagedTagCount"] = covCounts.Managed.ToString(CultureInfo.InvariantCulture),
+                ["polledTagCount"] = (_points.Count - covCounts.Active).ToString(CultureInfo.InvariantCulture),
                 ["covFallbackPollSeconds"] = CovFallbackPollInterval.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture),
+                ["covRecreationRetrySeconds"] = CovRecreationRetryInterval.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture),
+                ["covRecreationPending"] = Volatile.Read(ref _covRecreatePending) == 1 ? "true" : "false",
+                ["covRecreationAttempts"] = Interlocked.Read(ref _covRecreationAttempts).ToString(CultureInfo.InvariantCulture),
+                ["covRecreationFailures"] = Interlocked.Read(ref _covRecreationFailures).ToString(CultureInfo.InvariantCulture),
                 ["transport"] = "BACnet/IP UDP",
                 ["connectionModel"] = "device-reachability",
                 ["deviceReachable"] = _deviceReachable.HasValue ? (_deviceReachable.Value ? "true" : "false") : "unknown",
                 ["bacnetSecureConnect"] = "not-implemented"
             };
+            if (_nextCovRecreationAttemptAt.HasValue)
+                protocolDetails["covNextRecreationAttemptAtUtc"] = _nextCovRecreationAttemptAt.Value.ToString("O", CultureInfo.InvariantCulture);
             if (_lastReachabilityEstablishedAt.HasValue)
                 protocolDetails["lastReachabilityEstablishedAtUtc"] = _lastReachabilityEstablishedAt.Value.ToString("O", CultureInfo.InvariantCulture);
             if (_lastReachabilityLostAt.HasValue)
                 protocolDetails["lastReachabilityLostAtUtc"] = _lastReachabilityLostAt.Value.ToString("O", CultureInfo.InvariantCulture);
             AppendForeignDeviceRegistrationDiagnostics(protocolDetails);
+            AppendCovSubscriptionDiagnostics(protocolDetails);
             return new CommunicationDriverDiagnosticSnapshot(
                 DriverId,
                 Name,
@@ -301,6 +334,7 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
     {
         await StopAsync().ConfigureAwait(false);
         await _session.DisposeAsync().ConfigureAwait(false);
+        _covLifecycleGate.Dispose();
         _writeGate.Dispose();
         _cts?.Dispose();
     }
@@ -317,7 +351,7 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var succeeded = await PollPointAsync(point, cancellationToken).ConfigureAwait(false);
-                if (_covTagIds.Contains(point.Tag.Id))
+                if (IsCovActive(point.Tag.Id))
                 {
                     _nextCovFallbackPollAt[point.Tag.Id] = DateTimeOffset.UtcNow +
                         (succeeded ? CovFallbackPollInterval : ScanRate);
@@ -338,7 +372,7 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
 
     private bool ShouldPoll(BacnetPoint point, DateTimeOffset now)
     {
-        if (!_covTagIds.Contains(point.Tag.Id)) return true;
+        if (!IsCovActive(point.Tag.Id)) return true;
         return !_nextCovFallbackPollAt.TryGetValue(point.Tag.Id, out var nextPoll) || now >= nextPoll;
     }
 
@@ -354,6 +388,7 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
             communicationCompleted = true;
             RecordOperation(true, Stopwatch.GetElapsedTime(started), null, communicationEvidence: true);
             await PublishSampleAsync(point, sample).ConfigureAwait(false);
+            await TryRecreateCovSubscriptionsIfPendingAsync(cancellationToken).ConfigureAwait(false);
             return true;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -377,6 +412,7 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
             await PublishSampleAsync(point, sample).ConfigureAwait(false);
             RecordOperation(true, Stopwatch.GetElapsedTime(started), null, communicationEvidence: false);
             _nextCovFallbackPollAt[point.Tag.Id] = DateTimeOffset.UtcNow + CovFallbackPollInterval;
+            await TryRecreateCovSubscriptionsIfPendingAsync(CancellationToken.None).ConfigureAwait(false);
             TransitionState(CommunicationDriverOperationalState.Healthy);
         }
         catch (Exception ex)
@@ -385,6 +421,135 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
             _nextCovFallbackPollAt[point.Tag.Id] = DateTimeOffset.UtcNow;
             TransitionState(CommunicationDriverOperationalState.Degraded);
             throw;
+        }
+    }
+
+    private async Task<bool> TryCreateCovSubscriptionNoGateAsync(
+        BacnetPoint point,
+        bool markManaged,
+        CancellationToken cancellationToken)
+    {
+        IDisposable? subscription;
+        try
+        {
+            subscription = await _session.TrySubscribeCovAsync(
+                point.Binding,
+                sample => HandleCovSampleAsync(point, sample),
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            return false;
+        }
+
+        if (subscription is null) return false;
+
+        lock (_covStateGate)
+        {
+            _covSubscriptions[point.Tag.Id] = subscription;
+            _covTagIds.Add(point.Tag.Id);
+            if (markManaged) _covManagedTagIds.Add(point.Tag.Id);
+        }
+        _nextCovFallbackPollAt[point.Tag.Id] = DateTimeOffset.UtcNow + CovFallbackPollInterval;
+        RecordReachabilitySuccess(DateTimeOffset.UtcNow);
+        return true;
+    }
+
+    private async ValueTask TryRecreateCovSubscriptionsIfPendingAsync(CancellationToken cancellationToken)
+    {
+        if (Volatile.Read(ref _covRecreatePending) == 0) return;
+        if (_cts?.IsCancellationRequested == true) return;
+
+        lock (_diagnosticsGate)
+        {
+            if (_nextCovRecreationAttemptAt.HasValue && _nextCovRecreationAttemptAt.Value > DateTimeOffset.UtcNow)
+                return;
+        }
+
+        await _covLifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (Volatile.Read(ref _covRecreatePending) == 0 || _cts?.IsCancellationRequested == true) return;
+            lock (_diagnosticsGate)
+            {
+                if (_nextCovRecreationAttemptAt.HasValue && _nextCovRecreationAttemptAt.Value > DateTimeOffset.UtcNow)
+                    return;
+            }
+
+            BacnetPoint[] targets;
+            IDisposable[] oldSubscriptions;
+            lock (_covStateGate)
+            {
+                targets = _covManagedTagIds
+                    .Select(tagId => _pointsByTagId[tagId])
+                    .ToArray();
+                oldSubscriptions = _covSubscriptions.Values.ToArray();
+                _covSubscriptions.Clear();
+                _covTagIds.Clear();
+            }
+
+            if (targets.Length == 0)
+            {
+                Interlocked.Exchange(ref _covRecreatePending, 0);
+                lock (_diagnosticsGate) _nextCovRecreationAttemptAt = null;
+                return;
+            }
+
+            Interlocked.Increment(ref _covRecreationAttempts);
+            foreach (var subscription in oldSubscriptions)
+                await DisposeCovSubscriptionAsync(subscription).ConfigureAwait(false);
+
+            var failures = 0;
+            foreach (var point in targets)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!await TryCreateCovSubscriptionNoGateAsync(point, markManaged: false, cancellationToken).ConfigureAwait(false))
+                    failures++;
+            }
+
+            if (failures == 0)
+            {
+                Interlocked.Exchange(ref _covRecreatePending, 0);
+                lock (_diagnosticsGate) _nextCovRecreationAttemptAt = null;
+            }
+            else
+            {
+                Interlocked.Increment(ref _covRecreationFailures);
+                ScheduleNextCovRecreationAttempt(DateTimeOffset.UtcNow + CovRecreationRetryInterval);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            Interlocked.Increment(ref _covRecreationFailures);
+            ScheduleNextCovRecreationAttempt(DateTimeOffset.UtcNow + CovRecreationRetryInterval);
+        }
+        finally
+        {
+            _covLifecycleGate.Release();
+        }
+    }
+
+    private static async ValueTask DisposeCovSubscriptionAsync(IDisposable subscription)
+    {
+        try
+        {
+            if (subscription is IAsyncDisposable asyncDisposable)
+                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+            else
+                subscription.Dispose();
+        }
+        catch
+        {
+            // Remote cancellation is best-effort cleanup. Session-level COV
+            // diagnostics preserve concrete cancel failures when available.
         }
     }
 
@@ -453,6 +618,32 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         if (_deviceReachable == true) _disconnections++;
         _deviceReachable = false;
         _lastReachabilityLostAt = observedAt;
+        if (HasActiveCovSubscriptions())
+        {
+            Interlocked.Exchange(ref _covRecreatePending, 1);
+            _nextCovRecreationAttemptAt = observedAt;
+        }
+    }
+
+    private void ScheduleNextCovRecreationAttempt(DateTimeOffset nextAttemptAt)
+    {
+        Interlocked.Exchange(ref _covRecreatePending, 1);
+        lock (_diagnosticsGate) _nextCovRecreationAttemptAt = nextAttemptAt;
+    }
+
+    private bool HasActiveCovSubscriptions()
+    {
+        lock (_covStateGate) return _covTagIds.Count > 0;
+    }
+
+    private bool IsCovActive(Guid tagId)
+    {
+        lock (_covStateGate) return _covTagIds.Contains(tagId);
+    }
+
+    private (int Active, int Managed) GetCovCounts()
+    {
+        lock (_covStateGate) return (_covTagIds.Count, _covManagedTagIds.Count);
     }
 
     private void TransitionState(CommunicationDriverOperationalState next)
@@ -506,6 +697,19 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
             protocolDetails["fdrNextRegistrationAttemptAtUtc"] = snapshot.NextRegistrationAttemptAt.Value.ToString("O", CultureInfo.InvariantCulture);
         if (!string.IsNullOrWhiteSpace(snapshot.LastErrorType))
             protocolDetails["fdrLastErrorType"] = snapshot.LastErrorType;
+    }
+
+    private void AppendCovSubscriptionDiagnostics(IDictionary<string, string> protocolDetails)
+    {
+        if (_session is not IBacnetCovSubscriptionDiagnostics source) return;
+        var snapshot = source.GetCovSubscriptionDiagnostics();
+        protocolDetails["covSessionActiveSubscriptions"] = snapshot.ActiveSubscriptions.ToString(CultureInfo.InvariantCulture);
+        protocolDetails["covSubscribeRequests"] = snapshot.SubscribeRequests.ToString(CultureInfo.InvariantCulture);
+        protocolDetails["covSubscribeFailures"] = snapshot.SubscribeFailures.ToString(CultureInfo.InvariantCulture);
+        protocolDetails["covCancelRequests"] = snapshot.CancelRequests.ToString(CultureInfo.InvariantCulture);
+        protocolDetails["covCancelFailures"] = snapshot.CancelFailures.ToString(CultureInfo.InvariantCulture);
+        if (!string.IsNullOrWhiteSpace(snapshot.LastErrorType))
+            protocolDetails["covLastErrorType"] = snapshot.LastErrorType;
     }
 
     private static bool IsReachabilityFailure(Exception? error)

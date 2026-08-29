@@ -4,7 +4,10 @@ using System.IO.BACnet;
 
 namespace Scada.Drivers.Bacnet;
 
-public sealed class SystemIoBacnetSession : IBacnetSession, IBacnetForeignDeviceRegistrationDiagnostics
+public sealed class SystemIoBacnetSession :
+    IBacnetSession,
+    IBacnetForeignDeviceRegistrationDiagnostics,
+    IBacnetCovSubscriptionDiagnostics
 {
     private static readonly BacnetPropertyIds[] CompanionPropertyIds =
     {
@@ -28,7 +31,13 @@ public sealed class SystemIoBacnetSession : IBacnetSession, IBacnetForeignDevice
     private long _foreignDeviceRegistrationRequestsSent;
     private long _foreignDeviceRegistrationFailures;
     private string? _foreignDeviceRegistrationLastErrorType;
+    private long _covSubscribeRequests;
+    private long _covSubscribeFailures;
+    private long _covCancelRequests;
+    private long _covCancelFailures;
+    private string? _covLastErrorType;
     private int _subscriptionId;
+    private int _disposeStarted;
     private bool _started;
     private bool _disposed;
 
@@ -76,6 +85,20 @@ public sealed class SystemIoBacnetSession : IBacnetSession, IBacnetForeignDevice
                 RegistrationRequestsSent: _foreignDeviceRegistrationRequestsSent,
                 RegistrationFailures: _foreignDeviceRegistrationFailures,
                 LastErrorType: _foreignDeviceRegistrationLastErrorType);
+        }
+    }
+
+    public BacnetCovSubscriptionSnapshot GetCovSubscriptionDiagnostics()
+    {
+        lock (_covGate)
+        {
+            return new BacnetCovSubscriptionSnapshot(
+                ActiveSubscriptions: _covRoutes.Count,
+                SubscribeRequests: Interlocked.Read(ref _covSubscribeRequests),
+                SubscribeFailures: Interlocked.Read(ref _covSubscribeFailures),
+                CancelRequests: Interlocked.Read(ref _covCancelRequests),
+                CancelFailures: Interlocked.Read(ref _covCancelFailures),
+                LastErrorType: _covLastErrorType);
         }
     }
 
@@ -237,35 +260,44 @@ public sealed class SystemIoBacnetSession : IBacnetSession, IBacnetForeignDevice
         binding.Validate();
 
         var device = await ResolveDeviceAsync(binding.DeviceInstance, cancellationToken).ConfigureAwait(false);
-        var route = new CovRoute(binding, device.Address, onNotification);
         var subscriptionId = checked((uint)Interlocked.Increment(ref _subscriptionId));
+        var objectId = new BacnetObjectId((BacnetObjectTypes)binding.ObjectType, binding.ObjectInstance);
+        Interlocked.Increment(ref _covSubscribeRequests);
         try
         {
             await _client.SubscribeCOVAsync(
                 device.Address,
-                new BacnetObjectId((BacnetObjectTypes)binding.ObjectType, binding.ObjectInstance),
+                objectId,
                 subscriptionId,
                 cancel: false,
                 issueConfirmedNotifications: false,
                 lifetime: 0,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
         }
-        catch
+        catch (OperationCanceledException)
         {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Interlocked.Increment(ref _covSubscribeFailures);
+            SetCovLastError(ex);
             return null;
         }
 
-        lock (_covGate) _covRoutes.Add(route);
-        return new Subscription(() =>
+        var route = new CovRoute(binding, device.Address, objectId, subscriptionId, onNotification);
+        lock (_covGate)
         {
-            lock (_covGate) _covRoutes.Remove(route);
-        });
+            _covRoutes.Add(route);
+            _covLastErrorType = null;
+        }
+        return new Subscription(this, route);
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_disposed) return;
-        _disposed = true;
+        if (Interlocked.Exchange(ref _disposeStarted, 1) != 0) return;
+
         if (_foreignDeviceRenewalCts is not null)
         {
             await _foreignDeviceRenewalCts.CancelAsync().ConfigureAwait(false);
@@ -275,11 +307,14 @@ public sealed class SystemIoBacnetSession : IBacnetSession, IBacnetForeignDevice
                 catch (OperationCanceledException) when (_foreignDeviceRenewalCts.IsCancellationRequested) { }
             }
         }
+
+        await CancelAllCovRoutesAsync().ConfigureAwait(false);
+        _started = false;
+        _disposed = true;
         _client.OnIam -= OnIam;
         _client.OnCOVNotification -= OnCovNotification;
         _client.Dispose();
         _foreignDeviceRenewalCts?.Dispose();
-        lock (_covGate) _covRoutes.Clear();
     }
 
     private bool IsForeignDeviceRegistrationConfigured()
@@ -349,6 +384,53 @@ public sealed class SystemIoBacnetSession : IBacnetSession, IBacnetForeignDevice
     {
         lock (_foreignDeviceGate)
             _nextForeignDeviceRegistrationAttemptAt = nextAttemptAt;
+    }
+
+    private async ValueTask CancelCovSubscriptionAsync(CovRoute route)
+    {
+        RemoveCovRoute(route);
+        if (!route.TryBeginRemoteCancel()) return;
+
+        Interlocked.Increment(ref _covCancelRequests);
+        using var timeoutCts = new CancellationTokenSource(_options.EffectiveRequestTimeout + TimeSpan.FromSeconds(1));
+        try
+        {
+            await _client.SubscribeCOVAsync(
+                route.Address,
+                route.ObjectId,
+                route.SubscriptionId,
+                cancel: true,
+                issueConfirmedNotifications: false,
+                lifetime: 0,
+                cancellationToken: timeoutCts.Token).ConfigureAwait(false);
+            lock (_covGate) _covLastErrorType = null;
+        }
+        catch (Exception ex)
+        {
+            Interlocked.Increment(ref _covCancelFailures);
+            SetCovLastError(ex);
+            // Cancellation is lifecycle cleanup. A remote peer that is offline or
+            // rebooting must not prevent the local driver/session from stopping.
+        }
+    }
+
+    private async Task CancelAllCovRoutesAsync()
+    {
+        CovRoute[] routes;
+        lock (_covGate) routes = _covRoutes.ToArray();
+        foreach (var route in routes)
+            await CancelCovSubscriptionAsync(route).ConfigureAwait(false);
+        lock (_covGate) _covRoutes.Clear();
+    }
+
+    private void RemoveCovRoute(CovRoute route)
+    {
+        lock (_covGate) _covRoutes.Remove(route);
+    }
+
+    private void SetCovLastError(Exception ex)
+    {
+        lock (_covGate) _covLastErrorType = ex.GetType().Name;
     }
 
     private static IList<BacnetPropertyReference> BuildReadPropertyReferences(BacnetBinding binding)
@@ -542,7 +624,8 @@ public sealed class SystemIoBacnetSession : IBacnetSession, IBacnetForeignDevice
         lock (_covGate)
         {
             routes = _covRoutes
-                .Where(x => x.Address.Equals(address) &&
+                .Where(x => x.SubscriptionId == subscriberProcessIdentifier &&
+                            x.Address.Equals(address) &&
                             x.Binding.ObjectType == (uint)monitoredObjectIdentifier.Type &&
                             x.Binding.ObjectInstance == monitoredObjectIdentifier.Instance)
                 .ToArray();
@@ -587,11 +670,40 @@ public sealed class SystemIoBacnetSession : IBacnetSession, IBacnetForeignDevice
         ObjectDisposedException.ThrowIf(_disposed, this);
     }
 
-    private sealed record CovRoute(BacnetBinding Binding, BacnetAddress Address, Func<BacnetPropertyReadResult, ValueTask> Handler);
-
-    private sealed class Subscription(Action dispose) : IDisposable
+    private sealed class CovRoute(
+        BacnetBinding binding,
+        BacnetAddress address,
+        BacnetObjectId objectId,
+        uint subscriptionId,
+        Func<BacnetPropertyReadResult, ValueTask> handler)
     {
-        private Action? _dispose = dispose;
-        public void Dispose() => Interlocked.Exchange(ref _dispose, null)?.Invoke();
+        private int _remoteCancelStarted;
+
+        public BacnetBinding Binding { get; } = binding;
+        public BacnetAddress Address { get; } = address;
+        public BacnetObjectId ObjectId { get; } = objectId;
+        public uint SubscriptionId { get; } = subscriptionId;
+        public Func<BacnetPropertyReadResult, ValueTask> Handler { get; } = handler;
+
+        public bool TryBeginRemoteCancel() => Interlocked.Exchange(ref _remoteCancelStarted, 1) == 0;
+    }
+
+    private sealed class Subscription(SystemIoBacnetSession owner, CovRoute route) : IBacnetCovSubscription
+    {
+        private int _localDisposed;
+        private int _asyncDisposed;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _localDisposed, 1) == 0)
+                owner.RemoveCovRoute(route);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            Dispose();
+            if (Interlocked.Exchange(ref _asyncDisposed, 1) != 0) return;
+            await owner.CancelCovSubscriptionAsync(route).ConfigureAwait(false);
+        }
     }
 }

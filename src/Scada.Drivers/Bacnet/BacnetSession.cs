@@ -87,6 +87,20 @@ public sealed record BacnetForeignDeviceRegistrationSnapshot(
     string? LastErrorType);
 
 /// <summary>
+/// Protocol-local COV subscription lifecycle evidence. The counters deliberately
+/// distinguish local route state from remote subscribe/cancel request attempts.
+/// They are diagnostics, not proof that a peer retained a subscription after a
+/// reboot or network partition.
+/// </summary>
+public sealed record BacnetCovSubscriptionSnapshot(
+    int ActiveSubscriptions,
+    long SubscribeRequests,
+    long SubscribeFailures,
+    long CancelRequests,
+    long CancelFailures,
+    string? LastErrorType);
+
+/// <summary>
 /// Optional BACnet-specific diagnostic seam. It keeps network-lease state owned
 /// by the BACnet adapter while allowing the driver to project it through the
 /// existing protocol-details dictionary without changing common contracts.
@@ -94,6 +108,25 @@ public sealed record BacnetForeignDeviceRegistrationSnapshot(
 public interface IBacnetForeignDeviceRegistrationDiagnostics
 {
     BacnetForeignDeviceRegistrationSnapshot GetForeignDeviceRegistrationDiagnostics();
+}
+
+/// <summary>
+/// Optional BACnet-specific COV diagnostic seam. It intentionally stays outside
+/// the common driver contracts because subscriber process identifiers and remote
+/// COV cancellation are BACnet protocol concerns.
+/// </summary>
+public interface IBacnetCovSubscriptionDiagnostics
+{
+    BacnetCovSubscriptionSnapshot GetCovSubscriptionDiagnostics();
+}
+
+/// <summary>
+/// A BACnet COV subscription can be disposed synchronously for local route
+/// removal, while async disposal additionally permits a bounded remote cancel.
+/// BACnetIpDriver always uses async disposal for normal lifecycle operations.
+/// </summary>
+public interface IBacnetCovSubscription : IDisposable, IAsyncDisposable
+{
 }
 
 public interface IBacnetSession : IAsyncDisposable

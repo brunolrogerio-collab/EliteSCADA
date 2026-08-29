@@ -1,12 +1,12 @@
 # Wave 08 — Graphical Editor Foundation Implementation Decision
 
 Status: **LOCKED WAVE 08 EXECUTION CONTRACT**  
-Date: 2026-08-28  
+Date: 2026-08-29  
 Logical WaveBaseSHA: `8de706882ba20afedd666532ac41ae11115d06b3`
 
 This document converts the owner-approved v0.1 roadmap and completed Wave 07 canonical visual foundation into the executable Wave 08 boundary.
 
-Wave 08 makes canonical visual Engineering practically editable. The editor is a projection/editor of canonical Engineering, never a second project format.
+Wave 08 makes canonical visual Engineering practically editable and adds a read-only Development Monitor so engineers can observe live process/runtime behavior while building and validating an application. The editor is a projection/editor of canonical Engineering, never a second project format; the monitor is diagnostic tooling, never process-control authority.
 
 ## Entry gate
 
@@ -22,7 +22,7 @@ Wave 08 starts only because every item in `docs/VISUAL-CANONICAL-CONVERGENCE-07-
 
 ## Product objective
 
-Deliver the first practical graphical Screen editor foundation with:
+Deliver the first practical graphical Screen editor foundation plus an Engineering Development Monitor with:
 
 1. Canvas viewport and deterministic selection/editing interactions;
 2. Property Inspector driven by the public Visual Property Registry;
@@ -30,22 +30,31 @@ Deliver the first practical graphical Screen editor foundation with:
 4. canonical TAG/property binding authoring foundation;
 5. first-class project image-asset import/storage/reference seam required by `core.image`;
 6. coordinator-owned Screen persistence/composition through canonical Engineering;
-7. save/reopen/export/import fidelity without private canvas persistence.
+7. save/reopen/export/import fidelity without private canvas persistence;
+8. a read-only live monitoring table for development diagnostics covering canonical TAGs, internal memories, system/runtime variables and Data Source/driver diagnostics through a unified provider/catalog boundary;
+9. search/browse plus exact-reference quick-add, so an engineer may either find a variable or type a known canonical name/path directly;
+10. live rows showing at minimum canonical reference/name, source kind, current value, data type, quality/state and source timestamp/last-update information.
 
-The wave gate is:
+The graphical-editor gate is:
 
-`Create Screen -> add objects -> move/resize/rotate -> edit public properties -> bind -> save -> reopen -> export/import`
+`Create Screen -> add objects -> move/resize/rotate -> edit public properties -> bind -> image asset -> save -> reopen -> export/import`
+
+The Development Monitor gate is:
+
+`search or type canonical reference -> add monitored row -> observe live value/type/quality/timestamp -> source changes -> row updates -> unavailable/bad source remains explicit -> remove row`
 
 For Image, an imported project asset must be referenced through canonical `assetRef`, never through a filesystem path or arbitrary URL.
 
 ## Locked authority rules
 
-- Canonical Engineering Schema v12 is saved truth.
+- Canonical Engineering is saved project truth.
 - `VisualObjectPropertySchema` / public Visual Property Registry is property authority.
 - `VisualElementEngineering` stable ID is object identity.
 - Runtime precedence remains `Animation > Script > Binding/Expression > Engineering Base > Default`.
 - Editor interaction state such as current selection, handles, hover, viewport transform and drag preview is client-local UI state only.
 - UI interaction state must never be serialized as competing project authority unless an explicit canonical Engineering field exists for that exact concept.
+- Development Monitor rows are observational tooling. Current monitored values, quality, timestamps and diagnostic state are Runtime/diagnostic state and must never be written back into canonical Engineering merely because they are visible in the table.
+- Wave 08 Development Monitor is read-only. It must not write TAGs, memories, commands, driver configuration or process outputs.
 - No worker may change Wave 07 public property semantics merely to simplify a UI implementation.
 
 ## Initial object set
@@ -126,6 +135,82 @@ Wave 08 asset foundation must provide enough for practical Image authoring:
 No filesystem path or arbitrary URL becomes saved image authority.
 
 Advanced asset library/search/transcoding/caching belongs later unless required to make the basic path correct.
+
+## Engineering Development Monitor — mandatory Wave 08 scope
+
+Canonical detailed contract: `docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE-08.md`.
+
+The owner requires a Watch/Monitor Table for development analysis inside Engineering. Its purpose is to let an engineer observe the behavior of variables and diagnostics while creating/testing an application without having to build a temporary HMI screen or attach custom code.
+
+### Initial source classes
+
+The monitor must use a provider/catalog seam so new observable domains can be added without creating a second variable model. The initial product path must cover, where canonical source authority exists:
+
+- TAG current values;
+- Client Memory and Server Memory/internal-memory values;
+- system/runtime variables or diagnostics exposed by authoritative product services;
+- Data Source / driver diagnostics and communication state;
+- future provider extension for Gateway, bit selectors, expression diagnostics and other development sources without redesigning the table.
+
+After 08-FOLLOW-A, first-class TAG bit selectors must be eligible monitor sources through the same canonical catalog rather than a special one-off UI path.
+
+### Find and add behavior
+
+The engineer must be able to:
+
+- search/browse by name, canonical path/reference and source category;
+- filter source category where useful;
+- inspect enough result metadata to distinguish similarly named items before adding;
+- type a known exact canonical reference/name/path and add it directly;
+- receive an explicit not-found/ambiguous result rather than a silent fuzzy substitution;
+- add multiple heterogeneous source kinds to the same table;
+- remove individual rows and clear the table.
+
+Search is a convenience layer only. Saved/runtime identity must remain the canonical source reference returned by the provider.
+
+### Required columns / facts
+
+Each row must expose at minimum:
+
+- name/reference/path;
+- source kind/category;
+- current value;
+- canonical data type;
+- quality or authoritative diagnostic state;
+- source timestamp / last update, when the source defines one.
+
+Useful optional presentation may include engineering unit, age/staleness and a diagnostic detail affordance. A source that does not define process quality must display an explicit `N/A`/diagnostic state rather than fabricating `Good`.
+
+### Live-update semantics
+
+- use existing realtime/event/subscription paths where available;
+- use bounded/coalesced polling only where a source has no push path;
+- do not create one independent backend polling loop per monitored row;
+- preserve the latest authoritative sample while bounding UI render pressure;
+- preserve exact value semantics, including Int64-safe representation and explicit types;
+- never coerce unavailable/bad/wrong-type data into `0`, `false` or empty string;
+- distinguish stale/unavailable/disconnected/bad-quality observations visibly;
+- adding a monitor row must not change driver scan rates, TAG configuration or source behavior.
+
+Wave 08 must support a practical multi-row watch table, with acceptance proving at least 100 simultaneous monitored entries can share batched/subscription infrastructure rather than one request loop per row.
+
+### Persistence boundary
+
+The initial monitor selection/watchlist may be session- or user-workspace state. It is not process logic and current values are never Engineering project data.
+
+If the implementation persists a watchlist definition, only canonical source references/order/presentation preferences may be saved. Live values, qualities, timestamps and diagnostics must never be exported as authored Engineering state. Named project-portable Watch Tables may be promoted to a first-class Engineering tooling entity in a later decision if required; Wave 08 does not need to invent that project model merely to deliver the live diagnostic workflow.
+
+### Explicit non-goals
+
+The Wave 08 monitor is not:
+
+- a write/force table;
+- a command console;
+- a historian or trend recorder;
+- an alarm acknowledgement surface;
+- a driver configuration editor;
+- a replacement for Runtime operator displays;
+- process safety/interlock authority.
 
 ## Renderer boundary
 
@@ -213,6 +298,8 @@ Branch: `feature/graphical-editor-wave-08-palette-bindings`
 - asset backend/storage/import authority;
 - changes to Wave 07 property or Python authority.
 
+The original DEV 1/2/3 graphical slices are already delivered and integrated into the Wave 08 integration train. Any new Development Monitor worker assignment requires an explicit new authorization on `docs/CHAT-WORK-ASSIGNMENTS.md`; this owner scope addition does not silently reopen an old worker mission.
+
 ## Coordinator ownership
 
 Integration branch: `integration/graphical-editor-wave-08`
@@ -222,6 +309,7 @@ Coordinator exclusively owns or explicitly delegates:
 - canonical Screen visual mutations/save/reopen semantics;
 - Engineering Schema/migration/import-export changes;
 - first-class visual asset entity/API/persistence/package semantics;
+- Development Monitor provider/catalog contract, central composition and cross-domain read-only authority boundaries unless explicitly delegated;
 - `src/Scada.Api/Program.cs` and backend composition;
 - central frontend Engineering route/workspace composition;
 - `web/scada-web/src/engineering/EngineeringApp.tsx`;
@@ -271,9 +359,11 @@ Wave 08 does not implement:
 - new industrial protocols;
 - advanced industrial symbol libraries;
 - marketplace/plugins;
-- full asset management suite.
+- full asset management suite;
+- monitoring-table writes/forces/commands;
+- full historian/trend capture inside the Development Monitor.
 
-Those belong to Wave 09/10/11 or later.
+Those belong to Wave 09/10/11 or later unless separately locked by the owner.
 
 ## Validation
 
@@ -284,11 +374,12 @@ Coordinator integration must ultimately prove on one exact head:
 - backend Release/full PostgreSQL+Timescale tests;
 - Runtime smoke;
 - Chromium E2E;
-- Wave 08 editor acceptance;
+- Wave 08 graphical editor acceptance;
+- Wave 08 Development Monitor acceptance;
 - all Wave 07 visual/Python regressions;
 - all Wave 06 sandbox/native-escape/cancellation regressions.
 
-Required Wave 08 acceptance includes:
+Required graphical Wave 08 acceptance includes:
 1. create/load canonical Screen definition;
 2. add built-in objects;
 3. select/move/resize/rotate as applicable;
@@ -300,4 +391,19 @@ Required Wave 08 acceptance includes:
 9. export/import and recover the same authored definition;
 10. prove transient Canvas selection/viewport state is not persisted as project authority.
 
-Wave 08 closes only after final integrated CI is green and the merge commit is healthy on `main`.
+Required Development Monitor acceptance includes:
+1. open the Engineering Development Monitor;
+2. search and add a canonical TAG from the catalog;
+3. type a known exact canonical TAG/reference and add it without browsing;
+4. add at least one internal-memory source;
+5. add at least one system/runtime diagnostic source;
+6. add at least one Data Source/driver diagnostic source;
+7. display value, data type, quality/state and source timestamp/last-update information without silent coercion;
+8. observe a source change reflected live in the row;
+9. prove bad/unavailable/disconnected source state remains explicit;
+10. remove/clear monitored rows without changing source configuration;
+11. prove monitor behavior is read-only and does not issue TAG/memory/command writes;
+12. prove a large watch set uses shared batching/subscription rather than independent polling per row;
+13. prove live monitored values/qualities/timestamps do not become canonical Engineering/export/package state.
+
+Wave 08 closes only after both graphical and Development Monitor gates are green on the final integrated head and the merge commit is healthy on `main`.

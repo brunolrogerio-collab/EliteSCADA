@@ -66,10 +66,9 @@ export function existingVisualObjectIds(screen: ScreenEngineering): ReadonlySet<
 }
 
 /**
- * DEV 3 deliberately emits its worker-local authoring labels (Tag/Property/Expression).
- * Canonical Engineering and the existing Runtime adapter use lowercase kinds.
- * Normalize only at the coordinator authority boundary so persisted bindings and
- * Runtime projection cannot diverge by casing.
+ * Worker-local authoring labels remain human-readable while canonical Engineering
+ * and Runtime projection use normalized lowercase tokens. Normalize only at the
+ * coordinator authority boundary so persisted bindings and Runtime cannot diverge.
  */
 export function normalizeVisualEditorMutationIntent(
   intent: VisualEditorMutationIntent
@@ -77,7 +76,7 @@ export function normalizeVisualEditorMutationIntent(
   if (intent.kind !== 'binding.set') return intent;
 
   const normalizedKind = intent.binding.kind.trim().toLowerCase();
-  if (!['tag', 'property', 'binding', 'expression'].includes(normalizedKind)) {
+  if (!['tag', 'clientmemory', 'property', 'binding', 'expression'].includes(normalizedKind)) {
     throw new Error(`Visual binding kind '${intent.binding.kind}' is not supported by canonical Runtime projection.`);
   }
 
@@ -91,9 +90,9 @@ export function normalizeVisualEditorMutationIntent(
 }
 
 /**
- * Current Wave 08 exposes only canonical TAG sources. Property/expression source
- * authoring is intentionally held back until the later typed-expression contract
- * is implemented, even though DEV 3's generic editor can represent those kinds.
+ * Compatibility helper retained for the original Wave 08 tests. New composition
+ * builds the richer shared Project Reference Catalog and maps compatible sources
+ * into this same binding-source seam.
  */
 export function buildVisualEditorTagSourceCatalog(
   tags: readonly TagEngineering[]
@@ -106,7 +105,9 @@ export function buildVisualEditorTagSourceCatalog(
       label: tag.name?.trim() ? `${tag.name} · ${tag.path}` : tag.path,
       dataType: tag.dataType,
       engineeringUnit: tag.engineeringUnit ?? null,
-      writable: !tag.readOnly
+      writable: !tag.readOnly,
+      family: tag.source?.toLowerCase().includes('memory.server') ? 'serverMemory' : 'tag',
+      bindable: true
     } satisfies VisualEditorBindingSourceCatalogItem));
 
   return Object.freeze(items);

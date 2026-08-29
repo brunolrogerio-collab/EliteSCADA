@@ -93,7 +93,7 @@ public sealed class SystemIoBacnetSession : IBacnetSession
             device.Address,
             new BacnetObjectId((BacnetObjectTypes)binding.ObjectType, binding.ObjectInstance),
             (BacnetPropertyIds)binding.PropertyIdentifier,
-            arrayIndex: binding.ArrayIndex ?? ASN1.BACNET_ARRAY_ALL,
+            arrayIndex: binding.ArrayIndex ?? uint.MaxValue,
             cancellationToken: cancellationToken).ConfigureAwait(false);
         return new BacnetPropertyReadResult(binding, values.ToArray(), DateTimeOffset.UtcNow);
     }
@@ -111,7 +111,7 @@ public sealed class SystemIoBacnetSession : IBacnetSession
             (BacnetPropertyIds)binding.PropertyIdentifier,
             values,
             priority: binding.WritePriority,
-            arrayIndex: binding.ArrayIndex ?? ASN1.BACNET_ARRAY_ALL,
+            arrayIndex: binding.ArrayIndex ?? uint.MaxValue,
             cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 

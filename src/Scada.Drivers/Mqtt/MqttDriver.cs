@@ -310,6 +310,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
 
         while (!cancellationToken.IsCancellationRequested)
         {
+            var receiveStarted = false;
             try
             {
                 if (!_transport.IsConnected)
@@ -318,6 +319,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
                     reconnectDelay = _settings.EffectiveReconnectMinimumDelay;
                 }
 
+                receiveStarted = true;
                 var message = await _transport.ReceiveAsync(cancellationToken);
                 await HandleMessageAsync(message, cancellationToken);
             }
@@ -328,7 +330,19 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
             catch (Exception ex) when (ex is IOException or TimeoutException)
             {
                 if (ex is TimeoutException) Interlocked.Increment(ref _timeouts);
-                RecordFailureOnly(ex);
+                if (receiveStarted)
+                {
+                    RecordUntimedOutcome(success: false, ex);
+                    if (!_transport.IsConnected)
+                    {
+                        lock (_diagnosticsGate) _disconnections++;
+                    }
+                }
+                else
+                {
+                    RecordFailureOnly(ex);
+                }
+
                 _consecutiveConnectFailures++;
                 await MarkAllCommunicationFailureAsync(cancellationToken);
                 await DisconnectTransportAsync(CancellationToken.None);

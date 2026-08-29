@@ -3,7 +3,9 @@ namespace Scada.Drivers.AllenBradley;
 /// <summary>
 /// Builds and validates Logix Read Modify Write Tag (0x4E) operations.
 /// The service is the controller-native atomic primitive used to change integer
-/// bits without a client-side read/write race.
+/// bits without a client-side read/write race. This codec is protocol groundwork;
+/// Runtime promotion remains separate so a validated request format is not
+/// confused with an enabled operator-write path.
 /// </summary>
 public static class LogixReadModifyWrite
 {

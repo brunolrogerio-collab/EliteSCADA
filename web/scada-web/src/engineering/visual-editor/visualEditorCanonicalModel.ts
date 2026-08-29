@@ -63,7 +63,7 @@ export function replaceScreenElements(
 ): ScreenEngineering {
   return {
     ...screen,
-    elements: cloneEngineeringValue(elements)
+    elements: cloneEngineeringValue([...elements])
   };
 }
 

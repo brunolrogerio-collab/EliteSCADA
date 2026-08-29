@@ -23,6 +23,7 @@ Before any action read current `main`:
 - `docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE-08.md`
 - `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`
 - `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`
+- `docs/WAVE-09-ELIPSE-E3-ALARM-HISTORIAN-DATA-BROWSER-RESEARCH.md`
 - current assignment `MustReadSpecific`.
 
 Then verify live GitHub branch/PR/head/CI. GitHub is operational truth.
@@ -114,6 +115,35 @@ After Development Monitor implementation, run final exact-head integrated CI, me
 - **08-FOLLOW-B:** Typed Visual Expressions + Boolean Conditions + Analog Fill.
 - **Wave 09:** remains NOT ACTIVE until required preceding work is green.
 
+## Wave 09 research context — LOCKED / NOT ACTIVE
+
+Owner requested research of Elipse E3 alarm, database, E3Browser/query and historian workflows, especially period/date selection and filtering by type, area and name/source.
+
+Research result is persisted in:
+
+`docs/WAVE-09-ELIPSE-E3-ALARM-HISTORIAN-DATA-BROWSER-RESEARCH.md`
+
+Wave 09 now keeps Screens/Popups/Dynamos/navigation and also requires a web-native Historical Data Browser over protected logical datasets, initially:
+
+- `historian.samples`;
+- `alarm.events`.
+
+Locked direction:
+
+- relative period and absolute start/end time queries;
+- typed filters for alarm/event type, category/subcondition, area, source/name/path, message, severity, active/ack/shelved state where persisted;
+- historian filters by canonical TAG(s), period and optional quality;
+- bounded sortable tables with typed values/quality;
+- current Alarm Center stays operational ACK/current-state authority;
+- historical alarm browsing is read-only;
+- browser never receives DB credentials or direct PostgreSQL access;
+- normal browser API does not accept arbitrary SQL;
+- typed query descriptors are validated/authorized and translated server-side into parameterized PostgreSQL/TimescaleDB queries;
+- temporary Runtime filter/date changes do not dirty Engineering;
+- engineered browser configuration on a Screen/Popup must participate in canonical Engineering/revision/package lifecycle.
+
+Do not activate or distribute Wave 09 yet. Freeze exact implementation contract, BaseSHA and assignments only after Wave 08 + 08-FOLLOW-A + 08-FOLLOW-B are green.
+
 ## Next coordinator execution
 
 1. verify current `main`, integration head, PR #90 and CI evidence;
@@ -123,4 +153,5 @@ After Development Monitor implementation, run final exact-head integrated CI, me
 5. create explicit parallel-safe worker assignment(s) if useful;
 6. integrate and validate the Development Monitor;
 7. run one final full Wave 08 matrix on the exact combined head;
-8. merge only after both Wave 08 gates are green and verify post-merge main.
+8. merge only after both Wave 08 gates are green and verify post-merge main;
+9. preserve the Wave 09 alarm/historian/data-browser research contract for later activation without pulling that implementation into Wave 08.

@@ -92,6 +92,7 @@ public sealed class MqttEngineeringCompiler
         var reconnectMaximumMs = ParseInt(settings, "reconnectMaximumMilliseconds", 30_000, 100, 3_600_000, dataSource.Key, issues);
         var maximumInboundPayloadBytes = ParseInt(settings, "maximumInboundPayloadBytes", 1_048_576, 1, 67_108_864, dataSource.Key, issues);
         var maximumConsecutiveConnectFailures = ParseInt(settings, "maximumConsecutiveConnectFailures", 5, 1, 1000, dataSource.Key, issues);
+        var maximumBufferedMessages = ParseInt(settings, "maximumBufferedMessages", 4_096, 1, 1_000_000, dataSource.Key, issues);
 
         var cleanSession = false;
         var cleanStart = false;
@@ -123,7 +124,8 @@ public sealed class MqttEngineeringCompiler
             cleanStart,
             sessionExpirySeconds,
             maximumInboundPayloadBytes,
-            maximumConsecutiveConnectFailures);
+            maximumConsecutiveConnectFailures,
+            maximumBufferedMessages);
 
         try
         {
@@ -208,6 +210,7 @@ public sealed class MqttEngineeringCompiler
         var jsonPointer = NullIfEmpty(Get(metadata, "mqtt.jsonPointer"));
         var sourceTimestampJsonPointer = NullIfEmpty(Get(metadata, "mqtt.sourceTimestampJsonPointer"));
         var sourceTimestampRequired = ParseBool(metadata, "mqtt.sourceTimestampRequired", false, dataSourceKey, issues, dto.Path);
+        var freshnessTimeoutMs = ParseOptionalInt(metadata, "mqtt.freshnessTimeoutMilliseconds", 1, int.MaxValue, dataSourceKey, issues, dto.Path);
         var retainedPolicy = ParseRetainedPolicy(metadata, dataSourceKey, dto.Path, issues);
         var qos = ParseQos(metadata, "mqtt.qos", MqttQosLevel.AtLeastOnce, dataSourceKey, dto.Path, issues);
         var publishTopic = NullIfWhiteSpace(Get(metadata, "mqtt.publishTopic"));
@@ -231,7 +234,10 @@ public sealed class MqttEngineeringCompiler
                 Writable: !dto.ReadOnly,
                 PublishTopic: publishTopic,
                 PublishQos: publishQos,
-                PublishRetain: publishRetain);
+                PublishRetain: publishRetain,
+                FreshnessTimeout: freshnessTimeoutMs.HasValue
+                    ? TimeSpan.FromMilliseconds(freshnessTimeoutMs.Value)
+                    : null);
             point.Validate();
             return point;
         }
@@ -388,6 +394,28 @@ public sealed class MqttEngineeringCompiler
             dataSourceKey,
             tagPath));
         return fallback;
+    }
+
+    private static int? ParseOptionalInt(
+        IReadOnlyDictionary<string, string> map,
+        string key,
+        int minimum,
+        int maximum,
+        string dataSourceKey,
+        List<EngineeringDriverIssue> issues,
+        string? tagPath = null)
+    {
+        var raw = Get(map, key);
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        if (int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) && value >= minimum && value <= maximum)
+            return value;
+
+        issues.Add(Error(
+            "MQTT_SETTING_INVALID",
+            $"Setting '{key}' must be an integer from {minimum} to {maximum}; received '{raw}'.",
+            dataSourceKey,
+            tagPath));
+        return null;
     }
 
     private static uint ParseUInt(

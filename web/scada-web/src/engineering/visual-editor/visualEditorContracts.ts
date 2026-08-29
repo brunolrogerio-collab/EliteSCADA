@@ -6,11 +6,9 @@ import type {
 } from '../types';
 
 /**
- * Shared Wave 08 integration contract between coordinator composition and the
- * independently owned Canvas, Property Inspector and Palette/Binding slices.
- *
- * UI-only state is deliberately separated from canonical mutation intents so
- * viewport/selection/adornment state cannot accidentally become project data.
+ * Shared Wave 08 integration contract between coordinator composition and visual
+ * editor components. UI-only state is deliberately separated from canonical
+ * mutation intents so viewport/selection/adornment state cannot become project data.
  */
 export type VisualEditorPoint = Readonly<{
   x: number;
@@ -86,6 +84,11 @@ export type VisualEditorMutationIntent =
       operation: VisualEditorZOrderOperation;
     }>
   | Readonly<{
+      kind: 'polygon.points.set';
+      objectId: string;
+      points: readonly VisualEditorPoint[];
+    }>
+  | Readonly<{
       kind: 'property.set';
       objectIds: readonly string[];
       propertyKey: string;
@@ -108,8 +111,8 @@ export type VisualEditorMutationIntent =
     }>;
 
 /**
- * Coordinator-provided read-only source catalog boundary for DEV 3. It carries
- * canonical source references only; it is not a driver-specific browse model.
+ * Coordinator-provided read-only source catalog boundary. It carries canonical
+ * project references, source-family metadata and type information, never driver-private objects.
  */
 export type VisualEditorBindingSourceCatalogItem = Readonly<{
   kind: BindingEngineering['kind'];
@@ -118,6 +121,8 @@ export type VisualEditorBindingSourceCatalogItem = Readonly<{
   dataType?: string | null;
   engineeringUnit?: string | null;
   writable?: boolean;
+  family?: 'tag' | 'serverMemory' | 'clientMemory' | 'system' | 'driverDiagnostic' | 'asset';
+  bindable?: boolean;
 }>;
 
 export type VisualEditorCanvasContractProps = Readonly<{

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Scada.Engineering.Contracts;
 
 namespace Scada.Engineering.VisualScripting;
@@ -33,7 +34,7 @@ public static class BuiltinVisualEngineeringValidation
         {
             _ = VisualEngineeringPropertyCodec.Decode(
                 schema,
-                element.Properties,
+                ScalarProperties(element),
                 allowLegacyStringValues: schemaVersion < VisualEngineeringPropertyCodec.TypedSchemaVersion);
         }
         catch (Exception error) when (error is KeyNotFoundException or InvalidDataException or ArgumentException)
@@ -74,6 +75,18 @@ public static class BuiltinVisualEngineeringValidation
         }
 
         return issues;
+    }
+
+    private static Dictionary<string, JsonElement>? ScalarProperties(VisualElementEngineeringDto element)
+    {
+        if (element.Properties is null) return null;
+        if (!element.Type.Equals(BuiltinVisualObjectSchemas.PolygonType, StringComparison.Ordinal) ||
+            !element.Properties.ContainsKey("points"))
+            return element.Properties;
+
+        return element.Properties
+            .Where(property => !property.Key.Equals("points", StringComparison.Ordinal))
+            .ToDictionary(property => property.Key, property => property.Value, StringComparer.Ordinal);
     }
 
     private static ImportIssue Error(

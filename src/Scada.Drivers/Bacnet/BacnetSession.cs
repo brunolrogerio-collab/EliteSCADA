@@ -8,7 +8,8 @@ public sealed record BacnetSessionOptions(
     int Retries = 2,
     TimeSpan? DiscoveryWindow = null,
     string? BbmdAddress = null,
-    int? ForeignDeviceTtlSeconds = null)
+    int? ForeignDeviceTtlSeconds = null,
+    string? TargetAddress = null)
 {
     public TimeSpan EffectiveRequestTimeout => RequestTimeout ?? TimeSpan.FromSeconds(3);
     public TimeSpan EffectiveDiscoveryWindow => DiscoveryWindow ?? TimeSpan.FromMilliseconds(1500);
@@ -22,6 +23,14 @@ public sealed record BacnetSessionOptions(
         if (ForeignDeviceTtlSeconds is < 30 or > short.MaxValue) throw new ArgumentOutOfRangeException(nameof(ForeignDeviceTtlSeconds));
         if (ForeignDeviceTtlSeconds.HasValue && string.IsNullOrWhiteSpace(BbmdAddress))
             throw new ArgumentException("BACnet Foreign Device Registration requires a BBMD address.");
+        if (!string.IsNullOrWhiteSpace(TargetAddress))
+        {
+            try { _ = new BacnetAddress(BacnetAddressTypes.IP, TargetAddress.Trim()); }
+            catch (Exception ex) when (ex is FormatException or ArgumentException)
+            {
+                throw new ArgumentException("BACnet targetAddress must be an IPv4 address with optional UDP port, for example '192.168.1.20:47808'.", nameof(TargetAddress), ex);
+            }
+        }
     }
 }
 

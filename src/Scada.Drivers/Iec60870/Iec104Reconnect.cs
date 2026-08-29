@@ -84,13 +84,15 @@ public sealed class Iec104ReconnectingSessionRunner
             commonAddresses,
             reconnectPolicy,
             commandOptions: null,
-            originatorAddress,
-            delayAsync);
+            originatorAddress: originatorAddress,
+            delayAsync: delayAsync);
     }
 
     public Iec104SessionState SessionState => _client.SessionState;
 
     public int InFlightCommandCount => _client.InFlightCommandCount;
+
+    public Iec104ManagedDiagnosticSnapshot GetDiagnostics() => _client.GetDiagnostics();
 
     public Task<Iec104CommandResult> ExecuteCommandAsync(
         Iec104CommandTransaction transaction,

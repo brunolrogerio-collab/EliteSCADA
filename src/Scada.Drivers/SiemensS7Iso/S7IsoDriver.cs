@@ -176,8 +176,8 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
             };
             if (_options.ConnectionMode == S7IsoConnectionMode.RackSlot)
             {
-                details["rack"] = _options.Rack.ToString(CultureInfo.InvariantCulture);
-                details["slot"] = _options.Slot.ToString(CultureInfo.InvariantCulture);
+                details["rack"] = _options.Rack!.Value.ToString(CultureInfo.InvariantCulture);
+                details["slot"] = _options.Slot!.Value.ToString(CultureInfo.InvariantCulture);
                 details["connectionRole"] = _options.ConnectionRole.ToString();
             }
 

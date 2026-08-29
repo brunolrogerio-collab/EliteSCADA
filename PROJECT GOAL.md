@@ -4,7 +4,7 @@
 >
 > This file preserves stable product goals and locked architecture across ChatGPT conversations, developers and tooling. It defines intent, not merely current implementation state.
 
-**Last reviewed:** 2026-08-26
+**Last reviewed:** 2026-08-28
 
 ## Mandatory continuity protocol
 
@@ -294,6 +294,25 @@ Common properties include, as applicable:
 
 Type-specific objects may add explicit schema properties.
 
+#### Declarative visual conditions and Analog Fill
+
+Every renderable Screen/Popup/Dynamo object must expose the public boolean `visible` property, defaulting to `true` unless a deliberate schema rule says otherwise.
+
+More generally, every public visual property whose schema type is boolean must support declarative boolean evaluation in the Binding/Expression layer without requiring Python. At minimum this includes:
+
+- direct boolean source, with explicit optional inversion;
+- numeric interval evaluation with lower/upper bounds, inclusive/exclusive edges, one-sided intervals and `inside`/`outside` semantics.
+
+Bad/unavailable/wrong-type sources must not silently coerce to `false`; that binding evaluation becomes unavailable and normal property precedence falls back with diagnostics.
+
+Closed visual objects that opt into fill capability must support Analog Fill: a numeric source is scaled through configured engineering minimum/maximum to a clamped `0..100%` filled region, with explicit direction (`bottom->top`, `top->bottom`, `left->right`, `right->left`) and a filled-region color distinct from the unfilled/base appearance.
+
+These are canonical, versioned Engineering behaviors and participate in import/export, Preview/Apply, revisions and project packages. Runtime-evaluated boolean results and fill percentages remain presentation state and never become saved base values automatically.
+
+Visual conditions are presentation behavior only. They must never become safety/interlock/permissive authority.
+
+Full locked semantics and deferred implementation boundary: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.
+
 ### Engineering value versus runtime visual state
 
 This separation is mandatory:
@@ -460,5 +479,6 @@ Full locked semantics and the permitted early non-production spike: `docs/OPC-UA
 - `docs/INTERFACE-VALIDATION-MILESTONE.md`: mandatory product-owner preview gate.
 - `docs/OPC-UA.md`: OPC UA discovery, browse, import, security and future driver Engineering experience.
 - `docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`: Python scripting, script editor, visual property schema and runtime visual-state contract.
+- `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`: universal boolean visual conditions and analog proportional fill direction.
 
 These documents must remain consistent. `PROJECT GOAL.md` wins for locked product intent; current repository code/`main` wins for implementation truth; `LAST CHANGE.md` records the exact handoff.

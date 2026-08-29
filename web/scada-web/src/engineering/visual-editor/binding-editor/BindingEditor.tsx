@@ -24,6 +24,11 @@ export type BindingEditorProps = VisualEditorBindingEditorContractProps & Readon
   copy?: Partial<BindingEditorCopy>;
 }>;
 
+type Computed<T> = Readonly<{
+  value: T;
+  error: string | null;
+}>;
+
 const DEFAULT_COPY: BindingEditorCopy = {
   title: 'Binding',
   destination: 'Visual property',
@@ -41,17 +46,19 @@ export function BindingEditor({
   onMutationIntent,
   copy
 }: BindingEditorProps) {
-  const text = { ...DEFAULT_COPY, ...copy };
-  const [error, setError] = useState<string | null>(null);
+  const text: BindingEditorCopy = { ...DEFAULT_COPY, ...copy };
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const destinations = useMemo(
-    () => safeDestinations(element.type, setError),
+  const destinationResult = useMemo(
+    () => computeDestinations(element.type),
     [element.type]
   );
-  const sources = useMemo(
-    () => safeSources(sourceCatalog, setError),
+  const sourceResult = useMemo(
+    () => computeSources(sourceCatalog),
     [sourceCatalog]
   );
+  const destinations = destinationResult.value;
+  const sources = sourceResult.value;
 
   const firstBoundDestination = destinations.find(item =>
     element.bindings?.some(binding => binding.key === item.key)
@@ -86,7 +93,7 @@ export function BindingEditor({
   }, [element, propertyKey, sourceKey, sources]);
 
   function apply() {
-    setError(null);
+    setActionError(null);
     const source = sources.find(item => sourceIdentity(item.kind, item.target) === sourceKey);
     if (!source || !propertyKey) return;
     try {
@@ -97,19 +104,21 @@ export function BindingEditor({
         existing?.direction
       ));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setActionError(errorText(cause));
     }
   }
 
   function remove() {
-    setError(null);
+    setActionError(null);
     if (!propertyKey) return;
     try {
       onMutationIntent(createBindingRemoveIntent(element, propertyKey));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setActionError(errorText(cause));
     }
   }
+
+  const error = actionError ?? destinationResult.error ?? sourceResult.error;
 
   return (
     <section className="visual-binding-editor" aria-label={text.title} data-testid="visual-binding-editor">
@@ -124,7 +133,10 @@ export function BindingEditor({
             <select
               aria-label={text.destination}
               value={propertyKey}
-              onChange={event => setPropertyKey(event.target.value)}
+              onChange={event => {
+                setActionError(null);
+                setPropertyKey(event.target.value);
+              }}
             >
               {destinations.map(destination => (
                 <option key={destination.key} value={destination.key}>
@@ -140,7 +152,10 @@ export function BindingEditor({
               aria-label={text.source}
               value={sourceKey}
               disabled={sources.length === 0}
-              onChange={event => setSourceKey(event.target.value)}
+              onChange={event => {
+                setActionError(null);
+                setSourceKey(event.target.value);
+              }}
             >
               {sources.length === 0 ? (
                 <option value="">{text.noSources}</option>
@@ -174,30 +189,28 @@ export function BindingEditor({
   );
 }
 
-function safeDestinations(
-  objectType: string,
-  setError: (value: string | null) => void
-): readonly BindableVisualProperty[] {
+function computeDestinations(objectType: string): Computed<readonly BindableVisualProperty[]> {
   try {
-    return listBindableVisualProperties({ type: objectType });
+    return { value: listBindableVisualProperties({ type: objectType }), error: null };
   } catch (cause) {
-    queueMicrotask(() => setError(cause instanceof Error ? cause.message : String(cause)));
-    return [];
+    return { value: [], error: errorText(cause) };
   }
 }
 
-function safeSources(
-  sourceCatalog: VisualEditorBindingEditorContractProps['sourceCatalog'],
-  setError: (value: string | null) => void
-) {
+function computeSources(
+  sourceCatalog: VisualEditorBindingEditorContractProps['sourceCatalog']
+): Computed<ReturnType<typeof normalizeBindingSourceCatalog>> {
   try {
-    return normalizeBindingSourceCatalog(sourceCatalog);
+    return { value: normalizeBindingSourceCatalog(sourceCatalog), error: null };
   } catch (cause) {
-    queueMicrotask(() => setError(cause instanceof Error ? cause.message : String(cause)));
-    return [];
+    return { value: [], error: errorText(cause) };
   }
 }
 
 function sourceIdentity(kind: string, target: string): string {
   return `${kind}\u0000${target}`;
+}
+
+function errorText(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause);
 }

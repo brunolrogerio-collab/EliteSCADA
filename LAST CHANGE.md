@@ -5,7 +5,7 @@
 **Handoff date:** 2026-08-28  
 **Merged product state:** **WAVE 07 CLOSED / WAVE 08 NOT MERGED**  
 **Active development state:** **WAVE 08 ACTIVE — CENTRAL FOUNDATION VALIDATED IN DRAFT PR #90 / DEV 1-2-3 ACTIVE**  
-**Next mandatory visual follow-up:** **BOOLEAN CONDITIONS + ANALOG FILL — SPECIFIED / NOT IMPLEMENTED**  
+**Next mandatory visual follow-up:** **TYPED VISUAL EXPRESSIONS + BOOLEAN CONDITIONS + ANALOG FILL — SPECIFIED / NOT IMPLEMENTED**  
 **CI mode:** **NORMAL — Actions authorized with conservative usage**
 
 ## Mandatory resume reading
@@ -107,7 +107,7 @@ Workers must preserve their fixed AllowedScope/ForbiddenScope, use focused valid
 
 ## Newly locked visual behavior — SPECIFIED / NOT IMPLEMENTED
 
-The owner added a mandatory visual-engineering requirement while the three current worker slices were already active. Their missions are **not expanded mid-delivery**.
+The owner expanded the mandatory visual-engineering follow-up while the three current worker slices were already active. Their missions remain **unchanged mid-delivery**.
 
 Canonical contract:
 
@@ -115,22 +115,29 @@ Canonical contract:
 
 This follow-up must be implemented after the current Wave 08 worker deliveries are reviewed/integrated and before Wave 09 is activated.
 
-Locked behavior:
+Locked behavior now includes:
 
+- visual properties declaring Binding/Expression support accept typed, side-effect-free expressions over canonical TAGs and Client Memory;
+- boolean expressions support `and`, `or`, `not`, comparisons and parentheses, e.g. `falha_inversor1 or falha_bomba1`;
+- numeric expressions support `+`, `-`, `*`, `/`, `%`, unary sign and parentheses, e.g. `(nivel1 + nivel2) * 3`;
+- boolean/numeric destination type compatibility is enforced and conversions are explicit, e.g. `bool(falha_inversor1 + falha_bomba1)` or `(falha_inversor1 + falha_bomba1) > 0` when source TAGs are numeric;
+- a small whitelist of deterministic pure helpers such as `abs`, `min`, `max`, `clamp`, `round`, `floor`, `ceil`, `bool` and `number` is allowed;
+- expression dependencies are canonical and validated rather than relying only on ambiguous display labels;
+- evaluation is reactive to source changes, bounded and cannot execute arbitrary JavaScript/Python/user code;
 - every renderable Screen/Popup/Dynamo object exposes public `visible: boolean`;
-- the rule is generic: every public boolean visual property can be driven by a direct boolean source or by deterministic numeric interval evaluation;
+- every public boolean visual property can be driven by a direct boolean source, numeric interval evaluation or compatible typed boolean expression;
 - interval conditions support lower/upper bounds, inclusive/exclusive edges, one-sided intervals and inside/outside semantics;
-- bad/unavailable/wrong-type sources do not silently coerce to false; the Binding/Expression layer becomes unavailable and normal precedence falls back with diagnostics;
-- Boolean Conditions remain inside the existing `Animation > Script > Binding/Expression > Engineering Base > Default` resolution model;
+- bad/unavailable/wrong-type dependencies do not silently coerce to false/zero; the Binding/Expression layer becomes unavailable and normal precedence falls back with diagnostics;
+- all of this remains inside the existing `Animation > Script > Binding/Expression > Engineering Base > Default` resolution model;
 - closed fill-capable shapes such as rectangle and ellipse/circle support Analog Fill;
-- numeric source values are scaled from configured engineering min/max to a clamped 0..100% filled region;
+- Analog Fill accepts a compatible numeric binding/expression, then scales configured engineering min/max to a clamped 0..100% filled region;
 - first fill directions are bottom->top, top->bottom, left->right and right->left;
 - filled-region color is explicit while unfilled geometry keeps normal base/background appearance;
-- configuration is first-class canonical Engineering and must round-trip through JSON, Preview/Apply, revisions and `.escadapkg`;
-- runtime condition results and calculated fill percentages are presentation state and are not persisted as Engineering base values;
-- visual conditions must never be treated as safety/interlock/permissive process authority.
+- expression/condition/fill configuration is first-class canonical Engineering and must round-trip through JSON, Preview/Apply, revisions and `.escadapkg`;
+- runtime expression results, condition results and calculated fill percentages are presentation state and are not persisted as Engineering base values;
+- visual expressions/conditions must never be treated as safety/interlock/permissive process authority.
 
-First implementation does not require AND/OR condition trees, hysteresis/debounce, radial/path fills or threshold/gradient color-stop maps. Architecture must not block later extensions.
+The first follow-up is intentionally an expression language, not a general-purpose programming language: no assignments, loops, arbitrary functions, JavaScript/Python evaluation or direct driver/database/network/DOM access.
 
 ## Actions rule
 
@@ -171,5 +178,5 @@ Wave 09/10 remain NOT ACTIVE.
 6. use focused validation during composition and preserve CI #515 evidence only for unchanged validated code;
 7. run the next full matrix on a meaningful integrated product checkpoint;
 8. finish/merge the current Wave 08 interaction work only when exact-head CI is green;
-9. before activating Wave 09, execute the mandatory Boolean Conditions + Analog Fill follow-up under `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`, with its own assignments and validation;
+9. before activating Wave 09, execute the mandatory Typed Visual Expressions + Boolean Conditions + Analog Fill follow-up under `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`, with its own assignments and validation;
 10. only after that follow-up is green and documentation is synchronized may Wave 09 activate.

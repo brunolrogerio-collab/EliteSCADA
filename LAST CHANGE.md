@@ -4,7 +4,7 @@
 
 **Handoff date:** 2026-08-29  
 **Merged product state:** **WAVE 08 CLOSED / POST-MERGE GREEN**  
-**Active development state:** **08-FOLLOW-A — TAG BIT ACCESS + DRIVER BIT-LEVEL BOOLEAN BINDING / ARCHITECTURE-FIRST**  
+**Active development state:** **08-FOLLOW-A — TAG BIT ACCESS + DRIVER BIT-LEVEL BOOLEAN BINDING / PARALLEL IMPLEMENTATION**  
 **CI mode:** **NORMAL — Actions authorized with conservative usage**
 
 ## Mandatory resume reading
@@ -22,58 +22,23 @@ Before any action read current `main`:
 - `docs/COORDINATOR-HANDOFF.md`
 - `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`
 - `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`
-- `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`
 - current assignment `MustReadSpecific`.
 
 Then verify live GitHub branch/PR/head/CI. GitHub is operational truth.
 
 ## Wave 08 — CLOSED
 
-Final integrated product head before merge:
+- final integration head: `9ea0eace15aa925133005f40e16403a2c0f3deb1`;
+- final integration CI #531 / run `33236703599`: **SUCCESS**;
+- PR #96: **MERGED**;
+- `main` merge commit: `bfd17d035d905e9bcae263f68244cfb2b6453aa2`;
+- post-merge CI #533 / run `33236999366`: **SUCCESS**.
 
-`9ea0eace15aa925133005f40e16403a2c0f3deb1`
-
-Final integration CI:
-
-- CI **#531** / run `33236703599`: **SUCCESS**;
-- Web build: SUCCESS;
-- backend Release build + full PostgreSQL/Timescale tests: SUCCESS;
-- Runtime smoke: SUCCESS;
-- Chromium E2E: SUCCESS.
-
-Administrative PR history:
-
-- Draft PR **#90** was closed unmerged only because the available GitHub connector failed while removing Draft state;
-- replacement non-Draft PR **#96** used the exact same branch/head and was merged normally;
-- `main` merge commit: **`bfd17d035d905e9bcae263f68244cfb2b6453aa2`**.
-
-Post-merge health:
-
-- CI **#533** / run `33236999366`: **SUCCESS** on exact `main` merge `bfd17d035d905e9bcae263f68244cfb2b6453aa2`;
-- Web build, backend/full tests, Runtime smoke and Chromium all green.
-
-Wave 08 delivered, together:
-
-- canonical graphical Screen editor foundation;
-- Canvas interaction, Property Inspector, Object Palette and canonical binding authoring;
-- first-class project image assets with stable `assetRef` and revision/PostgreSQL/package fidelity;
-- `core.text` general text plus explicit typed scalar dynamic-display binding;
-- shared Project Reference Tree for canonical source/reference selection;
-- canonical closed free `core.polygon` authoring, vertex editing and persisted structural geometry;
-- Engineering Development Monitor with search, exact quick-add, heterogeneous read-only rows, exact typed values, quality/state/timestamp and shared batching/subscription behavior;
-- 100-row monitor architecture acceptance;
-- canonical Preview/Apply/CAS and save/reopen/export/import fidelity;
-- transient editor/monitor state kept outside authored Engineering.
-
-### Final Wave 08 defect fixed
-
-CI #529 exposed a real Preview/Apply asymmetry for `core.polygon`: Preview correctly treated `points` as structural geometry while Apply incorrectly passed it through the scalar Visual Property codec, causing HTTP 500.
-
-The final implementation preserves polygon `points` as structural geometry and normalizes only registered scalar properties. Unknown scalar properties remain fail-closed. A backend regression test covers the normalization path. CI #531 and post-merge #533 both prove the corrected flow.
+The final Wave 08 polygon Preview/Apply defect was fixed before merge: `core.polygon.points` remains structural geometry and is no longer sent through the scalar visual-property codec. Regression coverage is included.
 
 ## Current active work — 08-FOLLOW-A
 
-Canonical contract:
+Canonical product contract:
 
 `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`
 
@@ -85,45 +50,90 @@ Integration branch:
 
 `integration/tag-bit-access-wave-08-follow-a`
 
-Status:
+Shared ContractSHA:
 
-**ACTIVE — COORDINATOR ARCHITECTURE/CONTRACT RECONCILIATION. DEV 1/2/3 REMAIN STOPPED UNTIL EXPLICITLY ASSIGNED.**
+`9a8cb931cf851e6cad2ddb8d5efcae428db51d01`
 
-Required product outcome:
+### Architecture inspection completed
 
-1. integer TAG bit selectors such as `Word_status.03` with stable canonical TAG identity + bit index;
-2. Int16/Int32/Int64 fixed-width Boolean projection with LSB=0 and two's-complement semantics;
-3. inherited source quality/timestamp, never bad quality coerced to false;
-4. reusable canonical bit reference for monitor/binding/alarm/Python/future expression consumers;
-5. driver-declared physical bit binding for Boolean TAGs;
-6. Modbus Holding/Input Register bit `0..15` read semantics;
-7. writable Holding Register bit mutation preserving unrelated bits;
-8. concurrency-safe EliteSCADA bit writes and shared/coalesced reads where practical;
-9. canonical JSON/Preview/Apply/revision/PostgreSQL/package fidelity;
-10. authorization/Audit and existing whole-register/Coil/DiscreteInput regressions preserved.
+The merged architecture was inspected before implementation:
 
-Before implementation expands, inspect the actual current TAG reference DTOs, TagDefinition/binding schema, Engineering exchange/persistence paths, Modbus point/codec/poll/write paths, Runtime/current-value resolution and shared Project Reference Tree/Development Monitor source contracts. Do not invent a second reference model merely because `.NN` looks convenient.
+- Core `TagDefinition` is protocol-independent;
+- Engineering currently persists TAG physical identity through `Source + Address` and public DTOs;
+- `EngineeringDriverCompiler` converts those DTOs into runtime `ModbusPoint` definitions;
+- Modbus polling already coalesces compatible overlapping/adjacent points, so several bit TAGs on one register can share one physical register read;
+- Modbus Holding Register writes currently encode/write the full register and therefore require an explicit bit-write branch to avoid clobbering unrelated bits;
+- `ModbusTcpTransport` serializes individual requests but not an entire read-modify-write pair, so same-authority bit writes need driver-level coordination around the full RMW sequence.
 
-## Worker state
+### Shared canonical implementation seam frozen
 
-- DEV 1: **STOPPED / WAIT_FOR_COORDINATOR**.
-- DEV 2: **STOPPED / WAIT_FOR_COORDINATOR**.
-- DEV 3: **STOPPED / WAIT_FOR_COORDINATOR**.
+The Follow-A integration branch now contains a small coordinator-owned seed:
 
-No worker is authorized for 08-FOLLOW-A until `docs/CHAT-WORK-ASSIGNMENTS.md` explicitly grants one bounded scope.
+- `TagValueSelectorKind.Bit`;
+- `TagValueSelector(Kind, Index)`;
+- `TagValueReference(TagId, Selector?)`, where the Guid is authoritative identity;
+- `TagDefinition.AddressSelector` for a structured driver-independent selector over the physical source address;
+- `TagEngineeringDto.AddressSelector` for the public Engineering representation.
+
+Friendly references such as `Word_status.03` remain authoring/display notation only. They must resolve to canonical TAG Guid + structured bit selector and must never become the only persisted identity.
+
+No full CI was spent on this seed; the three seed commits use `[skip ci]`. Worker implementation/focused tests will provide the first behavior evidence.
+
+## Worker state — ACTIVE
+
+All three worker branches were created from exact ContractSHA `9a8cb931cf851e6cad2ddb8d5efcae428db51d01` and are explicitly authorized in `docs/CHAT-WORK-ASSIGNMENTS.md`.
+
+### DEV 1 — Core logical bit semantics
+
+Branch:
+
+`feature/tag-bit-wave-08-follow-a-core`
+
+Owns logical Int16/Int32/Int64 bit read/write semantics, fixed-width two's-complement behavior, quality/timestamp inheritance and focused Core tests.
+
+### DEV 2 — Engineering persistence/validation
+
+Branch:
+
+`feature/tag-bit-wave-08-follow-a-engineering`
+
+Owns `AddressSelector` JSON/CSV/Preview/Apply/Export/schema compatibility and focused Engineering tests. Public bit identity must not be hidden in metadata.
+
+### DEV 3 — Modbus physical register-bit binding
+
+Branch:
+
+`feature/tag-bit-wave-08-follow-a-modbus`
+
+Owns compiler mapping, ModbusPoint/codec/read/write behavior, safe coordinated Holding Register RMW, Input Register read-only semantics, shared read behavior and focused driver tests.
+
+Workers must not merge their own PRs or broaden scope. After delivery they stop at `WAIT_FOR_COORDINATOR`.
+
+## Follow-A required final outcome
+
+1. canonical integer bit selector by TAG Guid + bit index;
+2. Int16/Int32/Int64 low/high/sign-bit correctness;
+3. source quality/timestamp/source timestamps preserved;
+4. logical bit writes preserve all unrelated bits;
+5. direct physical Boolean bit binding represented publicly/versionably;
+6. Modbus HR/IR bit `0..15` reads correct;
+7. HR bit writes preserve unrelated register bits and coordinate EliteSCADA writes;
+8. same-register physical reads remain coalesced where practical;
+9. Engineering JSON/CSV/Preview/Apply/revision/PostgreSQL/package fidelity;
+10. shared Project Reference Tree/Development Monitor can consume the canonical seam without private `.NN` parsing;
+11. existing whole-register/Coil/DiscreteInput and prior-wave regressions stay green.
 
 ## Ordered work after 08-FOLLOW-A
 
 1. **08-FOLLOW-B** — Typed Visual Expressions + Boolean Conditions + Analog Fill, consuming the canonical TAG-bit reference semantics;
-2. **Wave 09** — remains NOT ACTIVE until both mandatory follow-ups are green;
-3. Wave 09 later includes Screens/Popups/Dynamos/navigation plus the locked Historical Data Browser context in `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`.
+2. **Wave 09** — remains NOT ACTIVE until both mandatory follow-ups are green.
 
 ## Next coordinator execution
 
-1. verify current `main`, Follow-A integration branch and CI state;
-2. inspect current canonical TAG/reference/driver seams before choosing DTOs;
-3. freeze the minimum public bit-selector + physical-bit-binding implementation contract on the Follow-A integration branch;
-4. decide whether any parallel-safe worker slices exist, and authorize them explicitly before workers act;
-5. implement focused Core/Engineering/Runtime/Modbus tests before spending a full matrix;
-6. run final integrated CI only at a meaningful Follow-A checkpoint;
-7. merge only green, verify post-merge `main`, then activate 08-FOLLOW-B.
+1. verify the three worker branches/PRs and perform early contract review immediately when they move;
+2. reject duplicate selector/reference models, metadata-only identity or free-form bit-address authority;
+3. integrate accepted worker heads into `integration/tag-bit-access-wave-08-follow-a`;
+4. add coordinator-owned Project Reference Tree / Development Monitor / shared Runtime reference composition after Core semantics are stable;
+5. run focused validation during integration;
+6. spend one full matrix only at a meaningful coherent Follow-A candidate;
+7. merge only green and confirm post-merge `main` before activating 08-FOLLOW-B.

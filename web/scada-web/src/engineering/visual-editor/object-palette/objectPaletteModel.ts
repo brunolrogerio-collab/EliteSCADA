@@ -29,6 +29,7 @@ const PALETTE_ORDER: readonly BuiltinVisualObjectType[] = Object.freeze([
   BUILTIN_VISUAL_OBJECT_TYPES.rectangle,
   BUILTIN_VISUAL_OBJECT_TYPES.ellipse,
   BUILTIN_VISUAL_OBJECT_TYPES.line,
+  BUILTIN_VISUAL_OBJECT_TYPES.polygon,
   BUILTIN_VISUAL_OBJECT_TYPES.text,
   BUILTIN_VISUAL_OBJECT_TYPES.image,
   BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay,
@@ -43,6 +44,7 @@ const PALETTE_METADATA: Readonly<Record<BuiltinVisualObjectType, Readonly<{
   [BUILTIN_VISUAL_OBJECT_TYPES.rectangle]: { labelKey: 'rectangle', category: 'shape' },
   [BUILTIN_VISUAL_OBJECT_TYPES.ellipse]: { labelKey: 'ellipse', category: 'shape' },
   [BUILTIN_VISUAL_OBJECT_TYPES.line]: { labelKey: 'line', category: 'shape' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.polygon]: { labelKey: 'polygon', category: 'shape' },
   [BUILTIN_VISUAL_OBJECT_TYPES.text]: { labelKey: 'text', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.image]: { labelKey: 'image', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay]: { labelKey: 'valueDisplay', category: 'content' },
@@ -67,7 +69,6 @@ export function createObjectAddIntent(
   objectType: string,
   options: CreateObjectAddIntentOptions = {}
 ): Extract<VisualEditorMutationIntent, { kind: 'object.add' }> {
-  // This lookup is the authority check. Unknown/private renderer types fail closed.
   getBuiltinVisualObjectSchema(objectType);
 
   const parentObjectId = normalizeOptionalIdentity(options.parentObjectId, 'parentObjectId');

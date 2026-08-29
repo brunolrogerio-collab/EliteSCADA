@@ -147,6 +147,13 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
             SetCommunicationState(CommunicationDriverOperationalState.Degraded);
             throw;
         }
+        catch (S7IsoConfigurationException ex)
+        {
+            await PublishPreviousAsync(point, TagQuality.BadConfiguration, cancellationToken);
+            RecordOperations(0, 1, 0, 1, Stopwatch.GetElapsedTime(started), ex);
+            SetCommunicationState(CommunicationDriverOperationalState.Degraded);
+            throw;
+        }
         catch (Exception ex) when (IsCommunicationException(ex))
         {
             await PublishPreviousAsync(point, TagQuality.BadCommunication, cancellationToken);
@@ -249,6 +256,7 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
         var started = Stopwatch.GetTimestamp();
         var successes = 0;
         var failures = 0;
+        var communicationFailure = false;
         string? lastError = null;
 
         try
@@ -282,9 +290,17 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
         {
             throw;
         }
+        catch (S7IsoConfigurationException ex)
+        {
+            failures = _points.Count;
+            lastError = SanitizeError(ex);
+            foreach (var point in _points)
+                await PublishPreviousAsync(point, TagQuality.BadConfiguration, cancellationToken);
+        }
         catch (Exception ex) when (IsCommunicationException(ex))
         {
             failures = _points.Count;
+            communicationFailure = true;
             lastError = SanitizeError(ex);
             foreach (var point in _points)
                 await PublishPreviousAsync(point, TagQuality.BadCommunication, cancellationToken);
@@ -310,7 +326,9 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
             ? CommunicationDriverOperationalState.Healthy
             : successes > 0
                 ? CommunicationDriverOperationalState.Degraded
-                : CommunicationDriverOperationalState.Reconnecting);
+                : communicationFailure
+                    ? CommunicationDriverOperationalState.Reconnecting
+                    : CommunicationDriverOperationalState.Degraded);
     }
 
     private async Task PublishPreviousAsync(S7IsoPoint point, TagQuality quality, CancellationToken cancellationToken)

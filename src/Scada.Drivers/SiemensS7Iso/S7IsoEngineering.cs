@@ -66,7 +66,8 @@ public sealed class S7IsoEngineeringAdapter :
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(content);
 
-        if (!IsTiaXlsx(request.SourceName, request.ContentType))
+        var format = ResolveTiaImportFormat(request.SourceName, request.ContentType);
+        if (format == S7TiaImportFormat.Unsupported)
         {
             yield return UnsupportedImportFormat(request.SourceName, request.ContentType);
             yield break;
@@ -76,28 +77,21 @@ public sealed class S7IsoEngineeringAdapter :
         DriverImportCandidate? parseFailure = null;
         try
         {
-            candidates = S7TiaXlsxImporter.Parse(request.SourceName, content, cancellationToken);
+            candidates = format switch
+            {
+                S7TiaImportFormat.Xlsx => S7TiaXlsxImporter.Parse(request.SourceName, content, cancellationToken),
+                S7TiaImportFormat.Xml => S7TiaXmlImporter.Parse(request.SourceName, content, cancellationToken),
+                S7TiaImportFormat.Sdf => S7TiaSdfImporter.Parse(request.SourceName, content, cancellationToken),
+                _ => throw new InvalidOperationException("Unsupported TIA import format routing state.")
+            };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
         }
-        catch (Exception ex) when (ex is InvalidDataException or IOException or NotSupportedException or FormatException or System.Xml.XmlException)
+        catch (Exception ex) when (ex is InvalidDataException or IOException or NotSupportedException or FormatException or System.Xml.XmlException or DecoderFallbackException)
         {
-            parseFailure = new DriverImportCandidate(
-                "tia-xlsx-parse-error",
-                $"TiaXlsx|{request.SourceName}",
-                request.SourceName,
-                "tia-xlsx:parse-error",
-                false,
-                false,
-                Issues: new[]
-                {
-                    new DriverEngineeringIssue(
-                        "S7_TIA_XLSX_INVALID",
-                        DriverEngineeringIssueSeverity.Error,
-                        SanitizeError(ex))
-                });
+            parseFailure = InvalidImportCandidate(format, request.SourceName, ex);
         }
 
         if (parseFailure is not null)
@@ -226,7 +220,43 @@ public sealed class S7IsoEngineeringAdapter :
                 1,
                 dataSourceFields,
                 tagFields),
-            Description: "Classic Siemens S7 communication over ISO-on-TCP / RFC1006 with Engineering-side TIA XLSX PLC-tag import.");
+            Description: "Classic Siemens S7 communication over ISO-on-TCP / RFC1006 with Engineering-side TIA XLSX, XML and SDF PLC-tag import.");
+    }
+
+    private static DriverImportCandidate InvalidImportCandidate(
+        S7TiaImportFormat format,
+        string sourceName,
+        Exception error)
+    {
+        var token = format switch
+        {
+            S7TiaImportFormat.Xlsx => "xlsx",
+            S7TiaImportFormat.Xml => "xml",
+            S7TiaImportFormat.Sdf => "sdf",
+            _ => "export"
+        };
+        var sourceKind = format switch
+        {
+            S7TiaImportFormat.Xlsx => "TiaXlsx",
+            S7TiaImportFormat.Xml => "TiaXml",
+            S7TiaImportFormat.Sdf => "TiaSdf",
+            _ => "TiaExport"
+        };
+
+        return new DriverImportCandidate(
+            $"tia-{token}-parse-error",
+            $"{sourceKind}|{sourceName}",
+            sourceName,
+            $"tia-{token}:parse-error",
+            false,
+            false,
+            Issues: new[]
+            {
+                new DriverEngineeringIssue(
+                    $"S7_TIA_{token.ToUpperInvariant()}_INVALID",
+                    DriverEngineeringIssueSeverity.Error,
+                    SanitizeError(error))
+            });
     }
 
     private static DriverImportCandidate UnsupportedImportFormat(string sourceName, string? contentType) =>
@@ -241,20 +271,30 @@ public sealed class S7IsoEngineeringAdapter :
             {
                 ["sourceName"] = sourceName,
                 ["contentType"] = contentType ?? string.Empty,
-                ["supportedFormat"] = "xlsx"
+                ["supportedFormats"] = "xlsx,xml,sdf"
             },
             Issues: new[]
             {
                 new DriverEngineeringIssue(
                     "S7_TIA_FORMAT_NOT_IMPLEMENTED",
                     DriverEngineeringIssueSeverity.Error,
-                    "This S7 Engineering slice supports TIA PLC-tag XLSX import. XML, SDF and Openness adapters remain explicit follow-up work.")
+                    "This S7 Engineering slice supports TIA PLC-tag XLSX, XML and SDF imports. TIA Openness remains explicit follow-up work.")
             });
 
-    private static bool IsTiaXlsx(string sourceName, string? contentType) =>
-        sourceName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
-        (!string.IsNullOrWhiteSpace(contentType) &&
-         contentType.Contains("spreadsheetml", StringComparison.OrdinalIgnoreCase));
+    private static S7TiaImportFormat ResolveTiaImportFormat(string sourceName, string? contentType)
+    {
+        if (sourceName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase)) return S7TiaImportFormat.Xlsx;
+        if (sourceName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)) return S7TiaImportFormat.Xml;
+        if (sourceName.EndsWith(".sdf", StringComparison.OrdinalIgnoreCase)) return S7TiaImportFormat.Sdf;
+
+        if (!string.IsNullOrWhiteSpace(contentType))
+        {
+            if (contentType.Contains("spreadsheetml", StringComparison.OrdinalIgnoreCase)) return S7TiaImportFormat.Xlsx;
+            if (contentType.Contains("xml", StringComparison.OrdinalIgnoreCase)) return S7TiaImportFormat.Xml;
+        }
+
+        return S7TiaImportFormat.Unsupported;
+    }
 
     private static DriverConfigurationFieldDescriptor Field(
         string key,
@@ -395,5 +435,13 @@ public sealed class S7IsoEngineeringAdapter :
     {
         var message = error.Message.Replace('\r', ' ').Replace('\n', ' ').Trim();
         return message.Length <= 512 ? message : message[..512];
+    }
+
+    private enum S7TiaImportFormat
+    {
+        Unsupported,
+        Xlsx,
+        Xml,
+        Sdf
     }
 }

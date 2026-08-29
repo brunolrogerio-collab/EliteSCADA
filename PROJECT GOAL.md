@@ -66,7 +66,7 @@ Current direction:
 - Scripting language: Python.
 - Client visual scripting: sandboxed Python runtime, with exact browser/WASM implementation selected by technical spike.
 - Server scripting: separately sandboxed Python host/runtime in a later server-scripting slice.
-- External protocol expansion: MQTT, OPC UA, BACnet and installable modules including Siemens S7; later Allen-Bradley research.
+- External protocol expansion: MQTT, OPC UA, BACnet and DNP3, plus installable modules including Siemens S7; later Allen-Bradley research.
 - Extension direction: public SDK plus installable/versioned driver modules.
 
 Implementation technologies may evolve deliberately, but public product contracts should remain decoupled from incidental frameworks.
@@ -482,9 +482,10 @@ After the prerequisite foundation and interface-preview gate:
 1. MQTT;
 2. OPC UA;
 3. BACnet;
-4. installable/versioned Driver Module framework;
-5. Siemens S7 ISO Connection as the first intended installable module target;
-6. later Allen-Bradley research based on public documentation/libraries, licensing, testability and representative hardware/simulator access.
+4. DNP3;
+5. installable/versioned Driver Module framework;
+6. Siemens S7 ISO Connection as the first intended installable module target;
+7. later Allen-Bradley research based on public documentation/libraries, licensing, testability and representative hardware/simulator access.
 
 Driver modules declare stable identity/version, EliteSCADA compatibility, provided driver/Data Source types and public versioned Engineering configuration schema. Missing/disabled/incompatible modules preserve project configuration and expose explicit diagnostics. Module installation/upgrade/removal is security-sensitive and auditable. Package integrity/trust must be evaluated before executable code is enabled.
 

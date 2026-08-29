@@ -25,15 +25,7 @@ public sealed class S7IsoEngineeringAdapter :
         {
             await transport.ConnectAsync(cancellationToken);
             var diagnostics = transport.GetDiagnostics();
-            var observed = new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["connectionMode"] = options!.ConnectionMode.ToString(),
-                ["sourceTsap"] = S7IsoConnectionOptions.FormatTsap(options.EffectiveSourceTsap),
-                ["destinationTsap"] = S7IsoConnectionOptions.FormatTsap(options.EffectiveDestinationTsap),
-                ["requestedPduSize"] = options.RequestedPduSize.ToString(CultureInfo.InvariantCulture),
-                ["negotiatedPduSize"] = diagnostics.NegotiatedPduSize?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
-                ["writeEnabled"] = options.WriteEnabled ? "true" : "false"
-            };
+            var observed = ConnectionObservedProperties(options!, diagnostics);
 
             return new DriverConnectionTestResult(
                 true,
@@ -44,14 +36,17 @@ public sealed class S7IsoEngineeringAdapter :
         }
         catch (Exception ex) when (ex is IOException or TimeoutException or SocketException or InvalidOperationException)
         {
+            var diagnostics = transport.GetDiagnostics();
+            var failureKind = diagnostics.LastFailureKind;
             return new DriverConnectionTestResult(
                 false,
                 options!.SanitizedEndpoint,
                 null,
-                Issues: new[]
+                ConnectionObservedProperties(options, diagnostics),
+                new[]
                 {
                     new DriverEngineeringIssue(
-                        "S7_CONNECTION_FAILED",
+                        ConnectionFailureIssueCode(failureKind),
                         DriverEngineeringIssueSeverity.Error,
                         SanitizeError(ex))
                 });
@@ -222,6 +217,34 @@ public sealed class S7IsoEngineeringAdapter :
                 tagFields),
             Description: "Classic Siemens S7 communication over ISO-on-TCP / RFC1006 with Engineering-side TIA XLSX, XML and SDF PLC-tag import.");
     }
+
+    private static IReadOnlyDictionary<string, string> ConnectionObservedProperties(
+        S7IsoConnectionOptions options,
+        S7IsoTransportDiagnosticSnapshot diagnostics) =>
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["connectionMode"] = options.ConnectionMode.ToString(),
+            ["sourceTsap"] = S7IsoConnectionOptions.FormatTsap(options.EffectiveSourceTsap),
+            ["destinationTsap"] = S7IsoConnectionOptions.FormatTsap(options.EffectiveDestinationTsap),
+            ["requestedPduSize"] = options.RequestedPduSize.ToString(CultureInfo.InvariantCulture),
+            ["negotiatedPduSize"] = diagnostics.NegotiatedPduSize?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+            ["writeEnabled"] = options.WriteEnabled ? "true" : "false",
+            ["failureKind"] = diagnostics.LastFailureKind?.ToString() ?? string.Empty
+        };
+
+    private static string ConnectionFailureIssueCode(S7IsoFailureKind? kind) => kind switch
+    {
+        S7IsoFailureKind.TransportUnavailable => "S7_TRANSPORT_UNAVAILABLE",
+        S7IsoFailureKind.IsoConnectionRejected => "S7_ISO_CONNECTION_REJECTED",
+        S7IsoFailureKind.S7SessionRejected => "S7_SESSION_REJECTED",
+        S7IsoFailureKind.Timeout => "S7_CONNECTION_TIMEOUT",
+        S7IsoFailureKind.ProtectionDenied => "S7_PROTECTION_DENIED",
+        S7IsoFailureKind.AddressInvalid => "S7_ADDRESS_INVALID",
+        S7IsoFailureKind.TypeUnsupported => "S7_TYPE_UNSUPPORTED",
+        S7IsoFailureKind.WriteRejected => "S7_WRITE_REJECTED",
+        S7IsoFailureKind.ProtocolFault => "S7_PROTOCOL_FAULT",
+        _ => "S7_CONNECTION_FAILED"
+    };
 
     private static DriverImportCandidate InvalidImportCandidate(
         S7TiaImportFormat format,

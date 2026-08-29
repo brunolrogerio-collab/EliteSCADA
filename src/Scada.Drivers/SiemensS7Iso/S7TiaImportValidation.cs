@@ -84,9 +84,7 @@ internal static partial class S7TiaImportValidation
         S7IsoValueType.Boolean => "X",
         S7IsoValueType.Byte => "B",
         S7IsoValueType.UInt16 or S7IsoValueType.Int16 => "W",
-        S7IsoValueType.UInt32 or S7IsoValueType.Int32 or S7IsoValueType.Float32 or
-        S7IsoValueType.Int64 or S7IsoValueType.Float64 or S7IsoValueType.DateTime => "D",
-        S7IsoValueType.String => "B",
+        S7IsoValueType.UInt32 or S7IsoValueType.Int32 or S7IsoValueType.Float32 => "D",
         _ => null
     };
 

@@ -39,10 +39,11 @@ public sealed class MqttRuntimeFactoryTests
     }
 
     [Fact]
-    public async Task Create_UsesHostCredentialResolverWithoutPersistingSecretInPlan()
+    public async Task Create_UsesHostCredentialResolverAndClearsResolvedSecretMaterial()
     {
         var transport = new CaptureTransport();
         var resolverCalls = 0;
+        byte[]? resolvedBuffer = null;
         var factory = new MqttRuntimeFactory(
             () => transport,
             (plan, cancellationToken) =>
@@ -50,9 +51,8 @@ public sealed class MqttRuntimeFactoryTests
                 cancellationToken.ThrowIfCancellationRequested();
                 resolverCalls++;
                 Assert.Equal("secret://mqtt/operator", plan.PasswordSecretReference);
-                return ValueTask.FromResult(new MqttResolvedCredentials(
-                    plan.Username,
-                    "ephemeral-test-secret"u8.ToArray()));
+                resolvedBuffer = "ephemeral-test-secret"u8.ToArray();
+                return ValueTask.FromResult(new MqttResolvedCredentials(plan.Username, resolvedBuffer));
             });
         var runtimePlan = CreatePlan(
             username: "operator",
@@ -62,11 +62,14 @@ public sealed class MqttRuntimeFactoryTests
         await using var driver = factory.Create(runtimePlan, cache, new InMemoryTagRegistry());
         await driver.StartAsync();
         await WaitUntilAsync(() => transport.ConnectCount == 1 && transport.SubscribeCount == 1);
+        await WaitUntilAsync(() => resolvedBuffer is not null && resolvedBuffer.All(value => value == 0));
 
         Assert.Equal(1, resolverCalls);
         Assert.Equal("operator", transport.LastUsername);
         Assert.True(transport.LastPasswordLength > 0);
         Assert.Equal("secret://mqtt/operator", runtimePlan.PasswordSecretReference);
+        Assert.NotNull(resolvedBuffer);
+        Assert.All(resolvedBuffer!, value => Assert.Equal((byte)0, value));
     }
 
     private static MqttRuntimePlan CreatePlan(

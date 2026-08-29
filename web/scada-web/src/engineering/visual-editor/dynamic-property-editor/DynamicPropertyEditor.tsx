@@ -106,7 +106,7 @@ function ConstantMode({
     <button type="button" onClick={() => {
       removeBindingIfPossible(element, destination.propertyKey, onBindingIntent);
       onRemoveExpression(destination.propertyKey);
-      onRemoveBooleanCondition(destination.propertyKey);
+      removeBooleanConditionIfApplicable(destination, onRemoveBooleanCondition);
     }}>Use constant</button>
   </div>;
 }
@@ -138,7 +138,7 @@ function DirectBindingMode({
         const effectiveSource = bitCapability ? createTagBitBindingSource(source, bitIndex) : source;
         onBindingIntent(createBindingSetIntent(element, destination.propertyKey, effectiveSource));
         onRemoveExpression(destination.propertyKey);
-        onRemoveBooleanCondition(destination.propertyKey);
+        removeBooleanConditionIfApplicable(destination, onRemoveBooleanCondition);
         setError(null);
       } catch (reason) { setError(errorText(reason)); }
     }}>Apply direct binding</button>
@@ -273,7 +273,7 @@ function ExpressionMode({
       try {
         const expression = createVisualExpressionEngineering(resultType, draft.text, draft.dependencies);
         removeBindingIfPossible(element, destination.propertyKey, onBindingIntent);
-        onRemoveBooleanCondition(destination.propertyKey);
+        removeBooleanConditionIfApplicable(destination, onRemoveBooleanCondition);
         onSetExpression(Object.freeze({ propertyKey: destination.propertyKey, expression, version: 1 }));
         setError(null);
       } catch (reason) { setError(errorText(reason)); }
@@ -368,6 +368,13 @@ function removeBindingIfPossible(
   emit: DynamicPropertyEditorProps['onBindingIntent']
 ) {
   if (element.id) emit(createBindingRemoveIntent(element, propertyKey));
+}
+
+function removeBooleanConditionIfApplicable(
+  destination: DynamicPropertyDestination,
+  remove: DynamicPropertyEditorProps['onRemoveBooleanCondition']
+) {
+  if (destination.propertyType === 'boolean') remove(destination.propertyKey);
 }
 
 function effectiveMode(element: VisualElementEngineering, propertyKey: string): DynamicPropertySourceMode {

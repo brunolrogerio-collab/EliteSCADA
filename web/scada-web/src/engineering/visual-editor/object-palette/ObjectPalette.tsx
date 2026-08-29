@@ -23,6 +23,7 @@ const DEFAULT_LABELS: Readonly<Record<string, string>> = Object.freeze({
   rectangle: 'Rectangle',
   ellipse: 'Ellipse',
   line: 'Line',
+  polygon: 'Polygon',
   text: 'Text',
   image: 'Image',
   valueDisplay: 'Value display',
@@ -89,6 +90,7 @@ function paletteGlyph(item: VisualObjectPaletteItem): string {
     case 'rectangle': return '▭';
     case 'ellipse': return '◯';
     case 'line': return '╱';
+    case 'polygon': return '⬠';
     case 'text': return 'T';
     case 'image': return '▧';
     case 'valueDisplay': return '#';

@@ -27,6 +27,9 @@ public static class ModbusValueCodec
         for (var i = 0; i < ordered.Length; i++)
             BinaryPrimitives.WriteUInt16BigEndian(bytes.AsSpan(i * 2, 2), ordered[i]);
 
+        if (point.ValueType == ModbusValueType.Boolean && point.AddressSelector is not null)
+            return (ordered[0] & (1 << point.AddressSelector.Index)) != 0;
+
         double raw = point.ValueType switch
         {
             ModbusValueType.Boolean => ordered[0] == 0 ? 0d : 1d,
@@ -56,6 +59,19 @@ public static class ModbusValueCodec
         return Convert.ToBoolean(engineeringValue, CultureInfo.InvariantCulture);
     }
 
+    public static ushort ApplyRegisterBit(ModbusPoint point, ushort registerValue, object? engineeringValue)
+    {
+        point.Validate();
+        if (point.Area != ModbusDataArea.HoldingRegister || point.AddressSelector is null)
+            throw new ArgumentException("Register bit mutation requires a selected HoldingRegister point.", nameof(point));
+
+        var bit = Convert.ToBoolean(engineeringValue, CultureInfo.InvariantCulture);
+        var mask = checked((ushort)(1 << point.AddressSelector.Index));
+        return bit
+            ? checked((ushort)(registerValue | mask))
+            : checked((ushort)(registerValue & ~mask));
+    }
+
     public static ushort[] EncodeRegisters(ModbusPoint point, object? engineeringValue)
     {
         point.Validate();
@@ -63,7 +79,11 @@ public static class ModbusValueCodec
             throw new ArgumentException("Register encoding cannot be used for bit areas.", nameof(point));
 
         if (point.ValueType == ModbusValueType.Boolean)
+        {
+            if (point.AddressSelector is not null)
+                throw new InvalidOperationException("Selected register bits require read-modify-write and cannot be encoded as a whole register value.");
             return new[] { Convert.ToBoolean(engineeringValue, CultureInfo.InvariantCulture) ? (ushort)1 : (ushort)0 };
+        }
 
         var engineering = Convert.ToDouble(engineeringValue, CultureInfo.InvariantCulture);
         if (!double.IsFinite(engineering))

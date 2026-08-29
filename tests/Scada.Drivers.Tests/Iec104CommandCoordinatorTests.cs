@@ -128,6 +128,36 @@ public sealed class Iec104CommandCoordinatorTests
     }
 
     [Fact]
+    public async Task GlobalCommandLimitRejectsInsteadOfQueueing()
+    {
+        var adapter = new FakeCommandAdapter();
+        using var coordinator = new Iec104CommandCoordinator(adapter, new Iec104CommandExecutionOptions
+        {
+            ConfirmationTimeout = TimeSpan.FromSeconds(2),
+            CompletionTimeout = TimeSpan.FromSeconds(2),
+            MaxConcurrentCommands = 1
+        });
+        var first = Iec104CommandTransaction.Single(1, 1, true, Iec104CommandMode.DirectOperate);
+        var second = Iec104CommandTransaction.Single(1, 2, true, Iec104CommandMode.DirectOperate);
+
+        var firstExecution = coordinator.ExecuteAsync(first);
+        var firstRequest = await adapter.NextSentAsync();
+
+        var secondResult = await coordinator.ExecuteAsync(second);
+
+        Assert.Equal(Iec104CommandOutcome.Rejected, secondResult.Outcome);
+        Assert.False(secondResult.ExecuteWasTransmitted);
+        Assert.Equal(1, coordinator.InFlightCount);
+
+        Assert.True(coordinator.TryObserveResponse(CreateResponse(
+            first,
+            firstRequest,
+            Iec104CommandTransaction.ActivationConfirmationCause,
+            negative: true)));
+        _ = await firstExecution;
+    }
+
+    [Fact]
     public async Task SessionFailureAfterAcceptance_IsAmbiguous()
     {
         var adapter = new FakeCommandAdapter();

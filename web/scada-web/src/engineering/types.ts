@@ -38,6 +38,16 @@ export type MemoryInitialValueEngineering = {
   value: unknown;
 };
 
+export type TagValueSelectorEngineering = Readonly<{
+  kind: 'bit' | string;
+  index: number;
+}>;
+
+export type TagValueReferenceEngineering = Readonly<{
+  tagId: string;
+  selector?: TagValueSelectorEngineering | null;
+}>;
+
 export type TagEngineering = {
   id?: string;
   name: string;
@@ -54,6 +64,7 @@ export type TagEngineering = {
   metadata?: Record<string, string> | null;
   accessPolicy?: TagAccessPolicyEngineering | null;
   initialValue?: MemoryInitialValueEngineering | null;
+  addressSelector?: TagValueSelectorEngineering | null;
 };
 
 export type AlarmEngineering = {
@@ -193,10 +204,9 @@ export type RuntimeDiagnosticsView = {
 };
 
 /**
- * In a visual element, key is the destination visual-property/slot key and
- * target is the TAG/property/expression source reference. This mirrors the
- * current canonical EngineeringBindingDto instead of inventing editor-local
- * binding semantics.
+ * In a visual element, key is the destination visual-property/slot key. Target
+ * remains friendly/portable authoring text; concrete TAG bindings may also carry
+ * tagReference as the canonical stable identity, including a typed bit selector.
  */
 export type BindingEngineering = {
   key: string;
@@ -204,6 +214,7 @@ export type BindingEngineering = {
   target: string;
   direction?: string | null;
   metadata?: Record<string, string> | null;
+  tagReference?: TagValueReferenceEngineering | null;
 };
 
 export type VisualEngineeringAssetReference = Readonly<{

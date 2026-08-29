@@ -26,7 +26,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
   const screens = snapshot.package.screens ?? [];
   const [selectedIdentity, setSelectedIdentity] = useState<string>(() => screens[0] ? screenIdentity(screens[0]) : NEW_SCREEN_IDENTITY);
   const isNew = selectedIdentity === NEW_SCREEN_IDENTITY;
-  const selected = !isNew ? screens.find(screen => screenIdentity(screen) === selectedIdentity) ?? null : null;
+  const selected = !isNew ? screens.find(screen => matchesScreenIdentity(screen, selectedIdentity)) ?? null : null;
   const [draft, setDraft] = useState<ScreenEngineering>(() => selected ? cloneEngineeringValue(selected) : createScreenDraft(screens, locale));
   const [preview, setPreview] = useState<ImportPreviewView | null>(null);
   const [candidate, setCandidate] = useState<ValidatedCandidate | null>(null);
@@ -46,7 +46,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
       invalidateValidation();
       return;
     }
-    const current = screens.find(screen => screenIdentity(screen) === selectedIdentity) ?? null;
+    const current = screens.find(screen => matchesScreenIdentity(screen, selectedIdentity)) ?? null;
     if (current) {
       setDraft(cloneEngineeringValue(current));
       invalidateValidation();
@@ -141,7 +141,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
         <div className="visual-editor-screen-list">
           {screens.map(screen => {
             const identity = screenIdentity(screen);
-            return <button type="button" className={identity === selectedIdentity ? 'selected' : ''} key={identity} onClick={() => chooseScreen(identity)}>
+            return <button type="button" className={matchesScreenIdentity(screen, selectedIdentity) ? 'selected' : ''} key={identity} onClick={() => chooseScreen(identity)}>
               <strong>{screen.name || screen.key}</strong><code>{screen.key}</code><span>{screen.route || text.noRoute} · {countVisualElements(screen.elements)} {text.objects}</span>
             </button>;
           })}
@@ -185,6 +185,9 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
   </div>;
 }
 
+function matchesScreenIdentity(screen: ScreenEngineering, identity: string): boolean {
+  return screenIdentity(screen) === identity || `key:${screen.key}` === identity;
+}
 function emptyToNull(value: string): string | null { return value.trim().length === 0 ? null : value; }
 
 function visualEditorText(locale: EngineeringLocale) {

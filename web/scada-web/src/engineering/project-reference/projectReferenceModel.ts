@@ -1,6 +1,7 @@
 import type {
   EngineeringPackageView,
   TagEngineering,
+  TagValueReferenceEngineering,
   VisualAssetEngineering
 } from '../types';
 
@@ -12,6 +13,12 @@ export type ProjectReferenceFamily =
   | 'driverDiagnostic'
   | 'asset';
 
+export type ProjectReferenceSelectorCapability = Readonly<{
+  kind: 'bit';
+  minIndex: number;
+  maxIndex: number;
+}>;
+
 export type ProjectReferenceDescriptor = Readonly<{
   reference: string;
   label: string;
@@ -22,6 +29,13 @@ export type ProjectReferenceDescriptor = Readonly<{
   writable?: boolean;
   bindingKind?: 'Tag' | 'ClientMemory';
   pathSegments: readonly string[];
+  tagReference?: TagValueReferenceEngineering | null;
+  selectorCapability?: ProjectReferenceSelectorCapability | null;
+}>;
+
+export type ProjectReferenceResolution = Readonly<{
+  status: 'found' | 'ambiguous' | 'notFound';
+  descriptor?: ProjectReferenceDescriptor;
 }>;
 
 export type ClientMemoryDefinitionView = Readonly<{
@@ -46,6 +60,8 @@ export function buildProjectReferenceCatalog(
   for (const tag of model.tags ?? []) {
     if (!tag.path?.trim()) continue;
     const family = isServerMemoryTag(tag) ? 'serverMemory' : 'tag';
+    const tagId = tag.id?.trim();
+    const selectorCapability = bitSelectorCapability(tag.dataType);
     result.push(Object.freeze({
       reference: tag.path.trim(),
       label: tag.name?.trim() || tag.path.trim(),
@@ -55,7 +71,9 @@ export function buildProjectReferenceCatalog(
       providerIdentity: tag.source ?? null,
       writable: !tag.readOnly,
       bindingKind: 'Tag',
-      pathSegments: Object.freeze(splitPath(tag.path))
+      pathSegments: Object.freeze(splitPath(tag.path)),
+      tagReference: tagId ? Object.freeze({ tagId }) : null,
+      selectorCapability
     }));
   }
 
@@ -134,6 +152,76 @@ export function buildProjectReferenceCatalog(
   return Object.freeze(deduplicate(result));
 }
 
+export function createTagBitProjectReference(
+  base: ProjectReferenceDescriptor,
+  bitIndex: number
+): ProjectReferenceDescriptor | null {
+  const capability = base.selectorCapability;
+  const tagReference = base.tagReference;
+  if (!capability || capability.kind !== 'bit' || !tagReference?.tagId) return null;
+  if (!Number.isInteger(bitIndex) || bitIndex < capability.minIndex || bitIndex > capability.maxIndex) return null;
+
+  const suffix = bitIndex.toString().padStart(2, '0');
+  const reference = `${base.reference}.${suffix}`;
+  const label = `${base.label}.${suffix}`;
+  const pathSegments = base.pathSegments.length > 0
+    ? [...base.pathSegments.slice(0, -1), `${base.pathSegments[base.pathSegments.length - 1]}.${suffix}`]
+    : [reference];
+
+  return Object.freeze({
+    ...base,
+    reference,
+    label,
+    dataType: 'Boolean',
+    engineeringUnit: null,
+    pathSegments: Object.freeze(pathSegments),
+    tagReference: Object.freeze({
+      tagId: tagReference.tagId,
+      selector: Object.freeze({ kind: 'bit', index: bitIndex })
+    }),
+    selectorCapability: null
+  });
+}
+
+export function resolveProjectReference(
+  catalog: readonly ProjectReferenceDescriptor[],
+  rawReference: string
+): ProjectReferenceResolution {
+  const candidate = rawReference.trim();
+  if (!candidate) return Object.freeze({ status: 'notFound' });
+
+  const exactReference = catalog.filter(item => item.reference === candidate);
+  if (exactReference.length === 1) return Object.freeze({ status: 'found', descriptor: exactReference[0] });
+  if (exactReference.length > 1) return Object.freeze({ status: 'ambiguous' });
+
+  const exactLabel = catalog.filter(item => item.label === candidate);
+  if (exactLabel.length === 1) return Object.freeze({ status: 'found', descriptor: exactLabel[0] });
+  if (exactLabel.length > 1) return Object.freeze({ status: 'ambiguous' });
+
+  const bitMatch = /^(.*)\.(\d{1,2})$/.exec(candidate);
+  if (!bitMatch) return Object.freeze({ status: 'notFound' });
+  const baseText = bitMatch[1];
+  const bitIndex = Number(bitMatch[2]);
+  const bases = catalog.filter(item => item.reference === baseText || item.label === baseText);
+  const derived = bases
+    .map(base => createTagBitProjectReference(base, bitIndex))
+    .filter((item): item is ProjectReferenceDescriptor => item !== null);
+  if (derived.length === 1) return Object.freeze({ status: 'found', descriptor: derived[0] });
+  if (derived.length > 1) return Object.freeze({ status: 'ambiguous' });
+  return Object.freeze({ status: 'notFound' });
+}
+
+export function projectReferenceIdentity(reference: ProjectReferenceDescriptor): string {
+  const tagReference = reference.tagReference;
+  if (tagReference?.tagId) {
+    const selector = tagReference.selector;
+    return selector
+      ? `tag:${tagReference.tagId}:selector:${selector.kind}:${selector.index}`
+      : `tag:${tagReference.tagId}`;
+  }
+  return `${reference.family}:${reference.reference}`;
+}
+
 export function filterProjectReferences(
   catalog: readonly ProjectReferenceDescriptor[],
   query: string
@@ -145,7 +233,8 @@ export function filterProjectReferences(
     item.label.toLocaleLowerCase().includes(needle) ||
     item.family.toLocaleLowerCase().includes(needle) ||
     item.dataType.toLocaleLowerCase().includes(needle) ||
-    (item.providerIdentity ?? '').toLocaleLowerCase().includes(needle)
+    (item.providerIdentity ?? '').toLocaleLowerCase().includes(needle) ||
+    (item.tagReference?.tagId ?? '').toLocaleLowerCase().includes(needle)
   ));
 }
 
@@ -193,6 +282,14 @@ export function projectReferenceFamilyLabel(
   return labels[locale][family];
 }
 
+function bitSelectorCapability(dataType: string): ProjectReferenceSelectorCapability | null {
+  const width = dataType.trim().toLowerCase() === 'int16' ? 16
+    : dataType.trim().toLowerCase() === 'int32' ? 32
+      : dataType.trim().toLowerCase() === 'int64' ? 64
+        : null;
+  return width === null ? null : Object.freeze({ kind: 'bit', minIndex: 0, maxIndex: width - 1 });
+}
+
 function isServerMemoryTag(tag: TagEngineering): boolean {
   const source = tag.source?.trim().toLowerCase() ?? '';
   const provider = tag.metadata?.sourceProviderType?.trim().toLowerCase() ?? '';
@@ -222,7 +319,7 @@ function deduplicate(values: readonly ProjectReferenceDescriptor[]): ProjectRefe
   const seen = new Set<string>();
   const result: ProjectReferenceDescriptor[] = [];
   for (const value of values) {
-    const identity = `${value.family}\u0000${value.reference}`;
+    const identity = projectReferenceIdentity(value);
     if (seen.has(identity)) continue;
     seen.add(identity);
     result.push(value);

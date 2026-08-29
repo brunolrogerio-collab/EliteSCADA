@@ -1,0 +1,192 @@
+# MQTT Driver Implementation Handoff
+
+Status: **DEV Driver 10 implementation branch / parked from mainline**  
+Branch: `driver10/mqtt`  
+Driver type: `mqtt.raw`  
+Configuration schema: `elitescada.driver.mqtt.raw` v1
+
+This document records the implementation state of the raw MQTT industrial driver. It does not authorize merge to `main`; integration remains owned by the Coordinator.
+
+## Delivered runtime scope
+
+- MQTT 5.0 and MQTT 3.1.1 are explicit protocol modes.
+- TCP with optional TLS is supported. TLS uses the platform validation defaults and target-host validation; there is no accept-any-certificate mode.
+- One configured Data Source maps to one broker/client session identity.
+- Acquisition is event-driven. MQTT messages update the canonical `ICurrentTagCache` directly and do not fabricate polling cycles.
+- Canonical TAG bindings use exact MQTT topic names. `+` and `#` wildcard filters are rejected for authoritative TAG identity.
+- QoS 0, 1 and 2 are supported for subscriptions and publishes. QoS is never converted into TAG quality.
+- Reconnect uses bounded exponential delay and deterministic resubscription.
+- Broker loss marks affected TAGs `BadCommunication` and moves communication diagnostics through reconnect/fault states.
+- Malformed payloads fail closed per mapped point and do not silently coerce values to `0`, `false` or another guessed type.
+- Retained values without a trustworthy configured source timestamp are `Stale` by default. `acceptAsCurrent` is an explicit opt-in policy.
+- Writable TAGs publish through the normal driver write path and do not pretend that a successful MQTT publish means the remote process accepted the command.
+- Runtime diagnostics use `CommunicationDriverDiagnosticSnapshot`; scan interval, cycle count and scan duration remain absent/zero for the event-driven driver.
+
+## Payload mapping
+
+Implemented payload formats:
+
+1. `utf8Scalar`
+   - Boolean: only `true` / `false`.
+   - Int16 / Int32 / Int64: invariant integer parsing with range checks.
+   - Float / Double: invariant finite numeric parsing.
+   - String / Enum: UTF-8 text.
+   - DateTime: unambiguous date/time parsing normalized to UTC.
+
+2. `json`
+   - deterministic JSON scalar extraction;
+   - RFC 6901 JSON Pointer including `~0` and `~1` escapes;
+   - optional JSON Pointer source timestamp extraction;
+   - optional required-source-timestamp policy.
+
+JSON field extraction is read-only for non-root writes in this slice. Publishing a JSON sub-field would require an explicit envelope/template contract and is rejected rather than guessed.
+
+## Canonical Data Source settings
+
+The driver uses the existing public `DataSourceEngineeringDto.Settings` and `SecretReferences`; no MQTT-private persistence store exists.
+
+| Key | Meaning | Default / notes |
+| --- | --- | --- |
+| `host` | broker host | required |
+| `port` | TCP port | 8883 with TLS, 1883 without TLS |
+| `tls` | TLS enabled | `true` |
+| `clientId` | MQTT Client ID | required |
+| `protocolVersion` | `mqtt5` or `mqtt311` | `mqtt5` |
+| `username` | user name | optional, non-secret field |
+| `keepAliveSeconds` | keep-alive | 30 |
+| `connectTimeoutMilliseconds` | connection timeout | 10000 |
+| `reconnectMinimumMilliseconds` | initial reconnect delay | 1000 |
+| `reconnectMaximumMilliseconds` | maximum reconnect delay | 30000 |
+| `mqtt311.cleanSession` | MQTT 3.1.1 session policy | `false` |
+| `mqtt5.cleanStart` | MQTT 5 Clean Start | `false` |
+| `mqtt5.sessionExpirySeconds` | MQTT 5 session expiry | 3600 |
+| `maximumInboundPayloadBytes` | inbound payload bound | 1048576 |
+| `maximumConsecutiveConnectFailures` | fault threshold | 5 |
+
+Protocol-specific MQTT 3.1.1 and MQTT 5 settings are mutually validated. Configuration for the wrong protocol version fails before activation.
+
+### Secret references
+
+`DataSourceEngineeringDto.SecretReferences["password"]` is the canonical password reference. Plaintext `Settings["password"]` is rejected both at the generic Engineering import boundary and by the MQTT compiler.
+
+`MqttRuntimeFactory` exposes a narrow adapter delegate so a host-owned resolver can translate the canonical reference into short-lived credential material. It is **not** a secret store. The common host security abstraction still needs Coordinator reconciliation.
+
+Resolved password material is owned by `MqttResolvedCredentials`, passed only through the connection boundary and explicitly zeroed when that connection attempt completes. The MQTTnet adapter also zeroes its own temporary password copy.
+
+## Canonical TAG binding
+
+`TagEngineeringDto.Address` stores the exact subscribe topic.
+
+Supported MQTT metadata keys:
+
+| Key | Meaning |
+| --- | --- |
+| `mqtt.payloadFormat` | `utf8Scalar` or `json` |
+| `mqtt.jsonPointer` | JSON value extraction pointer |
+| `mqtt.sourceTimestampJsonPointer` | JSON source timestamp pointer |
+| `mqtt.sourceTimestampRequired` | fail if source timestamp is absent/invalid |
+| `mqtt.retainedValuePolicy` | `staleWithoutSourceTimestamp` or `acceptAsCurrent` |
+| `mqtt.qos` | subscription QoS 0/1/2 |
+| `mqtt.publishTopic` | exact publish topic for writable TAG |
+| `mqtt.publishQos` | publish QoS 0/1/2 |
+| `mqtt.publishRetain` | publish retain flag |
+
+Wildcard traffic never creates canonical TAGs automatically.
+
+## Engineering Import/Export
+
+MQTT uses the existing `IEngineeringExchangeService` path and therefore remains GUI-independent.
+
+Covered paths:
+
+- JSON parse/export;
+- Preview/Apply;
+- Data Source CSV export/import including Settings and SecretReferences;
+- TAG CSV export/import including Address and MQTT metadata;
+- public package/revision-compatible DTO representation.
+
+No plaintext password/private key is introduced by the MQTT-specific code.
+
+## Runtime composition
+
+`MqttEngineeringCompiler` compiles canonical Engineering into `MqttRuntimePlan` objects.
+
+`MqttRuntimeFactory` composes those plans into `MqttDriver` instances using:
+
+- canonical `ICurrentTagCache`;
+- canonical `ITagRegistry`;
+- an injected MQTT transport factory;
+- an optional host-owned credential resolver adapter.
+
+This keeps MQTTnet classes behind `IMqttClientTransport` and prevents the protocol library from becoming canonical project truth.
+
+## Automated test coverage authored
+
+- `MqttPayloadCodecTests`
+- `MqttDriverTests`
+- `MqttEngineeringCompilerTests`
+- `MqttEngineeringExchangeTests`
+- `MqttEventDrivenReadinessTests`
+- `MqttRuntimeFactoryTests`
+- `MqttCredentialLifetimeTests`
+
+The tests cover exact-topic validation, typed payloads, JSON Pointer, retained semantics, malformed payload isolation, event-driven cache updates, writes, reconnect/resubscribe, Engineering compilation, public Import/Export fidelity, secret reference enforcement, runtime composition and credential zeroization.
+
+The current execution environment does not contain the .NET 10 SDK, so these tests still require execution in an authorized .NET 10 build environment. GitHub Actions should not be spent merely as reassurance CI; run the focused suite when Coordinator integration or a justified driver validation run is scheduled.
+
+## Shared decisions required before central runtime integration
+
+### 1. Host-owned secret resolver
+
+The public Engineering model already stores secret references correctly, but the common DriverHost security service that resolves them has not yet been defined. The MQTT branch provides only the adapter seam required to consume such a service.
+
+The Coordinator should establish one common resolver contract for all communication drivers instead of allowing MQTT, OPC UA and future proprietary modules to create incompatible secret stores.
+
+### 2. Event-driven readiness
+
+`EngineeringRuntimeCoordinator` currently requires all runtime TAGs to reach `TagQuality.Good` before activation succeeds.
+
+That assumption is valid for polling sources but invalid for event-driven MQTT. A broker can be connected, authenticated and subscribed while no publisher has emitted a first sample yet.
+
+The MQTT implementation establishes the intended semantics:
+
+- connected + subscriptions accepted => communication state `Healthy`;
+- a TAG with no received sample remains `NoCurrentSample`;
+- absence of first telemetry is not itself a broker communication failure.
+
+The common activation policy needs a protocol-neutral readiness contract that can represent this distinction.
+
+## Validation still required
+
+Before production integration, validate with at least two independent broker implementations where practical:
+
+1. Eclipse Mosquitto
+   - MQTT 5 and 3.1.1;
+   - TCP and TLS;
+   - username/password authentication;
+   - QoS 0/1/2;
+   - retained messages;
+   - persistent session reconnect;
+   - broker restart and network interruption;
+   - malformed and oversized payload behavior.
+
+2. Independent implementation such as HiveMQ Community Edition
+   - connection/session interoperability;
+   - subscription and publish acknowledgements;
+   - QoS and retained interoperability;
+   - TLS hostname/chain failures.
+
+Vendor/cloud broker validation should be added when a concrete deployment target is selected.
+
+## Explicitly outside this slice
+
+- Sparkplug B semantics;
+- WebSocket transport;
+- dynamic wildcard-to-TAG creation;
+- fake hierarchical MQTT browsing;
+- binary-layout payload schemas;
+- MQTT 5 User Property source-time mapping;
+- topic observation UI;
+- manufacturer-specific topic heuristics.
+
+Those features require explicit scope and must not silently change raw MQTT semantics.

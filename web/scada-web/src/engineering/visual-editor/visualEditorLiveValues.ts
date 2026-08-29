@@ -2,17 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import type { EngineeringLocale } from '../i18n';
 import type { BindingEngineering, VisualElementEngineering } from '../types';
 import { initializeClientMemory, readClientMemoryValue } from '../../runtime/clientMemory';
-
-type TagSnapshot = Readonly<{
-  path: string;
-  type: string;
-  value: unknown;
-  quality?: string | number | null;
-  sourceTimestamp?: string | null;
-  serverTimestamp?: string | null;
-}>;
-
-type RuntimeTagMessage = Readonly<{ type?: string; tag?: TagSnapshot }>;
+import {
+  loadReadableRuntimeTags,
+  openRuntimeTagSocket,
+  parseRuntimeTagRealtimeMessage
+} from '../../runtime/liveTagTransport';
 
 export type VisualLiveScalarSample = Readonly<{
   reference: string;
@@ -35,27 +29,34 @@ export function useVisualBindingSamples(
     if (tagBindings.length === 0) return undefined;
     let cancelled = false;
     const tagPaths = Object.freeze([...new Set(tagBindings.map(binding => binding.target))]);
+    const wanted = new Set(tagPaths);
+
     const refresh = async () => {
       try {
-        const response = await fetch('/api/tags', { credentials: 'same-origin' });
-        if (!response.ok) return;
-        const tags = await response.json() as TagSnapshot[];
+        const tags = await loadReadableRuntimeTags();
         if (cancelled) return;
-        const wanted = new Set(tagPaths);
         setSamples(current => {
           const next = new Map(current);
+          const seen = new Set<string>();
           for (const tag of tags) {
             if (!wanted.has(tag.path)) continue;
-            next.set(tag.path, Object.freeze({
+            seen.add(tag.path);
+            const currentValue = tag.current;
+            next.set(tag.path, currentValue ? Object.freeze({
               reference: tag.path,
-              value: tag.value,
-              dataType: tag.type,
-              quality: tag.quality ?? null,
-              timestamp: tag.sourceTimestamp ?? tag.serverTimestamp ?? null
+              value: currentValue.value,
+              dataType: tag.dataType,
+              quality: currentValue.quality ?? null,
+              timestamp: currentValue.sourceTimestamp ?? currentValue.serverTimestamp ?? currentValue.timestamp ?? null
+            }) : Object.freeze({
+              reference: tag.path,
+              value: null,
+              dataType: tag.dataType,
+              state: 'Unavailable'
             }));
           }
           for (const path of tagPaths) {
-            if (!next.has(path)) next.set(path, Object.freeze({ reference: path, value: null, dataType: bindingDataType(bindings, path), state: 'Unavailable' }));
+            if (!seen.has(path)) next.set(path, Object.freeze({ reference: path, value: null, dataType: bindingDataType(bindings, path), state: 'Unavailable' }));
           }
           return next;
         });
@@ -66,28 +67,22 @@ export function useVisualBindingSamples(
 
     void refresh();
     const refreshTimer = window.setInterval(() => void refresh(), 3000);
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socket = new WebSocket(`${protocol}//${window.location.host}/api/realtime`);
-    socket.addEventListener('open', () => socket.send(JSON.stringify({ paths: tagPaths })));
+    const socket = openRuntimeTagSocket();
     socket.addEventListener('message', event => {
-      try {
-        const message = JSON.parse(String(event.data)) as RuntimeTagMessage;
-        if (message.type !== 'tag' || !message.tag?.path || !tagPaths.includes(message.tag.path)) return;
-        const tag = message.tag;
-        setSamples(current => {
-          const next = new Map(current);
-          next.set(tag.path, Object.freeze({
-            reference: tag.path,
-            value: tag.value,
-            dataType: tag.type,
-            quality: tag.quality ?? null,
-            timestamp: tag.sourceTimestamp ?? tag.serverTimestamp ?? null
-          }));
-          return next;
-        });
-      } catch {
-        // Batch refresh remains the bounded fallback path.
-      }
+      const message = parseRuntimeTagRealtimeMessage(String(event.data));
+      if (!message || !wanted.has(message.tag.path)) return;
+      setSamples(current => {
+        const next = new Map(current);
+        const existing = next.get(message.tag.path);
+        next.set(message.tag.path, Object.freeze({
+          reference: message.tag.path,
+          value: message.value,
+          dataType: existing?.dataType ?? bindingDataType(bindings, message.tag.path),
+          quality: message.quality,
+          timestamp: message.timestamp
+        }));
+        return next;
+      });
     });
     socket.addEventListener('close', () => {
       if (!cancelled) markUnavailable(setSamples, tagPaths, bindings, true);
@@ -149,8 +144,10 @@ export function formatVisualScalarText(
   let text: string;
   const normalizedType = sourceType.trim().toLowerCase();
   if (normalizedType === 'boolean') {
-    text = Boolean(sample.value) ? localizedBoolean(true, locale) : localizedBoolean(false, locale);
-  } else if (['int16', 'int32', 'int64'].includes(normalizedType)) {
+    text = typeof sample.value === 'boolean'
+      ? localizedBoolean(sample.value, locale)
+      : String(sample.value);
+  } else if (['int16', 'int32', 'int64', 'enum'].includes(normalizedType)) {
     text = typeof sample.value === 'string' ? sample.value : String(sample.value);
   } else if (['float', 'double'].includes(normalizedType)) {
     const numeric = typeof sample.value === 'number' ? sample.value : Number(sample.value);

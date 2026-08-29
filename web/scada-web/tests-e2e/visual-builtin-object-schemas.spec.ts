@@ -11,6 +11,7 @@ const expectedTypes = [
   'core.rectangle',
   'core.ellipse',
   'core.line',
+  'core.polygon',
   'core.text',
   'core.image',
   'core.valueDisplay',

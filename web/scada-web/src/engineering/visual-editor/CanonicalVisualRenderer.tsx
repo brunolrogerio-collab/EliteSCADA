@@ -6,6 +6,7 @@ import {
   BUILTIN_VISUAL_OBJECT_TYPES,
   decodeVisualEngineeringProperties,
   getBuiltinVisualObjectSchema,
+  supportsAnalogFill,
   VISUAL_PROPERTY_KEYS,
   type VisualObjectPropertySchema,
   type VisualPropertyValue
@@ -140,8 +141,7 @@ function analogFillOverlay(
   element: VisualElementEngineering,
   analogFill: ReturnType<typeof resolveVisualDynamicState>['analogFill']
 ): React.ReactNode {
-  if (!analogFill) return null;
-  if (element.type !== BUILTIN_VISUAL_OBJECT_TYPES.rectangle && element.type !== BUILTIN_VISUAL_OBJECT_TYPES.ellipse) return null;
+  if (!analogFill || !supportsAnalogFill(element.type)) return null;
   return <span
     aria-hidden="true"
     data-testid="visual-analog-fill"

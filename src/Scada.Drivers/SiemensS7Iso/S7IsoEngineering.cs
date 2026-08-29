@@ -80,7 +80,7 @@ public sealed class S7IsoEngineeringAdapter :
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or NotSupportedException or FormatException or System.Xml.XmlException)
+        catch (Exception ex) when (ex is InvalidDataException or IOException or NotSupportedException or FormatException or System.Xml.XmlException)
         {
             yield return new DriverImportCandidate(
                 "tia-xlsx-parse-error",

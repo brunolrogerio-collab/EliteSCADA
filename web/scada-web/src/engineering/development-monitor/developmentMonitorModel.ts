@@ -1,7 +1,8 @@
 import type { CommunicationDriverDiagnostic } from '../types';
-import type {
-  ClientMemoryDefinitionView,
-  ProjectReferenceDescriptor
+import {
+  resolveProjectReference,
+  type ClientMemoryDefinitionView,
+  type ProjectReferenceDescriptor
 } from '../project-reference/projectReferenceModel';
 import type {
   RuntimeTagRealtimeMessage,
@@ -39,16 +40,10 @@ export function resolveMonitorQuickAdd(
   catalog: readonly ProjectReferenceDescriptor[],
   rawReference: string
 ): MonitorQuickAddResult {
-  const candidate = rawReference.trim();
-  if (!candidate) return Object.freeze({ status: 'notFound' });
-  const exactReference = catalog.filter(item => item.reference === candidate);
-  if (exactReference.length === 1) return Object.freeze({ status: 'found', reference: exactReference[0].reference });
-  if (exactReference.length > 1) return Object.freeze({ status: 'ambiguous' });
-
-  const exactLabel = catalog.filter(item => item.label === candidate);
-  if (exactLabel.length === 1) return Object.freeze({ status: 'found', reference: exactLabel[0].reference });
-  if (exactLabel.length > 1) return Object.freeze({ status: 'ambiguous' });
-  return Object.freeze({ status: 'notFound' });
+  const resolved = resolveProjectReference(catalog, rawReference);
+  return resolved.status === 'found' && resolved.descriptor
+    ? Object.freeze({ status: 'found', reference: resolved.descriptor.reference })
+    : Object.freeze({ status: resolved.status });
 }
 
 export function mergeMonitorBatchSamples(
@@ -63,6 +58,7 @@ export function mergeMonitorBatchSamples(
 ): ReadonlyMap<string, MonitorSample> {
   const next = new Map<string, MonitorSample>(current);
   const tagByPath = new Map<string, RuntimeTagSnapshot>(tags.map(tag => [tag.path, tag] as const));
+  const tagById = new Map<string, RuntimeTagSnapshot>(tags.map(tag => [normalizeIdentity(tag.id), tag] as const));
   const driverByKey = new Map<string, CommunicationDriverDiagnostic>(drivers.map(driver => [driver.dataSourceKey, driver] as const));
 
   for (const reference of selected) {
@@ -70,16 +66,9 @@ export function mergeMonitorBatchSamples(
     if (!descriptor) continue;
 
     if (descriptor.family === 'tag' || descriptor.family === 'serverMemory') {
-      const tag = tagByPath.get(reference);
-      const currentValue = tag?.current;
-      next.set(reference, tag && currentValue ? Object.freeze({
-        reference,
-        value: currentValue.value,
-        dataType: tag.dataType || descriptor.dataType,
-        quality: currentValue.quality ?? null,
-        sourceTimestamp: currentValue.sourceTimestamp ?? currentValue.serverTimestamp ?? currentValue.timestamp ?? null,
-        observedAt
-      }) : unavailableSample(descriptor, observedAt));
+      const tagId = descriptor.tagReference?.tagId;
+      const tag = tagId ? tagById.get(normalizeIdentity(tagId)) : tagByPath.get(reference);
+      next.set(reference, projectSnapshotSample(descriptor, tag, observedAt));
       continue;
     }
 
@@ -139,21 +128,32 @@ export function applyMonitorRealtimeMessage(
   descriptors: ReadonlyMap<string, ProjectReferenceDescriptor>,
   observedAt = new Date().toISOString()
 ): ReadonlyMap<string, MonitorSample> {
-  const reference = message.tag.path;
-  if (!selectedReferences.has(reference)) return current;
-  const descriptor = descriptors.get(reference);
-  if (!descriptor || (descriptor.family !== 'tag' && descriptor.family !== 'serverMemory')) return current;
+  let next: Map<string, MonitorSample> | null = null;
+  const messageTagId = normalizeIdentity(message.tag.id);
 
-  const next = new Map<string, MonitorSample>(current);
-  next.set(reference, Object.freeze({
-    reference,
-    value: message.value,
-    dataType: descriptor.dataType,
-    quality: message.quality,
-    sourceTimestamp: message.timestamp,
-    observedAt
-  }));
-  return next;
+  for (const reference of selectedReferences) {
+    const descriptor = descriptors.get(reference);
+    if (!descriptor || (descriptor.family !== 'tag' && descriptor.family !== 'serverMemory')) continue;
+
+    const descriptorTagId = descriptor.tagReference?.tagId;
+    const matches = descriptorTagId
+      ? normalizeIdentity(descriptorTagId) === messageTagId
+      : reference === message.tag.path;
+    if (!matches) continue;
+
+    const projection = projectTagValue(descriptor, message.value);
+    if (!next) next = new Map<string, MonitorSample>(current);
+    next.set(reference, projection.ok ? Object.freeze({
+      reference,
+      value: projection.value,
+      dataType: descriptor.dataType,
+      quality: message.quality,
+      sourceTimestamp: message.timestamp,
+      observedAt
+    }) : unavailableSample(descriptor, observedAt, projection.detail));
+  }
+
+  return next ?? current;
 }
 
 export function markMonitorUnavailable(
@@ -196,14 +196,83 @@ export function tagQualityLabel(value: string | number): string {
   return value;
 }
 
-function unavailableSample(descriptor: ProjectReferenceDescriptor, observedAt: string): MonitorSample {
+type TagValueProjection = Readonly<{
+  ok: boolean;
+  value?: unknown;
+  detail?: string;
+}>;
+
+function projectSnapshotSample(
+  descriptor: ProjectReferenceDescriptor,
+  tag: RuntimeTagSnapshot | undefined,
+  observedAt: string
+): MonitorSample {
+  const currentValue = tag?.current;
+  if (!tag || !currentValue) return unavailableSample(descriptor, observedAt);
+
+  const projection = projectTagValue(descriptor, currentValue.value);
+  if (!projection.ok) return unavailableSample(descriptor, observedAt, projection.detail);
+
+  return Object.freeze({
+    reference: descriptor.reference,
+    value: projection.value,
+    dataType: descriptor.dataType,
+    quality: currentValue.quality ?? null,
+    sourceTimestamp: currentValue.sourceTimestamp ?? currentValue.serverTimestamp ?? currentValue.timestamp ?? null,
+    observedAt
+  });
+}
+
+function projectTagValue(descriptor: ProjectReferenceDescriptor, value: unknown): TagValueProjection {
+  const selector = descriptor.tagReference?.selector;
+  if (!selector) return Object.freeze({ ok: true, value });
+  if (selector.kind !== 'bit' || !Number.isInteger(selector.index) || selector.index < 0) {
+    return Object.freeze({ ok: false, detail: 'Invalid canonical TAG bit selector.' });
+  }
+
+  const integer = integerLikeToBigInt(value);
+  if (integer === null) {
+    return Object.freeze({
+      ok: false,
+      detail: 'The authoritative integer TAG value cannot be represented safely for bit projection.'
+    });
+  }
+
+  return Object.freeze({
+    ok: true,
+    value: ((integer >> BigInt(selector.index)) & 1n) === 1n
+  });
+}
+
+function integerLikeToBigInt(value: unknown): bigint | null {
+  if (typeof value === 'bigint') return value;
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || !Number.isInteger(value) || !Number.isSafeInteger(value)) return null;
+    return BigInt(value);
+  }
+  if (typeof value === 'string' && /^[+-]?\d+$/.test(value.trim())) {
+    try { return BigInt(value.trim()); } catch { return null; }
+  }
+  return null;
+}
+
+function normalizeIdentity(value: string): string {
+  return value.trim().toLocaleLowerCase();
+}
+
+function unavailableSample(
+  descriptor: ProjectReferenceDescriptor,
+  observedAt: string,
+  detail: string | null | undefined = null
+): MonitorSample {
   return Object.freeze({
     reference: descriptor.reference,
     value: null,
     dataType: descriptor.dataType,
     state: 'Unavailable',
     sourceTimestamp: null,
-    observedAt
+    observedAt,
+    ...(detail ? { detail } : {})
   });
 }
 

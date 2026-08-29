@@ -44,10 +44,25 @@ public sealed record BacnetDeviceObservation(
     public string SanitizedEndpoint => Address.ToString();
 }
 
+/// <summary>
+/// Protocol-neutral projection of BACnet object health/capability evidence that
+/// accompanies a sampled property. Null members mean the peer did not provide
+/// or support that companion property; they are not silently treated as faults.
+/// </summary>
+public sealed record BacnetObjectState(
+    uint? Reliability = null,
+    bool? InAlarm = null,
+    bool? Fault = null,
+    bool? Overridden = null,
+    bool? OutOfService = null,
+    string? Units = null);
+
 public sealed record BacnetPropertyReadResult(
     BacnetBinding Binding,
     IReadOnlyList<BacnetValue> Values,
-    DateTimeOffset ObservedAt);
+    DateTimeOffset ObservedAt,
+    BacnetObjectState? ObjectState = null,
+    bool UsedReadPropertyMultiple = false);
 
 public interface IBacnetSession : IAsyncDisposable
 {

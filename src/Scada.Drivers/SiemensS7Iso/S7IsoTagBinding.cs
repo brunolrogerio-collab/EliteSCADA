@@ -186,6 +186,12 @@ public sealed record S7IsoTagBinding(
         if (binding.Writable && binding.Area == S7IsoArea.Input)
             errors.Add(new S7IsoBindingIssue("writable", "S7 input-area bindings are read-only."));
 
+        var byteLength = GetByteLength(binding);
+        if ((long)binding.ByteOffset + byteLength - 1 > 2_097_151)
+            errors.Add(new S7IsoBindingIssue(
+                "byteOffset",
+                $"S7 binding payload of {byteLength} byte(s) exceeds the 24-bit S7ANY address range from byte offset {binding.ByteOffset}."));
+
         var multiByteNumeric = binding.ValueType is
             S7IsoValueType.UInt16 or S7IsoValueType.Int16 or
             S7IsoValueType.UInt32 or S7IsoValueType.Int32 or S7IsoValueType.Float32 or
@@ -197,6 +203,16 @@ public sealed record S7IsoTagBinding(
             binding.ValueType is S7IsoValueType.UInt16 or S7IsoValueType.Int16)
             errors.Add(new S7IsoBindingIssue("valueOrder", "S7 word swap requires a value at least 32 bits wide."));
     }
+
+    private static int GetByteLength(S7IsoTagBinding binding) => binding.ValueType switch
+    {
+        S7IsoValueType.Boolean or S7IsoValueType.Byte => 1,
+        S7IsoValueType.UInt16 or S7IsoValueType.Int16 => 2,
+        S7IsoValueType.UInt32 or S7IsoValueType.Int32 or S7IsoValueType.Float32 => 4,
+        S7IsoValueType.Int64 or S7IsoValueType.Float64 or S7IsoValueType.DateTime => 8,
+        S7IsoValueType.String => binding.StringLength + 2,
+        _ => throw new ArgumentOutOfRangeException(nameof(binding.ValueType))
+    };
 
     private static void Copy(
         IReadOnlyDictionary<string, string> source,

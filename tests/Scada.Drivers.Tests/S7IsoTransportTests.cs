@@ -36,6 +36,37 @@ public sealed class S7IsoTransportTests
         Assert.Equal(1L, diagnostics.ConnectionCount);
     }
 
+    [Fact]
+    public async Task OversizedPoint_IsRejectedLocallyAgainstNegotiatedPdu()
+    {
+        await using var server = new TestS7IsoServer(240);
+        var point = new S7IsoPoint(
+            Tag(TagDataType.String),
+            S7IsoArea.DataBlock,
+            0,
+            S7IsoValueType.String,
+            DbNumber: 1,
+            Writable: true,
+            StringLength: 254);
+        await using var transport = new S7IsoTransport(Options(server.Port));
+
+        await transport.ConnectAsync();
+
+        await Assert.ThrowsAsync<S7IsoConfigurationException>(async () =>
+        {
+            await transport.ReadAsync(new[] { point });
+        });
+        await Assert.ThrowsAsync<S7IsoConfigurationException>(async () =>
+        {
+            await transport.WriteAsync(point, S7IsoValueCodec.Encode(point, "TEST"));
+        });
+
+        var diagnostics = transport.GetDiagnostics();
+        Assert.Equal((ushort)240, diagnostics.NegotiatedPduSize);
+        Assert.Equal(0L, diagnostics.RequestAttempts);
+        Assert.True(diagnostics.Connected);
+    }
+
     internal static S7IsoConnectionOptions Options(int port) => new(
         "127.0.0.1",
         S7CpuFamily.S71500,

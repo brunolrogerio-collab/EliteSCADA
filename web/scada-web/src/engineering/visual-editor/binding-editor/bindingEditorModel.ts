@@ -3,7 +3,7 @@ import type {
   VisualElementEngineering
 } from '../../types';
 import { getBuiltinVisualObjectSchema } from '../../../visual-runtime/builtinVisualObjectSchemas';
-import type { VisualPropertyDefinition } from '../../../visual-runtime/visualPropertyTypes';
+import type { VisualPropertyDefinition, VisualPropertyType } from '../../../visual-runtime/visualPropertyTypes';
 import type {
   VisualEditorBindingSourceCatalogItem,
   VisualEditorMutationIntent
@@ -69,6 +69,42 @@ export function normalizeBindingSourceCatalog(
   return Object.freeze(normalized);
 }
 
+export function compatibleBindingSources(
+  destinationType: VisualPropertyType,
+  sourceCatalog: readonly VisualEditorBindingSourceCatalogItem[]
+): readonly VisualEditorBindingSourceCatalogItem[] {
+  const normalized = normalizeBindingSourceCatalog(sourceCatalog);
+  return Object.freeze(normalized.filter(source => isBindingSourceCompatible(destinationType, source)));
+}
+
+export function isBindingSourceCompatible(
+  destinationType: VisualPropertyType,
+  source: VisualEditorBindingSourceCatalogItem
+): boolean {
+  // Property/expression contracts do not yet expose a dependable result type in
+  // Wave 08. They remain authorable only when a future coordinator catalog
+  // supplies one. Current central composition exposes TAGs only.
+  if (source.dataType === undefined || source.dataType === null || !source.dataType.trim()) {
+    return source.kind !== 'Tag';
+  }
+
+  const dataType = source.dataType.trim().toLowerCase();
+  switch (destinationType) {
+    case 'number':
+      return ['int16', 'int32', 'int64', 'float', 'double'].includes(dataType);
+    case 'boolean':
+      return dataType === 'boolean';
+    case 'string':
+      return ['string', 'enum', 'datetime'].includes(dataType);
+    case 'color':
+      return dataType === 'string';
+    case 'enum':
+      return dataType === 'enum' || dataType === 'string';
+    case 'assetRef':
+      return false;
+  }
+}
+
 export function findVisualBinding(
   element: Pick<VisualElementEngineering, 'bindings'>,
   propertyKey: string
@@ -83,9 +119,16 @@ export function createBindingSetIntent(
   direction?: string | null
 ): Extract<VisualEditorMutationIntent, { kind: 'binding.set' }> {
   const objectId = requireElementIdentity(element.id);
-  requireBindableDestination(element.type, propertyKey);
+  const destination = requireBindableDestination(element.type, propertyKey);
   const kind = requireCanonicalKind(source.kind);
   const target = requireStableReference(source.target, 'binding source target');
+  if (!isBindingSourceCompatible(destination.type, source)) {
+    throw new VisualBindingEditorError(
+      'binding.source.typeMismatch',
+      `Binding source '${target}' data type '${source.dataType ?? 'unknown'}' is not compatible with visual property '${propertyKey}' type '${destination.type}'.`,
+      propertyKey
+    );
+  }
   const normalizedDirection = normalizeDirection(direction);
 
   const binding: BindingEngineering = {
@@ -127,7 +170,7 @@ export function filterBindingSourceCatalog(
   ));
 }
 
-function requireBindableDestination(objectType: string, propertyKey: string): void {
+function requireBindableDestination(objectType: string, propertyKey: string): VisualPropertyDefinition {
   const schema = requireBuiltinSchema(objectType);
   if (!schema.declares(propertyKey)) {
     throw new VisualBindingEditorError(
@@ -145,6 +188,7 @@ function requireBindableDestination(objectType: string, propertyKey: string): vo
       propertyKey
     );
   }
+  return definition;
 }
 
 function requireBuiltinSchema(objectType: string) {

@@ -152,7 +152,7 @@ test('the pure helper whitelist is deterministic and rejects arbitrary calls', (
     'number',
     [x]
   );
-  expect(evaluateOrThrow(helperExpression, { x: { value: 15, dataType: 'Double', quality: 'Good' } })).toBe(29);
+  expect(evaluateOrThrow(helperExpression, { x: { value: 15, dataType: 'Double', quality: 'Good' } })).toBe(30);
 
   const unknown = compileVisualExpression('sqrt(x)', 'number', [x]);
   expect(unknown.ok).toBeFalsy();

@@ -11,9 +11,10 @@ import type {
   VisualEditorMutationIntent
 } from '../visualEditorContracts';
 import {
+  compatibleBindingSources,
   createBindingRemoveIntent,
   createBindingSetIntent,
-  compatibleBindingSources
+  createTagBitBindingSource
 } from '../binding-editor/bindingEditorModel';
 import {
   createAnalogFillEngineering,
@@ -49,27 +50,15 @@ type ExpressionDraft = Readonly<{
 const EMPTY_EXPRESSION: ExpressionDraft = Object.freeze({ text: '', dependencies: Object.freeze([]) });
 
 /**
- * Transient authoring surface for FOLLOW-B dynamic visual configuration.
- *
- * This component never becomes canonical state: Apply callbacks emit only the
- * public Engineering DTOs already owned by the shared contract/reducer boundary.
+ * Transient FOLLOW-B authoring surface. Form state is intentionally disposable;
+ * Apply callbacks emit only the shared canonical Engineering DTOs/intents.
  */
-export function DynamicPropertyEditor({
-  element,
-  sourceCatalog,
-  onBindingIntent,
-  onSetExpression,
-  onRemoveExpression,
-  onSetBooleanCondition,
-  onRemoveBooleanCondition,
-  onSetAnalogFill,
-  onRemoveAnalogFill
-}: DynamicPropertyEditorProps) {
+export function DynamicPropertyEditor(props: DynamicPropertyEditorProps) {
+  const { element } = props;
   const destinations = useMemo(() => listDynamicPropertyDestinations(element), [element.type]);
   const [propertyKey, setPropertyKey] = useState(() => destinations[0]?.propertyKey ?? '');
   const destination = destinations.find(item => item.propertyKey === propertyKey) ?? destinations[0] ?? null;
-  const currentMode = destination ? effectiveMode(element, destination.propertyKey) : 'Constant';
-  const [mode, setMode] = useState<DynamicPropertySourceMode>(currentMode);
+  const [mode, setMode] = useState<DynamicPropertySourceMode>(() => destination ? effectiveMode(element, destination.propertyKey) : 'Constant');
 
   if (!destination) {
     return <section className="dynamic-property-editor" data-testid="visual-dynamic-property-editor">
@@ -84,72 +73,25 @@ export function DynamicPropertyEditor({
   };
 
   return <section className="dynamic-property-editor" data-testid="visual-dynamic-property-editor">
-    <header>
-      <strong>Dynamic source</strong>
-      <span>Canonical Binding/Expression configuration</span>
-    </header>
+    <header><strong>Dynamic source</strong><span>Canonical Binding/Expression configuration</span></header>
+    <label><span>Visual property</span><select value={destination.propertyKey} onChange={event => selectProperty(event.currentTarget.value)}>
+      {destinations.map(item => <option key={item.propertyKey} value={item.propertyKey}>{item.propertyKey} · {item.propertyType}</option>)}
+    </select></label>
+    <label><span>Source mode</span><select value={mode} onChange={event => setMode(event.currentTarget.value as DynamicPropertySourceMode)}>
+      {destination.sourceModes.map(item => <option key={item} value={item}>{modeLabel(item)}</option>)}
+    </select></label>
 
-    <label>
-      <span>Visual property</span>
-      <select value={destination.propertyKey} onChange={event => selectProperty(event.currentTarget.value)}>
-        {destinations.map(item => <option key={item.propertyKey} value={item.propertyKey}>{item.propertyKey} · {item.propertyType}</option>)}
-      </select>
-    </label>
-
-    <label>
-      <span>Source mode</span>
-      <select value={mode} onChange={event => setMode(event.currentTarget.value as DynamicPropertySourceMode)}>
-        {destination.sourceModes.map(item => <option key={item} value={item}>{modeLabel(item)}</option>)}
-      </select>
-    </label>
-
-    {mode === 'Constant' ? <ConstantMode
-      destination={destination}
-      element={element}
-      onBindingIntent={onBindingIntent}
-      onRemoveExpression={onRemoveExpression}
-      onRemoveBooleanCondition={onRemoveBooleanCondition}
-    /> : null}
-
-    {mode === 'DirectBinding' ? <DirectBindingMode
-      key={`binding:${destination.propertyKey}`}
-      destination={destination}
-      element={element}
-      sourceCatalog={sourceCatalog}
-      onBindingIntent={onBindingIntent}
-      onRemoveExpression={onRemoveExpression}
-      onRemoveBooleanCondition={onRemoveBooleanCondition}
-    /> : null}
-
-    {mode === 'BooleanCondition' && destination.propertyType === 'boolean' ? <BooleanConditionMode
-      key={`condition:${destination.propertyKey}`}
-      destination={destination}
-      sourceCatalog={sourceCatalog}
-      onSetBooleanCondition={onSetBooleanCondition}
-      onBindingIntent={onBindingIntent}
-      element={element}
-      onRemoveExpression={onRemoveExpression}
-    /> : null}
-
-    {mode === 'Expression' ? <ExpressionMode
-      key={`expression:${destination.propertyKey}`}
-      destination={destination}
-      sourceCatalog={sourceCatalog}
-      onSetExpression={onSetExpression}
-      onBindingIntent={onBindingIntent}
-      element={element}
-      onRemoveBooleanCondition={onRemoveBooleanCondition}
-    /> : null}
-
-    {supportsAnalogFill(element.type) ? <AnalogFillMode
-      key={`analog-fill:${element.id ?? element.key}`}
-      element={element}
-      sourceCatalog={sourceCatalog}
-      onSetAnalogFill={onSetAnalogFill}
-      onRemoveAnalogFill={onRemoveAnalogFill}
-    /> : null}
+    {mode === 'Constant' ? <ConstantMode key={`constant:${destination.propertyKey}`} destination={destination} {...props} /> : null}
+    {mode === 'DirectBinding' ? <DirectBindingMode key={`binding:${destination.propertyKey}`} destination={destination} {...props} /> : null}
+    {mode === 'BooleanCondition' && destination.propertyType === 'boolean'
+      ? <BooleanConditionMode key={`condition:${destination.propertyKey}`} destination={destination} {...props} />
+      : null}
+    {mode === 'Expression' ? <ExpressionMode key={`expression:${destination.propertyKey}`} destination={destination} {...props} /> : null}
+    {supportsAnalogFill(element.type) ? <AnalogFillMode key={`analog:${element.id ?? element.key}`} {...props} /> : null}
   </section>;
 }
+
+type DestinationProps = DynamicPropertyEditorProps & Readonly<{ destination: DynamicPropertyDestination }>;
 
 function ConstantMode({
   destination,
@@ -157,17 +99,11 @@ function ConstantMode({
   onBindingIntent,
   onRemoveExpression,
   onRemoveBooleanCondition
-}: Readonly<{
-  destination: DynamicPropertyDestination;
-  element: VisualElementEngineering;
-  onBindingIntent: DynamicPropertyEditorProps['onBindingIntent'];
-  onRemoveExpression: DynamicPropertyEditorProps['onRemoveExpression'];
-  onRemoveBooleanCondition: DynamicPropertyEditorProps['onRemoveBooleanCondition'];
-}>) {
+}: DestinationProps) {
   return <div className="dynamic-property-editor__panel">
     <p>Engineering/default value remains authoritative for this property.</p>
     <button type="button" onClick={() => {
-      if (element.id) onBindingIntent(createBindingRemoveIntent(element, destination.propertyKey));
+      removeBindingIfPossible(element, destination.propertyKey, onBindingIntent);
       onRemoveExpression(destination.propertyKey);
       onRemoveBooleanCondition(destination.propertyKey);
     }}>Use constant</button>
@@ -181,59 +117,46 @@ function DirectBindingMode({
   onBindingIntent,
   onRemoveExpression,
   onRemoveBooleanCondition
-}: Readonly<{
-  destination: DynamicPropertyDestination;
-  element: VisualElementEngineering;
-  sourceCatalog: readonly VisualEditorBindingSourceCatalogItem[];
-  onBindingIntent: DynamicPropertyEditorProps['onBindingIntent'];
-  onRemoveExpression: DynamicPropertyEditorProps['onRemoveExpression'];
-  onRemoveBooleanCondition: DynamicPropertyEditorProps['onRemoveBooleanCondition'];
-}>) {
+}: DestinationProps) {
   const sources = useMemo(
     () => compatibleBindingSources({ key: destination.propertyKey, type: destination.propertyType }, sourceCatalog),
     [destination.propertyKey, destination.propertyType, sourceCatalog]
   );
   const [selected, setSelected] = useState(sources[0]?.target ?? '');
+  const [bitIndex, setBitIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const source = sources.find(item => item.target === selected) ?? sources[0];
+  const bitCapability = source?.selectorCapability?.kind === 'bit' ? source.selectorCapability : null;
 
   return <div className="dynamic-property-editor__panel">
-    <label><span>Canonical source</span><select value={source?.target ?? ''} onChange={event => setSelected(event.currentTarget.value)}>
-      {sources.map(item => <option key={`${item.kind}:${item.target}`} value={item.target}>{item.label} · {item.dataType ?? 'unknown'}</option>)}
-    </select></label>
+    <SourceSelect sources={sources} source={source} onChange={setSelected} />
+    {bitCapability ? <BitIndexControl capability={bitCapability} value={bitIndex} onChange={setBitIndex} /> : null}
     <button type="button" disabled={!source || !element.id} onClick={() => {
       if (!source) return;
       try {
-        onBindingIntent(createBindingSetIntent(element, destination.propertyKey, source));
+        const effectiveSource = bitCapability ? createTagBitBindingSource(source, bitIndex) : source;
+        onBindingIntent(createBindingSetIntent(element, destination.propertyKey, effectiveSource));
         onRemoveExpression(destination.propertyKey);
         onRemoveBooleanCondition(destination.propertyKey);
         setError(null);
-      } catch (reason) {
-        setError(errorText(reason));
-      }
+      } catch (reason) { setError(errorText(reason)); }
     }}>Apply direct binding</button>
-    {sources.length === 0 ? <p className="dynamic-property-editor__warning">No compatible canonical source is available.</p> : null}
-    {error ? <p className="dynamic-property-editor__error" role="alert">{error}</p> : null}
+    {!source ? <p className="dynamic-property-editor__warning">No compatible canonical source is available.</p> : null}
+    {error ? <ErrorText message={error} /> : null}
   </div>;
 }
 
 function BooleanConditionMode({
   destination,
-  sourceCatalog,
-  onSetBooleanCondition,
-  onBindingIntent,
   element,
-  onRemoveExpression
-}: Readonly<{
-  destination: DynamicPropertyDestination;
-  sourceCatalog: readonly VisualEditorBindingSourceCatalogItem[];
-  onSetBooleanCondition: DynamicPropertyEditorProps['onSetBooleanCondition'];
-  onBindingIntent: DynamicPropertyEditorProps['onBindingIntent'];
-  element: VisualElementEngineering;
-  onRemoveExpression: DynamicPropertyEditorProps['onRemoveExpression'];
-}>) {
-  const [conditionKind, setConditionKind] = useState<'Direct' | 'NumericInterval'>('Direct');
+  sourceCatalog,
+  onBindingIntent,
+  onRemoveExpression,
+  onSetBooleanCondition
+}: DestinationProps) {
+  const [kind, setKind] = useState<'Direct' | 'NumericInterval'>('Direct');
   const [sourceTarget, setSourceTarget] = useState('');
+  const [bitIndex, setBitIndex] = useState(0);
   const [minimum, setMinimum] = useState('');
   const [maximum, setMaximum] = useState('');
   const [minimumInclusive, setMinimumInclusive] = useState(true);
@@ -241,137 +164,123 @@ function BooleanConditionMode({
   const [outside, setOutside] = useState(false);
   const [negate, setNegate] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const wantedType = conditionKind === 'Direct' ? 'Boolean' : 'Number';
-  const sources = sourceCatalog.filter(source => sourceValueType(source) === wantedType);
+
+  const sources = sourceCatalog.filter(source => kind === 'Direct'
+    ? sourceValueType(source) === 'Boolean' || hasBitCapability(source)
+    : sourceValueType(source) === 'Number');
   const source = sources.find(item => item.target === sourceTarget) ?? sources[0];
+  const bitCapability = kind === 'Direct' && source && sourceValueType(source) !== 'Boolean' && hasBitCapability(source)
+    ? source.selectorCapability!
+    : null;
 
   return <div className="dynamic-property-editor__panel">
-    <label><span>Condition preset</span><select value={conditionKind} onChange={event => {
-      setConditionKind(event.currentTarget.value as 'Direct' | 'NumericInterval');
-      setSourceTarget('');
-    }}>
-      <option value="Direct">Direct Boolean</option>
-      <option value="NumericInterval">Numeric interval</option>
+    <label><span>Condition preset</span><select value={kind} onChange={event => { setKind(event.currentTarget.value as typeof kind); setSourceTarget(''); }}>
+      <option value="Direct">Direct Boolean</option><option value="NumericInterval">Numeric interval</option>
     </select></label>
-    <label><span>Canonical source</span><select value={source?.target ?? ''} onChange={event => setSourceTarget(event.currentTarget.value)}>
-      {sources.map(item => <option key={`${item.kind}:${item.target}`} value={item.target}>{item.label} · {item.dataType ?? 'unknown'}</option>)}
-    </select></label>
-
-    {conditionKind === 'NumericInterval' ? <div className="dynamic-property-editor__grid">
+    <SourceSelect sources={sources} source={source} onChange={setSourceTarget} />
+    {bitCapability ? <BitIndexControl capability={bitCapability} value={bitIndex} onChange={setBitIndex} /> : null}
+    {kind === 'NumericInterval' ? <div className="dynamic-property-editor__grid">
       <label><span>Minimum</span><input type="number" value={minimum} onChange={event => setMinimum(event.currentTarget.value)} placeholder="optional" /></label>
       <label><span>Maximum</span><input type="number" value={maximum} onChange={event => setMaximum(event.currentTarget.value)} placeholder="optional" /></label>
-      <label className="dynamic-property-editor__check"><input type="checkbox" checked={minimumInclusive} onChange={event => setMinimumInclusive(event.currentTarget.checked)} /><span>Minimum inclusive</span></label>
-      <label className="dynamic-property-editor__check"><input type="checkbox" checked={maximumInclusive} onChange={event => setMaximumInclusive(event.currentTarget.checked)} /><span>Maximum inclusive</span></label>
-      <label className="dynamic-property-editor__check"><input type="checkbox" checked={outside} onChange={event => setOutside(event.currentTarget.checked)} /><span>Outside interval</span></label>
+      <Check label="Minimum inclusive" checked={minimumInclusive} onChange={setMinimumInclusive} />
+      <Check label="Maximum inclusive" checked={maximumInclusive} onChange={setMaximumInclusive} />
+      <Check label="Outside interval" checked={outside} onChange={setOutside} />
     </div> : null}
-
-    <label className="dynamic-property-editor__check"><input type="checkbox" checked={negate} onChange={event => setNegate(event.currentTarget.checked)} /><span>Negate result</span></label>
+    <Check label="Negate result" checked={negate} onChange={setNegate} />
     <button type="button" disabled={!source} onClick={() => {
       if (!source) return;
       try {
-        const valueSource = createValueSource(wantedType, source);
-        const condition = conditionKind === 'Direct'
+        const effectiveSource = bitCapability ? createTagBitBindingSource(source, bitIndex) : source;
+        const valueType = kind === 'Direct' ? 'Boolean' : 'Number';
+        const valueSource = createValueSource(valueType, effectiveSource);
+        const condition = kind === 'Direct'
           ? createDirectBooleanCondition(destination.propertyKey, valueSource, negate)
           : createNumericIntervalCondition(destination.propertyKey, valueSource, {
-              minimum: optionalNumber(minimum),
-              maximum: optionalNumber(maximum),
-              minimumInclusive,
-              maximumInclusive,
-              intervalMode: outside ? 'Outside' : 'Inside',
-              negate
+              minimum: optionalNumber(minimum), maximum: optionalNumber(maximum),
+              minimumInclusive, maximumInclusive,
+              intervalMode: outside ? 'Outside' : 'Inside', negate
             });
-        if (element.id) onBindingIntent(createBindingRemoveIntent(element, destination.propertyKey));
+        removeBindingIfPossible(element, destination.propertyKey, onBindingIntent);
         onRemoveExpression(destination.propertyKey);
         onSetBooleanCondition(condition);
         setError(null);
-      } catch (reason) {
-        setError(errorText(reason));
-      }
+      } catch (reason) { setError(errorText(reason)); }
     }}>Apply condition</button>
-    {error ? <p className="dynamic-property-editor__error" role="alert">{error}</p> : null}
+    {error ? <ErrorText message={error} /> : null}
   </div>;
 }
 
 function ExpressionMode({
   destination,
-  sourceCatalog,
-  onSetExpression,
-  onBindingIntent,
   element,
-  onRemoveBooleanCondition
-}: Readonly<{
-  destination: DynamicPropertyDestination;
-  sourceCatalog: readonly VisualEditorBindingSourceCatalogItem[];
-  onSetExpression: DynamicPropertyEditorProps['onSetExpression'];
-  onBindingIntent: DynamicPropertyEditorProps['onBindingIntent'];
-  element: VisualElementEngineering;
-  onRemoveBooleanCondition: DynamicPropertyEditorProps['onRemoveBooleanCondition'];
-}>) {
+  sourceCatalog,
+  onBindingIntent,
+  onRemoveBooleanCondition,
+  onSetExpression
+}: DestinationProps) {
   const existing = element.propertyExpressions?.find(item => item.propertyKey === destination.propertyKey)?.expression;
   const [draft, setDraft] = useState<ExpressionDraft>(() => existing
     ? Object.freeze({ text: existing.text, dependencies: Object.freeze([...(existing.dependencies ?? [])]) })
     : EMPTY_EXPRESSION);
   const [sourceTarget, setSourceTarget] = useState('');
+  const [bitIndex, setBitIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const source = sourceCatalog.find(item => item.target === sourceTarget) ?? sourceCatalog[0];
+  const sources = sourceCatalog.filter(source => sourceValueType(source) !== null || hasBitCapability(source));
+  const source = sources.find(item => item.target === sourceTarget) ?? sources[0];
+  const bitCapability = source && hasBitCapability(source) ? source.selectorCapability! : null;
   const resultType = destination.propertyType === 'boolean' ? 'Boolean' : 'Number';
   const validation = validateVisualExpressionAuthoring(resultType, draft.text, draft.dependencies);
 
-  const insertSource = () => {
+  const insert = (asBit: boolean) => {
     if (!source) return;
     try {
-      const valueType = sourceValueType(source);
-      if (!valueType) throw new Error(`Source '${source.target}' is not Boolean or numeric.`);
-      const symbol = uniqueSymbol(symbolForSource(source), draft.dependencies);
-      const dependency = createExpressionDependency(symbol, valueType, source);
+      const effectiveSource = asBit
+        ? createTagBitBindingSource(source, bitIndex)
+        : source;
+      const valueType = sourceValueType(effectiveSource);
+      if (!valueType) throw new Error(`Source '${effectiveSource.target}' is not Boolean or numeric.`);
+      const symbol = uniqueSymbol(symbolForSource(effectiveSource), draft.dependencies);
+      const dependency = createExpressionDependency(symbol, valueType, effectiveSource);
       setDraft(current => Object.freeze({
         text: current.text ? `${current.text} ${symbol}` : symbol,
         dependencies: Object.freeze([...current.dependencies, dependency])
       }));
       setError(null);
-    } catch (reason) {
-      setError(errorText(reason));
-    }
+    } catch (reason) { setError(errorText(reason)); }
   };
 
   return <div className="dynamic-property-editor__panel">
-    <label><span>Expression</span><textarea rows={4} value={draft.text} onChange={event => setDraft(current => Object.freeze({ ...current, text: event.currentTarget.value }))} placeholder={resultType === 'Boolean' ? 'fault or level > 80' : '(level1 + level2) * 3'} /></label>
+    <label><span>Expression</span><textarea rows={4} value={draft.text}
+      onChange={event => setDraft(current => Object.freeze({ ...current, text: event.currentTarget.value }))}
+      placeholder={resultType === 'Boolean' ? 'fault or level > 80' : '(level1 + level2) * 3'} /></label>
     <div className="dynamic-property-editor__insert">
       <select value={source?.target ?? ''} onChange={event => setSourceTarget(event.currentTarget.value)}>
-        {sourceCatalog.map(item => <option key={`${item.kind}:${item.target}`} value={item.target}>{item.label} · {item.dataType ?? 'unknown'}</option>)}
+        {sources.map(item => <option key={`${item.kind}:${item.target}`} value={item.target}>{item.label} · {item.dataType ?? 'unknown'}</option>)}
       </select>
-      <button type="button" disabled={!source} onClick={insertSource}>Insert source</button>
+      <button type="button" disabled={!source} onClick={() => insert(false)}>Insert source</button>
     </div>
+    {bitCapability ? <div className="dynamic-property-editor__insert">
+      <BitIndexControl capability={bitCapability} value={bitIndex} onChange={setBitIndex} />
+      <button type="button" onClick={() => insert(true)}>Insert selected bit</button>
+    </div> : null}
     <div className="dynamic-property-editor__dependencies">
       {draft.dependencies.map(item => <code key={`${item.symbol}:${item.target ?? item.tagReference.tagId}`}>{item.symbol} → {item.target ?? item.tagReference.tagId}</code>)}
     </div>
-    {!validation.ok && draft.text.trim() ? <p className="dynamic-property-editor__error" role="alert">{validation.diagnostics[0]?.message ?? 'Expression is invalid.'}</p> : null}
-    {error ? <p className="dynamic-property-editor__error" role="alert">{error}</p> : null}
+    {!validation.ok && draft.text.trim() ? <ErrorText message={validation.diagnostics[0]?.message ?? 'Expression is invalid.'} /> : null}
+    {error ? <ErrorText message={error} /> : null}
     <button type="button" disabled={!draft.text.trim() || !validation.ok} onClick={() => {
       try {
         const expression = createVisualExpressionEngineering(resultType, draft.text, draft.dependencies);
-        if (element.id) onBindingIntent(createBindingRemoveIntent(element, destination.propertyKey));
+        removeBindingIfPossible(element, destination.propertyKey, onBindingIntent);
         onRemoveBooleanCondition(destination.propertyKey);
         onSetExpression(Object.freeze({ propertyKey: destination.propertyKey, expression, version: 1 }));
         setError(null);
-      } catch (reason) {
-        setError(errorText(reason));
-      }
+      } catch (reason) { setError(errorText(reason)); }
     }}>Apply expression</button>
   </div>;
 }
 
-function AnalogFillMode({
-  element,
-  sourceCatalog,
-  onSetAnalogFill,
-  onRemoveAnalogFill
-}: Readonly<{
-  element: VisualElementEngineering;
-  sourceCatalog: readonly VisualEditorBindingSourceCatalogItem[];
-  onSetAnalogFill: DynamicPropertyEditorProps['onSetAnalogFill'];
-  onRemoveAnalogFill: DynamicPropertyEditorProps['onRemoveAnalogFill'];
-}>) {
+function AnalogFillMode({ element, sourceCatalog, onSetAnalogFill, onRemoveAnalogFill }: DynamicPropertyEditorProps) {
   const numericSources = sourceCatalog.filter(source => sourceValueType(source) === 'Number');
   const existing = element.analogFill;
   const [enabled, setEnabled] = useState(Boolean(existing));
@@ -385,49 +294,79 @@ function AnalogFillMode({
   const [error, setError] = useState<string | null>(null);
   const source = numericSources.find(item => item.target === sourceTarget) ?? numericSources[0];
 
-  return <fieldset className="dynamic-property-editor__analog-fill">
-    <legend>Analog Fill</legend>
-    <label className="dynamic-property-editor__check"><input type="checkbox" checked={enabled} onChange={event => {
-      setEnabled(event.currentTarget.checked);
-      if (!event.currentTarget.checked) onRemoveAnalogFill();
-    }} /><span>Enabled</span></label>
+  return <fieldset className="dynamic-property-editor__analog-fill"><legend>Analog Fill</legend>
+    <Check label="Enabled" checked={enabled} onChange={next => { setEnabled(next); if (!next) onRemoveAnalogFill(); }} />
     {enabled ? <>
-      <label><span>Numeric source</span><select value={source?.target ?? ''} onChange={event => setSourceTarget(event.currentTarget.value)}>
-        {numericSources.map(item => <option key={`${item.kind}:${item.target}`} value={item.target}>{item.label}</option>)}
-      </select></label>
+      <SourceSelect sources={numericSources} source={source} onChange={setSourceTarget} />
       <div className="dynamic-property-editor__grid">
         <label><span>Input minimum</span><input type="number" value={minimum} onChange={event => setMinimum(event.currentTarget.value)} /></label>
         <label><span>Input maximum</span><input type="number" value={maximum} onChange={event => setMaximum(event.currentTarget.value)} /></label>
         <label><span>Fill color</span><input type="text" value={fillColor} onChange={event => setFillColor(event.currentTarget.value)} /></label>
         <label><span>Direction</span><select value={direction} onChange={event => setDirection(event.currentTarget.value as typeof direction)}>
-          <option value="BottomToTop">Bottom to top</option>
-          <option value="TopToBottom">Top to bottom</option>
-          <option value="LeftToRight">Left to right</option>
-          <option value="RightToLeft">Right to left</option>
+          <option value="BottomToTop">Bottom to top</option><option value="TopToBottom">Top to bottom</option>
+          <option value="LeftToRight">Left to right</option><option value="RightToLeft">Right to left</option>
         </select></label>
       </div>
-      <label className="dynamic-property-editor__check"><input type="checkbox" checked={clamp} onChange={event => setClamp(event.currentTarget.checked)} /><span>Clamp to 0..100%</span></label>
-      <label className="dynamic-property-editor__check"><input type="checkbox" checked={invertScale} onChange={event => setInvertScale(event.currentTarget.checked)} /><span>Invert scale</span></label>
+      <Check label="Clamp to 0..100%" checked={clamp} onChange={setClamp} />
+      <Check label="Invert scale" checked={invertScale} onChange={setInvertScale} />
       <button type="button" disabled={!source} onClick={() => {
         if (!source) return;
         try {
-          const valueSource = createValueSource('Number', source);
-          onSetAnalogFill(createAnalogFillEngineering(valueSource, {
+          onSetAnalogFill(createAnalogFillEngineering(createValueSource('Number', source), {
             inputMinimum: requiredNumber(minimum, 'Input minimum'),
             inputMaximum: requiredNumber(maximum, 'Input maximum'),
-            fillColor,
-            direction,
-            clamp,
-            invertScale
+            fillColor, direction, clamp, invertScale
           }));
           setError(null);
-        } catch (reason) {
-          setError(errorText(reason));
-        }
+        } catch (reason) { setError(errorText(reason)); }
       }}>Apply Analog Fill</button>
-      {error ? <p className="dynamic-property-editor__error" role="alert">{error}</p> : null}
+      {error ? <ErrorText message={error} /> : null}
     </> : null}
   </fieldset>;
+}
+
+function SourceSelect({
+  sources,
+  source,
+  onChange
+}: Readonly<{
+  sources: readonly VisualEditorBindingSourceCatalogItem[];
+  source: VisualEditorBindingSourceCatalogItem | undefined;
+  onChange: (target: string) => void;
+}>) {
+  return <label><span>Canonical source</span><select value={source?.target ?? ''} onChange={event => onChange(event.currentTarget.value)}>
+    {sources.map(item => <option key={`${item.kind}:${item.target}`} value={item.target}>{item.label} · {item.dataType ?? 'unknown'}</option>)}
+  </select></label>;
+}
+
+function BitIndexControl({
+  capability,
+  value,
+  onChange
+}: Readonly<{
+  capability: Readonly<{ minIndex: number; maxIndex: number }>;
+  value: number;
+  onChange: (value: number) => void;
+}>) {
+  return <label><span>Bit index ({capability.minIndex}..{capability.maxIndex})</span><input type="number"
+    min={capability.minIndex} max={capability.maxIndex} step={1} value={value}
+    onChange={event => onChange(Number(event.currentTarget.value))} /></label>;
+}
+
+function Check({ label, checked, onChange }: Readonly<{ label: string; checked: boolean; onChange: (value: boolean) => void }>) {
+  return <label className="dynamic-property-editor__check"><input type="checkbox" checked={checked} onChange={event => onChange(event.currentTarget.checked)} /><span>{label}</span></label>;
+}
+
+function ErrorText({ message }: Readonly<{ message: string }>) {
+  return <p className="dynamic-property-editor__error" role="alert">{message}</p>;
+}
+
+function removeBindingIfPossible(
+  element: VisualElementEngineering,
+  propertyKey: string,
+  emit: DynamicPropertyEditorProps['onBindingIntent']
+) {
+  if (element.id) emit(createBindingRemoveIntent(element, propertyKey));
 }
 
 function effectiveMode(element: VisualElementEngineering, propertyKey: string): DynamicPropertySourceMode {
@@ -439,6 +378,10 @@ function effectiveMode(element: VisualElementEngineering, propertyKey: string): 
 
 function supportsAnalogFill(objectType: string): boolean {
   return objectType === 'core.rectangle' || objectType === 'core.ellipse';
+}
+
+function hasBitCapability(source: VisualEditorBindingSourceCatalogItem): boolean {
+  return source.kind === 'Tag' && source.selectorCapability?.kind === 'bit' && Boolean(source.tagReference?.tagId);
 }
 
 function sourceValueType(source: VisualEditorBindingSourceCatalogItem): 'Boolean' | 'Number' | null {

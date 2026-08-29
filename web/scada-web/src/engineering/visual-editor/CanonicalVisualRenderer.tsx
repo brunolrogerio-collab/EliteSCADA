@@ -16,6 +16,7 @@ import {
   useVisualBindingSamples,
   type VisualLiveScalarSample
 } from './visualEditorLiveValues';
+import { resolveVisualDynamicState } from './visualDynamicRuntime';
 
 export type CanonicalVisualRendererProps = {
   elements: readonly VisualElementEngineering[] | null | undefined;
@@ -53,14 +54,20 @@ function CanonicalElement({
 
   try {
     const schema = getBuiltinVisualObjectSchema(element.type);
-    const values: Readonly<Record<string, VisualPropertyValue>> = {
+    const baseValues: Readonly<Record<string, VisualPropertyValue>> = {
       ...schema.createDefaultValues(),
       ...decodeVisualEngineeringProperties(registeredScalarProperties(element, schema), schema)
     };
+    const dynamic = resolveVisualDynamicState(element, baseValues, liveSamples);
+    const values = dynamic.values;
     const style = elementStyle(values);
+    const diagnosticTitle = dynamic.diagnostics.length > 0
+      ? dynamic.diagnostics.map(item => `${item.propertyKey ? `${item.propertyKey}: ` : ''}${item.message}`).join('\n')
+      : undefined;
+    const diagnosticState = dynamic.diagnostics.length > 0 ? 'unavailable' : 'available';
 
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.group) {
-      return <div className="visual-editor-object visual-editor-group" style={style} data-object-id={element.id ?? undefined}>
+      return <div className="visual-editor-object visual-editor-group" style={style} data-object-id={element.id ?? undefined} title={diagnosticTitle} data-dynamic-state={diagnosticState}>
         {(element.children ?? []).map((child, index) => <CanonicalElement
           key={child.id ?? `${child.key}-${index}`}
           element={child}
@@ -72,7 +79,7 @@ function CanonicalElement({
 
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.image) {
       const assetId = assetReferenceId(values[VISUAL_PROPERTY_KEYS.assetRef]);
-      return <div className="visual-editor-object visual-editor-image" style={style} data-object-id={element.id ?? undefined}>
+      return <div className="visual-editor-object visual-editor-image" style={style} data-object-id={element.id ?? undefined} title={diagnosticTitle} data-dynamic-state={diagnosticState}>
         {assetId ? <img
           src={visualAssetContentUrl(assetId)} alt={element.key} draggable={false}
           style={{ width: '100%', height: '100%', objectFit: imageFit(values[VISUAL_PROPERTY_KEYS.imageFit]), objectPosition: `${percent(values[VISUAL_PROPERTY_KEYS.imagePositionX])}% ${percent(values[VISUAL_PROPERTY_KEYS.imagePositionY])}%` }}
@@ -81,7 +88,7 @@ function CanonicalElement({
     }
 
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.line) {
-      return <div className="visual-editor-object visual-editor-line" style={lineStyle(style, values)} data-object-id={element.id ?? undefined} />;
+      return <div className="visual-editor-object visual-editor-line" style={lineStyle(style, values)} data-object-id={element.id ?? undefined} title={diagnosticTitle} data-dynamic-state={diagnosticState} />;
     }
 
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.polygon) {
@@ -90,7 +97,7 @@ function CanonicalElement({
       const bounds = polygonBounds(points);
       const normalizedPoints = points.map(point => ({ x: point.x - bounds.minX, y: point.y - bounds.minY }));
       const strokeStyle = stringValue(values[VISUAL_PROPERTY_KEYS.strokeStyle], 'solid');
-      return <div className="visual-editor-object visual-editor-polygon" style={{ ...style, background: 'transparent', border: 0, overflow: 'visible' }} data-object-id={element.id ?? undefined}>
+      return <div className="visual-editor-object visual-editor-polygon" style={{ ...style, background: 'transparent', border: 0, overflow: 'visible' }} data-object-id={element.id ?? undefined} title={diagnosticTitle} data-dynamic-state={diagnosticState}>
         <svg width="100%" height="100%" viewBox={`0 0 ${Math.max(bounds.width, 1)} ${Math.max(bounds.height, 1)}`} preserveAspectRatio="none" aria-label={element.key}>
           <polygon
             points={polygonPointsAttribute(normalizedPoints)}
@@ -106,19 +113,49 @@ function CanonicalElement({
 
     const staticText = stringValue(values[VISUAL_PROPERTY_KEYS.text]);
     const textBinding = dynamicTextBinding(element.bindings);
+    const textSample = textBinding ? bindingSample(liveSamples, textBinding) : undefined;
     const dynamicText = textBinding
-      ? formatVisualScalarText(liveSamples.get(textBinding.target), textBinding, locale)
+      ? formatVisualScalarText(textSample, textBinding, locale)
       : null;
     const className = `visual-editor-object visual-editor-${element.type.replace('core.', '')}${dynamicText && !dynamicText.available ? ' visual-editor-dynamic-unavailable' : ''}`;
     const content = dynamicText?.text || staticText || element.key;
-    const title = dynamicText ? `${textBinding!.target} · ${dynamicText.state}` : undefined;
+    const sourceTitle = dynamicText ? `${textBinding!.target} · ${dynamicText.state}` : undefined;
+    const title = [sourceTitle, diagnosticTitle].filter(Boolean).join('\n') || undefined;
+    const fill = analogFillOverlay(element, dynamic.analogFill);
+
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.button) {
-      return <button type="button" tabIndex={-1} className={className} style={style} data-object-id={element.id ?? undefined} title={title}>{content}</button>;
+      return <button type="button" tabIndex={-1} className={className} style={style} data-object-id={element.id ?? undefined} title={title} data-dynamic-state={diagnosticState}>
+        {fill}{content}
+      </button>;
     }
-    return <div className={className} style={style} data-object-id={element.id ?? undefined} title={title} data-dynamic-reference={textBinding?.target}>{content}</div>;
+    return <div className={className} style={style} data-object-id={element.id ?? undefined} title={title} data-dynamic-reference={textBinding?.target} data-dynamic-state={diagnosticState}>
+      {fill}{content}
+    </div>;
   } catch (reason) {
     return <div className="visual-editor-object-error" title={reason instanceof Error ? reason.message : String(reason)}>{element.key || element.type || 'invalid visual object'}</div>;
   }
+}
+
+function analogFillOverlay(
+  element: VisualElementEngineering,
+  analogFill: ReturnType<typeof resolveVisualDynamicState>['analogFill']
+): React.ReactNode {
+  if (!analogFill) return null;
+  if (element.type !== BUILTIN_VISUAL_OBJECT_TYPES.rectangle && element.type !== BUILTIN_VISUAL_OBJECT_TYPES.ellipse) return null;
+  return <span
+    aria-hidden="true"
+    data-testid="visual-analog-fill"
+    data-fill-percent={analogFill.presentation.percent}
+    style={{
+      position: 'absolute',
+      inset: 0,
+      zIndex: 0,
+      pointerEvents: 'none',
+      background: analogFill.fillColor,
+      clipPath: analogFill.presentation.clipPath,
+      borderRadius: 'inherit'
+    }}
+  />;
 }
 
 function dynamicTextBinding(bindings: readonly BindingEngineering[] | null | undefined): BindingEngineering | null {
@@ -127,6 +164,14 @@ function dynamicTextBinding(bindings: readonly BindingEngineering[] | null | und
     return candidate.key === VISUAL_PROPERTY_KEYS.text && (kind === 'tag' || kind === 'clientmemory');
   });
   return binding ?? null;
+}
+
+function bindingSample(samples: ReadonlyMap<string, VisualLiveScalarSample>, binding: BindingEngineering): VisualLiveScalarSample | undefined {
+  if (binding.tagReference?.tagId) {
+    const byId = samples.get(`tag:${binding.tagReference.tagId.trim().toLocaleLowerCase()}`);
+    if (byId) return byId;
+  }
+  return samples.get(binding.target);
 }
 
 function registeredScalarProperties(element: VisualElementEngineering, schema: VisualObjectPropertySchema): Readonly<Record<string, unknown>> {

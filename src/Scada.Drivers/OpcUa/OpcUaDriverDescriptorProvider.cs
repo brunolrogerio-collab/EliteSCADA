@@ -11,7 +11,7 @@ public sealed class OpcUaDriverDescriptorProvider : ICommunicationDriverDescript
     public const string DriverTypeId = "opc-ua";
     public const string ConfigurationSchemaId = "elitescada.driver.opc-ua";
     public const int ContractVersion = 1;
-    public const int ConfigurationSchemaVersion = 1;
+    public const int ConfigurationSchemaVersion = 2;
 
     public static CommunicationDriverTypeDescriptor Definition { get; } = new(
         DriverType: DriverTypeId,
@@ -40,6 +40,10 @@ public sealed class OpcUaDriverDescriptorProvider : ICommunicationDriverDescript
                     AllowedValues: ["None", "Sign", "SignAndEncrypt"]),
                 new("securityPolicyUri", DriverConfigurationValueKind.String, Required: true,
                     DisplayName: "Security policy URI"),
+                new("serverApplicationUri", DriverConfigurationValueKind.String,
+                    DisplayName: "Approved server ApplicationUri", Advanced: true),
+                new("serverCertificateSha256", DriverConfigurationValueKind.String,
+                    DisplayName: "Approved server certificate SHA-256", Advanced: true),
                 new("authenticationMode", DriverConfigurationValueKind.Enum, Required: true,
                     DisplayName: "Authentication mode", DefaultValue: "Anonymous",
                     AllowedValues: ["Anonymous", "UserName", "Certificate"]),
@@ -56,7 +60,7 @@ public sealed class OpcUaDriverDescriptorProvider : ICommunicationDriverDescript
                 new("publishingInterval", DriverConfigurationValueKind.Duration,
                     DisplayName: "Publishing interval", DefaultValue: "00:00:01", Advanced: true),
                 new("trustUntrustedServerCertificateForSession", DriverConfigurationValueKind.Boolean,
-                    DisplayName: "Trust untrusted server certificate for this session",
+                    DisplayName: "Allow untrusted certificate for temporary Engineering session",
                     DefaultValue: "false", Advanced: true)
             ],
             TagBindingFields:

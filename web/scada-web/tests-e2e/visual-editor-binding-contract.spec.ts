@@ -3,10 +3,12 @@ import { BUILTIN_VISUAL_OBJECT_TYPES } from '../src/visual-runtime/builtinVisual
 import { VISUAL_PROPERTY_KEYS } from '../src/visual-runtime/visualPropertyRegistry';
 import type { VisualElementEngineering } from '../src/engineering/types';
 import {
+  compatibleBindingSources,
   createBindingRemoveIntent,
   createBindingSetIntent,
   filterBindingSourceCatalog,
   findVisualBinding,
+  isBindingSourceCompatible,
   listBindableVisualProperties,
   normalizeBindingSourceCatalog,
   VisualBindingEditorError
@@ -16,11 +18,13 @@ const rectangle: VisualElementEngineering = {
   id: '11111111-1111-1111-1111-111111111111',
   key: 'PumpBody',
   type: BUILTIN_VISUAL_OBJECT_TYPES.rectangle,
-  bindings: [{ key: VISUAL_PROPERTY_KEYS.fillColor, kind: 'Tag', target: 'Plant.Pump.Running' }]
+  bindings: [{ key: VISUAL_PROPERTY_KEYS.fillColor, kind: 'tag', target: 'Plant.Pump.Color' }]
 };
 
 const catalog = [
   { kind: 'Tag', target: 'Plant.Pump.Running', label: 'Pump running', dataType: 'Boolean', writable: false },
+  { kind: 'Tag', target: 'Plant.Pump.Color', label: 'Pump color', dataType: 'String', writable: false },
+  { kind: 'Tag', target: 'Plant.Level', label: 'Level', dataType: 'Double', writable: false },
   { kind: 'Property', target: 'Context.SelectedPump', label: 'Selected pump' },
   { kind: 'Expression', target: 'tag("Plant.Level") > 80', label: 'High level expression' }
 ] as const;
@@ -38,7 +42,7 @@ test('bindable destinations come only from the registered schema supportsBinding
 test('binding.set uses canonical destination/source fields and stable object identity', () => {
   const intent = createBindingSetIntent(
     rectangle,
-    VISUAL_PROPERTY_KEYS.fillColor,
+    VISUAL_PROPERTY_KEYS.visible,
     catalog[0]
   );
 
@@ -46,7 +50,7 @@ test('binding.set uses canonical destination/source fields and stable object ide
     kind: 'binding.set',
     objectId: rectangle.id,
     binding: {
-      key: VISUAL_PROPERTY_KEYS.fillColor,
+      key: VISUAL_PROPERTY_KEYS.visible,
       kind: 'Tag',
       target: 'Plant.Pump.Running'
     }
@@ -57,11 +61,30 @@ test('binding.set uses canonical destination/source fields and stable object ide
   expect(Object.isFrozen(intent.binding)).toBe(true);
 });
 
+test('typed TAG compatibility fails early instead of deferring obvious errors to Runtime', () => {
+  expect(isBindingSourceCompatible('boolean', catalog[0])).toBe(true);
+  expect(isBindingSourceCompatible('boolean', catalog[2])).toBe(false);
+  expect(isBindingSourceCompatible('number', catalog[2])).toBe(true);
+  expect(isBindingSourceCompatible('number', catalog[0])).toBe(false);
+  expect(isBindingSourceCompatible('color', catalog[1])).toBe(true);
+
+  expect(compatibleBindingSources('boolean', catalog).map(source => source.target)).toEqual([
+    'Plant.Pump.Running',
+    'Context.SelectedPump',
+    'tag("Plant.Level") > 80'
+  ]);
+
+  expect(() => createBindingSetIntent(rectangle, VISUAL_PROPERTY_KEYS.visible, catalog[2]))
+    .toThrow(/not compatible/);
+  expect(() => createBindingSetIntent(rectangle, VISUAL_PROPERTY_KEYS.x, catalog[0]))
+    .toThrow(/not compatible/);
+});
+
 test('binding.remove is explicit and findVisualBinding resolves only the canonical property key', () => {
   expect(findVisualBinding(rectangle, VISUAL_PROPERTY_KEYS.fillColor)).toEqual({
     key: VISUAL_PROPERTY_KEYS.fillColor,
-    kind: 'Tag',
-    target: 'Plant.Pump.Running'
+    kind: 'tag',
+    target: 'Plant.Pump.Color'
   });
 
   expect(createBindingRemoveIntent(rectangle, VISUAL_PROPERTY_KEYS.fillColor)).toEqual({
@@ -92,8 +115,8 @@ test('source catalog accepts only canonical Tag/Property/Expression references a
     { ...catalog[0], label: 'Duplicate label does not create a second source' }
   ]);
 
-  expect(normalized).toHaveLength(3);
-  expect(normalized.map(item => item.kind)).toEqual(['Tag', 'Property', 'Expression']);
+  expect(normalized).toHaveLength(5);
+  expect(normalized.map(item => item.kind)).toEqual(['Tag', 'Tag', 'Tag', 'Property', 'Expression']);
   expect(Object.isFrozen(normalized)).toBe(true);
 
   expect(() => normalizeBindingSourceCatalog([
@@ -107,10 +130,11 @@ test('source catalog accepts only canonical Tag/Property/Expression references a
 
 test('source catalog filtering stays within coordinator-provided canonical entries', () => {
   expect(filterBindingSourceCatalog(catalog, 'level')).toEqual([
-    catalog[2]
+    catalog[2],
+    catalog[4]
   ]);
   expect(filterBindingSourceCatalog(catalog, 'boolean')).toEqual([
     catalog[0]
   ]);
-  expect(filterBindingSourceCatalog(catalog, '')).toHaveLength(3);
+  expect(filterBindingSourceCatalog(catalog, '')).toHaveLength(5);
 });

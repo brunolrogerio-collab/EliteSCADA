@@ -120,37 +120,137 @@ public sealed class LogixEtherNetIpClient : ILogixProtocolClient
     {
         ArgumentNullException.ThrowIfNull(references);
         if (references.Count == 0) return Array.Empty<LogixReadResult>();
-        var results = new List<LogixReadResult>(references.Count);
+
+        var results = new LogixReadResult?[references.Count];
+        var readable = new List<IndexedReference>(references.Count);
+        for (var index = 0; index < references.Count; index++)
+        {
+            var reference = references[index];
+            reference.Validate();
+            if (!LogixValueCodec.IsFirstCutRuntimeReadable(reference.NativeType))
+            {
+                results[index] = new LogixReadResult(
+                    reference,
+                    false,
+                    Error: LogixProtocolError.TypeMismatch,
+                    Message: $"Logix native type '{reference.NativeType}' is not enabled by the first-cut runtime codec.");
+            }
+            else
+            {
+                readable.Add(new IndexedReference(index, reference));
+            }
+        }
+
         await _ioGate.WaitAsync(cancellationToken);
         try
         {
-            foreach (var reference in references)
+            var maxBatchSize = (_options ?? throw new InvalidOperationException("EtherNet/IP client has no active options.")).MaxBatchSize;
+            for (var offset = 0; offset < readable.Count; offset += maxBatchSize)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                reference.Validate();
-                if (!LogixValueCodec.IsFirstCutRuntimeReadable(reference.NativeType))
-                {
-                    results.Add(new LogixReadResult(reference, false, Error: LogixProtocolError.TypeMismatch, Message: $"Logix native type '{reference.NativeType}' is not enabled by the first-cut runtime codec."));
-                    continue;
-                }
-                try
-                {
-                    var response = await ExecuteCipCoreAsync(LogixCipCodec.BuildReadTagRequest(reference), cancellationToken);
-                    var native = LogixCipCodec.ParseReadTagValue(reference, response);
-                    results.Add(new LogixReadResult(reference, true, native));
-                }
-                catch (LogixCipException ex)
-                {
-                    results.Add(new LogixReadResult(reference, false, Error: ex.Error, Message: Sanitize(ex.Message)));
-                }
+                var count = Math.Min(maxBatchSize, readable.Count - offset);
+                await ReadBatchCoreAsync(readable.GetRange(offset, count), results, cancellationToken);
             }
         }
         finally
         {
             _ioGate.Release();
         }
-        return results;
+
+        return results.Select(static result => result ?? throw new InvalidDataException("Logix read result was not populated.")).ToArray();
     }
+
+    private async ValueTask ReadBatchCoreAsync(
+        IReadOnlyList<IndexedReference> batch,
+        LogixReadResult?[] results,
+        CancellationToken cancellationToken)
+    {
+        if (batch.Count == 0) return;
+        if (batch.Count == 1)
+        {
+            await ReadSingleCoreAsync(batch[0], results, cancellationToken);
+            return;
+        }
+
+        try
+        {
+            var raw = LogixMultipleServicePacket.BuildReadRequest(batch.Select(static item => item.Reference).ToArray());
+            var response = await ExecuteCipCoreAsync(raw, cancellationToken);
+            var replies = LogixMultipleServicePacket.ParseResponse(response);
+            if (replies.Count != batch.Count)
+                throw new InvalidDataException($"Multiple Service Packet returned {replies.Count} replies for {batch.Count} requests.");
+
+            for (var index = 0; index < batch.Count; index++)
+            {
+                var item = batch[index];
+                var reply = replies[index];
+                if (!reply.Succeeded)
+                {
+                    results[item.Index] = new LogixReadResult(
+                        item.Reference,
+                        false,
+                        Error: LogixCipCodec.MapGeneralStatus(reply.GeneralStatus),
+                        Message: $"Read Tag '{item.Reference.StableIdentity}' failed inside Multiple Service Packet with CIP status 0x{reply.GeneralStatus:X2}.");
+                    continue;
+                }
+
+                try
+                {
+                    var native = LogixCipCodec.ParseReadTagValue(item.Reference, reply);
+                    results[item.Index] = new LogixReadResult(item.Reference, true, native);
+                }
+                catch (LogixCipException ex)
+                {
+                    results[item.Index] = new LogixReadResult(item.Reference, false, Error: ex.Error, Message: Sanitize(ex.Message));
+                }
+            }
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            await SplitAndReadCoreAsync(batch, results, cancellationToken);
+        }
+        catch (LogixCipException ex) when (IsBatchFallbackCandidate(ex))
+        {
+            await SplitAndReadCoreAsync(batch, results, cancellationToken);
+        }
+    }
+
+    private async ValueTask SplitAndReadCoreAsync(
+        IReadOnlyList<IndexedReference> batch,
+        LogixReadResult?[] results,
+        CancellationToken cancellationToken)
+    {
+        if (batch.Count <= 1)
+        {
+            await ReadSingleCoreAsync(batch[0], results, cancellationToken);
+            return;
+        }
+
+        var midpoint = batch.Count / 2;
+        await ReadBatchCoreAsync(batch.Take(midpoint).ToArray(), results, cancellationToken);
+        await ReadBatchCoreAsync(batch.Skip(midpoint).ToArray(), results, cancellationToken);
+    }
+
+    private async ValueTask ReadSingleCoreAsync(
+        IndexedReference item,
+        LogixReadResult?[] results,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await ExecuteCipCoreAsync(LogixCipCodec.BuildReadTagRequest(item.Reference), cancellationToken);
+            var native = LogixCipCodec.ParseReadTagValue(item.Reference, response);
+            results[item.Index] = new LogixReadResult(item.Reference, true, native);
+        }
+        catch (LogixCipException ex)
+        {
+            results[item.Index] = new LogixReadResult(item.Reference, false, Error: ex.Error, Message: Sanitize(ex.Message));
+        }
+    }
+
+    private static bool IsBatchFallbackCandidate(LogixCipException error) =>
+        error.Error is LogixProtocolError.PacketTooLarge or LogixProtocolError.ControllerResourceUnavailable ||
+        error.GeneralStatus == 0x08;
 
     public async ValueTask<LogixSymbolBrowsePage> BrowseControllerSymbolsAsync(uint startInstance = 0, CancellationToken cancellationToken = default)
     {
@@ -415,5 +515,6 @@ public sealed class LogixEtherNetIpClient : ILogixProtocolClient
         }
     }
 
+    private sealed record IndexedReference(int Index, LogixSymbolReference Reference);
     private sealed record EncapsulationResponse(uint SessionHandle, uint Status, byte[] Payload);
 }

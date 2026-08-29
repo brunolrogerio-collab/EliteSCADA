@@ -39,7 +39,8 @@ public sealed record S7IsoConnectionOptions
         TimeSpan? connectTimeout = null,
         TimeSpan? requestTimeout = null,
         TimeSpan? reconnectDelay = null,
-        ushort requestedPduSize = 480)
+        ushort requestedPduSize = 480,
+        bool writeEnabled = false)
     {
         if (string.IsNullOrWhiteSpace(host))
             throw new ArgumentException("S7 ISO host is required.", nameof(host));
@@ -71,6 +72,7 @@ public sealed record S7IsoConnectionOptions
         RequestTimeout = requestTimeout ?? TimeSpan.FromSeconds(3);
         ReconnectDelay = reconnectDelay ?? TimeSpan.FromSeconds(1);
         RequestedPduSize = requestedPduSize;
+        WriteEnabled = writeEnabled;
 
         if (ConnectTimeout <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(connectTimeout), "S7 connect timeout must be positive.");
@@ -95,6 +97,7 @@ public sealed record S7IsoConnectionOptions
     public TimeSpan RequestTimeout { get; }
     public TimeSpan ReconnectDelay { get; }
     public ushort RequestedPduSize { get; }
+    public bool WriteEnabled { get; }
 
     public ushort EffectiveSourceTsap => SourceTsap;
 

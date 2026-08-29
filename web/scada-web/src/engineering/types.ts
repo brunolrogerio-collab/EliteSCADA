@@ -225,15 +225,19 @@ export type VisualAssetEngineering = {
 };
 
 /**
- * Schema-v12+ visual properties are JSON-native. Color/enum values remain stable
- * strings, while numeric/boolean/asset values preserve their actual JSON type.
+ * Canonical Engineering visual properties are JSON-native. The shared scalar
+ * Visual Property Registry still validates its declared public properties, while
+ * object-specific structural payloads such as core.polygon points remain typed
+ * by the owning visual-object contract.
  */
 export type VisualEngineeringPropertyValue =
   | number
   | boolean
   | string
+  | null
   | VisualEngineeringAssetReference
-  | null;
+  | readonly VisualEngineeringPropertyValue[]
+  | Readonly<Record<string, VisualEngineeringPropertyValue>>;
 
 export type VisualEngineeringPropertyMap = Record<string, VisualEngineeringPropertyValue>;
 

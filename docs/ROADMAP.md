@@ -12,6 +12,7 @@ Wave 08 Development Monitor contract: `docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE
 Wave 08 asset storage contract: `docs/VISUAL-ASSET-STORAGE-WAVE-08.md`.  
 TAG bit access + bit-level driver binding follow-up: `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`.  
 Visual Expressions + Boolean Conditions + Analog Fill follow-up: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.  
+Wave 09 Elipse E3 alarm/historian/query research: `docs/WAVE-09-ELIPSE-E3-ALARM-HISTORIAN-DATA-BROWSER-RESEARCH.md`.  
 CI policy: `docs/CI-USAGE-POLICY.md`.
 
 Engineering Import/Export remains cross-cutting: canonical Engineering domains join versioned JSON, validation/Preview/Apply, revision lifecycle, PostgreSQL persistence where applicable and `.escadapkg` backup/restore.
@@ -39,7 +40,7 @@ Wave 07      Visual Runtime Object Model + typed visual Engineering             
 Wave 08      Graphical Editor + Image + Engineering Development Monitor                  ACTIVE
 08-FOLLOW-A  TAG Bit Access + Driver Bit-Level Boolean Binding                           WAITING FOR WAVE 08
 08-FOLLOW-B  Typed Visual Expressions + Boolean Conditions + Analog Fill                 WAITING ON 08-FOLLOW-A
-Wave 09      Screens + Popups + Dynamos + asset dependencies/navigation                 WAITING
+Wave 09      Screens + Popups + Dynamos + navigation + Historical Data Browser          WAITING
 Wave 10      Python visual events + animation + preview                                  WAITING
 Wave 11      Complete HMI Runtime demo vertical slice                                    WAITING
 Wave 12      Hardening                                                                   WAITING
@@ -140,12 +141,67 @@ After 08-FOLLOW-A is green, execute `08-FOLLOW-B` under `docs/VISUAL-BOOLEAN-CON
 
 Wave 09 remains blocked until required preceding work is green.
 
+## Wave 09 — locked research expansion
+
+Wave 09 keeps its original **Screens + Popups + Dynamos + navigation** objective and now also incorporates the owner-requested Elipse E3 alarm/historian/query research under:
+
+`docs/WAVE-09-ELIPSE-E3-ALARM-HISTORIAN-DATA-BROWSER-RESEARCH.md`
+
+The locked product direction is a web-native **Historical Data Browser**, not an ActiveX/E3Browser clone and not an arbitrary SQL console.
+
+Required first datasets:
+
+- `historian.samples`;
+- `alarm.events`.
+
+Required shared query behavior:
+
+- relative periods such as last N minutes/hours/days;
+- absolute start/end date and time;
+- canonical UTC query semantics with localized display/input;
+- visible effective filter interval;
+- configurable/sortable bounded tabular results;
+- server-side parameterized filtering and authorization;
+- exact typed historian values and explicit quality.
+
+Required historical alarm filters include at least:
+
+- alarm/event type;
+- alarm category/subcondition where available;
+- area/hierarchical area discovery;
+- source/name/path;
+- message;
+- severity/priority;
+- active/inactive persisted state;
+- acknowledged/unacknowledged and ACK-required state;
+- shelved state where persisted;
+- time period.
+
+Required historian filters include at least:
+
+- one or more canonical TAG references;
+- relative or absolute period;
+- optional quality filter;
+- deterministic timestamp ordering.
+
+Architecture boundaries:
+
+- current Alarm Center remains operational authority for current alarm state and protected ACK/shelving;
+- Historical Alarm Browser is read-only;
+- browser never connects directly to PostgreSQL/TimescaleDB;
+- normal product path never sends arbitrary SQL from browser to backend;
+- validated typed query descriptors map to protected dataset providers and parameterized DB queries;
+- temporary Runtime period/filter changes never silently dirty Engineering;
+- engineered Data Browser configuration on a Screen/Popup participates in canonical JSON, Preview/Apply, revision lifecycle and `.escadapkg`.
+
+Wave 09 assignments remain **NOT ACTIVE**. Exact slices and base SHA are frozen only after Wave 08 + 08-FOLLOW-A + 08-FOLLOW-B are green.
+
 ## Remaining v0.1 sequence
 
 - **Wave 08:** finish Engineering Development Monitor and final combined CI/merge.
 - **08-FOLLOW-A:** TAG Bit Access + Driver Bit-Level Boolean Binding.
 - **08-FOLLOW-B:** Typed Visual Expressions + Boolean Conditions + Analog Fill.
-- **Wave 09:** multiple Screens, Popups, reusable Dynamos, navigation and deterministic asset dependencies.
+- **Wave 09:** multiple Screens, Popups, reusable Dynamos, navigation, deterministic asset dependencies and Historical Data Browser for historian/alarm events with typed period/filter queries.
 - **Wave 10:** Python visual events, renderer-native animation/tween and Engineering visual Preview/Test.
 - **Wave 11:** build `Estação Elevatória EliteSCADA Demo` only through normal product APIs/tools.
 - **Wave 12:** hardening.

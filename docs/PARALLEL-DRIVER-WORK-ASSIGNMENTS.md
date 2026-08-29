@@ -3,7 +3,21 @@
 Date: 2026-08-29
 Status: **AUTHORIZED — PARALLEL / PARKED FROM MAINLINE**
 Coordinator: **Coordinator**
-Authorization baseline: `main` at `149a28c4bcc1e545ac2e43f7e7db40b9864724eb`
+Authorization baseline: `main` at `17ebb36b393d75a6b0f8de6ae04c90d2afc260c2`
+
+## Numbering rule
+
+`DEV 1`, `DEV 2` and `DEV 3` are reserved for the active Wave/FOLLOW-B development workstreams and must not be reused as Driver DEV identifiers.
+
+Parallel communication-driver work therefore uses the identifiers **DEV Driver 4 through DEV Driver 10**.
+
+The previous names `DEV Driver 1`, `DEV Driver 2` and `DEV Driver 3` are retired aliases. Their old branches `driver1/siemens-s7-iso`, `driver2/opc-ua` and `driver3/mqtt` must not receive new work. The canonical replacements are:
+
+- `DEV Driver 8` / `driver8/siemens-s7-iso` — Siemens S7 ISO-on-TCP;
+- `DEV Driver 9` / `driver9/opc-ua` — OPC UA;
+- `DEV Driver 10` / `driver10/mqtt` — MQTT.
+
+This numbering separation is intentional to prevent chat/assignment ambiguity between Wave workers and parallel Driver workers.
 
 ## Purpose and priority
 
@@ -69,9 +83,9 @@ CI remains **NORMAL**. Do not run reassurance CI after every small commit. Each 
 
 ---
 
-## DEV Driver 1 — Siemens S7 ISO-on-TCP
+## DEV Driver 8 — Siemens S7 ISO-on-TCP
 
-Branch: `driver1/siemens-s7-iso`
+Branch: `driver8/siemens-s7-iso`
 Status: **AUTHORIZED / PARALLEL**
 
 Primary references:
@@ -100,9 +114,9 @@ Constraints:
 
 ---
 
-## DEV Driver 2 — OPC UA
+## DEV Driver 9 — OPC UA
 
-Branch: `driver2/opc-ua`
+Branch: `driver9/opc-ua`
 Status: **AUTHORIZED / PARALLEL**
 
 Primary references:
@@ -131,9 +145,9 @@ Constraints:
 
 ---
 
-## DEV Driver 3 — MQTT
+## DEV Driver 10 — MQTT
 
-Branch: `driver3/mqtt`
+Branch: `driver10/mqtt`
 Status: **AUTHORIZED / PARALLEL**
 
 Primary reference:

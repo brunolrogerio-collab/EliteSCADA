@@ -160,7 +160,7 @@ public sealed class S7IsoProtocolTests
         Assert.Equal((byte)0x05, request[17]);
         Assert.Equal((byte)0x01, request[18]);
         Assert.Equal((byte)0x00, request[31]);
-        Assert.Equal((byte)0x04, request[32]);
+        Assert.Equal((byte)0x05, request[32]);
         Assert.Equal((ushort)32, BinaryPrimitives.ReadUInt16BigEndian(request.AsSpan(33, 2)));
         Assert.Equal(payload, request[35..39]);
 
@@ -173,6 +173,26 @@ public sealed class S7IsoProtocolTests
                 AckData(reference, new byte[] { 0x05, 0x01 }, new byte[] { 0x03 }),
                 reference));
         Assert.Equal((byte)0x03, rejected.ReturnCode);
+    }
+
+    [Fact]
+    public void WriteRequest_RealUsesRealTransportAndByteLength()
+    {
+        const ushort reference = 14;
+        var point = new S7IsoPoint(
+            Tag(TagDataType.Float),
+            S7IsoArea.DataBlock,
+            12,
+            S7IsoValueType.Float32,
+            DbNumber: 2,
+            Writable: true);
+        var payload = S7IsoValueCodec.Encode(point, 12.5f);
+
+        var request = S7IsoProtocol.BuildWriteRequest(reference, point, payload);
+
+        Assert.Equal((byte)0x07, request[32]);
+        Assert.Equal((ushort)4, BinaryPrimitives.ReadUInt16BigEndian(request.AsSpan(33, 2)));
+        Assert.Equal(payload, request[35..39]);
     }
 
     [Fact]

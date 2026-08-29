@@ -217,7 +217,8 @@ public sealed class MqttEngineeringCompilerTests
         Assert.Equal("mqtt.raw", descriptor.DriverType);
         Assert.Equal("elitescada.driver.mqtt.raw", descriptor.ConfigurationSchema.SchemaId);
         Assert.Equal(DriverEngineeringCapabilities.None, descriptor.EngineeringCapabilities);
-        Assert.Equal([DriverAcquisitionMode.EventDriven], descriptor.AcquisitionModes);
+        Assert.Single(descriptor.AcquisitionModes);
+        Assert.Equal(DriverAcquisitionMode.EventDriven, descriptor.AcquisitionModes.Single());
         Assert.True(descriptor.RuntimeCapabilities.HasFlag(DriverCapabilities.Read));
         Assert.True(descriptor.RuntimeCapabilities.HasFlag(DriverCapabilities.Write));
         Assert.True(descriptor.RuntimeCapabilities.HasFlag(DriverCapabilities.Subscribe));
@@ -228,7 +229,8 @@ public sealed class MqttEngineeringCompilerTests
         Assert.Equal(DriverConfigurationValueKind.SecretReference, password.ValueKind);
         var address = Assert.Single(descriptor.ConfigurationSchema.TagBindingFields, field => field.Key == "address");
         Assert.True(address.Required);
-        Assert.Contains("Exact MQTT topic", address.Description, StringComparison.Ordinal);
+        Assert.NotNull(address.Description);
+        Assert.Contains("Exact MQTT topic", address.Description!, StringComparison.Ordinal);
     }
 
     private static TagEngineeringDto Tag(

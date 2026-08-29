@@ -46,6 +46,7 @@ public static class BacnetEngineeringRuntimePlanner
         var timeoutMs = ParseInt(settings, "requestTimeoutMilliseconds", 3000, 100, 60000, dataSource.Key, issues);
         var discoveryMs = ParseInt(settings, "discoveryWindowMilliseconds", 1500, 100, 30000, dataSource.Key, issues);
         var bbmdAddress = Get(settings, "bbmdAddress");
+        var targetAddress = Get(settings, "targetAddress");
         var foreignTtl = ParseOptionalInt(settings, "foreignDeviceTtlSeconds", 30, short.MaxValue, dataSource.Key, issues);
         if (foreignTtl.HasValue && string.IsNullOrWhiteSpace(bbmdAddress))
             issues.Add(Error("BACNET_BBMD_REQUIRED_FOR_FDR", "BACnet Foreign Device Registration requires setting 'bbmdAddress'.", dataSource.Key));
@@ -99,7 +100,8 @@ public static class BacnetEngineeringRuntimePlanner
             Retries: 2,
             TimeSpan.FromMilliseconds(discoveryMs),
             bbmdAddress,
-            foreignTtl);
+            foreignTtl,
+            targetAddress);
         try
         {
             sessionOptions.Validate();

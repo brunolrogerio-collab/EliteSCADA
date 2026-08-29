@@ -133,7 +133,13 @@ internal sealed class S7IsoTransport : IAsyncDisposable
                 try
                 {
                     var response = await ExchangeUnsafeAsync(request, _options.RequestTimeout, cancellationToken);
-                    results.AddRange(S7IsoProtocol.ParseReadResponse(response, reference, batch));
+                    var parsed = S7IsoProtocol.ParseReadResponse(response, reference, batch);
+                    foreach (var item in parsed)
+                    {
+                        if (!item.Succeeded)
+                            RecordFailure(S7IsoFailureClassifier.ClassifyReturnCode(item.ReturnCode, writeOperation: false));
+                    }
+                    results.AddRange(parsed);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {

@@ -1,20 +1,49 @@
+using System.Diagnostics;
+using System.Globalization;
 using Scada.Core.Tags;
 using Scada.Drivers.Abstractions;
 
 namespace Scada.Drivers.OpcUa;
 
-public sealed class OpcUaCommunicationDriver : ICommunicationDriver
+public sealed class OpcUaCommunicationDriver : ICommunicationDriver, ICommunicationDiagnosticsSource
 {
+    private const int RecentOutcomeWindow = 100;
+
     private readonly ICurrentTagCache _cache;
     private readonly ITagRegistry _registry;
     private readonly IReadOnlyList<OpcUaRuntimeBinding> _bindings;
     private readonly IReadOnlyDictionary<Guid, OpcUaRuntimeBinding> _bindingsByTagId;
     private readonly OpcUaRuntimeSessionSupervisor _sessions;
     private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
+    private readonly object _diagnosticsGate = new();
+    private readonly Queue<bool> _recentFailures = new();
+    private readonly string _runtimeInstanceId = Guid.NewGuid().ToString("N");
+    private readonly string? _endpoint;
+    private readonly TimeSpan? _publishingInterval;
+
     private CancellationTokenSource? _runtimeCts;
     private Task? _subscriptionLoop;
     private long _updatesPublished;
     private int _disposed;
+
+    private CommunicationDriverOperationalState _communicationState;
+    private DateTimeOffset _stateChangedAt;
+    private DateTimeOffset? _lastSuccessfulCommunicationAt;
+    private DateTimeOffset? _lastFailedCommunicationAt;
+    private string? _lastError;
+    private long _subscriptionCycles;
+    private long _requestAttempts;
+    private long _successfulOperations;
+    private long _failedOperations;
+    private long _consecutiveFailures;
+    private long _timeouts;
+    private long _connections;
+    private long _disconnections;
+    private long _reconnects;
+    private long _writeOperations;
+    private long _timedOperationCount;
+    private long _lastOperationDurationTicks;
+    private long _totalOperationDurationTicks;
 
     public OpcUaCommunicationDriver(
         string driverId,
@@ -23,7 +52,9 @@ public sealed class OpcUaCommunicationDriver : ICommunicationDriver
         ITagRegistry registry,
         IEnumerable<TagDefinition> tags,
         IOpcUaRuntimeSessionFactory sessionFactory,
-        IReadOnlyList<TimeSpan>? reconnectDelays = null)
+        IReadOnlyList<TimeSpan>? reconnectDelays = null,
+        string? endpoint = null,
+        TimeSpan? publishingInterval = null)
     {
         if (string.IsNullOrWhiteSpace(driverId)) throw new ArgumentException("Driver ID is required.", nameof(driverId));
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Driver name is required.", nameof(name));
@@ -31,6 +62,8 @@ public sealed class OpcUaCommunicationDriver : ICommunicationDriver
         ArgumentNullException.ThrowIfNull(registry);
         ArgumentNullException.ThrowIfNull(tags);
         ArgumentNullException.ThrowIfNull(sessionFactory);
+        if (publishingInterval.HasValue && publishingInterval.Value <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(publishingInterval));
 
         DriverId = driverId.Trim();
         Name = name.Trim();
@@ -43,7 +76,12 @@ public sealed class OpcUaCommunicationDriver : ICommunicationDriver
 
         _bindingsByTagId = _bindings.ToDictionary(x => x.Tag.Id);
         _sessions = new OpcUaRuntimeSessionSupervisor(sessionFactory, reconnectDelays);
-        Status = NewStatus(DriverState.Stopped);
+        _endpoint = SanitizeEndpoint(endpoint);
+        _publishingInterval = publishingInterval;
+        var now = DateTimeOffset.UtcNow;
+        _communicationState = CommunicationDriverOperationalState.Stopped;
+        _stateChangedAt = now;
+        Status = new DriverStatus(DriverId, Name, DriverState.Stopped, now);
     }
 
     public string DriverId { get; }
@@ -52,6 +90,7 @@ public sealed class OpcUaCommunicationDriver : ICommunicationDriver
         DriverCapabilities.Read |
         DriverCapabilities.Write |
         DriverCapabilities.Subscribe |
+        DriverCapabilities.Diagnostics |
         DriverCapabilities.SourceTimestamp |
         DriverCapabilities.ServerTimestamp;
     public DriverStatus Status { get; private set; }
@@ -65,19 +104,31 @@ public sealed class OpcUaCommunicationDriver : ICommunicationDriver
         {
             if (_runtimeCts is { IsCancellationRequested: false }) return;
             Status = NewStatus(DriverState.Starting);
+            TransitionCommunicationState(CommunicationDriverOperationalState.Starting);
             RegisterTags();
 
             try
             {
                 await _sessions.ConnectAsync(_bindings, cancellationToken).ConfigureAwait(false);
+                RecordConnected(reconnect: false);
                 _runtimeCts = new CancellationTokenSource();
                 Status = NewStatus(DriverState.Running);
+                TransitionCommunicationState(CommunicationDriverOperationalState.Healthy);
                 _subscriptionLoop = PumpSubscriptionsAsync(_runtimeCts.Token);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                await _sessions.DisconnectAsync().ConfigureAwait(false);
+                TransitionCommunicationState(CommunicationDriverOperationalState.Stopped);
+                Status = NewStatus(DriverState.Stopped);
+                throw;
             }
             catch (Exception ex)
             {
+                RecordFailure(ex);
                 await _sessions.DisconnectAsync().ConfigureAwait(false);
-                Status = NewStatus(DriverState.Faulted, ex.Message);
+                TransitionCommunicationState(CommunicationDriverOperationalState.Faulted);
+                Status = NewStatus(DriverState.Faulted, SanitizeError(ex));
                 throw;
             }
         }
@@ -95,12 +146,16 @@ public sealed class OpcUaCommunicationDriver : ICommunicationDriver
             var cts = _runtimeCts;
             if (cts is null)
             {
+                var hadSession = _sessions.CurrentSession is not null;
                 await _sessions.DisconnectAsync().ConfigureAwait(false);
+                if (hadSession) RecordDisconnected();
                 Status = NewStatus(DriverState.Stopped);
+                TransitionCommunicationState(CommunicationDriverOperationalState.Stopped);
                 return;
             }
 
             Status = NewStatus(DriverState.Stopping);
+            TransitionCommunicationState(CommunicationDriverOperationalState.Stopping);
             await cts.CancelAsync().ConfigureAwait(false);
             if (_subscriptionLoop is not null)
             {
@@ -113,11 +168,14 @@ public sealed class OpcUaCommunicationDriver : ICommunicationDriver
                 }
             }
 
+            var hadActiveSession = _sessions.CurrentSession is not null;
             await _sessions.DisconnectAsync().ConfigureAwait(false);
+            if (hadActiveSession) RecordDisconnected();
             cts.Dispose();
             _runtimeCts = null;
             _subscriptionLoop = null;
             Status = NewStatus(DriverState.Stopped);
+            TransitionCommunicationState(CommunicationDriverOperationalState.Stopped);
         }
         finally
         {
@@ -142,9 +200,92 @@ public sealed class OpcUaCommunicationDriver : ICommunicationDriver
         var session = _sessions.CurrentSession
             ?? throw new InvalidOperationException("OPC UA runtime session is not available.");
 
-        await session.WriteAsync(binding, value!, cancellationToken).ConfigureAwait(false);
+        var started = Stopwatch.GetTimestamp();
+        try
+        {
+            await session.WriteAsync(binding, value!, cancellationToken).ConfigureAwait(false);
+            RecordWrite(success: true, Stopwatch.GetElapsedTime(started), null);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            RecordWrite(success: false, Stopwatch.GetElapsedTime(started), ex);
+            TransitionCommunicationState(CommunicationDriverOperationalState.Degraded);
+            throw;
+        }
+
         await PublishAsync(new OpcUaRuntimeDataValue(tagId, value, TagQuality.Good), cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    public CommunicationDriverDiagnosticSnapshot GetCommunicationDiagnostics()
+    {
+        var capturedAt = DateTimeOffset.UtcNow;
+        var quality = BuildQualitySummary();
+
+        lock (_diagnosticsGate)
+        {
+            var averageDuration = _timedOperationCount == 0
+                ? (TimeSpan?)null
+                : TimeSpan.FromTicks(_totalOperationDurationTicks / _timedOperationCount);
+            var failureRate = _recentFailures.Count == 0
+                ? 0d
+                : _recentFailures.Count(x => x) / (double)_recentFailures.Count;
+            var dataAge = _lastSuccessfulCommunicationAt.HasValue
+                ? capturedAt - _lastSuccessfulCommunicationAt.Value
+                : (TimeSpan?)null;
+            var details = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["acquisitionMode"] = "Subscription",
+                ["bindingCount"] = _bindings.Count.ToString(CultureInfo.InvariantCulture),
+                ["writableBindingCount"] = _bindings.Count(x => x.Writable).ToString(CultureInfo.InvariantCulture),
+                ["namespaceUriBindingCount"] = _bindings.Count(x => x.Node.NamespaceUri is not null).ToString(CultureInfo.InvariantCulture),
+                ["requestCounterScope"] = "driverInitiatedWritesOnly"
+            };
+            if (_publishingInterval.HasValue)
+            {
+                details["publishingIntervalMs"] = _publishingInterval.Value.TotalMilliseconds
+                    .ToString("0.###", CultureInfo.InvariantCulture);
+            }
+
+            return new CommunicationDriverDiagnosticSnapshot(
+                DriverId,
+                Name,
+                OpcUaDriverDescriptorProvider.DriverTypeId,
+                _runtimeInstanceId,
+                _endpoint,
+                _communicationState,
+                _stateChangedAt,
+                capturedAt,
+                _lastSuccessfulCommunicationAt,
+                _lastFailedCommunicationAt,
+                _lastError,
+                dataAge,
+                _publishingInterval,
+                _timedOperationCount == 0 ? null : TimeSpan.FromTicks(_lastOperationDurationTicks),
+                averageDuration,
+                null,
+                failureRate,
+                _bindings.Count,
+                quality,
+                new CommunicationDriverCounters(
+                    _subscriptionCycles,
+                    _requestAttempts,
+                    _successfulOperations,
+                    _failedOperations,
+                    _consecutiveFailures,
+                    _timeouts,
+                    _connections,
+                    _disconnections,
+                    _reconnects,
+                    0,
+                    _writeOperations,
+                    Interlocked.Read(ref _updatesPublished)),
+                details);
+        }
     }
 
     private async Task PumpSubscriptionsAsync(CancellationToken cancellationToken)
@@ -156,21 +297,32 @@ public sealed class OpcUaCommunicationDriver : ICommunicationDriver
                 var session = _sessions.CurrentSession;
                 if (session is null)
                 {
+                    TransitionCommunicationState(CommunicationDriverOperationalState.Reconnecting);
                     session = await _sessions.ReconnectUntilAvailableAsync(
                         _bindings,
-                        attempt => Status = NewStatus(
-                            DriverState.Faulted,
-                            $"OPC UA reconnect attempt {attempt} failed."),
+                        attempt =>
+                        {
+                            RecordFailureMessage($"OPC UA reconnect attempt {attempt} failed.");
+                            Status = NewStatus(
+                                DriverState.Faulted,
+                                $"OPC UA reconnect attempt {attempt} failed.");
+                        },
                         cancellationToken).ConfigureAwait(false);
+                    RecordConnected(reconnect: true);
                     Status = NewStatus(DriverState.Running, "OPC UA runtime session reconnected.");
+                    TransitionCommunicationState(CommunicationDriverOperationalState.Healthy);
                 }
 
                 try
                 {
+                    RecordSubscriptionCycle();
                     await foreach (var observed in session.SubscribeAsync(cancellationToken).WithCancellation(cancellationToken))
                     {
                         if (_bindingsByTagId.ContainsKey(observed.TagId))
+                        {
+                            RecordSubscriptionUpdate();
                             await PublishAsync(observed, cancellationToken).ConfigureAwait(false);
+                        }
                     }
 
                     if (!cancellationToken.IsCancellationRequested)
@@ -180,11 +332,14 @@ public sealed class OpcUaCommunicationDriver : ICommunicationDriver
                 {
                     break;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    RecordFailure(ex);
                     Status = NewStatus(DriverState.Faulted, "OPC UA subscription interrupted. Reconnecting.");
+                    TransitionCommunicationState(CommunicationDriverOperationalState.Reconnecting);
                     await PublishCommunicationFailureAsync(cancellationToken).ConfigureAwait(false);
                     await _sessions.InvalidateAsync(session).ConfigureAwait(false);
+                    RecordDisconnected();
                 }
             }
         }
@@ -193,7 +348,9 @@ public sealed class OpcUaCommunicationDriver : ICommunicationDriver
         }
         catch (Exception ex)
         {
-            Status = NewStatus(DriverState.Faulted, ex.Message);
+            RecordFailure(ex);
+            TransitionCommunicationState(CommunicationDriverOperationalState.Faulted);
+            Status = NewStatus(DriverState.Faulted, SanitizeError(ex));
         }
     }
 
@@ -259,11 +416,177 @@ public sealed class OpcUaCommunicationDriver : ICommunicationDriver
         }
     }
 
+    private void RecordConnected(bool reconnect)
+    {
+        lock (_diagnosticsGate)
+        {
+            _connections++;
+            if (reconnect) _reconnects++;
+            RecordOutcomeUnsafe(success: true, null);
+        }
+    }
+
+    private void RecordDisconnected()
+    {
+        lock (_diagnosticsGate)
+        {
+            _disconnections++;
+        }
+    }
+
+    private void RecordSubscriptionCycle()
+    {
+        lock (_diagnosticsGate)
+        {
+            _subscriptionCycles++;
+        }
+    }
+
+    private void RecordSubscriptionUpdate()
+    {
+        lock (_diagnosticsGate)
+        {
+            RecordOutcomeUnsafe(success: true, null);
+        }
+    }
+
+    private void RecordWrite(bool success, TimeSpan duration, Exception? error)
+    {
+        lock (_diagnosticsGate)
+        {
+            _requestAttempts++;
+            _writeOperations++;
+            _timedOperationCount++;
+            _lastOperationDurationTicks = duration.Ticks;
+            _totalOperationDurationTicks += duration.Ticks;
+            RecordOutcomeUnsafe(success, error);
+        }
+    }
+
+    private void RecordFailure(Exception error)
+    {
+        lock (_diagnosticsGate)
+        {
+            RecordOutcomeUnsafe(success: false, error);
+        }
+    }
+
+    private void RecordFailureMessage(string message)
+    {
+        lock (_diagnosticsGate)
+        {
+            RecordOutcomeUnsafe(success: false, null, message);
+        }
+    }
+
+    private void RecordOutcomeUnsafe(bool success, Exception? error, string? explicitMessage = null)
+    {
+        var now = DateTimeOffset.UtcNow;
+        _recentFailures.Enqueue(!success);
+        while (_recentFailures.Count > RecentOutcomeWindow) _recentFailures.Dequeue();
+
+        if (success)
+        {
+            _successfulOperations++;
+            _consecutiveFailures = 0;
+            _lastSuccessfulCommunicationAt = now;
+            return;
+        }
+
+        _failedOperations++;
+        _consecutiveFailures++;
+        _lastFailedCommunicationAt = now;
+        if (error is TimeoutException) _timeouts++;
+        _lastError = explicitMessage ?? SanitizeError(error);
+    }
+
+    private void TransitionCommunicationState(CommunicationDriverOperationalState state)
+    {
+        lock (_diagnosticsGate)
+        {
+            if (_communicationState == state) return;
+            _communicationState = state;
+            _stateChangedAt = DateTimeOffset.UtcNow;
+        }
+    }
+
+    private CommunicationTagQualitySummary BuildQualitySummary()
+    {
+        var good = 0;
+        var badCommunication = 0;
+        var uncertain = 0;
+        var bad = 0;
+        var badConfiguration = 0;
+        var badDevice = 0;
+        var stale = 0;
+        var disabled = 0;
+        var noSample = 0;
+
+        foreach (var binding in _bindings)
+        {
+            if (!_cache.TryGet(binding.Tag.Id, out var sample) || sample is null)
+            {
+                noSample++;
+                continue;
+            }
+
+            switch (sample.Quality)
+            {
+                case TagQuality.Good: good++; break;
+                case TagQuality.BadCommunication: badCommunication++; break;
+                case TagQuality.Uncertain: uncertain++; break;
+                case TagQuality.Bad: bad++; break;
+                case TagQuality.BadConfiguration: badConfiguration++; break;
+                case TagQuality.BadDevice: badDevice++; break;
+                case TagQuality.Stale: stale++; break;
+                case TagQuality.Disabled: disabled++; break;
+                default: bad++; break;
+            }
+        }
+
+        return new CommunicationTagQualitySummary(
+            good,
+            badCommunication,
+            uncertain,
+            bad,
+            badConfiguration,
+            badDevice,
+            stale,
+            disabled,
+            noSample);
+    }
+
     private DriverStatus NewStatus(DriverState state, string? message = null) =>
         new(DriverId, Name, state, DateTimeOffset.UtcNow, message, _updatesPublished);
 
-    private void ThrowIfDisposed() =>
-        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+    private static string? SanitizeEndpoint(string? endpoint)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint)) return null;
+        var trimmed = endpoint.Trim();
+        if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)) return null;
+
+        var builder = new UriBuilder(uri)
+        {
+            UserName = string.Empty,
+            Password = string.Empty,
+            Query = string.Empty,
+            Fragment = string.Empty
+        };
+        return builder.Uri.AbsoluteUri.TrimEnd('/');
+    }
+
+    private static string SanitizeError(Exception? error)
+    {
+        if (error is null) return string.Empty;
+        var message = error.Message.Replace('\r', ' ').Replace('\n', ' ').Trim();
+        return message.Length <= 512 ? message : message[..512];
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (Volatile.Read(ref _disposed) != 0)
+            throw new ObjectDisposedException(nameof(OpcUaCommunicationDriver));
+    }
 
     public async ValueTask DisposeAsync()
     {

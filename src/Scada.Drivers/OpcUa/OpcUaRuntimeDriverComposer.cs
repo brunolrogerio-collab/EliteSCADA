@@ -42,7 +42,9 @@ public static class OpcUaRuntimeDriverComposer
             registry,
             tags,
             sessionFactory,
-            reconnectDelays);
+            reconnectDelays,
+            options.EndpointUrl,
+            options.EffectivePublishingInterval);
     }
 
     public static OpcUaRuntimeConnectionOptions ParseConnectionOptions(

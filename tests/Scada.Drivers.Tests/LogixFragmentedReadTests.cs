@@ -122,15 +122,18 @@ public sealed class LogixFragmentedReadTests
     public async Task ReadCompleteAsync_StopsAtConfiguredFragmentBound()
     {
         var reference = new LogixSymbolReference(LogixTagScope.Controller, "ArrayTag", LogixNativeType.Sint);
-        var error = await Assert.ThrowsAsync<LogixCipException>(async () => await LogixFragmentedRead.ReadCompleteAsync(
-            reference,
-            10,
-            (_, _) => ValueTask.FromResult(new LogixCipResponse(
-                0xD2,
-                0x06,
-                Array.Empty<ushort>(),
-                [0xC2, 0x00, 0x01])),
-            maximumFragments: 2));
+        var error = await Assert.ThrowsAsync<LogixCipException>(async () =>
+        {
+            _ = await LogixFragmentedRead.ReadCompleteAsync(
+                reference,
+                10,
+                (_, _) => ValueTask.FromResult(new LogixCipResponse(
+                    0xD2,
+                    0x06,
+                    Array.Empty<ushort>(),
+                    [0xC2, 0x00, 0x01])),
+                maximumFragments: 2);
+        });
 
         Assert.Equal(LogixProtocolError.FragmentationFailed, error.Error);
     }

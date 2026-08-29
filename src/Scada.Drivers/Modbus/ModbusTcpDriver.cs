@@ -15,6 +15,7 @@ public sealed class ModbusTcpDriver : ICommunicationDriver, ICommunicationDiagno
     private readonly IReadOnlyList<ModbusPollBlock> _pollBlocks;
     private readonly ModbusTcpTransport _transport;
     private readonly Dictionary<Guid, ModbusPoint> _pointsByTagId;
+    private readonly SemaphoreSlim _writeGate = new(1, 1);
     private readonly object _diagnosticsGate = new();
     private readonly Queue<bool> _recentFailures = new();
     private readonly string _runtimeInstanceId = Guid.NewGuid().ToString("N");
@@ -138,38 +139,60 @@ public sealed class ModbusTcpDriver : ICommunicationDriver, ICommunicationDiagno
         if (!point.Writable)
             throw new InvalidOperationException($"Modbus TAG '{point.Tag.Path}' is not writable.");
 
-        Func<Task> writeOperation;
-        if (point.Area == ModbusDataArea.Coil)
-        {
-            var encoded = ModbusValueCodec.EncodeBit(point, value);
-            writeOperation = () => _transport.WriteSingleCoilAsync(point.UnitId, point.Address, encoded, cancellationToken);
-        }
-        else if (point.Area == ModbusDataArea.HoldingRegister)
-        {
-            var registers = ModbusValueCodec.EncodeRegisters(point, value);
-            writeOperation = registers.Length == 1
-                ? () => _transport.WriteSingleRegisterAsync(point.UnitId, point.Address, registers[0], cancellationToken)
-                : () => _transport.WriteMultipleRegistersAsync(point.UnitId, point.Address, registers, cancellationToken);
-        }
-        else
-        {
-            throw new InvalidOperationException($"Modbus area '{point.Area}' is read-only.");
-        }
-
-        var started = Stopwatch.GetTimestamp();
+        await _writeGate.WaitAsync(cancellationToken);
         try
         {
-            await writeOperation();
-            RecordOperation(success: true, read: false, write: true, Stopwatch.GetElapsedTime(started), null);
-        }
-        catch (Exception ex) when (IsCommunicationException(ex))
-        {
-            RecordOperation(success: false, read: false, write: true, Stopwatch.GetElapsedTime(started), ex);
-            TransitionCommunicationState(CommunicationDriverOperationalState.Degraded);
-            throw;
-        }
+            Func<Task> writeOperation;
+            if (point.Area == ModbusDataArea.Coil)
+            {
+                var encoded = ModbusValueCodec.EncodeBit(point, value);
+                writeOperation = () => _transport.WriteSingleCoilAsync(point.UnitId, point.Address, encoded, cancellationToken);
+            }
+            else if (point.Area == ModbusDataArea.HoldingRegister && point.AddressSelector is not null)
+            {
+                writeOperation = async () =>
+                {
+                    var current = await _transport.ReadRegistersAsync(
+                        point.UnitId,
+                        ModbusDataArea.HoldingRegister,
+                        point.Address,
+                        1,
+                        cancellationToken);
+                    var updated = ModbusValueCodec.ApplyRegisterBit(point, current[0], value);
+                    await _transport.WriteSingleRegisterAsync(point.UnitId, point.Address, updated, cancellationToken);
+                };
+            }
+            else if (point.Area == ModbusDataArea.HoldingRegister)
+            {
+                var registers = ModbusValueCodec.EncodeRegisters(point, value);
+                writeOperation = registers.Length == 1
+                    ? () => _transport.WriteSingleRegisterAsync(point.UnitId, point.Address, registers[0], cancellationToken)
+                    : () => _transport.WriteMultipleRegistersAsync(point.UnitId, point.Address, registers, cancellationToken);
+            }
+            else
+            {
+                throw new InvalidOperationException($"Modbus area '{point.Area}' is read-only.");
+            }
 
-        await PublishAsync(point, value, TagQuality.Good, cancellationToken);
+            var started = Stopwatch.GetTimestamp();
+            try
+            {
+                await writeOperation();
+                RecordOperation(success: true, read: false, write: true, Stopwatch.GetElapsedTime(started), null);
+            }
+            catch (Exception ex) when (IsCommunicationException(ex))
+            {
+                RecordOperation(success: false, read: false, write: true, Stopwatch.GetElapsedTime(started), ex);
+                TransitionCommunicationState(CommunicationDriverOperationalState.Degraded);
+                throw;
+            }
+
+            await PublishAsync(point, value, TagQuality.Good, cancellationToken);
+        }
+        finally
+        {
+            _writeGate.Release();
+        }
     }
 
     public CommunicationDriverDiagnosticSnapshot GetCommunicationDiagnostics()
@@ -547,6 +570,7 @@ public sealed class ModbusTcpDriver : ICommunicationDriver, ICommunicationDiagno
         await StopAsync();
         _cts?.Dispose();
         await _transport.DisposeAsync();
+        _writeGate.Dispose();
     }
 
     private sealed record ModbusPollBlock(

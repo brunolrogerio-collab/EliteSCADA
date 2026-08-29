@@ -11,7 +11,9 @@ The objective is to keep common HMI behavior declarative, canonical, importable/
 
 The current DEV 1 Canvas, DEV 2 Property Inspector and DEV 3 Palette/Binding assignments remain unchanged.
 
-After those slices are delivered and integrated, the coordinator must plan/assign the implementation described here before formally advancing to Wave 09.
+After those slices are delivered and integrated, the coordinator must first stabilize the transversal TAG bit-reference/binding contract in `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`. This visual-expression follow-up then consumes that public reference semantics rather than inventing its own `.NN` parser/identity.
+
+Only after both follow-ups are complete may the project formally advance to Wave 09.
 
 This requirement must not be implemented as renderer-only state, private React state, opaque `metadata`, CSS tricks, arbitrary JavaScript evaluation or Python-only behavior.
 
@@ -51,6 +53,7 @@ The existing precedence remains:
 The first implementation must support expression dependencies from at least:
 
 - canonical TAGs;
+- canonical integer TAG bit selectors from `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`;
 - Client Memory values where valid for that client-local visual context.
 
 A later extension may allow other explicitly supported canonical sources, but expressions must never gain direct driver/database/network/DOM access.
@@ -58,6 +61,24 @@ A later extension may allow other explicitly supported canonical sources, but ex
 The editor may display friendly TAG names/paths, but saved Engineering must preserve deterministic dependency resolution. An expression must not depend only on an ambiguous display label that can silently resolve to another TAG after rename/import.
 
 The exact serialized representation is an implementation decision, but canonical Engineering must retain enough dependency information to validate references, migrate them, export/import them and diagnose missing sources.
+
+### 3.1.1 Integer TAG bit selectors
+
+After the TAG-bit contract is implemented, an integer TAG bit selector is a first-class Boolean expression dependency.
+
+Examples:
+
+`Word_status.03`
+
+`Word_comando.07`
+
+`Word_status.03 or falha_bomba1`
+
+The `.NN` notation is authoring/display syntax. Expression persistence must depend on the resolved canonical TAG identity plus bit index, not only on a string token.
+
+The expression engine does not independently define bit width, LSB/MSB convention, signed handling, quality or write semantics. Those all come from `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`.
+
+A bad/unavailable integer source makes its bit-selector dependency unavailable with the same source quality semantics. It must not become Boolean `false` merely because a bit cannot currently be resolved.
 
 ### 3.2 Result type must match destination type
 
@@ -76,6 +97,8 @@ Initial required conversions:
 - `number(boolean)` -> `0` for false and `1` for true.
 
 These conversions must be explicit in the expression so Engineering intent is visible.
+
+A bit selector already has Boolean type and therefore requires no conversion when driving a Boolean property.
 
 ### 3.3 Boolean operators
 
@@ -97,6 +120,10 @@ Examples for a boolean destination such as `visible`:
 `not permissivo_bomba1`
 
 `(nivel1 > 80) or falha_bomba1`
+
+`Word_status.03 or falha_bomba1`
+
+`Word_status.07 and not Word_status.08`
 
 If `falha_inversor1` and `falha_bomba1` are numeric 0/1 TAGs rather than boolean TAGs, arithmetic may be used but conversion to the final boolean result remains explicit:
 
@@ -186,6 +213,8 @@ An explicit invert/negate option may produce:
 
 `destination = not sourceBoolean`
 
+A canonical integer TAG bit selector is also a valid direct Boolean source once TAG-bit support is implemented.
+
 ### 4.2 Numeric interval preset
 
 A numeric source can be evaluated against a configured interval and converted deterministically to a boolean result.
@@ -215,6 +244,8 @@ The exact DTO/property names are an implementation decision, but the condition/e
 
 Expression dependencies are reactive: when a referenced TAG/Client Memory value changes, the affected visual Binding/Expression is reevaluated according to normal runtime scheduling/coalescing rules.
 
+A bit-selector dependency reevaluates when its authoritative integer TAG sample changes. It does not require a second independent polling/subscription path.
+
 If any required source is unavailable, unresolved, wrong type or does not have usable quality, the expression must not invent a result.
 
 For that evaluation the Binding/Expression layer is treated as unavailable and the property falls back through the normal lower-precedence source, with diagnostics.
@@ -233,6 +264,7 @@ For boolean properties, minimum conceptual modes are:
 
 - Engineering constant `true` / `false`;
 - direct boolean binding;
+- direct integer-TAG bit selector binding where applicable;
 - numeric interval condition;
 - typed expression.
 
@@ -245,6 +277,7 @@ For numeric properties, minimum conceptual modes are:
 The editor must provide:
 
 - TAG/Client Memory reference insertion or autocomplete from the canonical source catalog;
+- bit selection UI/autocomplete for eligible integer TAGs, with the valid range derived from the canonical TAG width;
 - expression syntax validation before Apply;
 - resolved dependency/type validation;
 - understandable errors with location where practical;
@@ -336,6 +369,8 @@ Expression, Boolean Condition and Analog Fill configuration must participate in 
 
 Canonical persistence must include expression source/configuration plus deterministic source dependencies/references required for validation and portability.
 
+For bit-selector dependencies, persistence must retain stable TAG identity and bit index in the form defined by the TAG-bit contract. The friendly `.NN` text is not sufficient identity by itself.
+
 Runtime-effective expression results, condition booleans and calculated fill percentages are presentation state and are **not** written back into saved Engineering merely because Runtime evaluated them.
 
 ## 12. Python and runtime interoperability
@@ -350,6 +385,8 @@ A script must see stable public property/behavior semantics rather than renderer
 
 Expression execution and Python execution remain distinct. A visual expression cannot call Python and Python source is not accepted as an expression.
 
+Bit-selector access exposed to Python must use the same canonical TAG-bit semantics and authorization boundary, not a second script-only bit numbering scheme.
+
 ## 13. Diagnostics
 
 Runtime/Engineering diagnostics should identify, where applicable:
@@ -358,6 +395,7 @@ Runtime/Engineering diagnostics should identify, where applicable:
 - active source kind;
 - expression text or safe normalized representation;
 - resolved dependencies;
+- resolved bit index for TAG-bit dependencies;
 - expression result type;
 - syntax/type error and location where practical;
 - invalid operation such as division by zero;
@@ -372,24 +410,26 @@ Before this requirement is considered implemented, automated acceptance must pro
 
 1. every built-in renderable object exposes `visible`;
 2. a boolean TAG/Client Memory source can directly control a boolean visual property;
-3. `falha_inversor1 or falha_bomba1`-style boolean expressions evaluate deterministically;
-4. `and`, `or`, `not`, comparisons and parentheses obey defined precedence;
-5. numeric expressions such as `(nivel1 + nivel2) * 3` can drive a compatible numeric property;
-6. explicit numeric/boolean conversions work while implicit coercion is rejected;
-7. division by zero/non-finite results fail the Binding/Expression evaluation with diagnostics;
-8. a numeric source can control `visible` through an inside range;
-9. one-sided and outside-range conditions behave deterministically;
-10. bad/unavailable dependencies do not silently force false/zero and fall back according to normal precedence;
-11. canonical dependency validation rejects missing/ambiguous expression sources;
-12. import/export and revision/package round-trip preserve expression/condition configuration and dependencies;
-13. rectangle Analog Fill maps configured engineering values to 0%, intermediate percentage and 100%;
-14. Analog Fill accepts a numeric expression as its input;
-15. clamping and all four initial fill directions work;
-16. ellipse/circle uses the same canonical Analog Fill contract rather than a separate object-private implementation;
-17. save/reopen/export/import preserve Analog Fill configuration;
-18. Runtime-calculated expression/boolean/fill state is not persisted as Engineering base state;
-19. expression evaluation is bounded and cannot execute arbitrary code;
-20. existing Python/binding/property-precedence regressions remain green.
+3. a canonical integer TAG bit selector can directly control a Boolean property;
+4. an expression such as `Word_status.03 or falha_bomba1` evaluates with the TAG-bit contract's quality/type semantics;
+5. `falha_inversor1 or falha_bomba1`-style boolean expressions evaluate deterministically;
+6. `and`, `or`, `not`, comparisons and parentheses obey defined precedence;
+7. numeric expressions such as `(nivel1 + nivel2) * 3` can drive a compatible numeric property;
+8. explicit numeric/boolean conversions work while implicit coercion is rejected;
+9. division by zero/non-finite results fail the Binding/Expression evaluation with diagnostics;
+10. a numeric source can control `visible` through an inside range;
+11. one-sided and outside-range conditions behave deterministically;
+12. bad/unavailable dependencies, including bit selectors, do not silently force false/zero and fall back according to normal precedence;
+13. canonical dependency validation rejects missing/ambiguous expression sources and invalid bit selectors;
+14. import/export and revision/package round-trip preserve expression/condition configuration and canonical bit dependencies;
+15. rectangle Analog Fill maps configured engineering values to 0%, intermediate percentage and 100%;
+16. Analog Fill accepts a numeric expression as its input;
+17. clamping and all four initial fill directions work;
+18. ellipse/circle uses the same canonical Analog Fill contract rather than a separate object-private implementation;
+19. save/reopen/export/import preserve Analog Fill configuration;
+20. Runtime-calculated expression/boolean/fill state is not persisted as Engineering base state;
+21. expression evaluation is bounded and cannot execute arbitrary code;
+22. existing Python/binding/property-precedence regressions remain green.
 
 ## 15. Explicit non-goals of the first follow-up
 
@@ -401,6 +441,7 @@ Not required initially:
 - JavaScript/Python evaluation;
 - visual-property-to-visual-property expression dependencies unless separately promoted with cycle validation;
 - string interpolation/formatting beyond existing dedicated display behavior;
+- redefining TAG bit width/numbering/write semantics inside the visual-expression engine;
 - hysteresis/debounce for visual conditions;
 - radial/path/tank-shape fill geometries beyond objects explicitly supported;
 - threshold color bands or gradient color stops;

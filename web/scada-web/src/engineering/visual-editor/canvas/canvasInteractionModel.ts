@@ -95,6 +95,27 @@ export function nextSelection(
   }
 }
 
+export function collapseHierarchySelection(
+  elements: readonly VisualElementEngineering[],
+  objectIds: readonly string[]
+): readonly string[] {
+  const selected = new Set(normalizeSelection(objectIds));
+  const result: string[] = [];
+
+  const visit = (element: VisualElementEngineering, selectedAncestor: boolean): void => {
+    const objectId = normalizeObjectId(element.id);
+    const isSelected = objectId !== null && selected.has(objectId);
+    if (isSelected && !selectedAncestor) result.push(objectId);
+    const descendantHasSelectedAncestor = selectedAncestor || isSelected;
+    for (const child of element.children ?? []) {
+      visit(child, descendantHasSelectedAncestor);
+    }
+  };
+
+  for (const element of elements) visit(element, false);
+  return Object.freeze(result);
+}
+
 export function selectionModeFromModifiers(modifiers: Readonly<{
   shiftKey: boolean;
   metaKey: boolean;

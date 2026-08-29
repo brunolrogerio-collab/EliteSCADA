@@ -20,7 +20,9 @@ This document records the implementation state of the raw MQTT industrial driver
 - Malformed payloads fail closed per mapped point and do not silently coerce values to `0`, `false` or another guessed type.
 - Retained values without a trustworthy configured source timestamp are `Stale` by default. `acceptAsCurrent` is an explicit opt-in policy.
 - Optional per-TAG freshness timeout transitions a previously valid `Good` sample to `Stale` when no fresher value arrives in time. A mapped source timestamp is used as the freshness reference when available; otherwise receive time is used.
+- Freshness-managed cache updates are serialized with freshness expiry transitions so an older expiry decision cannot overwrite a newer accepted sample or communication failure.
 - The MQTTnet inbound adapter uses a bounded channel with `FullMode.Wait`. Callback completion therefore applies backpressure instead of silently dropping newest/oldest telemetry or allowing an unbounded memory queue.
+- Inbound QoS 1/2 acknowledgement is deferred until the application message has been admitted to the bounded EliteSCADA transport queue. A canceled or rejected enqueue is not acknowledged.
 - Writable TAGs publish through the normal driver write path and do not pretend that a successful MQTT publish means the remote process accepted the command.
 - Runtime diagnostics use `CommunicationDriverDiagnosticSnapshot`; scan interval, cycle count and scan duration remain absent/zero for the event-driven driver.
 
@@ -107,9 +109,10 @@ Freshness is independent from broker connectivity and MQTT QoS.
 - If the reference is already older than the configured timeout when the message arrives, the sample is published as `Stale` immediately.
 - A `Good` sample that later exceeds its timeout is republished as `Stale` while preserving value and source timestamp.
 - A later valid fresh message recovers the point to `Good`.
+- Accepted samples, freshness expiry and communication/decode failure quality updates are serialized for freshness-managed TAGs, preventing an older expiry decision from overwriting a newer state.
 - Freshness expiration does not fabricate a communication failure or force the broker connection out of `Healthy` by itself.
 
-## Inbound buffering and backpressure
+## Inbound buffering, backpressure and acknowledgement
 
 `maximumBufferedMessages` configures the bounded queue between MQTTnet callbacks and canonical TAG processing.
 
@@ -122,7 +125,11 @@ The channel uses:
 
 This intentionally avoids `DropOldest`, `DropNewest` and unbounded buffering. When the process cannot consume MQTT messages fast enough, callback completion waits for capacity, allowing pressure to propagate toward the protocol library instead of silently corrupting application-level telemetry history.
 
-This does not turn MQTT QoS into an EliteSCADA transaction guarantee. A process failure after broker delivery but before canonical cache processing can still interrupt application processing; packet identifiers are not treated as application event identity.
+For inbound QoS 1 and QoS 2, MQTTnet automatic acknowledgement is disabled for the callback. The transport calls the library's deferred acknowledgement API only after the message has successfully entered the bounded EliteSCADA queue. If queue admission is canceled during disconnect/dispose, the message remains unacknowledged so broker/session semantics may redeliver it where applicable.
+
+The acknowledgement boundary is deliberately **queue admission**, not canonical TAG transaction completion. This avoids acknowledging messages that were discarded by local backpressure while still keeping MQTT protocol handling outside the TAG cache. A process failure after queue admission but before TAG processing can therefore still cause application-level replay/loss scenarios according to broker/session/QoS behavior. Packet identifiers are not treated as durable event identity and no deduplication is invented from them.
+
+The queue is bounded by message count and each individual payload is separately limited by `maximumInboundPayloadBytes`. This is a deterministic bound, but it is not a separate aggregate-byte memory quota; real burst validation is still required before choosing production capacities.
 
 ## Engineering Import/Export
 
@@ -205,6 +212,7 @@ Before production integration, validate with at least two independent broker imp
    - broker restart and network interruption;
    - malformed and oversized payload behavior;
    - burst traffic above configured inbound capacity to verify bounded backpressure and shutdown behavior;
+   - QoS 1/2 redelivery when bounded queue admission is interrupted before acknowledgement;
    - freshness timeout and recovery under real broker traffic.
 
 2. Independent implementation such as HiveMQ Community Edition
@@ -212,7 +220,8 @@ Before production integration, validate with at least two independent broker imp
    - subscription and publish acknowledgements;
    - QoS and retained interoperability;
    - TLS hostname/chain failures;
-   - sustained burst/backpressure interoperability.
+   - sustained burst/backpressure interoperability;
+   - deferred QoS acknowledgement during broker disconnect/reconnect.
 
 Vendor/cloud broker validation should be added when a concrete deployment target is selected.
 

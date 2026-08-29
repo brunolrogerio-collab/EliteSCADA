@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Net.Sockets;
 using Scada.Core.Tags;
 using Scada.Drivers.SiemensS7Iso;
@@ -128,6 +129,46 @@ public sealed class S7IsoTransportTests
         Assert.Equal(1L, diagnostics.ReconnectCount);
         Assert.True(diagnostics.DisconnectionCount >= 1);
         Assert.True(diagnostics.RequestAttempts >= 3);
+    }
+
+    [Fact]
+    public async Task DetailedRead_LaterBatchLossReturnsCompletedItemsAndRemainingCommunicationFailures()
+    {
+        await using var server = new TestS7IsoServer(240)
+        {
+            DropBeforeDataRequestNumber = 2
+        };
+        var points = Enumerable.Range(0, 30)
+            .Select(index =>
+            {
+                var bytes = new byte[4];
+                BinaryPrimitives.WriteInt32BigEndian(bytes, index + 100);
+                server.SetBytes(S7IsoArea.Merker, 0, index * 4, bytes);
+                return new S7IsoPoint(
+                    Tag(TagDataType.Int32),
+                    S7IsoArea.Merker,
+                    index * 4,
+                    S7IsoValueType.Int32);
+            })
+            .ToArray();
+        await using var transport = new S7IsoTransport(Options(server.Port));
+
+        var result = await transport.ReadDetailedAsync(points);
+
+        Assert.Equal(19, result.Items.Count);
+        Assert.Empty(result.ConfigurationFailures);
+        Assert.Equal(11, result.CommunicationFailures.Count);
+        for (var index = 0; index < result.Items.Count; index++)
+        {
+            Assert.Same(points[index], result.Items[index].Point);
+            Assert.Equal(index + 100, Assert.IsType<int>(S7IsoValueCodec.Decode(points[index], result.Items[index].Data!)));
+        }
+        Assert.All(points.Skip(19), point => Assert.Contains(point, result.CommunicationFailures.Keys));
+        var diagnostics = transport.GetDiagnostics();
+        Assert.False(diagnostics.Connected);
+        Assert.Equal(S7IsoFailureKind.TransportUnavailable, diagnostics.LastFailureKind);
+        Assert.Equal(2L, diagnostics.RequestAttempts);
+        Assert.Equal(1L, diagnostics.DisconnectionCount);
     }
 
     [Fact]

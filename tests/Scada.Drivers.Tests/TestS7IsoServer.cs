@@ -145,10 +145,16 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
             var area = request[specOffset + 8];
             var addressBits = Read24(request.AsSpan(specOffset + 9, 3));
             var payload = ReadPayload(area, dbNumber, addressBits, transport, elementCount);
+            var responseTransport = ResponseDataTransportSize(transport);
+            var encodedLength = responseTransport switch
+            {
+                0x03 => 1,
+                0x06 or 0x07 or 0x09 => payload.Length,
+                _ => checked(payload.Length * 8)
+            };
 
             data.Add(0xFF);
-            data.Add(transport == 0x01 ? (byte)0x03 : (byte)0x04);
-            var encodedLength = transport == 0x01 ? 1 : checked(payload.Length * 8);
+            data.Add(responseTransport);
             data.Add((byte)(encodedLength >> 8));
             data.Add((byte)encodedLength);
             data.AddRange(payload);
@@ -167,13 +173,27 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
         var addressBits = Read24(request.AsSpan(specOffset + 9, 3));
         var parameterLength = BinaryPrimitives.ReadUInt16BigEndian(request.AsSpan(13, 2));
         var dataOffset = 17 + parameterLength;
+        var dataTransport = request[dataOffset + 1];
         var encodedLength = BinaryPrimitives.ReadUInt16BigEndian(request.AsSpan(dataOffset + 2, 2));
-        var payloadLength = request[dataOffset + 1] == 0x03 ? 1 : (encodedLength + 7) / 8;
+        var payloadLength = dataTransport switch
+        {
+            0x03 or 0x06 or 0x07 or 0x09 => encodedLength,
+            _ => (encodedLength + 7) / 8
+        };
         var payload = request.AsSpan(dataOffset + 4, payloadLength);
 
         WritePayload(area, dbNumber, addressBits, transport, payload);
         return AckData(reference, new byte[] { 0x05, 0x01 }, new byte[] { 0xFF });
     }
+
+    private static byte ResponseDataTransportSize(byte requestTransport) => requestTransport switch
+    {
+        0x01 => 0x03,
+        0x05 => 0x05,
+        0x07 => 0x06,
+        0x08 => 0x07,
+        _ => 0x04
+    };
 
     private byte[] ReadPayload(byte area, ushort dbNumber, int addressBits, byte transport, ushort elementCount)
     {

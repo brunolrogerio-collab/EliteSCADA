@@ -344,7 +344,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
 
     private async Task ConnectAndSubscribeAsync(CancellationToken cancellationToken)
     {
-        var credentials = await _credentialResolver(cancellationToken);
+        using var credentials = await _credentialResolver(cancellationToken);
         var started = Stopwatch.GetTimestamp();
         Interlocked.Increment(ref _connectAttempts);
         Interlocked.Increment(ref _requests);

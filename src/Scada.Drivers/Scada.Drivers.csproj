@@ -1,5 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client" Version="1.5.378.156" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../Scada.Core/Scada.Core.csproj" />
   </ItemGroup>
 </Project>

@@ -22,6 +22,7 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
     private CancellationTokenSource? _receiveWriteCts;
     private int? _bufferCapacity;
     private long _activeGeneration;
+    private volatile int _maximumInboundPayloadBytes = 1_048_576;
     private volatile bool _acceptInboundEvents;
     private volatile bool _intentionalDisconnect;
     private volatile bool _disposed;
@@ -67,6 +68,7 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
                 throw new MqttTransportException("MQTT client is already connected.");
 
             EnsureReceiveChannel(settings.MaximumBufferedMessages);
+            _maximumInboundPayloadBytes = settings.MaximumInboundPayloadBytes;
             _acceptInboundEvents = false;
             Interlocked.Increment(ref _activeGeneration);
             DrainBufferedItems();
@@ -359,6 +361,29 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
         }
 
         var generation = Interlocked.Read(ref _activeGeneration);
+        if (message.Payload.Length > _maximumInboundPayloadBytes)
+        {
+            _acceptInboundEvents = false;
+            if (requiresAcknowledgement) args.ProcessingFailed = true;
+
+            var error = new MqttTransportException(
+                $"MQTT payload on topic '{Sanitize(message.Topic)}' exceeds the configured maximum of {_maximumInboundPayloadBytes} bytes and was rejected before the EliteSCADA application copy.",
+                isPermanent: true);
+            try
+            {
+                await channel.Writer.WriteAsync(
+                    TransportItem.FromError(generation, error),
+                    writeCancellation);
+            }
+            catch (OperationCanceledException) when (_disposed || !_acceptInboundEvents || writeCancellation.IsCancellationRequested)
+            {
+            }
+            catch (ChannelClosedException) when (_disposed)
+            {
+            }
+            return;
+        }
+
         var payload = message.Payload.IsEmpty ? Array.Empty<byte>() : message.Payload.ToArray();
         var received = new MqttTransportMessage(
             message.Topic,

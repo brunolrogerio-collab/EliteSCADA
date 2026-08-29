@@ -13,6 +13,12 @@ public sealed record BacnetSessionOptions(
 {
     public TimeSpan EffectiveRequestTimeout => RequestTimeout ?? TimeSpan.FromSeconds(3);
     public TimeSpan EffectiveDiscoveryWindow => DiscoveryWindow ?? TimeSpan.FromMilliseconds(1500);
+    public TimeSpan? EffectiveForeignDeviceRenewalInterval => ForeignDeviceTtlSeconds.HasValue
+        ? TimeSpan.FromSeconds(ForeignDeviceTtlSeconds.Value * 0.75d)
+        : null;
+    public TimeSpan? EffectiveForeignDeviceRetryInterval => ForeignDeviceTtlSeconds.HasValue
+        ? TimeSpan.FromSeconds(Math.Clamp(ForeignDeviceTtlSeconds.Value * 0.10d, 5d, 30d))
+        : null;
 
     public void Validate()
     {
@@ -63,6 +69,32 @@ public sealed record BacnetPropertyReadResult(
     DateTimeOffset ObservedAt,
     BacnetObjectState? ObjectState = null,
     bool UsedReadPropertyMultiple = false);
+
+/// <summary>
+/// BACnet/IP network-level Foreign Device Registration lease state. A sent
+/// registration request is transport evidence only; it is not represented as a
+/// confirmed BBMD acceptance unless the underlying stack exposes that evidence.
+/// </summary>
+public sealed record BacnetForeignDeviceRegistrationSnapshot(
+    bool Configured,
+    int? TtlSeconds,
+    TimeSpan? RenewalInterval,
+    TimeSpan? RetryInterval,
+    DateTimeOffset? LastRegistrationRequestAt,
+    DateTimeOffset? NextRegistrationAttemptAt,
+    long RegistrationRequestsSent,
+    long RegistrationFailures,
+    string? LastErrorType);
+
+/// <summary>
+/// Optional BACnet-specific diagnostic seam. It keeps network-lease state owned
+/// by the BACnet adapter while allowing the driver to project it through the
+/// existing protocol-details dictionary without changing common contracts.
+/// </summary>
+public interface IBacnetForeignDeviceRegistrationDiagnostics
+{
+    BacnetForeignDeviceRegistrationSnapshot GetForeignDeviceRegistrationDiagnostics();
+}
 
 public interface IBacnetSession : IAsyncDisposable
 {

@@ -142,7 +142,8 @@ public sealed class Iec104ManagedClient
                     Interlocked.Read(ref _commandsRejected),
                     Interlocked.Read(ref _commandsTimedOut),
                     Interlocked.Read(ref _commandsAmbiguous),
-                    Interlocked.Read(ref _commandsCancelled)));
+                    Interlocked.Read(ref _commandsCancelled)),
+                _activeSession?.GetTransportDiagnostics());
         }
     }
 

@@ -8,15 +8,17 @@ namespace Scada.Drivers.Iec60870;
 /// Narrow EliteSCADA-owned IEC-104 TCP/APCI client implementation.
 /// It deliberately depends only on the neutral IEC-104 contracts in this assembly.
 /// </summary>
-public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter
+public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter, IIec104TransportDiagnosticsSource
 {
     private const int ReceiveQueueCapacity = 1024;
+    private const int MaximumDiagnosticErrorLength = 512;
     private static readonly TimeSpan SupervisorResolution = TimeSpan.FromMilliseconds(100);
 
     private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
     private readonly SemaphoreSlim _controlGate = new(1, 1);
     private readonly SemaphoreSlim _sendGate = new(1, 1);
     private readonly object _sequenceGate = new();
+    private readonly object _diagnosticsGate = new();
     private readonly Queue<DateTime> _sentFrameTimes = new();
 
     private TcpClient? _client;
@@ -30,6 +32,8 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter
     private Iec104SequenceState _sequence = new();
     private DateTime? _firstPendingReceiveAtUtc;
     private long _lastActivityUtcTicks;
+    private long _lastFrameSentUtcTicks;
+    private long _lastFrameReceivedUtcTicks;
     private TaskCompletionSource<bool>? _startConfirmation;
     private TaskCompletionSource<bool>? _stopConfirmation;
     private TaskCompletionSource<bool>? _testConfirmation;
@@ -39,7 +43,93 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter
     private int _failureSignaled;
     private bool _disposed;
 
+    private long _connections;
+    private long _disconnections;
+    private long _iFramesSent;
+    private long _sFramesSent;
+    private long _uFramesSent;
+    private long _iFramesReceived;
+    private long _sFramesReceived;
+    private long _uFramesReceived;
+    private long _asdusSent;
+    private long _asdusReceived;
+    private long _startDtActivationsSent;
+    private long _startDtConfirmationsReceived;
+    private long _stopDtActivationsSent;
+    private long _stopDtConfirmationsReceived;
+    private long _testFrameActivationsSent;
+    private long _testFrameActivationsReceived;
+    private long _testFrameConfirmationsSent;
+    private long _testFrameConfirmationsReceived;
+    private long _t0Timeouts;
+    private long _t1Timeouts;
+    private long _t2Expirations;
+    private long _t3Expirations;
+    private long _protocolErrors;
+    private long _sessionFailures;
+    private string? _lastFailure;
+
     public bool IsConnected => Volatile.Read(ref _connected) == 1;
+
+    public Iec104TcpAdapterDiagnosticSnapshot GetTransportDiagnostics()
+    {
+        ushort nextSend;
+        ushort oldestUnacknowledgedSend;
+        ushort expectedReceive;
+        int unacknowledgedSendCount;
+        int pendingReceiveAcknowledgementCount;
+
+        lock (_sequenceGate)
+        {
+            nextSend = _sequence.NextSendSequence;
+            oldestUnacknowledgedSend = _sequence.OldestUnacknowledgedSendSequence;
+            expectedReceive = _sequence.ExpectedReceiveSequence;
+            unacknowledgedSendCount = _sequence.UnacknowledgedSendCount;
+            pendingReceiveAcknowledgementCount = _sequence.PendingReceiveAcknowledgementCount;
+        }
+
+        string? lastFailure;
+        lock (_diagnosticsGate)
+            lastFailure = _lastFailure;
+
+        return new Iec104TcpAdapterDiagnosticSnapshot(
+            IsConnected,
+            Volatile.Read(ref _dataTransferStarted) == 1,
+            nextSend,
+            oldestUnacknowledgedSend,
+            expectedReceive,
+            unacknowledgedSendCount,
+            pendingReceiveAcknowledgementCount,
+            Interlocked.Read(ref _connections),
+            Interlocked.Read(ref _disconnections),
+            Interlocked.Read(ref _iFramesSent),
+            Interlocked.Read(ref _sFramesSent),
+            Interlocked.Read(ref _uFramesSent),
+            Interlocked.Read(ref _iFramesReceived),
+            Interlocked.Read(ref _sFramesReceived),
+            Interlocked.Read(ref _uFramesReceived),
+            Interlocked.Read(ref _asdusSent),
+            Interlocked.Read(ref _asdusReceived),
+            Interlocked.Read(ref _startDtActivationsSent),
+            Interlocked.Read(ref _startDtConfirmationsReceived),
+            Interlocked.Read(ref _stopDtActivationsSent),
+            Interlocked.Read(ref _stopDtConfirmationsReceived),
+            Interlocked.Read(ref _testFrameActivationsSent),
+            Interlocked.Read(ref _testFrameActivationsReceived),
+            Interlocked.Read(ref _testFrameConfirmationsSent),
+            Interlocked.Read(ref _testFrameConfirmationsReceived),
+            Interlocked.Read(ref _t0Timeouts),
+            Interlocked.Read(ref _t1Timeouts),
+            Interlocked.Read(ref _t2Expirations),
+            Interlocked.Read(ref _t3Expirations),
+            Interlocked.Read(ref _protocolErrors),
+            Interlocked.Read(ref _sessionFailures),
+            DateTimeOffset.UtcNow,
+            FromUtcTicks(Interlocked.Read(ref _lastActivityUtcTicks)),
+            FromUtcTicks(Interlocked.Read(ref _lastFrameSentUtcTicks)),
+            FromUtcTicks(Interlocked.Read(ref _lastFrameReceivedUtcTicks)),
+            lastFailure);
+    }
 
     public async Task ConnectAsync(
         string host,
@@ -73,6 +163,7 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
+                Interlocked.Increment(ref _t0Timeouts);
                 client.Dispose();
                 throw new TimeoutException($"IEC-104 TCP connection to {host.Trim()}:{port} exceeded T0 ({options.T0}).");
             }
@@ -105,6 +196,7 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter
             Volatile.Write(ref _dataTransferStarted, 0);
             Volatile.Write(ref _readStarted, 0);
             Volatile.Write(ref _failureSignaled, 0);
+            Interlocked.Increment(ref _connections);
             TouchActivity();
 
             _receiveLoop = ReceiveLoopAsync(_sessionCts.Token);
@@ -266,6 +358,7 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter
             var receiveLoop = _receiveLoop;
             var supervisorLoop = _supervisorLoop;
             var window = _sendWindowSlots;
+            var hadSession = client is not null || sessionCts is not null || IsConnected;
 
             Volatile.Write(ref _connected, 0);
             Volatile.Write(ref _dataTransferStarted, 0);
@@ -309,6 +402,9 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter
                 _sentFrameTimes.Clear();
                 _firstPendingReceiveAtUtc = null;
             }
+
+            if (hadSession)
+                Interlocked.Increment(ref _disconnections);
         }
         finally
         {
@@ -342,7 +438,7 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter
             while (!cancellationToken.IsCancellationRequested)
             {
                 var frame = await ReadFrameAsync(cancellationToken).ConfigureAwait(false);
-                TouchActivity();
+                RecordFrameReceived(frame);
 
                 switch (frame.Format)
                 {
@@ -367,6 +463,8 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter
         catch (Exception ex)
         {
             failure = ex;
+            if (ex is Iec104ProtocolException)
+                Interlocked.Increment(ref _protocolErrors);
             SignalSessionFailure(ex);
         }
         finally
@@ -397,16 +495,25 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter
                 }
 
                 if (oldestSentAt.HasValue && now - oldestSentAt.Value >= options.T1)
+                {
+                    Interlocked.Increment(ref _t1Timeouts);
                     throw new TimeoutException($"IEC-104 peer did not acknowledge an I-format frame within T1 ({options.T1}).");
+                }
 
                 if (firstPendingReceiveAt.HasValue && now - firstPendingReceiveAt.Value >= options.T2)
+                {
+                    Interlocked.Increment(ref _t2Expirations);
                     await SendSupervisoryAcknowledgementIfPendingAsync(cancellationToken).ConfigureAwait(false);
+                }
 
                 if (Volatile.Read(ref _dataTransferStarted) == 1)
                 {
                     var lastActivity = new DateTime(Interlocked.Read(ref _lastActivityUtcTicks), DateTimeKind.Utc);
                     if (now - lastActivity >= options.T3)
+                    {
+                        Interlocked.Increment(ref _t3Expirations);
                         await SendTestFrameAndAwaitConfirmationAsync(cancellationToken).ConfigureAwait(false);
+                    }
                 }
             }
         }
@@ -449,6 +556,7 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter
             await SendSupervisoryAcknowledgementIfPendingAsync(cancellationToken).ConfigureAwait(false);
 
         var asdu = Iec104AsduCodec.Parse(frame.Asdu.Span);
+        Interlocked.Increment(ref _asdusReceived);
         var incoming = _incoming ?? throw new InvalidOperationException("IEC-104 receive queue is not initialized.");
         if (!incoming.Writer.TryWrite(asdu))
             throw new Iec104ProtocolException($"IEC-104 bounded receive queue exceeded {ReceiveQueueCapacity} ASDUs; session is closed rather than silently dropping process data.");
@@ -585,7 +693,7 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter
         var stream = _stream ?? throw new IOException("IEC-104 TCP stream is not available.");
         var bytes = Iec104ApciCodec.Serialize(frame);
         await stream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
-        TouchActivity();
+        RecordFrameSent(frame);
     }
 
     private async Task WaitForConfirmationAsync(Task confirmation, string confirmationName, CancellationToken cancellationToken)
@@ -597,6 +705,7 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter
         }
         catch (TimeoutException)
         {
+            Interlocked.Increment(ref _t1Timeouts);
             throw new TimeoutException($"IEC-104 {confirmationName} was not received within T1 ({options.T1}).");
         }
     }
@@ -605,6 +714,10 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter
     {
         if (Interlocked.Exchange(ref _failureSignaled, 1) != 0)
             return;
+
+        Interlocked.Increment(ref _sessionFailures);
+        lock (_diagnosticsGate)
+            _lastFailure = SanitizeFailure(failure);
 
         Volatile.Write(ref _connected, 0);
         Volatile.Write(ref _dataTransferStarted, 0);
@@ -633,6 +746,91 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter
         _startConfirmation?.TrySetException(failure);
         _stopConfirmation?.TrySetException(failure);
         _testConfirmation?.TrySetException(failure);
+    }
+
+    private void RecordFrameSent(Iec104ApciFrame frame)
+    {
+        switch (frame.Format)
+        {
+            case Iec104ApciFrameFormat.I:
+                Interlocked.Increment(ref _iFramesSent);
+                Interlocked.Increment(ref _asdusSent);
+                break;
+            case Iec104ApciFrameFormat.S:
+                Interlocked.Increment(ref _sFramesSent);
+                break;
+            case Iec104ApciFrameFormat.U:
+                Interlocked.Increment(ref _uFramesSent);
+                RecordUFunctionSent(frame.UFunction);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(frame), frame.Format, "Unsupported IEC-104 APCI frame format.");
+        }
+
+        var ticks = DateTime.UtcNow.Ticks;
+        Interlocked.Exchange(ref _lastFrameSentUtcTicks, ticks);
+        Interlocked.Exchange(ref _lastActivityUtcTicks, ticks);
+    }
+
+    private void RecordFrameReceived(Iec104ApciFrame frame)
+    {
+        switch (frame.Format)
+        {
+            case Iec104ApciFrameFormat.I:
+                Interlocked.Increment(ref _iFramesReceived);
+                break;
+            case Iec104ApciFrameFormat.S:
+                Interlocked.Increment(ref _sFramesReceived);
+                break;
+            case Iec104ApciFrameFormat.U:
+                Interlocked.Increment(ref _uFramesReceived);
+                RecordUFunctionReceived(frame.UFunction);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(frame), frame.Format, "Unsupported IEC-104 APCI frame format.");
+        }
+
+        var ticks = DateTime.UtcNow.Ticks;
+        Interlocked.Exchange(ref _lastFrameReceivedUtcTicks, ticks);
+        Interlocked.Exchange(ref _lastActivityUtcTicks, ticks);
+    }
+
+    private void RecordUFunctionSent(Iec104UFunction? function)
+    {
+        switch (function)
+        {
+            case Iec104UFunction.StartDataTransferActivation:
+                Interlocked.Increment(ref _startDtActivationsSent);
+                break;
+            case Iec104UFunction.StopDataTransferActivation:
+                Interlocked.Increment(ref _stopDtActivationsSent);
+                break;
+            case Iec104UFunction.TestFrameActivation:
+                Interlocked.Increment(ref _testFrameActivationsSent);
+                break;
+            case Iec104UFunction.TestFrameConfirmation:
+                Interlocked.Increment(ref _testFrameConfirmationsSent);
+                break;
+        }
+    }
+
+    private void RecordUFunctionReceived(Iec104UFunction? function)
+    {
+        switch (function)
+        {
+            case Iec104UFunction.StartDataTransferConfirmation:
+                Interlocked.Increment(ref _startDtConfirmationsReceived);
+                break;
+            case Iec104UFunction.StopDataTransferConfirmation:
+                Interlocked.Increment(ref _stopDtConfirmationsReceived);
+                break;
+            case Iec104UFunction.TestFrameActivation:
+                Interlocked.Increment(ref _testFrameActivationsReceived);
+                break;
+            case Iec104UFunction.TestFrameConfirmation:
+                Interlocked.Increment(ref _testFrameConfirmationsReceived);
+                break;
+        }
     }
 
     private void RemoveAcknowledgedSendTimestamps(int count)
@@ -699,6 +897,19 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter
     {
         if (_disposed)
             throw new ObjectDisposedException(nameof(Iec104TcpClientAdapter));
+    }
+
+    private static DateTimeOffset? FromUtcTicks(long ticks) =>
+        ticks == 0 ? null : new DateTimeOffset(new DateTime(ticks, DateTimeKind.Utc));
+
+    private static string SanitizeFailure(Exception failure)
+    {
+        var message = string.IsNullOrWhiteSpace(failure.Message)
+            ? failure.GetType().Name
+            : failure.Message.Replace('\r', ' ').Replace('\n', ' ').Trim();
+        return message.Length <= MaximumDiagnosticErrorLength
+            ? message
+            : message[..MaximumDiagnosticErrorLength];
     }
 
     private static TaskCompletionSource<bool> NewConfirmation() =>

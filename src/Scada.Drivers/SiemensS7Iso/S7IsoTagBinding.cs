@@ -33,8 +33,7 @@ public sealed record S7IsoTagBinding(
     public S7IsoPoint ToPoint(TagDefinition tag)
     {
         ArgumentNullException.ThrowIfNull(tag);
-        if (SchemaVersion != CurrentSchemaVersion)
-            throw new NotSupportedException($"S7 ISO binding schema version '{SchemaVersion}' is not supported.");
+        EnsureSerializable();
 
         var point = new S7IsoPoint(
             tag,
@@ -50,17 +49,37 @@ public sealed record S7IsoTagBinding(
         return point;
     }
 
-    public string ToPortableAddress() => string.Join(
-        ';',
-        $"{PortablePrefix}{SchemaVersion}",
-        $"area={Area}",
-        $"db={DbNumber.ToString(CultureInfo.InvariantCulture)}",
-        $"byte={ByteOffset.ToString(CultureInfo.InvariantCulture)}",
-        $"bit={BitOffset.ToString(CultureInfo.InvariantCulture)}",
-        $"type={ValueType}",
-        $"string={StringLength.ToString(CultureInfo.InvariantCulture)}",
-        $"writable={(Writable ? "true" : "false")}",
-        $"order={ValueOrder}");
+    public IReadOnlyDictionary<string, string> ToSettings()
+    {
+        EnsureSerializable();
+        return new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["area"] = Area.ToString(),
+            ["dbNumber"] = DbNumber.ToString(CultureInfo.InvariantCulture),
+            ["byteOffset"] = ByteOffset.ToString(CultureInfo.InvariantCulture),
+            ["bitOffset"] = BitOffset.ToString(CultureInfo.InvariantCulture),
+            ["valueType"] = ValueType.ToString(),
+            ["stringLength"] = StringLength.ToString(CultureInfo.InvariantCulture),
+            ["writable"] = Writable ? "true" : "false",
+            ["valueOrder"] = ValueOrder.ToString()
+        };
+    }
+
+    public string ToPortableAddress()
+    {
+        EnsureSerializable();
+        return string.Join(
+            ';',
+            $"{PortablePrefix}{SchemaVersion}",
+            $"area={Area}",
+            $"db={DbNumber.ToString(CultureInfo.InvariantCulture)}",
+            $"byte={ByteOffset.ToString(CultureInfo.InvariantCulture)}",
+            $"bit={BitOffset.ToString(CultureInfo.InvariantCulture)}",
+            $"type={ValueType}",
+            $"string={StringLength.ToString(CultureInfo.InvariantCulture)}",
+            $"writable={(Writable ? "true" : "false")}",
+            $"order={ValueOrder}");
+    }
 
     public static bool TryCreateFromSettings(
         IReadOnlyDictionary<string, string> settings,
@@ -171,12 +190,45 @@ public sealed record S7IsoTagBinding(
         return false;
     }
 
+    private void EnsureSerializable()
+    {
+        if (SchemaVersion != CurrentSchemaVersion)
+            throw new NotSupportedException($"S7 ISO binding schema version '{SchemaVersion}' is not supported.");
+
+        var errors = new List<S7IsoBindingIssue>();
+        ValidateShape(this, errors);
+        if (errors.Count > 0)
+            throw new ArgumentException(string.Join(" ", errors.Select(issue => issue.Message)));
+    }
+
     private static void ValidateShape(S7IsoTagBinding binding, List<S7IsoBindingIssue> errors)
     {
+        var enumsValid = true;
+        if (!Enum.IsDefined(binding.Area))
+        {
+            errors.Add(new S7IsoBindingIssue("area", "S7 binding area is not supported."));
+            enumsValid = false;
+        }
+        if (!Enum.IsDefined(binding.ValueType))
+        {
+            errors.Add(new S7IsoBindingIssue("valueType", "S7 binding value type is not supported."));
+            enumsValid = false;
+        }
+        if (!Enum.IsDefined(binding.ValueOrder))
+        {
+            errors.Add(new S7IsoBindingIssue("valueOrder", "S7 binding value order is not supported."));
+            enumsValid = false;
+        }
+        if (!enumsValid) return;
+
+        if (binding.ByteOffset < 0 || binding.ByteOffset > 2_097_151)
+            errors.Add(new S7IsoBindingIssue("byteOffset", "S7 byte offset must be from 0 to 2097151."));
         if (binding.Area == S7IsoArea.DataBlock && binding.DbNumber == 0)
             errors.Add(new S7IsoBindingIssue("dbNumber", "S7 DB bindings require a non-zero DB number."));
         if (binding.Area != S7IsoArea.DataBlock && binding.DbNumber != 0)
             errors.Add(new S7IsoBindingIssue("dbNumber", "S7 DB number is valid only for DataBlock bindings."));
+        if (binding.BitOffset > 7)
+            errors.Add(new S7IsoBindingIssue("bitOffset", "S7 bit offset must be from 0 to 7."));
         if (binding.ValueType != S7IsoValueType.Boolean && binding.BitOffset != 0)
             errors.Add(new S7IsoBindingIssue("bitOffset", "S7 bit offset is valid only for Boolean bindings."));
         if (binding.ValueType == S7IsoValueType.String && binding.StringLength is < 1 or > 254)
@@ -187,7 +239,7 @@ public sealed record S7IsoTagBinding(
             errors.Add(new S7IsoBindingIssue("writable", "S7 input-area bindings are read-only."));
 
         var byteLength = GetByteLength(binding);
-        if ((long)binding.ByteOffset + byteLength - 1 > 2_097_151)
+        if (binding.ByteOffset >= 0 && (long)binding.ByteOffset + byteLength - 1 > 2_097_151)
             errors.Add(new S7IsoBindingIssue(
                 "byteOffset",
                 $"S7 binding payload of {byteLength} byte(s) exceeds the 24-bit S7ANY address range from byte offset {binding.ByteOffset}."));

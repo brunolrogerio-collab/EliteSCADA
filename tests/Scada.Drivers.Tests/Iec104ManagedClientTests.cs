@@ -45,7 +45,7 @@ public sealed class Iec104ManagedClientTests
         var second = new InteractiveAdapter();
         var adapters = new ConcurrentQueue<InteractiveAdapter>(new[] { first, second });
         var delayEntered = new TaskCompletionSource<TimeSpan>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var releaseDelay = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseDelay = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var client = CreateClient(
             () => adapters.TryDequeue(out var adapter)
                 ? adapter
@@ -72,7 +72,7 @@ public sealed class Iec104ManagedClientTests
         Assert.Equal(Iec104CommandOutcome.Rejected, rejected.Outcome);
         Assert.False(rejected.ExecuteWasTransmitted);
 
-        releaseDelay.TrySetResult();
+        releaseDelay.TrySetResult(true);
         var secondGi = await second.NextSentAsync();
         Assert.Equal(Iec104TypeId.CIcNa1, secondGi.Header.TypeId);
         Assert.Equal(1, second.TotalSent);

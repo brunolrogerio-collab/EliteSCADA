@@ -72,4 +72,25 @@ public sealed class S7IsoConnectionOptionsTests
             S7IsoConnectionMode.RackSlot,
             slot: 32));
     }
+
+    [Fact]
+    public void Writes_AreDisabledByDefaultAndRequireExplicitOptIn()
+    {
+        var safeDefault = new S7IsoConnectionOptions(
+            "plc",
+            S7CpuFamily.S71500,
+            S7IsoConnectionMode.RackSlot,
+            rack: 0,
+            slot: 1);
+        var writable = new S7IsoConnectionOptions(
+            "plc",
+            S7CpuFamily.S71500,
+            S7IsoConnectionMode.RackSlot,
+            rack: 0,
+            slot: 1,
+            writeEnabled: true);
+
+        Assert.False(safeDefault.WriteEnabled);
+        Assert.True(writable.WriteEnabled);
+    }
 }

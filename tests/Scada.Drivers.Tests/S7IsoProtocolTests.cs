@@ -142,6 +142,30 @@ public sealed class S7IsoProtocolTests
         Assert.Equal(12.5f, Assert.IsType<float>(S7IsoValueCodec.Decode(point, result.Data!)));
     }
 
+    [Theory]
+    [InlineData(8, 1)]
+    [InlineData(24, 3)]
+    public void ReadResponse_SuccessRequiresExactPayloadLength(int bitLength, int payloadBytes)
+    {
+        const ushort reference = 23;
+        var point = new S7IsoPoint(
+            Tag(TagDataType.Int16),
+            S7IsoArea.Merker,
+            0,
+            S7IsoValueType.Int16);
+        var data = new byte[4 + payloadBytes];
+        data[0] = 0xFF;
+        data[1] = 0x05;
+        BinaryPrimitives.WriteUInt16BigEndian(data.AsSpan(2, 2), checked((ushort)bitLength));
+        for (var index = 0; index < payloadBytes; index++) data[4 + index] = (byte)(index + 1);
+        var response = AckData(reference, new byte[] { 0x04, 0x01 }, data);
+
+        var error = Assert.Throws<S7IsoProtocolException>(() =>
+            S7IsoProtocol.ParseReadResponse(response, reference, new[] { point }));
+
+        Assert.Contains("expected exactly 2", error.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void WriteRequest_EncodesCanonicalPayloadAndChecksReturnCode()
     {

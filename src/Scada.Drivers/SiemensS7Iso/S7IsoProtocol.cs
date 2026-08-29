@@ -179,9 +179,12 @@ internal static class S7IsoProtocol
 
         var writeData = new byte[4 + data.Length];
         writeData[0] = 0x00;
-        writeData[1] = point.ValueType == S7IsoValueType.Boolean ? (byte)0x03 : (byte)0x04;
-        var bitLength = point.ValueType == S7IsoValueType.Boolean ? 1 : checked(data.Length * 8);
-        BinaryPrimitives.WriteUInt16BigEndian(writeData.AsSpan(2, 2), checked((ushort)bitLength));
+        var dataTransportSize = WriteDataTransportSize(point);
+        writeData[1] = dataTransportSize;
+        var encodedLength = dataTransportSize is 0x03 or 0x06 or 0x07 or 0x09
+            ? data.Length
+            : checked(data.Length * 8);
+        BinaryPrimitives.WriteUInt16BigEndian(writeData.AsSpan(2, 2), checked((ushort)encodedLength));
         data.CopyTo(writeData.AsSpan(4));
 
         return BuildJobPacket(pduReference, parameter, writeData);
@@ -212,6 +215,14 @@ internal static class S7IsoProtocol
         0x0A => "object does not exist",
         ReturnCodeSuccess => "success",
         _ => "unknown S7 item error"
+    };
+
+    private static byte WriteDataTransportSize(S7IsoPoint point) => point.ValueType switch
+    {
+        S7IsoValueType.Boolean => 0x03,
+        S7IsoValueType.Int16 or S7IsoValueType.Int32 => 0x05,
+        S7IsoValueType.Float32 => 0x07,
+        _ => 0x04
     };
 
     private static byte[] BuildJobPacket(

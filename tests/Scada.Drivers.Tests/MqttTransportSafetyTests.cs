@@ -1,5 +1,6 @@
 using Scada.Core.Events;
 using Scada.Core.Tags;
+using Scada.Drivers.Abstractions;
 using Scada.Drivers.Mqtt;
 
 namespace Scada.Drivers.Tests;

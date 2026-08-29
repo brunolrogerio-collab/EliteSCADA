@@ -4,13 +4,17 @@ import { ProjectReferenceBrowser } from '../../project-reference/ProjectReferenc
 import type { ProjectReferenceDescriptor } from '../../project-reference/projectReferenceModel';
 import type { VisualEditorBindingEditorContractProps } from '../visualEditorContracts';
 import {
+  bindingSourceIdentity,
   compatibleBindingSources,
   createBindingRemoveIntent,
   createBindingSetIntent,
+  createTagBitBindingSource,
+  findBindingSourceForBinding,
   findVisualBinding,
   isBindingSourceCompatible,
   listBindableVisualProperties,
   normalizeBindingSourceCatalog,
+  resolveBindingSourceReference,
   type BindableVisualProperty
 } from './bindingEditorModel';
 
@@ -18,6 +22,8 @@ export type BindingEditorCopy = Readonly<{
   title: string;
   destination: string;
   source: string;
+  bit: string;
+  bitHint: string;
   apply: string;
   remove: string;
   noDestinations: string;
@@ -43,6 +49,8 @@ const DEFAULT_COPY: BindingEditorCopy = {
   title: 'Binding',
   destination: 'Visual property',
   source: 'Source',
+  bit: 'Bit',
+  bitHint: 'Select one bit from the authoritative integer TAG.',
   apply: 'Apply binding',
   remove: 'Remove binding',
   noDestinations: 'This object has no bindable visual properties.',
@@ -61,7 +69,7 @@ export function BindingEditor({
   copy,
   locale = 'pt-BR'
 }: BindingEditorProps) {
-  const text: BindingEditorCopy = { ...DEFAULT_COPY, ...copy };
+  const text: BindingEditorCopy = { ...DEFAULT_COPY, ...localizedBitCopy(locale), ...copy };
   const [actionError, setActionError] = useState<string | null>(null);
   const [browserOpen, setBrowserOpen] = useState(false);
   const [exactReference, setExactReference] = useState('');
@@ -87,34 +95,52 @@ export function BindingEditor({
   const sources = sourceResult.value;
 
   const existing = propertyKey ? findVisualBinding(element, propertyKey) : undefined;
-  const existingSourceKey = existing ? sourceIdentity(existing.kind, existing.target) : undefined;
+  const existingBaseSource = existing ? findBindingSourceForBinding(existing, sources) : undefined;
+  const existingSourceKey = existingBaseSource ? bindingSourceIdentity(existingBaseSource) : undefined;
+  const existingBitIndex = existing?.tagReference?.selector?.kind === 'bit'
+    ? existing.tagReference.selector.index
+    : null;
   const [sourceKey, setSourceKey] = useState(
-    existingSourceKey && sources.some(item => sourceIdentity(item.kind, item.target) === existingSourceKey)
+    existingSourceKey && sources.some(item => bindingSourceIdentity(item) === existingSourceKey)
       ? existingSourceKey
-      : sources[0] ? sourceIdentity(sources[0].kind, sources[0].target) : ''
+      : sources[0] ? bindingSourceIdentity(sources[0]) : ''
+  );
+  const [bitIndex, setBitIndex] = useState<number | null>(
+    existingBitIndex ?? existingBaseSource?.selectorCapability?.minIndex ?? null
   );
 
   useEffect(() => {
     const current = propertyKey ? findVisualBinding(element, propertyKey) : undefined;
-    const currentKey = current ? sourceIdentity(current.kind, current.target) : '';
-    if (current && currentKey && sources.some(item => sourceIdentity(item.kind, item.target) === currentKey)) {
+    const currentSource = current ? findBindingSourceForBinding(current, sources) : undefined;
+    const currentKey = currentSource ? bindingSourceIdentity(currentSource) : '';
+    if (currentSource && currentKey && sources.some(item => bindingSourceIdentity(item) === currentKey)) {
       setSourceKey(currentKey);
+      setBitIndex(current?.tagReference?.selector?.kind === 'bit'
+        ? current.tagReference.selector.index
+        : initialBitIndex(selectedDestination, currentSource));
       setExactReference(current.target);
       return;
     }
-    if (!sources.some(item => sourceIdentity(item.kind, item.target) === sourceKey)) {
+    if (!sources.some(item => bindingSourceIdentity(item) === sourceKey)) {
       const first = sources[0];
-      setSourceKey(first ? sourceIdentity(first.kind, first.target) : '');
+      setSourceKey(first ? bindingSourceIdentity(first) : '');
+      setBitIndex(initialBitIndex(selectedDestination, first));
       setExactReference(first?.target ?? '');
     }
-  }, [element, propertyKey, sourceKey, sources]);
+  }, [element, propertyKey, selectedDestination, sourceKey, sources]);
+
+  const selectedSource = sources.find(item => bindingSourceIdentity(item) === sourceKey);
+  const selectedBitCapability = bitSelectorCapability(selectedDestination, selectedSource);
 
   function apply() {
     setActionError(null);
-    const source = sources.find(item => sourceIdentity(item.kind, item.target) === sourceKey);
+    const source = sources.find(item => bindingSourceIdentity(item) === sourceKey);
     if (!source || !propertyKey) return;
     try {
-      onMutationIntent(createBindingSetIntent(element, propertyKey, source, existing?.direction));
+      const effectiveSource = bitSelectorCapability(selectedDestination, source)
+        ? createTagBitBindingSource(source, bitIndex ?? Number.NaN)
+        : source;
+      onMutationIntent(createBindingSetIntent(element, propertyKey, effectiveSource, existing?.direction));
     } catch (cause) {
       setActionError(errorText(cause));
     }
@@ -134,19 +160,44 @@ export function BindingEditor({
     setActionError(null);
     const target = exactReference.trim();
     if (!target || !selectedDestination) return;
-    const matches = sources.filter(item => item.target === target);
-    if (matches.length !== 1) {
+    const resolved = resolveBindingSourceReference(sourceCatalog, target);
+    if (resolved.status !== 'found' || !resolved.source || !isBindingSourceCompatible(selectedDestination, resolved.source)) {
       setActionError(text.exactNotFound);
       return;
     }
-    setSourceKey(sourceIdentity(matches[0].kind, matches[0].target));
+
+    const selector = resolved.source.tagReference?.selector;
+    if (selector?.kind === 'bit' && resolved.source.tagReference?.tagId) {
+      const tagId = resolved.source.tagReference.tagId.toLocaleLowerCase();
+      const base = sources.find(item =>
+        item.kind === 'Tag' &&
+        item.tagReference?.tagId?.toLocaleLowerCase() === tagId &&
+        !item.tagReference?.selector
+      );
+      if (!base || !bitSelectorCapability(selectedDestination, base)) {
+        setActionError(text.exactNotFound);
+        return;
+      }
+      setSourceKey(bindingSourceIdentity(base));
+      setBitIndex(selector.index);
+      setExactReference(resolved.source.target);
+      return;
+    }
+
+    const source = sources.find(item => bindingSourceIdentity(item) === bindingSourceIdentity(resolved.source!));
+    if (!source) {
+      setActionError(text.exactNotFound);
+      return;
+    }
+    setSourceKey(bindingSourceIdentity(source));
+    setBitIndex(initialBitIndex(selectedDestination, source));
+    setExactReference(source.target);
   }
 
   const browserReferences = useMemo(
     () => normalizeBindingSourceCatalog(sourceCatalog).map(toProjectReference),
     [sourceCatalog]
   );
-  const selectedSource = sources.find(item => sourceIdentity(item.kind, item.target) === sourceKey);
   const error = actionError ?? destinationResult.error ?? sourceResult.error;
 
   return (
@@ -184,19 +235,44 @@ export function BindingEditor({
               onChange={event => {
                 setActionError(null);
                 setSourceKey(event.target.value);
-                const selected = sources.find(item => sourceIdentity(item.kind, item.target) === event.target.value);
+                const selected = sources.find(item => bindingSourceIdentity(item) === event.target.value);
+                setBitIndex(initialBitIndex(selectedDestination, selected));
                 setExactReference(selected?.target ?? '');
               }}
             >
               {sources.length === 0 ? (
                 <option value="">{text.noSources}</option>
               ) : sources.map(source => (
-                <option key={sourceIdentity(source.kind, source.target)} value={sourceIdentity(source.kind, source.target)}>
+                <option key={bindingSourceIdentity(source)} value={bindingSourceIdentity(source)}>
                   {source.label} · {source.kind} · {source.target}
                 </option>
               ))}
             </select>
           </label>
+
+          {selectedBitCapability ? (
+            <label className="visual-binding-editor__bit-selector">
+              <span>{text.bit}</span>
+              <input
+                type="number"
+                min={selectedBitCapability.minIndex}
+                max={selectedBitCapability.maxIndex}
+                step={1}
+                value={bitIndex ?? selectedBitCapability.minIndex}
+                onChange={event => {
+                  setActionError(null);
+                  const parsed = Number(event.currentTarget.value);
+                  setBitIndex(Number.isInteger(parsed) ? parsed : null);
+                  if (selectedSource) {
+                    setExactReference(Number.isInteger(parsed)
+                      ? `${selectedSource.target}.${parsed.toString().padStart(2, '0')}`
+                      : selectedSource.target);
+                  }
+                }}
+              />
+              <small>{text.bitHint} {selectedBitCapability.minIndex}…{selectedBitCapability.maxIndex}</small>
+            </label>
+          ) : null}
 
           <label className="visual-binding-editor__exact-reference">
             <span>{text.exactReference}</span>
@@ -220,11 +296,12 @@ export function BindingEditor({
               references={browserReferences}
               locale={locale}
               selectedReference={selectedSource?.target ?? null}
-              isSelectable={reference => isBrowserReferenceCompatible(selectedDestination, reference, sources)}
+              isSelectable={reference => isBrowserReferenceCompatible(reference, sources)}
               onSelect={reference => {
                 const source = sources.find(item => item.target === reference.reference);
                 if (!source) return;
-                setSourceKey(sourceIdentity(source.kind, source.target));
+                setSourceKey(bindingSourceIdentity(source));
+                setBitIndex(initialBitIndex(selectedDestination, source));
                 setExactReference(source.target);
                 setBrowserOpen(false);
                 setActionError(null);
@@ -272,6 +349,22 @@ function computeSources(
   }
 }
 
+function bitSelectorCapability(
+  destination: BindableVisualProperty | undefined,
+  source: VisualEditorBindingEditorContractProps['sourceCatalog'][number] | undefined
+) {
+  if (!destination || !source || isBindingSourceCompatible(destination, source)) return null;
+  return source.selectorCapability?.kind === 'bit' ? source.selectorCapability : null;
+}
+
+function initialBitIndex(
+  destination: BindableVisualProperty | undefined,
+  source: VisualEditorBindingEditorContractProps['sourceCatalog'][number] | undefined
+): number | null {
+  const capability = bitSelectorCapability(destination, source);
+  return capability ? capability.minIndex : null;
+}
+
 function toProjectReference(source: VisualEditorBindingEditorContractProps['sourceCatalog'][number]): ProjectReferenceDescriptor {
   return Object.freeze({
     reference: source.target,
@@ -281,25 +374,27 @@ function toProjectReference(source: VisualEditorBindingEditorContractProps['sour
     engineeringUnit: source.engineeringUnit ?? null,
     writable: source.writable,
     bindingKind: source.kind === 'ClientMemory' ? 'ClientMemory' : source.kind === 'Tag' ? 'Tag' : undefined,
-    pathSegments: Object.freeze(source.target.split(/[/.\\]+/g).filter(Boolean))
+    pathSegments: Object.freeze(source.target.split(/[/.\\]+/g).filter(Boolean)),
+    tagReference: source.tagReference ?? null,
+    selectorCapability: source.selectorCapability ?? null
   });
 }
 
 function isBrowserReferenceCompatible(
-  destination: BindableVisualProperty,
   reference: ProjectReferenceDescriptor,
   sources: readonly VisualEditorBindingEditorContractProps['sourceCatalog'][number][]
 ): boolean {
-  const source = sources.find(item => item.target === reference.reference);
-  return source ? isBindingSourceCompatible(destination, source) : false;
+  return sources.some(item => item.target === reference.reference);
 }
 
 function inferFamily(kind: string): ProjectReferenceDescriptor['family'] {
   return kind === 'ClientMemory' ? 'clientMemory' : 'tag';
 }
 
-function sourceIdentity(kind: string, target: string): string {
-  return `${kind.trim().toLowerCase()}\u0000${target}`;
+function localizedBitCopy(locale: EngineeringLocale): Pick<BindingEditorCopy, 'bit' | 'bitHint'> {
+  if (locale === 'en') return { bit: 'Bit', bitHint: 'Select one bit from the authoritative integer TAG.' };
+  if (locale === 'es') return { bit: 'Bit', bitHint: 'Seleccione un bit del TAG entero autoritativo.' };
+  return { bit: 'Bit', bitHint: 'Selecione um bit da TAG inteira autoritativa.' };
 }
 
 function errorText(cause: unknown): string {

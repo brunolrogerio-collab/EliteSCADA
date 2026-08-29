@@ -40,6 +40,15 @@ const statusWord = {
   bindable: true
 } as const;
 
+const clientFlag = {
+  kind: 'ClientMemory',
+  target: 'client.selection.enabled',
+  label: 'Selection enabled',
+  dataType: 'Boolean',
+  family: 'clientMemory',
+  bindable: true
+} as const;
+
 test('boolean and numeric property destinations expose the required source modes', () => {
   const destinations = listDynamicPropertyDestinations({ type: 'core.rectangle' });
   const visible = destinations.find(item => item.propertyKey === 'visible');
@@ -103,6 +112,18 @@ test('direct and numeric interval presets create canonical first-class condition
     maximumInclusive: false,
     intervalMode: 'Outside'
   });
+});
+
+test('direct Client Memory preserves its canonical client-local path without inventing a TagId', () => {
+  const source = createValueSource('Boolean', clientFlag);
+  expect(source).toEqual({
+    kind: 'ClientMemory',
+    valueType: 'Boolean',
+    target: 'client.selection.enabled',
+    version: 1
+  });
+  expect(() => createExpressionDependency('clientFlag', 'Boolean', clientFlag))
+    .toThrow(/no canonical stable identity in the current integrated contract/);
 });
 
 test('expression value source and Analog Fill retain canonical typed configuration only', () => {

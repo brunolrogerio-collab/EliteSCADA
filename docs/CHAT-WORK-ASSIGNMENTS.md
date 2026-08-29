@@ -2,7 +2,7 @@
 
 > Authoritative live execution board. GitHub branch/PR/head/CI state is operational truth. Permanent rules: `docs/DEVELOPMENT-WAVES.md`, `docs/PARALLEL-WORK.md`, `docs/CI-USAGE-POLICY.md`.
 
-**Last coordinator synchronization:** 2026-08-29 — Wave 08 remains ACTIVE and unmerged. The graphical editor/image path is green at exact product head `a7176a44df3a0af5bc1a271b25101d333da7a161` with CI #525 / run `33230239968` SUCCESS. The owner added a mandatory Engineering Development Monitor before Wave 08 may close. DEV 1/2/3 original graphical deliveries are integrated and their worker PRs are closed; all workers are STOPPED until a new explicit assignment is issued.
+**Last coordinator synchronization:** 2026-08-29 — Wave 08 is CLOSED / MERGED / POST-MERGE GREEN. `08-FOLLOW-A` is now ACTIVE under coordinator-owned architecture reconciliation. DEV 1/2/3 remain STOPPED until a new bounded assignment is explicitly published.
 
 ## Mandatory `siga`
 
@@ -10,143 +10,127 @@ Every fixed EliteSCADA chat first rereads current `main`: `PROJECT GOAL.md`, `LA
 
 ## Current product gate
 
-`GRAPHICAL-EDITOR-WAVE-08` is **ACTIVE / NOT MERGED**.
+`08-FOLLOW-A — TAG BIT ACCESS + DRIVER BIT-LEVEL BOOLEAN BINDING` is **ACTIVE**.
 
-Wave 08 now has two mandatory product gates:
+Logical BaseSHA:
 
-1. **Graphical Editor + Image** — **GREEN** on exact product head `a7176a44df3a0af5bc1a271b25101d333da7a161`, CI #525 / `33230239968` SUCCESS.
-2. **Engineering Development Monitor** — **OWNER-LOCKED / SPECIFIED / NOT IMPLEMENTED** under `docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE-08.md`.
+`bfd17d035d905e9bcae263f68244cfb2b6453aa2`
 
-Draft integration PR: **#90**.  
-Integration branch: `integration/graphical-editor-wave-08`.  
-PR #90 remains Draft / DO NOT MERGE until both gates are green on the final exact integrated head.
+Integration branch:
 
-### Graphical delivery state
+`integration/tag-bit-access-wave-08-follow-a`
 
-- DEV 1 Canvas / Selection delivery head `d6542643014e955b013756fd8ee53a5629b8e82a` — integrated; worker PR #93 closed unmerged.
-- DEV 2 Property Inspector delivery head `2c974cadafbcc773a4645864440c190f128ea808` — integrated; worker PR #91 closed unmerged.
-- DEV 3 Object Palette / Binding delivery head `d614a00dda0903a0f7c78641dc0b803dfd8085df` — integrated; worker PR #92 closed unmerged.
+Canonical contract:
 
-The coordinator composition also normalized visual binding kinds at the canonical boundary and added early typed TAG/property compatibility validation before CI #525.
+`docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`
 
-### Development Monitor locked behavior
+### Wave 08 closure evidence
 
-Canonical contract: `docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE-08.md`.
+Final integration head:
 
-Required initial source families:
+`9ea0eace15aa925133005f40e16403a2c0f3deb1`
 
-- TAGs;
-- Client Memory and Server Memory;
-- authoritative system/runtime variables/diagnostics;
-- Data Source / driver diagnostics.
+- final integration CI #531 / run `33236703599`: **SUCCESS**;
+- replacement final PR #96: **MERGED**;
+- main merge: `bfd17d035d905e9bcae263f68244cfb2b6453aa2`;
+- post-merge CI #533 / run `33236999366`: **SUCCESS**.
 
-Required user paths:
+Draft PR #90 was closed unmerged only because the available connector failed while removing Draft state; #96 used the exact same branch/head and merged normally.
 
-- search/browse a source and add it;
-- type a known exact canonical reference/path and add it directly;
-- monitor heterogeneous rows together;
-- see value, data type, quality/state and timestamp/last-update;
-- remove rows / clear table.
-
-Authority/performance boundary:
-
-- monitor is read-only;
-- current samples are Runtime/diagnostic state, never authored Engineering;
-- reuse realtime/subscription paths where available;
-- bounded/coalesced provider polling only where necessary;
-- no one-poll-loop-per-row architecture;
-- acceptance proves at least 100 simultaneous rows through shared batching/subscription infrastructure.
+Wave 08 delivered graphical Screen Engineering, image assets, dynamic scalar `core.text`, shared Project Reference Tree, `core.polygon`, Development Monitor and final canonical persistence/Preview/Apply coverage.
 
 ---
 
 # COORDENADOR - EliteSCADA
 
 **Role:** `COORDINATOR`  
-**Wave:** `GRAPHICAL-EDITOR-WAVE-08`  
-**Status:** `ACTIVE — GRAPHICAL GATE GREEN / DEVELOPMENT MONITOR REQUIRED`  
-**IntegrationBranch:** `integration/graphical-editor-wave-08`  
-**DraftPR:** `#90`  
-**ValidatedGraphicalProductHead:** `a7176a44df3a0af5bc1a271b25101d333da7a161`  
-**ValidatedGraphicalCI:** `#525 / 33230239968 — SUCCESS`
+**Wave:** `08-FOLLOW-A`  
+**Status:** `ACTIVE — ARCHITECTURE-FIRST / NO WORKER DELEGATION YET`  
+**LogicalBaseSHA:** `bfd17d035d905e9bcae263f68244cfb2b6453aa2`  
+**IntegrationBranch:** `integration/tag-bit-access-wave-08-follow-a`
 
-**CurrentTask:** preserve the green graphical editor/image checkpoint; inspect existing read-only realtime/memory/diagnostic authorities; freeze and implement the unified Engineering Development Monitor provider/catalog + table workflow; integrate it into Wave 08; run final combined CI; merge only after both Wave 08 gates are green.
+**CurrentTask:** reconcile the owner-locked TAG-bit contract with the actual merged Core/Engineering/Runtime/Modbus/reference/catalog architecture; freeze the minimum public implementation surface; then implement or explicitly delegate bounded slices without creating parallel TAG identities, driver-private metadata or visual-only bit syntax.
 
 **MustReadSpecific:**
-- `docs/COORDINATOR-HANDOFF.md`
-- `docs/GRAPHICAL-EDITOR-WAVE-08-IMPLEMENTATION-DECISION.md`
-- `docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE-08.md`
-- `docs/VISUAL-ASSET-STORAGE-WAVE-08.md`
 - `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`
-- `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`
-- current TAG realtime/current-cache APIs and contracts;
-- current Client/Server Memory APIs/contracts;
-- current Data Source/driver diagnostics APIs/contracts;
-- Engineering shell/navigation/localization/security seams.
+- `docs/COORDINATOR-HANDOFF.md`
+- `docs/INTERNAL-MEMORY-TAGS.md`
+- current canonical TAG contracts/registries/current-value models;
+- current Engineering import/export/validation/persistence TAG schemas;
+- current Modbus point/address/codec/poll/write implementation;
+- current Project Reference Tree contracts;
+- current Engineering Development Monitor source/catalog model;
+- current Client Visual Python TAG/reference surface where relevant.
 
-**AllowedScope:** coordinator integration branch; Development Monitor architecture/provider boundary; central Engineering route/workspace/API/types/localization; read-only backend composition needed to expose canonical monitor sources; tests; explicit worker delegation; final PR/CI/merge.
+**AllowedScope:** Follow-A integration branch; canonical TAG reference/selector contracts; TAG Engineering/public DTOs; driver capability/address binding contracts; Modbus bit read/write implementation; Runtime resolution; shared reference/catalog integration; security/Audit adjustments required by bit access; focused and final tests; explicit worker assignments; Follow-A PR/CI/merge.
 
-**ForbiddenScope:** monitor writes/forcing/commands; Wave 09 Screen navigation/Popup/Dynamo product semantics; Wave 10 Python event/tween work; new protocols; Server Python.
+**ForbiddenScope:** implementing 08-FOLLOW-B expression language/Analog Fill; Wave 09 Screen navigation/Popup/Dynamo/Historical Data Browser implementation; new unrelated protocols; Server Python; monitor-private or visual-private `.NN` parsing; unsafe whole-register overwrite for Boolean register bits.
 
-**CompletionCriteria:** graphical gate remains green; Development Monitor acceptance from its canonical spec is implemented; final combined Wave 08 exact-head Web/backend/full tests/smoke/Chromium green; PR #90 merged; post-merge main healthy; docs synchronized.
+**CompletionCriteria:**
+- logical Int16/Int32/Int64 bit selectors are canonical and stable by TAG identity + bit index;
+- quality/timestamp and signed fixed-width semantics are correct;
+- direct physical Boolean bit binding is represented publicly/versionably;
+- Modbus Holding/Input Register bit reads are correct;
+- Holding Register bit writes preserve unrelated bits and coordinate same-register EliteSCADA writes;
+- shared/coalesced physical reads are retained where practical;
+- import/export/Preview/Apply/revision/PostgreSQL/package fidelity is green;
+- Project Reference Tree/Development Monitor can consume the canonical bit seam without a private parser;
+- existing whole-register/Coil/DiscreteInput and prior Wave regressions remain green;
+- final exact-head CI and post-merge `main` health are green.
 
 **NextActions:**
-1. inspect live authoritative TAG, memory, system/runtime and driver diagnostic sources;
-2. define a single monitor source descriptor/sample/provider seam without creating a second variable model;
-3. decide parallel-safe worker slices and record new assignments before activating any worker;
-4. implement search + exact quick-add + heterogeneous read-only table;
-5. prove quality/state/timestamp and exact typed values;
-6. prove shared subscriptions/batching for at least 100 monitored rows;
-7. run final combined Wave 08 CI and merge only if green.
+1. inspect actual merged TAG and reference DTO/model seams;
+2. inspect Modbus point/codec/poll-block/write behavior and current address convention;
+3. inspect Project Reference Tree + Development Monitor catalog identity contracts;
+4. define the minimum selector/binding DTO and runtime resolver on the integration branch;
+5. decide whether parallel-safe worker slices exist and update this board before any worker starts;
+6. implement focused contract/driver tests first;
+7. run a full matrix only at a meaningful integrated checkpoint.
 
 ---
 
 # DEV 1 - EliteSCADA
 
 **Role:** `WORKER`  
-**Wave:** `GRAPHICAL-EDITOR-WAVE-08`  
+**Wave:** `08-FOLLOW-A`  
 **Status:** `STOPPED / WAIT_FOR_COORDINATOR`  
-**PreviousTask:** Canvas / Selection — DELIVERED AND INTEGRATED  
-**PreviousDeliveryHead:** `d6542643014e955b013756fd8ee53a5629b8e82a`  
-**PreviousPR:** `#93` closed without direct merge.
+**PreviousTask:** Wave 08 Canvas / Selection — DELIVERED AND MERGED THROUGH CENTRAL TRAIN  
+**PreviousDeliveryHead:** `d6542643014e955b013756fd8ee53a5629b8e82a`
 
 **CurrentTask:** none.
 
-**Authorization state:** NOT AUTHORIZED for Development Monitor work until this board is explicitly changed.
+**Authorization state:** NOT AUTHORIZED for Follow-A work until this board grants an explicit AllowedScope/ForbiddenScope/CompletionCriteria.
 
 ---
 
 # DEV 2 - EliteSCADA
 
 **Role:** `WORKER`  
-**Wave:** `GRAPHICAL-EDITOR-WAVE-08`  
+**Wave:** `08-FOLLOW-A`  
 **Status:** `STOPPED / WAIT_FOR_COORDINATOR`  
-**PreviousTask:** Property Inspector — DELIVERED AND INTEGRATED  
-**PreviousDeliveryHead:** `2c974cadafbcc773a4645864440c190f128ea808`  
-**PreviousPR:** `#91` closed without direct merge.
+**PreviousTask:** Wave 08 Property Inspector — DELIVERED AND MERGED THROUGH CENTRAL TRAIN  
+**PreviousDeliveryHead:** `2c974cadafbcc773a4645864440c190f128ea808`
 
 **CurrentTask:** none.
 
-**Authorization state:** NOT AUTHORIZED for Development Monitor work until this board is explicitly changed.
+**Authorization state:** NOT AUTHORIZED for Follow-A work until this board grants an explicit AllowedScope/ForbiddenScope/CompletionCriteria.
 
 ---
 
 # DEV 3 - EliteSCADA
 
 **Role:** `WORKER`  
-**Wave:** `GRAPHICAL-EDITOR-WAVE-08`  
+**Wave:** `08-FOLLOW-A`  
 **Status:** `STOPPED / WAIT_FOR_COORDINATOR`  
-**PreviousTask:** Object Palette / Binding — DELIVERED AND INTEGRATED  
-**PreviousDeliveryHead:** `d614a00dda0903a0f7c78641dc0b803dfd8085df`  
-**PreviousPR:** `#92` closed without direct merge.
+**PreviousTask:** Wave 08 Object Palette / Binding — DELIVERED AND MERGED THROUGH CENTRAL TRAIN  
+**PreviousDeliveryHead:** `d614a00dda0903a0f7c78641dc0b803dfd8085df`
 
 **CurrentTask:** none.
 
-**Authorization state:** NOT AUTHORIZED for Development Monitor work until this board is explicitly changed.
+**Authorization state:** NOT AUTHORIZED for Follow-A work until this board grants an explicit AllowedScope/ForbiddenScope/CompletionCriteria.
 
 ## Follow-up ordering
 
-After the complete Wave 08 gate, the separately locked sequence remains:
-
-1. `08-FOLLOW-A` — TAG Bit Access + Driver Bit-Level Boolean Binding;
-2. `08-FOLLOW-B` — Typed Visual Expressions + Boolean Conditions + Analog Fill;
-3. Wave 09 only after required preceding work is green.
+1. `08-FOLLOW-A` — ACTIVE now.
+2. `08-FOLLOW-B` — WAITING ON Follow-A.
+3. Wave 09 — NOT ACTIVE until both mandatory follow-ups are green.

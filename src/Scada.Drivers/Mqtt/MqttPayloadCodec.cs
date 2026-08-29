@@ -193,19 +193,7 @@ public static class MqttPayloadCodec
         return value;
     }
 
-    private static DateTimeOffset ParseDateTime(string text)
-    {
-        if (!DateTimeOffset.TryParse(
-                text,
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                out var value))
-        {
-            throw new MqttPayloadException("MQTT scalar payload is invalid for a DateTime TAG.");
-        }
-
-        return value;
-    }
+    private static DateTimeOffset ParseDateTime(string text) => DecodeDateTimeString(text);
 
     private static bool DecodeJsonBoolean(JsonElement element)
     {
@@ -255,16 +243,34 @@ public static class MqttPayloadCodec
 
     private static DateTimeOffset DecodeDateTimeString(string? value)
     {
-        if (string.IsNullOrWhiteSpace(value) || !DateTimeOffset.TryParse(
-                value,
+        if (string.IsNullOrWhiteSpace(value))
+            throw new MqttPayloadException("MQTT timestamp must be an unambiguous ISO-8601 date/time string with an explicit UTC designator or offset.");
+
+        var trimmed = value.Trim();
+        if (!HasExplicitIso8601Offset(trimmed) ||
+            !DateTimeOffset.TryParse(
+                trimmed,
                 CultureInfo.InvariantCulture,
-                DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AdjustToUniversal,
                 out var parsed))
         {
-            throw new MqttPayloadException("MQTT timestamp must be an unambiguous ISO-8601 date/time string.");
+            throw new MqttPayloadException("MQTT timestamp must be an unambiguous ISO-8601 date/time string with an explicit UTC designator or offset.");
         }
 
         return parsed;
+    }
+
+    private static bool HasExplicitIso8601Offset(string value)
+    {
+        var timeSeparator = value.IndexOf('T');
+        if (timeSeparator < 0) timeSeparator = value.IndexOf('t');
+        if (timeSeparator < 0) return false;
+
+        if (value.EndsWith('Z') || value.EndsWith('z')) return true;
+
+        var plus = value.LastIndexOf('+');
+        var minus = value.LastIndexOf('-');
+        return Math.Max(plus, minus) > timeSeparator;
     }
 
     private static DateTimeOffset DecodeSourceTimestamp(JsonElement element)
@@ -290,8 +296,8 @@ public static class MqttPayloadCodec
             }
 
             if (current.ValueKind == JsonValueKind.Array &&
-                int.TryParse(token, NumberStyles.None, CultureInfo.InvariantCulture, out var index) &&
-                index >= 0 && index < current.GetArrayLength())
+                TryParseArrayIndexToken(token, out var index) &&
+                index < current.GetArrayLength())
             {
                 current = current[index];
                 continue;
@@ -301,6 +307,23 @@ public static class MqttPayloadCodec
         }
 
         return current;
+    }
+
+    private static bool TryParseArrayIndexToken(string token, out int index)
+    {
+        index = -1;
+        if (token.Length == 0) return false;
+        if (token == "0")
+        {
+            index = 0;
+            return true;
+        }
+        if (token[0] is < '1' or > '9') return false;
+        for (var position = 1; position < token.Length; position++)
+        {
+            if (token[position] is < '0' or > '9') return false;
+        }
+        return int.TryParse(token, NumberStyles.None, CultureInfo.InvariantCulture, out index);
     }
 
     private static string DecodePointerToken(string token)
@@ -341,10 +364,21 @@ public static class MqttPayloadCodec
             TagDataType.String when value is string typed => typed,
             TagDataType.Enum when value is string typed => typed,
             TagDataType.DateTime when value is DateTimeOffset typed => typed,
-            TagDataType.DateTime when value is DateTime typed => new DateTimeOffset(typed.ToUniversalTime()),
+            TagDataType.DateTime when value is DateTime typed => NormalizeDateTimeWrite(typed),
             _ => throw new MqttPayloadException(
                 $"MQTT write value type '{value?.GetType().Name ?? "null"}' is invalid for TAG type '{dataType}'.")
         };
+    }
+
+    private static DateTimeOffset NormalizeDateTimeWrite(DateTime value)
+    {
+        if (value.Kind == DateTimeKind.Unspecified)
+        {
+            throw new MqttPayloadException(
+                "MQTT DateTime writes require DateTimeKind.Utc/Local or a DateTimeOffset; unspecified timestamps are ambiguous.");
+        }
+
+        return new DateTimeOffset(value).ToUniversalTime();
     }
 
     private static string FormatUtf8Scalar(TagDataType dataType, object? value)

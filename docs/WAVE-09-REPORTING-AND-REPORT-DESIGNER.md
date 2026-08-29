@@ -215,12 +215,15 @@ Preview must render from the canonical report definition plus validated runtime 
 
 # 11. Output and export
 
-Initial output targets:
+**PDF and Excel are mandatory Wave 09 output formats.** A Wave 09 Reporting implementation is not complete unless the same validated report can be exported as:
+
+- **PDF (`.pdf`)**;
+- **Microsoft Excel workbook (`.xlsx`)**.
+
+Additional output targets may also be provided:
 
 - print preview;
 - printer through the supported host/platform print path;
-- PDF;
-- XLSX;
 - HTML;
 - RTF;
 - plain text;
@@ -228,13 +231,16 @@ Initial output targets:
 
 Requirements:
 
+- PDF and XLSX export are acceptance-gate capabilities, not optional future enhancements;
 - output is generated from the same validated report definition/query result;
+- PDF preserves the paginated visual report as faithfully as practical, including text, grouping, page headers/footers, images, charts and page numbering;
+- XLSX preserves tabular structure and typed cells where practical, including numeric/date/Boolean values instead of formatting every value as text;
+- spreadsheet output should retain useful column headings, deterministic ordering and grouped/summary results where the report definition exposes them;
 - file names/paths are handled through product/platform-safe download/save flows;
 - export does not reveal database credentials or raw internal query authority;
 - large exports are bounded and cancellable;
 - authorization applies to the underlying report and data, regardless of output format;
-- CSV/Text exports preserve deterministic encoding and column ordering;
-- spreadsheet export preserves typed cells where practical instead of formatting every value as text.
+- CSV/Text exports preserve deterministic encoding and column ordering when those optional formats are provided.
 
 # 12. Charts and graphical content
 
@@ -319,9 +325,9 @@ In addition to the Screen/Popup/Dynamo/navigation and Historical Data Browser ga
 
 `Page Header/Footer + page numbering -> multi-page report -> correct preview`
 
-`report with text + field + image + chart -> PDF export`
+`report with text + field + image + chart -> PDF export -> valid .pdf artifact`
 
-`same report -> XLSX/CSV export with deterministic columns and typed values where supported`
+`same report -> Excel export -> valid .xlsx workbook with deterministic columns and typed values where supported`
 
 `print preview -> print path invoked without bypassing authorization`
 
@@ -329,6 +335,7 @@ In addition to the Screen/Popup/Dynamo/navigation and Historical Data Browser ga
 
 Correctness requirements:
 
+- both mandatory exports, PDF and XLSX, are available from Runtime for an authorized report;
 - invalid filters/ranges fail before database execution;
 - no arbitrary SQL reaches the normal report API;
 - source quality remains visible/meaningful;

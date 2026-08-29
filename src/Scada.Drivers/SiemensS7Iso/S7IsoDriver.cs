@@ -47,7 +47,7 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
         TimeSpan? scanRate = null)
     {
         if (string.IsNullOrWhiteSpace(driverId)) throw new ArgumentException("Driver ID is required.", nameof(driverId));
-        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Driver name is required.", nameof(name));
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Driver name is required.", nameof(driverId));
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(cache);
         ArgumentNullException.ThrowIfNull(registry);
@@ -272,6 +272,14 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
                 await PublishPreviousAsync(configurationFailure.Key, TagQuality.BadConfiguration, cancellationToken);
             }
 
+            foreach (var failure in read.CommunicationFailures)
+            {
+                failures++;
+                communicationFailure = true;
+                lastError = failure.Value;
+                await PublishPreviousAsync(failure.Key, TagQuality.BadCommunication, cancellationToken);
+            }
+
             foreach (var result in read.Items)
             {
                 if (!result.Succeeded)
@@ -334,11 +342,9 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
 
         SetCommunicationState(failures == 0
             ? CommunicationDriverOperationalState.Healthy
-            : successes > 0
-                ? CommunicationDriverOperationalState.Degraded
-                : communicationFailure
-                    ? CommunicationDriverOperationalState.Reconnecting
-                    : CommunicationDriverOperationalState.Degraded);
+            : communicationFailure
+                ? CommunicationDriverOperationalState.Reconnecting
+                : CommunicationDriverOperationalState.Degraded);
     }
 
     private async Task PublishPreviousAsync(S7IsoPoint point, TagQuality quality, CancellationToken cancellationToken)

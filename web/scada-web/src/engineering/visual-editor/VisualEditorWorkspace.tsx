@@ -22,6 +22,7 @@ import { BUILTIN_VISUAL_OBJECT_TYPES, VISUAL_PROPERTY_KEYS } from '../../visual-
 import { BindingEditor } from './binding-editor';
 import { VisualEditorCanvas } from './canvas';
 import { CanonicalVisualRenderer } from './CanonicalVisualRenderer';
+import { DynamicPropertyEditor } from './dynamic-property-editor';
 import { ObjectPalette } from './object-palette';
 import { createCanonicalPolygon, updateCanonicalPolygonPoints } from './polygonCanonicalMutations';
 import { PropertyInspector } from './property-inspector';
@@ -89,6 +90,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
       .then(definitions => {
         if (cancelled) return;
         setClientMemoryDefinitions(Object.freeze(definitions.map(definition => Object.freeze({
+          id: definition.id,
           name: definition.name,
           path: definition.path,
           dataType: definition.dataType,
@@ -211,17 +213,22 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
         return;
       }
       if (intent.kind === 'polygon.points.set') {
-        setDraft(updateCanonicalPolygonPoints(draft, intent.objectId, intent.points));
+        setDraft(current => updateCanonicalPolygonPoints(current, intent.objectId, intent.points));
         invalidateValidation();
         return;
       }
 
       const normalizedIntent = normalizeVisualEditorMutationIntent(intent);
-      const nextDraft = applyVisualEditorMutationIntent(draft, normalizedIntent);
-      setDraft(nextDraft);
       if (normalizedIntent.kind === 'object.delete') {
+        const nextDraft = applyVisualEditorMutationIntent(draft, normalizedIntent);
+        setDraft(nextDraft);
         const remaining = existingVisualObjectIds(nextDraft);
         setSelectedObjectIds(current => Object.freeze(current.filter(objectId => remaining.has(objectId))));
+      } else {
+        // Dynamic authoring may emit remove-old-source + set-new-source synchronously.
+        // Functional updates ensure those canonical mutations compose instead of
+        // each callback applying against a stale render-time draft snapshot.
+        setDraft(current => applyVisualEditorMutationIntent(current, normalizedIntent));
       }
       invalidateValidation();
     } catch (reason) {
@@ -399,6 +406,32 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
                   </select>
                 </label>
               </section>
+            ) : null}
+
+            {selectedElement?.id ? (
+              <DynamicPropertyEditor
+                element={selectedElement}
+                sourceCatalog={bindingSourceCatalog}
+                onBindingIntent={handleMutationIntent}
+                onSetExpression={configuration => handleMutationIntent({
+                  kind: 'propertyExpression.set', objectId: selectedElement.id!, configuration
+                })}
+                onRemoveExpression={propertyKey => handleMutationIntent({
+                  kind: 'propertyExpression.remove', objectId: selectedElement.id!, propertyKey
+                })}
+                onSetBooleanCondition={configuration => handleMutationIntent({
+                  kind: 'booleanCondition.set', objectId: selectedElement.id!, configuration
+                })}
+                onRemoveBooleanCondition={propertyKey => handleMutationIntent({
+                  kind: 'booleanCondition.remove', objectId: selectedElement.id!, propertyKey
+                })}
+                onSetAnalogFill={configuration => handleMutationIntent({
+                  kind: 'analogFill.set', objectId: selectedElement.id!, configuration
+                })}
+                onRemoveAnalogFill={() => handleMutationIntent({
+                  kind: 'analogFill.remove', objectId: selectedElement.id!
+                })}
+              />
             ) : null}
 
             {selectedElement ? (

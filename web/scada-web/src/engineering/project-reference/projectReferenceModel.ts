@@ -39,7 +39,7 @@ export type ProjectReferenceResolution = Readonly<{
 }>;
 
 export type ClientMemoryDefinitionView = Readonly<{
-  id: string;
+  id?: string;
   name: string;
   path: string;
   dataType: string;

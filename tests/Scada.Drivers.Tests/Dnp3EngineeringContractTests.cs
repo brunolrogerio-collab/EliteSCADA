@@ -87,7 +87,7 @@ public sealed class Dnp3EngineeringContractTests
             descriptor.ConfigurationSchema.TagBindingFields.Count,
             descriptor.ConfigurationSchema.TagBindingFields.Select(field => field.Key).Distinct(StringComparer.Ordinal).Count());
 
-        var transport = Assert.Single(descriptor.ConfigurationSchema.DataSourceFields.Where(field => field.Key == "transport"));
+        var transport = Assert.Single(descriptor.ConfigurationSchema.DataSourceFields, field => field.Key == "transport");
         Assert.Equal("tcp", transport.DefaultValue);
         Assert.Equal(new[] { "tcp" }, transport.AllowedValues);
         Assert.DoesNotContain(descriptor.ConfigurationSchema.DataSourceFields, field => field.Key.Contains("tls", StringComparison.OrdinalIgnoreCase));

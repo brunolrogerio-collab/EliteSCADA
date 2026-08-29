@@ -5,7 +5,8 @@
 **Handoff date:** 2026-08-28  
 **Merged product state:** **WAVE 07 CLOSED / WAVE 08 NOT MERGED**  
 **Active development state:** **WAVE 08 ACTIVE — CENTRAL FOUNDATION VALIDATED IN DRAFT PR #90 / DEV 1-2-3 ACTIVE**  
-**Next mandatory visual follow-up:** **TYPED VISUAL EXPRESSIONS + BOOLEAN CONDITIONS + ANALOG FILL — SPECIFIED / NOT IMPLEMENTED**  
+**Next mandatory follow-up A:** **TAG BIT ACCESS + DRIVER BIT-LEVEL BOOLEAN BINDING — SPECIFIED / NOT IMPLEMENTED**  
+**Next mandatory follow-up B:** **TYPED VISUAL EXPRESSIONS + BOOLEAN CONDITIONS + ANALOG FILL — SPECIFIED / NOT IMPLEMENTED**  
 **CI mode:** **NORMAL — Actions authorized with conservative usage**
 
 ## Mandatory resume reading
@@ -20,6 +21,7 @@ Before any action read current `main`:
 - `docs/CI-USAGE-POLICY.md`
 - `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`
 - `docs/COORDINATOR-HANDOFF.md`
+- `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`
 - `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`
 - current assignment `MustReadSpecific`.
 
@@ -105,6 +107,37 @@ Each worker starts on `siga` after rereading current `main`, then uses the seede
 
 Workers must preserve their fixed AllowedScope/ForbiddenScope, use focused validation, report exact delivery head and stop at `WAIT_FOR_COORDINATOR` after delivery.
 
+## Newly locked TAG bit behavior — SPECIFIED / NOT IMPLEMENTED
+
+The owner added a transversal TAG/driver requirement while the current Wave 08 worker slices were already active. Their missions remain **unchanged mid-delivery**.
+
+Canonical contract:
+
+`docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`
+
+This follow-up must be implemented after the current Wave 08 interaction delivery is reviewed/integrated and **before** the typed visual-expression follow-up relies on `.NN` bit syntax.
+
+Locked behavior includes:
+
+- integer TAGs expose deterministic Boolean bit selectors with preferred notation such as `Word_comando.00`, `Word_comando.07` and `Word_status.15`;
+- canonical references store stable TAG identity + bit index rather than relying only on a display string;
+- initial supported widths are Int16 `00..15`, Int32 `00..31`, Int64 `00..63`;
+- bit 0 is LSB and signed integer extraction uses the fixed-width two's-complement representation;
+- Float/Double/String/DateTime/Enum do not receive normal bit selectors;
+- bit selectors inherit source quality/timestamp and do not turn unavailable/bad source into false;
+- bit selectors are reusable Boolean references for visual bindings/expressions, alarms and scripting/reference surfaces where normal authorization permits;
+- optional writes to a writable logical integer TAG bit must change only that bit and preserve all other bits with concurrency-safe coordination;
+- drivers may expose first-class physical bit binding for a Boolean TAG within a word/register;
+- Modbus Holding/Input Register Boolean bit bindings use bit `0..15` after the register address is resolved;
+- Input Register remains read-only; Coil remains native Boolean and needs no register-bit selector;
+- writable Holding Register bit operations must preserve all unrelated bits using native Mask Write Register when supported or coordinated read-modify-write otherwise;
+- multiple Boolean bit TAGs sharing one register should share/coalesce the physical register read where practical;
+- Modbus human `4xxxxx` addressing and zero-based wire offset must have an explicit Engineering conversion policy;
+- a logical bit selector is only a view and does not automatically create a second historian series; independent history/alarm identity uses a first-class Boolean TAG bound to the physical bit;
+- bit references/bindings participate in JSON import/export, Preview/Apply, revisions, PostgreSQL and `.escadapkg` and never bypass security/Audit.
+
+This follow-up is ordered as **08-FOLLOW-A**.
+
 ## Newly locked visual behavior — SPECIFIED / NOT IMPLEMENTED
 
 The owner expanded the mandatory visual-engineering follow-up while the three current worker slices were already active. Their missions remain **unchanged mid-delivery**.
@@ -113,11 +146,12 @@ Canonical contract:
 
 `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`
 
-This follow-up must be implemented after the current Wave 08 worker deliveries are reviewed/integrated and before Wave 09 is activated.
+This follow-up is ordered as **08-FOLLOW-B** and runs after TAG bit semantics are stabilized and before Wave 09 is activated.
 
 Locked behavior now includes:
 
 - visual properties declaring Binding/Expression support accept typed, side-effect-free expressions over canonical TAGs and Client Memory;
+- canonical integer TAG bit selectors such as `Word_status.03` may be used as Boolean expression dependencies;
 - boolean expressions support `and`, `or`, `not`, comparisons and parentheses, e.g. `falha_inversor1 or falha_bomba1`;
 - numeric expressions support `+`, `-`, `*`, `/`, `%`, unary sign and parentheses, e.g. `(nivel1 + nivel2) * 3`;
 - boolean/numeric destination type compatibility is enforced and conversions are explicit, e.g. `bool(falha_inversor1 + falha_bomba1)` or `(falha_inversor1 + falha_bomba1) > 0` when source TAGs are numeric;
@@ -137,7 +171,7 @@ Locked behavior now includes:
 - runtime expression results, condition results and calculated fill percentages are presentation state and are not persisted as Engineering base values;
 - visual expressions/conditions must never be treated as safety/interlock/permissive process authority.
 
-The first follow-up is intentionally an expression language, not a general-purpose programming language: no assignments, loops, arbitrary functions, JavaScript/Python evaluation or direct driver/database/network/DOM access.
+The first expression follow-up is intentionally an expression language, not a general-purpose programming language: no assignments, loops, arbitrary functions, JavaScript/Python evaluation or direct driver/database/network/DOM access.
 
 ## Actions rule
 
@@ -178,5 +212,6 @@ Wave 09/10 remain NOT ACTIVE.
 6. use focused validation during composition and preserve CI #515 evidence only for unchanged validated code;
 7. run the next full matrix on a meaningful integrated product checkpoint;
 8. finish/merge the current Wave 08 interaction work only when exact-head CI is green;
-9. before activating Wave 09, execute the mandatory Typed Visual Expressions + Boolean Conditions + Analog Fill follow-up under `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`, with its own assignments and validation;
-10. only after that follow-up is green and documentation is synchronized may Wave 09 activate.
+9. execute **08-FOLLOW-A TAG Bit Access + Driver Bit-Level Boolean Binding** under `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`, with its own assignments and validation;
+10. after 08-FOLLOW-A is green, execute **08-FOLLOW-B Typed Visual Expressions + Boolean Conditions + Analog Fill** under `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`;
+11. only after both mandatory follow-ups are green and documentation is synchronized may Wave 09 activate.

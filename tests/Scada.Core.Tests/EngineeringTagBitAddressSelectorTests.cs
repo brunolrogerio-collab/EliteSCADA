@@ -77,9 +77,10 @@ public sealed class EngineeringTagBitAddressSelectorTests
         Assert.True(tags.TryGetByPath("Plant.Command.Bit7", out var stored));
         Assert.Equal(TagValueSelectorKind.Bit, stored!.AddressSelector?.Kind);
         Assert.Equal(7, stored.AddressSelector?.Index);
-        Assert.False((stored.Metadata?.Keys ?? Array.Empty<string>()).Any(key =>
-            key.Contains("selector", StringComparison.OrdinalIgnoreCase) ||
-            key.Contains("bitIndex", StringComparison.OrdinalIgnoreCase)));
+        Assert.DoesNotContain(
+            stored.Metadata?.Keys ?? Array.Empty<string>(),
+            key => key.Contains("selector", StringComparison.OrdinalIgnoreCase) ||
+                   key.Contains("bitIndex", StringComparison.OrdinalIgnoreCase));
 
         var exported = Assert.Single(service.ExportPackage().Tags);
         Assert.Equal(TagValueSelectorKind.Bit, exported.AddressSelector?.Kind);

@@ -12,7 +12,7 @@ Wave 08 Development Monitor contract: `docs/ENGINEERING-DEVELOPMENT-MONITOR-WAVE
 Wave 08 asset storage contract: `docs/VISUAL-ASSET-STORAGE-WAVE-08.md`.  
 TAG bit access + bit-level driver binding follow-up: `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`.  
 Visual Expressions + Boolean Conditions + Analog Fill follow-up: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.  
-Wave 09 Elipse E3 alarm/historian/query research: `docs/WAVE-09-ELIPSE-E3-ALARM-HISTORIAN-DATA-BROWSER-RESEARCH.md`.  
+Wave 09 historical alarm/historian/query context: `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`.  
 CI policy: `docs/CI-USAGE-POLICY.md`.
 
 Engineering Import/Export remains cross-cutting: canonical Engineering domains join versioned JSON, validation/Preview/Apply, revision lifecycle, PostgreSQL persistence where applicable and `.escadapkg` backup/restore.
@@ -141,13 +141,13 @@ After 08-FOLLOW-A is green, execute `08-FOLLOW-B` under `docs/VISUAL-BOOLEAN-CON
 
 Wave 09 remains blocked until required preceding work is green.
 
-## Wave 09 — locked research expansion
+## Wave 09 — locked historical data expansion
 
-Wave 09 keeps its original **Screens + Popups + Dynamos + navigation** objective and now also incorporates the owner-requested Elipse E3 alarm/historian/query research under:
+Wave 09 keeps its original **Screens + Popups + Dynamos + navigation** objective and also incorporates the locked historical alarm/historian/query context under:
 
-`docs/WAVE-09-ELIPSE-E3-ALARM-HISTORIAN-DATA-BROWSER-RESEARCH.md`
+`docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`
 
-The locked product direction is a web-native **Historical Data Browser**, not an ActiveX/E3Browser clone and not an arbitrary SQL console.
+The locked product direction is a web-native **Historical Data Browser** over protected typed datasets, not an arbitrary SQL console.
 
 Required first datasets:
 

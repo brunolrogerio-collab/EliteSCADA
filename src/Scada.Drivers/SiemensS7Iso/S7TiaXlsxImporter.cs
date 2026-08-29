@@ -181,7 +181,7 @@ internal static partial class S7TiaXlsxImporter
                     : "Supported"
         };
 
-        var stableIdentity = string.Join("|", SourceKind, path ?? string.Empty, name, logicalAddress ?? string.Empty);
+        var stableIdentity = string.Join("|", SourceKind, path ?? string.Empty, name);
         var candidateId = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(stableIdentity))).ToLowerInvariant()[..24];
         var portableAddress = binding?.ToPortableAddress()
             ?? $"tia-xlsx:unsupported:{candidateId}";

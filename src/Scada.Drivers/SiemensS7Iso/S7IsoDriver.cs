@@ -129,7 +129,11 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
     {
         if (!_byTagId.TryGetValue(tagId, out var point))
             throw new KeyNotFoundException($"S7 ISO TAG '{tagId}' was not found in driver '{DriverId}'.");
-        if (!point.Writable) throw new InvalidOperationException($"S7 ISO TAG '{point.Tag.Path}' is not writable.");
+        if (!point.Writable)
+            throw new InvalidOperationException($"S7 ISO TAG '{point.Tag.Path}' is not writable.");
+        if (!_options.WriteEnabled)
+            throw new InvalidOperationException(
+                $"S7 ISO writes are disabled for data source '{DriverId}'. Enable 'writeEnabled' explicitly before allowing writes.");
 
         var encoded = S7IsoValueCodec.Encode(point, value);
         var started = Stopwatch.GetTimestamp();
@@ -179,7 +183,8 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
                 ["sourceTsap"] = S7IsoConnectionOptions.FormatTsap(_options.EffectiveSourceTsap),
                 ["destinationTsap"] = S7IsoConnectionOptions.FormatTsap(_options.EffectiveDestinationTsap),
                 ["requestedPduSize"] = _options.RequestedPduSize.ToString(CultureInfo.InvariantCulture),
-                ["negotiatedPduSize"] = transport.NegotiatedPduSize?.ToString(CultureInfo.InvariantCulture) ?? string.Empty
+                ["negotiatedPduSize"] = transport.NegotiatedPduSize?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+                ["writeEnabled"] = _options.WriteEnabled ? "true" : "false"
             };
             if (_options.ConnectionMode == S7IsoConnectionMode.RackSlot)
             {

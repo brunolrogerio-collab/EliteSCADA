@@ -24,6 +24,17 @@ export type MonitorQuickAddResult = Readonly<{
   reference?: string;
 }>;
 
+const TAG_QUALITY_NAMES: Readonly<Record<number, string>> = Object.freeze({
+  0: 'Good',
+  1: 'Uncertain',
+  2: 'Bad',
+  3: 'BadCommunication',
+  4: 'BadConfiguration',
+  5: 'BadDevice',
+  6: 'Stale',
+  7: 'Disabled'
+});
+
 export function resolveMonitorQuickAdd(
   catalog: readonly ProjectReferenceDescriptor[],
   rawReference: string
@@ -50,9 +61,9 @@ export function mergeMonitorBatchSamples(
   readClientValue: (reference: string) => unknown,
   observedAt = new Date().toISOString()
 ): ReadonlyMap<string, MonitorSample> {
-  const next = new Map(current);
-  const tagByPath = new Map(tags.map(tag => [tag.path, tag]));
-  const driverByKey = new Map(drivers.map(driver => [driver.dataSourceKey, driver]));
+  const next = new Map<string, MonitorSample>(current);
+  const tagByPath = new Map<string, RuntimeTagSnapshot>(tags.map(tag => [tag.path, tag] as const));
+  const driverByKey = new Map<string, CommunicationDriverDiagnostic>(drivers.map(driver => [driver.dataSourceKey, driver] as const));
 
   for (const reference of selected) {
     const descriptor = descriptors.get(reference);
@@ -133,7 +144,7 @@ export function applyMonitorRealtimeMessage(
   const descriptor = descriptors.get(reference);
   if (!descriptor || (descriptor.family !== 'tag' && descriptor.family !== 'serverMemory')) return current;
 
-  const next = new Map(current);
+  const next = new Map<string, MonitorSample>(current);
   next.set(reference, Object.freeze({
     reference,
     value: message.value,
@@ -151,7 +162,7 @@ export function markMonitorUnavailable(
   descriptors: ReadonlyMap<string, ProjectReferenceDescriptor>,
   observedAt = new Date().toISOString()
 ): ReadonlyMap<string, MonitorSample> {
-  const next = new Map(current);
+  const next = new Map<string, MonitorSample>(current);
   for (const reference of selected) {
     const descriptor = descriptors.get(reference);
     if (descriptor) next.set(reference, unavailableSample(descriptor, observedAt));
@@ -169,10 +180,7 @@ export function formatMonitorValue(value: unknown): string {
 
 export function formatMonitorQuality(sample: MonitorSample | undefined): string {
   if (!sample) return 'Unavailable';
-  if (sample.quality !== undefined && sample.quality !== null) {
-    if (sample.quality === 0) return 'Good';
-    return String(sample.quality);
-  }
+  if (sample.quality !== undefined && sample.quality !== null) return tagQualityLabel(sample.quality);
   if (sample.state !== undefined && sample.state !== null) return String(sample.state);
   return 'N/A';
 }
@@ -181,6 +189,11 @@ export function monitorQualityClass(sample: MonitorSample | undefined): string {
   const value = formatMonitorQuality(sample).toLowerCase();
   return value.includes('good') || value.includes('available') || value.includes('connected') || value.includes('localsession') ? 'is-good'
     : value === 'n/a' ? '' : 'is-bad';
+}
+
+export function tagQualityLabel(value: string | number): string {
+  if (typeof value === 'number') return TAG_QUALITY_NAMES[value] ?? `Unknown(${value})`;
+  return value;
 }
 
 function unavailableSample(descriptor: ProjectReferenceDescriptor, observedAt: string): MonitorSample {

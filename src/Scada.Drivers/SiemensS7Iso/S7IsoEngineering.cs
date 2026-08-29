@@ -1,10 +1,13 @@
 using System.Globalization;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using Scada.Drivers.Abstractions;
 
 namespace Scada.Drivers.SiemensS7Iso;
 
-public sealed class S7IsoEngineeringAdapter : ICommunicationDriverConnectionTester
+public sealed class S7IsoEngineeringAdapter :
+    ICommunicationDriverConnectionTester,
+    ICommunicationDriverFileImporter
 {
     public CommunicationDriverTypeDescriptor Descriptor { get; } = CreateDescriptor();
 
@@ -51,6 +54,56 @@ public sealed class S7IsoEngineeringAdapter : ICommunicationDriverConnectionTest
                         DriverEngineeringIssueSeverity.Error,
                         SanitizeError(ex))
                 });
+        }
+    }
+
+    public async IAsyncEnumerable<DriverImportCandidate> ImportAsync(
+        DriverImportRequest request,
+        Stream content,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(content);
+
+        if (!IsTiaXlsx(request.SourceName, request.ContentType))
+        {
+            yield return UnsupportedImportFormat(request.SourceName, request.ContentType);
+            yield break;
+        }
+
+        IReadOnlyList<DriverImportCandidate> candidates;
+        try
+        {
+            candidates = S7TiaXlsxImporter.Parse(request.SourceName, content, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or NotSupportedException or FormatException or System.Xml.XmlException)
+        {
+            yield return new DriverImportCandidate(
+                "tia-xlsx-parse-error",
+                $"TiaXlsx|{request.SourceName}",
+                request.SourceName,
+                "tia-xlsx:parse-error",
+                false,
+                false,
+                Issues: new[]
+                {
+                    new DriverEngineeringIssue(
+                        "S7_TIA_XLSX_INVALID",
+                        DriverEngineeringIssueSeverity.Error,
+                        SanitizeError(ex))
+                });
+            yield break;
+        }
+
+        foreach (var candidate in candidates)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return candidate;
+            await Task.Yield();
         }
     }
 
@@ -156,15 +209,42 @@ public sealed class S7IsoEngineeringAdapter : ICommunicationDriverConnectionTest
             "Siemens S7 ISO-on-TCP",
             1,
             DriverCapabilities.Read | DriverCapabilities.Write | DriverCapabilities.Diagnostics,
-            DriverEngineeringCapabilities.ConnectionTest,
+            DriverEngineeringCapabilities.ConnectionTest | DriverEngineeringCapabilities.FileImport,
             new[] { DriverAcquisitionMode.Polling },
             new DriverConfigurationSchemaDescriptor(
                 "siemens.s7.iso",
                 1,
                 dataSourceFields,
                 tagFields),
-            Description: "Classic Siemens S7 communication over ISO-on-TCP / RFC1006.");
+            Description: "Classic Siemens S7 communication over ISO-on-TCP / RFC1006 with Engineering-side TIA XLSX PLC-tag import.");
     }
+
+    private static DriverImportCandidate UnsupportedImportFormat(string sourceName, string? contentType) =>
+        new(
+            "tia-format-unsupported",
+            $"TiaExport|{sourceName}",
+            sourceName,
+            "tia-export:unsupported-format",
+            false,
+            false,
+            Metadata: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["sourceName"] = sourceName,
+                ["contentType"] = contentType ?? string.Empty,
+                ["supportedFormat"] = "xlsx"
+            },
+            Issues: new[]
+            {
+                new DriverEngineeringIssue(
+                    "S7_TIA_FORMAT_NOT_IMPLEMENTED",
+                    DriverEngineeringIssueSeverity.Error,
+                    "This S7 Engineering slice supports TIA PLC-tag XLSX import. XML, SDF and Openness adapters remain explicit follow-up work.")
+            });
+
+    private static bool IsTiaXlsx(string sourceName, string? contentType) =>
+        sourceName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ||
+        (!string.IsNullOrWhiteSpace(contentType) &&
+         contentType.Contains("spreadsheetml", StringComparison.OrdinalIgnoreCase));
 
     private static DriverConfigurationFieldDescriptor Field(
         string key,

@@ -15,7 +15,7 @@ public static class BacnetQualityMapper
         if (state is null) return TagQuality.Good;
 
         var reliabilityQuality = FromReliability(state.Reliability);
-        if (reliabilityQuality is TagQuality.BadCommunication or TagQuality.BadConfiguration or TagQuality.BadDevice)
+        if (reliabilityQuality is TagQuality.BadConfiguration or TagQuality.BadDevice)
             return reliabilityQuality;
 
         if (state.Fault == true)
@@ -36,8 +36,7 @@ public static class BacnetQualityMapper
         {
             2 or 3 => TagQuality.Uncertain,                 // over-range / under-range
             10 => TagQuality.BadConfiguration,             // configuration-error
-            11 => TagQuality.BadCommunication,             // communication-failure
-            1 or 4 or 5 or 6 or 7 or 8 or 9 or
+            1 or 4 or 5 or 6 or 7 or 8 or 9 or 11 or
             12 or 13 or 14 or 15 or 16 => TagQuality.BadDevice,
             _ => TagQuality.Uncertain
         };

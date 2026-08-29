@@ -26,6 +26,7 @@ export type ProjectReferenceDescriptor = Readonly<{
 
 export type ClientMemoryDefinitionView = Readonly<{
   name: string;
+  path: string;
   dataType: string;
   initialValue?: unknown;
   readOnly?: boolean;
@@ -59,17 +60,18 @@ export function buildProjectReferenceCatalog(
   }
 
   for (const definition of clientMemoryDefinitions) {
-    const name = definition.name?.trim();
-    if (!name) continue;
+    const path = definition.path?.trim();
+    if (!path) continue;
+    const name = definition.name?.trim() || path;
     result.push(Object.freeze({
-      reference: name,
+      reference: path,
       label: name,
       family: 'clientMemory',
       dataType: definition.dataType,
       providerIdentity: 'builtin.memory.client',
       writable: definition.readOnly !== true,
       bindingKind: 'ClientMemory',
-      pathSegments: Object.freeze(splitPath(name))
+      pathSegments: Object.freeze(splitPath(path))
     }));
   }
 

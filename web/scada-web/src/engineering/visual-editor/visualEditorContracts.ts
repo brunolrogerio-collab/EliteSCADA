@@ -1,6 +1,7 @@
 import type {
   BindingEngineering,
   ScreenEngineering,
+  TagValueReferenceEngineering,
   VisualElementEngineering,
   VisualEngineeringPropertyValue
 } from '../types';
@@ -114,6 +115,12 @@ export type VisualEditorMutationIntent =
       propertyKey: string;
     }>;
 
+export type VisualEditorBindingSelectorCapability = Readonly<{
+  kind: 'bit';
+  minIndex: number;
+  maxIndex: number;
+}>;
+
 export type VisualEditorBindingSourceCatalogItem = Readonly<{
   kind: BindingEngineering['kind'];
   target: string;
@@ -123,6 +130,8 @@ export type VisualEditorBindingSourceCatalogItem = Readonly<{
   writable?: boolean;
   family?: 'tag' | 'serverMemory' | 'clientMemory' | 'system' | 'driverDiagnostic' | 'asset';
   bindable?: boolean;
+  tagReference?: TagValueReferenceEngineering | null;
+  selectorCapability?: VisualEditorBindingSelectorCapability | null;
 }>;
 
 export type VisualEditorCanvasContractProps = Readonly<{

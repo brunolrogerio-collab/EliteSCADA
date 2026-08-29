@@ -39,11 +39,12 @@ public sealed class Iec104EngineeringConnectionTesterTests
             factoryCalls++;
             return new FakeAdapter();
         });
-        var settings = new Dictionary<string, string>(CreateContext().Settings, StringComparer.Ordinal)
-        {
-            ["t1Seconds"] = "5",
-            ["t2Seconds"] = "5"
-        };
+        var settings = CreateContext().Settings.ToDictionary(
+            static pair => pair.Key,
+            static pair => pair.Value,
+            StringComparer.Ordinal);
+        settings["t1Seconds"] = "5";
+        settings["t2Seconds"] = "5";
         var context = CreateContext(settings);
 
         var result = await tester.TestConnectionAsync(context);
@@ -99,8 +100,8 @@ public sealed class Iec104EngineeringConnectionTesterTests
         var issue = Assert.Single(result.Issues ?? Array.Empty<DriverEngineeringIssue>());
         Assert.Equal("iec104.connection.failed", issue.Code);
         Assert.Equal("first line second line  third line", issue.Message);
-        Assert.DoesNotContain('\n', issue.Message);
-        Assert.DoesNotContain('\r', issue.Message);
+        Assert.DoesNotContain("\n", issue.Message);
+        Assert.DoesNotContain("\r", issue.Message);
     }
 
     private static DriverEngineeringDataSourceContext CreateContext(

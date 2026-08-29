@@ -22,7 +22,8 @@ public sealed record MqttConnectionSettings(
     bool CleanStart = false,
     uint? SessionExpirySeconds = null,
     int MaximumInboundPayloadBytes = 1_048_576,
-    int MaximumConsecutiveConnectFailures = 5)
+    int MaximumConsecutiveConnectFailures = 5,
+    int MaximumBufferedMessages = 4_096)
 {
     public TimeSpan EffectiveKeepAlive => KeepAlive ?? TimeSpan.FromSeconds(30);
     public TimeSpan EffectiveConnectTimeout => ConnectTimeout ?? TimeSpan.FromSeconds(10);
@@ -54,6 +55,8 @@ public sealed record MqttConnectionSettings(
             throw new ArgumentOutOfRangeException(nameof(MaximumInboundPayloadBytes));
         if (MaximumConsecutiveConnectFailures < 1)
             throw new ArgumentOutOfRangeException(nameof(MaximumConsecutiveConnectFailures));
+        if (MaximumBufferedMessages is < 1 or > 1_000_000)
+            throw new ArgumentOutOfRangeException(nameof(MaximumBufferedMessages));
 
         if (ProtocolMode == MqttProtocolMode.Mqtt311)
         {

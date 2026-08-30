@@ -326,20 +326,57 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
         try
         {
             if (_disposed) return;
-            await StopCoreAsync();
-            MarkReadinessStopped();
 
+            Exception? stopError = null;
+            try
+            {
+                await StopCoreAsync();
+            }
+            catch (Exception ex)
+            {
+                stopError = ex;
+            }
+
+            Exception? disposeError = null;
             await _writeGate.WaitAsync();
             try
             {
                 if (_disposed) return;
                 _disposed = true;
-                await _transport.DisposeAsync();
+                try
+                {
+                    await _transport.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    disposeError = ex;
+                    RecordFailureOnly(ex);
+                }
+                finally
+                {
+                    ReleaseRuntimeSessionState(_cts);
+                }
             }
             finally
             {
                 _writeGate.Release();
             }
+
+            if (stopError is null)
+                MarkReadinessStopped();
+
+            if (stopError is not null && disposeError is not null)
+            {
+                throw new AggregateException(
+                    "MQTT driver stop and transport disposal both failed.",
+                    stopError,
+                    disposeError);
+            }
+
+            if (disposeError is not null)
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(disposeError).Throw();
+            if (stopError is not null)
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(stopError).Throw();
         }
         finally
         {
@@ -375,13 +412,26 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
             catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
         }
 
-        await DisconnectTransportAsync(CancellationToken.None);
-        lock (_diagnosticsGate)
+        try
         {
-            _freshnessReferenceByTagId.Clear();
-            _hasConnectedOnce = false;
+            await DisconnectTransportAsync(CancellationToken.None);
         }
-        _consecutiveConnectFailures = 0;
+        catch (Exception ex)
+        {
+            RecordFailureOnly(ex);
+            TransitionCommunicationState(CommunicationDriverOperationalState.Faulted);
+            MarkReadinessFaulted(ex);
+            Status = new DriverStatus(
+                DriverId,
+                Name,
+                DriverState.Faulted,
+                DateTimeOffset.UtcNow,
+                SanitizeError(ex),
+                Interlocked.Read(ref _updatesPublished));
+            throw;
+        }
+
+        ReleaseRuntimeSessionState(cts);
         Status = new DriverStatus(
             DriverId,
             Name,
@@ -390,8 +440,18 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
             UpdatesPublished: Interlocked.Read(ref _updatesPublished));
         TransitionCommunicationState(CommunicationDriverOperationalState.Stopped);
         MarkReadinessStopped();
+    }
 
-        if (ReferenceEquals(_cts, cts))
+    private void ReleaseRuntimeSessionState(CancellationTokenSource? cts)
+    {
+        lock (_diagnosticsGate)
+        {
+            _freshnessReferenceByTagId.Clear();
+            _hasConnectedOnce = false;
+        }
+        _consecutiveConnectFailures = 0;
+
+        if (cts is not null && ReferenceEquals(_cts, cts))
         {
             _cts = null;
             _loop = null;
@@ -441,7 +501,24 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
 
                 _consecutiveConnectFailures++;
                 await MarkAllCommunicationFailureAsync(cancellationToken);
-                await DisconnectTransportAsync(CancellationToken.None);
+                try
+                {
+                    await DisconnectTransportAsync(CancellationToken.None);
+                }
+                catch (Exception disconnectError)
+                {
+                    RecordFailureOnly(disconnectError);
+                    TransitionCommunicationState(CommunicationDriverOperationalState.Faulted);
+                    MarkReadinessFaulted(disconnectError);
+                    Status = new DriverStatus(
+                        DriverId,
+                        Name,
+                        DriverState.Faulted,
+                        DateTimeOffset.UtcNow,
+                        SanitizeError(disconnectError),
+                        Interlocked.Read(ref _updatesPublished));
+                    return;
+                }
 
                 var permanent = ex is MqttTransportException mqtt && mqtt.IsPermanent;
                 if (permanent || _consecutiveConnectFailures >= _settings.MaximumConsecutiveConnectFailures)

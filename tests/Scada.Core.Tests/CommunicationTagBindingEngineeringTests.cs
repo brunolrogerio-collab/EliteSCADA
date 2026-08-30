@@ -194,7 +194,7 @@ public sealed class CommunicationTagBindingEngineeringTests
                 TagDataType.Boolean,
                 Source: "plant.driver",
                 Address: binding.PortableAddress,
-                AddressSelector: TagValueSelector.Bit(3),
+                AddressSelector: new TagValueSelector(TagValueSelectorKind.Bit, 3),
                 CommunicationBinding: binding));
 
             var preview = service.Preview(package, ImportMode.CreateAndUpdate);

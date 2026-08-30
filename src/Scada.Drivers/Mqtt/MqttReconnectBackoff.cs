@@ -36,9 +36,12 @@ internal sealed class MqttReconnectBackoff
         if (normalized >= _maximum)
             return _maximum;
 
+        var proportionalJitterTicks = normalized.Ticks > long.MaxValue / MaximumJitterPercent
+            ? long.MaxValue
+            : normalized.Ticks * MaximumJitterPercent / 100;
         var maximumJitterTicks = Math.Min(
             _maximum.Ticks - normalized.Ticks,
-            Math.Max(1L, normalized.Ticks * MaximumJitterPercent / 100));
+            Math.Max(1L, proportionalJitterTicks));
 
         var jitterTicks = maximumJitterTicks == long.MaxValue
             ? (long)(NextUInt64() & 0x7FFF_FFFF_FFFF_FFFFUL)

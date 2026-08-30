@@ -100,7 +100,7 @@ public sealed class OpcUaEngineeringReconcilerTests
             [requested.PortableAddress, requested.PortableAddress])));
 
         Assert.Equal(2, results.Count);
-        Assert.Equal(1, transport.LastRequestedNodes.Count);
+        Assert.Single(transport.LastRequestedNodes);
         Assert.All(results, result => Assert.Equal(DriverReconcileStatus.Unchanged, result.Status));
     }
 

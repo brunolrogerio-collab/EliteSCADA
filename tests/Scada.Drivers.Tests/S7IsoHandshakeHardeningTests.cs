@@ -147,12 +147,12 @@ public sealed class S7IsoHandshakeHardeningTests
     }
 
     [Theory]
-    [InlineData((ushort)239)]
-    [InlineData((ushort)961)]
-    public void SetupCommunication_RequestRejectsPduOutsideSupportedRange(ushort requestedPduSize)
+    [InlineData(239)]
+    [InlineData(961)]
+    public void SetupCommunication_RequestRejectsPduOutsideSupportedRange(int requestedPduSize)
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            S7IsoProtocol.BuildSetupCommunication(1, requestedPduSize));
+            S7IsoProtocol.BuildSetupCommunication(1, checked((ushort)requestedPduSize)));
     }
 
     [Fact]

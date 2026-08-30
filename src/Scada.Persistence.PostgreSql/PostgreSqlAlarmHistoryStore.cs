@@ -121,19 +121,15 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
         command.Parameters.AddWithValue("to_utc", NpgsqlDbType.TimestampTz, query.Range.ToUtc);
 
         var parameterIndex = 0;
-        foreach (var group in query.Filters.GroupBy(static filter => filter.Field, StringComparer.Ordinal))
-        {
-            var clauses = new List<string>();
-            foreach (var filter in group)
-                clauses.Add(BuildFilter(filter, command, ref parameterIndex));
-            sql.Append(" AND (").AppendJoin(" OR ", clauses).Append(')');
-        }
+        foreach (var filter in query.Filters)
+            sql.Append(" AND ").Append(BuildFilter(filter, command, ref parameterIndex));
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var name = $"p{parameterIndex++}";
             command.Parameters.AddWithValue(name, NpgsqlDbType.Text, query.Search);
-            sql.Append($" AND (position(lower(@{name}) in lower(tag_path)) > 0 OR position(lower(@{name}) in lower(COALESCE(message, ''))) > 0)");
+            sql.Append(
+                $" AND (position(lower(@{name}) in lower(tag_path)) > 0 OR position(lower(@{name}) in lower(COALESCE(message, ''))) > 0)");
         }
 
         var sortColumn = query.Sort.Field switch
@@ -142,7 +138,9 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
             "priority" => "priority",
             "state" => "state",
             "tag.path" => "tag_path",
-            _ => throw new ArgumentException($"Alarm sort field '{query.Sort.Field}' is not supported.", nameof(query))
+            _ => throw new ArgumentException(
+                $"Alarm sort field '{query.Sort.Field}' is not supported.",
+                nameof(query))
         };
         var direction = query.Sort.Direction == HistoricalSortDirection.Descending ? "DESC" : "ASC";
         var relation = query.Sort.Direction == HistoricalSortDirection.Descending ? "<" : ">";
@@ -150,7 +148,8 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
         if (query.After is not null)
             AppendCursorPredicate(sql, query, sortColumn, relation, command);
 
-        sql.Append($" ORDER BY {sortColumn} {direction}, timestamp_utc {direction}, event_id {direction} LIMIT @fetch_limit;");
+        sql.Append(
+            $" ORDER BY {sortColumn} {direction}, timestamp_utc {direction}, event_id {direction} LIMIT @fetch_limit;");
         command.Parameters.AddWithValue("fetch_limit", NpgsqlDbType.Integer, query.PageSize + 1);
         command.CommandText = sql.ToString();
 
@@ -193,12 +192,14 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
         command.Parameters.AddWithValue("after_ts", NpgsqlDbType.TimestampTz, after.TimestampUtc);
         if (query.Sort.Field == "timestamp")
         {
-            sql.Append($" AND (timestamp_utc {relation} @after_ts OR (timestamp_utc = @after_ts AND event_id {relation} @after_event_id))");
+            sql.Append(
+                $" AND (timestamp_utc {relation} @after_ts OR (timestamp_utc = @after_ts AND event_id {relation} @after_event_id))");
             return;
         }
 
         AddAfterPrimary(query.Sort.Field, after.Primary, command);
-        sql.Append($" AND ({sortColumn} {relation} @after_primary OR ({sortColumn} = @after_primary AND (timestamp_utc {relation} @after_ts OR (timestamp_utc = @after_ts AND event_id {relation} @after_event_id))))");
+        sql.Append(
+            $" AND ({sortColumn} {relation} @after_primary OR ({sortColumn} = @after_primary AND (timestamp_utc {relation} @after_ts OR (timestamp_utc = @after_ts AND event_id {relation} @after_event_id))))");
     }
 
     private static string BuildFilter(
@@ -213,7 +214,9 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
             "priority" => BuildPriorityFilter(filter, command, ref parameterIndex),
             "message" => BuildStringFilter("COALESCE(message, '')", filter, command, ref parameterIndex),
             "timestamp" => BuildTimestampFilter("timestamp_utc", filter, command, ref parameterIndex),
-            _ => throw new ArgumentException($"Alarm filter field '{filter.Field}' is not supported.", nameof(filter))
+            _ => throw new ArgumentException(
+                $"Alarm filter field '{filter.Field}' is not supported.",
+                nameof(filter))
         };
 
     private static string BuildGuidFilter(
@@ -262,8 +265,10 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
         {
             HistoricalFilterOperator.Eq => $"{column} = @{parameter}",
             HistoricalFilterOperator.NotEq => $"{column} <> @{parameter}",
-            HistoricalFilterOperator.Contains => $"position(lower(@{parameter}) in lower({column})) > 0",
-            HistoricalFilterOperator.StartsWith => $"left(lower({column}), length(@{parameter})) = lower(@{parameter})",
+            HistoricalFilterOperator.Contains =>
+                $"position(lower(@{parameter}) in lower({column})) > 0",
+            HistoricalFilterOperator.StartsWith =>
+                $"left(lower({column}), length(@{parameter})) = lower(@{parameter})",
             _ => throw new ArgumentException("Unsupported string filter operator.", nameof(filter))
         };
     }
@@ -275,11 +280,19 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
     {
         var values = filter.Values.Select(value =>
         {
-            if (!Enum.TryParse<AlarmState>(value.Value, ignoreCase: true, out var parsed) || !Enum.IsDefined(parsed))
-                throw new ArgumentException($"Unknown alarm state '{value.Value}'.", nameof(filter));
+            if (!Enum.TryParse<AlarmState>(value.Value, ignoreCase: true, out var parsed) ||
+                !Enum.IsDefined(parsed))
+                throw new ArgumentException(
+                    $"Unknown alarm state '{value.Value}'.",
+                    nameof(filter));
             return (short)parsed;
         }).ToArray();
-        return BuildSmallIntFilter("state", filter.Operator, values, command, ref parameterIndex);
+        return BuildSmallIntFilter(
+            "state",
+            filter.Operator,
+            values,
+            command,
+            ref parameterIndex);
     }
 
     private static string BuildPriorityFilter(
@@ -293,12 +306,19 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
             if (numeric != Math.Truncate(numeric) ||
                 numeric < (int)AlarmPriority.Low ||
                 numeric > (int)AlarmPriority.Critical)
-                throw new ArgumentException($"Alarm priority '{numeric}' is outside the canonical range.", nameof(filter));
+                throw new ArgumentException(
+                    $"Alarm priority '{numeric}' is outside the canonical range.",
+                    nameof(filter));
             return (short)numeric;
         }).ToArray();
 
         if (filter.Operator == HistoricalFilterOperator.In)
-            return BuildSmallIntFilter("priority", filter.Operator, values, command, ref parameterIndex);
+            return BuildSmallIntFilter(
+                "priority",
+                filter.Operator,
+                values,
+                command,
+                ref parameterIndex);
 
         var parameter = $"p{parameterIndex++}";
         command.Parameters.AddWithValue(parameter, NpgsqlDbType.Smallint, values[0]);
@@ -325,7 +345,10 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
         if (filterOperator == HistoricalFilterOperator.In)
         {
             var name = $"p{parameterIndex++}";
-            command.Parameters.AddWithValue(name, NpgsqlDbType.Array | NpgsqlDbType.Smallint, values);
+            command.Parameters.AddWithValue(
+                name,
+                NpgsqlDbType.Array | NpgsqlDbType.Smallint,
+                values);
             return $"{column} = ANY(@{name})";
         }
 
@@ -356,7 +379,10 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
         }
 
         var parameter = $"p{parameterIndex++}";
-        command.Parameters.AddWithValue(parameter, NpgsqlDbType.TimestampTz, filter.Values[0].AsDateTime());
+        command.Parameters.AddWithValue(
+            parameter,
+            NpgsqlDbType.TimestampTz,
+            filter.Values[0].AsDateTime());
         var op = filter.Operator switch
         {
             HistoricalFilterOperator.Eq => "=",
@@ -383,23 +409,35 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
                 if (priority != Math.Truncate(priority) ||
                     priority < (int)AlarmPriority.Low ||
                     priority > (int)AlarmPriority.Critical)
-                    throw new HistoricalQueryCursorException("Alarm priority cursor value is invalid.");
-                command.Parameters.AddWithValue("after_primary", NpgsqlDbType.Smallint, (short)priority);
+                    throw new HistoricalQueryCursorException(
+                        "Alarm priority cursor value is invalid.");
+                command.Parameters.AddWithValue(
+                    "after_primary",
+                    NpgsqlDbType.Smallint,
+                    (short)priority);
                 break;
             }
             case "state":
-                if (!Enum.TryParse<AlarmState>(value.Value, true, out var state) || !Enum.IsDefined(state))
-                    throw new HistoricalQueryCursorException("Alarm state cursor value is invalid.");
-                command.Parameters.AddWithValue("after_primary", NpgsqlDbType.Smallint, (short)state);
+                if (!Enum.TryParse<AlarmState>(value.Value, true, out var state) ||
+                    !Enum.IsDefined(state))
+                    throw new HistoricalQueryCursorException(
+                        "Alarm state cursor value is invalid.");
+                command.Parameters.AddWithValue(
+                    "after_primary",
+                    NpgsqlDbType.Smallint,
+                    (short)state);
                 break;
             case "tag.path":
                 command.Parameters.AddWithValue(
                     "after_primary",
                     NpgsqlDbType.Text,
-                    value.Value ?? throw new HistoricalQueryCursorException("Alarm TAG path cursor value is invalid."));
+                    value.Value
+                    ?? throw new HistoricalQueryCursorException(
+                        "Alarm TAG path cursor value is invalid."));
                 break;
             default:
-                throw new HistoricalQueryCursorException("Alarm cursor sort field is invalid.");
+                throw new HistoricalQueryCursorException(
+                    "Alarm cursor sort field is invalid.");
         }
     }
 
@@ -417,7 +455,9 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
             ["timestamp"] = HistoricalQueryValue.FromDateTime(row.Timestamp)
         });
 
-    private static HistoricalQueryPosition Position(AlarmHistoryRow row, string sortField)
+    private static HistoricalQueryPosition Position(
+        AlarmHistoryRow row,
+        string sortField)
     {
         var primary = sortField switch
         {
@@ -427,7 +467,10 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
             "tag.path" => HistoricalQueryValue.FromString(row.TagPath),
             _ => throw new ArgumentOutOfRangeException(nameof(sortField))
         };
-        return new HistoricalQueryPosition(primary, row.Timestamp, row.EventId.ToString("D"));
+        return new HistoricalQueryPosition(
+            primary,
+            row.Timestamp,
+            row.EventId.ToString("D"));
     }
 
     private async Task InitializeAsync()
@@ -435,15 +478,21 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
         await using var connection = await _dataSource.OpenConnectionAsync();
         await using var transaction = await connection.BeginTransactionAsync();
         await using (var lockCommand = new NpgsqlCommand(
-            "SELECT pg_advisory_xact_lock(@lock_key);",
-            connection,
-            transaction))
+                         "SELECT pg_advisory_xact_lock(@lock_key);",
+                         connection,
+                         transaction))
         {
-            lockCommand.Parameters.AddWithValue("lock_key", NpgsqlDbType.Bigint, InfrastructureLockKey);
+            lockCommand.Parameters.AddWithValue(
+                "lock_key",
+                NpgsqlDbType.Bigint,
+                InfrastructureLockKey);
             await lockCommand.ExecuteNonQueryAsync();
         }
 
-        await using (var command = new NpgsqlCommand(InfrastructureSql, connection, transaction))
+        await using (var command = new NpgsqlCommand(
+                         InfrastructureSql,
+                         connection,
+                         transaction))
             await command.ExecuteNonQueryAsync();
         await transaction.CommitAsync();
     }

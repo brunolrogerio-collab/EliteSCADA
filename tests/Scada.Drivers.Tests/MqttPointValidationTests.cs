@@ -6,6 +6,17 @@ namespace Scada.Drivers.Tests;
 public sealed class MqttPointValidationTests
 {
     [Fact]
+    public void UndefinedTagDataTypeIsRejectedBeforeRuntimeCreation()
+    {
+        var tag = CreateTag() with { DataType = (TagDataType)int.MaxValue };
+        var point = new MqttPoint(tag, "plant/validation/tag-data-type");
+
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() => point.Validate());
+
+        Assert.Equal("DataType", error.ParamName);
+    }
+
+    [Fact]
     public void UndefinedPayloadFormatIsRejectedBeforeCodecSelection()
     {
         var point = new MqttPoint(

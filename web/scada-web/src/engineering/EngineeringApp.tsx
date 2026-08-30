@@ -12,6 +12,8 @@ import { CommunicationDiagnosticsPanel } from './CommunicationDiagnosticsPanel';
 import { DevelopmentMonitorWorkspace } from './development-monitor/DevelopmentMonitorWorkspace';
 import { EngineeringLifecycleWorkspace } from './EngineeringLifecycleWorkspace';
 import { EngineeringProjectManagementWorkspace } from './EngineeringProjectManagementWorkspace';
+import { ReportDesignerWorkspace } from './reports/ReportDesignerWorkspace';
+import { reportCollection } from './reports/reportDesignerModel';
 import { ScriptEngineeringWorkspace } from './scripts/ScriptEngineeringWorkspace';
 import { DataSourceEditor, TagEditor } from './StructuredEditors';
 import { UserAdministration } from './UserAdministration';
@@ -31,6 +33,7 @@ type SectionId =
   | 'screens'
   | 'popups'
   | 'historian'
+  | 'reports'
   | 'security'
   | 'monitor'
   | 'diagnostics';
@@ -43,7 +46,10 @@ const navigation: NavGroup[] = [
   { label: 'nav.communication', items: [{ id: 'dataSources', label: 'nav.dataSources' }, { id: 'tags', label: 'nav.tags' }, { id: 'alarms', label: 'nav.alarms' }] },
   { label: 'nav.assets', items: [{ id: 'templates', label: 'nav.templates' }, { id: 'equipment', label: 'nav.equipment' }, { id: 'dynamos', label: 'nav.dynamos' }] },
   { label: 'nav.visualization', items: [{ id: 'screens', label: 'nav.screens' }, { id: 'popups', label: 'nav.popups' }] },
-  { label: 'nav.historian', items: [{ id: 'historian', label: 'nav.historian' }] },
+  { label: 'nav.historian', items: [
+    { id: 'historian', label: 'nav.historian' },
+    { id: 'reports', literalLabel: { 'pt-BR': 'Relatórios', en: 'Reports', es: 'Informes' } }
+  ] },
   { label: 'nav.security', items: [{ id: 'security', label: 'nav.security' }] },
   { label: 'nav.diagnostics', items: [
     { id: 'monitor', literalLabel: { 'pt-BR': 'Monitoramento', en: 'Development Monitor', es: 'Monitor de Desarrollo' } },
@@ -156,6 +162,7 @@ function EngineeringSection({ section, snapshot, t, locale, onReload }: {
   if (section === 'overview') return <><Overview snapshot={snapshot} t={t}/><EngineeringLifecycleWorkspace locale={locale}/><EngineeringProjectManagementWorkspace locale={locale}/></>;
   if (section === 'scripts') return <ScriptEngineeringWorkspace locale={locale}/>;
   if (section === 'historian') return <HistorianSection model={model} t={t}/>;
+  if (section === 'reports') return <ReportDesignerWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
   if (section === 'security') return <SecuritySection model={model} t={t} locale={locale}/>;
   if (section === 'monitor') return <DevelopmentMonitorWorkspace snapshot={snapshot} locale={locale}/>;
   if (section === 'diagnostics') return <DiagnosticsSection model={model} t={t} locale={locale}/>;
@@ -291,6 +298,7 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'screens': return model.screens?.length ?? 0;
     case 'popups': return model.popups?.length ?? 0;
     case 'historian': return model.tags.filter(tag => tag.historian?.enabled).length;
+    case 'reports': return reportCollection(model).length;
     case 'security': return model.securityRoles?.length ?? 0;
     case 'scripts':
     case 'overview':
@@ -304,6 +312,6 @@ function formatDate(value: string, locale: EngineeringLocale) {
 }
 function scriptNavLabel(_locale: EngineeringLocale) { return 'Scripts'; }
 function NavIcon({ section }: { section: SectionId }) {
-  const symbols: Record<SectionId, string> = { overview: '⌂', scripts: '</>', dataSources: '⇄', tags: '#', alarms: '!', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', security: '◆', monitor: '◉', diagnostics: '⋯' };
+  const symbols: Record<SectionId, string> = { overview: '⌂', scripts: '</>', dataSources: '⇄', tags: '#', alarms: '!', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', monitor: '◉', diagnostics: '⋯' };
   return <i aria-hidden="true">{symbols[section]}</i>;
 }

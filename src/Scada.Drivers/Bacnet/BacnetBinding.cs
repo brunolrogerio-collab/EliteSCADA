@@ -16,6 +16,8 @@ public sealed record BacnetBinding(
     bool UseCov = true,
     byte? WritePriority = null)
 {
+    public const string BindingSchemaId = "scada.driver.bacnet.ip.binding";
+    public const int BindingSchemaVersion = 1;
     public const uint MaximumDeviceInstance = 4_194_302;
     public const uint MaximumObjectInstance = 4_194_303;
 

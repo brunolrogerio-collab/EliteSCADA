@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { HistoricalDataBrowser, type HistoricalBrowserColumn, type HistoricalBrowserRow, type HistoricalBrowserViewState } from './HistoricalDataBrowser';
+import { HistoricalFilterBuilder } from './HistoricalFilterBuilder';
 import {
   HistoricalQueryApiError,
   executeHistoricalQuery,
   type HistoricalColumn,
+  type HistoricalFilter,
   type HistoricalQueryResponse,
   type HistoricalSortDirection
 } from './historicalQueryApi';
@@ -13,6 +15,7 @@ import {
   projectHistoricalQueryResponse,
   sortableHistoricalColumns
 } from './historicalBrowserQueryAdapter';
+import { summarizeHistoricalFilter } from './historicalBrowserFilters';
 import { createHistoricalBrowserDraft, type HistoricalBrowserDraft } from './historicalBrowserPresentation';
 
 export type HistoricalQueryLoader = (
@@ -38,6 +41,7 @@ export function HistoricalDataBrowserRuntime({
   const [responseColumns, setResponseColumns] = useState<readonly HistoricalColumn[]>([]);
   const [columns, setColumns] = useState<readonly HistoricalBrowserColumn[]>([]);
   const [rows, setRows] = useState<readonly HistoricalBrowserRow[]>([]);
+  const [filters, setFilters] = useState<readonly HistoricalFilter[]>([]);
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState('');
   const [sortDirection, setSortDirection] = useState<HistoricalSortDirection>('descending');
@@ -69,6 +73,7 @@ export function HistoricalDataBrowserRuntime({
         ? { field: sortField, direction: sortDirection } as const
         : null;
       const request = buildHistoricalQueryRequest(queryDraft, {
+        filters,
         search: searchable ? search : '',
         sort: selectedSort,
         cursor
@@ -108,7 +113,7 @@ export function HistoricalDataBrowserRuntime({
       setState('error');
       setErrorMessage(error instanceof Error ? error.message : 'Historical query failed.');
     }
-  }, [queryLoader, search, searchable, sortDirection, sortField]);
+  }, [filters, queryLoader, search, searchable, sortDirection, sortField]);
 
   function runFirstPage(queryDraft = draft) {
     setPageCursors(Object.freeze([null]));
@@ -118,6 +123,7 @@ export function HistoricalDataBrowserRuntime({
   function handleDraftChange(nextDraft: HistoricalBrowserDraft) {
     if (nextDraft.datasetKey !== draft.datasetKey) {
       activeController.current?.abort();
+      setFilters(Object.freeze([]));
       setSearch('');
       setSortField('');
       setSortDirection('descending');
@@ -132,6 +138,13 @@ export function HistoricalDataBrowserRuntime({
       setState('idle');
     }
     setDraft(nextDraft);
+  }
+
+  function handleFiltersChange(nextFilters: readonly HistoricalFilter[]) {
+    setFilters(nextFilters);
+    setNextCursor(null);
+    setPageCursors(Object.freeze([null]));
+    setPageIndex(0);
   }
 
   function goNext() {
@@ -153,13 +166,13 @@ export function HistoricalDataBrowserRuntime({
   }
 
   const filterSummary = useMemo(() => {
-    const summary: string[] = [];
+    const summary: string[] = filters.map(summarizeHistoricalFilter);
     if (searchable && search.trim()) summary.push(`Search: ${search.trim()}`);
     if (sortField) summary.push(`Sort: ${sortField} ${sortDirection}`);
     if (resolvedRange) summary.push(`${resolvedRange.fromUtc} → ${resolvedRange.toUtc}`);
     summary.push(`Page ${pageIndex + 1}`);
     return Object.freeze(summary);
-  }, [pageIndex, resolvedRange, search, searchable, sortDirection, sortField]);
+  }, [filters, pageIndex, resolvedRange, search, searchable, sortDirection, sortField]);
 
   return (
     <div data-testid="historical-data-browser-runtime">
@@ -199,8 +212,15 @@ export function HistoricalDataBrowserRuntime({
             <option value="ascending">Ascending</option>
           </select>
         </label>
-        <button type="button" disabled={state === 'loading'} onClick={() => runFirstPage()}>Apply search / sort</button>
+        <button type="button" disabled={state === 'loading'} onClick={() => runFirstPage()}>Apply query</button>
       </div>
+
+      <HistoricalFilterBuilder
+        columns={responseColumns}
+        filters={filters}
+        disabled={state === 'loading'}
+        onFiltersChange={handleFiltersChange}
+      />
 
       <HistoricalDataBrowser
         columns={columns}

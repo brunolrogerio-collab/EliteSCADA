@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Scada.Core.Tags;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.AllenBradley;
@@ -101,13 +102,88 @@ public sealed class AllenBradleyCipL2IntegrationTests
         await verifier.DisconnectAsync();
     }
 
+    [Fact]
+    [Trait("Category", "CipL2Integration")]
+    public async Task Driver_DetectsPeerOutageAndReconnectsAfterRealProcessRestart()
+    {
+        if (!TryGetEndpoint(out var host, out var port)) return;
+        var container = Environment.GetEnvironmentVariable("ELITESCADA_CIP_L2_RESTART_CONTAINER")?.Trim();
+        if (string.IsNullOrWhiteSpace(container)) return;
+
+        var tag = TagDefinition.Create(
+            "StatusWord",
+            "CIP.StatusWord",
+            TagDataType.Int32,
+            source: "AB-L2-RECONNECT",
+            readOnly: true);
+        var reference = new LogixSymbolReference(LogixTagScope.Controller, "StatusWord", LogixNativeType.Dint);
+        var binding = new LogixTagBinding(
+            tag,
+            reference,
+            Writable: false,
+            ExternalAccess: LogixExternalAccess.ReadOnly);
+
+        var cache = new TestCurrentTagCache();
+        var registry = new TestTagRegistry();
+        await using var driver = new AllenBradleyLogixDriver(
+            "AB-L2-RECONNECT",
+            "Independent CIP L2 reconnect",
+            CreateOptions(host, port),
+            cache,
+            registry,
+            [binding]);
+
+        await driver.StartAsync();
+        var initial = await WaitForValueAsync(
+            cache,
+            tag.Id,
+            static value => value.Quality == TagQuality.Good && value.Value is int current && current == 65290,
+            TimeSpan.FromSeconds(12));
+        Assert.Equal(65290, Assert.IsType<int>(initial.Value));
+
+        var before = driver.GetCommunicationDiagnostics();
+        Assert.Equal(CommunicationDriverOperationalState.Healthy, before.State);
+
+        await RunDockerAsync("stop", "-t", "1", container);
+
+        var failed = await WaitForValueAsync(
+            cache,
+            tag.Id,
+            static value => value.Quality == TagQuality.BadCommunication,
+            TimeSpan.FromSeconds(12));
+        Assert.Equal(TagQuality.BadCommunication, failed.Quality);
+
+        var outage = driver.GetCommunicationDiagnostics();
+        Assert.True(outage.Counters.FailedOperations > before.Counters.FailedOperations);
+        Assert.True(outage.State is CommunicationDriverOperationalState.Reconnecting or CommunicationDriverOperationalState.Degraded);
+
+        await RunDockerAsync("start", container);
+
+        var recovered = await WaitForValueAsync(
+            cache,
+            tag.Id,
+            static value => value.Quality == TagQuality.Good && value.Value is int current && current == 65290,
+            TimeSpan.FromSeconds(20));
+        Assert.Equal(65290, Assert.IsType<int>(recovered.Value));
+
+        var after = await WaitForDiagnosticsAsync(
+            driver,
+            diagnostics => diagnostics.State == CommunicationDriverOperationalState.Healthy &&
+                           diagnostics.Counters.Connections > before.Counters.Connections &&
+                           diagnostics.Counters.Reconnects > before.Counters.Reconnects,
+            TimeSpan.FromSeconds(10));
+        Assert.True(after.Counters.Disconnections > before.Counters.Disconnections);
+
+        await driver.StopAsync();
+    }
+
     private static AllenBradleyLogixOptions CreateOptions(string host, int port) =>
         new(
             host,
             port,
             LogixControllerProfile.ControlLogix,
             ScanInterval: TimeSpan.FromMilliseconds(150),
-            RequestTimeout: TimeSpan.FromSeconds(5),
+            RequestTimeout: TimeSpan.FromSeconds(3),
             ReconnectMinimum: TimeSpan.FromMilliseconds(100),
             ReconnectMaximum: TimeSpan.FromSeconds(1),
             MaxBatchSize: 1);
@@ -125,6 +201,26 @@ public sealed class AllenBradleyCipL2IntegrationTests
         return true;
     }
 
+    private static async Task RunDockerAsync(params string[] arguments)
+    {
+        var startInfo = new ProcessStartInfo("docker")
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        foreach (var argument in arguments) startInfo.ArgumentList.Add(argument);
+
+        using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start docker for CIP L2 restart orchestration.");
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+        var stdout = await stdoutTask;
+        var stderr = await stderrTask;
+        if (process.ExitCode != 0)
+            throw new InvalidOperationException($"docker {string.Join(' ', arguments)} failed with exit code {process.ExitCode}: {stderr.Trim()} {stdout.Trim()}".Trim());
+    }
+
     private static async Task<TagValue> WaitForValueAsync(
         TestCurrentTagCache cache,
         Guid tagId,
@@ -140,6 +236,22 @@ public sealed class AllenBradleyCipL2IntegrationTests
         }
 
         throw new TimeoutException($"Timed out waiting for TAG '{tagId}' to reach the expected CIP L2 state.");
+    }
+
+    private static async Task<CommunicationDriverDiagnosticSnapshot> WaitForDiagnosticsAsync(
+        AllenBradleyLogixDriver driver,
+        Func<CommunicationDriverDiagnosticSnapshot, bool> predicate,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            var diagnostics = driver.GetCommunicationDiagnostics();
+            if (predicate(diagnostics)) return diagnostics;
+            await Task.Delay(50);
+        }
+
+        throw new TimeoutException("Timed out waiting for Driver 5 diagnostics to reach the expected reconnect state.");
     }
 
     private sealed class TestCurrentTagCache : ICurrentTagCache

@@ -18,7 +18,9 @@ internal sealed class EngineeringCsvExchange
         {
             new[]
             {
-                "Id", "Path", "Name", "DataType", "Unit", "Source", "Address", "AddressSelectorKind", "AddressSelectorIndex", "ReadOnly",
+                "Id", "Path", "Name", "DataType", "Unit", "Source", "Address", "AddressSelectorKind", "AddressSelectorIndex",
+                "BindingContractVersion", "BindingSchemaId", "BindingSchemaVersion", "BindingPortableAddress", "BindingSettingsJson",
+                "BindingTransformVersion", "BindingByteSwap", "BindingWordSwap", "ReadOnly",
                 "ScaleMinimum", "ScaleMaximum", "HistorianEnabled", "HistorianStrategy", "Deadband",
                 "PeriodMilliseconds", "MaximumPeriodMilliseconds", "Description", "MetadataJson",
                 "ReadRolesJson", "WriteRolesJson", "ConfigureRolesJson", "InitialValueDataType", "InitialValueJson"
@@ -27,10 +29,15 @@ internal sealed class EngineeringCsvExchange
 
         foreach (var tag in tags)
         {
+            var binding = tag.CommunicationBinding;
             rows.Add(new[]
             {
                 tag.Id?.ToString(), tag.Path, tag.Name, tag.DataType.ToString(), tag.EngineeringUnit, tag.Source, tag.Address,
                 tag.AddressSelector?.Kind.ToString(), tag.AddressSelector?.Index.ToString(CultureInfo.InvariantCulture),
+                binding?.ContractVersion.ToString(CultureInfo.InvariantCulture), binding?.SchemaId,
+                binding?.SchemaVersion.ToString(CultureInfo.InvariantCulture), binding?.PortableAddress, JsonMap(binding?.Settings),
+                binding?.ValueTransform?.ContractVersion.ToString(CultureInfo.InvariantCulture),
+                binding?.ValueTransform?.ByteSwap.ToString(), binding?.ValueTransform?.WordSwap.ToString(),
                 tag.ReadOnly.ToString(), CsvCodec.Number(tag.ScaleMinimum), CsvCodec.Number(tag.ScaleMaximum),
                 (tag.Historian?.Enabled ?? false).ToString(), tag.Historian?.Strategy, CsvCodec.Number(tag.Historian?.Deadband),
                 tag.Historian?.PeriodMilliseconds?.ToString(CultureInfo.InvariantCulture),
@@ -153,6 +160,7 @@ internal sealed class EngineeringCsvExchange
         var addressSelector = ParseAddressSelector(
             Null(Get(row, header, "AddressSelectorKind")),
             Null(Get(row, header, "AddressSelectorIndex")));
+        var communicationBinding = ParseCommunicationBinding(row, header);
 
         return new TagEngineeringDto(
             GuidOrNull(Get(row, header, "Id")),
@@ -175,7 +183,57 @@ internal sealed class EngineeringCsvExchange
             ParseMap(Get(row, header, "MetadataJson")),
             accessPolicy,
             initialValue,
-            addressSelector);
+            addressSelector,
+            communicationBinding);
+    }
+
+    private CommunicationTagBinding? ParseCommunicationBinding(string[] row, Dictionary<string, int> header)
+    {
+        var contractVersionText = Null(Get(row, header, "BindingContractVersion"));
+        var schemaId = Null(Get(row, header, "BindingSchemaId"));
+        var schemaVersionText = Null(Get(row, header, "BindingSchemaVersion"));
+        var portableAddress = Null(Get(row, header, "BindingPortableAddress"));
+        var settingsJson = Null(Get(row, header, "BindingSettingsJson"));
+        var transformVersionText = Null(Get(row, header, "BindingTransformVersion"));
+        var byteSwapText = Null(Get(row, header, "BindingByteSwap"));
+        var wordSwapText = Null(Get(row, header, "BindingWordSwap"));
+
+        if (contractVersionText is null && schemaId is null && schemaVersionText is null && portableAddress is null &&
+            settingsJson is null && transformVersionText is null && byteSwapText is null && wordSwapText is null)
+        {
+            return null;
+        }
+
+        if (contractVersionText is null || schemaId is null || schemaVersionText is null || portableAddress is null)
+            throw new InvalidDataException("TAG CSV communication binding requires contract version, schema ID, schema version and portable address.");
+
+        if (!int.TryParse(contractVersionText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var contractVersion))
+            throw new InvalidDataException($"TAG CSV communication binding contract version '{contractVersionText}' is invalid.");
+        if (!int.TryParse(schemaVersionText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var schemaVersion))
+            throw new InvalidDataException($"TAG CSV communication binding schema version '{schemaVersionText}' is invalid.");
+
+        TagPhysicalValueTransform? transform = null;
+        if (transformVersionText is not null || byteSwapText is not null || wordSwapText is not null)
+        {
+            if (transformVersionText is null || byteSwapText is null || wordSwapText is null)
+                throw new InvalidDataException("TAG CSV physical value transform requires version, Byte Swap and Word Swap fields together.");
+            if (!int.TryParse(transformVersionText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var transformVersion))
+                throw new InvalidDataException($"TAG CSV physical value transform version '{transformVersionText}' is invalid.");
+            if (!bool.TryParse(byteSwapText, out var byteSwap))
+                throw new InvalidDataException($"TAG CSV Byte Swap value '{byteSwapText}' is invalid.");
+            if (!bool.TryParse(wordSwapText, out var wordSwap))
+                throw new InvalidDataException($"TAG CSV Word Swap value '{wordSwapText}' is invalid.");
+
+            transform = new TagPhysicalValueTransform(transformVersion, byteSwap, wordSwap);
+        }
+
+        return new CommunicationTagBinding(
+            contractVersion,
+            schemaId,
+            schemaVersion,
+            portableAddress,
+            ParseMap(settingsJson),
+            transform);
     }
 
     private string? JsonMap(IReadOnlyDictionary<string, string>? map) =>

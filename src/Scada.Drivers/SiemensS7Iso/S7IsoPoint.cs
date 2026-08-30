@@ -23,7 +23,8 @@ public enum S7IsoValueType
     Float64 = 8,
     String = 9,
     DateTime = 10,
-    WString = 11
+    WString = 11,
+    SInt = 12
 }
 
 public enum S7IsoValueOrder
@@ -47,7 +48,7 @@ public sealed record S7IsoPoint(
 {
     public int ByteLength => ValueType switch
     {
-        S7IsoValueType.Boolean or S7IsoValueType.Byte => 1,
+        S7IsoValueType.Boolean or S7IsoValueType.Byte or S7IsoValueType.SInt => 1,
         S7IsoValueType.UInt16 or S7IsoValueType.Int16 => 2,
         S7IsoValueType.UInt32 or S7IsoValueType.Int32 or S7IsoValueType.Float32 => 4,
         S7IsoValueType.Int64 or S7IsoValueType.Float64 or S7IsoValueType.DateTime => 8,
@@ -59,7 +60,7 @@ public sealed record S7IsoPoint(
     internal byte S7AnyTransportSize => ValueType switch
     {
         S7IsoValueType.Boolean => 0x01,
-        S7IsoValueType.Byte or S7IsoValueType.Int64 or S7IsoValueType.Float64 or
+        S7IsoValueType.Byte or S7IsoValueType.SInt or S7IsoValueType.Int64 or S7IsoValueType.Float64 or
             S7IsoValueType.String or S7IsoValueType.WString or S7IsoValueType.DateTime => 0x02,
         S7IsoValueType.UInt16 => 0x04,
         S7IsoValueType.Int16 => 0x05,
@@ -72,7 +73,7 @@ public sealed record S7IsoPoint(
     internal ushort S7AnyElementCount => ValueType switch
     {
         S7IsoValueType.Boolean => 1,
-        S7IsoValueType.Byte or S7IsoValueType.Int64 or S7IsoValueType.Float64 or
+        S7IsoValueType.Byte or S7IsoValueType.SInt or S7IsoValueType.Int64 or S7IsoValueType.Float64 or
             S7IsoValueType.String or S7IsoValueType.WString or S7IsoValueType.DateTime => checked((ushort)ByteLength),
         _ => 1
     };
@@ -137,7 +138,7 @@ public sealed record S7IsoPoint(
         var valid = ValueType switch
         {
             S7IsoValueType.Boolean => Tag.DataType == TagDataType.Boolean,
-            S7IsoValueType.Byte or S7IsoValueType.Int16 => Tag.DataType == TagDataType.Int16,
+            S7IsoValueType.Byte or S7IsoValueType.SInt or S7IsoValueType.Int16 => Tag.DataType == TagDataType.Int16,
             S7IsoValueType.UInt16 or S7IsoValueType.Int32 => Tag.DataType == TagDataType.Int32,
             S7IsoValueType.UInt32 or S7IsoValueType.Int64 => Tag.DataType == TagDataType.Int64,
             S7IsoValueType.Float32 => Tag.DataType == TagDataType.Float,

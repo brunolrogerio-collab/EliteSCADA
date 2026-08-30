@@ -54,7 +54,7 @@ public static class ReportExecutionApi
         try
         {
             var result = await service.ExecuteAsync(request, cancellationToken);
-            return Results.Json(result, WireJson);
+            return Results.Json(result, WireJson, statusCode: StatusCodes.Status200OK);
         }
         catch (ReportExecutionValidationException ex)
         {

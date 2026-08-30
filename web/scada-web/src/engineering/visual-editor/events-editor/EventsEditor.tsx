@@ -1,4 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { loadEngineeringSnapshot } from '../../api';
+import {
+  buildProjectReferenceCatalog,
+  type ClientMemoryDefinitionView
+} from '../../project-reference/projectReferenceModel';
+import {
+  MINIMUM_SCRIPT_TIMER_INTERVAL_MS,
+  validateVisualEventReference
+} from '../../scripts/ScriptEngineeringWorkspace.logic';
 import {
   applyScriptMutation,
   loadScriptEngineeringContext,
@@ -11,14 +20,14 @@ import type {
   ScriptMutationPreviewToken,
   ScriptVisualEventReference
 } from '../../scripts/scriptEngineeringTypes';
+import type { VisualElementEngineering } from '../../types';
+import { initializeClientMemory } from '../../../runtime/clientMemory';
 import type { VisualEditorBindingSourceCatalogItem } from '../visualEditorContracts';
-
-const MINIMUM_TIMER_INTERVAL_MS = 50;
 
 type EventsEditorProps = {
   visualDefinitionId?: string | null;
   visualObjectId?: string | null;
-  sourceCatalog: readonly VisualEditorBindingSourceCatalogItem[];
+  sourceCatalog?: readonly VisualEditorBindingSourceCatalogItem[];
   disabled?: boolean;
   onApplied?: () => Promise<void> | void;
 };
@@ -43,6 +52,8 @@ export function EventsEditor({
 }: EventsEditorProps) {
   const [scripts, setScripts] = useState<readonly ScriptEngineeringDefinition[]>([]);
   const [references, setReferences] = useState<readonly ScriptVisualEventReference[]>([]);
+  const [resolvedVisualDefinitionId, setResolvedVisualDefinitionId] = useState<string | null>(visualDefinitionId ?? null);
+  const [resolvedSourceCatalog, setResolvedSourceCatalog] = useState<readonly VisualEditorBindingSourceCatalogItem[]>(sourceCatalog ?? Object.freeze([]));
   const [choice, setChoice] = useState<EventChoice>('click');
   const [scriptId, setScriptId] = useState('');
   const [entryPoint, setEntryPoint] = useState('');
@@ -60,18 +71,18 @@ export function EventsEditor({
   );
   const selectedEntryPoint = matchingEntryPoints.find(item => item.handlerName === entryPoint) ?? null;
   const tagTargets = useMemo(
-    () => sourceCatalog.filter(item => item.kind === 'Tag' && item.tagReference?.tagId),
-    [sourceCatalog]
+    () => resolvedSourceCatalog.filter(item => item.kind === 'Tag' && item.tagReference?.tagId),
+    [resolvedSourceCatalog]
   );
   const memoryTargets = useMemo(
-    () => sourceCatalog.filter(item => item.kind === 'ClientMemory' && item.tagReference?.tagId),
-    [sourceCatalog]
+    () => resolvedSourceCatalog.filter(item => item.kind === 'ClientMemory' && item.tagReference?.tagId),
+    [resolvedSourceCatalog]
   );
   const applicableReferences = useMemo(
     () => references.filter(reference =>
-      reference.visualDefinitionId === visualDefinitionId &&
-      (reference.visualObjectId ?? null) === (visualObjectId ?? null)),
-    [references, visualDefinitionId, visualObjectId]
+      reference.visualDefinitionId === resolvedVisualDefinitionId &&
+      ((reference.visualObjectId ?? null) === (visualObjectId ?? null) || reference.visualObjectId == null)),
+    [references, resolvedVisualDefinitionId, visualObjectId]
   );
 
   const reload = async () => {
@@ -95,19 +106,65 @@ export function EventsEditor({
   }, []);
 
   useEffect(() => {
+    if (visualDefinitionId) setResolvedVisualDefinitionId(visualDefinitionId);
+    if (sourceCatalog) setResolvedSourceCatalog(sourceCatalog);
+    if (visualDefinitionId && sourceCatalog) return;
+
+    let cancelled = false;
+    void Promise.all([loadEngineeringSnapshot(), initializeClientMemory()])
+      .then(([snapshot, memoryDefinitions]) => {
+        if (cancelled) return;
+        if (!visualDefinitionId) {
+          const screen = (snapshot.package.screens ?? []).find(candidate =>
+            Boolean(visualObjectId) && containsVisualObject(candidate.elements ?? [], visualObjectId!));
+          setResolvedVisualDefinitionId(screen?.id ?? null);
+        }
+        if (!sourceCatalog) {
+          const memoryViews: readonly ClientMemoryDefinitionView[] = memoryDefinitions.map(definition => ({
+            id: definition.id,
+            name: definition.name,
+            path: definition.path,
+            dataType: definition.dataType,
+            initialValue: definition.initialValue,
+            readOnly: definition.readOnly
+          }));
+          const catalog = buildProjectReferenceCatalog(snapshot.package, memoryViews)
+            .filter(reference => reference.bindingKind === 'Tag' || reference.bindingKind === 'ClientMemory')
+            .map(reference => ({
+              kind: reference.bindingKind!,
+              target: reference.reference,
+              label: reference.label,
+              dataType: reference.dataType,
+              engineeringUnit: reference.engineeringUnit ?? null,
+              writable: reference.writable,
+              family: reference.family,
+              tagReference: reference.tagReference ?? null,
+              selectorCapability: reference.selectorCapability ?? null,
+              bindable: true
+            } satisfies VisualEditorBindingSourceCatalogItem));
+          setResolvedSourceCatalog(Object.freeze(catalog));
+        }
+      })
+      .catch(reason => {
+        if (!cancelled) setError(reason instanceof Error ? reason.message : String(reason));
+      });
+    return () => { cancelled = true; };
+  }, [sourceCatalog, visualDefinitionId, visualObjectId]);
+
+  useEffect(() => {
     setPreviewToken(null);
     setError(null);
     setEntryPoint('');
     setTargetId('');
-  }, [choice, scriptId, visualDefinitionId, visualObjectId]);
+  }, [choice, scriptId, resolvedVisualDefinitionId, visualObjectId]);
 
   const buildReference = (): ScriptVisualEventReference => {
-    if (!visualDefinitionId) throw new Error('Apply the visual definition before authoring events.');
+    if (!resolvedVisualDefinitionId) throw new Error('Apply the visual definition before authoring events.');
     if (!selectedScript || !selectedEntryPoint) throw new Error('Select a valid Script entry point.');
     if (choice === 'click' && !visualObjectId) throw new Error('Select one visual object for a Click event.');
 
     const reference: ScriptVisualEventReference = {
-      visualDefinitionId,
+      visualDefinitionId: resolvedVisualDefinitionId,
       visualObjectId: choice === 'initialize' || choice === 'dispose' || choice === 'timer' ? null : visualObjectId ?? null,
       eventKind,
       scriptId: selectedScript.id,
@@ -118,8 +175,6 @@ export function EventsEditor({
     };
 
     if (choice === 'timer') {
-      if (!Number.isInteger(timerIntervalMs) || timerIntervalMs < MINIMUM_TIMER_INTERVAL_MS)
-        throw new Error(`Timer interval must be an integer of at least ${MINIMUM_TIMER_INTERVAL_MS} ms.`);
       reference.timerIntervalMs = timerIntervalMs;
     } else if (choice === 'tagChanged') {
       const target = tagTargets.find(item => item.tagReference?.tagId === targetId || item.target === targetId);
@@ -134,6 +189,8 @@ export function EventsEditor({
       reference.targetReference = target.tagReference.tagId;
     }
 
+    const issues = validateVisualEventReference(reference);
+    if (issues.length > 0) throw new Error(`Invalid event association: ${issues.join(', ')}.`);
     return reference;
   };
 
@@ -204,11 +261,11 @@ export function EventsEditor({
     }
   };
 
-  const unavailable = disabled || !visualDefinitionId;
+  const unavailable = disabled || !resolvedVisualDefinitionId;
 
   return <section className="visual-editor-events" data-testid="visual-events-editor">
     <header><strong>Events</strong><span>Canonical Python event associations</span></header>
-    {unavailable ? <p>Apply this Screen before editing canonical event associations.</p> : <>
+    {unavailable ? <p>Apply this visual object before editing canonical event associations.</p> : <>
       <label><span>Event</span><select value={choice} onChange={event => setChoice(event.currentTarget.value as EventChoice)}>
         {EVENT_CHOICES.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
       </select></label>
@@ -231,7 +288,7 @@ export function EventsEditor({
         {memoryTargets.map(target => <option key={target.tagReference!.tagId} value={target.tagReference!.tagId}>{target.label}</option>)}
       </select></label> : null}
 
-      {choice === 'timer' ? <label><span>Interval (ms)</span><input type="number" min={MINIMUM_TIMER_INTERVAL_MS} step="1" value={timerIntervalMs} onChange={event => setTimerIntervalMs(Number(event.currentTarget.value))} /></label> : null}
+      {choice === 'timer' ? <label><span>Interval (ms)</span><input type="number" min={MINIMUM_SCRIPT_TIMER_INTERVAL_MS} step="1" value={timerIntervalMs} onChange={event => setTimerIntervalMs(Number(event.currentTarget.value))} /></label> : null}
 
       <div className="visual-editor-events-actions">
         <button type="button" className="secondary" disabled={busy || !selectedEntryPoint} onClick={() => void preview()} data-testid="visual-events-preview">{busy ? 'Working…' : 'Preview event'}</button>
@@ -246,4 +303,12 @@ export function EventsEditor({
       </div>
     </>}
   </section>;
+}
+
+function containsVisualObject(elements: readonly VisualElementEngineering[], objectId: string): boolean {
+  for (const element of elements) {
+    if (element.id === objectId) return true;
+    if (element.children && containsVisualObject(element.children, objectId)) return true;
+  }
+  return false;
 }

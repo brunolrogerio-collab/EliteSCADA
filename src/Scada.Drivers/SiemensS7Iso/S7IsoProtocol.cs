@@ -185,7 +185,7 @@ internal static class S7IsoProtocol
         writeData[0] = 0x00;
         var dataTransportSize = WriteDataTransportSize(point);
         writeData[1] = dataTransportSize;
-        var encodedLength = dataTransportSize is 0x03 or 0x06 or 0x07 or 0x09
+        var encodedLength = dataTransportSize is 0x03 or 0x07 or 0x09
             ? data.Length
             : checked(data.Length * 8);
         BinaryPrimitives.WriteUInt16BigEndian(writeData.AsSpan(2, 2), checked((ushort)encodedLength));
@@ -273,8 +273,8 @@ internal static class S7IsoProtocol
 
     private static int DecodeResponsePayloadLength(byte transportSize, ushort encodedLength) => transportSize switch
     {
-        0x03 or 0x04 or 0x05 => (encodedLength + 7) / 8,
-        0x06 or 0x07 or 0x09 => encodedLength,
+        0x03 or 0x07 or 0x09 => encodedLength,
+        0x04 or 0x05 => (encodedLength + 7) / 8,
         _ => throw new S7IsoProtocolException(
             $"Unsupported S7 response transport size 0x{transportSize:X2}.")
     };

@@ -10,6 +10,7 @@ namespace Scada.Drivers.Mqtt;
 internal sealed class MqttReconnectBackoff
 {
     internal const int JitterPercent = 25;
+    internal const int MaximumJitterPercent = JitterPercent;
 
     private readonly TimeSpan _minimum;
     private readonly TimeSpan _maximum;

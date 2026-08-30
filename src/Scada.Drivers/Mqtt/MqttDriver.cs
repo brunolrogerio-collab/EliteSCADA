@@ -22,6 +22,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
     private readonly IMqttClientTransport _transport;
     private readonly MqttCredentialResolver _credentialResolver;
     private readonly TimeSpan? _freshnessCheckInterval;
+    private readonly MqttReconnectBackoff _reconnectBackoff;
     private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
     private readonly SemaphoreSlim _writeGate = new(1, 1);
     private readonly SemaphoreSlim _freshnessGate = new(1, 1);
@@ -105,6 +106,9 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
                 StringComparer.Ordinal);
         _transport = transport;
         _credentialResolver = credentialResolver ?? (_ => ValueTask.FromResult(MqttResolvedCredentials.None));
+        _reconnectBackoff = new MqttReconnectBackoff(
+            settings.EffectiveReconnectMinimumDelay,
+            settings.EffectiveReconnectMaximumDelay);
 
         var now = DateTimeOffset.UtcNow;
         _communicationState = CommunicationDriverOperationalState.Stopped;
@@ -245,6 +249,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
                 ["clientId"] = _settings.ClientId,
                 ["subscriptionCount"] = _pointsByTopic.Count.ToString(CultureInfo.InvariantCulture),
                 ["maximumBufferedMessages"] = _settings.MaximumBufferedMessages.ToString(CultureInfo.InvariantCulture),
+                ["reconnectJitterMaximumPercent"] = MqttReconnectBackoff.MaximumJitterPercent.ToString(CultureInfo.InvariantCulture),
                 ["freshnessPointCount"] = _freshnessPoints.Count.ToString(CultureInfo.InvariantCulture),
                 ["freshnessTransitions"] = _freshnessTransitions.ToString(CultureInfo.InvariantCulture),
                 ["messagesReceived"] = _messagesReceived.ToString(CultureInfo.InvariantCulture),
@@ -372,7 +377,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
 
     private async Task RunAsync(CancellationToken cancellationToken)
     {
-        var reconnectDelay = _settings.EffectiveReconnectMinimumDelay;
+        var reconnectBaseDelay = _settings.EffectiveReconnectMinimumDelay;
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -382,7 +387,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
                 if (!_transport.IsConnected)
                 {
                     await ConnectAndSubscribeAsync(cancellationToken);
-                    reconnectDelay = _settings.EffectiveReconnectMinimumDelay;
+                    reconnectBaseDelay = _settings.EffectiveReconnectMinimumDelay;
                 }
 
                 receiveStarted = true;
@@ -436,8 +441,9 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
                     SanitizeError(ex),
                     Interlocked.Read(ref _updatesPublished));
 
+                var reconnectDelay = _reconnectBackoff.ApplyJitter(reconnectBaseDelay);
                 await Task.Delay(reconnectDelay, cancellationToken);
-                reconnectDelay = NextReconnectDelay(reconnectDelay);
+                reconnectBaseDelay = _reconnectBackoff.NextBaseDelay(reconnectBaseDelay);
             }
             catch (Exception ex)
             {
@@ -716,12 +722,6 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
         }
     }
 
-    private TimeSpan NextReconnectDelay(TimeSpan current)
-    {
-        var doubledTicks = current.Ticks > long.MaxValue / 2 ? long.MaxValue : current.Ticks * 2;
-        return TimeSpan.FromTicks(Math.Min(doubledTicks, _settings.EffectiveReconnectMaximumDelay.Ticks));
-    }
-
     private void SetRunningStatus(string? message)
     {
         Status = new DriverStatus(
@@ -767,8 +767,9 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
             _failedOperations++;
             _consecutiveFailures++;
             _lastFailedCommunicationAt = now;
-            _lastError = SanitizeError(error);
         }
+
+        _lastError = success ? null : SanitizeError(error);
     }
 
     private void RecordFailureOnly(Exception error)

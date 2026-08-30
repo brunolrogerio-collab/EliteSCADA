@@ -18,7 +18,12 @@ This document records the implementation state of the raw MQTT industrial driver
 - Reconnect uses bounded exponential delay and deterministic resubscription.
 - Broker loss marks affected TAGs `BadCommunication` and moves communication diagnostics through reconnect/fault states.
 - Passive receive-side transport loss is counted as a failed communication operation and a disconnection even when the transport has already observed the socket/session as disconnected.
+- Driver lifecycle calls are serialized. Concurrent `StartAsync`, `StopAsync` and `DisposeAsync` cannot create overlapping runtime sessions or tear down the same session concurrently.
+- The cancellation token passed to `StartAsync` controls admission to the start operation only; after `StartAsync` returns, later cancellation of that caller token does not own or terminate the MQTT runtime session.
+- Once `StopAsync` has acquired the lifecycle gate and shutdown begins, cleanup is completed using the driver-owned session cancellation path. Later cancellation of the caller's stop token cannot leave the runtime half-stopped.
 - Explicit stop/start is supported without duplicate canonical TAG registration; completed cancellation state and freshness references are released/reset between starts.
+- Explicit stop/start is not counted as a transport `Reconnect`. The reconnect counter is reserved for automatic recovery inside one runtime session.
+- A completed/faulted runtime session is cleaned before an explicit restart, including cancellation of any still-running freshness loop.
 - Malformed payloads fail closed per mapped point and do not silently coerce values to `0`, `false` or another guessed type.
 - Inbound payload size is checked at the MQTTnet callback boundary before EliteSCADA copies the MQTTnet payload into an application-owned byte array. An oversized payload stops new inbound admission and faults the Data Source rather than allocating/copying the oversized application payload.
 - Retained values without a trustworthy configured source timestamp are `Stale` by default. `acceptAsCurrent` is an explicit opt-in policy.
@@ -189,10 +194,14 @@ This keeps MQTTnet classes behind `IMqttClientTransport` and prevents the protoc
 - `MqttCredentialLifetimeTests`
 - `MqttFreshnessAndBufferTests`
 - `MqttTransportSafetyTests`
+- `MqttLifecycleConcurrencyTests`
+- `MqttBrokerIntegrationTests`
 
-The tests cover exact-topic validation, typed payloads, strict UTC/offset timestamp parsing, canonical JSON array indices, JSON Pointer, retained semantics, malformed payload isolation, ambiguous DateTime write rejection, event-driven cache updates, writes, reconnect/resubscribe, permanent transport-fault behavior, Engineering compilation, public Import/Export fidelity, secret reference enforcement, runtime composition, credential zeroization, freshness expiration/recovery, separation of source-time age from receive freshness, stop/restart lifecycle, passive-disconnect diagnostics and bounded-buffer configuration limits.
+The deterministic tests cover exact-topic validation, typed payloads, strict UTC/offset timestamp parsing, canonical JSON array indices, JSON Pointer, retained semantics, malformed payload isolation, ambiguous DateTime write rejection, event-driven cache updates, writes, reconnect/resubscribe, permanent transport-fault behavior, Engineering compilation, public Import/Export fidelity, secret reference enforcement, runtime composition, credential zeroization, freshness expiration/recovery, separation of source-time age from receive freshness, stop/restart lifecycle, passive-disconnect diagnostics, bounded-buffer configuration limits, startup-token ownership, concurrent starts, caller-cancellation-safe shutdown and explicit-restart reconnect accounting.
 
-The current execution environment does not contain the .NET 10 SDK, so these tests still require execution in an authorized .NET 10 build environment. GitHub Actions should not be spent merely as reassurance CI; run the focused suite when Coordinator integration or a justified driver validation run is scheduled.
+`MqttBrokerIntegrationTests` is an opt-in live-broker contract. When `ELITESCADA_MQTT_INTEGRATION_HOST` is configured it exercises the production MQTTnet adapter against MQTT 5.0 and/or 3.1.1, QoS 0/1/2 and retained delivery. Without that environment variable the test intentionally returns without opening the network and therefore does **not** constitute broker interoperability evidence. The reproducible procedure and environment-variable contract are documented in `docs/research/mqtt/MQTT-BROKER-VALIDATION.md`.
+
+The current execution environment does not contain the .NET 10 SDK or a local MQTT broker, so neither the deterministic suite nor the live broker contract has been executed here. GitHub Actions should not be spent merely as reassurance CI; run the focused suite when Coordinator integration or a justified driver validation run is scheduled.
 
 ## Shared decisions required before central runtime integration
 
@@ -219,11 +228,11 @@ The common activation policy needs a protocol-neutral readiness contract that ca
 
 ## Validation still required
 
-Before production integration, validate with at least two independent broker implementations where practical:
+Before production integration, validate with at least two independent broker implementations where practical. The opt-in broker contract now automates the basic protocol/QoS/retained matrix, but no live result has been recorded yet.
 
 1. Eclipse Mosquitto
-   - MQTT 5 and 3.1.1;
-   - TCP and TLS;
+   - run `MqttBrokerIntegrationTests` for MQTT 5 and 3.1.1;
+   - TCP and trusted TLS;
    - username/password authentication;
    - QoS 0/1/2;
    - retained messages;
@@ -236,6 +245,7 @@ Before production integration, validate with at least two independent broker imp
    - freshness timeout and recovery under real broker traffic.
 
 2. Independent implementation such as HiveMQ Community Edition
+   - run the same basic live broker contract;
    - connection/session interoperability;
    - subscription and publish acknowledgements;
    - QoS and retained interoperability;

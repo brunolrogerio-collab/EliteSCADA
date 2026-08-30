@@ -20,7 +20,7 @@ public sealed class Iec104EngineeringProvider : ICommunicationDriverConnectionTe
 
     public Iec104EngineeringProvider(Func<IIec104ClientAdapter>? adapterFactory = null)
     {
-        _adapterFactory = adapterFactory ?? static () => new Iec104TcpClientAdapter();
+        _adapterFactory = adapterFactory ?? (static () => new Iec104TcpClientAdapter());
         _connectionTester = new Iec104EngineeringConnectionTester(_adapterFactory);
         Descriptor = _connectionTester.Descriptor with
         {

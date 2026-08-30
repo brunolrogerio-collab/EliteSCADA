@@ -88,6 +88,86 @@ jobs:
         working-directory: interop-lab
         run: docker compose -f compose.mqtt-secure.yaml up -d --wait --wait-timeout 60
 
+      - name: Diagnose platform TLS chain policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/elitescada-tls-probe
+          dotnet new console \
+            --name EliteScadaTlsProbe \
+            --output /tmp/elitescada-tls-probe \
+            --framework net10.0 \
+            --no-restore >/dev/null
+          cat > /tmp/elitescada-tls-probe/Program.cs <<'EOF'
+          using System.Net.Security;
+          using System.Net.Sockets;
+          using System.Security.Authentication;
+          using System.Security.Cryptography.X509Certificates;
+
+          const string host = "mqtt-secure.local";
+          const int port = 8883;
+
+          using var tcp = new TcpClient();
+          await tcp.ConnectAsync(host, port);
+
+          using var tls = new SslStream(
+              tcp.GetStream(),
+              leaveInnerStreamOpen: false,
+              userCertificateValidationCallback: (_, certificate, chain, errors) =>
+              {
+                  Console.WriteLine($"TLS_DIAGNOSTIC_POLICY_ERRORS={errors}");
+                  Console.WriteLine($"TLS_DIAGNOSTIC_CERT_SUBJECT={certificate?.Subject ?? "<null>"}");
+
+                  if (chain is null)
+                  {
+                      Console.WriteLine("TLS_DIAGNOSTIC_CHAIN=<null>");
+                  }
+                  else
+                  {
+                      Console.WriteLine($"TLS_DIAGNOSTIC_CHAIN_REVOCATION_MODE={chain.ChainPolicy.RevocationMode}");
+                      Console.WriteLine($"TLS_DIAGNOSTIC_CHAIN_REVOCATION_FLAG={chain.ChainPolicy.RevocationFlag}");
+                      Console.WriteLine($"TLS_DIAGNOSTIC_CHAIN_ELEMENTS={chain.ChainElements.Count}");
+
+                      for (var index = 0; index < chain.ChainElements.Count; index++)
+                      {
+                          var element = chain.ChainElements[index];
+                          Console.WriteLine($"TLS_DIAGNOSTIC_ELEMENT_{index}_SUBJECT={element.Certificate.Subject}");
+                          foreach (var status in element.ChainElementStatus)
+                          {
+                              Console.WriteLine(
+                                  $"TLS_DIAGNOSTIC_ELEMENT_{index}_STATUS={status.Status}:{status.StatusInformation.Trim()}");
+                          }
+                      }
+
+                      foreach (var status in chain.ChainStatus)
+                      {
+                          Console.WriteLine(
+                              $"TLS_DIAGNOSTIC_CHAIN_STATUS={status.Status}:{status.StatusInformation.Trim()}");
+                      }
+                  }
+
+                  return errors == SslPolicyErrors.None;
+              });
+
+          try
+          {
+              await tls.AuthenticateAsClientAsync(new SslClientAuthenticationOptions
+              {
+                  TargetHost = host,
+                  EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
+                  CertificateRevocationCheckMode = X509RevocationMode.Online
+              });
+              Console.WriteLine("TLS_DIAGNOSTIC_HANDSHAKE=SUCCESS");
+          }
+          catch (AuthenticationException exception)
+          {
+              Console.WriteLine($"TLS_DIAGNOSTIC_HANDSHAKE=FAIL:{exception.GetType().Name}:{exception.Message}");
+          }
+
+          return 0;
+          EOF
+          dotnet run --project /tmp/elitescada-tls-probe/EliteScadaTlsProbe.csproj --framework net10.0
+
       - name: Restore MQTT Driver integration tests
         run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
 

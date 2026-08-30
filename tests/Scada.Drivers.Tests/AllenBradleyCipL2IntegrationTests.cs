@@ -47,12 +47,12 @@ public sealed class AllenBradleyCipL2IntegrationTests
         if (!TryGetEndpoint(out var host, out var port)) return;
 
         var tag = TagDefinition.Create(
-            "Counter",
-            "CIP.Counter",
-            TagDataType.Int32,
+            "MyInt",
+            "CIP.MyInt",
+            TagDataType.Int16,
             source: "AB-L2",
             readOnly: false);
-        var reference = new LogixSymbolReference(LogixTagScope.Controller, "Counter", LogixNativeType.Dint);
+        var reference = new LogixSymbolReference(LogixTagScope.Controller, "MyInt", LogixNativeType.Int);
         var binding = new LogixTagBinding(
             tag,
             reference,
@@ -73,17 +73,17 @@ public sealed class AllenBradleyCipL2IntegrationTests
         var initial = await WaitForValueAsync(
             cache,
             tag.Id,
-            static value => value.Quality == TagQuality.Good && value.Value is int,
+            static value => value.Quality == TagQuality.Good && value.Value is short,
             TimeSpan.FromSeconds(12));
-        Assert.Equal(0, Assert.IsType<int>(initial.Value));
+        Assert.Equal((short)1234, Assert.IsType<short>(initial.Value));
 
-        await driver.WriteAsync(tag.Id, 321);
+        await driver.WriteAsync(tag.Id, (short)2222);
         var written = await WaitForValueAsync(
             cache,
             tag.Id,
-            static value => value.Quality == TagQuality.Good && value.Value is int current && current == 321,
+            static value => value.Quality == TagQuality.Good && value.Value is short current && current == 2222,
             TimeSpan.FromSeconds(5));
-        Assert.Equal(321, Assert.IsType<int>(written.Value));
+        Assert.Equal((short)2222, Assert.IsType<short>(written.Value));
 
         var runtimeDiagnostics = driver.GetCommunicationDiagnostics();
         Assert.Equal("rockwell.logix.eip", runtimeDiagnostics.DriverType);
@@ -97,7 +97,7 @@ public sealed class AllenBradleyCipL2IntegrationTests
         await verifier.ConnectAsync(CreateOptions(host, port));
         var readback = Assert.Single(await verifier.ReadManyAsync([reference]));
         Assert.True(readback.Succeeded, readback.Message);
-        Assert.Equal(321, Assert.IsType<int>(readback.NativeValue));
+        Assert.Equal((short)2222, Assert.IsType<short>(readback.NativeValue));
         await verifier.DisconnectAsync();
     }
 

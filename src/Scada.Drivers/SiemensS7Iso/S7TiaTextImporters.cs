@@ -21,7 +21,8 @@ internal sealed record S7TiaImportRecord(
     bool? HmiWriteable,
     bool? Retain = null,
     bool IsConstant = false,
-    string? ConstantValue = null);
+    string? ConstantValue = null,
+    IReadOnlyCollection<string>? InvalidBooleanFields = null);
 
 internal static partial class S7TiaImportCandidateFactory
 {
@@ -42,6 +43,17 @@ internal static partial class S7TiaImportCandidateFactory
             issues.Add(Issue("S7_TIA_DATATYPE_MISSING", DriverEngineeringIssueSeverity.Error, "TIA PLC tag has no data type."));
         if (!record.IsConstant && string.IsNullOrWhiteSpace(record.LogicalAddress))
             issues.Add(Issue("S7_TIA_ADDRESS_MISSING", DriverEngineeringIssueSeverity.Error, "TIA PLC tag has no logical address."));
+
+        if (record.InvalidBooleanFields is not null)
+        {
+            foreach (var field in record.InvalidBooleanFields.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                issues.Add(Issue(
+                    "S7_TIA_BOOLEAN_INVALID",
+                    DriverEngineeringIssueSeverity.Error,
+                    $"TIA field '{field}' contains an invalid boolean value; expected true/false or 1/0."));
+            }
+        }
 
         S7TypeMapping? typeMapping = null;
         if (!string.IsNullOrWhiteSpace(record.DataTypeText) &&
@@ -108,11 +120,14 @@ internal static partial class S7TiaImportCandidateFactory
                 "S7_TIA_HMI_NOT_VISIBLE",
                 DriverEngineeringIssueSeverity.Information,
                 "TIA marks this PLC tag as not HMI Visible."));
-        if (!record.IsConstant && record.HmiWriteable is null)
+        if (!record.IsConstant && record.HmiWriteable is null &&
+            !HasInvalidBooleanField(record, "hmiWriteable"))
+        {
             issues.Add(Issue(
                 "S7_TIA_HMI_WRITEABILITY_UNKNOWN",
                 DriverEngineeringIssueSeverity.Information,
                 "TIA export does not provide HMI writeability; imported write intent remains disabled until explicitly engineered."));
+        }
 
         var supportStatus = issues.Any(issue => issue.Severity == DriverEngineeringIssueSeverity.Error)
             ? "Unsupported"
@@ -134,6 +149,9 @@ internal static partial class S7TiaImportCandidateFactory
             ["hmiAccessible"] = FormatOptionalBoolean(record.HmiAccessible),
             ["hmiWriteable"] = FormatOptionalBoolean(record.HmiWriteable),
             ["retain"] = FormatOptionalBoolean(record.Retain),
+            ["invalidBooleanFields"] = record.InvalidBooleanFields is null
+                ? string.Empty
+                : string.Join(',', record.InvalidBooleanFields.Distinct(StringComparer.OrdinalIgnoreCase)),
             ["constantValue"] = record.ConstantValue ?? string.Empty,
             ["supportStatus"] = supportStatus
         };
@@ -149,7 +167,8 @@ internal static partial class S7TiaImportCandidateFactory
             _ => "tia-export"
         };
         var portableAddress = binding?.ToPortableAddress() ?? $"{unsupportedPrefix}:unsupported:{candidateId}";
-        var readable = !record.IsConstant && record.HmiAccessible != false && binding is not null;
+        var readable = !record.IsConstant && record.HmiAccessible != false && binding is not null &&
+                       !issues.Any(issue => issue.Severity == DriverEngineeringIssueSeverity.Error);
         var writableCandidate = readable && record.HmiWriteable == true && binding?.Writable == true;
 
         return S7TiaImportValidation.ValidateAddressWidth(new DriverImportCandidate(
@@ -166,13 +185,28 @@ internal static partial class S7TiaImportCandidateFactory
 
     public static bool? ParseOptionalBoolean(string? raw)
     {
+        var ignored = new List<string>();
+        return ParseOptionalBoolean(raw, "boolean", ignored);
+    }
+
+    public static bool? ParseOptionalBoolean(
+        string? raw,
+        string fieldName,
+        ICollection<string> invalidFields)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fieldName);
+        ArgumentNullException.ThrowIfNull(invalidFields);
         if (string.IsNullOrWhiteSpace(raw)) return null;
         var value = raw.Trim();
         if (bool.TryParse(value, out var parsed)) return parsed;
         if (value == "1") return true;
         if (value == "0") return false;
+        invalidFields.Add(fieldName);
         return null;
     }
+
+    private static bool HasInvalidBooleanField(S7TiaImportRecord record, string fieldName) =>
+        record.InvalidBooleanFields?.Contains(fieldName, StringComparer.OrdinalIgnoreCase) == true;
 
     private static bool TryMapDataType(string raw, out S7TypeMapping? mapping, out string? error)
     {
@@ -360,6 +394,7 @@ internal static class S7TiaXmlImporter
             var isConstant = kind.Equals("Constant", StringComparison.OrdinalIgnoreCase);
             if (!isTag && !isConstant) continue;
 
+            var invalidBooleanFields = new List<string>();
             var record = new S7TiaImportRecord(
                 "TiaXml",
                 sourceName,
@@ -368,12 +403,13 @@ internal static class S7TiaXmlImporter
                 Attribute(element, "type"),
                 isConstant ? null : Attribute(element, "addr"),
                 Attribute(element, "remark"),
-                S7TiaImportCandidateFactory.ParseOptionalBoolean(Attribute(element, "hmiVisible")),
-                S7TiaImportCandidateFactory.ParseOptionalBoolean(Attribute(element, "hmiAccessible")),
-                S7TiaImportCandidateFactory.ParseOptionalBoolean(Attribute(element, "hmiWriteable")),
-                S7TiaImportCandidateFactory.ParseOptionalBoolean(Attribute(element, "retain")),
+                S7TiaImportCandidateFactory.ParseOptionalBoolean(Attribute(element, "hmiVisible"), "hmiVisible", invalidBooleanFields),
+                S7TiaImportCandidateFactory.ParseOptionalBoolean(Attribute(element, "hmiAccessible"), "hmiAccessible", invalidBooleanFields),
+                S7TiaImportCandidateFactory.ParseOptionalBoolean(Attribute(element, "hmiWriteable"), "hmiWriteable", invalidBooleanFields),
+                S7TiaImportCandidateFactory.ParseOptionalBoolean(Attribute(element, "retain"), "retain", invalidBooleanFields),
                 isConstant,
-                isConstant ? Attribute(element, "value") : null);
+                isConstant ? Attribute(element, "value") : null,
+                invalidBooleanFields);
             result.Add(S7TiaImportCandidateFactory.Create(record));
         }
 
@@ -426,6 +462,7 @@ internal static class S7TiaSdfImporter
             var name = Cell(row, 0);
             var address = Cell(row, 1);
             var isConstant = address.Equals("CONSTANT", StringComparison.OrdinalIgnoreCase);
+            var invalidBooleanFields = new List<string>();
             var record = new S7TiaImportRecord(
                 "TiaSdf",
                 sourceName,
@@ -434,12 +471,13 @@ internal static class S7TiaSdfImporter
                 NullIfEmpty(Cell(row, 2)),
                 isConstant ? null : NullIfEmpty(address),
                 NullIfEmpty(Cell(row, 6)),
-                S7TiaImportCandidateFactory.ParseOptionalBoolean(NullIfEmpty(Cell(row, 4))),
-                S7TiaImportCandidateFactory.ParseOptionalBoolean(NullIfEmpty(Cell(row, 3))),
-                S7TiaImportCandidateFactory.ParseOptionalBoolean(NullIfEmpty(Cell(row, 8))),
-                S7TiaImportCandidateFactory.ParseOptionalBoolean(NullIfEmpty(Cell(row, 5))),
+                S7TiaImportCandidateFactory.ParseOptionalBoolean(NullIfEmpty(Cell(row, 4)), "hmiVisible", invalidBooleanFields),
+                S7TiaImportCandidateFactory.ParseOptionalBoolean(NullIfEmpty(Cell(row, 3)), "hmiAccessible", invalidBooleanFields),
+                S7TiaImportCandidateFactory.ParseOptionalBoolean(NullIfEmpty(Cell(row, 8)), "hmiWriteable", invalidBooleanFields),
+                S7TiaImportCandidateFactory.ParseOptionalBoolean(NullIfEmpty(Cell(row, 5)), "retain", invalidBooleanFields),
                 isConstant,
-                isConstant ? NullIfEmpty(Cell(row, 7)) : null);
+                isConstant ? NullIfEmpty(Cell(row, 7)) : null,
+                invalidBooleanFields);
             result.Add(S7TiaImportCandidateFactory.Create(record));
         }
 

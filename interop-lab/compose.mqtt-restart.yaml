@@ -1,0 +1,20 @@
+name: elitescada-mqtt-restart
+
+services:
+  mosquitto-restart:
+    image: eclipse-mosquitto:2.1.2-alpine
+    container_name: elitescada-lab-mosquitto-restart
+    ports:
+      - "1885:1885"
+    volumes:
+      - ./mqtt/mosquitto-restart.conf:/mosquitto/config/mosquitto.conf:ro
+      - mqtt-restart-data:/mosquitto/data
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_pub -h 127.0.0.1 -p 1885 -t elitescada/lab/restart-health -m ping -q 0 >/dev/null 2>&1"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+      start_period: 2s
+
+volumes:
+  mqtt-restart-data:

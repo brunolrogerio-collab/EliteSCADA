@@ -268,8 +268,13 @@ function normalizeTagReference(value: unknown): ScriptEngineeringEntryPoint['tag
   let selector: NonNullable<ScriptEngineeringEntryPoint['tagReference']>['selector'] = null;
   if (raw.selector && typeof raw.selector === 'object' && !Array.isArray(raw.selector)) {
     const rawSelector = raw.selector as Record<string, unknown>;
-    if (typeof rawSelector.kind === 'string' && typeof rawSelector.index === 'number') {
-      selector = { kind: rawSelector.kind, index: rawSelector.index };
+    const kind = rawSelector.kind === 0 || rawSelector.kind === 'Bit' || rawSelector.kind === 'bit'
+      ? 'bit'
+      : typeof rawSelector.kind === 'string'
+        ? rawSelector.kind
+        : null;
+    if (kind && typeof rawSelector.index === 'number') {
+      selector = { kind, index: rawSelector.index };
     }
   }
 

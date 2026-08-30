@@ -8,6 +8,10 @@ namespace Scada.Drivers.Tests;
 
 public sealed class BacnetCovDiagnosticsBreakdownTests
 {
+    private static readonly DateTimeOffset RenewalRequestAt = new(2026, 8, 30, 1, 45, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset RenewalFailureAt = RenewalRequestAt.AddSeconds(1);
+    private static readonly DateTimeOffset NextRenewalAt = RenewalRequestAt.AddSeconds(30);
+
     [Fact]
     public async Task Diagnostics_SeparateInitialRecreationAndRenewalTraffic()
     {
@@ -55,6 +59,21 @@ public sealed class BacnetCovDiagnosticsBreakdownTests
         Assert.Equal("1", diagnostics.ProtocolDetails["covSubscribeFailures"]);
         Assert.Equal("3", diagnostics.ProtocolDetails["covRenewalRequests"]);
         Assert.Equal("1", diagnostics.ProtocolDetails["covRenewalFailures"]);
+        Assert.Equal("1", diagnostics.ProtocolDetails["covRenewalTrackedRoutes"]);
+        Assert.Equal("300", diagnostics.ProtocolDetails["covSubscriptionLifetimeSeconds"]);
+        Assert.Equal("225", diagnostics.ProtocolDetails["covRenewalIntervalSeconds"]);
+        Assert.Equal("30", diagnostics.ProtocolDetails["covRenewalRetrySeconds"]);
+        Assert.Equal(RenewalRequestAt.ToString("O"), diagnostics.ProtocolDetails["covLastRenewalRequestAtUtc"]);
+        Assert.Equal(NextRenewalAt.ToString("O"), diagnostics.ProtocolDetails["covNextRenewalAttemptAtUtc"]);
+        Assert.Equal(RenewalFailureAt.ToString("O"), diagnostics.ProtocolDetails["covLastRenewalFailureAtUtc"]);
+        Assert.Equal(nameof(TimeoutException), diagnostics.ProtocolDetails["covLastRenewalErrorType"]);
+
+        var sessionDiagnostics = session.GetCovSubscriptionDiagnostics();
+        var route = Assert.Single(sessionDiagnostics.Routes!);
+        Assert.Equal(binding.PortableAddress, route.PortableAddress);
+        Assert.Equal(3, route.RenewalRequests);
+        Assert.Equal(1, route.RenewalFailures);
+        Assert.Equal(NextRenewalAt, route.NextRenewalAttemptAt);
 
         await driver.StopAsync();
     }
@@ -98,8 +117,13 @@ public sealed class BacnetCovDiagnosticsBreakdownTests
         Assert.Equal("0", diagnostics.ProtocolDetails["covRecreationAttempts"]);
         Assert.Equal("0", diagnostics.ProtocolDetails["covRenewalRequests"]);
         Assert.Equal("0", diagnostics.ProtocolDetails["covRenewalFailures"]);
+        Assert.Equal("0", diagnostics.ProtocolDetails["covRenewalTrackedRoutes"]);
         Assert.Equal("1", diagnostics.ProtocolDetails["covSubscribeRequests"]);
         Assert.Equal("1", diagnostics.ProtocolDetails["covSubscribeFailures"]);
+        Assert.DoesNotContain("covLastRenewalRequestAtUtc", diagnostics.ProtocolDetails);
+        Assert.DoesNotContain("covNextRenewalAttemptAtUtc", diagnostics.ProtocolDetails);
+        Assert.DoesNotContain("covLastRenewalFailureAtUtc", diagnostics.ProtocolDetails);
+        Assert.DoesNotContain("covLastRenewalErrorType", diagnostics.ProtocolDetails);
 
         await driver.StopAsync();
     }
@@ -210,13 +234,43 @@ public sealed class BacnetCovDiagnosticsBreakdownTests
         }
 
         public BacnetCovSubscriptionSnapshot GetCovSubscriptionDiagnostics()
-            => new(
-                ActiveSubscriptions: Volatile.Read(ref _activeSubscriptions),
+        {
+            var active = Volatile.Read(ref _activeSubscriptions);
+            var hasRenewal = _backgroundRenewalRequests > 0;
+            var hasFailure = _backgroundRenewalFailures > 0;
+            var routes = active > 0
+                ? new[]
+                {
+                    new BacnetCovRouteRenewalSnapshot(
+                        SubscriptionId: 42,
+                        PortableAddress: _binding.PortableAddress,
+                        LastRenewalRequestAt: hasRenewal ? RenewalRequestAt : null,
+                        NextRenewalAttemptAt: hasRenewal ? NextRenewalAt : null,
+                        RenewalRequests: _backgroundRenewalRequests,
+                        RenewalFailures: _backgroundRenewalFailures,
+                        LastRenewalFailureAt: hasFailure ? RenewalFailureAt : null,
+                        LastRenewalErrorType: hasFailure ? nameof(TimeoutException) : null)
+                }
+                : Array.Empty<BacnetCovRouteRenewalSnapshot>();
+
+            return new BacnetCovSubscriptionSnapshot(
+                ActiveSubscriptions: active,
                 SubscribeRequests: Volatile.Read(ref _subscribeCalls) + _backgroundRenewalRequests,
                 SubscribeFailures: Volatile.Read(ref _subscribeFailures) + _backgroundRenewalFailures,
                 CancelRequests: Volatile.Read(ref _cancelRequests),
                 CancelFailures: 0,
-                LastErrorType: _backgroundRenewalFailures > 0 ? nameof(TimeoutException) : null);
+                LastErrorType: hasFailure ? nameof(TimeoutException) : null,
+                SubscriptionLifetime: TimeSpan.FromSeconds(300),
+                RenewalInterval: TimeSpan.FromSeconds(225),
+                RetryInterval: TimeSpan.FromSeconds(30),
+                RenewalRequests: _backgroundRenewalRequests,
+                RenewalFailures: _backgroundRenewalFailures,
+                LastRenewalRequestAt: hasRenewal ? RenewalRequestAt : null,
+                NextRenewalAttemptAt: hasRenewal ? NextRenewalAt : null,
+                LastRenewalFailureAt: hasFailure ? RenewalFailureAt : null,
+                LastRenewalErrorType: hasFailure ? nameof(TimeoutException) : null,
+                Routes: routes);
+        }
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 

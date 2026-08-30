@@ -53,6 +53,7 @@ internal static class S7TiaXlsxImporter
             var name = Get(values, "Name");
             if (string.IsNullOrWhiteSpace(name)) continue;
 
+            var invalidBooleanFields = new List<string>();
             var record = new S7TiaImportRecord(
                 "TiaXlsx",
                 sourceName,
@@ -61,9 +62,10 @@ internal static class S7TiaXlsxImporter
                 Get(values, "Data Type"),
                 Get(values, "Logical Address"),
                 Get(values, "Comment"),
-                S7TiaImportCandidateFactory.ParseOptionalBoolean(Get(values, "Hmi Visible")),
-                S7TiaImportCandidateFactory.ParseOptionalBoolean(Get(values, "Hmi Accessible")),
-                S7TiaImportCandidateFactory.ParseOptionalBoolean(Get(values, "Hmi Writeable")));
+                S7TiaImportCandidateFactory.ParseOptionalBoolean(Get(values, "Hmi Visible"), "hmiVisible", invalidBooleanFields),
+                S7TiaImportCandidateFactory.ParseOptionalBoolean(Get(values, "Hmi Accessible"), "hmiAccessible", invalidBooleanFields),
+                S7TiaImportCandidateFactory.ParseOptionalBoolean(Get(values, "Hmi Writeable"), "hmiWriteable", invalidBooleanFields),
+                InvalidBooleanFields: invalidBooleanFields);
 
             var candidate = S7TiaImportCandidateFactory.Create(record);
             if (candidate.PortableAddress.StartsWith("tia-export:unsupported:", StringComparison.Ordinal))

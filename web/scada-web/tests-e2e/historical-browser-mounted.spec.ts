@@ -2,6 +2,10 @@ import { expect, test, type Page, type Route } from '@playwright/test';
 
 const harnessPath = '/tests-e2e/historical-browser-harness.html';
 
+const identityOperators = ['eq', 'notEq', 'in'];
+const stringOperators = ['eq', 'notEq', 'in', 'contains', 'startsWith'];
+const orderedOperators = ['eq', 'notEq', 'in', 'gt', 'gte', 'lt', 'lte'];
+
 function historicalResponse(datasetKey: 'historian.samples' | 'alarm.events', options: {
   value?: string;
   nextCursor?: string | null;
@@ -12,11 +16,11 @@ function historicalResponse(datasetKey: 'historian.samples' | 'alarm.events', op
       version: 1,
       datasetKey,
       columns: [
-        { field: 'tag.id', type: 'guid', filterable: true, sortable: false, searchable: false },
-        { field: 'tag.path', type: 'string', filterable: true, sortable: false, searchable: true },
-        { field: 'quality', type: 'enum', filterable: true, sortable: false, searchable: false },
-        { field: 'value', type: 'scalar', filterable: true, sortable: false, searchable: false },
-        { field: 'timestamp', type: 'dateTime', filterable: true, sortable: true, searchable: false }
+        { field: 'tag.id', type: 'guid', operators: identityOperators, filterable: true, sortable: false, searchable: false },
+        { field: 'tag.path', type: 'string', operators: stringOperators, filterable: true, sortable: false, searchable: true },
+        { field: 'quality', type: 'enum', operators: identityOperators, filterable: true, sortable: false, searchable: false },
+        { field: 'value', type: 'scalar', operators: identityOperators, filterable: true, sortable: false, searchable: false },
+        { field: 'timestamp', type: 'dateTime', operators: orderedOperators, filterable: true, sortable: true, searchable: false }
       ],
       rows: [{
         cells: {
@@ -38,12 +42,12 @@ function historicalResponse(datasetKey: 'historian.samples' | 'alarm.events', op
     version: 1,
     datasetKey,
     columns: [
-      { field: 'alarm.id', type: 'guid', filterable: true, sortable: false, searchable: false },
-      { field: 'tag.path', type: 'string', filterable: true, sortable: true, searchable: true },
-      { field: 'state', type: 'enum', filterable: true, sortable: true, searchable: false },
-      { field: 'priority', type: 'number', filterable: true, sortable: true, searchable: false },
-      { field: 'message', type: 'string', filterable: true, sortable: false, searchable: true },
-      { field: 'timestamp', type: 'dateTime', filterable: true, sortable: true, searchable: false }
+      { field: 'alarm.id', type: 'guid', operators: identityOperators, filterable: true, sortable: false, searchable: false },
+      { field: 'tag.path', type: 'string', operators: stringOperators, filterable: true, sortable: true, searchable: true },
+      { field: 'state', type: 'enum', operators: identityOperators, filterable: true, sortable: true, searchable: false },
+      { field: 'priority', type: 'number', operators: orderedOperators, filterable: true, sortable: true, searchable: false },
+      { field: 'message', type: 'string', operators: stringOperators, filterable: true, sortable: false, searchable: true },
+      { field: 'timestamp', type: 'dateTime', operators: orderedOperators, filterable: true, sortable: true, searchable: false }
     ],
     rows: [{
       cells: {
@@ -94,7 +98,34 @@ test('mounted Historical Browser queries historian data and preserves exact Int6
   });
   await expect(page.getByLabel('Historical search')).toBeEnabled();
   await expect(page.getByLabel('Historical sort field')).toContainText('timestamp');
+  await expect(page.getByLabel('Historical filter field')).toContainText('tag.path');
   await expect(page.getByText('2026-08-30T00:00:00Z → 2026-08-30T01:00:00Z')).toBeVisible();
+});
+
+test('mounted Historical Browser builds typed filters only from returned schema metadata', async ({ page }) => {
+  const requests: any[] = [];
+  await page.route('**/api/historical/query', async route => {
+    requests.push(route.request().postDataJSON());
+    await fulfillJson(route, historicalResponse('alarm.events'));
+  });
+
+  await openHarness(page);
+  await page.getByLabel('Historical dataset').selectOption('alarm.events');
+  await page.getByRole('button', { name: 'Query' }).click();
+  await expect(page.getByLabel('Historical filter field')).toBeEnabled();
+
+  await page.getByLabel('Historical filter field').selectOption('priority');
+  await expect(page.getByLabel('Historical filter operator')).toHaveValue('eq');
+  await expect(page.getByLabel('Historical filter operator')).toContainText('gte');
+  await expect(page.getByLabel('Historical filter operator')).not.toContainText('contains');
+  await page.getByLabel('Historical filter operator').selectOption('gte');
+  await page.getByLabel('Historical filter value').fill('800');
+  await page.getByRole('button', { name: 'Add filter' }).click();
+  await expect(page.getByText('priority gte 800')).toBeVisible();
+  await page.getByRole('button', { name: 'Apply query' }).click();
+
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1].filters).toEqual([{ field: 'priority', operator: 'gte', values: [{ kind: 'number', value: '800' }] }]);
 });
 
 test('mounted Historical Browser alarm history remains read-only with no operational commands', async ({ page }) => {

@@ -52,4 +52,17 @@ public sealed class CommunicationDriverProtectedMaterialTests
 
         Assert.Throws<ArgumentException>(request.Validate);
     }
+
+    [Fact]
+    public void Request_RejectsControlCharactersInReference()
+    {
+        var request = new CommunicationDriverProtectedMaterialRequest(
+            ProjectKey: "project-1",
+            DataSourceKey: "source-1",
+            DriverType: "mqtt.industrial",
+            Purpose: "mqtt.password",
+            Reference: "secret://mqtt/password\nforged-diagnostic");
+
+        Assert.Throws<ArgumentException>(request.Validate);
+    }
 }

@@ -27,6 +27,7 @@ public sealed class Iec104ManagedClient
     private int _attempt;
     private long _sessionFailures;
     private long _observedPointUpdates;
+    private long _testAsdusIgnored;
     private long _commandsRequested;
     private long _commandsAccepted;
     private long _commandsCompleted;
@@ -111,13 +112,17 @@ public sealed class Iec104ManagedClient
     {
         lock (_gate)
         {
+            var activeSession = _activeSession;
+            var ignoredTestAsdus = Interlocked.Read(ref _testAsdusIgnored) +
+                                   (activeSession?.IgnoredTestAsduCount ?? 0);
+
             return new Iec104ManagedDiagnosticSnapshot(
                 _runtimeInstanceId,
                 _host,
                 _port,
-                _activeSession?.State ?? Iec104SessionState.Stopped,
+                activeSession?.State ?? Iec104SessionState.Stopped,
                 Volatile.Read(ref _attempt),
-                _activeSession?.InFlightCommandCount ?? 0,
+                activeSession?.InFlightCommandCount ?? 0,
                 _commonAddresses.ToArray(),
                 _sessionOptions.T0,
                 _sessionOptions.T1,
@@ -127,6 +132,7 @@ public sealed class Iec104ManagedClient
                 _sessionOptions.W,
                 Interlocked.Read(ref _sessionFailures),
                 Interlocked.Read(ref _observedPointUpdates),
+                ignoredTestAsdus,
                 DateTimeOffset.UtcNow,
                 _lastSessionAttemptAt,
                 _lastObservedPointAt,
@@ -143,7 +149,7 @@ public sealed class Iec104ManagedClient
                     Interlocked.Read(ref _commandsTimedOut),
                     Interlocked.Read(ref _commandsAmbiguous),
                     Interlocked.Read(ref _commandsCancelled)),
-                _activeSession?.GetTransportDiagnostics());
+                activeSession?.GetTransportDiagnostics());
         }
     }
 
@@ -265,6 +271,7 @@ public sealed class Iec104ManagedClient
             }
             finally
             {
+                Interlocked.Add(ref _testAsdusIgnored, session.IgnoredTestAsduCount);
                 lock (_gate)
                 {
                     if (ReferenceEquals(_activeSession, session))

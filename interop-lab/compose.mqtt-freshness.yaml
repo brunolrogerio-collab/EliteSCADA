@@ -1,0 +1,16 @@
+name: elitescada-mqtt-freshness
+
+services:
+  mosquitto-freshness:
+    image: eclipse-mosquitto:2.1.2-alpine
+    container_name: elitescada-lab-mosquitto-freshness
+    ports:
+      - "1886:1883"
+    volumes:
+      - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_pub -h 127.0.0.1 -p 1883 -t elitescada/lab/freshness-health -m ping -q 0 >/dev/null 2>&1"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+      start_period: 2s

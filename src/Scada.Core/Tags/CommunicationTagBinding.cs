@@ -8,7 +8,7 @@ namespace Scada.Core.Tags;
 /// after canonical typed encode on writes.
 /// </summary>
 public sealed record TagPhysicalValueTransform(
-    int ContractVersion = CurrentContractVersion,
+    int ContractVersion = 1,
     bool ByteSwap = false,
     bool WordSwap = false)
 {

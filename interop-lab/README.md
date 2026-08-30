@@ -15,7 +15,7 @@ The lab must never be treated as a substitute for later human validation against
 | --- | --- | --- |
 | MQTT | Eclipse Mosquitto 2.1.2 + Node-RED | **Runnable now** |
 | Allen-Bradley EtherNet/IP/CIP | Independent ControlLogix + CompactLogix simulator processes from `node-red-contrib-cip-suite` | **Runnable overlay** |
-| OPC UA | open62541 1.5.7 server + `node-opcua` reference client from the Node-RED image | **Runnable independent-software overlay** |
+| OPC UA | open62541 1.5.4 server + `node-opcua` reference client from the Node-RED image | **Runnable independent-software overlay** |
 | IEC 60870-5-104 | independent server/outstation sidecar | **Slot reserved** |
 | DNP3 | independent outstation sidecar, intentionally not the same Step Function stack used by Driver 7 | **Slot reserved** |
 | Siemens S7 ISO-on-TCP | independent S7 server/PLC simulator | **Slot reserved** |
@@ -66,7 +66,7 @@ The pinned simulator source is external test infrastructure only. It is not ship
 
 ## Add independent OPC UA peer
 
-The OPC UA overlay builds an **open62541 1.5.7** server from the upstream single-file release. Both release files are SHA-256 pinned in the Docker build. The reference client runs with `node-opcua` already present in the Node-RED image, so client and server are independent OPC UA stacks.
+The OPC UA overlay builds an **open62541 1.5.4** server from the upstream single-file release. Both release files are SHA-256 pinned in the Docker build. The reference client runs with `node-opcua` already present in the Node-RED image, so client and server are independent OPC UA stacks.
 
 ```bash
 docker compose -f compose.yaml -f compose.opcua.yaml up -d --build

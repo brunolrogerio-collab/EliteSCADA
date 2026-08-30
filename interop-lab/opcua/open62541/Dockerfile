@@ -17,7 +17,9 @@ RUN curl -fsSL "https://github.com/open62541/open62541/releases/download/v${OPEN
 
 COPY server.c ./server.c
 
-RUN gcc -std=c99 -O2 -Wall -Wextra -I. server.c open62541.c \
+# open62541 1.5.4 uses POSIX pthread APIs that glibc hides under strict C99
+# unless a feature-test macro is enabled. Keep C99 and expose the GNU/POSIX set.
+RUN gcc -std=c99 -D_GNU_SOURCE -O2 -Wall -Wextra -I. server.c open62541.c \
     -o /usr/local/bin/elitescada-opcua-peer -pthread -lm
 
 FROM debian:bookworm-slim

@@ -85,6 +85,14 @@ public sealed class S7IsoPointTests
     }
 
     [Fact]
+    public void ValueTypeNumbers_PreserveExistingDateTimeAndAppendWString()
+    {
+        Assert.Equal(9, (int)S7IsoValueType.String);
+        Assert.Equal(10, (int)S7IsoValueType.DateTime);
+        Assert.Equal(11, (int)S7IsoValueType.WString);
+    }
+
+    [Fact]
     public void UnsignedTypes_MapIntoWiderCanonicalTagTypes()
     {
         new S7IsoPoint(Tag(TagDataType.Int32), S7IsoArea.Merker, 0, S7IsoValueType.UInt16).Validate();

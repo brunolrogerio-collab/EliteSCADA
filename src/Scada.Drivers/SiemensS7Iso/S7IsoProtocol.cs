@@ -178,6 +178,8 @@ internal static class S7IsoProtocol
             // Snap7's reference server, still set a non-zero DataLength together with
             // TransportSize=0x00. The return code is the authoritative per-item error;
             // interpreting that length as data would poison the entire multi-item response.
+            if (returnCode == ReturnCodeSuccess)
+                ValidateReadResponseTransportSize(points[index], transportSize);
             var payloadLength = returnCode == ReturnCodeSuccess
                 ? DecodeResponsePayloadLength(transportSize, encodedLength)
                 : 0;
@@ -270,6 +272,24 @@ internal static class S7IsoProtocol
         S7IsoValueType.Float32 => 0x07,
         _ => 0x04
     };
+
+    private static void ValidateReadResponseTransportSize(S7IsoPoint point, byte transportSize)
+    {
+        var expected = point.ValueType switch
+        {
+            S7IsoValueType.Boolean => (byte)0x03,
+            S7IsoValueType.Int16 or S7IsoValueType.Int32 => (byte)0x05,
+            S7IsoValueType.Float32 => (byte)0x07,
+            _ => (byte)0x04
+        };
+
+        if (transportSize != expected)
+        {
+            throw new S7IsoProtocolException(
+                $"S7 Read Var item for '{point.Tag.Path}' returned transport size 0x{transportSize:X2}, " +
+                $"expected 0x{expected:X2} for {point.ValueType}.");
+        }
+    }
 
     private static byte[] BuildJobPacket(
         ushort pduReference,

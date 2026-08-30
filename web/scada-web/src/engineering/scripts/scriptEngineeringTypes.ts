@@ -1,3 +1,5 @@
+import type { TagValueReferenceEngineering } from '../types';
+
 export type ScriptEngineeringScope = 'clientVisual' | 'server';
 
 export type ScriptEngineeringEventKind =
@@ -24,6 +26,8 @@ export type ScriptEngineeringEntryPoint = {
   eventKind: ScriptEngineeringEventKind;
   handlerName: string;
   targetReference?: string | null;
+  tagReference?: TagValueReferenceEngineering | null;
+  timerIntervalMs?: number | null;
 };
 
 export type ScriptEngineeringDependency = {
@@ -53,6 +57,8 @@ export type ScriptVisualEventReference = {
   scriptId: string;
   entryPoint: string;
   targetReference?: string | null;
+  tagReference?: TagValueReferenceEngineering | null;
+  timerIntervalMs?: number | null;
 };
 
 export type ScriptEngineeringWorkspaceDescriptor = {

@@ -266,7 +266,7 @@ public sealed class OpcUaFoundationBrowseTransport : IOpcUaBrowseTransport, IAsy
                 .BrowseNextAsync(
                     requestHeader: null,
                     releaseContinuationPoints: false,
-                    continuationPoints: new ByteStringCollection(state.ContinuationPoint),
+                    continuationPoints: new ByteStringCollection { state.ContinuationPoint },
                     ct: cancellationToken)
                 .ConfigureAwait(false);
 
@@ -649,7 +649,7 @@ public sealed class OpcUaFoundationBrowseTransport : IOpcUaBrowseTransport, IAsy
             await session.BrowseNextAsync(
                 requestHeader: null,
                 releaseContinuationPoints: true,
-                continuationPoints: new ByteStringCollection(continuationPoint),
+                continuationPoints: new ByteStringCollection { continuationPoint },
                 ct: CancellationToken.None).ConfigureAwait(false);
         }
         catch

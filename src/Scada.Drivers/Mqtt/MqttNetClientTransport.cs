@@ -95,9 +95,15 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
 
                 if (settings.ProtocolMode == MqttProtocolMode.Mqtt5)
                 {
+                    // MQTTnet's regular client queues decoded PUBLISH packets before invoking
+                    // the application callback. Bound broker-side unacknowledged QoS 1/2 inflight
+                    // to no more than the EliteSCADA application queue budget. MQTT 3.1.1 and
+                    // QoS 0 have no equivalent protocol flow-control guarantee.
+                    var receiveMaximum = (ushort)Math.Min(settings.MaximumBufferedMessages, ushort.MaxValue);
                     builder
                         .WithCleanStart(settings.CleanStart)
-                        .WithSessionExpiryInterval(settings.EffectiveSessionExpirySeconds);
+                        .WithSessionExpiryInterval(settings.EffectiveSessionExpirySeconds)
+                        .WithReceiveMaximum(receiveMaximum);
                 }
                 else
                 {

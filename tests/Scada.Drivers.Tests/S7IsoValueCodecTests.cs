@@ -55,6 +55,22 @@ public sealed class S7IsoValueCodecTests
     }
 
     [Fact]
+    public void String_DecodeRejectsPhysicalMaximumThatDiffersFromBinding()
+    {
+        var point = new S7IsoPoint(
+            Tag(TagDataType.String),
+            S7IsoArea.DataBlock,
+            20,
+            S7IsoValueType.String,
+            DbNumber: 1,
+            StringLength: 10);
+        var physical = S7IsoValueCodec.Encode(point, "ABC");
+        physical[0] = 8;
+
+        Assert.Throws<FormatException>(() => S7IsoValueCodec.Decode(point, physical));
+    }
+
+    [Fact]
     public void WString_UsesWordHeaderAndStrictUtf16BigEndian()
     {
         var point = new S7IsoPoint(
@@ -76,6 +92,23 @@ public sealed class S7IsoValueCodecTests
     }
 
     [Fact]
+    public void WString_DecodeRejectsPhysicalMaximumThatDiffersFromBinding()
+    {
+        var point = new S7IsoPoint(
+            Tag(TagDataType.String),
+            S7IsoArea.DataBlock,
+            40,
+            S7IsoValueType.WString,
+            DbNumber: 1,
+            StringLength: 5);
+        var physical = S7IsoValueCodec.Encode(point, "AΩ");
+        physical[0] = 0x00;
+        physical[1] = 0x04;
+
+        Assert.Throws<FormatException>(() => S7IsoValueCodec.Decode(point, physical));
+    }
+
+    [Fact]
     public void DateTime_RoundTripsS7BcdLayout()
     {
         var point = new S7IsoPoint(
@@ -91,6 +124,28 @@ public sealed class S7IsoValueCodecTests
 
         Assert.Equal(new byte[] { 0x26, 0x08, 0x29, 0x14, 0x35, 0x42, 0x12, 0x37 }, encoded);
         Assert.Equal(expected, decoded);
+    }
+
+    [Fact]
+    public void DateTime_DecodeRejectsInvalidMillisecondNibbleOrWeekday()
+    {
+        var point = new S7IsoPoint(
+            Tag(TagDataType.DateTime),
+            S7IsoArea.DataBlock,
+            30,
+            S7IsoValueType.DateTime,
+            DbNumber: 1);
+        var valid = S7IsoValueCodec.Encode(
+            point,
+            new DateTime(2026, 8, 29, 14, 35, 42, 123, DateTimeKind.Unspecified));
+
+        var invalidMillisecond = valid.ToArray();
+        invalidMillisecond[7] = 0xA7;
+        Assert.Throws<FormatException>(() => S7IsoValueCodec.Decode(point, invalidMillisecond));
+
+        var invalidWeekday = valid.ToArray();
+        invalidWeekday[7] = 0x30;
+        Assert.Throws<FormatException>(() => S7IsoValueCodec.Decode(point, invalidWeekday));
     }
 
     [Fact]

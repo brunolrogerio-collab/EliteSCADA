@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { HistoricalDataBrowser, type HistoricalBrowserColumn, type HistoricalBrowserRow, type HistoricalBrowserViewState } from './HistoricalDataBrowser';
 import {
   HistoricalQueryApiError,
@@ -46,6 +46,8 @@ export function HistoricalDataBrowserRuntime({
   const [pageIndex, setPageIndex] = useState(0);
   const [resolvedRange, setResolvedRange] = useState<Readonly<{ fromUtc: string; toUtc: string }> | null>(null);
   const activeController = useRef<AbortController | null>(null);
+
+  useEffect(() => () => activeController.current?.abort(), []);
 
   const searchable = canSearchHistoricalColumns(responseColumns);
   const sortableColumns = useMemo(() => sortableHistoricalColumns(responseColumns), [responseColumns]);
@@ -111,6 +113,25 @@ export function HistoricalDataBrowserRuntime({
   function runFirstPage(queryDraft = draft) {
     setPageCursors(Object.freeze([null]));
     void runQuery(queryDraft, null, 0, true);
+  }
+
+  function handleDraftChange(nextDraft: HistoricalBrowserDraft) {
+    if (nextDraft.datasetKey !== draft.datasetKey) {
+      activeController.current?.abort();
+      setSearch('');
+      setSortField('');
+      setSortDirection('descending');
+      setResponseColumns(Object.freeze([]));
+      setColumns(Object.freeze([]));
+      setRows(Object.freeze([]));
+      setResolvedRange(null);
+      setNextCursor(null);
+      setPageCursors(Object.freeze([null]));
+      setPageIndex(0);
+      setErrorMessage(null);
+      setState('idle');
+    }
+    setDraft(nextDraft);
   }
 
   function goNext() {
@@ -187,9 +208,9 @@ export function HistoricalDataBrowserRuntime({
         state={state}
         errorMessage={errorMessage}
         filterSummary={filterSummary}
-        onDraftChange={setDraft}
+        onDraftChange={handleDraftChange}
         onQueryRequested={nextDraft => {
-          setDraft(nextDraft);
+          handleDraftChange(nextDraft);
           runFirstPage(nextDraft);
         }}
         onRefreshRequested={() => runFirstPage()}

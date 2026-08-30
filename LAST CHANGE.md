@@ -1,52 +1,56 @@
 # LAST CHANGE — EliteSCADA
 
-Date: 2026-08-29
+Date: 2026-08-30
 
 ## Current checkpoint
 
-Wave 08 FOLLOW-A and FOLLOW-B are **CLOSED / MERGED / POST-MERGE GREEN**.
+**WAVE 10 remains ACTIVE and has product priority.** This branch is isolated Driver interoperability-lab infrastructure and does not alter the Wave 10 integration train or `main`.
 
-Final validated product baseline on `main`:
+### OPC UA interoperability lab — IMPLEMENTED IN PR / NOT MERGED
 
-`dededaca980fdb72b5d4955685ab1161aca441fd`
+PR: **#148 — Interop Lab: independent open62541 OPC UA peer**  
+Branch: `coordination/driver-interop-opcua-v1`  
+Functional tested head: `3a181fcf3fb600fdfd5af3d303c03b8470628bae`
 
-FOLLOW-A evidence:
+Delivered laboratory scope:
 
-- PR #105 merged;
-- exact pre-merge product CI #541 green;
-- exact post-merge `main` CI #543 green.
+- independent open62541 **1.5.4** OPC UA server built from SHA-256-pinned official amalgamation assets;
+- explicit MbedTLS build/runtime dependency required by the official 1.5.4 amalgamation;
+- independent `node-opcua` reference client from the Node-RED lab image;
+- isolated `compose.opcua.yaml` overlay, not a product runtime dependency;
+- stable writable nodes for Double, Int32, Boolean and String;
+- browse verifies all four stable NodeIds;
+- typed reads verify all four scalar types and expected values;
+- Double write/readback is verified;
+- Int32 monitored-item subscription notification is verified after write;
+- base MQTT round-trip smoke remains mandatory in the same lab workflow.
 
-FOLLOW-B evidence:
+Exact-head evidence on functional head `3a181fcf3fb600fdfd5af3d303c03b8470628bae`:
 
-- canonical contract: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`;
-- final integrated/product head: `dededaca980fdb72b5d4955685ab1161aca441fd`;
-- CI #657 green on that exact final FOLLOW-B head, including Web, backend build/tests/smoke and Chromium E2E;
-- FOLLOW-B was fast-forwarded into `main` without force;
-- post-merge/push CI #658 green on exact `main` head `dededaca980fdb72b5d4955685ab1161aca441fd`, including Chromium E2E.
+- **Interop Lab Smoke #16 — SUCCESS**, run `33330354791`;
+- **EliteSCADA CI #830 — SUCCESS**, run `33330354787`;
+- normal CI passed Web build, backend build/tests/runtime smoke and Chromium E2E;
+- dedicated lab gate passed scenario/flow JSON validation, base/CIP/OPC-UA Compose validation, base-lab startup, MQTT smoke, open62541 build/start, OPC UA interoperability smoke and cleanup.
 
-FOLLOW-B therefore no longer blocks downstream product work.
+### Evidence classification
 
-## Active stage
+This establishes **L2 independent-software OPC UA interoperability evidence for the laboratory scenario**.
 
-**Wave 09 is ACTIVE.**
+It does **not** establish:
 
-Initial Wave 09 substage is the shared historical/navigation foundation:
+- acceptance of the `driver9/opc-ua` EliteSCADA product path;
+- username/password session acceptance;
+- certificate trust or secure policy/mode acceptance;
+- unknown/custom datatype acceptance;
+- reconnect/resubscribe acceptance after server restart;
+- vendor simulator/device or hardware certification.
 
-- protected typed Historical Query v1 shared by Browser, Reporting and Trends;
-- initial datasets `historian.samples` and `alarm.events`;
-- canonical Popup/Dynamo/navigation Engineering over the existing Screen/visual runtime;
-- Historical Data Browser consuming the shared query contract.
+The interoperability lab remains test infrastructure. Its success must not be reported as production certification of Driver 9.
 
-Canonical planning contracts:
+## Next laboratory direction
 
-- `docs/WAVE-09-HISTORICAL-QUERY-CONTRACT.md`;
-- `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`;
-- `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`.
-
-Reporting/Report Designer remains part of Wave 09, but its implementation slice starts only after the shared Historical Query contract is integrated and accepted. This is sequencing inside an active Wave, not a separate product gate.
-
-Parallel protocol Drivers remain isolated and parked from `main`; Wave work has priority.
+After this OPC UA L2 milestone, the next recommended isolated laboratory work is to wire the existing Driver 10 broker-integration tests to the lab Mosquitto instance so that the **actual EliteSCADA MQTT product transport path** is exercised instead of only the generic MQTT control-plane smoke.
 
 ## CI policy
 
-CI mode remains **NORMAL**. Do not run reassurance CI on unchanged product trees. Exact final integration/product heads require green evidence before merge/stage transitions. Documentation-only coordination commits use `[skip ci]`.
+CI mode remains **NORMAL**. Exact functional integration/evidence heads require green evidence. Documentation-only checkpoint commits use `[skip ci]`; the functional evidence above belongs to the tested head `3a181fcf3fb600fdfd5af3d303c03b8470628bae`, not to this documentation-only successor commit.

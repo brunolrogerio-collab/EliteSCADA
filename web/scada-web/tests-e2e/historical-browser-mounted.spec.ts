@@ -87,7 +87,7 @@ test('mounted Historical Browser queries historian data and preserves exact Int6
   });
 
   await openHarness(page);
-  await page.getByRole('button', { name: 'Query' }).click();
+  await page.getByRole('button', { name: 'Query', exact: true }).click();
 
   await expect(page.getByRole('cell', { name: '9223372036854775807' })).toBeVisible();
   expect(capturedRequest).toMatchObject({
@@ -111,7 +111,7 @@ test('mounted Historical Browser builds typed filters only from returned schema 
 
   await openHarness(page);
   await page.getByLabel('Historical dataset').selectOption('alarm.events');
-  await page.getByRole('button', { name: 'Query' }).click();
+  await page.getByRole('button', { name: 'Query', exact: true }).click();
   await expect(page.getByLabel('Historical filter field')).toBeEnabled();
 
   await page.getByLabel('Historical filter field').selectOption('priority');
@@ -137,7 +137,7 @@ test('mounted Historical Browser alarm history remains read-only with no operati
 
   await openHarness(page);
   await page.getByLabel('Historical dataset').selectOption('alarm.events');
-  await page.getByRole('button', { name: 'Query' }).click();
+  await page.getByRole('button', { name: 'Query', exact: true }).click();
   await expect(page.getByRole('cell', { name: 'High level' })).toBeVisible();
 
   await page.getByRole('row', { name: /Demo.Level Active 800 High level/ }).click();
@@ -159,7 +159,7 @@ test('mounted Historical Browser transports opaque cursor unchanged for next-pag
   });
 
   await openHarness(page);
-  await page.getByRole('button', { name: 'Query' }).click();
+  await page.getByRole('button', { name: 'Query', exact: true }).click();
   await expect(page.getByRole('cell', { name: '1', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Next page' }).click();
 
@@ -175,7 +175,7 @@ test('mounted Historical Browser exposes forbidden state without fabricating emp
   });
 
   await openHarness(page);
-  await page.getByRole('button', { name: 'Query' }).click();
+  await page.getByRole('button', { name: 'Query', exact: true }).click();
 
   await expect(page.getByRole('alert')).toContainText('Not authorized to query this historical dataset.');
   await expect(page.locator('tbody tr')).toHaveCount(0);

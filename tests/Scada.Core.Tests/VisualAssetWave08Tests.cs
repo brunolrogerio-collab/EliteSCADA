@@ -88,7 +88,7 @@ public sealed class VisualAssetWave08Tests
 
         var parsed = exchange.ParseJson(exchange.ExportJson(indented: false));
 
-        Assert.Equal(13, parsed.SchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, parsed.SchemaVersion);
         var roundTripped = Assert.Single(parsed.VisualAssets!);
         Assert.Equal(asset.Id, roundTripped.Id);
         Assert.Equal(asset.Sha256, roundTripped.Sha256);

@@ -366,7 +366,10 @@ internal sealed class S7IsoTransport : IAsyncDisposable
                     setupRequest,
                     _options.RequestTimeout,
                     cancellationToken);
-                negotiatedPdu = S7IsoProtocol.ParseSetupCommunicationResponse(setupResponse, setupReference);
+                negotiatedPdu = S7IsoProtocol.ParseSetupCommunicationResponse(
+                    setupResponse,
+                    setupReference,
+                    _options.RequestedPduSize);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

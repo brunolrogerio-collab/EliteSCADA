@@ -1,104 +1,75 @@
 # CHAT WORK ASSIGNMENTS — EliteSCADA
 
-Date: 2026-08-29
-Stage: **Wave 09-A — SHARED HISTORICAL / NAVIGATION FOUNDATION — ACTIVE**
+Date: 2026-08-30
+Stage: **DRIVER CONVERGENCE v1 — ACTIVE**
 Integration owner: **Coordinator**
-Integration branch: `integration/wave-09-historical-navigation-foundation`
-Product BaseSHA: `dededaca980fdb72b5d4955685ab1161aca441fd`
+Product baseline: `main` after Wave 09 closure
 
-All workers start from the coordinator-created Wave 09 activation baseline. They must not edit `main` or the integration branch directly.
+## Wave 09 — CLOSED
 
-## DEV 1 — Shared Historical Query Core
+Final product head before this docs-only transition:
 
-Branch: `dev1/wave-09-historical-query-core`
-Status: **ACTIVE**
+`4d081f442b4f21cbb29e0d6cd1e76d251b8610aa`
 
-Ownership:
+Validation evidence:
 
-- implement the public/versioned Historical Query v1 contract from `docs/WAVE-09-HISTORICAL-QUERY-CONTRACT.md`;
-- shared typed dataset/query/result model;
-- relative and absolute time-range resolution with one deterministic server anchor per query;
-- bounded allowlisted filter/order/page semantics and opaque cursor contract;
-- protected backend query surface and authorization/cancellation boundaries;
-- initial provider adapters for `historian.samples` and `alarm.events`;
-- parameterized PostgreSQL/TimescaleDB access where persistence is queried;
-- exact Int64 transport semantics, quality and timestamp fidelity;
-- focused core/API/persistence tests, including invalid/boundary queries and cancellation.
+- final pre-main CI #776 / run `33293198798`: Web, backend build/tests/runtime smoke and Chromium E2E all SUCCESS;
+- post-merge main CI #782 / run `33293473589`: Web, backend build/tests/runtime smoke and Chromium E2E all SUCCESS;
+- `main` and `integration/wave-09-historical-navigation-foundation` were aligned to the exact validated product SHA.
 
-Relevant existing seams include `src/Scada.Historian/Abstractions/IHistorian.cs`, `src/Scada.Historian.TimescaleDb/TimescaleDbHistorian.cs`, existing alarm domain/persistence/API surfaces and their tests.
+Delivered Wave 09 scope includes:
 
-Must not:
+- Historical Query v1 with `historian.samples` and `alarm.events`;
+- opaque keyset cursor, bounded typed filters/orders, deterministic relative-time admission and exact Int64 decimal-string wire semantics;
+- Timescale historian query provider and append-only PostgreSQL alarm history provider;
+- canonical Popup/Dynamo/navigation Engineering and Runtime Web composition;
+- Reporting Engineering/execution core and mounted Report Designer/Preview;
+- mounted Runtime Historical Data Browser at `/runtime/history` using the canonical Historical Query contract;
+- central Historical Query configuration/composition with external cursor HMAC secret and fail-closed activation.
 
-- implement Browser or Report Designer UX;
-- accept arbitrary SQL, arbitrary field names or unbounded result sets;
-- invent dataset-specific time/filter DTOs outside the shared contract;
-- weaken current Alarm Center authorization/operational semantics.
+DEV 1, DEV 2 and DEV 3 Wave 09 assignments are complete. No new DEV 1/2/3 assignment is authorized by this file yet.
 
-## DEV 2 — Popup / Dynamo / Navigation Engineering
+## Current active stage — Driver Convergence v1
 
-Branch: `dev2/wave-09-popup-dynamo-navigation`
-Status: **ACTIVE**
+Authority: `docs/DRIVER-CONVERGENCE-COORDINATION-V1.md` and ADR-007.
 
-Ownership:
+Wave priority no longer blocks the parked Driver convergence work. The Coordinator now owns reconciliation of the validated common Driver seams against current `main` before any protocol branch is authorized for mainline integration.
 
-- canonical first-class Popup and Dynamo Engineering representation around the existing Screen/visual object model;
-- deterministic navigation/action references between Screens/Popups where required by the Wave 09 contract;
-- Dynamo reusable-instance identity and parameter/reference semantics without copying renderer-private state into Engineering;
-- validation, Preview/Apply/CAS, revision, PostgreSQL and `.escadapkg` fidelity for new canonical entities;
-- runtime composition using the existing visual registry/runtime/property precedence;
-- compatibility/migration and focused Engineering/runtime tests.
+Coordinator priorities:
 
-Must not:
+1. rebase-by-porting the validated common Driver convergence contracts onto current `main`, preserving all Wave 09 Engineering additions;
+2. resolve the Engineering schema collision explicitly: Wave 09 owns schema v14, so rich communication TAG binding becomes the next schema revision rather than redefining v14;
+3. preserve canonical TAG-bit identity as stable `TagId + TagValueSelector`; `.NN` remains authoring/display only;
+4. retain ADR-007 byte/word transform semantics, with bit selection after physical transform and typed decode;
+5. converge registry/planner/factory, protected-material resolution and runtime readiness without protocol-specific central switches;
+6. review current Driver 4–10 exact heads and handoffs before protocol integration;
+7. keep protocol branches isolated from `main` until Coordinator acceptance and exact integration-head CI.
 
-- create a second visual property registry/runtime;
-- duplicate TAG-bit, expression or Client Memory identity rules;
-- own the Historical Query contract;
-- persist DOM/React/CSS/renderer handles or undocumented metadata as canonical state.
+## Parallel Driver branches
 
-## DEV 3 — Historical Data Browser
+Canonical worker branches remain:
 
-Branch: `dev3/wave-09-historical-browser`
-Status: **ACTIVE**
+- Driver 4 BACnet/IP: `driver4/bacnet`
+- Driver 5 Allen-Bradley Logix EtherNet/IP/CIP: `driver5/allen-bradley-cip`
+- Driver 6 IEC 60870-5-104: `driver6/iec-60870-5-104`
+- Driver 7 DNP3: `driver7/dnp3`
+- Driver 8 Siemens S7 ISO-on-TCP: `driver8/siemens-s7-iso`
+- Driver 9 OPC UA: `driver9/opc-ua`
+- Driver 10 MQTT Industrial: `driver10/mqtt`
 
-Ownership:
+Old aliases `driver1/siemens-s7-iso`, `driver2/opc-ua` and `driver3/mqtt` remain retired and are not worker authorities.
 
-- interactive Historical Data Browser UX/runtime;
-- dataset selection using canonical keys, initially `historian.samples` and `alarm.events`;
-- relative/absolute time presets and typed filter builder projected from the shared Historical Query contract;
-- bounded sortable/paged result table with explicit loading/empty/error/authorization states;
-- exact typed value presentation, quality/state and timestamps, including Int64 without precision loss;
-- read-only historical alarm event context/drill-down that remains distinct from current Alarm Center commands;
-- representative browser E2E and focused frontend contract tests.
+Workers may continue protocol-owned bounded milestones under the convergence document, but must not edit shared Coordinator-owned contracts, `main`, or a central convergence branch.
 
-Integration rule:
+## Shared locks
 
-- consume `docs/WAVE-09-HISTORICAL-QUERY-CONTRACT.md` and the DEV 1 public API/types once integrated;
-- before that seam lands, UI scaffolding may use view-local form state, but **must not** establish an alternative persisted/public query DTO or backend endpoint.
-
-Must not:
-
-- implement arbitrary SQL/query text;
-- duplicate provider/time/filter semantics in frontend-only persistence;
-- turn historical alarm rows into acknowledge/shelve/command authority;
-- take ownership of Report Designer in this first substage.
-
-## Reporting / Report Designer sequencing
-
-Reporting remains **IN WAVE 09**, but implementation is intentionally sequenced after DEV 1's shared Historical Query contract is accepted into integration. The next Wave 09 assignment will reuse the same dataset/query/time/filter/result semantics for canonical Report Engineering and the Report Designer.
-
-This is not permission to create an independent reporting query model in parallel.
-
-## Shared integration constraints
-
-- Historical Query authority: `docs/WAVE-09-HISTORICAL-QUERY-CONTRACT.md`.
-- Historical Browser/alarm context: `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`.
-- Reporting direction: `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`.
-- Existing visual precedence remains `Animation > Script > Binding/Expression > Engineering Base > Default`.
-- Engineering Import/Export, Preview/Apply/CAS, revisions and project-package fidelity remain mandatory for new canonical Engineering entities.
-- Coordinate shared DTO/API edits before touching the same file from multiple worker branches.
-- Keep commits narrow and attributable.
-- CI policy is **NORMAL**; do not run reassurance CI after every small commit.
-- Parallel Driver work remains lower priority and parked from `main`.
+- Engineering Import/Export, Preview/Apply/CAS, revisions and project-package fidelity remain mandatory for canonical Engineering changes.
+- Protected credentials/private keys are never plaintext Engineering/package data.
+- No arbitrary SQL, JavaScript `eval`/`Function`, Python evaluation or implicit coercion engines.
+- Visual precedence remains `Animation > Script > Binding/Expression > Engineering Base > Default`.
+- Driver registry dispatch is by stable Driver type and duplicate registrations fail closed.
+- Runtime readiness is Data Source protocol readiness, not a requirement that every point be `Good`.
+- CI policy is NORMAL: no reassurance CI on unchanged product trees; exact final integration/product heads require green evidence before merge/stage closure.
 
 ## Required worker handoff
 
@@ -110,4 +81,5 @@ Each worker handoff must report:
 4. tests executed and results;
 5. known limitations/risks;
 6. confirmation that no unassigned files were changed;
-7. any shared contract decision requiring Coordinator reconciliation.
+7. module/dependency/license/hardware evidence required by the convergence contract;
+8. any shared contract decision requiring Coordinator reconciliation.

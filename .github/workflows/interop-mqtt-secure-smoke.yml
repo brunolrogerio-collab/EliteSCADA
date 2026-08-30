@@ -35,15 +35,21 @@ jobs:
           openssl req -x509 -newkey rsa:2048 -sha256 -days 1 -nodes \
             -keyout interop-lab/mqtt/tls/ca.key \
             -out interop-lab/mqtt/tls/ca.crt \
-            -subj '/CN=EliteSCADA MQTT Lab CA'
+            -subj '/CN=EliteSCADA MQTT Lab CA' \
+            -addext 'basicConstraints=critical,CA:TRUE,pathlen:0' \
+            -addext 'keyUsage=critical,keyCertSign,cRLSign' \
+            -addext 'subjectKeyIdentifier=hash'
           openssl req -newkey rsa:2048 -nodes \
             -keyout interop-lab/mqtt/tls/server.key \
             -out interop-lab/mqtt/tls/server.csr \
             -subj '/CN=localhost'
           cat > interop-lab/mqtt/tls/server.ext <<'EOF'
+          basicConstraints=critical,CA:FALSE
           subjectAltName=IP:127.0.0.1,DNS:localhost
           extendedKeyUsage=serverAuth
-          keyUsage=digitalSignature,keyEncipherment
+          keyUsage=critical,digitalSignature,keyEncipherment
+          subjectKeyIdentifier=hash
+          authorityKeyIdentifier=keyid,issuer
           EOF
           openssl x509 -req \
             -in interop-lab/mqtt/tls/server.csr \
@@ -67,6 +73,10 @@ jobs:
         run: |
           sudo cp interop-lab/mqtt/tls/ca.crt /usr/local/share/ca-certificates/elitescada-mqtt-lab-ca.crt
           sudo update-ca-certificates
+          openssl verify \
+            -CAfile /etc/ssl/certs/ca-certificates.crt \
+            -purpose sslserver \
+            interop-lab/mqtt/tls/server.crt
 
       - name: Validate secure Compose model
         working-directory: interop-lab

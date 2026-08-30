@@ -6,6 +6,11 @@ namespace Scada.Drivers.SiemensS7Iso;
 
 public static class S7IsoValueCodec
 {
+    private static readonly Encoding WStringEncoding = new UnicodeEncoding(
+        bigEndian: true,
+        byteOrderMark: false,
+        throwOnInvalidBytes: true);
+
     public static object Decode(S7IsoPoint point, ReadOnlySpan<byte> raw)
     {
         ArgumentNullException.ThrowIfNull(point);
@@ -29,6 +34,7 @@ public static class S7IsoValueCodec
             S7IsoValueType.Int64 => BinaryPrimitives.ReadInt64BigEndian(ordered),
             S7IsoValueType.Float64 => BitConverter.Int64BitsToDouble(BinaryPrimitives.ReadInt64BigEndian(ordered)),
             S7IsoValueType.String => DecodeString(point, ordered),
+            S7IsoValueType.WString => DecodeWString(point, ordered),
             S7IsoValueType.DateTime => DecodeDateTime(ordered),
             _ => throw new ArgumentOutOfRangeException(nameof(point.ValueType))
         };
@@ -88,6 +94,9 @@ public static class S7IsoValueCodec
                 break;
             case S7IsoValueType.String:
                 EncodeString(point, value, canonical);
+                break;
+            case S7IsoValueType.WString:
+                EncodeWString(point, value, canonical);
                 break;
             case S7IsoValueType.DateTime:
                 EncodeDateTime(value, canonical);
@@ -150,6 +159,33 @@ public static class S7IsoValueCodec
         destination[0] = point.StringLength;
         destination[1] = checked((byte)text.Length);
         Encoding.Latin1.GetBytes(text.AsSpan(), destination[2..]);
+    }
+
+    private static string DecodeWString(S7IsoPoint point, ReadOnlySpan<byte> raw)
+    {
+        var declaredMaximum = BinaryPrimitives.ReadUInt16BigEndian(raw[..2]);
+        var length = BinaryPrimitives.ReadUInt16BigEndian(raw.Slice(2, 2));
+        if (declaredMaximum > point.StringLength)
+            throw new FormatException(
+                $"S7 WSTRING declared maximum length {declaredMaximum} exceeds configured length {point.StringLength}.");
+        if (length > declaredMaximum || length > point.StringLength)
+            throw new FormatException($"S7 WSTRING current length {length} exceeds its declared/configured maximum.");
+
+        return WStringEncoding.GetString(raw.Slice(4, checked(length * 2)));
+    }
+
+    private static void EncodeWString(S7IsoPoint point, object value, Span<byte> destination)
+    {
+        var text = Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
+        if (text.Length > point.StringLength)
+            throw new ArgumentOutOfRangeException(
+                nameof(value),
+                $"S7 WSTRING value length {text.Length} UTF-16 code unit(s) exceeds configured maximum {point.StringLength}.");
+
+        destination.Clear();
+        BinaryPrimitives.WriteUInt16BigEndian(destination[..2], point.StringLength);
+        BinaryPrimitives.WriteUInt16BigEndian(destination.Slice(2, 2), checked((ushort)text.Length));
+        WStringEncoding.GetBytes(text.AsSpan(), destination[4..]);
     }
 
     private static DateTime DecodeDateTime(ReadOnlySpan<byte> raw)

@@ -1,0 +1,53 @@
+name: Driver 5 CIP L2 Interop Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'src/Scada.Drivers/AllenBradley/**'
+      - 'tests/Scada.Drivers.Tests/AllenBradleyCipL2IntegrationTests.cs'
+      - 'interop-lab/compose.cip-driver5.yaml'
+      - '.github/workflows/driver5-cip-l2-lab.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cip-l2-read-write:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      ELITESCADA_CIP_L2_HOST: 127.0.0.1
+      ELITESCADA_CIP_L2_PORT: 44818
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Validate CIP peer Compose model
+        run: docker compose -f interop-lab/compose.cip-driver5.yaml config >/dev/null
+
+      - name: Build and start independent CIP peer
+        run: docker compose -f interop-lab/compose.cip-driver5.yaml up -d --build --wait --wait-timeout 120
+
+      - name: Restore Driver 5 integration tests
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+
+      - name: EliteSCADA Driver 5 against independent CIP peer
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release --filter Category=CipL2Integration --logger "console;verbosity=normal"
+
+      - name: Show CIP peer status
+        if: always()
+        run: docker compose -f interop-lab/compose.cip-driver5.yaml ps
+
+      - name: Dump CIP peer logs on failure
+        if: failure()
+        run: docker compose -f interop-lab/compose.cip-driver5.yaml logs --no-color
+
+      - name: Stop CIP peer
+        if: always()
+        run: docker compose -f interop-lab/compose.cip-driver5.yaml down -v --remove-orphans

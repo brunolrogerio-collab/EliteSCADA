@@ -30,6 +30,7 @@ public sealed record Iec104ManagedDiagnosticSnapshot(
     int W,
     long SessionFailures,
     long ObservedPointUpdates,
+    long TestAsdusIgnored,
     DateTimeOffset CapturedAt,
     DateTimeOffset? LastSessionAttemptAt,
     DateTimeOffset? LastObservedPointAt,

@@ -153,6 +153,6 @@ public sealed class Iec104ProtocolConformanceTests
 
         Assert.False(decoded.Success);
         Assert.Null(decoded.Timestamp);
-        Assert.Contains("reserved bits", decoded.Error);
+        Assert.Contains("reserved bits", decoded.Error ?? string.Empty);
     }
 }

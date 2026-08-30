@@ -1,0 +1,255 @@
+name: MQTT Security Negative Interop Smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "interop-lab/mqtt/mosquitto-secure.conf"
+      - "interop-lab/compose.mqtt-secure.yaml"
+      - ".github/workflows/interop-mqtt-security-negative-smoke.yml"
+      - "src/Scada.Drivers/Mqtt/**"
+      - "tests/Scada.Drivers.Tests/MqttSecureNegativeIntegrationTests.cs"
+
+permissions:
+  contents: read
+
+jobs:
+  mqtt-security-negative:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario:
+          - InvalidCredentials
+          - RevokedCertificate
+    env:
+      no_proxy: mqtt-secure.local,mqtt-crl.local,127.0.0.1,localhost
+      SCENARIO: ${{ matrix.scenario }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Generate scenario PKI, CRL and broker credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          TLS_DIR="$PWD/interop-lab/mqtt/tls"
+          mkdir -p "$TLS_DIR/newcerts"
+          touch "$TLS_DIR/index.txt"
+          printf '1000\n' > "$TLS_DIR/serial"
+          printf '1000\n' > "$TLS_DIR/crlnumber"
+
+          openssl req -x509 -newkey rsa:2048 -sha256 -days 1 -nodes \
+            -keyout "$TLS_DIR/ca.key" \
+            -out "$TLS_DIR/ca.crt" \
+            -subj "/CN=EliteSCADA MQTT Negative Lab CA $SCENARIO" \
+            -addext 'basicConstraints=critical,CA:TRUE,pathlen:0' \
+            -addext 'keyUsage=critical,keyCertSign,cRLSign' \
+            -addext 'subjectKeyIdentifier=hash'
+
+          cat > "$TLS_DIR/openssl.cnf" <<EOF
+          [ ca ]
+          default_ca = CA_default
+
+          [ CA_default ]
+          dir = $TLS_DIR
+          database = \$dir/index.txt
+          new_certs_dir = \$dir/newcerts
+          certificate = \$dir/ca.crt
+          private_key = \$dir/ca.key
+          serial = \$dir/serial
+          crlnumber = \$dir/crlnumber
+          default_md = sha256
+          default_days = 1
+          default_crl_days = 1
+          policy = policy_any
+          unique_subject = no
+          copy_extensions = none
+          x509_extensions = server_cert
+          crl_extensions = crl_ext
+
+          [ policy_any ]
+          commonName = supplied
+
+          [ server_cert ]
+          basicConstraints = critical,CA:FALSE
+          subjectAltName = @server_alt_names
+          extendedKeyUsage = serverAuth
+          keyUsage = critical,digitalSignature,keyEncipherment
+          subjectKeyIdentifier = hash
+          authorityKeyIdentifier = keyid,issuer
+          crlDistributionPoints = URI:http://mqtt-crl.local:18080/ca.crl
+
+          [ server_alt_names ]
+          IP.1 = 127.0.0.1
+          DNS.1 = localhost
+          DNS.2 = mqtt-secure.local
+
+          [ crl_ext ]
+          authorityKeyIdentifier = keyid:always
+          EOF
+
+          openssl req -newkey rsa:2048 -nodes \
+            -keyout "$TLS_DIR/server.key" \
+            -out "$TLS_DIR/server.csr" \
+            -subj '/CN=mqtt-secure.local'
+
+          openssl ca -batch \
+            -config "$TLS_DIR/openssl.cnf" \
+            -extensions server_cert \
+            -in "$TLS_DIR/server.csr" \
+            -out "$TLS_DIR/server.crt"
+
+          if [[ "$SCENARIO" == "RevokedCertificate" ]]; then
+            openssl ca -batch \
+              -config "$TLS_DIR/openssl.cnf" \
+              -revoke "$TLS_DIR/server.crt"
+          fi
+
+          openssl ca \
+            -config "$TLS_DIR/openssl.cnf" \
+            -gencrl \
+            -out "$TLS_DIR/ca.crl.pem"
+          openssl crl \
+            -in "$TLS_DIR/ca.crl.pem" \
+            -outform DER \
+            -out "$TLS_DIR/ca.crl"
+
+          docker run --rm \
+            -v "$TLS_DIR:/work" \
+            eclipse-mosquitto:2.1.2-alpine \
+            sh -c "mosquitto_passwd -b -c /work/passwords elitescada lab-secret && chown mosquitto:mosquitto /work/passwords && chmod 0700 /work/passwords"
+
+          chmod 0644 \
+            "$TLS_DIR/ca.crt" \
+            "$TLS_DIR/server.crt" \
+            "$TLS_DIR/server.key" \
+            "$TLS_DIR/ca.crl"
+
+      - name: Trust lab CA and bind lab identities
+        shell: bash
+        run: |
+          sudo cp interop-lab/mqtt/tls/ca.crt /usr/local/share/ca-certificates/elitescada-mqtt-negative-lab-ca.crt
+          sudo update-ca-certificates
+          printf '127.0.0.1 mqtt-secure.local mqtt-crl.local\n' | sudo tee -a /etc/hosts >/dev/null
+
+      - name: Start CRL distribution endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          nohup python3 -m http.server 18080 \
+            --bind 127.0.0.1 \
+            --directory interop-lab/mqtt/tls \
+            >/tmp/elitescada-mqtt-crl-http.log 2>&1 &
+          echo $! >/tmp/elitescada-mqtt-crl-http.pid
+          for attempt in {1..20}; do
+            if curl --noproxy '*' -fsS http://mqtt-crl.local:18080/ca.crl -o /tmp/elitescada-ca.crl; then
+              cmp /tmp/elitescada-ca.crl interop-lab/mqtt/tls/ca.crl
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/elitescada-mqtt-crl-http.log || true
+          exit 1
+
+      - name: Validate certificate revocation precondition
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERIFY=(
+            openssl verify
+            -crl_check
+            -CAfile interop-lab/mqtt/tls/ca.crt
+            -CRLfile interop-lab/mqtt/tls/ca.crl.pem
+            -purpose sslserver
+            -verify_hostname mqtt-secure.local
+            interop-lab/mqtt/tls/server.crt
+          )
+
+          if [[ "$SCENARIO" == "RevokedCertificate" ]]; then
+            set +e
+            output="$("${VERIFY[@]}" 2>&1)"
+            status=$?
+            set -e
+            printf '%s\n' "$output"
+            if [[ $status -eq 0 ]]; then
+              echo "Expected the scenario certificate to be revoked, but OpenSSL accepted it."
+              exit 1
+            fi
+            if ! grep -qi 'certificate revoked' <<<"$output"; then
+              echo "OpenSSL rejected the certificate for a reason other than explicit revocation."
+              exit 1
+            fi
+          else
+            "${VERIFY[@]}"
+          fi
+
+      - name: Validate secure Compose model
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-secure.yaml config >/dev/null
+
+      - name: Start secure Mosquitto and wait healthy
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-secure.yaml up -d --wait --wait-timeout 60
+
+      - name: Restore MQTT Driver negative security tests
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+
+      - name: EliteSCADA MQTT transport rejects insecure scenario
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ELITESCADA_MQTT_INTEGRATION_HOST=mqtt-secure.local
+          export ELITESCADA_MQTT_INTEGRATION_PORT=8883
+          export ELITESCADA_MQTT_INTEGRATION_PROTOCOLS=mqtt5,mqtt311
+          export ELITESCADA_MQTT_INTEGRATION_USERNAME=elitescada
+
+          if [[ "$SCENARIO" == "InvalidCredentials" ]]; then
+            export ELITESCADA_MQTT_INTEGRATION_PASSWORD=definitely-wrong-password
+          else
+            export ELITESCADA_MQTT_INTEGRATION_PASSWORD=lab-secret
+          fi
+
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj \
+            --no-restore \
+            --configuration Release \
+            --filter "Category=BrokerSecurityNegative&Scenario=$SCENARIO" \
+            --logger "console;verbosity=normal"
+
+      - name: Show secure broker status
+        if: always()
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-secure.yaml ps
+
+      - name: Dump secure broker logs on failure
+        if: failure()
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-secure.yaml logs --no-color
+
+      - name: Stop secure broker
+        if: always()
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-secure.yaml down -v --remove-orphans
+
+      - name: Stop CRL distribution endpoint
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f /tmp/elitescada-mqtt-crl-http.pid ]]; then
+            sudo kill "$(cat /tmp/elitescada-mqtt-crl-http.pid)" 2>/dev/null || true
+          fi
+
+      - name: Remove ephemeral trust anchor and PKI material
+        if: always()
+        shell: bash
+        run: |
+          sudo rm -f /usr/local/share/ca-certificates/elitescada-mqtt-negative-lab-ca.crt
+          sudo update-ca-certificates >/dev/null
+          sudo rm -rf interop-lab/mqtt/tls

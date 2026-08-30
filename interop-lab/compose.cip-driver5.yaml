@@ -1,0 +1,21 @@
+services:
+  cip-controllogix:
+    build:
+      context: "https://github.com/blanpa/node-red-contrib-cip-suite.git#baf21c625c4f1250fa3cbae6cdd636ce15620ef2:simulator"
+      dockerfile: Dockerfile
+    container_name: elitescada-lab-cip-driver5
+    environment:
+      EIP_PORT: "44818"
+      PLC_TYPE: controllogix
+    ports:
+      - "44818:44818"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "const n=require('net');const c=n.connect(44818,'127.0.0.1',()=>{c.destroy();process.exit(0)});c.on('error',()=>process.exit(1))"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s

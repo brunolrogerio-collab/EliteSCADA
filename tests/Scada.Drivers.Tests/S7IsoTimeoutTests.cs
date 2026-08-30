@@ -12,22 +12,8 @@ public sealed class S7IsoTimeoutTests
     public async Task DetailedRead_RequestTimeoutMarksPointAndDisconnectsSession()
     {
         await using var peer = new HangingReadPeer();
-        var options = new S7IsoConnectionOptions(
-            "127.0.0.1",
-            S7CpuFamily.S71500,
-            S7IsoConnectionMode.RackSlot,
-            rack: 0,
-            slot: 1,
-            connectionRole: S7IsoConnectionRole.Basic,
-            port: peer.Port,
-            connectTimeout: TimeSpan.FromMilliseconds(500),
-            requestTimeout: TimeSpan.FromMilliseconds(100),
-            reconnectDelay: TimeSpan.Zero);
-        var point = new S7IsoPoint(
-            S7IsoTransportTests.Tag(TagDataType.Int16),
-            S7IsoArea.Merker,
-            0,
-            S7IsoValueType.Int16);
+        var options = Options(peer.Port, requestTimeout: TimeSpan.FromMilliseconds(100));
+        var point = Point();
         await using var transport = new S7IsoTransport(options);
 
         var result = await transport.ReadDetailedAsync(new[] { point });
@@ -43,6 +29,45 @@ public sealed class S7IsoTimeoutTests
         Assert.Equal(1L, diagnostics.ConnectionCount);
         Assert.Equal(1L, diagnostics.DisconnectionCount);
     }
+
+    [Fact]
+    public async Task DetailedRead_CallerCancellationDoesNotMasqueradeAsTimeoutOrProtocolFault()
+    {
+        await using var peer = new HangingReadPeer();
+        var options = Options(peer.Port, requestTimeout: TimeSpan.FromSeconds(5));
+        var point = Point();
+        await using var transport = new S7IsoTransport(options);
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            transport.ReadDetailedAsync(new[] { point }, cancellation.Token));
+
+        var diagnostics = transport.GetDiagnostics();
+        Assert.False(diagnostics.Connected);
+        Assert.Null(diagnostics.LastFailureKind);
+        Assert.Equal(0L, diagnostics.TimeoutCount);
+        Assert.Equal(1L, diagnostics.RequestAttempts);
+        Assert.Equal(1L, diagnostics.ConnectionCount);
+        Assert.Equal(1L, diagnostics.DisconnectionCount);
+    }
+
+    private static S7IsoConnectionOptions Options(int port, TimeSpan requestTimeout) => new(
+        "127.0.0.1",
+        S7CpuFamily.S71500,
+        S7IsoConnectionMode.RackSlot,
+        rack: 0,
+        slot: 1,
+        connectionRole: S7IsoConnectionRole.Basic,
+        port: port,
+        connectTimeout: TimeSpan.FromMilliseconds(500),
+        requestTimeout: requestTimeout,
+        reconnectDelay: TimeSpan.Zero);
+
+    private static S7IsoPoint Point() => new(
+        S7IsoTransportTests.Tag(TagDataType.Int16),
+        S7IsoArea.Merker,
+        0,
+        S7IsoValueType.Int16);
 
     private sealed class HangingReadPeer : IAsyncDisposable
     {

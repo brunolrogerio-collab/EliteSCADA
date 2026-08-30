@@ -168,8 +168,7 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
             var responseTransport = ResponseDataTransportSize(transport);
             var encodedLength = responseTransport switch
             {
-                0x03 => 1,
-                0x06 or 0x07 or 0x09 => payload.Length,
+                0x03 or 0x07 or 0x09 => payload.Length,
                 _ => checked(payload.Length * 8)
             };
 
@@ -200,7 +199,7 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
         var encodedLength = BinaryPrimitives.ReadUInt16BigEndian(request.AsSpan(dataOffset + 2, 2));
         var payloadLength = dataTransport switch
         {
-            0x03 or 0x06 or 0x07 or 0x09 => encodedLength,
+            0x03 or 0x07 or 0x09 => encodedLength,
             _ => (encodedLength + 7) / 8
         };
         var payload = request.AsSpan(dataOffset + 4, payloadLength);
@@ -212,8 +211,7 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
     private static byte ResponseDataTransportSize(byte requestTransport) => requestTransport switch
     {
         0x01 => 0x03,
-        0x05 => 0x05,
-        0x07 => 0x06,
+        0x05 or 0x07 => 0x05,
         0x08 => 0x07,
         _ => 0x04
     };

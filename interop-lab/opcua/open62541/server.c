@@ -15,10 +15,10 @@ addDoubleVariable(UA_Server *server, const char *nodeName, const char *displayNa
     return UA_Server_addVariableNode(
         server,
         UA_NODEID_STRING(1, (char *)nodeName),
-        UA_NS0ID(OBJECTSFOLDER),
-        UA_NS0ID(ORGANIZES),
+        UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER),
+        UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
         UA_QUALIFIEDNAME(1, (char *)displayName),
-        UA_NS0ID(BASEDATAVARIABLETYPE),
+        UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE),
         attr,
         NULL,
         NULL);
@@ -37,10 +37,10 @@ addInt32Variable(UA_Server *server, const char *nodeName, const char *displayNam
     return UA_Server_addVariableNode(
         server,
         UA_NODEID_STRING(1, (char *)nodeName),
-        UA_NS0ID(OBJECTSFOLDER),
-        UA_NS0ID(ORGANIZES),
+        UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER),
+        UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
         UA_QUALIFIEDNAME(1, (char *)displayName),
-        UA_NS0ID(BASEDATAVARIABLETYPE),
+        UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE),
         attr,
         NULL,
         NULL);
@@ -59,10 +59,10 @@ addBooleanVariable(UA_Server *server, const char *nodeName, const char *displayN
     return UA_Server_addVariableNode(
         server,
         UA_NODEID_STRING(1, (char *)nodeName),
-        UA_NS0ID(OBJECTSFOLDER),
-        UA_NS0ID(ORGANIZES),
+        UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER),
+        UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
         UA_QUALIFIEDNAME(1, (char *)displayName),
-        UA_NS0ID(BASEDATAVARIABLETYPE),
+        UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE),
         attr,
         NULL,
         NULL);
@@ -82,10 +82,10 @@ addStringVariable(UA_Server *server, const char *nodeName, const char *displayNa
     return UA_Server_addVariableNode(
         server,
         UA_NODEID_STRING(1, (char *)nodeName),
-        UA_NS0ID(OBJECTSFOLDER),
-        UA_NS0ID(ORGANIZES),
+        UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER),
+        UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
         UA_QUALIFIEDNAME(1, (char *)displayName),
-        UA_NS0ID(BASEDATAVARIABLETYPE),
+        UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE),
         attr,
         NULL,
         NULL);

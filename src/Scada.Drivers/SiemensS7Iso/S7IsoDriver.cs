@@ -6,7 +6,7 @@ using Scada.Drivers.Abstractions;
 
 namespace Scada.Drivers.SiemensS7Iso;
 
-public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnosticsSource
+public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnosticsSource, IS7IsoRuntimeReadinessSource
 {
     private const int RecentWindow = 100;
     private readonly S7IsoConnectionOptions _options;
@@ -16,6 +16,7 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
     private readonly Dictionary<Guid, S7IsoPoint> _byTagId;
     private readonly S7IsoTransport _transport;
     private readonly object _diagGate = new();
+    private readonly object _readinessGate = new();
     private readonly Queue<bool> _recentFailures = new();
     private readonly string _runtimeId = Guid.NewGuid().ToString("N");
     private CancellationTokenSource? _cts;
@@ -36,6 +37,13 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
     private long _lastOperationTicks;
     private long _totalOperationTicks;
     private long _lastScanTicks;
+    private S7IsoRuntimeReadinessState _readinessState;
+    private DateTimeOffset _readinessStateChangedAt;
+    private DateTimeOffset? _readinessReadyAt;
+    private ushort? _readinessNegotiatedPduSize;
+    private bool _readinessInitialAcquisitionCompleted;
+    private long _readinessInitialAcquisitionAttempts;
+    private string? _readinessLastError;
 
     public S7IsoDriver(
         string driverId,
@@ -72,6 +80,8 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
         var now = DateTimeOffset.UtcNow;
         _communicationState = CommunicationDriverOperationalState.Stopped;
         _stateChangedAt = now;
+        _readinessState = S7IsoRuntimeReadinessState.NotStarted;
+        _readinessStateChangedAt = now;
         Status = new DriverStatus(DriverId, Name, DriverState.Stopped, now);
     }
 
@@ -87,6 +97,7 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
         if (_loop is { IsCompleted: false }) return Task.CompletedTask;
         Status = new DriverStatus(DriverId, Name, DriverState.Starting, DateTimeOffset.UtcNow);
         SetCommunicationState(CommunicationDriverOperationalState.Starting);
+        BeginReadinessCycle();
         foreach (var point in _points) _registry.Register(point.Tag);
         _cts?.Dispose();
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -100,6 +111,7 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
         if (_cts is null)
         {
             await _transport.DisconnectAsync(cancellationToken);
+            SetReadinessStopped();
             return;
         }
 
@@ -114,6 +126,7 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
         await _transport.DisconnectAsync(cancellationToken);
         Status = new DriverStatus(DriverId, Name, DriverState.Stopped, DateTimeOffset.UtcNow, UpdatesPublished: Interlocked.Read(ref _updatesPublished));
         SetCommunicationState(CommunicationDriverOperationalState.Stopped);
+        SetReadinessStopped();
     }
 
     public ValueTask<TagValue?> ReadAsync(Guid tagId, CancellationToken cancellationToken = default)
@@ -232,6 +245,23 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
         }
     }
 
+    public S7IsoRuntimeReadinessSnapshot GetS7IsoRuntimeReadiness()
+    {
+        lock (_readinessGate)
+        {
+            return new S7IsoRuntimeReadinessSnapshot(
+                DriverId,
+                _readinessState,
+                _readinessStateChangedAt,
+                DateTimeOffset.UtcNow,
+                _readinessReadyAt,
+                _readinessNegotiatedPduSize,
+                _readinessInitialAcquisitionCompleted,
+                _readinessInitialAcquisitionAttempts,
+                _readinessLastError);
+        }
+    }
+
     private async Task RunAsync(CancellationToken cancellationToken)
     {
         try
@@ -252,6 +282,7 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
                 _lastError = SanitizeError(ex);
             }
             SetCommunicationState(CommunicationDriverOperationalState.Faulted);
+            SetReadinessFaulted(ex);
             Status = new DriverStatus(DriverId, Name, DriverState.Faulted, DateTimeOffset.UtcNow, SanitizeError(ex), Interlocked.Read(ref _updatesPublished));
         }
     }
@@ -267,6 +298,8 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
         try
         {
             var read = await _transport.ReadDetailedAsync(_points, cancellationToken);
+            TryMarkReadyAfterInitialAcquisition();
+
             foreach (var configurationFailure in read.ConfigurationFailures)
             {
                 failures++;
@@ -325,6 +358,9 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
             foreach (var point in _points)
                 await PublishPreviousAsync(point, TagQuality.BadCommunication, cancellationToken);
         }
+
+        if (communicationFailure && !string.IsNullOrWhiteSpace(lastError))
+            RecordReadinessStartupError(lastError);
 
         var duration = Stopwatch.GetElapsedTime(started);
         RecordOperations(successes, failures, _points.Count, 0, duration, failures == 0 ? null : new IOException(lastError ?? "S7 read failure."));
@@ -400,6 +436,70 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
             if (_communicationState == state) return;
             _communicationState = state;
             _stateChangedAt = DateTimeOffset.UtcNow;
+        }
+    }
+
+    private void BeginReadinessCycle()
+    {
+        lock (_readinessGate)
+        {
+            _readinessState = S7IsoRuntimeReadinessState.Starting;
+            _readinessStateChangedAt = DateTimeOffset.UtcNow;
+            _readinessReadyAt = null;
+            _readinessNegotiatedPduSize = null;
+            _readinessInitialAcquisitionCompleted = false;
+            _readinessInitialAcquisitionAttempts = 0;
+            _readinessLastError = null;
+        }
+    }
+
+    private void TryMarkReadyAfterInitialAcquisition()
+    {
+        var transport = _transport.GetDiagnostics();
+        if (!transport.Connected || !transport.NegotiatedPduSize.HasValue) return;
+
+        lock (_readinessGate)
+        {
+            if (_readinessState != S7IsoRuntimeReadinessState.Starting) return;
+
+            var now = DateTimeOffset.UtcNow;
+            _readinessInitialAcquisitionAttempts++;
+            _readinessInitialAcquisitionCompleted = true;
+            _readinessNegotiatedPduSize = transport.NegotiatedPduSize.Value;
+            _readinessReadyAt = now;
+            _readinessLastError = null;
+            _readinessState = S7IsoRuntimeReadinessState.Ready;
+            _readinessStateChangedAt = now;
+        }
+    }
+
+    private void RecordReadinessStartupError(string error)
+    {
+        lock (_readinessGate)
+        {
+            if (_readinessState == S7IsoRuntimeReadinessState.Starting)
+                _readinessLastError = error;
+        }
+    }
+
+    private void SetReadinessFaulted(Exception error)
+    {
+        var sanitized = SanitizeError(error);
+        lock (_readinessGate)
+        {
+            _readinessState = S7IsoRuntimeReadinessState.Faulted;
+            _readinessStateChangedAt = DateTimeOffset.UtcNow;
+            _readinessLastError = sanitized;
+        }
+    }
+
+    private void SetReadinessStopped()
+    {
+        lock (_readinessGate)
+        {
+            if (_readinessState == S7IsoRuntimeReadinessState.Stopped) return;
+            _readinessState = S7IsoRuntimeReadinessState.Stopped;
+            _readinessStateChangedAt = DateTimeOffset.UtcNow;
         }
     }
 

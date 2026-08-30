@@ -56,7 +56,8 @@ public sealed class Iec104GeneralInterrogationTransaction
 
         if (asdu.Header.TypeId != Iec104TypeId.CIcNa1 ||
             asdu.Header.CommonAddress != CommonAddress ||
-            asdu.Header.CauseOfTransmission.OriginatorAddress != OriginatorAddress)
+            asdu.Header.CauseOfTransmission.OriginatorAddress != OriginatorAddress ||
+            asdu.Header.CauseOfTransmission.IsTest)
         {
             return false;
         }

@@ -31,6 +31,14 @@ These are live interoperability tests. The 500 ms settling interval is deliberat
 
 The tests use unique `elitescada/integration/<run-id>/...` topics and unique Client IDs so concurrent or repeated runs do not reuse authoritative production topics or long-lived production sessions. Persistent test sessions use a short MQTT 5 expiry and are explicitly cleared at the end of a successful run; MQTT 3.1.1 cleanup reconnects with `CleanSession=true`.
 
+### Memory/backpressure evidence boundary
+
+`maximumBufferedMessages` bounds the EliteSCADA-owned callback-to-runtime channel. It is not, by itself, a universal process-memory limit because MQTTnet 5.2.0 uses an internal unbounded PUBLISH dispatch queue before the application callback.
+
+For MQTT 5 connections, the production adapter advertises `Receive Maximum = min(maximumBufferedMessages, 65,535)`. With EliteSCADA deferring QoS 1/2 acknowledgement until application-queue admission, this limits the broker-side unacknowledged QoS 1/2 inflight window. It does not constrain MQTT 5 QoS 0 traffic. MQTT 3.1.1 has no Receive Maximum property, so none of its QoS levels gain this MQTT 5 flow-control bound.
+
+The existing 64-message burst test proves loss-free recovery through the EliteSCADA bounded queue under that finite scenario. It does **not** prove bounded process memory under sustained publisher pressure. Production evidence must include process-memory observation during the sustained-rate scenarios listed below.
+
 ## Environment variables
 
 | Variable | Required | Default | Meaning |
@@ -85,6 +93,9 @@ For each implementation, retain evidence for:
 - QoS 0/1/2;
 - retained delivery;
 - bounded-queue burst recovery;
+- MQTT 5 QoS 1/2 sustained-rate behavior while Receive Maximum is active, including process-memory observation;
+- MQTT 5 QoS 0 sustained-rate behavior, including process-memory observation because Receive Maximum does not apply;
+- MQTT 3.1.1 QoS 0/1/2 sustained-rate behavior, including process-memory observation because Receive Maximum does not exist;
 - persistent-session QoS 1 and QoS 2 redelivery after full-queue shutdown interrupts application admission;
 - plaintext only where explicitly acceptable for a lab;
 - trusted TLS hostname/chain validation;
@@ -96,11 +107,12 @@ The current live contract now covers a bounded burst and controlled full-queue s
 
 - broker process restart while a persistent client session exists;
 - network interruption without a clean client disconnect;
-- sustained high-rate traffic over a longer interval than the 64-message burst contract;
+- persistent-session backlog delivered immediately after CONNACK;
+- sustained high-rate traffic long enough to observe steady-state process memory and GC behavior for MQTT 5 QoS 1/2, MQTT 5 QoS 0 and MQTT 3.1.1;
 - process termination after bounded-queue admission but before canonical TAG cache processing;
 - oversized normal and retained payloads;
 - operator remediation after an oversized retained payload faults the Data Source;
 - freshness timeout and recovery with real traffic;
 - duplicate/redelivery observations and ordering across repeated QoS 1/2 reconnect cycles.
 
-These scenarios must preserve the current semantic boundaries: QoS is not TAG quality, ACK means bounded-queue admission rather than canonical TAG transaction completion, and broker connectivity alone does not fabricate a `Good` TAG sample.
+These scenarios must preserve the current semantic boundaries: QoS is not TAG quality, ACK means bounded-queue admission rather than canonical TAG transaction completion, `maximumBufferedMessages` is an EliteSCADA application-queue bound rather than a universal process-memory cap, and broker connectivity alone does not fabricate a `Good` TAG sample.

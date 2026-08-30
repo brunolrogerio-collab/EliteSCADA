@@ -153,7 +153,7 @@ internal static class S7IsoProtocol
         ArgumentNullException.ThrowIfNull(points);
         ValidateAckData(packet, pduReference, out var parameterOffset, out var parameterLength, out var dataOffset, out var dataLength);
 
-        if (parameterLength < 2 || packet[parameterOffset] != 0x04)
+        if (parameterLength != 2 || packet[parameterOffset] != 0x04)
             throw new S7IsoProtocolException("Invalid S7 Read Var response parameters.");
         var itemCount = packet[parameterOffset + 1];
         if (itemCount != points.Count)
@@ -203,6 +203,9 @@ internal static class S7IsoProtocol
             }
         }
 
+        if (cursor != dataEnd)
+            throw new S7IsoProtocolException("S7 Read Var response contains unconsumed data after the declared items.");
+
         return results;
     }
 
@@ -236,10 +239,10 @@ internal static class S7IsoProtocol
     public static void ParseWriteResponse(ReadOnlySpan<byte> packet, ushort pduReference)
     {
         ValidateAckData(packet, pduReference, out var parameterOffset, out var parameterLength, out var dataOffset, out var dataLength);
-        if (parameterLength < 2 || packet[parameterOffset] != 0x05 || packet[parameterOffset + 1] != 0x01)
+        if (parameterLength != 2 || packet[parameterOffset] != 0x05 || packet[parameterOffset + 1] != 0x01)
             throw new S7IsoProtocolException("Invalid S7 Write Var response parameters.");
-        if (dataLength < 1)
-            throw new S7IsoProtocolException("S7 Write Var response omitted the item return code.");
+        if (dataLength != 1)
+            throw new S7IsoProtocolException("S7 Write Var response must contain exactly one item return code.");
 
         var returnCode = packet[dataOffset];
         if (returnCode != ReturnCodeSuccess)

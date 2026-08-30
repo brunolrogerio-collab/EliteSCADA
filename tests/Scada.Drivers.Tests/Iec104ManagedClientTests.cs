@@ -100,6 +100,44 @@ public sealed class Iec104ManagedClientTests
     }
 
     [Fact]
+    public async Task MultipleCommonAddresses_AreReadyOnlyAfterEveryStartupGeneralInterrogationCompletes()
+    {
+        var adapter = new InteractiveAdapter();
+        var client = CreateClient(
+            () => adapter,
+            commonAddresses: new ushort[] { 1, 2 });
+        using var cts = new CancellationTokenSource();
+
+        var runTask = client.RunAsync(static (_, _) => ValueTask.CompletedTask, cancellationToken: cts.Token);
+        var gi1 = await adapter.NextSentAsync();
+        var gi2 = await adapter.NextSentAsync();
+        Assert.Equal((ushort)1, gi1.Header.CommonAddress);
+        Assert.Equal((ushort)2, gi2.Header.CommonAddress);
+
+        await adapter.PublishAsync(CreateGeneralInterrogationResponse(gi1, Iec104GeneralInterrogationTransaction.ActivationConfirmationCause));
+        await adapter.PublishAsync(CreateGeneralInterrogationResponse(gi1, Iec104GeneralInterrogationTransaction.ActivationTerminationCause));
+        await WaitUntilAsync(() =>
+            client.GetReadiness().GeneralInterrogationStates.TryGetValue(1, out var state) &&
+            state == Iec104GeneralInterrogationState.Completed);
+
+        var partial = client.GetReadiness();
+        Assert.Equal(Iec104ReadinessState.Starting, partial.State);
+        Assert.False(partial.StartupGeneralInterrogationCompleted);
+        Assert.Equal(Iec104GeneralInterrogationState.AwaitingActivationConfirmation, partial.GeneralInterrogationStates[2]);
+
+        await adapter.PublishAsync(CreateGeneralInterrogationResponse(gi2, Iec104GeneralInterrogationTransaction.ActivationConfirmationCause));
+        await adapter.PublishAsync(CreateGeneralInterrogationResponse(gi2, Iec104GeneralInterrogationTransaction.ActivationTerminationCause));
+        await WaitUntilAsync(() => client.GetReadiness().State == Iec104ReadinessState.Ready);
+
+        var ready = client.GetReadiness();
+        Assert.True(ready.StartupGeneralInterrogationCompleted);
+        Assert.Equal(2, ready.GeneralInterrogationStates.Count);
+
+        cts.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runTask);
+    }
+
+    [Fact]
     public async Task CommandDuringReconnectDelay_IsRejectedAndNeverReplayed()
     {
         var first = new InteractiveAdapter();
@@ -166,14 +204,15 @@ public sealed class Iec104ManagedClientTests
 
     private static Iec104ManagedClient CreateClient(
         Func<IIec104ClientAdapter> factory,
-        Func<TimeSpan, CancellationToken, Task>? delayAsync = null) =>
+        Func<TimeSpan, CancellationToken, Task>? delayAsync = null,
+        IEnumerable<ushort>? commonAddresses = null) =>
         new(
             factory,
             "127.0.0.1",
             2404,
             new Iec104SessionOptions(),
             TimeZoneInfo.Utc,
-            new ushort[] { 1 },
+            commonAddresses ?? new ushort[] { 1 },
             reconnectPolicy: new Iec104ReconnectPolicy
             {
                 Delays = new[] { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2) },

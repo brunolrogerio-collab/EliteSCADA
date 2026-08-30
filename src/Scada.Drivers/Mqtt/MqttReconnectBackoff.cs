@@ -4,13 +4,12 @@ namespace Scada.Drivers.Mqtt;
 
 /// <summary>
 /// Per-runtime reconnect backoff policy. Exponential base delay is preserved while
-/// a bounded positive jitter spreads retries from independently started clients.
-/// Jitter never schedules earlier than the configured base delay and never exceeds
-/// the configured maximum delay.
+/// a bounded jitter window spreads retries from independently started clients.
+/// Jitter is clipped to the configured global minimum and maximum delays.
 /// </summary>
 internal sealed class MqttReconnectBackoff
 {
-    internal const int MaximumJitterPercent = 25;
+    internal const int JitterPercent = 25;
 
     private readonly TimeSpan _minimum;
     private readonly TimeSpan _maximum;
@@ -33,21 +32,21 @@ internal sealed class MqttReconnectBackoff
     public TimeSpan ApplyJitter(TimeSpan baseDelay)
     {
         var normalized = ClampBaseDelay(baseDelay);
-        if (normalized >= _maximum)
-            return _maximum;
+        var variationTicks = normalized.Ticks / 4; // 25%, overflow-safe.
+        if (variationTicks == 0)
+            return normalized;
 
-        var proportionalJitterTicks = normalized.Ticks > long.MaxValue / MaximumJitterPercent
+        var lowerTicks = Math.Max(_minimum.Ticks, normalized.Ticks - variationTicks);
+        var upperCandidate = normalized.Ticks > long.MaxValue - variationTicks
             ? long.MaxValue
-            : normalized.Ticks * MaximumJitterPercent / 100;
-        var maximumJitterTicks = Math.Min(
-            _maximum.Ticks - normalized.Ticks,
-            Math.Max(1L, proportionalJitterTicks));
+            : normalized.Ticks + variationTicks;
+        var upperTicks = Math.Min(_maximum.Ticks, upperCandidate);
+        if (lowerTicks >= upperTicks)
+            return TimeSpan.FromTicks(lowerTicks);
 
-        var jitterTicks = maximumJitterTicks == long.MaxValue
-            ? (long)(NextUInt64() & 0x7FFF_FFFF_FFFF_FFFFUL)
-            : (long)(NextUInt64() % ((ulong)maximumJitterTicks + 1UL));
-
-        return TimeSpan.FromTicks(normalized.Ticks + jitterTicks);
+        var span = (ulong)(upperTicks - lowerTicks);
+        var offset = NextUInt64() % (span + 1UL);
+        return TimeSpan.FromTicks(lowerTicks + (long)offset);
     }
 
     public TimeSpan NextBaseDelay(TimeSpan current)

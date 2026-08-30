@@ -112,6 +112,8 @@ public sealed class Iec104ObservationCollector
                         continue;
                     }
 
+                    if (asdu.Header.CauseOfTransmission.IsTest)
+                        continue;
                     if (!Iec104InformationObjectDecoder.IsSupported(asdu.Header.TypeId))
                         continue;
 

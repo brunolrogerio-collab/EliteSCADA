@@ -51,13 +51,13 @@ public sealed class Iec104NonFiniteShortFloatTests
             0x08,
             0x1A
         ];
-        cp56.CopyTo(objectData[5..]);
+        cp56.AsSpan().CopyTo(objectData[5..]);
 
         var point = Decode(Iec104TypeId.MMeTf1, objectData);
 
         Assert.True(float.IsNaN(Assert.IsType<float>(point.Value)));
         Assert.Equal(TagQuality.Uncertain, point.Quality);
-        Assert.Equal(
+        Assert.Equal<DateTimeOffset?>(
             new DateTimeOffset(2026, 8, 29, 22, 41, 12, 345, TimeSpan.Zero),
             point.SourceTimestamp);
     }

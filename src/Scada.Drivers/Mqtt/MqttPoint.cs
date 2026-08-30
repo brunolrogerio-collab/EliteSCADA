@@ -1,4 +1,3 @@
-using System.Text;
 using Scada.Core.Tags;
 
 namespace Scada.Drivers.Mqtt;
@@ -85,16 +84,12 @@ public sealed record MqttPoint(
         if (!string.Equals(topic, topic.Trim(), StringComparison.Ordinal))
             throw new ArgumentException("MQTT topic must not contain surrounding whitespace.", parameterName);
 
-        if (topic.IndexOf('\0') >= 0)
-            throw new ArgumentException("MQTT topic must not contain a null character.", parameterName);
+        MqttProtocolText.ValidateUtf8EncodedString(topic, parameterName, allowEmpty: false);
 
         if (topic.Contains('+', StringComparison.Ordinal) || topic.Contains('#', StringComparison.Ordinal))
             throw new ArgumentException(
                 "Authoritative MQTT TAG mappings require an exact topic; wildcard filters are not persisted as TAG identity.",
                 parameterName);
-
-        if (Encoding.UTF8.GetByteCount(topic) > ushort.MaxValue)
-            throw new ArgumentException("MQTT topic exceeds the protocol UTF-8 length limit.", parameterName);
     }
 
     private static void ValidateJsonPointer(string? pointer, string parameterName)

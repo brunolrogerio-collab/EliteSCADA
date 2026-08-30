@@ -43,6 +43,7 @@ public sealed record MqttConnectionSettings(
             throw new ArgumentException("MQTT Client ID is required.", nameof(ClientId));
         if (!string.Equals(ClientId, ClientId.Trim(), StringComparison.Ordinal))
             throw new ArgumentException("MQTT Client ID must not contain surrounding whitespace.", nameof(ClientId));
+        MqttProtocolText.ValidateUtf8EncodedString(ClientId, nameof(ClientId), allowEmpty: false);
         if (EffectiveKeepAlive <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(KeepAlive));
         if (EffectiveConnectTimeout <= TimeSpan.Zero)
@@ -90,6 +91,8 @@ public sealed class MqttResolvedCredentials : IDisposable
 
     public MqttResolvedCredentials(string? username, byte[]? password = null)
     {
+        if (username is not null)
+            MqttProtocolText.ValidateUtf8EncodedString(username, nameof(username));
         Username = username;
         _password = password ?? Array.Empty<byte>();
     }

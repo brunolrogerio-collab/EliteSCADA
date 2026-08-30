@@ -96,6 +96,21 @@ public sealed record BacnetForeignDeviceRegistrationSnapshot(
     string? LastErrorType);
 
 /// <summary>
+/// Per-route local COV renewal evidence. PortableAddress is stable Engineering
+/// identity; no transient IP address is required to identify the route here.
+/// These fields describe local scheduling/request activity, not remote retention.
+/// </summary>
+public sealed record BacnetCovRouteRenewalSnapshot(
+    uint SubscriptionId,
+    string PortableAddress,
+    DateTimeOffset? LastRenewalRequestAt,
+    DateTimeOffset? NextRenewalAttemptAt,
+    long RenewalRequests,
+    long RenewalFailures,
+    DateTimeOffset? LastRenewalFailureAt,
+    string? LastRenewalErrorType);
+
+/// <summary>
 /// Protocol-local COV subscription lifecycle evidence. The counters deliberately
 /// distinguish local route state from remote subscribe/cancel request attempts.
 /// They are diagnostics, not proof that a peer retained a subscription after a
@@ -107,7 +122,17 @@ public sealed record BacnetCovSubscriptionSnapshot(
     long SubscribeFailures,
     long CancelRequests,
     long CancelFailures,
-    string? LastErrorType);
+    string? LastErrorType,
+    TimeSpan? SubscriptionLifetime = null,
+    TimeSpan? RenewalInterval = null,
+    TimeSpan? RetryInterval = null,
+    long RenewalRequests = 0,
+    long RenewalFailures = 0,
+    DateTimeOffset? LastRenewalRequestAt = null,
+    DateTimeOffset? NextRenewalAttemptAt = null,
+    DateTimeOffset? LastRenewalFailureAt = null,
+    string? LastRenewalErrorType = null,
+    IReadOnlyList<BacnetCovRouteRenewalSnapshot>? Routes = null);
 
 /// <summary>
 /// Optional BACnet-specific diagnostic seam. It keeps network-lease state owned

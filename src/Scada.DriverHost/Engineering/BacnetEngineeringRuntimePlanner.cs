@@ -63,6 +63,7 @@ public static class BacnetEngineeringRuntimePlanner
             issues.Add(new EngineeringDriverIssue("BACNET_DATASOURCE_NO_TAGS", $"Enabled BACnet/IP data source '{dataSource.Key}' has no associated TAGs.", dataSource.Key, IsError: false));
 
         var points = new List<BacnetPoint>();
+        var stableTagPaths = new Dictionary<Guid, string>();
         foreach (var dto in sourceTags)
         {
             if (!dto.Id.HasValue || dto.Id.Value == Guid.Empty)
@@ -74,6 +75,17 @@ public static class BacnetEngineeringRuntimePlanner
                     dto.Path));
                 continue;
             }
+
+            if (stableTagPaths.TryGetValue(dto.Id.Value, out var existingPath))
+            {
+                issues.Add(Error(
+                    "BACNET_TAG_STABLE_ID_DUPLICATE",
+                    $"BACnet TAG '{dto.Path}' shares stable TAG Id '{dto.Id.Value:D}' with '{existingPath}'. Stable TAG identity must be unique within the data source.",
+                    dataSource.Key,
+                    dto.Path));
+                continue;
+            }
+            stableTagPaths[dto.Id.Value] = dto.Path;
 
             if (!BacnetBinding.TryParse(dto.Address, out var parsed, out var parseError) || parsed is null)
             {

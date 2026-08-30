@@ -1,0 +1,208 @@
+using Scada.Core.Tags;
+using Scada.Drivers.Abstractions;
+using Scada.Drivers.AllenBradley;
+
+namespace Scada.Drivers.Tests;
+
+public sealed class AllenBradleyCipL2IntegrationTests
+{
+    [Fact]
+    [Trait("Category", "CipL2Integration")]
+    public async Task ProtocolClient_ReadsAndWritesAgainstIndependentControlLogixSimulator()
+    {
+        if (!TryGetEndpoint(out var host, out var port)) return;
+
+        var options = CreateOptions(host, port);
+        var myDint = new LogixSymbolReference(LogixTagScope.Controller, "MyDint", LogixNativeType.Dint);
+        var myReal = new LogixSymbolReference(LogixTagScope.Controller, "MyReal", LogixNativeType.Real);
+        var setPoint = new LogixSymbolReference(LogixTagScope.Controller, "SetPoint", LogixNativeType.Real);
+
+        await using var client = new LogixEtherNetIpClient();
+        await client.ConnectAsync(options);
+
+        var initial = await client.ReadManyAsync([myDint, myReal, setPoint]);
+        Assert.Equal(3, initial.Count);
+        Assert.All(initial, static result => Assert.True(result.Succeeded, result.Message));
+        Assert.Equal(42, Assert.IsType<int>(initial[0].NativeValue));
+        Assert.InRange(Assert.IsType<float>(initial[1].NativeValue), 3.139f, 3.141f);
+        Assert.InRange(Assert.IsType<float>(initial[2].NativeValue), 74.99f, 75.01f);
+
+        await client.WriteAsync(setPoint, 81.25f);
+        var readback = Assert.Single(await client.ReadManyAsync([setPoint]));
+        Assert.True(readback.Succeeded, readback.Message);
+        Assert.InRange(Assert.IsType<float>(readback.NativeValue), 81.24f, 81.26f);
+
+        var diagnostics = client.GetDiagnostics();
+        Assert.True(diagnostics.Connected);
+        Assert.True(diagnostics.SuccessfulRequests > 0);
+        Assert.Equal(0, diagnostics.FailedRequests);
+
+        await client.DisconnectAsync();
+    }
+
+    [Fact]
+    [Trait("Category", "CipL2Integration")]
+    public async Task Driver_PollsAndWritesThroughCanonicalBoundaryAgainstIndependentSimulator()
+    {
+        if (!TryGetEndpoint(out var host, out var port)) return;
+
+        var tag = TagDefinition.Create(
+            "Counter",
+            "CIP.Counter",
+            TagDataType.Int32,
+            source: "AB-L2",
+            readOnly: false);
+        var reference = new LogixSymbolReference(LogixTagScope.Controller, "Counter", LogixNativeType.Dint);
+        var binding = new LogixTagBinding(
+            tag,
+            reference,
+            Writable: true,
+            ExternalAccess: LogixExternalAccess.ReadWrite);
+
+        var cache = new TestCurrentTagCache();
+        var registry = new TestTagRegistry();
+        await using var driver = new AllenBradleyLogixDriver(
+            "AB-L2",
+            "Independent CIP L2",
+            CreateOptions(host, port),
+            cache,
+            registry,
+            [binding]);
+
+        await driver.StartAsync();
+        var initial = await WaitForValueAsync(
+            cache,
+            tag.Id,
+            static value => value.Quality == TagQuality.Good && value.Value is int,
+            TimeSpan.FromSeconds(12));
+        Assert.Equal(0, Assert.IsType<int>(initial.Value));
+
+        await driver.WriteAsync(tag.Id, 321);
+        var written = await WaitForValueAsync(
+            cache,
+            tag.Id,
+            static value => value.Quality == TagQuality.Good && value.Value is int current && current == 321,
+            TimeSpan.FromSeconds(5));
+        Assert.Equal(321, Assert.IsType<int>(written.Value));
+
+        var runtimeDiagnostics = driver.GetCommunicationDiagnostics();
+        Assert.Equal("rockwell.logix.eip", runtimeDiagnostics.DriverType);
+        Assert.Equal(1, runtimeDiagnostics.AssociatedTagCount);
+        Assert.True(runtimeDiagnostics.Counters.ReadOperations > 0);
+        Assert.True(runtimeDiagnostics.Counters.WriteOperations > 0);
+
+        await driver.StopAsync();
+
+        await using var verifier = new LogixEtherNetIpClient();
+        await verifier.ConnectAsync(CreateOptions(host, port));
+        var readback = Assert.Single(await verifier.ReadManyAsync([reference]));
+        Assert.True(readback.Succeeded, readback.Message);
+        Assert.Equal(321, Assert.IsType<int>(readback.NativeValue));
+        await verifier.DisconnectAsync();
+    }
+
+    private static AllenBradleyLogixOptions CreateOptions(string host, int port) =>
+        new(
+            host,
+            port,
+            LogixControllerProfile.ControlLogix,
+            ScanInterval: TimeSpan.FromMilliseconds(150),
+            RequestTimeout: TimeSpan.FromSeconds(5),
+            ReconnectMinimum: TimeSpan.FromMilliseconds(100),
+            ReconnectMaximum: TimeSpan.FromSeconds(1),
+            MaxBatchSize: 1);
+
+    private static bool TryGetEndpoint(out string host, out int port)
+    {
+        host = Environment.GetEnvironmentVariable("ELITESCADA_CIP_L2_HOST")?.Trim() ?? string.Empty;
+        var rawPort = Environment.GetEnvironmentVariable("ELITESCADA_CIP_L2_PORT")?.Trim();
+        if (string.IsNullOrWhiteSpace(host) || !int.TryParse(rawPort, out port) || port is < 1 or > 65535)
+        {
+            port = 0;
+            return false;
+        }
+
+        return true;
+    }
+
+    private static async Task<TagValue> WaitForValueAsync(
+        TestCurrentTagCache cache,
+        Guid tagId,
+        Func<TagValue, bool> predicate,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (cache.TryGet(tagId, out var value) && value is not null && predicate(value))
+                return value;
+            await Task.Delay(50);
+        }
+
+        throw new TimeoutException($"Timed out waiting for TAG '{tagId}' to reach the expected CIP L2 state.");
+    }
+
+    private sealed class TestCurrentTagCache : ICurrentTagCache
+    {
+        private readonly Dictionary<Guid, TagValue> _values = new();
+        private readonly object _gate = new();
+
+        public bool TryGet(Guid tagId, out TagValue? value)
+        {
+            lock (_gate)
+            {
+                var found = _values.TryGetValue(tagId, out var current);
+                value = current;
+                return found;
+            }
+        }
+
+        public IReadOnlyCollection<TagValue> Snapshot()
+        {
+            lock (_gate) return _values.Values.ToArray();
+        }
+
+        public ValueTask<TagValue?> UpdateAsync(TagDefinition tag, TagValue value, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (_gate)
+            {
+                _values.TryGetValue(tag.Id, out var previous);
+                _values[tag.Id] = value;
+                return ValueTask.FromResult<TagValue?>(previous);
+            }
+        }
+    }
+
+    private sealed class TestTagRegistry : ITagRegistry
+    {
+        private readonly Dictionary<Guid, TagDefinition> _tags = new();
+
+        public TagDefinition Register(TagDefinition tag)
+        {
+            if (!_tags.TryAdd(tag.Id, tag)) throw new InvalidOperationException("TAG already registered.");
+            return tag;
+        }
+
+        public TagDefinition Upsert(TagDefinition tag)
+        {
+            _tags[tag.Id] = tag;
+            return tag;
+        }
+
+        public bool TryGet(Guid tagId, out TagDefinition? tag)
+        {
+            var found = _tags.TryGetValue(tagId, out var current);
+            tag = current;
+            return found;
+        }
+
+        public bool TryGetByPath(string path, out TagDefinition? tag)
+        {
+            tag = _tags.Values.FirstOrDefault(x => string.Equals(x.Path, path, StringComparison.OrdinalIgnoreCase));
+            return tag is not null;
+        }
+
+        public IReadOnlyCollection<TagDefinition> Snapshot() => _tags.Values.ToArray();
+    }
+}

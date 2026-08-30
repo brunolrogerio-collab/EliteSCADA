@@ -12,7 +12,7 @@ public sealed class Iec104TestCotIsolationTests
             commonAddress: 1,
             informationObjectAddress: 77,
             value: true,
-            Iec104CommandMode.DirectOperate);
+            mode: Iec104CommandMode.DirectOperate);
         var request = transaction.CreateInitialRequest();
         var response = Iec104AsduEnvelope.Create(
             request.Header with
@@ -78,6 +78,7 @@ public sealed class Iec104TestCotIsolationTests
         var point = Assert.Single(observed);
         Assert.Equal(11, point.InformationObjectAddress.Value);
         Assert.Equal(false, point.Value);
+        Assert.Equal(1, runner.IgnoredTestAsduCount);
         Assert.Equal(Iec104GeneralInterrogationState.Completed, runner.GeneralInterrogationStates[1]);
     }
 

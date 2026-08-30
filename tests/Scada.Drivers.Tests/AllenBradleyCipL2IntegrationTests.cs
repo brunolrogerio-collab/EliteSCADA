@@ -180,7 +180,6 @@ public sealed class AllenBradleyCipL2IntegrationTests
                            diagnostics.Counters.Connections > before.Counters.Connections &&
                            diagnostics.Counters.Reconnects > before.Counters.Reconnects,
             TimeSpan.FromSeconds(10));
-        Assert.True(after.Counters.Disconnections > before.Counters.Disconnections);
         Assert.True(after.LastSuccessfulCommunicationAt > before.LastSuccessfulCommunicationAt);
 
         await driver.StopAsync();

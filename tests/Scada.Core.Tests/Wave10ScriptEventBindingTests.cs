@@ -165,6 +165,73 @@ public sealed class Wave10ScriptEventBindingTests
     }
 
     [Fact]
+    public void RuntimeAdapter_RegistersPersistedTimerIntervalAndFailsClosedBelowPolicyMinimum()
+    {
+        var scriptId = Guid.Parse("93500000-0000-0000-0000-000000000001");
+        var validTimer = new PythonScriptEntryPoint(
+            PythonScriptEventKind.Timer,
+            "on_timer",
+            TimerIntervalMs: 250);
+        var script = new PythonScriptDefinition(
+            scriptId,
+            "scripts/client/runtime-timer",
+            "Runtime Timer",
+            PythonScriptScope.ClientVisual,
+            "def on_timer():\n    pass\n",
+            entryPoints: [validTimer]);
+        using var registry = new ScriptEventSubscriptionRegistry("runtime-1");
+
+        var subscription = ScriptEngineeringAdapters.RegisterRuntimeSubscription(
+            registry,
+            script,
+            validTimer,
+            ScriptExecutionPolicy.SafeDefault);
+
+        Assert.Equal(TimeSpan.FromMilliseconds(250), subscription.TimerInterval);
+        Assert.Equal(1, registry.Count);
+
+        var invalidTimer = validTimer with { TimerIntervalMs = 49 };
+        var invalidScript = new PythonScriptDefinition(
+            Guid.Parse("93500000-0000-0000-0000-000000000002"),
+            "scripts/client/runtime-timer-invalid",
+            "Runtime Timer Invalid",
+            PythonScriptScope.ClientVisual,
+            "def on_timer():\n    pass\n",
+            entryPoints: [invalidTimer]);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            ScriptEngineeringAdapters.RegisterRuntimeSubscription(
+                registry,
+                invalidScript,
+                invalidTimer,
+                ScriptExecutionPolicy.SafeDefault));
+    }
+
+    [Fact]
+    public void RuntimeAdapter_RejectsStringEncodedTagIdentity()
+    {
+        var entryPoint = new PythonScriptEntryPoint(
+            PythonScriptEventKind.TagChanged,
+            "on_tag",
+            TargetReference: "Plant.Pump.Word.07");
+        var script = new PythonScriptDefinition(
+            Guid.Parse("93600000-0000-0000-0000-000000000001"),
+            "scripts/client/runtime-tag-invalid",
+            "Runtime TAG Invalid",
+            PythonScriptScope.ClientVisual,
+            "def on_tag():\n    pass\n",
+            entryPoints: [entryPoint]);
+        using var registry = new ScriptEventSubscriptionRegistry("runtime-2");
+
+        Assert.Throws<InvalidOperationException>(() =>
+            ScriptEngineeringAdapters.RegisterRuntimeSubscription(
+                registry,
+                script,
+                entryPoint,
+                ScriptExecutionPolicy.SafeDefault));
+    }
+
+    [Fact]
     public void Validator_RequiresStableClientMemoryDefinitionIdentity()
     {
         var scriptId = Guid.Parse("94000000-0000-0000-0000-000000000001");

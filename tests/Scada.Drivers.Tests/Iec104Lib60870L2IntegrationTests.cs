@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using Scada.Core.Tags;
 using Scada.Drivers.Iec60870;
 
@@ -14,27 +15,7 @@ public sealed class Iec104Lib60870L2IntegrationTests
 
         var observed = new ConcurrentDictionary<(ushort Ca, int Ioa, Iec104TypeId Type), Iec104DecodedPoint>();
         using var runCts = new CancellationTokenSource();
-        var client = new Iec104ManagedClient(
-            static () => new Iec104TcpClientAdapter(),
-            host,
-            port,
-            new Iec104SessionOptions
-            {
-                T0 = TimeSpan.FromSeconds(5),
-                T1 = TimeSpan.FromSeconds(4),
-                T2 = TimeSpan.FromSeconds(1),
-                T3 = TimeSpan.FromSeconds(8),
-                K = 12,
-                W = 8
-            },
-            TimeZoneInfo.Utc,
-            new ushort[] { 1 },
-            reconnectPolicy: new Iec104ReconnectPolicy
-            {
-                Delays = new[] { TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(500) },
-                StableSessionThreshold = TimeSpan.FromSeconds(5)
-            });
-
+        var client = CreateClient(host, port);
         var runTask = client.RunAsync(
             (point, _) =>
             {
@@ -88,16 +69,106 @@ public sealed class Iec104Lib60870L2IntegrationTests
         }
         finally
         {
-            runCts.Cancel();
-            try
-            {
-                await runTask;
-            }
-            catch (OperationCanceledException) when (runCts.IsCancellationRequested)
-            {
-            }
+            await StopManagedClientAsync(runCts, runTask);
         }
     }
+
+    [Fact]
+    [Trait("Category", "Iec104Lib60870Integration")]
+    public async Task ManagedClient_ReconnectsAndRepeatsGiAfterRealPeerRestart()
+    {
+        if (!TryGetEndpoint(out var host, out var port)) return;
+        var container = Environment.GetEnvironmentVariable("ELITESCADA_IEC104_L2_RESTART_CONTAINER")?.Trim();
+        if (string.IsNullOrWhiteSpace(container)) return;
+
+        var observed = new ConcurrentDictionary<(ushort Ca, int Ioa, Iec104TypeId Type), Iec104DecodedPoint>();
+        using var runCts = new CancellationTokenSource();
+        var client = CreateClient(host, port);
+        var runTask = client.RunAsync(
+            (point, _) =>
+            {
+                observed[(point.CommonAddress, point.InformationObjectAddress.Value, point.TypeId)] = point;
+                return ValueTask.CompletedTask;
+            },
+            cancellationToken: runCts.Token);
+
+        try
+        {
+            await WaitUntilAsync(
+                () => client.GetReadiness().State == Iec104ReadinessState.Ready && HasExpectedGiPointSet(observed),
+                runTask,
+                TimeSpan.FromSeconds(10));
+
+            var before = client.GetDiagnostics();
+            Assert.Equal(0, before.SessionFailures);
+            Assert.True(before.LastSessionAttemptAt.HasValue);
+            Assert.True(before.ObservedPointUpdates >= 6);
+
+            observed.Clear();
+            await RunDockerAsync("stop", "-t", "1", container);
+            try
+            {
+                await WaitUntilAsync(
+                    () => client.GetDiagnostics().SessionFailures > before.SessionFailures,
+                    runTask,
+                    TimeSpan.FromSeconds(10));
+            }
+            finally
+            {
+                await RunDockerAsync("start", container);
+            }
+
+            await WaitUntilAsync(
+                () => client.GetReadiness().State == Iec104ReadinessState.Ready && HasExpectedGiPointSet(observed),
+                runTask,
+                TimeSpan.FromSeconds(20));
+
+            var after = client.GetDiagnostics();
+            Assert.Equal(Iec104SessionState.Running, after.SessionState);
+            Assert.True(after.SessionFailures > before.SessionFailures);
+            Assert.True(after.ReconnectAttempt > before.ReconnectAttempt);
+            Assert.True(after.LastFailureAt > before.LastSessionAttemptAt);
+            Assert.True(after.LastSessionAttemptAt > before.LastSessionAttemptAt);
+            Assert.True(after.ObservedPointUpdates > before.ObservedPointUpdates);
+            Assert.NotNull(after.Transport);
+
+            var readiness = client.GetReadiness();
+            Assert.True(readiness.IsTransportConnected);
+            Assert.True(readiness.IsDataTransferStarted);
+            Assert.True(readiness.StartupGeneralInterrogationCompleted);
+            Assert.Equal(Iec104GeneralInterrogationState.Completed, readiness.GeneralInterrogationStates[1]);
+
+            AssertScaled(observed, 100, -1);
+            AssertSinglePoint(observed, 104, true);
+            AssertBitString(observed, 500, 0x0000aaaa);
+        }
+        finally
+        {
+            await StopManagedClientAsync(runCts, runTask);
+        }
+    }
+
+    private static Iec104ManagedClient CreateClient(string host, int port) =>
+        new(
+            static () => new Iec104TcpClientAdapter(),
+            host,
+            port,
+            new Iec104SessionOptions
+            {
+                T0 = TimeSpan.FromSeconds(5),
+                T1 = TimeSpan.FromSeconds(4),
+                T2 = TimeSpan.FromSeconds(1),
+                T3 = TimeSpan.FromSeconds(8),
+                K = 12,
+                W = 8
+            },
+            TimeZoneInfo.Utc,
+            new ushort[] { 1 },
+            reconnectPolicy: new Iec104ReconnectPolicy
+            {
+                Delays = new[] { TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(500) },
+                StableSessionThreshold = TimeSpan.FromSeconds(5)
+            });
 
     private static bool TryGetEndpoint(out string host, out int port)
     {
@@ -152,6 +223,38 @@ public sealed class Iec104Lib60870L2IntegrationTests
         Assert.Equal(expected, Assert.IsType<int>(point.Value));
         Assert.Equal(TagQuality.Good, point.Quality);
         Assert.Null(point.SourceTimestamp);
+    }
+
+    private static async Task RunDockerAsync(params string[] arguments)
+    {
+        var startInfo = new ProcessStartInfo("docker")
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        foreach (var argument in arguments) startInfo.ArgumentList.Add(argument);
+
+        using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start docker for IEC-104 L2 restart orchestration.");
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+        var stdout = await stdoutTask;
+        var stderr = await stderrTask;
+        if (process.ExitCode != 0)
+            throw new InvalidOperationException($"docker {string.Join(' ', arguments)} failed with exit code {process.ExitCode}: {stderr.Trim()} {stdout.Trim()}".Trim());
+    }
+
+    private static async Task StopManagedClientAsync(CancellationTokenSource runCts, Task runTask)
+    {
+        runCts.Cancel();
+        try
+        {
+            await runTask;
+        }
+        catch (OperationCanceledException) when (runCts.IsCancellationRequested)
+        {
+        }
     }
 
     private static async Task WaitUntilAsync(

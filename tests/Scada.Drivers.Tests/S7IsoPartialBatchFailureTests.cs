@@ -63,6 +63,8 @@ public sealed class S7IsoPartialBatchFailureTests
         Assert.Equal(19, partial.TagQuality.Good);
         Assert.Equal(11, partial.TagQuality.BadCommunication);
         Assert.Equal(nameof(S7IsoFailureKind.TransportUnavailable), partial.ProtocolDetails!["lastFailureKind"]);
+        Assert.Equal("2", partial.ProtocolDetails["lastReadBatchCount"]);
+        Assert.Equal("30", partial.ProtocolDetails["lastReadPointCount"]);
         Assert.True(partial.Counters.SuccessfulOperations >= 19);
         Assert.True(partial.Counters.FailedOperations >= 11);
         Assert.Equal(1L, partial.Counters.Connections);
@@ -82,6 +84,8 @@ public sealed class S7IsoPartialBatchFailureTests
         var recovered = driver.GetCommunicationDiagnostics();
         Assert.Equal(30, recovered.TagQuality.Good);
         Assert.Equal(0, recovered.TagQuality.BadCommunication);
+        Assert.Equal("2", recovered.ProtocolDetails!["lastReadBatchCount"]);
+        Assert.Equal("30", recovered.ProtocolDetails["lastReadPointCount"]);
         Assert.True(recovered.Counters.Connections >= 2);
         Assert.True(recovered.Counters.Reconnects >= 1);
     }

@@ -39,7 +39,9 @@ public static class ScriptEngineeringAdapters
         return new PythonScriptEntryPoint(
             ToRuntimeEventKind(entryPoint.EventKind),
             entryPoint.HandlerName,
-            entryPoint.TargetReference);
+            entryPoint.TargetReference,
+            entryPoint.TagReference,
+            entryPoint.TimerIntervalMs);
     }
 
     public static PythonScriptDependency ToRuntimeDependency(

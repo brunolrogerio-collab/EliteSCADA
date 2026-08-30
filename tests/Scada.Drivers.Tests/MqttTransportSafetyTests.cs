@@ -8,6 +8,25 @@ namespace Scada.Drivers.Tests;
 public sealed class MqttTransportSafetyTests
 {
     [Fact]
+    public async Task UndefinedProtocolModeFailsBeforeTransportConnect()
+    {
+        var settings = new MqttConnectionSettings(
+            "broker.invalid",
+            1883,
+            UseTls: false,
+            ClientId: "elite-invalid-protocol",
+            ProtocolMode: (MqttProtocolMode)int.MaxValue);
+        await using var transport = new MqttNetClientTransport();
+        using var credentials = MqttResolvedCredentials.None;
+
+        var error = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            transport.ConnectAsync(settings, credentials).AsTask());
+
+        Assert.Equal("ProtocolMode", error.ParamName);
+        Assert.False(transport.IsConnected);
+    }
+
+    [Fact]
     public async Task PermanentInboundPolicyFailureFaultsWithoutReconnectLoop()
     {
         var tag = new TagDefinition(

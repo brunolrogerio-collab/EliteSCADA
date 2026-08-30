@@ -29,7 +29,7 @@ Machine-readable status lives in `scenarios/catalog.json`.
 cd interop-lab
 cp .env.example .env
 docker compose up -d --build
-./scripts/lab.sh smoke
+bash scripts/lab.sh smoke
 ```
 
 Windows PowerShell:

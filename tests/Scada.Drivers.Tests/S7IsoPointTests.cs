@@ -63,6 +63,28 @@ public sealed class S7IsoPointTests
     }
 
     [Fact]
+    public void WString_UsesByteTransportAndRejectsOrderingOrOversizedFirstCutLength()
+    {
+        var valid = new S7IsoPoint(
+            Tag(TagDataType.String),
+            S7IsoArea.DataBlock,
+            20,
+            S7IsoValueType.WString,
+            DbNumber: 2,
+            StringLength: 254);
+        valid.Validate();
+
+        Assert.Equal(512, valid.ByteLength);
+        Assert.Equal((byte)0x02, valid.S7AnyTransportSize);
+        Assert.Equal((ushort)512, valid.S7AnyElementCount);
+
+        var ordered = valid with { ValueOrder = S7IsoValueOrder.ByteSwap };
+        var oversized = valid with { StringLength = 255 };
+        Assert.Throws<ArgumentException>(ordered.Validate);
+        Assert.Throws<ArgumentOutOfRangeException>(oversized.Validate);
+    }
+
+    [Fact]
     public void UnsignedTypes_MapIntoWiderCanonicalTagTypes()
     {
         new S7IsoPoint(Tag(TagDataType.Int32), S7IsoArea.Merker, 0, S7IsoValueType.UInt16).Validate();

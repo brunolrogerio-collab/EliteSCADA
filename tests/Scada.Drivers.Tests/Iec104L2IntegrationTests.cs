@@ -5,6 +5,7 @@ using Scada.Drivers.Iec60870;
 
 namespace Scada.Drivers.Tests;
 
+[Collection("Iec104L2")]
 public sealed class Iec104L2IntegrationTests
 {
     [Fact]

@@ -52,6 +52,7 @@ public sealed class Iec104CommandTransaction
     public Iec104CommandMode Mode { get; }
     public byte OriginatorAddress { get; }
     public Iec104CommandState State { get; private set; } = Iec104CommandState.Created;
+    public bool ExecuteWasAccepted { get; private set; }
 
     public static Iec104CommandTransaction Single(
         ushort commonAddress,
@@ -205,6 +206,7 @@ public sealed class Iec104CommandTransaction
             if (State == Iec104CommandState.AwaitingExecutionConfirmation)
             {
                 ValidateEcho(asdu, _executePayload);
+                ExecuteWasAccepted = true;
                 State = Iec104CommandState.Accepted;
                 return true;
             }

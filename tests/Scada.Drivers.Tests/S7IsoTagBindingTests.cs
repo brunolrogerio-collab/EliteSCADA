@@ -54,6 +54,35 @@ public sealed class S7IsoTagBindingTests
         Assert.True(point.Writable);
     }
 
+    [Fact]
+    public void WString_RoundTripsThroughVersionOnePortableBinding()
+    {
+        var binding = new S7IsoTagBinding(
+            S7IsoTagBinding.CurrentSchemaVersion,
+            S7IsoArea.DataBlock,
+            80,
+            S7IsoValueType.WString,
+            DbNumber: 4,
+            Writable: true,
+            StringLength: 32);
+
+        var portable = binding.ToPortableAddress();
+
+        Assert.Contains("type=WString", portable, StringComparison.Ordinal);
+        Assert.Contains("string=32", portable, StringComparison.Ordinal);
+        Assert.True(S7IsoTagBinding.TryParsePortableAddress(portable, out var parsed, out var error), error);
+        Assert.Equal(binding, parsed);
+
+        var point = parsed!.ToPoint(TagDefinition.Create(
+            "WideText",
+            "PLC.WideText",
+            TagDataType.String,
+            source: "siemens.s7.iso",
+            readOnly: false));
+        Assert.Equal(68, point.ByteLength);
+        Assert.Equal((ushort)68, point.S7AnyElementCount);
+    }
+
     [Theory]
     [InlineData("s7iso:v2;area=Merker;db=0;byte=0;bit=0;type=Boolean;string=0;writable=false;order=Normal")]
     [InlineData("s7iso:v1;area=Merker;db=0;byte=0;bit=0;type=Boolean;string=0;writable=false;order=Normal;vendorMagic=1")]

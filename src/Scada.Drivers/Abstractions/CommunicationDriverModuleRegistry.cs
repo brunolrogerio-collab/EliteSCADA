@@ -23,12 +23,25 @@ public sealed record CommunicationDriverModuleRegistration(
 
         if (string.IsNullOrWhiteSpace(descriptor.DriverType))
             throw new InvalidOperationException("DriverType is required for module registration.");
+        if (!string.Equals(descriptor.DriverType, descriptor.DriverType.Trim(), StringComparison.Ordinal))
+            throw new InvalidOperationException($"DriverType '{descriptor.DriverType}' must not contain leading or trailing whitespace.");
+        if (string.IsNullOrWhiteSpace(descriptor.DisplayName))
+            throw new InvalidOperationException($"Driver '{descriptor.DriverType}' must declare a display name.");
         if (descriptor.DriverContractVersion <= 0)
             throw new InvalidOperationException($"Driver '{descriptor.DriverType}' must declare a positive contract version.");
-        if (descriptor.ConfigurationSchema.SchemaVersion <= 0)
+        if (descriptor.AcquisitionModes is null || descriptor.AcquisitionModes.Count == 0)
+            throw new InvalidOperationException($"Driver '{descriptor.DriverType}' must declare at least one acquisition mode.");
+
+        var schema = descriptor.ConfigurationSchema
+            ?? throw new InvalidOperationException($"Driver '{descriptor.DriverType}' must declare a configuration schema.");
+        if (schema.SchemaVersion <= 0)
             throw new InvalidOperationException($"Driver '{descriptor.DriverType}' must declare a positive configuration schema version.");
-        if (string.IsNullOrWhiteSpace(descriptor.ConfigurationSchema.SchemaId))
+        if (string.IsNullOrWhiteSpace(schema.SchemaId))
             throw new InvalidOperationException($"Driver '{descriptor.DriverType}' must declare a configuration schema ID.");
+        if (!string.Equals(schema.SchemaId, schema.SchemaId.Trim(), StringComparison.Ordinal))
+            throw new InvalidOperationException($"Driver '{descriptor.DriverType}' configuration schema ID must not contain leading or trailing whitespace.");
+        if (schema.DataSourceFields is null || schema.TagBindingFields is null)
+            throw new InvalidOperationException($"Driver '{descriptor.DriverType}' configuration schema field collections must not be null.");
 
         ValidateProvider(ConnectionTester, descriptor, DriverEngineeringCapabilities.ConnectionTest, nameof(ConnectionTester));
         ValidateProvider(DiscoverySource, descriptor, DriverEngineeringCapabilities.Discover, nameof(DiscoverySource));
@@ -51,7 +64,9 @@ public sealed record CommunicationDriverModuleRegistration(
         if (provider is null)
             return;
 
-        var providerType = provider.Descriptor.DriverType;
+        var providerDescriptor = provider.Descriptor
+            ?? throw new InvalidOperationException($"Driver {providerName} returned a null descriptor.");
+        var providerType = providerDescriptor.DriverType;
         if (!string.Equals(providerType, descriptor.DriverType, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException($"Driver provider type '{providerType}' does not match registration type '{descriptor.DriverType}'.");
     }
@@ -75,7 +90,7 @@ public sealed class CommunicationDriverModuleRegistry
         ArgumentNullException.ThrowIfNull(registration);
         registration.Validate();
 
-        var driverType = registration.Descriptor.DriverType.Trim();
+        var driverType = registration.Descriptor.DriverType;
         if (!_registrations.TryAdd(driverType, registration))
             throw new InvalidOperationException($"Driver type '{driverType}' is already registered.");
     }

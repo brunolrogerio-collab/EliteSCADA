@@ -22,6 +22,7 @@ public enum S7IsoValueType
     Int64,
     Float64,
     String,
+    WString,
     DateTime
 }
 
@@ -51,13 +52,15 @@ public sealed record S7IsoPoint(
         S7IsoValueType.UInt32 or S7IsoValueType.Int32 or S7IsoValueType.Float32 => 4,
         S7IsoValueType.Int64 or S7IsoValueType.Float64 or S7IsoValueType.DateTime => 8,
         S7IsoValueType.String => checked(StringLength + 2),
+        S7IsoValueType.WString => checked(StringLength * 2 + 4),
         _ => throw new ArgumentOutOfRangeException(nameof(ValueType))
     };
 
     internal byte S7AnyTransportSize => ValueType switch
     {
         S7IsoValueType.Boolean => 0x01,
-        S7IsoValueType.Byte or S7IsoValueType.Int64 or S7IsoValueType.Float64 or S7IsoValueType.String or S7IsoValueType.DateTime => 0x02,
+        S7IsoValueType.Byte or S7IsoValueType.Int64 or S7IsoValueType.Float64 or
+            S7IsoValueType.String or S7IsoValueType.WString or S7IsoValueType.DateTime => 0x02,
         S7IsoValueType.UInt16 => 0x04,
         S7IsoValueType.Int16 => 0x05,
         S7IsoValueType.UInt32 => 0x06,
@@ -69,7 +72,8 @@ public sealed record S7IsoPoint(
     internal ushort S7AnyElementCount => ValueType switch
     {
         S7IsoValueType.Boolean => 1,
-        S7IsoValueType.Byte or S7IsoValueType.Int64 or S7IsoValueType.Float64 or S7IsoValueType.String or S7IsoValueType.DateTime => checked((ushort)ByteLength),
+        S7IsoValueType.Byte or S7IsoValueType.Int64 or S7IsoValueType.Float64 or
+            S7IsoValueType.String or S7IsoValueType.WString or S7IsoValueType.DateTime => checked((ushort)ByteLength),
         _ => 1
     };
 
@@ -105,14 +109,18 @@ public sealed record S7IsoPoint(
         if (ValueType != S7IsoValueType.Boolean && BitOffset != 0)
             throw new ArgumentException("S7 bit offset is valid only for Boolean points.", nameof(BitOffset));
 
-        if (ValueType == S7IsoValueType.String)
+        if (ValueType is S7IsoValueType.String or S7IsoValueType.WString)
         {
             if (StringLength is < 1 or > 254)
-                throw new ArgumentOutOfRangeException(nameof(StringLength), "S7 STRING length must be from 1 to 254.");
+                throw new ArgumentOutOfRangeException(
+                    nameof(StringLength),
+                    ValueType == S7IsoValueType.String
+                        ? "S7 STRING length must be from 1 to 254."
+                        : "S7 WSTRING first-cut length must be from 1 to 254 WCHARs.");
         }
         else if (StringLength != 0)
         {
-            throw new ArgumentException("S7 string length is valid only for String points.", nameof(StringLength));
+            throw new ArgumentException("S7 string length is valid only for String/WString points.", nameof(StringLength));
         }
 
         if (Writable && Area == S7IsoArea.Input)
@@ -134,7 +142,7 @@ public sealed record S7IsoPoint(
             S7IsoValueType.UInt32 or S7IsoValueType.Int64 => Tag.DataType == TagDataType.Int64,
             S7IsoValueType.Float32 => Tag.DataType == TagDataType.Float,
             S7IsoValueType.Float64 => Tag.DataType == TagDataType.Double,
-            S7IsoValueType.String => Tag.DataType == TagDataType.String,
+            S7IsoValueType.String or S7IsoValueType.WString => Tag.DataType == TagDataType.String,
             S7IsoValueType.DateTime => Tag.DataType == TagDataType.DateTime,
             _ => false
         };

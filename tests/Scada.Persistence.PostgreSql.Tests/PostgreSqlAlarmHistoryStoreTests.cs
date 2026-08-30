@@ -48,7 +48,7 @@ public sealed class PostgreSqlAlarmHistoryStoreTests
         Assert.Single(first.Rows);
         Assert.NotNull(first.NextPosition);
         Assert.Equal(tagPath, first.Rows[0].Cells["tag.path"].Value);
-        Assert.Equal("High", first.Rows[0].Cells["priority"].Value);
+        Assert.Equal("3", first.Rows[0].Cells["priority"].Value);
 
         var second = await store.QueryAsync(new HistoricalQueryExecution(
             dataset,

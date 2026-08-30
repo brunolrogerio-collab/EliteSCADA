@@ -489,7 +489,14 @@ public sealed class OpcUaFoundationRuntimeSessionFactory : IOpcUaRuntimeSessionF
     }
 }
 
-internal sealed class OpcUaFoundationRuntimeSession : IOpcUaRuntimeSession
+internal interface IOpcUaFoundationSessionAccessor
+{
+    ISession FoundationSession { get; }
+}
+
+internal sealed class OpcUaFoundationRuntimeSession :
+    IOpcUaRuntimeSession,
+    IOpcUaFoundationSessionAccessor
 {
     private readonly ISession _session;
     private readonly IReadOnlyList<OpcUaRuntimeBinding> _bindings;
@@ -535,6 +542,15 @@ internal sealed class OpcUaFoundationRuntimeSession : IOpcUaRuntimeSession
                     namespaceUri => _session.NamespaceUris.GetIndex(namespaceUri))));
 
         _session.KeepAlive += OnKeepAlive;
+    }
+
+    ISession IOpcUaFoundationSessionAccessor.FoundationSession
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return _session;
+        }
     }
 
     public async Task<OpcUaRuntimeDataValue> ReadAsync(

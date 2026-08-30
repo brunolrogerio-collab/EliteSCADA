@@ -13,7 +13,7 @@ permissions:
 jobs:
   base-lab-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -37,6 +37,10 @@ jobs:
       - name: Validate CIP overlay Compose model
         working-directory: interop-lab
         run: docker compose -f compose.yaml -f compose.cip.yaml config >/dev/null
+
+      - name: Validate HiveMQ overlay Compose model
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml -f compose.hivemq.yaml config >/dev/null
 
       - name: Build and start base lab
         working-directory: interop-lab
@@ -62,17 +66,47 @@ jobs:
           --filter Category=BrokerIntegration
           --logger "console;verbosity=normal"
 
+      - name: Start independent HiveMQ CE broker
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml -f compose.hivemq.yaml up -d hivemq
+
+      - name: Wait for HiveMQ MQTT readiness
+        working-directory: interop-lab
+        shell: bash
+        run: |
+          for attempt in {1..60}; do
+            if (echo > /dev/tcp/127.0.0.1/1884) >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker compose -f compose.yaml -f compose.hivemq.yaml logs --no-color hivemq
+          exit 1
+
+      - name: EliteSCADA MQTT transport against live HiveMQ CE
+        env:
+          ELITESCADA_MQTT_INTEGRATION_HOST: 127.0.0.1
+          ELITESCADA_MQTT_INTEGRATION_PORT: '1884'
+          ELITESCADA_MQTT_INTEGRATION_TLS: 'false'
+          ELITESCADA_MQTT_INTEGRATION_PROTOCOLS: mqtt5,mqtt311
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          --no-restore
+          --configuration Release
+          --filter Category=BrokerIntegration
+          --logger "console;verbosity=normal"
+
       - name: Show lab status
         if: always()
         working-directory: interop-lab
-        run: docker compose -f compose.yaml ps
+        run: docker compose -f compose.yaml -f compose.hivemq.yaml ps
 
       - name: Dump logs on failure
         if: failure()
         working-directory: interop-lab
-        run: docker compose -f compose.yaml logs --no-color
+        run: docker compose -f compose.yaml -f compose.hivemq.yaml logs --no-color
 
       - name: Stop lab
         if: always()
         working-directory: interop-lab
-        run: docker compose -f compose.yaml down -v --remove-orphans
+        run: docker compose -f compose.yaml -f compose.hivemq.yaml down -v --remove-orphans

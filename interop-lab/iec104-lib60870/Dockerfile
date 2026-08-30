@@ -1,6 +1,6 @@
 FROM alpine:3.22
 
-RUN apk add --no-cache build-base git
+RUN apk add --no-cache build-base git linux-headers
 
 WORKDIR /opt/lib60870
 RUN git clone https://github.com/mz-automation/lib60870.git . \

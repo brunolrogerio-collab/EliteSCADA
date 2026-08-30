@@ -57,6 +57,25 @@ public sealed class Iec104PointListImporterBoundsTests
     }
 
     [Fact]
+    public async Task ImportAsync_RejectsNonSeekableFileBeyondConfiguredByteLimitDuringRead()
+    {
+        const string csv =
+            "commonAddress,informationObjectAddress,typeId\n" +
+            "1,1,M_SP_NA_1\n" +
+            "1,2,M_SP_NA_1\n";
+        var request = Request(new Dictionary<string, string>
+        {
+            ["maximumFileBytes"] = "64"
+        });
+        await using var content = new NonSeekableReadStream(Encoding.UTF8.GetBytes(csv));
+
+        var exception = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            CollectAsync(content, request));
+
+        Assert.Contains("maximumFileBytes=64", exception.Message);
+    }
+
+    [Fact]
     public async Task ImportAsync_RejectsNulCharacter()
     {
         const string csv =
@@ -124,11 +143,77 @@ public sealed class Iec104PointListImporterBoundsTests
         DriverImportRequest request,
         CancellationToken cancellationToken = default)
     {
-        var importer = new Iec104PointListImporter();
         await using var content = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+        return await CollectAsync(content, request, cancellationToken);
+    }
+
+    private static async Task<List<DriverImportCandidate>> CollectAsync(
+        Stream content,
+        DriverImportRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var importer = new Iec104PointListImporter();
         var result = new List<DriverImportCandidate>();
         await foreach (var candidate in importer.ImportAsync(request, content, cancellationToken))
             result.Add(candidate);
         return result;
+    }
+
+    private sealed class NonSeekableReadStream : Stream
+    {
+        private readonly MemoryStream _inner;
+
+        public NonSeekableReadStream(byte[] content)
+        {
+            _inner = new MemoryStream(content, writable: false);
+        }
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            _inner.Read(buffer, offset, count);
+
+        public override int Read(Span<byte> buffer) => _inner.Read(buffer);
+
+        public override Task<int> ReadAsync(
+            byte[] buffer,
+            int offset,
+            int count,
+            CancellationToken cancellationToken) =>
+            _inner.ReadAsync(buffer, offset, count, cancellationToken);
+
+        public override ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default) =>
+            _inner.ReadAsync(buffer, cancellationToken);
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                _inner.Dispose();
+            base.Dispose(disposing);
+        }
+
+        public override async ValueTask DisposeAsync()
+        {
+            await _inner.DisposeAsync().ConfigureAwait(false);
+            await base.DisposeAsync().ConfigureAwait(false);
+        }
     }
 }

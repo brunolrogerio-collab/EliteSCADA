@@ -67,7 +67,7 @@ public sealed class Iec104L2IntegrationTests
 
         var diagnostics = adapter.GetTransportDiagnostics();
         Assert.True(diagnostics.IsConnected);
-        Assert.True(diagnostics.DataTransferStarted);
+        Assert.True(diagnostics.IsDataTransferStarted);
         Assert.True(diagnostics.IFramesSent > 0);
         Assert.True(diagnostics.IFramesReceived > 0);
         Assert.Equal(0, diagnostics.ProtocolErrors);
@@ -278,7 +278,7 @@ public sealed class Iec104L2IntegrationTests
         }
 
         var last = client.GetReadiness();
-        throw new TimeoutException($"Timed out waiting for IEC-104 L2 readiness. Last state: {last.State}, session: {last.SessionState}, attempt: {last.ReconnectAttempt}, error: {last.LastError}");
+        throw new TimeoutException($"Timed out waiting for IEC-104 L2 readiness. Last state: {last.State}, session: {last.SessionState}, attempt: {last.ReconnectAttempt}, error: {last.LastFailure}");
     }
 
     private static async Task<Iec104ManagedDiagnosticSnapshot> WaitForDiagnosticsAsync(

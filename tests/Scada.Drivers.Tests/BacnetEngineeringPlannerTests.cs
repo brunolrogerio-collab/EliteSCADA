@@ -75,6 +75,42 @@ public sealed class BacnetEngineeringPlannerTests
         Assert.Contains(result.Issues, x => x.Code == "BACNET_TAG_DEVICE_MISMATCH" && x.IsError);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Planner_RejectsMissingOrEmptyStableTagIdentity(bool useEmptyGuid)
+    {
+        var package = Package(
+            new TagEngineeringDto(
+                useEmptyGuid ? Guid.Empty : null,
+                "UnstablePoint",
+                "HVAC.UnstablePoint",
+                TagDataType.Float,
+                Source: "ahu-1",
+                Address: "bacnet:device=1201;object=0:1;property=85"),
+            new DataSourceEngineeringDto(
+                Guid.NewGuid(),
+                "ahu-1",
+                "AHU 1",
+                BacnetDriverDescriptor.DriverType,
+                Settings: new Dictionary<string, string> { ["deviceInstance"] = "1201" }));
+
+        var first = BacnetEngineeringRuntimePlanner.Plan(package, package.DataSources!.Single());
+        var second = BacnetEngineeringRuntimePlanner.Plan(package, package.DataSources!.Single());
+
+        Assert.False(first.CanActivate);
+        Assert.Null(first.Plan);
+        Assert.False(second.CanActivate);
+        Assert.Null(second.Plan);
+        Assert.Contains(first.Issues, x =>
+            x.Code == "BACNET_TAG_STABLE_ID_REQUIRED" &&
+            x.IsError &&
+            x.TagPath == "HVAC.UnstablePoint");
+        Assert.Equal(
+            first.Issues.Select(x => (x.Code, x.Message, x.DataSourceKey, x.TagPath, x.IsError)),
+            second.Issues.Select(x => (x.Code, x.Message, x.DataSourceKey, x.TagPath, x.IsError)));
+    }
+
     [Fact]
     public void Codec_MapsBinaryPresentValueWithoutGenericBooleanCoercion()
     {

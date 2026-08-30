@@ -12,14 +12,14 @@ $NodeRedPort = if ($env:NODE_RED_PORT) { $env:NODE_RED_PORT } else { "1880" }
 $NodeRedUrl = "http://127.0.0.1:$NodeRedPort"
 
 function Invoke-BaseCompose {
-    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
-    & docker compose -f compose.yaml @Args
+    param([string[]]$ComposeArgs)
+    & docker compose -f compose.yaml @ComposeArgs
     if ($LASTEXITCODE -ne 0) { throw "docker compose failed with exit code $LASTEXITCODE" }
 }
 
 function Invoke-CipCompose {
-    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
-    & docker compose -f compose.yaml -f compose.cip.yaml @Args
+    param([string[]]$ComposeArgs)
+    & docker compose -f compose.yaml -f compose.cip.yaml @ComposeArgs
     if ($LASTEXITCODE -ne 0) { throw "docker compose CIP overlay failed with exit code $LASTEXITCODE" }
 }
 
@@ -62,15 +62,15 @@ function Invoke-Smoke {
 
 switch ($Command) {
     "start" {
-        Invoke-BaseCompose up -d --build
+        Invoke-BaseCompose @("up", "-d", "--build")
         Wait-NodeRed
     }
-    "stop" { Invoke-BaseCompose down --remove-orphans }
-    "reset" { Invoke-BaseCompose down -v --remove-orphans }
-    "status" { Invoke-BaseCompose ps }
-    "logs" { Invoke-BaseCompose logs -f }
+    "stop" { Invoke-BaseCompose @("down", "--remove-orphans") }
+    "reset" { Invoke-BaseCompose @("down", "-v", "--remove-orphans") }
+    "status" { Invoke-BaseCompose @("ps") }
+    "logs" { Invoke-BaseCompose @("logs", "-f") }
     "smoke" { Invoke-Smoke }
-    "cip-start" { Invoke-CipCompose up -d --build cip-controllogix cip-compactlogix }
-    "cip-stop" { Invoke-CipCompose stop cip-controllogix cip-compactlogix }
-    "cip-status" { Invoke-CipCompose ps cip-controllogix cip-compactlogix }
+    "cip-start" { Invoke-CipCompose @("up", "-d", "--build", "cip-controllogix", "cip-compactlogix") }
+    "cip-stop" { Invoke-CipCompose @("stop", "cip-controllogix", "cip-compactlogix") }
+    "cip-status" { Invoke-CipCompose @("ps", "cip-controllogix", "cip-compactlogix") }
 }

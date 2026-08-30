@@ -53,7 +53,7 @@ public sealed class MqttReconnectBackoffTests
 
         Assert.True(samples.All(delay => delay <= maximum));
         Assert.True(samples.All(delay => delay >= TimeSpan.FromMilliseconds(22_500)));
-        Assert.True(samples.Any(delay => delay < maximum));
+        Assert.Contains(samples, delay => delay < maximum);
         Assert.True(samples.Distinct().Count() > 1);
     }
 

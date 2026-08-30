@@ -36,6 +36,8 @@ public sealed class S7IsoTransportTests
         Assert.True(diagnostics.Connected);
         Assert.Equal(2L, diagnostics.RequestAttempts);
         Assert.Equal(1L, diagnostics.ConnectionCount);
+        Assert.Equal(1, diagnostics.LastReadBatchCount);
+        Assert.Equal(1, diagnostics.LastReadPointCount);
     }
 
     [Fact]
@@ -169,6 +171,8 @@ public sealed class S7IsoTransportTests
         Assert.Equal(S7IsoFailureKind.TransportUnavailable, diagnostics.LastFailureKind);
         Assert.Equal(2L, diagnostics.RequestAttempts);
         Assert.Equal(1L, diagnostics.DisconnectionCount);
+        Assert.Equal(2, diagnostics.LastReadBatchCount);
+        Assert.Equal(30, diagnostics.LastReadPointCount);
     }
 
     [Fact]

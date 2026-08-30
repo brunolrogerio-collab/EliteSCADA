@@ -13,11 +13,16 @@ permissions:
 jobs:
   base-lab-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
 
       - name: Validate scenario catalog JSON
         run: python -m json.tool interop-lab/scenarios/catalog.json >/dev/null
@@ -37,9 +42,25 @@ jobs:
         working-directory: interop-lab
         run: docker compose -f compose.yaml up -d --build
 
-      - name: MQTT round-trip smoke
+      - name: MQTT control-plane round-trip smoke
         working-directory: interop-lab
         run: bash scripts/lab.sh smoke
+
+      - name: Restore MQTT Driver integration tests
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+
+      - name: EliteSCADA MQTT transport against live Mosquitto
+        env:
+          ELITESCADA_MQTT_INTEGRATION_HOST: 127.0.0.1
+          ELITESCADA_MQTT_INTEGRATION_PORT: '1883'
+          ELITESCADA_MQTT_INTEGRATION_TLS: 'false'
+          ELITESCADA_MQTT_INTEGRATION_PROTOCOLS: mqtt5,mqtt311
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          --no-restore
+          --configuration Release
+          --filter Category=BrokerIntegration
+          --logger "console;verbosity=normal"
 
       - name: Show lab status
         if: always()

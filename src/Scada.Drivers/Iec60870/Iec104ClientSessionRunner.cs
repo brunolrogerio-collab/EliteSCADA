@@ -12,6 +12,7 @@ public sealed class Iec104ClientSessionRunner
     private readonly Iec104SessionStateMachine _stateMachine = new();
     private readonly Dictionary<ushort, Iec104GeneralInterrogationTransaction> _generalInterrogations = new();
     private readonly Iec104CommandCoordinator _commandCoordinator;
+    private long _ignoredTestAsdus;
 
     public Iec104ClientSessionRunner(
         IIec104ClientAdapter adapter,
@@ -55,6 +56,8 @@ public sealed class Iec104ClientSessionRunner
     public Iec104SessionState State => _stateMachine.State;
 
     public int InFlightCommandCount => _commandCoordinator.InFlightCount;
+
+    public long IgnoredTestAsduCount => Interlocked.Read(ref _ignoredTestAsdus);
 
     public Iec104TcpAdapterDiagnosticSnapshot? GetTransportDiagnostics() =>
         (_adapter as IIec104TransportDiagnosticsSource)?.GetTransportDiagnostics();
@@ -118,7 +121,10 @@ public sealed class Iec104ClientSessionRunner
                 if (TryObserveGeneralInterrogation(asdu))
                     continue;
                 if (asdu.Header.CauseOfTransmission.IsTest)
+                {
+                    Interlocked.Increment(ref _ignoredTestAsdus);
                     continue;
+                }
                 if (!Iec104InformationObjectDecoder.IsSupported(asdu.Header.TypeId))
                     continue;
 

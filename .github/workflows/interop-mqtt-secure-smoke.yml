@@ -56,7 +56,7 @@ jobs:
           docker run --rm \
             -v "$PWD/interop-lab/mqtt/tls:/work" \
             eclipse-mosquitto:2.1.2-alpine \
-            sh -c "mosquitto_passwd -b -c /work/passwords elitescada lab-secret"
+            sh -c "mosquitto_passwd -b -c /work/passwords elitescada lab-secret && chmod 0644 /work/passwords"
           chmod 0644 \
             interop-lab/mqtt/tls/ca.crt \
             interop-lab/mqtt/tls/server.crt \
@@ -72,9 +72,9 @@ jobs:
         working-directory: interop-lab
         run: docker compose -f compose.mqtt-secure.yaml config >/dev/null
 
-      - name: Start secure Mosquitto
+      - name: Start secure Mosquitto and wait healthy
         working-directory: interop-lab
-        run: docker compose -f compose.mqtt-secure.yaml up -d
+        run: docker compose -f compose.mqtt-secure.yaml up -d --wait --wait-timeout 60
 
       - name: Restore MQTT Driver integration tests
         run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj

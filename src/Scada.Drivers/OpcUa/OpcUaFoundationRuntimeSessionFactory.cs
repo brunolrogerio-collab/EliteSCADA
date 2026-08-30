@@ -662,7 +662,7 @@ internal sealed class OpcUaFoundationRuntimeSession :
         {
             DisplayName = "EliteSCADA OPC UA Runtime",
             PublishingEnabled = true,
-            PublishingInterval = _publishingInterval.TotalMilliseconds,
+            PublishingInterval = checked((int)Math.Ceiling(_publishingInterval.TotalMilliseconds)),
             KeepAliveCount = 5
         };
 
@@ -679,7 +679,7 @@ internal sealed class OpcUaFoundationRuntimeSession :
                     StartNodeId = GetNode(binding),
                     AttributeId = Attributes.Value,
                     DisplayName = binding.Tag.Path,
-                    SamplingInterval = binding.SamplingInterval.TotalMilliseconds,
+                    SamplingInterval = checked((int)Math.Ceiling(binding.SamplingInterval.TotalMilliseconds)),
                     QueueSize = binding.QueueSize,
                     DiscardOldest = binding.DiscardOldest
                 };

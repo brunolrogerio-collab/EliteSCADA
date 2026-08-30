@@ -1,51 +1,43 @@
 # LAST CHANGE — EliteSCADA
 
-Date: 2026-08-29
+Date: 2026-08-30
 
 ## Current checkpoint
 
-Wave 08 FOLLOW-A and FOLLOW-B are **CLOSED / MERGED / POST-MERGE GREEN**.
+### MERGED
 
-Final validated product baseline on `main`:
+Wave 09 is closed on `main`. Current observed `main` head is `d7ef5db6a583fa949059f6b00cb2dfab3549e919`; commits after the validated product head include coordination/documentation-only changes.
 
-`dededaca980fdb72b5d4955685ab1161aca441fd`
+Wave 10 is active from frozen product `WaveBaseSHA`:
 
-FOLLOW-A evidence:
+`bbfd730e404b0dee2c05e0ec0afb979b1b14ea35`
 
-- PR #105 merged;
-- exact pre-merge product CI #541 green;
-- exact post-merge `main` CI #543 green.
+Integration branch:
 
-FOLLOW-B evidence:
+`integration/wave-10-python-visual-events-animation-preview`
 
-- canonical contract: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`;
-- final integrated/product head: `dededaca980fdb72b5d4955685ab1161aca441fd`;
-- CI #657 green on that exact final FOLLOW-B head, including Web, backend build/tests/smoke and Chromium E2E;
-- FOLLOW-B was fast-forwarded into `main` without force;
-- post-merge/push CI #658 green on exact `main` head `dededaca980fdb72b5d4955685ab1161aca441fd`, including Chromium E2E.
+### IMPLEMENTED IN PR
 
-FOLLOW-B therefore no longer blocks downstream product work.
+- DEV 2 / #150: runtime visual animation/tween is implemented in PR #153 at validated worker head `a1f7584b23fd90a27257b5f12a42aafd90656ef0`; EliteSCADA CI #811 green. Integration into the shared renderer/event path remains Coordinator-owned.
+- DEV 3 / #151: mounted Python Preview/Test and traceback UX is implemented in PR #154 at validated worker head `a81bf56b9ce23e7f982770744963f1b99b66a6ee`; EliteSCADA CI #815 green. Coordinator may reconcile the older duplicate presentation while preserving the accepted runtime host.
 
-## Active stage
+### SPECIFIED / NOT IMPLEMENTED
 
-**Wave 09 is ACTIVE.**
+DEV 1 / #149 had stopped at two genuine canonical event-binding gaps and made no product mutation. Coordinator resolution is now recorded in #152 and delegated to DEV 1:
 
-Initial Wave 09 substage is the shared historical/navigation foundation:
+- Timer associations persist explicit nullable `timerIntervalMs`; Timer requires a valid interval meeting the existing runtime minimum, while non-Timer events leave it null. Interval is never encoded in `TargetReference`.
+- TAG value-change associations persist typed stable `tagId` plus optional existing canonical `TagValueSelector`; display syntax such as `.NN` remains UX only and is never the persisted identity.
+- Client Memory change uses stable definition identity, not friendly path/name.
 
-- protected typed Historical Query v1 shared by Browser, Reporting and Trends;
-- initial datasets `historian.samples` and `alarm.events`;
-- canonical Popup/Dynamo/navigation Engineering over the existing Screen/visual runtime;
-- Historical Data Browser consuming the shared query contract.
+DEV 1 is authorized to resume immediately with the smallest shared DTO/schema/validation/runtime-adapter extension plus the mounted Events editor. Central DI/shared event dispatcher composition remains Coordinator-owned.
 
-Canonical planning contracts:
+Wave 10 exit gate remains:
 
-- `docs/WAVE-09-HISTORICAL-QUERY-CONTRACT.md`;
-- `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`;
-- `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`.
+`click -> canonical event binding -> Python entry point -> script visual command -> animated public visual property -> deterministic stable final result`
 
-Reporting/Report Designer remains part of Wave 09, but its implementation slice starts only after the shared Historical Query contract is integrated and accepted. This is sequencing inside an active Wave, not a separate product gate.
+The final exact integration head must pass normal CI before any transition to `main`; exact post-main green evidence is required before Wave 10 closure.
 
-Parallel protocol Drivers remain isolated and parked from `main`; Wave work has priority.
+Parallel Driver and Interoperability Lab work remains isolated and lower priority unless a real shared canonical contract requires Coordinator action.
 
 ## CI policy
 

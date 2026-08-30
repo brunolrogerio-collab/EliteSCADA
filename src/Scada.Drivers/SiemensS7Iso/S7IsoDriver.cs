@@ -435,7 +435,7 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
 
     private static TagQuality MapReturnCodeQuality(byte code) => code switch
     {
-        0x05 or 0x06 or 0x07 or 0x0A => TagQuality.BadConfiguration,
+        0x03 or 0x05 or 0x06 or 0x07 or 0x0A => TagQuality.BadConfiguration,
         _ => TagQuality.BadDevice
     };
 

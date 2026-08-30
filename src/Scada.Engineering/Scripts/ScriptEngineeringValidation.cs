@@ -1,3 +1,4 @@
+using Scada.Core.Tags;
 using Scada.Engineering.VisualScripting;
 
 namespace Scada.Engineering.Scripts;
@@ -99,6 +100,8 @@ public sealed class ScriptEngineeringValidationResult
 
 public sealed class ScriptEngineeringValidator
 {
+    private static readonly int MinimumTimerIntervalMs = checked((int)ScriptExecutionPolicy.SafeDefault.MinimumTimerInterval.TotalMilliseconds);
+
     public ScriptEngineeringValidationResult Validate(
         ScriptEngineeringModel model,
         ScriptEngineeringReferenceCatalog? referenceCatalog = null)
@@ -190,9 +193,7 @@ public sealed class ScriptEngineeringValidator
         }
         else if (script.Path != script.Path.Trim() || script.Path.Contains('\\'))
         {
-            Add(
-                "SCRIPT_PATH_INVALID",
-                "Script path must be trimmed and use '/' separators.");
+            Add("SCRIPT_PATH_INVALID", "Script path must be trimmed and use '/' separators.");
         }
 
         if (string.IsNullOrWhiteSpace(script.Name))
@@ -249,28 +250,29 @@ public sealed class ScriptEngineeringValidator
         foreach (var entryPoint in script.EntryPoints
             .OrderBy(item => (int)item.EventKind)
             .ThenBy(item => item.HandlerName, StringComparer.Ordinal)
-            .ThenBy(item => item.TargetReference ?? string.Empty, StringComparer.Ordinal))
+            .ThenBy(item => EventTargetIdentity(item.TargetReference, item.TagReference, item.TimerIntervalMs), StringComparer.Ordinal))
         {
             if (!Enum.IsDefined(typeof(ScriptEngineeringEventKind), entryPoint.EventKind))
             {
-                issues.Add(new ScriptEngineeringValidationIssue(
+                Add(
                     "SCRIPT_ENTRYPOINT_EVENT_INVALID",
-                    $"Entry point event '{entryPoint.EventKind}' is not supported.",
-                    true,
-                    scriptId,
-                    entityKey));
+                    $"Entry point event '{entryPoint.EventKind}' is not supported.");
                 continue;
             }
 
             if (!IsPythonIdentifier(entryPoint.HandlerName))
             {
-                issues.Add(new ScriptEngineeringValidationIssue(
+                Add(
                     "SCRIPT_ENTRYPOINT_HANDLER_INVALID",
-                    $"Entry point handler '{entryPoint.HandlerName}' is not a valid Python identifier.",
-                    true,
-                    scriptId,
-                    entityKey));
+                    $"Entry point handler '{entryPoint.HandlerName}' is not a valid Python identifier.");
             }
+
+            ValidateEventTarget(
+                entryPoint.EventKind,
+                entryPoint.TargetReference,
+                entryPoint.TagReference,
+                entryPoint.TimerIntervalMs,
+                (code, message) => Add($"SCRIPT_ENTRYPOINT_{code}", message));
 
             if (Enum.IsDefined(typeof(ScriptEngineeringScope), script.Scope))
             {
@@ -279,26 +281,24 @@ public sealed class ScriptEngineeringValidator
 
                 if (!ScriptScopeEventRules.IsAllowed(runtimeScope, runtimeEvent))
                 {
-                    issues.Add(new ScriptEngineeringValidationIssue(
+                    Add(
                         "SCRIPT_ENTRYPOINT_SCOPE_EVENT_INVALID",
-                        $"Event '{entryPoint.EventKind}' is not valid for script scope '{script.Scope}'.",
-                        true,
-                        scriptId,
-                        entityKey));
+                        $"Event '{entryPoint.EventKind}' is not valid for script scope '{script.Scope}'.");
                 }
             }
 
-            var identity = $"{(int)entryPoint.EventKind}:{entryPoint.HandlerName}:{entryPoint.TargetReference}";
+            var identity =
+                $"{(int)entryPoint.EventKind}:{entryPoint.HandlerName}:{EventTargetIdentity(entryPoint.TargetReference, entryPoint.TagReference, entryPoint.TimerIntervalMs)}";
             if (!seen.Add(identity))
             {
-                issues.Add(new ScriptEngineeringValidationIssue(
+                Add(
                     "SCRIPT_ENTRYPOINT_DUPLICATE",
-                    $"Entry point '{entryPoint.EventKind}:{entryPoint.HandlerName}:{entryPoint.TargetReference}' is declared more than once.",
-                    true,
-                    scriptId,
-                    entityKey));
+                    $"Entry point '{entryPoint.EventKind}:{entryPoint.HandlerName}' with the same canonical target is declared more than once.");
             }
         }
+
+        void Add(string code, string message) =>
+            issues.Add(new ScriptEngineeringValidationIssue(code, message, true, scriptId, entityKey));
     }
 
     private static void ValidateDependencies(
@@ -317,35 +317,22 @@ public sealed class ScriptEngineeringValidator
         {
             if (!Enum.IsDefined(typeof(ScriptEngineeringDependencyKind), dependency.Kind))
             {
-                issues.Add(new ScriptEngineeringValidationIssue(
-                    "SCRIPT_DEPENDENCY_KIND_INVALID",
-                    $"Dependency kind '{dependency.Kind}' is not supported.",
-                    true,
-                    scriptId,
-                    entityKey));
+                Add("SCRIPT_DEPENDENCY_KIND_INVALID", $"Dependency kind '{dependency.Kind}' is not supported.");
                 continue;
             }
 
             if (string.IsNullOrWhiteSpace(dependency.StableReference))
             {
-                issues.Add(new ScriptEngineeringValidationIssue(
-                    "SCRIPT_DEPENDENCY_REFERENCE_REQUIRED",
-                    $"Dependency '{dependency.Kind}' requires a stable reference.",
-                    true,
-                    scriptId,
-                    entityKey));
+                Add("SCRIPT_DEPENDENCY_REFERENCE_REQUIRED", $"Dependency '{dependency.Kind}' requires a stable reference.");
                 continue;
             }
 
             var identity = $"{(int)dependency.Kind}:{dependency.StableReference}";
             if (!seen.Add(identity))
             {
-                issues.Add(new ScriptEngineeringValidationIssue(
+                Add(
                     "SCRIPT_DEPENDENCY_DUPLICATE",
-                    $"Dependency '{dependency.Kind}:{dependency.StableReference}' is declared more than once.",
-                    true,
-                    scriptId,
-                    entityKey));
+                    $"Dependency '{dependency.Kind}:{dependency.StableReference}' is declared more than once.");
             }
 
             if (Enum.IsDefined(typeof(ScriptEngineeringScope), script.Scope))
@@ -355,62 +342,46 @@ public sealed class ScriptEngineeringValidator
             {
                 if (!Guid.TryParse(dependency.StableReference, out var targetScriptId))
                 {
-                    issues.Add(new ScriptEngineeringValidationIssue(
+                    Add(
                         "SCRIPT_DEPENDENCY_SCRIPT_ID_INVALID",
-                        $"Script dependency reference '{dependency.StableReference}' is not a valid stable Script ID.",
-                        true,
-                        scriptId,
-                        entityKey));
+                        $"Script dependency reference '{dependency.StableReference}' is not a valid stable Script ID.");
                     continue;
                 }
 
                 if (script.Id != Guid.Empty && targetScriptId == script.Id)
                 {
-                    issues.Add(new ScriptEngineeringValidationIssue(
-                        "SCRIPT_DEPENDENCY_SELF_REFERENCE",
-                        "A Script cannot depend on itself.",
-                        true,
-                        scriptId,
-                        entityKey));
+                    Add("SCRIPT_DEPENDENCY_SELF_REFERENCE", "A Script cannot depend on itself.");
                     continue;
                 }
 
                 if (!scriptsById.TryGetValue(targetScriptId, out var targetScript))
                 {
-                    issues.Add(new ScriptEngineeringValidationIssue(
+                    Add(
                         "SCRIPT_DEPENDENCY_REFERENCE_MISSING",
-                        $"Required Script dependency '{targetScriptId:D}' does not exist in the Script Engineering model.",
-                        true,
-                        scriptId,
-                        entityKey));
+                        $"Required Script dependency '{targetScriptId:D}' does not exist in the Script Engineering model.");
                     continue;
                 }
 
-                if (Enum.IsDefined(typeof(ScriptEngineeringScope), script.Scope) &&
-                    targetScript.Scope != script.Scope)
+                if (Enum.IsDefined(typeof(ScriptEngineeringScope), script.Scope) && targetScript.Scope != script.Scope)
                 {
-                    issues.Add(new ScriptEngineeringValidationIssue(
+                    Add(
                         "SCRIPT_DEPENDENCY_SCOPE_MISMATCH",
-                        $"Script '{script.Path}' cannot depend on Script '{targetScript.Path}' from scope '{targetScript.Scope}'.",
-                        true,
-                        scriptId,
-                        entityKey));
+                        $"Script '{script.Path}' cannot depend on Script '{targetScript.Path}' from scope '{targetScript.Scope}'.");
                 }
 
                 continue;
             }
 
-            if (referenceCatalog is null ||
-                !referenceCatalog.Contains(dependency.Kind, dependency.StableReference))
+            if (referenceCatalog is null || !referenceCatalog.Contains(dependency.Kind, dependency.StableReference))
             {
-                issues.Add(new ScriptEngineeringValidationIssue(
+                Add(
                     "SCRIPT_DEPENDENCY_REFERENCE_MISSING",
-                    $"Required dependency '{dependency.Kind}:{dependency.StableReference}' could not be resolved.",
-                    true,
-                    scriptId,
-                    entityKey));
+                    $"Required dependency '{dependency.Kind}:{dependency.StableReference}' could not be resolved.");
             }
         }
+
+        void Add(string code, string message) =>
+            issues.Add(new ScriptEngineeringValidationIssue(code, message, true, scriptId, entityKey));
     }
 
     private static void ValidateDependencyScope(
@@ -422,15 +393,11 @@ public sealed class ScriptEngineeringValidator
     {
         var invalid = script.Scope switch
         {
-            ScriptEngineeringScope.ClientVisual =>
-                dependency.Kind == ScriptEngineeringDependencyKind.ServerMemoryTag,
-
-            ScriptEngineeringScope.Server =>
-                dependency.Kind is
-                    ScriptEngineeringDependencyKind.ClientMemoryTag or
-                    ScriptEngineeringDependencyKind.VisualDefinition or
-                    ScriptEngineeringDependencyKind.VisualObject,
-
+            ScriptEngineeringScope.ClientVisual => dependency.Kind == ScriptEngineeringDependencyKind.ServerMemoryTag,
+            ScriptEngineeringScope.Server => dependency.Kind is
+                ScriptEngineeringDependencyKind.ClientMemoryTag or
+                ScriptEngineeringDependencyKind.VisualDefinition or
+                ScriptEngineeringDependencyKind.VisualObject,
             _ => false
         };
 
@@ -467,9 +434,7 @@ public sealed class ScriptEngineeringValidator
             var script = scriptsById[scriptId];
             var dependencies = script.Dependencies
                 .Where(dependency => dependency.Kind == ScriptEngineeringDependencyKind.Script)
-                .Select(dependency => Guid.TryParse(dependency.StableReference, out var targetId)
-                    ? targetId
-                    : Guid.Empty)
+                .Select(dependency => Guid.TryParse(dependency.StableReference, out var targetId) ? targetId : Guid.Empty)
                 .Where(targetId =>
                     targetId != Guid.Empty &&
                     targetId != scriptId &&
@@ -551,7 +516,7 @@ public sealed class ScriptEngineeringValidator
             .ThenBy(item => item.VisualObjectId)
             .ThenBy(item => item.ScriptId)
             .ThenBy(item => item.EntryPoint, StringComparer.Ordinal)
-            .ThenBy(item => item.TargetReference ?? string.Empty, StringComparer.Ordinal))
+            .ThenBy(item => EventTargetIdentity(item.TargetReference, item.TagReference, item.TimerIntervalMs), StringComparer.Ordinal))
         {
             var entityKey = reference.VisualObjectId is { } objectId
                 ? ScriptEngineeringReferenceKeys.VisualObject(reference.VisualDefinitionId, objectId)
@@ -565,6 +530,13 @@ public sealed class ScriptEngineeringValidator
 
             if (!Enum.IsDefined(typeof(ScriptEngineeringEventKind), reference.EventKind))
                 Add("SCRIPT_VISUAL_EVENT_INVALID", $"Visual Script event '{reference.EventKind}' is not supported.");
+            else
+                ValidateEventTarget(
+                    reference.EventKind,
+                    reference.TargetReference,
+                    reference.TagReference,
+                    reference.TimerIntervalMs,
+                    (code, message) => Add($"SCRIPT_VISUAL_{code}", message));
 
             if (reference.ScriptId == Guid.Empty)
                 Add("SCRIPT_VISUAL_SCRIPT_ID_REQUIRED", "Visual Script reference requires a Script stable ID.");
@@ -573,12 +545,12 @@ public sealed class ScriptEngineeringValidator
                 Add("SCRIPT_VISUAL_ENTRYPOINT_REQUIRED", "Visual Script reference requires an entry-point handler name.");
 
             var runtimeIdentity =
-                $"{entityKey}:{(int)reference.EventKind}:{reference.ScriptId:D}:{reference.EntryPoint}";
+                $"{entityKey}:{(int)reference.EventKind}:{reference.ScriptId:D}:{reference.EntryPoint}:{EventTargetIdentity(reference.TargetReference, reference.TagReference, reference.TimerIntervalMs)}";
             if (!seenRuntimeHandlers.Add(runtimeIdentity))
             {
                 Add(
                     "SCRIPT_VISUAL_REFERENCE_DUPLICATE",
-                    $"Visual Script association '{runtimeIdentity}' maps to the same runtime handler more than once.");
+                    $"Visual Script association '{runtimeIdentity}' is declared more than once.");
             }
 
             if (referenceCatalog is null ||
@@ -602,11 +574,21 @@ public sealed class ScriptEngineeringValidator
                     $"Visual object '{visualObjectId:D}' could not be resolved in visual definition '{reference.VisualDefinitionId:D}'.");
             }
 
+            if (reference.EventKind == ScriptEngineeringEventKind.TagChanged && reference.TagReference is { TagId: var tagId } && tagId != Guid.Empty &&
+                (referenceCatalog is null || !referenceCatalog.Contains(ScriptEngineeringDependencyKind.Tag, ScriptEngineeringReferenceKeys.Tag(tagId))))
+            {
+                Add("SCRIPT_VISUAL_TAG_REFERENCE_MISSING", $"TAG '{tagId:D}' could not be resolved.");
+            }
+
+            if (reference.EventKind == ScriptEngineeringEventKind.ClientMemoryChanged && !string.IsNullOrWhiteSpace(reference.TargetReference) &&
+                (referenceCatalog is null || !referenceCatalog.Contains(ScriptEngineeringDependencyKind.ClientMemoryTag, reference.TargetReference)))
+            {
+                Add("SCRIPT_VISUAL_CLIENT_MEMORY_REFERENCE_MISSING", $"Client Memory definition '{reference.TargetReference}' could not be resolved.");
+            }
+
             if (!scriptsById.TryGetValue(reference.ScriptId, out var script))
             {
-                Add(
-                    "SCRIPT_VISUAL_SCRIPT_REFERENCE_MISSING",
-                    $"Referenced Script '{reference.ScriptId:D}' does not exist.");
+                Add("SCRIPT_VISUAL_SCRIPT_REFERENCE_MISSING", $"Referenced Script '{reference.ScriptId:D}' does not exist.");
                 continue;
             }
 
@@ -623,13 +605,13 @@ public sealed class ScriptEngineeringValidator
             var declared = script.EntryPoints.Any(entryPoint =>
                 entryPoint.EventKind == reference.EventKind &&
                 string.Equals(entryPoint.HandlerName, reference.EntryPoint, StringComparison.Ordinal) &&
-                string.Equals(entryPoint.TargetReference, reference.TargetReference, StringComparison.Ordinal));
+                EventTargetsEqual(entryPoint, reference));
 
             if (!declared)
             {
                 Add(
                     "SCRIPT_VISUAL_ENTRYPOINT_REFERENCE_INVALID",
-                    $"Script '{script.Path}' does not declare entry point '{reference.EventKind}:{reference.EntryPoint}:{reference.TargetReference}'.");
+                    $"Script '{script.Path}' does not declare entry point '{reference.EventKind}:{reference.EntryPoint}' with the same canonical event target.");
             }
 
             void Add(string code, string message) =>
@@ -640,6 +622,80 @@ public sealed class ScriptEngineeringValidator
                     reference.ScriptId == Guid.Empty ? null : reference.ScriptId,
                     entityKey));
         }
+    }
+
+    private static void ValidateEventTarget(
+        ScriptEngineeringEventKind eventKind,
+        string? targetReference,
+        TagValueReference? tagReference,
+        int? timerIntervalMs,
+        Action<string, string> add)
+    {
+        if (eventKind == ScriptEngineeringEventKind.Timer)
+        {
+            if (!timerIntervalMs.HasValue)
+            {
+                add("TIMER_INTERVAL_REQUIRED", "Timer event requires timerIntervalMs.");
+            }
+            else if (timerIntervalMs.Value < MinimumTimerIntervalMs)
+            {
+                add(
+                    "TIMER_INTERVAL_INVALID",
+                    $"Timer event interval cannot be shorter than {MinimumTimerIntervalMs} ms.");
+            }
+
+            if (tagReference is not null)
+                add("TAG_REFERENCE_UNEXPECTED", "Timer event cannot carry a TAG target.");
+            if (!string.IsNullOrWhiteSpace(targetReference))
+                add("TARGET_REFERENCE_UNEXPECTED", "Timer event cannot encode its duration in TargetReference.");
+            return;
+        }
+
+        if (timerIntervalMs.HasValue)
+            add("TIMER_INTERVAL_UNEXPECTED", "timerIntervalMs is only valid for Timer events.");
+
+        if (eventKind == ScriptEngineeringEventKind.TagChanged)
+        {
+            if (tagReference is null || tagReference.TagId == Guid.Empty)
+            {
+                add("TAG_REFERENCE_REQUIRED", "TAG value-change event requires a stable canonical TAG reference.");
+            }
+            else if (tagReference.Selector is { } selector)
+            {
+                if (!Enum.IsDefined(typeof(TagValueSelectorKind), selector.Kind) || selector.Kind != TagValueSelectorKind.Bit || selector.Index < 0)
+                {
+                    add("TAG_SELECTOR_INVALID", "TAG value-change selector must be a valid zero-based canonical bit selector.");
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(targetReference))
+                add("TARGET_REFERENCE_UNEXPECTED", "TAG value-change identity must not be serialized into TargetReference.");
+            return;
+        }
+
+        if (tagReference is not null)
+            add("TAG_REFERENCE_UNEXPECTED", "Canonical TAG target is only valid for TAG value-change events.");
+
+        if (eventKind == ScriptEngineeringEventKind.ClientMemoryChanged && string.IsNullOrWhiteSpace(targetReference))
+            add("CLIENT_MEMORY_REFERENCE_REQUIRED", "Client Memory change event requires the stable definition ID in TargetReference.");
+    }
+
+    private static bool EventTargetsEqual(
+        ScriptEngineeringEntryPoint entryPoint,
+        ScriptVisualEventReference reference) =>
+        string.Equals(entryPoint.TargetReference, reference.TargetReference, StringComparison.Ordinal) &&
+        Equals(entryPoint.TagReference, reference.TagReference) &&
+        entryPoint.TimerIntervalMs == reference.TimerIntervalMs;
+
+    private static string EventTargetIdentity(
+        string? targetReference,
+        TagValueReference? tagReference,
+        int? timerIntervalMs)
+    {
+        var tag = tagReference is null
+            ? string.Empty
+            : $"{tagReference.TagId:D}:{tagReference.Selector?.Kind}:{tagReference.Selector?.Index}";
+        return $"target={targetReference ?? string.Empty}|tag={tag}|timer={timerIntervalMs?.ToString() ?? string.Empty}";
     }
 
     private static bool CanMapToRuntime(ScriptEngineeringDefinition script) =>
@@ -653,8 +709,7 @@ public sealed class ScriptEngineeringValidator
         script.EntryPoints.All(entryPoint =>
             Enum.IsDefined(typeof(ScriptEngineeringEventKind), entryPoint.EventKind) &&
             IsPythonIdentifier(entryPoint.HandlerName)) &&
-        script.Dependencies.All(dependency =>
-            Enum.IsDefined(typeof(ScriptEngineeringDependencyKind), dependency.Kind));
+        script.Dependencies.All(dependency => Enum.IsDefined(typeof(ScriptEngineeringDependencyKind), dependency.Kind));
 
     private static bool IsPythonIdentifier(string value)
     {

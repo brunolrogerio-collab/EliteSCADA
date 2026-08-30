@@ -65,6 +65,16 @@ public static class BacnetEngineeringRuntimePlanner
         var points = new List<BacnetPoint>();
         foreach (var dto in sourceTags)
         {
+            if (!dto.Id.HasValue || dto.Id.Value == Guid.Empty)
+            {
+                issues.Add(Error(
+                    "BACNET_TAG_STABLE_ID_REQUIRED",
+                    $"BACnet TAG '{dto.Path}' requires a non-empty stable TAG Id; runtime planning must not invent identity.",
+                    dataSource.Key,
+                    dto.Path));
+                continue;
+            }
+
             if (!BacnetBinding.TryParse(dto.Address, out var parsed, out var parseError) || parsed is null)
             {
                 issues.Add(Error("BACNET_TAG_ADDRESS_INVALID", parseError ?? "BACnet TAG address is invalid.", dataSource.Key, dto.Path));
@@ -134,7 +144,7 @@ public static class BacnetEngineeringRuntimePlanner
                 dto.AccessPolicy.WriteRoles?.ToArray(),
                 dto.AccessPolicy.ConfigureRoles?.ToArray());
         return new TagDefinition(
-            dto.Id ?? Guid.NewGuid(),
+            dto.Id!.Value,
             dto.Name,
             dto.Path,
             dto.DataType,

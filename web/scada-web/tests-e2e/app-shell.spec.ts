@@ -15,6 +15,22 @@ test('primary shell keeps Runtime, Engineering and Audit navigation coherent', a
   await expect(page.getByRole('region', { name: 'Central de alarmes' })).toBeVisible();
   await expect(page.getByText('Trend básico', { exact: true })).toBeVisible();
 
+  let runtimeViews = page.getByRole('navigation', { name: 'Runtime views' });
+  await expect(runtimeViews.getByRole('link', { name: 'Visão geral' })).toHaveAttribute('aria-current', 'page');
+  await runtimeViews.getByRole('link', { name: 'Histórico' }).click();
+  await expect(page).toHaveURL(/\/runtime\/history$/);
+  navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+  runtimeViews = page.getByRole('navigation', { name: 'Runtime views' });
+  await expect(navigation.getByRole('link', { name: /Runtime/ })).toHaveAttribute('aria-current', 'page');
+  await expect(runtimeViews.getByRole('link', { name: 'Histórico' })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByTestId('historical-data-browser-runtime')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Visão operacional' })).toHaveCount(0);
+
+  await runtimeViews.getByRole('link', { name: 'Visão geral' }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('region', { name: 'Visão operacional' })).toBeVisible();
+
+  navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
   await navigation.getByRole('link', { name: /Engineering/ }).click();
   await expect(page).toHaveURL(/\/engineering$/);
   navigation = page.getByRole('navigation', { name: 'EliteSCADA' });

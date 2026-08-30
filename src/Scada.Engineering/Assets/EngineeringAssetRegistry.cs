@@ -1,4 +1,6 @@
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Views;
+using Scada.Engineering.VisualScripting;
 
 namespace Scada.Engineering.Assets;
 
@@ -103,8 +105,22 @@ public sealed class InMemoryEngineeringAssetRegistry : IEngineeringAssetRegistry
     public void UpsertDynamo(DynamoEngineeringDto dynamo)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(dynamo.Key);
-        var normalized = dynamo with { Id = dynamo.Id ?? Guid.NewGuid() };
-        lock (_sync) UpsertByKey(normalized, normalized.Id!.Value, normalized.Key, _dynamosById, _dynamosByKey, x => x.Key);
+        if (dynamo.Id == Guid.Empty)
+            throw new ArgumentException("Dynamo Id cannot be empty.", nameof(dynamo));
+
+        lock (_sync)
+        {
+            var existing = ResolveExisting(dynamo.Id, dynamo.Key, _dynamosById, _dynamosByKey);
+            var normalizedId = dynamo.Id ?? existing?.Id ?? Guid.NewGuid();
+            var identityNormalizedElements = VisualElementIdentity.Normalize(dynamo.Elements, existing?.Elements);
+            var normalized = dynamo with
+            {
+                Id = normalizedId,
+                Elements = VisualEngineeringPropertyMigration.NormalizeCurrentElements(identityNormalizedElements)
+            };
+
+            UpsertByKey(normalized, normalizedId, normalized.Key, _dynamosById, _dynamosByKey, x => x.Key);
+        }
         _changed?.Invoke();
     }
 
@@ -120,6 +136,21 @@ public sealed class InMemoryEngineeringAssetRegistry : IEngineeringAssetRegistry
             _dynamosByKey.Clear();
         }
         _changed?.Invoke();
+    }
+
+    private static T? ResolveExisting<T>(
+        Guid? id,
+        string key,
+        Dictionary<Guid, T> byId,
+        Dictionary<string, Guid> byKey)
+        where T : class
+    {
+        if (id.HasValue && byId.TryGetValue(id.Value, out var byStableId))
+            return byStableId;
+
+        return byKey.TryGetValue(key, out var existingId)
+            ? byId.GetValueOrDefault(existingId)
+            : null;
     }
 
     private static void UpsertByKey<T>(

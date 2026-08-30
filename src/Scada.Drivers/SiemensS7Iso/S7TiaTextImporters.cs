@@ -151,7 +151,7 @@ internal static partial class S7TiaImportCandidateFactory
             ["retain"] = FormatOptionalBoolean(record.Retain),
             ["invalidBooleanFields"] = record.InvalidBooleanFields is null
                 ? string.Empty
-                : string.Join(',', record.InvalidBooleanFields.Distinct(StringComparer.OrdinalIgnoreCase)),
+                : string.Join(",", record.InvalidBooleanFields.Distinct(StringComparer.OrdinalIgnoreCase)),
             ["constantValue"] = record.ConstantValue ?? string.Empty,
             ["supportStatus"] = supportStatus
         };

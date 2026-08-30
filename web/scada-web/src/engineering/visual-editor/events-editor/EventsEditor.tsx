@@ -58,6 +58,7 @@ export function EventsEditor({
   const [scriptId, setScriptId] = useState('');
   const [entryPoint, setEntryPoint] = useState('');
   const [targetId, setTargetId] = useState('');
+  const [tagBitIndex, setTagBitIndex] = useState('');
   const [timerIntervalMs, setTimerIntervalMs] = useState(1000);
   const [previewToken, setPreviewToken] = useState<ScriptMutationPreviewToken | null>(null);
   const [busy, setBusy] = useState(false);
@@ -74,6 +75,7 @@ export function EventsEditor({
     () => resolvedSourceCatalog.filter(item => item.kind === 'Tag' && item.tagReference?.tagId),
     [resolvedSourceCatalog]
   );
+  const selectedTagTarget = tagTargets.find(item => item.tagReference?.tagId === targetId) ?? null;
   const memoryTargets = useMemo(
     () => resolvedSourceCatalog.filter(item => item.kind === 'ClientMemory' && item.tagReference?.tagId),
     [resolvedSourceCatalog]
@@ -156,7 +158,13 @@ export function EventsEditor({
     setError(null);
     setEntryPoint('');
     setTargetId('');
+    setTagBitIndex('');
   }, [choice, scriptId, resolvedVisualDefinitionId, visualObjectId]);
+
+  useEffect(() => {
+    setTagBitIndex('');
+    setPreviewToken(null);
+  }, [targetId]);
 
   const buildReference = (): ScriptVisualEventReference => {
     if (!resolvedVisualDefinitionId) throw new Error('Apply the visual definition before authoring events.');
@@ -177,11 +185,23 @@ export function EventsEditor({
     if (choice === 'timer') {
       reference.timerIntervalMs = timerIntervalMs;
     } else if (choice === 'tagChanged') {
-      const target = tagTargets.find(item => item.tagReference?.tagId === targetId || item.target === targetId);
+      const target = selectedTagTarget;
       if (!target?.tagReference?.tagId) throw new Error('Select a canonical TAG target.');
+
+      let selector = target.tagReference.selector ? { ...target.tagReference.selector } : null;
+      if (tagBitIndex.trim()) {
+        const capability = target.selectorCapability;
+        const bitIndex = Number(tagBitIndex);
+        if (!capability || capability.kind !== 'bit')
+          throw new Error('This TAG does not support bit selection.');
+        if (!Number.isInteger(bitIndex) || bitIndex < capability.minIndex || bitIndex > capability.maxIndex)
+          throw new Error(`Bit index must be between ${capability.minIndex} and ${capability.maxIndex}.`);
+        selector = { kind: 'bit', index: bitIndex };
+      }
+
       reference.tagReference = {
         tagId: target.tagReference.tagId,
-        selector: target.tagReference.selector ? { ...target.tagReference.selector } : null
+        selector
       };
     } else if (choice === 'clientMemoryChanged') {
       const target = memoryTargets.find(item => item.tagReference?.tagId === targetId || item.target === targetId);
@@ -278,10 +298,25 @@ export function EventsEditor({
         {matchingEntryPoints.map(item => <option key={`${item.eventKind}:${item.handlerName}`} value={item.handlerName}>{item.handlerName}</option>)}
       </select></label>
 
-      {choice === 'tagChanged' ? <label><span>TAG target</span><select value={targetId} onChange={event => setTargetId(event.currentTarget.value)}>
-        <option value="">Select TAG</option>
-        {tagTargets.map(target => <option key={`${target.tagReference!.tagId}:${target.target}`} value={target.tagReference!.tagId}>{target.label}</option>)}
-      </select></label> : null}
+      {choice === 'tagChanged' ? <>
+        <label><span>TAG target</span><select value={targetId} onChange={event => setTargetId(event.currentTarget.value)}>
+          <option value="">Select TAG</option>
+          {tagTargets.map(target => <option key={`${target.tagReference!.tagId}:${target.target}`} value={target.tagReference!.tagId}>{target.label}</option>)}
+        </select></label>
+        {selectedTagTarget?.selectorCapability?.kind === 'bit' ? <label>
+          <span>Bit selector (optional)</span>
+          <input
+            type="number"
+            min={selectedTagTarget.selectorCapability.minIndex}
+            max={selectedTagTarget.selectorCapability.maxIndex}
+            step="1"
+            value={tagBitIndex}
+            placeholder="Whole TAG"
+            onChange={event => setTagBitIndex(event.currentTarget.value)}
+            data-testid="visual-events-tag-bit"
+          />
+        </label> : null}
+      </> : null}
 
       {choice === 'clientMemoryChanged' ? <label><span>Client Memory</span><select value={targetId} onChange={event => setTargetId(event.currentTarget.value)}>
         <option value="">Select definition</option>
@@ -298,11 +333,18 @@ export function EventsEditor({
       {previewToken ? <small>{previewToken.preview.canApply ? 'Validated Engineering candidate.' : 'Invalid Engineering candidate.'}</small> : null}
       <div className="visual-editor-events-list">
         {applicableReferences.map((reference, index) => <code key={`${reference.scriptId}:${reference.entryPoint}:${index}`}>
-          {reference.eventKind} → {reference.entryPoint}
+          {reference.eventKind} → {reference.entryPoint}{formatTagSelector(reference)}
         </code>)}
       </div>
     </>}
   </section>;
+}
+
+function formatTagSelector(reference: ScriptVisualEventReference): string {
+  const selector = reference.tagReference?.selector;
+  return selector?.kind === 'bit'
+    ? ` · bit ${selector.index.toString().padStart(2, '0')}`
+    : '';
 }
 
 function containsVisualObject(elements: readonly VisualElementEngineering[], objectId: string): boolean {

@@ -42,10 +42,10 @@ jobs:
           openssl req -newkey rsa:2048 -nodes \
             -keyout interop-lab/mqtt/tls/server.key \
             -out interop-lab/mqtt/tls/server.csr \
-            -subj '/CN=localhost'
+            -subj '/CN=mqtt-secure.local'
           cat > interop-lab/mqtt/tls/server.ext <<'EOF'
           basicConstraints=critical,CA:FALSE
-          subjectAltName=IP:127.0.0.1,DNS:localhost
+          subjectAltName=IP:127.0.0.1,DNS:localhost,DNS:mqtt-secure.local
           extendedKeyUsage=serverAuth
           keyUsage=critical,digitalSignature,keyEncipherment
           subjectKeyIdentifier=hash
@@ -68,14 +68,16 @@ jobs:
             interop-lab/mqtt/tls/server.crt \
             interop-lab/mqtt/tls/server.key
 
-      - name: Trust ephemeral lab CA on runner
+      - name: Trust ephemeral lab CA and bind lab DNS identity
         shell: bash
         run: |
           sudo cp interop-lab/mqtt/tls/ca.crt /usr/local/share/ca-certificates/elitescada-mqtt-lab-ca.crt
           sudo update-ca-certificates
+          echo '127.0.0.1 mqtt-secure.local' | sudo tee -a /etc/hosts >/dev/null
           openssl verify \
             -CAfile /etc/ssl/certs/ca-certificates.crt \
             -purpose sslserver \
+            -verify_hostname mqtt-secure.local \
             interop-lab/mqtt/tls/server.crt
 
       - name: Validate secure Compose model
@@ -91,7 +93,7 @@ jobs:
 
       - name: EliteSCADA MQTT transport over trusted TLS and authentication
         env:
-          ELITESCADA_MQTT_INTEGRATION_HOST: 127.0.0.1
+          ELITESCADA_MQTT_INTEGRATION_HOST: mqtt-secure.local
           ELITESCADA_MQTT_INTEGRATION_PORT: '8883'
           ELITESCADA_MQTT_INTEGRATION_TLS: 'true'
           ELITESCADA_MQTT_INTEGRATION_PROTOCOLS: mqtt5,mqtt311

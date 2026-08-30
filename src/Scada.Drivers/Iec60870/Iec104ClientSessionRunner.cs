@@ -117,6 +117,8 @@ public sealed class Iec104ClientSessionRunner
                     continue;
                 if (TryObserveGeneralInterrogation(asdu))
                     continue;
+                if (asdu.Header.CauseOfTransmission.IsTest)
+                    continue;
                 if (!Iec104InformationObjectDecoder.IsSupported(asdu.Header.TypeId))
                     continue;
 

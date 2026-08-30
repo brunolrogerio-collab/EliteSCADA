@@ -5,17 +5,17 @@ namespace Scada.Drivers.Tests;
 public sealed class S7IsoFailureClassificationTests
 {
     [Theory]
-    [InlineData(0x03, false, S7IsoFailureKind.ProtectionDenied)]
-    [InlineData(0x03, true, S7IsoFailureKind.ProtectionDenied)]
-    [InlineData(0x05, false, S7IsoFailureKind.AddressInvalid)]
-    [InlineData(0x0A, true, S7IsoFailureKind.AddressInvalid)]
-    [InlineData(0x06, false, S7IsoFailureKind.TypeUnsupported)]
-    [InlineData(0x07, true, S7IsoFailureKind.TypeUnsupported)]
-    [InlineData(0x01, true, S7IsoFailureKind.WriteRejected)]
-    [InlineData(0x01, false, S7IsoFailureKind.ProtocolFault)]
-    public void ReturnCodes_MapToActionableFailureKinds(int code, bool write, S7IsoFailureKind expected)
+    [InlineData(0x03, false, nameof(S7IsoFailureKind.ProtectionDenied))]
+    [InlineData(0x03, true, nameof(S7IsoFailureKind.ProtectionDenied))]
+    [InlineData(0x05, false, nameof(S7IsoFailureKind.AddressInvalid))]
+    [InlineData(0x0A, true, nameof(S7IsoFailureKind.AddressInvalid))]
+    [InlineData(0x06, false, nameof(S7IsoFailureKind.TypeUnsupported))]
+    [InlineData(0x07, true, nameof(S7IsoFailureKind.TypeUnsupported))]
+    [InlineData(0x01, true, nameof(S7IsoFailureKind.WriteRejected))]
+    [InlineData(0x01, false, nameof(S7IsoFailureKind.ProtocolFault))]
+    public void ReturnCodes_MapToActionableFailureKinds(int code, bool write, string expected)
     {
-        Assert.Equal(expected, S7IsoFailureClassifier.ClassifyReturnCode((byte)code, write));
+        Assert.Equal(expected, S7IsoFailureClassifier.ClassifyReturnCode((byte)code, write).ToString());
     }
 
     [Fact]

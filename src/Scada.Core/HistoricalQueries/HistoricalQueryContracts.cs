@@ -198,7 +198,7 @@ public sealed record HistoricalDatasetDefinition(
     HistoricalSortDirection DefaultSortDirection)
 {
     public IReadOnlyList<HistoricalColumn> Columns =>
-        Fields.Values.Select(static field => field.ToColumn()).ToArray();
+        Fields.Values.Select(static definition => definition.ToColumn()).ToArray();
 }
 
 public static class HistoricalQueryCatalog
@@ -258,7 +258,7 @@ public static class HistoricalQueryCatalog
         params HistoricalFieldDefinition[] fields) =>
         new(
             id,
-            fields.ToDictionary(static field => field.Field, StringComparer.Ordinal),
+            fields.ToDictionary(static definition => definition.Field, StringComparer.Ordinal),
             "timestamp",
             HistoricalSortDirection.Descending);
 

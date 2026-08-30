@@ -127,6 +127,25 @@ public sealed class MqttTransportGenerationTests
         Assert.Equal(1, client.PublishCount);
     }
 
+    [Fact]
+    public async Task DisposeWakesBlockedReceiveAsTransportDisposedState()
+    {
+        var client = new FakeMqttClient();
+        var transport = new MqttNetClientTransport(new MqttClientFactory(), client);
+        var settings = CreateSettings();
+
+        using (var credentials = MqttResolvedCredentials.None)
+            await transport.ConnectAsync(settings, credentials);
+
+        var blockedReceive = transport.ReceiveAsync().AsTask();
+        Assert.False(blockedReceive.IsCompleted);
+
+        await transport.DisposeAsync();
+
+        var exception = await Assert.ThrowsAsync<ObjectDisposedException>(() => blockedReceive);
+        Assert.Equal(typeof(MqttNetClientTransport).FullName, exception.ObjectName);
+    }
+
     private static MqttConnectionSettings CreateSettings() => new(
         "broker.local",
         1883,

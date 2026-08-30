@@ -227,7 +227,17 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
 
         while (true)
         {
-            var item = await channel.Reader.ReadAsync(cancellationToken);
+            TransportItem item;
+            try
+            {
+                item = await channel.Reader.ReadAsync(cancellationToken);
+            }
+            catch (ChannelClosedException) when (_disposed)
+            {
+                ThrowIfDisposed();
+                throw;
+            }
+
             var activeGeneration = Interlocked.Read(ref _activeGeneration);
             if (item.Generation != activeGeneration) continue;
             if (item.Error is not null) throw item.Error;

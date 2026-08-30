@@ -39,6 +39,10 @@ test('Report Designer creates, previews and applies one canonical report', async
   let appliedPackage: any = null;
   let executionRequest: any = null;
 
+  await page.addInitScript(() => {
+    window.localStorage.setItem('elitescada.engineering.locale', 'pt-BR');
+  });
+
   await page.route('**/api/**', async route => {
     await route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
   });

@@ -1,0 +1,66 @@
+name: MQTT Live Freshness Interop Smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "interop-lab/mqtt/mosquitto.conf"
+      - "interop-lab/compose.mqtt-freshness.yaml"
+      - ".github/workflows/interop-mqtt-live-freshness-smoke.yml"
+      - "src/Scada.Drivers/Mqtt/**"
+      - "tests/Scada.Drivers.Tests/MqttLiveFreshnessIntegrationTests.cs"
+
+permissions:
+  contents: read
+
+jobs:
+  mqtt-live-freshness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ELITESCADA_MQTT_FRESHNESS_HOST: 127.0.0.1
+      ELITESCADA_MQTT_FRESHNESS_PORT: '1886'
+      ELITESCADA_MQTT_FRESHNESS_RUN_ID: ${{ github.run_id }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Validate freshness broker Compose model
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-freshness.yaml config >/dev/null
+
+      - name: Start freshness Mosquitto and wait healthy
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-freshness.yaml up -d --wait --wait-timeout 60
+
+      - name: Restore MQTT Driver freshness test
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+
+      - name: EliteSCADA live MQTT freshness and recovery
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          --no-restore
+          --configuration Release
+          --filter Category=BrokerFreshnessIntegration
+          --logger "console;verbosity=normal"
+
+      - name: Show freshness broker status
+        if: always()
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-freshness.yaml ps
+
+      - name: Dump freshness broker logs on failure
+        if: failure()
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-freshness.yaml logs --no-color
+
+      - name: Stop freshness broker
+        if: always()
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-freshness.yaml down -v --remove-orphans

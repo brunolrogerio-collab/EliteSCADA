@@ -179,7 +179,9 @@ public sealed record DynamoEngineeringDto(
     IReadOnlyCollection<EngineeringBindingDto>? Bindings = null,
     Dictionary<string, string>? Properties = null,
     Dictionary<string, string>? Context = null,
-    Dictionary<string, string>? Metadata = null);
+    Dictionary<string, string>? Metadata = null,
+    IReadOnlyCollection<DynamoParameterDefinitionEngineeringDto>? Parameters = null,
+    IReadOnlyCollection<VisualElementEngineeringDto>? Elements = null);
 
 /// <summary>
 /// Canonical Engineering node for a visual-object tree. Id is the stable object
@@ -191,6 +193,7 @@ public sealed record DynamoEngineeringDto(
 /// Key remains the developer-facing sibling-local name and is not identity.
 /// FOLLOW-B dynamic behavior is optional and additive so schema-v13 payloads that
 /// predate it remain readable without manufacturing state.
+/// Wave 09 composition/navigation fields are likewise optional and versioned.
 /// </summary>
 public sealed record VisualElementEngineeringDto(
     string Key,
@@ -205,7 +208,9 @@ public sealed record VisualElementEngineeringDto(
     Guid? Id = null,
     IReadOnlyCollection<VisualPropertyExpressionEngineeringDto>? PropertyExpressions = null,
     IReadOnlyCollection<VisualBooleanConditionEngineeringDto>? BooleanConditions = null,
-    VisualAnalogFillEngineeringDto? AnalogFill = null);
+    VisualAnalogFillEngineeringDto? AnalogFill = null,
+    IReadOnlyCollection<DynamoParameterValueEngineeringDto>? DynamoParameters = null,
+    IReadOnlyCollection<VisualNavigationActionEngineeringDto>? Actions = null);
 
 public sealed record ScreenEngineeringDto(
     Guid? Id,

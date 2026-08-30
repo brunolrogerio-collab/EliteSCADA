@@ -167,8 +167,6 @@ internal sealed class ViewEngineeringHandler
     {
         foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
         {
-            // EngineeringValidator already records a null element as invalid input.
-            // Reference/schema traversal must stop at that node instead of throwing.
             if (element is null)
                 continue;
 
@@ -177,6 +175,7 @@ internal sealed class ViewEngineeringHandler
                 kind,
                 entityKey,
                 package.SchemaVersion));
+            issues.AddRange(VisualCompositionEngineeringValidation.ValidateElement(element, kind, entityKey));
 
             ValidateVisualAssetReference(element, kind, entityKey, package, issues);
             ValidateDynamicReferences(element, kind, entityKey, package, issues);
@@ -184,13 +183,20 @@ internal sealed class ViewEngineeringHandler
             EngineeringHandlerSupport.ValidateConcreteTagBindings(
                 _tags, element.Bindings, kind, entityKey, package, issues);
 
-            if (!string.IsNullOrWhiteSpace(element.DynamoKey) && !DynamoExists(element.DynamoKey, package))
-                issues.Add(new(
-                    "VISUAL_DYNAMO_NOT_FOUND",
-                    $"Dynamo '{element.DynamoKey}' referenced by visual element '{element.Key}' was not found.",
-                    kind,
-                    entityKey,
-                    true));
+            DynamoEngineeringDto? dynamo = null;
+            if (!string.IsNullOrWhiteSpace(element.DynamoKey))
+            {
+                dynamo = FindDynamo(element.DynamoKey, package);
+                if (dynamo is null)
+                    issues.Add(new(
+                        "VISUAL_DYNAMO_NOT_FOUND",
+                        $"Dynamo '{element.DynamoKey}' referenced by visual element '{element.Key}' was not found.",
+                        kind,
+                        entityKey,
+                        true));
+                else
+                    ValidateDynamoInstance(element, dynamo, kind, entityKey, package, issues);
+            }
 
             if (!string.IsNullOrWhiteSpace(element.EquipmentPath) &&
                 !EngineeringHandlerSupport.ContainsPlaceholder(element.EquipmentPath) &&
@@ -204,7 +210,127 @@ internal sealed class ViewEngineeringHandler
                     true));
             }
 
+            ValidateNavigationReferences(element, kind, entityKey, package, issues);
             ValidateVisualReferences(element.Children, kind, entityKey, package, issues);
+        }
+    }
+
+    private void ValidateDynamoInstance(
+        VisualElementEngineeringDto element,
+        DynamoEngineeringDto definition,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        var definitions = (definition.Parameters ?? Array.Empty<DynamoParameterDefinitionEngineeringDto>())
+            .Where(x => x is not null && !string.IsNullOrWhiteSpace(x.Key))
+            .GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+        var supplied = (element.DynamoParameters ?? Array.Empty<DynamoParameterValueEngineeringDto>())
+            .Where(x => x is not null && !string.IsNullOrWhiteSpace(x.Key))
+            .GroupBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var value in supplied.Values)
+        {
+            if (!definitions.TryGetValue(value.Key, out var parameter))
+            {
+                issues.Add(new(
+                    "VISUAL_DYNAMO_PARAMETER_UNKNOWN",
+                    $"Visual element '{element.Key}' supplies unknown parameter '{value.Key}' for Dynamo '{definition.Key}'.",
+                    kind,
+                    entityKey,
+                    true));
+                continue;
+            }
+            if (value.Kind != parameter.Kind)
+                issues.Add(new(
+                    "VISUAL_DYNAMO_PARAMETER_KIND_MISMATCH",
+                    $"Visual element '{element.Key}' parameter '{value.Key}' declares {value.Kind} but Dynamo '{definition.Key}' expects {parameter.Kind}.",
+                    kind,
+                    entityKey,
+                    true));
+
+            if (value.Kind == DynamoParameterKind.TagReference && value.TagReference is not null)
+                ValidateCompositionTagReference(value.TagReference, value.Key, kind, entityKey, package, issues);
+        }
+
+        foreach (var parameter in definitions.Values.Where(x => x.Required))
+        {
+            var hasDefault = parameter.Kind == DynamoParameterKind.TagReference
+                ? parameter.DefaultTagReference is not null
+                : parameter.DefaultValue.HasValue;
+            if (!hasDefault && !supplied.ContainsKey(parameter.Key))
+                issues.Add(new(
+                    "VISUAL_DYNAMO_PARAMETER_REQUIRED",
+                    $"Visual element '{element.Key}' must supply required parameter '{parameter.Key}' for Dynamo '{definition.Key}'.",
+                    kind,
+                    entityKey,
+                    true));
+        }
+    }
+
+    private void ValidateNavigationReferences(
+        VisualElementEngineeringDto element,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        foreach (var action in element.Actions ?? Array.Empty<VisualNavigationActionEngineeringDto>())
+        {
+            if (action is null || string.IsNullOrWhiteSpace(action.TargetKey))
+                continue;
+
+            var exists = action.Kind switch
+            {
+                VisualNavigationActionKind.NavigateScreen => ScreenExists(action.TargetKey, package),
+                VisualNavigationActionKind.OpenPopup => PopupExists(action.TargetKey, package),
+                _ => true
+            };
+            if (exists) continue;
+
+            issues.Add(new(
+                action.Kind == VisualNavigationActionKind.NavigateScreen
+                    ? "VISUAL_ACTION_SCREEN_NOT_FOUND"
+                    : "VISUAL_ACTION_POPUP_NOT_FOUND",
+                $"Navigation action '{action.EventKey}' on visual element '{element.Key}' references missing target '{action.TargetKey}'.",
+                kind,
+                entityKey,
+                true));
+        }
+    }
+
+    private void ValidateCompositionTagReference(
+        TagValueReference reference,
+        string parameterKey,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        if (reference.TagId == Guid.Empty) return;
+        if (!TryResolveTagDataType(reference.TagId, package, out var dataType))
+        {
+            issues.Add(new(
+                "VISUAL_DYNAMO_PARAMETER_TAG_NOT_FOUND",
+                $"Dynamo parameter '{parameterKey}' references TAG identity '{reference.TagId:D}', which was not found in the prospective Engineering model.",
+                kind,
+                entityKey,
+                true));
+            return;
+        }
+
+        if (reference.Selector is not null &&
+            !TagBitSemantics.TryValidateSelector(dataType, reference.Selector, out var selectorError))
+        {
+            issues.Add(new(
+                "VISUAL_DYNAMO_PARAMETER_TAG_SELECTOR_INVALID",
+                $"Dynamo parameter '{parameterKey}' has an invalid TAG selector: {selectorError}",
+                kind,
+                entityKey,
+                true));
         }
     }
 
@@ -285,7 +411,7 @@ internal sealed class ViewEngineeringHandler
     {
         var label = string.IsNullOrWhiteSpace(displayTarget) ? reference.TagId.ToString("D") : displayTarget;
         if (reference.TagId == Guid.Empty)
-            return; // Structural validator owns the empty-ID diagnostic.
+            return;
 
         if (!TryResolveTagDataType(reference.TagId, package, out var dataType))
         {
@@ -367,9 +493,6 @@ internal sealed class ViewEngineeringHandler
         EngineeringPackage package,
         List<ImportIssue> issues)
     {
-        // First-class project image assets were introduced in schema v13. Older
-        // packages retain the Wave-07 syntactic assetRef contract without having
-        // a project asset collection to resolve against.
         if (package.SchemaVersion < 13 ||
             !element.Type.Equals("core.image", StringComparison.Ordinal) ||
             element.Properties is null ||
@@ -378,17 +501,17 @@ internal sealed class ViewEngineeringHandler
             return;
 
         if (serialized.ValueKind != JsonValueKind.Object)
-            return; // BuiltinVisualEngineeringValidation reports the malformed value.
+            return;
 
         var fields = serialized.EnumerateObject().ToArray();
         if (fields.Length != 1 ||
             !fields[0].NameEquals("assetId") ||
             fields[0].Value.ValueKind != JsonValueKind.String)
-            return; // The property-schema validator owns shape diagnostics.
+            return;
 
         var reference = fields[0].Value.GetString();
         if (string.IsNullOrWhiteSpace(reference))
-            return; // The public property validator already rejects an unstable identity.
+            return;
 
         var guidText = reference.StartsWith("asset:", StringComparison.Ordinal)
             ? reference["asset:".Length..]
@@ -431,10 +554,20 @@ internal sealed class ViewEngineeringHandler
         (package.Equipment ?? Array.Empty<EquipmentEngineeringDto>())
             .Any(x => x.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
 
-    private bool DynamoExists(string key, EngineeringPackage package) =>
-        _assets.FindDynamoByKey(key) is not null ||
+    private DynamoEngineeringDto? FindDynamo(string key, EngineeringPackage package) =>
+        _assets.FindDynamoByKey(key) ??
         (package.Dynamos ?? Array.Empty<DynamoEngineeringDto>())
-            .Any(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+
+    private bool ScreenExists(string key, EngineeringPackage package) =>
+        _views.FindScreenByKey(key) is not null ||
+        (package.Screens ?? Array.Empty<ScreenEngineeringDto>())
+            .Any(x => x is not null && x.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+
+    private bool PopupExists(string key, EngineeringPackage package) =>
+        _views.FindPopupByKey(key) is not null ||
+        (package.Popups ?? Array.Empty<PopupEngineeringDto>())
+            .Any(x => x is not null && x.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
 
     private ScreenEngineeringDto? ResolveExistingScreen(ScreenEngineeringDto dto)
     {

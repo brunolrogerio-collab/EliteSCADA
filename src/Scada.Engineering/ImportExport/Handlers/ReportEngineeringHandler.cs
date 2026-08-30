@@ -1,15 +1,20 @@
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Reports;
+using Scada.Engineering.VisualAssets;
 
 namespace Scada.Engineering.ImportExport.Handlers;
 
 internal sealed class ReportEngineeringHandler
 {
     private readonly IReportEngineeringRegistry _reports;
+    private readonly IVisualAssetEngineeringRegistry _visualAssets;
 
-    public ReportEngineeringHandler(IReportEngineeringRegistry reports)
+    public ReportEngineeringHandler(
+        IReportEngineeringRegistry reports,
+        IVisualAssetEngineeringRegistry visualAssets)
     {
         _reports = reports ?? throw new ArgumentNullException(nameof(reports));
+        _visualAssets = visualAssets ?? throw new ArgumentNullException(nameof(visualAssets));
     }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
@@ -95,7 +100,7 @@ internal sealed class ReportEngineeringHandler
         return string.IsNullOrWhiteSpace(dto.Key) ? null : _reports.FindByKey(dto.Key);
     }
 
-    private static void ValidateAssetReferences(
+    private void ValidateAssetReferences(
         ReportEngineeringDto report,
         EngineeringPackage package,
         string entityKey,
@@ -111,10 +116,13 @@ internal sealed class ReportEngineeringHandler
                      .SelectMany(x => x.Controls ?? Array.Empty<ReportControlEngineeringDto>())
                      .Where(x => x is not null && x.Kind == ReportControlKind.Image && x.AssetId.HasValue))
         {
-            if (prospectiveAssets.Contains(control.AssetId!.Value)) continue;
+            var assetId = control.AssetId!.Value;
+            if (prospectiveAssets.Contains(assetId) || _visualAssets.FindAsset(assetId) is not null)
+                continue;
+
             issues.Add(new(
                 "REPORT_ASSET_NOT_FOUND",
-                $"Report image control '{control.Key}' references visual asset '{control.AssetId.Value:D}', which was not found in the prospective import package.",
+                $"Report image control '{control.Key}' references visual asset '{assetId:D}', which was not found in current or prospective Engineering.",
                 ImportEntityKind.Report,
                 entityKey,
                 true));

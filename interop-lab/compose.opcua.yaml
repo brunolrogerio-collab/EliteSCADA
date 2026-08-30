@@ -1,0 +1,29 @@
+services:
+  opcua-peer:
+    build:
+      context: ./opcua/open62541
+      dockerfile: Dockerfile
+      args:
+        OPEN62541_VERSION: "1.5.7"
+        OPEN62541_C_SHA256: "103ff486a915c8d019bae81f8f05aa16e5f43629dc323bac43175ccb90df46fe"
+        OPEN62541_H_SHA256: "59e43ea4d0d3e5511a1e9fb89a9d44d5a4345d149d2f3da9749f1072405bacdd"
+    container_name: elitescada-lab-opcua-open62541
+    ports:
+      - "${OPCUA_PEER_PORT:-4841}:4840"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 4840"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+      start_period: 3s
+    networks:
+      - interop
+
+  node-red:
+    environment:
+      LAB_OPCUA_ENDPOINT: "opc.tcp://opcua-peer:4840"
+    volumes:
+      - ./node-red/opcua-smoke.js:/data/opcua-smoke.js:ro
+    depends_on:
+      opcua-peer:
+        condition: service_healthy

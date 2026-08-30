@@ -13,7 +13,7 @@ permissions:
 jobs:
   base-lab-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -33,6 +33,10 @@ jobs:
         working-directory: interop-lab
         run: docker compose -f compose.yaml -f compose.cip.yaml config >/dev/null
 
+      - name: Validate OPC UA overlay Compose model
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml -f compose.opcua.yaml config >/dev/null
+
       - name: Build and start base lab
         working-directory: interop-lab
         run: docker compose -f compose.yaml up -d --build
@@ -41,17 +45,25 @@ jobs:
         working-directory: interop-lab
         run: bash scripts/lab.sh smoke
 
+      - name: Build and start independent OPC UA peer
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml -f compose.opcua.yaml up -d --build
+
+      - name: OPC UA open62541 interoperability smoke
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml -f compose.opcua.yaml exec -T node-red node /data/opcua-smoke.js
+
       - name: Show lab status
         if: always()
         working-directory: interop-lab
-        run: docker compose -f compose.yaml ps
+        run: docker compose -f compose.yaml -f compose.opcua.yaml ps
 
       - name: Dump logs on failure
         if: failure()
         working-directory: interop-lab
-        run: docker compose -f compose.yaml logs --no-color
+        run: docker compose -f compose.yaml -f compose.opcua.yaml logs --no-color
 
       - name: Stop lab
         if: always()
         working-directory: interop-lab
-        run: docker compose -f compose.yaml down -v --remove-orphans
+        run: docker compose -f compose.yaml -f compose.opcua.yaml down -v --remove-orphans

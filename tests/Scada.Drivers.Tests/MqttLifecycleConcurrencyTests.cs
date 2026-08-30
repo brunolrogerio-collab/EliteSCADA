@@ -107,6 +107,78 @@ public sealed class MqttLifecycleConcurrencyTests
     }
 
     [Fact]
+    public async Task FailedStopDisconnectCanBeRetriedWithoutWedgingSessionState()
+    {
+        var point = new MqttPoint(CreateTag(), "plant/lifecycle/disconnect-retry");
+        var transport = new LifecycleTransport(disconnectFailures: 1);
+        var cache = new CurrentTagCache(new InMemoryScadaEventBus());
+        await using var driver = CreateDriver(cache, transport, point);
+
+        await driver.StartAsync();
+        await WaitUntilAsync(() => transport.ConnectCount == 1);
+
+        await Assert.ThrowsAsync<MqttTransportException>(() => driver.StopAsync());
+
+        Assert.Equal(DriverState.Faulted, driver.Status.State);
+        Assert.Equal(CommunicationDriverOperationalState.Faulted, driver.GetCommunicationDiagnostics().State);
+        Assert.Equal(MqttReadinessState.Faulted, driver.GetMqttReadiness().State);
+        Assert.True(transport.IsConnected);
+        Assert.Equal(1, transport.DisconnectCount);
+
+        await driver.StopAsync();
+
+        Assert.Equal(DriverState.Stopped, driver.Status.State);
+        Assert.Equal(CommunicationDriverOperationalState.Stopped, driver.GetCommunicationDiagnostics().State);
+        Assert.Equal(MqttReadinessState.Stopped, driver.GetMqttReadiness().State);
+        Assert.False(transport.IsConnected);
+        Assert.Equal(2, transport.DisconnectCount);
+
+        await driver.StartAsync();
+        await WaitUntilAsync(() => transport.ConnectCount == 2);
+
+        Assert.Equal(DriverState.Running, driver.Status.State);
+    }
+
+    [Fact]
+    public async Task DisposeStillDisposesTransportWhenCleanDisconnectFails()
+    {
+        var point = new MqttPoint(CreateTag(), "plant/lifecycle/dispose-failure");
+        var transport = new LifecycleTransport(disconnectFailures: 1);
+        var cache = new CurrentTagCache(new InMemoryScadaEventBus());
+        var driver = CreateDriver(cache, transport, point);
+
+        await driver.StartAsync();
+        await WaitUntilAsync(() => transport.ConnectCount == 1);
+
+        await Assert.ThrowsAsync<MqttTransportException>(() => driver.DisposeAsync().AsTask());
+
+        Assert.Equal(1, transport.DisconnectCount);
+        Assert.Equal(1, transport.DisposeCount);
+        Assert.False(transport.IsConnected);
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => driver.StartAsync());
+
+        await driver.DisposeAsync();
+        Assert.Equal(1, transport.DisposeCount);
+    }
+
+    [Fact]
+    public async Task AutomaticRecoveryDisconnectFailureBecomesTerminalFault()
+    {
+        var point = new MqttPoint(CreateTag(), "plant/lifecycle/recovery-disconnect-failure");
+        var transport = new LifecycleTransport(disconnectFailures: 1, failReceiveOnce: true);
+        var cache = new CurrentTagCache(new InMemoryScadaEventBus());
+        await using var driver = CreateDriver(cache, transport, point);
+
+        await driver.StartAsync();
+        await WaitUntilAsync(() => driver.Status.State == DriverState.Faulted);
+
+        Assert.Equal(CommunicationDriverOperationalState.Faulted, driver.GetCommunicationDiagnostics().State);
+        Assert.Equal(MqttReadinessState.Faulted, driver.GetMqttReadiness().State);
+        Assert.Equal(1, transport.DisconnectCount);
+        Assert.True(transport.IsConnected);
+    }
+
+    [Fact]
     public async Task DisposedDriverCannotBeStartedAgain()
     {
         var point = new MqttPoint(CreateTag(), "plant/lifecycle/disposed");
@@ -165,18 +237,30 @@ public sealed class MqttLifecycleConcurrencyTests
     {
         private readonly Channel<MqttTransportMessage> _messages = Channel.CreateUnbounded<MqttTransportMessage>();
         private readonly bool _blockDisconnect;
+        private readonly bool _failReceiveOnce;
         private readonly TaskCompletionSource<bool> _disconnectEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource<bool> _disconnectRelease = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private int _connected;
         private int _connectCount;
+        private int _disconnectCount;
+        private int _disposeCount;
+        private int _disconnectFailuresRemaining;
+        private int _receiveFailureIssued;
 
-        public LifecycleTransport(bool blockDisconnect = false)
+        public LifecycleTransport(
+            bool blockDisconnect = false,
+            int disconnectFailures = 0,
+            bool failReceiveOnce = false)
         {
             _blockDisconnect = blockDisconnect;
+            _disconnectFailuresRemaining = disconnectFailures;
+            _failReceiveOnce = failReceiveOnce;
         }
 
         public bool IsConnected => Volatile.Read(ref _connected) != 0;
         public int ConnectCount => Volatile.Read(ref _connectCount);
+        public int DisconnectCount => Volatile.Read(ref _disconnectCount);
+        public int DisposeCount => Volatile.Read(ref _disposeCount);
 
         public ValueTask ConnectAsync(
             MqttConnectionSettings settings,
@@ -199,8 +283,16 @@ public sealed class MqttLifecycleConcurrencyTests
             return ValueTask.CompletedTask;
         }
 
-        public ValueTask<MqttTransportMessage> ReceiveAsync(CancellationToken cancellationToken = default) =>
-            _messages.Reader.ReadAsync(cancellationToken);
+        public ValueTask<MqttTransportMessage> ReceiveAsync(CancellationToken cancellationToken = default)
+        {
+            if (_failReceiveOnce && Interlocked.Exchange(ref _receiveFailureIssued, 1) == 0)
+            {
+                return ValueTask.FromException<MqttTransportMessage>(
+                    new IOException("Synthetic MQTT receive failure for lifecycle validation."));
+            }
+
+            return _messages.Reader.ReadAsync(cancellationToken);
+        }
 
         public ValueTask PublishAsync(
             MqttPublishRequest request,
@@ -209,10 +301,17 @@ public sealed class MqttLifecycleConcurrencyTests
 
         public async ValueTask DisconnectAsync(CancellationToken cancellationToken = default)
         {
+            Interlocked.Increment(ref _disconnectCount);
             if (_blockDisconnect)
             {
                 _disconnectEntered.TrySetResult(true);
                 await _disconnectRelease.Task.WaitAsync(cancellationToken);
+            }
+
+            if (Volatile.Read(ref _disconnectFailuresRemaining) > 0)
+            {
+                Interlocked.Decrement(ref _disconnectFailuresRemaining);
+                throw new MqttTransportException("Synthetic MQTT disconnect failure for lifecycle validation.");
             }
 
             Volatile.Write(ref _connected, 0);
@@ -220,6 +319,7 @@ public sealed class MqttLifecycleConcurrencyTests
 
         public ValueTask DisposeAsync()
         {
+            Interlocked.Increment(ref _disposeCount);
             Volatile.Write(ref _connected, 0);
             _messages.Writer.TryComplete();
             _disconnectRelease.TrySetResult(true);

@@ -1,0 +1,59 @@
+[data-testid="python-sandbox-preview"] {
+  display: none;
+}
+
+.python-preview-test {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-color, #3b4350);
+  border-radius: 8px;
+}
+
+.python-preview-test > span,
+.python-preview-test__muted {
+  opacity: 0.78;
+}
+
+.python-preview-test__inputs {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(260px, 1.3fr);
+  gap: 10px;
+}
+
+.python-preview-test__inputs label {
+  display: grid;
+  gap: 6px;
+}
+
+.python-preview-test__inputs textarea {
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.python-preview-test__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.python-preview-test__result {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 6px;
+  background: rgba(127, 127, 127, 0.08);
+}
+
+.python-preview-test__result code {
+  display: block;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+@media (max-width: 900px) {
+  .python-preview-test__inputs {
+    grid-template-columns: 1fr;
+  }
+}

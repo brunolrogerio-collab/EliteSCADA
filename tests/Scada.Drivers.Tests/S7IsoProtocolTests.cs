@@ -103,7 +103,7 @@ public sealed class S7IsoProtocolTests
     }
 
     [Fact]
-    public void ReadResponse_DIntegerTransportUsesByteLength()
+    public void ReadResponse_DIntUsesIntResultTransportAndBitLength()
     {
         const ushort reference = 21;
         var point = new S7IsoPoint(
@@ -114,12 +114,32 @@ public sealed class S7IsoProtocolTests
         var response = AckData(
             reference,
             new byte[] { 0x04, 0x01 },
-            new byte[] { 0xFF, 0x06, 0x00, 0x04, 0x11, 0x22, 0x33, 0x44 });
+            new byte[] { 0xFF, 0x05, 0x00, 0x20, 0x11, 0x22, 0x33, 0x44 });
 
         var result = Assert.Single(S7IsoProtocol.ParseReadResponse(response, reference, new[] { point }));
 
         Assert.Equal(new byte[] { 0x11, 0x22, 0x33, 0x44 }, result.Data);
         Assert.Equal(0x11223344, Assert.IsType<int>(S7IsoValueCodec.Decode(point, result.Data!)));
+    }
+
+    [Fact]
+    public void ReadResponse_UndefinedResultTransport06_IsRejected()
+    {
+        const ushort reference = 24;
+        var point = new S7IsoPoint(
+            Tag(TagDataType.Int32),
+            S7IsoArea.Merker,
+            0,
+            S7IsoValueType.Int32);
+        var response = AckData(
+            reference,
+            new byte[] { 0x04, 0x01 },
+            new byte[] { 0xFF, 0x06, 0x00, 0x04, 0x11, 0x22, 0x33, 0x44 });
+
+        var error = Assert.Throws<S7IsoProtocolException>(() =>
+            S7IsoProtocol.ParseReadResponse(response, reference, new[] { point }));
+
+        Assert.Contains("transport size 0x06", error.Message);
     }
 
     [Fact]
@@ -163,7 +183,7 @@ public sealed class S7IsoProtocolTests
         var error = Assert.Throws<S7IsoProtocolException>(() =>
             S7IsoProtocol.ParseReadResponse(response, reference, new[] { point }));
 
-        Assert.Contains("expected exactly 2", error.Message, StringComparison.Ordinal);
+        Assert.Contains("expected exactly 2", error.Message);
     }
 
     [Fact]

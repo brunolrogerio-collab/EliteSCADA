@@ -2,7 +2,7 @@
 
 Status: **protocol-owned draft manifest / not a mainline integration authorization**
 
-This manifest records the production-readiness evidence requested by `docs/DRIVER-CONVERGENCE-COORDINATION-V1.md`. It describes the current Driver 08 branch only. It does not define or implement the Coordinator-owned module loader, runtime registry, shared readiness contract or licensing system.
+This manifest records the production-readiness and convergence evidence requested by the Driver convergence coordination work. It describes the current Driver 08 branch only. It does not define or implement the Coordinator-owned module loader, runtime registry, central runtime dispatch, shared readiness contract or licensing system.
 
 ## Proposed module identity
 
@@ -28,7 +28,7 @@ The final installable package/module naming convention remains Coordinator-owned
 - Data Source write-enable policy is fail-closed by default.
 - Common communication diagnostics plus protocol-specific sanitized evidence.
 - Protocol-local readiness adapter through `IS7IsoRuntimeReadinessSource` for future Coordinator-owned readiness composition.
-- Binding-level byte/word ordering where meaningful, with inverse read/write transforms.
+- Internal byte/word ordering remains supported where meaningful, with inverse read/write transforms.
 
 Initial runtime safety scope explicitly excludes CPU RUN/STOP, program upload/download, block deletion, firmware operations and generic PLC administration.
 
@@ -43,6 +43,39 @@ Initial runtime safety scope explicitly excludes CPU RUN/STOP, program upload/do
 - Malformed HMI boolean metadata is surfaced per candidate and fails closed.
 
 TIA Portal Openness is not implemented in this milestone. Runtime never depends on TIA Portal.
+
+## Canonical TAG communication-binding convergence
+
+The Coordinator-validated Engineering v14 target keeps the Siemens binding identity stable. Driver 08 therefore continues to use:
+
+- schema ID `siemens.s7.iso.binding`;
+- schema version `1`;
+- portable address prefix `s7iso:v1`.
+
+No Siemens binding schema v2 is introduced.
+
+`S7IsoCommunicationBindingProjection` is the branch-local convergence adapter for the future shared `CommunicationTagBinding` envelope. It:
+
+- preserves the current Siemens schema ID and version;
+- projects area, DB number, byte offset, protocol-native bit offset, value type, string length and writable intent as Siemens-owned settings;
+- emits the canonical v1 portable address without a second persisted ordering authority;
+- maps the internal `S7IsoValueOrder` representation to the shared physical transform semantics: Normal = no swap, ByteSwap = byte swap, WordSwap = word swap, ByteAndWordSwap = both;
+- rejects canonical materialization when byte/word ordering is also persisted in Siemens settings or portable-address tokens;
+- keeps legacy v1 addresses containing `order` readable through `S7IsoTagBinding` for migration only.
+
+The final `CommunicationTagBinding`, `TagPhysicalValueTransform`, canonical `Address == PortableAddress` enforcement and generic `TagValueSelector` persistence remain shared Engineering responsibilities. Protocol-native BOOL bit addressing remains part of the physical Siemens address because it identifies the source bit itself.
+
+## Branch-local runtime composition seam
+
+Driver 08 now includes a branch-local Siemens runtime planner/factory core aligned with the Coordinator-owned runtime composition contract:
+
+- `S7IsoRuntimePlanner` consumes one canonical Engineering package plus one Siemens Data Source;
+- it returns a library-independent `S7IsoRuntimePlan` plus `EngineeringDriverIssue` evidence;
+- the plan exposes Data Source key/name, stable DriverType and TAGs/points without retaining socket, ISO session or negotiated-PDU client objects;
+- `S7IsoRuntimeFactory` receives the host-owned current-value cache and TAG registry and creates the concrete `S7IsoDriver`;
+- no central registry, loader, compiler dispatch or runtime coordinator registration is performed by this branch.
+
+The current branch base predates the validated v14 `CommunicationBinding` field, so the planner still consumes the compatibility `TagEngineeringDto.Address` alias and treats generic `AddressSelector` support as a later shared-contract reconciliation point. This is a transitional adapter boundary, not a second canonical binding model.
 
 ## Current scalar and text/date coverage
 
@@ -75,17 +108,23 @@ Arrays, structures/UDTs, optimized symbolic access, TIME/TOD families and newer 
 
 The repository currently does not expose a formal project/module license declaration that this branch can authoritatively assign. Therefore the overall EliteSCADA/module distribution license remains a project-owner/Coordinator decision. Driver 08 must not invent that legal classification.
 
+## CI evidence
+
+The protocol implementation, binding projection and branch-local runtime composition core are exercised through the existing pull-request CI. Review evidence must always be tied to the exact current branch HEAD before integration. The branch has already demonstrated successful Release build/test/runtime-smoke checkpoints with zero build warnings/errors, including focused Siemens binding-projection and runtime-planning tests.
+
+A documentation-only manifest update still creates a new Git commit, so the final handoff must cite the CI run for that exact final HEAD rather than inheriting green status from an earlier commit by optimism.
+
 ## Production distribution status
 
-**Blocked on evidence / integration.**
+**Blocked on shared integration and external interoperability evidence.**
 
-The protocol implementation has no third-party runtime-license blocker, but production distribution is not yet authorized because all of the following remain required:
+The protocol implementation has no third-party runtime-license blocker. Branch-local readiness, canonical Siemens binding projection and planner/factory core now exist, but production distribution is not yet authorized because the following remain required:
 
-1. exact-head .NET build/test CI evidence;
-2. Coordinator reconciliation into the shared registry/planner/factory/module composition seam;
-3. Coordinator-owned rich canonical Driver binding projection/reconciliation;
-4. Coordinator-owned common readiness adapter integration;
-5. representative hardware or vendor-simulator interoperability evidence;
+1. green CI evidence on the exact final review HEAD;
+2. Coordinator-owned adapter/registration into the shared runtime planner/factory registry and central dispatch;
+3. Coordinator-owned Engineering v14 `CommunicationTagBinding` envelope integration, including `Address == PortableAddress`, shared physical transform and generic `TagValueSelector` semantics;
+4. Coordinator-owned common readiness/activation integration;
+5. representative Siemens hardware or vendor-simulator interoperability evidence;
 6. final project/module license declaration and packaging policy.
 
 ## Hardware and vendor-simulator validation still required
@@ -108,14 +147,14 @@ A loopback peer is useful deterministic protocol evidence but is not a substitut
 
 ## Shared Coordinator reconciliation still required
 
-Driver 08 intentionally does not modify these central seams:
+Driver 08 intentionally does not implement or register these central seams:
 
-- DriverHost registry/runtime composition;
-- common runtime planner/factory interfaces;
+- common DriverHost runtime registry/dispatch;
 - installable module loader/catalog;
-- canonical rich TAG Driver-binding DTO;
-- common readiness/activation contract;
+- central compiler/runtime coordinator migration;
+- canonical Engineering v14 communication-binding envelope ownership;
+- common readiness/activation orchestration;
 - common licensing/module policy;
 - Gateway dispatch.
 
-The branch provides protocol-owned evidence intended to plug into those seams rather than competing replacements.
+The branch now supplies the Siemens-specific pieces intended to plug into those seams: protocol/runtime implementation, readiness evidence, stable binding-v1 projection, and branch-local planner/factory core. They are integration evidence, not competing shared frameworks.

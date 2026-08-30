@@ -28,7 +28,7 @@ public sealed record CommunicationDriverProtectedMaterialRequest(
             throw new ArgumentException($"Protected-material {displayName} is required.", parameterName);
         if (!string.Equals(value, value.Trim(), StringComparison.Ordinal))
             throw new ArgumentException($"Protected-material {displayName} must not contain leading or trailing whitespace.", parameterName);
-        if (value.IndexOfAny(['\r', '\n', '\0']) >= 0)
+        if (value.Contains('\r') || value.Contains('\n') || value.Contains('\0'))
             throw new ArgumentException($"Protected-material {displayName} contains invalid control characters.", parameterName);
     }
 }

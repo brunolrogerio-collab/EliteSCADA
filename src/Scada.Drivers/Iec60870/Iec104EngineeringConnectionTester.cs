@@ -12,7 +12,7 @@ public sealed class Iec104EngineeringConnectionTester : ICommunicationDriverConn
 
     public Iec104EngineeringConnectionTester(Func<IIec104ClientAdapter>? adapterFactory = null)
     {
-        _adapterFactory = adapterFactory ?? static () => new Iec104TcpClientAdapter();
+        _adapterFactory = adapterFactory ?? (static () => new Iec104TcpClientAdapter());
     }
 
     public CommunicationDriverTypeDescriptor Descriptor { get; } = new(

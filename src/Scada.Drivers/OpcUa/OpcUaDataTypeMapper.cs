@@ -3,8 +3,9 @@ using Scada.Core.Tags;
 namespace Scada.Drivers.OpcUa;
 
 /// <summary>
-/// OPC UA built-in types represented without depending on OPC Foundation SDK
-/// types. The runtime adapter translates SDK identifiers into this enum.
+/// OPC UA built-in/data-model types represented without depending on OPC Foundation SDK
+/// types. Structure is included explicitly so abstract/custom structures can be rejected
+/// deterministically rather than silently treated as a scalar ExtensionObject.
 /// </summary>
 public enum OpcUaBuiltInDataType
 {
@@ -30,6 +31,7 @@ public enum OpcUaBuiltInDataType
     QualifiedName,
     LocalizedText,
     ExtensionObject,
+    Structure,
     DataValue,
     Variant,
     DiagnosticInfo
@@ -83,6 +85,7 @@ public static class OpcUaDataTypeMapper
             OpcUaBuiltInDataType.LocalizedText => Adapt(TagDataType.String, "LocalizedText is reduced to its textual representation."),
             OpcUaBuiltInDataType.ByteString => Unsupported("ByteString requires an explicit binary representation strategy."),
             OpcUaBuiltInDataType.ExtensionObject => Unsupported("ExtensionObject requires a type-specific decoder."),
+            OpcUaBuiltInDataType.Structure => Unsupported("Structure requires a type-specific decoder and cannot be flattened implicitly."),
             OpcUaBuiltInDataType.DataValue => Unsupported("Nested DataValue is not a canonical TAG scalar."),
             OpcUaBuiltInDataType.Variant => Unsupported("Variant requires an observed concrete built-in type before import."),
             OpcUaBuiltInDataType.DiagnosticInfo => Unsupported("DiagnosticInfo is diagnostic metadata, not a canonical TAG scalar."),

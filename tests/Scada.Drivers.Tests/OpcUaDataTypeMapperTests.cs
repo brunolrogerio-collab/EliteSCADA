@@ -42,6 +42,7 @@ public sealed class OpcUaDataTypeMapperTests
     [InlineData(OpcUaBuiltInDataType.UInt64)]
     [InlineData(OpcUaBuiltInDataType.ByteString)]
     [InlineData(OpcUaBuiltInDataType.ExtensionObject)]
+    [InlineData(OpcUaBuiltInDataType.Structure)]
     [InlineData(OpcUaBuiltInDataType.Variant)]
     public void Map_RejectsTypesWithoutCanonicalStrategy(OpcUaBuiltInDataType source)
     {

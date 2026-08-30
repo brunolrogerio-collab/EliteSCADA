@@ -142,7 +142,7 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
             await _transport.WriteAsync(point, encoded, cancellationToken);
             await PublishAsync(point, S7IsoValueCodec.Decode(point, encoded), TagQuality.Good, cancellationToken);
             RecordOperations(1, 0, 0, 1, Stopwatch.GetElapsedTime(started), null);
-            SetCommunicationState(CommunicationDriverOperationalState.Healthy);
+            SetStateAfterSuccessfulWrite();
         }
         catch (S7IsoProtocolException ex) when (ex.ReturnCode.HasValue)
         {
@@ -401,6 +401,14 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
             _communicationState = state;
             _stateChangedAt = DateTimeOffset.UtcNow;
         }
+    }
+
+    private void SetStateAfterSuccessfulWrite()
+    {
+        var quality = BuildQualitySummary();
+        SetCommunicationState(quality.Good == quality.Total
+            ? CommunicationDriverOperationalState.Healthy
+            : CommunicationDriverOperationalState.Degraded);
     }
 
     private CommunicationTagQualitySummary BuildQualitySummary()

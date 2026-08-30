@@ -231,10 +231,19 @@ public sealed record S7IsoTagBinding(
             errors.Add(new S7IsoBindingIssue("bitOffset", "S7 bit offset must be from 0 to 7."));
         if (binding.ValueType != S7IsoValueType.Boolean && binding.BitOffset != 0)
             errors.Add(new S7IsoBindingIssue("bitOffset", "S7 bit offset is valid only for Boolean bindings."));
-        if (binding.ValueType == S7IsoValueType.String && binding.StringLength is < 1 or > 254)
-            errors.Add(new S7IsoBindingIssue("stringLength", "S7 STRING bindings require a length from 1 to 254."));
-        if (binding.ValueType != S7IsoValueType.String && binding.StringLength != 0)
-            errors.Add(new S7IsoBindingIssue("stringLength", "S7 string length is valid only for String bindings."));
+        if (binding.ValueType is S7IsoValueType.String or S7IsoValueType.WString)
+        {
+            if (binding.StringLength is < 1 or > 254)
+                errors.Add(new S7IsoBindingIssue(
+                    "stringLength",
+                    binding.ValueType == S7IsoValueType.String
+                        ? "S7 STRING bindings require a length from 1 to 254."
+                        : "S7 WSTRING first-cut bindings require a length from 1 to 254 WCHARs."));
+        }
+        else if (binding.StringLength != 0)
+        {
+            errors.Add(new S7IsoBindingIssue("stringLength", "S7 string length is valid only for String/WString bindings."));
+        }
         if (binding.Writable && binding.Area == S7IsoArea.Input)
             errors.Add(new S7IsoBindingIssue("writable", "S7 input-area bindings are read-only."));
 
@@ -263,6 +272,7 @@ public sealed record S7IsoTagBinding(
         S7IsoValueType.UInt32 or S7IsoValueType.Int32 or S7IsoValueType.Float32 => 4,
         S7IsoValueType.Int64 or S7IsoValueType.Float64 or S7IsoValueType.DateTime => 8,
         S7IsoValueType.String => binding.StringLength + 2,
+        S7IsoValueType.WString => binding.StringLength * 2 + 4,
         _ => throw new ArgumentOutOfRangeException(nameof(binding.ValueType))
     };
 

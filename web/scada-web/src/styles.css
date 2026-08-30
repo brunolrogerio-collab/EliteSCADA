@@ -3,6 +3,7 @@
 body { margin: 0; min-width: 320px; min-height: 100vh; background: #11151a; }
 button { font: inherit; }
 .shell { min-height: 100vh; }
+.runtime-history-page { padding: 24px; --border: #2a333d; }
 .topbar { height: 64px; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2a333d; background: #171c22; }
 .topbar div:first-child { display: flex; gap: 14px; align-items: baseline; }
 .topbar strong { font-size: 18px; }
@@ -44,7 +45,7 @@ button { font: inherit; }
 .modal header button { border: 0; background: transparent; color: #c9d1da; font-size: 27px; cursor: pointer; }
 .status-grid { padding: 18px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .modal-note { margin: 0 18px 18px; padding: 14px; border: 1px dashed #3b4652; border-radius: 8px; color: #9ca8b5; font-size: 12px; }
-@media (max-width: 800px) { .process { flex-direction: column; gap: 12px; } .pipe.horizontal.first,.pipe.horizontal.second { width: 14px; height: 50px; margin: 0; } .line-values { margin: 0; grid-template-columns: 1fr 1fr; } .tag-strip { grid-template-columns: 1fr; } }
+@media (max-width: 800px) { .process { flex-direction: column; gap: 12px; } .pipe.horizontal.first,.pipe.horizontal.second { width: 14px; height: 50px; margin: 0; } .line-values { margin: 0; grid-template-columns: 1fr 1fr; } .tag-strip { grid-template-columns: 1fr; } .runtime-history-page { padding: 14px; } }
 .alarm-banner { margin: 18px 24px 0; padding: 12px 16px; display: flex; align-items: center; gap: 14px; border: 1px solid #7f3f44; background: #2a1d20; border-radius: 9px; }
 .alarm-banner strong { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
 .alarm-banner span { color: #d6c5c7; font-size: 13px; }

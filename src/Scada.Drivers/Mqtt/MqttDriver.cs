@@ -7,7 +7,7 @@ namespace Scada.Drivers.Mqtt;
 
 public delegate ValueTask<MqttResolvedCredentials> MqttCredentialResolver(CancellationToken cancellationToken);
 
-public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnosticsSource
+public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnosticsSource, IMqttReadinessEvidenceSource
 {
     private const int RecentOutcomeWindow = 100;
 
@@ -34,11 +34,14 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
     private Task? _loop;
     private Task? _freshnessLoop;
     private CommunicationDriverOperationalState _communicationState;
+    private MqttReadinessState _readinessState;
     private DateTimeOffset _stateChangedAt;
+    private DateTimeOffset _readinessStateChangedAt;
     private DateTimeOffset? _lastSuccessfulCommunicationAt;
     private DateTimeOffset? _lastFailedCommunicationAt;
     private DateTimeOffset? _lastAcceptedMessageAt;
     private string? _lastError;
+    private string? _readinessDetail;
     private long _requests;
     private long _successfulOperations;
     private long _failedOperations;
@@ -61,6 +64,8 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
     private long _totalOperationDurationTicks;
     private long _timedOperations;
     private int _consecutiveConnectFailures;
+    private int _acceptedSubscriptionCount;
+    private bool _initialHandshakeCompleted;
     private bool _hasConnectedOnce;
     private volatile bool _disposed;
 
@@ -112,7 +117,9 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
 
         var now = DateTimeOffset.UtcNow;
         _communicationState = CommunicationDriverOperationalState.Stopped;
+        _readinessState = MqttReadinessState.NotStarted;
         _stateChangedAt = now;
+        _readinessStateChangedAt = now;
         Status = new DriverStatus(DriverId, Name, DriverState.Stopped, now);
     }
 
@@ -149,6 +156,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
             foreach (var point in _points) _registry.Upsert(point.Tag);
             Status = new DriverStatus(DriverId, Name, DriverState.Starting, DateTimeOffset.UtcNow);
             TransitionCommunicationState(CommunicationDriverOperationalState.Starting);
+            BeginReadinessStart();
 
             _consecutiveConnectFailures = 0;
             lock (_diagnosticsGate) _hasConnectedOnce = false;
@@ -297,6 +305,21 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
         }
     }
 
+    public MqttReadinessSnapshot GetMqttReadiness()
+    {
+        lock (_diagnosticsGate)
+        {
+            return new MqttReadinessSnapshot(
+                DriverId,
+                _readinessState,
+                _readinessStateChangedAt,
+                _pointsByTopic.Count,
+                _acceptedSubscriptionCount,
+                _initialHandshakeCompleted,
+                _readinessDetail);
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         await _lifecycleGate.WaitAsync();
@@ -304,6 +327,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
         {
             if (_disposed) return;
             await StopCoreAsync();
+            MarkReadinessStopped();
 
             await _writeGate.WaitAsync();
             try
@@ -365,6 +389,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
             DateTimeOffset.UtcNow,
             UpdatesPublished: Interlocked.Read(ref _updatesPublished));
         TransitionCommunicationState(CommunicationDriverOperationalState.Stopped);
+        MarkReadinessStopped();
 
         if (ReferenceEquals(_cts, cts))
         {
@@ -422,6 +447,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
                 if (permanent || _consecutiveConnectFailures >= _settings.MaximumConsecutiveConnectFailures)
                 {
                     TransitionCommunicationState(CommunicationDriverOperationalState.Faulted);
+                    MarkReadinessFaulted(ex);
                     Status = new DriverStatus(
                         DriverId,
                         Name,
@@ -449,6 +475,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
             {
                 RecordFailureOnly(ex);
                 TransitionCommunicationState(CommunicationDriverOperationalState.Faulted);
+                MarkReadinessFaulted(ex);
                 Status = new DriverStatus(
                     DriverId,
                     Name,
@@ -540,6 +567,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
             }
 
             _consecutiveConnectFailures = 0;
+            MarkReadinessReady(subscriptions.Length);
             TransitionCommunicationState(CommunicationDriverOperationalState.Healthy);
             Status = new DriverStatus(
                 DriverId,
@@ -777,6 +805,53 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
         {
             _lastFailedCommunicationAt = DateTimeOffset.UtcNow;
             _lastError = SanitizeError(error);
+        }
+    }
+
+    private void BeginReadinessStart()
+    {
+        lock (_diagnosticsGate)
+        {
+            _readinessState = MqttReadinessState.Starting;
+            _readinessStateChangedAt = DateTimeOffset.UtcNow;
+            _acceptedSubscriptionCount = 0;
+            _initialHandshakeCompleted = false;
+            _readinessDetail = null;
+        }
+    }
+
+    private void MarkReadinessReady(int acceptedSubscriptionCount)
+    {
+        lock (_diagnosticsGate)
+        {
+            if (_readinessState != MqttReadinessState.Ready)
+                _readinessStateChangedAt = DateTimeOffset.UtcNow;
+            _readinessState = MqttReadinessState.Ready;
+            _acceptedSubscriptionCount = acceptedSubscriptionCount;
+            _initialHandshakeCompleted = true;
+            _readinessDetail = null;
+        }
+    }
+
+    private void MarkReadinessFaulted(Exception error)
+    {
+        lock (_diagnosticsGate)
+        {
+            if (_readinessState != MqttReadinessState.Faulted)
+                _readinessStateChangedAt = DateTimeOffset.UtcNow;
+            _readinessState = MqttReadinessState.Faulted;
+            _readinessDetail = SanitizeError(error);
+        }
+    }
+
+    private void MarkReadinessStopped()
+    {
+        lock (_diagnosticsGate)
+        {
+            if (_readinessState != MqttReadinessState.Stopped)
+                _readinessStateChangedAt = DateTimeOffset.UtcNow;
+            _readinessState = MqttReadinessState.Stopped;
+            _readinessDetail = null;
         }
     }
 

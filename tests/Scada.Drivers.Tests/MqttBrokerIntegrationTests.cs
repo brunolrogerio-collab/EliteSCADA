@@ -31,20 +31,13 @@ public sealed class MqttBrokerIntegrationTests
         foreach (var protocol in protocols)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var settingsBase = new MqttConnectionSettings(
-                host.Trim(),
+            var settingsBase = CreateSettings(
+                host,
                 port,
                 useTls,
-                ClientId: $"elite-it-{runId[..12]}",
-                ProtocolMode: protocol,
-                ConnectTimeout: TimeSpan.FromSeconds(10),
-                ReconnectMinimumDelay: TimeSpan.FromMilliseconds(100),
-                ReconnectMaximumDelay: TimeSpan.FromSeconds(1),
-                CleanSession: protocol == MqttProtocolMode.Mqtt311,
-                CleanStart: protocol == MqttProtocolMode.Mqtt5,
-                SessionExpirySeconds: protocol == MqttProtocolMode.Mqtt5 ? 0U : null,
-                MaximumInboundPayloadBytes: 64 * 1024,
-                MaximumBufferedMessages: 64);
+                protocol,
+                $"elite-it-{runId[..12]}",
+                maximumBufferedMessages: 64);
 
             await using var subscriber = new MqttNetClientTransport();
             await using var publisher = new MqttNetClientTransport();
@@ -120,6 +113,114 @@ public sealed class MqttBrokerIntegrationTests
             await publisher.DisconnectAsync(CancellationToken.None);
         }
     }
+
+    [Fact]
+    [Trait("Category", "BrokerIntegration")]
+    public async Task ConfiguredBrokerPreservesBurstBeyondBoundedApplicationQueue()
+    {
+        var host = Environment.GetEnvironmentVariable(HostVariable);
+        if (string.IsNullOrWhiteSpace(host))
+            return;
+
+        const int queueCapacity = 4;
+        const int burstCount = 64;
+        var useTls = ParseBooleanEnvironment("ELITESCADA_MQTT_INTEGRATION_TLS", defaultValue: false);
+        var port = ParsePortEnvironment(
+            "ELITESCADA_MQTT_INTEGRATION_PORT",
+            useTls ? 8883 : 1883);
+        var protocols = ParseProtocols(Environment.GetEnvironmentVariable("ELITESCADA_MQTT_INTEGRATION_PROTOCOLS"));
+        var runId = Guid.NewGuid().ToString("N");
+
+        foreach (var protocol in protocols)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var settings = CreateSettings(
+                host,
+                port,
+                useTls,
+                protocol,
+                $"elite-burst-{runId[..10]}-{ProtocolToken(protocol)}",
+                maximumBufferedMessages: queueCapacity);
+            var topic = $"elitescada/integration/{runId}/{ProtocolToken(protocol)}/bounded-burst";
+
+            await using var subscriber = new MqttNetClientTransport();
+            await using var publisher = new MqttNetClientTransport();
+            await ConnectAsync(
+                subscriber,
+                settings with { ClientId = $"elite-bsub-{runId[..10]}-{ProtocolToken(protocol)}" },
+                timeout.Token);
+            await ConnectAsync(
+                publisher,
+                settings with { ClientId = $"elite-bpub-{runId[..10]}-{ProtocolToken(protocol)}" },
+                timeout.Token);
+            await subscriber.SubscribeAsync(
+                [new MqttSubscription(topic, MqttQosLevel.AtLeastOnce)],
+                timeout.Token);
+
+            // Deliberately publish substantially more messages than the local queue
+            // can hold before calling ReceiveAsync. MQTTnet callbacks must therefore
+            // wait for bounded EliteSCADA queue capacity instead of dropping data.
+            for (var index = 0; index < burstCount; index++)
+            {
+                var payload = Encoding.UTF8.GetBytes($"burst:{index:D4}:{runId}");
+                await publisher.PublishAsync(
+                    new MqttPublishRequest(
+                        topic,
+                        payload,
+                        MqttQosLevel.AtLeastOnce,
+                        Retain: false),
+                    timeout.Token);
+            }
+
+            var observed = new HashSet<int>();
+            while (observed.Count < burstCount)
+            {
+                var received = await subscriber.ReceiveAsync(timeout.Token);
+                Assert.Equal(topic, received.Topic);
+                Assert.Equal(MqttQosLevel.AtLeastOnce, received.Qos);
+                Assert.False(received.Retained);
+
+                var text = Encoding.UTF8.GetString(received.Payload.ToArray());
+                var parts = text.Split(':');
+                Assert.Equal(3, parts.Length);
+                Assert.Equal("burst", parts[0]);
+                Assert.Equal(runId, parts[2]);
+                Assert.True(int.TryParse(
+                    parts[1],
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out var index));
+                Assert.InRange(index, 0, burstCount - 1);
+                observed.Add(index);
+            }
+
+            Assert.Equal(burstCount, observed.Count);
+            await subscriber.DisconnectAsync(CancellationToken.None);
+            await publisher.DisconnectAsync(CancellationToken.None);
+        }
+    }
+
+    private static MqttConnectionSettings CreateSettings(
+        string host,
+        int port,
+        bool useTls,
+        MqttProtocolMode protocol,
+        string clientId,
+        int maximumBufferedMessages) =>
+        new(
+            host.Trim(),
+            port,
+            useTls,
+            clientId,
+            ProtocolMode: protocol,
+            ConnectTimeout: TimeSpan.FromSeconds(10),
+            ReconnectMinimumDelay: TimeSpan.FromMilliseconds(100),
+            ReconnectMaximumDelay: TimeSpan.FromSeconds(1),
+            CleanSession: protocol == MqttProtocolMode.Mqtt311,
+            CleanStart: protocol == MqttProtocolMode.Mqtt5,
+            SessionExpirySeconds: protocol == MqttProtocolMode.Mqtt5 ? 0U : null,
+            MaximumInboundPayloadBytes: 64 * 1024,
+            MaximumBufferedMessages: maximumBufferedMessages);
 
     private static async Task ConnectAsync(
         MqttNetClientTransport transport,

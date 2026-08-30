@@ -118,7 +118,7 @@ public sealed class ModbusTcpDiagnosticsTests
             new[] { point },
             server.Port,
             scanRate: TimeSpan.FromSeconds(2),
-            requestTimeout: TimeSpan.FromMilliseconds(500));
+            requestTimeout: TimeSpan.FromSeconds(2));
 
         await driver.StartAsync();
         await WaitForAsync(

@@ -306,6 +306,8 @@ public sealed class LogixEtherNetIpClient : ILogixProtocolClient
     private async ValueTask<LogixCipResponse> ExecuteCipCoreAsync(byte[] rawCipRequest, CancellationToken cancellationToken, bool allowPartialTransfer = false)
     {
         EnsureConnected();
+        if (rawCipRequest.Length == 0)
+            throw new ArgumentException("CIP request must contain a service byte.", nameof(rawCipRequest));
         var options = _options ?? throw new InvalidOperationException("EtherNet/IP client has no active options.");
         var routed = options.EffectiveRoute.Count > 0;
         var request = LogixCipCodec.BuildUnconnectedSend(rawCipRequest, options.EffectiveRoute);
@@ -318,6 +320,9 @@ public sealed class LogixEtherNetIpClient : ILogixProtocolClient
                 throw new IOException($"EtherNet/IP SendRRData failed with status 0x{response.Status:X8}.");
             var cip = LogixCipCodec.ExtractCipFromSendRrData(response.Payload);
             var parsed = LogixCipCodec.ParsePossiblyRoutedResponse(cip, routed, allowPartialTransfer);
+            var expectedReplyService = (byte)(rawCipRequest[0] | 0x80);
+            if (parsed.Service != expectedReplyService)
+                throw new InvalidDataException($"CIP response service 0x{parsed.Service:X2} does not match request service 0x{rawCipRequest[0]:X2}; expected reply 0x{expectedReplyService:X2}.");
             lock (_diagnosticsGate)
             {
                 _successfulRequests++;
@@ -378,6 +383,8 @@ public sealed class LogixEtherNetIpClient : ILogixProtocolClient
             throw new InvalidDataException($"EtherNet/IP response command 0x{responseCommand:X4} does not match request 0x{command:X4}.");
         if (responseContext != context)
             throw new InvalidDataException("EtherNet/IP sender context does not match the outstanding request.");
+        if (command != LogixCipCodec.RegisterSessionCommand && responseSession != sessionHandle)
+            throw new InvalidDataException($"EtherNet/IP response session 0x{responseSession:X8} does not match active session 0x{sessionHandle:X8}.");
         var responsePayload = new byte[length];
         if (length > 0) await stream.ReadExactlyAsync(responsePayload, cancellationToken);
         return new EncapsulationResponse(responseSession, status, responsePayload);

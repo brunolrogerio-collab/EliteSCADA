@@ -36,7 +36,7 @@ public sealed class MqttBrokerIntegrationTests
                 port,
                 useTls,
                 protocol,
-                $"elite-it-{runId[..12]}",
+                CreateClientId("it", runId, protocol),
                 maximumBufferedMessages: 64);
 
             await using var subscriber = new MqttNetClientTransport();
@@ -45,11 +45,11 @@ public sealed class MqttBrokerIntegrationTests
 
             await ConnectAsync(
                 subscriber,
-                settingsBase with { ClientId = $"elite-sub-{runId[..10]}-{ProtocolToken(protocol)}" },
+                settingsBase with { ClientId = CreateClientId("su", runId, protocol) },
                 timeout.Token);
             await ConnectAsync(
                 publisher,
-                settingsBase with { ClientId = $"elite-pub-{runId[..10]}-{ProtocolToken(protocol)}" },
+                settingsBase with { ClientId = CreateClientId("pu", runId, protocol) },
                 timeout.Token);
 
             foreach (var qos in new[]
@@ -86,7 +86,7 @@ public sealed class MqttBrokerIntegrationTests
 
             await ConnectAsync(
                 retainedSubscriber,
-                settingsBase with { ClientId = $"elite-ret-{runId[..10]}-{ProtocolToken(protocol)}" },
+                settingsBase with { ClientId = CreateClientId("rt", runId, protocol) },
                 timeout.Token);
             await retainedSubscriber.SubscribeAsync(
                 [new MqttSubscription(retainedTopic, MqttQosLevel.AtLeastOnce)],
@@ -139,7 +139,7 @@ public sealed class MqttBrokerIntegrationTests
                 port,
                 useTls,
                 protocol,
-                $"elite-burst-{runId[..10]}-{ProtocolToken(protocol)}",
+                CreateClientId("bt", runId, protocol),
                 maximumBufferedMessages: queueCapacity);
             var topic = $"elitescada/integration/{runId}/{ProtocolToken(protocol)}/bounded-burst";
 
@@ -147,11 +147,11 @@ public sealed class MqttBrokerIntegrationTests
             await using var publisher = new MqttNetClientTransport();
             await ConnectAsync(
                 subscriber,
-                settings with { ClientId = $"elite-bsub-{runId[..10]}-{ProtocolToken(protocol)}" },
+                settings with { ClientId = CreateClientId("bs", runId, protocol) },
                 timeout.Token);
             await ConnectAsync(
                 publisher,
-                settings with { ClientId = $"elite-bpub-{runId[..10]}-{ProtocolToken(protocol)}" },
+                settings with { ClientId = CreateClientId("bp", runId, protocol) },
                 timeout.Token);
             await subscriber.SubscribeAsync(
                 [new MqttSubscription(topic, MqttQosLevel.AtLeastOnce)],
@@ -219,7 +219,7 @@ public sealed class MqttBrokerIntegrationTests
         foreach (var protocol in protocols)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            var clientId = $"elite-redel-{runId[..10]}-{ProtocolToken(protocol)}";
+            var clientId = CreateClientId("rs", runId, protocol);
             var settings = CreatePersistentSettings(
                 host,
                 port,
@@ -232,7 +232,7 @@ public sealed class MqttBrokerIntegrationTests
                 port,
                 useTls,
                 protocol,
-                $"elite-rpub-{runId[..10]}-{ProtocolToken(protocol)}",
+                CreateClientId("rp", runId, protocol),
                 maximumBufferedMessages: 8);
             var topic = $"elitescada/integration/{runId}/{ProtocolToken(protocol)}/shutdown-redelivery";
             var admittedPayload = $"admitted:{runId}";
@@ -427,6 +427,23 @@ public sealed class MqttBrokerIntegrationTests
 
         throw new InvalidOperationException($"Environment variable '{name}' must be a TCP port from 1 to 65535.");
     }
+
+    private static string CreateClientId(string role, string runId, MqttProtocolMode protocol)
+    {
+        if (role.Length is < 1 or > 3)
+            throw new ArgumentOutOfRangeException(nameof(role), "Integration Client ID role must contain 1 to 3 characters.");
+        if (runId.Length < 16)
+            throw new ArgumentException("Integration run ID must contain at least 16 characters.", nameof(runId));
+
+        return $"{role}-{runId[..16]}-{ProtocolShortToken(protocol)}";
+    }
+
+    private static string ProtocolShortToken(MqttProtocolMode protocol) => protocol switch
+    {
+        MqttProtocolMode.Mqtt5 => "5",
+        MqttProtocolMode.Mqtt311 => "3",
+        _ => throw new ArgumentOutOfRangeException(nameof(protocol), protocol, null)
+    };
 
     private static string ProtocolToken(MqttProtocolMode protocol) => protocol switch
     {

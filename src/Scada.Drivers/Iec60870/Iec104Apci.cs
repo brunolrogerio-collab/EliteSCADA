@@ -19,7 +19,7 @@ public enum Iec104UFunction
     TestFrameConfirmation
 }
 
-public sealed class Iec104ProtocolException : InvalidDataException
+public sealed class Iec104ProtocolException : IOException
 {
     public Iec104ProtocolException(string message) : base(message)
     {

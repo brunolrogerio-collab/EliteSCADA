@@ -215,8 +215,9 @@ public sealed class ReportEngineeringCoreTests
         Assert.Equal(14, parsed.SchemaVersion);
         var parsedReport = Assert.Single(parsed.Reports!);
         Assert.NotNull(parsedReport.Id);
-        Assert.NotNull(parsedReport.Sections!.Single().Id);
-        Assert.NotNull(parsedReport.Sections.Single().Controls!.Single().Id);
+        var parsedSection = Assert.Single(parsedReport.Sections!);
+        Assert.NotNull(parsedSection.Id);
+        Assert.NotNull(Assert.Single(parsedSection.Controls!).Id);
 
         reports.Clear();
         var preview = exchange.Preview(parsed, ImportMode.CreateAndUpdate);

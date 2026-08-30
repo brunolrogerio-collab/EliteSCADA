@@ -7,7 +7,11 @@ services:
     ports:
       - "20000:20000"
     healthcheck:
-      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('127.0.0.1',20000),2); s.close()"]
+      test:
+        - CMD
+        - python
+        - -c
+        - "import sys; lines=open('/proc/net/tcp').read().splitlines()[1:]; sys.exit(0 if any(parts[1].endswith(':4E20') and parts[3] == '0A' for parts in (line.split() for line in lines)) else 1)"
       interval: 2s
       timeout: 3s
       retries: 20

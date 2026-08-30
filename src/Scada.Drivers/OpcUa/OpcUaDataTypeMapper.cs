@@ -4,11 +4,12 @@ namespace Scada.Drivers.OpcUa;
 
 /// <summary>
 /// OPC UA built-in/data-model types represented without depending on OPC Foundation SDK
-/// types. Structure is included explicitly so abstract/custom structures can be rejected
-/// deterministically rather than silently treated as a scalar ExtensionObject.
+/// types. Unknown and Structure are included explicitly so custom or unrecognized types
+/// can be rejected deterministically rather than silently treated as a scalar value.
 /// </summary>
 public enum OpcUaBuiltInDataType
 {
+    Unknown,
     Boolean,
     SByte,
     Byte,
@@ -63,6 +64,7 @@ public static class OpcUaDataTypeMapper
 
         return builtInType switch
         {
+            OpcUaBuiltInDataType.Unknown => Unsupported("The OPC UA data type is not recognized by the current driver mapping."),
             OpcUaBuiltInDataType.Boolean => Direct(TagDataType.Boolean),
             OpcUaBuiltInDataType.SByte => Adapt(TagDataType.Int16, "SByte is widened to Int16."),
             OpcUaBuiltInDataType.Byte => Adapt(TagDataType.Int16, "Byte is widened to Int16."),

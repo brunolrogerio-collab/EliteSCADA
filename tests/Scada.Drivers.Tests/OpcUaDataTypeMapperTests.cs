@@ -39,6 +39,7 @@ public sealed class OpcUaDataTypeMapperTests
     }
 
     [Theory]
+    [InlineData(OpcUaBuiltInDataType.Unknown)]
     [InlineData(OpcUaBuiltInDataType.UInt64)]
     [InlineData(OpcUaBuiltInDataType.ByteString)]
     [InlineData(OpcUaBuiltInDataType.ExtensionObject)]

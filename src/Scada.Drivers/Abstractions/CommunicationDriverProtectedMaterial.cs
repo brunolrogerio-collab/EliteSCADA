@@ -15,28 +15,21 @@ public sealed record CommunicationDriverProtectedMaterialRequest(
 {
     public void Validate()
     {
-        Require(ProjectKey, nameof(ProjectKey));
-        Require(DataSourceKey, nameof(DataSourceKey));
-        Require(DriverType, nameof(DriverType));
-        Require(Purpose, nameof(Purpose));
-        Require(Reference, nameof(Reference));
-
-        if (!string.Equals(ProjectKey, ProjectKey.Trim(), StringComparison.Ordinal))
-            throw new ArgumentException("Protected-material project key must not contain leading or trailing whitespace.", nameof(ProjectKey));
-        if (!string.Equals(DataSourceKey, DataSourceKey.Trim(), StringComparison.Ordinal))
-            throw new ArgumentException("Protected-material Data Source key must not contain leading or trailing whitespace.", nameof(DataSourceKey));
-        if (!string.Equals(DriverType, DriverType.Trim(), StringComparison.Ordinal))
-            throw new ArgumentException("Protected-material DriverType must not contain leading or trailing whitespace.", nameof(DriverType));
-        if (!string.Equals(Purpose, Purpose.Trim(), StringComparison.Ordinal))
-            throw new ArgumentException("Protected-material purpose must not contain leading or trailing whitespace.", nameof(Purpose));
-        if (!string.Equals(Reference, Reference.Trim(), StringComparison.Ordinal))
-            throw new ArgumentException("Protected-material reference must not contain leading or trailing whitespace.", nameof(Reference));
+        ValidateToken(ProjectKey, nameof(ProjectKey), "project key");
+        ValidateToken(DataSourceKey, nameof(DataSourceKey), "Data Source key");
+        ValidateToken(DriverType, nameof(DriverType), "DriverType");
+        ValidateToken(Purpose, nameof(Purpose), "purpose");
+        ValidateToken(Reference, nameof(Reference), "reference");
     }
 
-    private static void Require(string value, string parameterName)
+    private static void ValidateToken(string value, string parameterName, string displayName)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException($"{parameterName} is required for protected-material resolution.", parameterName);
+            throw new ArgumentException($"Protected-material {displayName} is required.", parameterName);
+        if (!string.Equals(value, value.Trim(), StringComparison.Ordinal))
+            throw new ArgumentException($"Protected-material {displayName} must not contain leading or trailing whitespace.", parameterName);
+        if (value.IndexOfAny(['\r', '\n', '\0']) >= 0)
+            throw new ArgumentException($"Protected-material {displayName} contains invalid control characters.", parameterName);
     }
 }
 

@@ -1,0 +1,54 @@
+name: elitescada-interop-lab
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.1.2-alpine
+    container_name: elitescada-lab-mosquitto
+    ports:
+      - "${MQTT_PORT:-1883}:1883"
+    volumes:
+      - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_pub -h 127.0.0.1 -p 1883 -t elitescada/lab/health -m ping -q 0 >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 3s
+    networks:
+      - interop
+
+  node-red:
+    build:
+      context: ./node-red
+      dockerfile: Dockerfile
+    container_name: elitescada-lab-node-red
+    ports:
+      - "${NODE_RED_PORT:-1880}:1880"
+      - "${OPCUA_PORT:-4840}:4840"
+    environment:
+      TZ: ${TZ:-America/Sao_Paulo}
+      ELITESCADA_BASE_URL: ${ELITESCADA_BASE_URL:-http://host.docker.internal:5000}
+      LAB_MQTT_HOST: mosquitto
+      LAB_MQTT_PORT: "1883"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:1880/lab/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    networks:
+      - interop
+
+networks:
+  interop:
+    name: elitescada-interop
+    driver: bridge

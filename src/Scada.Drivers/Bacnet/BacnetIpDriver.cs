@@ -782,18 +782,29 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
 
         if (_session is not IBacnetCovSubscriptionDiagnostics source) return;
         var snapshot = source.GetCovSubscriptionDiagnostics();
-        var createSubscribeRequests = initialSubscribeRequests + recreationSubscribeRequests;
-        var createSubscribeFailures = initialSubscribeFailures + recreationSubscribeFailures;
-        var renewalRequests = Math.Max(0L, snapshot.SubscribeRequests - createSubscribeRequests);
-        var renewalFailures = Math.Max(0L, snapshot.SubscribeFailures - createSubscribeFailures);
 
         protocolDetails["covSessionActiveSubscriptions"] = snapshot.ActiveSubscriptions.ToString(CultureInfo.InvariantCulture);
         protocolDetails["covSubscribeRequests"] = snapshot.SubscribeRequests.ToString(CultureInfo.InvariantCulture);
         protocolDetails["covSubscribeFailures"] = snapshot.SubscribeFailures.ToString(CultureInfo.InvariantCulture);
-        protocolDetails["covRenewalRequests"] = renewalRequests.ToString(CultureInfo.InvariantCulture);
-        protocolDetails["covRenewalFailures"] = renewalFailures.ToString(CultureInfo.InvariantCulture);
+        protocolDetails["covRenewalRequests"] = snapshot.RenewalRequests.ToString(CultureInfo.InvariantCulture);
+        protocolDetails["covRenewalFailures"] = snapshot.RenewalFailures.ToString(CultureInfo.InvariantCulture);
+        protocolDetails["covRenewalTrackedRoutes"] = (snapshot.Routes?.Count ?? 0).ToString(CultureInfo.InvariantCulture);
         protocolDetails["covCancelRequests"] = snapshot.CancelRequests.ToString(CultureInfo.InvariantCulture);
         protocolDetails["covCancelFailures"] = snapshot.CancelFailures.ToString(CultureInfo.InvariantCulture);
+        if (snapshot.SubscriptionLifetime.HasValue)
+            protocolDetails["covSubscriptionLifetimeSeconds"] = snapshot.SubscriptionLifetime.Value.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture);
+        if (snapshot.RenewalInterval.HasValue)
+            protocolDetails["covRenewalIntervalSeconds"] = snapshot.RenewalInterval.Value.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture);
+        if (snapshot.RetryInterval.HasValue)
+            protocolDetails["covRenewalRetrySeconds"] = snapshot.RetryInterval.Value.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture);
+        if (snapshot.LastRenewalRequestAt.HasValue)
+            protocolDetails["covLastRenewalRequestAtUtc"] = snapshot.LastRenewalRequestAt.Value.ToString("O", CultureInfo.InvariantCulture);
+        if (snapshot.NextRenewalAttemptAt.HasValue)
+            protocolDetails["covNextRenewalAttemptAtUtc"] = snapshot.NextRenewalAttemptAt.Value.ToString("O", CultureInfo.InvariantCulture);
+        if (snapshot.LastRenewalFailureAt.HasValue)
+            protocolDetails["covLastRenewalFailureAtUtc"] = snapshot.LastRenewalFailureAt.Value.ToString("O", CultureInfo.InvariantCulture);
+        if (!string.IsNullOrWhiteSpace(snapshot.LastRenewalErrorType))
+            protocolDetails["covLastRenewalErrorType"] = snapshot.LastRenewalErrorType;
         if (!string.IsNullOrWhiteSpace(snapshot.LastErrorType))
             protocolDetails["covLastErrorType"] = snapshot.LastErrorType;
     }

@@ -23,7 +23,7 @@ Worker convergence integrated into the Wave 10 train:
 - DEV 1 / #149: canonical visual Events editor and persisted event associations, including Timer `timerIntervalMs`, typed TAG identity `tagId + selector` and stable Client Memory identity; integrated through PR #156 after coordinator fixes and exact-head validation.
 - Coordinator runtime composition: PR #170 merged into the integration train as merge commit `ee5d3c3f622765f79b49f32fa92c22760d195ae2`.
 
-Coordinator product implementation before documentation-only checkpoint commits was exact head:
+Coordinator functional product implementation before documentation-only checkpoint commits was exact head:
 
 `8b7871bcd5a14ae17ffb070732f5a92c60462536`
 
@@ -43,6 +43,10 @@ The locked public precedence remains:
 `Animation > Script > Binding/Expression > Engineering > Default`
 
 Engineering remains immutable; runtime Script/Animation overlays are transient and fail closed. Screen and Popup instances are isolated by mounted runtime context.
+
+The current integration head after documentation-only checkpoint updates is:
+
+`02fb0a15d6dc472d86dafbd09b17801cae8bbbdf`
 
 ### IMPLEMENTED IN PR
 

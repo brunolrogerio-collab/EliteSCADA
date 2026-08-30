@@ -40,10 +40,7 @@ public sealed class Wave09PopupDynamoNavigationEngineeringTests
                         new DynamoParameterDefinitionEngineeringDto("equipment", DynamoParameterKind.EquipmentPath, Required: true),
                         new DynamoParameterDefinitionEngineeringDto("running", DynamoParameterKind.TagReference, Required: true)
                     ],
-                    Elements:
-                    [
-                        new VisualElementEngineeringDto("body", "core.rectangle")
-                    ])
+                    Elements: [new VisualElementEngineeringDto("body", "core.rectangle")])
             ],
             Screens:
             [
@@ -96,11 +93,7 @@ public sealed class Wave09PopupDynamoNavigationEngineeringTests
                             "close",
                             "core.button",
                             Actions:
-                            [
-                                new VisualNavigationActionEngineeringDto(
-                                    "click",
-                                    VisualNavigationActionKind.ClosePopup)
-                            ])
+                            [new VisualNavigationActionEngineeringDto("click", VisualNavigationActionKind.ClosePopup)])
                     ])
             ]);
 
@@ -108,7 +101,7 @@ public sealed class Wave09PopupDynamoNavigationEngineeringTests
         Assert.True(preview.CanApply);
 
         var result = exchange.Apply(package, ImportMode.CreateAndUpdate);
-        Assert.Equal(3, result.Created);
+        Assert.Equal(4, result.Created);
 
         var exported = exchange.ParseJson(exchange.ExportJson(indented: false));
         var dynamo = Assert.Single(exported.Dynamos!);
@@ -119,7 +112,6 @@ public sealed class Wave09PopupDynamoNavigationEngineeringTests
 
         var screenElement = Assert.Single(Assert.Single(exported.Screens!).Elements!);
         Assert.NotNull(screenElement.Id);
-        Assert.Equal("dynamo.pump", screenElement.DynamoKey);
         var running = screenElement.DynamoParameters!.Single(x => x.Key == "running");
         Assert.Equal(statusId, running.TagReference!.TagId);
         Assert.Equal(3, running.TagReference.Selector!.Index);

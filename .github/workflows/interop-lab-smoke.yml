@@ -25,9 +25,13 @@ jobs:
       - name: Validate Node-RED flow JSON
         run: python -m json.tool interop-lab/node-red/flows.json >/dev/null
 
-      - name: Validate Compose model
+      - name: Validate base Compose model
         working-directory: interop-lab
         run: docker compose -f compose.yaml config >/dev/null
+
+      - name: Validate CIP overlay Compose model
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml -f compose.cip.yaml config >/dev/null
 
       - name: Build and start base lab
         working-directory: interop-lab

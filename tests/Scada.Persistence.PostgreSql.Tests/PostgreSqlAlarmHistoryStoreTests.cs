@@ -55,8 +55,8 @@ public sealed class PostgreSqlAlarmHistoryStoreTests
                 [HistoricalQueryValue.FromNumber((int)AlarmPriority.High)]),
             new HistoricalFilter(
                 "tag.path",
-                HistoricalFilterOperator.Contains,
-                [HistoricalQueryValue.FromString("Integration.Alarm")])
+                HistoricalFilterOperator.Eq,
+                [HistoricalQueryValue.FromString(tagPath)])
         };
         var first = await store.QueryAsync(new HistoricalQueryExecution(
             dataset,

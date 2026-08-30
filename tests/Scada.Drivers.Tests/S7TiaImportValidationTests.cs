@@ -9,6 +9,8 @@ public sealed class S7TiaImportValidationTests
     [Theory]
     [InlineData("%M0.0", S7IsoValueType.Boolean, true)]
     [InlineData("%MB4", S7IsoValueType.Byte, true)]
+    [InlineData("%MB4", S7IsoValueType.SInt, true)]
+    [InlineData("%MW4", S7IsoValueType.SInt, false)]
     [InlineData("%MW4", S7IsoValueType.Int16, true)]
     [InlineData("%MD4", S7IsoValueType.Float32, true)]
     [InlineData("%MW4", S7IsoValueType.Float32, false)]

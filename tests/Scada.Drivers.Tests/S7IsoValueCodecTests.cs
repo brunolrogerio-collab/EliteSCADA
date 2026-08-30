@@ -55,6 +55,27 @@ public sealed class S7IsoValueCodecTests
     }
 
     [Fact]
+    public void WString_UsesWordHeaderAndStrictUtf16BigEndian()
+    {
+        var point = new S7IsoPoint(
+            Tag(TagDataType.String),
+            S7IsoArea.DataBlock,
+            40,
+            S7IsoValueType.WString,
+            DbNumber: 1,
+            StringLength: 5);
+
+        var encoded = S7IsoValueCodec.Encode(point, "AΩ");
+
+        Assert.Equal(14, encoded.Length);
+        Assert.Equal(
+            new byte[] { 0x00, 0x05, 0x00, 0x02, 0x00, 0x41, 0x03, 0xA9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+            encoded);
+        Assert.Equal("AΩ", S7IsoValueCodec.Decode(point, encoded));
+        Assert.Throws<ArgumentException>(() => S7IsoValueCodec.Encode(point, "\uD800"));
+    }
+
+    [Fact]
     public void DateTime_RoundTripsS7BcdLayout()
     {
         var point = new S7IsoPoint(

@@ -18,7 +18,9 @@ internal sealed record S7IsoTransportDiagnosticSnapshot(
     long ReconnectCount,
     DateTimeOffset? LastConnectedAt,
     DateTimeOffset? LastDisconnectedAt,
-    S7IsoFailureKind? LastFailureKind);
+    S7IsoFailureKind? LastFailureKind,
+    int LastReadBatchCount,
+    int LastReadPointCount);
 
 internal sealed record S7IsoReadCollectionResult(
     IReadOnlyList<S7IsoReadItemResult> Items,
@@ -44,6 +46,8 @@ internal sealed class S7IsoTransport : IAsyncDisposable
     private DateTimeOffset? _lastConnectedAt;
     private DateTimeOffset? _lastDisconnectedAt;
     private S7IsoFailureKind? _lastFailureKind;
+    private int _lastReadBatchCount;
+    private int _lastReadPointCount;
     private bool _disposed;
 
     public S7IsoTransport(S7IsoConnectionOptions options)
@@ -93,10 +97,13 @@ internal sealed class S7IsoTransport : IAsyncDisposable
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(points);
         if (points.Count == 0)
+        {
+            RecordReadPlan(0, 0);
             return new S7IsoReadCollectionResult(
                 Array.Empty<S7IsoReadItemResult>(),
                 new Dictionary<S7IsoPoint, string>(),
                 new Dictionary<S7IsoPoint, string>());
+        }
 
         await _ioGate.WaitAsync(cancellationToken);
         try
@@ -112,6 +119,7 @@ internal sealed class S7IsoTransport : IAsyncDisposable
             }
             catch (Exception ex)
             {
+                RecordReadPlan(0, 0);
                 foreach (var point in points) communicationFailures[point] = ex.Message;
                 return new S7IsoReadCollectionResult(
                     Array.Empty<S7IsoReadItemResult>(),
@@ -148,6 +156,7 @@ internal sealed class S7IsoTransport : IAsyncDisposable
                 throw new S7IsoConfigurationException(ex.Message);
             }
 
+            RecordReadPlan(batches.Count, validPoints.Count);
             var results = new List<S7IsoReadItemResult>(validPoints.Count);
             for (var batchIndex = 0; batchIndex < batches.Count; batchIndex++)
             {
@@ -278,7 +287,9 @@ internal sealed class S7IsoTransport : IAsyncDisposable
                 _reconnectCount,
                 _lastConnectedAt,
                 _lastDisconnectedAt,
-                _lastFailureKind);
+                _lastFailureKind,
+                _lastReadBatchCount,
+                _lastReadPointCount);
         }
     }
 
@@ -480,6 +491,15 @@ internal sealed class S7IsoTransport : IAsyncDisposable
     private void RecordFailure(S7IsoFailureKind kind)
     {
         lock (_diagnosticsGate) _lastFailureKind = kind;
+    }
+
+    private void RecordReadPlan(int batchCount, int pointCount)
+    {
+        lock (_diagnosticsGate)
+        {
+            _lastReadBatchCount = batchCount;
+            _lastReadPointCount = pointCount;
+        }
     }
 
     private void DisconnectUnsafe()

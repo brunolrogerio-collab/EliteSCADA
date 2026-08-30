@@ -27,7 +27,7 @@ public sealed class MqttTransportSafetyTests
     }
 
     [Fact]
-    public async Task MaximumWireKeepAliveRemainsValid()
+    public void MaximumWireKeepAliveRemainsValid()
     {
         var settings = new MqttConnectionSettings(
             "broker.invalid",

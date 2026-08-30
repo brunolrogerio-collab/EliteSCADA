@@ -313,8 +313,11 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter, IIec104Transp
                 }
                 catch (Exception ex)
                 {
-                    SignalSessionFailure(ex);
-                    throw;
+                    var ambiguous = new Iec104AmbiguousTransmissionException(
+                        $"IEC-104 I-format transmission failed after send sequence N(S) {frame.SendSequence} was reserved; peer delivery is ambiguous.",
+                        ex);
+                    SignalSessionFailure(ambiguous);
+                    throw ambiguous;
                 }
 
                 lock (_sequenceGate)

@@ -53,14 +53,14 @@ test('Historical Browser keeps canonical Int64 query values as exact decimal tex
   expect(formatHistoricalQueryValue({ kind: 'null', value: null })).toBe('—');
 });
 
-test('Historical Browser validates and projects canonical response columns, rows and opaque cursor', () => {
+test('Historical Browser validates and projects canonical response columns, operators, rows and opaque cursor', () => {
   const payload = {
     version: 1,
     datasetKey: 'historian.samples',
     columns: [
-      { field: 'tag.id', type: 'guid', filterable: true, sortable: false, searchable: false },
-      { field: 'value', type: 'scalar', filterable: true, sortable: false, searchable: false },
-      { field: 'timestamp', type: 'dateTime', filterable: true, sortable: true, searchable: false }
+      { field: 'tag.id', type: 'guid', operators: ['eq', 'notEq', 'in'], filterable: true, sortable: false, searchable: false },
+      { field: 'value', type: 'scalar', operators: ['eq', 'notEq', 'in'], filterable: true, sortable: false, searchable: false },
+      { field: 'timestamp', type: 'dateTime', operators: ['eq', 'notEq', 'in', 'gt', 'gte', 'lt', 'lte'], filterable: true, sortable: true, searchable: false }
     ],
     rows: [{
       cells: {
@@ -78,6 +78,7 @@ test('Historical Browser validates and projects canonical response columns, rows
   const response = normalizeHistoricalQueryResponse(payload);
   const page = projectHistoricalQueryResponse(response);
 
+  expect(response.columns[0].operators).toEqual(['eq', 'notEq', 'in']);
   expect(page.nextCursor).toBe('opaque-do-not-parse');
   expect(page.rows).toHaveLength(1);
   expect(page.rows[0].cells.value).toBe('9223372036854775807');
@@ -96,6 +97,17 @@ test('Historical Browser rejects malformed or unsupported query responses fail-c
     nextCursor: null,
     pageSize: 100
   })).toThrow('dataset is not allowlisted');
+
+  expect(() => normalizeHistoricalQueryResponse({
+    version: 1,
+    datasetKey: 'historian.samples',
+    columns: [{ field: 'tag.id', type: 'guid', operators: [], filterable: true, sortable: false, searchable: false }],
+    rows: [],
+    fromUtc: '2026-08-30T00:00:00Z',
+    toUtc: '2026-08-30T01:00:00Z',
+    nextCursor: null,
+    pageSize: 100
+  })).toThrow('filter capability is inconsistent');
 });
 
 test('Historical Browser projected page remains read-only presentation data', () => {
@@ -103,9 +115,9 @@ test('Historical Browser projected page remains read-only presentation data', ()
     version: 1,
     datasetKey: 'alarm.events',
     columns: [
-      { field: 'alarm.id', type: 'guid', filterable: true, sortable: false, searchable: false },
-      { field: 'state', type: 'enum', filterable: true, sortable: true, searchable: false },
-      { field: 'timestamp', type: 'dateTime', filterable: true, sortable: true, searchable: false }
+      { field: 'alarm.id', type: 'guid', operators: ['eq', 'notEq', 'in'], filterable: true, sortable: false, searchable: false },
+      { field: 'state', type: 'enum', operators: ['eq', 'notEq', 'in'], filterable: true, sortable: true, searchable: false },
+      { field: 'timestamp', type: 'dateTime', operators: ['eq', 'notEq', 'in', 'gt', 'gte', 'lt', 'lte'], filterable: true, sortable: true, searchable: false }
     ],
     rows: [{ cells: {
       'alarm.id': { kind: 'guid', value: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' },

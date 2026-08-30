@@ -18,7 +18,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      NO_PROXY: mqtt-secure.local,mqtt-crl.local,127.0.0.1,localhost
       no_proxy: mqtt-secure.local,mqtt-crl.local,127.0.0.1,localhost
 
     steps:

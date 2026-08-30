@@ -5,7 +5,7 @@ ARG OPEN62541_C_SHA256=9768d3f019ff67be0f9a815d0acd09a9e1906b0dcbb373512343aa41f
 ARG OPEN62541_H_SHA256=b6edbc3b2d213927750af9774adc13f3bb9bbfa52199aa46f9e57cf657186afe
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl gcc libc6-dev \
+    && apt-get install -y --no-install-recommends ca-certificates curl gcc libc6-dev libmbedtls-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
@@ -17,15 +17,16 @@ RUN curl -fsSL "https://github.com/open62541/open62541/releases/download/v${OPEN
 
 COPY server.c ./server.c
 
-# open62541 1.5.4 uses POSIX pthread APIs that glibc hides under strict C99
-# unless a feature-test macro is enabled. Keep C99 and expose the GNU/POSIX set.
+# The official open62541 1.5.4 amalgamation is built with MbedTLS support.
+# Keep strict C99, expose the POSIX APIs used by the amalgamation and link the
+# declared crypto dependency explicitly rather than altering generated headers.
 RUN gcc -std=c99 -D_GNU_SOURCE -O2 -Wall -Wextra -I. server.c open62541.c \
-    -o /usr/local/bin/elitescada-opcua-peer -pthread -lm
+    -o /usr/local/bin/elitescada-opcua-peer -pthread -lm -lmbedtls -lmbedx509 -lmbedcrypto
 
 FROM debian:bookworm-slim
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends netcat-openbsd \
+    && apt-get install -y --no-install-recommends netcat-openbsd libmbedtls14 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /usr/local/bin/elitescada-opcua-peer /usr/local/bin/elitescada-opcua-peer

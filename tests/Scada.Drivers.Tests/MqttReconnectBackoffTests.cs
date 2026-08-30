@@ -30,10 +30,8 @@ public sealed class MqttReconnectBackoffTests
             for (var sample = 0; sample < 32; sample++)
             {
                 var actual = backoff.ApplyJitter(baseDelay);
-                Assert.True(actual >= lower);
-                Assert.True(actual <= upper);
-                Assert.True(actual >= minimum);
-                Assert.True(actual <= maximum);
+                Assert.InRange(actual, lower, upper);
+                Assert.InRange(actual, minimum, maximum);
             }
         }
     }
@@ -42,6 +40,7 @@ public sealed class MqttReconnectBackoffTests
     public void JitterStillSpreadsAttemptsAtMaximumBaseDelay()
     {
         var maximum = TimeSpan.FromSeconds(30);
+        var minimumAtMaximumBase = TimeSpan.FromMilliseconds(22_500);
         var backoff = new MqttReconnectBackoff(
             TimeSpan.FromSeconds(1),
             maximum,
@@ -51,10 +50,9 @@ public sealed class MqttReconnectBackoffTests
             .Select(_ => backoff.ApplyJitter(maximum))
             .ToArray();
 
-        Assert.True(samples.All(delay => delay <= maximum));
-        Assert.True(samples.All(delay => delay >= TimeSpan.FromMilliseconds(22_500)));
+        Assert.All(samples, delay => Assert.InRange(delay, minimumAtMaximumBase, maximum));
         Assert.Contains(samples, delay => delay < maximum);
-        Assert.True(samples.Distinct().Count() > 1);
+        Assert.Contains(samples.Skip(1), delay => delay != samples[0]);
     }
 
     [Fact]
@@ -138,8 +136,7 @@ public sealed class MqttReconnectBackoffTests
         for (var sample = 0; sample < 32; sample++)
         {
             var delay = backoff.ApplyJitter(minimum);
-            Assert.True(delay >= minimum);
-            Assert.True(delay <= maximum);
+            Assert.InRange(delay, minimum, maximum);
         }
 
         Assert.Equal(TimeSpan.FromTicks(minimum.Ticks * 2), backoff.NextBaseDelay(minimum));

@@ -132,7 +132,46 @@ Shared convergence authority remains `docs/DRIVER-CONVERGENCE-COORDINATION-V1.md
 
 Drivers may continue bounded protocol-owned work in parallel, but must not edit Coordinator-owned shared contracts, the Wave 10 integration branch or `main` without Coordinator acceptance.
 
-At Wave 10 activation, OPC UA independent-software interoperability work was parked in PR #148 and did not block Wave 10.
+### Current Driver handoff state
+
+The detailed authoritative snapshot is:
+
+`docs/DRIVER-AND-INTEROP-LAB-STATUS.md`
+
+Observed state at this assignment update:
+
+- D4 BACnet/IP: head `2ced8481...`, Draft #109, exact-head CI #787 green; parked/reviewable.
+- D5 Allen-Bradley CIP: head `18ff6dc9...`, Draft #111, exact-head CI #785 green; parked/reviewable.
+- D6 IEC-104: head `d597ef5e...`, Draft #146, exact-head CI #798 green; formal milestone/handoff now complete and ready for Coordinator convergence review.
+- D7 DNP3: head `ac0dd694...`, Draft #108, exact-head CI #697 green; parked/reviewable, independent peer and commercial Step Function licensing remain.
+- D8 Siemens S7: head `0c37b922...`, Draft #135, exact-head CI #789 green; parked/reviewable.
+- D9 OPC UA: head `8ba5870d...`, no worker handoff PR and no Actions run on canonical worker branch; not review-ready.
+- D10 MQTT: head `fd2f3cbb...`, Draft #128, exact-head CI #791 green; parked/reviewable, live product-path broker evidence remains.
+
+No Driver branch is authorized for direct merge to `main` merely because its worker CI is green.
+
+## Interoperability Lab assignment/status
+
+`interop-lab/` is independent test infrastructure and must not become a second product runtime.
+
+Current evidence boundary:
+
+- base lab build/start works;
+- MQTT lab round-trip smoke works;
+- CIP overlay Compose model validates, but complete Driver 5 product-path acceptance is not yet proven by the standard lab smoke;
+- IEC-104, DNP3, S7 and BACnet independent-peer scenarios remain to be added/accepted;
+- OPC UA independent peer work is in PR #148, branch `coordination/driver-interop-opcua-v1`.
+
+For PR #148 exact observed head `ffa810c2a4e6524fdb4d05c7c094a899e80af67b`:
+
+- normal EliteSCADA CI #807 is green;
+- Interop Lab Smoke #8 is red;
+- failure occurs while building/starting the independent open62541 peer;
+- the OPC UA interoperability smoke is skipped after that failure.
+
+Therefore no accepted OPC UA L2 independent-software interoperability claim exists yet from PR #148. Do not merge the PR until the dedicated lab gate is green on the exact head and normal CI remains green for the integration decision.
+
+Lab work does not block Wave 10 unless it modifies a shared canonical product contract.
 
 ## Shared locks
 
@@ -145,6 +184,7 @@ At Wave 10 activation, OPC UA independent-software interoperability work was par
 - Client Memory references preserve stable definition identity.
 - Driver registry dispatch uses stable Driver type and duplicate registrations fail closed.
 - Runtime readiness means protocol/Data Source readiness, not every point being `Good`.
+- Normal CI, independent-software interoperability and hardware/vendor acceptance are separate evidence levels and must be reported separately.
 
 ## Required worker handoff
 

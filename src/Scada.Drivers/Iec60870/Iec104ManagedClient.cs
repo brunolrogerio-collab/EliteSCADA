@@ -4,7 +4,7 @@ namespace Scada.Drivers.Iec60870;
 
 /// <summary>
 /// Long-lived IEC-104 client surface for a Data Source. It owns reconnect attempts and exposes commands
-/// only to the currently active session. Commands are never stored for replay across reconnects.
+/// only to the currently active, startup-ready session. Commands are never stored for replay across reconnects.
 /// </summary>
 public sealed class Iec104ManagedClient
 {
@@ -24,6 +24,7 @@ public sealed class Iec104ManagedClient
     private readonly string _runtimeInstanceId = Guid.NewGuid().ToString("N");
 
     private Iec104ClientSessionRunner? _activeSession;
+    private Iec104ReadinessState _readinessLifecycleState = Iec104ReadinessState.NotStarted;
     private int _attempt;
     private long _sessionFailures;
     private long _observedPointUpdates;
@@ -108,6 +109,40 @@ public sealed class Iec104ManagedClient
         }
     }
 
+    public Iec104ReadinessSnapshot GetReadiness()
+    {
+        lock (_gate)
+        {
+            var activeSession = _activeSession;
+            var sessionState = activeSession?.State ?? Iec104SessionState.Stopped;
+            var connected = activeSession?.IsTransportConnected ?? false;
+            var dataTransferStarted = activeSession?.IsDataTransferStarted ?? false;
+            var giCompleted = activeSession?.IsStartupGeneralInterrogationCompleted ?? false;
+            var giRejected = activeSession?.IsStartupGeneralInterrogationRejected ?? false;
+            var state = ResolveReadinessState(
+                _readinessLifecycleState,
+                activeSession,
+                connected,
+                dataTransferStarted,
+                giCompleted,
+                giRejected);
+
+            return new Iec104ReadinessSnapshot(
+                state,
+                sessionState,
+                connected,
+                dataTransferStarted,
+                giCompleted,
+                giRejected,
+                activeSession?.GeneralInterrogationStates ??
+                    new Dictionary<ushort, Iec104GeneralInterrogationState>(),
+                Volatile.Read(ref _attempt),
+                DateTimeOffset.UtcNow,
+                _lastFailureAt,
+                _lastError);
+        }
+    }
+
     public Iec104ManagedDiagnosticSnapshot GetDiagnostics()
     {
         lock (_gate)
@@ -161,18 +196,33 @@ public sealed class Iec104ManagedClient
         Interlocked.Increment(ref _commandsRequested);
 
         Iec104ClientSessionRunner? session;
+        var ready = false;
         lock (_gate)
+        {
             session = _activeSession;
+            if (session is not null)
+            {
+                ready = ResolveReadinessState(
+                    _readinessLifecycleState,
+                    session,
+                    session.IsTransportConnected,
+                    session.IsDataTransferStarted,
+                    session.IsStartupGeneralInterrogationCompleted,
+                    session.IsStartupGeneralInterrogationRejected) == Iec104ReadinessState.Ready;
+            }
+        }
 
         Iec104CommandResult result;
-        if (session is null)
+        if (session is null || !ready)
         {
             result = new Iec104CommandResult(
                 Iec104CommandOutcome.Rejected,
                 transaction.State,
                 ExecuteWasTransmitted: false,
                 WasAccepted: false,
-                "IEC-104 Data Source has no active session; command was not queued for replay.");
+                session is null
+                    ? "IEC-104 Data Source has no active session; command was not queued for replay."
+                    : "IEC-104 Data Source startup is not Ready; command was not sent or queued for replay.");
         }
         else
         {
@@ -192,6 +242,8 @@ public sealed class Iec104ManagedClient
 
         var backoff = new Iec104ReconnectBackoff(_reconnectPolicy);
         Volatile.Write(ref _attempt, 0);
+        lock (_gate)
+            _readinessLifecycleState = Iec104ReadinessState.Starting;
 
         async ValueTask ObservePointAsync(Iec104DecodedPoint point, CancellationToken pointCancellationToken)
         {
@@ -201,89 +253,127 @@ public sealed class Iec104ManagedClient
             await onObservedPoint(point, pointCancellationToken).ConfigureAwait(false);
         }
 
-        while (true)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var attempt = Interlocked.Increment(ref _attempt);
-            var startedTimestamp = Stopwatch.GetTimestamp();
-
-            lock (_gate)
-                _lastSessionAttemptAt = DateTimeOffset.UtcNow;
-
-            await using var adapter = _adapterFactory()
-                ?? throw new InvalidOperationException("IEC-104 adapter factory returned null.");
-            var session = new Iec104ClientSessionRunner(
-                adapter,
-                _host,
-                _port,
-                _sessionOptions,
-                _stationTimeZone,
-                _commonAddresses,
-                _originatorAddress,
-                _commandOptions);
-            var sessionDiagnosticsAggregated = false;
-
-            lock (_gate)
-                _activeSession = session;
-
-            try
+            while (true)
             {
-                await session.RunAsync(ObservePointAsync, cancellationToken).ConfigureAwait(false);
-                if (!cancellationToken.IsCancellationRequested)
-                    throw new IOException("IEC-104 managed session ended without cancellation; reconnect is required.");
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception failure)
-            {
-                var sessionDuration = Stopwatch.GetElapsedTime(startedTimestamp);
-                var reset = sessionDuration >= _reconnectPolicy.StableSessionThreshold;
-                if (reset)
-                    backoff.Reset();
+                cancellationToken.ThrowIfCancellationRequested();
+                var attempt = Interlocked.Increment(ref _attempt);
+                var startedTimestamp = Stopwatch.GetTimestamp();
 
-                var delay = backoff.NextDelay();
-                var reconnectFailure = new Iec104ReconnectFailure(attempt, failure, sessionDuration, delay, reset);
-                Interlocked.Increment(ref _sessionFailures);
                 lock (_gate)
                 {
-                    _lastFailureAt = DateTimeOffset.UtcNow;
-                    _lastError = SanitizeError(failure);
-                    _lastFailedAttempt = attempt;
-                    _lastReconnectDelay = delay;
-                    _lastBackoffWasReset = reset;
+                    _readinessLifecycleState = Iec104ReadinessState.Starting;
+                    _lastSessionAttemptAt = DateTimeOffset.UtcNow;
                 }
 
-                if (onReconnectFailure is not null)
-                {
-                    await onReconnectFailure(
-                        reconnectFailure,
-                        cancellationToken).ConfigureAwait(false);
-                }
+                await using var adapter = _adapterFactory()
+                    ?? throw new InvalidOperationException("IEC-104 adapter factory returned null.");
+                var session = new Iec104ClientSessionRunner(
+                    adapter,
+                    _host,
+                    _port,
+                    _sessionOptions,
+                    _stationTimeZone,
+                    _commonAddresses,
+                    _originatorAddress,
+                    _commandOptions);
+                var sessionDiagnosticsAggregated = false;
 
-                Interlocked.Add(ref _testAsdusIgnored, session.IgnoredTestAsduCount);
-                sessionDiagnosticsAggregated = true;
                 lock (_gate)
-                {
-                    if (ReferenceEquals(_activeSession, session))
-                        _activeSession = null;
-                }
+                    _activeSession = session;
 
-                await _delayAsync(delay, cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                if (!sessionDiagnosticsAggregated)
+                try
+                {
+                    await session.RunAsync(ObservePointAsync, cancellationToken).ConfigureAwait(false);
+                    if (!cancellationToken.IsCancellationRequested)
+                        throw new IOException("IEC-104 managed session ended without cancellation; reconnect is required.");
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception failure)
+                {
+                    var sessionDuration = Stopwatch.GetElapsedTime(startedTimestamp);
+                    var reset = sessionDuration >= _reconnectPolicy.StableSessionThreshold;
+                    if (reset)
+                        backoff.Reset();
+
+                    var delay = backoff.NextDelay();
+                    var reconnectFailure = new Iec104ReconnectFailure(attempt, failure, sessionDuration, delay, reset);
+                    Interlocked.Increment(ref _sessionFailures);
+                    lock (_gate)
+                    {
+                        _readinessLifecycleState = Iec104ReadinessState.Faulted;
+                        _lastFailureAt = DateTimeOffset.UtcNow;
+                        _lastError = SanitizeError(failure);
+                        _lastFailedAttempt = attempt;
+                        _lastReconnectDelay = delay;
+                        _lastBackoffWasReset = reset;
+                    }
+
+                    if (onReconnectFailure is not null)
+                    {
+                        await onReconnectFailure(
+                            reconnectFailure,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+
                     Interlocked.Add(ref _testAsdusIgnored, session.IgnoredTestAsduCount);
+                    sessionDiagnosticsAggregated = true;
+                    lock (_gate)
+                    {
+                        if (ReferenceEquals(_activeSession, session))
+                            _activeSession = null;
+                    }
 
-                lock (_gate)
+                    await _delayAsync(delay, cancellationToken).ConfigureAwait(false);
+                }
+                finally
                 {
-                    if (ReferenceEquals(_activeSession, session))
-                        _activeSession = null;
+                    if (!sessionDiagnosticsAggregated)
+                        Interlocked.Add(ref _testAsdusIgnored, session.IgnoredTestAsduCount);
+
+                    lock (_gate)
+                    {
+                        if (ReferenceEquals(_activeSession, session))
+                            _activeSession = null;
+                    }
                 }
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            lock (_gate)
+                _readinessLifecycleState = Iec104ReadinessState.Stopped;
+            throw;
+        }
+        catch
+        {
+            lock (_gate)
+                _readinessLifecycleState = Iec104ReadinessState.Faulted;
+            throw;
+        }
+    }
+
+    private static Iec104ReadinessState ResolveReadinessState(
+        Iec104ReadinessState lifecycleState,
+        Iec104ClientSessionRunner? activeSession,
+        bool connected,
+        bool dataTransferStarted,
+        bool giCompleted,
+        bool giRejected)
+    {
+        if (lifecycleState is Iec104ReadinessState.NotStarted or Iec104ReadinessState.Stopped)
+            return lifecycleState;
+        if (lifecycleState == Iec104ReadinessState.Faulted)
+            return Iec104ReadinessState.Faulted;
+        if (activeSession?.State == Iec104SessionState.Faulted || giRejected)
+            return Iec104ReadinessState.Faulted;
+        if (activeSession is not null && connected && dataTransferStarted && giCompleted)
+            return Iec104ReadinessState.Ready;
+        return Iec104ReadinessState.Starting;
     }
 
     private void RecordCommandOutcome(Iec104CommandOutcome outcome)

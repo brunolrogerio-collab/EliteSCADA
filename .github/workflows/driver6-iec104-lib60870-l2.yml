@@ -20,6 +20,7 @@ jobs:
     env:
       ELITESCADA_IEC104_L2_HOST: 127.0.0.1
       ELITESCADA_IEC104_L2_PORT: 2404
+      ELITESCADA_IEC104_L2_RESTART_CONTAINER: elitescada-lab-iec104-lib60870
     steps:
       - name: Checkout
         uses: actions/checkout@v4

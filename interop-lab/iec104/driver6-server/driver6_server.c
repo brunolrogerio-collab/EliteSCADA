@@ -73,15 +73,46 @@ static bool interrogationHandler(void* parameter, IMasterConnection connection, 
     return true;
 }
 
+static bool isSupportedCommandType(int typeId)
+{
+    return typeId == C_SC_NA_1 ||
+           typeId == C_DC_NA_1 ||
+           typeId == C_SE_NA_1 ||
+           typeId == C_SE_NB_1 ||
+           typeId == C_SE_NC_1;
+}
+
+static bool commandIsSelect(int typeId, InformationObject io)
+{
+    switch (typeId)
+    {
+        case C_SC_NA_1:
+            return SingleCommand_isSelect((SingleCommand)io);
+        case C_DC_NA_1:
+            return DoubleCommand_isSelect((DoubleCommand)io);
+        case C_SE_NA_1:
+            return SetpointCommandNormalized_isSelect((SetpointCommandNormalized)io);
+        case C_SE_NB_1:
+            return SetpointCommandScaled_isSelect((SetpointCommandScaled)io);
+        case C_SE_NC_1:
+            return SetpointCommandShort_isSelect((SetpointCommandShort)io);
+        default:
+            return false;
+    }
+}
+
 static bool asduHandler(void* parameter, IMasterConnection connection, CS101_ASDU asdu)
 {
     (void)parameter;
 
-    if (CS101_ASDU_getTypeID(asdu) != C_SC_NA_1)
+    int typeId = (int)CS101_ASDU_getTypeID(asdu);
+    if (!isSupportedCommandType(typeId))
         return false;
 
     bool accepted = false;
-    bool commandedState = false;
+    bool selectPhase = false;
+    bool singleState = false;
+    bool publishSingleFeedback = false;
 
     if (CS101_ASDU_getCA(asdu) == 1 && CS101_ASDU_getCOT(asdu) == CS101_COT_ACTIVATION)
     {
@@ -90,37 +121,45 @@ static bool asduHandler(void* parameter, IMasterConnection connection, CS101_ASD
         {
             if (InformationObject_getObjectAddress(io) == 5000)
             {
-                commandedState = SingleCommand_getState((SingleCommand)io);
                 accepted = true;
+                selectPhase = commandIsSelect(typeId, io);
+                if (typeId == C_SC_NA_1)
+                {
+                    singleState = SingleCommand_getState((SingleCommand)io);
+                    publishSingleFeedback = !selectPhase;
+                }
             }
             InformationObject_destroy(io);
         }
     }
 
     IMasterConnection_sendACT_CON(connection, asdu, !accepted);
-    if (!accepted)
+    if (!accepted || selectPhase)
         return true;
 
     IMasterConnection_sendACT_TERM(connection, asdu);
 
-    CS101_AppLayerParameters alParams = IMasterConnection_getApplicationLayerParameters(connection);
-    CS101_ASDU feedback = CS101_ASDU_create(
-        alParams,
-        false,
-        CS101_COT_SPONTANEOUS,
-        0,
-        1,
-        false,
-        false);
-    InformationObject single = (InformationObject)SinglePointInformation_create(
-        NULL,
-        5001,
-        commandedState,
-        IEC60870_QUALITY_GOOD);
-    CS101_ASDU_addInformationObject(feedback, single);
-    InformationObject_destroy(single);
-    IMasterConnection_sendASDU(connection, feedback);
-    CS101_ASDU_destroy(feedback);
+    if (publishSingleFeedback)
+    {
+        CS101_AppLayerParameters alParams = IMasterConnection_getApplicationLayerParameters(connection);
+        CS101_ASDU feedback = CS101_ASDU_create(
+            alParams,
+            false,
+            CS101_COT_SPONTANEOUS,
+            0,
+            1,
+            false,
+            false);
+        InformationObject single = (InformationObject)SinglePointInformation_create(
+            NULL,
+            5001,
+            singleState,
+            IEC60870_QUALITY_GOOD);
+        CS101_ASDU_addInformationObject(feedback, single);
+        InformationObject_destroy(single);
+        IMasterConnection_sendASDU(connection, feedback);
+        CS101_ASDU_destroy(feedback);
+    }
 
     return true;
 }

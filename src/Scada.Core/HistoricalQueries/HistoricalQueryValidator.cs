@@ -123,7 +123,8 @@ public static class HistoricalQueryValidator
                     throw new ArgumentException(
                         "Historical relative range requires DurationSeconds and anchor=now and must not include absolute timestamps.",
                         nameof(range));
-                if (range.DurationSeconds.Value is < 1 or > MaximumRelativeDurationSeconds)
+                if (range.DurationSeconds.Value < 1 ||
+                    range.DurationSeconds.Value > MaximumRelativeDurationSeconds)
                     throw new ArgumentOutOfRangeException(
                         nameof(range),
                         $"Historical relative duration must be between 1 and {MaximumRelativeDurationSeconds} seconds.");

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Scada.Core.Tags;
 
 /// <summary>
@@ -12,6 +14,7 @@ public sealed record TagPhysicalValueTransform(
 {
     public const int CurrentContractVersion = 1;
 
+    [JsonIgnore]
     public bool IsIdentity => !ByteSwap && !WordSwap;
 
     public void Validate()
@@ -44,6 +47,7 @@ public sealed record CommunicationTagBinding(
 {
     public const int CurrentContractVersion = 1;
 
+    [JsonIgnore]
     public IReadOnlyDictionary<string, string> EffectiveSettings =>
         Settings ?? EmptySettings.Instance;
 

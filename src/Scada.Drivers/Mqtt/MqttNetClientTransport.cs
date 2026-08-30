@@ -355,8 +355,9 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
         }
         finally
         {
+            // Keep the coordination semaphore alive after public disposal. A concurrent caller
+            // may already have passed its disposed pre-check and be queued on this gate.
             _lifecycleGate.Release();
-            _lifecycleGate.Dispose();
         }
     }
 

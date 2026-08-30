@@ -94,6 +94,39 @@ public sealed class MqttTransportGenerationTests
         Assert.Equal("current-after-stale-disconnect", Encoding.UTF8.GetString(received.Payload.Span));
     }
 
+    [Fact]
+    public async Task DisposePreservesLifecycleGateForAlreadyQueuedCaller()
+    {
+        var client = new FakeMqttClient(blockFirstPublish: true);
+        var transport = new MqttNetClientTransport(new MqttClientFactory(), client);
+        var settings = CreateSettings();
+        var request = new MqttPublishRequest(
+            "plant/session-generation/write",
+            "1"u8.ToArray(),
+            MqttQosLevel.AtLeastOnce,
+            Retain: false);
+
+        using (var credentials = MqttResolvedCredentials.None)
+            await transport.ConnectAsync(settings, credentials);
+
+        var firstPublish = transport.PublishAsync(request).AsTask();
+        await client.FirstPublishEntered.WaitAsync(TimeSpan.FromSeconds(2));
+
+        // Dispose is queued first while the initial publish owns the lifecycle gate.
+        // The second publish then passes its public disposed pre-check and queues behind it.
+        var dispose = transport.DisposeAsync().AsTask();
+        var latePublish = transport.PublishAsync(request).AsTask();
+
+        client.ReleaseFirstPublish();
+        await firstPublish;
+        await dispose;
+
+        var exception = await Assert.ThrowsAsync<ObjectDisposedException>(() => latePublish);
+
+        Assert.Equal(typeof(MqttNetClientTransport).FullName, exception.ObjectName);
+        Assert.Equal(1, client.PublishCount);
+    }
+
     private static MqttConnectionSettings CreateSettings() => new(
         "broker.local",
         1883,
@@ -133,9 +166,18 @@ public sealed class MqttTransportGenerationTests
 
     private sealed class FakeMqttClient : IMqttClient
     {
+        private readonly bool _blockFirstPublish;
+        private readonly TaskCompletionSource<bool> _firstPublishEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<bool> _firstPublishRelease = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private Func<MqttApplicationMessageReceivedEventArgs, Task>? _applicationMessageReceivedAsync;
         private Func<MqttClientDisconnectedEventArgs, Task>? _disconnectedAsync;
         private MqttClientOptions? _options;
+        private int _publishCount;
+
+        public FakeMqttClient(bool blockFirstPublish = false)
+        {
+            _blockFirstPublish = blockFirstPublish;
+        }
 
         public event Func<MqttApplicationMessageReceivedEventArgs, Task> ApplicationMessageReceivedAsync
         {
@@ -171,6 +213,10 @@ public sealed class MqttTransportGenerationTests
 
         public MqttClientOptions Options => _options ?? throw new InvalidOperationException("Client has not connected yet.");
 
+        public Task FirstPublishEntered => _firstPublishEntered.Task;
+
+        public int PublishCount => Volatile.Read(ref _publishCount);
+
         public IReadOnlyList<Func<MqttApplicationMessageReceivedEventArgs, Task>> ApplicationMessageHandlers =>
             _applicationMessageReceivedAsync?.GetInvocationList()
                 .Cast<Func<MqttApplicationMessageReceivedEventArgs, Task>>()
@@ -180,6 +226,8 @@ public sealed class MqttTransportGenerationTests
             _disconnectedAsync?.GetInvocationList()
                 .Cast<Func<MqttClientDisconnectedEventArgs, Task>>()
                 .ToArray() ?? [];
+
+        public void ReleaseFirstPublish() => _firstPublishRelease.TrySetResult(true);
 
         public Task<MqttClientConnectResult> ConnectAsync(
             MqttClientOptions options,
@@ -206,10 +254,24 @@ public sealed class MqttTransportGenerationTests
         public Task PingAsync(CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
-        public Task<MqttClientPublishResult> PublishAsync(
+        public async Task<MqttClientPublishResult> PublishAsync(
             MqttApplicationMessage applicationMessage,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var publishNumber = Interlocked.Increment(ref _publishCount);
+            if (_blockFirstPublish && publishNumber == 1)
+            {
+                _firstPublishEntered.TrySetResult(true);
+                await _firstPublishRelease.Task.WaitAsync(cancellationToken);
+            }
+
+            return new MqttClientPublishResult(
+                packetIdentifier: null,
+                MqttClientPublishReasonCode.Success,
+                reasonString: string.Empty,
+                userProperties: Array.Empty<MqttUserProperty>());
+        }
 
         public Task SendEnhancedAuthenticationExchangeDataAsync(
             MqttEnhancedAuthenticationExchangeData data,
@@ -231,6 +293,7 @@ public sealed class MqttTransportGenerationTests
             IsConnected = false;
             _applicationMessageReceivedAsync = null;
             _disconnectedAsync = null;
+            _firstPublishRelease.TrySetResult(true);
         }
     }
 }

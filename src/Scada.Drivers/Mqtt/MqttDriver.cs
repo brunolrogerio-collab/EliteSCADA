@@ -22,6 +22,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
     private readonly IMqttClientTransport _transport;
     private readonly MqttCredentialResolver _credentialResolver;
     private readonly TimeSpan? _freshnessCheckInterval;
+    private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
     private readonly SemaphoreSlim _writeGate = new(1, 1);
     private readonly SemaphoreSlim _freshnessGate = new(1, 1);
     private readonly object _diagnosticsGate = new();
@@ -60,6 +61,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
     private long _timedOperations;
     private int _consecutiveConnectFailures;
     private bool _hasConnectedOnce;
+    private volatile bool _disposed;
 
     public MqttDriver(
         string driverId,
@@ -126,62 +128,58 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
         }
     }
 
-    public Task StartAsync(CancellationToken cancellationToken = default)
+    public async Task StartAsync(CancellationToken cancellationToken = default)
     {
-        if (_loop is { IsCompleted: false }) return Task.CompletedTask;
+        await _lifecycleGate.WaitAsync(cancellationToken);
+        try
+        {
+            ThrowIfDisposed();
+            cancellationToken.ThrowIfCancellationRequested();
 
-        foreach (var point in _points) _registry.Upsert(point.Tag);
-        Status = new DriverStatus(DriverId, Name, DriverState.Starting, DateTimeOffset.UtcNow);
-        TransitionCommunicationState(CommunicationDriverOperationalState.Starting);
+            if (_loop is { IsCompleted: false }) return;
 
-        _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _loop = RunAsync(_cts.Token);
-        _freshnessLoop = _freshnessCheckInterval.HasValue
-            ? RunFreshnessAsync(_freshnessCheckInterval.Value, _cts.Token)
-            : null;
-        Status = new DriverStatus(DriverId, Name, DriverState.Running, DateTimeOffset.UtcNow);
-        return Task.CompletedTask;
+            if (_cts is not null)
+                await StopCoreAsync();
+
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (var point in _points) _registry.Upsert(point.Tag);
+            Status = new DriverStatus(DriverId, Name, DriverState.Starting, DateTimeOffset.UtcNow);
+            TransitionCommunicationState(CommunicationDriverOperationalState.Starting);
+
+            _consecutiveConnectFailures = 0;
+            lock (_diagnosticsGate) _hasConnectedOnce = false;
+
+            var cts = new CancellationTokenSource();
+            _cts = cts;
+            Status = new DriverStatus(DriverId, Name, DriverState.Running, DateTimeOffset.UtcNow);
+            _loop = RunAsync(cts.Token);
+            _freshnessLoop = _freshnessCheckInterval.HasValue
+                ? RunFreshnessAsync(_freshnessCheckInterval.Value, cts.Token)
+                : null;
+        }
+        finally
+        {
+            _lifecycleGate.Release();
+        }
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
-        var cts = _cts;
-        if (cts is null) return;
-
-        var loop = _loop;
-        var freshnessLoop = _freshnessLoop;
-        Status = new DriverStatus(DriverId, Name, DriverState.Stopping, DateTimeOffset.UtcNow, UpdatesPublished: Interlocked.Read(ref _updatesPublished));
-        TransitionCommunicationState(CommunicationDriverOperationalState.Stopping);
-        await cts.CancelAsync();
-
-        if (loop is not null)
+        await _lifecycleGate.WaitAsync(cancellationToken);
+        try
         {
-            try { await loop.WaitAsync(cancellationToken); }
-            catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
+            if (_disposed) return;
+            await StopCoreAsync();
         }
-
-        if (freshnessLoop is not null)
+        finally
         {
-            try { await freshnessLoop.WaitAsync(cancellationToken); }
-            catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
-        }
-
-        await DisconnectTransportAsync(cancellationToken);
-        lock (_diagnosticsGate) _freshnessReferenceByTagId.Clear();
-        Status = new DriverStatus(DriverId, Name, DriverState.Stopped, DateTimeOffset.UtcNow, UpdatesPublished: Interlocked.Read(ref _updatesPublished));
-        TransitionCommunicationState(CommunicationDriverOperationalState.Stopped);
-
-        if (ReferenceEquals(_cts, cts))
-        {
-            _cts = null;
-            _loop = null;
-            _freshnessLoop = null;
-            cts.Dispose();
+            _lifecycleGate.Release();
         }
     }
 
     public ValueTask<TagValue?> ReadAsync(Guid tagId, CancellationToken cancellationToken = default)
     {
+        ThrowIfDisposed();
         cancellationToken.ThrowIfCancellationRequested();
         if (!_pointsByTagId.ContainsKey(tagId))
             throw new KeyNotFoundException($"MQTT TAG '{tagId}' was not found in driver '{DriverId}'.");
@@ -192,6 +190,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
 
     public async ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default)
     {
+        ThrowIfDisposed();
         if (!_pointsByTagId.TryGetValue(tagId, out var point))
             throw new KeyNotFoundException($"MQTT TAG '{tagId}' was not found in driver '{DriverId}'.");
         if (!point.Writable)
@@ -206,6 +205,7 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
         var started = Stopwatch.GetTimestamp();
         try
         {
+            ThrowIfDisposed();
             Interlocked.Increment(ref _requests);
             await _transport.PublishAsync(request, cancellationToken);
             Interlocked.Increment(ref _writeOperations);
@@ -294,13 +294,79 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
 
     public async ValueTask DisposeAsync()
     {
-        try { await StopAsync(); }
+        await _lifecycleGate.WaitAsync();
+        try
+        {
+            if (_disposed) return;
+            await StopCoreAsync();
+
+            await _writeGate.WaitAsync();
+            try
+            {
+                if (_disposed) return;
+                _disposed = true;
+                await _transport.DisposeAsync();
+            }
+            finally
+            {
+                _writeGate.Release();
+            }
+        }
         finally
         {
-            _cts?.Dispose();
-            _writeGate.Dispose();
-            _freshnessGate.Dispose();
-            await _transport.DisposeAsync();
+            _lifecycleGate.Release();
+        }
+    }
+
+    private async Task StopCoreAsync()
+    {
+        var cts = _cts;
+        if (cts is null) return;
+
+        var loop = _loop;
+        var freshnessLoop = _freshnessLoop;
+        Status = new DriverStatus(
+            DriverId,
+            Name,
+            DriverState.Stopping,
+            DateTimeOffset.UtcNow,
+            UpdatesPublished: Interlocked.Read(ref _updatesPublished));
+        TransitionCommunicationState(CommunicationDriverOperationalState.Stopping);
+        await cts.CancelAsync();
+
+        if (loop is not null)
+        {
+            try { await loop; }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
+        }
+
+        if (freshnessLoop is not null)
+        {
+            try { await freshnessLoop; }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
+        }
+
+        await DisconnectTransportAsync(CancellationToken.None);
+        lock (_diagnosticsGate)
+        {
+            _freshnessReferenceByTagId.Clear();
+            _hasConnectedOnce = false;
+        }
+        _consecutiveConnectFailures = 0;
+        Status = new DriverStatus(
+            DriverId,
+            Name,
+            DriverState.Stopped,
+            DateTimeOffset.UtcNow,
+            UpdatesPublished: Interlocked.Read(ref _updatesPublished));
+        TransitionCommunicationState(CommunicationDriverOperationalState.Stopped);
+
+        if (ReferenceEquals(_cts, cts))
+        {
+            _cts = null;
+            _loop = null;
+            _freshnessLoop = null;
+            cts.Dispose();
         }
     }
 
@@ -779,6 +845,11 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
         var minimumCheckTicks = TimeSpan.FromMilliseconds(25).Ticks;
         var maximumCheckTicks = TimeSpan.FromSeconds(1).Ticks;
         return TimeSpan.FromTicks(Math.Clamp(proposedTicks, minimumCheckTicks, maximumCheckTicks));
+    }
+
+    private void ThrowIfDisposed()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
     }
 
     private static string SanitizeError(Exception? error)

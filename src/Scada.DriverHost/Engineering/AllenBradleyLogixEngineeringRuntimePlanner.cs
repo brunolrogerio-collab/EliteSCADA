@@ -133,11 +133,11 @@ public static class AllenBradleyLogixEngineeringRuntimePlanner
 
             var tag = BuildTagDefinition(dto);
             var binding = new LogixTagBinding(
-                tag,
-                reference,
+                Tag: tag,
+                Reference: reference,
                 Writable: !dto.ReadOnly,
-                access,
-                constant);
+                ExternalAccess: access,
+                Constant: constant);
 
             try
             {
@@ -188,7 +188,7 @@ public static class AllenBradleyLogixEngineeringRuntimePlanner
         if (dto.ScaleMaximum.HasValue) metadata["scale.maximum"] = dto.ScaleMaximum.Value.ToString(CultureInfo.InvariantCulture);
         if (dto.Historian is not null)
         {
-            metadata["historian.enabled"] = dto.Historian.Enabled.ToString(CultureInfo.InvariantCulture);
+            metadata["historian.enabled"] = dto.Historian.Enabled.ToString();
             metadata["historian.strategy"] = dto.Historian.Strategy;
             Set(metadata, "historian.deadband", dto.Historian.Deadband);
             Set(metadata, "historian.periodMs", dto.Historian.PeriodMilliseconds);

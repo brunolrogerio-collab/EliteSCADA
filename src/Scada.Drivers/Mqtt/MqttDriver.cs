@@ -164,9 +164,9 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
             var cts = new CancellationTokenSource();
             _cts = cts;
             Status = new DriverStatus(DriverId, Name, DriverState.Running, DateTimeOffset.UtcNow);
-            _loop = RunAsync(cts.Token);
+            _loop = SuperviseRunAsync(cts);
             _freshnessLoop = _freshnessCheckInterval.HasValue
-                ? RunFreshnessAsync(_freshnessCheckInterval.Value, cts.Token)
+                ? SuperviseFreshnessAsync(_freshnessCheckInterval.Value, cts)
                 : null;
         }
         finally
@@ -457,6 +457,79 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
             _loop = null;
             _freshnessLoop = null;
             cts.Dispose();
+        }
+    }
+
+    private async Task SuperviseRunAsync(CancellationTokenSource sessionCts)
+    {
+        try
+        {
+            await RunAsync(sessionCts.Token);
+        }
+        catch (OperationCanceledException) when (sessionCts.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            if (sessionCts.IsCancellationRequested) return;
+            MarkTerminalWorkerFault(ex, sessionCts);
+            return;
+        }
+
+        if (Status.State == DriverState.Faulted && !sessionCts.IsCancellationRequested)
+            TryCancelSession(sessionCts);
+    }
+
+    private async Task SuperviseFreshnessAsync(TimeSpan checkInterval, CancellationTokenSource sessionCts)
+    {
+        try
+        {
+            await RunFreshnessAsync(checkInterval, sessionCts.Token);
+        }
+        catch (OperationCanceledException) when (sessionCts.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            if (sessionCts.IsCancellationRequested) return;
+            MarkTerminalWorkerFault(ex, sessionCts);
+
+            try
+            {
+                await DisconnectTransportAsync(CancellationToken.None);
+            }
+            catch (Exception disconnectError)
+            {
+                RecordFailureOnly(disconnectError);
+            }
+        }
+    }
+
+    private void MarkTerminalWorkerFault(Exception error, CancellationTokenSource sessionCts)
+    {
+        RecordFailureOnly(error);
+        TransitionCommunicationState(CommunicationDriverOperationalState.Faulted);
+        MarkReadinessFaulted(error);
+        Status = new DriverStatus(
+            DriverId,
+            Name,
+            DriverState.Faulted,
+            DateTimeOffset.UtcNow,
+            SanitizeError(error),
+            Interlocked.Read(ref _updatesPublished));
+        TryCancelSession(sessionCts);
+    }
+
+    private static void TryCancelSession(CancellationTokenSource sessionCts)
+    {
+        try
+        {
+            sessionCts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
         }
     }
 

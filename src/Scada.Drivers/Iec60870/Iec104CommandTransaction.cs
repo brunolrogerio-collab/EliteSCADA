@@ -171,7 +171,8 @@ public sealed class Iec104CommandTransaction
         ArgumentNullException.ThrowIfNull(asdu);
         if (asdu.Header.TypeId != TypeId ||
             asdu.Header.CommonAddress != CommonAddress ||
-            asdu.Header.CauseOfTransmission.OriginatorAddress != OriginatorAddress)
+            asdu.Header.CauseOfTransmission.OriginatorAddress != OriginatorAddress ||
+            asdu.Header.CauseOfTransmission.IsTest)
         {
             return false;
         }

@@ -52,7 +52,7 @@ public sealed class S7IsoRuntimeReadinessTests
         await using var driver = new S7IsoDriver(
             "s7-readiness-degraded",
             "S7 Readiness Degraded",
-            Options(server.Port),
+            Options(server.Port, reconnectDelay: TimeSpan.FromMilliseconds(300)),
             cache,
             new InMemoryTagRegistry(),
             new[] { goodPoint, oversizedPoint },
@@ -70,7 +70,7 @@ public sealed class S7IsoRuntimeReadinessTests
         Assert.Equal(S7IsoRuntimeReadinessState.Ready, readiness.State);
         Assert.True(readiness.InitialAcquisitionCompleted);
         Assert.Equal(1L, readiness.InitialAcquisitionAttempts);
-        Assert.Equal((ushort)240, readiness.NegotiatedPduSizeAtReady);
+        Assert.Equal((ushort)240, readiness.NegotiatedPduSizeAtReady!.Value);
         Assert.NotNull(readiness.ReadyAt);
         Assert.Null(readiness.LastError);
         Assert.Equal(CommunicationDriverOperationalState.Degraded, driver.GetCommunicationDiagnostics().State);
@@ -82,7 +82,7 @@ public sealed class S7IsoRuntimeReadinessTests
 
         var afterDrop = driver.GetS7IsoRuntimeReadiness();
         Assert.Equal(S7IsoRuntimeReadinessState.Ready, afterDrop.State);
-        Assert.Equal((ushort)240, afterDrop.NegotiatedPduSizeAtReady);
+        Assert.Equal((ushort)240, afterDrop.NegotiatedPduSizeAtReady!.Value);
         Assert.True(afterDrop.InitialAcquisitionCompleted);
         Assert.Equal(1L, afterDrop.InitialAcquisitionAttempts);
     }
@@ -121,7 +121,8 @@ public sealed class S7IsoRuntimeReadinessTests
 
     private static S7IsoConnectionOptions Options(
         int port,
-        TimeSpan? connectTimeout = null) => new(
+        TimeSpan? connectTimeout = null,
+        TimeSpan? reconnectDelay = null) => new(
         "127.0.0.1",
         S7CpuFamily.S71500,
         S7IsoConnectionMode.RackSlot,
@@ -131,7 +132,7 @@ public sealed class S7IsoRuntimeReadinessTests
         port: port,
         connectTimeout: connectTimeout ?? TimeSpan.FromMilliseconds(500),
         requestTimeout: TimeSpan.FromMilliseconds(250),
-        reconnectDelay: TimeSpan.FromMilliseconds(50));
+        reconnectDelay: reconnectDelay ?? TimeSpan.FromMilliseconds(50));
 
     private static int GetUnusedPort()
     {

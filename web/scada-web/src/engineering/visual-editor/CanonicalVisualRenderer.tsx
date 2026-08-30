@@ -90,7 +90,7 @@ function CanonicalElement({
   onVisualEvent?: (event: CanonicalVisualEvent) => void;
   runtimeIdentityPrefix?: string;
 }) {
-  if (element.dynamoKey) {
+  if (element.dynamoKey && dynamoDefinitions) {
     return <CanonicalDynamoElement
       element={element}
       locale={locale}

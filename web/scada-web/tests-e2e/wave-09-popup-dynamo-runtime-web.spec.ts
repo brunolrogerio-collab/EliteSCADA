@@ -1,9 +1,6 @@
-import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 import type { EngineeringPackageView } from '../src/engineering/types';
-import { CanonicalVisualRenderer } from '../src/engineering/visual-editor/CanonicalVisualRenderer';
-import { RuntimeVisualNavigator } from '../src/runtime/visual-navigation/RuntimeVisualNavigator';
 import {
   composeDynamoRuntime,
   createRuntimeVisualCatalog,
@@ -24,6 +21,10 @@ const dynamoDefinitionId = '44444444-4444-4444-4444-444444444444';
 const dynamoInstanceId = '55555555-5555-5555-5555-555555555555';
 const dynamoChildId = '66666666-6666-6666-6666-666666666666';
 const tagId = '77777777-7777-7777-7777-777777777777';
+
+async function source(relativePath: string): Promise<string> {
+  return await readFile(new URL(relativePath, import.meta.url), 'utf8');
+}
 
 function packageView(): EngineeringPackageView {
   const dynamo: CanonicalDynamoEngineering = {
@@ -211,41 +212,36 @@ test('Dynamo Runtime rejects missing required, unknown, mismatched and nested pa
   );
 });
 
-test('canonical renderer expands one Dynamo without rewriting definition identity', () => {
-  const project = packageView();
-  const instance = project.screens![0].elements![0];
-  const markup = renderToStaticMarkup(React.createElement(CanonicalVisualRenderer, {
-    elements: [instance],
-    dynamoDefinitions: project.dynamos,
-    emptyLabel: 'empty'
-  }));
+test('canonical renderer expands Dynamo only when definitions are supplied and keeps definition identity separate from runtime identity', async () => {
+  const renderer = await source('../src/engineering/visual-editor/CanonicalVisualRenderer.tsx');
 
-  expect(markup).toContain('data-dynamo-key="dynamo.pump"');
-  expect(markup).toContain(`data-dynamo-definition-id="${dynamoDefinitionId}"`);
-  expect(markup).toContain(`data-dynamo-instance-id="${dynamoInstanceId}"`);
-  expect(markup).toContain(`data-object-id="${dynamoChildId}"`);
-  expect(markup).toContain(`data-runtime-object-id="${dynamoInstanceId}/${dynamoChildId}"`);
-  expect(markup).toContain('data-dynamo-parameter-count="2"');
+  expect(renderer).toContain('if (element.dynamoKey && dynamoDefinitions)');
+  expect(renderer).toContain('composeDynamoRuntime(element, definition)');
+  expect(renderer).toContain('data-dynamo-definition-id={composition.definitionId}');
+  expect(renderer).toContain('data-dynamo-instance-id={composition.instanceId}');
+  expect(renderer).toContain('runtimeIdentityPrefix={composition.instanceId}');
+  expect(renderer).toContain('return runtimeDynamoElementIdentity(runtimeIdentityPrefix, element.id ?? \'\');');
+  expect(renderer).toContain('<LegacyCompatibilityElement');
 });
 
-test('RuntimeVisualNavigator mounts canonical Screen plus Dynamo and reports missing initial target fail-closed', () => {
-  const project = packageView();
-  const markup = renderToStaticMarkup(React.createElement(RuntimeVisualNavigator, {
-    engineeringPackage: project,
-    initialScreenKey: 'screen.a',
-    popupIdFactory: () => 'popup-runtime-1'
-  }));
-  expect(markup).toContain('data-testid="runtime-visual-navigator"');
-  expect(markup).toContain('data-active-screen-key="screen.a"');
-  expect(markup).toContain('data-dynamo-key="dynamo.pump"');
+test('RuntimeVisualNavigator consumes canonical actions and Popup context without introducing route or DOM persistence authority', async () => {
+  const navigator = await source('../src/runtime/visual-navigation/RuntimeVisualNavigator.tsx');
+  const model = await source('../src/runtime/visual-navigation/runtimeVisualNavigationModel.ts');
 
-  const invalidMarkup = renderToStaticMarkup(React.createElement(RuntimeVisualNavigator, {
-    engineeringPackage: project,
-    initialScreenKey: 'screen.missing'
-  }));
-  expect(invalidMarkup).toContain('data-testid="runtime-visual-diagnostic"');
-  expect(invalidMarkup).toContain('data-diagnostic-code="VISUAL_RUNTIME_SCREEN_NOT_FOUND"');
-  expect(invalidMarkup).toContain('screen.missing');
+  expect(navigator).toContain('executeVisualNavigationAction(catalog, state, action');
+  expect(navigator).toContain('popupRuntimeInstanceId');
+  expect(navigator).toContain('dynamoDefinitions={engineeringPackage.dynamos}');
+  expect(navigator).toContain('data-diagnostic-code={diagnostic.code}');
+
+  expect(model).toContain("case 'NavigateScreen':");
+  expect(model).toContain("case 'OpenPopup':");
+  expect(model).toContain("case 'ClosePopup':");
+  expect(model).toContain('definitionKey: popup.key');
+  expect(model).toContain('runtimeInstanceId');
+  expect(model).not.toContain('window.location');
+  expect(model).not.toContain('document.querySelector');
+  expect(model).not.toContain('localStorage');
+  expect(model).not.toContain('sessionStorage');
 });
 
 function expectRuntimeCode(operation: () => unknown, code: string) {

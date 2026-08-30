@@ -2,6 +2,11 @@ using System.Globalization;
 
 namespace Scada.Core.HistoricalQueries;
 
+public static class HistoricalQueryContract
+{
+    public const int Version = 1;
+}
+
 public static class HistoricalDatasets
 {
     public const string HistorianSamples = "historian.samples";
@@ -25,10 +30,14 @@ public enum HistoricalValueKind
     Guid,
     String,
     Enum,
+    Int16,
+    Int32,
+    Int64,
+    Float,
+    Double,
     Number,
     Boolean,
     DateTime,
-    Int64,
     Null
 }
 
@@ -51,11 +60,37 @@ public enum HistoricalSortDirection
     Descending
 }
 
+public enum HistoricalTimeRangeKind
+{
+    Absolute,
+    Relative
+}
+
 public sealed record HistoricalQueryValue(HistoricalValueKind Kind, string? Value)
 {
     public static HistoricalQueryValue FromGuid(Guid value) => new(HistoricalValueKind.Guid, value.ToString("D"));
     public static HistoricalQueryValue FromString(string value) => new(HistoricalValueKind.String, value);
     public static HistoricalQueryValue FromEnum(string value) => new(HistoricalValueKind.Enum, value);
+    public static HistoricalQueryValue FromInt16(short value) =>
+        new(HistoricalValueKind.Int16, value.ToString(CultureInfo.InvariantCulture));
+    public static HistoricalQueryValue FromInt32(int value) =>
+        new(HistoricalValueKind.Int32, value.ToString(CultureInfo.InvariantCulture));
+    public static HistoricalQueryValue FromInt64(long value) =>
+        new(HistoricalValueKind.Int64, value.ToString(CultureInfo.InvariantCulture));
+
+    public static HistoricalQueryValue FromFloat(float value)
+    {
+        if (!float.IsFinite(value))
+            throw new ArgumentOutOfRangeException(nameof(value), "Historical float values must be finite.");
+        return new(HistoricalValueKind.Float, value.ToString("R", CultureInfo.InvariantCulture));
+    }
+
+    public static HistoricalQueryValue FromDouble(double value)
+    {
+        if (!double.IsFinite(value))
+            throw new ArgumentOutOfRangeException(nameof(value), "Historical double values must be finite.");
+        return new(HistoricalValueKind.Double, value.ToString("R", CultureInfo.InvariantCulture));
+    }
 
     public static HistoricalQueryValue FromNumber(double value)
     {
@@ -64,29 +99,40 @@ public sealed record HistoricalQueryValue(HistoricalValueKind Kind, string? Valu
         return new(HistoricalValueKind.Number, value.ToString("R", CultureInfo.InvariantCulture));
     }
 
-    public static HistoricalQueryValue FromBoolean(bool value) => new(HistoricalValueKind.Boolean, value ? "true" : "false");
+    public static HistoricalQueryValue FromBoolean(bool value) =>
+        new(HistoricalValueKind.Boolean, value ? "true" : "false");
     public static HistoricalQueryValue FromDateTime(DateTimeOffset value) =>
         new(HistoricalValueKind.DateTime, value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture));
-    public static HistoricalQueryValue FromInt64(long value) =>
-        new(HistoricalValueKind.Int64, value.ToString(CultureInfo.InvariantCulture));
     public static HistoricalQueryValue Null() => new(HistoricalValueKind.Null, null);
 
     public Guid AsGuid() => Guid.Parse(Value ?? throw new InvalidOperationException("Historical value is null."));
-    public double AsNumber() => double.Parse(Value ?? throw new InvalidOperationException("Historical value is null."), CultureInfo.InvariantCulture);
+    public double AsNumber() => double.Parse(
+        Value ?? throw new InvalidOperationException("Historical value is null."),
+        CultureInfo.InvariantCulture);
     public bool AsBoolean() => bool.Parse(Value ?? throw new InvalidOperationException("Historical value is null."));
     public DateTimeOffset AsDateTime() => DateTimeOffset.Parse(
         Value ?? throw new InvalidOperationException("Historical value is null."),
         CultureInfo.InvariantCulture,
         DateTimeStyles.RoundtripKind);
-    public long AsInt64() => long.Parse(Value ?? throw new InvalidOperationException("Historical value is null."), CultureInfo.InvariantCulture);
+    public long AsInt64() => long.Parse(
+        Value ?? throw new InvalidOperationException("Historical value is null."),
+        CultureInfo.InvariantCulture);
 
     internal string CanonicalText() => $"{Kind}:{Value ?? "<null>"}";
 }
 
 public sealed record HistoricalTimeRange(
+    HistoricalTimeRangeKind Kind,
     DateTimeOffset? FromUtc = null,
     DateTimeOffset? ToUtc = null,
-    string? RelativePreset = null);
+    int? DurationSeconds = null)
+{
+    public static HistoricalTimeRange Absolute(DateTimeOffset fromUtc, DateTimeOffset toUtc) =>
+        new(HistoricalTimeRangeKind.Absolute, fromUtc, toUtc);
+
+    public static HistoricalTimeRange Relative(int durationSeconds) =>
+        new(HistoricalTimeRangeKind.Relative, DurationSeconds: durationSeconds);
+}
 
 public sealed record HistoricalFilter(
     string Field,
@@ -102,9 +148,10 @@ public sealed record HistoricalPageRequest(int Size = 100, string? Cursor = null
 public sealed record HistoricalQueryRequest(
     string Dataset,
     HistoricalTimeRange Range,
+    int Version = HistoricalQueryContract.Version,
     IReadOnlyList<HistoricalFilter>? Filters = null,
     string? Search = null,
-    HistoricalSort? Sort = null,
+    IReadOnlyList<HistoricalSort>? OrderBy = null,
     HistoricalPageRequest? Page = null);
 
 public sealed record HistoricalColumn(
@@ -117,6 +164,7 @@ public sealed record HistoricalColumn(
 public sealed record HistoricalQueryRow(IReadOnlyDictionary<string, HistoricalQueryValue> Cells);
 
 public sealed record HistoricalQueryResponse(
+    int Version,
     string Dataset,
     IReadOnlyList<HistoricalColumn> Columns,
     IReadOnlyList<HistoricalQueryRow> Rows,

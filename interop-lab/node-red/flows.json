@@ -7,7 +7,7 @@
     "info": "Test-only control plane. Do not put production credentials in this flow."
   },
   {
-    "id": "mqtt-broker",
+    "id": "8b54a1263d1472e1",
     "type": "mqtt-broker",
     "name": "Lab Mosquitto",
     "broker": "mosquitto",
@@ -30,7 +30,9 @@
     "willTopic": "",
     "willQos": "0",
     "willPayload": "",
-    "willMsg": {}
+    "willMsg": {},
+    "userProps": "",
+    "sessionExpiry": ""
   },
   {
     "id": "http-health",
@@ -154,7 +156,7 @@
     "userProps": "",
     "correl": "",
     "expiry": "",
-    "broker": "mqtt-broker",
+    "broker": "8b54a1263d1472e1",
     "x": 690,
     "y": 190,
     "wires": []
@@ -178,7 +180,7 @@
     "topic": "elitescada/lab/#",
     "qos": "2",
     "datatype": "auto-detect",
-    "broker": "mqtt-broker",
+    "broker": "8b54a1263d1472e1",
     "nl": false,
     "rap": true,
     "rh": 0,

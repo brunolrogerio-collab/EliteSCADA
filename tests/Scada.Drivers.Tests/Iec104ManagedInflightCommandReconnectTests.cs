@@ -46,6 +46,15 @@ public sealed class Iec104ManagedInflightCommandReconnectTests
         var runTask = client.RunAsync(static (_, _) => ValueTask.CompletedTask, cancellationToken: cts.Token);
         var firstGi = await first.NextSentAsync(cts.Token);
         Assert.Equal(Iec104TypeId.CIcNa1, firstGi.Header.TypeId);
+        await first.PublishAsync(CreateGeneralInterrogationResponse(
+            firstGi,
+            Iec104GeneralInterrogationTransaction.ActivationConfirmationCause), cts.Token);
+        await first.PublishAsync(CreateGeneralInterrogationResponse(
+            firstGi,
+            Iec104GeneralInterrogationTransaction.ActivationTerminationCause), cts.Token);
+        await WaitUntilAsync(
+            () => client.GetReadiness().State == Iec104ReadinessState.Ready,
+            cts.Token);
 
         var transaction = Iec104CommandTransaction.Single(
             commonAddress: 1,
@@ -78,6 +87,27 @@ public sealed class Iec104ManagedInflightCommandReconnectTests
 
         cts.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runTask);
+    }
+
+    private static Iec104AsduEnvelope CreateGeneralInterrogationResponse(
+        Iec104AsduEnvelope request,
+        byte cause)
+    {
+        var header = new Iec104AsduHeader(
+            Iec104TypeId.CIcNa1,
+            ObjectCount: 1,
+            IsSequence: false,
+            new Iec104CauseOfTransmission(
+                cause,
+                request.Header.CauseOfTransmission.OriginatorAddress),
+            request.Header.CommonAddress);
+        return Iec104AsduEnvelope.Create(header, request.Payload.Span);
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> predicate, CancellationToken cancellationToken)
+    {
+        while (!predicate())
+            await Task.Delay(10, cancellationToken);
     }
 
     private sealed class InteractiveAdapter : IIec104ClientAdapter
@@ -137,6 +167,11 @@ public sealed class Iec104ManagedInflightCommandReconnectTests
             _sentSignal.Dispose();
             return ValueTask.CompletedTask;
         }
+
+        public ValueTask PublishAsync(
+            Iec104AsduEnvelope asdu,
+            CancellationToken cancellationToken = default) =>
+            _incoming.Writer.WriteAsync(asdu, cancellationToken);
 
         public void FailRead(Exception failure)
         {

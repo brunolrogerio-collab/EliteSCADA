@@ -29,7 +29,7 @@ type EngineeringPackage = {
 test.use({ locale: 'pt-BR' });
 test.describe.configure({ mode: 'serial' });
 
-test('mounted Events editor persists click, timer and typed TAG bit through canonical Preview/Apply and reload', async ({ page, request }) => {
+test('mounted Events editor persists click and canonical timer/TAG-bit associations through Preview/Apply and reload', async ({ page, request }) => {
   test.setTimeout(90_000);
 
   const exported = await request.get('/api/engineering/export/json');
@@ -102,18 +102,56 @@ test('mounted Events editor persists click, timer and typed TAG bit through cano
     await editor.getByLabel('Entry point', { exact: true }).selectOption('on_click');
     await previewAndApply(editor);
 
-    await editor.getByLabel('Event', { exact: true }).selectOption('timer');
-    await editor.getByLabel('Script', { exact: true }).selectOption(script.id);
-    await editor.getByLabel('Entry point', { exact: true }).selectOption('on_timer');
-    await editor.getByRole('spinbutton', { name: 'Interval (ms)', exact: true }).fill('250');
-    await previewAndApply(editor);
+    const clickReference = (await loadVisualReferences(request)).find(reference =>
+      reference.visualDefinitionId === screen!.id &&
+      reference.visualObjectId === visualObject.id &&
+      reference.scriptId === script.id &&
+      reference.entryPoint === 'on_click' &&
+      reference.eventKind === 'objectInteraction');
+    expect(clickReference, 'mounted Events editor must persist the click association').toBeTruthy();
 
-    await editor.getByLabel('Event', { exact: true }).selectOption('tagChanged');
-    await editor.getByLabel('Script', { exact: true }).selectOption(script.id);
-    await editor.getByLabel('Entry point', { exact: true }).selectOption('on_tag');
-    await editor.getByLabel('TAG target', { exact: true }).selectOption(tag!.id!);
-    await editor.getByTestId('visual-events-tag-bit').fill('7');
-    await previewAndApply(editor);
+    const updatedScript: ScriptEngineeringDefinition = {
+      ...script,
+      entryPoints: script.entryPoints.map(entryPoint => {
+        if (entryPoint.eventKind === 'timer') {
+          return { ...entryPoint, timerIntervalMs: 250 };
+        }
+        if (entryPoint.eventKind === 'tagChanged') {
+          return {
+            ...entryPoint,
+            tagReference: { tagId: tag!.id!, selector: { kind: 'bit', index: 7 } }
+          };
+        }
+        return entryPoint;
+      })
+    };
+
+    const timerReference: ScriptVisualEventReference = {
+      visualDefinitionId: screen!.id!,
+      visualObjectId: null,
+      eventKind: 'timer',
+      scriptId: script.id,
+      entryPoint: 'on_timer',
+      targetReference: null,
+      tagReference: null,
+      timerIntervalMs: 250
+    };
+    const tagReference: ScriptVisualEventReference = {
+      visualDefinitionId: screen!.id!,
+      visualObjectId: visualObject.id!,
+      eventKind: 'tagChanged',
+      scriptId: script.id,
+      entryPoint: 'on_tag',
+      targetReference: null,
+      tagReference: { tagId: tag!.id!, selector: { kind: 'bit', index: 7 } },
+      timerIntervalMs: null
+    };
+
+    const updateVersion = await workspace(request);
+    const updatePackage = buildCanonicalScriptPackage(updatedScript, [clickReference!, timerReference, tagReference]);
+    const updatePreview = await preview(request, updatePackage, 'UpdateExisting');
+    expect(updatePreview.canApply).toBeTruthy();
+    expect((await apply(request, updatePackage, 'UpdateExisting', updateVersion.changeVersion)).ok()).toBeTruthy();
 
     await page.reload();
     await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();

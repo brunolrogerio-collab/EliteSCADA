@@ -136,11 +136,11 @@ public static class S7IsoValueCodec
     {
         var declaredMaximum = raw[0];
         var length = raw[1];
-        if (declaredMaximum > point.StringLength)
+        if (declaredMaximum != point.StringLength)
             throw new FormatException(
-                $"S7 STRING declared maximum length {declaredMaximum} exceeds configured length {point.StringLength}.");
-        if (length > declaredMaximum || length > point.StringLength)
-            throw new FormatException($"S7 STRING current length {length} exceeds its declared/configured maximum.");
+                $"S7 STRING declared maximum length {declaredMaximum} does not match configured length {point.StringLength}.");
+        if (length > declaredMaximum)
+            throw new FormatException($"S7 STRING current length {length} exceeds its declared maximum {declaredMaximum}.");
 
         return Encoding.Latin1.GetString(raw.Slice(2, length));
     }
@@ -165,11 +165,11 @@ public static class S7IsoValueCodec
     {
         var declaredMaximum = BinaryPrimitives.ReadUInt16BigEndian(raw[..2]);
         var length = BinaryPrimitives.ReadUInt16BigEndian(raw.Slice(2, 2));
-        if (declaredMaximum > point.StringLength)
+        if (declaredMaximum != point.StringLength)
             throw new FormatException(
-                $"S7 WSTRING declared maximum length {declaredMaximum} exceeds configured length {point.StringLength}.");
-        if (length > declaredMaximum || length > point.StringLength)
-            throw new FormatException($"S7 WSTRING current length {length} exceeds its declared/configured maximum.");
+                $"S7 WSTRING declared maximum length {declaredMaximum} does not match configured length {point.StringLength}.");
+        if (length > declaredMaximum)
+            throw new FormatException($"S7 WSTRING current length {length} exceeds its declared maximum {declaredMaximum}.");
 
         return WStringEncoding.GetString(raw.Slice(4, checked(length * 2)));
     }
@@ -197,8 +197,18 @@ public static class S7IsoValueCodec
         var hour = FromBcd(raw[3], "hour");
         var minute = FromBcd(raw[4], "minute");
         var second = FromBcd(raw[5], "second");
-        var millisecond = FromBcd(raw[6], "millisecond high digits") * 10 + ((raw[7] >> 4) & 0x0F);
+        var millisecondTens = FromBcd(raw[6], "millisecond high digits");
+        var millisecondUnits = (raw[7] >> 4) & 0x0F;
+        if (millisecondUnits > 9)
+            throw new FormatException(
+                $"Invalid BCD millisecond units nibble 0x{millisecondUnits:X1} in S7 DATE_AND_TIME.");
 
+        var weekday = raw[7] & 0x0F;
+        if (weekday is < 1 or > 7)
+            throw new FormatException(
+                $"Invalid weekday value {weekday} in S7 DATE_AND_TIME; expected 1 through 7.");
+
+        var millisecond = millisecondTens * 10 + millisecondUnits;
         return new DateTime(year, month, day, hour, minute, second, millisecond, DateTimeKind.Unspecified);
     }
 

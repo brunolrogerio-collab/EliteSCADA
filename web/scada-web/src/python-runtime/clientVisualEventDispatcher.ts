@@ -201,14 +201,14 @@ function createInvalidatingClock(
 ): VisualTweenFrameClock {
   return Object.freeze({
     now: () => clock.now(),
-    requestFrame: callback => clock.requestFrame(timestampMs => {
+    requestFrame: (callback: (timestampMs: number) => void): number => clock.requestFrame(timestampMs => {
       try {
         callback(timestampMs);
       } finally {
         notify();
       }
     }),
-    cancelFrame: handle => clock.cancelFrame(handle)
+    cancelFrame: (handle: number): void => clock.cancelFrame(handle)
   });
 }
 

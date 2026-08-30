@@ -10,8 +10,10 @@ import type {
   ScriptImportPreview,
   ScriptVisualEventReference
 } from '../src/engineering/scripts/scriptEngineeringTypes';
+import { BUILTIN_VISUAL_OBJECT_TYPES } from '../src/visual-runtime/builtinVisualObjectSchemas';
 
 const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
+const registeredVisualObjectTypes = new Set<string>(Object.values(BUILTIN_VISUAL_OBJECT_TYPES));
 
 type VisualElement = {
   id?: string | null;
@@ -32,9 +34,10 @@ test('mounted Events editor persists click, timer and typed TAG bit through cano
   const exported = await request.get('/api/engineering/export/json');
   expect(exported.ok()).toBeTruthy();
   const project = await exported.json() as EngineeringPackage;
-  const screen = project.screens?.find(candidate => Boolean(candidate.id) && flatten(candidate.elements ?? []).some(element => Boolean(element.id)));
-  expect(screen, 'seeded demo must expose one persisted Screen with a persisted visual object').toBeTruthy();
-  const visualObject = flatten(screen!.elements ?? []).find(element => Boolean(element.id));
+  const screen = project.screens?.find(candidate =>
+    Boolean(candidate.id) && flatten(candidate.elements ?? []).some(isRegisteredPersistedVisualObject));
+  expect(screen, 'seeded demo must expose one persisted Screen with a registered persisted visual object').toBeTruthy();
+  const visualObject = flatten(screen!.elements ?? []).find(isRegisteredPersistedVisualObject);
   expect(visualObject).toBeTruthy();
 
   const tag = project.tags?.find(candidate => Boolean(candidate.id) && ['int16', 'int32', 'int64'].includes(candidate.dataType.toLowerCase()));
@@ -156,6 +159,10 @@ function makeScript(id: string, path: string, tagId: string): ScriptEngineeringD
 
 function flatten(elements: readonly VisualElement[]): VisualElement[] {
   return elements.flatMap(element => [element, ...flatten(element.children ?? [])]);
+}
+
+function isRegisteredPersistedVisualObject(element: VisualElement): boolean {
+  return Boolean(element.id) && registeredVisualObjectTypes.has(element.type);
 }
 
 async function workspace(request: APIRequestContext): Promise<{ changeVersion: number }> {

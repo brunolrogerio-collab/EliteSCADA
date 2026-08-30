@@ -1,96 +1,164 @@
 # COORDINATOR HANDOFF — EliteSCADA
 
-Date: 2026-08-29
-Status: **WAVE 09 ACTIVE / FOLLOW-A CLOSED / FOLLOW-B CLOSED**
+Date: 2026-08-30
+Status: **WAVE 10 ACTIVE / WAVE 09 CLOSED / DRIVER WORK PARALLEL-ISOLATED**
 
-## Operational truth
+## Read this first
 
-- Current validated product baseline on `main`: `dededaca980fdb72b5d4955685ab1161aca441fd`.
-- FOLLOW-A is closed; post-merge CI #543 is green.
-- FOLLOW-B is closed; exact final-head CI #657 and exact post-merge `main` CI #658 are green.
-- CI policy remains **NORMAL**.
-- GitHub state is the operational source of truth for branches, PRs and CI.
-- Wave work has priority over parallel Driver work.
-- Parallel Drivers remain isolated/parked and are not authorized for automatic merge to `main`.
+GitHub live state is the operational source of truth. Before every mutation or exact status assertion, re-read `main`, the relevant integration branch, worker branch/PR and current CI because multiple chats advance concurrently.
 
-## Closed gates: Wave 08 FOLLOW-A / FOLLOW-B
+Wave work has absolute priority over parallel Driver work.
 
-Do not rebuild or re-integrate their prior worker slices.
+CI policy is **NORMAL**:
 
-Permanent downstream contracts include:
+- do not run reassurance CI on unchanged product trees;
+- the exact final integration/product head must have green evidence before merge/stage transition;
+- after a Wave moves to `main`, require exact post-main green evidence before closing it.
 
-- integer TAG-bit identity is stable `TagId + selector`;
-- `.NN` remains friendly authoring/display syntax only;
-- typed visual expressions are side-effect-free and do not use arbitrary JavaScript/Python evaluation;
-- public visual property precedence remains `Animation > Script > Binding/Expression > Engineering Base > Default`;
-- Boolean Conditions and Analog Fill persist through canonical Engineering rather than renderer-private state;
-- Client Memory expression dependencies preserve the real stable Client Memory definition ID plus friendly path;
-- unavailable/bad-quality values fail closed with diagnostics rather than silently becoming `false`/`0`.
+## Current product baseline and Wave 10 activation
 
-Canonical documents:
+Wave 10 product `WaveBaseSHA`:
 
-- `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`;
-- `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.
+`bbfd730e404b0dee2c05e0ec0afb979b1b14ea35`
 
-## Active gate: Wave 09
+This was the healthy `main` product head used to freeze all Wave 10 branches. Normal CI was green on this product state before activation.
 
-Wave 09 covers:
+A later docs-only activation commit created `docs/WAVE-10-PYTHON-VISUAL-EVENTS-ANIMATION-PREVIEW.md` with `[skip ci]`; such coordination-only commits do not change the WaveBaseSHA.
 
-- Screens + Popups + Dynamos + navigation;
+Wave 10 integration branch:
+
+`integration/wave-10-python-visual-events-animation-preview`
+
+Worker branches/issues:
+
+- DEV 1: `dev1/wave-10-event-editor` — #149
+- DEV 2: `dev2/wave-10-runtime-animation-tween` — #150
+- DEV 3: `dev3/wave-10-python-preview-test` — #151
+- Coordinator: #152
+
+All three worker branches were created from the same `WaveBaseSHA` above.
+
+## Wave 10 goal
+
+Roadmap slice: Python visual events and animation authoring.
+
+Required exit path:
+
+`click -> canonical event binding -> Python entry point -> script visual command -> animated public visual property -> deterministic stable final result`
+
+Also require mounted Python Preview/Test with actionable traceback/failing-line diagnostics and protected-data redaction.
+
+Canonical coordination document:
+
+`docs/WAVE-10-PYTHON-VISUAL-EVENTS-ANIMATION-PREVIEW.md`
+
+Python/runtime boundary:
+
+`docs/PYTHON-SCRIPTING-AND-VISUAL-RUNTIME.md`
+
+### DEV 1
+
+Events editor and canonical associations for object/visual events, lifecycle, TAG value-change, Client Memory change and timers.
+
+Do not create a frontend-private second event model. If the canonical schema is insufficient, surface the smallest schema gap to the Coordinator.
+
+### DEV 2
+
+Deterministic runtime animation/tween execution over public canonical visual properties, including bounded duration, completion, replacement/cancellation and stable final value.
+
+Do not create renderer-private persisted truth or a second visual state/property model.
+
+### DEV 3
+
+Mounted Python Preview/Test through the accepted sandbox/runtime path with structured results, timeout/cancellation states, actionable traceback/failing line and secret/protected-context redaction.
+
+Do not create a second evaluator/Python host or private persistence path.
+
+### Coordinator-owned Wave 10 work
+
+- resolve only real shared event-binding schema gaps;
+- central DI/runtime bridge composition;
+- shared event dispatcher wiring;
+- cross-component animation arbitration changes when genuinely required;
+- review/integrate worker heads into the Wave 10 integration branch;
+- reconcile shared files;
+- run/assess the final end-to-end acceptance and exact-head CI;
+- transition to `main` only after exact integration-head green evidence.
+
+Permanent visual precedence remains:
+
+`Animation > Script > Binding/Expression > Engineering Base > Default`
+
+## Wave 09 — formally CLOSED
+
+Do not reopen or rebuild Wave 09 worker slices.
+
+Final Wave 09 integration/product head at closure:
+
+`4d081f442b4f21cbb29e0d6cd1e76d251b8610aa`
+
+Wave 09 closing records document both exact integration-head CI and exact post-main CI green before closure.
+
+Delivered scope includes:
+
+- Historical Query v1 (`historian.samples`, `alarm.events`);
+- typed/bounded filters/order, opaque cursor and exact Int64 decimal-string wire semantics;
+- Timescale historian and append-only PostgreSQL alarm history providers;
+- canonical Popup/Dynamo/navigation Engineering and Runtime Web;
 - Historical Data Browser;
-- Reporting / Report Designer.
+- Reporting Engineering/execution core and mounted Report Designer/Preview;
+- central Historical Query configuration/composition.
 
-Canonical contracts:
+## Parallel Drivers — policy and current handoff state
 
-- `docs/WAVE-09-HISTORICAL-QUERY-CONTRACT.md`;
-- `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`;
-- `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`.
+Canonical worker branches remain:
 
-### Initial substage: 09-A shared foundation
+- Driver 4 BACnet/IP: `driver4/bacnet`
+- Driver 5 Allen-Bradley Logix EtherNet/IP/CIP: `driver5/allen-bradley-cip`
+- Driver 6 IEC 60870-5-104: `driver6/iec-60870-5-104`
+- Driver 7 DNP3: `driver7/dnp3`
+- Driver 8 Siemens S7 ISO-on-TCP: `driver8/siemens-s7-iso`
+- Driver 9 OPC UA: `driver9/opc-ua`
+- Driver 10 MQTT Industrial: `driver10/mqtt`
 
-The first integration train establishes one protected Historical Query contract before Reporting and Browser are allowed to invent provider/filter/time semantics independently.
+Old aliases `driver1/siemens-s7-iso`, `driver2/opc-ua` and `driver3/mqtt` are retired.
 
-Initial datasets:
+Shared convergence authority is `docs/DRIVER-CONVERGENCE-COORDINATION-V1.md` plus ADR-007.
 
-- `historian.samples`;
-- `alarm.events`.
+Driver branches do **not** merge automatically into `main` or Wave 10. Shared registry/planner/factory, readiness, protected-material resolution, rich Communication TAG binding, module activation and shared command/timestamp policy remain Coordinator concerns.
 
-Shared invariants:
+At Wave 10 activation, OPC UA independent-software interoperability work was isolated in PR #148 on `coordination/driver-interop-opcua-v1`. Its normal product CI had passed on its then-current head, while the dedicated OPC UA Interop Lab gate still required correction/green evidence. It must not block Wave 10 unless a shared canonical contract changes. Re-read the PR and exact checks before acting because this state may advance in another chat.
 
-- relative and absolute time ranges use one public/versioned model;
-- server resolves relative ranges once per query;
-- filters/order/paging are typed, bounded and allowlisted per dataset;
-- cursors are opaque and server-owned;
-- Int64 fidelity is exact end-to-end;
-- quality/timestamps remain explicit facts;
-- queries are authorized, cancellable and parameterized;
-- no arbitrary SQL or unrestricted scripting;
-- historical alarm browsing is read-only and never becomes an acknowledgement/shelving command surface;
-- Browser, Trends and Reporting must consume the same query/provider/time semantics.
+## Permanent contracts that must survive Wave 10
 
-### Initial integration branch
+- Engineering Import/Export, Preview/Apply/CAS, revisions and project-package fidelity remain mandatory for public canonical Engineering entities.
+- Protected secrets/private keys are never plaintext Engineering/package data.
+- Integer TAG-bit identity is stable `TagId + selector`; `.NN` is authoring/display syntax only.
+- ADR-007 byte/word transform remains binding-level, symmetric/deterministic and precedes bit selection.
+- No arbitrary JavaScript `eval`/`Function`, Python evaluation, unrestricted SQL or implicit truthiness/coercion engines.
+- Historical alarm browsing never authorizes alarm commands.
+- Client Memory references use stable definition identity; friendly path is UX only.
+- Bad/unavailable values fail closed with diagnostics.
 
-`integration/wave-09-historical-navigation-foundation`
+## New coordinator startup checklist
 
-### Initial worker branches
+1. Read this file and `docs/WAVE-10-PYTHON-VISUAL-EVENTS-ANIMATION-PREVIEW.md`.
+2. Re-read live `main`; do not assume the SHA recorded here is still the live docs head.
+3. Re-read Wave 10 integration and DEV 1/2/3 branch heads.
+4. Read issues #149, #150, #151 and #152 and any new comments/PRs.
+5. Treat `bbfd730e404b0dee2c05e0ec0afb979b1b14ea35` as the frozen Wave 10 **product** WaveBaseSHA unless a deliberate rebase decision is recorded.
+6. Inspect open Driver PRs/issues separately; do not let them steal Wave priority.
+7. Integrate only narrow reviewed worker heads; reconcile shared files centrally.
+8. Require exact final integration CI before `main`, then exact post-main CI before closing Wave 10.
 
-- DEV 1: `dev1/wave-09-historical-query-core`
-- DEV 2: `dev2/wave-09-popup-dynamo-navigation`
-- DEV 3: `dev3/wave-09-historical-browser`
+## Required worker handoff
 
-Detailed ownership is in `docs/CHAT-WORK-ASSIGNMENTS.md`.
+Every worker handoff reports:
 
-## Execution order
-
-1. Workers start only from the coordinator-approved Wave 09 activation baseline.
-2. DEV 1 owns the shared Historical Query backend/core contract and initial dataset adapters.
-3. DEV 2 owns canonical Popup/Dynamo/navigation Engineering/runtime composition and must not duplicate historical query semantics.
-4. DEV 3 owns Historical Data Browser UX/runtime as a consumer of the shared query contract and must not create a frontend-only competing query DTO.
-5. Coordinator integrates narrow worker heads into the Wave 09 integration train and reconciles shared files.
-6. Reporting/Report Designer implementation begins after the shared Historical Query contract is accepted in integration; it reuses that contract rather than creating a reporting-specific data-query language.
-7. Exact final integration CI must be green before merge to `main`.
-8. Exact post-merge `main` CI must be green before the next stage transition.
-
-## Worker handoff requirement
-
-Every worker handoff reports exact branch/head SHA, changed files, delivered scope, tests/results, known limitations, shared decisions needing coordinator action and confirmation that no unassigned files were changed.
+1. exact branch and head SHA;
+2. delivered scope;
+3. exact changed files;
+4. tests/results and exact CI evidence;
+5. known limitations/risks;
+6. shared decisions needing Coordinator action;
+7. confirmation that no unassigned shared files/contracts were independently redefined.

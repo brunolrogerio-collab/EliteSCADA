@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'src/Scada.Drivers/Iec60870/**'
-      - 'tests/Scada.Drivers.Tests/Iec104L2IntegrationTests.cs'
+      - 'tests/Scada.Drivers.Tests/Iec104L2*.cs'
       - 'interop-lab/compose.iec104-driver6.yaml'
       - 'interop-lab/iec104/driver6-server/**'
       - '.github/workflows/driver6-iec104-l2-lab.yml'

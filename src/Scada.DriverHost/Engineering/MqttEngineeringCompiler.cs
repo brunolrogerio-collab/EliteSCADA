@@ -14,67 +14,66 @@ public sealed record MqttRuntimePlan(
     string? PasswordSecretReference,
     IReadOnlyCollection<MqttPoint> Points);
 
-public sealed record MqttEngineeringCompilation(
-    IReadOnlyCollection<MqttRuntimePlan> Plans,
-    IReadOnlyCollection<EngineeringDriverIssue> Issues)
+public sealed class MqttEngineeringCompilationResult
 {
+    public MqttEngineeringCompilationResult(
+        IReadOnlyCollection<MqttRuntimePlan> plans,
+        IReadOnlyCollection<EngineeringDriverIssue> issues)
+    {
+        Plans = plans;
+        Issues = issues;
+    }
+
+    public IReadOnlyCollection<MqttRuntimePlan> Plans { get; }
+    public IReadOnlyCollection<EngineeringDriverIssue> Issues { get; }
     public bool CanActivate => Issues.All(issue => !issue.IsError);
 }
 
-/// <summary>
-/// Compiles canonical Engineering DTOs into MQTT runtime plans without inventing
-/// protocol-private persistence. Data Source Settings/SecretReferences and TAG
-/// Address/Metadata remain the public project representation.
-/// </summary>
 public sealed class MqttEngineeringCompiler
 {
-    public MqttEngineeringCompilation Compile(EngineeringPackage package)
+    public MqttEngineeringCompilationResult Compile(EngineeringPackage package)
     {
         ArgumentNullException.ThrowIfNull(package);
 
         var plans = new List<MqttRuntimePlan>();
         var issues = new List<EngineeringDriverIssue>();
-        var dataSources = package.DataSources ?? Array.Empty<DataSourceEngineeringDto>();
 
-        foreach (var dataSource in dataSources
-                     .Where(item => item.Enabled && item.Driver.Equals(MqttDriverDescriptorProvider.DriverType, StringComparison.OrdinalIgnoreCase))
-                     .OrderBy(item => item.Key, StringComparer.OrdinalIgnoreCase))
+        foreach (var dataSource in package.DataSources
+                     .Where(dataSource => dataSource.Enabled &&
+                                          string.Equals(
+                                              dataSource.Driver,
+                                              MqttDriverDescriptorProvider.DriverType,
+                                              StringComparison.OrdinalIgnoreCase))
+                     .OrderBy(dataSource => dataSource.Key, StringComparer.OrdinalIgnoreCase))
         {
             CompileDataSource(package, dataSource, plans, issues);
         }
 
-        return new MqttEngineeringCompilation(plans, issues);
+        return new MqttEngineeringCompilationResult(plans, issues);
     }
 
     private static void CompileDataSource(
         EngineeringPackage package,
         DataSourceEngineeringDto dataSource,
-        List<MqttRuntimePlan> plans,
+        ICollection<MqttRuntimePlan> plans,
         List<EngineeringDriverIssue> issues)
     {
+        var errorsBefore = ErrorCount(issues, dataSource.Key);
         var settings = CaseInsensitive(dataSource.Settings);
         var secrets = CaseInsensitive(dataSource.SecretReferences);
-        var errorsBefore = ErrorCount(issues, dataSource.Key);
 
         if (settings.ContainsKey("password"))
         {
             issues.Add(Error(
-                "MQTT_PLAINTEXT_SECRET_REJECTED",
-                "MQTT password must be stored as DataSource.SecretReferences['password']; plaintext Settings['password'] is forbidden.",
+                "DATASOURCE_PLAINTEXT_SECRET",
+                "MQTT password must be stored as a protected secret reference, not plaintext Data Source settings.",
                 dataSource.Key));
         }
 
-        var host = Get(settings, "host");
-        if (string.IsNullOrWhiteSpace(host))
-            issues.Add(Error("MQTT_HOST_REQUIRED", "MQTT setting 'host' is required.", dataSource.Key));
-
+        var host = Required(settings, "host", dataSource.Key, issues);
+        var clientId = Required(settings, "clientId", dataSource.Key, issues);
         var useTls = ParseBool(settings, "tls", true, dataSource.Key, issues);
-        var defaultPort = useTls ? 8883 : 1883;
-        var port = ParseInt(settings, "port", defaultPort, 1, 65535, dataSource.Key, issues);
-        var clientId = Get(settings, "clientId");
-        if (string.IsNullOrWhiteSpace(clientId))
-            issues.Add(Error("MQTT_CLIENT_ID_REQUIRED", "MQTT setting 'clientId' is required.", dataSource.Key));
-
+        var port = ParseInt(settings, "port", useTls ? 8883 : 1883, 1, 65535, dataSource.Key, issues);
         var protocol = ParseProtocol(settings, dataSource.Key, issues);
         var username = NullIfWhiteSpace(Get(settings, "username"));
         var passwordSecretReference = NullIfWhiteSpace(Get(secrets, "password"));
@@ -90,7 +89,14 @@ public sealed class MqttEngineeringCompiler
         var connectTimeoutMs = ParseInt(settings, "connectTimeoutMilliseconds", 10_000, 100, 300_000, dataSource.Key, issues);
         var reconnectMinimumMs = ParseInt(settings, "reconnectMinimumMilliseconds", 1_000, 100, 300_000, dataSource.Key, issues);
         var reconnectMaximumMs = ParseInt(settings, "reconnectMaximumMilliseconds", 30_000, 100, 3_600_000, dataSource.Key, issues);
-        var maximumInboundPayloadBytes = ParseInt(settings, "maximumInboundPayloadBytes", 1_048_576, 1, 67_108_864, dataSource.Key, issues);
+        var maximumInboundPayloadBytes = ParseInt(
+            settings,
+            "maximumInboundPayloadBytes",
+            1_048_576,
+            1,
+            MqttConnectionSettings.MaximumAllowedInboundPayloadBytes,
+            dataSource.Key,
+            issues);
         var maximumConsecutiveConnectFailures = ParseInt(settings, "maximumConsecutiveConnectFailures", 5, 1, 1000, dataSource.Key, issues);
         var maximumBufferedMessages = ParseInt(settings, "maximumBufferedMessages", 4_096, 1, 1_000_000, dataSource.Key, issues);
 
@@ -188,64 +194,69 @@ public sealed class MqttEngineeringCompiler
         {
             issues.Add(Error(
                 "MQTT_TAG_SELECTOR_UNSUPPORTED",
-                $"MQTT TAG '{dto.Path}' cannot use AddressSelector in this driver slice. Map a typed payload field directly instead.",
+                $"MQTT TAG '{dto.Path}' does not support structured AddressSelector bindings; use exact Topic in TAG Address.",
                 dataSourceKey,
                 dto.Path));
             return null;
         }
 
-        if (string.IsNullOrWhiteSpace(dto.Address))
+        var address = NullIfWhiteSpace(dto.Address);
+        if (address is null)
         {
             issues.Add(Error(
                 "MQTT_TAG_TOPIC_REQUIRED",
-                $"MQTT TAG '{dto.Path}' requires an exact subscribe topic in Address.",
+                $"MQTT TAG '{dto.Path}' requires an exact subscribe Topic in TAG Address.",
                 dataSourceKey,
                 dto.Path));
             return null;
         }
 
         var metadata = CaseInsensitive(dto.Metadata);
-        var errorsBefore = ErrorCount(issues, dataSourceKey);
         var payloadFormat = ParsePayloadFormat(metadata, dataSourceKey, dto.Path, issues);
-        var jsonPointer = NullIfEmpty(Get(metadata, "mqtt.jsonPointer"));
-        var sourceTimestampJsonPointer = NullIfEmpty(Get(metadata, "mqtt.sourceTimestampJsonPointer"));
+        var jsonPointer = NullIfWhiteSpace(Get(metadata, "mqtt.jsonPointer"));
+        var sourceTimestampJsonPointer = NullIfWhiteSpace(Get(metadata, "mqtt.sourceTimestampJsonPointer"));
         var sourceTimestampRequired = ParseBool(metadata, "mqtt.sourceTimestampRequired", false, dataSourceKey, issues, dto.Path);
-        var freshnessTimeoutMs = ParseOptionalInt(metadata, "mqtt.freshnessTimeoutMilliseconds", 1, int.MaxValue, dataSourceKey, issues, dto.Path);
         var retainedPolicy = ParseRetainedPolicy(metadata, dataSourceKey, dto.Path, issues);
         var qos = ParseQos(metadata, "mqtt.qos", MqttQosLevel.AtLeastOnce, dataSourceKey, dto.Path, issues);
-        var publishTopic = NullIfWhiteSpace(Get(metadata, "mqtt.publishTopic"));
         var publishQos = ParseQos(metadata, "mqtt.publishQos", MqttQosLevel.AtLeastOnce, dataSourceKey, dto.Path, issues);
         var publishRetain = ParseBool(metadata, "mqtt.publishRetain", false, dataSourceKey, issues, dto.Path);
-
-        if (ErrorCount(issues, dataSourceKey) != errorsBefore) return null;
+        var publishTopic = NullIfWhiteSpace(Get(metadata, "mqtt.publishTopic"));
+        var freshnessTimeoutMs = ParseOptionalInt(
+            metadata,
+            "mqtt.freshnessTimeoutMilliseconds",
+            1,
+            int.MaxValue,
+            dataSourceKey,
+            issues,
+            dto.Path);
 
         var tag = BuildTagDefinition(dto);
+        var point = new MqttPoint(
+            tag,
+            address,
+            payloadFormat,
+            jsonPointer,
+            sourceTimestampJsonPointer,
+            sourceTimestampRequired,
+            retainedPolicy,
+            qos,
+            Writable: !dto.ReadOnly,
+            PublishTopic: publishTopic,
+            PublishQos: publishQos,
+            PublishRetain: publishRetain,
+            FreshnessTimeout: freshnessTimeoutMs.HasValue ? TimeSpan.FromMilliseconds(freshnessTimeoutMs.Value) : null);
+
         try
         {
-            var point = new MqttPoint(
-                tag,
-                dto.Address,
-                payloadFormat,
-                jsonPointer,
-                sourceTimestampJsonPointer,
-                sourceTimestampRequired,
-                retainedPolicy,
-                qos,
-                Writable: !dto.ReadOnly,
-                PublishTopic: publishTopic,
-                PublishQos: publishQos,
-                PublishRetain: publishRetain,
-                FreshnessTimeout: freshnessTimeoutMs.HasValue
-                    ? TimeSpan.FromMilliseconds(freshnessTimeoutMs.Value)
-                    : null);
             point.Validate();
-            return point;
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             issues.Add(Error("MQTT_TAG_CONFIGURATION_INVALID", ex.Message, dataSourceKey, dto.Path));
             return null;
         }
+
+        return point;
     }
 
     private static TagDefinition BuildTagDefinition(TagEngineeringDto dto)
@@ -427,11 +438,12 @@ public sealed class MqttEngineeringCompiler
     {
         var raw = Get(map, key);
         if (string.IsNullOrWhiteSpace(raw)) return fallback;
-        if (uint.TryParse(raw, NumberStyles.None, CultureInfo.InvariantCulture, out var value)) return value;
+        if (uint.TryParse(raw, NumberStyles.None, CultureInfo.InvariantCulture, out var value))
+            return value;
 
         issues.Add(Error(
             "MQTT_SETTING_INVALID",
-            $"Setting '{key}' must be an unsigned integer from 0 to {uint.MaxValue}; received '{raw}'.",
+            $"Setting '{key}' must be an unsigned integer; received '{raw}'.",
             dataSourceKey));
         return fallback;
     }
@@ -456,33 +468,52 @@ public sealed class MqttEngineeringCompiler
         return fallback;
     }
 
-    private static void RejectSetting(
-        IReadOnlyDictionary<string, string> settings,
+    private static string? Required(
+        IReadOnlyDictionary<string, string> map,
         string key,
-        string description,
         string dataSourceKey,
         List<EngineeringDriverIssue> issues)
     {
-        if (!settings.ContainsKey(key)) return;
+        var value = NullIfWhiteSpace(Get(map, key));
+        if (value is not null) return value;
+
         issues.Add(Error(
-            "MQTT_PROTOCOL_SETTING_MISMATCH",
-            $"{description} setting '{key}' is not valid for the configured MQTT protocol version.",
+            "MQTT_SETTING_REQUIRED",
+            $"MQTT setting '{key}' is required.",
+            dataSourceKey));
+        return null;
+    }
+
+    private static void RejectSetting(
+        IReadOnlyDictionary<string, string> map,
+        string key,
+        string displayName,
+        string dataSourceKey,
+        List<EngineeringDriverIssue> issues)
+    {
+        if (!map.ContainsKey(key)) return;
+        issues.Add(Error(
+            "MQTT_PROTOCOL_SETTING_CONFLICT",
+            $"{displayName} setting '{key}' is not valid for the selected MQTT protocol version.",
             dataSourceKey));
     }
 
-    private static Dictionary<string, string> CaseInsensitive(IReadOnlyDictionary<string, string>? source) =>
-        source is null
-            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            : new Dictionary<string, string>(source, StringComparer.OrdinalIgnoreCase);
+    private static IReadOnlyDictionary<string, string> CaseInsensitive(IReadOnlyDictionary<string, string>? source)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (source is null) return result;
+        foreach (var pair in source) result[pair.Key] = pair.Value;
+        return result;
+    }
 
     private static string? Get(IReadOnlyDictionary<string, string> map, string key) =>
         map.TryGetValue(key, out var value) ? value : null;
 
-    private static string? NullIfWhiteSpace(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-    private static string? NullIfEmpty(string? value) => value is null || value.Length == 0 ? null : value;
+    private static string? NullIfWhiteSpace(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static int ErrorCount(IEnumerable<EngineeringDriverIssue> issues, string dataSourceKey) =>
-        issues.Count(issue => issue.IsError && issue.DataSourceKey.Equals(dataSourceKey, StringComparison.OrdinalIgnoreCase));
+        issues.Count(issue => issue.IsError && string.Equals(issue.DataSourceKey, dataSourceKey, StringComparison.OrdinalIgnoreCase));
 
     private static EngineeringDriverIssue Error(
         string code,
@@ -491,13 +522,10 @@ public sealed class MqttEngineeringCompiler
         string? tagPath = null) =>
         new(code, message, dataSourceKey, tagPath, IsError: true);
 
-    private static void Set(Dictionary<string, string> metadata, string key, double? value)
+    private static void Set<T>(IDictionary<string, string> target, string key, T? value)
+        where T : struct, IFormattable
     {
-        if (value.HasValue) metadata[key] = value.Value.ToString(CultureInfo.InvariantCulture);
-    }
-
-    private static void Set(Dictionary<string, string> metadata, string key, int? value)
-    {
-        if (value.HasValue) metadata[key] = value.Value.ToString(CultureInfo.InvariantCulture);
+        if (!value.HasValue) return;
+        target[key] = value.Value.ToString(null, CultureInfo.InvariantCulture);
     }
 }

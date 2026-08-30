@@ -156,7 +156,7 @@ jobs:
           assert result['pageSize'] == 5
           assert result['fromUtc'] < result['toUtc']
           assert len(result['rows']) >= 1
-          assert {column['field'] for column in result['columns']} >= {'tagId', 'tagPath', 'timestamp', 'value', 'quality'}
+          assert {column['field'] for column in result['columns']} >= {'tag.id', 'tag.path', 'timestamp', 'value', 'quality'}
           PY
 
           curl -fsS http://127.0.0.1:5080/api/engineering/security-roles > /tmp/security-roles.json

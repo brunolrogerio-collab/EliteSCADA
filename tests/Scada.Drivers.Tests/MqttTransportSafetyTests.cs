@@ -8,6 +8,38 @@ namespace Scada.Drivers.Tests;
 public sealed class MqttTransportSafetyTests
 {
     [Fact]
+    public async Task KeepAliveAboveWireRangeFailsBeforeTransportConnect()
+    {
+        var settings = new MqttConnectionSettings(
+            "broker.invalid",
+            1883,
+            UseTls: false,
+            ClientId: "elite-invalid-keepalive",
+            KeepAlive: TimeSpan.FromSeconds(ushort.MaxValue + 1d));
+        await using var transport = new MqttNetClientTransport();
+        using var credentials = MqttResolvedCredentials.None;
+
+        var error = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            transport.ConnectAsync(settings, credentials).AsTask());
+
+        Assert.Equal("KeepAlive", error.ParamName);
+        Assert.False(transport.IsConnected);
+    }
+
+    [Fact]
+    public async Task MaximumWireKeepAliveRemainsValid()
+    {
+        var settings = new MqttConnectionSettings(
+            "broker.invalid",
+            1883,
+            UseTls: false,
+            ClientId: "elite-maximum-keepalive",
+            KeepAlive: MqttConnectionSettings.MaximumProtocolKeepAlive);
+
+        settings.Validate();
+    }
+
+    [Fact]
     public async Task UndefinedProtocolModeFailsBeforeTransportConnect()
     {
         var settings = new MqttConnectionSettings(

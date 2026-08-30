@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Scada.Api.Reports;
 using Scada.Api.Runtime;
 using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
@@ -70,6 +71,7 @@ public static class HistoricalQueryConfiguration
         builder.Services.AddSingleton<IHistoricalDatasetProvider, AlarmHistoryDatasetProviderAdapter>();
 
         builder.AddHistoricalQueryApiCore();
+        builder.AddReportExecutionApiCore();
         builder.Services.AddHostedService<AlarmHistoryPersistenceHostedService>();
         return true;
     }

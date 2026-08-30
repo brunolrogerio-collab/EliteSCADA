@@ -221,6 +221,7 @@ public sealed class Iec104ManagedClient
                 _commonAddresses,
                 _originatorAddress,
                 _commandOptions);
+            var sessionDiagnosticsAggregated = false;
 
             lock (_gate)
                 _activeSession = session;
@@ -261,6 +262,8 @@ public sealed class Iec104ManagedClient
                         cancellationToken).ConfigureAwait(false);
                 }
 
+                Interlocked.Add(ref _testAsdusIgnored, session.IgnoredTestAsduCount);
+                sessionDiagnosticsAggregated = true;
                 lock (_gate)
                 {
                     if (ReferenceEquals(_activeSession, session))
@@ -271,7 +274,9 @@ public sealed class Iec104ManagedClient
             }
             finally
             {
-                Interlocked.Add(ref _testAsdusIgnored, session.IgnoredTestAsduCount);
+                if (!sessionDiagnosticsAggregated)
+                    Interlocked.Add(ref _testAsdusIgnored, session.IgnoredTestAsduCount);
+
                 lock (_gate)
                 {
                     if (ReferenceEquals(_activeSession, session))

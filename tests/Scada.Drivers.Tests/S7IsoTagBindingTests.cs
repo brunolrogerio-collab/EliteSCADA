@@ -68,8 +68,8 @@ public sealed class S7IsoTagBindingTests
 
         var portable = binding.ToPortableAddress();
 
-        Assert.Contains("type=WString", portable, StringComparison.Ordinal);
-        Assert.Contains("string=32", portable, StringComparison.Ordinal);
+        Assert.Contains("type=WString", portable);
+        Assert.Contains("string=32", portable);
         Assert.True(S7IsoTagBinding.TryParsePortableAddress(portable, out var parsed, out var error), error);
         Assert.Equal(binding, parsed);
 

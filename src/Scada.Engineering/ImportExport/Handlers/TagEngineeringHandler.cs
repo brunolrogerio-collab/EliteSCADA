@@ -31,6 +31,7 @@ internal sealed class TagEngineeringHandler
         foreach (var dto in package.Tags)
         {
             var issues = EngineeringValidator.ValidateTag(dto).ToList();
+            issues.AddRange(CommunicationTagBindingEngineeringValidator.Validate(dto));
             ValidateAccessPolicy(dto, issues);
 
             var dataSource = ResolveDataSource(dto.Source, package);

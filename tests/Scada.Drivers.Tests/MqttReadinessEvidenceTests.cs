@@ -54,7 +54,8 @@ public sealed class MqttReadinessEvidenceTests
         Assert.False(readiness.InitialHandshakeCompleted);
         Assert.Equal(1, readiness.ExpectedSubscriptionCount);
         Assert.Equal(0, readiness.AcceptedSubscriptionCount);
-        Assert.Contains("credential", readiness.Detail, StringComparison.OrdinalIgnoreCase);
+        var detail = Assert.IsType<string>(readiness.Detail);
+        Assert.Contains("credential", detail, StringComparison.OrdinalIgnoreCase);
     }
 
     private static MqttDriver CreateDriver(

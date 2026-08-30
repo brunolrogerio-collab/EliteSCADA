@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.Drivers.Dnp3;
@@ -28,7 +29,7 @@ public sealed class Dnp3Dnp3PyL2IntegrationTests
             new(counterTag, new Dnp3PointBinding(Dnp3PointKind.Counter, 0, TagDataType.Int64, new Dnp3ObjectVariation(20, 1)))
         };
 
-        var session = new StepFunctionDnp3MasterSession(new Dnp3TcpConnectionOptions
+        var innerSession = new StepFunctionDnp3MasterSession(new Dnp3TcpConnectionOptions
         {
             Host = host,
             Port = port,
@@ -36,6 +37,7 @@ public sealed class Dnp3Dnp3PyL2IntegrationTests
             OutstationAddress = 1024,
             ConnectTimeout = TimeSpan.FromSeconds(4)
         });
+        var session = new RecordingDnp3MasterSession(innerSession);
 
         await using var driver = new Dnp3Driver(
             "dnp3-dnp3py-l2",
@@ -80,6 +82,7 @@ public sealed class Dnp3Dnp3PyL2IntegrationTests
                 var diagnostics = driver.GetCommunicationDiagnostics();
                 throw new TimeoutException(
                     $"{failure.Message} Session={session.State}; BI={DescribeValue(cache, binaryTag.Id)}; AI={DescribeValue(cache, analogTag.Id)}; CTR={DescribeValue(cache, counterTag.Id)}; " +
+                    $"RawBI={session.DescribeLast(Dnp3PointKind.BinaryInput, 0)}; RawAI={session.DescribeLast(Dnp3PointKind.AnalogInput, 0)}; RawCTR={session.DescribeLast(Dnp3PointKind.Counter, 0)}; " +
                     $"Connections={diagnostics.Counters.Connections}; Reads={diagnostics.Counters.ReadOperations}; Updates={diagnostics.Counters.UpdatesPublished}; Failed={diagnostics.Counters.FailedOperations}; " +
                     $"Good={diagnostics.TagQuality.Good}; BadComm={diagnostics.TagQuality.BadCommunication}; BadConfig={diagnostics.TagQuality.BadConfiguration}; LastError={diagnostics.LastError ?? "<null>"}",
                     failure);
@@ -88,7 +91,7 @@ public sealed class Dnp3Dnp3PyL2IntegrationTests
             var finalDiagnostics = driver.GetCommunicationDiagnostics();
             Assert.Equal("dnp3.master", finalDiagnostics.DriverType);
             Assert.Equal($"{host}:{port}", finalDiagnostics.Endpoint);
-            Assert.True(finalDiagnostics.Counters.Connections >= 1);
+            Assert.Equal(1, finalDiagnostics.Counters.Connections);
             Assert.True(finalDiagnostics.Counters.ReadOperations >= 1);
             Assert.True(finalDiagnostics.Counters.UpdatesPublished >= 3);
             Assert.Equal(0, finalDiagnostics.Counters.FailedOperations);
@@ -136,5 +139,55 @@ public sealed class Dnp3Dnp3PyL2IntegrationTests
             await Task.Delay(50);
         }
         throw new TimeoutException(message);
+    }
+
+    private sealed class RecordingDnp3MasterSession(IDnp3MasterSession inner) : IDnp3MasterSession
+    {
+        private readonly ConcurrentDictionary<(Dnp3PointKind Kind, ushort Index), Dnp3Measurement> _last = new();
+
+        public Dnp3SessionState State => inner.State;
+
+        public ValueTask StartAsync(
+            Dnp3AssociationOptions options,
+            Func<Dnp3Measurement, CancellationToken, ValueTask> measurementHandler,
+            Func<Dnp3SessionState, CancellationToken, ValueTask> stateHandler,
+            CancellationToken cancellationToken = default) =>
+            inner.StartAsync(
+                options,
+                async (measurement, token) =>
+                {
+                    _last[(measurement.PointKind, measurement.Index)] = measurement;
+                    await measurementHandler(measurement, token);
+                },
+                stateHandler,
+                cancellationToken);
+
+        public ValueTask StopAsync(CancellationToken cancellationToken = default) =>
+            inner.StopAsync(cancellationToken);
+
+        public ValueTask<Dnp3CommandResult> ExecuteBinaryAsync(
+            ushort index,
+            Dnp3BinaryOperation operation,
+            Dnp3BinaryCommandProfile profile,
+            CancellationToken cancellationToken = default) =>
+            inner.ExecuteBinaryAsync(index, operation, profile, cancellationToken);
+
+        public ValueTask<Dnp3CommandResult> ExecuteAnalogAsync(
+            ushort index,
+            object value,
+            Dnp3AnalogCommandProfile profile,
+            CancellationToken cancellationToken = default) =>
+            inner.ExecuteAnalogAsync(index, value, profile, cancellationToken);
+
+        public Dnp3SessionDiagnosticSnapshot GetDiagnostics() => inner.GetDiagnostics();
+
+        public ValueTask DisposeAsync() => inner.DisposeAsync();
+
+        public string DescribeLast(Dnp3PointKind kind, ushort index)
+        {
+            if (!_last.TryGetValue((kind, index), out var measurement)) return "<missing>";
+            var type = measurement.Value?.GetType().FullName ?? "null";
+            return $"{measurement.Value ?? "<null>"} ({type})/{measurement.Variation}/Event={measurement.IsEvent}";
+        }
     }
 }

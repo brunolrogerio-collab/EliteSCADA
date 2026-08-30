@@ -37,8 +37,8 @@ public sealed class ReportProjectPackageTests
         var packaged = Assert.Single(inspected.Engineering.Reports!);
         Assert.Equal(report.Id, packaged.Id);
         Assert.Equal(report.Key, packaged.Key);
-        Assert.Equal(report.Queries!.Single().Query, packaged.Queries!.Single().Query);
-        Assert.Equal("9223372036854775807", packaged.Parameters!.Single().DefaultValue.Value);
+        Assert.Equal(Assert.Single(report.Queries!).Query, Assert.Single(packaged.Queries!).Query);
+        Assert.Equal("9223372036854775807", Assert.Single(packaged.Parameters!).DefaultValue.Value);
 
         reports.Clear();
         var preview = packages.Preview(bytes, ImportMode.CreateAndUpdate);
@@ -52,9 +52,12 @@ public sealed class ReportProjectPackageTests
         Assert.Empty(applied.Issues);
         var restored = Assert.Single(reports.SnapshotReports());
         Assert.Equal(report.Id, restored.Id);
-        Assert.Equal(report.Sections!.Single().Id, restored.Sections!.Single().Id);
-        Assert.Equal(report.Sections.Single().Controls!.Single().Id, restored.Sections.Single().Controls!.Single().Id);
-        Assert.Equal(report.Queries.Single().Query, restored.Queries!.Single().Query);
+
+        var reportSection = Assert.Single(report.Sections!);
+        var restoredSection = Assert.Single(restored.Sections!);
+        Assert.Equal(reportSection.Id, restoredSection.Id);
+        Assert.Equal(Assert.Single(reportSection.Controls!).Id, Assert.Single(restoredSection.Controls!).Id);
+        Assert.Equal(Assert.Single(report.Queries!).Query, Assert.Single(restored.Queries!).Query);
     }
 
     private static EngineeringExchangeService CreateExchange(

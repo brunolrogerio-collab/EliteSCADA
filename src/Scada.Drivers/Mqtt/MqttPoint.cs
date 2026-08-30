@@ -40,8 +40,14 @@ public sealed record MqttPoint(
     public void Validate()
     {
         ArgumentNullException.ThrowIfNull(Tag);
-        Tag.Validate();
-        ValidateTopic(SubscribeTopic, nameof(SubscribeTopic));
+        if (Tag.Id == Guid.Empty)
+            throw new ArgumentException("MQTT point requires a canonical TAG with a non-empty ID.", nameof(Tag));
+        if (string.IsNullOrWhiteSpace(Tag.Name))
+            throw new ArgumentException("MQTT point requires a canonical TAG name.", nameof(Tag));
+        if (string.IsNullOrWhiteSpace(Tag.Path))
+            throw new ArgumentException("MQTT point requires a canonical TAG path.", nameof(Tag));
+
+        ValidateExactTopic(SubscribeTopic, nameof(SubscribeTopic));
         ValidateQos(Qos, nameof(Qos));
 
         if (PayloadFormat == MqttPayloadFormat.Utf8Scalar && JsonPointer is not null)
@@ -60,7 +66,7 @@ public sealed record MqttPoint(
         {
             if (Tag.ReadOnly)
                 throw new ArgumentException("Writable MQTT points require a writable canonical TAG.", nameof(Tag));
-            ValidateTopic(PublishTopic, nameof(PublishTopic));
+            ValidateExactTopic(PublishTopic, nameof(PublishTopic));
             ValidateQos(PublishQos, nameof(PublishQos));
         }
         else
@@ -72,7 +78,7 @@ public sealed record MqttPoint(
         }
     }
 
-    private static void ValidateTopic(string? topic, string parameterName)
+    internal static void ValidateExactTopic(string? topic, string parameterName)
     {
         if (string.IsNullOrEmpty(topic))
             throw new ArgumentException("MQTT topic is required.", parameterName);

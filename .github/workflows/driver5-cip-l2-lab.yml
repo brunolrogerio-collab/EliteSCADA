@@ -19,6 +19,7 @@ jobs:
     env:
       ELITESCADA_CIP_L2_HOST: 127.0.0.1
       ELITESCADA_CIP_L2_PORT: 44818
+      ELITESCADA_CIP_L2_RESTART_CONTAINER: elitescada-lab-cip-driver5
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -10,10 +10,8 @@ import type {
   ScriptImportPreview,
   ScriptVisualEventReference
 } from '../src/engineering/scripts/scriptEngineeringTypes';
-import { BUILTIN_VISUAL_OBJECT_TYPES } from '../src/visual-runtime/builtinVisualObjectSchemas';
 
 const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
-const registeredVisualObjectTypes = new Set<string>(Object.values(BUILTIN_VISUAL_OBJECT_TYPES));
 
 type VisualElement = {
   id?: string | null;
@@ -25,6 +23,7 @@ type VisualElement = {
 type EngineeringPackage = {
   screens?: Array<{ id?: string | null; key: string; elements?: VisualElement[] | null }>;
   tags?: Array<{ id?: string | null; path: string; dataType: string }>;
+  [key: string]: unknown;
 };
 
 test.use({ locale: 'pt-BR' });
@@ -33,20 +32,54 @@ test.describe.configure({ mode: 'serial' });
 test('mounted Events editor persists click, timer and typed TAG bit through canonical Preview/Apply and reload', async ({ page, request }) => {
   const exported = await request.get('/api/engineering/export/json');
   expect(exported.ok()).toBeTruthy();
-  const project = await exported.json() as EngineeringPackage;
-  const screen = project.screens?.find(candidate =>
-    Boolean(candidate.id) && flatten(candidate.elements ?? []).some(isRegisteredPersistedVisualObject));
-  expect(screen, 'seeded demo must expose one persisted Screen with a registered persisted visual object').toBeTruthy();
-  const visualObject = flatten(screen!.elements ?? []).find(isRegisteredPersistedVisualObject);
-  expect(visualObject).toBeTruthy();
+  const originalProject = await exported.json() as EngineeringPackage;
+  const screen = originalProject.screens?.find(candidate => Boolean(candidate.id));
+  expect(screen, 'seeded demo must expose one persisted Screen for Wave 10 acceptance').toBeTruthy();
 
-  const tag = project.tags?.find(candidate => Boolean(candidate.id) && ['int16', 'int32', 'int64'].includes(candidate.dataType.toLowerCase()));
+  const tag = originalProject.tags?.find(candidate => Boolean(candidate.id) && ['int16', 'int32', 'int64'].includes(candidate.dataType.toLowerCase()));
   expect(tag, 'seeded demo must expose one stable-ID integral TAG for bit selector acceptance').toBeTruthy();
 
+  const originalObjectIds = new Set(
+    flatten(screen!.elements ?? []).flatMap(element => element.id ? [element.id] : []));
   const script = makeScript(crypto.randomUUID(), `scripts/wave10-events-${crypto.randomUUID()}.py`, tag!.id!);
   let created = false;
+  let fixtureApplied = false;
 
   try {
+    await page.goto('/engineering');
+    await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
+    await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
+    await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: screen!.key }).click();
+
+    await page.locator('[data-object-type="core.rectangle"]').click();
+    const rectangle = page.locator('[data-canvas-object-type="core.rectangle"]').last();
+    await expect(rectangle).toBeVisible();
+    await rectangle.click();
+
+    const visualApply = page.getByTestId('visual-editor-apply');
+    await expect(visualApply).toBeDisabled();
+    await page.getByTestId('visual-editor-preview').click();
+    await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
+    await expect(visualApply).toBeEnabled();
+    page.once('dialog', dialog => dialog.accept());
+    await visualApply.click();
+    fixtureApplied = true;
+
+    const visualObject = await expect.poll(async () => {
+      const response = await request.get('/api/engineering/export/json');
+      if (!response.ok()) return null;
+      const project = await response.json() as EngineeringPackage;
+      const persistedScreen = project.screens?.find(candidate => candidate.id === screen!.id);
+      return flatten(persistedScreen?.elements ?? []).find(element =>
+        element.type === 'core.rectangle' && Boolean(element.id) && !originalObjectIds.has(element.id!)) ?? null;
+    }).not.toBeNull().then(async () => {
+      const response = await request.get('/api/engineering/export/json');
+      const project = await response.json() as EngineeringPackage;
+      const persistedScreen = project.screens!.find(candidate => candidate.id === screen!.id)!;
+      return flatten(persistedScreen.elements ?? []).find(element =>
+        element.type === 'core.rectangle' && Boolean(element.id) && !originalObjectIds.has(element.id!))!;
+    });
+
     const before = await workspace(request);
     const createPackage = buildCanonicalScriptPackage(script, []);
     const createPreview = await preview(request, createPackage, 'CreateOnly');
@@ -54,11 +87,10 @@ test('mounted Events editor persists click, timer and typed TAG bit through cano
     expect((await apply(request, createPackage, 'CreateOnly', before.changeVersion)).ok()).toBeTruthy();
     created = true;
 
-    await page.goto('/engineering');
+    await page.reload();
     await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
-    await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: screen!.key }).click();
-    await page.locator(`[data-canvas-object-id="${visualObject!.id}"]`).click();
+    await page.locator(`[data-canvas-object-id="${visualObject.id}"]`).click();
 
     const editor = page.getByTestId('visual-events-editor');
     await expect(editor).toBeVisible();
@@ -84,7 +116,7 @@ test('mounted Events editor persists click, timer and typed TAG bit through cano
     await page.reload();
     await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: screen!.key }).click();
-    await page.locator(`[data-canvas-object-id="${visualObject!.id}"]`).click();
+    await page.locator(`[data-canvas-object-id="${visualObject.id}"]`).click();
     await expect(page.getByTestId('visual-events-editor')).toBeVisible();
 
     const persistedScript = await loadScript(request, script.id);
@@ -101,7 +133,7 @@ test('mounted Events editor persists click, timer and typed TAG bit through cano
     expect(references).toEqual(expect.arrayContaining([
       expect.objectContaining({
         visualDefinitionId: screen!.id,
-        visualObjectId: visualObject!.id,
+        visualObjectId: visualObject.id,
         eventKind: 'objectInteraction',
         scriptId: script.id,
         entryPoint: 'on_click'
@@ -116,7 +148,7 @@ test('mounted Events editor persists click, timer and typed TAG bit through cano
       }),
       expect.objectContaining({
         visualDefinitionId: screen!.id,
-        visualObjectId: visualObject!.id,
+        visualObjectId: visualObject.id,
         eventKind: 'tagChanged',
         scriptId: script.id,
         entryPoint: 'on_tag',
@@ -125,6 +157,13 @@ test('mounted Events editor persists click, timer and typed TAG bit through cano
     ]));
   } finally {
     if (created) await removeScriptAndOwnedReferences(request, script);
+    if (fixtureApplied) {
+      const restore = await request.post('/api/engineering/import/json/apply', {
+        headers: jsonHeaders,
+        data: originalProject
+      });
+      expect(restore.ok()).toBeTruthy();
+    }
   }
 });
 
@@ -159,10 +198,6 @@ function makeScript(id: string, path: string, tagId: string): ScriptEngineeringD
 
 function flatten(elements: readonly VisualElement[]): VisualElement[] {
   return elements.flatMap(element => [element, ...flatten(element.children ?? [])]);
-}
-
-function isRegisteredPersistedVisualObject(element: VisualElement): boolean {
-  return Boolean(element.id) && registeredVisualObjectTypes.has(element.type);
 }
 
 async function workspace(request: APIRequestContext): Promise<{ changeVersion: number }> {

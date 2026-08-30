@@ -153,7 +153,9 @@ public sealed class BacnetCovLifecycleTests
             await Task.Delay(10);
         }
 
-        return latest ?? driver.GetCommunicationDiagnostics();
+        latest ??= driver.GetCommunicationDiagnostics();
+        Assert.True(predicate(latest), $"BACnet lifecycle condition was not reached within {timeout.TotalMilliseconds:0} ms.");
+        return latest;
     }
 
     private sealed record ReadStep(float? Value, Exception? Error)

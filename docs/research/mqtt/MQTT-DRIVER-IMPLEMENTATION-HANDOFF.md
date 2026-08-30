@@ -24,6 +24,7 @@ This document records the implementation state of the raw MQTT industrial driver
 - Explicit stop/start is supported without duplicate canonical TAG registration; completed cancellation state and freshness references are released/reset between starts.
 - Explicit stop/start is not counted as a transport `Reconnect`. The reconnect counter is reserved for automatic recovery inside one runtime session.
 - A completed/faulted runtime session is cleaned before an explicit restart, including cancellation of any still-running freshness loop.
+- Protocol-local readiness evidence is exposed separately from TAG quality and communication health. The MQTT runtime becomes `Ready` only after broker connection/authentication succeeds and all configured subscriptions are accepted; first telemetry is not required. Once achieved, `Ready` remains latched across transient reconnects and changes only on explicit stop/restart or terminal runtime fault.
 - Malformed payloads fail closed per mapped point and do not silently coerce values to `0`, `false` or another guessed type.
 - Inbound payload size is checked at the MQTTnet callback boundary before EliteSCADA copies the MQTTnet payload into an application-owned byte array. An oversized payload stops new inbound admission and faults the Data Source rather than allocating/copying the oversized application payload.
 - Retained values without a trustworthy configured source timestamp are `Stale` by default. `acceptAsCurrent` is an explicit opt-in policy.
@@ -34,6 +35,29 @@ This document records the implementation state of the raw MQTT industrial driver
 - Inbound QoS 1/2 acknowledgement is deferred until the application message has been admitted to the bounded EliteSCADA transport queue. A canceled, rejected or oversized message is not acknowledged.
 - Writable TAGs publish through the normal driver write path and do not pretend that a successful MQTT publish means the remote process accepted the command.
 - Runtime diagnostics use `CommunicationDriverDiagnosticSnapshot`; scan interval, cycle count and scan duration remain absent/zero for the event-driven driver. MQTT diagnostics also expose the fixed reconnect jitter percentage used by this runtime implementation.
+
+## Protocol-local readiness evidence
+
+`MqttDriver` implements `IMqttReadinessEvidenceSource` and returns `MqttReadinessSnapshot` with states:
+
+- `NotStarted`;
+- `Starting`;
+- `Ready`;
+- `Faulted`;
+- `Stopped`.
+
+The snapshot includes expected subscription count, accepted subscription count, whether the mandatory initial broker/subscription handshake completed, and a sanitized fault detail when terminal initialization/runtime failure occurs.
+
+The semantics intentionally match `docs/DRIVER-CONVERGENCE-COORDINATION-V1.md` without creating a private shared activation framework:
+
+- `Ready` means connection/authentication completed and configured SUBACKs were accepted;
+- a TAG may still have `NoCurrentSample`, `Stale`, `Bad`, or another point-local quality while the Data Source remains ready;
+- transient broker loss changes communication diagnostics to reconnecting but does not erase the fact that mandatory initialization completed for that runtime session;
+- a permanent runtime fault changes readiness to `Faulted`;
+- explicit stop changes readiness to `Stopped`;
+- explicit restart begins again at `Starting` and must complete the broker/subscription initialization before becoming `Ready`.
+
+The future common DriverHost readiness source/snapshot remains Coordinator-owned. `IMqttReadinessEvidenceSource` is protocol-local evidence intended for later adaptation, not a competing host contract.
 
 ## Payload mapping
 
@@ -185,6 +209,46 @@ No plaintext password/private key is introduced by the MQTT-specific code.
 
 This keeps MQTTnet classes behind `IMqttClientTransport` and prevents the protocol library from becoming canonical project truth.
 
+The protocol-owned compiler/factory pair is intentionally ready for later adaptation to the Coordinator-reserved `ICommunicationDriverRuntimePlanner` / `ICommunicationDriverRuntimeFactory` model. This branch does not create a competing central registry and does not add MQTT `if/switch` branches to the shared coordinator.
+
+## Convergence v1 alignment
+
+Against `docs/DRIVER-CONVERGENCE-COORDINATION-V1.md`:
+
+- runtime composition remains protocol-owned and library-independent at the plan/factory boundary;
+- no private shared Driver registry/module loader is introduced;
+- canonical identity remains Data Source `Source` + exact topic in TAG `Address`; no wildcard-generated TAG identity exists;
+- protected authentication remains `SecretReferences` plus a narrow injected resolver/lease seam;
+- readiness is explicit protocol-local evidence and is not inferred from TAG quality;
+- ordinary scalar MQTT writes remain `WriteAsync(tagId, value)` with no magic null/string command encoding;
+- real source timestamps are preserved only when explicitly mapped; receive time is not fabricated as source time;
+- freshness remains local monotonic receive/admission evidence rather than a source-clock ordering policy;
+- MQTTnet objects do not enter canonical Engineering, package JSON/CSV, TAG identity, or module-neutral runtime plans;
+- shared readiness, credential resolution, rich binding DTOs, runtime registry, and current-vs-history ingress policy remain Coordinator-owned.
+
+## Module / dependency / license manifest
+
+| Item | MQTT Driver 10 status |
+| --- | --- |
+| Proposed stable module/package ID | `EliteSCADA.Driver.Mqtt` |
+| Driver type(s) provided | `mqtt.raw` |
+| Driver contract version | `1` |
+| Public configuration schema | `elitescada.driver.mqtt.raw` v1 |
+| Acquisition mode | Event-driven |
+| Runtime capabilities | Read, Write, Subscribe, Diagnostics, SourceTimestamp |
+| Engineering capabilities | None in descriptor; Engineering compilation/import/export is supplied through canonical host services and MQTT-owned compiler/factory adapters |
+| External runtime dependency | `MQTTnet` NuGet `5.2.0.1603` |
+| Runtime platform | .NET 10 plus platform TCP/TLS stack |
+| Third-party license classification | MQTTnet is MIT-licensed; redistribution is permissive subject to retaining the MIT copyright/license notice |
+| Commercial-license requirement | None identified for MQTTnet/raw MQTT implementation |
+| Current production distribution status | **BLOCKED ON EVIDENCE / COORDINATOR INTEGRATION**, not blocked by third-party commercial licensing |
+| Remaining broker validation | Eclipse Mosquitto and at least one independent implementation such as HiveMQ Community Edition; MQTT 5/3.1.1, QoS, retained, TLS/auth, persistent-session redelivery, burst/backpressure, restart/network-loss, oversized-payload and freshness scenarios |
+| Hardware/vendor simulator requirement | No protocol hardware is required; named broker implementations and deployment-target broker/cloud services are the interoperability targets |
+
+The MIT classification above is based on the MQTTnet v5.2.0 repository license. This manifest does not make or replace a statement about the license of EliteSCADA itself.
+
+Production distribution is currently blocked because this branch still lacks recorded exact-head build/test evidence, live broker evidence, and Coordinator-owned integration for the common readiness/credential/module seams. The dependency license itself is not the blocker.
+
 ## Automated test coverage authored
 
 - `MqttPayloadCodecTests`
@@ -192,6 +256,7 @@ This keeps MQTTnet classes behind `IMqttClientTransport` and prevents the protoc
 - `MqttEngineeringCompilerTests`
 - `MqttEngineeringExchangeTests`
 - `MqttEventDrivenReadinessTests`
+- `MqttReadinessEvidenceTests`
 - `MqttRuntimeFactoryTests`
 - `MqttCredentialLifetimeTests`
 - `MqttFreshnessAndBufferTests`
@@ -201,11 +266,11 @@ This keeps MQTTnet classes behind `IMqttClientTransport` and prevents the protoc
 - `MqttBrokerIntegrationTests`
 - `MqttBrokerShutdownRedeliveryTests`
 
-The deterministic tests cover exact-topic validation, typed payloads, strict UTC/offset timestamp parsing, canonical JSON array indices, JSON Pointer, retained semantics, malformed payload isolation, ambiguous DateTime write rejection, event-driven cache updates, writes, reconnect/resubscribe, permanent transport-fault behavior, Engineering compilation, public Import/Export fidelity, secret reference enforcement, runtime composition, credential zeroization, freshness expiration/recovery, separation of source-time age from receive freshness, stop/restart lifecycle, passive-disconnect diagnostics, bounded-buffer configuration limits, startup-token ownership, concurrent starts, caller-cancellation-safe shutdown, explicit-restart reconnect accounting, reconnect jitter bounds, deterministic seeded jitter sequences, continued jitter dispersion at the maximum backoff ceiling and overflow-safe backoff arithmetic.
+The deterministic tests cover exact-topic validation, typed payloads, strict UTC/offset timestamp parsing, canonical JSON array indices, JSON Pointer, retained semantics, malformed payload isolation, ambiguous DateTime write rejection, event-driven cache updates, writes, reconnect/resubscribe, permanent transport-fault behavior, Engineering compilation, public Import/Export fidelity, secret reference enforcement, runtime composition, credential zeroization, freshness expiration/recovery, separation of source-time age from receive freshness, stop/restart lifecycle, passive-disconnect diagnostics, bounded-buffer configuration limits, startup-token ownership, concurrent starts, caller-cancellation-safe shutdown, explicit-restart reconnect accounting, reconnect jitter bounds, deterministic seeded jitter sequences, continued jitter dispersion at the maximum backoff ceiling, overflow-safe backoff arithmetic, explicit readiness before first telemetry, readiness latching through transient reconnect and fail-closed readiness on permanent initialization failure.
 
-The opt-in live-broker tests exercise the production MQTTnet adapter when `ELITESCADA_MQTT_INTEGRATION_HOST` is configured. Authored coverage includes MQTT 5.0 and/or 3.1.1, QoS 0/1/2 round trips, retained delivery, a bounded-buffer burst larger than the local application queue, and persistent-session QoS 1/QoS 2 redelivery after disconnect interrupts a full-queue application admission. The burst assertion tolerates legitimate QoS 1 duplicates while requiring every unique published index to be observed. The shutdown/redelivery scenarios use a bounded 500 ms broker/client settling interval and must therefore be treated as live interoperability evidence only when actually executed against a named broker/version; they are not deterministic unit tests. Without the integration host variable the tests intentionally return without opening the network and do **not** constitute broker interoperability evidence. The reproducible procedure is documented in `docs/research/mqtt/MQTT-BROKER-VALIDATION.md`.
+The opt-in live-broker tests exercise the production MQTTnet adapter when `ELITESCADA_MQTT_INTEGRATION_HOST` is configured. Authored coverage includes MQTT 5.0 and/or 3.1.1, QoS 0/1/2 round trips, retained delivery, a bounded-buffer burst larger than the local application queue, and persistent-session QoS 1/QoS 2 redelivery after disconnect interrupts a full-queue application admission. The burst assertion tolerates legitimate QoS 1 duplicates while requiring every unique published index to be observed. The shutdown/redelivery scenarios use a bounded 500 ms broker/client settling interval and must therefore be treated as live interoperability evidence only when actually executed against a named broker/version; they are not deterministic unit tests. Live test Client IDs are deliberately kept at or below 23 characters so the validation harness does not require broker support beyond the MQTT 3.1.1 mandatory compatibility range. Without the integration host variable the tests intentionally return without opening the network and do **not** constitute broker interoperability evidence. The reproducible procedure is documented in `docs/research/mqtt/MQTT-BROKER-VALIDATION.md`.
 
-The current execution environment does not contain the .NET 10 SDK or a local MQTT broker, so neither the deterministic suite nor the live broker contract has been executed here. GitHub Actions should not be spent merely as reassurance CI; run the focused suite when Coordinator integration or a justified driver validation run is scheduled.
+The current execution environment does not contain the .NET 10 SDK or a local MQTT broker, so neither the deterministic suite nor the live broker contract has been executed here. GitHub Actions should not be spent merely as reassurance CI; run the focused suite when the branch reaches the reviewable checkpoint defined by the Coordinator convergence lock.
 
 ## Shared decisions required before central runtime integration
 
@@ -215,20 +280,11 @@ The public Engineering model already stores secret references correctly, but the
 
 The Coordinator should establish one common resolver contract for all communication drivers instead of allowing MQTT, OPC UA and future proprietary modules to create incompatible secret stores.
 
-### 2. Event-driven readiness
+### 2. Common readiness adapter
 
-`EngineeringRuntimeCoordinator` currently requires all runtime TAGs to reach `TagQuality.Good` before activation succeeds.
+`MqttDriver` now exposes `IMqttReadinessEvidenceSource` with the MQTT-specific readiness rule required by the convergence lock: broker connection/authentication plus accepted configured subscriptions is `Ready`, with no first-value requirement.
 
-That assumption is valid for polling sources but invalid for event-driven MQTT. A broker can be connected, authenticated and subscribed while no publisher has emitted a first sample yet.
-
-The MQTT implementation establishes the intended semantics:
-
-- connected + subscriptions accepted => communication state `Healthy`;
-- a TAG with no received sample remains `NoCurrentSample`;
-- absence of first telemetry is not itself a broker communication failure;
-- a configured freshness expiration may make an existing sample `Stale` without implying broker failure.
-
-The common activation policy needs a protocol-neutral readiness contract that can represent this distinction.
+The shared DriverHost activation contract remains Coordinator-owned. The MQTT evidence must later be adapted to that common source/snapshot instead of making `IMqttReadinessEvidenceSource` a host-wide dependency.
 
 ## Validation still required
 

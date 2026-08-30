@@ -33,7 +33,8 @@ public sealed class S7TiaTextImporterTests
         Assert.Equal("TiaXml", run.Metadata!["sourceKind"]);
         Assert.Equal("Default tag table", run.Metadata["tiaPath"]);
         Assert.Equal("false", run.Metadata["retain"]);
-        Assert.True(S7IsoTagBinding.TryParsePortableAddress(run.PortableAddress, out var runBinding, out var runError), runError);
+        Assert.StartsWith("s7iso:v2;", run.PortableAddress);
+        Assert.True(S7IsoCommunicationBindingSchemaV2.TryParsePortableAddress(run.PortableAddress, out var runBinding, out var runError), runError);
         Assert.Equal(S7IsoArea.Merker, runBinding!.Area);
         Assert.True(runBinding.Writable);
 
@@ -75,6 +76,7 @@ public sealed class S7TiaTextImporterTests
         var run = Assert.Single(candidates, candidate => candidate.DisplayName == "Run");
         Assert.True(run.IsReadable);
         Assert.True(run.IsWritable);
+        Assert.StartsWith("s7iso:v2;", run.PortableAddress);
         Assert.Equal("TiaSdf", run.Metadata!["sourceKind"]);
         Assert.Equal("Run flag", run.Metadata["comment"]);
 
@@ -87,7 +89,7 @@ public sealed class S7TiaTextImporterTests
         var input = Assert.Single(candidates, candidate => candidate.DisplayName == "Input");
         Assert.True(input.IsReadable);
         Assert.False(input.IsWritable);
-        Assert.True(S7IsoTagBinding.TryParsePortableAddress(input.PortableAddress, out var inputBinding, out var inputError), inputError);
+        Assert.True(S7IsoCommunicationBindingSchemaV2.TryParsePortableAddress(input.PortableAddress, out var inputBinding, out var inputError), inputError);
         Assert.Equal(S7IsoArea.Input, inputBinding!.Area);
         Assert.False(inputBinding.Writable);
 
@@ -112,7 +114,8 @@ public sealed class S7TiaTextImporterTests
 
         Assert.True(candidate.IsReadable);
         Assert.True(candidate.IsWritable);
-        Assert.True(S7IsoTagBinding.TryParsePortableAddress(candidate.PortableAddress, out var binding, out var error), error);
+        Assert.StartsWith("s7iso:v2;", candidate.PortableAddress);
+        Assert.True(S7IsoCommunicationBindingSchemaV2.TryParsePortableAddress(candidate.PortableAddress, out var binding, out var error), error);
         Assert.Equal(S7IsoArea.DataBlock, binding!.Area);
         Assert.Equal((ushort)1, binding.DbNumber);
         Assert.Equal(10, binding.ByteOffset);

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Scada.Core.Tags;
 
 namespace Scada.Engineering.VisualScripting;
 
@@ -24,7 +25,9 @@ public enum PythonScriptEventKind
 public sealed record PythonScriptEntryPoint(
     PythonScriptEventKind EventKind,
     string HandlerName,
-    string? TargetReference = null);
+    string? TargetReference = null,
+    TagValueReference? TagReference = null,
+    int? TimerIntervalMs = null);
 
 public sealed record PythonScriptDependency(
     string Kind,

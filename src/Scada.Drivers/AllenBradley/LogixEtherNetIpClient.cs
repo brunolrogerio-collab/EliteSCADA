@@ -6,6 +6,7 @@ namespace Scada.Drivers.AllenBradley;
 public sealed class LogixEtherNetIpClient : ILogixProtocolClient
 {
     private const int EncapsulationHeaderLength = 24;
+    private const ushort EncapsulationProtocolVersion = 1;
     private readonly SemaphoreSlim _ioGate = new(1, 1);
     private readonly object _diagnosticsGate = new();
     private TcpClient? _tcpClient;
@@ -53,6 +54,7 @@ public sealed class LogixEtherNetIpClient : ILogixProtocolClient
                 var response = await SendEncapsulationCoreAsync(LogixCipCodec.RegisterSessionCommand, 0, payload, timeout.Token);
                 if (response.Status != 0 || response.SessionHandle == 0)
                     throw new IOException($"EtherNet/IP RegisterSession failed with status 0x{response.Status:X8}.");
+                ValidateRegisterSessionReply(response.Payload);
                 _sessionHandle = response.SessionHandle;
                 lock (_diagnosticsGate)
                 {
@@ -71,8 +73,17 @@ public sealed class LogixEtherNetIpClient : ILogixProtocolClient
                 _stream = null;
                 throw new TimeoutException("EtherNet/IP connection timed out.");
             }
-            catch
+            catch (OperationCanceledException)
             {
+                client.Dispose();
+                _tcpClient = null;
+                _stream = null;
+                _sessionHandle = 0;
+                throw;
+            }
+            catch (Exception ex)
+            {
+                RecordFailure(ex);
                 client.Dispose();
                 _tcpClient = null;
                 _stream = null;
@@ -379,10 +390,13 @@ public sealed class LogixEtherNetIpClient : ILogixProtocolClient
         var responseSession = BinaryPrimitives.ReadUInt32LittleEndian(responseHeader.AsSpan(4, 4));
         var status = BinaryPrimitives.ReadUInt32LittleEndian(responseHeader.AsSpan(8, 4));
         var responseContext = BinaryPrimitives.ReadUInt64LittleEndian(responseHeader.AsSpan(12, 8));
+        var responseOptions = BinaryPrimitives.ReadUInt32LittleEndian(responseHeader.AsSpan(20, 4));
         if (responseCommand != command)
             throw new InvalidDataException($"EtherNet/IP response command 0x{responseCommand:X4} does not match request 0x{command:X4}.");
         if (responseContext != context)
             throw new InvalidDataException("EtherNet/IP sender context does not match the outstanding request.");
+        if (responseOptions != 0)
+            throw new InvalidDataException($"EtherNet/IP response Options must be zero; received 0x{responseOptions:X8}.");
         if (command != LogixCipCodec.RegisterSessionCommand && responseSession != sessionHandle)
             throw new InvalidDataException($"EtherNet/IP response session 0x{responseSession:X8} does not match active session 0x{sessionHandle:X8}.");
         var responsePayload = new byte[length];
@@ -452,6 +466,18 @@ public sealed class LogixEtherNetIpClient : ILogixProtocolClient
             }
         }
         return ValueTask.CompletedTask;
+    }
+
+    private static void ValidateRegisterSessionReply(ReadOnlySpan<byte> payload)
+    {
+        if (payload.Length != 4)
+            throw new InvalidDataException($"EtherNet/IP RegisterSession reply must contain exactly 4 bytes of command-specific data; received {payload.Length}.");
+        var protocolVersion = BinaryPrimitives.ReadUInt16LittleEndian(payload.Slice(0, 2));
+        var sessionOptions = BinaryPrimitives.ReadUInt16LittleEndian(payload.Slice(2, 2));
+        if (protocolVersion != EncapsulationProtocolVersion)
+            throw new InvalidDataException($"EtherNet/IP RegisterSession reply protocol version {protocolVersion} does not match requested version {EncapsulationProtocolVersion}.");
+        if (sessionOptions != 0)
+            throw new InvalidDataException($"EtherNet/IP RegisterSession reply session options must be zero; received 0x{sessionOptions:X4}.");
     }
 
     private void EnsureConnected()

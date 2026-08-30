@@ -81,6 +81,81 @@ public sealed class S7IsoHandshakeHardeningTests
     }
 
     [Fact]
+    public void SetupCommunication_RejectsZeroParallelJobNegotiation()
+    {
+        const ushort reference = 42;
+        var response = AckData(
+            reference,
+            new byte[]
+            {
+                0xF0, 0x00,
+                0x00, 0x00,
+                0x00, 0x01,
+                0x01, 0xE0
+            },
+            Array.Empty<byte>());
+
+        var error = Assert.Throws<S7IsoProtocolException>(() =>
+            S7IsoProtocol.ParseSetupCommunicationResponse(response, reference, requestedPduSize: 480));
+
+        Assert.Contains("zero parallel jobs", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SetupCommunication_RejectsFragmentedCotpData()
+    {
+        const ushort reference = 43;
+        var response = AckData(
+            reference,
+            new byte[]
+            {
+                0xF0, 0x00,
+                0x00, 0x01,
+                0x00, 0x01,
+                0x01, 0xE0
+            },
+            Array.Empty<byte>());
+        response[6] = 0x00;
+
+        var error = Assert.Throws<S7IsoProtocolException>(() =>
+            S7IsoProtocol.ParseSetupCommunicationResponse(response, reference, requestedPduSize: 480));
+
+        Assert.Contains("fragmented COTP", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SetupCommunication_RejectsTrailingBytesOutsideDeclaredS7Lengths()
+    {
+        const ushort reference = 44;
+        var response = AckData(
+            reference,
+            new byte[]
+            {
+                0xF0, 0x00,
+                0x00, 0x01,
+                0x00, 0x01,
+                0x01, 0xE0
+            },
+            Array.Empty<byte>());
+        Array.Resize(ref response, response.Length + 1);
+        BinaryPrimitives.WriteUInt16BigEndian(response.AsSpan(2, 2), checked((ushort)response.Length));
+
+        var error = Assert.Throws<S7IsoProtocolException>(() =>
+            S7IsoProtocol.ParseSetupCommunicationResponse(response, reference, requestedPduSize: 480));
+
+        Assert.Contains("do not exactly match", error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData((ushort)239)]
+    [InlineData((ushort)961)]
+    public void SetupCommunication_RequestRejectsPduOutsideSupportedRange(ushort requestedPduSize)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            S7IsoProtocol.BuildSetupCommunication(1, requestedPduSize));
+    }
+
+    [Fact]
     public async Task Transport_PeerPduAboveRequestedMaximum_IsRejectedAsS7SessionFailure()
     {
         await using var server = new TestS7IsoServer(960);

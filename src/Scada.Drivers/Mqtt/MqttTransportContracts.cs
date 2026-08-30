@@ -25,6 +25,8 @@ public sealed record MqttConnectionSettings(
     int MaximumConsecutiveConnectFailures = 5,
     int MaximumBufferedMessages = 4_096)
 {
+    public static readonly TimeSpan MaximumProtocolKeepAlive = TimeSpan.FromSeconds(ushort.MaxValue);
+
     public TimeSpan EffectiveKeepAlive => KeepAlive ?? TimeSpan.FromSeconds(30);
     public TimeSpan EffectiveConnectTimeout => ConnectTimeout ?? TimeSpan.FromSeconds(10);
     public TimeSpan EffectiveReconnectMinimumDelay => ReconnectMinimumDelay ?? TimeSpan.FromSeconds(1);
@@ -44,8 +46,13 @@ public sealed record MqttConnectionSettings(
         if (!string.Equals(ClientId, ClientId.Trim(), StringComparison.Ordinal))
             throw new ArgumentException("MQTT Client ID must not contain surrounding whitespace.", nameof(ClientId));
         MqttProtocolText.ValidateUtf8EncodedString(ClientId, nameof(ClientId), allowEmpty: false);
-        if (EffectiveKeepAlive <= TimeSpan.Zero)
-            throw new ArgumentOutOfRangeException(nameof(KeepAlive));
+        if (EffectiveKeepAlive <= TimeSpan.Zero || EffectiveKeepAlive > MaximumProtocolKeepAlive)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(KeepAlive),
+                KeepAlive,
+                $"MQTT Keep Alive must be greater than zero and no more than {ushort.MaxValue} seconds.");
+        }
         if (EffectiveConnectTimeout <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(ConnectTimeout));
         if (EffectiveReconnectMinimumDelay <= TimeSpan.Zero)

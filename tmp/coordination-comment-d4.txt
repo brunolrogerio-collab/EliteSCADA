@@ -1,0 +1,13 @@
+COORDINATOR CONVERGENCE CHECKPOINT — authoritative common contract is now `docs/DRIVER-CONVERGENCE-COORDINATION-V1.md` on `main` (coordination commit `e0272be4ad35ba333b6b33ced2387b48d2133bf7`; later cleanup commit only removed an accidental scratch file).
+
+Observed Driver 4 head immediately before this checkpoint: `ad950ec25fdd010b729b4e41cddeccd5c2140136`.
+
+Driver 4 is authorized to continue autonomously without waiting for further Coordinator architecture work until the next bounded milestone:
+- keep BACnet planner/provider output library-independent and registry-ready;
+- expose/document protocol-local readiness evidence: required Device Instance/target reachable and configured acquisition active; optional companion-property failures do not block readiness;
+- preserve ordinary WriteProperty versus explicit relinquish as separate semantics; never overload `WriteAsync(null)`;
+- continue only bounded COV/FDR/reachability hardening in this milestone; do not expand into BACnet/SC or BACnet alarm/event services;
+- add the common module/dependency/license/hardware-validation manifest to the handoff;
+- remain Draft/parked; do not modify shared central contracts or `main`.
+
+Shared DriverHost registry, rich TAG binding, host secret resolver, generic rich command operation surface and final integration remain Coordinator-owned. CI remains NORMAL: no reassurance matrix solely because this checkpoint exists.

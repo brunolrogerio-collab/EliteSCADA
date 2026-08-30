@@ -105,7 +105,25 @@ public sealed class MqttReconnectBackoffTests
             .Select(_ => second.ApplyJitter(baseDelay))
             .ToArray();
 
-        Assert.NotEqual(firstSequence, secondSequence);
+        Assert.False(firstSequence.SequenceEqual(secondSequence));
+    }
+
+    [Fact]
+    public void ArithmeticRemainsBoundedNearTimeSpanMaximum()
+    {
+        var minimum = TimeSpan.FromTicks(long.MaxValue / 4);
+        var maximum = TimeSpan.MaxValue;
+        var backoff = new MqttReconnectBackoff(minimum, maximum, seed: 0x7777UL);
+
+        for (var sample = 0; sample < 32; sample++)
+        {
+            var delay = backoff.ApplyJitter(minimum);
+            Assert.True(delay >= minimum);
+            Assert.True(delay <= maximum);
+        }
+
+        Assert.Equal(TimeSpan.FromTicks(long.MaxValue / 2), backoff.NextBaseDelay(minimum));
+        Assert.Equal(TimeSpan.MaxValue, backoff.NextBaseDelay(TimeSpan.FromTicks(long.MaxValue / 2 + 1)));
     }
 
     [Fact]

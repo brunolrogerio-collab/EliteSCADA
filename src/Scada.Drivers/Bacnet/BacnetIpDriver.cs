@@ -38,6 +38,14 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
     private int _covRecreatePending;
     private long _covRecreationAttempts;
     private long _covRecreationFailures;
+    private long _covInitialCreateAttempts;
+    private long _covInitialCreateFailures;
+    private long _covInitialSubscribeRequests;
+    private long _covInitialSubscribeFailures;
+    private long _covRecreationCreateAttempts;
+    private long _covRecreationCreateFailures;
+    private long _covRecreationSubscribeRequests;
+    private long _covRecreationSubscribeFailures;
     private long _connections;
     private long _disconnections;
     private long _reconnects;
@@ -117,7 +125,13 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         try
         {
             foreach (var point in _points.Where(x => x.Binding.UseCov))
-                await TryCreateCovSubscriptionNoGateAsync(point, markManaged: true, cancellationToken).ConfigureAwait(false);
+            {
+                await TryCreateCovSubscriptionNoGateAsync(
+                    point,
+                    markManaged: true,
+                    kind: CovSubscriptionCreateKind.Initial,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
         }
         finally
         {
@@ -427,8 +441,10 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
     private async Task<bool> TryCreateCovSubscriptionNoGateAsync(
         BacnetPoint point,
         bool markManaged,
+        CovSubscriptionCreateKind kind,
         CancellationToken cancellationToken)
     {
+        RecordCovCreateAttempt(kind);
         IDisposable? subscription;
         try
         {
@@ -443,10 +459,19 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         }
         catch
         {
+            RecordCovCreateFailure(kind);
             return false;
         }
 
-        if (subscription is null) return false;
+        // SystemIoBacnetSession returns normally only after one SubscribeCOV
+        // request was emitted. Null means that request failed/rejected; failures
+        // before request emission (for example device resolution) escape above.
+        RecordCovSubscribeRequest(kind, failed: subscription is null);
+        if (subscription is null)
+        {
+            RecordCovCreateFailure(kind);
+            return false;
+        }
 
         lock (_covStateGate)
         {
@@ -507,8 +532,14 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
             foreach (var point in targets)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!await TryCreateCovSubscriptionNoGateAsync(point, markManaged: false, cancellationToken).ConfigureAwait(false))
+                if (!await TryCreateCovSubscriptionNoGateAsync(
+                        point,
+                        markManaged: false,
+                        kind: CovSubscriptionCreateKind.Recreation,
+                        cancellationToken: cancellationToken).ConfigureAwait(false))
+                {
                     failures++;
+                }
             }
 
             if (failures == 0)
@@ -534,6 +565,36 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         finally
         {
             _covLifecycleGate.Release();
+        }
+    }
+
+    private void RecordCovCreateAttempt(CovSubscriptionCreateKind kind)
+    {
+        if (kind == CovSubscriptionCreateKind.Initial)
+            Interlocked.Increment(ref _covInitialCreateAttempts);
+        else
+            Interlocked.Increment(ref _covRecreationCreateAttempts);
+    }
+
+    private void RecordCovCreateFailure(CovSubscriptionCreateKind kind)
+    {
+        if (kind == CovSubscriptionCreateKind.Initial)
+            Interlocked.Increment(ref _covInitialCreateFailures);
+        else
+            Interlocked.Increment(ref _covRecreationCreateFailures);
+    }
+
+    private void RecordCovSubscribeRequest(CovSubscriptionCreateKind kind, bool failed)
+    {
+        if (kind == CovSubscriptionCreateKind.Initial)
+        {
+            Interlocked.Increment(ref _covInitialSubscribeRequests);
+            if (failed) Interlocked.Increment(ref _covInitialSubscribeFailures);
+        }
+        else
+        {
+            Interlocked.Increment(ref _covRecreationSubscribeRequests);
+            if (failed) Interlocked.Increment(ref _covRecreationSubscribeFailures);
         }
     }
 
@@ -701,11 +762,36 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
 
     private void AppendCovSubscriptionDiagnostics(IDictionary<string, string> protocolDetails)
     {
+        var initialCreateAttempts = Interlocked.Read(ref _covInitialCreateAttempts);
+        var initialCreateFailures = Interlocked.Read(ref _covInitialCreateFailures);
+        var initialSubscribeRequests = Interlocked.Read(ref _covInitialSubscribeRequests);
+        var initialSubscribeFailures = Interlocked.Read(ref _covInitialSubscribeFailures);
+        var recreationCreateAttempts = Interlocked.Read(ref _covRecreationCreateAttempts);
+        var recreationCreateFailures = Interlocked.Read(ref _covRecreationCreateFailures);
+        var recreationSubscribeRequests = Interlocked.Read(ref _covRecreationSubscribeRequests);
+        var recreationSubscribeFailures = Interlocked.Read(ref _covRecreationSubscribeFailures);
+
+        protocolDetails["covInitialCreateAttempts"] = initialCreateAttempts.ToString(CultureInfo.InvariantCulture);
+        protocolDetails["covInitialCreateFailures"] = initialCreateFailures.ToString(CultureInfo.InvariantCulture);
+        protocolDetails["covInitialSubscribeRequests"] = initialSubscribeRequests.ToString(CultureInfo.InvariantCulture);
+        protocolDetails["covInitialSubscribeFailures"] = initialSubscribeFailures.ToString(CultureInfo.InvariantCulture);
+        protocolDetails["covRecreationCreateAttempts"] = recreationCreateAttempts.ToString(CultureInfo.InvariantCulture);
+        protocolDetails["covRecreationCreateFailures"] = recreationCreateFailures.ToString(CultureInfo.InvariantCulture);
+        protocolDetails["covRecreationSubscribeRequests"] = recreationSubscribeRequests.ToString(CultureInfo.InvariantCulture);
+        protocolDetails["covRecreationSubscribeFailures"] = recreationSubscribeFailures.ToString(CultureInfo.InvariantCulture);
+
         if (_session is not IBacnetCovSubscriptionDiagnostics source) return;
         var snapshot = source.GetCovSubscriptionDiagnostics();
+        var createSubscribeRequests = initialSubscribeRequests + recreationSubscribeRequests;
+        var createSubscribeFailures = initialSubscribeFailures + recreationSubscribeFailures;
+        var renewalRequests = Math.Max(0L, snapshot.SubscribeRequests - createSubscribeRequests);
+        var renewalFailures = Math.Max(0L, snapshot.SubscribeFailures - createSubscribeFailures);
+
         protocolDetails["covSessionActiveSubscriptions"] = snapshot.ActiveSubscriptions.ToString(CultureInfo.InvariantCulture);
         protocolDetails["covSubscribeRequests"] = snapshot.SubscribeRequests.ToString(CultureInfo.InvariantCulture);
         protocolDetails["covSubscribeFailures"] = snapshot.SubscribeFailures.ToString(CultureInfo.InvariantCulture);
+        protocolDetails["covRenewalRequests"] = renewalRequests.ToString(CultureInfo.InvariantCulture);
+        protocolDetails["covRenewalFailures"] = renewalFailures.ToString(CultureInfo.InvariantCulture);
         protocolDetails["covCancelRequests"] = snapshot.CancelRequests.ToString(CultureInfo.InvariantCulture);
         protocolDetails["covCancelFailures"] = snapshot.CancelFailures.ToString(CultureInfo.InvariantCulture);
         if (!string.IsNullOrWhiteSpace(snapshot.LastErrorType))
@@ -720,5 +806,11 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
         if (string.IsNullOrWhiteSpace(message)) return message;
         var trimmed = message.Replace('\r', ' ').Replace('\n', ' ').Trim();
         return trimmed.Length <= 512 ? trimmed : trimmed[..512];
+    }
+
+    private enum CovSubscriptionCreateKind
+    {
+        Initial,
+        Recreation
     }
 }

@@ -1,0 +1,120 @@
+name: MQTT Broker Restart Interop Smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "interop-lab/mqtt/mosquitto-restart.conf"
+      - "interop-lab/compose.mqtt-restart.yaml"
+      - ".github/workflows/interop-mqtt-broker-restart-smoke.yml"
+      - "src/Scada.Drivers/Mqtt/**"
+      - "tests/Scada.Drivers.Tests/MqttBrokerRestartIntegrationTests.cs"
+
+permissions:
+  contents: read
+
+jobs:
+  mqtt-broker-restart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ELITESCADA_MQTT_RESTART_HOST: 127.0.0.1
+      ELITESCADA_MQTT_RESTART_PORT: '1885'
+      ELITESCADA_MQTT_RESTART_RUN_ID: ${{ github.run_id }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Validate persistent broker Compose model
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-restart.yaml config >/dev/null
+
+      - name: Start persistent Mosquitto and wait healthy
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-restart.yaml up -d --wait --wait-timeout 60
+
+      - name: Restore MQTT Driver restart tests
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+
+      - name: Prepare persistent sessions and offline QoS messages
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          --no-restore
+          --configuration Release
+          --filter FullyQualifiedName~MqttBrokerRestartIntegrationTests.PreparePersistentSessionBeforeBrokerRestart
+          --logger "console;verbosity=normal"
+
+      - name: Restart broker process and prove new process instance
+        working-directory: interop-lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          container=elitescada-lab-mosquitto-restart
+          before_started="$(docker inspect -f '{{.State.StartedAt}}' "$container")"
+          before_pid="$(docker inspect -f '{{.State.Pid}}' "$container")"
+          echo "BROKER_BEFORE_STARTED_AT=$before_started"
+          echo "BROKER_BEFORE_PID=$before_pid"
+
+          docker compose -f compose.mqtt-restart.yaml restart mosquitto-restart
+
+          for attempt in {1..30}; do
+            health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$container")"
+            if [[ "$health" == "healthy" ]]; then
+              break
+            fi
+            sleep 1
+          done
+
+          health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$container")"
+          if [[ "$health" != "healthy" ]]; then
+            echo "Broker did not become healthy after restart."
+            docker logs "$container" || true
+            exit 1
+          fi
+
+          after_started="$(docker inspect -f '{{.State.StartedAt}}' "$container")"
+          after_pid="$(docker inspect -f '{{.State.Pid}}' "$container")"
+          echo "BROKER_AFTER_STARTED_AT=$after_started"
+          echo "BROKER_AFTER_PID=$after_pid"
+
+          if [[ "$before_started" == "$after_started" ]]; then
+            echo "Broker StartedAt did not change; restart was not proven."
+            exit 1
+          fi
+
+          if [[ "$before_pid" == "$after_pid" ]]; then
+            echo "Broker PID did not change; restart was not proven."
+            exit 1
+          fi
+
+          docker exec "$container" test -s /mosquitto/data/mosquitto.db
+          docker exec "$container" ls -l /mosquitto/data/mosquitto.db
+
+      - name: Recover persisted sessions without resubscribe
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          --no-restore
+          --configuration Release
+          --filter FullyQualifiedName~MqttBrokerRestartIntegrationTests.RecoverPersistentSessionAfterBrokerRestartWithoutResubscribe
+          --logger "console;verbosity=normal"
+
+      - name: Show restart broker status
+        if: always()
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-restart.yaml ps
+
+      - name: Dump restart broker logs on failure
+        if: failure()
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-restart.yaml logs --no-color
+
+      - name: Stop restart broker and remove persisted lab volume
+        if: always()
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-restart.yaml down -v --remove-orphans

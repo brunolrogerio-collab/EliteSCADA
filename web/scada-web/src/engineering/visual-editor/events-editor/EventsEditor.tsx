@@ -286,14 +286,14 @@ export function EventsEditor({
   return <section className="visual-editor-events" data-testid="visual-events-editor">
     <header><strong>Events</strong><span>Canonical Python event associations</span></header>
     {unavailable ? <p>Apply this visual object before editing canonical event associations.</p> : <>
-      <label><span>Event</span><select value={choice} onChange={event => setChoice(event.currentTarget.value as EventChoice)}>
+      <label><span>Event</span><select data-testid="visual-events-event" value={choice} onChange={event => setChoice(event.currentTarget.value as EventChoice)}>
         {EVENT_CHOICES.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
       </select></label>
-      <label><span>Script</span><select value={scriptId} onChange={event => setScriptId(event.currentTarget.value)}>
+      <label><span>Script</span><select data-testid="visual-events-script" value={scriptId} onChange={event => setScriptId(event.currentTarget.value)}>
         <option value="">Select Script</option>
         {scripts.map(script => <option key={script.id} value={script.id}>{script.name} · {script.path}</option>)}
       </select></label>
-      <label><span>Entry point</span><select value={entryPoint} onChange={event => setEntryPoint(event.currentTarget.value)} disabled={!selectedScript}>
+      <label><span>Entry point</span><select data-testid="visual-events-entry-point" value={entryPoint} onChange={event => setEntryPoint(event.currentTarget.value)} disabled={!selectedScript}>
         <option value="">Select handler</option>
         {matchingEntryPoints.map(item => <option key={`${item.eventKind}:${item.handlerName}`} value={item.handlerName}>{item.handlerName}</option>)}
       </select></label>

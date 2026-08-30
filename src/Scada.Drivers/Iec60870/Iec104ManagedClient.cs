@@ -86,7 +86,7 @@ public sealed class Iec104ManagedClient
         _reconnectPolicy = effectiveReconnectPolicy;
         _commandOptions = effectiveCommandOptions;
         _originatorAddress = originatorAddress;
-        _delayAsync = delayAsync ?? static (delay, cancellationToken) => Task.Delay(delay, cancellationToken);
+        _delayAsync = delayAsync ?? (static (delay, cancellationToken) => Task.Delay(delay, cancellationToken));
     }
 
     public int ReconnectAttempt => Volatile.Read(ref _attempt);

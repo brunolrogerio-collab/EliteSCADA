@@ -20,6 +20,8 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
     private readonly object _callbackStateGate = new();
     private Channel<TransportItem>? _received;
     private CancellationTokenSource? _receiveWriteCts;
+    private Func<MqttApplicationMessageReceivedEventArgs, Task>? _applicationMessageReceivedHandler;
+    private Func<MqttClientDisconnectedEventArgs, Task>? _disconnectedHandler;
     private int? _bufferCapacity;
     private long _activeGeneration;
     private volatile int _maximumInboundPayloadBytes = 1_048_576;
@@ -33,12 +35,14 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
     }
 
     internal MqttNetClientTransport(MqttClientFactory factory)
+        : this(factory, null)
+    {
+    }
+
+    internal MqttNetClientTransport(MqttClientFactory factory, IMqttClient? client)
     {
         _factory = factory ?? throw new ArgumentNullException(nameof(factory));
-        _client = _factory.CreateMqttClient();
-
-        _client.ApplicationMessageReceivedAsync += OnApplicationMessageReceivedAsync;
-        _client.DisconnectedAsync += OnDisconnectedAsync;
+        _client = client ?? _factory.CreateMqttClient();
     }
 
     public bool IsConnected => !_disposed && _client.IsConnected;
@@ -70,11 +74,13 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
             EnsureReceiveChannel(settings.MaximumBufferedMessages);
             _maximumInboundPayloadBytes = settings.MaximumInboundPayloadBytes;
             _acceptInboundEvents = false;
-            Interlocked.Increment(ref _activeGeneration);
+            var generation = Interlocked.Increment(ref _activeGeneration);
             DrainBufferedItems();
             ResetReceiveWriteCancellation();
             _intentionalDisconnect = false;
+            InstallSessionHandlers(generation);
 
+            var sessionEstablished = false;
             byte[]? passwordBuffer = null;
             try
             {
@@ -124,6 +130,7 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
                 }
 
                 _acceptInboundEvents = true;
+                sessionEstablished = true;
             }
             catch (OperationCanceledException)
             {
@@ -139,6 +146,12 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
             }
             finally
             {
+                if (!sessionEstablished)
+                {
+                    _acceptInboundEvents = false;
+                    RemoveSessionHandlers();
+                }
+
                 if (passwordBuffer is { Length: > 0 })
                     CryptographicOperations.ZeroMemory(passwordBuffer);
             }
@@ -283,6 +296,7 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
             _intentionalDisconnect = true;
             _acceptInboundEvents = false;
             CancelReceiveWriters();
+            RemoveSessionHandlers();
             try
             {
                 if (_client.IsConnected)
@@ -326,9 +340,8 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
             _acceptInboundEvents = false;
             Interlocked.Increment(ref _activeGeneration);
             CancelReceiveWriters();
+            RemoveSessionHandlers();
 
-            _client.ApplicationMessageReceivedAsync -= OnApplicationMessageReceivedAsync;
-            _client.DisconnectedAsync -= OnDisconnectedAsync;
             _received?.Writer.TryComplete();
             _client.Dispose();
 
@@ -347,20 +360,21 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
         }
     }
 
-    private async Task OnApplicationMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs args)
+    private async Task OnApplicationMessageReceivedAsync(
+        MqttApplicationMessageReceivedEventArgs args,
+        long generation)
     {
         var message = args.ApplicationMessage;
         var requiresAcknowledgement = message.QualityOfServiceLevel != MqttQualityOfServiceLevel.AtMostOnce;
         if (requiresAcknowledgement)
             args.AutoAcknowledge = false;
 
-        if (!TryCaptureCallbackState(out var channel, out var writeCancellation))
+        if (!TryCaptureCallbackState(generation, out var channel, out var writeCancellation))
         {
             if (requiresAcknowledgement) args.ProcessingFailed = true;
             return;
         }
 
-        var generation = Interlocked.Read(ref _activeGeneration);
         if (message.Payload.Length > _maximumInboundPayloadBytes)
         {
             _acceptInboundEvents = false;
@@ -411,16 +425,26 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
         }
     }
 
-    private async Task OnDisconnectedAsync(MqttClientDisconnectedEventArgs args)
+    private async Task OnDisconnectedAsync(MqttClientDisconnectedEventArgs args, long generation)
     {
-        if (_disposed || _intentionalDisconnect || !_acceptInboundEvents)
+        if (generation != Interlocked.Read(ref _activeGeneration) ||
+            _disposed ||
+            _intentionalDisconnect ||
+            !_acceptInboundEvents)
+        {
             return;
+        }
 
         _acceptInboundEvents = false;
-        if (!TryCaptureCallbackState(out var channel, out var writeCancellation, requireAcceptingEvents: false))
+        if (!TryCaptureCallbackState(
+                generation,
+                out var channel,
+                out var writeCancellation,
+                requireAcceptingEvents: false))
+        {
             return;
+        }
 
-        var generation = Interlocked.Read(ref _activeGeneration);
         var reason = string.IsNullOrWhiteSpace(args.ReasonString)
             ? "MQTT broker connection was lost."
             : $"MQTT broker connection was lost: {Sanitize(args.ReasonString)}";
@@ -440,6 +464,7 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
     }
 
     private bool TryCaptureCallbackState(
+        long generation,
         out Channel<TransportItem> channel,
         out CancellationToken writeCancellation,
         bool requireAcceptingEvents = true)
@@ -447,6 +472,7 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
         lock (_callbackStateGate)
         {
             if (_disposed ||
+                generation != Interlocked.Read(ref _activeGeneration) ||
                 (requireAcceptingEvents && !_acceptInboundEvents) ||
                 _received is null ||
                 _receiveWriteCts is null)
@@ -459,6 +485,31 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
             channel = _received;
             writeCancellation = _receiveWriteCts.Token;
             return true;
+        }
+    }
+
+    private void InstallSessionHandlers(long generation)
+    {
+        RemoveSessionHandlers();
+
+        _applicationMessageReceivedHandler = args => OnApplicationMessageReceivedAsync(args, generation);
+        _disconnectedHandler = args => OnDisconnectedAsync(args, generation);
+        _client.ApplicationMessageReceivedAsync += _applicationMessageReceivedHandler;
+        _client.DisconnectedAsync += _disconnectedHandler;
+    }
+
+    private void RemoveSessionHandlers()
+    {
+        if (_applicationMessageReceivedHandler is not null)
+        {
+            _client.ApplicationMessageReceivedAsync -= _applicationMessageReceivedHandler;
+            _applicationMessageReceivedHandler = null;
+        }
+
+        if (_disconnectedHandler is not null)
+        {
+            _client.DisconnectedAsync -= _disconnectedHandler;
+            _disconnectedHandler = null;
         }
     }
 

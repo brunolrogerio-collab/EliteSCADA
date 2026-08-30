@@ -38,12 +38,14 @@ public sealed class LogixProtocolBoundaryValidationTests
                 timeout.Token);
         }, timeout.Token);
 
-        await using var client = CreateClient(endpoint.Port);
+        await using var client = new LogixEtherNetIpClient();
         await client.ConnectAsync(CreateOptions(endpoint.Port), timeout.Token);
 
         var reference = new LogixSymbolReference(LogixTagScope.Controller, "parts", LogixNativeType.Dint);
         var error = await Assert.ThrowsAsync<InvalidDataException>(async () =>
-            await client.ReadManyAsync([reference], timeout.Token));
+        {
+            await client.ReadManyAsync([reference], timeout.Token);
+        });
 
         Assert.Contains("response service", error.Message, StringComparison.OrdinalIgnoreCase);
         Assert.False(client.IsConnected);
@@ -87,12 +89,14 @@ public sealed class LogixProtocolBoundaryValidationTests
                 timeout.Token);
         }, timeout.Token);
 
-        await using var client = CreateClient(endpoint.Port);
+        await using var client = new LogixEtherNetIpClient();
         await client.ConnectAsync(CreateOptions(endpoint.Port), timeout.Token);
 
         var reference = new LogixSymbolReference(LogixTagScope.Controller, "parts", LogixNativeType.Dint);
         var error = await Assert.ThrowsAsync<InvalidDataException>(async () =>
-            await client.ReadManyAsync([reference], timeout.Token));
+        {
+            await client.ReadManyAsync([reference], timeout.Token);
+        });
 
         Assert.Contains("active session", error.Message, StringComparison.OrdinalIgnoreCase);
         Assert.False(client.IsConnected);
@@ -103,8 +107,6 @@ public sealed class LogixProtocolBoundaryValidationTests
     }
 
     private const uint SessionHandle = 0x12345678;
-
-    private static LogixEtherNetIpClient CreateClient(int port) => new();
 
     private static AllenBradleyLogixOptions CreateOptions(int port) =>
         new(

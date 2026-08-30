@@ -27,7 +27,7 @@ public sealed class MqttBrokerShutdownRedeliveryTests
         foreach (var protocol in protocols)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            var clientId = $"elite-q2red-{runId[..9]}-{ProtocolToken(protocol)}";
+            var clientId = CreateClientId("q2s", runId, protocol);
             var settings = CreatePersistentSettings(
                 host,
                 port,
@@ -40,7 +40,7 @@ public sealed class MqttBrokerShutdownRedeliveryTests
                 port,
                 useTls,
                 protocol,
-                $"elite-q2pub-{runId[..9]}-{ProtocolToken(protocol)}",
+                CreateClientId("q2p", runId, protocol),
                 maximumBufferedMessages: 8);
             var topic = $"elitescada/integration/{runId}/{ProtocolToken(protocol)}/qos2-shutdown-redelivery";
             var admittedPayload = $"qos2-admitted:{runId}";
@@ -226,6 +226,23 @@ public sealed class MqttBrokerShutdownRedeliveryTests
 
         throw new InvalidOperationException($"Environment variable '{name}' must be a TCP port from 1 to 65535.");
     }
+
+    private static string CreateClientId(string role, string runId, MqttProtocolMode protocol)
+    {
+        if (role.Length is < 1 or > 3)
+            throw new ArgumentOutOfRangeException(nameof(role), "Integration Client ID role must contain 1 to 3 characters.");
+        if (runId.Length < 16)
+            throw new ArgumentException("Integration run ID must contain at least 16 characters.", nameof(runId));
+
+        return $"{role}-{runId[..16]}-{ProtocolShortToken(protocol)}";
+    }
+
+    private static string ProtocolShortToken(MqttProtocolMode protocol) => protocol switch
+    {
+        MqttProtocolMode.Mqtt5 => "5",
+        MqttProtocolMode.Mqtt311 => "3",
+        _ => throw new ArgumentOutOfRangeException(nameof(protocol), protocol, null)
+    };
 
     private static string ProtocolToken(MqttProtocolMode protocol) => protocol switch
     {

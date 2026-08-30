@@ -44,10 +44,6 @@ The locked public precedence remains:
 
 Engineering remains immutable; runtime Script/Animation overlays are transient and fail closed. Screen and Popup instances are isolated by mounted runtime context.
 
-The current integration head after documentation-only checkpoint updates is:
-
-`02fb0a15d6dc472d86dafbd09b17801cae8bbbdf`
-
 ### IMPLEMENTED IN PR
 
 No Wave 10 worker/coordinator functional implementation remains outside the integration branch.
@@ -58,8 +54,8 @@ Wave 10 is not yet closed on `main`.
 
 Remaining closure sequence:
 
-1. validate the exact current Wave 10 integration head through normal CI;
-2. merge the validated Wave 10 integration head to `main`;
+1. validate the exact integration branch submitted to `main` through normal CI;
+2. merge that validated head to `main`;
 3. require exact post-main green CI before declaring Wave 10 closed.
 
 The complete owner-testable HMI Runtime demo vertical slice, including full product Runtime route composition, remains Wave 11 scope and must not be silently pulled backward into Wave 10.

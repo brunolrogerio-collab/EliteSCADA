@@ -1,0 +1,55 @@
+name: Driver 7 DNP3 dnp3py L2 Interop Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'src/Scada.Drivers/Dnp3/**'
+      - 'src/Scada.Drivers.Dnp3.StepFunction/**'
+      - 'tests/Scada.Drivers.Tests/Dnp3Dnp3PyL2IntegrationTests.cs'
+      - 'interop-lab/dnp3-dnp3py/**'
+      - 'interop-lab/compose.dnp3-dnp3py.yaml'
+      - '.github/workflows/driver7-dnp3-dnp3py-l2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dnp3-dnp3py-l2:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      ELITESCADA_DNP3PY_L2_HOST: 127.0.0.1
+      ELITESCADA_DNP3PY_L2_PORT: 20000
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Validate dnp3py Compose model
+        run: docker compose -f interop-lab/compose.dnp3-dnp3py.yaml config >/dev/null
+
+      - name: Build and start independent dnp3py outstation
+        run: docker compose -f interop-lab/compose.dnp3-dnp3py.yaml up -d --build --wait --wait-timeout 120
+
+      - name: Restore Driver 7 integration tests
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+
+      - name: EliteSCADA Driver 7 against dnp3py peer
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release --filter Category=Dnp3Dnp3PyIntegration --logger "console;verbosity=normal"
+
+      - name: Show DNP3 peer status
+        if: always()
+        run: docker compose -f interop-lab/compose.dnp3-dnp3py.yaml ps
+
+      - name: Dump DNP3 peer logs on failure
+        if: failure()
+        run: docker compose -f interop-lab/compose.dnp3-dnp3py.yaml logs --no-color
+
+      - name: Stop DNP3 peer
+        if: always()
+        run: docker compose -f interop-lab/compose.dnp3-dnp3py.yaml down -v --remove-orphans

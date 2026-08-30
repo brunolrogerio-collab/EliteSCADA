@@ -1,0 +1,119 @@
+name: MQTT Secure Interop Smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "interop-lab/mqtt/mosquitto-secure.conf"
+      - "interop-lab/compose.mqtt-secure.yaml"
+      - ".github/workflows/interop-mqtt-secure-smoke.yml"
+      - "src/Scada.Drivers/Mqtt/**"
+      - "tests/Scada.Drivers.Tests/Mqtt*"
+
+permissions:
+  contents: read
+
+jobs:
+  mqtt-secure-interop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Generate ephemeral lab CA, server certificate and password file
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p interop-lab/mqtt/tls
+          openssl req -x509 -newkey rsa:2048 -sha256 -days 1 -nodes \
+            -keyout interop-lab/mqtt/tls/ca.key \
+            -out interop-lab/mqtt/tls/ca.crt \
+            -subj '/CN=EliteSCADA MQTT Lab CA'
+          openssl req -newkey rsa:2048 -nodes \
+            -keyout interop-lab/mqtt/tls/server.key \
+            -out interop-lab/mqtt/tls/server.csr \
+            -subj '/CN=localhost'
+          cat > interop-lab/mqtt/tls/server.ext <<'EOF'
+          subjectAltName=IP:127.0.0.1,DNS:localhost
+          extendedKeyUsage=serverAuth
+          keyUsage=digitalSignature,keyEncipherment
+          EOF
+          openssl x509 -req \
+            -in interop-lab/mqtt/tls/server.csr \
+            -CA interop-lab/mqtt/tls/ca.crt \
+            -CAkey interop-lab/mqtt/tls/ca.key \
+            -CAcreateserial \
+            -out interop-lab/mqtt/tls/server.crt \
+            -days 1 -sha256 \
+            -extfile interop-lab/mqtt/tls/server.ext
+          docker run --rm \
+            -v "$PWD/interop-lab/mqtt/tls:/work" \
+            eclipse-mosquitto:2.1.2-alpine \
+            sh -c "mosquitto_passwd -b -c /work/passwords elitescada lab-secret"
+          chmod 0644 \
+            interop-lab/mqtt/tls/ca.crt \
+            interop-lab/mqtt/tls/server.crt \
+            interop-lab/mqtt/tls/server.key \
+            interop-lab/mqtt/tls/passwords
+
+      - name: Trust ephemeral lab CA on runner
+        shell: bash
+        run: |
+          sudo cp interop-lab/mqtt/tls/ca.crt /usr/local/share/ca-certificates/elitescada-mqtt-lab-ca.crt
+          sudo update-ca-certificates
+
+      - name: Validate secure Compose model
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-secure.yaml config >/dev/null
+
+      - name: Start secure Mosquitto
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-secure.yaml up -d
+
+      - name: Restore MQTT Driver integration tests
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+
+      - name: EliteSCADA MQTT transport over trusted TLS and authentication
+        env:
+          ELITESCADA_MQTT_INTEGRATION_HOST: 127.0.0.1
+          ELITESCADA_MQTT_INTEGRATION_PORT: '8883'
+          ELITESCADA_MQTT_INTEGRATION_TLS: 'true'
+          ELITESCADA_MQTT_INTEGRATION_PROTOCOLS: mqtt5,mqtt311
+          ELITESCADA_MQTT_INTEGRATION_USERNAME: elitescada
+          ELITESCADA_MQTT_INTEGRATION_PASSWORD: lab-secret
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          --no-restore
+          --configuration Release
+          --filter Category=BrokerIntegration
+          --logger "console;verbosity=normal"
+
+      - name: Show secure broker status
+        if: always()
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-secure.yaml ps
+
+      - name: Dump secure broker logs on failure
+        if: failure()
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-secure.yaml logs --no-color
+
+      - name: Stop secure broker
+        if: always()
+        working-directory: interop-lab
+        run: docker compose -f compose.mqtt-secure.yaml down -v --remove-orphans
+
+      - name: Remove ephemeral trust anchor
+        if: always()
+        shell: bash
+        run: |
+          sudo rm -f /usr/local/share/ca-certificates/elitescada-mqtt-lab-ca.crt
+          sudo update-ca-certificates >/dev/null
+          rm -rf interop-lab/mqtt/tls

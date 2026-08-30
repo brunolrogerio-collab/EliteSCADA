@@ -33,13 +33,22 @@ public sealed class BacnetEngineeringPlannerTests
         var result = BacnetEngineeringRuntimePlanner.Plan(package, package.DataSources!.Single());
 
         Assert.True(result.CanActivate, string.Join("; ", result.Issues.Select(x => x.Message)));
-        var point = Assert.Single(result.Plan!.Points);
+        Assert.Equal(BacnetDriverDescriptor.DriverType, result.Plan!.DriverType);
+        Assert.Equal(tagId, Assert.Single(result.Plan.Tags).Id);
+        var point = Assert.Single(result.Plan.Points);
         Assert.Equal(tagId, point.Tag.Id);
         Assert.Equal(1201u, point.Binding.DeviceInstance);
         Assert.Equal(37u, point.Binding.ObjectInstance);
         Assert.Equal(85u, point.Binding.PropertyIdentifier);
         Assert.False(point.Binding.UseCov);
         Assert.False(point.Writable);
+    }
+
+    [Fact]
+    public void BindingSchemaIdentity_IsStableForFutureRichCommunicationBinding()
+    {
+        Assert.Equal("scada.driver.bacnet.ip.binding", BacnetBinding.BindingSchemaId);
+        Assert.Equal(1, BacnetBinding.BindingSchemaVersion);
     }
 
     [Fact]

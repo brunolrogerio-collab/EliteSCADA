@@ -23,7 +23,7 @@ Wave 10 product `WaveBaseSHA`:
 
 This was the healthy `main` product head used to freeze all Wave 10 branches. Normal CI was green on this product state before activation.
 
-A later docs-only activation commit created `docs/WAVE-10-PYTHON-VISUAL-EVENTS-ANIMATION-PREVIEW.md` with `[skip ci]`; such coordination-only commits do not change the WaveBaseSHA.
+Later docs-only activation/coordination commits use `[skip ci]`; they do not change the frozen Wave 10 product base.
 
 Wave 10 integration branch:
 
@@ -109,17 +109,35 @@ Delivered scope includes:
 - Reporting Engineering/execution core and mounted Report Designer/Preview;
 - central Historical Query configuration/composition.
 
-## Parallel Drivers — policy and current handoff state
+## Parallel Drivers and Interoperability Lab — current snapshot
+
+The authoritative coordination snapshot is now:
+
+`docs/DRIVER-AND-INTEROP-LAB-STATUS.md`
+
+Read it before coordinating Driver convergence or laboratory acceptance. It intentionally separates worker-code maturity, normal CI, independent software interoperability and representative hardware evidence.
+
+Observed worker state at this handoff:
+
+| Driver | Head | Handoff / CI | Coordination state |
+| --- | --- | --- | --- |
+| D4 BACnet/IP | `2ced848124350a5d83ec563a4fb22312ac224fe1` | Draft #109 / CI #787 green | reviewable, parked; external interoperability remains |
+| D5 Allen-Bradley CIP | `18ff6dc989a65c1f8b006f83c08d8394a5510914` | Draft #111 / CI #785 green | reviewable, parked; hardware/conformance remains |
+| D6 IEC-104 | `d597ef5ed1885b63dcd0b3568287bc1e34330bee` | Draft #146 / CI #798 green | formal handoff now complete; ready for convergence review |
+| D7 DNP3 | `ac0dd6944f53d19447f3353addd404c02da7249c` | Draft #108 / CI #697 green | reviewable, parked; independent peer + commercial licensing remain |
+| D8 Siemens S7 | `0c37b922b44f591ebd143470abf3ebaa6b4bffae` | Draft #135 / CI #789 green | strong parked milestone; Siemens external evidence remains |
+| D9 OPC UA | `8ba5870d7dbe119a2999d8a73394289e2349f401` | no worker PR / no Actions run on canonical branch | least formalized; not review-ready |
+| D10 MQTT | `fd2f3cbba3e8fc701e376cfcbd1685b28e3d98ef` | Draft #128 / CI #791 green | reviewable, parked; product-path live broker evidence remains |
 
 Canonical worker branches remain:
 
-- Driver 4 BACnet/IP: `driver4/bacnet`
-- Driver 5 Allen-Bradley Logix EtherNet/IP/CIP: `driver5/allen-bradley-cip`
-- Driver 6 IEC 60870-5-104: `driver6/iec-60870-5-104`
-- Driver 7 DNP3: `driver7/dnp3`
-- Driver 8 Siemens S7 ISO-on-TCP: `driver8/siemens-s7-iso`
-- Driver 9 OPC UA: `driver9/opc-ua`
-- Driver 10 MQTT Industrial: `driver10/mqtt`
+- `driver4/bacnet`
+- `driver5/allen-bradley-cip`
+- `driver6/iec-60870-5-104`
+- `driver7/dnp3`
+- `driver8/siemens-s7-iso`
+- `driver9/opc-ua`
+- `driver10/mqtt`
 
 Old aliases `driver1/siemens-s7-iso`, `driver2/opc-ua` and `driver3/mqtt` are retired.
 
@@ -127,7 +145,28 @@ Shared convergence authority is `docs/DRIVER-CONVERGENCE-COORDINATION-V1.md` plu
 
 Driver branches do **not** merge automatically into `main` or Wave 10. Shared registry/planner/factory, readiness, protected-material resolution, rich Communication TAG binding, module activation and shared command/timestamp policy remain Coordinator concerns.
 
-At Wave 10 activation, OPC UA independent-software interoperability work was isolated in PR #148 on `coordination/driver-interop-opcua-v1`. Its normal product CI had passed on its then-current head, while the dedicated OPC UA Interop Lab gate still required correction/green evidence. It must not block Wave 10 unless a shared canonical contract changes. Re-read the PR and exact checks before acting because this state may advance in another chat.
+### Interoperability Lab current evidence
+
+Mainline `interop-lab/` is test infrastructure separate from the product runtime.
+
+The current base lab proves that the lab can build/start and that its MQTT round-trip smoke succeeds. The CIP overlay Compose model is validated, but this is not yet equivalent to a complete Driver 5 product-path acceptance scenario.
+
+OPC UA independent-software work is isolated in PR #148 on `coordination/driver-interop-opcua-v1`, exact observed head:
+
+`ffa810c2a4e6524fdb4d05c7c094a899e80af67b`
+
+On that exact head:
+
+- normal EliteSCADA CI #807: **GREEN**;
+- dedicated Interop Lab Smoke #8: **RED**;
+- failure step: `Build and start independent OPC UA peer`;
+- the later `OPC UA open62541 interoperability smoke` step was skipped.
+
+Therefore PR #148 does **not** yet provide accepted L2 OPC UA independent-software interoperability evidence and must not be merged on the strength of normal CI alone.
+
+The failing lab run still proved the scenario JSON, Node-RED JSON, base/CIP/OPC-UA Compose models, base lab startup and MQTT round-trip smoke before reaching the open62541 peer build/start failure.
+
+This lab work must not block Wave 10 unless it changes a shared canonical product contract.
 
 ## Permanent contracts that must survive Wave 10
 
@@ -142,14 +181,15 @@ At Wave 10 activation, OPC UA independent-software interoperability work was iso
 
 ## New coordinator startup checklist
 
-1. Read this file and `docs/WAVE-10-PYTHON-VISUAL-EVENTS-ANIMATION-PREVIEW.md`.
-2. Re-read live `main`; do not assume the SHA recorded here is still the live docs head.
+1. Read this file, `docs/WAVE-10-PYTHON-VISUAL-EVENTS-ANIMATION-PREVIEW.md` and `docs/DRIVER-AND-INTEROP-LAB-STATUS.md`.
+2. Re-read live `main`; do not assume any SHA recorded here is still live.
 3. Re-read Wave 10 integration and DEV 1/2/3 branch heads.
 4. Read issues #149, #150, #151 and #152 and any new comments/PRs.
 5. Treat `bbfd730e404b0dee2c05e0ec0afb979b1b14ea35` as the frozen Wave 10 **product** WaveBaseSHA unless a deliberate rebase decision is recorded.
-6. Inspect open Driver PRs/issues separately; do not let them steal Wave priority.
-7. Integrate only narrow reviewed worker heads; reconcile shared files centrally.
-8. Require exact final integration CI before `main`, then exact post-main CI before closing Wave 10.
+6. Inspect open Driver PRs/issues and lab checks separately; do not let them steal Wave priority.
+7. Distinguish normal CI from independent-software/hardware interoperability evidence.
+8. Integrate only narrow reviewed worker heads; reconcile shared files centrally.
+9. Require exact final integration CI before `main`, then exact post-main CI before closing Wave 10.
 
 ## Required worker handoff
 

@@ -1,0 +1,53 @@
+name: Interop Lab Smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "interop-lab/**"
+      - ".github/workflows/interop-lab-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  base-lab-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate scenario catalog JSON
+        run: python -m json.tool interop-lab/scenarios/catalog.json >/dev/null
+
+      - name: Validate Node-RED flow JSON
+        run: python -m json.tool interop-lab/node-red/flows.json >/dev/null
+
+      - name: Validate Compose model
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml config >/dev/null
+
+      - name: Build and start base lab
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml up -d --build
+
+      - name: MQTT round-trip smoke
+        working-directory: interop-lab
+        run: bash scripts/lab.sh smoke
+
+      - name: Show lab status
+        if: always()
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml ps
+
+      - name: Dump logs on failure
+        if: failure()
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml logs --no-color
+
+      - name: Stop lab
+        if: always()
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml down -v --remove-orphans

@@ -55,6 +55,7 @@ public sealed class LogixRegisterSessionValidationTests
         Assert.Equal(1, diagnostics.RequestAttempts);
         Assert.Equal(1, diagnostics.FailedRequests);
         Assert.Equal(0, diagnostics.ConnectionCount);
+        Assert.NotNull(diagnostics.LastError);
         Assert.Contains(expectedMessage, diagnostics.LastError, StringComparison.OrdinalIgnoreCase);
         await server;
     }
@@ -96,6 +97,7 @@ public sealed class LogixRegisterSessionValidationTests
         Assert.Equal(1, diagnostics.RequestAttempts);
         Assert.Equal(1, diagnostics.FailedRequests);
         Assert.Equal(0, diagnostics.ConnectionCount);
+        Assert.NotNull(diagnostics.LastError);
         Assert.Contains("Options must be zero", diagnostics.LastError, StringComparison.OrdinalIgnoreCase);
         await server;
     }

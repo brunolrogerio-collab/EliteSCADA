@@ -1,7 +1,7 @@
 # EliteSCADA Roadmap
 
-**Status date:** 2026-08-29  
-**Active direction:** **WAVE 09 — Screens/Popups/Dynamos + Historical Data + Reporting**
+**Status date:** 2026-08-30  
+**Active direction:** **WAVE 10 — Python visual events + animation + preview**
 
 Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
 Parallel execution model: `docs/DEVELOPMENT-WAVES.md`.  
@@ -18,12 +18,11 @@ Engineering Import/Export remains cross-cutting: canonical Engineering entities 
 
 ## Current validated foundation
 
-Current validated product baseline on `main`:
+Current observed `main` baseline before Wave 10 product merge:
 
-`dededaca980fdb72b5d4955685ab1161aca441fd`
+`d7ef5db6a583fa949059f6b00cb2dfab3549e919`
 
-Wave 08 FOLLOW-B final-head CI #657: **SUCCESS**.  
-Post-merge/push CI #658 on exact `main` head: **SUCCESS**.
+Wave 09 is closed on `main` and is the product foundation consumed by Wave 10.
 
 ## Completed waves and follow-ups
 
@@ -35,6 +34,7 @@ Post-merge/push CI #658 on exact `main` head: **SUCCESS**.
 - **Wave 08 — COMPLETE / MERGED / POST-MERGE GREEN.** Main merge `bfd17d035d905e9bcae263f68244cfb2b6453aa2`; final integration CI #531 and post-merge CI #533 green.
 - **08-FOLLOW-A — COMPLETE / MERGED / POST-MERGE GREEN.** PR #105; post-merge CI #543 green.
 - **08-FOLLOW-B — COMPLETE / MERGED / POST-MERGE GREEN.** Final product head `dededaca980fdb72b5d4955685ab1161aca441fd`; CI #657 and #658 green.
+- **Wave 09 — COMPLETE / MERGED.** Screens, Popups, Dynamos, canonical navigation, Historical Data Browser and Reporting/Report Designer are merged on `main` and form the Wave 10 visual/runtime foundation.
 
 ## Ordered path to v0.1
 
@@ -47,8 +47,8 @@ Wave 07      Visual Runtime Object Model + typed visual Engineering             
 Wave 08      Graphical Editor + Image + Engineering Development Monitor                  COMPLETE
 08-FOLLOW-A  TAG Bit Access + Driver Bit-Level Boolean Binding                           COMPLETE
 08-FOLLOW-B  Typed Visual Expressions + Boolean Conditions + Analog Fill                 COMPLETE
-Wave 09      Screens + Popups + Dynamos + navigation + Historical Data + Reporting       ACTIVE
-Wave 10      Python visual events + animation + preview                                  WAITING
+Wave 09      Screens + Popups + Dynamos + navigation + Historical Data + Reporting       COMPLETE
+Wave 10      Python visual events + animation + preview                                  ACTIVE
 Wave 11      Complete HMI Runtime demo vertical slice                                    WAITING
 Wave 12      Hardening                                                                   WAITING
 Wave 13      Windows x64 product package                                                 WAITING
@@ -57,61 +57,34 @@ Wave 15      Feedback/corrections                                               
 FINAL        EliteSCADA v0.1 — Full Product Validation Preview
 ```
 
-## Wave 08 follow-up closure
+## Wave 10 — ACTIVE
 
-FOLLOW-A established first-class canonical integer TAG bit access and physical bit-level binding semantics. Stable identity is `TagId + selector`; `.NN` is authoring/display syntax only.
+Integration train:
 
-FOLLOW-B established typed side-effect-free visual expressions, Boolean Conditions, universal dynamic `visible`, quality-aware evaluation and Analog Fill while preserving canonical Engineering and existing visual precedence.
+`integration/wave-10-python-visual-events-animation-preview`
 
-These contracts are downstream foundations and must not be reimplemented privately by Wave 09 work.
+Frozen product base:
 
-## Wave 09 — ACTIVE
+`bbfd730e404b0dee2c05e0ec0afb979b1b14ea35`
 
-Wave 09 includes:
+Wave 10 scope includes:
 
-- Screens + Popups + Dynamos + navigation;
-- Historical Data Browser;
-- Reporting / Report Designer.
+- canonical visual event associations in Engineering, including object interaction, Timer interval and typed TAG value-change identity;
+- Client Visual Python event dispatch through the accepted sandbox bridge;
+- renderer-native deterministic visual tween/animation over public Runtime Visual properties;
+- explicit precedence `Animation > Script > Binding/Expression > Engineering > Default`;
+- mounted Python Preview/Test with bounded sample context, actionable traceback/failing-line diagnostics and protected-data redaction;
+- mounted browser acceptance of `click -> event reference -> Python -> visualTween.request -> rendered intermediate animation -> deterministic stable final value`.
 
-### 09-A — shared historical/navigation foundation
+Worker tracks DEV 1/2/3 have converged into the integration train. Coordinator PR #170 contains the central mounted Runtime composition. Its exact functional product head `8b7871bcd5a14ae17ffb070732f5a92c60462536` passed EliteSCADA CI #872, including Backend, Web build and 330/330 Chromium tests.
 
-Initial integration train:
+Wave 10 remains ACTIVE until the exact resulting integration head is validated, merged to `main`, and the exact post-main CI is green.
 
-`integration/wave-09-historical-navigation-foundation`
-
-The first substage establishes a single protected/versioned Historical Query model before Browser, Trends and Reporting can diverge.
-
-Initial logical datasets:
-
-- `historian.samples`;
-- `alarm.events`.
-
-Required shared semantics:
-
-- relative and absolute time ranges;
-- one server-resolved anchor per relative query;
-- typed allowlisted filters and ordering;
-- bounded opaque-cursor paging;
-- exact typed values, quality and timestamps;
-- exact Int64 transport without JavaScript precision loss;
-- authorization, cancellation and parameterized database access;
-- no arbitrary SQL or unrestricted scripting;
-- historical alarm browsing remains read-only and separate from current Alarm Center commands.
-
-In parallel, Popup/Dynamo/navigation work extends canonical Screen/visual Engineering without introducing a second renderer/property model.
-
-Historical Data Browser consumes the shared query contract rather than defining its own provider/filter/time DTO.
-
-### Reporting sequencing inside Wave 09
-
-Reporting/Report Designer remains mandatory Wave 09 scope. Implementation starts after the shared Historical Query contract is accepted in the integration train so reports reuse exactly the same provider/query/time/filter/result semantics.
-
-Reporting direction includes first-class versioned Report Engineering, graphical designer, parameters, groups/aggregates, page setup/preview/printing, and mandatory PDF/XLSX output while preserving JSON/Preview/Apply/revision/PostgreSQL/`.escadapkg` fidelity.
+The complete owner-testable HMI Runtime demo vertical slice is deliberately Wave 11. Wave 10 establishes the canonical runtime behavior and mounted acceptance without inventing a second product Runtime surface.
 
 ## Remaining v0.1 sequence
 
-- **Wave 09:** active as above.
-- **Wave 10:** Python visual events, renderer-native animation/tween and Engineering visual Preview/Test.
+- **Wave 10:** active; integration/main closure gate pending.
 - **Wave 11:** complete owner-testable HMI Runtime demo vertical slice.
 - **Wave 12:** hardening.
 - **Wave 13:** Windows x64 product package.

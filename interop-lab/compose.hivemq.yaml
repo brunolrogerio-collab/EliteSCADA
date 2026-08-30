@@ -1,0 +1,11 @@
+services:
+  hivemq:
+    image: hivemq/hivemq-ce:2026.5
+    container_name: elitescada-lab-hivemq
+    ports:
+      - "${HIVEMQ_MQTT_PORT:-1884}:1883"
+    environment:
+      HIVEMQ_LOG_LEVEL: INFO
+      HIVEMQ_ALLOW_ALL_CLIENTS: "true"
+    networks:
+      - interop

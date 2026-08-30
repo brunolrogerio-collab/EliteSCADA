@@ -91,7 +91,8 @@ internal sealed class TagEngineeringHandler
                 dto.ReadOnly,
                 BuildMetadata(dto),
                 BuildAccessPolicy(dto.AccessPolicy),
-                dto.AddressSelector);
+                dto.AddressSelector,
+                dto.CommunicationBinding);
 
             if (existing is null)
             {
@@ -132,7 +133,8 @@ internal sealed class TagEngineeringHandler
             imported.ReadOnly,
             BuildMetadata(imported),
             BuildAccessPolicy(imported.AccessPolicy),
-            imported.AddressSelector);
+            imported.AddressSelector,
+            imported.CommunicationBinding);
     }
 
     public bool IsClientMemoryAlarmTarget(AlarmEngineeringDto dto, EngineeringPackage package)

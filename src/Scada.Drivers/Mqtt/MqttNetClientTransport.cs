@@ -18,8 +18,7 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
     private readonly IMqttClient _client;
     private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
     private readonly object _callbackStateGate = new();
-    private Channel<TransportItem>? _received;
-    private CancellationTokenSource? _receiveWriteCts;
+    private ReceiveSession? _receiveSession;
     private Func<MqttApplicationMessageReceivedEventArgs, Task>? _applicationMessageReceivedHandler;
     private Func<MqttClientDisconnectedEventArgs, Task>? _disconnectedHandler;
     private int? _bufferCapacity;
@@ -71,12 +70,11 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
             if (_client.IsConnected)
                 throw new MqttTransportException("MQTT client is already connected.");
 
-            EnsureReceiveChannel(settings.MaximumBufferedMessages);
+            EnsureReceiveCapacity(settings.MaximumBufferedMessages);
             _maximumInboundPayloadBytes = settings.MaximumInboundPayloadBytes;
             _acceptInboundEvents = false;
             var generation = Interlocked.Increment(ref _activeGeneration);
-            DrainBufferedItems();
-            ResetReceiveWriteCancellation();
+            StartReceiveSession(generation, settings.MaximumBufferedMessages);
             _intentionalDisconnect = false;
             InstallSessionHandlers(generation);
 
@@ -161,7 +159,9 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
                 if (!sessionEstablished)
                 {
                     _acceptInboundEvents = false;
+                    Interlocked.Increment(ref _activeGeneration);
                     RemoveSessionHandlers();
+                    EndReceiveSession();
                 }
 
                 if (passwordBuffer is { Length: > 0 })
@@ -235,23 +235,36 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
     public async ValueTask<MqttTransportMessage> ReceiveAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        var channel = _received ?? throw new MqttTransportException("MQTT receive buffer is not initialized; connect before receiving.");
+        ReceiveSession session;
+        lock (_callbackStateGate)
+        {
+            session = _receiveSession ??
+                throw new MqttTransportException("MQTT receive session is not active; connect before receiving.");
+        }
 
         while (true)
         {
             TransportItem item;
             try
             {
-                item = await channel.Reader.ReadAsync(cancellationToken);
+                item = await session.Channel.Reader.ReadAsync(cancellationToken);
             }
             catch (ChannelClosedException) when (_disposed)
             {
                 ThrowIfDisposed();
                 throw;
             }
+            catch (ChannelClosedException)
+            {
+                throw new MqttTransportException("MQTT receive session ended before another message was available.");
+            }
 
-            var activeGeneration = Interlocked.Read(ref _activeGeneration);
-            if (item.Generation != activeGeneration) continue;
+            if (session.Generation != Interlocked.Read(ref _activeGeneration))
+            {
+                throw new MqttTransportException("MQTT receive session ended before the buffered item could be delivered.");
+            }
+
+            if (item.Generation != session.Generation) continue;
             if (item.Error is not null) throw item.Error;
             return item.Message!;
         }
@@ -317,8 +330,9 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
             if (_disposed) return;
             _intentionalDisconnect = true;
             _acceptInboundEvents = false;
-            CancelReceiveWriters();
+            Interlocked.Increment(ref _activeGeneration);
             RemoveSessionHandlers();
+            EndReceiveSession();
             try
             {
                 if (_client.IsConnected)
@@ -338,7 +352,6 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
             }
             finally
             {
-                Interlocked.Increment(ref _activeGeneration);
                 _intentionalDisconnect = false;
             }
         }
@@ -360,19 +373,9 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
             _intentionalDisconnect = true;
             _acceptInboundEvents = false;
             Interlocked.Increment(ref _activeGeneration);
-            CancelReceiveWriters();
             RemoveSessionHandlers();
-
-            _received?.Writer.TryComplete();
+            EndReceiveSession();
             _client.Dispose();
-
-            CancellationTokenSource? receiveWriteCts;
-            lock (_callbackStateGate)
-            {
-                receiveWriteCts = _receiveWriteCts;
-                _receiveWriteCts = null;
-            }
-            receiveWriteCts?.Dispose();
         }
         finally
         {
@@ -414,7 +417,10 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
             catch (OperationCanceledException) when (_disposed || !_acceptInboundEvents || writeCancellation.IsCancellationRequested)
             {
             }
-            catch (ChannelClosedException) when (_disposed)
+            catch (ChannelClosedException) when (
+                _disposed ||
+                !_acceptInboundEvents ||
+                generation != Interlocked.Read(ref _activeGeneration))
             {
             }
             return;
@@ -441,7 +447,10 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
         {
             if (requiresAcknowledgement) args.ProcessingFailed = true;
         }
-        catch (ChannelClosedException) when (_disposed)
+        catch (ChannelClosedException) when (
+            _disposed ||
+            !_acceptInboundEvents ||
+            generation != Interlocked.Read(ref _activeGeneration))
         {
             if (requiresAcknowledgement) args.ProcessingFailed = true;
         }
@@ -480,7 +489,10 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
         catch (OperationCanceledException) when (_disposed || _intentionalDisconnect || writeCancellation.IsCancellationRequested)
         {
         }
-        catch (ChannelClosedException) when (_disposed)
+        catch (ChannelClosedException) when (
+            _disposed ||
+            _intentionalDisconnect ||
+            generation != Interlocked.Read(ref _activeGeneration))
         {
         }
     }
@@ -493,19 +505,20 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
     {
         lock (_callbackStateGate)
         {
+            var session = _receiveSession;
             if (_disposed ||
                 generation != Interlocked.Read(ref _activeGeneration) ||
                 (requireAcceptingEvents && !_acceptInboundEvents) ||
-                _received is null ||
-                _receiveWriteCts is null)
+                session is null ||
+                session.Generation != generation)
             {
                 channel = null!;
                 writeCancellation = default;
                 return false;
             }
 
-            channel = _received;
-            writeCancellation = _receiveWriteCts.Token;
+            channel = session.Channel;
+            writeCancellation = session.WriteCancellation.Token;
             return true;
         }
     }
@@ -535,55 +548,63 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
         }
     }
 
-    private void EnsureReceiveChannel(int capacity)
+    private void EnsureReceiveCapacity(int capacity)
     {
-        if (_received is not null)
+        if (_bufferCapacity is not null && _bufferCapacity != capacity)
         {
-            if (_bufferCapacity != capacity)
-            {
-                throw new MqttTransportException(
-                    $"MQTT transport buffer capacity is already fixed at {_bufferCapacity}; requested {capacity}.",
-                    isPermanent: true);
-            }
-            return;
+            throw new MqttTransportException(
+                $"MQTT transport buffer capacity is already fixed at {_bufferCapacity}; requested {capacity}.",
+                isPermanent: true);
         }
 
-        _bufferCapacity = capacity;
-        _received = Channel.CreateBounded<TransportItem>(new BoundedChannelOptions(capacity)
-        {
-            SingleReader = true,
-            SingleWriter = false,
-            AllowSynchronousContinuations = false,
-            FullMode = BoundedChannelFullMode.Wait
-        });
+        _bufferCapacity ??= capacity;
     }
 
-    private void ResetReceiveWriteCancellation()
+    private void StartReceiveSession(long generation, int capacity)
     {
-        CancellationTokenSource? previous;
+        var next = new ReceiveSession(
+            generation,
+            Channel.CreateBounded<TransportItem>(new BoundedChannelOptions(capacity)
+            {
+                SingleReader = true,
+                SingleWriter = false,
+                AllowSynchronousContinuations = false,
+                FullMode = BoundedChannelFullMode.Wait
+            }),
+            new CancellationTokenSource());
+
+        ReceiveSession? previous;
         lock (_callbackStateGate)
         {
-            previous = _receiveWriteCts;
-            _receiveWriteCts = new CancellationTokenSource();
+            previous = _receiveSession;
+            _receiveSession = next;
         }
 
-        previous?.Cancel();
-        previous?.Dispose();
+        ReleaseReceiveSession(previous);
     }
 
-    private void CancelReceiveWriters()
+    private void EndReceiveSession()
     {
-        CancellationTokenSource? source;
-        lock (_callbackStateGate) source = _receiveWriteCts;
-        source?.Cancel();
+        ReceiveSession? session;
+        lock (_callbackStateGate)
+        {
+            session = _receiveSession;
+            _receiveSession = null;
+        }
+
+        ReleaseReceiveSession(session);
     }
 
-    private void DrainBufferedItems()
+    private static void ReleaseReceiveSession(ReceiveSession? session)
     {
-        if (_received is null) return;
-        while (_received.Reader.TryRead(out _))
+        if (session is null) return;
+
+        session.WriteCancellation.Cancel();
+        session.Channel.Writer.TryComplete();
+        while (session.Channel.Reader.TryRead(out _))
         {
         }
+        session.WriteCancellation.Dispose();
     }
 
     private static MqttQualityOfServiceLevel ToMqttNetQos(MqttQosLevel qos) => qos switch
@@ -631,6 +652,11 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
     }
+
+    private sealed record ReceiveSession(
+        long Generation,
+        Channel<TransportItem> Channel,
+        CancellationTokenSource WriteCancellation);
 
     private sealed record TransportItem(
         long Generation,

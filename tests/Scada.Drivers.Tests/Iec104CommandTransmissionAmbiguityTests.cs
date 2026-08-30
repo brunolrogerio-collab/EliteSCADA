@@ -52,7 +52,8 @@ public sealed class Iec104CommandTransmissionAmbiguityTests
         {
             SendCount++;
             throw new Iec104AmbiguousTransmissionException(
-                "IEC-104 I-format transmission failed after a send sequence was reserved; peer delivery is ambiguous.");
+                "IEC-104 I-format transmission failed after a send sequence was reserved; peer delivery is ambiguous.",
+                new IOException("simulated write failure after sequence reservation"));
         }
 
         public async IAsyncEnumerable<Iec104AsduEnvelope> ReadAsync(

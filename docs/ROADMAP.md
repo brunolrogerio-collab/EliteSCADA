@@ -80,13 +80,13 @@ Worker tracks DEV 1/2/3 and coordinator runtime composition have converged into 
 
 The exact functional coordinator product head `8b7871bcd5a14ae17ffb070732f5a92c60462536` passed EliteSCADA CI #872: Backend SUCCESS, Web build SUCCESS and Chromium SUCCESS with 330/330 tests passed.
 
-Wave 10 remains ACTIVE until the exact integration branch submitted to `main` is validated, merged, and exact post-main CI is green.
+Wave 10 remains ACTIVE until the integration branch submitted to `main` is validated by normal CI, merged, and exact post-main CI is green.
 
 The complete owner-testable HMI Runtime demo vertical slice is deliberately Wave 11. Wave 10 establishes the canonical runtime behavior and mounted acceptance without inventing a second product Runtime surface.
 
 ## Remaining v0.1 sequence
 
-- **Wave 10:** integrated; exact integration/main closure gate pending.
+- **Wave 10:** integrated; main closure gate pending.
 - **Wave 11:** complete owner-testable HMI Runtime demo vertical slice.
 - **Wave 12:** hardening.
 - **Wave 13:** Windows x64 product package.

@@ -1,8 +1,8 @@
 FROM debian:bookworm-slim AS build
 
-ARG OPEN62541_VERSION=1.5.7
-ARG OPEN62541_C_SHA256=103ff486a915c8d019bae81f8f05aa16e5f43629dc323bac43175ccb90df46fe
-ARG OPEN62541_H_SHA256=59e43ea4d0d3e5511a1e9fb89a9d44d5a4345d149d2f3da9749f1072405bacdd
+ARG OPEN62541_VERSION=1.5.4
+ARG OPEN62541_C_SHA256=9768d3f019ff67be0f9a815d0acd09a9e1906b0dcbb373512343aa41feecd87f
+ARG OPEN62541_H_SHA256=b6edbc3b2d213927750af9774adc13f3bb9bbfa52199aa46f9e57cf657186afe
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl gcc libc6-dev \

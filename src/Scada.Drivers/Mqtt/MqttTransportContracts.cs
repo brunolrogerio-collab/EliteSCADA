@@ -59,22 +59,30 @@ public sealed record MqttConnectionSettings(
         if (MaximumBufferedMessages is < 1 or > 1_000_000)
             throw new ArgumentOutOfRangeException(nameof(MaximumBufferedMessages));
 
-        if (ProtocolMode == MqttProtocolMode.Mqtt311)
+        switch (ProtocolMode)
         {
-            if (CleanStart)
-                throw new InvalidOperationException("MQTT 3.1.1 does not support Clean Start; use CleanSession.");
-            if (SessionExpirySeconds.HasValue)
-                throw new InvalidOperationException("MQTT 3.1.1 does not support Session Expiry Interval.");
-        }
-        else
-        {
-            if (CleanSession)
-                throw new InvalidOperationException("MQTT 5 uses Clean Start plus Session Expiry instead of MQTT 3.1.1 CleanSession.");
-            if (!CleanStart && EffectiveSessionExpirySeconds == 0)
-            {
-                throw new InvalidOperationException(
-                    "Persistent MQTT 5 sessions require a Session Expiry Interval greater than zero.");
-            }
+            case MqttProtocolMode.Mqtt311:
+                if (CleanStart)
+                    throw new InvalidOperationException("MQTT 3.1.1 does not support Clean Start; use CleanSession.");
+                if (SessionExpirySeconds.HasValue)
+                    throw new InvalidOperationException("MQTT 3.1.1 does not support Session Expiry Interval.");
+                break;
+
+            case MqttProtocolMode.Mqtt5:
+                if (CleanSession)
+                    throw new InvalidOperationException("MQTT 5 uses Clean Start plus Session Expiry instead of MQTT 3.1.1 CleanSession.");
+                if (!CleanStart && EffectiveSessionExpirySeconds == 0)
+                {
+                    throw new InvalidOperationException(
+                        "Persistent MQTT 5 sessions require a Session Expiry Interval greater than zero.");
+                }
+                break;
+
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(ProtocolMode),
+                    ProtocolMode,
+                    "Unsupported MQTT protocol mode.");
         }
     }
 }

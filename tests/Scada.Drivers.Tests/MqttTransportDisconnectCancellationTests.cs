@@ -6,6 +6,36 @@ namespace Scada.Drivers.Tests;
 
 public sealed class MqttTransportDisconnectCancellationTests
 {
+    [Theory]
+    [InlineData(4, 4)]
+    [InlineData(1_000_000, 65_535)]
+    public async Task Mqtt5ConnectAdvertisesReceiveMaximumWithinApplicationQueueBudget(
+        int maximumBufferedMessages,
+        int expectedReceiveMaximum)
+    {
+        var client = new BlockingDisconnectMqttClient();
+        await using var transport = new MqttNetClientTransport(new MqttClientFactory(), client);
+        var settings = CreateSettings(maximumBufferedMessages: maximumBufferedMessages);
+
+        using (var credentials = MqttResolvedCredentials.None)
+            await transport.ConnectAsync(settings, credentials);
+
+        Assert.Equal((ushort)expectedReceiveMaximum, client.Options.ReceiveMaximum);
+    }
+
+    [Fact]
+    public async Task Mqtt311ConnectDoesNotAdvertiseMqtt5ReceiveMaximum()
+    {
+        var client = new BlockingDisconnectMqttClient();
+        await using var transport = new MqttNetClientTransport(new MqttClientFactory(), client);
+        var settings = CreateSettings(protocolMode: MqttProtocolMode.Mqtt311);
+
+        using (var credentials = MqttResolvedCredentials.None)
+            await transport.ConnectAsync(settings, credentials);
+
+        Assert.Equal((ushort)0, client.Options.ReceiveMaximum);
+    }
+
     [Fact]
     public async Task AcceptedDisconnectCompletesAfterCallerTokenIsCanceled()
     {
@@ -56,12 +86,15 @@ public sealed class MqttTransportDisconnectCancellationTests
         Assert.False(client.DisconnectEntered.IsCompleted);
     }
 
-    private static MqttConnectionSettings CreateSettings() => new(
+    private static MqttConnectionSettings CreateSettings(
+        MqttProtocolMode protocolMode = MqttProtocolMode.Mqtt5,
+        int maximumBufferedMessages = 4) => new(
         "broker.local",
         1883,
         UseTls: false,
         ClientId: "elite-disconnect-cancellation",
-        MaximumBufferedMessages: 4);
+        ProtocolMode: protocolMode,
+        MaximumBufferedMessages: maximumBufferedMessages);
 
     private sealed class BlockingDisconnectMqttClient : IMqttClient
     {

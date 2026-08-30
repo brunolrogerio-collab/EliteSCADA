@@ -8,7 +8,7 @@ namespace Scada.Drivers.Tests;
 public sealed class MqttEventDrivenReadinessTests
 {
     [Fact]
-    public async Task ConnectedAndSubscribedIsHealthyBeforeFirstTelemetrySample()
+    public async Task ConnectedAndSubscribedIsReadyBeforeFirstTelemetrySample()
     {
         var tag = TagDefinition.Create(
             "Temperature",
@@ -33,16 +33,32 @@ public sealed class MqttEventDrivenReadinessTests
             [point],
             transport);
 
+        var beforeStart = driver.GetMqttReadiness();
+        Assert.Equal(MqttReadinessState.NotStarted, beforeStart.State);
+        Assert.False(beforeStart.InitialHandshakeCompleted);
+        Assert.Equal(1, beforeStart.ExpectedSubscriptionCount);
+        Assert.Equal(0, beforeStart.AcceptedSubscriptionCount);
+
         await driver.StartAsync();
         await WaitUntilAsync(() => transport.SubscribeCount == 1);
+        await WaitUntilAsync(() => driver.GetMqttReadiness().State == MqttReadinessState.Ready);
 
         var diagnostics = driver.GetCommunicationDiagnostics();
+        var readiness = driver.GetMqttReadiness();
         Assert.Equal(CommunicationDriverOperationalState.Healthy, diagnostics.State);
         Assert.Equal(DriverState.Running, driver.Status.State);
+        Assert.Equal(MqttReadinessState.Ready, readiness.State);
+        Assert.True(readiness.InitialHandshakeCompleted);
+        Assert.Equal(1, readiness.ExpectedSubscriptionCount);
+        Assert.Equal(1, readiness.AcceptedSubscriptionCount);
+        Assert.Null(readiness.Detail);
         Assert.False(cache.TryGet(tag.Id, out _));
         Assert.Equal(0, diagnostics.Counters.Cycles);
         Assert.Null(diagnostics.ConfiguredScanInterval);
         Assert.Null(diagnostics.LastScanDuration);
+
+        await driver.StopAsync();
+        Assert.Equal(MqttReadinessState.Stopped, driver.GetMqttReadiness().State);
     }
 
     private static async Task WaitUntilAsync(Func<bool> predicate)

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Scada.Api.Historian;
 using Scada.Core.HistoricalQueries;
@@ -10,6 +11,42 @@ public sealed class HistoricalQueryApiTests
     private static readonly HistoricalQueryRequest Request = new(
         HistoricalDatasets.HistorianSamples,
         HistoricalTimeRange.Relative(3600));
+
+    [Fact]
+    public void PublicJsonContract_UsesVersionedNamesAndStringEnums()
+    {
+        var request = Request with
+        {
+            OrderBy =
+            [
+                new HistoricalSort(
+                    "timestamp",
+                    HistoricalSortDirection.Descending)
+            ],
+            Page = new HistoricalPageRequest(25, "opaque-cursor")
+        };
+
+        var json = JsonSerializer.Serialize(request);
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        Assert.Equal(1, root.GetProperty("version").GetInt32());
+        Assert.Equal(
+            HistoricalDatasets.HistorianSamples,
+            root.GetProperty("datasetKey").GetString());
+        Assert.False(root.TryGetProperty("Dataset", out _));
+        Assert.False(root.TryGetProperty("Range", out _));
+
+        var range = root.GetProperty("timeRange");
+        Assert.Equal("relative", range.GetProperty("kind").GetString());
+        Assert.Equal(3600, range.GetProperty("durationSeconds").GetInt32());
+        Assert.Equal("now", range.GetProperty("anchor").GetString());
+
+        var order = root.GetProperty("orderBy")[0];
+        Assert.Equal("descending", order.GetProperty("direction").GetString());
+        var page = root.GetProperty("page");
+        Assert.Equal(25, page.GetProperty("limit").GetInt32());
+        Assert.Equal("opaque-cursor", page.GetProperty("cursor").GetString());
+    }
 
     [Fact]
     public void RequiredCapability_UsesExistingReadOnlyProductCapabilities()

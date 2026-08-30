@@ -47,7 +47,10 @@ public sealed record MqttPoint(
             throw new ArgumentException("MQTT point requires a canonical TAG path.", nameof(Tag));
 
         ValidateExactTopic(SubscribeTopic, nameof(SubscribeTopic));
+        ValidateDefinedEnum(PayloadFormat, nameof(PayloadFormat));
+        ValidateDefinedEnum(RetainedValuePolicy, nameof(RetainedValuePolicy));
         ValidateQos(Qos, nameof(Qos));
+        ValidateQos(PublishQos, nameof(PublishQos));
 
         if (PayloadFormat == MqttPayloadFormat.Utf8Scalar && JsonPointer is not null)
             throw new ArgumentException("JSON Pointer can only be configured for JSON payload format.", nameof(JsonPointer));
@@ -66,7 +69,6 @@ public sealed record MqttPoint(
             if (Tag.ReadOnly)
                 throw new ArgumentException("Writable MQTT points require a writable canonical TAG.", nameof(Tag));
             ValidateExactTopic(PublishTopic, nameof(PublishTopic));
-            ValidateQos(PublishQos, nameof(PublishQos));
         }
         else
         {
@@ -103,5 +105,12 @@ public sealed record MqttPoint(
     {
         if (qos is < MqttQosLevel.AtMostOnce or > MqttQosLevel.ExactlyOnce)
             throw new ArgumentOutOfRangeException(parameterName, qos, "MQTT QoS must be 0, 1 or 2.");
+    }
+
+    private static void ValidateDefinedEnum<TEnum>(TEnum value, string parameterName)
+        where TEnum : struct, Enum
+    {
+        if (!Enum.IsDefined(value))
+            throw new ArgumentOutOfRangeException(parameterName, value, $"Unsupported MQTT {typeof(TEnum).Name} value.");
     }
 }

@@ -177,6 +177,7 @@ public sealed record HistoricalQueryRequest(
 public sealed record HistoricalColumn(
     [property: JsonPropertyName("field")] string Field,
     [property: JsonPropertyName("type")] HistoricalFieldType Type,
+    [property: JsonPropertyName("operators")] IReadOnlyList<HistoricalFilterOperator> Operators,
     [property: JsonPropertyName("filterable")] bool Filterable,
     [property: JsonPropertyName("sortable")] bool Sortable,
     [property: JsonPropertyName("searchable")] bool Searchable);
@@ -257,7 +258,11 @@ public sealed record HistoricalFieldDefinition(
     bool Sortable = false,
     bool Searchable = false)
 {
-    public HistoricalColumn ToColumn() => new(Field, Type, Operators.Count > 0, Sortable, Searchable);
+    public HistoricalColumn ToColumn()
+    {
+        var operators = Operators.OrderBy(static value => (int)value).ToArray();
+        return new(Field, Type, operators, operators.Length > 0, Sortable, Searchable);
+    }
 }
 
 public sealed record HistoricalDatasetDefinition(

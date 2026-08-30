@@ -40,41 +40,42 @@ public sealed record MqttPoint(
     public void Validate()
     {
         ArgumentNullException.ThrowIfNull(Tag);
-        ValidateExactTopic(SubscribeTopic, nameof(SubscribeTopic));
+        Tag.Validate();
+        ValidateTopic(SubscribeTopic, nameof(SubscribeTopic));
         ValidateQos(Qos, nameof(Qos));
-        ValidateQos(PublishQos, nameof(PublishQos));
+
+        if (PayloadFormat == MqttPayloadFormat.Utf8Scalar && JsonPointer is not null)
+            throw new ArgumentException("JSON Pointer can only be configured for JSON payload format.", nameof(JsonPointer));
+        if (PayloadFormat == MqttPayloadFormat.Utf8Scalar && SourceTimestampJsonPointer is not null)
+            throw new ArgumentException("Source timestamp JSON Pointer can only be configured for JSON payload format.", nameof(SourceTimestampJsonPointer));
+
         ValidateJsonPointer(JsonPointer, nameof(JsonPointer));
         ValidateJsonPointer(SourceTimestampJsonPointer, nameof(SourceTimestampJsonPointer));
-
-        if (FreshnessTimeout.HasValue && FreshnessTimeout.Value <= TimeSpan.Zero)
-            throw new ArgumentOutOfRangeException(nameof(FreshnessTimeout), "MQTT freshness timeout must be greater than zero when configured.");
-
-        if (PayloadFormat != MqttPayloadFormat.Json && JsonPointer is not null)
-            throw new InvalidOperationException("JSON Pointer can only be configured for JSON MQTT payloads.");
-
-        if (PayloadFormat != MqttPayloadFormat.Json && SourceTimestampJsonPointer is not null)
-            throw new InvalidOperationException("Source timestamp JSON Pointer can only be configured for JSON MQTT payloads.");
-
         if (SourceTimestampRequired && SourceTimestampJsonPointer is null)
-            throw new InvalidOperationException("A required MQTT source timestamp needs a configured source timestamp JSON Pointer.");
+            throw new ArgumentException("SourceTimestampRequired requires SourceTimestampJsonPointer.", nameof(SourceTimestampRequired));
+        if (FreshnessTimeout.HasValue && FreshnessTimeout.Value <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(FreshnessTimeout), "MQTT freshness timeout must be greater than zero.");
 
         if (Writable)
         {
             if (Tag.ReadOnly)
-                throw new InvalidOperationException($"MQTT TAG '{Tag.Path}' is read-only and cannot be configured for publish writes.");
-            ValidateExactTopic(PublishTopic, nameof(PublishTopic));
+                throw new ArgumentException("Writable MQTT points require a writable canonical TAG.", nameof(Tag));
+            ValidateTopic(PublishTopic, nameof(PublishTopic));
+            ValidateQos(PublishQos, nameof(PublishQos));
         }
-        else if (PublishTopic is not null || PublishRetain)
+        else
         {
-            throw new InvalidOperationException("MQTT publish settings require Writable=true.");
+            if (PublishTopic is not null)
+                throw new ArgumentException("Publish topic is only valid for writable MQTT points.", nameof(PublishTopic));
+            if (PublishRetain)
+                throw new ArgumentException("Publish retain is only valid for writable MQTT points.", nameof(PublishRetain));
         }
     }
 
-    internal static void ValidateExactTopic(string? topic, string parameterName)
+    private static void ValidateTopic(string? topic, string parameterName)
     {
-        if (string.IsNullOrWhiteSpace(topic))
+        if (string.IsNullOrEmpty(topic))
             throw new ArgumentException("MQTT topic is required.", parameterName);
-
         if (!string.Equals(topic, topic.Trim(), StringComparison.Ordinal))
             throw new ArgumentException("MQTT topic must not contain surrounding whitespace.", parameterName);
 
@@ -93,7 +94,7 @@ public sealed record MqttPoint(
     private static void ValidateJsonPointer(string? pointer, string parameterName)
     {
         if (pointer is null || pointer.Length == 0) return;
-        if (!pointer.StartsWith('/', StringComparison.Ordinal))
+        if (!pointer.StartsWith("/", StringComparison.Ordinal))
             throw new ArgumentException("JSON Pointer must be empty for the document root or start with '/'.", parameterName);
     }
 

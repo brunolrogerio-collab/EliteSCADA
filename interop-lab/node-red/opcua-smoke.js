@@ -140,7 +140,7 @@ async function main() {
 
     console.log(JSON.stringify({
       protocol: "opc-ua",
-      peer: "open62541-v1.5.7",
+      peer: "open62541-v1.5.4",
       client: "node-opcua",
       endpoint,
       browse: "pass",

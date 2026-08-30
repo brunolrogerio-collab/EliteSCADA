@@ -127,6 +127,12 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
                     builder.WithCredentials(credentials.Username, passwordBuffer);
                 }
 
+                // MQTTnet starts its packet and application-publish workers after a successful
+                // CONNACK but before ConnectAsync returns. Persistent-session backlog can therefore
+                // reach this callback while the connect call is still in flight. Admit that traffic
+                // now; the failure path below revokes admission and removes the handlers if connect
+                // ultimately does not establish a usable session.
+                _acceptInboundEvents = true;
                 var result = await _client.ConnectAsync(builder.Build(), cancellationToken);
                 if (result.ResultCode != MqttClientConnectResultCode.Success)
                 {

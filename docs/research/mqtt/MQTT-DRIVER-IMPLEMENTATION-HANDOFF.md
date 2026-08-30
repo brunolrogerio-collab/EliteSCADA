@@ -31,7 +31,9 @@ This document records the implementation contract of the raw MQTT industrial dri
 - Retained values without a trustworthy configured source timestamp are `Stale` by default. `acceptAsCurrent` is explicit opt-in behavior.
 - Optional per-TAG freshness transitions a previously `Good` sample to `Stale` after local accepted-sample silence. Source timestamp age does not drive freshness.
 - Freshness uses monotonic `Stopwatch` time and freshness-managed cache transitions are serialized.
-- The MQTTnet inbound adapter uses a bounded channel with `BoundedChannelFullMode.Wait`; overload applies backpressure rather than silent drop or unbounded growth.
+- The EliteSCADA-owned MQTT inbound channel is bounded with `BoundedChannelFullMode.Wait`; application callback admission applies backpressure rather than silent drop.
+- MQTTnet 5.2.0 itself uses an internal unbounded PUBLISH dispatch queue before invoking the application callback, so `maximumBufferedMessages` is not an end-to-end process-memory bound.
+- For MQTT 5, the transport advertises `Receive Maximum = min(maximumBufferedMessages, 65,535)` to bound broker-side unacknowledged QoS 1/2 inflight. MQTT 3.1.1 and QoS 0 have no equivalent protocol flow-control guarantee.
 - Inbound QoS 1/2 acknowledgement is deferred until bounded EliteSCADA queue admission. Canceled, rejected or oversized messages are not acknowledged.
 - MQTTnet callbacks are fenced by transport-session generation. Handlers are installed per connection and capture that connection's generation; delayed callbacks from a prior session are rejected after reconnect and QoS 1/2 stale callbacks are marked processing-failed rather than acknowledged as current-session traffic.
 - Writable TAGs publish through the normal write path and do not create a `Good` cache echo merely because MQTT publish succeeded.
@@ -104,7 +106,7 @@ MQTT uses existing public `DataSourceEngineeringDto.Settings` and `SecretReferen
 | `mqtt5.sessionExpirySeconds` | MQTT 5 session expiry | 3600 |
 | `maximumInboundPayloadBytes` | inbound application payload bound | 1048576; bounded 1..67,108,864 |
 | `maximumConsecutiveConnectFailures` | terminal-fault threshold | 5 |
-| `maximumBufferedMessages` | inbound application queue capacity | 4096; bounded 1..1,000,000 |
+| `maximumBufferedMessages` | EliteSCADA inbound application queue capacity | 4096; bounded 1..1,000,000; also caps advertised MQTT 5 Receive Maximum at min(value, 65,535) |
 
 The ±25% reconnect jitter is a fixed runtime anti-herding policy, not separately persisted Engineering. Protocol-specific MQTT 3.1.1 and MQTT 5 settings are mutually validated. Undefined protocol enum values fail before transport connection.
 
@@ -154,7 +156,9 @@ Freshness is independent from broker connectivity, MQTT QoS and process/source c
 
 `maximumBufferedMessages` configures the bounded queue between MQTTnet callbacks and canonical TAG processing.
 
-The queue uses one canonical reader, multiple possible callback writers, `BoundedChannelFullMode.Wait`, and cancellation of blocked writers during disconnect/dispose. It intentionally avoids `DropOldest`, `DropNewest` and unbounded buffering.
+The EliteSCADA queue uses one canonical reader, multiple possible callback writers, `BoundedChannelFullMode.Wait`, and cancellation of blocked writers during disconnect/dispose. It intentionally avoids `DropOldest` and `DropNewest`.
+
+The MQTTnet regular client has a separate internal PUBLISH dispatch queue implemented with an unbounded concurrent queue before application callbacks. A blocked EliteSCADA callback therefore does not, by itself, prove that all process-level inbound buffering is bounded. For MQTT 5 connections, EliteSCADA advertises `Receive Maximum = min(maximumBufferedMessages, 65,535)`. Because automatic QoS 1/2 acknowledgement is disabled until EliteSCADA queue admission, this constrains the broker-side unacknowledged QoS 1/2 inflight window and limits how much QoS 1/2 work can accumulate ahead of the callback. It does not constrain QoS 0 traffic, and MQTT 3.1.1 has no Receive Maximum property. Sustained-rate memory/backpressure behavior therefore remains a mandatory live validation item for those paths.
 
 For QoS 1/2, automatic MQTTnet acknowledgement is disabled in the callback. EliteSCADA acknowledges only after successful bounded-queue admission. If admission is interrupted during disconnect/dispose, processing is marked failed and no ACK is issued.
 
@@ -172,7 +176,7 @@ The ACK boundary is deliberately queue admission, not canonical TAG transaction 
 
 Transport connection generations fence asynchronous callbacks across reconnect. Every installed application-message/disconnect handler captures the generation of the session that installed it. Disconnect removes current handlers and invalidates the generation; reconnect installs fresh handlers with a new generation. If an invocation list from the old session was already captured by MQTTnet and executes later, its old generation cannot be relabeled as current-session traffic. For QoS 1/2 the stale callback fails processing without acknowledgement.
 
-The queue is bounded by message count and each individual payload has a separate maximum. There is no separate aggregate-byte memory quota yet.
+The EliteSCADA queue is bounded by message count and each individual payload has a separate maximum. There is no separate aggregate-byte memory quota yet, and the MQTTnet internal queue caveat above means `maximumBufferedMessages` must not be represented as a universal process-memory cap.
 
 ## Engineering Import/Export
 
@@ -250,17 +254,18 @@ Deterministic suites include:
 - `MqttProtocolTextValidationTests`
 - `MqttWorkerSupervisionTests`
 - `MqttTransportGenerationTests`
+- `MqttTransportDisconnectCancellationTests`
 
 Opt-in live broker suites:
 
 - `MqttBrokerIntegrationTests`
 - `MqttBrokerShutdownRedeliveryTests`
 
-Deterministic coverage includes exact topics, protocol UTF-8 text validation, typed payloads, strict timestamps, canonical JSON Pointer indices, retained semantics, malformed payload isolation, write typing, Engineering compile/exchange, secret handling and zeroization, freshness, bounded-buffer validation, lifecycle concurrency, disconnect-failure recovery, reconnect jitter, readiness, sibling-worker supervision, and stale callback generation fencing across reconnect.
+Deterministic coverage includes exact topics, protocol UTF-8 text validation, typed payloads, strict timestamps, canonical JSON Pointer indices, retained semantics, malformed payload isolation, write typing, Engineering compile/exchange, secret handling and zeroization, freshness, bounded-buffer validation, MQTT 5 Receive Maximum wiring, lifecycle concurrency, disconnect cancellation/failure recovery, reconnect jitter, readiness, sibling-worker supervision, and stale callback generation fencing across reconnect.
 
 The live broker harness covers MQTT 5/3.1.1, QoS 0/1/2, retained delivery, bounded bursts and persistent-session QoS 1/2 redelivery when shutdown interrupts full-queue admission. It is deliberately opt-in. Without `ELITESCADA_MQTT_INTEGRATION_HOST`, those tests return without opening a broker connection and are not interoperability evidence.
 
-The local/container environment used by this chat does not provide .NET 10 or a local MQTT broker. GitHub Actions has provided deterministic build/test/smoke/E2E evidence for prior exact branch checkpoints, including CI #791 attempt 2 for parent head `fd2f3cbba3e8fc701e376cfcbd1685b28e3d98ef`. Moving exact-head evidence after later commits is recorded in Draft PR #128. No named live broker result has been recorded yet.
+The local/container environment used by this chat does not provide .NET 10 or a local MQTT broker. GitHub Actions has provided deterministic build/test/smoke/E2E evidence for prior exact branch checkpoints, including CI #831 for parent head `e0d859e1c60c3725a7787916bcc9654607b054ab`. Moving exact-head evidence after later commits is recorded in Draft PR #128. No named live broker result has been recorded yet.
 
 ## Shared decisions required before central runtime integration
 
@@ -282,10 +287,12 @@ Before production integration, execute the live contract against at least two in
    - username/password authentication through final host secret resolution;
    - QoS 0/1/2 and retained messages;
    - bounded-queue burst recovery;
+   - MQTT 5 QoS 1/2 sustained-rate memory behavior with advertised Receive Maximum;
+   - MQTT 5 QoS 0 sustained-rate memory behavior, which is not constrained by Receive Maximum;
+   - MQTT 3.1.1 sustained-rate memory behavior for QoS 0/1/2, which has no Receive Maximum property;
    - persistent-session full-queue QoS 1/2 shutdown/redelivery;
    - broker restart and unclean network interruption;
    - malformed and oversized normal/retained payload behavior;
-   - sustained high-rate traffic;
    - process termination after queue admission but before canonical TAG processing;
    - freshness timeout and recovery under real traffic.
 
@@ -294,6 +301,7 @@ Before production integration, execute the live contract against at least two in
    - connection/session interoperability;
    - TLS hostname/chain failures;
    - bounded-burst/backpressure interoperability;
+   - sustained-rate memory observation across MQTT 5 QoS 1/2, MQTT 5 QoS 0 and MQTT 3.1.1;
    - persistent-session redelivery;
    - oversized-payload and unclean reconnect behavior.
 

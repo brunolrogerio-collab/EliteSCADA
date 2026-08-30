@@ -90,7 +90,7 @@ public sealed class S7IsoProtocolTests
         var data = new byte[]
         {
             0xFF, 0x05, 0x00, 0x10, 0x12, 0x34,
-            0x0A, 0x00, 0x00, 0x00
+            0x0A, 0x00, 0x00, 0x04
         };
         var response = AckData(reference, new byte[] { 0x04, 0x02 }, data);
 
@@ -100,6 +100,36 @@ public sealed class S7IsoProtocolTests
         Assert.Equal(new byte[] { 0x12, 0x34 }, results[0].Data);
         Assert.False(results[1].Succeeded);
         Assert.Equal((byte)0x0A, results[1].ReturnCode);
+    }
+
+    [Fact]
+    public void ReadResponse_Snap7StyleFailureLengthDoesNotMisalignFollowingItem()
+    {
+        const ushort reference = 20;
+        var missing = new S7IsoPoint(
+            Tag(TagDataType.Int16),
+            S7IsoArea.DataBlock,
+            0,
+            S7IsoValueType.Int16,
+            DbNumber: 99);
+        var healthy = new S7IsoPoint(
+            Tag(TagDataType.Int16),
+            S7IsoArea.Merker,
+            0,
+            S7IsoValueType.Int16);
+        var data = new byte[]
+        {
+            0x05, 0x00, 0x00, 0x04,
+            0xFF, 0x05, 0x00, 0x10, 0x45, 0x67
+        };
+        var response = AckData(reference, new byte[] { 0x04, 0x02 }, data);
+
+        var results = S7IsoProtocol.ParseReadResponse(response, reference, new[] { missing, healthy });
+
+        Assert.False(results[0].Succeeded);
+        Assert.Equal((byte)0x05, results[0].ReturnCode);
+        Assert.True(results[1].Succeeded);
+        Assert.Equal(new byte[] { 0x45, 0x67 }, results[1].Data);
     }
 
     [Fact]

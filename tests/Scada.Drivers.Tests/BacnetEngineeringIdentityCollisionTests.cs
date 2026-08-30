@@ -48,7 +48,7 @@ public sealed class BacnetEngineeringIdentityCollisionTests
 
         Assert.False(first.CanActivate);
         Assert.Null(first.Plan);
-        var issue = Assert.Single(first.Issues.Where(x => x.Code == "BACNET_TAG_STABLE_ID_DUPLICATE"));
+        var issue = Assert.Single(first.Issues, x => x.Code == "BACNET_TAG_STABLE_ID_DUPLICATE");
         Assert.True(issue.IsError);
         Assert.Equal(dataSource.Key, issue.DataSourceKey);
         Assert.Equal("HVAC.B.Temperature", issue.TagPath);

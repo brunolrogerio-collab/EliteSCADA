@@ -2,6 +2,7 @@ using System.Text.Json;
 using Scada.Core.Alarms;
 using Scada.Core.Commands;
 using Scada.Core.Tags;
+using Scada.Engineering.Reports;
 using Scada.Engineering.Scripts;
 using Scada.Security.Authorization;
 
@@ -28,7 +29,8 @@ public enum ImportEntityKind
     Command,
     Gateway,
     Script,
-    VisualAsset
+    VisualAsset,
+    Report
 }
 
 public enum ImportOperation
@@ -328,7 +330,8 @@ public sealed record EngineeringPackage(
     IReadOnlyCollection<GatewayRouteEngineeringDto>? Gateways = null,
     IReadOnlyCollection<ScriptEngineeringDefinition>? Scripts = null,
     IReadOnlyCollection<ScriptVisualEventReference>? ScriptVisualEventReferences = null,
-    IReadOnlyCollection<VisualAssetEngineeringDto>? VisualAssets = null);
+    IReadOnlyCollection<VisualAssetEngineeringDto>? VisualAssets = null,
+    IReadOnlyCollection<ReportEngineeringDto>? Reports = null);
 
 public sealed record ImportIssue(
     string Code,

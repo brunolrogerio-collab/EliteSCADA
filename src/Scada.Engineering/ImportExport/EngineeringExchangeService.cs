@@ -8,6 +8,7 @@ using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport.Handlers;
+using Scada.Engineering.Reports;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
 using Scada.Engineering.Views;
@@ -18,7 +19,7 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 13;
+    public const int CurrentSchemaVersion = 14;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
@@ -30,6 +31,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly IGatewayEngineeringRegistry _gateways;
     private readonly IScriptEngineeringRegistry _scripts;
     private readonly IVisualAssetEngineeringRegistry _visualAssets;
+    private readonly IReportEngineeringRegistry _reports;
     private readonly JsonSerializerOptions _json;
     private readonly EngineeringCsvExchange _csv;
     private readonly DataSourceEngineeringHandler _dataSourceHandler;
@@ -42,6 +44,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly CommandEngineeringHandler _commandHandler;
     private readonly GatewayEngineeringHandler _gatewayHandler;
     private readonly ScriptEngineeringHandler _scriptHandler;
+    private readonly ReportEngineeringHandler _reportHandler;
 
     public EngineeringExchangeService(ITagRegistry tags, IAlarmEngine alarms)
         : this(
@@ -151,7 +154,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         ICommandEngineeringRegistry commands,
         IGatewayEngineeringRegistry gateways,
         IScriptEngineeringRegistry? scripts = null,
-        IVisualAssetEngineeringRegistry? visualAssets = null)
+        IVisualAssetEngineeringRegistry? visualAssets = null,
+        IReportEngineeringRegistry? reports = null)
     {
         _tags = tags;
         _alarms = alarms;
@@ -163,6 +167,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _gateways = gateways;
         _scripts = scripts ?? new InMemoryScriptEngineeringRegistry();
         _visualAssets = visualAssets ?? new InMemoryVisualAssetEngineeringRegistry();
+        _reports = reports ?? new InMemoryReportEngineeringRegistry();
         _json = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -181,6 +186,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _commandHandler = new CommandEngineeringHandler(commands, tags, dataSources);
         _gatewayHandler = new GatewayEngineeringHandler(gateways, tags, dataSources);
         _scriptHandler = new ScriptEngineeringHandler(_scripts, tags, dataSources, assets, views);
+        _reportHandler = new ReportEngineeringHandler(_reports, _visualAssets);
     }
 
     public EngineeringPackage ExportPackage()
@@ -209,7 +215,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             _gateways.Snapshot(),
             _scripts.SnapshotScripts(),
             _scripts.SnapshotVisualEventReferences(),
-            _visualAssets.SnapshotAssets());
+            _visualAssets.SnapshotAssets(),
+            _reports.SnapshotReports());
     }
 
     public string ExportJson(bool indented = true)
@@ -251,7 +258,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             Gateways = package.Gateways ?? Array.Empty<GatewayRouteEngineeringDto>(),
             Scripts = package.Scripts ?? Array.Empty<ScriptEngineeringDefinition>(),
             ScriptVisualEventReferences = package.ScriptVisualEventReferences ?? Array.Empty<ScriptVisualEventReference>(),
-            VisualAssets = package.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>()
+            VisualAssets = package.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>(),
+            Reports = package.Reports ?? Array.Empty<ReportEngineeringDto>()
         };
     }
 
@@ -282,6 +290,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _commandHandler.Preview(package, mode, items);
         _gatewayHandler.Preview(package, mode, items);
         _scriptHandler.Preview(package, mode, items);
+        _reportHandler.Preview(package, mode, items);
         _securityPolicyHandler.Preview(package, mode, items);
 
         return new ImportPreview(
@@ -323,6 +332,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _commandHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _gatewayHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _scriptHandler.Apply(package, mode, ref created, ref updated, ref skipped);
+        _reportHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _securityPolicyHandler.Apply(package, mode, ref created, ref updated, ref skipped);
 
         return new ImportResult(mode, created, updated, skipped, Array.Empty<ImportIssue>());
@@ -345,5 +355,6 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         Array.Empty<GatewayRouteEngineeringDto>(),
         Array.Empty<ScriptEngineeringDefinition>(),
         Array.Empty<ScriptVisualEventReference>(),
-        Array.Empty<VisualAssetEngineeringDto>());
+        Array.Empty<VisualAssetEngineeringDto>(),
+        Array.Empty<ReportEngineeringDto>());
 }

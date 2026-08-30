@@ -14,6 +14,8 @@ export type EngineeringPythonPreviewRequest = {
 
 export type EngineeringPythonHandlerPreviewRequest = EngineeringPythonPreviewRequest & {
   handlerName: string;
+  payload?: unknown;
+  signal?: AbortSignal;
 };
 
 export type EngineeringPythonHandlerPreviewResult = ClientVisualPythonDispatchResult & {
@@ -73,7 +75,8 @@ export async function runEngineeringClientVisualPythonHandler(
     const result = await runtime.dispatchEvent(
       request.handlerName,
       `engineering-preview:${request.handlerName}`,
-      { preview: true }
+      request.payload ?? { preview: true },
+      request.signal
     );
 
     return { ...result, diagnostics };

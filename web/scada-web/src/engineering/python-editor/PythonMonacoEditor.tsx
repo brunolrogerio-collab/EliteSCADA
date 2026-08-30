@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as monaco from 'monaco-editor';
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker';
 import type { EngineeringLocale } from '../i18n';
+import { PythonPreviewTestPanel } from '../scripts/PythonPreviewTestPanel';
 import type {
   ScriptEngineeringEntryPoint,
   ScriptEngineeringScope
@@ -12,6 +13,7 @@ import {
 } from './pythonEditorDescriptors';
 import {
   projectPythonDiagnostics,
+  type PythonEditorDiagnosticSnapshot,
   type PythonEditorDiagnosticState
 } from './pythonEditorDiagnostics';
 import { pythonEditorCopy } from './pythonEditorCopy';
@@ -64,24 +66,40 @@ export function PythonMonacoEditor({
   const sourceRef = useRef(source);
   const [cursor, setCursor] = useState({ line: 1, column: 1 });
   const [editorError, setEditorError] = useState<string | null>(null);
+  const [previewDiagnostics, setPreviewDiagnostics] = useState<PythonEditorDiagnosticSnapshot | null>(null);
 
   onSourceChangeRef.current = onSourceChange;
   entryPointsRef.current = entryPoints;
   sourceRef.current = source;
 
+  const effectiveDiagnostics: PythonEditorDiagnosticState = previewDiagnostics?.source === source
+    ? { status: 'ready', diagnostics: previewDiagnostics.diagnostics }
+    : diagnostics;
+
   const projection = useMemo(
-    () => diagnostics.status === 'ready'
-      ? projectPythonDiagnostics(diagnostics.diagnostics)
+    () => effectiveDiagnostics.status === 'ready'
+      ? projectPythonDiagnostics(effectiveDiagnostics.diagnostics)
       : { markers: [], rejectedCount: 0 },
-    [diagnostics]
+    [effectiveDiagnostics]
   );
 
-  const errorCount = diagnostics.status === 'ready'
-    ? diagnostics.diagnostics.filter(item => item.severity === 'error').length
+  const errorCount = effectiveDiagnostics.status === 'ready'
+    ? effectiveDiagnostics.diagnostics.filter(item => item.severity === 'error').length
     : 0;
-  const warningCount = diagnostics.status === 'ready'
-    ? diagnostics.diagnostics.filter(item => item.severity === 'warning').length
+  const warningCount = effectiveDiagnostics.status === 'ready'
+    ? effectiveDiagnostics.diagnostics.filter(item => item.severity === 'warning').length
     : 0;
+  const previewHandlerNames = useMemo(() => {
+    const seen = new Set<string>();
+    const handlers: string[] = [];
+    for (const entryPoint of entryPoints) {
+      const handler = entryPoint.handlerName.trim();
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(handler) || seen.has(handler)) continue;
+      seen.add(handler);
+      handlers.push(handler);
+    }
+    return handlers;
+  }, [entryPoints]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -122,7 +140,10 @@ export function PythonMonacoEditor({
 
       const contentDisposable = editor.onDidChangeModelContent(() => {
         const next = model?.getValue() ?? '';
-        if (next !== sourceRef.current) onSourceChangeRef.current(next);
+        if (next !== sourceRef.current) {
+          setPreviewDiagnostics(null);
+          onSourceChangeRef.current(next);
+        }
       });
       const cursorDisposable = editor.onDidChangeCursorPosition(event => {
         setCursor({ line: event.position.lineNumber, column: event.position.column });
@@ -174,6 +195,7 @@ export function PythonMonacoEditor({
     const model = modelRef.current;
     if (!model || model.getValue() === source) return;
     model.setValue(source);
+    setPreviewDiagnostics(null);
   }, [source]);
 
   useEffect(() => {
@@ -246,19 +268,29 @@ export function PythonMonacoEditor({
 
       <footer className="python-editor__status">
         <span>{copy.sourceAuthority}</span>
-        {diagnostics.status === 'ready' ? (
+        {effectiveDiagnostics.status === 'ready' ? (
           <strong className={errorCount > 0 ? 'python-editor__diagnostic-error' : ''}>
             {copy.diagnosticsReady}: {errorCount} {copy.errors}, {warningCount} {copy.warnings}
             {projection.rejectedCount > 0 ? ` · ${projection.rejectedCount} ${copy.diagnosticsRejected}` : ''}
           </strong>
-        ) : diagnostics.status === 'stale' ? (
+        ) : effectiveDiagnostics.status === 'stale' ? (
           <strong className="python-editor__muted">{copy.diagnosticsStale}</strong>
         ) : (
           <strong className="python-editor__muted">
-            {diagnostics.message ?? copy.diagnosticsUnavailable}
+            {effectiveDiagnostics.message ?? copy.diagnosticsUnavailable}
           </strong>
         )}
       </footer>
+
+      {scope === 'clientVisual' && !readOnly && (
+        <PythonPreviewTestPanel
+          locale={locale}
+          scriptId={scriptId}
+          source={source}
+          handlerNames={previewHandlerNames}
+          onDiagnostics={setPreviewDiagnostics}
+        />
+      )}
     </section>
   );
 }

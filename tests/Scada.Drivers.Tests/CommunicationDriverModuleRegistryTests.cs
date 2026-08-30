@@ -24,7 +24,7 @@ public sealed class CommunicationDriverModuleRegistryTests
         var error = Assert.Throws<InvalidOperationException>(() =>
             registry.Register(new CommunicationDriverModuleRegistration(new DescriptorProvider(CreateDescriptor("OPCUA.CLIENT")))));
 
-        Assert.Contains("already registered", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(error.Message.Contains("already registered", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public sealed class CommunicationDriverModuleRegistryTests
         var registration = new CommunicationDriverModuleRegistration(new DescriptorProvider(descriptor));
 
         var error = Assert.Throws<InvalidOperationException>(registration.Validate);
-        Assert.Contains("Browse", error.Message, StringComparison.Ordinal);
+        Assert.True(error.Message.Contains("Browse", StringComparison.Ordinal));
     }
 
     private static CommunicationDriverTypeDescriptor CreateDescriptor(
@@ -56,9 +56,13 @@ public sealed class CommunicationDriverModuleRegistryTests
                 DataSourceFields: Array.Empty<DriverConfigurationFieldDescriptor>(),
                 TagBindingFields: Array.Empty<DriverConfigurationFieldDescriptor>()));
 
-    private sealed class DescriptorProvider(CommunicationDriverTypeDescriptor descriptor)
-        : ICommunicationDriverDescriptorProvider
+    private sealed class DescriptorProvider : ICommunicationDriverDescriptorProvider
     {
-        public CommunicationDriverTypeDescriptor Descriptor { get; } = descriptor;
+        public DescriptorProvider(CommunicationDriverTypeDescriptor descriptor)
+        {
+            Descriptor = descriptor;
+        }
+
+        public CommunicationDriverTypeDescriptor Descriptor { get; }
     }
 }

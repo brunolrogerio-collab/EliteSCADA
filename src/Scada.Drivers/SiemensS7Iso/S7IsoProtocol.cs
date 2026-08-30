@@ -80,6 +80,9 @@ internal static class S7IsoProtocol
 
     public static byte[] BuildSetupCommunication(ushort pduReference, ushort requestedPduSize)
     {
+        if (requestedPduSize is < 240 or > 960)
+            throw new ArgumentOutOfRangeException(nameof(requestedPduSize), "S7 requested PDU size must be from 240 to 960 bytes.");
+
         var parameter = new byte[8];
         parameter[0] = 0xF0;
         parameter[1] = 0x00;
@@ -95,9 +98,20 @@ internal static class S7IsoProtocol
         ushort pduReference,
         ushort? requestedPduSize = null)
     {
-        ValidateAckData(packet, pduReference, out var parameterOffset, out var parameterLength, out _, out _);
-        if (parameterLength < 8 || packet[parameterOffset] != 0xF0)
+        ValidateAckData(
+            packet,
+            pduReference,
+            out var parameterOffset,
+            out var parameterLength,
+            out _,
+            out var dataLength);
+        if (parameterLength != 8 || dataLength != 0 || packet[parameterOffset] != 0xF0)
             throw new S7IsoProtocolException("Invalid S7 Setup Communication response.");
+
+        var maxAmqCaller = BinaryPrimitives.ReadUInt16BigEndian(packet.Slice(parameterOffset + 2, 2));
+        var maxAmqCallee = BinaryPrimitives.ReadUInt16BigEndian(packet.Slice(parameterOffset + 4, 2));
+        if (maxAmqCaller == 0 || maxAmqCallee == 0)
+            throw new S7IsoProtocolException("S7 peer negotiated zero parallel jobs in Setup Communication.");
 
         var negotiated = BinaryPrimitives.ReadUInt16BigEndian(packet.Slice(parameterOffset + 6, 2));
         if (negotiated < 240)
@@ -315,8 +329,8 @@ internal static class S7IsoProtocol
         ValidateTpkt(packet);
         if (packet.Length < S7Offset + S7AckDataHeaderLength)
             throw new S7IsoProtocolException("Truncated S7 Ack Data packet.");
-        if (packet[4] != 0x02 || packet[5] != 0xF0)
-            throw new S7IsoProtocolException("Invalid COTP Data header in S7 response.");
+        if (packet[4] != 0x02 || packet[5] != 0xF0 || packet[6] != 0x80)
+            throw new S7IsoProtocolException("Invalid or fragmented COTP Data header in S7 response.");
         if (packet[S7Offset] != 0x32 || packet[S7Offset + 1] != 0x03)
             throw new S7IsoProtocolException("Expected S7 Ack Data response.");
 
@@ -335,8 +349,8 @@ internal static class S7IsoProtocol
 
         parameterOffset = S7Offset + S7AckDataHeaderLength;
         dataOffset = checked(parameterOffset + parameterLength);
-        if (dataOffset + dataLength > packet.Length)
-            throw new S7IsoProtocolException("S7 Ack Data lengths exceed the TPKT payload.");
+        if (dataOffset + dataLength != packet.Length)
+            throw new S7IsoProtocolException("S7 Ack Data lengths do not exactly match the TPKT payload.");
     }
 
     private static void WriteTpktHeader(Span<byte> packet, int totalLength)

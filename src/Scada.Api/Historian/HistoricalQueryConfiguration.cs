@@ -60,22 +60,30 @@ public static class HistoricalQueryConfiguration
         }
 
         builder.Services.AddSingleton<RuntimeTagRegistryView>();
-        builder.Services.AddSingleton<TimescaleHistoricalQueryProvider>(sp =>
+        builder.Services.AddSingleton<IHistoricalDatasetProvider>(sp =>
             new TimescaleHistoricalQueryProvider(
                 connectionString,
                 sp.GetRequiredService<RuntimeTagRegistryView>()));
-        builder.Services.AddSingleton<IHistoricalDatasetProvider>(sp =>
-            sp.GetRequiredService<TimescaleHistoricalQueryProvider>());
 
         builder.Services.AddSingleton<PostgreSqlAlarmHistoryStore>(_ =>
             new PostgreSqlAlarmHistoryStore(connectionString));
-        builder.Services.AddSingleton<IHistoricalDatasetProvider>(sp =>
-            sp.GetRequiredService<PostgreSqlAlarmHistoryStore>());
+        builder.Services.AddSingleton<IHistoricalDatasetProvider, AlarmHistoryDatasetProviderAdapter>();
 
         builder.AddHistoricalQueryApiCore();
         builder.Services.AddHostedService<AlarmHistoryPersistenceHostedService>();
         return true;
     }
+}
+
+internal sealed class AlarmHistoryDatasetProviderAdapter(PostgreSqlAlarmHistoryStore store)
+    : IHistoricalDatasetProvider
+{
+    public string Dataset => store.Dataset;
+
+    public Task<HistoricalProviderPage> QueryAsync(
+        HistoricalQueryExecution query,
+        CancellationToken cancellationToken = default) =>
+        store.QueryAsync(query, cancellationToken);
 }
 
 internal sealed class AlarmHistoryPersistenceHostedService(

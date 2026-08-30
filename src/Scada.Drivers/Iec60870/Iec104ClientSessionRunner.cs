@@ -65,6 +65,19 @@ public sealed class Iec104ClientSessionRunner
     public IReadOnlyDictionary<ushort, Iec104GeneralInterrogationState> GeneralInterrogationStates =>
         _generalInterrogations.ToDictionary(static pair => pair.Key, static pair => pair.Value.State);
 
+    public bool IsTransportConnected => _adapter.IsConnected;
+
+    public bool IsDataTransferStarted => State == Iec104SessionState.Running && _adapter.IsConnected;
+
+    public bool IsStartupGeneralInterrogationCompleted =>
+        _generalInterrogations.Count == _commonAddresses.Length &&
+        _generalInterrogations.Values.All(static transaction =>
+            transaction.State == Iec104GeneralInterrogationState.Completed);
+
+    public bool IsStartupGeneralInterrogationRejected =>
+        _generalInterrogations.Values.Any(static transaction =>
+            transaction.State == Iec104GeneralInterrogationState.Rejected);
+
     public Task<Iec104CommandResult> ExecuteCommandAsync(
         Iec104CommandTransaction transaction,
         CancellationToken cancellationToken = default)

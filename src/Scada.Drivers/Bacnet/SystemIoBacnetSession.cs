@@ -33,6 +33,11 @@ public sealed class SystemIoBacnetSession :
     private string? _foreignDeviceRegistrationLastErrorType;
     private long _covSubscribeRequests;
     private long _covSubscribeFailures;
+    private long _covRenewalRequests;
+    private long _covRenewalFailures;
+    private DateTimeOffset? _covLastRenewalRequestAt;
+    private DateTimeOffset? _covLastRenewalFailureAt;
+    private string? _covLastRenewalErrorType;
     private long _covCancelRequests;
     private long _covCancelFailures;
     private string? _covLastErrorType;
@@ -92,13 +97,36 @@ public sealed class SystemIoBacnetSession :
     {
         lock (_covGate)
         {
+            var routes = _covRoutes
+                .Select(x => x.GetRenewalDiagnostics())
+                .OrderBy(x => x.SubscriptionId)
+                .ToArray();
+            var scheduled = routes
+                .Where(x => x.NextRenewalAttemptAt.HasValue)
+                .Select(x => x.NextRenewalAttemptAt!.Value)
+                .OrderBy(x => x)
+                .ToArray();
+            var nextRenewalAttemptAt = scheduled.Length == 0
+                ? (DateTimeOffset?)null
+                : scheduled[0];
+
             return new BacnetCovSubscriptionSnapshot(
                 ActiveSubscriptions: _covRoutes.Count,
                 SubscribeRequests: Interlocked.Read(ref _covSubscribeRequests),
                 SubscribeFailures: Interlocked.Read(ref _covSubscribeFailures),
                 CancelRequests: Interlocked.Read(ref _covCancelRequests),
                 CancelFailures: Interlocked.Read(ref _covCancelFailures),
-                LastErrorType: _covLastErrorType);
+                LastErrorType: _covLastErrorType,
+                SubscriptionLifetime: _options.EffectiveCovSubscriptionLifetime,
+                RenewalInterval: _options.EffectiveCovRenewalInterval,
+                RetryInterval: _options.EffectiveCovRetryInterval,
+                RenewalRequests: Interlocked.Read(ref _covRenewalRequests),
+                RenewalFailures: Interlocked.Read(ref _covRenewalFailures),
+                LastRenewalRequestAt: _covLastRenewalRequestAt,
+                NextRenewalAttemptAt: nextRenewalAttemptAt,
+                LastRenewalFailureAt: _covLastRenewalFailureAt,
+                LastRenewalErrorType: _covLastRenewalErrorType,
+                Routes: routes);
         }
     }
 
@@ -287,6 +315,7 @@ public sealed class SystemIoBacnetSession :
         }
 
         var route = new CovRoute(binding, device.Address, objectId, subscriptionId, onNotification);
+        route.ScheduleRenewal(DateTimeOffset.UtcNow + _options.EffectiveCovRenewalInterval);
         lock (_covGate)
         {
             _covRoutes.Add(route);
@@ -406,7 +435,12 @@ public sealed class SystemIoBacnetSession :
                 break;
             }
 
+            var requestedAt = DateTimeOffset.UtcNow;
             Interlocked.Increment(ref _covSubscribeRequests);
+            Interlocked.Increment(ref _covRenewalRequests);
+            route.RecordRenewalRequest(requestedAt);
+            lock (_covGate) _covLastRenewalRequestAt = requestedAt;
+
             try
             {
                 await _client.SubscribeCOVAsync(
@@ -426,12 +460,22 @@ public sealed class SystemIoBacnetSession :
             }
             catch (Exception ex)
             {
+                var failedAt = DateTimeOffset.UtcNow;
                 Interlocked.Increment(ref _covSubscribeFailures);
+                Interlocked.Increment(ref _covRenewalFailures);
+                route.RecordRenewalFailure(failedAt, ex.GetType().Name);
+                lock (_covGate)
+                {
+                    _covLastRenewalFailureAt = failedAt;
+                    _covLastRenewalErrorType = ex.GetType().Name;
+                }
                 SetCovLastError(ex);
                 // Polling remains active as a safety net. Retry the same subscriber
                 // identity promptly so silent peer-side subscription loss can heal.
                 delay = retryInterval;
             }
+
+            route.ScheduleRenewal(DateTimeOffset.UtcNow + delay);
         }
     }
 
@@ -728,7 +772,14 @@ public sealed class SystemIoBacnetSession :
         Func<BacnetPropertyReadResult, ValueTask> handler)
     {
         private readonly CancellationTokenSource _renewalCts = new();
+        private readonly object _renewalDiagnosticsGate = new();
         private Task? _renewalTask;
+        private DateTimeOffset? _lastRenewalRequestAt;
+        private DateTimeOffset? _nextRenewalAttemptAt;
+        private DateTimeOffset? _lastRenewalFailureAt;
+        private long _renewalRequests;
+        private long _renewalFailures;
+        private string? _lastRenewalErrorType;
         private int _renewalStopped;
         private int _remoteCancelStarted;
 
@@ -740,6 +791,46 @@ public sealed class SystemIoBacnetSession :
         public CancellationToken RenewalToken => _renewalCts.Token;
 
         public void StartRenewal(Task renewalTask) => _renewalTask = renewalTask;
+
+        public void ScheduleRenewal(DateTimeOffset nextAttemptAt)
+        {
+            lock (_renewalDiagnosticsGate) _nextRenewalAttemptAt = nextAttemptAt;
+        }
+
+        public void RecordRenewalRequest(DateTimeOffset requestedAt)
+        {
+            lock (_renewalDiagnosticsGate)
+            {
+                _lastRenewalRequestAt = requestedAt;
+                _renewalRequests++;
+            }
+        }
+
+        public void RecordRenewalFailure(DateTimeOffset failedAt, string errorType)
+        {
+            lock (_renewalDiagnosticsGate)
+            {
+                _lastRenewalFailureAt = failedAt;
+                _lastRenewalErrorType = errorType;
+                _renewalFailures++;
+            }
+        }
+
+        public BacnetCovRouteRenewalSnapshot GetRenewalDiagnostics()
+        {
+            lock (_renewalDiagnosticsGate)
+            {
+                return new BacnetCovRouteRenewalSnapshot(
+                    SubscriptionId,
+                    Binding.PortableAddress,
+                    _lastRenewalRequestAt,
+                    _nextRenewalAttemptAt,
+                    _renewalRequests,
+                    _renewalFailures,
+                    _lastRenewalFailureAt,
+                    _lastRenewalErrorType);
+            }
+        }
 
         public void CancelRenewal()
         {

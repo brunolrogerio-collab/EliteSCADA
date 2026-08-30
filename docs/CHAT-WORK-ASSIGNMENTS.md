@@ -1,49 +1,118 @@
 # CHAT WORK ASSIGNMENTS — EliteSCADA
 
 Date: 2026-08-30
-Stage: **DRIVER CONVERGENCE v1 — ACTIVE**
+Stage: **WAVE 10 — ACTIVE**
 Integration owner: **Coordinator**
-Product baseline: `main` after Wave 09 closure
+Wave 10 product `WaveBaseSHA`: `bbfd730e404b0dee2c05e0ec0afb979b1b14ea35`
+
+## Priority
+
+Wave 10 has absolute priority over parallel Driver work.
+
+GitHub live state is authoritative. Re-read exact branch/PR/CI state before mutations because worker chats advance independently.
+
+CI policy remains NORMAL: no reassurance CI on unchanged product trees; exact final integration/product heads require green evidence before merge/stage closure.
 
 ## Wave 09 — CLOSED
 
-Final product head before this docs-only transition:
+Wave 09 is formally complete. Its worker scopes must not be reopened or rebuilt.
+
+Final Wave 09 integration/product head at closure:
 
 `4d081f442b4f21cbb29e0d6cd1e76d251b8610aa`
 
-Validation evidence:
+Delivered scope includes Historical Query v1, alarm/historian providers, Popup/Dynamo/navigation, Historical Data Browser, Reporting core and mounted Report Designer/Preview, plus central Historical Query composition.
 
-- final pre-main CI #776 / run `33293198798`: Web, backend build/tests/runtime smoke and Chromium E2E all SUCCESS;
-- post-merge main CI #782 / run `33293473589`: Web, backend build/tests/runtime smoke and Chromium E2E all SUCCESS;
-- `main` and `integration/wave-09-historical-navigation-foundation` were aligned to the exact validated product SHA.
+## Wave 10 — ACTIVE
 
-Delivered Wave 09 scope includes:
+Canonical coordination document:
 
-- Historical Query v1 with `historian.samples` and `alarm.events`;
-- opaque keyset cursor, bounded typed filters/orders, deterministic relative-time admission and exact Int64 decimal-string wire semantics;
-- Timescale historian query provider and append-only PostgreSQL alarm history provider;
-- canonical Popup/Dynamo/navigation Engineering and Runtime Web composition;
-- Reporting Engineering/execution core and mounted Report Designer/Preview;
-- mounted Runtime Historical Data Browser at `/runtime/history` using the canonical Historical Query contract;
-- central Historical Query configuration/composition with external cursor HMAC secret and fail-closed activation.
+`docs/WAVE-10-PYTHON-VISUAL-EVENTS-ANIMATION-PREVIEW.md`
 
-DEV 1, DEV 2 and DEV 3 Wave 09 assignments are complete. No new DEV 1/2/3 assignment is authorized by this file yet.
+Integration branch:
 
-## Current active stage — Driver Convergence v1
+`integration/wave-10-python-visual-events-animation-preview`
 
-Authority: `docs/DRIVER-CONVERGENCE-COORDINATION-V1.md` and ADR-007.
+Wave exit:
 
-Wave priority no longer blocks the parked Driver convergence work. The Coordinator now owns reconciliation of the validated common Driver seams against current `main` before any protocol branch is authorized for mainline integration.
+`click -> canonical event binding -> Python entry point -> script visual command -> animated public visual property -> deterministic stable final result`
 
-Coordinator priorities:
+Also require mounted Preview/Test with actionable safe traceback diagnostics.
 
-1. rebase-by-porting the validated common Driver convergence contracts onto current `main`, preserving all Wave 09 Engineering additions;
-2. resolve the Engineering schema collision explicitly: Wave 09 owns schema v14, so rich communication TAG binding becomes the next schema revision rather than redefining v14;
-3. preserve canonical TAG-bit identity as stable `TagId + TagValueSelector`; `.NN` remains authoring/display only;
-4. retain ADR-007 byte/word transform semantics, with bit selection after physical transform and typed decode;
-5. converge registry/planner/factory, protected-material resolution and runtime readiness without protocol-specific central switches;
-6. review current Driver 4–10 exact heads and handoffs before protocol integration;
-7. keep protocol branches isolated from `main` until Coordinator acceptance and exact integration-head CI.
+### DEV 1 — Events editor
+
+- Issue: #149
+- Branch: `dev1/wave-10-event-editor`
+- Base: `bbfd730e404b0dee2c05e0ec0afb979b1b14ea35`
+
+Owns:
+
+- mounted Events editor;
+- click/object/visual event associations;
+- lifecycle associations;
+- TAG value-change associations;
+- Client Memory change associations using stable definition identity;
+- timer associations;
+- Engineering round-trip and validation.
+
+Must not create a frontend-private second event model or central runtime dispatcher. If canonical schema is insufficient, report the smallest gap to Coordinator.
+
+### DEV 2 — Runtime animation/tween
+
+- Issue: #150
+- Branch: `dev2/wave-10-runtime-animation-tween`
+- Base: `bbfd730e404b0dee2c05e0ec0afb979b1b14ea35`
+
+Owns:
+
+- deterministic animation/tween execution over public visual properties;
+- bounded explicit duration/transition semantics;
+- start/intermediate/completion behavior;
+- replacement/cancellation behavior;
+- stable final value and diagnostics;
+- focused runtime/E2E coverage.
+
+Must preserve exactly:
+
+`Animation > Script > Binding/Expression > Engineering Base > Default`
+
+Must not create renderer-private persisted truth or a second visual property/state model.
+
+### DEV 3 — Python Preview/Test
+
+- Issue: #151
+- Branch: `dev3/wave-10-python-preview-test`
+- Base: `bbfd730e404b0dee2c05e0ec0afb979b1b14ea35`
+
+Owns:
+
+- mounted Preview/Test in canonical Python authoring;
+- execution through accepted sandbox/runtime path;
+- structured deterministic output;
+- success/error/timeout/cancellation states;
+- actionable traceback and failing source line;
+- protected-data redaction;
+- focused unit/integration/E2E coverage.
+
+Must not create a second Python evaluator/host or private persistence path.
+
+### Coordinator — central Wave 10 work
+
+- Issue: #152
+- Integration branch: `integration/wave-10-python-visual-events-animation-preview`
+
+Owns:
+
+- genuine shared event-binding schema gaps;
+- central DI/runtime bridge composition;
+- shared event dispatcher wiring;
+- cross-component animation arbitration changes when required;
+- review/reconciliation and integration of DEV 1/2/3;
+- final end-to-end acceptance;
+- exact integration-head CI and `main` transition;
+- exact post-main CI before Wave closure.
+
+Workers do not independently redefine central contracts.
 
 ## Parallel Driver branches
 
@@ -57,29 +126,34 @@ Canonical worker branches remain:
 - Driver 9 OPC UA: `driver9/opc-ua`
 - Driver 10 MQTT Industrial: `driver10/mqtt`
 
-Old aliases `driver1/siemens-s7-iso`, `driver2/opc-ua` and `driver3/mqtt` remain retired and are not worker authorities.
+Old aliases `driver1/siemens-s7-iso`, `driver2/opc-ua` and `driver3/mqtt` remain retired.
 
-Workers may continue protocol-owned bounded milestones under the convergence document, but must not edit shared Coordinator-owned contracts, `main`, or a central convergence branch.
+Shared convergence authority remains `docs/DRIVER-CONVERGENCE-COORDINATION-V1.md` and ADR-007.
+
+Drivers may continue bounded protocol-owned work in parallel, but must not edit Coordinator-owned shared contracts, the Wave 10 integration branch or `main` without Coordinator acceptance.
+
+At Wave 10 activation, OPC UA independent-software interoperability work was parked in PR #148 and did not block Wave 10.
 
 ## Shared locks
 
-- Engineering Import/Export, Preview/Apply/CAS, revisions and project-package fidelity remain mandatory for canonical Engineering changes.
+- Engineering Import/Export, Preview/Apply/CAS, revisions and project-package fidelity remain mandatory for canonical public Engineering changes.
 - Protected credentials/private keys are never plaintext Engineering/package data.
-- No arbitrary SQL, JavaScript `eval`/`Function`, Python evaluation or implicit coercion engines.
+- TAG-bit identity remains stable `TagId + selector`; `.NN` is authoring/display only.
+- ADR-007 byte/word transform remains binding-level; bit selection occurs after physical transform and typed decode.
+- No arbitrary SQL, JavaScript `eval`/`Function`, unrestricted Python evaluation or implicit coercion engines.
 - Visual precedence remains `Animation > Script > Binding/Expression > Engineering Base > Default`.
-- Driver registry dispatch is by stable Driver type and duplicate registrations fail closed.
-- Runtime readiness is Data Source protocol readiness, not a requirement that every point be `Good`.
-- CI policy is NORMAL: no reassurance CI on unchanged product trees; exact final integration/product heads require green evidence before merge/stage closure.
+- Client Memory references preserve stable definition identity.
+- Driver registry dispatch uses stable Driver type and duplicate registrations fail closed.
+- Runtime readiness means protocol/Data Source readiness, not every point being `Good`.
 
 ## Required worker handoff
 
-Each worker handoff must report:
+Every worker handoff must report:
 
 1. exact branch and head SHA;
-2. concise delivered scope;
+2. delivered scope;
 3. exact changed-file list;
-4. tests executed and results;
+4. tests/results and exact CI evidence;
 5. known limitations/risks;
-6. confirmation that no unassigned files were changed;
-7. module/dependency/license/hardware evidence required by the convergence contract;
-8. any shared contract decision requiring Coordinator reconciliation.
+6. shared decisions requiring Coordinator action;
+7. confirmation that no unassigned shared files/contracts were independently redefined.

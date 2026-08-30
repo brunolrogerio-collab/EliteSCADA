@@ -1,4 +1,6 @@
 using System.Buffers.Binary;
+using System.Net;
+using System.Net.Sockets;
 using Scada.Drivers.SiemensS7Iso;
 
 namespace Scada.Drivers.Tests;
@@ -94,6 +96,48 @@ public sealed class S7IsoHandshakeHardeningTests
         Assert.Equal(S7IsoFailureKind.S7SessionRejected, diagnostics.LastFailureKind);
     }
 
+    [Fact]
+    public async Task Transport_MismatchedCotpDestinationReference_IsIsoConnectionRejected()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        var peer = Task.Run(async () =>
+        {
+            using var client = await listener.AcceptTcpClientAsync();
+            var stream = client.GetStream();
+            var request = new byte[22];
+            await ReadExactAsync(stream, request);
+            await stream.WriteAsync(new byte[]
+            {
+                0x03, 0x00, 0x00, 0x0B,
+                0x06, 0xD0,
+                0x00, 0x02,
+                0x00, 0x00,
+                0x00
+            });
+            await stream.FlushAsync();
+        });
+
+        try
+        {
+            await using var transport = new S7IsoTransport(S7IsoTransportTests.Options(port));
+
+            var error = await Assert.ThrowsAsync<S7IsoProtocolException>(() => transport.ConnectAsync());
+
+            Assert.Contains("destination reference", error.Message, StringComparison.OrdinalIgnoreCase);
+            var diagnostics = transport.GetDiagnostics();
+            Assert.False(diagnostics.Connected);
+            Assert.Equal(0L, diagnostics.ConnectionCount);
+            Assert.Equal(S7IsoFailureKind.IsoConnectionRejected, diagnostics.LastFailureKind);
+        }
+        finally
+        {
+            listener.Stop();
+            await peer;
+        }
+    }
+
     private static byte[] AckData(ushort reference, byte[] parameter, byte[] data)
     {
         var packet = new byte[4 + 3 + 12 + parameter.Length + data.Length];
@@ -113,5 +157,16 @@ public sealed class S7IsoHandshakeHardeningTests
         parameter.CopyTo(packet, 19);
         data.CopyTo(packet, 19 + parameter.Length);
         return packet;
+    }
+
+    private static async Task ReadExactAsync(NetworkStream stream, Memory<byte> destination)
+    {
+        var offset = 0;
+        while (offset < destination.Length)
+        {
+            var read = await stream.ReadAsync(destination[offset..]);
+            if (read == 0) throw new EndOfStreamException();
+            offset += read;
+        }
     }
 }

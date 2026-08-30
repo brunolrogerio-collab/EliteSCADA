@@ -16,7 +16,11 @@ public sealed record BacnetIpRuntimePlan(
     string Name,
     BacnetSessionOptions SessionOptions,
     TimeSpan ScanRate,
-    IReadOnlyCollection<BacnetPoint> Points);
+    IReadOnlyCollection<BacnetPoint> Points)
+{
+    public string DriverType => BacnetDriverDescriptor.DriverType;
+    public IReadOnlyCollection<TagDefinition> Tags => Points.Select(x => x.Tag).ToArray();
+}
 
 public sealed record BacnetEngineeringPlanningResult(
     BacnetIpRuntimePlan? Plan,

@@ -87,8 +87,9 @@ public sealed class OpcUaEngineeringConnectionTesterTests
         Assert.NotNull(capturedOptions);
         Assert.Equal("secret://opcua/operator", capturedOptions!.PasswordSecretReference);
         Assert.NotNull(result.ObservedProperties);
-        Assert.False(result.ObservedProperties!.Values.Any(
-            value => value.Contains("secret://opcua/operator", StringComparison.Ordinal)));
+        Assert.DoesNotContain(
+            result.ObservedProperties!.Values,
+            value => value.Contains("secret://opcua/operator", StringComparison.Ordinal));
     }
 
     [Fact]

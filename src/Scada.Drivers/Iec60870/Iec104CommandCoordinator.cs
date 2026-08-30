@@ -260,14 +260,17 @@ public sealed class Iec104CommandCoordinator : IDisposable
         {
             var confirmationState = await WaitForStateAsync(
                 pending,
-                static state => state is Iec104CommandState.Accepted or Iec104CommandState.Rejected,
+                static state => state is Iec104CommandState.Accepted or Iec104CommandState.Completed or Iec104CommandState.Rejected,
                 _options.ConfirmationTimeout,
                 cancellationToken).ConfigureAwait(false);
 
+            wasAccepted = transaction.ExecuteWasAccepted;
             if (confirmationState == Iec104CommandState.Rejected)
-                return Result(transaction, Iec104CommandOutcome.Rejected, executeWasTransmitted, false, "Remote station rejected the IEC-104 execute request.");
-
-            wasAccepted = true;
+            {
+                return wasAccepted
+                    ? Result(transaction, Iec104CommandOutcome.Rejected, executeWasTransmitted, true, "Remote station rejected command termination after positively confirming execute.")
+                    : Result(transaction, Iec104CommandOutcome.Rejected, executeWasTransmitted, false, "Remote station rejected the IEC-104 execute request.");
+            }
         }
         catch (TimeoutException)
         {
@@ -279,7 +282,7 @@ public sealed class Iec104CommandCoordinator : IDisposable
         }
         catch (PendingSessionFailureException ex)
         {
-            return Result(transaction, Iec104CommandOutcome.Ambiguous, executeWasTransmitted, false, $"IEC-104 session failed after execute transmission and before confirmation: {ex.InnerException?.Message ?? ex.Message}");
+            return Result(transaction, Iec104CommandOutcome.Ambiguous, executeWasTransmitted, transaction.ExecuteWasAccepted, $"IEC-104 session failed after execute transmission and before confirmation became observable: {ex.InnerException?.Message ?? ex.Message}");
         }
 
         try
@@ -292,7 +295,7 @@ public sealed class Iec104CommandCoordinator : IDisposable
 
             return completionState == Iec104CommandState.Completed
                 ? Result(transaction, Iec104CommandOutcome.Completed, executeWasTransmitted, true, "Remote station confirmed IEC-104 activation termination.")
-                : Result(transaction, Iec104CommandOutcome.Rejected, executeWasTransmitted, true, "Remote station rejected command completion after previously accepting execute.");
+                : Result(transaction, Iec104CommandOutcome.Rejected, executeWasTransmitted, transaction.ExecuteWasAccepted, "Remote station rejected command completion after previously accepting execute.");
         }
         catch (TimeoutException)
         {
@@ -300,11 +303,11 @@ public sealed class Iec104CommandCoordinator : IDisposable
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            return Result(transaction, Iec104CommandOutcome.Ambiguous, executeWasTransmitted, wasAccepted, "Command was accepted, then observation was cancelled before completion became known.");
+            return Result(transaction, Iec104CommandOutcome.Ambiguous, executeWasTransmitted, transaction.ExecuteWasAccepted, "Command was accepted, then observation was cancelled before completion became known.");
         }
         catch (PendingSessionFailureException ex)
         {
-            return Result(transaction, Iec104CommandOutcome.Ambiguous, executeWasTransmitted, wasAccepted, $"Command was accepted, then the IEC-104 session failed before completion became known: {ex.InnerException?.Message ?? ex.Message}");
+            return Result(transaction, Iec104CommandOutcome.Ambiguous, executeWasTransmitted, transaction.ExecuteWasAccepted, $"Command was accepted, then the IEC-104 session failed before completion became known: {ex.InnerException?.Message ?? ex.Message}");
         }
     }
 

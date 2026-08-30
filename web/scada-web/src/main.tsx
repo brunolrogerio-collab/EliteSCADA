@@ -6,6 +6,7 @@ import { AuthGate } from './auth/AuthGate';
 import { EngineeringApp } from './engineering/EngineeringApp';
 import { BasicTrendViewer } from './runtime/BasicTrendViewer';
 import { clientMemory } from './runtime/clientMemory';
+import { HistoricalDataBrowserRuntime } from './runtime/historical-browser/HistoricalDataBrowserRuntime';
 import { RuntimeAlarmCenter, type RuntimeAlarmCenterLocale } from './runtime/operations';
 import { RuntimeTagInspector } from './runtime/RuntimeTagInspector';
 import './styles.css';
@@ -196,6 +197,14 @@ function RuntimeApp() {
   );
 }
 
+function RuntimeHistoricalBrowserApp() {
+  return (
+    <main className="shell runtime-history-page">
+      <HistoricalDataBrowserRuntime />
+    </main>
+  );
+}
+
 function Metric({ title, value }: { title: string; value: string }) {
   return <div className="metric"><span>{title}</span><strong>{value}</strong></div>;
 }
@@ -204,7 +213,9 @@ const RootApp = window.location.pathname.startsWith('/audit')
   ? AuditApp
   : window.location.pathname.startsWith('/engineering')
     ? EngineeringApp
-    : RuntimeApp;
+    : window.location.pathname.startsWith('/runtime/history')
+      ? RuntimeHistoricalBrowserApp
+      : RuntimeApp;
 
 createRoot(document.getElementById('root')!).render(
   <AuthGate>

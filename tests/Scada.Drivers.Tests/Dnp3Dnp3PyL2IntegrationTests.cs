@@ -113,7 +113,8 @@ public sealed class Dnp3Dnp3PyL2IntegrationTests
             Assert.True(diagnostics.Counters.ReadOperations >= 1);
             Assert.True(diagnostics.Counters.UpdatesPublished >= 3);
             Assert.Equal(0, diagnostics.Counters.FailedOperations);
-            Assert.Equal(0, diagnostics.RejectedValues);
+            Assert.Equal(0, diagnostics.TagQuality.BadConfiguration);
+            Assert.Equal(3, diagnostics.TagQuality.Good);
         }
         finally
         {

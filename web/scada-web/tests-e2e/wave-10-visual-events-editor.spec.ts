@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Locator } from '@playwright/test';
 import {
   buildCanonicalScriptPackage,
   normalizeScriptDefinition,
@@ -125,7 +125,7 @@ test('mounted Events editor persists click, timer and typed TAG bit through cano
   }
 });
 
-async function previewAndApply(editor: ReturnType<Parameters<typeof expect>[0]['page'] extends never ? never : any>) {
+async function previewAndApply(editor: Locator): Promise<void> {
   await editor.getByTestId('visual-events-preview').click();
   await expect(editor.getByText('Validated Engineering candidate.', { exact: true })).toBeVisible();
   await expect(editor.getByTestId('visual-events-apply')).toBeEnabled();
@@ -174,7 +174,7 @@ async function loadScript(request: APIRequestContext, scriptId: string): Promise
 }
 
 async function loadVisualReferences(request: APIRequestContext): Promise<ScriptVisualEventReference[]> {
-  const response = await request.get('/api/engineering/scripts/visual-event-references');
+  const response = await request.get('/api/engineering/script-visual-event-references');
   expect(response.ok()).toBeTruthy();
   return (await response.json() as Array<Record<string, unknown>>).map(normalizeVisualEventReference);
 }

@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "orchestrator": "node-red",
+  "commonAcceptance": [
+    "transport/session readiness is explicit",
+    "read path preserves canonical value and quality",
+    "source timestamp evidence is preserved when protocol supplies it",
+    "write/command outcome is distinct from bytes-sent or optimistic cache state",
+    "disconnect/reconnect degrades and recovers deterministically",
+    "commands are never silently replayed after reconnect"
+  ],
+  "protocols": [
+    {
+      "id": "mqtt",
+      "eliteDriver": "mqtt",
+      "peer": "eclipse-mosquitto:2.1.2-alpine",
+      "activation": "base compose",
+      "state": "runnable",
+      "firstScenarios": ["publish-subscribe", "qos-0-1-2", "retained", "reconnect", "burst-backpressure", "source-timestamp"]
+    },
+    {
+      "id": "allen-bradley-cip",
+      "eliteDriver": "rockwell.logix.eip",
+      "peer": "node-red-contrib-cip-suite simulator @ baf21c625c4f1250fa3cbae6cdd636ce15620ef2",
+      "activation": "compose.cip.yaml",
+      "state": "runnable-overlay",
+      "firstScenarios": ["controllogix-read-write", "compactlogix-read-write", "program-scope", "bit-rmw", "multiple-service-packet", "fragmented-read", "reconnect"]
+    },
+    {
+      "id": "opc-ua",
+      "eliteDriver": "opcua",
+      "peer": "node-red-contrib-opcua-suite 0.1.5",
+      "activation": "Node-RED palette; port 4840 reserved",
+      "state": "server-flow-next",
+      "firstScenarios": ["anonymous-session", "user-session", "certificate-session", "browse", "subscriptions", "read-write", "unknown-datatype", "reconnect"]
+    },
+    {
+      "id": "iec-60870-5-104",
+      "eliteDriver": "iec104",
+      "peer": "independent IEC-104 server/outstation sidecar",
+      "activation": "future overlay",
+      "state": "sidecar-planned",
+      "firstScenarios": ["startdt", "general-interrogation", "spontaneous-event", "cot", "cp56time2a", "command-confirmation", "reconnect", "late-event"]
+    },
+    {
+      "id": "dnp3",
+      "eliteDriver": "dnp3.master",
+      "peer": "independent non-Step-Function outstation sidecar",
+      "activation": "future overlay",
+      "state": "sidecar-planned",
+      "firstScenarios": ["startup-integrity", "class-events", "unsolicited", "quality-flags", "source-time", "crob-sbo", "analog-output", "reconnect"]
+    },
+    {
+      "id": "siemens-s7",
+      "eliteDriver": "s7.iso.tcp",
+      "peer": "independent S7 ISO-on-TCP server/PLC simulator",
+      "activation": "future overlay",
+      "state": "sidecar-planned",
+      "firstScenarios": ["rack-slot", "tsap", "pdu-negotiation", "db-read-write", "type-boundaries", "byte-word-order", "reconnect"]
+    },
+    {
+      "id": "bacnet-ip",
+      "eliteDriver": "bacnet.ip",
+      "peer": "independent BACnet/IP device simulator/reference peer",
+      "activation": "future overlay; host-network may be required for broadcast cases",
+      "state": "sidecar-planned",
+      "firstScenarios": ["who-is-i-am", "read-property", "read-property-multiple", "write-priority", "relinquish", "cov", "cov-renewal", "bbmd-fdr", "reconnect"]
+    }
+  ]
+}

@@ -201,21 +201,34 @@ public static class LogixCipCodec
 
     public static byte[] ExtractCipFromSendRrData(ReadOnlySpan<byte> payload)
     {
-        if (payload.Length < 8) throw new InvalidDataException("EtherNet/IP SendRRData response is truncated.");
+        if (payload.Length < 16)
+            throw new InvalidDataException("EtherNet/IP SendRRData response is truncated before the mandatory unconnected CPF items.");
+
+        var interfaceHandle = BinaryPrimitives.ReadUInt32LittleEndian(payload.Slice(0, 4));
+        if (interfaceHandle != 0)
+            throw new InvalidDataException($"EtherNet/IP SendRRData response uses unsupported interface handle 0x{interfaceHandle:X8}; CIP interface handle 0 is required.");
+
         var itemCount = BinaryPrimitives.ReadUInt16LittleEndian(payload.Slice(6, 2));
-        var offset = 8;
-        for (var item = 0; item < itemCount; item++)
-        {
-            if (payload.Length < offset + 4) throw new InvalidDataException("EtherNet/IP CPF item header is truncated.");
-            var typeId = BinaryPrimitives.ReadUInt16LittleEndian(payload.Slice(offset, 2));
-            var length = BinaryPrimitives.ReadUInt16LittleEndian(payload.Slice(offset + 2, 2));
-            offset += 4;
-            if (payload.Length < offset + length) throw new InvalidDataException("EtherNet/IP CPF item data is truncated.");
-            if (typeId is 0x00B1 or 0x00B2)
-                return payload.Slice(offset, length).ToArray();
-            offset += length;
-        }
-        throw new InvalidDataException("EtherNet/IP SendRRData response does not contain a connected or unconnected data item.");
+        if (itemCount != 2)
+            throw new InvalidDataException($"EtherNet/IP SendRRData unconnected response must contain exactly two CPF items, received {itemCount}.");
+
+        var addressType = BinaryPrimitives.ReadUInt16LittleEndian(payload.Slice(8, 2));
+        var addressLength = BinaryPrimitives.ReadUInt16LittleEndian(payload.Slice(10, 2));
+        if (addressType != 0x0000 || addressLength != 0)
+            throw new InvalidDataException($"EtherNet/IP SendRRData unconnected response requires a NULL Address Item; received type 0x{addressType:X4} length {addressLength}.");
+
+        var dataType = BinaryPrimitives.ReadUInt16LittleEndian(payload.Slice(12, 2));
+        var dataLength = BinaryPrimitives.ReadUInt16LittleEndian(payload.Slice(14, 2));
+        if (dataType != 0x00B2)
+            throw new InvalidDataException($"EtherNet/IP SendRRData unconnected response requires Unconnected Data Item 0x00B2; received 0x{dataType:X4}.");
+
+        var expectedLength = 16 + dataLength;
+        if (payload.Length < expectedLength)
+            throw new InvalidDataException("EtherNet/IP SendRRData unconnected data item is truncated.");
+        if (payload.Length > expectedLength)
+            throw new InvalidDataException("EtherNet/IP SendRRData response contains trailing bytes outside the declared unconnected data item.");
+
+        return payload.Slice(16, dataLength).ToArray();
     }
 
     public static LogixCipResponse ParseResponse(ReadOnlySpan<byte> response)

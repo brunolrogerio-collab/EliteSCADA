@@ -8,7 +8,7 @@ namespace Scada.Core.Tests;
 public sealed class EngineeringSchemaV13CompatibilityTests
 {
     [Fact]
-    public void SchemaV12WithoutVisualAssets_ParsesAsEmptyAssetCollectionAndReExportsAsV13()
+    public void SchemaV12WithoutVisualAssets_ParsesAsEmptyAssetCollectionAndReExportsAsCurrent()
     {
         using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
         var exchange = new EngineeringExchangeService(new InMemoryTagRegistry(), alarms);
@@ -30,7 +30,6 @@ public sealed class EngineeringSchemaV13CompatibilityTests
         Assert.Empty(parsed.VisualAssets!);
 
         var exported = exchange.ExportPackage();
-        Assert.Equal(13, EngineeringExchangeService.CurrentSchemaVersion);
         Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, exported.SchemaVersion);
         Assert.NotNull(exported.VisualAssets);
         Assert.Empty(exported.VisualAssets!);

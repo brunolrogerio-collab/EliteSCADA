@@ -84,6 +84,7 @@ builder.Services.AddSingleton(sp =>
         TimeSpan.FromMilliseconds(500));
 });
 builder.Services.AddSingleton<ScadaRuntimeFacade>();
+var historicalQueryEnabled = builder.AddConfiguredHistoricalQuery();
 builder.Services.AddHostedService<SimulationDriverHostedService>();
 
 var app = builder.Build();
@@ -105,6 +106,7 @@ app.MapAuditEndpoints();
 app.MapAlarmShelvingEndpoints();
 app.MapCommandEndpoints();
 app.MapInternalMemoryEndpoints();
+if (historicalQueryEnabled) app.MapHistoricalQueryEndpoints();
 
 // Public health intentionally exposes no plant, driver, project or historian detail.
 app.MapGet("/health", () => Results.Ok(new

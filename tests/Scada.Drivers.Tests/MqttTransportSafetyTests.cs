@@ -8,6 +8,38 @@ namespace Scada.Drivers.Tests;
 public sealed class MqttTransportSafetyTests
 {
     [Fact]
+    public async Task InboundPayloadAbovePolicyFailsBeforeTransportConnect()
+    {
+        var settings = new MqttConnectionSettings(
+            "broker.invalid",
+            1883,
+            UseTls: false,
+            ClientId: "elite-invalid-payload-limit",
+            MaximumInboundPayloadBytes: MqttConnectionSettings.MaximumAllowedInboundPayloadBytes + 1);
+        await using var transport = new MqttNetClientTransport();
+        using var credentials = MqttResolvedCredentials.None;
+
+        var error = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            transport.ConnectAsync(settings, credentials).AsTask());
+
+        Assert.Equal("MaximumInboundPayloadBytes", error.ParamName);
+        Assert.False(transport.IsConnected);
+    }
+
+    [Fact]
+    public void MaximumInboundPayloadPolicyBoundaryRemainsValid()
+    {
+        var settings = new MqttConnectionSettings(
+            "broker.invalid",
+            1883,
+            UseTls: false,
+            ClientId: "elite-maximum-payload-limit",
+            MaximumInboundPayloadBytes: MqttConnectionSettings.MaximumAllowedInboundPayloadBytes);
+
+        settings.Validate();
+    }
+
+    [Fact]
     public async Task KeepAliveAboveWireRangeFailsBeforeTransportConnect()
     {
         var settings = new MqttConnectionSettings(

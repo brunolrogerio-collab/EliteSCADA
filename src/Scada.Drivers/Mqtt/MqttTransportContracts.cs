@@ -26,6 +26,7 @@ public sealed record MqttConnectionSettings(
     int MaximumBufferedMessages = 4_096)
 {
     public static readonly TimeSpan MaximumProtocolKeepAlive = TimeSpan.FromSeconds(ushort.MaxValue);
+    public const int MaximumAllowedInboundPayloadBytes = 67_108_864;
 
     public TimeSpan EffectiveKeepAlive => KeepAlive ?? TimeSpan.FromSeconds(30);
     public TimeSpan EffectiveConnectTimeout => ConnectTimeout ?? TimeSpan.FromSeconds(10);
@@ -59,8 +60,13 @@ public sealed record MqttConnectionSettings(
             throw new ArgumentOutOfRangeException(nameof(ReconnectMinimumDelay));
         if (EffectiveReconnectMaximumDelay < EffectiveReconnectMinimumDelay)
             throw new ArgumentOutOfRangeException(nameof(ReconnectMaximumDelay));
-        if (MaximumInboundPayloadBytes < 1)
-            throw new ArgumentOutOfRangeException(nameof(MaximumInboundPayloadBytes));
+        if (MaximumInboundPayloadBytes is < 1 or > MaximumAllowedInboundPayloadBytes)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(MaximumInboundPayloadBytes),
+                MaximumInboundPayloadBytes,
+                $"MQTT inbound payload limit must be between 1 and {MaximumAllowedInboundPayloadBytes} bytes.");
+        }
         if (MaximumConsecutiveConnectFailures < 1)
             throw new ArgumentOutOfRangeException(nameof(MaximumConsecutiveConnectFailures));
         if (MaximumBufferedMessages is < 1 or > 1_000_000)
@@ -101,15 +107,36 @@ public sealed record MqttConnectionSettings(
 /// </summary>
 public sealed class MqttResolvedCredentials : IDisposable
 {
+    public const int MaximumProtocolPasswordBytes = ushort.MaxValue;
+
     private byte[] _password;
     private bool _disposed;
 
     public MqttResolvedCredentials(string? username, byte[]? password = null)
     {
-        if (username is not null)
-            MqttProtocolText.ValidateUtf8EncodedString(username, nameof(username));
-        Username = username;
-        _password = password ?? Array.Empty<byte>();
+        var ownedPassword = password ?? Array.Empty<byte>();
+        try
+        {
+            if (ownedPassword.Length > MaximumProtocolPasswordBytes)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(password),
+                    ownedPassword.Length,
+                    $"MQTT password material must not exceed {MaximumProtocolPasswordBytes} bytes.");
+            }
+
+            if (username is not null)
+                MqttProtocolText.ValidateUtf8EncodedString(username, nameof(username));
+
+            Username = username;
+            _password = ownedPassword;
+        }
+        catch
+        {
+            if (ownedPassword.Length > 0)
+                CryptographicOperations.ZeroMemory(ownedPassword);
+            throw;
+        }
     }
 
     public MqttResolvedCredentials(string? username, ReadOnlyMemory<byte> password)

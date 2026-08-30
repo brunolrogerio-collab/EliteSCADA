@@ -1,0 +1,145 @@
+.historical-browser {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.historical-browser__header,
+.historical-browser__controls,
+.historical-browser__summary,
+.historical-browser__content {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.historical-browser__header,
+.historical-browser__summary {
+  justify-content: space-between;
+}
+
+.historical-browser__header h2,
+.historical-browser__detail h3 {
+  margin: 0;
+}
+
+.historical-browser__header p,
+.historical-browser__readonly-note {
+  margin: 0.25rem 0 0;
+}
+
+.historical-browser__controls {
+  flex-wrap: wrap;
+  align-items: end;
+}
+
+.historical-browser__controls label,
+.historical-browser__absolute-period label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.historical-browser__controls fieldset {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.45rem 0.65rem;
+}
+
+.historical-browser__controls fieldset label {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.historical-browser__absolute-period {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.historical-browser__summary {
+  flex-wrap: wrap;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: 0.5rem;
+}
+
+.historical-browser__validation,
+.historical-browser [role='alert'] {
+  padding: 0.7rem 0.8rem;
+  border: 1px solid currentColor;
+  border-radius: 0.5rem;
+}
+
+.historical-browser__content {
+  min-width: 0;
+}
+
+.historical-browser__table-wrap {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  max-height: 32rem;
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: 0.5rem;
+}
+
+.historical-browser table {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+}
+
+.historical-browser th,
+.historical-browser td {
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border, #d0d7de);
+}
+
+.historical-browser tbody tr {
+  cursor: pointer;
+}
+
+.historical-browser tbody tr[aria-selected='true'] {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+
+.historical-browser__detail {
+  flex: 0 0 min(22rem, 38%);
+  padding: 0.8rem;
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: 0.5rem;
+}
+
+.historical-browser__detail dl,
+.historical-browser__detail dl > div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.historical-browser__detail dl {
+  gap: 0.7rem;
+  margin-bottom: 0;
+}
+
+.historical-browser__detail dt {
+  font-weight: 600;
+}
+
+.historical-browser__detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 850px) {
+  .historical-browser__content {
+    display: grid;
+  }
+
+  .historical-browser__detail {
+    width: auto;
+  }
+}

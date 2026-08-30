@@ -31,6 +31,7 @@ internal static class S7IsoProtocol
     private const int S7JobHeaderLength = 10;
     private const int S7AckDataHeaderLength = 12;
     private const int S7Offset = TpktHeaderLength + CotpDataLength;
+    private const ushort CotpSourceReference = 0x0001;
 
     public static byte[] BuildConnectionRequest(S7IsoConnectionOptions options)
     {
@@ -40,10 +41,8 @@ internal static class S7IsoProtocol
         WriteTpktHeader(packet, packet.Length);
         packet[4] = 0x11;
         packet[5] = 0xE0;
-        packet[6] = 0x00;
-        packet[7] = 0x00;
-        packet[8] = 0x00;
-        packet[9] = 0x01;
+        BinaryPrimitives.WriteUInt16BigEndian(packet.AsSpan(6, 2), 0x0000);
+        BinaryPrimitives.WriteUInt16BigEndian(packet.AsSpan(8, 2), CotpSourceReference);
         packet[10] = 0x00;
         packet[11] = 0xC1;
         packet[12] = 0x02;
@@ -60,8 +59,23 @@ internal static class S7IsoProtocol
     public static void ValidateConnectionConfirm(ReadOnlySpan<byte> packet)
     {
         ValidateTpkt(packet);
-        if (packet.Length < 11 || packet[5] != 0xD0)
-            throw new S7IsoProtocolException("S7 ISO peer did not return a valid COTP Connection Confirm.");
+        if (packet.Length < 11)
+            throw new S7IsoProtocolException("Truncated COTP Connection Confirm packet.");
+
+        var cotpHeaderLength = packet[4];
+        if (cotpHeaderLength < 6)
+            throw new S7IsoProtocolException(
+                $"COTP Connection Confirm header length {cotpHeaderLength} is smaller than the 6-byte fixed part.");
+        if (TpktHeaderLength + 1 + cotpHeaderLength > packet.Length)
+            throw new S7IsoProtocolException("COTP Connection Confirm header length exceeds the TPKT payload.");
+        if ((packet[5] & 0xF0) != 0xD0)
+            throw new S7IsoProtocolException("S7 ISO peer did not return a COTP Connection Confirm TPDU.");
+
+        var destinationReference = BinaryPrimitives.ReadUInt16BigEndian(packet.Slice(6, 2));
+        if (destinationReference != CotpSourceReference)
+            throw new S7IsoProtocolException(
+                $"COTP Connection Confirm destination reference 0x{destinationReference:X4} does not match " +
+                $"the request source reference 0x{CotpSourceReference:X4}.");
     }
 
     public static byte[] BuildSetupCommunication(ushort pduReference, ushort requestedPduSize)
@@ -76,7 +90,10 @@ internal static class S7IsoProtocol
         return BuildJobPacket(pduReference, parameter, ReadOnlySpan<byte>.Empty);
     }
 
-    public static ushort ParseSetupCommunicationResponse(ReadOnlySpan<byte> packet, ushort pduReference)
+    public static ushort ParseSetupCommunicationResponse(
+        ReadOnlySpan<byte> packet,
+        ushort pduReference,
+        ushort? requestedPduSize = null)
     {
         ValidateAckData(packet, pduReference, out var parameterOffset, out var parameterLength, out _, out _);
         if (parameterLength < 8 || packet[parameterOffset] != 0xF0)
@@ -85,6 +102,12 @@ internal static class S7IsoProtocol
         var negotiated = BinaryPrimitives.ReadUInt16BigEndian(packet.Slice(parameterOffset + 6, 2));
         if (negotiated < 240)
             throw new S7IsoProtocolException($"S7 peer negotiated an unsupported PDU size of {negotiated} bytes.");
+        if (requestedPduSize.HasValue && negotiated > requestedPduSize.Value)
+        {
+            throw new S7IsoProtocolException(
+                $"S7 peer negotiated a {negotiated}-byte PDU, exceeding the requested maximum " +
+                $"of {requestedPduSize.Value} bytes.");
+        }
         return negotiated;
     }
 

@@ -48,13 +48,17 @@ Engineering remains immutable; runtime Script/Animation overlays are transient a
 
 No Wave 10 worker/coordinator functional implementation remains outside the integration branch.
 
+Final integration-to-main closure PR: #172.
+
+The current PR #172 head is intentionally submitted to normal CI before merge; this checkpoint commit does not use `[skip ci]` so the exact integration head receives fresh evidence.
+
 ### SPECIFIED / NOT IMPLEMENTED
 
 Wave 10 is not yet closed on `main`.
 
 Remaining closure sequence:
 
-1. validate the exact integration branch submitted to `main` through normal CI;
+1. validate the exact PR #172 integration head through normal CI;
 2. merge that validated head to `main`;
 3. require exact post-main green CI before declaring Wave 10 closed.
 
@@ -64,4 +68,4 @@ Parallel Driver and Interoperability Lab work remains isolated and lower priorit
 
 ## CI policy
 
-CI mode remains **NORMAL**. Do not run reassurance CI on unchanged product trees. Exact functional integration/product heads require green evidence before merge/stage transitions. Documentation-only coordination commits use `[skip ci]`.
+CI mode remains **NORMAL**. Do not run reassurance CI on unchanged product trees. Exact functional integration/product heads require green evidence before merge/stage transitions. Documentation-only coordination commits normally use `[skip ci]`; closure-gate checkpoints may deliberately run normal CI when an exact branch head must be validated.

@@ -51,7 +51,7 @@ public sealed class LogixProtocolBoundaryValidationTests
         Assert.False(client.IsConnected);
         var diagnostics = client.GetDiagnostics();
         Assert.Equal(1, diagnostics.FailedRequests);
-        Assert.Equal(1, diagnostics.Disconnections);
+        Assert.Equal(1, diagnostics.DisconnectionCount);
         await server;
     }
 
@@ -102,7 +102,7 @@ public sealed class LogixProtocolBoundaryValidationTests
         Assert.False(client.IsConnected);
         var diagnostics = client.GetDiagnostics();
         Assert.Equal(1, diagnostics.FailedRequests);
-        Assert.Equal(1, diagnostics.Disconnections);
+        Assert.Equal(1, diagnostics.DisconnectionCount);
         await server;
     }
 

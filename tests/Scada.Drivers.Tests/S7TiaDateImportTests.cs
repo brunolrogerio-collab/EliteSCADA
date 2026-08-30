@@ -26,7 +26,8 @@ public sealed class S7TiaDateImportTests
         Assert.True(candidate.IsWritable);
         Assert.Equal(TagDataType.DateTime, candidate.SuggestedDataType);
         Assert.Equal("Supported", candidate.Metadata!["supportStatus"]);
-        Assert.True(S7IsoTagBinding.TryParsePortableAddress(candidate.PortableAddress, out var binding, out var error), error);
+        Assert.StartsWith("s7iso:v2;", candidate.PortableAddress);
+        Assert.True(S7IsoCommunicationBindingSchemaV2.TryParsePortableAddress(candidate.PortableAddress, out var binding, out var error), error);
         Assert.Equal(S7IsoValueType.Date, binding!.ValueType);
         Assert.Equal(20, binding.ByteOffset);
     }
@@ -47,7 +48,8 @@ public sealed class S7TiaDateImportTests
         var good = Assert.Single(candidates, candidate => candidate.DisplayName == "ProductionDate");
         var wrong = Assert.Single(candidates, candidate => candidate.DisplayName == "WrongWidth");
         Assert.True(good.IsReadable);
-        Assert.True(S7IsoTagBinding.TryParsePortableAddress(good.PortableAddress, out var binding, out var error), error);
+        Assert.StartsWith("s7iso:v2;", good.PortableAddress);
+        Assert.True(S7IsoCommunicationBindingSchemaV2.TryParsePortableAddress(good.PortableAddress, out var binding, out var error), error);
         Assert.Equal(S7IsoValueType.Date, binding!.ValueType);
         Assert.False(wrong.IsReadable);
         Assert.Contains(wrong.Issues!, issue => issue.Code == "S7_TIA_ADDRESS_WIDTH_MISMATCH");
@@ -64,7 +66,8 @@ public sealed class S7TiaDateImportTests
         Assert.True(candidate.IsReadable);
         Assert.True(candidate.IsWritable);
         Assert.Equal(TagDataType.DateTime, candidate.SuggestedDataType);
-        Assert.True(S7IsoTagBinding.TryParsePortableAddress(candidate.PortableAddress, out var binding, out var error), error);
+        Assert.StartsWith("s7iso:v2;", candidate.PortableAddress);
+        Assert.True(S7IsoCommunicationBindingSchemaV2.TryParsePortableAddress(candidate.PortableAddress, out var binding, out var error), error);
         Assert.Equal(S7IsoValueType.Date, binding!.ValueType);
     }
 

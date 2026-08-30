@@ -200,6 +200,120 @@ public sealed class MqttBrokerIntegrationTests
         }
     }
 
+    [Fact]
+    [Trait("Category", "BrokerIntegration")]
+    public async Task ConfiguredBrokerRedeliversAfterShutdownInterruptsFullQueueAdmission()
+    {
+        var host = Environment.GetEnvironmentVariable(HostVariable);
+        if (string.IsNullOrWhiteSpace(host))
+            return;
+
+        const int queueCapacity = 1;
+        var useTls = ParseBooleanEnvironment("ELITESCADA_MQTT_INTEGRATION_TLS", defaultValue: false);
+        var port = ParsePortEnvironment(
+            "ELITESCADA_MQTT_INTEGRATION_PORT",
+            useTls ? 8883 : 1883);
+        var protocols = ParseProtocols(Environment.GetEnvironmentVariable("ELITESCADA_MQTT_INTEGRATION_PROTOCOLS"));
+        var runId = Guid.NewGuid().ToString("N");
+
+        foreach (var protocol in protocols)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var clientId = $"elite-redel-{runId[..10]}-{ProtocolToken(protocol)}";
+            var settings = CreatePersistentSettings(
+                host,
+                port,
+                useTls,
+                protocol,
+                clientId,
+                maximumBufferedMessages: queueCapacity);
+            var publisherSettings = CreateSettings(
+                host,
+                port,
+                useTls,
+                protocol,
+                $"elite-rpub-{runId[..10]}-{ProtocolToken(protocol)}",
+                maximumBufferedMessages: 8);
+            var topic = $"elitescada/integration/{runId}/{ProtocolToken(protocol)}/shutdown-redelivery";
+            var admittedPayload = $"admitted:{runId}";
+            var pendingPayload = $"pending:{runId}";
+
+            await using var subscriber = new MqttNetClientTransport();
+            await using var publisher = new MqttNetClientTransport();
+            await ConnectAsync(subscriber, settings, timeout.Token);
+            await ConnectAsync(publisher, publisherSettings, timeout.Token);
+            await subscriber.SubscribeAsync(
+                [new MqttSubscription(topic, MqttQosLevel.AtLeastOnce)],
+                timeout.Token);
+
+            await publisher.PublishAsync(
+                new MqttPublishRequest(
+                    topic,
+                    Encoding.UTF8.GetBytes(admittedPayload),
+                    MqttQosLevel.AtLeastOnce,
+                    Retain: false),
+                timeout.Token);
+            await publisher.PublishAsync(
+                new MqttPublishRequest(
+                    topic,
+                    Encoding.UTF8.GetBytes(pendingPayload),
+                    MqttQosLevel.AtLeastOnce,
+                    Retain: false),
+                timeout.Token);
+
+            // The queue can hold only the first callback result. Give the broker and
+            // client receive loop a bounded settling interval so the second ordered
+            // QoS 1 delivery reaches the blocked application-admission boundary.
+            // This is a live interoperability test, not a timing-based unit test.
+            await Task.Delay(TimeSpan.FromMilliseconds(500), timeout.Token);
+
+            // Disconnect cancels writers waiting on bounded queue capacity. The
+            // blocked QoS 1 callback must leave ProcessingFailed=true and never call
+            // the deferred ACK API. The persistent broker session should therefore
+            // make that delivery available after reconnect.
+            await subscriber.DisconnectAsync(timeout.Token);
+
+            await ConnectAsync(subscriber, settings, timeout.Token);
+            await subscriber.SubscribeAsync(
+                [new MqttSubscription(topic, MqttQosLevel.AtLeastOnce)],
+                timeout.Token);
+
+            var pendingWasRedelivered = false;
+            for (var attempt = 0; attempt < 8; attempt++)
+            {
+                var received = await subscriber.ReceiveAsync(timeout.Token);
+                Assert.Equal(topic, received.Topic);
+                Assert.Equal(MqttQosLevel.AtLeastOnce, received.Qos);
+
+                var text = Encoding.UTF8.GetString(received.Payload.ToArray());
+                if (text == pendingPayload)
+                {
+                    pendingWasRedelivered = true;
+                    break;
+                }
+            }
+
+            Assert.True(
+                pendingWasRedelivered,
+                $"Broker did not redeliver the QoS 1 message whose bounded queue admission was interrupted for {ProtocolToken(protocol)}.");
+
+            await subscriber.DisconnectAsync(CancellationToken.None);
+            await publisher.DisconnectAsync(CancellationToken.None);
+
+            // Clear the persistent session created only for this unique validation
+            // client. MQTT 3.1.1 uses CleanSession=true; MQTT 5 uses CleanStart=true
+            // with zero session expiry.
+            var cleanupSettings = settings with
+            {
+                CleanSession = protocol == MqttProtocolMode.Mqtt311,
+                CleanStart = protocol == MqttProtocolMode.Mqtt5,
+                SessionExpirySeconds = protocol == MqttProtocolMode.Mqtt5 ? 0U : null
+            };
+            await ConnectAsync(subscriber, cleanupSettings, timeout.Token);
+            await subscriber.DisconnectAsync(CancellationToken.None);
+        }
+    }
+
     private static MqttConnectionSettings CreateSettings(
         string host,
         int port,
@@ -219,6 +333,28 @@ public sealed class MqttBrokerIntegrationTests
             CleanSession: protocol == MqttProtocolMode.Mqtt311,
             CleanStart: protocol == MqttProtocolMode.Mqtt5,
             SessionExpirySeconds: protocol == MqttProtocolMode.Mqtt5 ? 0U : null,
+            MaximumInboundPayloadBytes: 64 * 1024,
+            MaximumBufferedMessages: maximumBufferedMessages);
+
+    private static MqttConnectionSettings CreatePersistentSettings(
+        string host,
+        int port,
+        bool useTls,
+        MqttProtocolMode protocol,
+        string clientId,
+        int maximumBufferedMessages) =>
+        new(
+            host.Trim(),
+            port,
+            useTls,
+            clientId,
+            ProtocolMode: protocol,
+            ConnectTimeout: TimeSpan.FromSeconds(10),
+            ReconnectMinimumDelay: TimeSpan.FromMilliseconds(100),
+            ReconnectMaximumDelay: TimeSpan.FromSeconds(1),
+            CleanSession: false,
+            CleanStart: false,
+            SessionExpirySeconds: protocol == MqttProtocolMode.Mqtt5 ? 60U : null,
             MaximumInboundPayloadBytes: 64 * 1024,
             MaximumBufferedMessages: maximumBufferedMessages);
 

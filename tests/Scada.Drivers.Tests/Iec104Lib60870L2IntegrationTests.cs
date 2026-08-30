@@ -148,7 +148,67 @@ public sealed class Iec104Lib60870L2IntegrationTests
         }
     }
 
-    private static Iec104ManagedClient CreateClient(string host, int port) =>
+    [Fact]
+    [Trait("Category", "Iec104Lib60870Integration")]
+    public async Task ManagedClient_DirectOperateSingleCommand_IsAcceptedByOfficialPeer()
+    {
+        if (!TryGetEndpoint(out var host, out var port)) return;
+
+        using var runCts = new CancellationTokenSource();
+        var client = CreateClient(
+            host,
+            port,
+            new Iec104CommandExecutionOptions
+            {
+                ConfirmationTimeout = TimeSpan.FromSeconds(2),
+                CompletionTimeout = TimeSpan.FromMilliseconds(500),
+                MaxConcurrentCommands = 4
+            });
+        var runTask = client.RunAsync(
+            static (_, _) => ValueTask.CompletedTask,
+            cancellationToken: runCts.Token);
+
+        try
+        {
+            await WaitUntilAsync(
+                () => client.GetReadiness().State == Iec104ReadinessState.Ready,
+                runTask,
+                TimeSpan.FromSeconds(10));
+
+            var transaction = Iec104CommandTransaction.Single(
+                commonAddress: 1,
+                informationObjectAddress: 5000,
+                value: true,
+                mode: Iec104CommandMode.DirectOperate);
+
+            var result = await client.ExecuteCommandAsync(transaction);
+
+            Assert.Equal(Iec104CommandOutcome.Accepted, result.Outcome);
+            Assert.Equal(Iec104CommandState.Accepted, result.ProtocolState);
+            Assert.True(result.ExecuteWasTransmitted);
+            Assert.True(result.WasAccepted);
+            Assert.True(transaction.ExecuteWasAccepted);
+
+            var diagnostics = client.GetDiagnostics();
+            Assert.Equal(1, diagnostics.Commands.Requested);
+            Assert.Equal(1, diagnostics.Commands.Accepted);
+            Assert.Equal(0, diagnostics.Commands.Completed);
+            Assert.Equal(0, diagnostics.Commands.Rejected);
+            Assert.Equal(0, diagnostics.Commands.Ambiguous);
+            Assert.Equal(0, diagnostics.SessionFailures);
+            Assert.Equal(Iec104SessionState.Running, diagnostics.SessionState);
+            Assert.Equal(Iec104ReadinessState.Ready, client.GetReadiness().State);
+        }
+        finally
+        {
+            await StopManagedClientAsync(runCts, runTask);
+        }
+    }
+
+    private static Iec104ManagedClient CreateClient(
+        string host,
+        int port,
+        Iec104CommandExecutionOptions? commandOptions = null) =>
         new(
             static () => new Iec104TcpClientAdapter(),
             host,
@@ -168,7 +228,8 @@ public sealed class Iec104Lib60870L2IntegrationTests
             {
                 Delays = new[] { TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(500) },
                 StableSessionThreshold = TimeSpan.FromSeconds(5)
-            });
+            },
+            commandOptions: commandOptions);
 
     private static bool TryGetEndpoint(out string host, out int port)
     {

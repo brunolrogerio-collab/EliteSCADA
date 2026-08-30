@@ -1,0 +1,30 @@
+name: elitescada-mqtt-secure-lab
+
+services:
+  mosquitto-secure:
+    image: eclipse-mosquitto:2.1.2-alpine
+    container_name: elitescada-lab-mosquitto-secure
+    ports:
+      - "${MQTT_SECURE_PORT:-8883}:8883"
+    volumes:
+      - ./mqtt/mosquitto-secure.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mqtt/tls:/mosquitto/config/tls:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mosquitto_pub -h 127.0.0.1 -p 8883
+          --cafile /mosquitto/config/tls/ca.crt
+          -u elitescada -P lab-secret
+          -t elitescada/lab/secure-health -m ping -q 0 >/dev/null 2>&1
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    networks:
+      - mqtt-secure
+
+networks:
+  mqtt-secure:
+    name: elitescada-mqtt-secure
+    driver: bridge

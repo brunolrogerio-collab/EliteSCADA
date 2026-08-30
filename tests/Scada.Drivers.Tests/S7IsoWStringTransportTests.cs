@@ -32,6 +32,5 @@ public sealed class S7IsoWStringTransportTests
         Assert.Equal(
             writtenBytes,
             server.GetBytes(S7IsoArea.DataBlock, 8, 100, point.ByteLength));
-        Assert.Equal(nameof(S7IsoFailureKind).Length > 0, true);
     }
 }

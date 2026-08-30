@@ -39,6 +39,34 @@ public sealed class MqttReadinessEvidenceTests
     }
 
     [Fact]
+    public async Task ExplicitRestartRequiresMandatoryInitializationAgain()
+    {
+        var point = new MqttPoint(CreateTag(), "plant/readiness/restart");
+        var transport = new BlockingReconnectTransport();
+        var cache = new CurrentTagCache(new InMemoryScadaEventBus());
+        await using var driver = CreateDriver(cache, transport, point);
+
+        await driver.StartAsync();
+        await WaitUntilAsync(() => driver.GetMqttReadiness().State == MqttReadinessState.Ready);
+        await driver.StopAsync();
+
+        Assert.Equal(MqttReadinessState.Stopped, driver.GetMqttReadiness().State);
+
+        await driver.StartAsync();
+        await WaitUntilAsync(() => transport.ConnectCount >= 2);
+
+        var restarting = driver.GetMqttReadiness();
+        Assert.Equal(MqttReadinessState.Starting, restarting.State);
+        Assert.False(restarting.InitialHandshakeCompleted);
+        Assert.Equal(1, restarting.ExpectedSubscriptionCount);
+        Assert.Equal(0, restarting.AcceptedSubscriptionCount);
+        Assert.Null(restarting.Detail);
+
+        await driver.StopAsync();
+        Assert.Equal(MqttReadinessState.Stopped, driver.GetMqttReadiness().State);
+    }
+
+    [Fact]
     public async Task PermanentInitializationFailureFaultsWithoutEverReportingReady()
     {
         var point = new MqttPoint(CreateTag(), "plant/readiness/fault");

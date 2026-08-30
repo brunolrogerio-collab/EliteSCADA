@@ -18,7 +18,9 @@ This procedure exercises the real `MqttNetClientTransport` against an external b
 - retained publish stored by the broker and delivered to a later subscriber with `Retained == true`;
 - retained test state deletion after validation;
 - optional username/password authentication through `MqttResolvedCredentials`;
-- optional TLS through the same platform certificate-validation path used by the runtime transport.
+- optional TLS through the same platform certificate-validation path used by the runtime transport;
+- bounded-queue burst recovery with 64 QoS 1 messages against an application queue capacity of 4;
+- delayed consumer drain after the burst, requiring every unique burst index to be observed without assuming QoS 1 cannot redeliver duplicates.
 
 The test uses unique `elitescada/integration/<run-id>/...` topics so concurrent or repeated runs do not reuse authoritative production topics.
 
@@ -58,7 +60,7 @@ For authenticated/TLS validation, configure the broker certificate chain and cre
 
 ## Important opt-in behavior
 
-When `ELITESCADA_MQTT_INTEGRATION_HOST` is absent, the broker integration test returns without opening a network connection. This keeps ordinary unit-test and CI runs independent from external infrastructure.
+When `ELITESCADA_MQTT_INTEGRATION_HOST` is absent, the broker integration tests return without opening a network connection. This keeps ordinary unit-test and CI runs independent from external infrastructure.
 
 Therefore, a green test run **without that variable configured is not evidence of broker interoperability**. Broker validation evidence must record the broker implementation/version, protocol matrix, TLS/auth configuration, test command and result.
 
@@ -75,18 +77,19 @@ For each implementation, retain evidence for:
 - MQTT 3.1.1;
 - QoS 0/1/2;
 - retained delivery;
+- bounded-queue burst recovery;
 - plaintext only where explicitly acceptable for a lab;
 - trusted TLS hostname/chain validation;
 - username/password authentication when the common host secret resolver is integrated.
 
 ## Additional destructive/resilience scenarios still required
 
-The current live contract does not simulate broker/process failure. Perform separate controlled validation for:
+The current live contract now covers a bounded burst larger than the application queue, but it does not simulate broker/process failure or a deliberately interrupted admission. Perform separate controlled validation for:
 
 - persistent-session reconnect;
 - broker restart;
 - network interruption;
-- burst traffic above `maximumBufferedMessages`;
+- sustained high-rate traffic over a longer interval than the 64-message burst contract;
 - shutdown while the bounded inbound queue is full;
 - QoS 1/2 redelivery when queue admission is interrupted before acknowledgement;
 - oversized normal and retained payloads;

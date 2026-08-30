@@ -104,21 +104,26 @@ public static class HistoricalQueryValidator
         switch (range.Kind)
         {
             case HistoricalTimeRangeKind.Absolute:
-                if (!range.FromUtc.HasValue || !range.ToUtc.HasValue || range.DurationSeconds.HasValue)
+                if (!range.FromUtc.HasValue ||
+                    !range.ToUtc.HasValue ||
+                    range.DurationSeconds.HasValue ||
+                    range.Anchor.HasValue)
                     throw new ArgumentException(
-                        "Historical absolute range requires FromUtc and ToUtc and must not include DurationSeconds.",
+                        "Historical absolute range requires only FromUtc and ToUtc.",
                         nameof(range));
                 EnsureUtc(range.FromUtc.Value, "Historical FromUtc");
                 EnsureUtc(range.ToUtc.Value, "Historical ToUtc");
                 break;
 
             case HistoricalTimeRangeKind.Relative:
-                if (range.FromUtc.HasValue || range.ToUtc.HasValue || !range.DurationSeconds.HasValue)
+                if (range.FromUtc.HasValue ||
+                    range.ToUtc.HasValue ||
+                    !range.DurationSeconds.HasValue ||
+                    range.Anchor != HistoricalTimeAnchor.Now)
                     throw new ArgumentException(
-                        "Historical relative range requires DurationSeconds and must not include absolute timestamps.",
+                        "Historical relative range requires DurationSeconds and anchor=now and must not include absolute timestamps.",
                         nameof(range));
-                if (range.DurationSeconds.Value is < 1 ||
-                    range.DurationSeconds.Value > MaximumRelativeDurationSeconds)
+                if (range.DurationSeconds.Value is < 1 or > MaximumRelativeDurationSeconds)
                     throw new ArgumentOutOfRangeException(
                         nameof(range),
                         $"Historical relative duration must be between 1 and {MaximumRelativeDurationSeconds} seconds.");
@@ -143,6 +148,7 @@ public static class HistoricalQueryValidator
         {
             if (filter is null)
                 throw new ArgumentException("Historical filter cannot be null.", nameof(filters));
+
             var field = filter.Field?.Trim() ?? string.Empty;
             if (!dataset.Fields.TryGetValue(field, out var definition))
                 throw new ArgumentException(
@@ -152,9 +158,7 @@ public static class HistoricalQueryValidator
                 throw new ArgumentException(
                     $"Operator '{filter.Operator}' is not allowed for historical field '{field}'.",
                     nameof(filters));
-            if (filter.Values is null ||
-                filter.Values.Count == 0 ||
-                filter.Values.Count > MaximumFilterValues)
+            if (filter.Values is null || filter.Values.Count == 0 || filter.Values.Count > MaximumFilterValues)
                 throw new ArgumentException(
                     $"Historical filter '{field}' must contain between 1 and {MaximumFilterValues} values.",
                     nameof(filters));
@@ -247,13 +251,7 @@ public static class HistoricalQueryValidator
                 HistoricalQueryValue.FromBoolean(boolean),
 
             HistoricalFieldType.DateTime
-                when value.Kind == HistoricalValueKind.DateTime &&
-                     DateTimeOffset.TryParse(
-                         text,
-                         CultureInfo.InvariantCulture,
-                         DateTimeStyles.RoundtripKind,
-                         out var timestamp) &&
-                     timestamp.Offset == TimeSpan.Zero =>
+                when TryParseUtcDateTime(value, out var timestamp) =>
                 HistoricalQueryValue.FromDateTime(timestamp),
 
             HistoricalFieldType.Int64
@@ -297,8 +295,24 @@ public static class HistoricalQueryValidator
             HistoricalQueryValue.FromNumber(number),
         HistoricalValueKind.Boolean when bool.TryParse(value.Value, out var boolean) =>
             HistoricalQueryValue.FromBoolean(boolean),
+        HistoricalValueKind.DateTime when TryParseUtcDateTime(value, out var timestamp) =>
+            HistoricalQueryValue.FromDateTime(timestamp),
         _ => throw new ArgumentException("Historical scalar filter value is invalid.", nameof(value))
     };
+
+    private static bool TryParseUtcDateTime(
+        HistoricalQueryValue value,
+        out DateTimeOffset timestamp)
+    {
+        timestamp = default;
+        return value.Kind == HistoricalValueKind.DateTime &&
+               DateTimeOffset.TryParse(
+                   value.Value,
+                   CultureInfo.InvariantCulture,
+                   DateTimeStyles.RoundtripKind,
+                   out timestamp) &&
+               timestamp.Offset == TimeSpan.Zero;
+    }
 
     private static bool IsNumericKind(HistoricalValueKind kind) =>
         kind is HistoricalValueKind.Int16 or
@@ -317,7 +331,8 @@ public static class HistoricalQueryValidator
             HistoricalValueKind.Float or
             HistoricalValueKind.Double or
             HistoricalValueKind.Number or
-            HistoricalValueKind.Boolean;
+            HistoricalValueKind.Boolean or
+            HistoricalValueKind.DateTime;
 
     private static string ComputeFingerprint(
         int version,
@@ -333,7 +348,10 @@ public static class HistoricalQueryValidator
         switch (range.Kind)
         {
             case HistoricalTimeRangeKind.Relative:
-                builder.Append("relative:").Append(range.DurationSeconds!.Value);
+                builder.Append("relative:")
+                    .Append(range.DurationSeconds!.Value)
+                    .Append(':')
+                    .Append(range.Anchor);
                 break;
             case HistoricalTimeRangeKind.Absolute:
                 builder.Append("absolute:")

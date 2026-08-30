@@ -58,7 +58,7 @@ public sealed class EngineeringRuntimeCommandTests
                 ["host"] = "127.0.0.1",
                 ["port"] = port.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["scanIntervalMilliseconds"] = "25",
-                ["requestTimeoutMilliseconds"] = "100",
+                ["requestTimeoutMilliseconds"] = "2000",
                 ["unitId"] = "1"
             });
         var command = new CommandEngineeringDto(

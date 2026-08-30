@@ -37,7 +37,7 @@ public sealed class MqttDriverDescriptorProvider : ICommunicationDriverDescripto
                 new("mqtt311.cleanSession", DriverConfigurationValueKind.Boolean, DefaultValue: "false", Advanced: true),
                 new("mqtt5.cleanStart", DriverConfigurationValueKind.Boolean, DefaultValue: "false", Advanced: true),
                 new("mqtt5.sessionExpirySeconds", DriverConfigurationValueKind.Integer, DefaultValue: "3600", Minimum: 0, Maximum: uint.MaxValue, Advanced: true),
-                new("maximumInboundPayloadBytes", DriverConfigurationValueKind.Integer, DefaultValue: "1048576", Minimum: 1, Maximum: 67108864, Advanced: true),
+                new("maximumInboundPayloadBytes", DriverConfigurationValueKind.Integer, DefaultValue: "1048576", Minimum: 1, Maximum: MqttConnectionSettings.MaximumAllowedInboundPayloadBytes, Advanced: true),
                 new("maximumConsecutiveConnectFailures", DriverConfigurationValueKind.Integer, DefaultValue: "5", Minimum: 1, Maximum: 1000, Advanced: true),
                 new("maximumBufferedMessages", DriverConfigurationValueKind.Integer, DefaultValue: "4096", Minimum: 1, Maximum: 1000000, Advanced: true)
             ],

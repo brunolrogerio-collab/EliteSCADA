@@ -2,6 +2,7 @@ using Scada.Core.Tags;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Validation;
+using Scada.Engineering.VisualScripting;
 
 namespace Scada.Engineering.ImportExport.Handlers;
 
@@ -117,6 +118,7 @@ internal sealed class AssetEngineeringHandler
         foreach (var dto in dynamos)
         {
             var issues = EngineeringValidator.ValidateDynamo(dto).ToList();
+            issues.AddRange(VisualCompositionEngineeringValidation.ValidateDynamo(dto));
             if (duplicates.Contains(dto.Key))
                 issues.Add(new(
                     "DYNAMO_DUPLICATE_IN_FILE",
@@ -135,10 +137,94 @@ internal sealed class AssetEngineeringHandler
 
             EngineeringHandlerSupport.ValidateConcreteTagBindings(
                 _tags, dto.Bindings, ImportEntityKind.Dynamo, dto.Key, package, issues);
+            ValidateDynamoParameterReferences(dto, package, issues);
+            ValidateDynamoVisualElements(dto.Elements, dto.Key, package, issues);
 
             EngineeringHandlerSupport.AddPreview(
                 items, ImportEntityKind.Dynamo, dto.Key, ResolveExistingDynamo(dto) is not null, mode, issues);
         }
+    }
+
+    private void ValidateDynamoVisualElements(
+        IReadOnlyCollection<VisualElementEngineeringDto>? elements,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
+        {
+            if (element is null) continue;
+            issues.AddRange(BuiltinVisualEngineeringValidation.Validate(
+                element,
+                ImportEntityKind.Dynamo,
+                entityKey,
+                package.SchemaVersion));
+            issues.AddRange(VisualCompositionEngineeringValidation.ValidateElement(
+                element,
+                ImportEntityKind.Dynamo,
+                entityKey));
+            EngineeringHandlerSupport.ValidateConcreteTagBindings(
+                _tags,
+                element.Bindings,
+                ImportEntityKind.Dynamo,
+                entityKey,
+                package,
+                issues);
+            ValidateDynamoVisualElements(element.Children, entityKey, package, issues);
+        }
+    }
+
+    private void ValidateDynamoParameterReferences(
+        DynamoEngineeringDto dynamo,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        foreach (var parameter in dynamo.Parameters ?? Array.Empty<DynamoParameterDefinitionEngineeringDto>())
+        {
+            var reference = parameter?.DefaultTagReference;
+            if (reference is null || reference.TagId == Guid.Empty) continue;
+
+            if (!TryResolveTagDataType(reference.TagId, package, out var dataType))
+            {
+                issues.Add(new(
+                    "DYNAMO_PARAMETER_TAG_NOT_FOUND",
+                    $"Dynamo parameter '{parameter!.Key}' references TAG identity '{reference.TagId:D}', which was not found in the prospective Engineering model.",
+                    ImportEntityKind.Dynamo,
+                    dynamo.Key,
+                    true));
+                continue;
+            }
+
+            if (reference.Selector is not null &&
+                !TagBitSemantics.TryValidateSelector(dataType, reference.Selector, out var selectorError))
+            {
+                issues.Add(new(
+                    "DYNAMO_PARAMETER_TAG_SELECTOR_INVALID",
+                    $"Dynamo parameter '{parameter!.Key}' has an invalid TAG selector: {selectorError}",
+                    ImportEntityKind.Dynamo,
+                    dynamo.Key,
+                    true));
+            }
+        }
+    }
+
+    private bool TryResolveTagDataType(Guid tagId, EngineeringPackage package, out TagDataType dataType)
+    {
+        if (_tags.TryGet(tagId, out var existing) && existing is not null)
+        {
+            dataType = existing.DataType;
+            return true;
+        }
+
+        var prospective = package.Tags.FirstOrDefault(tag => tag is not null && tag.Id == tagId);
+        if (prospective is not null)
+        {
+            dataType = prospective.DataType;
+            return true;
+        }
+
+        dataType = default;
+        return false;
     }
 
     private bool TemplateExists(string key, EngineeringPackage package) =>

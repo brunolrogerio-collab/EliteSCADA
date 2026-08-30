@@ -1,6 +1,13 @@
 namespace Scada.Core.HistoricalQueries;
 
-public sealed class HistoricalQueryService
+public interface IHistoricalQueryService
+{
+    Task<HistoricalQueryResponse> QueryAsync(
+        HistoricalQueryRequest request,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class HistoricalQueryService : IHistoricalQueryService
 {
     private readonly IReadOnlyDictionary<string, IHistoricalDatasetProvider> _providers;
     private readonly IHistoricalQueryAuthorizer _authorizer;

@@ -42,6 +42,28 @@ public sealed class S7IsoSIntTests
     }
 
     [Fact]
+    public void SInt_PortableBindingRoundTripsWithoutChangingSchemaVersion()
+    {
+        var binding = new S7IsoTagBinding(
+            S7IsoTagBinding.CurrentSchemaVersion,
+            S7IsoArea.DataBlock,
+            ByteOffset: 9,
+            S7IsoValueType.SInt,
+            DbNumber: 3,
+            Writable: true);
+
+        var portable = binding.ToPortableAddress();
+        var parsed = S7IsoTagBinding.TryParsePortableAddress(portable, out var roundTrip, out var error);
+
+        Assert.True(parsed, error);
+        Assert.NotNull(roundTrip);
+        Assert.Equal(S7IsoTagBinding.CurrentSchemaVersion, roundTrip!.SchemaVersion);
+        Assert.Equal(S7IsoValueType.SInt, roundTrip.ValueType);
+        Assert.Equal(binding, roundTrip);
+        roundTrip.ToPoint(S7IsoTransportTests.Tag(TagDataType.Int16)).Validate();
+    }
+
+    [Fact]
     public async Task SInt_TransportRoundTripPreservesSignedValue()
     {
         await using var server = new TestS7IsoServer();

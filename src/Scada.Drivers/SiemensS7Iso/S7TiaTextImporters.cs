@@ -206,6 +206,7 @@ internal static partial class S7TiaImportCandidateFactory
             "REAL" => new(TagDataType.Float, S7IsoValueType.Float32, 0),
             "LINT" => new(TagDataType.Int64, S7IsoValueType.Int64, 0),
             "LREAL" => new(TagDataType.Double, S7IsoValueType.Float64, 0),
+            "DATE" => new(TagDataType.DateTime, S7IsoValueType.Date, 0),
             "DATE_AND_TIME" or "DT" => new(TagDataType.DateTime, S7IsoValueType.DateTime, 0),
             _ => null
         };

@@ -41,6 +41,7 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter, IIec104Transp
     private int _dataTransferStarted;
     private int _readStarted;
     private int _failureSignaled;
+    private int _gracefulStopObserved;
     private bool _disposed;
 
     private long _connections;
@@ -196,6 +197,7 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter, IIec104Transp
             Volatile.Write(ref _dataTransferStarted, 0);
             Volatile.Write(ref _readStarted, 0);
             Volatile.Write(ref _failureSignaled, 0);
+            Volatile.Write(ref _gracefulStopObserved, 0);
             Interlocked.Increment(ref _connections);
             TouchActivity();
 
@@ -226,6 +228,7 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter, IIec104Transp
                     cancellationToken).ConfigureAwait(false);
 
                 await WaitForConfirmationAsync(confirmation.Task, "STARTDT con", cancellationToken).ConfigureAwait(false);
+                Volatile.Write(ref _gracefulStopObserved, 0);
                 Volatile.Write(ref _dataTransferStarted, 1);
             }
             finally
@@ -463,6 +466,20 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter, IIec104Transp
         {
             // Normal disconnect path.
         }
+        catch (EndOfStreamException) when (Volatile.Read(ref _gracefulStopObserved) == 1)
+        {
+            // The IEC STOPDT handshake completed before the peer closed TCP. Treat the EOF as an orderly
+            // transport shutdown rather than a session failure. Unexpected EOF while STARTDT/running still faults.
+            Volatile.Write(ref _connected, 0);
+            Volatile.Write(ref _dataTransferStarted, 0);
+            try
+            {
+                _sessionCts?.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        }
         catch (Exception ex)
         {
             failure = ex;
@@ -572,9 +589,11 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter, IIec104Transp
         {
             case Iec104UFunction.StartDataTransferActivation:
                 await WriteFrameAsync(Iec104ApciFrame.U(Iec104UFunction.StartDataTransferConfirmation), cancellationToken).ConfigureAwait(false);
+                Volatile.Write(ref _gracefulStopObserved, 0);
                 Volatile.Write(ref _dataTransferStarted, 1);
                 break;
             case Iec104UFunction.StartDataTransferConfirmation:
+                Volatile.Write(ref _gracefulStopObserved, 0);
                 Volatile.Write(ref _dataTransferStarted, 1);
                 _startConfirmation?.TrySetResult(true);
                 break;
@@ -582,9 +601,11 @@ public sealed class Iec104TcpClientAdapter : IIec104ClientAdapter, IIec104Transp
                 await SendSupervisoryAcknowledgementIfPendingAsync(cancellationToken).ConfigureAwait(false);
                 await WriteFrameAsync(Iec104ApciFrame.U(Iec104UFunction.StopDataTransferConfirmation), cancellationToken).ConfigureAwait(false);
                 Volatile.Write(ref _dataTransferStarted, 0);
+                Volatile.Write(ref _gracefulStopObserved, 1);
                 break;
             case Iec104UFunction.StopDataTransferConfirmation:
                 Volatile.Write(ref _dataTransferStarted, 0);
+                Volatile.Write(ref _gracefulStopObserved, 1);
                 _stopConfirmation?.TrySetResult(true);
                 break;
             case Iec104UFunction.TestFrameActivation:

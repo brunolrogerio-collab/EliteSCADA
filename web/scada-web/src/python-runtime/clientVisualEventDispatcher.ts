@@ -215,13 +215,13 @@ function createInvalidatingClock(
 function browserFrameClock(): VisualTweenFrameClock {
   return {
     now: () => globalThis.performance?.now?.() ?? Date.now(),
-    requestFrame(callback) {
+    requestFrame(callback: (timestampMs: number) => void): number {
       if (typeof globalThis.requestAnimationFrame !== 'function') {
         throw new Error('Browser animation-frame scheduling is unavailable.');
       }
       return globalThis.requestAnimationFrame(callback);
     },
-    cancelFrame(handle) {
+    cancelFrame(handle: number): void {
       globalThis.cancelAnimationFrame?.(handle);
     }
   };

@@ -25,8 +25,7 @@ public sealed class S7TiaXlsxImporterTests
         Assert.True(run.IsReadable);
         Assert.True(run.IsWritable);
         Assert.Equal(TagDataType.Boolean, run.SuggestedDataType);
-        Assert.StartsWith("s7iso:v2;", run.PortableAddress);
-        Assert.True(S7IsoCommunicationBindingSchemaV2.TryParsePortableAddress(run.PortableAddress, out var runBinding, out var runError), runError);
+        Assert.True(S7IsoTagBinding.TryParsePortableAddress(run.PortableAddress, out var runBinding, out var runError), runError);
         Assert.Equal(S7IsoArea.Merker, runBinding!.Area);
         Assert.Equal(0, runBinding.ByteOffset);
         Assert.Equal((byte)0, runBinding.BitOffset);
@@ -39,14 +38,14 @@ public sealed class S7TiaXlsxImporterTests
         Assert.False(speed.IsWritable);
         Assert.Equal(TagDataType.Float, speed.SuggestedDataType);
         Assert.Contains(speed.Issues!, issue => issue.Code == "S7_TIA_HMI_WRITEABILITY_UNKNOWN");
-        Assert.True(S7IsoCommunicationBindingSchemaV2.TryParsePortableAddress(speed.PortableAddress, out var speedBinding, out var speedError), speedError);
+        Assert.True(S7IsoTagBinding.TryParsePortableAddress(speed.PortableAddress, out var speedBinding, out var speedError), speedError);
         Assert.Equal(S7IsoArea.Merker, speedBinding!.Area);
         Assert.Equal(4, speedBinding.ByteOffset);
         Assert.Equal(S7IsoValueType.Float32, speedBinding.ValueType);
         Assert.False(speedBinding.Writable);
 
         var dbValue = Assert.Single(candidates, candidate => candidate.DisplayName == "DbValue");
-        Assert.True(S7IsoCommunicationBindingSchemaV2.TryParsePortableAddress(dbValue.PortableAddress, out var dbBinding, out var dbError), dbError);
+        Assert.True(S7IsoTagBinding.TryParsePortableAddress(dbValue.PortableAddress, out var dbBinding, out var dbError), dbError);
         Assert.Equal(S7IsoArea.DataBlock, dbBinding!.Area);
         Assert.Equal((ushort)1, dbBinding.DbNumber);
         Assert.Equal(10, dbBinding.ByteOffset);
@@ -56,7 +55,7 @@ public sealed class S7TiaXlsxImporterTests
         var germanInput = Assert.Single(candidates, candidate => candidate.DisplayName == "GermanInput");
         Assert.True(germanInput.IsReadable);
         Assert.False(germanInput.IsWritable);
-        Assert.True(S7IsoCommunicationBindingSchemaV2.TryParsePortableAddress(germanInput.PortableAddress, out var inputBinding, out var inputError), inputError);
+        Assert.True(S7IsoTagBinding.TryParsePortableAddress(germanInput.PortableAddress, out var inputBinding, out var inputError), inputError);
         Assert.Equal(S7IsoArea.Input, inputBinding!.Area);
         Assert.Equal(0, inputBinding.ByteOffset);
         Assert.Equal((byte)1, inputBinding.BitOffset);

@@ -57,4 +57,41 @@ public sealed class S7IsoEngineeringFailureTests
             await peer;
         }
     }
+
+    [Fact]
+    public async Task ConnectionTest_PeerPduAboveRequestedMaximumReturnsSessionRejectedEvidence()
+    {
+        await using var server = new TestS7IsoServer(960);
+        var settings = new Dictionary<string, string>
+        {
+            ["host"] = "127.0.0.1",
+            ["port"] = server.Port.ToString(),
+            ["cpuFamily"] = nameof(S7CpuFamily.S71500),
+            ["connectionMode"] = nameof(S7IsoConnectionMode.RackSlot),
+            ["rack"] = "0",
+            ["slot"] = "1",
+            ["connectionRole"] = nameof(S7IsoConnectionRole.Basic),
+            ["requestedPduSize"] = "480",
+            ["requestTimeoutMs"] = "500",
+            ["connectTimeoutMs"] = "500",
+            ["reconnectDelayMs"] = "0"
+        };
+        var context = new DriverEngineeringDataSourceContext(
+            "s7-pdu-rejected",
+            "S7 PDU Rejected",
+            "siemens.s7.iso",
+            settings,
+            new Dictionary<string, string>());
+
+        var result = await new S7IsoEngineeringAdapter().TestConnectionAsync(context);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("S7SessionRejected", result.ObservedProperties!["failureKind"]);
+        Assert.Equal("false", result.ObservedProperties["sessionEstablished"]);
+        Assert.Equal(string.Empty, result.ObservedProperties["negotiatedPduSize"]);
+        var issue = Assert.Single(result.Issues!);
+        Assert.Equal("S7_SESSION_REJECTED", issue.Code);
+        Assert.Equal(DriverEngineeringIssueSeverity.Error, issue.Severity);
+        Assert.Contains("requested maximum", issue.Message, StringComparison.Ordinal);
+    }
 }

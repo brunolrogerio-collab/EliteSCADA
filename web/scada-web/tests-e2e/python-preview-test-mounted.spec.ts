@@ -10,6 +10,11 @@ test('canonical Python editor mounts Preview/Test with bounded sample context', 
 
   const preview = editor.getByTestId('python-preview-test');
   await expect(preview).toBeVisible();
-  await expect(preview.locator('textarea')).toHaveValue(/"preview": true/);
   await expect(preview.getByTestId('python-preview-result')).toHaveAttribute('data-state', 'idle');
+  await expect(preview.locator('textarea')).toHaveCount(0);
+
+  await page.getByRole('button', { name: /Adicionar entry point|Add entry point|Agregar entry point/i }).click();
+
+  await expect(preview.locator('textarea')).toHaveValue(/"preview": true/);
+  await expect(preview.locator('select')).toHaveValue('initialize');
 });

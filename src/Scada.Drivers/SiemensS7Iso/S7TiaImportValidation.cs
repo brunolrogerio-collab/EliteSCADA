@@ -12,15 +12,15 @@ internal static partial class S7TiaImportValidation
         ArgumentNullException.ThrowIfNull(candidate);
         candidate = NormalizeStableIdentity(candidate);
 
-        if (!TryParseCandidateBinding(candidate.PortableAddress, out var binding))
+        if (!S7IsoTagBinding.TryParsePortableAddress(candidate.PortableAddress, out var binding, out _))
             return candidate;
         if (candidate.Metadata is null ||
             !candidate.Metadata.TryGetValue("logicalAddress", out var logicalAddress) ||
             string.IsNullOrWhiteSpace(logicalAddress))
-            return NormalizeSupportedPortableAddress(candidate, binding!);
+            return candidate;
 
         if (TryValidateAddressWidth(logicalAddress, binding!.ValueType, out var error))
-            return NormalizeSupportedPortableAddress(candidate, binding);
+            return candidate;
 
         var issues = (candidate.Issues ?? Array.Empty<DriverEngineeringIssue>())
             .Append(new DriverEngineeringIssue(
@@ -81,23 +81,6 @@ internal static partial class S7TiaImportValidation
         error = $"TIA logical address '{logicalAddress}' uses {DescribeWidth(width)} notation, " +
                 $"but Siemens data type '{valueType}' requires {DescribeWidth(expected)} notation for this classic absolute binding.";
         return false;
-    }
-
-    private static bool TryParseCandidateBinding(string portableAddress, out S7IsoTagBinding? binding)
-    {
-        if (S7IsoCommunicationBindingSchemaV2.TryParsePortableAddress(portableAddress, out binding, out _))
-            return true;
-        return S7IsoTagBinding.TryParsePortableAddress(portableAddress, out binding, out _);
-    }
-
-    private static DriverImportCandidate NormalizeSupportedPortableAddress(
-        DriverImportCandidate candidate,
-        S7IsoTagBinding binding)
-    {
-        var portableAddress = S7IsoCommunicationBindingSchemaV2.ToPortableAddress(binding);
-        return string.Equals(candidate.PortableAddress, portableAddress, StringComparison.Ordinal)
-            ? candidate
-            : candidate with { PortableAddress = portableAddress };
     }
 
     private static DriverImportCandidate NormalizeStableIdentity(DriverImportCandidate candidate)

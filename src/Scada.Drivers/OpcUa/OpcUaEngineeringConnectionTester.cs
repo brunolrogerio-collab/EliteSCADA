@@ -13,13 +13,6 @@ namespace Scada.Drivers.OpcUa;
 public sealed class OpcUaEngineeringConnectionTester : ICommunicationDriverConnectionTester
 {
     private const string ServerCurrentTimeNodeId = "i=2258";
-    private static readonly string[] ProtectedReferenceKeys =
-    [
-        "passwordSecretReference",
-        "clientCertificateReference",
-        "userCertificateReference"
-    ];
-
     private readonly Func<OpcUaRuntimeConnectionOptions, IOpcUaRuntimeSessionFactory> _sessionFactoryFactory;
 
     public OpcUaEngineeringConnectionTester(
@@ -64,8 +57,7 @@ public sealed class OpcUaEngineeringConnectionTester : ICommunicationDriverConne
         OpcUaRuntimeConnectionOptions options;
         try
         {
-            options = OpcUaRuntimeDriverComposer.ParseConnectionOptions(
-                MergeReferenceSettings(context));
+            options = OpcUaRuntimeDriverComposer.ParseConnectionOptions(context);
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
@@ -142,49 +134,6 @@ public sealed class OpcUaEngineeringConnectionTester : ICommunicationDriverConne
             {
                 [OpcUaRuntimeBinding.NodeIdMetadataKey] = ServerCurrentTimeNodeId
             });
-
-    private static IReadOnlyDictionary<string, string> MergeReferenceSettings(
-        DriverEngineeringDataSourceContext context)
-    {
-        var merged = new Dictionary<string, string>(context.Settings, StringComparer.OrdinalIgnoreCase);
-        foreach (string key in ProtectedReferenceKeys)
-        {
-            if (merged.ContainsKey(key) ||
-                !TryGetCaseInsensitive(context.SecretReferences, key, out string? reference) ||
-                string.IsNullOrWhiteSpace(reference))
-            {
-                continue;
-            }
-
-            merged[key] = reference.Trim();
-        }
-
-        return merged;
-    }
-
-    private static bool TryGetCaseInsensitive(
-        IReadOnlyDictionary<string, string> values,
-        string key,
-        out string? value)
-    {
-        if (values.TryGetValue(key, out string? exact))
-        {
-            value = exact;
-            return true;
-        }
-
-        foreach (var pair in values)
-        {
-            if (pair.Key.Equals(key, StringComparison.OrdinalIgnoreCase))
-            {
-                value = pair.Value;
-                return true;
-            }
-        }
-
-        value = null;
-        return false;
-    }
 
     private static IReadOnlyDictionary<string, string> BuildObservedProperties(
         OpcUaRuntimeConnectionOptions options,

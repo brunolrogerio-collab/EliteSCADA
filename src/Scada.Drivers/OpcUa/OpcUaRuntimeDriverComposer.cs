@@ -1,5 +1,6 @@
 using System.Globalization;
 using Scada.Core.Tags;
+using Scada.Drivers.Abstractions;
 
 namespace Scada.Drivers.OpcUa;
 
@@ -10,6 +11,13 @@ namespace Scada.Drivers.OpcUa;
 /// </summary>
 public static class OpcUaRuntimeDriverComposer
 {
+    private static readonly string[] ProtectedReferenceKeys =
+    [
+        "passwordSecretReference",
+        "clientCertificateReference",
+        "userCertificateReference"
+    ];
+
     public static OpcUaCommunicationDriver Create(
         string dataSourceKey,
         string name,
@@ -42,9 +50,19 @@ public static class OpcUaRuntimeDriverComposer
             registry,
             tags,
             sessionFactory,
-            reconnectDelays,
-            options.EndpointUrl,
-            options.EffectivePublishingInterval);
+            reconnectDelays);
+    }
+
+    /// <summary>
+    /// Builds runtime connection options from an Engineering context. Only known protected
+    /// reference fields may be sourced from SecretReferences. Operational settings, endpoint
+    /// identity and security policy always originate from canonical Settings.
+    /// </summary>
+    public static OpcUaRuntimeConnectionOptions ParseConnectionOptions(
+        DriverEngineeringDataSourceContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        return ParseConnectionOptions(MergeProtectedReferences(context));
     }
 
     public static OpcUaRuntimeConnectionOptions ParseConnectionOptions(
@@ -76,6 +94,49 @@ public static class OpcUaRuntimeDriverComposer
 
         options.Validate();
         return options;
+    }
+
+    private static IReadOnlyDictionary<string, string> MergeProtectedReferences(
+        DriverEngineeringDataSourceContext context)
+    {
+        var merged = new Dictionary<string, string>(context.Settings, StringComparer.OrdinalIgnoreCase);
+        foreach (string key in ProtectedReferenceKeys)
+        {
+            if (merged.ContainsKey(key) ||
+                !TryGetCaseInsensitive(context.SecretReferences, key, out string? reference) ||
+                string.IsNullOrWhiteSpace(reference))
+            {
+                continue;
+            }
+
+            merged[key] = reference.Trim();
+        }
+
+        return merged;
+    }
+
+    private static bool TryGetCaseInsensitive(
+        IReadOnlyDictionary<string, string> values,
+        string key,
+        out string? value)
+    {
+        if (values.TryGetValue(key, out string? exact))
+        {
+            value = exact;
+            return true;
+        }
+
+        foreach (var pair in values)
+        {
+            if (pair.Key.Equals(key, StringComparison.OrdinalIgnoreCase))
+            {
+                value = pair.Value;
+                return true;
+            }
+        }
+
+        value = null;
+        return false;
     }
 
     private static OpcUaRuntimeAuthenticationMode ParseAuthenticationMode(string raw)

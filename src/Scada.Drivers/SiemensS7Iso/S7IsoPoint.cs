@@ -12,18 +12,18 @@ public enum S7IsoArea : byte
 
 public enum S7IsoValueType
 {
-    Boolean,
-    Byte,
-    UInt16,
-    Int16,
-    UInt32,
-    Int32,
-    Float32,
-    Int64,
-    Float64,
-    String,
-    WString,
-    DateTime
+    Boolean = 0,
+    Byte = 1,
+    UInt16 = 2,
+    Int16 = 3,
+    UInt32 = 4,
+    Int32 = 5,
+    Float32 = 6,
+    Int64 = 7,
+    Float64 = 8,
+    String = 9,
+    DateTime = 10,
+    WString = 11
 }
 
 public enum S7IsoValueOrder

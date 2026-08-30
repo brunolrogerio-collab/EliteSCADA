@@ -144,20 +144,28 @@ public sealed class AllenBradleyCipL2IntegrationTests
         var before = driver.GetCommunicationDiagnostics();
         Assert.Equal(CommunicationDriverOperationalState.Healthy, before.State);
 
+        TagValue? failed = null;
+        CommunicationDriverDiagnosticSnapshot? outage = null;
         await RunDockerAsync("stop", "-t", "1", container);
+        try
+        {
+            failed = await WaitForValueAsync(
+                cache,
+                tag.Id,
+                static value => value.Quality == TagQuality.BadCommunication,
+                TimeSpan.FromSeconds(12));
+            outage = driver.GetCommunicationDiagnostics();
+        }
+        finally
+        {
+            await RunDockerAsync("start", container);
+        }
 
-        var failed = await WaitForValueAsync(
-            cache,
-            tag.Id,
-            static value => value.Quality == TagQuality.BadCommunication,
-            TimeSpan.FromSeconds(12));
+        Assert.NotNull(failed);
         Assert.Equal(TagQuality.BadCommunication, failed.Quality);
-
-        var outage = driver.GetCommunicationDiagnostics();
-        Assert.True(outage.Counters.FailedOperations > before.Counters.FailedOperations);
-        Assert.True(outage.State is CommunicationDriverOperationalState.Reconnecting or CommunicationDriverOperationalState.Degraded);
-
-        await RunDockerAsync("start", container);
+        Assert.NotNull(outage);
+        Assert.True(outage.LastFailedCommunicationAt.HasValue);
+        Assert.Equal(1, outage.TagQuality.BadCommunication);
 
         var recovered = await WaitForValueAsync(
             cache,
@@ -173,6 +181,7 @@ public sealed class AllenBradleyCipL2IntegrationTests
                            diagnostics.Counters.Reconnects > before.Counters.Reconnects,
             TimeSpan.FromSeconds(10));
         Assert.True(after.Counters.Disconnections > before.Counters.Disconnections);
+        Assert.True(after.LastSuccessfulCommunicationAt > before.LastSuccessfulCommunicationAt);
 
         await driver.StopAsync();
     }

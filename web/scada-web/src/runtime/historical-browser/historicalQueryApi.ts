@@ -52,6 +52,7 @@ export type HistoricalQueryRequest = Readonly<{
 export type HistoricalColumn = Readonly<{
   field: string;
   type: HistoricalFieldType;
+  operators: readonly HistoricalFilterOperator[];
   filterable: boolean;
   sortable: boolean;
   searchable: boolean;
@@ -147,12 +148,20 @@ function normalizeColumn(value: unknown): HistoricalColumn {
   if (!isRecord(value) || typeof value.field !== 'string' || !isFieldType(value.type)) {
     throw new HistoricalQueryApiError('unavailable', 'Historical query column is malformed.');
   }
+  if (!Array.isArray(value.operators) || !value.operators.every(isFilterOperator)) {
+    throw new HistoricalQueryApiError('unavailable', 'Historical query column operators are malformed.');
+  }
   if (typeof value.filterable !== 'boolean' || typeof value.sortable !== 'boolean' || typeof value.searchable !== 'boolean') {
     throw new HistoricalQueryApiError('unavailable', 'Historical query column capabilities are malformed.');
   }
+  if (value.filterable !== (value.operators.length > 0)) {
+    throw new HistoricalQueryApiError('unavailable', 'Historical query column filter capability is inconsistent.');
+  }
+  const operators = Object.freeze([...value.operators] as HistoricalFilterOperator[]);
   return Object.freeze({
     field: value.field,
     type: value.type,
+    operators,
     filterable: value.filterable,
     sortable: value.sortable,
     searchable: value.searchable
@@ -187,6 +196,14 @@ async function readApiError(response: Response): Promise<string> {
 
 function isFieldType(value: unknown): value is HistoricalFieldType {
   return value === 'guid' || value === 'string' || value === 'enum' || value === 'number' || value === 'boolean' || value === 'dateTime' || value === 'int64' || value === 'scalar';
+}
+
+export function isHistoricalFilterOperator(value: unknown): value is HistoricalFilterOperator {
+  return isFilterOperator(value);
+}
+
+function isFilterOperator(value: unknown): value is HistoricalFilterOperator {
+  return value === 'eq' || value === 'notEq' || value === 'in' || value === 'contains' || value === 'startsWith' || value === 'gt' || value === 'gte' || value === 'lt' || value === 'lte';
 }
 
 function isValueKind(value: unknown): value is HistoricalValueKind {

@@ -137,11 +137,13 @@ internal static class S7IsoProtocol
             var encodedLength = BinaryPrimitives.ReadUInt16BigEndian(packet.Slice(cursor + 2, 2));
             cursor += 4;
 
+            // Failed S7 Read Var items carry no useful payload. Some peers, including
+            // Snap7's reference server, still set a non-zero DataLength together with
+            // TransportSize=0x00. The return code is the authoritative per-item error;
+            // interpreting that length as data would poison the entire multi-item response.
             var payloadLength = returnCode == ReturnCodeSuccess
                 ? DecodeResponsePayloadLength(transportSize, encodedLength)
-                : encodedLength == 0
-                    ? 0
-                    : DecodeResponsePayloadLength(transportSize, encodedLength);
+                : 0;
             if (cursor + payloadLength > dataEnd)
                 throw new S7IsoProtocolException("Truncated S7 Read Var item payload.");
             if (returnCode == ReturnCodeSuccess && payloadLength != points[index].ByteLength)

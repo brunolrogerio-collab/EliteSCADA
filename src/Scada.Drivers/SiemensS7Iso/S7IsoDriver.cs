@@ -181,6 +181,8 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
                 ["destinationTsap"] = S7IsoConnectionOptions.FormatTsap(_options.EffectiveDestinationTsap),
                 ["requestedPduSize"] = _options.RequestedPduSize.ToString(CultureInfo.InvariantCulture),
                 ["negotiatedPduSize"] = transport.NegotiatedPduSize?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+                ["lastReadBatchCount"] = transport.LastReadBatchCount.ToString(CultureInfo.InvariantCulture),
+                ["lastReadPointCount"] = transport.LastReadPointCount.ToString(CultureInfo.InvariantCulture),
                 ["writeEnabled"] = _options.WriteEnabled ? "true" : "false",
                 ["lastFailureKind"] = transport.LastFailureKind?.ToString() ?? string.Empty
             };

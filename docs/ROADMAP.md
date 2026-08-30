@@ -48,7 +48,7 @@ Wave 08      Graphical Editor + Image + Engineering Development Monitor         
 08-FOLLOW-A  TAG Bit Access + Driver Bit-Level Boolean Binding                           COMPLETE
 08-FOLLOW-B  Typed Visual Expressions + Boolean Conditions + Analog Fill                 COMPLETE
 Wave 09      Screens + Popups + Dynamos + navigation + Historical Data + Reporting       COMPLETE
-Wave 10      Python visual events + animation + preview                                  ACTIVE
+Wave 10      Python visual events + animation + preview                                  ACTIVE / INTEGRATED
 Wave 11      Complete HMI Runtime demo vertical slice                                    WAITING
 Wave 12      Hardening                                                                   WAITING
 Wave 13      Windows x64 product package                                                 WAITING
@@ -57,7 +57,7 @@ Wave 15      Feedback/corrections                                               
 FINAL        EliteSCADA v0.1 — Full Product Validation Preview
 ```
 
-## Wave 10 — ACTIVE
+## Wave 10 — ACTIVE / INTEGRATED
 
 Integration train:
 
@@ -76,15 +76,17 @@ Wave 10 scope includes:
 - mounted Python Preview/Test with bounded sample context, actionable traceback/failing-line diagnostics and protected-data redaction;
 - mounted browser acceptance of `click -> event reference -> Python -> visualTween.request -> rendered intermediate animation -> deterministic stable final value`.
 
-Worker tracks DEV 1/2/3 have converged into the integration train. Coordinator PR #170 contains the central mounted Runtime composition. Its exact functional product head `8b7871bcd5a14ae17ffb070732f5a92c60462536` passed EliteSCADA CI #872, including Backend, Web build and 330/330 Chromium tests.
+Worker tracks DEV 1/2/3 and coordinator runtime composition have converged into the integration train. Coordinator PR #170 merged as `ee5d3c3f622765f79b49f32fa92c22760d195ae2`.
 
-Wave 10 remains ACTIVE until the exact resulting integration head is validated, merged to `main`, and the exact post-main CI is green.
+The exact functional coordinator product head `8b7871bcd5a14ae17ffb070732f5a92c60462536` passed EliteSCADA CI #872: Backend SUCCESS, Web build SUCCESS and Chromium SUCCESS with 330/330 tests passed.
+
+Wave 10 remains ACTIVE until the exact current integration head is validated against `main`, merged, and exact post-main CI is green.
 
 The complete owner-testable HMI Runtime demo vertical slice is deliberately Wave 11. Wave 10 establishes the canonical runtime behavior and mounted acceptance without inventing a second product Runtime surface.
 
 ## Remaining v0.1 sequence
 
-- **Wave 10:** active; integration/main closure gate pending.
+- **Wave 10:** integrated; exact integration/main closure gate pending.
 - **Wave 11:** complete owner-testable HMI Runtime demo vertical slice.
 - **Wave 12:** hardening.
 - **Wave 13:** Windows x64 product package.

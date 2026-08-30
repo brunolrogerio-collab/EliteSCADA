@@ -176,6 +176,7 @@ public sealed class BacnetEngineeringProvider :
         {
             var result = await session.ReadAsync(binding, cancellationToken).ConfigureAwait(false);
             var observedType = result.Values.Count == 0 ? null : GuessTagDataType(result.Values[0], binding.ObjectType);
+            var engineeringUnit = NormalizeEngineeringUnit(result.ObjectState?.Units);
             return new DriverReconcileResult(
                 address,
                 DriverReconcileStatus.Unchanged,
@@ -183,7 +184,13 @@ public sealed class BacnetEngineeringProvider :
                 binding.PortableAddress,
                 observedType,
                 IsReadable: true,
-                IsWritable: null);
+                IsWritable: null,
+                Metadata: engineeringUnit is null
+                    ? null
+                    : new Dictionary<string, string>(StringComparer.Ordinal)
+                    {
+                        ["engineeringUnit"] = engineeringUnit
+                    });
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -273,6 +280,7 @@ public sealed class BacnetEngineeringProvider :
                     IsWritable: IsCommonWritableObject(objectType),
                     PortableAddress: binding.PortableAddress,
                     SuggestedDataType: dataType,
+                    EngineeringUnit: NormalizeEngineeringUnit(sample.ObjectState?.Units),
                     Metadata: new Dictionary<string, string>
                     {
                         ["deviceInstance"] = deviceInstance.ToString(CultureInfo.InvariantCulture),
@@ -310,6 +318,9 @@ public sealed class BacnetEngineeringProvider :
 
     private static bool IsCommonWritableObject(uint objectType)
         => objectType is 1 or 2 or 4 or 5 or 14 or 19;
+
+    private static string? NormalizeEngineeringUnit(string? unit)
+        => string.IsNullOrWhiteSpace(unit) ? null : unit.Trim();
 
     private static async Task<string?> TryReadTextAsync(IBacnetSession session, BacnetBinding binding, CancellationToken cancellationToken)
     {

@@ -33,6 +33,8 @@ export const SCRIPT_DEPENDENCY_KINDS: ScriptEngineeringDependencyKind[] = [
   'resource'
 ];
 
+export const MINIMUM_SCRIPT_TIMER_INTERVAL_MS = 50;
+
 const numericScopes: ScriptEngineeringScope[] = ['clientVisual', 'server'];
 const numericEvents: ScriptEngineeringEventKind[] = SCRIPT_EVENT_KINDS;
 const numericDependencies: ScriptEngineeringDependencyKind[] = SCRIPT_DEPENDENCY_KINDS;
@@ -92,7 +94,9 @@ export function normalizeVisualEventReference(raw: Record<string, unknown>): Scr
     eventKind: normalizeEventKind(raw.eventKind),
     scriptId: String(raw.scriptId ?? ''),
     entryPoint: String(raw.entryPoint ?? ''),
-    targetReference: typeof raw.targetReference === 'string' ? raw.targetReference : null
+    targetReference: typeof raw.targetReference === 'string' ? raw.targetReference : null,
+    tagReference: normalizeTagReference(raw.tagReference),
+    timerIntervalMs: normalizeTimerInterval(raw.timerIntervalMs)
   };
 }
 
@@ -116,7 +120,12 @@ export function createNewScriptDefinition(): ScriptEngineeringDefinition {
 export function cloneScriptDefinition(script: ScriptEngineeringDefinition): ScriptEngineeringDefinition {
   return {
     ...script,
-    entryPoints: script.entryPoints.map(entry => ({ ...entry })),
+    entryPoints: script.entryPoints.map(entry => ({
+      ...entry,
+      tagReference: entry.tagReference
+        ? { ...entry.tagReference, selector: entry.tagReference.selector ? { ...entry.tagReference.selector } : null }
+        : null
+    })),
     dependencies: script.dependencies.map(dependency => ({ ...dependency })),
     metadata: { ...script.metadata }
   };
@@ -136,7 +145,12 @@ export function buildCanonicalScriptPackage(
 ): CanonicalScriptPackage {
   const ownedReferences = allVisualReferences
     .filter(reference => reference.scriptId === script.id)
-    .map(reference => ({ ...reference }));
+    .map(reference => ({
+      ...reference,
+      tagReference: reference.tagReference
+        ? { ...reference.tagReference, selector: reference.tagReference.selector ? { ...reference.tagReference.selector } : null }
+        : null
+    }));
 
   return {
     schema: 'scada.engineering',
@@ -153,7 +167,12 @@ export function buildCanonicalScriptPackage(
       enabled: script.enabled,
       language: script.language || 'python',
       languageVersion: script.languageVersion || '3',
-      entryPoints: script.entryPoints.map(entry => ({ ...entry })),
+      entryPoints: script.entryPoints.map(entry => ({
+        ...entry,
+        tagReference: entry.tagReference
+          ? { ...entry.tagReference, selector: entry.tagReference.selector ? { ...entry.tagReference.selector } : null }
+          : null
+      })),
       dependencies: script.dependencies.map(dependency => ({ ...dependency })),
       description: script.description?.trim() ? script.description : null,
       metadata: { ...script.metadata }
@@ -189,7 +208,8 @@ export function validateScriptDraft(script: ScriptEngineeringDefinition): string
   const entryKeys = new Set<string>();
   for (const entry of script.entryPoints) {
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(entry.handlerName.trim())) issues.push('entryPoint');
-    const key = `${entry.eventKind}|${entry.handlerName.trim()}|${entry.targetReference ?? ''}`;
+    issues.push(...validateEventTarget(entry.eventKind, entry.targetReference, entry.tagReference, entry.timerIntervalMs));
+    const key = eventAssociationIdentity(entry.eventKind, entry.handlerName.trim(), entry.targetReference, entry.tagReference, entry.timerIntervalMs);
     if (entryKeys.has(key)) issues.push('entryPointDuplicate');
     entryKeys.add(key);
   }
@@ -204,6 +224,20 @@ export function validateScriptDraft(script: ScriptEngineeringDefinition): string
   return Array.from(new Set(issues));
 }
 
+export function validateVisualEventReference(reference: ScriptVisualEventReference): string[] {
+  const issues: string[] = [];
+  if (!reference.visualDefinitionId.trim()) issues.push('visualDefinitionId');
+  if (!reference.scriptId.trim()) issues.push('scriptId');
+  if (!reference.entryPoint.trim()) issues.push('entryPoint');
+  issues.push(...validateEventTarget(
+    reference.eventKind,
+    reference.targetReference,
+    reference.tagReference,
+    reference.timerIntervalMs
+  ));
+  return Array.from(new Set(issues));
+}
+
 export function scriptSearchText(script: ScriptEngineeringDefinition): string {
   return [script.name, script.path, script.scope, script.description ?? ''].join(' ').toLowerCase();
 }
@@ -212,7 +246,9 @@ function normalizeEntryPoint(raw: Record<string, unknown>): ScriptEngineeringEnt
   return {
     eventKind: normalizeEventKind(raw.eventKind),
     handlerName: String(raw.handlerName ?? ''),
-    targetReference: typeof raw.targetReference === 'string' ? raw.targetReference : null
+    targetReference: typeof raw.targetReference === 'string' ? raw.targetReference : null,
+    tagReference: normalizeTagReference(raw.tagReference),
+    timerIntervalMs: normalizeTimerInterval(raw.timerIntervalMs)
   };
 }
 
@@ -221,6 +257,81 @@ function normalizeDependency(raw: Record<string, unknown>): ScriptEngineeringDep
     kind: normalizeDependencyKind(raw.kind),
     stableReference: String(raw.stableReference ?? '')
   };
+}
+
+function normalizeTagReference(value: unknown): ScriptEngineeringEntryPoint['tagReference'] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const tagId = typeof raw.tagId === 'string' ? raw.tagId : '';
+  if (!tagId) return null;
+
+  let selector: NonNullable<ScriptEngineeringEntryPoint['tagReference']>['selector'] = null;
+  if (raw.selector && typeof raw.selector === 'object' && !Array.isArray(raw.selector)) {
+    const rawSelector = raw.selector as Record<string, unknown>;
+    if (typeof rawSelector.kind === 'string' && typeof rawSelector.index === 'number') {
+      selector = { kind: rawSelector.kind, index: rawSelector.index };
+    }
+  }
+
+  return { tagId, selector };
+}
+
+function normalizeTimerInterval(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function validateEventTarget(
+  eventKind: ScriptEngineeringEventKind,
+  targetReference: string | null | undefined,
+  tagReference: ScriptEngineeringEntryPoint['tagReference'],
+  timerIntervalMs: number | null | undefined
+): string[] {
+  const issues: string[] = [];
+
+  if (eventKind === 'timer') {
+    if (!Number.isInteger(timerIntervalMs) || (timerIntervalMs ?? 0) < MINIMUM_SCRIPT_TIMER_INTERVAL_MS)
+      issues.push('timerIntervalMs');
+    if (tagReference) issues.push('tagReferenceUnexpected');
+    if (targetReference?.trim()) issues.push('targetReferenceUnexpected');
+    return issues;
+  }
+
+  if (timerIntervalMs != null) issues.push('timerIntervalUnexpected');
+
+  if (eventKind === 'tagChanged') {
+    if (!tagReference?.tagId?.trim()) issues.push('tagReference');
+    if (targetReference?.trim()) issues.push('targetReferenceUnexpected');
+    const selector = tagReference?.selector;
+    if (selector && (selector.kind !== 'bit' || !Number.isInteger(selector.index) || selector.index < 0))
+      issues.push('tagSelector');
+    return issues;
+  }
+
+  if (tagReference) issues.push('tagReferenceUnexpected');
+
+  if (eventKind === 'clientMemoryChanged') {
+    if (!targetReference?.trim()) issues.push('targetReference');
+  }
+
+  return issues;
+}
+
+function eventAssociationIdentity(
+  eventKind: ScriptEngineeringEventKind,
+  handlerName: string,
+  targetReference: string | null | undefined,
+  tagReference: ScriptEngineeringEntryPoint['tagReference'],
+  timerIntervalMs: number | null | undefined
+): string {
+  const selector = tagReference?.selector ? `${tagReference.selector.kind}:${tagReference.selector.index}` : '';
+  return [
+    eventKind,
+    handlerName,
+    targetReference ?? '',
+    tagReference?.tagId ?? '',
+    selector,
+    timerIntervalMs ?? ''
+  ].join('|');
 }
 
 function normalizeMetadata(value: unknown): Record<string, string> {

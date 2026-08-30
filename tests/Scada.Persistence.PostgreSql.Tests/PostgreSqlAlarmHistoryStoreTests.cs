@@ -18,28 +18,50 @@ public sealed class PostgreSqlAlarmHistoryStoreTests
         var tagId = Guid.NewGuid();
         var tagPath = $"Integration.Alarm.{Guid.NewGuid():N}";
         var timestamp = DateTimeOffset.UtcNow.AddSeconds(-1);
-        var previous = Instance(alarmId, tagId, AlarmState.Normal, AlarmPriority.High, timestamp);
-        var active = previous with { State = AlarmState.Active, LastTransition = timestamp, Message = "High pressure" };
-        var acknowledged = active with { State = AlarmState.Acknowledged, LastTransition = timestamp };
+        var previous = Instance(
+            alarmId,
+            tagId,
+            AlarmState.Normal,
+            AlarmPriority.High,
+            timestamp);
+        var active = previous with
+        {
+            State = AlarmState.Active,
+            LastTransition = timestamp,
+            Message = "High pressure"
+        };
+        var acknowledged = active with
+        {
+            State = AlarmState.Acknowledged,
+            LastTransition = timestamp
+        };
 
-        await store.AppendAsync(new AlarmStateChanged(previous, active, timestamp), tagPath);
-        await store.AppendAsync(new AlarmStateChanged(active, acknowledged, timestamp), tagPath);
+        await store.AppendAsync(
+            new AlarmStateChanged(previous, active, timestamp),
+            tagPath);
+        await store.AppendAsync(
+            new AlarmStateChanged(active, acknowledged, timestamp),
+            tagPath);
 
         var dataset = HistoricalQueryCatalog.Require(HistoricalDatasets.AlarmEvents);
-        var range = new HistoricalResolvedRange(timestamp.AddMinutes(-1), DateTimeOffset.UtcNow.AddSeconds(1));
+        var range = new HistoricalResolvedRange(
+            timestamp.AddMinutes(-1),
+            DateTimeOffset.UtcNow.AddSeconds(1));
+        var filters = new[]
+        {
+            new HistoricalFilter(
+                "priority",
+                HistoricalFilterOperator.Eq,
+                [HistoricalQueryValue.FromNumber((int)AlarmPriority.High)]),
+            new HistoricalFilter(
+                "tag.path",
+                HistoricalFilterOperator.Contains,
+                [HistoricalQueryValue.FromString("Integration.Alarm")])
+        };
         var first = await store.QueryAsync(new HistoricalQueryExecution(
             dataset,
             range,
-            [
-                new HistoricalFilter(
-                    "priority",
-                    HistoricalFilterOperator.Eq,
-                    [HistoricalQueryValue.FromNumber((int)AlarmPriority.High)]),
-                new HistoricalFilter(
-                    "tag.path",
-                    HistoricalFilterOperator.Contains,
-                    [HistoricalQueryValue.FromString("Integration.Alarm")])
-            ],
+            filters,
             "pressure",
             new HistoricalSort(),
             1,
@@ -53,14 +75,82 @@ public sealed class PostgreSqlAlarmHistoryStoreTests
         var second = await store.QueryAsync(new HistoricalQueryExecution(
             dataset,
             range,
-            [new HistoricalFilter("alarm.id", HistoricalFilterOperator.Eq, [HistoricalQueryValue.FromGuid(alarmId)])],
-            null,
+            filters,
+            "pressure",
             new HistoricalSort(),
             1,
             first.NextPosition));
 
         Assert.Single(second.Rows);
+        Assert.Null(second.NextPosition);
         Assert.Equal(alarmId.ToString("D"), second.Rows[0].Cells["alarm.id"].Value);
+        Assert.NotEqual(
+            first.Rows[0].Cells["state"].Value,
+            second.Rows[0].Cells["state"].Value);
+    }
+
+    [Fact]
+    public async Task Store_CombinesRepeatedFieldFiltersWithAndSemantics()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        await using var store = new PostgreSqlAlarmHistoryStore(connectionString);
+        var tagId = Guid.NewGuid();
+        var tagPath = $"Integration.Alarm.Range.{Guid.NewGuid():N}";
+        var timestamp = DateTimeOffset.UtcNow.AddSeconds(-1);
+
+        foreach (var priority in new[]
+                 {
+                     AlarmPriority.Medium,
+                     AlarmPriority.High,
+                     AlarmPriority.Critical
+                 })
+        {
+            var previous = Instance(
+                Guid.NewGuid(),
+                tagId,
+                AlarmState.Normal,
+                priority,
+                timestamp);
+            var current = previous with
+            {
+                State = AlarmState.Active,
+                LastTransition = timestamp
+            };
+            await store.AppendAsync(
+                new AlarmStateChanged(previous, current, timestamp),
+                tagPath);
+        }
+
+        var dataset = HistoricalQueryCatalog.Require(HistoricalDatasets.AlarmEvents);
+        var page = await store.QueryAsync(new HistoricalQueryExecution(
+            dataset,
+            new HistoricalResolvedRange(
+                timestamp.AddMinutes(-1),
+                DateTimeOffset.UtcNow.AddSeconds(1)),
+            [
+                new HistoricalFilter(
+                    "tag.path",
+                    HistoricalFilterOperator.Eq,
+                    [HistoricalQueryValue.FromString(tagPath)]),
+                new HistoricalFilter(
+                    "priority",
+                    HistoricalFilterOperator.GreaterThanOrEqual,
+                    [HistoricalQueryValue.FromNumber((int)AlarmPriority.High)]),
+                new HistoricalFilter(
+                    "priority",
+                    HistoricalFilterOperator.LessThanOrEqual,
+                    [HistoricalQueryValue.FromNumber((int)AlarmPriority.High)])
+            ],
+            null,
+            new HistoricalSort(),
+            10,
+            null));
+
+        var row = Assert.Single(page.Rows);
+        Assert.Equal("3", row.Cells["priority"].Value);
+        Assert.Equal(tagPath, row.Cells["tag.path"].Value);
     }
 
     [Fact]
@@ -74,9 +164,20 @@ public sealed class PostgreSqlAlarmHistoryStoreTests
         var tagId = Guid.NewGuid();
         var marker = $"Integration.AppendOnly.{Guid.NewGuid():N}";
         var timestamp = DateTimeOffset.UtcNow.AddSeconds(-1);
-        var previous = Instance(alarmId, tagId, AlarmState.Normal, AlarmPriority.Medium, timestamp);
-        var current = previous with { State = AlarmState.Active, LastTransition = timestamp };
-        await store.AppendAsync(new AlarmStateChanged(previous, current, timestamp), marker);
+        var previous = Instance(
+            alarmId,
+            tagId,
+            AlarmState.Normal,
+            AlarmPriority.Medium,
+            timestamp);
+        var current = previous with
+        {
+            State = AlarmState.Active,
+            LastTransition = timestamp
+        };
+        await store.AppendAsync(
+            new AlarmStateChanged(previous, current, timestamp),
+            marker);
 
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();

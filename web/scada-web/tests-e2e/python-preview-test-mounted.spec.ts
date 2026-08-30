@@ -10,6 +10,6 @@ test('canonical Python editor mounts Preview/Test with bounded sample context', 
 
   const preview = editor.getByTestId('python-preview-test');
   await expect(preview).toBeVisible();
-  await expect(preview.getByLabel(/Payload de evento|Event payload|Payload del evento/i)).toHaveValue(/"preview": true/);
+  await expect(preview.locator('textarea')).toHaveValue(/"preview": true/);
   await expect(preview.getByTestId('python-preview-result')).toHaveAttribute('data-state', 'idle');
 });

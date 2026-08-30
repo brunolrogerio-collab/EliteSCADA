@@ -24,7 +24,8 @@ public enum S7IsoValueType
     String = 9,
     DateTime = 10,
     WString = 11,
-    SInt = 12
+    SInt = 12,
+    Date = 13
 }
 
 public enum S7IsoValueOrder
@@ -49,7 +50,7 @@ public sealed record S7IsoPoint(
     public int ByteLength => ValueType switch
     {
         S7IsoValueType.Boolean or S7IsoValueType.Byte or S7IsoValueType.SInt => 1,
-        S7IsoValueType.UInt16 or S7IsoValueType.Int16 => 2,
+        S7IsoValueType.UInt16 or S7IsoValueType.Int16 or S7IsoValueType.Date => 2,
         S7IsoValueType.UInt32 or S7IsoValueType.Int32 or S7IsoValueType.Float32 => 4,
         S7IsoValueType.Int64 or S7IsoValueType.Float64 or S7IsoValueType.DateTime => 8,
         S7IsoValueType.String => checked(StringLength + 2),
@@ -62,7 +63,7 @@ public sealed record S7IsoPoint(
         S7IsoValueType.Boolean => 0x01,
         S7IsoValueType.Byte or S7IsoValueType.SInt or S7IsoValueType.Int64 or S7IsoValueType.Float64 or
             S7IsoValueType.String or S7IsoValueType.WString or S7IsoValueType.DateTime => 0x02,
-        S7IsoValueType.UInt16 => 0x04,
+        S7IsoValueType.UInt16 or S7IsoValueType.Date => 0x04,
         S7IsoValueType.Int16 => 0x05,
         S7IsoValueType.UInt32 => 0x06,
         S7IsoValueType.Int32 => 0x07,
@@ -144,7 +145,7 @@ public sealed record S7IsoPoint(
             S7IsoValueType.Float32 => Tag.DataType == TagDataType.Float,
             S7IsoValueType.Float64 => Tag.DataType == TagDataType.Double,
             S7IsoValueType.String or S7IsoValueType.WString => Tag.DataType == TagDataType.String,
-            S7IsoValueType.DateTime => Tag.DataType == TagDataType.DateTime,
+            S7IsoValueType.Date or S7IsoValueType.DateTime => Tag.DataType == TagDataType.DateTime,
             _ => false
         };
 

@@ -56,12 +56,27 @@ public sealed record S7IsoConnectionOptions
             throw new ArgumentOutOfRangeException(nameof(rack), "S7 rack must be from 0 to 7.");
         if (slot is > 31)
             throw new ArgumentOutOfRangeException(nameof(slot), "S7 slot must be from 0 to 31.");
-        if (connectionMode == S7IsoConnectionMode.RackSlot && rack is null)
-            throw new ArgumentException("Rack/Slot mode requires an explicit rack.", nameof(rack));
-        if (connectionMode == S7IsoConnectionMode.RackSlot && slot is null)
-            throw new ArgumentException("Rack/Slot mode requires an explicit slot.", nameof(slot));
-        if (connectionMode == S7IsoConnectionMode.ExplicitTsap && destinationTsap is null)
-            throw new ArgumentException("Explicit TSAP mode requires a destination TSAP.", nameof(destinationTsap));
+
+        if (connectionMode == S7IsoConnectionMode.RackSlot)
+        {
+            if (rack is null)
+                throw new ArgumentException("Rack/Slot mode requires an explicit rack.", nameof(rack));
+            if (slot is null)
+                throw new ArgumentException("Rack/Slot mode requires an explicit slot.", nameof(slot));
+            if (destinationTsap is not null)
+                throw new ArgumentException(
+                    "Rack/Slot mode derives the destination TSAP and must not also provide an explicit destination TSAP.",
+                    nameof(destinationTsap));
+        }
+        else
+        {
+            if (destinationTsap is null)
+                throw new ArgumentException("Explicit TSAP mode requires a destination TSAP.", nameof(destinationTsap));
+            if (rack is not null || slot is not null)
+                throw new ArgumentException(
+                    "Explicit TSAP mode must not also provide Rack/Slot addressing.",
+                    rack is not null ? nameof(rack) : nameof(slot));
+        }
 
         Host = host.Trim();
         CpuFamily = cpuFamily;

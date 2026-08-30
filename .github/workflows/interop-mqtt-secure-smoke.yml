@@ -17,6 +17,9 @@ jobs:
   mqtt-secure-interop:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      NO_PROXY: mqtt-secure.local,mqtt-crl.local,127.0.0.1,localhost
+      no_proxy: mqtt-secure.local,mqtt-crl.local,127.0.0.1,localhost
 
     steps:
       - name: Checkout
@@ -27,58 +30,134 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Generate ephemeral lab CA, server certificate and password file
+      - name: Generate ephemeral CA, issued server certificate, CRL and password file
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p interop-lab/mqtt/tls
+          TLS_DIR="$PWD/interop-lab/mqtt/tls"
+          mkdir -p "$TLS_DIR/newcerts"
+          touch "$TLS_DIR/index.txt"
+          printf '1000\n' > "$TLS_DIR/serial"
+          printf '1000\n' > "$TLS_DIR/crlnumber"
+
           openssl req -x509 -newkey rsa:2048 -sha256 -days 1 -nodes \
-            -keyout interop-lab/mqtt/tls/ca.key \
-            -out interop-lab/mqtt/tls/ca.crt \
+            -keyout "$TLS_DIR/ca.key" \
+            -out "$TLS_DIR/ca.crt" \
             -subj '/CN=EliteSCADA MQTT Lab CA' \
             -addext 'basicConstraints=critical,CA:TRUE,pathlen:0' \
             -addext 'keyUsage=critical,keyCertSign,cRLSign' \
             -addext 'subjectKeyIdentifier=hash'
-          openssl req -newkey rsa:2048 -nodes \
-            -keyout interop-lab/mqtt/tls/server.key \
-            -out interop-lab/mqtt/tls/server.csr \
-            -subj '/CN=mqtt-secure.local'
-          cat > interop-lab/mqtt/tls/server.ext <<'EOF'
-          basicConstraints=critical,CA:FALSE
-          subjectAltName=IP:127.0.0.1,DNS:localhost,DNS:mqtt-secure.local
-          extendedKeyUsage=serverAuth
-          keyUsage=critical,digitalSignature,keyEncipherment
-          subjectKeyIdentifier=hash
-          authorityKeyIdentifier=keyid,issuer
-          EOF
-          openssl x509 -req \
-            -in interop-lab/mqtt/tls/server.csr \
-            -CA interop-lab/mqtt/tls/ca.crt \
-            -CAkey interop-lab/mqtt/tls/ca.key \
-            -CAcreateserial \
-            -out interop-lab/mqtt/tls/server.crt \
-            -days 1 -sha256 \
-            -extfile interop-lab/mqtt/tls/server.ext
-          docker run --rm \
-            -v "$PWD/interop-lab/mqtt/tls:/work" \
-            eclipse-mosquitto:2.1.2-alpine \
-            sh -c "mosquitto_passwd -b -c /work/passwords elitescada lab-secret && chmod 0644 /work/passwords"
-          chmod 0644 \
-            interop-lab/mqtt/tls/ca.crt \
-            interop-lab/mqtt/tls/server.crt \
-            interop-lab/mqtt/tls/server.key
 
-      - name: Trust ephemeral lab CA and bind lab DNS identity
+          cat > "$TLS_DIR/openssl.cnf" <<EOF
+          [ ca ]
+          default_ca = CA_default
+
+          [ CA_default ]
+          dir = $TLS_DIR
+          database = \$dir/index.txt
+          new_certs_dir = \$dir/newcerts
+          certificate = \$dir/ca.crt
+          private_key = \$dir/ca.key
+          serial = \$dir/serial
+          crlnumber = \$dir/crlnumber
+          default_md = sha256
+          default_days = 1
+          default_crl_days = 1
+          policy = policy_any
+          unique_subject = no
+          copy_extensions = none
+          x509_extensions = server_cert
+          crl_extensions = crl_ext
+
+          [ policy_any ]
+          commonName = supplied
+
+          [ server_cert ]
+          basicConstraints = critical,CA:FALSE
+          subjectAltName = @server_alt_names
+          extendedKeyUsage = serverAuth
+          keyUsage = critical,digitalSignature,keyEncipherment
+          subjectKeyIdentifier = hash
+          authorityKeyIdentifier = keyid,issuer
+          crlDistributionPoints = URI:http://mqtt-crl.local:18080/ca.crl
+
+          [ server_alt_names ]
+          IP.1 = 127.0.0.1
+          DNS.1 = localhost
+          DNS.2 = mqtt-secure.local
+
+          [ crl_ext ]
+          authorityKeyIdentifier = keyid:always
+          EOF
+
+          openssl req -newkey rsa:2048 -nodes \
+            -keyout "$TLS_DIR/server.key" \
+            -out "$TLS_DIR/server.csr" \
+            -subj '/CN=mqtt-secure.local'
+
+          openssl ca -batch \
+            -config "$TLS_DIR/openssl.cnf" \
+            -extensions server_cert \
+            -in "$TLS_DIR/server.csr" \
+            -out "$TLS_DIR/server.crt"
+
+          openssl ca \
+            -config "$TLS_DIR/openssl.cnf" \
+            -gencrl \
+            -out "$TLS_DIR/ca.crl.pem"
+          openssl crl \
+            -in "$TLS_DIR/ca.crl.pem" \
+            -outform DER \
+            -out "$TLS_DIR/ca.crl"
+
+          openssl verify \
+            -CAfile "$TLS_DIR/ca.crt" \
+            -purpose sslserver \
+            -verify_hostname mqtt-secure.local \
+            "$TLS_DIR/server.crt"
+          openssl crl -inform DER -in "$TLS_DIR/ca.crl" -noout -issuer -lastupdate -nextupdate
+
+          docker run --rm \
+            -v "$TLS_DIR:/work" \
+            eclipse-mosquitto:2.1.2-alpine \
+            sh -c "mosquitto_passwd -b -c /work/passwords elitescada lab-secret && chown mosquitto:mosquitto /work/passwords && chmod 0700 /work/passwords"
+
+          chmod 0644 \
+            "$TLS_DIR/ca.crt" \
+            "$TLS_DIR/server.crt" \
+            "$TLS_DIR/server.key" \
+            "$TLS_DIR/ca.crl"
+
+      - name: Trust ephemeral lab CA and bind lab identities
         shell: bash
         run: |
           sudo cp interop-lab/mqtt/tls/ca.crt /usr/local/share/ca-certificates/elitescada-mqtt-lab-ca.crt
           sudo update-ca-certificates
-          echo '127.0.0.1 mqtt-secure.local' | sudo tee -a /etc/hosts >/dev/null
+          printf '127.0.0.1 mqtt-secure.local mqtt-crl.local\n' | sudo tee -a /etc/hosts >/dev/null
           openssl verify \
             -CAfile /etc/ssl/certs/ca-certificates.crt \
             -purpose sslserver \
             -verify_hostname mqtt-secure.local \
             interop-lab/mqtt/tls/server.crt
+
+      - name: Start CRL distribution endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          nohup python3 -m http.server 18080 \
+            --bind 127.0.0.1 \
+            --directory interop-lab/mqtt/tls \
+            >/tmp/elitescada-mqtt-crl-http.log 2>&1 &
+          echo $! >/tmp/elitescada-mqtt-crl-http.pid
+          for attempt in {1..20}; do
+            if curl --noproxy '*' -fsS http://mqtt-crl.local:18080/ca.crl -o /tmp/elitescada-ca.crl; then
+              cmp /tmp/elitescada-ca.crl interop-lab/mqtt/tls/ca.crl
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/elitescada-mqtt-crl-http.log || true
+          exit 1
 
       - name: Validate secure Compose model
         working-directory: interop-lab
@@ -201,7 +280,15 @@ jobs:
         working-directory: interop-lab
         run: docker compose -f compose.mqtt-secure.yaml down -v --remove-orphans
 
-      - name: Remove ephemeral trust anchor
+      - name: Stop CRL distribution endpoint
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f /tmp/elitescada-mqtt-crl-http.pid ]]; then
+            sudo kill "$(cat /tmp/elitescada-mqtt-crl-http.pid)" 2>/dev/null || true
+          fi
+
+      - name: Remove ephemeral trust anchor and PKI material
         if: always()
         shell: bash
         run: |

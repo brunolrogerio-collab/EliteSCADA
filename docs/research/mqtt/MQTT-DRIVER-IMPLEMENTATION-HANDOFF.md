@@ -15,7 +15,7 @@ This document records the implementation state of the raw MQTT industrial driver
 - Acquisition is event-driven. MQTT messages update the canonical `ICurrentTagCache` directly and do not fabricate polling cycles.
 - Canonical TAG bindings use exact MQTT topic names. `+` and `#` wildcard filters are rejected for authoritative TAG identity.
 - QoS 0, 1 and 2 are supported for subscriptions and publishes. QoS is never converted into TAG quality.
-- Reconnect uses bounded exponential delay and deterministic resubscription.
+- Reconnect uses bounded exponential base delay plus a per-runtime jitter window of ±25%, clipped to the configured global minimum/maximum, followed by deterministic resubscription. The jitter remains effective when the exponential base reaches the maximum delay instead of phase-locking all clients at the ceiling.
 - Broker loss marks affected TAGs `BadCommunication` and moves communication diagnostics through reconnect/fault states.
 - Passive receive-side transport loss is counted as a failed communication operation and a disconnection even when the transport has already observed the socket/session as disconnected.
 - Driver lifecycle calls are serialized. Concurrent `StartAsync`, `StopAsync` and `DisposeAsync` cannot create overlapping runtime sessions or tear down the same session concurrently.
@@ -33,7 +33,7 @@ This document records the implementation state of the raw MQTT industrial driver
 - The MQTTnet inbound adapter uses a bounded channel with `FullMode.Wait`. Callback completion therefore applies backpressure instead of silently dropping newest/oldest telemetry or allowing an unbounded memory queue.
 - Inbound QoS 1/2 acknowledgement is deferred until the application message has been admitted to the bounded EliteSCADA transport queue. A canceled, rejected or oversized message is not acknowledged.
 - Writable TAGs publish through the normal driver write path and do not pretend that a successful MQTT publish means the remote process accepted the command.
-- Runtime diagnostics use `CommunicationDriverDiagnosticSnapshot`; scan interval, cycle count and scan duration remain absent/zero for the event-driven driver.
+- Runtime diagnostics use `CommunicationDriverDiagnosticSnapshot`; scan interval, cycle count and scan duration remain absent/zero for the event-driven driver. MQTT diagnostics also expose the fixed reconnect jitter percentage used by this runtime implementation.
 
 ## Payload mapping
 
@@ -72,14 +72,16 @@ The driver uses the existing public `DataSourceEngineeringDto.Settings` and `Sec
 | `username` | user name | optional, non-secret field |
 | `keepAliveSeconds` | keep-alive | 30 |
 | `connectTimeoutMilliseconds` | connection timeout | 10000 |
-| `reconnectMinimumMilliseconds` | initial reconnect delay | 1000 |
-| `reconnectMaximumMilliseconds` | maximum reconnect delay | 30000 |
+| `reconnectMinimumMilliseconds` | global minimum reconnect delay / exponential base start | 1000 |
+| `reconnectMaximumMilliseconds` | global maximum reconnect delay / exponential base ceiling | 30000 |
 | `mqtt311.cleanSession` | MQTT 3.1.1 session policy | `false` |
 | `mqtt5.cleanStart` | MQTT 5 Clean Start | `false` |
 | `mqtt5.sessionExpirySeconds` | MQTT 5 session expiry | 3600 |
 | `maximumInboundPayloadBytes` | inbound payload bound | 1048576 |
 | `maximumConsecutiveConnectFailures` | fault threshold | 5 |
 | `maximumBufferedMessages` | maximum queued inbound MQTT events | 4096; bounded 1..1000000 |
+
+The ±25% reconnect jitter is an internal runtime anti-herding policy, not a separately persisted Engineering field. Jitter is always clipped to the public minimum/maximum reconnect bounds, and a successful connection resets the exponential base to the configured minimum.
 
 Protocol-specific MQTT 3.1.1 and MQTT 5 settings are mutually validated. Configuration for the wrong protocol version fails before activation.
 
@@ -152,7 +154,7 @@ This protects the EliteSCADA application allocation boundary. MQTTnet necessaril
 
 The acknowledgement boundary for normal-sized messages is deliberately **queue admission**, not canonical TAG transaction completion. This avoids acknowledging messages that were discarded by local backpressure while still keeping MQTT protocol handling outside the TAG cache. A process failure after queue admission but before TAG processing can therefore still cause application-level replay/loss scenarios according to broker/session/QoS behavior. Packet identifiers are not treated as durable event identity and no deduplication is invented from them.
 
-The queue is bounded by message count and each individual payload is separately limited by `maximumInboundPayloadBytes`. This is deterministic per-message protection, but it is not a separate aggregate-byte memory quota; real burst validation is still required before choosing production capacities.
+The queue is bounded by message count and each individual payload is separately limited by `maximumInboundPayloadBytes`. This is deterministic per-message protection, but it is not a separate aggregate-byte memory quota. The opt-in broker contract now includes a 64-message QoS 1 burst against a queue capacity of 4 and requires every unique burst index to be observed after delayed drain; sustained-rate and shutdown-under-full-queue scenarios still require dedicated live validation.
 
 ## Engineering Import/Export
 
@@ -195,11 +197,12 @@ This keeps MQTTnet classes behind `IMqttClientTransport` and prevents the protoc
 - `MqttFreshnessAndBufferTests`
 - `MqttTransportSafetyTests`
 - `MqttLifecycleConcurrencyTests`
+- `MqttReconnectBackoffTests`
 - `MqttBrokerIntegrationTests`
 
-The deterministic tests cover exact-topic validation, typed payloads, strict UTC/offset timestamp parsing, canonical JSON array indices, JSON Pointer, retained semantics, malformed payload isolation, ambiguous DateTime write rejection, event-driven cache updates, writes, reconnect/resubscribe, permanent transport-fault behavior, Engineering compilation, public Import/Export fidelity, secret reference enforcement, runtime composition, credential zeroization, freshness expiration/recovery, separation of source-time age from receive freshness, stop/restart lifecycle, passive-disconnect diagnostics, bounded-buffer configuration limits, startup-token ownership, concurrent starts, caller-cancellation-safe shutdown and explicit-restart reconnect accounting.
+The deterministic tests cover exact-topic validation, typed payloads, strict UTC/offset timestamp parsing, canonical JSON array indices, JSON Pointer, retained semantics, malformed payload isolation, ambiguous DateTime write rejection, event-driven cache updates, writes, reconnect/resubscribe, permanent transport-fault behavior, Engineering compilation, public Import/Export fidelity, secret reference enforcement, runtime composition, credential zeroization, freshness expiration/recovery, separation of source-time age from receive freshness, stop/restart lifecycle, passive-disconnect diagnostics, bounded-buffer configuration limits, startup-token ownership, concurrent starts, caller-cancellation-safe shutdown, explicit-restart reconnect accounting, reconnect jitter bounds, deterministic seeded jitter sequences, continued jitter dispersion at the maximum backoff ceiling and overflow-safe backoff arithmetic.
 
-`MqttBrokerIntegrationTests` is an opt-in live-broker contract. When `ELITESCADA_MQTT_INTEGRATION_HOST` is configured it exercises the production MQTTnet adapter against MQTT 5.0 and/or 3.1.1, QoS 0/1/2 and retained delivery. Without that environment variable the test intentionally returns without opening the network and therefore does **not** constitute broker interoperability evidence. The reproducible procedure and environment-variable contract are documented in `docs/research/mqtt/MQTT-BROKER-VALIDATION.md`.
+`MqttBrokerIntegrationTests` is an opt-in live-broker contract. When `ELITESCADA_MQTT_INTEGRATION_HOST` is configured it exercises the production MQTTnet adapter against MQTT 5.0 and/or 3.1.1, QoS 0/1/2, retained delivery and a bounded-buffer burst larger than the local application queue. The burst assertion tolerates legitimate QoS 1 duplicates while requiring every unique published index to be observed. Without that environment variable the tests intentionally return without opening the network and therefore do **not** constitute broker interoperability evidence. The reproducible procedure and environment-variable contract are documented in `docs/research/mqtt/MQTT-BROKER-VALIDATION.md`.
 
 The current execution environment does not contain the .NET 10 SDK or a local MQTT broker, so neither the deterministic suite nor the live broker contract has been executed here. GitHub Actions should not be spent merely as reassurance CI; run the focused suite when Coordinator integration or a justified driver validation run is scheduled.
 
@@ -228,7 +231,7 @@ The common activation policy needs a protocol-neutral readiness contract that ca
 
 ## Validation still required
 
-Before production integration, validate with at least two independent broker implementations where practical. The opt-in broker contract now automates the basic protocol/QoS/retained matrix, but no live result has been recorded yet.
+Before production integration, validate with at least two independent broker implementations where practical. The opt-in broker contract now automates the basic protocol/QoS/retained matrix and a bounded burst larger than the application queue, but no live result has been recorded yet.
 
 1. Eclipse Mosquitto
    - run `MqttBrokerIntegrationTests` for MQTT 5 and 3.1.1;
@@ -236,21 +239,22 @@ Before production integration, validate with at least two independent broker imp
    - username/password authentication;
    - QoS 0/1/2;
    - retained messages;
+   - bounded-queue burst recovery;
    - persistent session reconnect;
    - broker restart and network interruption;
    - malformed and oversized payload behavior, including confirmation that oversized payloads fault without an EliteSCADA application payload copy;
    - oversized retained QoS 1/2 behavior and broker redelivery after operator remediation/restart;
-   - burst traffic above configured inbound capacity to verify bounded backpressure and shutdown behavior;
+   - sustained high-rate traffic and shutdown while the bounded inbound queue is full;
    - QoS 1/2 redelivery when bounded queue admission is interrupted before acknowledgement;
    - freshness timeout and recovery under real broker traffic.
 
 2. Independent implementation such as HiveMQ Community Edition
-   - run the same basic live broker contract;
+   - run the same live broker contract;
    - connection/session interoperability;
    - subscription and publish acknowledgements;
    - QoS and retained interoperability;
    - TLS hostname/chain failures;
-   - sustained burst/backpressure interoperability;
+   - bounded-burst and sustained backpressure interoperability;
    - oversized-payload policy interoperability;
    - deferred QoS acknowledgement during broker disconnect/reconnect.
 

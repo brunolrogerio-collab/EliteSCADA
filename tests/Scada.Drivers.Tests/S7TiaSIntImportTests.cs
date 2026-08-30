@@ -28,8 +28,7 @@ public sealed class S7TiaSIntImportTests
         Assert.Equal("Supported", candidate.Metadata!["supportStatus"]);
         Assert.DoesNotContain(candidate.Issues ?? Array.Empty<DriverEngineeringIssue>(), issue =>
             issue.Code == "S7_TIA_DATATYPE_UNSUPPORTED");
-        Assert.StartsWith("s7iso:v2;", candidate.PortableAddress);
-        Assert.True(S7IsoCommunicationBindingSchemaV2.TryParsePortableAddress(candidate.PortableAddress, out var binding, out var error), error);
+        Assert.True(S7IsoTagBinding.TryParsePortableAddress(candidate.PortableAddress, out var binding, out var error), error);
         Assert.Equal(S7IsoValueType.SInt, binding!.ValueType);
         Assert.Equal(S7IsoArea.Merker, binding.Area);
         Assert.Equal(4, binding.ByteOffset);
@@ -52,8 +51,7 @@ public sealed class S7TiaSIntImportTests
         var good = Assert.Single(candidates, candidate => candidate.DisplayName == "SignedByte");
         var wrong = Assert.Single(candidates, candidate => candidate.DisplayName == "WrongWidth");
         Assert.True(good.IsReadable);
-        Assert.StartsWith("s7iso:v2;", good.PortableAddress);
-        Assert.True(S7IsoCommunicationBindingSchemaV2.TryParsePortableAddress(good.PortableAddress, out var binding, out var error), error);
+        Assert.True(S7IsoTagBinding.TryParsePortableAddress(good.PortableAddress, out var binding, out var error), error);
         Assert.Equal(S7IsoValueType.SInt, binding!.ValueType);
         Assert.False(wrong.IsReadable);
         Assert.Contains(wrong.Issues!, issue => issue.Code == "S7_TIA_ADDRESS_WIDTH_MISMATCH");
@@ -70,8 +68,7 @@ public sealed class S7TiaSIntImportTests
         Assert.True(candidate.IsReadable);
         Assert.True(candidate.IsWritable);
         Assert.Equal(TagDataType.Int16, candidate.SuggestedDataType);
-        Assert.StartsWith("s7iso:v2;", candidate.PortableAddress);
-        Assert.True(S7IsoCommunicationBindingSchemaV2.TryParsePortableAddress(candidate.PortableAddress, out var binding, out var error), error);
+        Assert.True(S7IsoTagBinding.TryParsePortableAddress(candidate.PortableAddress, out var binding, out var error), error);
         Assert.Equal(S7IsoValueType.SInt, binding!.ValueType);
         Assert.Equal(4, binding.ByteOffset);
     }

@@ -767,9 +767,8 @@ public sealed class MqttDriver : ICommunicationDriver, ICommunicationDiagnostics
             _failedOperations++;
             _consecutiveFailures++;
             _lastFailedCommunicationAt = now;
+            _lastError = SanitizeError(error);
         }
-
-        _lastError = success ? null : SanitizeError(error);
     }
 
     private void RecordFailureOnly(Exception error)

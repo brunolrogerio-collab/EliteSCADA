@@ -97,9 +97,9 @@ test('mounted Events editor persists click and canonical timer/TAG-bit associati
     const editor = page.getByTestId('visual-events-editor');
     await expect(editor).toBeVisible();
 
-    await editor.getByLabel('Event', { exact: true }).selectOption({ label: 'Click' });
-    await editor.getByLabel('Script', { exact: true }).selectOption(script.id);
-    await editor.getByLabel('Entry point', { exact: true }).selectOption('on_click');
+    await editor.getByTestId('visual-events-event').selectOption('click');
+    await editor.getByTestId('visual-events-script').selectOption(script.id);
+    await editor.getByTestId('visual-events-entry-point').selectOption('on_click');
     await previewAndApply(editor);
 
     const clickReference = (await loadVisualReferences(request)).find(reference =>

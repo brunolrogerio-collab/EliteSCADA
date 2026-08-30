@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text;
 using MQTTnet;
 using MQTTnet.Diagnostics.PacketInspection;
@@ -14,12 +15,7 @@ public sealed class MqttTransportGenerationTests
     {
         var client = new FakeMqttClient();
         await using var transport = new MqttNetClientTransport(new MqttClientFactory(), client);
-        var settings = new MqttConnectionSettings(
-            "broker.local",
-            1883,
-            UseTls: false,
-            ClientId: "elite-session-generation",
-            MaximumBufferedMessages: 4);
+        var settings = CreateSettings();
 
         using (var credentials = MqttResolvedCredentials.None)
             await transport.ConnectAsync(settings, credentials);
@@ -59,6 +55,52 @@ public sealed class MqttTransportGenerationTests
         Assert.Equal("current", Encoding.UTF8.GetString(received.Payload.Span));
     }
 
+    [Fact]
+    public async Task StaleDisconnectCallbackFromPriorSessionCannotPoisonReconnectedQueue()
+    {
+        var client = new FakeMqttClient();
+        await using var transport = new MqttNetClientTransport(new MqttClientFactory(), client);
+        var settings = CreateSettings();
+
+        using (var credentials = MqttResolvedCredentials.None)
+            await transport.ConnectAsync(settings, credentials);
+
+        var staleDisconnectHandler = Assert.Single(client.DisconnectedHandlers);
+
+        await transport.DisconnectAsync();
+        Assert.Empty(client.DisconnectedHandlers);
+
+        using (var credentials = MqttResolvedCredentials.None)
+            await transport.ConnectAsync(settings, credentials);
+
+        var currentMessageHandler = Assert.Single(client.ApplicationMessageHandlers);
+        var currentAcknowledgements = 0;
+        var currentArgs = CreateApplicationMessageArgs(
+            settings.ClientId,
+            "current-after-stale-disconnect",
+            () => Interlocked.Increment(ref currentAcknowledgements));
+
+        // Only session identity matters here. A stale generation must return before
+        // any disconnect details are inspected or an error is admitted to the queue.
+        var staleDisconnectArgs = (MqttClientDisconnectedEventArgs)RuntimeHelpers.GetUninitializedObject(
+            typeof(MqttClientDisconnectedEventArgs));
+        await staleDisconnectHandler(staleDisconnectArgs);
+        await currentMessageHandler(currentArgs);
+
+        var received = await transport.ReceiveAsync();
+
+        Assert.True(transport.IsConnected);
+        Assert.Equal(1, currentAcknowledgements);
+        Assert.Equal("current-after-stale-disconnect", Encoding.UTF8.GetString(received.Payload.Span));
+    }
+
+    private static MqttConnectionSettings CreateSettings() => new(
+        "broker.local",
+        1883,
+        UseTls: false,
+        ClientId: "elite-session-generation",
+        MaximumBufferedMessages: 4);
+
     private static MqttApplicationMessageReceivedEventArgs CreateApplicationMessageArgs(
         string clientId,
         string payload,
@@ -92,6 +134,7 @@ public sealed class MqttTransportGenerationTests
     private sealed class FakeMqttClient : IMqttClient
     {
         private Func<MqttApplicationMessageReceivedEventArgs, Task>? _applicationMessageReceivedAsync;
+        private Func<MqttClientDisconnectedEventArgs, Task>? _disconnectedAsync;
         private MqttClientOptions? _options;
 
         public event Func<MqttApplicationMessageReceivedEventArgs, Task> ApplicationMessageReceivedAsync
@@ -114,8 +157,8 @@ public sealed class MqttTransportGenerationTests
 
         public event Func<MqttClientDisconnectedEventArgs, Task> DisconnectedAsync
         {
-            add { }
-            remove { }
+            add => _disconnectedAsync += value;
+            remove => _disconnectedAsync -= value;
         }
 
         public event Func<InspectMqttPacketEventArgs, Task> InspectPacketAsync
@@ -131,6 +174,11 @@ public sealed class MqttTransportGenerationTests
         public IReadOnlyList<Func<MqttApplicationMessageReceivedEventArgs, Task>> ApplicationMessageHandlers =>
             _applicationMessageReceivedAsync?.GetInvocationList()
                 .Cast<Func<MqttApplicationMessageReceivedEventArgs, Task>>()
+                .ToArray() ?? [];
+
+        public IReadOnlyList<Func<MqttClientDisconnectedEventArgs, Task>> DisconnectedHandlers =>
+            _disconnectedAsync?.GetInvocationList()
+                .Cast<Func<MqttClientDisconnectedEventArgs, Task>>()
                 .ToArray() ?? [];
 
         public Task<MqttClientConnectResult> ConnectAsync(
@@ -182,6 +230,7 @@ public sealed class MqttTransportGenerationTests
         {
             IsConnected = false;
             _applicationMessageReceivedAsync = null;
+            _disconnectedAsync = null;
         }
     }
 }

@@ -110,7 +110,7 @@ public sealed class MqttLiveFreshnessIntegrationTests
             var staleDiagnostics = driver.GetCommunicationDiagnostics();
             Assert.Equal(CommunicationDriverOperationalState.Healthy, staleDiagnostics.State);
             Assert.Equal(MqttReadinessState.Ready, driver.GetMqttReadiness().State);
-            Assert.Equal(1, staleDiagnostics.Quality.Stale);
+            Assert.Equal(1, staleDiagnostics.TagQuality.Stale);
             Assert.Equal("1", staleDiagnostics.ProtocolDetails!["freshnessPointCount"]);
             Assert.True(
                 long.Parse(staleDiagnostics.ProtocolDetails["freshnessTransitions"], CultureInfo.InvariantCulture) >= 1);
@@ -212,14 +212,19 @@ public sealed class MqttLiveFreshnessIntegrationTests
         CancellationToken cancellationToken,
         string failureMessage)
     {
-        while (!cancellationToken.IsCancellationRequested)
+        try
         {
-            if (predicate())
-                return;
+            while (true)
+            {
+                if (predicate())
+                    return;
 
-            await Task.Delay(10, cancellationToken);
+                await Task.Delay(10, cancellationToken);
+            }
         }
-
-        Assert.True(predicate(), failureMessage);
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            Assert.True(predicate(), failureMessage);
+        }
     }
 }

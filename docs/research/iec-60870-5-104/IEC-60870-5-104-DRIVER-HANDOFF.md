@@ -78,94 +78,227 @@ Current default session options:
 - T1: 15 seconds;
 - T2: 10 seconds;
 - T3: 20 seconds;
-- k: 12;
-- w: 8.
+- K: 12;
+- W: 8.
 
-Validation requires `T2 < T1`, valid positive timers and valid IEC sequence/window ranges.
+Validation enforces `T2 < T1` and sane positive values.
 
-Reconnect uses a deterministic backoff policy. The research contract recommends 1, 2, 5, 10 and 30 second delays capped at 30 seconds. A fresh session performs STARTDT and GI. Operational commands are never automatically replayed after a failed session.
+### 2.3 Reconnect
 
-### 2.3 First-release monitored Type IDs
+Reconnect delays are deterministic and bounded:
 
-Implemented monitored indication matrix:
+`1 s, 2 s, 5 s, 10 s, 30 s`, then 30-second cap.
 
-| IEC Type | Type ID | EliteSCADA value |
-|---|---:|---|
-| `M_SP_NA_1` | 1 | Boolean |
-| `M_DP_NA_1` | 3 | Enum / four double-point states |
-| `M_BO_NA_1` | 7 | Int32 bitstring |
-| `M_ME_NA_1` | 9 | Float normalized value |
-| `M_ME_NB_1` | 11 | Int16 |
-| `M_ME_NC_1` | 13 | Float |
-| `M_SP_TB_1` | 30 | Boolean + CP56Time2a |
-| `M_DP_TB_1` | 31 | Enum + CP56Time2a |
-| `M_BO_TB_1` | 33 | Int32 bitstring + CP56Time2a |
-| `M_ME_TD_1` | 34 | Float normalized value + CP56Time2a |
-| `M_ME_TE_1` | 35 | Int16 + CP56Time2a |
-| `M_ME_TF_1` | 36 | Float + CP56Time2a |
+Cancellation interrupts the delay. The backoff resets after a stable successful session.
 
-`M_ST_*` step position and `M_IT_*` integrated totals/BCR are deferred pending canonical representation decisions.
+Each fresh session performs STARTDT and new General Interrogation bootstrap. Operational commands are **never queued for replay across reconnect**.
 
-Sequential (`SQ=1`) and explicit (`SQ=0`) object addressing are supported for the monitored matrix. Sequential IOA overflow beyond 24 bits is rejected rather than wrapped.
+---
 
-Unknown/unsupported Type IDs are not converted into process updates or Engineering candidates.
+## 3. APCI/TCP implementation
 
-### 2.4 General Interrogation
+Key files:
 
-GI uses `C_IC_NA_1`, Cause of Transmission Activation and QOI 20 per configured Common Address.
+- `Iec104Apci.cs`
+- `Iec104SequenceState.cs`
+- `Iec104SessionPrimitives.cs`
+- `Iec104TcpClientAdapter.cs`
+- `Iec104TransportDiagnostics.cs`
+- `Iec104TransmissionException.cs`
 
-The GI state machine tracks activation confirmation, GI data and activation termination per CA. Incomplete or rejected GI remains visible to Engineering reconciliation so absence is not falsely promoted to a definitive Missing result.
+Implemented behavior:
 
-TEST-marked GI control traffic does not advance a real operational GI transaction.
+- strict I/S/U frame parsing and serialization;
+- 15-bit sequence arithmetic modulo 32768;
+- send-window reservation;
+- peer acknowledgement validation;
+- receive sequence validation;
+- STARTDT/STOPDT/TESTFR U-function handling;
+- TCP `NoDelay`;
+- one active ASDU reader per session;
+- bounded incoming queue (1024 ASDUs);
+- fail closed rather than silently dropping process data if queue admission cannot proceed safely;
+- T1 supervision of outstanding I-frames;
+- T2 delayed S-frame acknowledgement;
+- T3 TESTFR supervision;
+- session failure propagation;
+- protocol-error versus transport/session-error diagnostics;
+- no sequence rollback/reuse after transmission ambiguity.
 
-### 2.5 Quality mapping
+### 3.1 Ambiguous write boundary
 
-Current precedence is:
+An I-format send reserves `N(S)` before writing the APDU. Once that sequence is reserved, a write failure cannot prove whether the peer received zero, some, or all of the frame.
 
-1. communication/session loss -> `BadCommunication` through the future owning-provider/common runtime path;
-2. IEC IV process-quality bit -> `BadDevice`;
-3. IEC NT -> `Stale`;
-4. SB / BL / OV -> `Uncertain`;
-5. semantic uncertainty, such as indeterminate double-point state or non-finite short float -> `Uncertain` when no higher-priority quality applies;
-6. healthy process value -> `Good`;
-7. binding/type mismatch in the future public driver -> `BadConfiguration`;
-8. disabled TAG -> `Disabled`.
+The concrete adapter therefore wraps failures after reservation in `Iec104AmbiguousTransmissionException` and faults the session. The sequence is not rolled back and the window slot is not reused within the failed session.
 
-For `M_ME_NC_1` / `M_ME_TF_1`, IEEE-754 `NaN` and positive/negative Infinity are preserved as values but downgraded to `Uncertain`. An IEC IV quality bit still outranks semantic uncertainty and maps to `BadDevice`.
+The command coordinator maps this condition to the explicit `Ambiguous` outcome and reconnect never replays the command automatically.
 
-### 2.6 CP56Time2a
+A deterministic coordinator-seam test exists. A deterministic real-socket test that forces `NetworkStream.WriteAsync` to fail at the precise post-reservation/pre-confirmation boundary remains desirable, but must not rely on timing races.
+
+---
+
+## 4. General Interrogation
+
+Implemented GI contract:
+
+- Type: `C_IC_NA_1`;
+- Cause: Activation;
+- IOA: 0;
+- QOI: 20 (station interrogation);
+- performed per configured Common Address;
+- positive ACT_CON begins collection;
+- data follows normal monitored decode path;
+- ACT_TERM completes that CA transaction;
+- negative confirmation becomes rejected;
+- COT TEST responses do not advance the operational GI transaction.
+
+Reconnect starts a fresh GI cycle.
+
+---
+
+## 5. Supported monitored ASDUs
+
+First-release monitored matrix:
+
+| Type ID | IEC name | EliteSCADA value |
+|---:|---|---|
+| 1 | `M_SP_NA_1` | Boolean |
+| 30 | `M_SP_TB_1` | Boolean + CP56 |
+| 3 | `M_DP_NA_1` | four-state enum |
+| 31 | `M_DP_TB_1` | four-state enum + CP56 |
+| 7 | `M_BO_NA_1` | Int32 bitstring |
+| 33 | `M_BO_TB_1` | Int32 bitstring + CP56 |
+| 9 | `M_ME_NA_1` | normalized Float |
+| 34 | `M_ME_TD_1` | normalized Float + CP56 |
+| 11 | `M_ME_NB_1` | Int16 |
+| 35 | `M_ME_TE_1` | Int16 + CP56 |
+| 13 | `M_ME_NC_1` | Float |
+| 36 | `M_ME_TF_1` | Float + CP56 |
+
+Both SQ=0 and SQ=1 layouts are supported. SQ=1 addressing is checked for 24-bit IOA overflow.
+
+`M_ST_*` and `M_IT_*` are deliberately deferred pending shared semantic decisions.
+
+### 5.1 Normalized values
+
+`M_ME_NA_1/M_ME_TD_1` decode signed Int16 raw values to Float using:
+
+`raw / 32768f`
+
+### 5.2 Short float non-finite policy
+
+For `M_ME_NC_1/M_ME_TF_1`, IEEE-754 NaN and positive/negative Infinity are preserved as the received Float value, but semantic quality becomes `Uncertain` unless the IEC quality descriptor already maps to a worse canonical quality.
+
+This prevents a hostile/nonconforming-but-representable float from appearing with `Good` quality without unnecessarily terminating the whole IEC-104 session.
+
+---
+
+## 6. Point identity
+
+Portable/transient IEC address syntax:
+
+`ca=<CommonAddress>;ioa=<InformationObjectAddress>`
+
+Current portable address supports:
+
+- CA 0..65535;
+- IOA 0..16777215;
+- tolerant ordering/case/whitespace while parsing;
+- rejection of duplicate keys and unknown keys.
+
+This address intentionally does **not** represent the future full persisted binding contract. A canonical runtime binding also needs semantic family/type expectations and command profile information.
+
+---
+
+## 7. Cause of Transmission
+
+COT parsing includes:
+
+- cause code;
+- positive/negative confirmation bit;
+- TEST bit;
+- Originator Address when using 2-byte COT.
+
+COT TEST isolation is enforced across:
+
+- operational commands;
+- GI control progression;
+- runtime monitored telemetry;
+- Engineering observation candidates.
+
+TEST-marked operational-looking traffic therefore cannot accidentally satisfy a real command/GI transaction or become live process telemetry.
+
+---
+
+## 8. CP56Time2a
 
 `TagValue.Timestamp` remains the EliteSCADA arrival/publication time.
 
-A valid CP56Time2a becomes `SourceTimestamp` using the configured station timezone. Invalid CP56 evidence does not fabricate a source timestamp.
+A valid CP56Time2a becomes `SourceTimestamp` using the configured station timezone.
 
-Authoritative errata for the research document:
+Important corrected contract from the research errata:
 
-- minute bit 7 is IV;
-- hour bit 7 is SU;
-- CP56Time2a has no substituted-time flag;
-- SU alone does not lower TAG quality;
-- SB remains a process-value quality flag in SIQ/DIQ/QDS and maps to `Uncertain`.
+- minute bit 7 = IV (invalid time);
+- hour bit 7 = SU (summer-time/daylight-saving indication);
+- CP56 has no substituted-time flag;
+- SU alone does not lower process quality;
+- IV suppresses `SourceTimestamp` rather than fabricating a timestamp;
+- process-value SB remains a separate SIQ/DIQ/QDS quality bit.
 
-### 2.7 Command support
+---
 
-Implemented command Type IDs:
+## 9. Quality mapping
 
-| IEC Type | Type ID | Initial support |
-|---|---:|---|
-| `C_SC_NA_1` | 45 | Single command |
-| `C_DC_NA_1` | 46 | Double command |
-| `C_SE_NA_1` | 48 | Normalized setpoint |
-| `C_SE_NB_1` | 49 | Scaled setpoint |
-| `C_SE_NC_1` | 50 | Short-float setpoint |
+Current mapping precedence:
 
-Time-tagged command variants are deferred.
+- transport/session communication failure -> `BadCommunication` through the future owning public-driver path;
+- IEC IV -> `BadDevice`;
+- IEC NT -> `Stale`;
+- IEC SB/BL/OV -> `Uncertain`;
+- semantic uncertainty (for example indeterminate double point or non-finite short float) -> `Uncertain` when no stronger IEC quality applies;
+- healthy value -> `Good`;
+- binding/type mismatch -> future public path `BadConfiguration`;
+- disabled binding -> future public path `Disabled`.
 
-Both Direct Operate and Select-Before-Operate are implemented. SBO requires successful selection confirmation before execute is sent.
+Public bound-TAG communication quality is Coordinator-gated because the final persisted/public driver integration does not yet exist on this parked branch.
 
-Command responses are correlated using Type ID, Common Address, Originator Address, IOA, request payload/select semantics and Cause of Transmission. TEST-marked command responses cannot satisfy a real operational command.
+---
 
-Public result vocabulary on this branch:
+## 10. Supported commands
+
+First-release command matrix:
+
+| Type ID | IEC name | Operation |
+|---:|---|---|
+| 45 | `C_SC_NA_1` | single command |
+| 46 | `C_DC_NA_1` | double command |
+| 48 | `C_SE_NA_1` | normalized setpoint |
+| 49 | `C_SE_NB_1` | scaled setpoint |
+| 50 | `C_SE_NC_1` | short-float setpoint |
+
+Modes:
+
+- Direct Operate;
+- Select-Before-Operate.
+
+Time-tagged control commands are deferred.
+
+### 10.1 Correlation
+
+Command responses correlate on:
+
+- Type ID;
+- Common Address;
+- Originator Address;
+- IOA;
+- encoded value/qualifier semantics;
+- select/execute state.
+
+TEST-marked command confirmation does not advance an operational transaction.
+
+### 10.2 Safety outcomes
+
+Public Driver 06 internal command outcomes:
 
 - `Accepted`;
 - `Completed`;
@@ -174,485 +307,545 @@ Public result vocabulary on this branch:
 - `Ambiguous`;
 - `Cancelled`.
 
-A write failure after the transport has reserved an I-frame sequence number is surfaced as `Iec104AmbiguousTransmissionException`. The caller must not infer that the controlled station did not receive or execute the command.
+Notable rules:
 
-Commands transmitted before a session loss are never replayed on the next connection.
-
----
-
-## 3. Engineering surface delivered
-
-The branch provides a unified private Engineering surface implementing the existing common feature interfaces without changing common contracts.
-
-### 3.1 Connection test
-
-`Iec104EngineeringConnectionTester` validates configuration, opens TCP, performs STARTDT, records available transport evidence, then performs STOPDT/disconnect best effort.
-
-Current Data Source fields include:
-
-- host;
-- port;
-- comma-separated Common Addresses;
-- station timezone;
-- Originator Address;
-- T0/T1/T2/T3;
-- k/w.
-
-`TagBindingFields` is intentionally empty until the Coordinator approves a rich IEC-104 binding schema.
-
-### 3.2 Bounded Observe/GI browse
-
-IEC-104 does not expose a generic standard station-wide metadata browse comparable to OPC UA browse.
-
-The implemented Engineering browser therefore performs bounded Observe+GI candidate capture and always reports partial evidence. It does not claim complete topology discovery.
-
-Candidate identity is represented portably as:
-
-`ca=<0..65535>;ioa=<0..16777215>`
-
-Candidates contain observed Type IDs, suggested canonical data type, last observed value/quality/source timestamp/COT, observation count and type-conflict evidence.
-
-TEST-marked process ASDUs are ignored and never become Engineering candidates.
-
-No candidate is persisted or applied automatically.
-
-### 3.3 Reconcile
-
-Reconciliation is CA+IOA only at this stage because the future persisted binding schema does not yet contain semantic family/command profile.
-
-Outcomes:
-
-- invalid portable address -> Error;
-- unconfigured CA -> Unsupported;
-- observed point with compatible evidence -> Unchanged;
-- observed type conflict -> Ambiguous;
-- absent while GI evidence is incomplete/rejected/truncated -> Ambiguous;
-- absent after complete configured GI without truncation -> Missing.
-
-Reconcile performs no canonical mutation.
-
-### 3.4 CSV point-list import/export
-
-The protocol-local CSV shape is:
-
-`commonAddress,informationObjectAddress,typeId,displayName`
-
-Import accepts the first-release monitored matrix only. Command Type IDs are rejected from monitored point-list import.
-
-Resource bounds are enforced by default:
-
-- maximum rows: 100,000, hard cap 1,000,000;
-- maximum physical line length: 65,536 characters, hard cap 1,048,576;
-- maximum file bytes: 16 MiB, hard cap 256 MiB;
-- source line metadata retains the first 64 source-line numbers per collapsed point.
-
-The byte limit is enforced for seekable and non-seekable streams.
-
-Importer grouping is performed while reading instead of buffering every CSV row.
-
-The exporter is protocol-local because the current common Engineering contracts do not expose a generic driver file-export interface. Export is deterministic by CA/IOA/Type ID and deliberately rejects CR/LF in display names because the importer is physical-line-oriented and does not support multiline CSV records.
+- missing ACT_CON after execute is `Ambiguous`, not a safe timeout;
+- disconnect after positive ACT_CON but before ACT_TERM is `Ambiguous` with accepted state retained;
+- selection timeout/rejection/cancellation before execute is safe and does not transmit physical execute;
+- same CA+IOA allows only one in-flight command;
+- global command concurrency is bounded;
+- overload rejects instead of silently queueing controls;
+- reconnect does not replay commands.
 
 ---
 
-## 4. Diagnostics delivered
+## 11. Managed client
 
-The private diagnostics surface captures transport/session/protocol evidence including:
+`Iec104ManagedClient` owns the long-lived reconnect lifecycle.
 
-- TCP connected/data-transfer state;
-- N(S), oldest unacknowledged send sequence and expected receive sequence;
+Each reconnect uses a fresh adapter/session. This is intentional: a failed session does not attempt to resurrect or continue the previous sequence domain.
+
+Managed diagnostics retain reconnect/failure and command outcome information while allowing current transport diagnostics to be absent between sessions.
+
+---
+
+## 12. Diagnostics
+
+The private transport diagnostics include:
+
+- connected/data-transfer state;
+- next send sequence;
+- oldest unacknowledged send sequence;
+- expected receive sequence;
 - unacknowledged send count;
 - pending receive acknowledgement count;
-- connection/disconnection counters;
-- I/S/U sent/received counters;
-- ASDU sent/received counters;
+- connection/disconnection counts;
+- I/S/U sent/received counts;
+- ASDU sent/received counts;
 - STARTDT/STOPDT/TESTFR counters;
-- T0/T1/T2/T3 events;
-- protocol errors and session failures;
-- sanitized last failure;
-- last activity/frame timestamps;
-- reconnect/session state;
-- GI state;
-- observed point updates;
-- ignored TEST process ASDUs;
-- command requested/outcome counters;
-- current active transport snapshot where available.
+- T0/T1/T2/T3 counters;
+- protocol errors;
+- session failures;
+- bounded/sanitized last-failure message;
+- activity/send/receive timestamps.
 
-Receive buffering is bounded at 1024 ASDUs. Overflow closes the session with an explicit protocol failure instead of dropping process data silently.
+Managed diagnostics add reconnect/session/command-level information and COT TEST isolation evidence.
 
-Diagnostics intentionally avoid raw payload capture, secrets and unbounded per-point metric labels.
+Raw APDU/ASDU payloads are not copied into diagnostic strings.
 
 ---
 
-## 5. Exact implementation files
+## 13. Engineering connection test
 
-### 5.1 Research / validation documents
+`Iec104EngineeringConnectionTester` implements the common `ICommunicationDriverConnectionTester` contract.
 
-- `docs/research/iec-60870-5-104/IEC-60870-5-104-RESEARCH.md`
-- `docs/research/iec-60870-5-104/IEC-60870-5-104-RESEARCH-ERRATA.md`
-- `docs/research/iec-60870-5-104/IEC-60870-5-104-ACCEPTANCE-AND-INTEROPERABILITY.md`
-- `docs/research/iec-60870-5-104/IEC-60870-5-104-DRIVER-HANDOFF.md`
+Descriptor includes:
 
-### 5.2 Driver source files
+- driver type `iec60870.5.104`;
+- runtime capabilities Read, Write, Subscribe, Diagnostics, SourceTimestamp;
+- Engineering ConnectionTest;
+- EventDriven/Hybrid acquisition;
+- Data Source fields for host, port, Common Addresses, station timezone, OA, timers and K/W.
 
-- `src/Scada.Drivers/Iec60870/IIec104ClientAdapter.cs`
-- `src/Scada.Drivers/Iec60870/Iec104Apci.cs`
-- `src/Scada.Drivers/Iec60870/Iec104AsduPrimitives.cs`
-- `src/Scada.Drivers/Iec60870/Iec104ClientSessionRunner.cs`
-- `src/Scada.Drivers/Iec60870/Iec104CommandCoordinator.cs`
-- `src/Scada.Drivers/Iec60870/Iec104CommandTransaction.cs`
-- `src/Scada.Drivers/Iec60870/Iec104Cp56Time2a.cs`
-- `src/Scada.Drivers/Iec60870/Iec104Diagnostics.cs`
-- `src/Scada.Drivers/Iec60870/Iec104EngineeringConnectionTester.cs`
-- `src/Scada.Drivers/Iec60870/Iec104EngineeringProvider.cs`
-- `src/Scada.Drivers/Iec60870/Iec104EngineeringReconciler.cs`
-- `src/Scada.Drivers/Iec60870/Iec104EngineeringServices.cs`
-- `src/Scada.Drivers/Iec60870/Iec104GeneralInterrogation.cs`
-- `src/Scada.Drivers/Iec60870/Iec104InformationObjectDecoder.cs`
-- `src/Scada.Drivers/Iec60870/Iec104ManagedClient.cs`
-- `src/Scada.Drivers/Iec60870/Iec104ObservationCollector.cs`
-- `src/Scada.Drivers/Iec60870/Iec104PointListExporter.cs`
-- `src/Scada.Drivers/Iec60870/Iec104PointListImporter.cs`
-- `src/Scada.Drivers/Iec60870/Iec104PortablePointAddress.cs`
-- `src/Scada.Drivers/Iec60870/Iec104Reconnect.cs`
-- `src/Scada.Drivers/Iec60870/Iec104SequenceState.cs`
-- `src/Scada.Drivers/Iec60870/Iec104SessionPrimitives.cs`
-- `src/Scada.Drivers/Iec60870/Iec104TcpClientAdapter.cs`
-- `src/Scada.Drivers/Iec60870/Iec104TransmissionException.cs`
-- `src/Scada.Drivers/Iec60870/Iec104TransportDiagnostics.cs`
+The connection test:
 
-### 5.3 Test files
+1. validates Data Source settings;
+2. connects TCP;
+3. performs STARTDT;
+4. records transport information when available;
+5. performs STOPDT;
+6. disconnects.
 
-- `tests/Scada.Drivers.Tests/Iec104ApciCodecTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104AsduPrimitivesTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104ClientSessionRunnerTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104CommandCoordinatorTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104CommandTransactionTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104CommandTransmissionAmbiguityTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104Cp56Time2aTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104DiagnosticsTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104EngineeringConnectionTesterTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104EngineeringProviderTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104EngineeringReconcilerTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104EngineeringServicesTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104GeneralInterrogationTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104InformationObjectDecoderTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104ManagedClientTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104ManagedInflightCommandReconnectTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104ManagedTestCotDiagnosticsTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104NonFiniteShortFloatTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104ObservationCollectorTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104PointListExporterTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104PointListImporterBoundsTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104PointListImporterTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104PortablePointAddressTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104ProtocolConformanceTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104ReceiveQueueBoundsTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104ReconnectTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104SequenceStateTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104SessionCommandRoutingTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104SessionPrimitivesTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104TcpClientAdapterTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104TcpFaultInjectionTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104TestCotIsolationTests.cs`
-- `tests/Scada.Drivers.Tests/Iec104UnsupportedAsduIsolationTests.cs`
+It is diagnostic/Engineering evidence and does not become runtime authority.
 
-No common/core/mainline file was modified to implement the IEC-104 feature set.
+`TagBindingFields` remains intentionally empty pending the coordinated rich binding design.
 
 ---
 
-## 6. Automated tests and current evidence
+## 14. Engineering bounded Observe/Browse
 
-### 6.1 Test coverage written
+IEC-104 does not provide a universal server-side point browse equivalent to OPC UA browsing.
 
-There are 33 IEC-104-specific test files on the implementation baseline.
+Driver 06 therefore implements bounded observation evidence:
 
-Coverage includes:
+- connect;
+- STARTDT;
+- issue GI for configured CAs;
+- observe supported monitored ASDUs for a bounded window;
+- group evidence by CA+IOA;
+- record observed Type IDs and conflict state;
+- expose transient partial candidates;
+- never persist or apply TAGs directly.
 
-- APCI encoding/decoding and fixed binary vectors;
-- sequence modulo and wrap-edge behavior;
-- I/S/U session primitives;
-- ASDU headers, COT and address primitives;
-- CP56Time2a known vectors and malformed inputs;
-- monitored information-object decode;
-- quality semantics;
-- non-finite short-float policy;
-- GI state machine;
-- command transaction/coordinator behavior;
-- Direct and SBO flows;
-- negative confirmations;
-- missing confirmation/termination outcomes;
-- transmission ambiguity classification;
-- session command routing;
-- TEST-COT isolation from command, GI, runtime telemetry and Engineering observations;
-- managed-client reconnect behavior;
-- in-flight command no-replay behavior;
-- transport diagnostics aggregation;
-- real loopback TCP STARTDT/STOPDT/TESTFR exchange;
-- invalid peer acknowledgement;
-- out-of-order N(S);
-- partial APDU EOF;
-- T1, T2 and T3 behavior;
-- bounded receive queue overflow;
-- unknown Type ID isolation;
-- connection testing;
-- Observe/GI browse;
-- portable point addresses;
-- CSV import/export;
-- CSV resource bounds;
-- reconcile semantics;
-- deterministic conformance vectors.
+The browser:
 
-### 6.2 Execution status
-
-**No claim is made that these tests pass.**
-
-At handoff time, the available execution environment did not provide `dotnet`, `csc` or `mcs`, and the branch HEAD had no CI status checks attached. Therefore the current evidence is:
-
-- source written;
-- tests written;
-- static/manual review performed;
-- tests **not compiled or executed** in this environment.
-
-The first acceptance action must be a real .NET 10 restore/build/test run before integration conclusions are drawn.
-
-### 6.3 Known compile-static areas to watch first
-
-The implementation uses modern C#/NET APIs expected under the repository target but not yet compiled here, including:
-
-- async iterators with cancellation/configure-await;
-- collection expressions;
-- record structs / `with` expressions;
-- `Task.WaitAsync` overloads;
-- modern `TcpClient`/`NetworkStream` cancellation APIs;
-- `Stopwatch.GetElapsedTime`;
-- xUnit 2.9.3 assertion overloads;
-- `Stream.ReadAsync(Memory<byte>, CancellationToken)` overrides;
-- nullable record/assertion combinations.
-
-Treat compiler feedback as authoritative and fix branch-local issues before any semantic refactor.
+- implements `ICommunicationDriverBrowser`;
+- is flat, not a fake hierarchy;
+- returns identity `ca=<CA>;ioa=<IOA>`;
+- is always partial;
+- reports GI incomplete/rejected/candidate-cap warnings;
+- rejects continuation tokens because observation pages are not a stable remote namespace;
+- does not claim writeability for observed candidates without a command profile.
 
 ---
 
-## 7. Independent simulator and hardware validation still required
+## 15. Engineering point-list CSV Import/Export
 
-The authoritative validation plan is:
+### Import
 
-`IEC-60870-5-104-ACCEPTANCE-AND-INTEROPERABILITY.md`
+`Iec104PointListImporter` consumes monitored-point CSV rows with required columns:
 
-Production acceptance still requires at minimum:
+- `commonAddress`;
+- `informationObjectAddress`;
+- `typeId`.
 
-1. .NET 10 restore/build and all focused IEC-104 tests;
-2. repeated loopback/fault-injection suite to eliminate timing flakiness;
-3. an external reference station, such as lib60870-based station code;
-4. a second independent simulator/stack from a different implementation family;
-5. at least one representative real RTU/IED/utility gateway.
+Optional:
 
-External validation must cover:
+- `displayName`.
 
+Supported type notation:
+
+- numeric Type ID;
+- internal enum name;
+- standard IEC name for the supported monitored matrix.
+
+Command types are rejected by this monitored-point importer.
+
+Rows are aggregated during streaming by CA+IOA rather than buffering every imported row.
+
+Resource defaults:
+
+- `maximumRows = 100000`;
+- `maximumLineLength = 65536` characters;
+- `maximumFileBytes = 16 MiB`.
+
+Hard caps:
+
+- rows: 1,000,000;
+- line length: 1,048,576 characters;
+- bytes: 256 MiB.
+
+The byte bound is enforced for seekable and non-seekable streams. NUL characters are rejected.
+
+Source line metadata is bounded to the first 64 line numbers while retaining total row count.
+
+Multiline quoted CSV fields are intentionally unsupported by this physical-line parser.
+
+### Export
+
+`Iec104PointListExporter` is protocol-local because there is no current shared communication-driver file-export interface.
+
+It:
+
+- exports monitored candidates only;
+- emits one row per Type ID;
+- sorts deterministically by CA/IOA/Type ID;
+- uses standard IEC Type names;
+- escapes commas/quotes;
+- rejects CR/LF in display names to preserve roundtrip with the line-oriented importer.
+
+---
+
+## 16. Engineering Reconcile
+
+`Iec104EngineeringReconciler` classifies a portable address using fresh bounded observation evidence.
+
+Possible results:
+
+- `Unchanged` — point observed with no Type ID conflict;
+- `Missing` — point absent only after complete configured GI with no candidate truncation;
+- `Ambiguous` — type conflict or absence under incomplete/rejected/truncated observation;
+- `Unsupported` — CA not configured;
+- `Error` — invalid address or Engineering/browser error.
+
+It does not mutate canonical configuration.
+
+Binding comparison metadata is explicitly `caIoaOnly` because the final rich semantic/command binding is not yet shared.
+
+---
+
+## 17. Unified Engineering surface
+
+`Iec104EngineeringServices` implements:
+
+- `ICommunicationDriverConnectionTester`;
+- `ICommunicationDriverBrowser`;
+- `ICommunicationDriverFileImporter`;
+- `ICommunicationDriverReconciler`.
+
+The descriptor advertises:
+
+- ConnectionTest;
+- Browse;
+- FileImport;
+- Reconcile.
+
+This service is ready for Coordinator-side registration once the common composition root and public binding decisions are resolved.
+
+---
+
+## 18. Exact source inventory
+
+Driver 06 source files under `src/Scada.Drivers/Iec60870`:
+
+1. `IIec104ClientAdapter.cs`
+2. `Iec104Apci.cs`
+3. `Iec104AsduPrimitives.cs`
+4. `Iec104ClientSessionRunner.cs`
+5. `Iec104CommandCoordinator.cs`
+6. `Iec104CommandTransaction.cs`
+7. `Iec104Cp56Time2a.cs`
+8. `Iec104Diagnostics.cs`
+9. `Iec104EngineeringConnectionTester.cs`
+10. `Iec104EngineeringProvider.cs`
+11. `Iec104EngineeringReconciler.cs`
+12. `Iec104EngineeringServices.cs`
+13. `Iec104GeneralInterrogation.cs`
+14. `Iec104InformationObjectDecoder.cs`
+15. `Iec104ManagedClient.cs`
+16. `Iec104ObservationCollector.cs`
+17. `Iec104PointListExporter.cs`
+18. `Iec104PointListImporter.cs`
+19. `Iec104PortablePointAddress.cs`
+20. `Iec104Reconnect.cs`
+21. `Iec104SequenceState.cs`
+22. `Iec104SessionPrimitives.cs`
+23. `Iec104TcpClientAdapter.cs`
+24. `Iec104TransmissionException.cs`
+25. `Iec104TransportDiagnostics.cs`
+
+Research/acceptance docs at the implementation handoff baseline:
+
+1. `IEC-60870-5-104-RESEARCH.md`
+2. `IEC-60870-5-104-RESEARCH-ERRATA.md`
+3. `IEC-60870-5-104-ACCEPTANCE-AND-INTEROPERABILITY.md`
+
+Post-handoff lab-preparation docs may exist at later branch HEADs. Review the current branch tree, not only this baseline inventory.
+
+---
+
+## 19. Exact test inventory
+
+IEC-104 test files at the implementation handoff baseline:
+
+1. `Iec104ApciCodecTests.cs`
+2. `Iec104AsduPrimitivesTests.cs`
+3. `Iec104ClientSessionRunnerTests.cs`
+4. `Iec104CommandCoordinatorTests.cs`
+5. `Iec104CommandTransactionTests.cs`
+6. `Iec104CommandTransmissionAmbiguityTests.cs`
+7. `Iec104Cp56Time2aTests.cs`
+8. `Iec104DiagnosticsTests.cs`
+9. `Iec104EngineeringConnectionTesterTests.cs`
+10. `Iec104EngineeringProviderTests.cs`
+11. `Iec104EngineeringReconcilerTests.cs`
+12. `Iec104EngineeringServicesTests.cs`
+13. `Iec104GeneralInterrogationTests.cs`
+14. `Iec104InformationObjectDecoderTests.cs`
+15. `Iec104ManagedClientTests.cs`
+16. `Iec104ManagedInflightCommandReconnectTests.cs`
+17. `Iec104ManagedTestCotDiagnosticsTests.cs`
+18. `Iec104NonFiniteShortFloatTests.cs`
+19. `Iec104ObservationCollectorTests.cs`
+20. `Iec104PointListExporterTests.cs`
+21. `Iec104PointListImporterBoundsTests.cs`
+22. `Iec104PointListImporterTests.cs`
+23. `Iec104PortablePointAddressTests.cs`
+24. `Iec104ProtocolConformanceTests.cs`
+25. `Iec104ReceiveQueueBoundsTests.cs`
+26. `Iec104ReconnectTests.cs`
+27. `Iec104SequenceStateTests.cs`
+28. `Iec104SessionCommandRoutingTests.cs`
+29. `Iec104SessionPrimitivesTests.cs`
+30. `Iec104TcpClientAdapterTests.cs`
+31. `Iec104TcpFaultInjectionTests.cs`
+32. `Iec104TestCotIsolationTests.cs`
+33. `Iec104UnsupportedAsduIsolationTests.cs`
+
+---
+
+## 20. Test coverage highlights
+
+Tests are written for:
+
+- I/S/U codec and malformed frames;
+- exact APCI conformance vectors;
+- N(S)/N(R) sequence validation and wrap;
+- send/receive windows;
 - STARTDT/STOPDT/TESTFR;
-- long idle T3/TESTFR behavior;
-- GI per CA;
-- spontaneous/event indications;
-- every supported first-release monitored Type ID;
-- SQ=0 and SQ=1 where peer supports both;
-- CP56 timestamps and DST/timezone edge cases;
-- IEC quality bits;
-- Direct commands;
-- SBO commands;
-- positive/negative confirmations;
-- disconnect before and after command acceptance;
-- confirmation/termination timeouts;
-- multiple Common Addresses on one endpoint where available;
-- burst/spontaneous load;
-- k/w pressure;
-- T1/T2 timing behavior;
-- sequence wrap under sustained traffic;
-- reconnect and GI bootstrap;
-- proof that ambiguous commands are never replayed.
-
-Capture packet traces or equivalent station logs for protocol-level acceptance cases where practical.
-
-No hardware/simulator interoperability has been claimed on this branch yet.
+- T1/T2/T3 behavior;
+- TCP loopback fault injection;
+- partial APDU EOF;
+- impossible ACK;
+- out-of-order I frame;
+- receive queue overflow;
+- ASDU header/COT parsing;
+- TEST-bit isolation;
+- GI state machine;
+- monitored decoder including SQ0/SQ1;
+- IOA overflow;
+- CP56Time2a and DST/IV/reserved bits;
+- quality mapping;
+- non-finite short-float policy;
+- command transaction correlation;
+- Direct/SBO safety;
+- rejection/timeout/ambiguity;
+- no command replay after reconnect;
+- managed diagnostics;
+- Engineering connection test;
+- bounded observation;
+- browser behavior;
+- import/export/reconcile;
+- CSV resource limits;
+- unsupported ASDU isolation.
 
 ---
 
-## 8. Limitations, risks and deferred scope
+## 21. Test execution result — critical limitation
 
-### 8.1 No public persisted rich TAG binding yet
+**No Driver 06 .NET test has been executed in the current development environment.**
 
-The branch does not invent a private persisted binding schema.
+At handoff preparation time:
 
-The intended future binding must preserve at least:
+- no `dotnet` executable was available;
+- no `csc` executable was available;
+- no `mcs` executable was available;
+- no `/usr/share/dotnet` installation was present;
+- branch HEAD had no CI status checks attached;
+- the available GitHub connector did not expose workflow dispatch.
+
+Therefore the correct evidence statement is:
+
+> Tests are written and have been statically reviewed, but compilation and runtime execution remain pending.
+
+Do not rewrite this as “tests passing” until actual .NET/CI evidence exists.
+
+---
+
+## 22. Known static/implementation risks to validate during first build
+
+Because the suite has not been compiled, first .NET execution must pay special attention to:
+
+- modern .NET TCP cancellation overload availability;
+- xUnit overload compatibility;
+- async-enumerable cancellation/configure-await syntax;
+- record/nullable/warnings-as-errors behavior;
+- `TimeZoneInfo` overload behavior;
+- concurrency/disposal behavior around command coordinator shutdown;
+- timer fault-test stability under slow CI scheduling;
+- live adapter sequence/window behavior under real sequence wrap;
+- receive queue pressure under sustained load;
+- concrete socket write-failure ambiguity injection;
+- long-running reconnect/task/socket leak behavior.
+
+No broad workaround should be introduced until an actual compile/runtime failure demonstrates it is necessary.
+
+---
+
+## 23. External interoperability still required
+
+Before production acceptance, run the acceptance matrix against at least:
+
+1. a lib60870.NET or lib60870-C external station/reference implementation;
+2. an independent IEC-104 simulator/stack from a different implementation family;
+3. one representative real RTU/IED/utility gateway.
+
+Required external evidence includes:
+
+- TCP startup;
+- STARTDT/STOPDT/TESTFR;
+- GI;
+- spontaneous indications;
+- all approved monitored Type IDs available on the peer;
+- CP56 timestamps;
+- quality flags;
+- Direct command success/rejection;
+- SBO success/rejection;
+- network interruption during control;
+- no command replay after reconnect;
+- high event-rate/burst behavior;
+- long idle behavior;
+- multiple Common Addresses when peer supports them;
+- soak/resource behavior.
+
+The branch now also contains a dedicated interoperability lab playbook and result template at later HEADs to make these runs repeatable.
+
+---
+
+## 24. Production library/license decision
+
+Research identified lib60870.NET as a strong interoperability/reference candidate and lib60870-C as another external reference peer.
+
+lib60870 is GPLv3 in its public distribution and commercial licensing is available.
+
+Driver 06 deliberately did **not** add the GPL package as a normal production dependency.
+
+Before production integration, the Coordinator/project owner must choose one of:
+
+1. obtain and validate an appropriate commercial license for the selected external stack;
+2. retain the current narrow EliteSCADA-owned CS104 implementation and validate it thoroughly;
+3. adopt another implementation with acceptable licensing after technical/legal review.
+
+The public GPL package must not silently enter proprietary production output merely because it was convenient in the lab.
+
+---
+
+## 25. Deferred protocol scope
+
+Not first-release blockers:
+
+- `M_ST_*` step position;
+- `M_IT_*` integrated totals/BCR;
+- time-tagged control commands;
+- file transfer;
+- IEC 60870-5-7 secure authentication;
+- IEC 62351-3 TLS transport;
+- redundancy groups;
+- full vendor-specific/extended ASDU universe.
+
+These require explicit later scope rather than accidental partial support.
+
+---
+
+## 26. Coordinator/shared decisions required for integration
+
+### 26.1 Rich canonical TAG binding
+
+Need shared schema for at least:
 
 - Common Address;
 - IOA;
-- expected semantic/Type family;
-- command profile where writable;
+- expected monitored semantic family/type profile;
+- command type/profile where writable;
 - Direct vs SBO mode;
-- setpoint/scaling semantics where applicable.
+- setpoint scaling/range semantics where needed.
 
-Until that shared schema exists, Engineering portable candidate identity remains CA+IOA only and runtime/public TAG binding is intentionally not registered.
+The persisted binding must not rely on display-name strings or only `ca;ioa` if type/command compatibility is required for safe runtime behavior.
 
-### 8.2 Public runtime registration is not implemented
+### 26.2 Public command outcome model
 
-There is no final public IEC-104 `ICommunicationDriver` registration in DriverHost on this branch.
+Decide whether the common runtime/API should expose telecontrol-aware outcomes such as:
 
-This avoids bypassing the canonical provider catalog/composition and avoids freezing a binding model before Coordinator reconciliation.
+- Accepted;
+- Completed;
+- Rejected;
+- Ambiguous;
+- TimedOut;
+- Cancelled.
 
-### 8.3 `M_ST_*` and `M_IT_*` deferred
+A generic boolean write result is insufficient to express an ambiguous physical control outcome safely.
 
-Step-position and integrated-total/BCR families are deferred because preserving transient/counter flags properly requires a deliberate canonical representation. They must not be shoehorned into `TagQuality` or discarded silently.
+### 26.3 Station timezone
 
-### 8.4 Time-tagged operational commands deferred
+Decide whether IEC-104 Data Sources always store station timezone explicitly or may deterministically inherit a canonical project/site timezone.
 
-Time-tagged command variants are not part of this first release slice.
+Import/export/package behavior must preserve the effective policy.
 
-### 8.5 TLS / IEC 62351-3 deferred
+### 26.4 Driver registration/composition
 
-Secure IEC-104 transport is not implemented. Future TLS support must use the host-owned common certificate/trust infrastructure rather than a protocol-private secret/certificate store.
+Register:
 
-### 8.6 Library/licensing decision remains open
+- public runtime `ICommunicationDriver` once binding exists;
+- Engineering unified services;
+- common diagnostics source.
 
-The research evaluated `lib60870.NET`/lib60870 as an interoperability and potential implementation candidate. Public releases are GPLv3 and commercial licensing is available from the vendor.
+Driver 06 intentionally did not edit DriverHost composition from the parked branch.
 
-This branch deliberately does not add the GPL package as a normal production dependency.
+### 26.5 Canonical Preview/Apply persistence
 
-Before production adoption of that library, the project needs an explicit commercial licensing/redistribution/legal decision plus .NET 10 compatibility validation. The current narrow EliteSCADA-owned transport/protocol implementation remains the fallback/working implementation.
+Browse/Import/Reconcile output must feed the existing candidate -> validate -> preview -> merge -> apply authority flow.
 
-### 8.7 CSV format is deliberately physical-line oriented
+Driver 06 does not directly persist observed/imported candidates.
 
-Quoted commas and escaped quotes are supported. Multiline quoted CSV fields are not supported.
+### 26.6 TLS/certificate/trust infrastructure
 
-The exporter rejects CR/LF in display names so exported data remains importable by the current parser. Do not remove that guard unless the importer is upgraded to logical-record CSV parsing at the same time.
+IEC 62351-3 support must consume host-owned common certificate/trust resolution rather than a protocol-private secret store.
 
-### 8.8 Diagnostics naming nuance
+### 26.7 Common export mechanism
 
-`TestAsdusIgnored` currently represents TEST-marked ASDUs ignored on the process-data path after command/GI routing. TEST command/GI responses are rejected by their respective transactions and are not necessarily counted by this process-data counter.
+Point-list export exists as a protocol-local utility because the current common Engineering contracts expose FileImport but no generic file-export feature interface.
 
-If the public diagnostics vocabulary is later normalized, consider renaming it to make that scope explicit or moving counting to a centralized ASDU ingress point.
-
-### 8.9 Bootstrap command admission
-
-The session runner may reach Running while initial GI activation dispatch is still being completed. The Coordinator should decide whether public command admission must wait for an explicit bootstrap-ready state.
-
-### 8.10 Protocol COT hardening beyond current release
-
-TEST is explicitly isolated. Monitored ASDUs carrying unusual negative-confirmation semantics should be checked against the normative IEC profile during external conformance validation before adding more protocol-specific rejection rules.
-
----
-
-## 9. Coordinator/shared decisions required before mainline integration
-
-The following decisions must be made centrally rather than by Driver 06 alone.
-
-### 9.1 Rich IEC-104 binding schema
-
-Approve a versioned public binding capable of representing:
-
-- CA;
-- IOA;
-- semantic monitored family/expected Type profile;
-- writable command type/profile;
-- Direct/SBO mode;
-- setpoint/scaling policy.
-
-### 9.2 Common command outcome model
-
-Decide whether `Accepted`, `Completed`, `Rejected`, `TimedOut`, `Ambiguous` and `Cancelled` become common runtime/API concepts or remain translated from IEC-specific results at the provider boundary.
-
-Telecontrol ambiguity must not be flattened into generic success/failure in a way that encourages command replay.
-
-### 9.3 Station timezone inheritance
-
-Decide whether station timezone is always explicit on the IEC-104 Data Source or may inherit a canonical project/site timezone while retaining deterministic export/package behavior.
-
-### 9.4 Engineering provider registration
-
-Register `Iec104EngineeringServices` through the canonical DriverHost/provider catalog once the mainline composition model is ready. Do not add a one-off IEC registration path.
-
-### 9.5 Canonical validate/preview/apply/persistence integration
-
-Map imported/observed candidates into the normal Engineering candidate -> validate -> preview -> merge -> apply workflow after the binding schema is approved.
-
-No current IEC Engineering operation should mutate canonical TAGs directly.
-
-### 9.6 Common export mechanism
-
-The branch has a protocol-local point-list exporter because no common driver file-export feature interface exists in the reviewed shared contract.
-
-The Coordinator should decide whether a generic driver export interface is desirable or whether this stays as an Engineering service operation outside the current feature-interface set.
-
-### 9.7 TLS certificate/trust resolver
-
-Future IEC 62351-3/TLS support must use the same protected host-owned certificate/trust abstraction as other secure drivers.
-
-### 9.8 Deferred data families
-
-Decide canonical representations before enabling:
-
-- `M_ST_*` step-position transient state;
-- `M_IT_*` BCR/counter flags and sequence information.
-
-### 9.9 Public runtime provider
-
-After the decisions above, implement/register the public owning provider so:
-
-- bound CA+IOA+family maps decoded points to canonical TAGs;
-- type mismatch becomes `BadConfiguration` per point instead of corrupting a value;
-- communication loss becomes `BadCommunication` through the common path;
-- writes route through the owning provider and approved command profile;
-- Gateway remains TAG-to-TAG only;
-- common communication diagnostics surface the IEC private snapshot without leaking implementation-library types.
+Coordinator may keep export protocol-local or introduce a shared export contract during broader integration.
 
 ---
 
-## 10. Integration order recommended to Coordinator
+## 27. Integration sequence recommended to Coordinator
 
-Recommended sequence after the branch receives an executable .NET environment:
+When shared integration is authorized:
 
-1. run focused restore/build/test for `Scada.Drivers.Tests` and fix compile issues only;
-2. run the IEC acceptance matrix tiers that do not require hardware;
-3. resolve rich binding and common command-outcome decisions;
-4. rebase/merge the parked branch only under Coordinator control because `main` has advanced substantially since the branch merge base;
-5. implement the public IEC owning provider against the approved shared binding/runtime contracts;
-6. register Engineering/runtime through canonical DriverHost composition;
-7. run canonical project/package/import/export/Preview-Apply integration tests;
-8. run independent external simulator interoperability;
-9. run representative RTU/IED validation;
-10. resolve production library/license and TLS/security decisions before declaring production-ready support.
-
-Do not automatically rebase this parked branch before the Coordinator reviews the 64-commit mainline divergence and shared-contract evolution.
-
----
-
-## 11. Branch hygiene / ownership statement
-
-Driver 06 work was kept on:
-
-`driver6/iec-60870-5-104`
-
-No Driver 06 change was intentionally written to `main`.
-
-No unrelated Driver DEV branch was modified.
-
-No shared/common contract was changed merely to make IEC-104 implementation easier.
-
-The branch is intentionally parked and is **not** self-authorized for merge into `main`.
+1. rebase/merge Driver 06 onto the selected integration baseline under Coordinator ownership;
+2. compile/run all Driver 06 tests on .NET 10;
+3. fix only demonstrated compatibility/build failures;
+4. resolve rich binding schema;
+5. implement/register public `ICommunicationDriver` using existing private IEC-104 layers;
+6. route monitored CA+IOA+semantic evidence into canonical TAG publication;
+7. type mismatch -> `BadConfiguration` for the affected binding rather than reinterpreting data;
+8. communication loss -> canonical `BadCommunication` through owning-provider logic;
+9. route writes through command profile and command coordinator;
+10. map protocol diagnostics into the common `CommunicationDriverDiagnosticSnapshot`;
+11. register unified Engineering services;
+12. integrate Browse/Import/Reconcile with canonical Preview/Apply;
+13. run common TAG/Gateway/import-export/project-package tests;
+14. execute independent simulator acceptance;
+15. execute representative real-device acceptance;
+16. make final production implementation/licensing decision;
+17. only then propose mainline integration.
 
 ---
 
-## 12. Handoff conclusion
+## 28. No unassigned/mainline changes
 
-The private IEC 60870-5-104 slice is feature-substantial and has a broad deterministic test suite plus an explicit interoperability plan, but it is **not yet production-accepted**.
+Driver 06 work was confined to:
 
-The most important remaining evidence is executable, not textual:
+- its authorized IEC-104 research/acceptance documentation;
+- `src/Scada.Drivers/Iec60870` private protocol/Engineering implementation;
+- IEC-104-specific tests under `tests/Scada.Drivers.Tests`;
+- later IEC-104 lab-preparation documentation on the same authorized branch.
 
-- compile under the repository's .NET 10 toolchain;
-- pass the focused tests;
-- validate against independent station implementations;
-- validate against representative RTU/IED hardware;
-- complete shared binding/runtime integration under Coordinator-approved contracts.
+No intentional changes were made directly to `main` by Driver 06.
 
-Until those steps occur, the correct status is:
+No shared public contract was modified merely to satisfy IEC-104.
 
-**implementation and test design substantially complete; execution, integration and external conformance validation pending.**
+No automatic merge/rebase to main was performed.
+
+---
+
+## 29. Handoff readiness statement
+
+The Driver 06 branch is ready for **Coordinator review and executable validation**, not for a claim of production completion.
+
+The private IEC-104 protocol stack, managed reconnect lifecycle, monitored decode, command safety model, Engineering transient workflows, diagnostics and test suite are materially implemented.
+
+The remaining gates are deliberately visible:
+
+- .NET 10 build/test execution;
+- independent software-peer interoperability;
+- real RTU/IED/gateway validation;
+- shared public rich binding;
+- public runtime provider/DriverHost registration;
+- common Preview/Apply persistence;
+- common command-outcome integration;
+- production implementation/license decision;
+- later TLS/IEC 62351-3 integration.
+
+Those gates should be resolved centrally rather than hidden by protocol-local shortcuts.

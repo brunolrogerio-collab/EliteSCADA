@@ -198,6 +198,7 @@ internal static partial class S7TiaImportCandidateFactory
         {
             "BOOL" => new(TagDataType.Boolean, S7IsoValueType.Boolean, 0),
             "BYTE" or "USINT" => new(TagDataType.Int16, S7IsoValueType.Byte, 0),
+            "SINT" => new(TagDataType.Int16, S7IsoValueType.SInt, 0),
             "WORD" or "UINT" => new(TagDataType.Int32, S7IsoValueType.UInt16, 0),
             "INT" => new(TagDataType.Int16, S7IsoValueType.Int16, 0),
             "DWORD" or "UDINT" => new(TagDataType.Int64, S7IsoValueType.UInt32, 0),

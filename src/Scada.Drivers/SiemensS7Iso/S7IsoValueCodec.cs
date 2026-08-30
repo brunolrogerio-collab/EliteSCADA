@@ -26,6 +26,7 @@ public static class S7IsoValueCodec
         {
             S7IsoValueType.Boolean => ordered[0] != 0,
             S7IsoValueType.Byte => (short)ordered[0],
+            S7IsoValueType.SInt => (short)(sbyte)ordered[0],
             S7IsoValueType.UInt16 => (int)BinaryPrimitives.ReadUInt16BigEndian(ordered),
             S7IsoValueType.Int16 => BinaryPrimitives.ReadInt16BigEndian(ordered),
             S7IsoValueType.UInt32 => (long)BinaryPrimitives.ReadUInt32BigEndian(ordered),
@@ -57,6 +58,12 @@ public static class S7IsoValueCodec
             case S7IsoValueType.Byte:
                 canonical[0] = checked((byte)Convert.ToInt16(value, CultureInfo.InvariantCulture));
                 break;
+            case S7IsoValueType.SInt:
+            {
+                var signed = checked((sbyte)Convert.ToInt16(value, CultureInfo.InvariantCulture));
+                canonical[0] = unchecked((byte)signed);
+                break;
+            }
             case S7IsoValueType.UInt16:
                 BinaryPrimitives.WriteUInt16BigEndian(
                     canonical,

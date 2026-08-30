@@ -1,1 +1,0 @@
-Report Preview API tests in `ReportExecutionApiTests.cs` cover the isolated Wave 09 Report Designer Preview seam. They intentionally do not modify or require central `Program.cs` composition; coordinator integration owns endpoint registration.

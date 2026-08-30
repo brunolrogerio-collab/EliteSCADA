@@ -154,7 +154,7 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
                 data.Add(ReadReturnCode);
                 data.Add(0x00);
                 data.Add(0x00);
-                data.Add(0x00);
+                data.Add(0x04);
                 continue;
             }
 

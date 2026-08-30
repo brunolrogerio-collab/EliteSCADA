@@ -59,7 +59,40 @@ public sealed class Iec104ManagedClientTests
 
         Assert.Equal(Iec104CommandOutcome.Rejected, result.Outcome);
         Assert.False(result.ExecuteWasTransmitted);
-        Assert.Contains("startup is not Ready", result.Message ?? string.Empty);
+        Assert.Contains("startup is not Ready", result.Detail ?? string.Empty);
+        Assert.Equal(1, adapter.TotalSent);
+
+        cts.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runTask);
+    }
+
+    [Fact]
+    public async Task RejectedStartupGeneralInterrogation_FaultsReadinessAndBlocksCommand()
+    {
+        var adapter = new InteractiveAdapter();
+        var client = CreateClient(() => adapter);
+        using var cts = new CancellationTokenSource();
+
+        var runTask = client.RunAsync(static (_, _) => ValueTask.CompletedTask, cancellationToken: cts.Token);
+        var gi = await adapter.NextSentAsync();
+        await adapter.PublishAsync(CreateGeneralInterrogationResponse(
+            gi,
+            Iec104GeneralInterrogationTransaction.ActivationConfirmationCause,
+            negative: true));
+        await WaitUntilAsync(() => client.GetReadiness().State == Iec104ReadinessState.Faulted);
+
+        var readiness = client.GetReadiness();
+        Assert.True(readiness.IsTransportConnected);
+        Assert.True(readiness.IsDataTransferStarted);
+        Assert.False(readiness.StartupGeneralInterrogationCompleted);
+        Assert.True(readiness.StartupGeneralInterrogationRejected);
+        Assert.Equal(Iec104GeneralInterrogationState.Rejected, readiness.GeneralInterrogationStates[1]);
+
+        var transaction = Iec104CommandTransaction.Single(1, 504, true, Iec104CommandMode.DirectOperate);
+        var result = await client.ExecuteCommandAsync(transaction);
+
+        Assert.Equal(Iec104CommandOutcome.Rejected, result.Outcome);
+        Assert.False(result.ExecuteWasTransmitted);
         Assert.Equal(1, adapter.TotalSent);
 
         cts.Cancel();
@@ -167,7 +200,7 @@ public sealed class Iec104ManagedClientTests
             new Iec104CauseOfTransmission(
                 cause,
                 requestCause.OriginatorAddress,
-                IsNegativeConfirmation: negative),
+                isNegativeConfirmation: negative),
             request.Header.CommonAddress);
         return Iec104AsduEnvelope.Create(header, request.Payload.Span);
     }

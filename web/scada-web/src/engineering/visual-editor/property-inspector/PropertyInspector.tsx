@@ -8,6 +8,7 @@ import {
 import type { VisualEditorPropertyInspectorContractProps } from '../visualEditorContracts';
 import type { VisualEngineeringPropertyValue } from '../../types';
 import type { VisualPropertyDefinition } from '../../../visual-runtime';
+import { EventsEditor } from '../events-editor/EventsEditor';
 import {
   buildPropertyInspectorModel,
   buildPropertyInspectorRemoveIntent,
@@ -119,6 +120,10 @@ export function PropertyInspector({
           ))}
         </section>
       ))}
+
+      {selectedElements.length === 1 && selectedElements[0].id ? (
+        <EventsEditor visualObjectId={selectedElements[0].id} />
+      ) : null}
     </aside>
   );
 }

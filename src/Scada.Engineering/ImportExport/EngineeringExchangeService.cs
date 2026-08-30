@@ -186,7 +186,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _commandHandler = new CommandEngineeringHandler(commands, tags, dataSources);
         _gatewayHandler = new GatewayEngineeringHandler(gateways, tags, dataSources);
         _scriptHandler = new ScriptEngineeringHandler(_scripts, tags, dataSources, assets, views);
-        _reportHandler = new ReportEngineeringHandler(_reports);
+        _reportHandler = new ReportEngineeringHandler(_reports, _visualAssets);
     }
 
     public EngineeringPackage ExportPackage()

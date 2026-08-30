@@ -71,6 +71,29 @@ public sealed class S7TiaXlsxImporterTests
     }
 
     [Fact]
+    public async Task ImportXlsx_MalformedBooleanIsCandidateErrorWithoutPoisoningOtherRows()
+    {
+        using var workbook = CreateWorkbook(runWritable: "MAYBE");
+        var request = new DriverImportRequest(null, "plc-tags.xlsx");
+
+        var candidates = await ImportAsync(new S7IsoEngineeringAdapter(), request, workbook);
+
+        var run = Assert.Single(candidates, candidate => candidate.DisplayName == "Run");
+        Assert.False(run.IsReadable);
+        Assert.False(run.IsWritable);
+        Assert.Equal("Unsupported", run.Metadata!["supportStatus"]);
+        Assert.Equal("hmiWriteable", run.Metadata["invalidBooleanFields"]);
+        Assert.Contains(run.Issues!, issue => issue.Code == "S7_TIA_BOOLEAN_INVALID");
+        Assert.DoesNotContain(run.Issues!, issue => issue.Code == "S7_TIA_HMI_WRITEABILITY_UNKNOWN");
+
+        var dbValue = Assert.Single(candidates, candidate => candidate.DisplayName == "DbValue");
+        Assert.True(dbValue.IsReadable);
+        Assert.True(dbValue.IsWritable);
+        Assert.DoesNotContain(dbValue.Issues ?? Array.Empty<DriverEngineeringIssue>(), issue =>
+            issue.Code == "S7_TIA_BOOLEAN_INVALID");
+    }
+
+    [Fact]
     public async Task ImportXlsx_AddressMoveChangesBindingButNotStableSymbolIdentity()
     {
         using var originalWorkbook = CreateWorkbook("%MD4");
@@ -132,7 +155,7 @@ public sealed class S7TiaXlsxImporterTests
         return result;
     }
 
-    private static MemoryStream CreateWorkbook(string speedAddress = "%MD4")
+    private static MemoryStream CreateWorkbook(string speedAddress = "%MD4", string runWritable = "TRUE")
     {
         var stream = new MemoryStream();
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
@@ -158,19 +181,19 @@ public sealed class S7TiaXlsxImporterTests
                                 Target="worksheets/sheet1.xml" />
                 </Relationships>
                 """);
-            WriteEntry(archive, "xl/worksheets/sheet1.xml", CreateSheet(speedAddress).ToString(SaveOptions.DisableFormatting));
+            WriteEntry(archive, "xl/worksheets/sheet1.xml", CreateSheet(speedAddress, runWritable).ToString(SaveOptions.DisableFormatting));
         }
         stream.Position = 0;
         return stream;
     }
 
-    private static XDocument CreateSheet(string speedAddress)
+    private static XDocument CreateSheet(string speedAddress, string runWritable)
     {
         XNamespace ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
         var rows = new[]
         {
             new[] { "Name", "Path", "Data Type", "Logical Address", "Comment", "Hmi Visible", "Hmi Accessible", "Hmi Writeable" },
-            new[] { "Run", "Main/Tags", "Bool", "%M0.0", "Run flag", "TRUE", "TRUE", "TRUE" },
+            new[] { "Run", "Main/Tags", "Bool", "%M0.0", "Run flag", "TRUE", "TRUE", runWritable },
             new[] { "Speed", "Main/Tags", "Real", speedAddress, "Speed", "TRUE", "TRUE", "<no value>" },
             new[] { "DbValue", "Main/Tags", "Int", "%DB1.DBW10", "DB value", "TRUE", "TRUE", "TRUE" },
             new[] { "GermanInput", "Main/Tags", "Bool", "%E0.1", "Input using German mnemonic", "TRUE", "TRUE", "TRUE" },

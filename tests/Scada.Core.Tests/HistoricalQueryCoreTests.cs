@@ -4,18 +4,28 @@ namespace Scada.Core.Tests;
 
 public sealed class HistoricalQueryCoreTests
 {
-    private static readonly DateTimeOffset Now = new(2026, 8, 29, 20, 0, 0, TimeSpan.Zero);
-    private static readonly byte[] CursorKey = Enumerable.Range(1, 32).Select(static value => (byte)value).ToArray();
+    private static readonly DateTimeOffset Now =
+        new(2026, 8, 29, 20, 0, 0, TimeSpan.Zero);
+    private static readonly byte[] CursorKey =
+        Enumerable.Range(1, 32).Select(static value => (byte)value).ToArray();
 
     [Fact]
-    public void Validator_RejectsUnknownDatasetFieldAndMaliciousIdentifier()
+    public void Validator_RejectsUnknownVersionDatasetFieldAndMaliciousIdentifier()
     {
         Assert.Throws<ArgumentException>(() => HistoricalQueryValidator.Validate(
-            new HistoricalQueryRequest("raw.sql", new HistoricalTimeRange(RelativePreset: "1h"))));
+            new HistoricalQueryRequest(
+                HistoricalDatasets.HistorianSamples,
+                HistoricalTimeRange.Relative(3600),
+                Version: 2)));
+
+        Assert.Throws<ArgumentException>(() => HistoricalQueryValidator.Validate(
+            new HistoricalQueryRequest(
+                "raw.sql",
+                HistoricalTimeRange.Relative(3600))));
 
         var request = new HistoricalQueryRequest(
             HistoricalDatasets.HistorianSamples,
-            new HistoricalTimeRange(RelativePreset: "1h"),
+            HistoricalTimeRange.Relative(3600),
             Filters:
             [
                 new HistoricalFilter(
@@ -27,11 +37,11 @@ public sealed class HistoricalQueryCoreTests
     }
 
     [Fact]
-    public void Validator_EnforcesTypedOperatorsAndBoundedPage()
+    public void Validator_EnforcesTypedOperatorsBoundedPageAndOrderTerms()
     {
         var wrongType = new HistoricalQueryRequest(
             HistoricalDatasets.AlarmEvents,
-            new HistoricalTimeRange(RelativePreset: "1h"),
+            HistoricalTimeRange.Relative(3600),
             Filters:
             [
                 new HistoricalFilter(
@@ -43,7 +53,7 @@ public sealed class HistoricalQueryCoreTests
 
         var unsupportedOperator = new HistoricalQueryRequest(
             HistoricalDatasets.HistorianSamples,
-            new HistoricalTimeRange(RelativePreset: "1h"),
+            HistoricalTimeRange.Relative(3600),
             Filters:
             [
                 new HistoricalFilter(
@@ -55,29 +65,79 @@ public sealed class HistoricalQueryCoreTests
 
         var oversized = new HistoricalQueryRequest(
             HistoricalDatasets.HistorianSamples,
-            new HistoricalTimeRange(RelativePreset: "1h"),
+            HistoricalTimeRange.Relative(3600),
             Page: new HistoricalPageRequest(201));
-        Assert.Throws<ArgumentOutOfRangeException>(() => HistoricalQueryValidator.Validate(oversized));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            HistoricalQueryValidator.Validate(oversized));
+
+        var multipleSorts = new HistoricalQueryRequest(
+            HistoricalDatasets.AlarmEvents,
+            HistoricalTimeRange.Relative(3600),
+            OrderBy:
+            [
+                new HistoricalSort("priority"),
+                new HistoricalSort("timestamp")
+            ]);
+        Assert.Throws<ArgumentException>(() =>
+            HistoricalQueryValidator.Validate(multipleSorts));
     }
 
     [Fact]
-    public void Validator_ResolvesCuratedRelativeRangeOnceAndRejectsFutureOrNonUtcAbsoluteRange()
+    public void Validator_ResolvesConfigurableRelativeRangeAndRejectsInvalidAbsoluteRange()
     {
         var resolved = HistoricalQueryValidator.ResolveRange(
-            new HistoricalTimeRange(RelativePreset: "8h"),
+            HistoricalTimeRange.Relative(37 * 60),
             Now);
-        Assert.Equal(Now.AddHours(-8), resolved.FromUtc);
+        Assert.Equal(Now.AddMinutes(-37), resolved.FromUtc);
         Assert.Equal(Now, resolved.ToUtc);
 
+        Assert.Throws<ArgumentOutOfRangeException>(() => HistoricalQueryValidator.Validate(
+            new HistoricalQueryRequest(
+                HistoricalDatasets.HistorianSamples,
+                HistoricalTimeRange.Relative(
+                    HistoricalQueryValidator.MaximumRelativeDurationSeconds + 1))));
+
         Assert.Throws<ArgumentException>(() => HistoricalQueryValidator.ResolveRange(
-            new HistoricalTimeRange(Now.AddHours(-1), Now.AddMinutes(1)),
+            HistoricalTimeRange.Absolute(Now.AddHours(-1), Now.AddMinutes(1)),
             Now));
 
         var nonUtc = Now.ToOffset(TimeSpan.FromHours(-3));
         Assert.Throws<ArgumentException>(() => HistoricalQueryValidator.Validate(
             new HistoricalQueryRequest(
                 HistoricalDatasets.HistorianSamples,
-                new HistoricalTimeRange(nonUtc.AddHours(-1), nonUtc))));
+                HistoricalTimeRange.Absolute(nonUtc.AddHours(-1), nonUtc))));
+    }
+
+    [Fact]
+    public void Validator_PreservesSupportedScalarKinds()
+    {
+        var values = new[]
+        {
+            HistoricalQueryValue.FromInt16(short.MaxValue),
+            HistoricalQueryValue.FromInt32(int.MaxValue),
+            HistoricalQueryValue.FromInt64(long.MaxValue),
+            HistoricalQueryValue.FromFloat(1.25f),
+            HistoricalQueryValue.FromDouble(2.5d),
+            HistoricalQueryValue.FromBoolean(true),
+            HistoricalQueryValue.FromString("AUTO")
+        };
+
+        foreach (var value in values)
+        {
+            var validated = HistoricalQueryValidator.Validate(
+                new HistoricalQueryRequest(
+                    HistoricalDatasets.HistorianSamples,
+                    HistoricalTimeRange.Relative(3600),
+                    Filters:
+                    [
+                        new HistoricalFilter(
+                            "value",
+                            HistoricalFilterOperator.Eq,
+                            [value])
+                    ]));
+            Assert.Equal(value.Kind, validated.Filters.Single().Values.Single().Kind);
+            Assert.Equal(value.Value, validated.Filters.Single().Values.Single().Value);
+        }
     }
 
     [Fact]
@@ -91,7 +151,12 @@ public sealed class HistoricalQueryCoreTests
             Now.AddMinutes(-1),
             "42");
 
-        var cursor = codec.Encode(HistoricalDatasets.HistorianSamples, "ABC", range, sort, position);
+        var cursor = codec.Encode(
+            HistoricalDatasets.HistorianSamples,
+            "ABC",
+            range,
+            sort,
+            position);
         Assert.DoesNotContain("historian.samples", cursor, StringComparison.Ordinal);
         var decoded = codec.Decode(cursor);
         Assert.Equal(HistoricalDatasets.HistorianSamples, decoded.Dataset);
@@ -99,7 +164,8 @@ public sealed class HistoricalQueryCoreTests
         Assert.Equal("42", decoded.Position.TieBreaker);
 
         var replacement = cursor[^1] == 'A' ? 'B' : 'A';
-        Assert.Throws<HistoricalQueryCursorException>(() => codec.Decode(cursor[..^1] + replacement));
+        Assert.Throws<HistoricalQueryCursorException>(() =>
+            codec.Decode(cursor[..^1] + replacement));
     }
 
     [Fact]
@@ -115,7 +181,27 @@ public sealed class HistoricalQueryCoreTests
         await Assert.ThrowsAsync<HistoricalQueryForbiddenException>(() => service.QueryAsync(
             new HistoricalQueryRequest(
                 HistoricalDatasets.HistorianSamples,
-                new HistoricalTimeRange(RelativePreset: "1h"))));
+                HistoricalTimeRange.Relative(3600))));
+        Assert.Equal(0, provider.CallCount);
+    }
+
+    [Fact]
+    public async Task Service_PropagatesCancellationBeforeProviderExecution()
+    {
+        var provider = new RecordingProvider(HistoricalDatasets.HistorianSamples);
+        var service = new HistoricalQueryService(
+            [provider],
+            new FixedAuthorizer(HistoricalAuthorizationDecision.Allow()),
+            new HistoricalQueryCursorCodec(CursorKey),
+            () => Now);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.QueryAsync(
+            new HistoricalQueryRequest(
+                HistoricalDatasets.HistorianSamples,
+                HistoricalTimeRange.Relative(3600)),
+            cancellation.Token));
         Assert.Equal(0, provider.CallCount);
     }
 
@@ -139,16 +225,19 @@ public sealed class HistoricalQueryCoreTests
             () => clock);
         var baseRequest = new HistoricalQueryRequest(
             HistoricalDatasets.HistorianSamples,
-            new HistoricalTimeRange(RelativePreset: "1h"),
+            HistoricalTimeRange.Relative(3600),
             Page: new HistoricalPageRequest(20));
 
         var first = await service.QueryAsync(baseRequest);
+        Assert.Equal(HistoricalQueryContract.Version, first.Version);
         Assert.NotNull(first.NextCursor);
         Assert.Equal(Now.AddHours(-1), first.FromUtc);
         Assert.Equal(Now, first.ToUtc);
 
         clock = Now.AddMinutes(5);
-        provider.Page = new HistoricalProviderPage(Array.Empty<HistoricalQueryRow>(), null);
+        provider.Page = new HistoricalProviderPage(
+            Array.Empty<HistoricalQueryRow>(),
+            null);
         var second = await service.QueryAsync(baseRequest with
         {
             Page = new HistoricalPageRequest(20, first.NextCursor)
@@ -162,7 +251,8 @@ public sealed class HistoricalQueryCoreTests
             Search = "Pump",
             Page = new HistoricalPageRequest(20, first.NextCursor)
         };
-        await Assert.ThrowsAsync<HistoricalQueryCursorException>(() => service.QueryAsync(changedQuery));
+        await Assert.ThrowsAsync<HistoricalQueryCursorException>(() =>
+            service.QueryAsync(changedQuery));
     }
 
     [Fact]
@@ -172,7 +262,10 @@ public sealed class HistoricalQueryCoreTests
             HistoricalDatasets.HistorianSamples,
             new HistoricalProviderPage(
                 [Row("timestamp", HistoricalQueryValue.FromDateTime(Now.AddMinutes(-1)))],
-                new HistoricalQueryPosition(HistoricalQueryValue.FromDateTime(Now.AddMinutes(-1)), Now.AddMinutes(-1), "7")));
+                new HistoricalQueryPosition(
+                    HistoricalQueryValue.FromDateTime(Now.AddMinutes(-1)),
+                    Now.AddMinutes(-1),
+                    "7")));
         var alarms = new RecordingProvider(HistoricalDatasets.AlarmEvents);
         var service = new HistoricalQueryService(
             [historian, alarms],
@@ -182,28 +275,36 @@ public sealed class HistoricalQueryCoreTests
 
         var first = await service.QueryAsync(new HistoricalQueryRequest(
             HistoricalDatasets.HistorianSamples,
-            new HistoricalTimeRange(RelativePreset: "1h")));
+            HistoricalTimeRange.Relative(3600)));
         Assert.NotNull(first.NextCursor);
         await Assert.ThrowsAsync<HistoricalQueryCursorException>(() => service.QueryAsync(
             new HistoricalQueryRequest(
                 HistoricalDatasets.AlarmEvents,
-                new HistoricalTimeRange(RelativePreset: "1h"),
+                HistoricalTimeRange.Relative(3600),
                 Page: new HistoricalPageRequest(100, first.NextCursor))));
 
         historian.Page = new HistoricalProviderPage(
-            Enumerable.Range(0, 101).Select(_ => Row("timestamp", HistoricalQueryValue.FromDateTime(Now))).ToArray(),
+            Enumerable.Range(0, 101)
+                .Select(_ => Row("timestamp", HistoricalQueryValue.FromDateTime(Now)))
+                .ToArray(),
             null);
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.QueryAsync(
             new HistoricalQueryRequest(
                 HistoricalDatasets.HistorianSamples,
-                new HistoricalTimeRange(RelativePreset: "1h"),
+                HistoricalTimeRange.Relative(3600),
                 Page: new HistoricalPageRequest(100))));
     }
 
-    private static HistoricalQueryRow Row(string field, HistoricalQueryValue value) =>
-        new(new Dictionary<string, HistoricalQueryValue>(StringComparer.Ordinal) { [field] = value });
+    private static HistoricalQueryRow Row(
+        string field,
+        HistoricalQueryValue value) =>
+        new(new Dictionary<string, HistoricalQueryValue>(StringComparer.Ordinal)
+        {
+            [field] = value
+        });
 
-    private sealed class FixedAuthorizer(HistoricalAuthorizationDecision decision) : IHistoricalQueryAuthorizer
+    private sealed class FixedAuthorizer(
+        HistoricalAuthorizationDecision decision) : IHistoricalQueryAuthorizer
     {
         public ValueTask<HistoricalAuthorizationDecision> AuthorizeAsync(
             string dataset,
@@ -217,10 +318,14 @@ public sealed class HistoricalQueryCoreTests
 
     private sealed class RecordingProvider : IHistoricalDatasetProvider
     {
-        public RecordingProvider(string dataset, HistoricalProviderPage? page = null)
+        public RecordingProvider(
+            string dataset,
+            HistoricalProviderPage? page = null)
         {
             Dataset = dataset;
-            Page = page ?? new HistoricalProviderPage(Array.Empty<HistoricalQueryRow>(), null);
+            Page = page ?? new HistoricalProviderPage(
+                Array.Empty<HistoricalQueryRow>(),
+                null);
         }
 
         public string Dataset { get; }

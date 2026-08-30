@@ -60,8 +60,7 @@ jobs:
           chmod 0644 \
             interop-lab/mqtt/tls/ca.crt \
             interop-lab/mqtt/tls/server.crt \
-            interop-lab/mqtt/tls/server.key \
-            interop-lab/mqtt/tls/passwords
+            interop-lab/mqtt/tls/server.key
 
       - name: Trust ephemeral lab CA on runner
         shell: bash
@@ -116,4 +115,4 @@ jobs:
         run: |
           sudo rm -f /usr/local/share/ca-certificates/elitescada-mqtt-lab-ca.crt
           sudo update-ca-certificates >/dev/null
-          rm -rf interop-lab/mqtt/tls
+          sudo rm -rf interop-lab/mqtt/tls

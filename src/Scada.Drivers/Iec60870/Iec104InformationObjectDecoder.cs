@@ -152,6 +152,7 @@ public static class Iec104InformationObjectDecoder
                 var decoded = BitConverter.Int32BitsToSingle(bits);
                 value = decoded;
                 quality = Iec104QualityDescriptor.FromQds(data[4]);
+                semanticUncertain = !float.IsFinite(decoded);
                 timeOffset = typeId == Iec104TypeId.MMeTf1 ? 5 : -1;
                 break;
             }

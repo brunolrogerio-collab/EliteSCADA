@@ -267,7 +267,7 @@ public sealed record S7IsoTagBinding(
 
     private static int GetByteLength(S7IsoTagBinding binding) => binding.ValueType switch
     {
-        S7IsoValueType.Boolean or S7IsoValueType.Byte => 1,
+        S7IsoValueType.Boolean or S7IsoValueType.Byte or S7IsoValueType.SInt => 1,
         S7IsoValueType.UInt16 or S7IsoValueType.Int16 => 2,
         S7IsoValueType.UInt32 or S7IsoValueType.Int32 or S7IsoValueType.Float32 => 4,
         S7IsoValueType.Int64 or S7IsoValueType.Float64 or S7IsoValueType.DateTime => 8,

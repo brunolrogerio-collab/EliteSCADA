@@ -314,12 +314,11 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
                     var options = _factory.CreateClientDisconnectOptionsBuilder()
                         .WithReason(MqttClientDisconnectOptionsReason.NormalDisconnection)
                         .Build();
-                    await _client.DisconnectAsync(options, cancellationToken);
+                    // The caller token controls admission to teardown only. Once the lifecycle
+                    // gate is acquired, complete the accepted disconnect instead of leaving a
+                    // connected MQTTnet client with EliteSCADA callbacks already detached.
+                    await _client.DisconnectAsync(options, CancellationToken.None);
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
             }
             catch (Exception ex)
             {

@@ -172,7 +172,9 @@ public sealed class OpcUaFoundationNodeInspectionTransport : IOpcUaNodeInspectio
 
             if (TryReadValue<NodeId>(dataType, out NodeId? typeNodeId) && typeNodeId is not null)
             {
-                draft.BuiltInDataType = MapBuiltInDataType(typeNodeId);
+                draft.BuiltInDataType = await OpcUaFoundationDataTypeResolver
+                    .ResolveAsync(session, typeNodeId, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             if (TryReadInt32(valueRank, out int rank))
@@ -229,34 +231,6 @@ public sealed class OpcUaFoundationNodeInspectionTransport : IOpcUaNodeInspectio
             NodeClass.Method => OpcUaBrowseNodeClass.Method,
             NodeClass.View => OpcUaBrowseNodeClass.View,
             _ => OpcUaBrowseNodeClass.Other
-        };
-
-    private static OpcUaBuiltInDataType MapBuiltInDataType(NodeId dataType) =>
-        dataType switch
-        {
-            _ when dataType == DataTypeIds.Boolean => OpcUaBuiltInDataType.Boolean,
-            _ when dataType == DataTypeIds.SByte => OpcUaBuiltInDataType.SByte,
-            _ when dataType == DataTypeIds.Byte => OpcUaBuiltInDataType.Byte,
-            _ when dataType == DataTypeIds.Int16 => OpcUaBuiltInDataType.Int16,
-            _ when dataType == DataTypeIds.UInt16 => OpcUaBuiltInDataType.UInt16,
-            _ when dataType == DataTypeIds.Int32 => OpcUaBuiltInDataType.Int32,
-            _ when dataType == DataTypeIds.UInt32 => OpcUaBuiltInDataType.UInt32,
-            _ when dataType == DataTypeIds.Int64 => OpcUaBuiltInDataType.Int64,
-            _ when dataType == DataTypeIds.UInt64 => OpcUaBuiltInDataType.UInt64,
-            _ when dataType == DataTypeIds.Float => OpcUaBuiltInDataType.Float,
-            _ when dataType == DataTypeIds.Double => OpcUaBuiltInDataType.Double,
-            _ when dataType == DataTypeIds.String => OpcUaBuiltInDataType.String,
-            _ when dataType == DataTypeIds.DateTime => OpcUaBuiltInDataType.DateTime,
-            _ when dataType == DataTypeIds.Guid => OpcUaBuiltInDataType.Guid,
-            _ when dataType == DataTypeIds.ByteString => OpcUaBuiltInDataType.ByteString,
-            _ when dataType == DataTypeIds.NodeId => OpcUaBuiltInDataType.NodeId,
-            _ when dataType == DataTypeIds.ExpandedNodeId => OpcUaBuiltInDataType.ExpandedNodeId,
-            _ when dataType == DataTypeIds.QualifiedName => OpcUaBuiltInDataType.QualifiedName,
-            _ when dataType == DataTypeIds.LocalizedText => OpcUaBuiltInDataType.LocalizedText,
-            _ when dataType == DataTypeIds.XmlElement => OpcUaBuiltInDataType.XmlElement,
-            _ when dataType == DataTypeIds.StatusCode => OpcUaBuiltInDataType.StatusCode,
-            _ when dataType == DataTypeIds.Structure => OpcUaBuiltInDataType.Structure,
-            _ => OpcUaBuiltInDataType.Variant
         };
 
     private sealed class NodeDraft(OpcUaNodeIdentity requestedIdentity)

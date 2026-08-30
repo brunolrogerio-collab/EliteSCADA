@@ -51,7 +51,7 @@ public sealed class Iec104SequenceState
         if (sendSequence != _expectedReceiveSequence)
         {
             throw new Iec104ProtocolException(
-                $"Unexpected IEC-104 I-format N(S) {sendSequence}; expected {_expectedReceiveSequence}.");
+                $"Unexpected IEC-104 I-format sequence N(S) {sendSequence}; expected {_expectedReceiveSequence}.");
         }
 
         _ = ValidatePeerAcknowledgement(receiveSequence);

@@ -95,21 +95,21 @@ test('mounted Events editor persists click, timer and typed TAG bit through cano
     const editor = page.getByTestId('visual-events-editor');
     await expect(editor).toBeVisible();
 
-    await editor.getByLabel('Event').selectOption('click');
-    await editor.getByLabel('Script').selectOption(script.id);
-    await editor.getByLabel('Entry point').selectOption('on_click');
+    await editor.getByLabel('Event', { exact: true }).selectOption('click');
+    await editor.getByLabel('Script', { exact: true }).selectOption(script.id);
+    await editor.getByLabel('Entry point', { exact: true }).selectOption('on_click');
     await previewAndApply(editor);
 
-    await editor.getByLabel('Event').selectOption('timer');
-    await editor.getByLabel('Script').selectOption(script.id);
-    await editor.getByLabel('Entry point').selectOption('on_timer');
-    await editor.getByRole('spinbutton', { name: 'Interval (ms)' }).fill('250');
+    await editor.getByLabel('Event', { exact: true }).selectOption('timer');
+    await editor.getByLabel('Script', { exact: true }).selectOption(script.id);
+    await editor.getByLabel('Entry point', { exact: true }).selectOption('on_timer');
+    await editor.getByRole('spinbutton', { name: 'Interval (ms)', exact: true }).fill('250');
     await previewAndApply(editor);
 
-    await editor.getByLabel('Event').selectOption('tagChanged');
-    await editor.getByLabel('Script').selectOption(script.id);
-    await editor.getByLabel('Entry point').selectOption('on_tag');
-    await editor.getByLabel('TAG target').selectOption(tag!.id!);
+    await editor.getByLabel('Event', { exact: true }).selectOption('tagChanged');
+    await editor.getByLabel('Script', { exact: true }).selectOption(script.id);
+    await editor.getByLabel('Entry point', { exact: true }).selectOption('on_tag');
+    await editor.getByLabel('TAG target', { exact: true }).selectOption(tag!.id!);
     await editor.getByTestId('visual-events-tag-bit').fill('7');
     await previewAndApply(editor);
 

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Scada.Api.Reports;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Core.HistoricalQueries;
@@ -22,13 +23,18 @@ public static class HistoricalQueryApi
     public static RouteHandlerBuilder MapHistoricalQueryEndpoints(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
-        return app.MapPost(
+        var historicalQuery = app.MapPost(
             Route,
             async (
                 HistoricalQueryRequest request,
                 IHistoricalQueryService service,
                 CancellationToken cancellationToken) =>
                 await ExecuteAsync(request, service, cancellationToken));
+
+        // Report Preview executes only through the accepted Historical Query service,
+        // so it is mounted with the same explicitly enabled historical feature bundle.
+        app.MapReportExecutionEndpoints();
+        return historicalQuery;
     }
 
     public static async Task<IResult> ExecuteAsync(

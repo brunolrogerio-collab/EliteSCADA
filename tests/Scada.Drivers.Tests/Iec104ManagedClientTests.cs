@@ -8,7 +8,7 @@ namespace Scada.Drivers.Tests;
 public sealed class Iec104ManagedClientTests
 {
     [Fact]
-    public async Task ActiveManagedSession_ExecutesCommandThroughCurrentSession()
+    public async Task ActiveManagedSession_ExecutesCommandThroughCurrentReadySession()
     {
         var adapter = new InteractiveAdapter();
         var client = CreateClient(() => adapter);
@@ -17,6 +17,9 @@ public sealed class Iec104ManagedClientTests
         var runTask = client.RunAsync(static (_, _) => ValueTask.CompletedTask, cancellationToken: cts.Token);
         var gi = await adapter.NextSentAsync();
         Assert.Equal(Iec104TypeId.CIcNa1, gi.Header.TypeId);
+        await adapter.PublishAsync(CreateGeneralInterrogationResponse(gi, Iec104GeneralInterrogationTransaction.ActivationConfirmationCause));
+        await adapter.PublishAsync(CreateGeneralInterrogationResponse(gi, Iec104GeneralInterrogationTransaction.ActivationTerminationCause));
+        await WaitUntilAsync(() => client.GetReadiness().State == Iec104ReadinessState.Ready);
 
         var transaction = Iec104CommandTransaction.Single(1, 500, true, Iec104CommandMode.DirectOperate);
         var commandTask = client.ExecuteCommandAsync(transaction);
@@ -36,6 +39,31 @@ public sealed class Iec104ManagedClientTests
         cts.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runTask);
         Assert.Equal(Iec104SessionState.Stopped, client.SessionState);
+        Assert.Equal(Iec104ReadinessState.Stopped, client.GetReadiness().State);
+    }
+
+    [Fact]
+    public async Task CommandDuringStartupBeforeGeneralInterrogationCompletes_IsRejectedWithoutTransmission()
+    {
+        var adapter = new InteractiveAdapter();
+        var client = CreateClient(() => adapter);
+        using var cts = new CancellationTokenSource();
+
+        var runTask = client.RunAsync(static (_, _) => ValueTask.CompletedTask, cancellationToken: cts.Token);
+        var gi = await adapter.NextSentAsync();
+        Assert.Equal(Iec104TypeId.CIcNa1, gi.Header.TypeId);
+        Assert.Equal(Iec104ReadinessState.Starting, client.GetReadiness().State);
+
+        var transaction = Iec104CommandTransaction.Single(1, 503, true, Iec104CommandMode.DirectOperate);
+        var result = await client.ExecuteCommandAsync(transaction);
+
+        Assert.Equal(Iec104CommandOutcome.Rejected, result.Outcome);
+        Assert.False(result.ExecuteWasTransmitted);
+        Assert.Contains("startup is not Ready", result.Message ?? string.Empty);
+        Assert.Equal(1, adapter.TotalSent);
+
+        cts.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runTask);
     }
 
     [Fact]
@@ -65,6 +93,7 @@ public sealed class Iec104ManagedClientTests
         var reconnectDelay = await delayEntered.Task;
         Assert.Equal(TimeSpan.FromSeconds(1), reconnectDelay);
         Assert.Equal(Iec104SessionState.Stopped, client.SessionState);
+        Assert.Equal(Iec104ReadinessState.Faulted, client.GetReadiness().State);
 
         var transaction = Iec104CommandTransaction.Single(1, 501, false, Iec104CommandMode.DirectOperate);
         var rejected = await client.ExecuteCommandAsync(transaction);
@@ -75,6 +104,7 @@ public sealed class Iec104ManagedClientTests
         releaseDelay.TrySetResult(true);
         var secondGi = await second.NextSentAsync();
         Assert.Equal(Iec104TypeId.CIcNa1, secondGi.Header.TypeId);
+        Assert.Equal(Iec104ReadinessState.Starting, client.GetReadiness().State);
         Assert.Equal(1, second.TotalSent);
 
         cts.Cancel();
@@ -92,8 +122,10 @@ public sealed class Iec104ManagedClientTests
         });
         var transaction = Iec104CommandTransaction.Single(1, 502, true, Iec104CommandMode.DirectOperate);
 
+        var readiness = client.GetReadiness();
         var result = await client.ExecuteCommandAsync(transaction);
 
+        Assert.Equal(Iec104ReadinessState.NotStarted, readiness.State);
         Assert.Equal(Iec104CommandOutcome.Rejected, result.Outcome);
         Assert.False(result.ExecuteWasTransmitted);
         Assert.Equal(0, factoryCalls);
@@ -122,6 +154,24 @@ public sealed class Iec104ManagedClientTests
             },
             delayAsync: delayAsync);
 
+    private static Iec104AsduEnvelope CreateGeneralInterrogationResponse(
+        Iec104AsduEnvelope request,
+        byte cause,
+        bool negative = false)
+    {
+        var requestCause = request.Header.CauseOfTransmission;
+        var header = new Iec104AsduHeader(
+            Iec104TypeId.CIcNa1,
+            ObjectCount: 1,
+            IsSequence: false,
+            new Iec104CauseOfTransmission(
+                cause,
+                requestCause.OriginatorAddress,
+                IsNegativeConfirmation: negative),
+            request.Header.CommonAddress);
+        return Iec104AsduEnvelope.Create(header, request.Payload.Span);
+    }
+
     private static Iec104AsduEnvelope CreateCommandResponse(
         Iec104CommandTransaction transaction,
         Iec104AsduEnvelope request,
@@ -134,6 +184,13 @@ public sealed class Iec104ManagedClientTests
             new Iec104CauseOfTransmission(cause, transaction.OriginatorAddress),
             transaction.CommonAddress);
         return Iec104AsduEnvelope.Create(header, request.Payload.Span);
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> predicate)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        while (!predicate())
+            await Task.Delay(10, timeout.Token);
     }
 
     private sealed class InteractiveAdapter : IIec104ClientAdapter

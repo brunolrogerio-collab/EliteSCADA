@@ -5,7 +5,7 @@ namespace Scada.Drivers.Tests;
 public sealed class MqttReconnectBackoffTests
 {
     [Fact]
-    public void JitterNeverRunsEarlierThanBaseOrPastMaximum()
+    public void JitterStaysInsideWindowAndGlobalBounds()
     {
         var minimum = TimeSpan.FromSeconds(1);
         var maximum = TimeSpan.FromSeconds(30);
@@ -23,18 +23,38 @@ public sealed class MqttReconnectBackoffTests
 
         foreach (var baseDelay in bases)
         {
+            var variationTicks = baseDelay.Ticks / 4;
+            var lower = TimeSpan.FromTicks(Math.Max(minimum.Ticks, baseDelay.Ticks - variationTicks));
+            var upper = TimeSpan.FromTicks(Math.Min(maximum.Ticks, baseDelay.Ticks + variationTicks));
+
             for (var sample = 0; sample < 32; sample++)
             {
                 var actual = backoff.ApplyJitter(baseDelay);
-                var expectedCeilingTicks = Math.Min(
-                    maximum.Ticks,
-                    baseDelay.Ticks + baseDelay.Ticks * MqttReconnectBackoff.MaximumJitterPercent / 100);
-
-                Assert.True(actual >= baseDelay);
-                Assert.True(actual <= TimeSpan.FromTicks(expectedCeilingTicks));
+                Assert.True(actual >= lower);
+                Assert.True(actual <= upper);
+                Assert.True(actual >= minimum);
                 Assert.True(actual <= maximum);
             }
         }
+    }
+
+    [Fact]
+    public void JitterStillSpreadsAttemptsAtMaximumBaseDelay()
+    {
+        var maximum = TimeSpan.FromSeconds(30);
+        var backoff = new MqttReconnectBackoff(
+            TimeSpan.FromSeconds(1),
+            maximum,
+            seed: 0xCAFEUL);
+
+        var samples = Enumerable.Range(0, 32)
+            .Select(_ => backoff.ApplyJitter(maximum))
+            .ToArray();
+
+        Assert.True(samples.All(delay => delay <= maximum));
+        Assert.True(samples.All(delay => delay >= TimeSpan.FromMilliseconds(22_500)));
+        Assert.True(samples.Any(delay => delay < maximum));
+        Assert.True(samples.Distinct().Count() > 1);
     }
 
     [Fact]

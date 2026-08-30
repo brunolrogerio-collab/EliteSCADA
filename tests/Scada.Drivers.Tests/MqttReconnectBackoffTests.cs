@@ -142,7 +142,7 @@ public sealed class MqttReconnectBackoffTests
             Assert.True(delay <= maximum);
         }
 
-        Assert.Equal(TimeSpan.FromTicks(long.MaxValue / 2), backoff.NextBaseDelay(minimum));
+        Assert.Equal(TimeSpan.FromTicks(minimum.Ticks * 2), backoff.NextBaseDelay(minimum));
         Assert.Equal(TimeSpan.MaxValue, backoff.NextBaseDelay(TimeSpan.FromTicks(long.MaxValue / 2 + 1)));
     }
 

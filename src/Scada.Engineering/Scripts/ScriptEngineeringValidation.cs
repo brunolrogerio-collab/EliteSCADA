@@ -545,12 +545,12 @@ public sealed class ScriptEngineeringValidator
                 Add("SCRIPT_VISUAL_ENTRYPOINT_REQUIRED", "Visual Script reference requires an entry-point handler name.");
 
             var runtimeIdentity =
-                $"{entityKey}:{(int)reference.EventKind}:{reference.ScriptId:D}:{reference.EntryPoint}:{EventTargetIdentity(reference.TargetReference, reference.TagReference, reference.TimerIntervalMs)}";
+                $"{entityKey}:{(int)reference.EventKind}:{reference.ScriptId:D}:{reference.EntryPoint}";
             if (!seenRuntimeHandlers.Add(runtimeIdentity))
             {
                 Add(
                     "SCRIPT_VISUAL_REFERENCE_DUPLICATE",
-                    $"Visual Script association '{runtimeIdentity}' is declared more than once.");
+                    $"Visual Script association '{runtimeIdentity}' maps to the same runtime handler more than once.");
             }
 
             if (referenceCatalog is null ||

@@ -604,7 +604,6 @@ public sealed class MqttNetClientTransport : IMqttClientTransport
         while (session.Channel.Reader.TryRead(out _))
         {
         }
-        session.WriteCancellation.Dispose();
     }
 
     private static MqttQualityOfServiceLevel ToMqttNetQos(MqttQosLevel qos) => qos switch

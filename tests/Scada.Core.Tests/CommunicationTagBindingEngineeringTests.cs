@@ -27,7 +27,10 @@ public sealed class CommunicationTagBindingEngineeringTests
         tags.Register(tag);
         var service = new EngineeringExchangeService(tags, alarms);
 
-        var package = service.ParseJson(service.ExportJson());
+        var json = service.ExportJson();
+        Assert.DoesNotContain("\"effectiveSettings\"", json);
+        Assert.DoesNotContain("\"isIdentity\"", json);
+        var package = service.ParseJson(json);
 
         Assert.Equal(14, package.SchemaVersion);
         var parsed = Assert.Single(package.Tags).CommunicationBinding;

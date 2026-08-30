@@ -45,6 +45,7 @@ public sealed record MqttPoint(
             throw new ArgumentException("MQTT point requires a canonical TAG name.", nameof(Tag));
         if (string.IsNullOrWhiteSpace(Tag.Path))
             throw new ArgumentException("MQTT point requires a canonical TAG path.", nameof(Tag));
+        ValidateDefinedEnum(Tag.DataType, nameof(Tag.DataType));
 
         ValidateExactTopic(SubscribeTopic, nameof(SubscribeTopic));
         ValidateDefinedEnum(PayloadFormat, nameof(PayloadFormat));

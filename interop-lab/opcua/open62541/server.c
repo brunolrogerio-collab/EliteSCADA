@@ -1,6 +1,17 @@
 #include "open62541.h"
 
+#include <signal.h>
 #include <stdio.h>
+
+#define LAB_NAMESPACE_INDEX 2
+
+static volatile UA_Boolean running = true;
+
+static void
+stopHandler(int signalNumber) {
+    (void)signalNumber;
+    running = false;
+}
 
 static UA_StatusCode
 addDoubleVariable(UA_Server *server, const char *nodeName, const char *displayName,
@@ -14,10 +25,10 @@ addDoubleVariable(UA_Server *server, const char *nodeName, const char *displayNa
 
     return UA_Server_addVariableNode(
         server,
-        UA_NODEID_STRING(1, (char *)nodeName),
+        UA_NODEID_STRING(LAB_NAMESPACE_INDEX, (char *)nodeName),
         UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER),
         UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
-        UA_QUALIFIEDNAME(1, (char *)displayName),
+        UA_QUALIFIEDNAME(LAB_NAMESPACE_INDEX, (char *)displayName),
         UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE),
         attr,
         NULL,
@@ -36,10 +47,10 @@ addInt32Variable(UA_Server *server, const char *nodeName, const char *displayNam
 
     return UA_Server_addVariableNode(
         server,
-        UA_NODEID_STRING(1, (char *)nodeName),
+        UA_NODEID_STRING(LAB_NAMESPACE_INDEX, (char *)nodeName),
         UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER),
         UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
-        UA_QUALIFIEDNAME(1, (char *)displayName),
+        UA_QUALIFIEDNAME(LAB_NAMESPACE_INDEX, (char *)displayName),
         UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE),
         attr,
         NULL,
@@ -58,10 +69,10 @@ addBooleanVariable(UA_Server *server, const char *nodeName, const char *displayN
 
     return UA_Server_addVariableNode(
         server,
-        UA_NODEID_STRING(1, (char *)nodeName),
+        UA_NODEID_STRING(LAB_NAMESPACE_INDEX, (char *)nodeName),
         UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER),
         UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
-        UA_QUALIFIEDNAME(1, (char *)displayName),
+        UA_QUALIFIEDNAME(LAB_NAMESPACE_INDEX, (char *)displayName),
         UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE),
         attr,
         NULL,
@@ -81,10 +92,10 @@ addStringVariable(UA_Server *server, const char *nodeName, const char *displayNa
 
     return UA_Server_addVariableNode(
         server,
-        UA_NODEID_STRING(1, (char *)nodeName),
+        UA_NODEID_STRING(LAB_NAMESPACE_INDEX, (char *)nodeName),
         UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER),
         UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
-        UA_QUALIFIEDNAME(1, (char *)displayName),
+        UA_QUALIFIEDNAME(LAB_NAMESPACE_INDEX, (char *)displayName),
         UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE),
         attr,
         NULL,
@@ -102,6 +113,9 @@ ensureGood(const char *operation, UA_StatusCode status) {
 
 int
 main(void) {
+    signal(SIGINT, stopHandler);
+    signal(SIGTERM, stopHandler);
+
     UA_Server *server = UA_Server_new();
     if(!server) {
         fprintf(stderr, "Failed to create open62541 server\n");
@@ -109,9 +123,9 @@ main(void) {
     }
 
     UA_UInt16 namespaceIndex = UA_Server_addNamespace(server, "urn:elitescada:interop:opcua");
-    if(namespaceIndex != 2) {
-        fprintf(stderr, "Expected interoperability namespace index 2, got %u\n",
-                (unsigned)namespaceIndex);
+    if(namespaceIndex != LAB_NAMESPACE_INDEX) {
+        fprintf(stderr, "Expected interoperability namespace index %u, got %u\n",
+                (unsigned)LAB_NAMESPACE_INDEX, (unsigned)namespaceIndex);
         UA_Server_delete(server);
         return 1;
     }
@@ -134,7 +148,7 @@ main(void) {
     printf("EliteSCADA OPC UA peer ready on opc.tcp://0.0.0.0:4840\n");
     fflush(stdout);
 
-    UA_StatusCode status = UA_Server_runUntilInterrupt(server);
+    UA_StatusCode status = UA_Server_run(server, &running);
     UA_Server_delete(server);
     return status == UA_STATUSCODE_GOOD ? 0 : 1;
 }

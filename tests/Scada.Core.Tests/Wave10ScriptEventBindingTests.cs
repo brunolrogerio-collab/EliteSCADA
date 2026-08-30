@@ -13,7 +13,7 @@ public sealed class Wave10ScriptEventBindingTests
         var screenId = Guid.Parse("91000000-0000-0000-0000-000000000002");
         var objectId = Guid.Parse("91000000-0000-0000-0000-000000000003");
         var tagId = Guid.Parse("91000000-0000-0000-0000-000000000004");
-        var tagReference = TagValueReference.Bit(tagId, 7);
+        var tagReference = new TagValueReference(tagId, new TagValueSelector(TagValueSelectorKind.Bit, 7));
 
         var script = new ScriptEngineeringDefinition(
             scriptId,
@@ -146,7 +146,7 @@ public sealed class Wave10ScriptEventBindingTests
         var tag = new ScriptEngineeringEntryPoint(
             ScriptEngineeringEventKind.TagChanged,
             "on_tag",
-            TagReference: TagValueReference.Bit(tagId, 12));
+            TagReference: new TagValueReference(tagId, new TagValueSelector(TagValueSelectorKind.Bit, 12)));
 
         var runtimeTimer = ScriptEngineeringAdapters.ToRuntimeEntryPoint(timer);
         var runtimeTag = ScriptEngineeringAdapters.ToRuntimeEntryPoint(tag);

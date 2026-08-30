@@ -18,7 +18,7 @@ test('Report Designer persists only through Engineering Preview/Apply authority'
 test('Report Preview uses the canonical server execution seam and never a browser SQL path', () => {
   expect(apiSource).toContain('/api/reports/preview');
   expect(workspaceSource).toContain('previewReportExecution({ report: draft, parameters }');
-  expect(workspaceSource).toContain("datasetKey: 'historian.samples'");
+  expect(modelSource).toContain("datasetKey: 'historian.samples'");
   expect(`${workspaceSource}\n${modelSource}\n${apiSource}`.toLowerCase()).not.toContain('select *');
   expect(`${workspaceSource}\n${modelSource}\n${apiSource}`.toLowerCase()).not.toContain('from elitescada');
 });

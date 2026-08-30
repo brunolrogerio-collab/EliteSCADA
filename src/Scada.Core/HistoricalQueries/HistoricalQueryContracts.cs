@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json.Serialization;
 
 namespace Scada.Core.HistoricalQueries;
 
@@ -13,60 +14,73 @@ public static class HistoricalDatasets
     public const string AlarmEvents = "alarm.events";
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<HistoricalFieldType>))]
 public enum HistoricalFieldType
 {
-    Guid,
-    String,
-    Enum,
-    Number,
-    Boolean,
-    DateTime,
-    Int64,
-    Scalar
+    [JsonStringEnumMemberName("guid")] Guid,
+    [JsonStringEnumMemberName("string")] String,
+    [JsonStringEnumMemberName("enum")] Enum,
+    [JsonStringEnumMemberName("number")] Number,
+    [JsonStringEnumMemberName("boolean")] Boolean,
+    [JsonStringEnumMemberName("dateTime")] DateTime,
+    [JsonStringEnumMemberName("int64")] Int64,
+    [JsonStringEnumMemberName("scalar")] Scalar
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<HistoricalValueKind>))]
 public enum HistoricalValueKind
 {
-    Guid,
-    String,
-    Enum,
-    Int16,
-    Int32,
-    Int64,
-    Float,
-    Double,
-    Number,
-    Boolean,
-    DateTime,
-    Null
+    [JsonStringEnumMemberName("guid")] Guid,
+    [JsonStringEnumMemberName("string")] String,
+    [JsonStringEnumMemberName("enum")] Enum,
+    [JsonStringEnumMemberName("int16")] Int16,
+    [JsonStringEnumMemberName("int32")] Int32,
+    [JsonStringEnumMemberName("int64")] Int64,
+    [JsonStringEnumMemberName("float")] Float,
+    [JsonStringEnumMemberName("double")] Double,
+    [JsonStringEnumMemberName("number")] Number,
+    [JsonStringEnumMemberName("boolean")] Boolean,
+    [JsonStringEnumMemberName("dateTime")] DateTime,
+    [JsonStringEnumMemberName("null")] Null
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<HistoricalFilterOperator>))]
 public enum HistoricalFilterOperator
 {
-    Eq,
-    NotEq,
-    In,
-    Contains,
-    StartsWith,
-    GreaterThan,
-    GreaterThanOrEqual,
-    LessThan,
-    LessThanOrEqual
+    [JsonStringEnumMemberName("eq")] Eq,
+    [JsonStringEnumMemberName("notEq")] NotEq,
+    [JsonStringEnumMemberName("in")] In,
+    [JsonStringEnumMemberName("contains")] Contains,
+    [JsonStringEnumMemberName("startsWith")] StartsWith,
+    [JsonStringEnumMemberName("gt")] GreaterThan,
+    [JsonStringEnumMemberName("gte")] GreaterThanOrEqual,
+    [JsonStringEnumMemberName("lt")] LessThan,
+    [JsonStringEnumMemberName("lte")] LessThanOrEqual
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<HistoricalSortDirection>))]
 public enum HistoricalSortDirection
 {
-    Ascending,
-    Descending
+    [JsonStringEnumMemberName("ascending")] Ascending,
+    [JsonStringEnumMemberName("descending")] Descending
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<HistoricalTimeRangeKind>))]
 public enum HistoricalTimeRangeKind
 {
-    Absolute,
-    Relative
+    [JsonStringEnumMemberName("absolute")] Absolute,
+    [JsonStringEnumMemberName("relative")] Relative
 }
 
-public sealed record HistoricalQueryValue(HistoricalValueKind Kind, string? Value)
+[JsonConverter(typeof(JsonStringEnumConverter<HistoricalTimeAnchor>))]
+public enum HistoricalTimeAnchor
+{
+    [JsonStringEnumMemberName("now")] Now
+}
+
+public sealed record HistoricalQueryValue(
+    [property: JsonPropertyName("kind")] HistoricalValueKind Kind,
+    [property: JsonPropertyName("value")] string? Value)
 {
     public static HistoricalQueryValue FromGuid(Guid value) => new(HistoricalValueKind.Guid, value.ToString("D"));
     public static HistoricalQueryValue FromString(string value) => new(HistoricalValueKind.String, value);
@@ -122,56 +136,63 @@ public sealed record HistoricalQueryValue(HistoricalValueKind Kind, string? Valu
 }
 
 public sealed record HistoricalTimeRange(
-    HistoricalTimeRangeKind Kind,
-    DateTimeOffset? FromUtc = null,
-    DateTimeOffset? ToUtc = null,
-    int? DurationSeconds = null)
+    [property: JsonPropertyName("kind")] HistoricalTimeRangeKind Kind,
+    [property: JsonPropertyName("fromUtc")] DateTimeOffset? FromUtc = null,
+    [property: JsonPropertyName("toUtc")] DateTimeOffset? ToUtc = null,
+    [property: JsonPropertyName("durationSeconds")] int? DurationSeconds = null,
+    [property: JsonPropertyName("anchor")] HistoricalTimeAnchor? Anchor = null)
 {
     public static HistoricalTimeRange Absolute(DateTimeOffset fromUtc, DateTimeOffset toUtc) =>
         new(HistoricalTimeRangeKind.Absolute, fromUtc, toUtc);
 
     public static HistoricalTimeRange Relative(int durationSeconds) =>
-        new(HistoricalTimeRangeKind.Relative, DurationSeconds: durationSeconds);
+        new(
+            HistoricalTimeRangeKind.Relative,
+            DurationSeconds: durationSeconds,
+            Anchor: HistoricalTimeAnchor.Now);
 }
 
 public sealed record HistoricalFilter(
-    string Field,
-    HistoricalFilterOperator Operator,
-    IReadOnlyList<HistoricalQueryValue> Values);
+    [property: JsonPropertyName("field")] string Field,
+    [property: JsonPropertyName("operator")] HistoricalFilterOperator Operator,
+    [property: JsonPropertyName("values")] IReadOnlyList<HistoricalQueryValue> Values);
 
 public sealed record HistoricalSort(
-    string Field = "timestamp",
-    HistoricalSortDirection Direction = HistoricalSortDirection.Descending);
+    [property: JsonPropertyName("field")] string Field = "timestamp",
+    [property: JsonPropertyName("direction")] HistoricalSortDirection Direction = HistoricalSortDirection.Descending);
 
-public sealed record HistoricalPageRequest(int Size = 100, string? Cursor = null);
+public sealed record HistoricalPageRequest(
+    [property: JsonPropertyName("limit")] int Size = 100,
+    [property: JsonPropertyName("cursor")] string? Cursor = null);
 
 public sealed record HistoricalQueryRequest(
-    string Dataset,
-    HistoricalTimeRange Range,
-    int Version = HistoricalQueryContract.Version,
-    IReadOnlyList<HistoricalFilter>? Filters = null,
-    string? Search = null,
-    IReadOnlyList<HistoricalSort>? OrderBy = null,
-    HistoricalPageRequest? Page = null);
+    [property: JsonPropertyName("datasetKey")] string Dataset,
+    [property: JsonPropertyName("timeRange")] HistoricalTimeRange Range,
+    [property: JsonPropertyName("version")] int Version = HistoricalQueryContract.Version,
+    [property: JsonPropertyName("filters")] IReadOnlyList<HistoricalFilter>? Filters = null,
+    [property: JsonPropertyName("search")] string? Search = null,
+    [property: JsonPropertyName("orderBy")] IReadOnlyList<HistoricalSort>? OrderBy = null,
+    [property: JsonPropertyName("page")] HistoricalPageRequest? Page = null);
 
 public sealed record HistoricalColumn(
-    string Field,
-    HistoricalFieldType Type,
-    bool Filterable,
-    bool Sortable,
-    bool Searchable);
+    [property: JsonPropertyName("field")] string Field,
+    [property: JsonPropertyName("type")] HistoricalFieldType Type,
+    [property: JsonPropertyName("filterable")] bool Filterable,
+    [property: JsonPropertyName("sortable")] bool Sortable,
+    [property: JsonPropertyName("searchable")] bool Searchable);
 
-public sealed record HistoricalQueryRow(IReadOnlyDictionary<string, HistoricalQueryValue> Cells);
+public sealed record HistoricalQueryRow(
+    [property: JsonPropertyName("cells")] IReadOnlyDictionary<string, HistoricalQueryValue> Cells);
 
 public sealed record HistoricalQueryResponse(
-    int Version,
-    string Dataset,
-    IReadOnlyList<HistoricalColumn> Columns,
-    IReadOnlyList<HistoricalQueryRow> Rows,
-    DateTimeOffset FromUtc,
-    DateTimeOffset ToUtc,
-    string? NextCursor,
-    int PageSize);
+    [property: JsonPropertyName("version")] int Version,
+    [property: JsonPropertyName("datasetKey")] string Dataset,
+    [property: JsonPropertyName("columns")] IReadOnlyList<HistoricalColumn> Columns,
+    [property: JsonPropertyName("rows")] IReadOnlyList<HistoricalQueryRow> Rows,
+    [property: JsonPropertyName("fromUtc")] DateTimeOffset FromUtc,
+    [property: JsonPropertyName("toUtc")] DateTimeOffset ToUtc,
+    [property: JsonPropertyName("nextCursor")] string? NextCursor,
+    [property: JsonPropertyName("pageSize")] int PageSize);
 
 public sealed record HistoricalResolvedRange(DateTimeOffset FromUtc, DateTimeOffset ToUtc);
 

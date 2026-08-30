@@ -20,9 +20,16 @@ This procedure exercises the real `MqttNetClientTransport` against an external b
 - optional username/password authentication through `MqttResolvedCredentials`;
 - optional TLS through the same platform certificate-validation path used by the runtime transport;
 - bounded-queue burst recovery with 64 QoS 1 messages against an application queue capacity of 4;
-- delayed consumer drain after the burst, requiring every unique burst index to be observed without assuming QoS 1 cannot redeliver duplicates.
+- delayed consumer drain after the burst, requiring every unique burst index to be observed without assuming QoS 1 cannot redeliver duplicates;
+- persistent-session QoS 1 redelivery after disconnect interrupts an inbound callback waiting for capacity in a queue of size 1.
 
-The test uses unique `elitescada/integration/<run-id>/...` topics so concurrent or repeated runs do not reuse authoritative production topics.
+`tests/Scada.Drivers.Tests/MqttBrokerShutdownRedeliveryTests.cs` extends the destructive session scenario to QoS 2 so the PUBREC/PUBREL/PUBCOMP path is not inferred from QoS 1 behavior.
+
+The shutdown/redelivery tests use two ordered messages and an application queue capacity of 1. The first message occupies the EliteSCADA queue. The second delivery is given a bounded settling interval to reach the callback while no consumer drains the queue. `DisconnectAsync` then cancels receive writers before the MQTT client disconnect completes. Because the callback has disabled automatic acknowledgement and marks interrupted processing as failed, the pending QoS 1/2 message is expected to remain available in the persistent broker session and be delivered after reconnect with the same Client ID.
+
+These are live interoperability tests. The 500 ms settling interval is deliberately not presented as a deterministic unit-test synchronization primitive; broker/network timing still needs to be recorded when validation evidence is collected.
+
+The tests use unique `elitescada/integration/<run-id>/...` topics and unique Client IDs so concurrent or repeated runs do not reuse authoritative production topics or long-lived production sessions. Persistent test sessions use a short MQTT 5 expiry and are explicitly cleared at the end of a successful run; MQTT 3.1.1 cleanup reconnects with `CleanSession=true`.
 
 ## Environment variables
 
@@ -78,23 +85,22 @@ For each implementation, retain evidence for:
 - QoS 0/1/2;
 - retained delivery;
 - bounded-queue burst recovery;
+- persistent-session QoS 1 and QoS 2 redelivery after full-queue shutdown interrupts application admission;
 - plaintext only where explicitly acceptable for a lab;
 - trusted TLS hostname/chain validation;
 - username/password authentication when the common host secret resolver is integrated.
 
 ## Additional destructive/resilience scenarios still required
 
-The current live contract now covers a bounded burst larger than the application queue, but it does not simulate broker/process failure or a deliberately interrupted admission. Perform separate controlled validation for:
+The current live contract now covers a bounded burst and controlled full-queue shutdown/redelivery for QoS 1/2, but it still does not simulate all production failures. Perform separate controlled validation for:
 
-- persistent-session reconnect;
-- broker restart;
-- network interruption;
+- broker process restart while a persistent client session exists;
+- network interruption without a clean client disconnect;
 - sustained high-rate traffic over a longer interval than the 64-message burst contract;
-- shutdown while the bounded inbound queue is full;
-- QoS 1/2 redelivery when queue admission is interrupted before acknowledgement;
+- process termination after bounded-queue admission but before canonical TAG cache processing;
 - oversized normal and retained payloads;
 - operator remediation after an oversized retained payload faults the Data Source;
 - freshness timeout and recovery with real traffic;
-- duplicate/redelivery observations under QoS 1/2.
+- duplicate/redelivery observations and ordering across repeated QoS 1/2 reconnect cycles.
 
 These scenarios must preserve the current semantic boundaries: QoS is not TAG quality, ACK means bounded-queue admission rather than canonical TAG transaction completion, and broker connectivity alone does not fabricate a `Good` TAG sample.

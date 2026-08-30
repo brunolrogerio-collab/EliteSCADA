@@ -29,7 +29,7 @@
     {
       "id": "opc-ua",
       "eliteDriver": "opcua",
-      "peer": "open62541 1.5.7 independent server + node-opcua reference client in Node-RED image",
+      "peer": "open62541 1.5.4 independent server + node-opcua reference client in Node-RED image",
       "activation": "compose.opcua.yaml",
       "state": "runnable-overlay",
       "evidenceLevel": "L2-independent-software-peer",

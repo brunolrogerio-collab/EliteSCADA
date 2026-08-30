@@ -10,6 +10,7 @@ public static class S7IsoValueCodec
         bigEndian: true,
         byteOrderMark: false,
         throwOnInvalidBytes: true);
+    private static readonly DateTime S7DateEpoch = new(1990, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
 
     public static object Decode(S7IsoPoint point, ReadOnlySpan<byte> raw)
     {
@@ -36,6 +37,7 @@ public static class S7IsoValueCodec
             S7IsoValueType.Float64 => BitConverter.Int64BitsToDouble(BinaryPrimitives.ReadInt64BigEndian(ordered)),
             S7IsoValueType.String => DecodeString(point, ordered),
             S7IsoValueType.WString => DecodeWString(point, ordered),
+            S7IsoValueType.Date => DecodeDate(ordered),
             S7IsoValueType.DateTime => DecodeDateTime(ordered),
             _ => throw new ArgumentOutOfRangeException(nameof(point.ValueType))
         };
@@ -105,6 +107,9 @@ public static class S7IsoValueCodec
             case S7IsoValueType.WString:
                 EncodeWString(point, value, canonical);
                 break;
+            case S7IsoValueType.Date:
+                EncodeDate(value, canonical);
+                break;
             case S7IsoValueType.DateTime:
                 EncodeDateTime(value, canonical);
                 break;
@@ -167,6 +172,31 @@ public static class S7IsoValueCodec
         destination[1] = checked((byte)text.Length);
         Encoding.Latin1.GetBytes(text.AsSpan(), destination[2..]);
     }
+
+    private static void EncodeDate(object value, Span<byte> destination)
+    {
+        var timestamp = value switch
+        {
+            DateTime dateTime => dateTime,
+            DateTimeOffset dateTimeOffset => dateTimeOffset.DateTime,
+            _ => throw new ArgumentException("S7 DATE requires DateTime or DateTimeOffset.", nameof(value))
+        };
+
+        if (timestamp.TimeOfDay != TimeSpan.Zero)
+            throw new ArgumentException("S7 DATE requires a midnight value; time-of-day cannot be represented.", nameof(value));
+
+        var date = DateTime.SpecifyKind(timestamp.Date, DateTimeKind.Unspecified);
+        var days = (date - S7DateEpoch).Days;
+        if (days is < 0 or > ushort.MaxValue)
+            throw new ArgumentOutOfRangeException(
+                nameof(value),
+                "S7 DATE supports dates from 1990-01-01 through 2169-06-06.");
+
+        BinaryPrimitives.WriteUInt16BigEndian(destination, checked((ushort)days));
+    }
+
+    private static DateTime DecodeDate(ReadOnlySpan<byte> raw) =>
+        S7DateEpoch.AddDays(BinaryPrimitives.ReadUInt16BigEndian(raw));
 
     private static string DecodeWString(S7IsoPoint point, ReadOnlySpan<byte> raw)
     {

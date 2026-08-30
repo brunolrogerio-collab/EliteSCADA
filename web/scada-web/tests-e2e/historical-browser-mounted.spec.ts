@@ -121,7 +121,7 @@ test('mounted Historical Browser builds typed filters only from returned schema 
   await page.getByLabel('Historical filter operator').selectOption('gte');
   await page.getByLabel('Historical filter value').fill('800');
   await page.getByRole('button', { name: 'Add filter' }).click();
-  await expect(page.getByText('priority gte 800')).toBeVisible();
+  await expect(page.getByText('priority gte 800', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Apply query' }).click();
 
   await expect.poll(() => requests.length).toBe(2);

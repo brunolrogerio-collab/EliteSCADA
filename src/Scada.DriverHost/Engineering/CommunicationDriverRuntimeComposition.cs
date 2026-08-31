@@ -3,6 +3,7 @@ using Scada.Drivers.Abstractions;
 using Scada.Drivers.AllenBradley;
 using Scada.Drivers.Iec60870;
 using Scada.Drivers.Mqtt;
+using Scada.Drivers.OpcUa;
 
 namespace Scada.DriverHost.Engineering;
 
@@ -17,7 +18,8 @@ public static class CommunicationDriverRuntimeComposition
         Func<IMqttClientTransport>? mqttTransportFactory = null,
         ICommunicationDriverProtectedMaterialResolver? hostProtectedMaterialResolver = null,
         Func<IIec104ClientAdapter>? iec104AdapterFactory = null,
-        ILogixProtocolClientFactory? logixClientFactory = null)
+        ILogixProtocolClientFactory? logixClientFactory = null,
+        Func<OpcUaRuntimeConnectionOptions, IOpcUaRuntimeSecurityMaterialProvider, IOpcUaRuntimeSessionFactory>? opcUaSessionFactoryBuilder = null)
     {
         var protectedMaterialResolver = hostProtectedMaterialResolver
             ?? EnvironmentCommunicationDriverProtectedMaterialResolver.CreateDeterministicScopedEnvironment();
@@ -33,6 +35,11 @@ public static class CommunicationDriverRuntimeComposition
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new AllenBradleyLogixCommunicationRuntimePlanner(),
             new AllenBradleyLogixCommunicationRuntimeFactory(logixClientFactory)));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new OpcUaCommunicationRuntimePlanner(),
+            new HostProtectedMaterialRuntimeFactory(
+                new OpcUaCommunicationRuntimeFactory(opcUaSessionFactoryBuilder),
+                protectedMaterialResolver)));
         return registry;
     }
 

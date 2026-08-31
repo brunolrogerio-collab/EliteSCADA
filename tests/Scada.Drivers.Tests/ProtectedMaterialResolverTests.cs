@@ -45,6 +45,39 @@ public sealed class ProtectedMaterialResolverTests
     }
 
     [Fact]
+    public async Task DeterministicProvider_BindsEnvironmentNameToEntireRuntimeScope()
+    {
+        var request = new CommunicationDriverProtectedMaterialRequest(
+            "project-a",
+            "mqtt.runtime",
+            "mqtt.raw",
+            "mqtt.password",
+            "password-primary");
+        var environmentVariable =
+            EnvironmentCommunicationDriverProtectedMaterialResolver.GetDeterministicEnvironmentVariableName(request);
+        var otherScopeEnvironmentVariable =
+            EnvironmentCommunicationDriverProtectedMaterialResolver.GetDeterministicEnvironmentVariableName(
+                request with { DataSourceKey = "mqtt.other" });
+
+        Assert.StartsWith(
+            CommunicationDriverProtectedMaterialRegistration.RequiredEnvironmentPrefix,
+            environmentVariable,
+            StringComparison.Ordinal);
+        Assert.NotEqual(environmentVariable, otherScopeEnvironmentVariable);
+        Assert.DoesNotContain(request.Reference, environmentVariable, StringComparison.Ordinal);
+
+        var resolver = EnvironmentCommunicationDriverProtectedMaterialResolver.CreateDeterministicScopedEnvironment(
+            name => name == environmentVariable ? "scope-secret" : null);
+        await using var lease = await resolver.ResolveAsync(request);
+
+        Assert.Equal("scope-secret", Encoding.UTF8.GetString(lease.Material.Span));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await resolver.ResolveAsync(request with { DataSourceKey = "mqtt.other" });
+        });
+    }
+
+    [Fact]
     public async Task Resolver_FailsClosedForUnknownMissingAndMalformedMaterial()
     {
         var resolver = new EnvironmentCommunicationDriverProtectedMaterialResolver(

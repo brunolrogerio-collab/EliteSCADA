@@ -44,16 +44,16 @@ def main() -> None:
     device_instance = int(os.getenv("BACNET_DEVICE_INSTANCE", "599001"))
     health_port = int(os.getenv("BACNET_HEALTH_PORT", "18080"))
 
+    # Match the BACpypes mini_device server pattern deliberately.  The Device
+    # Object owns protocol-services metadata; the application service mixins
+    # advertise/handle the services they implement without a second manual
+    # protocolServicesSupported authority.
     device = LocalDeviceObject(
         objectName="EliteSCADA Lab BACnet Peer",
-        objectIdentifier=device_instance,
+        objectIdentifier=("device", device_instance),
         maxApduLengthAccepted=1024,
         segmentationSupported="noSegmentation",
         vendorIdentifier=999,
-        vendorName="EliteSCADA Interop Lab",
-        modelName="BACpypes Independent Peer",
-        firmwareRevision="0.19.0",
-        applicationSoftwareVersion="lab-v1",
     )
 
     application = LabApplication(device, address)
@@ -74,9 +74,6 @@ def main() -> None:
     )
     application.add_object(analog)
     application.add_object(binary)
-
-    services_supported = application.get_services_supported()
-    device.protocolServicesSupported = services_supported.value
 
     health_server = start_health_server(health_port)
 

@@ -1,0 +1,20 @@
+services:
+  dnp3-dnp3py:
+    build:
+      context: ..
+      dockerfile: interop-lab/dnp3-dnp3py/Dockerfile
+    container_name: elitescada-lab-dnp3-dnp3py
+    ports:
+      - "${DNP3_PEER_PORT:-20000}:20000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import sys; lines=open('/proc/net/tcp').read().splitlines()[1:]; sys.exit(0 if any(parts[1].endswith(':4E20') and parts[3] == '0A' for parts in (line.split() for line in lines)) else 1)"
+      interval: 2s
+      timeout: 3s
+      retries: 20
+      start_period: 2s
+    networks:
+      - interop

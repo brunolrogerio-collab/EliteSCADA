@@ -1,6 +1,6 @@
 # EliteSCADA documentation authority map
 
-This directory contains architecture decisions, historical assignments, laboratory evidence and live coordination notes. They do **not** all have the same authority. Human beings have demonstrated that giving six documents the word “status” is a reliable way to create a seventh document explaining the other six, so the hierarchy is explicit here.
+This directory contains architecture decisions, historical assignments, laboratory evidence and live coordination notes. These documents do **not** all have the same authority, so the hierarchy below is explicit.
 
 ## Operational source of truth
 

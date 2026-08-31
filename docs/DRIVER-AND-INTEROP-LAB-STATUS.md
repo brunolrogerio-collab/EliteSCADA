@@ -1,118 +1,120 @@
 # DRIVER AND INTEROPERABILITY LAB STATUS — EliteSCADA
 
-Last evidence audit: **2026-08-31 BRT**  
-Scope: **LABORATORY EVIDENCE ONLY**
+Last evidence policy update: **2026-08-31 BRT**  
+Scope: **DRIVER / INTEROPERABILITY EVIDENCE**
 
-> Current coordinator implementation state, branch head, merge gates and next action live in `CURRENT-COORDINATOR-HANDOFF.md`.
->
-> This file deliberately separates **peer laboratory health** from **EliteSCADA Driver product-path acceptance**. A healthy simulator/server is not proof that the product Driver passed L2.
+> Current coordinator implementation state and merge gates live in `CURRENT-COORDINATOR-HANDOFF.md`.
 
-## Evidence levels
+## Evidence levels used by EliteSCADA
 
-- **L0** — unit/codec/contracts;
-- **L1** — same-stack/in-process/loopback;
-- **L2** — independent software peer over real wire protocol;
-- **L3** — representative vendor simulator/device;
-- **L4** — representative hardware/site.
+From this checkpoint forward, the project uses the following operational evidence levels:
 
-Normal CI, interoperability, licensing/conformance and hardware acceptance are separate gates.
+- **L0** — unit, codec and contract tests;
+- **L1** — same-stack / in-process / loopback integration;
+- **L2** — EliteSCADA Driver against an independent software peer over the real wire protocol;
+- **L3** — **post-main integrated seven-Driver laboratory**: one EliteSCADA build/runtime with all seven converged Drivers active concurrently against their independent laboratory peers;
+- **L4** — **physical hardware / site evaluation using a Preview build**, executed and accepted by the Development Lead, **Bruno Luiz Rogerio**.
 
-## Common seven-peer laboratory
+L3 and L4 are deliberately different evidence gates. L3 proves the integrated multi-Driver software system. L4 proves representative real hardware/site behavior. Licensing, formal protocol certification/conformance and vendor breadth remain separate claims.
 
-Status: **MERGED / INFRASTRUCTURE HEALTH ACCEPTED**.
+## L2 — independent product-path laboratory
 
-- PR #173 merged to `main`;
-- merge commit: `a08cca94795a5afa14bf8af39b8bf2c6f7df71ae`;
-- validated functional head: `3ff2d6393c4e8734b4b1c08abd2bd8466f78f400`;
-- Interop Lab Smoke #42: **SUCCESS**;
-- EliteSCADA CI #886: **SUCCESS** after an unchanged-code rerun resolved unrelated Modbus timing noise.
+Status: **7/7 PASS / ACCEPTED**.
 
-Common peers/tooling:
-
-| Protocol | Independent lab peer/tool | Peer infrastructure |
+| Driver | Independent peer/evidence | L2 |
 | --- | --- | --- |
-| MQTT | Eclipse Mosquitto + Node-RED; HiveMQ used in accepted product evidence | **GREEN** |
-| CIP / EtherNet/IP | pinned ControlLogix/CompactLogix simulator profiles | **GREEN** |
-| OPC UA | open62541 1.5.4 + node-opcua reference tooling | **GREEN** |
-| IEC-104 | pinned lib60870-C deterministic outstation | **GREEN** |
-| DNP3 | pinned dnp3py outstation | **GREEN** |
-| Siemens S7 ISO-on-TCP | python-snap7 3.1.2 server | **GREEN** |
-| BACnet/IP | BACpypes 0.19.0 peer | **GREEN** |
+| MQTT | Eclipse Mosquitto / HiveMQ | **PASS** |
+| IEC-104 | lib60870-C | **PASS 13/13** |
+| CIP / EtherNet/IP | independent Logix/CIP peer | **PASS** |
+| OPC UA | open62541 | **PASS** |
+| DNP3 | dnp3py | **PASS** |
+| Siemens S7 ISO-on-TCP | python-snap7 | **PASS** |
+| BACnet/IP | BACpypes | **PASS** |
 
-Therefore common peer infrastructure is **7/7 healthy**. That is not the product L2 score.
+The common peer infrastructure is also **7/7 healthy**. Peer health alone is not product acceptance; each Driver has separately accepted L2 evidence.
 
-## EliteSCADA Driver product-path L2
+## L3 — post-main integrated seven-Driver laboratory
 
-| Driver | L2 state | Accepted / missing evidence |
-| --- | --- | --- |
-| D10 MQTT | **PASS / ACCEPTED** | Mosquitto + HiveMQ, MQTT 5/3.1.1, QoS 0/1/2, retained delivery, TLS/auth, negative credentials/certificate behavior, persistent session/restart, `Good -> Stale -> Good` recovery. |
-| D6 IEC-104 | **PASS / ACCEPTED 13/13** | lib60870-C: TCP/STARTDT, GI, spontaneous process data, readiness, five first-release command types in Direct + SBO, peer restart/reconnect and no command replay. |
-| D5 CIP | **PASS / ACCEPTED** | Independent CIP: RegisterSession/SendRRData, typed reads, write/readback and Driver polling/cache behavior. |
-| D7 DNP3 | **FAIL / PRODUCT DEFECT** | Association and startup integrity communicate successfully, but configured `TagDataType.Int32` / G30V1 raw `System.Int32 4242` reaches canonical cache as `System.Double 4242`. Product fix and exact L2 rerun required. |
-| D9 OPC UA | **PENDING** | open62541 peer/reference smoke is healthy. Actual EliteSCADA Driver endpoint/session, stable NodeId read/write, monitored-item delivery, reconnect/resubscribe and timestamp product path still requires accepted L2. |
-| D8 Siemens S7 | **PENDING** | python-snap7 peer build/start/TCP is healthy. Actual Driver Setup Communication, negotiated PDU, deterministic DB reads, write/readback, PDU-aware multi-read and stop/start recovery still requires accepted L2. |
-| D4 BACnet/IP | **PENDING** | BACpypes peer is healthy. Actual Driver Who-Is/I-Am, Device Instance resolution, RP/RPM, WP/readback, COV and route-loss/re-resolution recovery still requires accepted L2. |
+Status: **PLANNED / BLOCKED UNTIL DRIVER CONVERGENCE IS MERGED TO `main` AND POST-MERGE CI IS GREEN**.
 
-Current product-path result:
+### Purpose
 
-- **3 accepted**;
-- **1 executed and failed with a real product defect**;
-- **3 pending completion**.
+L3 is not seven isolated Driver tests. It must prove that the converged host can operate all seven Drivers **at the same time** without cross-Driver interference, shared-host contract regressions or resource/lifecycle collisions.
 
-Do not summarize this as “four Drivers failed”.
+### Required topology
 
-## DNP3 defect boundary
+Use one exact EliteSCADA build from `main` with one Engineering project containing seven active communication Data Sources:
 
-The DNP3 L2 failure is deliberately retained as a product gate:
+1. MQTT;
+2. IEC-104;
+3. CIP / EtherNet/IP;
+4. OPC UA;
+5. DNP3;
+6. Siemens S7 ISO-on-TCP;
+7. BACnet/IP.
 
-`configured TagDataType.Int32 / G30V1 -> raw System.Int32 4242 -> canonical cache System.Double 4242`
+Each Data Source must connect to its independent laboratory peer using the real protocol path already accepted at L2.
 
-Communication is healthy. The configured canonical type is not preserved. The assertion must not be weakened to accept `Double`.
+### Minimum L3 acceptance matrix
 
-Validation PR #167 remains evidence-only until the product fix is made and exact L2 is rerun.
+The integrated run must prove, concurrently:
 
-## Current pending L2 campaigns
+1. all seven Data Sources compile from canonical schema-v15 `CommunicationBinding`;
+2. all seven runtime factories activate through the shared host registry/composition root;
+3. all seven reach their protocol readiness state without requiring every TAG to be `Good`;
+4. deterministic acquisition from every protocol reaches the canonical TAG cache;
+5. at least one supported write/command path per Driver succeeds where the first-release Driver supports writes;
+6. timestamps/quality/typed values remain protocol-correct and do not leak SDK/session objects into shared boundaries;
+7. loss of one peer degrades/faults only its own Data Source and does **not** interrupt the other six;
+8. the failed peer can return and its Driver can recover/reconnect without restarting the EliteSCADA host when the Driver contract supports recovery;
+9. concurrent traffic does not create TAG/cache identity collisions, protected-material scope leakage or Driver-to-Driver coupling;
+10. runtime shutdown cleanly stops all seven Drivers;
+11. backend/runtime smoke and the dedicated seven-Driver L3 workflow are green on the exact `main` SHA;
+12. no assertion is weakened to manufacture a green laboratory result.
 
-### OPC UA
+### Stage transition rule
 
-Prove the actual Driver against the common open62541 peer:
+**Wave 11 MUST NOT start until:**
 
-- endpoint/session;
-- stable NodeId read/write;
-- monitored-item delivery;
-- reconnect/resubscribe;
-- SourceTimestamp/ServerTimestamp preservation.
+`Driver convergence merged to main -> post-main CI green -> L3 seven-Driver integrated laboratory PASS`
 
-### Siemens S7
+When that chain is green, the Driver convergence/laboratory stage is closed and the project proceeds to the next Wave.
 
-Prove the actual Driver against python-snap7:
+## L4 — physical hardware / site validation
 
-- ISO/S7 session;
-- Setup Communication;
-- negotiated PDU;
-- deterministic DB reads;
-- write/readback;
-- PDU-aware multi-read;
-- peer stop/start and reconnect.
+Status: **DEFERRED UNTIL A PREVIEW BUILD EXISTS**.
 
-### BACnet/IP
+L4 is intentionally **not** a prerequisite for starting Wave 11.
 
-Prove the actual Driver against BACpypes:
+Physical Driver evaluation will be performed after the Preview build is assembled. The Development Lead and acceptance authority for this gate is:
 
-- Who-Is/I-Am;
-- Device Instance resolution;
-- RP/RPM;
-- WP/readback;
-- COV;
-- route loss, re-resolution and recovery.
+**Bruno Luiz Rogerio**
 
-Priority/relinquish, BBMD/FDR and broader vendor evidence remain additional gates where applicable; they do not need to be mislabeled as already-proven first L2.
+L4 evidence should be recorded per actual device, not as a blanket protocol claim. Each record should capture at least:
+
+- exact EliteSCADA Preview build / commit;
+- Driver and DriverType;
+- manufacturer;
+- model;
+- firmware/software revision;
+- network/topology and relevant communication settings;
+- tested reads, writes/commands and reconnect scenarios;
+- observed quality/timestamps/diagnostics;
+- result (`PASS`, `FAIL`, `PARTIAL`, `NOT TESTED`);
+- evaluator notes and final acceptance.
+
+Example classification:
+
+`Siemens S7 -> CPU 1214C / firmware X.Y -> L4 PASS`
+
+A PASS on one physical model must not be generalized to every device implementing that protocol.
 
 ## Claim discipline
 
-- Peer container/service health is not Driver acceptance.
-- Unit/normal CI green is not L2.
-- L2 is not L3/L4.
-- A validation branch is evidence, not automatic product merge authorization.
-- Red unrelated CI still prevents exact-head acceptance until classified or rerun; do not inherit a prior green SHA.
-- Licensing and protocol conformance remain separate from interoperability.
+- Normal CI green is not L2 or L3.
+- Seven independent L2 PASS results are not L3.
+- L3 requires all seven Drivers operating concurrently in one EliteSCADA runtime/build.
+- L3 is not physical hardware evidence.
+- L4 requires real hardware/site evaluation using the Preview build.
+- L4 acceptance is device-specific.
+- Licensing, conformance/certification and vendor breadth remain separate from L0-L4 interoperability evidence.

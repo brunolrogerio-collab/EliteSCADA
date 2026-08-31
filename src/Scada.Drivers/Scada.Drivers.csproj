@@ -5,6 +5,7 @@
 
   <ItemGroup>
     <PackageReference Include="MQTTnet" Version="5.2.0.1603" />
+    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client" Version="1.5.378.156" />
   </ItemGroup>
 
   <ItemGroup>

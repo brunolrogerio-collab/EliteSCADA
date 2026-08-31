@@ -59,14 +59,12 @@ jobs:
             fi
             sleep 1
           done
-          if [ "$ready" != "true" ]; then
-            echo "EliteSCADA host did not become healthy."
-            fail
-          fi
+          [ "$ready" = "true" ] || fail
 
           curl -fsS http://127.0.0.1:5091/api/licensing/status > /tmp/licensing-status.json || fail
           curl -fsS http://127.0.0.1:5091/api/licensing/request > /tmp/licensing-request.json || fail
-          if ! python3 - <<'PY'
+
+          python3 - <<'PY'
           import json
           with open('/tmp/licensing-status.json') as f:
               status = json.load(f)
@@ -77,12 +75,14 @@ jobs:
           assert status['runtime']['state'] == 'Idle', status
           assert request['requestCode'].startswith('ESREQ1.'), request
           PY
-          then
-            fail
-          fi
+          validation_status=$?
+          [ "$validation_status" -eq 0 ] || fail
 
           kill "$API_PID" 2>/dev/null || true
           wait "$API_PID" 2>/dev/null || true
+      - name: Dump licensing host log on failure
+        if: failure()
+        run: cat /tmp/scada-licensing-api.log || true
       - name: Publish Windows x64 License Generator
         run: >-
           dotnet publish src/Scada.LicenseGenerator/Scada.LicenseGenerator.csproj

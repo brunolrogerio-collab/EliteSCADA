@@ -5,36 +5,24 @@
 **Wave 11:** **DEFERRED UNTIL DRIVER CONVERGENCE**
 
 Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
-Parallel execution model: `docs/DEVELOPMENT-WAVES.md`.  
-Driver/lab live state: `docs/DRIVER-AND-INTEROP-LAB-STATUS.md`.  
+Live ownership: `docs/CHAT-WORK-ASSIGNMENTS.md`.  
+Driver/lab status: `docs/DRIVER-AND-INTEROP-LAB-STATUS.md`.  
+Shared convergence issue: `#174`.  
 Current coordinator checkpoint: `LAST CHANGE.md`.  
 CI policy: `docs/CI-USAGE-POLICY.md`.
 
-Engineering Import/Export remains cross-cutting: canonical Engineering entities participate in versioned JSON, validation/Preview/Apply, Working/revision lifecycle, PostgreSQL persistence where applicable and `.escadapkg` backup/restore.
+## Current validated product foundation
 
-## Current validated foundation
+Wave 10 is COMPLETE / MERGED / POST-MAIN GREEN.
 
-Wave 10 product merge on `main`:
+Final product merge:
 
 `15daff2cc076f46f9433812babbd5cbb4b8d9554`
 
-Validation evidence:
+Evidence:
 
-- exact Wave 10 integration head `adb0153dff36e172d0553463cc961a11bd7c7e1e` — CI #873 SUCCESS;
-- exact post-main Wave 10 product head `15daff2cc076f46f9433812babbd5cbb4b8d9554` — CI #874 SUCCESS.
-
-## Completed waves and follow-ups
-
-- **Wave 03 — COMPLETE / MERGED.** Main merge `37e64b8ff2bbc431ab1368eab2b3125ec5a5b636`; CI #418 green.
-- **Wave 04 — COMPLETE / MERGED.** Main merge `e9e596f482c83bf5864b34a7f54d9fd3b0b67baa`; CI #446 green.
-- **Wave 05 — COMPLETE / MERGED.** Main merge `7f629bf660bb16fd46fbf6abeb72b9ca1676e087`; CI #466 green.
-- **Wave 06 — COMPLETE / MERGED.** Main merge `cc79713434c1d7b5988158b843b137eaf488d923`; CI #487 green.
-- **Wave 07 — COMPLETE / MERGED / POST-MERGE GREEN.** Main merge `8de706882ba20afedd666532ac41ae11115d06b3`; post-merge CI #510 green.
-- **Wave 08 — COMPLETE / MERGED / POST-MERGE GREEN.** Main merge `bfd17d035d905e9bcae263f68244cfb2b6453aa2`; final integration CI #531 and post-merge CI #533 green.
-- **08-FOLLOW-A — COMPLETE / MERGED / POST-MERGE GREEN.** PR #105; post-merge CI #543 green.
-- **08-FOLLOW-B — COMPLETE / MERGED / POST-MERGE GREEN.** Final product head `dededaca980fdb72b5d4955685ab1161aca441fd`; CI #657 and #658 green.
-- **Wave 09 — COMPLETE / MERGED.** Screens, Popups, Dynamos, canonical navigation, Historical Data Browser and Reporting/Report Designer.
-- **Wave 10 — COMPLETE / MERGED / POST-MAIN GREEN.** Final PR #172; integration CI #873 green; product merge `15daff2cc076f46f9433812babbd5cbb4b8d9554`; post-main CI #874 green.
+- Wave 10 integration head `adb0153dff36e172d0553463cc961a11bd7c7e1e` — CI #873 SUCCESS;
+- exact post-main Wave 10 product head — CI #874 SUCCESS.
 
 ## Ordered path to v0.1
 
@@ -49,7 +37,7 @@ Wave 08      Graphical Editor + Image + Engineering Development Monitor         
 08-FOLLOW-B  Typed Visual Expressions + Boolean Conditions + Analog Fill                 COMPLETE
 Wave 09      Screens + Popups + Dynamos + navigation + Historical Data + Reporting       COMPLETE
 Wave 10      Python visual events + animation + preview                                  COMPLETE
-Drivers       Driver interoperability lab + shared convergence + final driver evidence    ACTIVE / PRIORITY
+Drivers      Interoperability + shared convergence + accepted driver integration          ACTIVE / PRIORITY
 Wave 11      Complete HMI Runtime demo vertical slice                                    DEFERRED
 Wave 12      Hardening                                                                   WAITING
 Wave 13      Windows x64 product package                                                 WAITING
@@ -60,63 +48,91 @@ FINAL        EliteSCADA v0.1 — Full Product Validation Preview
 
 ## Driver convergence — ACTIVE / PRIORITY
 
-The current priority is to finish the additional industrial protocol Drivers before starting Wave 11.
+The additional industrial Drivers are now an explicit pre-Wave-11 completion objective.
 
-Execution order is evidence-driven rather than numerical:
+Execution strategy:
 
-1. consolidate the common `interop-lab/` so Driver workers share reproducible independent peers instead of private one-off harnesses;
-2. immediately converge Drivers that already have strong product + independent-peer evidence;
-3. route Drivers with a real protocol/type defect back to the owning worker with exact failing evidence;
-4. add missing independent peers for Siemens S7 and BACnet/IP;
-5. converge shared Coordinator-owned contracts once rather than copying them into every protocol branch;
-6. run exact integration CI and only then promote accepted Drivers into `main`.
+1. keep one common reproducible interoperability laboratory;
+2. converge Drivers with product + independent-peer evidence first;
+3. return real product/protocol defects to the owning worker with exact evidence;
+4. implement shared host contracts once under Coordinator issue #174;
+5. preserve protocol branches as isolated evidence sources rather than merging historical branch baggage wholesale;
+6. require exact integrated CI before every mainline Driver transition.
 
-Shared Coordinator-owned convergence includes:
+Current evidence-driven convergence order:
 
-- fail-closed DriverHost registry/planner/factory composition;
-- canonical rich Communication TAG binding and compatibility migration;
-- common Data Source readiness activation;
-- protected credential/certificate/private-key resolution;
-- installable module/catalog/loading policy;
-- common rich command/operation surface where `WriteAsync` is insufficient;
-- source timestamp/current-value/historical-event ordering policy;
-- central Engineering ConnectionTest/Browse/Import/Reconcile registration and API/UI exposure.
+`MQTT -> IEC-104 -> CIP -> OPC UA -> DNP3 -> Siemens S7 -> BACnet/IP`
 
-## Interoperability laboratory — ACTIVE
+OPC UA, DNP3, S7 and BACnet enter shared integration after their currently assigned L2/fix gates close.
+
+## Interoperability laboratory — SEVEN-PEER STACK GREEN
 
 Integration branch:
 
 `integration/driver-interop-lab-finalization`
 
-The common lab is being promoted from a base MQTT/CIP scaffold into a reusable multi-protocol peer stack. Current implemented peers on the integration branch are:
+PR:
 
-- Eclipse Mosquitto + Node-RED control plane;
-- ControlLogix + CompactLogix independent CIP simulators;
-- open62541 OPC UA server + independent node-opcua reference client;
-- lib60870-C IEC-104 outstation;
-- dnp3py DNP3 outstation.
+`#173 — Driver interoperability lab — common multi-protocol peer stack`
 
-Siemens S7 and BACnet/IP independent peers remain the next missing laboratory tools.
+Exact functional head:
 
-The lab distinguishes peer/tool readiness from Driver product-path acceptance. A healthy simulator does not make a Driver green; a Driver L2 test must actually exercise the product path and canonical TAG semantics.
+`3ff2d6393c4e8734b4b1c08abd2bd8466f78f400`
+
+**Interop Lab Smoke #42: SUCCESS.**
+
+Common test peers now include:
+
+- MQTT — Eclipse Mosquitto + Node-RED control plane;
+- Allen-Bradley CIP — pinned ControlLogix + CompactLogix simulators;
+- OPC UA — open62541 1.5.4 + independent node-opcua reference client;
+- IEC 60870-5-104 — pinned lib60870-C deterministic outstation;
+- DNP3 — pinned dnp3py independent outstation;
+- Siemens S7 ISO-on-TCP — python-snap7 3.1.2 deterministic server/DB peer;
+- BACnet/IP — BACpypes 0.19.0 independent device/reference peer.
+
+Smoke #42 proves the whole tool stack can build/start together, explicit S7 TCP readiness, explicit BACnet health, MQTT round-trip and OPC UA browse/read/write/subscription reference behavior.
+
+This is **tool/peer readiness**, not automatic Driver product acceptance. Each Driver still requires its own product-path L2 where assigned.
+
+Normal EliteSCADA CI #886 on the exact functional head had an initial run affected by two unrelated Modbus timing flakes; failed jobs were rerun without modifying product/Modbus code. PR #173 is mergeable only after the rerun is fully green.
+
+## Shared Coordinator scope — issue #174
+
+Coordinator owns once for all Drivers:
+
+- fail-closed Driver registry/planner/factory and central activation;
+- canonical rich Communication TAG binding + compatibility migration;
+- common Data Source readiness;
+- protected credential/certificate/private-key resolution;
+- module/catalog/loading policy;
+- common rich operation surface where simple `WriteAsync` is insufficient;
+- SourceTimestamp/ServerTimestamp/current/historical late-event policy;
+- central Engineering ConnectionTest/Browse/Import/Reconcile API/UI;
+- integration and mainline CI.
+
+Workers must not create protocol-private alternatives for these shared contracts.
 
 ## Wave 11 — DEFERRED
 
-Wave 11 still owns the complete owner-testable HMI Runtime demo vertical slice. Its scope is unchanged, but execution is intentionally deferred until the current Driver convergence phase is completed or explicitly reprioritized again.
+Wave 11 still owns the complete owner-testable HMI Runtime demo vertical slice. Its scope is unchanged. No Wave 11 implementation begins while Driver convergence is the active priority unless explicitly reprioritized.
 
-No Wave 11 branch/worker work should consume Coordinator attention while Driver convergence is the active priority.
+## Evidence discipline
 
-## Protocol boundary
+- L0: unit/codec/contracts;
+- L1: same-stack/in-process/loopback;
+- L2: independent software peer over real wire;
+- L3: representative vendor simulator/device;
+- L4: representative hardware/site.
 
-Required v0.1 protocol remains Modbus TCP. Simulation, Client Memory, Server Memory and Gateway remain part of product validation. The additional protocol Drivers are now an explicit pre-Wave-11 completion objective rather than background parked work.
+Normal CI, L2/L3/L4, licensing and conformance are separate gates. Never improve a status by weakening a test.
 
 ## Development quality
 
-- never merge a Driver because its isolated worker CI is green;
-- require independent peer evidence where practical and keep L2/L3/L4 claims separate;
-- fix root causes instead of weakening tests/security/concurrency;
 - preserve canonical Engineering/backend authority;
-- keep third-party protocol libraries behind Driver-owned adapters and document licensing/distribution gates;
-- use Actions to buy evidence, not ceremony;
-- require exact integration CI before every Driver mainline transition;
-- keep coordination checkpoints synchronized because `siga` depends on them.
+- no Driver-to-Driver coupling;
+- no plaintext protected material;
+- fix root causes rather than widening timeouts/assertions merely for green badges;
+- third-party lab peers stay test-only unless an explicit production dependency decision says otherwise;
+- use Actions for meaningful evidence, not ritual;
+- keep `LAST CHANGE.md`, Roadmap and assignment state synchronized because continuation depends on them.

@@ -1,0 +1,56 @@
+name: OPC UA Product L2
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/Scada.Drivers/OpcUa/**"
+      - "tests/Scada.Drivers.Tests/OpcUaOpen62541ProductInteropTests.cs"
+      - "interop-lab/opcua/open62541/**"
+      - ".github/workflows/opcua-product-l2.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  open62541-product-path:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.400
+
+      - name: Build pinned open62541 peer
+        run: docker build -t elitescada-opcua-l2 interop-lab/opcua/open62541
+
+      - name: Start open62541 peer
+        run: docker run -d --name elitescada-opcua-l2 -p 4841:4840 elitescada-opcua-l2
+
+      - name: Wait for OPC UA peer
+        run: timeout 30 bash -c 'until nc -z 127.0.0.1 4841; do sleep 1; done'
+
+      - name: Restore driver tests
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+
+      - name: Run EliteSCADA OPC UA product-path L2
+        env:
+          ELITESCADA_OPCUA_L2_ENDPOINT: opc.tcp://127.0.0.1:4841
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          --configuration Release
+          --filter "FullyQualifiedName~OpcUaOpen62541ProductInteropTests"
+          --verbosity normal
+
+      - name: Dump peer logs on failure
+        if: failure()
+        run: docker logs elitescada-opcua-l2 || true
+
+      - name: Stop peer
+        if: always()
+        run: docker rm -f elitescada-opcua-l2 || true

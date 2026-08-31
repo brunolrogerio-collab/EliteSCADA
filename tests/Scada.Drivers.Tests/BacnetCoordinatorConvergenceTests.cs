@@ -199,6 +199,14 @@ public sealed class BacnetCoordinatorConvergenceTests
         Assert.Equal((byte)8, session.LastWriteBinding!.WritePriority);
         var written = Assert.Single(session.LastWriteValues!);
         Assert.Equal(43.75d, Assert.IsType<double>(written.Value), precision: 6);
+
+        using var convergenceTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await WaitUntilAsync(
+            () => coordinator.TryGetCurrent(tagId, out var current) &&
+                  current?.Value is double value &&
+                  Math.Abs(value - 43.75d) < 0.000001d,
+            convergenceTimeout.Token);
+
         Assert.True(coordinator.TryGetCurrent(tagId, out var afterWrite));
         Assert.Equal(43.75d, Assert.IsType<double>(afterWrite!.Value), precision: 6);
         Assert.Equal(TagQuality.Good, afterWrite.Quality);
@@ -302,6 +310,15 @@ public sealed class BacnetCoordinatorConvergenceTests
         string.Join(" | ", result.CompilationIssues.Select(static issue => $"{issue.Code}: {issue.Message}")
             .Concat(result.RuntimeIssues.Select(static issue => $"{issue.Code}: {issue.Message}")));
 
+    private static async Task WaitUntilAsync(Func<bool> condition, CancellationToken cancellationToken)
+    {
+        while (!condition())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await Task.Delay(10, cancellationToken);
+        }
+    }
+
     private sealed record ReadStep(float? Value, Exception? Error)
     {
         public static ReadStep Success(float value) => new(value, null);
@@ -323,6 +340,7 @@ public sealed class BacnetCoordinatorConvergenceTests
 
     private sealed class SequencedBacnetSession(bool subscribeAvailable, params ReadStep[] steps) : IBacnetSession
     {
+        private readonly object _stepsGate = new();
         private int _readIndex = -1;
         private int _subscribeCalls;
         private int _writeCalls;
@@ -353,7 +371,9 @@ public sealed class BacnetCoordinatorConvergenceTests
             CancellationToken cancellationToken = default)
         {
             var index = Interlocked.Increment(ref _readIndex);
-            var step = steps[Math.Min(index, steps.Length - 1)];
+            ReadStep step;
+            lock (_stepsGate)
+                step = steps[Math.Min(index, steps.Length - 1)];
             if (step.Error is not null)
                 return Task.FromException<BacnetPropertyReadResult>(step.Error);
 
@@ -372,7 +392,21 @@ public sealed class BacnetCoordinatorConvergenceTests
         {
             Interlocked.Increment(ref _writeCalls);
             LastWriteBinding = binding;
-            LastWriteValues = values.ToArray();
+            var writtenValues = values.ToArray();
+            LastWriteValues = writtenValues;
+
+            // This fake models a device that accepted the write. Subsequent polls must
+            // therefore read the accepted value instead of permanently replaying the
+            // pre-write sample and racing the coordinator's write publication.
+            if (writtenValues.Length == 1 && writtenValues[0].Value is not null)
+            {
+                var reflectedValue = Convert.ToSingle(
+                    writtenValues[0].Value,
+                    System.Globalization.CultureInfo.InvariantCulture);
+                lock (_stepsGate)
+                    steps[^1] = ReadStep.Success(reflectedValue);
+            }
+
             return Task.CompletedTask;
         }
 

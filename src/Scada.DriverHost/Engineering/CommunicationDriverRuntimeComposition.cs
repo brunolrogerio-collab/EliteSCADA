@@ -1,6 +1,7 @@
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.AllenBradley;
+using Scada.Drivers.Bacnet;
 using Scada.Drivers.Dnp3;
 using Scada.Drivers.Iec60870;
 using Scada.Drivers.Mqtt;
@@ -22,7 +23,8 @@ public static class CommunicationDriverRuntimeComposition
         Func<IIec104ClientAdapter>? iec104AdapterFactory = null,
         ILogixProtocolClientFactory? logixClientFactory = null,
         Func<OpcUaRuntimeConnectionOptions, IOpcUaRuntimeSecurityMaterialProvider, IOpcUaRuntimeSessionFactory>? opcUaSessionFactoryBuilder = null,
-        IDnp3MasterSessionFactory? dnp3SessionFactory = null)
+        IDnp3MasterSessionFactory? dnp3SessionFactory = null,
+        IBacnetSessionFactory? bacnetSessionFactory = null)
     {
         var protectedMaterialResolver = hostProtectedMaterialResolver
             ?? EnvironmentCommunicationDriverProtectedMaterialResolver.CreateDeterministicScopedEnvironment();
@@ -49,6 +51,9 @@ public static class CommunicationDriverRuntimeComposition
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new S7IsoCommunicationRuntimePlanner(),
             new S7IsoCommunicationRuntimeFactory()));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new BacnetCommunicationRuntimePlanner(),
+            new BacnetCommunicationRuntimeFactory(bacnetSessionFactory)));
         return registry;
     }
 

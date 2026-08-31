@@ -10,13 +10,13 @@ This is a short transfer note for replacing the active ChatGPT/Development Coord
 4. live PR #175
 5. live issue #174
 6. issue #180 for L3
-7. `docs/LICENSING-AND-DEMO-MODE.md` for the locked future Demo/licensing contract
+7. issue #183 + `docs/LICENSING-AND-DEMO-MODE.md` for the locked future Demo/licensing contract
 
 Live GitHub refs and exact-SHA Actions results override stale SHAs copied into prose.
 
 ## Current project checkpoint
 
-- `main`: `d0a4e13816992b0a0eb0eb68c36e78c560cc1d88` at the last audit.
+- `main`: `d0a4e13816992b0a0eb68c36e78c560cc1d88` at the last audit.
 - coordinator branch: `coordination/driver-convergence-v3`.
 - PR #175: Draft / Open / mergeable / DO NOT MERGE until controlled final integration.
 - Driver coordinator convergence: **7/7 CLOSED**.
@@ -45,7 +45,8 @@ After that code was validated, the product requirement was refined:
 
 **None of the Demo timer, hardware fingerprint, signed-license verification, License Generator or licensing UI is implemented yet.**
 
-Authoritative specification: `docs/LICENSING-AND-DEMO-MODE.md`.
+Authoritative specification: `docs/LICENSING-AND-DEMO-MODE.md`.  
+Tracking issue: **#183**.
 
 The current 200-TAG mutation-time implementation must later be refactored into a Run/activation entitlement gate. Do not report the final Demo/licensing behavior as implemented merely because `ProductCapacityPolicy.MaxTagsPerProject = 200` exists today.
 

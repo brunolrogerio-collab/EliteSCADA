@@ -81,18 +81,6 @@ internal sealed class TagEngineeringHandler
                 continue;
             }
 
-            var metadata = dto.Metadata is null
-                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                : new Dictionary<string, string>(dto.Metadata, StringComparer.OrdinalIgnoreCase);
-            if (!string.IsNullOrWhiteSpace(dto.Address)) metadata["address"] = dto.Address;
-
-            var accessPolicy = dto.AccessPolicy is null
-                ? null
-                : new TagAccessPolicy(
-                    dto.AccessPolicy.ReadRoles?.ToArray(),
-                    dto.AccessPolicy.WriteRoles?.ToArray(),
-                    dto.AccessPolicy.ConfigureRoles?.ToArray());
-
             var tag = new TagDefinition(
                 existing?.Id ?? dto.Id ?? Guid.NewGuid(),
                 dto.Name,
@@ -102,10 +90,12 @@ internal sealed class TagEngineeringHandler
                 dto.EngineeringUnit,
                 dto.Description,
                 dto.ReadOnly,
-                metadata,
-                accessPolicy);
+                BuildMetadata(dto),
+                BuildAccessPolicy(dto.AccessPolicy),
+                dto.AddressSelector,
+                dto.CommunicationBinding);
 
-            if (operation == ImportOperation.Create)
+            if (existing is null)
             {
                 _tags.Register(tag);
                 created++;
@@ -118,10 +108,70 @@ internal sealed class TagEngineeringHandler
         }
     }
 
-    private TagDefinition? ResolveExisting(TagEngineeringDto dto)
+    public TagDefinition? ResolveAlarmTag(AlarmEngineeringDto dto)
     {
-        if (dto.Id.HasValue && _tags.TryGet(dto.Id.Value, out var byId) && byId is not null) return byId;
-        return _tags.TryGetByPath(dto.Path, out var byPath) ? byPath : null;
+        if (dto.TagId.HasValue && _tags.TryGet(dto.TagId.Value, out var byId)) return byId;
+        if (!string.IsNullOrWhiteSpace(dto.TagPath) && _tags.TryGetByPath(dto.TagPath, out var byPath)) return byPath;
+        return null;
+    }
+
+    public TagDefinition? ResolveAlarmTagForPreview(AlarmEngineeringDto dto, EngineeringPackage package)
+    {
+        var existing = ResolveAlarmTag(dto);
+        if (existing is not null) return existing;
+
+        var imported = ResolveImportedAlarmTag(dto, package);
+        if (imported is null) return null;
+
+        return new TagDefinition(
+            imported.Id ?? Guid.Empty,
+            imported.Name,
+            imported.Path,
+            imported.DataType,
+            imported.Source,
+            imported.EngineeringUnit,
+            imported.Description,
+            imported.ReadOnly,
+            BuildMetadata(imported),
+            BuildAccessPolicy(imported.AccessPolicy),
+            imported.AddressSelector,
+            imported.CommunicationBinding);
+    }
+
+    public bool IsClientMemoryAlarmTarget(AlarmEngineeringDto dto, EngineeringPackage package)
+    {
+        var imported = ResolveImportedAlarmTag(dto, package);
+        var source = imported?.Source ?? ResolveAlarmTag(dto)?.Source;
+        return MemoryEngineeringValidator.IsClientMemoryDriver(ResolveDataSource(source, package)?.Driver);
+    }
+
+    private void ValidateClientMemoryTransition(
+        TagEngineeringDto dto,
+        DataSourceEngineeringDto? dataSource,
+        List<ImportIssue> issues)
+    {
+        if (dataSource is null || !MemoryEngineeringValidator.IsClientMemoryDriver(dataSource.Driver))
+            return;
+
+        var existing = ResolveExisting(dto);
+        if (existing is null || !_alarms.Definitions().Any(alarm => alarm.TagId == existing.Id))
+            return;
+
+        issues.Add(new(
+            "CLIENT_MEMORY_EXISTING_ALARM_NOT_ALLOWED",
+            $"TAG '{dto.Path}' cannot move to Client Memory while it remains targeted by the global alarm engine.",
+            ImportEntityKind.Tag,
+            dto.Path,
+            true));
+    }
+
+    private TagEngineeringDto? ResolveImportedAlarmTag(AlarmEngineeringDto dto, EngineeringPackage package)
+    {
+        TagEngineeringDto? imported = null;
+        if (dto.TagId.HasValue) imported = package.Tags.FirstOrDefault(x => x.Id == dto.TagId);
+        if (imported is null && !string.IsNullOrWhiteSpace(dto.TagPath))
+            imported = package.Tags.FirstOrDefault(x => x.Path.Equals(dto.TagPath, StringComparison.OrdinalIgnoreCase));
+        return imported;
     }
 
     private DataSourceEngineeringDto? ResolveDataSource(string? source, EngineeringPackage package)
@@ -132,62 +182,75 @@ internal sealed class TagEngineeringHandler
                ?? _dataSources.FindByKey(source);
     }
 
-    private void ValidateClientMemoryTransition(
-        TagEngineeringDto dto,
-        DataSourceEngineeringDto? dataSource,
-        List<ImportIssue> issues)
+    private TagDefinition? ResolveExisting(TagEngineeringDto dto)
     {
-        var existing = ResolveExisting(dto);
-        if (existing is null || !InternalMemoryEngineering.IsClientMemory(dataSource)) return;
-        if (existing.ReadOnly)
-        {
-            issues.Add(new(
-                "CLIENT_MEMORY_EXISTING_TAG_READONLY",
-                $"Existing TAG '{dto.Path}' is read-only and cannot be converted to Client Memory without first making it writable.",
-                ImportEntityKind.Tag,
-                dto.Path,
-                true));
-        }
+        if (dto.Id.HasValue && _tags.TryGet(dto.Id.Value, out var byId)) return byId;
+        return _tags.TryGetByPath(dto.Path, out var byPath) ? byPath : null;
     }
 
     private static void ValidateAccessPolicy(TagEngineeringDto dto, List<ImportIssue> issues)
     {
         if (dto.AccessPolicy is null) return;
-
-        ValidateRoles(dto.AccessPolicy.ReadRoles, "readRoles", dto.Path, issues);
-        ValidateRoles(dto.AccessPolicy.WriteRoles, "writeRoles", dto.Path, issues);
-        ValidateRoles(dto.AccessPolicy.ConfigureRoles, "configureRoles", dto.Path, issues);
+        ValidateRoleList(dto.AccessPolicy.ReadRoles, "read", dto.Path, issues);
+        ValidateRoleList(dto.AccessPolicy.WriteRoles, "write", dto.Path, issues);
+        ValidateRoleList(dto.AccessPolicy.ConfigureRoles, "configure", dto.Path, issues);
     }
 
-    private static void ValidateRoles(
+    private static void ValidateRoleList(
         IReadOnlyCollection<string>? roles,
-        string field,
-        string path,
+        string operation,
+        string tagPath,
         List<ImportIssue> issues)
     {
         if (roles is null) return;
-        foreach (var role in roles)
-        {
-            if (string.IsNullOrWhiteSpace(role))
-            {
-                issues.Add(new(
-                    "TAG_ACCESS_ROLE_EMPTY",
-                    $"TAG '{path}' has an empty {field} role.",
-                    ImportEntityKind.Tag,
-                    path,
-                    true));
-                continue;
-            }
 
-            if (!string.Equals(role, role.Trim(), StringComparison.Ordinal))
-            {
-                issues.Add(new(
-                    "TAG_ACCESS_ROLE_WHITESPACE",
-                    $"TAG '{path}' {field} role '{role}' has leading or trailing whitespace.",
-                    ImportEntityKind.Tag,
-                    path,
-                    true));
-            }
+        if (roles.Any(string.IsNullOrWhiteSpace))
+            issues.Add(new(
+                "TAG_ACCESS_ROLE_INVALID",
+                $"TAG '{tagPath}' has a blank role in its {operation} access policy.",
+                ImportEntityKind.Tag,
+                tagPath,
+                true));
+
+        if (roles.Where(x => !string.IsNullOrWhiteSpace(x))
+            .GroupBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .Any(g => g.Count() > 1))
+        {
+            issues.Add(new(
+                "TAG_ACCESS_ROLE_DUPLICATE",
+                $"TAG '{tagPath}' repeats a role in its {operation} access policy.",
+                ImportEntityKind.Tag,
+                tagPath,
+                true));
         }
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildMetadata(TagEngineeringDto dto)
+    {
+        var result = dto.Metadata is null
+            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, string>(dto.Metadata, StringComparer.OrdinalIgnoreCase);
+
+        Set(result, "address", dto.Address);
+        Set(result, "scale.minimum", dto.ScaleMinimum);
+        Set(result, "scale.maximum", dto.ScaleMaximum);
+        Set(result, "historian.enabled", dto.Historian?.Enabled);
+        Set(result, "historian.strategy", dto.Historian?.Strategy);
+        Set(result, "historian.deadband", dto.Historian?.Deadband);
+        Set(result, "historian.periodMs", dto.Historian?.PeriodMilliseconds);
+        Set(result, "historian.maxPeriodMs", dto.Historian?.MaximumPeriodMilliseconds);
+        MemoryEngineeringValueCodec.WriteToMetadata(result, dto.InitialValue);
+        return result;
+    }
+
+    private static TagAccessPolicy? BuildAccessPolicy(TagAccessPolicyDto? dto) =>
+        dto is null
+            ? null
+            : new TagAccessPolicy(dto.ReadRoles?.ToArray(), dto.WriteRoles?.ToArray(), dto.ConfigureRoles?.ToArray());
+
+    private static void Set(Dictionary<string, string> map, string key, object? value)
+    {
+        if (value is not null)
+            map[key] = Convert.ToString(value, CultureInfo.InvariantCulture)!;
     }
 }

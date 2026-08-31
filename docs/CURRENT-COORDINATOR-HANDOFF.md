@@ -1,41 +1,42 @@
 # EliteSCADA — Current Coordinator Handoff
 
 Last operational audit: **2026-08-31 BRT**  
-Operational status: **DRIVER CONVERGENCE 7/7 CLOSED / PREVIEW 200-TAG CAP VALIDATED / PR #175 DRAFT / PRE-MERGE MAINLINE VALIDATION**
+Operational status: **DRIVER CONVERGENCE 7/7 CLOSED / L2 7/7 PASS / PRE-MERGE MAINLINE VALIDATION / L3 NEXT AFTER MAIN / DEMO-LICENSING SPECIFIED NOT IMPLEMENTED**
 
 > **THIS FILE IS THE SINGLE OPERATIONAL HANDOFF FOR COORDINATOR CONTINUITY.**
 >
-> Live GitHub refs and exact-head Actions evidence override SHAs copied into prose. Architecture semantics remain governed by ADRs and `DRIVER-CONVERGENCE-COORDINATION-V1.md`.
+> Live GitHub refs and exact-head Actions evidence override SHAs copied into prose. Stable product intent is governed by `PROJECT GOAL.md`. Current implementation truth is repository/live CI evidence. Do not reconstruct state from old chat messages or stale worker PR prose.
 
-## 1. Resume protocol
+## 1. Mandatory resume protocol
 
-A replacement Coordinator should read, in this order:
+A replacement Coordinator must read, in this order:
 
-1. live PR **#175** and branch `coordination/driver-convergence-v3`;
-2. this file;
-3. live issue **#174**;
-4. issue **#180** for the post-main integrated L3 gate;
-5. Actions for the exact current code head;
-6. `docs/DRIVER-AND-INTEROP-LAB-STATUS.md` for evidence policy;
-7. `docs/PREVIEW-CAPACITY-POLICY.md` for the Preview product-capacity contract.
-
-Do not reconstruct current state from old worker PR descriptions, assignment documents or historical handoffs.
+1. `PROJECT GOAL.md`;
+2. `LAST CHANGE.md`;
+3. this file;
+4. `docs/COORDINATOR-TRANSFER-2026-08-31.md`;
+5. live PR **#175** and branch `coordination/driver-convergence-v3`;
+6. live issue **#174**;
+7. issue **#180** for the post-main integrated L3 gate;
+8. issue **#183** plus `docs/LICENSING-AND-DEMO-MODE.md` for the future Demo/licensing track;
+9. Actions for the exact current code head;
+10. `docs/DRIVER-AND-INTEROP-LAB-STATUS.md` for laboratory evidence policy.
 
 Status vocabulary:
 
 - **MERGED** — present on `main`;
-- **IMPLEMENTED IN PR** — implemented on coordinator/worker line, not yet in `main`;
-- **SPECIFIED / NOT IMPLEMENTED** — requirement/architecture exists but production code does not satisfy it.
+- **IMPLEMENTED IN PR** — implemented on coordinator/feature line, not yet in `main`;
+- **SPECIFIED / NOT IMPLEMENTED** — locked product requirement exists, but production code does not yet satisfy it.
 
-## 2. Current integration line
+## 2. Current live integration line
 
 - Repository: `brunolrogerio-collab/EliteSCADA`
 - Coordinator branch: `coordination/driver-convergence-v3`
 - Draft PR: **#175 — Driver convergence v3 — shared host contracts**
-- Current exact code-validated head: **`6d340e8ca3baaabf138c19be2fb947297854e1f6`**
+- PR state at last audit: **DRAFT / OPEN / MERGEABLE / DO NOT MERGE until controlled integration**
+- `main` at last audit: **`d0a4e13816992b0a0eb0eb68c36e78c560cc1d88`**
+- Latest exact **code-validated** coordinator head: **`6d340e8ca3baaabf138c19be2fb947297854e1f6`**
 - Exact validation: **EliteSCADA CI #982 — SUCCESS**
-- PR state: **DRAFT / OPEN / DO NOT MERGE**
-- Last audited `main` base before the current code gate: `d0a4e13816992b0a0eb0eb68c36e78c560cc1d88`
 
 CI #982 evidence:
 
@@ -50,9 +51,9 @@ CI #982 evidence:
 - Web build: **SUCCESS**;
 - Chromium E2E: **SUCCESS**.
 
-Documentation-only `[skip ci]` commits after `6d340e8...` do not create a new code-validation claim.
+Documentation-only `[skip ci]` commits after `6d340e8...` do not create a newer code-validation claim.
 
-## 3. Closed shared gates
+## 3. Closed Driver/shared gates
 
 - Engineering schema v15 / canonical `CommunicationBinding`: **CLOSED**
 - MQTT coordinator convergence: **CLOSED**
@@ -63,13 +64,12 @@ Documentation-only `[skip ci]` commits after `6d340e8...` do not create a new co
 - Siemens S7 ISO-on-TCP coordinator convergence: **CLOSED**
 - BACnet/IP coordinator convergence: **CLOSED**
 - Independent product-path L2: **7/7 PASS / ACCEPTED**
-- Preview 200-TAG project-capacity enforcement: **IMPLEMENTED IN PR / VALIDATED**
 
 There is no eighth Driver ingress in this convergence scope.
 
-## 4. Driver checkpoint summary
+## 4. Driver checkpoint
 
-| Driver | Coordinator | Product-path L2 |
+| Driver | Coordinator convergence | Product-path L2 |
 | --- | --- | --- |
 | MQTT | **CLOSED** | **PASS / ACCEPTED** |
 | IEC-104 | **CLOSED** | **PASS / ACCEPTED 13/13** |
@@ -79,33 +79,58 @@ There is no eighth Driver ingress in this convergence scope.
 | Siemens S7 ISO-on-TCP | **CLOSED** | **PASS / ACCEPTED** |
 | BACnet/IP | **CLOSED** | **PASS / ACCEPTED** |
 
-Worker PRs remain source/evidence history, not merge trains. Re-read live worker refs only when a historical protocol implementation/evidence question requires it.
+Worker PRs/branches are historical source/evidence, not merge trains.
 
-## 5. Preview product capacity
+## 5. Current Preview capacity code versus final Demo goal
 
-The externally distributed Preview edition is limited to:
+### Current implemented/validated behavior
 
-**200 TAGs per project**
+Functional head `6d340e8...` / CI #982 introduced a **transitional static 200-TAG project cap**:
 
-This is a project-wide total across all communication Drivers and internal memory sources. It is not 200 TAGs per Driver.
+- `ProductCapacityPolicy.MaxTagsPerProject = 200`;
+- canonical registry rejects creation of the 201st TAG;
+- Engineering Preview/Apply rejects imports that would exceed 200;
+- updates to existing TAGs at the limit remain allowed;
+- oversized manipulated runtime candidates also fail through the capped registry.
 
-Authoritative policy:
+This behavior is **IMPLEMENTED IN PR / VALIDATED**.
 
-`docs/PREVIEW-CAPACITY-POLICY.md`
+### New final product requirement
 
-Implementation boundaries:
+The product requirement was subsequently refined. Final Preview distribution must use a **Demo + hardware-bound licensing model**.
 
-- central constant/contract in `src/Scada.Core/Product/ProductCapacityPolicy.cs`;
-- canonical `InMemoryTagRegistry` rejects creation of the 201st TAG before mutation;
-- existing TAGs remain editable while the project is at capacity;
-- Engineering Preview calculates the projected resulting project count;
-- Apply is blocked atomically when the projected result exceeds the limit;
-- runtime candidate construction uses the same capped canonical registry, so a manipulated package cannot activate an oversized candidate through the normal runtime path;
-- no environment-variable or command-line unlimited bypass is part of the Preview contract.
+That final behavior is **SPECIFIED / NOT IMPLEMENTED**.
 
-Boundary regressions are in `tests/Scada.Core.Tests/PreviewProductCapacityTests.cs` and are green in CI #982.
+Locked contract: `docs/LICENSING-AND-DEMO-MODE.md`  
+Tracking issue: **#183**
 
-This is capacity control/misuse deterrence, not cryptographic anti-tamper DRM. Signing, licensing and stronger distribution controls remain separate future gates.
+Required Demo behavior:
+
+- no installed license => **Demo**;
+- Engineering may contain more than 200 TAGs;
+- Demo **Run** allowed only for projects with <= **200 TAGs**;
+- >200 TAGs must block Run without deleting/truncating Engineering data;
+- Demo runtime may execute for at most **300 continuous minutes per explicit Run session**;
+- at expiry, industrial runtime stops gracefully and the application remains available;
+- user is informed that the 300-minute evaluation period expired;
+- user may explicitly start Runtime again for a fresh 300-minute Demo session.
+
+Required Licensed behavior:
+
+- hardware-bound signed license;
+- initial TAG tiers: **500 / 1000 / 1500 / 3000 / 5000 / Unlimited**;
+- valid licensed/evaluation tier removes the 300-minute Demo runtime limit;
+- project above licensed tier blocks Run;
+- EliteSCADA generates a copyable machine request code from a canonical hashed hardware fingerprint;
+- controlled offline License Generator returns a signed license code/file;
+- normal product contains public verification material only;
+- **private signing key must never be committed to GitHub or distributed with EliteSCADA**;
+- installed license with invalid signature/schema or wrong hardware blocks Run and reports invalid license;
+- absence of a license enters Demo mode.
+
+Important: **no Demo timer, machine request code, signed-license verifier, License Generator or licensing UI has been implemented yet.**
+
+The current mutation-time 200-TAG cap must later be refactored into the final entitlement-aware Run/activation gate. Do not report the final Demo behavior as implemented merely because a 200-TAG constant currently exists.
 
 ## 6. Shared architecture that must remain intact
 
@@ -118,11 +143,11 @@ This is capacity control/misuse deterrence, not cryptographic anti-tamper DRM. S
 - no protocol SDK/session objects across shared planning boundaries;
 - no Driver-to-Driver runtime calls;
 - no plaintext secret/private-key material in Engineering/packages/logs/diagnostics;
-- no duplicated product-capacity constants in Drivers/UI/importers.
+- licensing/entitlement is host-owned; Drivers must never read license files/hardware fingerprints directly.
 
-## 7. Evidence policy and next stage
+## 7. Evidence policy
 
-EliteSCADA currently uses:
+EliteSCADA uses:
 
 - **L0** — unit/codec/contracts;
 - **L1** — same-stack/in-process/loopback;
@@ -130,11 +155,15 @@ EliteSCADA currently uses:
 - **L3** — post-main integrated seven-Driver laboratory with one EliteSCADA build/runtime operating all seven Drivers concurrently;
 - **L4** — physical hardware/site validation using the Preview build, performed and accepted by Development Lead **Bruno Luiz Rogerio**.
 
-Required transition:
+Licensing, protocol conformance/certification and vendor breadth are separate evidence claims.
+
+## 8. Immediate stage order
+
+The current required transition remains:
 
 ```text
-PR #175 final pre-merge gate
-    -> merge Driver convergence + Preview capacity policy to main
+PR #175 controlled final integration
+    -> merge Driver convergence/current Preview-capacity code to main
     -> exact post-main CI green
     -> issue #180 integrated seven-Driver L3 laboratory
     -> L3 PASS
@@ -143,9 +172,9 @@ PR #175 final pre-merge gate
 
 **Wave 11 MUST NOT start before issue #180 passes.**
 
-The L3 project must remain within the same 200-TAG project capacity. L3 validates concurrency and isolation, not large-project capacity.
+The Demo/licensing track (#183) is a separate Preview/distribution requirement. It does not replace the immediate post-main L3 gate.
 
-## 8. L3 minimum acceptance
+## 9. L3 minimum acceptance
 
 Issue #180 owns the detailed matrix. At minimum, one exact `main` build/project must run these seven Data Sources simultaneously:
 
@@ -161,41 +190,45 @@ The run must prove concurrent acquisition, supported writes/commands, shared rea
 
 Seven isolated L2 results do not satisfy L3.
 
-## 9. Future L4 physical validation
+The L3 project can remain <=200 TAGs, so the transitional capacity code does not block this integration gate.
 
-Physical Driver validation is deferred until the Preview build exists and does not block Wave 11.
+## 10. L4 physical validation
+
+Physical Driver validation is deferred until a Preview build exists and does not block Wave 11.
 
 Physical acceptance authority: **Bruno Luiz Rogerio, Development Lead**.
 
-L4 evidence must be recorded per exact Preview build and real device manufacturer/model/firmware. A PASS for one representative device must not be generalized to every device using that protocol.
+L4 evidence is recorded per exact Preview build and actual manufacturer/model/firmware. A PASS on one device must not be generalized to all devices using the protocol.
 
-## 10. Immediate coordinator action
+A controlled evaluation license may later be issued through the same hardware-bound licensing mechanism when L4 or external Preview evaluation requires capacity above 200 TAGs or uninterrupted runtime above 300 minutes.
 
-Before PR #175 can leave Draft / DO NOT MERGE:
+## 11. Immediate actions for the replacement Coordinator
 
-1. re-read live `main` and live PR #175 after the Preview-capacity documentation commits;
-2. confirm the PR remains mergeable and that the base has not moved unexpectedly;
-3. treat `6d340e8...` / CI #982 as the latest code-validation checkpoint unless a later code commit is introduced;
-4. audit the final delta for accidental host-contract duplication, plaintext protected material, canonical TAG/cache bypass or capacity-policy bypass;
-5. perform the controlled merge only after those checks remain clean;
-6. require exact post-merge `main` CI green;
-7. only then start issue #180 L3.
+1. Read the mandatory resume files listed in section 1.
+2. Re-read live `main` and PR #175 before making any merge decision.
+3. Treat `6d340e8...` / CI #982 as the latest exact code-validation checkpoint unless a newer code commit exists.
+4. Confirm PR #175 remains mergeable and audit final delta for accidental duplicate host contracts, protected-material leakage or canonical TAG/cache bypass.
+5. Do **not** begin implementing #183 inside PR #175 merely because the spec is now documented; keep licensing as a separate product track unless explicitly retargeted.
+6. Perform the controlled merge only after the final integration audit remains clean.
+7. Require exact post-merge `main` CI green.
+8. Then execute issue #180 L3.
+9. Only an L3 PASS releases Wave 11.
 
-## 11. Non-negotiable rules
+## 12. Non-negotiable rules
 
 - No worker self-merges.
 - Red CI does not enter `main`.
-- Do not weaken a test to manufacture green evidence.
+- Do not weaken tests to manufacture green evidence.
 - No Driver-to-Driver calls or canonical TAG/cache/event bypass.
 - No plaintext protected material.
 - Shared readiness is not every TAG `Good`.
 - `CommunicationBinding` remains canonical in schema v15.
-- Preview capacity is 200 TAGs per project until explicitly revised through the central product policy.
 - L2 does not imply L3; L3 does not imply physical L4.
-- Licensing/formal conformance remain separate evidence claims.
+- Final Demo/licensing behavior must distinguish **no license (Demo)** from **installed invalid license (Run blocked)**.
+- Private license-signing keys never enter this repository, CI or distributed product binaries.
 
-## 12. Merge / stage boundary
+## 13. Current stage boundary
 
-PR #175 remains **DRAFT / OPEN / DO NOT MERGE**.
+PR #175 remains **DRAFT / OPEN / DO NOT MERGE** until a controlled mainline integration decision is taken.
 
-Driver convergence and the Preview TAG-capacity safeguard are code-complete and green on CI #982. The remaining boundary is controlled mainline integration, exact post-main CI, then issue #180 L3. Only an L3 PASS releases Wave 11.
+Driver convergence is code-complete and green. The immediate remaining boundary is mainline integration + exact post-main CI + issue #180 L3. Demo/licensing is now a locked future product requirement tracked separately in #183 and must not be mistaken for already implemented code.

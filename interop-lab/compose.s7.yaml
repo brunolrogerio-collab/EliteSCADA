@@ -1,0 +1,16 @@
+services:
+  s7-python-snap7:
+    build:
+      context: ./s7/python-snap7
+      dockerfile: Dockerfile
+    container_name: elitescada-lab-s7-python-snap7
+    ports:
+      - "${S7_PEER_PORT:-1102}:102"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "102"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+      start_period: 3s
+    networks:
+      - interop

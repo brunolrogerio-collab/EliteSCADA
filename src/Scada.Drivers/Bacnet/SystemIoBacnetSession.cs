@@ -31,6 +31,8 @@ public sealed partial class SystemIoBacnetSession
     private void SendForeignDeviceRegistration()
     {
         var requestedAt = DateTimeOffset.UtcNow;
+        var attemptKind = GetCurrentForeignDeviceRegistrationAttemptKind();
+        RecordForeignDeviceRegistrationAttempt(attemptKind, requestedAt);
         try
         {
             _client.RegisterAsForeignDevice(
@@ -38,19 +40,13 @@ public sealed partial class SystemIoBacnetSession
                 checked((short)_options.ForeignDeviceTtlSeconds!.Value));
             lock (_foreignDeviceGate)
             {
-                _lastForeignDeviceRegistrationRequestAt = requestedAt;
                 _foreignDeviceRegistrationRequestsSent++;
                 _foreignDeviceRegistrationLastErrorType = null;
             }
         }
         catch (Exception ex)
         {
-            lock (_foreignDeviceGate)
-            {
-                _lastForeignDeviceRegistrationRequestAt = requestedAt;
-                _foreignDeviceRegistrationFailures++;
-                _foreignDeviceRegistrationLastErrorType = ex.GetType().Name;
-            }
+            RecordForeignDeviceRegistrationFailure(attemptKind, ex);
             throw;
         }
     }
@@ -70,6 +66,7 @@ public sealed partial class SystemIoBacnetSession
                 break;
             }
 
+            SetCurrentForeignDeviceRegistrationAttemptKind(nextAttempt.Kind);
             nextAttempt = BacnetForeignDeviceRegistrationPolicy.ExecuteAndScheduleNext(
                 _options,
                 SendForeignDeviceRegistration);

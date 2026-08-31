@@ -1,6 +1,6 @@
 # LAST CHANGE — EliteSCADA
 
-Date: 2026-08-30
+Date: 2026-08-30 (BRT)
 
 ## Current checkpoint
 
@@ -8,82 +8,131 @@ Date: 2026-08-30
 
 **Wave 10 is CLOSED / MERGED / POST-MAIN GREEN.**
 
-Final Wave 10 product merge:
+- final product merge: `15daff2cc076f46f9433812babbd5cbb4b8d9554`;
+- final integration CI #873: SUCCESS;
+- post-main CI #874: SUCCESS.
 
-`15daff2cc076f46f9433812babbd5cbb4b8d9554`
-
-Evidence:
-
-- Wave 10 integration CI #873: SUCCESS;
-- exact post-main CI #874: SUCCESS across Backend, Web and Chromium.
+Wave 10 issues #149, #150, #151 and #152 are now closed as completed.
 
 **Common seven-peer interoperability laboratory is MERGED on `main`.**
 
-PR #173 — `Driver interoperability lab — common multi-protocol peer stack`
-
-Merge commit:
+PR #173 merge:
 
 `a08cca94795a5afa14bf8af39b8bf2c6f7df71ae`
 
-Exact validated functional head:
+Exact validated functional lab head:
 
 `3ff2d6393c4e8734b4b1c08abd2bd8466f78f400`
 
-Evidence on that exact functional head:
+Evidence:
 
 - Interop Lab Smoke #42: SUCCESS;
-- EliteSCADA CI #886: SUCCESS after rerunning the failed jobs on the unchanged SHA;
-- the first CI #886 backend attempt had two unrelated Modbus timing failures; no Modbus/product code was changed to obtain the green rerun;
-- the three commits after `3ff2d639...` and before merge were coordination-documentation-only commits marked `[skip ci]`.
+- EliteSCADA CI #886: SUCCESS after rerunning failed Modbus timing jobs on the unchanged functional SHA;
+- no product/Modbus code changed to obtain the green rerun.
 
-The common test-only peer stack now includes:
+Common test-only peers on main: MQTT, CIP, OPC UA, IEC-104, DNP3, Siemens S7 and BACnet/IP.
 
-- MQTT — Eclipse Mosquitto + Node-RED;
-- Allen-Bradley CIP — pinned ControlLogix + CompactLogix simulator profiles;
-- OPC UA — open62541 1.5.4 + independent node-opcua reference client;
-- IEC 60870-5-104 — pinned lib60870-C outstation;
-- DNP3 — pinned dnp3py outstation;
-- Siemens S7 ISO-on-TCP — python-snap7 3.1.2 deterministic server;
-- BACnet/IP — BACpypes 0.19.0 independent device peer.
+### IMPLEMENTED IN PR / ACTIVE WORK
 
-Smoke #42 proves common peer/tool readiness, including S7 TCP readiness, BACnet health, MQTT round-trip and OPC UA browse/read/write/subscription reference behavior. Peer readiness is not automatically Driver product acceptance.
+**Shared Driver convergence is ACTIVE under issue #174.**
 
-### IMPLEMENTED IN PR / ACTIVE WORKER BRANCHES
+Coordinator branch:
 
-Current Driver evidence and assigned gates:
+`coordination/driver-convergence-v3`
 
-- Driver 4 BACnet/IP: product checkpoint `de3357750f79266e43588e7bb26d66093f8cf3d5`, CI #860 green; common BACpypes peer now green; active next gate is product-path L2 for Who-Is/I-Am, RP/RPM, WP, COV and recovery.
-- Driver 5 CIP: product checkpoint `18ff6dc989a65c1f8b006f83c08d8394a5510914`, CI #785 green; independent L2 PR #165 / smoke #6 green; parked for Coordinator convergence.
-- Driver 6 IEC-104: product checkpoint `d597ef5ed1885b63dcd0b3568287bc1e34330bee`, CI #798 green; independent L2 PR #168 / smoke #7 green, 13/13; parked for Coordinator convergence.
-- Driver 7 DNP3: product checkpoint `ac0dd6944f53d19447f3353addd404c02da7249c`, CI #697 green; independent peer reaches Online but product L2 is red on configured Int32 -> canonical Double mismatch; active worker fix must preserve configured type before rerun.
-- Driver 8 Siemens S7: product checkpoint `0c37b922b44f591ebd143470abf3ebaa6b4bffae`, CI #789 green; common python-snap7 peer is green; active next gate is product-path L2 read/write/PDU/reconnect.
-- Driver 9 OPC UA: product checkpoint `5ce1f3c912bf3779e892fb136b51b54b0f19a5c6`, Draft PR #169, CI #869 green; common open62541 peer/reference smoke green; active next gate is product-path read/write/subscription/reconnect L2.
-- Driver 10 MQTT: product checkpoint `acd46cd9a4a49e324f2037a1994e6f579a0bae3f`, exact CI #865 green; Mosquitto/HiveMQ, TLS/auth, negative security, restart and freshness evidence green; parked for Coordinator convergence.
+Draft PR:
+
+`#175 — Driver convergence v3 — shared host contracts`
+
+Exact audited PR head:
+
+`06c7d408c76926bf5d37dfec4be20ea6044f52b1`
+
+Exact normal CI:
+
+**EliteSCADA CI #895 — SUCCESS.**
+
+Implemented and covered by the current shared-contract tests:
+
+1. fail-closed communication Driver module registry keyed by stable DriverType;
+2. common runtime planner/factory component registry;
+3. protocol-neutral Data Source readiness contract;
+4. scoped host-owned protected-material resolver/lease seam;
+5. initial fail-closed shared-contract coverage.
+
+PR #175 also contains a **partial Communication TAG binding / schema-v15 scaffold**:
+
+- `CommunicationTagBinding` core contract;
+- `TagPhysicalValueTransform` contract;
+- optional `TagDefinition.CommunicationBinding`;
+- optional `TagEngineeringDto.CommunicationBinding`;
+- export mapping from binding `PortableAddress` into compatibility Address;
+- `CommunicationTagBindingEngineeringValidator` declaring introduction at schema v15 and rejecting invalid/plaintext-secret-like data.
+
+This scaffold is **IMPLEMENTED IN PR but NOT FUNCTIONALLY COMPLETE**. The handoff audit confirmed:
+
+- `EngineeringExchangeService.CurrentSchemaVersion` is still 14;
+- `TagEngineeringHandler.Preview` does not call the new binding validator;
+- `TagEngineeringHandler.Apply` omits `dto.CommunicationBinding`, so Apply drops the rich binding;
+- preview materialization paths also omit it;
+- TAG CSV rich-binding fidelity is not implemented;
+- no full JSON/CSV/Preview/Apply/re-export/package/revision/PostgreSQL v15 regression exists.
+
+Therefore CI #895 proves current scaffold compatibility, **not** completion of the public schema-v15 round-trip gate.
+
+Current Driver state at handoff audit:
+
+- D10 MQTT: head `acd46cd9a4a49e324f2037a1994e6f579a0bae3f`, Draft #128, exact CI #865 green; broad independent broker/security/restart/freshness evidence accepted; READY FOR COORDINATOR CONVERGENCE after v15.
+- D6 IEC-104: head `d597ef5ed1885b63dcd0b3568287bc1e34330bee`, Draft #146, CI #798 green; independent lib60870 L2 13/13 accepted; READY FOR COORDINATOR CONVERGENCE.
+- D5 CIP: head `18ff6dc989a65c1f8b006f83c08d8394a5510914`, Draft #111, CI #785 green; independent CIP L2 accepted; READY FOR COORDINATOR CONVERGENCE.
+- D9 OPC UA: head `5ce1f3c912bf3779e892fb136b51b54b0f19a5c6`, Draft #169, CI #869 green; ACTIVE product-path open62541 L2.
+- D7 DNP3: head `ac0dd6944f53d19447f3353addd404c02da7249c`, Draft #108, CI #697 green; validation PR #167 remains OPEN/RED on configured Int32 -> canonical Double mismatch; ACTIVE PRODUCT FIX.
+- D8 Siemens S7: head `0c37b922b44f591ebd143470abf3ebaa6b4bffae`, Draft #135, CI #789 green; ACTIVE product-path python-snap7 L2.
+- D4 BACnet/IP: head `de3357750f79266e43588e7bb26d66093f8cf3d5`, Draft #109, CI #860 green; ACTIVE product-path BACpypes discovery/RP/RPM/WP/COV/recovery L2.
+
+Repository hygiene completed during coordinator handoff:
+
+- Wave 10 issues #149-#152 closed completed;
+- validation/superseded PRs #148, #160, #161, #162, #163, #164, #165, #166 and #168 closed **unmerged**, preserving their accepted evidence/history;
+- #167 remains open because DNP3 still has an unresolved product defect;
+- Driver product handoff PRs and #175 remain open.
+
+`docs/COORDINATOR-HANDOFF.md`, `docs/CHAT-WORK-ASSIGNMENTS.md`, `docs/DRIVER-AND-INTEROP-LAB-STATUS.md` and `docs/ROADMAP.md` were synchronized for the new Coordinator chat.
 
 ### SPECIFIED / NOT IMPLEMENTED
 
-**Shared Coordinator Driver convergence — issue #174** remains the current product priority before Wave 11.
+**Immediate Coordinator gate: complete canonical Engineering schema v15 before adapting MQTT.**
 
-Coordinator-owned shared scope must be implemented once rather than copied into protocol branches:
+Required next slice on PR #175:
 
-1. fail-closed DriverHost registry/planner/factory and central activation;
-2. canonical rich Communication TAG binding and compatibility migration;
-3. common Data Source readiness activation;
-4. protected credential/certificate/private-key resolution;
-5. module/catalog/loading policy;
-6. common rich command/operation surface where simple `WriteAsync` is insufficient;
-7. SourceTimestamp/ServerTimestamp/current-value/historical-event ordering policy;
-8. central Engineering ConnectionTest/Browse/Import/Reconcile registration and protected API/UI;
-9. exact integrated CI before accepted Driver transitions to `main`.
+1. bump canonical Engineering schema to v15 while preserving <=v14 compatibility;
+2. invoke `CommunicationTagBindingEngineeringValidator` in TAG Preview;
+3. preserve `CommunicationBinding` through Apply and every canonical TagDefinition materialization path;
+4. maintain `Address == CommunicationBinding.PortableAddress` during compatibility migration;
+5. implement TAG CSV fidelity where applicable without creating a second Driver address grammar;
+6. prove JSON/CSV Preview/Apply/re-export, `.escadapkg`, immutable revision and PostgreSQL persistence;
+7. prove malformed rich bindings and plaintext protected material fail closed;
+8. preserve `TagValueSelector` as the generic bit selector and ADR-007 transform-before-selection semantics;
+9. run exact-head normal CI.
 
-Evidence-driven convergence order:
+After that gate, convergence order remains:
 
 `MQTT -> IEC-104 -> CIP -> OPC UA -> DNP3 -> Siemens S7 -> BACnet/IP`
 
-OPC UA, DNP3, S7 and BACnet enter shared integration after their active product L2/fix gates close.
+Remaining shared Coordinator work after the binding foundation includes:
 
-**Wave 11 remains DEFERRED**, with scope unchanged, until Driver convergence is completed or explicitly reprioritized.
+- central Runtime activation through shared registry/planner/factory;
+- protected credential/certificate/private-key composition;
+- installable module/catalog/loading policy;
+- common namespaced operation surface where simple `WriteAsync` is insufficient;
+- SourceTimestamp/ServerTimestamp/current/historical late-event policy;
+- central Engineering ConnectionTest/Browse/Import/Reconcile registration and protected API/UI;
+- exact integrated CI and controlled transitions to `main`.
 
-## CI policy
+**Wave 11 remains DEFERRED** until Driver convergence closes or product priority is explicitly changed.
 
-CI mode remains **NORMAL**. Documentation-only checkpoints may use `[skip ci]`. Exact functional integration heads require green evidence. Normal CI, peer/tool readiness, independent Driver L2, licensing/conformance and L3/L4 hardware/vendor acceptance are separate claims. Never weaken a test to hide a real canonical protocol/type mismatch.
+## Governance / CI note
+
+At the start of this handoff audit, GitHub reported `main` as not protected by a branch-protection rule. No repository-governance setting was changed. Treat direct mainline writes as a process risk and preserve exact-head CI discipline manually unless branch protection is separately authorized.
+
+CI mode remains **NORMAL**. Documentation-only checkpoints may use `[skip ci]`. Normal CI, peer/tool readiness, Driver L2, licensing/conformance and L3/L4 acceptance are separate evidence claims. Never weaken a test to hide a real protocol/type defect.

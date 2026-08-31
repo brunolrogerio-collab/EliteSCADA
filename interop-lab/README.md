@@ -1,34 +1,37 @@
 # EliteSCADA Driver Interoperability Lab
 
-This directory is a destructive, reproducible protocol interoperability lab. It is deliberately separate from the EliteSCADA product runtime and from normal unit/integration tests.
+This directory is a destructive, reproducible protocol interoperability lab. It is deliberately separate from the EliteSCADA product runtime and from ordinary unit tests.
 
 The lab has two roles:
 
-1. **Node-RED is the control plane**: scenario orchestration, value generation, fault injection coordination and reference-client tooling.
+1. **Node-RED is the control plane**: scenario orchestration, value generation, fault-injection coordination and reference-client tooling.
 2. **Independent protocol peers are the data plane**: brokers, PLC simulators, outstations and servers that exercise EliteSCADA over the real wire protocol.
 
-The lab must never be treated as a substitute for later human validation against representative hardware. Its job is to catch protocol, lifecycle and interoperability defects before hardware time is consumed.
+The lab is not a substitute for later representative hardware/vendor acceptance. Its purpose is to expose protocol, lifecycle, type, quality, timestamp and command defects before hardware time is consumed.
 
-## Current first cut
+## Common peer stack
 
-| Driver | Lab peer | State |
-| --- | --- | --- |
-| MQTT | Eclipse Mosquitto 2.1.2 + Node-RED | **Runnable now** |
-| Allen-Bradley EtherNet/IP/CIP | Independent ControlLogix + CompactLogix simulator processes from `node-red-contrib-cip-suite` | **Runnable overlay** |
-| OPC UA | open62541 1.5.4 server + `node-opcua` reference client from the Node-RED image | **Runnable independent-software overlay** |
-| IEC 60870-5-104 | independent server/outstation sidecar | **Slot reserved** |
-| DNP3 | independent outstation sidecar, intentionally not the same Step Function stack used by Driver 7 | **Slot reserved** |
-| Siemens S7 ISO-on-TCP | independent S7 server/PLC simulator | **Slot reserved** |
-| BACnet/IP | independent BACnet device simulator/reference peer | **Slot reserved** |
+| Driver | Lab peer | Common-lab state | Product-path evidence |
+| --- | --- | --- | --- |
+| MQTT | Eclipse Mosquitto 2.1.2 + Node-RED | **Runnable** | Separate validation lines have exercised Driver 10 against Mosquitto and HiveMQ, TLS/auth and broker restart. |
+| Allen-Bradley EtherNet/IP/CIP | pinned `node-red-contrib-cip-suite` ControlLogix + CompactLogix simulators | **Runnable** | Driver 5 validation PR #165: L2 smoke green. |
+| OPC UA | open62541 1.5.4 + independent `node-opcua` reference client | **Runnable** | Peer/reference-client L2 smoke green; Driver 9 product-path L2 is the next step. |
+| IEC 60870-5-104 | pinned MZ Automation lib60870-C outstation | **Runnable** | Driver 6 validation PR #168: L2 13/13 green. |
+| DNP3 | pinned `dnp3py` independent outstation | **Runnable peer** | Driver 7 validation PR #167 currently exposes a canonical analog-value type mismatch; do not call product L2 green. |
+| Siemens S7 ISO-on-TCP | independent S7 server/PLC simulator | **Not yet implemented** | Driver 8 software/CI is green; external peer remains a lab priority. |
+| BACnet/IP | independent BACnet/IP device simulator/reference peer | **Not yet implemented** | Driver 4 software/CI is green; independent COV/RPM/WP/BBMD evidence remains a lab priority. |
 
 Machine-readable status lives in `scenarios/catalog.json`.
 
-## Start base lab
+## One-command startup
+
+Linux/macOS/Git Bash:
 
 ```bash
 cd interop-lab
 cp .env.example .env
-docker compose up -d --build
+bash scripts/lab.sh all-start
+bash scripts/lab.sh status
 bash scripts/lab.sh smoke
 ```
 
@@ -37,9 +40,14 @@ Windows PowerShell:
 ```powershell
 cd interop-lab
 Copy-Item .env.example .env
-./scripts/lab.ps1 start
+./scripts/lab.ps1 all-start
+./scripts/lab.ps1 status
 ./scripts/lab.ps1 smoke
 ```
+
+`all-start` builds and starts every peer currently implemented in the common lab. `reset` removes all current peer containers and volumes.
+
+## Base control plane and MQTT
 
 Node-RED: `http://localhost:1880`
 
@@ -49,12 +57,20 @@ Mosquitto: `localhost:1883`
 
 The default EliteSCADA URL from inside the lab is `http://host.docker.internal:5000`. Override `ELITESCADA_BASE_URL` in `.env` if the runtime is elsewhere.
 
-## Add Allen-Bradley simulators
-
-The CIP overlay builds the simulator from a pinned third-party Git commit rather than copying its source into EliteSCADA.
+Useful commands:
 
 ```bash
-docker compose -f compose.yaml -f compose.cip.yaml up -d --build
+bash scripts/lab.sh start
+bash scripts/lab.sh smoke
+```
+
+## Allen-Bradley EtherNet/IP/CIP
+
+The CIP overlay builds independent ControlLogix and CompactLogix simulator profiles from pinned upstream commit `baf21c625c4f1250fa3cbae6cdd636ce15620ef2`.
+
+```bash
+bash scripts/lab.sh cip-start
+bash scripts/lab.sh cip-status
 ```
 
 Exposed peers:
@@ -62,30 +78,56 @@ Exposed peers:
 - ControlLogix: `localhost:44818`
 - CompactLogix: `localhost:44819`
 
-The pinned simulator source is external test infrastructure only. It is not shipped as an EliteSCADA runtime dependency.
+The simulator is external test infrastructure only and is not shipped as an EliteSCADA runtime dependency.
 
-## Add independent OPC UA peer
+## OPC UA
 
-The OPC UA overlay builds an **open62541 1.5.4** server from the upstream single-file release. Both release files are SHA-256 pinned in the Docker build. The reference client runs with `node-opcua` already present in the Node-RED image, so client and server are independent OPC UA stacks.
+The OPC UA overlay builds an **open62541 1.5.4** server from official single-file release assets pinned by SHA-256. `node-opcua` in the Node-RED image is used as an independent reference client.
 
 ```bash
-docker compose -f compose.yaml -f compose.opcua.yaml up -d --build
-docker compose -f compose.yaml -f compose.opcua.yaml exec -T node-red node /data/opcua-smoke.js
+bash scripts/lab.sh opcua-start
+bash scripts/lab.sh opcua-smoke
 ```
 
 Exposed peer:
 
 - open62541 OPC UA server: `opc.tcp://localhost:4841`
 
-The first automated scenario proves:
+The reference smoke proves anonymous session establishment, stable-node browse, typed reads, typed write/readback and monitored-item notification. This proves the peer/reference-client laboratory slice, not yet Driver 9 product-path acceptance.
 
-- anonymous session establishment;
-- browse visibility for stable NodeIds;
-- typed read;
-- typed write followed by readback;
-- monitored-item subscription delivery after a write.
+## IEC 60870-5-104
 
-This is **L2 independent-software interoperability evidence**. It is not a replacement for later validation against industrial OPC UA servers and real certificates/security policies.
+The IEC-104 overlay builds a deterministic outstation against pinned MZ Automation `lib60870-C` commit `7a388e3e133999e1ca77ba7521d55d074b7cd2bc`.
+
+```bash
+bash scripts/lab.sh iec104-start
+bash scripts/lab.sh iec104-status
+```
+
+Exposed peer:
+
+- IEC-104 outstation: `localhost:2404`, Common Address 1
+
+The peer supports STARTDT/GI, monitored and spontaneous values, and the first-release Direct/SBO command matrix used by Driver 6 validation. Driver 6 PR #168 already obtained independent-software L2 evidence against this peer family.
+
+## DNP3
+
+The DNP3 overlay uses `dnp3py` pinned to commit `8a20d4c276274f2b98800716cd7da963f21da2c1`, deliberately independent from the Step Function stack used by the Driver 7 adapter.
+
+```bash
+bash scripts/lab.sh dnp3-start
+bash scripts/lab.sh dnp3-status
+```
+
+Exposed peer:
+
+- DNP3 outstation: `localhost:20000`
+- outstation address: `1024`
+- expected master address: `1`
+
+Static points include Binary Input 0 = `true`, Analog Input 0 = `4242`, and Counter 0 = `123456`.
+
+The peer itself is healthy and interoperable enough to expose a current Driver 7 issue: G30V1 arrives from the adapter as Int32, while the Driver publishes the configured Int32 TAG into the canonical cache as Double. Until that boundary is corrected and the L2 run is green, DNP3 product-path interoperability remains **RED**, not “mostly passed”.
 
 ## Node-RED control API
 
@@ -116,7 +158,7 @@ Example body:
 
 `POST /lab/reset`
 
-These endpoints exist to make scenarios scriptable. They are test-lab APIs, not EliteSCADA public APIs.
+These endpoints are test-lab APIs, not EliteSCADA public APIs.
 
 ## Scenario philosophy
 
@@ -127,7 +169,7 @@ Every protocol scenario should distinguish at least four independent facts:
 - **source timestamp/event evidence**;
 - **write/command outcome**.
 
-A successful socket write is not command success. A connected source is not proof that every point is Good. A reconnect must not replay an old command. Late historical events must not be silently destroyed to protect a current-value cache.
+A successful socket write is not command success. A connected source is not proof that every point is Good. A reconnect must not replay an old command. A protocol-native numeric type must not silently become a different canonical TAG type merely because its numeric value still looks plausible.
 
 See `scenarios/README.md` for the common scenario contract.
 
@@ -136,5 +178,5 @@ See `scenarios/README.md` for the common scenario contract.
 - No production credentials belong in this directory or in Node-RED flows.
 - Test-only anonymous MQTT is intentional and isolated to this lab.
 - Third-party simulators are test infrastructure and retain their own licenses.
-- open62541 is used only as an independent test peer; it is not an EliteSCADA runtime dependency.
-- The DNP3 Step Function commercial-license question remains a **future commercial-release gate**, not a blocker for current development/integration/testing.
+- open62541, lib60870 and dnp3py are independent laboratory peers, not EliteSCADA runtime dependencies.
+- The DNP3 Step Function commercial-license question remains a commercial-release gate; it does not prevent use of the independent dnp3py laboratory peer for development/testing.

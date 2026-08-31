@@ -22,6 +22,10 @@ class LabApplication(BIPSimpleApplication, ReadWritePropertyMultipleServices, Ch
     pass
 
 
+class RpOnlyLabApplication(BIPSimpleApplication, ChangeOfValueServices):
+    pass
+
+
 class WritableAnalogValueObject(AnalogValueObject):
     # BACpypes' standard AnalogValueObject exposes Present_Value read-only.
     # Re-register this lab-only subclass so the independent peer genuinely
@@ -38,7 +42,12 @@ class HealthHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
             return
-        body = json.dumps({"status": "ok", "protocol": "bacnet-ip", "deviceInstance": 599001}).encode("utf-8")
+        body = json.dumps({
+            "status": "ok",
+            "protocol": "bacnet-ip",
+            "deviceInstance": int(os.getenv("BACNET_DEVICE_INSTANCE", "599001")),
+            "rpm": os.getenv("BACNET_ENABLE_RPM", "1") != "0",
+        }).encode("utf-8")
         self.send_response(200)
         self.send_header("content-type", "application/json")
         self.send_header("content-length", str(len(body)))
@@ -53,6 +62,7 @@ def main() -> None:
     address = os.getenv("BACNET_ADDRESS", "0.0.0.0/0:47808")
     device_instance = int(os.getenv("BACNET_DEVICE_INSTANCE", "599001"))
     health_port = int(os.getenv("BACNET_HEALTH_PORT", "18080"))
+    enable_rpm = os.getenv("BACNET_ENABLE_RPM", "1") != "0"
 
     device = LocalDeviceObject(
         objectName="EliteSCADA Driver4 L2 BACnet Peer",
@@ -61,7 +71,8 @@ def main() -> None:
         segmentationSupported="noSegmentation",
         vendorIdentifier=999,
     )
-    application = LabApplication(device, address)
+    application_type = LabApplication if enable_rpm else RpOnlyLabApplication
+    application = application_type(device, address)
 
     analog = WritableAnalogValueObject(
         objectIdentifier=("analogValue", 1),
@@ -90,7 +101,10 @@ def main() -> None:
 
     signal.signal(signal.SIGINT, shutdown)
     signal.signal(signal.SIGTERM, shutdown)
-    print(f"Driver4 BACnet L2 peer device={device_instance} address={address}", flush=True)
+    print(
+        f"Driver4 BACnet L2 peer device={device_instance} address={address} rpm={enable_rpm}",
+        flush=True,
+    )
     try:
         run()
     finally:

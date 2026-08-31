@@ -9,7 +9,7 @@ internal static class EngineeringDtoMapper
 {
     public static TagEngineeringDto ToDto(TagDefinition tag)
     {
-        var address = Meta(tag.Metadata, "address");
+        var address = tag.CommunicationBinding?.PortableAddress ?? Meta(tag.Metadata, "address");
         var minimum = Meta(tag.Metadata, "scale.minimum");
         var maximum = Meta(tag.Metadata, "scale.maximum");
         var historianEnabled = Meta(tag.Metadata, "historian.enabled");
@@ -46,7 +46,8 @@ internal static class EngineeringDtoMapper
             MemoryEngineeringValueCodec.PublicMetadata(tag.Metadata),
             accessPolicy,
             initialValue,
-            tag.AddressSelector);
+            tag.AddressSelector,
+            tag.CommunicationBinding);
     }
 
     public static AlarmEngineeringDto ToDto(AlarmDefinition alarm, string? tagPath) =>

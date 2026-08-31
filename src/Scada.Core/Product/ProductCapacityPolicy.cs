@@ -67,10 +67,21 @@ public sealed record ProductRuntimePermit(
     public TimeSpan? MaxContinuousRuntime => Allowed ? License.MaxContinuousRuntime : null;
 }
 
+public sealed record ProductLicenseInstallResult(
+    bool Installed,
+    ProductLicenseSnapshot License,
+    string? Message = null);
+
 public interface IProductLicenseService
 {
     ProductLicenseSnapshot Current();
     ProductRuntimePermit EvaluateRuntime(int projectTagCount);
+}
+
+public interface IProductLicenseManager : IProductLicenseService
+{
+    ProductLicenseInstallResult Install(string licenseCode);
+    ProductLicenseSnapshot Remove();
 }
 
 public interface IHardwareFingerprintProvider

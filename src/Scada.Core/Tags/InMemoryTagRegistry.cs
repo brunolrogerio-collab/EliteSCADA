@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using Scada.Core.Product;
 
 namespace Scada.Core.Tags;
 
@@ -26,7 +25,6 @@ public sealed class InMemoryTagRegistry : ITagRegistry
             if (_byId.ContainsKey(tag.Id))
                 throw new InvalidOperationException($"A tag with id '{tag.Id}' is already registered.");
 
-            ProductCapacityPolicy.EnsureTagCount(_byId.Count + 1);
             _byId[tag.Id] = tag;
             _byPath[tag.Path] = tag.Id;
         }
@@ -44,9 +42,6 @@ public sealed class InMemoryTagRegistry : ITagRegistry
                 throw new InvalidOperationException($"A tag with path '{tag.Path}' is already registered.");
 
             var exists = _byId.TryGetValue(tag.Id, out var previous);
-            if (!exists)
-                ProductCapacityPolicy.EnsureTagCount(_byId.Count + 1);
-
             if (exists && previous is not null && !previous.Path.Equals(tag.Path, StringComparison.OrdinalIgnoreCase))
                 _byPath.TryRemove(previous.Path, out _);
 

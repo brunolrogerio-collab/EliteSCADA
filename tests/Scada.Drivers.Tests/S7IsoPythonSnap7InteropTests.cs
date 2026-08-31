@@ -100,7 +100,7 @@ public sealed class S7IsoPythonSnap7InteropTests
         S7IsoConnectionMode.RackSlot,
         rack: 0,
         slot: 1,
-        connectionRole: S7IsoConnectionRole.Basic,
+        connectionRole: S7IsoConnectionRole.ProgrammingDevice,
         port: port,
         connectTimeout: TimeSpan.FromSeconds(4),
         requestTimeout: TimeSpan.FromSeconds(4),

@@ -1,0 +1,51 @@
+name: Driver 4 BACnet/IP L2 Interop Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'src/Scada.Drivers/Bacnet/**'
+      - 'tests/Scada.Drivers.Tests/BacnetL2IntegrationTests.cs'
+      - 'interop-lab/compose.bacnet-driver4.yaml'
+      - 'interop-lab/bacnet/driver4-bacpypes/**'
+      - '.github/workflows/driver4-bacnet-l2-lab.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bacnet-l2-read-write-cov:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Validate BACnet peer Compose model
+        run: docker compose -f interop-lab/compose.bacnet-driver4.yaml config >/dev/null
+
+      - name: Build and start independent BACpypes peer
+        run: docker compose -f interop-lab/compose.bacnet-driver4.yaml up -d --build --wait --wait-timeout 120
+
+      - name: Restore Driver 4 integration tests
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+
+      - name: EliteSCADA Driver 4 against independent BACpypes peer
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release --filter Category=BacnetL2Integration --logger "console;verbosity=normal"
+
+      - name: Show BACnet peer status
+        if: always()
+        run: docker compose -f interop-lab/compose.bacnet-driver4.yaml ps
+
+      - name: Dump BACnet peer logs on failure
+        if: failure()
+        run: docker compose -f interop-lab/compose.bacnet-driver4.yaml logs --no-color
+
+      - name: Stop BACnet peer
+        if: always()
+        run: docker compose -f interop-lab/compose.bacnet-driver4.yaml down -v --remove-orphans

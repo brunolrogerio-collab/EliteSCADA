@@ -1,0 +1,44 @@
+using Scada.Core.Tags;
+
+namespace Scada.Drivers.Bacnet;
+
+/// <summary>
+/// Maps BACnet object health evidence into the EliteSCADA-owned quality model.
+/// Numeric Reliability values follow the standard BACnet enumeration so this
+/// layer remains independent from a concrete BACnet library enum.
+/// </summary>
+public static class BacnetQualityMapper
+{
+    public static TagQuality FromObjectState(BacnetObjectState? state, bool communicationSucceeded = true)
+    {
+        if (!communicationSucceeded) return TagQuality.BadCommunication;
+        if (state is null) return TagQuality.Good;
+
+        var reliabilityQuality = FromReliability(state.Reliability);
+        if (reliabilityQuality is TagQuality.BadConfiguration or TagQuality.BadDevice)
+            return reliabilityQuality;
+
+        if (state.Fault == true)
+            return TagQuality.BadDevice;
+
+        if (state.OutOfService == true || state.Overridden == true)
+            return TagQuality.Uncertain;
+
+        return reliabilityQuality;
+    }
+
+    public static TagQuality FromReliability(uint? reliability, bool communicationSucceeded = true)
+    {
+        if (!communicationSucceeded) return TagQuality.BadCommunication;
+        if (!reliability.HasValue || reliability.Value == 0) return TagQuality.Good;
+
+        return reliability.Value switch
+        {
+            2 or 3 => TagQuality.Uncertain,                 // over-range / under-range
+            10 => TagQuality.BadConfiguration,             // configuration-error
+            1 or 4 or 5 or 6 or 7 or 8 or 9 or 11 or
+            12 or 13 or 14 or 15 or 16 => TagQuality.BadDevice,
+            _ => TagQuality.Uncertain
+        };
+    }
+}

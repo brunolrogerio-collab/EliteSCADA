@@ -1,174 +1,143 @@
 # CHAT WORK ASSIGNMENTS — EliteSCADA
 
-Date: 2026-08-30  
+Date: 2026-08-30 (BRT)  
 Stage: **DRIVER CONVERGENCE — ACTIVE / COMMON LAB MERGED / WAVE 11 DEFERRED**  
 Integration owner: **Coordinator**  
-Shared convergence issue: **#174**  
-Coordinator integration branch: `coordination/driver-convergence-v3`  
-Coordinator Draft PR: **#175**
+Shared issue: **#174**  
+Integration branch: `coordination/driver-convergence-v3`  
+Draft PR: **#175**
 
-## Priority
+Start a new Coordinator chat with `PROJECT GOAL.md`, `LAST CHANGE.md` and `docs/COORDINATOR-HANDOFF.md`, then re-read live GitHub state.
 
-Wave 10 is CLOSED / MERGED / POST-MAIN GREEN. The common seven-peer interoperability laboratory is also MERGED. Current product priority is shared Driver convergence plus the remaining protocol-owned product-path L2 gates before Wave 11.
+## Current priority
 
-GitHub live state is authoritative. Re-read exact branch/PR/CI state before every mutation because worker branches advance independently.
+Wave 10 is CLOSED / MERGED / POST-MAIN GREEN. The common seven-peer interoperability lab is MERGED. Current priority is shared Driver convergence plus the remaining protocol-owned product L2/fix gates.
 
-CI policy remains NORMAL. Independent peer health, Driver product-path L2, vendor/hardware validation and normal product CI are separate evidence dimensions.
+Operational authority is live branch/PR `head_sha` + exact Actions evidence + current coordination docs. Long-lived PR bodies can be historically useful but stale.
 
 ## Coordinator — Driver Convergence v3
 
-Issue: `#174 — Driver Convergence v1 — shared runtime, Engineering and mainline integration`
+Issue: #174  
+Branch: `coordination/driver-convergence-v3`  
+PR: #175  
+Exact audited head: `06c7d408c76926bf5d37dfec4be20ea6044f52b1`  
+Exact normal CI: **#895 GREEN**
 
-Long-lived branch:
+### Implemented on #175
 
-`coordination/driver-convergence-v3`
+- fail-closed Driver module registry keyed by stable DriverType;
+- common runtime planner/factory registry;
+- protocol-neutral Data Source readiness contract;
+- scoped host-owned protected-material resolver/lease seam;
+- focused shared-contract tests;
+- partial `CommunicationTagBinding` / `TagPhysicalValueTransform` / Engineering DTO scaffold.
 
-Base when created:
+### Immediate Coordinator task — COMPLETE v15 BINDING
 
-`4fe2897daf7de1771e470742442e20259cdcfdf8`
+The v15 scaffold is **not yet end-to-end functional**:
 
-Draft PR:
+- `EngineeringExchangeService.CurrentSchemaVersion` remains 14;
+- TAG Preview does not invoke `CommunicationTagBindingEngineeringValidator`;
+- TAG Apply drops `dto.CommunicationBinding`;
+- preview materialization also omits the rich binding;
+- TAG CSV fidelity is missing;
+- no complete JSON/CSV/Preview/Apply/re-export/package/revision/PostgreSQL v15 regression exists.
 
-`#175 — Driver convergence v3 — shared host contracts`
+Next Coordinator must complete this slice before adapting MQTT:
 
-Current implemented first slice on the integration branch:
+1. bump canonical Engineering schema to 15 with <=v14 compatibility;
+2. wire binding validation into Preview;
+3. preserve binding through Apply/materialization/export;
+4. enforce `Address == CommunicationBinding.PortableAddress`;
+5. implement CSV fidelity where applicable;
+6. prove JSON/CSV/package/revision/PostgreSQL round-trip;
+7. fail closed on malformed binding/plaintext protected material;
+8. preserve `TagValueSelector` and ADR-007 transform-before-selection semantics;
+9. exact-head CI.
 
-1. fail-closed communication Driver module registry keyed by stable DriverType;
-2. common runtime planner/factory component registry;
-3. protocol-neutral Data Source readiness contract independent from point quality;
-4. host-owned scoped protected-material resolver/lease seam;
-5. focused fail-closed tests for duplicate registration, capability/provider mismatch, readiness, protected-material request validation, planner/factory mismatch and activation issues.
-
-The old `coordination/driver-convergence-mainline-v2` branch is **reference-only / obsolete as a merge source**. It is heavily behind current `main` and contains an incomplete Engineering communication-binding attempt whose mapper expects a DTO field absent from the actual current contract. Do not merge or rebase it wholesale.
-
-Next Coordinator slice is the canonical rich Communication TAG binding in Engineering schema **v15**, rebuilt against current main with JSON/CSV/Preview/Apply/package/persistence compatibility and `Address == CommunicationBinding.PortableAddress` migration discipline. `TagValueSelector` remains the canonical bit selector and ADR-007 transform occurs before selection.
-
-After the shared Engineering/runtime foundation is coherent, converge accepted Drivers in this evidence order:
-
-`MQTT -> IEC-104 -> CIP -> OPC UA -> DNP3 -> Siemens S7 -> BACnet/IP`
-
-Workers must not independently recreate shared contracts.
+The old `coordination/driver-convergence-mainline-v2` is **reference-only / obsolete as a merge source**.
 
 ## Common interoperability lab — MERGED
 
-PR #173 is MERGED to `main`.
+PR #173 merge: `a08cca94795a5afa14bf8af39b8bf2c6f7df71ae`  
+Validated functional head: `3ff2d6393c4e8734b4b1c08abd2bd8466f78f400`  
+Interop Lab Smoke #42: GREEN  
+EliteSCADA CI #886: GREEN after rerun of unrelated Modbus timing failures on unchanged SHA.
 
-Merge:
-
-`a08cca94795a5afa14bf8af39b8bf2c6f7df71ae`
-
-Exact validated functional lab head:
-
-`3ff2d6393c4e8734b4b1c08abd2bd8466f78f400`
-
-Evidence:
-
-- **Interop Lab Smoke #42 — SUCCESS**;
-- **EliteSCADA CI #886 — SUCCESS** after failed jobs were rerun on the unchanged functional SHA;
-- no Modbus/product code was changed to obtain the green rerun;
-- S7 peer build/start + TCP readiness GREEN;
-- BACnet/IP peer build/start + health GREEN;
-- MQTT round-trip GREEN;
-- OPC UA independent browse/read/write/subscription reference smoke GREEN.
-
-Common test peers on main: MQTT, CIP, OPC UA, IEC-104, DNP3, Siemens S7 and BACnet/IP.
-
-The laboratory is test infrastructure, never a second product runtime and never production dependency authority. Tool/peer health is not automatic Driver product acceptance.
+Common test peers on main: MQTT, CIP, OPC UA, IEC-104, DNP3, Siemens S7 and BACnet/IP. Peer health is not Driver product acceptance.
 
 ## Driver assignments
 
-### Driver 10 — MQTT Industrial — READY FOR COORDINATOR CONVERGENCE
+### D10 MQTT — READY FOR COORDINATOR CONVERGENCE
 
-Branch: `driver10/mqtt`  
-Observed worker checkpoint: `acd46cd9a4a49e324f2037a1994e6f579a0bae3f`  
-Normal exact-head CI #865: GREEN.
+Branch `driver10/mqtt`; audited head `acd46cd9a4a49e324f2037a1994e6f579a0bae3f`; Draft #128; exact CI #865 GREEN.
 
-Broad live evidence already includes Mosquitto + HiveMQ, MQTT 5/3.1.1, QoS/retained, TLS/authentication, negative certificate/credential cases, persistent broker restart and live freshness recovery.
+Broad live evidence: Mosquitto + HiveMQ, MQTT 5/3.1.1, QoS/retained, TLS/auth, negative security, persistent broker restart, live freshness recovery.
 
-Worker is standby for targeted MQTT defects only. Coordinator owns shared integration.
+Worker standby for targeted defects only. After v15 is complete, D10 is the first shared integration candidate.
 
-### Driver 6 — IEC 60870-5-104 — READY FOR COORDINATOR CONVERGENCE
+### D6 IEC-104 — READY FOR COORDINATOR CONVERGENCE
 
-Branch: `driver6/iec-60870-5-104`  
-Product checkpoint: `d597ef5ed1885b63dcd0b3568287bc1e34330bee`  
-Normal CI #798: GREEN.  
-Validation PR #168: independent lib60870 L2 #7 GREEN, 13/13.
+Branch `driver6/iec-60870-5-104`; head `d597ef5ed1885b63dcd0b3568287bc1e34330bee`; Draft #146; CI #798 GREEN.
 
-Worker is standby for targeted IEC-104 defects/evidence only. Coordinator owns shared integration.
+Accepted independent lib60870 L2 evidence: former validation PR #168, smoke #7 GREEN, 13/13. #168 is now closed unmerged as completed evidence.
 
-### Driver 5 — Allen-Bradley Logix EtherNet/IP/CIP — READY FOR COORDINATOR CONVERGENCE
+### D5 Allen-Bradley CIP — READY FOR COORDINATOR CONVERGENCE
 
-Branch: `driver5/allen-bradley-cip`  
-Product checkpoint: `18ff6dc989a65c1f8b006f83c08d8394a5510914`  
-Normal CI #785: GREEN.  
-Validation PR #165: independent CIP L2 Smoke #6 GREEN.
+Branch `driver5/allen-bradley-cip`; head `18ff6dc989a65c1f8b006f83c08d8394a5510914`; Draft #111; CI #785 GREEN.
 
-Worker is standby for targeted CIP defects and later hardware/conformance evidence. Coordinator owns shared integration.
+Accepted independent CIP L2 evidence: former validation PR #165 / smoke #6 GREEN. #165 is closed unmerged as completed evidence.
 
-### Driver 9 — OPC UA — ACTIVE: PRODUCT-PATH L2
+### D9 OPC UA — ACTIVE PRODUCT-PATH L2
 
-Branch: `driver9/opc-ua`  
-Worker checkpoint: `5ce1f3c912bf3779e892fb136b51b54b0f19a5c6`  
-Draft PR #169; normal CI #869 GREEN.
+Branch `driver9/opc-ua`; head `5ce1f3c912bf3779e892fb136b51b54b0f19a5c6`; Draft #169; CI #869 GREEN.
 
-Assigned next milestone:
+Next worker gate: actual Driver 9 session/read/write/subscription against common open62541, server loss/reconnect/resubscription, SourceTimestamp/ServerTimestamp preservation, dedicated L2 and exact normal CI. Secure/custom datatype evidence follows first green slice.
 
-- actual Driver 9 session/read/write/subscription against common open62541 peer;
-- server loss/reconnect/resubscription;
-- independent SourceTimestamp and ServerTimestamp preservation;
-- dedicated L2 + exact normal CI;
-- follow-up secure username/certificate/custom-data-type evidence.
+### D7 DNP3 — ACTIVE CANONICAL TYPE FIX
 
-No shared registry/readiness/binding/security/module contracts may be redefined in this branch.
+Branch `driver7/dnp3`; head `ac0dd6944f53d19447f3353addd404c02da7249c`; Draft #108; CI #697 GREEN.
 
-### Driver 7 — DNP3 — ACTIVE: CANONICAL TYPE FIX
+Validation PR #167 remains OPEN. Real defect: configured `TagDataType.Int32` G30V1 value 4242 reaches canonical cache as `Double`. Worker must preserve configured canonical type, add regression and rerun #167. Never weaken the assertion.
 
-Branch: `driver7/dnp3`  
-Current product checkpoint: `ac0dd6944f53d19447f3353addd404c02da7249c`  
-Draft PR #108; normal CI #697 GREEN.
+### D8 Siemens S7 — ACTIVE PRODUCT-PATH L2
 
-Independent dnp3py L2 exposed a real product-boundary defect:
+Branch `driver8/siemens-s7-iso`; head `0c37b922b44f591ebd143470abf3ebaa6b4bffae`; Draft #135; CI #789 GREEN.
 
-`G30V1 raw Int32 4242 -> Dnp3Driver -> canonical cache Double 4242`, while the configured TAG is `TagDataType.Int32`.
+Next gate against common python-snap7: ISO/S7 session, negotiated PDU, deterministic DB reads, write/readback, PDU-aware multi-read and peer restart/reconnect.
 
-Assigned next milestone: preserve configured canonical type, add deterministic regression coverage, rerun validation PR #167 and exact normal CI. The L2 test must not be weakened to accept Double.
+### D4 BACnet/IP — ACTIVE PRODUCT-PATH L2
 
-### Driver 8 — Siemens S7 ISO-on-TCP — ACTIVE: PRODUCT-PATH L2
+Branch `driver4/bacnet`; head `de3357750f79266e43588e7bb26d66093f8cf3d5`; Draft #109; CI #860 GREEN.
 
-Branch: `driver8/siemens-s7-iso`  
-Worker checkpoint: `0c37b922b44f591ebd143470abf3ebaa6b4bffae`  
-Draft PR #135; normal CI #789 GREEN.
+Next gate against common BACpypes: Who-Is/I-Am, RP/RPM, WP/readback, COV and route loss/re-resolution/recovery. Priority/relinquish and BBMD/FDR follow when peer topology supports them.
 
-The common python-snap7 peer has tool-level build/start/TCP evidence. Assigned next milestone: actual S7 connection/PDU negotiation, deterministic DB reads, write/readback, PDU-aware multi-read, peer restart/reconnect and dedicated L2 + normal CI.
+## Convergence order
 
-### Driver 4 — BACnet/IP — ACTIVE: PRODUCT-PATH L2
+`MQTT -> IEC-104 -> CIP -> OPC UA -> DNP3 -> Siemens S7 -> BACnet/IP`
 
-Branch: `driver4/bacnet`  
-Worker checkpoint: `de3357750f79266e43588e7bb26d66093f8cf3d5`  
-Draft PR #109; normal CI #860 GREEN.
+D9/D7/D8/D4 enter shared integration after their active worker gates close.
 
-The common BACpypes peer is tool-level GREEN in Interop Lab Smoke #42. Assigned next milestone: Who-Is/I-Am, RP/RPM, WP/readback, COV, reachability/re-resolution/recovery and dedicated L2 + normal CI. Priority/relinquish and BBMD/FDR may follow when the peer scenario supports them.
+## Repository hygiene at handoff
+
+Wave 10 issues #149-#152 are closed completed.
+
+Validation-only PRs closed unmerged after evidence acceptance/supersession: #148, #160, #161, #162, #163, #164, #165, #166, #168.
+
+Keep open: #175, Driver handoff PRs #108/#109/#111/#128/#135/#146/#169, and active DNP3 validation #167.
 
 ## Shared locks
 
-- Engineering Import/Export, Preview/Apply/CAS, revisions and project-package fidelity remain mandatory for public Engineering changes.
-- Protected credentials/private keys are never plaintext Engineering/package data.
-- TAG-bit identity remains stable `TagId + selector`; `.NN` is authoring/display only.
-- ADR-007 byte/word transform remains binding-level; bit selection occurs after physical transform and typed decode.
-- No arbitrary SQL, JavaScript `eval`/`Function`, unrestricted Python evaluation or implicit coercion engines.
-- Visual precedence remains `Animation > Script > Binding/Expression > Engineering Base > Default`.
-- Driver registry dispatch uses stable Driver type and duplicate registrations fail closed.
-- Runtime readiness means protocol/Data Source readiness, not every point being `Good`.
-- Drivers never call sibling Drivers or bypass TAG/cache/event architecture.
+- Engineering Preview/Apply/revisions/package fidelity is mandatory.
+- No plaintext credentials/private keys/tokens in Engineering/package data.
+- Stable TAG bit identity is `TagId + TagValueSelector`; `.NN` is display/authoring only.
+- ADR-007 physical byte/word transform occurs before typed decode/bit selection.
+- No Driver-to-Driver calls or bypass of TAG/cache/event architecture.
+- Runtime readiness is Data Source/protocol readiness, not every point Good.
+- L0/L1/L2/L3/L4, normal CI, licensing and conformance are separate claims.
+- Never weaken a test to improve status.
+- Wave 11 remains deferred until Driver convergence closes or priority is explicitly changed.
 
 ## Required worker handoff
 
-Every worker handoff reports:
-
-1. exact branch/head SHA;
-2. delivered scope;
-3. exact changed-file list;
-4. tests/results and exact CI/L2 evidence;
-5. known limitations/risks;
-6. shared decisions requiring Coordinator action;
-7. confirmation that no unassigned shared contracts were independently redefined.
+Every worker handoff reports exact branch/head, delivered scope, changed files, exact CI/L2 evidence, limitations/risks, shared decisions needing Coordinator action, and confirmation that unassigned shared contracts were not redefined.

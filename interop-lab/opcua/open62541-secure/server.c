@@ -75,8 +75,9 @@ int main(int argc, char **argv) {
     UA_String_clear(&config->applicationDescription.applicationUri);
     config->applicationDescription.applicationUri = UA_STRING_ALLOC("urn:elitescada:interop:opcua:server");
 
-    /* Keep anonymous for the certificate-protected baseline, and expose a deterministic
-       username token only through an encrypted Basic256Sha256 user-token policy. */
+    /* Keep anonymous for the certificate-protected baseline. Username is encrypted
+       with Basic256Sha256. The default access-control plugin also advertises X.509
+       user identity and validates it through the server session PKI. */
     config->allowNonePolicyPassword = false;
     config->accessControl.clear(&config->accessControl);
     const UA_String userTokenPolicy = UA_STRING("http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256");
@@ -90,7 +91,8 @@ int main(int argc, char **argv) {
     UA_UInt16 namespaceIndex = UA_Server_addNamespace(server, "urn:elitescada:interop:opcua");
     if(namespaceIndex != LAB_NAMESPACE_INDEX ||
        addInt32Variable(server, "Lab.SecureCounter", "Secure Counter", 7) != UA_STATUSCODE_GOOD ||
-       addInt32Variable(server, "Lab.UserCounter", "User Counter", 17) != UA_STATUSCODE_GOOD) {
+       addInt32Variable(server, "Lab.UserCounter", "User Counter", 17) != UA_STATUSCODE_GOOD ||
+       addInt32Variable(server, "Lab.CertificateCounter", "Certificate Counter", 27) != UA_STATUSCODE_GOOD) {
         UA_Server_delete(server);
         return 7;
     }

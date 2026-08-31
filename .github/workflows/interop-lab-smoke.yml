@@ -11,9 +11,9 @@ permissions:
   contents: read
 
 jobs:
-  base-lab-smoke:
+  common-peer-stack:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -37,33 +37,69 @@ jobs:
         working-directory: interop-lab
         run: docker compose -f compose.yaml -f compose.opcua.yaml config >/dev/null
 
-      - name: Build and start base lab
+      - name: Validate IEC-104 overlay Compose model
         working-directory: interop-lab
-        run: docker compose -f compose.yaml up -d --build
+        run: docker compose -f compose.yaml -f compose.iec104.yaml config >/dev/null
+
+      - name: Validate DNP3 overlay Compose model
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml -f compose.dnp3.yaml config >/dev/null
+
+      - name: Build and start common peer stack
+        working-directory: interop-lab
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.cip.yaml
+          -f compose.opcua.yaml
+          -f compose.iec104.yaml
+          -f compose.dnp3.yaml
+          up -d --build --wait --wait-timeout 180
 
       - name: MQTT round-trip smoke
         working-directory: interop-lab
         run: bash scripts/lab.sh smoke
 
-      - name: Build and start independent OPC UA peer
-        working-directory: interop-lab
-        run: docker compose -f compose.yaml -f compose.opcua.yaml up -d --build
-
       - name: OPC UA open62541 interoperability smoke
         working-directory: interop-lab
-        run: docker compose -f compose.yaml -f compose.opcua.yaml exec -T node-red node /data/opcua-smoke.js
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.opcua.yaml
+          exec -T node-red node /data/opcua-smoke.js
 
       - name: Show lab status
         if: always()
         working-directory: interop-lab
-        run: docker compose -f compose.yaml -f compose.opcua.yaml ps
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.cip.yaml
+          -f compose.opcua.yaml
+          -f compose.iec104.yaml
+          -f compose.dnp3.yaml
+          ps
 
       - name: Dump logs on failure
         if: failure()
         working-directory: interop-lab
-        run: docker compose -f compose.yaml -f compose.opcua.yaml logs --no-color
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.cip.yaml
+          -f compose.opcua.yaml
+          -f compose.iec104.yaml
+          -f compose.dnp3.yaml
+          logs --no-color
 
       - name: Stop lab
         if: always()
         working-directory: interop-lab
-        run: docker compose -f compose.yaml -f compose.opcua.yaml down -v --remove-orphans
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.cip.yaml
+          -f compose.opcua.yaml
+          -f compose.iec104.yaml
+          -f compose.dnp3.yaml
+          down -v --remove-orphans

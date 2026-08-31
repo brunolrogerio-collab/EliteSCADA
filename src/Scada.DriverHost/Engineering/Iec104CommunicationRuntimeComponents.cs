@@ -877,22 +877,22 @@ internal sealed class Iec104HostCommunicationDriver : ICommunicationDriver, ICom
         _ => observed.Value
     };
 
-    private static Iec104CommandTransaction CreateTransaction(Iec104CommunicationPoint point, object? value)
+    private Iec104CommandTransaction CreateTransaction(Iec104CommunicationPoint point, object? value)
     {
         var mode = point.CommandMode!.Value;
         var address = point.Address;
         return point.CommandTypeId!.Value switch
         {
             Iec104TypeId.CScNa1 when value is bool boolean =>
-                Iec104CommandTransaction.Single(address.CommonAddress, address.InformationObjectAddress, boolean, mode, point.CommandQualifier),
+                Iec104CommandTransaction.Single(address.CommonAddress, address.InformationObjectAddress, boolean, mode, point.CommandQualifier, _plan.OriginatorAddress),
             Iec104TypeId.CDcNa1 when value is int integer && integer is 1 or 2 =>
-                Iec104CommandTransaction.Double(address.CommonAddress, address.InformationObjectAddress, (Iec104DoublePointState)integer, mode, point.CommandQualifier),
+                Iec104CommandTransaction.Double(address.CommonAddress, address.InformationObjectAddress, (Iec104DoublePointState)integer, mode, point.CommandQualifier, _plan.OriginatorAddress),
             Iec104TypeId.CSeNa1 when value is float normalized =>
-                Iec104CommandTransaction.NormalizedSetpoint(address.CommonAddress, address.InformationObjectAddress, normalized, mode, point.CommandQualifier),
+                Iec104CommandTransaction.NormalizedSetpoint(address.CommonAddress, address.InformationObjectAddress, normalized, mode, point.CommandQualifier, _plan.OriginatorAddress),
             Iec104TypeId.CSeNb1 when value is short scaled =>
-                Iec104CommandTransaction.ScaledSetpoint(address.CommonAddress, address.InformationObjectAddress, scaled, mode, point.CommandQualifier),
+                Iec104CommandTransaction.ScaledSetpoint(address.CommonAddress, address.InformationObjectAddress, scaled, mode, point.CommandQualifier, _plan.OriginatorAddress),
             Iec104TypeId.CSeNc1 when value is float shortFloat =>
-                Iec104CommandTransaction.ShortFloatSetpoint(address.CommonAddress, address.InformationObjectAddress, shortFloat, mode, point.CommandQualifier),
+                Iec104CommandTransaction.ShortFloatSetpoint(address.CommonAddress, address.InformationObjectAddress, shortFloat, mode, point.CommandQualifier, _plan.OriginatorAddress),
             _ => throw new ArgumentException(
                 $"Value type is incompatible with IEC-104 command profile {point.CommandTypeId} for TAG '{point.Tag.Path}'.",
                 nameof(value))

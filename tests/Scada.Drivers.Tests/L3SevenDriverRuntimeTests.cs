@@ -305,6 +305,7 @@ public sealed class L3SevenDriverRuntimeTests
         {
             ["deviceInstance"] = "599001",
             ["localPort"] = "47809",
+            ["localEndpointIp"] = "127.0.0.1",
             ["scanIntervalMilliseconds"] = "100",
             ["requestTimeoutMilliseconds"] = "2000",
             ["discoveryWindowMilliseconds"] = "3000",

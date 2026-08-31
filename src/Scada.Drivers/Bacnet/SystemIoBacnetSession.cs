@@ -50,8 +50,11 @@ public sealed class SystemIoBacnetSession :
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _options.Validate();
-        _client = new BacnetClient(
+        var transport = new BacnetIpUdpProtocolTransport(
             _options.LocalPort,
+            localEndpointIp: _options.LocalEndpointIp?.Trim() ?? string.Empty);
+        _client = new BacnetClient(
+            transport,
             checked((int)_options.EffectiveRequestTimeout.TotalMilliseconds),
             _options.Retries);
         _client.OnIam += OnIam;
@@ -347,7 +350,6 @@ public sealed class SystemIoBacnetSession :
         _client.Dispose();
         _foreignDeviceRenewalCts?.Dispose();
     }
-
     private bool IsForeignDeviceRegistrationConfigured()
         => !string.IsNullOrWhiteSpace(_options.BbmdAddress) && _options.ForeignDeviceTtlSeconds.HasValue;
 

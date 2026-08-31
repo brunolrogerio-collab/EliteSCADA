@@ -1,0 +1,68 @@
+name: S7 python-snap7 L2
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/Scada.Drivers/SiemensS7Iso/**"
+      - "tests/Scada.Drivers.Tests/S7IsoPythonSnap7InteropTests.cs"
+      - ".github/workflows/s7-python-snap7-l2.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  product-path-l2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout Driver 8 branch
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned common interoperability lab
+        uses: actions/checkout@v4
+        with:
+          ref: a08cca94795a5afa14bf8af39b8bf2c6f7df71ae
+          path: _interop-lab-source
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Start independent python-snap7 peer
+        working-directory: _interop-lab-source/interop-lab
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.s7.yaml
+          up -d --build --wait --wait-timeout 120 s7-python-snap7
+
+      - name: Verify peer TCP readiness
+        run: timeout 20 bash -c 'until nc -z 127.0.0.1 1102; do sleep 1; done'
+
+      - name: Run S7 product-path L2 round trip
+        env:
+          ELITESCADA_S7_L2_HOST: 127.0.0.1
+          ELITESCADA_S7_L2_PORT: "1102"
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          --configuration Release
+          --filter FullyQualifiedName~S7IsoPythonSnap7InteropTests
+          --logger "console;verbosity=normal"
+
+      - name: Show S7 peer status
+        if: always()
+        working-directory: _interop-lab-source/interop-lab
+        run: docker compose -f compose.yaml -f compose.s7.yaml ps
+
+      - name: Dump S7 peer logs on failure
+        if: failure()
+        working-directory: _interop-lab-source/interop-lab
+        run: docker compose -f compose.yaml -f compose.s7.yaml logs --no-color s7-python-snap7 || true
+
+      - name: Stop S7 peer
+        if: always()
+        working-directory: _interop-lab-source/interop-lab
+        run: docker compose -f compose.yaml -f compose.s7.yaml down -v --remove-orphans

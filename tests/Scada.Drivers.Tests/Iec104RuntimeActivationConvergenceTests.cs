@@ -130,7 +130,7 @@ public sealed class Iec104RuntimeActivationConvergenceTests
 
     private static DataSourceEngineeringDto CreateDataSource(
         string key,
-        IReadOnlyDictionary<string, string>? secretReferences = null) =>
+        Dictionary<string, string>? secretReferences = null) =>
         new(
             Guid.NewGuid(),
             key,

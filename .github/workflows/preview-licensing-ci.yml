@@ -42,17 +42,16 @@ jobs:
           dotnet run --project src/Scada.Api/Scada.Api.csproj --no-build --configuration Release --no-launch-profile > /tmp/scada-licensing-api.log 2>&1 &
           API_PID=$!
 
-          cleanup() {
-            status=$?
+          finish() {
+            status="$1"
             if [ "$status" -ne 0 ]; then
               echo "=== EliteSCADA licensing host log ==="
               cat /tmp/scada-licensing-api.log || true
             fi
             kill "$API_PID" 2>/dev/null || true
             wait "$API_PID" 2>/dev/null || true
-            exit "$status"
+            return "$status"
           }
-          trap cleanup EXIT
 
           ready=false
           for _ in $(seq 1 30); do
@@ -65,16 +64,19 @@ jobs:
           done
           if [ "$ready" != "true" ]; then
             echo "EliteSCADA host did not become healthy."
+            finish 1
             exit 1
           fi
 
           if ! curl -fsS http://127.0.0.1:5091/api/licensing/status > /tmp/licensing-status.json; then
+            finish 1
             exit 1
           fi
           if ! curl -fsS http://127.0.0.1:5091/api/licensing/request > /tmp/licensing-request.json; then
+            finish 1
             exit 1
           fi
-          python3 - <<'PY'
+          if ! python3 - <<'PY'
           import json
           with open('/tmp/licensing-status.json') as f:
               status = json.load(f)
@@ -85,6 +87,12 @@ jobs:
           assert status['runtime']['state'] == 'Idle', status
           assert request['requestCode'].startswith('ESREQ1.'), request
           PY
+          then
+            finish 1
+            exit 1
+          fi
+
+          finish 0
       - name: Publish Windows x64 License Generator
         run: >-
           dotnet publish src/Scada.LicenseGenerator/Scada.LicenseGenerator.csproj

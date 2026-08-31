@@ -103,13 +103,26 @@ jobs:
         if: always()
         run: docker logs elitescada-opcua-secure-l2 > TestResults/opcua-secure-l2/open62541.log 2>&1 || true
 
+      - name: Remove ephemeral private material
+        if: always()
+        shell: bash
+        run: |
+          rm -f \
+            TestResults/opcua-secure-l2/pki/server-key.pem \
+            TestResults/opcua-secure-l2/pki/server-key.der \
+            TestResults/opcua-secure-l2/pki/client-key.pem \
+            TestResults/opcua-secure-l2/pki/client.pfx
+
       - name: Upload secure L2 diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: opcua-secure-l2-diagnostics
           path: |
-            TestResults/opcua-secure-l2/**
+            TestResults/opcua-secure-l2/dotnet-test.log
+            TestResults/opcua-secure-l2/open62541.log
+            TestResults/opcua-secure-l2/pki/server-cert-profile.txt
+            TestResults/opcua-secure-l2/pki/client-cert-profile.txt
             tests/Scada.Drivers.Tests/TestResults/**
           if-no-files-found: warn
           retention-days: 7

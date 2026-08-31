@@ -200,7 +200,7 @@ public static class ProductLicenseCryptography
             throw new FormatException("Base64url value is empty.");
 
         var padded = value.Replace('-', '+').Replace('_', '/');
-        padded += padded.Length % 4 switch
+        padded += (padded.Length % 4) switch
         {
             0 => string.Empty,
             2 => "==",

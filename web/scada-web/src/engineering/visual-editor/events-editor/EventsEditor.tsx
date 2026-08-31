@@ -1,0 +1,356 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { loadEngineeringSnapshot } from '../../api';
+import {
+  buildProjectReferenceCatalog,
+  type ClientMemoryDefinitionView
+} from '../../project-reference/projectReferenceModel';
+import {
+  MINIMUM_SCRIPT_TIMER_INTERVAL_MS,
+  validateVisualEventReference
+} from '../../scripts/ScriptEngineeringWorkspace.logic';
+import {
+  applyScriptMutation,
+  loadScriptEngineeringContext,
+  previewScriptMutation
+} from '../../scripts/scriptEngineeringApi';
+import type {
+  ScriptEngineeringDefinition,
+  ScriptEngineeringEntryPoint,
+  ScriptEngineeringEventKind,
+  ScriptMutationPreviewToken,
+  ScriptVisualEventReference
+} from '../../scripts/scriptEngineeringTypes';
+import type { VisualElementEngineering } from '../../types';
+import { initializeClientMemory } from '../../../runtime/clientMemory';
+import type { VisualEditorBindingSourceCatalogItem } from '../visualEditorContracts';
+
+type EventsEditorProps = {
+  visualDefinitionId?: string | null;
+  visualObjectId?: string | null;
+  sourceCatalog?: readonly VisualEditorBindingSourceCatalogItem[];
+  disabled?: boolean;
+  onApplied?: () => Promise<void> | void;
+};
+
+type EventChoice = 'click' | 'initialize' | 'dispose' | 'tagChanged' | 'clientMemoryChanged' | 'timer';
+
+const EVENT_CHOICES: ReadonlyArray<{ value: EventChoice; label: string; eventKind: ScriptEngineeringEventKind }> = [
+  { value: 'click', label: 'Click', eventKind: 'objectInteraction' },
+  { value: 'initialize', label: 'Initialize', eventKind: 'initialize' },
+  { value: 'dispose', label: 'Dispose', eventKind: 'dispose' },
+  { value: 'tagChanged', label: 'TAG value change', eventKind: 'tagChanged' },
+  { value: 'clientMemoryChanged', label: 'Client Memory change', eventKind: 'clientMemoryChanged' },
+  { value: 'timer', label: 'Timer', eventKind: 'timer' }
+];
+
+export function EventsEditor({
+  visualDefinitionId,
+  visualObjectId,
+  sourceCatalog,
+  disabled = false,
+  onApplied
+}: EventsEditorProps) {
+  const [scripts, setScripts] = useState<readonly ScriptEngineeringDefinition[]>([]);
+  const [references, setReferences] = useState<readonly ScriptVisualEventReference[]>([]);
+  const [resolvedVisualDefinitionId, setResolvedVisualDefinitionId] = useState<string | null>(visualDefinitionId ?? null);
+  const [resolvedSourceCatalog, setResolvedSourceCatalog] = useState<readonly VisualEditorBindingSourceCatalogItem[]>(sourceCatalog ?? Object.freeze([]));
+  const [choice, setChoice] = useState<EventChoice>('click');
+  const [scriptId, setScriptId] = useState('');
+  const [entryPoint, setEntryPoint] = useState('');
+  const [targetId, setTargetId] = useState('');
+  const [tagBitIndex, setTagBitIndex] = useState('');
+  const [timerIntervalMs, setTimerIntervalMs] = useState(1000);
+  const [previewToken, setPreviewToken] = useState<ScriptMutationPreviewToken | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const eventKind = EVENT_CHOICES.find(item => item.value === choice)!.eventKind;
+  const selectedScript = scripts.find(script => script.id === scriptId) ?? null;
+  const matchingEntryPoints = useMemo(
+    () => (selectedScript?.entryPoints ?? []).filter(item => item.eventKind === eventKind),
+    [selectedScript, eventKind]
+  );
+  const selectedEntryPoint = matchingEntryPoints.find(item => item.handlerName === entryPoint) ?? null;
+  const tagTargets = useMemo(
+    () => resolvedSourceCatalog.filter(item => item.kind === 'Tag' && item.tagReference?.tagId),
+    [resolvedSourceCatalog]
+  );
+  const selectedTagTarget = tagTargets.find(item => item.tagReference?.tagId === targetId) ?? null;
+  const memoryTargets = useMemo(
+    () => resolvedSourceCatalog.filter(item => item.kind === 'ClientMemory' && item.tagReference?.tagId),
+    [resolvedSourceCatalog]
+  );
+  const applicableReferences = useMemo(
+    () => references.filter(reference =>
+      reference.visualDefinitionId === resolvedVisualDefinitionId &&
+      ((reference.visualObjectId ?? null) === (visualObjectId ?? null) || reference.visualObjectId == null)),
+    [references, resolvedVisualDefinitionId, visualObjectId]
+  );
+
+  const reload = async () => {
+    const context = await loadScriptEngineeringContext();
+    setScripts(context.scripts.filter(script => script.scope === 'clientVisual' && script.enabled));
+    setReferences(context.visualEventReferences);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadScriptEngineeringContext()
+      .then(context => {
+        if (cancelled) return;
+        setScripts(context.scripts.filter(script => script.scope === 'clientVisual' && script.enabled));
+        setReferences(context.visualEventReferences);
+      })
+      .catch(reason => {
+        if (!cancelled) setError(reason instanceof Error ? reason.message : String(reason));
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (visualDefinitionId) setResolvedVisualDefinitionId(visualDefinitionId);
+    if (sourceCatalog) setResolvedSourceCatalog(sourceCatalog);
+    if (visualDefinitionId && sourceCatalog) return;
+
+    let cancelled = false;
+    void Promise.all([loadEngineeringSnapshot(), initializeClientMemory()])
+      .then(([snapshot, memoryDefinitions]) => {
+        if (cancelled) return;
+        if (!visualDefinitionId) {
+          const screen = (snapshot.package.screens ?? []).find(candidate =>
+            Boolean(visualObjectId) && containsVisualObject(candidate.elements ?? [], visualObjectId!));
+          setResolvedVisualDefinitionId(screen?.id ?? null);
+        }
+        if (!sourceCatalog) {
+          const memoryViews: readonly ClientMemoryDefinitionView[] = memoryDefinitions.map(definition => ({
+            id: definition.id,
+            name: definition.name,
+            path: definition.path,
+            dataType: definition.dataType,
+            initialValue: definition.initialValue,
+            readOnly: definition.readOnly
+          }));
+          const catalog = buildProjectReferenceCatalog(snapshot.package, memoryViews)
+            .filter(reference => reference.bindingKind === 'Tag' || reference.bindingKind === 'ClientMemory')
+            .map(reference => ({
+              kind: reference.bindingKind!,
+              target: reference.reference,
+              label: reference.label,
+              dataType: reference.dataType,
+              engineeringUnit: reference.engineeringUnit ?? null,
+              writable: reference.writable,
+              family: reference.family,
+              tagReference: reference.tagReference ?? null,
+              selectorCapability: reference.selectorCapability ?? null,
+              bindable: true
+            } satisfies VisualEditorBindingSourceCatalogItem));
+          setResolvedSourceCatalog(Object.freeze(catalog));
+        }
+      })
+      .catch(reason => {
+        if (!cancelled) setError(reason instanceof Error ? reason.message : String(reason));
+      });
+    return () => { cancelled = true; };
+  }, [sourceCatalog, visualDefinitionId, visualObjectId]);
+
+  useEffect(() => {
+    setPreviewToken(null);
+    setError(null);
+    setEntryPoint('');
+    setTargetId('');
+    setTagBitIndex('');
+  }, [choice, scriptId, resolvedVisualDefinitionId, visualObjectId]);
+
+  useEffect(() => {
+    setTagBitIndex('');
+    setPreviewToken(null);
+  }, [targetId]);
+
+  const buildReference = (): ScriptVisualEventReference => {
+    if (!resolvedVisualDefinitionId) throw new Error('Apply the visual definition before authoring events.');
+    if (!selectedScript || !selectedEntryPoint) throw new Error('Select a valid Script entry point.');
+    if (choice === 'click' && !visualObjectId) throw new Error('Select one visual object for a Click event.');
+
+    const reference: ScriptVisualEventReference = {
+      visualDefinitionId: resolvedVisualDefinitionId,
+      visualObjectId: choice === 'initialize' || choice === 'dispose' || choice === 'timer' ? null : visualObjectId ?? null,
+      eventKind,
+      scriptId: selectedScript.id,
+      entryPoint: selectedEntryPoint.handlerName,
+      targetReference: null,
+      tagReference: null,
+      timerIntervalMs: null
+    };
+
+    if (choice === 'timer') {
+      reference.timerIntervalMs = timerIntervalMs;
+    } else if (choice === 'tagChanged') {
+      const target = selectedTagTarget;
+      if (!target?.tagReference?.tagId) throw new Error('Select a canonical TAG target.');
+
+      let selector = target.tagReference.selector ? { ...target.tagReference.selector } : null;
+      if (tagBitIndex.trim()) {
+        const capability = target.selectorCapability;
+        const bitIndex = Number(tagBitIndex);
+        if (!capability || capability.kind !== 'bit')
+          throw new Error('This TAG does not support bit selection.');
+        if (!Number.isInteger(bitIndex) || bitIndex < capability.minIndex || bitIndex > capability.maxIndex)
+          throw new Error(`Bit index must be between ${capability.minIndex} and ${capability.maxIndex}.`);
+        selector = { kind: 'bit', index: bitIndex };
+      }
+
+      reference.tagReference = {
+        tagId: target.tagReference.tagId,
+        selector
+      };
+    } else if (choice === 'clientMemoryChanged') {
+      const target = memoryTargets.find(item => item.tagReference?.tagId === targetId || item.target === targetId);
+      if (!target?.tagReference?.tagId) throw new Error('Select a Client Memory definition.');
+      reference.targetReference = target.tagReference.tagId;
+    }
+
+    const issues = validateVisualEventReference(reference);
+    if (issues.length > 0) throw new Error(`Invalid event association: ${issues.join(', ')}.`);
+    return reference;
+  };
+
+  const buildEntryPoint = (reference: ScriptVisualEventReference): ScriptEngineeringEntryPoint => ({
+    eventKind: reference.eventKind,
+    handlerName: reference.entryPoint,
+    targetReference: reference.targetReference ?? null,
+    tagReference: reference.tagReference ? {
+      tagId: reference.tagReference.tagId,
+      selector: reference.tagReference.selector ? { ...reference.tagReference.selector } : null
+    } : null,
+    timerIntervalMs: reference.timerIntervalMs ?? null
+  });
+
+  const candidateScript = (reference: ScriptVisualEventReference): ScriptEngineeringDefinition => {
+    if (!selectedScript) throw new Error('Select a Script.');
+    const configured = buildEntryPoint(reference);
+    return {
+      ...selectedScript,
+      entryPoints: selectedScript.entryPoints.map(existing =>
+        existing.eventKind === configured.eventKind && existing.handlerName === configured.handlerName
+          ? configured
+          : { ...existing })
+    };
+  };
+
+  const preview = async () => {
+    setBusy(true);
+    setError(null);
+    setPreviewToken(null);
+    try {
+      const reference = buildReference();
+      const script = candidateScript(reference);
+      const nextReferences = [
+        ...references.filter(item => !(
+          item.visualDefinitionId === reference.visualDefinitionId &&
+          (item.visualObjectId ?? null) === (reference.visualObjectId ?? null) &&
+          item.eventKind === reference.eventKind &&
+          item.scriptId === reference.scriptId &&
+          item.entryPoint === reference.entryPoint
+        )),
+        reference
+      ];
+      const token = await previewScriptMutation(script, nextReferences, 'UpdateExisting');
+      setPreviewToken(token);
+      if (!token.preview.canApply) setError('Engineering Preview rejected this event association.');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const apply = async () => {
+    if (!previewToken?.preview.canApply) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await applyScriptMutation(previewToken);
+      await reload();
+      setPreviewToken(null);
+      await onApplied?.();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      setPreviewToken(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const unavailable = disabled || !resolvedVisualDefinitionId;
+
+  return <section className="visual-editor-events" data-testid="visual-events-editor">
+    <header><strong>Events</strong><span>Canonical Python event associations</span></header>
+    {unavailable ? <p>Apply this visual object before editing canonical event associations.</p> : <>
+      <label><span>Event</span><select data-testid="visual-events-event" value={choice} onChange={event => setChoice(event.currentTarget.value as EventChoice)}>
+        {EVENT_CHOICES.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
+      </select></label>
+      <label><span>Script</span><select data-testid="visual-events-script" value={scriptId} onChange={event => setScriptId(event.currentTarget.value)}>
+        <option value="">Select Script</option>
+        {scripts.map(script => <option key={script.id} value={script.id}>{script.name} · {script.path}</option>)}
+      </select></label>
+      <label><span>Entry point</span><select data-testid="visual-events-entry-point" value={entryPoint} onChange={event => setEntryPoint(event.currentTarget.value)} disabled={!selectedScript}>
+        <option value="">Select handler</option>
+        {matchingEntryPoints.map(item => <option key={`${item.eventKind}:${item.handlerName}`} value={item.handlerName}>{item.handlerName}</option>)}
+      </select></label>
+
+      {choice === 'tagChanged' ? <>
+        <label><span>TAG target</span><select value={targetId} onChange={event => setTargetId(event.currentTarget.value)}>
+          <option value="">Select TAG</option>
+          {tagTargets.map(target => <option key={`${target.tagReference!.tagId}:${target.target}`} value={target.tagReference!.tagId}>{target.label}</option>)}
+        </select></label>
+        {selectedTagTarget?.selectorCapability?.kind === 'bit' ? <label>
+          <span>Bit selector (optional)</span>
+          <input
+            type="number"
+            min={selectedTagTarget.selectorCapability.minIndex}
+            max={selectedTagTarget.selectorCapability.maxIndex}
+            step="1"
+            value={tagBitIndex}
+            placeholder="Whole TAG"
+            onChange={event => setTagBitIndex(event.currentTarget.value)}
+            data-testid="visual-events-tag-bit"
+          />
+        </label> : null}
+      </> : null}
+
+      {choice === 'clientMemoryChanged' ? <label><span>Client Memory</span><select value={targetId} onChange={event => setTargetId(event.currentTarget.value)}>
+        <option value="">Select definition</option>
+        {memoryTargets.map(target => <option key={target.tagReference!.tagId} value={target.tagReference!.tagId}>{target.label}</option>)}
+      </select></label> : null}
+
+      {choice === 'timer' ? <label><span>Interval (ms)</span><input type="number" min={MINIMUM_SCRIPT_TIMER_INTERVAL_MS} step="1" value={timerIntervalMs} onChange={event => setTimerIntervalMs(Number(event.currentTarget.value))} /></label> : null}
+
+      <div className="visual-editor-events-actions">
+        <button type="button" className="secondary" disabled={busy || !selectedEntryPoint} onClick={() => void preview()} data-testid="visual-events-preview">{busy ? 'Working…' : 'Preview event'}</button>
+        <button type="button" className="primary" disabled={busy || !previewToken?.preview.canApply} onClick={() => void apply()} data-testid="visual-events-apply">Apply event</button>
+      </div>
+      {error ? <pre>{error}</pre> : null}
+      {previewToken ? <small>{previewToken.preview.canApply ? 'Validated Engineering candidate.' : 'Invalid Engineering candidate.'}</small> : null}
+      <div className="visual-editor-events-list">
+        {applicableReferences.map((reference, index) => <code key={`${reference.scriptId}:${reference.entryPoint}:${index}`}>
+          {reference.eventKind} → {reference.entryPoint}{formatTagSelector(reference)}
+        </code>)}
+      </div>
+    </>}
+  </section>;
+}
+
+function formatTagSelector(reference: ScriptVisualEventReference): string {
+  const selector = reference.tagReference?.selector;
+  return selector?.kind === 'bit'
+    ? ` · bit ${selector.index.toString().padStart(2, '0')}`
+    : '';
+}
+
+function containsVisualObject(elements: readonly VisualElementEngineering[], objectId: string): boolean {
+  for (const element of elements) {
+    if (element.id === objectId) return true;
+    if (element.children && containsVisualObject(element.children, objectId)) return true;
+  }
+  return false;
+}

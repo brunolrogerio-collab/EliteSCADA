@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { EngineeringLocale } from '../../engineering/i18n';
+import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
 import type { EngineeringPackageView } from '../../engineering/types';
-import { CanonicalVisualRenderer, type CanonicalVisualEvent } from '../../engineering/visual-editor/CanonicalVisualRenderer';
+import type { CanonicalVisualEvent } from '../../engineering/visual-editor/CanonicalVisualRenderer';
+import type { ClientVisualEventDispatchRecord } from '../../python-runtime/clientVisualEventDispatcher';
 import {
   createRuntimeVisualCatalog,
   createRuntimeVisualNavigationState,
@@ -13,6 +15,7 @@ import {
   type RuntimeVisualCatalog,
   type RuntimeVisualNavigationState
 } from './runtimeVisualNavigationModel';
+import { RuntimeVisualDefinitionRenderer } from './RuntimeVisualDefinitionRenderer';
 
 export type RuntimeVisualNavigatorProps = Readonly<{
   engineeringPackage: Pick<EngineeringPackageView, 'screens' | 'popups' | 'dynamos'>;
@@ -20,6 +23,8 @@ export type RuntimeVisualNavigatorProps = Readonly<{
   locale?: EngineeringLocale;
   emptyLabel?: string;
   popupIdFactory?: () => string;
+  scriptContext?: ScriptEngineeringContext | null;
+  onScriptDispatch?: (records: readonly ClientVisualEventDispatchRecord[]) => void;
 }>;
 
 type NavigationResolution = Readonly<{
@@ -32,7 +37,9 @@ export function RuntimeVisualNavigator({
   initialScreenKey,
   locale = 'pt-BR',
   emptyLabel = 'Sem objetos visuais.',
-  popupIdFactory
+  popupIdFactory,
+  scriptContext,
+  onScriptDispatch
 }: RuntimeVisualNavigatorProps) {
   const catalog = useMemo(() => createRuntimeVisualCatalog(engineeringPackage), [engineeringPackage]);
   const initialResolution = useMemo(
@@ -83,11 +90,15 @@ export function RuntimeVisualNavigator({
     data-active-screen-key={state.activeScreenKey}
   >
     <section className="runtime-visual-screen" data-screen-key={activeScreen.key}>
-      <CanonicalVisualRenderer
+      <RuntimeVisualDefinitionRenderer
+        visualDefinitionId={activeScreen.id ?? ''}
+        runtimeContextId={`screen:${activeScreen.id ?? activeScreen.key}`}
         elements={activeScreen.elements}
         emptyLabel={emptyLabel}
         locale={locale}
         dynamoDefinitions={engineeringPackage.dynamos}
+        scriptContext={scriptContext}
+        onScriptDispatch={onScriptDispatch}
         onVisualEvent={event => dispatch(event)}
       />
     </section>
@@ -108,11 +119,15 @@ export function RuntimeVisualNavigator({
               <code>{popup.key}</code>
             </header>
             <div className="runtime-visual-popup-content">
-              <CanonicalVisualRenderer
+              <RuntimeVisualDefinitionRenderer
+                visualDefinitionId={popup.id ?? ''}
+                runtimeContextId={`popup:${mount.runtimeInstanceId}`}
                 elements={popup.elements}
                 emptyLabel={emptyLabel}
                 locale={locale}
                 dynamoDefinitions={engineeringPackage.dynamos}
+                scriptContext={scriptContext}
+                onScriptDispatch={onScriptDispatch}
                 onVisualEvent={event => dispatch(event, mount.runtimeInstanceId)}
               />
             </div>

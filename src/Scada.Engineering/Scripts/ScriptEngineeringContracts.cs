@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Scada.Core.Tags;
 
 namespace Scada.Engineering.Scripts;
 
@@ -35,7 +36,9 @@ public enum ScriptEngineeringDependencyKind
 public sealed record ScriptEngineeringEntryPoint(
     ScriptEngineeringEventKind EventKind,
     string HandlerName,
-    string? TargetReference = null);
+    string? TargetReference = null,
+    TagValueReference? TagReference = null,
+    int? TimerIntervalMs = null);
 
 public sealed record ScriptEngineeringDependency(
     ScriptEngineeringDependencyKind Kind,
@@ -99,8 +102,10 @@ public sealed class ScriptEngineeringDefinition
 }
 
 /// <summary>
-/// Isolated Engineering association between one visual definition/object event and a Script entry point.
-/// Central Screen/Popup/Dynamo schema integration is intentionally deferred to coordinator-owned contracts.
+/// Canonical Engineering association between one visual definition/object event and a Script entry point.
+/// TargetReference is reserved for intrinsically stable opaque targets (for example Client Memory definition IDs).
+/// TagChanged uses TagReference so TAG identity remains stable TagId + optional selector; Timer uses TimerIntervalMs.
+/// The additive fields remain optional for backward compatibility with existing event references.
 /// </summary>
 public sealed record ScriptVisualEventReference(
     Guid VisualDefinitionId,
@@ -108,7 +113,9 @@ public sealed record ScriptVisualEventReference(
     ScriptEngineeringEventKind EventKind,
     Guid ScriptId,
     string EntryPoint,
-    string? TargetReference = null);
+    string? TargetReference = null,
+    TagValueReference? TagReference = null,
+    int? TimerIntervalMs = null);
 
 public sealed class ScriptEngineeringModel
 {

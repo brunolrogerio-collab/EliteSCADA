@@ -64,7 +64,17 @@ Therefore an externally manipulated Engineering package that bypasses normal Pre
 4. a project with 199 TAGs may import one additional TAG;
 5. a project with 199 TAGs attempting to import two new TAGs is rejected without creating either TAG.
 
-CI #982 validates these regressions together with the full normal product suite.
+CI #982 validates these regressions together with the full normal product suite:
+
+- Core: **246 passed**;
+- Drivers: **347 passed**;
+- Historian: **23 passed**;
+- Security: **27 passed**;
+- PostgreSQL: **107 passed**;
+- total backend: **750 passed / 0 failed**;
+- runtime smoke: **SUCCESS**;
+- Web: **SUCCESS**;
+- Chromium E2E: **SUCCESS**.
 
 ## Future product editions
 

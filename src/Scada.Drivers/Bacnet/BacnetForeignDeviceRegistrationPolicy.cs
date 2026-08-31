@@ -39,6 +39,29 @@ public static class BacnetForeignDeviceRegistrationPolicy
             options.EffectiveForeignDeviceRetryInterval
                 ?? throw new InvalidOperationException("BACnet Foreign Device Registration is not configured."));
     }
+
+    /// <summary>
+    /// Executes one synchronous stack registration request and converts the local
+    /// outcome into the next bounded scheduling decision. A transport/parse
+    /// failure is lease reachability evidence, not a process-fatal startup error.
+    /// The supplied request remains responsible for recording detailed diagnostics.
+    /// </summary>
+    public static BacnetForeignDeviceRegistrationAttempt ExecuteAndScheduleNext(
+        BacnetSessionOptions options,
+        Action registrationRequest)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(registrationRequest);
+        try
+        {
+            registrationRequest();
+            return AfterSuccess(options);
+        }
+        catch
+        {
+            return AfterFailure(options);
+        }
+    }
 }
 
 public enum BacnetForeignDeviceRegistrationAttemptKind

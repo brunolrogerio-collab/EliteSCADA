@@ -82,6 +82,7 @@ public sealed class Dnp3Driver : ICommunicationDriver, ICommunicationDiagnostics
         try
         {
             if (_cts is { IsCancellationRequested: false }) return;
+            cancellationToken.ThrowIfCancellationRequested();
 
             Status = new DriverStatus(DriverId, Name, DriverState.Starting, DateTimeOffset.UtcNow, UpdatesPublished: Interlocked.Read(ref _updatesPublished));
             foreach (var point in _points)
@@ -97,7 +98,7 @@ public sealed class Dnp3Driver : ICommunicationDriver, ICommunicationDiagnostics
                 _registry.Register(point.Tag);
             }
 
-            _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _cts = new CancellationTokenSource();
             try
             {
                 await _session.StartAsync(

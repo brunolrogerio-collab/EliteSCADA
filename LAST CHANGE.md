@@ -36,23 +36,12 @@ Common test-only peers on main: MQTT, CIP, OPC UA, IEC-104, DNP3, Siemens S7 and
 
 **Shared Driver convergence is ACTIVE under issue #174.**
 
-Coordinator branch:
+Coordinator branch: `coordination/driver-convergence-v3`  
+Draft PR: `#175 — Driver convergence v3 — shared host contracts`  
+Exact audited PR head: `06c7d408c76926bf5d37dfec4be20ea6044f52b1`  
+Exact normal CI: **EliteSCADA CI #895 — SUCCESS**.
 
-`coordination/driver-convergence-v3`
-
-Draft PR:
-
-`#175 — Driver convergence v3 — shared host contracts`
-
-Exact audited PR head:
-
-`06c7d408c76926bf5d37dfec4be20ea6044f52b1`
-
-Exact normal CI:
-
-**EliteSCADA CI #895 — SUCCESS.**
-
-Implemented and covered by the current shared-contract tests:
+Implemented and covered by current shared-contract tests:
 
 1. fail-closed communication Driver module registry keyed by stable DriverType;
 2. common runtime planner/factory component registry;
@@ -93,11 +82,18 @@ Current Driver state at handoff audit:
 Repository hygiene completed during coordinator handoff:
 
 - Wave 10 issues #149-#152 closed completed;
-- validation/superseded PRs #148, #160, #161, #162, #163, #164, #165, #166 and #168 closed **unmerged**, preserving their accepted evidence/history;
+- validation/superseded PRs #148, #160, #161, #162, #163, #164, #165, #166 and #168 closed **unmerged**, preserving accepted evidence/history;
 - #167 remains open because DNP3 still has an unresolved product defect;
 - Driver product handoff PRs and #175 remain open.
 
-`docs/COORDINATOR-HANDOFF.md`, `docs/CHAT-WORK-ASSIGNMENTS.md`, `docs/DRIVER-AND-INTEROP-LAB-STATUS.md` and `docs/ROADMAP.md` were synchronized for the new Coordinator chat.
+Handoff/authority documents synchronized on `main`:
+
+- `docs/COORDINATOR-HANDOFF.md`;
+- `docs/CHAT-WORK-ASSIGNMENTS.md`;
+- `docs/DRIVER-AND-INTEROP-LAB-STATUS.md`;
+- `docs/DRIVER-CONVERGENCE-COORDINATION-V1.md`;
+- `docs/ROADMAP.md`;
+- this `LAST CHANGE.md`.
 
 ### SPECIFIED / NOT IMPLEMENTED
 

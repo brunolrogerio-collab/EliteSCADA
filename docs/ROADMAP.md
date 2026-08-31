@@ -1,7 +1,7 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-08-30  
-**Active direction:** **DRIVER CONVERGENCE + INTEROPERABILITY LAB**  
+**Active direction:** **DRIVER CONVERGENCE**  
 **Wave 11:** **DEFERRED UNTIL DRIVER CONVERGENCE**
 
 Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
@@ -15,7 +15,7 @@ CI policy: `docs/CI-USAGE-POLICY.md`.
 
 Wave 10 is COMPLETE / MERGED / POST-MAIN GREEN.
 
-Final product merge:
+Final Wave 10 product merge:
 
 `15daff2cc076f46f9433812babbd5cbb4b8d9554`
 
@@ -23,6 +23,8 @@ Evidence:
 
 - Wave 10 integration head `adb0153dff36e172d0553463cc961a11bd7c7e1e` — CI #873 SUCCESS;
 - exact post-main Wave 10 product head — CI #874 SUCCESS.
+
+The common seven-peer Driver interoperability laboratory is also now merged on `main` through PR #173, merge `a08cca94795a5afa14bf8af39b8bf2c6f7df71ae`.
 
 ## Ordered path to v0.1
 
@@ -37,7 +39,8 @@ Wave 08      Graphical Editor + Image + Engineering Development Monitor         
 08-FOLLOW-B  Typed Visual Expressions + Boolean Conditions + Analog Fill                 COMPLETE
 Wave 09      Screens + Popups + Dynamos + navigation + Historical Data + Reporting       COMPLETE
 Wave 10      Python visual events + animation + preview                                  COMPLETE
-Drivers      Interoperability + shared convergence + accepted driver integration          ACTIVE / PRIORITY
+Driver Lab   Seven-peer reproducible interoperability tool stack                         COMPLETE / MERGED
+Drivers      Shared convergence + product L2 gates + accepted integration                 ACTIVE / PRIORITY
 Wave 11      Complete HMI Runtime demo vertical slice                                    DEFERRED
 Wave 12      Hardening                                                                   WAITING
 Wave 13      Windows x64 product package                                                 WAITING
@@ -48,11 +51,11 @@ FINAL        EliteSCADA v0.1 — Full Product Validation Preview
 
 ## Driver convergence — ACTIVE / PRIORITY
 
-The additional industrial Drivers are now an explicit pre-Wave-11 completion objective.
+The additional industrial Drivers are an explicit pre-Wave-11 completion objective.
 
 Execution strategy:
 
-1. keep one common reproducible interoperability laboratory;
+1. use the merged common reproducible interoperability laboratory;
 2. converge Drivers with product + independent-peer evidence first;
 3. return real product/protocol defects to the owning worker with exact evidence;
 4. implement shared host contracts once under Coordinator issue #174;
@@ -65,21 +68,26 @@ Current evidence-driven convergence order:
 
 OPC UA, DNP3, S7 and BACnet enter shared integration after their currently assigned L2/fix gates close.
 
-## Interoperability laboratory — SEVEN-PEER STACK GREEN
+## Interoperability laboratory — COMPLETE / MERGED / SEVEN-PEER STACK GREEN
 
-Integration branch:
-
-`integration/driver-interop-lab-finalization`
-
-PR:
+Merged PR:
 
 `#173 — Driver interoperability lab — common multi-protocol peer stack`
 
-Exact functional head:
+Merge commit:
+
+`a08cca94795a5afa14bf8af39b8bf2c6f7df71ae`
+
+Exact validated functional head:
 
 `3ff2d6393c4e8734b4b1c08abd2bd8466f78f400`
 
-**Interop Lab Smoke #42: SUCCESS.**
+Validation:
+
+- **Interop Lab Smoke #42: SUCCESS**;
+- **EliteSCADA CI #886: SUCCESS** after rerunning failed jobs on the unchanged functional SHA;
+- no product/Modbus code was modified in response to the first-attempt timing flakes;
+- later pre-merge commits were documentation-only `[skip ci]`.
 
 Common test peers now include:
 
@@ -91,11 +99,9 @@ Common test peers now include:
 - Siemens S7 ISO-on-TCP — python-snap7 3.1.2 deterministic server/DB peer;
 - BACnet/IP — BACpypes 0.19.0 independent device/reference peer.
 
-Smoke #42 proves the whole tool stack can build/start together, explicit S7 TCP readiness, explicit BACnet health, MQTT round-trip and OPC UA browse/read/write/subscription reference behavior.
+Smoke #42 proves the whole tool stack can build/start together, S7 TCP readiness, BACnet health, MQTT round-trip and OPC UA browse/read/write/subscription reference behavior.
 
-This is **tool/peer readiness**, not automatic Driver product acceptance. Each Driver still requires its own product-path L2 where assigned.
-
-Normal EliteSCADA CI #886 on the exact functional head had an initial run affected by two unrelated Modbus timing flakes; failed jobs were rerun without modifying product/Modbus code. PR #173 is mergeable only after the rerun is fully green.
+This remains **tool/peer readiness**, not automatic Driver product acceptance. Each Driver still requires its own product-path L2 where assigned.
 
 ## Shared Coordinator scope — issue #174
 

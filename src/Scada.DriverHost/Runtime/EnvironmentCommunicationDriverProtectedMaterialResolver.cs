@@ -49,9 +49,10 @@ public sealed record CommunicationDriverProtectedMaterialRegistration(
 }
 
 /// <summary>
-/// Resolves protected Driver material only through a host-owned allowlist. Engineering
-/// stores the opaque reference, never the secret or environment-variable name. The
-/// deployment supplies the actual material through a dedicated environment variable.
+/// Resolves protected Driver material through a host-owned boundary. Explicit
+/// registrations form an allowlist. The production composition can instead use
+/// deterministic scoped environment names derived from the complete request, so
+/// Engineering can never select an arbitrary process environment variable.
 /// </summary>
 public sealed class EnvironmentCommunicationDriverProtectedMaterialResolver
     : ICommunicationDriverProtectedMaterialResolver
@@ -61,13 +62,23 @@ public sealed class EnvironmentCommunicationDriverProtectedMaterialResolver
 
     private readonly IReadOnlyDictionary<string, CommunicationDriverProtectedMaterialRegistration> _registrations;
     private readonly Func<string, string?> _readEnvironment;
+    private readonly bool _allowDeterministicScopedEnvironment;
 
     public EnvironmentCommunicationDriverProtectedMaterialResolver(
         IEnumerable<CommunicationDriverProtectedMaterialRegistration> registrations,
         Func<string, string?>? readEnvironment = null)
+        : this(registrations, readEnvironment, allowDeterministicScopedEnvironment: false)
+    {
+    }
+
+    private EnvironmentCommunicationDriverProtectedMaterialResolver(
+        IEnumerable<CommunicationDriverProtectedMaterialRegistration> registrations,
+        Func<string, string?>? readEnvironment,
+        bool allowDeterministicScopedEnvironment)
     {
         ArgumentNullException.ThrowIfNull(registrations);
         _readEnvironment = readEnvironment ?? Environment.GetEnvironmentVariable;
+        _allowDeterministicScopedEnvironment = allowDeterministicScopedEnvironment;
 
         var map = new Dictionary<string, CommunicationDriverProtectedMaterialRegistration>(StringComparer.Ordinal);
         foreach (var registration in registrations)
@@ -80,6 +91,36 @@ public sealed class EnvironmentCommunicationDriverProtectedMaterialResolver
                     nameof(registrations));
         }
         _registrations = map;
+    }
+
+    /// <summary>
+    /// Creates the production-safe zero-configuration provider. The environment
+    /// variable name is SHA-256(scope + opaque reference), prefixed with a Driver-
+    /// dedicated namespace. The hash makes arbitrary environment-variable lookup
+    /// impossible while keeping the actual material outside Engineering and files.
+    /// </summary>
+    public static EnvironmentCommunicationDriverProtectedMaterialResolver CreateDeterministicScopedEnvironment(
+        Func<string, string?>? readEnvironment = null) =>
+        new(
+            Array.Empty<CommunicationDriverProtectedMaterialRegistration>(),
+            readEnvironment,
+            allowDeterministicScopedEnvironment: true);
+
+    public static string GetDeterministicEnvironmentVariableName(
+        CommunicationDriverProtectedMaterialRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        request.Validate();
+
+        var canonical = new StringBuilder();
+        AppendCanonicalToken(canonical, request.ProjectKey);
+        AppendCanonicalToken(canonical, request.DataSourceKey);
+        AppendCanonicalToken(canonical, request.DriverType);
+        AppendCanonicalToken(canonical, request.Purpose);
+        AppendCanonicalToken(canonical, request.Reference);
+
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(canonical.ToString()));
+        return CommunicationDriverProtectedMaterialRegistration.RequiredEnvironmentPrefix + Convert.ToHexString(hash);
     }
 
     public static EnvironmentCommunicationDriverProtectedMaterialResolver FromConfiguration(
@@ -114,13 +155,30 @@ public sealed class EnvironmentCommunicationDriverProtectedMaterialResolver
         cancellationToken.ThrowIfCancellationRequested();
         request.Validate();
 
-        if (!_registrations.TryGetValue(request.Reference, out var registration))
+        string environmentVariable;
+        string encoding;
+        string? contentType;
+
+        if (_registrations.TryGetValue(request.Reference, out var registration))
+        {
+            if (!ScopeMatches(registration, request))
+                throw new UnauthorizedAccessException("Protected-material reference is not authorized for this runtime scope.");
+            environmentVariable = registration.EnvironmentVariable;
+            encoding = registration.Encoding;
+            contentType = registration.ContentType;
+        }
+        else if (_allowDeterministicScopedEnvironment)
+        {
+            environmentVariable = GetDeterministicEnvironmentVariableName(request);
+            encoding = "utf8";
+            contentType = null;
+        }
+        else
+        {
             throw new KeyNotFoundException("Protected-material reference is not registered by the runtime host.");
+        }
 
-        if (!ScopeMatches(registration, request))
-            throw new UnauthorizedAccessException("Protected-material reference is not authorized for this runtime scope.");
-
-        var value = _readEnvironment(registration.EnvironmentVariable);
+        var value = _readEnvironment(environmentVariable);
         if (string.IsNullOrEmpty(value))
             throw new InvalidOperationException("Protected material is unavailable from the configured host provider.");
         if (value.Length > MaximumEnvironmentValueCharacters)
@@ -129,7 +187,7 @@ public sealed class EnvironmentCommunicationDriverProtectedMaterialResolver
         byte[] material;
         try
         {
-            material = registration.Encoding.Equals("base64", StringComparison.OrdinalIgnoreCase)
+            material = encoding.Equals("base64", StringComparison.OrdinalIgnoreCase)
                 ? Convert.FromBase64String(value)
                 : Encoding.UTF8.GetBytes(value);
         }
@@ -145,7 +203,7 @@ public sealed class EnvironmentCommunicationDriverProtectedMaterialResolver
         }
 
         return ValueTask.FromResult<ICommunicationDriverProtectedMaterialLease>(
-            new ZeroingProtectedMaterialLease(material, registration.ContentType));
+            new ZeroingProtectedMaterialLease(material, contentType));
     }
 
     private static bool ScopeMatches(
@@ -155,6 +213,9 @@ public sealed class EnvironmentCommunicationDriverProtectedMaterialResolver
         string.Equals(registration.DataSourceKey, request.DataSourceKey, StringComparison.Ordinal) &&
         string.Equals(registration.DriverType, request.DriverType, StringComparison.Ordinal) &&
         string.Equals(registration.Purpose, request.Purpose, StringComparison.Ordinal);
+
+    private static void AppendCanonicalToken(StringBuilder builder, string value) =>
+        builder.Append(value.Length).Append(':').Append(value).Append('|');
 
     private static string Required(IConfigurationSection section, string key)
     {

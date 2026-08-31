@@ -9,12 +9,6 @@ public static class ProductLicensingApi
 {
     public static void MapProductLicensingEndpoints(this WebApplication app)
     {
-        // The repository currently has no separate SPA/Razor product shell. Serve a
-        // deliberately small management page from the host so Preview licensing has a
-        // real user-facing surface without creating a second frontend stack solely for it.
-        // Sensitive machine/license data remains behind the protected API endpoints below.
-        app.MapGet("/licensing", () => Results.Content(ProductLicensingPage.Html, "text/html; charset=utf-8"));
-
         var group = app.MapGroup("/api/licensing");
 
         group.MapGet("/status", (

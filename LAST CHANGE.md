@@ -6,66 +6,64 @@ Date: 2026-08-30
 
 ### MERGED
 
-Wave 09 is closed on `main`. Current observed `main` head before Wave 10 product merge is `d7ef5db6a583fa949059f6b00cb2dfab3549e919`.
+**Wave 10 is CLOSED / MERGED / POST-MAIN GREEN.**
 
-Wave 10 is active from frozen product `WaveBaseSHA`:
+Final integration-to-main PR:
 
-`bbfd730e404b0dee2c05e0ec0afb979b1b14ea35`
+`#172 — Wave 10 — Python visual events, animation and preview`
 
-Integration branch:
+Exact validated integration head:
 
-`integration/wave-10-python-visual-events-animation-preview`
+`adb0153dff36e172d0553463cc961a11bd7c7e1e`
 
-Worker convergence integrated into the Wave 10 train:
-
-- DEV 2 / #150: deterministic Runtime Visual tween scheduler and Python `visualTween.request`; exact worker head `a1f7584b23fd90a27257b5f12a42aafd90656ef0`, CI #811 green; integrated through replacement PR #158.
-- DEV 3 / #151: mounted Python Preview/Test, bounded sample context, traceback/failing-line diagnostics and protected-data redaction; exact worker head `a81bf56b9ce23e7f982770744963f1b99b66a6ee`, CI #815 green; integrated through replacement PR #159.
-- DEV 1 / #149: canonical visual Events editor and persisted event associations, including Timer `timerIntervalMs`, typed TAG identity `tagId + selector` and stable Client Memory identity; integrated through PR #156 after coordinator fixes and exact-head validation.
-- Coordinator runtime composition: PR #170 merged into the integration train as merge commit `ee5d3c3f622765f79b49f32fa92c22760d195ae2`.
-
-Coordinator functional product implementation before documentation-only checkpoint commits was exact head:
-
-`8b7871bcd5a14ae17ffb070732f5a92c60462536`
-
-Its EliteSCADA CI #872 (`33342402416`) is GREEN:
+EliteSCADA integration CI #873 (`33343012947`): **SUCCESS**
 
 - Backend build, test and smoke: SUCCESS;
 - Web build: SUCCESS;
-- Chromium end-to-end: SUCCESS;
-- browser suite: 330/330 passed.
+- Chromium end-to-end: SUCCESS.
 
-Mounted Wave 10 path proven in Chromium:
+Wave 10 merged to `main` as product merge commit:
+
+`15daff2cc076f46f9433812babbd5cbb4b8d9554`
+
+Exact post-main EliteSCADA CI #874 (`33343325987`): **SUCCESS**
+
+- Backend build, test and smoke: SUCCESS;
+- Web build: SUCCESS;
+- Chromium end-to-end: SUCCESS.
+
+Wave 10 worker/coordinator convergence now on `main` includes:
+
+- canonical visual Events editor and persisted event associations, including Timer `timerIntervalMs`, typed TAG identity `tagId + selector` and stable Client Memory identity;
+- deterministic Runtime Visual tween scheduler and Python `visualTween.request`;
+- mounted Python Preview/Test with bounded sample context, traceback/failing-line diagnostics and protected-data redaction;
+- central `ScriptVisualEventReference -> ClientVisualPythonRuntime -> RuntimeVisualInstance` composition;
+- transient Script/Animation renderer projection that never mutates canonical Engineering;
+- Screen/Popup runtime-instance isolation;
+- mounted Chromium acceptance of the Wave 10 exit path.
+
+The proven exit path is:
 
 `DOM click -> canonical ScriptVisualEventReference -> ClientVisualPythonRuntime -> visualTween.request -> RuntimeVisualTweenScheduler -> RuntimeVisualInstance -> transient canonical renderer projection -> rendered intermediate frame -> deterministic stable final Script value`
 
-The locked public precedence remains:
+The locked public visual precedence remains:
 
 `Animation > Script > Binding/Expression > Engineering > Default`
 
-Engineering remains immutable; runtime Script/Animation overlays are transient and fail closed. Screen and Popup instances are isolated by mounted runtime context.
+Temporary CI-only PR #171 was closed unmerged after serving its validation purpose. Coordinator PR #170 was merged into the Wave 10 train before final PR #172.
 
 ### IMPLEMENTED IN PR
 
-No Wave 10 worker/coordinator functional implementation remains outside the integration branch.
-
-Final integration-to-main closure PR: #172.
-
-The current PR #172 head is intentionally submitted to normal CI before merge; this checkpoint commit does not use `[skip ci]` so the exact integration head receives fresh evidence.
+None for Wave 10. All accepted Wave 10 functional work is merged on `main`.
 
 ### SPECIFIED / NOT IMPLEMENTED
 
-Wave 10 is not yet closed on `main`.
+**Wave 11 — Complete HMI Runtime demo vertical slice** is the next product wave and has not been started by this Wave 10 closure.
 
-Remaining closure sequence:
+Wave 11 owns the complete owner-testable HMI Runtime route/demo composition. Wave 10 intentionally established the canonical event/Python/animation behavior and mounted acceptance without creating a competing Runtime surface.
 
-1. validate the exact PR #172 integration head through normal CI;
-2. merge that validated head to `main`;
-3. require exact post-main green CI before declaring Wave 10 closed.
-
-The complete owner-testable HMI Runtime demo vertical slice, including full product Runtime route composition, remains Wave 11 scope and must not be silently pulled backward into Wave 10.
-
-Parallel Driver and Interoperability Lab work remains isolated and lower priority unless a real shared canonical contract requires Coordinator action.
+Parallel Driver and Interoperability Lab work remains isolated and does not change the Wave 10 closure state.
 
 ## CI policy
 
-CI mode remains **NORMAL**. Do not run reassurance CI on unchanged product trees. Exact functional integration/product heads require green evidence before merge/stage transitions. Documentation-only coordination commits normally use `[skip ci]`; closure-gate checkpoints may deliberately run normal CI when an exact branch head must be validated.
+CI mode remains **NORMAL**. Exact functional integration/product heads require green evidence before stage transitions. Documentation-only checkpoint commits may use `[skip ci]`; the Wave 10 functional `main` product head `15daff2cc076f46f9433812babbd5cbb4b8d9554` is independently covered by post-main CI #874 GREEN.

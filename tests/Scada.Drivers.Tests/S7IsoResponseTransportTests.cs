@@ -7,7 +7,7 @@ namespace Scada.Drivers.Tests;
 public sealed class S7IsoResponseTransportTests
 {
     [Fact]
-    public void Int16_RejectsByteResultTransportEvenWhenPayloadLengthMatches()
+    public void Int16_AcceptsByteResultTransportWhenPayloadLengthMatches()
     {
         const ushort reference = 51;
         var point = new S7IsoPoint(
@@ -20,11 +20,11 @@ public sealed class S7IsoResponseTransportTests
             new byte[] { 0x04, 0x01 },
             new byte[] { 0xFF, 0x04, 0x00, 0x10, 0x12, 0x34 });
 
-        var error = Assert.Throws<S7IsoProtocolException>(() =>
-            S7IsoProtocol.ParseReadResponse(response, reference, new[] { point }));
+        var result = Assert.Single(S7IsoProtocol.ParseReadResponse(response, reference, new[] { point }));
 
-        Assert.Contains("transport size 0x04", error.Message, StringComparison.Ordinal);
-        Assert.Contains("expected 0x05", error.Message, StringComparison.Ordinal);
+        Assert.True(result.Succeeded);
+        Assert.Equal(new byte[] { 0x12, 0x34 }, result.Data);
+        Assert.Equal((short)0x1234, Assert.IsType<short>(S7IsoValueCodec.Decode(point, result.Data!)));
     }
 
     [Fact]

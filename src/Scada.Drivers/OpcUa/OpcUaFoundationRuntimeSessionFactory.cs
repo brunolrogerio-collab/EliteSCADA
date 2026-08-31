@@ -221,11 +221,34 @@ public sealed class OpcUaFoundationRuntimeSessionFactory : IOpcUaRuntimeSessionF
         X509Certificate2? applicationCertificate,
         CancellationToken cancellationToken)
     {
+        string pkiRoot = Path.Combine(
+            Path.GetTempPath(),
+            "EliteSCADA",
+            "opcua-runtime-pki",
+            Environment.ProcessId.ToString());
+        string trustedStorePath = Path.Combine(pkiRoot, "trusted");
+        string issuerStorePath = Path.Combine(pkiRoot, "issuers");
+        string applicationStorePath = Path.Combine(pkiRoot, "own");
+
+        Directory.CreateDirectory(trustedStorePath);
+        Directory.CreateDirectory(issuerStorePath);
+        Directory.CreateDirectory(applicationStorePath);
+
         var security = new SecurityConfiguration
         {
             AutoAcceptUntrustedCertificates = false,
             AddAppCertToTrustedStore = false,
-            MaxRejectedCertificates = -1
+            MaxRejectedCertificates = -1,
+            TrustedPeerCertificates = new CertificateTrustList
+            {
+                StoreType = CertificateStoreIdentifier.DetermineStoreType(trustedStorePath),
+                StorePath = trustedStorePath
+            },
+            TrustedIssuerCertificates = new CertificateTrustList
+            {
+                StoreType = CertificateStoreIdentifier.DetermineStoreType(issuerStorePath),
+                StorePath = issuerStorePath
+            }
         };
 
         if (applicationCertificate is not null)
@@ -234,6 +257,20 @@ public sealed class OpcUaFoundationRuntimeSessionFactory : IOpcUaRuntimeSessionF
                 new CertificateIdentifier
                 {
                     Certificate = applicationCertificate
+                });
+        }
+        else
+        {
+            // OPC Foundation validates that an application certificate identifier exists even
+            // for SecurityPolicy#None. Session creation itself intentionally uses a null client
+            // certificate for that policy, so this placeholder satisfies configuration shape
+            // without resolving or persisting certificate/private-key material.
+            security.ApplicationCertificates.Add(
+                new CertificateIdentifier
+                {
+                    StoreType = CertificateStoreIdentifier.DetermineStoreType(applicationStorePath),
+                    StorePath = applicationStorePath,
+                    SubjectName = "CN=EliteSCADA OPC UA Client"
                 });
         }
 

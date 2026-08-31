@@ -66,6 +66,55 @@ public sealed class Iec104RuntimeActivationConvergenceTests
     }
 
     [Fact]
+    public async Task Coordinator_UsesConfiguredOriginatorAddressForIec104Command()
+    {
+        const byte originatorAddress = 17;
+        var adapter = new AutoReadyAdapter();
+        var components = CommunicationDriverRuntimeComposition.BuildForCurrentSchema(
+            iec104AdapterFactory: () => adapter);
+        var compiler = new EngineeringDriverCompiler(components);
+        var eventBus = new InMemoryScadaEventBus();
+        await using var coordinator = new EngineeringRuntimeCoordinator(
+            eventBus,
+            compiler,
+            TimeSpan.FromSeconds(2),
+            communicationComponents: components);
+
+        var dataSource = CreateDataSource("iec104.command", originatorAddress: originatorAddress);
+        var binding = new CommunicationTagBinding(
+            CommunicationTagBinding.CurrentContractVersion,
+            Iec104CommunicationRuntimePlanner.BindingSchemaId,
+            Iec104CommunicationRuntimePlanner.BindingSchemaVersion,
+            "ca=1;ioa=100",
+            new Dictionary<string, string>
+            {
+                ["iec104.typeId"] = "MSpNa1",
+                ["iec104.commandTypeId"] = "CScNa1",
+                ["iec104.commandMode"] = "direct"
+            });
+        var tagId = Guid.NewGuid();
+        var tag = new TagEngineeringDto(
+            tagId,
+            "BreakerCommand",
+            "Plant.IEC104.BreakerCommand",
+            TagDataType.Boolean,
+            Source: dataSource.Key,
+            Address: binding.PortableAddress,
+            ReadOnly: false,
+            CommunicationBinding: binding);
+        var package = CreatePackage(dataSource, tag);
+
+        var activation = await coordinator.ActivateAsync("project-a", 2, package);
+        Assert.True(activation.Activated, string.Join(" | ", activation.CompilationIssues.Select(x => x.Message)
+            .Concat(activation.RuntimeIssues.Select(x => x.Message))));
+
+        await coordinator.WriteAsync(tagId, true);
+
+        Assert.Equal(originatorAddress, adapter.LastCommandOriginatorAddress);
+        Assert.Equal(1, adapter.CommandRequestCount);
+    }
+
+    [Fact]
     public void Planner_FailsClosedForProtectedMaterialAndPhysicalTransformOnPlainTcpProfile()
     {
         var planner = new Iec104CommunicationRuntimePlanner();
@@ -130,20 +179,27 @@ public sealed class Iec104RuntimeActivationConvergenceTests
 
     private static DataSourceEngineeringDto CreateDataSource(
         string key,
-        Dictionary<string, string>? secretReferences = null) =>
-        new(
+        Dictionary<string, string>? secretReferences = null,
+        byte originatorAddress = 0)
+    {
+        var settings = new Dictionary<string, string>
+        {
+            ["host"] = "127.0.0.1",
+            ["port"] = "2404",
+            ["commonAddresses"] = "1",
+            ["stationTimeZone"] = "UTC"
+        };
+        if (originatorAddress != 0)
+            settings["originatorAddress"] = originatorAddress.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        return new DataSourceEngineeringDto(
             Guid.NewGuid(),
             key,
             "Runtime IEC-104",
             Iec104EngineeringConnectionTester.DriverType,
-            Settings: new Dictionary<string, string>
-            {
-                ["host"] = "127.0.0.1",
-                ["port"] = "2404",
-                ["commonAddresses"] = "1",
-                ["stationTimeZone"] = "UTC"
-            },
+            Settings: settings,
             SecretReferences: secretReferences);
+    }
 
     private static CommunicationTagBinding CreateBinding(string address, string typeId) =>
         new(
@@ -176,6 +232,8 @@ public sealed class Iec104RuntimeActivationConvergenceTests
         public int ConnectCount { get; private set; }
         public int StartDataTransferCount { get; private set; }
         public int GeneralInterrogationRequestCount { get; private set; }
+        public int CommandRequestCount { get; private set; }
+        public byte? LastCommandOriginatorAddress { get; private set; }
 
         public Task ConnectAsync(
             string host,
@@ -224,6 +282,17 @@ public sealed class Iec104RuntimeActivationConvergenceTests
                     asdu,
                     Iec104GeneralInterrogationTransaction.ActivationTerminationCause));
             }
+            else if (asdu.Header.TypeId == Iec104TypeId.CScNa1)
+            {
+                CommandRequestCount++;
+                LastCommandOriginatorAddress = asdu.Header.CauseOfTransmission.OriginatorAddress;
+                _incoming.Writer.TryWrite(CreateCommandResponse(
+                    asdu,
+                    Iec104CommandTransaction.ActivationConfirmationCause));
+                _incoming.Writer.TryWrite(CreateCommandResponse(
+                    asdu,
+                    Iec104CommandTransaction.ActivationTerminationCause));
+            }
 
             return ValueTask.CompletedTask;
         }
@@ -258,6 +327,21 @@ public sealed class Iec104RuntimeActivationConvergenceTests
         {
             var header = new Iec104AsduHeader(
                 Iec104TypeId.CIcNa1,
+                ObjectCount: 1,
+                IsSequence: false,
+                new Iec104CauseOfTransmission(
+                    cause,
+                    request.Header.CauseOfTransmission.OriginatorAddress),
+                request.Header.CommonAddress);
+            return Iec104AsduEnvelope.Create(header, request.Payload.Span);
+        }
+
+        private static Iec104AsduEnvelope CreateCommandResponse(
+            Iec104AsduEnvelope request,
+            byte cause)
+        {
+            var header = new Iec104AsduHeader(
+                request.Header.TypeId,
                 ObjectCount: 1,
                 IsSequence: false,
                 new Iec104CauseOfTransmission(

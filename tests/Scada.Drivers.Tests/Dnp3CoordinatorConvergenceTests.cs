@@ -124,7 +124,8 @@ public sealed class Dnp3CoordinatorConvergenceTests
         Assert.Equal(Dnp3DriverDescriptorProvider.DriverType, diagnostics.DriverType);
         Assert.Equal("dnp3.quiet", diagnostics.DataSourceKey);
         Assert.True(diagnostics.Counters.Connections >= 1);
-        Assert.True(diagnostics.ProtocolDetails?.TryGetValue("startupIntegrityScans", out var startupScans) == true);
+        var protocolDetails = Assert.IsAssignableFrom<IReadOnlyDictionary<string, string>>(diagnostics.ProtocolDetails);
+        Assert.True(protocolDetails.TryGetValue("startupIntegrityScans", out var startupScans));
         Assert.Equal("1", startupScans);
     }
 

@@ -1,14 +1,13 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-08-30  
-**Next direction:** **WAVE 11 — Complete HMI Runtime demo vertical slice — READY / NOT STARTED**
+**Active direction:** **DRIVER CONVERGENCE + INTEROPERABILITY LAB**  
+**Wave 11:** **DEFERRED UNTIL DRIVER CONVERGENCE**
 
 Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
 Parallel execution model: `docs/DEVELOPMENT-WAVES.md`.  
-Live worker ownership: `docs/CHAT-WORK-ASSIGNMENTS.md`.  
+Driver/lab live state: `docs/DRIVER-AND-INTEROP-LAB-STATUS.md`.  
 Current coordinator checkpoint: `LAST CHANGE.md`.  
-TAG bit contract: `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`.  
-Visual expression contract: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.  
 CI policy: `docs/CI-USAGE-POLICY.md`.
 
 Engineering Import/Export remains cross-cutting: canonical Engineering entities participate in versioned JSON, validation/Preview/Apply, Working/revision lifecycle, PostgreSQL persistence where applicable and `.escadapkg` backup/restore.
@@ -21,8 +20,8 @@ Wave 10 product merge on `main`:
 
 Validation evidence:
 
-- exact integration head `adb0153dff36e172d0553463cc961a11bd7c7e1e` — CI #873 SUCCESS;
-- exact post-main product head `15daff2cc076f46f9433812babbd5cbb4b8d9554` — CI #874 SUCCESS.
+- exact Wave 10 integration head `adb0153dff36e172d0553463cc961a11bd7c7e1e` — CI #873 SUCCESS;
+- exact post-main Wave 10 product head `15daff2cc076f46f9433812babbd5cbb4b8d9554` — CI #874 SUCCESS.
 
 ## Completed waves and follow-ups
 
@@ -50,7 +49,8 @@ Wave 08      Graphical Editor + Image + Engineering Development Monitor         
 08-FOLLOW-B  Typed Visual Expressions + Boolean Conditions + Analog Fill                 COMPLETE
 Wave 09      Screens + Popups + Dynamos + navigation + Historical Data + Reporting       COMPLETE
 Wave 10      Python visual events + animation + preview                                  COMPLETE
-Wave 11      Complete HMI Runtime demo vertical slice                                    READY / NOT STARTED
+Drivers       Driver interoperability lab + shared convergence + final driver evidence    ACTIVE / PRIORITY
+Wave 11      Complete HMI Runtime demo vertical slice                                    DEFERRED
 Wave 12      Hardening                                                                   WAITING
 Wave 13      Windows x64 product package                                                 WAITING
 Wave 14      Product-owner validation                                                    WAITING
@@ -58,42 +58,65 @@ Wave 15      Feedback/corrections                                               
 FINAL        EliteSCADA v0.1 — Full Product Validation Preview
 ```
 
-## Wave 10 — CLOSED
+## Driver convergence — ACTIVE / PRIORITY
 
-Wave 10 established one canonical path for visual Python behavior rather than a renderer-private side channel:
+The current priority is to finish the additional industrial protocol Drivers before starting Wave 11.
 
-`click -> canonical event association -> Client Visual Python sandbox -> public Runtime Visual command -> Animation layer -> stable Script final value -> canonical renderer`
+Execution order is evidence-driven rather than numerical:
 
-Delivered scope includes:
+1. consolidate the common `interop-lab/` so Driver workers share reproducible independent peers instead of private one-off harnesses;
+2. immediately converge Drivers that already have strong product + independent-peer evidence;
+3. route Drivers with a real protocol/type defect back to the owning worker with exact failing evidence;
+4. add missing independent peers for Siemens S7 and BACnet/IP;
+5. converge shared Coordinator-owned contracts once rather than copying them into every protocol branch;
+6. run exact integration CI and only then promote accepted Drivers into `main`.
 
-- persisted canonical visual event associations and Engineering Events editor;
-- object interaction, Timer interval and typed TAG value-change identities;
-- deterministic visual animation/tween with cancellation/replacement/repeat/easing behavior;
-- Python `visualTween.request` through the accepted capability bridge;
-- mounted Python Preview/Test with bounded sample context and actionable sanitized diagnostics;
-- transient renderer composition preserving `Animation > Script > Binding/Expression > Engineering > Default`;
-- exact browser acceptance on mounted Screen/Popup visual runtime composition.
+Shared Coordinator-owned convergence includes:
 
-## Wave 11 — NEXT / READY
+- fail-closed DriverHost registry/planner/factory composition;
+- canonical rich Communication TAG binding and compatibility migration;
+- common Data Source readiness activation;
+- protected credential/certificate/private-key resolution;
+- installable module/catalog/loading policy;
+- common rich command/operation surface where `WriteAsync` is insufficient;
+- source timestamp/current-value/historical-event ordering policy;
+- central Engineering ConnectionTest/Browse/Import/Reconcile registration and API/UI exposure.
 
-Wave 11 owns the complete owner-testable HMI Runtime demo vertical slice. It should compose the already accepted Screen/Popup/Dynamo, realtime TAG, Client Memory, Python visual events, animation, alarms/trends/history/reporting and operational navigation into the real Runtime product surface rather than creating alternate models.
+## Interoperability laboratory — ACTIVE
 
-Wave 11 is **not started by this Wave 10 closure**. Its branch/worker assignments and frozen base should be established explicitly when execution begins.
+Integration branch:
 
-## Protocol boundary and parallel Drivers
+`integration/driver-interop-lab-finalization`
 
-Required v0.1 protocol remains Modbus TCP. Simulation, Client Memory, Server Memory and Gateway remain part of product validation.
+The common lab is being promoted from a base MQTT/CIP scaffold into a reusable multi-protocol peer stack. Current implemented peers on the integration branch are:
 
-Additional protocol Drivers may continue on isolated parallel branches, but product Wave work has priority and Driver heads do not merge automatically into `main`.
+- Eclipse Mosquitto + Node-RED control plane;
+- ControlLogix + CompactLogix independent CIP simulators;
+- open62541 OPC UA server + independent node-opcua reference client;
+- lib60870-C IEC-104 outstation;
+- dnp3py DNP3 outstation.
+
+Siemens S7 and BACnet/IP independent peers remain the next missing laboratory tools.
+
+The lab distinguishes peer/tool readiness from Driver product-path acceptance. A healthy simulator does not make a Driver green; a Driver L2 test must actually exercise the product path and canonical TAG semantics.
+
+## Wave 11 — DEFERRED
+
+Wave 11 still owns the complete owner-testable HMI Runtime demo vertical slice. Its scope is unchanged, but execution is intentionally deferred until the current Driver convergence phase is completed or explicitly reprioritized again.
+
+No Wave 11 branch/worker work should consume Coordinator attention while Driver convergence is the active priority.
+
+## Protocol boundary
+
+Required v0.1 protocol remains Modbus TCP. Simulation, Client Memory, Server Memory and Gateway remain part of product validation. The additional protocol Drivers are now an explicit pre-Wave-11 completion objective rather than background parked work.
 
 ## Development quality
 
-- use Development Waves with frozen logical bases and coordinator integration trains;
-- exactly one ACTIVE assignment per Wave worker;
-- workers edit only owned scopes and stop after delivery;
-- never merge known-failing work;
+- never merge a Driver because its isolated worker CI is green;
+- require independent peer evidence where practical and keep L2/L3/L4 claims separate;
 - fix root causes instead of weakening tests/security/concurrency;
 - preserve canonical Engineering/backend authority;
+- keep third-party protocol libraries behind Driver-owned adapters and document licensing/distribution gates;
 - use Actions to buy evidence, not ceremony;
-- require final integrated CI and healthy post-merge `main` for every functional wave;
+- require exact integration CI before every Driver mainline transition;
 - keep coordination checkpoints synchronized because `siga` depends on them.

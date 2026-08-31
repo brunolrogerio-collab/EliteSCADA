@@ -12,6 +12,7 @@ public sealed record Iec104DecodedPoint(
     Iec104Cp56DecodeResult? SourceTime)
 {
     public DateTimeOffset? SourceTimestamp => SourceTime?.Timestamp;
+    public Iec104CauseOfTransmission CauseOfTransmission { get; init; }
 }
 
 public static class Iec104InformationObjectDecoder
@@ -79,7 +80,10 @@ public static class Iec104InformationObjectDecoder
 
             var objectData = payload.Slice(offset, objectDataLength);
             offset += objectDataLength;
-            points.Add(DecodePoint(header.CommonAddress, ioa, header.TypeId, objectData, stationTimeZone));
+            points.Add(DecodePoint(header.CommonAddress, ioa, header.TypeId, objectData, stationTimeZone) with
+            {
+                CauseOfTransmission = header.CauseOfTransmission
+            });
         }
 
         return points;

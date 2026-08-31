@@ -21,8 +21,7 @@ public sealed record CommunicationDriverRuntimePlanningResult(
     ICommunicationDriverRuntimePlan? Plan,
     IReadOnlyCollection<EngineeringDriverIssue> Issues)
 {
-    public bool CanActivate =>
-        Plan is not null && Issues.All(x => x.Severity != DriverEngineeringIssueSeverity.Error);
+    public bool CanActivate => Plan is not null && Issues.All(x => !x.IsError);
 }
 
 public interface ICommunicationDriverRuntimePlanner

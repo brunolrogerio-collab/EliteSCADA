@@ -7,6 +7,7 @@ namespace Scada.Drivers.Tests;
 public sealed class BacnetL2IntegrationTests
 {
     private const uint DeviceInstance = 599001;
+    private const uint RpOnlyDeviceInstance = 599002;
 
     [Fact]
     [Trait("Category", "BacnetL2Integration")]
@@ -26,7 +27,7 @@ public sealed class BacnetL2IntegrationTests
         Assert.Equal(DeviceInstance, device.DeviceInstance);
         Assert.Equal((ushort)999, device.VendorId);
 
-        var analog = AnalogPresentValueBinding();
+        var analog = AnalogPresentValueBinding(DeviceInstance);
         var initial = await session.ReadAsync(analog);
         Assert.NotEmpty(initial.Values);
         Assert.Equal(21.5d, Convert.ToDouble(initial.Values[0].Value), 3);
@@ -68,6 +69,31 @@ public sealed class BacnetL2IntegrationTests
 
     [Fact]
     [Trait("Category", "BacnetL2Integration")]
+    public async Task Session_FallsBackToReadPropertyWhenIndependentPeerRejectsRpm()
+    {
+        var options = new BacnetSessionOptions(
+            LocalPort: 47812,
+            RequestTimeout: TimeSpan.FromSeconds(1),
+            Retries: 1,
+            DiscoveryWindow: TimeSpan.FromSeconds(2),
+            TargetAddress: "127.0.0.1:47811");
+
+        await using var session = new SystemIoBacnetSession(options);
+        await session.StartAsync();
+
+        var device = await session.ResolveDeviceAsync(RpOnlyDeviceInstance);
+        Assert.Equal(RpOnlyDeviceInstance, device.DeviceInstance);
+        Assert.Equal((ushort)999, device.VendorId);
+
+        var result = await session.ReadAsync(AnalogPresentValueBinding(RpOnlyDeviceInstance));
+        Assert.NotEmpty(result.Values);
+        Assert.Equal(21.5d, Convert.ToDouble(result.Values[0].Value), 3);
+        Assert.False(result.UsedReadPropertyMultiple);
+        Assert.Equal("62", result.ObjectState?.Units);
+    }
+
+    [Fact]
+    [Trait("Category", "BacnetL2Integration")]
     public async Task Session_InvalidatesLostDeviceRouteAndResolvesAgainAfterPeerRestart()
     {
         var container = Environment.GetEnvironmentVariable("ELITESCADA_BACNET_L2_RESTART_CONTAINER");
@@ -82,7 +108,7 @@ public sealed class BacnetL2IntegrationTests
 
         await using var session = new SystemIoBacnetSession(options);
         await session.StartAsync();
-        var analog = AnalogPresentValueBinding();
+        var analog = AnalogPresentValueBinding(DeviceInstance);
 
         var beforeLoss = await session.ResolveDeviceAsync(DeviceInstance);
         Assert.Equal((ushort)999, beforeLoss.VendorId);
@@ -108,9 +134,9 @@ public sealed class BacnetL2IntegrationTests
         Assert.True(recovered.UsedReadPropertyMultiple);
     }
 
-    private static BacnetBinding AnalogPresentValueBinding()
+    private static BacnetBinding AnalogPresentValueBinding(uint deviceInstance)
         => new(
-            DeviceInstance,
+            deviceInstance,
             (uint)BacnetObjectTypes.OBJECT_ANALOG_VALUE,
             1,
             (uint)BacnetPropertyIds.PROP_PRESENT_VALUE,

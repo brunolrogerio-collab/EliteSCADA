@@ -41,13 +41,20 @@ public sealed class BacnetL2IntegrationTests
         // inventing a display-name mapping inside protocol acquisition.
         Assert.Equal("62", initial.ObjectState?.Units);
 
-        var cov = new TaskCompletionSource<double>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var changedCov = new TaskCompletionSource<double>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var covNotifications = 0;
         await using var subscription = (IAsyncDisposable?)await session.TrySubscribeCovAsync(
             analog,
             notification =>
             {
-                if (notification.Values.Count > 0)
-                    cov.TrySetResult(Convert.ToDouble(notification.Values[0].Value));
+                if (notification.Values.Count == 0) return ValueTask.CompletedTask;
+                Interlocked.Increment(ref covNotifications);
+                var observed = Convert.ToDouble(notification.Values[0].Value);
+                // BACnet peers may send the current value immediately when the COV
+                // subscription is established. Evidence for the write path is the
+                // later notification carrying the changed Present_Value.
+                if (Math.Abs(observed - 33.25d) < 0.001d)
+                    changedCov.TrySetResult(observed);
                 return ValueTask.CompletedTask;
             });
         Assert.NotNull(subscription);
@@ -59,7 +66,8 @@ public sealed class BacnetL2IntegrationTests
         var readback = await session.ReadAsync(analog);
         Assert.Equal(33.25d, Convert.ToDouble(readback.Values[0].Value), 3);
 
-        var covValue = await cov.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var covValue = await changedCov.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(33.25d, covValue, 3);
+        Assert.True(Volatile.Read(ref covNotifications) >= 1);
     }
 }

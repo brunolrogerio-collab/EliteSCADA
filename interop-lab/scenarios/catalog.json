@@ -3,7 +3,7 @@
   "orchestrator": "node-red",
   "commonAcceptance": [
     "transport/session readiness is explicit",
-    "read path preserves canonical value and quality",
+    "read path preserves canonical value, canonical type and quality",
     "source timestamp evidence is preserved when protocol supplies it",
     "write/command outcome is distinct from bytes-sent or optimistic cache state",
     "disconnect/reconnect degrades and recovers deterministically",
@@ -16,6 +16,7 @@
       "peer": "eclipse-mosquitto:2.1.2-alpine",
       "activation": "base compose",
       "state": "runnable",
+      "productEvidence": "broad live-broker validation exists on Driver 10 validation branches, including Mosquitto + HiveMQ, TLS/auth and broker restart",
       "firstScenarios": ["publish-subscribe", "qos-0-1-2", "retained", "reconnect", "burst-backpressure", "source-timestamp"]
     },
     {
@@ -24,38 +25,47 @@
       "peer": "node-red-contrib-cip-suite simulator @ baf21c625c4f1250fa3cbae6cdd636ce15620ef2",
       "activation": "compose.cip.yaml",
       "state": "runnable-overlay",
+      "productEvidence": "Driver 5 validation PR #165 L2 green",
       "firstScenarios": ["controllogix-read-write", "compactlogix-read-write", "program-scope", "bit-rmw", "multiple-service-packet", "fragmented-read", "reconnect"]
     },
     {
       "id": "opc-ua",
       "eliteDriver": "opcua",
-      "peer": "node-red-contrib-opcua-suite 0.1.5",
-      "activation": "Node-RED palette; port 4840 reserved",
-      "state": "server-flow-next",
-      "firstScenarios": ["anonymous-session", "user-session", "certificate-session", "browse", "subscriptions", "read-write", "unknown-datatype", "reconnect"]
+      "peer": "open62541 1.5.4 independent server + node-opcua reference client in Node-RED image",
+      "activation": "compose.opcua.yaml",
+      "state": "runnable-overlay",
+      "peerEvidenceLevel": "L2-independent-software-peer/reference-client",
+      "productEvidence": "Driver 9 product-path L2 pending against the common peer",
+      "firstScenarios": ["anonymous-session", "browse", "read-write", "subscriptions"],
+      "nextScenarios": ["driver9-anonymous-session", "driver9-user-session", "driver9-certificate-session", "unknown-datatype", "reconnect-resubscribe"]
     },
     {
       "id": "iec-60870-5-104",
       "eliteDriver": "iec104",
-      "peer": "independent IEC-104 server/outstation sidecar",
-      "activation": "future overlay",
-      "state": "sidecar-planned",
-      "firstScenarios": ["startdt", "general-interrogation", "spontaneous-event", "cot", "cp56time2a", "command-confirmation", "reconnect", "late-event"]
+      "peer": "MZ Automation lib60870-C @ 7a388e3e133999e1ca77ba7521d55d074b7cd2bc",
+      "activation": "compose.iec104.yaml",
+      "state": "runnable-overlay",
+      "productEvidence": "Driver 6 validation PR #168 L2 green, 13/13",
+      "firstScenarios": ["startdt", "general-interrogation", "spontaneous-event", "command-direct", "command-sbo", "reconnect-no-replay"],
+      "nextScenarios": ["remaining-monitored-typeids", "multi-common-address", "kw-pressure", "sequence-wrap", "soak"]
     },
     {
       "id": "dnp3",
       "eliteDriver": "dnp3.master",
-      "peer": "independent non-Step-Function outstation sidecar",
-      "activation": "future overlay",
-      "state": "sidecar-planned",
-      "firstScenarios": ["startup-integrity", "class-events", "unsolicited", "quality-flags", "source-time", "crob-sbo", "analog-output", "reconnect"]
+      "peer": "dnp3py @ 8a20d4c276274f2b98800716cd7da963f21da2c1",
+      "activation": "compose.dnp3.yaml",
+      "state": "runnable-peer-product-l2-red",
+      "productEvidence": "Driver 7 PR #167 reaches Online and receives all three points, but configured Int32 Analog Input is published to canonical cache as Double; product L2 remains red",
+      "firstScenarios": ["startup-integrity", "canonical-type-preservation", "quality-flags"],
+      "nextScenarios": ["class-events", "unsolicited", "source-time", "crob-sbo", "analog-output", "reconnect"]
     },
     {
       "id": "siemens-s7",
       "eliteDriver": "s7.iso.tcp",
       "peer": "independent S7 ISO-on-TCP server/PLC simulator",
       "activation": "future overlay",
-      "state": "sidecar-planned",
+      "state": "peer-not-implemented",
+      "productEvidence": "Driver 8 software milestone and CI green; external interoperability pending",
       "firstScenarios": ["rack-slot", "tsap", "pdu-negotiation", "db-read-write", "type-boundaries", "byte-word-order", "reconnect"]
     },
     {
@@ -63,7 +73,8 @@
       "eliteDriver": "bacnet.ip",
       "peer": "independent BACnet/IP device simulator/reference peer",
       "activation": "future overlay; host-network may be required for broadcast cases",
-      "state": "sidecar-planned",
+      "state": "peer-not-implemented",
+      "productEvidence": "Driver 4 software milestone and CI green; external interoperability pending",
       "firstScenarios": ["who-is-i-am", "read-property", "read-property-multiple", "write-priority", "relinquish", "cov", "cov-renewal", "bbmd-fdr", "reconnect"]
     }
   ]

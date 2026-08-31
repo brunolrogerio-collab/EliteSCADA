@@ -1,217 +1,150 @@
 # DRIVER AND INTEROPERABILITY LAB STATUS — EliteSCADA
 
-Date: 2026-08-30
-Status: **WAVE 10 ACTIVE / DRIVERS PARKED-REVIEWABLE EXCEPT OPC UA / INTEROP LAB PARTIAL**
+Date: 2026-08-30  
+Status: **DRIVER CONVERGENCE + INTEROPERABILITY LAB ACTIVE / WAVE 11 DEFERRED**
 
-This file is a coordination snapshot, not a replacement for live GitHub state. Before any merge, assignment, CI claim or production-readiness claim, re-read the exact branch, PR and workflow run.
+This is a coordination snapshot, not a substitute for live GitHub state. Re-read exact branches, PRs and workflow runs before every mutation or acceptance claim.
 
-Wave 10 remains the product priority. Driver work and interoperability-lab work continue in parallel and must not be merged into Wave 10 merely to obtain reassurance CI.
+## Driver snapshot
 
-## Driver status snapshot
-
-| Driver | Exact observed worker head | Handoff | Exact-head CI | Current coordination classification |
+| Driver | Observed product checkpoint | Normal CI / handoff | Independent-peer state | Current action |
 | --- | --- | --- | --- | --- |
-| Driver 4 — BACnet/IP | `2ced848124350a5d83ec563a4fb22312ac224fe1` | Draft PR #109 | CI #787 GREEN | Protocol software mature/reviewable; parked for shared convergence and external interoperability evidence. |
-| Driver 5 — Allen-Bradley Logix EtherNet/IP/CIP | `18ff6dc989a65c1f8b006f83c08d8394a5510914` | Draft PR #111 | CI #785 GREEN | Protocol software mature/reviewable; parked for shared convergence, production dependency/conformance decision and hardware evidence. |
-| Driver 6 — IEC 60870-5-104 | `d597ef5ed1885b63dcd0b3568287bc1e34330bee` | Draft PR #146 | CI #798 GREEN | Formal handoff now exists and exact head is green; ready for Coordinator convergence review, still lacking independent simulator/hardware acceptance. |
-| Driver 7 — DNP3 | `ac0dd6944f53d19447f3353addd404c02da7249c` | Draft PR #108 | CI #697 GREEN | Protocol software mature/reviewable; same-stack wire evidence exists, but independent interoperability and commercial Step Function licensing remain release gates. |
-| Driver 8 — Siemens S7 ISO-on-TCP | `0c37b922b44f591ebd143470abf3ebaa6b4bffae` | Draft PR #135 | CI #789 GREEN | One of the strongest parked worker milestones; still needs shared convergence and representative Siemens simulator/hardware evidence. |
-| Driver 9 — OPC UA | `8ba5870d7dbe119a2999d8a73394289e2349f401` | No worker handoff PR | No Actions runs on canonical worker branch | Least formalized Driver workstream. Canonical branch exists and fails unknown data types closed, but secure/runtime/Engineering milestone still needs a reviewable handoff and exact-head CI. |
-| Driver 10 — MQTT Industrial | `fd2f3cbba3e8fc701e376cfcbd1685b28e3d98ef` | Draft PR #128 | CI #791 GREEN | Protocol software mature/reviewable; current exact head is green. Independent broker/product-path evidence and shared convergence remain required. |
+| D4 BACnet/IP | `de3357750f79266e43588e7bb26d66093f8cf3d5` | Draft #109; CI #860 GREEN | Common BACpypes peer tool gate GREEN in Lab #42 | **ACTIVE L2**: Who-Is/I-Am, RP/RPM, WP, COV, reconnect/re-resolution. |
+| D5 Allen-Bradley CIP | `18ff6dc989a65c1f8b006f83c08d8394a5510914` | Draft #111; CI #785 GREEN | PR #165; CIP L2 #6 GREEN | **PARKED FOR COORDINATOR CONVERGENCE**. |
+| D6 IEC-104 | `d597ef5ed1885b63dcd0b3568287bc1e34330bee` | Draft #146; CI #798 GREEN | PR #168; lib60870 L2 #7 GREEN, 13/13 | **PARKED FOR COORDINATOR CONVERGENCE**. |
+| D7 DNP3 | `ac0dd6944f53d19447f3353addd404c02da7249c` | Draft #108; CI #697 GREEN | dnp3py peer healthy; product L2 RED on Int32->Double canonical mismatch | **ACTIVE FIX** then rerun L2. |
+| D8 Siemens S7 | `0c37b922b44f591ebd143470abf3ebaa6b4bffae` | Draft #135; CI #789 GREEN | Common python-snap7 peer build/start/TCP GREEN | **ACTIVE L2**: session/PDU/DB read-write/reconnect. |
+| D9 OPC UA | `5ce1f3c912bf3779e892fb136b51b54b0f19a5c6` | Draft #169; CI #869 GREEN | Common open62541 peer/reference smoke GREEN | **ACTIVE L2**: real Driver 9 read/write/subscription/reconnect. |
+| D10 MQTT | `acd46cd9a4a49e324f2037a1994e6f579a0bae3f` | Draft #128; exact CI #865 GREEN | Mosquitto + HiveMQ + TLS/auth + negative security + restart + freshness evidence GREEN | **PARKED FOR COORDINATOR CONVERGENCE**. |
 
-## What “green” does and does not mean
+## Evidence levels
 
-A green normal EliteSCADA CI on a Driver branch means that exact worker head is build/test/smoke/E2E compatible with the PR merge context exercised by that run. It does **not** mean:
+- **L0** — unit/codec/contract tests;
+- **L1** — same-stack/in-process/loopback protocol evidence;
+- **L2** — independent software peer over real wire protocol;
+- **L3** — representative vendor simulator/device evidence;
+- **L4** — representative hardware/site acceptance.
 
-- the Driver has been accepted into the common DriverHost registry/runtime;
-- representative vendor hardware has been validated;
-- an independent protocol implementation has interoperated with the EliteSCADA Driver;
-- commercial redistribution/licensing gates are cleared;
-- the Driver is production certified.
+Normal CI, independent interoperability, licensing/conformance and hardware acceptance remain separate gates.
 
-These are separate acceptance dimensions and must stay separate in Coordinator reporting.
+## Common interoperability lab
 
-## Shared Coordinator-owned convergence still required
+Branch: `integration/driver-interop-lab-finalization`  
+PR: **#173**  
+Exact functional head: `3ff2d6393c4e8734b4b1c08abd2bd8466f78f400`
 
-The parked Driver branches must not each implement their own copy of the following shared concerns:
+### Dedicated gate
 
-1. fail-closed DriverHost registry/planner/factory composition;
-2. canonical rich Communication TAG binding in the post-Wave-09 Engineering schema revision;
-3. `Address == CommunicationBinding.PortableAddress` compatibility/migration rules;
-4. common Data Source readiness activation;
-5. protected credential/certificate/private-key resolution;
-6. installable module/catalog/loading policy;
-7. common command/operation surface where simple `WriteAsync` is insufficient;
-8. source timestamp/current-value/historical-event ordering policy;
-9. central Engineering ConnectionTest/Browse/Import/Reconcile registration and protected API/UI exposure;
-10. exact integration-head CI before any mainline Driver transition.
+**Interop Lab Smoke #42 — SUCCESS.**
 
-## Driver-specific remaining evidence
+Proven in one workflow:
 
-### Driver 4 — BACnet/IP
+- all Compose models validate;
+- base five-peer stack builds/starts: MQTT, CIP, OPC UA, IEC-104, DNP3;
+- Siemens S7 peer builds/starts and TCP readiness passes;
+- BACnet/IP peer builds/starts and explicit health passes;
+- MQTT round-trip passes;
+- OPC UA independent browse/read/write/subscription smoke passes;
+- cleanup passes.
 
-Worker protocol scope is reviewable and exact-head CI is green. Still required:
+The common peer/tool set is therefore no longer a blocker for D4/D8/D9 product-path validation.
 
-- independent BACnet/IP simulator/reference-stack scenarios;
-- multi-vendor device evidence when practical;
-- RPM fallback, COV lease/renew/recovery, priority/relinquish and BBMD/FDR behavior against real peers;
-- shared registry/readiness/binding/security/module integration.
+### Common peers
 
-### Driver 5 — Allen-Bradley Logix EtherNet/IP/CIP
+- MQTT — Eclipse Mosquitto + Node-RED;
+- CIP — pinned ControlLogix/CompactLogix simulator profiles;
+- OPC UA — open62541 1.5.4 + node-opcua reference client;
+- IEC-104 — pinned lib60870-C deterministic outstation;
+- DNP3 — pinned dnp3py 0.4.0 outstation;
+- S7 ISO-on-TCP — python-snap7 3.1.2 deterministic server;
+- BACnet/IP — BACpypes 0.19.0 independent device peer.
 
-Worker protocol scope is reviewable and exact-head CI is green. Still required:
+Third-party peers remain test-only infrastructure.
 
-- CompactLogix/ControlLogix or credible independent simulator evidence;
-- real route/session/MSP ceilings and reconnect behavior;
-- production CIP implementation/dependency and ODVA/conformance/licensing decision;
-- shared registry/readiness/binding/Engineering integration.
+### Normal product CI on lab head
 
-### Driver 6 — IEC 60870-5-104
+EliteSCADA CI #886 exact functional head `3ff2d639...`:
 
-Driver 6 now has a formal Draft handoff PR and exact-head green CI. This supersedes the earlier state where the worker had not formally closed its milestone.
+- initial Web/build were green;
+- initial backend test attempt hit two unrelated Modbus timing failures (`ModbusTcpDiagnosticsTests` 500 ms request timeout and `GatewayRuntimeSameProtocolTests` 4 s condition timeout);
+- no Modbus/product code was changed in response;
+- failed workflow jobs were rerun on the exact same functional head;
+- merge requires the rerun plus Chromium to be fully green.
 
-Still required:
+The prior lab head `67d4da30...` had normal CI #884 fully green, which supports the classification of the #886 first-attempt failures as timing flakes rather than a lab-source regression, but it does not replace the required exact-head rerun.
 
-- independent IEC-104 server/outstation interoperability;
-- representative RTU/IED evidence later;
-- shared rich binding, registry/factory/readiness and event-ingress policy;
-- explicit first-release security/TLS decision.
+## Product-path evidence already accepted
 
-### Driver 7 — DNP3
+### D10 MQTT
 
-Strong same-stack protocol-wire evidence exists through the Step Function adapter, but same-stack Master/Outstation tests are not independent interoperability.
+Broad live evidence includes:
 
-Still required:
+- Eclipse Mosquitto + HiveMQ Community Edition;
+- MQTT 5.0 and 3.1.1;
+- QoS 0/1/2 and retained;
+- trusted TLS + mandatory authentication;
+- invalid credentials and revoked certificate fail closed;
+- persistent sessions across real broker restart;
+- live freshness `Good -> Stale -> Good` without redefining broker readiness.
 
-- independent DNP3 outstation peer/hardware evidence;
-- commercial Step Function licensing evidence before commercial production distribution;
-- shared rich command, event-ingress, registry/readiness/module integration.
+Current product checkpoint `acd46cd9...` has exact normal CI #865 GREEN. D10 now waits on shared Coordinator convergence, not generic MQTT feature growth.
 
-### Driver 8 — Siemens S7 ISO-on-TCP
+### D6 IEC-104
 
-Worker milestone is reviewable and exact-head green with no external S7 runtime dependency.
+Validation PR #168 passes 13/13 against independent lib60870-C over real TCP, including STARTDT, GI, spontaneous data, readiness, all five first-release command types Direct + SBO and peer restart/reconnect without command replay.
 
-Still required:
+D6 now waits on shared Coordinator convergence plus later L3/L4/security decisions.
 
-- independent simulator and representative S7-300/400/1200/1500 evidence where practical;
-- protection/PUT-GET, TSAP, PDU, layout, write rejection and reconnect evidence;
-- shared transform/binding/readiness/registry/module integration.
+### D5 CIP
 
-### Driver 9 — OPC UA
+Validation PR #165 passes the independent CIP L2 gate through real RegisterSession/SendRRData, typed reads, write/readback and Driver polling/cache behavior. Hardware/ODVA/CIP Security remain separate later gates.
 
-Canonical branch currently ends at `8ba5870d...` with explicit fail-closed unknown-data-type handling. There is no worker handoff PR and no Actions run on `driver9/opc-ua`.
+## Active worker gates
 
-This workstream should not be described as review-ready yet. It still needs a coherent worker milestone covering at least:
+### D7 DNP3
 
-- stable NodeId identity;
-- secure endpoint/session policy;
-- subscriptions/monitored-item or explicit polling readiness;
-- separate SourceTimestamp and ServerTimestamp preservation;
-- injected credential/certificate/private-key resolution seams;
-- discovery/browse/reconcile/runtime-provider scope;
-- Draft handoff PR and exact-head CI.
+Independent dnp3py evidence reaches `Online`, receives BI/AI/Counter Good and reports zero communication failures. The real mismatch is:
 
-The separate OPC UA interoperability-lab branch described below is test infrastructure. It does not substitute for closing the Driver 9 worker milestone.
+`configured Int32 G30V1 -> raw System.Int32 4242 -> canonical cache System.Double 4242`.
 
-### Driver 10 — MQTT Industrial
+Worker must preserve canonical configured type and rerun PR #167. Do not weaken the L2 assertion.
 
-Current exact head `fd2f3cbb...` has green CI #791. This supersedes older CI references recorded in the PR body.
+### D9 OPC UA
 
-Still required:
+Use common open62541 to prove the actual Driver 9 path: endpoint/session, stable NodeIds, typed reads/writes, monitored-item delivery, server restart/reconnect/resubscription and timestamp preservation. Secure identity/custom datatype cases follow the first green slice.
 
-- live product-path broker evidence, not just opt-in tests that return when no broker is configured;
-- Mosquitto plus an independent second broker where practical;
-- MQTT 5/3.1.1, QoS, retained, TLS/auth, persistent sessions, broker restart, backpressure and freshness evidence;
-- shared registry/readiness/secret-resolution/binding/module integration.
+### D8 Siemens S7
 
-## Interoperability Lab — purpose and evidence levels
+Use common python-snap7 peer for real ISO-on-TCP/S7 Setup Communication, negotiated PDU, deterministic DB reads, write/readback, PDU-aware multi-read and stop/start recovery.
 
-The repository contains `interop-lab/` as destructive/reproducible **test infrastructure**, intentionally separate from the product runtime. Node-RED acts as control-plane tooling while independent peers are intended to exercise real wire protocols.
+### D4 BACnet/IP
 
-Do not collapse these evidence levels into one claim:
+Use common BACpypes peer for Who-Is/I-Am, stable Device Instance resolution, RP/RPM, WP/readback, COV and route loss/recovery. Priority/relinquish and BBMD/FDR are follow-up scenarios when peer capability/topology permits.
 
-- **L0**: unit/codec/contract tests only;
-- **L1**: same-stack or in-process/loopback protocol evidence;
-- **L2**: independent software peer over real wire protocol;
-- **L3**: representative vendor simulator/device evidence;
-- **L4**: representative hardware/site acceptance.
+## Shared Coordinator convergence — issue #174
 
-A higher level does not erase the need for lower-level deterministic tests, and L2 is not hardware certification.
+Coordinator owns once:
 
-## Current lab state on main
+1. Driver registry/planner/factory + central activation;
+2. canonical rich Communication TAG binding + compatibility migration;
+3. common readiness activation;
+4. protected credential/certificate/private-key resolution;
+5. module/catalog/loading policy;
+6. common rich command/operation surface;
+7. SourceTimestamp/ServerTimestamp/current/history ordering policy;
+8. central Engineering ConnectionTest/Browse/Import/Reconcile API/UI;
+9. exact integration/main CI.
 
-The current mainline lab has:
+Current intended order:
 
-- MQTT: Eclipse Mosquitto + Node-RED base lab, runnable;
-- Allen-Bradley CIP: simulator overlay present/runnable, but the standard lab smoke currently validates its Compose model rather than proving the complete EliteSCADA Driver 5 product path;
-- OPC UA: base mainline previously had palette/port preparation only;
-- IEC-104, DNP3, Siemens S7 and BACnet: reserved independent-peer slots, not yet accepted runnable scenarios.
-
-## OPC UA independent-software lab PR #148
-
-Branch: `coordination/driver-interop-opcua-v1`
-
-Observed exact head:
-
-`ffa810c2a4e6524fdb4d05c7c094a899e80af67b`
-
-The branch adds:
-
-- open62541 1.5.7 as an independent OPC UA server built from SHA-256-pinned upstream single-file release artifacts;
-- separate `compose.opcua.yaml` overlay;
-- stable writable Double/Int32/Boolean/String nodes;
-- `node-opcua` reference-client smoke from the Node-RED image;
-- intended anonymous browse/read/write/readback/monitored-item scenario.
-
-### Current exact evidence
-
-Normal EliteSCADA CI #807 on `ffa810c2...`: **GREEN**.
-
-Interop Lab Smoke #8 on the same head: **RED**.
-
-The failing step is:
-
-`Build and start independent OPC UA peer`
-
-The workflow successfully completed before that failure:
-
-- scenario catalog JSON validation;
-- Node-RED flow JSON validation;
-- base Compose validation;
-- CIP overlay Compose validation;
-- OPC UA overlay Compose validation;
-- base lab build/start;
-- MQTT round-trip smoke.
-
-Because the open62541 peer failed to build/start, the `OPC UA open62541 interoperability smoke` step was skipped. Therefore **there is not yet accepted L2 OPC UA interoperability evidence from PR #148**, despite the normal product CI being green.
-
-Do not merge PR #148 until the dedicated Interop Lab gate is green on the exact head and the normal CI remains green for that same integration decision.
-
-## MQTT lab evidence boundary
-
-Interop Lab Smoke #8 proves that the base lab can build/start and that its MQTT round-trip smoke succeeds against the lab broker/control plane.
-
-That is useful infrastructure evidence, but it must not be misreported as proof that the current `driver10/mqtt` product implementation completed a live end-to-end EliteSCADA Driver 10 broker scenario. Driver 10 still needs an explicitly wired product-path live broker acceptance scenario.
-
-## Recommended laboratory expansion order
-
-While Wave 10 remains priority, the lab can progress independently without touching Wave product contracts. Recommended order after the OPC UA build/start defect is fixed:
-
-1. make OPC UA L2 smoke green and deterministic;
-2. wire an explicit EliteSCADA Driver 10 -> Mosquitto product-path scenario, then an independent second broker;
-3. promote the CIP overlay from Compose validation to explicit Driver 5 read/write/reconnect scenarios;
-4. add independent IEC-104 peer for Driver 6;
-5. add independent DNP3 outstation for Driver 7, intentionally not Step Function;
-6. add independent S7 peer/simulator for Driver 8;
-7. add independent BACnet/IP peer for Driver 4.
-
-Driver 9's product milestone should progress in parallel with, but remain logically separate from, the OPC UA lab infrastructure.
+`MQTT -> IEC-104 -> CIP -> OPC UA -> DNP3 -> Siemens S7 -> BACnet/IP`
 
 ## Coordinator rules
 
-- Wave 10 has priority over Driver/lab integration work.
-- Never merge a Driver branch directly to `main` because its worker CI is green.
-- Never treat lab infrastructure success as product-driver acceptance unless the scenario explicitly exercises that Driver's product path.
-- Never treat independent software interoperability as hardware/vendor certification.
-- Re-read exact heads/checks before every status claim or mutation.
-- Preserve CI policy NORMAL; run expensive matrices only for real integration/evidence checkpoints.
+- no direct Driver-branch merge merely because isolated CI is green;
+- no protocol-private copy of shared contracts;
+- no Driver-to-Driver calls;
+- no plaintext protected material;
+- no test weakening to hide a real type/protocol mismatch;
+- no L2 claim presented as L3/L4 certification;
+- current `main` wins implementation conflicts while locked architecture/ADR intent governs shared future contracts.

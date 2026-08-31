@@ -11,9 +11,9 @@ permissions:
   contents: read
 
 jobs:
-  base-lab-smoke:
+  common-peer-stack:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 40
 
     steps:
       - name: Checkout
@@ -33,25 +33,117 @@ jobs:
         working-directory: interop-lab
         run: docker compose -f compose.yaml -f compose.cip.yaml config >/dev/null
 
-      - name: Build and start base lab
+      - name: Validate OPC UA overlay Compose model
         working-directory: interop-lab
-        run: docker compose -f compose.yaml up -d --build
+        run: docker compose -f compose.yaml -f compose.opcua.yaml config >/dev/null
+
+      - name: Validate IEC-104 overlay Compose model
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml -f compose.iec104.yaml config >/dev/null
+
+      - name: Validate DNP3 overlay Compose model
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml -f compose.dnp3.yaml config >/dev/null
+
+      - name: Validate S7 overlay Compose model
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml -f compose.s7.yaml config >/dev/null
+
+      - name: Validate BACnet/IP overlay Compose model
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml -f compose.bacnet.yaml config >/dev/null
+
+      - name: Build and start proven five-peer stack
+        working-directory: interop-lab
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.cip.yaml
+          -f compose.opcua.yaml
+          -f compose.iec104.yaml
+          -f compose.dnp3.yaml
+          up -d --build --wait --wait-timeout 180
+
+      - name: Build and start S7 peer
+        working-directory: interop-lab
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.s7.yaml
+          up -d --build --wait --wait-timeout 120 s7-python-snap7
+
+      - name: Verify S7 peer TCP readiness
+        run: timeout 20 bash -c 'until nc -z 127.0.0.1 1102; do sleep 1; done'
+
+      - name: Build and start BACnet/IP peer
+        working-directory: interop-lab
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.bacnet.yaml
+          up -d --build --wait --wait-timeout 120 bacnet-bacpypes
+
+      - name: Verify BACnet/IP peer health
+        run: timeout 20 bash -c 'until curl -fsS http://127.0.0.1:18080/health; do sleep 1; done'
 
       - name: MQTT round-trip smoke
         working-directory: interop-lab
         run: bash scripts/lab.sh smoke
 
+      - name: OPC UA open62541 interoperability smoke
+        working-directory: interop-lab
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.opcua.yaml
+          exec -T node-red node /data/opcua-smoke.js
+
       - name: Show lab status
         if: always()
         working-directory: interop-lab
-        run: docker compose -f compose.yaml ps
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.cip.yaml
+          -f compose.opcua.yaml
+          -f compose.iec104.yaml
+          -f compose.dnp3.yaml
+          -f compose.s7.yaml
+          -f compose.bacnet.yaml
+          ps
 
-      - name: Dump logs on failure
+      - name: Dump S7 logs on failure
         if: failure()
         working-directory: interop-lab
-        run: docker compose -f compose.yaml logs --no-color
+        run: docker compose -f compose.yaml -f compose.s7.yaml logs --no-color s7-python-snap7 || true
+
+      - name: Dump BACnet/IP logs on failure
+        if: failure()
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml -f compose.bacnet.yaml logs --no-color bacnet-bacpypes || true
+
+      - name: Dump common peer logs on failure
+        if: failure()
+        working-directory: interop-lab
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.cip.yaml
+          -f compose.opcua.yaml
+          -f compose.iec104.yaml
+          -f compose.dnp3.yaml
+          logs --no-color || true
 
       - name: Stop lab
         if: always()
         working-directory: interop-lab
-        run: docker compose -f compose.yaml down -v --remove-orphans
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.cip.yaml
+          -f compose.opcua.yaml
+          -f compose.iec104.yaml
+          -f compose.dnp3.yaml
+          -f compose.s7.yaml
+          -f compose.bacnet.yaml
+          down -v --remove-orphans

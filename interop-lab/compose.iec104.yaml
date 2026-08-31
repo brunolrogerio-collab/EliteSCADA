@@ -1,0 +1,18 @@
+services:
+  iec104-lib60870:
+    build:
+      context: ./iec104/lib60870
+      dockerfile: Dockerfile
+      args:
+        LIB60870_COMMIT: 7a388e3e133999e1ca77ba7521d55d074b7cd2bc
+    container_name: elitescada-lab-iec104-lib60870
+    ports:
+      - "${IEC104_PEER_PORT:-2404}:2404"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "2404"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+      start_period: 3s
+    networks:
+      - interop

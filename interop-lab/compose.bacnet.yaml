@@ -1,0 +1,21 @@
+services:
+  bacnet-bacpypes:
+    build:
+      context: ./bacnet/bacpypes
+      dockerfile: Dockerfile
+    container_name: elitescada-lab-bacnet-bacpypes
+    network_mode: host
+    environment:
+      BACNET_ADDRESS: "${BACNET_PEER_ADDRESS:-127.0.0.1/8:47808}"
+      BACNET_DEVICE_INSTANCE: "${BACNET_DEVICE_INSTANCE:-599001}"
+      BACNET_HEALTH_PORT: "${BACNET_HEALTH_PORT:-18080}"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:'+os.getenv('BACNET_HEALTH_PORT','18080')+'/health', timeout=2).read()"
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 3s

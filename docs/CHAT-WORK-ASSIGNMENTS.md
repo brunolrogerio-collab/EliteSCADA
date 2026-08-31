@@ -1,199 +1,165 @@
 # CHAT WORK ASSIGNMENTS — EliteSCADA
 
-Date: 2026-08-30
-Stage: **WAVE 10 — ACTIVE**
-Integration owner: **Coordinator**
-Wave 10 product `WaveBaseSHA`: `bbfd730e404b0dee2c05e0ec0afb979b1b14ea35`
+Date: 2026-08-30  
+Stage: **DRIVER CONVERGENCE + INTEROPERABILITY LAB — ACTIVE / WAVE 11 DEFERRED**  
+Integration owner: **Coordinator**  
+Shared convergence issue: **#174**
 
 ## Priority
 
-Wave 10 has absolute priority over parallel Driver work.
+Wave 10 is CLOSED / MERGED / POST-MAIN GREEN. The current product priority is to finish the additional industrial Drivers and shared interoperability/convergence work before starting Wave 11.
 
-GitHub live state is authoritative. Re-read exact branch/PR/CI state before mutations because worker chats advance independently.
+GitHub live state is authoritative. Re-read exact branch/PR/CI state before every mutation because worker branches advance independently.
 
-CI policy remains NORMAL: no reassurance CI on unchanged product trees; exact final integration/product heads require green evidence before merge/stage closure.
+CI policy remains NORMAL. Independent peer health, Driver product-path L2, vendor/hardware validation and normal product CI are separate evidence dimensions.
 
-## Wave 09 — CLOSED
+## Coordinator — Driver Convergence v1
 
-Wave 09 is formally complete. Its worker scopes must not be reopened or rebuilt.
+Issue: `#174 — Driver Convergence v1 — shared runtime, Engineering and mainline integration`
 
-Final Wave 09 integration/product head at closure:
+After the common lab is merged green, the Coordinator owns a long-lived integration branch based on current `main` and the following shared work exactly once:
 
-`4d081f442b4f21cbb29e0d6cd1e76d251b8610aa`
+1. fail-closed communication Driver registry keyed by stable Driver type;
+2. common planner/factory composition and central Runtime activation;
+3. canonical rich Communication TAG binding and compatibility migration, preserving `TagValueSelector`;
+4. common Data Source readiness activation from protocol-local evidence;
+5. host-owned protected credential/certificate/private-key resolution;
+6. installable module/catalog/loading policy;
+7. common namespaced operation surface where simple `WriteAsync` is insufficient;
+8. SourceTimestamp/ServerTimestamp/current-value/historical-event ordering policy;
+9. central Engineering ConnectionTest/Browse/Import/Reconcile registration and protected API/UI;
+10. exact integration-head CI and controlled mainline transition.
 
-Delivered scope includes Historical Query v1, alarm/historian providers, Popup/Dynamo/navigation, Historical Data Browser, Reporting core and mounted Report Designer/Preview, plus central Historical Query composition.
+Driver workers must not independently recreate these contracts.
 
-## Wave 10 — ACTIVE
+## Common interoperability lab
 
-Canonical coordination document:
+Integration branch: `integration/driver-interop-lab-finalization`  
+PR: **#173**
 
-`docs/WAVE-10-PYTHON-VISUAL-EVENTS-ANIMATION-PREVIEW.md`
+Exact functional laboratory head:
 
-Integration branch:
+`3ff2d6393c4e8734b4b1c08abd2bd8466f78f400`
 
-`integration/wave-10-python-visual-events-animation-preview`
+Dedicated evidence:
 
-Wave exit:
+- **Interop Lab Smoke #42 — SUCCESS** on the exact functional head;
+- five-peer base stack: MQTT, CIP, OPC UA, IEC-104 and DNP3 — build/start GREEN;
+- Siemens S7 peer — build/start + TCP readiness GREEN;
+- BACnet/IP peer — build/start + explicit health GREEN;
+- MQTT round-trip GREEN;
+- OPC UA independent browse/read/write/subscription smoke GREEN.
 
-`click -> canonical event binding -> Python entry point -> script visual command -> animated public visual property -> deterministic stable final result`
+Normal CI #886 on this same head had an initial attempt fail only on two unrelated Modbus timing tests; the failed jobs were rerun without changing Modbus code. The rerun must be fully green before PR #173 is merged.
 
-Also require mounted Preview/Test with actionable safe traceback diagnostics.
+The laboratory is test infrastructure, never a second product runtime and never production dependency authority.
 
-### DEV 1 — Events editor
+## Driver assignments
 
-- Issue: #149
-- Branch: `dev1/wave-10-event-editor`
-- Base: `bbfd730e404b0dee2c05e0ec0afb979b1b14ea35`
+### Driver 10 — MQTT Industrial — PARKED FOR COORDINATOR CONVERGENCE
 
-Owns:
+Branch: `driver10/mqtt`  
+Observed worker checkpoint: `acd46cd9a4a49e324f2037a1994e6f579a0bae3f`  
+Normal exact-head CI #865: GREEN.
 
-- mounted Events editor;
-- click/object/visual event associations;
-- lifecycle associations;
-- TAG value-change associations;
-- Client Memory change associations using stable definition identity;
-- timer associations;
-- Engineering round-trip and validation.
+Broad live evidence already includes Mosquitto + HiveMQ, MQTT 5/3.1.1, QoS/retained, TLS/authentication, negative certificate/credential cases, persistent broker restart and live freshness recovery.
 
-Must not create a frontend-private second event model or central runtime dispatcher. If canonical schema is insufficient, report the smallest gap to Coordinator.
+Worker is standby for targeted MQTT defects only. Coordinator owns shared integration.
 
-### DEV 2 — Runtime animation/tween
+### Driver 6 — IEC 60870-5-104 — PARKED FOR COORDINATOR CONVERGENCE
 
-- Issue: #150
-- Branch: `dev2/wave-10-runtime-animation-tween`
-- Base: `bbfd730e404b0dee2c05e0ec0afb979b1b14ea35`
+Branch: `driver6/iec-60870-5-104`  
+Product checkpoint: `d597ef5ed1885b63dcd0b3568287bc1e34330bee`  
+Normal CI #798: GREEN.  
+Validation PR #168: independent lib60870 L2 #7 GREEN, 13/13.
 
-Owns:
+Worker is standby for targeted IEC-104 defects/evidence only. Coordinator owns shared integration.
 
-- deterministic animation/tween execution over public visual properties;
-- bounded explicit duration/transition semantics;
-- start/intermediate/completion behavior;
-- replacement/cancellation behavior;
-- stable final value and diagnostics;
-- focused runtime/E2E coverage.
+### Driver 5 — Allen-Bradley Logix EtherNet/IP/CIP — PARKED FOR COORDINATOR CONVERGENCE
 
-Must preserve exactly:
+Branch: `driver5/allen-bradley-cip`  
+Product checkpoint: `18ff6dc989a65c1f8b006f83c08d8394a5510914`  
+Normal CI #785: GREEN.  
+Validation PR #165: independent CIP L2 Smoke #6 GREEN.
 
-`Animation > Script > Binding/Expression > Engineering Base > Default`
+Worker is standby for targeted CIP defects and later hardware/conformance evidence. Coordinator owns shared integration.
 
-Must not create renderer-private persisted truth or a second visual property/state model.
+### Driver 9 — OPC UA — ACTIVE: PRODUCT-PATH L2
 
-### DEV 3 — Python Preview/Test
+Branch: `driver9/opc-ua`  
+Worker checkpoint: `5ce1f3c912bf3779e892fb136b51b54b0f19a5c6`  
+Draft PR #169; normal CI #869 GREEN.
 
-- Issue: #151
-- Branch: `dev3/wave-10-python-preview-test`
-- Base: `bbfd730e404b0dee2c05e0ec0afb979b1b14ea35`
+Assigned next milestone:
 
-Owns:
+- actual Driver 9 session/read/write/subscription against common open62541 peer;
+- server loss/reconnect/resubscription;
+- independent SourceTimestamp and ServerTimestamp preservation;
+- dedicated L2 + exact normal CI;
+- follow-up secure username/certificate/custom-data-type evidence.
 
-- mounted Preview/Test in canonical Python authoring;
-- execution through accepted sandbox/runtime path;
-- structured deterministic output;
-- success/error/timeout/cancellation states;
-- actionable traceback and failing source line;
-- protected-data redaction;
-- focused unit/integration/E2E coverage.
+No shared registry/readiness/binding/security/module contracts may be redefined in this branch.
 
-Must not create a second Python evaluator/host or private persistence path.
+### Driver 7 — DNP3 — ACTIVE: CANONICAL TYPE FIX
 
-### Coordinator — central Wave 10 work
+Branch: `driver7/dnp3`  
+Current product checkpoint: `ac0dd6944f53d19447f3353addd404c02da7249c`  
+Draft PR #108; normal CI #697 GREEN.
 
-- Issue: #152
-- Integration branch: `integration/wave-10-python-visual-events-animation-preview`
+Independent dnp3py L2 exposed a real product-boundary defect:
 
-Owns:
+`G30V1 raw Int32 4242 -> Dnp3Driver -> canonical cache Double 4242`, while the configured TAG is `TagDataType.Int32`.
 
-- genuine shared event-binding schema gaps;
-- central DI/runtime bridge composition;
-- shared event dispatcher wiring;
-- cross-component animation arbitration changes when required;
-- review/reconciliation and integration of DEV 1/2/3;
-- final end-to-end acceptance;
-- exact integration-head CI and `main` transition;
-- exact post-main CI before Wave closure.
+Assigned next milestone: preserve configured canonical type, add deterministic regression coverage, rerun validation PR #167 and exact normal CI. The L2 test must not be weakened to accept Double.
 
-Workers do not independently redefine central contracts.
+### Driver 8 — Siemens S7 ISO-on-TCP — ACTIVE: PRODUCT-PATH L2
 
-## Parallel Driver branches
+Branch: `driver8/siemens-s7-iso`  
+Worker checkpoint: `0c37b922b44f591ebd143470abf3ebaa6b4bffae`  
+Draft PR #135; normal CI #789 GREEN.
 
-Canonical worker branches remain:
+The common python-snap7 peer now has tool-level build/start/TCP evidence. Assigned next milestone: actual S7 connection/PDU negotiation, deterministic DB reads, write/readback, PDU-aware multi-read, peer restart/reconnect and dedicated L2 + normal CI.
 
-- Driver 4 BACnet/IP: `driver4/bacnet`
-- Driver 5 Allen-Bradley Logix EtherNet/IP/CIP: `driver5/allen-bradley-cip`
-- Driver 6 IEC 60870-5-104: `driver6/iec-60870-5-104`
-- Driver 7 DNP3: `driver7/dnp3`
-- Driver 8 Siemens S7 ISO-on-TCP: `driver8/siemens-s7-iso`
-- Driver 9 OPC UA: `driver9/opc-ua`
-- Driver 10 MQTT Industrial: `driver10/mqtt`
+### Driver 4 — BACnet/IP — ACTIVE: PRODUCT-PATH L2
 
-Old aliases `driver1/siemens-s7-iso`, `driver2/opc-ua` and `driver3/mqtt` remain retired.
+Branch: `driver4/bacnet`  
+Worker checkpoint: `de3357750f79266e43588e7bb26d66093f8cf3d5`  
+Draft PR #109; normal CI #860 GREEN.
 
-Shared convergence authority remains `docs/DRIVER-CONVERGENCE-COORDINATION-V1.md` and ADR-007.
+The common BACpypes peer is tool-level GREEN in Interop Lab Smoke #42. Assigned next milestone: Who-Is/I-Am, RP/RPM, WP/readback, COV, reachability/re-resolution/recovery and dedicated L2 + normal CI. Priority/relinquish and BBMD/FDR may follow when the peer scenario supports them.
 
-Drivers may continue bounded protocol-owned work in parallel, but must not edit Coordinator-owned shared contracts, the Wave 10 integration branch or `main` without Coordinator acceptance.
+## Current convergence order
 
-### Current Driver handoff state
+1. MQTT;
+2. IEC-104;
+3. CIP;
+4. OPC UA after first product-path L2;
+5. DNP3 after canonical type correction + L2;
+6. Siemens S7 after product-path L2;
+7. BACnet/IP after product-path L2.
 
-The detailed authoritative snapshot is:
-
-`docs/DRIVER-AND-INTEROP-LAB-STATUS.md`
-
-Observed state at this assignment update:
-
-- D4 BACnet/IP: head `2ced8481...`, Draft #109, exact-head CI #787 green; parked/reviewable.
-- D5 Allen-Bradley CIP: head `18ff6dc9...`, Draft #111, exact-head CI #785 green; parked/reviewable.
-- D6 IEC-104: head `d597ef5e...`, Draft #146, exact-head CI #798 green; formal milestone/handoff now complete and ready for Coordinator convergence review.
-- D7 DNP3: head `ac0dd694...`, Draft #108, exact-head CI #697 green; parked/reviewable, independent peer and commercial Step Function licensing remain.
-- D8 Siemens S7: head `0c37b922...`, Draft #135, exact-head CI #789 green; parked/reviewable.
-- D9 OPC UA: head `8ba5870d...`, no worker handoff PR and no Actions run on canonical worker branch; not review-ready.
-- D10 MQTT: head `fd2f3cbb...`, Draft #128, exact-head CI #791 green; parked/reviewable, live product-path broker evidence remains.
-
-No Driver branch is authorized for direct merge to `main` merely because its worker CI is green.
-
-## Interoperability Lab assignment/status
-
-`interop-lab/` is independent test infrastructure and must not become a second product runtime.
-
-Current evidence boundary:
-
-- base lab build/start works;
-- MQTT lab round-trip smoke works;
-- CIP overlay Compose model validates, but complete Driver 5 product-path acceptance is not yet proven by the standard lab smoke;
-- IEC-104, DNP3, S7 and BACnet independent-peer scenarios remain to be added/accepted;
-- OPC UA independent peer work is in PR #148, branch `coordination/driver-interop-opcua-v1`.
-
-For PR #148 exact observed head `ffa810c2a4e6524fdb4d05c7c094a899e80af67b`:
-
-- normal EliteSCADA CI #807 is green;
-- Interop Lab Smoke #8 is red;
-- failure occurs while building/starting the independent open62541 peer;
-- the OPC UA interoperability smoke is skipped after that failure.
-
-Therefore no accepted OPC UA L2 independent-software interoperability claim exists yet from PR #148. Do not merge the PR until the dedicated lab gate is green on the exact head and normal CI remains green for the integration decision.
-
-Lab work does not block Wave 10 unless it modifies a shared canonical product contract.
+The order may change only for a real dependency/evidence reason, not to keep a worker cosmetically busy.
 
 ## Shared locks
 
-- Engineering Import/Export, Preview/Apply/CAS, revisions and project-package fidelity remain mandatory for canonical public Engineering changes.
+- Engineering Import/Export, Preview/Apply/CAS, revisions and project-package fidelity remain mandatory for public Engineering changes.
 - Protected credentials/private keys are never plaintext Engineering/package data.
 - TAG-bit identity remains stable `TagId + selector`; `.NN` is authoring/display only.
 - ADR-007 byte/word transform remains binding-level; bit selection occurs after physical transform and typed decode.
 - No arbitrary SQL, JavaScript `eval`/`Function`, unrestricted Python evaluation or implicit coercion engines.
 - Visual precedence remains `Animation > Script > Binding/Expression > Engineering Base > Default`.
-- Client Memory references preserve stable definition identity.
 - Driver registry dispatch uses stable Driver type and duplicate registrations fail closed.
 - Runtime readiness means protocol/Data Source readiness, not every point being `Good`.
-- Normal CI, independent-software interoperability and hardware/vendor acceptance are separate evidence levels and must be reported separately.
+- Drivers never call sibling Drivers or bypass TAG/cache/event architecture.
 
 ## Required worker handoff
 
-Every worker handoff must report:
+Every worker handoff reports:
 
-1. exact branch and head SHA;
+1. exact branch/head SHA;
 2. delivered scope;
 3. exact changed-file list;
-4. tests/results and exact CI evidence;
+4. tests/results and exact CI/L2 evidence;
 5. known limitations/risks;
 6. shared decisions requiring Coordinator action;
-7. confirmation that no unassigned shared files/contracts were independently redefined.
+7. confirmation that no unassigned shared contracts were independently redefined.

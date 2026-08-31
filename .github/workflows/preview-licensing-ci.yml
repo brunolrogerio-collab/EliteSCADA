@@ -37,27 +37,43 @@ jobs:
       - name: Host licensing composition smoke
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           export ASPNETCORE_URLS=http://127.0.0.1:5091
           dotnet run --project src/Scada.Api/Scada.Api.csproj --no-build --configuration Release --no-launch-profile > /tmp/scada-licensing-api.log 2>&1 &
           API_PID=$!
-          trap 'kill "$API_PID" 2>/dev/null || true' EXIT
+
+          cleanup() {
+            status=$?
+            if [ "$status" -ne 0 ]; then
+              echo "=== EliteSCADA licensing host log ==="
+              cat /tmp/scada-licensing-api.log || true
+            fi
+            kill "$API_PID" 2>/dev/null || true
+            wait "$API_PID" 2>/dev/null || true
+            exit "$status"
+          }
+          trap cleanup EXIT
 
           ready=false
           for _ in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:5091/health >/dev/null; then
+            http_code=$(curl -sS -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:5091/health || true)
+            if [ "$http_code" = "200" ]; then
               ready=true
               break
             fi
             sleep 1
           done
           if [ "$ready" != "true" ]; then
-            cat /tmp/scada-licensing-api.log
+            echo "EliteSCADA host did not become healthy."
             exit 1
           fi
 
-          curl -fsS http://127.0.0.1:5091/api/licensing/status > /tmp/licensing-status.json
-          curl -fsS http://127.0.0.1:5091/api/licensing/request > /tmp/licensing-request.json
+          if ! curl -fsS http://127.0.0.1:5091/api/licensing/status > /tmp/licensing-status.json; then
+            exit 1
+          fi
+          if ! curl -fsS http://127.0.0.1:5091/api/licensing/request > /tmp/licensing-request.json; then
+            exit 1
+          fi
           python3 - <<'PY'
           import json
           with open('/tmp/licensing-status.json') as f:

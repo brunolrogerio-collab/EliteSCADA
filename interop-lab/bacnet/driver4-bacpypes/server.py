@@ -7,13 +7,29 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from bacpypes.app import BIPSimpleApplication
 from bacpypes.core import run, stop
 from bacpypes.local.device import LocalDeviceObject
-from bacpypes.object import AnalogValueObject, BinaryValueObject
+from bacpypes.object import (
+    AnalogValueObject,
+    BinaryValueObject,
+    WritableProperty,
+    register_object_type,
+)
+from bacpypes.primitivedata import Real
 from bacpypes.service.cov import ChangeOfValueServices
 from bacpypes.service.object import ReadWritePropertyMultipleServices
 
 
 class LabApplication(BIPSimpleApplication, ReadWritePropertyMultipleServices, ChangeOfValueServices):
     pass
+
+
+class WritableAnalogValueObject(AnalogValueObject):
+    # BACpypes' standard AnalogValueObject exposes Present_Value read-only.
+    # Re-register this lab-only subclass so the independent peer genuinely
+    # accepts BACnet WriteProperty while preserving the standard Real datatype.
+    properties = [WritableProperty("presentValue", Real)]
+
+
+register_object_type(WritableAnalogValueObject)
 
 
 class HealthHandler(BaseHTTPRequestHandler):
@@ -47,7 +63,7 @@ def main() -> None:
     )
     application = LabApplication(device, address)
 
-    analog = AnalogValueObject(
+    analog = WritableAnalogValueObject(
         objectIdentifier=("analogValue", 1),
         objectName="Lab.AnalogValue1",
         presentValue=21.5,

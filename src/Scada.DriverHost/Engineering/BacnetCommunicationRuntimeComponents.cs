@@ -383,7 +383,7 @@ public sealed class BacnetCommunicationRuntimeFactory : ICommunicationDriverRunt
             }
 
             var evaluation = BacnetReadinessPolicy.Evaluate(reachable, diagnostics.State, _configuredPointCount);
-            var state = evaluation.Ready
+            var state = evaluation.IsReady
                 ? CommunicationDriverReadinessState.Ready
                 : diagnostics.State switch
                 {

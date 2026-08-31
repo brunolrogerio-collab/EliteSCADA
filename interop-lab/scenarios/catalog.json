@@ -29,10 +29,12 @@
     {
       "id": "opc-ua",
       "eliteDriver": "opcua",
-      "peer": "node-red-contrib-opcua-suite 0.1.5",
-      "activation": "Node-RED palette; port 4840 reserved",
-      "state": "server-flow-next",
-      "firstScenarios": ["anonymous-session", "user-session", "certificate-session", "browse", "subscriptions", "read-write", "unknown-datatype", "reconnect"]
+      "peer": "open62541 1.5.4 independent server + node-opcua reference client in Node-RED image",
+      "activation": "compose.opcua.yaml",
+      "state": "runnable-overlay",
+      "evidenceLevel": "L2-independent-software-peer",
+      "firstScenarios": ["anonymous-session", "browse", "read-write", "subscriptions"],
+      "nextScenarios": ["user-session", "certificate-session", "unknown-datatype", "reconnect"]
     },
     {
       "id": "iec-60870-5-104",

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.use({ locale: 'pt-BR' });
 
-test('primary shell keeps Runtime, Engineering and Audit navigation coherent', async ({ page }) => {
+test('primary shell keeps Runtime, Engineering, Audit and Licensing navigation coherent', async ({ page }) => {
   await page.goto('/');
 
   let navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
@@ -58,6 +58,17 @@ test('primary shell keeps Runtime, Engineering and Audit navigation coherent', a
   context = page.locator('.app-context');
   await expect(navigation.getByRole('link', { name: /Auditoria/ })).toHaveAttribute('aria-current', 'page');
   await expect(context).toContainText('Auditoria');
+
+  await navigation.getByRole('link', { name: /Licenciamento/ }).click();
+  await expect(page).toHaveURL(/\/licensing$/);
+  navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+  context = page.locator('.app-context');
+  await expect(navigation.getByRole('link', { name: /Licenciamento/ })).toHaveAttribute('aria-current', 'page');
+  await expect(context).toContainText('Licenciamento');
+  await expect(page.getByRole('heading', { name: 'Licenciamento' })).toBeVisible();
+  await expect(page.getByText('Demo', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('200', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Solicitação da máquina' })).toHaveValue(/^ESREQ1\./);
 });
 
 test('primary shell follows the stored Engineering locale', async ({ page }) => {
@@ -67,6 +78,7 @@ test('primary shell follows the stored Engineering locale', async ({ page }) => 
   const navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
   const context = page.locator('.app-context');
   await expect(navigation.getByRole('link', { name: /Audit/ })).toBeVisible();
+  await expect(navigation.getByRole('link', { name: /Licensing/ })).toBeVisible();
   await expect(page.getByText('Industrial platform', { exact: true })).toBeVisible();
   await expect(context).toContainText('Current area');
   await expect(context).toContainText('Engineering');

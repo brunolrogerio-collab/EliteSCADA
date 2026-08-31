@@ -212,7 +212,7 @@ public sealed class ReportEngineeringCoreTests
         var exported = exchange.ExportJson(indented: false);
         var parsed = exchange.ParseJson(exported);
 
-        Assert.Equal(14, parsed.SchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, parsed.SchemaVersion);
         var parsedReport = Assert.Single(parsed.Reports!);
         Assert.NotNull(parsedReport.Id);
         var parsedSection = Assert.Single(parsedReport.Sections!);

@@ -41,15 +41,36 @@ jobs:
       - name: Run EliteSCADA OPC UA product-path L2
         env:
           ELITESCADA_OPCUA_L2_ENDPOINT: opc.tcp://127.0.0.1:4840
-        run: >-
-          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
-          --configuration Release
-          --filter "FullyQualifiedName~OpcUaOpen62541ProductInteropTests"
-          --verbosity normal
+        shell: bash
+        run: |
+          mkdir -p TestResults/opcua-l2
+          set +e
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj \
+            --configuration Release \
+            --filter "FullyQualifiedName~OpcUaOpen62541ProductInteropTests" \
+            --verbosity diagnostic \
+            --logger "trx;LogFileName=opcua-l2.trx" \
+            2>&1 | tee TestResults/opcua-l2/dotnet-test.log
+          test_exit=${PIPESTATUS[0]}
+          set -e
+          exit "$test_exit"
 
-      - name: Dump peer logs on failure
-        if: failure()
-        run: docker logs elitescada-opcua-l2 || true
+      - name: Capture peer logs
+        if: always()
+        run: |
+          mkdir -p TestResults/opcua-l2
+          docker logs elitescada-opcua-l2 > TestResults/opcua-l2/open62541.log 2>&1 || true
+
+      - name: Upload L2 diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opcua-l2-diagnostics
+          path: |
+            TestResults/opcua-l2/**
+            tests/Scada.Drivers.Tests/TestResults/**
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Stop peer
         if: always()

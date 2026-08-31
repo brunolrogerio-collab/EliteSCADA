@@ -8,62 +8,71 @@ Date: 2026-08-30
 
 **Wave 10 is CLOSED / MERGED / POST-MAIN GREEN.**
 
-Final integration-to-main PR:
-
-`#172 — Wave 10 — Python visual events, animation and preview`
-
-Exact validated integration head:
-
-`adb0153dff36e172d0553463cc961a11bd7c7e1e`
-
-EliteSCADA integration CI #873 (`33343012947`): **SUCCESS**
-
-- Backend build, test and smoke: SUCCESS;
-- Web build: SUCCESS;
-- Chromium end-to-end: SUCCESS.
-
-Wave 10 merged to `main` as product merge commit:
+Final product merge:
 
 `15daff2cc076f46f9433812babbd5cbb4b8d9554`
 
-Exact post-main EliteSCADA CI #874 (`33343325987`): **SUCCESS**
+Evidence:
 
-- Backend build, test and smoke: SUCCESS;
-- Web build: SUCCESS;
-- Chromium end-to-end: SUCCESS.
+- Wave 10 integration CI #873: SUCCESS;
+- exact post-main CI #874: SUCCESS across Backend, Web and Chromium.
 
-Wave 10 worker/coordinator convergence now on `main` includes:
+### IMPLEMENTED IN PR / INTEGRATION BRANCH
 
-- canonical visual Events editor and persisted event associations, including Timer `timerIntervalMs`, typed TAG identity `tagId + selector` and stable Client Memory identity;
-- deterministic Runtime Visual tween scheduler and Python `visualTween.request`;
-- mounted Python Preview/Test with bounded sample context, traceback/failing-line diagnostics and protected-data redaction;
-- central `ScriptVisualEventReference -> ClientVisualPythonRuntime -> RuntimeVisualInstance` composition;
-- transient Script/Animation renderer projection that never mutates canonical Engineering;
-- Screen/Popup runtime-instance isolation;
-- mounted Chromium acceptance of the Wave 10 exit path.
+Project priority has changed to **Driver Convergence + Interoperability Lab before Wave 11**.
 
-The proven exit path is:
+Active laboratory integration branch:
 
-`DOM click -> canonical ScriptVisualEventReference -> ClientVisualPythonRuntime -> visualTween.request -> RuntimeVisualTweenScheduler -> RuntimeVisualInstance -> transient canonical renderer projection -> rendered intermediate frame -> deterministic stable final Script value`
+`integration/driver-interop-lab-finalization`
 
-The locked public visual precedence remains:
+The common lab branch is based on post-Wave-10 `main` and currently implements:
 
-`Animation > Script > Binding/Expression > Engineering > Default`
+- existing Mosquitto + Node-RED control plane;
+- existing pinned ControlLogix + CompactLogix CIP peers;
+- open62541 1.5.4 OPC UA peer with independent node-opcua browse/read/write/subscription smoke;
+- pinned lib60870-C IEC-104 deterministic outstation;
+- pinned dnp3py independent DNP3 outstation;
+- unified Linux/Git-Bash and PowerShell commands for all peers and protocol-specific start/status/stop;
+- common CI composition that validates/builds/starts all implemented peers and runs the base MQTT + OPC UA reference smokes;
+- refreshed machine-readable scenario catalog and driver/lab coordination status.
 
-Temporary CI-only PR #171 was closed unmerged after serving its validation purpose. Coordinator PR #170 was merged into the Wave 10 train before final PR #172.
+The common lab must pass its own exact-head interoperability workflow and normal EliteSCADA CI before integration to `main`.
 
-### IMPLEMENTED IN PR
+Current Driver evidence materially supersedes the older parked snapshot:
 
-None for Wave 10. All accepted Wave 10 functional work is merged on `main`.
+- Driver 4 BACnet/IP: worker head `de3357750f79266e43588e7bb26d66093f8cf3d5`, CI #860 green; independent peer still missing.
+- Driver 5 CIP: worker head `18ff6dc989a65c1f8b006f83c08d8394a5510914`, CI #785 green; validation PR #165 L2 smoke #6 green.
+- Driver 6 IEC-104: worker head `d597ef5ed1885b63dcd0b3568287bc1e34330bee`, CI #798 green; validation PR #168 L2 #7 green, 13/13.
+- Driver 7 DNP3: worker head `ac0dd6944f53d19447f3353addd404c02da7249c`, CI #697 green; independent dnp3py validation reaches Online and receives all points but product L2 remains RED because configured Int32 G30V1 is published into canonical cache as Double.
+- Driver 8 Siemens S7: worker head `0c37b922b44f591ebd143470abf3ebaa6b4bffae`, CI #789 green; independent peer still missing.
+- Driver 9 OPC UA: worker head `5ce1f3c912bf3779e892fb136b51b54b0f19a5c6`, Draft PR #169 and CI #869 green; common open62541 peer now removes the basic L2 tooling blocker.
+- Driver 10 MQTT: worker head `232383ec4b51b38775f674bf375cf7f7f595b875`, CI #858 green; independent live evidence includes Mosquitto + HiveMQ, TLS/auth, negative security, broker restart and live freshness. Freshness validation head `25a23c028fb096d77d51ff527a5d74ac54be7736` has all dedicated workflows plus CI #852 green.
 
 ### SPECIFIED / NOT IMPLEMENTED
 
-**Wave 11 — Complete HMI Runtime demo vertical slice** is the next product wave and has not been started by this Wave 10 closure.
+Wave 11 remains **DEFERRED**, with scope unchanged, until Driver convergence is completed or explicitly reprioritized.
 
-Wave 11 owns the complete owner-testable HMI Runtime route/demo composition. Wave 10 intentionally established the canonical event/Python/animation behavior and mounted acceptance without creating a competing Runtime surface.
+Laboratory gaps still to implement:
 
-Parallel Driver and Interoperability Lab work remains isolated and does not change the Wave 10 closure state.
+1. independent Siemens S7 ISO-on-TCP peer/simulator;
+2. independent BACnet/IP peer/reference device with RP/RPM/WP/COV and later BBMD/FDR scenarios.
+
+Driver 7 still requires a protocol-owned correction for canonical Analog Input type preservation before its independent DNP3 L2 test may be called green.
+
+Shared Coordinator-owned Driver convergence remains to be implemented once the common lab is accepted:
+
+1. fail-closed DriverHost registry/planner/factory composition;
+2. canonical rich Communication TAG binding and compatibility migration;
+3. common Data Source readiness activation;
+4. protected credential/certificate/private-key resolution;
+5. installable module/catalog/loading policy;
+6. common rich operation/command surface where simple `WriteAsync` is insufficient;
+7. source timestamp/current-value/historical-event ordering policy;
+8. central Engineering ConnectionTest/Browse/Import/Reconcile registration and protected API/UI exposure;
+9. exact integrated CI before each Driver mainline transition.
+
+Planned convergence order after common lab validation: MQTT -> IEC-104 -> CIP -> OPC UA -> DNP3 after type fix -> S7 after peer evidence -> BACnet after peer evidence.
 
 ## CI policy
 
-CI mode remains **NORMAL**. Exact functional integration/product heads require green evidence before stage transitions. Documentation-only checkpoint commits may use `[skip ci]`; the Wave 10 functional `main` product head `15daff2cc076f46f9433812babbd5cbb4b8d9554` is independently covered by post-main CI #874 GREEN.
+CI mode remains **NORMAL**. Exact integration heads require green evidence. Independent peer health and Driver product-path acceptance are separate claims. Never weaken a test to hide a canonical protocol/type mismatch.

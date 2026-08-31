@@ -289,20 +289,28 @@ internal static class S7IsoProtocol
 
     private static void ValidateReadResponseTransportSize(S7IsoPoint point, byte transportSize)
     {
-        var expected = point.ValueType switch
+        var isCompatible = point.ValueType switch
         {
-            S7IsoValueType.Boolean => (byte)0x03,
-            S7IsoValueType.Int16 or S7IsoValueType.Int32 => (byte)0x05,
-            S7IsoValueType.Float32 => (byte)0x07,
-            _ => (byte)0x04
+            S7IsoValueType.Boolean => transportSize == 0x03,
+            S7IsoValueType.Int16 or S7IsoValueType.Int32 => transportSize is 0x04 or 0x05,
+            S7IsoValueType.Float32 => transportSize == 0x07,
+            _ => transportSize == 0x04
         };
 
-        if (transportSize != expected)
+        if (isCompatible)
+            return;
+
+        var expected = point.ValueType switch
         {
-            throw new S7IsoProtocolException(
-                $"S7 Read Var item for '{point.Tag.Path}' returned transport size 0x{transportSize:X2}, " +
-                $"expected 0x{expected:X2} for {point.ValueType}.");
-        }
+            S7IsoValueType.Boolean => "0x03",
+            S7IsoValueType.Int16 or S7IsoValueType.Int32 => "0x04 or 0x05",
+            S7IsoValueType.Float32 => "0x07",
+            _ => "0x04"
+        };
+
+        throw new S7IsoProtocolException(
+            $"S7 Read Var item for '{point.Tag.Path}' returned transport size 0x{transportSize:X2}, " +
+            $"expected {expected} for {point.ValueType}.");
     }
 
     private static byte[] BuildJobPacket(

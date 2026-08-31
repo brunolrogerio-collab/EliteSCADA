@@ -36,7 +36,10 @@ public sealed class BacnetL2IntegrationTests
         Assert.NotEmpty(initial.Values);
         Assert.Equal(21.5d, Convert.ToDouble(initial.Values[0].Value), 3);
         Assert.True(initial.UsedReadPropertyMultiple);
-        Assert.Equal("degreesCelsius", initial.ObjectState?.Units, ignoreCase: true);
+        // BACpypes emits Engineering Units as BACnet enum value 62. Driver 4
+        // deliberately preserves the observed stack representation rather than
+        // inventing a display-name mapping inside protocol acquisition.
+        Assert.Equal("62", initial.ObjectState?.Units);
 
         var cov = new TaskCompletionSource<double>(TaskCreationOptions.RunContinuationsAsynchronously);
         await using var subscription = (IAsyncDisposable?)await session.TrySubscribeCovAsync(

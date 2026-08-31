@@ -53,7 +53,7 @@ jobs:
         working-directory: interop-lab
         run: docker compose -f compose.yaml -f compose.bacnet.yaml config >/dev/null
 
-      - name: Build and start common peer stack
+      - name: Build and start proven five-peer stack
         working-directory: interop-lab
         run: >-
           docker compose
@@ -62,9 +62,29 @@ jobs:
           -f compose.opcua.yaml
           -f compose.iec104.yaml
           -f compose.dnp3.yaml
-          -f compose.s7.yaml
-          -f compose.bacnet.yaml
           up -d --build --wait --wait-timeout 180
+
+      - name: Build and start S7 peer
+        working-directory: interop-lab
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.s7.yaml
+          up -d --build --wait --wait-timeout 120 s7-python-snap7
+
+      - name: Verify S7 peer TCP readiness
+        run: timeout 20 bash -c 'until nc -z 127.0.0.1 1102; do sleep 1; done'
+
+      - name: Build and start BACnet/IP peer
+        working-directory: interop-lab
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.bacnet.yaml
+          up -d --build --wait --wait-timeout 120 bacnet-bacpypes
+
+      - name: Verify BACnet/IP peer health
+        run: timeout 20 bash -c 'until curl -fsS http://127.0.0.1:18080/health; do sleep 1; done'
 
       - name: MQTT round-trip smoke
         working-directory: interop-lab
@@ -92,7 +112,17 @@ jobs:
           -f compose.bacnet.yaml
           ps
 
-      - name: Dump logs on failure
+      - name: Dump S7 logs on failure
+        if: failure()
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml -f compose.s7.yaml logs --no-color s7-python-snap7 || true
+
+      - name: Dump BACnet/IP logs on failure
+        if: failure()
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml -f compose.bacnet.yaml logs --no-color bacnet-bacpypes || true
+
+      - name: Dump common peer logs on failure
         if: failure()
         working-directory: interop-lab
         run: >-
@@ -102,9 +132,7 @@ jobs:
           -f compose.opcua.yaml
           -f compose.iec104.yaml
           -f compose.dnp3.yaml
-          -f compose.s7.yaml
-          -f compose.bacnet.yaml
-          logs --no-color
+          logs --no-color || true
 
       - name: Stop lab
         if: always()

@@ -2,6 +2,15 @@
 
 Plataforma SCADA / Supervisório Industrial.
 
+## Estado atual e handoff de coordenação
+
+O ponto de entrada para continuar o desenvolvimento sem reconstruir o histórico é:
+
+- [`docs/CURRENT-COORDINATOR-HANDOFF.md`](docs/CURRENT-COORDINATOR-HANDOFF.md) — **fonte operacional de handoff**, com branch/PR atual, último CI aceito, estado de cada Driver, bloqueios e próxima ação;
+- [`docs/README.md`](docs/README.md) — mapa de autoridade dos documentos, separando estado operacional, arquitetura, laboratório e registros históricos.
+
+SHAs escritos em documentos são snapshots. Antes de qualquer mutação, releia o head vivo do GitHub e o Actions daquele SHA exato. PRs de workers e documentos de atribuição antigos não substituem o handoff atual.
+
 ## Princípios do projeto
 
 - arquitetura modular e evolutiva;
@@ -32,7 +41,7 @@ A persistência de engenharia distingue três estados deliberadamente independen
 - **Published Revision**: revisão aprovada para poder ser ativada;
 - **Active Revision**: revisão que foi efetivamente validada e aplicada ao runtime de comunicação.
 
-Publicar uma revisão não altera automaticamente o processo em execução. A ativação monta um runtime candidato isolado, inicia os drivers, exige qualidade `Good` para as TAGs de comunicação e somente confirma a troca após a persistência aceitar o novo ponteiro `ActiveRevision`. Uma falha de compilação, comunicação ou persistência mantém o runtime anterior.
+Publicar uma revisão não altera automaticamente o processo em execução. A ativação monta um runtime candidato isolado, inicia os drivers e somente confirma a troca após a persistência aceitar o novo ponteiro `ActiveRevision`. Na linha de convergência, Drivers já adaptados ao contrato compartilhado usam **readiness do Data Source/protocolo** como gate de ativação; readiness não significa que todas as TAGs já possuam qualidade `Good` ou sequer uma primeira amostra. Caminhos legados ainda não convergidos preservam seu comportamento existente até a integração correspondente. Uma falha de compilação, readiness/comunicação exigida ou persistência mantém o runtime anterior.
 
 A API operacional (`/api/tags`, `/api/alarms`, `/api/drivers` e escrita de TAGs) utiliza o runtime realmente ativo. A simulação embutida funciona como fallback de desenvolvimento enquanto não existe uma revisão industrial ativa.
 

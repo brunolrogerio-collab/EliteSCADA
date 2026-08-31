@@ -1,5 +1,9 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Channels;
 using Scada.Core.Tags;
+using Scada.Drivers.Abstractions;
 using Scada.Drivers.OpcUa;
 
 namespace Scada.Drivers.Tests;
@@ -114,6 +118,85 @@ public sealed class OpcUaOpen62541SecureProductInteropTests
         Assert.Equal(0, provider.SecretResolveCount);
     }
 
+    [Fact]
+    public async Task CommunicationDriver_PeerRestart_ReconnectsAndResubscribesOverPinnedSecureChannel()
+    {
+        if (!TryGetEnvironment(out string endpoint, out string clientPfx, out string serverPin))
+            return;
+
+        string containerName = Environment.GetEnvironmentVariable("ELITESCADA_OPCUA_SECURE_L2_CONTAINER") ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(containerName))
+            return;
+
+        var binding = Binding("RecoveryCounter", "Lab.RecoveryCounter");
+        var tag = binding.Tag;
+        var provider = new FileSecurityMaterialProvider(clientPfx);
+        var factory = new OpcUaFoundationRuntimeSessionFactory(
+            SecureOptions(endpoint, serverPin, OpcUaRuntimeAuthenticationMode.Anonymous),
+            provider);
+        var cache = new RecordingCache();
+        var registry = new FakeRegistry();
+        await using var driver = new OpcUaCommunicationDriver(
+            "opcua-secure-recovery",
+            "OPC UA Secure Recovery L2",
+            cache,
+            registry,
+            [tag],
+            factory,
+            [TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(250), TimeSpan.FromMilliseconds(500)],
+            endpoint,
+            TimeSpan.FromMilliseconds(100));
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        bool peerStopped = false;
+        try
+        {
+            await driver.StartAsync(timeout.Token);
+
+            TagValue initial = await cache.WaitForAsync(
+                tag.Id,
+                value => value.Quality == TagQuality.Good,
+                timeout.Token);
+            Assert.Equal(37, Assert.IsType<int>(initial.Value));
+
+            await RunDockerAsync(timeout.Token, "stop", "-t", "0", containerName);
+            peerStopped = true;
+
+            TagValue failed = await cache.WaitForAsync(
+                tag.Id,
+                value => value.Quality == TagQuality.BadCommunication,
+                timeout.Token);
+            Assert.Equal(37, Assert.IsType<int>(failed.Value));
+            Assert.Equal(CommunicationDriverOperationalState.Reconnecting, driver.GetCommunicationDiagnostics().State);
+
+            await RunDockerAsync(timeout.Token, "start", containerName);
+            peerStopped = false;
+
+            TagValue recovered = await cache.WaitForAsync(
+                tag.Id,
+                value => value.Quality == TagQuality.Good,
+                timeout.Token);
+            Assert.Equal(37, Assert.IsType<int>(recovered.Value));
+
+            CommunicationDriverDiagnosticSnapshot diagnostics = driver.GetCommunicationDiagnostics();
+            Assert.Equal(CommunicationDriverOperationalState.Healthy, diagnostics.State);
+            Assert.True(diagnostics.Counters.Connections >= 2);
+            Assert.True(diagnostics.Counters.Disconnections >= 1);
+            Assert.True(diagnostics.Counters.Reconnects >= 1);
+            Assert.True(diagnostics.Counters.Cycles >= 2);
+            Assert.True(provider.CertificateResolveCount >= 2);
+            Assert.Equal(0, provider.SecretResolveCount);
+        }
+        finally
+        {
+            if (peerStopped)
+            {
+                using var recoveryTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await RunDockerAsync(recoveryTimeout.Token, "start", containerName);
+            }
+        }
+    }
+
     private static OpcUaRuntimeConnectionOptions SecureOptions(
         string endpoint,
         string serverPin,
@@ -160,6 +243,33 @@ public sealed class OpcUaOpen62541SecureProductInteropTests
         return !string.IsNullOrWhiteSpace(endpoint) &&
                !string.IsNullOrWhiteSpace(clientPfx) &&
                !string.IsNullOrWhiteSpace(serverPin);
+    }
+
+    private static async Task RunDockerAsync(CancellationToken cancellationToken, params string[] arguments)
+    {
+        var startInfo = new ProcessStartInfo("docker")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+        foreach (string argument in arguments)
+            startInfo.ArgumentList.Add(argument);
+
+        using var process = new Process { StartInfo = startInfo };
+        if (!process.Start())
+            throw new InvalidOperationException("Failed to start Docker CLI for OPC UA recovery L2.");
+
+        Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        Task<string> stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+        string stdout = await stdoutTask;
+        string stderr = await stderrTask;
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException(
+                $"Docker command failed with exit code {process.ExitCode}. stdout='{stdout.Trim()}' stderr='{stderr.Trim()}'.");
+        }
     }
 
     private sealed class FileSecurityMaterialProvider : IOpcUaRuntimeSecurityMaterialProvider
@@ -210,5 +320,72 @@ public sealed class OpcUaOpen62541SecureProductInteropTests
             return ValueTask.FromResult(
                 X509CertificateLoader.LoadPkcs12FromFile(_pfxPath, string.Empty));
         }
+    }
+
+    private sealed class RecordingCache : ICurrentTagCache
+    {
+        private readonly ConcurrentDictionary<Guid, TagValue> _values = new();
+        private readonly Channel<TagValue> _updates = Channel.CreateUnbounded<TagValue>();
+
+        public bool TryGet(Guid tagId, out TagValue? value)
+        {
+            bool found = _values.TryGetValue(tagId, out TagValue? current);
+            value = current;
+            return found;
+        }
+
+        public IReadOnlyCollection<TagValue> Snapshot() => _values.Values.ToArray();
+
+        public ValueTask<TagValue?> UpdateAsync(
+            TagDefinition tag,
+            TagValue value,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            _values.TryGetValue(tag.Id, out TagValue? previous);
+            _values[tag.Id] = value;
+            _updates.Writer.TryWrite(value);
+            return ValueTask.FromResult(previous);
+        }
+
+        public async Task<TagValue> WaitForAsync(
+            Guid tagId,
+            Func<TagValue, bool> predicate,
+            CancellationToken cancellationToken)
+        {
+            while (true)
+            {
+                TagValue value = await _updates.Reader.ReadAsync(cancellationToken);
+                if (value.TagId == tagId && predicate(value))
+                    return value;
+            }
+        }
+    }
+
+    private sealed class FakeRegistry : ITagRegistry
+    {
+        private readonly Dictionary<Guid, TagDefinition> _tags = [];
+
+        public TagDefinition Register(TagDefinition tag)
+        {
+            _tags[tag.Id] = tag;
+            return tag;
+        }
+
+        public TagDefinition Upsert(TagDefinition tag)
+        {
+            _tags[tag.Id] = tag;
+            return tag;
+        }
+
+        public bool TryGet(Guid tagId, out TagDefinition? tag) => _tags.TryGetValue(tagId, out tag);
+
+        public bool TryGetByPath(string path, out TagDefinition? tag)
+        {
+            tag = _tags.Values.FirstOrDefault(x => x.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
+            return tag is not null;
+        }
+
+        public IReadOnlyCollection<TagDefinition> Snapshot() => _tags.Values.ToArray();
     }
 }

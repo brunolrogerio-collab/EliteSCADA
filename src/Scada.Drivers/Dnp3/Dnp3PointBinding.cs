@@ -42,7 +42,7 @@ public sealed record Dnp3PointBinding(
     Dnp3EventClass? ExpectedEventClass = null,
     bool Writable = false)
 {
-    public string PortableAddress => $"dnp3:{Dnp3VariationRules.GetPointKindToken(PointKind)}:{Index}";
+    public string PortableAddress => new Dnp3PortableAddress(PointKind, Index).ToString();
 
     public void Validate()
     {

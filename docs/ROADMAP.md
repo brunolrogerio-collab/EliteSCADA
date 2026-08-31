@@ -1,28 +1,28 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-08-30  
-**Active direction:** **WAVE 10 — Python visual events + animation + preview**
+**Next direction:** **WAVE 11 — Complete HMI Runtime demo vertical slice — READY / NOT STARTED**
 
 Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
 Parallel execution model: `docs/DEVELOPMENT-WAVES.md`.  
 Live worker ownership: `docs/CHAT-WORK-ASSIGNMENTS.md`.  
-Current coordinator checkpoint: `docs/COORDINATOR-HANDOFF.md`.  
+Current coordinator checkpoint: `LAST CHANGE.md`.  
 TAG bit contract: `docs/TAG-BIT-ACCESS-AND-BIT-BINDING.md`.  
 Visual expression contract: `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`.  
-Wave 09 shared query contract: `docs/WAVE-09-HISTORICAL-QUERY-CONTRACT.md`.  
-Wave 09 Historical Data Browser context: `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`.  
-Wave 09 Reporting contract: `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`.  
 CI policy: `docs/CI-USAGE-POLICY.md`.
 
 Engineering Import/Export remains cross-cutting: canonical Engineering entities participate in versioned JSON, validation/Preview/Apply, Working/revision lifecycle, PostgreSQL persistence where applicable and `.escadapkg` backup/restore.
 
 ## Current validated foundation
 
-Current observed `main` baseline before Wave 10 product merge:
+Wave 10 product merge on `main`:
 
-`d7ef5db6a583fa949059f6b00cb2dfab3549e919`
+`15daff2cc076f46f9433812babbd5cbb4b8d9554`
 
-Wave 09 is closed on `main` and is the product foundation consumed by Wave 10.
+Validation evidence:
+
+- exact integration head `adb0153dff36e172d0553463cc961a11bd7c7e1e` — CI #873 SUCCESS;
+- exact post-main product head `15daff2cc076f46f9433812babbd5cbb4b8d9554` — CI #874 SUCCESS.
 
 ## Completed waves and follow-ups
 
@@ -34,7 +34,8 @@ Wave 09 is closed on `main` and is the product foundation consumed by Wave 10.
 - **Wave 08 — COMPLETE / MERGED / POST-MERGE GREEN.** Main merge `bfd17d035d905e9bcae263f68244cfb2b6453aa2`; final integration CI #531 and post-merge CI #533 green.
 - **08-FOLLOW-A — COMPLETE / MERGED / POST-MERGE GREEN.** PR #105; post-merge CI #543 green.
 - **08-FOLLOW-B — COMPLETE / MERGED / POST-MERGE GREEN.** Final product head `dededaca980fdb72b5d4955685ab1161aca441fd`; CI #657 and #658 green.
-- **Wave 09 — COMPLETE / MERGED.** Screens, Popups, Dynamos, canonical navigation, Historical Data Browser and Reporting/Report Designer are merged on `main` and form the Wave 10 visual/runtime foundation.
+- **Wave 09 — COMPLETE / MERGED.** Screens, Popups, Dynamos, canonical navigation, Historical Data Browser and Reporting/Report Designer.
+- **Wave 10 — COMPLETE / MERGED / POST-MAIN GREEN.** Final PR #172; integration CI #873 green; product merge `15daff2cc076f46f9433812babbd5cbb4b8d9554`; post-main CI #874 green.
 
 ## Ordered path to v0.1
 
@@ -48,8 +49,8 @@ Wave 08      Graphical Editor + Image + Engineering Development Monitor         
 08-FOLLOW-A  TAG Bit Access + Driver Bit-Level Boolean Binding                           COMPLETE
 08-FOLLOW-B  Typed Visual Expressions + Boolean Conditions + Analog Fill                 COMPLETE
 Wave 09      Screens + Popups + Dynamos + navigation + Historical Data + Reporting       COMPLETE
-Wave 10      Python visual events + animation + preview                                  ACTIVE / INTEGRATED
-Wave 11      Complete HMI Runtime demo vertical slice                                    WAITING
+Wave 10      Python visual events + animation + preview                                  COMPLETE
+Wave 11      Complete HMI Runtime demo vertical slice                                    READY / NOT STARTED
 Wave 12      Hardening                                                                   WAITING
 Wave 13      Windows x64 product package                                                 WAITING
 Wave 14      Product-owner validation                                                    WAITING
@@ -57,47 +58,33 @@ Wave 15      Feedback/corrections                                               
 FINAL        EliteSCADA v0.1 — Full Product Validation Preview
 ```
 
-## Wave 10 — ACTIVE / INTEGRATED
+## Wave 10 — CLOSED
 
-Integration train:
+Wave 10 established one canonical path for visual Python behavior rather than a renderer-private side channel:
 
-`integration/wave-10-python-visual-events-animation-preview`
+`click -> canonical event association -> Client Visual Python sandbox -> public Runtime Visual command -> Animation layer -> stable Script final value -> canonical renderer`
 
-Frozen product base:
+Delivered scope includes:
 
-`bbfd730e404b0dee2c05e0ec0afb979b1b14ea35`
+- persisted canonical visual event associations and Engineering Events editor;
+- object interaction, Timer interval and typed TAG value-change identities;
+- deterministic visual animation/tween with cancellation/replacement/repeat/easing behavior;
+- Python `visualTween.request` through the accepted capability bridge;
+- mounted Python Preview/Test with bounded sample context and actionable sanitized diagnostics;
+- transient renderer composition preserving `Animation > Script > Binding/Expression > Engineering > Default`;
+- exact browser acceptance on mounted Screen/Popup visual runtime composition.
 
-Wave 10 scope includes:
+## Wave 11 — NEXT / READY
 
-- canonical visual event associations in Engineering, including object interaction, Timer interval and typed TAG value-change identity;
-- Client Visual Python event dispatch through the accepted sandbox bridge;
-- renderer-native deterministic visual tween/animation over public Runtime Visual properties;
-- explicit precedence `Animation > Script > Binding/Expression > Engineering > Default`;
-- mounted Python Preview/Test with bounded sample context, actionable traceback/failing-line diagnostics and protected-data redaction;
-- mounted browser acceptance of `click -> event reference -> Python -> visualTween.request -> rendered intermediate animation -> deterministic stable final value`.
+Wave 11 owns the complete owner-testable HMI Runtime demo vertical slice. It should compose the already accepted Screen/Popup/Dynamo, realtime TAG, Client Memory, Python visual events, animation, alarms/trends/history/reporting and operational navigation into the real Runtime product surface rather than creating alternate models.
 
-Worker tracks DEV 1/2/3 and coordinator runtime composition have converged into the integration train. Coordinator PR #170 merged as `ee5d3c3f622765f79b49f32fa92c22760d195ae2`.
-
-The exact functional coordinator product head `8b7871bcd5a14ae17ffb070732f5a92c60462536` passed EliteSCADA CI #872: Backend SUCCESS, Web build SUCCESS and Chromium SUCCESS with 330/330 tests passed.
-
-Wave 10 remains ACTIVE until the integration branch submitted to `main` is validated by normal CI, merged, and exact post-main CI is green.
-
-The complete owner-testable HMI Runtime demo vertical slice is deliberately Wave 11. Wave 10 establishes the canonical runtime behavior and mounted acceptance without inventing a second product Runtime surface.
-
-## Remaining v0.1 sequence
-
-- **Wave 10:** integrated; main closure gate pending.
-- **Wave 11:** complete owner-testable HMI Runtime demo vertical slice.
-- **Wave 12:** hardening.
-- **Wave 13:** Windows x64 product package.
-- **Wave 14:** product-owner validation.
-- **Wave 15:** feedback/corrections; v0.1 requires P0=0, P1=0 and required validation green.
+Wave 11 is **not started by this Wave 10 closure**. Its branch/worker assignments and frozen base should be established explicitly when execution begins.
 
 ## Protocol boundary and parallel Drivers
 
 Required v0.1 protocol remains Modbus TCP. Simulation, Client Memory, Server Memory and Gateway remain part of product validation.
 
-Additional protocol Drivers may continue on isolated parallel branches, but Wave work has priority and Driver heads do not merge automatically into `main`. Driver integration is a later explicit Coordinator decision.
+Additional protocol Drivers may continue on isolated parallel branches, but product Wave work has priority and Driver heads do not merge automatically into `main`.
 
 ## Development quality
 
@@ -109,4 +96,4 @@ Additional protocol Drivers may continue on isolated parallel branches, but Wave
 - preserve canonical Engineering/backend authority;
 - use Actions to buy evidence, not ceremony;
 - require final integrated CI and healthy post-merge `main` for every functional wave;
-- keep assignment board/handoff synchronized because `siga` depends on them.
+- keep coordination checkpoints synchronized because `siga` depends on them.

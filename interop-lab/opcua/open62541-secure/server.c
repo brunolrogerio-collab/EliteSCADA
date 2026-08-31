@@ -92,7 +92,8 @@ int main(int argc, char **argv) {
     if(namespaceIndex != LAB_NAMESPACE_INDEX ||
        addInt32Variable(server, "Lab.SecureCounter", "Secure Counter", 7) != UA_STATUSCODE_GOOD ||
        addInt32Variable(server, "Lab.UserCounter", "User Counter", 17) != UA_STATUSCODE_GOOD ||
-       addInt32Variable(server, "Lab.CertificateCounter", "Certificate Counter", 27) != UA_STATUSCODE_GOOD) {
+       addInt32Variable(server, "Lab.CertificateCounter", "Certificate Counter", 27) != UA_STATUSCODE_GOOD ||
+       addInt32Variable(server, "Lab.RecoveryCounter", "Recovery Counter", 37) != UA_STATUSCODE_GOOD) {
         UA_Server_delete(server);
         return 7;
     }

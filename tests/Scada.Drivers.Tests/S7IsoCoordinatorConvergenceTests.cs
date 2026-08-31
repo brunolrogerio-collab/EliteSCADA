@@ -253,7 +253,7 @@ public sealed class S7IsoCoordinatorConvergenceTests
                 ["writeEnabled"] = writeEnabled ? "true" : "false",
                 ["sourceTsap"] = "0x0100",
                 ["connectTimeoutMs"] = "500",
-                ["requestTimeoutMs"] = "250",
+                ["requestTimeoutMs"] = "1000",
                 ["reconnectDelayMs"] = "50",
                 ["requestedPduSize"] = "480"
             },

@@ -2,4 +2,12 @@
   <ItemGroup>
     <ProjectReference Include="../Scada.Core/Scada.Core.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MQTTnet" Version="5.2.0.1603" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Scada.Drivers.Tests" />
+  </ItemGroup>
 </Project>

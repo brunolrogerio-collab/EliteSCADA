@@ -72,10 +72,24 @@ internal static class S7IsoProtocol
             throw new S7IsoProtocolException("S7 ISO peer did not return a COTP Connection Confirm TPDU.");
 
         var destinationReference = BinaryPrimitives.ReadUInt16BigEndian(packet.Slice(6, 2));
-        if (destinationReference != CotpSourceReference)
-            throw new S7IsoProtocolException(
-                $"COTP Connection Confirm destination reference 0x{destinationReference:X4} does not match " +
-                $"the request source reference 0x{CotpSourceReference:X4}.");
+        if (destinationReference == CotpSourceReference)
+            return;
+
+        // python-snap7 3.1.2's pure-Python ServerISOConnection emits one extra
+        // reserved/CDT byte after the COTP CC TPDU type. Its own client emits and
+        // parses the canonical layout, but accepting this identifiable server-side
+        // variant is harmless because we still require the echoed source reference.
+        if (cotpHeaderLength >= 7 &&
+            packet.Length >= 12 &&
+            packet[6] == 0x00 &&
+            BinaryPrimitives.ReadUInt16BigEndian(packet.Slice(7, 2)) == CotpSourceReference)
+        {
+            return;
+        }
+
+        throw new S7IsoProtocolException(
+            $"COTP Connection Confirm destination reference 0x{destinationReference:X4} does not match " +
+            $"the request source reference 0x{CotpSourceReference:X4}.");
     }
 
     public static byte[] BuildSetupCommunication(ushort pduReference, ushort requestedPduSize)

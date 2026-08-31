@@ -55,10 +55,12 @@ public static class Dnp3RuntimeValueMapper
 
     private static object NormalizeAnalog(TagDataType dataType, object value) => dataType switch
     {
-        TagDataType.Int16 when value is short i16 => i16,
-        TagDataType.Int32 when value is int i32 => i32,
-        TagDataType.Float when value is float f32 && float.IsFinite(f32) => f32,
-        TagDataType.Double when value is double f64 && double.IsFinite(f64) => f64,
+        // Explicit boxing prevents the switch expression from selecting a wider
+        // numeric common type (for example Double) before converting to object.
+        TagDataType.Int16 when value is short i16 => (object)i16,
+        TagDataType.Int32 when value is int i32 => (object)i32,
+        TagDataType.Float when value is float f32 && float.IsFinite(f32) => (object)f32,
+        TagDataType.Double when value is double f64 && double.IsFinite(f64) => (object)f64,
         _ => throw new ArgumentException($"DNP3 analog value is incompatible with canonical type {dataType}.", nameof(value))
     };
 }

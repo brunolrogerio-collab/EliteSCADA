@@ -1,0 +1,97 @@
+name: OPC UA Secure Product L2
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/Scada.Drivers/OpcUa/**"
+      - "tests/Scada.Drivers.Tests/OpcUaOpen62541SecureProductInteropTests.cs"
+      - "interop-lab/opcua/open62541-secure/**"
+      - ".github/workflows/opcua-secure-product-l2.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  open62541-secure-product-path:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.400
+
+      - name: Generate ephemeral OPC UA PKI
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p TestResults/opcua-secure-l2/pki
+          cd TestResults/opcua-secure-l2/pki
+          openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 1 \
+            -subj "/CN=EliteSCADA open62541 secure L2" \
+            -addext "subjectAltName=URI:urn:elitescada:interop:opcua:server,DNS:localhost,IP:127.0.0.1" \
+            -keyout server-key.pem -out server-cert.pem
+          openssl x509 -in server-cert.pem -outform DER -out server-cert.der
+          openssl pkcs8 -topk8 -nocrypt -in server-key.pem -outform DER -out server-key.der
+          openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 1 \
+            -subj "/CN=EliteSCADA OPC UA Client" \
+            -addext "subjectAltName=URI:urn:elitescada:opcua:client" \
+            -keyout client-key.pem -out client-cert.pem
+          openssl x509 -in client-cert.pem -outform DER -out client-cert.der
+          openssl pkcs12 -export -out client.pfx -inkey client-key.pem -in client-cert.pem -passout pass:
+          echo "SERVER_PIN=$(sha256sum server-cert.der | awk '{print $1}')" >> "$GITHUB_ENV"
+          echo "CLIENT_PFX=$PWD/client.pfx" >> "$GITHUB_ENV"
+          echo "PKI_DIR=$PWD" >> "$GITHUB_ENV"
+
+      - name: Build pinned secure open62541 peer
+        run: docker build -t elitescada-opcua-secure-l2 interop-lab/opcua/open62541-secure
+
+      - name: Start secure open62541 peer
+        shell: bash
+        run: |
+          docker run -d --name elitescada-opcua-secure-l2 --network host \
+            -v "$PKI_DIR:/pki:ro" elitescada-opcua-secure-l2 \
+            /pki/server-cert.der /pki/server-key.der /pki/client-cert.der
+          timeout 30 bash -c 'until nc -z 127.0.0.1 4840; do sleep 1; done'
+
+      - name: Restore driver tests
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+
+      - name: Run EliteSCADA secure OPC UA product-path L2
+        env:
+          ELITESCADA_OPCUA_SECURE_L2_ENDPOINT: opc.tcp://127.0.0.1:4840
+          ELITESCADA_OPCUA_SECURE_L2_CLIENT_PFX: ${{ env.CLIENT_PFX }}
+          ELITESCADA_OPCUA_SECURE_L2_SERVER_SHA256: ${{ env.SERVER_PIN }}
+        shell: bash
+        run: |
+          mkdir -p TestResults/opcua-secure-l2
+          set +e
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj \
+            --configuration Release \
+            --filter "FullyQualifiedName~OpcUaOpen62541SecureProductInteropTests" \
+            --verbosity normal \
+            --logger "trx;LogFileName=opcua-secure-l2.trx" \
+            2>&1 | tee TestResults/opcua-secure-l2/dotnet-test.log
+          test_exit=${PIPESTATUS[0]}
+          set -e
+          exit "$test_exit"
+
+      - name: Capture peer logs
+        if: always()
+        run: docker logs elitescada-opcua-secure-l2 > TestResults/opcua-secure-l2/open62541.log 2>&1 || true
+
+      - name: Upload secure L2 diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opcua-secure-l2-diagnostics
+          path: |
+            TestResults/opcua-secure-l2/**
+            tests/Scada.Drivers.Tests/TestResults/**
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Stop peer
+        if: always()
+        run: docker rm -f elitescada-opcua-secure-l2 || true

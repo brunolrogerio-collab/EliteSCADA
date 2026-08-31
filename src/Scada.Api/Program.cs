@@ -1,6 +1,7 @@
 using System.Text;
 using Scada.Api.Historian;
 using Scada.Api.HostedServices;
+using Scada.Api.Licensing;
 using Scada.Api.Persistence;
 using Scada.Api.ProjectPackages;
 using Scada.Api.Realtime;
@@ -50,20 +51,7 @@ builder.Services.AddSingleton<IGatewayEngineeringRegistry>(sp =>
 builder.Services.AddSingleton<DemoRuntimeServices>();
 
 builder.Services.AddSingleton<IEngineeringDriverCompiler, EngineeringDriverCompiler>();
-builder.Services.AddSingleton<GatewayEngineeringRuntimeCoordinator>(sp =>
-    new GatewayEngineeringRuntimeCoordinator(
-        new EngineeringRuntimeCoordinator(
-            sp.GetRequiredService<IScadaEventBus>(),
-            sp.GetRequiredService<IEngineeringDriverCompiler>(),
-            TimeSpan.FromSeconds(Math.Max(
-                1,
-                builder.Configuration.GetValue<double?>("EngineeringRuntime:ActivationTimeoutSeconds") ?? 10)),
-            sp.GetRequiredService<IServerMemoryRetentionStore>()),
-        sp.GetRequiredService<IScadaEventBus>()));
-builder.Services.AddSingleton<IEngineeringRuntimeCoordinator>(sp =>
-    sp.GetRequiredService<GatewayEngineeringRuntimeCoordinator>());
-builder.Services.AddSingleton<IGatewayRuntimeDiagnosticsProvider>(sp =>
-    sp.GetRequiredService<GatewayEngineeringRuntimeCoordinator>());
+builder.AddProductLicensedEngineeringRuntime();
 
 builder.Services.AddSingleton<IEngineeringExchangeService, EngineeringExchangeService>();
 builder.Services.AddSingleton<IProjectPackageService, ProjectPackageService>();
@@ -106,6 +94,7 @@ app.MapAuditEndpoints();
 app.MapAlarmShelvingEndpoints();
 app.MapCommandEndpoints();
 app.MapInternalMemoryEndpoints();
+app.MapProductLicensingEndpoints();
 if (historicalQueryEnabled) app.MapHistoricalQueryEndpoints();
 
 // Public health intentionally exposes no plant, driver, project or historian detail.

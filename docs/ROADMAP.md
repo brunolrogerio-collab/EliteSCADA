@@ -1,30 +1,30 @@
 # EliteSCADA Roadmap
 
-**Status date:** 2026-08-30  
+**Status date:** 2026-08-30 (BRT)  
 **Active direction:** **DRIVER CONVERGENCE**  
 **Wave 11:** **DEFERRED UNTIL DRIVER CONVERGENCE**
 
-Authoritative detailed plan: `docs/V0.1-FULL-PRODUCT-VALIDATION-PLAN.md`.  
+Authoritative product intent: `PROJECT GOAL.md`.  
+Coordinator handoff: `docs/COORDINATOR-HANDOFF.md`.  
 Live ownership: `docs/CHAT-WORK-ASSIGNMENTS.md`.  
 Driver/lab status: `docs/DRIVER-AND-INTEROP-LAB-STATUS.md`.  
 Shared convergence issue: `#174`.  
-Current coordinator checkpoint: `LAST CHANGE.md`.  
-CI policy: `docs/CI-USAGE-POLICY.md`.
+Current checkpoint: `LAST CHANGE.md`.
 
-## Current validated product foundation
+## Validated foundation
 
 Wave 10 is COMPLETE / MERGED / POST-MAIN GREEN.
 
-Final Wave 10 product merge:
+- final Wave 10 product merge: `15daff2cc076f46f9433812babbd5cbb4b8d9554`;
+- final Wave 10 integration CI #873: GREEN;
+- post-main CI #874: GREEN.
 
-`15daff2cc076f46f9433812babbd5cbb4b8d9554`
+The common seven-peer Driver interoperability laboratory is COMPLETE / MERGED:
 
-Evidence:
-
-- Wave 10 integration head `adb0153dff36e172d0553463cc961a11bd7c7e1e` — CI #873 SUCCESS;
-- exact post-main Wave 10 product head — CI #874 SUCCESS.
-
-The common seven-peer Driver interoperability laboratory is also now merged on `main` through PR #173, merge `a08cca94795a5afa14bf8af39b8bf2c6f7df71ae`.
+- PR #173 merge: `a08cca94795a5afa14bf8af39b8bf2c6f7df71ae`;
+- functional lab head: `3ff2d6393c4e8734b4b1c08abd2bd8466f78f400`;
+- Interop Lab Smoke #42: GREEN;
+- normal CI #886: GREEN after rerunning unrelated Modbus timing failures on unchanged functional SHA.
 
 ## Ordered path to v0.1
 
@@ -49,96 +49,75 @@ Wave 15      Feedback/corrections                                               
 FINAL        EliteSCADA v0.1 — Full Product Validation Preview
 ```
 
-## Driver convergence — ACTIVE / PRIORITY
+## Driver convergence — ACTIVE
 
-The additional industrial Drivers are an explicit pre-Wave-11 completion objective.
+Shared authority:
 
-Execution strategy:
+- issue #174;
+- branch `coordination/driver-convergence-v3`;
+- Draft PR #175;
+- audited PR head `06c7d408c76926bf5d37dfec4be20ea6044f52b1`;
+- exact normal CI #895 GREEN.
 
-1. use the merged common reproducible interoperability laboratory;
-2. converge Drivers with product + independent-peer evidence first;
-3. return real product/protocol defects to the owning worker with exact evidence;
-4. implement shared host contracts once under Coordinator issue #174;
-5. preserve protocol branches as isolated evidence sources rather than merging historical branch baggage wholesale;
-6. require exact integrated CI before every mainline Driver transition.
+Current shared foundation includes registry/planner/factory contracts, readiness, protected-material resolution and a **partial** rich Communication TAG binding scaffold.
 
-Current evidence-driven convergence order:
+### Immediate blocking slice: Engineering schema v15
+
+The next Coordinator step is not Driver import yet. Complete the Communication TAG binding lifecycle first:
+
+1. advance canonical Engineering to schema v15 with <=v14 compatibility;
+2. wire rich-binding validation into Preview;
+3. preserve binding through Apply/materialization/export;
+4. enforce compatibility `Address == CommunicationBinding.PortableAddress`;
+5. preserve `TagValueSelector` and ADR-007 transform-before-selection semantics;
+6. implement TAG CSV fidelity where applicable;
+7. prove JSON/CSV/Preview/Apply/re-export, `.escadapkg`, revisions and PostgreSQL persistence;
+8. exact-head normal CI.
+
+At audited #175 head, `EngineeringExchangeService.CurrentSchemaVersion` remains 14 and TAG Apply drops `CommunicationBinding`, so the v15 scaffold must **not** be reported as complete merely because CI #895 is green.
+
+## Evidence-driven Driver order
+
+After the v15 gate:
 
 `MQTT -> IEC-104 -> CIP -> OPC UA -> DNP3 -> Siemens S7 -> BACnet/IP`
 
-OPC UA, DNP3, S7 and BACnet enter shared integration after their currently assigned L2/fix gates close.
+- MQTT: ready for shared convergence; broad independent broker/security/restart/freshness evidence green.
+- IEC-104: ready; independent lib60870 L2 13/13 green.
+- CIP: ready; independent CIP L2 green.
+- OPC UA: worker product-path open62541 L2 still active.
+- DNP3: worker must fix real configured Int32 -> canonical Double mismatch; PR #167 remains active.
+- Siemens S7: worker product-path python-snap7 L2 still active.
+- BACnet/IP: worker product-path BACpypes discovery/RP/RPM/WP/COV/recovery L2 still active.
 
-## Interoperability laboratory — COMPLETE / MERGED / SEVEN-PEER STACK GREEN
+Protocol branches remain isolated source/evidence lines. Re-port/adapt narrowly against current `main`; never merge historical Driver branch baggage wholesale.
 
-Merged PR:
+## Interoperability laboratory — COMPLETE
 
-`#173 — Driver interoperability lab — common multi-protocol peer stack`
+Common test-only peers on main:
 
-Merge commit:
+- MQTT — Eclipse Mosquitto + Node-RED;
+- Allen-Bradley CIP — ControlLogix + CompactLogix simulator profiles;
+- OPC UA — open62541 + node-opcua reference client;
+- IEC-104 — lib60870-C outstation;
+- DNP3 — dnp3py outstation;
+- Siemens S7 — python-snap7 server;
+- BACnet/IP — BACpypes peer.
 
-`a08cca94795a5afa14bf8af39b8bf2c6f7df71ae`
-
-Exact validated functional head:
-
-`3ff2d6393c4e8734b4b1c08abd2bd8466f78f400`
-
-Validation:
-
-- **Interop Lab Smoke #42: SUCCESS**;
-- **EliteSCADA CI #886: SUCCESS** after rerunning failed jobs on the unchanged functional SHA;
-- no product/Modbus code was modified in response to the first-attempt timing flakes;
-- later pre-merge commits were documentation-only `[skip ci]`.
-
-Common test peers now include:
-
-- MQTT — Eclipse Mosquitto + Node-RED control plane;
-- Allen-Bradley CIP — pinned ControlLogix + CompactLogix simulators;
-- OPC UA — open62541 1.5.4 + independent node-opcua reference client;
-- IEC 60870-5-104 — pinned lib60870-C deterministic outstation;
-- DNP3 — pinned dnp3py independent outstation;
-- Siemens S7 ISO-on-TCP — python-snap7 3.1.2 deterministic server/DB peer;
-- BACnet/IP — BACpypes 0.19.0 independent device/reference peer.
-
-Smoke #42 proves the whole tool stack can build/start together, S7 TCP readiness, BACnet health, MQTT round-trip and OPC UA browse/read/write/subscription reference behavior.
-
-This remains **tool/peer readiness**, not automatic Driver product acceptance. Each Driver still requires its own product-path L2 where assigned.
-
-## Shared Coordinator scope — issue #174
-
-Coordinator owns once for all Drivers:
-
-- fail-closed Driver registry/planner/factory and central activation;
-- canonical rich Communication TAG binding + compatibility migration;
-- common Data Source readiness;
-- protected credential/certificate/private-key resolution;
-- module/catalog/loading policy;
-- common rich operation surface where simple `WriteAsync` is insufficient;
-- SourceTimestamp/ServerTimestamp/current/historical late-event policy;
-- central Engineering ConnectionTest/Browse/Import/Reconcile API/UI;
-- integration and mainline CI.
-
-Workers must not create protocol-private alternatives for these shared contracts.
+Peer/tool readiness is not automatic Driver product acceptance. L0/L1/L2/L3/L4, normal CI, licensing and conformance remain separate claims.
 
 ## Wave 11 — DEFERRED
 
-Wave 11 still owns the complete owner-testable HMI Runtime demo vertical slice. Its scope is unchanged. No Wave 11 implementation begins while Driver convergence is the active priority unless explicitly reprioritized.
+Wave 11 still owns the complete owner-testable HMI Runtime demo vertical slice. Its scope is unchanged. Do not start Wave 11 implementation while Driver convergence is the active priority unless explicitly reprioritized.
 
-## Evidence discipline
+## Quality locks
 
-- L0: unit/codec/contracts;
-- L1: same-stack/in-process/loopback;
-- L2: independent software peer over real wire;
-- L3: representative vendor simulator/device;
-- L4: representative hardware/site.
-
-Normal CI, L2/L3/L4, licensing and conformance are separate gates. Never improve a status by weakening a test.
-
-## Development quality
-
-- preserve canonical Engineering/backend authority;
-- no Driver-to-Driver coupling;
+- canonical Engineering/backend authority;
 - no plaintext protected material;
-- fix root causes rather than widening timeouts/assertions merely for green badges;
-- third-party lab peers stay test-only unless an explicit production dependency decision says otherwise;
-- use Actions for meaningful evidence, not ritual;
-- keep `LAST CHANGE.md`, Roadmap and assignment state synchronized because continuation depends on them.
+- no Driver-to-Driver coupling;
+- no test weakening to hide real product/protocol defects;
+- `Address == CommunicationBinding.PortableAddress` during v15 migration;
+- `TagValueSelector` remains generic bit identity;
+- ADR-007 transform precedes bit selection;
+- exact final integration/main CI before stage transitions;
+- keep `LAST CHANGE.md`, assignments, Driver status and handoff synchronized.

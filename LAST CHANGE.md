@@ -12,7 +12,7 @@ Live GitHub refs and exact-SHA Actions evidence override stale SHAs copied into 
 
 ## Current checkpoint
 
-- `main` at last audit: `d0a4e13816992b0a0eb0eb68c36e78c560cc1d88`.
+- `main` at last audit: `d0a4e13816992b0a0eb68c36e78c560cc1d88`.
 - Active coordinator branch: `coordination/driver-convergence-v3`.
 - PR #175: **DRAFT / OPEN / MERGEABLE / DO NOT MERGE until controlled integration**.
 - Driver coordinator convergence: **7/7 CLOSED**.
@@ -140,13 +140,18 @@ The Demo/licensing work in issue #183 is a separate Preview/distribution track. 
 
 ## Last actual repository change
 
-The most recent repository work after CI #982 is **documentation only**:
+The most recent work after CI #982 is **documentation/coordination only**. No product/licensing code was added after the conversation stalled.
 
-- locked the final Demo/licensing contract in `PROJECT GOAL.md`;
-- created `docs/LICENSING-AND-DEMO-MODE.md`;
-- revised `docs/PREVIEW-CAPACITY-POLICY.md` to distinguish transitional code from final Demo behavior;
+The handoff update performed the following:
+
+- updated `PROJECT GOAL.md` with the locked Demo + hardware-bound licensing product goal;
+- created `docs/LICENSING-AND-DEMO-MODE.md` with the detailed contract;
+- revised `docs/PREVIEW-CAPACITY-POLICY.md` to distinguish the validated transitional 200-TAG code from the final Demo Run-gate behavior;
 - refreshed `docs/CURRENT-COORDINATOR-HANDOFF.md`;
-- created `docs/COORDINATOR-TRANSFER-2026-08-31.md`;
-- opened issue #183 for licensing implementation.
+- created and finalized `docs/COORDINATOR-TRANSFER-2026-08-31.md`;
+- updated `docs/ROADMAP.md`;
+- updated `docs/README.md` documentation authority map;
+- opened issue **#183** for Demo/licensing implementation;
+- synchronized live PR **#175** and issue **#174** with CI #982 and the new specified/not-implemented licensing boundary.
 
-**No licensing/product code was committed after the conversation stalled.** The latest code-validation checkpoint remains `6d340e8...` / CI #982.
+**No licensing/product code was committed after the stalled implementation attempt. The latest code-validation checkpoint remains `6d340e8...` / CI #982.**

@@ -39,10 +39,19 @@ public sealed class S7IsoPythonSnap7InteropTests
             TimeSpan.FromMilliseconds(50)))
         {
             await writer.StartAsync(timeout.Token);
-            await WaitUntilAsync(
-                () => writerCache.TryGet(writerTag.Id, out var sample) && sample?.Quality == TagQuality.Good,
-                TimeSpan.FromSeconds(8),
-                timeout.Token);
+            try
+            {
+                await WaitUntilAsync(
+                    () => writerCache.TryGet(writerTag.Id, out var sample) && sample?.Quality == TagQuality.Good,
+                    TimeSpan.FromSeconds(8),
+                    timeout.Token);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                Assert.Fail(
+                    $"Initial S7 acquisition failed. Diagnostics: {writer.GetCommunicationDiagnostics()}. " +
+                    $"Readiness: {writer.GetS7IsoRuntimeReadiness()}. Original failure: {ex.Message}");
+            }
 
             var initial = Assert.IsType<TagValue>((await writer.ReadAsync(writerTag.Id, timeout.Token))!);
             Assert.Equal((short)1234, Assert.IsType<short>(initial.Value));

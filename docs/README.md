@@ -1,12 +1,12 @@
 # EliteSCADA documentation authority map
 
-This directory contains architecture decisions, historical assignments, laboratory evidence and live coordination notes. They do **not** have the same authority.
+This directory contains architecture decisions, historical assignments, laboratory evidence, product policy and live coordination notes. They do **not** have the same authority.
 
 ## Operational source of truth
 
 ### `CURRENT-COORDINATOR-HANDOFF.md`
 
-**Single operational handoff.** Use it for current branch/PR, last accepted exact-head CI, Driver convergence stage, blockers and immediate next action.
+**Single operational handoff.** Use it for current branch/PR, last accepted exact-head CI, Driver convergence stage, product-capacity checkpoint, blockers and immediate next action.
 
 Static SHAs are snapshots. Live GitHub refs and exact-head Actions evidence always win after a fresh read.
 
@@ -17,6 +17,16 @@ A short mirror/checkpoint only. It points back to `CURRENT-COORDINATOR-HANDOFF.m
 ### `COORDINATOR-HANDOFF.md`
 
 **Legacy path / superseded.** Retained only for old links and redirected to `CURRENT-COORDINATOR-HANDOFF.md`.
+
+## Product policy
+
+### `PREVIEW-CAPACITY-POLICY.md`
+
+Owns the externally distributed Preview capacity contract.
+
+Current validated policy: **maximum 200 TAGs per project**, project-wide across all Drivers and memory sources.
+
+Do not duplicate this limit in Driver, importer or UI code. Future edition/licensing changes must revise the central product policy and its regressions.
 
 ## Architectural authority
 
@@ -38,9 +48,12 @@ Owns laboratory evidence and terminology:
 
 - common peer lab health;
 - independent-software L2 product acceptance;
+- post-main integrated L3 definition;
 - distinction between peer health and actual Driver product path.
 
 It does not own coordinator implementation progress.
+
+Issue **#180** owns the integrated seven-Driver post-main L3 campaign.
 
 ## Assignment / historical records
 
@@ -60,8 +73,9 @@ Product sequencing and planned scope. It does not override a live convergence ga
 
 ## GitHub coordination surfaces
 
-- Issue **#174**: shared Driver convergence scope and mirrored current summary.
-- Draft PR **#175**: actual long-lived coordinator integration line.
+- Issue **#174**: shared Driver convergence/mainline/L3 stage tracking.
+- Issue **#180**: integrated seven-Driver post-main L3 acceptance.
+- Draft PR **#175**: actual long-lived coordinator integration line until controlled merge.
 - Worker PRs: protocol implementation/evidence snapshots; descriptions may lag live branch heads.
 
 ## Conflict resolution
@@ -71,8 +85,9 @@ When two sources disagree:
 1. re-read the live branch/PR ref;
 2. inspect Actions for that exact SHA;
 3. use `CURRENT-COORDINATOR-HANDOFF.md` for operational interpretation;
-4. use ADRs / `DRIVER-CONVERGENCE-COORDINATION-V1.md` for architecture semantics;
-5. use `DRIVER-AND-INTEROP-LAB-STATUS.md` for lab evidence;
-6. treat older status, assignment and worker-PR prose as historical evidence.
+4. use `PREVIEW-CAPACITY-POLICY.md` for Preview product-capacity semantics;
+5. use ADRs / `DRIVER-CONVERGENCE-COORDINATION-V1.md` for architecture semantics;
+6. use `DRIVER-AND-INTEROP-LAB-STATUS.md` for lab evidence;
+7. treat older status, assignment and worker-PR prose as historical evidence.
 
 Never inherit green CI from another SHA and never turn peer-lab health into a Driver L2 acceptance claim.

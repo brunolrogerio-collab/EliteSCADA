@@ -1,5 +1,6 @@
 using System.Globalization;
 using Scada.Core.Alarms;
+using Scada.Core.Product;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
@@ -27,12 +28,33 @@ internal sealed class TagEngineeringHandler
     {
         var dataSources = package.DataSources ?? Array.Empty<DataSourceEngineeringDto>();
         var duplicatePaths = EngineeringHandlerSupport.Duplicates(package.Tags.Select(x => x.Path));
+        var prospectiveCreateCount = package.Tags
+            .Where(dto => ResolveExisting(dto) is null &&
+                          EngineeringHandlerSupport.Decide(false, mode) == ImportOperation.Create)
+            .Select(dto => dto.Path)
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
+        var projectedTagCount = _tags.Snapshot().Count + prospectiveCreateCount;
+        var tagLimitExceeded = !ProductCapacityPolicy.AllowsTagCount(projectedTagCount);
+        var tagLimitIssueAdded = false;
 
         foreach (var dto in package.Tags)
         {
             var issues = EngineeringValidator.ValidateTag(dto).ToList();
             ValidateAccessPolicy(dto, issues);
             issues.AddRange(CommunicationTagBindingEngineeringValidator.Validate(dto, package.SchemaVersion));
+
+            if (tagLimitExceeded && !tagLimitIssueAdded)
+            {
+                issues.Add(new(
+                    ProductCapacityPolicy.TagLimitIssueCode,
+                    ProductCapacityPolicy.TagLimitMessage(projectedTagCount),
+                    ImportEntityKind.Tag,
+                    dto.Path,
+                    true));
+                tagLimitIssueAdded = true;
+            }
 
             var dataSource = ResolveDataSource(dto.Source, package);
             issues.AddRange(MemoryEngineeringValidator.ValidateTag(dto, dataSource));

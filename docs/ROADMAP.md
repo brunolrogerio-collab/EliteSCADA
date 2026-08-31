@@ -7,9 +7,11 @@
 Authoritative product intent: `PROJECT GOAL.md`.  
 Operational coordinator handoff: `docs/CURRENT-COORDINATOR-HANDOFF.md`.  
 Driver/lab evidence policy: `docs/DRIVER-AND-INTEROP-LAB-STATUS.md`.  
-Preview capacity policy: `docs/PREVIEW-CAPACITY-POLICY.md`.  
+Current/transitional Preview capacity policy: `docs/PREVIEW-CAPACITY-POLICY.md`.  
+Final Demo/licensing contract: `docs/LICENSING-AND-DEMO-MODE.md`.  
 Shared convergence issue: `#174`.  
 L3 integrated laboratory: `#180`.  
+Demo/licensing implementation: `#183`.  
 Draft integration PR: `#175`.
 
 ## Current validated foundation
@@ -18,9 +20,10 @@ Draft integration PR: `#175`.
 - Common seven-peer interoperability infrastructure: COMPLETE / MERGED.
 - Independent product-path Driver L2: **7/7 PASS / ACCEPTED**.
 - Shared Driver convergence on PR #175: **7/7 CLOSED FOR COORDINATOR CONVERGENCE**.
-- Preview product capacity: **200 TAGs per project / IMPLEMENTED IN PR / CI #982 GREEN**.
+- Transitional Preview product capacity code: **static 200-TAG project cap / IMPLEMENTED IN PR / CI #982 GREEN**.
 - Latest code-validated coordinator head: `6d340e8ca3baaabf138c19be2fb947297854e1f6`.
 - CI #982: **750 backend tests / 0 failed + smoke + Web + Chromium SUCCESS**.
+- Final Demo/hardware licensing model: **SPECIFIED / NOT IMPLEMENTED**.
 - Remaining immediate boundary: controlled merge into `main`, post-merge CI, then integrated L3 laboratory.
 
 ## Ordered path to v0.1
@@ -39,12 +42,13 @@ Wave 10      Python visual events + animation + preview                         
 Driver Lab   Seven-peer reproducible interoperability infrastructure                     COMPLETE / MERGED
 Driver L2    Independent product-path protocol evidence                                  7/7 PASS
 Drivers      Shared runtime/Engineering convergence                                      7/7 CLOSED IN PR
-Preview Cap  Maximum 200 TAGs per project                                                 IMPLEMENTED / VALIDATED
-Mainline     Merge Driver convergence + Preview capacity + exact post-main CI             NEXT GATE
+Preview Cap  Transitional static 200-TAG safeguard                                       IMPLEMENTED / VALIDATED
+Mainline     Merge Driver convergence + current Preview safeguard + post-main CI          NEXT GATE
 Driver L3    All seven Drivers concurrently in one main build/runtime                    REQUIRED BEFORE WAVE 11
 Wave 11      Complete HMI Runtime demo vertical slice                                    DEFERRED UNTIL L3 PASS
 Wave 12      Hardening                                                                   WAITING
 Wave 13      Windows x64 product package                                                 WAITING
+DemoLicense  Final Demo + hardware-bound entitlement system (#183)                       REQUIRED BEFORE EXTERNAL PREVIEW IS FINAL
 Wave 14      Product-owner validation                                                    WAITING
 Wave 15      Feedback/corrections                                                        WAITING
 Preview      EliteSCADA Preview build                                                    FUTURE
@@ -52,28 +56,59 @@ Driver L4    Physical hardware/site validation by Development Lead              
 FINAL        EliteSCADA v0.1 — Full Product Validation Preview
 ```
 
-## Preview product capacity
+The exact implementation slot for `DemoLicense` may be moved deliberately as packaging/Preview work becomes active, but it must be complete before the externally distributed Preview is considered final. It does **not** replace the immediate post-main L3 gate.
 
-The externally distributed Preview edition is limited to:
+## Current transitional Preview capacity implementation
+
+The coordinator branch currently contains a validated static project-wide capacity safeguard:
 
 **200 TAGs per project**
 
-The limit is project-wide across all communication Drivers and internal memory sources. It is not a per-Driver allowance.
-
-The policy is centralized in `ProductCapacityPolicy` and must not be duplicated as protocol-specific or UI-specific magic numbers.
-
-Current validated behavior:
+Current behavior at `6d340e8...` / CI #982:
 
 - exactly 200 TAGs are accepted;
-- a new 201st TAG is rejected;
+- creating/importing a new 201st TAG is rejected;
 - existing TAGs remain editable at capacity;
-- Engineering import calculates the projected final project count and rejects oversized imports atomically;
-- runtime candidate construction uses the capped canonical registry, so a manipulated package cannot activate an oversized candidate through the normal product path;
-- there is no external environment-variable/command-line unlimited bypass in the Preview contract.
+- Engineering import calculates the projected final count and rejects oversized imports atomically;
+- runtime candidate construction also uses the capped canonical registry.
 
-This capacity can be explicitly revised after Preview feedback by changing the central product policy and its boundary regressions. It is capacity control/misuse deterrence, not cryptographic anti-tamper DRM.
+This code is **transitional**. It is not the final Demo behavior.
 
 See `docs/PREVIEW-CAPACITY-POLICY.md`.
+
+## Final Demo and licensed behavior
+
+Final Preview distribution uses a host-owned entitlement model.
+
+### Demo, no installed license
+
+- Engineering may contain more than 200 TAGs;
+- Run allowed only when project count is <= **200 TAGs**;
+- >200 TAGs blocks Run while preserving Engineering data;
+- maximum continuous runtime: **300 minutes per explicit Run session**;
+- expiry gracefully stops industrial runtime and informs the user;
+- a later explicit Run starts a fresh 300-minute Demo session.
+
+### Valid machine-bound license
+
+Initial TAG tiers:
+
+- 500;
+- 1,000;
+- 1,500;
+- 3,000;
+- 5,000;
+- Unlimited.
+
+Licensed/evaluation tiers above Demo remove the 300-minute continuous-runtime restriction under the current product contract.
+
+EliteSCADA generates a copyable hardware-derived request code. A controlled offline License Generator signs the returned license. Normal product builds contain only public verification material; the private signing key must never be committed to GitHub or distributed with EliteSCADA.
+
+An explicitly installed invalid/tampered/wrong-hardware license blocks Run. No installed license enters Demo.
+
+Status: **SPECIFIED / NOT IMPLEMENTED**.  
+Tracking: `#183`.  
+Authority: `docs/LICENSING-AND-DEMO-MODE.md`.
 
 ## Driver evidence policy
 
@@ -92,8 +127,8 @@ See `docs/DRIVER-AND-INTEROP-LAB-STATUS.md` for the detailed acceptance matrix.
 The next transition is strictly ordered:
 
 ```text
-PR #175 final pre-merge green
-    -> merge Driver convergence + Preview capacity policy to main
+PR #175 final controlled integration
+    -> merge Driver convergence + current Preview capacity code to main
     -> exact post-main CI green
     -> integrated seven-Driver L3 laboratory (#180)
     -> L3 PASS
@@ -114,7 +149,7 @@ The L3 laboratory must run a single EliteSCADA instance/project with all seven c
 
 It must prove concurrent acquisition, supported writes/commands, shared readiness, cache identity isolation, one-peer fault isolation, recovery and clean shutdown without cross-Driver interference.
 
-The L3 project must remain within the same 200-TAG project capacity. L3 validates concurrency and system isolation, not large-project scalability.
+The L3 project may remain <=200 TAGs. L3 validates concurrency and system isolation, not large-project licensing capacity.
 
 A collection of seven independent L2 results does not satisfy this gate.
 
@@ -136,11 +171,15 @@ The Development Lead and physical Driver acceptance authority is:
 
 L4 is recorded per representative real device/model/firmware and does not block the start of Wave 11. It is a later Preview validation gate.
 
+A controlled evaluation license may later be issued through the same hardware-bound entitlement system when physical/external validation requires >200 TAGs or runtime sessions longer than 300 minutes.
+
 ## Quality locks
 
 - canonical Engineering/backend authority;
 - schema-v15 `CommunicationBinding` remains the rich communication TAG authority;
-- Preview capacity remains centrally defined and fail-closed;
+- current 200-TAG code is transitional and must not be confused with final Demo Run-gate semantics;
+- licensing is host-owned and Drivers do not inspect license/hardware state directly;
+- private signing keys never enter GitHub, CI or normal product builds;
 - no plaintext protected material;
 - no Driver-to-Driver coupling;
 - no canonical TAG/cache/event bypass;

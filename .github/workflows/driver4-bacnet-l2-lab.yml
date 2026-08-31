@@ -17,6 +17,8 @@ jobs:
   bacnet-l2-read-write-cov:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      ELITESCADA_BACNET_L2_RESTART_CONTAINER: elitescada-lab-bacnet-driver4
     steps:
       - name: Checkout
         uses: actions/checkout@v4

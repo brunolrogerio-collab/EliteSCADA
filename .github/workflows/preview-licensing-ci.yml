@@ -1,0 +1,48 @@
+name: Preview Licensing CI
+
+on:
+  push:
+    branches:
+      - 'product/preview-demo-licensing'
+  pull_request:
+    branches:
+      - 'coordination/driver-convergence-v3'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Restore
+        run: dotnet restore ScadaPlatform.sln
+      - name: Build product solution
+        run: dotnet build ScadaPlatform.sln -c Release --no-restore
+      - name: Build License Generator
+        run: dotnet build src/Scada.LicenseGenerator/Scada.LicenseGenerator.csproj -c Release
+      - name: Licensing and Core tests
+        run: dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj -c Release --no-restore --logger "console;verbosity=normal"
+      - name: Publish Windows x64 License Generator
+        run: >-
+          dotnet publish src/Scada.LicenseGenerator/Scada.LicenseGenerator.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:DebugType=None
+          -p:DebugSymbols=false
+          -o artifacts/license-generator/win-x64
+      - name: Upload Windows x64 License Generator
+        uses: actions/upload-artifact@v4
+        with:
+          name: EliteSCADA-LicenseGenerator-win-x64
+          path: artifacts/license-generator/win-x64/**
+          if-no-files-found: error
+          retention-days: 30

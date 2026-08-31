@@ -28,18 +28,40 @@ jobs:
           set -euo pipefail
           mkdir -p TestResults/opcua-secure-l2/pki
           cd TestResults/opcua-secure-l2/pki
+
+          # OPC UA ApplicationInstanceCertificate profile for an RSA server.
           openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 1 \
             -subj "/CN=EliteSCADA open62541 secure L2" \
+            -addext "basicConstraints=critical,CA:FALSE" \
+            -addext "keyUsage=critical,digitalSignature,nonRepudiation,keyEncipherment,dataEncipherment,keyCertSign" \
+            -addext "extendedKeyUsage=serverAuth,clientAuth" \
             -addext "subjectAltName=URI:urn:elitescada:interop:opcua:server,DNS:localhost,IP:127.0.0.1" \
             -keyout server-key.pem -out server-cert.pem
           openssl x509 -in server-cert.pem -outform DER -out server-cert.der
           openssl pkcs8 -topk8 -nocrypt -in server-key.pem -outform DER -out server-key.der
+
+          # OPC UA ApplicationInstanceCertificate profile for the EliteSCADA client.
           openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 1 \
             -subj "/CN=EliteSCADA OPC UA Client" \
+            -addext "basicConstraints=critical,CA:FALSE" \
+            -addext "keyUsage=critical,digitalSignature,nonRepudiation,keyEncipherment,dataEncipherment,keyCertSign" \
+            -addext "extendedKeyUsage=clientAuth" \
             -addext "subjectAltName=URI:urn:elitescada:opcua:client" \
             -keyout client-key.pem -out client-cert.pem
           openssl x509 -in client-cert.pem -outform DER -out client-cert.der
           openssl pkcs12 -export -out client.pfx -inkey client-key.pem -in client-cert.pem -passout pass:
+
+          # Fail early if future edits accidentally turn these back into generic CA certificates.
+          openssl x509 -in server-cert.pem -noout -text > server-cert-profile.txt
+          openssl x509 -in client-cert.pem -noout -text > client-cert-profile.txt
+          grep -q "CA:FALSE" server-cert-profile.txt
+          grep -q "Digital Signature" server-cert-profile.txt
+          grep -q "Key Encipherment" server-cert-profile.txt
+          grep -q "TLS Web Server Authentication" server-cert-profile.txt
+          grep -q "CA:FALSE" client-cert-profile.txt
+          grep -q "Digital Signature" client-cert-profile.txt
+          grep -q "TLS Web Client Authentication" client-cert-profile.txt
+
           echo "SERVER_PIN=$(sha256sum server-cert.der | awk '{print $1}')" >> "$GITHUB_ENV"
           echo "CLIENT_PFX=$PWD/client.pfx" >> "$GITHUB_ENV"
           echo "PKI_DIR=$PWD" >> "$GITHUB_ENV"

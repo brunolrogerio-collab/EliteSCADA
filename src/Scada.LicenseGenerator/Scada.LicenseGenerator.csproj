@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>EliteSCADA.LicenseGenerator</AssemblyName>
+    <RootNamespace>EliteSCADA.LicenseGenerator</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Scada.Core/Scada.Core.csproj" />
+  </ItemGroup>
+</Project>

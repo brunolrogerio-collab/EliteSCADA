@@ -5,153 +5,154 @@ Date: 2026-08-31 (BRT)
 ## Read first
 
 Stable product intent: [`PROJECT GOAL.md`](PROJECT%20GOAL.md)  
-Operational source of truth: [`docs/CURRENT-COORDINATOR-HANDOFF.md`](docs/CURRENT-COORDINATOR-HANDOFF.md)  
-Short transfer checkpoint: [`docs/COORDINATOR-TRANSFER-2026-08-31.md`](docs/COORDINATOR-TRANSFER-2026-08-31.md)
+Operational handoff: [`docs/COORDINATOR-HANDOFF-2026-08-31.md`](docs/COORDINATOR-HANDOFF-2026-08-31.md)  
+L3 release gate: [issue #180](https://github.com/brunolrogerio-collab/EliteSCADA/issues/180)
 
 Live GitHub refs and exact-SHA Actions evidence override stale SHAs copied into prose.
 
+## Mandatory continuity / chat replacement rule
+
+The repository must contain enough context to resume EliteSCADA coordination safely in a new ChatGPT conversation without relying on the previous chat history.
+
+For every material coordination cycle, decision, blocker, fix, validation run or change of next action:
+
+1. review and synchronize both `PROJECT GOAL.md` and `LAST CHANGE.md`;
+2. persist exact branch/SHA/run/issue evidence when it matters to acceptance;
+3. never leave a critical decision, blocker, diagnosis or next action only in chat;
+4. keep stable product/architecture intent in `PROJECT GOAL.md` and mutable operational state in `LAST CHANGE.md`;
+5. when the user says `siga`, continue executing the active sequence until completion or a real external/blocking condition, while maintaining this repository checkpoint.
+
+A new coordinator/chat must begin by reading these files and the active handoff before acting.
+
 ## Current checkpoint
 
-- `main` at last audit: `d0a4e13816992b0a0eb68c36e78c560cc1d88`.
-- Active coordinator branch: `coordination/driver-convergence-v3`.
-- PR #175: **DRAFT / OPEN / MERGEABLE / DO NOT MERGE until controlled integration**.
-- Driver coordinator convergence: **7/7 CLOSED**.
-- Independent product-path L2: **7/7 PASS / ACCEPTED**.
-- Latest exact code-validated coordinator head: `6d340e8ca3baaabf138c19be2fb947297854e1f6`.
-- EliteSCADA CI #982: **SUCCESS**.
+- `main`: `f6210a1539741847aab8949a7e453c8cf141162d` at last live audit.
+- Driver convergence v3 is **MERGED** to `main` through PR #187.
+- Active L3 branch: `coordination/driver-l3-seven-protocol-lab`.
+- Active L3 branch HEAD before this documentation checkpoint: `a9a6fb55cb56659e382e7d09085f63505aee27f4`.
+- Issue #180: **OPEN / ACTIVE / RELEASE GATE**.
+- Wave 11: **BLOCKED** until the full L3 matrix passes on one exact SHA and issue #180 is accepted and closed.
 
-CI #982:
+## L3 topology / acceptance authority
 
-- backend build: 0 warnings / 0 errors;
-- Core: 246 passed;
-- Drivers: 347 passed;
-- Historian: 23 passed;
-- Security: 27 passed;
-- PostgreSQL: 107 passed;
-- total backend: **750 passed / 0 failed**;
-- runtime smoke: SUCCESS;
-- Web: SUCCESS;
-- Chromium E2E: SUCCESS.
+The integrated runtime must operate all seven communication Drivers concurrently:
 
-Documentation-only `[skip ci]` commits after `6d340e8...` do not create a newer code-validation claim.
+1. MQTT;
+2. IEC-104;
+3. CIP / EtherNet/IP;
+4. OPC UA;
+5. DNP3;
+6. Siemens S7 ISO-on-TCP;
+7. BACnet/IP.
+
+The full acceptance contract, including heterogeneous TAG Gateway behavior, fault isolation, recovery, writes where supported, clean shutdown and exact-SHA CI evidence, is issue #180.
+
+Do not weaken a 7/7 assertion to manufacture a pass.
+
+## Current L3 failure history
+
+### Initial BACnet runtime blocker
+
+Original failing L3 SHA:
+
+`65fbb6ee67040610eef4b6ef88073c38e127913b`
+
+Actions run/job:
+
+- run `33434301171`;
+- job `99626884954`.
+
+BACnet/IP startup failed because automatic interface selection found both `10.1.0.204` and `172.18.0.1` in CI and could not choose a broadcast/local endpoint deterministically.
+
+### BACnet fix
+
+Commit:
+
+`c906f3cbbb3f0c584d19475c3dbdfbc6a84b5668` — `fix(bacnet): bind explicit local endpoint for L3`
+
+The fix:
+
+- adds optional `localEndpointIp` configuration;
+- preserves previous behavior when omitted;
+- validates IPv4 input;
+- creates an explicit BACnet/IP transport when configured;
+- binds the L3 laboratory peer/configuration to `127.0.0.1`.
+
+Validation run:
+
+- L3 run `33443796424`;
+- job `99657990531`;
+- Gateway slice passed;
+- integrated runtime slice still failed.
+
+### Current blocker: diagnostics 6/7 before acquisition
+
+At `c906f3...`, the integrated test fails at the runtime diagnostics assertion:
+
+`Assert.Equal(7, diagnostics.Count)`
+
+Observed:
+
+- expected communication Driver diagnostics: `7`;
+- actual: `6`.
+
+This assertion occurs **before deterministic acquisition assertions**. Therefore the current evidence does **not** prove that one protocol failed acquisition; it proves that `Coordinator.Describe()` exposes only six communication Driver diagnostics when seven are configured/expected.
+
+The next diagnostic commit is:
+
+`a9a6fb55cb56659e382e7d09085f63505aee27f4` — `test: diagnose missing L3 communication driver`
+
+Its L3 run is:
+
+- run `33446328679` (`L3 Seven-Driver Lab #13`);
+- conclusion: **FAILURE**.
+
+Current technical task is to identify the missing diagnostic/registration entry and correct the real runtime composition/diagnostic defect. Likely classes of defect to verify are duplicate-key overwrite, filtering, or a Driver not registering its diagnostic provider. Do not assume which Driver is missing without evidence.
+
+## Exact execution order from here
+
+1. Extract the missing Driver identity from the diagnostic run or inspect the coordinator registry/`Describe()` implementation and all seven registrations.
+2. Compare newer `main` history where useful to avoid recreating an already-correct fix.
+3. Apply the minimum correct production/test-fixture fix without weakening 7/7 acceptance.
+4. Push one coherent L3 SHA.
+5. Validate the **full** L3 workflow on that exact SHA, not only one slice.
+6. If any other L3 criterion fails, diagnose and continue on the same gate.
+7. Update issue #180 with exact SHA/run evidence.
+8. Review/update `PROJECT GOAL.md` and `LAST CHANGE.md` again at the resulting material checkpoint.
+9. Close #180 only after the complete acceptance matrix is green.
+10. Only after #180 is accepted and closed may Wave 11 begin.
 
 ## MERGED
 
-- Wave 10: **CLOSED / MERGED / POST-MAIN GREEN**.
-- Common seven-peer interoperability laboratory infrastructure: **MERGED** through PR #173.
+- Wave 10: merged/closed.
+- Common seven-peer interoperability laboratory infrastructure: merged through PR #173.
+- Driver convergence v3: merged to `main` through PR #187 at `f6210a1539741847aab8949a7e453c8cf141162d`.
 
-Driver convergence described below is **not yet merged to `main`**.
+## IMPLEMENTED ON ACTIVE L3 BRANCH
 
-## IMPLEMENTED IN PR
+- dedicated seven-Driver L3 workflow;
+- one-runtime integrated seven-Driver laboratory test harness;
+- heterogeneous TAG Gateway L3 slice;
+- deterministic BACnet/IP loopback binding for CI;
+- additional diagnostic output intended to identify the missing 7th communication Driver entry.
 
-### Driver convergence / Engineering shared contracts
+These items are not L3 acceptance by themselves. The release gate remains the full exact-SHA workflow and issue #180.
 
-On Draft PR #175:
+## SPECIFIED / NOT YET ACCEPTED
 
-- Engineering schema v15 / canonical `CommunicationBinding`: CLOSED;
-- MQTT: CLOSED;
-- IEC-104: CLOSED;
-- CIP / EtherNet/IP: CLOSED;
-- OPC UA: CLOSED;
-- DNP3: CLOSED;
-- Siemens S7 ISO-on-TCP: CLOSED;
-- BACnet/IP: CLOSED;
-- shared readiness/runtime planner/factory composition preserved;
-- Driver product-path L2: 7/7 PASS / ACCEPTED.
+- complete L3 seven-Driver integrated acceptance: **NOT YET ACCEPTED**;
+- issue #180 closure: **NOT YET**;
+- Wave 11 release: **NOT AUTHORIZED**.
 
-### Transitional Preview 200-TAG safeguard
+## Resume instruction for a new chat/coordinator
 
-Functional head `6d340e8...` / CI #982 currently implements a static project-wide 200-TAG capacity safeguard:
+Read, in order:
 
-- canonical registry rejects creation of the 201st TAG;
-- Engineering Preview/Apply rejects imports that would exceed 200;
-- existing TAGs remain editable at the limit;
-- oversized candidate runtime also fails through the capped registry.
+1. `PROJECT GOAL.md`;
+2. `LAST CHANGE.md`;
+3. `docs/COORDINATOR-HANDOFF-2026-08-31.md`;
+4. issue #180;
+5. `.github/workflows/l3-seven-driver-lab.yml`;
+6. the latest L3 Actions run on `coordination/driver-l3-seven-protocol-lab`.
 
-This code is validated, but it is now explicitly **transitional behavior** and does not represent the final Demo/licensing contract.
-
-## SPECIFIED / NOT IMPLEMENTED
-
-Product decision locked on 2026-08-31:
-
-### Final Demo mode
-
-- no installed license => Demo;
-- Engineering may contain more than 200 TAGs;
-- Demo Run is allowed only when project count is <= **200 TAGs**;
-- >200 TAGs blocks Run without deleting or truncating Engineering data;
-- Demo industrial runtime maximum: **300 continuous minutes per explicit Run session**;
-- at expiry Runtime stops gracefully, application/Engineering remains alive and a clear evaluation-expired message is shown;
-- user may explicitly Run again for a fresh 300-minute Demo session;
-- elapsed enforcement uses monotonic time.
-
-### Hardware-bound licensing
-
-- EliteSCADA generates a copyable versioned machine request code derived from a canonical hashed hardware fingerprint;
-- controlled offline License Generator issues a signed license code/file;
-- initial TAG tiers: **500 / 1000 / 1500 / 3000 / 5000 / Unlimited**;
-- valid licensed/evaluation entitlement removes the 300-minute Demo runtime limit;
-- valid license must match the current hardware;
-- installed invalid/tampered/wrong-hardware license blocks Run and does not silently downgrade to Demo;
-- absent license enters Demo;
-- private signing key exists only in the controlled generator environment and MUST NOT be committed to GitHub, CI artifacts or normal EliteSCADA builds.
-
-Not implemented yet:
-
-- entitlement/license service;
-- machine fingerprint/request-code generator;
-- signed-license verifier/import/status UI;
-- 200-TAG Demo Run gate;
-- 300-minute Demo runtime supervisor;
-- graceful Demo-expiry notification flow;
-- offline License Generator;
-- licensed tier enforcement.
-
-Authority: `docs/LICENSING-AND-DEMO-MODE.md`  
-Tracking issue: **#183**.
-
-The next implementation must refactor the current mutation-time 200-TAG ceiling into the entitlement-aware Run/activation behavior instead of layering a second contradictory limit on top.
-
-## L3 / L4 stage policy
-
-### L3
-
-After Driver convergence is merged to `main` and exact post-main CI is green, issue **#180** runs one integrated laboratory with all seven Drivers active simultaneously in one EliteSCADA build/runtime.
-
-L3 must prove acquisition, supported writes/commands, shared readiness, cache identity isolation, one-peer fault isolation, recovery and clean shutdown.
-
-Seven isolated L2 PASS results do not satisfy L3.
-
-### L4
-
-Physical Driver validation occurs later with a Preview build and does not block Wave 11.
-
-Acceptance authority: **Bruno Luiz Rogerio, Development Lead**.
-
-Evidence is per exact Preview build plus real manufacturer/model/firmware.
-
-## NEXT
-
-Immediate project order remains:
-
-`PR #175 controlled final audit/merge -> exact post-main CI green -> issue #180 integrated seven-Driver L3 PASS -> Wave 11`
-
-The Demo/licensing work in issue #183 is a separate Preview/distribution track. Do not insert it into PR #175 or treat it as already implemented unless the project ordering is explicitly changed.
-
-## Last actual repository change
-
-The most recent work after CI #982 is **documentation/coordination only**. No product/licensing code was added after the conversation stalled.
-
-The handoff update performed the following:
-
-- updated `PROJECT GOAL.md` with the locked Demo + hardware-bound licensing product goal;
-- created `docs/LICENSING-AND-DEMO-MODE.md` with the detailed contract;
-- revised `docs/PREVIEW-CAPACITY-POLICY.md` to distinguish the validated transitional 200-TAG code from the final Demo Run-gate behavior;
-- refreshed `docs/CURRENT-COORDINATOR-HANDOFF.md`;
-- created and finalized `docs/COORDINATOR-TRANSFER-2026-08-31.md`;
-- updated `docs/ROADMAP.md`;
-- updated `docs/README.md` documentation authority map;
-- opened issue **#183** for Demo/licensing implementation;
-- synchronized live PR **#175** and issue **#174** with CI #982 and the new specified/not-implemented licensing boundary.
-
-**No licensing/product code was committed after the stalled implementation attempt. The latest code-validation checkpoint remains `6d340e8...` / CI #982.**
+Then inspect live branch/main SHAs before any write. Continue the L3 blocker. Do **not** start Wave 11 from documentation assumptions or chat memory.

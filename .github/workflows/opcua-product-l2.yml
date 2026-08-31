@@ -30,17 +30,17 @@ jobs:
         run: docker build -t elitescada-opcua-l2 interop-lab/opcua/open62541
 
       - name: Start open62541 peer
-        run: docker run -d --name elitescada-opcua-l2 -p 4841:4840 elitescada-opcua-l2
+        run: docker run -d --name elitescada-opcua-l2 --network host elitescada-opcua-l2
 
       - name: Wait for OPC UA peer
-        run: timeout 30 bash -c 'until nc -z 127.0.0.1 4841; do sleep 1; done'
+        run: timeout 30 bash -c 'until nc -z 127.0.0.1 4840; do sleep 1; done'
 
       - name: Restore driver tests
         run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
 
       - name: Run EliteSCADA OPC UA product-path L2
         env:
-          ELITESCADA_OPCUA_L2_ENDPOINT: opc.tcp://127.0.0.1:4841
+          ELITESCADA_OPCUA_L2_ENDPOINT: opc.tcp://127.0.0.1:4840
         run: >-
           dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
           --configuration Release

@@ -86,6 +86,8 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
     private readonly IScadaEventBus _externalEventBus;
     private readonly IEngineeringDriverCompiler _compiler;
     private readonly IServerMemoryRetentionStore _serverMemoryRetentionStore;
+    private readonly CommunicationDriverRuntimeComponentRegistry _communicationComponents;
+    private readonly ICommunicationDriverProtectedMaterialResolver? _protectedMaterialResolver;
     private readonly TimeSpan _activationTimeout;
     private readonly SemaphoreSlim _activationGate = new(1, 1);
     private RuntimeState _active;
@@ -94,11 +96,16 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         IScadaEventBus externalEventBus,
         IEngineeringDriverCompiler compiler,
         TimeSpan? activationTimeout = null,
-        IServerMemoryRetentionStore? serverMemoryRetentionStore = null)
+        IServerMemoryRetentionStore? serverMemoryRetentionStore = null,
+        CommunicationDriverRuntimeComponentRegistry? communicationComponents = null,
+        ICommunicationDriverProtectedMaterialResolver? protectedMaterialResolver = null)
     {
         _externalEventBus = externalEventBus ?? throw new ArgumentNullException(nameof(externalEventBus));
         _compiler = compiler ?? throw new ArgumentNullException(nameof(compiler));
         _serverMemoryRetentionStore = serverMemoryRetentionStore ?? new InMemoryServerMemoryRetentionStore();
+        _communicationComponents = communicationComponents
+            ?? CommunicationDriverRuntimeComposition.BuildForCurrentSchema();
+        _protectedMaterialResolver = protectedMaterialResolver;
         _activationTimeout = activationTimeout ?? TimeSpan.FromSeconds(10);
         if (_activationTimeout <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(activationTimeout));
@@ -315,7 +322,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 {
                     runtimeIssues.Add(new(
                         "RUNTIME_CANDIDATE_NOT_READY",
-                        $"Candidate runtime did not reach Good quality for all shared runtime TAGs within {_activationTimeout}.",
+                        $"Candidate runtime did not reach protocol readiness and required Good TAG quality within {_activationTimeout}.",
                         IsError: true));
                     await candidate.DisposeAsync();
                     return new RuntimeActivationResult(
@@ -439,6 +446,46 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 plan.MaxGapElements));
         }
 
+        var communicationServices = new CommunicationDriverRuntimeServices(
+            projectKey,
+            cache,
+            registry,
+            _protectedMaterialResolver);
+
+        foreach (var plan in compilation.CommunicationPlans)
+        {
+            if (plan.Tags.Count == 0)
+            {
+                runtimeIssues.Add(new(
+                    "RUNTIME_DATASOURCE_NO_POINTS",
+                    $"Data source '{plan.DataSourceKey}' has no communication points and will not create a runtime driver.",
+                    plan.DataSourceKey,
+                    IsError: false));
+                continue;
+            }
+
+            if (!_communicationComponents.TryGet(plan.DriverType, out var registration) || registration is null)
+            {
+                runtimeIssues.Add(new(
+                    "RUNTIME_DRIVER_COMPONENT_NOT_REGISTERED",
+                    $"Runtime components for driver '{plan.DriverType}' are not registered.",
+                    plan.DataSourceKey));
+                continue;
+            }
+
+            try
+            {
+                drivers.Add(registration.Factory.Create(plan, communicationServices));
+            }
+            catch (Exception ex)
+            {
+                runtimeIssues.Add(new(
+                    "RUNTIME_DRIVER_CREATE_FAILED",
+                    $"Data source '{plan.DataSourceKey}' could not create runtime driver '{plan.DriverType}': {ex.Message}",
+                    plan.DataSourceKey));
+            }
+        }
+
         var serverMemorySources = memoryCompilation.ServerMemoryPlans
             .Where(x => x.Tags.Count > 0)
             .Select(plan => new ServerMemoryRuntimeSource(
@@ -481,33 +528,46 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
     private async Task<bool> WaitUntilReadyAsync(RuntimeState state, CancellationToken cancellationToken)
     {
+        var readinessSources = state.Drivers
+            .OfType<ICommunicationDriverReadinessSource>()
+            .ToArray();
         var expectedTagIds = state.Drivers
+            .Where(driver => driver is not ICommunicationDriverReadinessSource)
             .SelectMany(x => x.Tags)
             .Select(x => x.Id)
             .Concat(state.ServerMemorySources.SelectMany(x => x.Tags).Select(x => x.Id))
             .Distinct()
             .ToArray();
 
-        if (expectedTagIds.Length == 0)
+        if (expectedTagIds.Length == 0 && readinessSources.Length == 0)
             return state.ClientMemoryPlans.SelectMany(x => x.Tags).Any();
+
+        bool IsReady()
+        {
+            if (state.Drivers.Any(x => x.Status.State == DriverState.Faulted))
+                return false;
+
+            var protocolSnapshots = readinessSources
+                .Select(source => source.GetCommunicationReadiness())
+                .ToArray();
+            if (protocolSnapshots.Any(snapshot => snapshot.State == CommunicationDriverReadinessState.Faulted))
+                return false;
+            if (protocolSnapshots.Any(snapshot => !snapshot.IsReady))
+                return false;
+
+            return expectedTagIds.All(id =>
+                state.Cache.TryGet(id, out var value) && value?.Quality == TagQuality.Good);
+        }
 
         var deadline = DateTimeOffset.UtcNow + _activationTimeout;
         while (DateTimeOffset.UtcNow < deadline)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-            if (state.Drivers.Any(x => x.Status.State == DriverState.Faulted))
-                return false;
-
-            var allGood = expectedTagIds.All(id =>
-                state.Cache.TryGet(id, out var value) && value?.Quality == TagQuality.Good);
-            if (allGood) return true;
-
+            if (IsReady()) return true;
             await Task.Delay(25, cancellationToken);
         }
 
-        return expectedTagIds.All(id =>
-            state.Cache.TryGet(id, out var value) && value?.Quality == TagQuality.Good);
+        return IsReady();
     }
 
     private static void RegisterAlarms(

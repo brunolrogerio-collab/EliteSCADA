@@ -46,6 +46,44 @@ public sealed class BacnetForeignDeviceRegistrationPolicyTests
     }
 
     [Fact]
+    public void RequestFailure_IsContainedAndConvertedToRetry()
+    {
+        var options = new BacnetSessionOptions(
+            BbmdAddress: "192.168.20.1",
+            ForeignDeviceTtlSeconds: 120);
+        var calls = 0;
+
+        var next = BacnetForeignDeviceRegistrationPolicy.ExecuteAndScheduleNext(
+            options,
+            () =>
+            {
+                calls++;
+                throw new InvalidOperationException("simulated BBMD request failure");
+            });
+
+        Assert.Equal(1, calls);
+        Assert.Equal(BacnetForeignDeviceRegistrationAttemptKind.Retry, next.Kind);
+        Assert.Equal(TimeSpan.FromSeconds(12), next.Delay);
+    }
+
+    [Fact]
+    public void SuccessfulRequest_IsConvertedToNormalRenewal()
+    {
+        var options = new BacnetSessionOptions(
+            BbmdAddress: "192.168.20.1",
+            ForeignDeviceTtlSeconds: 120);
+        var calls = 0;
+
+        var next = BacnetForeignDeviceRegistrationPolicy.ExecuteAndScheduleNext(
+            options,
+            () => calls++);
+
+        Assert.Equal(1, calls);
+        Assert.Equal(BacnetForeignDeviceRegistrationAttemptKind.Renewal, next.Kind);
+        Assert.Equal(TimeSpan.FromSeconds(90), next.Delay);
+    }
+
+    [Fact]
     public void MissingFdrConfiguration_FailsClosed()
     {
         var options = new BacnetSessionOptions();

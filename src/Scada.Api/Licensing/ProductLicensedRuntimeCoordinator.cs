@@ -389,7 +389,9 @@ public sealed class ProductLicensedRuntimeCoordinator :
             }
         }
 
-        _activationGate.Dispose();
+        // The coordinator singleton is exposed through multiple DI service contracts.
+        // Keeping this process-lifetime gate alive makes repeated/concurrent disposal
+        // safe instead of letting a later alias call WaitAsync on a disposed semaphore.
     }
 }
 

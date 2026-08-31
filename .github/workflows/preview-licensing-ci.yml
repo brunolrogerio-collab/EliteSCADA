@@ -81,6 +81,12 @@ jobs:
 
           kill "$API_PID" 2>/dev/null || true
           wait "$API_PID" 2>/dev/null || true
+
+          if grep -q "ObjectDisposedException" /tmp/scada-licensing-api.log; then
+            echo "Host shutdown emitted ObjectDisposedException."
+            cat /tmp/scada-licensing-api.log
+            exit 1
+          fi
       - name: Dump licensing host log on failure
         if: failure()
         run: cat /tmp/scada-licensing-api.log || true

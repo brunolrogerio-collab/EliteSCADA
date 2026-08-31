@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Scada.Api.Licensing;
 using Scada.Api.Runtime;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Persistence;
@@ -12,13 +11,6 @@ public static class EngineeringPersistenceApi
 {
     public static void AddOptionalEngineeringPersistence(this WebApplicationBuilder builder)
     {
-        // Product licensing is host-level behavior and must be registered even when
-        // PostgreSQL engineering persistence is disabled. This method is already
-        // called after the raw runtime registrations, making it the narrowest stable
-        // composition point for the licensing decorator without perturbing DriverHost.
-        builder.AddConfiguredProductLicensing();
-        builder.AddProductLicensedRuntimeCoordinator();
-
         builder.Services.TryAddSingleton<IVisualAssetEngineeringRegistry>(sp =>
             sp.GetRequiredService<EngineeringWorkspace>().VisualAssets);
 
@@ -90,8 +82,6 @@ public static class EngineeringPersistenceApi
 
     public static void MapEngineeringPersistenceEndpoints(this WebApplication app)
     {
-        app.MapProductLicensingEndpoints();
-
         var group = app.MapGroup("/api/engineering/persistence");
 
         group.MapGet("/status", (HttpContext context) => Results.Ok(new

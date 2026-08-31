@@ -5,6 +5,7 @@ using Scada.Drivers.Dnp3;
 using Scada.Drivers.Iec60870;
 using Scada.Drivers.Mqtt;
 using Scada.Drivers.OpcUa;
+using Scada.Drivers.SiemensS7Iso;
 
 namespace Scada.DriverHost.Engineering;
 
@@ -45,6 +46,9 @@ public static class CommunicationDriverRuntimeComposition
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new Dnp3CommunicationRuntimePlanner(),
             new Dnp3CommunicationRuntimeFactory(dnp3SessionFactory)));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new S7IsoCommunicationRuntimePlanner(),
+            new S7IsoCommunicationRuntimeFactory()));
         return registry;
     }
 

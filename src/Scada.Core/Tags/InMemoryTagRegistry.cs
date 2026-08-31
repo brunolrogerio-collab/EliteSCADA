@@ -24,6 +24,7 @@ public sealed class InMemoryTagRegistry : ITagRegistry
                 throw new InvalidOperationException($"A tag with path '{tag.Path}' is already registered.");
             if (_byId.ContainsKey(tag.Id))
                 throw new InvalidOperationException($"A tag with id '{tag.Id}' is already registered.");
+
             _byId[tag.Id] = tag;
             _byPath[tag.Path] = tag.Id;
         }
@@ -40,7 +41,8 @@ public sealed class InMemoryTagRegistry : ITagRegistry
             if (_byPath.TryGetValue(tag.Path, out var pathOwner) && pathOwner != tag.Id)
                 throw new InvalidOperationException($"A tag with path '{tag.Path}' is already registered.");
 
-            if (_byId.TryGetValue(tag.Id, out var previous) && !previous.Path.Equals(tag.Path, StringComparison.OrdinalIgnoreCase))
+            var exists = _byId.TryGetValue(tag.Id, out var previous);
+            if (exists && previous is not null && !previous.Path.Equals(tag.Path, StringComparison.OrdinalIgnoreCase))
                 _byPath.TryRemove(previous.Path, out _);
 
             _byId[tag.Id] = tag;

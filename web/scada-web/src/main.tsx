@@ -4,6 +4,7 @@ import { AppNavigation } from './AppNavigation';
 import { AuditApp } from './audit';
 import { AuthGate } from './auth/AuthGate';
 import { EngineeringApp } from './engineering/EngineeringApp';
+import { LicensingApp } from './licensing/LicensingApp';
 import { BasicTrendViewer } from './runtime/BasicTrendViewer';
 import { clientMemory } from './runtime/clientMemory';
 import { HistoricalDataBrowserRuntime } from './runtime/historical-browser/HistoricalDataBrowserRuntime';
@@ -213,9 +214,11 @@ const RootApp = window.location.pathname.startsWith('/audit')
   ? AuditApp
   : window.location.pathname.startsWith('/engineering')
     ? EngineeringApp
-    : window.location.pathname.startsWith('/runtime/history')
-      ? RuntimeHistoricalBrowserApp
-      : RuntimeApp;
+    : window.location.pathname.startsWith('/licensing')
+      ? LicensingApp
+      : window.location.pathname.startsWith('/runtime/history')
+        ? RuntimeHistoricalBrowserApp
+        : RuntimeApp;
 
 createRoot(document.getElementById('root')!).render(
   <AuthGate>

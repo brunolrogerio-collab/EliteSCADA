@@ -4,7 +4,7 @@
 >
 > This file preserves stable product goals and locked architecture across ChatGPT conversations, developers and tooling. It defines intent, not merely current implementation state.
 
-**Last reviewed:** 2026-08-29
+**Last reviewed:** 2026-08-31
 
 ## Mandatory continuity protocol
 
@@ -36,6 +36,65 @@ The product must support the complete application lifecycle:
 - public contracts/SDKs and installable driver modules.
 
 The long-term responsibility is comparable to established industrial supervisory platforms while retaining EliteSCADA's own architecture, data model and implementation.
+
+## Demo, Preview distribution and hardware-bound licensing
+
+EliteSCADA must support an externally distributable **Demo/Preview mode** plus a machine-bound licensed mode. Licensing is a product/host capability and must never be implemented independently inside individual Drivers.
+
+### Demo mode
+
+When no valid license is installed, EliteSCADA operates in Demo mode.
+
+Locked Demo behavior:
+
+- Engineering may create, import, save and edit projects containing more than 200 TAGs;
+- **Run/activation is permitted only when the project contains at most 200 TAGs**;
+- if the project exceeds 200 TAGs, Run is blocked fail-closed without deleting/truncating Engineering data or replacing the previous active runtime;
+- Demo industrial runtime may execute for at most **300 continuous minutes per explicit Run session**;
+- the 300-minute limit is per continuous execution, not a cumulative lifetime quota;
+- expiry stops industrial runtime gracefully through the normal lifecycle while Engineering/application UI remains available;
+- the user is clearly informed that the 300-minute evaluation period expired;
+- a later explicit Run starts a fresh 300-minute Demo session;
+- elapsed enforcement must use monotonic time so wall-clock changes cannot extend the session.
+
+The current coordinator implementation that rejects creation/import of the 201st TAG is transitional behavior and must eventually be refactored into this entitlement-aware Run/activation gate.
+
+### Licensed/evaluation mode
+
+A valid EliteSCADA license is bound to the target hardware and removes the 300-minute Demo continuous-runtime limit.
+
+Initial TAG entitlement tiers are:
+
+- 500;
+- 1,000;
+- 1,500;
+- 3,000;
+- 5,000;
+- Unlimited.
+
+A license issued for authorized development/customer evaluation above 200 TAGs uses the same entitlement mechanism and, under the current contract, also has no 300-minute continuous-runtime restriction.
+
+If a licensed project exceeds its signed TAG entitlement, Run is blocked without deleting Engineering content.
+
+### Machine request and offline issuance
+
+EliteSCADA must expose a copyable, versioned **machine request code** derived from a deterministic canonical hash of stable hardware identity. Raw hardware serials should not be exposed when a one-way fingerprint is sufficient.
+
+The machine request code can be sent to the EliteSCADA licensing authority through normal business channels such as email.
+
+A controlled offline **EliteSCADA License Generator** accepts the request code and selected entitlement tier and returns a versioned signed license code/file.
+
+The normal EliteSCADA product verifies licenses using asymmetric cryptography:
+
+- the private signing key exists only in the controlled License Generator environment;
+- the private signing key must never be committed to GitHub, embedded in customer binaries or published in CI artifacts;
+- distributed EliteSCADA contains only public verification material/key identifiers;
+- license payload and signature validation are versioned and fail closed;
+- license identity must match the machine fingerprint before licensed runtime is allowed.
+
+If no license is installed, the product enters Demo mode. If a license is explicitly installed but has an invalid signature, unsupported schema, tampered payload, unknown signing key or hardware mismatch, **Run is blocked** and the user receives a clear invalid-license diagnostic rather than silently falling back to Demo.
+
+Full locked semantics: `docs/LICENSING-AND-DEMO-MODE.md`.
 
 ## Authoritative Engineering model
 
@@ -548,5 +607,6 @@ Full locked semantics and the permitted early non-production spike: `docs/OPC-UA
 - `docs/VISUAL-BOOLEAN-CONDITIONS-AND-ANALOG-FILL.md`: typed visual expressions, universal boolean visual conditions and analog proportional fill direction.
 - `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`: Wave 09 protected historical browsing/query contract.
 - `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`: Wave 09 canonical reporting, report designer, preview/print/export contract.
+- `docs/LICENSING-AND-DEMO-MODE.md`: Demo 200-TAG Run gate, 300-minute session limit, hardware request code, signed-license validation and offline License Generator contract.
 
 These documents must remain consistent. `PROJECT GOAL.md` wins for locked product intent; current repository code/`main` wins for implementation truth; `LAST CHANGE.md` records the exact handoff.

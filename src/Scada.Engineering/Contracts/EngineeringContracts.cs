@@ -109,7 +109,8 @@ public sealed record TagEngineeringDto(
     Dictionary<string, string>? Metadata = null,
     TagAccessPolicyDto? AccessPolicy = null,
     MemoryInitialValueDto? InitialValue = null,
-    TagValueSelector? AddressSelector = null);
+    TagValueSelector? AddressSelector = null,
+    CommunicationTagBinding? CommunicationBinding = null);
 
 public sealed record AlarmEngineeringDto(
     Guid? Id,

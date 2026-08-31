@@ -26,6 +26,9 @@ public sealed record EngineeringDriverCompilation(
     IReadOnlyCollection<ModbusTcpRuntimePlan> ModbusTcpPlans,
     IReadOnlyCollection<EngineeringDriverIssue> Issues)
 {
+    public IReadOnlyCollection<ICommunicationDriverRuntimePlan> CommunicationPlans { get; init; } =
+        Array.Empty<ICommunicationDriverRuntimePlan>();
+
     public bool CanActivate => Issues.All(x => !x.IsError);
 }
 
@@ -39,11 +42,21 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
     public const string SimulationDriverKey = "builtin.simulation";
     public const string ModbusTcpDriverKey = "modbus.tcp";
 
+    private readonly CommunicationDriverRuntimeComponentRegistry _communicationComponents;
+
+    public EngineeringDriverCompiler(
+        CommunicationDriverRuntimeComponentRegistry? communicationComponents = null)
+    {
+        _communicationComponents = communicationComponents
+            ?? CommunicationDriverRuntimeComposition.BuildForCurrentSchema();
+    }
+
     public EngineeringDriverCompilation Compile(EngineeringPackage package)
     {
         ArgumentNullException.ThrowIfNull(package);
 
         var plans = new List<ModbusTcpRuntimePlan>();
+        var communicationPlans = new List<ICommunicationDriverRuntimePlan>();
         var issues = new List<EngineeringDriverIssue>();
         var dataSources = package.DataSources ?? Array.Empty<DataSourceEngineeringDto>();
 
@@ -52,19 +65,31 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
             if (dataSource.Driver.Equals(SimulationDriverKey, StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            if (!dataSource.Driver.Equals(ModbusTcpDriverKey, StringComparison.OrdinalIgnoreCase))
+            if (dataSource.Driver.Equals(ModbusTcpDriverKey, StringComparison.OrdinalIgnoreCase))
             {
-                issues.Add(new(
-                    "DRIVER_UNSUPPORTED",
-                    $"Enabled data source '{dataSource.Key}' uses unsupported runtime driver '{dataSource.Driver}'.",
-                    dataSource.Key));
+                CompileModbusTcp(package, dataSource, plans, issues);
                 continue;
             }
 
-            CompileModbusTcp(package, dataSource, plans, issues);
+            if (_communicationComponents.TryGet(dataSource.Driver, out var registration) && registration is not null)
+            {
+                var result = registration.Planner.Plan(package, dataSource);
+                issues.AddRange(result.Issues);
+                if (result.CanActivate && result.Plan is not null)
+                    communicationPlans.Add(result.Plan);
+                continue;
+            }
+
+            issues.Add(new(
+                "DRIVER_UNSUPPORTED",
+                $"Enabled data source '{dataSource.Key}' uses unsupported runtime driver '{dataSource.Driver}'.",
+                dataSource.Key));
         }
 
-        return new EngineeringDriverCompilation(plans, issues);
+        return new EngineeringDriverCompilation(plans, issues)
+        {
+            CommunicationPlans = communicationPlans
+        };
     }
 
     private static void CompileModbusTcp(

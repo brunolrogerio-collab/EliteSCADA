@@ -1,0 +1,109 @@
+name: Preview Licensing CI
+
+on:
+  push:
+    branches:
+      - 'product/preview-demo-licensing'
+      - 'coordination/driver-convergence-v3'
+      - 'main'
+  pull_request:
+    branches:
+      - 'coordination/driver-convergence-v3'
+      - 'main'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Restore
+        run: dotnet restore ScadaPlatform.sln
+      - name: Build product solution
+        run: dotnet build ScadaPlatform.sln -c Release --no-restore
+      - name: Build License Generator
+        run: dotnet build src/Scada.LicenseGenerator/Scada.LicenseGenerator.csproj -c Release
+      - name: Licensing and Core tests
+        run: dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj -c Release --no-restore --logger "console;verbosity=normal"
+      - name: Runtime licensing tests
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj -c Release --no-restore --logger "console;verbosity=normal"
+      - name: Host licensing composition smoke
+        shell: bash
+        run: |
+          set -uo pipefail
+          export ASPNETCORE_URLS=http://127.0.0.1:5091
+          dotnet run --project src/Scada.Api/Scada.Api.csproj --no-build --configuration Release --no-launch-profile > /tmp/scada-licensing-api.log 2>&1 &
+          API_PID=$!
+
+          fail() {
+            echo "=== EliteSCADA licensing host log ==="
+            cat /tmp/scada-licensing-api.log || true
+            kill "$API_PID" 2>/dev/null || true
+            wait "$API_PID" 2>/dev/null || true
+            exit 1
+          }
+
+          ready=false
+          for _ in $(seq 1 30); do
+            http_code=$(curl -sS -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:5091/health || true)
+            if [ "$http_code" = "200" ]; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          [ "$ready" = "true" ] || fail
+
+          curl -fsS http://127.0.0.1:5091/api/licensing/status > /tmp/licensing-status.json || fail
+          curl -fsS http://127.0.0.1:5091/api/licensing/request > /tmp/licensing-request.json || fail
+
+          if ! python3 - <<'PY'
+          import json
+          with open('/tmp/licensing-status.json') as f:
+              status = json.load(f)
+          with open('/tmp/licensing-request.json') as f:
+              request = json.load(f)
+          assert status['license']['state'] == 'Demo', status
+          assert status['license']['maximumTags'] == 200, status
+          assert status['runtime']['state'] == 'Idle', status
+          assert request['requestCode'].startswith('ESREQ1.'), request
+          PY
+          then
+            fail
+          fi
+
+          kill "$API_PID" 2>/dev/null || true
+          wait "$API_PID" 2>/dev/null || true
+
+          if grep -q "ObjectDisposedException" /tmp/scada-licensing-api.log; then
+            echo "Host shutdown emitted ObjectDisposedException."
+            cat /tmp/scada-licensing-api.log
+            exit 1
+          fi
+      - name: Dump licensing host log on failure
+        if: failure()
+        run: cat /tmp/scada-licensing-api.log || true
+      - name: Publish Windows x64 License Generator
+        run: >-
+          dotnet publish src/Scada.LicenseGenerator/Scada.LicenseGenerator.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:DebugType=None
+          -p:DebugSymbols=false
+          -o artifacts/license-generator/win-x64
+      - name: Upload Windows x64 License Generator
+        uses: actions/upload-artifact@v4
+        with:
+          name: EliteSCADA-LicenseGenerator-win-x64
+          path: artifacts/license-generator/win-x64/**
+          if-no-files-found: error
+          retention-days: 30

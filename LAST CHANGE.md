@@ -1,134 +1,157 @@
 # LAST CHANGE — EliteSCADA
 
-Date: 2026-08-30 (BRT)
+Date: 2026-08-31 (BRT)
+
+## Read first
+
+Stable product intent: [`PROJECT GOAL.md`](PROJECT%20GOAL.md)  
+Operational source of truth: [`docs/CURRENT-COORDINATOR-HANDOFF.md`](docs/CURRENT-COORDINATOR-HANDOFF.md)  
+Short transfer checkpoint: [`docs/COORDINATOR-TRANSFER-2026-08-31.md`](docs/COORDINATOR-TRANSFER-2026-08-31.md)
+
+Live GitHub refs and exact-SHA Actions evidence override stale SHAs copied into prose.
 
 ## Current checkpoint
 
-### MERGED
+- `main` at last audit: `d0a4e13816992b0a0eb68c36e78c560cc1d88`.
+- Active coordinator branch: `coordination/driver-convergence-v3`.
+- PR #175: **DRAFT / OPEN / MERGEABLE / DO NOT MERGE until controlled integration**.
+- Driver coordinator convergence: **7/7 CLOSED**.
+- Independent product-path L2: **7/7 PASS / ACCEPTED**.
+- Latest exact code-validated coordinator head: `6d340e8ca3baaabf138c19be2fb947297854e1f6`.
+- EliteSCADA CI #982: **SUCCESS**.
 
-**Wave 10 is CLOSED / MERGED / POST-MAIN GREEN.**
+CI #982:
 
-- final product merge: `15daff2cc076f46f9433812babbd5cbb4b8d9554`;
-- final integration CI #873: SUCCESS;
-- post-main CI #874: SUCCESS.
+- backend build: 0 warnings / 0 errors;
+- Core: 246 passed;
+- Drivers: 347 passed;
+- Historian: 23 passed;
+- Security: 27 passed;
+- PostgreSQL: 107 passed;
+- total backend: **750 passed / 0 failed**;
+- runtime smoke: SUCCESS;
+- Web: SUCCESS;
+- Chromium E2E: SUCCESS.
 
-Wave 10 issues #149, #150, #151 and #152 are now closed as completed.
+Documentation-only `[skip ci]` commits after `6d340e8...` do not create a newer code-validation claim.
 
-**Common seven-peer interoperability laboratory is MERGED on `main`.**
+## MERGED
 
-PR #173 merge:
+- Wave 10: **CLOSED / MERGED / POST-MAIN GREEN**.
+- Common seven-peer interoperability laboratory infrastructure: **MERGED** through PR #173.
 
-`a08cca94795a5afa14bf8af39b8bf2c6f7df71ae`
+Driver convergence described below is **not yet merged to `main`**.
 
-Exact validated functional lab head:
+## IMPLEMENTED IN PR
 
-`3ff2d6393c4e8734b4b1c08abd2bd8466f78f400`
+### Driver convergence / Engineering shared contracts
 
-Evidence:
+On Draft PR #175:
 
-- Interop Lab Smoke #42: SUCCESS;
-- EliteSCADA CI #886: SUCCESS after rerunning failed Modbus timing jobs on the unchanged functional SHA;
-- no product/Modbus code changed to obtain the green rerun.
+- Engineering schema v15 / canonical `CommunicationBinding`: CLOSED;
+- MQTT: CLOSED;
+- IEC-104: CLOSED;
+- CIP / EtherNet/IP: CLOSED;
+- OPC UA: CLOSED;
+- DNP3: CLOSED;
+- Siemens S7 ISO-on-TCP: CLOSED;
+- BACnet/IP: CLOSED;
+- shared readiness/runtime planner/factory composition preserved;
+- Driver product-path L2: 7/7 PASS / ACCEPTED.
 
-Common test-only peers on main: MQTT, CIP, OPC UA, IEC-104, DNP3, Siemens S7 and BACnet/IP.
+### Transitional Preview 200-TAG safeguard
 
-### IMPLEMENTED IN PR / ACTIVE WORK
+Functional head `6d340e8...` / CI #982 currently implements a static project-wide 200-TAG capacity safeguard:
 
-**Shared Driver convergence is ACTIVE under issue #174.**
+- canonical registry rejects creation of the 201st TAG;
+- Engineering Preview/Apply rejects imports that would exceed 200;
+- existing TAGs remain editable at the limit;
+- oversized candidate runtime also fails through the capped registry.
 
-Coordinator branch: `coordination/driver-convergence-v3`  
-Draft PR: `#175 — Driver convergence v3 — shared host contracts`  
-Exact audited PR head: `06c7d408c76926bf5d37dfec4be20ea6044f52b1`  
-Exact normal CI: **EliteSCADA CI #895 — SUCCESS**.
+This code is validated, but it is now explicitly **transitional behavior** and does not represent the final Demo/licensing contract.
 
-Implemented and covered by current shared-contract tests:
+## SPECIFIED / NOT IMPLEMENTED
 
-1. fail-closed communication Driver module registry keyed by stable DriverType;
-2. common runtime planner/factory component registry;
-3. protocol-neutral Data Source readiness contract;
-4. scoped host-owned protected-material resolver/lease seam;
-5. initial fail-closed shared-contract coverage.
+Product decision locked on 2026-08-31:
 
-PR #175 also contains a **partial Communication TAG binding / schema-v15 scaffold**:
+### Final Demo mode
 
-- `CommunicationTagBinding` core contract;
-- `TagPhysicalValueTransform` contract;
-- optional `TagDefinition.CommunicationBinding`;
-- optional `TagEngineeringDto.CommunicationBinding`;
-- export mapping from binding `PortableAddress` into compatibility Address;
-- `CommunicationTagBindingEngineeringValidator` declaring introduction at schema v15 and rejecting invalid/plaintext-secret-like data.
+- no installed license => Demo;
+- Engineering may contain more than 200 TAGs;
+- Demo Run is allowed only when project count is <= **200 TAGs**;
+- >200 TAGs blocks Run without deleting or truncating Engineering data;
+- Demo industrial runtime maximum: **300 continuous minutes per explicit Run session**;
+- at expiry Runtime stops gracefully, application/Engineering remains alive and a clear evaluation-expired message is shown;
+- user may explicitly Run again for a fresh 300-minute Demo session;
+- elapsed enforcement uses monotonic time.
 
-This scaffold is **IMPLEMENTED IN PR but NOT FUNCTIONALLY COMPLETE**. The handoff audit confirmed:
+### Hardware-bound licensing
 
-- `EngineeringExchangeService.CurrentSchemaVersion` is still 14;
-- `TagEngineeringHandler.Preview` does not call the new binding validator;
-- `TagEngineeringHandler.Apply` omits `dto.CommunicationBinding`, so Apply drops the rich binding;
-- preview materialization paths also omit it;
-- TAG CSV rich-binding fidelity is not implemented;
-- no full JSON/CSV/Preview/Apply/re-export/package/revision/PostgreSQL v15 regression exists.
+- EliteSCADA generates a copyable versioned machine request code derived from a canonical hashed hardware fingerprint;
+- controlled offline License Generator issues a signed license code/file;
+- initial TAG tiers: **500 / 1000 / 1500 / 3000 / 5000 / Unlimited**;
+- valid licensed/evaluation entitlement removes the 300-minute Demo runtime limit;
+- valid license must match the current hardware;
+- installed invalid/tampered/wrong-hardware license blocks Run and does not silently downgrade to Demo;
+- absent license enters Demo;
+- private signing key exists only in the controlled generator environment and MUST NOT be committed to GitHub, CI artifacts or normal EliteSCADA builds.
 
-Therefore CI #895 proves current scaffold compatibility, **not** completion of the public schema-v15 round-trip gate.
+Not implemented yet:
 
-Current Driver state at handoff audit:
+- entitlement/license service;
+- machine fingerprint/request-code generator;
+- signed-license verifier/import/status UI;
+- 200-TAG Demo Run gate;
+- 300-minute Demo runtime supervisor;
+- graceful Demo-expiry notification flow;
+- offline License Generator;
+- licensed tier enforcement.
 
-- D10 MQTT: head `acd46cd9a4a49e324f2037a1994e6f579a0bae3f`, Draft #128, exact CI #865 green; broad independent broker/security/restart/freshness evidence accepted; READY FOR COORDINATOR CONVERGENCE after v15.
-- D6 IEC-104: head `d597ef5ed1885b63dcd0b3568287bc1e34330bee`, Draft #146, CI #798 green; independent lib60870 L2 13/13 accepted; READY FOR COORDINATOR CONVERGENCE.
-- D5 CIP: head `18ff6dc989a65c1f8b006f83c08d8394a5510914`, Draft #111, CI #785 green; independent CIP L2 accepted; READY FOR COORDINATOR CONVERGENCE.
-- D9 OPC UA: head `5ce1f3c912bf3779e892fb136b51b54b0f19a5c6`, Draft #169, CI #869 green; ACTIVE product-path open62541 L2.
-- D7 DNP3: head `ac0dd6944f53d19447f3353addd404c02da7249c`, Draft #108, CI #697 green; validation PR #167 remains OPEN/RED on configured Int32 -> canonical Double mismatch; ACTIVE PRODUCT FIX.
-- D8 Siemens S7: head `0c37b922b44f591ebd143470abf3ebaa6b4bffae`, Draft #135, CI #789 green; ACTIVE product-path python-snap7 L2.
-- D4 BACnet/IP: head `de3357750f79266e43588e7bb26d66093f8cf3d5`, Draft #109, CI #860 green; ACTIVE product-path BACpypes discovery/RP/RPM/WP/COV/recovery L2.
+Authority: `docs/LICENSING-AND-DEMO-MODE.md`  
+Tracking issue: **#183**.
 
-Repository hygiene completed during coordinator handoff:
+The next implementation must refactor the current mutation-time 200-TAG ceiling into the entitlement-aware Run/activation behavior instead of layering a second contradictory limit on top.
 
-- Wave 10 issues #149-#152 closed completed;
-- validation/superseded PRs #148, #160, #161, #162, #163, #164, #165, #166 and #168 closed **unmerged**, preserving accepted evidence/history;
-- #167 remains open because DNP3 still has an unresolved product defect;
-- Driver product handoff PRs and #175 remain open.
+## L3 / L4 stage policy
 
-Handoff/authority documents synchronized on `main`:
+### L3
 
-- `docs/COORDINATOR-HANDOFF.md`;
-- `docs/CHAT-WORK-ASSIGNMENTS.md`;
-- `docs/DRIVER-AND-INTEROP-LAB-STATUS.md`;
-- `docs/DRIVER-CONVERGENCE-COORDINATION-V1.md`;
-- `docs/ROADMAP.md`;
-- this `LAST CHANGE.md`.
+After Driver convergence is merged to `main` and exact post-main CI is green, issue **#180** runs one integrated laboratory with all seven Drivers active simultaneously in one EliteSCADA build/runtime.
 
-### SPECIFIED / NOT IMPLEMENTED
+L3 must prove acquisition, supported writes/commands, shared readiness, cache identity isolation, one-peer fault isolation, recovery and clean shutdown.
 
-**Immediate Coordinator gate: complete canonical Engineering schema v15 before adapting MQTT.**
+Seven isolated L2 PASS results do not satisfy L3.
 
-Required next slice on PR #175:
+### L4
 
-1. bump canonical Engineering schema to v15 while preserving <=v14 compatibility;
-2. invoke `CommunicationTagBindingEngineeringValidator` in TAG Preview;
-3. preserve `CommunicationBinding` through Apply and every canonical TagDefinition materialization path;
-4. maintain `Address == CommunicationBinding.PortableAddress` during compatibility migration;
-5. implement TAG CSV fidelity where applicable without creating a second Driver address grammar;
-6. prove JSON/CSV Preview/Apply/re-export, `.escadapkg`, immutable revision and PostgreSQL persistence;
-7. prove malformed rich bindings and plaintext protected material fail closed;
-8. preserve `TagValueSelector` as the generic bit selector and ADR-007 transform-before-selection semantics;
-9. run exact-head normal CI.
+Physical Driver validation occurs later with a Preview build and does not block Wave 11.
 
-After that gate, convergence order remains:
+Acceptance authority: **Bruno Luiz Rogerio, Development Lead**.
 
-`MQTT -> IEC-104 -> CIP -> OPC UA -> DNP3 -> Siemens S7 -> BACnet/IP`
+Evidence is per exact Preview build plus real manufacturer/model/firmware.
 
-Remaining shared Coordinator work after the binding foundation includes:
+## NEXT
 
-- central Runtime activation through shared registry/planner/factory;
-- protected credential/certificate/private-key composition;
-- installable module/catalog/loading policy;
-- common namespaced operation surface where simple `WriteAsync` is insufficient;
-- SourceTimestamp/ServerTimestamp/current/historical late-event policy;
-- central Engineering ConnectionTest/Browse/Import/Reconcile registration and protected API/UI;
-- exact integrated CI and controlled transitions to `main`.
+Immediate project order remains:
 
-**Wave 11 remains DEFERRED** until Driver convergence closes or product priority is explicitly changed.
+`PR #175 controlled final audit/merge -> exact post-main CI green -> issue #180 integrated seven-Driver L3 PASS -> Wave 11`
 
-## Governance / CI note
+The Demo/licensing work in issue #183 is a separate Preview/distribution track. Do not insert it into PR #175 or treat it as already implemented unless the project ordering is explicitly changed.
 
-At the start of this handoff audit, GitHub reported `main` as not protected by a branch-protection rule. No repository-governance setting was changed. Treat direct mainline writes as a process risk and preserve exact-head CI discipline manually unless branch protection is separately authorized.
+## Last actual repository change
 
-CI mode remains **NORMAL**. Documentation-only checkpoints may use `[skip ci]`. Normal CI, peer/tool readiness, Driver L2, licensing/conformance and L3/L4 acceptance are separate evidence claims. Never weaken a test to hide a real protocol/type defect.
+The most recent work after CI #982 is **documentation/coordination only**. No product/licensing code was added after the conversation stalled.
+
+The handoff update performed the following:
+
+- updated `PROJECT GOAL.md` with the locked Demo + hardware-bound licensing product goal;
+- created `docs/LICENSING-AND-DEMO-MODE.md` with the detailed contract;
+- revised `docs/PREVIEW-CAPACITY-POLICY.md` to distinguish the validated transitional 200-TAG code from the final Demo Run-gate behavior;
+- refreshed `docs/CURRENT-COORDINATOR-HANDOFF.md`;
+- created and finalized `docs/COORDINATOR-TRANSFER-2026-08-31.md`;
+- updated `docs/ROADMAP.md`;
+- updated `docs/README.md` documentation authority map;
+- opened issue **#183** for Demo/licensing implementation;
+- synchronized live PR **#175** and issue **#174** with CI #982 and the new specified/not-implemented licensing boundary.
+
+**No licensing/product code was committed after the stalled implementation attempt. The latest code-validation checkpoint remains `6d340e8...` / CI #982.**

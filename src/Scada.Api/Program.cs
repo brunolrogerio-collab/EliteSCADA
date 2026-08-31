@@ -1,6 +1,7 @@
 using System.Text;
 using Scada.Api.Historian;
 using Scada.Api.HostedServices;
+using Scada.Api.Licensing;
 using Scada.Api.Persistence;
 using Scada.Api.ProjectPackages;
 using Scada.Api.Realtime;
@@ -30,6 +31,7 @@ using Scada.Security.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 var authenticationEnabled = builder.AddEliteScadaJwtAuthentication();
+builder.AddConfiguredProductLicensing();
 
 builder.Services.AddSingleton<IScadaEventBus, InMemoryScadaEventBus>();
 builder.Services.AddSingleton<TagRealtimeHub>();
@@ -64,6 +66,9 @@ builder.Services.AddSingleton<IEngineeringRuntimeCoordinator>(sp =>
     sp.GetRequiredService<GatewayEngineeringRuntimeCoordinator>());
 builder.Services.AddSingleton<IGatewayRuntimeDiagnosticsProvider>(sp =>
     sp.GetRequiredService<GatewayEngineeringRuntimeCoordinator>());
+// Product licensing is registered after the raw runtime so its host-owned coordinator
+// becomes the final IEngineeringRuntimeCoordinator/diagnostics boundary resolved by DI.
+builder.AddProductLicensedRuntimeCoordinator();
 
 builder.Services.AddSingleton<IEngineeringExchangeService, EngineeringExchangeService>();
 builder.Services.AddSingleton<IProjectPackageService, ProjectPackageService>();
@@ -106,6 +111,7 @@ app.MapAuditEndpoints();
 app.MapAlarmShelvingEndpoints();
 app.MapCommandEndpoints();
 app.MapInternalMemoryEndpoints();
+app.MapProductLicensingEndpoints();
 if (historicalQueryEnabled) app.MapHistoricalQueryEndpoints();
 
 // Public health intentionally exposes no plant, driver, project or historian detail.

@@ -15,23 +15,28 @@ type ShellCopy = {
   engineeringDescription: string;
   audit: string;
   auditDescription: string;
+  licensing: string;
+  licensingDescription: string;
 };
 const localeKey = 'elitescada.engineering.locale';
 const copy: Record<ShellLocale, ShellCopy> = {
   'pt-BR': {
     subtitle: 'Plataforma industrial', currentArea: 'Área atual', runtime: 'Runtime', runtimeDescription: 'Operação',
     runtimeOverview: 'Visão geral', runtimeHistory: 'Histórico',
-    engineering: 'Engineering', engineeringDescription: 'Área de projeto', audit: 'Auditoria', auditDescription: 'Rastreabilidade'
+    engineering: 'Engineering', engineeringDescription: 'Área de projeto', audit: 'Auditoria', auditDescription: 'Rastreabilidade',
+    licensing: 'Licenciamento', licensingDescription: 'Demo e licença'
   },
   en: {
     subtitle: 'Industrial platform', currentArea: 'Current area', runtime: 'Runtime', runtimeDescription: 'Operations',
     runtimeOverview: 'Overview', runtimeHistory: 'History',
-    engineering: 'Engineering', engineeringDescription: 'Project area', audit: 'Audit', auditDescription: 'Traceability'
+    engineering: 'Engineering', engineeringDescription: 'Project area', audit: 'Audit', auditDescription: 'Traceability',
+    licensing: 'Licensing', licensingDescription: 'Demo and license'
   },
   es: {
     subtitle: 'Plataforma industrial', currentArea: 'Área actual', runtime: 'Runtime', runtimeDescription: 'Operación',
     runtimeOverview: 'Vista general', runtimeHistory: 'Histórico',
-    engineering: 'Engineering', engineeringDescription: 'Área de proyecto', audit: 'Auditoría', auditDescription: 'Trazabilidad'
+    engineering: 'Engineering', engineeringDescription: 'Área de proyecto', audit: 'Auditoría', auditDescription: 'Trazabilidad',
+    licensing: 'Licenciamiento', licensingDescription: 'Demo y licencia'
   }
 };
 function resolveLocale(): ShellLocale {
@@ -46,12 +51,19 @@ export function AppNavigation() {
   const locale = resolveLocale();
   const text = copy[locale];
   const path = window.location.pathname;
-  const activeHref = path.startsWith('/audit') ? '/audit' : path.startsWith('/engineering') ? '/engineering' : '/';
+  const activeHref = path.startsWith('/licensing')
+    ? '/licensing'
+    : path.startsWith('/audit')
+      ? '/audit'
+      : path.startsWith('/engineering')
+        ? '/engineering'
+        : '/';
   const activeRuntimeHref = path.startsWith('/runtime/history') ? '/runtime/history' : '/';
   const links = [
     { href: '/', label: text.runtime, description: text.runtimeDescription },
     { href: '/engineering', label: text.engineering, description: text.engineeringDescription },
-    { href: '/audit', label: text.audit, description: text.auditDescription }
+    { href: '/audit', label: text.audit, description: text.auditDescription },
+    { href: '/licensing', label: text.licensing, description: text.licensingDescription }
   ];
   const active = links.find(link => link.href === activeHref) ?? links[0];
   return (

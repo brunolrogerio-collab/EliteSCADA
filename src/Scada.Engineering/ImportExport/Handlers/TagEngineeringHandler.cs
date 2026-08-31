@@ -32,6 +32,7 @@ internal sealed class TagEngineeringHandler
         {
             var issues = EngineeringValidator.ValidateTag(dto).ToList();
             ValidateAccessPolicy(dto, issues);
+            issues.AddRange(CommunicationTagBindingEngineeringValidator.Validate(dto, package.SchemaVersion));
 
             var dataSource = ResolveDataSource(dto.Source, package);
             issues.AddRange(MemoryEngineeringValidator.ValidateTag(dto, dataSource));
@@ -91,7 +92,8 @@ internal sealed class TagEngineeringHandler
                 dto.ReadOnly,
                 BuildMetadata(dto),
                 BuildAccessPolicy(dto.AccessPolicy),
-                dto.AddressSelector);
+                dto.AddressSelector,
+                dto.CommunicationBinding);
 
             if (existing is null)
             {
@@ -132,7 +134,8 @@ internal sealed class TagEngineeringHandler
             imported.ReadOnly,
             BuildMetadata(imported),
             BuildAccessPolicy(imported.AccessPolicy),
-            imported.AddressSelector);
+            imported.AddressSelector,
+            imported.CommunicationBinding);
     }
 
     public bool IsClientMemoryAlarmTarget(AlarmEngineeringDto dto, EngineeringPackage package)

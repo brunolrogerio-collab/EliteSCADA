@@ -24,6 +24,7 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
     private readonly IScadaEventBus _eventBus;
     private readonly SemaphoreSlim _activationGate = new(1, 1);
     private GatewayRuntimeEngine? _gateway;
+    private bool _disposed;
 
     public GatewayEngineeringRuntimeCoordinator(
         EngineeringRuntimeCoordinator inner,
@@ -101,6 +102,9 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
         await _activationGate.WaitAsync(cancellationToken);
         try
         {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(GatewayEngineeringRuntimeCoordinator));
+
             var gatewayIssues = new List<RuntimeActivationIssue>();
             var candidateGateway = BuildCandidateGateway(package, gatewayIssues);
             if (gatewayIssues.Any(issue => issue.IsError))
@@ -270,6 +274,10 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
         await _activationGate.WaitAsync();
         try
         {
+            if (_disposed)
+                return;
+            _disposed = true;
+
             var gateway = Volatile.Read(ref _gateway);
             if (gateway is not null)
                 await gateway.DisposeAsync();
@@ -279,7 +287,6 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
         finally
         {
             _activationGate.Release();
-            _activationGate.Dispose();
         }
     }
 

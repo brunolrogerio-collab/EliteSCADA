@@ -2,4 +2,14 @@
   <ItemGroup>
     <ProjectReference Include="../Scada.Core/Scada.Core.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BACnet" Version="4.0.0" />
+    <PackageReference Include="MQTTnet" Version="5.2.0.1603" />
+    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client" Version="1.5.378.156" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Scada.Drivers.Tests" />
+  </ItemGroup>
 </Project>

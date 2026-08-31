@@ -21,7 +21,8 @@ internal sealed class EngineeringCsvExchange
                 "Id", "Path", "Name", "DataType", "Unit", "Source", "Address", "AddressSelectorKind", "AddressSelectorIndex", "ReadOnly",
                 "ScaleMinimum", "ScaleMaximum", "HistorianEnabled", "HistorianStrategy", "Deadband",
                 "PeriodMilliseconds", "MaximumPeriodMilliseconds", "Description", "MetadataJson",
-                "ReadRolesJson", "WriteRolesJson", "ConfigureRolesJson", "InitialValueDataType", "InitialValueJson"
+                "ReadRolesJson", "WriteRolesJson", "ConfigureRolesJson", "InitialValueDataType", "InitialValueJson",
+                "CommunicationBindingJson"
             }
         };
 
@@ -36,7 +37,8 @@ internal sealed class EngineeringCsvExchange
                 tag.Historian?.PeriodMilliseconds?.ToString(CultureInfo.InvariantCulture),
                 tag.Historian?.MaximumPeriodMilliseconds?.ToString(CultureInfo.InvariantCulture), tag.Description,
                 JsonMap(tag.Metadata), JsonList(tag.AccessPolicy?.ReadRoles), JsonList(tag.AccessPolicy?.WriteRoles),
-                JsonList(tag.AccessPolicy?.ConfigureRoles), tag.InitialValue?.DataType.ToString(), tag.InitialValue?.Value.GetRawText()
+                JsonList(tag.AccessPolicy?.ConfigureRoles), tag.InitialValue?.DataType.ToString(), tag.InitialValue?.Value.GetRawText(),
+                JsonCommunicationBinding(tag.CommunicationBinding)
             });
         }
 
@@ -153,6 +155,8 @@ internal sealed class EngineeringCsvExchange
         var addressSelector = ParseAddressSelector(
             Null(Get(row, header, "AddressSelectorKind")),
             Null(Get(row, header, "AddressSelectorIndex")));
+        var communicationBinding = ParseCommunicationBinding(
+            Null(Get(row, header, "CommunicationBindingJson")));
 
         return new TagEngineeringDto(
             GuidOrNull(Get(row, header, "Id")),
@@ -175,7 +179,8 @@ internal sealed class EngineeringCsvExchange
             ParseMap(Get(row, header, "MetadataJson")),
             accessPolicy,
             initialValue,
-            addressSelector);
+            addressSelector,
+            communicationBinding);
     }
 
     private string? JsonMap(IReadOnlyDictionary<string, string>? map) =>
@@ -183,6 +188,9 @@ internal sealed class EngineeringCsvExchange
 
     private string? JsonList(IReadOnlyCollection<string>? values) =>
         values is null ? null : JsonSerializer.Serialize(values, _json);
+
+    private string? JsonCommunicationBinding(CommunicationTagBinding? binding) =>
+        binding is null ? null : JsonSerializer.Serialize(binding, _json);
 
     private Dictionary<string, string>? ParseMap(string? json)
     {
@@ -208,6 +216,20 @@ internal sealed class EngineeringCsvExchange
         catch (JsonException ex)
         {
             throw new InvalidDataException("Invalid JSON role list in TAG engineering CSV.", ex);
+        }
+    }
+
+    private CommunicationTagBinding? ParseCommunicationBinding(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            return JsonSerializer.Deserialize<CommunicationTagBinding>(json, _json)
+                ?? throw new InvalidDataException("Invalid CommunicationBinding JSON in TAG engineering CSV.");
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException("Invalid CommunicationBinding JSON in TAG engineering CSV.", ex);
         }
     }
 

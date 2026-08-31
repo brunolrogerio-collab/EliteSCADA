@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO.BACnet;
 using Scada.Drivers.Bacnet;
 
@@ -25,13 +26,7 @@ public sealed class BacnetL2IntegrationTests
         Assert.Equal(DeviceInstance, device.DeviceInstance);
         Assert.Equal((ushort)999, device.VendorId);
 
-        var analog = new BacnetBinding(
-            DeviceInstance,
-            (uint)BacnetObjectTypes.OBJECT_ANALOG_VALUE,
-            1,
-            (uint)BacnetPropertyIds.PROP_PRESENT_VALUE,
-            UseCov: true);
-
+        var analog = AnalogPresentValueBinding();
         var initial = await session.ReadAsync(analog);
         Assert.NotEmpty(initial.Values);
         Assert.Equal(21.5d, Convert.ToDouble(initial.Values[0].Value), 3);
@@ -69,5 +64,93 @@ public sealed class BacnetL2IntegrationTests
         var covValue = await changedCov.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(33.25d, covValue, 3);
         Assert.True(Volatile.Read(ref covNotifications) >= 1);
+    }
+
+    [Fact]
+    [Trait("Category", "BacnetL2Integration")]
+    public async Task Session_InvalidatesLostDeviceRouteAndResolvesAgainAfterPeerRestart()
+    {
+        var container = Environment.GetEnvironmentVariable("ELITESCADA_BACNET_L2_RESTART_CONTAINER");
+        Assert.False(string.IsNullOrWhiteSpace(container));
+
+        var options = new BacnetSessionOptions(
+            LocalPort: 47810,
+            RequestTimeout: TimeSpan.FromMilliseconds(500),
+            Retries: 1,
+            DiscoveryWindow: TimeSpan.FromSeconds(1),
+            TargetAddress: "127.0.0.1:47808");
+
+        await using var session = new SystemIoBacnetSession(options);
+        await session.StartAsync();
+        var analog = AnalogPresentValueBinding();
+
+        var beforeLoss = await session.ResolveDeviceAsync(DeviceInstance);
+        Assert.Equal((ushort)999, beforeLoss.VendorId);
+        Assert.NotEmpty((await session.ReadAsync(analog)).Values);
+
+        await RunDockerAsync("stop", container!);
+        await Assert.ThrowsAnyAsync<Exception>(() => session.ReadAsync(analog));
+
+        // A transport read failure must remove the cached Device Instance route.
+        // With the peer still down, ResolveDeviceAsync must perform a fresh
+        // Who-Is and time out instead of returning the stale cached address.
+        await Assert.ThrowsAsync<TimeoutException>(() => session.ResolveDeviceAsync(DeviceInstance));
+
+        await RunDockerAsync("start", container!);
+        await WaitForPeerHealthAsync();
+
+        var afterRestart = await session.ResolveDeviceAsync(DeviceInstance);
+        Assert.Equal(DeviceInstance, afterRestart.DeviceInstance);
+        Assert.Equal((ushort)999, afterRestart.VendorId);
+
+        var recovered = await session.ReadAsync(analog);
+        Assert.Equal(21.5d, Convert.ToDouble(recovered.Values[0].Value), 3);
+        Assert.True(recovered.UsedReadPropertyMultiple);
+    }
+
+    private static BacnetBinding AnalogPresentValueBinding()
+        => new(
+            DeviceInstance,
+            (uint)BacnetObjectTypes.OBJECT_ANALOG_VALUE,
+            1,
+            (uint)BacnetPropertyIds.PROP_PRESENT_VALUE,
+            UseCov: true);
+
+    private static async Task RunDockerAsync(string command, string container)
+    {
+        using var process = Process.Start(new ProcessStartInfo
+        {
+            FileName = "docker",
+            ArgumentList = { command, container },
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        }) ?? throw new InvalidOperationException("Could not start docker CLI for BACnet L2 fault injection.");
+
+        var stdout = await process.StandardOutput.ReadToEndAsync();
+        var stderr = await process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+        Assert.True(process.ExitCode == 0, $"docker {command} failed: {stdout} {stderr}");
+    }
+
+    private static async Task WaitForPeerHealthAsync()
+    {
+        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(1) };
+        var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(15);
+        Exception? lastError = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            try
+            {
+                using var response = await client.GetAsync("http://127.0.0.1:18080/health");
+                if (response.IsSuccessStatusCode) return;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                lastError = ex;
+            }
+            await Task.Delay(250);
+        }
+        throw new TimeoutException($"BACpypes peer did not become healthy after restart. Last error: {lastError?.GetType().Name}");
     }
 }

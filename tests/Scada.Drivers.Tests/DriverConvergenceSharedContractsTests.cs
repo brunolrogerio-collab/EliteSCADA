@@ -90,10 +90,10 @@ public sealed class DriverConvergenceSharedContractsTests
         var plan = new StubPlan("mqtt.raw");
         var warningOnly = new CommunicationDriverRuntimePlanningResult(
             plan,
-            [new EngineeringDriverIssue("WARN", DriverEngineeringIssueSeverity.Warning, "warning")]);
+            [new EngineeringDriverIssue("WARN", "warning", "source-1", IsError: false)]);
         var withError = new CommunicationDriverRuntimePlanningResult(
             plan,
-            [new EngineeringDriverIssue("ERR", DriverEngineeringIssueSeverity.Error, "error")]);
+            [new EngineeringDriverIssue("ERR", "error", "source-1", IsError: true)]);
 
         Assert.True(warningOnly.CanActivate);
         Assert.False(withError.CanActivate);

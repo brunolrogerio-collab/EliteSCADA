@@ -9,12 +9,17 @@
 ## Mandatory continuity protocol
 
 1. At the beginning of every EliteSCADA task, read `PROJECT GOAL.md` and `LAST CHANGE.md` before planning or changing code.
-2. If the user adds, removes or clarifies a stable product goal or architectural rule, update this file in the same task.
-3. Before the final response of an EliteSCADA task, update `LAST CHANGE.md` with the actual repository state.
-4. `LAST CHANGE.md` must distinguish **MERGED**, **IMPLEMENTED IN PR** and **SPECIFIED / NOT IMPLEMENTED**.
-5. `docs/ROADMAP.md` must remain consistent with this product north.
-6. Permanent architectural decisions must not exist only in a feature branch or chat history.
-7. If conversation memory, documentation and repository disagree, inspect current `main`; repository state wins for what is implemented and this file wins for explicitly locked future product intent.
+2. The repository, not chat history, is the persistent coordination memory. A fresh ChatGPT conversation must be able to resume safely from repository state alone.
+3. Every material coordination cycle, decision, blocker, fix, validation run or change of next action must review and synchronize **both** `PROJECT GOAL.md` and `LAST CHANGE.md` in the same task when their recorded state is affected.
+4. Stable product goals, architecture and permanent coordination rules belong in `PROJECT GOAL.md`; exact mutable branch/SHA/run/issue/blocker/next-action state belongs in `LAST CHANGE.md`.
+5. No critical decision, blocker, diagnosis, acceptance evidence or next action may exist only in chat history.
+6. If the user adds, removes or clarifies a stable product goal or architectural rule, update this file in the same task.
+7. Before the final response of an EliteSCADA task, verify `LAST CHANGE.md` reflects the actual repository/CI state and update it if anything material changed.
+8. `LAST CHANGE.md` must distinguish **MERGED**, **IMPLEMENTED IN PR/BRANCH** and **SPECIFIED / NOT IMPLEMENTED OR NOT ACCEPTED**.
+9. `docs/ROADMAP.md` must remain consistent with this product north.
+10. Permanent architectural decisions must not exist only in a feature branch or chat history; when a temporary coordination branch is active, the handoff must explicitly preserve what still needs propagation to `main`.
+11. If conversation memory, documentation and repository disagree, inspect live `main`, the active branch, issues and exact-SHA CI. Repository/CI state wins for what is implemented; this file wins for explicitly locked future product intent.
+12. When the Development Lead says `siga`, treat it as an instruction to continue executing the active coordination sequence until completion or a real external/blocking condition, rather than stopping after each intermediate diagnosis. Persist material checkpoints while executing.
 
 ## Product mission
 

@@ -1,30 +1,22 @@
 # EliteSCADA Roadmap
 
-**Status date:** 2026-08-30 (BRT)  
-**Active direction:** **DRIVER CONVERGENCE**  
-**Wave 11:** **DEFERRED UNTIL DRIVER CONVERGENCE**
+**Status date:** 2026-08-31 (BRT)  
+**Active direction:** **FINAL DRIVER MAINLINE INTEGRATION -> POST-MAIN L3 LAB**  
+**Wave 11:** **DEFERRED UNTIL POST-MAIN L3 PASS**
 
 Authoritative product intent: `PROJECT GOAL.md`.  
-Coordinator handoff: `docs/COORDINATOR-HANDOFF.md`.  
-Live ownership: `docs/CHAT-WORK-ASSIGNMENTS.md`.  
-Driver/lab status: `docs/DRIVER-AND-INTEROP-LAB-STATUS.md`.  
+Operational coordinator handoff: `docs/CURRENT-COORDINATOR-HANDOFF.md`.  
+Driver/lab evidence policy: `docs/DRIVER-AND-INTEROP-LAB-STATUS.md`.  
 Shared convergence issue: `#174`.  
-Current checkpoint: `LAST CHANGE.md`.
+Draft integration PR: `#175`.
 
-## Validated foundation
+## Current validated foundation
 
-Wave 10 is COMPLETE / MERGED / POST-MAIN GREEN.
-
-- final Wave 10 product merge: `15daff2cc076f46f9433812babbd5cbb4b8d9554`;
-- final Wave 10 integration CI #873: GREEN;
-- post-main CI #874: GREEN.
-
-The common seven-peer Driver interoperability laboratory is COMPLETE / MERGED:
-
-- PR #173 merge: `a08cca94795a5afa14bf8af39b8bf2c6f7df71ae`;
-- functional lab head: `3ff2d6393c4e8734b4b1c08abd2bd8466f78f400`;
-- Interop Lab Smoke #42: GREEN;
-- normal CI #886: GREEN after rerunning unrelated Modbus timing failures on unchanged functional SHA.
+- Wave 10: COMPLETE / MERGED / POST-MAIN GREEN.
+- Common seven-peer interoperability infrastructure: COMPLETE / MERGED.
+- Independent product-path Driver L2: **7/7 PASS / ACCEPTED**.
+- Shared Driver convergence on PR #175: **7/7 CLOSED FOR COORDINATOR CONVERGENCE**.
+- Remaining immediate boundary: final merge into `main`, post-merge CI, then integrated L3 laboratory.
 
 ## Ordered path to v0.1
 
@@ -39,85 +31,90 @@ Wave 08      Graphical Editor + Image + Engineering Development Monitor         
 08-FOLLOW-B  Typed Visual Expressions + Boolean Conditions + Analog Fill                 COMPLETE
 Wave 09      Screens + Popups + Dynamos + navigation + Historical Data + Reporting       COMPLETE
 Wave 10      Python visual events + animation + preview                                  COMPLETE
-Driver Lab   Seven-peer reproducible interoperability tool stack                         COMPLETE / MERGED
-Drivers      Shared convergence + product L2 gates + accepted integration                 ACTIVE / PRIORITY
-Wave 11      Complete HMI Runtime demo vertical slice                                    DEFERRED
+Driver Lab   Seven-peer reproducible interoperability infrastructure                     COMPLETE / MERGED
+Driver L2    Independent product-path protocol evidence                                  7/7 PASS
+Drivers      Shared runtime/Engineering convergence                                      7/7 CLOSED IN PR
+Mainline     Merge Driver convergence + exact post-main CI                               NEXT GATE
+Driver L3    All seven Drivers concurrently in one main build/runtime                    REQUIRED BEFORE WAVE 11
+Wave 11      Complete HMI Runtime demo vertical slice                                    DEFERRED UNTIL L3 PASS
 Wave 12      Hardening                                                                   WAITING
 Wave 13      Windows x64 product package                                                 WAITING
 Wave 14      Product-owner validation                                                    WAITING
 Wave 15      Feedback/corrections                                                        WAITING
+Preview      EliteSCADA Preview build                                                    FUTURE
+Driver L4    Physical hardware/site validation by Development Lead                       AFTER PREVIEW BUILD
 FINAL        EliteSCADA v0.1 — Full Product Validation Preview
 ```
 
-## Driver convergence — ACTIVE
+## Driver evidence policy
 
-Shared authority:
+EliteSCADA currently uses these operational evidence levels:
 
-- issue #174;
-- branch `coordination/driver-convergence-v3`;
-- Draft PR #175;
-- audited PR head `06c7d408c76926bf5d37dfec4be20ea6044f52b1`;
-- exact normal CI #895 GREEN.
+- **L0** — unit/codec/contracts;
+- **L1** — same-stack/in-process/loopback;
+- **L2** — Driver against an independent software peer over the real wire protocol;
+- **L3** — one `main` EliteSCADA build running **all seven Drivers concurrently** against the independent laboratory peers;
+- **L4** — real physical hardware/site validation using a Preview build.
 
-Current shared foundation includes registry/planner/factory contracts, readiness, protected-material resolution and a **partial** rich Communication TAG binding scaffold.
+See `docs/DRIVER-AND-INTEROP-LAB-STATUS.md` for the detailed acceptance matrix.
 
-### Immediate blocking slice: Engineering schema v15
+## Immediate stage gate: main -> L3 -> Wave 11
 
-The next Coordinator step is not Driver import yet. Complete the Communication TAG binding lifecycle first:
+The next transition is strictly ordered:
 
-1. advance canonical Engineering to schema v15 with <=v14 compatibility;
-2. wire rich-binding validation into Preview;
-3. preserve binding through Apply/materialization/export;
-4. enforce compatibility `Address == CommunicationBinding.PortableAddress`;
-5. preserve `TagValueSelector` and ADR-007 transform-before-selection semantics;
-6. implement TAG CSV fidelity where applicable;
-7. prove JSON/CSV/Preview/Apply/re-export, `.escadapkg`, revisions and PostgreSQL persistence;
-8. exact-head normal CI.
+```text
+PR #175 final pre-merge green
+    -> merge Driver convergence to main
+    -> exact post-main CI green
+    -> integrated seven-Driver L3 laboratory
+    -> L3 PASS
+    -> Wave 11 may start
+```
 
-At audited #175 head, `EngineeringExchangeService.CurrentSchemaVersion` remains 14 and TAG Apply drops `CommunicationBinding`, so the v15 scaffold must **not** be reported as complete merely because CI #895 is green.
+### L3 requirement
 
-## Evidence-driven Driver order
+The L3 laboratory must run a single EliteSCADA instance/project with all seven communication Data Sources active simultaneously:
 
-After the v15 gate:
+1. MQTT;
+2. IEC-104;
+3. CIP / EtherNet/IP;
+4. OPC UA;
+5. DNP3;
+6. Siemens S7 ISO-on-TCP;
+7. BACnet/IP.
 
-`MQTT -> IEC-104 -> CIP -> OPC UA -> DNP3 -> Siemens S7 -> BACnet/IP`
+It must prove concurrent acquisition, supported writes/commands, shared readiness, cache identity isolation, one-peer fault isolation, recovery and clean shutdown without cross-Driver interference.
 
-- MQTT: ready for shared convergence; broad independent broker/security/restart/freshness evidence green.
-- IEC-104: ready; independent lib60870 L2 13/13 green.
-- CIP: ready; independent CIP L2 green.
-- OPC UA: worker product-path open62541 L2 still active.
-- DNP3: worker must fix real configured Int32 -> canonical Double mismatch; PR #167 remains active.
-- Siemens S7: worker product-path python-snap7 L2 still active.
-- BACnet/IP: worker product-path BACpypes discovery/RP/RPM/WP/COV/recovery L2 still active.
+A collection of seven independent L2 results does not satisfy this gate.
 
-Protocol branches remain isolated source/evidence lines. Re-port/adapt narrowly against current `main`; never merge historical Driver branch baggage wholesale.
+## Wave 11
 
-## Interoperability laboratory — COMPLETE
+Wave 11 remains the complete owner-testable HMI Runtime demo vertical slice.
 
-Common test-only peers on main:
+**Do not start Wave 11 until the post-main integrated seven-Driver L3 laboratory is PASS.**
 
-- MQTT — Eclipse Mosquitto + Node-RED;
-- Allen-Bradley CIP — ControlLogix + CompactLogix simulator profiles;
-- OPC UA — open62541 + node-opcua reference client;
-- IEC-104 — lib60870-C outstation;
-- DNP3 — dnp3py outstation;
-- Siemens S7 — python-snap7 server;
-- BACnet/IP — BACpypes peer.
+Once L3 passes, Driver convergence/laboratory stops being the active stage and the project proceeds to Wave 11.
 
-Peer/tool readiness is not automatic Driver product acceptance. L0/L1/L2/L3/L4, normal CI, licensing and conformance remain separate claims.
+## L4 physical validation
 
-## Wave 11 — DEFERRED
+Physical Driver evaluation is deferred until the EliteSCADA Preview build exists.
 
-Wave 11 still owns the complete owner-testable HMI Runtime demo vertical slice. Its scope is unchanged. Do not start Wave 11 implementation while Driver convergence is the active priority unless explicitly reprioritized.
+The Development Lead and physical Driver acceptance authority is:
+
+**Bruno Luiz Rogerio**
+
+L4 is recorded per representative real device/model/firmware and does not block the start of Wave 11. It is a later Preview validation gate.
 
 ## Quality locks
 
 - canonical Engineering/backend authority;
+- schema-v15 `CommunicationBinding` remains the rich communication TAG authority;
 - no plaintext protected material;
 - no Driver-to-Driver coupling;
-- no test weakening to hide real product/protocol defects;
-- `Address == CommunicationBinding.PortableAddress` during v15 migration;
-- `TagValueSelector` remains generic bit identity;
-- ADR-007 transform precedes bit selection;
-- exact final integration/main CI before stage transitions;
-- keep `LAST CHANGE.md`, assignments, Driver status and handoff synchronized.
+- no canonical TAG/cache/event bypass;
+- no test weakening to hide product/protocol defects;
+- L2 does not imply L3;
+- L3 does not imply physical hardware validation;
+- physical L4 evidence is device-specific;
+- licensing and formal conformance/certification remain separate claims;
+- exact CI evidence is required at every stage transition.

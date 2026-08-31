@@ -50,11 +50,7 @@ public sealed class FileProductLicenseService : IProductLicenseService, IDisposa
                     return LicenseVerificationResult.Invalid($"Installed license could not be read: {ex.Message}");
                 }
 
-                return EliteScadaLicenseCodec.VerifyLicense(
-                    code,
-                    MachineFingerprint,
-                    _publicKeys,
-                    _timeProvider.GetUtcNow());
+                return Verify(code);
             }
         }
     }
@@ -69,13 +65,30 @@ public sealed class FileProductLicenseService : IProductLicenseService, IDisposa
 
         lock (_gate)
         {
+            var normalized = licenseCode.Trim();
+            var verification = Verify(normalized);
+            if (verification.State != LicenseState.Valid)
+            {
+                throw new InvalidDataException(
+                    verification.Diagnostic ??
+                    "The supplied EliteSCADA license is not valid for this machine and verification-key set.");
+            }
+
             var directory = Path.GetDirectoryName(_licensePath);
             if (!string.IsNullOrWhiteSpace(directory))
                 Directory.CreateDirectory(directory);
 
             var temporary = _licensePath + ".tmp";
-            File.WriteAllText(temporary, licenseCode.Trim() + Environment.NewLine);
-            File.Move(temporary, _licensePath, overwrite: true);
+            try
+            {
+                File.WriteAllText(temporary, normalized + Environment.NewLine);
+                File.Move(temporary, _licensePath, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(temporary))
+                    File.Delete(temporary);
+            }
         }
     }
 
@@ -87,6 +100,13 @@ public sealed class FileProductLicenseService : IProductLicenseService, IDisposa
                 File.Delete(_licensePath);
         }
     }
+
+    private LicenseVerificationResult Verify(string? code) =>
+        EliteScadaLicenseCodec.VerifyLicense(
+            code,
+            MachineFingerprint,
+            _publicKeys,
+            _timeProvider.GetUtcNow());
 
     public void Dispose()
     {

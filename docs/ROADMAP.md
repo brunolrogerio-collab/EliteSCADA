@@ -7,7 +7,9 @@
 Authoritative product intent: `PROJECT GOAL.md`.  
 Operational coordinator handoff: `docs/CURRENT-COORDINATOR-HANDOFF.md`.  
 Driver/lab evidence policy: `docs/DRIVER-AND-INTEROP-LAB-STATUS.md`.  
+Preview capacity policy: `docs/PREVIEW-CAPACITY-POLICY.md`.  
 Shared convergence issue: `#174`.  
+L3 integrated laboratory: `#180`.  
 Draft integration PR: `#175`.
 
 ## Current validated foundation
@@ -16,7 +18,10 @@ Draft integration PR: `#175`.
 - Common seven-peer interoperability infrastructure: COMPLETE / MERGED.
 - Independent product-path Driver L2: **7/7 PASS / ACCEPTED**.
 - Shared Driver convergence on PR #175: **7/7 CLOSED FOR COORDINATOR CONVERGENCE**.
-- Remaining immediate boundary: final merge into `main`, post-merge CI, then integrated L3 laboratory.
+- Preview product capacity: **200 TAGs per project / IMPLEMENTED IN PR / CI #982 GREEN**.
+- Latest code-validated coordinator head: `6d340e8ca3baaabf138c19be2fb947297854e1f6`.
+- CI #982: **750 backend tests / 0 failed + smoke + Web + Chromium SUCCESS**.
+- Remaining immediate boundary: controlled merge into `main`, post-merge CI, then integrated L3 laboratory.
 
 ## Ordered path to v0.1
 
@@ -34,7 +39,8 @@ Wave 10      Python visual events + animation + preview                         
 Driver Lab   Seven-peer reproducible interoperability infrastructure                     COMPLETE / MERGED
 Driver L2    Independent product-path protocol evidence                                  7/7 PASS
 Drivers      Shared runtime/Engineering convergence                                      7/7 CLOSED IN PR
-Mainline     Merge Driver convergence + exact post-main CI                               NEXT GATE
+Preview Cap  Maximum 200 TAGs per project                                                 IMPLEMENTED / VALIDATED
+Mainline     Merge Driver convergence + Preview capacity + exact post-main CI             NEXT GATE
 Driver L3    All seven Drivers concurrently in one main build/runtime                    REQUIRED BEFORE WAVE 11
 Wave 11      Complete HMI Runtime demo vertical slice                                    DEFERRED UNTIL L3 PASS
 Wave 12      Hardening                                                                   WAITING
@@ -45,6 +51,29 @@ Preview      EliteSCADA Preview build                                           
 Driver L4    Physical hardware/site validation by Development Lead                       AFTER PREVIEW BUILD
 FINAL        EliteSCADA v0.1 — Full Product Validation Preview
 ```
+
+## Preview product capacity
+
+The externally distributed Preview edition is limited to:
+
+**200 TAGs per project**
+
+The limit is project-wide across all communication Drivers and internal memory sources. It is not a per-Driver allowance.
+
+The policy is centralized in `ProductCapacityPolicy` and must not be duplicated as protocol-specific or UI-specific magic numbers.
+
+Current validated behavior:
+
+- exactly 200 TAGs are accepted;
+- a new 201st TAG is rejected;
+- existing TAGs remain editable at capacity;
+- Engineering import calculates the projected final project count and rejects oversized imports atomically;
+- runtime candidate construction uses the capped canonical registry, so a manipulated package cannot activate an oversized candidate through the normal product path;
+- there is no external environment-variable/command-line unlimited bypass in the Preview contract.
+
+This capacity can be explicitly revised after Preview feedback by changing the central product policy and its boundary regressions. It is capacity control/misuse deterrence, not cryptographic anti-tamper DRM.
+
+See `docs/PREVIEW-CAPACITY-POLICY.md`.
 
 ## Driver evidence policy
 
@@ -64,9 +93,9 @@ The next transition is strictly ordered:
 
 ```text
 PR #175 final pre-merge green
-    -> merge Driver convergence to main
+    -> merge Driver convergence + Preview capacity policy to main
     -> exact post-main CI green
-    -> integrated seven-Driver L3 laboratory
+    -> integrated seven-Driver L3 laboratory (#180)
     -> L3 PASS
     -> Wave 11 may start
 ```
@@ -84,6 +113,8 @@ The L3 laboratory must run a single EliteSCADA instance/project with all seven c
 7. BACnet/IP.
 
 It must prove concurrent acquisition, supported writes/commands, shared readiness, cache identity isolation, one-peer fault isolation, recovery and clean shutdown without cross-Driver interference.
+
+The L3 project must remain within the same 200-TAG project capacity. L3 validates concurrency and system isolation, not large-project scalability.
 
 A collection of seven independent L2 results does not satisfy this gate.
 
@@ -109,6 +140,7 @@ L4 is recorded per representative real device/model/firmware and does not block 
 
 - canonical Engineering/backend authority;
 - schema-v15 `CommunicationBinding` remains the rich communication TAG authority;
+- Preview capacity remains centrally defined and fail-closed;
 - no plaintext protected material;
 - no Driver-to-Driver coupling;
 - no canonical TAG/cache/event bypass;

@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Scada.Core.Events;
+using Scada.Core.InternalMemory;
 using Scada.Core.Product;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
@@ -50,8 +52,9 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
     {
         var shortDemo = DemoLicense(TimeSpan.FromMilliseconds(80));
         await using var runtime = CreateRuntime(new FixedLicenseService(shortDemo));
+        var package = CreateRunnablePackage();
 
-        var first = await runtime.ActivateAsync("demo-restart", 1, CreatePackage(0));
+        var first = await runtime.ActivateAsync("demo-restart", 1, package);
         Assert.True(first.Activated);
         Assert.Equal(1, runtime.Describe().Revision);
 
@@ -64,7 +67,7 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
         Assert.Null(runtime.Describe().Revision);
         Assert.Contains("300 minutos", expired.LastRuntimeMessage, StringComparison.Ordinal);
 
-        var second = await runtime.ActivateAsync("demo-restart", 2, CreatePackage(0));
+        var second = await runtime.ActivateAsync("demo-restart", 2, package);
 
         Assert.True(second.Activated);
         Assert.Equal(2, runtime.Describe().Revision);
@@ -84,7 +87,7 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
             "Customer");
         await using var runtime = CreateRuntime(new FixedLicenseService(licensed));
 
-        var result = await runtime.ActivateAsync("licensed", 1, CreatePackage(0));
+        var result = await runtime.ActivateAsync("licensed", 1, CreateRunnablePackage());
 
         Assert.True(result.Activated);
         var status = runtime.LicenseStatus();
@@ -98,10 +101,11 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
     {
         var shortDemo = DemoLicense(TimeSpan.FromMilliseconds(180));
         await using var runtime = CreateRuntime(new FixedLicenseService(shortDemo));
+        var package = CreateRunnablePackage();
 
-        Assert.True((await runtime.ActivateAsync("demo-window", 1, CreatePackage(0))).Activated);
+        Assert.True((await runtime.ActivateAsync("demo-window", 1, package)).Activated);
         await Task.Delay(100);
-        Assert.True((await runtime.ActivateAsync("demo-window", 2, CreatePackage(0))).Activated);
+        Assert.True((await runtime.ActivateAsync("demo-window", 2, package)).Activated);
 
         await Task.Delay(110);
         Assert.Equal(2, runtime.Describe().Revision);
@@ -129,6 +133,39 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
             false,
             duration,
             Message: "Demo");
+
+    private static EngineeringPackage CreateRunnablePackage()
+    {
+        var tagId = Guid.NewGuid();
+        var initialValue = new MemoryInitialValueDto(
+            TagDataType.Int32,
+            JsonSerializer.SerializeToElement(0));
+
+        return new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            new[]
+            {
+                new TagEngineeringDto(
+                    tagId,
+                    "Demo Counter",
+                    "License.DemoCounter",
+                    TagDataType.Int32,
+                    Source: "memory.server",
+                    ReadOnly: false,
+                    InitialValue: initialValue)
+            },
+            Array.Empty<AlarmEngineeringDto>(),
+            new[]
+            {
+                new DataSourceEngineeringDto(
+                    null,
+                    "memory.server",
+                    "Demo Server Memory",
+                    InternalMemoryRuntimePlanner.ServerMemoryDriverKey)
+            });
+    }
 
     private static EngineeringPackage CreatePackage(int tagCount)
     {

@@ -165,8 +165,11 @@ public sealed class L3SevenDriverRuntimeTests
             S7IsoCommunicationRuntimePlan.DriverTypeKey,
             BacnetDriverDescriptor.DriverType
         };
+        var actualDriverTypes = diagnostics.Select(item => item.DriverType).ToHashSet(StringComparer.OrdinalIgnoreCase);
         Assert.Equal(7, diagnostics.Count);
-        Assert.Equal(expectedDriverTypes, diagnostics.Select(item => item.DriverType).ToHashSet(StringComparer.OrdinalIgnoreCase));
+        Assert.True(
+            actualDriverTypes.SetEquals(expectedDriverTypes),
+            $"Expected DriverTypes [{string.Join(", ", expectedDriverTypes.OrderBy(item => item, StringComparer.OrdinalIgnoreCase))}], actual [{string.Join(", ", actualDriverTypes.OrderBy(item => item, StringComparer.OrdinalIgnoreCase))}].");
 
         await WaitForGoodValueAsync(runtime, iec104Id, value => Convert.ToInt16(value) == 23, TimeSpan.FromSeconds(10));
         await WaitForGoodValueAsync(runtime, cipId, value => Convert.ToInt16(value) == 1234, TimeSpan.FromSeconds(10));

@@ -30,23 +30,25 @@ Status vocabulary:
 - Repository: `brunolrogerio-collab/EliteSCADA`
 - Coordinator branch: `coordination/driver-convergence-v3`
 - Draft PR: **#175** — `Driver convergence v3 — shared host contracts`
-- Current code-validated head: **`6c0f4b45209739de2c900b4280d3184fa6c22030`**
-- Base reconciled with `main` head `d0a4e13816992b0a0eb0eb68c36e78c560cc1d88`
-- Exact-head validation: **EliteSCADA CI #941 — SUCCESS**
+- Current code-validated head: **`8308a9ee953062ff8a5085a82ad26e532028a87c`**
+- Base reconciled with `main` head `d0a4e13816992b0a0eb68c36e78c560cc1d88`
+- Exact-head validation: **EliteSCADA CI #951 — SUCCESS**
 - PR state: **DRAFT / OPEN / DO NOT MERGE**
 
-CI #941 evidence:
+CI #951 evidence:
 
 - Release backend build: **SUCCESS**, 0 warnings, 0 errors;
 - `Scada.Core.Tests`: **243 passed**;
-- `Scada.Drivers.Tests`: **92 passed**;
+- `Scada.Drivers.Tests`: **269 passed**;
 - `Scada.Historian.TimescaleDb.Tests`: **23 passed**;
 - `Scada.Security.Tests`: **27 passed**;
 - `Scada.Persistence.PostgreSql.Tests`: **107 passed**;
-- total backend tests: **492 passed / 0 failed**;
+- total backend tests: **669 passed / 0 failed**;
 - runtime smoke: **SUCCESS**;
 - Web build: **SUCCESS**;
 - Chromium end-to-end: **SUCCESS**.
+
+One IEC-104 T2 timing assertion failed once in CI #949 and passed on rerun of the unchanged SHA. The same assertion also passed in #942 and #951. No test was weakened.
 
 Documentation-only `[skip ci]` commits after this SHA do not create a new code-validation claim.
 
@@ -54,47 +56,42 @@ Documentation-only `[skip ci]` commits after this SHA do not create a new code-v
 
 Status: **IMPLEMENTED IN PR / GATE CLOSED**.
 
-Validated behavior includes:
+Validated behavior includes Preview/Apply preservation, `Address == CommunicationBinding.PortableAddress`, fail-closed secret-like/malformed binding handling, generic CSV fidelity, project package/revision/PostgreSQL persistence and <=v14 compatibility.
 
-- `EngineeringExchangeService.CurrentSchemaVersion = 15`;
-- TAG Preview validation of `CommunicationBinding`;
-- binding preserved through Apply/runtime registry/export;
-- `Address == CommunicationBinding.PortableAddress` compatibility invariant;
-- plaintext secret-like binding settings fail closed;
-- malformed/unsupported binding contracts fail closed;
-- <= v14 compatibility while rich binding in v14 is rejected;
-- generic TAG CSV `CommunicationBindingJson` plus legacy CSV compatibility;
-- JSON, CSV, `.escadapkg`, immutable revision and PostgreSQL revision round-trips.
+## 4. Closed coordinator Driver gates
 
-Initial closure was proven in CI #905 and remains covered by CI #941.
+### MQTT
 
-## 4. MQTT coordinator convergence
+Status: **IMPLEMENTED IN PR / GATE CLOSED**.
 
-Driver type: `mqtt.raw`  
-Worker branch: `driver10/mqtt`  
-Worker PR: #128  
-Audited worker head: `acd46cd9a4a49e324f2037a1994e6f579a0bae3f`  
-Worker CI: #865 GREEN  
-Independent product-path L2: **ACCEPTED**
+- DriverType `mqtt.raw`;
+- worker PR #128, head `acd46cd9a4a49e324f2037a1994e6f579a0bae3f`, CI #865 green;
+- independent product L2 accepted;
+- v15 binding, shared planner/factory/readiness and real coordinator activation closed;
+- host-owned scoped protected-material resolution closed;
+- CI #941 proves `Engineering password reference -> host composition -> scoped resolver -> MQTT factory -> transport credentials`.
 
-Coordinator status: **IMPLEMENTED IN PR / GATE CLOSED**.
+### IEC-104
 
-Completed on PR #175:
+Status: **IMPLEMENTED IN PR / GATE CLOSED**.
 
-- audited MQTT protocol primitives, MQTTnet transport and `MqttDriver`;
-- shared runtime plan/planner/factory registry;
-- schema-v15 `CommunicationBinding` canonical path plus explicit legacy migration warning;
-- shared Data Source readiness seam;
-- generic `CommunicationPlans` compiler and runtime activation path;
-- host composition through `CommunicationDriverRuntimeComposition.BuildForCurrentSchema()`;
-- host-owned scoped protected-material resolver;
-- deterministic environment secret name bound to Project/DataSource/Driver/Purpose/Reference;
-- short-lived protected-material lease and buffer clearing behavior;
-- MQTT can become Ready after connection/subscription without first telemetry sample;
-- isolated MQTT factory still fails closed without a shared protected-material resolver;
-- full regression proving `Engineering password reference -> host composition -> scoped resolver -> MQTT factory -> transport credentials`.
+- DriverType `iec60870.5.104`;
+- worker PR #146, head `d597ef5ed1885b63dcd0b3568287bc1e34330bee`, CI #798 green;
+- independent lib60870-C product-path L2 **13/13 accepted**;
+- portable identity `ca=<CA>;ioa=<IOA>`;
+- coordinator binding schema `elite.iec60870.5.104.point` v1;
+- v15 `CommunicationBinding` canonical with explicit legacy migration warning;
+- plain-TCP first release fails closed on protected-material references and physical byte/word transforms;
+- common planner/factory composition and shared readiness integrated;
+- readiness requires TCP + STARTDT + configured startup GI completion, not every TAG Good;
+- real coordinator activation and canonical cache/registry publication proven;
+- quality and CP56Time2a source timestamp preserved;
+- Cause of Transmission preserved through monitored decode;
+- configured Originator Address preserved for all five supported operational command types;
+- real coordinator `WriteAsync` command completion proven with ACT_CON/ACT_TERM;
+- exact coordinator CI #951 fully green.
 
-The final password-reference regression `Coordinator_UsesHostComposedProtectedMaterialForMqttPasswordReference` ran and passed in CI #941. MQTT convergence is therefore closed. Do not merge worker PR #128 wholesale; it remains source/evidence history.
+Worker PRs remain source/evidence history and are not merge trains.
 
 ## 5. Current product-path L2 matrix
 
@@ -102,52 +99,69 @@ Common seven-peer lab infrastructure is **7/7 healthy**. Peer health is not Driv
 
 | Driver | Product L2 | Current meaning |
 | --- | --- | --- |
-| MQTT | **PASS / ACCEPTED** | Independent broker evidence accepted; coordinator convergence closed. |
-| IEC-104 | **PASS / ACCEPTED 13/13** | lib60870 product path accepted; **next coordinator ingress**. |
-| CIP / EtherNet/IP | **PASS / ACCEPTED** | Independent product path accepted; queued after IEC-104. |
-| DNP3 | **FAIL / PRODUCT DEFECT** | Configured Int32 G30V1 `4242` reaches canonical cache as `System.Double`; product fix + exact L2 rerun required. |
-| OPC UA | **PENDING** | Peer healthy; actual Driver product L2 not yet accepted. |
-| Siemens S7 | **PENDING** | Peer healthy; actual Driver product L2 not yet accepted. |
-| BACnet/IP | **PENDING** | Peer healthy; actual Driver product L2 not yet accepted. |
+| MQTT | **PASS / ACCEPTED** | Coordinator convergence closed. |
+| IEC-104 | **PASS / ACCEPTED 13/13** | Coordinator convergence closed. |
+| CIP / EtherNet/IP | **PASS / ACCEPTED** | **Current coordinator ingress.** |
+| OPC UA | **PASS / ACCEPTED** | Independent open62541 path accepted; product head `b0b2a764...` normal CI #943 green. |
+| DNP3 | **FAIL / OPEN** | Product head advanced to `a0d62d7...` with CI #940 green, but independent validation #167 remains unresolved. |
+| Siemens S7 | **PASS / ACCEPTED** | Independent python-snap7 path accepted. |
+| BACnet/IP | **PASS / ACCEPTED** | Independent BACpypes path accepted. |
 
-Product-path count: **3 accepted, 1 real failure, 3 pending**.
+Product-path count: **6 accepted / 1 failing independent L2**.
 
-## 6. Worker checkpoints
+L3/L4, licensing and production-distribution decisions remain separate evidence claims.
+
+## 6. Live worker checkpoints
 
 These are snapshots, not branch locks. Re-read before mutation.
 
-- IEC-104 `driver6/iec-60870-5-104`, PR #146: last audited head `d597ef5ed1885b63dcd0b3568287bc1e34330bee`; CI #798 green; independent L2 13/13 accepted.
-- CIP `driver5/allen-bradley-cip`, PR #111: `18ff6dc989a65c1f8b006f83c08d8394a5510914`; CI #785 green; L2 accepted.
-- OPC UA `driver9/opc-ua`, PR #169: `5ce1f3c912bf3779e892fb136b51b54b0f19a5c6`; CI #869 green; product L2 pending.
-- DNP3 `driver7/dnp3`, PR #108 / validation #167: `ac0dd6944f53d19447f3353addd404c02da7249c`; real Int32 -> Double defect remains.
-- Siemens S7 `driver8/siemens-s7-iso`, PR #135: `0c37b922b44f591ebd143470abf3ebaa6b4bffae`; CI #789 green; product L2 pending.
-- BACnet/IP `driver4/bacnet`, PR #109: last observed `6a39d09c7d7a436ca1b6026741d4239cbbefe3ef`; CI #925 red from unrelated 500 ms Modbus timeout while BACnet tests passed; no accepted exact-head normal green yet.
-- MQTT `driver10/mqtt`, PR #128: `acd46cd9a4a49e324f2037a1994e6f579a0bae3f`; worker CI #865 green; L2 accepted; coordinator convergence closed in CI #941.
+- CIP `driver5/allen-bradley-cip`, PR #111: `18ff6dc989a65c1f8b006f83c08d8394a5510914`; exact CI #785 green; independent L2 accepted.
+- OPC UA `driver9/opc-ua`, PR #169: `b0b2a7642f6d0720eedcfe45597d82e4ee6d2488`; exact normal CI #943 green; independent open62541 L2 accepted.
+- DNP3 `driver7/dnp3`, PR #108: `a0d62d7a4577a2f2799ef29d2ef67b1acabc3c3c`; exact normal CI #940 green; validation PR #167 still unresolved.
+- Siemens S7 `driver8/siemens-s7-iso`, PR #135: `f8a50d7583795f683f02386c629bbdc2ec4aa8f7`; exact normal CI #939 green; independent python-snap7 L2 accepted.
+- BACnet/IP `driver4/bacnet`, PR #109: `40c062fd9cfa5adccb323e285cb17694c005e4cc`; independent BACpypes L2 accepted through validation PR #177.
+- IEC-104 `driver6/iec-60870-5-104`, PR #146: `d597ef5ed1885b63dcd0b3568287bc1e34330bee`; worker CI #798 green; coordinator convergence closed in CI #951.
+- MQTT `driver10/mqtt`, PR #128: `acd46cd9a4a49e324f2037a1994e6f579a0bae3f`; worker CI #865 green; coordinator convergence closed in CI #941.
 
 ## 7. Serialized coordinator order
 
 1. ~~MQTT~~ — **CLOSED**
-2. **IEC-104 — ACTIVE NEXT**
-3. CIP / EtherNet/IP
+2. ~~IEC-104~~ — **CLOSED**
+3. **CIP / EtherNet/IP — ACTIVE**
 4. OPC UA
 5. DNP3
 6. Siemens S7
 7. BACnet/IP
 
-Do not advance to CIP before IEC-104 has its own coordinator activation/binding/readiness gate and exact-head green CI.
+Do not advance to OPC UA before CIP has its own coordinator activation/binding/readiness gate and exact-head full green CI.
 
-## 8. Immediate next action: IEC-104
+## 8. Immediate next action: CIP / EtherNet/IP
 
-Before editing code:
+Worker source:
 
-1. re-read live `driver6/iec-60870-5-104` head, PR #146 and exact-head Actions evidence;
-2. audit its delta against current `main`/coordinator contracts;
-3. identify protocol-owned code versus any private duplicate host contracts;
-4. port/adapt narrowly to v15 `CommunicationBinding`, shared planner/factory registry and shared readiness;
-5. preserve IEC-104 identity as Common Address + IOA and retain Cause of Transmission, quality and CP56Time2a evidence;
-6. keep startup readiness tied to TCP + STARTDT + configured GI/startup completion;
-7. prove real activation through `EngineeringRuntimeCoordinator`;
-8. run exact-head full normal CI before starting CIP.
+- branch `driver5/allen-bradley-cip`;
+- PR #111;
+- exact worker head `18ff6dc989a65c1f8b006f83c08d8394a5510914`;
+- exact normal CI #785 green;
+- independent product-path L2 accepted;
+- worker delta is isolated to Allen-Bradley protocol/runtime/Engineering code and tests.
+
+Coordinator requirements:
+
+1. port protocol-owned code/tests narrowly, not the worker branch wholesale;
+2. preserve stable DriverType `rockwell.logix.eip` and schema `elitescada.driver.rockwell.logix.eip` v1;
+3. make v15 `CommunicationBinding` canonical and require stable TAG IDs;
+4. keep `TagValueSelector` as the generic physical integer-bit selector;
+5. reject physical byte/word transforms for symbolic typed Logix values;
+6. fail closed on CIP Security/protected-material requests until a secure runtime is actually implemented; never downgrade silently;
+7. adapt the protocol planner/factory to the shared registry;
+8. project worker readiness through `ICommunicationDriverReadinessSource` only after session/route establishment plus bounded acquisition execution;
+9. keep source readiness distinct from point-local Good/Bad quality;
+10. prove real `EngineeringRuntimeCoordinator` activation, read/write and canonical cache flow;
+11. harden long-lived driver lifetime so startup caller cancellation is not accidentally the runtime lifetime token;
+12. require exact-head normal CI before starting OPC UA.
+
+Audit finding already identified: the worker planner still reads `TagEngineeringDto.Address` directly and permits generated IDs. Those behaviors must not cross the v15 convergence boundary unchanged.
 
 ## 9. Non-negotiable integration rules
 
@@ -158,13 +172,13 @@ Before editing code:
 - No Driver-to-Driver runtime calls.
 - No bypass of canonical TAG registry/cache/event flow.
 - No plaintext secret/private-key material in Engineering, packages, logs or diagnostics.
-- Protected material resolves through host-owned scoped short-lived leases.
+- Protected material resolves only through host-owned scoped short-lived leases where supported.
 - Shared readiness is not equivalent to every TAG being `Good`.
 - `CommunicationBinding` is the canonical rich TAG communication envelope in schema v15.
 - `TagValueSelector` remains the sole generic bit selector.
-- ADR-007 physical transformation precedes generic bit selection.
+- ADR-007 physical transformation precedes generic bit selection where applicable; symbolic Logix values do not invent swap settings.
 - L2, L3, L4, licensing and conformance remain separate claims.
-- Never weaken an interoperability assertion to manufacture a green result.
+- Never weaken an interoperability assertion to manufacture green evidence.
 
 ## 10. Merge boundary
 

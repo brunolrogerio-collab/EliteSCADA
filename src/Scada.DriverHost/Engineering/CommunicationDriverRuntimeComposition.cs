@@ -1,5 +1,6 @@
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Abstractions;
+using Scada.Drivers.Iec60870;
 using Scada.Drivers.Mqtt;
 
 namespace Scada.DriverHost.Engineering;
@@ -13,7 +14,8 @@ public static class CommunicationDriverRuntimeComposition
 {
     public static CommunicationDriverRuntimeComponentRegistry BuildForCurrentSchema(
         Func<IMqttClientTransport>? mqttTransportFactory = null,
-        ICommunicationDriverProtectedMaterialResolver? hostProtectedMaterialResolver = null)
+        ICommunicationDriverProtectedMaterialResolver? hostProtectedMaterialResolver = null,
+        Func<IIec104ClientAdapter>? iec104AdapterFactory = null)
     {
         var protectedMaterialResolver = hostProtectedMaterialResolver
             ?? EnvironmentCommunicationDriverProtectedMaterialResolver.CreateDeterministicScopedEnvironment();
@@ -23,6 +25,9 @@ public static class CommunicationDriverRuntimeComposition
             new HostProtectedMaterialRuntimeFactory(
                 new MqttCommunicationRuntimeFactory(mqttTransportFactory),
                 protectedMaterialResolver)));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new Iec104CommunicationRuntimePlanner(),
+            new Iec104CommunicationRuntimeFactory(iec104AdapterFactory)));
         return registry;
     }
 

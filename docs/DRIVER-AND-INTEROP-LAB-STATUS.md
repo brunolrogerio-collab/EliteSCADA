@@ -1,7 +1,7 @@
 # DRIVER AND INTEROPERABILITY LAB STATUS — EliteSCADA
 
 Date: 2026-08-30  
-Status: **DRIVER CONVERGENCE + INTEROPERABILITY LAB ACTIVE / WAVE 11 DEFERRED**
+Status: **DRIVER CONVERGENCE ACTIVE / COMMON SEVEN-PEER LAB MERGED / WAVE 11 DEFERRED**
 
 This is a coordination snapshot, not a substitute for live GitHub state. Re-read exact branches, PRs and workflow runs before every mutation or acceptance claim.
 
@@ -10,12 +10,12 @@ This is a coordination snapshot, not a substitute for live GitHub state. Re-read
 | Driver | Observed product checkpoint | Normal CI / handoff | Independent-peer state | Current action |
 | --- | --- | --- | --- | --- |
 | D4 BACnet/IP | `de3357750f79266e43588e7bb26d66093f8cf3d5` | Draft #109; CI #860 GREEN | Common BACpypes peer tool gate GREEN in Lab #42 | **ACTIVE L2**: Who-Is/I-Am, RP/RPM, WP, COV, reconnect/re-resolution. |
-| D5 Allen-Bradley CIP | `18ff6dc989a65c1f8b006f83c08d8394a5510914` | Draft #111; CI #785 GREEN | PR #165; CIP L2 #6 GREEN | **PARKED FOR COORDINATOR CONVERGENCE**. |
-| D6 IEC-104 | `d597ef5ed1885b63dcd0b3568287bc1e34330bee` | Draft #146; CI #798 GREEN | PR #168; lib60870 L2 #7 GREEN, 13/13 | **PARKED FOR COORDINATOR CONVERGENCE**. |
+| D5 Allen-Bradley CIP | `18ff6dc989a65c1f8b006f83c08d8394a5510914` | Draft #111; CI #785 GREEN | PR #165; CIP L2 #6 GREEN | **READY FOR COORDINATOR CONVERGENCE**. |
+| D6 IEC-104 | `d597ef5ed1885b63dcd0b3568287bc1e34330bee` | Draft #146; CI #798 GREEN | PR #168; lib60870 L2 #7 GREEN, 13/13 | **READY FOR COORDINATOR CONVERGENCE**. |
 | D7 DNP3 | `ac0dd6944f53d19447f3353addd404c02da7249c` | Draft #108; CI #697 GREEN | dnp3py peer healthy; product L2 RED on Int32->Double canonical mismatch | **ACTIVE FIX** then rerun L2. |
 | D8 Siemens S7 | `0c37b922b44f591ebd143470abf3ebaa6b4bffae` | Draft #135; CI #789 GREEN | Common python-snap7 peer build/start/TCP GREEN | **ACTIVE L2**: session/PDU/DB read-write/reconnect. |
 | D9 OPC UA | `5ce1f3c912bf3779e892fb136b51b54b0f19a5c6` | Draft #169; CI #869 GREEN | Common open62541 peer/reference smoke GREEN | **ACTIVE L2**: real Driver 9 read/write/subscription/reconnect. |
-| D10 MQTT | `acd46cd9a4a49e324f2037a1994e6f579a0bae3f` | Draft #128; exact CI #865 GREEN | Mosquitto + HiveMQ + TLS/auth + negative security + restart + freshness evidence GREEN | **PARKED FOR COORDINATOR CONVERGENCE**. |
+| D10 MQTT | `acd46cd9a4a49e324f2037a1994e6f579a0bae3f` | Draft #128; exact CI #865 GREEN | Mosquitto + HiveMQ + TLS/auth + negative security + restart + freshness evidence GREEN | **READY FOR COORDINATOR CONVERGENCE**. |
 
 ## Evidence levels
 
@@ -27,11 +27,11 @@ This is a coordination snapshot, not a substitute for live GitHub state. Re-read
 
 Normal CI, independent interoperability, licensing/conformance and hardware acceptance remain separate gates.
 
-## Common interoperability lab
+## Common interoperability lab — MERGED
 
-Branch: `integration/driver-interop-lab-finalization`  
-PR: **#173**  
-Exact functional head: `3ff2d6393c4e8734b4b1c08abd2bd8466f78f400`
+Merged PR: **#173**  
+Main merge: `a08cca94795a5afa14bf8af39b8bf2c6f7df71ae`  
+Exact validated functional head: `3ff2d6393c4e8734b4b1c08abd2bd8466f78f400`
 
 ### Dedicated gate
 
@@ -47,9 +47,15 @@ Proven in one workflow:
 - OPC UA independent browse/read/write/subscription smoke passes;
 - cleanup passes.
 
-The common peer/tool set is therefore no longer a blocker for D4/D8/D9 product-path validation.
+### Normal product CI on exact functional head
 
-### Common peers
+**EliteSCADA CI #886 — SUCCESS.**
+
+The first backend attempt hit two unrelated Modbus timing failures (`ModbusTcpDiagnosticsTests` 500 ms request timeout and `GatewayRuntimeSameProtocolTests` 4 s condition timeout). No Modbus/product code changed. Failed jobs were rerun on the same exact functional SHA and the workflow completed green, including the downstream Chromium gate.
+
+The three commits after the functional head and before merge were documentation-only `[skip ci]` coordination updates.
+
+### Common peers now on main
 
 - MQTT — Eclipse Mosquitto + Node-RED;
 - CIP — pinned ControlLogix/CompactLogix simulator profiles;
@@ -59,19 +65,7 @@ The common peer/tool set is therefore no longer a blocker for D4/D8/D9 product-p
 - S7 ISO-on-TCP — python-snap7 3.1.2 deterministic server;
 - BACnet/IP — BACpypes 0.19.0 independent device peer.
 
-Third-party peers remain test-only infrastructure.
-
-### Normal product CI on lab head
-
-EliteSCADA CI #886 exact functional head `3ff2d639...`:
-
-- initial Web/build were green;
-- initial backend test attempt hit two unrelated Modbus timing failures (`ModbusTcpDiagnosticsTests` 500 ms request timeout and `GatewayRuntimeSameProtocolTests` 4 s condition timeout);
-- no Modbus/product code was changed in response;
-- failed workflow jobs were rerun on the exact same functional head;
-- merge requires the rerun plus Chromium to be fully green.
-
-The prior lab head `67d4da30...` had normal CI #884 fully green, which supports the classification of the #886 first-attempt failures as timing flakes rather than a lab-source regression, but it does not replace the required exact-head rerun.
+Third-party peers remain test-only infrastructure. The common peer/tool set is no longer the generic blocker for D4/D8/D9 product-path validation.
 
 ## Product-path evidence already accepted
 

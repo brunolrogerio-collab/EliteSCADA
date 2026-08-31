@@ -25,7 +25,7 @@ public static class ProductLicensingApi
             return Results.Ok(new
             {
                 license = DescribeLicense(verification),
-                runtime = runtimeStatus.GetProductRuntimeStatus()
+                runtime = DescribeRuntime(runtimeStatus.GetProductRuntimeStatus())
             });
         }).RequireWorkspaceEngineeringRead();
 
@@ -84,8 +84,8 @@ public static class ProductLicensingApi
 
         return new
         {
-            state = verification.State,
-            tier = license?.Tier,
+            state = verification.State.ToString(),
+            tier = license?.Tier.ToString(),
             maximumTags,
             demoMaximumContinuousMinutes = verification.State == LicenseState.Demo
                 ? LicensingPolicy.DemoMaxContinuousRun.TotalMinutes
@@ -97,4 +97,16 @@ public static class ProductLicensingApi
             diagnostic = verification.Diagnostic
         };
     }
+
+    private static object DescribeRuntime(ProductRuntimeEntitlementStatus status) => new
+    {
+        state = status.State.ToString(),
+        activeLicenseState = status.ActiveLicenseState?.ToString(),
+        activeTier = status.ActiveTier?.ToString(),
+        status.MaximumTags,
+        status.DemoStartedAtUtc,
+        status.DemoExpiresAtUtc,
+        status.DemoRemaining,
+        status.LastDiagnostic
+    };
 }

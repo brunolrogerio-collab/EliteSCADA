@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Scada.Api.Security;
 using Scada.Core.Abstractions;
+using Scada.Core.InternalMemory;
 using Scada.Core.Product;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;

@@ -85,6 +85,7 @@ jobs:
           ELITESCADA_OPCUA_SECURE_L2_ENDPOINT: opc.tcp://127.0.0.1:4840
           ELITESCADA_OPCUA_SECURE_L2_CLIENT_PFX: ${{ env.CLIENT_PFX }}
           ELITESCADA_OPCUA_SECURE_L2_SERVER_SHA256: ${{ env.SERVER_PIN }}
+          ELITESCADA_OPCUA_SECURE_L2_CONTAINER: elitescada-opcua-secure-l2
         shell: bash
         run: |
           mkdir -p TestResults/opcua-secure-l2

@@ -19,10 +19,7 @@ public sealed class OpcUaOpen62541SecureProductInteropTests
 
         var counter = Binding("SecureCounter", "Lab.SecureCounter");
         var provider = new FileSecurityMaterialProvider(clientPfx);
-        var options = SecureOptions(
-            endpoint,
-            serverPin,
-            OpcUaRuntimeAuthenticationMode.Anonymous);
+        var options = SecureOptions(endpoint, serverPin, OpcUaRuntimeAuthenticationMode.Anonymous);
 
         var factory = new OpcUaFoundationRuntimeSessionFactory(options, provider);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -61,10 +58,7 @@ public sealed class OpcUaOpen62541SecureProductInteropTests
             return;
 
         var counter = Binding("UserCounter", "Lab.UserCounter");
-        var provider = new FileSecurityMaterialProvider(
-            clientPfx,
-            UserPasswordReference,
-            "elite-pass");
+        var provider = new FileSecurityMaterialProvider(clientPfx, UserPasswordReference, "elite-pass");
         var options = SecureOptions(
             endpoint,
             serverPin,
@@ -89,12 +83,44 @@ public sealed class OpcUaOpen62541SecureProductInteropTests
         Assert.Equal(1, provider.SecretResolveCount);
     }
 
+    [Fact]
+    public async Task ProductRuntime_X509UserIdentity_ReusesPinnedApplicationCertificate()
+    {
+        if (!TryGetEnvironment(out string endpoint, out string clientPfx, out string serverPin))
+            return;
+
+        var counter = Binding("CertificateCounter", "Lab.CertificateCounter");
+        var provider = new FileSecurityMaterialProvider(clientPfx);
+        var options = SecureOptions(
+            endpoint,
+            serverPin,
+            OpcUaRuntimeAuthenticationMode.Certificate,
+            userCertificateReference: ClientCertificateReference);
+
+        var factory = new OpcUaFoundationRuntimeSessionFactory(options, provider);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        await using IOpcUaRuntimeSession session = await factory.ConnectAsync([counter], timeout.Token);
+
+        OpcUaRuntimeDataValue initial = await session.ReadAsync(counter, timeout.Token);
+        Assert.Equal(TagQuality.Good, initial.Quality);
+        Assert.Equal(27, Assert.IsType<int>(initial.Value));
+
+        await session.WriteAsync(counter, 31, timeout.Token);
+        OpcUaRuntimeDataValue afterWrite = await session.ReadAsync(counter, timeout.Token);
+        Assert.Equal(TagQuality.Good, afterWrite.Quality);
+        Assert.Equal(31, Assert.IsType<int>(afterWrite.Value));
+
+        Assert.Equal(1, provider.CertificateResolveCount);
+        Assert.Equal(0, provider.SecretResolveCount);
+    }
+
     private static OpcUaRuntimeConnectionOptions SecureOptions(
         string endpoint,
         string serverPin,
         OpcUaRuntimeAuthenticationMode authenticationMode,
         string? userName = null,
-        string? passwordSecretReference = null) =>
+        string? passwordSecretReference = null,
+        string? userCertificateReference = null) =>
         new(
             EndpointUrl: endpoint,
             SecurityMode: "SignAndEncrypt",
@@ -103,6 +129,7 @@ public sealed class OpcUaOpen62541SecureProductInteropTests
             UserName: userName,
             PasswordSecretReference: passwordSecretReference,
             ClientCertificateReference: ClientCertificateReference,
+            UserCertificateReference: userCertificateReference,
             ApprovedServerApplicationUri: "urn:elitescada:interop:opcua:server",
             ApprovedServerCertificateSha256: serverPin,
             SessionTimeout: TimeSpan.FromSeconds(20),

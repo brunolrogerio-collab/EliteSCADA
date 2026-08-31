@@ -37,6 +37,7 @@ jobs:
       ELITESCADA_L3_DNP3_PORT: "20000"
       ELITESCADA_L3_S7_HOST: 127.0.0.1
       ELITESCADA_L3_S7_PORT: "1102"
+      ELITESCADA_L3_DOCKER_FAULTS: "true"
 
     steps:
       - name: Checkout
@@ -109,11 +110,25 @@ jobs:
           --filter "Category=L3GatewayIntegration"
           --logger "console;verbosity=normal"
 
-      - name: Run L3 one-runtime seven-Driver slice
+      - name: Run L3 one-runtime seven-Driver acquisition slice
         run: >-
           dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
           -c Release --no-build
-          --filter "Category=L3SevenDriverRuntime"
+          --filter "Category=L3SevenDriverRuntime&FullyQualifiedName!~L3SevenDriverWriteTests"
+          --logger "console;verbosity=normal"
+
+      - name: Run L3 seven-Driver supported write slice
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          -c Release --no-build
+          --filter "FullyQualifiedName~L3SevenDriverWriteTests"
+          --logger "console;verbosity=normal"
+
+      - name: Run L3 serial peer fault and recovery slice
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          -c Release --no-build
+          --filter "Category=L3SevenDriverFaultRecovery"
           --logger "console;verbosity=normal"
 
       - name: Show seven-peer lab status

@@ -8,6 +8,7 @@ import { RuntimeVisualNavigator } from '../visual-navigation/RuntimeVisualNaviga
 import {
   loadRuntimeApplicationProjection,
   RuntimeApplicationProjectionError,
+  runtimeVisualAssetContentUrl,
   type RuntimeApplicationProjection
 } from './runtimeApplicationApi';
 import { SimulationRuntimeApp } from './SimulationRuntimeApp';
@@ -140,6 +141,7 @@ function EngineeringRuntimeApplication({ projection }: { projection: RuntimeAppl
         locale={locale}
         scriptContext={scriptContext}
         emptyLabel="Active Screen has no visual objects."
+        visualAssetUrl={runtimeVisualAssetContentUrl}
       />
     </section>
   </main>;

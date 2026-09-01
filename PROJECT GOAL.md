@@ -499,6 +499,39 @@ Unsigned internal/early Preview builds may still display Windows 11 unknown-publ
 
 Secure signing credentials must not be committed to GitHub or embedded in normal build artifacts. The production signing workflow belongs to the Windows packaging/release stage (Wave 13) and should prefer a protected signing service or hardware-backed key. SmartScreen reputation is separate from signature validity and may require reputation-building even after correct signing.
 
+## Future Linux x64 / Debian distribution
+
+EliteSCADA is intended to support a future **official Linux x64 distribution packaged as Debian `.deb`**, but this front starts only when explicitly requested by the Development Lead. It is **SPECIFIED / NOT STARTED** and must not be inferred from ordinary Linux CI success.
+
+The product direction assumes packaging/integration rather than a product-architecture port: the main product is .NET 10, the Web application is React/Pyodide served by the host, Linux-capable Runtime licensing uses the same signed-license/Machine Request Code contract, and the offline License Generator may remain Windows-only because it belongs to the licensing authority rather than the target host.
+
+Initial distribution direction:
+
+- `linux-x64` self-contained publish;
+- Debian `.deb` for `amd64`;
+- Debian 12 as the first supported/homologated target, followed by Debian 13 homologation;
+- internal multi-file package layout rather than single-file publish for the first version;
+- `/usr/lib/elitescada` for installed product binaries/assets;
+- `/etc/elitescada` for external host configuration;
+- `/var/lib/elitescada` for mutable/durable product state, including Linux-appropriate persistent licensing state;
+- dedicated system user/group and hardened `elitescada.service` systemd unit;
+- React/Pyodide assets incorporated into the installed product and served by Kestrel;
+- externally configurable PostgreSQL/TimescaleDB rather than package-embedded credentials;
+- clean Debian install/upgrade CI and installed Runtime/Web/licensing/Driver validation;
+- SBOM generation and dependency-license audit as distribution evidence.
+
+The `.deb` is the single distribution artifact; the internal application does not need to be single-file merely for cosmetic packaging. Multi-file layout is preferred initially because native libraries, Pyodide assets and future installable Drivers require explicit package composition.
+
+Acceptance requires an exact `.deb` to install on a clean supported Debian host, start automatically with systemd, serve the Web UI, connect to externally configured PostgreSQL/TimescaleDB, generate a Linux Machine Request Code, accept only a correctly machine-bound signed license, operate the supported Drivers, and survive reboot/upgrade without losing configuration, license or durable data.
+
+### DNP3 commercial-distribution gate
+
+Commercial distribution must include an explicit dependency-license review. The current Step Function I/O `dnp3` 1.6.0 line is publicly available under a **non-commercial / non-production** license; a commercial license is required for for-profit/product use.
+
+Therefore no commercial EliteSCADA package may include or enable that dependency under only the public license. Before a commercial Linux `.deb` or any other commercial package ships with DNP3, the Development Lead must either obtain/record a suitable Step Function commercial license or approve an alternative dependency and revalidate the Driver. DNP3 licensing remediation is expected before the Linux `.deb` front unless an authorized package explicitly excludes DNP3.
+
+Full future Linux distribution contract: `docs/LINUX-DEBIAN-DISTRIBUTION.md`.
+
 ## Historian, trends and reporting
 
 TimescaleDB remains the historian direction. Required evolution includes retention, aggregation/downsampling, multiple-Pen trends, historical/live sources, engineered and ad-hoc/saved trends and expressions where appropriate.
@@ -632,6 +665,7 @@ Full locked semantics and the permitted early non-production spike: `docs/OPC-UA
 - Do not create placeholder security endpoints without a real domain model.
 - Do not let scripts or visual editors bypass public Engineering/security/runtime boundaries.
 - Documentation updates must not erase locked future requirements.
+- Commercial distribution must include dependency-license review; public source availability is not sufficient evidence of commercial redistribution/use rights.
 
 ## Relationship to other repository documents
 
@@ -654,5 +688,6 @@ Full locked semantics and the permitted early non-production spike: `docs/OPC-UA
 - `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`: Wave 09 canonical reporting, report designer, preview/print/export contract.
 - `docs/LICENSING-AND-DEMO-MODE.md`: Demo 200-TAG Run gate, 300-minute session limit, hardware request code, signed-license validation and offline License Generator contract.
 - `docs/WAVE-12-HARDENING-PREPARATION.md`: preparation-only hardening scope for the next Coordinator; it does not itself start Wave 12.
+- `docs/LINUX-DEBIAN-DISTRIBUTION.md`: future Development-Lead-triggered Linux x64/Debian `.deb` packaging, acceptance and dependency-license contract; specification only until explicitly started.
 
 These documents must remain consistent. `PROJECT GOAL.md` wins for locked product intent; current repository code/`main` wins for implementation truth; `LAST CHANGE.md` records the exact handoff.

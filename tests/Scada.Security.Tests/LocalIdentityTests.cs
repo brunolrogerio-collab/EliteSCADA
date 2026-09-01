@@ -155,10 +155,10 @@ public sealed class LocalIdentityTests
         start.SetResult();
         var results = await Task.WhenAll(firstDisable, secondDisable);
 
-        Assert.Single(results.Where(result => result));
+        Assert.Single(results, result => result);
         var final = await store.ListAsync();
-        Assert.Single(final.Where(user =>
-            user.IsEnabled && user.Roles.Contains("admin", StringComparer.OrdinalIgnoreCase)));
+        Assert.Single(final, user =>
+            user.IsEnabled && user.Roles.Contains("admin", StringComparer.OrdinalIgnoreCase));
     }
 
     private static LocalUserAccount CreateAccount(

@@ -4,6 +4,7 @@ using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
+using Scada.Engineering.VisualAssets;
 
 namespace Scada.Core.Tests;
 

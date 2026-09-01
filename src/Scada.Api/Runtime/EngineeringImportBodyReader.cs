@@ -5,12 +5,12 @@ using Scada.Engineering.ProjectPackages;
 namespace Scada.Api.Runtime;
 
 public sealed class EngineeringImportBodyTooLargeException(int limitBytes)
-    : InvalidDataException("Engineering import payload exceeds its safety limit.")
+    : IOException("Engineering import payload exceeds its safety limit.")
 {
     public int LimitBytes { get; } = limitBytes;
 }
 
-public sealed class EngineeringImportBodyEncodingException : InvalidDataException
+public sealed class EngineeringImportBodyEncodingException : IOException
 {
     public EngineeringImportBodyEncodingException(Exception innerException)
         : base("Engineering import payload is not valid UTF-8.", innerException)

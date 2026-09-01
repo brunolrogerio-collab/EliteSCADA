@@ -116,6 +116,17 @@ jobs:
           -c Release --no-build
           --filter "Category=L3SevenDriverRuntime&FullyQualifiedName!~L3SevenDriverWriteTests"
           --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=l3-acquisition.trx"
+          --results-directory TestResults/L3Acquisition
+
+      - name: Upload L3 acquisition evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: l3-acquisition-test-results-${{ github.sha }}
+          path: TestResults/L3Acquisition/**
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Reset stateful peers before write slice
         run: |

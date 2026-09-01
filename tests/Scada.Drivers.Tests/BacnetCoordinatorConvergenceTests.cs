@@ -198,7 +198,8 @@ public sealed class BacnetCoordinatorConvergenceTests
         Assert.NotNull(session.LastWriteBinding);
         Assert.Equal((byte)8, session.LastWriteBinding!.WritePriority);
         var written = Assert.Single(session.LastWriteValues!);
-        Assert.Equal(43.75d, Assert.IsType<double>(written.Value), precision: 6);
+        Assert.Equal(BacnetApplicationTags.BACNET_APPLICATION_TAG_REAL, written.Tag);
+        Assert.Equal(43.75f, Assert.IsType<float>(written.Value));
 
         using var convergenceTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         await WaitUntilAsync(

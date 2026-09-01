@@ -1,17 +1,17 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-01 (BRT)  
-**Operational state:** **WAVE 11 ACCEPTANCE GATE SATISFIED / WAVE 12 #201 PREPARED — NOT STARTED**
+**Operational state:** **WAVE 11 COMPLETE / ACCEPTED / CLOSED — WAVE 12 #201 READY / NOT STARTED**
 
 > Mutable Coordinator resume point. Stable product intent remains in `PROJECT GOAL.md`. Live GitHub refs and exact-SHA Actions override copied prose. Documentation-only `[skip ci]` commits may advance `main` beyond the latest validated product-code SHA.
 
 ## 1. Last accepted product-code mainline
 
-Wave 11 Active Engineering HMI Runtime and its owner-test package handoff are **IMPLEMENTED / MERGED / POST-MAIN VALIDATED**.
+Wave 11 Active Engineering HMI Runtime and its owner-test package handoff are **IMPLEMENTED / MERGED / POST-MAIN VALIDATED / ACCEPTED**.
 
 ### Wave 11 implementation integration
 
-- issue #194: acceptance gate technically satisfied; final issue closure occurs in this coordination cycle after documentation synchronization;
+- issue #194: **CLOSED / COMPLETED** on 2026-09-01 after final acceptance evidence and continuity synchronization;
 - original draft PR #195: **CLOSED / UNMERGED / SUPERSEDED**;
 - replacement implementation PR #199: **MERGED**;
 - validated implementation head: `a03237feed578066a8a62f5837adb60f100f412a`;
@@ -28,7 +28,7 @@ Post-main evidence for the Wave 11 code merge:
 - exact PR #200 head: `cc37be24ad8c8dc4594d99c5a3fd232dbf685d6f`;
 - PR #200 pre-merge Wave 11 workflow #13 / `33551000846`: **SUCCESS**;
 - PR #200 pre-merge EliteSCADA CI #1066 / `33551000852`: **SUCCESS**;
-- final product-code `main` merge: `4ccc29cb4bb334dc473d8265f48a9c8601993413`;
+- final validated product-code `main` merge: `4ccc29cb4bb334dc473d8265f48a9c8601993413`;
 - post-main Wave 11 workflow #14 / `33552016447`: **SUCCESS**;
 - post-main EliteSCADA CI #1067 / `33552016454`: **SUCCESS**, including backend build/tests/runtime smoke, Web build and Chromium E2E.
 
@@ -72,15 +72,15 @@ Accepted behavior includes:
 
 No test, security or lifecycle boundary was weakened to obtain acceptance.
 
-## 3. Wave 12 preparation
+## 3. Wave 12 handoff
 
-Wave 12 is **PREPARED / NOT STARTED** under issue #201.
+Wave 12 is **READY / NOT STARTED** under issue #201.
 
 Preparation artifact:
 
 - `docs/WAVE-12-HARDENING-PREPARATION.md`.
 
-Wave 12 purpose is hardening of accepted behavior before Wave 13 packaging/signing. Preparation covers fail-closed/recovery behavior, authorization/audit, persistence/restart, `.escadapkg` integrity, fault/resource isolation, concurrency, diagnostics sanitization and regression/CI hardening.
+Wave 12 purpose is hardening of accepted behavior before Wave 13 packaging/signing. The prepared scope covers fail-closed/recovery behavior, authorization/audit, persistence/restart, `.escadapkg` integrity, fault/resource isolation, concurrency, diagnostics sanitization and regression/CI hardening.
 
 Explicitly not started:
 
@@ -89,7 +89,7 @@ Explicitly not started:
 - no Wave 12 production-code change has been made;
 - no Wave 12 CI evidence is claimed.
 
-Issue #201 remains preparation-only until issue #194 is closed. After #194 closes it becomes **READY / NOT STARTED**, and the next Coordinator must re-read live `main` before creating a dedicated Wave 12 branch.
+Issue #201 is now the open coordination surface for the next Coordinator. Its **READY / NOT STARTED** status is permission to begin only after the next Coordinator audits live repository state and deliberately creates a dedicated Wave 12 branch.
 
 ## 4. Other durable state
 
@@ -114,4 +114,4 @@ At actual Wave 12 start:
 5. create a dedicated Wave 12 branch from the then-live `main` only at that point;
 6. keep Wave 13 Authenticode/release-signing work separate.
 
-`PROJECT GOAL.md` is being reviewed/synchronized in this same coordination cycle. No locked product architecture is being relaxed. Wave 13 remains the mandatory signed Windows x64 + Authenticode/trusted-timestamp stage; Waves 14/15 remain owner validation and feedback/corrections; physical L4 remains later device/site validation.
+`PROJECT GOAL.md` has been reviewed and synchronized in this coordination cycle. No locked product architecture was relaxed. Wave 13 remains the mandatory signed Windows x64 + Authenticode/trusted-timestamp stage; Waves 14/15 remain owner validation and feedback/corrections; physical L4 remains later device/site validation.

@@ -1,0 +1,86 @@
+name: Wave 11 Active HMI Runtime
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/Scada.Api/**'
+      - 'src/Scada.Engineering/**'
+      - 'src/Scada.DriverHost/**'
+      - 'web/scada-web/**'
+      - '.github/workflows/wave11-hmi-runtime.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/Scada.Api/**'
+      - 'src/Scada.Engineering/**'
+      - 'src/Scada.DriverHost/**'
+      - 'web/scada-web/**'
+      - '.github/workflows/wave11-hmi-runtime.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  active-hmi-runtime:
+    name: Active revision browser lifecycle
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_wave11
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_wave11"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ConnectionStrings__EliteScada: 'Host=127.0.0.1;Port=5432;Database=elitescada_wave11;Username=postgres;Password=postgres;Pooling=false'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+
+      - name: Restore backend
+        run: dotnet restore ScadaPlatform.sln
+
+      - name: Install frontend dependencies
+        working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Chromium
+        working-directory: web/scada-web
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Wave 11 Active Runtime browser lifecycle
+        working-directory: web/scada-web
+        run: npx playwright test --config=playwright.wave11.config.ts
+
+      - name: Upload Wave 11 Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-wave11
+          path: web/scada-web/playwright-report-wave11
+          if-no-files-found: ignore
+          retention-days: 7

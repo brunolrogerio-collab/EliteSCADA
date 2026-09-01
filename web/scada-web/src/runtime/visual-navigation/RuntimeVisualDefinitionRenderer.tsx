@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
 import {
   CanonicalVisualRenderer,
-  type CanonicalVisualEvent
+  type CanonicalVisualEvent,
+  type VisualAssetUrlResolver
 } from '../../engineering/visual-editor/CanonicalVisualRenderer';
 import type {
   DynamoEngineering,
@@ -35,6 +36,7 @@ export type RuntimeVisualDefinitionRendererProps = Readonly<{
   runtimeFactory?: ClientVisualPythonRuntimeFactory;
   frameClock?: VisualTweenFrameClock;
   onTagWrite?: SliderTagWrite;
+  visualAssetUrl?: VisualAssetUrlResolver;
 }>;
 
 /**
@@ -58,7 +60,8 @@ export function RuntimeVisualDefinitionRenderer({
   onScriptDispatch,
   runtimeFactory,
   frameClock,
-  onTagWrite = writeRuntimeTagValue
+  onTagWrite = writeRuntimeTagValue,
+  visualAssetUrl
 }: RuntimeVisualDefinitionRendererProps) {
   const [revision, setRevision] = useState(0);
   const instances = useMemo(
@@ -109,6 +112,7 @@ export function RuntimeVisualDefinitionRenderer({
       dynamoDefinitions={dynamoDefinitions}
       onVisualEvent={onVisualEvent}
       onTagWrite={onTagWrite}
+      visualAssetUrl={visualAssetUrl}
     />
   </div>;
 }

@@ -112,6 +112,7 @@ app.MapAlarmShelvingEndpoints();
 app.MapCommandEndpoints();
 app.MapInternalMemoryEndpoints();
 app.MapProductLicensingEndpoints();
+app.MapRuntimeEngineeringPackageEndpoints();
 if (historicalQueryEnabled) app.MapHistoricalQueryEndpoints();
 
 // Public health intentionally exposes no plant, driver, project or historian detail.

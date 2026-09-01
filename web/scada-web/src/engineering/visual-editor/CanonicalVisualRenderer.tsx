@@ -38,6 +38,8 @@ export type CanonicalVisualEvent = Readonly<{
   runtimeObjectId?: string;
 }>;
 
+export type VisualAssetUrlResolver = (assetId: string) => string;
+
 export type CanonicalVisualRendererProps = {
   elements: readonly VisualElementEngineering[] | null | undefined;
   emptyLabel: string;
@@ -45,6 +47,7 @@ export type CanonicalVisualRendererProps = {
   dynamoDefinitions?: readonly DynamoEngineering[] | null;
   onVisualEvent?: (event: CanonicalVisualEvent) => void;
   onTagWrite?: SliderTagWrite;
+  visualAssetUrl?: VisualAssetUrlResolver;
 };
 
 const builtinVisualTypes = new Set<string>(Object.values(BUILTIN_VISUAL_OBJECT_TYPES));
@@ -56,7 +59,8 @@ export function CanonicalVisualRenderer({
   locale = 'pt-BR',
   dynamoDefinitions,
   onVisualEvent,
-  onTagWrite
+  onTagWrite,
+  visualAssetUrl = visualAssetContentUrl
 }: CanonicalVisualRendererProps) {
   const rootElements = elements ?? emptyElements;
   const runtimeBindingElements = React.useMemo(
@@ -75,6 +79,7 @@ export function CanonicalVisualRenderer({
       dynamoDefinitions={dynamoDefinitions}
       onVisualEvent={onVisualEvent}
       onTagWrite={onTagWrite}
+      visualAssetUrl={visualAssetUrl}
     />)}
   </div>;
 }
@@ -86,7 +91,8 @@ function CanonicalElement({
   dynamoDefinitions,
   onVisualEvent,
   runtimeIdentityPrefix,
-  onTagWrite
+  onTagWrite,
+  visualAssetUrl
 }: {
   element: VisualElementEngineering;
   locale: EngineeringLocale;
@@ -95,6 +101,7 @@ function CanonicalElement({
   onVisualEvent?: (event: CanonicalVisualEvent) => void;
   runtimeIdentityPrefix?: string;
   onTagWrite?: SliderTagWrite;
+  visualAssetUrl: VisualAssetUrlResolver;
 }) {
   if (element.dynamoKey && dynamoDefinitions) {
     return <CanonicalDynamoElement
@@ -104,6 +111,7 @@ function CanonicalElement({
       dynamoDefinitions={dynamoDefinitions}
       onVisualEvent={onVisualEvent}
       onTagWrite={onTagWrite}
+      visualAssetUrl={visualAssetUrl}
     />;
   }
 
@@ -151,6 +159,7 @@ function CanonicalElement({
           onVisualEvent={onVisualEvent}
           runtimeIdentityPrefix={runtimeIdentityPrefix}
           onTagWrite={onTagWrite}
+          visualAssetUrl={visualAssetUrl}
         />)}
       </div>;
     }
@@ -167,7 +176,7 @@ function CanonicalElement({
         onClick={onClick}
       >
         {assetId ? <img
-          src={visualAssetContentUrl(assetId)} alt={element.key} draggable={false}
+          src={visualAssetUrl(assetId)} alt={element.key} draggable={false}
           style={{ width: '100%', height: '100%', objectFit: imageFit(values[VISUAL_PROPERTY_KEYS.imageFit]), objectPosition: `${percent(values[VISUAL_PROPERTY_KEYS.imagePositionX])}% ${percent(values[VISUAL_PROPERTY_KEYS.imagePositionY])}%` }}
         /> : <span className="visual-editor-image-placeholder">{element.key}</span>}
       </div>;
@@ -276,7 +285,8 @@ function CanonicalDynamoElement({
   liveSamples,
   dynamoDefinitions,
   onVisualEvent,
-  onTagWrite
+  onTagWrite,
+  visualAssetUrl
 }: {
   element: VisualElementEngineering;
   locale: EngineeringLocale;
@@ -284,6 +294,7 @@ function CanonicalDynamoElement({
   dynamoDefinitions?: readonly DynamoEngineering[] | null;
   onVisualEvent?: (event: CanonicalVisualEvent) => void;
   onTagWrite?: SliderTagWrite;
+  visualAssetUrl: VisualAssetUrlResolver;
 }) {
   try {
     const definition = resolveDynamoDefinition(dynamoDefinitions, element.dynamoKey!);
@@ -323,6 +334,7 @@ function CanonicalDynamoElement({
         onVisualEvent={onVisualEvent}
         runtimeIdentityPrefix={composition.instanceId}
         onTagWrite={onTagWrite}
+        visualAssetUrl={visualAssetUrl}
       />)}
     </div>;
   } catch (reason) {

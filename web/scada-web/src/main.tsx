@@ -1,202 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { AppNavigation } from './AppNavigation';
 import { AuditApp } from './audit';
 import { AuthGate } from './auth/AuthGate';
 import { EngineeringApp } from './engineering/EngineeringApp';
 import { LicensingApp } from './licensing/LicensingApp';
-import { BasicTrendViewer } from './runtime/BasicTrendViewer';
-import { clientMemory } from './runtime/clientMemory';
+import { RuntimeApplicationMount } from './runtime/application/RuntimeApplicationMount';
 import { HistoricalDataBrowserRuntime } from './runtime/historical-browser/HistoricalDataBrowserRuntime';
-import { RuntimeAlarmCenter, type RuntimeAlarmCenterLocale } from './runtime/operations';
-import { RuntimeTagInspector } from './runtime/RuntimeTagInspector';
 import './styles.css';
-
-type TagMessage = {
-  type: 'tagValueChanged';
-  tag: { id: string; name: string; path: string; engineeringUnit?: string };
-  value: unknown;
-  quality: string;
-  timestamp: string;
-  source?: string;
-};
-
-type LiveTag = TagMessage['tag'] & { value: unknown; quality: string; timestamp: string };
-type HistorySample = { tagId: string; value: unknown; timestamp: string; quality: string; source?: string };
-
-const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
-const WS = API
-  ? API.replace(/^http/, 'ws') + '/ws/tags'
-  : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/tags`;
-
-function n(v: unknown, digits = 1) {
-  const numeric = Number(v);
-  return Number.isFinite(numeric) ? numeric.toFixed(digits) : '--';
-}
-
-function resolveRuntimeLocale(): RuntimeAlarmCenterLocale {
-  const stored = window.localStorage.getItem('elitescada.engineering.locale');
-  return stored === 'en' || stored === 'es' ? stored : 'pt-BR';
-}
-
-function RuntimeApp() {
-  const [tags, setTags] = useState<Record<string, LiveTag>>({});
-  const [connected, setConnected] = useState(false);
-  const [modal, setModal] = useState(false);
-  const [history, setHistory] = useState<HistorySample[]>([]);
-  const [clientMemoryCount, setClientMemoryCount] = useState(0);
-  const locale = useMemo(resolveRuntimeLocale, []);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    let disposed = false;
-
-    const initializeClientMemory = async () => {
-      try {
-        const count = await clientMemory.initialize(controller.signal);
-        if (!disposed) setClientMemoryCount(count);
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        console.error('Client Memory initialization failed.', error);
-        clientMemory.clear();
-        if (!disposed) setClientMemoryCount(0);
-      }
-    };
-
-    void initializeClientMemory();
-    return () => {
-      disposed = true;
-      controller.abort();
-      clientMemory.clear();
-    };
-  }, []);
-
-  useEffect(() => {
-    let ws: WebSocket | undefined;
-    let retry: number | undefined;
-    let stopped = false;
-
-    const connect = () => {
-      if (stopped) return;
-      ws = new WebSocket(WS);
-      ws.onopen = () => setConnected(true);
-      ws.onclose = event => {
-        setConnected(false);
-        if (stopped) return;
-        if (event.code === 1008) {
-          stopped = true;
-          window.location.reload();
-          return;
-        }
-        retry = window.setTimeout(connect, 1500);
-      };
-      ws.onerror = () => ws?.close();
-      ws.onmessage = event => {
-        const msg = JSON.parse(event.data) as TagMessage;
-        if (msg.type !== 'tagValueChanged') return;
-        setTags(current => ({
-          ...current,
-          [msg.tag.path]: { ...msg.tag, value: msg.value, quality: msg.quality, timestamp: msg.timestamp }
-        }));
-      };
-    };
-
-    connect();
-    return () => {
-      stopped = true;
-      if (retry) window.clearTimeout(retry);
-      ws?.close();
-    };
-  }, []);
-
-  const get = (path: string) => tags[path]?.value;
-  const level = Number(get('Demo.Tank01.Level') ?? 0);
-  const running = Boolean(get('Demo.P01.Running'));
-  const fault = Boolean(get('Demo.P01.Fault'));
-  const pumpClass = fault ? 'fault' : running ? 'running' : 'stopped';
-  const tagCount = useMemo(() => Object.keys(tags).length, [tags]);
-
-  const loadPumpHistory = async () => {
-    const tag = tags['Demo.P01.Current'];
-    if (!tag) return;
-    const response = await fetch(`${API}/api/history/${tag.id}?limit=30`);
-    if (response.ok) setHistory(await response.json());
-  };
-
-  const openPump = () => {
-    setModal(true);
-    void loadPumpHistory();
-  };
-
-  return (
-    <main className="shell">
-      <header className="topbar">
-        <div>
-          <strong>SCADA Platform</strong>
-          <span>Runtime 0.1-dev</span>
-        </div>
-        <div className={`connection ${connected ? 'online' : ''}`}>
-          {connected ? 'ONLINE' : 'OFFLINE'} · {tagCount} TAGs{clientMemoryCount > 0 ? ` · ${clientMemoryCount} Client Memory` : ''}
-        </div>
-      </header>
-
-      <RuntimeAlarmCenter locale={locale} />
-      <RuntimeTagInspector locale={locale} />
-      <BasicTrendViewer locale={locale} />
-
-      <section className="process-card">
-        <div className="process-title">Demo · Estação Elevatória</div>
-        <div className="process">
-          <div className="tank-wrap">
-            <div className="tank">
-              <div className="water" style={{ height: `${Math.max(0, Math.min(level, 100))}%` }} />
-              <span>{n(level)}%</span>
-            </div>
-            <label>Reservatório TK01</label>
-          </div>
-          <div className="pipe horizontal first" />
-          <button className={`pump ${pumpClass}`} onClick={openPump} title="Abrir detalhes da bomba">
-            <svg viewBox="0 0 120 90" aria-label="Bomba P01">
-              <circle cx="48" cy="45" r="30" />
-              <path d="M70 29 L108 29 L108 61 L70 61 Z" />
-              <circle cx="48" cy="45" r="9" />
-            </svg>
-            <strong>P01</strong><small>{fault ? 'FALHA' : running ? 'OPERANDO' : 'PARADA'}</small>
-          </button>
-          <div className="pipe horizontal second" />
-          <div className="line-values">
-            <div><span>Pressão</span><strong>{n(get('Demo.Discharge.Pressure'))} bar</strong></div>
-            <div><span>Vazão</span><strong>{n(get('Demo.Discharge.Flow'))} m³/h</strong></div>
-          </div>
-        </div>
-      </section>
-
-      <section className="tag-strip">
-        <Metric title="Corrente P01" value={`${n(get('Demo.P01.Current'))} A`} />
-        <Metric title="Frequência P01" value={`${n(get('Demo.P01.Frequency'))} Hz`} />
-        <Metric title="Qualidade" value={tags['Demo.P01.Current']?.quality ?? '--'} />
-      </section>
-
-      {modal && (
-        <div className="modal-backdrop" onMouseDown={() => setModal(false)}>
-          <section className="modal" onMouseDown={e => e.stopPropagation()}>
-            <header><div><strong>Bomba P01</strong><span>Demo.P01</span></div><button onClick={() => setModal(false)}>×</button></header>
-            <div className="status-grid">
-              <Metric title="Estado" value={fault ? 'FALHA' : running ? 'OPERANDO' : 'PARADA'} />
-              <Metric title="Corrente" value={`${n(get('Demo.P01.Current'))} A`} />
-              <Metric title="Frequência" value={`${n(get('Demo.P01.Frequency'))} Hz`} />
-              <Metric title="Comunicação" value={connected ? 'GOOD' : 'BAD_COMM'} />
-            </div>
-            <div className="history-preview">
-              <div className="section-heading"><strong>Histórico recente · Corrente</strong><span>{history.length} amostras</span></div>
-              <div className="spark-values">{history.slice(-12).map((sample, i) => <span key={`${sample.timestamp}-${i}`}>{n(sample.value)}</span>)}</div>
-            </div>
-          </section>
-        </div>
-      )}
-    </main>
-  );
-}
 
 function RuntimeHistoricalBrowserApp() {
   return (
@@ -204,10 +15,6 @@ function RuntimeHistoricalBrowserApp() {
       <HistoricalDataBrowserRuntime />
     </main>
   );
-}
-
-function Metric({ title, value }: { title: string; value: string }) {
-  return <div className="metric"><span>{title}</span><strong>{value}</strong></div>;
 }
 
 const RootApp = window.location.pathname.startsWith('/audit')
@@ -218,7 +25,7 @@ const RootApp = window.location.pathname.startsWith('/audit')
       ? LicensingApp
       : window.location.pathname.startsWith('/runtime/history')
         ? RuntimeHistoricalBrowserApp
-        : RuntimeApp;
+        : RuntimeApplicationMount;
 
 createRoot(document.getElementById('root')!).render(
   <AuthGate>

@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import type { EngineeringLocale } from '../../engineering/i18n';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
 import type { EngineeringPackageView } from '../../engineering/types';
-import type { CanonicalVisualEvent } from '../../engineering/visual-editor/CanonicalVisualRenderer';
+import type {
+  CanonicalVisualEvent,
+  VisualAssetUrlResolver
+} from '../../engineering/visual-editor/CanonicalVisualRenderer';
 import type { ClientVisualEventDispatchRecord } from '../../python-runtime/clientVisualEventDispatcher';
 import {
   createRuntimeVisualCatalog,
@@ -25,6 +28,7 @@ export type RuntimeVisualNavigatorProps = Readonly<{
   popupIdFactory?: () => string;
   scriptContext?: ScriptEngineeringContext | null;
   onScriptDispatch?: (records: readonly ClientVisualEventDispatchRecord[]) => void;
+  visualAssetUrl?: VisualAssetUrlResolver;
 }>;
 
 type NavigationResolution = Readonly<{
@@ -39,7 +43,8 @@ export function RuntimeVisualNavigator({
   emptyLabel = 'Sem objetos visuais.',
   popupIdFactory,
   scriptContext,
-  onScriptDispatch
+  onScriptDispatch,
+  visualAssetUrl
 }: RuntimeVisualNavigatorProps) {
   const catalog = useMemo(() => createRuntimeVisualCatalog(engineeringPackage), [engineeringPackage]);
   const initialResolution = useMemo(
@@ -100,6 +105,7 @@ export function RuntimeVisualNavigator({
         scriptContext={scriptContext}
         onScriptDispatch={onScriptDispatch}
         onVisualEvent={event => dispatch(event)}
+        visualAssetUrl={visualAssetUrl}
       />
     </section>
 
@@ -129,6 +135,7 @@ export function RuntimeVisualNavigator({
                 scriptContext={scriptContext}
                 onScriptDispatch={onScriptDispatch}
                 onVisualEvent={event => dispatch(event, mount.runtimeInstanceId)}
+                visualAssetUrl={visualAssetUrl}
               />
             </div>
           </section>;

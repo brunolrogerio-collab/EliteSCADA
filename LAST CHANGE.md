@@ -12,28 +12,48 @@ Live GitHub refs and exact-SHA Actions evidence override stale SHAs copied into 
 
 ## Mandatory continuity / chat replacement rule
 
-The repository must contain enough context to resume EliteSCADA coordination safely in a new ChatGPT conversation without relying on previous chat history.
+The repository, not chat history, is the persistent coordination memory. A fresh coordinator must be able to resume safely from repository state alone.
 
 For every material coordination cycle, decision, blocker, fix, validation run or change of next action:
 
-1. review and synchronize both `PROJECT GOAL.md` and `LAST CHANGE.md` when their recorded state is affected;
+1. review `PROJECT GOAL.md` and `LAST CHANGE.md` before changing code;
 2. persist exact branch/SHA/run/issue evidence when it matters to acceptance;
 3. never leave a critical decision, blocker, diagnosis or next action only in chat;
 4. keep stable product/architecture intent in `PROJECT GOAL.md` and mutable operational state here;
-5. when the user says `siga`, continue executing until completion or a real external blocker.
+5. when the Development Lead says `siga`, continue executing until completion or a real external blocker.
+
+`PROJECT GOAL.md` was reviewed on 2026-09-01. Its stable release-sequencing rule remains correct: Wave 11 cannot begin until L3 is fully accepted and issue #180 is closed.
 
 ## Current checkpoint
 
 - Active branch: `coordination/driver-l3-seven-protocol-lab`.
-- Issue #180: **OPEN / ACTIVE / RELEASE GATE**.
-- Wave 11: **BLOCKED** until complete L3 plus normal required CI pass on one exact accepted SHA and #180 is accepted and closed.
-- Latest technical commit before this documentation checkpoint: `da86a93016bad9dfae29587bd556aac8007646f4` — `test(l3): make BACnet analog peer commandable`.
-- Current validation: L3 run #22, run ID `33471176978`, exact technical SHA `da86a93016bad9dfae29587bd556aac8007646f4`, was **IN PROGRESS** when this checkpoint was written.
-- The serial fault fixture was audited while #22 was starting. Its BACnet datasource already binds `localEndpointIp=127.0.0.1`, targets `127.0.0.1:47808`, and exercises BACnet restart/recovery by readback rather than by weakening the write contract.
+- Issue #180: **OPEN / RELEASE GATE**.
+- Wave 11: **BLOCKED**.
+- First complete green L3 technical SHA: `958bc9aa2bbaf788d9a15c19d986ba728a7562fd` — `test(l3): make MQTT recovery stimulus reconnect-safe`.
+- L3 Seven-Driver Lab run #23: `33478345659`.
+- L3 job: `99762245620`.
+- Result on exact technical SHA `958bc9aa...`: **SUCCESS**.
+
+Run #23 passed the complete dedicated L3 sequence:
+
+- seven peer startup / endpoint verification: PASS;
+- heterogeneous TAG Gateway slice: PASS;
+- one-runtime seven-Driver acquisition slice: PASS 7/7;
+- supported write slice: PASS;
+- serial peer fault/recovery slice: PASS;
+- Gateway source/destination fault/recovery slice: PASS;
+- evidence uploads: PASS;
+- clean lab shutdown: PASS.
+
+This is the first complete technical proof of the integrated L3 matrix. It does **not** by itself release Wave 11 because issue #180 also requires the final documentation-inclusive accepted SHA and normal EliteSCADA CI on that same accepted SHA.
+
+This documentation checkpoint changes the branch HEAD after `958bc9aa...`; therefore the new documentation-inclusive HEAD must receive its own exact-SHA validation before #180 closes.
+
+At the time this checkpoint was prepared, querying Actions by technical SHA `958bc9aa...` returned only the dedicated L3 workflow. Normal EliteSCADA CI was not yet evidenced on that exact SHA.
 
 ## L3 topology / acceptance authority
 
-The integrated runtime must operate all seven communication Drivers concurrently:
+Issue #180 remains authoritative. One runtime must operate all seven communication Drivers concurrently:
 
 1. MQTT;
 2. IEC-104;
@@ -43,118 +63,95 @@ The integrated runtime must operate all seven communication Drivers concurrently
 6. Siemens S7 ISO-on-TCP;
 7. BACnet/IP.
 
-Issue #180 is the authoritative acceptance contract. The complete matrix includes concurrent acquisition, supported writes, heterogeneous TAG Gateway behavior, serial peer fault/recovery, Gateway source/destination fault isolation, clean shutdown and exact-SHA CI evidence.
+Do not weaken assertions, reduce the seven-driver expectation, skip a failing slice or reinterpret a prior failure to manufacture acceptance.
 
-Do not weaken the seven-driver assertion or skip a failing slice to manufacture acceptance.
+## Resolved L3 blockers that must not be reopened without fresh evidence
 
-## L3 failure/fix history that matters for resume
+### BACnet/IP multi-interface activation
 
-### 1. BACnet/IP interface ambiguity during activation — RESOLVED
+Original runner failure: BACnet transport found multiple IPv4 candidates and refused automatic selection.
 
-Original failure at SHA `65fbb6ee67040610eef4b6ef88073c38e127913b`, run `33434301171`, job `99626884954`:
+Fix: `c906f3cbbb3f0c584d19475c3dbdfbc6a84b5668` — `fix(bacnet): bind explicit local endpoint for L3`.
 
-`Cannot determine the BACnet/IP broadcast address automatically: found 2 candidate IPv4 interface(s) [...]`
+L3 loopback fixtures explicitly bind `localEndpointIp=127.0.0.1` while production auto-selection remains available when unset.
 
-Fix:
+### Common runtime diagnostics exposed only 6/7 Drivers
 
-`c906f3cbbb3f0c584d19475c3dbdfbc6a84b5668` — `fix(bacnet): bind explicit local endpoint for L3`
+Missing diagnostics Driver was IEC-104. `EngineeringRuntimeCoordinator.Describe()` only includes `ICommunicationDiagnosticsSource`; IEC-104 did not expose that common contract.
 
-L3 BACnet fixtures use loopback while automatic interface selection remains available outside explicitly bound configurations.
-
-### 2. Communication diagnostics exposed only 6/7 Drivers — RESOLVED
-
-The missing diagnostics entry was IEC-104. `Iec104HostCommunicationDriver` did not expose the common `ICommunicationDiagnosticsSource` contract consumed by `EngineeringRuntimeCoordinator.Describe()`.
-
-- diagnostic: `a9a6fb55cb56659e382e7d09085f63505aee27f4` — `test: diagnose missing L3 communication driver`;
+- diagnostic: `a9a6fb55cb56659e382e7d09085f63505aee27f4`;
 - fix: `dff9adcf068d62a55f1fa2cf98f693cee8686739` — `fix(iec104): expose common runtime diagnostics`.
 
-Do not reopen the old 6/7 theory without fresh evidence.
+### Acquisition inherited CIP state from Gateway slice
 
-### 3. Acquisition inherited CIP state from the Gateway slice — RESOLVED
-
-The Gateway slice legitimately wrote CIP value `2222`; acquisition then expected the fresh-peer value `1234`. This was slice contamination, not an acquisition defect.
+Gateway legitimately wrote CIP `2222`; acquisition expected fresh-peer `1234`. This was cross-slice peer-state contamination, not acquisition failure.
 
 - evidence persistence: `223aea71a240daca1343c71e3b4ea903b9b5ed00`;
 - isolation fix: `46cdc53cb2cb9f37d04386b8e6923e0f08bbe2cd` — `ci: reset L3 peers before acquisition slice`.
 
-Run #16 (`33465195861`) proved Gateway **PASS** and acquisition **PASS 7/7**.
+Run #16 proved Gateway PASS and acquisition PASS 7/7 after isolation.
 
-### 4. BACnet write/fault fixtures and persistent evidence — RESOLVED
+### Persistent TRX evidence for remaining slices
 
-- `7f592424e4d33dcfbb5dff190ec1c3d2c1b32449` — persist write/fault TRX evidence;
-- `6aacd8aeaf2a94cc67e1fee99611c1eb358c046c` — bind BACnet write fixture to loopback;
-- `c1ca151e1d65b06d50f163a240e4f132c676343c` — bind BACnet fault fixture to loopback.
+Write/fault failures were made recoverable through TRX artifacts rather than relying on the unreliable Actions job-log download path.
 
-### 5. BACnet analog Present_Value encoded as DOUBLE — RESOLVED
+Key evidence/workflow commits include `7f592424e4d33dcfbb5dff190ec1c3d2c1b32449` and related write/fault evidence persistence changes.
 
-Run #19 (`33468204672`, job `99732361456`, SHA `c1ca151e1d65b06d50f163a240e4f132c676343c`) reached the real BACnet write and failed:
+### BACnet analog write datatype
 
-`System.IO.IOException: Reject from device, reason: INVALID_TAG`
+BACnet Analog `Present_Value` is protocol REAL even when EliteSCADA canonical type is Double. Production write codec had emitted BACnet DOUBLE.
 
-The independent bacpypes peer exposes `AnalogValueObject.presentValue` as BACnet `REAL`. EliteSCADA reads converted REAL correctly to canonical `TagDataType.Double`, but write encoding sent BACnet `DOUBLE`.
+- fix: `7fe8c58409d38a5d1750e9b16e06041f32718598` — `fix(bacnet): encode analog present value as REAL`;
+- test: `0f18b080ee0a116c1fe8e93bad1aff1629a79e30` — `test(bacnet): cover REAL analog present value writes`.
 
-Fixes:
+### BACnet peer command-priority fixture
 
-- `7fe8c58409d38a5d1750e9b16e06041f32718598` — `fix(bacnet): encode analog present value as REAL`;
-- `0f18b080ee0a116c1fe8e93bad1aff1629a79e30` — `test(bacnet): cover REAL analog present value writes`.
+The independent bacpypes peer initially used plain `AnalogValueObject`, causing `WRITE_ACCESS_DENIED` for valid priority-8 writes after the datatype fix.
 
-The codec now emits BACnet REAL/CLR `float` for numeric writes to AnalogInput/AnalogOutput/AnalogValue `Present_Value`, while generic non-analog EliteSCADA Double writes retain BACnet DOUBLE encoding.
+Fix: `da86a93016bad9dfae29587bd556aac8007646f4` — `test(l3): make BACnet analog peer commandable`.
 
-### 6. BACnet peer rejected valid priority write because fixture was not commandable — FIXED / VALIDATING
+The peer uses BACpypes commandable Real semantics. The production write capability and acceptance requirement were not weakened.
 
-Run #21 (`33470564345`, job `99739046939`, exact SHA `0f18b080ee0a116c1fe8e93bad1aff1629a79e30`) proved the datatype fix advanced the protocol exchange:
+### MQTT recovery stimulus
 
-- Gateway: **PASS**;
-- acquisition: **PASS 7/7**;
-- supported write: **FAIL**;
-- later fault slices: skipped because write gate failed.
+The final technical change before the first complete green L3 run was:
 
-Persisted write TRX changed from `INVALID_TAG` to:
+`958bc9aa2bbaf788d9a15c19d986ba728a7562fd` — `test(l3): make MQTT recovery stimulus reconnect-safe`.
 
-`System.IO.IOException: Error from device, class: ERROR_CLASS_PROPERTY, code: ERROR_CODE_WRITE_ACCESS_DENIED`
+That exact SHA produced L3 run #23 SUCCESS.
 
-This occurred at the same BACnet write using priority 8. The new error proved the device now accepted the BACnet REAL datatype but the lab object did not support command-priority semantics.
+## Exact execution order for the next coordinator
 
-Root cause was the independent peer fixture, not the production driver: `interop-lab/bacnet/bacpypes/server.py` used plain `AnalogValueObject`, which is readable but is not a commandable priority-array object in BACpypes 0.19.
-
-Fix:
-
-`da86a93016bad9dfae29587bd556aac8007646f4` — `test(l3): make BACnet analog peer commandable`
-
-The peer now registers a concrete `LabAnalogValueObject : AnalogValueCmdObject`, which uses BACpypes `Commandable(Real)` semantics, and declares `relinquishDefault=21.5`. L3 continues to exercise priority 8. The driver contract was **not weakened** to accommodate the fixture.
-
-L3 run #22 (`33471176978`) is validating this exact technical SHA.
-
-## Exact execution order from here
-
-1. Inspect L3 run #22 (`33471176978`) on SHA `da86a93016bad9dfae29587bd556aac8007646f4`.
-2. Confirm Gateway and acquisition remain green and determine whether the supported write slice passes with the commandable BACnet peer.
-3. If write fails, download its persisted TRX and fix the exact new error.
-4. If write passes, continue the serial peer fault/recovery slice and then the Gateway source/destination fault/recovery slice.
-5. Use persisted TRX artifacts for every failing slice. Do not regress to old two-IP, 6/7, INVALID_TAG or WRITE_ACCESS_DENIED diagnoses without new evidence.
-6. Synchronize `PROJECT GOAL.md`, this file, issue #180 and `docs/DRIVER-AND-INTEROP-LAB-STATUS.md` after material checkpoints.
-7. After the complete L3 matrix first becomes green, create/update the final documentation/status checkpoint so the **documentation-inclusive HEAD** itself receives exact-SHA L3 validation.
-8. Confirm normal EliteSCADA CI and all checks required by #180 on that same final SHA.
-9. Close #180 only after complete acceptance evidence is recorded.
-10. Only then may Wave 11 begin.
+1. Re-fetch live branch HEAD before any write. Do not assume the SHA recorded here is still HEAD.
+2. Inspect issue #180 and the latest Actions runs.
+3. Treat L3 run #23 (`33478345659`) on `958bc9aa...` as the first complete technical L3 proof.
+4. Validate the current **documentation-inclusive branch HEAD** with the complete `L3 Seven-Driver Lab` workflow.
+5. Run/obtain normal EliteSCADA CI on that **same exact SHA** and require all checks mandated by #180 to pass.
+6. If the documentation-inclusive L3 or normal CI fails, fix the exact new failure and repeat exact-SHA validation. Do not regress to resolved BACnet two-IP, IEC-104 6/7, CIP contamination, INVALID_TAG or WRITE_ACCESS_DENIED diagnoses without fresh evidence.
+7. Synchronize `PROJECT GOAL.md`, this file, issue #180 and `docs/DRIVER-AND-INTEROP-LAB-STATUS.md` with final evidence.
+8. Close issue #180 only after all acceptance evidence is recorded on the accepted exact SHA.
+9. Only after #180 is closed may Wave 11 begin.
 
 ## IMPLEMENTED ON ACTIVE L3 BRANCH
 
 - dedicated seven-Driver L3 workflow;
-- one-runtime integrated seven-Driver lab;
-- heterogeneous TAG Gateway slice;
-- deterministic BACnet/IP loopback binding;
+- one-runtime concurrent seven-Driver lab;
+- heterogeneous TAG Gateway validation;
+- deterministic BACnet/IP loopback binding for L3 fixtures;
 - IEC-104 common runtime diagnostics;
-- stateful peer reset/isolation between slices;
-- persistent TRX evidence for acquisition/write/fault slices;
-- protocol-correct BACnet REAL encoding for analog Present_Value writes;
-- commandable BACpypes AnalogValue peer for priority-write validation.
+- peer state isolation between slices;
+- persistent acquisition/write/fault TRX evidence;
+- protocol-correct BACnet REAL analog writes;
+- commandable BACpypes analog peer;
+- serial peer fault/recovery coverage;
+- Gateway source/destination fault/recovery coverage;
+- reconnect-safe MQTT recovery stimulus.
 
-These are not acceptance by themselves. The gate is the complete exact-SHA workflow plus issue #180.
+## ACCEPTANCE STATE
 
-## SPECIFIED / NOT YET ACCEPTED
-
-- complete L3 seven-Driver integrated acceptance: **NOT YET ACCEPTED**;
+- complete technical L3 matrix on `958bc9aa...`: **PASS — run #23**;
+- documentation-inclusive final HEAD exact-SHA L3: **PENDING**;
+- normal EliteSCADA CI on the same final accepted SHA: **PENDING / NOT YET EVIDENCED**;
 - issue #180 closure: **NOT YET**;
 - Wave 11 release: **NOT AUTHORIZED**.
 
@@ -164,9 +161,9 @@ Read, in order:
 
 1. `PROJECT GOAL.md`;
 2. `LAST CHANGE.md`;
-3. current coordinator handoff;
+3. `docs/COORDINATOR-HANDOFF-2026-08-31.md` and any newer current handoff;
 4. issue #180 and latest comments;
 5. `.github/workflows/l3-seven-driver-lab.yml`;
-6. latest L3 Actions run on the coordination branch.
+6. latest Actions runs on `coordination/driver-l3-seven-protocol-lab`.
 
-Then re-fetch live branch HEAD and target file SHAs before any write. Continue the current L3 blocker until the gate is fully green. Do **not** start Wave 11 from documentation assumptions or chat memory.
+Then re-fetch live branch HEAD and target file SHAs before any mutation. Repository/CI state wins over stale chat memory.

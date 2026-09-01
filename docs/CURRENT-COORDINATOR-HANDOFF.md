@@ -1,7 +1,7 @@
 # EliteSCADA — Current Coordinator Handoff
 
 Last operational audit: **2026-09-01 BRT**  
-Operational status: **WAVE 11 ACCEPTANCE GATE SATISFIED / WAVE 12 #201 PREPARED — NOT STARTED**
+Operational status: **WAVE 11 COMPLETE / ACCEPTED / CLOSED — WAVE 12 #201 READY / NOT STARTED**
 
 > Repository/CI state is the continuity source. Read live refs and Actions before acting. Stable product intent is governed by `PROJECT GOAL.md`; exact mutable state belongs in `LAST CHANGE.md`.
 
@@ -19,7 +19,7 @@ Read, in order:
 8. live `main`, open PRs/issues and exact Actions state;
 9. `docs/DRIVER-AND-INTEROP-LAB-STATUS.md` only when Driver evidence is relevant.
 
-Do not resume old Wave 11 feature branches. PR #195 is historical/superseded; PR #199 is the accepted Wave 11 implementation integration; PR #200 is the accepted owner-test application handoff.
+Do not resume old Wave 11 feature branches. PR #195 is historical/superseded; PR #199 is the accepted Wave 11 implementation integration; PR #200 is the accepted owner-test application handoff. Issue #194 is closed/completed.
 
 ## 2. Accepted foundation through Wave 11
 
@@ -27,6 +27,7 @@ Do not resume old Wave 11 feature branches. PR #195 is historical/superseded; PR
 - Repository/CI hygiene: **COMPLETE / ACCEPTED / INTEGRATED** through PRs #196 and #197.
 - Wave 11 implementation PR #199: **MERGED** at main merge `57042b467471f4b1360e1642d5d160e6e66fc31c`.
 - Wave 11 owner-test handoff PR #200: **MERGED** at product-code main `4ccc29cb4bb334dc473d8265f48a9c8601993413`.
+- Wave 11 issue #194: **CLOSED / COMPLETED** after final evidence and continuity synchronization.
 
 Accepted Wave 11 lifecycle authority:
 
@@ -62,7 +63,7 @@ Owner-test handoff head `cc37be24ad8c8dc4594d99c5a3fd232dbf685d6f`:
 - Wave 11 Active HMI Runtime #13 / `33551000846`: **SUCCESS**;
 - EliteSCADA CI #1066 / `33551000852`: **SUCCESS**.
 
-Final product-code main `4ccc29cb4bb334dc473d8265f48a9c8601993413`:
+Final validated product-code main `4ccc29cb4bb334dc473d8265f48a9c8601993413`:
 
 - Wave 11 Active HMI Runtime #14 / `33552016447`: **SUCCESS**;
 - EliteSCADA CI #1067 / `33552016454`: **SUCCESS** including backend build/tests/runtime smoke, Web build and Chromium E2E.
@@ -87,7 +88,7 @@ This is the owner-test application package required by Wave 11. It is not a Wind
 
 ## 5. Wave 12 handoff state
 
-Issue #201 — `Wave 12 — Hardening` exists as **PREPARED / NOT STARTED**.
+Issue #201 — `Wave 12 — Hardening` is **READY / NOT STARTED**.
 
 Preparation document: `docs/WAVE-12-HARDENING-PREPARATION.md`.
 
@@ -96,8 +97,7 @@ At this handoff point:
 - no Wave 12 implementation branch exists;
 - no Wave 12 PR exists;
 - no Wave 12 production-code change has been made;
-- no Wave 12 CI result is claimed;
-- issue #201 is preparation-only until issue #194 is formally closed in this coordination cycle.
+- no Wave 12 CI result is claimed.
 
 Wave 12 is a hardening pass, not a feature-expansion wave. Its prepared scope covers fail-closed/recovery behavior, authorization/audit, persistence/restart, `.escadapkg` integrity, runtime resource/fault isolation, concurrency, diagnostic sanitization and regression/CI hardening.
 
@@ -105,9 +105,9 @@ Explicit exclusions include new Drivers/protocols, Wave 13 Authenticode/release-
 
 ## 6. Exact next action for the next Coordinator
 
-After issue #194 is confirmed closed and issue #201 is marked **READY / NOT STARTED**:
+When deliberately starting Wave 12:
 
-1. re-read live `main`; documentation-only commits may have advanced it beyond product-code `4ccc29cb...`;
+1. re-read live `main`; documentation-only commits have advanced it beyond product-code `4ccc29cb...`;
 2. read all documents in the mandatory resume order above;
 3. inspect current open issues/PRs and exact Actions state;
 4. audit current failure/test surfaces before choosing hardening slices;

@@ -110,6 +110,22 @@ jobs:
           --filter "Category=L3GatewayIntegration"
           --logger "console;verbosity=normal"
 
+      - name: Reset stateful peers before acquisition slice
+        run: |
+          docker restart \
+            elitescada-lab-iec104-lib60870 \
+            elitescada-lab-cip-controllogix \
+            elitescada-lab-opcua-open62541 \
+            elitescada-lab-dnp3-dnp3py \
+            elitescada-lab-s7-python-snap7 \
+            elitescada-lab-bacnet-bacpypes >/dev/null
+          timeout 30 bash -c 'until nc -z 127.0.0.1 44818; do sleep 1; done'
+          timeout 30 bash -c 'until nc -z 127.0.0.1 4841; do sleep 1; done'
+          timeout 30 bash -c 'until nc -z 127.0.0.1 2404; do sleep 1; done'
+          timeout 30 bash -c 'until nc -z 127.0.0.1 20000; do sleep 1; done'
+          timeout 30 bash -c 'until nc -z 127.0.0.1 1102; do sleep 1; done'
+          timeout 30 bash -c 'until curl -fsS http://127.0.0.1:18080/health; do sleep 1; done'
+
       - name: Run L3 one-runtime seven-Driver acquisition slice
         run: >-
           dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj

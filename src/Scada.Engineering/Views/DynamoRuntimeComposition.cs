@@ -73,7 +73,27 @@ public static class DynamoRuntimeComposer
             definition.Id.Value,
             definition.Key,
             resolved,
-            definition.Elements ?? Array.Empty<VisualElementEngineeringDto>());
+            SubstituteInstanceContext(
+                definition.Elements ?? Array.Empty<VisualElementEngineeringDto>(),
+                instance.EquipmentPath));
+    }
+
+    private static IReadOnlyCollection<VisualElementEngineeringDto> SubstituteInstanceContext(
+        IReadOnlyCollection<VisualElementEngineeringDto> elements,
+        string? equipmentPath)
+    {
+        if (string.IsNullOrWhiteSpace(equipmentPath)) return elements;
+        var normalizedPath = equipmentPath.Trim();
+        return elements.Select(element => element with
+        {
+            Bindings = element.Bindings?.Select(binding => binding with
+            {
+                Target = binding.Target.Replace("{equipmentPath}", normalizedPath, StringComparison.Ordinal)
+            }).ToArray(),
+            Children = SubstituteInstanceContext(
+                element.Children ?? Array.Empty<VisualElementEngineeringDto>(),
+                normalizedPath)
+        }).ToArray();
     }
 
     public static string RuntimeElementIdentity(Guid instanceId, Guid definitionElementId) =>

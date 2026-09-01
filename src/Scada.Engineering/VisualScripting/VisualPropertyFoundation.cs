@@ -333,6 +333,15 @@ public static class VisualPropertyKeys
     public const string ImageFit = "imageFit";
     public const string ImagePositionX = "imagePositionX";
     public const string ImagePositionY = "imagePositionY";
+    public const string Value = "value";
+    public const string Minimum = "minimum";
+    public const string Maximum = "maximum";
+    public const string Step = "step";
+    public const string Orientation = "orientation";
+    public const string InteractionEnabled = "interactionEnabled";
+    public const string ReverseDirection = "reverseDirection";
+    public const string TrackColor = "trackColor";
+    public const string ThumbColor = "thumbColor";
 
     // Pre-Wave-07 compatibility constant. New visual schemas use AssetRef.
     public const string ImageResourceId = "imageResourceId";
@@ -402,6 +411,19 @@ public static class CommonVisualPropertyDefinitions
         EnumString(VisualPropertyKeys.ImageFit, "contain", ["contain", "cover", "fill", "native"]),
         Number(VisualPropertyKeys.ImagePositionX, 0, minimum: 0, maximum: 1, animatable: true),
         Number(VisualPropertyKeys.ImagePositionY, 0, minimum: 0, maximum: 1, animatable: true)
+    ];
+
+    public static IReadOnlyList<VisualPropertyDefinition> Slider { get; } =
+    [
+        Number(VisualPropertyKeys.Value, 0, animatable: true),
+        Number(VisualPropertyKeys.Minimum, 0),
+        Number(VisualPropertyKeys.Maximum, 100),
+        Number(VisualPropertyKeys.Step, 1, minimum: double.Epsilon),
+        EnumString(VisualPropertyKeys.Orientation, "horizontal", ["horizontal", "vertical"]),
+        new VisualPropertyDefinition(VisualPropertyKeys.InteractionEnabled, new VisualBooleanValue(false), animatable: false),
+        new VisualPropertyDefinition(VisualPropertyKeys.ReverseDirection, new VisualBooleanValue(false), animatable: false),
+        Color(VisualPropertyKeys.TrackColor, "#6B7280", animatable: true),
+        Color(VisualPropertyKeys.ThumbColor, "#E5E7EB", animatable: true)
     ];
 
     private static VisualPropertyDefinition Number(

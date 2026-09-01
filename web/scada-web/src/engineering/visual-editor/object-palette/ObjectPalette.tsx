@@ -27,7 +27,8 @@ const DEFAULT_LABELS: Readonly<Record<string, string>> = Object.freeze({
   text: 'Text',
   image: 'Image',
   valueDisplay: 'Value display',
-  button: 'Button'
+  button: 'Button',
+  slider: 'Slider'
 });
 
 export function ObjectPalette({
@@ -95,6 +96,7 @@ function paletteGlyph(item: VisualObjectPaletteItem): string {
     case 'image': return '▧';
     case 'valueDisplay': return '#';
     case 'button': return '▰';
+    case 'slider': return '↔';
     default: return '□';
   }
 }

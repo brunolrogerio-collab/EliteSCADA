@@ -3,6 +3,8 @@
 ## Status
 Accepted.
 
+The package is also the initial user-facing portable **application file**. See `APPLICATION-PROJECT-STORAGE.md`. Server Working/Revisions remain distinct lifecycle persistence.
+
 ## Context
 
 Engineering configuration can already be exported as canonical JSON, but a practical project backup needs an outer container that identifies the project, records the engineering schema version and verifies that the payload was not silently truncated or altered.

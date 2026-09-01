@@ -14,6 +14,7 @@ public sealed class VisualPropertyCatalogConvergenceTests
             .Concat(CommonVisualPropertyDefinitions.Stroke)
             .Concat(CommonVisualPropertyDefinitions.Text)
             .Concat(CommonVisualPropertyDefinitions.Image)
+            .Concat(CommonVisualPropertyDefinitions.Slider)
             .Select(property => property.Key)
             .ToArray();
 
@@ -26,7 +27,9 @@ public sealed class VisualPropertyCatalogConvergenceTests
             "strokeColor", "strokeWidth", "strokeStyle", "cornerRadius",
             "text", "textColor", "fontFamily", "fontSize", "fontWeight", "fontStyle",
             "horizontalAlignment", "verticalAlignment",
-            "assetRef", "imageFit", "imagePositionX", "imagePositionY"
+            "assetRef", "imageFit", "imagePositionX", "imagePositionY",
+            "value", "minimum", "maximum", "step", "orientation", "interactionEnabled",
+            "reverseDirection", "trackColor", "thumbColor"
         ], keys);
 
         Assert.DoesNotContain(VisualPropertyKeys.ImageResourceId, keys);

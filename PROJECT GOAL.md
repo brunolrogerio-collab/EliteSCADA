@@ -23,7 +23,7 @@
 
 ### Current release-sequencing gate
 
-The seven communication Drivers must complete the integrated **L3 seven-Driver interoperability gate** before the next development wave is released. L3 acceptance requires the complete issue #180 matrix, including concurrent acquisition, supported writes, heterogeneous TAG Gateway behavior, fault isolation/recovery and exact-SHA CI evidence. **Wave 11 may not begin until L3 is fully green on the accepted exact SHA and issue #180 is accepted and closed.** Exact branch/SHA/run/blocker details remain in `LAST CHANGE.md` rather than being duplicated here.
+The seven communication Drivers completed the integrated L3 interoperability gate under issue #180. Before Wave 11, the Development Lead established a separate owner-usability gate covering the graphical License Generator, canonical industrial Slider, clear application-file saving, a minimum ready-to-insert Dynamo library and the corresponding validation evidence. **Wave 11 may not begin until the active pre-Wave-11 gate is accepted and closed.** Exact branch/SHA/run/issue state remains in `LAST CHANGE.md`.
 
 ## Product mission
 
@@ -92,6 +92,8 @@ EliteSCADA must expose a copyable, versioned **machine request code** derived fr
 The machine request code can be sent to the EliteSCADA licensing authority through normal business channels such as email.
 
 A controlled offline **EliteSCADA License Generator** accepts the request code and selected entitlement tier and returns a versioned signed license code/file.
+
+The Windows License Generator must be directly usable by the licensing authority: double-clicking the distributed executable opens a graphical interface. Command-line issuance may remain available for controlled automation, but a transient console that closes because required arguments were omitted is not an acceptable primary interface.
 
 The normal EliteSCADA product verifies licenses using asymmetric cryptography:
 
@@ -246,6 +248,22 @@ Required behavior:
 - Failed activation leaves the previous active runtime intact.
 - Restart recovery uses the persisted Active Revision and fails closed if industrial runtime recovery cannot be performed safely.
 - Persistence follows public Engineering contracts, not the reverse.
+
+### Developer-selected application file
+
+The developer must be able to choose where a portable EliteSCADA application is saved and later open that file explicitly.
+
+The preferred initial representation is one versioned `.escadapkg` application file containing the canonical Engineering model, manifest/integrity metadata and project-owned visual assets. It deliberately favors one file over a loose directory tree. Internally it may remain a structured ZIP container; users must not have to manage its internal files.
+
+This portable application file is distinct from server persistence:
+
+- **Working/Revisions/Published/Active** remain durable server-side lifecycle state, initially in PostgreSQL;
+- **Save Application As / Open Application** create or consume the portable `.escadapkg` through validation/Preview/Apply;
+- secrets, historian samples, transient Runtime values and deployment-specific credentials remain outside the application file;
+- project image references remain stable project assets rather than absolute developer-machine filesystem paths;
+- future multi-project/domain or external-library composition may add a thin root descriptor with relative references, but must not fragment ordinary applications without a real need.
+
+The Elipse E3 Domain/Project separation is a functional reference for explicit application composition and relative paths, not a requirement to reproduce `.dom`, `.prj` and `.lib` file proliferation. Full contract: `docs/APPLICATION-PROJECT-STORAGE.md`.
 
 Project engineering backup/restore uses versioned `.escadapkg` data containing canonical Engineering content plus integrity metadata. It is not a historian/database image.
 
@@ -460,6 +478,23 @@ Equipment Templates/Equipment and Dynamos evolve into version-aware reusable cla
 - preservation of safe instance overrides.
 
 Cross-project copy/paste uses canonical **Engineering Fragments**, with dependency-aware preview, conflict handling, rebinding and selected-only/selected-with-dependencies modes. Browser clipboard state is not authoritative Engineering data.
+
+EliteSCADA must ship a minimum original built-in Dynamo library ready for insertion from Engineering. The initial equipment catalog contains at least two practical variants in each requested family:
+
+- motors: standard and VFD;
+- pumps: centrifugal and submersible;
+- valves: on/off and modulating/control;
+- tanks: vertical and horizontal.
+
+These definitions use canonical Dynamo/Visual Engineering, are serialized with the project and may use an instance equipment path to resolve portable child bindings. They are not loose vendor images or renderer-private artwork.
+
+## Windows distribution trust and code signing
+
+Windows x64 product distribution must have an explicit trust boundary. Production Preview/installable executables and installers must be Authenticode-signed with an authorized organizational code-signing identity, include a trusted timestamp, preserve publisher identity and be verifiable in the release pipeline before publication.
+
+Unsigned internal/early Preview builds may still display Windows 11 unknown-publisher/SmartScreen warnings and may be used only when clearly identified as such. Compilation alone does not make a binary trusted, and the project must never claim certification for an unsigned artifact.
+
+Secure signing credentials must not be committed to GitHub or embedded in normal build artifacts. The production signing workflow belongs to the Windows packaging/release stage (Wave 13) and should prefer a protected signing service or hardware-backed key. SmartScreen reputation is separate from signature validity and may require reputation-building even after correct signing.
 
 ## Historian, trends and reporting
 

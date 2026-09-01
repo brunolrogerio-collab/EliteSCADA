@@ -77,9 +77,20 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(engineering.equipment[0].path).toBe('Demo.P01');
   expect(engineering.equipment[0].templateKey).toBe('pump.standard');
   expect(engineering.equipment[0].bindings.some(binding => binding.target === 'Demo.P01.Frequency')).toBeTruthy();
-  expect(engineering.dynamos).toHaveLength(1);
-  expect(engineering.dynamos[0].key).toBe('dynamo.pump.standard');
-  expect(engineering.dynamos[0].templateKey).toBe('pump.standard');
+  expect(engineering.dynamos).toHaveLength(8);
+  expect(engineering.dynamos.map(dynamo => dynamo.key).sort()).toEqual([
+    'dynamo.pump.standard',
+    'process.motor.standard',
+    'process.motor.vfd',
+    'process.pump.submersible',
+    'process.tank.horizontal',
+    'process.tank.vertical',
+    'process.valve.control',
+    'process.valve.onoff'
+  ]);
+  const standardPumpDynamo = engineering.dynamos.find(dynamo => dynamo.key === 'dynamo.pump.standard');
+  expect(standardPumpDynamo).toBeTruthy();
+  expect(standardPumpDynamo!.templateKey).toBe('pump.standard');
 
   expect(engineering.screens).toHaveLength(1);
   expect(engineering.screens[0].key).toBe('demo.overview');

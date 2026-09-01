@@ -113,6 +113,8 @@ export function applyVisualEditorMutationIntent(
   switch (intent.kind) {
     case 'object.add':
       return addVisualObject(screen, intent.objectType, intent.parentObjectId ?? null, intent.at ?? null, intent.initialProperties, createObjectId);
+    case 'dynamo.add':
+      return addDynamoInstance(screen, intent, createObjectId);
     case 'object.move':
       return moveVisualObjects(screen, intent.objectIds, intent.delta);
     case 'object.resize':
@@ -151,6 +153,40 @@ export function applyVisualEditorMutationIntent(
   }
 }
 
+function addDynamoInstance(
+  screen: ScreenEngineering,
+  intent: Extract<VisualEditorMutationIntent, { kind: 'dynamo.add' }>,
+  createObjectId: () => string
+): ScreenEngineering {
+  const dynamoKey = intent.dynamoKey.trim();
+  if (!dynamoKey || /[\u0000-\u001F\u007F]/.test(dynamoKey)) throw new Error('Dynamo key must be stable and non-empty.');
+  const at = intent.at ?? { x: 24, y: 24 };
+  assertFinitePoint(at, 'Dynamo placement');
+  const width = intent.defaultWidth ?? 120;
+  const height = intent.defaultHeight ?? 100;
+  if (!Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0) {
+    throw new Error('Dynamo default dimensions must be positive finite values.');
+  }
+
+  const usedKeys = collectVisualElementKeys(screen.elements);
+  const schema = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.group);
+  let element: VisualElementEngineering = {
+    id: requireGeneratedObjectId(createObjectId()),
+    key: nextVisualElementKey(dynamoKey.split('.').at(-1) || 'dynamo', usedKeys),
+    type: BUILTIN_VISUAL_OBJECT_TYPES.group,
+    dynamoKey,
+    equipmentPath: intent.equipmentPath?.trim() || null,
+    properties: {}
+  };
+  element = withValidatedProperties(element, schema, {
+    [VISUAL_PROPERTY_KEYS.x]: at.x,
+    [VISUAL_PROPERTY_KEYS.y]: at.y,
+    [VISUAL_PROPERTY_KEYS.width]: width,
+    [VISUAL_PROPERTY_KEYS.height]: height
+  });
+  return { ...screen, elements: [...(screen.elements ?? []), element] };
+}
+
 function addVisualObject(
   screen: ScreenEngineering,
   objectType: string,
@@ -168,6 +204,13 @@ function addVisualObject(
     type: objectType,
     properties: {}
   };
+
+  if (objectType === BUILTIN_VISUAL_OBJECT_TYPES.slider) {
+    element = withValidatedProperties(element, schema, {
+      [VISUAL_PROPERTY_KEYS.width]: 180,
+      [VISUAL_PROPERTY_KEYS.height]: 56
+    });
+  }
 
   for (const [propertyKey, value] of Object.entries(initialProperties ?? {})) {
     element = withValidatedProperty(element, schema, propertyKey, value);

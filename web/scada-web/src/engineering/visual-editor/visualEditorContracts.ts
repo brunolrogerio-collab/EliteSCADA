@@ -60,6 +60,14 @@ export type VisualEditorMutationIntent =
       initialProperties?: Readonly<Record<string, VisualEngineeringPropertyValue>>;
     }>
   | Readonly<{
+      kind: 'dynamo.add';
+      dynamoKey: string;
+      equipmentPath?: string | null;
+      at?: VisualEditorPoint | null;
+      defaultWidth?: number;
+      defaultHeight?: number;
+    }>
+  | Readonly<{
       kind: 'object.move';
       objectIds: readonly string[];
       delta: VisualEditorPoint;

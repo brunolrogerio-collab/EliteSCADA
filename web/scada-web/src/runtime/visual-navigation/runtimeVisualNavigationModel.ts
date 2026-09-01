@@ -321,8 +321,30 @@ export function composeDynamoRuntime(
     definitionId: definition.id!,
     definitionKey: definition.key,
     parameters: resolved,
-    elements: definition.elements ?? Object.freeze([])
+    elements: substituteDynamoInstanceContext(
+      definition.elements ?? Object.freeze([]),
+      instance.equipmentPath ?? null
+    )
   });
+}
+
+function substituteDynamoInstanceContext(
+  elements: readonly CanonicalVisualElementEngineering[],
+  equipmentPath: string | null
+): readonly CanonicalVisualElementEngineering[] {
+  if (!equipmentPath?.trim()) return elements;
+  const normalizedPath = equipmentPath.trim();
+  return Object.freeze(elements.map(element => {
+    const children = substituteDynamoInstanceContext(element.children ?? [], normalizedPath);
+    return Object.freeze({
+      ...element,
+      bindings: element.bindings?.map(binding => Object.freeze({
+        ...binding,
+        target: binding.target.replaceAll('{equipmentPath}', normalizedPath)
+      })) ?? element.bindings,
+      children: [...children]
+    }) as CanonicalVisualElementEngineering;
+  }));
 }
 
 export function runtimeDynamoElementIdentity(instanceId: string, definitionElementId: string): string {

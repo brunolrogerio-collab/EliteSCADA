@@ -46,7 +46,11 @@ The response contains a versioned `ESREQ1...` request code and the SHA-256 machi
 
 ## 4. Generate a license offline
 
-Copy only the machine request code to the controlled licensing workstation. Use the published Windows x64 executable:
+Copy only the machine request code to the controlled licensing workstation. Double-click the published Windows x64 `EliteSCADA.LicenseGenerator.exe` to open the graphical generator. Paste the request, choose the TAG tier, select the external private PEM key and the output `.license` file, then select **Gerar licença**.
+
+The generator deliberately opens a normal Windows interface when started without arguments. It must not flash a console and exit merely because command-line parameters were omitted.
+
+Controlled automation may use the same executable from PowerShell:
 
 ```powershell
 EliteSCADA.LicenseGenerator.exe `

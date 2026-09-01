@@ -257,7 +257,11 @@ export function createBindingSetIntent(
       propertyKey
     );
   }
-  const normalizedDirection = normalizeDirection(direction);
+  const normalizedDirection = normalizeDirection(
+    direction ?? (element.type === 'core.slider' && propertyKey === 'value'
+      ? source.writable === true ? 'readWrite' : 'read'
+      : undefined)
+  );
   const scalarText = propertyKey === 'text' && source.dataType != null;
 
   const binding: BindingEngineering = {

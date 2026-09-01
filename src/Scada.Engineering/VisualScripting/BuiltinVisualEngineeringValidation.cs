@@ -75,7 +75,85 @@ public static class BuiltinVisualEngineeringValidation
         }
 
         issues.AddRange(VisualDynamicEngineeringValidation.Validate(element, schema, entityKind, entityKey));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.SliderType, StringComparison.Ordinal))
+            issues.AddRange(ValidateSlider(element, entityKind, entityKey));
         return issues;
+    }
+
+    private static IEnumerable<ImportIssue> ValidateSlider(
+        VisualElementEngineeringDto element,
+        ImportEntityKind entityKind,
+        string entityKey)
+    {
+        var minimum = ReadNumber(element, VisualPropertyKeys.Minimum, 0);
+        var maximum = ReadNumber(element, VisualPropertyKeys.Maximum, 100);
+        var step = ReadNumber(element, VisualPropertyKeys.Step, 1);
+
+        if (minimum >= maximum)
+        {
+            yield return Error(
+                "VISUAL_SLIDER_RANGE_INVALID",
+                $"Slider '{element.Key}' requires minimum to be less than maximum.",
+                entityKind,
+                entityKey);
+        }
+
+        if (step <= 0)
+        {
+            yield return Error(
+                "VISUAL_SLIDER_STEP_INVALID",
+                $"Slider '{element.Key}' requires a positive step.",
+                entityKind,
+                entityKey);
+        }
+
+        if (!ReadBoolean(element, VisualPropertyKeys.InteractionEnabled, false))
+            yield break;
+
+        var valueBindings = (element.Bindings ?? Array.Empty<EngineeringBindingDto>())
+            .Where(binding => binding is not null &&
+                binding.Key.Equals(VisualPropertyKeys.Value, StringComparison.Ordinal))
+            .ToArray();
+        var valueBinding = valueBindings.Length == 1 ? valueBindings[0] : null;
+        if (valueBinding is null ||
+            valueBinding.Kind != EngineeringBindingKind.Tag ||
+            valueBinding.TagReference is null ||
+            valueBinding.TagReference.TagId == Guid.Empty ||
+            valueBinding.TagReference.Selector is not null ||
+            !IsWriteDirection(valueBinding.Direction))
+        {
+            yield return Error(
+                "VISUAL_SLIDER_WRITABLE_TAG_REQUIRED",
+                $"Interactive Slider '{element.Key}' requires one numeric TAG value binding with stable identity and readWrite/write direction.",
+                entityKind,
+                entityKey);
+        }
+    }
+
+    private static double ReadNumber(
+        VisualElementEngineeringDto element,
+        string key,
+        double fallback) =>
+        element.Properties is not null &&
+        element.Properties.TryGetValue(key, out var value) &&
+        value.ValueKind == JsonValueKind.Number &&
+        value.TryGetDouble(out var number)
+            ? number
+            : fallback;
+
+    private static bool ReadBoolean(
+        VisualElementEngineeringDto element,
+        string key,
+        bool fallback) =>
+        element.Properties is not null && element.Properties.TryGetValue(key, out var value)
+            ? value.ValueKind == JsonValueKind.True ||
+              (value.ValueKind == JsonValueKind.False ? false : fallback)
+            : fallback;
+
+    private static bool IsWriteDirection(string? direction)
+    {
+        var normalized = direction?.Trim().ToLowerInvariant();
+        return normalized is "write" or "readwrite" or "read-write" or "bidirectional" or "twoway" or "two-way";
     }
 
     private static Dictionary<string, JsonElement>? ScalarProperties(VisualElementEngineeringDto element)

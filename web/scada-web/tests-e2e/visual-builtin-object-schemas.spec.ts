@@ -16,7 +16,8 @@ const expectedTypes = [
   'core.text',
   'core.image',
   'core.valueDisplay',
-  'core.button'
+  'core.button',
+  'core.slider'
 ];
 
 test('built-in visual object types are stable and unique', () => {
@@ -45,6 +46,14 @@ test('built-in schemas expose only relevant shared visual properties', () => {
   expect(button.declares(VISUAL_PROPERTY_KEYS.backgroundColor)).toBeTruthy();
   expect(button.declares(VISUAL_PROPERTY_KEYS.cornerRadius)).toBeTruthy();
   expect(button.declares(VISUAL_PROPERTY_KEYS.text)).toBeTruthy();
+
+  const slider = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.slider);
+  expect(slider.declares(VISUAL_PROPERTY_KEYS.value)).toBeTruthy();
+  expect(slider.declares(VISUAL_PROPERTY_KEYS.minimum)).toBeTruthy();
+  expect(slider.declares(VISUAL_PROPERTY_KEYS.maximum)).toBeTruthy();
+  expect(slider.declares(VISUAL_PROPERTY_KEYS.step)).toBeTruthy();
+  expect(slider.declares(VISUAL_PROPERTY_KEYS.interactionEnabled)).toBeTruthy();
+  expect(slider.declares(VISUAL_PROPERTY_KEYS.orientation)).toBeTruthy();
 });
 
 test('Analog Fill eligibility is explicit in the shared object capability contract', () => {

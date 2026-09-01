@@ -33,7 +33,8 @@ const PALETTE_ORDER: readonly BuiltinVisualObjectType[] = Object.freeze([
   BUILTIN_VISUAL_OBJECT_TYPES.text,
   BUILTIN_VISUAL_OBJECT_TYPES.image,
   BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay,
-  BUILTIN_VISUAL_OBJECT_TYPES.button
+  BUILTIN_VISUAL_OBJECT_TYPES.button,
+  BUILTIN_VISUAL_OBJECT_TYPES.slider
 ]);
 
 const PALETTE_METADATA: Readonly<Record<BuiltinVisualObjectType, Readonly<{
@@ -48,7 +49,8 @@ const PALETTE_METADATA: Readonly<Record<BuiltinVisualObjectType, Readonly<{
   [BUILTIN_VISUAL_OBJECT_TYPES.text]: { labelKey: 'text', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.image]: { labelKey: 'image', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay]: { labelKey: 'valueDisplay', category: 'content' },
-  [BUILTIN_VISUAL_OBJECT_TYPES.button]: { labelKey: 'button', category: 'control' }
+  [BUILTIN_VISUAL_OBJECT_TYPES.button]: { labelKey: 'button', category: 'control' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.slider]: { labelKey: 'slider', category: 'control' }
 });
 
 export function listVisualObjectPaletteItems(): readonly VisualObjectPaletteItem[] {

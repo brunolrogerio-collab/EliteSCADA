@@ -59,12 +59,14 @@ export function useVisualBindingSamples(
               value: currentValue.value,
               dataType: tag.dataType,
               quality: currentValue.quality ?? null,
+              readOnly: tag.readOnly,
               timestamp: currentValue.sourceTimestamp ?? currentValue.serverTimestamp ?? currentValue.timestamp ?? null
             }) : Object.freeze({
               reference: tag.path,
               tagId: tag.id,
               value: null,
               dataType: tag.dataType,
+              readOnly: tag.readOnly,
               state: 'Unavailable'
             });
             next.set(tag.path, sample);
@@ -108,6 +110,7 @@ export function useVisualBindingSamples(
           value: message.value,
           dataType: existing?.dataType ?? requestDataType(tagRequests, message.tag.id, message.tag.path),
           quality: message.quality,
+          readOnly: existing?.readOnly ?? null,
           timestamp: message.timestamp
         });
         next.set(message.tag.path, sample);
@@ -302,6 +305,7 @@ function markRequestsUnavailable(
         value: existing?.value ?? null,
         dataType: existing?.dataType ?? request.dataType ?? bindingDataType(bindings, request.target),
         quality: existing?.quality ?? null,
+        readOnly: existing?.readOnly ?? null,
         state: disconnected ? 'Disconnected' : 'Unavailable',
         timestamp: existing?.timestamp ?? null
       });

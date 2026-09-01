@@ -72,6 +72,8 @@ appsettings.*.Secrets.json
 **/.cache/
 **/.parcel-cache/
 **/.next/
+**/playwright-report/
+web/scada-web/public/pyodide/
 
 # OS files
 .DS_Store

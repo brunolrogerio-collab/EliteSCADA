@@ -44,7 +44,16 @@ export const VISUAL_PROPERTY_KEYS = {
   assetRef: 'assetRef',
   imageFit: 'imageFit',
   imagePositionX: 'imagePositionX',
-  imagePositionY: 'imagePositionY'
+  imagePositionY: 'imagePositionY',
+  value: 'value',
+  minimum: 'minimum',
+  maximum: 'maximum',
+  step: 'step',
+  orientation: 'orientation',
+  interactionEnabled: 'interactionEnabled',
+  reverseDirection: 'reverseDirection',
+  trackColor: 'trackColor',
+  thumbColor: 'thumbColor'
 } as const;
 
 export type CommonVisualPropertyKey = typeof VISUAL_PROPERTY_KEYS[keyof typeof VISUAL_PROPERTY_KEYS];
@@ -313,7 +322,16 @@ const COMMON_VISUAL_PROPERTY_DEFINITIONS: readonly VisualPropertyDefinition[] = 
   } satisfies AssetRefVisualPropertyDefinition,
   enumProperty(VISUAL_PROPERTY_KEYS.imageFit, 'contain', IMAGE_FIT_VALUES, 'image'),
   numberProperty(VISUAL_PROPERTY_KEYS.imagePositionX, 0, { minimum: 0, maximum: 1, animatable: true, category: 'image' }),
-  numberProperty(VISUAL_PROPERTY_KEYS.imagePositionY, 0, { minimum: 0, maximum: 1, animatable: true, category: 'image' })
+  numberProperty(VISUAL_PROPERTY_KEYS.imagePositionY, 0, { minimum: 0, maximum: 1, animatable: true, category: 'image' }),
+  numberProperty(VISUAL_PROPERTY_KEYS.value, 0, { animatable: true, category: 'control' }),
+  numberProperty(VISUAL_PROPERTY_KEYS.minimum, 0, { category: 'control' }),
+  numberProperty(VISUAL_PROPERTY_KEYS.maximum, 100, { category: 'control' }),
+  numberProperty(VISUAL_PROPERTY_KEYS.step, 1, { minimum: Number.EPSILON, category: 'control' }),
+  enumProperty(VISUAL_PROPERTY_KEYS.orientation, 'horizontal', ['horizontal', 'vertical'], 'control'),
+  booleanProperty(VISUAL_PROPERTY_KEYS.interactionEnabled, false, 'control'),
+  booleanProperty(VISUAL_PROPERTY_KEYS.reverseDirection, false, 'control'),
+  colorProperty(VISUAL_PROPERTY_KEYS.trackColor, '#6B7280', 'control'),
+  colorProperty(VISUAL_PROPERTY_KEYS.thumbColor, '#E5E7EB', 'control')
 ];
 
 export const COMMON_VISUAL_PROPERTY_REGISTRY = new VisualPropertyRegistry(

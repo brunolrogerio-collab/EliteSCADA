@@ -9,7 +9,7 @@ import {
   listVisualObjectPaletteItems
 } from '../src/engineering/visual-editor/object-palette/objectPaletteModel';
 
-test('palette is derived from the complete registered Wave 08 built-in set', () => {
+test('palette is derived from the complete registered built-in set', () => {
   const items = listVisualObjectPaletteItems();
 
   expect(items.map(item => item.objectType)).toEqual([
@@ -21,7 +21,8 @@ test('palette is derived from the complete registered Wave 08 built-in set', () 
     BUILTIN_VISUAL_OBJECT_TYPES.text,
     BUILTIN_VISUAL_OBJECT_TYPES.image,
     BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay,
-    BUILTIN_VISUAL_OBJECT_TYPES.button
+    BUILTIN_VISUAL_OBJECT_TYPES.button,
+    BUILTIN_VISUAL_OBJECT_TYPES.slider
   ]);
   expect(new Set(items.map(item => item.objectType)).size).toBe(items.length);
 

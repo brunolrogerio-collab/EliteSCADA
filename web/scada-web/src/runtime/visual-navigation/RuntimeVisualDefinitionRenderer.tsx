@@ -19,6 +19,8 @@ import {
   createRuntimeVisualInstances,
   projectRuntimeVisualElements
 } from './runtimeVisualInstanceComposition';
+import { writeRuntimeTagValue } from '../runtimeTagWriteApi';
+import type { SliderTagWrite } from '../../engineering/visual-editor/SliderVisualElement';
 
 export type RuntimeVisualDefinitionRendererProps = Readonly<{
   visualDefinitionId: string;
@@ -32,6 +34,7 @@ export type RuntimeVisualDefinitionRendererProps = Readonly<{
   onScriptDispatch?: (records: readonly ClientVisualEventDispatchRecord[]) => void;
   runtimeFactory?: ClientVisualPythonRuntimeFactory;
   frameClock?: VisualTweenFrameClock;
+  onTagWrite?: SliderTagWrite;
 }>;
 
 /**
@@ -54,7 +57,8 @@ export function RuntimeVisualDefinitionRenderer({
   onVisualEvent,
   onScriptDispatch,
   runtimeFactory,
-  frameClock
+  frameClock,
+  onTagWrite = writeRuntimeTagValue
 }: RuntimeVisualDefinitionRendererProps) {
   const [revision, setRevision] = useState(0);
   const instances = useMemo(
@@ -104,6 +108,7 @@ export function RuntimeVisualDefinitionRenderer({
       locale={locale}
       dynamoDefinitions={dynamoDefinitions}
       onVisualEvent={onVisualEvent}
+      onTagWrite={onTagWrite}
     />
   </div>;
 }

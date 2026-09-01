@@ -30,6 +30,7 @@ export type VisualDynamicSample = Readonly<{
   quality?: string | number | null;
   state?: string | null;
   timestamp?: string | null;
+  readOnly?: boolean | null;
 }>;
 
 export type VisualDynamicDiagnostic = Readonly<{

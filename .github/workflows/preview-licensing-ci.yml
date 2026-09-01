@@ -1,16 +1,43 @@
 name: Preview Licensing CI
 
 on:
+  workflow_dispatch:
   push:
     branches:
-      - 'product/preview-demo-licensing'
-      - 'coordination/driver-convergence-v3'
       - 'main'
+    paths:
+      - 'src/Scada.Api/Licensing/**'
+      - 'src/Scada.Api/Persistence/EngineeringPersistenceApi.cs'
+      - 'src/Scada.Core/Product/**'
+      - 'src/Scada.Core/Tags/InMemoryTagRegistry.cs'
+      - 'src/Scada.Engineering/ImportExport/Handlers/TagEngineeringHandler.cs'
+      - 'src/Scada.LicenseGenerator/**'
+      - 'tests/Scada.Core.Tests/Product/**'
+      - 'tests/Scada.Core.Tests/PreviewProductCapacityTests.cs'
+      - 'tests/Scada.Drivers.Tests/ProductLicensedRuntimeCoordinatorTests.cs'
+      - 'docs/licensing/**'
+      - 'docs/LICENSING-PRIORITY-GATE.md'
+      - 'docs/PREVIEW-LICENSING-IMPLEMENTATION-PLAN.md'
+      - 'docs/README-LICENSING-WORKSTREAM.md'
+      - '.github/workflows/preview-licensing-ci.yml'
   pull_request:
     branches:
-      - 'coordination/driver-convergence-v3'
       - 'main'
-  workflow_dispatch:
+    paths:
+      - 'src/Scada.Api/Licensing/**'
+      - 'src/Scada.Api/Persistence/EngineeringPersistenceApi.cs'
+      - 'src/Scada.Core/Product/**'
+      - 'src/Scada.Core/Tags/InMemoryTagRegistry.cs'
+      - 'src/Scada.Engineering/ImportExport/Handlers/TagEngineeringHandler.cs'
+      - 'src/Scada.LicenseGenerator/**'
+      - 'tests/Scada.Core.Tests/Product/**'
+      - 'tests/Scada.Core.Tests/PreviewProductCapacityTests.cs'
+      - 'tests/Scada.Drivers.Tests/ProductLicensedRuntimeCoordinatorTests.cs'
+      - 'docs/licensing/**'
+      - 'docs/LICENSING-PRIORITY-GATE.md'
+      - 'docs/PREVIEW-LICENSING-IMPLEMENTATION-PLAN.md'
+      - 'docs/README-LICENSING-WORKSTREAM.md'
+      - '.github/workflows/preview-licensing-ci.yml'
 
 permissions:
   contents: read

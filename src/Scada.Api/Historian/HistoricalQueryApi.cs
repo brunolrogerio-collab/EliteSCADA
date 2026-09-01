@@ -11,6 +11,7 @@ namespace Scada.Api.Historian;
 public static class HistoricalQueryApi
 {
     public const string Route = "/api/historical/query";
+    private const string LoggerCategory = "Scada.Api.Historian.HistoricalQueryApi";
 
     public static void AddHistoricalQueryApiCore(this WebApplicationBuilder builder)
     {
@@ -28,8 +29,13 @@ public static class HistoricalQueryApi
             async (
                 HistoricalQueryRequest request,
                 IHistoricalQueryService service,
+                ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
-                await ExecuteAsync(request, service, cancellationToken));
+                await ExecuteAsync(
+                    request,
+                    service,
+                    cancellationToken,
+                    loggerFactory.CreateLogger(LoggerCategory)));
 
         // Report Preview executes only through the accepted Historical Query service,
         // so it is mounted with the same explicitly enabled historical feature bundle.
@@ -40,7 +46,8 @@ public static class HistoricalQueryApi
     public static async Task<IResult> ExecuteAsync(
         HistoricalQueryRequest request,
         IHistoricalQueryService service,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        ILogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(service);
@@ -49,6 +56,10 @@ public static class HistoricalQueryApi
         {
             var response = await service.QueryAsync(request, cancellationToken);
             return Results.Ok(response);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (HistoricalQueryUnauthorizedException)
         {
@@ -60,15 +71,41 @@ public static class HistoricalQueryApi
                 new HistoricalQueryApiError("forbidden", "Forbidden."),
                 statusCode: StatusCodes.Status403Forbidden);
         }
-        catch (HistoricalQueryCursorException ex)
+        catch (HistoricalQueryCursorException)
         {
             return Results.BadRequest(
-                new HistoricalQueryApiError("invalid_cursor", ex.Message));
+                new HistoricalQueryApiError(
+                    "invalid_cursor",
+                    "Historical query cursor is invalid, expired, or does not match this request."));
         }
-        catch (ArgumentException ex)
+        catch (HistoricalQueryValidationException ex)
         {
             return Results.BadRequest(
                 new HistoricalQueryApiError("invalid_query", ex.Message));
+        }
+        catch (HistoricalQueryProviderException ex)
+        {
+            logger?.LogError(
+                ex,
+                "Historical query provider failure for dataset {Dataset}.",
+                request.Dataset);
+            return Results.Json(
+                new HistoricalQueryApiError(
+                    "historical_unavailable",
+                    "Historical query provider is unavailable."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(
+                ex,
+                "Unexpected historical query failure for dataset {Dataset}.",
+                request.Dataset);
+            return Results.Json(
+                new HistoricalQueryApiError(
+                    "historical_query_failed",
+                    "Historical query execution failed."),
+                statusCode: StatusCodes.Status500InternalServerError);
         }
     }
 

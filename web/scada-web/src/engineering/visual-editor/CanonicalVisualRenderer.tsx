@@ -30,6 +30,7 @@ import {
   type VisualLiveScalarSample
 } from './visualEditorLiveValues';
 import { resolveVisualDynamicState } from './visualDynamicRuntime';
+import { SliderVisualElement, type SliderTagWrite } from './SliderVisualElement';
 
 export type CanonicalVisualEvent = Readonly<{
   element: VisualElementEngineering;
@@ -43,6 +44,7 @@ export type CanonicalVisualRendererProps = {
   locale?: EngineeringLocale;
   dynamoDefinitions?: readonly DynamoEngineering[] | null;
   onVisualEvent?: (event: CanonicalVisualEvent) => void;
+  onTagWrite?: SliderTagWrite;
 };
 
 const builtinVisualTypes = new Set<string>(Object.values(BUILTIN_VISUAL_OBJECT_TYPES));
@@ -53,7 +55,8 @@ export function CanonicalVisualRenderer({
   emptyLabel,
   locale = 'pt-BR',
   dynamoDefinitions,
-  onVisualEvent
+  onVisualEvent,
+  onTagWrite
 }: CanonicalVisualRendererProps) {
   const rootElements = elements ?? emptyElements;
   const runtimeBindingElements = React.useMemo(
@@ -71,6 +74,7 @@ export function CanonicalVisualRenderer({
       liveSamples={liveSamples}
       dynamoDefinitions={dynamoDefinitions}
       onVisualEvent={onVisualEvent}
+      onTagWrite={onTagWrite}
     />)}
   </div>;
 }
@@ -81,7 +85,8 @@ function CanonicalElement({
   liveSamples,
   dynamoDefinitions,
   onVisualEvent,
-  runtimeIdentityPrefix
+  runtimeIdentityPrefix,
+  onTagWrite
 }: {
   element: VisualElementEngineering;
   locale: EngineeringLocale;
@@ -89,6 +94,7 @@ function CanonicalElement({
   dynamoDefinitions?: readonly DynamoEngineering[] | null;
   onVisualEvent?: (event: CanonicalVisualEvent) => void;
   runtimeIdentityPrefix?: string;
+  onTagWrite?: SliderTagWrite;
 }) {
   if (element.dynamoKey && dynamoDefinitions) {
     return <CanonicalDynamoElement
@@ -97,6 +103,7 @@ function CanonicalElement({
       liveSamples={liveSamples}
       dynamoDefinitions={dynamoDefinitions}
       onVisualEvent={onVisualEvent}
+      onTagWrite={onTagWrite}
     />;
   }
 
@@ -143,6 +150,7 @@ function CanonicalElement({
           dynamoDefinitions={dynamoDefinitions}
           onVisualEvent={onVisualEvent}
           runtimeIdentityPrefix={runtimeIdentityPrefix}
+          onTagWrite={onTagWrite}
         />)}
       </div>;
     }
@@ -205,6 +213,19 @@ function CanonicalElement({
       </div>;
     }
 
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.slider) {
+      return <SliderVisualElement
+        element={element}
+        values={values}
+        diagnostics={dynamic.diagnostics}
+        liveSamples={liveSamples}
+        style={style}
+        runtimeObjectId={runtimeObjectId}
+        title={diagnosticTitle}
+        onTagWrite={onTagWrite}
+      />;
+    }
+
     const staticText = stringValue(values[VISUAL_PROPERTY_KEYS.text]);
     const textBinding = dynamicTextBinding(element.bindings);
     const textSample = textBinding ? bindingSample(liveSamples, textBinding) : undefined;
@@ -254,13 +275,15 @@ function CanonicalDynamoElement({
   locale,
   liveSamples,
   dynamoDefinitions,
-  onVisualEvent
+  onVisualEvent,
+  onTagWrite
 }: {
   element: VisualElementEngineering;
   locale: EngineeringLocale;
   liveSamples: ReadonlyMap<string, VisualLiveScalarSample>;
   dynamoDefinitions?: readonly DynamoEngineering[] | null;
   onVisualEvent?: (event: CanonicalVisualEvent) => void;
+  onTagWrite?: SliderTagWrite;
 }) {
   try {
     const definition = resolveDynamoDefinition(dynamoDefinitions, element.dynamoKey!);
@@ -299,6 +322,7 @@ function CanonicalDynamoElement({
         dynamoDefinitions={dynamoDefinitions}
         onVisualEvent={onVisualEvent}
         runtimeIdentityPrefix={composition.instanceId}
+        onTagWrite={onTagWrite}
       />)}
     </div>;
   } catch (reason) {

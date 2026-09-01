@@ -23,6 +23,7 @@ import { BindingEditor } from './binding-editor';
 import { VisualEditorCanvas } from './canvas';
 import { CanonicalVisualRenderer } from './CanonicalVisualRenderer';
 import { DynamicPropertyEditor } from './dynamic-property-editor';
+import { DynamoLibraryPalette } from './DynamoLibraryPalette';
 import { ObjectPalette } from './object-palette';
 import { createCanonicalPolygon, updateCanonicalPolygonPoints } from './polygonCanonicalMutations';
 import { PropertyInspector } from './property-inspector';
@@ -347,6 +348,11 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
               onMutationIntent={handlePaletteIntent}
               copy={{ title: text.objectsPanel, hint: text.objectsPanelHint, addLabel: text.addObject, labels: text.objectLabels }}
             />
+            <DynamoLibraryPalette
+              definitions={snapshot.package.dynamos ?? []}
+              locale={locale}
+              onMutationIntent={handlePaletteIntent}
+            />
             <section className="visual-editor-asset-library">
               <strong>{text.assets}</strong>
               <span>{text.assetHint}</span>
@@ -379,7 +385,12 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
               onPolygonToolCancel={() => setPolygonToolActive(false)}
             />
             <div className="visual-editor-canonical-preview-label"><strong>{text.canonicalPreview}</strong><span>{text.canonicalPreviewHint}</span></div>
-            <CanonicalVisualRenderer elements={draft.elements} emptyLabel={text.emptyCanvas} locale={locale} />
+            <CanonicalVisualRenderer
+              elements={draft.elements}
+              emptyLabel={text.emptyCanvas}
+              locale={locale}
+              dynamoDefinitions={snapshot.package.dynamos}
+            />
           </section>
 
           <aside className="visual-editor-slot visual-editor-inspector-slot">

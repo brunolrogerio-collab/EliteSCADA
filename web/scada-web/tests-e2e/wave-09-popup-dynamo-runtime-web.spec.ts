@@ -40,6 +40,7 @@ function packageView(): EngineeringPackageView {
         id: dynamoChildId,
         key: 'body',
         type: 'core.rectangle',
+        bindings: [{ key: 'visible', kind: 'tag', target: '{equipmentPath}.Running', direction: 'read' }],
         properties: { x: 4, y: 5, width: 80, height: 40, fillColor: '#445566' }
       }
     ]
@@ -50,6 +51,7 @@ function packageView(): EngineeringPackageView {
     key: 'pump01',
     type: 'dynamo',
     dynamoKey: dynamo.key,
+    equipmentPath: ' Plant.P01 ',
     properties: { x: 10, y: 20, width: 120, height: 80 },
     dynamoParameters: [
       { key: 'running', kind: 'TagReference', tagReference: { tagId, selector: { kind: 'Bit', index: 3 } }, version: 1 }
@@ -173,6 +175,8 @@ test('Dynamo Runtime composition mirrors canonical defaults, stable TAG referenc
     value: undefined
   });
   expect(composition.elements[0].id).toBe(dynamoChildId);
+  expect(composition.elements[0].bindings?.[0].target).toBe('Plant.P01.Running');
+  expect(definition.elements?.[0].bindings?.[0].target).toBe('{equipmentPath}.Running');
   expect(runtimeDynamoElementIdentity(dynamoInstanceId, dynamoChildId))
     .toBe(`${dynamoInstanceId}/${dynamoChildId}`);
 });

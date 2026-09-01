@@ -8,6 +8,7 @@ import {
   previewCanonicalEngineeringJson,
   previewProjectPackage,
   restoreProjectPackage,
+  saveProjectDownload,
   triggerBrowserDownload
 } from './projectPortabilityApi';
 import {
@@ -88,11 +89,11 @@ export function EngineeringProjectManagementWorkspace({ locale }: { locale: Engi
   async function downloadPackage() {
     if (!context?.workspace.projectKey || !context.workspace.projectName) return;
     await perform('download-package', async () => {
-      triggerBrowserDownload(await exportProjectPackage(
+      const result = await saveProjectDownload(await exportProjectPackage(
         context.workspace.projectKey!,
         context.workspace.projectName!
       ));
-      setNotice(copy.savedPackage);
+      if (result !== 'cancelled') setNotice(copy.savedPackage);
     });
   }
 

@@ -302,20 +302,8 @@ public sealed class EngineeringWorkspace : IDisposable
                 ["process"] = "Discharge"
             }));
 
-        Assets.UpsertDynamo(new DynamoEngineeringDto(
-            Id: Guid.Parse("43000000-0000-0000-0000-000000000001"),
-            Key: "dynamo.pump.standard",
-            Name: "Standard Pump Dynamo",
-            TemplateKey: "pump.standard",
-            Bindings: templateBindings,
-            Properties: new Dictionary<string, string>
-            {
-                ["symbol"] = "pump"
-            },
-            Context: new Dictionary<string, string>
-            {
-                ["usage"] = "process-screen"
-            }));
+        foreach (var dynamo in BuiltinDynamoLibrary.Create())
+            Assets.UpsertDynamo(dynamo);
 
         Views.UpsertScreen(new ScreenEngineeringDto(
             Id: Guid.Parse("44000000-0000-0000-0000-000000000001"),

@@ -52,6 +52,33 @@ test('canonical reducer adds registered objects without materializing unrelated 
   }, { createObjectId: idGenerator('object-2') })).toThrow(/Unknown built-in visual object type/);
 });
 
+test('Dynamo library insertion creates a reusable instance with equipment context and canonical bounds', () => {
+  const original = screen([]);
+  const next = applyVisualEditorMutationIntent(original, {
+    kind: 'dynamo.add',
+    dynamoKey: 'process.motor.standard',
+    equipmentPath: ' Plant.M01 ',
+    at: { x: 80, y: 96 },
+    defaultWidth: 106,
+    defaultHeight: 92
+  }, { createObjectId: idGenerator('dynamo-instance-1') });
+
+  expect(next.elements).toHaveLength(1);
+  expect(next.elements?.[0]).toMatchObject({
+    id: 'dynamo-instance-1',
+    key: 'standard',
+    type: BUILTIN_VISUAL_OBJECT_TYPES.group,
+    dynamoKey: 'process.motor.standard',
+    equipmentPath: 'Plant.M01',
+    properties: { x: 80, y: 96, width: 106, height: 92 }
+  });
+  expect(original.elements).toEqual([]);
+
+  expect(() => applyVisualEditorMutationIntent(original, {
+    kind: 'dynamo.add', dynamoKey: 'process.motor.standard', defaultWidth: 0
+  }, { createObjectId: idGenerator('invalid-dynamo') })).toThrow(/positive finite/);
+});
+
 test('geometry intents resolve registry defaults only when an interaction changes them', () => {
   const original = screen([{ id: 'rect-1', key: 'rect', type: BUILTIN_VISUAL_OBJECT_TYPES.rectangle, properties: {} }]);
 

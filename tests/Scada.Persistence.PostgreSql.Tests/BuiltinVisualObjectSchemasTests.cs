@@ -17,7 +17,8 @@ public sealed class BuiltinVisualObjectSchemasTests
             "core.text",
             "core.image",
             "core.valueDisplay",
-            "core.button"
+            "core.button",
+            "core.slider"
         ], BuiltinVisualObjectSchemas.All.Select(schema => schema.ObjectTypeKey).ToArray());
     }
 
@@ -39,6 +40,12 @@ public sealed class BuiltinVisualObjectSchemasTests
         Assert.True(BuiltinVisualObjectSchemas.Button.Declares(VisualPropertyKeys.BackgroundColor));
         Assert.True(BuiltinVisualObjectSchemas.Button.Declares(VisualPropertyKeys.CornerRadius));
         Assert.True(BuiltinVisualObjectSchemas.Button.Declares(VisualPropertyKeys.Text));
+
+        Assert.True(BuiltinVisualObjectSchemas.Slider.Declares(VisualPropertyKeys.Value));
+        Assert.True(BuiltinVisualObjectSchemas.Slider.Declares(VisualPropertyKeys.Minimum));
+        Assert.True(BuiltinVisualObjectSchemas.Slider.Declares(VisualPropertyKeys.Maximum));
+        Assert.True(BuiltinVisualObjectSchemas.Slider.Declares(VisualPropertyKeys.Step));
+        Assert.True(BuiltinVisualObjectSchemas.Slider.Declares(VisualPropertyKeys.InteractionEnabled));
     }
 
     [Fact]

@@ -1,0 +1,5 @@
+.visual-dynamo-library { display: grid; gap: 9px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--eng-border,#d7dde5); }
+.visual-dynamo-library header span { margin-top: 4px; }
+.visual-dynamo-library label { display: grid; gap: 4px; }
+.visual-dynamo-library select,.visual-dynamo-library input { min-width: 0; width: 100%; padding: 7px; border: 1px solid var(--eng-border,#cbd3dc); border-radius: 6px; background: #fff; font: inherit; box-sizing: border-box; }
+.visual-dynamo-library button { padding: 8px; border: 1px solid #245f99; border-radius: 6px; background: #245f99; color: #fff; cursor: pointer; }

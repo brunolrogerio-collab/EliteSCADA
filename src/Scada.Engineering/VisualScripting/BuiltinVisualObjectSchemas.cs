@@ -16,6 +16,7 @@ public static class BuiltinVisualObjectSchemas
     public const string ImageType = "core.image";
     public const string ValueDisplayType = "core.valueDisplay";
     public const string ButtonType = "core.button";
+    public const string SliderType = "core.slider";
 
     private static readonly IReadOnlyDictionary<string, VisualPropertyDefinition> CommonByKey =
         CommonVisualPropertyDefinitions.Geometry
@@ -25,6 +26,7 @@ public static class BuiltinVisualObjectSchemas
             .Concat(CommonVisualPropertyDefinitions.Stroke)
             .Concat(CommonVisualPropertyDefinitions.Text)
             .Concat(CommonVisualPropertyDefinitions.Image)
+            .Concat(CommonVisualPropertyDefinitions.Slider)
             .ToDictionary(property => property.Key, StringComparer.Ordinal);
 
     private static readonly HashSet<string> AnalogFillCapableTypes =
@@ -127,6 +129,24 @@ public static class BuiltinVisualObjectSchemas
             .Concat([VisualPropertyKeys.CornerRadius])
             .Concat(TextProperties));
 
+    public static VisualObjectPropertySchema Slider { get; } = Create(
+        SliderType,
+        Base.Concat(
+        [
+            VisualPropertyKeys.Value,
+            VisualPropertyKeys.Minimum,
+            VisualPropertyKeys.Maximum,
+            VisualPropertyKeys.Step,
+            VisualPropertyKeys.Orientation,
+            VisualPropertyKeys.InteractionEnabled,
+            VisualPropertyKeys.ReverseDirection,
+            VisualPropertyKeys.TrackColor,
+            VisualPropertyKeys.ThumbColor,
+            VisualPropertyKeys.StrokeColor,
+            VisualPropertyKeys.StrokeWidth,
+            VisualPropertyKeys.CornerRadius
+        ]));
+
     public static IReadOnlyCollection<VisualObjectPropertySchema> All { get; } =
     [
         Group,
@@ -137,7 +157,8 @@ public static class BuiltinVisualObjectSchemas
         Text,
         Image,
         ValueDisplay,
-        Button
+        Button,
+        Slider
     ];
 
     /// <summary>

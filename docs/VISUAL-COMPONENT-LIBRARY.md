@@ -1,7 +1,7 @@
 # EliteSCADA — Visual Component Library Baseline
 
 ## Status
-Planned product baseline. This document defines the first reusable visual/dynamo catalog and its engineering contract. It does not authorize immediate implementation of the full SVG editor.
+Baseline contract with the minimum built-in equipment-symbol slice now active in the pre-Wave-11 gate. Advanced faceplates, trends and shell components remain planned.
 
 ## Goal
 EliteSCADA should let an engineer assemble a real application from reusable, versioned objects instead of redrawing pumps, valves, trends, headers and faceplates for every project.
@@ -73,6 +73,8 @@ Where applicable, process dynamos should understand a common subset of these sta
 Specific equipment may extend this state set, but should not redefine the meaning of common states.
 
 # Initial library catalog
+
+The first shipped catalog contains canonical insertable definitions for standard/VFD motors, centrifugal/submersible pumps, on/off/control valves and vertical/horizontal tanks. `dynamo.pump.standard` remains the compatibility key for the original standard pump; newer built-ins use the `process.*` namespace. Each instance may carry an `equipmentPath`, and child bindings using `{equipmentPath}` are resolved per Runtime instance without rewriting the reusable definition.
 
 ## A. Process equipment
 

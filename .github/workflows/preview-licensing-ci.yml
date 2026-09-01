@@ -90,7 +90,17 @@ jobs:
       - name: Dump licensing host log on failure
         if: failure()
         run: cat /tmp/scada-licensing-api.log || true
-      - name: Publish Windows x64 License Generator
+  publish-license-generator:
+    needs: validate
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Publish Windows x64 graphical License Generator
+        shell: pwsh
         run: >-
           dotnet publish src/Scada.LicenseGenerator/Scada.LicenseGenerator.csproj
           -c Release
@@ -100,6 +110,11 @@ jobs:
           -p:DebugType=None
           -p:DebugSymbols=false
           -o artifacts/license-generator/win-x64
+      - name: Smoke-test Windows executable startup path
+        shell: pwsh
+        run: |
+          & ./artifacts/license-generator/win-x64/EliteSCADA.LicenseGenerator.exe --smoke-test
+          if ($LASTEXITCODE -ne 0) { throw "License Generator smoke test failed with exit code $LASTEXITCODE." }
       - name: Upload Windows x64 License Generator
         uses: actions/upload-artifact@v4
         with:

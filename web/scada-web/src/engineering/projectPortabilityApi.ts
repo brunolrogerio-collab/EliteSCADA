@@ -148,6 +148,38 @@ export function triggerBrowserDownload(download: ProjectPortabilityDownload): vo
   }
 }
 
+export async function saveProjectDownload(
+  download: ProjectPortabilityDownload
+): Promise<'file-picker' | 'browser-download' | 'cancelled'> {
+  const picker = (window as Window & {
+    showSaveFilePicker?: (options: unknown) => Promise<{
+      createWritable(): Promise<{ write(data: Blob): Promise<void>; close(): Promise<void> }>;
+    }>;
+  }).showSaveFilePicker;
+
+  if (!picker) {
+    triggerBrowserDownload(download);
+    return 'browser-download';
+  }
+
+  try {
+    const handle = await picker({
+      suggestedName: download.filename,
+      types: [{
+        description: 'Aplicação EliteSCADA',
+        accept: { [PACKAGE_MEDIA_TYPE]: ['.escadapkg'] }
+      }]
+    });
+    const writable = await handle.createWritable();
+    await writable.write(download.blob);
+    await writable.close();
+    return 'file-picker';
+  } catch (reason) {
+    if (reason instanceof DOMException && reason.name === 'AbortError') return 'cancelled';
+    throw reason;
+  }
+}
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API}${path}`, {
     ...init,

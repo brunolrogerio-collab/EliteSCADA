@@ -338,6 +338,8 @@ export type VisualElementEngineering = {
   propertyExpressions?: readonly VisualPropertyExpressionEngineering[] | null;
   booleanConditions?: readonly VisualBooleanConditionEngineering[] | null;
   analogFill?: VisualAnalogFillEngineering | null;
+  dynamoParameters?: readonly import('../runtime/visual-navigation/runtimeVisualNavigationModel').DynamoParameterValueEngineering[] | null;
+  actions?: readonly import('../runtime/visual-navigation/runtimeVisualNavigationModel').VisualNavigationActionEngineering[] | null;
 };
 
 export type TemplateEngineering = {
@@ -361,6 +363,11 @@ export type DynamoEngineering = {
   name: string;
   templateKey?: string;
   bindings?: BindingEngineering[];
+  properties?: Record<string, string> | null;
+  context?: Record<string, string> | null;
+  metadata?: Record<string, string> | null;
+  parameters?: readonly import('../runtime/visual-navigation/runtimeVisualNavigationModel').DynamoParameterDefinitionEngineering[] | null;
+  elements?: readonly VisualElementEngineering[] | null;
 };
 
 export type ScreenEngineering = {

@@ -35,15 +35,16 @@ The Driver convergence + L3 stage is **COMPLETE**.
 - Demo/licensing issue #183: **CLOSED / COMPLETED / INTEGRATED**.
 - Pre-Wave 11 gate issue #191: **OPEN / ACTIVE**.
 - Wave 11: **NOT STARTED**.
-- Active stage: **License Generator executable delivery + industrial Slider visual control**.
+- Active branch: `coordination/pre-wave11-licensegen-slider` from `main`/`628f54a9c91be5113f4a1b0dfcf1672041eb7f2c`.
+- Active stage: **GUI License Generator + industrial Slider + application file workflow + minimum Dynamo library**.
 
-Although L3 technically released the next development wave, the Development Lead explicitly inserted two tasks before Wave 11. **Do not create/start Wave 11 work until issue #191 is completed and accepted.**
+Although L3 technically released the next development wave, the Development Lead explicitly inserted an owner-usability gate before Wave 11. **Do not create/start Wave 11 work until issue #191 is completed and accepted.**
 
 ## Pre-Wave 11 gate #191
 
 ### Task A — actual License Generator executable
 
-The licensing implementation and Windows x64 publish path are already accepted under #183. The remaining operational requirement is delivery of the real executable to the Development Lead.
+The licensing implementation and Windows x64 publish path were accepted under #183, but the previous executable was CLI-only: double-clicking without arguments printed usage in a transient console and exited. That does not satisfy the Development Lead's operational requirement.
 
 Current verified artifact:
 
@@ -54,17 +55,48 @@ Current verified artifact:
 - executable SHA-256: `11d856889b14c61524214e640bc0e63e42d52687eadc7703926a5eb6ebe83a75`;
 - production private signing material remains external to GitHub, CI and normal product artifacts.
 
-State: **EXECUTABLE VERIFIED / DELIVERY IN CURRENT COORDINATION CYCLE**.
+Current implementation changes the Windows entry point to a WinForms application. Starting without arguments opens a Portuguese graphical form; command-line issuance remains available for controlled automation. Windows CI publishes a self-contained single-file `win-x64` executable and invokes a non-interactive `--smoke-test` path before artifact upload.
+
+State: **GUI IMPLEMENTED LOCALLY / WINDOWS BUILD AND ARTIFACT EVIDENCE PENDING CI**.
 
 ### Task B — industrial Slider visual control
 
 Research of the established Elipse E3 HMI behavior identified Linear Slider / Rotation Slider semantics backed by translation/rotation animation and properties including interaction enablement, range and current value. This validates the requested dual use: passive indication or operator adjustment.
 
-EliteSCADA repository audit found **no built-in Slider**. Current built-in visual types are rectangle, text, numeric display, button, analog fill and image. `builtin.display.analog-fill` is passive indication only and is not a substitute for an interactive Slider.
+EliteSCADA repository audit found no built-in Slider before this gate. `Analog Fill` was passive indication only and was not a substitute for an interactive Slider.
 
 Required implementation is tracked in #191 and must remain inside the canonical visual/Engineering/runtime architecture. It must support passive display and an interactive authorized value-adjustment mode without frontend-to-Driver bypass.
 
-State: **SPECIFIED / IMPLEMENTATION ACTIVE**.
+Current branch adds `core.slider` to the shared backend/frontend Visual Property Registry and built-in schema, palette, editor defaults, live-value projection and canonical renderer. Passive mode displays the bound value. Interactive mode requires a writable stable TAG binding, good quality and runtime write callback; commands use the protected audited `/api/tags/{id}/write` boundary and fail closed for read-only/unavailable/unauthorized state.
+
+State: **IMPLEMENTED LOCALLY / FOCUSED TESTS ADDED / CI PENDING**.
+
+### Task C — developer-selected application file
+
+EliteSCADA already had a versioned `.escadapkg` ZIP container containing manifest, canonical Engineering JSON and assets, but Engineering presented it mainly as backup/download. The branch makes the product language explicit: **Save Application As** chooses a developer-owned `.escadapkg` path when the browser supports the File System Access API, with browser download fallback; **Open Application** retains inspect/Preview/Apply safety.
+
+The portable application file is intentionally distinct from the server-side Working/Revision lifecycle. The design follows the useful E3 Domain/Project idea—an explicit developer-owned application boundary—without copying a multi-file layout for the first release. See `docs/APPLICATION-PROJECT-STORAGE.md`.
+
+State: **IMPLEMENTED LOCALLY / WEB BUILD PASS / CI PENDING**.
+
+### Task D — minimum built-in Dynamo library
+
+The branch seeds eight canonical, original and insertable definitions through the Engineering asset registry:
+
+- pumps: centrifugal standard and submersible;
+- motors: standard and VFD;
+- valves: on/off and control;
+- tanks: vertical and horizontal.
+
+The graphical editor exposes a Dynamo library palette and creates instances with stable `dynamoKey`, placement, default bounds and optional `equipmentPath`. Runtime composition substitutes `{equipmentPath}` in child TAG bindings without mutating the shared definition.
+
+State: **IMPLEMENTED LOCALLY / FOCUSED TESTS ADDED / CI PENDING**.
+
+### Windows 11 publisher trust
+
+Unsigned or unknown-publisher warnings are not considered fixed in this Preview gate. Stable product goals and Wave 13 now require an Authenticode-signed Windows x64 package with a trusted timestamp and release verification. Signing credentials must remain outside repository and normal build artifacts; SmartScreen reputation is a separate deployment/reputation concern and cannot be truthfully claimed from a locally produced unsigned Preview executable.
+
+State: **REQUIREMENT LOCKED IN PRODUCT GOAL AND ROADMAP / IMPLEMENTATION DEFERRED TO WAVE 13**.
 
 ## Driver/L3 acceptance evidence
 
@@ -131,16 +163,14 @@ Authority: issue #183, `docs/LICENSING-AND-DEMO-MODE.md`, `docs/licensing/ACCEPT
 
 Execute in order:
 
-1. deliver the verified Windows x64 License Generator executable and retain provenance/checksum;
-2. create an implementation branch from current `main` for Slider work;
-3. integrate the Slider into the canonical built-in visual schema, Engineering surface and Runtime renderer;
-4. implement passive indication plus interactive authorized adjustment through the canonical write boundary;
-5. add focused unit/mounted/E2E coverage;
-6. require normal EliteSCADA CI green on the exact implementation SHA;
-7. integrate to `main` only when green, then obtain post-main evidence appropriate to the change;
-8. synchronize #191, this file, roadmap and handoff;
-9. close #191 only after both tasks are accepted;
-10. only then may Wave 11 start.
+1. finish source-level validation and focused coverage for all four implementation tasks;
+2. commit/push the active branch and update #191 to the full accepted scope;
+3. require normal EliteSCADA CI and Preview Licensing CI green on the exact implementation SHA;
+4. retrieve and verify the new graphical Windows x64 artifact, retaining provenance/checksum;
+5. integrate to `main` only when green, then obtain appropriate post-main evidence;
+6. synchronize #191, this file, roadmap and handoff with exact SHA/run evidence;
+7. close #191 only after the gate is accepted;
+8. only then may Wave 11 start.
 
 ## Later Wave 11 context
 

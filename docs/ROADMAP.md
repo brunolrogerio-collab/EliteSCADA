@@ -41,10 +41,10 @@ Driver L2    Independent product-path protocol evidence                         
 Drivers      Shared runtime/Engineering convergence                                      COMPLETE / MERGED
 DemoLicense  Demo + hardware-bound licensing + offline License Generator                 COMPLETE / ACCEPTED / MERGED
 Driver L3    Seven Drivers concurrently + Gateway + fault/recovery                       PASS / ACCEPTED / INTEGRATED
-Pre-Wave 11  Development Lead task                                                       REQUIRED / SCOPE PENDING
+Pre-Wave 11  GUI License Generator + Slider + application file + minimum Dynamo library  IMPLEMENTATION ACTIVE
 Wave 11      Complete HMI Runtime demo vertical slice                                    HELD UNTIL PRE-WAVE-11 TASK COMPLETES
 Wave 12      Hardening                                                                   WAITING
-Wave 13      Windows x64 product package                                                 WAITING
+Wave 13      Signed Windows x64 package + Authenticode release verification               WAITING / REQUIRED
 Wave 14      Product-owner validation                                                    WAITING
 Wave 15      Feedback/corrections                                                        WAITING
 Preview      EliteSCADA Preview build                                                    FUTURE
@@ -58,7 +58,7 @@ The previous sequence is complete:
 
 `Driver convergence -> main -> post-main CI -> L3 #180 -> PASS`
 
-The L3 gate no longer blocks Wave 11. However, the Development Lead explicitly established on 2026-09-01 that **another task must be completed before Wave 11 begins**. The task scope has not yet been supplied, so the coordinator must not create or start Wave 11 work until that scope is recorded in the repository and completed/accepted.
+The L3 gate no longer blocks Wave 11. The Development Lead established a pre-Wave-11 usability gate containing a directly usable graphical License Generator, canonical passive/interactive Slider, an explicit single-file application save/open workflow and a minimum insertable equipment Dynamo library. Wave 11 remains held until that gate is implemented, validated, integrated and accepted.
 
 ## Demo and licensed behavior
 

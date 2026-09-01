@@ -13,7 +13,8 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   text: 'core.text',
   image: 'core.image',
   valueDisplay: 'core.valueDisplay',
-  button: 'core.button'
+  button: 'core.button',
+  slider: 'core.slider'
 } as const;
 
 export type BuiltinVisualObjectType = typeof BUILTIN_VISUAL_OBJECT_TYPES[keyof typeof BUILTIN_VISUAL_OBJECT_TYPES];
@@ -107,6 +108,21 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     ...STROKE,
     VISUAL_PROPERTY_KEYS.cornerRadius,
     ...TEXT
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.slider, schema(BUILTIN_VISUAL_OBJECT_TYPES.slider, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.value,
+    VISUAL_PROPERTY_KEYS.minimum,
+    VISUAL_PROPERTY_KEYS.maximum,
+    VISUAL_PROPERTY_KEYS.step,
+    VISUAL_PROPERTY_KEYS.orientation,
+    VISUAL_PROPERTY_KEYS.interactionEnabled,
+    VISUAL_PROPERTY_KEYS.reverseDirection,
+    VISUAL_PROPERTY_KEYS.trackColor,
+    VISUAL_PROPERTY_KEYS.thumbColor,
+    VISUAL_PROPERTY_KEYS.strokeColor,
+    VISUAL_PROPERTY_KEYS.strokeWidth,
+    VISUAL_PROPERTY_KEYS.cornerRadius
   ])]
 ]);
 

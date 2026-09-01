@@ -1,8 +1,8 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-09-01 (BRT)  
-**Active direction:** **POST-L3 / PRE-WAVE-11 TASK**  
-**Wave 11:** **TECHNICALLY RELEASED BY L3, BUT INTENTIONALLY NOT STARTED**
+**Active direction:** **PRE-WAVE-11 GATE COMPLETE / WAVE 11 READY**  
+**Wave 11:** **READY / NOT STARTED**
 
 Authoritative product intent: `PROJECT GOAL.md`.  
 Mutable coordination state: `LAST CHANGE.md`.  
@@ -18,10 +18,15 @@ Demo/licensing contract: `docs/LICENSING-AND-DEMO-MODE.md`.
 - Shared Driver runtime/Engineering convergence: **7/7 COMPLETE / MERGED**.
 - Demo/hardware-bound licensing: **IMPLEMENTED / ACCEPTED / MERGED**; issue #183 closed.
 - Integrated seven-Driver L3: **PASS / ACCEPTED / INTEGRATED**.
-- L3 final stabilization SHA before merge: `02b7408e68b81355de6a56dc0267c9e28c0c74bf`.
-- Exact pre-merge evidence: EliteSCADA CI #1023, Preview Licensing CI #80 and L3 Seven-Driver Lab #30: **SUCCESS**.
-- Main integration through PR #190: `9b963c40f013f115b9787049cdb90949a30cbcbc`.
-- Post-main evidence: EliteSCADA CI #1024 and Preview Licensing CI #81: **SUCCESS**.
+- Pre-Wave 11 owner-usability gate #191: **COMPLETE / ACCEPTED / INTEGRATED**.
+- Pre-Wave 11 implementation head: `aeb9b3b5641adee344c4ead166b97cc0adba3dbf`.
+- Pre-merge evidence on that head: EliteSCADA CI #1033 / `33525910566`, Preview Licensing CI #90 / `33525910582`, L3 Seven-Driver Lab #39 / `33525910552`: **SUCCESS**.
+- Main integration through PR #193: code merge `64ba134f88df61233c492f6c5e2b1ea8f244bf19`.
+- Post-main Preview Licensing CI #92 / `33527294658`: **SUCCESS**.
+- Post-main EliteSCADA CI #1035 / `33527294657`: **SUCCESS after unchanged rerun of one transient IEC-104 timing failure**; backend build/tests/smoke, Web build and Chromium E2E all passed.
+- Graphical Windows License Generator artifact from post-main Preview #92: artifact `9808306320`; self-contained Windows x64 GUI executable validated. Exact executable checksum/provenance is retained in `LAST CHANGE.md` and issue #191.
+
+Documentation-only coordination commits after the validated code merge use `[skip ci]`; they do not supersede the code-validation claim above.
 
 ## Ordered path to v0.1
 
@@ -41,10 +46,10 @@ Driver L2    Independent product-path protocol evidence                         
 Drivers      Shared runtime/Engineering convergence                                      COMPLETE / MERGED
 DemoLicense  Demo + hardware-bound licensing + offline License Generator                 COMPLETE / ACCEPTED / MERGED
 Driver L3    Seven Drivers concurrently + Gateway + fault/recovery                       PASS / ACCEPTED / INTEGRATED
-Pre-Wave 11  GUI License Generator + Slider + application file + minimum Dynamo library  IMPLEMENTATION ACTIVE
-Wave 11      Complete HMI Runtime demo vertical slice                                    HELD UNTIL PRE-WAVE-11 TASK COMPLETES
+Pre-Wave 11  GUI License Generator + Slider + application file + minimum Dynamo library  COMPLETE / ACCEPTED / MERGED
+Wave 11      Complete HMI Runtime demo vertical slice                                    READY / NOT STARTED
 Wave 12      Hardening                                                                   WAITING
-Wave 13      Signed Windows x64 package + Authenticode release verification               WAITING / REQUIRED
+Wave 13      Signed Windows x64 package + Authenticode release verification              WAITING / REQUIRED
 Wave 14      Product-owner validation                                                    WAITING
 Wave 15      Feedback/corrections                                                        WAITING
 Preview      EliteSCADA Preview build                                                    FUTURE
@@ -54,11 +59,15 @@ FINAL        EliteSCADA v0.1 — Full Product Validation Preview
 
 ## Current transition
 
-The previous sequence is complete:
+Completed sequence:
 
-`Driver convergence -> main -> post-main CI -> L3 #180 -> PASS`
+`Driver convergence -> main -> post-main CI -> L3 #180 -> pre-Wave-11 owner-usability gate #191 -> PR #193 -> exact post-main validation -> PASS`
 
-The L3 gate no longer blocks Wave 11. The Development Lead established a pre-Wave-11 usability gate containing a directly usable graphical License Generator, canonical passive/interactive Slider, an explicit single-file application save/open workflow and a minimum insertable equipment Dynamo library. Wave 11 remains held until that gate is implemented, validated, integrated and accepted.
+Issue #191 no longer blocks development. Wave 11 is the next authorized implementation stage.
+
+Wave 11 must replace the current hand-authored Runtime Demo as application truth with an owner-testable HMI Runtime vertical slice derived from the **active canonical Engineering revision**. Existing visual runtime, Screen/Popup/Dynamo composition, Client Visual scripting, TAG realtime, alarm, trend/history and protected write foundations must be reused rather than bypassed or duplicated.
+
+Working Engineering edits must not silently leak into Runtime before normal save/publish/activate lifecycle semantics make them active.
 
 ## Demo and licensed behavior
 
@@ -72,10 +81,10 @@ Issue #183 is complete and closed. The accepted implementation includes:
 - invalid/tampered/expired/unknown-key/wrong-machine installed licenses block Run;
 - versioned machine request code;
 - protected licensing API and management UI;
-- offline Windows x64 `EliteSCADA.LicenseGenerator.exe` publish path;
+- graphical offline Windows x64 `EliteSCADA.LicenseGenerator.exe` publish path;
 - private signing material remains external to GitHub, CI and normal product binaries.
 
-Authority: `docs/LICENSING-AND-DEMO-MODE.md` and `docs/licensing/ACCEPTANCE-EVIDENCE-2026-08-31.md`.
+Authority: `docs/LICENSING-AND-DEMO-MODE.md`, `docs/licensing/ACCEPTANCE-EVIDENCE-2026-08-31.md`, `docs/licensing/OFFLINE-LICENSE-OPERATIONS.md` and issue #183.
 
 ## Driver evidence policy
 
@@ -90,6 +99,7 @@ L3 is complete. L4 remains later and device-specific.
 ## Quality locks
 
 - canonical Engineering/backend authority;
+- Runtime presentation must derive from the active canonical Engineering revision, not from unsaved Working/browser-only state;
 - schema-v15 `CommunicationBinding` remains the rich communication TAG authority;
 - licensing is host-owned and Drivers do not inspect license/hardware state directly;
 - private signing keys never enter GitHub, CI or normal product builds;

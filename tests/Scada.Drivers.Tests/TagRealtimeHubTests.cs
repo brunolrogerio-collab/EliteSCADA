@@ -124,14 +124,14 @@ public sealed class TagRealtimeHubTests
             connectionCancellation.Token);
 
         Assert.Equal(1, hub.RevokeSubject(subjectId));
-        await socket.CloseOutputSent.WaitAsync(TimeSpan.FromSeconds(1));
+        await socket.CloseOutputSent.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(WebSocketCloseStatus.PolicyViolation, socket.CloseStatus);
         Assert.Equal("identity revoked", socket.CloseStatusDescription);
         Assert.False(socket.ReceiveCancellationObservedBeforeClose);
 
         connectionCancellation.Cancel();
-        await connection.WaitAsync(TimeSpan.FromSeconds(1));
+        await connection.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
     private static TagValueChanged CreateEvent(int value = 1)

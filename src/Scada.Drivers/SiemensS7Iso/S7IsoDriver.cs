@@ -298,7 +298,6 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
         try
         {
             var read = await _transport.ReadDetailedAsync(_points, cancellationToken);
-            TryMarkReadyAfterInitialAcquisition();
 
             foreach (var configurationFailure in read.ConfigurationFailures)
             {
@@ -338,6 +337,11 @@ public sealed class S7IsoDriver : ICommunicationDriver, ICommunicationDiagnostic
                     await PublishPreviousAsync(result.Point, TagQuality.BadConfiguration, cancellationToken);
                 }
             }
+
+            // A successful readiness transition must not outrun publication of the
+            // acquisition outcome. Once Ready is observable by DriverHost, every
+            // point from this acquisition attempt already has its cache outcome.
+            TryMarkReadyAfterInitialAcquisition();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

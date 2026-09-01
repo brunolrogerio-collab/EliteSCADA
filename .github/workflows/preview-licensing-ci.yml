@@ -57,10 +57,20 @@ jobs:
         run: dotnet build ScadaPlatform.sln -c Release --no-restore
       - name: Build License Generator
         run: dotnet build src/Scada.LicenseGenerator/Scada.LicenseGenerator.csproj -c Release
-      - name: Licensing and Core tests
-        run: dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj -c Release --no-restore --logger "console;verbosity=normal"
+      - name: Licensing and capacity Core tests
+        run: >-
+          dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj
+          -c Release
+          --no-restore
+          --filter "FullyQualifiedName~Scada.Core.Tests.Product.Licensing|FullyQualifiedName~Scada.Core.Tests.PreviewProductCapacityTests"
+          --logger "console;verbosity=normal"
       - name: Runtime licensing tests
-        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj -c Release --no-restore --logger "console;verbosity=normal"
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          -c Release
+          --no-restore
+          --filter "FullyQualifiedName~Scada.Drivers.Tests.ProductLicensedRuntimeCoordinatorTests"
+          --logger "console;verbosity=normal"
       - name: Host licensing composition smoke
         shell: bash
         run: |

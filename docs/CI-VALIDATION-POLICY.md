@@ -2,7 +2,7 @@
 
 **Status:** ACTIVE COORDINATION POLICY
 
-This policy defines when EliteSCADA validation workflows run automatically and when a specialized workflow must be invoked manually. The objective is to preserve coverage while keeping GitHub state and CI execution proportional to the subsystem actually changed.
+This policy defines when EliteSCADA validation workflows run automatically and when a specialized workflow must be invoked manually. The objective is to preserve product coverage while keeping GitHub state and CI execution proportional to the subsystem actually changed.
 
 ## 1. Universal acceptance gate
 
@@ -14,9 +14,19 @@ As of 2026-09-01, GitHub branch protection / required status checks are not conf
 
 ## 2. Preview Licensing CI
 
-`Preview Licensing CI` is specialized product validation, not a universal PR pipeline.
+`Preview Licensing CI` is specialized product validation, not a universal PR pipeline and not a duplicate of the complete Core/Drivers suites.
 
 It runs automatically for changes to licensing, License Generator, Demo/product capacity contracts, known shared persistence/TAG import boundaries that affect licensing, licensing tests, licensing policy/evidence documents, or the workflow itself.
+
+Its focused test responsibility is:
+
+- licensing contracts and Demo/product-capacity tests in `Scada.Core.Tests`;
+- `ProductLicensedRuntimeCoordinatorTests` in `Scada.Drivers.Tests`;
+- full product-solution build and License Generator build;
+- host licensing composition smoke;
+- Windows x64 graphical License Generator publish/startup smoke/artifact.
+
+The complete Core and Drivers test suites remain the responsibility of the universal `EliteSCADA CI` and affected communication validation. A non-licensing Driver/Gateway test must not make the specialized licensing workflow red merely because both tests happen to live in the same test project.
 
 It remains available through `workflow_dispatch` and must also be run manually when a cross-cutting change could materially affect licensing even if the changed path is outside the automatic matrix.
 
@@ -62,7 +72,9 @@ Branch deletion is a mechanical repository-maintenance action and is distinct fr
 
 ## 8. Coverage invariant
 
-This routing policy does **not** weaken the test bodies or acceptance criteria of any workflow. It changes automatic selection only.
+This routing policy does **not** reduce product acceptance coverage. It assigns tests to the workflow that owns the corresponding risk instead of repeatedly executing unrelated full suites inside every specialized workflow.
+
+Focused specialized suites must keep their assertions and acceptance criteria intact. Tests removed from a specialized workflow must remain covered by the universal or owning specialized workflow; they are not deleted or weakened merely to obtain a green result.
 
 The rule is:
 

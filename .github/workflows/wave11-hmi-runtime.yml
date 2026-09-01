@@ -76,6 +76,15 @@ jobs:
         working-directory: web/scada-web
         run: npx playwright test --config=playwright.wave11.config.ts
 
+      - name: Upload Wave 11 owner-test application package
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: EliteSCADA-Wave11-Demo
+          path: web/scada-web/owner-test-artifacts
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Upload Wave 11 Playwright report
         if: always()
         uses: actions/upload-artifact@v4

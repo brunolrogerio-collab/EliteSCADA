@@ -12,7 +12,7 @@ export default defineConfig({
   testDir: './tests-wave11',
   timeout: 60_000,
   expect: { timeout: 15_000 },
-  retries: 1,
+  retries: 0,
   workers: 1,
   reporter: [['line'], ['html', { outputFolder: 'playwright-report-wave11', open: 'never' }]],
   use: {

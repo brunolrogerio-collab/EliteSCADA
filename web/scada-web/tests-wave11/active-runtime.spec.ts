@@ -4,10 +4,6 @@ import { createE2eJwt } from '../tests-e2e/jwt';
 const projectKey = 'e2e-wave11';
 const operatorToken = createE2eJwt('wave11-operator', ['operator'], 'Wave 11 Operator');
 
-async function expectOkJson<T>(response: Awaited<ReturnType<Parameters<typeof test>[1] extends never ? never : never>>): Promise<T> {
-  return response as never;
-}
-
 test('Active persisted Engineering revision is the mounted HMI Runtime truth', async ({ page, request }) => {
   await page.goto('/');
   await expect(page.getByTestId('runtime-simulation-fallback')).toBeVisible();

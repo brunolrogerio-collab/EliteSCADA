@@ -31,7 +31,7 @@ public sealed class SliderVisualEngineeringValidationTests
             "overview",
             EngineeringExchangeService.CurrentSchemaVersion);
 
-        Assert.Empty(issues.Where(issue => issue.IsError));
+        Assert.DoesNotContain(issues, issue => issue.IsError);
     }
 
     [Fact]

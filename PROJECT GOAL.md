@@ -23,7 +23,7 @@
 
 ### Current release-sequencing gate
 
-The seven communication Drivers completed the integrated L3 interoperability gate under issue #180. Before Wave 11, the Development Lead established a separate owner-usability gate covering the graphical License Generator, canonical industrial Slider, clear application-file saving, a minimum ready-to-insert Dynamo library and the corresponding validation evidence. **Wave 11 may not begin until the active pre-Wave-11 gate is accepted and closed.** Exact branch/SHA/run/issue state remains in `LAST CHANGE.md`.
+The seven communication Drivers completed the integrated L3 interoperability gate under issue #180, and the subsequent pre-Wave-11 owner-usability gate #191 covering the graphical License Generator, canonical industrial Slider, explicit application-file saving/opening and minimum ready-to-insert Dynamo library has been accepted and integrated. **Wave 11 is authorized as the next development stage.** Exact current issue/branch/SHA/run state remains in `LAST CHANGE.md`.
 
 ## Product mission
 
@@ -66,7 +66,7 @@ Locked Demo behavior:
 - a later explicit Run starts a fresh 300-minute Demo session;
 - elapsed enforcement must use monotonic time so wall-clock changes cannot extend the session.
 
-The current coordinator implementation that rejects creation/import of the 201st TAG is transitional behavior and must eventually be refactored into this entitlement-aware Run/activation gate.
+The accepted licensing implementation enforces the Demo TAG entitlement at Run/activation while preserving unrestricted Engineering authoring above 200 TAGs.
 
 ### Licensed/evaluation mode
 
@@ -222,7 +222,9 @@ The following important slices are already official `main` state:
 - Engineering Schema v7 first-class operational commands through PR #35, merge `2fd568976fc6277d0b069adeeb560f6ea3d8205f`;
 - protected sensitive read/realtime/WebSocket surfaces through PR #36, merge `10b0320149c1ef2109e9517539717a8800b200c2`;
 - Engineering UI foundation/localization through PR #37, merge `4553aa7ab5ba7e05a209a7c8462286d1a34a1ad6`;
-- trusted local identity/browser login foundation through PR #38, merge `2a581d279a428cb605429d5939c333ff7ad8d1b4`.
+- trusted local identity/browser login foundation through PR #38, merge `2a581d279a428cb605429d5939c333ff7ad8d1b4`;
+- pre-Wave-11 owner-usability integration through PR #193, main code merge `64ba134f88df61233c492f6c5e2b1ea8f244bf19`: graphical Windows License Generator, canonical industrial Slider, explicit `.escadapkg` Save/Open workflow and eight-definition built-in Dynamo starter library; exact pre/post-main validation evidence is retained in `LAST CHANGE.md` and issue #191.
+
 The current Engineering UI includes `/engineering`, Runtime↔Engineering navigation, `pt-BR`/`en`/`es`, and structured TAG/Data Source/Alarm editors whose current mutation behavior remains intentionally preview-oriented until secured Apply/Delete/bulk workflows are added.
 
 Local identities remain separate from Engineering roles/policies. Local users reference role keys; the active Engineering revision remains authoritative for capabilities/scopes. Browser authentication uses the same trusted JWT boundary and HttpOnly cookie support without replacing normal Bearer-token integration.
@@ -375,7 +377,7 @@ Before the full graphical screen/popup/Dynamo editor is created, EliteSCADA must
 
 - read permitted shared TAGs;
 - read/write that client's Client Memory;
-- react to screen/object/TAG/timer events;
+- react to screen/object/TAG/Client-Memory change, timers and an optional bounded frame/tick callback;
 - read/change explicitly runtime-writable visual properties of the current screen/popup/Dynamo instance;
 - request normal authorized backend operations through explicit APIs.
 

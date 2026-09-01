@@ -1,7 +1,7 @@
 # EliteSCADA — Current Coordinator Handoff
 
 Last operational audit: **2026-09-01 BRT**  
-Operational status: **WAVE 11 COMPLETE / ACCEPTED / CLOSED — WAVE 12 #201 READY / NOT STARTED**
+Operational status: **WAVE 12 #201 IN PROGRESS — AUDIT COMPLETE / IMPLEMENTATION STARTED**
 
 > Repository/CI state is the continuity source. Read live refs and Actions before acting. Stable product intent is governed by `PROJECT GOAL.md`; exact mutable state belongs in `LAST CHANGE.md`.
 
@@ -87,20 +87,24 @@ Independent inspection confirmed package format v2, Engineering schema v15, proj
 
 This is the owner-test application package required by Wave 11. It is not a Windows installer or Preview executable.
 
-## 5. Wave 12 handoff state
+## 5. Wave 12 active state
 
-Issue #201 — `Wave 12 — Hardening` is **READY / NOT STARTED**.
+Issue #201 — `Wave 12 — Hardening` is **IN PROGRESS**.
 
 Preparation document: `docs/WAVE-12-HARDENING-PREPARATION.md`.
+Active finding/slice ledger: `docs/WAVE-12-HARDENING-AUDIT.md`.
 
-At this handoff point:
+Formal start evidence:
 
-- no Wave 12 implementation branch exists;
-- no Wave 12 PR exists;
-- no Wave 12 production-code change has been made;
-- no Wave 12 CI result is claimed.
+- live `main` was revalidated at `a2d865c017b8b8ad804f9270e5224ac1fa620ed0` after the mandatory document/GitHub review;
+- branch `coordination/wave12-hardening` was created from that exact live `main`;
+- no PR was open at start; issue #201 and intentionally deferred L4 issue #178 were the open issues;
+- the latest product-code evidence remains successful Wave 11 workflow #14 / `33552016447` and EliteSCADA CI #1067 / `33552016454` at `4ccc29cb4bb334dc473d8265f48a9c8601993413`;
+- no Wave 12 production-code acceptance or CI result is claimed yet.
 
 Wave 12 is a hardening pass, not a feature-expansion wave. Its prepared scope covers fail-closed/recovery behavior, authorization/audit, persistence/restart, `.escadapkg` integrity, runtime resource/fault isolation, concurrency, diagnostic sanitization and regression/CI hardening.
+
+The pre-implementation audit is complete. The first ordered slice covers realtime WebSocket client isolation, exact-snapshot/serialized Engineering saves, bounded JSON/CSV import ingress and `.escadapkg` export/import limit symmetry. Remaining findings cover persistence Apply concurrency, local-identity mutation races, audit-outage disposition and request/diagnostic consistency.
 
 Explicit exclusions include new Drivers/protocols, Wave 13 Authenticode/release-signing implementation, Waves 14/15 owner validation/feedback and physical L4 claims.
 
@@ -126,18 +130,16 @@ Commercial gate: Step Function I/O `dnp3` 1.6.0 is publicly provided for non-com
 
 At this handoff there is **no Linux packaging branch, PR, implementation commit or Linux distribution CI**.
 
-## 7. Exact next action for the next Coordinator
+## 7. Exact next action
 
-When deliberately starting Wave 12:
+Continue the active Wave 12 branch:
 
-1. re-read live `main`; documentation-only commits have advanced it beyond product-code `4ccc29cb...`;
-2. read all documents in the mandatory resume order above;
-3. inspect current open issues/PRs and exact Actions state;
-4. audit current failure/test surfaces before choosing hardening slices;
-5. only then create a dedicated Wave 12 branch from the live `main`;
-6. persist material findings and next actions before coding large slices;
-7. use EliteSCADA CI as universal acceptance gate and run specialized workflows according to actual impact;
-8. do not start the future Linux `.deb` front unless the Development Lead explicitly asks for it.
+1. implement and regression-test the first ordered slice recorded in `docs/WAVE-12-HARDENING-AUDIT.md`;
+2. commit coherently and open a Wave 12 PR against `main`;
+3. require EliteSCADA CI green on the exact PR head SHA and diagnose failures before any rerun;
+4. disposition the remaining audit findings with fixes/evidence or explicit residual-risk records;
+5. run specialized workflows according to actual impact, not as a substitute for universal CI;
+6. keep Wave 13 signing, Linux `.deb` and physical L4 outside this branch.
 
 ## 8. Durable non-negotiable rules
 

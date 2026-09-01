@@ -1,7 +1,7 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-01 (BRT)  
-**Operational state:** **WAVE 11 COMPLETE / ACCEPTED / CLOSED — WAVE 12 #201 READY / NOT STARTED**
+**Operational state:** **WAVE 12 #201 IN PROGRESS — AUDIT COMPLETE / IMPLEMENTATION STARTED**
 
 > Mutable Coordinator resume point. Stable product intent remains in `PROJECT GOAL.md`. Live GitHub refs and exact-SHA Actions override copied prose. Documentation-only `[skip ci]` commits may advance `main` beyond the latest validated product-code SHA.
 
@@ -72,24 +72,39 @@ Accepted behavior includes:
 
 No test, security or lifecycle boundary was weakened to obtain acceptance.
 
-## 3. Wave 12 handoff
+## 3. Wave 12 active coordination
 
-Wave 12 is **READY / NOT STARTED** under issue #201.
+Wave 12 is **IN PROGRESS** under issue #201.
 
 Preparation artifact:
 
 - `docs/WAVE-12-HARDENING-PREPARATION.md`.
 
+Active audit artifact:
+
+- `docs/WAVE-12-HARDENING-AUDIT.md`.
+
+Formal start state:
+
+- live `main` was fetched and revalidated at `a2d865c017b8b8ad804f9270e5224ac1fa620ed0`;
+- dedicated branch: `coordination/wave12-hardening`;
+- open PRs at start: none;
+- open coordination issues at start: #201 plus intentionally deferred L4 issue #178;
+- latest product-code validation remains Wave 11 workflow #14 / `33552016447` and EliteSCADA CI #1067 / `33552016454`, both successful at `4ccc29cb4bb334dc473d8265f48a9c8601993413`;
+- commits from that product-code SHA through the Wave 12 branch base are documentation-only `[skip ci]` commits.
+
+The pre-branch audit identified concrete hardening work in realtime WebSocket isolation, consistent/serialized Engineering saves, bounded Engineering import ingress, `.escadapkg` export-limit symmetry, persistence Apply concurrency/CAS, local-identity mutation races, audit-outage disposition and diagnostic/request-boundary consistency. Exact findings, existing controls and ordered slices are recorded in `docs/WAVE-12-HARDENING-AUDIT.md`.
+
 Wave 12 purpose is hardening of accepted behavior before Wave 13 packaging/signing. The prepared scope covers fail-closed/recovery behavior, authorization/audit, persistence/restart, `.escadapkg` integrity, fault/resource isolation, concurrency, diagnostics sanitization and regression/CI hardening.
 
-Explicitly not started:
+Current implementation boundary:
 
-- no Wave 12 implementation branch exists;
-- no Wave 12 PR exists;
-- no Wave 12 production-code change has been made;
-- no Wave 12 CI evidence is claimed.
+- the branch exists and the formal coordination/documentation start is being committed before production-code changes;
+- no Wave 12 PR exists yet;
+- no Wave 12 production-code acceptance or CI evidence is claimed yet;
+- Wave 13, Linux `.deb` packaging and physical L4 work remain explicitly outside this branch.
 
-Issue #201 is now the open coordination surface for the next Coordinator. Its **READY / NOT STARTED** status is permission to begin only after the next Coordinator audits live repository state and deliberately creates a dedicated Wave 12 branch.
+Issue #201 is the active coordination surface. It must not be closed until identified defects are fixed with regression evidence or explicitly dispositioned with residual risk and exact-SHA CI evidence is green.
 
 ## 4. Other durable state
 
@@ -122,18 +137,18 @@ Commercial dependency gate: Step Function I/O `dnp3` 1.6.0 is publicly licensed 
 
 No Linux packaging branch, PR, code change or Linux distribution CI has been created in this coordination cycle.
 
-## 5. Exact next action for the next Coordinator
+## 5. Exact next action
 
-Do **not** continue Wave 11 implementation, do **not** infer that Wave 12 has already started, and do **not** start Linux `.deb` packaging unless the Development Lead explicitly requests it.
+Continue Wave 12 on `coordination/wave12-hardening`; do **not** resume Wave 11 branches and do **not** start Linux `.deb`, Wave 13 signing or physical L4 work.
 
-At actual Wave 12 start:
+Immediate execution order:
 
-1. read live `PROJECT GOAL.md` and `LAST CHANGE.md` first;
-2. read `docs/CURRENT-COORDINATOR-HANDOFF.md`, `docs/ROADMAP.md`, `docs/WAVE-12-HARDENING-PREPARATION.md` and issue #201;
-3. re-read live `main`, open PRs/issues and exact Actions state;
-4. audit current failure/test surfaces before choosing hardening slices;
-5. create a dedicated Wave 12 branch from the then-live `main` only at that point;
-6. keep Wave 13 Authenticode/release-signing work separate;
-7. preserve the future Linux packaging direction and DNP3 commercial-license gate without starting that front.
+1. implement the first audited hardening slice: isolate slow/stalled realtime WebSocket clients, serialize consistent Engineering saves, bound JSON/CSV import bodies and make `.escadapkg` export obey its own import limits;
+2. add focused regression tests for each root cause;
+3. commit the slice coherently, open the Wave 12 PR and require EliteSCADA CI on its exact head SHA;
+4. continue through the remaining audited concurrency, identity, audit-durability and request/diagnostic dispositions without weakening existing boundaries;
+5. run specialized CI only if the actual diff reaches a specialized impact surface;
+6. validate post-merge `main` when the completed Wave 12 change justifies it;
+7. keep Wave 13 Authenticode/release-signing work separate and preserve the future Linux packaging direction and DNP3 commercial-license gate without starting those fronts.
 
-`PROJECT GOAL.md` and `docs/ROADMAP.md` have been synchronized with the future Linux/Debian direction. No locked current architecture was relaxed. Wave 13 remains the mandatory signed Windows x64 + Authenticode/trusted-timestamp stage; Waves 14/15 remain owner validation and feedback/corrections; physical L4 remains later device/site validation.
+`PROJECT GOAL.md`, `docs/ROADMAP.md`, `docs/CURRENT-COORDINATOR-HANDOFF.md` and the Wave 12 audit/preparation records are synchronized with this start. No locked current architecture was relaxed. Wave 13 remains the mandatory signed Windows x64 + Authenticode/trusted-timestamp stage; Waves 14/15 remain owner validation and feedback/corrections; physical L4 remains later device/site validation.

@@ -23,7 +23,7 @@
 
 ### Current release-sequencing gate
 
-The seven communication Drivers completed the integrated L3 interoperability gate under issue #180, the pre-Wave-11 owner-usability gate #191 was accepted and integrated, and Wave 11 established the Active persisted canonical Engineering revision as HMI Runtime application truth with an owner-testable `.escadapkg` handoff. **Wave 12 is prepared as the next development stage but has not started.** Wave 12 is a hardening pass over accepted contracts; Wave 13 remains the separate signed Windows x64 + Authenticode/trusted-timestamp release stage. Exact current issue/branch/SHA/run state remains in `LAST CHANGE.md`.
+The seven communication Drivers completed the integrated L3 interoperability gate under issue #180, the pre-Wave-11 owner-usability gate #191 was accepted and integrated, and Wave 11 established the Active persisted canonical Engineering revision as HMI Runtime application truth with an owner-testable `.escadapkg` handoff. **Wave 12 is now in progress under issue #201.** Wave 12 is a hardening pass over accepted contracts; Wave 13 remains the separate signed Windows x64 + Authenticode/trusted-timestamp release stage. Exact current issue/branch/SHA/run state remains in `LAST CHANGE.md`.
 
 ## Product mission
 
@@ -687,7 +687,8 @@ Full locked semantics and the permitted early non-production spike: `docs/OPC-UA
 - `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`: Wave 09 protected historical browsing/query contract.
 - `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`: Wave 09 canonical reporting, report designer, preview/print/export contract.
 - `docs/LICENSING-AND-DEMO-MODE.md`: Demo 200-TAG Run gate, 300-minute session limit, hardware request code, signed-license validation and offline License Generator contract.
-- `docs/WAVE-12-HARDENING-PREPARATION.md`: preparation-only hardening scope for the next Coordinator; it does not itself start Wave 12.
+- `docs/WAVE-12-HARDENING-PREPARATION.md`: prepared Wave 12 scope, non-goals and acceptance direction.
+- `docs/WAVE-12-HARDENING-AUDIT.md`: active Wave 12 finding, disposition and implementation-slice ledger.
 - `docs/LINUX-DEBIAN-DISTRIBUTION.md`: future Development-Lead-triggered Linux x64/Debian `.deb` packaging, acceptance and dependency-license contract; specification only until explicitly started.
 
 These documents must remain consistent. `PROJECT GOAL.md` wins for locked product intent; current repository code/`main` wins for implementation truth; `LAST CHANGE.md` records the exact handoff.

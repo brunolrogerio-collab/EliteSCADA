@@ -1,14 +1,17 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-09-01 (BRT)  
-**Active direction:** **WAVE 12 — HARDENING READY / NOT STARTED**  
+**Active direction:** **WAVE 12 — HARDENING IN PROGRESS**
+
 **Wave 11:** **COMPLETE / ACCEPTED / CLOSED — issue #194**  
-**Wave 12:** **issue #201 READY / NOT STARTED**
+**Wave 12:** **issue #201 IN PROGRESS — AUDIT COMPLETE / IMPLEMENTATION STARTED**
 
 Authoritative product intent: `PROJECT GOAL.md`.  
 Mutable coordination state: `LAST CHANGE.md`.  
 Operational handoff: `docs/CURRENT-COORDINATOR-HANDOFF.md`.  
 Wave 12 preparation: `docs/WAVE-12-HARDENING-PREPARATION.md`.  
+Wave 12 active audit: `docs/WAVE-12-HARDENING-AUDIT.md`.
+
 Future Linux/Debian distribution: `docs/LINUX-DEBIAN-DISTRIBUTION.md`.  
 CI policy: `docs/CI-VALIDATION-POLICY.md`.
 
@@ -48,7 +51,7 @@ Driver L3    Seven Drivers concurrently + Gateway + fault/recovery              
 Pre-Wave 11  GUI License Generator + Slider + application file + minimum Dynamo library  COMPLETE / ACCEPTED / MERGED
 CI Hygiene   Specialized CI routing + stale PR/issue sanitation + focused ownership      COMPLETE / MERGED
 Wave 11      Active persisted Engineering HMI Runtime + owner-test package                COMPLETE / ACCEPTED / CLOSED
-Wave 12      Hardening                                                                   READY / NOT STARTED / #201
+Wave 12      Hardening                                                                   IN PROGRESS / #201
 Wave 13      Signed Windows x64 package + Authenticode release verification              WAITING / REQUIRED
 Wave 14      Product-owner validation                                                    WAITING
 Wave 15      Feedback/corrections                                                        WAITING
@@ -105,9 +108,9 @@ Final owner-test application:
 
 Issue #194 is **CLOSED / COMPLETED**.
 
-## Wave 12 preparation boundary
+## Wave 12 active boundary
 
-Wave 12 issue #201 is **READY / NOT STARTED**. No Wave 12 implementation branch, PR, production-code change or CI evidence exists at this handoff.
+Wave 12 issue #201 is **IN PROGRESS**. After the required live-state review and failure-surface audit, branch `coordination/wave12-hardening` was created from live `main` `a2d865c017b8b8ad804f9270e5224ac1fa620ed0`. No Wave 12 PR or acceptance-CI evidence exists yet.
 
 Wave 12 is a hardening stage over already accepted contracts, focused on:
 
@@ -122,7 +125,7 @@ Wave 12 is a hardening stage over already accepted contracts, focused on:
 
 Wave 12 is not a feature-expansion wave. New Drivers/protocols, Authenticode/release signing, owner validation and physical L4 remain outside its scope.
 
-The next Coordinator must read live `main`, issue #201 and `docs/WAVE-12-HARDENING-PREPARATION.md` before deliberately creating a dedicated Wave 12 branch.
+The active finding/slice ledger is `docs/WAVE-12-HARDENING-AUDIT.md`. The first implementation slice addresses realtime WebSocket isolation, exact-snapshot/serialized Engineering persistence saves, bounded JSON/CSV import ingress and `.escadapkg` export/import limit symmetry. Remaining findings must be fixed with regression evidence or explicitly dispositioned before Wave 12 closes.
 
 ## CI validation strategy
 

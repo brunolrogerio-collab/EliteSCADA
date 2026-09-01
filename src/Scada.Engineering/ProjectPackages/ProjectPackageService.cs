@@ -47,10 +47,9 @@ public sealed class ProjectPackageService : IProjectPackageService
     public const string AssetDirectory = "assets/";
     public const string PackageExtension = ".escadapkg";
     public const int MaximumPackageBytes = 128 * 1024 * 1024;
-
-    private const int MaximumManifestBytes = 1024 * 1024;
-    private const int MaximumEngineeringBytes = 50 * 1024 * 1024;
-    private const int MaximumPayloadFiles = 1024;
+    public const int MaximumManifestBytes = 1024 * 1024;
+    public const int MaximumEngineeringBytes = 50 * 1024 * 1024;
+    public const int MaximumPayloadFiles = 1024;
 
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     private readonly IEngineeringExchangeService _engineering;
@@ -78,6 +77,9 @@ public sealed class ProjectPackageService : IProjectPackageService
             throw new ArgumentException("Project name is required.", nameof(projectName));
 
         var engineeringJson = _engineering.ExportJson(indented: true);
+        var engineeringByteCount = Encoding.UTF8.GetByteCount(engineeringJson);
+        if (engineeringByteCount > MaximumEngineeringBytes)
+            throw new InvalidDataException("Engineering payload exceeds its project-package safety limit.");
         var engineeringBytes = Encoding.UTF8.GetBytes(engineeringJson);
         var engineeringPackage = _engineering.ParseJson(engineeringJson);
         var fileEntries = new List<ProjectPackageFileEntry>
@@ -99,6 +101,9 @@ public sealed class ProjectPackageService : IProjectPackageService
                 payload.Sha256));
         }
 
+        if (fileEntries.Count > MaximumPayloadFiles)
+            throw new InvalidDataException("Project package contains too many payload files.");
+
         var manifest = new ProjectPackageManifest(
             CurrentFormat,
             CurrentFormatVersion,
@@ -112,8 +117,14 @@ public sealed class ProjectPackageService : IProjectPackageService
             fileEntries);
 
         var manifestBytes = JsonSerializer.SerializeToUtf8Bytes(manifest, _json);
-        if (manifestBytes.Length > MaximumManifestBytes)
-            throw new InvalidDataException("Project package manifest exceeds its safety limit.");
+        var payloadBytes = assetPayloads.Values.Aggregate(
+            engineeringBytes.LongLength,
+            static (total, payload) => checked(total + payload.ByteLength));
+        ValidateExportLimits(
+            engineeringBytes.LongLength,
+            fileEntries.Count,
+            payloadBytes,
+            manifestBytes.LongLength);
 
         using var output = new MemoryStream();
         using (var archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
@@ -128,6 +139,35 @@ public sealed class ProjectPackageService : IProjectPackageService
             throw new InvalidDataException($"Project package exceeds the {MaximumPackageBytes} byte safety limit.");
 
         return output.ToArray();
+    }
+
+    internal static void ValidateExportLimits(
+        long engineeringBytes,
+        int payloadFileCount,
+        long payloadBytes,
+        long manifestBytes)
+    {
+        if (engineeringBytes is < 0 or > MaximumEngineeringBytes)
+            throw new InvalidDataException("Engineering payload exceeds its project-package safety limit.");
+        if (payloadFileCount is < 1 or > MaximumPayloadFiles)
+            throw new InvalidDataException("Project package contains too many payload files.");
+        if (manifestBytes is < 0 or > MaximumManifestBytes)
+            throw new InvalidDataException("Project package manifest exceeds its safety limit.");
+        if (payloadBytes < engineeringBytes)
+            throw new InvalidDataException("Project package payload length is invalid.");
+
+        long totalUncompressed;
+        try
+        {
+            totalUncompressed = checked(payloadBytes + manifestBytes);
+        }
+        catch (OverflowException ex)
+        {
+            throw new InvalidDataException("Project package uncompressed content exceeds its safety limit.", ex);
+        }
+
+        if (totalUncompressed > MaximumPackageBytes)
+            throw new InvalidDataException("Project package uncompressed content exceeds its safety limit.");
     }
 
     public ProjectPackageInspection Inspect(ReadOnlyMemory<byte> packageBytes)

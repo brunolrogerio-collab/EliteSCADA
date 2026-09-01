@@ -3,4 +3,7 @@
     <ProjectReference Include="../Scada.Core/Scada.Core.csproj" />
     <ProjectReference Include="../Scada.Security/Scada.Security.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Scada.Core.Tests" />
+  </ItemGroup>
 </Project>

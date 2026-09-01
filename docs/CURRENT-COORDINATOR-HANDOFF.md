@@ -1,7 +1,7 @@
 # EliteSCADA — Current Coordinator Handoff
 
 Last operational audit: **2026-09-01 BRT**  
-Operational status: **WAVE 11 ACTIVE / RESUMED — issue #194 / draft PR #195**
+Operational status: **WAVE 11 ACCEPTANCE GATE SATISFIED / WAVE 12 #201 PREPARED — NOT STARTED**
 
 > Repository/CI state is the continuity source. Read live refs and Actions before acting. Stable product intent is governed by `PROJECT GOAL.md`; exact mutable state belongs in `LAST CHANGE.md`.
 
@@ -13,88 +13,109 @@ Read, in order:
 2. `LAST CHANGE.md`;
 3. this file;
 4. `docs/ROADMAP.md`;
-5. `docs/CI-VALIDATION-POLICY.md`;
-6. live `main`, issue #194, draft PR #195 and `coordination/wave11-hmi-runtime`;
-7. `docs/DRIVER-AND-INTEROP-LAB-STATUS.md` only when Driver evidence is relevant.
+5. `docs/WAVE-12-HARDENING-PREPARATION.md`;
+6. issue #201;
+7. `docs/CI-VALIDATION-POLICY.md`;
+8. live `main`, open PRs/issues and exact Actions state;
+9. `docs/DRIVER-AND-INTEROP-LAB-STATUS.md` only when Driver evidence is relevant.
 
-## 2. Accepted pre-Wave-11 foundation
+Do not resume old Wave 11 feature branches. PR #195 is historical/superseded; PR #199 is the accepted Wave 11 implementation integration; PR #200 is the accepted owner-test application handoff.
 
-Pre-Wave-11 issue #191 is **COMPLETE / ACCEPTED / INTEGRATED** through PR #193.
+## 2. Accepted foundation through Wave 11
 
-Repository/CI hygiene is also **COMPLETE / ACCEPTED / INTEGRATED**:
+- Pre-Wave-11 issue #191: **COMPLETE / ACCEPTED / INTEGRATED** through PR #193.
+- Repository/CI hygiene: **COMPLETE / ACCEPTED / INTEGRATED** through PRs #196 and #197.
+- Wave 11 implementation PR #199: **MERGED** at main merge `57042b467471f4b1360e1642d5d160e6e66fc31c`.
+- Wave 11 owner-test handoff PR #200: **MERGED** at product-code main `4ccc29cb4bb334dc473d8265f48a9c8601993413`.
 
-- PR #196 merged at `95abfad5c35f2715e15422f726d93013fd7290fd`;
-- PR #197 exact implementation head `01fc71df4162c3728073ae4fc056d04429349e4f` merged to product-code `main` `e117849827f1409ad6dd383dbdc2ed936ce62567`;
-- pre-merge #197: EliteSCADA CI #1057 **SUCCESS**, Preview Licensing #115 **SUCCESS**, L3 #62 **SUCCESS**;
-- post-main #197: EliteSCADA CI #1058 **SUCCESS**, Preview Licensing #116 **SUCCESS**, L3 #63 **SUCCESS**.
-
-CI specialization now reflects actual ownership:
-
-- EliteSCADA CI = universal Coordinator acceptance gate;
-- Preview Licensing = licensing/capacity/License Generator and known licensing-sensitive paths, plus manual/release validation;
-- L3 Seven-Driver Lab = Drivers/DriverHost/communication/Gateway/TAG-event/Driver tests/interop lab, plus manual/cross-cutting/release validation.
-
-Wave-11-only HMI changes have demonstrated that Preview Licensing and L3 are no longer automatically started when their subsystems are unaffected.
-
-`main` currently has no GitHub branch protection / required status checks; the universal CI rule is operational, not GitHub-enforced.
-
-## 3. Hygiene cleanup retained as history
-
-Superseded/historical PRs #108, #109, #111, #128, #135, #146, #167, #169, #176, #177, #179, #181 and #182 are closed with lineage retained.
-
-Driver coordination issues #120-#123 are closed. Issue #178 remains open only as `[Deferred L4] Driver 8: Siemens hardware/vendor-simulator interoperability validation matrix` and is not a Wave 11 blocker.
-
-Historical branch refs remain because the connected GitHub action set does not expose safe delete-ref. Do not repoint old refs for cosmetic cleanup.
-
-## 4. Wave 11 current state
-
-- issue #194 — **OPEN / ACTIVE**;
-- branch `coordination/wave11-hmi-runtime`;
-- draft PR #195 — **OPEN / DRAFT**;
-- pre-reconciliation current head: `b2c93cbfca3c4794796a0b251ab612b32ee08fed`;
-- Wave 12 remains blocked until #194 closes.
-
-Required lifecycle authority:
+Accepted Wave 11 lifecycle authority:
 
 `Working -> saved Revision -> Published -> Active -> HMI Runtime projection`
 
-Existing Wave 11 implementation includes:
+Accepted behavior includes:
 
-- protected `/api/runtime/application` projection from persisted Active revision;
+- protected `/api/runtime/application` from persisted Active Engineering, never mutable Working;
 - fail-closed project/revision/persistence/package consistency boundaries;
-- Runtime `View` authorization without granting operator Working Engineering access;
 - canonical Screen/Popup/Dynamo renderer/navigation mount;
-- explicit Simulation fallback when no Engineering runtime is active;
+- Active visual-asset authority with SHA-256/media-type/length validation;
 - stable mount while Active project/revision identity is unchanged;
-- Active visual-asset endpoint with SHA-256/media type/byte length validation;
-- explicit Runtime asset resolver propagated through Runtime mount, Navigator and canonical renderer;
-- deterministic `builtin.memory.server` lifecycle fixture because `builtin.simulation` is intentionally non-activatable.
+- Runtime `View` authorization without granting operator Working Engineering access;
+- explicit Simulation fallback only when no Engineering Runtime is active;
+- protected Slider/TAG writes through `/api/tags/{id}/write`;
+- lifecycle proof for Active A -> Working isolation -> Active B;
+- real imported PNG served from the Active persisted revision.
 
-Current exact pre-reconciliation evidence:
+## 3. Exact Wave 11 acceptance evidence
 
-- Wave 11 Active HMI Runtime #8 / `33544807476`: **SUCCESS**;
-- browser lifecycle proves Simulation -> Active A -> Working remains isolated -> Active B;
-- it also proves fail-closed projection, operator Runtime View vs Working denial, and a real imported PNG loaded from `/api/runtime/visual-assets/{id}/content`;
-- EliteSCADA CI #1061 / `33544807512`: Web build **SUCCESS**, backend build/tests/runtime smoke **SUCCESS**, Chromium E2E was still running when this handoff was written. Re-read live Actions before acting.
+Implementation head `a03237feed578066a8a62f5837adb60f100f412a`:
 
-## 5. Owner-test Demo deliverable
+- dedicated Wave 11 validation before integration: **SUCCESS**;
+- EliteSCADA CI #1062: **SUCCESS**.
 
-When the demonstration application is finalized for testing with EliteSCADA Preview, provide the actual portable application artifact, preferably `.escadapkg`, usable through the normal Save/Open workflow. Source code or CI screenshots do not satisfy this owner-test delivery requirement.
+Post implementation merge `57042b467471f4b1360e1642d5d160e6e66fc31c`:
 
-Issue #194 carries the requirement and an existing condition watch will notify the owner when a finalized accepted artifact is available.
+- Wave 11 Active HMI Runtime #11 / `33548047016`: **SUCCESS**;
+- EliteSCADA CI #1064 / `33548047037`: **SUCCESS** including Chromium E2E.
 
-## 6. Exact next action
+Owner-test handoff head `cc37be24ad8c8dc4594d99c5a3fd232dbf685d6f`:
 
-1. re-read EliteSCADA CI #1061 on exact Wave 11 head `b2c93cbf...`; diagnose any red instead of blind rerun;
-2. fetch the final live documentation-advanced `main` SHA;
-3. reconcile `coordination/wave11-hmi-runtime` with that live `main` using a true merge that preserves both histories, not force/repoint/copy-over;
-4. remove the obsolete CI-hygiene pause paragraph from PR #195 and comment the reconciled head on issue #194;
-5. require exact reconciled-head Wave 11 dedicated workflow + universal EliteSCADA CI green; specialized workflows should remain unselected unless actual paths/impact require them;
-6. verify remaining #194 acceptance criteria, then mark #195 ready only when genuinely complete;
-7. merge normally to `main`, require exact post-main CI, then accept/close #194 and synchronize `PROJECT GOAL.md` review, `LAST CHANGE.md`, ROADMAP and this handoff;
-8. only then authorize Wave 12.
+- Wave 11 Active HMI Runtime #13 / `33551000846`: **SUCCESS**;
+- EliteSCADA CI #1066 / `33551000852`: **SUCCESS**.
 
-## 7. Non-negotiable rules
+Final product-code main `4ccc29cb4bb334dc473d8265f48a9c8601993413`:
+
+- Wave 11 Active HMI Runtime #14 / `33552016447`: **SUCCESS**;
+- EliteSCADA CI #1067 / `33552016454`: **SUCCESS** including backend build/tests/runtime smoke, Web build and Chromium E2E.
+
+No test/security/lifecycle boundary was weakened.
+
+## 4. Owner-test Demo application
+
+Final post-main artifact:
+
+- artifact: `EliteSCADA-Wave11-Demo`;
+- GitHub Actions artifact id: `9817878392`;
+- artifact retention expiry: 2026-11-30;
+- artifact ZIP digest: `sha256:2944b946bf0085e260aa147eb7da1711ba1ef9f496961724ebfe8053c1368f96`;
+- application: `EliteSCADA-Wave11-Demo.escadapkg`;
+- application size: 5,394 bytes;
+- application SHA-256: `13261af59b8707df7d9ef3bbea307cb0c85d945ea8f47315fb693c92c885efa1`.
+
+Independent inspection confirmed package format v2, Engineering schema v15, project `e2e-wave11`, active revision 2, screen `demo.overview`, `REVISION B ACTIVE`, one real PNG sidecar asset, and matching manifest SHA-256/length metadata.
+
+This is the owner-test application package required by Wave 11. It is not a Windows installer or Preview executable.
+
+## 5. Wave 12 handoff state
+
+Issue #201 — `Wave 12 — Hardening` exists as **PREPARED / NOT STARTED**.
+
+Preparation document: `docs/WAVE-12-HARDENING-PREPARATION.md`.
+
+At this handoff point:
+
+- no Wave 12 implementation branch exists;
+- no Wave 12 PR exists;
+- no Wave 12 production-code change has been made;
+- no Wave 12 CI result is claimed;
+- issue #201 is preparation-only until issue #194 is formally closed in this coordination cycle.
+
+Wave 12 is a hardening pass, not a feature-expansion wave. Its prepared scope covers fail-closed/recovery behavior, authorization/audit, persistence/restart, `.escadapkg` integrity, runtime resource/fault isolation, concurrency, diagnostic sanitization and regression/CI hardening.
+
+Explicit exclusions include new Drivers/protocols, Wave 13 Authenticode/release-signing implementation, Waves 14/15 owner validation/feedback and physical L4 claims.
+
+## 6. Exact next action for the next Coordinator
+
+After issue #194 is confirmed closed and issue #201 is marked **READY / NOT STARTED**:
+
+1. re-read live `main`; documentation-only commits may have advanced it beyond product-code `4ccc29cb...`;
+2. read all documents in the mandatory resume order above;
+3. inspect current open issues/PRs and exact Actions state;
+4. audit current failure/test surfaces before choosing hardening slices;
+5. only then create a dedicated Wave 12 branch from the live `main`;
+6. persist material findings and next actions before coding large slices;
+7. use EliteSCADA CI as universal acceptance gate and run specialized workflows according to actual impact.
+
+## 7. Durable non-negotiable rules
 
 - repository/CI state overrides stale chat/prose for implementation truth;
 - no red universal CI into `main`;
@@ -104,4 +125,5 @@ Issue #194 carries the requirement and an existing condition watch will notify t
 - no Driver-to-Driver calls or canonical TAG/cache/event bypass;
 - no plaintext protected material;
 - licensing remains host-owned and private signing material never enters GitHub/CI/distributed product;
+- Wave 13 retains mandatory Authenticode + trusted timestamp release signing;
 - every material coordination transition is persisted before claiming completion.

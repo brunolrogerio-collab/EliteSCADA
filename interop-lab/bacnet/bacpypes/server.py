@@ -7,9 +7,17 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from bacpypes.app import BIPSimpleApplication
 from bacpypes.core import run, stop
 from bacpypes.local.device import LocalDeviceObject
-from bacpypes.object import AnalogValueObject, BinaryValueObject
+from bacpypes.local.object import AnalogValueCmdObject
+from bacpypes.object import BinaryValueObject, register_object_type
 from bacpypes.service.cov import ChangeOfValueServices
 from bacpypes.service.object import ReadWritePropertyMultipleServices
+
+
+@register_object_type
+class LabAnalogValueObject(AnalogValueCmdObject):
+    """Commandable Analog Value used to validate BACnet write priorities."""
+
+    pass
 
 
 class LabApplication(BIPSimpleApplication, ReadWritePropertyMultipleServices, ChangeOfValueServices):
@@ -58,10 +66,17 @@ def main() -> None:
 
     application = LabApplication(device, address)
 
-    analog = AnalogValueObject(
+    # The L3 write contract exercises BACnet priority 8.  A plain
+    # AnalogValueObject is readable but is not commandable through the
+    # priority array in BACpypes 0.19.  Registering a concrete
+    # AnalogValueCmdObject subclass rebuilds the property dictionary with
+    # the Commandable(Real) mixin, so Present_Value, Priority_Array and
+    # Relinquish_Default behave like a commandable BACnet point.
+    analog = LabAnalogValueObject(
         objectIdentifier=("analogValue", 1),
         objectName="Lab.AnalogValue1",
         presentValue=21.5,
+        relinquishDefault=21.5,
         statusFlags=[0, 0, 0, 0],
         covIncrement=0.5,
         units="degreesCelsius",

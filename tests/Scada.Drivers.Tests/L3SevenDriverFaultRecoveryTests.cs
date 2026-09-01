@@ -155,11 +155,12 @@ public sealed class L3SevenDriverFaultRecoveryTests
             runtime,
             "elitescada-lab-mosquitto",
             ProbeCipAsync,
-            async () =>
-            {
-                await PublishMqttEventuallyAsync(lab.NodeRedUrl, 41.0d, TimeSpan.FromSeconds(15));
-                await WaitForGoodValueAsync(runtime, mqttId, value => Math.Abs(Convert.ToDouble(value) - 41d) < 0.001d, TimeSpan.FromSeconds(15));
-            });
+            () => WaitForMqttRecoveryAsync(
+                runtime,
+                mqttId,
+                lab.NodeRedUrl,
+                41.0d,
+                TimeSpan.FromSeconds(15)));
 
         await ExercisePeerFaultAsync(
             runtime,
@@ -400,6 +401,52 @@ public sealed class L3SevenDriverFaultRecoveryTests
             await Task.Delay(250);
         }
         throw new TimeoutException($"MQTT publish did not recover within {timeout}. Last error: {lastError?.Message}");
+    }
+
+    private static async Task WaitForMqttRecoveryAsync(
+        GatewayEngineeringRuntimeCoordinator runtime,
+        Guid tagId,
+        string nodeRedUrl,
+        double expected,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        Exception? lastPublishError = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            try
+            {
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+                using var response = await client.PostAsJsonAsync(
+                    $"{nodeRedUrl.TrimEnd('/')}/lab/mqtt/publish",
+                    new
+                    {
+                        topic = "elitescada/lab/l3/fault-value",
+                        qos = 1,
+                        retain = false,
+                        payload = expected.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    });
+                if (!response.IsSuccessStatusCode)
+                    lastPublishError = new InvalidOperationException($"Node-RED returned {(int)response.StatusCode} {response.ReasonPhrase}.");
+            }
+            catch (Exception ex)
+            {
+                lastPublishError = ex;
+            }
+
+            if (runtime.TryGetCurrent(tagId, out var current) &&
+                current?.Quality == TagQuality.Good &&
+                current.Value is not null &&
+                Math.Abs(Convert.ToDouble(current.Value) - expected) < 0.001d)
+                return;
+
+            await Task.Delay(250);
+        }
+
+        runtime.TryGetCurrent(tagId, out var last);
+        throw new TimeoutException(
+            $"MQTT TAG '{tagId}' did not recover to {expected} Good within {timeout}. " +
+            $"Last={last?.Value}; Quality={last?.Quality}; last publish error={lastPublishError?.Message}.");
     }
 
     private static async Task WaitForGoodValueAsync(

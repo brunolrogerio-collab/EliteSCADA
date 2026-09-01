@@ -1,139 +1,116 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-01 (BRT)  
-**Operational state:** **PRE-WAVE-11 #191 COMPLETE / ACCEPTED / INTEGRATED — WAVE 11 READY / NOT STARTED**
+**Operational state:** **WAVE 11 ACTIVE — issue #194 / `coordination/wave11-hmi-runtime`**
 
-> This file is the mutable coordinator resume point. Stable product intent remains in `PROJECT GOAL.md`. Always verify live refs/Actions before acting because documentation-only `[skip ci]` commits may advance `main` beyond the validated code SHA.
+> This file is the mutable coordinator resume point. Stable product intent remains in `PROJECT GOAL.md`. Always verify live refs/Actions before acting because documentation-only `[skip ci]` commits may advance `main` beyond the latest validated code SHA.
 
-## 1. Accepted code checkpoint
+## 1. Last accepted code checkpoint
 
-Pre-Wave-11 owner-usability implementation:
+Pre-Wave-11 owner-usability gate #191 is **COMPLETE / ACCEPTED / INTEGRATED**.
 
-- issue #191: **COMPLETE / ACCEPTED / INTEGRATED**;
-- implementation branch: `coordination/pre-wave11-licensegen-slider`;
-- exact implementation head: `aeb9b3b5641adee344c4ead166b97cc0adba3dbf`;
-- replacement integration PR #193: **MERGED**;
-- validated main code merge: `64ba134f88df61233c492f6c5e2b1ea8f244bf19`.
+- implementation head: `aeb9b3b5641adee344c4ead166b97cc0adba3dbf`;
+- PR #193: **MERGED**;
+- validated main code merge: `64ba134f88df61233c492f6c5e2b1ea8f244bf19`;
+- pre-merge EliteSCADA CI #1033 / `33525910566`: **SUCCESS**;
+- pre-merge Preview Licensing CI #90 / `33525910582`: **SUCCESS**;
+- pre-merge L3 Seven-Driver Lab #39 / `33525910552`: **SUCCESS**;
+- post-main Preview Licensing CI #92 / `33527294658`: **SUCCESS**;
+- post-main EliteSCADA CI #1035 / `33527294657`: **SUCCESS after unchanged rerun of one transient IEC-104 timing failure**; backend build/tests/runtime smoke, Web build and Chromium E2E all passed.
 
-PR #192 was closed unmerged only because the connector failed to transition the draft PR to ready-for-review. PR #193 used the exact same validated head; there was no implementation divergence.
+PR #192 was closed unmerged only because the connector failed to transition its draft state; PR #193 used the exact same validated head.
 
-## 2. Validation evidence
+Post-main License Generator artifact:
 
-### Pre-merge exact implementation head `aeb9b3b...`
+- artifact `EliteSCADA-LicenseGenerator-win-x64`, id `9808306320`;
+- `EliteSCADA.LicenseGenerator.exe`, 116,257,103 bytes;
+- PE32+ Windows GUI, x86-64;
+- executable SHA-256 `841dea832d67f44e07aa10b2de96ccfffd5d518beeadafb48ed34e16d0317523`;
+- GitHub ZIP digest `sha256:888ed224f686918f50e27dd5998e105a5e26900edd87254a1f163d7be9416943`.
 
-- EliteSCADA CI #1033 / run `33525910566`: **SUCCESS**;
-- Preview Licensing CI #90 / run `33525910582`: **SUCCESS**;
-- L3 Seven-Driver Lab #39 / run `33525910552`: **SUCCESS**.
+Historical issue #184 was closed as completed/superseded so its obsolete red checkpoint no longer appears as a live blocker.
 
-### Post-main exact code SHA `64ba134f...`
+## 2. Current coordination state — Wave 11
 
-- Preview Licensing CI #92 / run `33527294658`: **SUCCESS**;
-- EliteSCADA CI #1035 / run `33527294657`: **SUCCESS**.
+- issue: **#194 — Wave 11 — Active Engineering HMI Runtime vertical slice**;
+- issue state: **OPEN / ACTIVE**;
+- branch: `coordination/wave11-hmi-runtime`;
+- branch creation base: documentation-synchronized `main` SHA `4be2cb68225cc4222f768ef34a6ed3c808391400`;
+- Wave 12: **BLOCKED until #194 is accepted/closed**.
 
-EliteSCADA CI #1035 initially failed one pre-existing IEC-104 T2 timing assertion (`Adapter_T2FlushesPendingReceiveAcknowledgementWithoutFaultingSession`, expected 0 / actual 1). The failed backend job was rerun **unchanged**. On the rerun:
+The branch was created before the follow-up documentation-only Wave 11 activation commits. Because no Wave 11 code existed yet at that instant, it may be fast-forwarded to the latest documentation-synchronized `main` before implementation begins.
 
-- backend build: **SUCCESS**;
-- all backend tests: **SUCCESS**;
-- Runtime smoke: **SUCCESS**;
-- Web build: **SUCCESS**;
-- Chromium E2E: **SUCCESS**.
+## 3. Wave 11 objective
 
-No production code or test assertion was changed to manufacture the post-main green result. The initial failure is classified as transient timing noise because it did not reproduce on the unchanged exact code SHA.
+Replace the current hand-authored Demo process surface as Runtime application truth with an owner-testable HMI Runtime derived from the **active persisted canonical Engineering revision**.
 
-## 3. Accepted pre-Wave-11 scope
+Required lifecycle authority:
 
-### A — Graphical Windows License Generator
+`Working -> saved Revision -> Published -> Active -> HMI Runtime projection`
 
-**MERGED / ACCEPTED**
+Editable Working state must not leak into the Runtime visual application before activation.
 
-- normal double-click opens a WinForms graphical interface;
-- machine request, TAG tier, external private PEM, Key ID, optional expiry and output path are supported;
-- controlled CLI remains available;
-- private signing material is loaded only from an explicit external path and is not embedded in GitHub/CI/product artifacts.
+### Slice A — protected active-revision Runtime projection
 
-Post-main artifact from Preview Licensing CI #92:
+The persistence service already exposes `LoadActiveAsync(projectKey)` internally. Add a protected deterministic read boundary for the active canonical Engineering package that:
 
-- artifact name: `EliteSCADA-LicenseGenerator-win-x64`;
-- artifact id: `9808306320`;
-- code SHA: `64ba134f88df61233c492f6c5e2b1ea8f244bf19`;
-- `EliteSCADA.LicenseGenerator.exe`: 116,257,103 bytes;
-- format: PE32+ Windows GUI, x86-64;
-- executable SHA-256: `841dea832d67f44e07aa10b2de96ccfffd5d518beeadafb48ed34e16d0317523`;
-- GitHub artifact ZIP digest: `sha256:888ed224f686918f50e27dd5998e105a5e26900edd87254a1f163d7be9416943`.
+- uses Active, never Working export;
+- verifies configured/runtime project identity and active revision consistency;
+- fails closed for unavailable persistence, absent Active revision, inconsistent project/revision or invalid package content;
+- inherits existing persistence authorization/security filtering;
+- exposes no secrets/transient Runtime values.
 
-Earlier implementation-head artifact #90 remains historical evidence:
+### Slice B — canonical HMI Runtime mount
 
-- artifact id `9807739588`;
-- executable SHA-256 `b0aa2f86433fdc141689eafb53f6acb3a25a12a513afde8061f805f6dacc94f5`.
+The current default `RuntimeApp` in `web/scada-web/src/main.tsx` still manually renders `Demo.Tank01`, `Demo.P01`, discharge metrics and a custom modal.
 
-### B — Canonical industrial Slider
+Wave 11 must instead:
 
-**MERGED / ACCEPTED**
+- resolve current Runtime project/revision;
+- load the matching active Engineering package;
+- use existing `createRuntimeVisualCatalog` / navigation state;
+- render Screens/Popups/Dynamos through `RuntimeVisualDefinitionRenderer` / `CanonicalVisualRenderer`;
+- execute existing NavigateScreen/OpenPopup/ClosePopup actions;
+- preserve Client Visual Python/event projection and protected Slider/TAG writes;
+- keep alarm/TAG/trend/history operational tools available without making them process-screen truth.
 
-`core.slider` is integrated in the shared backend/frontend visual model. Passive display never writes. Interactive adjustment writes only through the protected/audited Runtime TAG boundary and fails closed for invalid, unavailable, read-only, non-writable or unauthorized targets.
+A clearly separate simulation fallback may remain when no Engineering runtime is active.
 
-### C — Explicit application file Save/Open
+### Slice C — lifecycle isolation proof
 
-**MERGED / ACCEPTED**
+Tests must prove:
 
-Developer-selected **Save Application As** and **Open Application** use the portable `.escadapkg` boundary while preserving inspect/Preview/Apply safety and the distinction from server Working/Revisions/Published/Active lifecycle state.
+1. Active revision A renders;
+2. Working edits do not change Runtime;
+3. activating revision B changes the Runtime visual application to B;
+4. inconsistent/missing active projection fails closed rather than falling back to Working;
+5. Screen/Popup/Dynamo composition remains canonical;
+6. Slider writes remain protected/audited;
+7. no frontend-to-Driver or renderer-private Engineering bypass is introduced.
 
-### D — Minimum built-in Dynamo library
-
-**MERGED / ACCEPTED**
-
-Eight canonical ready-to-insert definitions exist:
-
-- `process.motor.standard`;
-- `process.motor.vfd`;
-- `dynamo.pump.standard`;
-- `process.pump.submersible`;
-- `process.valve.onoff`;
-- `process.valve.control`;
-- `process.tank.vertical`;
-- `process.tank.horizontal`.
-
-Instance `{equipmentPath}` substitution remains canonical and does not mutate shared definitions.
-
-## 4. Coordination cleanup
-
-- historical issue #184 was closed as completed/superseded after later accepted licensing #183, main integration and L3 evidence made its old `BLOCKS PR #175` status obsolete;
-- `PROJECT GOAL.md`, `docs/ROADMAP.md` and `docs/CURRENT-COORDINATOR-HANDOFF.md` were synchronized after the accepted gate using documentation-only `[skip ci]` commits;
-- issue #191 can now be closed as completed with its final evidence comment.
-
-## 5. Next authorized stage — Wave 11
-
-**READY / NOT STARTED at this checkpoint.**
-
-Roadmap objective: **Complete HMI Runtime demo vertical slice**.
-
-The current default Runtime in `web/scada-web/src/main.tsx` still hand-renders the Demo process (`Demo.Tank01`, `Demo.P01`, discharge metrics and modal). That hand-authored surface must stop being Runtime application truth.
-
-Existing foundation to reuse:
+## 4. Existing foundation to reuse
 
 - canonical Screen/Popup/Dynamo Engineering;
-- `RuntimeVisualDefinitionRenderer` and the canonical visual renderer;
-- screen/popup runtime navigation model;
-- Dynamo runtime composition;
-- Client Visual Python/event runtime;
-- realtime TAG transport;
-- protected Runtime TAG writes;
-- alarms, TAG Inspector, Trends and Historical Data Browser;
-- persisted lifecycle with an **Active Revision**.
+- `RuntimeVisualDefinitionRenderer` and `CanonicalVisualRenderer`;
+- runtime visual catalog/navigation/action model;
+- Dynamo runtime composition and `{equipmentPath}` substitution;
+- Client Visual Python runtime/event dispatcher;
+- realtime TAG transport/current values;
+- protected Runtime TAG write API;
+- alarm center, TAG Inspector, Trends and Historical Data Browser;
+- PostgreSQL Working/Revisions/Published/Active lifecycle.
 
-Critical architectural requirement for Wave 11:
+Do not duplicate these as Wave 11-private equivalents.
 
-> Runtime visual application state must derive from the **active persisted canonical Engineering revision**, not the editable Working export. Working edits must not appear in Runtime until normal save/publish/activate lifecycle semantics make them active.
+## 5. Exact next action
 
-The persistence service already exposes `LoadActiveAsync(projectKey)` internally, but the browser currently has no dedicated active-package Runtime projection. The first Wave 11 slice should add a protected deterministic active-revision projection, then mount the active Screen/Popup/Dynamo application through the existing canonical Runtime visual stack.
+1. fast-forward `coordination/wave11-hmi-runtime` to the latest documentation-synchronized `main` if needed;
+2. implement the protected Active Engineering package Runtime projection;
+3. implement the canonical HMI Runtime application mount and navigation using that projection;
+4. add focused backend/frontend/lifecycle-isolation tests;
+5. run exact-head normal EliteSCADA CI;
+6. fix root causes without weakening assertions/security/lifecycle boundaries;
+7. integrate by PR only after green evidence, then require exact post-main validation;
+8. synchronize all continuity documents and issue #194 before closure.
 
-## 6. Exact next action
-
-1. close issue #191 as completed after its final acceptance comment;
-2. create a dedicated Wave 11 issue;
-3. create a Wave 11 coordination branch from live `main` after the documentation-only gate commits;
-4. update this file/handoff/roadmap to the resulting live issue, branch and head;
-5. implement the active-Engineering HMI Runtime vertical slice without bypassing lifecycle/security/canonical visual boundaries;
-6. require exact-head backend build/tests/runtime smoke, Web build and Chromium E2E before integration.
-
-Wave 12 remains hardening. Wave 13 remains the mandatory Authenticode + trusted timestamp Windows release-signing stage. Physical L4 remains later Preview/device-specific validation.
+Wave 13 remains the mandatory Authenticode + trusted timestamp Windows release-signing stage. Physical L4 remains later Preview/device-specific validation.

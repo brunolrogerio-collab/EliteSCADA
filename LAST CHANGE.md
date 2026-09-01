@@ -1,102 +1,105 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-01 (BRT)  
-**Operational state:** **PRE-WAVE-11 REPOSITORY/CI HYGIENE GATE ACTIVE — Wave 11 implementation paused, not cancelled**
+**Operational state:** **WAVE 11 ACTIVE / RESUMED — repository/CI hygiene complete**
 
-> This file is the mutable coordinator resume point. Stable product intent remains in `PROJECT GOAL.md`. Always verify live refs/Actions before acting because documentation-only `[skip ci]` commits may advance `main` beyond the latest validated code SHA.
+> Mutable Coordinator resume point. Stable product intent remains in `PROJECT GOAL.md`. Live GitHub refs and exact-SHA Actions override copied prose. Documentation-only `[skip ci]` commits may advance `main` beyond the latest validated product-code SHA.
 
-## 1. Last accepted product checkpoint
+## 1. Last accepted mainline checkpoint
 
-Pre-Wave-11 owner-usability gate #191 is **COMPLETE / ACCEPTED / INTEGRATED**.
+The pre-Wave-11 repository/CI hygiene gate is **COMPLETE / ACCEPTED / INTEGRATED**.
 
-- implementation head: `aeb9b3b5641adee344c4ead166b97cc0adba3dbf`;
-- PR #193: **MERGED**;
-- validated main code merge: `64ba134f88df61233c492f6c5e2b1ea8f244bf19`;
-- pre-merge EliteSCADA CI #1033 / `33525910566`: **SUCCESS**;
-- pre-merge Preview Licensing CI #90 / `33525910582`: **SUCCESS**;
-- pre-merge L3 Seven-Driver Lab #39 / `33525910552`: **SUCCESS**;
-- post-main Preview Licensing CI #92 / `33527294658`: **SUCCESS**;
-- post-main EliteSCADA CI #1035 / `33527294657`: **SUCCESS after unchanged rerun of one transient IEC-104 timing failure**.
+### Hygiene integration
 
-Post-main License Generator artifact:
+- PR #196 — specialized CI routing + stale PR/issue sanitation: **MERGED** at `95abfad5c35f2715e15422f726d93013fd7290fd`.
+- PR #197 — focused Preview Licensing ownership + synchronization fixes exposed by universal CI: **MERGED**.
+- exact #197 implementation head: `01fc71df4162c3728073ae4fc056d04429349e4f`.
+- validated main product-code merge: `e117849827f1409ad6dd383dbdc2ed936ce62567`.
 
-- artifact `EliteSCADA-LicenseGenerator-win-x64`, id `9808306320`;
-- `EliteSCADA.LicenseGenerator.exe`, 116,257,103 bytes;
-- executable SHA-256 `841dea832d67f44e07aa10b2de96ccfffd5d518beeadafb48ed34e16d0317523`.
+Exact-head pre-merge #197 evidence:
 
-Seven-Driver convergence was integrated through PR #187 and the integrated L3 gate is completed/accepted in issue #180. L3 is evidence and regression validation now, not an open convergence stage.
+- EliteSCADA CI #1057 / `33539711101`: **SUCCESS**;
+- Preview Licensing CI #115 / `33539711114`: **SUCCESS**;
+- L3 Seven-Driver Lab #62 / `33539711124`: **SUCCESS**.
 
-## 2. Current coordination gate — repository and CI hygiene
+Exact post-main `e1178498...` evidence:
 
-Development Lead requested repository/CI sanitation before further Wave 11 implementation so GitHub reflects actual active work and specialized CI stops running on unrelated PRs.
+- EliteSCADA CI #1058 / `33543916943`: **SUCCESS** including backend build/tests/runtime smoke, Web build and Chromium E2E;
+- Preview Licensing CI #116 / `33543916958`: **SUCCESS**;
+- L3 Seven-Driver Lab #63 / `33543916942`: **SUCCESS** including heterogeneous Gateway, seven-Driver acquisition, supported writes, serial recovery and Gateway source/destination recovery.
 
-Active hygiene branch:
+### CI policy now in force
 
-- `coordination/ci-hygiene-pre-wave11`;
-- base: live `main` `ab787c98350861566d06d1de07ade0b08c82ce3e`;
-- current head at last checkpoint: `17b7064902209cbabec20beae335ab10e78d58ca` plus any later documentation commits on this branch;
-- PR #196: **OPEN / READY FOR VALIDATION**, `Repository hygiene: scope specialized CI before Wave 11 resumes`.
+`EliteSCADA CI` is the universal Coordinator acceptance gate for PRs to `main`.
 
-### CI routing implemented in PR #196
+`Preview Licensing CI` is automatically selected only by licensing, License Generator, product-capacity and known licensing-sensitive paths. Its focused test ownership now covers licensing/capacity and `ProductLicensedRuntimeCoordinatorTests` while retaining full solution build, License Generator build, host licensing smoke and Windows artifact validation.
 
-`EliteSCADA CI` remains the universal Coordinator acceptance gate for PRs to `main`.
+`L3 Seven-Driver Lab` is automatically selected by Driver/DriverHost/communication/Gateway/TAG-event/Driver-test/interop-lab paths.
 
-`Preview Licensing CI` now automatically selects changes affecting licensing, License Generator, product capacity, known licensing-sensitive shared paths, related tests/docs, or its own workflow. It remains manually executable for cross-cutting/release validation.
+Both specialized workflows remain manually executable for cross-cutting/release validation. Path filters never replace engineering judgment.
 
-`L3 Seven-Driver Lab` now automatically selects changes affecting Drivers, DriverHost, communication/Gateway contracts, TAG/event core, Driver tests, interoperability lab, or its own workflow. It remains manually executable for cross-cutting host/composition/release validation.
+Repository fact: `main` currently has no branch protection / required status checks configured. The universal EliteSCADA CI rule is therefore a Coordinator/Development Lead operating rule, not a GitHub-enforced merge block.
 
-No specialized workflow test body or acceptance assertion was weakened. The durable rule is recorded in `docs/CI-VALIDATION-POLICY.md`.
+### Synchronization reliability fixes integrated with #197
 
-Important repository fact: `main` currently has no branch protection / required status checks configured. Therefore `EliteSCADA CI required` is an operational Coordinator/Development Lead rule, not currently a GitHub-enforced merge block. Do not document otherwise.
+- Siemens S7 publishes `Ready` only after the initial acquisition outcome is visible in the canonical current TAG cache;
+- the S7→Modbus Gateway integration test waits on authoritative Gateway transfer completion instead of using peer-side register mutation as the internal completion barrier;
+- the Modbus diagnostics isolation test keeps failing driver B at 80 ms with 250 ms injected delay while unaffected control A uses a normal 500 ms timeout, preserving isolation assertions under hosted-runner scheduling.
 
-### Repository sanitation already applied
+No assertion/security/product acceptance boundary was weakened.
 
-The following stale/superseded open PRs were closed with comments preserving successor/integration lineage:
+## 2. Repository hygiene state
 
-- #108 DNP3 worker handoff;
-- #109 BACnet worker handoff;
-- #111 CIP/EtherNet-IP worker handoff;
-- #128 MQTT worker handoff;
-- #135 Siemens S7 worker handoff;
-- #146 IEC-104 worker handoff;
-- #167 DNP3 L2 validation;
-- #169 OPC UA worker handoff;
-- #176 OPC UA L2 validation;
-- #177 BACnet L2 validation;
-- #179 secure OPC UA L2 validation;
-- #181 obsolete licensing workstream;
-- #182 obsolete licensing validation surface.
+Historical/superseded PRs #108, #109, #111, #128, #135, #146, #167, #169, #176, #177, #179, #181 and #182 are closed with integration lineage retained in their conversations.
 
-After this cleanup, the only active development PR from the previous inventory is Wave 11 PR #195; PR #196 is the temporary hygiene gate itself.
+Completed Driver coordination issues #120-#123 are closed. Issue #178 remains intentionally open only as **deferred L4 Siemens hardware/vendor-simulator evidence** and is not a Wave 11 blocker.
 
-Completed Driver coordination issues #120, #121, #122 and #123 were closed as completed because their convergence purpose has already been integrated through PR #187 / issue #180.
+Historical branch refs remain numerous. The connected GitHub action set does not provide safe delete-ref, so old refs must not be repointed merely for cosmetics.
 
-Issue #178 remains open but is retitled **`[Deferred L4] Driver 8: Siemens hardware/vendor-simulator interoperability validation matrix`** and explicitly classified as future physical/vendor evidence, not a Wave 11 blocker and not an active convergence task.
+Durable routing/hygiene policy: `docs/CI-VALIDATION-POLICY.md`.
 
-The repository still contains many historical branches. The current GitHub connector exposes branch create/update but not branch deletion. Do not rewrite or move historical refs merely to make the branch list smaller. Mechanical deletion of clearly obsolete closed-PR branches remains a repository-maintenance follow-up when a supported delete-ref path is available.
+## 3. Wave 11 — current implementation
 
-## 3. Wave 11 state
+Wave 11 is **ACTIVE / RESUMED**.
 
-Wave 11 remains the next development stage and its acceptance criteria are unchanged.
-
-- issue #194: **OPEN / ACTIVE, temporarily paused behind hygiene gate**;
+- issue #194: **OPEN / ACTIVE**;
 - draft PR #195: **OPEN / DRAFT**;
 - branch: `coordination/wave11-hmi-runtime`;
-- branch head before hygiene pause: `2d85b910f7bcca4239bde54f71e8e81cd883ffe2`;
+- current pre-reconciliation branch head: `b2c93cbfca3c4794796a0b251ab612b32ee08fed`;
 - Wave 12: **BLOCKED until #194 is accepted/closed**.
 
-PR #195 contains the current Wave 11 implementation foundation: protected Active Engineering Runtime projection, canonical Runtime application mount with explicit simulation fallback, revision-stable mount behavior, dedicated Active A -> Working isolation -> Active B lifecycle test infrastructure, and the first asset-authority seam. Its first dedicated lifecycle run exposed `RUNTIME_NO_ACTIVE_SOURCES` because the Demo fixture used `builtin.simulation`; the test fixture was corrected to use deterministic `builtin.memory.server` rather than weakening activation rules.
+Current Wave 11 implementation includes:
 
-No further Wave 11 code should be added until PR #196 is integrated and the Wave 11 branch is reconciled to live `main`.
+- protected `/api/runtime/application` projection derived from persisted **Active** Engineering, never mutable Working;
+- project/revision consistency checks and fail-closed behavior when persistence/identity/package authority is inconsistent;
+- canonical Screen/Popup/Dynamo Runtime mount through the existing renderer/navigation stack;
+- explicit Simulation fallback only when no Engineering Runtime is active;
+- revision-stable mount behavior so polling does not reset navigation/popups while the Active identity is unchanged;
+- protected Runtime `View` authorization for the HMI without granting operator access to Working Engineering;
+- active revision visual-asset endpoint with SHA-256/media-type/length integrity checks;
+- explicit Active asset authority propagated through Runtime mount -> Navigator -> DefinitionRenderer -> CanonicalRenderer;
+- deterministic lifecycle test using `builtin.memory.server` because `builtin.simulation` is intentionally not an activatable Engineering source.
 
-## 4. Exact next action
+Exact current pre-reconciliation Wave 11 evidence on `b2c93cbf...`:
 
-1. let PR #196 run **EliteSCADA CI**, **Preview Licensing CI** and **L3 Seven-Driver Lab** once, because the PR changes both specialized workflow files;
-2. if any workflow fails, fix the routing/workflow defect without weakening test bodies;
-3. merge PR #196 normally only when all three are green;
-4. verify post-main repository/workflow state and synchronize `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md` and `docs/CURRENT-COORDINATOR-HANDOFF.md` as needed;
-5. reconcile `coordination/wave11-hmi-runtime` with the new live `main` without losing Wave 11 work;
-6. confirm an unrelated Wave 11-only change no longer automatically triggers Preview Licensing CI or L3 Seven-Driver Lab;
-7. resume issue #194 / PR #195 from its existing implementation head and continue the Active Engineering HMI Runtime acceptance sequence.
+- Wave 11 Active HMI Runtime #8 / `33544807476`: **SUCCESS**;
+- the dedicated browser proof covers Simulation -> Active A -> Working isolation -> Active B, operator Runtime View vs Working denial, fail-closed projection, and a real imported PNG served from `/api/runtime/visual-assets/{id}/content` rather than the Working asset route;
+- EliteSCADA CI #1061 / `33544807512`: Web build **SUCCESS**, backend build/tests/runtime smoke **SUCCESS**, Chromium E2E **IN PROGRESS** at this checkpoint.
 
-Wave 13 remains the mandatory Authenticode + trusted timestamp Windows release-signing stage. Physical L4 remains later Preview/device-specific validation.
+CI routing proof: Wave-11-only heads automatically selected **EliteSCADA CI + the dedicated Wave 11 workflow only**. Preview Licensing CI and L3 Seven-Driver Lab did not auto-run because no affected specialized paths were changed.
+
+## 4. Owner-test Demo deliverable
+
+When the demonstration application is finalized for owner testing with EliteSCADA Preview, deliver an actual portable application package, preferably the canonical `.escadapkg`, not merely source code or CI evidence. The deliverable must be usable through the normal Save/Open application contract. Issue #194 carries this owner-test delivery requirement; an existing condition watch will surface the artifact when it is actually ready.
+
+## 5. Exact next action
+
+1. let EliteSCADA CI #1061 finish Chromium on exact Wave 11 head `b2c93cbf...`; diagnose any failure instead of blindly rerunning;
+2. reconcile `coordination/wave11-hmi-runtime` with the final live post-hygiene `main` while preserving Wave 11 history and all `main` commits;
+3. remove the temporary hygiene pause language from PR #195 and record the reconciled head in issue #194;
+4. require exact reconciled-head Wave 11 dedicated CI + universal EliteSCADA CI green; specialized CI should remain unselected unless the reconciled diff/risk actually touches those subsystems;
+5. complete any remaining #194 acceptance gaps, mark #195 ready only when the gate is satisfied, merge normally, then require exact post-main CI;
+6. accept/close #194 and synchronize continuity docs only after post-main validation;
+7. Wave 12 remains blocked until that acceptance.
+
+`PROJECT GOAL.md` was reviewed during this coordination cycle; no stable product architecture changed. Wave 13 remains the mandatory Authenticode + trusted timestamp Windows release-signing stage. Physical L4 remains later Preview/device-specific validation.

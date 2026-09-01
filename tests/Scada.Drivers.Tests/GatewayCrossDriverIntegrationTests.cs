@@ -109,7 +109,19 @@ public sealed class GatewayCrossDriverIntegrationTests
             () => modbusServer.HoldingRegisters[20] == 99,
             TimeSpan.FromSeconds(4));
         await WaitForAsync(
-            () => runtime.GatewayDiagnostics() is [{ State: GatewayRouteRuntimeState.Running, TransferCount: >= 2, WriteFailureCount: 0 }],
+            () =>
+            {
+                var diagnostics = runtime.GatewayDiagnostics();
+                if (diagnostics.Count != 1)
+                {
+                    return false;
+                }
+
+                var gateway = diagnostics.Single();
+                return gateway.State == GatewayRouteRuntimeState.Running &&
+                       gateway.TransferCount >= 2 &&
+                       gateway.WriteFailureCount == 0;
+            },
             TimeSpan.FromSeconds(4));
 
         var updatedGateway = Assert.Single(runtime.GatewayDiagnostics());

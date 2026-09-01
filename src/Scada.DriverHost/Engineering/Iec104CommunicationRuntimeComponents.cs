@@ -632,7 +632,7 @@ public sealed class Iec104CommunicationRuntimeFactory : ICommunicationDriverRunt
     }
 }
 
-internal sealed class Iec104HostCommunicationDriver : ICommunicationDriver, ICommunicationDriverReadinessSource
+internal sealed class Iec104HostCommunicationDriver : ICommunicationDriver, ICommunicationDriverReadinessSource, ICommunicationDiagnosticsSource
 {
     private readonly Iec104CommunicationRuntimePlan _plan;
     private readonly ICurrentTagCache _cache;
@@ -793,6 +793,106 @@ internal sealed class Iec104HostCommunicationDriver : ICommunicationDriver, ICom
             details);
     }
 
+    public CommunicationDriverDiagnosticSnapshot GetCommunicationDiagnostics()
+    {
+        var diagnostics = _client.GetDiagnostics();
+        var readiness = _client.GetReadiness();
+        var transport = diagnostics.Transport;
+        var capturedAt = diagnostics.CapturedAt;
+        var successfulOperations = diagnostics.ObservedPointUpdates + diagnostics.Commands.Completed;
+        var failedOperations = diagnostics.SessionFailures + diagnostics.Commands.Rejected + diagnostics.Commands.TimedOut + diagnostics.Commands.Ambiguous;
+        var totalOperations = successfulOperations + failedOperations;
+        var lastSuccessfulCommunicationAt = diagnostics.LastObservedPointAt ?? transport?.LastActivityAt;
+        var timeouts = (transport?.T0Timeouts ?? 0) + (transport?.T1Timeouts ?? 0) + diagnostics.Commands.TimedOut;
+        var state = readiness.State switch
+        {
+            Iec104ReadinessState.NotStarted => CommunicationDriverOperationalState.Stopped,
+            Iec104ReadinessState.Starting when diagnostics.ReconnectAttempt > 1 => CommunicationDriverOperationalState.Reconnecting,
+            Iec104ReadinessState.Starting => CommunicationDriverOperationalState.Starting,
+            Iec104ReadinessState.Ready => CommunicationDriverOperationalState.Healthy,
+            Iec104ReadinessState.Faulted => CommunicationDriverOperationalState.Faulted,
+            Iec104ReadinessState.Stopped when Status.State == DriverState.Stopping => CommunicationDriverOperationalState.Stopping,
+            Iec104ReadinessState.Stopped => CommunicationDriverOperationalState.Stopped,
+            _ => throw new ArgumentOutOfRangeException(nameof(readiness.State), readiness.State, "Unsupported IEC-104 readiness state.")
+        };
+
+        var stateChangedAt = state switch
+        {
+            CommunicationDriverOperationalState.Healthy => diagnostics.LastObservedPointAt ?? diagnostics.LastSessionAttemptAt ?? Status.Timestamp,
+            CommunicationDriverOperationalState.Reconnecting or CommunicationDriverOperationalState.Starting => diagnostics.LastSessionAttemptAt ?? Status.Timestamp,
+            CommunicationDriverOperationalState.Faulted => diagnostics.LastFailureAt ?? Status.Timestamp,
+            _ => Status.Timestamp
+        };
+
+        var protocolDetails = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["protocol"] = "IEC 60870-5-104",
+            ["sessionState"] = diagnostics.SessionState.ToString(),
+            ["reconnectAttempt"] = diagnostics.ReconnectAttempt.ToString(CultureInfo.InvariantCulture),
+            ["inFlightCommands"] = diagnostics.InFlightCommands.ToString(CultureInfo.InvariantCulture),
+            ["commonAddresses"] = string.Join(",", diagnostics.CommonAddresses),
+            ["t0Seconds"] = diagnostics.T0.TotalSeconds.ToString(CultureInfo.InvariantCulture),
+            ["t1Seconds"] = diagnostics.T1.TotalSeconds.ToString(CultureInfo.InvariantCulture),
+            ["t2Seconds"] = diagnostics.T2.TotalSeconds.ToString(CultureInfo.InvariantCulture),
+            ["t3Seconds"] = diagnostics.T3.TotalSeconds.ToString(CultureInfo.InvariantCulture),
+            ["k"] = diagnostics.K.ToString(CultureInfo.InvariantCulture),
+            ["w"] = diagnostics.W.ToString(CultureInfo.InvariantCulture),
+            ["sessionFailures"] = diagnostics.SessionFailures.ToString(CultureInfo.InvariantCulture),
+            ["observedPointUpdates"] = diagnostics.ObservedPointUpdates.ToString(CultureInfo.InvariantCulture),
+            ["testAsdusIgnored"] = diagnostics.TestAsdusIgnored.ToString(CultureInfo.InvariantCulture),
+            ["transportConnected"] = readiness.IsTransportConnected ? "true" : "false",
+            ["dataTransferStarted"] = readiness.IsDataTransferStarted ? "true" : "false",
+            ["startupGeneralInterrogationCompleted"] = readiness.StartupGeneralInterrogationCompleted ? "true" : "false",
+            ["startupGeneralInterrogationRejected"] = readiness.StartupGeneralInterrogationRejected ? "true" : "false",
+            ["commandsRequested"] = diagnostics.Commands.Requested.ToString(CultureInfo.InvariantCulture),
+            ["commandsCompleted"] = diagnostics.Commands.Completed.ToString(CultureInfo.InvariantCulture),
+            ["commandsRejected"] = diagnostics.Commands.Rejected.ToString(CultureInfo.InvariantCulture),
+            ["commandsTimedOut"] = diagnostics.Commands.TimedOut.ToString(CultureInfo.InvariantCulture),
+            ["commandsAmbiguous"] = diagnostics.Commands.Ambiguous.ToString(CultureInfo.InvariantCulture),
+            ["failureRateBasis"] = "managed-session lifetime evidence"
+        };
+
+        if (diagnostics.LastReconnectDelay.HasValue)
+            protocolDetails["lastReconnectDelayMilliseconds"] = diagnostics.LastReconnectDelay.Value.TotalMilliseconds.ToString(CultureInfo.InvariantCulture);
+        if (diagnostics.LastBackoffWasReset.HasValue)
+            protocolDetails["lastBackoffWasReset"] = diagnostics.LastBackoffWasReset.Value ? "true" : "false";
+
+        return new CommunicationDriverDiagnosticSnapshot(
+            DriverId,
+            Name,
+            Iec104EngineeringConnectionTester.DriverType,
+            diagnostics.RuntimeInstanceId,
+            $"{diagnostics.Host}:{diagnostics.Port.ToString(CultureInfo.InvariantCulture)}",
+            state,
+            stateChangedAt,
+            capturedAt,
+            lastSuccessfulCommunicationAt,
+            diagnostics.LastFailureAt,
+            diagnostics.LastError ?? transport?.LastFailure,
+            diagnostics.LastObservedPointAt.HasValue ? capturedAt - diagnostics.LastObservedPointAt.Value : null,
+            null,
+            null,
+            null,
+            null,
+            totalOperations == 0 ? 0d : failedOperations / (double)totalOperations,
+            _plan.Points.Count,
+            BuildQualitySummary(),
+            new CommunicationDriverCounters(
+                Cycles: diagnostics.ReconnectAttempt,
+                Requests: (transport?.AsdusSent ?? 0) + diagnostics.Commands.Requested,
+                SuccessfulOperations: successfulOperations,
+                FailedOperations: failedOperations,
+                ConsecutiveFailures: readiness.State == Iec104ReadinessState.Ready ? 0 : diagnostics.LastFailureAt.HasValue ? 1 : 0,
+                Timeouts: timeouts,
+                Connections: transport?.Connections ?? 0,
+                Disconnections: transport?.Disconnections ?? 0,
+                Reconnects: Math.Max(0, diagnostics.ReconnectAttempt - 1),
+                ReadOperations: diagnostics.ObservedPointUpdates,
+                WriteOperations: diagnostics.Commands.Requested,
+                UpdatesPublished: Interlocked.Read(ref _updatesPublished)),
+            protocolDetails);
+    }
+
     public async ValueTask DisposeAsync()
     {
         await _lifecycleGate.WaitAsync().ConfigureAwait(false);
@@ -897,6 +997,52 @@ internal sealed class Iec104HostCommunicationDriver : ICommunicationDriver, ICom
                 $"Value type is incompatible with IEC-104 command profile {point.CommandTypeId} for TAG '{point.Tag.Path}'.",
                 nameof(value))
         };
+    }
+
+    private CommunicationTagQualitySummary BuildQualitySummary()
+    {
+        var good = 0;
+        var badCommunication = 0;
+        var uncertain = 0;
+        var bad = 0;
+        var badConfiguration = 0;
+        var badDevice = 0;
+        var stale = 0;
+        var disabled = 0;
+        var noCurrentSample = 0;
+
+        foreach (var point in _plan.Points)
+        {
+            if (!_cache.TryGet(point.Tag.Id, out var current) || current is null)
+            {
+                noCurrentSample++;
+                continue;
+            }
+
+            switch (current.Quality)
+            {
+                case TagQuality.Good: good++; break;
+                case TagQuality.BadCommunication: badCommunication++; break;
+                case TagQuality.Uncertain: uncertain++; break;
+                case TagQuality.Bad: bad++; break;
+                case TagQuality.BadConfiguration: badConfiguration++; break;
+                case TagQuality.BadDevice: badDevice++; break;
+                case TagQuality.Stale: stale++; break;
+                case TagQuality.Disabled: disabled++; break;
+                default: bad++; break;
+            }
+        }
+
+        return new CommunicationTagQualitySummary(
+            good,
+            badCommunication,
+            uncertain,
+            bad,
+            badConfiguration,
+            badDevice,
+            stale,
+            disabled,
+            noCurrentSample);
     }
 
     private async Task StopCoreAsync()

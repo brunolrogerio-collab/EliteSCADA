@@ -1,192 +1,139 @@
 # LAST CHANGE — EliteSCADA
 
-Date: 2026-09-01 (BRT)
+**Date:** 2026-09-01 (BRT)  
+**Operational state:** **PRE-WAVE-11 #191 COMPLETE / ACCEPTED / INTEGRATED — WAVE 11 READY / NOT STARTED**
 
-## Read first
+> This file is the mutable coordinator resume point. Stable product intent remains in `PROJECT GOAL.md`. Always verify live refs/Actions before acting because documentation-only `[skip ci]` commits may advance `main` beyond the validated code SHA.
 
-Stable product intent: [`PROJECT GOAL.md`](PROJECT%20GOAL.md)  
-Current handoff: [`docs/CURRENT-COORDINATOR-HANDOFF.md`](docs/CURRENT-COORDINATOR-HANDOFF.md)  
-Roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md)  
-Driver/lab evidence: [`docs/DRIVER-AND-INTEROP-LAB-STATUS.md`](docs/DRIVER-AND-INTEROP-LAB-STATUS.md)  
-Active pre-Wave gate: [issue #191](https://github.com/brunolrogerio-collab/EliteSCADA/issues/191)
+## 1. Accepted code checkpoint
 
-Live GitHub refs and exact-SHA Actions evidence override stale SHAs copied into prose.
+Pre-Wave-11 owner-usability implementation:
 
-## Mandatory continuity rule
+- issue #191: **COMPLETE / ACCEPTED / INTEGRATED**;
+- implementation branch: `coordination/pre-wave11-licensegen-slider`;
+- exact implementation head: `aeb9b3b5641adee344c4ead166b97cc0adba3dbf`;
+- replacement integration PR #193: **MERGED**;
+- validated main code merge: `64ba134f88df61233c492f6c5e2b1ea8f244bf19`.
 
-The repository, not chat history, is the persistent coordination memory. A fresh coordinator must be able to resume safely from repository state alone.
+PR #192 was closed unmerged only because the connector failed to transition the draft PR to ready-for-review. PR #193 used the exact same validated head; there was no implementation divergence.
 
-For every material coordination cycle, decision, blocker, fix, validation run or next action:
+## 2. Validation evidence
 
-1. read `PROJECT GOAL.md` and `LAST CHANGE.md` before changing code;
-2. inspect live `main`, active branches/issues and exact-SHA Actions when implementation truth matters;
-3. persist exact branch/SHA/run/issue evidence;
-4. never leave a critical decision, blocker, diagnosis or next action only in chat;
-5. keep stable product/architecture rules in `PROJECT GOAL.md` and mutable operational truth here;
-6. when the Development Lead says `siga`, continue until completion or a real blocker;
-7. before reporting completion, synchronize repository documentation/issues affected by the work.
+### Pre-merge exact implementation head `aeb9b3b...`
 
-## Current checkpoint
+- EliteSCADA CI #1033 / run `33525910566`: **SUCCESS**;
+- Preview Licensing CI #90 / run `33525910582`: **SUCCESS**;
+- L3 Seven-Driver Lab #39 / run `33525910552`: **SUCCESS**.
 
-The Driver convergence + L3 stage is **COMPLETE**.
+### Post-main exact code SHA `64ba134f...`
 
-- Driver convergence issue #174: **CLOSED / COMPLETED**.
-- Integrated L3 issue #180: **CLOSED / COMPLETED**.
-- Demo/licensing issue #183: **CLOSED / COMPLETED / INTEGRATED**.
-- Pre-Wave 11 gate issue #191: **OPEN / ACTIVE**.
-- Wave 11: **NOT STARTED**.
-- Active branch: `coordination/pre-wave11-licensegen-slider` from `main`/`628f54a9c91be5113f4a1b0dfcf1672041eb7f2c`.
-- Active stage: **GUI License Generator + industrial Slider + application file workflow + minimum Dynamo library**.
+- Preview Licensing CI #92 / run `33527294658`: **SUCCESS**;
+- EliteSCADA CI #1035 / run `33527294657`: **SUCCESS**.
 
-Although L3 technically released the next development wave, the Development Lead explicitly inserted an owner-usability gate before Wave 11. **Do not create/start Wave 11 work until issue #191 is completed and accepted.**
+EliteSCADA CI #1035 initially failed one pre-existing IEC-104 T2 timing assertion (`Adapter_T2FlushesPendingReceiveAcknowledgementWithoutFaultingSession`, expected 0 / actual 1). The failed backend job was rerun **unchanged**. On the rerun:
 
-## Pre-Wave 11 gate #191
+- backend build: **SUCCESS**;
+- all backend tests: **SUCCESS**;
+- Runtime smoke: **SUCCESS**;
+- Web build: **SUCCESS**;
+- Chromium E2E: **SUCCESS**.
 
-### Task A — actual License Generator executable
+No production code or test assertion was changed to manufacture the post-main green result. The initial failure is classified as transient timing noise because it did not reproduce on the unchanged exact code SHA.
 
-The licensing implementation and Windows x64 publish path were accepted under #183, but the previous executable was CLI-only: double-clicking without arguments printed usage in a transient console and exited. That does not satisfy the Development Lead's operational requirement.
+## 3. Accepted pre-Wave-11 scope
 
-Current verified artifact:
+### A — Graphical Windows License Generator
 
-- code provenance: `9b963c40f013f115b9787049cdb90949a30cbcbc`;
-- Preview Licensing CI #81 / run `33510855126`: **SUCCESS**;
-- Actions artifact `EliteSCADA-LicenseGenerator-win-x64`, artifact id `9801589579`;
-- extracted payload: one self-contained `EliteSCADA.LicenseGenerator.exe`, Windows x64 PE32+;
-- executable SHA-256: `11d856889b14c61524214e640bc0e63e42d52687eadc7703926a5eb6ebe83a75`;
-- production private signing material remains external to GitHub, CI and normal product artifacts.
+**MERGED / ACCEPTED**
 
-Current implementation changes the Windows entry point to a WinForms application. Starting without arguments opens a Portuguese graphical form; command-line issuance remains available for controlled automation. Windows CI publishes a self-contained single-file `win-x64` executable and invokes a non-interactive `--smoke-test` path before artifact upload.
+- normal double-click opens a WinForms graphical interface;
+- machine request, TAG tier, external private PEM, Key ID, optional expiry and output path are supported;
+- controlled CLI remains available;
+- private signing material is loaded only from an explicit external path and is not embedded in GitHub/CI/product artifacts.
 
-State: **GUI IMPLEMENTED LOCALLY / WINDOWS BUILD AND ARTIFACT EVIDENCE PENDING CI**.
+Post-main artifact from Preview Licensing CI #92:
 
-### Task B — industrial Slider visual control
+- artifact name: `EliteSCADA-LicenseGenerator-win-x64`;
+- artifact id: `9808306320`;
+- code SHA: `64ba134f88df61233c492f6c5e2b1ea8f244bf19`;
+- `EliteSCADA.LicenseGenerator.exe`: 116,257,103 bytes;
+- format: PE32+ Windows GUI, x86-64;
+- executable SHA-256: `841dea832d67f44e07aa10b2de96ccfffd5d518beeadafb48ed34e16d0317523`;
+- GitHub artifact ZIP digest: `sha256:888ed224f686918f50e27dd5998e105a5e26900edd87254a1f163d7be9416943`.
 
-Research of the established Elipse E3 HMI behavior identified Linear Slider / Rotation Slider semantics backed by translation/rotation animation and properties including interaction enablement, range and current value. This validates the requested dual use: passive indication or operator adjustment.
+Earlier implementation-head artifact #90 remains historical evidence:
 
-EliteSCADA repository audit found no built-in Slider before this gate. `Analog Fill` was passive indication only and was not a substitute for an interactive Slider.
+- artifact id `9807739588`;
+- executable SHA-256 `b0aa2f86433fdc141689eafb53f6acb3a25a12a513afde8061f805f6dacc94f5`.
 
-Required implementation is tracked in #191 and must remain inside the canonical visual/Engineering/runtime architecture. It must support passive display and an interactive authorized value-adjustment mode without frontend-to-Driver bypass.
+### B — Canonical industrial Slider
 
-Current branch adds `core.slider` to the shared backend/frontend Visual Property Registry and built-in schema, palette, editor defaults, live-value projection and canonical renderer. Passive mode displays the bound value. Interactive mode requires a writable stable TAG binding, good quality and runtime write callback; commands use the protected audited `/api/tags/{id}/write` boundary and fail closed for read-only/unavailable/unauthorized state.
+**MERGED / ACCEPTED**
 
-State: **IMPLEMENTED LOCALLY / FOCUSED TESTS ADDED / CI PENDING**.
+`core.slider` is integrated in the shared backend/frontend visual model. Passive display never writes. Interactive adjustment writes only through the protected/audited Runtime TAG boundary and fails closed for invalid, unavailable, read-only, non-writable or unauthorized targets.
 
-### Task C — developer-selected application file
+### C — Explicit application file Save/Open
 
-EliteSCADA already had a versioned `.escadapkg` ZIP container containing manifest, canonical Engineering JSON and assets, but Engineering presented it mainly as backup/download. The branch makes the product language explicit: **Save Application As** chooses a developer-owned `.escadapkg` path when the browser supports the File System Access API, with browser download fallback; **Open Application** retains inspect/Preview/Apply safety.
+**MERGED / ACCEPTED**
 
-The portable application file is intentionally distinct from the server-side Working/Revision lifecycle. The design follows the useful E3 Domain/Project idea—an explicit developer-owned application boundary—without copying a multi-file layout for the first release. See `docs/APPLICATION-PROJECT-STORAGE.md`.
+Developer-selected **Save Application As** and **Open Application** use the portable `.escadapkg` boundary while preserving inspect/Preview/Apply safety and the distinction from server Working/Revisions/Published/Active lifecycle state.
 
-State: **IMPLEMENTED LOCALLY / WEB BUILD PASS / CI PENDING**.
+### D — Minimum built-in Dynamo library
 
-### Task D — minimum built-in Dynamo library
+**MERGED / ACCEPTED**
 
-The branch seeds eight canonical, original and insertable definitions through the Engineering asset registry:
+Eight canonical ready-to-insert definitions exist:
 
-- pumps: centrifugal standard and submersible;
-- motors: standard and VFD;
-- valves: on/off and control;
-- tanks: vertical and horizontal.
+- `process.motor.standard`;
+- `process.motor.vfd`;
+- `dynamo.pump.standard`;
+- `process.pump.submersible`;
+- `process.valve.onoff`;
+- `process.valve.control`;
+- `process.tank.vertical`;
+- `process.tank.horizontal`.
 
-The graphical editor exposes a Dynamo library palette and creates instances with stable `dynamoKey`, placement, default bounds and optional `equipmentPath`. Runtime composition substitutes `{equipmentPath}` in child TAG bindings without mutating the shared definition.
+Instance `{equipmentPath}` substitution remains canonical and does not mutate shared definitions.
 
-State: **IMPLEMENTED LOCALLY / FOCUSED TESTS ADDED / CI PENDING**.
+## 4. Coordination cleanup
 
-### Windows 11 publisher trust
+- historical issue #184 was closed as completed/superseded after later accepted licensing #183, main integration and L3 evidence made its old `BLOCKS PR #175` status obsolete;
+- `PROJECT GOAL.md`, `docs/ROADMAP.md` and `docs/CURRENT-COORDINATOR-HANDOFF.md` were synchronized after the accepted gate using documentation-only `[skip ci]` commits;
+- issue #191 can now be closed as completed with its final evidence comment.
 
-Unsigned or unknown-publisher warnings are not considered fixed in this Preview gate. Stable product goals and Wave 13 now require an Authenticode-signed Windows x64 package with a trusted timestamp and release verification. Signing credentials must remain outside repository and normal build artifacts; SmartScreen reputation is a separate deployment/reputation concern and cannot be truthfully claimed from a locally produced unsigned Preview executable.
+## 5. Next authorized stage — Wave 11
 
-State: **REQUIREMENT LOCKED IN PRODUCT GOAL AND ROADMAP / IMPLEMENTATION DEFERRED TO WAVE 13**.
+**READY / NOT STARTED at this checkpoint.**
 
-## Driver/L3 acceptance evidence
+Roadmap objective: **Complete HMI Runtime demo vertical slice**.
 
-First complete technical L3 proof:
+The current default Runtime in `web/scada-web/src/main.tsx` still hand-renders the Demo process (`Demo.Tank01`, `Demo.P01`, discharge metrics and modal). That hand-authored surface must stop being Runtime application truth.
 
-- SHA `958bc9aa2bbaf788d9a15c19d986ba728a7562fd`;
-- L3 Seven-Driver Lab #23 / run `33478345659`: **SUCCESS**.
+Existing foundation to reuse:
 
-Final exact-head stabilization proof before the final integration:
+- canonical Screen/Popup/Dynamo Engineering;
+- `RuntimeVisualDefinitionRenderer` and the canonical visual renderer;
+- screen/popup runtime navigation model;
+- Dynamo runtime composition;
+- Client Visual Python/event runtime;
+- realtime TAG transport;
+- protected Runtime TAG writes;
+- alarms, TAG Inspector, Trends and Historical Data Browser;
+- persisted lifecycle with an **Active Revision**.
 
-- SHA `02b7408e68b81355de6a56dc0267c9e28c0c74bf`;
-- EliteSCADA CI #1023 / run `33510090342`: **SUCCESS**;
-- Preview Licensing CI #80 / run `33510090333`: **SUCCESS**;
-- L3 Seven-Driver Lab #30 / run `33510090344`: **SUCCESS**.
+Critical architectural requirement for Wave 11:
 
-Final code integration into `main`:
+> Runtime visual application state must derive from the **active persisted canonical Engineering revision**, not the editable Working export. Working edits must not appear in Runtime until normal save/publish/activate lifecycle semantics make them active.
 
-- PR #190: **MERGED**;
-- code SHA `9b963c40f013f115b9787049cdb90949a30cbcbc`;
-- EliteSCADA CI #1024 / run `33510855124`: **SUCCESS**;
-- Preview Licensing CI #81 / run `33510855126`: **SUCCESS**.
+The persistence service already exposes `LoadActiveAsync(projectKey)` internally, but the browser currently has no dedicated active-package Runtime projection. The first Wave 11 slice should add a protected deterministic active-revision projection, then mount the active Screen/Popup/Dynamo application through the existing canonical Runtime visual stack.
 
-Documentation-only coordination commits after that code SHA use `[skip ci]`; they update handoff/roadmap/evidence and do not represent a newer code-validation claim.
+## 6. Exact next action
 
-## What L3 proved
+1. close issue #191 as completed after its final acceptance comment;
+2. create a dedicated Wave 11 issue;
+3. create a Wave 11 coordination branch from live `main` after the documentation-only gate commits;
+4. update this file/handoff/roadmap to the resulting live issue, branch and head;
+5. implement the active-Engineering HMI Runtime vertical slice without bypassing lifecycle/security/canonical visual boundaries;
+6. require exact-head backend build/tests/runtime smoke, Web build and Chromium E2E before integration.
 
-One EliteSCADA runtime operated all seven communication Drivers concurrently:
-
-1. MQTT;
-2. IEC-104;
-3. CIP / EtherNet/IP;
-4. OPC UA;
-5. DNP3;
-6. Siemens S7 ISO-on-TCP;
-7. BACnet/IP.
-
-The accepted sequence proved seven-peer startup, common activation/readiness, concurrent acquisition 7/7 through canonical TAG/cache flow, supported writes/commands, heterogeneous TAG Gateway behavior, fault isolation/recovery, clean shutdown and no weakened assertion to manufacture acceptance.
-
-Resolved L3 defects must not be reopened without fresh evidence. Historical fixes include BACnet explicit loopback binding, IEC-104 common diagnostics, cross-slice CIP state reset, BACnet REAL analog writes, commandable BACnet priority fixture and reconnect-safe MQTT recovery stimulus.
-
-## Demo/licensing state
-
-Status: **IMPLEMENTED / ACCEPTED / INTEGRATED**.
-
-Accepted behavior includes:
-
-- Engineering may exceed 200 TAGs;
-- Demo Run allowed at <=200 TAGs;
-- Demo runtime limited to 300 continuous minutes per explicit Run session;
-- later explicit Run starts a fresh Demo session;
-- valid machine-bound signed licenses grant 500 / 1000 / 1500 / 3000 / 5000 / Unlimited TAG tiers;
-- licensed/evaluation tiers remove the Demo runtime timer under the accepted contract;
-- invalid/tampered/expired/unknown-key/wrong-machine installed license blocks Run;
-- versioned machine request code;
-- protected licensing API and management UI;
-- offline Windows x64 `EliteSCADA.LicenseGenerator.exe` publish path;
-- private signing material remains external to GitHub, CI and normal product binaries.
-
-Authority: issue #183, `docs/LICENSING-AND-DEMO-MODE.md`, `docs/licensing/ACCEPTANCE-EVIDENCE-2026-08-31.md`.
-
-## Current stage / exact next action
-
-**Issue #191 is the active gate.**
-
-Execute in order:
-
-1. finish source-level validation and focused coverage for all four implementation tasks;
-2. commit/push the active branch and update #191 to the full accepted scope;
-3. require normal EliteSCADA CI and Preview Licensing CI green on the exact implementation SHA;
-4. retrieve and verify the new graphical Windows x64 artifact, retaining provenance/checksum;
-5. integrate to `main` only when green, then obtain appropriate post-main evidence;
-6. synchronize #191, this file, roadmap and handoff with exact SHA/run evidence;
-7. close #191 only after the gate is accepted;
-8. only then may Wave 11 start.
-
-## Later Wave 11 context
-
-When eventually released, Wave 11 remains the owner-testable HMI Runtime vertical slice. Current `web/scada-web/src/main.tsx` still includes a hardcoded Runtime Demo while reusable alarms, TAG inspector, trends, history, client memory and visual-runtime infrastructure already exist. Wave 11 should make the Runtime derive from canonical Engineering rather than preserve hardcoded Demo truth.
-
-This is future context only, not authorization to begin Wave 11.
-
-## Resume instruction
-
-A coordinator should:
-
-1. read `PROJECT GOAL.md`;
-2. read this file;
-3. read issue #191;
-4. read `docs/CURRENT-COORDINATOR-HANDOFF.md` and `docs/ROADMAP.md`;
-5. confirm live `main` and latest Actions;
-6. continue issue #191 until accepted before any Wave 11 work.
-
-Repository/CI state wins over stale chat memory.
+Wave 12 remains hardening. Wave 13 remains the mandatory Authenticode + trusted timestamp Windows release-signing stage. Physical L4 remains later Preview/device-specific validation.

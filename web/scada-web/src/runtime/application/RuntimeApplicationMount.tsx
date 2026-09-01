@@ -36,7 +36,7 @@ export function RuntimeApplicationMount() {
       try {
         const next = await loadRuntimeApplicationProjection(controller.signal);
         if (disposed) return;
-        setProjection(next);
+        setProjection(current => sameRuntimeProjection(current, next) ? current : next);
         setError(null);
       } catch (reason) {
         if (disposed || controller.signal.aborted) return;
@@ -143,4 +143,15 @@ function EngineeringRuntimeApplication({ projection }: { projection: RuntimeAppl
       />
     </section>
   </main>;
+}
+
+function sameRuntimeProjection(
+  current: RuntimeApplicationProjection | null,
+  next: RuntimeApplicationProjection
+): boolean {
+  if (!current || current.mode !== next.mode) return false;
+  if (next.mode === 'simulation') return true;
+  return current.projectKey === next.projectKey &&
+    current.revision === next.revision &&
+    current.activatedAtUtc === next.activatedAtUtc;
 }

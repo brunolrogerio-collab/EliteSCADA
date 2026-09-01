@@ -1,34 +1,24 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-09-01 (BRT)  
-**Active direction:** **WAVE 12 — HARDENING IN PROGRESS**
-
-**Wave 11:** **COMPLETE / ACCEPTED / CLOSED — issue #194**  
-**Wave 12:** **issue #201 IN PROGRESS — AUDIT COMPLETE / IMPLEMENTATION STARTED**
+**Active direction:** **WAVE 12 — HARDENING IN PROGRESS / PR #202**
 
 Authoritative product intent: `PROJECT GOAL.md`.  
-Mutable coordination state: `LAST CHANGE.md`.  
+Mutable resume point: `LAST CHANGE.md`.  
 Operational handoff: `docs/CURRENT-COORDINATOR-HANDOFF.md`.  
 Wave 12 preparation: `docs/WAVE-12-HARDENING-PREPARATION.md`.  
-Wave 12 active audit: `docs/WAVE-12-HARDENING-AUDIT.md`.
-
-Future Linux/Debian distribution: `docs/LINUX-DEBIAN-DISTRIBUTION.md`.  
+Wave 12 active ledger: `docs/WAVE-12-HARDENING-AUDIT.md`.  
 CI policy: `docs/CI-VALIDATION-POLICY.md`.
 
 ## Current validated foundation
 
-- Waves 03 through 10: **COMPLETE / MERGED**.
-- Seven communication Drivers: shared convergence **COMPLETE / MERGED**, independent L2 **7/7 PASS**, integrated L3 **PASS / ACCEPTED**.
-- Demo/hardware-bound licensing: **IMPLEMENTED / ACCEPTED / MERGED**.
-- Pre-Wave-11 owner-usability gate #191: **COMPLETE / ACCEPTED / MERGED** through PR #193.
-- Repository/CI hygiene: **COMPLETE / ACCEPTED / INTEGRATED** through PRs #196 and #197.
-- Wave 11 Active Engineering HMI Runtime: **IMPLEMENTED / MERGED / POST-MAIN VALIDATED / ACCEPTED** through PR #199 and issue #194.
-- Wave 11 owner-test `.escadapkg` handoff: **IMPLEMENTED / MERGED / POST-MAIN VALIDATED / ACCEPTED** through PR #200.
-- Latest validated product-code `main`: `4ccc29cb4bb334dc473d8265f48a9c8601993413`.
-- Post-main Wave 11 workflow #14 / `33552016447`: **SUCCESS**.
-- Post-main EliteSCADA CI #1067 / `33552016454`: **SUCCESS** including backend build/tests/runtime smoke, Web build and Chromium E2E.
-
-Documentation-only `[skip ci]` commits have advanced `main` beyond the validated product-code SHA without superseding its validation evidence.
+- Waves 03–10: **COMPLETE / MERGED**.
+- Seven communication Drivers shared convergence + L2 + integrated L3: **COMPLETE / ACCEPTED**.
+- Demo/hardware-bound licensing and offline License Generator: **IMPLEMENTED / ACCEPTED / MERGED**.
+- Pre-Wave-11 owner-usability gate #191: **COMPLETE / ACCEPTED / MERGED**.
+- Repository/CI hygiene: **COMPLETE / MERGED**.
+- Wave 11 Active Engineering HMI Runtime + owner-test `.escadapkg`: **COMPLETE / ACCEPTED / CLOSED** under issue #194.
+- Accepted Wave 11 product-code baseline: `4ccc29cb4bb334dc473d8265f48a9c8601993413`.
 
 ## Ordered path to v0.1
 
@@ -41,114 +31,65 @@ Wave 07      Visual Runtime Object Model + typed visual Engineering             
 Wave 08      Graphical Editor + Image + Engineering Development Monitor                  COMPLETE
 08-FOLLOW-A  TAG Bit Access + Driver Bit-Level Boolean Binding                           COMPLETE
 08-FOLLOW-B  Typed Visual Expressions + Boolean Conditions + Analog Fill                 COMPLETE
-Wave 09      Screens + Popups + Dynamos + navigation + Historical Data + Reporting       COMPLETE
+Wave 09      Screens + Popups + Dynamos + Historical Data + Reporting                   COMPLETE
 Wave 10      Python visual events + animation + preview                                  COMPLETE
-Driver Lab   Seven-peer reproducible interoperability infrastructure                     COMPLETE / MERGED
-Driver L2    Independent product-path protocol evidence                                  7/7 PASS
-Drivers      Shared runtime/Engineering convergence                                      COMPLETE / MERGED
-DemoLicense  Demo + hardware-bound licensing + offline License Generator                 COMPLETE / ACCEPTED / MERGED
-Driver L3    Seven Drivers concurrently + Gateway + fault/recovery                       PASS / ACCEPTED / INTEGRATED
-Pre-Wave 11  GUI License Generator + Slider + application file + minimum Dynamo library  COMPLETE / ACCEPTED / MERGED
-CI Hygiene   Specialized CI routing + stale PR/issue sanitation + focused ownership      COMPLETE / MERGED
-Wave 11      Active persisted Engineering HMI Runtime + owner-test package                COMPLETE / ACCEPTED / CLOSED
-Wave 12      Hardening                                                                   IN PROGRESS / #201
+Driver L3    Seven Drivers concurrently + Gateway + fault/recovery                       PASS / ACCEPTED
+Pre-Wave 11  GUI License Generator + Slider + application file + Dynamo library          COMPLETE
+Wave 11      Active persisted Engineering HMI Runtime + owner-test package                COMPLETE / CLOSED
+Wave 12      Hardening                                                                   IN PROGRESS / #201 / PR #202
 Wave 13      Signed Windows x64 package + Authenticode release verification              WAITING / REQUIRED
 Wave 14      Product-owner validation                                                    WAITING
 Wave 15      Feedback/corrections                                                        WAITING
 Preview      EliteSCADA Preview build                                                    FUTURE
-Driver L4    Physical hardware/site validation by Development Lead                       AFTER PREVIEW BUILD
+Driver L4    Physical hardware/site validation                                           AFTER PREVIEW BUILD
 FINAL        EliteSCADA v0.1 — Full Product Validation Preview
 ```
 
-## Future distribution tracks outside the current v0.1 sequence
+## Wave 12 checkpoint
 
-These are product directions, not active implementation stages. They start only when explicitly authorized by the Development Lead.
+Branch: `coordination/wave12-hardening`  
+Draft PR: #202  
+Branch base: `a2d865c017b8b8ad804f9270e5224ac1fa620ed0`  
+Latest validated Wave 12 product-code SHA: `012d15554d96af8600953a793cd58f0a5fc11c4d`
 
-```text
-DNP3 License Commercial license or approved dependency alternative                       FUTURE / REQUIRED BEFORE COMMERCIAL PACKAGE WITH DNP3
-LinuxDeb     Official Linux x64 Debian .deb distribution                                 FUTURE / NOT STARTED / DEVELOPMENT-LEAD TRIGGER
-Debian 12    First Linux amd64 packaging/homologation target                             PLANNED FIRST TARGET
-Debian 13    Follow-up Linux amd64 homologation target                                   PLANNED AFTER DEBIAN 12
-```
+Exact checkpoint evidence:
 
-The Linux distribution is expected to be a packaging/integration front rather than a product port. Planned scope includes `linux-x64` self-contained publish, React/Pyodide assets served by Kestrel, `/usr/lib/elitescada` + `/etc/elitescada` + `/var/lib/elitescada` layout, Linux-persistent licensing, system user + `elitescada.service`, external PostgreSQL/TimescaleDB configuration, `.deb amd64`, clean-Debian install/upgrade CI, installed Runtime/Web/licensing/Driver validation and SBOM/dependency-license auditing.
+- EliteSCADA CI #1075 / `33565105224`: **SUCCESS**;
+- L3 Seven-Driver Lab #71 / `33565105291`: **SUCCESS**;
+- Preview Licensing CI #124 / `33565105254`: **SUCCESS**;
+- Wave 11 Active HMI Runtime #22 / `33565105207`: **SUCCESS**.
 
-Initial Linux packaging should remain multi-file internally; the `.deb` itself is the distribution artifact. Single-file publish is not a first-version requirement because native libraries, Pyodide assets and future installable Drivers benefit from an explicit package layout.
+Closed with regression evidence at this checkpoint:
 
-The current Step Function I/O `dnp3` 1.6.0 dependency is a commercial-distribution gate: its public license is non-commercial/non-production. Before any commercial EliteSCADA package includes/enables this Driver, obtain an appropriate commercial license or approve/revalidate an alternative dependency. DNP3 licensing remediation is expected before the Linux `.deb` front unless the authorized package explicitly excludes DNP3.
+- W12-RT-001 realtime client isolation;
+- W12-PER-001 persistence Save atomicity/serialization;
+- W12-ING-001 bounded Engineering ingress;
+- W12-PKG-001 package resource-limit symmetry;
+- W12-PER-002 Persistence Apply lease/CAS parity.
 
-Full future Linux contract: `docs/LINUX-DEBIAN-DISTRIBUTION.md`.
+Next High finding: **W12-AUTH-001 local-identity mutation concurrency and last-administrator invariant**.
 
-## Wave 11 accepted result
+Remaining afterward: W12-AUTH-002, W12-API-001 and W12-AUD-001.
 
-Wave 11 replaced the hand-authored Runtime Demo as application truth with an HMI Runtime derived from the **active persisted canonical Engineering revision**.
-
-Accepted lifecycle authority:
-
-`Working -> saved Revision -> Published -> Active -> HMI Runtime projection`
-
-Accepted capabilities include:
-
-1. protected backend projection of persisted Active Engineering;
-2. deterministic project/revision consistency and fail-closed behavior;
-3. canonical Screen/Popup/Dynamo Runtime mount;
-4. Active visual assets with integrity validation and explicit Runtime asset authority;
-5. protected Slider/TAG writes through the existing Runtime API;
-6. explicit Simulation fallback only when no Engineering runtime is active;
-7. Active A -> Working isolation -> Active B browser proof;
-8. operator Runtime `View` without Working Engineering read authority;
-9. real imported PNG served from the Active revision;
-10. owner-test portable application package generated through the normal package export boundary and validated through inspect/import-preview.
-
-Final owner-test application:
-
-- `EliteSCADA-Wave11-Demo.escadapkg`;
-- post-main artifact id `9817878392`;
-- application SHA-256 `13261af59b8707df7d9ef3bbea307cb0c85d945ea8f47315fb693c92c885efa1`.
-
-Issue #194 is **CLOSED / COMPLETED**.
-
-## Wave 12 active boundary
-
-Wave 12 issue #201 is **IN PROGRESS**. After the required live-state review and failure-surface audit, branch `coordination/wave12-hardening` was created from live `main` `a2d865c017b8b8ad804f9270e5224ac1fa620ed0`. No Wave 12 PR or acceptance-CI evidence exists yet.
-
-Wave 12 is a hardening stage over already accepted contracts, focused on:
-
-- fail-closed/recovery behavior;
-- authorization and audit boundaries;
-- persistence/restart consistency;
-- `.escadapkg` integrity and atomic preview/apply behavior;
-- runtime resource/fault isolation;
-- concurrency/race review;
-- diagnostic sanitization;
-- regression and CI hardening.
-
-Wave 12 is not a feature-expansion wave. New Drivers/protocols, Authenticode/release signing, owner validation and physical L4 remain outside its scope.
-
-The active finding/slice ledger is `docs/WAVE-12-HARDENING-AUDIT.md`. The first implementation slice addresses realtime WebSocket isolation, exact-snapshot/serialized Engineering persistence saves, bounded JSON/CSV import ingress and `.escadapkg` export/import limit symmetry. Remaining findings must be fixed with regression evidence or explicitly dispositioned before Wave 12 closes.
-
-## CI validation strategy
-
-`EliteSCADA CI` is the universal Coordinator acceptance gate for PRs to `main`.
-
-Specialized validation remains affected-subsystem based:
-
-- `Preview Licensing CI`: licensing, License Generator, product capacity and licensing-sensitive shared paths; manual/release execution remains available.
-- `L3 Seven-Driver Lab`: Drivers, DriverHost, communication, Gateway, TAG/event, Driver tests and interoperability lab; manual/cross-cutting/release execution remains available.
-- structural impact may require a manual specialized run even when path filters do not select it automatically.
-
-Repository fact: `main` currently has no configured branch protection / required status checks. The universal CI requirement remains an operational merge rule rather than GitHub enforcement.
+Wave 12 is not complete and PR #202 must remain unmerged until the ledger is fully fixed or explicitly dispositioned and final exact-SHA CI evidence is green.
 
 ## Quality locks
 
 - canonical Engineering/backend authority;
-- Runtime derives from Active persisted Engineering, never mutable Working/browser-only state;
-- schema-v15 `CommunicationBinding` remains the rich communication TAG authority;
-- licensing remains host-owned; Drivers do not inspect license/hardware state directly;
-- private signing keys never enter GitHub, CI or distributed product builds;
+- Runtime derives from Active persisted Engineering, never mutable Working;
+- security is enforced in the backend;
 - no Driver-to-Driver coupling or canonical TAG/cache/event bypass;
+- licensing remains host-owned;
+- private signing keys never enter GitHub, CI or distributed product builds;
 - no test weakening to manufacture green evidence;
-- L2 does not imply L3; L3 does not imply physical L4;
-- exact CI evidence is required at material stage transitions;
-- Wave 13 retains mandatory Authenticode + trusted timestamp release signing;
-- commercial packaging must not silently ship a dependency outside its permitted license terms; DNP3 requires an explicit commercial-license/alternative disposition before commercial inclusion.
+- EliteSCADA CI is the universal merge gate even without GitHub branch protection;
+- specialized CI is impact-based and never substitutes for the universal gate;
+- Wave 13 retains Authenticode + trusted timestamp release signing;
+- Linux `.deb` remains specified/not started until Development Lead authorization;
+- commercial packaging cannot include/enable DNP3 without an appropriate commercial license or approved/revalidated replacement.
+
+## Future distribution tracks
+
+`docs/LINUX-DEBIAN-DISTRIBUTION.md` remains **SPECIFIED / NOT STARTED**. Debian 12 `amd64` remains the first planned target, followed by Debian 13. No Linux implementation belongs in Wave 12.
+
+Step Function I/O `dnp3` 1.6.0 remains a commercial-distribution gate because its public licensing is non-commercial/non-production.

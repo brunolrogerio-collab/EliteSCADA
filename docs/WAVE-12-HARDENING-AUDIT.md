@@ -1,79 +1,110 @@
 # Wave 12 — Hardening Audit
 
-**Status:** ACTIVE — INITIAL AUDIT COMPLETE / REMEDIATION IN PROGRESS
+**Status:** ACTIVE — REMEDIATION IN PROGRESS  
+**Audit date:** 2026-09-01 BRT  
+**Issue:** #201 — Wave 12 — Hardening  
+**Branch:** `coordination/wave12-hardening`  
+**Draft PR:** #202  
+**Branch base:** `a2d865c017b8b8ad804f9270e5224ac1fa620ed0`
 
-**Audit date:** 2026-09-01 BRT
+This is the active finding and remediation ledger. A finding closes only when its root cause is fixed with focused regression evidence and exact-SHA validation, or an explicit residual-risk disposition is recorded.
 
-**Issue:** #201 — Wave 12 — Hardening
+Latest validated Wave 12 product-code checkpoint:
 
-**Branch:** `coordination/wave12-hardening`
+`012d15554d96af8600953a793cd58f0a5fc11c4d`
 
-**Branch base:** live `main` `a2d865c017b8b8ad804f9270e5224ac1fa620ed0`
+Evidence:
 
-This is the active finding and implementation-slice ledger for Wave 12. A finding closes only after its root cause is fixed with focused regression evidence, or after an explicit residual-risk disposition is recorded. Green CI alone does not close a finding.
+- EliteSCADA CI #1075 / `33565105224`: **SUCCESS**;
+- L3 Seven-Driver Lab #71 / `33565105291`: **SUCCESS**;
+- Preview Licensing CI #124 / `33565105254`: **SUCCESS**;
+- Wave 11 Active HMI Runtime #22 / `33565105207`: **SUCCESS**.
 
-## 1. Baseline verification
-
-- Mandatory coordination documents and issue #201 were read before branch creation.
-- Live GitHub state at start: no open PRs; open issues #201 and intentionally deferred L4 #178.
-- The branch base is documentation-only beyond the accepted Wave 11 product-code SHA `4ccc29cb4bb334dc473d8265f48a9c8601993413`.
-- Latest product-code evidence at start: Wave 11 workflow #14 / `33552016447` and EliteSCADA CI #1067 / `33552016454`, both successful at that exact product-code SHA.
-- Repository inventory at start: 181 C# test files with 657 `[Fact]`/`[Theory]` declarations and 92 Playwright spec files.
-- The coordination environment does not provide the .NET SDK, so local .NET execution is not acceptance evidence. Exact-head GitHub CI remains mandatory.
-
-## 2. Existing controls confirmed
+## 1. Existing controls that remain locked
 
 - HMI Runtime resolves persisted Active Engineering and fails closed on project/revision/package inconsistency.
-- Activation stages and validates the candidate before publishing it as Active, preserving the previous Active revision on failure.
-- `.escadapkg` import already validates entry paths, duplicate payloads, declared checksums/lengths, asset consistency and aggregate import limits.
-- Protected backend authorization remains distinct across Runtime View, Engineering Modify, TAG writes and administration.
+- Activation validates the candidate before publishing Active and preserves the previous Active on failure.
+- `.escadapkg` import validates paths, duplicates, checksums/lengths, assets and aggregate resource limits.
+- Runtime View, Engineering Modify, TAG writes and administration remain separately authorized.
 - Script execution uses bounded queues, cancellation/timeout boundaries and sanitized diagnostics.
-- Audit storage is append-only and its buffering/query surfaces are bounded.
-- Core Engineering mutation endpoints use workspace serialization and compare-and-swap version checks.
+- Core Engineering mutations use workspace serialization and compare-and-swap version checks.
+- No test, security or lifecycle boundary may be weakened merely to make CI green.
 
-These controls are locks to preserve, not assertions to relax while hardening adjacent paths.
+## 2. Findings
 
-## 3. Findings
-
-| ID | Severity | Surface | Finding and required disposition | State |
+| ID | Severity | Surface | Required disposition | State |
 |---|---|---|---|---|
-| W12-RT-001 | High | Realtime | `TagRealtimeHub.BroadcastAsync` sends to sockets sequentially with no per-client queue or send timeout. One stalled client can block the TAG event consumer and delivery to every later client. Isolate clients with bounded outbound work and disconnect/evict stalled or overflowing clients. | First slice |
-| W12-PER-001 | High | Persistence | `EngineeringProjectPersistenceService.SaveCurrentDerivedAsync` exports package and JSON through separate live snapshots; the API Save path does not hold the workspace mutation lease across snapshot/persist/accept-save. A concurrent mutation can create mixed or falsely clean persisted state. Derive all payloads from one canonical snapshot and serialize the transaction boundary. | First slice |
-| W12-ING-001 | High | Engineering ingress | JSON and CSV preview/apply endpoints read request bodies with unbounded `ReadToEndAsync`. Add explicit byte limits, Content-Length fast rejection, streaming enforcement, strict decoding and sanitized client errors. | First slice |
-| W12-PKG-001 | High | `.escadapkg` | Export enforces manifest/compressed-output limits but can emit an Engineering payload, file count or total uncompressed payload that its own importer rejects. Enforce symmetric limits before producing the archive and add boundary regression tests. | First slice |
-| W12-PER-002 | High | Persistence Apply | Latest/revision Apply paths can replace Working without the same workspace mutation lease/CAS contract used by canonical Engineering mutations. Serialize and require a caller-observed version to prevent silent lost updates. | Pending |
-| W12-AUTH-001 | High | Local identities | Concurrent user update/password reset operations can overwrite each other, and concurrent last-administrator mutations can violate the administrator invariant. Introduce transactional/concurrency protection and invariant-focused tests. | Pending |
-| W12-AUTH-002 | Medium | Login limiting | `LocalLoginAttemptLimiter` retains unique remote-key entries indefinitely. Add bounded expiry/cleanup without weakening lockout behavior. | Pending |
-| W12-AUD-001 | High | Audit durability | `BufferedAuditSink` rejects overflow, while `ApiAuditService` logs/swallow failures and protected mutations continue. Product-safe behavior during sustained audit unavailability must be explicitly selected, implemented and regression-tested; silent protected-action audit loss is not acceptable. | Pending design disposition |
-| W12-API-001 | Medium | Requests/diagnostics | Invalid history ranges and persistence limits can reach provider-dependent failures and inconsistent 500 responses. Normalize validation and ensure diagnostics remain actionable without exposing protected values. | Pending |
+| W12-RT-001 | High | Realtime | Isolate slow/stalled realtime clients with bounded outbound work and deterministic eviction. | **FIXED / REGRESSION / VALIDATED** |
+| W12-PER-001 | High | Persistence Save | Derive persisted payloads from one canonical snapshot and serialize snapshot/persist/AcceptSave. | **FIXED / REGRESSION / VALIDATED** |
+| W12-ING-001 | High | Engineering ingress | Bound JSON/CSV request bodies with fast/streaming rejection, strict decoding and sanitized client errors. | **FIXED / REGRESSION / VALIDATED** |
+| W12-PKG-001 | High | `.escadapkg` | Enforce export resource limits symmetric with the importer. | **FIXED / REGRESSION / VALIDATED** |
+| W12-PER-002 | High | Persistence Apply | Serialize Apply with the Working mutation lease and require caller-observed version/CAS. | **FIXED / REGRESSION / VALIDATED** |
+| W12-AUTH-001 | High | Local identities | Prevent concurrent lost updates and preserve the last-enabled-administrator invariant across the entire logical mutation. | **ACTIVE NEXT** |
+| W12-AUTH-002 | Medium | Login limiting | Bound/expire unique remote-key entries without weakening lockout. | Pending |
+| W12-AUD-001 | High | Audit durability | Select and implement an explicit product-safe audit-outage contract; silent protected-action audit loss is unacceptable. | Pending design disposition |
+| W12-API-001 | Medium | Requests/diagnostics | Normalize request validation/provider failures and sanitize deterministic diagnostics. | Pending |
 
-## 4. Ordered remediation slices
+## 3. Closed remediation details
 
-### Slice A — Immediate isolation and atomicity
+### W12-RT-001
 
-1. W12-RT-001: bounded per-client realtime delivery and deterministic stalled-client eviction.
-2. W12-PER-001: one canonical Engineering snapshot plus serialized Save boundary.
-3. W12-ING-001: bounded JSON/CSV request-body reader and endpoint regression coverage.
-4. W12-PKG-001: symmetric export/import resource limits and boundary tests.
+Realtime delivery now isolates clients with bounded per-client outbound work and stalled/overflowing client eviction so one client cannot block the TAG event consumer or later clients.
 
-### Slice B — Mutation concurrency
+Validation uncovered a regression in session-revocation close semantics: premature lifetime cancellation produced browser close 1006 rather than required 1008 Policy Violation. The root cause was fixed without weakening the E2E assertion. Commit `25444267e20b668a22191a662d6eeb4bef4b88d5` was green in EliteSCADA CI #1071, L3 #67, Preview Licensing #120 and Wave 11 Runtime #18.
 
-1. W12-PER-002: persistence Apply lease/CAS parity.
-2. W12-AUTH-001: local-identity concurrency and last-administrator invariant.
+### W12-PER-001
 
-### Slice C — Availability and diagnostics
+Persistence Save uses one canonical Engineering snapshot and holds the workspace mutation lease through durable persistence and AcceptSave, preventing mixed/falsely-clean persisted state.
 
-1. W12-AUTH-002: bounded login-attempt key lifecycle.
-2. W12-API-001: request validation and sanitized deterministic errors.
+### W12-ING-001
 
-### Slice D — Audit outage contract
+JSON/CSV preview/apply ingress uses explicit byte limits, Content-Length fast rejection, streaming enforcement, strict UTF-8 and sanitized deterministic errors.
 
-Resolve W12-AUD-001 with an explicit fail-closed or durable-spool contract appropriate to protected mutations. The choice must preserve actor authority, ordering expectations and operational recovery; merely increasing a queue or suppressing the error is not a disposition.
+### W12-PKG-001
 
-## 5. Acceptance and exclusions
+Package export enforces the Engineering-size, payload-count, manifest-size and aggregate uncompressed limits that import enforces, preventing self-generated packages that the product itself rejects.
 
-- Every fixed finding requires a focused regression test and exact-head EliteSCADA CI success.
-- Failures are diagnosed before rerun; assertions, authorization and architecture boundaries are not weakened to obtain green status.
-- Specialized workflows run when the actual diff affects their documented surfaces or when structural impact requires a manual integration gate.
-- Wave 13 Authenticode/signing, Linux `.deb`, new Drivers/protocols, owner validation and physical L4 are outside this Wave 12 branch.
-- Issue #201 remains open until all findings are closed or explicitly dispositioned, continuity documents are synchronized and the accepted post-merge SHA is recorded.
+### W12-PER-002
+
+Persistence Apply now acquires the canonical Working mutation lease and requires `x-elitescada-workspace-version`. Stale caller state returns conflict rather than silently replacing newer Working edits.
+
+First exact-head CI at `329083a9f3273907306f4a17a99f527b382a303a` (#1074) deterministically exposed one E2E caller that did not yet provide the newly required header. The test was corrected, not weakened, at `012d15554d96af8600953a793cd58f0a5fc11c4d` by reading post-checkout `changeVersion`; #1075 and the associated specialized gates all passed.
+
+## 4. Active Slice B — W12-AUTH-001
+
+Confirmed defect:
+
+- `FindByIdAsync` / invariant checks / `UpdateAsync` are individually safe but not one serialized logical transaction;
+- concurrent account update and password-reset paths can overwrite one another from the same stale account snapshot;
+- concurrent last-administrator mutations can each observe another enabled administrator and both pass the guard.
+
+Required implementation:
+
+1. expose an async mutation lease on the local-identity store contract;
+2. InMemory implementation serializes mutations process-locally;
+3. PostgreSQL implementation uses a dedicated session advisory lock so cooperating processes sharing the database serialize the logical mutation;
+4. user-administration mutation handlers hold the lease from initial read through invariant validation and final write;
+5. bootstrap creation is serialized where needed;
+6. add focused regression tests for lease serialization and administrator-invariant preservation;
+7. obtain exact-head EliteSCADA CI success before marking the finding fixed.
+
+## 5. Remaining slices
+
+### Slice C — availability and diagnostics
+
+- W12-AUTH-002: bounded login-attempt key lifecycle;
+- W12-API-001: request validation and sanitized deterministic errors.
+
+### Slice D — audit outage contract
+
+Resolve W12-AUD-001 with an explicit fail-closed or durable-spool contract appropriate to protected mutations. Merely enlarging a queue or swallowing errors is not a disposition.
+
+## 6. Acceptance / exclusions
+
+- issue #201 stays open until every finding is fixed or explicitly dispositioned;
+- PR #202 remains draft/unmerged until Wave 12 acceptance;
+- exact-SHA EliteSCADA CI is mandatory for every material product-code checkpoint;
+- specialized workflows are impact-based and do not replace the universal gate;
+- failures are diagnosed before rerun;
+- Wave 13 signing, Linux `.deb`, new Drivers/protocols, owner validation and physical L4 are outside this branch;
+- DNP3 commercial inclusion remains gated on an appropriate commercial license or approved/revalidated dependency replacement.

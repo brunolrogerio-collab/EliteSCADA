@@ -1,156 +1,124 @@
 # EliteSCADA — Current Coordinator Handoff
 
-Last operational audit: **2026-09-01 BRT**  
-Operational status: **WAVE 12 #201 IN PROGRESS — AUDIT COMPLETE / IMPLEMENTATION STARTED**
+**Last operational synchronization:** 2026-09-01 BRT  
+**Status:** **WAVE 12 #201 IN PROGRESS — PR #202 — SLICE A + W12-PER-002 VALIDATED — W12-AUTH-001 NEXT**
 
-> Repository/CI state is the continuity source. Read live refs and Actions before acting. Stable product intent is governed by `PROJECT GOAL.md`; exact mutable state belongs in `LAST CHANGE.md`.
+> GitHub/main/CI is implementation truth. `PROJECT GOAL.md` governs permanent product intent. `LAST CHANGE.md` is the mutable resume point. Never resume from chat alone.
 
 ## 1. Mandatory resume protocol
 
-Read, in order:
+Read in this order before changing code:
 
 1. `PROJECT GOAL.md`;
 2. `LAST CHANGE.md`;
-3. this file;
+3. this handoff;
 4. `docs/ROADMAP.md`;
 5. `docs/WAVE-12-HARDENING-PREPARATION.md`;
 6. issue #201;
 7. `docs/CI-VALIDATION-POLICY.md`;
-8. live `main`, open PRs/issues and exact Actions state;
-9. `docs/LINUX-DEBIAN-DISTRIBUTION.md` when considering future packaging/distribution or dependency-license work;
-10. `docs/DRIVER-AND-INTEROP-LAB-STATUS.md` only when Driver evidence is relevant.
+8. live `main`, PR #202, open issues and exact Actions state;
+9. `docs/WAVE-12-HARDENING-AUDIT.md`.
 
-Do not resume old Wave 11 feature branches. PR #195 is historical/superseded; PR #199 is the accepted Wave 11 implementation integration; PR #200 is the accepted owner-test application handoff. Issue #194 is closed/completed.
+If repository state differs from copied prose, GitHub/main/CI wins.
 
-## 2. Accepted foundation through Wave 11
+## 2. Accepted foundation
 
-- Pre-Wave-11 issue #191: **COMPLETE / ACCEPTED / INTEGRATED** through PR #193.
-- Repository/CI hygiene: **COMPLETE / ACCEPTED / INTEGRATED** through PRs #196 and #197.
-- Wave 11 implementation PR #199: **MERGED** at main merge `57042b467471f4b1360e1642d5d160e6e66fc31c`.
-- Wave 11 owner-test handoff PR #200: **MERGED** at product-code main `4ccc29cb4bb334dc473d8265f48a9c8601993413`.
-- Wave 11 issue #194: **CLOSED / COMPLETED** after final evidence and continuity synchronization.
+Wave 11 issue #194 is **CLOSED / COMPLETED**.
 
-Accepted Wave 11 lifecycle authority:
+Accepted product-code baseline:
 
-`Working -> saved Revision -> Published -> Active -> HMI Runtime projection`
+`4ccc29cb4bb334dc473d8265f48a9c8601993413`
 
-Accepted behavior includes:
+Accepted lifecycle authority:
 
-- protected `/api/runtime/application` from persisted Active Engineering, never mutable Working;
-- fail-closed project/revision/persistence/package consistency boundaries;
-- canonical Screen/Popup/Dynamo renderer/navigation mount;
-- Active visual-asset authority with SHA-256/media-type/length validation;
-- stable mount while Active project/revision identity is unchanged;
-- Runtime `View` authorization without granting operator Working Engineering access;
-- explicit Simulation fallback only when no Engineering Runtime is active;
-- protected Slider/TAG writes through `/api/tags/{id}/write`;
-- lifecycle proof for Active A -> Working isolation -> Active B;
-- real imported PNG served from the Active persisted revision.
+`Working -> saved Revision -> Published -> Active -> HMI Runtime`
 
-## 3. Exact Wave 11 acceptance evidence
+The Runtime uses persisted Active Engineering only; Working edits remain isolated until Save/Publish/Activate. Screens, Popups, Dynamos, Active assets, fail-closed behavior, Runtime View separation, protected TAG writes and Simulation fallback rules are accepted and must not be reopened without a concrete defect.
 
-Implementation head `a03237feed578066a8a62f5837adb60f100f412a`:
+Owner-test package:
 
-- dedicated Wave 11 validation before integration: **SUCCESS**;
-- EliteSCADA CI #1062: **SUCCESS**.
+`EliteSCADA-Wave11-Demo.escadapkg`  
+SHA-256 `13261af59b8707df7d9ef3bbea307cb0c85d945ea8f47315fb693c92c885efa1`
 
-Post implementation merge `57042b467471f4b1360e1642d5d160e6e66fc31c`:
+## 3. Wave 12 live state
 
-- Wave 11 Active HMI Runtime #11 / `33548047016`: **SUCCESS**;
-- EliteSCADA CI #1064 / `33548047037`: **SUCCESS** including Chromium E2E.
+Issue #201: **OPEN / IN PROGRESS**.  
+Branch: `coordination/wave12-hardening`.  
+Draft PR: #202.  
+Branch base: `a2d865c017b8b8ad804f9270e5224ac1fa620ed0`.  
+Ledger: `docs/WAVE-12-HARDENING-AUDIT.md`.
 
-Owner-test handoff head `cc37be24ad8c8dc4594d99c5a3fd232dbf685d6f`:
+Latest validated Wave 12 product-code SHA:
 
-- Wave 11 Active HMI Runtime #13 / `33551000846`: **SUCCESS**;
-- EliteSCADA CI #1066 / `33551000852`: **SUCCESS**.
+`012d15554d96af8600953a793cd58f0a5fc11c4d`
 
-Final validated product-code main `4ccc29cb4bb334dc473d8265f48a9c8601993413`:
+Exact evidence:
 
-- Wave 11 Active HMI Runtime #14 / `33552016447`: **SUCCESS**;
-- EliteSCADA CI #1067 / `33552016454`: **SUCCESS** including backend build/tests/runtime smoke, Web build and Chromium E2E.
+- EliteSCADA CI #1075 / `33565105224`: **SUCCESS** including Chromium E2E;
+- L3 Seven-Driver Lab #71 / `33565105291`: **SUCCESS**;
+- Preview Licensing CI #124 / `33565105254`: **SUCCESS**;
+- Wave 11 Active HMI Runtime #22 / `33565105207`: **SUCCESS**.
 
-No test/security/lifecycle boundary was weakened.
+A documentation-only `[skip ci]` commit may place the branch head after this SHA. Do not confuse that with a new validated product-code baseline.
 
-## 4. Owner-test Demo application
+## 4. Completed Wave 12 findings at this checkpoint
 
-Final post-main artifact:
+- W12-RT-001 — realtime WebSocket client isolation;
+- W12-PER-001 — consistent serialized persistence Save;
+- W12-ING-001 — bounded JSON/CSV Engineering ingress;
+- W12-PKG-001 — `.escadapkg` export/import resource symmetry;
+- W12-PER-002 — Persistence Apply lease/CAS parity.
 
-- artifact: `EliteSCADA-Wave11-Demo`;
-- GitHub Actions artifact id: `9817878392`;
-- artifact retention expiry: 2026-11-30;
-- artifact ZIP digest: `sha256:2944b946bf0085e260aa147eb7da1711ba1ef9f496961724ebfe8053c1368f96`;
-- application: `EliteSCADA-Wave11-Demo.escadapkg`;
-- application size: 5,394 bytes;
-- application SHA-256: `13261af59b8707df7d9ef3bbea307cb0c85d945ea8f47315fb693c92c885efa1`.
+Important validation history:
 
-Independent inspection confirmed package format v2, Engineering schema v15, project `e2e-wave11`, active revision 2, screen `demo.overview`, `REVISION B ACTIVE`, one real PNG sidecar asset, and matching manifest SHA-256/length metadata.
+- realtime hardening initially caused session revocation to close as 1006 instead of required 1008;
+- root cause was premature cancellation of the shared WebSocket connection lifetime;
+- correction preserved the policy-close assertion and was validated at `25444267e20b668a22191a662d6eeb4bef4b88d5`;
+- PER-002's first exact-head CI (#1074 at `329083a...`) then found one E2E caller missing the newly required workspace-version header;
+- commit `012d155...` corrected that caller by reading post-checkout `changeVersion`; #1075 passed completely.
 
-This is the owner-test application package required by Wave 11. It is not a Windows installer or Preview executable.
+Do not rerun either historical failure as a supposed solution. Their causes are known and fixed.
 
-## 5. Wave 12 active state
+## 5. Exact next implementation
 
-Issue #201 — `Wave 12 — Hardening` is **IN PROGRESS**.
+**W12-AUTH-001 — local-identity concurrency / last-administrator invariant.**
 
-Preparation document: `docs/WAVE-12-HARDENING-PREPARATION.md`.
-Active finding/slice ledger: `docs/WAVE-12-HARDENING-AUDIT.md`.
+Confirmed race:
 
-Formal start evidence:
+- API mutation flows perform account read, invariant validation and update as separate store operations;
+- concurrent update/password-reset requests can overwrite changes from the same starting account state;
+- concurrent administrator removals/disables can each pass the last-admin check against stale state.
 
-- live `main` was revalidated at `a2d865c017b8b8ad804f9270e5224ac1fa620ed0` after the mandatory document/GitHub review;
-- branch `coordination/wave12-hardening` was created from that exact live `main`;
-- no PR was open at start; issue #201 and intentionally deferred L4 issue #178 were the open issues;
-- the latest product-code evidence remains successful Wave 11 workflow #14 / `33552016447` and EliteSCADA CI #1067 / `33552016454` at `4ccc29cb4bb334dc473d8265f48a9c8601993413`;
-- no Wave 12 production-code acceptance or CI result is claimed yet.
+Chosen implementation direction:
 
-Wave 12 is a hardening pass, not a feature-expansion wave. Its prepared scope covers fail-closed/recovery behavior, authorization/audit, persistence/restart, `.escadapkg` integrity, runtime resource/fault isolation, concurrency, diagnostic sanitization and regression/CI hardening.
+1. add a mutation lease to `ILocalIdentityStore`;
+2. implement an async local lease for `InMemoryLocalIdentityStore`;
+3. implement a PostgreSQL session advisory-lock lease for `PostgreSqlLocalIdentityStore`;
+4. hold it across the full read/validate/write transaction in administration mutations and bootstrap where applicable;
+5. add focused serialization and last-administrator regression tests;
+6. validate the exact new product-code SHA with EliteSCADA CI before moving on.
 
-The pre-implementation audit is complete. The first ordered slice covers realtime WebSocket client isolation, exact-snapshot/serialized Engineering saves, bounded JSON/CSV import ingress and `.escadapkg` export/import limit symmetry. Remaining findings cover persistence Apply concurrency, local-identity mutation races, audit-outage disposition and request/diagnostic consistency.
+Then continue W12-AUTH-002, W12-API-001 and W12-AUD-001 according to the audit ledger.
 
-Explicit exclusions include new Drivers/protocols, Wave 13 Authenticode/release-signing implementation, Waves 14/15 owner validation/feedback and physical L4 claims.
+## 6. CI/merge rules
 
-## 6. Future Linux / Debian distribution direction
+- EliteSCADA CI is the universal Coordinator gate for PRs to `main`;
+- specialized workflows run according to actual impact;
+- diagnose failures before rerun;
+- do not weaken assertions, authorization or architecture to obtain green;
+- PR #202 remains draft/unmerged until Wave 12 acceptance is satisfied;
+- validate post-merge `main` when Wave 12 is eventually integrated.
 
-A future official **Linux x64 / Debian `.deb`** distribution is **SPECIFIED / NOT STARTED**. It is not part of Wave 12 and must not be started until the Development Lead explicitly requests the installable `.deb` version.
+## 7. Explicit exclusions and gates
 
-Authoritative specification: `docs/LINUX-DEBIAN-DISTRIBUTION.md`.
+Do not start during Wave 12:
 
-Prepared direction:
+- Wave 13 Authenticode/trusted-timestamp release signing;
+- Linux `.deb` implementation;
+- new Drivers/protocols;
+- owner validation/feedback Waves 14/15;
+- physical L4 claims.
 
-- Debian 12 `amd64` first, then Debian 13 homologation;
-- `linux-x64` self-contained publish, initially multi-file inside one `.deb`;
-- `/usr/lib/elitescada`, `/etc/elitescada`, `/var/lib/elitescada` layout;
-- system user/group + `elitescada.service`;
-- React/Pyodide included in the installed Kestrel-served product;
-- PostgreSQL/TimescaleDB configured externally;
-- Linux Machine Request Code and installed-license path using the existing signed-license contract; License Generator may remain Windows-only;
-- clean-host install/upgrade/reboot CI plus installed Runtime/Web/licensing/Driver validation;
-- SBOM and dependency-license audit.
+Licensing remains host-owned. Private license-signing material never enters repository/CI/product.
 
-Commercial gate: Step Function I/O `dnp3` 1.6.0 is publicly provided for non-commercial/non-production use. Before any commercial package includes/enables that Driver, obtain/record an appropriate commercial license or approve/revalidate an alternative. DNP3 licensing remediation is expected before the `.deb` front unless an explicitly authorized package excludes DNP3.
-
-At this handoff there is **no Linux packaging branch, PR, implementation commit or Linux distribution CI**.
-
-## 7. Exact next action
-
-Continue the active Wave 12 branch:
-
-1. implement and regression-test the first ordered slice recorded in `docs/WAVE-12-HARDENING-AUDIT.md`;
-2. commit coherently and open a Wave 12 PR against `main`;
-3. require EliteSCADA CI green on the exact PR head SHA and diagnose failures before any rerun;
-4. disposition the remaining audit findings with fixes/evidence or explicit residual-risk records;
-5. run specialized workflows according to actual impact, not as a substitute for universal CI;
-6. keep Wave 13 signing, Linux `.deb` and physical L4 outside this branch.
-
-## 8. Durable non-negotiable rules
-
-- repository/CI state overrides stale chat/prose for implementation truth;
-- no red universal CI into `main`;
-- specialized path filters never excuse manual validation when architectural impact demands it;
-- no test weakening to manufacture green evidence;
-- Runtime presentation never reads mutable Working as Active truth;
-- no Driver-to-Driver calls or canonical TAG/cache/event bypass;
-- no plaintext protected material;
-- licensing remains host-owned and private signing material never enters GitHub/CI/distributed product;
-- Wave 13 retains mandatory Authenticode + trusted timestamp release signing;
-- commercial packaging requires dependency-license review; DNP3 commercial inclusion requires an explicit license/alternative disposition;
-- every material coordination transition is persisted before claiming completion.
+Commercial DNP3 inclusion is gated: Step Function I/O `dnp3` 1.6.0 requires an appropriate commercial license or an approved/revalidated replacement before commercial distribution.

@@ -44,6 +44,9 @@ public static class BacnetValueCodec
 
         BacnetValue encoded = sourceType switch
         {
+            TagDataType.Int16 or TagDataType.Int32 or TagDataType.Int64 or TagDataType.Float or TagDataType.Double
+                when IsAnalogPresentValue(binding) =>
+                new(BacnetApplicationTags.BACNET_APPLICATION_TAG_REAL, Convert.ToSingle(value, CultureInfo.InvariantCulture)),
             TagDataType.Boolean when IsBinaryPresentValue(binding) =>
                 new(BacnetApplicationTags.BACNET_APPLICATION_TAG_ENUMERATED, Convert.ToBoolean(value, CultureInfo.InvariantCulture) ? 1u : 0u),
             TagDataType.Boolean => new(BacnetApplicationTags.BACNET_APPLICATION_TAG_BOOLEAN, Convert.ToBoolean(value, CultureInfo.InvariantCulture)),
@@ -84,6 +87,9 @@ public static class BacnetValueCodec
         }
         throw TypeMismatch(TagDataType.Boolean, raw);
     }
+
+    private static bool IsAnalogPresentValue(BacnetBinding binding)
+        => binding.PropertyIdentifier == PresentValueProperty && binding.ObjectType is 0 or 1 or 2;
 
     private static bool IsBinaryPresentValue(BacnetBinding binding)
         => binding.PropertyIdentifier == PresentValueProperty && binding.ObjectType is 3 or 4 or 5;

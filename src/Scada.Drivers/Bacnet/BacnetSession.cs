@@ -1,4 +1,6 @@
 using System.IO.BACnet;
+using System.Net;
+using System.Net.Sockets;
 
 namespace Scada.Drivers.Bacnet;
 
@@ -9,7 +11,8 @@ public sealed record BacnetSessionOptions(
     TimeSpan? DiscoveryWindow = null,
     string? BbmdAddress = null,
     int? ForeignDeviceTtlSeconds = null,
-    string? TargetAddress = null)
+    string? TargetAddress = null,
+    string? LocalEndpointIp = null)
 {
     public const int DefaultCovSubscriptionLifetimeSeconds = 300;
 
@@ -45,6 +48,14 @@ public sealed record BacnetSessionOptions(
             {
                 throw new ArgumentException("BACnet targetAddress must be an IPv4 address with optional UDP port, for example '192.168.1.20:47808'.", nameof(TargetAddress), ex);
             }
+        }
+        if (!string.IsNullOrWhiteSpace(LocalEndpointIp) &&
+            (!IPAddress.TryParse(LocalEndpointIp.Trim(), out var localEndpointAddress) ||
+             localEndpointAddress.AddressFamily != AddressFamily.InterNetwork))
+        {
+            throw new ArgumentException(
+                "BACnet localEndpointIp must be an IPv4 address, for example '192.168.1.50'.",
+                nameof(LocalEndpointIp));
         }
     }
 }

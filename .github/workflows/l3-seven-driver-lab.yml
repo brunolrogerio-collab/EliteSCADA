@@ -1,0 +1,279 @@
+name: L3 Seven-Driver Lab
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - coordination/driver-l3-seven-protocol-lab
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "interop-lab/**"
+      - ".github/workflows/l3-seven-driver-lab.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "interop-lab/**"
+      - ".github/workflows/l3-seven-driver-lab.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  seven-driver-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ELITESCADA_L3_MQTT_HOST: 127.0.0.1
+      ELITESCADA_L3_MQTT_PORT: "1883"
+      ELITESCADA_L3_NODE_RED_URL: http://127.0.0.1:1880
+      ELITESCADA_L3_CIP_HOST: 127.0.0.1
+      ELITESCADA_L3_CIP_PORT: "44818"
+      ELITESCADA_L3_OPCUA_ENDPOINT: opc.tcp://127.0.0.1:4841
+      ELITESCADA_L3_IEC104_HOST: 127.0.0.1
+      ELITESCADA_L3_IEC104_PORT: "2404"
+      ELITESCADA_L3_DNP3_HOST: 127.0.0.1
+      ELITESCADA_L3_DNP3_PORT: "20000"
+      ELITESCADA_L3_S7_HOST: 127.0.0.1
+      ELITESCADA_L3_S7_PORT: "1102"
+      ELITESCADA_L3_DOCKER_FAULTS: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.400
+
+      - name: Validate all lab Compose models
+        working-directory: interop-lab
+        run: |
+          docker compose -f compose.yaml config >/dev/null
+          docker compose -f compose.yaml -f compose.cip.yaml config >/dev/null
+          docker compose -f compose.yaml -f compose.opcua.yaml config >/dev/null
+          docker compose -f compose.yaml -f compose.iec104.yaml config >/dev/null
+          docker compose -f compose.yaml -f compose.dnp3.yaml config >/dev/null
+          docker compose -f compose.yaml -f compose.s7.yaml config >/dev/null
+          docker compose -f compose.yaml -f compose.bacnet.yaml config >/dev/null
+
+      - name: Start MQTT, CIP, OPC UA, IEC-104 and DNP3 peers
+        working-directory: interop-lab
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.cip.yaml
+          -f compose.opcua.yaml
+          -f compose.iec104.yaml
+          -f compose.dnp3.yaml
+          up -d --build --wait --wait-timeout 180
+
+      - name: Start S7 peer
+        working-directory: interop-lab
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.s7.yaml
+          up -d --build --wait --wait-timeout 120 s7-python-snap7
+
+      - name: Start BACnet/IP peer
+        working-directory: interop-lab
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.bacnet.yaml
+          up -d --build --wait --wait-timeout 120 bacnet-bacpypes
+
+      - name: Verify seven peer endpoints and control plane
+        run: |
+          timeout 20 bash -c 'until nc -z 127.0.0.1 1883; do sleep 1; done'
+          timeout 20 bash -c 'until curl -fsS http://127.0.0.1:1880/lab/health; do sleep 1; done'
+          timeout 20 bash -c 'until nc -z 127.0.0.1 44818; do sleep 1; done'
+          timeout 20 bash -c 'until nc -z 127.0.0.1 4841; do sleep 1; done'
+          timeout 20 bash -c 'until nc -z 127.0.0.1 2404; do sleep 1; done'
+          timeout 20 bash -c 'until nc -z 127.0.0.1 20000; do sleep 1; done'
+          timeout 20 bash -c 'until nc -z 127.0.0.1 1102; do sleep 1; done'
+          timeout 20 bash -c 'until curl -fsS http://127.0.0.1:18080/health; do sleep 1; done'
+
+      - name: Restore
+        run: dotnet restore ScadaPlatform.sln
+
+      - name: Build
+        run: dotnet build ScadaPlatform.sln -c Release --no-restore
+
+      - name: Run L3 heterogeneous TAG Gateway peer slice
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          -c Release --no-build
+          --filter "Category=L3GatewayIntegration"
+          --logger "console;verbosity=normal"
+
+      - name: Reset stateful peers before acquisition slice
+        run: |
+          docker restart \
+            elitescada-lab-iec104-lib60870 \
+            elitescada-lab-cip-controllogix \
+            elitescada-lab-opcua-open62541 \
+            elitescada-lab-dnp3-dnp3py \
+            elitescada-lab-s7-python-snap7 \
+            elitescada-lab-bacnet-bacpypes >/dev/null
+          timeout 30 bash -c 'until nc -z 127.0.0.1 44818; do sleep 1; done'
+          timeout 30 bash -c 'until nc -z 127.0.0.1 4841; do sleep 1; done'
+          timeout 30 bash -c 'until nc -z 127.0.0.1 2404; do sleep 1; done'
+          timeout 30 bash -c 'until nc -z 127.0.0.1 20000; do sleep 1; done'
+          timeout 30 bash -c 'until nc -z 127.0.0.1 1102; do sleep 1; done'
+          timeout 30 bash -c 'until curl -fsS http://127.0.0.1:18080/health; do sleep 1; done'
+
+      - name: Run L3 one-runtime seven-Driver acquisition slice
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          -c Release --no-build
+          --filter "Category=L3SevenDriverRuntime&FullyQualifiedName!~L3SevenDriverWriteTests"
+          --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=l3-acquisition.trx"
+          --results-directory TestResults/L3Acquisition
+
+      - name: Upload L3 acquisition evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: l3-acquisition-test-results-${{ github.sha }}
+          path: TestResults/L3Acquisition/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Reset stateful peers before write slice
+        run: |
+          docker restart \
+            elitescada-lab-iec104-lib60870 \
+            elitescada-lab-cip-controllogix \
+            elitescada-lab-opcua-open62541 \
+            elitescada-lab-dnp3-dnp3py \
+            elitescada-lab-s7-python-snap7 \
+            elitescada-lab-bacnet-bacpypes >/dev/null
+          timeout 30 bash -c 'until nc -z 127.0.0.1 44818; do sleep 1; done'
+          timeout 30 bash -c 'until nc -z 127.0.0.1 4841; do sleep 1; done'
+          timeout 30 bash -c 'until nc -z 127.0.0.1 2404; do sleep 1; done'
+          timeout 30 bash -c 'until nc -z 127.0.0.1 20000; do sleep 1; done'
+          timeout 30 bash -c 'until nc -z 127.0.0.1 1102; do sleep 1; done'
+          timeout 30 bash -c 'until curl -fsS http://127.0.0.1:18080/health; do sleep 1; done'
+
+      - name: Run L3 seven-Driver supported write slice
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          -c Release --no-build
+          --filter "FullyQualifiedName~L3SevenDriverWriteTests"
+          --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=l3-supported-write.trx"
+          --results-directory TestResults/L3SupportedWrite
+
+      - name: Upload L3 supported write evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: l3-supported-write-test-results-${{ github.sha }}
+          path: TestResults/L3SupportedWrite/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Reset stateful peers before serial fault slice
+        run: |
+          docker restart \
+            elitescada-lab-iec104-lib60870 \
+            elitescada-lab-cip-controllogix \
+            elitescada-lab-opcua-open62541 \
+            elitescada-lab-dnp3-dnp3py \
+            elitescada-lab-s7-python-snap7 \
+            elitescada-lab-bacnet-bacpypes >/dev/null
+          timeout 30 bash -c 'until nc -z 127.0.0.1 44818; do sleep 1; done'
+          timeout 30 bash -c 'until nc -z 127.0.0.1 4841; do sleep 1; done'
+          timeout 30 bash -c 'until nc -z 127.0.0.1 2404; do sleep 1; done'
+          timeout 30 bash -c 'until nc -z 127.0.0.1 20000; do sleep 1; done'
+          timeout 30 bash -c 'until nc -z 127.0.0.1 1102; do sleep 1; done'
+          timeout 30 bash -c 'until curl -fsS http://127.0.0.1:18080/health; do sleep 1; done'
+
+      - name: Run L3 serial peer fault and recovery slice
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          -c Release --no-build
+          --filter "Category=L3SevenDriverFaultRecovery"
+          --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=l3-serial-fault-recovery.trx"
+          --results-directory TestResults/L3SerialFaultRecovery
+
+      - name: Upload L3 serial fault recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: l3-serial-fault-recovery-test-results-${{ github.sha }}
+          path: TestResults/L3SerialFaultRecovery/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Reset Gateway peers before Gateway fault slice
+        run: |
+          docker restart elitescada-lab-cip-controllogix elitescada-lab-s7-python-snap7 >/dev/null
+          timeout 30 bash -c 'until nc -z 127.0.0.1 44818; do sleep 1; done'
+          timeout 30 bash -c 'until nc -z 127.0.0.1 1102; do sleep 1; done'
+
+      - name: Run L3 Gateway source and destination fault recovery slice
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          -c Release --no-build
+          --filter "Category=L3GatewayFaultRecovery"
+          --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=l3-gateway-fault-recovery.trx"
+          --results-directory TestResults/L3GatewayFaultRecovery
+
+      - name: Upload L3 Gateway fault recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: l3-gateway-fault-recovery-test-results-${{ github.sha }}
+          path: TestResults/L3GatewayFaultRecovery/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Show seven-peer lab status
+        if: always()
+        working-directory: interop-lab
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.cip.yaml
+          -f compose.opcua.yaml
+          -f compose.iec104.yaml
+          -f compose.dnp3.yaml
+          -f compose.s7.yaml
+          -f compose.bacnet.yaml
+          ps
+
+      - name: Dump lab logs on failure
+        if: failure()
+        working-directory: interop-lab
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.cip.yaml
+          -f compose.opcua.yaml
+          -f compose.iec104.yaml
+          -f compose.dnp3.yaml
+          -f compose.s7.yaml
+          -f compose.bacnet.yaml
+          logs --no-color || true
+
+      - name: Stop seven-peer lab
+        if: always()
+        working-directory: interop-lab
+        run: >-
+          docker compose
+          -f compose.yaml
+          -f compose.cip.yaml
+          -f compose.opcua.yaml
+          -f compose.iec104.yaml
+          -f compose.dnp3.yaml
+          -f compose.s7.yaml
+          -f compose.bacnet.yaml
+          down -v --remove-orphans

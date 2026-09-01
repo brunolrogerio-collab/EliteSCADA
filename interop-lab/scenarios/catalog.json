@@ -1,13 +1,23 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "orchestrator": "node-red",
+  "l3": {
+    "status": "active",
+    "issue": 180,
+    "branch": "coordination/driver-l3-seven-protocol-lab",
+    "validatedMainBase": "f6210a1539741847aab8949a7e453c8cf141162d",
+    "goal": "one EliteSCADA runtime operating all seven converged communication Drivers concurrently",
+    "heterogeneousGateway": "S7 source TAG -> canonical TAG Gateway -> CIP destination TAG",
+    "firstSlice": "seven independent peers concurrently alive while S7/CIP product-path Gateway transfer is verified"
+  },
   "commonAcceptance": [
     "transport/session readiness is explicit",
     "read path preserves canonical value, canonical type and quality",
     "source timestamp evidence is preserved when protocol supplies it",
     "write/command outcome is distinct from bytes-sent or optimistic cache state",
     "disconnect/reconnect degrades and recovers deterministically",
-    "commands are never silently replayed after reconnect"
+    "commands are never silently replayed after reconnect",
+    "cross-driver TAG Gateway traffic uses the canonical cache/event/write path and never direct Driver-to-Driver calls"
   ],
   "protocols": [
     {
@@ -16,7 +26,7 @@
       "peer": "eclipse-mosquitto:2.1.2-alpine",
       "activation": "base compose",
       "state": "runnable",
-      "productEvidence": "broad live-broker validation exists on Driver 10 validation branches, including Mosquitto + HiveMQ, TLS/auth and broker restart",
+      "productEvidence": "L2 accepted; live-broker validation includes Mosquitto/HiveMQ, TLS/auth and broker restart",
       "firstScenarios": ["publish-subscribe", "qos-0-1-2", "retained", "reconnect", "burst-backpressure", "source-timestamp"]
     },
     {
@@ -25,19 +35,17 @@
       "peer": "node-red-contrib-cip-suite simulator @ baf21c625c4f1250fa3cbae6cdd636ce15620ef2",
       "activation": "compose.cip.yaml",
       "state": "runnable-overlay",
-      "productEvidence": "Driver 5 validation PR #165 L2 green",
+      "productEvidence": "L2 accepted; real peer read/write/reconnect evidence exists",
       "firstScenarios": ["controllogix-read-write", "compactlogix-read-write", "program-scope", "bit-rmw", "multiple-service-packet", "fragmented-read", "reconnect"]
     },
     {
       "id": "opc-ua",
       "eliteDriver": "opcua",
-      "peer": "open62541 1.5.4 independent server + node-opcua reference client in Node-RED image",
+      "peer": "open62541 1.5.4 independent server + node-opcua reference client",
       "activation": "compose.opcua.yaml",
       "state": "runnable-overlay",
-      "peerEvidenceLevel": "L2-independent-software-peer/reference-client",
-      "productEvidence": "Driver 9 product-path L2 pending against the common peer",
-      "firstScenarios": ["anonymous-session", "browse", "read-write", "subscriptions"],
-      "nextScenarios": ["driver9-anonymous-session", "driver9-user-session", "driver9-certificate-session", "unknown-datatype", "reconnect-resubscribe"]
+      "productEvidence": "L2 accepted on the converged Driver line",
+      "firstScenarios": ["anonymous-session", "browse", "read-write", "subscriptions", "reconnect-resubscribe"]
     },
     {
       "id": "iec-60870-5-104",
@@ -45,37 +53,35 @@
       "peer": "MZ Automation lib60870-C @ 7a388e3e133999e1ca77ba7521d55d074b7cd2bc",
       "activation": "compose.iec104.yaml",
       "state": "runnable-overlay",
-      "productEvidence": "Driver 6 validation PR #168 L2 green, 13/13",
-      "firstScenarios": ["startdt", "general-interrogation", "spontaneous-event", "command-direct", "command-sbo", "reconnect-no-replay"],
-      "nextScenarios": ["remaining-monitored-typeids", "multi-common-address", "kw-pressure", "sequence-wrap", "soak"]
+      "productEvidence": "L2 accepted",
+      "firstScenarios": ["startdt", "general-interrogation", "spontaneous-event", "command-direct", "command-sbo", "reconnect-no-replay"]
     },
     {
       "id": "dnp3",
       "eliteDriver": "dnp3.master",
       "peer": "dnp3py @ 8a20d4c276274f2b98800716cd7da963f21da2c1",
       "activation": "compose.dnp3.yaml",
-      "state": "runnable-peer-product-l2-red",
-      "productEvidence": "Driver 7 PR #167 reaches Online and receives all three points, but configured Int32 Analog Input is published to canonical cache as Double; product L2 remains red",
-      "firstScenarios": ["startup-integrity", "canonical-type-preservation", "quality-flags"],
-      "nextScenarios": ["class-events", "unsolicited", "source-time", "crob-sbo", "analog-output", "reconnect"]
+      "state": "runnable-overlay",
+      "productEvidence": "L2 accepted after canonical value/type convergence fixes",
+      "firstScenarios": ["startup-integrity", "canonical-type-preservation", "quality-flags", "reconnect"]
     },
     {
       "id": "siemens-s7",
       "eliteDriver": "s7.iso.tcp",
-      "peer": "independent S7 ISO-on-TCP server/PLC simulator",
-      "activation": "future overlay",
-      "state": "peer-not-implemented",
-      "productEvidence": "Driver 8 software milestone and CI green; external interoperability pending",
+      "peer": "python-snap7 independent S7 ISO-on-TCP server",
+      "activation": "compose.s7.yaml",
+      "state": "runnable-overlay",
+      "productEvidence": "L2 accepted; shared readiness bridge and external peer path available",
       "firstScenarios": ["rack-slot", "tsap", "pdu-negotiation", "db-read-write", "type-boundaries", "byte-word-order", "reconnect"]
     },
     {
       "id": "bacnet-ip",
       "eliteDriver": "bacnet.ip",
-      "peer": "independent BACnet/IP device simulator/reference peer",
-      "activation": "future overlay; host-network may be required for broadcast cases",
-      "state": "peer-not-implemented",
-      "productEvidence": "Driver 4 software milestone and CI green; external interoperability pending",
-      "firstScenarios": ["who-is-i-am", "read-property", "read-property-multiple", "write-priority", "relinquish", "cov", "cov-renewal", "bbmd-fdr", "reconnect"]
+      "peer": "bacpypes independent BACnet/IP peer",
+      "activation": "compose.bacnet.yaml",
+      "state": "runnable-overlay",
+      "productEvidence": "L2 accepted; independent peer is available on host network for L3",
+      "firstScenarios": ["who-is-i-am", "read-property", "read-property-multiple", "write-priority", "relinquish", "cov", "reconnect"]
     }
   ]
 }

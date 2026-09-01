@@ -4,17 +4,26 @@
 >
 > This file preserves stable product goals and locked architecture across ChatGPT conversations, developers and tooling. It defines intent, not merely current implementation state.
 
-**Last reviewed:** 2026-08-31
+**Last reviewed:** 2026-09-01
 
 ## Mandatory continuity protocol
 
 1. At the beginning of every EliteSCADA task, read `PROJECT GOAL.md` and `LAST CHANGE.md` before planning or changing code.
-2. If the user adds, removes or clarifies a stable product goal or architectural rule, update this file in the same task.
-3. Before the final response of an EliteSCADA task, update `LAST CHANGE.md` with the actual repository state.
-4. `LAST CHANGE.md` must distinguish **MERGED**, **IMPLEMENTED IN PR** and **SPECIFIED / NOT IMPLEMENTED**.
-5. `docs/ROADMAP.md` must remain consistent with this product north.
-6. Permanent architectural decisions must not exist only in a feature branch or chat history.
-7. If conversation memory, documentation and repository disagree, inspect current `main`; repository state wins for what is implemented and this file wins for explicitly locked future product intent.
+2. The repository, not chat history, is the persistent coordination memory. A fresh ChatGPT conversation must be able to resume safely from repository state alone.
+3. Every material coordination cycle, decision, blocker, fix, validation run or change of next action must review and synchronize **both** `PROJECT GOAL.md` and `LAST CHANGE.md` in the same task when their recorded state is affected.
+4. Stable product goals, architecture and permanent coordination rules belong in `PROJECT GOAL.md`; exact mutable branch/SHA/run/issue/blocker/next-action state belongs in `LAST CHANGE.md`.
+5. No critical decision, blocker, diagnosis, acceptance evidence or next action may exist only in chat history.
+6. If the user adds, removes or clarifies a stable product goal or architectural rule, update this file in the same task.
+7. Before the final response of an EliteSCADA task, verify `LAST CHANGE.md` reflects the actual repository/CI state and update it if anything material changed.
+8. `LAST CHANGE.md` must distinguish **MERGED**, **IMPLEMENTED IN PR/BRANCH** and **SPECIFIED / NOT IMPLEMENTED OR NOT ACCEPTED**.
+9. `docs/ROADMAP.md` must remain consistent with this product north.
+10. Permanent architectural decisions must not exist only in a feature branch or chat history; when a temporary coordination branch is active, the handoff must explicitly preserve what still needs propagation to `main`.
+11. If conversation memory, documentation and repository disagree, inspect live `main`, the active branch, issues and exact-SHA CI. Repository/CI state wins for what is implemented; this file wins for explicitly locked future product intent.
+12. When the Development Lead says `siga`, treat it as an instruction to continue executing the active coordination sequence until completion or a real external/blocking condition, rather than stopping after each intermediate diagnosis. Persist material checkpoints while executing.
+
+### Current release-sequencing gate
+
+The seven communication Drivers must complete the integrated **L3 seven-Driver interoperability gate** before the next development wave is released. L3 acceptance requires the complete issue #180 matrix, including concurrent acquisition, supported writes, heterogeneous TAG Gateway behavior, fault isolation/recovery and exact-SHA CI evidence. **Wave 11 may not begin until L3 is fully green on the accepted exact SHA and issue #180 is accepted and closed.** Exact branch/SHA/run/blocker details remain in `LAST CHANGE.md` rather than being duplicated here.
 
 ## Product mission
 
@@ -212,7 +221,6 @@ The following important slices are already official `main` state:
 - protected sensitive read/realtime/WebSocket surfaces through PR #36, merge `10b0320149c1ef2109e9517539717a8800b200c2`;
 - Engineering UI foundation/localization through PR #37, merge `4553aa7ab5ba7e05a209a7c8462286d1a34a1ad6`;
 - trusted local identity/browser login foundation through PR #38, merge `2a581d279a428cb605429d5939c333ff7ad8d1b4`.
-
 The current Engineering UI includes `/engineering`, Runtime↔Engineering navigation, `pt-BR`/`en`/`es`, and structured TAG/Data Source/Alarm editors whose current mutation behavior remains intentionally preview-oriented until secured Apply/Delete/bulk workflows are added.
 
 Local identities remain separate from Engineering roles/policies. Local users reference role keys; the active Engineering revision remains authoritative for capabilities/scopes. Browser authentication uses the same trusted JWT boundary and HttpOnly cookie support without replacing normal Bearer-token integration.
@@ -432,7 +440,6 @@ Client scripting is primarily event driven. Required event direction includes lo
 Normal smooth animation should use renderer-native animation/tween primitives invoked from Python, with duration/easing/repeat/cancel behavior, instead of requiring high-frequency Python busy loops. Binding/script/animation precedence must be deterministic and diagnosable.
 
 A faulty script must be isolated with time budgets, cancellation, bounded event queues, diagnostics and no ability to freeze the backend or unrelated clients indefinitely.
-
 ### Required sequence before graphical visual engineering
 
 **Python scripting contract + visual property schema -> script editor/sandbox -> visual runtime object instances/property API -> graphical screen/popup/Dynamo editor -> advanced reusable visual libraries**

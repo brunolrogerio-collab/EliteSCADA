@@ -1,157 +1,169 @@
 # LAST CHANGE — EliteSCADA
 
-Date: 2026-08-31 (BRT)
+Date: 2026-09-01 (BRT)
 
 ## Read first
 
 Stable product intent: [`PROJECT GOAL.md`](PROJECT%20GOAL.md)  
-Operational source of truth: [`docs/CURRENT-COORDINATOR-HANDOFF.md`](docs/CURRENT-COORDINATOR-HANDOFF.md)  
-Short transfer checkpoint: [`docs/COORDINATOR-TRANSFER-2026-08-31.md`](docs/COORDINATOR-TRANSFER-2026-08-31.md)
+Operational handoff: [`docs/COORDINATOR-HANDOFF-2026-08-31.md`](docs/COORDINATOR-HANDOFF-2026-08-31.md)  
+L3 release gate: [issue #180](https://github.com/brunolrogerio-collab/EliteSCADA/issues/180)
 
 Live GitHub refs and exact-SHA Actions evidence override stale SHAs copied into prose.
 
+## Mandatory continuity / chat replacement rule
+
+The repository, not chat history, is the persistent coordination memory. A fresh coordinator must be able to resume safely from repository state alone.
+
+For every material coordination cycle, decision, blocker, fix, validation run or change of next action:
+
+1. review `PROJECT GOAL.md` and `LAST CHANGE.md` before changing code;
+2. persist exact branch/SHA/run/issue evidence when it matters to acceptance;
+3. never leave a critical decision, blocker, diagnosis or next action only in chat;
+4. keep stable product/architecture intent in `PROJECT GOAL.md` and mutable operational state here;
+5. when the Development Lead says `siga`, continue executing until completion or a real external blocker.
+
+`PROJECT GOAL.md` was reviewed on 2026-09-01. Its stable release-sequencing rule remains correct: Wave 11 cannot begin until L3 is fully accepted and issue #180 is closed.
+
 ## Current checkpoint
 
-- `main` at last audit: `d0a4e13816992b0a0eb68c36e78c560cc1d88`.
-- Active coordinator branch: `coordination/driver-convergence-v3`.
-- PR #175: **DRAFT / OPEN / MERGEABLE / DO NOT MERGE until controlled integration**.
-- Driver coordinator convergence: **7/7 CLOSED**.
-- Independent product-path L2: **7/7 PASS / ACCEPTED**.
-- Latest exact code-validated coordinator head: `6d340e8ca3baaabf138c19be2fb947297854e1f6`.
-- EliteSCADA CI #982: **SUCCESS**.
+- Active branch: `coordination/driver-l3-seven-protocol-lab`.
+- Issue #180: **OPEN / RELEASE GATE**.
+- Wave 11: **BLOCKED**.
+- First complete green L3 technical SHA: `958bc9aa2bbaf788d9a15c19d986ba728a7562fd` — `test(l3): make MQTT recovery stimulus reconnect-safe`.
+- L3 Seven-Driver Lab run #23: `33478345659`.
+- L3 job: `99762245620`.
+- Result on exact technical SHA `958bc9aa...`: **SUCCESS**.
 
-CI #982:
+Run #23 passed the complete dedicated L3 sequence:
 
-- backend build: 0 warnings / 0 errors;
-- Core: 246 passed;
-- Drivers: 347 passed;
-- Historian: 23 passed;
-- Security: 27 passed;
-- PostgreSQL: 107 passed;
-- total backend: **750 passed / 0 failed**;
-- runtime smoke: SUCCESS;
-- Web: SUCCESS;
-- Chromium E2E: SUCCESS.
+- seven peer startup / endpoint verification: PASS;
+- heterogeneous TAG Gateway slice: PASS;
+- one-runtime seven-Driver acquisition slice: PASS 7/7;
+- supported write slice: PASS;
+- serial peer fault/recovery slice: PASS;
+- Gateway source/destination fault/recovery slice: PASS;
+- evidence uploads: PASS;
+- clean lab shutdown: PASS.
 
-Documentation-only `[skip ci]` commits after `6d340e8...` do not create a newer code-validation claim.
+This is the first complete technical proof of the integrated L3 matrix. It does **not** by itself release Wave 11 because issue #180 also requires the final documentation-inclusive accepted SHA and normal EliteSCADA CI on that same accepted SHA.
 
-## MERGED
+This documentation checkpoint changes the branch HEAD after `958bc9aa...`; therefore the new documentation-inclusive HEAD must receive its own exact-SHA validation before #180 closes.
 
-- Wave 10: **CLOSED / MERGED / POST-MAIN GREEN**.
-- Common seven-peer interoperability laboratory infrastructure: **MERGED** through PR #173.
+At the time this checkpoint was prepared, querying Actions by technical SHA `958bc9aa...` returned only the dedicated L3 workflow. Normal EliteSCADA CI was not yet evidenced on that exact SHA.
 
-Driver convergence described below is **not yet merged to `main`**.
+## L3 topology / acceptance authority
 
-## IMPLEMENTED IN PR
+Issue #180 remains authoritative. One runtime must operate all seven communication Drivers concurrently:
 
-### Driver convergence / Engineering shared contracts
+1. MQTT;
+2. IEC-104;
+3. CIP / EtherNet/IP;
+4. OPC UA;
+5. DNP3;
+6. Siemens S7 ISO-on-TCP;
+7. BACnet/IP.
 
-On Draft PR #175:
+Do not weaken assertions, reduce the seven-driver expectation, skip a failing slice or reinterpret a prior failure to manufacture acceptance.
 
-- Engineering schema v15 / canonical `CommunicationBinding`: CLOSED;
-- MQTT: CLOSED;
-- IEC-104: CLOSED;
-- CIP / EtherNet/IP: CLOSED;
-- OPC UA: CLOSED;
-- DNP3: CLOSED;
-- Siemens S7 ISO-on-TCP: CLOSED;
-- BACnet/IP: CLOSED;
-- shared readiness/runtime planner/factory composition preserved;
-- Driver product-path L2: 7/7 PASS / ACCEPTED.
+## Resolved L3 blockers that must not be reopened without fresh evidence
 
-### Transitional Preview 200-TAG safeguard
+### BACnet/IP multi-interface activation
 
-Functional head `6d340e8...` / CI #982 currently implements a static project-wide 200-TAG capacity safeguard:
+Original runner failure: BACnet transport found multiple IPv4 candidates and refused automatic selection.
 
-- canonical registry rejects creation of the 201st TAG;
-- Engineering Preview/Apply rejects imports that would exceed 200;
-- existing TAGs remain editable at the limit;
-- oversized candidate runtime also fails through the capped registry.
+Fix: `c906f3cbbb3f0c584d19475c3dbdfbc6a84b5668` — `fix(bacnet): bind explicit local endpoint for L3`.
 
-This code is validated, but it is now explicitly **transitional behavior** and does not represent the final Demo/licensing contract.
+L3 loopback fixtures explicitly bind `localEndpointIp=127.0.0.1` while production auto-selection remains available when unset.
 
-## SPECIFIED / NOT IMPLEMENTED
+### Common runtime diagnostics exposed only 6/7 Drivers
 
-Product decision locked on 2026-08-31:
+Missing diagnostics Driver was IEC-104. `EngineeringRuntimeCoordinator.Describe()` only includes `ICommunicationDiagnosticsSource`; IEC-104 did not expose that common contract.
 
-### Final Demo mode
+- diagnostic: `a9a6fb55cb56659e382e7d09085f63505aee27f4`;
+- fix: `dff9adcf068d62a55f1fa2cf98f693cee8686739` — `fix(iec104): expose common runtime diagnostics`.
 
-- no installed license => Demo;
-- Engineering may contain more than 200 TAGs;
-- Demo Run is allowed only when project count is <= **200 TAGs**;
-- >200 TAGs blocks Run without deleting or truncating Engineering data;
-- Demo industrial runtime maximum: **300 continuous minutes per explicit Run session**;
-- at expiry Runtime stops gracefully, application/Engineering remains alive and a clear evaluation-expired message is shown;
-- user may explicitly Run again for a fresh 300-minute Demo session;
-- elapsed enforcement uses monotonic time.
+### Acquisition inherited CIP state from Gateway slice
 
-### Hardware-bound licensing
+Gateway legitimately wrote CIP `2222`; acquisition expected fresh-peer `1234`. This was cross-slice peer-state contamination, not acquisition failure.
 
-- EliteSCADA generates a copyable versioned machine request code derived from a canonical hashed hardware fingerprint;
-- controlled offline License Generator issues a signed license code/file;
-- initial TAG tiers: **500 / 1000 / 1500 / 3000 / 5000 / Unlimited**;
-- valid licensed/evaluation entitlement removes the 300-minute Demo runtime limit;
-- valid license must match the current hardware;
-- installed invalid/tampered/wrong-hardware license blocks Run and does not silently downgrade to Demo;
-- absent license enters Demo;
-- private signing key exists only in the controlled generator environment and MUST NOT be committed to GitHub, CI artifacts or normal EliteSCADA builds.
+- evidence persistence: `223aea71a240daca1343c71e3b4ea903b9b5ed00`;
+- isolation fix: `46cdc53cb2cb9f37d04386b8e6923e0f08bbe2cd` — `ci: reset L3 peers before acquisition slice`.
 
-Not implemented yet:
+Run #16 proved Gateway PASS and acquisition PASS 7/7 after isolation.
 
-- entitlement/license service;
-- machine fingerprint/request-code generator;
-- signed-license verifier/import/status UI;
-- 200-TAG Demo Run gate;
-- 300-minute Demo runtime supervisor;
-- graceful Demo-expiry notification flow;
-- offline License Generator;
-- licensed tier enforcement.
+### Persistent TRX evidence for remaining slices
 
-Authority: `docs/LICENSING-AND-DEMO-MODE.md`  
-Tracking issue: **#183**.
+Write/fault failures were made recoverable through TRX artifacts rather than relying on the unreliable Actions job-log download path.
 
-The next implementation must refactor the current mutation-time 200-TAG ceiling into the entitlement-aware Run/activation behavior instead of layering a second contradictory limit on top.
+Key evidence/workflow commits include `7f592424e4d33dcfbb5dff190ec1c3d2c1b32449` and related write/fault evidence persistence changes.
 
-## L3 / L4 stage policy
+### BACnet analog write datatype
 
-### L3
+BACnet Analog `Present_Value` is protocol REAL even when EliteSCADA canonical type is Double. Production write codec had emitted BACnet DOUBLE.
 
-After Driver convergence is merged to `main` and exact post-main CI is green, issue **#180** runs one integrated laboratory with all seven Drivers active simultaneously in one EliteSCADA build/runtime.
+- fix: `7fe8c58409d38a5d1750e9b16e06041f32718598` — `fix(bacnet): encode analog present value as REAL`;
+- test: `0f18b080ee0a116c1fe8e93bad1aff1629a79e30` — `test(bacnet): cover REAL analog present value writes`.
 
-L3 must prove acquisition, supported writes/commands, shared readiness, cache identity isolation, one-peer fault isolation, recovery and clean shutdown.
+### BACnet peer command-priority fixture
 
-Seven isolated L2 PASS results do not satisfy L3.
+The independent bacpypes peer initially used plain `AnalogValueObject`, causing `WRITE_ACCESS_DENIED` for valid priority-8 writes after the datatype fix.
 
-### L4
+Fix: `da86a93016bad9dfae29587bd556aac8007646f4` — `test(l3): make BACnet analog peer commandable`.
 
-Physical Driver validation occurs later with a Preview build and does not block Wave 11.
+The peer uses BACpypes commandable Real semantics. The production write capability and acceptance requirement were not weakened.
 
-Acceptance authority: **Bruno Luiz Rogerio, Development Lead**.
+### MQTT recovery stimulus
 
-Evidence is per exact Preview build plus real manufacturer/model/firmware.
+The final technical change before the first complete green L3 run was:
 
-## NEXT
+`958bc9aa2bbaf788d9a15c19d986ba728a7562fd` — `test(l3): make MQTT recovery stimulus reconnect-safe`.
 
-Immediate project order remains:
+That exact SHA produced L3 run #23 SUCCESS.
 
-`PR #175 controlled final audit/merge -> exact post-main CI green -> issue #180 integrated seven-Driver L3 PASS -> Wave 11`
+## Exact execution order for the next coordinator
 
-The Demo/licensing work in issue #183 is a separate Preview/distribution track. Do not insert it into PR #175 or treat it as already implemented unless the project ordering is explicitly changed.
+1. Re-fetch live branch HEAD before any write. Do not assume the SHA recorded here is still HEAD.
+2. Inspect issue #180 and the latest Actions runs.
+3. Treat L3 run #23 (`33478345659`) on `958bc9aa...` as the first complete technical L3 proof.
+4. Validate the current **documentation-inclusive branch HEAD** with the complete `L3 Seven-Driver Lab` workflow.
+5. Run/obtain normal EliteSCADA CI on that **same exact SHA** and require all checks mandated by #180 to pass.
+6. If the documentation-inclusive L3 or normal CI fails, fix the exact new failure and repeat exact-SHA validation. Do not regress to resolved BACnet two-IP, IEC-104 6/7, CIP contamination, INVALID_TAG or WRITE_ACCESS_DENIED diagnoses without fresh evidence.
+7. Synchronize `PROJECT GOAL.md`, this file, issue #180 and `docs/DRIVER-AND-INTEROP-LAB-STATUS.md` with final evidence.
+8. Close issue #180 only after all acceptance evidence is recorded on the accepted exact SHA.
+9. Only after #180 is closed may Wave 11 begin.
 
-## Last actual repository change
+## IMPLEMENTED ON ACTIVE L3 BRANCH
 
-The most recent work after CI #982 is **documentation/coordination only**. No product/licensing code was added after the conversation stalled.
+- dedicated seven-Driver L3 workflow;
+- one-runtime concurrent seven-Driver lab;
+- heterogeneous TAG Gateway validation;
+- deterministic BACnet/IP loopback binding for L3 fixtures;
+- IEC-104 common runtime diagnostics;
+- peer state isolation between slices;
+- persistent acquisition/write/fault TRX evidence;
+- protocol-correct BACnet REAL analog writes;
+- commandable BACpypes analog peer;
+- serial peer fault/recovery coverage;
+- Gateway source/destination fault/recovery coverage;
+- reconnect-safe MQTT recovery stimulus.
 
-The handoff update performed the following:
+## ACCEPTANCE STATE
 
-- updated `PROJECT GOAL.md` with the locked Demo + hardware-bound licensing product goal;
-- created `docs/LICENSING-AND-DEMO-MODE.md` with the detailed contract;
-- revised `docs/PREVIEW-CAPACITY-POLICY.md` to distinguish the validated transitional 200-TAG code from the final Demo Run-gate behavior;
-- refreshed `docs/CURRENT-COORDINATOR-HANDOFF.md`;
-- created and finalized `docs/COORDINATOR-TRANSFER-2026-08-31.md`;
-- updated `docs/ROADMAP.md`;
-- updated `docs/README.md` documentation authority map;
-- opened issue **#183** for Demo/licensing implementation;
-- synchronized live PR **#175** and issue **#174** with CI #982 and the new specified/not-implemented licensing boundary.
+- complete technical L3 matrix on `958bc9aa...`: **PASS — run #23**;
+- documentation-inclusive final HEAD exact-SHA L3: **PENDING**;
+- normal EliteSCADA CI on the same final accepted SHA: **PENDING / NOT YET EVIDENCED**;
+- issue #180 closure: **NOT YET**;
+- Wave 11 release: **NOT AUTHORIZED**.
 
-**No licensing/product code was committed after the stalled implementation attempt. The latest code-validation checkpoint remains `6d340e8...` / CI #982.**
+## Resume instruction for a new chat/coordinator
+
+Read, in order:
+
+1. `PROJECT GOAL.md`;
+2. `LAST CHANGE.md`;
+3. `docs/COORDINATOR-HANDOFF-2026-08-31.md` and any newer current handoff;
+4. issue #180 and latest comments;
+5. `.github/workflows/l3-seven-driver-lab.yml`;
+6. latest Actions runs on `coordination/driver-l3-seven-protocol-lab`.
+
+Then re-fetch live branch HEAD and target file SHAs before any mutation. Repository/CI state wins over stale chat memory.

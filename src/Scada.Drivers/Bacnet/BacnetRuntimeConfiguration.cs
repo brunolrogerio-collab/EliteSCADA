@@ -30,6 +30,7 @@ public static class BacnetRuntimeConfigurationParser
         var discoveryMs = ParseInt(settings, "discoveryWindowMilliseconds", 1500, 100, 30000, issues);
         var bbmdAddress = Get(settings, "bbmdAddress");
         var targetAddress = Get(settings, "targetAddress");
+        var localEndpointIp = Get(settings, "localEndpointIp");
         var foreignTtl = ParseOptionalInt(settings, "foreignDeviceTtlSeconds", 30, short.MaxValue, issues);
         if (foreignTtl.HasValue && string.IsNullOrWhiteSpace(bbmdAddress))
             issues.Add("BACnet Foreign Device Registration requires setting 'bbmdAddress'.");
@@ -38,13 +39,14 @@ public static class BacnetRuntimeConfigurationParser
         if (issues.Count == 0)
         {
             options = new BacnetSessionOptions(
-                localPort,
-                TimeSpan.FromMilliseconds(timeoutMs),
+                LocalPort: localPort,
+                RequestTimeout: TimeSpan.FromMilliseconds(timeoutMs),
                 Retries: 2,
-                TimeSpan.FromMilliseconds(discoveryMs),
-                bbmdAddress,
-                foreignTtl,
-                targetAddress);
+                DiscoveryWindow: TimeSpan.FromMilliseconds(discoveryMs),
+                BbmdAddress: bbmdAddress,
+                ForeignDeviceTtlSeconds: foreignTtl,
+                TargetAddress: targetAddress,
+                LocalEndpointIp: localEndpointIp);
             try
             {
                 options.Validate();

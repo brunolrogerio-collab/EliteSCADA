@@ -1,8 +1,8 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-09-01 (BRT)  
-**Active direction:** **PRE-WAVE-11 GATE COMPLETE / WAVE 11 READY**  
-**Wave 11:** **READY / NOT STARTED**
+**Active direction:** **WAVE 11 — ACTIVE ENGINEERING HMI RUNTIME**  
+**Wave 11:** **ACTIVE — issue #194 / `coordination/wave11-hmi-runtime`**
 
 Authoritative product intent: `PROJECT GOAL.md`.  
 Mutable coordination state: `LAST CHANGE.md`.  
@@ -47,8 +47,8 @@ Drivers      Shared runtime/Engineering convergence                             
 DemoLicense  Demo + hardware-bound licensing + offline License Generator                 COMPLETE / ACCEPTED / MERGED
 Driver L3    Seven Drivers concurrently + Gateway + fault/recovery                       PASS / ACCEPTED / INTEGRATED
 Pre-Wave 11  GUI License Generator + Slider + application file + minimum Dynamo library  COMPLETE / ACCEPTED / MERGED
-Wave 11      Complete HMI Runtime demo vertical slice                                    READY / NOT STARTED
-Wave 12      Hardening                                                                   WAITING
+Wave 11      Complete HMI Runtime demo vertical slice                                    ACTIVE — #194
+Wave 12      Hardening                                                                   WAITING / BLOCKED BY #194
 Wave 13      Signed Windows x64 package + Authenticode release verification              WAITING / REQUIRED
 Wave 14      Product-owner validation                                                    WAITING
 Wave 15      Feedback/corrections                                                        WAITING
@@ -63,11 +63,23 @@ Completed sequence:
 
 `Driver convergence -> main -> post-main CI -> L3 #180 -> pre-Wave-11 owner-usability gate #191 -> PR #193 -> exact post-main validation -> PASS`
 
-Issue #191 no longer blocks development. Wave 11 is the next authorized implementation stage.
+Current sequence:
 
-Wave 11 must replace the current hand-authored Runtime Demo as application truth with an owner-testable HMI Runtime vertical slice derived from the **active canonical Engineering revision**. Existing visual runtime, Screen/Popup/Dynamo composition, Client Visual scripting, TAG realtime, alarm, trend/history and protected write foundations must be reused rather than bypassed or duplicated.
+`Wave 11 #194 -> active canonical Engineering HMI Runtime vertical slice -> exact-head CI -> controlled PR/main integration -> post-main validation`
+
+Wave 11 replaces the current hand-authored Runtime Demo as application truth with an owner-testable HMI Runtime vertical slice derived from the **active canonical Engineering revision**. Existing visual runtime, Screen/Popup/Dynamo composition, Client Visual scripting, TAG realtime, alarm, trend/history and protected write foundations must be reused rather than bypassed or duplicated.
 
 Working Engineering edits must not silently leak into Runtime before normal save/publish/activate lifecycle semantics make them active.
+
+### Wave 11 implementation boundary
+
+1. protected backend projection of the active persisted canonical Engineering package;
+2. deterministic Runtime project/revision consistency checks;
+3. canonical Screen/Popup/Dynamo catalog mounted through the existing Runtime visual renderer/navigation stack;
+4. preserved protected Slider/TAG writes and Client Visual runtime behavior;
+5. simulation fallback remains explicitly separate when no Engineering runtime is active;
+6. automated proof that Working edits do not affect Runtime until activation;
+7. exact backend, Web and Chromium evidence before integration.
 
 ## Demo and licensed behavior
 

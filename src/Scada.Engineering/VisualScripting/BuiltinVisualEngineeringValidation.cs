@@ -114,12 +114,13 @@ public static class BuiltinVisualEngineeringValidation
             .Where(binding => binding is not null &&
                 binding.Key.Equals(VisualPropertyKeys.Value, StringComparison.Ordinal))
             .ToArray();
-        if (valueBindings.Length != 1 ||
-            valueBindings[0].Kind != EngineeringBindingKind.Tag ||
-            valueBindings[0].TagReference is null ||
-            valueBindings[0].TagReference.TagId == Guid.Empty ||
-            valueBindings[0].TagReference.Selector is not null ||
-            !IsWriteDirection(valueBindings[0].Direction))
+        var valueBinding = valueBindings.Length == 1 ? valueBindings[0] : null;
+        if (valueBinding is null ||
+            valueBinding.Kind != EngineeringBindingKind.Tag ||
+            valueBinding.TagReference is null ||
+            valueBinding.TagReference.TagId == Guid.Empty ||
+            valueBinding.TagReference.Selector is not null ||
+            !IsWriteDirection(valueBinding.Direction))
         {
             yield return Error(
                 "VISUAL_SLIDER_WRITABLE_TAG_REQUIRED",

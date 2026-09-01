@@ -101,9 +101,30 @@ Issue #201 is now the open coordination surface for the next Coordinator. Its **
 - `main` currently has no GitHub-enforced branch protection/required status checks; the universal CI rule is operational.
 - Historical branch refs must not be repointed merely for cosmetic cleanup.
 
+### Future Linux / Debian distribution direction
+
+A future official **Linux x64 / Debian `.deb`** distribution is now **SPECIFIED / NOT STARTED**. This is not part of the current Wave 12 execution and must start only when explicitly requested by the Development Lead.
+
+Durable specification: `docs/LINUX-DEBIAN-DISTRIBUTION.md`.
+
+Planned first targets and boundaries:
+
+- Debian 12 `amd64` first, followed by Debian 13 homologation;
+- `linux-x64` self-contained, initially multi-file inside one `.deb` artifact;
+- product layout `/usr/lib/elitescada`, configuration `/etc/elitescada`, mutable state `/var/lib/elitescada`;
+- system user/group + `elitescada.service`;
+- React/Pyodide integrated into the product served by Kestrel;
+- externally configured PostgreSQL/TimescaleDB;
+- Linux machine-bound licensing through the existing Machine Request Code/signed-license contract; Windows-only offline License Generator may remain authority-side;
+- clean Debian install/upgrade/reboot validation, installed Runtime/Web/licensing/Driver tests and SBOM/dependency-license audit.
+
+Commercial dependency gate: Step Function I/O `dnp3` 1.6.0 is publicly licensed for non-commercial/non-production use. Before any commercial EliteSCADA distribution includes/enables that Driver, obtain an appropriate commercial license or approve/revalidate an alternative. DNP3 licensing remediation is expected before the future `.deb` front unless an authorized package explicitly excludes DNP3.
+
+No Linux packaging branch, PR, code change or Linux distribution CI has been created in this coordination cycle.
+
 ## 5. Exact next action for the next Coordinator
 
-Do **not** continue Wave 11 implementation and do **not** infer that Wave 12 has already started.
+Do **not** continue Wave 11 implementation, do **not** infer that Wave 12 has already started, and do **not** start Linux `.deb` packaging unless the Development Lead explicitly requests it.
 
 At actual Wave 12 start:
 
@@ -112,6 +133,7 @@ At actual Wave 12 start:
 3. re-read live `main`, open PRs/issues and exact Actions state;
 4. audit current failure/test surfaces before choosing hardening slices;
 5. create a dedicated Wave 12 branch from the then-live `main` only at that point;
-6. keep Wave 13 Authenticode/release-signing work separate.
+6. keep Wave 13 Authenticode/release-signing work separate;
+7. preserve the future Linux packaging direction and DNP3 commercial-license gate without starting that front.
 
-`PROJECT GOAL.md` has been reviewed and synchronized in this coordination cycle. No locked product architecture was relaxed. Wave 13 remains the mandatory signed Windows x64 + Authenticode/trusted-timestamp stage; Waves 14/15 remain owner validation and feedback/corrections; physical L4 remains later device/site validation.
+`PROJECT GOAL.md` and `docs/ROADMAP.md` have been synchronized with the future Linux/Debian direction. No locked current architecture was relaxed. Wave 13 remains the mandatory signed Windows x64 + Authenticode/trusted-timestamp stage; Waves 14/15 remain owner validation and feedback/corrections; physical L4 remains later device/site validation.

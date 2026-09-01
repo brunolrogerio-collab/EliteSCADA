@@ -23,7 +23,7 @@
 
 ### Current release-sequencing gate
 
-The seven communication Drivers completed the integrated L3 interoperability gate under issue #180, and the subsequent pre-Wave-11 owner-usability gate #191 covering the graphical License Generator, canonical industrial Slider, explicit application-file saving/opening and minimum ready-to-insert Dynamo library has been accepted and integrated. **Wave 11 is authorized as the next development stage.** Exact current issue/branch/SHA/run state remains in `LAST CHANGE.md`.
+The seven communication Drivers completed the integrated L3 interoperability gate under issue #180, the pre-Wave-11 owner-usability gate #191 was accepted and integrated, and Wave 11 established the Active persisted canonical Engineering revision as HMI Runtime application truth with an owner-testable `.escadapkg` handoff. **Wave 12 is prepared as the next development stage but has not started.** Wave 12 is a hardening pass over accepted contracts; Wave 13 remains the separate signed Windows x64 + Authenticode/trusted-timestamp release stage. Exact current issue/branch/SHA/run state remains in `LAST CHANGE.md`.
 
 ## Product mission
 
@@ -223,7 +223,8 @@ The following important slices are already official `main` state:
 - protected sensitive read/realtime/WebSocket surfaces through PR #36, merge `10b0320149c1ef2109e9517539717a8800b200c2`;
 - Engineering UI foundation/localization through PR #37, merge `4553aa7ab5ba7e05a209a7c8462286d1a34a1ad6`;
 - trusted local identity/browser login foundation through PR #38, merge `2a581d279a428cb605429d5939c333ff7ad8d1b4`;
-- pre-Wave-11 owner-usability integration through PR #193, main code merge `64ba134f88df61233c492f6c5e2b1ea8f244bf19`: graphical Windows License Generator, canonical industrial Slider, explicit `.escadapkg` Save/Open workflow and eight-definition built-in Dynamo starter library; exact pre/post-main validation evidence is retained in `LAST CHANGE.md` and issue #191.
+- pre-Wave-11 owner-usability integration through PR #193, main code merge `64ba134f88df61233c492f6c5e2b1ea8f244bf19`: graphical Windows License Generator, canonical industrial Slider, explicit `.escadapkg` Save/Open workflow and eight-definition built-in Dynamo starter library; exact pre/post-main validation evidence is retained in `LAST CHANGE.md` and issue #191;
+- Wave 11 Active persisted Engineering HMI Runtime through PR #199, with canonical Screen/Popup/Dynamo mounting, Active revision visual-asset authority, Working isolation and fail-closed runtime projection; owner-test `.escadapkg` delivery is preserved through PR #200, with validated product-code `main` `4ccc29cb4bb334dc473d8265f48a9c8601993413`. Exact acceptance evidence remains in `LAST CHANGE.md` and issue #194.
 
 The current Engineering UI includes `/engineering`, Runtime↔Engineering navigation, `pt-BR`/`en`/`es`, and structured TAG/Data Source/Alarm editors whose current mutation behavior remains intentionally preview-oriented until secured Apply/Delete/bulk workflows are added.
 
@@ -652,5 +653,6 @@ Full locked semantics and the permitted early non-production spike: `docs/OPC-UA
 - `docs/WAVE-09-HISTORICAL-DATA-BROWSER-ALARM-HISTORIAN-CONTEXT.md`: Wave 09 protected historical browsing/query contract.
 - `docs/WAVE-09-REPORTING-AND-REPORT-DESIGNER.md`: Wave 09 canonical reporting, report designer, preview/print/export contract.
 - `docs/LICENSING-AND-DEMO-MODE.md`: Demo 200-TAG Run gate, 300-minute session limit, hardware request code, signed-license validation and offline License Generator contract.
+- `docs/WAVE-12-HARDENING-PREPARATION.md`: preparation-only hardening scope for the next Coordinator; it does not itself start Wave 12.
 
 These documents must remain consistent. `PROJECT GOAL.md` wins for locked product intent; current repository code/`main` wins for implementation truth; `LAST CHANGE.md` records the exact handoff.

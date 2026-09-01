@@ -1,9 +1,9 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-09-01 (BRT)  
-**Active direction:** **WAVE 12 — HARDENING PREPARED / NOT STARTED**  
-**Wave 11:** **ACCEPTANCE GATE SATISFIED — issue #194 closure in current documentation cycle**  
-**Wave 12:** **issue #201 PREPARED / NOT STARTED**
+**Active direction:** **WAVE 12 — HARDENING READY / NOT STARTED**  
+**Wave 11:** **COMPLETE / ACCEPTED / CLOSED — issue #194**  
+**Wave 12:** **issue #201 READY / NOT STARTED**
 
 Authoritative product intent: `PROJECT GOAL.md`.  
 Mutable coordination state: `LAST CHANGE.md`.  
@@ -18,13 +18,13 @@ CI policy: `docs/CI-VALIDATION-POLICY.md`.
 - Demo/hardware-bound licensing: **IMPLEMENTED / ACCEPTED / MERGED**.
 - Pre-Wave-11 owner-usability gate #191: **COMPLETE / ACCEPTED / MERGED** through PR #193.
 - Repository/CI hygiene: **COMPLETE / ACCEPTED / INTEGRATED** through PRs #196 and #197.
-- Wave 11 Active Engineering HMI Runtime: **IMPLEMENTED / MERGED / POST-MAIN VALIDATED** through PR #199.
-- Wave 11 owner-test `.escadapkg` handoff: **IMPLEMENTED / MERGED / POST-MAIN VALIDATED** through PR #200.
+- Wave 11 Active Engineering HMI Runtime: **IMPLEMENTED / MERGED / POST-MAIN VALIDATED / ACCEPTED** through PR #199 and issue #194.
+- Wave 11 owner-test `.escadapkg` handoff: **IMPLEMENTED / MERGED / POST-MAIN VALIDATED / ACCEPTED** through PR #200.
 - Latest validated product-code `main`: `4ccc29cb4bb334dc473d8265f48a9c8601993413`.
 - Post-main Wave 11 workflow #14 / `33552016447`: **SUCCESS**.
 - Post-main EliteSCADA CI #1067 / `33552016454`: **SUCCESS** including backend build/tests/runtime smoke, Web build and Chromium E2E.
 
-Documentation-only `[skip ci]` commits may advance `main` beyond validated product-code SHAs without superseding their validation evidence.
+Documentation-only `[skip ci]` commits have advanced `main` beyond the validated product-code SHA without superseding its validation evidence.
 
 ## Ordered path to v0.1
 
@@ -46,8 +46,8 @@ DemoLicense  Demo + hardware-bound licensing + offline License Generator        
 Driver L3    Seven Drivers concurrently + Gateway + fault/recovery                       PASS / ACCEPTED / INTEGRATED
 Pre-Wave 11  GUI License Generator + Slider + application file + minimum Dynamo library  COMPLETE / ACCEPTED / MERGED
 CI Hygiene   Specialized CI routing + stale PR/issue sanitation + focused ownership      COMPLETE / MERGED
-Wave 11      Active persisted Engineering HMI Runtime + owner-test package                COMPLETE / ACCEPTED GATE
-Wave 12      Hardening                                                                   PREPARED / NOT STARTED / #201
+Wave 11      Active persisted Engineering HMI Runtime + owner-test package                COMPLETE / ACCEPTED / CLOSED
+Wave 12      Hardening                                                                   READY / NOT STARTED / #201
 Wave 13      Signed Windows x64 package + Authenticode release verification              WAITING / REQUIRED
 Wave 14      Product-owner validation                                                    WAITING
 Wave 15      Feedback/corrections                                                        WAITING
@@ -83,9 +83,11 @@ Final owner-test application:
 - post-main artifact id `9817878392`;
 - application SHA-256 `13261af59b8707df7d9ef3bbea307cb0c85d945ea8f47315fb693c92c885efa1`.
 
+Issue #194 is **CLOSED / COMPLETED**.
+
 ## Wave 12 preparation boundary
 
-Wave 12 issue #201 exists only as **PREPARED / NOT STARTED**. No Wave 12 implementation branch, PR, production-code change or CI evidence exists yet.
+Wave 12 issue #201 is **READY / NOT STARTED**. No Wave 12 implementation branch, PR, production-code change or CI evidence exists at this handoff.
 
 Wave 12 is a hardening stage over already accepted contracts, focused on:
 
@@ -100,7 +102,7 @@ Wave 12 is a hardening stage over already accepted contracts, focused on:
 
 Wave 12 is not a feature-expansion wave. New Drivers/protocols, Authenticode/release signing, owner validation and physical L4 remain outside its scope.
 
-The next Coordinator must read live `main` and `docs/WAVE-12-HARDENING-PREPARATION.md` before creating a dedicated Wave 12 branch.
+The next Coordinator must read live `main`, issue #201 and `docs/WAVE-12-HARDENING-PREPARATION.md` before deliberately creating a dedicated Wave 12 branch.
 
 ## CI validation strategy
 

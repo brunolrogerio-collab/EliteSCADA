@@ -68,7 +68,7 @@ public sealed class TagRealtimeHub : IDisposable
             principal,
             enforceAuthorization,
             expiresAtUtc,
-            lifetime,
+            lifetime.Token,
             SendTimeout);
         _clients[clientId] = client;
         var sender = client.RunSenderAsync();
@@ -219,7 +219,7 @@ public sealed class TagRealtimeHub : IDisposable
                 SingleReader = true,
                 SingleWriter = false
             });
-        private readonly CancellationTokenSource _lifetime;
+        private readonly CancellationTokenSource _senderCancellation;
         private readonly TimeSpan _sendTimeout;
         private readonly object _stopGate = new();
         private WebSocketCloseStatus _closeStatus = WebSocketCloseStatus.NormalClosure;
@@ -231,14 +231,14 @@ public sealed class TagRealtimeHub : IDisposable
             SecurityPrincipal principal,
             bool enforceAuthorization,
             DateTimeOffset? expiresAtUtc,
-            CancellationTokenSource lifetime,
+            CancellationToken connectionLifetime,
             TimeSpan sendTimeout)
         {
             Socket = socket;
             Principal = principal;
             EnforceAuthorization = enforceAuthorization;
             ExpiresAtUtc = expiresAtUtc;
-            _lifetime = lifetime;
+            _senderCancellation = CancellationTokenSource.CreateLinkedTokenSource(connectionLifetime);
             _sendTimeout = sendTimeout;
         }
 
@@ -264,7 +264,7 @@ public sealed class TagRealtimeHub : IDisposable
                 _closeStatus = closeStatus;
                 _closeDescription = description;
                 _outbound.Writer.TryComplete();
-                try { _lifetime.Cancel(); }
+                try { _senderCancellation.Cancel(); }
                 catch (ObjectDisposedException) { }
             }
         }
@@ -273,9 +273,9 @@ public sealed class TagRealtimeHub : IDisposable
         {
             try
             {
-                await foreach (var payload in _outbound.Reader.ReadAllAsync(_lifetime.Token))
+                await foreach (var payload in _outbound.Reader.ReadAllAsync(_senderCancellation.Token))
                 {
-                    using var sendCancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+                    using var sendCancellation = CancellationTokenSource.CreateLinkedTokenSource(_senderCancellation.Token);
                     sendCancellation.CancelAfter(_sendTimeout);
                     try
                     {
@@ -285,14 +285,14 @@ public sealed class TagRealtimeHub : IDisposable
                             true,
                             sendCancellation.Token);
                     }
-                    catch (OperationCanceledException) when (!_lifetime.IsCancellationRequested)
+                    catch (OperationCanceledException) when (!_senderCancellation.IsCancellationRequested)
                     {
                         Stop(WebSocketCloseStatus.EndpointUnavailable, "realtime send timeout");
                         break;
                     }
                 }
             }
-            catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+            catch (OperationCanceledException) when (_senderCancellation.IsCancellationRequested) { }
             catch (WebSocketException)
             {
                 Stop(WebSocketCloseStatus.EndpointUnavailable, "realtime transport failed");
@@ -302,6 +302,7 @@ public sealed class TagRealtimeHub : IDisposable
             {
                 _outbound.Writer.TryComplete();
                 await CloseOutputAsync();
+                _senderCancellation.Dispose();
             }
         }
 

@@ -1,21 +1,17 @@
 # DRIVER AND INTEROPERABILITY LAB STATUS — EliteSCADA
 
-Last evidence policy update: **2026-08-31 BRT**  
+Last evidence update: **2026-09-01 BRT**  
 Scope: **DRIVER / INTEROPERABILITY EVIDENCE**
 
-> Current coordinator implementation state and merge gates live in `CURRENT-COORDINATOR-HANDOFF.md`.
+Live GitHub refs and exact-SHA Actions evidence override historical prose.
 
-## Evidence levels used by EliteSCADA
+## Evidence levels
 
-From this checkpoint forward, the project uses the following operational evidence levels:
-
-- **L0** — unit, codec and contract tests;
-- **L1** — same-stack / in-process / loopback integration;
-- **L2** — EliteSCADA Driver against an independent software peer over the real wire protocol;
-- **L3** — **post-main integrated seven-Driver laboratory**: one EliteSCADA build/runtime with all seven converged Drivers active concurrently against their independent laboratory peers;
-- **L4** — **physical hardware / site evaluation using a Preview build**, executed and accepted by the Development Lead, **Bruno Luiz Rogerio**.
-
-L3 and L4 are deliberately different evidence gates. L3 proves the integrated multi-Driver software system. L4 proves representative real hardware/site behavior. Licensing, formal protocol certification/conformance and vendor breadth remain separate claims.
+- **L0** — unit, codec and contract tests.
+- **L1** — same-stack / in-process / loopback integration.
+- **L2** — EliteSCADA Driver against an independent software peer over the real wire protocol.
+- **L3** — one EliteSCADA build/runtime operating all seven converged Drivers concurrently against independent laboratory peers, including heterogeneous TAG Gateway and fault/recovery evidence.
+- **L4** — physical hardware/site evaluation using a Preview build, accepted per actual device/model/firmware by the Development Lead.
 
 ## L2 — independent product-path laboratory
 
@@ -31,19 +27,11 @@ Status: **7/7 PASS / ACCEPTED**.
 | Siemens S7 ISO-on-TCP | python-snap7 | **PASS** |
 | BACnet/IP | BACpypes | **PASS** |
 
-The common peer infrastructure is also **7/7 healthy**. Peer health alone is not product acceptance; each Driver has separately accepted L2 evidence.
+## L3 — integrated seven-Driver laboratory
 
-## L3 — post-main integrated seven-Driver laboratory
+Status: **PASS / ACCEPTED / INTEGRATED**.
 
-Status: **PLANNED / BLOCKED UNTIL DRIVER CONVERGENCE IS MERGED TO `main` AND POST-MERGE CI IS GREEN**.
-
-### Purpose
-
-L3 is not seven isolated Driver tests. It must prove that the converged host can operate all seven Drivers **at the same time** without cross-Driver interference, shared-host contract regressions or resource/lifecycle collisions.
-
-### Required topology
-
-Use one exact EliteSCADA build from `main` with one Engineering project containing seven active communication Data Sources:
+The accepted topology operated these seven communication Data Sources concurrently:
 
 1. MQTT;
 2. IEC-104;
@@ -53,68 +41,63 @@ Use one exact EliteSCADA build from `main` with one Engineering project containi
 6. Siemens S7 ISO-on-TCP;
 7. BACnet/IP.
 
-Each Data Source must connect to its independent laboratory peer using the real protocol path already accepted at L2.
+### Acceptance evidence
 
-### Minimum L3 acceptance matrix
+First complete technical L3 proof:
 
-The integrated run must prove, concurrently:
+- SHA `958bc9aa2bbaf788d9a15c19d986ba728a7562fd`;
+- L3 Seven-Driver Lab #23, run `33478345659`: **SUCCESS**.
 
-1. all seven Data Sources compile from canonical schema-v15 `CommunicationBinding`;
-2. all seven runtime factories activate through the shared host registry/composition root;
-3. all seven reach their protocol readiness state without requiring every TAG to be `Good`;
-4. deterministic acquisition from every protocol reaches the canonical TAG cache;
-5. at least one supported write/command path per Driver succeeds where the first-release Driver supports writes;
-6. timestamps/quality/typed values remain protocol-correct and do not leak SDK/session objects into shared boundaries;
-7. loss of one peer degrades/faults only its own Data Source and does **not** interrupt the other six;
-8. the failed peer can return and its Driver can recover/reconnect without restarting the EliteSCADA host when the Driver contract supports recovery;
-9. concurrent traffic does not create TAG/cache identity collisions, protected-material scope leakage or Driver-to-Driver coupling;
-10. runtime shutdown cleanly stops all seven Drivers;
-11. backend/runtime smoke and the dedicated seven-Driver L3 workflow are green on the exact `main` SHA;
-12. no assertion is weakened to manufacture a green laboratory result.
+Final stabilization/exact-head proof before main integration:
 
-### Stage transition rule
+- SHA `02b7408e68b81355de6a56dc0267c9e28c0c74bf`;
+- EliteSCADA CI #1023, run `33510090342`: **SUCCESS**;
+- Preview Licensing CI #80, run `33510090333`: **SUCCESS**;
+- L3 Seven-Driver Lab #30, run `33510090344`: **SUCCESS**.
 
-**Wave 11 MUST NOT start until:**
+Main integration:
 
-`Driver convergence merged to main -> post-main CI green -> L3 seven-Driver integrated laboratory PASS`
+- PR #190 merged;
+- main code SHA `9b963c40f013f115b9787049cdb90949a30cbcbc`;
+- EliteSCADA CI #1024, run `33510855124`: **SUCCESS**;
+- Preview Licensing CI #81, run `33510855126`: **SUCCESS**.
 
-When that chain is green, the Driver convergence/laboratory stage is closed and the project proceeds to the next Wave.
+### Matrix proven
 
-## L4 — physical hardware / site validation
+The accepted L3 sequence includes:
+
+- seven-peer startup and endpoint verification;
+- common runtime activation/readiness for all seven Drivers;
+- deterministic concurrent acquisition 7/7 through the canonical TAG path;
+- supported writes/commands;
+- heterogeneous TAG Gateway transfer through canonical cache/event boundaries;
+- serial peer fault isolation and recovery;
+- Gateway source/destination fault and recovery;
+- no Driver-to-Driver coupling introduced;
+- persistent acceptance evidence artifacts;
+- clean seven-peer/runtime shutdown;
+- no assertion weakening to manufacture green evidence.
+
+Resolved L3 defects remain historical evidence and must not be reopened without fresh failure evidence. These included BACnet loopback binding, IEC-104 common diagnostics, cross-slice CIP peer state contamination, BACnet REAL analog writes, commandable BACnet priority semantics and MQTT recovery stimulus handling.
+
+## L3 release state
+
+Issue #180 may be closed as completed. Driver convergence issue #174 may also close because its required main integration, post-main CI and L3 acceptance are complete.
+
+L3 therefore no longer blocks Wave 11. However, on 2026-09-01 the Development Lead explicitly introduced an additional **pre-Wave-11 task**. Its scope is still to be supplied, so Wave 11 remains intentionally **NOT STARTED** until that task is recorded and completed.
+
+## L4 — physical hardware/site validation
 
 Status: **DEFERRED UNTIL A PREVIEW BUILD EXISTS**.
 
-L4 is intentionally **not** a prerequisite for starting Wave 11.
+L4 is separate from L3 and is device-specific. It should record exact Preview build, Driver, manufacturer, model, firmware/software revision, topology/settings, reads, writes/commands, reconnect scenarios, observed quality/timestamps/diagnostics and final result.
 
-Physical Driver evaluation will be performed after the Preview build is assembled. The Development Lead and acceptance authority for this gate is:
-
-**Bruno Luiz Rogerio**
-
-L4 evidence should be recorded per actual device, not as a blanket protocol claim. Each record should capture at least:
-
-- exact EliteSCADA Preview build / commit;
-- Driver and DriverType;
-- manufacturer;
-- model;
-- firmware/software revision;
-- network/topology and relevant communication settings;
-- tested reads, writes/commands and reconnect scenarios;
-- observed quality/timestamps/diagnostics;
-- result (`PASS`, `FAIL`, `PARTIAL`, `NOT TESTED`);
-- evaluator notes and final acceptance.
-
-Example classification:
-
-`Siemens S7 -> CPU 1214C / firmware X.Y -> L4 PASS`
-
-A PASS on one physical model must not be generalized to every device implementing that protocol.
+A PASS on one physical model must not be generalized to every device implementing the protocol.
 
 ## Claim discipline
 
-- Normal CI green is not L2 or L3.
-- Seven independent L2 PASS results are not L3.
-- L3 requires all seven Drivers operating concurrently in one EliteSCADA runtime/build.
-- L3 is not physical hardware evidence.
-- L4 requires real hardware/site evaluation using the Preview build.
-- L4 acceptance is device-specific.
-- Licensing, conformance/certification and vendor breadth remain separate from L0-L4 interoperability evidence.
+- Normal CI green alone is not L2 or L3.
+- Seven independent L2 results alone are not L3.
+- L3 does not imply physical hardware validation.
+- L4 requires real hardware/site evidence.
+- Licensing, conformance/certification and vendor breadth remain separate evidence claims.

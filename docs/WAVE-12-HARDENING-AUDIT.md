@@ -11,14 +11,14 @@ This is the active finding and remediation ledger. A finding closes only when it
 
 Latest validated Wave 12 product-code checkpoint:
 
-`b737fb88cc58f53000e4f859e127473de10f4a51`
+`26105850c468a0be372fe3adf6af00536c5f4d33`
 
 Evidence:
 
-- EliteSCADA CI #1078 / `33566810710`: **SUCCESS**;
-- L3 Seven-Driver Lab #74 / `33566810666`: **SUCCESS**;
-- Preview Licensing CI #127 / `33566810696`: **SUCCESS**;
-- Wave 11 Active HMI Runtime #25 / `33566810758`: **SUCCESS**.
+- EliteSCADA CI #1080 / `33567825254`: **SUCCESS**;
+- L3 Seven-Driver Lab #76 / `33567825400`: **SUCCESS**;
+- Preview Licensing CI #129 / `33567825161`: **SUCCESS**;
+- Wave 11 Active HMI Runtime #27 / `33567825154`: **SUCCESS**.
 
 ## 1. Existing controls that remain locked
 
@@ -29,6 +29,7 @@ Evidence:
 - Script execution uses bounded queues, cancellation/timeout boundaries and sanitized diagnostics.
 - Core Engineering mutations use workspace serialization and compare-and-swap version checks.
 - Local-identity logical mutations are serialized across the complete read/validate/write sequence, including PostgreSQL multi-process cooperation.
+- Login limiter state has an expiry lifecycle without evicting active/unexpired lockout windows.
 - No test, security or lifecycle boundary may be weakened merely to make CI green.
 
 ## 2. Findings
@@ -41,9 +42,9 @@ Evidence:
 | W12-PKG-001 | High | `.escadapkg` | Enforce export resource limits symmetric with the importer. | **FIXED / REGRESSION / VALIDATED** |
 | W12-PER-002 | High | Persistence Apply | Serialize Apply with the Working mutation lease and require caller-observed version/CAS. | **FIXED / REGRESSION / VALIDATED** |
 | W12-AUTH-001 | High | Local identities | Prevent concurrent lost updates and preserve the last-enabled-administrator invariant across the entire logical mutation. | **FIXED / REGRESSION / VALIDATED** |
-| W12-AUTH-002 | Medium | Login limiting | Bound/expire unique remote-key entries without weakening lockout. | **ACTIVE NEXT** |
+| W12-AUTH-002 | Medium | Login limiting | Bound/expire unique remote-key entries without weakening lockout. | **FIXED / REGRESSION / VALIDATED** |
 | W12-AUD-001 | High | Audit durability | Select and implement an explicit product-safe audit-outage contract; silent protected-action audit loss is unacceptable. | Pending design disposition |
-| W12-API-001 | Medium | Requests/diagnostics | Normalize request validation/provider failures and sanitize deterministic diagnostics. | Pending |
+| W12-API-001 | Medium | Requests/diagnostics | Normalize request validation/provider failures and sanitize deterministic diagnostics. | **ACTIVE NEXT** |
 
 ## 3. Closed remediation details
 
@@ -77,24 +78,26 @@ Local-identity logical mutations now hold a store-level mutation lease across th
 
 Focused regressions cover stale-snapshot lost updates, concurrent administrator-invariant preservation and PostgreSQL cross-session advisory-lock behavior. An initial test build exposed xUnit2031 syntax and was corrected without changing semantics. A later universal run exposed an unrelated 100 ms Modbus recovery-test timing margin; the test retained the same failure/recovery assertions while moving the healthy timeout/fault delay to 250/750 ms. Exact-head checkpoint `b737fb88cc58f53000e4f859e127473de10f4a51` then passed EliteSCADA CI #1078, L3 #74, Preview Licensing #127 and Wave 11 Runtime #25.
 
-## 4. Active Slice C — W12-AUTH-002 / W12-API-001
+### W12-AUTH-002
 
-### W12-AUTH-002 confirmed defect
+`LocalLoginAttemptLimiter` previously retained one process-lifetime entry for every observed remote key even after its rate window expired. Cleanup now runs opportunistically on a bounded interval and removes only expired windows. Active/unexpired windows are never evicted merely to satisfy a table-size target, preserving the lockout contract under high-cardinality traffic.
 
-`LocalLoginAttemptLimiter` keeps one `AttemptWindow` per observed remote key in a process-lifetime `ConcurrentDictionary`. Window counters reset after the configured rate window, but expired key entries are never removed, so high-cardinality remote traffic leaves retained state indefinitely.
+A short table gate serializes cleanup and same-key counter rollover, preventing an expired key from being removed while another thread increments the detached old window. Regressions prove stale-key reclamation without weakening an active lockout and prove that concurrent requests at a window boundary still share one permit counter. Exact-head checkpoint `26105850c468a0be372fe3adf6af00536c5f4d33` passed EliteSCADA CI #1080, L3 #76, Preview Licensing #129 and Wave 11 Runtime #27.
+
+## 4. Active Slice C — W12-API-001
+
+Confirmed request-boundary defect: Engineering Persistence revision-list `limit` is currently forwarded to the store without HTTP validation. Values outside the store contract (1..500) can therefore raise provider `ArgumentOutOfRangeException` and surface as an inconsistent 500 rather than a deterministic client error. Revision routes likewise accept non-positive `:long` values and can push invalid revisions into provider/service code.
+
+Historical Query currently classifies broad `ArgumentException` failures as public `invalid_query`, even when the exception may originate below the validated request boundary. This can misclassify provider/internal defects as caller errors and expose implementation details. Cursor errors are also public diagnostics and must remain actionable without leaking lower-level parsing/cryptographic exception text.
 
 Required implementation:
 
-1. give expired remote-key windows a bounded lifecycle;
-2. never evict an unexpired/actively limited window merely to satisfy a size cap, because that would weaken lockout;
-3. make cleanup concurrency-safe so removal cannot split one key across two counters;
-4. avoid a full-table scan on every login attempt;
-5. add deterministic regressions proving stale keys are reclaimed while an active limited key remains limited;
-6. obtain exact-head EliteSCADA CI success before marking the finding fixed.
-
-### W12-API-001
-
-After AUTH-002 is validated, normalize invalid request ranges/limits and provider-dependent failures into deterministic sanitized client responses, with focused regression coverage.
+1. validate persistence revision-list limits and positive revision identifiers at the HTTP boundary before provider/service calls;
+2. return deterministic 400 diagnostics for those caller errors;
+3. distinguish validated historical-query/cursor failures from provider/internal exceptions instead of treating every `ArgumentException` as a public client error;
+4. sanitize public cursor/provider diagnostics while preserving server-side actionability;
+5. add focused regressions for persistence invalid limits/revisions and historical provider/error classification;
+6. obtain exact-head EliteSCADA CI success before marking W12-API-001 fixed.
 
 ## 5. Remaining Slice D — audit outage contract
 

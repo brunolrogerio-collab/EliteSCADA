@@ -166,6 +166,17 @@ jobs:
           -c Release --no-build
           --filter "FullyQualifiedName~L3SevenDriverWriteTests"
           --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=l3-supported-write.trx"
+          --results-directory TestResults/L3SupportedWrite
+
+      - name: Upload L3 supported write evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: l3-supported-write-test-results-${{ github.sha }}
+          path: TestResults/L3SupportedWrite/**
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Reset stateful peers before serial fault slice
         run: |
@@ -189,6 +200,17 @@ jobs:
           -c Release --no-build
           --filter "Category=L3SevenDriverFaultRecovery"
           --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=l3-serial-fault-recovery.trx"
+          --results-directory TestResults/L3SerialFaultRecovery
+
+      - name: Upload L3 serial fault recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: l3-serial-fault-recovery-test-results-${{ github.sha }}
+          path: TestResults/L3SerialFaultRecovery/**
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Reset Gateway peers before Gateway fault slice
         run: |
@@ -202,6 +224,17 @@ jobs:
           -c Release --no-build
           --filter "Category=L3GatewayFaultRecovery"
           --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=l3-gateway-fault-recovery.trx"
+          --results-directory TestResults/L3GatewayFaultRecovery
+
+      - name: Upload L3 Gateway fault recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: l3-gateway-fault-recovery-test-results-${{ github.sha }}
+          path: TestResults/L3GatewayFaultRecovery/**
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Show seven-peer lab status
         if: always()

@@ -36,10 +36,19 @@ const expectedCommonKeys = [
   'assetRef',
   'imageFit',
   'imagePositionX',
-  'imagePositionY'
+  'imagePositionY',
+  'value',
+  'minimum',
+  'maximum',
+  'step',
+  'orientation',
+  'interactionEnabled',
+  'reverseDirection',
+  'trackColor',
+  'thumbColor'
 ];
 
-test('common registry exposes the converged Wave 07 property family and image fit enum', () => {
+test('common registry exposes the converged visual property family and image fit enum', () => {
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.list().map(definition => definition.key)).toEqual(expectedCommonKeys);
   expect(IMAGE_FIT_VALUES).toEqual(['contain', 'cover', 'fill', 'native']);
 

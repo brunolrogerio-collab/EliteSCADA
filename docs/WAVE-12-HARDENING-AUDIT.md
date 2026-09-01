@@ -11,14 +11,14 @@ This is the active finding and remediation ledger. A finding closes only when it
 
 Latest validated Wave 12 product-code checkpoint:
 
-`012d15554d96af8600953a793cd58f0a5fc11c4d`
+`b737fb88cc58f53000e4f859e127473de10f4a51`
 
 Evidence:
 
-- EliteSCADA CI #1075 / `33565105224`: **SUCCESS**;
-- L3 Seven-Driver Lab #71 / `33565105291`: **SUCCESS**;
-- Preview Licensing CI #124 / `33565105254`: **SUCCESS**;
-- Wave 11 Active HMI Runtime #22 / `33565105207`: **SUCCESS**.
+- EliteSCADA CI #1078 / `33566810710`: **SUCCESS**;
+- L3 Seven-Driver Lab #74 / `33566810666`: **SUCCESS**;
+- Preview Licensing CI #127 / `33566810696`: **SUCCESS**;
+- Wave 11 Active HMI Runtime #25 / `33566810758`: **SUCCESS**.
 
 ## 1. Existing controls that remain locked
 
@@ -28,6 +28,7 @@ Evidence:
 - Runtime View, Engineering Modify, TAG writes and administration remain separately authorized.
 - Script execution uses bounded queues, cancellation/timeout boundaries and sanitized diagnostics.
 - Core Engineering mutations use workspace serialization and compare-and-swap version checks.
+- Local-identity logical mutations are serialized across the complete read/validate/write sequence, including PostgreSQL multi-process cooperation.
 - No test, security or lifecycle boundary may be weakened merely to make CI green.
 
 ## 2. Findings
@@ -39,8 +40,8 @@ Evidence:
 | W12-ING-001 | High | Engineering ingress | Bound JSON/CSV request bodies with fast/streaming rejection, strict decoding and sanitized client errors. | **FIXED / REGRESSION / VALIDATED** |
 | W12-PKG-001 | High | `.escadapkg` | Enforce export resource limits symmetric with the importer. | **FIXED / REGRESSION / VALIDATED** |
 | W12-PER-002 | High | Persistence Apply | Serialize Apply with the Working mutation lease and require caller-observed version/CAS. | **FIXED / REGRESSION / VALIDATED** |
-| W12-AUTH-001 | High | Local identities | Prevent concurrent lost updates and preserve the last-enabled-administrator invariant across the entire logical mutation. | **ACTIVE NEXT** |
-| W12-AUTH-002 | Medium | Login limiting | Bound/expire unique remote-key entries without weakening lockout. | Pending |
+| W12-AUTH-001 | High | Local identities | Prevent concurrent lost updates and preserve the last-enabled-administrator invariant across the entire logical mutation. | **FIXED / REGRESSION / VALIDATED** |
+| W12-AUTH-002 | Medium | Login limiting | Bound/expire unique remote-key entries without weakening lockout. | **ACTIVE NEXT** |
 | W12-AUD-001 | High | Audit durability | Select and implement an explicit product-safe audit-outage contract; silent protected-action audit loss is unacceptable. | Pending design disposition |
 | W12-API-001 | Medium | Requests/diagnostics | Normalize request validation/provider failures and sanitize deterministic diagnostics. | Pending |
 
@@ -70,32 +71,32 @@ Persistence Apply now acquires the canonical Working mutation lease and requires
 
 First exact-head CI at `329083a9f3273907306f4a17a99f527b382a303a` (#1074) deterministically exposed one E2E caller that did not yet provide the newly required header. The test was corrected, not weakened, at `012d15554d96af8600953a793cd58f0a5fc11c4d` by reading post-checkout `changeVersion`; #1075 and the associated specialized gates all passed.
 
-## 4. Active Slice B — W12-AUTH-001
+### W12-AUTH-001
 
-Confirmed defect:
+Local-identity logical mutations now hold a store-level mutation lease across the entire read/validate/write sequence. The InMemory store serializes with `SemaphoreSlim`; PostgreSQL uses a dedicated-session advisory lock so cooperating EliteSCADA processes sharing the database cannot interleave protected mutations. User create/update/password-reset and bootstrap paths respect the same mutation boundary, including the last-enabled-administrator invariant.
 
-- `FindByIdAsync` / invariant checks / `UpdateAsync` are individually safe but not one serialized logical transaction;
-- concurrent account update and password-reset paths can overwrite one another from the same stale account snapshot;
-- concurrent last-administrator mutations can each observe another enabled administrator and both pass the guard.
+Focused regressions cover stale-snapshot lost updates, concurrent administrator-invariant preservation and PostgreSQL cross-session advisory-lock behavior. An initial test build exposed xUnit2031 syntax and was corrected without changing semantics. A later universal run exposed an unrelated 100 ms Modbus recovery-test timing margin; the test retained the same failure/recovery assertions while moving the healthy timeout/fault delay to 250/750 ms. Exact-head checkpoint `b737fb88cc58f53000e4f859e127473de10f4a51` then passed EliteSCADA CI #1078, L3 #74, Preview Licensing #127 and Wave 11 Runtime #25.
+
+## 4. Active Slice C — W12-AUTH-002 / W12-API-001
+
+### W12-AUTH-002 confirmed defect
+
+`LocalLoginAttemptLimiter` keeps one `AttemptWindow` per observed remote key in a process-lifetime `ConcurrentDictionary`. Window counters reset after the configured rate window, but expired key entries are never removed, so high-cardinality remote traffic leaves retained state indefinitely.
 
 Required implementation:
 
-1. expose an async mutation lease on the local-identity store contract;
-2. InMemory implementation serializes mutations process-locally;
-3. PostgreSQL implementation uses a dedicated session advisory lock so cooperating processes sharing the database serialize the logical mutation;
-4. user-administration mutation handlers hold the lease from initial read through invariant validation and final write;
-5. bootstrap creation is serialized where needed;
-6. add focused regression tests for lease serialization and administrator-invariant preservation;
-7. obtain exact-head EliteSCADA CI success before marking the finding fixed.
+1. give expired remote-key windows a bounded lifecycle;
+2. never evict an unexpired/actively limited window merely to satisfy a size cap, because that would weaken lockout;
+3. make cleanup concurrency-safe so removal cannot split one key across two counters;
+4. avoid a full-table scan on every login attempt;
+5. add deterministic regressions proving stale keys are reclaimed while an active limited key remains limited;
+6. obtain exact-head EliteSCADA CI success before marking the finding fixed.
 
-## 5. Remaining slices
+### W12-API-001
 
-### Slice C — availability and diagnostics
+After AUTH-002 is validated, normalize invalid request ranges/limits and provider-dependent failures into deterministic sanitized client responses, with focused regression coverage.
 
-- W12-AUTH-002: bounded login-attempt key lifecycle;
-- W12-API-001: request validation and sanitized deterministic errors.
-
-### Slice D — audit outage contract
+## 5. Remaining Slice D — audit outage contract
 
 Resolve W12-AUD-001 with an explicit fail-closed or durable-spool contract appropriate to protected mutations. Merely enlarging a queue or swallowing errors is not a disposition.
 

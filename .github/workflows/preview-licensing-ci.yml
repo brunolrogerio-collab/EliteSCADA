@@ -1,16 +1,43 @@
 name: Preview Licensing CI
 
 on:
+  workflow_dispatch:
   push:
     branches:
-      - 'product/preview-demo-licensing'
-      - 'coordination/driver-convergence-v3'
       - 'main'
+    paths:
+      - 'src/Scada.Api/Licensing/**'
+      - 'src/Scada.Api/Persistence/EngineeringPersistenceApi.cs'
+      - 'src/Scada.Core/Product/**'
+      - 'src/Scada.Core/Tags/InMemoryTagRegistry.cs'
+      - 'src/Scada.Engineering/ImportExport/Handlers/TagEngineeringHandler.cs'
+      - 'src/Scada.LicenseGenerator/**'
+      - 'tests/Scada.Core.Tests/Product/**'
+      - 'tests/Scada.Core.Tests/PreviewProductCapacityTests.cs'
+      - 'tests/Scada.Drivers.Tests/ProductLicensedRuntimeCoordinatorTests.cs'
+      - 'docs/licensing/**'
+      - 'docs/LICENSING-PRIORITY-GATE.md'
+      - 'docs/PREVIEW-LICENSING-IMPLEMENTATION-PLAN.md'
+      - 'docs/README-LICENSING-WORKSTREAM.md'
+      - '.github/workflows/preview-licensing-ci.yml'
   pull_request:
     branches:
-      - 'coordination/driver-convergence-v3'
       - 'main'
-  workflow_dispatch:
+    paths:
+      - 'src/Scada.Api/Licensing/**'
+      - 'src/Scada.Api/Persistence/EngineeringPersistenceApi.cs'
+      - 'src/Scada.Core/Product/**'
+      - 'src/Scada.Core/Tags/InMemoryTagRegistry.cs'
+      - 'src/Scada.Engineering/ImportExport/Handlers/TagEngineeringHandler.cs'
+      - 'src/Scada.LicenseGenerator/**'
+      - 'tests/Scada.Core.Tests/Product/**'
+      - 'tests/Scada.Core.Tests/PreviewProductCapacityTests.cs'
+      - 'tests/Scada.Drivers.Tests/ProductLicensedRuntimeCoordinatorTests.cs'
+      - 'docs/licensing/**'
+      - 'docs/LICENSING-PRIORITY-GATE.md'
+      - 'docs/PREVIEW-LICENSING-IMPLEMENTATION-PLAN.md'
+      - 'docs/README-LICENSING-WORKSTREAM.md'
+      - '.github/workflows/preview-licensing-ci.yml'
 
 permissions:
   contents: read
@@ -30,10 +57,20 @@ jobs:
         run: dotnet build ScadaPlatform.sln -c Release --no-restore
       - name: Build License Generator
         run: dotnet build src/Scada.LicenseGenerator/Scada.LicenseGenerator.csproj -c Release
-      - name: Licensing and Core tests
-        run: dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj -c Release --no-restore --logger "console;verbosity=normal"
+      - name: Licensing and capacity Core tests
+        run: >-
+          dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj
+          -c Release
+          --no-restore
+          --filter "FullyQualifiedName~Scada.Core.Tests.Product.Licensing|FullyQualifiedName~Scada.Core.Tests.PreviewProductCapacityTests"
+          --logger "console;verbosity=normal"
       - name: Runtime licensing tests
-        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj -c Release --no-restore --logger "console;verbosity=normal"
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          -c Release
+          --no-restore
+          --filter "FullyQualifiedName~Scada.Drivers.Tests.ProductLicensedRuntimeCoordinatorTests"
+          --logger "console;verbosity=normal"
       - name: Host licensing composition smoke
         shell: bash
         run: |

@@ -4,16 +4,30 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - coordination/driver-l3-seven-protocol-lab
+      - main
     paths:
-      - "src/**"
-      - "tests/**"
+      - "src/Scada.Drivers/**"
+      - "src/Scada.DriverHost/**"
+      - "src/Scada.Engineering/Gateways/**"
+      - "src/Scada.Engineering/DataSources/**"
+      - "src/Scada.Engineering/Contracts/**"
+      - "src/Scada.Core/Tags/**"
+      - "src/Scada.Core/Events/**"
+      - "tests/Scada.Drivers.Tests/**"
       - "interop-lab/**"
       - ".github/workflows/l3-seven-driver-lab.yml"
   pull_request:
+    branches:
+      - main
     paths:
-      - "src/**"
-      - "tests/**"
+      - "src/Scada.Drivers/**"
+      - "src/Scada.DriverHost/**"
+      - "src/Scada.Engineering/Gateways/**"
+      - "src/Scada.Engineering/DataSources/**"
+      - "src/Scada.Engineering/Contracts/**"
+      - "src/Scada.Core/Tags/**"
+      - "src/Scada.Core/Events/**"
+      - "tests/Scada.Drivers.Tests/**"
       - "interop-lab/**"
       - ".github/workflows/l3-seven-driver-lab.yml"
 

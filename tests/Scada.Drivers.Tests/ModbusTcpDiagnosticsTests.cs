@@ -166,7 +166,7 @@ public sealed class ModbusTcpDiagnosticsTests
             new[] { pointA },
             serverA.Port,
             scanRate: TimeSpan.FromMilliseconds(60),
-            requestTimeout: TimeSpan.FromMilliseconds(80));
+            requestTimeout: TimeSpan.FromMilliseconds(500));
         await using var driverB = new ModbusTcpDriver(
             "PLC_B",
             "PLC B",

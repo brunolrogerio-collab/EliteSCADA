@@ -7,7 +7,8 @@ Date: 2026-09-01 (BRT)
 Stable product intent: [`PROJECT GOAL.md`](PROJECT%20GOAL.md)  
 Current handoff: [`docs/CURRENT-COORDINATOR-HANDOFF.md`](docs/CURRENT-COORDINATOR-HANDOFF.md)  
 Roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md)  
-Driver/lab evidence: [`docs/DRIVER-AND-INTEROP-LAB-STATUS.md`](docs/DRIVER-AND-INTEROP-LAB-STATUS.md)
+Driver/lab evidence: [`docs/DRIVER-AND-INTEROP-LAB-STATUS.md`](docs/DRIVER-AND-INTEROP-LAB-STATUS.md)  
+Active pre-Wave gate: [issue #191](https://github.com/brunolrogerio-collab/EliteSCADA/issues/191)
 
 Live GitHub refs and exact-SHA Actions evidence override stale SHAs copied into prose.
 
@@ -32,10 +33,38 @@ The Driver convergence + L3 stage is **COMPLETE**.
 - Driver convergence issue #174: **CLOSED / COMPLETED**.
 - Integrated L3 issue #180: **CLOSED / COMPLETED**.
 - Demo/licensing issue #183: **CLOSED / COMPLETED / INTEGRATED**.
+- Pre-Wave 11 gate issue #191: **OPEN / ACTIVE**.
 - Wave 11: **NOT STARTED**.
-- Active stage: **Development Lead pre-Wave-11 task — scope pending instruction**.
+- Active stage: **License Generator executable delivery + industrial Slider visual control**.
 
-Although L3 now technically releases the next development wave, the Development Lead explicitly stated on 2026-09-01 that another task must be completed before Wave 11. **Do not create/start Wave 11 work until that task is supplied, recorded, executed and accepted.**
+Although L3 technically released the next development wave, the Development Lead explicitly inserted two tasks before Wave 11. **Do not create/start Wave 11 work until issue #191 is completed and accepted.**
+
+## Pre-Wave 11 gate #191
+
+### Task A — actual License Generator executable
+
+The licensing implementation and Windows x64 publish path are already accepted under #183. The remaining operational requirement is delivery of the real executable to the Development Lead.
+
+Current verified artifact:
+
+- code provenance: `9b963c40f013f115b9787049cdb90949a30cbcbc`;
+- Preview Licensing CI #81 / run `33510855126`: **SUCCESS**;
+- Actions artifact `EliteSCADA-LicenseGenerator-win-x64`, artifact id `9801589579`;
+- extracted payload: one self-contained `EliteSCADA.LicenseGenerator.exe`, Windows x64 PE32+;
+- executable SHA-256: `11d856889b14c61524214e640bc0e63e42d52687eadc7703926a5eb6ebe83a75`;
+- production private signing material remains external to GitHub, CI and normal product artifacts.
+
+State: **EXECUTABLE VERIFIED / DELIVERY IN CURRENT COORDINATION CYCLE**.
+
+### Task B — industrial Slider visual control
+
+Research of the established Elipse E3 HMI behavior identified Linear Slider / Rotation Slider semantics backed by translation/rotation animation and properties including interaction enablement, range and current value. This validates the requested dual use: passive indication or operator adjustment.
+
+EliteSCADA repository audit found **no built-in Slider**. Current built-in visual types are rectangle, text, numeric display, button, analog fill and image. `builtin.display.analog-fill` is passive indication only and is not a substitute for an interactive Slider.
+
+Required implementation is tracked in #191 and must remain inside the canonical visual/Engineering/runtime architecture. It must support passive display and an interactive authorized value-adjustment mode without frontend-to-Driver bypass.
+
+State: **SPECIFIED / IMPLEMENTATION ACTIVE**.
 
 ## Driver/L3 acceptance evidence
 
@@ -72,19 +101,7 @@ One EliteSCADA runtime operated all seven communication Drivers concurrently:
 6. Siemens S7 ISO-on-TCP;
 7. BACnet/IP.
 
-The accepted sequence proved:
-
-- seven-peer startup/endpoint verification;
-- common activation/readiness;
-- concurrent acquisition 7/7 through canonical TAG/cache flow;
-- supported writes/commands;
-- heterogeneous TAG Gateway through canonical event/cache boundaries;
-- serial peer fault isolation/recovery;
-- Gateway source/destination fault/recovery;
-- no Driver-to-Driver coupling;
-- persistent evidence artifacts;
-- clean shutdown;
-- no weakened assertion to manufacture acceptance.
+The accepted sequence proved seven-peer startup, common activation/readiness, concurrent acquisition 7/7 through canonical TAG/cache flow, supported writes/commands, heterogeneous TAG Gateway behavior, fault isolation/recovery, clean shutdown and no weakened assertion to manufacture acceptance.
 
 Resolved L3 defects must not be reopened without fresh evidence. Historical fixes include BACnet explicit loopback binding, IEC-104 common diagnostics, cross-slice CIP state reset, BACnet REAL analog writes, commandable BACnet priority fixture and reconnect-safe MQTT recovery stimulus.
 
@@ -110,17 +127,20 @@ Authority: issue #183, `docs/LICENSING-AND-DEMO-MODE.md`, `docs/licensing/ACCEPT
 
 ## Current stage / exact next action
 
-**STOP before Wave 11.**
+**Issue #191 is the active gate.**
 
-The next action is to receive the Development Lead's pre-Wave-11 task, then:
+Execute in order:
 
-1. record its scope and acceptance criteria in the repository;
-2. decide whether it needs an issue/branch/PR;
-3. execute and validate it with exact evidence appropriate to its risk;
-4. update this file, roadmap and handoff;
-5. only after that task is accepted may Wave 11 be started.
-
-Do not infer the missing task scope from old chat or invent a Wave 11 substitute.
+1. deliver the verified Windows x64 License Generator executable and retain provenance/checksum;
+2. create an implementation branch from current `main` for Slider work;
+3. integrate the Slider into the canonical built-in visual schema, Engineering surface and Runtime renderer;
+4. implement passive indication plus interactive authorized adjustment through the canonical write boundary;
+5. add focused unit/mounted/E2E coverage;
+6. require normal EliteSCADA CI green on the exact implementation SHA;
+7. integrate to `main` only when green, then obtain post-main evidence appropriate to the change;
+8. synchronize #191, this file, roadmap and handoff;
+9. close #191 only after both tasks are accepted;
+10. only then may Wave 11 start.
 
 ## Later Wave 11 context
 
@@ -130,14 +150,13 @@ This is future context only, not authorization to begin Wave 11.
 
 ## Resume instruction
 
-A new coordinator should:
+A coordinator should:
 
 1. read `PROJECT GOAL.md`;
 2. read this file;
-3. read `docs/CURRENT-COORDINATOR-HANDOFF.md` and `docs/ROADMAP.md`;
-4. confirm live `main` and latest Actions;
-5. confirm #174, #180 and #183 are closed;
-6. locate the Development Lead's new pre-Wave-11 task/issue if it has since been supplied;
-7. continue that task before any Wave 11 work.
+3. read issue #191;
+4. read `docs/CURRENT-COORDINATOR-HANDOFF.md` and `docs/ROADMAP.md`;
+5. confirm live `main` and latest Actions;
+6. continue issue #191 until accepted before any Wave 11 work.
 
 Repository/CI state wins over stale chat memory.

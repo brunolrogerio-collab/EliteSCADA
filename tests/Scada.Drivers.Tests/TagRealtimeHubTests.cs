@@ -97,6 +97,43 @@ public sealed class TagRealtimeHubTests
         await Task.WhenAll(slowConnection, healthyConnection).WaitAsync(TimeSpan.FromSeconds(1));
     }
 
+    [Fact]
+    public async Task RevokeSubject_SendsPolicyViolationBeforeCancellingReceive()
+    {
+        var bus = new InMemoryScadaEventBus();
+        using var workspace = new EngineeringWorkspace();
+        var exchange = new EngineeringExchangeService(workspace.Tags, workspace.Alarms);
+        var configuration = new ConfigurationManager
+        {
+            ["Authentication:Enabled"] = "false"
+        };
+        var security = new ApiAuthorizationService(
+            new NullServiceProvider(),
+            workspace,
+            exchange,
+            configuration);
+        using var hub = new TagRealtimeHub(bus, security, runtime: null!);
+        using var socket = new ControlledWebSocket(blockSends: false);
+        using var connectionCancellation = new CancellationTokenSource();
+        const string subjectId = "revoked-client";
+        var connection = hub.HandleAsync(
+            socket,
+            new SecurityPrincipal(subjectId, null, Array.Empty<string>()),
+            enforceAuthorization: false,
+            expiresAtUtc: null,
+            connectionCancellation.Token);
+
+        Assert.Equal(1, hub.RevokeSubject(subjectId));
+        await socket.CloseOutputSent.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.Equal(WebSocketCloseStatus.PolicyViolation, socket.CloseStatus);
+        Assert.Equal("identity revoked", socket.CloseStatusDescription);
+        Assert.False(socket.ReceiveCancellationObservedBeforeClose);
+
+        connectionCancellation.Cancel();
+        await connection.WaitAsync(TimeSpan.FromSeconds(1));
+    }
+
     private static TagValueChanged CreateEvent(int value = 1)
     {
         var tag = TagDefinition.Create("Value", "Plant.Value", TagDataType.Int32);
@@ -116,12 +153,17 @@ public sealed class TagRealtimeHubTests
         private WebSocketCloseStatus? _closeStatus;
         private string? _closeStatusDescription;
         private WebSocketState _state = WebSocketState.Open;
+        private int _receiveCancellationObserved;
 
         public Task SendStarted => SendStartedSource.Task;
         public Task SendCompleted => SendCompletedSource.Task;
+        public Task CloseOutputSent => CloseOutputSentSource.Task;
+        public bool ReceiveCancellationObservedBeforeClose { get; private set; }
         private TaskCompletionSource SendStartedSource { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         private TaskCompletionSource SendCompletedSource { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private TaskCompletionSource CloseOutputSentSource { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public override WebSocketCloseStatus? CloseStatus => _closeStatus;
@@ -158,9 +200,11 @@ public sealed class TagRealtimeHubTests
             string? statusDescription,
             CancellationToken cancellationToken)
         {
+            ReceiveCancellationObservedBeforeClose = Volatile.Read(ref _receiveCancellationObserved) != 0;
             _closeStatus = closeStatus;
             _closeStatusDescription = statusDescription;
             _state = WebSocketState.CloseSent;
+            CloseOutputSentSource.TrySetResult();
             return Task.CompletedTask;
         }
 
@@ -175,7 +219,7 @@ public sealed class TagRealtimeHubTests
             ArraySegment<byte> buffer,
             CancellationToken cancellationToken)
         {
-            await WaitUntilCanceledAsync(cancellationToken);
+            await WaitForReceiveCancellationAsync(cancellationToken);
             return new WebSocketReceiveResult(0, WebSocketMessageType.Close, true);
         }
 
@@ -183,7 +227,7 @@ public sealed class TagRealtimeHubTests
             Memory<byte> buffer,
             CancellationToken cancellationToken)
         {
-            await WaitUntilCanceledAsync(cancellationToken);
+            await WaitForReceiveCancellationAsync(cancellationToken);
             return new ValueWebSocketReceiveResult(0, WebSocketMessageType.Close, true);
         }
 
@@ -212,6 +256,13 @@ public sealed class TagRealtimeHubTests
 
             SendCompletedSource.TrySetResult();
             _completedSends.Release();
+        }
+
+        private async Task WaitForReceiveCancellationAsync(CancellationToken cancellationToken)
+        {
+            using var registration = cancellationToken.Register(
+                () => Interlocked.Exchange(ref _receiveCancellationObserved, 1));
+            await WaitUntilCanceledAsync(cancellationToken);
         }
 
         private async Task WaitUntilCanceledAsync(CancellationToken cancellationToken)

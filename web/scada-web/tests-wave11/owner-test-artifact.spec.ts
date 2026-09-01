@@ -80,7 +80,13 @@ test('exports the owner-test package from the verified Active Engineering applic
       activeRevision: active.revision,
       packageFileName,
       sha256,
-      generatedFromActiveRuntime: true
+      validatedAgainstActiveRuntime: true,
+      exportBoundary: '/api/project-package/export',
+      validationBoundaries: [
+        '/api/runtime/application',
+        '/api/project-package/inspect',
+        '/api/project-package/import/preview'
+      ]
     }, null, 2)}\n`,
     'utf8'
   );

@@ -49,10 +49,10 @@ public sealed class HistoricalQueryService : IHistoricalQueryService
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var validated = HistoricalQueryValidator.Validate(request);
+        var validated = ValidateRequest(request);
         if (!_providers.TryGetValue(validated.Dataset.Id, out var provider))
-            throw new InvalidOperationException(
-                $"Historical dataset provider '{validated.Dataset.Id}' is not configured.");
+            throw new HistoricalQueryProviderException(
+                "Historical dataset provider is unavailable.");
 
         var decision = await _authorizer.AuthorizeAsync(validated.Dataset.Id, cancellationToken);
         switch (decision.Outcome)
@@ -73,7 +73,7 @@ public sealed class HistoricalQueryService : IHistoricalQueryService
         HistoricalQueryPosition? after = null;
         if (string.IsNullOrWhiteSpace(validated.Cursor))
         {
-            range = HistoricalQueryValidator.ResolveRange(validated.RequestedRange, now);
+            range = ResolveRequestRange(validated.RequestedRange, now);
         }
         else
         {
@@ -97,10 +97,26 @@ public sealed class HistoricalQueryService : IHistoricalQueryService
             validated.Sort,
             validated.PageSize,
             after);
-        var page = await provider.QueryAsync(execution, cancellationToken);
+
+        HistoricalProviderPage page;
+        try
+        {
+            page = await provider.QueryAsync(execution, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new HistoricalQueryProviderException(
+                "Historical dataset provider execution failed.",
+                ex);
+        }
+
         if (page.Rows.Count > validated.PageSize)
-            throw new InvalidOperationException(
-                "Historical dataset provider exceeded the validated page size.");
+            throw new HistoricalQueryProviderException(
+                "Historical dataset provider returned an invalid page.");
 
         var nextCursor = page.NextPosition is null
             ? null
@@ -120,5 +136,39 @@ public sealed class HistoricalQueryService : IHistoricalQueryService
             range.ToUtc,
             nextCursor,
             validated.PageSize);
+    }
+
+    private static HistoricalValidatedRequest ValidateRequest(HistoricalQueryRequest request)
+    {
+        try
+        {
+            return HistoricalQueryValidator.Validate(request);
+        }
+        catch (ArgumentException ex)
+        {
+            throw ToValidationException(ex);
+        }
+    }
+
+    private static HistoricalResolvedRange ResolveRequestRange(
+        HistoricalTimeRange range,
+        DateTimeOffset nowUtc)
+    {
+        try
+        {
+            return HistoricalQueryValidator.ResolveRange(range, nowUtc);
+        }
+        catch (ArgumentException ex)
+        {
+            throw ToValidationException(ex);
+        }
+    }
+
+    private static HistoricalQueryValidationException ToValidationException(ArgumentException exception)
+    {
+        var message = exception.Message;
+        var firstLineEnd = message.IndexOfAny(['\r', '\n']);
+        if (firstLineEnd >= 0) message = message[..firstLineEnd];
+        return new HistoricalQueryValidationException(message, exception);
     }
 }

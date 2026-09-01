@@ -11,6 +11,9 @@ namespace Scada.Drivers.Tests;
 
 public sealed class EngineeringRuntimeCommunicationDiagnosticsTests
 {
+    private const int RequestTimeoutMilliseconds = 250;
+    private const int InjectedFailureDelayMilliseconds = 750;
+
     [Fact]
     public async Task ActiveRuntime_ExposesEngineeringDataSourceIdentityAndIndependentFailureRecovery()
     {
@@ -83,7 +86,7 @@ public sealed class EngineeringRuntimeCommunicationDiagnosticsTests
         Assert.NotEqual(initial["plc.a"].DataSourceKey, initial["plc.a"].RuntimeInstanceId);
         Assert.NotEqual(initial["plc.b"].DataSourceKey, initial["plc.b"].RuntimeInstanceId);
 
-        serverB.ResponseDelay = TimeSpan.FromMilliseconds(350);
+        serverB.ResponseDelay = TimeSpan.FromMilliseconds(InjectedFailureDelayMilliseconds);
         await WaitForAsync(() =>
         {
             var diagnostics = runtime.Describe().CommunicationDrivers.ToDictionary(item => item.DataSourceKey);
@@ -129,7 +132,7 @@ public sealed class EngineeringRuntimeCommunicationDiagnosticsTests
             ["host"] = "127.0.0.1",
             ["port"] = port.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["scanIntervalMilliseconds"] = "50",
-            ["requestTimeoutMilliseconds"] = "100",
+            ["requestTimeoutMilliseconds"] = RequestTimeoutMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["unitId"] = "1"
         });
 

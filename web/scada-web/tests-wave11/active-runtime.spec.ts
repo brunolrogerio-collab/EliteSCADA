@@ -4,6 +4,10 @@ import { createE2eJwt } from '../tests-e2e/jwt';
 const projectKey = 'e2e-wave11';
 const operatorToken = createE2eJwt('wave11-operator', ['operator'], 'Wave 11 Operator');
 const runtimeSourceKey = 'memory.server.wave11';
+const tinyPng = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl2sAAAAASUVORK5CYII=',
+  'base64'
+);
 
 test('Active persisted Engineering revision is the mounted HMI Runtime truth', async ({ page, request }) => {
   await page.goto('/');
@@ -20,6 +24,29 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
   expect(initialProjection.revision ?? null).toBeNull();
   expect(initialProjection.package ?? null).toBeNull();
 
+  const workspaceResponse = await request.get('/api/engineering/workspace');
+  expect(workspaceResponse.ok()).toBeTruthy();
+  const workspace = await workspaceResponse.json() as { changeVersion: number };
+  const assetImportResponse = await request.post(
+    '/api/engineering/visual-assets/import?key=wave11.active.asset&name=Wave%2011%20Active%20Asset&fileName=wave11-active.png',
+    {
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/octet-stream',
+        'x-elitescada-workspace-version': String(workspace.changeVersion)
+      },
+      data: tinyPng
+    }
+  );
+  expect(assetImportResponse.ok(), `Asset import failed: HTTP ${assetImportResponse.status()} ${await assetImportResponse.text()}`).toBeTruthy();
+  const importedAsset = await assetImportResponse.json() as {
+    asset: { id: string; mediaType: string; sha256: string };
+    assetRef: { assetId: string };
+    workspaceVersion: number;
+  };
+  expect(importedAsset.asset.mediaType).toBe('image/png');
+  expect(importedAsset.assetRef.assetId).toBe(`asset:${importedAsset.asset.id}`);
+
   const workingResponse = await request.get('/api/engineering/export/json');
   expect(workingResponse.ok()).toBeTruthy();
   const workingA = await workingResponse.json() as any;
@@ -27,6 +54,21 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
   expect(baselineScreen).toBeTruthy();
   const baselinePressure = baselineScreen.elements.find((element: any) => element.key === 'pressure');
   expect(baselinePressure?.properties?.label).toBe('Pressão');
+  expect(workingA.visualAssets.some((asset: any) => asset.id === importedAsset.asset.id)).toBeTruthy();
+
+  baselineScreen.elements.push({
+    id: '00000000-0000-0000-0000-00000000a511',
+    key: 'active-asset',
+    type: 'core.image',
+    properties: {
+      x: 720,
+      y: 18,
+      width: 32,
+      height: 32,
+      assetRef: importedAsset.assetRef,
+      imageFit: 'contain'
+    }
+  });
 
   // The built-in simulation source is intentionally a host fallback and is not
   // an activatable Engineering source. Convert this deterministic fixture to
@@ -77,6 +119,18 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
   const activeCanvas = page.getByTestId('runtime-engineering-canvas');
   await expect(activeCanvas.getByText('Pressão', { exact: true })).toBeVisible();
 
+  const activeAssetImage = activeCanvas.locator('img[alt="active-asset"]');
+  await expect(activeAssetImage).toBeVisible();
+  await expect(activeAssetImage).toHaveAttribute(
+    'src',
+    new RegExp(`/api/runtime/visual-assets/${importedAsset.asset.id}/content$`, 'i')
+  );
+  const activeAssetPayloadResponse = await request.get(
+    `/api/runtime/visual-assets/${importedAsset.asset.id}/content`
+  );
+  expect(activeAssetPayloadResponse.ok()).toBeTruthy();
+  expect(activeAssetPayloadResponse.headers()['content-type']).toContain('image/png');
+
   const operatorProjectionResponse = await request.get('/api/runtime/application', {
     headers: { Authorization: `Bearer ${operatorToken}` }
   });
@@ -92,6 +146,7 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
   expect(activeA.mode).toBe('engineering');
   expect(activeA.projectKey).toBe(projectKey);
   expect(activeA.revision).toBe(savedA.revision);
+  expect(activeA.package.visualAssets.some((asset: any) => asset.id === importedAsset.asset.id)).toBeTruthy();
   expect(activeA.package.screens.find((screen: any) => screen.key === 'demo.overview')
     .elements.find((element: any) => element.key === 'pressure').properties.label).toBe('Pressão');
 
@@ -109,6 +164,10 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
   await expect(activeApplication).toHaveAttribute('data-runtime-revision', String(savedA.revision));
   await expect(activeCanvas.getByText('REVISION B ACTIVE', { exact: true })).toHaveCount(0);
   await expect(activeCanvas.getByText('Pressão', { exact: true })).toBeVisible();
+  await expect(activeAssetImage).toHaveAttribute(
+    'src',
+    new RegExp(`/api/runtime/visual-assets/${importedAsset.asset.id}/content$`, 'i')
+  );
 
   const projectionDuringWorkingResponse = await request.get('/api/runtime/application');
   expect(projectionDuringWorkingResponse.ok()).toBeTruthy();

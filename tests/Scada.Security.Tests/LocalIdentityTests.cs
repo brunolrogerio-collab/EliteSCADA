@@ -43,16 +43,7 @@ public sealed class LocalIdentityTests
     {
         var store = new InMemoryLocalIdentityStore();
         var now = DateTimeOffset.UtcNow;
-        var account = new LocalUserAccount(
-            Guid.NewGuid(),
-            "Engineer",
-            LocalIdentityNormalization.NormalizeUsername("Engineer"),
-            "Process Engineer",
-            true,
-            new[] { "developer" },
-            LocalPasswordHasher.Hash("safe-development-password", 100_000),
-            now,
-            now);
+        var account = CreateAccount("Engineer", "Process Engineer", new[] { "developer" }, now);
 
         await store.CreateAsync(account);
         Assert.Equal(1, await store.CountAsync());
@@ -73,18 +64,115 @@ public sealed class LocalIdentityTests
     {
         var store = new InMemoryLocalIdentityStore();
         var now = DateTimeOffset.UtcNow;
-        LocalUserAccount Create(string username) => new(
-            Guid.NewGuid(),
-            username,
-            LocalIdentityNormalization.NormalizeUsername(username),
-            username,
-            true,
-            new[] { "operator" },
-            LocalPasswordHasher.Hash("another-safe-password", 100_000),
-            now,
-            now);
 
-        await store.CreateAsync(Create("Operator"));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => store.CreateAsync(Create("operator")));
+        await store.CreateAsync(CreateAccount("Operator", "Operator", new[] { "operator" }, now));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            store.CreateAsync(CreateAccount("operator", "Operator Two", new[] { "operator" }, now)));
     }
+
+    [Fact]
+    public async Task InMemoryStore_MutationLeaseSerializesLogicalReadModifyWrite()
+    {
+        var store = new InMemoryLocalIdentityStore();
+        var now = DateTimeOffset.UtcNow;
+        var account = CreateAccount("Engineer", "Original Name", new[] { "developer" }, now);
+        await store.CreateAsync(account);
+
+        var firstHasRead = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFirst = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        async Task ChangeDisplayNameAsync()
+        {
+            await using var lease = await store.AcquireMutationLeaseAsync();
+            var current = Assert.IsType<LocalUserAccount>(await store.FindByIdAsync(account.Id));
+            firstHasRead.SetResult();
+            await releaseFirst.Task;
+            await store.UpdateAsync(current with
+            {
+                DisplayName = "Updated Name",
+                UpdatedAtUtc = current.UpdatedAtUtc.AddMilliseconds(1)
+            });
+        }
+
+        async Task ResetPasswordAsync()
+        {
+            await firstHasRead.Task;
+            await using var lease = await store.AcquireMutationLeaseAsync();
+            var current = Assert.IsType<LocalUserAccount>(await store.FindByIdAsync(account.Id));
+            await store.UpdateAsync(current with
+            {
+                Credential = LocalPasswordHasher.Hash("replacement-safe-password", 100_000),
+                UpdatedAtUtc = current.UpdatedAtUtc.AddMilliseconds(1)
+            });
+        }
+
+        var displayUpdate = ChangeDisplayNameAsync();
+        var passwordReset = ResetPasswordAsync();
+        await firstHasRead.Task;
+        await Task.Yield();
+        Assert.False(passwordReset.IsCompleted);
+
+        releaseFirst.SetResult();
+        await Task.WhenAll(displayUpdate, passwordReset);
+
+        var final = Assert.IsType<LocalUserAccount>(await store.FindByIdAsync(account.Id));
+        Assert.Equal("Updated Name", final.DisplayName);
+        Assert.True(LocalPasswordHasher.Verify("replacement-safe-password", final.Credential));
+    }
+
+    [Fact]
+    public async Task InMemoryStore_MutationLeasePreservesCrossUserInvariant()
+    {
+        var store = new InMemoryLocalIdentityStore();
+        var now = DateTimeOffset.UtcNow;
+        var first = CreateAccount("AdminOne", "Admin One", new[] { "admin" }, now);
+        var second = CreateAccount("AdminTwo", "Admin Two", new[] { "admin" }, now);
+        await store.CreateAsync(first);
+        await store.CreateAsync(second);
+
+        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        async Task<bool> TryDisableAsync(Guid id)
+        {
+            await start.Task;
+            await using var lease = await store.AcquireMutationLeaseAsync();
+            var users = await store.ListAsync();
+            var enabledAdmins = users.Count(user =>
+                user.IsEnabled && user.Roles.Contains("admin", StringComparer.OrdinalIgnoreCase));
+            if (enabledAdmins <= 1) return false;
+
+            var current = Assert.IsType<LocalUserAccount>(users.Single(user => user.Id == id));
+            await store.UpdateAsync(current with
+            {
+                IsEnabled = false,
+                UpdatedAtUtc = current.UpdatedAtUtc.AddMilliseconds(1)
+            });
+            return true;
+        }
+
+        var firstDisable = TryDisableAsync(first.Id);
+        var secondDisable = TryDisableAsync(second.Id);
+        start.SetResult();
+        var results = await Task.WhenAll(firstDisable, secondDisable);
+
+        Assert.Single(results.Where(result => result));
+        var final = await store.ListAsync();
+        Assert.Single(final.Where(user =>
+            user.IsEnabled && user.Roles.Contains("admin", StringComparer.OrdinalIgnoreCase)));
+    }
+
+    private static LocalUserAccount CreateAccount(
+        string username,
+        string displayName,
+        IReadOnlyCollection<string> roles,
+        DateTimeOffset now) => new(
+        Guid.NewGuid(),
+        username,
+        LocalIdentityNormalization.NormalizeUsername(username),
+        displayName,
+        true,
+        roles,
+        LocalPasswordHasher.Hash("safe-development-password", 100_000),
+        now,
+        now);
 }

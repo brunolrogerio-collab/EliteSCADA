@@ -125,9 +125,7 @@ public static class LocalUserAdministrationApi
                 if (roles.Unknown.Length > 0)
                     return UnknownRoles(roles.Unknown);
 
-                if (await store.FindByUsernameAsync(username, ct) is not null)
-                    return Results.Conflict(new { error = "A local user with this username already exists." });
-
+                var credential = LocalPasswordHasher.Hash(request.Password);
                 var now = DateTimeOffset.UtcNow;
                 var account = new LocalUserAccount(
                     Guid.NewGuid(),
@@ -136,10 +134,16 @@ public static class LocalUserAdministrationApi
                     displayName,
                     request.IsEnabled,
                     roles.Normalized,
-                    LocalPasswordHasher.Hash(request.Password),
+                    credential,
                     now,
                     now);
-                await store.CreateAsync(account, ct);
+
+                await using (var mutationLease = await store.AcquireMutationLeaseAsync(ct))
+                {
+                    if (await store.FindByUsernameAsync(username, ct) is not null)
+                        return Results.Conflict(new { error = "A local user with this username already exists." });
+                    await store.CreateAsync(account, ct);
+                }
 
                 await audit.RecordAsync(
                     context,
@@ -181,9 +185,6 @@ public static class LocalUserAdministrationApi
             var authorization = await AuthorizeAsync(context, runtime, security, audit, UpdateAction, id.ToString(), ct);
             if (authorization.Failure is not null) return authorization.Failure;
 
-            var current = await store.FindByIdAsync(id, ct);
-            if (current is null) return Results.NotFound();
-
             var displayName = request.DisplayName?.Trim() ?? string.Empty;
             if (displayName.Length is < 1 or > 300)
                 return Results.BadRequest(new { error = "Display name must contain between 1 and 300 characters." });
@@ -192,25 +193,33 @@ public static class LocalUserAdministrationApi
             if (roles.Unknown.Length > 0)
                 return UnknownRoles(roles.Unknown);
 
-            var updated = current with
+            LocalUserAccount updated;
+            await using (var mutationLease = await store.AcquireMutationLeaseAsync(ct))
             {
-                DisplayName = displayName,
-                IsEnabled = request.IsEnabled,
-                Roles = roles.Normalized,
-                UpdatedAtUtc = NextSecurityVersion(current.UpdatedAtUtc)
-            };
+                var current = await store.FindByIdAsync(id, ct);
+                if (current is null) return Results.NotFound();
 
-            var users = await store.ListAsync(ct);
-            var projected = users.Select(user => user.Id == id ? updated : user).ToArray();
-            if (!await HasEnabledLocalAdministratorAsync(projected, security, runtime, ct))
-            {
-                return Results.BadRequest(new
+                updated = current with
                 {
-                    error = "At least one enabled local user must retain UserRoleAdmin or SystemAdmin in the active runtime policy."
-                });
+                    DisplayName = displayName,
+                    IsEnabled = request.IsEnabled,
+                    Roles = roles.Normalized,
+                    UpdatedAtUtc = NextSecurityVersion(current.UpdatedAtUtc)
+                };
+
+                var users = await store.ListAsync(ct);
+                var projected = users.Select(user => user.Id == id ? updated : user).ToArray();
+                if (!await HasEnabledLocalAdministratorAsync(projected, security, runtime, ct))
+                {
+                    return Results.BadRequest(new
+                    {
+                        error = "At least one enabled local user must retain UserRoleAdmin or SystemAdmin in the active runtime policy."
+                    });
+                }
+
+                await store.UpdateAsync(updated, ct);
             }
 
-            await store.UpdateAsync(updated, ct);
             var revokedRealtimeClients = realtime.RevokeSubject(updated.Id.ToString());
             await audit.RecordAsync(
                 context,
@@ -243,18 +252,24 @@ public static class LocalUserAdministrationApi
             var authorization = await AuthorizeAsync(context, runtime, security, audit, ResetPasswordAction, id.ToString(), ct);
             if (authorization.Failure is not null) return authorization.Failure;
 
-            var current = await store.FindByIdAsync(id, ct);
-            if (current is null) return Results.NotFound();
-
             try
             {
                 LocalPasswordHasher.ValidatePassword(request.Password);
-                var updated = current with
+                var credential = LocalPasswordHasher.Hash(request.Password);
+                LocalUserAccount updated;
+                await using (var mutationLease = await store.AcquireMutationLeaseAsync(ct))
                 {
-                    Credential = LocalPasswordHasher.Hash(request.Password),
-                    UpdatedAtUtc = NextSecurityVersion(current.UpdatedAtUtc)
-                };
-                await store.UpdateAsync(updated, ct);
+                    var current = await store.FindByIdAsync(id, ct);
+                    if (current is null) return Results.NotFound();
+
+                    updated = current with
+                    {
+                        Credential = credential,
+                        UpdatedAtUtc = NextSecurityVersion(current.UpdatedAtUtc)
+                    };
+                    await store.UpdateAsync(updated, ct);
+                }
+
                 var revokedRealtimeClients = realtime.RevokeSubject(updated.Id.ToString());
                 await audit.RecordAsync(
                     context,

@@ -133,7 +133,12 @@ public static class LocalIdentityConfiguration
             LocalPasswordHasher.Hash(password),
             now,
             now);
-        await store.CreateAsync(account);
+
+        await using (var mutationLease = await store.AcquireMutationLeaseAsync())
+        {
+            if (await store.CountAsync() > 0) return;
+            await store.CreateAsync(account);
+        }
 
         app.Logger.LogWarning(
             "Created first local EliteSCADA identity '{Username}' from bootstrap configuration. Remove the bootstrap password from deployment configuration after successful initialization.",

@@ -17,7 +17,8 @@ Read, in order:
 6. issue #201;
 7. `docs/CI-VALIDATION-POLICY.md`;
 8. live `main`, open PRs/issues and exact Actions state;
-9. `docs/DRIVER-AND-INTEROP-LAB-STATUS.md` only when Driver evidence is relevant.
+9. `docs/LINUX-DEBIAN-DISTRIBUTION.md` when considering future packaging/distribution or dependency-license work;
+10. `docs/DRIVER-AND-INTEROP-LAB-STATUS.md` only when Driver evidence is relevant.
 
 Do not resume old Wave 11 feature branches. PR #195 is historical/superseded; PR #199 is the accepted Wave 11 implementation integration; PR #200 is the accepted owner-test application handoff. Issue #194 is closed/completed.
 
@@ -103,7 +104,29 @@ Wave 12 is a hardening pass, not a feature-expansion wave. Its prepared scope co
 
 Explicit exclusions include new Drivers/protocols, Wave 13 Authenticode/release-signing implementation, Waves 14/15 owner validation/feedback and physical L4 claims.
 
-## 6. Exact next action for the next Coordinator
+## 6. Future Linux / Debian distribution direction
+
+A future official **Linux x64 / Debian `.deb`** distribution is **SPECIFIED / NOT STARTED**. It is not part of Wave 12 and must not be started until the Development Lead explicitly requests the installable `.deb` version.
+
+Authoritative specification: `docs/LINUX-DEBIAN-DISTRIBUTION.md`.
+
+Prepared direction:
+
+- Debian 12 `amd64` first, then Debian 13 homologation;
+- `linux-x64` self-contained publish, initially multi-file inside one `.deb`;
+- `/usr/lib/elitescada`, `/etc/elitescada`, `/var/lib/elitescada` layout;
+- system user/group + `elitescada.service`;
+- React/Pyodide included in the installed Kestrel-served product;
+- PostgreSQL/TimescaleDB configured externally;
+- Linux Machine Request Code and installed-license path using the existing signed-license contract; License Generator may remain Windows-only;
+- clean-host install/upgrade/reboot CI plus installed Runtime/Web/licensing/Driver validation;
+- SBOM and dependency-license audit.
+
+Commercial gate: Step Function I/O `dnp3` 1.6.0 is publicly provided for non-commercial/non-production use. Before any commercial package includes/enables that Driver, obtain/record an appropriate commercial license or approve/revalidate an alternative. DNP3 licensing remediation is expected before the `.deb` front unless an explicitly authorized package excludes DNP3.
+
+At this handoff there is **no Linux packaging branch, PR, implementation commit or Linux distribution CI**.
+
+## 7. Exact next action for the next Coordinator
 
 When deliberately starting Wave 12:
 
@@ -113,9 +136,10 @@ When deliberately starting Wave 12:
 4. audit current failure/test surfaces before choosing hardening slices;
 5. only then create a dedicated Wave 12 branch from the live `main`;
 6. persist material findings and next actions before coding large slices;
-7. use EliteSCADA CI as universal acceptance gate and run specialized workflows according to actual impact.
+7. use EliteSCADA CI as universal acceptance gate and run specialized workflows according to actual impact;
+8. do not start the future Linux `.deb` front unless the Development Lead explicitly asks for it.
 
-## 7. Durable non-negotiable rules
+## 8. Durable non-negotiable rules
 
 - repository/CI state overrides stale chat/prose for implementation truth;
 - no red universal CI into `main`;
@@ -126,4 +150,5 @@ When deliberately starting Wave 12:
 - no plaintext protected material;
 - licensing remains host-owned and private signing material never enters GitHub/CI/distributed product;
 - Wave 13 retains mandatory Authenticode + trusted timestamp release signing;
+- commercial packaging requires dependency-license review; DNP3 commercial inclusion requires an explicit license/alternative disposition;
 - every material coordination transition is persisted before claiming completion.

@@ -3,6 +3,7 @@ import { createE2eJwt } from '../tests-e2e/jwt';
 
 const projectKey = 'e2e-wave11';
 const operatorToken = createE2eJwt('wave11-operator', ['operator'], 'Wave 11 Operator');
+const runtimeSourceKey = 'memory.server.wave11';
 
 test('Active persisted Engineering revision is the mounted HMI Runtime truth', async ({ page, request }) => {
   await page.goto('/');
@@ -27,6 +28,27 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
   const baselinePressure = baselineScreen.elements.find((element: any) => element.key === 'pressure');
   expect(baselinePressure?.properties?.label).toBe('Pressão');
 
+  // The built-in simulation source is intentionally a host fallback and is not
+  // an activatable Engineering source. Convert this deterministic fixture to
+  // Server Memory so the lifecycle test exercises a real Active Runtime without
+  // depending on external PLCs, brokers or network timing.
+  workingA.dataSources = [{
+    key: runtimeSourceKey,
+    name: 'Wave 11 Server Memory',
+    driver: 'builtin.memory.server',
+    enabled: true
+  }];
+  workingA.tags = workingA.tags.map((tag: any) => ({
+    ...tag,
+    source: runtimeSourceKey,
+    address: null
+  }));
+
+  const activatableWorkingResponse = await request.post('/api/engineering/import/json/apply', {
+    data: workingA
+  });
+  expect(activatableWorkingResponse.ok()).toBeTruthy();
+
   const saveAResponse = await request.post(`/api/engineering/persistence/${projectKey}/save`, {
     data: { projectName: 'Wave 11 E2E' }
   });
@@ -44,7 +66,7 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
     `/api/engineering/persistence/${projectKey}/published/activate`,
     { data: {} }
   );
-  expect(activateAResponse.ok()).toBeTruthy();
+  expect(activateAResponse.ok(), `Activate A failed: HTTP ${activateAResponse.status()} ${await activateAResponse.text()}`).toBeTruthy();
 
   const activeApplication = page.getByTestId('runtime-engineering-application');
   await expect(activeApplication).toBeVisible();
@@ -113,7 +135,7 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
     `/api/engineering/persistence/${projectKey}/published/activate`,
     { data: {} }
   );
-  expect(activateBResponse.ok()).toBeTruthy();
+  expect(activateBResponse.ok(), `Activate B failed: HTTP ${activateBResponse.status()} ${await activateBResponse.text()}`).toBeTruthy();
 
   await expect(activeApplication).toHaveAttribute('data-runtime-revision', String(savedB.revision));
   await expect(page.getByTestId('runtime-engineering-canvas').getByText('REVISION B ACTIVE', { exact: true })).toBeVisible();
@@ -125,4 +147,25 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
   expect(activeB.revision).toBe(savedB.revision);
   expect(activeB.package.screens.find((screen: any) => screen.key === 'demo.overview')
     .elements.find((element: any) => element.key === 'pressure').properties.label).toBe('REVISION B ACTIVE');
+});
+
+test('an unavailable Active projection fails closed without reading mutable Working', async ({ page }) => {
+  let workingReads = 0;
+  await page.route('**/api/runtime/application', async route => {
+    await route.fulfill({
+      status: 409,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'Active Engineering Runtime is inconsistent with persisted activation.' })
+    });
+  });
+  await page.route('**/api/engineering/export/json', async route => {
+    workingReads++;
+    await route.continue();
+  });
+
+  await page.goto('/');
+  await expect(page.getByTestId('runtime-application-error')).toBeVisible();
+  await expect(page.getByTestId('runtime-simulation-fallback')).toHaveCount(0);
+  await expect(page.getByTestId('runtime-engineering-application')).toHaveCount(0);
+  expect(workingReads).toBe(0);
 });

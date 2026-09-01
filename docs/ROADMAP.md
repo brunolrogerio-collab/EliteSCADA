@@ -9,6 +9,7 @@ Authoritative product intent: `PROJECT GOAL.md`.
 Mutable coordination state: `LAST CHANGE.md`.  
 Operational handoff: `docs/CURRENT-COORDINATOR-HANDOFF.md`.  
 Wave 12 preparation: `docs/WAVE-12-HARDENING-PREPARATION.md`.  
+Future Linux/Debian distribution: `docs/LINUX-DEBIAN-DISTRIBUTION.md`.  
 CI policy: `docs/CI-VALIDATION-POLICY.md`.
 
 ## Current validated foundation
@@ -55,6 +56,25 @@ Preview      EliteSCADA Preview build                                           
 Driver L4    Physical hardware/site validation by Development Lead                       AFTER PREVIEW BUILD
 FINAL        EliteSCADA v0.1 — Full Product Validation Preview
 ```
+
+## Future distribution tracks outside the current v0.1 sequence
+
+These are product directions, not active implementation stages. They start only when explicitly authorized by the Development Lead.
+
+```text
+DNP3 License Commercial license or approved dependency alternative                       FUTURE / REQUIRED BEFORE COMMERCIAL PACKAGE WITH DNP3
+LinuxDeb     Official Linux x64 Debian .deb distribution                                 FUTURE / NOT STARTED / DEVELOPMENT-LEAD TRIGGER
+Debian 12    First Linux amd64 packaging/homologation target                             PLANNED FIRST TARGET
+Debian 13    Follow-up Linux amd64 homologation target                                   PLANNED AFTER DEBIAN 12
+```
+
+The Linux distribution is expected to be a packaging/integration front rather than a product port. Planned scope includes `linux-x64` self-contained publish, React/Pyodide assets served by Kestrel, `/usr/lib/elitescada` + `/etc/elitescada` + `/var/lib/elitescada` layout, Linux-persistent licensing, system user + `elitescada.service`, external PostgreSQL/TimescaleDB configuration, `.deb amd64`, clean-Debian install/upgrade CI, installed Runtime/Web/licensing/Driver validation and SBOM/dependency-license auditing.
+
+Initial Linux packaging should remain multi-file internally; the `.deb` itself is the distribution artifact. Single-file publish is not a first-version requirement because native libraries, Pyodide assets and future installable Drivers benefit from an explicit package layout.
+
+The current Step Function I/O `dnp3` 1.6.0 dependency is a commercial-distribution gate: its public license is non-commercial/non-production. Before any commercial EliteSCADA package includes/enables this Driver, obtain an appropriate commercial license or approve/revalidate an alternative dependency. DNP3 licensing remediation is expected before the Linux `.deb` front unless the authorized package explicitly excludes DNP3.
+
+Full future Linux contract: `docs/LINUX-DEBIAN-DISTRIBUTION.md`.
 
 ## Wave 11 accepted result
 
@@ -127,4 +147,5 @@ Repository fact: `main` currently has no configured branch protection / required
 - no test weakening to manufacture green evidence;
 - L2 does not imply L3; L3 does not imply physical L4;
 - exact CI evidence is required at material stage transitions;
-- Wave 13 retains mandatory Authenticode + trusted timestamp release signing.
+- Wave 13 retains mandatory Authenticode + trusted timestamp release signing;
+- commercial packaging must not silently ship a dependency outside its permitted license terms; DNP3 requires an explicit commercial-license/alternative disposition before commercial inclusion.

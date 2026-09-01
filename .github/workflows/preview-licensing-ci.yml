@@ -113,8 +113,12 @@ jobs:
       - name: Smoke-test Windows executable startup path
         shell: pwsh
         run: |
-          & ./artifacts/license-generator/win-x64/EliteSCADA.LicenseGenerator.exe --smoke-test
-          if ($LASTEXITCODE -ne 0) { throw "License Generator smoke test failed with exit code $LASTEXITCODE." }
+          $process = Start-Process `
+            -FilePath ./artifacts/license-generator/win-x64/EliteSCADA.LicenseGenerator.exe `
+            -ArgumentList '--smoke-test' `
+            -Wait `
+            -PassThru
+          if ($process.ExitCode -ne 0) { throw "License Generator smoke test failed with exit code $($process.ExitCode)." }
       - name: Upload Windows x64 License Generator
         uses: actions/upload-artifact@v4
         with:

@@ -89,7 +89,8 @@ public sealed class HistoricalQueryApiTests
     [InlineData(FailureKind.Forbidden, StatusCodes.Status403Forbidden)]
     [InlineData(FailureKind.Cursor, StatusCodes.Status400BadRequest)]
     [InlineData(FailureKind.Validation, StatusCodes.Status400BadRequest)]
-    public async Task ExecuteAsync_MapsExpectedPublicFailures(
+    [InlineData(FailureKind.Provider, StatusCodes.Status503ServiceUnavailable)]
+    public async Task ExecuteAsync_MapsTypedPublicFailures(
         FailureKind failure,
         int expectedStatus)
     {
@@ -98,14 +99,68 @@ public sealed class HistoricalQueryApiTests
             {
                 FailureKind.Unauthorized => new HistoricalQueryUnauthorizedException("authentication required"),
                 FailureKind.Forbidden => new HistoricalQueryForbiddenException("denied"),
-                FailureKind.Cursor => new HistoricalQueryCursorException("bad cursor"),
-                FailureKind.Validation => new ArgumentException("bad query"),
+                FailureKind.Cursor => new HistoricalQueryCursorException("bad cursor with parser details"),
+                FailureKind.Validation => new HistoricalQueryValidationException("bad query"),
+                FailureKind.Provider => new HistoricalQueryProviderException("provider failed"),
                 _ => throw new ArgumentOutOfRangeException(nameof(failure))
             }));
 
         var result = await HistoricalQueryApi.ExecuteAsync(Request, service);
         var status = Assert.IsAssignableFrom<IStatusCodeHttpResult>(result);
         Assert.Equal(expectedStatus, status.StatusCode);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_SanitizesCursorDiagnostic()
+    {
+        const string protectedDetail = "payload-signature-secret";
+        var service = new StubService((_, _) => Task.FromException<HistoricalQueryResponse>(
+            new HistoricalQueryCursorException(protectedDetail)));
+
+        var result = await HistoricalQueryApi.ExecuteAsync(Request, service);
+
+        var status = Assert.IsAssignableFrom<IStatusCodeHttpResult>(result);
+        Assert.Equal(StatusCodes.Status400BadRequest, status.StatusCode);
+        var value = Assert.IsAssignableFrom<IValueHttpResult>(result);
+        var error = Assert.IsType<HistoricalQueryApiError>(value.Value);
+        Assert.Equal("invalid_cursor", error.Code);
+        Assert.DoesNotContain(protectedDetail, error.Error);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_DoesNotExposeProviderFailureDetails()
+    {
+        const string protectedDetail = "postgres://user:secret@host/database";
+        var service = new StubService((_, _) => Task.FromException<HistoricalQueryResponse>(
+            new HistoricalQueryProviderException(
+                "provider failed",
+                new InvalidOperationException(protectedDetail))));
+
+        var result = await HistoricalQueryApi.ExecuteAsync(Request, service);
+
+        var status = Assert.IsAssignableFrom<IStatusCodeHttpResult>(result);
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, status.StatusCode);
+        var value = Assert.IsAssignableFrom<IValueHttpResult>(result);
+        var error = Assert.IsType<HistoricalQueryApiError>(value.Value);
+        Assert.Equal("historical_unavailable", error.Code);
+        Assert.DoesNotContain(protectedDetail, error.Error);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_DoesNotMisclassifyPlainArgumentExceptionAsClientError()
+    {
+        const string protectedDetail = "provider argument detail";
+        var service = new StubService((_, _) => Task.FromException<HistoricalQueryResponse>(
+            new ArgumentException(protectedDetail)));
+
+        var result = await HistoricalQueryApi.ExecuteAsync(Request, service);
+
+        var status = Assert.IsAssignableFrom<IStatusCodeHttpResult>(result);
+        Assert.Equal(StatusCodes.Status500InternalServerError, status.StatusCode);
+        var value = Assert.IsAssignableFrom<IValueHttpResult>(result);
+        var error = Assert.IsType<HistoricalQueryApiError>(value.Value);
+        Assert.Equal("historical_query_failed", error.Code);
+        Assert.DoesNotContain(protectedDetail, error.Error);
     }
 
     [Fact]
@@ -128,7 +183,8 @@ public sealed class HistoricalQueryApiTests
         Unauthorized,
         Forbidden,
         Cursor,
-        Validation
+        Validation,
+        Provider
     }
 
     private sealed class StubService(

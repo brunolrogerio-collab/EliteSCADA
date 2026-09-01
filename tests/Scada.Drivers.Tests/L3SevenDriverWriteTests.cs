@@ -318,6 +318,7 @@ public sealed class L3SevenDriverWriteTests
         {
             ["deviceInstance"] = "599001",
             ["localPort"] = "47809",
+            ["localEndpointIp"] = "127.0.0.1",
             ["scanIntervalMilliseconds"] = "100",
             ["requestTimeoutMilliseconds"] = "2000",
             ["discoveryWindowMilliseconds"] = "3000",
@@ -417,7 +418,6 @@ public sealed class L3SevenDriverWriteTests
             !TryEndpoint("ELITESCADA_L3_DNP3_HOST", "ELITESCADA_L3_DNP3_PORT", out var dnpHost, out var dnpPort) ||
             !TryEndpoint("ELITESCADA_L3_S7_HOST", "ELITESCADA_L3_S7_PORT", out var s7Host, out var s7Port))
             return false;
-
         var opcEndpoint = Environment.GetEnvironmentVariable("ELITESCADA_L3_OPCUA_ENDPOINT")?.Trim();
         var nodeRedUrl = Environment.GetEnvironmentVariable("ELITESCADA_L3_NODE_RED_URL")?.Trim();
         if (string.IsNullOrWhiteSpace(opcEndpoint) || string.IsNullOrWhiteSpace(nodeRedUrl)) return false;

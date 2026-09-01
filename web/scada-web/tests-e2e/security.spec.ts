@@ -284,8 +284,13 @@ test('API distinguishes access levels and records protected-operation audit even
     `/api/engineering/persistence/e2e-security/revisions/${saved.revision}/checkout`);
   expect(checkoutResponse.ok()).toBeTruthy();
 
+  const workspaceResponse = await request.get('/api/engineering/workspace');
+  expect(workspaceResponse.ok()).toBeTruthy();
+  const workspace = await workspaceResponse.json() as { changeVersion: number };
+
   const applyResponse = await request.post(
-    `/api/engineering/persistence/e2e-security/revisions/${saved.revision}/apply`);
+    `/api/engineering/persistence/e2e-security/revisions/${saved.revision}/apply`,
+    { headers: { 'x-elitescada-workspace-version': String(workspace.changeVersion) } });
   expect(applyResponse.ok()).toBeTruthy();
 
   const auditResponse = await request.get('/api/audit?limit=150');

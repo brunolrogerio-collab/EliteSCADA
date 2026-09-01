@@ -108,6 +108,21 @@ public sealed class GatewayCrossDriverIntegrationTests
         await WaitForAsync(
             () => modbusServer.HoldingRegisters[20] == 99,
             TimeSpan.FromSeconds(4));
+        await WaitForAsync(
+            () =>
+            {
+                var diagnostics = runtime.GatewayDiagnostics();
+                if (diagnostics.Count != 1)
+                {
+                    return false;
+                }
+
+                var gateway = diagnostics.Single();
+                return gateway.State == GatewayRouteRuntimeState.Running &&
+                       gateway.TransferCount >= 2 &&
+                       gateway.WriteFailureCount == 0;
+            },
+            TimeSpan.FromSeconds(4));
 
         var updatedGateway = Assert.Single(runtime.GatewayDiagnostics());
         Assert.Equal(GatewayRouteRuntimeState.Running, updatedGateway.State);
@@ -119,13 +134,13 @@ public sealed class GatewayCrossDriverIntegrationTests
         IReadOnlyCollection<TagEngineeringDto> tags,
         IReadOnlyCollection<DataSourceEngineeringDto> dataSources,
         IReadOnlyCollection<GatewayRouteEngineeringDto> gateways) => new(
-            EngineeringExchangeService.CurrentSchema,
-            EngineeringExchangeService.CurrentSchemaVersion,
-            DateTimeOffset.UtcNow,
-            tags,
-            Array.Empty<AlarmEngineeringDto>(),
-            dataSources,
-            Gateways: gateways);
+        EngineeringExchangeService.CurrentSchema,
+        EngineeringExchangeService.CurrentSchemaVersion,
+        DateTimeOffset.UtcNow,
+        tags,
+        Array.Empty<AlarmEngineeringDto>(),
+        dataSources,
+        Gateways: gateways);
 
     private static DataSourceEngineeringDto S7Source(string key, int port) => new(
         Guid.NewGuid(),

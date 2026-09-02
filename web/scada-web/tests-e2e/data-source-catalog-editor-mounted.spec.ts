@@ -9,6 +9,7 @@ test('mounted Data Source editor rebuilds driver-specific fields instead of reus
   await editor.locator('header button').first().click();
 
   const typePicker = page.getByTestId('data-source-type');
+  await expect(typePicker).toHaveValue('');
   await typePicker.selectOption('modbus.tcp');
   await expect(page.getByTestId('data-source-setting-host')).toBeVisible();
   await page.getByTestId('data-source-setting-host').fill('10.0.0.50');

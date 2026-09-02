@@ -144,6 +144,8 @@ function CanonicalElement({
     const diagnosticTitle = dynamic.diagnostics.length > 0
       ? dynamic.diagnostics.map(item => `${item.propertyKey ? `${item.propertyKey}: ` : ''}${item.message}`).join('\n')
       : undefined;
+    const tooltipTitle = optionalText(values[VISUAL_PROPERTY_KEYS.tooltip]);
+    const elementTitle = combineTitles(tooltipTitle, diagnosticTitle);
     const diagnosticState = dynamic.diagnostics.length > 0 ? 'unavailable' : 'available';
 
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.group) {
@@ -152,7 +154,7 @@ function CanonicalElement({
         style={style}
         data-object-id={element.id ?? undefined}
         data-runtime-object-id={runtimeObjectId}
-        title={diagnosticTitle}
+        title={elementTitle}
         data-dynamic-state={diagnosticState}
         onClick={onClick}
       >
@@ -177,7 +179,7 @@ function CanonicalElement({
         style={style}
         data-object-id={element.id ?? undefined}
         data-runtime-object-id={runtimeObjectId}
-        title={diagnosticTitle}
+        title={elementTitle}
         data-dynamic-state={diagnosticState}
         onClick={onClick}
       >
@@ -194,7 +196,7 @@ function CanonicalElement({
         style={lineStyle(style, values)}
         data-object-id={element.id ?? undefined}
         data-runtime-object-id={runtimeObjectId}
-        title={diagnosticTitle}
+        title={elementTitle}
         data-dynamic-state={diagnosticState}
         onClick={onClick}
       />;
@@ -215,7 +217,7 @@ function CanonicalElement({
         style={{ ...style, background: 'transparent', border: 0, overflow: 'visible' }}
         data-object-id={element.id ?? undefined}
         data-runtime-object-id={runtimeObjectId}
-        title={diagnosticTitle}
+        title={elementTitle}
         data-dynamic-state={diagnosticState}
         onClick={onClick}
       >
@@ -240,7 +242,7 @@ function CanonicalElement({
         liveSamples={liveSamples}
         style={style}
         runtimeObjectId={runtimeObjectId}
-        title={diagnosticTitle}
+        title={elementTitle}
         onTagWrite={onTagWrite}
       />;
     }
@@ -254,7 +256,7 @@ function CanonicalElement({
     const className = `visual-editor-object visual-editor-${element.type.replace('core.', '')}${dynamicText && !dynamicText.available ? ' visual-editor-dynamic-unavailable' : ''}`;
     const content = dynamicText?.text || staticText || element.key;
     const sourceTitle = dynamicText ? `${textBinding!.target} · ${dynamicText.state}` : undefined;
-    const title = [sourceTitle, diagnosticTitle].filter(Boolean).join('\n') || undefined;
+    const title = combineTitles(sourceTitle, tooltipTitle, diagnosticTitle);
     const fill = analogFillOverlay(element, dynamic.analogFill);
 
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.button) {
@@ -321,6 +323,10 @@ function CanonicalDynamoElement({
     const diagnosticTitle = dynamic.diagnostics.length > 0
       ? dynamic.diagnostics.map(item => `${item.propertyKey ? `${item.propertyKey}: ` : ''}${item.message}`).join('\n')
       : undefined;
+    const title = combineTitles(
+      optionalText(dynamic.values[VISUAL_PROPERTY_KEYS.tooltip]),
+      diagnosticTitle
+    );
 
     return <div
       className="visual-editor-object visual-editor-group visual-editor-dynamo"
@@ -332,7 +338,7 @@ function CanonicalDynamoElement({
       data-dynamo-instance-id={composition.instanceId}
       data-dynamo-parameter-count={composition.parameters.size}
       data-dynamic-state={dynamic.diagnostics.length > 0 ? 'unavailable' : 'available'}
-      title={diagnosticTitle}
+      title={title}
       onClick={onClick}
     >
       {composition.elements.map((child, index) => <CanonicalElement
@@ -477,13 +483,19 @@ function elementStyle(values: Readonly<Record<string, VisualPropertyValue>>): CS
     strokeStyle,
     numberValue(values[VISUAL_PROPERTY_KEYS.strokeWidth], 0)
   );
+  const scaleX = numberValue(values[VISUAL_PROPERTY_KEYS.scaleX], 1) *
+    (booleanValue(values[VISUAL_PROPERTY_KEYS.horizontalFlip], false) ? -1 : 1);
+  const scaleY = numberValue(values[VISUAL_PROPERTY_KEYS.scaleY], 1) *
+    (booleanValue(values[VISUAL_PROPERTY_KEYS.verticalFlip], false) ? -1 : 1);
+  const textWrap = booleanValue(values[VISUAL_PROPERTY_KEYS.textWrap], true);
+  const textOverflow = stringValue(values[VISUAL_PROPERTY_KEYS.textOverflow], 'clip');
   return {
     position: 'absolute',
     left: numberValue(values[VISUAL_PROPERTY_KEYS.x]), top: numberValue(values[VISUAL_PROPERTY_KEYS.y]),
     width: numberValue(values[VISUAL_PROPERTY_KEYS.width], 100), height: numberValue(values[VISUAL_PROPERTY_KEYS.height], 100),
     zIndex: numberValue(values[VISUAL_PROPERTY_KEYS.zIndex]), display: visible ? 'flex' : 'none',
     opacity: numberValue(values[VISUAL_PROPERTY_KEYS.opacity], 1),
-    transform: `rotate(${numberValue(values[VISUAL_PROPERTY_KEYS.rotation])}deg) scale(${numberValue(values[VISUAL_PROPERTY_KEYS.scaleX], 1)}, ${numberValue(values[VISUAL_PROPERTY_KEYS.scaleY], 1)})`,
+    transform: `rotate(${numberValue(values[VISUAL_PROPERTY_KEYS.rotation])}deg) scale(${scaleX}, ${scaleY})`,
     transformOrigin: 'center center', boxSizing: 'border-box', overflow: 'hidden',
     background: stringValue(values[VISUAL_PROPERTY_KEYS.backgroundColor]) || stringValue(values[VISUAL_PROPERTY_KEYS.fillColor]) || undefined,
     borderColor: strokeStyle === 'none' ? 'transparent' : stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor]) || undefined,
@@ -494,9 +506,13 @@ function elementStyle(values: Readonly<Record<string, VisualPropertyValue>>): CS
     fontFamily: normalizeFontFamily(stringValue(values[VISUAL_PROPERTY_KEYS.fontFamily])),
     fontSize: numberValue(values[VISUAL_PROPERTY_KEYS.fontSize], 14), fontWeight: numberValue(values[VISUAL_PROPERTY_KEYS.fontWeight], 400),
     fontStyle: stringValue(values[VISUAL_PROPERTY_KEYS.fontStyle], 'normal') as CSSProperties['fontStyle'],
+    textDecorationLine: booleanValue(values[VISUAL_PROPERTY_KEYS.underline], false) ? 'underline' : 'none',
+    lineHeight: numberValue(values[VISUAL_PROPERTY_KEYS.lineHeight], 1.2),
     textAlign: stringValue(values[VISUAL_PROPERTY_KEYS.horizontalAlignment], 'left') as CSSProperties['textAlign'],
     alignItems: verticalAlignment(values[VISUAL_PROPERTY_KEYS.verticalAlignment]), justifyContent: horizontalFlexAlignment(values[VISUAL_PROPERTY_KEYS.horizontalAlignment]),
-    whiteSpace: 'pre-wrap', overflowWrap: 'anywhere'
+    whiteSpace: textWrap ? 'pre-wrap' : 'pre',
+    overflowWrap: textWrap ? 'anywhere' : 'normal',
+    textOverflow: textOverflow === 'ellipsis' ? 'ellipsis' : 'clip'
   };
 }
 
@@ -526,6 +542,8 @@ function percent(value: VisualPropertyValue | undefined): number { return Math.m
 function numberValue(value: VisualPropertyValue | undefined, fallback = 0): number { return typeof value === 'number' && Number.isFinite(value) ? value : fallback; }
 function booleanValue(value: VisualPropertyValue | undefined, fallback: boolean): boolean { return typeof value === 'boolean' ? value : fallback; }
 function stringValue(value: VisualPropertyValue | undefined, fallback = ''): string { return typeof value === 'string' ? value : fallback; }
+function optionalText(value: VisualPropertyValue | undefined): string | undefined { const result = stringValue(value).trim(); return result || undefined; }
+function combineTitles(...parts: Array<string | undefined>): string | undefined { const result = parts.filter((part): part is string => Boolean(part)).join('\n'); return result || undefined; }
 function legacyNumber(value: VisualEngineeringPropertyValue | undefined, fallback: number): number { return typeof value === 'number' && Number.isFinite(value) ? value : fallback; }
 function legacyString(value: VisualEngineeringPropertyValue | undefined): string { return typeof value === 'string' ? value : ''; }
 function normalizeFontFamily(value: string): string | undefined { return !value ? undefined : value === 'system' ? 'system-ui, sans-serif' : value; }

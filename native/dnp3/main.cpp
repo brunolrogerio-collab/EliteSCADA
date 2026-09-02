@@ -17,8 +17,10 @@
 #include <opendnp3/master/ICommandTaskResult.h>
 #include <opendnp3/master/IMasterApplication.h>
 #include <opendnp3/master/IMasterScan.h>
-#include <opendnp3/master/MasterStackConfig.h>
 #include <opendnp3/master/ISOEHandler.h>
+#include <opendnp3/master/ITaskCallback.h>
+#include <opendnp3/master/MasterStackConfig.h>
+#include <opendnp3/master/TaskConfig.h>
 #include <opendnp3/util/TimeDuration.h>
 #include <opendnp3/util/UTCTimestamp.h>
 
@@ -188,6 +190,8 @@ Config ParseConfig(int argc, char** argv)
         throw std::invalid_argument("DNP3 event class masks are invalid.");
     if (config.disableUnsolicitedClasses != 0 && config.disableUnsolicitedClasses != config.enableUnsolicitedClasses)
         throw std::invalid_argument("OpenDNP3 3.1.2 requires the startup-disable and post-integrity unsolicited class masks to match.");
+    if (config.maxQueuedUserRequests <= 0)
+        throw std::invalid_argument("DNP3 maximum queued user requests must be positive.");
     return config;
 }
 
@@ -196,6 +200,7 @@ class ProtocolWriter
 public:
     void Ready() { Write({ProtocolVersion, "READY"}); }
     void State(const std::string& state) { Write({ProtocolVersion, "STATE", state}); }
+    void Diagnostic(const std::string& kind) { Write({ProtocolVersion, "DIAGNOSTIC", kind}); }
 
     void Command(uint64_t requestId, bool success, const std::string& status)
     {
@@ -301,7 +306,11 @@ class EliteSOEHandler final : public ISOEHandler
 public:
     explicit EliteSOEHandler(ProtocolWriter& writer) : writer_(writer) {}
 
-    void BeginFragment(const ResponseInfo&) override {}
+    void BeginFragment(const ResponseInfo& info) override
+    {
+        if (info.unsolicited && info.fir) writer_.Diagnostic("UNSOLICITED");
+    }
+
     void EndFragment(const ResponseInfo&) override {}
 
     void Process(const HeaderInfo& info, const ICollection<Indexed<Binary>>& values) override
@@ -389,15 +398,30 @@ private:
     ProtocolWriter& writer_;
 };
 
+void EmitClassDiagnostics(ProtocolWriter& writer, uint8_t classes)
+{
+    if ((classes & ClassField::CLASS_0) != 0) writer.Diagnostic("CLASS0_SCAN");
+    if ((classes & ClassField::CLASS_1) != 0) writer.Diagnostic("CLASS1_SCAN");
+    if ((classes & ClassField::CLASS_2) != 0) writer.Diagnostic("CLASS2_SCAN");
+    if ((classes & ClassField::CLASS_3) != 0) writer.Diagnostic("CLASS3_SCAN");
+}
+
 class EliteMasterApplication final : public IMasterApplication
 {
 public:
-    explicit EliteMasterApplication(ProtocolWriter& writer) : writer_(writer) {}
+    EliteMasterApplication(ProtocolWriter& writer, uint8_t startupClasses)
+        : writer_(writer), startupClasses_(startupClasses) {}
 
     UTCTimestamp Now() override
     {
         const auto now = std::chrono::system_clock::now().time_since_epoch();
         return UTCTimestamp(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(now).count()));
+    }
+
+    void OnReceiveIIN(const IINField& iin) override
+    {
+        if (iin.IsSet(IINBit::DEVICE_RESTART)) writer_.Diagnostic("DEVICE_RESTART");
+        if (iin.IsSet(IINBit::EVENT_BUFFER_OVERFLOW)) writer_.Diagnostic("EVENT_BUFFER_OVERFLOW");
     }
 
     void OnTaskStart(MasterTaskType type, TaskId) override
@@ -408,11 +432,42 @@ public:
     void OnTaskComplete(const TaskInfo& info) override
     {
         if (info.type != MasterTaskType::STARTUP_INTEGRITY_POLL) return;
-        writer_.State(info.result == TaskCompletion::SUCCESS ? "Online" : "Degraded");
+        if (info.result == TaskCompletion::SUCCESS)
+        {
+            writer_.Diagnostic("STARTUP_INTEGRITY");
+            EmitClassDiagnostics(writer_, startupClasses_);
+            writer_.State("Online");
+        }
+        else
+        {
+            writer_.State("Degraded");
+        }
     }
 
 private:
     ProtocolWriter& writer_;
+    uint8_t startupClasses_;
+};
+
+class ScanDiagnosticCallback final : public ITaskCallback
+{
+public:
+    ScanDiagnosticCallback(ProtocolWriter& writer, std::vector<std::string> diagnostics)
+        : writer_(writer), diagnostics_(std::move(diagnostics)) {}
+
+    void OnStart() override {}
+
+    void OnComplete(TaskCompletion result) override
+    {
+        if (result != TaskCompletion::SUCCESS) return;
+        for (const auto& diagnostic : diagnostics_) writer_.Diagnostic(diagnostic);
+    }
+
+    void OnDestroyed() override {}
+
+private:
+    ProtocolWriter& writer_;
+    std::vector<std::string> diagnostics_;
 };
 
 class EliteChannelListener final : public IChannelListener
@@ -542,14 +597,31 @@ TimeSyncMode ParseTimeSyncMode(const std::string& value)
     throw std::invalid_argument("Unsupported DNP3 time synchronization mode: " + value);
 }
 
+std::vector<std::string> ClassDiagnostics(uint8_t classes)
+{
+    std::vector<std::string> diagnostics;
+    if ((classes & ClassField::CLASS_0) != 0) diagnostics.emplace_back("CLASS0_SCAN");
+    if ((classes & ClassField::CLASS_1) != 0) diagnostics.emplace_back("CLASS1_SCAN");
+    if ((classes & ClassField::CLASS_2) != 0) diagnostics.emplace_back("CLASS2_SCAN");
+    if ((classes & ClassField::CLASS_3) != 0) diagnostics.emplace_back("CLASS3_SCAN");
+    return diagnostics;
+}
+
 void AddOptionalScan(std::vector<std::shared_ptr<IMasterScan>>& scans,
                      const std::shared_ptr<IMaster>& master,
                      const std::shared_ptr<ISOEHandler>& handler,
+                     ProtocolWriter& writer,
                      uint8_t classes,
-                     int64_t intervalMs)
+                     int64_t intervalMs,
+                     std::vector<std::string> diagnostics)
 {
     if (intervalMs <= 0) return;
-    scans.push_back(master->AddClassScan(ClassField(classes), TimeDuration::Milliseconds(intervalMs), handler));
+    auto callback = std::make_shared<ScanDiagnosticCallback>(writer, std::move(diagnostics));
+    scans.push_back(master->AddClassScan(
+        ClassField(classes),
+        TimeDuration::Milliseconds(intervalMs),
+        handler,
+        TaskConfig::With(callback)));
 }
 
 int Run(int argc, char** argv)
@@ -568,6 +640,7 @@ int Run(int argc, char** argv)
     stack.master.responseTimeout = TimeDuration::Milliseconds(config.responseTimeoutMs);
     stack.master.taskRetryPeriod = TimeDuration::Milliseconds(config.reconnectMinMs);
     stack.master.maxTaskRetryPeriod = TimeDuration::Milliseconds(config.reconnectMaxMs);
+    stack.master.taskStartTimeout = TimeDuration::Milliseconds(config.responseTimeoutMs);
     stack.master.startupIntegrityClassMask = ClassField(config.startupClasses);
     stack.master.disableUnsolOnStartup = config.disableUnsolicitedClasses != 0;
     stack.master.unsolClassMask = ClassField(config.enableUnsolicitedClasses);
@@ -580,13 +653,13 @@ int Run(int argc, char** argv)
     stack.link.KeepAliveTimeout = config.keepAliveMs < 0 ? TimeDuration::Max() : TimeDuration::Milliseconds(config.keepAliveMs);
 
     auto soe = std::make_shared<EliteSOEHandler>(writer);
-    auto app = std::make_shared<EliteMasterApplication>(writer);
+    auto app = std::make_shared<EliteMasterApplication>(writer, config.startupClasses);
     auto master = channel->AddMaster("elitescada-master", soe, app, stack);
     std::vector<std::shared_ptr<IMasterScan>> scans;
-    AddOptionalScan(scans, master, soe, config.startupClasses, config.integrityPollMs);
-    AddOptionalScan(scans, master, soe, ClassField::CLASS_1, config.class1PollMs);
-    AddOptionalScan(scans, master, soe, ClassField::CLASS_2, config.class2PollMs);
-    AddOptionalScan(scans, master, soe, ClassField::CLASS_3, config.class3PollMs);
+    AddOptionalScan(scans, master, soe, writer, config.startupClasses, config.integrityPollMs, ClassDiagnostics(config.startupClasses));
+    AddOptionalScan(scans, master, soe, writer, ClassField::CLASS_1, config.class1PollMs, {"CLASS1_SCAN"});
+    AddOptionalScan(scans, master, soe, writer, ClassField::CLASS_2, config.class2PollMs, {"CLASS2_SCAN"});
+    AddOptionalScan(scans, master, soe, writer, ClassField::CLASS_3, config.class3PollMs, {"CLASS3_SCAN"});
 
     master->Enable();
     writer.Ready();

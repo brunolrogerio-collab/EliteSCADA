@@ -1,3 +1,4 @@
+using Scada.Engineering.Persistence;
 using Scada.Security.Audit;
 using Scada.Security.Authentication;
 using Scada.Security.Authorization;
@@ -28,6 +29,8 @@ public static class LocalIdentityApi
                 authenticationEnabled = runtime.AuthenticationEnabled,
                 localLoginEnabled = false,
                 initialAdministratorRequired = false,
+                initialAdministratorSetupAvailable = false,
+                initialAdministratorBlockedReason = (string?)null,
                 passwordPolicy = new
                 {
                     minimumLength = LocalPasswordHasher.MinimumPasswordLength,
@@ -38,18 +41,25 @@ public static class LocalIdentityApi
         }
 
         endpoints.MapGet("/api/auth/config", async (
+            HttpContext context,
             LocalIdentityBootstrapService bootstrap,
-            CancellationToken ct) => Results.Ok(new
+            CancellationToken ct) =>
+        {
+            var status = await ResolveBootstrapStatusAsync(context, runtime, bootstrap, ct);
+            return Results.Ok(new
             {
                 authenticationEnabled = runtime.AuthenticationEnabled,
                 localLoginEnabled = true,
-                initialAdministratorRequired = await bootstrap.IsInitialAdministratorRequiredAsync(ct),
+                initialAdministratorRequired = status.Required,
+                initialAdministratorSetupAvailable = status.Available,
+                initialAdministratorBlockedReason = status.BlockedReason,
                 passwordPolicy = new
                 {
                     minimumLength = LocalPasswordHasher.MinimumPasswordLength,
                     maximumLength = LocalPasswordHasher.MaximumPasswordLength
                 }
-            }));
+            });
+        });
 
         endpoints.MapGet("/api/auth/local-session", (HttpContext context) =>
         {
@@ -73,6 +83,23 @@ public static class LocalIdentityApi
             ApiAuditService audit,
             CancellationToken ct) =>
         {
+            var bootstrapStatus = await ResolveBootstrapStatusAsync(context, runtime, bootstrap, ct);
+            if (!bootstrapStatus.Required)
+            {
+                return Results.Conflict(new
+                {
+                    error = "Initial Administrator bootstrap is already closed. Sign in with an existing account."
+                });
+            }
+            if (!bootstrapStatus.Available)
+            {
+                return Results.Conflict(new
+                {
+                    error = "Anonymous initial Administrator setup is not available because this server cannot prove that the installation is empty. Restore an Administrator or use explicit secured bootstrap configuration.",
+                    reason = bootstrapStatus.BlockedReason
+                });
+            }
+
             var remoteKey = $"bootstrap:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
             if (!limiter.TryAcquire(remoteKey))
                 return Results.StatusCode(StatusCodes.Status429TooManyRequests);
@@ -226,6 +253,26 @@ public static class LocalIdentityApi
         return endpoints;
     }
 
+    private static async Task<InitialAdministratorBootstrapStatus> ResolveBootstrapStatusAsync(
+        HttpContext context,
+        LocalIdentityRuntimeOptions runtime,
+        LocalIdentityBootstrapService bootstrap,
+        CancellationToken cancellationToken)
+    {
+        var required = await bootstrap.IsInitialAdministratorRequiredAsync(cancellationToken);
+        if (!required) return new InitialAdministratorBootstrapStatus(false, false, null);
+        if (!runtime.DurableStore)
+            return new InitialAdministratorBootstrapStatus(true, false, "durable-local-identity-store-required");
+
+        var catalog = context.RequestServices.GetService<IEngineeringProjectCatalog>();
+        if (catalog is null)
+            return new InitialAdministratorBootstrapStatus(true, false, "engineering-project-catalog-unavailable");
+        if (await catalog.HasAnyAsync(cancellationToken))
+            return new InitialAdministratorBootstrapStatus(true, false, "installation-contains-persisted-projects");
+
+        return new InitialAdministratorBootstrapStatus(true, true, null);
+    }
+
     private static CookieOptions CookieOptions(LocalIdentityRuntimeOptions runtime, DateTimeOffset expiresAtUtc) => new()
     {
         HttpOnly = true,
@@ -235,4 +282,9 @@ public static class LocalIdentityApi
         Expires = expiresAtUtc,
         IsEssential = true
     };
+
+    private sealed record InitialAdministratorBootstrapStatus(
+        bool Required,
+        bool Available,
+        string? BlockedReason);
 }

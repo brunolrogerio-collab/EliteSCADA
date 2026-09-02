@@ -1,5 +1,6 @@
 using Scada.Core.Sources;
 using Scada.DriverHost.Engineering;
+using Scada.Drivers.Bacnet;
 using Scada.Drivers.Modbus;
 using Scada.Drivers.OpcUa;
 using Scada.Drivers.Simulation;
@@ -77,6 +78,28 @@ public sealed class EngineeringDataSourceTypeCatalogTests
         Assert.Contains("URL", endpointFormat, StringComparison.OrdinalIgnoreCase);
         Assert.StartsWith("opc.tcp://", endpointExample);
         Assert.Contains("hh:mm:ss", durationFormat, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Catalog_BacnetMillisecondFieldsAreIntegersInVersionedSchema()
+    {
+        var catalog = BuildCatalog().Describe();
+        var bacnet = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == BacnetDriverDescriptor.DriverType);
+        var schema = Assert.NotNull(bacnet.ConfigurationSchema);
+
+        Assert.Equal(2, schema.SchemaVersion);
+        Assert.Contains(schema.DataSourceFields, field =>
+            field.Key == "scanIntervalMilliseconds" &&
+            field.ValueKind == "integer" &&
+            field.DefaultValue == "1000");
+        Assert.Contains(schema.DataSourceFields, field =>
+            field.Key == "requestTimeoutMilliseconds" &&
+            field.ValueKind == "integer" &&
+            field.DefaultValue == "3000");
+        Assert.Contains(schema.DataSourceFields, field =>
+            field.Key == "discoveryWindowMilliseconds" &&
+            field.ValueKind == "integer" &&
+            field.DefaultValue == "1500");
     }
 
     [Fact]

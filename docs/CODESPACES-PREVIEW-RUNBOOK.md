@@ -29,7 +29,7 @@ There is no Preview-only authorization or licensing bypass.
 
    `ELITESCADA_PREVIEW_ADMIN_PASSWORD`
 
-5. The protected Preview password must satisfy the product's existing Local Identity password policy. The real homologation exposed the current minimum of 12 characters. Do not weaken that policy for Preview convenience.
+5. The protected Preview password must satisfy the product's current Local Identity password policy. The Wave 14 minimum is **8 characters**. An earlier real homologation failed when the then-current product minimum was **12 characters**; that historical evidence remains valid and must not be rewritten. Do not weaken the product policy for Preview convenience.
 6. Never place the password in a GitHub comment, commit, workflow, command transcript or diagnostic output.
 
 ### 2.2 Create the Codespace
@@ -169,11 +169,11 @@ Do not add a Preview-only licensing bypass.
 
 ### 5.3 Local Identity bootstrap fails because the protected password violates policy
 
-Observed cause: a Preview password shorter than the existing product minimum caused bootstrap to fail closed.
+Historical observed cause: during earlier real homologation, a Preview password shorter than the then-current **12-character** product minimum caused bootstrap to fail closed. The current Wave 14 product minimum is **8 characters**; the historical failure remains evidence of correct fail-closed behavior under the policy that was active at that time.
 
 Correct response:
 
-- correct the protected Codespaces secret;
+- correct the protected Codespaces secret so it satisfies the current product password policy;
 - do not weaken the product password rule;
 - restart/rebuild the environment so the new secret is injected;
 - if the disposable database already contains the `EliteSCADA` identity under another password, create/reset disposable state, preferably with a fresh Codespace.

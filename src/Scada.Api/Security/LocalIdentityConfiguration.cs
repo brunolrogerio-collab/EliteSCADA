@@ -137,6 +137,7 @@ public static class LocalIdentityConfiguration
                 ? new InMemoryLocalIdentityStore()
                 : new PostgreSqlLocalIdentityStore(connectionString);
         });
+        builder.Services.AddSingleton<LocalIdentityBootstrapService>();
 
         return true;
     }
@@ -161,10 +162,23 @@ public static class LocalIdentityConfiguration
             .Select(value => value!)
             .ToArray();
 
+        var hasAnyConfiguredBootstrapValue =
+            !string.IsNullOrWhiteSpace(username) ||
+            !string.IsNullOrWhiteSpace(displayName) ||
+            !string.IsNullOrWhiteSpace(password) ||
+            roles.Length > 0;
+
+        if (!hasAnyConfiguredBootstrapValue)
+        {
+            app.Logger.LogInformation(
+                "Local identity store is empty. Secure first-run setup is available until the first Administrator is created.");
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password) || roles.Length == 0)
         {
             throw new InvalidOperationException(
-                "Local identity store is empty. Configure Authentication:Local:Bootstrap:Username, Password and at least one Roles entry for first startup.");
+                "Authentication:Local:Bootstrap is incomplete. Configure Username, Password and at least one Roles entry, or remove the Bootstrap section to use secure first-run setup.");
         }
 
         LocalPasswordHasher.ValidatePassword(password);

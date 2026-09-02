@@ -5,6 +5,7 @@ using Scada.Security.Authorization;
 namespace Scada.Api.Security;
 
 public sealed record LocalLoginRequest(string Username, string Password);
+public sealed record InitialAdministratorRequest(string Username, string? DisplayName, string Password);
 
 public sealed record AuthProfileResponse(
     string SubjectId,
@@ -19,13 +20,94 @@ public static class LocalIdentityApi
     {
         var runtime = endpoints.ServiceProvider.GetRequiredService<LocalIdentityRuntimeOptions>();
 
-        endpoints.MapGet("/api/auth/config", () => Results.Ok(new
+        if (!runtime.Enabled)
         {
-            authenticationEnabled = runtime.AuthenticationEnabled,
-            localLoginEnabled = runtime.Enabled
-        }));
+            endpoints.MapGet("/api/auth/config", () => Results.Ok(new
+            {
+                authenticationEnabled = runtime.AuthenticationEnabled,
+                localLoginEnabled = false,
+                initialAdministratorRequired = false,
+                passwordPolicy = new
+                {
+                    minimumLength = LocalPasswordHasher.MinimumPasswordLength,
+                    maximumLength = LocalPasswordHasher.MaximumPasswordLength
+                }
+            }));
+            return endpoints;
+        }
 
-        if (!runtime.Enabled) return endpoints;
+        endpoints.MapGet("/api/auth/config", async (
+            LocalIdentityBootstrapService bootstrap,
+            CancellationToken ct) => Results.Ok(new
+            {
+                authenticationEnabled = runtime.AuthenticationEnabled,
+                localLoginEnabled = true,
+                initialAdministratorRequired = await bootstrap.IsInitialAdministratorRequiredAsync(ct),
+                passwordPolicy = new
+                {
+                    minimumLength = LocalPasswordHasher.MinimumPasswordLength,
+                    maximumLength = LocalPasswordHasher.MaximumPasswordLength
+                }
+            }));
+
+        endpoints.MapPost("/api/auth/bootstrap", async (
+            InitialAdministratorRequest request,
+            HttpContext context,
+            LocalIdentityBootstrapService bootstrap,
+            JwtTokenIssuer issuer,
+            LocalLoginAttemptLimiter limiter,
+            ApiAuditService audit,
+            CancellationToken ct) =>
+        {
+            var remoteKey = $"bootstrap:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+            if (!limiter.TryAcquire(remoteKey))
+                return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+
+            try
+            {
+                var result = await bootstrap.CreateInitialAdministratorAsync(
+                    request.Username,
+                    request.DisplayName,
+                    request.Password,
+                    ct);
+                if (!result.Created || result.Account is null)
+                {
+                    return Results.Conflict(new
+                    {
+                        error = "Initial Administrator bootstrap is already closed. Sign in with an existing account."
+                    });
+                }
+
+                var account = result.Account;
+                var issued = issuer.Issue(account);
+                context.Response.Cookies.Append(runtime.CookieName, issued.Token, CookieOptions(runtime, issued.ExpiresAtUtc));
+
+                var principal = new SecurityPrincipal(
+                    account.Id.ToString(),
+                    account.DisplayName,
+                    account.Roles,
+                    true);
+                await audit.RecordAsync(
+                    context,
+                    principal,
+                    "auth.bootstrap",
+                    AuditOutcome.Succeeded,
+                    "user",
+                    account.Id.ToString(),
+                    new Dictionary<string, string> { ["username"] = account.Username });
+
+                return Results.Ok(new AuthProfileResponse(
+                    account.Id.ToString(),
+                    account.Username,
+                    account.DisplayName,
+                    account.Roles,
+                    issued.ExpiresAtUtc));
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+        });
 
         endpoints.MapPost("/api/auth/login", async (
             LocalLoginRequest request,

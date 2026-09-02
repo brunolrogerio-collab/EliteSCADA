@@ -73,6 +73,21 @@
   min-height: 2rem;
 }
 
+.property-inspector__asset-reference {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.property-inspector__asset-reference input[readonly] {
+  opacity: 0.8;
+}
+
+.property-inspector__asset-reference small {
+  font-size: 0.72rem;
+  opacity: 0.72;
+}
+
 .property-inspector__color-control {
   display: flex;
   flex-direction: column;

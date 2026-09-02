@@ -27,6 +27,8 @@ public sealed record EngineeringDriverConfigurationFieldView(
     double? Minimum,
     double? Maximum,
     bool Advanced,
+    string? ExpectedFormat,
+    string? ExampleValue,
     string? DisplayNameResourceKey,
     string? DescriptionResourceKey);
 
@@ -183,13 +185,20 @@ public sealed class EngineeringDataSourceTypeCatalog : IDataSourceConfigurationV
                 ValidateRange(integer);
                 break;
             case DriverConfigurationValueKind.Number:
-            case DriverConfigurationValueKind.Duration:
                 if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) || !double.IsFinite(number))
                 {
                     AddInvalid("must be a finite number");
                     break;
                 }
                 ValidateRange(number);
+                break;
+            case DriverConfigurationValueKind.Duration:
+                if (!TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var duration) || duration < TimeSpan.Zero)
+                {
+                    AddInvalid("must be a non-negative duration in [d.]hh:mm:ss[.fffffff] format, for example 00:00:05");
+                    break;
+                }
+                ValidateRange(duration.TotalMilliseconds);
                 break;
             case DriverConfigurationValueKind.Enum:
                 if (field.AllowedValues is { Count: > 0 } &&
@@ -241,15 +250,100 @@ public sealed class EngineeringDataSourceTypeCatalog : IDataSourceConfigurationV
         field.Key,
         ToCamelCase(field.ValueKind.ToString()),
         field.Required,
-        field.DisplayName ?? field.Key,
+        field.DisplayName ?? HumanizeKey(field.Key),
         field.Description,
         field.DefaultValue,
         field.AllowedValues?.ToArray() ?? Array.Empty<string>(),
         field.Minimum,
         field.Maximum,
         field.Advanced,
+        ExpectedFormat(field),
+        ExampleValue(field),
         field.DisplayNameResourceKey,
         field.DescriptionResourceKey);
+
+    private static string? ExpectedFormat(DriverConfigurationFieldDescriptor field)
+    {
+        var key = field.Key.ToLowerInvariant();
+        if (key.Contains("endpointurl")) return "URL such as opc.tcp://host:4840";
+        if (key.Contains("securitypolicyuri")) return "Absolute OPC UA SecurityPolicy URI";
+        if (key.Contains("commonaddresses")) return "Comma-separated integer addresses";
+        if (key.Contains("timezone")) return "TimeZoneInfo identifier";
+        if (key.Contains("targetaddress")) return "IPv4 address with optional UDP port";
+        if (key == "route") return "CIP port,link hops separated by '/'";
+
+        return field.ValueKind switch
+        {
+            DriverConfigurationValueKind.Boolean => "true | false",
+            DriverConfigurationValueKind.Integer => NumericFormat("whole number", field.Minimum, field.Maximum),
+            DriverConfigurationValueKind.Number => NumericFormat("decimal number", field.Minimum, field.Maximum),
+            DriverConfigurationValueKind.Duration => "[d.]hh:mm:ss[.fffffff]",
+            DriverConfigurationValueKind.Host => "DNS name, IPv4 or IPv6 address",
+            DriverConfigurationValueKind.Port => NumericFormat("TCP/UDP port", field.Minimum ?? 1, field.Maximum ?? 65535),
+            DriverConfigurationValueKind.Identifier => "Stable protocol identifier",
+            DriverConfigurationValueKind.Enum when field.AllowedValues is { Count: > 0 } => string.Join(" | ", field.AllowedValues),
+            DriverConfigurationValueKind.SecretReference => "Protected-material secret reference key",
+            DriverConfigurationValueKind.CertificateReference => "Protected-material certificate reference key",
+            _ => null
+        };
+    }
+
+    private static string? ExampleValue(DriverConfigurationFieldDescriptor field)
+    {
+        if (!string.IsNullOrWhiteSpace(field.DefaultValue) && !IsProtectedReference(field.ValueKind))
+            return field.DefaultValue;
+
+        return field.Key.ToLowerInvariant() switch
+        {
+            "endpointurl" => "opc.tcp://192.168.1.10:4840",
+            "securitypolicyuri" => "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
+            "commonaddresses" => "1,2",
+            "stationtimezone" => "UTC",
+            "targetaddress" => "192.168.1.20:47808",
+            "route" => "1,0",
+            "username" or "userName" => "operator",
+            _ => field.ValueKind switch
+            {
+                DriverConfigurationValueKind.Host => "192.168.1.10",
+                DriverConfigurationValueKind.Port => "502",
+                DriverConfigurationValueKind.Identifier => "device-1",
+                DriverConfigurationValueKind.Duration => "00:00:05",
+                DriverConfigurationValueKind.Boolean => "true",
+                DriverConfigurationValueKind.Enum when field.AllowedValues is { Count: > 0 } => field.AllowedValues.First(),
+                DriverConfigurationValueKind.Integer when field.Minimum.HasValue => field.Minimum.Value.ToString(CultureInfo.InvariantCulture),
+                DriverConfigurationValueKind.Number when field.Minimum.HasValue => field.Minimum.Value.ToString(CultureInfo.InvariantCulture),
+                DriverConfigurationValueKind.SecretReference => "secrets/driver/credential",
+                DriverConfigurationValueKind.CertificateReference => "certificates/driver/client",
+                _ => null
+            }
+        };
+    }
+
+    private static string NumericFormat(string kind, double? minimum, double? maximum)
+    {
+        if (minimum.HasValue && maximum.HasValue)
+            return $"{kind} from {minimum.Value.ToString(CultureInfo.InvariantCulture)} to {maximum.Value.ToString(CultureInfo.InvariantCulture)}";
+        if (minimum.HasValue)
+            return $"{kind} greater than or equal to {minimum.Value.ToString(CultureInfo.InvariantCulture)}";
+        if (maximum.HasValue)
+            return $"{kind} less than or equal to {maximum.Value.ToString(CultureInfo.InvariantCulture)}";
+        return kind;
+    }
+
+    private static string HumanizeKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return key;
+        var result = new System.Text.StringBuilder(key.Length + 8);
+        for (var index = 0; index < key.Length; index++)
+        {
+            var character = key[index];
+            if (index > 0 && char.IsUpper(character) && char.IsLower(key[index - 1]))
+                result.Append(' ');
+            result.Append(character);
+        }
+        var text = result.ToString().Replace('.', ' ');
+        return char.ToUpperInvariant(text[0]) + text[1..];
+    }
 
     private static bool IsProtectedReference(DriverConfigurationValueKind valueKind) =>
         valueKind is DriverConfigurationValueKind.SecretReference or DriverConfigurationValueKind.CertificateReference;

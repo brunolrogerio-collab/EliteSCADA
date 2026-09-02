@@ -33,17 +33,14 @@ internal sealed class PackagedWebStartupFilter(IWebHostEnvironment environment) 
     {
         return app =>
         {
-            var webRoot = environment.WebRootPath;
-            if (string.IsNullOrWhiteSpace(webRoot))
-                webRoot = Path.Combine(environment.ContentRootPath, "wwwroot");
-
-            var indexPath = Path.Combine(webRoot, "index.html");
-            if (!File.Exists(indexPath))
+            var webRoot = ResolvePackagedWebRoot(environment, AppContext.BaseDirectory);
+            if (webRoot is null)
             {
                 next(app);
                 return;
             }
 
+            var indexPath = Path.Combine(webRoot, "index.html");
             environment.WebRootPath = webRoot;
             environment.WebRootFileProvider = new PhysicalFileProvider(webRoot);
 
@@ -89,5 +86,32 @@ internal sealed class PackagedWebStartupFilter(IWebHostEnvironment environment) 
                 await context.Response.SendFileAsync(indexPath, context.RequestAborted);
             });
         };
+    }
+
+    internal static string? ResolvePackagedWebRoot(
+        IWebHostEnvironment environment,
+        string applicationBaseDirectory)
+    {
+        ArgumentNullException.ThrowIfNull(environment);
+        ArgumentException.ThrowIfNullOrWhiteSpace(applicationBaseDirectory);
+
+        var candidates = new[]
+        {
+            Path.Combine(applicationBaseDirectory, "wwwroot"),
+            environment.WebRootPath,
+            Path.Combine(environment.ContentRootPath, "wwwroot")
+        };
+
+        foreach (var candidate in candidates)
+        {
+            if (string.IsNullOrWhiteSpace(candidate))
+                continue;
+
+            var fullPath = Path.GetFullPath(candidate);
+            if (File.Exists(Path.Combine(fullPath, "index.html")))
+                return fullPath;
+        }
+
+        return null;
     }
 }

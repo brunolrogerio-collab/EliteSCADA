@@ -11,6 +11,7 @@ artifacts/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.example.json
+!.vscode/tasks.json
 *.user
 *.suo
 *.userosscache
@@ -39,6 +40,7 @@ logs/
 *.bak
 *.swp
 ~$*
+.preview/
 
 # Local databases / runtime state
 *.db

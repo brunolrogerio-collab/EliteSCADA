@@ -1,6 +1,5 @@
 using Scada.Api.Security;
 using Scada.Core.Product.Licensing;
-using Scada.DriverHost.Engineering;
 
 namespace Scada.Api.Licensing;
 
@@ -10,13 +9,6 @@ public static class ProductLicensingApi
 {
     public static void MapProductLicensingEndpoints(this WebApplication app)
     {
-        // Host-level Engineering metadata is mapped here because this product bootstrap
-        // extension is already invoked by Program. The route itself remains an Engineering
-        // read boundary and the catalog is resolved from the authoritative runtime registry.
-        app.MapGet("/api/engineering/data-source-types", (EngineeringDataSourceTypeCatalog catalog) =>
-            Results.Ok(catalog.Describe()))
-            .RequireWorkspaceEngineeringRead();
-
         var group = app.MapGroup("/api/licensing");
 
         group.MapGet("/status", (

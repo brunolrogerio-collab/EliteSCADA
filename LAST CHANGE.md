@@ -1,67 +1,146 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-02 (BRT)  
-**Operational state:** **WAVE 12 #201 — COMPLETE / ACCEPTED / CLOSED; TEST PREVIEW #208/#210 — ACTIVE VALIDATION HARNESS; WAVE 14 #211 — ACTIVE EARLY PRODUCT-OWNER VALIDATION; WAVE 13 #205/#207 — PAUSED AT GREEN CHECKPOINT**
+**Operational state:** **WAVE 12 #201 COMPLETE / ACCEPTED; WAVE 14 #211 ACTIVE WITH FIRST CORRECTION INTAKE CLOSED AND DELEGATION PACKAGES READY; TEST PREVIEW #208/#210 ACTIVE AS VALIDATION HARNESS; WAVE 13 #205/#207 PAUSED AT GREEN CHECKPOINT**
 
 > Mutable Coordinator resume point. `PROJECT GOAL.md` governs permanent product intent. Live GitHub refs and exact-SHA CI override copied prose. Documentation-only `[skip ci]` commits may advance `main` beyond the latest validated product-code SHA without superseding that product baseline.
 
-## 1. Accepted product baseline
+## 1. What changed in this synchronization
 
-Wave 12 Hardening remains **COMPLETE / ACCEPTED**.
+The Development Lead completed the first Wave 14 owner-correction intake and requested that work be organized for multiple independent DEV chats/agents under one new coordinator.
 
-Final accepted Wave 12 product-code baseline:
+Repository coordination was updated accordingly:
+
+- created `docs/WAVE14-CORRECTION-PACKAGES.md`;
+- updated `docs/CURRENT-COORDINATOR-HANDOFF.md` with current correction, project and Codespaces Preview context;
+- split implementation into nine bounded DEV packages plus one coordinator integration/acceptance gate;
+- updated the Wave 14 first-run requirement in issue #211 to supersede the old 12-character password rule with **minimum 8 characters**;
+- added DNP3 unrestricted-adapter investigation as a P0 commercial-release blocker.
+
+Documentation commits created in this synchronization before this `LAST CHANGE.md` update:
+
+- `b8d47539829bd1be0a5bc5140b570dfb81d6678f` — Wave 14 correction packages;
+- `27c41c9fa04a731e4864ccb958c2cd74d88b1df0` — current coordinator handoff.
+
+These are documentation-only `[skip ci]` commits and do not establish a new product-code acceptance baseline.
+
+## 2. Mandatory resume reading
+
+A new coordinator must read, in order:
+
+1. `PROJECT GOAL.md`;
+2. this `LAST CHANGE.md`;
+3. `docs/CURRENT-COORDINATOR-HANDOFF.md`;
+4. `docs/WAVE14-CORRECTION-PACKAGES.md`;
+5. `docs/ROADMAP.md`;
+6. `docs/CI-VALIDATION-POLICY.md`;
+7. live `main`, issue #211, issue #208, draft PR #210, and exact current Actions;
+8. issue #205 / draft PR #207 only to understand the paused Wave 13 boundary.
+
+GitHub, not previous chats, is the development memory.
+
+## 3. Accepted foundation
+
+Wave 12 remains **COMPLETE / ACCEPTED**.
+
+Accepted Wave 12 product-code baseline:
 
 `63bced02426fcb84b26028913f6c68feb3457d80`
 
-Accepted runtime authority remains:
+Accepted Runtime authority remains:
 
 `Working -> saved Revision -> Published -> Active -> HMI Runtime`
-
-Runtime uses persisted Active Engineering only; mutable Working never drives HMI Runtime directly.
 
 Exact post-merge Wave 12 evidence:
 
 - EliteSCADA CI #1096 / `33576603185`: **SUCCESS**;
 - L3 Seven-Driver Lab #92 / `33576603158`: **SUCCESS**.
 
-## 2. Direction change authorized on 2026-09-02
+Do not reopen accepted Wave 11/12 architecture without a demonstrated defect.
 
-Real owner use through the Codespaces Test Preview exposed multiple product/usability findings before Wave 13 signing was complete.
+## 4. Wave 14 correction packages
 
-Development Lead direction therefore changes the order of work:
+Canonical package plan: `docs/WAVE14-CORRECTION-PACKAGES.md`.
 
-- Wave 13 #205 / PR #207 is **PAUSED**, preserving its already-green repository-side checkpoint;
-- Wave 14 #211 **Product-owner validation** is now **ACTIVE EARLY**;
-- Preview #208 / PR #210 remains the temporary browser test harness used to execute that validation;
-- fixes required to continue meaningful owner validation may be handled during Wave 14;
-- non-blocking refinements/enhancements should be retained for Wave 15 rather than expanding Wave 14 without limit.
+### Stage A — may start in parallel
 
-This is an intentional ordering change, not a rejection of Wave 13 implementation.
+- **W14-C01:** Identity / secure first-run / password minimum 8;
+- **W14-C02:** backend-authoritative Driver catalog + Source/Driver forms;
+- **W14-C03:** DNP3 unrestricted production adapter / commercial unblock;
+- **W14-C05:** canonical visual properties + schema-driven Property Inspector;
+- **W14-C06:** Engineering Diagnostics / TAG Monitor product boundary.
 
-## 3. Wave 13 preserved checkpoint
+### Stage B — consume prerequisite contracts
 
-Issue #205 and draft PR #207 remain open but paused.
+- **W14-C04:** TAG Source selection + protocol-aware address/discovery assistants, after C02;
+- **W14-C07:** Screen Engineering + Dynamo maturity, after C05;
+- **W14-C08:** Python Script Assistant / project object browser, after C04/C05 contracts are sufficiently stable;
+- **W14-C09:** application shell + operator Runtime presentation, preferably after a common Web integration baseline is frozen.
 
-Preserved fully validated implementation SHA:
+### Stage C — coordinator-owned gate
 
-`9f26a2bc02ae77017e266c52ff128dc39eece4b4`
+- **W14-C10:** integration, regression, exact-head CI, real Codespace/browser owner validation and accepted corrected Wave 14 baseline.
 
-Validation retained:
+Nine dedicated DEV chats can therefore own C01-C09. The coordinator should remain the tenth lane and must control integration rather than having a tenth independent agent edit overlapping product code.
 
-- Wave 13 Windows Release #27 / `33643546191`: **SUCCESS**;
-- EliteSCADA CI #1134 / `33643546119`: **SUCCESS**;
-- L3 Seven-Driver Lab #102 / `33643546111`: **SUCCESS**;
-- Wave 11 Active HMI Runtime #64 / `33643546139`: **SUCCESS**.
+Every DEV must receive an exact live base SHA, bounded subsystem ownership, branch name, architecture/security constraints, acceptance tests and GitHub evidence obligation. No independent DEV silently merges to `main`.
 
-Current Wave 13 branch head after documentation synchronization:
+## 5. Password policy update — requested, not yet implemented
 
-`fda87ba4445127c174f6ea533a6bcabaabc7bb20`
+Development Lead explicitly changed the desired product minimum password length from **12 to 8 characters**.
 
-No signing/merge/release work should advance while Wave 14 owner validation is actively changing the product baseline. Before Wave 13 resumes, re-audit live `main` and incorporate accepted Wave 14 corrections.
+This direction now supersedes the old 12-character requirement in the Wave 14 first-run acceptance comment on issue #211.
 
-DNP3 commercial distribution remains unauthorized independently of signing status.
+W14-C01 must implement the actual product change. Until a product-code correction is integrated and accepted, current product/Preview code may still enforce the old 12-character minimum.
 
-## 4. Test Preview state
+Acceptance requirement:
+
+- 7 characters rejected;
+- 8 characters accepted;
+- backend remains canonical authority;
+- upper-bound/other security behavior remains unchanged unless separately justified;
+- Preview/bootstrap hints and checks follow the accepted new product policy;
+- historical runbook evidence remains truthful that an earlier Codespace failed under the then-current 12-character policy.
+
+## 6. DNP3 investigation — important new evidence
+
+Current product adapter:
+
+`src/Scada.Drivers.Dnp3.StepFunction`
+
+Its project references Step Function NuGet package:
+
+`dnp3` version `1.6.0`
+
+The adapter README already isolates Step Function behind the vendor-neutral EliteSCADA DNP3 master-session contract and records the current commercial/production/redistribution restriction.
+
+The L3 Seven-Driver Lab uses an independent DNP3 peer built from:
+
+`interop-lab/dnp3-dnp3py/Dockerfile`
+
+That Dockerfile pins `craigpnnl/dnp3py` commit:
+
+`8a20d4c276274f2b98800716cd7da963f21da2c1`
+
+Inspection of that pinned source confirms:
+
+- MIT License;
+- pure Python implementation;
+- `pyproject.toml` declares no project dependencies;
+- Master and Outstation components are documented;
+- project describes a DNP3 Level-2 subset.
+
+This makes `dnp3py` a promising first replacement candidate, but the current L3 lab uses it as the **peer/outstation**, not as the EliteSCADA production adapter. Therefore the commercial blocker is **not yet removed**.
+
+W14-C03 owns the proof of:
+
+- maintainable Windows/.NET integration;
+- master feature adequacy/parity;
+- polling/events/quality/timestamps/reconnect and required write/command behavior;
+- DNP3-specific + L3 Seven-Driver + universal CI on exact SHA;
+- final product dependency closure with no restricted Step Function package/bytes before commercial unblock is declared.
+
+## 7. Preview / Codespaces current state
 
 Tracking:
 
@@ -69,71 +148,73 @@ Tracking:
 - draft PR #210;
 - branch `preview/codespaces-test-preview`.
 
-The Preview has moved from pure infrastructure bring-up into real owner homologation. Real Codespace evidence already confirmed:
+Live PR #210 inspection during this synchronization showed:
 
-- exact .NET SDK 10.0.400;
-- disposable `/etc/machine-id` required by normal fail-closed licensing;
-- protected admin secret injection;
-- Web port 5173 reachable after successful bootstrap;
-- actual EliteSCADA login through the browser;
-- a pre-existing Script Engineering contrast defect discovered by owner use.
+- OPEN / DRAFT / mergeable at inspection time;
+- head `0ab6e80c1c47a78b0bd33b07424d906b5f847faa`;
+- latest explicitly validated product-code correction `6304144a1beab6d4f3b4cf41b95fd16b5b82ba25`;
+- exact validation on that product SHA:
+  - Test Preview #13 / `33652433077`: SUCCESS;
+  - EliteSCADA CI #1136 / `33652432886`: SUCCESS;
+  - Wave 11 Active HMI Runtime #66 / `33652432755`: SUCCESS.
 
-Operational runbook is versioned on the Preview branch at:
+Real browser entry and actual EliteSCADA login have already succeeded in Codespaces.
 
-`docs/CODESPACES-PREVIEW-RUNBOOK.md`
+Preview runbook:
 
-It records when to use browser reload, Preview restart, Rebuild Container or a fresh Codespace, plus the real 502/SDK/machine-id/password diagnostic patterns already encountered.
+`docs/CODESPACES-PREVIEW-RUNBOOK.md` on the Preview branch while #210 remains unmerged.
 
-Administrative username:
+Key environment contract:
 
-`EliteSCADA`
+- .NET SDK 10.0.400;
+- Node 24;
+- TimescaleDB/PostgreSQL through Compose;
+- disposable read-only `/etc/machine-id` for normal fail-closed licensing;
+- secret name `ELITESCADA_PREVIEW_ADMIN_PASSWORD`;
+- automatic launcher `bash scripts/preview/launch-test-preview.sh` via `postAttachCommand`;
+- Web 5173 Private; API 5080/DB internal;
+- HTTP 502 on 5173 means Web is not listening, not ready.
 
-Protected secret name:
+Do not put C01-C09 directly into PR #210 merely because Preview reproduces the defects. #208/#210 is the harness. #211/Wave 14 owns product correction scope.
 
-`ELITESCADA_PREVIEW_ADMIN_PASSWORD`
+## 8. Wave 13 remains paused
 
-Never commit or echo the supplied password into source, docs, workflows, images, packages, logs or normal artifacts.
+Preserved fully validated Wave 13 implementation SHA:
 
-## 5. Wave 14 active state
+`9f26a2bc02ae77017e266c52ff128dc39eece4b4`
 
-Issue #211 — **Wave 14 — Product-owner validation** — is the active product-validation tracker.
+Preserved branch head after earlier docs synchronization:
 
-Use the real browser Preview to exercise the product area by area. Findings are classified as:
+`fda87ba4445127c174f6ea533a6bcabaabc7bb20`
 
-- **A — Validation blocker:** prevents meaningful continuation; may be corrected immediately during Wave 14;
-- **B — Functional defect:** wrong behavior; fix in Wave 14 when it affects release confidence or later validation;
-- **C — Usability defect:** works technically but materially harms owner validation; fix when blocking/material;
-- **D — Enhancement/preference:** record for Wave 15 or later.
+Retained validation:
 
-The first confirmed owner finding is the pre-existing Script Engineering contrast defect discovered in the real Codespace. Its correction started in PR #210 because the surface was effectively unreadable and blocked meaningful validation.
+- Wave 13 Windows Release #27 / `33643546191`: SUCCESS;
+- EliteSCADA CI #1134 / `33643546119`: SUCCESS;
+- L3 Seven-Driver Lab #102 / `33643546111`: SUCCESS;
+- Wave 11 Active HMI Runtime #64 / `33643546139`: SUCCESS.
 
-## 6. Exact next action
+Do not advance final Authenticode signing, merge or commercial release from that stale product snapshot while Wave 14 is changing the product.
 
-1. re-check live `main`, #208, #210, #211 and exact current CI before code changes;
-2. keep Wave 13 #205/#207 paused;
-3. finish making the Preview reproducible enough for repeated owner validation;
-4. validate one EliteSCADA product area at a time through the real browser UI;
-5. record each finding in Wave 14 #211 with severity/classification and exact exercised SHA;
-6. correct only blockers/material defects needed to keep validation trustworthy;
-7. require universal `EliteSCADA CI` plus impact-specific gates for product-code corrections;
-8. transfer non-blocking feedback to Wave 15 rather than losing it;
-9. establish an accepted Wave 14 product baseline before Wave 13 signing resumes.
+## 9. Windows installer rule
 
-Do not resume Wave 13 merely because its old branch is green: final signing must target the post-owner-validation product, not a stale pre-validation snapshot.
+Whenever the Development Lead asks for a Windows installer during Wave 14 corrections:
 
-## 7. Windows installer request rule
+`product = latest corrected/accepted Wave 14 baseline`
 
-Development Lead direction: whenever a Windows installer/build is requested during this validation period, the installer must be generated from the **latest corrected product build/baseline produced by the ongoing Wave 14 owner-validation work**, not from the preserved pre-validation Wave 13 product snapshot.
+`Windows packaging mechanism = proven Wave 13 machinery`
 
-Operationally:
+Record exact product SHA and packaging SHA. Never silently fall back to the old Wave 13 product snapshot merely because its workflow is already green.
 
-1. identify the latest product SHA that contains the corrections already accepted for owner testing;
-2. validate that exact product SHA with the required universal and impact-specific gates;
-3. apply/rebase the proven Wave 13 Windows packaging machinery onto that corrected product baseline;
-4. generate the requested Windows test installer/candidate from those corrected bytes;
-5. record the exact product SHA and packaging SHA used for the installer;
-6. never silently fall back to `9f26a2bc...`, `fda87ba...` or another stale Wave 13 product snapshot merely because its release workflow is already green.
+If W14-C03 succeeds before the installer/release, verify that the selected product/package no longer carries the restricted Step Function DNP3 dependency before representing DNP3 as commercially unblocked.
 
-The preserved Wave 13 branch is the authority for the **Windows packaging/signing mechanism**, while the evolving accepted Wave 14 baseline is the authority for the **product content** to be packaged.
+## 10. Exact next action
 
-A test installer requested before final Authenticode/commercial-release acceptance may remain a non-commercial test candidate according to the Development Lead's request, but it must still contain the latest corrected product content and must not be represented as the final signed/commercial release.
+1. re-fetch live GitHub state;
+2. establish/confirm a dedicated Wave 14 correction integration workstream from an exact pinned base rather than expanding Preview PR #210 into a feature bucket;
+3. incorporate the already-proven Script Engineering correction from #210 as appropriate;
+4. dispatch Stage A DEV packages C01/C02/C03/C05/C06;
+5. integrate exact-head green work only in dependency order;
+6. run real Codespace/browser owner validation after integration;
+7. use issue #211 as correction/acceptance evidence ledger;
+8. establish one accepted corrected Wave 14 product baseline before final Wave 13 signing resumes.

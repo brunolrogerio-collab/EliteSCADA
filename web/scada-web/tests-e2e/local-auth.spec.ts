@@ -31,7 +31,14 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     await expect(page.locator('.auth-error')).toBeVisible();
 
     await page.locator('input[name="password"]').fill('E2E-local-password-123!');
+    const loginResponsePromise = page.waitForResponse(response =>
+      response.url().endsWith('/api/auth/login') &&
+      response.request().method() === 'POST' &&
+      response.status() === 200);
     await page.locator('button[type="submit"]').click();
+    const loginResponse = await loginResponsePromise;
+    const loginProfile = await loginResponse.json();
+    expect(loginProfile.identityProvider).toBe('local');
 
     const localSession = await page.evaluate(async () => {
       const response = await fetch('/api/auth/local-session');

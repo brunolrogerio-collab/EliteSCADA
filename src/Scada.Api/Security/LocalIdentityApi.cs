@@ -12,7 +12,8 @@ public sealed record AuthProfileResponse(
     string? Username,
     string? DisplayName,
     IReadOnlyCollection<string> Roles,
-    DateTimeOffset? ExpiresAtUtc = null);
+    DateTimeOffset? ExpiresAtUtc = null,
+    string IdentityProvider = JwtTokenIssuer.LocalIdentityProvider);
 
 public static class LocalIdentityApi
 {
@@ -49,6 +50,19 @@ public static class LocalIdentityApi
                     maximumLength = LocalPasswordHasher.MaximumPasswordLength
                 }
             }));
+
+        endpoints.MapGet("/api/auth/local-session", (HttpContext context) =>
+        {
+            var isLocal = string.Equals(
+                context.User.FindFirst(JwtTokenIssuer.IdentityProviderClaim)?.Value,
+                JwtTokenIssuer.LocalIdentityProvider,
+                StringComparison.Ordinal);
+            return Results.Ok(new
+            {
+                authenticated = isLocal,
+                username = isLocal ? context.User.FindFirst("unique_name")?.Value : null
+            });
+        });
 
         endpoints.MapPost("/api/auth/bootstrap", async (
             InitialAdministratorRequest request,

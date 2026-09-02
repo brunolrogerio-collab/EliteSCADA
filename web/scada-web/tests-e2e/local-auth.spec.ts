@@ -32,7 +32,42 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     await page.locator('input[name="password"]').fill('E2E-local-password-123!');
     await page.locator('button[type="submit"]').click();
 
-    await expect(page.locator('.eng-shell')).toBeVisible({ timeout: 15_000 });
+    const localSession = await page.evaluate(async () => {
+      const response = await fetch('/api/auth/local-session');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(localSession.status).toBe(200);
+    expect(localSession.body.authenticated).toBe(true);
+    expect(localSession.body.username).toBe('local-developer');
+
+    const firstProjectKey = page.locator('input[name="project-key"]');
+    if (await firstProjectKey.isVisible().catch(() => false)) {
+      // The first-project requirement is server/store-side. A reload with only the
+      // HttpOnly local cookie must keep the authenticated user in this setup flow.
+      await page.reload();
+      await expect(page.locator('input[name="project-key"]')).toBeVisible();
+      await expect(page.locator('input[name="bootstrap-username"]')).toHaveCount(0);
+
+      const projectKey = `e2e-c01-${Date.now()}`;
+      await page.locator('input[name="project-key"]').fill(projectKey);
+      await page.locator('input[name="project-name"]').fill('E2E C01 First Project');
+      await page.locator('button[type="submit"]').click();
+      await expect(page.locator('.eng-shell')).toBeVisible({ timeout: 15_000 });
+
+      const workspace = await page.evaluate(async () => {
+        const response = await fetch('/api/engineering/workspace');
+        return { status: response.status, body: await response.json() };
+      });
+      expect(workspace.status).toBe(200);
+      expect(workspace.body.projectKey).toBe(projectKey);
+      expect(workspace.body.baseRevision).toBeGreaterThanOrEqual(1);
+      expect(workspace.body.isDirty).toBe(false);
+    } else {
+      // Other parallel E2E scenarios may already have persisted a project in the
+      // shared test database. In that case local login must proceed normally.
+      await expect(page.locator('.eng-shell')).toBeVisible({ timeout: 15_000 });
+    }
+
     await expect(page.locator('.eng-sidebar')).toBeVisible();
 
     const cookies = await context.cookies('http://127.0.0.1:5173');
@@ -80,6 +115,12 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     const meAfterLogout = await page.evaluate(async () =>
       (await fetch('/api/auth/me')).status);
     expect(meAfterLogout).toBe(401);
+
+    const localSessionAfterLogout = await page.evaluate(async () => {
+      const response = await fetch('/api/auth/local-session');
+      return await response.json();
+    });
+    expect(localSessionAfterLogout.authenticated).toBe(false);
 
     await page.reload();
     await expect(page.locator('.auth-card')).toBeVisible();

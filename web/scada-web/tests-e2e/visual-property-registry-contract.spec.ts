@@ -58,9 +58,16 @@ test('common registry exposes the converged visual property family and image fit
   expect(assetDefinition.runtimeReadable).toBeTruthy();
   expect(assetDefinition.runtimeWritable).toBeFalsy();
   expect(assetDefinition.supportsBinding).toBeFalsy();
+  expect(assetDefinition.presentationHint).toBe('project-asset');
 
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.strokeStyle))
-    .toMatchObject({ type: 'enum', defaultValue: 'solid', allowedValues: ['solid', 'dashed', 'dotted'] });
+    .toMatchObject({
+      type: 'enum',
+      defaultValue: 'solid',
+      allowedValues: ['none', 'solid', 'dashed', 'dotted', 'dash-dot', 'dash-dot-dot']
+    });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.fontFamily))
+    .toMatchObject({ type: 'string', defaultValue: 'system', presentationHint: 'font-family' });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.fontWeight))
     .toMatchObject({ type: 'number', defaultValue: 400, integer: true, minimum: 100, maximum: 900 });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.horizontalAlignment))
@@ -102,6 +109,11 @@ test('color, enum and AssetReference values fail closed', () => {
     .toMatchObject({ ok: true, value: 'native' });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.imageFit, 'none'))
     .toMatchObject({ ok: false, code: 'enum.value' });
+
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.strokeStyle, 'none'))
+    .toMatchObject({ ok: true, value: 'none' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.strokeStyle, 'dash-dot-dot'))
+    .toMatchObject({ ok: true, value: 'dash-dot-dot' });
 
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.assetRef, null))
     .toMatchObject({ ok: true, value: null });

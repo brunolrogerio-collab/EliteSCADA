@@ -29,7 +29,7 @@ env:
 
 jobs:
   unsigned-candidate:
-    runs-on: windows-latest
+    runs-on: windows-2025
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +45,40 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: web/scada-web/package-lock.json
+
+      - name: Start isolated PostgreSQL for packaged lifecycle regression
+        shell: pwsh
+        env:
+          PGPASSWORD: root
+        run: |
+          Set-Service -Name postgresql-x64-17 -StartupType Manual
+          Start-Service -Name postgresql-x64-17
+
+          $pgIsReady = Join-Path $env:PGBIN 'pg_isready.exe'
+          $psql = Join-Path $env:PGBIN 'psql.exe'
+          for ($attempt = 0; $attempt -lt 30; $attempt++) {
+            & $pgIsReady -h 127.0.0.1 -p 5432
+            if ($LASTEXITCODE -eq 0) { break }
+            Start-Sleep -Seconds 1
+          }
+          if ($LASTEXITCODE -ne 0) {
+            throw 'PostgreSQL did not become ready for the packaged lifecycle regression.'
+          }
+
+          & $psql `
+            --host 127.0.0.1 `
+            --username postgres `
+            --dbname postgres `
+            --set ON_ERROR_STOP=1 `
+            --command 'CREATE DATABASE elitescada_wave13;'
+          if ($LASTEXITCODE -ne 0) {
+            throw "Creating the isolated Wave 13 database failed with exit code $LASTEXITCODE."
+          }
+
+          'ConnectionStrings__EliteScada=Host=127.0.0.1;Port=5432;Database=elitescada_wave13;Username=postgres;Password=root;Include Error Detail=false' |
+            Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          'EngineeringRuntime__ProjectKey=wave13-release-smoke' |
+            Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Build unsigned Windows x64 candidate
         shell: pwsh
@@ -79,7 +113,10 @@ jobs:
           Authentication__Local__Bootstrap__DisplayName: Wave 13 CI Administrator
           Authentication__Local__Bootstrap__Password: Wave13-CI-Only-Password!2026
           Authentication__Local__Bootstrap__Roles__0: developer
-        run: ./scripts/release/Test-WindowsPackagedProduct.ps1 -ProductRoot ./artifacts/wave13/candidate/product
+        run: |
+          ./scripts/release/Test-WindowsPackagedProduct.ps1 `
+            -ProductRoot ./artifacts/wave13/candidate/product `
+            -ExpectedProjectKey $env:EngineeringRuntime__ProjectKey
 
       - name: Verify fail-closed release negative cases
         shell: pwsh

@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$ProductRoot,
-    [string]$BaseUrl = "http://127.0.0.1:5093"
+    [string]$BaseUrl = "http://127.0.0.1:5093",
+    [string]$ExpectedProjectKey = "wave13-release-smoke"
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,6 +15,31 @@ function Assert-ReleaseCondition {
     )
 
     if (-not $Condition) { throw $Message }
+}
+
+function Wait-PackagedProductHost {
+    param(
+        [Parameter(Mandatory = $true)][System.Diagnostics.Process]$Process,
+        [Parameter(Mandatory = $true)][string]$Url
+    )
+
+    for ($attempt = 0; $attempt -lt 40; $attempt++) {
+        try {
+            $response = Invoke-WebRequest -Uri "$Url/health" -UseBasicParsing -TimeoutSec 2
+            if ($response.StatusCode -eq 200) { return }
+        }
+        catch {
+            if ($Process.HasExited) { break }
+            Start-Sleep -Seconds 1
+        }
+    }
+
+    $exitDiagnostic = if ($Process.HasExited) { [string]$Process.ExitCode } else { "still running" }
+    throw "Packaged product host did not become healthy. Process state: $exitDiagnostic."
+}
+
+if ([string]::IsNullOrWhiteSpace($ExpectedProjectKey)) {
+    throw "ExpectedProjectKey is required for the packaged persistence/Active Runtime regression."
 }
 
 $root = (Resolve-Path -LiteralPath $ProductRoot).Path
@@ -35,6 +61,9 @@ else {
 }
 $stdoutPath = Join-Path $temporaryRoot "wave13-product-host.stdout.log"
 $stderrPath = Join-Path $temporaryRoot "wave13-product-host.stderr.log"
+$restartStdoutPath = Join-Path $temporaryRoot "wave13-product-host.restart.stdout.log"
+$restartStderrPath = Join-Path $temporaryRoot "wave13-product-host.restart.stderr.log"
+$diagnosticPaths = @($stdoutPath, $stderrPath, $restartStdoutPath, $restartStderrPath)
 $packagePath = Join-Path $temporaryRoot "wave13-product-roundtrip.escadapkg"
 $process = Start-Process `
     -FilePath $productExe `
@@ -44,25 +73,7 @@ $process = Start-Process `
     -PassThru
 
 try {
-    $ready = $false
-    for ($attempt = 0; $attempt -lt 40; $attempt++) {
-        try {
-            $response = Invoke-WebRequest -Uri "$BaseUrl/health" -UseBasicParsing -TimeoutSec 2
-            if ($response.StatusCode -eq 200) {
-                $ready = $true
-                break
-            }
-        }
-        catch {
-            if ($process.HasExited) { break }
-            Start-Sleep -Seconds 1
-        }
-    }
-
-    if (-not $ready) {
-        $exitDiagnostic = if ($process.HasExited) { [string]$process.ExitCode } else { "still running" }
-        throw "Packaged product host did not become healthy. Process state: $exitDiagnostic."
-    }
+    Wait-PackagedProductHost -Process $process -Url $BaseUrl
 
     $web = Invoke-WebRequest -Uri "$BaseUrl/" -UseBasicParsing -TimeoutSec 5
     Assert-ReleaseCondition ($web.StatusCode -eq 200 -and $web.Content -match '<div id="root"') `
@@ -105,6 +116,15 @@ try {
     $profile = Invoke-RestMethod -Uri "$BaseUrl/api/auth/me" -WebSession $session -TimeoutSec 5
     Assert-ReleaseCondition ($profile.displayName -eq 'Wave 13 CI Administrator') `
         "Packaged authenticated profile did not preserve the local identity."
+
+    $persistence = Invoke-RestMethod `
+        -Uri "$BaseUrl/api/engineering/persistence/status" `
+        -WebSession $session `
+        -TimeoutSec 5
+    Assert-ReleaseCondition ($persistence.enabled -eq $true -and $persistence.provider -eq 'postgresql') `
+        "Packaged Engineering persistence is not using PostgreSQL."
+    Assert-ReleaseCondition ([string]$persistence.configuredProjectKey -eq $ExpectedProjectKey) `
+        "Packaged Runtime project configuration does not match ExpectedProjectKey."
 
     $licensing = Invoke-RestMethod -Uri "$BaseUrl/api/licensing/status" -WebSession $session -TimeoutSec 5
     Assert-ReleaseCondition ($licensing.license.state -eq 'Demo' -and $licensing.license.maximumTags -eq 200) `
@@ -184,12 +204,238 @@ try {
     Assert-ReleaseCondition ($preview.canApply -eq $true -and $preview.errorCount -eq 0) `
         "Packaged .escadapkg Open/Preview path rejected its own exported application."
 
+    $workspaceBeforeSave = Invoke-RestMethod `
+        -Uri "$BaseUrl/api/engineering/workspace" `
+        -WebSession $session `
+        -TimeoutSec 5
+    $saveBody = @{
+        projectName = 'Wave 13 Packaged Release Smoke'
+        savedBy = 'wave13-release-ci'
+    } | ConvertTo-Json
+    $firstSave = Invoke-RestMethod `
+        -Method Post `
+        -Uri "$BaseUrl/api/engineering/persistence/$ExpectedProjectKey/save" `
+        -WebSession $session `
+        -ContentType 'application/json' `
+        -Body $saveBody `
+        -TimeoutSec 15
+    $firstRevision = [long]$firstSave.revision
+    Assert-ReleaseCondition ($firstRevision -gt 0 -and [string]$firstSave.projectKey -eq $ExpectedProjectKey) `
+        "Packaged Working Engineering was not saved as the configured project."
+
+    $firstPublish = Invoke-RestMethod `
+        -Method Post `
+        -Uri "$BaseUrl/api/engineering/persistence/$ExpectedProjectKey/revisions/$firstRevision/publish" `
+        -WebSession $session `
+        -ContentType 'application/json' `
+        -Body (@{ publishedBy = 'wave13-release-ci' } | ConvertTo-Json) `
+        -TimeoutSec 15
+    Assert-ReleaseCondition ([long]$firstPublish.lifecycle.publishedRevision -eq $firstRevision) `
+        "Packaged saved Revision was not published."
+
+    $firstActivation = Invoke-RestMethod `
+        -Method Post `
+        -Uri "$BaseUrl/api/engineering/persistence/$ExpectedProjectKey/published/activate" `
+        -WebSession $session `
+        -ContentType 'application/json' `
+        -Body (@{ activatedBy = 'wave13-release-ci' } | ConvertTo-Json) `
+        -TimeoutSec 20
+    Assert-ReleaseCondition ($firstActivation.activated -eq $true) `
+        "Packaged published Revision did not activate."
+    Assert-ReleaseCondition ([long]$firstActivation.lifecycle.activeRevision -eq $firstRevision) `
+        "Packaged lifecycle did not record the first Active revision."
+
+    $firstRuntime = Invoke-RestMethod `
+        -Uri "$BaseUrl/api/engineering/persistence/$ExpectedProjectKey/runtime" `
+        -WebSession $session `
+        -TimeoutSec 10
+    Assert-ReleaseCondition ($firstRuntime.consistent -eq $true) `
+        "Packaged live Runtime is inconsistent with persisted Active Engineering."
+    Assert-ReleaseCondition (
+        [long]$firstRuntime.durable.activeRevision -eq $firstRevision -and
+        [long]$firstRuntime.live.revision -eq $firstRevision -and
+        [string]$firstRuntime.live.projectKey -eq $ExpectedProjectKey) `
+        "Packaged Runtime identity does not match the first persisted Active revision."
+
+    $firstApplication = Invoke-RestMethod `
+        -Uri "$BaseUrl/api/runtime/application" `
+        -WebSession $session `
+        -TimeoutSec 10
+    Assert-ReleaseCondition (
+        $firstApplication.mode -eq 'engineering' -and
+        [long]$firstApplication.revision -eq $firstRevision -and
+        @($firstApplication.package.screens).Count -ge 1 -and
+        @($firstApplication.package.dynamos).Count -eq 8) `
+        "Packaged HMI Runtime did not project the persisted Active Engineering package."
+
+    $workingExport = Invoke-WebRequest `
+        -Uri "$BaseUrl/api/engineering/export/json" `
+        -WebSession $session `
+        -UseBasicParsing `
+        -TimeoutSec 10
+    $workingPackage = $workingExport.Content | ConvertFrom-Json
+    $firstWorkingTag = @($workingPackage.tags)[0]
+    Assert-ReleaseCondition ($null -ne $firstWorkingTag) `
+        "Packaged Engineering export did not contain a TAG for Working isolation verification."
+    if ($null -eq $firstWorkingTag.PSObject.Properties['description']) {
+        $firstWorkingTag | Add-Member -NotePropertyName description -NotePropertyValue 'Wave 13 Working-only mutation'
+    }
+    else {
+        $firstWorkingTag.description = 'Wave 13 Working-only mutation'
+    }
+    $workingMutationJson = $workingPackage | ConvertTo-Json -Depth 100 -Compress
+    $workingApply = Invoke-RestMethod `
+        -Method Post `
+        -Uri "$BaseUrl/api/engineering/import/json/apply" `
+        -WebSession $session `
+        -Headers @{ 'x-elitescada-workspace-version' = [string]$workspaceBeforeSave.changeVersion } `
+        -ContentType 'application/json' `
+        -Body $workingMutationJson `
+        -TimeoutSec 20
+    Assert-ReleaseCondition ([int]$workingApply.updated -ge 1) `
+        "Packaged Working mutation did not update canonical Engineering."
+
+    $workspaceAfterMutation = Invoke-RestMethod `
+        -Uri "$BaseUrl/api/engineering/workspace" `
+        -WebSession $session `
+        -TimeoutSec 5
+    Assert-ReleaseCondition (
+        $workspaceAfterMutation.isDirty -eq $true -and
+        [long]$workspaceAfterMutation.changeVersion -gt [long]$workspaceBeforeSave.changeVersion) `
+        "Packaged Working mutation did not leave a dirty, versioned workspace."
+
+    $runtimeAfterWorkingMutation = Invoke-RestMethod `
+        -Uri "$BaseUrl/api/engineering/persistence/$ExpectedProjectKey/runtime" `
+        -WebSession $session `
+        -TimeoutSec 10
+    Assert-ReleaseCondition (
+        $runtimeAfterWorkingMutation.consistent -eq $true -and
+        [long]$runtimeAfterWorkingMutation.live.revision -eq $firstRevision -and
+        [long]$runtimeAfterWorkingMutation.durable.activeRevision -eq $firstRevision) `
+        "Mutable Working Engineering changed the persisted Active Runtime directly."
+
+    $secondSave = Invoke-RestMethod `
+        -Method Post `
+        -Uri "$BaseUrl/api/engineering/persistence/$ExpectedProjectKey/save" `
+        -WebSession $session `
+        -ContentType 'application/json' `
+        -Body $saveBody `
+        -TimeoutSec 15
+    $secondRevision = [long]$secondSave.revision
+    Assert-ReleaseCondition (
+        $secondRevision -gt $firstRevision -and
+        [long]$secondSave.basedOnRevision -eq $firstRevision) `
+        "Packaged second Revision did not preserve Working lineage."
+
+    $lifecycleAfterSecondSave = Invoke-RestMethod `
+        -Uri "$BaseUrl/api/engineering/persistence/$ExpectedProjectKey/lifecycle" `
+        -WebSession $session `
+        -TimeoutSec 10
+    Assert-ReleaseCondition (
+        [long]$lifecycleAfterSecondSave.workingRevision -eq $secondRevision -and
+        [long]$lifecycleAfterSecondSave.publishedRevision -eq $firstRevision -and
+        [long]$lifecycleAfterSecondSave.activeRevision -eq $firstRevision) `
+        "Saving a new Revision incorrectly changed Published or Active authority."
+
+    $secondPublish = Invoke-RestMethod `
+        -Method Post `
+        -Uri "$BaseUrl/api/engineering/persistence/$ExpectedProjectKey/revisions/$secondRevision/publish" `
+        -WebSession $session `
+        -ContentType 'application/json' `
+        -Body (@{ publishedBy = 'wave13-release-ci' } | ConvertTo-Json) `
+        -TimeoutSec 15
+    Assert-ReleaseCondition (
+        [long]$secondPublish.lifecycle.publishedRevision -eq $secondRevision -and
+        [long]$secondPublish.lifecycle.activeRevision -eq $firstRevision) `
+        "Publishing a new Revision incorrectly replaced Active Runtime."
+
+    $runtimeBeforeSecondActivation = Invoke-RestMethod `
+        -Uri "$BaseUrl/api/engineering/persistence/$ExpectedProjectKey/runtime" `
+        -WebSession $session `
+        -TimeoutSec 10
+    Assert-ReleaseCondition ([long]$runtimeBeforeSecondActivation.live.revision -eq $firstRevision) `
+        "Published Engineering drove HMI Runtime before explicit activation."
+
+    $secondActivation = Invoke-RestMethod `
+        -Method Post `
+        -Uri "$BaseUrl/api/engineering/persistence/$ExpectedProjectKey/published/activate" `
+        -WebSession $session `
+        -ContentType 'application/json' `
+        -Body (@{ activatedBy = 'wave13-release-ci' } | ConvertTo-Json) `
+        -TimeoutSec 20
+    Assert-ReleaseCondition (
+        $secondActivation.activated -eq $true -and
+        [long]$secondActivation.lifecycle.activeRevision -eq $secondRevision) `
+        "Explicit activation did not move Runtime to the second Published revision."
+
+    $secondApplication = Invoke-RestMethod `
+        -Uri "$BaseUrl/api/runtime/application" `
+        -WebSession $session `
+        -TimeoutSec 10
+    Assert-ReleaseCondition (
+        $secondApplication.mode -eq 'engineering' -and
+        [long]$secondApplication.revision -eq $secondRevision) `
+        "HMI Runtime did not move to the explicitly activated second revision."
+
+    if (-not $process.HasExited) {
+        Stop-Process -Id $process.Id -Force
+        $process.WaitForExit()
+    }
+    $process = Start-Process `
+        -FilePath $productExe `
+        -ArgumentList '--urls', $BaseUrl `
+        -RedirectStandardOutput $restartStdoutPath `
+        -RedirectStandardError $restartStderrPath `
+        -PassThru
+    Wait-PackagedProductHost -Process $process -Url $BaseUrl
+
+    $restartSession = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
+    $restartLogin = Invoke-RestMethod `
+        -Method Post `
+        -Uri "$BaseUrl/api/auth/login" `
+        -WebSession $restartSession `
+        -ContentType 'application/json' `
+        -Body $loginBody `
+        -TimeoutSec 10
+    Assert-ReleaseCondition ($restartLogin.username -eq 'wave13-admin') `
+        "Packaged local identity did not persist across host restart."
+
+    $recoveredRuntime = Invoke-RestMethod `
+        -Uri "$BaseUrl/api/engineering/persistence/$ExpectedProjectKey/runtime" `
+        -WebSession $restartSession `
+        -TimeoutSec 10
+    Assert-ReleaseCondition (
+        $recoveredRuntime.consistent -eq $true -and
+        [long]$recoveredRuntime.durable.activeRevision -eq $secondRevision -and
+        [long]$recoveredRuntime.live.revision -eq $secondRevision) `
+        "Packaged host restart did not recover persisted Active Engineering."
+
+    $recoveredApplication = Invoke-RestMethod `
+        -Uri "$BaseUrl/api/runtime/application" `
+        -WebSession $restartSession `
+        -TimeoutSec 10
+    Assert-ReleaseCondition (
+        $recoveredApplication.mode -eq 'engineering' -and
+        [long]$recoveredApplication.revision -eq $secondRevision -and
+        @($recoveredApplication.package.screens).Count -ge 1 -and
+        @($recoveredApplication.package.dynamos).Count -eq 8) `
+        "Packaged HMI application was not recovered from persisted Active Engineering."
+
+    $recoveredMachineRequest = Invoke-RestMethod `
+        -Uri "$BaseUrl/api/licensing/request" `
+        -WebSession $restartSession `
+        -TimeoutSec 5
+    Assert-ReleaseCondition ($recoveredMachineRequest.requestCode -eq $machineRequest.requestCode) `
+        "Packaged machine request identity changed across a same-machine restart."
+
     Write-Host "Wave 13 packaged-product regression passed."
-    Write-Host "Web UI, local login, Demo/machine request, Dynamos, Pyodide, Runtime driver surface and .escadapkg round-trip verified."
+    Write-Host "Web UI, local identity, Demo/machine request, Dynamos, Pyodide, Drivers and .escadapkg round-trip verified."
+    Write-Host "Working -> Revision -> Published -> Active -> HMI Runtime isolation and restart recovery verified through PostgreSQL."
 }
 catch {
-    if (Test-Path -LiteralPath $stdoutPath) { Get-Content -LiteralPath $stdoutPath }
-    if (Test-Path -LiteralPath $stderrPath) { Get-Content -LiteralPath $stderrPath }
+    foreach ($diagnosticPath in $diagnosticPaths) {
+        if (Test-Path -LiteralPath $diagnosticPath) { Get-Content -LiteralPath $diagnosticPath }
+    }
     throw
 }
 finally {

@@ -20,51 +20,51 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await expect(width).toHaveAttribute('data-editor-type', 'number');
   await expect(width.getByText('Width', { exact: true })).toBeVisible();
   await expect(width.locator('code')).toHaveText('width');
-  await expect(width.getByRole('spinbutton', { name: 'width' })).toBeVisible();
+  await expect(width.getByRole('spinbutton', { name: 'Width' })).toBeVisible();
 
   const visible = inspector.locator('[data-property-key="visible"]');
   await expect(visible).toHaveAttribute('data-editor-type', 'boolean');
-  await expect(visible.getByRole('checkbox', { name: 'visible' })).toBeVisible();
+  await expect(visible.getByRole('checkbox', { name: 'Visible' })).toBeVisible();
 
   const enabled = inspector.locator('[data-property-key="enabled"]');
   await expect(enabled).toHaveAttribute('data-editor-type', 'boolean');
   await expect(enabled.getByText('Enabled', { exact: true })).toBeVisible();
-  await expect(enabled.getByRole('checkbox', { name: 'enabled' })).toBeChecked();
+  await expect(enabled.getByRole('checkbox', { name: 'Enabled' })).toBeChecked();
 
   const horizontalFlip = inspector.locator('[data-property-key="horizontalFlip"]');
   await expect(horizontalFlip).toHaveAttribute('data-editor-type', 'boolean');
   await expect(horizontalFlip.getByText('Horizontal Flip', { exact: true })).toBeVisible();
-  await horizontalFlip.getByRole('checkbox', { name: 'horizontalFlip' }).check();
+  await horizontalFlip.getByRole('checkbox', { name: 'Horizontal Flip' }).check();
 
   const verticalFlip = inspector.locator('[data-property-key="verticalFlip"]');
   await expect(verticalFlip).toHaveAttribute('data-editor-type', 'boolean');
-  await verticalFlip.getByRole('checkbox', { name: 'verticalFlip' }).check();
+  await verticalFlip.getByRole('checkbox', { name: 'Vertical Flip' }).check();
 
   const tooltip = inspector.locator('[data-property-key="tooltip"]');
   await expect(tooltip).toHaveAttribute('data-editor-type', 'string');
-  await tooltip.getByRole('textbox', { name: 'tooltip' }).fill('Pump station visual');
-  await tooltip.getByRole('textbox', { name: 'tooltip' }).press('Enter');
+  await tooltip.getByRole('textbox', { name: 'Tooltip' }).fill('Pump station visual');
+  await tooltip.getByRole('textbox', { name: 'Tooltip' }).press('Enter');
 
   const fillStyle = inspector.locator('[data-property-key="fillStyle"]');
   await expect(fillStyle).toHaveAttribute('data-editor-type', 'enum');
-  await expect(fillStyle.getByRole('combobox', { name: 'fillStyle' }).locator('option'))
+  await expect(fillStyle.getByRole('combobox', { name: 'Fill Style' }).locator('option'))
     .toHaveText(['none', 'solid', 'gradient']);
-  await fillStyle.getByRole('combobox', { name: 'fillStyle' }).selectOption('gradient');
+  await fillStyle.getByRole('combobox', { name: 'Fill Style' }).selectOption('gradient');
 
   const gradientDirection = inspector.locator('[data-property-key="gradientDirection"]');
   await expect(gradientDirection).toHaveAttribute('data-editor-type', 'enum');
-  await expect(gradientDirection.getByRole('combobox', { name: 'gradientDirection' }).locator('option'))
+  await expect(gradientDirection.getByRole('combobox', { name: 'Gradient Direction' }).locator('option'))
     .toHaveText(['horizontal', 'vertical', 'diagonal-down', 'diagonal-up']);
-  await gradientDirection.getByRole('combobox', { name: 'gradientDirection' }).selectOption('diagonal-up');
+  await gradientDirection.getByRole('combobox', { name: 'Gradient Direction' }).selectOption('diagonal-up');
 
   const shadowEnabled = inspector.locator('[data-property-key="shadowEnabled"]');
   await expect(shadowEnabled).toHaveAttribute('data-editor-type', 'boolean');
-  await shadowEnabled.getByRole('checkbox', { name: 'shadowEnabled' }).check();
+  await shadowEnabled.getByRole('checkbox', { name: 'Shadow Enabled' }).check();
 
   const shadowBlur = inspector.locator('[data-property-key="shadowBlur"]');
   await expect(shadowBlur).toHaveAttribute('data-editor-type', 'number');
-  await shadowBlur.getByRole('spinbutton', { name: 'shadowBlur' }).fill('8');
-  await shadowBlur.getByRole('spinbutton', { name: 'shadowBlur' }).press('Enter');
+  await shadowBlur.getByRole('spinbutton', { name: 'Shadow Blur' }).fill('8');
+  await shadowBlur.getByRole('spinbutton', { name: 'Shadow Blur' }).press('Enter');
 
   const strokeStyle = inspector.locator('[data-property-key="strokeStyle"]');
   await expect(strokeStyle).toHaveAttribute('data-editor-type', 'enum');
@@ -98,24 +98,24 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
 
   const fontFamily = inspector.locator('[data-property-key="fontFamily"]');
   await expect(fontFamily).toHaveAttribute('data-editor-hint', 'font-family');
-  const fontInput = fontFamily.getByRole('textbox', { name: 'fontFamily' });
+  const fontInput = fontFamily.getByRole('textbox', { name: 'Font Family' });
   await expect(fontInput).toHaveAttribute('list', /-fonts$/);
 
   const underline = inspector.locator('[data-property-key="underline"]');
   await expect(underline).toHaveAttribute('data-editor-type', 'boolean');
-  await expect(underline.getByRole('checkbox', { name: 'underline' })).toBeVisible();
+  await expect(underline.getByRole('checkbox', { name: 'Underline' })).toBeVisible();
 
   const textWrap = inspector.locator('[data-property-key="textWrap"]');
   await expect(textWrap).toHaveAttribute('data-editor-type', 'boolean');
-  await expect(textWrap.getByRole('checkbox', { name: 'textWrap' })).toBeChecked();
+  await expect(textWrap.getByRole('checkbox', { name: 'Text Wrap' })).toBeChecked();
 
   const lineHeight = inspector.locator('[data-property-key="lineHeight"]');
   await expect(lineHeight).toHaveAttribute('data-editor-type', 'number');
-  await expect(lineHeight.getByRole('spinbutton', { name: 'lineHeight' })).toHaveValue('1.2');
+  await expect(lineHeight.getByRole('spinbutton', { name: 'Line Height' })).toHaveValue('1.2');
 
   const textOverflow = inspector.locator('[data-property-key="textOverflow"]');
   await expect(textOverflow).toHaveAttribute('data-editor-type', 'enum');
-  await expect(textOverflow.getByRole('combobox', { name: 'textOverflow' }).locator('option')).toHaveText(['clip', 'ellipsis']);
+  await expect(textOverflow.getByRole('combobox', { name: 'Text Overflow' }).locator('option')).toHaveText(['clip', 'ellipsis']);
 
   await page.locator('[data-object-type="core.image"]').click();
   const imageObject = page.locator('[data-canvas-object-type="core.image"]').last();
@@ -126,6 +126,6 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await expect(assetRef).toHaveAttribute('data-editor-type', 'assetRef');
   await expect(assetRef).toHaveAttribute('data-editor-hint', 'project-asset');
   const assetBrowser = assetRef.getByTestId('visual-editor-image-asset-picker');
-  await expect(assetBrowser.getByRole('combobox', { name: 'assetRef' })).toBeVisible();
+  await expect(assetBrowser.getByRole('combobox', { name: 'Asset Ref' })).toBeVisible();
   await expect(assetRef.locator('input[type="text"]')).toHaveCount(0);
 });

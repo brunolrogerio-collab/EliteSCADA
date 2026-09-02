@@ -16,12 +16,18 @@ type PersistenceStatus = {
   hasProjects: boolean | null;
 };
 
+type LocalSessionStatus = {
+  authenticated: boolean;
+  username?: string | null;
+};
+
 export type AuthProfile = {
   subjectId: string;
   username?: string;
   displayName?: string;
   roles: string[];
   expiresAtUtc?: string;
+  identityProvider?: string;
 };
 
 type AuthContextValue = {
@@ -143,11 +149,24 @@ async function getConfiguration(): Promise<AuthConfiguration> {
   return await response.json() as AuthConfiguration;
 }
 
-async function getProfile(): Promise<AuthProfile | null> {
+async function getProfile(localLoginEnabled: boolean): Promise<AuthProfile | null> {
   const response = await fetch(`${API}/api/auth/me`, { headers: { accept: 'application/json' } });
   if (response.status === 401) return null;
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-  return await response.json() as AuthProfile;
+  const profile = await response.json() as AuthProfile;
+  if (!localLoginEnabled) return profile;
+
+  const localSessionResponse = await fetch(`${API}/api/auth/local-session`, { headers: { accept: 'application/json' } });
+  if (!localSessionResponse.ok)
+    throw new Error(`${localSessionResponse.status} ${localSessionResponse.statusText}`);
+  const localSession = await localSessionResponse.json() as LocalSessionStatus;
+  return localSession.authenticated
+    ? {
+        ...profile,
+        username: localSession.username ?? profile.username,
+        identityProvider: 'local'
+      }
+    : profile;
 }
 
 async function needsFirstProject(): Promise<boolean> {
@@ -194,7 +213,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   const acceptAuthenticatedProfile = useCallback(async (nextProfile: AuthProfile | null) => {
     setProfile(nextProfile);
-    if (!nextProfile?.username) {
+    if (nextProfile?.identityProvider !== 'local') {
       setProjectSetupRequired(false);
       return;
     }
@@ -217,7 +236,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         await acceptAuthenticatedProfile(null);
         return;
       }
-      await acceptAuthenticatedProfile(await getProfile());
+      await acceptAuthenticatedProfile(await getProfile(config.localLoginEnabled));
     } catch {
       setUnavailable(true);
     } finally {

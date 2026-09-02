@@ -1,26 +1,36 @@
 {
-  "name": "EliteSCADA .NET 10 + React",
-  "image": "mcr.microsoft.com/devcontainers/dotnet:1-10.0",
+  "name": "EliteSCADA Test Preview",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/EliteSCADA",
+  "shutdownAction": "stopCompose",
+  "initializeCommand": "bash .devcontainer/initialize-preview-machine-id.sh",
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
       "version": "24"
     }
   },
-  "forwardPorts": [5173, 5080],
+  "forwardPorts": [5173],
   "portsAttributes": {
     "5173": {
-      "label": "EliteSCADA Web",
+      "label": "EliteSCADA Web — Test Preview",
       "onAutoForward": "openPreview"
     },
     "5080": {
-      "label": "EliteSCADA API",
-      "onAutoForward": "silent"
+      "label": "EliteSCADA API — internal only",
+      "onAutoForward": "ignore"
     }
   },
-  "postCreateCommand": "dotnet restore ScadaPlatform.sln && cd web/scada-web && npm install --no-audit --no-fund",
+  "postCreateCommand": "dotnet restore ScadaPlatform.sln && cd web/scada-web && npm ci --no-audit --no-fund",
+  "postAttachCommand": "bash scripts/preview/launch-test-preview.sh",
   "containerEnv": {
     "DOTNET_NOLOGO": "true",
     "DOTNET_CLI_TELEMETRY_OPTOUT": "1"
+  },
+  "secrets": {
+    "ELITESCADA_PREVIEW_ADMIN_PASSWORD": {
+      "description": "Administrative password for the disposable EliteSCADA Test Preview account. Never commit this value to the repository."
+    }
   },
   "customizations": {
     "vscode": {

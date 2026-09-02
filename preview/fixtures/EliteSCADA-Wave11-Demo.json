@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "artifactName": "EliteSCADA-Wave11-Demo",
+  "artifactId": 9817878392,
+  "sourceWorkflowRunId": 33552016447,
+  "packageFile": "EliteSCADA-Wave11-Demo.escadapkg",
+  "encodedFile": "EliteSCADA-Wave11-Demo.escadapkg.base64",
+  "packageSha256": "13261af59b8707df7d9ef3bbea307cb0c85d945ea8f47315fb693c92c885efa1",
+  "packageSizeBytes": 5394,
+  "projectKey": "e2e-wave11",
+  "projectName": "EliteSCADA Wave 11 Demo",
+  "engineeringSchemaVersion": 15,
+  "adminRoleKey": "developer",
+  "provenance": "Validated Wave 11 owner-test artifact; exact package bytes revalidated during issue #208 entry audit."
+}

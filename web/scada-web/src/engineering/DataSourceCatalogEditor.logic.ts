@@ -100,9 +100,9 @@ export function validateDataSourceDraft(
   if (!type) return issues;
 
   for (const field of type.configurationSchema?.dataSourceFields ?? []) {
-    const values = isProtectedReference(field.valueKind)
-      ? source.secretReferences ?? {}
-      : source.settings ?? {};
+    const values: Record<string, string> = isProtectedReference(field.valueKind)
+      ? (source.secretReferences ?? {})
+      : (source.settings ?? {});
     const raw = values[field.key];
     const value = raw == null || raw.trim() === '' ? field.defaultValue ?? '' : raw.trim();
 

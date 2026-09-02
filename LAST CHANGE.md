@@ -120,3 +120,20 @@ The first confirmed owner finding is the pre-existing Script Engineering contras
 9. establish an accepted Wave 14 product baseline before Wave 13 signing resumes.
 
 Do not resume Wave 13 merely because its old branch is green: final signing must target the post-owner-validation product, not a stale pre-validation snapshot.
+
+## 7. Windows installer request rule
+
+Development Lead direction: whenever a Windows installer/build is requested during this validation period, the installer must be generated from the **latest corrected product build/baseline produced by the ongoing Wave 14 owner-validation work**, not from the preserved pre-validation Wave 13 product snapshot.
+
+Operationally:
+
+1. identify the latest product SHA that contains the corrections already accepted for owner testing;
+2. validate that exact product SHA with the required universal and impact-specific gates;
+3. apply/rebase the proven Wave 13 Windows packaging machinery onto that corrected product baseline;
+4. generate the requested Windows test installer/candidate from those corrected bytes;
+5. record the exact product SHA and packaging SHA used for the installer;
+6. never silently fall back to `9f26a2bc...`, `fda87ba...` or another stale Wave 13 product snapshot merely because its release workflow is already green.
+
+The preserved Wave 13 branch is the authority for the **Windows packaging/signing mechanism**, while the evolving accepted Wave 14 baseline is the authority for the **product content** to be packaged.
+
+A test installer requested before final Authenticode/commercial-release acceptance may remain a non-commercial test candidate according to the Development Lead's request, but it must still contain the latest corrected product content and must not be represented as the final signed/commercial release.

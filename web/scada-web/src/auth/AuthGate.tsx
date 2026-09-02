@@ -5,6 +5,8 @@ type AuthConfiguration = {
   authenticationEnabled: boolean;
   localLoginEnabled: boolean;
   initialAdministratorRequired: boolean;
+  initialAdministratorSetupAvailable: boolean;
+  initialAdministratorBlockedReason?: string | null;
   passwordPolicy: {
     minimumLength: number;
     maximumLength: number;
@@ -50,6 +52,7 @@ const messages = {
     subtitle: 'Acesso ao Runtime e Engineering',
     welcome: 'Bem-vindo ao EliteSCADA',
     firstRun: 'Crie o Administrador inicial para concluir a configuração segura deste servidor.',
+    firstRunBlocked: 'A identidade local está vazia, mas o servidor não pode confirmar uma instalação realmente vazia. Por segurança, o bootstrap anônimo permanece fechado. Restaure um Administrador ou use a configuração explícita de bootstrap do servidor.',
     username: 'Usuário',
     displayName: 'Nome de exibição',
     password: 'Senha',
@@ -58,7 +61,7 @@ const messages = {
     passwordMismatch: 'As senhas não conferem.',
     createAdministrator: 'Criar Administrador',
     creatingAdministrator: 'Criando Administrador…',
-    bootstrapClosed: 'O Administrador inicial já foi criado. Entre com uma conta existente.',
+    bootstrapClosed: 'O Administrador inicial já foi criado ou o bootstrap seguro não está mais disponível.',
     firstProjectTitle: 'Criar novo projeto',
     firstProject: 'Nenhum projeto persistido existe neste servidor. Crie o primeiro projeto para iniciar o Working no Engineering.',
     projectKey: 'Chave do projeto',
@@ -79,6 +82,7 @@ const messages = {
     subtitle: 'Runtime and Engineering access',
     welcome: 'Welcome to EliteSCADA',
     firstRun: 'Create the initial Administrator to complete the secure setup of this server.',
+    firstRunBlocked: 'The local identity store is empty, but the server cannot confirm a truly empty installation. Anonymous bootstrap remains closed for safety. Restore an Administrator or use the server-side explicit bootstrap configuration.',
     username: 'Username',
     displayName: 'Display name',
     password: 'Password',
@@ -87,7 +91,7 @@ const messages = {
     passwordMismatch: 'Passwords do not match.',
     createAdministrator: 'Create Administrator',
     creatingAdministrator: 'Creating Administrator…',
-    bootstrapClosed: 'The initial Administrator has already been created. Sign in with an existing account.',
+    bootstrapClosed: 'The initial Administrator already exists or secure bootstrap is no longer available.',
     firstProjectTitle: 'Create New Project',
     firstProject: 'No persisted project exists on this server. Create the first project to start a Working project in Engineering.',
     projectKey: 'Project key',
@@ -108,6 +112,7 @@ const messages = {
     subtitle: 'Acceso a Runtime y Engineering',
     welcome: 'Bienvenido a EliteSCADA',
     firstRun: 'Cree el Administrador inicial para completar la configuración segura de este servidor.',
+    firstRunBlocked: 'El almacén de identidad local está vacío, pero el servidor no puede confirmar una instalación realmente vacía. Por seguridad, el bootstrap anónimo permanece cerrado. Restaure un Administrador o use la configuración explícita de bootstrap del servidor.',
     username: 'Usuario',
     displayName: 'Nombre para mostrar',
     password: 'Contraseña',
@@ -116,7 +121,7 @@ const messages = {
     passwordMismatch: 'Las contraseñas no coinciden.',
     createAdministrator: 'Crear Administrador',
     creatingAdministrator: 'Creando Administrador…',
-    bootstrapClosed: 'El Administrador inicial ya fue creado. Ingrese con una cuenta existente.',
+    bootstrapClosed: 'El Administrador inicial ya existe o el bootstrap seguro ya no está disponible.',
     firstProjectTitle: 'Crear nuevo proyecto',
     firstProject: 'No existe ningún proyecto persistido en este servidor. Cree el primer proyecto para iniciar el Working en Engineering.',
     projectKey: 'Clave del proyecto',
@@ -232,7 +237,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     try {
       const config = await getConfiguration();
       setConfiguration(config);
-      if (!config.authenticationEnabled || config.initialAdministratorRequired) {
+      if (!config.authenticationEnabled) {
         await acceptAuthenticatedProfile(null);
         return;
       }
@@ -268,7 +273,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ username, displayName, password })
       });
       if (response.status === 409) {
-        setBootstrapError(t.bootstrapClosed);
+        setBootstrapError(await responseError(response) ?? t.bootstrapClosed);
         await check();
         return;
       }
@@ -279,7 +284,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
 
       const created = await response.json() as AuthProfile;
-      setConfiguration(current => current ? { ...current, initialAdministratorRequired: false } : current);
+      setConfiguration(current => current ? {
+        ...current,
+        initialAdministratorRequired: false,
+        initialAdministratorSetupAvailable: false,
+        initialAdministratorBlockedReason: null
+      } : current);
       setPassword('');
       setConfirmPassword('');
       await acceptAuthenticatedProfile(created);
@@ -427,6 +437,18 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           <div className="auth-mark">E</div>
           <h1>{t.title}</h1>
           <p>{t.external}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (configuration.initialAdministratorRequired && !configuration.initialAdministratorSetupAvailable) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card auth-card--first-run">
+          <div className="auth-mark">E</div>
+          <h1>{t.title}</h1>
+          <p role="alert">{t.firstRunBlocked}</p>
         </div>
       </div>
     );

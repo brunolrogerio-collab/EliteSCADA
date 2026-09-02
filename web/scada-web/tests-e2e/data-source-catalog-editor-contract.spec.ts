@@ -2,7 +2,9 @@ import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import {
   buildDataSourceCandidate,
+  incompatibleDataSourceConfiguration,
   newDataSourceDraft,
+  removeIncompatibleDataSourceConfiguration,
   settingsForType,
   switchDataSourceType,
   validateDataSourceDraft,
@@ -94,6 +96,35 @@ test.describe('backend-driven Data Source form logic', () => {
     expect(switched.secretReferences).toEqual({ passwordSecretReference: 'secrets/opc/password' });
   });
 
+  test('same-type legacy settings are rejected until explicitly removed', () => {
+    const source: DataSourceEngineering = {
+      id: 'd4e8ad58-bce1-4a8e-ab3f-0cb9f18913c0',
+      key: 'legacy-plc',
+      name: 'Legacy PLC',
+      driver: modbus.typeKey,
+      enabled: true,
+      settings: { host: '10.0.0.10', port: '502', retiredOption: 'legacy-value' },
+      secretReferences: { host: 'vault://wrong-bucket', retiredSecret: 'vault://retired' }
+    };
+
+    expect(incompatibleDataSourceConfiguration(source, modbus)).toEqual({
+      settings: ['retiredOption'],
+      secretReferences: ['host', 'retiredSecret']
+    });
+    expect(validateDataSourceDraft(source, modbus)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fieldKey: 'retiredOption', code: 'incompatible' }),
+      expect.objectContaining({ fieldKey: 'host', code: 'incompatible' }),
+      expect.objectContaining({ fieldKey: 'retiredSecret', code: 'incompatible' })
+    ]));
+
+    const cleaned = removeIncompatibleDataSourceConfiguration(source, modbus);
+    expect(cleaned.id).toBe(source.id);
+    expect(cleaned.driver).toBe(source.driver);
+    expect(cleaned.settings).toEqual({ host: '10.0.0.10', port: '502' });
+    expect(cleaned.secretReferences).toEqual({});
+    expect(validateDataSourceDraft(cleaned, modbus)).toEqual([]);
+  });
+
   test('defaults are split between normal settings and protected references', () => {
     expect(settingsForType(opcUa)).toEqual({
       settings: { securityMode: 'SignAndEncrypt', sessionTimeout: '00:01:00' },
@@ -146,6 +177,7 @@ test('normal Data Source flow has no hardcoded driver catalog and uses Preview/A
   expect(editor).toContain('data-testid="data-source-type"');
   expect(editor).toContain('value={type.typeKey}>{type.displayName}');
   expect(editor).toContain('switchDataSourceType(draft, type)');
+  expect(editor).toContain('removeIncompatibleDataSourceConfiguration(draft, currentType)');
   expect(editor).toContain('const before = await loadEngineeringWorkspace()');
   expect(editor).toContain('const after = await loadEngineeringWorkspace()');
   expect(editor).toContain('setValidatedChangeVersion(after.changeVersion)');

@@ -11,7 +11,7 @@ Set-StrictMode -Version Latest
 function Invoke-Checked {
     param(
         [Parameter(Mandatory = $true)][string]$FilePath,
-        [Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments
+        [Parameter(Mandatory = $true)][string[]]$Arguments
     )
 
     & $FilePath @Arguments
@@ -61,8 +61,8 @@ New-Item -ItemType Directory -Path $authorityRoot -Force | Out-Null
 Write-Host "Building EliteSCADA Web payload..."
 Push-Location $webRoot
 try {
-    Invoke-Checked npm ci
-    Invoke-Checked npm run build
+    Invoke-Checked -FilePath "npm" -Arguments @("ci")
+    Invoke-Checked -FilePath "npm" -Arguments @("run", "build")
 }
 finally {
     Pop-Location
@@ -76,16 +76,20 @@ if (-not (Test-Path -LiteralPath (Join-Path $webDist "pyodide/pyodide.js") -Path
 }
 
 Write-Host "Publishing EliteSCADA product host for $rid..."
-Invoke-Checked dotnet publish (Join-Path $RepositoryRoot "src/Scada.Api/Scada.Api.csproj") `
-    -c Release `
-    -r $rid `
-    --self-contained true `
-    -p:PublishSingleFile=true `
-    -p:IncludeNativeLibrariesForSelfExtract=true `
-    -p:DebugType=None `
-    -p:DebugSymbols=false `
-    -p:Version=$version `
-    -o $productRoot
+$productPublishArguments = @(
+    "publish",
+    (Join-Path $RepositoryRoot "src/Scada.Api/Scada.Api.csproj"),
+    "-c", "Release",
+    "-r", $rid,
+    "--self-contained", "true",
+    "-p:PublishSingleFile=true",
+    "-p:IncludeNativeLibrariesForSelfExtract=true",
+    "-p:DebugType=None",
+    "-p:DebugSymbols=false",
+    "-p:Version=$version",
+    "-o", $productRoot
+)
+Invoke-Checked -FilePath "dotnet" -Arguments $productPublishArguments
 
 $publishedProductExe = Join-Path $productRoot "Scada.Api.exe"
 if (-not (Test-Path -LiteralPath $publishedProductExe -PathType Leaf)) {
@@ -93,19 +97,24 @@ if (-not (Test-Path -LiteralPath $publishedProductExe -PathType Leaf)) {
 }
 
 $packagedWebRoot = Join-Path $productRoot "wwwroot"
-Copy-Item -LiteralPath $webDist -Destination $packagedWebRoot -Recurse -Force
+New-Item -ItemType Directory -Path $packagedWebRoot -Force | Out-Null
+Copy-Item -Path (Join-Path $webDist "*") -Destination $packagedWebRoot -Recurse -Force
 
 Write-Host "Publishing graphical License Generator for $rid..."
-Invoke-Checked dotnet publish (Join-Path $RepositoryRoot "src/Scada.LicenseGenerator/Scada.LicenseGenerator.csproj") `
-    -c Release `
-    -r $rid `
-    --self-contained true `
-    -p:PublishSingleFile=true `
-    -p:IncludeNativeLibrariesForSelfExtract=true `
-    -p:DebugType=None `
-    -p:DebugSymbols=false `
-    -p:Version=$version `
-    -o $authorityRoot
+$authorityPublishArguments = @(
+    "publish",
+    (Join-Path $RepositoryRoot "src/Scada.LicenseGenerator/Scada.LicenseGenerator.csproj"),
+    "-c", "Release",
+    "-r", $rid,
+    "--self-contained", "true",
+    "-p:PublishSingleFile=true",
+    "-p:IncludeNativeLibrariesForSelfExtract=true",
+    "-p:DebugType=None",
+    "-p:DebugSymbols=false",
+    "-p:Version=$version",
+    "-o", $authorityRoot
+)
+Invoke-Checked -FilePath "dotnet" -Arguments $authorityPublishArguments
 
 $licenseGeneratorExe = Join-Path $authorityRoot "EliteSCADA.LicenseGenerator.exe"
 if (-not (Test-Path -LiteralPath $licenseGeneratorExe -PathType Leaf)) {

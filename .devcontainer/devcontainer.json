@@ -21,6 +21,7 @@
     }
   },
   "postCreateCommand": "dotnet restore ScadaPlatform.sln && cd web/scada-web && npm ci --no-audit --no-fund",
+  "postAttachCommand": "bash scripts/preview/launch-test-preview.sh",
   "containerEnv": {
     "DOTNET_NOLOGO": "true",
     "DOTNET_CLI_TELEMETRY_OPTOUT": "1"

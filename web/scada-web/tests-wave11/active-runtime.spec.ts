@@ -208,6 +208,93 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
     .elements.find((element: any) => element.key === 'pressure').properties.label).toBe('REVISION B ACTIVE');
 });
 
+test('C05 canonical visual properties survive Save Publish Activate and drive Active HMI rendering', async ({ page, request }) => {
+  const workingResponse = await request.get('/api/engineering/export/json');
+  expect(workingResponse.ok()).toBeTruthy();
+  const working = await workingResponse.json() as any;
+  const screen = working.screens.find((candidate: any) => candidate.key === 'demo.overview');
+  expect(screen).toBeTruthy();
+
+  const objectId = '00000000-0000-0000-0000-00000000c505';
+  const objectKey = 'c05-property-lifecycle';
+  screen.elements = screen.elements.filter((element: any) => element.key !== objectKey);
+  screen.elements.push({
+    id: objectId,
+    key: objectKey,
+    type: 'core.rectangle',
+    properties: {
+      x: 84,
+      y: 96,
+      width: 180,
+      height: 90,
+      rotation: 15,
+      scaleX: 0.9,
+      scaleY: 1.1,
+      zIndex: 99,
+      visible: true,
+      opacity: 0.6,
+      fillColor: '#12345680',
+      strokeColor: '#445566',
+      strokeWidth: 8,
+      strokeStyle: 'none',
+      cornerRadius: 12
+    }
+  });
+
+  const applyResponse = await request.post('/api/engineering/import/json/apply', { data: working });
+  expect(applyResponse.ok(), `C05 apply failed: HTTP ${applyResponse.status()} ${await applyResponse.text()}`).toBeTruthy();
+
+  const saveResponse = await request.post(`/api/engineering/persistence/${projectKey}/save`, {
+    data: { projectName: 'Wave 11 E2E' }
+  });
+  expect(saveResponse.ok()).toBeTruthy();
+  const saved = await saveResponse.json() as { revision: number };
+
+  const publishResponse = await request.post(
+    `/api/engineering/persistence/${projectKey}/revisions/${saved.revision}/publish`,
+    { data: {} }
+  );
+  expect(publishResponse.ok()).toBeTruthy();
+
+  const activateResponse = await request.post(
+    `/api/engineering/persistence/${projectKey}/published/activate`,
+    { data: {} }
+  );
+  expect(activateResponse.ok(), `C05 activate failed: HTTP ${activateResponse.status()} ${await activateResponse.text()}`).toBeTruthy();
+
+  const activeResponse = await request.get('/api/runtime/application');
+  expect(activeResponse.ok()).toBeTruthy();
+  const active = await activeResponse.json() as any;
+  expect(active.revision).toBe(saved.revision);
+  const activeElement = active.package.screens
+    .find((candidate: any) => candidate.key === 'demo.overview')
+    .elements.find((element: any) => element.key === objectKey);
+  expect(activeElement?.properties).toMatchObject({
+    rotation: 15,
+    scaleX: 0.9,
+    scaleY: 1.1,
+    zIndex: 99,
+    visible: true,
+    opacity: 0.6,
+    fillColor: '#12345680',
+    strokeColor: '#445566',
+    strokeWidth: 8,
+    strokeStyle: 'none',
+    cornerRadius: 12
+  });
+
+  await page.goto('/');
+  const activeApplication = page.getByTestId('runtime-engineering-application');
+  await expect(activeApplication).toHaveAttribute('data-runtime-revision', String(saved.revision));
+  const rendered = page.getByTestId('runtime-engineering-canvas').locator(`[data-object-id="${objectId}"]`);
+  await expect(rendered).toBeVisible();
+  const renderedStyle = await rendered.getAttribute('style');
+  expect(renderedStyle).toContain('opacity: 0.6');
+  expect(renderedStyle).toContain('border-width: 0px');
+  expect(renderedStyle).toContain('border-style: none');
+  expect(renderedStyle).toContain('rotate(15deg) scale(0.9, 1.1)');
+});
+
 test('an unavailable Active projection fails closed without reading mutable Working', async ({ page }) => {
   let workingReads = 0;
   await page.route('**/api/runtime/application', async route => {

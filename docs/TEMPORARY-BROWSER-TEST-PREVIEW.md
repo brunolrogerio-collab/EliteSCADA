@@ -1,8 +1,8 @@
 # EliteSCADA — Temporary Browser Test Preview
 
-**Status:** PLANNED / NEXT  
-**Tracking issue:** #208  
-**Ordering:** after accepted Wave 12 and before resuming Wave 13
+**Status:** IMPLEMENTED IN DRAFT PR #210 / REAL CODESPACE VALIDATION PENDING
+**Tracking issue:** #208
+**Ordering:** separate parallel workstream beside active Wave 13
 
 ## Purpose
 
@@ -110,11 +110,11 @@ From a known exact source SHA, a fresh Preview environment should demonstrate th
 
 Wave 12 remains COMPLETE / ACCEPTED / CLOSED and is not reopened by this requirement.
 
-Wave 13 release-engineering work already exists in draft PR #207 but is paused. Its branch and audit evidence are preserved; no additional Wave 13 implementation or merge should proceed while issue #208 is the active coordination direction.
+Wave 13 release-engineering work exists in draft PR #207 and is active under separate coordination. Preview #208/#210 neither blocks nor incorporates Wave 13; each coordinator must re-audit live `main` before assuming changes from the other workstream.
 
 Current planned sequence:
 
-`Wave 12 accepted -> Temporary Browser Test Preview (#208) -> resume Wave 13 (#205/#207) -> Wave 14 owner validation -> Wave 15 feedback/corrections`
+`Wave 12 accepted -> {Temporary Browser Test Preview #208/#210 || Wave 13 #205/#207} -> Wave 14 owner validation -> Wave 15 feedback/corrections`
 
 ## Explicit non-goals
 

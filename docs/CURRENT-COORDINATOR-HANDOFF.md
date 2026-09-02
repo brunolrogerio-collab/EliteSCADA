@@ -1,6 +1,6 @@
 # EliteSCADA — Current Coordinator Handoff
 
-**Last operational synchronization:** 2026-09-02 BRT  
+**Last operational synchronization:** 2026-09-02 BRT
 **Status:** **WAVE 12 COMPLETE / ACCEPTED; TEST PREVIEW #208 IMPLEMENTED / REAL CODESPACE VALIDATION PENDING; WAVE 13 #205/#207 ACTIVE UNDER SEPARATE COORDINATION**
 
 > GitHub/main/CI is implementation truth. `PROJECT GOAL.md` governs permanent product intent. `LAST CHANGE.md` is the mutable resume point. Never resume from chat alone.
@@ -38,9 +38,11 @@ Then follow the workstream-specific material.
 ### Wave 13 coordinator
 
 7. `docs/WAVE-13-WINDOWS-RELEASE-PREPARATION.md`;
-8. issue #205;
-9. draft PR #207 and branch `wave13/windows-release-signing`;
-10. inspect #208/#210 only for concurrent repository/launch changes that may affect package assumptions.
+8. `docs/WAVE-13-WINDOWS-RELEASE-AUDIT.md`;
+9. `docs/WAVE-13-SIGNING-BOUNDARY.md`;
+10. issue #205;
+11. draft PR #207 and branch `wave13/windows-release-signing`;
+12. inspect #208/#210 only for concurrent repository/launch changes that may affect package assumptions.
 
 If repository state differs from copied prose, GitHub/main/CI wins.
 
@@ -100,16 +102,31 @@ Never commit or echo the supplied password into source, docs, workflows, images,
 
 Issue #205 is **ACTIVE / RELEASED FOR SEPARATE COORDINATION**.
 
-Draft PR #207 remains draft on branch `wave13/windows-release-signing` because unpausing does not make it complete or merge-ready.
+Draft PR #207 remains draft on branch `wave13/windows-release-signing` because active implementation does not make the release complete or merge-ready.
 
-Incoming Wave 13 coordination must first re-audit:
+The Wave 13 coordinator integrated live documentation-only `main` `056148bb17c0fd6cb78bd21339b3f9614d38ad68` through merge commit `dbef6557e24297d273caeb19dfe5aabc17fb0b43`. Its exact other parent is the previously validated repository-side checkpoint `a287c4f2a4e4c571a7c5ad4b25efb1c98132e5ab`.
 
-- live `main`;
-- current exact-SHA CI;
-- issue #205;
-- PR #207 and its complete diff/history;
-- `docs/WAVE-13-WINDOWS-RELEASE-AUDIT.md` on the branch;
-- concurrent Preview #208/#210 state for any launch/repository changes that actually reach `main`.
+Current fully validated repository-side implementation checkpoint before the latest documentation-only synchronization:
+
+`9f26a2bc02ae77017e266c52ff128dc39eece4b4`
+
+Exact validation on `9f26a2bc...`:
+
+- Wave 13 Windows Release #27 / `33643546191`: **SUCCESS**;
+- EliteSCADA CI #1134 / `33643546119`: **SUCCESS**;
+- L3 Seven-Driver Lab #102 / `33643546111`: **SUCCESS**;
+- Wave 11 Active HMI Runtime #64 / `33643546139`: **SUCCESS**.
+
+Repository-side implementation now includes:
+
+- self-contained `win-x64` product and separate graphical License Generator authority candidate;
+- packaged React/Pyodide hosting and focused login/Demo/machine-request/Dynamo/Driver/`.escadapkg` smoke;
+- `windows-2025`/PostgreSQL 17 packaged regression covering two saved Revisions, Working isolation, explicit Publish/Activate boundaries, persisted Active HMI projection and forced-restart recovery;
+- retained unsigned-candidate provenance plus signing-only PE delta validation;
+- deterministic signed-byte manifest and separate product/authority ZIP roles;
+- fail-closed Authenticode, exact publisher, cryptographically bound RFC3161, hash/content and safe-ZIP verification with negative cases.
+
+Normal CI remains keyless and produces only an explicitly `UNSIGNED` signer-input artifact. Windows #27 produced artifact `9851917252`, 111,162,549 bytes, with uploaded-artifact SHA-256 `ee2297cde3675114822b0be01e305590c7d78b46927a58e64938baa004f9c709`. This is signer-input transport evidence, not a signed release. The protected signing service/hardware-backed key and exact organizational certificate Subject remain external acceptance blockers.
 
 Existing Wave 13 locks remain intact:
 

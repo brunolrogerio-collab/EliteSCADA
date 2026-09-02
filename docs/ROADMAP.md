@@ -1,6 +1,6 @@
 # EliteSCADA Roadmap
 
-**Status date:** 2026-09-02 (BRT)  
+**Status date:** 2026-09-02 (BRT)
 **Active direction:** **TEST PREVIEW #208/#210 — REAL CODESPACE VALIDATION PENDING; WAVE 13 #205/#207 — ACTIVE UNDER SEPARATE COORDINATION**
 
 Authoritative product intent: `PROJECT GOAL.md`.  
@@ -8,9 +8,9 @@ Mutable resume point: `LAST CHANGE.md`.
 Operational handoff: `docs/CURRENT-COORDINATOR-HANDOFF.md`.  
 Wave 12 preparation: `docs/WAVE-12-HARDENING-PREPARATION.md`.  
 Wave 12 accepted ledger: `docs/WAVE-12-HARDENING-AUDIT.md`.  
-Temporary browser Test Preview: `docs/TEMPORARY-BROWSER-TEST-PREVIEW.md`, issue #208, draft PR #210.  
+Temporary browser Test Preview: `docs/TEMPORARY-BROWSER-TEST-PREVIEW.md`, issue #208, draft PR #210.
 Wave 13 preparation: `docs/WAVE-13-WINDOWS-RELEASE-PREPARATION.md`.  
-Wave 13 issue: #205; draft implementation PR: #207.  
+Wave 13 issue: #205; draft implementation PR: #207.
 CI policy: `docs/CI-VALIDATION-POLICY.md`.
 
 ## Current validated foundation
@@ -27,6 +27,7 @@ CI policy: `docs/CI-VALIDATION-POLICY.md`.
 - Temporary browser Test Preview #208/#210 is **IMPLEMENTED / AUTOMATED VALIDATION GREEN / REAL CODESPACE VALIDATION PENDING**.
 - Preview head `208ac69b5638ace8557a700d34dd16571360c8f6`: Test Preview #4 / `33594259242` **SUCCESS** and EliteSCADA CI #1122 / `33594259232` **SUCCESS**.
 - Wave 13 #205/#207 is **ACTIVE / RELEASED FOR SEPARATE COORDINATION**; PR #207 remains draft until its own acceptance gates are met.
+- Wave 13 repository-side checkpoint `9f26a2bc02ae77017e266c52ff128dc39eece4b4`: Windows #27, EliteSCADA CI #1134, L3 #102 and Wave 11 Active HMI Runtime #64 are **SUCCESS**.
 
 ## Coordination model
 
@@ -95,9 +96,11 @@ Automated validation is green. Remaining acceptance gate: a fresh real Codespace
 
 Issue #205 remains open and PR #207 remains draft. Development is **ACTIVE under separate coordination**.
 
-The incoming Wave 13 coordinator must re-audit live `main`, issue #205, PR #207, exact current CI and the signing/package audit before changing or merging the branch. Concurrent Preview changes matter only after they actually reach `main` or otherwise affect the exact branch being evaluated.
+The Wave 13 coordinator re-audited and integrated live `main` `056148bb17c0fd6cb78bd21339b3f9614d38ad68` through `dbef6557e24297d273caeb19dfe5aabc17fb0b43`. The current validated repository-side checkpoint is `9f26a2bc02ae77017e266c52ff128dc39eece4b4`. Concurrent Preview changes matter only after they actually reach `main` or otherwise affect the exact branch being evaluated.
 
-Wave 13 remains responsible for the controlled Windows x64 release package, Authenticode signatures, trusted timestamping and deterministic release verification. Its security and DNP3 commercial-distribution gates remain unchanged.
+Implemented repository-side scope includes the self-contained Windows x64 unsigned candidate, packaged React/Pyodide product, separate graphical License Generator authority role, `windows-2025`/PostgreSQL-backed full persisted Active-HMI/restart regression, signed-return derivation checks, deterministic signed-byte manifests, role-specific ZIPs and fail-closed Authenticode/publisher/RFC3161/hash/content verification with negative cases.
+
+Wave 13 remains blocked from acceptance by a real protected or hardware-backed organizational signing authority, the exact certificate Subject and a real RFC3161-timestamped signed return. Its security and DNP3 commercial-distribution gates remain unchanged.
 
 ## Quality locks
 

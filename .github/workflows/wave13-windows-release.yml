@@ -1,0 +1,134 @@
+name: Wave 13 Windows Release
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'release/**'
+      - 'scripts/release/**'
+      - 'src/**'
+      - 'web/scada-web/**'
+      - '.github/workflows/wave13-windows-release.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'release/**'
+      - 'scripts/release/**'
+      - 'src/**'
+      - 'web/scada-web/**'
+      - '.github/workflows/wave13-windows-release.yml'
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  unsigned-candidate:
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SOURCE_SHA }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/scada-web/package-lock.json
+
+      - name: Start isolated PostgreSQL for packaged lifecycle regression
+        shell: pwsh
+        env:
+          PGPASSWORD: root
+        run: |
+          Set-Service -Name postgresql-x64-17 -StartupType Manual
+          Start-Service -Name postgresql-x64-17
+
+          $pgIsReady = Join-Path $env:PGBIN 'pg_isready.exe'
+          $psql = Join-Path $env:PGBIN 'psql.exe'
+          for ($attempt = 0; $attempt -lt 30; $attempt++) {
+            & $pgIsReady -h 127.0.0.1 -p 5432
+            if ($LASTEXITCODE -eq 0) { break }
+            Start-Sleep -Seconds 1
+          }
+          if ($LASTEXITCODE -ne 0) {
+            throw 'PostgreSQL did not become ready for the packaged lifecycle regression.'
+          }
+
+          & $psql `
+            --host 127.0.0.1 `
+            --username postgres `
+            --dbname postgres `
+            --set ON_ERROR_STOP=1 `
+            --command 'CREATE DATABASE elitescada_wave13;'
+          if ($LASTEXITCODE -ne 0) {
+            throw "Creating the isolated Wave 13 database failed with exit code $LASTEXITCODE."
+          }
+
+          'ConnectionStrings__EliteScada=Host=127.0.0.1;Port=5432;Database=elitescada_wave13;Username=postgres;Password=root;Include Error Detail=false' |
+            Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          'EngineeringRuntime__ProjectKey=wave13-release-smoke' |
+            Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Build unsigned Windows x64 candidate
+        shell: pwsh
+        run: ./scripts/release/Build-WindowsReleaseCandidate.ps1 -SourceSha $env:RELEASE_SOURCE_SHA
+
+      - name: Validate candidate structure and trust-boundary exclusions
+        shell: pwsh
+        run: ./scripts/release/Test-WindowsReleaseCandidate.ps1 -CandidateRoot ./artifacts/wave13/candidate
+
+      - name: Smoke-test graphical License Generator executable
+        shell: pwsh
+        run: |
+          $process = Start-Process `
+            -FilePath ./artifacts/wave13/candidate/authority/EliteSCADA.LicenseGenerator.exe `
+            -ArgumentList '--smoke-test' `
+            -Wait `
+            -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "License Generator smoke test failed with exit code $($process.ExitCode)."
+          }
+
+      - name: Smoke-test packaged product host and Web payload
+        shell: pwsh
+        env:
+          Authentication__Enabled: 'true'
+          Authentication__Jwt__Issuer: EliteSCADA.Wave13.CI
+          Authentication__Jwt__Audience: EliteSCADA.Wave13.CI
+          Authentication__Jwt__SigningKey: Wave13-CI-Only-JWT-Signing-Key-2026
+          Authentication__Local__Enabled: 'true'
+          Authentication__Local__SecureCookie: 'false'
+          Authentication__Local__Bootstrap__Username: wave13-admin
+          Authentication__Local__Bootstrap__DisplayName: Wave 13 CI Administrator
+          Authentication__Local__Bootstrap__Password: Wave13-CI-Only-Password!2026
+          Authentication__Local__Bootstrap__Roles__0: developer
+        run: |
+          ./scripts/release/Test-WindowsPackagedProduct.ps1 `
+            -ProductRoot ./artifacts/wave13/candidate/product `
+            -ExpectedProjectKey $env:EngineeringRuntime__ProjectKey
+
+      - name: Verify fail-closed release negative cases
+        shell: pwsh
+        run: |
+          ./scripts/release/Test-WindowsReleaseNegativeCases.ps1 `
+            -CandidateRoot ./artifacts/wave13/candidate `
+            -ExpectedSourceSha $env:RELEASE_SOURCE_SHA
+
+      - name: Upload unsigned signing candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: EliteSCADA-Wave13-UNSIGNED-win-x64
+          path: artifacts/wave13/candidate/**
+          if-no-files-found: error
+          retention-days: 14

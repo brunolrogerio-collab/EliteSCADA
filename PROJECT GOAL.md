@@ -23,7 +23,7 @@
 
 ### Current release-sequencing gate
 
-The seven communication Drivers completed the integrated L3 interoperability gate under issue #180, the pre-Wave-11 owner-usability gate #191 was accepted and integrated, and Wave 11 established the Active persisted canonical Engineering revision as HMI Runtime application truth with an owner-testable `.escadapkg` handoff. **Wave 12 is now in progress under issue #201.** Wave 12 is a hardening pass over accepted contracts; Wave 13 remains the separate signed Windows x64 + Authenticode/trusted-timestamp release stage. Exact current issue/branch/SHA/run state remains in `LAST CHANGE.md`.
+The seven communication Drivers completed the integrated L3 interoperability gate under issue #180, the pre-Wave-11 owner-usability gate #191 was accepted and integrated, Wave 11 established the Active persisted canonical Engineering revision as HMI Runtime application truth with an owner-testable `.escadapkg` handoff, and Wave 12 hardening was accepted under issue #201. **Wave 13 release engineering is active under issue #205 while the temporary browser Test Preview proceeds as a separate parallel workstream.** Wave 13 remains the signed Windows x64 + Authenticode/trusted-timestamp release stage, not a feature redesign. Exact current issue/branch/SHA/run state remains in `LAST CHANGE.md`.
 
 ## Product mission
 

@@ -1,7 +1,7 @@
 # LAST CHANGE — EliteSCADA
 
-**Date:** 2026-09-02 (BRT)  
-**Operational state:** **WAVE 12 #201 — COMPLETE / ACCEPTED / CLOSED; TEST PREVIEW #208/#210 — IMPLEMENTED / REAL CODESPACE VALIDATION PENDING; WAVE 13 #205/#207 — ACTIVE UNDER SEPARATE COORDINATION**
+**Date:** 2026-09-02 (BRT)
+**Operational state:** **WAVE 12 #201 — COMPLETE / ACCEPTED / CLOSED; TEST PREVIEW #208/#210 — PARALLEL / REAL CODESPACE VALIDATION PENDING; WAVE 13 #205/#207 — ACTIVE IN DRAFT / NOT ACCEPTED**
 
 > Mutable Coordinator resume point. `PROJECT GOAL.md` governs permanent product intent. Live GitHub refs and exact-SHA CI override copied prose. Documentation-only `[skip ci]` commits may advance `main` beyond the latest validated product-code SHA without superseding that product baseline.
 
@@ -13,107 +13,116 @@ Final accepted Wave 12 product-code baseline:
 
 `63bced02426fcb84b26028913f6c68feb3457d80`
 
-Accepted runtime authority remains:
+Exact post-merge evidence:
+
+- EliteSCADA CI #1096 / `33576603185`: **SUCCESS**;
+- L3 Seven-Driver Lab #92 / `33576603158`: **SUCCESS**.
+
+Accepted Runtime authority remains:
 
 `Working -> saved Revision -> Published -> Active -> HMI Runtime`
 
 Runtime uses persisted Active Engineering only; mutable Working never drives HMI Runtime directly.
 
-## 2. Final Wave 12 acceptance evidence
+## 2. Parallel coordination authorized on 2026-09-02
 
-Exact product SHA `63bced02426fcb84b26028913f6c68feb3457d80`:
+The Development Lead released Wave 13 from the temporary Preview pause. The two workstreams may proceed independently and in parallel:
 
-- EliteSCADA CI #1096 / `33576603185`: **SUCCESS**;
-- L3 Seven-Driver Lab #92 / `33576603158`: **SUCCESS**.
+- Temporary Browser Test Preview: issue #208, draft PR #210, branch `preview/codespaces-test-preview`;
+- Wave 13 Windows release/signing: issue #205, draft PR #207, branch `wave13/windows-release-signing`.
 
-Historical Wave 12 detail remains in `docs/WAVE-12-HARDENING-AUDIT.md` and issue #201.
+Neither workstream may assume the other branch has merged. Only live `main` changes become shared package/launch assumptions.
 
-## 3. Coordination split authorized on 2026-09-02
+## 3. Live repository state and Wave 13 integration
 
-The Development Lead released Wave 13 from the temporary Preview pause and split coordination into two concurrent workstreams:
+Live `main` audited before resuming Wave 13:
 
-### A. Temporary Browser Test Preview
+`056148bb17c0fd6cb78bd21339b3f9614d38ad68`
 
-- issue #208;
-- draft PR #210;
-- branch `preview/codespaces-test-preview`;
-- current coordinator remains focused on this workstream.
+That SHA is documentation-only and records the parallel coordination model. It descends from the original Wave 13 branch base:
 
-### B. Wave 13 Windows release/signing
+`fd694d936131919e5325dd9479d84d74759100a5`
 
-- issue #205;
-- draft PR #207;
-- branch `wave13/windows-release-signing`;
-- released for a separate coordinator to continue independently.
+The live-`main` integration commit is:
 
-Neither front blocks the other. Neither coordinator may assume the other branch has merged. Live GitHub state and exact-head CI must be rechecked before merge/release decisions.
+`dbef6557e24297d273caeb19dfe5aabc17fb0b43`
 
-## 4. Preview current state
+Its exact parents are the previously validated Wave 13 checkpoint `a287c4f2a4e4c571a7c5ad4b25efb1c98132e5ab` and live `main` `056148bb17c0fd6cb78bd21339b3f9614d38ad68`.
 
-Last validated Preview head:
+Current fully validated Wave 13 repository-side implementation checkpoint before this documentation-only synchronization:
 
-`208ac69b5638ace8557a700d34dd16571360c8f6`
+`9f26a2bc02ae77017e266c52ff128dc39eece4b4`
 
-Exact-head evidence:
+PR #207 remains **draft**. The integration and subsequent packaged-regression work do not accept or merge the release into `main`.
 
-- Test Preview #4 / `33594259242`: **SUCCESS**;
-- EliteSCADA CI #1122 / `33594259232`: **SUCCESS**.
+Open coordination surfaces observed at resume time are Wave 13 #205, Preview #208/#210 and deferred physical L4 #178.
 
-The Preview implementation has no product-code diff. It adds the Codespaces/devcontainer + Compose topology, private TimescaleDB, Web port 5173 forwarding, protected admin secret injection, validated Wave 11 Demo fixture, launcher/task, normal Import -> Save -> Publish -> Activate bootstrap and browser/Pyodide smoke.
+## 4. Wave 13 repository-side implementation
 
-Final Preview acceptance remains pending a **fresh real Codespace** and confirmation that the forwarded private Web URL opens the actual EliteSCADA and representative browser behavior is usable.
+The draft branch currently provides:
 
-Administrative username:
+- `release/release-identity.json` as the single release-engineering identity source;
+- `win-x64` self-contained, single-file product and graphical License Generator publishes;
+- React/Vite, pinned Pyodide and packaged Web hosting beside `Scada.Api.exe`, preserving COOP/COEP and reserved API routes;
+- separate customer-product and License Generator authority artifact roles;
+- normal Windows CI, pinned to `windows-2025`, that produces only a clearly named `UNSIGNED` signer-input candidate and receives no Authenticode private material;
+- packaged regression for Web/Pyodide, local login, Demo limits, stable machine request, eight built-in Dynamos, Demo screen, Runtime Driver surface and `.escadapkg` export/inspect/import preview;
+- isolated PostgreSQL 17 regression of the actual packaged `Scada.Api.exe`: coherent seven-TAG Demo Runtime fixture, first Save/Publish/Activate, mutable Working isolation, second Revision lineage, Published isolation, explicit second Activate, Active HMI projection and recovery after a forced host restart;
+- signed-return comparison that requires non-PE identity and permits PE differences only in Authenticode checksum/Security Directory/final certificate-table append;
+- deterministic signed-byte manifest with hashes, roles, exact publisher, signer certificate and cryptographically bound RFC3161 evidence;
+- separate deterministic product and License Generator ZIP creation and trusted-hash verification;
+- fail-closed checks and negative cases for wrong source SHA, unsigned/missing/tampered/unexpected content, invalid signing-return deltas, traversal, duplicate/case-colliding and Windows-unsafe ZIP paths;
+- explicit release identity stating that DNP3 is transitively present, its commercial gate is blocked and `commercialDistributionAuthorized` is `false`.
 
-`EliteSCADA`
+Correct release order:
 
-Protected secret name:
+`build -> publish -> retain exact unsigned candidate -> protected signing -> compare signed return -> verify Authenticode/publisher/RFC3161 -> manifest signed bytes -> role-specific ZIPs -> verify trusted package hashes and content`
 
-`ELITESCADA_PREVIEW_ADMIN_PASSWORD`
+## 5. Exact repository-side validation
 
-The supplied password must never be committed or copied into docs, workflows, packages, images, logs or normal artifacts.
+Exact SHA `9f26a2bc02ae77017e266c52ff128dc39eece4b4`:
 
-## 5. Wave 13 released state
+- Wave 13 Windows Release #27 / `33643546191`: **SUCCESS**;
+- EliteSCADA CI #1134 / `33643546119`: **SUCCESS**;
+- L3 Seven-Driver Lab #102 / `33643546111`: **SUCCESS**;
+- Wave 11 Active HMI Runtime #64 / `33643546139`: **SUCCESS**.
 
-Issue #205 is now **ACTIVE / RELEASED FOR SEPARATE COORDINATION**.
+Windows #27 verified 115 manifest artifacts, all release negative cases and the PostgreSQL-backed packaged lifecycle/restart regression. It produced unsigned signer-input transport evidence only:
 
-PR #207 remains **draft**. Removing the pause does not make the existing branch merge-ready or accepted.
+- artifact ID `9851917252`;
+- name `EliteSCADA-Wave13-UNSIGNED-win-x64`;
+- compressed size 111,162,549 bytes;
+- uploaded artifact ZIP SHA-256 `ee2297cde3675114822b0be01e305590c7d78b46927a58e64938baa004f9c709`.
 
-Before Wave 13 development continues, its incoming coordinator must read the required project/handoff documents, inspect live `main`, issue #205, PR #207, current exact-SHA CI and the release/signing audit, then compare `wave13/windows-release-signing` against live `main`.
+That digest is **not** a final signed-release hash and establishes no Authenticode acceptance.
 
-Concurrent Preview #208/#210 work must be inspected for repository/launch changes, but only changes actually merged into `main` become Wave 13 package assumptions.
+Preview head `208ac69b5638ace8557a700d34dd16571360c8f6` independently passed Test Preview #4 / `33594259242` and EliteSCADA CI #1122 / `33594259232`; its branch has not merged into `main` and is not part of the current Windows candidate.
 
-Wave 13 remains responsible for:
+## 6. Remaining Wave 13 acceptance blockers
 
-- Windows x64 packaging;
-- Authenticode signing;
-- trusted timestamping;
-- deterministic/fail-closed signed-byte manifest verification;
-- existing security/licensing gates;
-- DNP3 commercial-distribution gate.
+Wave 13 cannot be accepted until all of the following exist:
 
-## 6. Exact next action — Preview coordinator
-
-1. verify live `main`, PR #210 head and current exact-head CI before any new change;
-2. continue only issue #208 / PR #210;
-3. diagnose the fresh Codespace startup problem seen during owner validation;
-4. obtain a real forwarded private Web URL from a fresh Codespace;
-5. validate login and representative Engineering/Runtime behavior;
-6. only then close/accept #208 and integrate #210 according to CI/merge policy.
-
-Do not develop Wave 13 as part of the Preview workstream.
+1. an organizationally controlled protected signing service or hardware-backed Authenticode key;
+2. the exact public certificate Subject/publisher expected by verification;
+3. SHA-256 Authenticode plus trusted RFC3161 timestamp on every returned PE, without rebuilding;
+4. successful signed-return derivation, final manifest and both role-specific package verifications;
+5. repetition of the now-green PostgreSQL/package regression against the final signed product bytes;
+6. trusted product/authority ZIP SHA-256, certificate/timestamp and workflow evidence persisted in issue #205;
+7. exact-head universal and affected specialized gates, expected-head merge and post-merge `main` validation.
 
 ## 7. Exact next action — Wave 13 coordinator
 
-1. read `PROJECT GOAL.md`;
-2. read this file;
-3. read `docs/CURRENT-COORDINATOR-HANDOFF.md`;
-4. read `docs/ROADMAP.md`;
-5. read `docs/WAVE-13-WINDOWS-RELEASE-PREPARATION.md`;
-6. read issue #205 and full draft PR #207 state;
-7. read `docs/CI-VALIDATION-POLICY.md`;
-8. inspect #208/#210 only for concurrent changes relevant to launch/package assumptions;
-9. verify live `main`, open PRs/issues and exact Actions state;
-10. compare the Wave 13 branch with live `main` before modifying it.
+1. obtain the Development Lead's protected signing-authority choice and exact public certificate Subject;
+2. submit the exact retained unsigned candidate from `9f26a2bc...` to that protected authority without rebuilding it;
+3. return only the Authenticode/RFC3161-signed PE bytes and complete the provider-neutral derivation, manifest and package verification flow;
+4. run the full packaged-product regression against the final signed product bytes;
+5. persist trusted product/authority ZIP hashes, certificate/timestamp evidence and exact workflow/source SHA in issue #205;
+6. require exact-head universal and affected specialized gates, then merge only with expected-head protection and validate post-merge `main`;
+7. keep PR #207 draft until a real signed return and final package evidence satisfy every gate.
 
-Do not begin Wave 14 owner validation, Wave 15 corrections, Linux packaging or physical L4 work without their own authorization/gates.
+## 8. Security, licensing and scope locks
+
+- No PFX, private key, certificate password or equivalent Authenticode material belongs in source, normal GitHub Secrets, normal CI artifacts, logs or product files.
+- Authenticode and EliteSCADA license signing are separate trust domains.
+- Step Function I/O `dnp3` 1.6.0 remains transitively present. Authenticode does not grant commercial clearance; commercial distribution remains unauthorized until an appropriate Step Function commercial license or approved/revalidated replacement is recorded.
+- Do not begin Wave 14, Wave 15, Linux `.deb` implementation or physical L4 work under Wave 13.

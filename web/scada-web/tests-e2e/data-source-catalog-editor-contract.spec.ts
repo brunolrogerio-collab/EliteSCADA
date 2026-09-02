@@ -29,7 +29,8 @@ const modbus: DataSourceTypeDefinition = {
     schemaVersion: 1,
     dataSourceFields: [
       { key: 'host', valueKind: 'host', required: true, displayName: 'Host', allowedValues: [], advanced: false, expectedFormat: 'DNS name, IPv4 or IPv6 address', exampleValue: '192.168.1.10' },
-      { key: 'port', valueKind: 'port', required: false, displayName: 'Port', defaultValue: '502', allowedValues: [], minimum: 1, maximum: 65535, advanced: false }
+      { key: 'port', valueKind: 'port', required: false, displayName: 'Port', defaultValue: '502', allowedValues: [], minimum: 1, maximum: 65535, advanced: false },
+      { key: 'strictMode', valueKind: 'boolean', required: false, displayName: 'Strict mode', allowedValues: [], advanced: true }
     ],
     tagBindingFields: []
   }
@@ -53,7 +54,7 @@ const opcUa: DataSourceTypeDefinition = {
     dataSourceFields: [
       { key: 'endpointUrl', valueKind: 'string', required: true, displayName: 'Endpoint URL', allowedValues: [], advanced: false, exampleValue: 'opc.tcp://192.168.1.10:4840' },
       { key: 'securityMode', valueKind: 'enum', required: true, displayName: 'Security mode', defaultValue: 'SignAndEncrypt', allowedValues: ['None', 'Sign', 'SignAndEncrypt'], advanced: false },
-      { key: 'sessionTimeout', valueKind: 'duration', required: false, displayName: 'Session timeout', defaultValue: '00:01:00', allowedValues: [], advanced: true, expectedFormat: '[d.]hh:mm:ss[.fffffff]' },
+      { key: 'sessionTimeout', valueKind: 'duration', required: false, displayName: 'Session timeout', defaultValue: '00:01:00', allowedValues: [], minimum: 1000, maximum: 120000, advanced: true, expectedFormat: '[d.]hh:mm:ss[.fffffff]' },
       { key: 'passwordSecretReference', valueKind: 'secretReference', required: false, displayName: 'Password secret reference', defaultValue: 'secrets/opc/password', allowedValues: [], advanced: true }
     ],
     tagBindingFields: []
@@ -133,7 +134,7 @@ test.describe('backend-driven Data Source form logic', () => {
     expect(newDataSourceDraft(opcUa).driver).toBe('opc-ua');
   });
 
-  test('client validation recognizes required, numeric and canonical duration formats', () => {
+  test('client validation recognizes boolean, numeric and canonical duration constraints', () => {
     const draft = newDataSourceDraft(opcUa);
     draft.name = 'OPC';
     draft.key = 'opc';
@@ -144,14 +145,23 @@ test.describe('backend-driven Data Source form logic', () => {
     };
 
     expect(validateDataSourceDraft(draft, opcUa)).toContainEqual(expect.objectContaining({ fieldKey: 'sessionTimeout', code: 'duration' }));
+    draft.settings.sessionTimeout = '00:99:00';
+    expect(validateDataSourceDraft(draft, opcUa)).toContainEqual(expect.objectContaining({ fieldKey: 'sessionTimeout', code: 'duration' }));
+    draft.settings.sessionTimeout = '00:00:00.500';
+    expect(validateDataSourceDraft(draft, opcUa)).toContainEqual(expect.objectContaining({ fieldKey: 'sessionTimeout', code: 'minimum' }));
+    draft.settings.sessionTimeout = '00:03:00';
+    expect(validateDataSourceDraft(draft, opcUa)).toContainEqual(expect.objectContaining({ fieldKey: 'sessionTimeout', code: 'maximum' }));
     draft.settings.sessionTimeout = '00:00:05';
     expect(validateDataSourceDraft(draft, opcUa)).toEqual([]);
 
     const modbusDraft = newDataSourceDraft(modbus);
     modbusDraft.name = 'PLC';
     modbusDraft.key = 'plc';
-    modbusDraft.settings = { host: '10.0.0.10', port: '70000' };
-    expect(validateDataSourceDraft(modbusDraft, modbus)).toContainEqual(expect.objectContaining({ fieldKey: 'port', code: 'maximum' }));
+    modbusDraft.settings = { host: '10.0.0.10', port: '70000', strictMode: 'yes' };
+    expect(validateDataSourceDraft(modbusDraft, modbus)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fieldKey: 'port', code: 'maximum' }),
+      expect.objectContaining({ fieldKey: 'strictMode', code: 'enum', expected: 'true | false' })
+    ]));
   });
 
   test('candidate update resolves persisted Source by stable id even when its key is renamed', () => {

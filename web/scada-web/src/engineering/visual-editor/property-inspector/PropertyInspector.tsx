@@ -30,6 +30,8 @@ export type PropertyInspectorCopy = Readonly<{
   trueLabel: string;
   falseLabel: string;
   noAsset: string;
+  transparent: string;
+  alpha: string;
   defaultState: string;
   engineeringState: string;
   mixedState: (explicitCount: number, selectionCount: number) => string;
@@ -50,6 +52,8 @@ const DEFAULT_COPY: PropertyInspectorCopy = {
   trueLabel: 'True',
   falseLabel: 'False',
   noAsset: 'No asset',
+  transparent: 'Transparent',
+  alpha: 'Alpha',
   defaultState: 'Default',
   engineeringState: 'Engineering',
   mixedState: (explicitCount, selectionCount) => `Mixed · ${explicitCount}/${selectionCount} explicit`,
@@ -58,7 +62,8 @@ const DEFAULT_COPY: PropertyInspectorCopy = {
     geometry: 'Geometry',
     appearance: 'Appearance',
     text: 'Text',
-    image: 'Image'
+    image: 'Image',
+    control: 'Control'
   }
 };
 
@@ -161,7 +166,11 @@ function PropertyField({ model, row, text, onMutationIntent }: PropertyFieldProp
   };
 
   return (
-    <div className="property-inspector__field" data-property-key={definition.key}>
+    <div
+      className="property-inspector__field"
+      data-property-key={definition.key}
+      data-editor-type={definition.type}
+    >
       <div className="property-inspector__field-heading">
         <label htmlFor={`visual-property-${definition.key}`}>{definition.key}</label>
         <span className={`property-inspector__state property-inspector__state--${row.state}`}>{stateLabel(row, text)}</span>
@@ -201,6 +210,10 @@ function EditorControl({ definition, row, text, commit, setError }: EditorContro
 
   if (definition.type === 'enum') {
     return <EnumControl definition={definition} row={row} text={text} commit={commit} />;
+  }
+
+  if (definition.type === 'color') {
+    return <ColorControl definition={definition} row={row} text={text} commit={commit} setError={setError} />;
   }
 
   return <TextualControl definition={definition} row={row} text={text} commit={commit} setError={setError} />;
@@ -243,6 +256,110 @@ function EnumControl({ definition, row, text, commit }: Omit<EditorControlProps,
       {row.state === 'mixed' ? <option value="__mixed__" disabled>{text.mixed}</option> : null}
       {definition.allowedValues.map(option => <option key={option} value={option}>{option}</option>)}
     </select>
+  );
+}
+
+function ColorControl({ definition, row, text, commit, setError }: EditorControlProps) {
+  const displayValue = row.state === 'mixed'
+    ? formatPropertyInspectorValue(row.defaultValue)
+    : formatPropertyInspectorValue(row.value ?? row.defaultValue);
+  const [draft, setDraft] = useState(displayValue);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    setDraft(displayValue);
+    setDirty(false);
+  }, [displayValue]);
+
+  const applyDraft = () => {
+    if (!dirty) return;
+    const parsed = parsePropertyInspectorInput(definition, draft);
+    if (!parsed.ok) {
+      setError(parsed.error);
+      return;
+    }
+    if (commit(parsed.value)) setDirty(false);
+  };
+
+  const pickerColor = colorPickerValue(draft || displayValue);
+  const alpha = colorAlphaPercent(draft || displayValue);
+
+  return (
+    <div className="property-inspector__color-control">
+      <div className="property-inspector__color-row">
+        <input
+          id={`visual-property-${definition.key}`}
+          className="property-inspector__color-picker"
+          type="color"
+          value={pickerColor}
+          disabled={!definition.engineeringEditable}
+          aria-label={`${definition.key} color`}
+          onChange={event => {
+            const next = withColorAlpha(event.currentTarget.value, alpha);
+            setDraft(next);
+            setDirty(false);
+            commit(next);
+          }}
+        />
+        <input
+          className="property-inspector__color-text"
+          type="text"
+          value={row.state === 'mixed' && !dirty ? '' : draft}
+          placeholder={row.state === 'mixed' ? text.mixed : '#RRGGBB or #RRGGBBAA'}
+          disabled={!definition.engineeringEditable}
+          onChange={event => {
+            setDraft(event.currentTarget.value);
+            setDirty(true);
+            setError(null);
+          }}
+          onBlur={applyDraft}
+          onKeyDown={event => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              applyDraft();
+              event.currentTarget.blur();
+            }
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              setDraft(displayValue);
+              setDirty(false);
+              setError(null);
+              event.currentTarget.blur();
+            }
+          }}
+        />
+      </div>
+      <label className="property-inspector__alpha-control">
+        <span>{text.alpha}</span>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={alpha}
+          disabled={!definition.engineeringEditable}
+          onChange={event => {
+            const next = withColorAlpha(pickerColor, Number(event.currentTarget.value));
+            setDraft(next);
+            setDirty(false);
+            commit(next);
+          }}
+        />
+        <output>{alpha}%</output>
+      </label>
+      <button
+        type="button"
+        className="property-inspector__transparent"
+        disabled={!definition.engineeringEditable}
+        onClick={() => {
+          setDraft('#00000000');
+          setDirty(false);
+          commit('#00000000');
+        }}
+      >
+        {text.transparent}
+      </button>
+    </div>
   );
 }
 
@@ -291,7 +408,6 @@ function TextualControl({ definition, row, text, commit, setError }: EditorContr
       max={definition.type === 'number' ? definition.maximum : undefined}
       step={definition.type === 'number' ? (definition.integer ? 1 : 'any') : undefined}
       disabled={!definition.engineeringEditable}
-      aria-invalid={Boolean(false)}
       onChange={event => {
         setDraft(event.currentTarget.value);
         setDirty(true);
@@ -301,6 +417,24 @@ function TextualControl({ definition, row, text, commit, setError }: EditorContr
       onKeyDown={onKeyDown}
     />
   );
+}
+
+function colorPickerValue(value: string): string {
+  const match = /^#([0-9A-Fa-f]{6})(?:[0-9A-Fa-f]{2})?$/.exec(value);
+  return match ? `#${match[1]}` : '#000000';
+}
+
+function colorAlphaPercent(value: string): number {
+  const match = /^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})$/.exec(value);
+  if (!match) return 100;
+  return Math.round((Number.parseInt(match[1], 16) / 255) * 100);
+}
+
+function withColorAlpha(color: string, alphaPercent: number): string {
+  const normalizedAlpha = Math.max(0, Math.min(100, Math.round(alphaPercent)));
+  if (normalizedAlpha === 100) return color;
+  const alpha = Math.round((normalizedAlpha / 100) * 255).toString(16).padStart(2, '0').toUpperCase();
+  return `${color}${alpha}`;
 }
 
 function groupRows(rows: readonly PropertyInspectorRow[]): readonly [string, readonly PropertyInspectorRow[]][] {

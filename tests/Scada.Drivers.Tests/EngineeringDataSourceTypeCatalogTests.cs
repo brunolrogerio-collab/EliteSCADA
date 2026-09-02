@@ -41,7 +41,8 @@ public sealed class EngineeringDataSourceTypeCatalogTests
     {
         var catalog = BuildCatalog().Describe();
         var modbus = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == ModbusTcpDriverDescriptorProvider.DriverTypeId);
-        var schema = Assert.NotNull(modbus.ConfigurationSchema);
+        Assert.NotNull(modbus.ConfigurationSchema);
+        var schema = modbus.ConfigurationSchema!;
 
         Assert.Equal("communicationDriver", modbus.Kind);
         Assert.False(modbus.Capabilities.SupportsBrowse);
@@ -56,7 +57,8 @@ public sealed class EngineeringDataSourceTypeCatalogTests
     {
         var catalog = BuildCatalog().Describe();
         var modbus = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == ModbusTcpDriverDescriptorProvider.DriverTypeId);
-        var modbusSchema = Assert.NotNull(modbus.ConfigurationSchema);
+        Assert.NotNull(modbus.ConfigurationSchema);
+        var modbusSchema = modbus.ConfigurationSchema!;
         var host = Assert.Single(modbusSchema.DataSourceFields, field => field.Key == "host");
         var port = Assert.Single(modbusSchema.DataSourceFields, field => field.Key == "port");
 
@@ -69,7 +71,8 @@ public sealed class EngineeringDataSourceTypeCatalogTests
         Assert.Equal("502", port.ExampleValue);
 
         var opcUa = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == OpcUaDriverDescriptorProvider.DriverTypeId);
-        var opcUaSchema = Assert.NotNull(opcUa.ConfigurationSchema);
+        Assert.NotNull(opcUa.ConfigurationSchema);
+        var opcUaSchema = opcUa.ConfigurationSchema!;
         var endpoint = Assert.Single(opcUaSchema.DataSourceFields, field => field.Key == "endpointUrl");
         var duration = Assert.Single(opcUaSchema.DataSourceFields, field => field.Key == "sessionTimeout");
         var endpointFormat = Assert.IsType<string>(endpoint.ExpectedFormat);
@@ -85,7 +88,8 @@ public sealed class EngineeringDataSourceTypeCatalogTests
     {
         var catalog = BuildCatalog().Describe();
         var bacnet = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == BacnetDriverDescriptor.DriverType);
-        var schema = Assert.NotNull(bacnet.ConfigurationSchema);
+        Assert.NotNull(bacnet.ConfigurationSchema);
+        var schema = bacnet.ConfigurationSchema!;
 
         Assert.Equal(2, schema.SchemaVersion);
         Assert.Contains(schema.DataSourceFields, field =>

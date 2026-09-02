@@ -107,6 +107,34 @@ public sealed class EngineeringDataSourceTypeCatalogTests
     }
 
     [Fact]
+    public void Catalog_SimulationAcceptsCanonicalDemoScanInterval()
+    {
+        var catalog = BuildCatalog();
+        var described = catalog.Describe();
+        var simulation = Assert.Single(described.DataSourceTypes, x => x.TypeKey == SimulationDriverDescriptorProvider.DriverTypeId);
+        Assert.NotNull(simulation.ConfigurationSchema);
+        var schema = simulation.ConfigurationSchema!;
+        var scanInterval = Assert.Single(schema.DataSourceFields, field => field.Key == "scanIntervalMilliseconds");
+
+        Assert.Equal("integer", scanInterval.ValueKind);
+        Assert.Equal("500", scanInterval.DefaultValue);
+        Assert.Equal(10, scanInterval.Minimum);
+        Assert.Equal(600_000, scanInterval.Maximum);
+
+        var issues = catalog.Validate(new DataSourceEngineeringDto(
+            null,
+            "builtin.simulation",
+            "Simulation",
+            SimulationDriverDescriptorProvider.DriverTypeId,
+            Settings: new Dictionary<string, string>
+            {
+                ["scanIntervalMilliseconds"] = "500"
+            }));
+
+        Assert.Empty(issues);
+    }
+
+    [Fact]
     public void Validator_RejectsUnavailableTypeUnknownSettingsAndInvalidTypedValues()
     {
         var catalog = BuildCatalog();

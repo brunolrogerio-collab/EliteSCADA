@@ -24,6 +24,19 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await expect(visible).toHaveAttribute('data-editor-type', 'boolean');
   await expect(visible.getByRole('checkbox')).toBeVisible();
 
+  const horizontalFlip = inspector.locator('[data-property-key="horizontalFlip"]');
+  await expect(horizontalFlip).toHaveAttribute('data-editor-type', 'boolean');
+  await horizontalFlip.getByRole('checkbox').check();
+
+  const verticalFlip = inspector.locator('[data-property-key="verticalFlip"]');
+  await expect(verticalFlip).toHaveAttribute('data-editor-type', 'boolean');
+  await verticalFlip.getByRole('checkbox').check();
+
+  const tooltip = inspector.locator('[data-property-key="tooltip"]');
+  await expect(tooltip).toHaveAttribute('data-editor-type', 'string');
+  await tooltip.getByRole('textbox').fill('Pump station visual');
+  await tooltip.getByRole('textbox').press('Enter');
+
   const strokeStyle = inspector.locator('[data-property-key="strokeStyle"]');
   await expect(strokeStyle).toHaveAttribute('data-editor-type', 'enum');
   const strokeSelect = strokeStyle.getByRole('combobox');
@@ -52,6 +65,22 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await expect(fontFamily).toHaveAttribute('data-editor-hint', 'font-family');
   const fontInput = fontFamily.getByRole('textbox');
   await expect(fontInput).toHaveAttribute('list', /-fonts$/);
+
+  const underline = inspector.locator('[data-property-key="underline"]');
+  await expect(underline).toHaveAttribute('data-editor-type', 'boolean');
+  await expect(underline.getByRole('checkbox')).toBeVisible();
+
+  const textWrap = inspector.locator('[data-property-key="textWrap"]');
+  await expect(textWrap).toHaveAttribute('data-editor-type', 'boolean');
+  await expect(textWrap.getByRole('checkbox')).toBeChecked();
+
+  const lineHeight = inspector.locator('[data-property-key="lineHeight"]');
+  await expect(lineHeight).toHaveAttribute('data-editor-type', 'number');
+  await expect(lineHeight.getByRole('spinbutton')).toHaveValue('1.2');
+
+  const textOverflow = inspector.locator('[data-property-key="textOverflow"]');
+  await expect(textOverflow).toHaveAttribute('data-editor-type', 'enum');
+  await expect(textOverflow.getByRole('combobox').locator('option')).toHaveText(['clip', 'ellipsis']);
 
   await page.locator('[data-object-type="core.image"]').click();
   const imageObject = page.locator('[data-canvas-object-type="core.image"]').last();

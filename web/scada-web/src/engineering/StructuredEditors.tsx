@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import {
-  DataSourceEditor as BaseDataSourceEditor,
-  TagEditor as BaseTagEditor
-} from './EngineeringMutationPanels';
+import { TagEditor as BaseTagEditor } from './EngineeringMutationPanels';
+import { DataSourceCatalogEditor } from './DataSourceCatalogEditor';
+import { DataSourceMutationPanel } from './DataSourceMutationPanel';
 import { EngineeringEntityBrowser, type EngineeringEntityBrowserMessages } from './EngineeringEntityBrowser';
 import { GatewayEngineeringPanel } from './GatewayEngineeringPanel';
 import { MemoryTagSettingsPanel } from './MemoryTagSettingsPanel';
@@ -42,7 +41,8 @@ export function DataSourceEditor({ model, locale }: { model: EngineeringPackageV
         )}
         messages={browserMessages(locale, browserCopy(locale).dataSources)}
       />
-      <BaseDataSourceEditor model={model} locale={locale} />
+      <DataSourceCatalogEditor model={model} locale={locale} />
+      <DataSourceMutationPanel model={model} locale={locale} />
       <GatewayEngineeringPanel model={model} locale={locale} />
     </>
   );

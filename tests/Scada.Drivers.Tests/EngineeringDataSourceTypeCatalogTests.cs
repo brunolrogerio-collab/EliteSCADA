@@ -59,7 +59,7 @@ public sealed class EngineeringDataSourceTypeCatalogTests
             "legacy",
             "Legacy",
             "opc.da"));
-        Assert.Contains(unavailable, x => x.Code == "DATASOURCE_TYPE_UNAVAILABLE" && x.BlocksImport);
+        Assert.Contains(unavailable, x => x.Code == "DATASOURCE_TYPE_UNAVAILABLE" && x.IsError);
 
         var invalidModbus = catalog.Validate(new DataSourceEngineeringDto(
             null,
@@ -73,8 +73,8 @@ public sealed class EngineeringDataSourceTypeCatalogTests
                 ["obsoleteField"] = "do-not-reinterpret"
             }));
 
-        Assert.Contains(invalidModbus, x => x.Code == "DATASOURCE_SETTING_INVALID" && x.BlocksImport);
-        Assert.Contains(invalidModbus, x => x.Code == "DATASOURCE_SETTING_UNKNOWN" && x.BlocksImport);
+        Assert.Contains(invalidModbus, x => x.Code == "DATASOURCE_SETTING_INVALID" && x.IsError);
+        Assert.Contains(invalidModbus, x => x.Code == "DATASOURCE_SETTING_UNKNOWN" && x.IsError);
     }
 
     [Fact]

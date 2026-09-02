@@ -64,6 +64,17 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     expect(profile.body.displayName).toBe('Local Developer');
     expect(profile.body.roles).toContain('developer');
 
+    // Capture the shared E2E Demo package before first-project creation clears the
+    // host workspace. This test runs before the ordinary Chromium project and
+    // restores the package after proving the clean first-project boundary.
+    const seededEngineering = await page.evaluate(async () => {
+      const response = await fetch('/api/engineering/export/json');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(seededEngineering.status).toBe(200);
+    expect(seededEngineering.body.tags.length).toBeGreaterThan(0);
+    expect(seededEngineering.body.securityRoles.length).toBeGreaterThan(1);
+
     // Validate that the signed HttpOnly cookie is also accepted by the existing
     // realtime authentication path before a truly empty first project removes the
     // seeded Demo TAGs that would otherwise generate test messages.
@@ -90,82 +101,111 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     expect(JSON.parse(realtime).type).toBe('tagValueChanged');
 
     const firstProjectKey = page.locator('input[name="project-key"]');
-    if (await firstProjectKey.isVisible().catch(() => false)) {
-      // The first-project requirement is server/store-side. A reload with only the
-      // HttpOnly local cookie must keep the authenticated user in this setup flow.
-      await page.reload();
-      await expect(page.locator('input[name="project-key"]')).toBeVisible();
-      await expect(page.locator('input[name="bootstrap-username"]')).toHaveCount(0);
+    await expect(firstProjectKey).toBeVisible();
 
-      const projectKey = `e2e-c01-${Date.now()}`;
-      await page.locator('input[name="project-key"]').fill(projectKey);
-      await page.locator('input[name="project-name"]').fill('E2E C01 First Project');
-      await page.locator('button[type="submit"]').click();
-      await expect(page.locator('.eng-shell')).toBeVisible({ timeout: 15_000 });
+    // The first-project requirement is server/store-side. A reload with only the
+    // HttpOnly local cookie must keep the authenticated user in this setup flow.
+    await page.reload();
+    await expect(page.locator('input[name="project-key"]')).toBeVisible();
+    await expect(page.locator('input[name="bootstrap-username"]')).toHaveCount(0);
 
-      const workspace = await page.evaluate(async () => {
-        const response = await fetch('/api/engineering/workspace');
-        return { status: response.status, body: await response.json() };
+    const projectKey = 'e2e-wave03';
+    await page.locator('input[name="project-key"]').fill(projectKey);
+    await page.locator('input[name="project-name"]').fill('E2E C01 First Project');
+    await page.locator('button[type="submit"]').click();
+    await expect(page.locator('.eng-shell')).toBeVisible({ timeout: 15_000 });
+
+    const workspace = await page.evaluate(async () => {
+      const response = await fetch('/api/engineering/workspace');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(workspace.status).toBe(200);
+    expect(workspace.body.projectKey).toBe(projectKey);
+    expect(workspace.body.baseRevision).toBeGreaterThanOrEqual(1);
+    expect(workspace.body.isDirty).toBe(false);
+
+    // A genuinely new project must not persist the process Demo seeded into the
+    // in-memory host workspace. Canonical built-in Dynamos remain available as
+    // product library content, and the developer role remains so the new local
+    // Administrator is not locked out of the project it just created.
+    expect(workspace.body.tagCount).toBe(0);
+    expect(workspace.body.alarmCount).toBe(0);
+    expect(workspace.body.dataSourceCount).toBe(0);
+    expect(workspace.body.templateCount).toBe(0);
+    expect(workspace.body.equipmentCount).toBe(0);
+    expect(workspace.body.screenCount).toBe(0);
+    expect(workspace.body.popupCount).toBe(0);
+    expect(workspace.body.commandCount).toBe(0);
+    expect(workspace.body.visualAssetCount).toBe(0);
+    expect(workspace.body.dynamoCount).toBeGreaterThan(0);
+    expect(workspace.body.securityRoleCount).toBe(1);
+
+    const securityRoles = await page.evaluate(async () => {
+      const response = await fetch('/api/engineering/security-roles');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(securityRoles.status).toBe(200);
+    expect(securityRoles.body).toHaveLength(1);
+    expect(securityRoles.body[0].key).toBe('developer');
+
+    // The workspace descriptor does not expose every canonical collection.
+    // Verify the actual exported Engineering package as the persistence source of
+    // truth so stale Gateways, Reports or script references cannot hide in a
+    // supposedly empty first project.
+    const canonicalProject = await page.evaluate(async () => {
+      const response = await fetch('/api/engineering/export/json');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(canonicalProject.status).toBe(200);
+    expect(canonicalProject.body.tags).toHaveLength(0);
+    expect(canonicalProject.body.alarms).toHaveLength(0);
+    expect(canonicalProject.body.dataSources).toHaveLength(0);
+    expect(canonicalProject.body.templates).toHaveLength(0);
+    expect(canonicalProject.body.equipment).toHaveLength(0);
+    expect(canonicalProject.body.screens).toHaveLength(0);
+    expect(canonicalProject.body.popups).toHaveLength(0);
+    expect(canonicalProject.body.commands).toHaveLength(0);
+    expect(canonicalProject.body.gateways).toHaveLength(0);
+    expect(canonicalProject.body.scripts).toHaveLength(0);
+    expect(canonicalProject.body.scriptVisualEventReferences).toHaveLength(0);
+    expect(canonicalProject.body.visualAssets).toHaveLength(0);
+    expect(canonicalProject.body.reports).toHaveLength(0);
+    expect(canonicalProject.body.dynamos.length).toBeGreaterThan(0);
+    expect(canonicalProject.body.securityRoles).toHaveLength(1);
+    expect(canonicalProject.body.securityRoles[0].key).toBe('developer');
+
+    // Restore the original Demo package before the dependent Chromium project starts.
+    // Import uses the same canonical product API, then a normal save returns the
+    // workspace to a clean baseline under the configured E2E project key.
+    const restoredImport = await page.evaluate(async seededPackage => {
+      const response = await fetch('/api/engineering/import/json/apply', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(seededPackage)
       });
-      expect(workspace.status).toBe(200);
-      expect(workspace.body.projectKey).toBe(projectKey);
-      expect(workspace.body.baseRevision).toBeGreaterThanOrEqual(1);
-      expect(workspace.body.isDirty).toBe(false);
+      return { status: response.status, body: await response.json() };
+    }, seededEngineering.body);
+    expect(restoredImport.status).toBe(200);
 
-      // A genuinely new project must not persist the process Demo seeded into the
-      // in-memory host workspace. Canonical built-in Dynamos remain available as
-      // product library content, and the developer role remains so the new local
-      // Administrator is not locked out of the project it just created.
-      expect(workspace.body.tagCount).toBe(0);
-      expect(workspace.body.alarmCount).toBe(0);
-      expect(workspace.body.dataSourceCount).toBe(0);
-      expect(workspace.body.templateCount).toBe(0);
-      expect(workspace.body.equipmentCount).toBe(0);
-      expect(workspace.body.screenCount).toBe(0);
-      expect(workspace.body.popupCount).toBe(0);
-      expect(workspace.body.commandCount).toBe(0);
-      expect(workspace.body.visualAssetCount).toBe(0);
-      expect(workspace.body.dynamoCount).toBeGreaterThan(0);
-      expect(workspace.body.securityRoleCount).toBe(1);
-
-      const securityRoles = await page.evaluate(async () => {
-        const response = await fetch('/api/engineering/security-roles');
-        return { status: response.status, body: await response.json() };
+    const restoredSave = await page.evaluate(async currentProjectKey => {
+      const response = await fetch(`/api/engineering/persistence/${encodeURIComponent(currentProjectKey)}/save`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ projectName: 'E2E Wave 03 Demo Restored', savedBy: 'local-auth-e2e' })
       });
-      expect(securityRoles.status).toBe(200);
-      expect(securityRoles.body).toHaveLength(1);
-      expect(securityRoles.body[0].key).toBe('developer');
+      return { status: response.status, body: await response.json() };
+    }, projectKey);
+    expect(restoredSave.status).toBe(200);
 
-      // The workspace descriptor does not expose every canonical collection.
-      // Verify the actual exported Engineering package as the persistence source of
-      // truth so stale Gateways, Reports or script references cannot hide in a
-      // supposedly empty first project.
-      const canonicalProject = await page.evaluate(async () => {
-        const response = await fetch('/api/engineering/export/json');
-        return { status: response.status, body: await response.json() };
-      });
-      expect(canonicalProject.status).toBe(200);
-      expect(canonicalProject.body.tags).toHaveLength(0);
-      expect(canonicalProject.body.alarms).toHaveLength(0);
-      expect(canonicalProject.body.dataSources).toHaveLength(0);
-      expect(canonicalProject.body.templates).toHaveLength(0);
-      expect(canonicalProject.body.equipment).toHaveLength(0);
-      expect(canonicalProject.body.screens).toHaveLength(0);
-      expect(canonicalProject.body.popups).toHaveLength(0);
-      expect(canonicalProject.body.commands).toHaveLength(0);
-      expect(canonicalProject.body.gateways).toHaveLength(0);
-      expect(canonicalProject.body.scripts).toHaveLength(0);
-      expect(canonicalProject.body.scriptVisualEventReferences).toHaveLength(0);
-      expect(canonicalProject.body.visualAssets).toHaveLength(0);
-      expect(canonicalProject.body.reports).toHaveLength(0);
-      expect(canonicalProject.body.dynamos.length).toBeGreaterThan(0);
-      expect(canonicalProject.body.securityRoles).toHaveLength(1);
-      expect(canonicalProject.body.securityRoles[0].key).toBe('developer');
-    } else {
-      // Other parallel E2E scenarios may already have persisted a project in the
-      // shared test database. In that case local login must proceed normally.
-      await expect(page.locator('.eng-shell')).toBeVisible({ timeout: 15_000 });
-    }
+    const restoredWorkspace = await page.evaluate(async () => {
+      const response = await fetch('/api/engineering/workspace');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(restoredWorkspace.status).toBe(200);
+    expect(restoredWorkspace.body.projectKey).toBe(projectKey);
+    expect(restoredWorkspace.body.tagCount).toBeGreaterThan(0);
+    expect(restoredWorkspace.body.securityRoleCount).toBeGreaterThan(1);
+    expect(restoredWorkspace.body.isDirty).toBe(false);
 
     await expect(page.locator('.eng-sidebar')).toBeVisible();
 

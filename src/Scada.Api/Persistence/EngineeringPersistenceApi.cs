@@ -2,7 +2,9 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Gateways;
 using Scada.Engineering.Persistence;
+using Scada.Engineering.Reports;
 using Scada.Engineering.VisualAssets;
 using Scada.Persistence.PostgreSql;
 using Scada.Security.Audit;
@@ -18,6 +20,9 @@ public static class EngineeringPersistenceApi
     {
         builder.Services.TryAddSingleton<IVisualAssetEngineeringRegistry>(sp =>
             sp.GetRequiredService<EngineeringWorkspace>().VisualAssets);
+        builder.Services.TryAddSingleton<IReportEngineeringRegistry>(sp =>
+            new InMemoryReportEngineeringRegistry(
+                sp.GetRequiredService<EngineeringWorkspace>().MarkDirty));
 
         var connectionString = builder.Configuration.GetConnectionString("EliteScada");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
@@ -107,6 +112,8 @@ public static class EngineeringPersistenceApi
         group.MapPost("/projects/first", async (
             EngineeringFirstProjectRequest request,
             EngineeringWorkspace workspace,
+            IGatewayEngineeringRegistry gateways,
+            IReportEngineeringRegistry reports,
             HttpContext context,
             ApiAuthorizationService security,
             ApiAuditService audit,
@@ -153,6 +160,8 @@ public static class EngineeringPersistenceApi
                     new EngineeringSaveRequest(projectName, savedBy),
                     persistence,
                     workspace,
+                    gateways,
+                    reports,
                     cancellationToken);
 
                 await audit.RecordAsync(
@@ -497,12 +506,16 @@ public static class EngineeringPersistenceApi
         EngineeringSaveRequest request,
         IEngineeringProjectPersistenceService persistence,
         EngineeringWorkspace workspace,
+        IGatewayEngineeringRegistry gateways,
+        IReportEngineeringRegistry reports,
         CancellationToken cancellationToken = default)
     {
         await using var mutation = await workspace.AcquireMutationAsync(
             cancellationToken: cancellationToken);
 
         workspace.Clear();
+        gateways.Clear();
+        reports.Clear();
         foreach (var dynamo in BuiltinDynamoLibrary.Create())
             workspace.Assets.UpsertDynamo(dynamo);
         workspace.SecurityPolicies.UpsertRole(CreateInitialDeveloperRole());

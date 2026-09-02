@@ -22,29 +22,26 @@ public static class LocalIdentityApi
     {
         var runtime = endpoints.ServiceProvider.GetRequiredService<LocalIdentityRuntimeOptions>();
 
-        if (!runtime.Enabled)
+        endpoints.MapGet("/api/auth/config", async (HttpContext context, CancellationToken ct) =>
         {
-            endpoints.MapGet("/api/auth/config", () => Results.Ok(new
+            if (!runtime.Enabled)
             {
-                authenticationEnabled = runtime.AuthenticationEnabled,
-                localLoginEnabled = false,
-                initialAdministratorRequired = false,
-                initialAdministratorSetupAvailable = false,
-                initialAdministratorBlockedReason = (string?)null,
-                passwordPolicy = new
+                return Results.Ok(new
                 {
-                    minimumLength = LocalPasswordHasher.MinimumPasswordLength,
-                    maximumLength = LocalPasswordHasher.MaximumPasswordLength
-                }
-            }));
-            return endpoints;
-        }
+                    authenticationEnabled = runtime.AuthenticationEnabled,
+                    localLoginEnabled = false,
+                    initialAdministratorRequired = false,
+                    initialAdministratorSetupAvailable = false,
+                    initialAdministratorBlockedReason = (string?)null,
+                    passwordPolicy = new
+                    {
+                        minimumLength = LocalPasswordHasher.MinimumPasswordLength,
+                        maximumLength = LocalPasswordHasher.MaximumPasswordLength
+                    }
+                });
+            }
 
-        endpoints.MapGet("/api/auth/config", async (
-            HttpContext context,
-            LocalIdentityBootstrapService bootstrap,
-            CancellationToken ct) =>
-        {
+            var bootstrap = context.RequestServices.GetRequiredService<LocalIdentityBootstrapService>();
             var status = await ResolveBootstrapStatusAsync(context, runtime, bootstrap, ct);
             return Results.Ok(new
             {
@@ -60,6 +57,8 @@ public static class LocalIdentityApi
                 }
             });
         });
+
+        if (!runtime.Enabled) return endpoints;
 
         endpoints.MapGet("/api/auth/local-session", (HttpContext context) =>
         {

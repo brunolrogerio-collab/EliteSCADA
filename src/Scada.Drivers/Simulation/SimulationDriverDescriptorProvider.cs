@@ -23,9 +23,7 @@ public sealed class SimulationDriverDescriptorProvider : ICommunicationDriverDes
                     DriverConfigurationValueKind.Integer,
                     DisplayName: "Scan interval",
                     Description: "Simulation update interval in milliseconds.",
-                    DefaultValue: "500",
-                    Minimum: 10,
-                    Maximum: 600_000)
+                    DefaultValue: "500")
             },
             TagBindingFields: Array.Empty<DriverConfigurationFieldDescriptor>()),
         Description: "Built-in deterministic simulation driver for development and testing.");

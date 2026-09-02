@@ -118,8 +118,6 @@ public sealed class EngineeringDataSourceTypeCatalogTests
 
         Assert.Equal("integer", scanInterval.ValueKind);
         Assert.Equal("500", scanInterval.DefaultValue);
-        Assert.Equal(10, scanInterval.Minimum);
-        Assert.Equal(600_000, scanInterval.Maximum);
 
         var issues = catalog.Validate(new DataSourceEngineeringDto(
             null,

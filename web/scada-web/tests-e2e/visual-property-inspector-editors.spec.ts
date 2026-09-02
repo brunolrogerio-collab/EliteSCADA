@@ -98,7 +98,7 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
 
   const fontFamily = inspector.locator('[data-property-key="fontFamily"]');
   await expect(fontFamily).toHaveAttribute('data-editor-hint', 'font-family');
-  const fontInput = fontFamily.getByRole('textbox', { name: 'Font Family' });
+  const fontInput = fontFamily.getByRole('combobox', { name: 'Font Family' });
   await expect(fontInput).toHaveAttribute('list', /-fonts$/);
 
   const underline = inspector.locator('[data-property-key="underline"]');

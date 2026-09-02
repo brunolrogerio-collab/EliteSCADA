@@ -40,8 +40,13 @@ export type DataSourceTypeDefinition = {
 
 export type DataSourceDraftIssue = {
   fieldKey: string;
-  code: 'required' | 'integer' | 'number' | 'duration' | 'enum' | 'minimum' | 'maximum';
+  code: 'required' | 'integer' | 'number' | 'duration' | 'enum' | 'minimum' | 'maximum' | 'incompatible';
   expected?: string;
+};
+
+export type IncompatibleDataSourceConfiguration = {
+  settings: string[];
+  secretReferences: string[];
 };
 
 export function isProtectedReference(kind: string): boolean {
@@ -89,6 +94,45 @@ export function newDataSourceDraft(type?: DataSourceTypeDefinition): DataSourceE
   };
 }
 
+export function incompatibleDataSourceConfiguration(
+  source: DataSourceEngineering,
+  type: DataSourceTypeDefinition
+): IncompatibleDataSourceConfiguration {
+  const fields = new Map(
+    (type.configurationSchema?.dataSourceFields ?? []).map(field => [field.key.toLowerCase(), field] as const));
+
+  const settings = Object.keys(source.settings ?? {}).filter(key => {
+    const field = fields.get(key.toLowerCase());
+    return !field || isProtectedReference(field.valueKind);
+  });
+  const secretReferences = Object.keys(source.secretReferences ?? {}).filter(key => {
+    const field = fields.get(key.toLowerCase());
+    return !field || !isProtectedReference(field.valueKind);
+  });
+
+  return { settings, secretReferences };
+}
+
+export function removeIncompatibleDataSourceConfiguration(
+  source: DataSourceEngineering,
+  type: DataSourceTypeDefinition
+): DataSourceEngineering {
+  const fields = new Map(
+    (type.configurationSchema?.dataSourceFields ?? []).map(field => [field.key.toLowerCase(), field] as const));
+  const settings = Object.fromEntries(
+    Object.entries(source.settings ?? {}).filter(([key]) => {
+      const field = fields.get(key.toLowerCase());
+      return Boolean(field && !isProtectedReference(field.valueKind));
+    }));
+  const secretReferences = Object.fromEntries(
+    Object.entries(source.secretReferences ?? {}).filter(([key]) => {
+      const field = fields.get(key.toLowerCase());
+      return Boolean(field && isProtectedReference(field.valueKind));
+    }));
+
+  return { ...source, settings, secretReferences };
+}
+
 export function validateDataSourceDraft(
   source: DataSourceEngineering,
   type: DataSourceTypeDefinition | null
@@ -98,6 +142,12 @@ export function validateDataSourceDraft(
   if (!source.key.trim()) issues.push({ fieldKey: '$key', code: 'required' });
   if (!source.driver.trim() || !type) issues.push({ fieldKey: '$type', code: 'required' });
   if (!type) return issues;
+
+  const incompatible = incompatibleDataSourceConfiguration(source, type);
+  for (const key of incompatible.settings)
+    issues.push({ fieldKey: key, code: 'incompatible' });
+  for (const key of incompatible.secretReferences)
+    issues.push({ fieldKey: key, code: 'incompatible' });
 
   for (const field of type.configurationSchema?.dataSourceFields ?? []) {
     const values: Record<string, string> = isProtectedReference(field.valueKind)

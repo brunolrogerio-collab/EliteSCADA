@@ -3,6 +3,7 @@ namespace Scada.Security.Authentication;
 public interface ILocalIdentityStore
 {
     Task InitializeAsync(CancellationToken cancellationToken = default);
+    ValueTask<IAsyncDisposable> AcquireMutationLeaseAsync(CancellationToken cancellationToken = default);
     Task<int> CountAsync(CancellationToken cancellationToken = default);
     Task<LocalUserAccount?> FindByUsernameAsync(string username, CancellationToken cancellationToken = default);
     Task<LocalUserAccount?> FindByIdAsync(Guid id, CancellationToken cancellationToken = default);
@@ -14,10 +15,17 @@ public interface ILocalIdentityStore
 public sealed class InMemoryLocalIdentityStore : ILocalIdentityStore
 {
     private readonly object _gate = new();
+    private readonly SemaphoreSlim _mutationGate = new(1, 1);
     private readonly Dictionary<Guid, LocalUserAccount> _byId = new();
     private readonly Dictionary<string, Guid> _byUsername = new(StringComparer.OrdinalIgnoreCase);
 
     public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    public async ValueTask<IAsyncDisposable> AcquireMutationLeaseAsync(CancellationToken cancellationToken = default)
+    {
+        await _mutationGate.WaitAsync(cancellationToken);
+        return new MutationLease(_mutationGate);
+    }
 
     public Task<int> CountAsync(CancellationToken cancellationToken = default)
     {
@@ -104,5 +112,16 @@ public sealed class InMemoryLocalIdentityStore : ILocalIdentityStore
             throw new ArgumentException("Password credential is invalid.", nameof(account));
         if (account.CreatedAtUtc == default || account.UpdatedAtUtc == default || account.UpdatedAtUtc < account.CreatedAtUtc)
             throw new ArgumentException("User timestamps are invalid.", nameof(account));
+    }
+
+    private sealed class MutationLease(SemaphoreSlim gate) : IAsyncDisposable
+    {
+        private SemaphoreSlim? _gate = gate;
+
+        public ValueTask DisposeAsync()
+        {
+            Interlocked.Exchange(ref _gate, null)?.Release();
+            return ValueTask.CompletedTask;
+        }
     }
 }

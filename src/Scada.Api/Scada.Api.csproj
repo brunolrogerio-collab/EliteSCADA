@@ -13,4 +13,7 @@
     <ProjectReference Include="../Scada.Persistence.PostgreSql/Scada.Persistence.PostgreSql.csproj" />
     <ProjectReference Include="../Scada.Security/Scada.Security.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Scada.Drivers.Tests" />
+  </ItemGroup>
 </Project>

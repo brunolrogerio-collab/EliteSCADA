@@ -10,6 +10,7 @@ public enum AuditOutcome
 public static class AuditActions
 {
     // Keep these stable keys aligned with the corresponding protected API mutation/read boundaries.
+    public const string ProtectedMutationAdmission = "api.mutation.admission";
     public const string TagWrite = "tag.write";
     public const string CommandExecute = "command.execute";
     public const string AlarmAcknowledge = "alarm.acknowledge";

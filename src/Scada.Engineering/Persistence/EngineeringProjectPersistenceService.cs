@@ -132,8 +132,8 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         string? savedBy = null,
         CancellationToken cancellationToken = default)
     {
-        var package = _exchange.ExportPackage();
         var json = _exchange.ExportJson(indented: false);
+        var package = _exchange.ParseJson(json);
         var revisionAssets = BuildCurrentRevisionAssets(package);
 
         return await _store.SaveDerivedWithAssetsAsync(

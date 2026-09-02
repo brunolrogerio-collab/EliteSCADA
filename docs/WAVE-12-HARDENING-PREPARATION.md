@@ -1,12 +1,13 @@
 # Wave 12 — Hardening Preparation
 
-**Status:** READY / NOT STARTED  
+**Status:** PREPARATION COMPLETE / EXECUTION STARTED
+
 **Prepared:** 2026-09-01 BRT  
 **Entry product-code baseline:** accepted Wave 11 `main` `4ccc29cb4bb334dc473d8265f48a9c8601993413`
 
-Wave 11 issue #194 is **CLOSED / COMPLETED**. This document prepares Wave 12 for the next Coordinator. It is not implementation authority and does not itself start Wave 12.
+Wave 11 issue #194 is **CLOSED / COMPLETED**. This document prepared Wave 12 and remains the scope/acceptance reference. Wave 12 subsequently started on branch `coordination/wave12-hardening` from live `main` `a2d865c017b8b8ad804f9270e5224ac1fa620ed0`; active findings and slices are tracked in `docs/WAVE-12-HARDENING-AUDIT.md`.
 
-Documentation-only `[skip ci]` commits have advanced `main` beyond the validated product-code SHA above. The next Coordinator must therefore re-read live `main` before creating any implementation branch.
+Documentation-only `[skip ci]` commits advanced `main` beyond the validated product-code SHA above. The required live-state review was completed before the implementation branch was created.
 
 ## Objective
 
@@ -15,10 +16,10 @@ Harden the already-implemented EliteSCADA platform before Windows release packag
 ## Entry conditions
 
 - Wave 11 issue #194 accepted/closed: **SATISFIED**.
-- Issue #201 exists as the Wave 12 coordination surface: **READY / NOT STARTED**.
-- Live `main` must be re-read before any implementation branch is created.
+- Issue #201 exists as the Wave 12 coordination surface: **IN PROGRESS**.
+- Live `main` was re-read before the implementation branch was created: **SATISFIED**.
 - `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/ROADMAP.md`, this handoff preparation and live CI must agree.
-- No Wave 12 implementation branch, PR or production-code change exists at this handoff.
+- Dedicated Wave 12 branch created from the audited live `main`: **SATISFIED**.
 
 ## Hardening scope
 
@@ -43,9 +44,9 @@ Harden the already-implemented EliteSCADA platform before Windows release packag
 - no owner validation/feedback execution. Those remain Waves 14/15;
 - no private signing keys in repository, CI or product artifacts.
 
-## Coordinator start protocol
+## Coordinator start protocol (completed)
 
-When the next Coordinator deliberately starts Wave 12:
+The active Coordinator completed this protocol before starting Wave 12:
 
 1. re-read live `main`, current open issues/PRs and exact Actions state;
 2. read `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/CURRENT-COORDINATOR-HANDOFF.md`, `docs/ROADMAP.md`, this file and issue #201;
@@ -58,6 +59,6 @@ When the next Coordinator deliberately starts Wave 12:
 
 Wave 12 is complete only when identified hardening defects are either fixed with regression evidence or explicitly dispositioned with documented residual risk, exact implementation/post-main CI is green, continuity docs are synchronized, and Wave 13 receives a stable known baseline.
 
-## Handoff boundary
+## Execution boundary
 
-At preparation completion, Wave 12 has **not** executed. There is no Wave 12 implementation branch, PR, production-code change or Wave 12 CI evidence. The next Coordinator owns the explicit start decision after auditing live repository state.
+Preparation is complete and Wave 12 execution has started. Mutable branch/PR/SHA/CI state belongs in `LAST CHANGE.md`; finding status and ordered implementation slices belong in `docs/WAVE-12-HARDENING-AUDIT.md`. This preparation document continues to define scope, non-goals, protocol and completion direction.

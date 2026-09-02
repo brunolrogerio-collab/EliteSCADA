@@ -103,25 +103,12 @@ public static class EngineeringPersistenceApi
             if (string.IsNullOrWhiteSpace(request.ProjectName))
                 return Results.BadRequest(new { error = "Project name is required." });
 
-            var before = workspace.Describe();
-            var saveVersion = workspace.CaptureChangeVersion();
-            var basedOnRevision = before.ProjectKey?.Equals(projectKey, StringComparison.OrdinalIgnoreCase) == true
-                ? before.BaseRevision
-                : null;
-
-            var snapshot = await persistence.SaveCurrentDerivedAsync(
+            var snapshot = await SaveCurrentAsync(
                 projectKey,
-                request.ProjectName,
-                basedOnRevision,
-                request.SavedBy,
+                request,
+                persistence,
+                workspace,
                 cancellationToken);
-
-            workspace.AcceptSave(
-                snapshot.ProjectKey,
-                snapshot.ProjectName,
-                snapshot.Revision,
-                snapshot.SavedAtUtc,
-                saveVersion);
 
             return Results.Ok(ToMetadata(snapshot));
         });
@@ -379,6 +366,37 @@ public static class EngineeringPersistenceApi
 
     private static IEngineeringProjectPersistenceService? Resolve(HttpContext context) =>
         context.RequestServices.GetService<IEngineeringProjectPersistenceService>();
+
+    internal static async Task<EngineeringProjectSnapshot> SaveCurrentAsync(
+        string projectKey,
+        EngineeringSaveRequest request,
+        IEngineeringProjectPersistenceService persistence,
+        EngineeringWorkspace workspace,
+        CancellationToken cancellationToken = default)
+    {
+        await using var mutation = await workspace.AcquireMutationAsync(
+            cancellationToken: cancellationToken);
+        var before = workspace.Describe();
+        var saveVersion = workspace.CaptureChangeVersion();
+        var basedOnRevision = before.ProjectKey?.Equals(projectKey, StringComparison.OrdinalIgnoreCase) == true
+            ? before.BaseRevision
+            : null;
+
+        var snapshot = await persistence.SaveCurrentDerivedAsync(
+            projectKey,
+            request.ProjectName,
+            basedOnRevision,
+            request.SavedBy,
+            cancellationToken);
+
+        workspace.AcceptSave(
+            snapshot.ProjectKey,
+            snapshot.ProjectName,
+            snapshot.Revision,
+            snapshot.SavedAtUtc,
+            saveVersion);
+        return snapshot;
+    }
 
     private static IEngineeringWorkspaceCheckoutService? ResolveCheckout(HttpContext context) =>
         context.RequestServices.GetService<IEngineeringWorkspaceCheckoutService>();

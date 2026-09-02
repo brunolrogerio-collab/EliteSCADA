@@ -460,11 +460,13 @@ app.MapGet("/api/engineering/export/datasources.csv", (IEngineeringExchangeServi
     .RequireWorkspaceEngineeringRead();
 
 app.MapPost("/api/engineering/import/json/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
-{
-    using var reader = new StreamReader(request.Body, Encoding.UTF8);
-    var package = exchange.ParseJson(await reader.ReadToEndAsync());
-    return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
-}).RequireWorkspaceEngineeringRead();
+    await PreviewEngineeringImportAsync(
+        request,
+        mode,
+        exchange,
+        EngineeringImportBodyReader.ReadJsonAsync,
+        exchange.ParseJson))
+    .RequireWorkspaceEngineeringRead();
 
 app.MapPost("/api/engineering/import/json/apply", async (
     HttpRequest request,
@@ -484,17 +486,19 @@ app.MapPost("/api/engineering/import/json/apply", async (
         "json",
         async () =>
         {
-            using var reader = new StreamReader(request.Body, Encoding.UTF8);
-            return exchange.ParseJson(await reader.ReadToEndAsync());
+            var body = await EngineeringImportBodyReader.ReadJsonAsync(request, context.RequestAborted);
+            return exchange.ParseJson(body);
         });
 });
 
 app.MapPost("/api/engineering/import/tags.csv/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
-{
-    using var reader = new StreamReader(request.Body, Encoding.UTF8);
-    var package = exchange.ParseTagsCsv(await reader.ReadToEndAsync());
-    return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
-}).RequireWorkspaceEngineeringRead();
+    await PreviewEngineeringImportAsync(
+        request,
+        mode,
+        exchange,
+        EngineeringImportBodyReader.ReadCsvAsync,
+        exchange.ParseTagsCsv))
+    .RequireWorkspaceEngineeringRead();
 
 app.MapPost("/api/engineering/import/tags.csv/apply", async (
     HttpRequest request,
@@ -514,17 +518,19 @@ app.MapPost("/api/engineering/import/tags.csv/apply", async (
         "tags.csv",
         async () =>
         {
-            using var reader = new StreamReader(request.Body, Encoding.UTF8);
-            return exchange.ParseTagsCsv(await reader.ReadToEndAsync());
+            var body = await EngineeringImportBodyReader.ReadCsvAsync(request, context.RequestAborted);
+            return exchange.ParseTagsCsv(body);
         });
 });
 
 app.MapPost("/api/engineering/import/alarms.csv/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
-{
-    using var reader = new StreamReader(request.Body, Encoding.UTF8);
-    var package = exchange.ParseAlarmsCsv(await reader.ReadToEndAsync());
-    return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
-}).RequireWorkspaceEngineeringRead();
+    await PreviewEngineeringImportAsync(
+        request,
+        mode,
+        exchange,
+        EngineeringImportBodyReader.ReadCsvAsync,
+        exchange.ParseAlarmsCsv))
+    .RequireWorkspaceEngineeringRead();
 
 app.MapPost("/api/engineering/import/alarms.csv/apply", async (
     HttpRequest request,
@@ -544,17 +550,19 @@ app.MapPost("/api/engineering/import/alarms.csv/apply", async (
         "alarms.csv",
         async () =>
         {
-            using var reader = new StreamReader(request.Body, Encoding.UTF8);
-            return exchange.ParseAlarmsCsv(await reader.ReadToEndAsync());
+            var body = await EngineeringImportBodyReader.ReadCsvAsync(request, context.RequestAborted);
+            return exchange.ParseAlarmsCsv(body);
         });
 });
 
 app.MapPost("/api/engineering/import/datasources.csv/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
-{
-    using var reader = new StreamReader(request.Body, Encoding.UTF8);
-    var package = exchange.ParseDataSourcesCsv(await reader.ReadToEndAsync());
-    return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
-}).RequireWorkspaceEngineeringRead();
+    await PreviewEngineeringImportAsync(
+        request,
+        mode,
+        exchange,
+        EngineeringImportBodyReader.ReadCsvAsync,
+        exchange.ParseDataSourcesCsv))
+    .RequireWorkspaceEngineeringRead();
 
 app.MapPost("/api/engineering/import/datasources.csv/apply", async (
     HttpRequest request,
@@ -574,8 +582,8 @@ app.MapPost("/api/engineering/import/datasources.csv/apply", async (
         "datasources.csv",
         async () =>
         {
-            using var reader = new StreamReader(request.Body, Encoding.UTF8);
-            return exchange.ParseDataSourcesCsv(await reader.ReadToEndAsync());
+            var body = await EngineeringImportBodyReader.ReadCsvAsync(request, context.RequestAborted);
+            return exchange.ParseDataSourcesCsv(body);
         });
 });
 
@@ -628,6 +636,35 @@ app.Map("/ws/tags", async (
 });
 
 app.Run();
+
+static async Task<IResult> PreviewEngineeringImportAsync(
+    HttpRequest request,
+    ImportMode? mode,
+    IEngineeringExchangeService exchange,
+    Func<HttpRequest, CancellationToken, Task<string>> readAsync,
+    Func<string, EngineeringPackage> parse)
+{
+    try
+    {
+        var body = await readAsync(request, request.HttpContext.RequestAborted);
+        var package = parse(body);
+        return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
+    }
+    catch (EngineeringImportBodyTooLargeException exception)
+    {
+        return Results.Json(
+            new
+            {
+                error = "Engineering import payload exceeds its safety limit.",
+                limitBytes = exception.LimitBytes
+            },
+            statusCode: StatusCodes.Status413PayloadTooLarge);
+    }
+    catch (EngineeringImportBodyEncodingException)
+    {
+        return Results.BadRequest(new { error = "Engineering import payload must be valid UTF-8." });
+    }
+}
 
 static async Task<IResult> ApplyEngineeringImportAsync(
     HttpRequest request,
@@ -730,6 +767,45 @@ static async Task<IResult> ApplyEngineeringImportAsync(
                 ["resultingChangeVersion"] = workspace.CaptureChangeVersion().ToString(System.Globalization.CultureInfo.InvariantCulture)
             });
         return hasErrors ? Results.BadRequest(result) : Results.Ok(result);
+    }
+    catch (EngineeringImportBodyTooLargeException exception)
+    {
+        await audit.RecordAsync(
+            context,
+            authorization.Principal,
+            AuditActions.EngineeringImportApply,
+            AuditOutcome.Failed,
+            "engineering-workspace",
+            "current",
+            new Dictionary<string, string>
+            {
+                ["format"] = format,
+                ["reason"] = "request-too-large",
+                ["limitBytes"] = exception.LimitBytes.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            });
+        return Results.Json(
+            new
+            {
+                error = "Engineering import payload exceeds its safety limit.",
+                limitBytes = exception.LimitBytes
+            },
+            statusCode: StatusCodes.Status413PayloadTooLarge);
+    }
+    catch (EngineeringImportBodyEncodingException)
+    {
+        await audit.RecordAsync(
+            context,
+            authorization.Principal,
+            AuditActions.EngineeringImportApply,
+            AuditOutcome.Failed,
+            "engineering-workspace",
+            "current",
+            new Dictionary<string, string>
+            {
+                ["format"] = format,
+                ["reason"] = "invalid-utf8"
+            });
+        return Results.BadRequest(new { error = "Engineering import payload must be valid UTF-8." });
     }
     catch (EngineeringWorkspaceVersionConflictException conflict)
     {

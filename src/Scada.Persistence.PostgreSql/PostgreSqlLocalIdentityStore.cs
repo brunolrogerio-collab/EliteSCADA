@@ -6,6 +6,8 @@ namespace Scada.Persistence.PostgreSql;
 
 public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDisposable
 {
+    private const long MutationAdvisoryLockKey = 4993446713136202562;
+
     private const string InitializeSql = """
         SELECT pg_advisory_xact_lock(4993446713136202561);
 
@@ -59,6 +61,29 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
         await using var command = new NpgsqlCommand(InitializeSql, connection, transaction);
         await command.ExecuteNonQueryAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+    }
+
+    public async ValueTask<IAsyncDisposable> AcquireMutationLeaseAsync(CancellationToken cancellationToken = default)
+    {
+        var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        NpgsqlTransaction? transaction = null;
+        try
+        {
+            transaction = await connection.BeginTransactionAsync(cancellationToken);
+            await using var command = new NpgsqlCommand(
+                "SELECT pg_advisory_xact_lock(@lock_key);",
+                connection,
+                transaction);
+            command.Parameters.AddWithValue("lock_key", NpgsqlDbType.Bigint, MutationAdvisoryLockKey);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            return new MutationLease(connection, transaction);
+        }
+        catch
+        {
+            if (transaction is not null) await transaction.DisposeAsync();
+            await connection.DisposeAsync();
+            throw;
+        }
     }
 
     public async Task<int> CountAsync(CancellationToken cancellationToken = default)
@@ -194,4 +219,28 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
     }
 
     public ValueTask DisposeAsync() => _dataSource.DisposeAsync();
+
+    private sealed class MutationLease(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction) : IAsyncDisposable
+    {
+        private NpgsqlConnection? _connection = connection;
+        private NpgsqlTransaction? _transaction = transaction;
+
+        public async ValueTask DisposeAsync()
+        {
+            var transactionToDispose = Interlocked.Exchange(ref _transaction, null);
+            var connectionToDispose = Interlocked.Exchange(ref _connection, null);
+            try
+            {
+                if (transactionToDispose is not null)
+                    await transactionToDispose.DisposeAsync();
+            }
+            finally
+            {
+                if (connectionToDispose is not null)
+                    await connectionToDispose.DisposeAsync();
+            }
+        }
+    }
 }

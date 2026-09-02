@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Scada.Persistence.PostgreSql;
 using Scada.Security.Authentication;
 
@@ -12,34 +11,81 @@ public sealed record LocalIdentityRuntimeOptions(
 
 public sealed class LocalLoginAttemptLimiter
 {
-    private readonly ConcurrentDictionary<string, AttemptWindow> _windows = new(StringComparer.Ordinal);
+    private readonly object _gate = new();
+    private readonly Dictionary<string, AttemptWindow> _windows = new(StringComparer.Ordinal);
     private readonly int _permitLimit;
     private readonly TimeSpan _window;
+    private readonly TimeSpan _cleanupInterval;
+    private DateTimeOffset? _nextCleanupAtUtc;
 
-    public LocalLoginAttemptLimiter(int permitLimit = 10, TimeSpan? window = null)
+    public LocalLoginAttemptLimiter(
+        int permitLimit = 10,
+        TimeSpan? window = null,
+        TimeSpan? cleanupInterval = null)
     {
         if (permitLimit < 1) throw new ArgumentOutOfRangeException(nameof(permitLimit));
+
         _permitLimit = permitLimit;
         _window = window ?? TimeSpan.FromMinutes(1);
+        if (_window <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(window));
+
+        _cleanupInterval = cleanupInterval ?? _window;
+        if (_cleanupInterval <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(cleanupInterval));
     }
 
     public bool TryAcquire(string key, DateTimeOffset? nowUtc = null)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
         var now = nowUtc ?? DateTimeOffset.UtcNow;
-        var window = _windows.GetOrAdd(key, _ => new AttemptWindow(now, 0));
 
-        lock (window)
+        lock (_gate)
         {
-            if (now - window.StartedAtUtc >= _window)
+            CleanupExpiredWindowsIfDue(now);
+
+            if (!_windows.TryGetValue(key, out var attemptWindow))
             {
-                window.StartedAtUtc = now;
-                window.Count = 0;
+                attemptWindow = new AttemptWindow(now, 0);
+                _windows.Add(key, attemptWindow);
+            }
+            else if (now - attemptWindow.StartedAtUtc >= _window)
+            {
+                attemptWindow.StartedAtUtc = now;
+                attemptWindow.Count = 0;
             }
 
-            if (window.Count >= _permitLimit) return false;
-            window.Count++;
+            if (attemptWindow.Count >= _permitLimit) return false;
+            attemptWindow.Count++;
             return true;
         }
+    }
+
+    internal int TrackedKeyCount
+    {
+        get
+        {
+            lock (_gate) return _windows.Count;
+        }
+    }
+
+    private void CleanupExpiredWindowsIfDue(DateTimeOffset now)
+    {
+        if (_nextCleanupAtUtc is not null && now < _nextCleanupAtUtc.Value) return;
+
+        _nextCleanupAtUtc = now + _cleanupInterval;
+        if (_windows.Count == 0) return;
+
+        List<string>? expiredKeys = null;
+        foreach (var pair in _windows)
+        {
+            if (now - pair.Value.StartedAtUtc < _window) continue;
+            expiredKeys ??= new List<string>();
+            expiredKeys.Add(pair.Key);
+        }
+
+        if (expiredKeys is null) return;
+        foreach (var expiredKey in expiredKeys)
+            _windows.Remove(expiredKey);
     }
 
     private sealed class AttemptWindow(DateTimeOffset startedAtUtc, int count)
@@ -133,7 +179,12 @@ public static class LocalIdentityConfiguration
             LocalPasswordHasher.Hash(password),
             now,
             now);
-        await store.CreateAsync(account);
+
+        await using (var mutationLease = await store.AcquireMutationLeaseAsync())
+        {
+            if (await store.CountAsync() > 0) return;
+            await store.CreateAsync(account);
+        }
 
         app.Logger.LogWarning(
             "Created first local EliteSCADA identity '{Username}' from bootstrap configuration. Remove the bootstrap password from deployment configuration after successful initialization.",

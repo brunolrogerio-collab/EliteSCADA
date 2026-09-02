@@ -184,6 +184,49 @@ public sealed class ProjectPackageTests
         Assert.Throws<InvalidDataException>(() => service.Inspect(withExtra));
     }
 
+    [Fact]
+    public void ExportLimits_AcceptExactImportBoundaries()
+    {
+        ProjectPackageService.ValidateExportLimits(
+            ProjectPackageService.MaximumEngineeringBytes,
+            ProjectPackageService.MaximumPayloadFiles,
+            ProjectPackageService.MaximumPackageBytes - ProjectPackageService.MaximumManifestBytes,
+            ProjectPackageService.MaximumManifestBytes);
+    }
+
+    [Fact]
+    public void ExportLimits_RejectEngineeringPayloadImporterWouldReject()
+    {
+        Assert.Throws<InvalidDataException>(() =>
+            ProjectPackageService.ValidateExportLimits(
+                ProjectPackageService.MaximumEngineeringBytes + 1L,
+                1,
+                ProjectPackageService.MaximumEngineeringBytes + 1L,
+                1));
+    }
+
+    [Fact]
+    public void ExportLimits_RejectPayloadCountImporterWouldReject()
+    {
+        Assert.Throws<InvalidDataException>(() =>
+            ProjectPackageService.ValidateExportLimits(
+                1,
+                ProjectPackageService.MaximumPayloadFiles + 1,
+                1,
+                1));
+    }
+
+    [Fact]
+    public void ExportLimits_RejectUncompressedContentImporterWouldReject()
+    {
+        Assert.Throws<InvalidDataException>(() =>
+            ProjectPackageService.ValidateExportLimits(
+                1,
+                1,
+                ProjectPackageService.MaximumPackageBytes,
+                1));
+    }
+
     private static byte[] TamperEngineeringPayload(byte[] packageBytes)
     {
         using var input = new MemoryStream(packageBytes);

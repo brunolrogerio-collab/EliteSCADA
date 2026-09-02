@@ -288,7 +288,7 @@ public sealed class HistoricalQueryCoreTests
                 .Select(_ => Row("timestamp", HistoricalQueryValue.FromDateTime(Now)))
                 .ToArray(),
             null);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.QueryAsync(
+        await Assert.ThrowsAsync<HistoricalQueryProviderException>(() => service.QueryAsync(
             new HistoricalQueryRequest(
                 HistoricalDatasets.HistorianSamples,
                 HistoricalTimeRange.Relative(3600),

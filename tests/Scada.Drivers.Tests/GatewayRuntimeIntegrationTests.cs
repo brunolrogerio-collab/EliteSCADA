@@ -227,11 +227,24 @@ public sealed class GatewayRuntimeIntegrationTests
         Assert.True(activation.Activated, Describe(activation));
 
         await WaitForAsync(() => Int16Value(runtime, destinationId) == 21, TimeSpan.FromSeconds(2));
-        await Task.Delay(350);
+        var baseline = Assert.Single(runtime.GatewayDiagnostics());
+        Assert.NotNull(baseline.LastSuccessfulTransferAtUtc);
+        var targetTransferCount = baseline.TransferCount + 2;
+
+        await WaitForAsync(
+            () => Assert.Single(runtime.GatewayDiagnostics()).TransferCount >= targetTransferCount,
+            TimeSpan.FromSeconds(2));
+
         var diagnostic = Assert.Single(runtime.GatewayDiagnostics());
         Assert.Equal(GatewayTransferMode.Periodic, diagnostic.TransferMode);
         Assert.Equal(100, diagnostic.EffectiveIntervalMilliseconds);
-        Assert.InRange(diagnostic.TransferCount, 3, 8);
+        Assert.True(diagnostic.TransferCount >= targetTransferCount);
+        Assert.NotNull(diagnostic.LastSuccessfulTransferAtUtc);
+
+        var observedCadence = diagnostic.LastSuccessfulTransferAtUtc.Value - baseline.LastSuccessfulTransferAtUtc.Value;
+        Assert.True(
+            observedCadence >= TimeSpan.FromMilliseconds(180),
+            $"Expected two additional 100 ms periodic transfers to span at least 180 ms, but observed {observedCadence.TotalMilliseconds:F0} ms.");
 
         await runtime.WriteAsync(sourceId, (short)35);
         await WaitForAsync(() => Int16Value(runtime, destinationId) == 35, TimeSpan.FromSeconds(1));
@@ -336,13 +349,13 @@ public sealed class GatewayRuntimeIntegrationTests
         string source,
         string address,
         bool readOnly) => new(
-            id,
-            path.Split('.').Last(),
-            path,
-            TagDataType.Int16,
-            Source: source,
-            Address: address,
-            ReadOnly: readOnly);
+        id,
+        path.Split('.').Last(),
+        path,
+        TagDataType.Int16,
+        Source: source,
+        Address: address,
+        ReadOnly: readOnly);
 
     private static GatewayRouteEngineeringDto Route(
         string key,

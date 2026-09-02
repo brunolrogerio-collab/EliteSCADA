@@ -4,6 +4,7 @@ using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
+using Scada.Engineering.VisualAssets;
 
 namespace Scada.Core.Tests;
 
@@ -35,6 +36,26 @@ public sealed class EngineeringProjectPersistenceServiceTests
 
         var parsed = exchange.ParseJson(snapshot.EngineeringJson);
         Assert.Contains(parsed.Tags, x => x.Path == "Plant.P01.Pressure");
+    }
+
+    [Fact]
+    public async Task SaveCurrentAsync_DerivesSnapshotMetadataFromPersistedJson()
+    {
+        var tags = new InMemoryTagRegistry();
+        tags.Register(TagDefinition.Create("Pressure", "Plant.Pressure", TagDataType.Double));
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var exchange = new TrackingEngineeringExchangeService(
+            new EngineeringExchangeService(tags, alarms));
+        var service = new EngineeringProjectPersistenceService(
+            exchange,
+            new FakeEngineeringProjectStore());
+
+        var snapshot = await service.SaveCurrentAsync("plant-a", "Plant A");
+
+        Assert.Equal(1, exchange.ExportJsonCalls);
+        Assert.Equal(1, exchange.ParseJsonCalls);
+        Assert.Equal(0, exchange.ExportPackageCalls);
+        Assert.Single(exchange.ParseJson(snapshot.EngineeringJson).Tags);
     }
 
     [Fact]
@@ -262,6 +283,55 @@ public sealed class EngineeringProjectPersistenceServiceTests
         Assert.Null(await service.PublishRevisionAsync("missing", 99, "supervisor"));
         Assert.Null(await service.RecordActivationAsync("missing", 99, "operator"));
         Assert.Null(await service.LoadPublishedAsync("missing"));
+    }
+
+    private sealed class TrackingEngineeringExchangeService(IEngineeringExchangeService inner)
+        : IEngineeringExchangeService
+    {
+        public int ExportPackageCalls { get; private set; }
+        public int ExportJsonCalls { get; private set; }
+        public int ParseJsonCalls { get; private set; }
+
+        public EngineeringPackage ExportPackage()
+        {
+            ExportPackageCalls++;
+            return inner.ExportPackage();
+        }
+
+        public string ExportJson(bool indented = true)
+        {
+            ExportJsonCalls++;
+            return inner.ExportJson(indented);
+        }
+
+        public string ExportTagsCsv() => inner.ExportTagsCsv();
+        public string ExportAlarmsCsv() => inner.ExportAlarmsCsv();
+        public string ExportDataSourcesCsv() => inner.ExportDataSourcesCsv();
+
+        public EngineeringPackage ParseJson(string json)
+        {
+            ParseJsonCalls++;
+            return inner.ParseJson(json);
+        }
+
+        public EngineeringPackage ParseTagsCsv(string csv) => inner.ParseTagsCsv(csv);
+        public EngineeringPackage ParseAlarmsCsv(string csv) => inner.ParseAlarmsCsv(csv);
+        public EngineeringPackage ParseDataSourcesCsv(string csv) => inner.ParseDataSourcesCsv(csv);
+        public ImportPreview Preview(EngineeringPackage package, ImportMode mode) => inner.Preview(package, mode);
+
+        public ImportPreview Preview(
+            EngineeringPackage package,
+            ImportMode mode,
+            EngineeringImportContext? context) =>
+            inner.Preview(package, mode, context);
+
+        public ImportResult Apply(EngineeringPackage package, ImportMode mode) => inner.Apply(package, mode);
+
+        public ImportResult Apply(
+            EngineeringPackage package,
+            ImportMode mode,
+            EngineeringImportContext? context) =>
+            inner.Apply(package, mode, context);
     }
 
     private sealed class FakeEngineeringProjectStore : IEngineeringProjectStore

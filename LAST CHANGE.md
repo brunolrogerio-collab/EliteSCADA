@@ -1,11 +1,44 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-02 (BRT)  
-**Operational state:** **WAVE 12 #201 COMPLETE / ACCEPTED; WAVE 14 #211 ACTIVE WITH FIRST CORRECTION INTAKE CLOSED AND DELEGATION PACKAGES READY; TEST PREVIEW #208/#210 ACTIVE AS VALIDATION HARNESS; WAVE 13 #205/#207 PAUSED AT GREEN CHECKPOINT**
+**Operational state:** **WAVE 12 #201 COMPLETE / ACCEPTED; WAVE 14 #211 ACTIVE WITH DEDICATED INTEGRATION PR #212 AND STAGE A DEVS DISPATCHED; TEST PREVIEW #208/#210 ACTIVE AS VALIDATION HARNESS; WAVE 13 #205/#207 PAUSED AT GREEN CHECKPOINT**
 
 > Mutable Coordinator resume point. `PROJECT GOAL.md` governs permanent product intent. Live GitHub refs and exact-SHA CI override copied prose. Documentation-only `[skip ci]` commits may advance `main` beyond the latest validated product-code SHA without superseding that product baseline.
 
 ## 1. What changed in this synchronization
+
+### Wave 14 correction integration started
+
+Live GitHub was revalidated before branch creation:
+
+- `main`: `edbdf446ea657713bdc487be91bf10bfcd03c684`;
+- issue #211: open with the first correction intake closed;
+- issue #208 / draft PR #210: open Preview harness, head `0ab6e80c1c47a78b0bd33b07424d906b5f847faa`;
+- exact Preview-head validation: Test Preview #14 / `33654310816`, EliteSCADA CI #1137 / `33654310731` and Wave 11 Active HMI Runtime #67 / `33654311040` — all **SUCCESS**;
+- issue #205 / draft PR #207: still paused/open/draft, head `fda87ba4445127c174f6ea533a6bcabaabc7bb20`.
+
+The coordinator created the dedicated branch `wave14/corrections-integration` and draft PR #212, separate from Preview PR #210.
+
+Pinned Stage A DEV base:
+
+`c6bd4c4d09dc902f1571750e95b7f0460ba3b77a`
+
+That base starts from live `main` `edbdf446...` and contains only the already-proven Script Engineering correction transferred from Preview with source provenance retained:
+
+- integration fix commit `26afb0f9a8022f55737a50fabf6d28c44deb0fbd`, sourced from `cd7fca14d9b23b2f40417dcc282520728a095905`;
+- integration test commit `c6bd4c4d09dc902f1571750e95b7f0460ba3b77a`, sourced from validated Preview SHA `6304144a1beab6d4f3b4cf41b95fd16b5b82ba25`.
+
+Stage A branches were created from that exact base and assigned as bounded workstreams:
+
+- `wave14/c01-secure-first-run`;
+- `wave14/c02-driver-catalog-forms`;
+- `wave14/c03-dnp3-unrestricted-adapter`;
+- `wave14/c05-visual-property-inspector`;
+- `wave14/c06-engineering-tag-monitor`.
+
+No package DEV may merge directly to `main` or use PR #210 as a feature bucket. The coordinator owns integration through #212 and C10.
+
+### Previous correction-plan synchronization
 
 The Development Lead completed the first Wave 14 owner-correction intake and requested that work be organized for multiple independent DEV chats/agents under one new coordinator.
 
@@ -61,6 +94,8 @@ Do not reopen accepted Wave 11/12 architecture without a demonstrated defect.
 ## 4. Wave 14 correction packages
 
 Canonical package plan: `docs/WAVE14-CORRECTION-PACKAGES.md`.
+
+Current execution checkpoint: Stage A C01/C02/C03/C05/C06 is in progress on the dedicated branches recorded above, all pinned to base `c6bd4c4d09dc902f1571750e95b7f0460ba3b77a`. C04/C07/C08/C09 have not been dispatched yet because their prerequisite/common-Web bases are not stable. C10 remains coordinator-owned.
 
 ### Stage A — may start in parallel
 
@@ -210,11 +245,11 @@ If W14-C03 succeeds before the installer/release, verify that the selected produ
 
 ## 10. Exact next action
 
-1. re-fetch live GitHub state;
-2. establish/confirm a dedicated Wave 14 correction integration workstream from an exact pinned base rather than expanding Preview PR #210 into a feature bucket;
-3. incorporate the already-proven Script Engineering correction from #210 as appropriate;
-4. dispatch Stage A DEV packages C01/C02/C03/C05/C06;
-5. integrate exact-head green work only in dependency order;
-6. run real Codespace/browser owner validation after integration;
-7. use issue #211 as correction/acceptance evidence ledger;
-8. establish one accepted corrected Wave 14 product baseline before final Wave 13 signing resumes.
+1. keep draft PR #212 exact-head CI under observation;
+2. review each Stage A DEV candidate against its fixed package scope and exact base;
+3. publish package commits/PR evidence without allowing direct merges to `main`;
+4. stabilize C02 and C05 contracts, then dispatch C04 and C07;
+5. dispatch C08 only after C04/C05 interfaces are stable and C09 only after a common Web integration base is frozen;
+6. integrate exact-head green work through #212 in dependency order;
+7. run affected specialized workflows and real Codespace/browser owner validation on the integrated SHA;
+8. record evidence in issue #211 and establish one accepted corrected Wave 14 product baseline before final Wave 13 signing resumes.

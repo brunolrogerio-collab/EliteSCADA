@@ -53,9 +53,11 @@ Vite development mode supplies COOP/COEP headers and proxies `/api`, `/health`, 
 
 Wave 13 does not yet have a demonstrated need for MSI/MSIX/WiX/Inno lifecycle semantics. Selecting an installer before launch/storage/service/update requirements exist would add installation policy without product need.
 
-The initial Wave 13 acceptance artifact is therefore a versioned ZIP distribution:
+The initial Wave 13 acceptance output is therefore two versioned ZIP roles derived from one fully verified signed release set:
 
-- Windows x64;
+- customer product: `EliteSCADA-<version>-win-x64.zip`;
+- separate authority tool: `EliteSCADA-LicenseGenerator-<version>-win-x64.zip`;
+- both Windows x64;
 - self-contained .NET product host;
 - built React/Pyodide static payload;
 - no target-machine Node/Vite dependency;
@@ -101,9 +103,11 @@ The intended signing authority is a protected organizational signing service or 
 
 Correct release order:
 
-`build Web -> publish win-x64 binaries -> protected Authenticode signing -> verify signature/publisher/RFC3161 trusted timestamp -> finalize manifest over signed bytes -> verify -> deterministic ZIP package`
+`build Web -> publish win-x64 binaries -> preserve exact unsigned candidate -> protected Authenticode signing -> compare signed return to unsigned input -> verify signature/publisher/RFC3161 trusted timestamp -> finalize manifest over signed bytes -> verify -> deterministic role-specific ZIP packages -> verify trusted package SHA-256 and extracted content again`
 
 Hashes describe the signed bytes, never the unsigned candidate.
+
+The signed-return comparison allows only the PE checksum, PE Security Directory and the final aligned Authenticode certificate-table append to differ. Non-PE bytes must be identical, and the signer must neither rebuild nor substitute a PE.
 
 ## Manifest / verifier contract
 
@@ -119,7 +123,11 @@ The deterministic release manifest includes or requires:
 - Authenticode requirement for every PE;
 - expected publisher identity;
 - trusted timestamp requirement with `RFC3161` protocol;
+- actual signer and timestamp-certificate Subjects/thumbprints;
+- cryptographically verified RFC3161 timestamp instant and token SHA-256;
 - DNP3 dependency/commercial-gate state.
+
+The package verifier also requires a package SHA-256 supplied from the trusted release acceptance record before extracting anything. A `.sha256` sidecar is transport evidence, not a substitute for the trusted acceptance record.
 
 Verification is fail-closed for:
 
@@ -131,6 +139,9 @@ Verification is fail-closed for:
 - wrong publisher;
 - missing trusted timestamp;
 - missing RFC3161 timestamp token;
+- RFC3161 token that does not cryptographically bind to the Authenticode `SignerInfo`;
+- signed-return PE changes outside Authenticode signing fields or any non-PE byte change;
+- package hash mismatch, traversal, duplicate/case-colliding or Windows-unsafe ZIP paths;
 - private signing material in the release;
 - commercial-distribution authorization while the DNP3 gate is blocked.
 
@@ -177,7 +188,8 @@ No release tooling may label a blocked package as commercially authorized.
 - unsigned CI candidate artifact;
 - explicit protected signing input/output contract;
 - no private key material in normal CI;
-- signed-return finalization and verification workflow.
+- signed-return finalization, derivation checking and role-specific package verification tooling;
+- provider-specific protected signing integration remains pending until the organizational authority/certificate is selected.
 
 ### W13-S4 — packaged-product regressions
 
@@ -205,4 +217,6 @@ No release tooling may label a blocked package as commercially authorized.
 
 Repository-side release engineering can establish the unsigned candidate, manifest/verifier, package composition and protected-signing boundary without holding a private Authenticode key.
 
-Wave 13 cannot be declared accepted until a real protected signing authority is configured, an exact expected publisher identity is known, required PE files are returned correctly Authenticode-signed with RFC3161 trusted timestamps, and the resulting signed package passes the full verifier and packaged-product regressions.
+Implemented branch evidence already covers unsigned-candidate build, packaged Web/Pyodide hosting, graphical License Generator startup, local login, Demo/machine request, built-in Dynamos, Runtime Driver surface, `.escadapkg` export/inspect/import preview, content/hash negative cases, signed-return structural derivation checks and unsafe ZIP rejection. Persisted-configuration and full canonical Active-HMI regression still require confirmation against the final signed artifact, even though the specialized Wave 11 Runtime workflow continues to guard the product contract on the same source head.
+
+Wave 13 cannot be declared accepted until a real protected signing authority is configured, an exact expected publisher identity is known, required PE files are returned correctly Authenticode-signed with RFC3161 trusted timestamps, and both resulting signed package roles pass the full verifier and final packaged-product regressions.

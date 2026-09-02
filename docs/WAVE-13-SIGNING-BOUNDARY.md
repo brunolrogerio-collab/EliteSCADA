@@ -67,6 +67,8 @@ The protected boundary receives one exact Wave 13 unsigned candidate produced by
 
 The signer must not rebuild the product. Rebuilding would create different bytes outside the accepted source/build evidence. The signing boundary signs the submitted PE files and returns those signed bytes.
 
+The original unsigned candidate must be retained independently for return verification. Source SHA alone is not permission to accept a newly rebuilt PE from the signer.
+
 ## 5. PE signing rule
 
 All PE files discovered in the candidate are part of the signing/verification surface. The current single-file design is expected to expose at least:
@@ -86,10 +88,14 @@ No final package hash or release manifest is generated before signing, because A
 
 After the signed return:
 
-1. `Complete-WindowsSignedRelease.ps1` validates candidate provenance and moves metadata to `signed-return`;
-2. `New-WindowsReleaseManifest.ps1` hashes the signed bytes and records publisher/RFC3161 requirements;
-3. `Test-WindowsRelease.ps1` validates hashes, content allowlist, Authenticode trust, exact publisher, timestamp certificate and RFC3161 token;
-4. `New-WindowsReleasePackage.ps1` re-runs verification and creates the deterministic ZIP plus SHA-256 record.
+1. `Complete-WindowsSignedRelease.ps1` compares the return with the retained unsigned candidate, rejects any inventory/non-PE change and permits PE differences only in Authenticode checksum/Security Directory/final certificate-table append;
+2. it replaces candidate metadata with explicit `signed-return` release metadata;
+3. `New-WindowsReleaseManifest.ps1` hashes the signed bytes and records actual signer/timestamp certificate evidence plus the cryptographically verified RFC3161 timestamp/token hash;
+4. `Test-WindowsRelease.ps1` validates hashes, content allowlist, Authenticode trust, exact publisher, certificate evidence and the RFC3161 token binding to the PE `SignerInfo`;
+5. `New-WindowsReleasePackage.ps1` re-runs full verification and creates either the deterministic customer-product ZIP or the separate License Generator authority ZIP;
+6. `Test-WindowsReleasePackage.ps1` requires a trusted expected package SHA-256 before bounded extraction and re-verifies the selected role.
+
+The `.sha256` sidecar produced beside a package is a convenient transport record. Acceptance must copy its value into a trusted issue/release/workflow record; a sidecar traveling with an untrusted ZIP is not an independent trust anchor.
 
 ## 7. Fail-closed release conditions
 
@@ -100,10 +106,12 @@ No final package is accepted if any of the following is true:
 - undeclared content is present;
 - an unexpected PE exists;
 - a manifest hash differs;
+- the signed return modifies any non-PE byte or modifies a PE outside Authenticode signing fields;
 - required Authenticode is missing/invalid;
 - certificate publisher differs from the expected Subject;
 - trusted timestamp evidence is missing;
-- the signature lacks an RFC3161 timestamp token;
+- the signature lacks a cryptographically valid RFC3161 timestamp token bound to its `SignerInfo`;
+- ZIP hash, path canonicalization, extraction bounds or role-specific content verification fails;
 - private signing material appears in the candidate/release;
 - metadata claims commercial distribution while the DNP3 gate remains blocked.
 
@@ -118,6 +126,7 @@ Wave 13 acceptance records, without private material:
 - publisher Subject;
 - signer certificate thumbprint/chain evidence available from the signing/verification run;
 - RFC3161 timestamp evidence;
+- trusted product and authority package SHA-256 values;
 - exact workflow/run IDs;
 - post-merge `main` SHA and required CI results.
 
@@ -128,3 +137,30 @@ The current product graph contains Step Function I/O `dnp3` 1.6.0. Authenticode 
 While `dnp3CommercialGate` is `blocked`, the signed package may be used only as a controlled technical release artifact within the applicable licensing constraints and must remain `commercialDistributionAuthorized: false`.
 
 Commercial distribution requires recorded commercial clearance from Step Function or an approved/revalidated replacement.
+
+## 10. Provider-neutral completion commands
+
+After the organizational signer returns a separate signed directory, the verification operator uses trusted values from the release authorization record:
+
+```powershell
+./scripts/release/Complete-WindowsSignedRelease.ps1 `
+  -UnsignedCandidateRoot <retained-unsigned-candidate> `
+  -SignedReturnRoot <protected-signer-return> `
+  -OutputRoot <verified-signed-release> `
+  -ExpectedSourceSha <40-character-source-sha> `
+  -ExpectedPublisher '<exact-certificate-subject>'
+
+./scripts/release/New-WindowsReleasePackage.ps1 `
+  -ReleaseRoot <verified-signed-release> `
+  -ExpectedSourceSha <40-character-source-sha> `
+  -ExpectedPublisher '<exact-certificate-subject>' `
+  -PackageRole product
+
+./scripts/release/New-WindowsReleasePackage.ps1 `
+  -ReleaseRoot <verified-signed-release> `
+  -ExpectedSourceSha <40-character-source-sha> `
+  -ExpectedPublisher '<exact-certificate-subject>' `
+  -PackageRole authority
+```
+
+Provider-specific authentication/action YAML is intentionally absent until the Development Lead chooses the protected signing authority and supplies the exact public certificate identity. That external choice must not be replaced with an exportable PFX in normal CI.

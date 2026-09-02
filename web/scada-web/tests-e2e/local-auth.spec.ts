@@ -135,6 +135,32 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
       expect(securityRoles.status).toBe(200);
       expect(securityRoles.body).toHaveLength(1);
       expect(securityRoles.body[0].key).toBe('developer');
+
+      // The workspace descriptor does not expose every canonical collection.
+      // Verify the actual exported Engineering package as the persistence source of
+      // truth so stale Gateways, Reports or script references cannot hide in a
+      // supposedly empty first project.
+      const canonicalProject = await page.evaluate(async () => {
+        const response = await fetch('/api/engineering/export/json');
+        return { status: response.status, body: await response.json() };
+      });
+      expect(canonicalProject.status).toBe(200);
+      expect(canonicalProject.body.tags).toHaveLength(0);
+      expect(canonicalProject.body.alarms).toHaveLength(0);
+      expect(canonicalProject.body.dataSources).toHaveLength(0);
+      expect(canonicalProject.body.templates).toHaveLength(0);
+      expect(canonicalProject.body.equipment).toHaveLength(0);
+      expect(canonicalProject.body.screens).toHaveLength(0);
+      expect(canonicalProject.body.popups).toHaveLength(0);
+      expect(canonicalProject.body.commands).toHaveLength(0);
+      expect(canonicalProject.body.gateways).toHaveLength(0);
+      expect(canonicalProject.body.scripts).toHaveLength(0);
+      expect(canonicalProject.body.scriptVisualEventReferences).toHaveLength(0);
+      expect(canonicalProject.body.visualAssets).toHaveLength(0);
+      expect(canonicalProject.body.reports).toHaveLength(0);
+      expect(canonicalProject.body.dynamos.length).toBeGreaterThan(0);
+      expect(canonicalProject.body.securityRoles).toHaveLength(1);
+      expect(canonicalProject.body.securityRoles[0].key).toBe('developer');
     } else {
       // Other parallel E2E scenarios may already have persisted a project in the
       // shared test database. In that case local login must proceed normally.

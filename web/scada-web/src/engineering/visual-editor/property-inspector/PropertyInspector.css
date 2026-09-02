@@ -56,6 +56,25 @@
   border-bottom: 0;
 }
 
+.property-inspector__field-label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.08rem;
+}
+
+.property-inspector__field-label label {
+  font-weight: 600;
+}
+
+.property-inspector__field-label code {
+  overflow: hidden;
+  font-size: 0.68rem;
+  opacity: 0.58;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .property-inspector__field input[type='text'],
 .property-inspector__field input[type='number'],
 .property-inspector__field select {

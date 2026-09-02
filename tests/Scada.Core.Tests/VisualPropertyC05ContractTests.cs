@@ -8,26 +8,26 @@ public sealed class VisualPropertyC05ContractTests
     public void BuiltinSchemas_ExposeExtendedC05PropertiesWithCanonicalConstraints()
     {
         var rectangle = BuiltinVisualObjectSchemas.Rectangle;
-        Assert.Equal(false, Assert.IsType<VisualBooleanValue>(rectangle.GetRequired(VisualPropertyKeys.HorizontalFlip).DefaultValue).Value);
-        Assert.Equal(false, Assert.IsType<VisualBooleanValue>(rectangle.GetRequired(VisualPropertyKeys.VerticalFlip).DefaultValue).Value);
+        Assert.False(Assert.IsType<VisualBooleanValue>(rectangle.GetRequired(VisualPropertyKeys.HorizontalFlip).DefaultValue).Value);
+        Assert.False(Assert.IsType<VisualBooleanValue>(rectangle.GetRequired(VisualPropertyKeys.VerticalFlip).DefaultValue).Value);
         Assert.Equal(string.Empty, Assert.IsType<VisualStringValue>(rectangle.GetRequired(VisualPropertyKeys.Tooltip).DefaultValue).Value);
 
         var stroke = rectangle.GetRequired(VisualPropertyKeys.StrokeStyle);
         Assert.Equal(
-            ["none", "solid", "dashed", "dotted", "dash-dot", "dash-dot-dot"],
+            new[] { "none", "solid", "dashed", "dotted", "dash-dot", "dash-dot-dot" },
             stroke.Constraints.AllowedValues);
 
         var text = BuiltinVisualObjectSchemas.Text;
-        Assert.Equal(false, Assert.IsType<VisualBooleanValue>(text.GetRequired(VisualPropertyKeys.Underline).DefaultValue).Value);
-        Assert.Equal(true, Assert.IsType<VisualBooleanValue>(text.GetRequired(VisualPropertyKeys.TextWrap).DefaultValue).Value);
+        Assert.False(Assert.IsType<VisualBooleanValue>(text.GetRequired(VisualPropertyKeys.Underline).DefaultValue).Value);
+        Assert.True(Assert.IsType<VisualBooleanValue>(text.GetRequired(VisualPropertyKeys.TextWrap).DefaultValue).Value);
 
         var lineHeight = text.GetRequired(VisualPropertyKeys.LineHeight);
-        Assert.Equal(1.2, Assert.IsType<VisualNumberValue>(lineHeight.DefaultValue).Value);
-        Assert.Equal(0.1, lineHeight.Constraints.Minimum);
-        Assert.Equal(10, lineHeight.Constraints.Maximum);
+        Assert.Equal(1.2d, Assert.IsType<VisualNumberValue>(lineHeight.DefaultValue).Value);
+        Assert.Equal(0.1d, lineHeight.Constraints.Minimum!.Value);
+        Assert.Equal(10d, lineHeight.Constraints.Maximum!.Value);
 
         var overflow = text.GetRequired(VisualPropertyKeys.TextOverflow);
-        Assert.Equal(["clip", "ellipsis"], overflow.Constraints.AllowedValues);
+        Assert.Equal(new[] { "clip", "ellipsis" }, overflow.Constraints.AllowedValues);
         Assert.Equal("font-family", text.GetRequired(VisualPropertyKeys.FontFamily).PresentationHint);
 
         var asset = BuiltinVisualObjectSchemas.Image.GetRequired(VisualPropertyKeys.AssetRef);

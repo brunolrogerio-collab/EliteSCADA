@@ -69,3 +69,48 @@ jobs:
 
       - name: Verify native host artifact
         run: test -x build/dnp3/EliteScada.Dnp3Host
+
+  native-windows:
+    name: Native OpenDNP3 host build (Windows x64)
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure pinned OpenDNP3 host
+        shell: pwsh
+        run: cmake -S native/dnp3 -B build/dnp3 -A x64
+
+      - name: Build native host
+        shell: pwsh
+        run: cmake --build build/dnp3 --config Release --target EliteScada.Dnp3Host --parallel 2
+
+      - name: Inspect native dependency graph
+        shell: pwsh
+        run: |
+          $exe = Resolve-Path 'build/dnp3/Release/EliteScada.Dnp3Host.exe'
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installation = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $installation) { throw 'Visual Studio C++ toolchain was not found.' }
+          $vcvars = Join-Path $installation 'VC\Auxiliary\Build\vcvars64.bat'
+          $command = '"' + $vcvars + '" && dumpbin /DEPENDENTS "' + $exe.Path + '"'
+          $dependencies = cmd /c $command
+          $dependencies | Tee-Object -FilePath build/dnp3/windows-dependencies.txt
+          if ($LASTEXITCODE -ne 0) { throw 'dumpbin dependency inspection failed.' }
+          if ($dependencies -match '(?i)(libssl|libcrypto|opendnp3\.dll)') {
+            throw 'Windows DNP3 host unexpectedly depends on OpenSSL or a shared OpenDNP3 DLL.'
+          }
+          Get-FileHash $exe.Path -Algorithm SHA256 | Format-List | Out-File build/dnp3/windows-sha256.txt
+          Get-Content build/dnp3/windows-sha256.txt
+
+      - name: Upload Windows native host evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: c03-opendnp3-windows-x64
+          path: |
+            build/dnp3/Release/EliteScada.Dnp3Host.exe
+            build/dnp3/windows-dependencies.txt
+            build/dnp3/windows-sha256.txt
+          if-no-files-found: error
+          retention-days: 14

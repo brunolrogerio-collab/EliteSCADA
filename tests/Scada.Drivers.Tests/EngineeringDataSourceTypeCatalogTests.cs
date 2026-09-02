@@ -1,6 +1,7 @@
 using Scada.Core.Sources;
 using Scada.DriverHost.Engineering;
 using Scada.Drivers.Modbus;
+using Scada.Drivers.OpcUa;
 using Scada.Drivers.Simulation;
 using Scada.Engineering.Contracts;
 
@@ -50,6 +51,30 @@ public sealed class EngineeringDataSourceTypeCatalogTests
     }
 
     [Fact]
+    public void Catalog_ProvidesHumanLabelsExpectedFormatsAndExamples()
+    {
+        var catalog = BuildCatalog().Describe();
+        var modbus = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == ModbusTcpDriverDescriptorProvider.DriverTypeId);
+        var modbusSchema = Assert.NotNull(modbus.ConfigurationSchema);
+        var host = Assert.Single(modbusSchema.DataSourceFields, field => field.Key == "host");
+        var port = Assert.Single(modbusSchema.DataSourceFields, field => field.Key == "port");
+
+        Assert.Equal("Host", host.DisplayName);
+        Assert.Contains("DNS", host.ExpectedFormat, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("192.168.1.10", host.ExampleValue);
+        Assert.Contains("port", port.ExpectedFormat, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("502", port.ExampleValue);
+
+        var opcUa = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == OpcUaDriverDescriptorProvider.DriverTypeId);
+        var opcUaSchema = Assert.NotNull(opcUa.ConfigurationSchema);
+        var endpoint = Assert.Single(opcUaSchema.DataSourceFields, field => field.Key == "endpointUrl");
+        var duration = Assert.Single(opcUaSchema.DataSourceFields, field => field.Key == "sessionTimeout");
+        Assert.Contains("URL", endpoint.ExpectedFormat, StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith("opc.tcp://", endpoint.ExampleValue, StringComparison.Ordinal);
+        Assert.Contains("hh:mm:ss", duration.ExpectedFormat, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Validator_RejectsUnavailableTypeUnknownSettingsAndInvalidTypedValues()
     {
         var catalog = BuildCatalog();
@@ -75,6 +100,37 @@ public sealed class EngineeringDataSourceTypeCatalogTests
 
         Assert.Contains(invalidModbus, x => x.Code == "DATASOURCE_SETTING_INVALID" && x.IsError);
         Assert.Contains(invalidModbus, x => x.Code == "DATASOURCE_SETTING_UNKNOWN" && x.IsError);
+    }
+
+    [Fact]
+    public void Validator_AcceptsCanonicalTimeSpanDurationAndRejectsInvalidDuration()
+    {
+        var catalog = BuildCatalog();
+        var validSettings = new Dictionary<string, string>
+        {
+            ["endpointUrl"] = "opc.tcp://192.0.2.20:4840",
+            ["securityPolicyUri"] = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
+            ["sessionTimeout"] = "00:01:00"
+        };
+
+        var valid = catalog.Validate(new DataSourceEngineeringDto(
+            null,
+            "opc",
+            "OPC UA",
+            OpcUaDriverDescriptorProvider.DriverTypeId,
+            Settings: validSettings));
+        Assert.Empty(valid);
+
+        validSettings["sessionTimeout"] = "60000";
+        var invalid = catalog.Validate(new DataSourceEngineeringDto(
+            null,
+            "opc",
+            "OPC UA",
+            OpcUaDriverDescriptorProvider.DriverTypeId,
+            Settings: validSettings));
+        Assert.Contains(invalid, issue =>
+            issue.Code == "DATASOURCE_SETTING_INVALID" &&
+            issue.Message.Contains("00:00:05", StringComparison.Ordinal));
     }
 
     [Fact]

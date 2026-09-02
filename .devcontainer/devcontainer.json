@@ -4,6 +4,7 @@
   "service": "app",
   "workspaceFolder": "/workspaces/EliteSCADA",
   "shutdownAction": "stopCompose",
+  "initializeCommand": "bash .devcontainer/initialize-preview-machine-id.sh",
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
       "version": "24"

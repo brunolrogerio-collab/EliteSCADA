@@ -4,6 +4,7 @@ services:
     command: sleep infinity
     volumes:
       - ..:/workspaces/EliteSCADA:cached
+      - ../.preview/machine-id:/etc/machine-id:ro
     depends_on:
       timescaledb:
         condition: service_healthy

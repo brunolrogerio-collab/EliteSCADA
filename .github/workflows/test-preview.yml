@@ -67,6 +67,9 @@ jobs:
         with:
           node-version: '24.19.0'
 
+      - name: Prepare disposable Codespaces machine identity
+        run: bash .devcontainer/initialize-preview-machine-id.sh
+
       - name: Validate devcontainer Compose
         run: docker compose -f .devcontainer/docker-compose.yml config >/dev/null
 
@@ -83,12 +86,33 @@ jobs:
             exit 1
           }
 
+      - name: Verify Codespaces machine identity mount
+        shell: bash
+        run: |
+          set -euo pipefail
+          cleanup() {
+            docker compose -f .devcontainer/docker-compose.yml down -v >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker compose -f .devcontainer/docker-compose.yml up -d app
+          docker compose -f .devcontainer/docker-compose.yml exec -T app sh -lc '
+            set -eu
+            test -s /etc/machine-id
+            machine_id="$(tr -d "[:space:]-" < /etc/machine-id | tr "[:upper:]" "[:lower:]")"
+            printf "%s" "$machine_id" | grep -Eq "^[0-9a-f]{32}$"
+            test "$machine_id" != "00000000000000000000000000000000"
+          '
+
       - name: Verify Codespaces automatic Preview launch contract
         run: |
           node <<'NODE'
           const fs = require('fs');
           const config = JSON.parse(fs.readFileSync('.devcontainer/devcontainer.json', 'utf8'));
+          const expectedInitializer = 'bash .devcontainer/initialize-preview-machine-id.sh';
           const expectedLauncher = 'bash scripts/preview/launch-test-preview.sh';
+          if (config.initializeCommand !== expectedInitializer) {
+            throw new Error(`initializeCommand must be exactly: ${expectedInitializer}`);
+          }
           if (config.postAttachCommand !== expectedLauncher) {
             throw new Error(`postAttachCommand must be exactly: ${expectedLauncher}`);
           }

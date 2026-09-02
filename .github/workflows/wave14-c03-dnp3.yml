@@ -1,0 +1,53 @@
+name: Wave 14 C03 DNP3 Adapter
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - wave14/c03-dnp3-unrestricted-adapter
+    paths:
+      - "src/Scada.Drivers.Dnp3.OpenDnp3/**"
+      - "src/Scada.Drivers/Dnp3/**"
+      - "tests/Scada.Drivers.Tests/**"
+      - "docs/WAVE14-C03-DNP3-PRODUCTION-ADAPTER.md"
+      - ".github/workflows/wave14-c03-dnp3.yml"
+  pull_request:
+    branches:
+      - wave14/corrections-integration
+    paths:
+      - "src/Scada.Drivers.Dnp3.OpenDnp3/**"
+      - "src/Scada.DriverHost/**"
+      - "src/Scada.Drivers/Dnp3/**"
+      - "tests/Scada.Drivers.Tests/**"
+      - "native/dnp3/**"
+      - "docs/WAVE14-C03-DNP3-PRODUCTION-ADAPTER.md"
+      - ".github/workflows/wave14-c03-dnp3.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  managed-spike:
+    name: Managed adapter build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+
+      - name: Restore DNP3 tests
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+
+      - name: Build DNP3 tests
+        run: dotnet build tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release
+
+      - name: Run OpenDNP3 managed protocol tests
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter FullyQualifiedName~OpenDnp3HostProtocolTests --verbosity normal
+
+      - name: Run DNP3 convergence tests
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter FullyQualifiedName~Dnp3CoordinatorConvergenceTests --verbosity normal

@@ -9,6 +9,7 @@ internal sealed record OpenDnp3HostReadyMessage : OpenDnp3HostMessage;
 internal sealed record OpenDnp3HostStateMessage(Dnp3SessionState State) : OpenDnp3HostMessage;
 internal sealed record OpenDnp3HostMeasurementMessage(Dnp3Measurement Measurement) : OpenDnp3HostMessage;
 internal sealed record OpenDnp3HostCommandMessage(long RequestId, Dnp3CommandResult Result) : OpenDnp3HostMessage;
+internal sealed record OpenDnp3HostDiagnosticMessage(string Kind) : OpenDnp3HostMessage;
 
 internal static class OpenDnp3HostProtocol
 {
@@ -29,6 +30,7 @@ internal static class OpenDnp3HostProtocol
             "STATE" => ParseState(parts),
             "MEASUREMENT" => ParseMeasurement(parts),
             "COMMAND" => ParseCommand(parts),
+            "DIAGNOSTIC" => ParseDiagnostic(parts),
             _ => throw new FormatException($"Unsupported OpenDNP3 host message '{parts[1]}'.")
         };
     }
@@ -95,6 +97,13 @@ internal static class OpenDnp3HostProtocol
         if (parts.Length != 3 || !Enum.TryParse<Dnp3SessionState>(parts[2], true, out var state))
             throw new FormatException("STATE message contains an invalid session state.");
         return new OpenDnp3HostStateMessage(state);
+    }
+
+    private static OpenDnp3HostMessage ParseDiagnostic(string[] parts)
+    {
+        if (parts.Length != 3 || string.IsNullOrWhiteSpace(parts[2]))
+            throw new FormatException("DIAGNOSTIC message contains an invalid kind.");
+        return new OpenDnp3HostDiagnosticMessage(parts[2]);
     }
 
     private static OpenDnp3HostMessage ParseCommand(string[] parts)

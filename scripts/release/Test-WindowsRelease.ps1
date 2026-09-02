@@ -22,6 +22,81 @@ function Test-PortableExecutable {
     }
 }
 
+function Test-Rfc3161TimestampToken {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    Add-Type -AssemblyName System.Security.Cryptography.Pkcs
+    $rfc3161Oid = '1.2.840.113549.1.9.16.2.14'
+    $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    $reader = [IO.BinaryReader]::new($stream)
+    try {
+        if ($stream.Length -lt 0x40) { return $false }
+        $stream.Position = 0x3c
+        $peOffset = $reader.ReadUInt32()
+        if ($peOffset + 24 -gt $stream.Length) { return $false }
+
+        $stream.Position = $peOffset
+        if ($reader.ReadUInt32() -ne 0x00004550) { return $false }
+        $stream.Position = $peOffset + 20
+        $optionalHeaderSize = $reader.ReadUInt16()
+        $optionalHeaderOffset = $peOffset + 24
+        if ($optionalHeaderOffset + $optionalHeaderSize -gt $stream.Length) { return $false }
+
+        $stream.Position = $optionalHeaderOffset
+        $magic = $reader.ReadUInt16()
+        $dataDirectoryOffset = switch ($magic) {
+            0x10b { $optionalHeaderOffset + 96 }
+            0x20b { $optionalHeaderOffset + 112 }
+            default { return $false }
+        }
+
+        $securityDirectoryOffset = $dataDirectoryOffset + (4 * 8)
+        if ($securityDirectoryOffset + 8 -gt $optionalHeaderOffset + $optionalHeaderSize) { return $false }
+        $stream.Position = $securityDirectoryOffset
+        $certificateTableOffset = $reader.ReadUInt32()
+        $certificateTableSize = $reader.ReadUInt32()
+        if ($certificateTableOffset -eq 0 -or $certificateTableSize -lt 8) { return $false }
+        if ([uint64]$certificateTableOffset + [uint64]$certificateTableSize -gt [uint64]$stream.Length) { return $false }
+
+        $position = [uint64]$certificateTableOffset
+        $end = $position + [uint64]$certificateTableSize
+        while ($position + 8 -le $end) {
+            $stream.Position = [int64]$position
+            $length = $reader.ReadUInt32()
+            $revision = $reader.ReadUInt16()
+            $certificateType = $reader.ReadUInt16()
+            if ($length -lt 8 -or $position + $length -gt $end) { return $false }
+
+            if ($certificateType -eq 0x0002) {
+                $contentLength = [int]$length - 8
+                $content = $reader.ReadBytes($contentLength)
+                try {
+                    $cms = [System.Security.Cryptography.Pkcs.SignedCms]::new()
+                    $cms.Decode($content)
+                    foreach ($signerInfo in $cms.SignerInfos) {
+                        foreach ($attribute in $signerInfo.UnsignedAttributes) {
+                            if ($attribute.Oid.Value -eq $rfc3161Oid) {
+                                return $true
+                            }
+                        }
+                    }
+                }
+                catch [System.Security.Cryptography.CryptographicException] {
+                    # Keep scanning other WIN_CERTIFICATE records; WinTrust remains the validity authority.
+                }
+            }
+
+            $position += ([uint64]$length + 7) -band (-bnot [uint64]7)
+        }
+
+        return $false
+    }
+    finally {
+        $reader.Dispose()
+        $stream.Dispose()
+    }
+}
+
 $root = (Resolve-Path -LiteralPath $ReleaseRoot).Path
 $manifestFullPath = (Resolve-Path -LiteralPath $ManifestPath).Path
 $manifest = Get-Content -LiteralPath $manifestFullPath -Raw | ConvertFrom-Json
@@ -129,6 +204,9 @@ foreach ($pathKey in ($byPath.Keys | Sort-Object)) {
         }
         if ($null -eq $signature.TimeStamperCertificate) {
             throw "Trusted timestamp evidence is missing for $pathKey."
+        }
+        if (-not (Test-Rfc3161TimestampToken -Path $file.FullName)) {
+            throw "RFC3161 signature timestamp token is missing for $pathKey. Legacy Authenticode countersignatures are not accepted."
         }
     }
 }

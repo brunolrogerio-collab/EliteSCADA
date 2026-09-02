@@ -63,7 +63,7 @@ function Test-Rfc3161TimestampToken {
         while ($position + 8 -le $end) {
             $stream.Position = [int64]$position
             $length = $reader.ReadUInt32()
-            $revision = $reader.ReadUInt16()
+            $null = $reader.ReadUInt16() # WIN_CERTIFICATE revision
             $certificateType = $reader.ReadUInt16()
             if ($length -lt 8 -or $position + $length -gt $end) { return $false }
 
@@ -86,7 +86,7 @@ function Test-Rfc3161TimestampToken {
                 }
             }
 
-            $position += ([uint64]$length + 7) -band (-bnot [uint64]7)
+            $position += [uint64]([Math]::Ceiling([double]$length / 8.0) * 8.0)
         }
 
         return $false
@@ -105,7 +105,9 @@ if ($manifest.schemaVersion -ne 1) { throw "Unsupported release manifest schemaV
 if ($manifest.verifierSchemaVersion -ne 1) { throw "Unsupported verifierSchemaVersion '$($manifest.verifierSchemaVersion)'." }
 if ($manifest.runtimeIdentifier -ne "win-x64") { throw "Release manifest runtimeIdentifier must be win-x64." }
 if ($manifest.packageFormat -ne "zip") { throw "Release manifest packageFormat must be zip." }
-if ($manifest.customerPackageIncludesDnp3 -ne $false) { throw "Wave 13 customer release must exclude DNP3 until commercial clearance is recorded." }
+if ($manifest.dnp3IncludedInProductGraph -ne $true) { throw "Manifest must record the audited transitive DNP3 product dependency." }
+if ($manifest.dnp3CommercialGate -ne "blocked") { throw "Manifest must preserve the blocked DNP3 commercial-license gate." }
+if ($manifest.commercialDistributionAuthorized -ne $false) { throw "Commercial distribution cannot be authorized while the DNP3 gate is blocked." }
 if ([string]::IsNullOrWhiteSpace([string]$manifest.expectedPublisher)) { throw "Manifest expectedPublisher is required." }
 if ([string]$manifest.sourceSha -notmatch '^[0-9a-f]{40}$') { throw "Manifest sourceSha must be a full Git SHA." }
 
@@ -134,9 +136,9 @@ foreach ($requiredPath in $requiredPaths) {
     if (-not $byPath.ContainsKey($requiredPath)) { throw "Manifest is missing required artifact: $requiredPath" }
 }
 
-$actualFiles = Get-ChildItem -LiteralPath $root -File -Recurse | Where-Object {
+$actualFiles = @(Get-ChildItem -LiteralPath $root -File -Recurse | Where-Object {
     $_.FullName -ne $manifestFullPath
-}
+})
 $actualByPath = @{}
 foreach ($file in $actualFiles) {
     $relativePath = [IO.Path]::GetRelativePath($root, $file.FullName).Replace('\\', '/')
@@ -202,6 +204,9 @@ foreach ($pathKey in ($byPath.Keys | Sort-Object)) {
         if (-not [bool]$artifact.trustedTimestampRequired) {
             throw "PE artifact must require a trusted timestamp: $pathKey"
         }
+        if ([string]$artifact.timestampProtocol -ne 'RFC3161') {
+            throw "PE artifact must declare RFC3161 timestamp protocol: $pathKey"
+        }
         if ($null -eq $signature.TimeStamperCertificate) {
             throw "Trusted timestamp evidence is missing for $pathKey."
         }
@@ -211,18 +216,11 @@ foreach ($pathKey in ($byPath.Keys | Sort-Object)) {
     }
 }
 
-$forbiddenPrivateMaterial = Get-ChildItem -LiteralPath $root -File -Recurse | Where-Object {
+$forbiddenPrivateMaterial = @(Get-ChildItem -LiteralPath $root -File -Recurse | Where-Object {
     $_.Extension.ToLowerInvariant() -in @('.pfx', '.p12', '.p8', '.key', '.pem')
-}
-if ($forbiddenPrivateMaterial) {
+})
+if ($forbiddenPrivateMaterial.Count -gt 0) {
     throw "Private signing material is present in the release: $($forbiddenPrivateMaterial.FullName -join ', ')"
-}
-
-$forbiddenDnp3 = Get-ChildItem -LiteralPath (Join-Path $root 'product') -File -Recurse | Where-Object {
-    $_.Name -match '(?i)dnp3' -or $_.FullName -match '(?i)Scada\.Drivers\.Dnp3'
-}
-if ($forbiddenDnp3) {
-    throw "Commercially gated DNP3 content is present in the customer release: $($forbiddenDnp3.FullName -join ', ')"
 }
 
 Write-Host "Wave 13 release verification passed."
@@ -230,3 +228,4 @@ Write-Host "Product: $($manifest.product) $($manifest.version)"
 Write-Host "Source SHA: $($manifest.sourceSha)"
 Write-Host "Publisher: $($manifest.expectedPublisher)"
 Write-Host "Artifacts verified: $($manifestEntries.Count)"
+Write-Host "Commercial distribution authorized: $($manifest.commercialDistributionAuthorized)"

@@ -302,7 +302,15 @@ const COMMON_VISUAL_PROPERTY_DEFINITIONS: readonly VisualPropertyDefinition[] = 
   numberProperty(VISUAL_PROPERTY_KEYS.cornerRadius, 0, { minimum: 0, animatable: true, unit: 'px', category: 'appearance' }),
   stringProperty(VISUAL_PROPERTY_KEYS.text, '', 'text'),
   colorProperty(VISUAL_PROPERTY_KEYS.textColor, '#000000', 'text'),
-  stringProperty(VISUAL_PROPERTY_KEYS.fontFamily, 'system', 'text'),
+  {
+    key: VISUAL_PROPERTY_KEYS.fontFamily,
+    type: 'string',
+    defaultValue: 'system',
+    ...COMMON_FLAGS,
+    animatable: false,
+    category: 'text',
+    presentationHint: 'font-family'
+  } satisfies StringVisualPropertyDefinition,
   numberProperty(VISUAL_PROPERTY_KEYS.fontSize, 14, { minimum: 1, animatable: true, unit: 'px', category: 'text' }),
   numberProperty(VISUAL_PROPERTY_KEYS.fontWeight, 400, { minimum: 100, maximum: 900, integer: true, category: 'text' }),
   enumProperty(VISUAL_PROPERTY_KEYS.fontStyle, 'normal', ['normal', 'italic'], 'text'),

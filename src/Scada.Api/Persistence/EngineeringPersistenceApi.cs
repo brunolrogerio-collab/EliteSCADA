@@ -148,7 +148,7 @@ public static class EngineeringPersistenceApi
                 }
 
                 var savedBy = authorization.Principal.DisplayName ?? authorization.Principal.SubjectId;
-                var snapshot = await SaveCurrentAsync(
+                var snapshot = await SaveFirstProjectAsync(
                     projectKey,
                     new EngineeringSaveRequest(projectName, savedBy),
                     persistence,
@@ -491,6 +491,47 @@ public static class EngineeringPersistenceApi
             saveVersion);
         return snapshot;
     }
+
+    internal static async Task<EngineeringProjectSnapshot> SaveFirstProjectAsync(
+        string projectKey,
+        EngineeringSaveRequest request,
+        IEngineeringProjectPersistenceService persistence,
+        EngineeringWorkspace workspace,
+        CancellationToken cancellationToken = default)
+    {
+        await using var mutation = await workspace.AcquireMutationAsync(
+            cancellationToken: cancellationToken);
+
+        workspace.Clear();
+        foreach (var dynamo in BuiltinDynamoLibrary.Create())
+            workspace.Assets.UpsertDynamo(dynamo);
+        workspace.SecurityPolicies.UpsertRole(CreateInitialDeveloperRole());
+
+        var saveVersion = workspace.CaptureChangeVersion();
+        var snapshot = await persistence.SaveCurrentDerivedAsync(
+            projectKey,
+            request.ProjectName,
+            basedOnRevision: null,
+            request.SavedBy,
+            cancellationToken);
+
+        workspace.AcceptSave(
+            snapshot.ProjectKey,
+            snapshot.ProjectName,
+            snapshot.Revision,
+            snapshot.SavedAtUtc,
+            saveVersion);
+        return snapshot;
+    }
+
+    private static SecurityRoleEngineeringDto CreateInitialDeveloperRole() => new(
+        Id: Guid.Parse("46000000-0000-0000-0000-000000000002"),
+        Key: "developer",
+        Name: "Developer",
+        Description: "Engineering/development role with all currently defined capabilities granted explicitly.",
+        Grants: Enum.GetValues<SecurityCapability>()
+            .Select(capability => new CapabilityGrantEngineeringDto(capability))
+            .ToArray());
 
     private static IEngineeringWorkspaceCheckoutService? ResolveCheckout(HttpContext context) =>
         context.RequestServices.GetService<IEngineeringWorkspaceCheckoutService>();

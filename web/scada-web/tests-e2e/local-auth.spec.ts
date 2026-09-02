@@ -41,6 +41,47 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     expect(localSession.body.authenticated).toBe(true);
     expect(localSession.body.username).toBe('local-developer');
 
+    const cookies = await context.cookies('http://127.0.0.1:5173');
+    const accessCookie = cookies.find(cookie => cookie.name === 'elitescada_access');
+    expect(accessCookie).toBeTruthy();
+    expect(accessCookie!.httpOnly).toBeTruthy();
+    expect(accessCookie!.secure).toBeFalsy();
+    expect(accessCookie!.sameSite).toBe('Strict');
+    expect(accessCookie!.value.length).toBeGreaterThan(40);
+
+    const profile = await page.evaluate(async () => {
+      const response = await fetch('/api/auth/me');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(profile.status).toBe(200);
+    expect(profile.body.displayName).toBe('Local Developer');
+    expect(profile.body.roles).toContain('developer');
+
+    // Validate that the signed HttpOnly cookie is also accepted by the existing
+    // realtime authentication path before a truly empty first project removes the
+    // seeded Demo TAGs that would otherwise generate test messages.
+    const realtime = await page.evaluate(async () => {
+      return await new Promise<string>(resolve => {
+        const socket = new WebSocket('ws://127.0.0.1:5173/ws/tags');
+        const timeout = window.setTimeout(() => {
+          socket.close();
+          resolve('timeout');
+        }, 4000);
+        socket.onmessage = event => {
+          window.clearTimeout(timeout);
+          socket.close();
+          resolve(event.data);
+        };
+        socket.onerror = () => {
+          window.clearTimeout(timeout);
+          resolve('rejected');
+        };
+      });
+    });
+    expect(realtime).not.toBe('timeout');
+    expect(realtime).not.toBe('rejected');
+    expect(JSON.parse(realtime).type).toBe('tagValueChanged');
+
     const firstProjectKey = page.locator('input[name="project-key"]');
     if (await firstProjectKey.isVisible().catch(() => false)) {
       // The first-project requirement is server/store-side. A reload with only the
@@ -94,44 +135,6 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     }
 
     await expect(page.locator('.eng-sidebar')).toBeVisible();
-
-    const cookies = await context.cookies('http://127.0.0.1:5173');
-    const accessCookie = cookies.find(cookie => cookie.name === 'elitescada_access');
-    expect(accessCookie).toBeTruthy();
-    expect(accessCookie!.httpOnly).toBeTruthy();
-    expect(accessCookie!.secure).toBeFalsy();
-    expect(accessCookie!.sameSite).toBe('Strict');
-    expect(accessCookie!.value.length).toBeGreaterThan(40);
-
-    const profile = await page.evaluate(async () => {
-      const response = await fetch('/api/auth/me');
-      return { status: response.status, body: await response.json() };
-    });
-    expect(profile.status).toBe(200);
-    expect(profile.body.displayName).toBe('Local Developer');
-    expect(profile.body.roles).toContain('developer');
-
-    const realtime = await page.evaluate(async () => {
-      return await new Promise<string>(resolve => {
-        const socket = new WebSocket('ws://127.0.0.1:5173/ws/tags');
-        const timeout = window.setTimeout(() => {
-          socket.close();
-          resolve('timeout');
-        }, 4000);
-        socket.onmessage = event => {
-          window.clearTimeout(timeout);
-          socket.close();
-          resolve(event.data);
-        };
-        socket.onerror = () => {
-          window.clearTimeout(timeout);
-          resolve('rejected');
-        };
-      });
-    });
-    expect(realtime).not.toBe('timeout');
-    expect(realtime).not.toBe('rejected');
-    expect(JSON.parse(realtime).type).toBe('tagValueChanged');
 
     const logoutStatus = await page.evaluate(async () =>
       (await fetch('/api/auth/logout', { method: 'POST' })).status);

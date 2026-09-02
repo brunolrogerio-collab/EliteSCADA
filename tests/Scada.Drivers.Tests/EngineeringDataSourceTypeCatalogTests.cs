@@ -60,18 +60,23 @@ public sealed class EngineeringDataSourceTypeCatalogTests
         var port = Assert.Single(modbusSchema.DataSourceFields, field => field.Key == "port");
 
         Assert.Equal("Host", host.DisplayName);
-        Assert.Contains("DNS", host.ExpectedFormat, StringComparison.OrdinalIgnoreCase);
+        var hostFormat = Assert.IsType<string>(host.ExpectedFormat);
+        Assert.Contains("DNS", hostFormat, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("192.168.1.10", host.ExampleValue);
-        Assert.Contains("port", port.ExpectedFormat, StringComparison.OrdinalIgnoreCase);
+        var portFormat = Assert.IsType<string>(port.ExpectedFormat);
+        Assert.Contains("port", portFormat, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("502", port.ExampleValue);
 
         var opcUa = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == OpcUaDriverDescriptorProvider.DriverTypeId);
         var opcUaSchema = Assert.NotNull(opcUa.ConfigurationSchema);
         var endpoint = Assert.Single(opcUaSchema.DataSourceFields, field => field.Key == "endpointUrl");
         var duration = Assert.Single(opcUaSchema.DataSourceFields, field => field.Key == "sessionTimeout");
-        Assert.Contains("URL", endpoint.ExpectedFormat, StringComparison.OrdinalIgnoreCase);
-        Assert.StartsWith("opc.tcp://", endpoint.ExampleValue, StringComparison.Ordinal);
-        Assert.Contains("hh:mm:ss", duration.ExpectedFormat, StringComparison.OrdinalIgnoreCase);
+        var endpointFormat = Assert.IsType<string>(endpoint.ExpectedFormat);
+        var endpointExample = Assert.IsType<string>(endpoint.ExampleValue);
+        var durationFormat = Assert.IsType<string>(duration.ExpectedFormat);
+        Assert.Contains("URL", endpointFormat, StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith("opc.tcp://", endpointExample);
+        Assert.Contains("hh:mm:ss", durationFormat, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -121,7 +126,7 @@ public sealed class EngineeringDataSourceTypeCatalogTests
             Settings: validSettings));
         Assert.Empty(valid);
 
-        validSettings["sessionTimeout"] = "60000";
+        validSettings["sessionTimeout"] = "not-a-duration";
         var invalid = catalog.Validate(new DataSourceEngineeringDto(
             null,
             "opc",

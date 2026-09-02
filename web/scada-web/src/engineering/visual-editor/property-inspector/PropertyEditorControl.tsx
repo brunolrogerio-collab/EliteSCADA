@@ -94,7 +94,6 @@ function BooleanControl({ definition, row, text, commit }: BasicEditorProps) {
         type="checkbox"
         checked={displayValue}
         disabled={!definition.engineeringEditable}
-        aria-label={definition.key}
         onChange={event => commit(event.currentTarget.checked)}
       />
       <span>{row.state === 'mixed' ? text.mixed : displayValue ? text.trueLabel : text.falseLabel}</span>
@@ -161,7 +160,6 @@ function EnumControl({ definition, row, text, commit }: BasicEditorProps) {
       id={`visual-property-${definition.key}`}
       value={value}
       disabled={!definition.engineeringEditable}
-      aria-label={definition.key}
       onChange={event => commit(event.currentTarget.value)}
     >
       {row.state === 'mixed' ? <option value="__mixed__" disabled>{text.mixed}</option> : null}
@@ -193,7 +191,6 @@ function AssetReferenceControl({
         id={`visual-property-${definition.key}`}
         value={row.state === 'mixed' ? '__mixed__' : selectedValue}
         disabled={!definition.engineeringEditable}
-        aria-label={definition.key}
         onChange={event => commit(
           event.currentTarget.value ? { assetId: event.currentTarget.value } : null
         )}
@@ -247,7 +244,6 @@ function FontFamilyControl({
         value={draft}
         placeholder={row.state === 'mixed' ? text.mixed : text.fontFamilyPlaceholder}
         disabled={!definition.engineeringEditable}
-        aria-label={definition.key}
         onChange={event => {
           setDraft(event.currentTarget.value);
           setDirty(true);
@@ -442,7 +438,6 @@ function TextualControl({
       max={definition.type === 'number' ? definition.maximum : undefined}
       step={definition.type === 'number' ? (definition.integer ? 1 : 'any') : undefined}
       disabled={!definition.engineeringEditable}
-      aria-label={definition.key}
       onChange={event => {
         setDraft(event.currentTarget.value);
         setDirty(true);

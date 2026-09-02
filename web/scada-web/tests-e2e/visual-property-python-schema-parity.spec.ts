@@ -9,7 +9,7 @@ import {
   type VisualPropertyValue
 } from '../src/visual-runtime';
 
-test('canonical visual schemas stay compatible with generic Python read/write capabilities', async () => {
+test('canonical visual schemas stay compatible with generic Python read/write/clear capabilities', async () => {
   for (const [schemaIndex, schema] of listBuiltinVisualObjectSchemas().entries()) {
     const objectId = `c05-python-object-${schemaIndex}`;
     const objectKey = `c05PythonObject${schemaIndex}`;
@@ -78,6 +78,30 @@ test('canonical visual schemas stay compatible with generic Python read/write ca
           value: scriptValue,
           source: 'script'
         });
+
+        await expect(dispatchClientVisualPythonCapability(
+          provider,
+          'visualProperty.write',
+          'clear',
+          { targetReference: objectKey, propertyKey: property.key },
+          context
+        ), `${schema.objectTypeKey}.${property.key} clear`).resolves.toMatchObject({
+          accepted: true,
+          propertyKey: property.key,
+          visualRuntimeInstanceId: instance.runtimeInstanceId
+        });
+
+        const cleared = await dispatchClientVisualPythonCapability(
+          provider,
+          'visualProperty.read',
+          'read',
+          { targetReference: objectKey, propertyKey: property.key },
+          context
+        );
+        expect(cleared, `${schema.objectTypeKey}.${property.key} clear precedence`).toEqual({
+          value: property.defaultValue,
+          source: 'engineering'
+        });
       } else {
         await expect(dispatchClientVisualPythonCapability(
           provider,
@@ -86,6 +110,14 @@ test('canonical visual schemas stay compatible with generic Python read/write ca
           { targetReference: objectKey, propertyKey: property.key, value: scriptValue },
           context
         ), `${schema.objectTypeKey}.${property.key} write policy`).rejects.toThrow(/not runtime-writable/);
+
+        await expect(dispatchClientVisualPythonCapability(
+          provider,
+          'visualProperty.write',
+          'clear',
+          { targetReference: objectKey, propertyKey: property.key },
+          context
+        ), `${schema.objectTypeKey}.${property.key} clear policy`).rejects.toThrow(/not runtime-writable/);
       }
     }
 

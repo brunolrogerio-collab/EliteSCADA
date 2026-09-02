@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Scada.Api.Engineering;
 using Scada.Api.Runtime;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Persistence;
@@ -11,6 +12,8 @@ public static class EngineeringPersistenceApi
 {
     public static void AddOptionalEngineeringPersistence(this WebApplicationBuilder builder)
     {
+        builder.AddEngineeringDriverCatalog();
+
         builder.Services.TryAddSingleton<IVisualAssetEngineeringRegistry>(sp =>
             sp.GetRequiredService<EngineeringWorkspace>().VisualAssets);
 
@@ -82,6 +85,8 @@ public static class EngineeringPersistenceApi
 
     public static void MapEngineeringPersistenceEndpoints(this WebApplication app)
     {
+        app.MapEngineeringDriverCatalogEndpoints();
+
         var group = app.MapGroup("/api/engineering/persistence");
 
         group.MapGet("/status", (HttpContext context) => Results.Ok(new

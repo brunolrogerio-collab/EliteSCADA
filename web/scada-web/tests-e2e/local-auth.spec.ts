@@ -63,6 +63,30 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
       expect(workspace.body.projectKey).toBe(projectKey);
       expect(workspace.body.baseRevision).toBeGreaterThanOrEqual(1);
       expect(workspace.body.isDirty).toBe(false);
+
+      // A genuinely new project must not persist the process Demo seeded into the
+      // in-memory host workspace. Canonical built-in Dynamos remain available as
+      // product library content, and the developer role remains so the new local
+      // Administrator is not locked out of the project it just created.
+      expect(workspace.body.tagCount).toBe(0);
+      expect(workspace.body.alarmCount).toBe(0);
+      expect(workspace.body.dataSourceCount).toBe(0);
+      expect(workspace.body.templateCount).toBe(0);
+      expect(workspace.body.equipmentCount).toBe(0);
+      expect(workspace.body.screenCount).toBe(0);
+      expect(workspace.body.popupCount).toBe(0);
+      expect(workspace.body.commandCount).toBe(0);
+      expect(workspace.body.visualAssetCount).toBe(0);
+      expect(workspace.body.dynamoCount).toBeGreaterThan(0);
+      expect(workspace.body.securityRoleCount).toBe(1);
+
+      const securityRoles = await page.evaluate(async () => {
+        const response = await fetch('/api/engineering/security-roles');
+        return { status: response.status, body: await response.json() };
+      });
+      expect(securityRoles.status).toBe(200);
+      expect(securityRoles.body).toHaveLength(1);
+      expect(securityRoles.body[0].key).toBe('developer');
     } else {
       // Other parallel E2E scenarios may already have persisted a project in the
       // shared test database. In that case local login must proceed normally.

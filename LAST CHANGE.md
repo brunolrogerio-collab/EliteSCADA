@@ -1,9 +1,9 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-01 (BRT)  
-**Operational state:** **WAVE 12 #201 IN PROGRESS — PR #202 / SLICE A + W12-PER-002 VALIDATED / W12-AUTH-001 NEXT**
+**Operational state:** **WAVE 12 #201 — REMEDIATION COMPLETE / PR #202 READY FOR MERGE / POST-MAIN CI PENDING**
 
-> Mutable Coordinator resume point. `PROJECT GOAL.md` governs permanent product intent. Live GitHub refs and exact-SHA CI override copied prose. Documentation-only `[skip ci]` commits may advance the branch beyond the latest validated product-code SHA.
+> Mutable Coordinator resume point. `PROJECT GOAL.md` governs permanent product intent. Live GitHub refs and exact-SHA CI override copied prose. Documentation-only `[skip ci]` commits may advance a branch beyond the latest validated product-code SHA.
 
 ## 1. Accepted foundation
 
@@ -17,82 +17,72 @@ Accepted Runtime authority remains:
 
 `Working -> saved Revision -> Published -> Active -> HMI Runtime`
 
-The owner-test application remains `EliteSCADA-Wave11-Demo.escadapkg`, SHA-256 `13261af59b8707df7d9ef3bbea307cb0c85d945ea8f47315fb693c92c885efa1`.
+Runtime uses persisted Active Engineering only; mutable Working never drives HMI Runtime directly.
 
-## 2. Wave 12 live execution state
+Owner-test package remains:
 
-Issue #201 is **OPEN / IN PROGRESS**.
+`EliteSCADA-Wave11-Demo.escadapkg`  
+SHA-256 `13261af59b8707df7d9ef3bbea307cb0c85d945ea8f47315fb693c92c885efa1`
 
-- branch base / live `main` at formal start: `a2d865c017b8b8ad804f9270e5224ac1fa620ed0`;
+## 2. Wave 12 integration state
+
+Issue #201 remains **OPEN** until PR #202 is merged and the required post-merge `main` validation succeeds.
+
 - branch: `coordination/wave12-hardening`;
-- draft PR: #202 — `Wave 12: harden realtime, persistence, and project ingress`;
-- active ledger: `docs/WAVE-12-HARDENING-AUDIT.md`;
-- preparation: `docs/WAVE-12-HARDENING-PREPARATION.md`.
+- branch base / `main` at Wave 12 start: `a2d865c017b8b8ad804f9270e5224ac1fa620ed0`;
+- PR #202: `Wave 12: harden realtime, persistence, and project ingress`;
+- ledger: `docs/WAVE-12-HARDENING-AUDIT.md`;
+- all identified Wave 12 findings are fixed with focused regression evidence;
+- PR must not be merged if live `main` or PR head differs from the state verified immediately before merge.
 
-Wave 12 remains a hardening wave. Wave 13 signing, Linux `.deb`, new Drivers/protocols, owner validation and physical L4 are outside this branch.
+## 3. Final pre-merge validated product-code checkpoint
 
-## 3. Validated Wave 12 checkpoint
-
-Latest validated Wave 12 **product-code** SHA:
-
-`012d15554d96af8600953a793cd58f0a5fc11c4d`
+`29141feab168fa6e33d98b0f36cdd6e79f3811d8`
 
 Exact-SHA evidence:
 
-- EliteSCADA CI #1075 / `33565105224`: **SUCCESS**, including backend build/tests/runtime smoke, Web build and Chromium E2E;
-- L3 Seven-Driver Lab #71 / `33565105291`: **SUCCESS**;
-- Preview Licensing CI #124 / `33565105254`: **SUCCESS**;
-- Wave 11 Active HMI Runtime #22 / `33565105207`: **SUCCESS**.
+- EliteSCADA CI #1093 / `33574192584`: **SUCCESS**, including backend build/tests/runtime smoke, Web build and Chromium E2E;
+- L3 Seven-Driver Lab #89 / `33574192610`: **SUCCESS**;
+- Preview Licensing CI #142 / `33574192572`: **SUCCESS**;
+- Wave 11 Active HMI Runtime #40 / `33574192580`: **SUCCESS**.
 
-The immediately preceding EliteSCADA CI #1074 at `329083a9f3273907306f4a17a99f527b382a303a` failed deterministically in one E2E because `security.spec.ts` still invoked Persistence Apply without the new required workspace-version header. The backend contract was not weakened. Commit `012d15554d96af8600953a793cd58f0a5fc11c4d` updated the caller to read `changeVersion` after checkout and send `x-elitescada-workspace-version`; #1075 then passed completely.
+The preceding AUD-001 attempt `0905ce4313122dc266444a047abeb92c8a122572` failed EliteSCADA CI #1092 at compile time only because the new regression test omitted `using Scada.Api.Runtime;`. Product code itself compiled. Commit `29141fe...` corrected only that test namespace; #1093 then passed completely.
 
-## 4. Hardening closed at this checkpoint
+## 4. Wave 12 finding ledger
 
-The initial remediation slice has regression coverage and is validated on the checkpoint above:
+All findings are now **FIXED / REGRESSION / VALIDATED**:
 
-- **W12-RT-001** — bounded per-client realtime delivery and stalled/overflowing WebSocket isolation;
-- **W12-PER-001** — one canonical Engineering snapshot and serialized Save/AcceptSave boundary;
-- **W12-ING-001** — bounded JSON/CSV ingress with deterministic rejection and sanitized errors;
-- **W12-PKG-001** — `.escadapkg` export/import resource-limit symmetry;
-- **W12-PER-002** — Persistence Apply now uses the canonical Working mutation lease and caller-observed CAS version.
+- **W12-RT-001 — High — Realtime:** bounded per-client outbound queues, isolated stalled clients and deterministic eviction; revocation retains WebSocket `1008 Policy Violation` semantics.
+- **W12-PER-001 — High — Persistence Save:** one canonical Engineering snapshot held under workspace mutation serialization through persist/AcceptSave.
+- **W12-ING-001 — High — Engineering ingress:** bounded JSON/CSV bodies, Content-Length fast rejection, streaming enforcement, strict UTF-8 and sanitized client errors.
+- **W12-PKG-001 — High — `.escadapkg`:** export limits match importer limits, preventing self-generated packages the product would reject.
+- **W12-PER-002 — High — Persistence Apply:** Working mutation lease plus caller-observed `x-elitescada-workspace-version` CAS; stale state returns conflict.
+- **W12-AUTH-001 — High — Local identities:** store-level mutation lease covers read/invariant/write, including PostgreSQL cross-process advisory locking and last-enabled-administrator preservation.
+- **W12-AUTH-002 — Medium — Login limiting:** expired remote-key state is reclaimed without evicting active lockout windows.
+- **W12-API-001 — Medium — Requests/diagnostics:** persistence request bounds and positive revisions are validated at HTTP boundary; Historical Query distinguishes typed public failures from provider/internal failures and sanitizes public diagnostics.
+- **W12-AUD-001 — High — Audit durability:** unsafe `/api` mutations require a durable append-only audit admission before endpoint execution. Store outage returns sanitized 503 and the endpoint is not invoked. Detailed post-action audit remains non-failing to avoid unsafe retries after physical effects; a prior durable admission preserves explicit ambiguity evidence if the detailed outcome cannot be buffered.
 
-A regression introduced during W12-RT-001 initially converted revocation close semantics from WebSocket 1008 to 1006. Root cause was premature cancellation of the shared connection lifetime. It was fixed without weakening the policy-close assertion and validated on `25444267e20b668a22191a662d6eeb4bef4b88d5` by EliteSCADA CI #1071 plus the specialized gates.
+## 5. Important failure history
 
-## 5. Active next finding
+Do not rerun old failures as a substitute for diagnosis:
 
-**W12-AUTH-001 — High — Local identities** is the next implementation target.
+- realtime hardening initially changed revocation from 1008 to 1006; fixed by preserving the close-frame path before cancellation;
+- Persistence Apply CAS initially broke one E2E caller that omitted the new version header; caller was corrected, contract was not relaxed;
+- AUTH-001 validation exposed a separate Modbus recovery test with a 100 ms healthy-operation timing margin; test timing was hardened while preserving recovery/write assertions;
+- API-001 validation exposed stale failure typing and runner-sensitive Gateway/realtime test watchdogs; assertions were preserved and made deterministic;
+- AUD-001 #1092 failed only from a missing test namespace and was corrected at `29141fe...`.
 
-Confirmed defect class:
+## 6. Exact next action
 
-- user update and password-reset flows perform `read -> validate -> write` as separate store operations;
-- individual store calls are thread-safe, but the logical mutation is not serialized;
-- concurrent requests can read the same prior account and overwrite each other;
-- concurrent administrator-removal/disable operations can each observe another enabled administrator and both pass the last-administrator guard.
+1. synchronize issue #201 and PR #202 to this checkpoint;
+2. verify live `main`, PR head and mergeability;
+3. move PR #202 out of draft and merge only with the exact expected head;
+4. validate the resulting `main` merge SHA with EliteSCADA CI;
+5. only after successful post-merge `main` CI, close issue #201 and record Wave 12 **COMPLETE / ACCEPTED / CLOSED**;
+6. then hand off the stable `main` baseline to Wave 13 without starting Wave 13 work in this branch.
 
-Selected remediation direction:
+## 7. Locked exclusions / gates
 
-- add a local-identity mutation lease at the store boundary;
-- InMemory uses an async process-local lease;
-- PostgreSQL uses a dedicated session advisory lock so cooperating EliteSCADA processes sharing the database serialize identity mutations;
-- hold the lease across read, invariant validation and write;
-- cover lost-update serialization and last-administrator invariants with focused regressions;
-- do not weaken authentication/authorization or move identity authority to the client.
+Wave 13 Authenticode/trusted-timestamp signing, Linux `.deb`, new Drivers/protocols, owner-validation Waves 14/15 and physical L4 remain outside Wave 12.
 
-## 6. Remaining Wave 12 findings
-
-After W12-AUTH-001:
-
-- W12-AUTH-002 — bounded login-attempt key lifecycle;
-- W12-API-001 — deterministic request validation and sanitized diagnostics;
-- W12-AUD-001 — explicit product-safe audit-outage contract; silent protected-action audit loss is not acceptable.
-
-## 7. Exact next action
-
-1. implement W12-AUTH-001 on `coordination/wave12-hardening`;
-2. add focused concurrency/invariant regression evidence;
-3. run EliteSCADA CI on the exact new product-code SHA and diagnose before any rerun;
-4. run specialized CI according to actual impact;
-5. continue the remaining ledger findings before considering PR #202 merge;
-6. keep issue #201 and PR #202 open until all findings are fixed or explicitly dispositioned and final exact-SHA evidence is green.
-
-Commercial distribution remains gated by the Step Function I/O `dnp3` 1.6.0 license: obtain an appropriate commercial license or replace/revalidate the dependency before commercial inclusion of that Driver.
+Commercial distribution remains gated by Step Function I/O `dnp3` 1.6.0 licensing: obtain an appropriate commercial license or replace and revalidate the dependency before commercial inclusion of that Driver.

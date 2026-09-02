@@ -1,13 +1,13 @@
 # EliteSCADA Roadmap
 
 **Status date:** 2026-09-01 (BRT)  
-**Active direction:** **WAVE 12 — HARDENING IN PROGRESS / PR #202**
+**Active direction:** **WAVE 12 — REMEDIATION COMPLETE / INTEGRATION ACCEPTANCE PENDING**
 
 Authoritative product intent: `PROJECT GOAL.md`.  
 Mutable resume point: `LAST CHANGE.md`.  
 Operational handoff: `docs/CURRENT-COORDINATOR-HANDOFF.md`.  
 Wave 12 preparation: `docs/WAVE-12-HARDENING-PREPARATION.md`.  
-Wave 12 active ledger: `docs/WAVE-12-HARDENING-AUDIT.md`.  
+Wave 12 ledger: `docs/WAVE-12-HARDENING-AUDIT.md`.  
 CI policy: `docs/CI-VALIDATION-POLICY.md`.
 
 ## Current validated foundation
@@ -19,6 +19,7 @@ CI policy: `docs/CI-VALIDATION-POLICY.md`.
 - Repository/CI hygiene: **COMPLETE / MERGED**.
 - Wave 11 Active Engineering HMI Runtime + owner-test `.escadapkg`: **COMPLETE / ACCEPTED / CLOSED** under issue #194.
 - Accepted Wave 11 product-code baseline: `4ccc29cb4bb334dc473d8265f48a9c8601993413`.
+- Wave 12 identified hardening findings: **ALL FIXED / REGRESSION / VALIDATED** on pre-merge product-code checkpoint `29141feab168fa6e33d98b0f36cdd6e79f3811d8`.
 
 ## Ordered path to v0.1
 
@@ -36,7 +37,7 @@ Wave 10      Python visual events + animation + preview                         
 Driver L3    Seven Drivers concurrently + Gateway + fault/recovery                       PASS / ACCEPTED
 Pre-Wave 11  GUI License Generator + Slider + application file + Dynamo library          COMPLETE
 Wave 11      Active persisted Engineering HMI Runtime + owner-test package                COMPLETE / CLOSED
-Wave 12      Hardening                                                                   IN PROGRESS / #201 / PR #202
+Wave 12      Hardening                                                                   REMEDIATION COMPLETE / MERGE + POST-MAIN CI PENDING
 Wave 13      Signed Windows x64 package + Authenticode release verification              WAITING / REQUIRED
 Wave 14      Product-owner validation                                                    WAITING
 Wave 15      Feedback/corrections                                                        WAITING
@@ -45,38 +46,28 @@ Driver L4    Physical hardware/site validation                                  
 FINAL        EliteSCADA v0.1 — Full Product Validation Preview
 ```
 
-## Wave 12 checkpoint
+## Wave 12 pre-merge checkpoint
 
 Branch: `coordination/wave12-hardening`  
-Draft PR: #202  
+PR: #202  
 Branch base: `a2d865c017b8b8ad804f9270e5224ac1fa620ed0`  
-Latest validated Wave 12 product-code SHA: `012d15554d96af8600953a793cd58f0a5fc11c4d`
+Latest validated Wave 12 product-code SHA: `29141feab168fa6e33d98b0f36cdd6e79f3811d8`
 
-Exact checkpoint evidence:
+Exact evidence:
 
-- EliteSCADA CI #1075 / `33565105224`: **SUCCESS**;
-- L3 Seven-Driver Lab #71 / `33565105291`: **SUCCESS**;
-- Preview Licensing CI #124 / `33565105254`: **SUCCESS**;
-- Wave 11 Active HMI Runtime #22 / `33565105207`: **SUCCESS**.
+- EliteSCADA CI #1093 / `33574192584`: **SUCCESS**;
+- L3 Seven-Driver Lab #89 / `33574192610`: **SUCCESS**;
+- Preview Licensing CI #142 / `33574192572`: **SUCCESS**;
+- Wave 11 Active HMI Runtime #40 / `33574192580`: **SUCCESS**.
 
-Closed with regression evidence at this checkpoint:
+All Wave 12 findings are fixed and regression-covered: W12-RT-001, W12-PER-001, W12-ING-001, W12-PKG-001, W12-PER-002, W12-AUTH-001, W12-AUTH-002, W12-API-001 and W12-AUD-001.
 
-- W12-RT-001 realtime client isolation;
-- W12-PER-001 persistence Save atomicity/serialization;
-- W12-ING-001 bounded Engineering ingress;
-- W12-PKG-001 package resource-limit symmetry;
-- W12-PER-002 Persistence Apply lease/CAS parity.
-
-Next High finding: **W12-AUTH-001 local-identity mutation concurrency and last-administrator invariant**.
-
-Remaining afterward: W12-AUTH-002, W12-API-001 and W12-AUD-001.
-
-Wave 12 is not complete and PR #202 must remain unmerged until the ledger is fully fixed or explicitly dispositioned and final exact-SHA CI evidence is green.
+Wave 12 is accepted only after PR #202 integration and successful post-merge universal CI on the resulting `main` SHA. Issue #201 therefore remains open until that boundary is met.
 
 ## Quality locks
 
 - canonical Engineering/backend authority;
-- Runtime derives from Active persisted Engineering, never mutable Working;
+- Runtime derives from persisted Active Engineering, never mutable Working;
 - security is enforced in the backend;
 - no Driver-to-Driver coupling or canonical TAG/cache/event bypass;
 - licensing remains host-owned;
@@ -84,6 +75,8 @@ Wave 12 is not complete and PR #202 must remain unmerged until the ledger is ful
 - no test weakening to manufacture green evidence;
 - EliteSCADA CI is the universal merge gate even without GitHub branch protection;
 - specialized CI is impact-based and never substitutes for the universal gate;
+- protected unsafe API mutations fail closed before execution when append-only audit admission cannot be durably persisted;
+- post-action audit failures do not masquerade as process-command failures that could trigger unsafe client retries;
 - Wave 13 retains Authenticode + trusted timestamp release signing;
 - Linux `.deb` remains specified/not started until Development Lead authorization;
 - commercial packaging cannot include/enable DNP3 without an appropriate commercial license or approved/revalidated replacement.

@@ -1,7 +1,7 @@
 # EliteSCADA — Current Coordinator Handoff
 
 **Last operational synchronization:** 2026-09-01 BRT  
-**Status:** **WAVE 12 #201 IN PROGRESS — PR #202 — SLICE A + W12-PER-002 VALIDATED — W12-AUTH-001 NEXT**
+**Status:** **WAVE 12 #201 — REMEDIATION COMPLETE / PR #202 READY FOR INTEGRATION / POST-MAIN CI PENDING**
 
 > GitHub/main/CI is implementation truth. `PROJECT GOAL.md` governs permanent product intent. `LAST CHANGE.md` is the mutable resume point. Never resume from chat alone.
 
@@ -33,83 +33,79 @@ Accepted lifecycle authority:
 
 `Working -> saved Revision -> Published -> Active -> HMI Runtime`
 
-The Runtime uses persisted Active Engineering only; Working edits remain isolated until Save/Publish/Activate. Screens, Popups, Dynamos, Active assets, fail-closed behavior, Runtime View separation, protected TAG writes and Simulation fallback rules are accepted and must not be reopened without a concrete defect.
+Runtime uses persisted Active Engineering only; Working edits remain isolated until Save/Publish/Activate. Accepted Wave 11 product boundaries must not be reopened without a demonstrated defect.
 
 Owner-test package:
 
 `EliteSCADA-Wave11-Demo.escadapkg`  
 SHA-256 `13261af59b8707df7d9ef3bbea307cb0c85d945ea8f47315fb693c92c885efa1`
 
-## 3. Wave 12 live state
+## 3. Wave 12 current state
 
-Issue #201: **OPEN / IN PROGRESS**.  
+Issue #201: **OPEN pending integration acceptance**.  
 Branch: `coordination/wave12-hardening`.  
-Draft PR: #202.  
-Branch base: `a2d865c017b8b8ad804f9270e5224ac1fa620ed0`.  
+PR: #202.  
+Branch base / `main` at formal start: `a2d865c017b8b8ad804f9270e5224ac1fa620ed0`.  
 Ledger: `docs/WAVE-12-HARDENING-AUDIT.md`.
 
 Latest validated Wave 12 product-code SHA:
 
-`012d15554d96af8600953a793cd58f0a5fc11c4d`
+`29141feab168fa6e33d98b0f36cdd6e79f3811d8`
 
 Exact evidence:
 
-- EliteSCADA CI #1075 / `33565105224`: **SUCCESS** including Chromium E2E;
-- L3 Seven-Driver Lab #71 / `33565105291`: **SUCCESS**;
-- Preview Licensing CI #124 / `33565105254`: **SUCCESS**;
-- Wave 11 Active HMI Runtime #22 / `33565105207`: **SUCCESS**.
+- EliteSCADA CI #1093 / `33574192584`: **SUCCESS**, including Chromium E2E;
+- L3 Seven-Driver Lab #89 / `33574192610`: **SUCCESS**;
+- Preview Licensing CI #142 / `33574192572`: **SUCCESS**;
+- Wave 11 Active HMI Runtime #40 / `33574192580`: **SUCCESS**.
 
-A documentation-only `[skip ci]` commit may place the branch head after this SHA. Do not confuse that with a new validated product-code baseline.
+A documentation-only `[skip ci]` synchronization commit may place the branch head after this SHA. It does not supersede the validated product-code checkpoint.
 
-## 4. Completed Wave 12 findings at this checkpoint
+## 4. Closed Wave 12 findings
 
-- W12-RT-001 — realtime WebSocket client isolation;
+All identified findings are **FIXED / REGRESSION / VALIDATED**:
+
+- W12-RT-001 — realtime WebSocket client isolation and preserved 1008 revocation close semantics;
 - W12-PER-001 — consistent serialized persistence Save;
 - W12-ING-001 — bounded JSON/CSV Engineering ingress;
 - W12-PKG-001 — `.escadapkg` export/import resource symmetry;
-- W12-PER-002 — Persistence Apply lease/CAS parity.
+- W12-PER-002 — Persistence Apply mutation lease + caller-observed CAS;
+- W12-AUTH-001 — local-identity logical mutation serialization and last-enabled-administrator invariant;
+- W12-AUTH-002 — expired login limiter state reclamation without active lockout eviction;
+- W12-API-001 — deterministic persistence request validation and typed/sanitized Historical Query failure classification;
+- W12-AUD-001 — durable pre-mutation append-only audit admission for unsafe `/api` requests; audit-store outage fails closed before the endpoint executes.
 
-Important validation history:
+AUD-001 deliberately does not convert a detailed post-action audit failure into a process-command failure. A physical or runtime mutation may already have occurred; returning an artificial failure could cause a client to repeat it. The direct durable admission record exists before the mutation and therefore preserves evidence if a detailed outcome later cannot be buffered.
 
-- realtime hardening initially caused session revocation to close as 1006 instead of required 1008;
-- root cause was premature cancellation of the shared WebSocket connection lifetime;
-- correction preserved the policy-close assertion and was validated at `25444267e20b668a22191a662d6eeb4bef4b88d5`;
-- PER-002's first exact-head CI (#1074 at `329083a...`) then found one E2E caller missing the newly required workspace-version header;
-- commit `012d155...` corrected that caller by reading post-checkout `changeVersion`; #1075 passed completely.
+## 5. Important validation history
 
-Do not rerun either historical failure as a supposed solution. Their causes are known and fixed.
+- Realtime hardening initially produced browser close 1006 instead of required 1008. Root cause was premature cancellation; fixed without weakening policy-close assertions.
+- PER-002 first exact-head CI exposed one E2E caller missing the new workspace-version header; the caller was corrected rather than relaxing CAS.
+- AUTH-001 validation exposed an unrelated Modbus recovery-test timing margin; normal-operation margin was hardened while preserving failure/recovery assertions.
+- API-001 validation exposed stale typed expectations and runner-sensitive timing/watchdog tests; semantics/assertions were retained and tests made deterministic.
+- AUD-001 first run #1092 at `0905ce4313122dc266444a047abeb92c8a122572` failed build because the new regression test omitted the `Scada.Api.Runtime` namespace. Product code compiled; `29141fe...` corrected only the test and #1093 passed fully.
 
-## 5. Exact next implementation
+Never use blind reruns as a substitute for these diagnosed root causes.
 
-**W12-AUTH-001 — local-identity concurrency / last-administrator invariant.**
+## 6. Exact next action
 
-Confirmed race:
+1. synchronize PR #202 and issue #201 to the validated checkpoint;
+2. verify live `main`, exact PR head and mergeability immediately before integration;
+3. mark PR #202 ready and merge using the exact expected head only if the base state is still coherent;
+4. validate the resulting `main` SHA with the universal EliteSCADA CI;
+5. only after post-merge `main` success, close issue #201 and record Wave 12 as **COMPLETE / ACCEPTED / CLOSED**;
+6. hand Wave 13 the resulting stable `main` baseline; do not implement signing in the Wave 12 branch.
 
-- API mutation flows perform account read, invariant validation and update as separate store operations;
-- concurrent update/password-reset requests can overwrite changes from the same starting account state;
-- concurrent administrator removals/disables can each pass the last-admin check against stale state.
-
-Chosen implementation direction:
-
-1. add a mutation lease to `ILocalIdentityStore`;
-2. implement an async local lease for `InMemoryLocalIdentityStore`;
-3. implement a PostgreSQL session advisory-lock lease for `PostgreSqlLocalIdentityStore`;
-4. hold it across the full read/validate/write transaction in administration mutations and bootstrap where applicable;
-5. add focused serialization and last-administrator regression tests;
-6. validate the exact new product-code SHA with EliteSCADA CI before moving on.
-
-Then continue W12-AUTH-002, W12-API-001 and W12-AUD-001 according to the audit ledger.
-
-## 6. CI/merge rules
+## 7. CI / merge rules
 
 - EliteSCADA CI is the universal Coordinator gate for PRs to `main`;
-- specialized workflows run according to actual impact;
+- specialized workflows run according to actual impact and never substitute for universal CI;
 - diagnose failures before rerun;
 - do not weaken assertions, authorization or architecture to obtain green;
-- PR #202 remains draft/unmerged until Wave 12 acceptance is satisfied;
-- validate post-merge `main` when Wave 12 is eventually integrated.
+- integration must use expected-head protection;
+- validate post-merge `main` before declaring Wave 12 complete.
 
-## 7. Explicit exclusions and gates
+## 8. Explicit exclusions and gates
 
 Do not start during Wave 12:
 

@@ -43,7 +43,23 @@ const TRANSFORM: readonly CommonVisualPropertyKey[] = [
 const VISIBILITY: readonly CommonVisualPropertyKey[] = [
   VISUAL_PROPERTY_KEYS.visible,
   VISUAL_PROPERTY_KEYS.opacity,
-  VISUAL_PROPERTY_KEYS.tooltip
+  VISUAL_PROPERTY_KEYS.tooltip,
+  VISUAL_PROPERTY_KEYS.enabled
+];
+
+const EFFECTS: readonly CommonVisualPropertyKey[] = [
+  VISUAL_PROPERTY_KEYS.shadowEnabled,
+  VISUAL_PROPERTY_KEYS.shadowColor,
+  VISUAL_PROPERTY_KEYS.shadowOffsetX,
+  VISUAL_PROPERTY_KEYS.shadowOffsetY,
+  VISUAL_PROPERTY_KEYS.shadowBlur
+];
+
+const FILL: readonly CommonVisualPropertyKey[] = [
+  VISUAL_PROPERTY_KEYS.fillStyle,
+  VISUAL_PROPERTY_KEYS.fillColor,
+  VISUAL_PROPERTY_KEYS.fillSecondaryColor,
+  VISUAL_PROPERTY_KEYS.gradientDirection
 ];
 
 const STROKE: readonly CommonVisualPropertyKey[] = [
@@ -67,19 +83,19 @@ const TEXT: readonly CommonVisualPropertyKey[] = [
   VISUAL_PROPERTY_KEYS.verticalAlignment
 ];
 
-const BASE = [...GEOMETRY, ...TRANSFORM, ...VISIBILITY] as const;
+const BASE = [...GEOMETRY, ...TRANSFORM, ...VISIBILITY, ...EFFECTS] as const;
 
 const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
   [BUILTIN_VISUAL_OBJECT_TYPES.group, schema(BUILTIN_VISUAL_OBJECT_TYPES.group, BASE)],
   [BUILTIN_VISUAL_OBJECT_TYPES.rectangle, schema(BUILTIN_VISUAL_OBJECT_TYPES.rectangle, [
     ...BASE,
-    VISUAL_PROPERTY_KEYS.fillColor,
+    ...FILL,
     ...STROKE,
     VISUAL_PROPERTY_KEYS.cornerRadius
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.ellipse, schema(BUILTIN_VISUAL_OBJECT_TYPES.ellipse, [
     ...BASE,
-    VISUAL_PROPERTY_KEYS.fillColor,
+    ...FILL,
     ...STROKE
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.line, schema(BUILTIN_VISUAL_OBJECT_TYPES.line, [
@@ -88,7 +104,7 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.polygon, schema(BUILTIN_VISUAL_OBJECT_TYPES.polygon, [
     ...BASE,
-    VISUAL_PROPERTY_KEYS.fillColor,
+    ...FILL,
     ...STROKE
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.text, schema(BUILTIN_VISUAL_OBJECT_TYPES.text, [

@@ -8,9 +8,20 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
   const page = await context.newPage();
 
   try {
+    const authConfig = await page.evaluate(async () => {
+      const response = await fetch('/api/auth/config');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(authConfig.status).toBe(200);
+    expect(authConfig.body.localLoginEnabled).toBe(true);
+    expect(authConfig.body.initialAdministratorRequired).toBe(false);
+    expect(authConfig.body.passwordPolicy.minimumLength).toBe(8);
+    expect(authConfig.body.passwordPolicy.maximumLength).toBe(1024);
+
     await page.goto('/engineering');
     await expect(page.locator('.auth-card')).toBeVisible();
     await expect(page.locator('input[name="username"]')).toBeVisible();
+    await expect(page.locator('input[name="bootstrap-username"]')).toHaveCount(0);
     await expect(page.locator('input[name="password"]')).toBeVisible();
 
     await page.locator('input[name="username"]').fill('local-developer');
@@ -72,6 +83,8 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
 
     await page.reload();
     await expect(page.locator('.auth-card')).toBeVisible();
+    await expect(page.locator('input[name="username"]')).toBeVisible();
+    await expect(page.locator('input[name="bootstrap-username"]')).toHaveCount(0);
   } finally {
     await context.close();
   }

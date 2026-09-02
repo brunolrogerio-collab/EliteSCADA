@@ -105,7 +105,7 @@ public static class EngineeringPersistenceApi
                 enabled = persistence is not null,
                 provider = persistence is null ? null : "postgresql",
                 configuredProjectKey = ResolveConfiguredProjectKey(context),
-                hasProjects = catalog is null ? null : await catalog.HasAnyAsync(cancellationToken)
+                hasProjects = catalog is null ? (bool?)null : await catalog.HasAnyAsync(cancellationToken)
             });
         });
 

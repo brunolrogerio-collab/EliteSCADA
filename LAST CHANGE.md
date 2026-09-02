@@ -1,7 +1,7 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-01 (BRT)  
-**Operational state:** **WAVE 12 #201 — COMPLETE / ACCEPTED / CLOSED; WAVE 13 #205 — PREPARED / NOT STARTED**
+**Operational state:** **WAVE 12 #201 — COMPLETE / ACCEPTED / CLOSED; WAVE 13 #205 — IMPLEMENTATION IN BRANCH**
 
 > Mutable Coordinator resume point. `PROJECT GOAL.md` governs permanent product intent. Live GitHub refs and exact-SHA CI override copied prose. Documentation-only `[skip ci]` commits may advance `main` beyond the latest validated product-code SHA without superseding that product baseline.
 
@@ -51,48 +51,84 @@ All identified findings are **FIXED / REGRESSION / VALIDATED**:
 
 Historical detail remains in `docs/WAVE-12-HARDENING-AUDIT.md` and issue #201.
 
-## 4. Wave 13 preparation state
+## 4. Wave 13 live entry audit
 
-Issue #205 exists as the next coordination surface:
+Wave 13 issue #205 remains the active coordination surface:
 
 `Wave 13 — Signed Windows x64 package + Authenticode release verification`
 
-Preparation document:
+Live `main` was revalidated immediately before implementation branch creation:
 
-`docs/WAVE-13-WINDOWS-RELEASE-PREPARATION.md`
+`fd694d936131919e5325dd9479d84d74759100a5`
 
-State is deliberately **PREPARED / NOT STARTED**.
+At that checkpoint:
 
-No Wave 13 implementation branch has been created. The next Coordinator must inspect the then-live `main`, open PRs/issues and current workflows before creating any implementation branch. The implementation branch must be created from live `main`, not copied from the product baseline SHA above if `main` has since advanced through documentation-only commits.
+- no open PR existed;
+- open issues were Wave 13 #205 and deferred L4 #178;
+- latest product-code validation remained Wave 12 `63bced...` / EliteSCADA CI #1096 / L3 #92;
+- the `fd694d...` advance was documentation-only `[skip ci]`.
 
-## 5. Wave 13 objective and locked boundaries
+The packaging/signing audit was persisted first in issue #205 comment `5503088761` and then in `docs/WAVE-13-WINDOWS-RELEASE-AUDIT.md`.
 
-Wave 13 is release engineering, not feature expansion. It must produce and verify a controlled Windows x64 package with Authenticode signing and trusted timestamping while preserving accepted Wave 11/12 product contracts.
+## 5. Wave 13 implementation branch
 
-Before implementation, audit the current Windows publish/package surfaces and decide the exact package/launch or installer contract. Do not pick installer technology by habit.
+Active branch:
 
-Signing boundary is locked:
+`wave13/windows-release-signing`
 
-- private code-signing keys/certificates do not enter source control, GitHub, normal CI secrets/artifacts, logs or product packages;
-- prefer a protected signing service or hardware-backed key;
-- release verification must fail closed for missing/invalid Authenticode signatures, missing trusted timestamp, integrity mismatch or unexpected package contents;
-- SmartScreen reputation is distinct from cryptographic signature validity and must not be falsely claimed.
+Branch base:
 
-Commercial DNP3 inclusion remains gated on an appropriate Step Function I/O `dnp3` 1.6.0 commercial license or an approved/revalidated dependency replacement.
+`fd694d936131919e5325dd9479d84d74759100a5`
 
-Linux `.deb` remains **SPECIFIED / NOT STARTED** and requires explicit Development Lead authorization.
+Wave 13 is now **IMPLEMENTED IN BRANCH / NOT MERGED / NOT ACCEPTED**.
 
-## 6. Exact next action for the next Coordinator
+Initial W13-S1 foundation currently includes:
 
-1. read `PROJECT GOAL.md`;
-2. read this file;
-3. read `docs/CURRENT-COORDINATOR-HANDOFF.md`;
-4. read `docs/ROADMAP.md`;
-5. read `docs/WAVE-13-WINDOWS-RELEASE-PREPARATION.md`;
-6. read issue #205;
-7. read `docs/CI-VALIDATION-POLICY.md`;
-8. verify live `main`, open PRs/issues and exact Actions state;
-9. audit current Windows publishing/package/signing surfaces;
-10. only then create a dedicated Wave 13 implementation branch from live `main` and persist the planned slices before coding.
+- `release/release-identity.json` as the release-engineering identity source;
+- initial version `0.1.0-preview.13`, RID `win-x64`, ZIP distribution contract;
+- `scripts/release/Build-WindowsReleaseCandidate.ps1` for self-contained product and graphical License Generator candidate publish;
+- React/Vite build with pinned Pyodide payload copied into the product candidate;
+- explicit fail-closed exclusion of Step Function DNP3 content from the customer package while the commercial gate remains uncleared;
+- `scripts/release/Test-WindowsReleaseCandidate.ps1` for required files, DNP3 exclusion, private-key-material exclusion and PE presence checks;
+- `.github/workflows/wave13-windows-release.yml` on `windows-latest`, producing a clearly named `EliteSCADA-Wave13-UNSIGNED-win-x64` candidate artifact and smoke-testing product host plus License Generator.
 
-Do not begin Wave 14 owner validation, Wave 15 corrections, Linux packaging or physical L4 work as part of Wave 13 preparation.
+The normal workflow intentionally does **not** contain Authenticode credentials and does **not** represent its candidate as signed or releasable.
+
+## 6. Audited release architecture
+
+Initial package decision: versioned Windows x64 ZIP, not MSI/MSIX/WiX/Inno yet. Installer technology remains deferred until the product actually requires installation/service/update/uninstall semantics.
+
+Product target: `win-x64` self-contained.
+
+Signing boundary:
+
+- normal CI builds unsigned candidates only;
+- protected organizational signing service or hardware-backed key signs required PE artifacts outside normal CI;
+- no PFX/private key/password belongs in source control, normal Actions secrets/artifacts, logs or product packages;
+- licensing private material and Authenticode private material remain separate trust domains.
+
+Required release order:
+
+`build -> publish -> protected signing -> signature/publisher/timestamp verification -> final manifest over signed bytes -> package -> verify again`
+
+DNP3 remains excluded from the initial customer package while Step Function I/O `dnp3` 1.6.0 lacks recorded commercial-distribution clearance.
+
+## 7. Remaining Wave 13 slices
+
+1. finish W13-S1 by giving the packaged Web payload a production serving path from the product distribution, preserving required COOP/COEP behavior;
+2. W13-S2 deterministic signed-byte manifest and fail-closed Authenticode/publisher/timestamp/hash/unexpected-content verifier with negative tests;
+3. W13-S3 protected-signing handoff and signed-artifact verification workflow without private key material in normal CI;
+4. W13-S4 focused packaged-product regression for login, Demo/machine request, `.escadapkg`, assets/Dynamos/Pyodide, persistence/configuration, supported Drivers and Active HMI Runtime authority;
+5. W13-S5 exact-head universal + affected specialized validation, expected-head merge and post-merge release evidence.
+
+## 8. CI / acceptance status
+
+The new branch has not yet been accepted or merged. Universal `EliteSCADA CI` remains mandatory for any PR to `main`; Wave 13 Windows validation complements it. Preview Licensing CI and L3 must be invoked as conservative release overrides when the branch reaches integration readiness.
+
+Do not declare Wave 13 complete until final required PE files are Authenticode-valid with trusted timestamp, final signed-byte hashes are recorded, the packaged product smoke/regression passes, exact-head CI is green, post-merge `main` is validated and acceptance evidence is persisted.
+
+## 9. Explicit exclusions
+
+Do not begin Wave 14 owner validation, Wave 15 corrections, Linux packaging or physical L4 work as part of Wave 13.
+
+Do not include commercially gated DNP3 in the customer release until Step Function commercial licensing or an approved/revalidated replacement is recorded.

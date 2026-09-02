@@ -1,118 +1,107 @@
 # Wave 12 — Hardening Audit
 
-**Status:** REMEDIATION COMPLETE — INTEGRATION ACCEPTANCE PENDING  
+**Status:** COMPLETE / ACCEPTED / CLOSED  
 **Audit date:** 2026-09-01 BRT  
 **Issue:** #201 — Wave 12 — Hardening  
-**Branch:** `coordination/wave12-hardening`  
-**PR:** #202  
-**Branch base:** `a2d865c017b8b8ad804f9270e5224ac1fa620ed0`
+**Implementation integration:** PR #203  
+**Post-merge CI stabilization:** PR #204  
+**Wave 12 start/base:** `a2d865c017b8b8ad804f9270e5224ac1fa620ed0`
 
-This is the active finding and remediation ledger. All identified findings have been fixed with focused regression evidence. Wave 12 itself closes only after PR integration and successful post-merge universal CI on `main`.
+This is the final Wave 12 finding/remediation ledger. All identified findings were fixed, regression-covered, integrated and accepted on `main`.
 
-Latest validated Wave 12 product-code checkpoint:
+Final accepted Wave 12 product-code baseline:
 
-`29141feab168fa6e33d98b0f36cdd6e79f3811d8`
+`63bced02426fcb84b26028913f6c68feb3457d80`
 
-Evidence:
+Final post-merge evidence:
 
-- EliteSCADA CI #1093 / `33574192584`: **SUCCESS**, including backend build/tests/runtime smoke, Web build and Chromium E2E;
-- L3 Seven-Driver Lab #89 / `33574192610`: **SUCCESS**;
-- Preview Licensing CI #142 / `33574192572`: **SUCCESS**;
-- Wave 11 Active HMI Runtime #40 / `33574192580`: **SUCCESS**.
+- EliteSCADA CI #1096 / `33576603185`: **SUCCESS**, including backend build/tests/runtime smoke, Web build and Chromium E2E;
+- L3 Seven-Driver Lab #92 / `33576603158`: **SUCCESS**.
 
-## 1. Existing controls that remain locked
+Pre-merge Wave 12 implementation checkpoint `29141feab168fa6e33d98b0f36cdd6e79f3811d8` passed EliteSCADA CI #1093, L3 #89, Preview Licensing #142 and Wave 11 Active HMI Runtime #40.
+
+## 1. Accepted controls
 
 - HMI Runtime resolves persisted Active Engineering and fails closed on project/revision/package inconsistency.
 - Activation validates the candidate before publishing Active and preserves the previous Active on failure.
-- `.escadapkg` import validates paths, duplicates, checksums/lengths, assets and aggregate resource limits.
+- `.escadapkg` import validates paths, duplicates, checksums/lengths, assets and aggregate resource limits; export obeys symmetric limits.
 - Runtime View, Engineering Modify, TAG writes and administration remain separately authorized.
 - Script execution uses bounded queues, cancellation/timeout boundaries and sanitized diagnostics.
 - Core Engineering mutations use workspace serialization and compare-and-swap version checks.
-- Local-identity logical mutations are serialized across the complete read/validate/write sequence, including PostgreSQL multi-process cooperation.
+- Local-identity logical mutations are serialized across complete read/validate/write, including PostgreSQL multi-process cooperation.
 - Login limiter state has an expiry lifecycle without evicting active/unexpired lockout windows.
 - Unsafe `/api` mutations require append-only durable audit admission before endpoint execution.
 - No test, security or lifecycle boundary may be weakened merely to make CI green.
 
-## 2. Findings
+## 2. Final finding ledger
 
-| ID | Severity | Surface | Required disposition | State |
+| ID | Severity | Surface | Disposition | Final state |
 |---|---|---|---|---|
 | W12-RT-001 | High | Realtime | Isolate slow/stalled realtime clients with bounded outbound work and deterministic eviction. | **FIXED / REGRESSION / VALIDATED** |
 | W12-PER-001 | High | Persistence Save | Derive persisted payloads from one canonical snapshot and serialize snapshot/persist/AcceptSave. | **FIXED / REGRESSION / VALIDATED** |
-| W12-ING-001 | High | Engineering ingress | Bound JSON/CSV request bodies with fast/streaming rejection, strict decoding and sanitized client errors. | **FIXED / REGRESSION / VALIDATED** |
-| W12-PKG-001 | High | `.escadapkg` | Enforce export resource limits symmetric with the importer. | **FIXED / REGRESSION / VALIDATED** |
-| W12-PER-002 | High | Persistence Apply | Serialize Apply with the Working mutation lease and require caller-observed version/CAS. | **FIXED / REGRESSION / VALIDATED** |
-| W12-AUTH-001 | High | Local identities | Prevent concurrent lost updates and preserve the last-enabled-administrator invariant across the entire logical mutation. | **FIXED / REGRESSION / VALIDATED** |
+| W12-ING-001 | High | Engineering ingress | Bound JSON/CSV request bodies with fast/streaming rejection, strict decoding and sanitized errors. | **FIXED / REGRESSION / VALIDATED** |
+| W12-PKG-001 | High | `.escadapkg` | Enforce export resource limits symmetric with importer limits. | **FIXED / REGRESSION / VALIDATED** |
+| W12-PER-002 | High | Persistence Apply | Serialize Apply with Working mutation lease and caller-observed version/CAS. | **FIXED / REGRESSION / VALIDATED** |
+| W12-AUTH-001 | High | Local identities | Prevent concurrent lost updates and preserve last-enabled-administrator invariant. | **FIXED / REGRESSION / VALIDATED** |
 | W12-AUTH-002 | Medium | Login limiting | Bound/expire unique remote-key entries without weakening lockout. | **FIXED / REGRESSION / VALIDATED** |
-| W12-API-001 | Medium | Requests/diagnostics | Normalize request validation/provider failures and sanitize deterministic diagnostics. | **FIXED / REGRESSION / VALIDATED** |
-| W12-AUD-001 | High | Audit durability | Select and implement an explicit product-safe audit-outage contract; silent protected-action audit loss is unacceptable. | **FIXED / REGRESSION / VALIDATED** |
+| W12-API-001 | Medium | Requests/diagnostics | Normalize validation/provider failures and sanitize deterministic diagnostics. | **FIXED / REGRESSION / VALIDATED** |
+| W12-AUD-001 | High | Audit durability | Durable pre-mutation admission with fail-closed audit-store outage behavior. | **FIXED / REGRESSION / VALIDATED** |
 
-## 3. Remediation details
+## 3. Remediation summary
 
 ### W12-RT-001
-
-Realtime delivery isolates clients with bounded per-client outbound work and stalled/overflowing client eviction so one client cannot block the TAG event consumer. Session revocation still sends WebSocket `1008 Policy Violation` before receive cancellation/disposal. An early regression to browser 1006 was diagnosed as premature lifetime cancellation and corrected without weakening the assertion.
+Realtime delivery isolates clients with bounded per-client outbound work and deterministic stalled/overflow eviction. Session revocation preserves WebSocket `1008 Policy Violation`; an early 1006 regression was diagnosed as premature lifetime cancellation and corrected without weakening the assertion.
 
 ### W12-PER-001
-
 Persistence Save derives one canonical Engineering snapshot and holds the workspace mutation lease through durable persistence and AcceptSave, preventing mixed or falsely-clean state.
 
 ### W12-ING-001
-
 JSON/CSV preview/apply ingress uses explicit byte limits, Content-Length fast rejection, streaming enforcement, strict UTF-8 and sanitized deterministic errors.
 
 ### W12-PKG-001
-
-Package export enforces the Engineering-size, payload-count, manifest-size and aggregate uncompressed limits enforced by import, preventing self-generated packages that EliteSCADA itself would reject.
+Package export enforces Engineering-size, payload-count, manifest-size and aggregate uncompressed limits enforced by import, preventing self-generated packages the product would reject.
 
 ### W12-PER-002
-
-Persistence Apply acquires the canonical Working mutation lease and requires caller-observed `x-elitescada-workspace-version`. Stale caller state returns conflict rather than replacing newer Working edits. The first exact-head CI exposed one E2E caller missing the new header; the caller was updated rather than relaxing the contract.
+Persistence Apply acquires the canonical Working mutation lease and requires caller-observed `x-elitescada-workspace-version`. Stale caller state returns conflict rather than replacing newer Working edits.
 
 ### W12-AUTH-001
-
-Local-identity logical mutations hold a store-level mutation lease across read/validate/write. InMemory uses `SemaphoreSlim`; PostgreSQL uses a dedicated-session advisory transaction lock, serializing cooperating EliteSCADA processes that share a database. Administration create/update/password-reset and bootstrap paths use the same mutation boundary where applicable, preserving the last-enabled-administrator invariant. Regressions cover lost-update serialization, concurrent invariant preservation and PostgreSQL cross-session locking.
+Local-identity logical mutations hold a store-level mutation lease across read/validate/write. InMemory uses `SemaphoreSlim`; PostgreSQL uses a dedicated-session advisory transaction lock, preserving the last-enabled-administrator invariant across cooperating EliteSCADA processes.
 
 ### W12-AUTH-002
-
-`LocalLoginAttemptLimiter` reclaims expired remote-key windows opportunistically without evicting active/unexpired windows. Same-key cleanup/rollover is serialized so concurrent requests cannot split one lockout window into independent counters. Regressions prove stale reclamation and active-limit preservation.
+`LocalLoginAttemptLimiter` reclaims expired remote-key windows without evicting active/unexpired windows. Same-key cleanup/rollover is serialized so concurrent requests cannot split one lockout window into independent counters.
 
 ### W12-API-001
-
-Engineering Persistence validates revision-list `limit` and positive revision identifiers at the HTTP boundary instead of allowing provider-specific argument exceptions to surface as inconsistent 500s. Historical Query now distinguishes typed public validation/cursor/authorization failures from provider/internal failures; provider details are sanitized and internal `ArgumentException` is not automatically misclassified as caller input.
-
-Focused regressions cover persistence invalid limits/revisions, typed historical failure mapping, provider-failure classification and sanitized diagnostics. Validation also exposed stale test expectations and runner-sensitive timing/watchdog assumptions in Gateway and realtime tests. Those tests were made deterministic without weakening product assertions. Final API-001 checkpoint `77804167afb14e084086386522891705e07b7873` passed EliteSCADA CI #1091, L3 #87, Preview #140 and Wave 11 Runtime #38.
+Engineering Persistence validates request bounds/positive revisions at the HTTP boundary. Historical Query distinguishes typed public validation/cursor/authorization failures from provider/internal failures and sanitizes provider diagnostics.
 
 ### W12-AUD-001
+Unsafe `/api` requests (`POST`, `PUT`, `PATCH`, `DELETE`) require an `api.mutation.admission` event to be durably appended before endpoint execution. If that append fails, middleware returns sanitized 503 and does not invoke the endpoint. Detailed post-action audit remains non-failing because a physical/runtime mutation may already have occurred and an artificial endpoint failure could induce an unsafe retry. The prior durable admission remains explicit evidence of the attempted mutation.
 
-The buffered audit sink already rejected queue overflow explicitly, but `ApiAuditService.RecordAsync` caught the rejection and allowed protected actions to proceed, making silent protected-action audit loss possible.
+## 4. Integration acceptance history
 
-The selected product-safe outage contract is **durable pre-mutation admission plus non-retry-inducing post-action audit**:
+Wave 12 implementation entered `main` through PR #203 at merge SHA `be710e630da63639af9a0fc63458f9bd92068746`.
 
-1. every unsafe `/api` request (`POST`, `PUT`, `PATCH`, `DELETE`) writes an `api.mutation.admission` event directly to the append-only `IAuditStore` before endpoint execution, bypassing the asynchronous buffer;
-2. the admission records server-derived subject identity, HTTP method/path and trace correlation, but no request body/query secret material;
-3. if the direct durable append fails, middleware returns sanitized **503 Service Unavailable** and does not invoke the endpoint;
-4. detailed success/failure audit remains buffered after endpoint effects;
-5. a detailed post-action audit failure is logged but does not turn a process mutation into a false endpoint failure, because a client retry could duplicate a physical/runtime command;
-6. the prior durable admission event remains explicit evidence of an attempted/allowed mutation whose detailed outcome may require diagnosis.
+The first post-merge EliteSCADA CI #1094 failed two existing Modbus loopback healthy-path writes at their identical configured 500 ms timeout. The cause was diagnosed before rerun: timeout begins after the transport serialization gate, no server delay was injected, and the tests did not define a 500 ms latency product requirement. Explicit timeout/reconnect/degraded tests remained green.
 
-Regressions prove that direct admission is persisted before endpoint execution even when the buffered sink rejects, and that store failure returns 503 without calling the endpoint or leaking lower-level exception text.
+PR #204 changed only those two healthy-path test request timeouts from 500 ms to 2 s plus the matching diagnostics expectation. No production code or explicit failure assertion was changed.
 
-Commit `0905ce4313122dc266444a047abeb92c8a122572` introduced the contract. EliteSCADA CI #1092 failed only at test compilation because the new test omitted the `Scada.Api.Runtime` namespace; product code compiled successfully. Commit `29141feab168fa6e33d98b0f36cdd6e79f3811d8` corrected only that test namespace and then passed all exact-head gates listed above.
+Exact #204 head `8d9950f56cf4cac8d835f448df8f77dc6a780928` passed:
 
-## 4. Integration acceptance
+- EliteSCADA CI #1095 / `33576006577`: **SUCCESS**;
+- L3 Seven-Driver Lab #91 / `33576006594`: **SUCCESS**.
 
-Remediation is complete, but issue #201 stays open until all integration acceptance steps are true:
+PR #204 squash-merged to `main` as `63bced02426fcb84b26028913f6c68feb3457d80`, which then passed #1096 and L3 #92. Integration acceptance is therefore complete.
 
-1. documentation, PR #202 and issue #201 are synchronized to `29141fe...` evidence;
-2. live `main` and exact PR head are revalidated immediately before merge;
-3. PR #202 is merged using exact-head protection;
-4. the resulting `main` merge SHA passes the universal EliteSCADA CI;
-5. continuity documents are updated to the accepted `main` baseline and issue #201 is closed completed.
+## 5. Handoff to Wave 13
 
-## 5. Exclusions / gates
+Wave 13 is separate release-engineering work. Issue #205 and `docs/WAVE-13-WINDOWS-RELEASE-PREPARATION.md` define its prepared, not-started boundary.
 
-- Wave 13 signing, Linux `.deb`, new Drivers/protocols, owner validation and physical L4 remain outside this branch;
-- DNP3 commercial inclusion remains gated on an appropriate Step Function commercial license or an approved/revalidated dependency replacement;
-- specialized workflows are impact-based and do not substitute for universal CI;
-- failures are diagnosed before rerun.
+No Wave 13 implementation branch was created during Wave 12 closure. The next Coordinator must create it from then-live `main` only after the mandatory live-state audit.
+
+## 6. Continuing exclusions / gates
+
+- Wave 13 signing does not authorize new Drivers/protocols or unrelated product features;
+- Linux `.deb` remains specification-only until explicit Development Lead authorization;
+- owner validation remains Wave 14 and feedback/corrections Wave 15;
+- physical L4 remains outside the current accepted claim;
+- commercial DNP3 inclusion remains gated on an appropriate Step Function commercial license or approved/revalidated dependency replacement;
+- specialized workflows remain impact-based and never substitute for universal CI.

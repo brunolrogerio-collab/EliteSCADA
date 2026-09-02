@@ -57,9 +57,9 @@ public sealed record Dnp3TcpConnectionOptions
 }
 
 /// <summary>
-/// EliteSCADA-owned factory seam used later by DriverHost/Engineering composition.
-/// A concrete Step Function, Triangle MicroWorks or other stack adapter is
-/// created behind this boundary and receives no canonical Engineering objects.
+/// EliteSCADA-owned factory seam used by DriverHost/Engineering composition.
+/// Concrete protocol-library adapters remain behind this boundary and receive
+/// no canonical Engineering objects.
 /// </summary>
 public interface IDnp3MasterSessionFactory
 {

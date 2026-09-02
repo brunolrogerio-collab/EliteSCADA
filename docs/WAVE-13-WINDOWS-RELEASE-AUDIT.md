@@ -204,6 +204,8 @@ No release tooling may label a blocked package as commercially authorized.
 - supported Driver composition;
 - preserved `Working -> Revision -> Published -> Active -> HMI Runtime` authority.
 
+Repository-side validation on `9f26a2bc02ae77017e266c52ff128dc39eece4b4` executes this slice against the real unsigned packaged `Scada.Api.exe` on pinned `windows-2025` with isolated PostgreSQL 17. It verifies two saved Revisions, mutable Working isolation, explicit Publish/Activate boundaries, persisted Active HMI projection, local identity/machine-request continuity and Active Runtime recovery after a forced host restart. The same regression must still be repeated against the final signed product bytes.
+
 ### W13-S5 — exact-head integration / acceptance
 
 - EliteSCADA CI universal gate;
@@ -217,6 +219,6 @@ No release tooling may label a blocked package as commercially authorized.
 
 Repository-side release engineering can establish the unsigned candidate, manifest/verifier, package composition and protected-signing boundary without holding a private Authenticode key.
 
-Implemented branch evidence already covers unsigned-candidate build, packaged Web/Pyodide hosting, graphical License Generator startup, local login, Demo/machine request, built-in Dynamos, Runtime Driver surface, `.escadapkg` export/inspect/import preview, content/hash negative cases, signed-return structural derivation checks and unsafe ZIP rejection. Persisted-configuration and full canonical Active-HMI regression still require confirmation against the final signed artifact, even though the specialized Wave 11 Runtime workflow continues to guard the product contract on the same source head.
+Implemented branch evidence already covers unsigned-candidate build, packaged Web/Pyodide hosting, graphical License Generator startup, local login, Demo/machine request, built-in Dynamos, Runtime Driver surface, `.escadapkg` export/inspect/import preview, PostgreSQL-backed persisted configuration and full canonical Active-HMI/restart behavior, content/hash negative cases, signed-return structural derivation checks and unsafe ZIP rejection. The full regression is green on the unsigned candidate and still requires repetition against the final signed artifact.
 
 Wave 13 cannot be declared accepted until a real protected signing authority is configured, an exact expected publisher identity is known, required PE files are returned correctly Authenticode-signed with RFC3161 trusted timestamps, and both resulting signed package roles pass the full verifier and final packaged-product regressions.

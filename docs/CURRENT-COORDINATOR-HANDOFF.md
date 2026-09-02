@@ -104,26 +104,29 @@ Issue #205 is **ACTIVE / RELEASED FOR SEPARATE COORDINATION**.
 
 Draft PR #207 remains draft on branch `wave13/windows-release-signing` because active implementation does not make the release complete or merge-ready.
 
-The Wave 13 coordinator re-audited and began incorporating live documentation-only `main` `056148bb17c0fd6cb78bd21339b3f9614d38ad68` over the last fully validated repository-side checkpoint:
+The Wave 13 coordinator integrated live documentation-only `main` `056148bb17c0fd6cb78bd21339b3f9614d38ad68` through merge commit `dbef6557e24297d273caeb19dfe5aabc17fb0b43`. Its exact other parent is the previously validated repository-side checkpoint `a287c4f2a4e4c571a7c5ad4b25efb1c98132e5ab`.
 
-`a287c4f2a4e4c571a7c5ad4b25efb1c98132e5ab`
+Current fully validated repository-side implementation checkpoint before the latest documentation-only synchronization:
 
-Exact validation on `a287c4f2...`:
+`9f26a2bc02ae77017e266c52ff128dc39eece4b4`
 
-- Wave 13 Windows Release #22 / `33585606355`: **SUCCESS**;
-- EliteSCADA CI #1118 / `33585606437`: **SUCCESS**;
-- L3 Seven-Driver Lab #97 / `33585606347`: **SUCCESS**;
-- Wave 11 Active HMI Runtime #56 / `33585606366`: **SUCCESS**.
+Exact validation on `9f26a2bc...`:
+
+- Wave 13 Windows Release #27 / `33643546191`: **SUCCESS**;
+- EliteSCADA CI #1134 / `33643546119`: **SUCCESS**;
+- L3 Seven-Driver Lab #102 / `33643546111`: **SUCCESS**;
+- Wave 11 Active HMI Runtime #64 / `33643546139`: **SUCCESS**.
 
 Repository-side implementation now includes:
 
 - self-contained `win-x64` product and separate graphical License Generator authority candidate;
 - packaged React/Pyodide hosting and focused login/Demo/machine-request/Dynamo/Driver/`.escadapkg` smoke;
+- `windows-2025`/PostgreSQL 17 packaged regression covering two saved Revisions, Working isolation, explicit Publish/Activate boundaries, persisted Active HMI projection and forced-restart recovery;
 - retained unsigned-candidate provenance plus signing-only PE delta validation;
 - deterministic signed-byte manifest and separate product/authority ZIP roles;
 - fail-closed Authenticode, exact publisher, cryptographically bound RFC3161, hash/content and safe-ZIP verification with negative cases.
 
-Normal CI remains keyless and produces only an explicitly `UNSIGNED` signer-input artifact. The protected signing service/hardware-backed key and exact organizational certificate Subject remain external acceptance blockers.
+Normal CI remains keyless and produces only an explicitly `UNSIGNED` signer-input artifact. Windows #27 produced artifact `9851917252`, 111,162,549 bytes, with uploaded-artifact SHA-256 `ee2297cde3675114822b0be01e305590c7d78b46927a58e64938baa004f9c709`. This is signer-input transport evidence, not a signed release. The protected signing service/hardware-backed key and exact organizational certificate Subject remain external acceptance blockers.
 
 Existing Wave 13 locks remain intact:
 

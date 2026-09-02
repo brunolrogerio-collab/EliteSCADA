@@ -141,6 +141,7 @@ function CanonicalElement({
     const dynamic = resolveVisualDynamicState(element, baseValues, liveSamples);
     const values = dynamic.values;
     const style = elementStyle(values);
+    const enabled = booleanValue(values[VISUAL_PROPERTY_KEYS.enabled], true);
     const diagnosticTitle = dynamic.diagnostics.length > 0
       ? dynamic.diagnostics.map(item => `${item.propertyKey ? `${item.propertyKey}: ` : ''}${item.message}`).join('\n')
       : undefined;
@@ -154,6 +155,7 @@ function CanonicalElement({
         style={style}
         data-object-id={element.id ?? undefined}
         data-runtime-object-id={runtimeObjectId}
+        data-enabled={enabled}
         title={elementTitle}
         data-dynamic-state={diagnosticState}
         onClick={onClick}
@@ -179,6 +181,7 @@ function CanonicalElement({
         style={style}
         data-object-id={element.id ?? undefined}
         data-runtime-object-id={runtimeObjectId}
+        data-enabled={enabled}
         title={elementTitle}
         data-dynamic-state={diagnosticState}
         onClick={onClick}
@@ -196,6 +199,7 @@ function CanonicalElement({
         style={lineStyle(style, values)}
         data-object-id={element.id ?? undefined}
         data-runtime-object-id={runtimeObjectId}
+        data-enabled={enabled}
         title={elementTitle}
         data-dynamic-state={diagnosticState}
         onClick={onClick}
@@ -212,19 +216,30 @@ function CanonicalElement({
         strokeStyle,
         numberValue(values[VISUAL_PROPERTY_KEYS.strokeWidth], 1)
       );
+      const gradient = polygonGradient(values);
+      const gradientId = gradient
+        ? `visual-gradient-${stableDomToken(runtimeObjectId ?? element.id ?? element.key)}`
+        : undefined;
       return <div
         className="visual-editor-object visual-editor-polygon"
         style={{ ...style, background: 'transparent', border: 0, overflow: 'visible' }}
         data-object-id={element.id ?? undefined}
         data-runtime-object-id={runtimeObjectId}
+        data-enabled={enabled}
         title={elementTitle}
         data-dynamic-state={diagnosticState}
         onClick={onClick}
       >
         <svg width="100%" height="100%" viewBox={`0 0 ${Math.max(bounds.width, 1)} ${Math.max(bounds.height, 1)}`} preserveAspectRatio="none" aria-label={element.key}>
+          {gradient && gradientId ? <defs>
+            <linearGradient id={gradientId} x1={gradient.x1} y1={gradient.y1} x2={gradient.x2} y2={gradient.y2}>
+              <stop offset="0%" stopColor={gradient.primary} />
+              <stop offset="100%" stopColor={gradient.secondary} />
+            </linearGradient>
+          </defs> : null}
           <polygon
             points={polygonPointsAttribute(normalizedPoints)}
-            fill={stringValue(values[VISUAL_PROPERTY_KEYS.fillColor], '#00000000')}
+            fill={gradientId ? `url(#${gradientId})` : polygonSolidFill(values)}
             stroke={strokeStyle === 'none' ? 'none' : stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor], '#000000')}
             strokeWidth={strokeWidth}
             strokeDasharray={svgStrokeDasharray(strokeStyle)}
@@ -262,11 +277,14 @@ function CanonicalElement({
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.button) {
       return <button
         type="button"
-        tabIndex={onClick ? 0 : -1}
+        tabIndex={onClick && enabled ? 0 : -1}
+        disabled={!enabled}
+        aria-disabled={!enabled}
         className={className}
         style={style}
         data-object-id={element.id ?? undefined}
         data-runtime-object-id={runtimeObjectId}
+        data-enabled={enabled}
         title={title}
         data-dynamic-state={diagnosticState}
         onClick={onClick}
@@ -279,6 +297,7 @@ function CanonicalElement({
       style={style}
       data-object-id={element.id ?? undefined}
       data-runtime-object-id={runtimeObjectId}
+      data-enabled={enabled}
       title={title}
       data-dynamic-reference={textBinding?.target}
       data-dynamic-state={diagnosticState}
@@ -318,6 +337,7 @@ function CanonicalDynamoElement({
     };
     const dynamic = resolveVisualDynamicState(element, baseValues, liveSamples);
     const style = elementStyle(dynamic.values);
+    const enabled = booleanValue(dynamic.values[VISUAL_PROPERTY_KEYS.enabled], true);
     const runtimeObjectId = composition.instanceId;
     const onClick = visualClickHandler(element, onVisualEvent, runtimeObjectId);
     const diagnosticTitle = dynamic.diagnostics.length > 0
@@ -333,6 +353,7 @@ function CanonicalDynamoElement({
       style={style}
       data-object-id={element.id ?? undefined}
       data-runtime-object-id={runtimeObjectId}
+      data-enabled={enabled}
       data-dynamo-key={composition.definitionKey}
       data-dynamo-definition-id={composition.definitionId}
       data-dynamo-instance-id={composition.instanceId}
@@ -478,6 +499,7 @@ function collectRuntimeBindingElements(
 
 function elementStyle(values: Readonly<Record<string, VisualPropertyValue>>): CSSProperties {
   const visible = booleanValue(values[VISUAL_PROPERTY_KEYS.visible], true);
+  const enabled = booleanValue(values[VISUAL_PROPERTY_KEYS.enabled], true);
   const strokeStyle = normalizeCanonicalStrokeStyle(values[VISUAL_PROPERTY_KEYS.strokeStyle]);
   const strokeWidth = effectiveStrokeWidth(
     strokeStyle,
@@ -495,9 +517,11 @@ function elementStyle(values: Readonly<Record<string, VisualPropertyValue>>): CS
     width: numberValue(values[VISUAL_PROPERTY_KEYS.width], 100), height: numberValue(values[VISUAL_PROPERTY_KEYS.height], 100),
     zIndex: numberValue(values[VISUAL_PROPERTY_KEYS.zIndex]), display: visible ? 'flex' : 'none',
     opacity: numberValue(values[VISUAL_PROPERTY_KEYS.opacity], 1),
+    pointerEvents: enabled ? undefined : 'none',
     transform: `rotate(${numberValue(values[VISUAL_PROPERTY_KEYS.rotation])}deg) scale(${scaleX}, ${scaleY})`,
     transformOrigin: 'center center', boxSizing: 'border-box', overflow: 'hidden',
-    background: stringValue(values[VISUAL_PROPERTY_KEYS.backgroundColor]) || stringValue(values[VISUAL_PROPERTY_KEYS.fillColor]) || undefined,
+    background: fillBackground(values),
+    filter: shadowFilter(values),
     borderColor: strokeStyle === 'none' ? 'transparent' : stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor]) || undefined,
     borderWidth: strokeWidth,
     borderStyle: cssStrokeStyle(strokeStyle),
@@ -536,6 +560,85 @@ function lineStyle(base: CSSProperties, values: Readonly<Record<string, VisualPr
     borderTopStyle: cssStrokeStyle(strokeStyle)
   };
 }
+
+function fillBackground(values: Readonly<Record<string, VisualPropertyValue>>): string | undefined {
+  const backgroundColor = stringValue(values[VISUAL_PROPERTY_KEYS.backgroundColor]);
+  if (backgroundColor) return backgroundColor;
+
+  const primary = stringValue(values[VISUAL_PROPERTY_KEYS.fillColor]);
+  if (!Object.prototype.hasOwnProperty.call(values, VISUAL_PROPERTY_KEYS.fillStyle)) return primary || undefined;
+
+  const fillStyle = stringValue(values[VISUAL_PROPERTY_KEYS.fillStyle], 'solid');
+  if (fillStyle === 'none') return 'transparent';
+  if (fillStyle !== 'gradient') return primary || undefined;
+
+  const secondary = stringValue(values[VISUAL_PROPERTY_KEYS.fillSecondaryColor], '#00000000');
+  return `linear-gradient(${gradientAngle(values[VISUAL_PROPERTY_KEYS.gradientDirection])}, ${primary || '#00000000'}, ${secondary})`;
+}
+
+function shadowFilter(values: Readonly<Record<string, VisualPropertyValue>>): string | undefined {
+  if (!booleanValue(values[VISUAL_PROPERTY_KEYS.shadowEnabled], false)) return undefined;
+  const x = numberValue(values[VISUAL_PROPERTY_KEYS.shadowOffsetX]);
+  const y = numberValue(values[VISUAL_PROPERTY_KEYS.shadowOffsetY]);
+  const blur = numberValue(values[VISUAL_PROPERTY_KEYS.shadowBlur]);
+  const color = stringValue(values[VISUAL_PROPERTY_KEYS.shadowColor], '#00000066');
+  return `drop-shadow(${x}px ${y}px ${blur}px ${color})`;
+}
+
+type PolygonGradient = Readonly<{
+  primary: string;
+  secondary: string;
+  x1: string;
+  y1: string;
+  x2: string;
+  y2: string;
+}>;
+
+function polygonGradient(values: Readonly<Record<string, VisualPropertyValue>>): PolygonGradient | null {
+  if (stringValue(values[VISUAL_PROPERTY_KEYS.fillStyle], 'solid') !== 'gradient') return null;
+  const direction = stringValue(values[VISUAL_PROPERTY_KEYS.gradientDirection], 'vertical');
+  const coordinates = gradientCoordinates(direction);
+  return {
+    primary: stringValue(values[VISUAL_PROPERTY_KEYS.fillColor], '#00000000'),
+    secondary: stringValue(values[VISUAL_PROPERTY_KEYS.fillSecondaryColor], '#00000000'),
+    ...coordinates
+  };
+}
+
+function polygonSolidFill(values: Readonly<Record<string, VisualPropertyValue>>): string {
+  if (stringValue(values[VISUAL_PROPERTY_KEYS.fillStyle], 'solid') === 'none') return 'none';
+  return stringValue(values[VISUAL_PROPERTY_KEYS.fillColor], '#00000000');
+}
+
+function gradientAngle(value: VisualPropertyValue | undefined): string {
+  switch (stringValue(value, 'vertical')) {
+    case 'horizontal': return '90deg';
+    case 'diagonal-down': return '135deg';
+    case 'diagonal-up': return '45deg';
+    case 'vertical':
+    default: return '180deg';
+  }
+}
+
+function gradientCoordinates(direction: string): Readonly<{ x1: string; y1: string; x2: string; y2: string }> {
+  switch (direction) {
+    case 'horizontal': return { x1: '0%', y1: '0%', x2: '100%', y2: '0%' };
+    case 'diagonal-down': return { x1: '0%', y1: '0%', x2: '100%', y2: '100%' };
+    case 'diagonal-up': return { x1: '0%', y1: '100%', x2: '100%', y2: '0%' };
+    case 'vertical':
+    default: return { x1: '0%', y1: '0%', x2: '0%', y2: '100%' };
+  }
+}
+
+function stableDomToken(value: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
 function assetReferenceId(value: VisualPropertyValue | undefined): string | null { if (!value || typeof value !== 'object' || !('assetId' in value)) return null; return typeof value.assetId === 'string' && value.assetId.length > 0 ? value.assetId : null; }
 function imageFit(value: VisualPropertyValue | undefined): CSSProperties['objectFit'] { const fit = stringValue(value, 'contain'); return fit === 'cover' ? 'cover' : fit === 'fill' ? 'fill' : fit === 'native' ? 'none' : 'contain'; }
 function percent(value: VisualPropertyValue | undefined): number { return Math.max(0, Math.min(1, numberValue(value, 0.5))) * 100; }

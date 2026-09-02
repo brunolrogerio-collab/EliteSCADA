@@ -13,6 +13,8 @@ export type DataSourceConfigurationField = {
   minimum?: number | null;
   maximum?: number | null;
   advanced: boolean;
+  expectedFormat?: string | null;
+  exampleValue?: string | null;
 };
 
 export type DataSourceTypeDefinition = {

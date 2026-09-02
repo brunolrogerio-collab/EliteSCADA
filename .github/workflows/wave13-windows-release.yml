@@ -81,6 +81,13 @@ jobs:
           Authentication__Local__Bootstrap__Roles__0: developer
         run: ./scripts/release/Test-WindowsPackagedProduct.ps1 -ProductRoot ./artifacts/wave13/candidate/product
 
+      - name: Verify fail-closed release negative cases
+        shell: pwsh
+        run: |
+          ./scripts/release/Test-WindowsReleaseNegativeCases.ps1 `
+            -CandidateRoot ./artifacts/wave13/candidate `
+            -ExpectedSourceSha $env:RELEASE_SOURCE_SHA
+
       - name: Upload unsigned signing candidate
         uses: actions/upload-artifact@v4
         with:

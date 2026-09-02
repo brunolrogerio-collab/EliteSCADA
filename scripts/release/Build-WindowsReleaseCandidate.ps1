@@ -45,6 +45,10 @@ if ([string]::IsNullOrWhiteSpace($SourceSha)) {
         Pop-Location
     }
 }
+if ($SourceSha -notmatch '^[0-9a-fA-F]{40}$') {
+    throw "SourceSha must be a full 40-character Git commit SHA."
+}
+$SourceSha = $SourceSha.ToLowerInvariant()
 
 $version = [string]$identity.version
 $rid = [string]$identity.runtimeIdentifier

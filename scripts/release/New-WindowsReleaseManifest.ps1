@@ -8,19 +8,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
-
-function Test-PortableExecutable {
-    param([Parameter(Mandatory = $true)][string]$Path)
-
-    $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
-    try {
-        if ($stream.Length -lt 2) { return $false }
-        return $stream.ReadByte() -eq 0x4D -and $stream.ReadByte() -eq 0x5A
-    }
-    finally {
-        $stream.Dispose()
-    }
-}
+. (Join-Path $PSScriptRoot "WindowsReleaseVerification.ps1")
 
 $root = (Resolve-Path -LiteralPath $SignedRoot).Path
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
@@ -34,13 +22,37 @@ if ($identity.dnp3CommercialGate -ne "blocked") { throw "DNP3 commercial gate mu
 if ($identity.commercialDistributionAuthorized -ne $false) { throw "Commercial distribution cannot be authorized while the DNP3 gate is blocked." }
 if ([string]::IsNullOrWhiteSpace($ExpectedPublisher)) { throw "ExpectedPublisher is required." }
 if ($SourceSha -notmatch '^[0-9a-fA-F]{40}$') { throw "SourceSha must be a full 40-character Git commit SHA." }
+$SourceSha = $SourceSha.ToLowerInvariant()
+
+$releaseMetadataPath = Join-Path $root "release-metadata.json"
+if (-not (Test-Path -LiteralPath $releaseMetadataPath -PathType Leaf)) {
+    throw "Signed release metadata is missing: release-metadata.json"
+}
+$releaseMetadata = Get-Content -LiteralPath $releaseMetadataPath -Raw | ConvertFrom-Json
+if ($releaseMetadata.schemaVersion -ne 1) { throw "Unsupported release metadata schemaVersion '$($releaseMetadata.schemaVersion)'." }
+if ($releaseMetadata.signingState -ne 'signed-return') { throw "Release metadata signingState must be signed-return." }
+if ([string]$releaseMetadata.sourceSha -ne $SourceSha) { throw "Release metadata source SHA does not match SourceSha." }
+if ([string]$releaseMetadata.expectedPublisher -ne $ExpectedPublisher) { throw "Release metadata publisher does not match ExpectedPublisher." }
+if ([string]$releaseMetadata.product -ne [string]$identity.product -or
+    [string]$releaseMetadata.version -ne [string]$identity.version -or
+    [string]$releaseMetadata.runtimeIdentifier -ne [string]$identity.runtimeIdentifier -or
+    [string]$releaseMetadata.packageFormat -ne [string]$identity.packageFormat -or
+    [string]$releaseMetadata.productDirectory -ne 'product' -or
+    [string]$releaseMetadata.authorityDirectory -ne 'authority') {
+    throw "Release metadata identity differs from release/release-identity.json."
+}
+if ($releaseMetadata.dnp3IncludedInProductGraph -ne $true -or
+    $releaseMetadata.dnp3CommercialGate -ne 'blocked' -or
+    $releaseMetadata.commercialDistributionAuthorized -ne $false) {
+    throw "Release metadata does not preserve the audited DNP3 commercial gate."
+}
 
 $requiredRoles = [ordered]@{
     "product/Scada.Api.exe" = "product-host"
     "product/wwwroot/index.html" = "web-entry"
     "product/wwwroot/pyodide/pyodide.js" = "pyodide-runtime-entry"
     "authority/EliteSCADA.LicenseGenerator.exe" = "license-generator"
-    "candidate-metadata.json" = "candidate-metadata"
+    "release-metadata.json" = "release-metadata"
 }
 
 foreach ($relativePath in $requiredRoles.Keys) {
@@ -57,19 +69,54 @@ $files = @(Get-ChildItem -LiteralPath $root -File -Recurse | Where-Object {
 $artifacts = @($files | ForEach-Object {
     $file = $_
     $relativePath = [IO.Path]::GetRelativePath($root, $file.FullName).Replace('\\', '/')
-    $isPe = Test-PortableExecutable -Path $file.FullName
+    $isPe = Test-WindowsPortableExecutable -Path $file.FullName
+    $signature = if ($isPe) { Get-AuthenticodeSignature -LiteralPath $file.FullName } else { $null }
+    $timestampEvidence = if ($isPe) {
+        Get-WindowsRfc3161TimestampEvidence -Path $file.FullName
+    }
+    else {
+        $null
+    }
     $role = if ($requiredRoles.Contains($relativePath)) { $requiredRoles[$relativePath] } else { "payload" }
+    $packageRole = if ($relativePath.StartsWith('product/', [StringComparison]::Ordinal)) {
+        'product'
+    }
+    elseif ($relativePath.StartsWith('authority/', [StringComparison]::Ordinal)) {
+        'authority'
+    }
+    else {
+        'shared'
+    }
 
     [ordered]@{
         path = $relativePath
         role = $role
+        packageRole = $packageRole
         sha256 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
         sizeBytes = $file.Length
         pe = $isPe
         authenticodeRequired = $isPe
         expectedPublisher = if ($isPe) { $ExpectedPublisher } else { $null }
+        signerCertificateSubject = if ($isPe -and $null -ne $signature.SignerCertificate) {
+            $signature.SignerCertificate.Subject
+        } else { $null }
+        signerCertificateThumbprint = if ($isPe -and $null -ne $signature.SignerCertificate) {
+            $signature.SignerCertificate.Thumbprint.ToLowerInvariant()
+        } else { $null }
         trustedTimestampRequired = $isPe
         timestampProtocol = if ($isPe) { "RFC3161" } else { $null }
+        timestampCertificateSubject = if ($null -ne $timestampEvidence) {
+            $timestampEvidence.SignerCertificateSubject
+        } else { $null }
+        timestampCertificateThumbprint = if ($null -ne $timestampEvidence) {
+            $timestampEvidence.SignerCertificateThumbprint
+        } else { $null }
+        rfc3161TimestampUtc = if ($null -ne $timestampEvidence) {
+            $timestampEvidence.TimestampUtc
+        } else { $null }
+        rfc3161TokenSha256 = if ($null -ne $timestampEvidence) {
+            $timestampEvidence.TokenSha256
+        } else { $null }
     }
 })
 
@@ -78,9 +125,10 @@ $manifest = [ordered]@{
     verifierSchemaVersion = 1
     product = [string]$identity.product
     version = [string]$identity.version
-    sourceSha = $SourceSha.ToLowerInvariant()
+    sourceSha = $SourceSha
     runtimeIdentifier = [string]$identity.runtimeIdentifier
     packageFormat = [string]$identity.packageFormat
+    signingState = "signed-return"
     dnp3IncludedInProductGraph = [bool]$identity.dnp3IncludedInProductGraph
     dnp3CommercialGate = [string]$identity.dnp3CommercialGate
     commercialDistributionAuthorized = [bool]$identity.commercialDistributionAuthorized

@@ -9,7 +9,6 @@ using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Abstractions;
 using Scada.Engineering.Contracts;
-using Scada.Engineering.Validation;
 
 namespace Scada.Api.Licensing;
 
@@ -400,13 +399,6 @@ public static class ProductLicensedRuntimeConfiguration
 {
     public static void AddProductLicensedRuntimeCoordinator(this WebApplicationBuilder builder)
     {
-        builder.Services.AddSingleton(_ => CommunicationDriverRuntimeComposition.BuildForCurrentSchema());
-        builder.Services.AddSingleton<EngineeringDataSourceTypeCatalog>(sp =>
-            EngineeringDataSourceTypeCatalog.BuildForCurrentSchema(
-                sp.GetRequiredService<CommunicationDriverRuntimeComponentRegistry>()));
-        builder.Services.AddSingleton<IDataSourceConfigurationValidator>(sp =>
-            sp.GetRequiredService<EngineeringDataSourceTypeCatalog>());
-
         builder.Services.AddSingleton<ProductLicensedRuntimeCoordinator>(sp =>
         {
             var eventBus = sp.GetRequiredService<IScadaEventBus>();

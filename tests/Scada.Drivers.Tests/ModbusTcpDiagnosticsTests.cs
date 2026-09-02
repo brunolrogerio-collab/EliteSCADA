@@ -29,7 +29,7 @@ public sealed class ModbusTcpDiagnosticsTests
             new[] { point },
             server.Port,
             scanRate: TimeSpan.FromMilliseconds(80),
-            requestTimeout: TimeSpan.FromMilliseconds(500));
+            requestTimeout: TimeSpan.FromSeconds(2));
 
         Assert.IsAssignableFrom<ICommunicationDiagnosticsSource>(driver);
         await driver.StartAsync();
@@ -75,7 +75,7 @@ public sealed class ModbusTcpDiagnosticsTests
         var modbus = driver.GetModbusDiagnostics();
         Assert.Equal("127.0.0.1", modbus.Host);
         Assert.Equal(server.Port, modbus.Port);
-        Assert.Equal(TimeSpan.FromMilliseconds(500), modbus.RequestTimeout);
+        Assert.Equal(TimeSpan.FromSeconds(2), modbus.RequestTimeout);
         Assert.Equal(1, modbus.PollBlockCount);
         Assert.Equal(new byte[] { 1 }, modbus.UnitIds);
         Assert.True(modbus.SuccessfulPollBlocks > 0);

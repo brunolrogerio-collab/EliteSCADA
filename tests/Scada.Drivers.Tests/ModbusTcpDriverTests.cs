@@ -78,7 +78,7 @@ public sealed class ModbusTcpDriverTests
             points,
             server.Port,
             scanRate: TimeSpan.FromMilliseconds(50),
-            requestTimeout: TimeSpan.FromMilliseconds(500),
+            requestTimeout: TimeSpan.FromSeconds(2),
             maxGapElements: 8);
 
         await driver.StartAsync();

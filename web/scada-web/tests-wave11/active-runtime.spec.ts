@@ -385,16 +385,13 @@ test('an unavailable Active projection fails closed without reading mutable Work
     });
   });
   await page.route('**/api/engineering/export/json', async route => {
-    workingReads += 1;
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ schemaVersion: 15, screens: [] })
-    });
+    workingReads++;
+    await route.continue();
   });
 
   await page.goto('/');
-  await expect(page.getByTestId('runtime-engineering-error')).toBeVisible();
-  await expect(page.getByTestId('runtime-engineering-error')).toContainText('409');
+  await expect(page.getByTestId('runtime-application-error')).toBeVisible();
+  await expect(page.getByTestId('runtime-simulation-fallback')).toHaveCount(0);
+  await expect(page.getByTestId('runtime-engineering-application')).toHaveCount(0);
   expect(workingReads).toBe(0);
 });

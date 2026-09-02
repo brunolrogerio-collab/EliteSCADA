@@ -10,6 +10,8 @@ on:
       - "src/Scada.Drivers/Dnp3/**"
       - "tests/Scada.Drivers.Tests/**"
       - "native/dnp3/**"
+      - "interop-lab/dnp3-dnp3py/**"
+      - "interop-lab/compose.dnp3.yaml"
       - "docs/WAVE14-C03-DNP3-PRODUCTION-ADAPTER.md"
       - ".github/workflows/wave14-c03-dnp3.yml"
   pull_request:
@@ -21,6 +23,8 @@ on:
       - "src/Scada.Drivers/Dnp3/**"
       - "tests/Scada.Drivers.Tests/**"
       - "native/dnp3/**"
+      - "interop-lab/dnp3-dnp3py/**"
+      - "interop-lab/compose.dnp3.yaml"
       - "docs/WAVE14-C03-DNP3-PRODUCTION-ADAPTER.md"
       - ".github/workflows/wave14-c03-dnp3.yml"
 
@@ -69,6 +73,75 @@ jobs:
 
       - name: Verify native host artifact
         run: test -x build/dnp3/EliteScada.Dnp3Host
+
+      - name: Upload Linux native host
+        uses: actions/upload-artifact@v4
+        with:
+          name: c03-opendnp3-linux-x64
+          path: build/dnp3/EliteScada.Dnp3Host
+          if-no-files-found: error
+          retention-days: 2
+
+  dnp3py-interop:
+    name: OpenDNP3 to dnp3py L3 interop
+    needs: native-linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      ELITESCADA_L3_DNP3_HOST: 127.0.0.1
+      ELITESCADA_L3_DNP3_PORT: "20000"
+      ELITESCADA_DNP3_HOST_PATH: ${{ github.workspace }}/build/dnp3/EliteScada.Dnp3Host
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+
+      - name: Download Linux native host
+        uses: actions/download-artifact@v4
+        with:
+          name: c03-opendnp3-linux-x64
+          path: build/dnp3
+
+      - name: Prepare native host
+        run: chmod +x build/dnp3/EliteScada.Dnp3Host
+
+      - name: Start independent dnp3py outstation
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml -f compose.dnp3.yaml up -d --build --wait --wait-timeout 180 dnp3-dnp3py
+
+      - name: Verify DNP3 peer endpoint
+        run: timeout 20 bash -c 'until nc -z 127.0.0.1 20000; do sleep 1; done'
+
+      - name: Restore DNP3 tests
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+
+      - name: Build DNP3 tests
+        run: dotnet build tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release
+
+      - name: Run real OpenDNP3/dnp3py interop
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter Category=L3OpenDnp3Integration --logger "console;verbosity=normal" --logger "trx;LogFileName=c03-opendnp3-dnp3py.trx" --results-directory TestResults/C03OpenDnp3
+
+      - name: Show dnp3py logs
+        if: always()
+        run: docker logs elitescada-lab-dnp3-dnp3py || true
+
+      - name: Upload L3 interop evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c03-opendnp3-dnp3py-results-${{ github.sha }}
+          path: TestResults/C03OpenDnp3/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Stop DNP3 peer
+        if: always()
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml -f compose.dnp3.yaml down -v
 
   native-windows:
     name: Native OpenDNP3 host build (Windows x64)

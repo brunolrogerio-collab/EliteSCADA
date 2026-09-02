@@ -9,8 +9,10 @@ import {
   buildDataSourceCandidate,
   cloneDataSourceValue,
   dataSourceIdentity,
+  incompatibleDataSourceConfiguration,
   isProtectedReference,
   newDataSourceDraft,
+  removeIncompatibleDataSourceConfiguration,
   switchDataSourceType,
   validateDataSourceDraft,
   type DataSourceConfigurationField,
@@ -103,6 +105,10 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
   const changed = Boolean(draft && (isNew
     ? JSON.stringify(draft) !== JSON.stringify(pristineNew)
     : selected && JSON.stringify(selected) !== JSON.stringify(draft)));
+  const incompatible = draft && currentType
+    ? incompatibleDataSourceConfiguration(draft, currentType)
+    : { settings: [], secretReferences: [] };
+  const hasIncompatible = incompatible.settings.length + incompatible.secretReferences.length > 0;
   const clientIssues = draft ? validateDataSourceDraft(draft, currentType) : [];
 
   const updateDraft = (next: DataSourceEngineering) => {
@@ -134,6 +140,11 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
       ...draft,
       ...(protectedReference ? { secretReferences: target } : { settings: target })
     });
+  };
+
+  const removeIncompatible = () => {
+    if (!draft || !currentType) return;
+    updateDraft(removeIncompatibleDataSourceConfiguration(draft, currentType));
   };
 
   const candidate = (): EngineeringPackageView | null => {
@@ -246,6 +257,21 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
               </div>
             </section>}
 
+            {hasIncompatible && currentType && (
+              <section className="eng-preview-panel" aria-live="polite" data-testid="data-source-incompatible-settings">
+                <header>
+                  <strong className="invalid">{copy.incompatibleTitle}</strong>
+                  <button type="button" onClick={removeIncompatible} data-testid="data-source-remove-incompatible">{copy.removeIncompatible}</button>
+                </header>
+                <span>{copy.incompatibleHint}</span>
+                <div className="eng-preview-issues">
+                  {[...incompatible.settings, ...incompatible.secretReferences].map(key => (
+                    <div className="warning" key={key}><code>{key}</code></div>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {clientIssues.length > 0 && (
               <section className="eng-preview-panel" aria-live="polite" data-testid="data-source-client-validation">
                 <header><strong className="invalid">{copy.clientValidation}</strong></header>
@@ -345,7 +371,8 @@ function clientIssueMessage(issue: DataSourceDraftIssue, copy: ReturnType<typeof
   if (issue.code === 'duration') return `${copy.duration}.${expectation}`;
   if (issue.code === 'enum') return `${copy.enumValue}.${expectation}`;
   if (issue.code === 'minimum') return `${copy.minimum}.${expectation}`;
-  return `${copy.maximum}.${expectation}`;
+  if (issue.code === 'maximum') return `${copy.maximum}.${expectation}`;
+  return copy.incompatibleField;
 }
 
 function text(locale: EngineeringLocale) {
@@ -355,6 +382,7 @@ function text(locale: EngineeringLocale) {
     name: 'Name', key: 'Key', type: 'Data Source type', enabled: 'Enabled', yes: 'Yes', no: 'No', chooseType: 'Choose a type',
     unsupported: 'Unavailable type', unsupportedHint: 'This persisted type is not available in this build. Select a supported type explicitly; it will not be remapped silently.',
     settings: 'Type configuration', settingsHint: 'Only fields declared by the selected backend schema are editable.', noSettings: 'This source type has no configuration fields.',
+    incompatibleTitle: 'Incompatible persisted settings', incompatibleHint: 'These keys are not valid for the selected source type. They are not reinterpreted automatically.', removeIncompatible: 'Remove incompatible settings', incompatibleField: 'This persisted setting does not belong to the selected source type.',
     preview: 'Validate draft', apply: 'Apply', valid: 'Valid candidate', invalid: 'Invalid candidate', errors: 'Errors', discard: 'Discard unsaved Data Source changes?',
     workspaceChanged: 'Engineering Workspace changed during validation. Reload and validate the draft again.', fixClientIssues: 'Correct the highlighted Data Source fields before backend validation.',
     clientValidation: 'Fields to correct', expected: 'Expected', required: 'This field is required', integer: 'Enter a whole number', number: 'Enter a valid number', duration: 'Enter a valid duration', enumValue: 'Choose one of the supported values', minimum: 'Value is below the allowed minimum', maximum: 'Value is above the allowed maximum'
@@ -365,6 +393,7 @@ function text(locale: EngineeringLocale) {
     name: 'Nombre', key: 'Clave', type: 'Tipo de Data Source', enabled: 'Habilitado', yes: 'Sí', no: 'No', chooseType: 'Seleccione un tipo',
     unsupported: 'Tipo no disponible', unsupportedHint: 'El tipo persistido no existe en esta build. Seleccione otro explícitamente; no será reinterpretado.',
     settings: 'Configuración del tipo', settingsHint: 'Solo los campos declarados por el schema backend son editables.', noSettings: 'Este tipo no tiene campos de configuración.',
+    incompatibleTitle: 'Configuraciones persistidas incompatibles', incompatibleHint: 'Estas claves no son válidas para el tipo seleccionado. No se reinterpretan automáticamente.', removeIncompatible: 'Eliminar configuraciones incompatibles', incompatibleField: 'Esta configuración persistida no pertenece al tipo seleccionado.',
     preview: 'Validar borrador', apply: 'Aplicar', valid: 'Candidato válido', invalid: 'Candidato inválido', errors: 'Errores', discard: '¿Descartar los cambios no guardados?',
     workspaceChanged: 'El Engineering Workspace cambió durante la validación. Recargue y valide el borrador nuevamente.', fixClientIssues: 'Corrija los campos indicados antes de la validación backend.',
     clientValidation: 'Campos a corregir', expected: 'Esperado', required: 'Este campo es obligatorio', integer: 'Ingrese un número entero', number: 'Ingrese un número válido', duration: 'Ingrese una duración válida', enumValue: 'Seleccione uno de los valores permitidos', minimum: 'El valor está por debajo del mínimo permitido', maximum: 'El valor supera el máximo permitido'
@@ -375,6 +404,7 @@ function text(locale: EngineeringLocale) {
     name: 'Nome', key: 'Chave', type: 'Tipo de Data Source', enabled: 'Habilitado', yes: 'Sim', no: 'Não', chooseType: 'Escolha um tipo',
     unsupported: 'Tipo indisponível', unsupportedHint: 'O tipo persistido não existe nesta build. Selecione outro explicitamente; ele não será reinterpretado silenciosamente.',
     settings: 'Configuração do tipo', settingsHint: 'Somente campos declarados pelo schema do backend podem ser editados.', noSettings: 'Este tipo não possui campos de configuração.',
+    incompatibleTitle: 'Configurações persistidas incompatíveis', incompatibleHint: 'Estas chaves não pertencem ao tipo selecionado. Elas não são reinterpretadas automaticamente.', removeIncompatible: 'Remover configurações incompatíveis', incompatibleField: 'Esta configuração persistida não pertence ao tipo selecionado.',
     preview: 'Validar rascunho', apply: 'Aplicar', valid: 'Candidato válido', invalid: 'Candidato inválido', errors: 'Erros', discard: 'Descartar alterações não salvas da Data Source?',
     workspaceChanged: 'O Engineering Workspace mudou durante a validação. Recarregue e valide o rascunho novamente.', fixClientIssues: 'Corrija os campos indicados da Data Source antes da validação no backend.',
     clientValidation: 'Campos a corrigir', expected: 'Esperado', required: 'Este campo é obrigatório', integer: 'Informe um número inteiro', number: 'Informe um número válido', duration: 'Informe uma duração válida', enumValue: 'Escolha um dos valores permitidos', minimum: 'O valor está abaixo do mínimo permitido', maximum: 'O valor está acima do máximo permitido'

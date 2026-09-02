@@ -11,9 +11,9 @@ chmod 700 "$STATE_DIR"
 if [[ ! -s "$MACHINE_ID_FILE" ]]; then
   machine_id=""
   if [[ -r /proc/sys/kernel/random/uuid ]]; then
-    machine_id="$(tr -d '-\r\n' < /proc/sys/kernel/random/uuid | tr '[:upper:]' '[:lower:]')"
+    machine_id="$(tr -d -- '-\r\n' < /proc/sys/kernel/random/uuid | tr '[:upper:]' '[:lower:]')"
   elif command -v uuidgen >/dev/null 2>&1; then
-    machine_id="$(uuidgen | tr -d '-\r\n' | tr '[:upper:]' '[:lower:]')"
+    machine_id="$(uuidgen | tr -d -- '-\r\n' | tr '[:upper:]' '[:lower:]')"
   fi
 
   if [[ ! "$machine_id" =~ ^[0-9a-f]{32}$ ]] || [[ "$machine_id" == "00000000000000000000000000000000" ]]; then

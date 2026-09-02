@@ -25,14 +25,15 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'chromium',
-      testIgnore: /local-auth\.spec\.ts/,
+      name: 'chromium-local-auth',
+      testMatch: /local-auth\.spec\.ts/,
+      retries: 0,
       use: { ...devices['Desktop Chrome'] }
     },
     {
-      name: 'chromium-local-auth',
-      testMatch: /local-auth\.spec\.ts/,
-      dependencies: ['chromium'],
+      name: 'chromium',
+      testIgnore: /local-auth\.spec\.ts/,
+      dependencies: ['chromium-local-auth'],
       use: { ...devices['Desktop Chrome'] }
     }
   ],

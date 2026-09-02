@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-test('local login authenticates Runtime and Engineering with an HttpOnly JWT cookie', async ({ browser }) => {
+const adminUsername = 'local-developer';
+const adminPassword = 'E2Epass8';
+
+test('secure first-run creates the initial local Administrator, first project and durable local session', async ({ browser }) => {
   const context = await browser.newContext({
     baseURL: 'http://127.0.0.1:5173',
     extraHTTPHeaders: { Authorization: '' }
@@ -14,31 +17,37 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     });
     expect(authConfig.status).toBe(200);
     expect(authConfig.body.localLoginEnabled).toBe(true);
-    expect(authConfig.body.initialAdministratorRequired).toBe(false);
-    expect(authConfig.body.initialAdministratorSetupAvailable).toBe(false);
+    expect(authConfig.body.initialAdministratorRequired).toBe(true);
+    expect(authConfig.body.initialAdministratorSetupAvailable).toBe(true);
+    expect(authConfig.body.initialAdministratorBlockedReason).toBeNull();
     expect(authConfig.body.passwordPolicy.minimumLength).toBe(8);
     expect(authConfig.body.passwordPolicy.maximumLength).toBe(1024);
 
     await page.goto('/engineering');
     await expect(page.locator('.auth-card')).toBeVisible();
-    await expect(page.locator('input[name="username"]')).toBeVisible();
-    await expect(page.locator('input[name="bootstrap-username"]')).toHaveCount(0);
-    await expect(page.locator('input[name="password"]')).toBeVisible();
+    await expect(page.locator('input[name="bootstrap-username"]')).toBeVisible();
+    await expect(page.locator('input[name="username"]')).toHaveCount(0);
 
-    await page.locator('input[name="username"]').fill('local-developer');
-    await page.locator('input[name="password"]').fill('definitely-wrong-password');
-    await page.locator('button[type="submit"]').click();
-    await expect(page.locator('.auth-error')).toBeVisible();
+    await page.locator('input[name="bootstrap-username"]').fill(adminUsername);
+    await page.locator('input[name="bootstrap-display-name"]').fill('Local Developer');
+    await page.locator('input[name="bootstrap-password"]').fill('1234567');
+    await page.locator('input[name="bootstrap-password-confirmation"]').fill('1234567');
+    await expect(page.locator('button[type="submit"]')).toBeDisabled();
 
-    await page.locator('input[name="password"]').fill('E2E-local-password-123!');
-    const loginResponsePromise = page.waitForResponse(response =>
-      response.url().endsWith('/api/auth/login') &&
+    await page.locator('input[name="bootstrap-password"]').fill(adminPassword);
+    await page.locator('input[name="bootstrap-password-confirmation"]').fill(adminPassword);
+    await expect(page.locator('button[type="submit"]')).toBeEnabled();
+
+    const bootstrapResponsePromise = page.waitForResponse(response =>
+      response.url().endsWith('/api/auth/bootstrap') &&
       response.request().method() === 'POST' &&
       response.status() === 200);
     await page.locator('button[type="submit"]').click();
-    const loginResponse = await loginResponsePromise;
-    const loginProfile = await loginResponse.json();
-    expect(loginProfile.identityProvider).toBe('local');
+    const bootstrapResponse = await bootstrapResponsePromise;
+    const bootstrapProfile = await bootstrapResponse.json();
+    expect(bootstrapProfile.username).toBe(adminUsername);
+    expect(bootstrapProfile.roles).toContain('developer');
+    expect(bootstrapProfile.identityProvider).toBe('local');
 
     const localSession = await page.evaluate(async () => {
       const response = await fetch('/api/auth/local-session');
@@ -46,7 +55,7 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     });
     expect(localSession.status).toBe(200);
     expect(localSession.body.authenticated).toBe(true);
-    expect(localSession.body.username).toBe('local-developer');
+    expect(localSession.body.username).toBe(adminUsername);
 
     const cookies = await context.cookies('http://127.0.0.1:5173');
     const accessCookie = cookies.find(cookie => cookie.name === 'elitescada_access');
@@ -64,9 +73,9 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     expect(profile.body.displayName).toBe('Local Developer');
     expect(profile.body.roles).toContain('developer');
 
-    // Capture the shared E2E Demo package before first-project creation clears the
-    // host workspace. This test runs before the ordinary Chromium project and
-    // restores the package after proving the clean first-project boundary.
+    // The fresh server still has the process Demo in memory, but no persisted project.
+    // Capture it so this prerequisite test can restore the shared E2E baseline after
+    // proving that the first persisted project is genuinely empty.
     const seededEngineering = await page.evaluate(async () => {
       const response = await fetch('/api/engineering/export/json');
       return { status: response.status, body: await response.json() };
@@ -75,9 +84,6 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     expect(seededEngineering.body.tags.length).toBeGreaterThan(0);
     expect(seededEngineering.body.securityRoles.length).toBeGreaterThan(1);
 
-    // Validate that the signed HttpOnly cookie is also accepted by the existing
-    // realtime authentication path before a truly empty first project removes the
-    // seeded Demo TAGs that would otherwise generate test messages.
     const realtime = await page.evaluate(async () => {
       return await new Promise<string>(resolve => {
         const socket = new WebSocket('ws://127.0.0.1:5173/ws/tags');
@@ -100,11 +106,11 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     expect(realtime).not.toBe('rejected');
     expect(JSON.parse(realtime).type).toBe('tagValueChanged');
 
-    const firstProjectKey = page.locator('input[name="project-key"]');
-    await expect(firstProjectKey).toBeVisible();
+    await expect(page.locator('input[name="project-key"]')).toBeVisible();
+    await expect(page.locator('input[name="bootstrap-username"]')).toHaveCount(0);
 
-    // The first-project requirement is server/store-side. A reload with only the
-    // HttpOnly local cookie must keep the authenticated user in this setup flow.
+    // First-project setup is server/store-owned. Reloading with only the signed
+    // HttpOnly local cookie must return to the same setup instead of reopening bootstrap.
     await page.reload();
     await expect(page.locator('input[name="project-key"]')).toBeVisible();
     await expect(page.locator('input[name="bootstrap-username"]')).toHaveCount(0);
@@ -123,11 +129,6 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     expect(workspace.body.projectKey).toBe(projectKey);
     expect(workspace.body.baseRevision).toBeGreaterThanOrEqual(1);
     expect(workspace.body.isDirty).toBe(false);
-
-    // A genuinely new project must not persist the process Demo seeded into the
-    // in-memory host workspace. Canonical built-in Dynamos remain available as
-    // product library content, and the developer role remains so the new local
-    // Administrator is not locked out of the project it just created.
     expect(workspace.body.tagCount).toBe(0);
     expect(workspace.body.alarmCount).toBe(0);
     expect(workspace.body.dataSourceCount).toBe(0);
@@ -148,10 +149,8 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     expect(securityRoles.body).toHaveLength(1);
     expect(securityRoles.body[0].key).toBe('developer');
 
-    // The workspace descriptor does not expose every canonical collection.
-    // Verify the actual exported Engineering package as the persistence source of
-    // truth so stale Gateways, Reports or script references cannot hide in a
-    // supposedly empty first project.
+    // The descriptor does not expose every canonical collection, so assert the
+    // actual package that persistence/import/export use as the source of truth.
     const canonicalProject = await page.evaluate(async () => {
       const response = await fetch('/api/engineering/export/json');
       return { status: response.status, body: await response.json() };
@@ -174,9 +173,8 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     expect(canonicalProject.body.securityRoles).toHaveLength(1);
     expect(canonicalProject.body.securityRoles[0].key).toBe('developer');
 
-    // Restore the original Demo package before the dependent Chromium project starts.
-    // Import uses the same canonical product API, then a normal save returns the
-    // workspace to a clean baseline under the configured E2E project key.
+    // Restore the original Demo through the canonical API before the dependent
+    // Chromium project starts, then save it so the common E2E baseline is clean.
     const restoredImport = await page.evaluate(async seededPackage => {
       const response = await fetch('/api/engineering/import/json/apply', {
         method: 'POST',
@@ -207,15 +205,10 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     expect(restoredWorkspace.body.securityRoleCount).toBeGreaterThan(1);
     expect(restoredWorkspace.body.isDirty).toBe(false);
 
-    await expect(page.locator('.eng-sidebar')).toBeVisible();
-
     const logoutStatus = await page.evaluate(async () =>
       (await fetch('/api/auth/logout', { method: 'POST' })).status);
     expect(logoutStatus).toBe(204);
-
-    const meAfterLogout = await page.evaluate(async () =>
-      (await fetch('/api/auth/me')).status);
-    expect(meAfterLogout).toBe(401);
+    expect(await page.evaluate(async () => (await fetch('/api/auth/me')).status)).toBe(401);
 
     const localSessionAfterLogout = await page.evaluate(async () => {
       const response = await fetch('/api/auth/local-session');
@@ -223,8 +216,7 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     });
     expect(localSessionAfterLogout.authenticated).toBe(false);
 
-    // The browser no longer has an authenticated cookie, and client-side state is
-    // cleared as well. Neither can reopen the server/store-owned bootstrap.
+    // Neither browser state nor cookies are authoritative for bootstrap availability.
     await page.evaluate(() => window.localStorage.clear());
     const bootstrapRetry = await page.evaluate(async () => {
       const response = await fetch('/api/auth/bootstrap', {
@@ -241,10 +233,40 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     expect(bootstrapRetry.status).toBe(409);
     expect(bootstrapRetry.body.error).toContain('already closed');
 
+    // After bootstrap is permanently closed, the same Administrator uses the normal
+    // login path. Wrong credentials fail; the exact 8-character accepted password
+    // succeeds and the resulting signed local session survives a browser reload.
     await page.reload();
-    await expect(page.locator('.auth-card')).toBeVisible();
     await expect(page.locator('input[name="username"]')).toBeVisible();
     await expect(page.locator('input[name="bootstrap-username"]')).toHaveCount(0);
+
+    await page.locator('input[name="username"]').fill(adminUsername);
+    await page.locator('input[name="password"]').fill('definitely-wrong-password');
+    await page.locator('button[type="submit"]').click();
+    await expect(page.locator('.auth-error')).toBeVisible();
+
+    await page.locator('input[name="password"]').fill(adminPassword);
+    const loginResponsePromise = page.waitForResponse(response =>
+      response.url().endsWith('/api/auth/login') &&
+      response.request().method() === 'POST' &&
+      response.status() === 200);
+    await page.locator('button[type="submit"]').click();
+    const loginResponse = await loginResponsePromise;
+    const loginProfile = await loginResponse.json();
+    expect(loginProfile.username).toBe(adminUsername);
+    expect(loginProfile.identityProvider).toBe('local');
+
+    await expect(page.locator('.eng-shell')).toBeVisible({ timeout: 15_000 });
+    await page.reload();
+    await expect(page.locator('.eng-shell')).toBeVisible({ timeout: 15_000 });
+
+    const reloadedLocalSession = await page.evaluate(async () => {
+      const response = await fetch('/api/auth/local-session');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(reloadedLocalSession.status).toBe(200);
+    expect(reloadedLocalSession.body.authenticated).toBe(true);
+    expect(reloadedLocalSession.body.username).toBe(adminUsername);
   } finally {
     await context.close();
   }

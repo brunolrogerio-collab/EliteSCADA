@@ -194,7 +194,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   const acceptAuthenticatedProfile = useCallback(async (nextProfile: AuthProfile | null) => {
     setProfile(nextProfile);
-    if (!nextProfile) {
+    if (!nextProfile?.username) {
       setProjectSetupRequired(false);
       return;
     }

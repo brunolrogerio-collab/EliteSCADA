@@ -31,6 +31,12 @@ import {
 } from './visualEditorLiveValues';
 import { resolveVisualDynamicState } from './visualDynamicRuntime';
 import { SliderVisualElement, type SliderTagWrite } from './SliderVisualElement';
+import {
+  cssStrokeStyle,
+  effectiveStrokeWidth,
+  normalizeCanonicalStrokeStyle,
+  svgStrokeDasharray
+} from './visualStrokePresentation';
 
 export type CanonicalVisualEvent = Readonly<{
   element: VisualElementEngineering;
@@ -199,7 +205,11 @@ function CanonicalElement({
       if (points.length < 3) throw new Error(`Polygon '${element.key}' requires at least three valid vertices.`);
       const bounds = polygonBounds(points);
       const normalizedPoints = points.map(point => ({ x: point.x - bounds.minX, y: point.y - bounds.minY }));
-      const strokeStyle = stringValue(values[VISUAL_PROPERTY_KEYS.strokeStyle], 'solid');
+      const strokeStyle = normalizeCanonicalStrokeStyle(values[VISUAL_PROPERTY_KEYS.strokeStyle]);
+      const strokeWidth = effectiveStrokeWidth(
+        strokeStyle,
+        numberValue(values[VISUAL_PROPERTY_KEYS.strokeWidth], 1)
+      );
       return <div
         className="visual-editor-object visual-editor-polygon"
         style={{ ...style, background: 'transparent', border: 0, overflow: 'visible' }}
@@ -213,9 +223,9 @@ function CanonicalElement({
           <polygon
             points={polygonPointsAttribute(normalizedPoints)}
             fill={stringValue(values[VISUAL_PROPERTY_KEYS.fillColor], '#00000000')}
-            stroke={stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor], '#000000')}
-            strokeWidth={numberValue(values[VISUAL_PROPERTY_KEYS.strokeWidth], 1)}
-            strokeDasharray={strokeStyle === 'dashed' ? '8 5' : strokeStyle === 'dotted' ? '2 4' : undefined}
+            stroke={strokeStyle === 'none' ? 'none' : stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor], '#000000')}
+            strokeWidth={strokeWidth}
+            strokeDasharray={svgStrokeDasharray(strokeStyle)}
             vectorEffect="non-scaling-stroke"
           />
         </svg>
@@ -462,7 +472,11 @@ function collectRuntimeBindingElements(
 
 function elementStyle(values: Readonly<Record<string, VisualPropertyValue>>): CSSProperties {
   const visible = booleanValue(values[VISUAL_PROPERTY_KEYS.visible], true);
-  const strokeStyle = stringValue(values[VISUAL_PROPERTY_KEYS.strokeStyle], 'solid');
+  const strokeStyle = normalizeCanonicalStrokeStyle(values[VISUAL_PROPERTY_KEYS.strokeStyle]);
+  const strokeWidth = effectiveStrokeWidth(
+    strokeStyle,
+    numberValue(values[VISUAL_PROPERTY_KEYS.strokeWidth], 0)
+  );
   return {
     position: 'absolute',
     left: numberValue(values[VISUAL_PROPERTY_KEYS.x]), top: numberValue(values[VISUAL_PROPERTY_KEYS.y]),
@@ -472,9 +486,9 @@ function elementStyle(values: Readonly<Record<string, VisualPropertyValue>>): CS
     transform: `rotate(${numberValue(values[VISUAL_PROPERTY_KEYS.rotation])}deg) scale(${numberValue(values[VISUAL_PROPERTY_KEYS.scaleX], 1)}, ${numberValue(values[VISUAL_PROPERTY_KEYS.scaleY], 1)})`,
     transformOrigin: 'center center', boxSizing: 'border-box', overflow: 'hidden',
     background: stringValue(values[VISUAL_PROPERTY_KEYS.backgroundColor]) || stringValue(values[VISUAL_PROPERTY_KEYS.fillColor]) || undefined,
-    borderColor: stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor]) || undefined,
-    borderWidth: numberValue(values[VISUAL_PROPERTY_KEYS.strokeWidth], 0),
-    borderStyle: strokeStyle === 'dashed' ? 'dashed' : strokeStyle === 'dotted' ? 'dotted' : 'solid',
+    borderColor: strokeStyle === 'none' ? 'transparent' : stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor]) || undefined,
+    borderWidth: strokeWidth,
+    borderStyle: cssStrokeStyle(strokeStyle),
     borderRadius: numberValue(values[VISUAL_PROPERTY_KEYS.cornerRadius]),
     color: stringValue(values[VISUAL_PROPERTY_KEYS.textColor]) || undefined,
     fontFamily: normalizeFontFamily(stringValue(values[VISUAL_PROPERTY_KEYS.fontFamily])),
@@ -487,7 +501,24 @@ function elementStyle(values: Readonly<Record<string, VisualPropertyValue>>): CS
 }
 
 function lineStyle(base: CSSProperties, values: Readonly<Record<string, VisualPropertyValue>>): CSSProperties {
-  return { ...base, height: 0, minHeight: 0, overflow: 'visible', background: 'transparent', borderWidth: 0, borderTopWidth: numberValue(values[VISUAL_PROPERTY_KEYS.strokeWidth], 1), borderTopColor: stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor], '#000000'), borderTopStyle: stringValue(values[VISUAL_PROPERTY_KEYS.strokeStyle], 'solid') as CSSProperties['borderTopStyle'] };
+  const strokeStyle = normalizeCanonicalStrokeStyle(values[VISUAL_PROPERTY_KEYS.strokeStyle]);
+  const strokeWidth = effectiveStrokeWidth(
+    strokeStyle,
+    numberValue(values[VISUAL_PROPERTY_KEYS.strokeWidth], 1)
+  );
+  return {
+    ...base,
+    height: 0,
+    minHeight: 0,
+    overflow: 'visible',
+    background: 'transparent',
+    borderWidth: 0,
+    borderTopWidth: strokeWidth,
+    borderTopColor: strokeStyle === 'none'
+      ? 'transparent'
+      : stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor], '#000000'),
+    borderTopStyle: cssStrokeStyle(strokeStyle)
+  };
 }
 function assetReferenceId(value: VisualPropertyValue | undefined): string | null { if (!value || typeof value !== 'object' || !('assetId' in value)) return null; return typeof value.assetId === 'string' && value.assetId.length > 0 ? value.assetId : null; }
 function imageFit(value: VisualPropertyValue | undefined): CSSProperties['objectFit'] { const fit = stringValue(value, 'contain'); return fit === 'cover' ? 'cover' : fit === 'fill' ? 'fill' : fit === 'native' ? 'none' : 'contain'; }

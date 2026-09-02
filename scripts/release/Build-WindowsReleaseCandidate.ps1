@@ -29,7 +29,9 @@ $identity = Get-Content -LiteralPath $identityPath -Raw | ConvertFrom-Json
 if ($identity.schemaVersion -ne 1) { throw "Unsupported release identity schemaVersion '$($identity.schemaVersion)'." }
 if ($identity.runtimeIdentifier -ne "win-x64") { throw "Wave 13 requires runtimeIdentifier win-x64." }
 if ($identity.packageFormat -ne "zip") { throw "Wave 13 candidate builder currently supports packageFormat zip only." }
-if ($identity.customerPackageIncludesDnp3 -ne $false) { throw "DNP3 must remain excluded from the Wave 13 customer package until the commercial gate is cleared." }
+if ($identity.dnp3IncludedInProductGraph -ne $true) { throw "Release identity must record the audited transitive DNP3 product dependency." }
+if ($identity.dnp3CommercialGate -ne "blocked") { throw "Wave 13 must preserve the blocked DNP3 commercial-license gate until clearance is recorded." }
+if ($identity.commercialDistributionAuthorized -ne $false) { throw "Commercial distribution cannot be authorized while the DNP3 gate is blocked." }
 
 if ([string]::IsNullOrWhiteSpace($SourceSha)) {
     Push-Location $RepositoryRoot
@@ -121,14 +123,6 @@ if (-not (Test-Path -LiteralPath $licenseGeneratorExe -PathType Leaf)) {
     throw "Expected License Generator executable was not published: $licenseGeneratorExe"
 }
 
-$forbiddenProductFiles = Get-ChildItem -LiteralPath $productRoot -File -Recurse | Where-Object {
-    $_.Name -match "(?i)dnp3" -or $_.FullName -match "(?i)Scada\.Drivers\.Dnp3"
-}
-if ($forbiddenProductFiles) {
-    $paths = $forbiddenProductFiles.FullName -join [Environment]::NewLine
-    throw "Commercially gated DNP3 content was found in the customer candidate package:`n$paths"
-}
-
 $metadata = [ordered]@{
     schemaVersion = 1
     product = [string]$identity.product
@@ -137,7 +131,9 @@ $metadata = [ordered]@{
     runtimeIdentifier = $rid
     packageFormat = [string]$identity.packageFormat
     signingState = "unsigned-candidate"
-    customerPackageIncludesDnp3 = $false
+    dnp3IncludedInProductGraph = [bool]$identity.dnp3IncludedInProductGraph
+    dnp3CommercialGate = [string]$identity.dnp3CommercialGate
+    commercialDistributionAuthorized = [bool]$identity.commercialDistributionAuthorized
     productDirectory = "product"
     authorityDirectory = "authority"
 }
@@ -149,3 +145,4 @@ Write-Host "Product executable: $publishedProductExe"
 Write-Host "Authority executable: $licenseGeneratorExe"
 Write-Host "Source SHA: $SourceSha"
 Write-Host "Version: $version"
+Write-Host "Commercial distribution authorized: $($identity.commercialDistributionAuthorized)"

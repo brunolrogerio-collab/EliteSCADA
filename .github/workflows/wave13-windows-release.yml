@@ -1,0 +1,114 @@
+name: Wave 13 Windows Release
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'release/**'
+      - 'scripts/release/**'
+      - 'src/**'
+      - 'web/scada-web/**'
+      - '.github/workflows/wave13-windows-release.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'release/**'
+      - 'scripts/release/**'
+      - 'src/**'
+      - 'web/scada-web/**'
+      - '.github/workflows/wave13-windows-release.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  unsigned-candidate:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/scada-web/package-lock.json
+
+      - name: Build unsigned Windows x64 candidate
+        shell: pwsh
+        run: ./scripts/release/Build-WindowsReleaseCandidate.ps1 -SourceSha '${{ github.sha }}'
+
+      - name: Validate candidate structure and trust-boundary exclusions
+        shell: pwsh
+        run: ./scripts/release/Test-WindowsReleaseCandidate.ps1 -CandidateRoot ./artifacts/wave13/candidate
+
+      - name: Smoke-test graphical License Generator executable
+        shell: pwsh
+        run: |
+          $process = Start-Process `
+            -FilePath ./artifacts/wave13/candidate/authority/EliteSCADA.LicenseGenerator.exe `
+            -ArgumentList '--smoke-test' `
+            -Wait `
+            -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "License Generator smoke test failed with exit code $($process.ExitCode)."
+          }
+
+      - name: Smoke-test packaged product host
+        shell: pwsh
+        run: |
+          $logPath = Join-Path $env:RUNNER_TEMP 'wave13-product-host.log'
+          $process = Start-Process `
+            -FilePath ./artifacts/wave13/candidate/product/Scada.Api.exe `
+            -ArgumentList '--urls','http://127.0.0.1:5093' `
+            -RedirectStandardOutput $logPath `
+            -RedirectStandardError $logPath `
+            -PassThru
+
+          try {
+            $ready = $false
+            for ($attempt = 0; $attempt -lt 40; $attempt++) {
+              try {
+                $response = Invoke-WebRequest -Uri 'http://127.0.0.1:5093/health' -UseBasicParsing -TimeoutSec 2
+                if ($response.StatusCode -eq 200) {
+                  $ready = $true
+                  break
+                }
+              }
+              catch {
+                Start-Sleep -Seconds 1
+              }
+            }
+
+            if (-not $ready) {
+              if (Test-Path $logPath) { Get-Content $logPath }
+              throw 'Packaged product host did not become healthy.'
+            }
+
+            if (-not (Test-Path ./artifacts/wave13/candidate/product/wwwroot/index.html)) {
+              throw 'Packaged Web index is missing.'
+            }
+            if (-not (Test-Path ./artifacts/wave13/candidate/product/wwwroot/pyodide/pyodide.js)) {
+              throw 'Packaged Pyodide runtime is missing.'
+            }
+          }
+          finally {
+            if (-not $process.HasExited) {
+              Stop-Process -Id $process.Id -Force
+            }
+          }
+
+      - name: Upload unsigned signing candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: EliteSCADA-Wave13-UNSIGNED-win-x64
+          path: artifacts/wave13/candidate/**
+          if-no-files-found: error
+          retention-days: 14

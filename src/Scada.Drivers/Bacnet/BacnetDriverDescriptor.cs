@@ -19,7 +19,7 @@ public static class BacnetDriverDescriptor
         AcquisitionModes: new[] { DriverAcquisitionMode.Subscription, DriverAcquisitionMode.Polling, DriverAcquisitionMode.Hybrid },
         ConfigurationSchema: new DriverConfigurationSchemaDescriptor(
             SchemaId,
-            SchemaVersion: 1,
+            SchemaVersion: 2,
             DataSourceFields: new DriverConfigurationFieldDescriptor[]
             {
                 new("deviceInstance", DriverConfigurationValueKind.Integer, Required: true, DisplayName: "Device instance", Minimum: 0, Maximum: BacnetBinding.MaximumDeviceInstance),

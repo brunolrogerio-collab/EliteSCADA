@@ -16,4 +16,18 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Scada.Drivers.Tests" />
   </ItemGroup>
+
+  <Target Name="IncludeEliteScadaDnp3NativeHost" AfterTargets="ComputeFilesToPublish"
+          Condition="'$(EliteScadaDnp3HostPath)' != '' or '$(EliteScadaRequireDnp3NativeHost)' == 'true'">
+    <Error Condition="'$(EliteScadaDnp3HostPath)' == ''"
+           Text="EliteScadaRequireDnp3NativeHost=true requires EliteScadaDnp3HostPath." />
+    <Error Condition="!Exists('$(EliteScadaDnp3HostPath)')"
+           Text="Configured EliteSCADA DNP3 native host does not exist: $(EliteScadaDnp3HostPath)" />
+    <ItemGroup>
+      <ResolvedFileToPublish Include="$(EliteScadaDnp3HostPath)">
+        <RelativePath>native/dnp3/EliteScada.Dnp3Host.exe</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
 </Project>

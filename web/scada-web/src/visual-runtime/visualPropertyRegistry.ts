@@ -298,7 +298,7 @@ const COMMON_VISUAL_PROPERTY_DEFINITIONS: readonly VisualPropertyDefinition[] = 
   colorProperty(VISUAL_PROPERTY_KEYS.backgroundColor, '#00000000', 'appearance'),
   colorProperty(VISUAL_PROPERTY_KEYS.strokeColor, '#000000', 'appearance'),
   numberProperty(VISUAL_PROPERTY_KEYS.strokeWidth, 1, { minimum: 0, animatable: true, unit: 'px', category: 'appearance' }),
-  enumProperty(VISUAL_PROPERTY_KEYS.strokeStyle, 'solid', ['solid', 'dashed', 'dotted'], 'appearance'),
+  enumProperty(VISUAL_PROPERTY_KEYS.strokeStyle, 'solid', ['none', 'solid', 'dashed', 'dotted', 'dash-dot', 'dash-dot-dot'], 'appearance'),
   numberProperty(VISUAL_PROPERTY_KEYS.cornerRadius, 0, { minimum: 0, animatable: true, unit: 'px', category: 'appearance' }),
   stringProperty(VISUAL_PROPERTY_KEYS.text, '', 'text'),
   colorProperty(VISUAL_PROPERTY_KEYS.textColor, '#000000', 'text'),

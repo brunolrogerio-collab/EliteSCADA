@@ -39,6 +39,13 @@ internal sealed class OpenDnp3MasterSession : IDnp3MasterSession
     private long _readOperations;
     private long _writeOperations;
     private long _startupIntegrityScans;
+    private long _class0Scans;
+    private long _class1Scans;
+    private long _class2Scans;
+    private long _class3Scans;
+    private long _unsolicitedResponses;
+    private long _restartDetections;
+    private long _eventBufferOverflowDetections;
 
     public OpenDnp3MasterSession(Dnp3TcpConnectionOptions connection)
     {
@@ -193,7 +200,14 @@ internal sealed class OpenDnp3MasterSession : IDnp3MasterSession
                 Interlocked.Read(ref _readOperations),
                 Interlocked.Read(ref _writeOperations),
                 Interlocked.Read(ref _startupIntegrityScans),
-                RecentFailureRate: failureRate);
+                Interlocked.Read(ref _class0Scans),
+                Interlocked.Read(ref _class1Scans),
+                Interlocked.Read(ref _class2Scans),
+                Interlocked.Read(ref _class3Scans),
+                Interlocked.Read(ref _unsolicitedResponses),
+                Interlocked.Read(ref _restartDetections),
+                Interlocked.Read(ref _eventBufferOverflowDetections),
+                failureRate);
         }
     }
 
@@ -367,10 +381,6 @@ internal sealed class OpenDnp3MasterSession : IDnp3MasterSession
                     Interlocked.Increment(ref _disconnections);
                     FailPendingCommands("RECONNECTING", "Association reconnect invalidated the in-flight command; it will not be replayed.");
                 }
-                else if (state.State == Dnp3SessionState.StartupIntegrity)
-                {
-                    Interlocked.Increment(ref _startupIntegrityScans);
-                }
                 await SetStateAsync(state.State, cancellationToken).ConfigureAwait(false);
                 break;
 
@@ -386,6 +396,43 @@ internal sealed class OpenDnp3MasterSession : IDnp3MasterSession
                 if (_pendingCommands.TryRemove(command.RequestId, out var completion))
                     completion.TrySetResult(command.Result);
                 break;
+
+            case OpenDnp3HostDiagnosticMessage diagnostic:
+                ApplyDiagnostic(diagnostic.Kind);
+                break;
+        }
+    }
+
+    private void ApplyDiagnostic(string kind)
+    {
+        switch (kind)
+        {
+            case "STARTUP_INTEGRITY":
+                Interlocked.Increment(ref _startupIntegrityScans);
+                break;
+            case "CLASS0_SCAN":
+                Interlocked.Increment(ref _class0Scans);
+                break;
+            case "CLASS1_SCAN":
+                Interlocked.Increment(ref _class1Scans);
+                break;
+            case "CLASS2_SCAN":
+                Interlocked.Increment(ref _class2Scans);
+                break;
+            case "CLASS3_SCAN":
+                Interlocked.Increment(ref _class3Scans);
+                break;
+            case "UNSOLICITED":
+                Interlocked.Increment(ref _unsolicitedResponses);
+                break;
+            case "DEVICE_RESTART":
+                Interlocked.Increment(ref _restartDetections);
+                break;
+            case "EVENT_BUFFER_OVERFLOW":
+                Interlocked.Increment(ref _eventBufferOverflowDetections);
+                break;
+            default:
+                throw new FormatException($"Unsupported OpenDNP3 diagnostic kind '{kind}'.");
         }
     }
 

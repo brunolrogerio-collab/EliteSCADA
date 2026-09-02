@@ -87,6 +87,7 @@ public static class AuditApi
 
     public static void MapAuditEndpoints(this WebApplication app)
     {
+        app.UseMiddleware<ApiMutationAuditAdmissionMiddleware>();
         app.MapLocalIdentityEndpoints();
 
         app.MapGet("/api/audit", async (

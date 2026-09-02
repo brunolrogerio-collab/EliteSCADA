@@ -722,7 +722,7 @@ int Run(int argc, char** argv)
         if (auto activeMaster = recoveryMaster.lock())
         {
             auto callback = std::make_shared<RecoveryScanCallback>(writer, startupClasses);
-            activeMaster->ScanClasses(ClassField(startupClasses), *soe, TaskConfig::With(callback));
+            activeMaster->ScanClasses(ClassField(startupClasses), soe, TaskConfig::With(callback));
         }
     });
 

@@ -6,7 +6,7 @@ import {
   type KeyboardEvent
 } from 'react';
 import type { VisualEditorPropertyInspectorContractProps } from '../visualEditorContracts';
-import type { VisualEngineeringPropertyValue } from '../../types';
+import type { VisualAssetEngineering, VisualEngineeringPropertyValue } from '../../types';
 import type { VisualPropertyDefinition } from '../../../visual-runtime';
 import { EventsEditor } from '../events-editor/EventsEditor';
 import {
@@ -41,6 +41,7 @@ export type PropertyInspectorCopy = Readonly<{
 }>;
 
 export type PropertyInspectorProps = VisualEditorPropertyInspectorContractProps & Readonly<{
+  visualAssets?: readonly VisualAssetEngineering[];
   copy?: Partial<PropertyInspectorCopy>;
 }>;
 
@@ -66,7 +67,7 @@ const DEFAULT_COPY: PropertyInspectorCopy = {
   trueLabel: 'True',
   falseLabel: 'False',
   noAsset: 'No asset',
-  assetBrowserHint: 'Choose a project-owned asset with the Asset browser below.',
+  assetBrowserHint: 'Project asset library',
   transparent: 'Transparent',
   alpha: 'Alpha',
   fontFamilyPlaceholder: 'Choose or type a font family',
@@ -86,6 +87,7 @@ const DEFAULT_COPY: PropertyInspectorCopy = {
 export function PropertyInspector({
   selectedElements,
   onMutationIntent,
+  visualAssets = [],
   copy
 }: PropertyInspectorProps) {
   const text: PropertyInspectorCopy = {
@@ -136,6 +138,7 @@ export function PropertyInspector({
               model={model}
               row={row}
               text={text}
+              visualAssets={visualAssets}
               onMutationIntent={onMutationIntent}
             />
           ))}
@@ -153,10 +156,11 @@ type PropertyFieldProps = Readonly<{
   model: PropertyInspectorModel;
   row: PropertyInspectorRow;
   text: PropertyInspectorCopy;
+  visualAssets: readonly VisualAssetEngineering[];
   onMutationIntent: VisualEditorPropertyInspectorContractProps['onMutationIntent'];
 }>;
 
-function PropertyField({ model, row, text, onMutationIntent }: PropertyFieldProps) {
+function PropertyField({ model, row, text, visualAssets, onMutationIntent }: PropertyFieldProps) {
   const [error, setError] = useState<string | null>(null);
   const definition = row.definition;
 
@@ -193,7 +197,14 @@ function PropertyField({ model, row, text, onMutationIntent }: PropertyFieldProp
         <span className={`property-inspector__state property-inspector__state--${row.state}`}>{stateLabel(row, text)}</span>
       </div>
 
-      <EditorControl definition={definition} row={row} text={text} commit={commit} setError={setError} />
+      <EditorControl
+        definition={definition}
+        row={row}
+        text={text}
+        visualAssets={visualAssets}
+        commit={commit}
+        setError={setError}
+      />
 
       <div className="property-inspector__field-meta">
         <span>{definition.type}{definition.unit ? ` · ${definition.unit}` : ''}</span>
@@ -216,11 +227,12 @@ type EditorControlProps = Readonly<{
   definition: VisualPropertyDefinition;
   row: PropertyInspectorRow;
   text: PropertyInspectorCopy;
+  visualAssets: readonly VisualAssetEngineering[];
   commit: (value: VisualEngineeringPropertyValue) => boolean;
   setError: (message: string | null) => void;
 }>;
 
-function EditorControl({ definition, row, text, commit, setError }: EditorControlProps) {
+function EditorControl({ definition, row, text, visualAssets, commit, setError }: EditorControlProps) {
   if (definition.type === 'boolean') {
     return <BooleanControl definition={definition} row={row} text={text} commit={commit} />;
   }
@@ -234,7 +246,13 @@ function EditorControl({ definition, row, text, commit, setError }: EditorContro
   }
 
   if (definition.type === 'assetRef' || definition.presentationHint === 'project-asset') {
-    return <AssetReferenceControl definition={definition} row={row} text={text} />;
+    return <AssetReferenceControl
+      definition={definition}
+      row={row}
+      text={text}
+      visualAssets={visualAssets}
+      commit={commit}
+    />;
   }
 
   if (definition.type === 'string' && definition.presentationHint === 'font-family') {
@@ -244,7 +262,9 @@ function EditorControl({ definition, row, text, commit, setError }: EditorContro
   return <TextualControl definition={definition} row={row} text={text} commit={commit} setError={setError} />;
 }
 
-function BooleanControl({ definition, row, text, commit }: Omit<EditorControlProps, 'setError'>) {
+type BasicEditorProps = Pick<EditorControlProps, 'definition' | 'row' | 'text' | 'commit'>;
+
+function BooleanControl({ definition, row, text, commit }: BasicEditorProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const displayValue = row.state === 'mixed' ? false : Boolean(row.value);
 
@@ -267,7 +287,7 @@ function BooleanControl({ definition, row, text, commit }: Omit<EditorControlPro
   );
 }
 
-function EnumControl({ definition, row, text, commit }: Omit<EditorControlProps, 'setError'>) {
+function EnumControl({ definition, row, text, commit }: BasicEditorProps) {
   if (definition.type !== 'enum') return null;
   const value = row.state === 'mixed' ? '__mixed__' : String(row.value);
 
@@ -284,24 +304,43 @@ function EnumControl({ definition, row, text, commit }: Omit<EditorControlProps,
   );
 }
 
-function AssetReferenceControl({ definition, row, text }: Pick<EditorControlProps, 'definition' | 'row' | 'text'>) {
-  const displayValue = row.state === 'mixed' ? '' : formatPropertyInspectorValue(row.value ?? row.defaultValue);
+function AssetReferenceControl({
+  definition,
+  row,
+  text,
+  visualAssets,
+  commit
+}: Pick<EditorControlProps, 'definition' | 'row' | 'text' | 'visualAssets' | 'commit'>) {
+  const value = row.state === 'mixed'
+    ? '__mixed__'
+    : formatPropertyInspectorValue(row.value ?? row.defaultValue);
+  const assets = visualAssets.filter(asset => typeof asset.id === 'string' && asset.id.length > 0);
+
   return (
-    <div className="property-inspector__asset-reference">
-      <input
+    <div className="property-inspector__asset-reference" data-testid="visual-property-asset-browser">
+      <select
         id={`visual-property-${definition.key}`}
-        type="text"
-        value={displayValue}
-        placeholder={row.state === 'mixed' ? text.mixed : text.noAsset}
-        readOnly
-        aria-readonly="true"
-      />
+        value={value}
+        disabled={!definition.engineeringEditable}
+        aria-label={text.assetBrowserHint}
+        onChange={event => commit(
+          event.currentTarget.value ? { assetId: event.currentTarget.value } : null
+        )}
+      >
+        {row.state === 'mixed' ? <option value="__mixed__" disabled>{text.mixed}</option> : null}
+        <option value="">{text.noAsset}</option>
+        {assets.map(asset => (
+          <option key={asset.id!} value={asset.id!}>
+            {asset.name || asset.key} · {asset.originalFileName}
+          </option>
+        ))}
+      </select>
       <small>{text.assetBrowserHint}</small>
     </div>
   );
 }
 
-function FontFamilyControl({ definition, row, text, commit, setError }: EditorControlProps) {
+function FontFamilyControl({ definition, row, text, commit, setError }: Omit<EditorControlProps, 'visualAssets'>) {
   const displayValue = row.state === 'mixed' ? '' : formatPropertyInspectorValue(row.value ?? row.defaultValue);
   const [draft, setDraft] = useState(displayValue);
   const [dirty, setDirty] = useState(false);
@@ -359,7 +398,7 @@ function FontFamilyControl({ definition, row, text, commit, setError }: EditorCo
   );
 }
 
-function ColorControl({ definition, row, text, commit, setError }: EditorControlProps) {
+function ColorControl({ definition, row, text, commit, setError }: Omit<EditorControlProps, 'visualAssets'>) {
   const displayValue = row.state === 'mixed'
     ? formatPropertyInspectorValue(row.defaultValue)
     : formatPropertyInspectorValue(row.value ?? row.defaultValue);
@@ -463,7 +502,7 @@ function ColorControl({ definition, row, text, commit, setError }: EditorControl
   );
 }
 
-function TextualControl({ definition, row, text, commit, setError }: EditorControlProps) {
+function TextualControl({ definition, row, text, commit, setError }: Omit<EditorControlProps, 'visualAssets'>) {
   const displayValue = row.state === 'mixed' ? '' : formatPropertyInspectorValue(row.value ?? row.defaultValue);
   const [draft, setDraft] = useState(displayValue);
   const [dirty, setDirty] = useState(false);

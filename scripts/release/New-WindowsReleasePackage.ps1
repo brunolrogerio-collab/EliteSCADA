@@ -15,11 +15,13 @@ $identity = Get-Content -LiteralPath (Join-Path $repositoryRoot "release/release
 if ($SkipVerification) {
     throw "SkipVerification is intentionally unsupported for Wave 13 release packaging. Release packaging is fail-closed."
 }
-
-& (Join-Path $PSScriptRoot "Test-WindowsRelease.ps1") -ReleaseRoot $root
-if ($LASTEXITCODE -ne 0) {
-    throw "Release verification failed before packaging."
+if ($identity.dnp3CommercialGate -ne 'blocked' -or $identity.commercialDistributionAuthorized -ne $false) {
+    throw "Current Wave 13 package contract requires the DNP3 commercial gate to remain explicitly blocked and commercial distribution unauthorized."
 }
+
+# PowerShell verifier throws on every failure. Do not consult LASTEXITCODE here because
+# it belongs to native commands and may contain unrelated stale state.
+& (Join-Path $PSScriptRoot "Test-WindowsRelease.ps1") -ReleaseRoot $root
 
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
     $OutputDirectory = Join-Path (Split-Path -Parent $root) "packages"
@@ -38,9 +40,9 @@ Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $fixedTimestamp = [DateTimeOffset]::new(1980, 1, 1, 0, 0, 0, [TimeSpan]::Zero)
-$files = Get-ChildItem -LiteralPath $root -File -Recurse | Sort-Object {
+$files = @(Get-ChildItem -LiteralPath $root -File -Recurse | Sort-Object {
     [IO.Path]::GetRelativePath($root, $_.FullName).Replace('\\', '/')
-}
+})
 
 $archiveStream = [IO.File]::Open($packagePath, [IO.FileMode]::CreateNew, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
 try {
@@ -81,3 +83,4 @@ $hashPath = "$packagePath.sha256"
 Write-Host "Verified deterministic package created: $packagePath"
 Write-Host "SHA-256: $packageHash"
 Write-Host "SHA-256 record: $hashPath"
+Write-Host "Commercial distribution authorized: $($identity.commercialDistributionAuthorized)"

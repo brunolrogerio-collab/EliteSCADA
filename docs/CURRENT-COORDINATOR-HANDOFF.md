@@ -1,7 +1,7 @@
 # EliteSCADA — Current Coordinator Handoff
 
-**Last operational synchronization:** 2026-09-01 BRT  
-**Status:** **WAVE 12 COMPLETE / ACCEPTED; WAVE 13 #205 PREPARED / NOT STARTED**
+**Last operational synchronization:** 2026-09-02 BRT  
+**Status:** **WAVE 12 COMPLETE / ACCEPTED; TEMPORARY BROWSER TEST PREVIEW #208 PLANNED / NEXT; WAVE 13 #205/#207 PAUSED**
 
 > GitHub/main/CI is implementation truth. `PROJECT GOAL.md` governs permanent product intent. `LAST CHANGE.md` is the mutable resume point. Never resume from chat alone.
 
@@ -13,11 +13,12 @@ Read in this order before changing code:
 2. `LAST CHANGE.md`;
 3. this handoff;
 4. `docs/ROADMAP.md`;
-5. `docs/WAVE-13-WINDOWS-RELEASE-PREPARATION.md`;
-6. issue #205 — Wave 13;
+5. `docs/TEMPORARY-BROWSER-TEST-PREVIEW.md`;
+6. issue #208 — Temporary browser Test Preview;
 7. `docs/CI-VALIDATION-POLICY.md`;
 8. live `main`, open PRs/issues and exact Actions state;
-9. for historical Wave 12 diagnosis only, `docs/WAVE-12-HARDENING-AUDIT.md` and issue #201.
+9. issue #205 and draft PR #207 only to understand the paused Wave 13 state;
+10. for historical Wave 12 diagnosis only, `docs/WAVE-12-HARDENING-AUDIT.md` and issue #201.
 
 If repository state differs from copied prose, GitHub/main/CI wins.
 
@@ -46,71 +47,102 @@ Owner-test package from Wave 11 remains:
 `EliteSCADA-Wave11-Demo.escadapkg`  
 SHA-256 `13261af59b8707df7d9ef3bbea307cb0c85d945ea8f47315fb693c92c885efa1`
 
-## 3. Wave 12 closure history that matters
+## 3. Current direction — Temporary Browser Test Preview
 
-Wave 12 implementation was integrated through PR #203. Initial post-merge `main` SHA `be710e630da63639af9a0fc63458f9bd92068746` failed EliteSCADA CI #1094 in two existing Modbus happy-path loopback writes at the identical 500 ms request timeout.
+Development Lead direction on 2026-09-02 inserted issue #208 as the active coordination target and paused Wave 13.
 
-The failure was diagnosed before rerun. `ModbusTcpTransport` starts its request timeout after acquiring its transport serialization gate; the failing tests injected no server delay and did not define a 500 ms latency product contract. Explicit timeout/reconnect/degraded-path tests remained green.
+Objective:
 
-PR #204 changed only the two healthy-path test configurations from 500 ms to 2 s and the matching diagnostics expectation. No production code or fault-path assertions changed.
+Provide a temporary development/homologation environment where the real EliteSCADA can be started remotely and used through a browser without local installation.
 
-Exact #204 head `8d9950f56cf4cac8d835f448df8f77dc6a780928` passed EliteSCADA CI #1095 and L3 #91. Squash merge produced accepted `main` `63bced...`, which then passed #1096 and L3 #92.
+Preferred operator experience:
 
-This history exists to prevent a future Coordinator from reducing timeouts indiscriminately or treating #1094 as an unresolved product defect.
+`Open Codespace / Launch Test Preview -> automatic startup -> temporary authenticated Web URL -> use the real EliteSCADA`
 
-## 4. Wave 13 preparation state
+Preferred technical direction to evaluate:
 
-Issue #205: **OPEN / PREPARED / NOT STARTED**.  
-Preparation: `docs/WAVE-13-WINDOWS-RELEASE-PREPARATION.md`.
+- GitHub Codespaces;
+- automated .NET backend startup;
+- React/Pyodide frontend available through the real product Web surface;
+- PostgreSQL/TimescaleDB initialized inside the Codespace;
+- automatic import of `EliteSCADA-Wave11-Demo.escadapkg` after revalidating location/checksum/compatibility;
+- normal Save/Publish/Activate lifecycle to persisted Active Engineering;
+- browser validation of Engineering, HMI Runtime, simulated TAGs, alarms, trends and other available Preview surfaces;
+- only the required Web port forwarded;
+- database/internal service ports private.
 
-No Wave 13 implementation branch has been created. This is intentional.
+This is not a production hosting architecture, permanent public instance, supported deployment target, SLA or persistence guarantee.
 
-A documentation-only preparation commit may advance live `main` beyond accepted product-code `63bced...`. Therefore do not create the implementation branch from a copied SHA. Re-read live `main` immediately before branch creation.
+Detailed requirements: `docs/TEMPORARY-BROWSER-TEST-PREVIEW.md`.  
+Tracking: issue #208.
 
-## 5. Wave 13 objective
+## 4. Preview administrative account / secret handling
 
-Produce and verify the first controlled Windows x64 release package with Authenticode signing and trusted timestamping while preserving accepted product/security/runtime/licensing contracts.
+A dedicated administrative test account is required with username:
 
-Wave 13 is release engineering, not a new feature wave.
+`EliteSCADA`
 
-The first implementation slice must be audit/design, not blind packaging:
+The Development Lead supplied the requested password directly. Because the repository is public, the password must not be copied into source control, devcontainer files, workflow YAML, docs, Docker image layers, `.escadapkg` fixtures, logs or normal artifacts.
 
-- inventory current Windows publish/package surfaces and user-facing executable artifacts;
-- define package layout and launch/installation contract;
-- identify which PE artifacts require signing;
-- define signing authority, certificate and timestamp boundary;
-- define deterministic manifest/hash verification;
-- define package smoke/regression checks for product launch, Demo/licensing and Active Runtime;
-- define DNP3 disposition for any distributable artifact.
+The Preview bootstrap should receive it via a protected Codespaces/GitHub secret or equivalent environment variable such as:
 
-## 6. Signing/security locks
+`ELITESCADA_PREVIEW_ADMIN_PASSWORD`
 
-- Production Preview/installable Windows executables/installers must be Authenticode-signed with an authorized organizational identity and trusted timestamp.
-- Private signing keys/certificates must never be committed, embedded, copied into normal GitHub Actions secrets/artifacts or included in packages/logs.
-- Prefer protected signing service or hardware-backed key.
-- Verification must fail closed on missing/invalid signatures, missing trusted timestamp, hash mismatch or unexpected package contents.
-- SmartScreen reputation is separate from Authenticode validity; do not claim a warning-free reputation merely because signing succeeds.
-- Licensing private material remains separate from release code-signing material and remains controlled by the License Generator environment.
+Fail clearly when the protected value is missing; do not introduce a repository-embedded fallback password.
+
+## 5. Preview implementation entry audit
+
+Before coding, audit and record the exact current surfaces for:
+
+- existing local/development startup procedures;
+- .NET/Web binding and port model;
+- PostgreSQL/TimescaleDB setup and migrations;
+- local identity/admin creation and role assignment;
+- `.escadapkg` import/open/save APIs/services;
+- Publish/Activate APIs/services;
+- Demo-mode and licensing startup contracts;
+- existing Docker/devcontainer/Codespaces assets, if any;
+- frontend/Pyodide asset preparation;
+- current Wave 11 Demo package location/artifact availability.
+
+Prefer reuse of accepted APIs/services. Do not create a parallel bootstrap path that bypasses normal backend authority merely because scripting it is easier.
+
+## 6. Wave 13 paused state
+
+Issue #205 remains open. Draft PR #207 on branch `wave13/windows-release-signing` preserves the implementation and audit work performed before the pivot.
+
+State: **PAUSED**.
+
+Do not merge or extend #207 while #208 is the active coordination direction. When Wave 13 resumes, re-read live `main`, current exact-SHA CI, issue #205, PR #207 and the release/signing audit before continuing. Preview work may change launch/package surfaces, so the paused branch must not be assumed current automatically.
+
+Existing Wave 13 locks remain intact:
+
+- controlled Windows x64 release package;
+- Authenticode with trusted timestamp;
+- protected organizational signing boundary;
+- deterministic/fail-closed manifest and signed-byte verification;
+- no private code-signing material in source/GitHub/normal artifacts/logs;
+- commercial DNP3 distribution remains gated pending appropriate license or approved/revalidated replacement.
 
 ## 7. CI / merge rules
 
-- EliteSCADA CI remains the universal Coordinator gate for PRs to `main`;
-- add/execute Windows release-specific validation according to actual Wave 13 impact, but never as a substitute for universal CI;
+- EliteSCADA CI remains the universal Coordinator gate for PRs to `main` when product code changes;
+- Preview-specific validation may complement but never replace universal CI;
 - diagnose failures before rerun;
-- do not weaken assertions, authorization, signing verification or architecture to obtain green;
+- do not weaken authentication, authorization, Runtime authority or tests to make Codespaces convenient;
 - integration uses expected-head protection;
-- validate post-merge `main` before declaring Wave 13 complete;
-- keep exact artifact SHA-256/signature/timestamp evidence with the accepted release checkpoint.
+- validate post-merge `main` for any product-code Preview implementation before calling the Preview ready;
+- documentation-only coordination changes may use `[skip ci]` according to repository policy.
 
-## 8. Explicit exclusions and gates
+## 8. Explicit exclusions
 
-Do not include in Wave 13 unless separately authorized:
+Do not include in the temporary Test Preview unless separately authorized:
 
+- permanent/public production hosting;
 - new Drivers/protocols;
 - unrelated HMI/Engineering feature work;
+- Wave 13 release-signing continuation;
 - Wave 14 owner-validation execution;
 - Wave 15 feedback/corrections;
 - Linux `.deb` implementation;
 - physical Driver L4 claims.
-
-Commercial DNP3 inclusion remains blocked until Step Function I/O `dnp3` 1.6.0 has an appropriate commercial license or an approved/revalidated replacement.

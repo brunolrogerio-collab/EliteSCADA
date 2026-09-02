@@ -40,7 +40,7 @@ export type DataSourceTypeDefinition = {
 
 export type DataSourceDraftIssue = {
   fieldKey: string;
-  code: 'required' | 'boolean' | 'integer' | 'number' | 'duration' | 'enum' | 'minimum' | 'maximum' | 'incompatible';
+  code: 'required' | 'integer' | 'number' | 'duration' | 'enum' | 'minimum' | 'maximum' | 'incompatible';
   expected?: string;
 };
 
@@ -163,7 +163,7 @@ export function validateDataSourceDraft(
 
     if (field.valueKind === 'boolean') {
       if (!/^(true|false)$/i.test(value))
-        issues.push({ fieldKey: field.key, code: 'boolean', expected: field.expectedFormat ?? 'true | false' });
+        issues.push({ fieldKey: field.key, code: 'enum', expected: field.expectedFormat ?? 'true | false' });
     } else if (field.valueKind === 'integer' || field.valueKind === 'port') {
       if (!/^[+-]?\d+$/.test(value)) {
         issues.push({ fieldKey: field.key, code: 'integer', expected: field.expectedFormat ?? undefined });

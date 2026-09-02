@@ -16,7 +16,17 @@ public sealed class SimulationDriverDescriptorProvider : ICommunicationDriverDes
         ConfigurationSchema: new DriverConfigurationSchemaDescriptor(
             SchemaId: "builtin.simulation.engineering",
             SchemaVersion: 1,
-            DataSourceFields: Array.Empty<DriverConfigurationFieldDescriptor>(),
+            DataSourceFields: new[]
+            {
+                new DriverConfigurationFieldDescriptor(
+                    "scanIntervalMilliseconds",
+                    DriverConfigurationValueKind.Integer,
+                    DisplayName: "Scan interval",
+                    Description: "Simulation update interval in milliseconds.",
+                    DefaultValue: "500",
+                    Minimum: 10,
+                    Maximum: 600_000)
+            },
             TagBindingFields: Array.Empty<DriverConfigurationFieldDescriptor>()),
         Description: "Built-in deterministic simulation driver for development and testing.");
 

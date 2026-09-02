@@ -15,6 +15,7 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
     expect(authConfig.status).toBe(200);
     expect(authConfig.body.localLoginEnabled).toBe(true);
     expect(authConfig.body.initialAdministratorRequired).toBe(false);
+    expect(authConfig.body.initialAdministratorSetupAvailable).toBe(false);
     expect(authConfig.body.passwordPolicy.minimumLength).toBe(8);
     expect(authConfig.body.passwordPolicy.maximumLength).toBe(1024);
 
@@ -121,6 +122,24 @@ test('local login authenticates Runtime and Engineering with an HttpOnly JWT coo
       return await response.json();
     });
     expect(localSessionAfterLogout.authenticated).toBe(false);
+
+    // The browser no longer has an authenticated cookie, and client-side state is
+    // cleared as well. Neither can reopen the server/store-owned bootstrap.
+    await page.evaluate(() => window.localStorage.clear());
+    const bootstrapRetry = await page.evaluate(async () => {
+      const response = await fetch('/api/auth/bootstrap', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          username: 'browser-reset-admin',
+          displayName: 'Browser Reset Admin',
+          password: '12345678'
+        })
+      });
+      return { status: response.status, body: await response.json() };
+    });
+    expect(bootstrapRetry.status).toBe(409);
+    expect(bootstrapRetry.body.error).toContain('already closed');
 
     await page.reload();
     await expect(page.locator('.auth-card')).toBeVisible();

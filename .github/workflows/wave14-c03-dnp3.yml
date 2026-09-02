@@ -9,6 +9,7 @@ on:
       - "src/Scada.Drivers.Dnp3.OpenDnp3/**"
       - "src/Scada.Drivers/Dnp3/**"
       - "tests/Scada.Drivers.Tests/**"
+      - "native/dnp3/**"
       - "docs/WAVE14-C03-DNP3-PRODUCTION-ADAPTER.md"
       - ".github/workflows/wave14-c03-dnp3.yml"
   pull_request:
@@ -51,3 +52,20 @@ jobs:
 
       - name: Run DNP3 convergence tests
         run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter FullyQualifiedName~Dnp3CoordinatorConvergenceTests --verbosity normal
+
+  native-linux:
+    name: Native OpenDNP3 host build (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure pinned OpenDNP3 host
+        run: cmake -S native/dnp3 -B build/dnp3 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build native host
+        run: cmake --build build/dnp3 --config Release --target EliteScada.Dnp3Host --parallel 2
+
+      - name: Verify native host artifact
+        run: test -x build/dnp3/EliteScada.Dnp3Host

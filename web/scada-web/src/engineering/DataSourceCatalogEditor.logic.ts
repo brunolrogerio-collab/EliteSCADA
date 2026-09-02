@@ -40,7 +40,7 @@ export type DataSourceTypeDefinition = {
 
 export type DataSourceDraftIssue = {
   fieldKey: string;
-  code: 'required' | 'integer' | 'number' | 'duration' | 'enum' | 'minimum' | 'maximum' | 'incompatible';
+  code: 'required' | 'boolean' | 'integer' | 'number' | 'duration' | 'enum' | 'minimum' | 'maximum' | 'incompatible';
   expected?: string;
 };
 
@@ -161,7 +161,10 @@ export function validateDataSourceDraft(
       continue;
     }
 
-    if (field.valueKind === 'integer' || field.valueKind === 'port') {
+    if (field.valueKind === 'boolean') {
+      if (!/^(true|false)$/i.test(value))
+        issues.push({ fieldKey: field.key, code: 'boolean', expected: field.expectedFormat ?? 'true | false' });
+    } else if (field.valueKind === 'integer' || field.valueKind === 'port') {
       if (!/^[+-]?\d+$/.test(value)) {
         issues.push({ fieldKey: field.key, code: 'integer', expected: field.expectedFormat ?? undefined });
         continue;
@@ -175,14 +178,31 @@ export function validateDataSourceDraft(
       }
       validateRange(parsed, field, issues);
     } else if (field.valueKind === 'duration') {
-      if (!/^(?:\d+\.)?\d{1,2}:\d{2}:\d{2}(?:\.\d{1,7})?$/.test(value))
+      const milliseconds = parseDurationMilliseconds(value);
+      if (milliseconds === null) {
         issues.push({ fieldKey: field.key, code: 'duration', expected: field.expectedFormat ?? undefined });
+        continue;
+      }
+      validateRange(milliseconds, field, issues);
     } else if (field.valueKind === 'enum' && field.allowedValues.length > 0 && !field.allowedValues.some(option => option.toLowerCase() === value.toLowerCase())) {
       issues.push({ fieldKey: field.key, code: 'enum', expected: field.expectedFormat ?? field.allowedValues.join(' | ') });
     }
   }
 
   return issues;
+}
+
+function parseDurationMilliseconds(value: string): number | null {
+  const match = /^(?:(\d+)\.)?(\d{1,2}):([0-5]\d):([0-5]\d)(?:\.(\d{1,7}))?$/.exec(value);
+  if (!match) return null;
+
+  const days = Number(match[1] ?? 0);
+  const hours = Number(match[2]);
+  const minutes = Number(match[3]);
+  const seconds = Number(match[4]);
+  const fraction = match[5] ? Number(`0.${match[5]}`) : 0;
+  const total = ((((days * 24) + hours) * 60 + minutes) * 60 + seconds + fraction) * 1000;
+  return Number.isFinite(total) ? total : null;
 }
 
 function validateRange(

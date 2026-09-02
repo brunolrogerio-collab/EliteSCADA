@@ -70,6 +70,19 @@ jobs:
       - name: Validate devcontainer Compose
         run: docker compose -f .devcontainer/docker-compose.yml config >/dev/null
 
+      - name: Verify Codespaces devcontainer SDK
+        shell: bash
+        run: |
+          APP_IMAGE="$(docker compose -f .devcontainer/docker-compose.yml config --images | grep '^mcr.microsoft.com/devcontainers/dotnet:' | head -n 1)"
+          [[ -n "$APP_IMAGE" ]] || { echo 'Could not resolve the app devcontainer image.' >&2; exit 1; }
+          ACTUAL_SDK="$(docker run --rm "$APP_IMAGE" dotnet --version)"
+          echo "Codespaces app image: $APP_IMAGE"
+          echo "Codespaces .NET SDK: $ACTUAL_SDK"
+          [[ "$ACTUAL_SDK" == '10.0.400' ]] || {
+            echo "Expected exact SDK 10.0.400 because global.json has rollForward=disable." >&2
+            exit 1
+          }
+
       - name: Restore backend
         run: dotnet restore ScadaPlatform.sln
 

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "product": "EliteSCADA",
+  "version": "0.1.0-preview.13",
+  "runtimeIdentifier": "win-x64",
+  "packageFormat": "zip",
+  "customerPackageIncludesDnp3": false
+}

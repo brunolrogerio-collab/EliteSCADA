@@ -214,22 +214,13 @@ try {
         -UseBasicParsing `
         -TimeoutSec 10
     $activationPackage = $activationExport.Content | ConvertFrom-Json
-    $activationPackage.dataSources = @($activationPackage.dataSources) + [pscustomobject]@{
-        id = '47000000-0000-0000-0000-000000000001'
-        key = 'wave13.memory.server'
-        name = 'Wave 13 Server Memory'
-        driver = 'builtin.memory.server'
-        enabled = $true
-    }
-    $activationPackage.tags = @($activationPackage.tags) + [pscustomobject]@{
-        id = '47000000-0000-0000-0000-000000000002'
-        name = 'Wave 13 Runtime Counter'
-        path = 'Wave13.Runtime.Counter'
-        dataType = 'int32'
-        source = 'wave13.memory.server'
-        description = 'Packaged Active Runtime persistence probe'
-        readOnly = $false
-    }
+    $activationDataSource = @(
+        $activationPackage.dataSources | Where-Object { $_.key -eq 'builtin.simulation' }
+    )[0]
+    Assert-ReleaseCondition ($null -ne $activationDataSource) `
+        "Packaged Demo activation fixture did not contain its expected Data Source."
+    $activationDataSource.driver = 'builtin.memory.server'
+    $activationDataSource.settings = $null
     $activationFixtureApply = Invoke-RestMethod `
         -Method Post `
         -Uri "$BaseUrl/api/engineering/import/json/apply" `
@@ -238,8 +229,8 @@ try {
         -ContentType 'application/json' `
         -Body ($activationPackage | ConvertTo-Json -Depth 100 -Compress) `
         -TimeoutSec 20
-    Assert-ReleaseCondition ([int]$activationFixtureApply.created -ge 2) `
-        "Packaged activation fixture did not create its Server Memory source and TAG."
+    Assert-ReleaseCondition ([int]$activationFixtureApply.updated -ge 1) `
+        "Packaged activation fixture did not convert the Demo Data Source to Server Memory."
 
     $workspaceBeforeSave = Invoke-RestMethod `
         -Uri "$BaseUrl/api/engineering/workspace" `
@@ -301,8 +292,10 @@ try {
             -TimeoutSec 10
     )
     Assert-ReleaseCondition (
-        @($firstRuntimeTags | Where-Object { $_.path -eq 'Wave13.Runtime.Counter' }).Count -eq 1) `
-        "Packaged Active Runtime did not load the persisted Server Memory TAG."
+        $firstRuntimeTags.Count -eq 7 -and
+        @($firstRuntimeTags | Where-Object { $_.path -eq 'Demo.P01.Running' }).Count -eq 1 -and
+        @($firstRuntimeTags | Where-Object { $_.path -eq 'Demo.Discharge.Pressure' }).Count -eq 1) `
+        "Packaged Active Runtime did not load the complete persisted Demo TAG set."
 
     $firstApplication = Invoke-RestMethod `
         -Uri "$BaseUrl/api/runtime/application" `

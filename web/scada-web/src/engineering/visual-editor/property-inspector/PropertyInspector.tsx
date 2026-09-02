@@ -173,7 +173,10 @@ function PropertyField({ model, row, text, visualAssets, onMutationIntent }: Pro
       data-editor-hint={definition.presentationHint ?? undefined}
     >
       <div className="property-inspector__field-heading">
-        <label htmlFor={`visual-property-${definition.key}`}>{definition.key}</label>
+        <div className="property-inspector__field-label">
+          <label htmlFor={`visual-property-${definition.key}`}>{humanizeVisualPropertyKey(definition.key)}</label>
+          <code title="Canonical property key">{definition.key}</code>
+        </div>
         <span className={`property-inspector__state property-inspector__state--${row.state}`}>{stateLabel(row, text)}</span>
       </div>
 
@@ -201,6 +204,12 @@ function PropertyField({ model, row, text, visualAssets, onMutationIntent }: Pro
       {error ? <p className="property-inspector__validation" role="alert">{error}</p> : null}
     </div>
   );
+}
+
+export function humanizeVisualPropertyKey(propertyKey: string): string {
+  if (!propertyKey) return propertyKey;
+  const words = propertyKey.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+  return `${words[0].toUpperCase()}${words.slice(1)}`;
 }
 
 function groupRows(rows: readonly PropertyInspectorRow[]): readonly [string, readonly PropertyInspectorRow[]][] {

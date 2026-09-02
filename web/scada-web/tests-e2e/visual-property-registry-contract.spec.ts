@@ -16,9 +16,12 @@ const expectedCommonKeys = [
   'rotation',
   'scaleX',
   'scaleY',
+  'horizontalFlip',
+  'verticalFlip',
   'zIndex',
   'visible',
   'opacity',
+  'tooltip',
   'fillColor',
   'backgroundColor',
   'strokeColor',
@@ -31,6 +34,10 @@ const expectedCommonKeys = [
   'fontSize',
   'fontWeight',
   'fontStyle',
+  'underline',
+  'textWrap',
+  'lineHeight',
+  'textOverflow',
   'horizontalAlignment',
   'verticalAlignment',
   'assetRef',
@@ -68,6 +75,20 @@ test('common registry exposes the converged visual property family and image fit
     });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.fontFamily))
     .toMatchObject({ type: 'string', defaultValue: 'system', presentationHint: 'font-family' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.horizontalFlip))
+    .toMatchObject({ type: 'boolean', defaultValue: false, runtimeWritable: true });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.verticalFlip))
+    .toMatchObject({ type: 'boolean', defaultValue: false, runtimeWritable: true });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.tooltip))
+    .toMatchObject({ type: 'string', defaultValue: '', runtimeReadable: true });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.underline))
+    .toMatchObject({ type: 'boolean', defaultValue: false });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.textWrap))
+    .toMatchObject({ type: 'boolean', defaultValue: true });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.lineHeight))
+    .toMatchObject({ type: 'number', defaultValue: 1.2, minimum: 0.1, maximum: 10 });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.textOverflow))
+    .toMatchObject({ type: 'enum', defaultValue: 'clip', allowedValues: ['clip', 'ellipsis'] });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.fontWeight))
     .toMatchObject({ type: 'number', defaultValue: 400, integer: true, minimum: 100, maximum: 900 });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.horizontalAlignment))
@@ -97,6 +118,10 @@ test('numeric constraints reject non-finite, fractional integer-only and out-of-
     .toMatchObject({ ok: false, code: 'number.integer' });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.fontWeight, 450.5))
     .toMatchObject({ ok: false, code: 'number.integer' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.lineHeight, 0))
+    .toMatchObject({ ok: false, code: 'number.minimum' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.lineHeight, 1.5))
+    .toMatchObject({ ok: true, value: 1.5 });
 });
 
 test('color, enum and AssetReference values fail closed', () => {
@@ -114,6 +139,10 @@ test('color, enum and AssetReference values fail closed', () => {
     .toMatchObject({ ok: true, value: 'none' });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.strokeStyle, 'dash-dot-dot'))
     .toMatchObject({ ok: true, value: 'dash-dot-dot' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.textOverflow, 'ellipsis'))
+    .toMatchObject({ ok: true, value: 'ellipsis' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.textOverflow, 'scroll'))
+    .toMatchObject({ ok: false, code: 'enum.value' });
 
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.assetRef, null))
     .toMatchObject({ ok: true, value: null });

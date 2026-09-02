@@ -37,7 +37,7 @@ export async function loadDataSourceTypeCatalog(): Promise<DataSourceTypeDefinit
 
 export function DataSourceCatalogEditor({ model, locale }: Props) {
   const copy = useMemo(() => text(locale), [locale]);
-  const sources = model.dataSources ?? [];
+  const sources = useMemo(() => model.dataSources ?? [], [model.dataSources]);
   const [catalog, setCatalog] = useState<DataSourceTypeDefinition[]>([]);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [selectedIdentity, setSelectedIdentity] = useState<string | null>(() => sources[0] ? dataSourceIdentity(sources[0]) : null);
@@ -75,7 +75,7 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
 
   useEffect(() => {
     if (selectedIdentity === NEW_DATA_SOURCE_IDENTITY) {
-      setDraft(newDataSourceDraft(catalog[0]));
+      setDraft(newDataSourceDraft());
       setPreview(null);
       setValidatedCandidate(null);
       setValidatedChangeVersion(null);
@@ -95,13 +95,13 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
 
     if (sources[0]) setSelectedIdentity(dataSourceIdentity(sources[0]));
     else setDraft(null);
-  }, [selectedIdentity, sources, catalog]);
+  }, [selectedIdentity, sources]);
 
   const currentType = draft
     ? catalog.find(type => type.typeKey.toLowerCase() === draft.driver.toLowerCase()) ?? null
     : null;
   const unsupported = Boolean(draft?.driver && catalog.length > 0 && !currentType);
-  const pristineNew = newDataSourceDraft(catalog[0]);
+  const pristineNew = newDataSourceDraft();
   const changed = Boolean(draft && (isNew
     ? JSON.stringify(draft) !== JSON.stringify(pristineNew)
     : selected && JSON.stringify(selected) !== JSON.stringify(draft)));

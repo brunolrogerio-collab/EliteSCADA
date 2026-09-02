@@ -239,11 +239,20 @@ test('C05 canonical visual properties survive Save Publish Activate and drive Ac
       visible: true,
       opacity: 0.6,
       tooltip: 'C05 rectangle tooltip',
+      enabled: false,
+      fillStyle: 'gradient',
       fillColor: '#12345680',
+      fillSecondaryColor: '#ABCDEF',
+      gradientDirection: 'diagonal-up',
       strokeColor: '#445566',
       strokeWidth: 8,
       strokeStyle: 'none',
-      cornerRadius: 12
+      cornerRadius: 12,
+      shadowEnabled: true,
+      shadowColor: '#01020380',
+      shadowOffsetX: 4,
+      shadowOffsetY: 6,
+      shadowBlur: 10
     }
   });
   screen.elements.push({
@@ -313,11 +322,20 @@ test('C05 canonical visual properties survive Save Publish Activate and drive Ac
     visible: true,
     opacity: 0.6,
     tooltip: 'C05 rectangle tooltip',
+    enabled: false,
+    fillStyle: 'gradient',
     fillColor: '#12345680',
+    fillSecondaryColor: '#ABCDEF',
+    gradientDirection: 'diagonal-up',
     strokeColor: '#445566',
     strokeWidth: 8,
     strokeStyle: 'none',
-    cornerRadius: 12
+    cornerRadius: 12,
+    shadowEnabled: true,
+    shadowColor: '#01020380',
+    shadowOffsetX: 4,
+    shadowOffsetY: 6,
+    shadowBlur: 10
   });
   expect(activeTextElement?.properties).toMatchObject({
     tooltip: 'C05 text tooltip',
@@ -335,11 +353,17 @@ test('C05 canonical visual properties survive Save Publish Activate and drive Ac
   const rendered = activeCanvas.locator(`[data-object-id="${objectId}"]`);
   await expect(rendered).toBeVisible();
   await expect(rendered).toHaveAttribute('title', 'C05 rectangle tooltip');
+  await expect(rendered).toHaveAttribute('data-enabled', 'false');
+  await expect(rendered).toHaveCSS('pointer-events', 'none');
   const renderedStyle = await rendered.getAttribute('style');
   expect(renderedStyle).toContain('opacity: 0.6');
   expect(renderedStyle).toContain('border-width: 0px');
   expect(renderedStyle).toContain('border-style: none');
   expect(renderedStyle).toContain('rotate(15deg) scale(-0.9, 1.1)');
+  const renderedBackground = await rendered.evaluate(element => getComputedStyle(element).backgroundImage);
+  expect(renderedBackground).toContain('linear-gradient');
+  const renderedFilter = await rendered.evaluate(element => getComputedStyle(element).filter);
+  expect(renderedFilter).toContain('drop-shadow');
 
   const renderedText = activeCanvas.locator(`[data-object-id="${textObjectId}"]`);
   await expect(renderedText).toBeVisible();
@@ -361,13 +385,16 @@ test('an unavailable Active projection fails closed without reading mutable Work
     });
   });
   await page.route('**/api/engineering/export/json', async route => {
-    workingReads++;
-    await route.continue();
+    workingReads += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ schemaVersion: 15, screens: [] })
+    });
   });
 
   await page.goto('/');
-  await expect(page.getByTestId('runtime-application-error')).toBeVisible();
-  await expect(page.getByTestId('runtime-simulation-fallback')).toHaveCount(0);
-  await expect(page.getByTestId('runtime-engineering-application')).toHaveCount(0);
+  await expect(page.getByTestId('runtime-engineering-error')).toBeVisible();
+  await expect(page.getByTestId('runtime-engineering-error')).toContainText('409');
   expect(workingReads).toBe(0);
 });

@@ -11,6 +11,10 @@ test('secure first-run creates the initial local Administrator, first project an
   const page = await context.newPage();
 
   try {
+    // Browser-side fetch resolves relative URLs against the current document, not
+    // Playwright's baseURL. Enter the app origin before querying the auth contract.
+    await page.goto('/engineering');
+
     const authConfig = await page.evaluate(async () => {
       const response = await fetch('/api/auth/config');
       return { status: response.status, body: await response.json() };
@@ -23,7 +27,6 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(authConfig.body.passwordPolicy.minimumLength).toBe(8);
     expect(authConfig.body.passwordPolicy.maximumLength).toBe(1024);
 
-    await page.goto('/engineering');
     await expect(page.locator('.auth-card')).toBeVisible();
     await expect(page.locator('input[name="bootstrap-username"]')).toBeVisible();
     await expect(page.locator('input[name="username"]')).toHaveCount(0);

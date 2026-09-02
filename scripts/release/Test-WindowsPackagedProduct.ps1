@@ -285,17 +285,29 @@ try {
         [string]$firstRuntime.live.projectKey -eq $ExpectedProjectKey) `
         "Packaged Runtime identity does not match the first persisted Active revision."
 
+    $firstRuntimeTagsResponse = Invoke-RestMethod `
+        -Uri "$BaseUrl/api/tags" `
+        -WebSession $session `
+        -TimeoutSec 10
     $firstRuntimeTags = @(
-        Invoke-RestMethod `
-            -Uri "$BaseUrl/api/tags" `
-            -WebSession $session `
-            -TimeoutSec 10
+        foreach ($tag in $firstRuntimeTagsResponse) {
+            $tag
+        }
     )
-    Assert-ReleaseCondition (
-        $firstRuntimeTags.Count -eq 7 -and
-        @($firstRuntimeTags | Where-Object { $_.path -eq 'Demo.P01.Running' }).Count -eq 1 -and
-        @($firstRuntimeTags | Where-Object { $_.path -eq 'Demo.Discharge.Pressure' }).Count -eq 1) `
+    $expectedRuntimeTagPaths = @(
+        'Demo.Discharge.Flow',
+        'Demo.Discharge.Pressure',
+        'Demo.P01.Current',
+        'Demo.P01.Fault',
+        'Demo.P01.Frequency',
+        'Demo.P01.Running',
+        'Demo.Tank01.Level'
+    )
+    $actualRuntimeTagPaths = @($firstRuntimeTags | ForEach-Object { [string]$_.path } | Sort-Object)
+    Assert-ReleaseCondition ($actualRuntimeTagPaths.Count -eq $expectedRuntimeTagPaths.Count) `
         "Packaged Active Runtime did not load the complete persisted Demo TAG set."
+    Assert-ReleaseCondition (($actualRuntimeTagPaths -join '|') -eq ($expectedRuntimeTagPaths -join '|')) `
+        "Packaged Active Runtime TAG identities differ from the persisted Demo TAG set."
 
     $firstApplication = Invoke-RestMethod `
         -Uri "$BaseUrl/api/runtime/application" `

@@ -14,7 +14,7 @@ API_PID_FILE="$STATE_DIR/api.pid"
 WEB_PID_FILE="$STATE_DIR/web.pid"
 API_LOG="$STATE_DIR/api.log"
 WEB_LOG="$STATE_DIR/web.log"
-COOKIE_JAR="$STATE_DIR/bootstrap.cookies"
+LOGIN_HEADERS="$STATE_DIR/login.headers"
 LOGIN_BODY="$STATE_DIR/login.json"
 
 mkdir -p "$STATE_DIR"
@@ -36,6 +36,11 @@ done
 if [[ -z "${ELITESCADA_PREVIEW_ADMIN_PASSWORD:-}" ]]; then
   fail "ELITESCADA_PREVIEW_ADMIN_PASSWORD is not set. Configure it as a GitHub Codespaces secret and rebuild/restart the Codespace."
 fi
+
+# Copy the Codespaces secret into a non-exported shell variable, then remove the
+# original environment variable so long-lived child processes cannot inherit it.
+PREVIEW_ADMIN_PASSWORD="$ELITESCADA_PREVIEW_ADMIN_PASSWORD"
+unset ELITESCADA_PREVIEW_ADMIN_PASSWORD
 
 stop_process() {
   local pid_file="$1"
@@ -115,7 +120,7 @@ printf 'Validated Wave 11 Demo fixture: %s\n' "$ACTUAL_SHA"
 
 stop_process "$WEB_PID_FILE"
 stop_process "$API_PID_FILE"
-rm -f "$COOKIE_JAR" "$LOGIN_BODY"
+rm -f "$LOGIN_HEADERS" "$LOGIN_BODY"
 : > "$API_LOG"
 : > "$WEB_LOG"
 chmod 600 "$API_LOG" "$WEB_LOG"
@@ -150,8 +155,8 @@ start_api() {
 
 # First boot may create the empty PostgreSQL identity store. The protected password is
 # supplied only to this short-lived bootstrap process. The long-lived API is restarted
-# without the bootstrap password in its process environment.
-export Authentication__Local__Bootstrap__Password="$ELITESCADA_PREVIEW_ADMIN_PASSWORD"
+# without either the Codespaces secret name or bootstrap password in its environment.
+export Authentication__Local__Bootstrap__Password="$PREVIEW_ADMIN_PASSWORD"
 printf 'Bootstrapping persistent local identity store...\n'
 start_api
 wait_for_process_url "$API_PID_FILE" "$API_URL/health" "$API_LOG" 'EliteSCADA API bootstrap' || fail "API bootstrap failed"
@@ -162,26 +167,42 @@ printf 'Starting EliteSCADA API without bootstrap password in its process enviro
 start_api
 wait_for_process_url "$API_PID_FILE" "$API_URL/health" "$API_LOG" 'EliteSCADA API' || fail "API startup failed"
 
-LOGIN_STATUS="$(curl --silent --show-error \
-  --output "$LOGIN_BODY" \
-  --write-out '%{http_code}' \
-  --cookie-jar "$COOKIE_JAR" \
-  --header 'Content-Type: application/json' \
-  --request POST \
-  --data-binary @- \
-  "$API_URL/api/auth/login" <<JSON
-{"username":"EliteSCADA","password":"${ELITESCADA_PREVIEW_ADMIN_PASSWORD}"}
-JSON
+# Build the login JSON from stdin so arbitrary password characters are escaped correctly
+# and the password never appears in the curl command line.
+LOGIN_STATUS="$(
+  printf '%s' "$PREVIEW_ADMIN_PASSWORD" \
+    | node -e '
+let password="";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", chunk => password += chunk);
+process.stdin.on("end", () => process.stdout.write(JSON.stringify({username:"EliteSCADA", password})));
+' \
+    | curl --silent --show-error \
+        --dump-header "$LOGIN_HEADERS" \
+        --output "$LOGIN_BODY" \
+        --write-out '%{http_code}' \
+        --header 'Content-Type: application/json' \
+        --request POST \
+        --data-binary @- \
+        "$API_URL/api/auth/login"
 )"
 
 if [[ "$LOGIN_STATUS" != "200" ]]; then
   fail "administrative login returned HTTP $LOGIN_STATUS. If this Codespace previously used a different Preview password, rebuild/reset its temporary database."
 fi
 
-ACCESS_TOKEN="$(awk '$6 == "elitescada_access" { value=$7 } END { print value }' "$COOKIE_JAR")"
-[[ -n "$ACCESS_TOKEN" ]] || fail "local login succeeded but the access cookie was not issued"
+ACCESS_TOKEN="$(node -e '
+const fs=require("fs");
+const lines=fs.readFileSync(process.argv[1],"utf8").split(/\r?\n/);
+const line=lines.find(x => /^set-cookie:\s*elitescada_access=/i.test(x));
+if (!line) process.exit(2);
+const match=line.match(/elitescada_access=([^;]+)/i);
+if (!match) process.exit(3);
+process.stdout.write(match[1]);
+' "$LOGIN_HEADERS")" || fail "local login succeeded but the access cookie was not issued"
+[[ -n "$ACCESS_TOKEN" ]] || fail "local login succeeded but the access cookie was empty"
 AUTH_COOKIE="elitescada_access=$ACCESS_TOKEN"
-rm -f "$COOKIE_JAR" "$LOGIN_BODY"
+rm -f "$LOGIN_HEADERS" "$LOGIN_BODY"
 
 AUTH_ME="$STATE_DIR/auth-me.json"
 curl --fail --silent --show-error \
@@ -285,10 +306,27 @@ process.stdout.write(String(j.license?.state ?? "unknown"));
 ' "$LICENSE_FILE")"
 [[ "$LICENSE_STATE" == "Demo" ]] || fail "Preview expected official Demo licensing state but received '$LICENSE_STATE'"
 
-# Do not retain the bootstrap JWT or the user-supplied password in repository state.
+# Clear authentication/bootstrap material from the launcher before starting the Web process.
 ACCESS_TOKEN=''
 AUTH_COOKIE=''
-unset ELITESCADA_PREVIEW_ADMIN_PASSWORD
+PREVIEW_ADMIN_PASSWORD=''
+JWT_SIGNING_KEY=''
+unset Authentication__Jwt__SigningKey
+unset Authentication__Local__Bootstrap__Username
+unset Authentication__Local__Bootstrap__DisplayName
+unset Authentication__Local__Bootstrap__Roles__0
+unset Authentication__Local__Enabled
+unset Authentication__Local__SecureCookie
+unset Authentication__Local__AccessTokenMinutes
+unset Authentication__Enabled
+unset Authentication__Jwt__Issuer
+unset Authentication__Jwt__Audience
+unset ConnectionStrings__EliteScada
+unset ConnectionStrings__Historian
+unset Historian__Provider
+unset EngineeringRuntime__ProjectKey
+unset ASPNETCORE_URLS
+unset ASPNETCORE_ENVIRONMENT
 
 printf 'Starting EliteSCADA Web with API proxy kept inside the app container...\n'
 export SCADA_API_PROXY="$API_URL"

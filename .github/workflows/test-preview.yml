@@ -86,12 +86,27 @@ jobs:
           python3 - <<'PY'
           import os
           import secrets
+
+          password = secrets.token_urlsafe(48)
+          print(f'::add-mask::{password}')
           with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env:
-              env.write('ELITESCADA_PREVIEW_ADMIN_PASSWORD=' + secrets.token_urlsafe(48) + '\n')
+              env.write('ELITESCADA_PREVIEW_ADMIN_PASSWORD=' + password + '\n')
           PY
 
       - name: Launch Test Preview
         run: bash scripts/preview/launch-test-preview.sh
+
+      - name: API diagnostics on Preview launch failure
+        if: failure()
+        shell: bash
+        run: |
+          echo '--- EliteSCADA API diagnostic tail ---'
+          if [[ -f .preview/api.log ]]; then
+            tail -n 160 .preview/api.log
+          else
+            echo '.preview/api.log was not created.'
+          fi
+          echo '--- End diagnostic tail ---'
 
       - name: Verify browser entry and Pyodide asset
         run: |

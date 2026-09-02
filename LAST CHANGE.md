@@ -1,13 +1,13 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-02 (BRT)  
-**Operational state:** **WAVE 12 #201 — COMPLETE / ACCEPTED / CLOSED; TEST PREVIEW #208/#210 — IMPLEMENTED / REAL CODESPACE VALIDATION PENDING; WAVE 13 #205/#207 — ACTIVE UNDER SEPARATE COORDINATION**
+**Operational state:** **WAVE 12 #201 — COMPLETE / ACCEPTED / CLOSED; TEST PREVIEW #208/#210 — ACTIVE VALIDATION HARNESS; WAVE 14 #211 — ACTIVE EARLY PRODUCT-OWNER VALIDATION; WAVE 13 #205/#207 — PAUSED AT GREEN CHECKPOINT**
 
 > Mutable Coordinator resume point. `PROJECT GOAL.md` governs permanent product intent. Live GitHub refs and exact-SHA CI override copied prose. Documentation-only `[skip ci]` commits may advance `main` beyond the latest validated product-code SHA without superseding that product baseline.
 
 ## 1. Accepted product baseline
 
-Wave 12 Hardening is **COMPLETE / ACCEPTED**.
+Wave 12 Hardening remains **COMPLETE / ACCEPTED**.
 
 Final accepted Wave 12 product-code baseline:
 
@@ -19,49 +19,70 @@ Accepted runtime authority remains:
 
 Runtime uses persisted Active Engineering only; mutable Working never drives HMI Runtime directly.
 
-## 2. Final Wave 12 acceptance evidence
-
-Exact product SHA `63bced02426fcb84b26028913f6c68feb3457d80`:
+Exact post-merge Wave 12 evidence:
 
 - EliteSCADA CI #1096 / `33576603185`: **SUCCESS**;
 - L3 Seven-Driver Lab #92 / `33576603158`: **SUCCESS**.
 
-Historical Wave 12 detail remains in `docs/WAVE-12-HARDENING-AUDIT.md` and issue #201.
+## 2. Direction change authorized on 2026-09-02
 
-## 3. Coordination split authorized on 2026-09-02
+Real owner use through the Codespaces Test Preview exposed multiple product/usability findings before Wave 13 signing was complete.
 
-The Development Lead released Wave 13 from the temporary Preview pause and split coordination into two concurrent workstreams:
+Development Lead direction therefore changes the order of work:
 
-### A. Temporary Browser Test Preview
+- Wave 13 #205 / PR #207 is **PAUSED**, preserving its already-green repository-side checkpoint;
+- Wave 14 #211 **Product-owner validation** is now **ACTIVE EARLY**;
+- Preview #208 / PR #210 remains the temporary browser test harness used to execute that validation;
+- fixes required to continue meaningful owner validation may be handled during Wave 14;
+- non-blocking refinements/enhancements should be retained for Wave 15 rather than expanding Wave 14 without limit.
+
+This is an intentional ordering change, not a rejection of Wave 13 implementation.
+
+## 3. Wave 13 preserved checkpoint
+
+Issue #205 and draft PR #207 remain open but paused.
+
+Preserved fully validated implementation SHA:
+
+`9f26a2bc02ae77017e266c52ff128dc39eece4b4`
+
+Validation retained:
+
+- Wave 13 Windows Release #27 / `33643546191`: **SUCCESS**;
+- EliteSCADA CI #1134 / `33643546119`: **SUCCESS**;
+- L3 Seven-Driver Lab #102 / `33643546111`: **SUCCESS**;
+- Wave 11 Active HMI Runtime #64 / `33643546139`: **SUCCESS**.
+
+Current Wave 13 branch head after documentation synchronization:
+
+`fda87ba4445127c174f6ea533a6bcabaabc7bb20`
+
+No signing/merge/release work should advance while Wave 14 owner validation is actively changing the product baseline. Before Wave 13 resumes, re-audit live `main` and incorporate accepted Wave 14 corrections.
+
+DNP3 commercial distribution remains unauthorized independently of signing status.
+
+## 4. Test Preview state
+
+Tracking:
 
 - issue #208;
 - draft PR #210;
-- branch `preview/codespaces-test-preview`;
-- current coordinator remains focused on this workstream.
+- branch `preview/codespaces-test-preview`.
 
-### B. Wave 13 Windows release/signing
+The Preview has moved from pure infrastructure bring-up into real owner homologation. Real Codespace evidence already confirmed:
 
-- issue #205;
-- draft PR #207;
-- branch `wave13/windows-release-signing`;
-- released for a separate coordinator to continue independently.
+- exact .NET SDK 10.0.400;
+- disposable `/etc/machine-id` required by normal fail-closed licensing;
+- protected admin secret injection;
+- Web port 5173 reachable after successful bootstrap;
+- actual EliteSCADA login through the browser;
+- a pre-existing Script Engineering contrast defect discovered by owner use.
 
-Neither front blocks the other. Neither coordinator may assume the other branch has merged. Live GitHub state and exact-head CI must be rechecked before merge/release decisions.
+Operational runbook is versioned on the Preview branch at:
 
-## 4. Preview current state
+`docs/CODESPACES-PREVIEW-RUNBOOK.md`
 
-Last validated Preview head:
-
-`208ac69b5638ace8557a700d34dd16571360c8f6`
-
-Exact-head evidence:
-
-- Test Preview #4 / `33594259242`: **SUCCESS**;
-- EliteSCADA CI #1122 / `33594259232`: **SUCCESS**.
-
-The Preview implementation has no product-code diff. It adds the Codespaces/devcontainer + Compose topology, private TimescaleDB, Web port 5173 forwarding, protected admin secret injection, validated Wave 11 Demo fixture, launcher/task, normal Import -> Save -> Publish -> Activate bootstrap and browser/Pyodide smoke.
-
-Final Preview acceptance remains pending a **fresh real Codespace** and confirmation that the forwarded private Web URL opens the actual EliteSCADA and representative browser behavior is usable.
+It records when to use browser reload, Preview restart, Rebuild Container or a fresh Codespace, plus the real 502/SDK/machine-id/password diagnostic patterns already encountered.
 
 Administrative username:
 
@@ -71,49 +92,31 @@ Protected secret name:
 
 `ELITESCADA_PREVIEW_ADMIN_PASSWORD`
 
-The supplied password must never be committed or copied into docs, workflows, packages, images, logs or normal artifacts.
+Never commit or echo the supplied password into source, docs, workflows, images, packages, logs or normal artifacts.
 
-## 5. Wave 13 released state
+## 5. Wave 14 active state
 
-Issue #205 is now **ACTIVE / RELEASED FOR SEPARATE COORDINATION**.
+Issue #211 — **Wave 14 — Product-owner validation** — is the active product-validation tracker.
 
-PR #207 remains **draft**. Removing the pause does not make the existing branch merge-ready or accepted.
+Use the real browser Preview to exercise the product area by area. Findings are classified as:
 
-Before Wave 13 development continues, its incoming coordinator must read the required project/handoff documents, inspect live `main`, issue #205, PR #207, current exact-SHA CI and the release/signing audit, then compare `wave13/windows-release-signing` against live `main`.
+- **A — Validation blocker:** prevents meaningful continuation; may be corrected immediately during Wave 14;
+- **B — Functional defect:** wrong behavior; fix in Wave 14 when it affects release confidence or later validation;
+- **C — Usability defect:** works technically but materially harms owner validation; fix when blocking/material;
+- **D — Enhancement/preference:** record for Wave 15 or later.
 
-Concurrent Preview #208/#210 work must be inspected for repository/launch changes, but only changes actually merged into `main` become Wave 13 package assumptions.
+The first confirmed owner finding is the pre-existing Script Engineering contrast defect discovered in the real Codespace. Its correction started in PR #210 because the surface was effectively unreadable and blocked meaningful validation.
 
-Wave 13 remains responsible for:
+## 6. Exact next action
 
-- Windows x64 packaging;
-- Authenticode signing;
-- trusted timestamping;
-- deterministic/fail-closed signed-byte manifest verification;
-- existing security/licensing gates;
-- DNP3 commercial-distribution gate.
+1. re-check live `main`, #208, #210, #211 and exact current CI before code changes;
+2. keep Wave 13 #205/#207 paused;
+3. finish making the Preview reproducible enough for repeated owner validation;
+4. validate one EliteSCADA product area at a time through the real browser UI;
+5. record each finding in Wave 14 #211 with severity/classification and exact exercised SHA;
+6. correct only blockers/material defects needed to keep validation trustworthy;
+7. require universal `EliteSCADA CI` plus impact-specific gates for product-code corrections;
+8. transfer non-blocking feedback to Wave 15 rather than losing it;
+9. establish an accepted Wave 14 product baseline before Wave 13 signing resumes.
 
-## 6. Exact next action — Preview coordinator
-
-1. verify live `main`, PR #210 head and current exact-head CI before any new change;
-2. continue only issue #208 / PR #210;
-3. diagnose the fresh Codespace startup problem seen during owner validation;
-4. obtain a real forwarded private Web URL from a fresh Codespace;
-5. validate login and representative Engineering/Runtime behavior;
-6. only then close/accept #208 and integrate #210 according to CI/merge policy.
-
-Do not develop Wave 13 as part of the Preview workstream.
-
-## 7. Exact next action — Wave 13 coordinator
-
-1. read `PROJECT GOAL.md`;
-2. read this file;
-3. read `docs/CURRENT-COORDINATOR-HANDOFF.md`;
-4. read `docs/ROADMAP.md`;
-5. read `docs/WAVE-13-WINDOWS-RELEASE-PREPARATION.md`;
-6. read issue #205 and full draft PR #207 state;
-7. read `docs/CI-VALIDATION-POLICY.md`;
-8. inspect #208/#210 only for concurrent changes relevant to launch/package assumptions;
-9. verify live `main`, open PRs/issues and exact Actions state;
-10. compare the Wave 13 branch with live `main` before modifying it.
-
-Do not begin Wave 14 owner validation, Wave 15 corrections, Linux packaging or physical L4 work without their own authorization/gates.
+Do not resume Wave 13 merely because its old branch is green: final signing must target the post-owner-validation product, not a stale pre-validation snapshot.

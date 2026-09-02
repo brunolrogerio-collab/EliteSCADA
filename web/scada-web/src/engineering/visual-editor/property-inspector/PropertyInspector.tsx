@@ -30,8 +30,10 @@ export type PropertyInspectorCopy = Readonly<{
   trueLabel: string;
   falseLabel: string;
   noAsset: string;
+  assetBrowserHint: string;
   transparent: string;
   alpha: string;
+  fontFamilyPlaceholder: string;
   defaultState: string;
   engineeringState: string;
   mixedState: (explicitCount: number, selectionCount: number) => string;
@@ -41,6 +43,18 @@ export type PropertyInspectorCopy = Readonly<{
 export type PropertyInspectorProps = VisualEditorPropertyInspectorContractProps & Readonly<{
   copy?: Partial<PropertyInspectorCopy>;
 }>;
+
+const FONT_FAMILY_SUGGESTIONS = Object.freeze([
+  'system',
+  'Arial',
+  'Helvetica',
+  'Verdana',
+  'Tahoma',
+  'Georgia',
+  'Times New Roman',
+  'Courier New',
+  'monospace'
+]);
 
 const DEFAULT_COPY: PropertyInspectorCopy = {
   title: 'Properties',
@@ -52,8 +66,10 @@ const DEFAULT_COPY: PropertyInspectorCopy = {
   trueLabel: 'True',
   falseLabel: 'False',
   noAsset: 'No asset',
+  assetBrowserHint: 'Choose a project-owned asset with the Asset browser below.',
   transparent: 'Transparent',
   alpha: 'Alpha',
+  fontFamilyPlaceholder: 'Choose or type a font family',
   defaultState: 'Default',
   engineeringState: 'Engineering',
   mixedState: (explicitCount, selectionCount) => `Mixed · ${explicitCount}/${selectionCount} explicit`,
@@ -170,6 +186,7 @@ function PropertyField({ model, row, text, onMutationIntent }: PropertyFieldProp
       className="property-inspector__field"
       data-property-key={definition.key}
       data-editor-type={definition.type}
+      data-editor-hint={definition.presentationHint ?? undefined}
     >
       <div className="property-inspector__field-heading">
         <label htmlFor={`visual-property-${definition.key}`}>{definition.key}</label>
@@ -216,6 +233,14 @@ function EditorControl({ definition, row, text, commit, setError }: EditorContro
     return <ColorControl definition={definition} row={row} text={text} commit={commit} setError={setError} />;
   }
 
+  if (definition.type === 'assetRef' || definition.presentationHint === 'project-asset') {
+    return <AssetReferenceControl definition={definition} row={row} text={text} />;
+  }
+
+  if (definition.type === 'string' && definition.presentationHint === 'font-family') {
+    return <FontFamilyControl definition={definition} row={row} text={text} commit={commit} setError={setError} />;
+  }
+
   return <TextualControl definition={definition} row={row} text={text} commit={commit} setError={setError} />;
 }
 
@@ -256,6 +281,81 @@ function EnumControl({ definition, row, text, commit }: Omit<EditorControlProps,
       {row.state === 'mixed' ? <option value="__mixed__" disabled>{text.mixed}</option> : null}
       {definition.allowedValues.map(option => <option key={option} value={option}>{option}</option>)}
     </select>
+  );
+}
+
+function AssetReferenceControl({ definition, row, text }: Pick<EditorControlProps, 'definition' | 'row' | 'text'>) {
+  const displayValue = row.state === 'mixed' ? '' : formatPropertyInspectorValue(row.value ?? row.defaultValue);
+  return (
+    <div className="property-inspector__asset-reference">
+      <input
+        id={`visual-property-${definition.key}`}
+        type="text"
+        value={displayValue}
+        placeholder={row.state === 'mixed' ? text.mixed : text.noAsset}
+        readOnly
+        aria-readonly="true"
+      />
+      <small>{text.assetBrowserHint}</small>
+    </div>
+  );
+}
+
+function FontFamilyControl({ definition, row, text, commit, setError }: EditorControlProps) {
+  const displayValue = row.state === 'mixed' ? '' : formatPropertyInspectorValue(row.value ?? row.defaultValue);
+  const [draft, setDraft] = useState(displayValue);
+  const [dirty, setDirty] = useState(false);
+  const listId = `visual-property-${definition.key}-fonts`;
+
+  useEffect(() => {
+    setDraft(displayValue);
+    setDirty(false);
+  }, [displayValue]);
+
+  const applyDraft = () => {
+    if (!dirty) return;
+    const parsed = parsePropertyInspectorInput(definition, draft);
+    if (!parsed.ok) {
+      setError(parsed.error);
+      return;
+    }
+    if (commit(parsed.value)) setDirty(false);
+  };
+
+  return (
+    <>
+      <input
+        id={`visual-property-${definition.key}`}
+        type="text"
+        list={listId}
+        value={draft}
+        placeholder={row.state === 'mixed' ? text.mixed : text.fontFamilyPlaceholder}
+        disabled={!definition.engineeringEditable}
+        onChange={event => {
+          setDraft(event.currentTarget.value);
+          setDirty(true);
+          setError(null);
+        }}
+        onBlur={applyDraft}
+        onKeyDown={event => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            applyDraft();
+            event.currentTarget.blur();
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            setDraft(displayValue);
+            setDirty(false);
+            setError(null);
+            event.currentTarget.blur();
+          }
+        }}
+      />
+      <datalist id={listId}>
+        {FONT_FAMILY_SUGGESTIONS.map(font => <option key={font} value={font} />)}
+      </datalist>
+    </>
   );
 }
 
@@ -403,7 +503,7 @@ function TextualControl({ definition, row, text, commit, setError }: EditorContr
       id={`visual-property-${definition.key}`}
       type={definition.type === 'number' ? 'number' : 'text'}
       value={draft}
-      placeholder={row.state === 'mixed' ? text.mixed : definition.type === 'assetRef' && row.defaultValue === null ? text.noAsset : undefined}
+      placeholder={row.state === 'mixed' ? text.mixed : undefined}
       min={definition.type === 'number' ? definition.minimum : undefined}
       max={definition.type === 'number' ? definition.maximum : undefined}
       step={definition.type === 'number' ? (definition.integer ? 1 : 'any') : undefined}

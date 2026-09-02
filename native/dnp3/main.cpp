@@ -28,6 +28,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -470,23 +471,80 @@ private:
     std::vector<std::string> diagnostics_;
 };
 
+class RecoveryScanCallback final : public ITaskCallback
+{
+public:
+    RecoveryScanCallback(ProtocolWriter& writer, uint8_t classes)
+        : writer_(writer), classes_(classes) {}
+
+    void OnStart() override
+    {
+        writer_.State("StartupIntegrity");
+    }
+
+    void OnComplete(TaskCompletion result) override
+    {
+        if (result == TaskCompletion::SUCCESS)
+        {
+            writer_.Diagnostic("STARTUP_INTEGRITY");
+            EmitClassDiagnostics(writer_, classes_);
+            writer_.State("Online");
+        }
+        else
+        {
+            writer_.State("Degraded");
+        }
+    }
+
+    void OnDestroyed() override {}
+
+private:
+    ProtocolWriter& writer_;
+    uint8_t classes_;
+};
+
 class EliteChannelListener final : public IChannelListener
 {
 public:
+    using RecoveryAction = std::function<void()>;
+
     EliteChannelListener(ProtocolWriter& writer, std::atomic<bool>& stopping)
         : writer_(writer), stopping_(stopping) {}
+
+    void SetRecoveryAction(RecoveryAction action)
+    {
+        std::lock_guard<std::mutex> lock(recoveryGate_);
+        recoveryAction_ = std::move(action);
+    }
 
     void OnStateChange(ChannelState state) override
     {
         switch (state)
         {
         case ChannelState::OPENING:
+            if (everOpened_.load()) recoveryPending_.store(true);
             writer_.State(everOpened_.load() ? "Reconnecting" : "Connecting");
             break;
         case ChannelState::OPEN:
-            everOpened_.store(true);
+        {
+            const bool wasOpened = everOpened_.exchange(true);
+            const bool shouldRecover = wasOpened && recoveryPending_.exchange(false) && !stopping_.load();
+            if (shouldRecover)
+            {
+                RecoveryAction action;
+                {
+                    std::lock_guard<std::mutex> lock(recoveryGate_);
+                    action = recoveryAction_;
+                }
+                if (action)
+                    action();
+                else
+                    recoveryPending_.store(true);
+            }
             break;
+        }
         case ChannelState::CLOSED:
+            if (everOpened_.load()) recoveryPending_.store(true);
             writer_.State(everOpened_.load() ? "Reconnecting" : "Connecting");
             break;
         case ChannelState::SHUTDOWN:
@@ -499,6 +557,9 @@ private:
     ProtocolWriter& writer_;
     std::atomic<bool>& stopping_;
     std::atomic<bool> everOpened_{false};
+    std::atomic<bool> recoveryPending_{false};
+    std::mutex recoveryGate_;
+    RecoveryAction recoveryAction_;
 };
 
 OperationType ParseOperation(const std::string& value)
@@ -655,6 +716,16 @@ int Run(int argc, char** argv)
     auto soe = std::make_shared<EliteSOEHandler>(writer);
     auto app = std::make_shared<EliteMasterApplication>(writer, config.startupClasses);
     auto master = channel->AddMaster("elitescada-master", soe, app, stack);
+
+    std::weak_ptr<IMaster> recoveryMaster(master);
+    listener->SetRecoveryAction([recoveryMaster, soe, &writer, startupClasses = config.startupClasses]() {
+        if (auto activeMaster = recoveryMaster.lock())
+        {
+            auto callback = std::make_shared<RecoveryScanCallback>(writer, startupClasses);
+            activeMaster->ScanClasses(ClassField(startupClasses), *soe, TaskConfig::With(callback));
+        }
+    });
+
     std::vector<std::shared_ptr<IMasterScan>> scans;
     AddOptionalScan(scans, master, soe, writer, config.startupClasses, config.integrityPollMs, ClassDiagnostics(config.startupClasses));
     AddOptionalScan(scans, master, soe, writer, ClassField::CLASS_1, config.class1PollMs, {"CLASS1_SCAN"});

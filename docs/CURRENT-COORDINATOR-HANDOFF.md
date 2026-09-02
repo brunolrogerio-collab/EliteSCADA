@@ -1,7 +1,7 @@
 # EliteSCADA — Current Coordinator Handoff
 
 **Last operational synchronization:** 2026-09-01 BRT  
-**Status:** **WAVE 12 #201 — REMEDIATION COMPLETE / PR #202 READY FOR INTEGRATION / POST-MAIN CI PENDING**
+**Status:** **WAVE 12 COMPLETE / ACCEPTED; WAVE 13 #205 PREPARED / NOT STARTED**
 
 > GitHub/main/CI is implementation truth. `PROJECT GOAL.md` governs permanent product intent. `LAST CHANGE.md` is the mutable resume point. Never resume from chat alone.
 
@@ -13,108 +13,104 @@ Read in this order before changing code:
 2. `LAST CHANGE.md`;
 3. this handoff;
 4. `docs/ROADMAP.md`;
-5. `docs/WAVE-12-HARDENING-PREPARATION.md`;
-6. issue #201;
+5. `docs/WAVE-13-WINDOWS-RELEASE-PREPARATION.md`;
+6. issue #205 — Wave 13;
 7. `docs/CI-VALIDATION-POLICY.md`;
-8. live `main`, PR #202, open issues and exact Actions state;
-9. `docs/WAVE-12-HARDENING-AUDIT.md`.
+8. live `main`, open PRs/issues and exact Actions state;
+9. for historical Wave 12 diagnosis only, `docs/WAVE-12-HARDENING-AUDIT.md` and issue #201.
 
 If repository state differs from copied prose, GitHub/main/CI wins.
 
 ## 2. Accepted foundation
 
-Wave 11 issue #194 is **CLOSED / COMPLETED**.
+Wave 11 issue #194 is **CLOSED / COMPLETED**.  
+Wave 12 issue #201 is **COMPLETE / ACCEPTED / CLOSED**.
 
-Accepted product-code baseline:
+Accepted Wave 12 product-code baseline:
 
-`4ccc29cb4bb334dc473d8265f48a9c8601993413`
+`63bced02426fcb84b26028913f6c68feb3457d80`
 
-Accepted lifecycle authority:
+Exact post-merge acceptance evidence on that SHA:
+
+- EliteSCADA CI #1096 / `33576603185`: **SUCCESS**, including backend build/tests/runtime smoke, Web build and Chromium E2E;
+- L3 Seven-Driver Lab #92 / `33576603158`: **SUCCESS**.
+
+Accepted lifecycle authority remains:
 
 `Working -> saved Revision -> Published -> Active -> HMI Runtime`
 
-Runtime uses persisted Active Engineering only; Working edits remain isolated until Save/Publish/Activate. Accepted Wave 11 product boundaries must not be reopened without a demonstrated defect.
+Runtime uses persisted Active Engineering only; Working edits remain isolated until Save/Publish/Activate. Accepted Wave 11/12 architecture must not be reopened without a demonstrated defect.
 
-Owner-test package:
+Owner-test package from Wave 11 remains:
 
 `EliteSCADA-Wave11-Demo.escadapkg`  
 SHA-256 `13261af59b8707df7d9ef3bbea307cb0c85d945ea8f47315fb693c92c885efa1`
 
-## 3. Wave 12 current state
+## 3. Wave 12 closure history that matters
 
-Issue #201: **OPEN pending integration acceptance**.  
-Branch: `coordination/wave12-hardening`.  
-PR: #202.  
-Branch base / `main` at formal start: `a2d865c017b8b8ad804f9270e5224ac1fa620ed0`.  
-Ledger: `docs/WAVE-12-HARDENING-AUDIT.md`.
+Wave 12 implementation was integrated through PR #203. Initial post-merge `main` SHA `be710e630da63639af9a0fc63458f9bd92068746` failed EliteSCADA CI #1094 in two existing Modbus happy-path loopback writes at the identical 500 ms request timeout.
 
-Latest validated Wave 12 product-code SHA:
+The failure was diagnosed before rerun. `ModbusTcpTransport` starts its request timeout after acquiring its transport serialization gate; the failing tests injected no server delay and did not define a 500 ms latency product contract. Explicit timeout/reconnect/degraded-path tests remained green.
 
-`29141feab168fa6e33d98b0f36cdd6e79f3811d8`
+PR #204 changed only the two healthy-path test configurations from 500 ms to 2 s and the matching diagnostics expectation. No production code or fault-path assertions changed.
 
-Exact evidence:
+Exact #204 head `8d9950f56cf4cac8d835f448df8f77dc6a780928` passed EliteSCADA CI #1095 and L3 #91. Squash merge produced accepted `main` `63bced...`, which then passed #1096 and L3 #92.
 
-- EliteSCADA CI #1093 / `33574192584`: **SUCCESS**, including Chromium E2E;
-- L3 Seven-Driver Lab #89 / `33574192610`: **SUCCESS**;
-- Preview Licensing CI #142 / `33574192572`: **SUCCESS**;
-- Wave 11 Active HMI Runtime #40 / `33574192580`: **SUCCESS**.
+This history exists to prevent a future Coordinator from reducing timeouts indiscriminately or treating #1094 as an unresolved product defect.
 
-A documentation-only `[skip ci]` synchronization commit may place the branch head after this SHA. It does not supersede the validated product-code checkpoint.
+## 4. Wave 13 preparation state
 
-## 4. Closed Wave 12 findings
+Issue #205: **OPEN / PREPARED / NOT STARTED**.  
+Preparation: `docs/WAVE-13-WINDOWS-RELEASE-PREPARATION.md`.
 
-All identified findings are **FIXED / REGRESSION / VALIDATED**:
+No Wave 13 implementation branch has been created. This is intentional.
 
-- W12-RT-001 — realtime WebSocket client isolation and preserved 1008 revocation close semantics;
-- W12-PER-001 — consistent serialized persistence Save;
-- W12-ING-001 — bounded JSON/CSV Engineering ingress;
-- W12-PKG-001 — `.escadapkg` export/import resource symmetry;
-- W12-PER-002 — Persistence Apply mutation lease + caller-observed CAS;
-- W12-AUTH-001 — local-identity logical mutation serialization and last-enabled-administrator invariant;
-- W12-AUTH-002 — expired login limiter state reclamation without active lockout eviction;
-- W12-API-001 — deterministic persistence request validation and typed/sanitized Historical Query failure classification;
-- W12-AUD-001 — durable pre-mutation append-only audit admission for unsafe `/api` requests; audit-store outage fails closed before the endpoint executes.
+A documentation-only preparation commit may advance live `main` beyond accepted product-code `63bced...`. Therefore do not create the implementation branch from a copied SHA. Re-read live `main` immediately before branch creation.
 
-AUD-001 deliberately does not convert a detailed post-action audit failure into a process-command failure. A physical or runtime mutation may already have occurred; returning an artificial failure could cause a client to repeat it. The direct durable admission record exists before the mutation and therefore preserves evidence if a detailed outcome later cannot be buffered.
+## 5. Wave 13 objective
 
-## 5. Important validation history
+Produce and verify the first controlled Windows x64 release package with Authenticode signing and trusted timestamping while preserving accepted product/security/runtime/licensing contracts.
 
-- Realtime hardening initially produced browser close 1006 instead of required 1008. Root cause was premature cancellation; fixed without weakening policy-close assertions.
-- PER-002 first exact-head CI exposed one E2E caller missing the new workspace-version header; the caller was corrected rather than relaxing CAS.
-- AUTH-001 validation exposed an unrelated Modbus recovery-test timing margin; normal-operation margin was hardened while preserving failure/recovery assertions.
-- API-001 validation exposed stale typed expectations and runner-sensitive timing/watchdog tests; semantics/assertions were retained and tests made deterministic.
-- AUD-001 first run #1092 at `0905ce4313122dc266444a047abeb92c8a122572` failed build because the new regression test omitted the `Scada.Api.Runtime` namespace. Product code compiled; `29141fe...` corrected only the test and #1093 passed fully.
+Wave 13 is release engineering, not a new feature wave.
 
-Never use blind reruns as a substitute for these diagnosed root causes.
+The first implementation slice must be audit/design, not blind packaging:
 
-## 6. Exact next action
+- inventory current Windows publish/package surfaces and user-facing executable artifacts;
+- define package layout and launch/installation contract;
+- identify which PE artifacts require signing;
+- define signing authority, certificate and timestamp boundary;
+- define deterministic manifest/hash verification;
+- define package smoke/regression checks for product launch, Demo/licensing and Active Runtime;
+- define DNP3 disposition for any distributable artifact.
 
-1. synchronize PR #202 and issue #201 to the validated checkpoint;
-2. verify live `main`, exact PR head and mergeability immediately before integration;
-3. mark PR #202 ready and merge using the exact expected head only if the base state is still coherent;
-4. validate the resulting `main` SHA with the universal EliteSCADA CI;
-5. only after post-merge `main` success, close issue #201 and record Wave 12 as **COMPLETE / ACCEPTED / CLOSED**;
-6. hand Wave 13 the resulting stable `main` baseline; do not implement signing in the Wave 12 branch.
+## 6. Signing/security locks
+
+- Production Preview/installable Windows executables/installers must be Authenticode-signed with an authorized organizational identity and trusted timestamp.
+- Private signing keys/certificates must never be committed, embedded, copied into normal GitHub Actions secrets/artifacts or included in packages/logs.
+- Prefer protected signing service or hardware-backed key.
+- Verification must fail closed on missing/invalid signatures, missing trusted timestamp, hash mismatch or unexpected package contents.
+- SmartScreen reputation is separate from Authenticode validity; do not claim a warning-free reputation merely because signing succeeds.
+- Licensing private material remains separate from release code-signing material and remains controlled by the License Generator environment.
 
 ## 7. CI / merge rules
 
-- EliteSCADA CI is the universal Coordinator gate for PRs to `main`;
-- specialized workflows run according to actual impact and never substitute for universal CI;
+- EliteSCADA CI remains the universal Coordinator gate for PRs to `main`;
+- add/execute Windows release-specific validation according to actual Wave 13 impact, but never as a substitute for universal CI;
 - diagnose failures before rerun;
-- do not weaken assertions, authorization or architecture to obtain green;
-- integration must use expected-head protection;
-- validate post-merge `main` before declaring Wave 12 complete.
+- do not weaken assertions, authorization, signing verification or architecture to obtain green;
+- integration uses expected-head protection;
+- validate post-merge `main` before declaring Wave 13 complete;
+- keep exact artifact SHA-256/signature/timestamp evidence with the accepted release checkpoint.
 
 ## 8. Explicit exclusions and gates
 
-Do not start during Wave 12:
+Do not include in Wave 13 unless separately authorized:
 
-- Wave 13 Authenticode/trusted-timestamp release signing;
-- Linux `.deb` implementation;
 - new Drivers/protocols;
-- owner validation/feedback Waves 14/15;
-- physical L4 claims.
+- unrelated HMI/Engineering feature work;
+- Wave 14 owner-validation execution;
+- Wave 15 feedback/corrections;
+- Linux `.deb` implementation;
+- physical Driver L4 claims.
 
-Licensing remains host-owned. Private license-signing material never enters repository/CI/product.
-
-Commercial DNP3 inclusion is gated: Step Function I/O `dnp3` 1.6.0 requires an appropriate commercial license or an approved/revalidated replacement before commercial distribution.
+Commercial DNP3 inclusion remains blocked until Step Function I/O `dnp3` 1.6.0 has an appropriate commercial license or an approved/revalidated replacement.

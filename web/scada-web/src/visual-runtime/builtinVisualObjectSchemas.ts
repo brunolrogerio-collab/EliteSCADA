@@ -35,12 +35,15 @@ const GEOMETRY: readonly CommonVisualPropertyKey[] = [
 const TRANSFORM: readonly CommonVisualPropertyKey[] = [
   VISUAL_PROPERTY_KEYS.rotation,
   VISUAL_PROPERTY_KEYS.scaleX,
-  VISUAL_PROPERTY_KEYS.scaleY
+  VISUAL_PROPERTY_KEYS.scaleY,
+  VISUAL_PROPERTY_KEYS.horizontalFlip,
+  VISUAL_PROPERTY_KEYS.verticalFlip
 ];
 
 const VISIBILITY: readonly CommonVisualPropertyKey[] = [
   VISUAL_PROPERTY_KEYS.visible,
-  VISUAL_PROPERTY_KEYS.opacity
+  VISUAL_PROPERTY_KEYS.opacity,
+  VISUAL_PROPERTY_KEYS.tooltip
 ];
 
 const STROKE: readonly CommonVisualPropertyKey[] = [
@@ -56,6 +59,10 @@ const TEXT: readonly CommonVisualPropertyKey[] = [
   VISUAL_PROPERTY_KEYS.fontSize,
   VISUAL_PROPERTY_KEYS.fontWeight,
   VISUAL_PROPERTY_KEYS.fontStyle,
+  VISUAL_PROPERTY_KEYS.underline,
+  VISUAL_PROPERTY_KEYS.textWrap,
+  VISUAL_PROPERTY_KEYS.lineHeight,
+  VISUAL_PROPERTY_KEYS.textOverflow,
   VISUAL_PROPERTY_KEYS.horizontalAlignment,
   VISUAL_PROPERTY_KEYS.verticalAlignment
 ];

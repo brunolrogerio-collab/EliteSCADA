@@ -64,12 +64,13 @@ jobs:
       - name: Smoke-test packaged product host
         shell: pwsh
         run: |
-          $logPath = Join-Path $env:RUNNER_TEMP 'wave13-product-host.log'
+          $stdoutPath = Join-Path $env:RUNNER_TEMP 'wave13-product-host.stdout.log'
+          $stderrPath = Join-Path $env:RUNNER_TEMP 'wave13-product-host.stderr.log'
           $process = Start-Process `
             -FilePath ./artifacts/wave13/candidate/product/Scada.Api.exe `
             -ArgumentList '--urls','http://127.0.0.1:5093' `
-            -RedirectStandardOutput $logPath `
-            -RedirectStandardError $logPath `
+            -RedirectStandardOutput $stdoutPath `
+            -RedirectStandardError $stderrPath `
             -PassThru
 
           try {
@@ -88,7 +89,8 @@ jobs:
             }
 
             if (-not $ready) {
-              if (Test-Path $logPath) { Get-Content $logPath }
+              if (Test-Path $stdoutPath) { Get-Content $stdoutPath }
+              if (Test-Path $stderrPath) { Get-Content $stderrPath }
               throw 'Packaged product host did not become healthy.'
             }
 

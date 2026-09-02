@@ -68,7 +68,7 @@ $files = @(Get-ChildItem -LiteralPath $root -File -Recurse | Where-Object {
 
 $artifacts = @($files | ForEach-Object {
     $file = $_
-    $relativePath = [IO.Path]::GetRelativePath($root, $file.FullName).Replace('\\', '/')
+    $relativePath = [IO.Path]::GetRelativePath($root, $file.FullName).Replace('\', '/')
     $isPe = Test-WindowsPortableExecutable -Path $file.FullName
     $signature = if ($isPe) { Get-AuthenticodeSignature -LiteralPath $file.FullName } else { $null }
     $timestampEvidence = if ($isPe) {

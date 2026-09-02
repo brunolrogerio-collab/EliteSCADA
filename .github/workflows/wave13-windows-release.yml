@@ -24,12 +24,17 @@ on:
 permissions:
   contents: read
 
+env:
+  RELEASE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
   unsigned-candidate:
     runs-on: windows-latest
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SOURCE_SHA }}
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -43,7 +48,7 @@ jobs:
 
       - name: Build unsigned Windows x64 candidate
         shell: pwsh
-        run: ./scripts/release/Build-WindowsReleaseCandidate.ps1 -SourceSha '${{ github.sha }}'
+        run: ./scripts/release/Build-WindowsReleaseCandidate.ps1 -SourceSha $env:RELEASE_SOURCE_SHA
 
       - name: Validate candidate structure and trust-boundary exclusions
         shell: pwsh

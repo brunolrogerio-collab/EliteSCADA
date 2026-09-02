@@ -24,6 +24,7 @@ public static class BuiltinVisualObjectSchemas
             .Concat(CommonVisualPropertyDefinitions.Visibility)
             .Concat(CommonVisualPropertyDefinitions.Fill)
             .Concat(CommonVisualPropertyDefinitions.Stroke)
+            .Concat(CommonVisualPropertyDefinitions.Effects)
             .Concat(CommonVisualPropertyDefinitions.Text)
             .Concat(CommonVisualPropertyDefinitions.Image)
             .Concat(CommonVisualPropertyDefinitions.Slider)
@@ -50,7 +51,21 @@ public static class BuiltinVisualObjectSchemas
         VisualPropertyKeys.VerticalFlip,
         VisualPropertyKeys.Visible,
         VisualPropertyKeys.Opacity,
-        VisualPropertyKeys.Tooltip
+        VisualPropertyKeys.Tooltip,
+        VisualPropertyKeys.Enabled,
+        VisualPropertyKeys.ShadowEnabled,
+        VisualPropertyKeys.ShadowColor,
+        VisualPropertyKeys.ShadowOffsetX,
+        VisualPropertyKeys.ShadowOffsetY,
+        VisualPropertyKeys.ShadowBlur
+    ];
+
+    private static readonly string[] Fill =
+    [
+        VisualPropertyKeys.FillStyle,
+        VisualPropertyKeys.FillColor,
+        VisualPropertyKeys.FillSecondaryColor,
+        VisualPropertyKeys.GradientDirection
     ];
 
     private static readonly string[] Stroke =
@@ -81,14 +96,14 @@ public static class BuiltinVisualObjectSchemas
     public static VisualObjectPropertySchema Rectangle { get; } = Create(
         RectangleType,
         Base
-            .Concat([VisualPropertyKeys.FillColor])
+            .Concat(Fill)
             .Concat(Stroke)
             .Concat([VisualPropertyKeys.CornerRadius]));
 
     public static VisualObjectPropertySchema Ellipse { get; } = Create(
         EllipseType,
         Base
-            .Concat([VisualPropertyKeys.FillColor])
+            .Concat(Fill)
             .Concat(Stroke));
 
     public static VisualObjectPropertySchema Line { get; } = Create(
@@ -103,7 +118,7 @@ public static class BuiltinVisualObjectSchemas
     public static VisualObjectPropertySchema Polygon { get; } = Create(
         PolygonType,
         Base
-            .Concat([VisualPropertyKeys.FillColor])
+            .Concat(Fill)
             .Concat(Stroke));
 
     public static VisualObjectPropertySchema Text { get; } = Create(

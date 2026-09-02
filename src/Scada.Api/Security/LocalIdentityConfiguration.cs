@@ -9,7 +9,7 @@ public sealed record LocalIdentityRuntimeOptions(
     bool Enabled,
     bool SecureCookie,
     string CookieName,
-    bool DurableStore);
+    bool DurableStore = false);
 
 public sealed class LocalLoginAttemptLimiter
 {

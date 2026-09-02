@@ -11,6 +11,7 @@ using Scada.Engineering.ImportExport.Handlers;
 using Scada.Engineering.Reports;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
+using Scada.Engineering.Validation;
 using Scada.Engineering.Views;
 using Scada.Engineering.VisualAssets;
 
@@ -155,7 +156,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         IGatewayEngineeringRegistry gateways,
         IScriptEngineeringRegistry? scripts = null,
         IVisualAssetEngineeringRegistry? visualAssets = null,
-        IReportEngineeringRegistry? reports = null)
+        IReportEngineeringRegistry? reports = null,
+        IDataSourceConfigurationValidator? dataSourceConfigurationValidator = null)
     {
         _tags = tags;
         _alarms = alarms;
@@ -176,7 +178,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         };
 
         _csv = new EngineeringCsvExchange(_json);
-        _dataSourceHandler = new DataSourceEngineeringHandler(dataSources, tags, alarms, commands);
+        _dataSourceHandler = new DataSourceEngineeringHandler(dataSources, tags, alarms, commands, dataSourceConfigurationValidator);
         _tagHandler = new TagEngineeringHandler(tags, dataSources, alarms);
         _alarmHandler = new AlarmEngineeringHandler(alarms, _tagHandler);
         _assetHandler = new AssetEngineeringHandler(assets, tags);

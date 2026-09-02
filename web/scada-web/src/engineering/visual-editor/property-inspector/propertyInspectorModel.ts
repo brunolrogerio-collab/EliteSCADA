@@ -62,7 +62,7 @@ export function buildPropertyInspectorModel(
         objectIds: [],
         objectTypes: [],
         rows: [],
-        error: `Visual object type '${element.type}' is not registered for Wave 08 property editing.`
+        error: `Visual object type '${element.type}' is not registered for property editing.`
       };
     }
 
@@ -71,9 +71,10 @@ export function buildPropertyInspectorModel(
   }
 
   const firstSchema = schemas[0];
-  const commonKeys = firstSchema.propertyKeys.filter(propertyKey =>
-    schemas.every(schema => schema.declares(propertyKey))
-  );
+  const commonKeys = firstSchema.propertyKeys.filter(propertyKey => {
+    const definition = firstSchema.getRequired(propertyKey);
+    return definition.engineeringEditable && schemas.every(schema => schema.declares(propertyKey));
+  });
 
   const rows = commonKeys.map(propertyKey => {
     const definition = firstSchema.getRequired(propertyKey);
@@ -136,7 +137,7 @@ export function buildPropertyInspectorSetIntent(
 
   const row = model.rows.find(candidate => candidate.definition.key === propertyKey);
   if (!row) {
-    return { ok: false, error: `Property '${propertyKey}' is not common to the current registered selection.` };
+    return { ok: false, error: `Property '${propertyKey}' is not common and Engineering-editable for the current registered selection.` };
   }
   if (!row.definition.engineeringEditable) {
     return { ok: false, error: `Property '${propertyKey}' is not Engineering-editable.` };
@@ -173,7 +174,10 @@ export function buildPropertyInspectorRemoveIntent(
 
   const row = model.rows.find(candidate => candidate.definition.key === propertyKey);
   if (!row) {
-    return { ok: false, error: `Property '${propertyKey}' is not common to the current registered selection.` };
+    return { ok: false, error: `Property '${propertyKey}' is not common and Engineering-editable for the current registered selection.` };
+  }
+  if (!row.definition.engineeringEditable) {
+    return { ok: false, error: `Property '${propertyKey}' is not Engineering-editable.` };
   }
 
   return {

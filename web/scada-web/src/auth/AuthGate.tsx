@@ -11,6 +11,11 @@ type AuthConfiguration = {
   };
 };
 
+type PersistenceStatus = {
+  enabled: boolean;
+  hasProjects: boolean | null;
+};
+
 export type AuthProfile = {
   subjectId: string;
   username?: string;
@@ -48,6 +53,14 @@ const messages = {
     createAdministrator: 'Criar Administrador',
     creatingAdministrator: 'Criando Administrador…',
     bootstrapClosed: 'O Administrador inicial já foi criado. Entre com uma conta existente.',
+    firstProjectTitle: 'Criar novo projeto',
+    firstProject: 'Nenhum projeto persistido existe neste servidor. Crie o primeiro projeto para iniciar o Working no Engineering.',
+    projectKey: 'Chave do projeto',
+    projectName: 'Nome do projeto',
+    projectKeyHint: 'Identificador estável, por exemplo planta-piloto.',
+    createProject: 'Criar projeto e abrir Engineering',
+    creatingProject: 'Criando projeto…',
+    projectConflict: 'Outro projeto foi criado enquanto esta tela estava aberta. Recarregue o Engineering.',
     login: 'Entrar',
     signingIn: 'Entrando…',
     invalid: 'Usuário ou senha inválidos.',
@@ -69,6 +82,14 @@ const messages = {
     createAdministrator: 'Create Administrator',
     creatingAdministrator: 'Creating Administrator…',
     bootstrapClosed: 'The initial Administrator has already been created. Sign in with an existing account.',
+    firstProjectTitle: 'Create New Project',
+    firstProject: 'No persisted project exists on this server. Create the first project to start a Working project in Engineering.',
+    projectKey: 'Project key',
+    projectName: 'Project name',
+    projectKeyHint: 'Stable identifier, for example pilot-plant.',
+    createProject: 'Create project and open Engineering',
+    creatingProject: 'Creating project…',
+    projectConflict: 'Another project was created while this screen was open. Reload Engineering.',
     login: 'Sign in',
     signingIn: 'Signing in…',
     invalid: 'Invalid username or password.',
@@ -90,6 +111,14 @@ const messages = {
     createAdministrator: 'Crear Administrador',
     creatingAdministrator: 'Creando Administrador…',
     bootstrapClosed: 'El Administrador inicial ya fue creado. Ingrese con una cuenta existente.',
+    firstProjectTitle: 'Crear nuevo proyecto',
+    firstProject: 'No existe ningún proyecto persistido en este servidor. Cree el primer proyecto para iniciar el Working en Engineering.',
+    projectKey: 'Clave del proyecto',
+    projectName: 'Nombre del proyecto',
+    projectKeyHint: 'Identificador estable, por ejemplo planta-piloto.',
+    createProject: 'Crear proyecto y abrir Engineering',
+    creatingProject: 'Creando proyecto…',
+    projectConflict: 'Otro proyecto fue creado mientras esta pantalla estaba abierta. Recargue Engineering.',
     login: 'Ingresar',
     signingIn: 'Ingresando…',
     invalid: 'Usuario o contraseña inválidos.',
@@ -121,6 +150,13 @@ async function getProfile(): Promise<AuthProfile | null> {
   return await response.json() as AuthProfile;
 }
 
+async function needsFirstProject(): Promise<boolean> {
+  const response = await fetch(`${API}/api/engineering/persistence/status`, { headers: { accept: 'application/json' } });
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  const status = await response.json() as PersistenceStatus;
+  return status.enabled && status.hasProjects === false;
+}
+
 async function responseError(response: Response): Promise<string | null> {
   try {
     const payload = await response.json() as { error?: string };
@@ -140,15 +176,36 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [configuration, setConfiguration] = useState<AuthConfiguration | null>(null);
   const [profile, setProfile] = useState<AuthProfile | null>(null);
   const [checking, setChecking] = useState(true);
+  const [checkingProject, setCheckingProject] = useState(false);
+  const [projectSetupRequired, setProjectSetupRequired] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [projectKey, setProjectKey] = useState('');
+  const [projectName, setProjectName] = useState('');
   const [signingIn, setSigningIn] = useState(false);
   const [creatingAdministrator, setCreatingAdministrator] = useState(false);
+  const [creatingProject, setCreatingProject] = useState(false);
   const [invalid, setInvalid] = useState(false);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
+  const [projectError, setProjectError] = useState<string | null>(null);
+
+  const acceptAuthenticatedProfile = useCallback(async (nextProfile: AuthProfile | null) => {
+    setProfile(nextProfile);
+    if (!nextProfile) {
+      setProjectSetupRequired(false);
+      return;
+    }
+
+    setCheckingProject(true);
+    try {
+      setProjectSetupRequired(await needsFirstProject());
+    } finally {
+      setCheckingProject(false);
+    }
+  }, []);
 
   const check = useCallback(async () => {
     setChecking(true);
@@ -157,16 +214,16 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       const config = await getConfiguration();
       setConfiguration(config);
       if (!config.authenticationEnabled || config.initialAdministratorRequired) {
-        setProfile(null);
+        await acceptAuthenticatedProfile(null);
         return;
       }
-      setProfile(await getProfile());
+      await acceptAuthenticatedProfile(await getProfile());
     } catch {
       setUnavailable(true);
     } finally {
       setChecking(false);
     }
-  }, []);
+  }, [acceptAuthenticatedProfile]);
 
   useEffect(() => { void check(); }, [check]);
 
@@ -203,10 +260,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
 
       const created = await response.json() as AuthProfile;
-      setProfile(created);
       setConfiguration(current => current ? { ...current, initialAdministratorRequired: false } : current);
       setPassword('');
       setConfirmPassword('');
+      await acceptAuthenticatedProfile(created);
     } catch {
       setUnavailable(true);
     } finally {
@@ -233,8 +290,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         return;
       }
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-      setProfile(await response.json() as AuthProfile);
       setPassword('');
+      await acceptAuthenticatedProfile(await response.json() as AuthProfile);
     } catch {
       setUnavailable(true);
     } finally {
@@ -242,12 +299,44 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const createFirstProject = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!projectKey.trim() || !projectName.trim()) return;
+    setCreatingProject(true);
+    setProjectError(null);
+    try {
+      const response = await fetch(`${API}/api/engineering/persistence/projects/first`, {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({ projectKey, projectName })
+      });
+      if (response.status === 409) {
+        setProjectError(t.projectConflict);
+        return;
+      }
+      if (response.status === 400 || response.status === 403) {
+        setProjectError(await responseError(response) ?? t.unavailable);
+        return;
+      }
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+      setProjectSetupRequired(false);
+    } catch {
+      setUnavailable(true);
+    } finally {
+      setCreatingProject(false);
+    }
+  };
+
   const logout = useCallback(async () => {
     await fetch(`${API}/api/auth/logout`, { method: 'POST' });
     setProfile(null);
+    setProjectSetupRequired(false);
   }, []);
 
-  if (checking) {
+  if (checking || checkingProject) {
     return <div className="auth-page"><div className="auth-card auth-loading"><strong>{t.title}</strong></div></div>;
   }
 
@@ -264,7 +353,51 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!configuration?.authenticationEnabled || profile) {
+  if (!configuration?.authenticationEnabled) {
+    return <AuthContext.Provider value={{ profile, logout }}>{children}</AuthContext.Provider>;
+  }
+
+  if (profile && projectSetupRequired) {
+    return (
+      <div className="auth-page">
+        <form className="auth-card auth-card--first-run" onSubmit={createFirstProject}>
+          <div className="auth-mark">E</div>
+          <h1>{t.firstProjectTitle}</h1>
+          <p>{t.firstProject}</p>
+          <label>
+            <span>{t.projectKey}</span>
+            <input
+              name="project-key"
+              autoFocus
+              maxLength={200}
+              value={projectKey}
+              onChange={event => setProjectKey(event.target.value)}
+            />
+            <small className="auth-hint">{t.projectKeyHint}</small>
+          </label>
+          <label>
+            <span>{t.projectName}</span>
+            <input
+              name="project-name"
+              maxLength={300}
+              value={projectName}
+              onChange={event => setProjectName(event.target.value)}
+            />
+          </label>
+          {projectError && <div className="auth-error" role="alert">{projectError}</div>}
+          <button
+            className="auth-primary"
+            type="submit"
+            disabled={creatingProject || !projectKey.trim() || !projectName.trim()}
+          >
+            {creatingProject ? t.creatingProject : t.createProject}
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  if (profile) {
     return <AuthContext.Provider value={{ profile, logout }}>{children}</AuthContext.Provider>;
   }
 

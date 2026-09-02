@@ -72,12 +72,12 @@ test('Wave 03 readiness: local session survives Runtime -> Engineering -> Audit 
   }
 });
 
-test('Wave 03 readiness: Runtime exposes operational context, Alarm Center and read-only TAG/history evidence', async ({ page, request }) => {
+test('Wave 03 readiness: Runtime stays operational while TAG/history diagnostics live in Engineering', async ({ page, request }) => {
   await page.goto('/');
 
   await expect(page.getByRole('region', { name: 'Visão operacional' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Central de alarmes' })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Inspector de TAGs' })).toBeVisible();
+  await expect(page.locator('.runtime-tag-inspector')).toHaveCount(0);
   await expect(page.getByText(/ONLINE · 7 TAGs/)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('Reservatório TK01')).toBeVisible();
 
@@ -101,6 +101,13 @@ test('Wave 03 readiness: Runtime exposes operational context, Alarm Center and r
   expect(history[0].timestamp).toBeTruthy();
   expect(history[0]).toHaveProperty('quality');
   expect(history[0].quality).not.toBeNull();
+
+  await page.goto('/engineering/diagnostics/tag-monitor');
+  const tagMonitor = page.getByTestId('engineering-tag-monitor');
+  await expect(tagMonitor).toBeVisible();
+  const inspector = tagMonitor.getByRole('region', { name: 'Inspector de TAGs' });
+  await expect(inspector).toBeVisible();
+  await expect(inspector.getByRole('listbox', { name: 'Inspector de TAGs' }).getByText(currentTag!.path, { exact: true })).toBeVisible({ timeout: 15_000 });
 
   // This acceptance harness is deliberately read-only. Process writes are covered by separate authority tests.
   const writeRequests = await page.evaluate(() => performance.getEntriesByType('resource')

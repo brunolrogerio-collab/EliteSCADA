@@ -39,15 +39,16 @@ test('TAG Monitor is an Engineering diagnostic while its facts remain Active Run
 
   await inspector.getByLabel('Buscar TAGs').fill('');
   await inspector.getByRole('option').filter({ hasText: 'Demo.Tank01.Level' }).click();
-  await expect(inspector.getByText('Qualidade', { exact: true }).first()).toBeVisible();
-  await expect(inspector.getByText('Timestamp EliteSCADA', { exact: true })).toBeVisible();
-  await expect(inspector.getByText('Timestamp da origem', { exact: true })).toBeVisible();
-  await expect(inspector.getByText('Timestamp do servidor', { exact: true })).toBeVisible();
-  await expect(inspector.getByText('Tipo', { exact: true })).toBeVisible();
-  await expect(inspector.getByText('Unidade', { exact: true })).toBeVisible();
-  await expect(inspector.getByText('Origem / Data Source', { exact: true }).first()).toBeVisible();
-  await expect(inspector.getByText('Acesso', { exact: true })).toBeVisible();
-  await expect(inspector.getByText('ID estável', { exact: true })).toBeVisible();
+  const terms = inspector.getByRole('term');
+  await expect(terms.filter({ hasText: 'Qualidade' }).first()).toBeVisible();
+  await expect(terms.filter({ hasText: 'Timestamp EliteSCADA' }).first()).toBeVisible();
+  await expect(terms.filter({ hasText: 'Timestamp da origem' }).first()).toBeVisible();
+  await expect(terms.filter({ hasText: 'Timestamp do servidor' }).first()).toBeVisible();
+  await expect(terms.filter({ hasText: 'Tipo' }).first()).toBeVisible();
+  await expect(terms.filter({ hasText: 'Unidade' }).first()).toBeVisible();
+  await expect(terms.filter({ hasText: 'Origem / Data Source' }).first()).toBeVisible();
+  await expect(terms.filter({ hasText: 'Acesso' }).first()).toBeVisible();
+  await expect(terms.filter({ hasText: 'ID estável' }).first()).toBeVisible();
   await expect(inspector.getByRole('heading', { name: 'Histórico recente' })).toBeVisible();
 
   await expect(inspector.getByRole('button', { name: /gravar|escrever|write/i })).toHaveCount(0);

@@ -43,6 +43,7 @@ export default defineConfig({
       url: 'http://127.0.0.1:5080/health',
       timeout: 60_000,
       reuseExistingServer: false,
+      stdout: 'pipe',
       env: {
         ASPNETCORE_URLS: 'http://127.0.0.1:5080',
         DOTNET_NOLOGO: 'true',

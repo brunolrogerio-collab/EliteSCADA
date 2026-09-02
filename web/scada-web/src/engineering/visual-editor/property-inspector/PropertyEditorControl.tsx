@@ -6,6 +6,7 @@ import {
 } from 'react';
 import type { VisualAssetEngineering, VisualEngineeringPropertyValue } from '../../types';
 import type { VisualPropertyDefinition } from '../../../visual-runtime';
+import { normalizeCanonicalStrokeStyle, svgStrokeDasharray } from '../visualStrokePresentation';
 import type { PropertyInspectorCopy } from './PropertyInspector';
 import {
   formatPropertyInspectorValue,
@@ -44,6 +45,10 @@ export function PropertyEditorControl({
 }: PropertyEditorControlProps) {
   if (definition.type === 'boolean') {
     return <BooleanControl definition={definition} row={row} text={text} commit={commit} />;
+  }
+
+  if (definition.type === 'enum' && definition.presentationHint === 'stroke-style') {
+    return <StrokeStyleControl definition={definition} row={row} text={text} commit={commit} />;
   }
 
   if (definition.type === 'enum') {
@@ -89,10 +94,61 @@ function BooleanControl({ definition, row, text, commit }: BasicEditorProps) {
         type="checkbox"
         checked={displayValue}
         disabled={!definition.engineeringEditable}
+        aria-label={definition.key}
         onChange={event => commit(event.currentTarget.checked)}
       />
       <span>{row.state === 'mixed' ? text.mixed : displayValue ? text.trueLabel : text.falseLabel}</span>
     </label>
+  );
+}
+
+function StrokeStyleControl({ definition, row, text, commit }: BasicEditorProps) {
+  if (definition.type !== 'enum') return null;
+  const current = row.state === 'mixed' ? '__mixed__' : String(row.value);
+
+  return (
+    <div
+      className="property-inspector__stroke-style-control"
+      role="radiogroup"
+      aria-label={definition.key}
+      data-property-editor="stroke-style"
+    >
+      {row.state === 'mixed' ? <span className="property-inspector__stroke-style-mixed">{text.mixed}</span> : null}
+      {definition.allowedValues.map(option => {
+        const canonical = normalizeCanonicalStrokeStyle(option);
+        const selected = current === option;
+        return (
+          <button
+            key={option}
+            type="button"
+            className={selected ? 'selected' : ''}
+            role="radio"
+            aria-checked={selected}
+            aria-label={option}
+            disabled={!definition.engineeringEditable}
+            onClick={() => commit(option)}
+          >
+            <svg viewBox="0 0 64 10" aria-hidden="true" focusable="false">
+              {canonical === 'none' ? (
+                <path d="M4 8 L60 2" stroke="currentColor" strokeWidth="1.5" opacity="0.45" />
+              ) : (
+                <line
+                  x1="2"
+                  y1="5"
+                  x2="62"
+                  y2="5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap={canonical === 'dotted' ? 'round' : 'butt'}
+                  strokeDasharray={svgStrokeDasharray(canonical)}
+                />
+              )}
+            </svg>
+            <span>{option}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -105,6 +161,7 @@ function EnumControl({ definition, row, text, commit }: BasicEditorProps) {
       id={`visual-property-${definition.key}`}
       value={value}
       disabled={!definition.engineeringEditable}
+      aria-label={definition.key}
       onChange={event => commit(event.currentTarget.value)}
     >
       {row.state === 'mixed' ? <option value="__mixed__" disabled>{text.mixed}</option> : null}
@@ -136,7 +193,7 @@ function AssetReferenceControl({
         id={`visual-property-${definition.key}`}
         value={row.state === 'mixed' ? '__mixed__' : selectedValue}
         disabled={!definition.engineeringEditable}
-        aria-label={text.assetBrowserHint}
+        aria-label={definition.key}
         onChange={event => commit(
           event.currentTarget.value ? { assetId: event.currentTarget.value } : null
         )}
@@ -190,6 +247,7 @@ function FontFamilyControl({
         value={draft}
         placeholder={row.state === 'mixed' ? text.mixed : text.fontFamilyPlaceholder}
         disabled={!definition.engineeringEditable}
+        aria-label={definition.key}
         onChange={event => {
           setDraft(event.currentTarget.value);
           setDirty(true);
@@ -243,7 +301,10 @@ function ColorControl({
       setError(parsed.error);
       return;
     }
-    if (commit(parsed.value)) setDirty(false);
+    if (commit(parsed.value)) {
+      setDraft(String(parsed.value));
+      setDirty(false);
+    }
   };
 
   const pickerColor = colorPickerValue(draft || displayValue);
@@ -270,8 +331,9 @@ function ColorControl({
           className="property-inspector__color-text"
           type="text"
           value={row.state === 'mixed' && !dirty ? '' : draft}
-          placeholder={row.state === 'mixed' ? text.mixed : '#RRGGBB or #RRGGBBAA'}
+          placeholder={row.state === 'mixed' ? text.mixed : '#RRGGBB, #RRGGBBAA, rgb() or rgba()'}
           disabled={!definition.engineeringEditable}
+          aria-label={`${definition.key} value`}
           onChange={event => {
             setDraft(event.currentTarget.value);
             setDirty(true);
@@ -303,6 +365,7 @@ function ColorControl({
           step={1}
           value={alpha}
           disabled={!definition.engineeringEditable}
+          aria-label={`${definition.key} alpha`}
           onChange={event => {
             const next = withColorAlpha(pickerColor, Number(event.currentTarget.value));
             setDraft(next);
@@ -379,6 +442,7 @@ function TextualControl({
       max={definition.type === 'number' ? definition.maximum : undefined}
       step={definition.type === 'number' ? (definition.integer ? 1 : 'any') : undefined}
       disabled={!definition.engineeringEditable}
+      aria-label={definition.key}
       onChange={event => {
         setDraft(event.currentTarget.value);
         setDirty(true);

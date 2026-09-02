@@ -46,8 +46,11 @@ public static class BuiltinVisualObjectSchemas
         VisualPropertyKeys.Rotation,
         VisualPropertyKeys.ScaleX,
         VisualPropertyKeys.ScaleY,
+        VisualPropertyKeys.HorizontalFlip,
+        VisualPropertyKeys.VerticalFlip,
         VisualPropertyKeys.Visible,
-        VisualPropertyKeys.Opacity
+        VisualPropertyKeys.Opacity,
+        VisualPropertyKeys.Tooltip
     ];
 
     private static readonly string[] Stroke =
@@ -65,6 +68,10 @@ public static class BuiltinVisualObjectSchemas
         VisualPropertyKeys.FontSize,
         VisualPropertyKeys.FontWeight,
         VisualPropertyKeys.FontStyle,
+        VisualPropertyKeys.Underline,
+        VisualPropertyKeys.TextWrap,
+        VisualPropertyKeys.LineHeight,
+        VisualPropertyKeys.TextOverflow,
         VisualPropertyKeys.HorizontalAlignment,
         VisualPropertyKeys.VerticalAlignment
     ];

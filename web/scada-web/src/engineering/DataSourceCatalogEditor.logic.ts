@@ -38,6 +38,12 @@ export type DataSourceTypeDefinition = {
   } | null;
 };
 
+export type DataSourceDraftIssue = {
+  fieldKey: string;
+  code: 'required' | 'integer' | 'number' | 'duration' | 'enum' | 'minimum' | 'maximum';
+  expected?: string;
+};
+
 export function isProtectedReference(kind: string): boolean {
   return kind === 'secretReference' || kind === 'certificateReference';
 }
@@ -81,6 +87,63 @@ export function newDataSourceDraft(type?: DataSourceTypeDefinition): DataSourceE
     settings: defaults.settings,
     secretReferences: defaults.secretReferences
   };
+}
+
+export function validateDataSourceDraft(
+  source: DataSourceEngineering,
+  type: DataSourceTypeDefinition | null
+): DataSourceDraftIssue[] {
+  const issues: DataSourceDraftIssue[] = [];
+  if (!source.name.trim()) issues.push({ fieldKey: '$name', code: 'required' });
+  if (!source.key.trim()) issues.push({ fieldKey: '$key', code: 'required' });
+  if (!source.driver.trim() || !type) issues.push({ fieldKey: '$type', code: 'required' });
+  if (!type) return issues;
+
+  for (const field of type.configurationSchema?.dataSourceFields ?? []) {
+    const values = isProtectedReference(field.valueKind)
+      ? source.secretReferences ?? {}
+      : source.settings ?? {};
+    const raw = values[field.key];
+    const value = raw == null || raw.trim() === '' ? field.defaultValue ?? '' : raw.trim();
+
+    if (!value) {
+      if (field.required) issues.push({ fieldKey: field.key, code: 'required', expected: field.expectedFormat ?? undefined });
+      continue;
+    }
+
+    if (field.valueKind === 'integer' || field.valueKind === 'port') {
+      if (!/^[+-]?\d+$/.test(value)) {
+        issues.push({ fieldKey: field.key, code: 'integer', expected: field.expectedFormat ?? undefined });
+        continue;
+      }
+      validateRange(Number(value), field, issues);
+    } else if (field.valueKind === 'number') {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) {
+        issues.push({ fieldKey: field.key, code: 'number', expected: field.expectedFormat ?? undefined });
+        continue;
+      }
+      validateRange(parsed, field, issues);
+    } else if (field.valueKind === 'duration') {
+      if (!/^(?:\d+\.)?\d{1,2}:\d{2}:\d{2}(?:\.\d{1,7})?$/.test(value))
+        issues.push({ fieldKey: field.key, code: 'duration', expected: field.expectedFormat ?? undefined });
+    } else if (field.valueKind === 'enum' && field.allowedValues.length > 0 && !field.allowedValues.some(option => option.toLowerCase() === value.toLowerCase())) {
+      issues.push({ fieldKey: field.key, code: 'enum', expected: field.expectedFormat ?? field.allowedValues.join(' | ') });
+    }
+  }
+
+  return issues;
+}
+
+function validateRange(
+  value: number,
+  field: DataSourceConfigurationField,
+  issues: DataSourceDraftIssue[]
+): void {
+  if (field.minimum != null && value < field.minimum)
+    issues.push({ fieldKey: field.key, code: 'minimum', expected: field.expectedFormat ?? String(field.minimum) });
+  else if (field.maximum != null && value > field.maximum)
+    issues.push({ fieldKey: field.key, code: 'maximum', expected: field.expectedFormat ?? String(field.maximum) });
 }
 
 export function dataSourceIdentity(source: DataSourceEngineering): string {

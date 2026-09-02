@@ -204,6 +204,43 @@ try {
     Assert-ReleaseCondition ($preview.canApply -eq $true -and $preview.errorCount -eq 0) `
         "Packaged .escadapkg Open/Preview path rejected its own exported application."
 
+    $workspaceBeforeActivationFixture = Invoke-RestMethod `
+        -Uri "$BaseUrl/api/engineering/workspace" `
+        -WebSession $session `
+        -TimeoutSec 5
+    $activationExport = Invoke-WebRequest `
+        -Uri "$BaseUrl/api/engineering/export/json" `
+        -WebSession $session `
+        -UseBasicParsing `
+        -TimeoutSec 10
+    $activationPackage = $activationExport.Content | ConvertFrom-Json
+    $activationPackage.dataSources = @($activationPackage.dataSources) + [pscustomobject]@{
+        id = '47000000-0000-0000-0000-000000000001'
+        key = 'wave13.memory.server'
+        name = 'Wave 13 Server Memory'
+        driver = 'builtin.memory.server'
+        enabled = $true
+    }
+    $activationPackage.tags = @($activationPackage.tags) + [pscustomobject]@{
+        id = '47000000-0000-0000-0000-000000000002'
+        name = 'Wave 13 Runtime Counter'
+        path = 'Wave13.Runtime.Counter'
+        dataType = 'int32'
+        source = 'wave13.memory.server'
+        description = 'Packaged Active Runtime persistence probe'
+        readOnly = $false
+    }
+    $activationFixtureApply = Invoke-RestMethod `
+        -Method Post `
+        -Uri "$BaseUrl/api/engineering/import/json/apply" `
+        -WebSession $session `
+        -Headers @{ 'x-elitescada-workspace-version' = [string]$workspaceBeforeActivationFixture.changeVersion } `
+        -ContentType 'application/json' `
+        -Body ($activationPackage | ConvertTo-Json -Depth 100 -Compress) `
+        -TimeoutSec 20
+    Assert-ReleaseCondition ([int]$activationFixtureApply.created -ge 2) `
+        "Packaged activation fixture did not create its Server Memory source and TAG."
+
     $workspaceBeforeSave = Invoke-RestMethod `
         -Uri "$BaseUrl/api/engineering/workspace" `
         -WebSession $session `
@@ -256,6 +293,16 @@ try {
         [long]$firstRuntime.live.revision -eq $firstRevision -and
         [string]$firstRuntime.live.projectKey -eq $ExpectedProjectKey) `
         "Packaged Runtime identity does not match the first persisted Active revision."
+
+    $firstRuntimeTags = @(
+        Invoke-RestMethod `
+            -Uri "$BaseUrl/api/tags" `
+            -WebSession $session `
+            -TimeoutSec 10
+    )
+    Assert-ReleaseCondition (
+        @($firstRuntimeTags | Where-Object { $_.path -eq 'Wave13.Runtime.Counter' }).Count -eq 1) `
+        "Packaged Active Runtime did not load the persisted Server Memory TAG."
 
     $firstApplication = Invoke-RestMethod `
         -Uri "$BaseUrl/api/runtime/application" `

@@ -14,11 +14,10 @@ import type {
   EngineeringPackageView,
   EngineeringSnapshot,
   ImportPreviewView,
-  ScreenEngineering,
-  VisualElementEngineering
+  ScreenEngineering
 } from '../types';
 import { initializeClientMemory } from '../../runtime/clientMemory';
-import { BUILTIN_VISUAL_OBJECT_TYPES, VISUAL_PROPERTY_KEYS } from '../../visual-runtime';
+import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../visual-runtime';
 import { BindingEditor } from './binding-editor';
 import { VisualEditorCanvas } from './canvas';
 import { CanonicalVisualRenderer } from './CanonicalVisualRenderer';
@@ -312,8 +311,6 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
 
   const issues = preview?.items.flatMap(item => item.issues ?? []) ?? [];
   const objectCount = countVisualElements(draft.elements);
-  const selectedAssetId = selectedElement ? readAssetId(selectedElement) : '';
-  const canChooseImageAsset = selectedElement?.type === BUILTIN_VISUAL_OBJECT_TYPES.image && Boolean(selectedElement.id);
 
   return <div className="eng-section visual-editor-workspace" data-testid="visual-editor-workspace">
     <header className="visual-editor-header">
@@ -394,30 +391,11 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
           </section>
 
           <aside className="visual-editor-slot visual-editor-inspector-slot">
-            <PropertyInspector selectedElements={selectedElements} onMutationIntent={handleMutationIntent} />
-
-            {canChooseImageAsset && selectedElement?.id ? (
-              <section className="visual-editor-image-asset-picker" data-testid="visual-editor-image-asset-picker">
-                <strong>{text.imageAsset}</strong>
-                <label>
-                  <span>{text.asset}</span>
-                  <select
-                    value={selectedAssetId}
-                    onChange={event => handleMutationIntent({
-                      kind: 'property.set',
-                      objectIds: [selectedElement.id!],
-                      propertyKey: VISUAL_PROPERTY_KEYS.assetRef,
-                      value: event.currentTarget.value ? { assetId: event.currentTarget.value } : null
-                    })}
-                  >
-                    <option value="">{text.noAsset}</option>
-                    {visualAssets.filter(asset => asset.id).map(asset => (
-                      <option key={asset.id!} value={asset.id!}>{asset.name || asset.key} · {asset.originalFileName}</option>
-                    ))}
-                  </select>
-                </label>
-              </section>
-            ) : null}
+            <PropertyInspector
+              selectedElements={selectedElements}
+              visualAssets={visualAssets}
+              onMutationIntent={handleMutationIntent}
+            />
 
             {selectedElement?.id ? (
               <DynamicPropertyEditor
@@ -488,11 +466,6 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
       </section>
     </div>
   </div>;
-}
-
-function readAssetId(element: VisualElementEngineering): string {
-  const value = element.properties?.[VISUAL_PROPERTY_KEYS.assetRef];
-  return value !== null && typeof value === 'object' && !Array.isArray(value) && 'assetId' in value ? String(value.assetId ?? '') : '';
 }
 
 function matchesScreenIdentity(screen: ScreenEngineering, identity: string): boolean {

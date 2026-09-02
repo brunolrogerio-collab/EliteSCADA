@@ -1,7 +1,7 @@
 # LAST CHANGE — EliteSCADA
 
-**Date:** 2026-09-01 (BRT)  
-**Operational state:** **WAVE 12 #201 — COMPLETE / ACCEPTED / CLOSED; WAVE 13 #205 — PREPARED / NOT STARTED**
+**Date:** 2026-09-02 (BRT)  
+**Operational state:** **WAVE 12 #201 — COMPLETE / ACCEPTED / CLOSED; TEMPORARY BROWSER TEST PREVIEW #208 — PLANNED / NEXT; WAVE 13 #205/#207 — PAUSED**
 
 > Mutable Coordinator resume point. `PROJECT GOAL.md` governs permanent product intent. Live GitHub refs and exact-SHA CI override copied prose. Documentation-only `[skip ci]` commits may advance `main` beyond the latest validated product-code SHA without superseding that product baseline.
 
@@ -51,36 +51,36 @@ All identified findings are **FIXED / REGRESSION / VALIDATED**:
 
 Historical detail remains in `docs/WAVE-12-HARDENING-AUDIT.md` and issue #201.
 
-## 4. Wave 13 preparation state
+## 4. Current coordination pivot — Temporary Browser Test Preview
 
-Issue #205 exists as the next coordination surface:
+Development Lead direction on 2026-09-02 pauses Wave 13 and inserts a temporary browser-access Test Preview before Wave 13 resumes.
 
-`Wave 13 — Signed Windows x64 package + Authenticode release verification`
+Tracking:
 
-Preparation document:
+- issue #208 — `Temporary browser Test Preview — Codespaces launch environment`;
+- preparation/requirements document — `docs/TEMPORARY-BROWSER-TEST-PREVIEW.md`.
 
-`docs/WAVE-13-WINDOWS-RELEASE-PREPARATION.md`
+State: **PLANNED / NEXT**.
 
-State is deliberately **PREPARED / NOT STARTED**.
+Target operator path:
 
-No Wave 13 implementation branch has been created. The next Coordinator must inspect the then-live `main`, open PRs/issues and current workflows before creating any implementation branch. The implementation branch must be created from live `main`, not copied from the product baseline SHA above if `main` has since advanced through documentation-only commits.
+`Open Codespace / Launch Test Preview -> automatic environment startup -> temporary authenticated Web URL -> use the real EliteSCADA`
 
-## 5. Wave 13 objective and locked boundaries
+Preferred direction is GitHub Codespaces with automated startup of the real .NET backend, React/Pyodide frontend and PostgreSQL/TimescaleDB environment, automatic loading of the validated Wave 11 Demo `.escadapkg` where compatible, normal Save/Publish/Activate transition to Active Runtime, and Web-only temporary exposure.
 
-Wave 13 is release engineering, not feature expansion. It must produce and verify a controlled Windows x64 package with Authenticode signing and trusted timestamping while preserving accepted Wave 11/12 product contracts.
+The environment is development/homologation only. It is not a production host, permanent public service, supported deployment target or durability/SLA claim.
 
-Before implementation, audit the current Windows publish/package surfaces and decide the exact package/launch or installer contract. Do not pick installer technology by habit.
+A dedicated administrative Preview account is required with username `EliteSCADA`. The requested password was supplied directly by the Development Lead but must **not** be committed to this public repository or emitted in normal artifacts/logs. Implementation should inject it through protected Codespaces/GitHub secret material such as `ELITESCADA_PREVIEW_ADMIN_PASSWORD` and fail clearly when it is unavailable.
 
-Signing boundary is locked:
+## 5. Wave 13 paused state
 
-- private code-signing keys/certificates do not enter source control, GitHub, normal CI secrets/artifacts, logs or product packages;
-- prefer a protected signing service or hardware-backed key;
-- release verification must fail closed for missing/invalid Authenticode signatures, missing trusted timestamp, integrity mismatch or unexpected package contents;
-- SmartScreen reputation is distinct from cryptographic signature validity and must not be falsely claimed.
+Issue #205 remains open. Draft implementation PR #207 on branch `wave13/windows-release-signing` contains the Wave 13 audit/release-engineering work already performed.
 
-Commercial DNP3 inclusion remains gated on an appropriate Step Function I/O `dnp3` 1.6.0 commercial license or an approved/revalidated dependency replacement.
+Wave 13 state is now deliberately **PAUSED**.
 
-Linux `.deb` remains **SPECIFIED / NOT STARTED** and requires explicit Development Lead authorization.
+Do not merge, expand or treat PR #207 as current implementation truth while issue #208 is active. Preserve the branch and its evidence. When Wave 13 resumes, first re-read live `main`, issue #205, PR #207, exact current CI and the package/signing audit because Preview work may have advanced product/application startup surfaces.
+
+Wave 13 remains responsible for Windows x64 packaging, Authenticode signing, trusted timestamping, deterministic signed-byte manifest verification and its existing DNP3 commercial-distribution gate. Pausing does not weaken those requirements.
 
 ## 6. Exact next action for the next Coordinator
 
@@ -88,11 +88,13 @@ Linux `.deb` remains **SPECIFIED / NOT STARTED** and requires explicit Developme
 2. read this file;
 3. read `docs/CURRENT-COORDINATOR-HANDOFF.md`;
 4. read `docs/ROADMAP.md`;
-5. read `docs/WAVE-13-WINDOWS-RELEASE-PREPARATION.md`;
-6. read issue #205;
+5. read `docs/TEMPORARY-BROWSER-TEST-PREVIEW.md`;
+6. read issue #208;
 7. read `docs/CI-VALIDATION-POLICY.md`;
 8. verify live `main`, open PRs/issues and exact Actions state;
-9. audit current Windows publishing/package/signing surfaces;
-10. only then create a dedicated Wave 13 implementation branch from live `main` and persist the planned slices before coding.
+9. audit the current local-development/startup, database, authentication bootstrap, `.escadapkg` import/activation and Codespaces/devcontainer surfaces;
+10. persist Test Preview implementation slices before changing product code;
+11. implement the smallest repeatable `Launch Test Preview` path while preserving the accepted backend/runtime/security authority;
+12. leave Wave 13 #205/#207 paused until the Development Lead resumes it.
 
-Do not begin Wave 14 owner validation, Wave 15 corrections, Linux packaging or physical L4 work as part of Wave 13 preparation.
+Do not begin Wave 14 owner validation, Wave 15 corrections, Linux packaging or physical L4 work as part of this Test Preview pivot.

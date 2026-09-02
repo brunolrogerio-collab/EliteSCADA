@@ -40,6 +40,15 @@ public sealed class OpenDnp3HostProtocolTests
     }
 
     [Fact]
+    public void ParsesNativeDiagnosticEvidence()
+    {
+        var message = Assert.IsType<OpenDnp3HostDiagnosticMessage>(
+            OpenDnp3HostProtocol.Parse("V1\tDIAGNOSTIC\tEVENT_BUFFER_OVERFLOW"));
+
+        Assert.Equal("EVENT_BUFFER_OVERFLOW", message.Kind);
+    }
+
+    [Fact]
     public void BuildsCrobWithoutVendorTypesInManagedContract()
     {
         var profile = new Dnp3BinaryCommandProfile

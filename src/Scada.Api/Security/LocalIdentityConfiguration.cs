@@ -1,3 +1,4 @@
+using Scada.Engineering.Persistence;
 using Scada.Persistence.PostgreSql;
 using Scada.Security.Authentication;
 
@@ -177,8 +178,16 @@ public static class LocalIdentityConfiguration
                     "Secure anonymous first-run requires a durable local identity store. Configure ConnectionStrings:EliteScada, or provide the explicit Authentication:Local:Bootstrap configuration for a non-persistent development host.");
             }
 
+            var catalog = app.Services.GetService<IEngineeringProjectCatalog>();
+            if (catalog is null || await catalog.HasAnyAsync())
+            {
+                app.Logger.LogWarning(
+                    "Local identity store is empty, but anonymous first-run is blocked because the server cannot prove that the installation is empty. Restore an Administrator or provide explicit secured bootstrap configuration.");
+                return;
+            }
+
             app.Logger.LogInformation(
-                "Local identity store is empty. Secure first-run setup is available until the first Administrator is created.");
+                "Local identity and Engineering project stores are empty. Secure first-run setup is available until the first Administrator is created.");
             return;
         }
 

@@ -318,12 +318,21 @@ public static class VisualPropertyKeys
     public const string Visible = "visible";
     public const string Opacity = "opacity";
     public const string Tooltip = "tooltip";
+    public const string Enabled = "enabled";
+    public const string FillStyle = "fillStyle";
     public const string FillColor = "fillColor";
+    public const string FillSecondaryColor = "fillSecondaryColor";
+    public const string GradientDirection = "gradientDirection";
     public const string BackgroundColor = "backgroundColor";
     public const string StrokeColor = "strokeColor";
     public const string StrokeWidth = "strokeWidth";
     public const string StrokeStyle = "strokeStyle";
     public const string CornerRadius = "cornerRadius";
+    public const string ShadowEnabled = "shadowEnabled";
+    public const string ShadowColor = "shadowColor";
+    public const string ShadowOffsetX = "shadowOffsetX";
+    public const string ShadowOffsetY = "shadowOffsetY";
+    public const string ShadowBlur = "shadowBlur";
     public const string Text = "text";
     public const string TextColor = "textColor";
     public const string FontFamily = "fontFamily";
@@ -378,12 +387,16 @@ public static class CommonVisualPropertyDefinitions
     [
         Boolean(VisualPropertyKeys.Visible, true),
         Number(VisualPropertyKeys.Opacity, 1, minimum: 0, maximum: 1, animatable: true),
-        String(VisualPropertyKeys.Tooltip, string.Empty)
+        String(VisualPropertyKeys.Tooltip, string.Empty),
+        Boolean(VisualPropertyKeys.Enabled, true)
     ];
 
     public static IReadOnlyList<VisualPropertyDefinition> Fill { get; } =
     [
+        EnumString(VisualPropertyKeys.FillStyle, "solid", ["none", "solid", "gradient"]),
         Color(VisualPropertyKeys.FillColor, "#00000000", animatable: true),
+        Color(VisualPropertyKeys.FillSecondaryColor, "#00000000", animatable: true),
+        EnumString(VisualPropertyKeys.GradientDirection, "vertical", ["horizontal", "vertical", "diagonal-down", "diagonal-up"]),
         Color(VisualPropertyKeys.BackgroundColor, "#00000000", animatable: true)
     ];
 
@@ -393,6 +406,15 @@ public static class CommonVisualPropertyDefinitions
         Number(VisualPropertyKeys.StrokeWidth, 1, minimum: 0, animatable: true, unit: "px"),
         EnumString(VisualPropertyKeys.StrokeStyle, "solid", ["none", "solid", "dashed", "dotted", "dash-dot", "dash-dot-dot"]),
         Number(VisualPropertyKeys.CornerRadius, 0, minimum: 0, animatable: true, unit: "px")
+    ];
+
+    public static IReadOnlyList<VisualPropertyDefinition> Effects { get; } =
+    [
+        Boolean(VisualPropertyKeys.ShadowEnabled, false),
+        Color(VisualPropertyKeys.ShadowColor, "#00000066", animatable: true),
+        Number(VisualPropertyKeys.ShadowOffsetX, 0, animatable: true, unit: "px"),
+        Number(VisualPropertyKeys.ShadowOffsetY, 0, animatable: true, unit: "px"),
+        Number(VisualPropertyKeys.ShadowBlur, 0, minimum: 0, animatable: true, unit: "px")
     ];
 
     public static IReadOnlyList<VisualPropertyDefinition> Text { get; } =

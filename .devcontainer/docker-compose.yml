@@ -1,0 +1,27 @@
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/dotnet:1-10.0
+    command: sleep infinity
+    volumes:
+      - ..:/workspaces/EliteSCADA:cached
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    environment:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+
+  timescaledb:
+    image: timescale/timescaledb:2.29.2-pg18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: elitescada_preview
+      POSTGRES_USER: postgres
+      # Disposable, container-network-only development credential. It is not a product secret.
+      POSTGRES_PASSWORD: elitescada-preview-db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d elitescada_preview"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s

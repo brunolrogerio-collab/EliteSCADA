@@ -217,7 +217,10 @@ test('C05 canonical visual properties survive Save Publish Activate and drive Ac
 
   const objectId = '00000000-0000-0000-0000-00000000c505';
   const objectKey = 'c05-property-lifecycle';
-  screen.elements = screen.elements.filter((element: any) => element.key !== objectKey);
+  const textObjectId = '00000000-0000-0000-0000-00000000c506';
+  const textObjectKey = 'c05-text-lifecycle';
+  screen.elements = screen.elements.filter((element: any) =>
+    element.key !== objectKey && element.key !== textObjectKey);
   screen.elements.push({
     id: objectId,
     key: objectKey,
@@ -230,14 +233,44 @@ test('C05 canonical visual properties survive Save Publish Activate and drive Ac
       rotation: 15,
       scaleX: 0.9,
       scaleY: 1.1,
+      horizontalFlip: true,
+      verticalFlip: false,
       zIndex: 99,
       visible: true,
       opacity: 0.6,
+      tooltip: 'C05 rectangle tooltip',
       fillColor: '#12345680',
       strokeColor: '#445566',
       strokeWidth: 8,
       strokeStyle: 'none',
       cornerRadius: 12
+    }
+  });
+  screen.elements.push({
+    id: textObjectId,
+    key: textObjectKey,
+    type: 'core.text',
+    properties: {
+      x: 84,
+      y: 200,
+      width: 120,
+      height: 32,
+      zIndex: 100,
+      visible: true,
+      opacity: 1,
+      tooltip: 'C05 text tooltip',
+      text: 'C05 text overflow presentation',
+      textColor: '#112233',
+      fontFamily: 'Arial',
+      fontSize: 16,
+      fontWeight: 700,
+      fontStyle: 'italic',
+      underline: true,
+      textWrap: false,
+      lineHeight: 1.6,
+      textOverflow: 'ellipsis',
+      horizontalAlignment: 'left',
+      verticalAlignment: 'middle'
     }
   });
 
@@ -266,33 +299,56 @@ test('C05 canonical visual properties survive Save Publish Activate and drive Ac
   expect(activeResponse.ok()).toBeTruthy();
   const active = await activeResponse.json() as any;
   expect(active.revision).toBe(saved.revision);
-  const activeElement = active.package.screens
-    .find((candidate: any) => candidate.key === 'demo.overview')
-    .elements.find((element: any) => element.key === objectKey);
+  const activeScreen = active.package.screens
+    .find((candidate: any) => candidate.key === 'demo.overview');
+  const activeElement = activeScreen.elements.find((element: any) => element.key === objectKey);
+  const activeTextElement = activeScreen.elements.find((element: any) => element.key === textObjectKey);
   expect(activeElement?.properties).toMatchObject({
     rotation: 15,
     scaleX: 0.9,
     scaleY: 1.1,
+    horizontalFlip: true,
+    verticalFlip: false,
     zIndex: 99,
     visible: true,
     opacity: 0.6,
+    tooltip: 'C05 rectangle tooltip',
     fillColor: '#12345680',
     strokeColor: '#445566',
     strokeWidth: 8,
     strokeStyle: 'none',
     cornerRadius: 12
   });
+  expect(activeTextElement?.properties).toMatchObject({
+    tooltip: 'C05 text tooltip',
+    text: 'C05 text overflow presentation',
+    underline: true,
+    textWrap: false,
+    lineHeight: 1.6,
+    textOverflow: 'ellipsis'
+  });
 
   await page.goto('/');
   const activeApplication = page.getByTestId('runtime-engineering-application');
   await expect(activeApplication).toHaveAttribute('data-runtime-revision', String(saved.revision));
-  const rendered = page.getByTestId('runtime-engineering-canvas').locator(`[data-object-id="${objectId}"]`);
+  const activeCanvas = page.getByTestId('runtime-engineering-canvas');
+  const rendered = activeCanvas.locator(`[data-object-id="${objectId}"]`);
   await expect(rendered).toBeVisible();
+  await expect(rendered).toHaveAttribute('title', 'C05 rectangle tooltip');
   const renderedStyle = await rendered.getAttribute('style');
   expect(renderedStyle).toContain('opacity: 0.6');
   expect(renderedStyle).toContain('border-width: 0px');
   expect(renderedStyle).toContain('border-style: none');
-  expect(renderedStyle).toContain('rotate(15deg) scale(0.9, 1.1)');
+  expect(renderedStyle).toContain('rotate(15deg) scale(-0.9, 1.1)');
+
+  const renderedText = activeCanvas.locator(`[data-object-id="${textObjectId}"]`);
+  await expect(renderedText).toBeVisible();
+  await expect(renderedText).toHaveAttribute('title', 'C05 text tooltip');
+  const renderedTextStyle = await renderedText.getAttribute('style');
+  expect(renderedTextStyle).toContain('text-decoration-line: underline');
+  expect(renderedTextStyle).toContain('line-height: 1.6');
+  expect(renderedTextStyle).toContain('white-space: pre');
+  expect(renderedTextStyle).toContain('text-overflow: ellipsis');
 });
 
 test('an unavailable Active projection fails closed without reading mutable Working', async ({ page }) => {

@@ -22,6 +22,8 @@ internal sealed class OpenDnp3MasterSession : IDnp3MasterSession
     private Func<Dnp3Measurement, CancellationToken, ValueTask>? _measurementHandler;
     private Func<Dnp3SessionState, CancellationToken, ValueTask>? _stateHandler;
     private TimeSpan _responseTimeout = TimeSpan.FromSeconds(5);
+    private int _maxQueuedUserRequests = 16;
+    private long _activeUserRequests;
     private Dnp3SessionState _state = Dnp3SessionState.Stopped;
     private DateTimeOffset _stateChangedAt = DateTimeOffset.UtcNow;
     private DateTimeOffset? _lastSuccessfulCommunicationAt;
@@ -80,6 +82,8 @@ internal sealed class OpenDnp3MasterSession : IDnp3MasterSession
             _measurementHandler = measurementHandler;
             _stateHandler = stateHandler;
             _responseTimeout = options.ResponseTimeout;
+            _maxQueuedUserRequests = options.MaxQueuedUserRequests;
+            Interlocked.Exchange(ref _activeUserRequests, 0);
             _ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             _lifetimeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             await SetStateAsync(Dnp3SessionState.Connecting, cancellationToken).ConfigureAwait(false);
@@ -226,31 +230,47 @@ internal sealed class OpenDnp3MasterSession : IDnp3MasterSession
         if (State != Dnp3SessionState.Online || _process is not { HasExited: false })
             return Dnp3CommandResult.Failure("NOT_ONLINE", "DNP3 association is not online; command was not retained for replay.");
 
-        var requestId = Interlocked.Increment(ref _nextRequestId);
-        var completion = new TaskCompletionSource<Dnp3CommandResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (!_pendingCommands.TryAdd(requestId, completion))
-            throw new InvalidOperationException("Duplicate OpenDNP3 command request id.");
+        var activeRequests = Interlocked.Increment(ref _activeUserRequests);
+        if (activeRequests > Volatile.Read(ref _maxQueuedUserRequests))
+        {
+            Interlocked.Decrement(ref _activeUserRequests);
+            return Dnp3CommandResult.Failure(
+                "QUEUE_FULL",
+                $"DNP3 user-request limit {_maxQueuedUserRequests} is full; command was rejected and will not be replayed.");
+        }
 
-        Interlocked.Increment(ref _requests);
-        Interlocked.Increment(ref _writeOperations);
         try
         {
-            await SendLineAsync(buildCommand(requestId), cancellationToken).ConfigureAwait(false);
+            var requestId = Interlocked.Increment(ref _nextRequestId);
+            var completion = new TaskCompletionSource<Dnp3CommandResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (!_pendingCommands.TryAdd(requestId, completion))
+                throw new InvalidOperationException("Duplicate OpenDNP3 command request id.");
+
+            Interlocked.Increment(ref _requests);
+            Interlocked.Increment(ref _writeOperations);
             try
             {
-                var result = await completion.Task.WaitAsync(_responseTimeout, cancellationToken).ConfigureAwait(false);
-                if (result.Succeeded) MarkSuccess(); else MarkFailure(result.Message ?? result.Status);
-                return result;
+                await SendLineAsync(buildCommand(requestId), cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    var result = await completion.Task.WaitAsync(_responseTimeout, cancellationToken).ConfigureAwait(false);
+                    if (result.Succeeded) MarkSuccess(); else MarkFailure(result.Message ?? result.Status);
+                    return result;
+                }
+                catch (TimeoutException)
+                {
+                    MarkFailure("DNP3 command response timed out.", timedOut: true);
+                    return Dnp3CommandResult.Failure("TIMEOUT", "DNP3 command response timed out; command was not retained for replay.");
+                }
             }
-            catch (TimeoutException)
+            finally
             {
-                MarkFailure("DNP3 command response timed out.", timedOut: true);
-                return Dnp3CommandResult.Failure("TIMEOUT", "DNP3 command response timed out; command was not retained for replay.");
+                _pendingCommands.TryRemove(requestId, out _);
             }
         }
         finally
         {
-            _pendingCommands.TryRemove(requestId, out _);
+            Interlocked.Decrement(ref _activeUserRequests);
         }
     }
 

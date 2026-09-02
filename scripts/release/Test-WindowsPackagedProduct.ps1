@@ -116,7 +116,12 @@ try {
     Assert-ReleaseCondition ([string]$machineRequest.requestCode -like 'ESREQ1.*') `
         "Packaged product did not expose a versioned machine request code."
 
-    $dynamos = @(Invoke-RestMethod -Uri "$BaseUrl/api/engineering/dynamos" -WebSession $session -TimeoutSec 5)
+    $dynamosResponse = Invoke-RestMethod -Uri "$BaseUrl/api/engineering/dynamos" -WebSession $session -TimeoutSec 5
+    $dynamos = @(
+        foreach ($dynamo in $dynamosResponse) {
+            $dynamo
+        }
+    )
     $expectedDynamos = @(
         'dynamo.pump.standard',
         'process.motor.standard',
@@ -133,11 +138,21 @@ try {
     Assert-ReleaseCondition (($actualDynamos -join '|') -eq (($expectedDynamos | Sort-Object) -join '|')) `
         "Packaged built-in Dynamo identities differ from the accepted library."
 
-    $screens = @(Invoke-RestMethod -Uri "$BaseUrl/api/engineering/screens" -WebSession $session -TimeoutSec 5)
+    $screensResponse = Invoke-RestMethod -Uri "$BaseUrl/api/engineering/screens" -WebSession $session -TimeoutSec 5
+    $screens = @(
+        foreach ($screen in $screensResponse) {
+            $screen
+        }
+    )
     Assert-ReleaseCondition (@($screens | Where-Object { $_.key -eq 'demo.overview' -and $_.route -eq '/demo' }).Count -eq 1) `
         "Packaged Demo screen is missing from canonical Engineering."
 
-    $drivers = @(Invoke-RestMethod -Uri "$BaseUrl/api/drivers" -WebSession $session -TimeoutSec 5)
+    $driversResponse = Invoke-RestMethod -Uri "$BaseUrl/api/drivers" -WebSession $session -TimeoutSec 5
+    $drivers = @(
+        foreach ($driver in $driversResponse) {
+            $driver
+        }
+    )
     Assert-ReleaseCondition ($drivers.Count -ge 1 -and -not [string]::IsNullOrWhiteSpace([string]$drivers[0].driverId)) `
         "Packaged product did not load its Runtime driver surface."
 

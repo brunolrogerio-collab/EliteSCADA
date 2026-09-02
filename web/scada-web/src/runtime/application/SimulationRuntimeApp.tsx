@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { BasicTrendViewer } from '../BasicTrendViewer';
 import { clientMemory } from '../clientMemory';
 import { RuntimeAlarmCenter, type RuntimeAlarmCenterLocale } from '../operations';
-import { RuntimeTagInspector } from '../RuntimeTagInspector';
 
 type TagMessage = {
   type: 'tagValueChanged';
@@ -138,7 +137,6 @@ export function SimulationRuntimeApp() {
       </header>
 
       <RuntimeAlarmCenter locale={locale} />
-      <RuntimeTagInspector locale={locale} />
       <BasicTrendViewer locale={locale} />
 
       <section className="process-card">

@@ -3,7 +3,6 @@ import type { EngineeringLocale } from '../../engineering/i18n';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
 import { BasicTrendViewer } from '../BasicTrendViewer';
 import { RuntimeAlarmCenter } from '../operations';
-import { RuntimeTagInspector } from '../RuntimeTagInspector';
 import { RuntimeVisualNavigator } from '../visual-navigation/RuntimeVisualNavigator';
 import {
   loadRuntimeApplicationProjection,
@@ -130,7 +129,6 @@ function EngineeringRuntimeApplication({ projection }: { projection: RuntimeAppl
     </header>
 
     <RuntimeAlarmCenter locale={locale} />
-    <RuntimeTagInspector locale={locale} />
     <BasicTrendViewer locale={locale} />
 
     <section className="process-card runtime-engineering-canvas" data-testid="runtime-engineering-canvas">

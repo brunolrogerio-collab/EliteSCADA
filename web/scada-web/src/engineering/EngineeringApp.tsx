@@ -10,6 +10,7 @@ import {
 import { AlarmEditor } from './AlarmEditor';
 import { CommunicationDiagnosticsPanel } from './CommunicationDiagnosticsPanel';
 import { DevelopmentMonitorWorkspace } from './development-monitor/DevelopmentMonitorWorkspace';
+import { EngineeringTagMonitorWorkspace } from './diagnostics/EngineeringTagMonitorWorkspace';
 import { EngineeringLifecycleWorkspace } from './EngineeringLifecycleWorkspace';
 import { EngineeringProjectManagementWorkspace } from './EngineeringProjectManagementWorkspace';
 import { ReportDesignerWorkspace } from './reports/ReportDesignerWorkspace';
@@ -36,10 +37,13 @@ type SectionId =
   | 'reports'
   | 'security'
   | 'monitor'
+  | 'tagMonitor'
   | 'diagnostics';
 
 type NavItem = { id: SectionId; label?: TranslationKey; literalLabel?: Record<EngineeringLocale, string> };
 type NavGroup = { label: TranslationKey; items: NavItem[] };
+
+const tagMonitorPath = '/engineering/diagnostics/tag-monitor';
 
 const navigation: NavGroup[] = [
   { label: 'nav.project', items: [{ id: 'overview', label: 'nav.overview' }, { id: 'scripts' }] },
@@ -53,13 +57,14 @@ const navigation: NavGroup[] = [
   { label: 'nav.security', items: [{ id: 'security', label: 'nav.security' }] },
   { label: 'nav.diagnostics', items: [
     { id: 'monitor', literalLabel: { 'pt-BR': 'Monitoramento', en: 'Development Monitor', es: 'Monitor de Desarrollo' } },
+    { id: 'tagMonitor', literalLabel: { 'pt-BR': 'TAG Monitor', en: 'TAG Monitor', es: 'TAG Monitor' } },
     { id: 'diagnostics', label: 'nav.diagnostics' }
   ] }
 ];
 
 export function EngineeringApp() {
   const [locale, setLocale] = useState<EngineeringLocale>(() => resolveInitialLocale());
-  const [section, setSection] = useState<SectionId>('overview');
+  const [section, setSection] = useState<SectionId>(() => resolveInitialSection());
   const [snapshot, setSnapshot] = useState<EngineeringSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +76,7 @@ export function EngineeringApp() {
     try {
       setSnapshot(await loadEngineeringSnapshot());
     } catch (reason) {
+      setSnapshot(null);
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
       setLoading(false);
@@ -83,6 +89,12 @@ export function EngineeringApp() {
     setLocale(next);
     setStoredLocale(next);
     document.documentElement.lang = next;
+  };
+
+  const selectSection = (next: SectionId) => {
+    setSection(next);
+    const nextPath = next === 'tagMonitor' ? tagMonitorPath : '/engineering';
+    if (window.location.pathname !== nextPath) window.history.replaceState(null, '', nextPath);
   };
 
   return (
@@ -115,13 +127,15 @@ export function EngineeringApp() {
             {navigation.map(group => (
               <div className="eng-nav-group" key={group.label}>
                 <span className="eng-nav-label">{t(group.label)}</span>
-                {group.items.map(item => (
-                  <button key={item.id} type="button" className={section === item.id ? 'active' : ''} onClick={() => setSection(item.id)}>
-                    <NavIcon section={item.id}/>
-                    <span>{item.literalLabel ? item.literalLabel[locale] : item.label ? t(item.label) : scriptNavLabel(locale)}</span>
-                    {snapshot && <small>{sectionCount(snapshot.package, item.id)}</small>}
-                  </button>
-                ))}
+                {group.items
+                  .filter(item => item.id !== 'tagMonitor' || snapshot !== null)
+                  .map(item => (
+                    <button key={item.id} type="button" className={section === item.id ? 'active' : ''} onClick={() => selectSection(item.id)}>
+                      <NavIcon section={item.id}/>
+                      <span>{item.literalLabel ? item.literalLabel[locale] : item.label ? t(item.label) : scriptNavLabel(locale)}</span>
+                      {snapshot && <small>{sectionCount(snapshot.package, item.id)}</small>}
+                    </button>
+                  ))}
               </div>
             ))}
           </nav>
@@ -165,6 +179,7 @@ function EngineeringSection({ section, snapshot, t, locale, onReload }: {
   if (section === 'reports') return <ReportDesignerWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
   if (section === 'security') return <SecuritySection model={model} t={t} locale={locale}/>;
   if (section === 'monitor') return <DevelopmentMonitorWorkspace snapshot={snapshot} locale={locale}/>;
+  if (section === 'tagMonitor') return <EngineeringTagMonitorWorkspace snapshot={snapshot} locale={locale}/>;
   if (section === 'diagnostics') return <DiagnosticsSection model={model} t={t} locale={locale}/>;
 
   switch (section) {
@@ -303,6 +318,7 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'scripts':
     case 'overview':
     case 'monitor':
+    case 'tagMonitor':
     case 'diagnostics': return '•';
   }
 }
@@ -312,6 +328,10 @@ function formatDate(value: string, locale: EngineeringLocale) {
 }
 function scriptNavLabel(_locale: EngineeringLocale) { return 'Scripts'; }
 function NavIcon({ section }: { section: SectionId }) {
-  const symbols: Record<SectionId, string> = { overview: '⌂', scripts: '</>', dataSources: '⇄', tags: '#', alarms: '!', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', monitor: '◉', diagnostics: '⋯' };
+  const symbols: Record<SectionId, string> = { overview: '⌂', scripts: '</>', dataSources: '⇄', tags: '#', alarms: '!', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯' };
   return <i aria-hidden="true">{symbols[section]}</i>;
+}
+
+function resolveInitialSection(): SectionId {
+  return window.location.pathname.startsWith(tagMonitorPath) ? 'tagMonitor' : 'overview';
 }

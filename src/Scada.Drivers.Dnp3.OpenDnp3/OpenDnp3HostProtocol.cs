@@ -139,7 +139,7 @@ internal static class OpenDnp3HostProtocol
             ParseBoolean(parts[15], "rollover flag"),
             ParseBoolean(parts[16], "discontinuity flag"),
             ParseBoolean(parts[17], "reference-error flag"));
-        var timestamp = string.IsNullOrEmpty(parts[18])
+        DateTimeOffset? timestamp = string.IsNullOrEmpty(parts[18])
             ? null
             : DateTimeOffset.FromUnixTimeMilliseconds(ParseLong(parts[18], "source timestamp"));
         var synchronized = ParseBoolean(parts[19], "timestamp synchronization flag");

@@ -66,7 +66,7 @@ jobs:
             throw "License Generator smoke test failed with exit code $($process.ExitCode)."
           }
 
-      - name: Smoke-test packaged product host
+      - name: Smoke-test packaged product host and Web payload
         shell: pwsh
         run: |
           $stdoutPath = Join-Path $env:RUNNER_TEMP 'wave13-product-host.stdout.log'
@@ -104,6 +104,32 @@ jobs:
             }
             if (-not (Test-Path ./artifacts/wave13/candidate/product/wwwroot/pyodide/pyodide.js)) {
               throw 'Packaged Pyodide runtime is missing.'
+            }
+
+            $web = Invoke-WebRequest -Uri 'http://127.0.0.1:5093/' -UseBasicParsing -TimeoutSec 5
+            if ($web.StatusCode -ne 200 -or $web.Content -notmatch '<div id="root"') {
+              throw 'Packaged Web UI was not served by the product host.'
+            }
+            if ($web.Headers['Cross-Origin-Opener-Policy'] -ne 'same-origin') {
+              throw 'Packaged Web UI is missing Cross-Origin-Opener-Policy: same-origin.'
+            }
+            if ($web.Headers['Cross-Origin-Embedder-Policy'] -ne 'require-corp') {
+              throw 'Packaged Web UI is missing Cross-Origin-Embedder-Policy: require-corp.'
+            }
+
+            $pyodide = Invoke-WebRequest -Uri 'http://127.0.0.1:5093/pyodide/pyodide.js' -UseBasicParsing -TimeoutSec 5
+            if ($pyodide.StatusCode -ne 200 -or $pyodide.Content.Length -lt 1000) {
+              throw 'Packaged Pyodide runtime was not served correctly.'
+            }
+
+            try {
+              Invoke-WebRequest -Uri 'http://127.0.0.1:5093/api/wave13-definitely-missing' -UseBasicParsing -TimeoutSec 5 | Out-Null
+              throw 'Unknown /api route was incorrectly handled by the SPA fallback.'
+            }
+            catch {
+              if ($_.Exception.Response.StatusCode.value__ -ne 404) {
+                throw
+              }
             }
           }
           finally {

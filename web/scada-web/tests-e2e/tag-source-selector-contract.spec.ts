@@ -93,6 +93,22 @@ test.describe('TAG Source stable selection', () => {
     expect(assigned.communicationBinding).toBeNull();
   });
 
+  test('removing the source clears orphaned address state', () => {
+    const assigned = assignTagDataSource(tag({
+      dataSourceId: sourceA.id,
+      source: sourceA.key,
+      address: 'holding:10',
+      addressSelector: { kind: 'bit', index: 2 },
+      communicationBinding: binding
+    }), null);
+
+    expect(assigned.dataSourceId).toBeNull();
+    expect(assigned.source).toBeNull();
+    expect(assigned.address).toBeNull();
+    expect(assigned.addressSelector).toBeNull();
+    expect(assigned.communicationBinding).toBeNull();
+  });
+
   test('orphaned stable id never falls back to another source with the same legacy key', () => {
     const replacement = { ...sourceB, key: sourceA.key };
     const resolved = resolveTagDataSource(tag({

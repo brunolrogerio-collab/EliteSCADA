@@ -189,6 +189,35 @@ export function applyVisualEditorSessionKeyboardCommand(
         kind: 'ungroup',
         objectIds: state.selectedObjectIds
       });
+    case 'align':
+      if (state.selectedObjectIds.length < 2) return state;
+      return applyVisualEditorSessionAuthoringOperation(state, {
+        kind: 'align',
+        objectIds: state.selectedObjectIds,
+        operation: command.operation
+      });
+    case 'distribute':
+      if (state.selectedObjectIds.length < 3) return state;
+      return applyVisualEditorSessionAuthoringOperation(state, {
+        kind: 'distribute',
+        objectIds: state.selectedObjectIds,
+        operation: command.operation
+      });
+    case 'size':
+      if (state.selectedObjectIds.length < 2) return state;
+      return applyVisualEditorSessionAuthoringOperation(state, {
+        kind: 'size',
+        objectIds: state.selectedObjectIds,
+        referenceObjectId: state.selectedObjectIds[0],
+        operation: command.operation
+      });
+    case 'lock':
+      if (state.selectedObjectIds.length === 0) return state;
+      return applyVisualEditorSessionAuthoringOperation(state, {
+        kind: 'lock',
+        objectIds: state.selectedObjectIds,
+        locked: command.locked
+      });
     case 'selectAll':
       return Object.freeze({
         ...state,

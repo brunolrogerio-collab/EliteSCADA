@@ -1,43 +1,118 @@
 # W14-C11 — Pass 2 Session Checkpoint
 
 **Date:** 2026-09-03 BRT  
-**State:** PASS 2 PRODUCT-GAP AUDIT IN PROGRESS / IMPLEMENTATION LOCKED  
+**State:** PASS 2 CONSOLIDATED / IMPLEMENTATION LOCKED  
 **Frozen product-code SHA:** `97eefd8f4377ff583d1ba20bc89203f4a82b584d`
 
-This file records the cross-chat checkpoint for the active C11 audit lane.
+This file is the concise cross-chat resume point for C11 Pass 2. The canonical consolidated audit is:
 
-Coordinator continuation authority remains `docs/WAVE14-C11-PASS2-CONTINUATION-HANDOFF.md` on `wave14/corrections-integration`.
+`docs/WAVE14-C11-PASS2-PRODUCT-GAP-AUDIT.md`
 
-Canonical progressive audit remains `docs/WAVE14-C11-PASS2-PRODUCT-GAP-AUDIT.md` on this branch.
+on branch:
 
-New exact-SHA runtime evidence from this continuation is recorded in `docs/WAVE14-C11-PASS2-RUNTIME-AUDIT-EVIDENCE.md`.
+`wave14/c11-pass2-product-gap-audit`
 
-## Session findings that must not be lost
+Detailed static/runtime evidence is retained in:
 
-1. Internal Memory **exists**. Server Memory is the candidate for shared simulated process state; Client Memory is client-local.
-2. `C11-P2-MEM-02` remains a confirmed `PRODUCT GAP — ENGINEERING UX`: Internal Memory-specific settings correctly state that memory has no network address, while generic TAG authoring still exposes Address semantics. Disposition: `fix before C11`.
-3. Human creation of both memory Data Sources through the normal schema-driven catalog remains `NEEDS VALIDATION` until proven end-to-end.
-4. Complete Memory Source + TAG authoring from normal Engineering remains `NEEDS VALIDATION`.
-5. Data Source forms are backend-authoritative/schema-driven; protocol-aware TAG address assistants exist for major industrial drivers.
-6. Numeric `% Full`, Analog Fill, reusable typed Dynamos, contextual Popup open/close and project asset mechanisms have structural support. Browser/authoring proof remains where noted by the progressive matrix.
-7. `C11-P2-SCR-01` is now closed as a **blocking `PRODUCT GAP — FUNCTIONAL`**. Frozen product architecture explicitly describes Server Scripts as a later runtime capability; frozen `src/Scada.Api/Program.cs` has Engineering Script data registration but no Server Python executor/host/scheduler/activation service. Repository searches found no `IPythonScriptHandlerExecutor` implementation/registration or Server Script runtime implementation. The only continuously hosted simulation in `Program.cs` is the excluded legacy `SimulationDriverHostedService`. Disposition: `fix before C11`.
-8. `C11-P2-NAV-01` is now closed as `PRODUCT GAP — FUNCTIONAL/ENGINEERING UX`. Frozen `RuntimeApplicationMount.tsx` derives the initial Runtime Screen by alphabetically sorting Screen keys and selecting the first. No persisted authorable startup/home Screen is consumed. Disposition: `fix before C11`.
-9. `C11-P2-POP-02` is now closed as `PRODUCT GAP — FUNCTIONAL/ENGINEERING UX` for persisted authorable X/Y placement. Frozen `RuntimeVisualNavigator.tsx` mounts Popups without an authored per-popup X/Y mount contract. Generic Popup open/close/context remains supported. Disposition: `requires Development Lead decision`; fix before C11 if authored contextual placement is mandatory, otherwise explicitly accept centered/shell-defined placement as known mitigation.
-10. Deliberate Simulation bad-quality generation remains separate from rendering bad quality received from a real Driver and is the next high-priority unresolved Simulation question.
-11. The old hardcoded `SimulationDriver`, `DemoRuntimeServices` and historical DEMO remain excluded as authority for the future canonical engineer-authored EEE Simulation.
-12. C11 implementation remains locked. Do not build the DEMO or alter product/Preview during Pass 2.
+`docs/WAVE14-C11-PASS2-RUNTIME-AUDIT-EVIDENCE.md`
 
-## Immediate continuation order
+The Coordinator-side authority/continuation handoff remains on:
 
-1. Close canonical Simulation bad-quality injection.
-2. Close Memory Source creation E2E.
-3. Close alarm/event/history/trend end-to-end chain.
-4. Validate visual/Dynamo/browser/runtime presentation and multilingual behavior.
-5. Validate conceptual Simulation-to-Modbus TAG/source reuse.
-6. Consolidate the progressive matrix so `SCR-01`, `NAV-01` and `POP-02` reflect the closed classifications above.
-7. Separate blocking and non-blocking gaps.
-8. Return only a recommendation to Coordinator/Development Lead: `RELEASE C11 IMPLEMENTATION` or `KEEP C11 IMPLEMENTATION LOCKED`.
+`wave14/corrections-integration`
 
-Current recommendation:
+C11 implementation is **not authorized**.
+
+## Frozen product and CI
+
+Product-code authority remains:
+
+`97eefd8f4377ff583d1ba20bc89203f4a82b584d`
+
+Revalidated exact-SHA workflows:
+
+- EliteSCADA CI #1273 — SUCCESS;
+- Wave 11 Active HMI Runtime #203 — SUCCESS;
+- Preview Licensing CI #225 — SUCCESS;
+- L3 Seven-Driver Lab #180 — SUCCESS;
+- Interop Lab Smoke #102 — SUCCESS.
+
+PR #212 remains DRAFT/unmerged. Documentation-only audit commits do not supersede the frozen product SHA.
+
+## Confirmed supported foundations
+
+Pass 2 confirmed that the current product already has real canonical support for:
+
+- backend-authoritative schema-driven Data Source forms;
+- protocol-aware TAG address assistants;
+- discoverable Server Memory and Client Memory Source types;
+- typed/retentive Server Memory and client-local Client Memory;
+- numeric `% Full` and canonical Analog Fill;
+- reusable Dynamos with typed public properties/TAG references;
+- contextual Popup open/close/context;
+- safe authorized Runtime TAG writes;
+- secure backend Operational Command execution;
+- alarm activation/ACK/return/shelving;
+- localized operator Alarm Center;
+- historian capture from canonical TAG changes;
+- durable alarm history;
+- operator tabular historical-data consultation;
+- project PNG/background assets;
+- capability-driven Operator vs Engineering/Diagnostics separation;
+- stable logical TAG identity decoupled from Source/address, supporting later Simulation -> Modbus remapping;
+- current Modbus Address Assistant.
+
+Important correction preserved: Internal Memory **exists**. Do not regress to the obsolete Pass 1 conclusion.
+
+## Confirmed product gaps
+
+### Blocking for canonical DEMO Simulation
+
+1. `C11-P2-SCR-01` — no active Server Python host/executor/scheduler/timer lifecycle for project-authored Server Scripts.
+2. `C11-P2-SIM-01` — no normal engineer-authorable periodic server producer for deterministic EEE process physics.
+3. `C11-P2-QUAL-01` — Internal Memory cannot deliberately publish bad/stale/unavailable quality; authored writes force `Good`.
+4. `C11-P2-EVT-01` — no first-class general operational Event definition/history surface distinct from alarms/audit.
+5. `C11-P2-TREND-01` — historian and a BasicTrend component exist, but no canonical mounted/operator-authorable Trend surface is exposed by the converged Runtime.
+6. `C11-P2-CMD-02` — secure backend Command execution exists, but authored visual actions/default Client Visual Python do not expose a canonical Operational Command invocation bridge.
+
+### Other confirmed product gaps
+
+7. `C11-P2-MEM-02` — Internal Memory TAG authoring still exposes meaningless network-style Address semantics.
+8. `C11-P2-NAV-01` — Runtime startup Screen is selected by lexical Screen-key ordering rather than a persisted authorable home Screen.
+9. `C11-P2-I18N-HIST-01` — mounted Historical Data Browser contains significant hard-coded English visible copy.
+10. `C11-P2-POP-02` — Popup open/context is supported, but persisted authorable Popup mount X/Y is absent; requires Development Lead decision on whether shell-defined placement is acceptable.
+
+## Validation-only items still intentionally unresolved
+
+These are not treated as product failures from static evidence:
+
+- full empty-project Memory Source -> TAG -> Save -> Publish -> Activate -> Runtime browser flow;
+- changing Analog Fill presentation in real browser;
+- GMB01/GMB02 independent Dynamo-instance binding proof;
+- non-color-only final pump fault/unavailable/bad-quality visual treatment;
+- Runtime fullscreen/no-scroll/overlay/hit-target acceptance at 1280x720, 1920x1080, 2560x1440 and 3840x2160;
+- physical PLC Modbus operation and exact real addresses.
+
+The fixed logical Runtime transform has explicit test coverage for 720p/1080p/1440p/4K and letterboxing, so the remaining viewport question is real-browser acceptance rather than a missing scaling architecture.
+
+The Simulation -> PLC architecture is structurally sound: stable TAG identity, visual `TagReference`, alarm `TagId`, historian TAG identity and Source/address separation permit physical remapping without rebuilding the HMI. Real PLC operation remains `requires PLC validation later`.
+
+## Final C11 Pass 2 recommendation
 
 `KEEP C11 IMPLEMENTATION LOCKED`
+
+This is a recommendation only. C11 has no authority to release implementation.
+
+Required Coordinator/Development Lead route:
+
+1. disposition every confirmed product gap;
+2. create bounded pre-DEMO correction lanes for approved fixes;
+3. do not implement product corrections inside this C11 audit branch;
+4. integrate approved fixes into `wave14/corrections-integration`;
+5. run exact-head universal and affected specialized CI;
+6. freeze a new exact C10 product SHA if product code changes;
+7. revalidate affected C11 findings;
+8. execute remaining real-browser validation;
+9. only after blocking gaps are cleared or explicitly accepted, issue explicit C11 implementation release;
+10. then write the full canonical DEMO implementation premise in GitHub and implement DEMO Simulation;
+11. later validate the same conceptual application against the physical Modbus PLC;
+12. only after Wave 14 acceptance resume Wave 13 release/signing.

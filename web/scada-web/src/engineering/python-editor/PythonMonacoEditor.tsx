@@ -4,6 +4,7 @@ import EditorWorker from 'monaco-editor/editor/editor.worker?worker';
 import type { EngineeringLocale } from '../i18n';
 import { PythonPreviewTestPanel } from '../scripts/PythonPreviewTestPanel';
 import { PythonScriptAssistant } from '../scripts/PythonScriptAssistant';
+import { PythonScriptReferenceDiagnostics } from '../scripts/PythonScriptReferenceDiagnostics';
 import type {
   ScriptEngineeringEntryPoint,
   ScriptEngineeringScope
@@ -320,6 +321,13 @@ export function PythonMonacoEditor({
           </strong>
         )}
       </footer>
+
+      {scope === 'clientVisual' && !readOnly && (
+        <PythonScriptReferenceDiagnostics
+          locale={locale}
+          source={source}
+        />
+      )}
 
       {scope === 'clientVisual' && !readOnly && (
         <PythonScriptAssistant

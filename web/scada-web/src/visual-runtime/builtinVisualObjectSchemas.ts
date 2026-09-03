@@ -35,12 +35,31 @@ const GEOMETRY: readonly CommonVisualPropertyKey[] = [
 const TRANSFORM: readonly CommonVisualPropertyKey[] = [
   VISUAL_PROPERTY_KEYS.rotation,
   VISUAL_PROPERTY_KEYS.scaleX,
-  VISUAL_PROPERTY_KEYS.scaleY
+  VISUAL_PROPERTY_KEYS.scaleY,
+  VISUAL_PROPERTY_KEYS.horizontalFlip,
+  VISUAL_PROPERTY_KEYS.verticalFlip
 ];
 
 const VISIBILITY: readonly CommonVisualPropertyKey[] = [
   VISUAL_PROPERTY_KEYS.visible,
-  VISUAL_PROPERTY_KEYS.opacity
+  VISUAL_PROPERTY_KEYS.opacity,
+  VISUAL_PROPERTY_KEYS.tooltip,
+  VISUAL_PROPERTY_KEYS.enabled
+];
+
+const EFFECTS: readonly CommonVisualPropertyKey[] = [
+  VISUAL_PROPERTY_KEYS.shadowEnabled,
+  VISUAL_PROPERTY_KEYS.shadowColor,
+  VISUAL_PROPERTY_KEYS.shadowOffsetX,
+  VISUAL_PROPERTY_KEYS.shadowOffsetY,
+  VISUAL_PROPERTY_KEYS.shadowBlur
+];
+
+const FILL: readonly CommonVisualPropertyKey[] = [
+  VISUAL_PROPERTY_KEYS.fillStyle,
+  VISUAL_PROPERTY_KEYS.fillColor,
+  VISUAL_PROPERTY_KEYS.fillSecondaryColor,
+  VISUAL_PROPERTY_KEYS.gradientDirection
 ];
 
 const STROKE: readonly CommonVisualPropertyKey[] = [
@@ -56,23 +75,27 @@ const TEXT: readonly CommonVisualPropertyKey[] = [
   VISUAL_PROPERTY_KEYS.fontSize,
   VISUAL_PROPERTY_KEYS.fontWeight,
   VISUAL_PROPERTY_KEYS.fontStyle,
+  VISUAL_PROPERTY_KEYS.underline,
+  VISUAL_PROPERTY_KEYS.textWrap,
+  VISUAL_PROPERTY_KEYS.lineHeight,
+  VISUAL_PROPERTY_KEYS.textOverflow,
   VISUAL_PROPERTY_KEYS.horizontalAlignment,
   VISUAL_PROPERTY_KEYS.verticalAlignment
 ];
 
-const BASE = [...GEOMETRY, ...TRANSFORM, ...VISIBILITY] as const;
+const BASE = [...GEOMETRY, ...TRANSFORM, ...VISIBILITY, ...EFFECTS] as const;
 
 const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
   [BUILTIN_VISUAL_OBJECT_TYPES.group, schema(BUILTIN_VISUAL_OBJECT_TYPES.group, BASE)],
   [BUILTIN_VISUAL_OBJECT_TYPES.rectangle, schema(BUILTIN_VISUAL_OBJECT_TYPES.rectangle, [
     ...BASE,
-    VISUAL_PROPERTY_KEYS.fillColor,
+    ...FILL,
     ...STROKE,
     VISUAL_PROPERTY_KEYS.cornerRadius
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.ellipse, schema(BUILTIN_VISUAL_OBJECT_TYPES.ellipse, [
     ...BASE,
-    VISUAL_PROPERTY_KEYS.fillColor,
+    ...FILL,
     ...STROKE
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.line, schema(BUILTIN_VISUAL_OBJECT_TYPES.line, [
@@ -81,7 +104,7 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.polygon, schema(BUILTIN_VISUAL_OBJECT_TYPES.polygon, [
     ...BASE,
-    VISUAL_PROPERTY_KEYS.fillColor,
+    ...FILL,
     ...STROKE
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.text, schema(BUILTIN_VISUAL_OBJECT_TYPES.text, [

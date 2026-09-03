@@ -31,6 +31,12 @@ import {
 } from './visualEditorLiveValues';
 import { resolveVisualDynamicState } from './visualDynamicRuntime';
 import { SliderVisualElement, type SliderTagWrite } from './SliderVisualElement';
+import {
+  cssStrokeStyle,
+  effectiveStrokeWidth,
+  normalizeCanonicalStrokeStyle,
+  svgStrokeDasharray
+} from './visualStrokePresentation';
 
 export type CanonicalVisualEvent = Readonly<{
   element: VisualElementEngineering;
@@ -135,9 +141,12 @@ function CanonicalElement({
     const dynamic = resolveVisualDynamicState(element, baseValues, liveSamples);
     const values = dynamic.values;
     const style = elementStyle(values);
+    const enabled = booleanValue(values[VISUAL_PROPERTY_KEYS.enabled], true);
     const diagnosticTitle = dynamic.diagnostics.length > 0
       ? dynamic.diagnostics.map(item => `${item.propertyKey ? `${item.propertyKey}: ` : ''}${item.message}`).join('\n')
       : undefined;
+    const tooltipTitle = optionalText(values[VISUAL_PROPERTY_KEYS.tooltip]);
+    const elementTitle = combineTitles(tooltipTitle, diagnosticTitle);
     const diagnosticState = dynamic.diagnostics.length > 0 ? 'unavailable' : 'available';
 
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.group) {
@@ -146,7 +155,8 @@ function CanonicalElement({
         style={style}
         data-object-id={element.id ?? undefined}
         data-runtime-object-id={runtimeObjectId}
-        title={diagnosticTitle}
+        data-enabled={enabled}
+        title={elementTitle}
         data-dynamic-state={diagnosticState}
         onClick={onClick}
       >
@@ -171,7 +181,8 @@ function CanonicalElement({
         style={style}
         data-object-id={element.id ?? undefined}
         data-runtime-object-id={runtimeObjectId}
-        title={diagnosticTitle}
+        data-enabled={enabled}
+        title={elementTitle}
         data-dynamic-state={diagnosticState}
         onClick={onClick}
       >
@@ -188,7 +199,8 @@ function CanonicalElement({
         style={lineStyle(style, values)}
         data-object-id={element.id ?? undefined}
         data-runtime-object-id={runtimeObjectId}
-        title={diagnosticTitle}
+        data-enabled={enabled}
+        title={elementTitle}
         data-dynamic-state={diagnosticState}
         onClick={onClick}
       />;
@@ -199,23 +211,38 @@ function CanonicalElement({
       if (points.length < 3) throw new Error(`Polygon '${element.key}' requires at least three valid vertices.`);
       const bounds = polygonBounds(points);
       const normalizedPoints = points.map(point => ({ x: point.x - bounds.minX, y: point.y - bounds.minY }));
-      const strokeStyle = stringValue(values[VISUAL_PROPERTY_KEYS.strokeStyle], 'solid');
+      const strokeStyle = normalizeCanonicalStrokeStyle(values[VISUAL_PROPERTY_KEYS.strokeStyle]);
+      const strokeWidth = effectiveStrokeWidth(
+        strokeStyle,
+        numberValue(values[VISUAL_PROPERTY_KEYS.strokeWidth], 1)
+      );
+      const gradient = polygonGradient(values);
+      const gradientId = gradient
+        ? `visual-gradient-${stableDomToken(runtimeObjectId ?? element.id ?? element.key)}`
+        : undefined;
       return <div
         className="visual-editor-object visual-editor-polygon"
         style={{ ...style, background: 'transparent', border: 0, overflow: 'visible' }}
         data-object-id={element.id ?? undefined}
         data-runtime-object-id={runtimeObjectId}
-        title={diagnosticTitle}
+        data-enabled={enabled}
+        title={elementTitle}
         data-dynamic-state={diagnosticState}
         onClick={onClick}
       >
         <svg width="100%" height="100%" viewBox={`0 0 ${Math.max(bounds.width, 1)} ${Math.max(bounds.height, 1)}`} preserveAspectRatio="none" aria-label={element.key}>
+          {gradient && gradientId ? <defs>
+            <linearGradient id={gradientId} x1={gradient.x1} y1={gradient.y1} x2={gradient.x2} y2={gradient.y2}>
+              <stop offset="0%" stopColor={gradient.primary} />
+              <stop offset="100%" stopColor={gradient.secondary} />
+            </linearGradient>
+          </defs> : null}
           <polygon
             points={polygonPointsAttribute(normalizedPoints)}
-            fill={stringValue(values[VISUAL_PROPERTY_KEYS.fillColor], '#00000000')}
-            stroke={stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor], '#000000')}
-            strokeWidth={numberValue(values[VISUAL_PROPERTY_KEYS.strokeWidth], 1)}
-            strokeDasharray={strokeStyle === 'dashed' ? '8 5' : strokeStyle === 'dotted' ? '2 4' : undefined}
+            fill={gradientId ? `url(#${gradientId})` : polygonSolidFill(values)}
+            stroke={strokeStyle === 'none' ? 'none' : stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor], '#000000')}
+            strokeWidth={strokeWidth}
+            strokeDasharray={svgStrokeDasharray(strokeStyle)}
             vectorEffect="non-scaling-stroke"
           />
         </svg>
@@ -230,7 +257,7 @@ function CanonicalElement({
         liveSamples={liveSamples}
         style={style}
         runtimeObjectId={runtimeObjectId}
-        title={diagnosticTitle}
+        title={elementTitle}
         onTagWrite={onTagWrite}
       />;
     }
@@ -244,17 +271,20 @@ function CanonicalElement({
     const className = `visual-editor-object visual-editor-${element.type.replace('core.', '')}${dynamicText && !dynamicText.available ? ' visual-editor-dynamic-unavailable' : ''}`;
     const content = dynamicText?.text || staticText || element.key;
     const sourceTitle = dynamicText ? `${textBinding!.target} · ${dynamicText.state}` : undefined;
-    const title = [sourceTitle, diagnosticTitle].filter(Boolean).join('\n') || undefined;
+    const title = combineTitles(sourceTitle, tooltipTitle, diagnosticTitle);
     const fill = analogFillOverlay(element, dynamic.analogFill);
 
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.button) {
       return <button
         type="button"
-        tabIndex={onClick ? 0 : -1}
+        tabIndex={onClick && enabled ? 0 : -1}
+        disabled={!enabled}
+        aria-disabled={!enabled}
         className={className}
         style={style}
         data-object-id={element.id ?? undefined}
         data-runtime-object-id={runtimeObjectId}
+        data-enabled={enabled}
         title={title}
         data-dynamic-state={diagnosticState}
         onClick={onClick}
@@ -267,6 +297,7 @@ function CanonicalElement({
       style={style}
       data-object-id={element.id ?? undefined}
       data-runtime-object-id={runtimeObjectId}
+      data-enabled={enabled}
       title={title}
       data-dynamic-reference={textBinding?.target}
       data-dynamic-state={diagnosticState}
@@ -306,23 +337,29 @@ function CanonicalDynamoElement({
     };
     const dynamic = resolveVisualDynamicState(element, baseValues, liveSamples);
     const style = elementStyle(dynamic.values);
+    const enabled = booleanValue(dynamic.values[VISUAL_PROPERTY_KEYS.enabled], true);
     const runtimeObjectId = composition.instanceId;
     const onClick = visualClickHandler(element, onVisualEvent, runtimeObjectId);
     const diagnosticTitle = dynamic.diagnostics.length > 0
       ? dynamic.diagnostics.map(item => `${item.propertyKey ? `${item.propertyKey}: ` : ''}${item.message}`).join('\n')
       : undefined;
+    const title = combineTitles(
+      optionalText(dynamic.values[VISUAL_PROPERTY_KEYS.tooltip]),
+      diagnosticTitle
+    );
 
     return <div
       className="visual-editor-object visual-editor-group visual-editor-dynamo"
       style={style}
       data-object-id={element.id ?? undefined}
       data-runtime-object-id={runtimeObjectId}
+      data-enabled={enabled}
       data-dynamo-key={composition.definitionKey}
       data-dynamo-definition-id={composition.definitionId}
       data-dynamo-instance-id={composition.instanceId}
       data-dynamo-parameter-count={composition.parameters.size}
       data-dynamic-state={dynamic.diagnostics.length > 0 ? 'unavailable' : 'available'}
-      title={diagnosticTitle}
+      title={title}
       onClick={onClick}
     >
       {composition.elements.map((child, index) => <CanonicalElement
@@ -462,39 +499,154 @@ function collectRuntimeBindingElements(
 
 function elementStyle(values: Readonly<Record<string, VisualPropertyValue>>): CSSProperties {
   const visible = booleanValue(values[VISUAL_PROPERTY_KEYS.visible], true);
-  const strokeStyle = stringValue(values[VISUAL_PROPERTY_KEYS.strokeStyle], 'solid');
+  const enabled = booleanValue(values[VISUAL_PROPERTY_KEYS.enabled], true);
+  const strokeStyle = normalizeCanonicalStrokeStyle(values[VISUAL_PROPERTY_KEYS.strokeStyle]);
+  const strokeWidth = effectiveStrokeWidth(
+    strokeStyle,
+    numberValue(values[VISUAL_PROPERTY_KEYS.strokeWidth], 0)
+  );
+  const scaleX = numberValue(values[VISUAL_PROPERTY_KEYS.scaleX], 1) *
+    (booleanValue(values[VISUAL_PROPERTY_KEYS.horizontalFlip], false) ? -1 : 1);
+  const scaleY = numberValue(values[VISUAL_PROPERTY_KEYS.scaleY], 1) *
+    (booleanValue(values[VISUAL_PROPERTY_KEYS.verticalFlip], false) ? -1 : 1);
+  const textWrap = booleanValue(values[VISUAL_PROPERTY_KEYS.textWrap], true);
+  const textOverflow = stringValue(values[VISUAL_PROPERTY_KEYS.textOverflow], 'clip');
   return {
     position: 'absolute',
     left: numberValue(values[VISUAL_PROPERTY_KEYS.x]), top: numberValue(values[VISUAL_PROPERTY_KEYS.y]),
     width: numberValue(values[VISUAL_PROPERTY_KEYS.width], 100), height: numberValue(values[VISUAL_PROPERTY_KEYS.height], 100),
     zIndex: numberValue(values[VISUAL_PROPERTY_KEYS.zIndex]), display: visible ? 'flex' : 'none',
     opacity: numberValue(values[VISUAL_PROPERTY_KEYS.opacity], 1),
-    transform: `rotate(${numberValue(values[VISUAL_PROPERTY_KEYS.rotation])}deg) scale(${numberValue(values[VISUAL_PROPERTY_KEYS.scaleX], 1)}, ${numberValue(values[VISUAL_PROPERTY_KEYS.scaleY], 1)})`,
+    pointerEvents: enabled ? undefined : 'none',
+    transform: `rotate(${numberValue(values[VISUAL_PROPERTY_KEYS.rotation])}deg) scale(${scaleX}, ${scaleY})`,
     transformOrigin: 'center center', boxSizing: 'border-box', overflow: 'hidden',
-    background: stringValue(values[VISUAL_PROPERTY_KEYS.backgroundColor]) || stringValue(values[VISUAL_PROPERTY_KEYS.fillColor]) || undefined,
-    borderColor: stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor]) || undefined,
-    borderWidth: numberValue(values[VISUAL_PROPERTY_KEYS.strokeWidth], 0),
-    borderStyle: strokeStyle === 'dashed' ? 'dashed' : strokeStyle === 'dotted' ? 'dotted' : 'solid',
+    background: fillBackground(values),
+    filter: shadowFilter(values),
+    borderColor: strokeStyle === 'none' ? 'transparent' : stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor]) || undefined,
+    borderWidth: strokeWidth,
+    borderStyle: cssStrokeStyle(strokeStyle),
     borderRadius: numberValue(values[VISUAL_PROPERTY_KEYS.cornerRadius]),
     color: stringValue(values[VISUAL_PROPERTY_KEYS.textColor]) || undefined,
     fontFamily: normalizeFontFamily(stringValue(values[VISUAL_PROPERTY_KEYS.fontFamily])),
     fontSize: numberValue(values[VISUAL_PROPERTY_KEYS.fontSize], 14), fontWeight: numberValue(values[VISUAL_PROPERTY_KEYS.fontWeight], 400),
     fontStyle: stringValue(values[VISUAL_PROPERTY_KEYS.fontStyle], 'normal') as CSSProperties['fontStyle'],
+    textDecorationLine: booleanValue(values[VISUAL_PROPERTY_KEYS.underline], false) ? 'underline' : 'none',
+    lineHeight: numberValue(values[VISUAL_PROPERTY_KEYS.lineHeight], 1.2),
     textAlign: stringValue(values[VISUAL_PROPERTY_KEYS.horizontalAlignment], 'left') as CSSProperties['textAlign'],
     alignItems: verticalAlignment(values[VISUAL_PROPERTY_KEYS.verticalAlignment]), justifyContent: horizontalFlexAlignment(values[VISUAL_PROPERTY_KEYS.horizontalAlignment]),
-    whiteSpace: 'pre-wrap', overflowWrap: 'anywhere'
+    whiteSpace: textWrap ? 'pre-wrap' : 'pre',
+    overflowWrap: textWrap ? 'anywhere' : 'normal',
+    textOverflow: textOverflow === 'ellipsis' ? 'ellipsis' : 'clip'
   };
 }
 
 function lineStyle(base: CSSProperties, values: Readonly<Record<string, VisualPropertyValue>>): CSSProperties {
-  return { ...base, height: 0, minHeight: 0, overflow: 'visible', background: 'transparent', borderWidth: 0, borderTopWidth: numberValue(values[VISUAL_PROPERTY_KEYS.strokeWidth], 1), borderTopColor: stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor], '#000000'), borderTopStyle: stringValue(values[VISUAL_PROPERTY_KEYS.strokeStyle], 'solid') as CSSProperties['borderTopStyle'] };
+  const strokeStyle = normalizeCanonicalStrokeStyle(values[VISUAL_PROPERTY_KEYS.strokeStyle]);
+  const strokeWidth = effectiveStrokeWidth(
+    strokeStyle,
+    numberValue(values[VISUAL_PROPERTY_KEYS.strokeWidth], 1)
+  );
+  return {
+    ...base,
+    height: 0,
+    minHeight: 0,
+    overflow: 'visible',
+    background: 'transparent',
+    borderWidth: 0,
+    borderTopWidth: strokeWidth,
+    borderTopColor: strokeStyle === 'none'
+      ? 'transparent'
+      : stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor], '#000000'),
+    borderTopStyle: cssStrokeStyle(strokeStyle)
+  };
 }
+
+function fillBackground(values: Readonly<Record<string, VisualPropertyValue>>): string | undefined {
+  const backgroundColor = stringValue(values[VISUAL_PROPERTY_KEYS.backgroundColor]);
+  if (backgroundColor) return backgroundColor;
+
+  const primary = stringValue(values[VISUAL_PROPERTY_KEYS.fillColor]);
+  if (!Object.prototype.hasOwnProperty.call(values, VISUAL_PROPERTY_KEYS.fillStyle)) return primary || undefined;
+
+  const fillStyle = stringValue(values[VISUAL_PROPERTY_KEYS.fillStyle], 'solid');
+  if (fillStyle === 'none') return 'transparent';
+  if (fillStyle !== 'gradient') return primary || undefined;
+
+  const secondary = stringValue(values[VISUAL_PROPERTY_KEYS.fillSecondaryColor], '#00000000');
+  return `linear-gradient(${gradientAngle(values[VISUAL_PROPERTY_KEYS.gradientDirection])}, ${primary || '#00000000'}, ${secondary})`;
+}
+
+function shadowFilter(values: Readonly<Record<string, VisualPropertyValue>>): string | undefined {
+  if (!booleanValue(values[VISUAL_PROPERTY_KEYS.shadowEnabled], false)) return undefined;
+  const x = numberValue(values[VISUAL_PROPERTY_KEYS.shadowOffsetX]);
+  const y = numberValue(values[VISUAL_PROPERTY_KEYS.shadowOffsetY]);
+  const blur = numberValue(values[VISUAL_PROPERTY_KEYS.shadowBlur]);
+  const color = stringValue(values[VISUAL_PROPERTY_KEYS.shadowColor], '#00000066');
+  return `drop-shadow(${x}px ${y}px ${blur}px ${color})`;
+}
+
+type PolygonGradient = Readonly<{
+  primary: string;
+  secondary: string;
+  x1: string;
+  y1: string;
+  x2: string;
+  y2: string;
+}>;
+
+function polygonGradient(values: Readonly<Record<string, VisualPropertyValue>>): PolygonGradient | null {
+  if (stringValue(values[VISUAL_PROPERTY_KEYS.fillStyle], 'solid') !== 'gradient') return null;
+  const direction = stringValue(values[VISUAL_PROPERTY_KEYS.gradientDirection], 'vertical');
+  const coordinates = gradientCoordinates(direction);
+  return {
+    primary: stringValue(values[VISUAL_PROPERTY_KEYS.fillColor], '#00000000'),
+    secondary: stringValue(values[VISUAL_PROPERTY_KEYS.fillSecondaryColor], '#00000000'),
+    ...coordinates
+  };
+}
+
+function polygonSolidFill(values: Readonly<Record<string, VisualPropertyValue>>): string {
+  if (stringValue(values[VISUAL_PROPERTY_KEYS.fillStyle], 'solid') === 'none') return 'none';
+  return stringValue(values[VISUAL_PROPERTY_KEYS.fillColor], '#00000000');
+}
+
+function gradientAngle(value: VisualPropertyValue | undefined): string {
+  switch (stringValue(value, 'vertical')) {
+    case 'horizontal': return '90deg';
+    case 'diagonal-down': return '135deg';
+    case 'diagonal-up': return '45deg';
+    case 'vertical':
+    default: return '180deg';
+  }
+}
+
+function gradientCoordinates(direction: string): Readonly<{ x1: string; y1: string; x2: string; y2: string }> {
+  switch (direction) {
+    case 'horizontal': return { x1: '0%', y1: '0%', x2: '100%', y2: '0%' };
+    case 'diagonal-down': return { x1: '0%', y1: '0%', x2: '100%', y2: '100%' };
+    case 'diagonal-up': return { x1: '0%', y1: '100%', x2: '100%', y2: '0%' };
+    case 'vertical':
+    default: return { x1: '0%', y1: '0%', x2: '0%', y2: '100%' };
+  }
+}
+
+function stableDomToken(value: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
 function assetReferenceId(value: VisualPropertyValue | undefined): string | null { if (!value || typeof value !== 'object' || !('assetId' in value)) return null; return typeof value.assetId === 'string' && value.assetId.length > 0 ? value.assetId : null; }
 function imageFit(value: VisualPropertyValue | undefined): CSSProperties['objectFit'] { const fit = stringValue(value, 'contain'); return fit === 'cover' ? 'cover' : fit === 'fill' ? 'fill' : fit === 'native' ? 'none' : 'contain'; }
 function percent(value: VisualPropertyValue | undefined): number { return Math.max(0, Math.min(1, numberValue(value, 0.5))) * 100; }
 function numberValue(value: VisualPropertyValue | undefined, fallback = 0): number { return typeof value === 'number' && Number.isFinite(value) ? value : fallback; }
 function booleanValue(value: VisualPropertyValue | undefined, fallback: boolean): boolean { return typeof value === 'boolean' ? value : fallback; }
 function stringValue(value: VisualPropertyValue | undefined, fallback = ''): string { return typeof value === 'string' ? value : fallback; }
+function optionalText(value: VisualPropertyValue | undefined): string | undefined { const result = stringValue(value).trim(); return result || undefined; }
+function combineTitles(...parts: Array<string | undefined>): string | undefined { const result = parts.filter((part): part is string => Boolean(part)).join('\n'); return result || undefined; }
 function legacyNumber(value: VisualEngineeringPropertyValue | undefined, fallback: number): number { return typeof value === 'number' && Number.isFinite(value) ? value : fallback; }
 function legacyString(value: VisualEngineeringPropertyValue | undefined): string { return typeof value === 'string' ? value : ''; }
 function normalizeFontFamily(value: string): string | undefined { return !value ? undefined : value === 'system' ? 'system-ui, sans-serif' : value; }

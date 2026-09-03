@@ -84,14 +84,14 @@ export function normalizeBackgroundColor(value: string | null | undefined): stri
 }
 
 function normalizeFit(value: string | null | undefined): VisualDefinitionBackgroundFit {
-  const normalized = normalizeStableText(value)?.toLowerCase();
-  switch (normalized) {
+  const normalized = normalizeStableText(value);
+  if (normalized === null) return 'cover';
+  switch (normalized.toLowerCase()) {
     case 'contain': return 'contain';
     case 'stretch': return 'stretch';
     case 'center': return 'center';
     case 'tile': return 'tile';
-    case 'cover':
-    case null: return 'cover';
+    case 'cover': return 'cover';
     default: throw new Error(`Unknown visual definition background fit '${value}'.`);
   }
 }

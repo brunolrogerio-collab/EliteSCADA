@@ -92,10 +92,61 @@ body { background: var(--app-bg); color: var(--app-text-primary); }
 
 /* Shell/Engineering chrome only. Authored HMI surfaces and visual elements are deliberately excluded. */
 .auth-page,
-.engineering-shell,
+.eng-shell,
 .audit-shell,
 .licensing-shell,
 .runtime-history-page { background: var(--app-bg); color: var(--app-text-primary); }
+
+/* Engineering legacy selectors consume the application semantic palette. This deliberately
+   stops at Engineering chrome; runtime visual/HMI selectors are not included. */
+.eng-shell {
+  --eng-bg: var(--app-bg);
+  --eng-panel: var(--app-surface);
+  --eng-panel-soft: var(--app-surface-elevated);
+  --eng-border: var(--app-border);
+  --eng-border-soft: var(--app-divider);
+  --eng-text: var(--app-text-primary);
+  --eng-muted: var(--app-text-secondary);
+  --eng-accent: var(--app-accent);
+  --eng-accent-soft: var(--app-selected);
+  --eng-warning: var(--app-warning);
+  --eng-danger: var(--app-error);
+}
+.eng-topbar,
+.eng-sidebar { background: var(--app-surface); }
+.eng-mark,
+.eng-entity-card,
+.eng-lifecycle span,
+.eng-flow span { background: var(--app-surface-elevated); border-color: var(--app-border); }
+.eng-runtime-link,
+.eng-panel h2,
+.eng-table td { color: var(--app-text-primary); }
+.eng-runtime-link:hover,
+.eng-nav button:hover { background: var(--app-hover); border-color: var(--app-border); color: var(--app-text-primary); }
+.eng-locale select,
+.eng-state-card button { background: var(--app-input-bg); border-color: var(--app-border); color: var(--app-text-primary); }
+.eng-nav-label,
+.eng-nav button i,
+.eng-nav button small,
+.eng-lifecycle b,
+.eng-flow b,
+.eng-table th,
+.eng-capability-list { color: var(--app-text-secondary); }
+.eng-nav button { color: var(--app-text-secondary); }
+.eng-nav button.active { background: var(--app-selected); color: var(--app-text-primary); }
+.eng-workspace-bar { background: var(--app-panel); border-color: var(--app-divider); }
+.eng-table th { background: var(--app-panel); }
+.eng-table tbody tr:hover { background: var(--app-hover); }
+.eng-code { color: var(--app-accent); }
+.eng-bool { border-color: var(--app-border); color: var(--app-text-secondary); }
+.eng-bool.yes { border-color: var(--app-success); color: var(--app-success); }
+.eng-bool.no,
+.eng-state-card.error { border-color: var(--app-error); color: var(--app-error); }
+.eng-state-card button:focus-visible,
+.eng-runtime-link:focus-visible,
+.eng-locale select:focus-visible,
+.eng-nav button:focus-visible { outline: 2px solid var(--app-focus); outline-offset: 2px; }
+.eng-spinner { border-color: var(--app-divider); border-top-color: var(--app-accent); }
 
 .app-bar--runtime-only { min-height: 44px; grid-template-columns: auto 1fr auto; }
 .app-bar--runtime-only .app-brand { padding-block: 5px; }

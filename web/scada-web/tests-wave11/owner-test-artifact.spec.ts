@@ -2,10 +2,12 @@ import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
+import { createE2eJwt } from '../tests-e2e/jwt';
 
 const projectKey = 'e2e-wave11';
 const packageFileName = 'EliteSCADA-Wave11-Demo.escadapkg';
 const packageMediaType = 'application/vnd.elitescada.project-package';
+const runtimeOnlyToken = createE2eJwt('wave11-runtime-only-c09', ['operator'], 'Wave 11 Runtime Operator');
 
 test('exports the owner-test package from the verified Active Engineering application', async ({ request }) => {
   const activeResponse = await request.get('/api/runtime/application');
@@ -104,7 +106,6 @@ test('Active HMI logical viewport scales and centers uniformly at representative
 
     const application = page.getByTestId('runtime-engineering-application');
     const logicalViewport = page.getByTestId('runtime-logical-viewport');
-    const logicalStage = page.getByTestId('runtime-logical-stage');
     await expect(application).toHaveAttribute('data-runtime-project-key', projectKey);
     await expect(logicalViewport).toBeVisible();
     await expect(logicalViewport).toHaveAttribute('data-design-width', '1920');
@@ -149,5 +150,42 @@ test('Active HMI logical viewport scales and centers uniformly at representative
     expect(geometry.stageHeight).toBeCloseTo(expectedHeight, 1);
     expect(geometry.stageLeft - geometry.viewportLeft).toBeCloseTo(expectedOffsetX, 1);
     expect(geometry.stageTop - geometry.viewportTop).toBeCloseTo(expectedOffsetY, 1);
+  }
+});
+
+test('runtime-only operator sees only permitted application surfaces and backend remains authoritative', async ({ browser }) => {
+  const context = await browser.newContext({
+    baseURL: 'http://127.0.0.1:5174',
+    extraHTTPHeaders: { Authorization: `Bearer ${runtimeOnlyToken}` }
+  });
+  const page = await context.newPage();
+
+  try {
+    await page.goto('/');
+    const navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+    await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+    await expect(navigation.getByRole('link', { name: /Runtime/ })).toBeVisible();
+    await expect(navigation.getByRole('link', { name: /Engineering/ })).toHaveCount(0);
+    await expect(navigation.getByRole('link', { name: /Audit|Auditoria|Auditoría/ })).toHaveCount(0);
+    await expect(navigation.getByRole('link', { name: /Licensing|Licenciamento|Licenciamiento/ })).toHaveCount(0);
+
+    const capabilityResponse = await context.request.get('/api/auth/effective-capabilities');
+    expect(capabilityResponse.ok()).toBeTruthy();
+    const capabilities = await capabilityResponse.json() as { runtime: string[]; workspace: string[] };
+    expect(capabilities.runtime).toContain('View');
+    expect(capabilities.workspace).not.toContain('EngineeringModify');
+
+    await page.goto('/engineering');
+    await expect(page.locator('.eng-shell')).toHaveCount(0);
+    await expect(page.getByRole('alert')).toBeVisible();
+
+    const engineeringResponse = await context.request.get('/api/engineering/workspace');
+    const auditResponse = await context.request.get('/api/audit/diagnostics');
+    const licensingResponse = await context.request.get('/api/licensing/status');
+    expect(engineeringResponse.status()).toBe(403);
+    expect(auditResponse.status()).toBe(403);
+    expect(licensingResponse.status()).toBe(403);
+  } finally {
+    await context.close();
   }
 });

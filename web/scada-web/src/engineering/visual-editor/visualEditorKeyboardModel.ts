@@ -5,6 +5,7 @@ import type {
   VisualEditorDistributionOperation,
   VisualEditorSizeOperation
 } from './visualEditorAuthoringModel';
+import type { VisualDefinitionSurfacePatch } from './visualDefinitionSurfaceModel';
 
 export type VisualEditorKeyboardCommand =
   | Readonly<{ kind: 'undo' }>
@@ -19,6 +20,7 @@ export type VisualEditorKeyboardCommand =
   | Readonly<{ kind: 'distribute'; operation: VisualEditorDistributionOperation }>
   | Readonly<{ kind: 'size'; operation: VisualEditorSizeOperation }>
   | Readonly<{ kind: 'lock'; locked: boolean }>
+  | Readonly<{ kind: 'surface.set'; patch: VisualDefinitionSurfacePatch }>
   | Readonly<{
       kind: 'dynamoParameter.set';
       objectId: string;

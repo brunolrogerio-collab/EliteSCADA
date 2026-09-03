@@ -74,7 +74,7 @@ test('projects legacy equipmentPath through the public interface without mutatin
   expect(current.equipmentPath).toBe('  Plant.P101  ');
 });
 
-test('setting equipmentPath updates the typed parameter and legacy fallback together', () => {
+test('setting equipmentPath canonicalizes the typed parameter and legacy fallback together', () => {
   const updated = setDynamoPublicParameterValue(instance(), definition, {
     key: 'equipmentPath',
     kind: 'EquipmentPath',
@@ -86,7 +86,7 @@ test('setting equipmentPath updates the typed parameter and legacy fallback toge
     {
       key: 'equipmentPath',
       kind: 'EquipmentPath',
-      value: ' Area01.Pump02 '
+      value: 'Area01.Pump02'
     }
   ]);
 });
@@ -107,7 +107,7 @@ test('TAG references are authored through the public interface without exposing 
     }
   ]);
   expect(definition.elements).toBe(originalElements);
-  expect(definition.elements?.[0].key).toBe('body');
+  expect(definition.elements?.[0]?.key).toBe('body');
 });
 
 test('unknown and mismatched parameters fail closed', () => {

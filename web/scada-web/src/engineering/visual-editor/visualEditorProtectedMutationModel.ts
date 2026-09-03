@@ -4,7 +4,10 @@ import {
   deleteVisualEditorElements,
   duplicateVisualEditorElements
 } from './visualEditorClipboardModel';
-import { applyVisualEditorMutationIntent } from './visualEditorCanonicalModel';
+import {
+  applyVisualEditorMutationIntent as applyLegacyVisualEditorMutationIntent,
+  type VisualEditorMutationOptions
+} from './visualEditorCanonicalModelLegacy';
 import type { VisualEditorMutationIntent } from './visualEditorContracts';
 import { applyVisualEditorZOrderOperation } from './visualEditorZOrderModel';
 
@@ -15,20 +18,21 @@ import { applyVisualEditorZOrderOperation } from './visualEditorZOrderModel';
  */
 export function applyProtectedVisualEditorMutationIntent(
   screen: ScreenEngineering,
-  intent: VisualEditorMutationIntent
+  intent: VisualEditorMutationIntent,
+  options: VisualEditorMutationOptions = {}
 ): ScreenEngineering {
   switch (intent.kind) {
     case 'object.add':
       if (intent.parentObjectId) assertVisualElementsAuthoringEditable(screen, [intent.parentObjectId]);
-      return applyVisualEditorMutationIntent(screen, intent);
+      return applyLegacyVisualEditorMutationIntent(screen, intent, options);
     case 'dynamo.add':
-      return applyVisualEditorMutationIntent(screen, intent);
+      return applyLegacyVisualEditorMutationIntent(screen, intent, options);
     case 'object.move':
     case 'object.rotate':
     case 'property.set':
     case 'property.remove':
       assertVisualElementsAuthoringEditable(screen, intent.objectIds);
-      return applyVisualEditorMutationIntent(screen, intent);
+      return applyLegacyVisualEditorMutationIntent(screen, intent, options);
     case 'object.resize':
     case 'polygon.points.set':
     case 'binding.set':
@@ -40,16 +44,20 @@ export function applyProtectedVisualEditorMutationIntent(
     case 'analogFill.set':
     case 'analogFill.remove':
       assertVisualElementsAuthoringEditable(screen, [intent.objectId]);
-      return applyVisualEditorMutationIntent(screen, intent);
+      return applyLegacyVisualEditorMutationIntent(screen, intent, options);
     case 'object.duplicate':
       assertVisualElementsAuthoringEditable(screen, intent.objectIds);
-      return duplicateVisualEditorElements(screen, intent.objectIds).screen;
+      return duplicateVisualEditorElements(screen, intent.objectIds, {
+        createObjectId: options.createObjectId,
+        offsetX: options.duplicateOffset ?? 12,
+        offsetY: options.duplicateOffset ?? 12
+      }).screen;
     case 'object.delete':
       return deleteVisualEditorElements(screen, intent.objectIds).screen;
     case 'object.zOrder':
       return applyVisualEditorZOrderOperation(screen, intent.objectIds, mapZOrderOperation(intent.operation));
     case 'polygon.create':
-      return applyVisualEditorMutationIntent(screen, intent);
+      return applyLegacyVisualEditorMutationIntent(screen, intent, options);
   }
 }
 

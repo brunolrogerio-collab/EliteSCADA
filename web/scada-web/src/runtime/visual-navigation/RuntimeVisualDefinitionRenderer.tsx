@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import React, { useEffect, useMemo, useState, type CSSProperties, type MouseEvent } from 'react';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
 import {
   CanonicalVisualRenderer,
@@ -22,8 +22,10 @@ import {
   projectRuntimeVisualElements
 } from './runtimeVisualInstanceComposition';
 import {
-  decorateRuntimeDynamoVisualStates,
-  expandRuntimeDynamoVisuals
+  collectRuntimeDynamoStateBindingElements,
+  expandRuntimeDynamoVisuals,
+  resolveRuntimeDynamoStateIndicators,
+  type RuntimeDynamoStateIndicator
 } from './runtimeDynamoVisualProjection';
 import { writeRuntimeTagValue } from '../runtimeTagWriteApi';
 import type { SliderTagWrite } from '../../engineering/visual-editor/SliderVisualElement';
@@ -48,11 +50,12 @@ export type RuntimeVisualDefinitionRendererProps = Readonly<{
  * Mounted Wave 10 bridge between canonical visual Engineering and transient
  * Client Visual Python Runtime state.
  *
- * CanonicalVisualRenderer remains the only visual renderer. C07 expands Dynamo
- * instances only in this transient projection so public parameter bindings and
- * semantic state are resolved before rendering; persisted Engineering remains
- * one encapsulated Dynamo instance. Python receives no DOM, React or browser
- * authority.
+ * CanonicalVisualRenderer remains the only process-artwork renderer. C07 expands
+ * Dynamo instances only in this transient projection so public parameter
+ * bindings are resolved before the renderer subscribes to TAGs. Semantic Dynamo
+ * state is rendered as a separate read-only overlay, keeping the canonical visual
+ * element tree stable while live values change. Python receives no DOM, React or
+ * browser authority.
  */
 export function RuntimeVisualDefinitionRenderer({
   visualDefinitionId,
@@ -91,9 +94,13 @@ export function RuntimeVisualDefinitionRenderer({
     () => expandRuntimeDynamoVisuals(projectedElements, dynamoDefinitions),
     [projectedElements, dynamoDefinitions]
   );
-  const dynamoStateSamples = useVisualBindingSamples(expandedDynamoElements);
-  const renderedElements = useMemo(
-    () => decorateRuntimeDynamoVisualStates(expandedDynamoElements, dynamoStateSamples),
+  const dynamoStateBindingElements = useMemo(
+    () => collectRuntimeDynamoStateBindingElements(expandedDynamoElements),
+    [expandedDynamoElements]
+  );
+  const dynamoStateSamples = useVisualBindingSamples(dynamoStateBindingElements);
+  const dynamoStateIndicators = useMemo(
+    () => resolveRuntimeDynamoStateIndicators(expandedDynamoElements, dynamoStateSamples),
     [expandedDynamoElements, dynamoStateSamples]
   );
 
@@ -124,14 +131,72 @@ export function RuntimeVisualDefinitionRenderer({
     data-runtime-visual-definition-id={visualDefinitionId || undefined}
     data-runtime-visual-context-id={runtimeContextId}
     onClickCapture={captureObjectInteraction}
+    style={{ position: 'relative' }}
   >
     <CanonicalVisualRenderer
-      elements={renderedElements}
+      elements={expandedDynamoElements}
       emptyLabel={emptyLabel}
       locale={locale}
       onVisualEvent={onVisualEvent}
       onTagWrite={onTagWrite}
       visualAssetUrl={visualAssetUrl}
     />
+    <RuntimeDynamoStateLayer indicators={dynamoStateIndicators} />
   </div>;
 }
+
+function RuntimeDynamoStateLayer({
+  indicators
+}: {
+  indicators: readonly RuntimeDynamoStateIndicator[];
+}) {
+  if (indicators.length === 0) return null;
+  return <div
+    className="runtime-dynamo-state-layer"
+    data-testid="runtime-dynamo-state-layer"
+    aria-hidden="false"
+    style={STATE_LAYER_STYLE}
+  >
+    {indicators.map(indicator => <span
+      key={indicator.instanceId}
+      role="status"
+      className="runtime-dynamo-state-indicator"
+      data-dynamo-instance-id={indicator.instanceId}
+      data-dynamo-key={indicator.dynamoKey}
+      data-dynamo-state={indicator.state}
+      data-dynamo-state-priority={indicator.priority}
+      data-dynamo-quality={indicator.quality}
+      data-dynamo-feedback-mismatch={indicator.feedbackMismatch || undefined}
+      title={`${indicator.dynamoKey} · ${indicator.label}${indicator.feedbackMismatch ? ' · feedback mismatch' : ''}`}
+      style={{
+        position: 'absolute',
+        left: indicator.x,
+        top: indicator.y,
+        minWidth: 78,
+        height: 18,
+        boxSizing: 'border-box',
+        display: 'grid',
+        placeItems: 'center',
+        padding: '0 4px',
+        border: `1px solid ${indicator.foreground}`,
+        borderRadius: 3,
+        background: indicator.background,
+        color: indicator.foreground,
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: 9,
+        fontWeight: 700,
+        lineHeight: 1,
+        whiteSpace: 'nowrap',
+        pointerEvents: 'none'
+      }}
+    >{indicator.label}</span>)}
+  </div>;
+}
+
+const STATE_LAYER_STYLE: CSSProperties = Object.freeze({
+  position: 'absolute',
+  inset: 0,
+  zIndex: 2147480000,
+  pointerEvents: 'none',
+  overflow: 'visible'
+});

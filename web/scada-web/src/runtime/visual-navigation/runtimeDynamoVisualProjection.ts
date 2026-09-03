@@ -3,6 +3,10 @@ import { resolveDynamoRuntimeState } from '../../engineering/visual-editor/dynam
 import type { VisualLiveScalarSample } from '../../engineering/visual-editor/visualEditorLiveValues';
 import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../visual-runtime';
 import {
+  normalizeDynamoDefinitionParameterContract,
+  normalizeDynamoInstanceParameterContract
+} from './dynamoParameterWireContract';
+import {
   projectDynamoRuntimeElements,
   resolveDynamoRuntimeEquipmentPath
 } from './dynamoRuntimeBindingProjection';
@@ -97,8 +101,11 @@ function expandElement(
   path: string
 ): VisualElementEngineering {
   if (element.dynamoKey?.trim()) {
-    const definition = resolveDynamoDefinition(definitions, element.dynamoKey);
-    const composition = composeDynamoRuntime(element, definition);
+    const definition = normalizeDynamoDefinitionParameterContract(
+      resolveDynamoDefinition(definitions, element.dynamoKey)
+    );
+    const normalizedInstance = normalizeDynamoInstanceParameterContract(element);
+    const composition = composeDynamoRuntime(normalizedInstance, definition);
     const equipmentPath = resolveDynamoRuntimeEquipmentPath(
       element.equipmentPath ?? null,
       composition.parameters

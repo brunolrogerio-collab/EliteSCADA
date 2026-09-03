@@ -1,5 +1,6 @@
 import React, { createContext, useContext } from 'react';
 import type { DynamoEngineering, TagEngineering, VisualAssetEngineering } from '../types';
+import { normalizeDynamoDefinitionParameterContract } from '../../runtime/visual-navigation/dynamoParameterWireContract';
 
 export type DynamoAuthoringCatalog = Readonly<{
   definitions: readonly DynamoEngineering[];
@@ -22,7 +23,7 @@ export function DynamoAuthoringCatalogProvider({
   children
 }: DynamoAuthoringCatalog & Readonly<{ children: React.ReactNode }>) {
   const value = React.useMemo<DynamoAuthoringCatalog>(() => Object.freeze({
-    definitions: Object.freeze([...definitions]),
+    definitions: Object.freeze(definitions.map(normalizeDynamoDefinitionParameterContract)),
     tags: Object.freeze([...tags]),
     visualAssets: Object.freeze([...visualAssets])
   }), [definitions, tags, visualAssets]);

@@ -8,6 +8,8 @@ import type {
 } from '../../engineering/visual-editor/CanonicalVisualRenderer';
 import { resolveVisualDefinitionSurfaceStyle } from '../../engineering/visual-editor/visualDefinitionSurfaceModel';
 import type { ClientVisualEventDispatchRecord } from '../../python-runtime/clientVisualEventDispatcher';
+import { RuntimeLogicalViewport } from './RuntimeLogicalViewport';
+import { resolveRuntimeLogicalSize } from './runtimeLogicalCanvas';
 import {
   createRuntimeVisualCatalog,
   createRuntimeVisualNavigationState,
@@ -75,6 +77,8 @@ export function RuntimeVisualNavigator({
     return <RuntimeDiagnostic diagnostic={asRuntimeDiagnostic(reason)} />;
   }
 
+  const designSize = resolveRuntimeLogicalSize(activeScreen.properties);
+
   const dispatch = (event: CanonicalVisualEvent, popupRuntimeInstanceId?: string) => {
     try {
       const action = resolveVisualNavigationAction(event.element, event.eventKey);
@@ -95,66 +99,70 @@ export function RuntimeVisualNavigator({
     data-testid="runtime-visual-navigator"
     data-active-screen-key={state.activeScreenKey}
   >
-    <section
-      className="runtime-visual-screen"
-      data-screen-key={activeScreen.key}
-      style={resolveVisualDefinitionSurfaceStyle(activeScreen.properties, visualAssetUrl)}
-    >
-      <RuntimeVisualDefinitionRenderer
-        visualDefinitionId={activeScreen.id ?? ''}
-        runtimeContextId={`screen:${activeScreen.id ?? activeScreen.key}`}
-        elements={activeScreen.elements}
-        emptyLabel={emptyLabel}
-        locale={locale}
-        dynamoDefinitions={engineeringPackage.dynamos}
-        scriptContext={scriptContext}
-        onScriptDispatch={onScriptDispatch}
-        onVisualEvent={event => dispatch(event)}
-        visualAssetUrl={visualAssetUrl}
-      />
-    </section>
+    <RuntimeLogicalViewport designSize={designSize}>
+      <div className="runtime-logical-composition">
+        <section
+          className="runtime-visual-screen"
+          data-screen-key={activeScreen.key}
+          style={resolveVisualDefinitionSurfaceStyle(activeScreen.properties, visualAssetUrl)}
+        >
+          <RuntimeVisualDefinitionRenderer
+            visualDefinitionId={activeScreen.id ?? ''}
+            runtimeContextId={`screen:${activeScreen.id ?? activeScreen.key}`}
+            elements={activeScreen.elements}
+            emptyLabel={emptyLabel}
+            locale={locale}
+            dynamoDefinitions={engineeringPackage.dynamos}
+            scriptContext={scriptContext}
+            onScriptDispatch={onScriptDispatch}
+            onVisualEvent={event => dispatch(event)}
+            visualAssetUrl={visualAssetUrl}
+          />
+        </section>
 
-    <div className="runtime-visual-popup-layer" data-popup-count={state.popups.length}>
-      {state.popups.map((mount, index) => {
-        try {
-          const popup = resolveMountedPopup(catalog, mount);
-          return <section
-            className="runtime-visual-popup"
-            key={mount.runtimeInstanceId}
-            data-popup-key={popup.key}
-            data-popup-runtime-instance-id={mount.runtimeInstanceId}
-            data-popup-stack-index={index}
-          >
-            <header className="runtime-visual-popup-header">
-              <strong>{popup.name || popup.key}</strong>
-              <code>{popup.key}</code>
-            </header>
-            <div
-              className="runtime-visual-popup-content"
-              style={resolveVisualDefinitionSurfaceStyle(popup.properties, visualAssetUrl)}
-            >
-              <RuntimeVisualDefinitionRenderer
-                visualDefinitionId={popup.id ?? ''}
-                runtimeContextId={`popup:${mount.runtimeInstanceId}`}
-                elements={popup.elements}
-                emptyLabel={emptyLabel}
-                locale={locale}
-                dynamoDefinitions={engineeringPackage.dynamos}
-                scriptContext={scriptContext}
-                onScriptDispatch={onScriptDispatch}
-                onVisualEvent={event => dispatch(event, mount.runtimeInstanceId)}
-                visualAssetUrl={visualAssetUrl}
-              />
-            </div>
-          </section>;
-        } catch (reason) {
-          return <RuntimeDiagnostic
-            key={mount.runtimeInstanceId}
-            diagnostic={asRuntimeDiagnostic(reason)}
-          />;
-        }
-      })}
-    </div>
+        <div className="runtime-visual-popup-layer" data-popup-count={state.popups.length}>
+          {state.popups.map((mount, index) => {
+            try {
+              const popup = resolveMountedPopup(catalog, mount);
+              return <section
+                className="runtime-visual-popup"
+                key={mount.runtimeInstanceId}
+                data-popup-key={popup.key}
+                data-popup-runtime-instance-id={mount.runtimeInstanceId}
+                data-popup-stack-index={index}
+              >
+                <header className="runtime-visual-popup-header">
+                  <strong>{popup.name || popup.key}</strong>
+                  <code>{popup.key}</code>
+                </header>
+                <div
+                  className="runtime-visual-popup-content"
+                  style={resolveVisualDefinitionSurfaceStyle(popup.properties, visualAssetUrl)}
+                >
+                  <RuntimeVisualDefinitionRenderer
+                    visualDefinitionId={popup.id ?? ''}
+                    runtimeContextId={`popup:${mount.runtimeInstanceId}`}
+                    elements={popup.elements}
+                    emptyLabel={emptyLabel}
+                    locale={locale}
+                    dynamoDefinitions={engineeringPackage.dynamos}
+                    scriptContext={scriptContext}
+                    onScriptDispatch={onScriptDispatch}
+                    onVisualEvent={event => dispatch(event, mount.runtimeInstanceId)}
+                    visualAssetUrl={visualAssetUrl}
+                  />
+                </div>
+              </section>;
+            } catch (reason) {
+              return <RuntimeDiagnostic
+                key={mount.runtimeInstanceId}
+                diagnostic={asRuntimeDiagnostic(reason)}
+              />;
+            }
+          })}
+        </div>
+      </div>
+    </RuntimeLogicalViewport>
 
     {diagnostic ? <RuntimeDiagnostic diagnostic={diagnostic} /> : null}
   </div>;

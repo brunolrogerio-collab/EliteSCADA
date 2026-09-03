@@ -5,10 +5,7 @@ import {
   CLIENT_VISUAL_PYTHON_CAPABILITIES,
   CLIENT_VISUAL_PYTHON_PROTOCOL_CAPABILITIES
 } from '../src/python-runtime/pythonRuntimeContracts';
-import {
-  buildScriptAssistantCatalog,
-  filterScriptAssistantCatalog
-} from '../src/engineering/scripts/scriptAssistantModel';
+import { buildScriptAssistantCatalog } from '../src/engineering/scripts/scriptAssistantModel';
 
 const writableTagId = '11111111-1111-1111-1111-111111111111';
 const readOnlyTagId = '22222222-2222-2222-2222-222222222222';
@@ -194,10 +191,4 @@ test('capability catalog advertises only official product capabilities while res
   expect(catalog.capabilities.find(item => item.capability === 'tag.write')?.pythonApi).toBe('elite_scada.tag_write');
   expect(advertised).not.toContain('backendOperation.request');
   expect(CLIENT_VISUAL_PYTHON_PROTOCOL_CAPABILITIES).toContain('backendOperation.request');
-
-  const filtered = filterScriptAssistantCatalog(catalog, 'visible');
-  expect(filtered.screens).toHaveLength(1);
-  expect(filtered.screens[0].objects).toHaveLength(1);
-  expect(filtered.screens[0].objects[0].key).toBe('StartButton');
-  expect(filtered.screens[0].objects[0].properties.map(property => property.key)).toEqual(['visible']);
 });

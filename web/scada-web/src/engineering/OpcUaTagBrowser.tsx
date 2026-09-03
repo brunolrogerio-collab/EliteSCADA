@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { loadDataSourceTypeCatalog } from './DataSourceCatalogEditor';
-import type { DataSourceTypeDefinition } from './DataSourceCatalogEditor.logic';
+import {
+  tagBindingSchemaIdentity,
+  type DataSourceTypeDefinition
+} from './DataSourceCatalogEditor.logic';
 import {
   applyEngineeringPackage,
   loadEngineeringSnapshot,
@@ -133,7 +136,7 @@ export function OpcUaTagBrowser({ tag, source, locale, onChange }: Props) {
 
   const useNode = (node: DriverBrowseNodeView) => {
     if (!node.portableAddress) return;
-    const binding = buildBinding(schema, node.portableAddress, tag.communicationBinding);
+    const binding = buildOpcUaTagBinding(schema, node.portableAddress, tag.communicationBinding);
     if (!binding) {
       setError(text.schemaMissing);
       return;
@@ -253,23 +256,39 @@ export function OpcUaTagBrowser({ tag, source, locale, onChange }: Props) {
   );
 }
 
-function buildBinding(type: DataSourceTypeDefinition | null, portableAddress: string, current?: CommunicationTagBindingEngineering | null): CommunicationTagBindingEngineering | null {
-  const schema = type?.configurationSchema;
-  if (!schema) return null;
+export function buildOpcUaTagBinding(
+  type: DataSourceTypeDefinition | null,
+  portableAddress: string,
+  current?: CommunicationTagBindingEngineering | null
+): CommunicationTagBindingEngineering | null {
+  const configurationSchema = type?.configurationSchema;
+  const bindingSchema = tagBindingSchemaIdentity(type);
+  if (!configurationSchema || !bindingSchema) return null;
+
   const settings: Record<string, string> = {};
   const settingKeys = new Set(['samplinginterval', 'queuesize', 'discardoldest']);
-  for (const field of schema.tagBindingFields) {
+  for (const field of configurationSchema.tagBindingFields) {
     if (!settingKeys.has(field.key.toLowerCase())) continue;
-    const existing = current?.schemaId === schema.schemaId ? current.settings?.[field.key] : undefined;
+    const existing = current?.schemaId === bindingSchema.schemaId
+      ? current.settings?.[field.key]
+      : undefined;
     const value = existing ?? field.defaultValue;
     if (value != null && value !== '') settings[field.key] = value;
   }
-  return { contractVersion: 1, schemaId: schema.schemaId, schemaVersion: schema.schemaVersion, portableAddress, settings };
+
+  return {
+    contractVersion: 1,
+    schemaId: bindingSchema.schemaId,
+    schemaVersion: bindingSchema.schemaVersion,
+    portableAddress,
+    settings
+  };
 }
 
 function buildBulkCandidate(model: EngineeringPackageView, source: DataSourceEngineering, type: DataSourceTypeDefinition | null, nodes: readonly DriverBrowseNodeView[], prefix: string): EngineeringPackageView {
   if (!source.id) throw new Error('OPC UA bulk import requires a stable Data Source Id.');
-  if (!type?.configurationSchema) throw new Error('OPC UA Driver binding schema is unavailable.');
+  if (!type?.configurationSchema || !tagBindingSchemaIdentity(type))
+    throw new Error('OPC UA Driver binding schema is unavailable.');
   const normalizedPrefix = normalizePathPrefix(prefix);
   const candidate = JSON.parse(JSON.stringify(model)) as EngineeringPackageView;
   const usedPaths = new Set(candidate.tags.map(tag => tag.path.toLowerCase()));
@@ -280,7 +299,7 @@ function buildBulkCandidate(model: EngineeringPackageView, source: DataSourceEng
     const baseName = sanitizeSegment(node.displayName) || `Node${index + 1}`;
     const path = uniquePath(`${normalizedPrefix}.${baseName}`, usedPaths);
     usedPaths.add(path.toLowerCase());
-    const binding = buildBinding(type, node.portableAddress);
+    const binding = buildOpcUaTagBinding(type, node.portableAddress);
     if (!binding) throw new Error('OPC UA Driver binding schema is unavailable.');
     newTags.push({
       name: baseName,

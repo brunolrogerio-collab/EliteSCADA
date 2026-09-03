@@ -1,9 +1,11 @@
 import { clientMemory, type ClientMemoryStore } from '../runtime/clientMemory';
+import { writeRuntimeTagValue, type RuntimeTagWriteValue } from '../runtime/runtimeTagWriteApi';
 import { loadRuntimeTagDetail } from '../runtime/tagInspectorApi';
 import type { RuntimeTagDetailResponse } from '../runtime/tagInspectorTypes';
 import type { ClientVisualPythonCapabilityProvider } from './clientVisualPythonCapabilities';
 
 export type ClientVisualPythonTagReader = (reference: string) => Promise<RuntimeTagDetailResponse>;
+export type ClientVisualPythonTagWriter = (reference: string, value: RuntimeTagWriteValue) => Promise<void>;
 
 export type ClientVisualPythonVisualPropertyProvider = Pick<
   ClientVisualPythonCapabilityProvider,
@@ -12,6 +14,7 @@ export type ClientVisualPythonVisualPropertyProvider = Pick<
 
 export type ClientVisualPythonCapabilityProviderOptions = {
   tagReader?: ClientVisualPythonTagReader;
+  tagWriter?: ClientVisualPythonTagWriter;
   memoryStore?: ClientMemoryStore;
   visualPropertyProvider?: ClientVisualPythonVisualPropertyProvider;
 };
@@ -20,6 +23,7 @@ export function createClientVisualPythonCapabilityProvider(
   options: ClientVisualPythonCapabilityProviderOptions = {}
 ): ClientVisualPythonCapabilityProvider {
   const tagReader = options.tagReader ?? loadRuntimeTagDetail;
+  const tagWriter = options.tagWriter ?? writeRuntimeTagValue;
   const memoryStore = options.memoryStore ?? clientMemory;
   const visualPropertyProvider = options.visualPropertyProvider;
 
@@ -40,6 +44,11 @@ export function createClientVisualPythonCapabilityProvider(
         sourceTimestamp: detail.current?.sourceTimestamp ?? null,
         serverTimestamp: detail.current?.serverTimestamp ?? null
       };
+    },
+
+    async writeTag(reference, value) {
+      await tagWriter(reference, value);
+      return { accepted: true, reference };
     },
 
     readClientMemory(reference) {

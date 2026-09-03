@@ -21,7 +21,10 @@ test('effective capabilities endpoint projects runtime and workspace grants inde
 });
 
 test('effective capabilities endpoint requires authentication when authentication is enabled', async ({ playwright }) => {
-  const anonymous = await playwright.request.newContext({ baseURL: 'http://127.0.0.1:5173' });
+  const anonymous = await playwright.request.newContext({
+    baseURL: 'http://127.0.0.1:5173',
+    extraHTTPHeaders: { Authorization: '' }
+  });
   try {
     const response = await anonymous.get('/api/auth/effective-capabilities');
     expect(response.status()).toBe(401);

@@ -1,3 +1,5 @@
+import type { DynamoEngineering } from '../types';
+import type { DynamoParameterValueEngineering } from '../runtime/visual-navigation/runtimeVisualNavigationModel';
 import type {
   VisualEditorAlignmentOperation,
   VisualEditorDistributionOperation,
@@ -17,6 +19,18 @@ export type VisualEditorKeyboardCommand =
   | Readonly<{ kind: 'distribute'; operation: VisualEditorDistributionOperation }>
   | Readonly<{ kind: 'size'; operation: VisualEditorSizeOperation }>
   | Readonly<{ kind: 'lock'; locked: boolean }>
+  | Readonly<{
+      kind: 'dynamoParameter.set';
+      objectId: string;
+      definition: DynamoEngineering;
+      value: DynamoParameterValueEngineering;
+    }>
+  | Readonly<{
+      kind: 'dynamoParameter.remove';
+      objectId: string;
+      definition: DynamoEngineering;
+      parameterKey: string;
+    }>
   | Readonly<{ kind: 'selectAll' }>
   | Readonly<{ kind: 'nudge'; deltaX: number; deltaY: number }>;
 

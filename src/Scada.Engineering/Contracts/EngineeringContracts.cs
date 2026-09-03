@@ -110,7 +110,8 @@ public sealed record TagEngineeringDto(
     TagAccessPolicyDto? AccessPolicy = null,
     MemoryInitialValueDto? InitialValue = null,
     TagValueSelector? AddressSelector = null,
-    CommunicationTagBinding? CommunicationBinding = null);
+    CommunicationTagBinding? CommunicationBinding = null,
+    Guid? DataSourceId = null);
 
 public sealed record AlarmEngineeringDto(
     Guid? Id,

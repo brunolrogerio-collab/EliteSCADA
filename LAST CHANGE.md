@@ -1,255 +1,274 @@
 # LAST CHANGE — EliteSCADA
 
-**Date:** 2026-09-02 (BRT)  
-**Operational state:** **WAVE 12 #201 COMPLETE / ACCEPTED; WAVE 14 #211 ACTIVE WITH DEDICATED INTEGRATION PR #212 AND STAGE A DEVS DISPATCHED; TEST PREVIEW #208/#210 ACTIVE AS VALIDATION HARNESS; WAVE 13 #205/#207 PAUSED AT GREEN CHECKPOINT**
+**Date:** 2026-09-03 (BRT)  
+**Operational state:** **WAVE 14 #211 ACTIVE / C01-C07+C04 INTEGRATED AND COMBINED GREEN / C08 DISPATCHED / C09 ACTIVE WITH CHROMIUM REGRESSION WORK / TEST PREVIEW #208/#210 REMAINS VALIDATION HARNESS / WAVE 13 #205/#207 PAUSED**
 
-> Mutable Coordinator resume point. `PROJECT GOAL.md` governs permanent product intent. Live GitHub refs and exact-SHA CI override copied prose. Documentation-only `[skip ci]` commits may advance `main` beyond the latest validated product-code SHA without superseding that product baseline.
+> Mutable Coordinator resume point. `PROJECT GOAL.md` governs permanent product intent. GitHub is the development memory. Live refs, PR state and exact-SHA CI override copied prose. Documentation-only `[skip ci]` commits may advance an integration/documentation head without superseding the last validated product-code SHA.
 
-## 1. What changed in this synchronization
+## 1. Current Wave 14 integration checkpoint
 
-### Wave 14 correction integration started
+Live state revalidated before this synchronization:
 
-Live GitHub was revalidated before branch creation:
+- `main`: `edbdf446ea657713bdc487be91bf10bfcd03c684` — unchanged;
+- Wave 14 integration PR: #212 — OPEN / DRAFT / mergeable;
+- last fully validated Wave 14 integration **product-code** SHA before this documentation commit:
 
-- `main`: `edbdf446ea657713bdc487be91bf10bfcd03c684`;
-- issue #211: open with the first correction intake closed;
-- issue #208 / draft PR #210: open Preview harness, head `0ab6e80c1c47a78b0bd33b07424d906b5f847faa`;
-- exact Preview-head validation: Test Preview #14 / `33654310816`, EliteSCADA CI #1137 / `33654310731` and Wave 11 Active HMI Runtime #67 / `33654311040` — all **SUCCESS**;
-- issue #205 / draft PR #207: still paused/open/draft, head `fda87ba4445127c174f6ea533a6bcabaabc7bb20`.
+`375519e8d87fe76f74121bf9e84f99b98c5ee23a`
 
-The coordinator created the dedicated branch `wave14/corrections-integration` and draft PR #212, separate from Preview PR #210.
+That product head contains the accepted coordinator intake of:
 
-Pinned Stage A DEV base:
+- C01 — Identity / secure first-run / password policy;
+- C02 — backend-authoritative Driver catalog / Data Source forms;
+- C03 — permissive OpenDNP3 production adapter / Step Function commercial dependency removal;
+- C04 — TAG Source identity + protocol-aware address assistants + OPC UA discovery/browse;
+- C05 — canonical visual properties + schema-driven Property Inspector;
+- C06 — Engineering Diagnostics / TAG Monitor boundary;
+- C07 — Screen Engineering / Popups / Dynamo authoring maturity.
 
-`c6bd4c4d09dc902f1571750e95b7f0460ba3b77a`
-
-That base starts from live `main` `edbdf446...` and contains only the already-proven Script Engineering correction transferred from Preview with source provenance retained:
-
-- integration fix commit `26afb0f9a8022f55737a50fabf6d28c44deb0fbd`, sourced from `cd7fca14d9b23b2f40417dcc282520728a095905`;
-- integration test commit `c6bd4c4d09dc902f1571750e95b7f0460ba3b77a`, sourced from validated Preview SHA `6304144a1beab6d4f3b4cf41b95fd16b5b82ba25`.
-
-Stage A branches were created from that exact base and assigned as bounded workstreams:
-
-- `wave14/c01-secure-first-run`;
-- `wave14/c02-driver-catalog-forms`;
-- `wave14/c03-dnp3-unrestricted-adapter`;
-- `wave14/c05-visual-property-inspector`;
-- `wave14/c06-engineering-tag-monitor`.
-
-No package DEV may merge directly to `main` or use PR #210 as a feature bucket. The coordinator owns integration through #212 and C10.
-
-### Previous correction-plan synchronization
-
-The Development Lead completed the first Wave 14 owner-correction intake and requested that work be organized for multiple independent DEV chats/agents under one new coordinator.
-
-Repository coordination was updated accordingly:
-
-- created `docs/WAVE14-CORRECTION-PACKAGES.md`;
-- updated `docs/CURRENT-COORDINATOR-HANDOFF.md` with current correction, project and Codespaces Preview context;
-- split implementation into nine bounded DEV packages plus one coordinator integration/acceptance gate;
-- updated the Wave 14 first-run requirement in issue #211 to supersede the old 12-character password rule with **minimum 8 characters**;
-- added DNP3 unrestricted-adapter investigation as a P0 commercial-release blocker.
-
-Documentation commits created in this synchronization before this `LAST CHANGE.md` update:
-
-- `b8d47539829bd1be0a5bc5140b570dfb81d6678f` — Wave 14 correction packages;
-- `27c41c9fa04a731e4864ccb958c2cd74d88b1df0` — current coordinator handoff.
-
-These are documentation-only `[skip ci]` commits and do not establish a new product-code acceptance baseline.
-
-## 2. Mandatory resume reading
-
-A new coordinator must read, in order:
-
-1. `PROJECT GOAL.md`;
-2. this `LAST CHANGE.md`;
-3. `docs/CURRENT-COORDINATOR-HANDOFF.md`;
-4. `docs/WAVE14-CORRECTION-PACKAGES.md`;
-5. `docs/ROADMAP.md`;
-6. `docs/CI-VALIDATION-POLICY.md`;
-7. live `main`, issue #211, issue #208, draft PR #210, and exact current Actions;
-8. issue #205 / draft PR #207 only to understand the paused Wave 13 boundary.
-
-GitHub, not previous chats, is the development memory.
-
-## 3. Accepted foundation
-
-Wave 12 remains **COMPLETE / ACCEPTED**.
-
-Accepted Wave 12 product-code baseline:
-
-`63bced02426fcb84b26028913f6c68feb3457d80`
+The integration remains intentionally separate from `main` until Wave 14 C10 owner acceptance is complete.
 
 Accepted Runtime authority remains:
 
 `Working -> saved Revision -> Published -> Active -> HMI Runtime`
 
-Exact post-merge Wave 12 evidence:
+## 2. C04 final intake
 
-- EliteSCADA CI #1096 / `33576603185`: **SUCCESS**;
-- L3 Seven-Driver Lab #92 / `33576603158`: **SUCCESS**.
+Authoritative package PR: #221.
 
-Do not reopen accepted Wave 11/12 architecture without a demonstrated defect.
+Preserved lineage:
 
-## 4. Wave 14 correction packages
+- required C02 base: `7a0515289bdabba157fb1f645b32647746c83371`;
+- validated C04 product SHA: `dc1c9e7beba19737713c7f29b61c661cb8e26a7c`;
+- documentation-only C04 handoff head: `044ed0b1ec56a3d75ec1f3fac08e0a332c33c499`;
+- coordinator integration merge: `375519e8d87fe76f74121bf9e84f99b98c5ee23a`.
 
-Canonical package plan: `docs/WAVE14-CORRECTION-PACKAGES.md`.
+C04 is authoritative for:
 
-Current execution checkpoint: Stage A C01/C02/C03/C05/C06 is in progress on the dedicated branches recorded above, all pinned to base `c6bd4c4d09dc902f1571750e95b7f0460ba3b77a`. C04/C07/C08/C09 have not been dispatched yet because their prerequisite/common-Web bases are not stable. C10 remains coordinator-owned.
+- stable TAG `DataSourceId` / Source identity and reference behavior;
+- rename-safe resolution and explicit orphan handling;
+- legacy Source-key migration where real persisted-data compatibility requires it;
+- TAG Source selection;
+- Driver-aware communication/address authoring;
+- Modbus, DNP3 and IEC-104 assistants;
+- OPC UA Test / Discover / Browse / Search / bulk TAG creation;
+- backend-driven Driver binding schemas/capabilities;
+- C04 `pt-BR`, `en`, `es` user-facing resources.
 
-### Stage A — may start in parallel
+Do not reintroduce obsolete fixture behavior merely to preserve the historical DEMO.
 
-- **W14-C01:** Identity / secure first-run / password minimum 8;
-- **W14-C02:** backend-authoritative Driver catalog + Source/Driver forms;
-- **W14-C03:** DNP3 unrestricted production adapter / commercial unblock;
-- **W14-C05:** canonical visual properties + schema-driven Property Inspector;
-- **W14-C06:** Engineering Diagnostics / TAG Monitor product boundary.
+## 3. Combined exact-head validation after C04
 
-### Stage B — consume prerequisite contracts
+The integrated product head `375519e8d87fe76f74121bf9e84f99b98c5ee23a` passed all five PR-associated gates:
 
-- **W14-C04:** TAG Source selection + protocol-aware address/discovery assistants, after C02;
-- **W14-C07:** Screen Engineering + Dynamo maturity, after C05;
-- **W14-C08:** Python Script Assistant / project object browser, after C04/C05 contracts are sufficiently stable;
-- **W14-C09:** application shell + operator Runtime presentation, preferably after a common Web integration baseline is frozen.
+- EliteSCADA CI #1223 / `33768584304`: **SUCCESS**;
+- L3 Seven-Driver Lab #130 / `33768584361`: **SUCCESS**;
+- Wave 11 Active HMI Runtime #153 / `33768584242`: **SUCCESS**;
+- Preview Licensing CI #175 / `33768584261`: **SUCCESS**;
+- Interop Lab Smoke #52 / `33768584318`: **SUCCESS**.
 
-### Stage C — coordinator-owned gate
+This is the current trusted combined product-code base for downstream C08 work. A later `[skip ci]` documentation commit on `wave14/corrections-integration` does not supersede this validated product SHA.
 
-- **W14-C10:** integration, regression, exact-head CI, real Codespace/browser owner validation and accepted corrected Wave 14 baseline.
+## 4. C08 released
 
-Nine dedicated DEV chats can therefore own C01-C09. The coordinator should remain the tenth lane and must control integration rather than having a tenth independent agent edit overlapping product code.
+Branch created by the coordinator:
 
-Every DEV must receive an exact live base SHA, bounded subsystem ownership, branch name, architecture/security constraints, acceptance tests and GitHub evidence obligation. No independent DEV silently merges to `main`.
+`wave14/c08-python-script-assistant`
 
-## 5. Password policy update — requested, not yet implemented
+Exact development base:
 
-Development Lead explicitly changed the desired product minimum password length from **12 to 8 characters**.
+`375519e8d87fe76f74121bf9e84f99b98c5ee23a`
 
-This direction now supersedes the old 12-character requirement in the Wave 14 first-run acceptance comment on issue #211.
+This is the required combined C04+C05 base.
 
-W14-C01 must implement the actual product change. Until a product-code correction is integrated and accepted, current product/Preview code may still enforce the old 12-character minimum.
+C08 scope remains:
 
-Acceptance requirement:
+- Script Assistant / project object browser for TAGs, Screens, objects, Popups, Dynamos/public interfaces, Client Memory and available script capabilities;
+- friendly project navigation resolving to canonical stable references;
+- context-sensitive property metadata from the canonical C05 schemas;
+- guided generation of normal editable Python;
+- event/action assistance, especially Button `Click` workflows;
+- safe TAG-write authoring only through an authenticated/authorized product backend/runtime command path;
+- preserve generic visual-property `read/write/clear/tween` APIs;
+- preserve Pyodide sandbox restrictions;
+- no direct shared-TAG, Driver, DOM/React, OS or network bypass.
 
-- 7 characters rejected;
-- 8 characters accepted;
-- backend remains canonical authority;
-- upper-bound/other security behavior remains unchanged unless separately justified;
-- Preview/bootstrap hints and checks follow the accepted new product policy;
-- historical runbook evidence remains truthful that an earlier Codespace failed under the then-current 12-character policy.
+If the mediated Client Visual Python TAG-write path is incomplete, implement the safe product path; do not weaken the sandbox.
 
-## 6. DNP3 investigation — important new evidence
+## 5. C09 active — not accepted yet
 
-Current product adapter:
+Development branch:
 
-`src/Scada.Drivers.Dnp3.StepFunction`
+`wave14/c09-application-shell-runtime`
 
-Its project references Step Function NuGet package:
+Pinned development base:
 
-`dnp3` version `1.6.0`
+`b7f4783d7c014c49f8b96874216ed76f0d218ceb`
 
-The adapter README already isolates Step Function behind the vendor-neutral EliteSCADA DNP3 master-session contract and records the current commercial/production/redistribution restriction.
+Current C09 PR: #227 — validation-only draft against `main`.
 
-The L3 Seven-Driver Lab uses an independent DNP3 peer built from:
+Latest observed C09 head during this checkpoint:
 
-`interop-lab/dnp3-dnp3py/Dockerfile`
+`2904490066295849e71f8a1394072be957ed199f`
 
-That Dockerfile pins `craigpnnl/dnp3py` commit:
+Implemented direction includes:
 
-`8a20d4c276274f2b98800716cd7da963f21da2c1`
+- backend-effective capability projection;
+- capability-driven shell/navigation;
+- first-class Dark/Light semantic shell themes;
+- operator-focused Runtime with reduced chrome;
+- fixed logical Runtime canvas using uniform `min(viewport/design)` scale;
+- centered letterbox/pillarbox rather than responsive HMI reflow;
+- no document scroll for the HMI composition;
+- Screen and Popup composition under the same logical transform;
+- fullscreen Runtime while retaining appropriate session/logout controls;
+- alarm presentation as overlay rather than permanent HMI reflow region;
+- `pt-BR`, `en`, `es` C09 copy.
 
-Inspection of that pinned source confirms:
+Validation on `290449...`:
 
-- MIT License;
-- pure Python implementation;
-- `pyproject.toml` declares no project dependencies;
-- Master and Outstation components are documented;
-- project describes a DNP3 Level-2 subset.
+- backend build/test/runtime smoke: SUCCESS;
+- Web build: SUCCESS;
+- Wave 11 Active HMI Runtime `33766341479`: SUCCESS;
+- Preview Licensing `33766341528`: SUCCESS;
+- Interop Lab Smoke `33766341608`: SUCCESS;
+- L3 Seven-Driver Lab `33766341490`: SUCCESS;
+- EliteSCADA CI `33766341541`: **FAILURE in Chromium E2E**.
 
-This makes `dnp3py` a promising first replacement candidate, but the current L3 lab uses it as the **peer/outstation**, not as the EliteSCADA production adapter. Therefore the commercial blocker is **not yet removed**.
+The coordinator recorded 10 Chromium failures at that head. Several assertions visibly depend on obsolete permanent Runtime regions such as historical operational-overview/alarm chrome and should be updated to the new C09 contract. Failures involving legitimate Report Designer reachability, User Administration reachability or Engineering Preview behavior must be diagnosed individually; do not classify every failure as obsolete by default.
 
-W14-C03 owns the proof of:
+C09 must not be integrated until the final exact head is universally green.
 
-- maintainable Windows/.NET integration;
-- master feature adequacy/parity;
-- polling/events/quality/timestamps/reconnect and required write/command behavior;
-- DNP3-specific + L3 Seven-Driver + universal CI on exact SHA;
-- final product dependency closure with no restricted Step Function package/bytes before commercial unblock is declared.
+## 6. Binding compatibility direction
 
-## 7. Preview / Codespaces current state
+The Development Lead explicitly changed the compatibility rule for this Wave:
 
-Tracking:
+- C04 prevails in TAG Source / Driver communication / address / discovery-browse domains;
+- C07 prevails in Screen Engineering / graphical authoring / Popup / Dynamo domains;
+- C09 consumes those contracts and updates old shell assumptions rather than deforming C07;
+- C06 remains authority for TAG Monitor under Engineering Diagnostics;
+- backend authority/security, lifecycle and real persisted-data compatibility remain mandatory;
+- historical fixtures and historical DEMO behavior are not product authority when they contradict accepted Wave 14 contracts.
 
-- issue #208;
-- draft PR #210;
-- branch `preview/codespaces-test-preview`.
+A failing legacy test must be diagnosed as either:
 
-Live PR #210 inspection during this synchronization showed:
+1. a real product regression; or
+2. an obsolete consumer/fixture expectation.
 
-- OPEN / DRAFT / mergeable at inspection time;
-- head `0ab6e80c1c47a78b0bd33b07424d906b5f847faa`;
-- latest explicitly validated product-code correction `6304144a1beab6d4f3b4cf41b95fd16b5b82ba25`;
-- exact validation on that product SHA:
-  - Test Preview #13 / `33652433077`: SUCCESS;
-  - EliteSCADA CI #1136 / `33652432886`: SUCCESS;
-  - Wave 11 Active HMI Runtime #66 / `33652432755`: SUCCESS.
+Do not weaken tests merely to obtain green. Update obsolete tests to represent the new contract while preserving meaningful assertions.
 
-Real browser entry and actual EliteSCADA login have already succeeded in Codespaces.
+## 7. Multilingual interface requirement
 
-Preview runbook:
+Before final Wave 14 acceptance, perform a combined interface audit covering all Wave 14 surfaces for:
 
-`docs/CODESPACES-PREVIEW-RUNBOOK.md` on the Preview branch while #210 remains unmerged.
+- `pt-BR`;
+- `en`;
+- `es`.
 
-Key environment contract:
+Audit labels, menus, help, tooltips, errors, validation, confirmations, empty states, theme controls, Driver/TAG assistants, Property Inspector, Screen/Dynamo authoring, Script Assistant and Runtime/operator surfaces.
 
-- .NET SDK 10.0.400;
-- Node 24;
-- TimescaleDB/PostgreSQL through Compose;
-- disposable read-only `/etc/machine-id` for normal fail-closed licensing;
-- secret name `ELITESCADA_PREVIEW_ADMIN_PASSWORD`;
-- automatic launcher `bash scripts/preview/launch-test-preview.sh` via `postAttachCommand`;
-- Web 5173 Private; API 5080/DB internal;
-- HTTP 502 on 5173 means Web is not listening, not ready.
+Do not create independent per-component translation catalogs when a shared canonical resource mechanism exists. Persisted protocol/property/reference values remain canonical and are not translated as data.
 
-Do not put C01-C09 directly into PR #210 merely because Preview reproduces the defects. #208/#210 is the harness. #211/Wave 14 owns product correction scope.
+C04 and C07 already contain scoped multilingual work; C09 contains its own shared shell/operator strings. C10 still owns the final cross-product audit.
 
-## 8. Wave 13 remains paused
+## 8. Historical DEMO is no longer the product contract
 
-Preserved fully validated Wave 13 implementation SHA:
+The previous DEMO application/fixture must not be used to constrain Wave 14 architecture.
 
-`9f26a2bc02ae77017e266c52ff128dc39eece4b4`
+Do not add compatibility shims merely to make the historical Demo behave like the pre-Wave-14 product.
 
-Preserved branch head after earlier docs synchronization:
+Real persisted-data compatibility may still be required where it is part of a current public contract. That is different from preserving an obsolete test fixture.
 
-`fda87ba4445127c174f6ea533a6bcabaabc7bb20`
+The historical Demo may remain as historical evidence or a narrowly justified legacy fixture, but it is not the Wave 14 acceptance model.
 
-Retained validation:
+## 9. New canonical DEMO after package convergence
 
-- Wave 13 Windows Release #27 / `33643546191`: SUCCESS;
-- EliteSCADA CI #1134 / `33643546119`: SUCCESS;
-- L3 Seven-Driver Lab #102 / `33643546111`: SUCCESS;
-- Wave 11 Active HMI Runtime #64 / `33643546139`: SUCCESS.
+After C08 and C09 are complete and integrated, create a new Demo application from the **current** product model and normal product workflows.
 
-Do not advance final Authenticode signing, merge or commercial release from that stale product snapshot while Wave 14 is changing the product.
+Required end-to-end construction path:
 
-## 9. Windows installer rule
+`fresh install -> first Administrator -> create project -> configure Sources/Drivers -> create TAGs -> Screens/Popups/Dynamos -> Scripts/Bindings -> Save -> Publish -> Activate -> HMI Runtime`
 
-Whenever the Development Lead asks for a Windows installer during Wave 14 corrections:
+The new Demo should intentionally exercise, where applicable:
 
-`product = latest corrected/accepted Wave 14 baseline`
+- current Driver/Data Source catalog and forms;
+- TAG Source selection and protocol address assistants;
+- discovery/browse, including OPC UA;
+- canonical visual properties;
+- multiple Screens;
+- Popups;
+- all canonical built-in Dynamos or a representative catalog exercise with inventory validation;
+- bindings and state behavior;
+- Python / Script Assistant;
+- alarms/history where appropriate;
+- user/capability boundaries including Runtime-only identity;
+- Dark and Light shell themes;
+- `pt-BR`, `en`, `es`;
+- Runtime at representative 1280x720, 1920x1080, 2560x1440 and 3840x2160 viewports without document scroll.
 
-`Windows packaging mechanism = proven Wave 13 machinery`
+This new Demo becomes the reproducible owner-validation fixture for the clean Codespace run.
 
-Record exact product SHA and packaging SHA. Never silently fall back to the old Wave 13 product snapshot merely because its workflow is already green.
+## 10. C10 / Codespace final sequence
 
-If W14-C03 succeeds before the installer/release, verify that the selected product/package no longer carries the restricted Step Function DNP3 dependency before representing DNP3 as commercially unblocked.
+The binding Wave 14 acceptance order is:
 
-## 10. Exact next action
+`corrections converged -> multilingual audit -> new canonical DEMO -> full exact-head CI -> clean Codespace -> real browser Product Owner validation`
 
-1. keep draft PR #212 exact-head CI under observation;
-2. review each Stage A DEV candidate against its fixed package scope and exact base;
-3. publish package commits/PR evidence without allowing direct merges to `main`;
-4. stabilize C02 and C05 contracts, then dispatch C04 and C07;
-5. dispatch C08 only after C04/C05 interfaces are stable and C09 only after a common Web integration base is frozen;
-6. integrate exact-head green work through #212 in dependency order;
-7. run affected specialized workflows and real Codespace/browser owner validation on the integrated SHA;
-8. record evidence in issue #211 and establish one accepted corrected Wave 14 product baseline before final Wave 13 signing resumes.
+Preview issue #208 / PR #210 remains a **validation harness**, not the product feature branch.
+
+Do not update the product architecture merely to preserve the old Demo launcher assumptions. Adapt the Preview fixture/automation to the new canonical Demo after convergence.
+
+## 11. DNP3 commercial boundary
+
+C03 is integrated and the current product dependency graph uses the permissive OpenDNP3-based adapter rather than the restricted Step Function production package.
+
+The C03 candidate proved native Linux/Windows helper build, independent dnp3py interop, supported command behavior, reconnect/fault recovery and Windows commercial package/dependency closure. Combined universal CI has subsequently passed on integrated Wave 14 heads.
+
+This clears the old Step Function dependency blocker for the integrated product line. It does **not** mean Wave 14 as a whole is released or accepted; C10 remains outstanding.
+
+OpenDNP3 upstream is archived/EOL, so the integration remains an explicit maintenance responsibility for EliteSCADA.
+
+## 12. Wave 13 remains paused
+
+Wave 13 issue #205 / PR #207 remains paused at its preserved green repository-side checkpoint.
+
+Do not resume final signing against the stale pre-owner-validation product snapshot.
+
+Any requested Windows installer during/after this Wave must use:
+
+`product = latest corrected/accepted Wave 14 product baseline`
+
+`packaging/signing mechanism = proven Wave 13 machinery`
+
+Record exact product SHA and packaging SHA.
+
+## 13. Mandatory coordinator resume reading
+
+A coordinator resuming from here must read, in order:
+
+1. `PROJECT GOAL.md`;
+2. this `LAST CHANGE.md`;
+3. `docs/CURRENT-COORDINATOR-HANDOFF.md`;
+4. `docs/WAVE14-CORRECTION-PACKAGES.md`;
+5. `docs/CI-VALIDATION-POLICY.md`;
+6. issue #211;
+7. draft PR #212 and its latest comments/workflows;
+8. active C08 branch and its future PR/handoff;
+9. PR #227 / current C09 head and failing/passing Actions;
+10. issue #208 / PR #210 only for Preview-harness state;
+11. issue #205 / PR #207 only for the paused Wave 13 boundary.
+
+GitHub, not previous chats, is the official development memory.
+
+## 14. Exact next actions
+
+1. dispatch W14-C08 on `wave14/c08-python-script-assistant` from exact base `375519e8d87fe76f74121bf9e84f99b98c5ee23a`;
+2. keep C09 DEV on #227 until the Chromium failures are individually diagnosed and the final exact head is universally green;
+3. do not integrate C09 while its universal CI remains red;
+4. when C08 is final, review scope/ancestry/security boundaries, validate exact head and integrate through #212;
+5. when C09 is final, review scope/ancestry/capability/theme/Runtime-scale behavior and integrate through #212;
+6. run combined universal and impact-specific workflows after every accepted intake;
+7. perform the final multilingual audit on the converged product;
+8. create the new canonical Demo from current contracts;
+9. update/rebuild the Preview harness for that Demo;
+10. run full C10 CI and a clean Codespace/browser owner-validation pass;
+11. only then establish the accepted corrected Wave 14 baseline and consider Wave 13 release/signing resumption.

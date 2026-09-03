@@ -59,3 +59,16 @@ test('TAG editor mounts protocol-aware address assistant while preserving manual
   expect(assistant).toContain('data-testid="modbus-address-build"');
   expect(api).toContain('/api/engineering/tag-address/modbus/build');
 });
+
+test('DNP3 and IEC-104 assistants resolve binding schema from the backend catalog', async () => {
+  const dnp3 = await readFile(new URL('../src/engineering/Dnp3TagAddressAssistant.tsx', import.meta.url), 'utf8');
+  const iec104 = await readFile(new URL('../src/engineering/Iec104TagAddressAssistant.tsx', import.meta.url), 'utf8');
+  const schemaResolver = await readFile(new URL('../src/engineering/TagBindingSchema.ts', import.meta.url), 'utf8');
+
+  expect(dnp3).toContain('loadTagBindingSchema(DNP3_DRIVER_TYPE)');
+  expect(iec104).toContain('loadTagBindingSchema(IEC104_DRIVER_TYPE)');
+  expect(dnp3).not.toContain('elite.dnp3');
+  expect(iec104).not.toContain('elite.iec60870.5.104.point');
+  expect(schemaResolver).toContain('loadDataSourceTypeCatalog');
+  expect(schemaResolver).toContain('tagBindingSchemaIdentity');
+});

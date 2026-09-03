@@ -189,7 +189,7 @@ test('normal Data Source flow has no hardcoded driver catalog and uses Preview/A
   expect(dataSourceSection).not.toContain('<EngineeringEntityBrowser');
   expect(editor).toContain('/api/engineering/data-source-types');
   expect(editor).toContain('data-testid="data-source-type"');
-  expect(editor).toContain('value={type.typeKey}>{type.displayName}');
+  expect(editor).toContain('resolveDriverCatalogResource(locale, type.displayNameResourceKey, type.displayName)');
   expect(editor).toContain('switchDataSourceType(draft, type)');
   expect(editor).toContain('removeIncompatibleDataSourceConfiguration(draft, currentType)');
   expect(editor).toContain('const before = await loadEngineeringWorkspace()');

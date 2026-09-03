@@ -49,3 +49,9 @@ test('pointer coordinates invert the exact visual scale and letterbox offset', (
   expect(logical!.x).toBeCloseTo(960, 8);
   expect(logical!.y).toBeCloseTo(540, 8);
 });
+
+test('hidden or not-yet-measured viewport stays non-interactive instead of producing invalid coordinates', () => {
+  const transform = calculateRuntimeLogicalTransform(0, 0, DESIGN.width, DESIGN.height);
+  expect(transform.scale).toBe(0);
+  expect(viewportPointToLogical(100, 100, 0, 0, transform)).toBeNull();
+});

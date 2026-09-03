@@ -1,6 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import type { EngineeringLocale } from './i18n';
-import { loadTagBindingSchema } from './TagBindingSchema';
+import {
+  loadTagBindingDefinition,
+  requireAllowedTagBindingValue,
+  requireTagBindingField
+} from './TagBindingSchema';
 import type { TagSourceAwareEngineering } from './TagSourceSelector.logic';
 
 type Props = {
@@ -46,7 +50,14 @@ export function Dnp3TagAddressAssistant({ tag, locale, onChange }: Props) {
 
     setBusy(true);
     try {
-      const schema = await loadTagBindingSchema(DNP3_DRIVER_TYPE);
+      const definition = await loadTagBindingDefinition(DNP3_DRIVER_TYPE);
+      requireAllowedTagBindingValue(definition, 'pointKind', pointKind);
+      const indexField = requireTagBindingField(definition, 'index');
+      if ((indexField.minimum != null && numericIndex < indexField.minimum) ||
+          (indexField.maximum != null && numericIndex > indexField.maximum)) {
+        throw new Error(text.indexInvalid);
+      }
+
       const canWrite = writable && isOutputKind(pointKind);
       const address = `dnp3:${pointKind}:${numericIndex}`;
       const settings: Record<string, string> = {
@@ -54,7 +65,11 @@ export function Dnp3TagAddressAssistant({ tag, locale, onChange }: Props) {
         index: String(numericIndex),
         writable: String(canWrite).toLowerCase()
       };
-      if (canWrite) settings.commandMode = 'selectBeforeOperate';
+      requireTagBindingField(definition, 'writable');
+      if (canWrite) {
+        requireAllowedTagBindingValue(definition, 'commandMode', 'selectBeforeOperate');
+        settings.commandMode = 'selectBeforeOperate';
+      }
 
       onChange({
         ...tag,
@@ -64,8 +79,8 @@ export function Dnp3TagAddressAssistant({ tag, locale, onChange }: Props) {
         addressSelector: null,
         communicationBinding: {
           contractVersion: 1,
-          schemaId: schema.schemaId,
-          schemaVersion: schema.schemaVersion,
+          schemaId: definition.identity.schemaId,
+          schemaVersion: definition.identity.schemaVersion,
           portableAddress: address,
           settings
         }

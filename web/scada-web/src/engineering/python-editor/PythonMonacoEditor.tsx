@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as monaco from 'monaco-editor';
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker';
 import type { EngineeringLocale } from '../i18n';
 import { PythonPreviewTestPanel } from '../scripts/PythonPreviewTestPanel';
+import { PythonScriptAssistant } from '../scripts/PythonScriptAssistant';
 import type {
   ScriptEngineeringEntryPoint,
   ScriptEngineeringScope
@@ -109,6 +110,30 @@ export function PythonMonacoEditor({
     return handlers;
   }, [entryPoints]);
 
+  const insertAtCursor = useCallback((rawText: string): boolean => {
+    if (readOnly || !rawText) return false;
+    const editor = editorRef.current;
+    const model = modelRef.current;
+    if (!editor || !model) return false;
+
+    const selection = editor.getSelection() ?? new monaco.Selection(1, 1, 1, 1);
+    const linePrefix = model.getLineContent(selection.startLineNumber).slice(0, Math.max(0, selection.startColumn - 1));
+    const indentation = /^\s*/.exec(linePrefix)?.[0] ?? '';
+    const text = indentation && selection.startColumn > 1
+      ? rawText.replace(/\n/g, `\n${indentation}`)
+      : rawText;
+
+    editor.pushUndoStop();
+    editor.executeEdits('elitescada-script-assistant', [{
+      range: selection,
+      text,
+      forceMoveMarkers: true
+    }]);
+    editor.pushUndoStop();
+    editor.focus();
+    return true;
+  }, [readOnly]);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -208,27 +233,9 @@ export function PythonMonacoEditor({
   }, [source]);
 
   useEffect(() => {
-    const editor = editorRef.current;
-    const model = modelRef.current;
-    if (!insertion || readOnly || !editor || !model || lastInsertionIdRef.current === insertion.id) return;
-
-    const selection = editor.getSelection() ?? new monaco.Selection(1, 1, 1, 1);
-    const linePrefix = model.getLineContent(selection.startLineNumber).slice(0, Math.max(0, selection.startColumn - 1));
-    const indentation = /^\s*/.exec(linePrefix)?.[0] ?? '';
-    const text = indentation && selection.startColumn > 1
-      ? insertion.text.replace(/\n/g, `\n${indentation}`)
-      : insertion.text;
-
-    editor.pushUndoStop();
-    editor.executeEdits('elitescada-script-assistant', [{
-      range: selection,
-      text,
-      forceMoveMarkers: true
-    }]);
-    editor.pushUndoStop();
-    editor.focus();
-    lastInsertionIdRef.current = insertion.id;
-  }, [insertion, readOnly, scriptId]);
+    if (!insertion || lastInsertionIdRef.current === insertion.id) return;
+    if (insertAtCursor(insertion.text)) lastInsertionIdRef.current = insertion.id;
+  }, [insertion, insertAtCursor, scriptId]);
 
   useEffect(() => {
     editorRef.current?.updateOptions({ readOnly });
@@ -313,6 +320,14 @@ export function PythonMonacoEditor({
           </strong>
         )}
       </footer>
+
+      {scope === 'clientVisual' && !readOnly && (
+        <PythonScriptAssistant
+          locale={locale}
+          scriptId={scriptId}
+          onInsert={insertAtCursor}
+        />
+      )}
 
       {scope === 'clientVisual' && !readOnly && (
         <PythonPreviewTestPanel

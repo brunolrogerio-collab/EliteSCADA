@@ -4,14 +4,14 @@
 **Branch:** `wave14/c04-tag-address-assistants`  
 **Integration target:** `wave14/corrections-integration`  
 **Required dependency/base:** C02 final SHA `7a0515289bdabba157fb1f645b32647746c83371` / PR #217  
-**Code-candidate SHA:** `ef6e528fe878ec6c939c5235166898d19f16a61e`  
+**Code-candidate SHA:** `6bb6480445e420aecf94d87a8c6594dafe67d0cc`  
 **Draft PR:** #221
 
 This document is a DEV handoff, not an acceptance declaration. GitHub refs and exact-SHA validation remain authoritative.
 
 ## 1. Dependency lineage
 
-Live comparison at the code-candidate SHA confirmed:
+Live comparison before handoff confirmed:
 
 - merge-base: exactly `7a0515289bdabba157fb1f645b32647746c83371`;
 - C04 is ahead of that base and not behind it;
@@ -46,7 +46,7 @@ The backend Driver catalog now projects TAG binding schema identity independentl
 
 When a Driver does not declare a distinct TAG binding schema, the catalog uses the configuration schema identity as the compatibility fallback. IEC-104 deliberately uses a distinct point-binding contract.
 
-Frontend schema resolution is centralized in `TagBindingSchema.ts`. Generic and specialized assistants consume the backend catalog rather than duplicating schema IDs.
+Frontend schema resolution is centralized in `TagBindingSchema.ts`. Generic and specialized assistants consume the backend catalog rather than duplicating schema IDs. DNP3 and IEC-104 additionally validate specialized choices against the live field definition before creating a binding.
 
 ## 4. Address authoring architecture
 
@@ -86,6 +86,8 @@ The Modbus descriptor now publishes runtime-backed TAG binding fields for:
 - `modbus.wordOrder`;
 - `modbus.scale`;
 - `modbus.offset`.
+
+New Modbus assistant output also carries a canonical `CommunicationBinding` using the catalog-projected TAG schema identity. The same settings remain mirrored in legacy TAG metadata because the current Modbus runtime compiler still consumes that compatibility representation; this keeps existing packages/runtime behavior intact while moving Engineering authoring onto the common envelope.
 
 Bit selection is intentionally not represented as Driver metadata because it is the canonical TAG `AddressSelector` contract.
 
@@ -166,6 +168,7 @@ Browser/TypeScript coverage includes:
 - rename/reselection preservation and true Source-change cleanup;
 - unresolved/deleted Source behavior;
 - manual Address / canonical binding convergence;
+- Modbus legacy metadata plus canonical binding convergence;
 - centralized specialized-assistant registry and schema-driven generic fallback;
 - OPC UA binding identity with deliberately different Data Source and TAG schema IDs;
 - OPC UA connection-test and discovery UI boundaries with sanitized results;
@@ -175,11 +178,11 @@ Some browser cases use route-level mocks for external OPC UA responses so they v
 
 ## 10. Validation status at handoff
 
-At code-candidate SHA `ef6e528fe878ec6c939c5235166898d19f16a61e`:
+At code-candidate SHA `6bb6480445e420aecf94d87a8c6594dafe67d0cc`:
 
-- PR #221 is open, draft and mergeable;
+- PR #221 remained open, draft and mergeable at the last live inspection;
 - no PR discussion/review findings were present at inspection time;
-- no GitHub commit statuses/checks were registered for the candidate SHA;
+- no GitHub commit statuses/checks were registered for the preceding candidate inspection;
 - no local build/test was executed by this DEV environment because the local runtime could not resolve GitHub for a repository clone.
 
 The absence of Actions on this PR is consistent with repository workflow routing: the universal `EliteSCADA CI` is configured for pull requests targeting `main`, while this package correctly targets `wave14/corrections-integration`.

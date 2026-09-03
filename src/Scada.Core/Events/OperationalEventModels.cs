@@ -109,7 +109,7 @@ public static class OperationalEventContract
             commandId,
             Optional(emission.CommandKey, 240),
             Optional(emission.Message, 4000) ?? normalized.Message,
-            Copy(emission.Context) ?? new Dictionary<string, string>(StringComparer.Ordinal),
+            MergeContext(normalized.Metadata, emission.Context),
             timestamp);
     }
 
@@ -148,5 +148,30 @@ public static class OperationalEventContract
             copy[key] = value;
         }
         return copy;
+    }
+
+    private static IReadOnlyDictionary<string, string> MergeContext(
+        IReadOnlyDictionary<string, string>? metadata,
+        IReadOnlyDictionary<string, string>? dynamicContext)
+    {
+        var merged = new Dictionary<string, string>(StringComparer.Ordinal);
+        var authored = Copy(metadata);
+        if (authored is not null)
+        {
+            foreach (var pair in authored)
+                merged[pair.Key] = pair.Value;
+        }
+
+        var runtime = Copy(dynamicContext);
+        if (runtime is not null)
+        {
+            foreach (var pair in runtime)
+                merged[pair.Key] = pair.Value;
+        }
+
+        if (merged.Count > 128)
+            throw new ArgumentException("Operational Event merged context supports at most 128 entries.");
+
+        return merged;
     }
 }

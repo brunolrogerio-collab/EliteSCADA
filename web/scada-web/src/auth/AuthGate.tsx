@@ -176,6 +176,7 @@ async function getProfile(localLoginEnabled: boolean): Promise<AuthProfile | nul
 
 async function needsFirstProject(): Promise<boolean> {
   const response = await fetch(`${API}/api/engineering/persistence/status`, { headers: { accept: 'application/json' } });
+  if (response.status === 403) return false;
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
   const status = await response.json() as PersistenceStatus;
   return status.enabled && status.hasProjects === false;

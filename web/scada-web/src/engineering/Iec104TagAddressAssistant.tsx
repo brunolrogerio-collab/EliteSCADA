@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import type { EngineeringLocale } from './i18n';
+import { c04Text } from './c04I18n';
 import {
   loadTagBindingDefinition,
   requireAllowedTagBindingValue,
@@ -33,7 +34,7 @@ const commandTypes = [
 ] as const;
 
 export function Iec104TagAddressAssistant({ tag, locale, onChange }: Props) {
-  const text = useMemo(() => copy(locale), [locale]);
+  const text = useMemo(() => c04Text(locale).iec104, [locale]);
   const parsed = parseIec104Address(tag.address);
   const currentType = tag.communicationBinding?.settings?.['iec104.typeId'];
   const [commonAddress, setCommonAddress] = useState(parsed?.commonAddress ?? '1');
@@ -68,8 +69,16 @@ export function Iec104TagAddressAssistant({ tag, locale, onChange }: Props) {
     }
 
     setBusy(true);
+    let definition;
     try {
-      const definition = await loadTagBindingDefinition(IEC104_DRIVER_TYPE);
+      definition = await loadTagBindingDefinition(IEC104_DRIVER_TYPE);
+    } catch {
+      setError(text.schemaUnavailable);
+      setBusy(false);
+      return;
+    }
+
+    try {
       requireAllowedTagBindingValue(definition, 'iec104.typeId', typeId);
 
       const settings: Record<string, string> = { 'iec104.typeId': typeId };
@@ -79,7 +88,8 @@ export function Iec104TagAddressAssistant({ tag, locale, onChange }: Props) {
         const qualifierField = requireTagBindingField(definition, 'iec104.qualifier');
         if ((qualifierField.minimum != null && qoc < qualifierField.minimum) ||
             (qualifierField.maximum != null && qoc > qualifierField.maximum)) {
-          throw new Error(text.qualifierInvalid);
+          setError(text.qualifierInvalid);
+          return;
         }
         settings['iec104.commandTypeId'] = commandTypeId;
         settings['iec104.commandMode'] = commandMode;
@@ -101,8 +111,8 @@ export function Iec104TagAddressAssistant({ tag, locale, onChange }: Props) {
           settings
         }
       });
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
+    } catch {
+      setError(text.catalogMismatch);
     } finally {
       setBusy(false);
     }
@@ -147,22 +157,4 @@ function integerInRange(value: string, minimum: number, maximum: number): number
   if (!/^\d+$/.test(value.trim())) return null;
   const parsed = Number(value);
   return Number.isSafeInteger(parsed) && parsed >= minimum && parsed <= maximum ? parsed : null;
-}
-
-function copy(locale: EngineeringLocale) {
-  if (locale === 'en') return {
-    title: 'IEC-104 address assistant', help: 'Builds canonical CA/IOA identity plus the monitored Type ID required by Runtime. Writable points require an explicit compatible command profile.',
-    commonAddress: 'Common Address', ioa: 'Information Object Address (IOA)', typeId: 'Monitored Type ID', writable: 'Writable command point', commandType: 'Command Type ID', commandMode: 'Command mode', qualifier: 'Qualifier (QOC)', apply: 'Use assisted address', applying: 'Applying...',
-    commonAddressInvalid: 'Common Address must be an integer from 0 to 65535.', ioaInvalid: 'IOA must be an integer from 0 to 16777215.', typeInvalid: 'Select a supported monitored IEC-104 Type ID.', commandTypeInvalid: 'Command Type ID must use the same canonical TAG data type as the monitored Type ID.', qualifierInvalid: 'Command qualifier must be an integer from 0 to 31.'
-  };
-  if (locale === 'es') return {
-    title: 'Asistente de dirección IEC-104', help: 'Construye la identidad canónica CA/IOA y el Type ID monitoreado exigido por Runtime. Los puntos escribibles requieren un perfil de comando compatible explícito.',
-    commonAddress: 'Common Address', ioa: 'Information Object Address (IOA)', typeId: 'Type ID monitoreado', writable: 'Punto de comando escribible', commandType: 'Command Type ID', commandMode: 'Modo de comando', qualifier: 'Qualifier (QOC)', apply: 'Usar dirección asistida', applying: 'Aplicando...',
-    commonAddressInvalid: 'Common Address debe ser un entero entre 0 y 65535.', ioaInvalid: 'IOA debe ser un entero entre 0 y 16777215.', typeInvalid: 'Seleccione un Type ID IEC-104 monitoreado compatible.', commandTypeInvalid: 'Command Type ID debe usar el mismo tipo canónico de TAG que el Type ID monitoreado.', qualifierInvalid: 'El qualifier debe ser un entero entre 0 y 31.'
-  };
-  return {
-    title: 'Assistente de endereço IEC-104', help: 'Monta a identidade canônica CA/IOA e o Type ID monitorado exigido pelo Runtime. Pontos graváveis exigem perfil de comando compatível explícito.',
-    commonAddress: 'Common Address', ioa: 'Information Object Address (IOA)', typeId: 'Type ID monitorado', writable: 'Ponto de comando gravável', commandType: 'Command Type ID', commandMode: 'Modo de comando', qualifier: 'Qualifier (QOC)', apply: 'Usar endereço assistido', applying: 'Aplicando...',
-    commonAddressInvalid: 'Common Address deve ser inteiro entre 0 e 65535.', ioaInvalid: 'IOA deve ser inteiro entre 0 e 16777215.', typeInvalid: 'Selecione um Type ID IEC-104 monitorado suportado.', commandTypeInvalid: 'O Command Type ID deve usar o mesmo tipo canônico de TAG do Type ID monitorado.', qualifierInvalid: 'O qualifier deve ser inteiro entre 0 e 31.'
-  };
 }

@@ -2,8 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import type { DataSourceEngineering } from './types';
 import type { EngineeringLocale } from './i18n';
 import { applyModbusAddressBuild, metadataValue, parseCanonicalModbusAddress } from './TagAddressAssistant.logic';
-import { resolveTagDataSource, type TagSourceAwareEngineering } from './TagSourceSelector.logic';
+import {
+  resolveTagDataSource,
+  updateManualTagAddress,
+  type TagSourceAwareEngineering
+} from './TagSourceSelector.logic';
 import { buildModbusTagAddress } from './tagAddressApi';
+import { OpcUaTagBrowser } from './OpcUaTagBrowser';
 
 type Props = {
   tag: TagSourceAwareEngineering;
@@ -18,7 +23,9 @@ const wordOrders = ['', 'HighWordFirst', 'LowWordFirst'];
 export function TagAddressEditor({ tag, sources, locale, onChange }: Props) {
   const text = useMemo(() => copy(locale), [locale]);
   const source = resolveTagDataSource(tag, sources).source;
-  const isModbus = source?.driver.toLowerCase() === 'modbus.tcp';
+  const driverType = source?.driver.toLowerCase();
+  const isModbus = driverType === 'modbus.tcp';
+  const isOpcUa = driverType === 'opc-ua';
 
   return (
     <>
@@ -27,12 +34,13 @@ export function TagAddressEditor({ tag, sources, locale, onChange }: Props) {
         <input
           className="mono"
           value={tag.address ?? ''}
-          onChange={event => onChange({ ...tag, address: emptyToNull(event.target.value) })}
+          onChange={event => onChange(updateManualTagAddress(tag, emptyToNull(event.target.value)))}
           data-testid="tag-address-manual"
         />
-        <small>{isModbus ? text.modbusManualHelp : text.manualHelp}</small>
+        <small>{isModbus ? text.modbusManualHelp : isOpcUa ? text.opcUaManualHelp : text.manualHelp}</small>
       </label>
       {isModbus && <ModbusAssistant tag={tag} locale={locale} onChange={onChange} />}
+      {isOpcUa && source && <OpcUaTagBrowser tag={tag} source={source} locale={locale} onChange={onChange} />}
     </>
   );
 }
@@ -199,6 +207,7 @@ function copy(locale: EngineeringLocale) {
   if (locale === 'en') return {
     address: 'Address', manualHelp: 'Use the portable address format required by the selected Driver.',
     modbusManualHelp: "Canonical manual syntax is area:0-based-offset, for example 'holding:0'.",
+    opcUaManualHelp: "Manual OPC UA accepts the canonical portable address, for example 'node=ns%3D2%3Bs%3DTemperature'. Legacy raw NodeId remains available for migration.",
     modbusTitle: 'Modbus address assistant', modbusHelp: 'Build the same canonical address consumed by Runtime. Reference base is explicit; no 40001-style guessing is performed.',
     area: 'Data area', reference: 'Reference', referenceBase: 'Reference base', zeroBased: '0-based offset', oneBased: '1-based reference',
     unitId: 'Unit ID override', valueType: 'Value type', wordOrder: 'Word order', scale: 'Scale', offset: 'Offset', bit: 'Bit index',
@@ -208,6 +217,7 @@ function copy(locale: EngineeringLocale) {
   if (locale === 'es') return {
     address: 'Dirección', manualHelp: 'Use el formato de dirección portátil requerido por el Driver seleccionado.',
     modbusManualHelp: "La sintaxis manual canónica es área:offset-base-0, por ejemplo 'holding:0'.",
+    opcUaManualHelp: "OPC UA manual acepta la dirección portátil canónica, por ejemplo 'node=ns%3D2%3Bs%3DTemperature'. El NodeId crudo legado sigue disponible para migración.",
     modbusTitle: 'Asistente de dirección Modbus', modbusHelp: 'Construye la misma dirección canónica consumida por Runtime. La base es explícita y no se adivina la notación 40001.',
     area: 'Área de datos', reference: 'Referencia', referenceBase: 'Base de referencia', zeroBased: 'Offset base 0', oneBased: 'Referencia base 1',
     unitId: 'Override Unit ID', valueType: 'Tipo de valor', wordOrder: 'Orden de palabras', scale: 'Escala', offset: 'Offset', bit: 'Índice de bit',
@@ -217,6 +227,7 @@ function copy(locale: EngineeringLocale) {
   return {
     address: 'Endereço', manualHelp: 'Use o formato de endereço portátil exigido pelo Driver selecionado.',
     modbusManualHelp: "A sintaxe manual canônica é área:offset-base-0, por exemplo 'holding:0'.",
+    opcUaManualHelp: "OPC UA manual aceita o endereço portátil canônico, por exemplo 'node=ns%3D2%3Bs%3DTemperature'. O NodeId cru legado continua disponível para migração.",
     modbusTitle: 'Assistente de endereço Modbus', modbusHelp: 'Monta o mesmo endereço canônico consumido pelo Runtime. A base é explícita e nenhuma notação 40001 é adivinhada.',
     area: 'Área de dados', reference: 'Referência', referenceBase: 'Base da referência', zeroBased: 'Offset base 0', oneBased: 'Referência base 1',
     unitId: 'Override de Unit ID', valueType: 'Tipo do valor', wordOrder: 'Ordem de words', scale: 'Escala', offset: 'Offset', bit: 'Índice do bit',

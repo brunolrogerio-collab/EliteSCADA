@@ -14,6 +14,8 @@ namespace Scada.DriverHost.Engineering;
 /// Canonical composition point for communication drivers that have completed
 /// coordinator convergence. Keeping this registry explicit prevents protocol
 /// workers from introducing private activation seams into the runtime host.
+/// The same registration also carries the Engineering descriptor so runtime
+/// availability and the product catalog cannot drift into separate lists.
 /// </summary>
 public static class CommunicationDriverRuntimeComposition
 {
@@ -33,27 +35,34 @@ public static class CommunicationDriverRuntimeComposition
             new MqttCommunicationRuntimePlanner(),
             new HostProtectedMaterialRuntimeFactory(
                 new MqttCommunicationRuntimeFactory(mqttTransportFactory),
-                protectedMaterialResolver)));
+                protectedMaterialResolver),
+            new MqttDriverDescriptorProvider().Descriptor));
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new Iec104CommunicationRuntimePlanner(),
-            new Iec104CommunicationRuntimeFactory(iec104AdapterFactory)));
+            new Iec104CommunicationRuntimeFactory(iec104AdapterFactory),
+            new Iec104EngineeringProvider(iec104AdapterFactory).Descriptor));
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new AllenBradleyLogixCommunicationRuntimePlanner(),
-            new AllenBradleyLogixCommunicationRuntimeFactory(logixClientFactory)));
+            new AllenBradleyLogixCommunicationRuntimeFactory(logixClientFactory),
+            new AllenBradleyLogixEngineeringAdapter(logixClientFactory).Descriptor));
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new OpcUaCommunicationRuntimePlanner(),
             new HostProtectedMaterialRuntimeFactory(
                 new OpcUaCommunicationRuntimeFactory(opcUaSessionFactoryBuilder),
-                protectedMaterialResolver)));
+                protectedMaterialResolver),
+            OpcUaDriverDescriptorProvider.Definition));
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new Dnp3CommunicationRuntimePlanner(),
-            new Dnp3CommunicationRuntimeFactory(dnp3SessionFactory)));
+            new Dnp3CommunicationRuntimeFactory(dnp3SessionFactory),
+            Dnp3DriverDescriptorProvider.SharedDescriptor));
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new S7IsoCommunicationRuntimePlanner(),
-            new S7IsoCommunicationRuntimeFactory()));
+            new S7IsoCommunicationRuntimeFactory(),
+            new S7IsoEngineeringAdapter().Descriptor));
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new BacnetCommunicationRuntimePlanner(),
-            new BacnetCommunicationRuntimeFactory(bacnetSessionFactory)));
+            new BacnetCommunicationRuntimeFactory(bacnetSessionFactory),
+            BacnetDriverDescriptor.Instance));
         return registry;
     }
 

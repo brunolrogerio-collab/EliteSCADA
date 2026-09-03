@@ -13,17 +13,20 @@ internal sealed class DataSourceEngineeringHandler
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
     private readonly ICommandEngineeringRegistry _commands;
+    private readonly IDataSourceConfigurationValidator? _configurationValidator;
 
     public DataSourceEngineeringHandler(
         IDataSourceEngineeringRegistry registry,
         ITagRegistry tags,
         IAlarmEngine alarms,
-        ICommandEngineeringRegistry commands)
+        ICommandEngineeringRegistry commands,
+        IDataSourceConfigurationValidator? configurationValidator = null)
     {
         _registry = registry;
         _tags = tags;
         _alarms = alarms;
         _commands = commands;
+        _configurationValidator = configurationValidator;
     }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
@@ -35,6 +38,8 @@ internal sealed class DataSourceEngineeringHandler
         {
             var issues = EngineeringValidator.ValidateDataSource(dto).ToList();
             issues.AddRange(MemoryEngineeringValidator.ValidateDataSource(dto));
+            if (_configurationValidator is not null)
+                issues.AddRange(_configurationValidator.Validate(dto));
             ValidateClientMemoryTransition(dto, package, issues);
 
             if (duplicates.Contains(dto.Key))

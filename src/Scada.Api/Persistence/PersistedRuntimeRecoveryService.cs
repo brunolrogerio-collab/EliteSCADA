@@ -1,3 +1,5 @@
+using Scada.Api.Runtime;
+using Scada.Core.Abstractions;
 using Scada.DriverHost.Runtime;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
@@ -24,7 +26,9 @@ public interface IPersistedRuntimeRecoveryService
 public sealed class PersistedRuntimeRecoveryService(
     IEngineeringProjectPersistenceService persistence,
     IEngineeringExchangeService exchange,
-    IEngineeringRuntimeCoordinator runtime) : IPersistedRuntimeRecoveryService
+    IEngineeringRuntimeCoordinator runtime,
+    IScadaEventBus eventBus,
+    IConfiguration configuration) : IPersistedRuntimeRecoveryService
 {
     public async Task<PersistedRuntimeRecoveryResult> RecoverAsync(
         string projectKey,
@@ -53,6 +57,13 @@ public sealed class PersistedRuntimeRecoveryService(
             snapshot.Revision,
             package,
             cancellationToken);
+
+        if (result.Activated)
+        {
+            await ServerScriptRuntimeManager
+                .GetShared(runtime, eventBus, configuration)
+                .ActivateAsync(snapshot.ProjectKey, snapshot.Revision, package.Scripts, cancellationToken);
+        }
 
         return new PersistedRuntimeRecoveryResult(
             snapshot.ProjectKey,

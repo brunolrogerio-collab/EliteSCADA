@@ -14,5 +14,11 @@
     <ProjectReference Include="../../src/Scada.Drivers.Dnp3.OpenDnp3/Scada.Drivers.Dnp3.OpenDnp3.csproj" />
     <ProjectReference Include="../../src/Scada.Engineering/Scada.Engineering.csproj" />
     <ProjectReference Include="../../src/Scada.DriverHost/Scada.DriverHost.csproj" />
+    <ProjectReference Include="../../src/Scada.Historian/Scada.Historian.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../src/Scada.Api/Runtime/ServerScriptRunner.py"
+          Link="ServerScriptRunner.py"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

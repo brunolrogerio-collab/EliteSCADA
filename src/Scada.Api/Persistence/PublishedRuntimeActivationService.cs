@@ -1,3 +1,5 @@
+using Scada.Api.Runtime;
+using Scada.Core.Abstractions;
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.Simulation;
@@ -29,7 +31,9 @@ public sealed class PublishedRuntimeActivationService(
     IEngineeringProjectPersistenceService persistence,
     IEngineeringExchangeService exchange,
     IEngineeringRuntimeCoordinator runtime,
-    SimulationDriver simulationFallback) : IPublishedRuntimeActivationService
+    SimulationDriver simulationFallback,
+    IScadaEventBus eventBus,
+    IConfiguration configuration) : IPublishedRuntimeActivationService
 {
     public async Task<PublishedRuntimeActivationOutcome> ActivateAsync(
         string projectKey,
@@ -76,6 +80,13 @@ public sealed class PublishedRuntimeActivationService(
                 }
             },
             cancellationToken);
+
+        if (runtimeResult.Activated)
+        {
+            await ServerScriptRuntimeManager
+                .GetShared(runtime, eventBus, configuration)
+                .ActivateAsync(snapshot.ProjectKey, snapshot.Revision, package.Scripts, cancellationToken);
+        }
 
         var lifecycle = await persistence.GetLifecycleAsync(snapshot.ProjectKey, CancellationToken.None);
         return new PublishedRuntimeActivationOutcome(snapshot, runtimeResult, recordedActivation, lifecycle);

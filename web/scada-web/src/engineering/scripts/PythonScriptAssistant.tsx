@@ -3,6 +3,7 @@ import type { EngineeringLocale } from '../i18n';
 import { loadScriptEngineeringContext } from './scriptEngineeringApi';
 import type { ScriptVisualEventReference } from './scriptEngineeringTypes';
 import { ScriptAssistantPanel } from './ScriptAssistantPanel';
+import { PythonScriptReferenceDiagnostics } from './PythonScriptReferenceDiagnostics';
 
 export type PythonScriptAssistantProps = Readonly<{
   locale: EngineeringLocale;
@@ -21,6 +22,7 @@ export function PythonScriptAssistant({
   onInsert
 }: PythonScriptAssistantProps) {
   const [visualEventReferences, setVisualEventReferences] = useState<readonly ScriptVisualEventReference[]>([]);
+  const [canonicalSource, setCanonicalSource] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -28,6 +30,7 @@ export function PythonScriptAssistant({
     void loadScriptEngineeringContext()
       .then(context => {
         if (!active) return;
+        setCanonicalSource(context.scripts.find(script => script.id === scriptId)?.source ?? '');
         setVisualEventReferences(Object.freeze(
           context.visualEventReferences
             .filter(reference => reference.scriptId === scriptId)
@@ -41,7 +44,9 @@ export function PythonScriptAssistant({
         ));
       })
       .catch(() => {
-        if (active) setVisualEventReferences(Object.freeze([]));
+        if (!active) return;
+        setCanonicalSource('');
+        setVisualEventReferences(Object.freeze([]));
       });
 
     return () => {
@@ -50,10 +55,13 @@ export function PythonScriptAssistant({
   }, [scriptId]);
 
   return (
-    <ScriptAssistantPanel
-      locale={locale}
-      visualEventReferences={visualEventReferences}
-      onInsert={onInsert}
-    />
+    <>
+      <PythonScriptReferenceDiagnostics locale={locale} source={canonicalSource} />
+      <ScriptAssistantPanel
+        locale={locale}
+        visualEventReferences={visualEventReferences}
+        onInsert={onInsert}
+      />
+    </>
   );
 }

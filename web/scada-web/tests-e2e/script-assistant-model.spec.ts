@@ -2,6 +2,10 @@ import { expect, test } from '@playwright/test';
 import type { ClientMemorySourceDefinition } from '../src/runtime/clientMemory';
 import type { EngineeringPackageView } from '../src/engineering/types';
 import {
+  CLIENT_VISUAL_PYTHON_CAPABILITIES,
+  CLIENT_VISUAL_PYTHON_PROTOCOL_CAPABILITIES
+} from '../src/python-runtime/pythonRuntimeContracts';
+import {
   buildScriptAssistantCatalog,
   filterScriptAssistantCatalog
 } from '../src/engineering/scripts/scriptAssistantModel';
@@ -181,10 +185,15 @@ test('Client Memory remains a separate authority with its own read/write snippet
   expect(catalog.tags.some(tag => tag.path === memory.path)).toBe(false);
 });
 
-test('capability catalog follows the canonical bridge list and search reaches nested object/property metadata', () => {
+test('capability catalog advertises only official product capabilities while reserved host operations remain protocol-only', () => {
   const catalog = buildScriptAssistantCatalog(engineeringPackage, clientMemorySources);
-  expect(catalog.capabilities.map(item => item.capability)).toContain('tag.write');
+  const advertised = catalog.capabilities.map(item => item.capability);
+
+  expect(advertised).toEqual([...CLIENT_VISUAL_PYTHON_CAPABILITIES]);
+  expect(advertised).toContain('tag.write');
   expect(catalog.capabilities.find(item => item.capability === 'tag.write')?.pythonApi).toBe('elite_scada.tag_write');
+  expect(advertised).not.toContain('backendOperation.request');
+  expect(CLIENT_VISUAL_PYTHON_PROTOCOL_CAPABILITIES).toContain('backendOperation.request');
 
   const filtered = filterScriptAssistantCatalog(catalog, 'visible');
   expect(filtered.screens).toHaveLength(1);

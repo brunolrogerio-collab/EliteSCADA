@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { EngineeringLocale } from './i18n';
 import { c04Text } from './c04I18n';
+import { c04ProtocolLabels } from './c04ProtocolLabels';
 import {
   loadTagBindingDefinition,
   requireAllowedTagBindingValue,
@@ -35,6 +36,7 @@ const commandTypes = [
 
 export function Iec104TagAddressAssistant({ tag, locale, onChange }: Props) {
   const text = useMemo(() => c04Text(locale).iec104, [locale]);
+  const commandModeLabels = useMemo(() => c04ProtocolLabels(locale).iec104CommandMode, [locale]);
   const parsed = parseIec104Address(tag.address);
   const currentType = tag.communicationBinding?.settings?.['iec104.typeId'];
   const [commonAddress, setCommonAddress] = useState(parsed?.commonAddress ?? '1');
@@ -137,7 +139,7 @@ export function Iec104TagAddressAssistant({ tag, locale, onChange }: Props) {
         <label className="eng-editor-field"><span>{text.writable}</span><input type="checkbox" checked={writable} onChange={event => setWritable(event.target.checked)} data-testid="iec104-writable" /></label>
         {writable && <>
           <label className="eng-editor-field"><span>{text.commandType}</span><select value={commandTypeId} onChange={event => setCommandTypeId(event.target.value)} data-testid="iec104-command-type">{compatibleCommands.map(([name]) => <option key={name} value={name}>{name}</option>)}</select></label>
-          <label className="eng-editor-field"><span>{text.commandMode}</span><select value={commandMode} onChange={event => setCommandMode(event.target.value)} data-testid="iec104-command-mode"><option value="sbo">SBO</option><option value="direct">Direct Operate</option></select></label>
+          <label className="eng-editor-field"><span>{text.commandMode}</span><select value={commandMode} onChange={event => setCommandMode(event.target.value)} data-testid="iec104-command-mode"><option value="sbo">{commandModeLabels.sbo}</option><option value="direct">{commandModeLabels.direct}</option></select></label>
           <label className="eng-editor-field"><span>{text.qualifier}</span><input type="number" min="0" max="31" step="1" value={qualifier} onChange={event => setQualifier(event.target.value)} data-testid="iec104-qualifier" /></label>
         </>}
       </div>

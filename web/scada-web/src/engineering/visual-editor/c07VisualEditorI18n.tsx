@@ -25,7 +25,7 @@ const ptBR = {
   library: {
     title: 'Biblioteca de dínamos', hint: 'Busque componentes reutilizáveis de processo e insira instâncias configuradas.', search: 'Buscar', searchPlaceholder: 'Bomba, válvula, VFD…', category: 'Categoria', allCategories: 'Todas as categorias', results: 'Resultados de dínamos', noResults: 'Nenhum dínamo corresponde ao filtro.', preview: 'Preview do dínamo selecionado', publicInterface: 'Interface pública', noParameters: 'Sem parâmetros públicos', equipmentPath: 'Caminho do equipamento (opcional)', add: 'Adicionar dínamo', categories: { pump: 'Bomba', motor: 'Motor', valve: 'Válvula', tank: 'Tanque', other: 'Outros' }
   },
-  runtimeState: { badQuality: 'QUALIDADE RUIM', fault: 'FALHA', alarm: 'ALARME', uncertain: 'INCERTO', command: 'COMANDO', transition: 'TRANSIÇÃO', active: 'ATIVO', inactive: 'INATIVO', unknown: 'DESCONHECIDO', feedbackMismatch: 'divergência de feedback' }
+  runtimeState: { badQuality: 'QUALIDADE RUIM', fault: 'FALHA', alarm: 'ALARME', uncertain: 'INCERTO', command: 'COMANDO', transition: 'TRANSIÇÃO', active: 'ATIVO', inactive: 'INATIVO', unknown: 'DESCONHECIDO', feedbackMismatch: 'divergência de feedback', dynamoError: 'ERRO DE DÍNAMO' }
 } as const;
 
 type DeepString<T> = { readonly [K in keyof T]: T[K] extends string ? string : DeepString<T[K]> };
@@ -55,7 +55,7 @@ const en: C07VisualEditorText = {
   library: {
     title: 'Dynamo library', hint: 'Search reusable process components and place configured instances.', search: 'Search', searchPlaceholder: 'Pump, valve, VFD…', category: 'Category', allCategories: 'All categories', results: 'Dynamo results', noResults: 'No Dynamo matches this filter.', preview: 'Selected Dynamo preview', publicInterface: 'Public interface', noParameters: 'No public parameters', equipmentPath: 'Equipment path (optional)', add: 'Add Dynamo', categories: { pump: 'Pump', motor: 'Motor', valve: 'Valve', tank: 'Tank', other: 'Other' }
   },
-  runtimeState: { badQuality: 'BAD QUALITY', fault: 'FAULT', alarm: 'ALARM', uncertain: 'UNCERTAIN', command: 'COMMAND', transition: 'TRANSITION', active: 'ACTIVE', inactive: 'INACTIVE', unknown: 'UNKNOWN', feedbackMismatch: 'feedback mismatch' }
+  runtimeState: { badQuality: 'BAD QUALITY', fault: 'FAULT', alarm: 'ALARM', uncertain: 'UNCERTAIN', command: 'COMMAND', transition: 'TRANSITION', active: 'ACTIVE', inactive: 'INACTIVE', unknown: 'UNKNOWN', feedbackMismatch: 'feedback mismatch', dynamoError: 'DYNAMO ERROR' }
 };
 
 const es: C07VisualEditorText = {
@@ -82,7 +82,7 @@ const es: C07VisualEditorText = {
   library: {
     title: 'Biblioteca de dínamos', hint: 'Busque componentes de proceso reutilizables y coloque instancias configuradas.', search: 'Buscar', searchPlaceholder: 'Bomba, válvula, VFD…', category: 'Categoría', allCategories: 'Todas las categorías', results: 'Resultados de dínamos', noResults: 'Ningún dínamo coincide con este filtro.', preview: 'Preview del dínamo seleccionado', publicInterface: 'Interfaz pública', noParameters: 'Sin parámetros públicos', equipmentPath: 'Ruta del equipo (opcional)', add: 'Agregar dínamo', categories: { pump: 'Bomba', motor: 'Motor', valve: 'Válvula', tank: 'Tanque', other: 'Otros' }
   },
-  runtimeState: { badQuality: 'MALA CALIDAD', fault: 'FALLA', alarm: 'ALARMA', uncertain: 'INCIERTO', command: 'COMANDO', transition: 'TRANSICIÓN', active: 'ACTIVO', inactive: 'INACTIVO', unknown: 'DESCONOCIDO', feedbackMismatch: 'divergencia de feedback' }
+  runtimeState: { badQuality: 'MALA CALIDAD', fault: 'FALLA', alarm: 'ALARMA', uncertain: 'INCIERTO', command: 'COMANDO', transition: 'TRANSICIÓN', active: 'ACTIVO', inactive: 'INACTIVO', unknown: 'DESCONOCIDO', feedbackMismatch: 'divergencia de feedback', dynamoError: 'ERROR DE DÍNAMO' }
 };
 
 const resources: Record<EngineeringLocale, C07VisualEditorText> = { 'pt-BR': ptBR, en, es };

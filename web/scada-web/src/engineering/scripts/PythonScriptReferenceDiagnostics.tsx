@@ -44,8 +44,10 @@ const copy = {
   }
 } as const satisfies Record<EngineeringLocale, Record<string, string>>;
 
+type ReferenceDiagnosticCopy = Readonly<Record<keyof typeof copy.en, string>>;
+
 export function PythonScriptReferenceDiagnostics({ locale, source }: Props) {
-  const text = copy[locale] ?? copy.en;
+  const text: ReferenceDiagnosticCopy = copy[locale] ?? copy.en;
   const [catalog, setCatalog] = useState<ScriptAssistantCatalog | null>(null);
 
   useEffect(() => {
@@ -93,7 +95,7 @@ export function PythonScriptReferenceDiagnostics({ locale, source }: Props) {
 
 function diagnosticLabel(
   diagnostic: ScriptAssistantReferenceDiagnostic,
-  text: typeof copy.en
+  text: ReferenceDiagnosticCopy
 ): string {
   if (diagnostic.code === 'SCRIPT_REFERENCE_TAG_MISSING') return text.tag;
   if (diagnostic.code === 'SCRIPT_REFERENCE_OBJECT_MISSING') return text.object;

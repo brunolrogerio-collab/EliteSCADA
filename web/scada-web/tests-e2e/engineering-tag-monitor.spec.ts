@@ -17,7 +17,7 @@ test('TAG Monitor is an Engineering diagnostic while its facts remain Active Run
   await expect(page).toHaveURL(/\/engineering\/diagnostics\/tag-monitor$/);
   await expect(page.getByTestId('engineering-tag-monitor')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'TAG Monitor', level: 1 })).toBeVisible();
-  await expect(page.getByText('Engineering / Diagnostics', { exact: true })).toBeVisible();
+  await expect(page.getByText('Engenharia / Diagnósticos', { exact: true })).toBeVisible();
 
   const context = page.getByTestId('tag-monitor-context');
   await expect(context.getByText('Contexto Engineering', { exact: true })).toBeVisible();

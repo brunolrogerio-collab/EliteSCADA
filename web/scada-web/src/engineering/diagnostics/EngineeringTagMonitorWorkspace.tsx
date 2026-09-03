@@ -17,6 +17,7 @@ type EngineeringTagMonitorWorkspaceProps = {
 };
 
 type Copy = {
+  eyebrow: string;
   title: string;
   description: string;
   readOnly: string;
@@ -37,6 +38,7 @@ type Copy = {
 
 const copy: Record<EngineeringLocale, Copy> = {
   'pt-BR': {
+    eyebrow: 'Engenharia / Diagnósticos',
     title: 'TAG Monitor',
     description: 'Diagnóstico de engenharia somente leitura. O contexto Working identifica o projeto aberto; valores, qualidade, timestamps e histórico continuam vindo do Active Runtime real.',
     readOnly: 'Somente leitura',
@@ -55,6 +57,7 @@ const copy: Record<EngineeringLocale, Copy> = {
     contextRefreshing: 'Atualizando identidade do Active Runtime…'
   },
   en: {
+    eyebrow: 'Engineering / Diagnostics',
     title: 'TAG Monitor',
     description: 'Read-only engineering diagnostics. Working identifies the open project context; values, quality, timestamps and history still come from the real Active Runtime.',
     readOnly: 'Read-only',
@@ -73,6 +76,7 @@ const copy: Record<EngineeringLocale, Copy> = {
     contextRefreshing: 'Refreshing Active Runtime identity…'
   },
   es: {
+    eyebrow: 'Ingeniería / Diagnósticos',
     title: 'TAG Monitor',
     description: 'Diagnóstico de ingeniería de solo lectura. Working identifica el contexto del proyecto abierto; valores, calidad, timestamps e histórico siguen viniendo del Active Runtime real.',
     readOnly: 'Solo lectura',
@@ -164,7 +168,7 @@ export function EngineeringTagMonitorWorkspace({
     >
       <header className="eng-section-header">
         <div>
-          <span className="eng-eyebrow">Engineering / Diagnostics</span>
+          <span className="eng-eyebrow">{text.eyebrow}</span>
           <h1>{text.title}</h1>
           <p>{text.description}</p>
         </div>

@@ -44,7 +44,7 @@ test('primary shell keeps authorized application navigation coherent without Eng
   await expect(page.getByRole('heading', { name: 'Licenciamento' })).toBeVisible();
 });
 
-test('shell uses shared locale and preserves personal theme independently', async ({ page }) => {
+test('shell uses shared locale, updates live from Engineering selector, and preserves personal theme independently', async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem('elitescada.engineering.locale', 'en');
     window.localStorage.setItem('elitescada.app.theme', 'dark');
@@ -58,4 +58,16 @@ test('shell uses shared locale and preserves personal theme independently', asyn
   await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'dark');
   await expect(page.getByRole('combobox', { name: 'Theme' })).toHaveValue('dark');
   await expect(page.getByText('Project Management', { exact: true })).toBeVisible();
+
+  const locale = page.locator('#engineering-locale');
+  await locale.selectOption('es');
+  await expect(page.getByText('Plataforma industrial', { exact: true })).toBeVisible();
+  await expect(navigation.getByRole('link', { name: /Auditoría/ })).toBeVisible();
+  await expect(navigation.getByRole('link', { name: /Licenciamiento/ })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Tema' })).toHaveValue('dark');
+
+  await locale.selectOption('pt-BR');
+  await expect(page.getByText('Plataforma industrial', { exact: true })).toBeVisible();
+  await expect(navigation.getByRole('link', { name: /Auditoria/ })).toBeVisible();
+  await expect(navigation.getByRole('link', { name: /Licenciamento/ })).toBeVisible();
 });

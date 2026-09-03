@@ -34,6 +34,14 @@ export type EffectiveCapabilitiesState = Readonly<{
   reload: () => Promise<void>;
 }>;
 
+export type AppSurfaceAccess = Readonly<{
+  runtime: boolean;
+  history: boolean;
+  engineering: boolean;
+  audit: boolean;
+  licensing: boolean;
+}>;
+
 export function hasRuntimeCapability(
   capabilities: EffectiveCapabilities | null,
   capability: SecurityCapability
@@ -46,6 +54,29 @@ export function hasWorkspaceCapability(
   capability: SecurityCapability
 ): boolean {
   return capabilities?.workspace.has(capability) === true;
+}
+
+/**
+ * Frontend projection of the backend gates for first-class application surfaces.
+ * Keep every grant independent: one capability never implies another here.
+ *
+ * Backend authority mirrored here:
+ * - Runtime application: Runtime View.
+ * - Historian samples: Runtime TrendUse (the route additionally requires Runtime View).
+ * - Engineering workspace: Workspace EngineeringModify.
+ * - Audit: Runtime SystemAdmin.
+ * - Licensing: Workspace EngineeringModify via RequireWorkspaceEngineeringRead.
+ */
+export function resolveAppSurfaceAccess(
+  capabilities: EffectiveCapabilities | null
+): AppSurfaceAccess {
+  return Object.freeze({
+    runtime: hasRuntimeCapability(capabilities, 'View'),
+    history: hasRuntimeCapability(capabilities, 'TrendUse'),
+    engineering: hasWorkspaceCapability(capabilities, 'EngineeringModify'),
+    audit: hasRuntimeCapability(capabilities, 'SystemAdmin'),
+    licensing: hasWorkspaceCapability(capabilities, 'EngineeringModify')
+  });
 }
 
 export function useEffectiveCapabilities(): EffectiveCapabilitiesState {

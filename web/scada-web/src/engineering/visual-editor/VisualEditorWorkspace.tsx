@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   applyEngineeringPackage,
   importVisualAsset,
@@ -43,11 +43,19 @@ import type {
 } from './visualEditorContracts';
 import {
   applyVisualEditorSelectionIntent,
-  existingVisualObjectIds,
   normalizeVisualEditorMutationIntent,
   normalizeVisualEditorViewport,
   selectedVisualElements
 } from './visualEditorIntegrationModel';
+import type { VisualEditorKeyboardCommand } from './visualEditorKeyboardModel';
+import {
+  applyVisualEditorSessionKeyboardCommand,
+  commitVisualEditorSessionDraft,
+  createVisualEditorSession,
+  currentVisualEditorSessionScreen,
+  withVisualEditorSessionSelection,
+  type VisualEditorSessionState
+} from './visualEditorSessionModel';
 import './VisualEditorWorkspace.css';
 
 type VisualEditorWorkspaceProps = {
@@ -66,8 +74,11 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
   const [selectedIdentity, setSelectedIdentity] = useState<string>(() => screens[0] ? screenIdentity(screens[0]) : NEW_SCREEN_IDENTITY);
   const isNew = selectedIdentity === NEW_SCREEN_IDENTITY;
   const selected = !isNew ? screens.find(screen => matchesScreenIdentity(screen, selectedIdentity)) ?? null : null;
-  const [draft, setDraft] = useState<ScreenEngineering>(() => selected ? cloneEngineeringValue(selected) : createScreenDraft(screens, locale));
-  const [selectedObjectIds, setSelectedObjectIds] = useState<readonly string[]>(Object.freeze([]));
+  const initialDraft = selected ? cloneEngineeringValue(selected) : createScreenDraft(screens, locale);
+  const [session, setSessionState] = useState<VisualEditorSessionState>(() => createVisualEditorSession(initialDraft));
+  const sessionRef = useRef(session);
+  const draft = currentVisualEditorSessionScreen(session);
+  const selectedObjectIds = session.selectedObjectIds;
   const [viewport, setViewport] = useState<VisualEditorViewport>(DEFAULT_VIEWPORT);
   const [preview, setPreview] = useState<ImportPreviewView | null>(null);
   const [candidate, setCandidate] = useState<ValidatedCandidate | null>(null);
@@ -77,6 +88,11 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
   const [importingAsset, setImportingAsset] = useState(false);
   const [polygonToolActive, setPolygonToolActive] = useState(false);
   const [clientMemoryDefinitions, setClientMemoryDefinitions] = useState<readonly ClientMemoryDefinitionView[]>(Object.freeze([]));
+
+  const replaceSession = (next: VisualEditorSessionState) => {
+    sessionRef.current = next;
+    setSessionState(next);
+  };
 
   const invalidateValidation = () => {
     setPreview(null);
@@ -107,16 +123,14 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
   useEffect(() => {
     setPolygonToolActive(false);
     if (selectedIdentity === NEW_SCREEN_IDENTITY) {
-      setDraft(createScreenDraft(screens, locale));
-      setSelectedObjectIds(Object.freeze([]));
+      replaceSession(createVisualEditorSession(createScreenDraft(screens, locale)));
       setViewport(DEFAULT_VIEWPORT);
       invalidateValidation();
       return;
     }
     const current = screens.find(screen => matchesScreenIdentity(screen, selectedIdentity)) ?? null;
     if (current) {
-      setDraft(cloneEngineeringValue(current));
-      setSelectedObjectIds(Object.freeze([]));
+      replaceSession(createVisualEditorSession(cloneEngineeringValue(current)));
       setViewport(DEFAULT_VIEWPORT);
       invalidateValidation();
       return;
@@ -154,14 +168,6 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
   const visualAssets = snapshot.package.visualAssets ?? [];
 
   useEffect(() => {
-    const existingIds = existingVisualObjectIds(draft);
-    setSelectedObjectIds(current => {
-      const next = current.filter(objectId => existingIds.has(objectId));
-      return next.length === current.length ? current : Object.freeze(next);
-    });
-  }, [draft]);
-
-  useEffect(() => {
     if (!changed && !applying && !importingAsset) return undefined;
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
@@ -175,20 +181,19 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
     if (identity === selectedIdentity) return;
     if (changed && !window.confirm(text.discardConfirm)) return;
     setSelectedIdentity(identity);
-    setSelectedObjectIds(Object.freeze([]));
     setViewport(DEFAULT_VIEWPORT);
     setPolygonToolActive(false);
     invalidateValidation();
   };
 
   const updateDraft = (update: (current: ScreenEngineering) => ScreenEngineering) => {
-    setDraft(current => update(current));
+    const current = sessionRef.current;
+    replaceSession(commitVisualEditorSessionDraft(current, update(current.history.present)));
     invalidateValidation();
   };
 
   const resetDraft = () => {
-    setDraft(selected ? cloneEngineeringValue(selected) : createScreenDraft(screens, locale));
-    setSelectedObjectIds(Object.freeze([]));
+    replaceSession(createVisualEditorSession(selected ? cloneEngineeringValue(selected) : createScreenDraft(screens, locale)));
     setViewport(DEFAULT_VIEWPORT);
     setPolygonToolActive(false);
     invalidateValidation();
@@ -196,7 +201,11 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
 
   const handleUiIntent = (intent: VisualEditorUiIntent) => {
     if (intent.kind === 'selection.change') {
-      setSelectedObjectIds(current => applyVisualEditorSelectionIntent(current, intent));
+      const current = sessionRef.current;
+      replaceSession(withVisualEditorSessionSelection(
+        current,
+        applyVisualEditorSelectionIntent(current.selectedObjectIds, intent)
+      ));
       return;
     }
     setViewport(normalizeVisualEditorViewport(intent.viewport));
@@ -204,33 +213,43 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
 
   const handleMutationIntent = (intent: VisualEditorMutationIntent) => {
     try {
+      const current = sessionRef.current;
+      const currentDraft = current.history.present;
       if (intent.kind === 'polygon.create') {
-        const created = createCanonicalPolygon(draft, intent.points);
-        setDraft(created.screen);
-        setSelectedObjectIds(Object.freeze([created.objectId]));
+        const created = createCanonicalPolygon(currentDraft, intent.points);
+        replaceSession(commitVisualEditorSessionDraft(current, created.screen, {
+          selectedObjectIds: [created.objectId]
+        }));
         setPolygonToolActive(false);
         invalidateValidation();
         return;
       }
       if (intent.kind === 'polygon.points.set') {
-        setDraft(current => updateCanonicalPolygonPoints(current, intent.objectId, intent.points));
+        replaceSession(commitVisualEditorSessionDraft(
+          current,
+          updateCanonicalPolygonPoints(currentDraft, intent.objectId, intent.points)
+        ));
         invalidateValidation();
         return;
       }
 
       const normalizedIntent = normalizeVisualEditorMutationIntent(intent);
-      if (normalizedIntent.kind === 'object.delete') {
-        const nextDraft = applyVisualEditorMutationIntent(draft, normalizedIntent);
-        setDraft(nextDraft);
-        const remaining = existingVisualObjectIds(nextDraft);
-        setSelectedObjectIds(current => Object.freeze(current.filter(objectId => remaining.has(objectId))));
-      } else {
-        // Dynamic authoring may emit remove-old-source + set-new-source synchronously.
-        // Functional updates ensure those canonical mutations compose instead of
-        // each callback applying against a stale render-time draft snapshot.
-        setDraft(current => applyVisualEditorMutationIntent(current, normalizedIntent));
-      }
+      const nextDraft = applyVisualEditorMutationIntent(currentDraft, normalizedIntent);
+      replaceSession(commitVisualEditorSessionDraft(current, nextDraft));
       invalidateValidation();
+    } catch (reason) {
+      setPreview(null);
+      setCandidate(null);
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
+
+  const handleKeyboardCommand = (command: VisualEditorKeyboardCommand) => {
+    try {
+      const current = sessionRef.current;
+      const next = applyVisualEditorSessionKeyboardCommand(current, command);
+      replaceSession(next);
+      if (next.history !== current.history) invalidateValidation();
     } catch (reason) {
       setPreview(null);
       setCandidate(null);
@@ -241,7 +260,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
   const handlePaletteIntent = (intent: VisualEditorMutationIntent) => {
     if (intent.kind === 'object.add' && intent.objectType === BUILTIN_VISUAL_OBJECT_TYPES.polygon) {
       setPolygonToolActive(true);
-      setSelectedObjectIds(Object.freeze([]));
+      replaceSession(withVisualEditorSessionSelection(sessionRef.current, Object.freeze([])));
       setError(null);
       return;
     }
@@ -279,7 +298,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
       await applyEngineeringPackage(candidate.package, candidate.changeVersion);
       await onApplied();
       setSelectedIdentity(`key:${appliedKey}`);
-      setSelectedObjectIds(Object.freeze([]));
+      replaceSession(createVisualEditorSession(draft));
       setPolygonToolActive(false);
       setPreview(null);
       setCandidate(null);
@@ -378,6 +397,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
               viewport={viewport}
               onUiIntent={handleUiIntent}
               onMutationIntent={handleMutationIntent}
+              onKeyboardCommand={handleKeyboardCommand}
               polygonToolActive={polygonToolActive}
               onPolygonToolCancel={() => setPolygonToolActive(false)}
             />

@@ -44,10 +44,11 @@ export type RuntimeDynamoStateIndicator = Readonly<{
  */
 export function expandRuntimeDynamoVisuals(
   elements: readonly VisualElementEngineering[] | null | undefined,
-  definitions: readonly DynamoEngineering[] | null | undefined
+  definitions: readonly DynamoEngineering[] | null | undefined,
+  locale: EngineeringLocale = 'pt-BR'
 ): readonly VisualElementEngineering[] {
   return Object.freeze((elements ?? []).map((element, index) =>
-    expandElementFailClosed(element, definitions, `root.${index}`)));
+    expandElementFailClosed(element, definitions, `root.${index}`, locale)));
 }
 
 /** Only projected Dynamo internals are sampled by the C07 state overlay. */
@@ -89,19 +90,21 @@ export function isExpandedRuntimeDynamo(element: VisualElementEngineering): bool
 function expandElementFailClosed(
   element: VisualElementEngineering,
   definitions: readonly DynamoEngineering[] | null | undefined,
-  path: string
+  path: string,
+  locale: EngineeringLocale
 ): VisualElementEngineering {
   try {
-    return expandElement(element, definitions, path);
+    return expandElement(element, definitions, path, locale);
   } catch (reason) {
-    return runtimeDynamoDiagnosticElement(element, reason);
+    return runtimeDynamoDiagnosticElement(element, reason, locale);
   }
 }
 
 function expandElement(
   element: VisualElementEngineering,
   definitions: readonly DynamoEngineering[] | null | undefined,
-  path: string
+  path: string,
+  locale: EngineeringLocale
 ): VisualElementEngineering {
   if (element.dynamoKey?.trim()) {
     const definition = normalizeDynamoDefinitionParameterContract(
@@ -139,7 +142,7 @@ function expandElement(
   return Object.freeze({
     ...element,
     children: element.children.map((child, index) =>
-      expandElementFailClosed(child, definitions, `${path}.${index}`))
+      expandElementFailClosed(child, definitions, `${path}.${index}`, locale))
   });
 }
 
@@ -194,13 +197,15 @@ function collectIndicators(
 
 function runtimeDynamoDiagnosticElement(
   source: VisualElementEngineering,
-  reason: unknown
+  reason: unknown,
+  locale: EngineeringLocale
 ): VisualElementEngineering {
   const message = reason instanceof Error ? reason.message : String(reason);
   const code = reason && typeof reason === 'object' && 'code' in reason
     ? String((reason as { code?: unknown }).code ?? 'VISUAL_RUNTIME_DYNAMO_FAILED')
     : 'VISUAL_RUNTIME_DYNAMO_FAILED';
   const properties = source.properties ?? {};
+  const text = c07VisualEditorText(locale).runtimeState;
   return Object.freeze({
     id: source.id ?? undefined,
     key: source.key || source.dynamoKey || 'invalid-dynamo',
@@ -216,7 +221,7 @@ function runtimeDynamoDiagnosticElement(
       strokeWidth: 1,
       strokeStyle: 'solid',
       cornerRadius: 3,
-      text: 'DYNAMO ERROR',
+      text: text.dynamoError,
       textColor: '#FFFFFF',
       fontSize: 10,
       fontWeight: 700,

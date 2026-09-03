@@ -9,6 +9,8 @@ import {
 } from './TagSourceSelector.logic';
 import { buildModbusTagAddress } from './tagAddressApi';
 import { OpcUaTagBrowser } from './OpcUaTagBrowser';
+import { Dnp3TagAddressAssistant } from './Dnp3TagAddressAssistant';
+import { Iec104TagAddressAssistant } from './Iec104TagAddressAssistant';
 
 type Props = {
   tag: TagSourceAwareEngineering;
@@ -26,6 +28,8 @@ export function TagAddressEditor({ tag, sources, locale, onChange }: Props) {
   const driverType = source?.driver.toLowerCase();
   const isModbus = driverType === 'modbus.tcp';
   const isOpcUa = driverType === 'opc-ua';
+  const isDnp3 = driverType === 'dnp3.master';
+  const isIec104 = driverType === 'iec60870.5.104';
 
   return (
     <>
@@ -37,10 +41,12 @@ export function TagAddressEditor({ tag, sources, locale, onChange }: Props) {
           onChange={event => onChange(updateManualTagAddress(tag, emptyToNull(event.target.value)))}
           data-testid="tag-address-manual"
         />
-        <small>{isModbus ? text.modbusManualHelp : isOpcUa ? text.opcUaManualHelp : text.manualHelp}</small>
+        <small>{isModbus ? text.modbusManualHelp : isOpcUa ? text.opcUaManualHelp : isDnp3 ? text.dnp3ManualHelp : isIec104 ? text.iec104ManualHelp : text.manualHelp}</small>
       </label>
       {isModbus && <ModbusAssistant tag={tag} locale={locale} onChange={onChange} />}
       {isOpcUa && source && <OpcUaTagBrowser tag={tag} source={source} locale={locale} onChange={onChange} />}
+      {isDnp3 && <Dnp3TagAddressAssistant tag={tag} locale={locale} onChange={onChange} />}
+      {isIec104 && <Iec104TagAddressAssistant tag={tag} locale={locale} onChange={onChange} />}
     </>
   );
 }
@@ -208,6 +214,8 @@ function copy(locale: EngineeringLocale) {
     address: 'Address', manualHelp: 'Use the portable address format required by the selected Driver.',
     modbusManualHelp: "Canonical manual syntax is area:0-based-offset, for example 'holding:0'.",
     opcUaManualHelp: "Manual OPC UA accepts the canonical portable address, for example 'node=ns%3D2%3Bs%3DTemperature'. Legacy raw NodeId remains available for migration.",
+    dnp3ManualHelp: "Canonical DNP3 syntax is 'dnp3:<pointKind>:<index>', for example 'dnp3:analogInput:0'.",
+    iec104ManualHelp: "Canonical IEC-104 identity is 'ca=<0..65535>;ioa=<0..16777215>'. The assistant also authors the required Type ID binding.",
     modbusTitle: 'Modbus address assistant', modbusHelp: 'Build the same canonical address consumed by Runtime. Reference base is explicit; no 40001-style guessing is performed.',
     area: 'Data area', reference: 'Reference', referenceBase: 'Reference base', zeroBased: '0-based offset', oneBased: '1-based reference',
     unitId: 'Unit ID override', valueType: 'Value type', wordOrder: 'Word order', scale: 'Scale', offset: 'Offset', bit: 'Bit index',
@@ -218,6 +226,8 @@ function copy(locale: EngineeringLocale) {
     address: 'Dirección', manualHelp: 'Use el formato de dirección portátil requerido por el Driver seleccionado.',
     modbusManualHelp: "La sintaxis manual canónica es área:offset-base-0, por ejemplo 'holding:0'.",
     opcUaManualHelp: "OPC UA manual acepta la dirección portátil canónica, por ejemplo 'node=ns%3D2%3Bs%3DTemperature'. El NodeId crudo legado sigue disponible para migración.",
+    dnp3ManualHelp: "La sintaxis DNP3 canónica es 'dnp3:<pointKind>:<index>', por ejemplo 'dnp3:analogInput:0'.",
+    iec104ManualHelp: "La identidad IEC-104 canónica es 'ca=<0..65535>;ioa=<0..16777215>'. El asistente también configura el Type ID requerido.",
     modbusTitle: 'Asistente de dirección Modbus', modbusHelp: 'Construye la misma dirección canónica consumida por Runtime. La base es explícita y no se adivina la notación 40001.',
     area: 'Área de datos', reference: 'Referencia', referenceBase: 'Base de referencia', zeroBased: 'Offset base 0', oneBased: 'Referencia base 1',
     unitId: 'Override Unit ID', valueType: 'Tipo de valor', wordOrder: 'Orden de palabras', scale: 'Escala', offset: 'Offset', bit: 'Índice de bit',
@@ -228,6 +238,8 @@ function copy(locale: EngineeringLocale) {
     address: 'Endereço', manualHelp: 'Use o formato de endereço portátil exigido pelo Driver selecionado.',
     modbusManualHelp: "A sintaxe manual canônica é área:offset-base-0, por exemplo 'holding:0'.",
     opcUaManualHelp: "OPC UA manual aceita o endereço portátil canônico, por exemplo 'node=ns%3D2%3Bs%3DTemperature'. O NodeId cru legado continua disponível para migração.",
+    dnp3ManualHelp: "A sintaxe DNP3 canônica é 'dnp3:<pointKind>:<index>', por exemplo 'dnp3:analogInput:0'.",
+    iec104ManualHelp: "A identidade IEC-104 canônica é 'ca=<0..65535>;ioa=<0..16777215>'. O assistente também configura o Type ID obrigatório.",
     modbusTitle: 'Assistente de endereço Modbus', modbusHelp: 'Monta o mesmo endereço canônico consumido pelo Runtime. A base é explícita e nenhuma notação 40001 é adivinhada.',
     area: 'Área de dados', reference: 'Referência', referenceBase: 'Base da referência', zeroBased: 'Offset base 0', oneBased: 'Referência base 1',
     unitId: 'Override de Unit ID', valueType: 'Tipo do valor', wordOrder: 'Ordem de words', scale: 'Escala', offset: 'Offset', bit: 'Índice do bit',

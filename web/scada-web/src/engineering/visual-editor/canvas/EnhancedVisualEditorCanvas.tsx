@@ -6,7 +6,11 @@ import React, {
   type PointerEvent as ReactPointerEvent
 } from 'react';
 import { isVisualElementEffectivelyAuthoringLocked } from '../visualEditorAuthoringModel';
-import type { VisualEditorCanvasContractProps, VisualEditorPoint } from '../visualEditorContracts';
+import type {
+  VisualEditorCanvasContractProps,
+  VisualEditorMutationIntent,
+  VisualEditorPoint
+} from '../visualEditorContracts';
 import {
   resolveVisualEditorKeyboardCommand,
   type VisualEditorKeyboardCommand
@@ -14,6 +18,11 @@ import {
 import { VisualEditorCanvas as LegacyVisualEditorCanvas } from './VisualEditorCanvas';
 import { VisualEditorOutliner } from './VisualEditorOutliner';
 import {
+  DEFAULT_CANVAS_GRID_SIZE,
+  clientDeltaToCanvas,
+  collapseHierarchySelection,
+  nextSelection,
+  normalizeSelection,
   normalizeViewport,
   selectionModeFromModifiers
 } from './canvasInteractionModel';
@@ -26,6 +35,10 @@ import {
   visualEditorKeyboardCommandMutatesSelection,
   visualEditorMarqueeModeForDrag
 } from './canvasEnhancedInteractionModel';
+import {
+  resolveVisualEditorMoveGuides,
+  type VisualEditorMoveGuideResult
+} from './visualEditorSmartGuidesModel';
 
 export type EnhancedVisualEditorCanvasProps = VisualEditorCanvasContractProps & Readonly<{
   /** Optional session-level command sink. Legacy mutation shortcuts remain intact when omitted. */
@@ -41,25 +54,36 @@ type MarqueeDraft = Readonly<{
   selectionMode: ReturnType<typeof selectionModeFromModifiers>;
 }>;
 
+type GuideDrag = Readonly<{
+  pointerId: number;
+  startClient: VisualEditorPoint;
+  objectIds: readonly string[];
+}>;
+
 /**
  * C07 interaction wrapper around the established Canvas renderer. It adds
- * logical marquee selection, hierarchy Outliner and authoring-lock interception
- * without duplicating canonical rendering or geometry mutation code.
+ * logical marquee selection, hierarchy Outliner, smart alignment guides and
+ * authoring-lock interception without duplicating canonical rendering or
+ * geometry mutation code.
  */
 export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const marqueeSurfaceRef = useRef<HTMLElement | null>(null);
   const [marquee, setMarquee] = useState<MarqueeDraft | null>(null);
+  const [guideDrag, setGuideDrag] = useState<GuideDrag | null>(null);
+  const [guidePreview, setGuidePreview] = useState<VisualEditorMoveGuideResult | null>(null);
 
   const beginCapture = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (props.polygonToolActive || event.button !== 0 || event.altKey) return;
     const target = event.target instanceof HTMLElement ? event.target : null;
     if (!target) return;
 
+    const manipulationHandle = target.closest('[data-canvas-resize-handle],[data-canvas-rotate-handle],[data-polygon-vertex-index]');
     const objectNode = target.closest<HTMLElement>('[data-canvas-object-id]');
     if (objectNode) {
       const objectId = objectNode.dataset.canvasObjectId;
-      if (objectId && isVisualElementEffectivelyAuthoringLocked(props.screen, objectId)) {
+      if (!objectId) return;
+      if (isVisualElementEffectivelyAuthoringLocked(props.screen, objectId)) {
         event.preventDefault();
         event.stopPropagation();
         props.onUiIntent({
@@ -67,11 +91,32 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
           objectIds: [objectId],
           mode: selectionModeFromModifiers(event)
         });
+        return;
       }
+      if (manipulationHandle) return;
+
+      const current = normalizeSelection(props.selectedObjectIds);
+      const mode = selectionModeFromModifiers(event);
+      const currentSet = new Set(current);
+      const preserveExistingSelection = mode === 'replace' && currentSet.has(objectId);
+      const requestedSelection = preserveExistingSelection
+        ? current
+        : nextSelection(current, objectId, mode);
+      const dragObjectIds = collapseHierarchySelection(props.screen.elements ?? [], requestedSelection);
+      if (dragObjectIds.some(id => isVisualElementEffectivelyAuthoringLocked(props.screen, id))) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      setGuideDrag(Object.freeze({
+        pointerId: event.pointerId,
+        startClient: Object.freeze({ x: event.clientX, y: event.clientY }),
+        objectIds: dragObjectIds
+      }));
+      setGuidePreview(null);
       return;
     }
 
-    if (target.closest('[data-canvas-resize-handle],[data-canvas-rotate-handle],[data-polygon-vertex-index]')) return;
     const surface = target.closest<HTMLElement>('.visual-editor-canvas__surface');
     if (!surface) return;
 
@@ -92,55 +137,83 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
   };
 
   const moveCapture = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (!marquee || event.pointerId !== marquee.pointerId) return;
-    const surface = marqueeSurfaceRef.current;
-    if (!surface) return;
-    event.preventDefault();
-    event.stopPropagation();
-    setMarquee(Object.freeze({
-      ...marquee,
-      endLogical: clientToLogical(event.clientX, event.clientY, surface, props.viewport),
-      endLocal: clientToWrapper(event.clientX, event.clientY, wrapperRef.current)
-    }));
+    if (marquee && event.pointerId === marquee.pointerId) {
+      const surface = marqueeSurfaceRef.current;
+      if (!surface) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setMarquee(Object.freeze({
+        ...marquee,
+        endLogical: clientToLogical(event.clientX, event.clientY, surface, props.viewport),
+        endLocal: clientToWrapper(event.clientX, event.clientY, wrapperRef.current)
+      }));
+      return;
+    }
+
+    if (!guideDrag || event.pointerId !== guideDrag.pointerId) return;
+    const snapEnabled = wrapperRef.current
+      ?.querySelector<HTMLButtonElement>('[data-testid="canvas-snap-toggle"]')
+      ?.getAttribute('aria-pressed') === 'true';
+    const delta = clientDeltaToCanvas(
+      { x: event.clientX - guideDrag.startClient.x, y: event.clientY - guideDrag.startClient.y },
+      props.viewport,
+      snapEnabled,
+      DEFAULT_CANVAS_GRID_SIZE
+    );
+    setGuidePreview(resolveVisualEditorMoveGuides(props.screen, guideDrag.objectIds, delta));
   };
 
   const finishCapture = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (!marquee || event.pointerId !== marquee.pointerId) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const surface = marqueeSurfaceRef.current;
-    if (surface?.hasPointerCapture?.(event.pointerId)) surface.releasePointerCapture(event.pointerId);
-    marqueeSurfaceRef.current = null;
+    if (marquee && event.pointerId === marquee.pointerId) {
+      event.preventDefault();
+      event.stopPropagation();
+      const surface = marqueeSurfaceRef.current;
+      if (surface?.hasPointerCapture?.(event.pointerId)) surface.releasePointerCapture(event.pointerId);
+      marqueeSurfaceRef.current = null;
 
-    const clientDistance = Math.hypot(
-      marquee.endLocal.x - marquee.startLocal.x,
-      marquee.endLocal.y - marquee.startLocal.y
-    );
-    if (clientDistance < 3) {
-      if (marquee.selectionMode === 'replace') {
-        props.onUiIntent({ kind: 'selection.change', objectIds: [], mode: 'replace' });
+      const clientDistance = Math.hypot(
+        marquee.endLocal.x - marquee.startLocal.x,
+        marquee.endLocal.y - marquee.startLocal.y
+      );
+      if (clientDistance < 3) {
+        if (marquee.selectionMode === 'replace') {
+          props.onUiIntent({ kind: 'selection.change', objectIds: [], mode: 'replace' });
+        }
+        setMarquee(null);
+        return;
       }
+
+      const rect = normalizeVisualEditorMarquee(marquee.startLogical, marquee.endLogical);
+      const mode = visualEditorMarqueeModeForDrag(marquee.startLogical, marquee.endLogical);
+      const objectIds = resolveVisualEditorMarqueeSelection(props.screen.elements ?? [], rect, mode);
+      props.onUiIntent({
+        kind: 'selection.change',
+        objectIds,
+        mode: marquee.selectionMode
+      });
       setMarquee(null);
       return;
     }
 
-    const rect = normalizeVisualEditorMarquee(marquee.startLogical, marquee.endLogical);
-    const mode = visualEditorMarqueeModeForDrag(marquee.startLogical, marquee.endLogical);
-    const objectIds = resolveVisualEditorMarqueeSelection(props.screen.elements ?? [], rect, mode);
-    props.onUiIntent({
-      kind: 'selection.change',
-      objectIds,
-      mode: marquee.selectionMode
-    });
-    setMarquee(null);
+    if (guideDrag && event.pointerId === guideDrag.pointerId) {
+      queueMicrotask(() => {
+        setGuideDrag(null);
+        setGuidePreview(null);
+      });
+    }
   };
 
   const cancelCapture = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (!marquee || event.pointerId !== marquee.pointerId) return;
-    event.preventDefault();
-    event.stopPropagation();
-    marqueeSurfaceRef.current = null;
-    setMarquee(null);
+    if (marquee && event.pointerId === marquee.pointerId) {
+      event.preventDefault();
+      event.stopPropagation();
+      marqueeSurfaceRef.current = null;
+      setMarquee(null);
+    }
+    if (guideDrag && event.pointerId === guideDrag.pointerId) {
+      setGuideDrag(null);
+      setGuidePreview(null);
+    }
   };
 
   const keyCapture = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
@@ -182,7 +255,25 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
     }
   };
 
+  const handleMutationIntent = (intent: VisualEditorMutationIntent): void => {
+    if (intent.kind === 'object.move' && guideDrag && sameObjectSet(intent.objectIds, guideDrag.objectIds)) {
+      const guided = resolveVisualEditorMoveGuides(props.screen, intent.objectIds, intent.delta);
+      props.onMutationIntent(Object.freeze({ ...intent, delta: guided.delta }));
+      setGuideDrag(null);
+      setGuidePreview(null);
+      return;
+    }
+    props.onMutationIntent(intent);
+  };
+
   const marqueeStyle = marquee ? marqueeOverlayStyle(marquee.startLocal, marquee.endLocal) : undefined;
+  const verticalGuideStyle = guidePreview?.verticalGuide
+    ? smartGuideOverlayStyle('vertical', guidePreview.verticalGuide.position, wrapperRef.current, props.viewport)
+    : undefined;
+  const horizontalGuideStyle = guidePreview?.horizontalGuide
+    ? smartGuideOverlayStyle('horizontal', guidePreview.horizontalGuide.position, wrapperRef.current, props.viewport)
+    : undefined;
+
   return <div
     ref={wrapperRef}
     className="visual-editor-canvas-enhanced"
@@ -193,7 +284,7 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
     onPointerCancelCapture={cancelCapture}
     onKeyDownCapture={keyCapture}
   >
-    <LegacyVisualEditorCanvas {...props} />
+    <LegacyVisualEditorCanvas {...props} onMutationIntent={handleMutationIntent} />
     <VisualEditorOutliner
       screen={props.screen}
       selectedObjectIds={props.selectedObjectIds}
@@ -203,6 +294,18 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
         mode
       })}
     />
+    {verticalGuideStyle ? <div
+      className="visual-editor-smart-guide is-vertical"
+      data-testid="visual-editor-smart-guide-vertical"
+      aria-hidden="true"
+      style={verticalGuideStyle}
+    /> : null}
+    {horizontalGuideStyle ? <div
+      className="visual-editor-smart-guide is-horizontal"
+      data-testid="visual-editor-smart-guide-horizontal"
+      aria-hidden="true"
+      style={horizontalGuideStyle}
+    /> : null}
     {marquee ? <div
       data-testid="visual-editor-marquee"
       data-marquee-mode={visualEditorMarqueeModeForDrag(marquee.startLogical, marquee.endLogical)}
@@ -252,4 +355,46 @@ function marqueeOverlayStyle(start: VisualEditorPoint, end: VisualEditorPoint): 
     pointerEvents: 'none',
     zIndex: 100000
   };
+}
+
+function smartGuideOverlayStyle(
+  axis: 'vertical' | 'horizontal',
+  position: number,
+  wrapper: HTMLElement | null,
+  viewportInput: VisualEditorCanvasContractProps['viewport']
+): CSSProperties | undefined {
+  if (!wrapper) return undefined;
+  const surface = wrapper.querySelector<HTMLElement>('.visual-editor-canvas__surface');
+  if (!surface) return undefined;
+  const wrapperRect = wrapper.getBoundingClientRect();
+  const surfaceRect = surface.getBoundingClientRect();
+  const viewport = normalizeViewport(viewportInput);
+  const base = {
+    position: 'absolute',
+    pointerEvents: 'none',
+    zIndex: 99999,
+    background: '#d946ef'
+  } satisfies CSSProperties;
+  if (axis === 'vertical') {
+    return {
+      ...base,
+      left: surfaceRect.left - wrapperRect.left + viewport.panX + position * viewport.zoom,
+      top: surfaceRect.top - wrapperRect.top,
+      width: 1,
+      height: surfaceRect.height
+    };
+  }
+  return {
+    ...base,
+    left: surfaceRect.left - wrapperRect.left,
+    top: surfaceRect.top - wrapperRect.top + viewport.panY + position * viewport.zoom,
+    width: surfaceRect.width,
+    height: 1
+  };
+}
+
+function sameObjectSet(left: readonly string[], right: readonly string[]): boolean {
+  if (left.length !== right.length) return false;
+  const expected = new Set(right);
+  return left.every(value => expected.has(value));
 }

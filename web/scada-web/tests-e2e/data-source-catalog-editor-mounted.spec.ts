@@ -16,5 +16,7 @@ test('mounted Data Source editor rebuilds driver-specific fields instead of reus
 
   await typePicker.selectOption('builtin.simulation');
   await expect(page.getByTestId('data-source-setting-host')).toHaveCount(0);
-  await expect(editor.getByText(/no configuration fields|não possui campos de configuração|no tiene campos de configuración/i)).toBeVisible();
+  const scanInterval = page.getByTestId('data-source-setting-scanIntervalMilliseconds');
+  await expect(scanInterval).toBeVisible();
+  await expect(scanInterval).toHaveValue('500');
 });

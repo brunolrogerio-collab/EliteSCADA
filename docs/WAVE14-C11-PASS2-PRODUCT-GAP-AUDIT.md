@@ -2,13 +2,14 @@
 
 **Owner:** W14-C11 audit lane  
 **Coordinator:** Wave 14 Coordinator / Development Lead  
-**Product Owner:** source of approved DEMO intent and supplied real EEE engineering reference  
-**State:** PASS 2 AUDIT WORKSPACE / IMPLEMENTATION LOCKED  
+**Product Owner:** requirements authority for the canonical EEE DEMO  
+**Date:** 2026-09-03 BRT  
+**State:** PASS 2 CONSOLIDATED / IMPLEMENTATION LOCKED  
 **Audit product-code SHA:** `97eefd8f4377ff583d1ba20bc89203f4a82b584d`
 
-> This file is the canonical output workspace for C11 Pass 2. It records what the converged EliteSCADA product actually supports for the future canonical EEE DEMO. It must not silently rewrite or narrow the approved DEMO requirements.
+> This document is the canonical C11 Pass 2 product-gap result. It audits the exact frozen C01-C10 product against the approved canonical EEE requirements. It does not authorize C11 implementation and does not narrow requirements to fit current product limitations.
 
-## 1. Authority, provenance and boundaries
+## 1. Authority and frozen evidence
 
 Requirements authority:
 
@@ -18,426 +19,257 @@ Pass 2 release/freeze authority:
 
 - `docs/WAVE14-C10-CONVERGENCE-C11-PASS2-RELEASE.md`
 
-C11 audit branch:
+Audit branch:
 
 - `wave14/c11-pass2-product-gap-audit`
 
-The audit tests the product behavior represented by exact product-code SHA:
+Frozen product-code authority:
 
 - `97eefd8f4377ff583d1ba20bc89203f4a82b584d`
 
-Documentation-only Coordinator commits after that SHA do not redefine the product under audit.
+Exact frozen-SHA workflow evidence revalidated during Pass 2:
 
-C11 implementation remains locked. This branch is not an implementation branch and must not contain the canonical `.escadapkg`, DEMO-specific product code, Preview rewiring, or workaround code.
+- EliteSCADA CI #1273 — SUCCESS;
+- Wave 11 Active HMI Runtime #203 — SUCCESS;
+- Preview Licensing CI #225 — SUCCESS;
+- L3 Seven-Driver Lab #180 — SUCCESS;
+- Interop Lab Smoke #102 — SUCCESS.
 
-### 1.1 Evidence discipline
+PR #212 remains DRAFT, open and unmerged to `main`. Documentation-only `[skip ci]` commits after the frozen SHA do not supersede the product-code authority.
 
-This audit intentionally separates four sources of information:
+C11 implementation remains locked. The historical `SimulationDriver`, `DemoRuntimeServices`, historical DEMO page/package, direct DOM/React manipulation, hidden package JSON, Driver internals and DEV-only shortcuts are explicitly excluded as evidence or mitigation.
 
-1. **current product capability** — accepted only when revalidated against the frozen product SHA through code, contracts, APIs, tests or real Runtime/browser behavior;
-2. **Product Owner requirement** — authoritative for what the future canonical EEE application must demonstrate;
-3. **implementation proposal** — useful design direction, but not treated as a frozen product fact unless explicitly approved;
-4. **uncertainty** — remains `NEEDS VALIDATION` until the required proof is executed.
+## 2. Canonical EEE acceptance intent
 
-A feature is not `SUPPORTED` merely because a DTO, enum, interface or document mentions it. The normal Engineering/Runtime path must be usable by an integrator without editing product internals, hand-authoring hidden package JSON, knowing undocumented driver identifiers, manipulating DOM/React directly, or depending on a DEMO-only fixture.
+The future canonical application remains a realistic **EEE — Estação Elevatória de Esgoto**, serving simultaneously as:
 
-Conversely, a capability that exists technically but is exposed through an incoherent or misleading authoring/operator experience may be recorded as a **product UX gap** even when it does not technically block the DEMO. C11 is being used deliberately to expose product weaknesses before the canonical application is implemented.
+- commercial/product DEMO;
+- Engineering example;
+- operator Runtime demonstration;
+- Product Owner homologation application;
+- regression/acceptance application;
+- canonical EliteSCADA application example;
+- later physical PLC/Modbus proof.
 
-### 1.2 Real EEE engineering reference already supplied by Product Owner
+Required experience remains unchanged: two pumps/motors; stopped/running/fault/trip/unavailable/bad-quality states; non-color-only critical-state semantics; wet well level and `% Full`; animated liquid; coherent flow/pressure/current/frequency; contextual Popups; reusable Dynamos/public properties/TAG bindings; alarms; events; trends; history; PNG/background assets; correct Operator versus Engineering/Diagnostics boundaries; and `pt-BR`, `en`, `es`.
 
-The Product Owner supplied real-world EEE material during requirements intake, including HMI captures, a TAG export and an alarm export. The reference application is not compatibility authority and is not to be copied pixel-for-pixel. It is engineering evidence for process content and realistic operator expectations.
+The first variant must be a living, deterministic **DEMO Simulation**. The later **DEMO PLC** should preserve the conceptual HMI and logical TAG identities while replacing internal/simulated Source mapping with real Modbus mapping.
 
-The supplied HMI reference covered, among other things:
+## 3. Evidence discipline
 
-- overall EEE process layout;
-- suction/wet well;
-- two pumping units;
-- common discharge;
-- level, flow and pressure;
-- level/setpoint adjustment concepts;
-- alarms;
-- electrical measurements;
-- instrument measurements;
-- digital and analog I/O diagnostics;
-- generator/source information;
-- hours/totalizers;
-- pressure configuration;
-- control/status information.
-
-The supplied TAG export contained approximately 120 historical FvDesigner TAGs and demonstrated real process concepts such as level thresholds, pump running/fault status, VFD frequency/current, analog failures, generator/source states, pressure protections, command/reset points and operating counters. Historical address strings from that export are **not** automatically interpreted as current EliteSCADA addressing contracts.
-
-The supplied alarm export contained approximately 28 historical alarm definitions, including low/high/very-high/overflow level, emergency, UPS, analog input failures, VFD faults, pressure abnormality and communication failures. Some historical entries, such as ordinary pump-running state, may be more appropriate as events in the canonical product if the current event model supports that distinction.
-
-## 2. Required classification
-
-Every canonical requirement is classified exactly as one of:
+Classification is exactly one of:
 
 - `SUPPORTED`
 - `PARTIALLY SUPPORTED`
 - `PRODUCT GAP`
 - `NEEDS VALIDATION`
 
-For audit readability, a `PRODUCT GAP` may additionally be described by product surface, without changing the mandatory classification, for example:
+Disposition is exactly one of:
 
-- `PRODUCT GAP — FUNCTIONAL`
-- `PRODUCT GAP — ENGINEERING UX`
-- `PRODUCT GAP — RUNTIME UX`
-- `PRODUCT GAP — AUTHORIZATION/BOUNDARY`
+- `no action required`
+- `fix before C11`
+- `known mitigation acceptable`
+- `defer to later Wave`
+- `requires Development Lead decision`
+- `requires real-browser validation`
+- `requires PLC validation later`
 
-Every non-`SUPPORTED` finding includes, as evidence becomes available:
+A DTO/interface by itself is not proof. `SUPPORTED` requires a credible normal product path. Browser-only visual quality and physical PLC operation are not promoted from static evidence.
 
-1. requirement;
-2. exact product evidence / code / API / test / Runtime behavior;
-3. current limitation;
-4. impact on the canonical EEE DEMO;
-5. Simulation impact;
-6. PLC/Modbus impact;
-7. recommended owner/action;
-8. whether bounded product correction is recommended before DEMO implementation;
-9. any safe mitigation, clearly separated from a real product fix.
+## 4. Consolidated Pass 2 matrix
 
-Pass 1 findings are re-tested. Findings solved by C09/C10 are marked `RESOLVED/SUPERSEDED` with evidence rather than disappearing.
-
-## 3. Product Owner intent that must not be narrowed by this audit
-
-The future canonical application is an **EEE — Estação Elevatória de Esgoto** intended to function simultaneously as:
-
-- commercial/product DEMO;
-- Engineering authoring example;
-- operator Runtime demonstration;
-- Product Owner homologation application;
-- regression/acceptance application;
-- canonical example of normal EliteSCADA workflows;
-- later proof against a physical PLC using Modbus.
-
-### 3.1 Main process experience
-
-The primary Runtime must be strongly visual and must make process state understandable without relying on tables alone.
-
-At minimum:
-
-- two pumps/motors;
-- clear stopped, running, fault/trip, unavailable and bad-quality states;
-- visual state changes must be immediate and critical states must not rely only on color;
-- suction well with analog level;
-- numeric `% Full`;
-- visibly animated liquid rising/falling with process value;
-- flow, pressure, current, frequency and other coherent process values;
-- contextual Popups;
-- reusable Dynamos with public properties and TAG bindings;
-- alarms, events, trends and history through normal product surfaces;
-- operator/Engineering boundary;
-- project-owned PNG/background assets through canonical asset mechanisms.
-
-Expected Screens currently include at least:
-
-- `Visão Geral / EEE Principal`;
-- `Instrumentação`;
-- `Sistema Elétrico`;
-- `Operação`.
-
-Additional operator alarm/trend/support views may be added when justified by the actual product contracts.
-
-### 3.2 Required Simulation behavior
-
-`DEMO Simulation` must be visibly alive through supported EliteSCADA mechanisms. It must not be a static fixture displaying decorative values.
-
-The intended behavior includes:
-
-- process inflow raising well level;
-- running pump(s) lowering well level;
-- automatic start/stop thresholds;
-- duty/standby alternation between the two pumps;
-- second-pump demand under higher inflow/level conditions;
-- pump fault/trip injection;
-- unavailable/bad-quality scenario;
-- current/frequency/flow/pressure changing coherently with equipment/process state;
-- alarms occurring from simulated process conditions;
-- historian/trend data evolving over time;
-- deterministic/reproducible behavior sufficient for regression and homologation.
-
-The preferred state model uses shared/authoritative process state for physical simulation and reserves client-local memory for client UI state. The exact implementation mechanism remains subject to this audit and later implementation release.
-
-### 3.3 Required PLC/Modbus transition
-
-`DEMO PLC` is a later validation stage against a physical PLC using Product Owner supplied Modbus addresses.
-
-The desired architecture preserves as much as technically possible:
-
-- Screens;
-- Dynamos;
-- Popups;
-- conceptual TAG identities;
-- alarms;
-- trends/history;
-- visual logic;
-- operator experience.
-
-The intended difference is primarily source/address mapping rather than building a second HMI. A Simulation design that hard-couples visual objects to simulator-only internals is therefore unacceptable even if the Simulation variant itself looks correct.
-
-## 4. Consolidated matrix — progressive Pass 2 state
-
-The table below is intentionally progressive. `NEEDS VALIDATION` rows are not evidence of failure; they identify proof still required before C11 implementation can be recommended.
-
-| ID | Requirement / capability | Classification | Evidence at frozen SHA | Current behavior / limitation | EEE impact | Simulation impact | PLC/Modbus impact | Recommended disposition |
+| ID | Requirement / capability | Classification | Evidence | Current product behavior | EEE impact | Simulation impact | PLC/Modbus impact | Recommended disposition |
 |---|---|---|---|---|---|---|---|---|
-| C11-P2-GOV-01 | Exact converged product checkpoint for Pass 2 | SUPPORTED | Frozen release documentation and repository history identify `97eefd8f4377ff583d1ba20bc89203f4a82b584d` as C10 converged product code. Coordinator documentation after it is documentation-only. | Stable authority for this audit. | Prevents auditing a moving target. | Same frozen contracts. | Same frozen contracts. | no action required |
-| C11-P2-DS-01 | Backend-authoritative Data Source configuration forms rather than opaque config string | SUPPORTED | Engineering Data Source editor consumes backend type/catalog configuration schemas and renders typed controls rather than requiring a developer-known arbitrary configuration string. | Driver-specific fields can be projected from catalog schema. | Normal integrator authoring path exists for driver/source configuration. | Memory providers still require separate creation-path validation below. | Supports normal Modbus Source configuration model. | no action required; keep regression coverage |
-| C11-P2-TAG-01 | Protocol-aware TAG address assistance | SUPPORTED | `TagAddressEditor` has specialized assistants for Modbus TCP, OPC UA, DNP3 and IEC-104, with generic fallback for other cases. | Major industrial protocols do not require the user to memorize canonical address syntax. | Supports realistic TAG authoring. | Internal Memory must not be forced through protocol-address semantics. | Directly supports later PLC mapping, subject to real PLC validation. | no action required; retain protocol-specific validation |
-| C11-P2-MEM-01 | Canonical Server Memory / Client Memory TAG concepts | SUPPORTED | Product contracts and Engineering memory settings recognize `builtin.memory.server` and `builtin.memory.client`; memory settings expose typed initial/default value semantics and explicitly describe no network address. | Product distinguishes shared server memory from client-local memory. | Provides a canonical basis for internal state rather than DEMO-only variables. | Server/shared memory is the appropriate candidate for common simulated process state; client memory remains suitable for client-only UI state. | Logical TAG model can remain distinct from physical Modbus source. | no action required on the memory model itself |
-| C11-P2-MEM-02 | Internal Memory TAG authoring must not expose meaningless network `Address` semantics | PRODUCT GAP | Frozen `TagAddressEditor` renders the generic Address editor path independently of the Internal Memory-specific settings panel. Internal Memory is not one of the protocol-specialized assistant branches, while `MemoryTagSettingsPanel` correctly states that no network address exists. | Two parts of Engineering expose conflicting concepts: the memory panel says no network address, while the general TAG editor still presents address semantics. | An integrator sees an irrelevant field when authoring canonical memory TAGs. This is a product UX defect, not a DEMO-specific inconvenience. | Directly affects normal creation of Simulation memory TAGs. | No direct protocol impact, but fixing the UX clarifies the separation between internal and physical Sources. | **fix before C11**; hide/replace Address binding UI for Internal Memory through normal source capability/schema semantics |
-| C11-P2-MEM-03 | Human-facing creation of both Server Memory and Client Memory Data Sources without knowing `builtin.memory.*` identifiers | NEEDS VALIDATION | Memory provider identities exist and memory TAG settings recognize both. Pass 2 must still prove both providers are published through the backend-authoritative Data Source catalog and are creatable through the normal UI. | Structural support is present; end-to-end human authoring remains unproven in this audit. | C11 must not ship a package that only works because a developer manually inserted provider identifiers. | Potentially important for Simulation authoring. | None directly. | requires real-browser/E2E validation; fix before C11 if either provider cannot be created normally |
-| C11-P2-MEM-04 | E2E creation of Internal Memory Source then TAG from Engineering | NEEDS VALIDATION | Existing memory-focused test evidence observed in Pass 1 exercised a package where memory identity was already present rather than proving complete Source creation from the UI. Must be revalidated against frozen SHA. | Creation flow is not yet proven end-to-end. | Product should support an integrator from empty project to working memory TAG. | Could become blocking if authoring requires package editing. | None directly. | requires real-browser/E2E validation |
-| C11-P2-VIS-01 | Analog `% Full` value | SUPPORTED | Canonical numeric TAG/binding/property infrastructure plus analog-fill scale contract support numeric process values and normalized fill. | Numeric level can drive display and visual behavior. | Required for main EEE Screen. | Simulation can publish analog level. | PLC analog level can map to same conceptual TAG. | no action required; validate final Runtime presentation |
-| C11-P2-VIS-02 | Animated suction-well liquid fill driven by process value | SUPPORTED | Canonical Analog Fill engineering/runtime contract supports input min/max, clamp/invert and BottomToTop/TopToBottom/LeftToRight/RightToLeft fill projection. | Product has a first-class visual mechanism rather than requiring DOM/CSS manipulation. | Enables the key animated wet-well experience. | Simulated level can drive the same visual binding. | PLC level can later drive the same binding. | no action required structurally; requires real-browser validation for visual quality |
-| C11-P2-DYN-01 | Reusable Dynamo definitions with typed public properties/TAG references | SUPPORTED | Dynamo contracts/composition reviewed in Pass 1/2 expose reusable definitions, typed public parameters including TAG reference/equipment-path concepts, per-instance identity and internal composition. | Same pump definition can represent multiple equipment instances without duplicating all internal objects. | Supports one canonical pump Dynamo for GMB-01/GMB-02. | Simulation instance bindings can target logical simulated TAGs. | Same definition should survive change to Modbus-backed logical TAGs. | no action required structurally; continue authoring/browser validation |
-| C11-P2-DYN-02 | Pump visual states including bad quality/fault semantics | PARTIALLY SUPPORTED | Runtime Dynamo/state projection includes semantic states such as active/inactive, fault/alarm, bad-quality, transition and feedback mismatch. Visual dynamics also protect against blindly driving state from non-Good samples. | Product has semantic state vocabulary, but Pass 2 has not yet proven that normal Engineering authoring and final operator presentation make bad quality sufficiently explicit and non-color-only. | Needed for stopped/running/fault/unavailable/bad-quality pump representation. | Simulator must be able to produce the quality/state path through public mechanisms. | Real driver quality must project through the same visual contract. | requires real-browser validation and Simulation quality-injection audit; fix product UX before C11 if bad quality is ambiguous |
-| C11-P2-POP-01 | Canonical contextual Popup open/close with equipment context | SUPPORTED | Canonical Runtime action model includes `OpenPopup` / `ClosePopup` and contextual parameters/target identity. | Popup opening is part of the normal project/runtime model rather than a DEMO-only modal. | Enables pump/instrument detail Popups. | Same Popup can show simulated logical TAGs. | Same Popup can reuse PLC-backed logical TAGs. | no action required structurally; validate actions/commands/browser behavior |
-| C11-P2-POP-02 | Persisted authorable Popup X/Y placement | NEEDS VALIDATION | Known C07/C09-era concern: Popup mount/action contracts inspected so far do not expose a clear persisted per-instance authorable X/Y placement contract. Pass 2 must close this against the frozen C10 product before declaring a gap. | Contextual placement may currently be shell-defined/centralized rather than authorable. | May reduce desired equipment-context presentation. | Same limitation in PLC variant. | revalidate exact persisted definition + Property Inspector + Runtime mount/CSS; if absent classify PRODUCT GAP and request Development Lead disposition |
-| C11-P2-NAV-01 | Explicit authorable Runtime startup/home Screen | NEEDS VALIDATION | Pass 2 preliminary inspection indicated Runtime may derive initial Screen from deterministic Screen ordering rather than a persisted project startup-screen contract. Must be confirmed at exact frozen contracts/tests before final gap classification. | Naming tricks such as `00_Overview` are not an acceptable substitute for product-level startup configuration if the product requirement expects a chosen home Screen. | Main EEE Screen should open deterministically as intended. | Same behavior regardless of Source. | revalidate projected package contract + navigator; if confirmed absent, classify PRODUCT GAP and **fix before C11** |
-| C11-P2-VIEW-01 | Fixed logical HMI composition scaled into common Runtime resolutions | PARTIALLY SUPPORTED | C09/C10 Runtime uses a fixed logical HMI composition model and viewport scaling rather than responsive DOM reflow. Preliminary inspection observed a 1920x1080 logical composition assumption. | Preserves authored coordinates, but per-Screen logical resolution authoring has not been demonstrated. | Expected design can target canonical logical canvas and scale to 720p/1080p/1440p/4K. | Same. | Same. | requires real-browser validation at required resolutions; Development Lead decision only if per-Screen logical resolution becomes a requirement |
-| C11-P2-ASSET-01 | Import/use project PNG/background assets through normal Engineering | SUPPORTED | Engineering visual workspace supports import of common raster assets and Surface/visual settings expose asset selection/preview and fit modes. | Project assets are available through canonical authoring rather than arbitrary filesystem paths. | Allows polished EEE artwork/backgrounds. | No simulation coupling. | No PLC coupling. | no action required; validate persistence Save->Publish->Activate->Runtime |
-| C11-P2-SCR-01 | Canonical Server-side script model with timer/event semantics for a living process | NEEDS VALIDATION | Script contracts inspected during Pass 1/2 include Server scope and timer/server-runtime-event concepts plus mediated memory/TAG capability models. Static inspection has not yet proven the complete activated Runtime host/executor/scheduler lifecycle at the frozen SHA. | Contracts appear designed for the required model, but C11 cannot call it supported until scripts actually execute continuously after Publish/Activate through public product wiring. | **Potential blocker** for coherent autonomous Simulation. | Central to level evolution, pump logic, analog values and scenario injection if Server Script is the chosen canonical mechanism. | PLC variant may need less simulation logic, but script/runtime contract still matters for canonical project behavior. | **keep implementation locked until closed**; inspect host composition, executor, scheduler, activation lifecycle and tests; fix before C11 if wiring is absent |
-| C11-P2-QUAL-01 | Official Simulation path to produce unavailable/bad/stale quality | NEEDS VALIDATION | Runtime visual/state contracts understand bad quality, but Pass 2 has not yet proven a public Simulation/Memory/Script API that can intentionally publish required quality states without internal host bypass. | DEMO must visibly demonstrate communication/quality loss honestly. | Potential blocker for mandatory bad-quality Simulation scenario. | Real PLC/driver quality is expected to originate from driver/runtime paths and requires later PLC proof. | audit public quality-write/simulation capability; fix before C11 if bad quality cannot be produced canonically in Simulation |
-| C11-P2-RUNTIME-01 | Canonical Active Engineering Runtime, not hard-coded simulation fallback, is authority for C11 | SUPPORTED | Product distinguishes canonical Runtime backed by persisted Active Engineering from legacy/fallback simulation presentation. Existing fallback is not accepted as evidence for C11. | Prevents a visually convincing DEV-only page from masquerading as product capability. | C11 must go through normal Save/Publish/Activate/Runtime lifecycle. | Simulation must live inside canonical product contracts. | PLC variant likewise uses canonical Runtime. | no action required; preserve audit guardrail |
-| C11-P2-FULL-01 | Fullscreen/no-document-scroll operator presentation | NEEDS VALIDATION | C09/C10 shell contains fullscreen/viewport/overflow behavior, but required multi-resolution browser behavior must be verified in a real browser. | Important for operator-quality presentation. | Same. | Same. | requires real-browser validation at 1280x720, 1920x1080, 2560x1440 and 3840x2160 |
-| C11-P2-PLC-01 | Reuse conceptual HMI while swapping Simulation source/mapping to Modbus PLC | NEEDS VALIDATION | Product architecture separates visual bindings/logical TAG identity from Source/Driver concepts and provides Modbus address assistance. Complete authoring migration path still needs proof without rebuilding Screens/Dynamos/Popups. | Core requirement for one canonical HMI rather than two unrelated projects. | Simulation architecture must avoid simulator-only visual coupling. | Later physical PLC validation is mandatory. | audit stable TAG identity/source remapping workflow now; requires PLC validation later |
+| C11-P2-GOV-01 | Exact C10 converged product checkpoint | SUPPORTED | Frozen release docs, commit `97eefd8...`, five exact-SHA workflows green | Stable product authority for audit | Prevents moving-target acceptance | Same frozen contracts | Same frozen contracts | no action required |
+| C11-P2-DS-01 | Backend-authoritative Data Source forms | SUPPORTED | `EngineeringDataSourceTypeCatalog`, `/api/engineering/data-source-types`, `DataSourceCatalogEditor` schema-driven fields | Human-facing typed Source configuration exists | Normal integrator path | Supports Memory Source authoring | Supports Modbus Source authoring | no action required |
+| C11-P2-TAG-01 | Protocol-aware TAG address assistance | SUPPORTED | `TagAddressEditor` specialized assistants for Modbus TCP, OPC UA, DNP3, IEC-104 | Major protocols do not require memorized opaque syntax | Realistic TAG authoring | Internal Memory handled separately | Modbus mapping supported structurally | no action required |
+| C11-P2-MEM-01 | Canonical Server Memory / Client Memory concepts | SUPPORTED | `builtin.memory.server`, `builtin.memory.client`, typed initial values, Server Memory retention and runtime composition | Shared server state and client-local state are distinct | Correct internal-memory foundation | Server Memory is appropriate shared process-state candidate | Clean conceptual separation from physical Sources | no action required |
+| C11-P2-MEM-02 | Internal Memory TAG authoring without meaningless network Address | PRODUCT GAP | `MemoryTagSettingsPanel` states no network address; generic `TagAddressEditor` still renders Address for Memory | Engineering exposes conflicting semantics | Confusing canonical authoring | Directly affects Simulation TAG creation | Clarifying fix improves internal vs physical Source boundary | fix before C11 |
+| C11-P2-MEM-03 | Human creation/discovery of both Memory Source types without private IDs | SUPPORTED | Backend catalog publishes `Server Memory` and `Client Memory`; UI selector shows human display names while type keys remain internal | Both are normal Data Source choices | Integrator need not know `builtin.memory.*` | Shared/client memory can be selected normally | None direct | no action required |
+| C11-P2-MEM-04 | Full Memory Source -> TAG -> Save -> Publish -> Activate -> Runtime E2E | NEEDS VALIDATION | Existing `internal-memory.spec.ts` starts from preconfigured Memory Source/TAG; static authoring/runtime pieces exist but requested complete flow is not proven | End-to-end human flow remains unexecuted | Must prove empty-project workflow | Could expose hidden lifecycle defect | None direct | requires real-browser validation |
+| C11-P2-SCR-01 | Activated Server Python host/executor/scheduler/timer lifecycle | PRODUCT GAP | Frozen scripting architecture describes Server Scripts as later capability; `Program.cs` has no Server Python host/executor/scheduler; only Client Visual runtime and excluded legacy Simulation host exist | Server Script project data/contracts exist without executable active server host | Canonical server automation unavailable | **Blocks autonomous mass-balance, sequencing, alternation and deterministic physics** | PLC can obtain physical state externally, but Simulation gap remains | fix before C11 |
+| C11-P2-SIM-01 | Deterministic living EEE process model through normal product mechanisms | PRODUCT GAP | Server Memory is writable/shared, but no canonical periodic server execution producer exists at frozen SHA | Downstream TAG/alarm/historian pipeline exists; autonomous process producer does not | Required living station cannot be built canonically | **Blocking** | PLC variant not dependent on simulator physics | fix before C11 |
+| C11-P2-QUAL-01 | Deliberate bad/stale/unavailable quality generation in Simulation | PRODUCT GAP | `ISourceProvider.WriteAsync` accepts value only; Server/Client Memory force every authored write/reset/init to `TagQuality.Good`; no public quality-degradation API | Memory Simulation cannot intentionally publish non-Good quality | Mandatory communication-loss scenario unavailable | **Blocking** | Real Driver can originate quality later; not a Simulation substitute | fix before C11 |
+| C11-P2-QUAL-02 | Propagation/interpretation of non-Good quality from a real Source | SUPPORTED | `TagValue` carries quality; `CurrentTagCache` preserves sample; alarms treat non-Good as Communication condition; runtime/trend models carry quality | Downstream runtime understands abnormal quality | Supports quality-aware operator state structurally | Waiting on QUAL-01 for simulated origin | Supports Driver-originated quality structurally | no action required |
+| C11-P2-VIS-01 | Numeric `% Full` | SUPPORTED | Numeric TAG/binding/property contracts and scale semantics | Numeric well percentage can be shown | Required primary-screen value available | Driven by simulated level after producer exists | Same logical TAG can be PLC-backed | no action required |
+| C11-P2-VIS-02 | Analog Fill for wet-well liquid | SUPPORTED | `VisualAnalogFillEngineeringDto` supports min/max, clamp, invert and four fill directions | First-class canonical fill behavior exists | Enables animated wet well without DOM manipulation | Same simulated level binding | Same PLC level binding | no action required |
+| C11-P2-VIS-03 | Actual live Analog Fill/operator visual quality in mounted browser Runtime | NEEDS VALIDATION | Structural contract exists; no Pass 2 real-browser homologation of changing wet-well value was executed | Runtime visual quality not yet observed for C11 target | Must prove intended appearance/animation | Same | Same | requires real-browser validation |
+| C11-P2-DYN-01 | Reusable Dynamos with typed public parameters/TAG references | SUPPORTED | Canonical Dynamo definitions/parameters include `TagReference`, `EquipmentPath`, typed values and reusable child composition | One pump definition can represent GMB01/GMB02 | Canonical reuse possible | Simulation bindings can target logical TAGs | Same definitions survive physical remap conceptually | no action required |
+| C11-P2-DYN-02 | Pump running/fault/unavailable/bad-quality operator semantics | PARTIALLY SUPPORTED | Runtime state vocabulary includes active/inactive/fault/alarm/bad-quality/transition concepts; quality-aware dynamics exist | Semantic ingredients exist, but final non-color-only presentation is not proven | Critical for operator comprehension | QUAL-01 also blocks simulated bad-quality state | Real Driver quality can feed semantics | requires real-browser validation |
+| C11-P2-DYN-03 | Multiple instances of same Dynamo with independent bindings | NEEDS VALIDATION | Per-instance identity and parameters exist structurally; C11 has not run the two-pump browser authoring/runtime proof | Architecture supports independence, mounted proof pending | Needed for GMB01/GMB02 reuse | Same | Same | requires real-browser validation |
+| C11-P2-POP-01 | Canonical Popup open/close/context | SUPPORTED | `VisualNavigationActionKind` has `OpenPopup`/`ClosePopup`; runtime navigator mounts instance context | Contextual Popups are product behavior | Equipment detail can be reused | Same | Same | no action required |
+| C11-P2-POP-02 | Persisted authorable Popup X/Y placement | PRODUCT GAP | Popup navigation/mount contracts expose target/context/stacking but no authored mount X/Y; runtime `<section>` receives no canonical position coordinates | Shell-defined/centralized placement only | Limits contextual placement near equipment | Presentation only | Same limitation | requires Development Lead decision |
+| C11-P2-NAV-01 | Explicit authorable startup/home Runtime Screen | PRODUCT GAP | `RuntimeApplicationMount` sorts Screen keys and selects `keys[0]`; no persisted project home reference is consumed | Startup is lexical-order driven | `00_...` naming would be a workaround, not product contract | Same | Same | fix before C11 |
+| C11-P2-CMD-01 | Backend canonical Operational Command execution | SUPPORTED | `/api/commands/{id}/execute` resolves Active Runtime command, enforces `CommandExecute`, scopes authorization and audits result | Secure command backend is real | Command definitions are meaningful product entities | Could execute against Simulation TAGs if UI can invoke them | Same for PLC-backed commands | no action required |
+| C11-P2-CMD-02 | Invoke canonical Operational Command from authored Screen/Dynamo/Popup | PRODUCT GAP | Visual actions only Navigate/OpenPopup/ClosePopup; default Client Visual Python provider exposes TAG/memory/visual operations but does not wire `requestBackendOperation`; no canonical `ExecuteCommand` visual action found | Backend Command exists but normal HMI authoring has no command invocation bridge | Equipment Popup cannot canonically trigger a Command entity | Required operator control would otherwise fall back to direct TAG write | Same gap for PLC commands | fix before C11 |
+| C11-P2-WRITE-01 | Authorized process TAG write from normal Runtime visual/script boundary | SUPPORTED | Client Visual Python `writeTag` uses `/api/tags/{id}/write`; backend enforces writable TAG, authorization and audit | Safe mediated TAG writes exist | Enables setpoints/simple control without Driver access | Can write writable Server Memory TAGs | Can write writable Driver TAGs according to runtime rules | no action required |
+| C11-P2-ALM-01 | Alarm activation, ACK and return-to-normal | SUPPORTED | `InMemoryAlarmEngine` subscribes `TagValueChanged`, evaluates alarm types, supports Active/Acknowledged/Returned/Shelved; protected API authorizes ACK | Real operational alarm lifecycle exists | EEE alarms can use normal definitions | Same simulated TAGs feed alarms once Simulation producer exists | Same logical TAGs under PLC | no action required |
+| C11-P2-ALMUI-01 | Operator Alarm Center in pt-BR/en/es | SUPPORTED | `RuntimeAlarmCenter` has localized copy and server-confirmed ACK flow; C09 operator overlay mounts it without reflowing HMI | Operator alarm UI is present | Required alarm handling available | Same | Same | no action required |
+| C11-P2-HIST-01 | Historian capture from canonical TAG changes | SUPPORTED | Server Memory runtime writes update `CurrentTagCache`; historian subscribes `TagValueChanged`; Timescale and memory providers honor historian policy | Same TAG stream feeds current/historical state | Process history architecture exists | Missing producer is SCR-01, not historian defect | Logical TAG identity remains historian association | no action required |
+| C11-P2-ALMHIST-01 | Durable alarm-history persistence/query | SUPPORTED | With Historical Query + Timescale/PostgreSQL, hosted service persists `AlarmStateChanged`; `alarm.events` is queryable | Alarm activation/ACK/recovery history is durable | Required alarm history available | Same | Same | no action required |
+| C11-P2-EVT-01 | First-class general operational events distinct from alarms/audit | PRODUCT GAP | `EngineeringPackage` and `ImportEntityKind` contain no Event entity; Historical Query exposes historian samples and alarm events only; internal event bus is not engineer-authorable operator history | Ordinary equipment transitions have no canonical event definition/history surface | Pump start/stop events cannot be represented honestly as events | Process transitions lack canonical event sink/history | Same for PLC-backed transitions | fix before C11 |
+| C11-P2-TREND-01 | Operator-accessible process trend chart | PRODUCT GAP | `BasicTrendViewer` exists and is localized, but `main.tsx` mounts `/runtime/history` as tabular `HistoricalDataBrowserRuntime`; AppNavigation has no Trend route; no canonical Screen Trend visual identified | Historian exists but chart is not exposed as normal operator/authored surface | Required level/flow/pressure/current trends unavailable canonically | Samples could exist but operator cannot consume required chart normally | Same | fix before C11 |
+| C11-P2-HISTORY-01 | Operator historical data browser | SUPPORTED | `/runtime/history` mounts protected `HistoricalDataBrowserRuntime` over Historical Query datasets | Tabular historian/alarm-history consultation exists | Useful support surface | Same | Same | no action required |
+| C11-P2-I18N-HIST-01 | Historical Data Browser visible UI in pt-BR/en/es | PRODUCT GAP | Mounted historical browser/controller contains hard-coded English labels, states, search/sort/paging copy rather than common locale | History surface is English-only in significant chrome | Violates canonical multilingual operator requirement | Same | Same | fix before C11 |
+| C11-P2-I18N-01 | C11-relevant visible surfaces overall in pt-BR/en/es | PARTIALLY SUPPORTED | C10 localized shell, Engineering diagnostics/script surfaces; Runtime Alarm Center and BasicTrendViewer have three-language copy; Historical Browser remains English-hardcoded | Multilingual infrastructure is strong but incomplete on a required mounted surface | Cannot declare whole EEE path multilingual | Same | Same | fix before C11 |
+| C11-P2-SHELL-01 | Operator vs Engineering/Diagnostics separation | SUPPORTED | Capability-driven AppNavigation plus Playwright shell test verifies Runtime without Engineering chrome/TAG inspector and capability-gated navigation | Runtime-only users receive operator-focused shell | Correct operator boundary | Same | Same | no action required |
+| C11-P2-VIEW-01 | Fixed logical HMI scaling across 720p/1080p/1440p/4K | PARTIALLY SUPPORTED | Runtime uses deterministic 1920x1080 logical size; tests cover 1280x720, 1920x1080, 2560x1440, 3840x2160 plus letterbox and pointer inverse transform | Architecture/scaling math is deliberate; real C11 visual homologation pending | Suitable fixed-coordinate HMI strategy | Same | Same | requires real-browser validation |
+| C11-P2-FULL-01 | Fullscreen/no document scroll/alarm overlay without HMI reflow | NEEDS VALIDATION | CSS uses `overflow:hidden`, fullscreen 100vw/100vh and absolute alarm overlay; C09 browser tests cover shell composition but Pass 2 has not exercised all target resolutions/fullscreen states | Static/browser-test evidence is strong but acceptance observation incomplete | Important commercial/operator quality | Same | Same | requires real-browser validation |
+| C11-P2-ASSET-01 | Project PNG/background assets | SUPPORTED | Project raster asset import/selection, stable asset references and surface fit/preview mechanisms exist | Canonical project-owned visuals available | Enables polished EEE presentation | No simulation coupling | No PLC coupling | no action required |
+| C11-P2-PLC-01 | Preserve conceptual HMI/TAG identity when moving Simulation -> Modbus | SUPPORTED | `TagEngineeringDto` has stable ID separate from DataSource/address; `assignTagDataSource` preserves TAG and clears only source-specific binding when Source changes; visual bindings use stable `TagValueReference`; alarms reference `TagId`; historian keyed by TAG ID | Logical identity is decoupled from physical mapping | Simulation can target logical TAGs | Screens/Dynamos/Popups/alarms/history can remain while Source/address changes | requires PLC validation later |
+| C11-P2-MODBUS-01 | Current Modbus mapping/address assistant | SUPPORTED | Modbus assistant builds canonical area/reference, zero/one-based policy, unit ID, value type, word order, scaling, offset and bit selector through backend builder | Current product has human-facing Modbus binding workflow | None until PLC stage | Enables remapping without historical FvDesigner syntax assumptions | requires PLC validation later |
+| C11-P2-CHAIN-01 | End-to-end `Simulation -> TAG -> Alarm/Event/Historian -> Binding -> Dynamo/Screen/Popup` | PARTIALLY SUPPORTED | TAG/current-cache, alarm, historian, visual binding/Dynamo/Popup downstream are present; Server Simulation producer, general Event model, trend exposure and deliberate bad-quality origin have confirmed gaps | Downstream product chain is real but the complete canonical EEE chain cannot currently be assembled | Required acceptance chain incomplete | **Blocked by SCR-01, QUAL-01 and EVT-01** | PLC removes simulator producer dependency but EVT/TREND/UI gaps remain | fix before C11 |
 
-## 5. Pass 1 findings revalidation register
+## 5. Pass 1 revalidation outcome
 
-| Pass 1 finding | Pass 2 state | Classification | Disposition / consequence |
-|---|---|---|---|
-| Internal Memory exists but authoring semantics may be inconsistent | **CONFIRMED in UX scope** | PRODUCT GAP for generic Address exposure; memory model itself SUPPORTED | Fix Engineering UX before C11; do not invent an address wizard for a source that has no network address |
-| Human creation of Server/Client Memory Sources was not proven | **OPEN** | NEEDS VALIDATION | Prove both from normal Data Source catalog/UI; fix if either requires package editing/internal IDs |
-| Server Script + Timer contracts may lack complete Runtime host/wiring | **OPEN / high priority** | NEEDS VALIDATION | Potential C11 blocker; close before implementation recommendation |
-| Wet-well analog fill may require custom DOM/CSS | **RESOLVED structurally** | SUPPORTED | Canonical Analog Fill contract exists; browser quality remains validation-only |
-| Pump/Dynamo state model may not expose reusable bad-quality/fault semantics | **RECLASSIFIED** | PARTIALLY SUPPORTED | Semantic runtime states exist; Engineering authorability and explicit operator bad-quality indication remain to validate |
-| Reusable Dynamo public properties/TAG bindings uncertain | **RESOLVED structurally** | SUPPORTED | Continue UX/browser validation, but no structural gap currently identified |
-| Popup open/context support uncertain | **RESOLVED structurally** | SUPPORTED | Open/close/context contract exists |
-| Popup authorable X/Y placement absent/unclear | **OPEN** | NEEDS VALIDATION | Must inspect persisted Popup definition, authoring and Runtime mount before final disposition |
-| Startup/home Screen may not be persisted | **OPEN** | NEEDS VALIDATION | If navigator truly selects by ordering rather than configured home Screen, classify product gap and fix before C11 |
-| Fixed 1920x1080 logical Runtime canvas | **RECLASSIFIED** | PARTIALLY SUPPORTED | Deliberate fixed logical composition is compatible with EEE if scaling/no-scroll passes browser validation; per-Screen logical size remains a product limitation unless made a requirement |
-| Project PNG/background asset flow uncertain | **RESOLVED structurally** | SUPPORTED | Normal project import/selection exists; validate lifecycle persistence |
-| Legacy/fallback EEE-like simulation presentation could mask missing product capabilities | **CONFIRMED as audit guardrail** | SUPPORTED boundary | Explicitly excluded from C11 evidence/implementation |
-| Bad-quality visual behavior/injection incomplete | **OPEN** | NEEDS VALIDATION | Must prove both clear operator state and public Simulation path for quality degradation |
+Pass 1 conclusions were not carried forward blindly.
 
-## 6. Required focused checks still open
+- “Internal Memory absent” is **superseded and corrected**: Server Memory and Client Memory are real canonical product concepts.
+- Internal Memory Address semantics concern is **confirmed only as Engineering UX gap** (`MEM-02`).
+- Memory Source discoverability is **resolved** (`MEM-03 SUPPORTED`).
+- full empty-project Memory E2E remains **validation-only** (`MEM-04`).
+- Analog Fill concern is **resolved structurally** (`VIS-02 SUPPORTED`).
+- reusable Dynamo/public TAG references are **resolved structurally** (`DYN-01 SUPPORTED`).
+- Popup open/close/context is **resolved structurally** (`POP-01 SUPPORTED`).
+- Popup X/Y absence is **confirmed** (`POP-02 PRODUCT GAP`).
+- startup Screen concern is **confirmed** (`NAV-01 PRODUCT GAP`).
+- Server Script runtime-host uncertainty is **confirmed as a blocking product gap** (`SCR-01`).
+- bad-quality support is split correctly: downstream propagation is supported (`QUAL-02`), deliberate Simulation origin is a gap (`QUAL-01`).
+- legacy Simulation/Demo behavior remains excluded from C11 authority.
 
-The following checks remain mandatory before final recommendation:
+## A. Requirements fully supported
 
-### 6.1 Engineering authoring and discoverability
+The frozen product already provides a substantial canonical base:
 
-- create `Server Memory` Source from an empty project through normal UI;
-- create `Client Memory` Source from an empty project through normal UI;
-- confirm human-facing display names and schema-driven forms, with no need to type internal provider IDs;
-- create memory TAGs without meaningless Address semantics;
-- confirm protocol-specific Driver/Source forms for all drivers relevant to the canonical example;
-- confirm Modbus TAG address assistant normalizes/validates the later PLC address model;
-- verify Property Inspector consistency between Screen, Popup and Dynamo authoring;
-- verify Dynamo public-property/TAG-binding editing is understandable without exposing internal children/contracts;
-- verify asset import and project lifecycle persistence.
-
-### 6.2 Simulation/script/runtime
-
-- locate and prove concrete activated Runtime hosting for Server Scripts;
-- prove timer scheduling and script lifecycle after Publish/Activate;
-- prove mediated Server Memory and TAG reads/writes from the supported scripting surface;
-- prove no direct Driver/DOM/internal-host bypass is necessary;
-- identify official mechanism to publish bad/stale/unavailable quality in Simulation;
-- prove deterministic process update cadence suitable for regression;
-- prove historian/alarm/event ingestion from the chosen simulated process state model.
-
-### 6.3 Runtime visuals and operator UX
-
-- validate Analog Fill visually with a changing analog level;
-- validate pump stopped/running/fault/unavailable/bad-quality states and precedence;
-- confirm critical state is understandable without color alone;
-- validate Popup open/close/context behavior;
-- close the persisted authorable Popup X/Y question;
-- close the explicit startup/home Screen question;
-- validate Runtime navigation, fullscreen, logical scaling and no document scroll at required resolutions;
-- validate operator-only capabilities and absence of Engineering/Diagnostics leakage;
-- validate alarm/operator overlays and Popup stacking/focus behavior.
-
-### 6.4 Alarm/event/history/trend semantics
-
-- create/activate process alarms from canonical project definitions;
-- validate acknowledgement path and authorization;
-- validate alarm history/persistence;
-- identify and validate event-history surface for ordinary state transitions where appropriate;
-- validate historian recording of meaningful analog variables;
-- validate operator trend/history consultation without relying on Engineering-only Diagnostics;
-- decide, based on actual product support, which historical reference conditions belong as alarms versus events in the canonical EEE model.
-
-### 6.5 Multilingual
-
-Audit `pt-BR`, `en`, and `es` for the surfaces required to build and operate the EEE, including:
-
-- Data Sources/Drivers;
-- TAG authoring/address assistants;
-- Screen/Popup/Dynamo Engineering;
-- Property Inspector;
-- Script Assistant/Object Browser;
-- Runtime shell/navigation/fullscreen;
-- operator alarms/trends/history;
-- Diagnostics where Engineering users require it;
-- dialogs, errors, empty states and context menus.
-
-Persisted identifiers, protocol tokens, canonical property names, TAG keys, NodeIds and addresses remain data and must not be translated.
-
-### 6.6 Simulation -> PLC/Modbus reuse
-
-- prove logical TAG identity can remain stable while Source/address mapping changes;
-- prove visual bindings/Dynamos/Popups remain intact across that mapping change;
-- identify any simulator-specific coupling that would force duplicate HMI authoring;
-- record what can be proven statically now versus what explicitly requires physical PLC validation later.
-
-## 7. Preliminary supported capabilities
-
-The following are structurally supported at this stage of Pass 2, subject to any explicit validation notes in the matrix:
-
+- exact converged C01-C10 product/CI checkpoint;
 - backend-authoritative schema-driven Data Source forms;
-- protocol-aware TAG address assistance for Modbus/OPC UA/DNP3/IEC-104;
-- Server Memory and Client Memory concepts;
-- typed Internal Memory initial/default values;
-- numeric process values and canonical Analog Fill;
-- reusable Dynamo definitions and typed public references;
-- semantic Dynamo/runtime state vocabulary including fault and bad-quality concepts;
-- canonical Popup open/close/context action model;
-- normal project raster asset import/selection;
-- canonical Active Engineering Runtime boundary rather than DEMO-only fallback.
+- protocol-aware TAG address assistants;
+- discoverable Server Memory and Client Memory Sources;
+- typed/retentive Server Memory and client-local Client Memory concepts;
+- numeric `% Full` and canonical Analog Fill;
+- reusable typed Dynamos and stable TAG-reference concepts;
+- contextual Popup open/close/context;
+- safe authorized TAG writes;
+- secure backend Operational Command execution;
+- alarm activation/ACK/return/shelving semantics;
+- localized operator Alarm Center;
+- historian capture from canonical TAG changes;
+- durable alarm-history persistence/query;
+- operator tabular Historical Data Browser;
+- project PNG/background asset flow;
+- capability-driven Operator vs Engineering/Diagnostics boundary;
+- logical TAG/source separation suitable for later Modbus remapping;
+- current Modbus Address Assistant.
 
-## 8. Preliminary partial capabilities
+## B. Partial capabilities
 
-- bad-quality state projection is structurally present, but explicit operator UX and Simulation quality injection remain incomplete proofs;
-- fixed logical Runtime canvas/scaling appears aligned with the intended HMI model, but multi-resolution browser validation is still required and per-Screen logical resolution is not currently treated as proven capability;
-- several Runtime/Engineering contracts exist for scripts, but complete autonomous Server Script execution after activation remains unproven.
+The following product areas have real supporting architecture but are not sufficient for final C11 acceptance as-is:
 
-## 9. Confirmed product gaps so far
+- pump/Dynamo fault/unavailable/bad-quality visual semantics: vocabulary exists, final non-color-only operator presentation needs browser proof;
+- fixed logical 1920x1080 HMI scaling: transform tests cover all requested target resolutions, but real-browser presentation/fullscreen must still be homologated;
+- multilingual: most C10/shell/alarm surfaces are localized, but the mounted Historical Data Browser is not;
+- complete Simulation-to-visual downstream chain: alarm/historian/binding/Dynamo/Popup pieces exist, but missing Simulation producer, general events and trend exposure prevent full assembly.
 
-### C11-P2-MEM-02 — Internal Memory exposes generic Address semantics
+## C. Confirmed product gaps
 
-**Classification:** `PRODUCT GAP — ENGINEERING UX`
+### Blocking/functional gaps
 
-**Requirement:** An engineer creating a Server Memory or Client Memory TAG must not be asked for a network/protocol Address that does not exist.
+1. **C11-P2-SCR-01 — Server Python Runtime host**  
+   No active project Server Script executor/scheduler/timer lifecycle exists at the frozen product SHA.
 
-**Expected behavior:** Selecting an Internal Memory Source should present only meaningful memory/TAG settings such as type, initial/default value, access/persistence/history settings where applicable, without communication-address authoring.
+2. **C11-P2-SIM-01 — Living deterministic Simulation producer**  
+   No normal engineer-authorable server periodic mechanism can currently implement the EEE physics.
 
-**Current product behavior:** Internal Memory-specific UI correctly explains that no network address exists, while the general TAG address editor still exposes generic Address semantics because Internal Memory is not excluded/specialized in that path.
+3. **C11-P2-QUAL-01 — Deliberate Simulation bad-quality generation**  
+   Internal Memory writes always produce `Good`; no canonical Simulation quality-degradation mechanism exists.
 
-**EEE impact:** Creates confusing and conceptually incorrect authoring in the exact flow needed by DEMO Simulation.
+4. **C11-P2-EVT-01 — General operational events**  
+   No first-class Engineering/runtime/history model exists for ordinary operational events distinct from alarms/audit.
 
-**Simulation impact:** Direct. C11 should be constructible normally without teaching the Product Owner/integrator which meaningless field to ignore.
+5. **C11-P2-TREND-01 — Operator trend surface**  
+   A trend component exists in source, but the converged operator shell does not expose it and Screen Engineering has no identified canonical Trend visual.
 
-**PLC/Modbus impact:** None directly. The correction improves the conceptual boundary between internal and physical Sources.
+6. **C11-P2-CMD-02 — Operational Command invocation from authored HMI**  
+   Secure backend execution exists, but canonical visual actions/default Client Visual runtime do not bridge to Command execution.
 
-**Recommended disposition:** `fix before C11`.
+### Product/Engineering/Runtime UX gaps
 
-**Mitigation:** Leaving the irrelevant field unused may technically permit authoring, but that is not considered an acceptable product-level resolution for the canonical DEMO gate.
+7. **C11-P2-MEM-02 — Internal Memory Address semantics**  
+   Memory TAG authoring still displays an irrelevant network-style Address field.
 
-## 10. Validation-only uncertainties
+8. **C11-P2-NAV-01 — Explicit startup/home Screen**  
+   Runtime chooses the first Screen by lexical key order rather than a persisted authorable home reference.
 
-Current high-priority uncertainties include:
+9. **C11-P2-I18N-HIST-01 — Historical Browser localization**  
+   Required mounted operator-history UI contains hard-coded English copy.
 
-1. complete Server Script Runtime host/executor/timer lifecycle;
-2. official Simulation quality-degradation/injection path;
-3. normal UI creation of both Internal Memory Source types;
-4. persisted authorable Popup X/Y positioning;
-5. explicit startup/home Screen configuration;
-6. alarm/event/history/trend operator path;
-7. authenticated/authorized equipment command path from Dynamo/Popup;
-8. Runtime-only capability pruning and backend enforcement;
-9. multilingual browser quality across all C11-relevant surfaces;
-10. Simulation-to-Modbus remapping without duplicated HMI authoring;
-11. viewport/fullscreen/no-scroll behavior at all required resolutions.
+10. **C11-P2-POP-02 — Popup X/Y placement**  
+    Open/context works, but persisted authorable mount coordinates do not exist in the accepted contract. Development Lead must decide whether centered/shell-defined placement is an acceptable product limitation or whether C11 requires a fix.
 
-## 11. Blocking gaps / potential blockers
+## D. Validation-only uncertainties
 
-### 11.1 Confirmed blockers
+These are not currently classified as failures:
 
-No final blocking PRODUCT GAP is declared solely from static evidence yet except where the Coordinator/Development Lead chooses to make an already-confirmed UX correction a release prerequisite.
+1. **MEM-04:** complete empty-project Memory Source + TAG + Save/Publish/Activate/Runtime path;
+2. **VIS-03:** live wet-well Analog Fill presentation under changing TAG values;
+3. **DYN-02/DYN-03:** final non-color-only pump state UX and independent two-instance Dynamo bindings;
+4. **VIEW-01/FULL-01:** actual browser behavior at 1280x720, 1920x1080, 2560x1440, 3840x2160, including fullscreen, no unwanted document scroll, popup/alarm overlay stacking and hit targets;
+5. final Product Owner visual acceptance of Runtime at target resolutions;
+6. physical Modbus PLC connectivity/address correctness, explicitly deferred to hardware validation.
 
-The Product Owner has explicitly requested that product gaps exposed by this audit be corrected where appropriate before C11 implementation rather than hidden inside the DEMO. Therefore even non-runtime-blocking UX gaps may legitimately keep implementation locked until disposition.
+These must remain `requires real-browser validation` or `requires PLC validation later`; static contracts are not substituted for the missing acceptance evidence.
 
-### 11.2 Potential blocking findings requiring closure
+## E. Blocking gaps
 
-The following are potential blockers until proven:
+The following gaps prevent release of canonical DEMO Simulation implementation under the current Product Owner direction:
 
-- Server-side periodic script execution after Publish/Activate;
-- canonical bad-quality Simulation injection;
-- normal authoring of Internal Memory Sources;
-- authenticated/authorized Runtime command path needed by equipment Popups/Dynamos;
-- any missing product contract that would force Simulation-only visual architecture and prevent later Modbus reuse.
+- `C11-P2-SCR-01` Server Python Runtime host;
+- `C11-P2-SIM-01` living deterministic Simulation producer;
+- `C11-P2-QUAL-01` canonical bad-quality Simulation injection;
+- `C11-P2-EVT-01` first-class operational events;
+- `C11-P2-TREND-01` operator trend surface;
+- `C11-P2-CMD-02` canonical HMI-to-Operational-Command bridge, unless the Development Lead explicitly removes Operational Command usage from the canonical operator-control requirement rather than silently replacing it with direct TAG writes.
 
-## 12. Non-blocking gaps / limitations
+The Product Owner preference is to correct legitimate product gaps before DEMO implementation. Therefore a technically possible private workaround is not a release argument.
 
-At this stage:
+## F. Non-blocking gaps / limitations requiring disposition
 
-- fixed logical 1920x1080-style composition is treated as a product limitation/strategy rather than an automatic C11 blocker, provided required viewport scaling and no-scroll behavior pass browser validation;
-- lack of custom Popup placement, if ultimately confirmed, may be non-blocking for an initially centered/modal Popup experience, but must still be recorded as a product gap if the persisted authoring requirement is absent. Only Development Lead may accept that limitation knowingly.
+- `C11-P2-MEM-02` Internal Memory Address UX: technically authorable, but misleading and explicitly recommended `fix before C11`.
+- `C11-P2-NAV-01` startup/home Screen: naming workaround exists but is not accepted as a product contract; recommended `fix before C11`.
+- `C11-P2-I18N-HIST-01` Historical Browser localization: does not stop process physics but violates the approved multilingual application requirement; recommended `fix before C11`.
+- `C11-P2-POP-02` Popup X/Y: centered/shell-defined placement may be acceptable if explicitly approved; otherwise fix before C11.
+- fixed 1920x1080 logical canvas is treated as an intentional product strategy, not a gap, provided real-browser scaling acceptance passes.
 
-## 13. Current Coordinator recommendation
+## G. Recommended coordinator action
 
 ### `KEEP C11 IMPLEMENTATION LOCKED`
 
-Reason:
+C11 does not have release authority. This is a recommendation to Coordinator/Development Lead.
 
-- Pass 2 is not complete;
-- at least one real Engineering UX product gap has been confirmed;
-- several potentially blocking runtime/simulation/authorization findings remain unresolved;
-- implementation before those findings are dispositioned would invite DEMO-specific workarounds and contaminate the product audit.
+Recommended route:
 
-This recommendation is provisional until the complete matrix is closed. C11 itself does not release implementation.
+1. keep PR #212 DRAFT and do not merge Wave 14 to `main`;
+2. disposition every confirmed gap above;
+3. create bounded pre-DEMO correction lanes for the fixes approved before C11;
+4. do **not** implement those fixes inside the C11 audit branch;
+5. integrate approved corrections into `wave14/corrections-integration`;
+6. run universal EliteSCADA CI plus affected specialized workflows on exact candidate heads;
+7. if product code changes, perform a new C10 convergence freeze on a new exact product SHA;
+8. revalidate all affected C11 rows against that new freeze;
+9. execute the remaining real-browser Memory/visual/multi-resolution acceptance checks;
+10. only if blocking gaps are cleared or explicitly accepted by Development Lead, issue a separate explicit C11 implementation release;
+11. at that later release, create/finalize `docs/WAVE14-C11-CANONICAL-DEMO-IMPLEMENTATION-PREMISE.md` and record the full DEMO architecture in GitHub before or alongside implementation;
+12. build DEMO Simulation through normal product contracts;
+13. later map the same logical application to the physical Modbus PLC and mark hardware behavior `requires PLC validation later` until executed;
+14. after canonical DEMO acceptance, update Preview/Codespaces and complete Product Owner browser homologation;
+15. only after accepted Wave 14 product baseline resume Wave 13 Windows packaging/signing.
 
-## 14. Future DEMO intent, not implementation authority
+### Pass 2 conclusion
 
-The Coordinator intends the later canonical application to be a realistic, visually strong EEE demonstration that proves EliteSCADA through normal Engineering and Runtime workflows rather than through a pre-baked webpage.
+The product is much closer to being able to host a serious canonical EEE than the original Pass 1 suggested: Internal Memory, Analog Fill, Dynamos, Popup context, alarms, historian, alarm history, operator shell and logical Source/TAG separation are all real product capabilities.
 
-The planned application direction remains:
+However, the exact frozen product still cannot build the required canonical EEE Simulation without violating approved boundaries. The missing Server Python execution host, deliberate Simulation quality control, general operational events, operator trend exposure and canonical HMI Command bridge are product gaps, not DEMO authoring inconveniences.
 
-- primary `Visão Geral / EEE Principal` with suction well and two pumping units;
-- animated well liquid level and numeric `% Full`;
-- motor/pump state projection for stopped, running, fault/trip and unavailable/bad quality;
-- realistic analog process values and coherent relationships between level, flow, pressure, frequency and current;
-- contextual equipment Popups;
-- reusable equipment Dynamos rather than duplicated hand-authored symbols;
-- support Screens for Instrumentação, Sistema Elétrico and Operação;
-- real alarms, events, trends and history where supported by operator-facing product contracts;
-- project PNG/background/assets where useful for a polished industrial presentation;
-- multilingual `pt-BR` / `en` / `es` experience;
-- a deterministic but visibly alive Simulation variant using supported EliteSCADA mechanisms;
-- a later PLC/Modbus variant using Product Owner supplied addresses while preserving the same conceptual Screens, Dynamos, Popups and TAG model as far as product contracts allow.
+Therefore the conservative recommendation is no longer merely provisional:
 
-### 14.1 Process scenarios already accepted for audit purposes
-
-The audit must ensure the product can support at least the following canonical behaviors without DEV-only bypass:
-
-- normal fill/pump-down cycle;
-- duty pump alternation between GMB-01 and GMB-02;
-- high inflow requiring both pumps where process logic chooses;
-- GMB-01 fault/trip with GMB-02 takeover when available;
-- very-high level;
-- overflow condition;
-- bad-quality/communication-loss scenario;
-- alarm activation, acknowledgement where permitted, process recovery and historical persistence.
-
-Pressure abnormality and generator/source scenarios remain useful secondary scenarios if supported naturally by the product and final implementation premise.
-
-### 14.2 Conceptual reusable equipment direction
-
-The Product Owner expects repeated equipment to exercise canonical reuse rather than duplicated authored objects. Candidate definitions include:
-
-- VFD pump/motor Dynamo;
-- wet-well level Dynamo/visual composition;
-- generic instrument/value Dynamo;
-- electrical source/generator representation where retained in final scope.
-
-Exact names, parameter sets, visual palette and thresholds are **not frozen by this audit** unless later recorded by explicit Product Owner/Coordinator decision.
-
-## 15. Post-audit Coordinator flow
-
-After this file is complete:
-
-`C11 Pass 2 result -> Coordinator/Development Lead gap disposition -> bounded pre-DEMO product corrections if required -> exact-head convergence revalidation if product changes -> explicit C11 implementation release -> docs/WAVE14-C11-CANONICAL-DEMO-IMPLEMENTATION-PREMISE.md -> DEMO Simulation -> PLC/Modbus validation -> full CI -> Preview/Codespaces -> Product Owner browser homologation`
-
-The implementation premise document becomes the authoritative memory of the application only after explicit implementation release. Until then this file remains the canonical memory of the product-gap audit.
+`KEEP C11 IMPLEMENTATION LOCKED`

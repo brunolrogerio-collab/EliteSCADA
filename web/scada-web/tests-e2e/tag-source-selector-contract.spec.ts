@@ -30,6 +30,14 @@ function tag(overrides: Partial<TagSourceAwareEngineering> = {}): TagSourceAware
   };
 }
 
+const binding = {
+  contractVersion: 1,
+  schemaId: 'driver.binding',
+  schemaVersion: 1,
+  portableAddress: 'holding:10',
+  settings: { mode: 'sample' }
+} as const;
+
 test.describe('TAG Source stable selection', () => {
   test('selection persists canonical id and compatibility key together', () => {
     const assigned = assignTagDataSource(tag(), sourceA);
@@ -42,6 +50,47 @@ test.describe('TAG Source stable selection', () => {
     const resolved = resolveTagDataSource(tag({ dataSourceId: sourceA.id, source: sourceA.key }), [renamed]);
     expect(resolved.status).toBe('resolved');
     expect(resolved.source?.key).toBe('plc-line-a-renamed');
+  });
+
+  test('reselecting a renamed source preserves address and canonical binding by stable id', () => {
+    const renamed = { ...sourceA, key: 'plc-line-a-renamed' };
+    const assigned = assignTagDataSource(tag({
+      dataSourceId: sourceA.id,
+      source: sourceA.key,
+      address: 'holding:10',
+      communicationBinding: binding
+    }), renamed);
+
+    expect(assigned.source).toBe(renamed.key);
+    expect(assigned.address).toBe('holding:10');
+    expect(assigned.communicationBinding).toEqual(binding);
+  });
+
+  test('explicit migration of the same legacy key preserves address and binding while adding stable id', () => {
+    const assigned = assignTagDataSource(tag({
+      source: sourceA.key,
+      address: 'holding:10',
+      communicationBinding: binding
+    }), sourceA);
+
+    expect(assigned.dataSourceId).toBe(sourceA.id);
+    expect(assigned.address).toBe('holding:10');
+    expect(assigned.communicationBinding).toEqual(binding);
+  });
+
+  test('switching to a different source clears address selectors and binding', () => {
+    const assigned = assignTagDataSource(tag({
+      dataSourceId: sourceA.id,
+      source: sourceA.key,
+      address: 'holding:10',
+      addressSelector: { kind: 'bit', index: 2 },
+      communicationBinding: binding
+    }), sourceB);
+
+    expect(assigned.dataSourceId).toBe(sourceB.id);
+    expect(assigned.address).toBeNull();
+    expect(assigned.addressSelector).toBeNull();
+    expect(assigned.communicationBinding).toBeNull();
   });
 
   test('orphaned stable id never falls back to another source with the same legacy key', () => {

@@ -13,6 +13,12 @@ export const CLIENT_VISUAL_PYTHON_POLICY = {
   faultIsolationScope: 'script-runtime-instance'
 } as const;
 
+/**
+ * Capabilities exposed by the official EliteSCADA Client Visual Python product
+ * provider. Product surfaces such as the Script Assistant and API Help iterate
+ * this list so they never advertise host-specific protocol reservations as if
+ * those operations were available to ordinary scripts.
+ */
 export const CLIENT_VISUAL_PYTHON_CAPABILITIES = [
   'tag.read',
   'tag.write',
@@ -20,11 +26,21 @@ export const CLIENT_VISUAL_PYTHON_CAPABILITIES = [
   'clientMemory.write',
   'visualProperty.read',
   'visualProperty.write',
-  'visualTween.request',
+  'visualTween.request'
+] as const;
+
+/**
+ * Complete bridge protocol vocabulary. `backendOperation.request` remains a
+ * reserved host-composition hook and therefore stays type-safe and fail-closed
+ * in the dispatcher, but the official product provider does not compose or
+ * advertise it.
+ */
+export const CLIENT_VISUAL_PYTHON_PROTOCOL_CAPABILITIES = [
+  ...CLIENT_VISUAL_PYTHON_CAPABILITIES,
   'backendOperation.request'
 ] as const;
 
-export type ClientVisualPythonCapability = typeof CLIENT_VISUAL_PYTHON_CAPABILITIES[number];
+export type ClientVisualPythonCapability = typeof CLIENT_VISUAL_PYTHON_PROTOCOL_CAPABILITIES[number];
 
 export const CLIENT_VISUAL_PYTHON_DENIED_BOUNDARIES = [
   'filesystem',
@@ -69,6 +85,7 @@ export type PythonWorkerRequest =
 export type PythonWorkerResponse =
   | { kind: 'ready'; requestId: string; identity: PythonRuntimeIdentity }
   | { kind: 'compile-result'; requestId: string; identity: PythonRuntimeIdentity; diagnostics: PythonSourceDiagnostic[] }
+  | { kind: 'execution-result'; requestId: string; executionId: string; identity: PythonRuntimeIdentity; handlerName: string; eventKey: string; payload: unknown; deadlineEpochMs: number }
   | { kind: 'execution-result'; requestId: string; executionId: string; identity: PythonRuntimeIdentity; status: 'completed' | 'cancelled' | 'timed-out' | 'faulted' | 'throttled'; durationMs: number; sanitizedError?: string }
   | { kind: 'api-request'; requestId: string; executionId: string; identity: PythonRuntimeIdentity; capability: ClientVisualPythonCapability; operation: string; arguments: unknown }
   | { kind: 'diagnostic'; requestId: string; identity: PythonRuntimeIdentity; diagnostic: PythonSourceDiagnostic }

@@ -1,7 +1,5 @@
 import type { DynamoEngineering, VisualElementEngineering } from '../../engineering/types';
-import {
-  resolveDynamoRuntimeState
-} from '../../engineering/visual-editor/dynamo/dynamoRuntimeStateModel';
+import { resolveDynamoRuntimeState } from '../../engineering/visual-editor/dynamo/dynamoRuntimeStateModel';
 import type { VisualLiveScalarSample } from '../../engineering/visual-editor/visualEditorLiveValues';
 import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../visual-runtime';
 import {
@@ -30,7 +28,7 @@ export function expandRuntimeDynamoVisuals(
   definitions: readonly DynamoEngineering[] | null | undefined
 ): readonly VisualElementEngineering[] {
   return Object.freeze((elements ?? []).map((element, index) =>
-    expandElement(element, definitions, `root.${index}`)));
+    expandElementFailClosed(element, definitions, `root.${index}`)));
 }
 
 /**
@@ -47,6 +45,18 @@ export function decorateRuntimeDynamoVisualStates(
 
 export function isExpandedRuntimeDynamo(element: VisualElementEngineering): boolean {
   return element.metadata?.[RUNTIME_DYNAMO_EXPANDED] === 'true';
+}
+
+function expandElementFailClosed(
+  element: VisualElementEngineering,
+  definitions: readonly DynamoEngineering[] | null | undefined,
+  path: string
+): VisualElementEngineering {
+  try {
+    return expandElement(element, definitions, path);
+  } catch (reason) {
+    return runtimeDynamoDiagnosticElement(element, reason);
+  }
 }
 
 function expandElement(
@@ -87,7 +97,7 @@ function expandElement(
   return Object.freeze({
     ...element,
     children: Object.freeze(element.children.map((child, index) =>
-      expandElement(child, definitions, `${path}.${index}`)))
+      expandElementFailClosed(child, definitions, `${path}.${index}`)))
   });
 }
 
@@ -113,11 +123,11 @@ function decorateElement(
   element: VisualElementEngineering,
   liveSamples: ReadonlyMap<string, VisualLiveScalarSample>
 ): VisualElementEngineering {
-  const children = (element.children ?? []).map(child => decorateElement(child, liveSamples));
+  const originalChildren = element.children ?? [];
+  const children = originalChildren.map(child => decorateElement(child, liveSamples));
   if (!isExpandedRuntimeDynamo(element)) {
-    return children === element.children
-      ? element
-      : Object.freeze({ ...element, children: Object.freeze(children) });
+    if (children.length === 0 && originalChildren.length === 0) return element;
+    return Object.freeze({ ...element, children: Object.freeze(children) });
   }
 
   const resolution = resolveDynamoRuntimeState(children, liveSamples);
@@ -171,14 +181,55 @@ function createStateBadge(
       text: label,
       textColor: foreground,
       fontSize: 9,
-      fontWeight: '700',
+      fontWeight: 700,
       horizontalAlignment: 'center',
-      verticalAlignment: 'center',
+      verticalAlignment: 'middle',
       tooltip: `Dynamo state: ${label}`,
       enabled: false
     }),
     metadata: Object.freeze({
       'runtime.dynamo.stateIndicator': 'true'
+    })
+  });
+}
+
+function runtimeDynamoDiagnosticElement(
+  source: VisualElementEngineering,
+  reason: unknown
+): VisualElementEngineering {
+  const message = reason instanceof Error ? reason.message : String(reason);
+  const code = reason && typeof reason === 'object' && 'code' in reason
+    ? String((reason as { code?: unknown }).code ?? 'VISUAL_RUNTIME_DYNAMO_FAILED')
+    : 'VISUAL_RUNTIME_DYNAMO_FAILED';
+  const properties = source.properties ?? {};
+  return Object.freeze({
+    id: source.id ?? undefined,
+    key: source.key || source.dynamoKey || 'invalid-dynamo',
+    type: BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay,
+    properties: Object.freeze({
+      x: finiteOr(properties.x, 0),
+      y: finiteOr(properties.y, 0),
+      width: Math.max(finiteOr(properties.width, 132), 48),
+      height: Math.max(finiteOr(properties.height, 40), 24),
+      zIndex: finiteOr(properties.zIndex, 0),
+      backgroundColor: '#7F1D1D',
+      strokeColor: '#FFFFFF',
+      strokeWidth: 1,
+      strokeStyle: 'solid',
+      cornerRadius: 3,
+      text: 'DYNAMO ERROR',
+      textColor: '#FFFFFF',
+      fontSize: 10,
+      fontWeight: 700,
+      horizontalAlignment: 'center',
+      verticalAlignment: 'middle',
+      tooltip: `${code}: ${message}`,
+      enabled: false
+    }),
+    metadata: Object.freeze({
+      ...(source.metadata ?? {}),
+      'runtime.dynamo.diagnosticCode': code,
+      'runtime.dynamo.diagnostic': message
     })
   });
 }
@@ -204,6 +255,10 @@ function statePresentation(kind: string): Readonly<{
 function mergeTooltip(existing: unknown, state: string): string {
   const current = typeof existing === 'string' ? existing.trim() : '';
   return current ? `${current}\n${state}` : state;
+}
+
+function finiteOr(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
 function stableToken(value: string): string {

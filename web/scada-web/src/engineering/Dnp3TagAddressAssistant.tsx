@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { EngineeringLocale } from './i18n';
 import { c04Text } from './c04I18n';
+import { c04ProtocolLabels } from './c04ProtocolLabels';
 import {
   loadTagBindingDefinition,
   requireAllowedTagBindingValue,
@@ -30,6 +31,7 @@ type PointKind = typeof pointKinds[number];
 
 export function Dnp3TagAddressAssistant({ tag, locale, onChange }: Props) {
   const text = useMemo(() => c04Text(locale).dnp3, [locale]);
+  const pointLabels = useMemo(() => c04ProtocolLabels(locale).dnp3PointKind, [locale]);
   const parsed = parseDnp3Address(tag.address);
   const [pointKind, setPointKind] = useState<PointKind>(parsed?.pointKind ?? 'analogInput');
   const [index, setIndex] = useState(parsed?.index ?? '0');
@@ -113,7 +115,7 @@ export function Dnp3TagAddressAssistant({ tag, locale, onChange }: Props) {
             setPointKind(next);
             if (!isOutputKind(next)) setWritable(false);
           }} data-testid="dnp3-point-kind">
-            {pointKinds.map(kind => <option key={kind} value={kind}>{kind}</option>)}
+            {pointKinds.map(kind => <option key={kind} value={kind}>{pointLabels[kind]}</option>)}
           </select>
         </label>
         <label className="eng-editor-field">

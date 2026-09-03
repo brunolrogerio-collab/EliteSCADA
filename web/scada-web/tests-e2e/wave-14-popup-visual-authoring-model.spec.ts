@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test';
 import type { EngineeringPackageView, PopupEngineering } from '../src/engineering/types';
 import {
   createPopupDraft,
-  normalizePopupDimension,
   popupFrame,
   popupIdentity,
   popupToVisualScreen,
@@ -15,9 +14,7 @@ function popup(): PopupEngineering {
     id: 'popup-id',
     key: 'popup.detail',
     name: 'Detail',
-    width: 420,
-    height: 260,
-    version: 3,
+    templateKey: 'template.confirmation',
     properties: { 'engineering.surface.backgroundColor': '#101820' },
     context: { area: 'A' },
     metadata: { owner: 'ops' },
@@ -25,7 +22,7 @@ function popup(): PopupEngineering {
   };
 }
 
-test('Popup visual adapter round-trips composition without inventing a Screen route', () => {
+test('Popup visual adapter round-trips canonical composition without inventing a Screen route', () => {
   const source = popup();
   const screen = popupToVisualScreen(source);
   expect(screen.route).toBeNull();
@@ -34,12 +31,17 @@ test('Popup visual adapter round-trips composition without inventing a Screen ro
 
   const restored = visualScreenToPopup({ ...screen, name: 'Edited' }, popupFrame(source));
   expect(restored.name).toBe('Edited');
-  expect(restored.width).toBe(420);
-  expect(restored.height).toBe(260);
-  expect(restored.version).toBe(3);
+  expect(restored.templateKey).toBe('template.confirmation');
   expect(restored.properties).toEqual(source.properties);
   expect(restored.context).toEqual(source.context);
   expect(restored.metadata).toEqual(source.metadata);
+});
+
+test('Popup adapter does not create frontend-only dimension or version fields', () => {
+  const restored = visualScreenToPopup(popupToVisualScreen(popup()), popupFrame(popup()));
+  expect('width' in restored).toBe(false);
+  expect('height' in restored).toBe(false);
+  expect('version' in restored).toBe(false);
 });
 
 test('replacePopupInPackage changes only the selected canonical Popup identity', () => {
@@ -52,15 +54,11 @@ test('replacePopupInPackage changes only the selected canonical Popup identity',
   expect(popupIdentity(candidate.popups![1])).toBe('id:other-id');
 });
 
-test('new Popup defaults are unique and use a practical authoring frame', () => {
+test('new Popup defaults are unique and stay inside the canonical Popup DTO', () => {
   const draft = createPopupDraft([{ ...popup(), key: 'popup-1' }], 'pt-BR');
   expect(draft.key).toBe('popup-2');
-  expect(draft.width).toBe(480);
-  expect(draft.height).toBe(320);
-});
-
-test('Popup dimensions reject non-positive and non-finite values', () => {
-  expect(normalizePopupDimension(320.12345)).toBe(320.123);
-  expect(() => normalizePopupDimension(0)).toThrow(/positive/);
-  expect(() => normalizePopupDimension(Number.NaN)).toThrow(/positive/);
+  expect(draft.templateKey).toBeNull();
+  expect(draft.elements).toEqual([]);
+  expect('width' in draft).toBe(false);
+  expect('height' in draft).toBe(false);
 });

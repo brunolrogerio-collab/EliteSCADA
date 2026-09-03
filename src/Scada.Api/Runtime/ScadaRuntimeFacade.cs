@@ -1,5 +1,6 @@
 using Scada.Core.Alarms;
 using Scada.Core.Commands;
+using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Abstractions;
@@ -20,7 +21,8 @@ public sealed record ScadaRuntimeDescriptor(
 public sealed class ScadaRuntimeFacade(
     DemoRuntimeServices fallback,
     SimulationDriver fallbackDriver,
-    IEngineeringRuntimeCoordinator engineeringRuntime)
+    IEngineeringRuntimeCoordinator engineeringRuntime,
+    GatewayEngineeringRuntimeCoordinator operationalEvents)
 {
     public bool IsEngineeringActive => engineeringRuntime.Describe().Revision.HasValue;
 
@@ -66,6 +68,11 @@ public sealed class ScadaRuntimeFacade(
     public IReadOnlyCollection<CommandDefinition> Commands() =>
         IsEngineeringActive ? engineeringRuntime.Commands() : fallback.Commands.Snapshot();
 
+    public IReadOnlyCollection<OperationalEventDefinition> OperationalEventDefinitions() =>
+        IsEngineeringActive
+            ? operationalEvents.OperationalEventDefinitions()
+            : Array.Empty<OperationalEventDefinition>();
+
     public IReadOnlyCollection<ClientMemoryRuntimeSource> ClientMemorySources() =>
         IsEngineeringActive
             ? engineeringRuntime.ClientMemorySources()
@@ -104,6 +111,15 @@ public sealed class ScadaRuntimeFacade(
             return engineeringRuntime.TryGetCommand(commandId, out command);
 
         return fallback.Commands.TryGet(commandId, out command);
+    }
+
+    public bool TryGetOperationalEvent(Guid definitionId, out OperationalEventDefinition? definition)
+    {
+        if (IsEngineeringActive)
+            return operationalEvents.TryGetOperationalEvent(definitionId, out definition);
+
+        definition = null;
+        return false;
     }
 
     public bool IsServerMemoryTag(Guid tagId) =>
@@ -164,5 +180,15 @@ public sealed class ScadaRuntimeFacade(
             throw new KeyNotFoundException($"Runtime command '{commandId}' was not found.");
 
         await fallbackDriver.WriteAsync(command.TargetTagId, command.Value, cancellationToken);
+    }
+
+    public ValueTask<OperationalEventOccurred> EmitOperationalEventAsync(
+        Guid definitionId,
+        OperationalEventEmissionContext? context = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsEngineeringActive)
+            throw new InvalidOperationException("Operational Events can only be emitted by an active Engineering runtime.");
+        return operationalEvents.EmitOperationalEventAsync(definitionId, context, cancellationToken);
     }
 }

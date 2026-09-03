@@ -122,6 +122,12 @@ function sampleUsable(sample: VisualLiveScalarSample): boolean {
   return sampleQuality(sample) === 'good' || sampleQuality(sample) === 'uncertain';
 }
 
+/**
+ * Mirrors Scada.Core.Tags.TagQuality numeric serialization:
+ * Good=0, Uncertain=1, Bad=2, BadCommunication=3,
+ * BadConfiguration=4, BadDevice=5, Stale=6, Disabled=7.
+ * Unknown numeric values remain fail-closed rather than being guessed.
+ */
 export function sampleQuality(sample: VisualLiveScalarSample): DynamoQualityState {
   const explicitState = sample.state?.trim().toLocaleLowerCase('en-US') ?? '';
   if (explicitState && ['unavailable', 'disconnected', 'offline', 'error', 'failed'].some(token => explicitState.includes(token))) {
@@ -134,14 +140,28 @@ export function sampleQuality(sample: VisualLiveScalarSample): DynamoQualityStat
     if (!normalized) return 'unknown';
     if (normalized.includes('stale')) return 'stale';
     if (normalized.includes('uncertain')) return 'uncertain';
-    if (['bad', 'invalid', 'error', 'failed', 'failure', 'offline', 'disconnected', 'unavailable']
+    if (['bad', 'invalid', 'error', 'failed', 'failure', 'offline', 'disconnected', 'unavailable', 'disabled']
       .some(token => normalized.includes(token))) return 'bad';
     if (['good', 'ok', 'online', 'valid'].some(token => normalized.includes(token))) return 'good';
     return 'unknown';
   }
 
-  // Numeric quality is intentionally fail-closed until its protocol-specific
-  // encoding is normalized by the runtime TAG contract.
+  if (typeof quality === 'number' && Number.isInteger(quality)) {
+    switch (quality) {
+      case 0: return 'good';
+      case 1: return 'uncertain';
+      case 6: return 'stale';
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+      case 7:
+        return 'bad';
+      default:
+        return 'unknown';
+    }
+  }
+
   return 'unknown';
 }
 

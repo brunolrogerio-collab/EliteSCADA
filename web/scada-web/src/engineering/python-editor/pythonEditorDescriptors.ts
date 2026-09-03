@@ -1,16 +1,16 @@
 import {
   CLIENT_VISUAL_PYTHON_CAPABILITIES,
-  type ClientVisualPythonCapability
+  type ClientVisualPythonProductCapability
 } from '../../python-runtime/pythonRuntimeContracts';
 import type { ScriptEngineeringEntryPoint } from '../scripts/scriptEngineeringTypes';
 
 export type PythonApiHelpDescriptor = {
-  capability: ClientVisualPythonCapability;
+  capability: ClientVisualPythonProductCapability;
   title: string;
   summary: string;
 };
 
-const capabilityHelp: Record<ClientVisualPythonCapability, Omit<PythonApiHelpDescriptor, 'capability'>> = {
+const capabilityHelp: Record<ClientVisualPythonProductCapability, Omit<PythonApiHelpDescriptor, 'capability'>> = {
   'tag.read': {
     title: 'TAG read',
     summary: 'Read an authorized shared TAG snapshot through the trusted Client Visual bridge.'
@@ -38,10 +38,6 @@ const capabilityHelp: Record<ClientVisualPythonCapability, Omit<PythonApiHelpDes
   'visualTween.request': {
     title: 'Visual tween request',
     summary: 'Request a bounded renderer-owned tween/animation through the public bridge.'
-  },
-  'backendOperation.request': {
-    title: 'Backend operation request',
-    summary: 'Request an operation that still passes through normal backend authorization and identity.'
   }
 };
 

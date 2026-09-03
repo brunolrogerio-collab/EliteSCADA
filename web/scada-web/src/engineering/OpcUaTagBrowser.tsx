@@ -19,6 +19,7 @@ import {
   type DriverDiscoveryCandidateView
 } from './driverEngineeringApi';
 import type { EngineeringLocale } from './i18n';
+import { c04Text, type C04Text } from './c04I18n';
 import type { DataSourceEngineering, EngineeringPackageView } from './types';
 import type {
   CommunicationTagBindingEngineering,
@@ -35,7 +36,7 @@ type Props = {
 type BrowseLocation = Readonly<{ parentNodeId: string | null; label: string }>;
 
 export function OpcUaTagBrowser({ tag, source, locale, onChange }: Props) {
-  const text = useMemo(() => copy(locale), [locale]);
+  const text = useMemo(() => c04Text(locale).opcUa, [locale]);
   const [schema, setSchema] = useState<DataSourceTypeDefinition | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [connection, setConnection] = useState<DriverConnectionTestResultView | null>(null);
@@ -62,8 +63,8 @@ export function OpcUaTagBrowser({ tag, source, locale, onChange }: Props) {
         setSchema(definition);
         setCatalogError(definition ? null : text.schemaMissing);
       })
-      .catch(reason => {
-        if (alive) setCatalogError(asMessage(reason));
+      .catch(() => {
+        if (alive) setCatalogError(text.schemaMissing);
       });
     return () => { alive = false; };
   }, [source.driver, text.schemaMissing]);
@@ -154,7 +155,7 @@ export function OpcUaTagBrowser({ tag, source, locale, onChange }: Props) {
   const previewBulk = async () => run('preview', async () => {
     if (selectedNodes.length === 0) return;
     const snapshot = await loadEngineeringSnapshot();
-    const candidate = buildBulkCandidate(snapshot.package, source, schema, selectedNodes, pathPrefix);
+    const candidate = buildBulkCandidate(snapshot.package, source, schema, selectedNodes, pathPrefix, text);
     const preview = await previewEngineeringPackage(candidate);
     setBulkCandidate(candidate);
     setBulkChangeVersion(snapshot.workspace.changeVersion);
@@ -285,11 +286,19 @@ export function buildOpcUaTagBinding(
   };
 }
 
-function buildBulkCandidate(model: EngineeringPackageView, source: DataSourceEngineering, type: DataSourceTypeDefinition | null, nodes: readonly DriverBrowseNodeView[], prefix: string): EngineeringPackageView {
-  if (!source.id) throw new Error('OPC UA bulk import requires a stable Data Source Id.');
+function buildBulkCandidate(
+  model: EngineeringPackageView,
+  source: DataSourceEngineering,
+  type: DataSourceTypeDefinition | null,
+  nodes: readonly DriverBrowseNodeView[],
+  prefix: string,
+  text: C04Text['opcUa']
+): EngineeringPackageView {
+  if (!source.id) throw new Error(text.bulkStableIdRequired);
   if (!type?.configurationSchema || !tagBindingSchemaIdentity(type))
-    throw new Error('OPC UA Driver binding schema is unavailable.');
-  const normalizedPrefix = normalizePathPrefix(prefix);
+    throw new Error(text.bulkSchemaUnavailable);
+
+  const normalizedPrefix = normalizePathPrefix(prefix, text);
   const candidate = JSON.parse(JSON.stringify(model)) as EngineeringPackageView;
   const usedPaths = new Set(candidate.tags.map(tag => tag.path.toLowerCase()));
   const newTags: TagSourceAwareEngineering[] = [];
@@ -297,10 +306,10 @@ function buildBulkCandidate(model: EngineeringPackageView, source: DataSourceEng
   nodes.forEach((node, index) => {
     if (!node.portableAddress || node.isContainer) return;
     const baseName = sanitizeSegment(node.displayName) || `Node${index + 1}`;
-    const path = uniquePath(`${normalizedPrefix}.${baseName}`, usedPaths);
+    const path = uniquePath(`${normalizedPrefix}.${baseName}`, usedPaths, text);
     usedPaths.add(path.toLowerCase());
     const binding = buildOpcUaTagBinding(type, node.portableAddress);
-    if (!binding) throw new Error('OPC UA Driver binding schema is unavailable.');
+    if (!binding) throw new Error(text.bulkSchemaUnavailable);
     newTags.push({
       name: baseName,
       path,
@@ -315,7 +324,7 @@ function buildBulkCandidate(model: EngineeringPackageView, source: DataSourceEng
       communicationBinding: binding
     });
   });
-  if (newTags.length === 0) throw new Error('Select at least one browse variable with a portable address.');
+  if (newTags.length === 0) throw new Error(text.bulkSelectionRequired);
   candidate.tags = [...candidate.tags, ...newTags];
   return candidate;
 }
@@ -335,18 +344,18 @@ function mergeNodes(current: readonly DriverBrowseNodeView[], page: DriverBrowse
   return [...map.values()];
 }
 
-function uniquePath(base: string, used: ReadonlySet<string>): string {
+function uniquePath(base: string, used: ReadonlySet<string>, text: C04Text['opcUa']): string {
   if (!used.has(base.toLowerCase())) return base;
   for (let index = 2; index < 10000; index++) {
     const candidate = `${base}_${index}`;
     if (!used.has(candidate.toLowerCase())) return candidate;
   }
-  throw new Error(`Could not create a unique TAG path for '${base}'.`);
+  throw new Error(`${text.uniquePathFailed} '${base}'.`);
 }
 
-function normalizePathPrefix(value: string): string {
+function normalizePathPrefix(value: string, text: C04Text['opcUa']): string {
   const segments = value.split('.').map(sanitizeSegment).filter(Boolean);
-  if (segments.length === 0) throw new Error('TAG path prefix is required.');
+  if (segments.length === 0) throw new Error(text.pathPrefixRequired);
   return segments.join('.');
 }
 
@@ -354,37 +363,12 @@ function sanitizeSegment(value: string): string {
   return value.trim().replace(/[^A-Za-z0-9_]+/g, '_').replace(/^_+|_+$/g, '') || 'Node';
 }
 
-function formatNodeMeta(node: DriverBrowseNodeView, text: ReturnType<typeof copy>): string {
+function formatNodeMeta(node: DriverBrowseNodeView, text: C04Text['opcUa']): string {
   const access = node.isWritable ? text.readWrite : node.isReadable ? text.readOnly : text.noAccess;
   const type = node.suggestedDataType == null ? text.unknownType : String(node.suggestedDataType);
   return `${type} · ${access}${node.engineeringUnit ? ` · ${node.engineeringUnit}` : ''}`;
 }
 
-function asMessage(reason: unknown): string { return reason instanceof Error ? reason.message : String(reason); }
-
-function copy(locale: EngineeringLocale) {
-  if (locale === 'en') return {
-    title: 'OPC UA Engineering tools', help: 'Test the configured source, discover endpoints and browse nodes without changing Runtime. Selected nodes become TAGs only through Preview/Apply.',
-    test: 'Test connection', testing: 'Testing…', discover: 'Discover endpoints', discovering: 'Discovering…', browse: 'Browse Objects', browsing: 'Browsing…', connectionOk: 'Connection test succeeded', connectionFailed: 'Connection test failed',
-    objects: 'Objects', back: 'Back', nodes: 'nodes', search: 'Search loaded nodes', searchPlaceholder: 'Name, NodeId or portable address', open: 'Open', useCurrent: 'Use for current TAG', loadMore: 'Load more',
-    bulkTitle: 'Create TAGs from selected nodes', selected: 'selected', pathPrefix: 'TAG path prefix', preview: 'Preview import', previewing: 'Previewing…', apply: 'Apply import', applying: 'Applying…', previewResult: 'Preview', create: 'create', update: 'update', errors: 'errors',
-    applyConfirm: 'Apply the previewed OPC UA TAG import to the Engineering workspace?', stableIdRequired: 'Save/Apply this Data Source first so it has a stable Id before using OPC UA Engineering tools.', schemaMissing: 'The backend-authoritative OPC UA binding schema is unavailable.',
-    readWrite: 'read/write', readOnly: 'read-only', noAccess: 'no read access', unknownType: 'unknown type'
-  };
-  if (locale === 'es') return {
-    title: 'Herramientas OPC UA de Engineering', help: 'Prueba la fuente configurada, descubre endpoints y navega nodos sin cambiar Runtime. Los nodos seleccionados se vuelven TAGs solo mediante Preview/Apply.',
-    test: 'Probar conexión', testing: 'Probando…', discover: 'Descubrir endpoints', discovering: 'Descubriendo…', browse: 'Navegar Objects', browsing: 'Navegando…', connectionOk: 'Prueba de conexión correcta', connectionFailed: 'Prueba de conexión fallida',
-    objects: 'Objects', back: 'Volver', nodes: 'nodos', search: 'Buscar nodos cargados', searchPlaceholder: 'Nombre, NodeId o dirección portátil', open: 'Abrir', useCurrent: 'Usar en el TAG actual', loadMore: 'Cargar más',
-    bulkTitle: 'Crear TAGs desde nodos seleccionados', selected: 'seleccionados', pathPrefix: 'Prefijo de path de TAG', preview: 'Preview de importación', previewing: 'Validando…', apply: 'Aplicar importación', applying: 'Aplicando…', previewResult: 'Preview', create: 'crear', update: 'actualizar', errors: 'errores',
-    applyConfirm: '¿Aplicar la importación OPC UA validada al workspace de Engineering?', stableIdRequired: 'Guarde/aplique primero este Data Source para obtener un Id estable antes de usar las herramientas OPC UA.', schemaMissing: 'El esquema OPC UA autoritativo del backend no está disponible.',
-    readWrite: 'lectura/escritura', readOnly: 'solo lectura', noAccess: 'sin lectura', unknownType: 'tipo desconocido'
-  };
-  return {
-    title: 'Ferramentas OPC UA de Engineering', help: 'Teste a fonte configurada, descubra endpoints e navegue pelos nós sem alterar o Runtime. Os nós selecionados só viram TAGs por Preview/Apply.',
-    test: 'Testar conexão', testing: 'Testando…', discover: 'Descobrir endpoints', discovering: 'Descobrindo…', browse: 'Navegar Objects', browsing: 'Navegando…', connectionOk: 'Teste de conexão concluído', connectionFailed: 'Teste de conexão falhou',
-    objects: 'Objects', back: 'Voltar', nodes: 'nós', search: 'Pesquisar nós carregados', searchPlaceholder: 'Nome, NodeId ou endereço portátil', open: 'Abrir', useCurrent: 'Usar no TAG atual', loadMore: 'Carregar mais',
-    bulkTitle: 'Criar TAGs dos nós selecionados', selected: 'selecionados', pathPrefix: 'Prefixo do path dos TAGs', preview: 'Pré-visualizar importação', previewing: 'Validando…', apply: 'Aplicar importação', applying: 'Aplicando…', previewResult: 'Preview', create: 'criar', update: 'atualizar', errors: 'erros',
-    applyConfirm: 'Aplicar a importação OPC UA validada ao workspace de Engineering?', stableIdRequired: 'Salve/aplique primeiro este Data Source para obter um Id estável antes de usar as ferramentas OPC UA.', schemaMissing: 'O schema OPC UA autoritativo do backend não está disponível.',
-    readWrite: 'leitura/escrita', readOnly: 'somente leitura', noAccess: 'sem leitura', unknownType: 'tipo desconhecido'
-  };
+function asMessage(reason: unknown): string {
+  return reason instanceof Error ? reason.message : String(reason);
 }

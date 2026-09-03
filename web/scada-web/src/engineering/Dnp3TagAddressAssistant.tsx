@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import type { EngineeringLocale } from './i18n';
+import { c04Text } from './c04I18n';
 import {
   loadTagBindingDefinition,
   requireAllowedTagBindingValue,
@@ -28,7 +29,7 @@ const DNP3_DRIVER_TYPE = 'dnp3.master';
 type PointKind = typeof pointKinds[number];
 
 export function Dnp3TagAddressAssistant({ tag, locale, onChange }: Props) {
-  const text = useMemo(() => copy(locale), [locale]);
+  const text = useMemo(() => c04Text(locale).dnp3, [locale]);
   const parsed = parseDnp3Address(tag.address);
   const [pointKind, setPointKind] = useState<PointKind>(parsed?.pointKind ?? 'analogInput');
   const [index, setIndex] = useState(parsed?.index ?? '0');
@@ -49,13 +50,22 @@ export function Dnp3TagAddressAssistant({ tag, locale, onChange }: Props) {
     }
 
     setBusy(true);
+    let definition;
     try {
-      const definition = await loadTagBindingDefinition(DNP3_DRIVER_TYPE);
+      definition = await loadTagBindingDefinition(DNP3_DRIVER_TYPE);
+    } catch {
+      setError(text.schemaUnavailable);
+      setBusy(false);
+      return;
+    }
+
+    try {
       requireAllowedTagBindingValue(definition, 'pointKind', pointKind);
       const indexField = requireTagBindingField(definition, 'index');
       if ((indexField.minimum != null && numericIndex < indexField.minimum) ||
           (indexField.maximum != null && numericIndex > indexField.maximum)) {
-        throw new Error(text.indexInvalid);
+        setError(text.indexInvalid);
+        return;
       }
 
       const canWrite = writable && isOutputKind(pointKind);
@@ -85,8 +95,8 @@ export function Dnp3TagAddressAssistant({ tag, locale, onChange }: Props) {
           settings
         }
       });
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
+    } catch {
+      setError(text.catalogMismatch);
     } finally {
       setBusy(false);
     }
@@ -138,19 +148,4 @@ function compatibleDataType(kind: PointKind, current: string): string {
   if (kind === 'doubleBitBinaryInput') return 'enum';
   if (kind === 'counter' || kind === 'frozenCounter') return current === 'int32' || current === 'int64' ? current : 'int64';
   return ['int16', 'int32', 'float', 'double'].includes(current) ? current : 'float';
-}
-
-function copy(locale: EngineeringLocale) {
-  if (locale === 'en') return {
-    title: 'DNP3 address assistant', help: 'Builds the canonical DNP3 point identity used by Runtime. Advanced variations and command tuning remain editable through the canonical binding contract.',
-    kind: 'Point kind', index: 'Point index', writable: 'Writable output', apply: 'Use assisted address', applying: 'Applying...', indexInvalid: 'DNP3 point index must be an integer from 0 to 65535.'
-  };
-  if (locale === 'es') return {
-    title: 'Asistente de dirección DNP3', help: 'Construye la identidad canónica del punto DNP3 usada por Runtime. Variaciones avanzadas y comandos permanecen en el binding canónico.',
-    kind: 'Tipo de punto', index: 'Índice del punto', writable: 'Salida escribible', apply: 'Usar dirección asistida', applying: 'Aplicando...', indexInvalid: 'El índice DNP3 debe ser un entero entre 0 y 65535.'
-  };
-  return {
-    title: 'Assistente de endereço DNP3', help: 'Monta a identidade canônica do ponto DNP3 usada pelo Runtime. Variações avançadas e ajustes de comando permanecem no binding canônico.',
-    kind: 'Tipo de ponto', index: 'Índice do ponto', writable: 'Saída gravável', apply: 'Usar endereço assistido', applying: 'Aplicando...', indexInvalid: 'O índice DNP3 deve ser inteiro entre 0 e 65535.'
-  };
 }

@@ -5,7 +5,10 @@ import React, {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent
 } from 'react';
-import { isVisualElementEffectivelyAuthoringLocked } from '../visualEditorAuthoringModel';
+import {
+  isVisualElementEffectivelyAuthoringLocked,
+  type VisualEditorAuthoringOperation
+} from '../visualEditorAuthoringModel';
 import type {
   VisualEditorCanvasContractProps,
   VisualEditorMutationIntent,
@@ -15,6 +18,7 @@ import {
   resolveVisualEditorKeyboardCommand,
   type VisualEditorKeyboardCommand
 } from '../visualEditorKeyboardModel';
+import { VisualEditorAuthoringToolbar } from './VisualEditorAuthoringToolbar';
 import { VisualEditorCanvas as LegacyVisualEditorCanvas } from './VisualEditorCanvas';
 import { VisualEditorOutliner } from './VisualEditorOutliner';
 import {
@@ -43,6 +47,9 @@ import {
 export type EnhancedVisualEditorCanvasProps = VisualEditorCanvasContractProps & Readonly<{
   /** Optional session-level command sink. Legacy mutation shortcuts remain intact when omitted. */
   onKeyboardCommand?: (command: VisualEditorKeyboardCommand) => void;
+  onAuthoringOperation?: (operation: VisualEditorAuthoringOperation) => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }>;
 
 type MarqueeDraft = Readonly<{
@@ -284,6 +291,14 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
     onPointerCancelCapture={cancelCapture}
     onKeyDownCapture={keyCapture}
   >
+    <VisualEditorAuthoringToolbar
+      screen={props.screen}
+      selectedObjectIds={props.selectedObjectIds}
+      onOperation={props.onAuthoringOperation}
+      onKeyboardCommand={props.onKeyboardCommand}
+      canUndo={props.canUndo}
+      canRedo={props.canRedo}
+    />
     <LegacyVisualEditorCanvas {...props} onMutationIntent={handleMutationIntent} />
     <VisualEditorOutliner
       screen={props.screen}

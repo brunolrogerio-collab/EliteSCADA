@@ -5,6 +5,7 @@ import {
   type CanonicalVisualEvent,
   type VisualAssetUrlResolver
 } from '../../engineering/visual-editor/CanonicalVisualRenderer';
+import { useVisualBindingSamples } from '../../engineering/visual-editor/visualEditorLiveValues';
 import type {
   DynamoEngineering,
   VisualElementEngineering
@@ -20,6 +21,10 @@ import {
   createRuntimeVisualInstances,
   projectRuntimeVisualElements
 } from './runtimeVisualInstanceComposition';
+import {
+  decorateRuntimeDynamoVisualStates,
+  expandRuntimeDynamoVisuals
+} from './runtimeDynamoVisualProjection';
 import { writeRuntimeTagValue } from '../runtimeTagWriteApi';
 import type { SliderTagWrite } from '../../engineering/visual-editor/SliderVisualElement';
 
@@ -43,10 +48,11 @@ export type RuntimeVisualDefinitionRendererProps = Readonly<{
  * Mounted Wave 10 bridge between canonical visual Engineering and transient
  * Client Visual Python Runtime state.
  *
- * CanonicalVisualRenderer remains the only visual renderer. This component
- * supplies a transient Script/Animation projection and turns React click
- * identity into the canonical Script event dispatcher. Python receives no DOM,
- * React or browser authority.
+ * CanonicalVisualRenderer remains the only visual renderer. C07 expands Dynamo
+ * instances only in this transient projection so public parameter bindings and
+ * semantic state are resolved before rendering; persisted Engineering remains
+ * one encapsulated Dynamo instance. Python receives no DOM, React or browser
+ * authority.
  */
 export function RuntimeVisualDefinitionRenderer({
   visualDefinitionId,
@@ -81,22 +87,36 @@ export function RuntimeVisualDefinitionRenderer({
     () => projectRuntimeVisualElements(elements, instances),
     [elements, instances, revision]
   );
+  const expandedDynamoElements = useMemo(
+    () => expandRuntimeDynamoVisuals(projectedElements, dynamoDefinitions),
+    [projectedElements, dynamoDefinitions]
+  );
+  const dynamoStateSamples = useVisualBindingSamples(expandedDynamoElements);
+  const renderedElements = useMemo(
+    () => decorateRuntimeDynamoVisualStates(expandedDynamoElements, dynamoStateSamples),
+    [expandedDynamoElements, dynamoStateSamples]
+  );
 
   const captureObjectInteraction = (event: MouseEvent<HTMLDivElement>) => {
     if (!scriptContext || !visualDefinitionId.trim()) return;
     const target = event.target;
     if (!(target instanceof Element)) return;
-    const visualElement = target.closest<HTMLElement>('[data-object-id]');
-    if (!visualElement || !event.currentTarget.contains(visualElement)) return;
-    const objectId = visualElement.dataset.objectId?.trim();
-    if (!objectId || !instances.has(objectId)) return;
 
-    void dispatcher.dispatchObjectInteraction({
-      visualDefinitionId,
-      objectId,
-      eventKey: 'click',
-      context: scriptContext
-    }).then(records => onScriptDispatch?.(records));
+    let visualElement: HTMLElement | null = target.closest<HTMLElement>('[data-object-id]');
+    while (visualElement && event.currentTarget.contains(visualElement)) {
+      const objectId = visualElement.dataset.objectId?.trim();
+      if (objectId && instances.has(objectId)) {
+        void dispatcher.dispatchObjectInteraction({
+          visualDefinitionId,
+          objectId,
+          eventKey: 'click',
+          context: scriptContext
+        }).then(records => onScriptDispatch?.(records));
+        return;
+      }
+      const parent = visualElement.parentElement;
+      visualElement = parent?.closest<HTMLElement>('[data-object-id]') ?? null;
+    }
   };
 
   return <div
@@ -106,10 +126,9 @@ export function RuntimeVisualDefinitionRenderer({
     onClickCapture={captureObjectInteraction}
   >
     <CanonicalVisualRenderer
-      elements={projectedElements}
+      elements={renderedElements}
       emptyLabel={emptyLabel}
       locale={locale}
-      dynamoDefinitions={dynamoDefinitions}
       onVisualEvent={onVisualEvent}
       onTagWrite={onTagWrite}
       visualAssetUrl={visualAssetUrl}

@@ -94,6 +94,22 @@ test('official provider routes TAG writes to the injected mediated Runtime write
   expect(result).toEqual({ accepted: true, reference: '22222222-2222-2222-2222-222222222222' });
 });
 
+test('Engineering preview can explicitly remove process TAG-write authority while preserving the same sandbox bridge contract', async () => {
+  const previewProvider = createClientVisualPythonCapabilityProvider({ tagWriter: null });
+  expect(previewProvider.writeTag).toBeUndefined();
+
+  await expectCapabilityCode(
+    dispatchClientVisualPythonCapability(
+      previewProvider,
+      'tag.write',
+      'write',
+      { reference: '33333333-3333-3333-3333-333333333333', value: true },
+      context
+    ),
+    'PYTHON_CAPABILITY_PROVIDER_UNAVAILABLE'
+  );
+});
+
 test('direct shared TAG mutation and Driver authority remain explicitly denied boundaries', () => {
   expect(CLIENT_VISUAL_PYTHON_DENIED_BOUNDARIES).toContain('shared-tag-write-direct');
   expect(CLIENT_VISUAL_PYTHON_DENIED_BOUNDARIES).toContain('industrial-driver');

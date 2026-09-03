@@ -1,5 +1,20 @@
 import type { DataSourceEngineering, TagEngineering } from './types';
 
+export type TagPhysicalValueTransformEngineering = Readonly<{
+  contractVersion?: number;
+  byteSwap?: boolean;
+  wordSwap?: boolean;
+}>;
+
+export type CommunicationTagBindingEngineering = Readonly<{
+  contractVersion: number;
+  schemaId: string;
+  schemaVersion: number;
+  portableAddress: string;
+  settings?: Record<string, string> | null;
+  valueTransform?: TagPhysicalValueTransformEngineering | null;
+}>;
+
 export type TagSourceReference = Readonly<{
   status: 'none' | 'resolved' | 'legacy-resolved' | 'unresolved';
   source: DataSourceEngineering | null;
@@ -8,6 +23,7 @@ export type TagSourceReference = Readonly<{
 
 export type TagSourceAwareEngineering = TagEngineering & {
   dataSourceId?: string | null;
+  communicationBinding?: CommunicationTagBindingEngineering | null;
 };
 
 export function resolveTagDataSource(
@@ -37,11 +53,43 @@ export function assignTagDataSource(
   tag: TagSourceAwareEngineering,
   source: DataSourceEngineering | null
 ): TagSourceAwareEngineering {
-  if (!source) return { ...tag, dataSourceId: null, source: null };
+  if (!source) {
+    return {
+      ...tag,
+      dataSourceId: null,
+      source: null,
+      communicationBinding: null
+    };
+  }
+
+  const sourceChanged = !tag.dataSourceId ||
+    tag.dataSourceId.toLowerCase() !== source.id?.toLowerCase() ||
+    tag.source?.toLowerCase() !== source.key.toLowerCase();
+
   return {
     ...tag,
     dataSourceId: source.id ?? null,
-    source: source.key
+    source: source.key,
+    address: sourceChanged ? null : tag.address,
+    addressSelector: sourceChanged ? null : tag.addressSelector,
+    communicationBinding: sourceChanged ? null : tag.communicationBinding
+  };
+}
+
+export function updateManualTagAddress(
+  tag: TagSourceAwareEngineering,
+  value: string | null
+): TagSourceAwareEngineering {
+  const address = value?.trim() ? value : null;
+  if (!tag.communicationBinding) return { ...tag, address };
+  if (!address) return { ...tag, address: null, communicationBinding: null };
+  return {
+    ...tag,
+    address,
+    communicationBinding: {
+      ...tag.communicationBinding,
+      portableAddress: address
+    }
   };
 }
 

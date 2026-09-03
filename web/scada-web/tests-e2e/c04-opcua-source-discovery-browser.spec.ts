@@ -158,7 +158,10 @@ test('new OPC UA Source can discover, choose security settings and test the draf
   expect(connectionRequest.settings.passwordSecretReference).toBeUndefined();
   expect(connectionRequest.settings.unknownSetting).toBeUndefined();
 
+  const previewResponse = page.waitForResponse(response =>
+    response.url().includes('/api/engineering/import/json/preview') && response.request().method() === 'POST');
   await sourceEditor.getByTestId('data-source-preview').click();
+  await previewResponse;
   expect(previewCandidate).not.toBeNull();
   expect(previewCandidate.dataSources).toHaveLength(1);
   expect(previewCandidate.dataSources[0]).toMatchObject({

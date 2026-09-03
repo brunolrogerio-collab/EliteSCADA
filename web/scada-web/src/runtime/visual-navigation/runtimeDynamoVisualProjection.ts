@@ -28,8 +28,6 @@ export type RuntimeDynamoStateIndicator = Readonly<{
   label: string;
   background: string;
   foreground: string;
-  x: number;
-  y: number;
 }>;
 
 /**
@@ -64,14 +62,16 @@ export function collectRuntimeDynamoStateBindingElements(
 
 /**
  * Resolves semantic state indicators without changing the visual element tree.
- * This keeps CanonicalVisualRenderer input stable while live samples change.
+ * Placement is intentionally absent from this model. Runtime anchors each
+ * indicator to the rendered Dynamo root so the canonical renderer remains the
+ * only authority for transform, nesting and scroll geometry.
  */
 export function resolveRuntimeDynamoStateIndicators(
   elements: readonly VisualElementEngineering[],
   liveSamples: ReadonlyMap<string, VisualLiveScalarSample>
 ): readonly RuntimeDynamoStateIndicator[] {
   const result: RuntimeDynamoStateIndicator[] = [];
-  for (const element of elements) collectIndicators(element, liveSamples, 0, 0, 1, 1, result);
+  for (const element of elements) collectIndicators(element, liveSamples, result);
   return Object.freeze(result);
 }
 
@@ -154,17 +154,8 @@ function scopeDefinitionElement(
 function collectIndicators(
   element: VisualElementEngineering,
   liveSamples: ReadonlyMap<string, VisualLiveScalarSample>,
-  parentX: number,
-  parentY: number,
-  parentScaleX: number,
-  parentScaleY: number,
   result: RuntimeDynamoStateIndicator[]
 ): void {
-  const x = parentX + finiteOr(element.properties?.x, 0) * parentScaleX;
-  const y = parentY + finiteOr(element.properties?.y, 0) * parentScaleY;
-  const scaleX = parentScaleX * finiteOr(element.properties?.scaleX, 1);
-  const scaleY = parentScaleY * finiteOr(element.properties?.scaleY, 1);
-
   if (isExpandedRuntimeDynamo(element)) {
     const resolution = resolveDynamoRuntimeState(element.children ?? [], liveSamples);
     const instanceId = element.metadata?.[RUNTIME_DYNAMO_INSTANCE_ID] ?? element.id ?? element.key;
@@ -180,15 +171,13 @@ function collectIndicators(
       feedbackMismatch: resolution.feedbackMismatch,
       label: presentation.label,
       background: presentation.background,
-      foreground: presentation.foreground,
-      x: x + 2 * scaleX,
-      y: y + 2 * scaleY
+      foreground: presentation.foreground
     }));
     return;
   }
 
   for (const child of element.children ?? []) {
-    collectIndicators(child, liveSamples, x, y, scaleX, scaleY, result);
+    collectIndicators(child, liveSamples, result);
   }
 }
 

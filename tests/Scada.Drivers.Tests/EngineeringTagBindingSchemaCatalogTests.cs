@@ -2,6 +2,7 @@ using Scada.Core.Sources;
 using Scada.DriverHost.Engineering;
 using Scada.Drivers.Dnp3;
 using Scada.Drivers.Iec60870;
+using Scada.Drivers.Modbus;
 using Scada.Drivers.OpcUa;
 
 namespace Scada.Drivers.Tests;
@@ -31,6 +32,26 @@ public sealed class EngineeringTagBindingSchemaCatalogTests
         Assert.Equal(Iec104DriverDescriptorProvider.BindingSchemaId, iec104.TagBindingSchemaId);
         Assert.Equal(Iec104DriverDescriptorProvider.BindingSchemaVersion, iec104.TagBindingSchemaVersion);
         Assert.NotEqual(iec104.ConfigurationSchema!.SchemaId, iec104.TagBindingSchemaId);
+    }
+
+    [Fact]
+    public void Catalog_ProjectsDriverFieldLocalizationResourceKeys()
+    {
+        var catalog = EngineeringDataSourceTypeCatalog.BuildForCurrentSchema(
+            CommunicationDriverRuntimeComposition.BuildForCurrentSchema()).Describe();
+
+        var modbus = Assert.Single(catalog.DataSourceTypes, x =>
+            x.TypeKey == ModbusTcpDriverDescriptorProvider.DriverTypeId);
+        var modbusHost = Assert.Single(modbus.ConfigurationSchema!.DataSourceFields, field =>
+            field.Key == "host");
+        Assert.Equal("driver.modbus.tcp.datasource.host.label", modbusHost.DisplayNameResourceKey);
+        Assert.Equal("driver.modbus.tcp.datasource.host.description", modbusHost.DescriptionResourceKey);
+
+        var opcUa = Assert.Single(catalog.DataSourceTypes, x =>
+            x.TypeKey == OpcUaDriverDescriptorProvider.DriverTypeId);
+        var endpointUrl = Assert.Single(opcUa.ConfigurationSchema!.DataSourceFields, field =>
+            field.Key == "endpointUrl");
+        Assert.Equal("driver.opcua.datasource.endpointUrl.label", endpointUrl.DisplayNameResourceKey);
     }
 
     [Fact]

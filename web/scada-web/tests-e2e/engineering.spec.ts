@@ -208,7 +208,9 @@ test('Data Source editor rebuilds settings when source type changes and previews
   await form.getByLabel('Chave').fill('preview.simulation');
   await page.getByTestId('data-source-type').selectOption('builtin.simulation');
   await expect(page.getByTestId('data-source-type')).toHaveValue('builtin.simulation');
-  await expect(page.getByText('Este tipo não possui campos de configuração.', { exact: true })).toBeVisible();
+  const scanInterval = page.getByTestId('data-source-setting-scanIntervalMilliseconds');
+  await expect(scanInterval).toBeVisible();
+  await expect(scanInterval).toHaveValue('500');
 
   await page.getByTestId('data-source-preview').click();
   await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();

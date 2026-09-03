@@ -16,6 +16,7 @@ export function VisualEditorWorkspace({
   return <DynamoAuthoringCatalogProvider
     definitions={snapshot.package.dynamos ?? []}
     tags={snapshot.package.tags ?? []}
+    visualAssets={snapshot.package.visualAssets ?? []}
   >
     <LegacyVisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onApplied} />
   </DynamoAuthoringCatalogProvider>;

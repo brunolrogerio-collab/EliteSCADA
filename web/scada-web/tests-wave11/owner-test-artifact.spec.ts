@@ -91,3 +91,63 @@ test('exports the owner-test package from the verified Active Engineering applic
     'utf8'
   );
 });
+
+test('Active HMI logical viewport scales and centers uniformly at representative browser resolutions', async ({ page }) => {
+  for (const browserViewport of [
+    { width: 1280, height: 720 },
+    { width: 1920, height: 1080 },
+    { width: 2560, height: 1440 },
+    { width: 3840, height: 2160 }
+  ]) {
+    await page.setViewportSize(browserViewport);
+    await page.goto('/');
+
+    const application = page.getByTestId('runtime-engineering-application');
+    const logicalViewport = page.getByTestId('runtime-logical-viewport');
+    const logicalStage = page.getByTestId('runtime-logical-stage');
+    await expect(application).toHaveAttribute('data-runtime-project-key', projectKey);
+    await expect(logicalViewport).toBeVisible();
+    await expect(logicalViewport).toHaveAttribute('data-design-width', '1920');
+    await expect(logicalViewport).toHaveAttribute('data-design-height', '1080');
+    await expect.poll(async () => Number(await logicalViewport.getAttribute('data-runtime-scale'))).toBeGreaterThan(0);
+
+    const geometry = await logicalViewport.evaluate((viewport, stageTestId) => {
+      const stage = viewport.querySelector<HTMLElement>(`[data-testid="${stageTestId}"]`);
+      if (!stage) throw new Error('Runtime logical stage was not mounted.');
+      const viewportElement = viewport as HTMLElement;
+      const viewportRect = viewportElement.getBoundingClientRect();
+      const stageRect = stage.getBoundingClientRect();
+      const matrix = new DOMMatrixReadOnly(getComputedStyle(stage).transform);
+      return {
+        viewportWidth: viewportElement.clientWidth,
+        viewportHeight: viewportElement.clientHeight,
+        viewportLeft: viewportRect.left,
+        viewportTop: viewportRect.top,
+        stageLeft: stageRect.left,
+        stageTop: stageRect.top,
+        stageWidth: stageRect.width,
+        stageHeight: stageRect.height,
+        matrixScaleX: matrix.a,
+        matrixScaleY: matrix.d,
+        reportedScale: Number(viewportElement.dataset.runtimeScale)
+      };
+    }, 'runtime-logical-stage');
+
+    const expectedScale = Math.min(
+      geometry.viewportWidth / 1920,
+      geometry.viewportHeight / 1080
+    );
+    const expectedWidth = 1920 * expectedScale;
+    const expectedHeight = 1080 * expectedScale;
+    const expectedOffsetX = (geometry.viewportWidth - expectedWidth) / 2;
+    const expectedOffsetY = (geometry.viewportHeight - expectedHeight) / 2;
+
+    expect(geometry.reportedScale).toBeCloseTo(expectedScale, 5);
+    expect(geometry.matrixScaleX).toBeCloseTo(expectedScale, 5);
+    expect(geometry.matrixScaleY).toBeCloseTo(expectedScale, 5);
+    expect(geometry.stageWidth).toBeCloseTo(expectedWidth, 1);
+    expect(geometry.stageHeight).toBeCloseTo(expectedHeight, 1);
+    expect(geometry.stageLeft - geometry.viewportLeft).toBeCloseTo(expectedOffsetX, 1);
+    expect(geometry.stageTop - geometry.viewportTop).toBeCloseTo(expectedOffsetY, 1);
+  }
+});

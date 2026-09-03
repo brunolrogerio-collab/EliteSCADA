@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { appShellText, resolveAppShellLocale } from '../../appShellI18n';
+import { appShellText, useAppShellLocale } from '../../appShellI18n';
 import { UserSessionMenu } from '../../auth/UserSessionMenu';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
 import { RuntimeAlarmCenter } from '../RuntimeAlarmCenter';
@@ -15,7 +15,7 @@ import { SimulationRuntimeApp } from './SimulationRuntimeApp';
 const REFRESH_INTERVAL_MS = 1500;
 
 export function RuntimeApplicationMount() {
-  const locale = resolveAppShellLocale();
+  const locale = useAppShellLocale();
   const text = appShellText(locale);
   const [projection, setProjection] = useState<RuntimeApplicationProjection | null>(null);
   const [error, setError] = useState<Error | null>(null);
@@ -73,11 +73,16 @@ export function RuntimeApplicationMount() {
   }
 
   if (projection.mode === 'simulation') return <SimulationRuntimeApp />;
-  return <EngineeringRuntimeApplication projection={projection} />;
+  return <EngineeringRuntimeApplication projection={projection} locale={locale} />;
 }
 
-function EngineeringRuntimeApplication({ projection }: { projection: RuntimeApplicationProjection }) {
-  const locale = resolveAppShellLocale();
+function EngineeringRuntimeApplication({
+  projection,
+  locale
+}: {
+  projection: RuntimeApplicationProjection;
+  locale: ReturnType<typeof useAppShellLocale>;
+}) {
   const text = appShellText(locale);
   const fullscreenRoot = useRef<HTMLElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));

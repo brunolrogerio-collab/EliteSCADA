@@ -62,9 +62,13 @@ export function assignTagDataSource(
     };
   }
 
-  const sourceChanged = !tag.dataSourceId ||
-    tag.dataSourceId.toLowerCase() !== source.id?.toLowerCase() ||
-    tag.source?.toLowerCase() !== source.key.toLowerCase();
+  const stableId = tag.dataSourceId?.trim();
+  const legacyKey = tag.source?.trim();
+  const sourceChanged = stableId
+    ? stableId.toLowerCase() !== source.id?.toLowerCase()
+    : legacyKey
+      ? legacyKey.toLowerCase() !== source.key.toLowerCase()
+      : true;
 
   return {
     ...tag,

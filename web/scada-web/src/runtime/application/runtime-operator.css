@@ -1,4 +1,5 @@
 .runtime-operator-application {
+  position: relative;
   width: 100%;
   height: calc(100dvh - 54px);
   min-height: 0;
@@ -8,13 +9,8 @@
   background: var(--app-runtime-letterbox);
   color: var(--app-text-primary);
 }
-.app-bar--runtime-only ~ .runtime-operator-application {
-  height: calc(100dvh - 44px);
-}
-.runtime-operator-application:fullscreen {
-  width: 100vw;
-  height: 100vh;
-}
+.app-bar--runtime-only ~ .runtime-operator-application { height: calc(100dvh - 44px); }
+.runtime-operator-application:fullscreen { width: 100vw; height: 100vh; }
 .runtime-operator-bar {
   min-width: 0;
   display: flex;
@@ -25,12 +21,13 @@
   border-bottom: 1px solid var(--app-divider);
   background: var(--app-surface);
   color: var(--app-text-primary);
-  z-index: 10;
+  z-index: 30;
 }
 .runtime-operator-context { min-width: 0; display: flex; align-items: baseline; gap: 8px; }
 .runtime-operator-context strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .runtime-operator-context span { color: var(--app-text-secondary); font-size: 11px; }
-.runtime-fullscreen-button {
+.runtime-operator-actions { display: flex; align-items: center; gap: 6px; }
+.runtime-operator-button {
   min-height: 30px;
   padding: 0 10px;
   border: 1px solid var(--app-border);
@@ -40,8 +37,8 @@
   font: inherit;
   cursor: pointer;
 }
-.runtime-fullscreen-button:hover { background: var(--app-hover); }
-.runtime-fullscreen-button:focus-visible { outline: 2px solid var(--app-focus); outline-offset: 1px; }
+.runtime-operator-button:hover { background: var(--app-hover); }
+.runtime-operator-button:focus-visible { outline: 2px solid var(--app-focus); outline-offset: 1px; }
 .runtime-engineering-canvas,
 .runtime-visual-navigator {
   width: 100%;
@@ -53,4 +50,30 @@
   border: 0;
   overflow: hidden;
 }
+.runtime-operator-overlay {
+  position: absolute;
+  top: 42px;
+  right: 8px;
+  bottom: 8px;
+  width: min(720px, calc(100% - 16px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-surface-elevated);
+  color: var(--app-text-primary);
+  box-shadow: 0 12px 32px var(--app-overlay);
+  z-index: 25;
+}
+.runtime-operator-overlay-header {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 6px 4px 12px;
+  border-bottom: 1px solid var(--app-divider);
+}
+.runtime-operator-overlay-content { min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .runtime-operator-application[data-runtime-fullscreen="true"] .runtime-engineering-canvas { min-height: 0; }

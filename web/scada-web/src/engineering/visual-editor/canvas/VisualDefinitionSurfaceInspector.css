@@ -1,0 +1,23 @@
+.visual-editor-surface-inspector { position: absolute; left: 10px; bottom: 34px; z-index: 9000; width: min(320px,42%); border: 1px solid #cbd5e1; border-radius: 7px; background: rgba(255,255,255,.97); box-shadow: 0 8px 20px rgba(15,23,42,.12); font-size: 11px; }
+.visual-editor-surface-inspector > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 8px; cursor: pointer; user-select: none; }
+.visual-editor-surface-inspector > summary small { color: #64748b; }
+.visual-editor-surface-inspector__body { display: grid; gap: 8px; padding: 8px; border-top: 1px solid #e2e8f0; }
+.visual-editor-surface-inspector__preview { min-height: 58px; border: 1px solid #cbd5e1; border-radius: 5px; background-color: #f1f5f9; }
+.visual-editor-surface-inspector__field { display: grid; gap: 4px; }
+.visual-editor-surface-inspector__field > span { font-weight: 700; color: #475569; }
+.visual-editor-surface-inspector__field input[type='text'], .visual-editor-surface-inspector__field select { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; color: #0f172a; padding: 5px 6px; font-size: 11px; }
+.visual-editor-surface-inspector__color-row { display: grid; grid-template-columns: 34px minmax(0,1fr) auto; gap: 5px; align-items: center; }
+.visual-editor-surface-inspector__color-row input[type='color'] { width: 34px; height: 28px; padding: 1px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; }
+.visual-editor-surface-inspector button { min-height: 28px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; color: #334155; cursor: pointer; font-size: 10px; }
+.visual-editor-surface-inspector button:disabled, .visual-editor-surface-inspector select:disabled, .visual-editor-surface-inspector input:disabled { opacity: .5; cursor: default; }
+.visual-editor-surface-inspector footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #64748b; }
+.visual-editor-surface-inspector footer span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* C07 surface composition: authored logical canvas < grid overlay < objects/adorners. */
+.visual-editor-canvas__surface { isolation: isolate; }
+.visual-editor-canvas__surface.has-grid { background-image: none; }
+.visual-editor-canvas__authored-background { position: absolute; left: var(--visual-editor-grid-pan-x); top: var(--visual-editor-grid-pan-y); width: calc(var(--visual-editor-grid-size) * 600); height: calc(var(--visual-editor-grid-size) * 400); z-index: 0; pointer-events: none; transform-origin: 0 0; }
+.visual-editor-canvas__surface.has-grid::after { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background-image: linear-gradient(to right, rgba(99,116,139,.18) 1px, transparent 1px), linear-gradient(to bottom, rgba(99,116,139,.18) 1px, transparent 1px); background-size: var(--visual-editor-grid-size) var(--visual-editor-grid-size); background-position: var(--visual-editor-grid-pan-x) var(--visual-editor-grid-pan-y); }
+.visual-editor-canvas__viewport { z-index: 2; }
+
+@media (max-width: 900px) { .visual-editor-surface-inspector { width: min(280px,56%); } }

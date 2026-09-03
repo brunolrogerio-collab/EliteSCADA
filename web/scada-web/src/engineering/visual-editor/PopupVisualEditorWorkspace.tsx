@@ -3,10 +3,9 @@ import type { EngineeringLocale } from '../i18n';
 import type { EngineeringSnapshot } from '../types';
 import { normalizeDynamoDefinitionParameterContract } from '../../runtime/visual-navigation/dynamoParameterWireContract';
 import { C07VisualEditorI18nProvider } from './c07VisualEditorI18n';
-import { DynamoAuthoringCatalogProvider } from './DynamoAuthoringCatalogContext';
-import { VisualEditorWorkspace as LegacyVisualEditorWorkspace } from './VisualEditorWorkspaceLegacy';
+import { PopupVisualEditorWorkspace as PopupVisualEditorWorkspaceImpl } from './PopupVisualEditorWorkspaceImpl';
 
-export function VisualEditorWorkspace({
+export function PopupVisualEditorWorkspace({
   snapshot,
   locale,
   onApplied
@@ -24,12 +23,6 @@ export function VisualEditorWorkspace({
   }), [snapshot]);
 
   return <C07VisualEditorI18nProvider locale={locale}>
-    <DynamoAuthoringCatalogProvider
-      definitions={normalizedSnapshot.package.dynamos ?? []}
-      tags={normalizedSnapshot.package.tags ?? []}
-      visualAssets={normalizedSnapshot.package.visualAssets ?? []}
-    >
-      <LegacyVisualEditorWorkspace snapshot={normalizedSnapshot} locale={locale} onApplied={onApplied} />
-    </DynamoAuthoringCatalogProvider>
+    <PopupVisualEditorWorkspaceImpl snapshot={normalizedSnapshot} locale={locale} onApplied={onApplied} />
   </C07VisualEditorI18nProvider>;
 }

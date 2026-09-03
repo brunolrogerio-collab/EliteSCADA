@@ -18,6 +18,7 @@ import { reportCollection } from './reports/reportDesignerModel';
 import { ScriptEngineeringWorkspace } from './scripts/ScriptEngineeringWorkspace';
 import { DataSourceEditor, TagEditor } from './StructuredEditors';
 import { UserAdministration } from './UserAdministration';
+import { PopupVisualEditorWorkspace } from './visual-editor/PopupVisualEditorWorkspace';
 import { VisualEditorWorkspace } from './visual-editor/VisualEditorWorkspace';
 import type { EngineeringPackageView, EngineeringSnapshot } from './types';
 import './engineering.css';
@@ -204,12 +205,7 @@ function EngineeringSection({ section, snapshot, t, locale, onReload }: {
       { key: 'bindings', title: t('table.bindings'), render: item => item.bindings?.length ?? 0 }
     ]}/>;
     case 'screens': return <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
-    case 'popups': return <EntitySection title={t('nav.popups')} items={model.popups ?? []} t={t} columns={[
-      { key: 'key', title: t('table.key'), render: item => <Code>{item.key}</Code> },
-      { key: 'name', title: t('table.name'), render: item => item.name },
-      { key: 'template', title: t('table.template'), render: item => item.templateKey ? <Code>{item.templateKey}</Code> : '—' },
-      { key: 'elements', title: t('section.count'), render: item => item.elements?.length ?? 0 }
-    ]}/>;
+    case 'popups': return <PopupVisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
     default: return null;
   }
 }

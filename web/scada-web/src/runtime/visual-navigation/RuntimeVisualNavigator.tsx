@@ -6,6 +6,7 @@ import type {
   CanonicalVisualEvent,
   VisualAssetUrlResolver
 } from '../../engineering/visual-editor/CanonicalVisualRenderer';
+import { resolveVisualDefinitionSurfaceStyle } from '../../engineering/visual-editor/visualDefinitionSurfaceModel';
 import type { ClientVisualEventDispatchRecord } from '../../python-runtime/clientVisualEventDispatcher';
 import {
   createRuntimeVisualCatalog,
@@ -94,7 +95,11 @@ export function RuntimeVisualNavigator({
     data-testid="runtime-visual-navigator"
     data-active-screen-key={state.activeScreenKey}
   >
-    <section className="runtime-visual-screen" data-screen-key={activeScreen.key}>
+    <section
+      className="runtime-visual-screen"
+      data-screen-key={activeScreen.key}
+      style={resolveVisualDefinitionSurfaceStyle(activeScreen.properties, visualAssetUrl)}
+    >
       <RuntimeVisualDefinitionRenderer
         visualDefinitionId={activeScreen.id ?? ''}
         runtimeContextId={`screen:${activeScreen.id ?? activeScreen.key}`}
@@ -124,7 +129,10 @@ export function RuntimeVisualNavigator({
               <strong>{popup.name || popup.key}</strong>
               <code>{popup.key}</code>
             </header>
-            <div className="runtime-visual-popup-content">
+            <div
+              className="runtime-visual-popup-content"
+              style={resolveVisualDefinitionSurfaceStyle(popup.properties, visualAssetUrl)}
+            >
               <RuntimeVisualDefinitionRenderer
                 visualDefinitionId={popup.id ?? ''}
                 runtimeContextId={`popup:${mount.runtimeInstanceId}`}

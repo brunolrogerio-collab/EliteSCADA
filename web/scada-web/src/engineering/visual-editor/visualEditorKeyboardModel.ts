@@ -1,5 +1,5 @@
 import type { DynamoEngineering } from '../types';
-import type { DynamoParameterValueEngineering } from '../runtime/visual-navigation/runtimeVisualNavigationModel';
+import type { DynamoParameterValueEngineering } from '../../runtime/visual-navigation/runtimeVisualNavigationModel';
 import type {
   VisualEditorAlignmentOperation,
   VisualEditorDistributionOperation,

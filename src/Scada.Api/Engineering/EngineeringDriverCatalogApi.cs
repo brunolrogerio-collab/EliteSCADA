@@ -111,6 +111,80 @@ public static class EngineeringDriverCatalogApi
         })
         .RequireWorkspaceEngineeringRead();
 
+        app.MapPost("/api/engineering/driver-tools/connection-test", async (
+            DriverEngineeringDraftDataSourceApiRequest request,
+            EngineeringWorkspace workspace,
+            EngineeringDriverToolProviderFactoryRegistry factories,
+            CancellationToken cancellationToken) =>
+        {
+            var dataSource = ToDraftDataSource(request);
+            if (dataSource is null)
+                return Results.BadRequest(new { error = "SourceKey and DriverType are required." });
+            if (!factories.TryGet(dataSource.Driver, out var factory) || factory is null)
+                return UnsupportedTooling(dataSource.Driver);
+
+            try
+            {
+                await using var lease = await factory.CreateAsync(
+                    workspace.Describe().ProjectKey,
+                    dataSource,
+                    cancellationToken);
+                var tester = lease.Registration.ConnectionTester;
+                if (tester is null)
+                    return UnsupportedCapability(dataSource.Driver, DriverEngineeringCapabilities.ConnectionTest);
+
+                var result = await tester.TestConnectionAsync(ToDriverContext(dataSource), cancellationToken);
+                return Results.Ok(result);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                return DriverToolFailure(ex);
+            }
+        })
+        .RequireWorkspaceEngineeringRead();
+
+        app.MapPost("/api/engineering/driver-tools/discover", async (
+            DriverEngineeringDraftDiscoveryApiRequest request,
+            EngineeringWorkspace workspace,
+            EngineeringDriverToolProviderFactoryRegistry factories,
+            CancellationToken cancellationToken) =>
+        {
+            var dataSource = ToDraftDataSource(request.DataSource);
+            if (dataSource is null)
+                return Results.BadRequest(new { error = "SourceKey and DriverType are required." });
+            if (!factories.TryGet(dataSource.Driver, out var factory) || factory is null)
+                return UnsupportedTooling(dataSource.Driver);
+
+            try
+            {
+                await using var lease = await factory.CreateAsync(
+                    workspace.Describe().ProjectKey,
+                    dataSource,
+                    cancellationToken);
+                var discovery = lease.Registration.DiscoverySource;
+                if (discovery is null)
+                    return UnsupportedCapability(dataSource.Driver, DriverEngineeringCapabilities.Discover);
+
+                var candidates = new List<DriverDiscoveryCandidate>();
+                await foreach (var candidate in discovery.DiscoverAsync(
+                                   new DriverDiscoveryRequest(
+                                       ToDriverContext(dataSource),
+                                       request.Parameters,
+                                       request.MaximumResults),
+                                   cancellationToken))
+                {
+                    candidates.Add(candidate);
+                }
+
+                return Results.Ok(candidates);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                return DriverToolFailure(ex);
+            }
+        })
+        .RequireWorkspaceEngineeringRead();
+
         app.MapPost("/api/engineering/data-sources/{id:guid}/driver-tools/connection-test", async (
             Guid id,
             EngineeringWorkspace workspace,
@@ -228,6 +302,25 @@ public static class EngineeringDriverCatalogApi
             }
         })
         .RequireWorkspaceEngineeringRead();
+    }
+
+    private static DataSourceEngineeringDto? ToDraftDataSource(DriverEngineeringDraftDataSourceApiRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.SourceKey) || string.IsNullOrWhiteSpace(request.DriverType))
+            return null;
+
+        return new DataSourceEngineeringDto(
+            Id: null,
+            Key: request.SourceKey.Trim(),
+            Name: string.IsNullOrWhiteSpace(request.SourceName) ? request.SourceKey.Trim() : request.SourceName.Trim(),
+            Driver: request.DriverType.Trim(),
+            Enabled: true,
+            Settings: request.Settings is null
+                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, string>(request.Settings, StringComparer.OrdinalIgnoreCase),
+            SecretReferences: request.SecretReferences is null
+                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, string>(request.SecretReferences, StringComparer.OrdinalIgnoreCase));
     }
 
     private static DriverEngineeringDataSourceContext ToDriverContext(DataSourceEngineeringDto dataSource) =>

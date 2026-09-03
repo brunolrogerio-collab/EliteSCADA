@@ -109,10 +109,13 @@ export function setDynamoPublicParameterValue(
   const normalizedKey = normalizeKey(definitionParameter.key);
   const values = [...(instance.dynamoParameters ?? [])]
     .filter(value => normalizeKey(value.key) !== normalizedKey);
-  values.push(cloneValue({ ...nextValue, key: definitionParameter.key }));
+  const canonicalValue: DynamoParameterValueEngineering = definitionParameter.kind === 'EquipmentPath'
+    ? { ...nextValue, key: definitionParameter.key, value: String(nextValue.value).trim() }
+    : { ...nextValue, key: definitionParameter.key };
+  values.push(cloneValue(canonicalValue));
 
   const equipmentPath = definitionParameter.kind === 'EquipmentPath'
-    ? String(nextValue.value).trim()
+    ? String(canonicalValue.value)
     : instance.equipmentPath;
 
   return {

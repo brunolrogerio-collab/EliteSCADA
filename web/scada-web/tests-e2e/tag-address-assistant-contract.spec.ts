@@ -1,0 +1,61 @@
+import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import {
+  applyModbusAddressBuild,
+  parseCanonicalModbusAddress
+} from '../src/engineering/TagAddressAssistant.logic';
+import type { TagSourceAwareEngineering } from '../src/engineering/TagSourceSelector.logic';
+
+test('Modbus assistant output converges to canonical TAG address fields', () => {
+  const tag: TagSourceAwareEngineering = {
+    name: 'Status',
+    path: 'Plant.Status',
+    dataType: 'boolean',
+    readOnly: true,
+    address: 'holding:99',
+    metadata: {
+      'modbus.unitId': '7',
+      'modbus.wordOrder': 'LowWordFirst',
+      'project.note': 'keep-me'
+    }
+  };
+
+  const next = applyModbusAddressBuild(tag, {
+    address: 'holding:0',
+    metadata: {
+      'modbus.unitId': '2',
+      'modbus.valueType': 'Boolean'
+    },
+    addressSelector: { kind: 'bit', index: 3 },
+    writableArea: true,
+    canonicalReferenceBase: 'zeroBased'
+  });
+
+  expect(next.address).toBe('holding:0');
+  expect(next.addressSelector).toEqual({ kind: 'bit', index: 3 });
+  expect(next.metadata?.['modbus.unitId']).toBe('2');
+  expect(next.metadata?.['modbus.valueType']).toBe('Boolean');
+  expect(next.metadata?.['modbus.wordOrder']).toBeUndefined();
+  expect(next.metadata?.['project.note']).toBe('keep-me');
+});
+
+test('manual canonical Modbus syntax is parseable without guessing reference conventions', () => {
+  expect(parseCanonicalModbusAddress('holding:0')).toEqual({ area: 'holding', reference: '0' });
+  expect(parseCanonicalModbusAddress('INPUT:65535')).toEqual({ area: 'input', reference: '65535' });
+  expect(parseCanonicalModbusAddress('40001')).toBeNull();
+});
+
+test('TAG editor mounts protocol-aware address assistant while preserving manual entry', async () => {
+  const editor = await readFile(new URL('../src/engineering/SecuredEngineeringEditors.tsx', import.meta.url), 'utf8');
+  const assistant = await readFile(new URL('../src/engineering/TagAddressEditor.tsx', import.meta.url), 'utf8');
+  const api = await readFile(new URL('../src/engineering/tagAddressApi.ts', import.meta.url), 'utf8');
+  const tagSection = editor.slice(editor.indexOf('export function TagEditor'), editor.indexOf('export function DataSourceEditor'));
+
+  expect(tagSection).toContain('<TagAddressEditor');
+  expect(assistant).toContain("source?.driver.toLowerCase() === 'modbus.tcp'");
+  expect(assistant).toContain('data-testid="tag-address-manual"');
+  expect(assistant).toContain('data-testid="modbus-address-assistant"');
+  expect(assistant).toContain('data-testid="modbus-reference-base"');
+  expect(assistant).toContain('data-testid="modbus-address-build"');
+  expect(api).toContain('/api/engineering/tag-address/modbus/build');
+});

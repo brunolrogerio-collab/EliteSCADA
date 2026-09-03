@@ -1,6 +1,22 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 
 test.use({ locale: 'pt-BR' });
+
+async function expectCssToken(locator: Locator, property: string, token: string) {
+  const colors = await locator.evaluate((element, args) => {
+    const tokenValue = getComputedStyle(document.documentElement).getPropertyValue(args.token).trim();
+    const probe = document.createElement('span');
+    probe.style.color = tokenValue;
+    document.body.append(probe);
+    const expected = getComputedStyle(probe).color;
+    probe.remove();
+    return {
+      actual: getComputedStyle(element).getPropertyValue(args.property),
+      expected
+    };
+  }, { property, token });
+  expect(colors.actual).toBe(colors.expected);
+}
 
 test('primary shell keeps authorized application navigation coherent without Engineering chrome inside Runtime', async ({ page }) => {
   await page.goto('/');
@@ -23,12 +39,14 @@ test('primary shell keeps authorized application navigation coherent without Eng
     await runtimeViews.getByRole('link', { name: 'Histórico' }).click();
     await expect(page).toHaveURL(/\/runtime\/history$/);
     await expect(page.getByTestId('historical-data-browser-runtime')).toBeVisible();
+    await expectCssToken(page.locator('.runtime-history-page'), 'background-color', '--app-bg');
   }
 
   await page.goto('/engineering');
   navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
   await expect(navigation.getByRole('link', { name: /Engineering/ })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByText(/Gerenciamento do projeto|Project Management/, { exact: true })).toBeVisible();
+  await expectCssToken(page.locator('.eng-shell'), 'background-color', '--app-bg');
 
   const engineeringNavigation = page.locator('.eng-nav');
   await engineeringNavigation.getByRole('button', { name: /Diagnósticos|Diagnostics/ }).click();
@@ -37,11 +55,15 @@ test('primary shell keeps authorized application navigation coherent without Eng
   await page.goto('/audit');
   navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
   await expect(navigation.getByRole('link', { name: /Auditoria/ })).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('.audit-panel').first()).toBeVisible();
+  await expectCssToken(page.locator('.audit-panel').first(), 'background-color', '--app-surface');
 
   await page.goto('/licensing');
   navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
   await expect(navigation.getByRole('link', { name: /Licenciamento/ })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('heading', { name: 'Licenciamento' })).toBeVisible();
+  await expect(page.locator('.licensing-card').first()).toBeVisible();
+  await expectCssToken(page.locator('.licensing-card').first(), 'background-color', '--app-surface');
 });
 
 test('shell uses shared locale, updates live from Engineering selector, and preserves personal theme independently', async ({ page }) => {

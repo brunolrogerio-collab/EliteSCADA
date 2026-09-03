@@ -21,5 +21,9 @@ export function visualEditorKeyboardCommandMutatesSelection(
     || command.kind === 'duplicate'
     || command.kind === 'group'
     || command.kind === 'ungroup'
+    || command.kind === 'align'
+    || command.kind === 'distribute'
+    || command.kind === 'size'
+    || command.kind === 'lock'
     || command.kind === 'nudge';
 }

@@ -28,6 +28,7 @@ import {
   type VisualEditorHistoryState
 } from './visualEditorHistoryModel';
 import type { VisualEditorKeyboardCommand } from './visualEditorKeyboardModel';
+import { applyVisualDefinitionSurfacePatch } from './visualDefinitionSurfaceModel';
 import {
   applyVisualEditorZOrderOperation,
   type VisualEditorZOrderOperation
@@ -224,6 +225,11 @@ export function applyVisualEditorSessionKeyboardCommand(
         objectIds: state.selectedObjectIds,
         locked: command.locked
       });
+    case 'surface.set':
+      return commitVisualEditorSessionDraft(
+        state,
+        applyVisualDefinitionSurfacePatch(state.history.present, command.patch)
+      );
     case 'dynamoParameter.set': {
       assertVisualElementsAuthoringEditable(state.history.present, [command.objectId]);
       const nextScreen = updateScreenElement(state.history.present, command.objectId, instance =>

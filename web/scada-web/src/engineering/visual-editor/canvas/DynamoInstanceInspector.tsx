@@ -9,6 +9,7 @@ import type {
   DynamoParameterDefinitionEngineering,
   DynamoParameterValueEngineering
 } from '../../../runtime/visual-navigation/runtimeVisualNavigationModel';
+import { useC07VisualEditorText } from '../c07VisualEditorI18n';
 import { useDynamoAuthoringCatalog } from '../DynamoAuthoringCatalogContext';
 import { isVisualElementEffectivelyAuthoringLocked } from '../visualEditorAuthoringModel';
 import type { VisualEditorKeyboardCommand } from '../visualEditorKeyboardModel';
@@ -34,6 +35,7 @@ export function DynamoInstanceInspector({
   selectedObjectIds: readonly string[];
   onCommand?: (command: VisualEditorKeyboardCommand) => void;
 }) {
+  const text = useC07VisualEditorText().dynamo;
   const catalog = useDynamoAuthoringCatalog();
   if (selectedObjectIds.length !== 1) return null;
   const instance = findElement(screen.elements ?? [], selectedObjectIds[0]);
@@ -42,8 +44,8 @@ export function DynamoInstanceInspector({
   const definition = catalog.definitions.find(item => equalsKey(item.key, instance.dynamoKey!));
   if (!definition) {
     return <details className="visual-editor-dynamo-inspector" open data-testid="dynamo-instance-inspector">
-      <summary><strong>Dynamo</strong><code>{instance.dynamoKey}</code></summary>
-      <p className="visual-editor-dynamo-inspector__error">Definition not found in the canonical Engineering snapshot.</p>
+      <summary><strong>{text.name}</strong><code>{instance.dynamoKey}</code></summary>
+      <p className="visual-editor-dynamo-inspector__error">{text.definitionNotFound}</p>
     </details>;
   }
 
@@ -69,6 +71,7 @@ function DynamoInspectorBody({
   tags: readonly TagEngineering[];
   onCommand?: (command: VisualEditorKeyboardCommand) => void;
 }) {
+  const text = useC07VisualEditorText().dynamo;
   const parameters = useMemo(() => listDynamoPublicParameters(definition), [definition]);
   const values = useMemo(() => new Map(
     listDynamoPublicParameterValues(instance, definition)
@@ -97,14 +100,14 @@ function DynamoInspectorBody({
   return <details className="visual-editor-dynamo-inspector" open data-testid="dynamo-instance-inspector">
     <summary>
       <span><strong>{definition.name}</strong><code>{definition.key}</code></span>
-      <small>{locked ? 'Locked' : `${parameters.length} public`}</small>
+      <small>{locked ? text.locked : `${parameters.length} ${text.publicSuffix}`}</small>
     </summary>
     <div className="visual-editor-dynamo-inspector__body">
       <div className="visual-editor-dynamo-inspector__identity">
-        <span>Instance</span><code>{instance.key}</code>
+        <span>{text.instance}</span><code>{instance.key}</code>
       </div>
       <DynamoStatePreview />
-      {parameters.length === 0 ? <p className="visual-editor-dynamo-inspector__empty">No public parameters.</p> : parameters.map(parameter => {
+      {parameters.length === 0 ? <p className="visual-editor-dynamo-inspector__empty">{text.noPublicParameters}</p> : parameters.map(parameter => {
         const value = values.get(normalizeKey(parameter.key));
         return <ParameterEditor
           key={parameter.key}
@@ -122,6 +125,8 @@ function DynamoInspectorBody({
 }
 
 function DynamoStatePreview() {
+  const copy = useC07VisualEditorText();
+  const text = copy.dynamo;
   const [quality, setQuality] = useState<DynamoQualityState>('good');
   const [fault, setFault] = useState(false);
   const [alarm, setAlarm] = useState(false);
@@ -130,23 +135,23 @@ function DynamoStatePreview() {
   const resolved = resolveDynamoVisualState({ quality, fault, alarm, commandIntent, settledState });
 
   return <section className="visual-editor-dynamo-state-preview" data-testid="dynamo-engineering-state-preview">
-    <header><strong>Engineering state preview</strong><span data-state={resolved.kind}>{resolved.kind}</span></header>
+    <header><strong>{text.statePreview}</strong><span data-state={resolved.kind}>{dynamoStateLabel(resolved.kind, copy.runtimeState)}</span></header>
     <div className="visual-editor-dynamo-state-preview__grid">
-      <label><span>Quality</span><select value={quality} onChange={event => setQuality(event.currentTarget.value as DynamoQualityState)}>
-        <option value="good">Good</option><option value="uncertain">Uncertain</option><option value="bad">Bad</option><option value="stale">Stale</option><option value="unknown">Unknown</option>
+      <label><span>{text.quality}</span><select value={quality} onChange={event => setQuality(event.currentTarget.value as DynamoQualityState)}>
+        <option value="good">{text.good}</option><option value="uncertain">{text.uncertain}</option><option value="bad">{text.bad}</option><option value="stale">{text.stale}</option><option value="unknown">{text.unknown}</option>
       </select></label>
-      <label><span>Settled</span><select value={settledState} onChange={event => setSettledState(event.currentTarget.value as DynamoSettledState)}>
-        <option value="inactive">Inactive</option><option value="active">Active</option><option value="transitioning">Transitioning</option><option value="unknown">Unknown</option>
+      <label><span>{text.settled}</span><select value={settledState} onChange={event => setSettledState(event.currentTarget.value as DynamoSettledState)}>
+        <option value="inactive">{text.inactive}</option><option value="active">{text.active}</option><option value="transitioning">{text.transitioning}</option><option value="unknown">{text.unknown}</option>
       </select></label>
-      <label><span>Command</span><select value={commandIntent ?? ''} onChange={event => setCommandIntent((event.currentTarget.value || null) as DynamoCommandIntent)}>
-        <option value="">None</option><option value="start">Start</option><option value="stop">Stop</option><option value="open">Open</option><option value="close">Close</option><option value="increase">Increase</option><option value="decrease">Decrease</option><option value="setpoint">Setpoint</option>
+      <label><span>{text.command}</span><select value={commandIntent ?? ''} onChange={event => setCommandIntent((event.currentTarget.value || null) as DynamoCommandIntent)}>
+        <option value="">{text.none}</option><option value="start">{text.start}</option><option value="stop">{text.stop}</option><option value="open">{text.open}</option><option value="close">{text.close}</option><option value="increase">{text.increase}</option><option value="decrease">{text.decrease}</option><option value="setpoint">{text.setpoint}</option>
       </select></label>
       <div className="visual-editor-dynamo-state-preview__checks">
-        <label><input type="checkbox" checked={fault} onChange={event => setFault(event.currentTarget.checked)} />Fault</label>
-        <label><input type="checkbox" checked={alarm} onChange={event => setAlarm(event.currentTarget.checked)} />Alarm</label>
+        <label><input type="checkbox" checked={fault} onChange={event => setFault(event.currentTarget.checked)} />{text.fault}</label>
+        <label><input type="checkbox" checked={alarm} onChange={event => setAlarm(event.currentTarget.checked)} />{text.alarm}</label>
       </div>
     </div>
-    <footer><span>Resolved priority</span><strong>{resolved.priority}</strong><small>Preview only. Nothing is persisted.</small></footer>
+    <footer><span>{text.resolvedPriority}</span><strong>{resolved.priority}</strong><small>{text.previewOnly}</small></footer>
   </section>;
 }
 
@@ -167,6 +172,7 @@ function ParameterEditor({
   onSet: (value: DynamoParameterValueEngineering) => void;
   onRemove: () => void;
 }) {
+  const text = useC07VisualEditorText().dynamo;
   const editor = resolveDynamoParameterEditorKind(parameter.kind);
   const hasStoredValue = Boolean(
     instance.dynamoParameters?.some(item => equalsKey(item.key, parameter.key))
@@ -193,7 +199,7 @@ function ParameterEditor({
           version: parameter.version
         })}
       />
-      <span>{booleanValue(value?.value ?? parameter.defaultValue) ? 'True' : 'False'}</span>
+      <span>{booleanValue(value?.value ?? parameter.defaultValue) ? text.trueValue : text.falseValue}</span>
     </label> : editor === 'tag-reference' ? <TagParameterEditor
       parameter={parameter}
       value={value}
@@ -209,8 +215,8 @@ function ParameterEditor({
       onRemove={onRemove}
     />}
     <footer>
-      {requiredMissing ? <span>Required value missing</span> : <span>{hasStoredValue ? 'Instance value' : 'Default / unset'}</span>}
-      {removeAllowed && editor !== 'tag-reference' ? <button type="button" onClick={onRemove}>Reset</button> : null}
+      {requiredMissing ? <span>{text.requiredMissing}</span> : <span>{hasStoredValue ? text.instanceValue : text.defaultUnset}</span>}
+      {removeAllowed && editor !== 'tag-reference' ? <button type="button" onClick={onRemove}>{text.reset}</button> : null}
     </footer>
   </div>;
 }
@@ -228,6 +234,7 @@ function ScalarParameterEditor({
   onSet: (value: DynamoParameterValueEngineering) => void;
   onRemove: () => void;
 }) {
+  const text = useC07VisualEditorText().dynamo;
   const effective = value?.value ?? parameter.defaultValue ?? '';
   const [draft, setDraft] = useState(String(effective ?? ''));
   const [invalid, setInvalid] = useState(false);
@@ -278,7 +285,7 @@ function ScalarParameterEditor({
         }
       }}
     />
-    {invalid ? <small>Invalid {parameter.kind} value.</small> : null}
+    {invalid ? <small>{text.invalidValue}: {parameter.kind}.</small> : null}
   </div>;
 }
 
@@ -297,6 +304,7 @@ function TagParameterEditor({
   onSet: (value: DynamoParameterValueEngineering) => void;
   onRemove: () => void;
 }) {
+  const text = useC07VisualEditorText().dynamo;
   const currentTagId = value?.tagReference?.tagId ?? parameter.defaultTagReference?.tagId ?? '';
   return <select
     value={currentTagId}
@@ -315,11 +323,28 @@ function TagParameterEditor({
       });
     }}
   >
-    <option value="">{parameter.required ? 'Select TAG…' : 'Not assigned'}</option>
+    <option value="">{parameter.required ? text.selectTag : text.notAssigned}</option>
     {tags.map(tag => <option key={tag.id!} value={tag.id!}>
       {tag.name} · {tag.path} · {tag.dataType}
     </option>)}
   </select>;
+}
+
+function dynamoStateLabel(
+  kind: string,
+  text: ReturnType<typeof useC07VisualEditorText>['runtimeState']
+): string {
+  switch (kind) {
+    case 'bad-quality': return text.badQuality;
+    case 'fault': return text.fault;
+    case 'alarm': return text.alarm;
+    case 'uncertain-quality': return text.uncertain;
+    case 'command-intent': return text.command;
+    case 'transitioning': return text.transition;
+    case 'active': return text.active;
+    case 'inactive': return text.inactive;
+    default: return text.unknown;
+  }
 }
 
 function findElement(

@@ -1,16 +1,25 @@
 import type {
+  BindingEngineering,
   EngineeringPackageView,
   PopupEngineering,
-  ScreenEngineering
+  ScreenEngineering,
+  ScriptLinkEngineering,
+  VisualEventEngineering
 } from '../types';
 import { cloneEngineeringValue } from './visualEditorCanonicalModel';
 
 export const NEW_POPUP_IDENTITY = 'draft:new-popup';
 
+/**
+ * Popup-only persisted fields that are deliberately outside the Screen-shaped
+ * visual composition session. They must survive the adapter round-trip without
+ * being smuggled into visual properties or a frontend-only schema.
+ */
 export type PopupVisualFrame = Readonly<{
-  width: number | null;
-  height: number | null;
-  version: number | null;
+  templateKey: string | null;
+  bindings: readonly BindingEngineering[];
+  events: readonly VisualEventEngineering[];
+  scriptLinks: readonly ScriptLinkEngineering[];
 }>;
 
 export function popupIdentity(popup: PopupEngineering): string {
@@ -24,7 +33,7 @@ export function popupIdentity(popup: PopupEngineering): string {
  */
 export function popupToVisualScreen(popup: PopupEngineering): ScreenEngineering {
   return {
-    id: popup.id ?? null,
+    id: popup.id ?? undefined,
     key: popup.key,
     name: popup.name,
     route: null,
@@ -37,9 +46,10 @@ export function popupToVisualScreen(popup: PopupEngineering): ScreenEngineering 
 
 export function popupFrame(popup: PopupEngineering): PopupVisualFrame {
   return Object.freeze({
-    width: popup.width ?? null,
-    height: popup.height ?? null,
-    version: popup.version ?? null
+    templateKey: popup.templateKey ?? null,
+    bindings: Object.freeze(cloneEngineeringValue(popup.bindings ?? [])),
+    events: Object.freeze(cloneEngineeringValue(popup.events ?? [])),
+    scriptLinks: Object.freeze(cloneEngineeringValue(popup.scriptLinks ?? []))
   });
 }
 
@@ -48,12 +58,13 @@ export function visualScreenToPopup(
   frame: PopupVisualFrame
 ): PopupEngineering {
   return {
-    id: screen.id ?? null,
+    id: screen.id ?? undefined,
     key: screen.key,
     name: screen.name,
-    width: frame.width,
-    height: frame.height,
-    version: frame.version,
+    templateKey: frame.templateKey,
+    bindings: cloneEngineeringValue(frame.bindings),
+    events: cloneEngineeringValue(frame.events),
+    scriptLinks: cloneEngineeringValue(frame.scriptLinks),
     properties: cloneEngineeringValue(screen.properties ?? {}),
     context: cloneEngineeringValue(screen.context ?? {}),
     metadata: cloneEngineeringValue(screen.metadata ?? {}),
@@ -73,9 +84,10 @@ export function createPopupDraft(
   return {
     key,
     name,
-    width: 480,
-    height: 320,
-    version: 1,
+    templateKey: null,
+    bindings: [],
+    events: [],
+    scriptLinks: [],
     properties: {},
     context: {},
     metadata: {},
@@ -100,12 +112,4 @@ export function replacePopupInPackage(
   candidate.popups = popups.map(popup =>
     popupIdentity(popup) === identity ? cloneEngineeringValue(draft) : popup);
   return candidate;
-}
-
-export function normalizePopupDimension(value: number | null | undefined): number | null {
-  if (value === null || value === undefined) return null;
-  if (!Number.isFinite(value) || value <= 0) {
-    throw new Error('Popup width and height must be finite positive values.');
-  }
-  return Math.round(value * 1000) / 1000;
 }

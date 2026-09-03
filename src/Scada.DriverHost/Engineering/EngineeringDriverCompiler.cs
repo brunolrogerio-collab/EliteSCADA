@@ -65,15 +65,17 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
             if (dataSource.Driver.Equals(SimulationDriverKey, StringComparison.OrdinalIgnoreCase))
                 continue;
 
+            var plannerPackage = EngineeringTagDataSourceAssociation.NormalizeForPlanner(package, dataSource);
+
             if (dataSource.Driver.Equals(ModbusTcpDriverKey, StringComparison.OrdinalIgnoreCase))
             {
-                CompileModbusTcp(package, dataSource, plans, issues);
+                CompileModbusTcp(plannerPackage, dataSource, plans, issues);
                 continue;
             }
 
             if (_communicationComponents.TryGet(dataSource.Driver, out var registration) && registration is not null)
             {
-                var result = registration.Planner.Plan(package, dataSource);
+                var result = registration.Planner.Plan(plannerPackage, dataSource);
                 issues.AddRange(result.Issues);
                 if (result.CanActivate && result.Plan is not null)
                     communicationPlans.Add(result.Plan);
@@ -110,7 +112,7 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
         var defaultUnitId = ParseInt(settings, "unitId", 1, 0, 255, dataSource.Key, issues);
 
         var sourceTags = package.Tags
-            .Where(tag => IsAssociatedWithDataSource(tag, dataSource))
+            .Where(tag => string.Equals(tag.Source, dataSource.Key, StringComparison.OrdinalIgnoreCase))
             .OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
@@ -144,13 +146,6 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
             TimeSpan.FromMilliseconds(timeoutMs),
             maxGap,
             points));
-    }
-
-    private static bool IsAssociatedWithDataSource(TagEngineeringDto tag, DataSourceEngineeringDto dataSource)
-    {
-        if (tag.DataSourceId.HasValue)
-            return dataSource.Id.HasValue && tag.DataSourceId.Value == dataSource.Id.Value;
-        return string.Equals(tag.Source, dataSource.Key, StringComparison.OrdinalIgnoreCase);
     }
 
     private static ModbusPoint? CompilePoint(

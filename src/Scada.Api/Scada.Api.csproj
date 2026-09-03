@@ -16,4 +16,26 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Scada.Drivers.Tests" />
   </ItemGroup>
+
+  <Target Name="IncludeEliteScadaDnp3DistributionFiles" AfterTargets="ComputeFilesToPublish"
+          Condition="'$(EliteScadaDnp3HostPath)' != '' or '$(EliteScadaDnp3NoticesPath)' != '' or '$(EliteScadaRequireDnp3NativeHost)' == 'true'">
+    <Error Condition="'$(EliteScadaRequireDnp3NativeHost)' == 'true' and '$(EliteScadaDnp3HostPath)' == ''"
+           Text="EliteScadaRequireDnp3NativeHost=true requires EliteScadaDnp3HostPath." />
+    <Error Condition="'$(EliteScadaRequireDnp3NativeHost)' == 'true' and '$(EliteScadaDnp3NoticesPath)' == ''"
+           Text="EliteScadaRequireDnp3NativeHost=true requires EliteScadaDnp3NoticesPath." />
+    <Error Condition="'$(EliteScadaDnp3HostPath)' != '' and !Exists('$(EliteScadaDnp3HostPath)')"
+           Text="Configured EliteSCADA DNP3 native host does not exist: $(EliteScadaDnp3HostPath)" />
+    <Error Condition="'$(EliteScadaDnp3NoticesPath)' != '' and !Exists('$(EliteScadaDnp3NoticesPath)')"
+           Text="Configured EliteSCADA DNP3 third-party notices do not exist: $(EliteScadaDnp3NoticesPath)" />
+    <ItemGroup>
+      <ResolvedFileToPublish Include="$(EliteScadaDnp3HostPath)" Condition="'$(EliteScadaDnp3HostPath)' != ''">
+        <RelativePath>native/dnp3/EliteScada.Dnp3Host.exe</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+      <ResolvedFileToPublish Include="$(EliteScadaDnp3NoticesPath)" Condition="'$(EliteScadaDnp3NoticesPath)' != ''">
+        <RelativePath>third-party/dnp3/DNP3-THIRD-PARTY-NOTICES.txt</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
 </Project>

@@ -11,6 +11,7 @@
     <ProjectReference Include="../../src/Scada.Api/Scada.Api.csproj" />
     <ProjectReference Include="../../src/Scada.Core/Scada.Core.csproj" />
     <ProjectReference Include="../../src/Scada.Drivers/Scada.Drivers.csproj" />
+    <ProjectReference Include="../../src/Scada.Drivers.Dnp3.OpenDnp3/Scada.Drivers.Dnp3.OpenDnp3.csproj" />
     <ProjectReference Include="../../src/Scada.Engineering/Scada.Engineering.csproj" />
     <ProjectReference Include="../../src/Scada.DriverHost/Scada.DriverHost.csproj" />
   </ItemGroup>

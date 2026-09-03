@@ -31,7 +31,6 @@ using Scada.Security.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 var authenticationEnabled = builder.AddEliteScadaJwtAuthentication();
-builder.AddLocalIdentity(authenticationEnabled);
 builder.AddConfiguredProductLicensing();
 
 builder.Services.AddSingleton<IScadaEventBus, InMemoryScadaEventBus>();
@@ -100,13 +99,11 @@ _ = app.Services.GetRequiredService<IHistorian>();
 await app.InitializeServerMemoryRetentionAsync();
 await app.InitializeEngineeringPersistenceAsync();
 await app.InitializeAuditAsync();
-await app.InitializeLocalIdentityAsync();
 
 app.UseCors();
 if (authenticationEnabled) app.UseAuthentication();
 app.UseWebSockets();
 app.MapOpenApi();
-app.MapLocalIdentityEndpoints();
 app.MapProjectPackageEndpoints();
 app.MapEngineeringPersistenceEndpoints();
 app.MapEngineeringMutationEndpoints();

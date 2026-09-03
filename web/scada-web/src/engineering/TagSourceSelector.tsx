@@ -8,6 +8,8 @@ import {
   type TagSourceAwareEngineering
 } from './TagSourceSelector.logic';
 
+const UNRESOLVED_IDENTITY = '__unresolved-source__';
+
 type Props = {
   tag: TagSourceAwareEngineering;
   sources: readonly DataSourceEngineering[];
@@ -20,12 +22,15 @@ export function TagSourceSelector({ tag, sources, locale, onChange }: Props) {
   const [query, setQuery] = useState('');
   const resolved = resolveTagDataSource(tag, sources);
   const visible = filterTagDataSources(sources, query);
-  const selectedIdentity = resolved.source ? tagDataSourceOptionIdentity(resolved.source) : '';
+  const selectedIdentity = resolved.status === 'unresolved'
+    ? UNRESOLVED_IDENTITY
+    : resolved.source ? tagDataSourceOptionIdentity(resolved.source) : '';
   const selectedVisible = resolved.source && visible.some(source =>
     tagDataSourceOptionIdentity(source) === selectedIdentity);
   const options = resolved.source && !selectedVisible ? [resolved.source, ...visible] : visible;
 
   const choose = (identity: string) => {
+    if (identity === UNRESOLVED_IDENTITY) return;
     if (!identity) {
       onChange(null);
       return;
@@ -51,6 +56,9 @@ export function TagSourceSelector({ tag, sources, locale, onChange }: Props) {
         data-testid="tag-source-select"
         aria-invalid={resolved.status === 'unresolved' ? 'true' : undefined}
       >
+        {resolved.status === 'unresolved' && (
+          <option value={UNRESOLVED_IDENTITY} disabled>{text.unresolved}: {resolved.reference}</option>
+        )}
         <option value="">{text.none}</option>
         {options.map(source => (
           <option key={tagDataSourceOptionIdentity(source)} value={tagDataSourceOptionIdentity(source)}>

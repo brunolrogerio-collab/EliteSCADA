@@ -106,8 +106,8 @@ export function RuntimeVisualDefinitionRenderer({
     [elements, instances, revision]
   );
   const expandedDynamoElements = useMemo(
-    () => expandRuntimeDynamoVisuals(projectedElements, dynamoDefinitions),
-    [projectedElements, dynamoDefinitions]
+    () => expandRuntimeDynamoVisuals(projectedElements, dynamoDefinitions, runtimeLocale),
+    [projectedElements, dynamoDefinitions, runtimeLocale]
   );
   const dynamoStateBindingElements = useMemo(
     () => collectRuntimeDynamoStateBindingElements(expandedDynamoElements),

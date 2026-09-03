@@ -122,7 +122,7 @@ export function applyVisualEditorSessionAuthoringOperation(
   let nextSelection = state.selectedObjectIds;
   if (operation.kind === 'group') {
     const beforeIds = collectObjectIds(before.elements ?? []);
-    const created = collectObjectIds(nextScreen.elements ?? []).filter(id => !beforeIds.has(id));
+    const created = [...collectObjectIds(nextScreen.elements ?? [])].filter(id => !beforeIds.has(id));
     nextSelection = created.length === 1 ? Object.freeze(created) : sanitizeSelection(nextScreen, state.selectedObjectIds);
   } else if (operation.kind === 'ungroup') {
     nextSelection = sanitizeSelection(nextScreen, ungroupChildren);

@@ -77,7 +77,7 @@ export function RuntimeVisualNavigator({
     return <RuntimeDiagnostic diagnostic={asRuntimeDiagnostic(reason)} />;
   }
 
-  const designSize = resolveRuntimeLogicalSize(activeScreen.properties);
+  const designSize = resolveRuntimeLogicalSize();
 
   const dispatch = (event: CanonicalVisualEvent, popupRuntimeInstanceId?: string) => {
     try {

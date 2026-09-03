@@ -28,7 +28,8 @@ const ptBR = {
   runtimeState: { badQuality: 'QUALIDADE RUIM', fault: 'FALHA', alarm: 'ALARME', uncertain: 'INCERTO', command: 'COMANDO', transition: 'TRANSIÇÃO', active: 'ATIVO', inactive: 'INATIVO', unknown: 'DESCONHECIDO', feedbackMismatch: 'divergência de feedback' }
 } as const;
 
-type C07VisualEditorText = typeof ptBR;
+type DeepString<T> = { readonly [K in keyof T]: T[K] extends string ? string : DeepString<T[K]> };
+type C07VisualEditorText = DeepString<typeof ptBR>;
 
 const en: C07VisualEditorText = {
   toolbar: {

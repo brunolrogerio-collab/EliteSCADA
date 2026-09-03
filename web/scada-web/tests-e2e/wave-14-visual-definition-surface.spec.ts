@@ -23,6 +23,19 @@ test('surface patch stores canonical color, asset identity and fit', () => {
   });
 });
 
+test('surface config treats absent fit as canonical cover without materializing it', () => {
+  expect(readVisualDefinitionSurfaceConfig({})).toEqual({
+    backgroundColor: null,
+    backgroundImageAssetId: null,
+    backgroundImageFit: 'cover'
+  });
+  expect(readVisualDefinitionSurfaceConfig(undefined)).toEqual({
+    backgroundColor: null,
+    backgroundImageAssetId: null,
+    backgroundImageFit: 'cover'
+  });
+});
+
 test('surface patch removes optional background values without sentinel strings', () => {
   const screen = applyVisualDefinitionSurfacePatch({
     properties: { backgroundColor: '#FFFFFF', backgroundImageAssetId: 'asset-1', backgroundImageFit: 'tile' }
@@ -32,6 +45,7 @@ test('surface patch removes optional background values without sentinel strings'
     backgroundImageFit: null
   });
   expect(screen.properties).toEqual({});
+  expect(readVisualDefinitionSurfaceConfig(screen.properties).backgroundImageFit).toBe('cover');
 });
 
 test('surface style resolves a stable asset URL and deterministic fit', () => {
@@ -49,7 +63,9 @@ test('surface style resolves a stable asset URL and deterministic fit', () => {
   });
 });
 
-test('surface model rejects non-canonical background colors', () => {
+test('surface model rejects non-canonical background colors and unknown fit values', () => {
   expect(() => applyVisualDefinitionSurfacePatch({ properties: {} }, { backgroundColor: 'red' }))
     .toThrow(/canonical hexadecimal color/);
+  expect(() => readVisualDefinitionSurfaceConfig({ backgroundImageFit: 'squish' }))
+    .toThrow(/Unknown visual definition background fit/);
 });

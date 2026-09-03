@@ -98,13 +98,35 @@ test('contradictory valve end switches fail to fault instead of choosing an opti
   expect(result.state.kind).toBe('fault');
 });
 
-test('numeric quality remains unknown until runtime normalizes its protocol encoding', () => {
-  expect(sampleQuality(sample('tag-running', true, 192))).toBe('unknown');
-  const result = resolveDynamoRuntimeState(
-    [lamp('running', 'Plant.P101.Running', 'tag-running')],
-    samples(sample('tag-running', true, 192))
-  );
-  expect(result.state.kind).toBe('bad-quality');
+test('numeric quality mirrors the canonical Scada.Core TagQuality enum', () => {
+  expect(sampleQuality(sample('tag-running', true, 0))).toBe('good');
+  expect(sampleQuality(sample('tag-running', true, 1))).toBe('uncertain');
+  expect(sampleQuality(sample('tag-running', true, 2))).toBe('bad');
+  expect(sampleQuality(sample('tag-running', true, 3))).toBe('bad');
+  expect(sampleQuality(sample('tag-running', true, 4))).toBe('bad');
+  expect(sampleQuality(sample('tag-running', true, 5))).toBe('bad');
+  expect(sampleQuality(sample('tag-running', true, 6))).toBe('stale');
+  expect(sampleQuality(sample('tag-running', true, 7))).toBe('bad');
+  expect(sampleQuality(sample('tag-running', true, 99))).toBe('unknown');
+});
+
+test('numeric Good quality allows normal active state while uncertain and stale keep their safety precedence', () => {
+  const elements = [lamp('running', 'Plant.P101.Running', 'tag-running')];
+
+  expect(resolveDynamoRuntimeState(
+    elements,
+    samples(sample('tag-running', true, 0))
+  ).state.kind).toBe('active');
+
+  expect(resolveDynamoRuntimeState(
+    elements,
+    samples(sample('tag-running', true, 1))
+  ).state.kind).toBe('uncertain-quality');
+
+  expect(resolveDynamoRuntimeState(
+    elements,
+    samples(sample('tag-running', true, 6))
+  ).state.kind).toBe('bad-quality');
 });
 
 test('only bindings that explicitly declare dynamoParameter affect instance state', () => {

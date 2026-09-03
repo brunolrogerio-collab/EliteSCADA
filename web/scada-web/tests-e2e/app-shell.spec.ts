@@ -23,9 +23,9 @@ test('primary shell keeps authorized application navigation coherent without Eng
 
   let navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
   await expect(navigation.getByRole('link', { name: /Runtime/ })).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByTestId('runtime-engineering-application').or(page.locator('main').filter({ hasText: /Runtime/ }).first())).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Visão operacional' })).toHaveCount(0);
-  await expect(page.getByText('Trend básico', { exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('runtime-engineering-application').or(page.getByTestId('runtime-simulation-fallback'))).toBeVisible();
+  await expect(page.locator('.eng-shell')).toHaveCount(0);
+  await expect(page.locator('.runtime-tag-inspector')).toHaveCount(0);
 
   const theme = page.getByRole('combobox', { name: 'Tema' });
   await expect(theme).toBeVisible();

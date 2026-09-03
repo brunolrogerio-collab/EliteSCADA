@@ -17,10 +17,23 @@ public sealed record DriverEngineeringBrowseApiRequest(
     int? PageSize = null,
     IReadOnlyDictionary<string, string>? Parameters = null);
 
+public sealed record DriverEngineeringDraftDataSourceApiRequest(
+    string SourceKey,
+    string SourceName,
+    string DriverType,
+    IReadOnlyDictionary<string, string>? Settings = null,
+    IReadOnlyDictionary<string, string>? SecretReferences = null);
+
+public sealed record DriverEngineeringDraftDiscoveryApiRequest(
+    DriverEngineeringDraftDataSourceApiRequest DataSource,
+    IReadOnlyDictionary<string, string>? Parameters = null,
+    int? MaximumResults = null);
+
 /// <summary>
-/// Opens a driver Engineering module for one configured Data Source. Factories
-/// own provider lifetime because some protocols keep short-lived continuation
-/// state between requests (for example OPC UA Browse/BrowseNext).
+/// Opens a driver Engineering module for a configured or transient Data Source.
+/// Stable configured Sources may keep short-lived continuation state between
+/// requests. Draft Sources receive an owned transient provider that is disposed
+/// at the end of the request and therefore cannot mutate or leak Runtime state.
 /// </summary>
 public interface IEngineeringDriverToolProviderFactory
 {
@@ -34,15 +47,21 @@ public interface IEngineeringDriverToolProviderFactory
 
 public sealed class EngineeringDriverToolProviderLease : IAsyncDisposable
 {
-    public EngineeringDriverToolProviderLease(CommunicationDriverModuleRegistration registration)
+    private readonly IAsyncDisposable? _ownedProvider;
+
+    public EngineeringDriverToolProviderLease(
+        CommunicationDriverModuleRegistration registration,
+        IAsyncDisposable? ownedProvider = null)
     {
         Registration = registration ?? throw new ArgumentNullException(nameof(registration));
         Registration.Validate();
+        _ownedProvider = ownedProvider;
     }
 
     public CommunicationDriverModuleRegistration Registration { get; }
 
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    public ValueTask DisposeAsync() =>
+        _ownedProvider?.DisposeAsync() ?? ValueTask.CompletedTask;
 }
 
 public sealed class EngineeringDriverToolProviderFactoryRegistry
@@ -104,13 +123,19 @@ public sealed class OpcUaEngineeringDriverToolProviderFactory :
     {
         cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(dataSource);
-        if (!dataSource.Id.HasValue || dataSource.Id.Value == Guid.Empty)
-            throw new InvalidOperationException("OPC UA Engineering tooling requires a stable Data Source Id.");
         if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
         {
             throw new ArgumentException(
                 $"OPC UA Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.",
                 nameof(dataSource));
+        }
+
+        if (!dataSource.Id.HasValue || dataSource.Id.Value == Guid.Empty)
+        {
+            lock (_sync) ThrowIfDisposed();
+            var transient = CreateProvider(projectKey, dataSource);
+            return ValueTask.FromResult(
+                new EngineeringDriverToolProviderLease(transient.Registration, transient.Provider));
         }
 
         string fingerprint = CreateFingerprint(projectKey, dataSource);
@@ -123,26 +148,15 @@ public sealed class OpcUaEngineeringDriverToolProviderFactory :
                 return ValueTask.FromResult(new EngineeringDriverToolProviderLease(cached.Registration));
             }
 
-            var securityMaterialProvider = new OpcUaEngineeringSecurityMaterialProvider(
-                projectKey,
-                dataSource.Key,
-                dataSource.SecretReferences,
-                _protectedMaterialResolver);
-            var provider = new OpcUaFoundationEngineeringProvider(securityMaterialProvider);
-            var registration = new CommunicationDriverModuleRegistration(
-                provider,
-                ConnectionTester: provider,
-                DiscoverySource: provider,
-                Browser: provider,
-                FileImporter: null,
-                Reconciler: provider);
-            registration.Validate();
-
+            var created = CreateProvider(projectKey, dataSource);
             if (cached is not null)
                 _retired.Add(cached.Provider);
 
-            _active[dataSource.Id.Value] = new CachedProvider(fingerprint, provider, registration);
-            return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
+            _active[dataSource.Id.Value] = new CachedProvider(
+                fingerprint,
+                created.Provider,
+                created.Registration);
+            return ValueTask.FromResult(new EngineeringDriverToolProviderLease(created.Registration));
         }
     }
 
@@ -163,6 +177,25 @@ public sealed class OpcUaEngineeringDriverToolProviderFactory :
 
         foreach (var provider in providers)
             await provider.DisposeAsync().ConfigureAwait(false);
+    }
+
+    private CreatedProvider CreateProvider(string? projectKey, DataSourceEngineeringDto dataSource)
+    {
+        var securityMaterialProvider = new OpcUaEngineeringSecurityMaterialProvider(
+            projectKey,
+            dataSource.Key,
+            dataSource.SecretReferences,
+            _protectedMaterialResolver);
+        var provider = new OpcUaFoundationEngineeringProvider(securityMaterialProvider);
+        var registration = new CommunicationDriverModuleRegistration(
+            provider,
+            ConnectionTester: provider,
+            DiscoverySource: provider,
+            Browser: provider,
+            FileImporter: null,
+            Reconciler: provider);
+        registration.Validate();
+        return new CreatedProvider(provider, registration);
     }
 
     private void ThrowIfDisposed()
@@ -202,6 +235,10 @@ public sealed class OpcUaEngineeringDriverToolProviderFactory :
 
     private static void Append(StringBuilder builder, string value) =>
         builder.Append(value.Length).Append(':').Append(value).Append('|');
+
+    private sealed record CreatedProvider(
+        OpcUaFoundationEngineeringProvider Provider,
+        CommunicationDriverModuleRegistration Registration);
 
     private sealed record CachedProvider(
         string Fingerprint,

@@ -42,8 +42,8 @@ function projectElement(
 
   return Object.freeze({
     ...element,
-    bindings: bindings ? Object.freeze(bindings) : element.bindings,
-    children: Object.freeze([...children])
+    bindings: bindings ? [...bindings] : element.bindings,
+    children: [...children]
   });
 }
 

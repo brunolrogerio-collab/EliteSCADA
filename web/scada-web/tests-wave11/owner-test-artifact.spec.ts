@@ -189,3 +189,35 @@ test('runtime-only operator sees only permitted application surfaces and backend
     await context.close();
   }
 });
+
+test('operator controls keep alarms as an overlay and support native fullscreen on the Active Runtime', async ({ page }) => {
+  await page.goto('/');
+  const application = page.getByTestId('runtime-engineering-application');
+  const canvas = page.getByTestId('runtime-engineering-canvas');
+  await expect(application).toBeVisible();
+  await expect(canvas).toBeVisible();
+
+  const before = await canvas.boundingBox();
+  expect(before).not.toBeNull();
+
+  const alarmsButton = page.getByRole('button', { name: /Alarms|Alarmes|Alarmas/ }).first();
+  await alarmsButton.click();
+  const alarmOverlay = page.locator('.runtime-operator-overlay');
+  await expect(alarmOverlay).toBeVisible();
+  const after = await canvas.boundingBox();
+  expect(after).not.toBeNull();
+  expect(after!.width).toBeCloseTo(before!.width, 1);
+  expect(after!.height).toBeCloseTo(before!.height, 1);
+  await page.getByRole('button', { name: /Close alarms|Fechar alarmes|Cerrar alarmas/ }).click();
+  await expect(alarmOverlay).toHaveCount(0);
+
+  const enterFullscreen = page.getByRole('button', { name: /Fullscreen|Tela cheia|Pantalla completa/ }).first();
+  await enterFullscreen.click();
+  await expect(application).toHaveAttribute('data-runtime-fullscreen', 'true');
+  await expect.poll(async () => page.evaluate(() => document.fullscreenElement?.getAttribute('data-testid') ?? null))
+    .toBe('runtime-engineering-application');
+
+  const exitFullscreen = page.getByRole('button', { name: /Exit fullscreen|Sair da tela cheia|Salir de pantalla completa/ }).first();
+  await exitFullscreen.click();
+  await expect.poll(async () => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+});

@@ -14,7 +14,11 @@ export type ClientVisualPythonVisualPropertyProvider = Pick<
 
 export type ClientVisualPythonCapabilityProviderOptions = {
   tagReader?: ClientVisualPythonTagReader;
-  tagWriter?: ClientVisualPythonTagWriter;
+  /**
+   * Undefined means normal Runtime authority. Null explicitly disables TAG write,
+   * which is used by Engineering preview so a handler test cannot change process state.
+   */
+  tagWriter?: ClientVisualPythonTagWriter | null;
   memoryStore?: ClientMemoryStore;
   visualPropertyProvider?: ClientVisualPythonVisualPropertyProvider;
 };
@@ -23,7 +27,7 @@ export function createClientVisualPythonCapabilityProvider(
   options: ClientVisualPythonCapabilityProviderOptions = {}
 ): ClientVisualPythonCapabilityProvider {
   const tagReader = options.tagReader ?? loadRuntimeTagDetail;
-  const tagWriter = options.tagWriter ?? writeRuntimeTagValue;
+  const tagWriter = options.tagWriter === undefined ? writeRuntimeTagValue : options.tagWriter;
   const memoryStore = options.memoryStore ?? clientMemory;
   const visualPropertyProvider = options.visualPropertyProvider;
 
@@ -46,10 +50,12 @@ export function createClientVisualPythonCapabilityProvider(
       };
     },
 
-    async writeTag(reference, value) {
-      await tagWriter(reference, value);
-      return { accepted: true, reference };
-    },
+    writeTag: tagWriter
+      ? async (reference, value) => {
+          await tagWriter(reference, value);
+          return { accepted: true, reference };
+        }
+      : undefined,
 
     readClientMemory(reference) {
       const value = memoryStore.read(reference);

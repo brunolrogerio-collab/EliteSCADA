@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { DynamoEngineering } from '../types';
 import type { VisualEditorMutationIntent } from './visualEditorContracts';
+import { c07VisualEditorText } from './c07VisualEditorI18n';
 import {
   buildDynamoLibraryEntries,
   filterDynamoLibraryEntries,
@@ -17,7 +18,7 @@ export function DynamoLibraryPalette({
   onMutationIntent: (intent: VisualEditorMutationIntent) => void;
   locale: 'pt-BR' | 'en' | 'es';
 }) {
-  const text = copy(locale);
+  const text = c07VisualEditorText(locale).library;
   const entries = useMemo(() => buildDynamoLibraryEntries(definitions, locale), [definitions, locale]);
   const categories = useMemo(() => listDynamoLibraryCategories(entries), [entries]);
   const [selectedKey, setSelectedKey] = useState(entries[0]?.definition.key ?? '');
@@ -50,7 +51,7 @@ export function DynamoLibraryPalette({
         <span>{text.category}</span>
         <select value={category} onChange={event => setCategory(event.currentTarget.value)}>
           <option value="">{text.allCategories}</option>
-          {categories.map(value => <option key={value} value={value}>{categoryLabel(value, locale)}</option>)}
+          {categories.map(value => <option key={value} value={value}>{categoryLabel(value, text.categories)}</option>)}
         </select>
       </label>
     </div>
@@ -68,7 +69,7 @@ export function DynamoLibraryPalette({
         <span className="visual-dynamo-library__card-copy">
           <strong>{entry.definition.name}</strong>
           <code>{entry.definition.key}</code>
-          <small>{categoryLabel(entry.category, locale)} · {entry.width}×{entry.height}</small>
+          <small>{categoryLabel(entry.category, text.categories)} · {entry.width}×{entry.height}</small>
         </span>
       </button>)}
     </div> : <p className="visual-dynamo-library__empty">{text.noResults}</p>}
@@ -101,33 +102,9 @@ export function DynamoLibraryPalette({
   </section>;
 }
 
-function categoryLabel(value: string, locale: 'pt-BR' | 'en' | 'es'): string {
-  const labels: Record<string, readonly [string, string, string]> = {
-    pump: ['Bomba', 'Pump', 'Bomba'],
-    motor: ['Motor', 'Motor', 'Motor'],
-    valve: ['Válvula', 'Valve', 'Válvula'],
-    tank: ['Tanque', 'Tank', 'Tanque'],
-    other: ['Outros', 'Other', 'Otros']
-  };
-  const selected = labels[value];
-  if (!selected) return value;
-  return locale === 'en' ? selected[1] : locale === 'es' ? selected[2] : selected[0];
-}
-
-function copy(locale: 'pt-BR' | 'en' | 'es') {
-  if (locale === 'en') return {
-    title: 'Dynamo library', hint: 'Search reusable process components and place configured instances.',
-    search: 'Search', searchPlaceholder: 'Pump, valve, VFD…', category: 'Category', allCategories: 'All categories', results: 'Dynamo results', noResults: 'No Dynamo matches this filter.',
-    preview: 'Selected Dynamo preview', publicInterface: 'Public interface', noParameters: 'No public parameters', equipmentPath: 'Equipment path (optional)', add: 'Add Dynamo'
-  };
-  if (locale === 'es') return {
-    title: 'Biblioteca de dínamos', hint: 'Busque componentes de proceso reutilizables y coloque instancias configuradas.',
-    search: 'Buscar', searchPlaceholder: 'Bomba, válvula, VFD…', category: 'Categoría', allCategories: 'Todas las categorías', results: 'Resultados de dínamos', noResults: 'Ningún dínamo coincide con este filtro.',
-    preview: 'Preview del dínamo seleccionado', publicInterface: 'Interfaz pública', noParameters: 'Sin parámetros públicos', equipmentPath: 'Ruta del equipo (opcional)', add: 'Agregar dínamo'
-  };
-  return {
-    title: 'Biblioteca de dínamos', hint: 'Busque componentes reutilizáveis de processo e insira instâncias configuradas.',
-    search: 'Buscar', searchPlaceholder: 'Bomba, válvula, VFD…', category: 'Categoria', allCategories: 'Todas as categorias', results: 'Resultados de dínamos', noResults: 'Nenhum dínamo corresponde ao filtro.',
-    preview: 'Preview do dínamo selecionado', publicInterface: 'Interface pública', noParameters: 'Sem parâmetros públicos', equipmentPath: 'Caminho do equipamento (opcional)', add: 'Adicionar dínamo'
-  };
+function categoryLabel(
+  value: string,
+  labels: Readonly<Record<'pump' | 'motor' | 'valve' | 'tank' | 'other', string>>
+): string {
+  return labels[value as keyof typeof labels] ?? value;
 }

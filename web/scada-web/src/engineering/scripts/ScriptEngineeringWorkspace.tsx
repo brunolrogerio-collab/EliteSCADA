@@ -499,7 +499,7 @@ function errorText(
   deleteConflict = false
 ): string {
   if (!(cause instanceof ScriptEngineeringApiError)) return cause instanceof Error ? cause.message : errors.generic;
-  if (cause.status === 401) return errors.unauthenticated;
+  if (cause.status === 401) return errors.unauthorized;
   if (cause.status === 403) return errors.forbidden;
   if (cause.status === 409) return deleteConflict ? errors.deleteConflict : errors.conflict;
   if (cause.status === 400 || cause.status === 422) return cause.message || errors.badRequest;

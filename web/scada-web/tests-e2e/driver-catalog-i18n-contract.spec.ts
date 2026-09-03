@@ -18,9 +18,9 @@ test('driver catalog resource resolver localizes known field keys and preserves 
 });
 
 test('Modbus and OPC UA descriptors publish resource keys through the canonical driver contract', async () => {
-  const modbus = await readFile(new URL('../../src/Scada.Drivers/Modbus/ModbusTcpDriverDescriptorProvider.cs', import.meta.url), 'utf8');
-  const opcUa = await readFile(new URL('../../src/Scada.Drivers/OpcUa/OpcUaDriverDescriptorProvider.cs', import.meta.url), 'utf8');
-  const catalog = await readFile(new URL('../../src/Scada.DriverHost/Engineering/EngineeringDataSourceTypeCatalog.cs', import.meta.url), 'utf8');
+  const modbus = await readFile(new URL('../../../src/Scada.Drivers/Modbus/ModbusTcpDriverDescriptorProvider.cs', import.meta.url), 'utf8');
+  const opcUa = await readFile(new URL('../../../src/Scada.Drivers/OpcUa/OpcUaDriverDescriptorProvider.cs', import.meta.url), 'utf8');
+  const catalog = await readFile(new URL('../../../src/Scada.DriverHost/Engineering/EngineeringDataSourceTypeCatalog.cs', import.meta.url), 'utf8');
 
   expect(modbus).toContain('DisplayNameResourceKey: "driver.modbus.tcp.datasource.host.label"');
   expect(modbus).toContain('DescriptionResourceKey: "driver.modbus.tcp.datasource.host.description"');

@@ -6,6 +6,7 @@ using Scada.Engineering.Assets;
 using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
+using Scada.Engineering.Events;
 using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport.Handlers;
 using Scada.Engineering.Reports;
@@ -20,7 +21,7 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 15;
+    public const int CurrentSchemaVersion = 16;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
@@ -33,6 +34,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly IScriptEngineeringRegistry _scripts;
     private readonly IVisualAssetEngineeringRegistry _visualAssets;
     private readonly IReportEngineeringRegistry _reports;
+    private readonly IOperationalEventEngineeringRegistry _operationalEvents;
     private readonly JsonSerializerOptions _json;
     private readonly EngineeringCsvExchange _csv;
     private readonly DataSourceEngineeringHandler _dataSourceHandler;
@@ -46,6 +48,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly GatewayEngineeringHandler _gatewayHandler;
     private readonly ScriptEngineeringHandler _scriptHandler;
     private readonly ReportEngineeringHandler _reportHandler;
+    private readonly OperationalEventEngineeringHandler _operationalEventHandler;
 
     public EngineeringExchangeService(ITagRegistry tags, IAlarmEngine alarms)
         : this(
@@ -157,7 +160,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         IScriptEngineeringRegistry? scripts = null,
         IVisualAssetEngineeringRegistry? visualAssets = null,
         IReportEngineeringRegistry? reports = null,
-        IDataSourceConfigurationValidator? dataSourceConfigurationValidator = null)
+        IDataSourceConfigurationValidator? dataSourceConfigurationValidator = null,
+        IOperationalEventEngineeringRegistry? operationalEvents = null)
     {
         _tags = tags;
         _alarms = alarms;
@@ -170,6 +174,9 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _scripts = scripts ?? new InMemoryScriptEngineeringRegistry();
         _visualAssets = visualAssets ?? new InMemoryVisualAssetEngineeringRegistry();
         _reports = reports ?? new InMemoryReportEngineeringRegistry();
+        _operationalEvents = operationalEvents
+            ?? (_scripts as IOperationalEventEngineeringRegistry)
+            ?? new InMemoryOperationalEventEngineeringRegistry();
         _json = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -189,6 +196,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _gatewayHandler = new GatewayEngineeringHandler(gateways, tags, dataSources);
         _scriptHandler = new ScriptEngineeringHandler(_scripts, tags, dataSources, assets, views);
         _reportHandler = new ReportEngineeringHandler(_reports, _visualAssets);
+        _operationalEventHandler = new OperationalEventEngineeringHandler(_operationalEvents);
     }
 
     public EngineeringPackage ExportPackage()
@@ -218,7 +226,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             _scripts.SnapshotScripts(),
             _scripts.SnapshotVisualEventReferences(),
             _visualAssets.SnapshotAssets(),
-            _reports.SnapshotReports());
+            _reports.SnapshotReports(),
+            _operationalEvents.SnapshotOperationalEvents());
     }
 
     public string ExportJson(bool indented = true)
@@ -261,7 +270,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             Scripts = package.Scripts ?? Array.Empty<ScriptEngineeringDefinition>(),
             ScriptVisualEventReferences = package.ScriptVisualEventReferences ?? Array.Empty<ScriptVisualEventReference>(),
             VisualAssets = package.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>(),
-            Reports = package.Reports ?? Array.Empty<ReportEngineeringDto>()
+            Reports = package.Reports ?? Array.Empty<ReportEngineeringDto>(),
+            OperationalEvents = package.OperationalEvents ?? Array.Empty<OperationalEventEngineeringDto>()
         };
     }
 
@@ -292,6 +302,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _commandHandler.Preview(package, mode, items);
         _gatewayHandler.Preview(package, mode, items);
         _scriptHandler.Preview(package, mode, items);
+        _operationalEventHandler.Preview(package, mode, items);
         _reportHandler.Preview(package, mode, items);
         _securityPolicyHandler.Preview(package, mode, items);
 
@@ -334,6 +345,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _commandHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _gatewayHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _scriptHandler.Apply(package, mode, ref created, ref updated, ref skipped);
+        _operationalEventHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _reportHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _securityPolicyHandler.Apply(package, mode, ref created, ref updated, ref skipped);
 
@@ -358,5 +370,6 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         Array.Empty<ScriptEngineeringDefinition>(),
         Array.Empty<ScriptVisualEventReference>(),
         Array.Empty<VisualAssetEngineeringDto>(),
-        Array.Empty<ReportEngineeringDto>());
+        Array.Empty<ReportEngineeringDto>(),
+        Array.Empty<OperationalEventEngineeringDto>());
 }

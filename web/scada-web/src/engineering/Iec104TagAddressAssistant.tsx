@@ -1,6 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import type { EngineeringLocale } from './i18n';
-import { loadTagBindingSchema } from './TagBindingSchema';
+import {
+  loadTagBindingDefinition,
+  requireAllowedTagBindingValue,
+  requireTagBindingField
+} from './TagBindingSchema';
 import type { TagSourceAwareEngineering } from './TagSourceSelector.logic';
 
 type Props = {
@@ -53,21 +57,35 @@ export function Iec104TagAddressAssistant({ tag, locale, onChange }: Props) {
     const monitored = monitoredTypes.find(([name]) => name === typeId);
     if (!monitored) { setError(text.typeInvalid); return; }
     const dataType = monitored[1];
-    const settings: Record<string, string> = { 'iec104.typeId': typeId };
 
+    let command: typeof commandTypes[number] | undefined;
+    let qoc: number | null = null;
     if (writable) {
-      const command = commandTypes.find(([name]) => name === commandTypeId);
+      command = commandTypes.find(([name]) => name === commandTypeId);
       if (!command || command[1] !== dataType) { setError(text.commandTypeInvalid); return; }
-      const qoc = integerInRange(qualifier, 0, 31);
+      qoc = integerInRange(qualifier, 0, 31);
       if (qoc == null) { setError(text.qualifierInvalid); return; }
-      settings['iec104.commandTypeId'] = commandTypeId;
-      settings['iec104.commandMode'] = commandMode;
-      settings['iec104.qualifier'] = String(qoc);
     }
 
     setBusy(true);
     try {
-      const schema = await loadTagBindingSchema(IEC104_DRIVER_TYPE);
+      const definition = await loadTagBindingDefinition(IEC104_DRIVER_TYPE);
+      requireAllowedTagBindingValue(definition, 'iec104.typeId', typeId);
+
+      const settings: Record<string, string> = { 'iec104.typeId': typeId };
+      if (writable && command && qoc != null) {
+        requireAllowedTagBindingValue(definition, 'iec104.commandTypeId', commandTypeId);
+        requireAllowedTagBindingValue(definition, 'iec104.commandMode', commandMode);
+        const qualifierField = requireTagBindingField(definition, 'iec104.qualifier');
+        if ((qualifierField.minimum != null && qoc < qualifierField.minimum) ||
+            (qualifierField.maximum != null && qoc > qualifierField.maximum)) {
+          throw new Error(text.qualifierInvalid);
+        }
+        settings['iec104.commandTypeId'] = commandTypeId;
+        settings['iec104.commandMode'] = commandMode;
+        settings['iec104.qualifier'] = String(qoc);
+      }
+
       const address = `ca=${ca};ioa=${point}`;
       onChange({
         ...tag,
@@ -77,8 +95,8 @@ export function Iec104TagAddressAssistant({ tag, locale, onChange }: Props) {
         addressSelector: null,
         communicationBinding: {
           contractVersion: 1,
-          schemaId: schema.schemaId,
-          schemaVersion: schema.schemaVersion,
+          schemaId: definition.identity.schemaId,
+          schemaVersion: definition.identity.schemaVersion,
           portableAddress: address,
           settings
         }

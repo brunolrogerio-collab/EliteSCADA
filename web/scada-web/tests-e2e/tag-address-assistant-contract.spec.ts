@@ -70,15 +70,20 @@ test('TAG editor routes specialized assistants through one registry and keeps sc
   expect(api).toContain('/api/engineering/tag-address/modbus/build');
 });
 
-test('DNP3 and IEC-104 assistants resolve binding schema from the backend catalog', async () => {
+test('DNP3 and IEC-104 specialized assistants validate against the backend TAG binding definition', async () => {
   const dnp3 = await readFile(new URL('../src/engineering/Dnp3TagAddressAssistant.tsx', import.meta.url), 'utf8');
   const iec104 = await readFile(new URL('../src/engineering/Iec104TagAddressAssistant.tsx', import.meta.url), 'utf8');
   const schemaResolver = await readFile(new URL('../src/engineering/TagBindingSchema.ts', import.meta.url), 'utf8');
 
-  expect(dnp3).toContain('loadTagBindingSchema(DNP3_DRIVER_TYPE)');
-  expect(iec104).toContain('loadTagBindingSchema(IEC104_DRIVER_TYPE)');
+  expect(dnp3).toContain('loadTagBindingDefinition(DNP3_DRIVER_TYPE)');
+  expect(dnp3).toContain("requireAllowedTagBindingValue(definition, 'pointKind', pointKind)");
+  expect(dnp3).toContain("requireTagBindingField(definition, 'index')");
+  expect(iec104).toContain('loadTagBindingDefinition(IEC104_DRIVER_TYPE)');
+  expect(iec104).toContain("requireAllowedTagBindingValue(definition, 'iec104.typeId', typeId)");
+  expect(iec104).toContain("requireAllowedTagBindingValue(definition, 'iec104.commandTypeId', commandTypeId)");
   expect(dnp3).not.toContain('elite.dnp3');
   expect(iec104).not.toContain('elite.iec60870.5.104.point');
   expect(schemaResolver).toContain('loadDataSourceTypeCatalog');
   expect(schemaResolver).toContain('tagBindingSchemaIdentity');
+  expect(schemaResolver).toContain('requireAllowedTagBindingValue');
 });

@@ -1,8 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import type { EngineeringLocale } from '../../engineering/i18n';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { appShellText, resolveAppShellLocale } from '../../appShellI18n';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
-import { BasicTrendViewer } from '../BasicTrendViewer';
-import { RuntimeAlarmCenter } from '../operations';
 import { RuntimeVisualNavigator } from '../visual-navigation/RuntimeVisualNavigator';
 import {
   loadRuntimeApplicationProjection,
@@ -14,12 +12,9 @@ import { SimulationRuntimeApp } from './SimulationRuntimeApp';
 
 const REFRESH_INTERVAL_MS = 1500;
 
-function resolveRuntimeLocale(): EngineeringLocale {
-  const stored = window.localStorage.getItem('elitescada.engineering.locale');
-  return stored === 'en' || stored === 'es' ? stored : 'pt-BR';
-}
-
 export function RuntimeApplicationMount() {
+  const locale = resolveAppShellLocale();
+  const text = appShellText(locale);
   const [projection, setProjection] = useState<RuntimeApplicationProjection | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
@@ -62,7 +57,7 @@ export function RuntimeApplicationMount() {
     return <main className="shell" data-testid="runtime-application-error">
       <section className="runtime-visual-diagnostic" role="alert" data-diagnostic-code="HMI_RUNTIME_ACTIVE_PROJECTION_UNAVAILABLE">
         <strong>HMI_RUNTIME_ACTIVE_PROJECTION_UNAVAILABLE</strong>
-        <span>Runtime application projection failed closed ({status}). {error.message}</span>
+        <span>{text.runtimeUnavailable} ({status}) {error.message}</span>
       </section>
     </main>;
   }
@@ -70,7 +65,7 @@ export function RuntimeApplicationMount() {
   if (!projection) {
     return <main className="shell" data-testid="runtime-application-loading">
       <section className="runtime-visual-diagnostic" role="status">
-        <strong>Runtime</strong><span>Loading active application…</span>
+        <strong>Runtime</strong><span>…</span>
       </section>
     </main>;
   }
@@ -80,7 +75,10 @@ export function RuntimeApplicationMount() {
 }
 
 function EngineeringRuntimeApplication({ projection }: { projection: RuntimeApplicationProjection }) {
-  const locale = useMemo(resolveRuntimeLocale, []);
+  const locale = resolveAppShellLocale();
+  const text = appShellText(locale);
+  const fullscreenRoot = useRef<HTMLElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const engineeringPackage = projection.package!;
   const initialScreenKey = useMemo(() => {
     const keys = (engineeringPackage.screens ?? [])
@@ -89,6 +87,12 @@ function EngineeringRuntimeApplication({ projection }: { projection: RuntimeAppl
       .sort((left, right) => left.localeCompare(right, 'en', { sensitivity: 'base' }));
     return keys[0] ?? '';
   }, [engineeringPackage]);
+
+  useEffect(() => {
+    const changed = () => setIsFullscreen(document.fullscreenElement === fullscreenRoot.current);
+    document.addEventListener('fullscreenchange', changed);
+    return () => document.removeEventListener('fullscreenchange', changed);
+  }, []);
 
   const scriptContext = useMemo<ScriptEngineeringContext>(() => ({
     workspace: {
@@ -102,43 +106,45 @@ function EngineeringRuntimeApplication({ projection }: { projection: RuntimeAppl
     visualEventReferences: engineeringPackage.scriptVisualEventReferences ?? []
   }), [engineeringPackage, projection.projectKey, projection.projectName, projection.revision]);
 
+  const toggleFullscreen = async () => {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await fullscreenRoot.current?.requestFullscreen();
+  };
+
   if (!initialScreenKey) {
     return <main className="shell" data-testid="runtime-engineering-application">
-      <header className="topbar">
-        <div><strong>{projection.projectName || projection.projectKey}</strong><span>Runtime Engineering · rev {projection.revision}</span></div>
-      </header>
       <section className="runtime-visual-diagnostic" role="alert" data-diagnostic-code="HMI_RUNTIME_SCREEN_REQUIRED">
         <strong>HMI_RUNTIME_SCREEN_REQUIRED</strong>
-        <span>The Active Engineering revision contains no canonical Screen to mount.</span>
+        <span>{text.runtimeUnavailable}</span>
       </section>
     </main>;
   }
 
   return <main
-    className="shell runtime-engineering-application"
+    ref={fullscreenRoot}
+    className="runtime-operator-application"
     data-testid="runtime-engineering-application"
     data-runtime-project-key={projection.projectKey ?? undefined}
     data-runtime-revision={projection.revision ?? undefined}
+    data-runtime-fullscreen={isFullscreen || undefined}
   >
-    <header className="topbar">
-      <div>
+    <header className="runtime-operator-bar">
+      <div className="runtime-operator-context">
         <strong>{projection.projectName || projection.projectKey}</strong>
-        <span>Runtime Engineering · rev {projection.revision}</span>
+        <span>rev {projection.revision}</span>
       </div>
-      <div className="connection online">ACTIVE ENGINEERING</div>
+      <button type="button" className="runtime-fullscreen-button" onClick={() => void toggleFullscreen()}>
+        {isFullscreen ? text.exitFullscreen : text.fullscreen}
+      </button>
     </header>
 
-    <RuntimeAlarmCenter locale={locale} />
-    <BasicTrendViewer locale={locale} />
-
-    <section className="process-card runtime-engineering-canvas" data-testid="runtime-engineering-canvas">
-      <div className="process-title">{initialScreenKey}</div>
+    <section className="runtime-engineering-canvas" data-testid="runtime-engineering-canvas">
       <RuntimeVisualNavigator
         engineeringPackage={engineeringPackage}
         initialScreenKey={initialScreenKey}
         locale={locale}
         scriptContext={scriptContext}
-        emptyLabel="Active Screen has no visual objects."
+        emptyLabel={text.emptyVisual}
         visualAssetUrl={runtimeVisualAssetContentUrl}
       />
     </section>

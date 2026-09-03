@@ -44,7 +44,9 @@ public sealed record EngineeringDataSourceTypeView(
     string Kind,
     string? Description,
     EngineeringDriverCapabilityView Capabilities,
-    EngineeringDriverConfigurationSchemaView? ConfigurationSchema);
+    EngineeringDriverConfigurationSchemaView? ConfigurationSchema,
+    string? TagBindingSchemaId,
+    int? TagBindingSchemaVersion);
 
 public sealed record EngineeringDataSourceTypeCatalogView(
     IReadOnlyCollection<EngineeringDataSourceTypeView> DataSourceTypes);
@@ -225,6 +227,12 @@ public sealed class EngineeringDataSourceTypeCatalog : IDataSourceConfigurationV
     {
         var descriptor = definition.DriverDescriptor;
         var engineeringCapabilities = descriptor?.EngineeringCapabilities ?? DriverEngineeringCapabilities.None;
+        var tagBindingSchemaId = descriptor is null
+            ? null
+            : descriptor.TagBindingSchemaId ?? descriptor.ConfigurationSchema.SchemaId;
+        var tagBindingSchemaVersion = descriptor is null
+            ? (int?)null
+            : descriptor.TagBindingSchemaVersion ?? descriptor.ConfigurationSchema.SchemaVersion;
         return new EngineeringDataSourceTypeView(
             definition.TypeKey,
             definition.DisplayName,
@@ -237,7 +245,9 @@ public sealed class EngineeringDataSourceTypeCatalog : IDataSourceConfigurationV
                 engineeringCapabilities.HasFlag(DriverEngineeringCapabilities.FileImport),
                 engineeringCapabilities.HasFlag(DriverEngineeringCapabilities.Reconcile),
                 descriptor?.SupportsSharedTransportInfrastructure ?? false),
-            descriptor is null ? null : ToView(descriptor.ConfigurationSchema));
+            descriptor is null ? null : ToView(descriptor.ConfigurationSchema),
+            tagBindingSchemaId,
+            tagBindingSchemaVersion);
     }
 
     private static EngineeringDriverConfigurationSchemaView ToView(DriverConfigurationSchemaDescriptor schema) => new(

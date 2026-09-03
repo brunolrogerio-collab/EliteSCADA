@@ -19,13 +19,17 @@ import {
   type DataSourceDraftIssue,
   type DataSourceTypeDefinition
 } from './DataSourceCatalogEditor.logic';
+import { resolveDriverCatalogResource } from './driverCatalogI18n';
 import type { EngineeringLocale } from './i18n';
+import { OpcUaDataSourceDiscoveryAssistant } from './OpcUaDataSourceDiscoveryAssistant';
 import type { DataSourceEngineering, EngineeringPackageView } from './types';
 import './structured-editors.css';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 type CatalogResponse = { dataSourceTypes: DataSourceTypeDefinition[] };
 type Props = { model: EngineeringPackageView; locale: EngineeringLocale };
+
+type EditorText = ReturnType<typeof text>;
 
 export async function loadDataSourceTypeCatalog(): Promise<DataSourceTypeDefinition[]> {
   const response = await fetch(`${API}/api/engineering/data-source-types`, {
@@ -230,9 +234,16 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
                 >
                   {unsupported && <option value={draft.driver}>{copy.unsupported}: {draft.driver}</option>}
                   {!draft.driver && <option value="">{copy.chooseType}</option>}
-                  {catalog.map(type => <option key={type.typeKey} value={type.typeKey}>{type.displayName}</option>)}
+                  {catalog.map(type => (
+                    <option key={type.typeKey} value={type.typeKey}>
+                      {resolveDriverCatalogResource(locale, type.displayNameResourceKey, type.displayName)}
+                    </option>
+                  ))}
                 </select>
-                {currentType && <small><code>{currentType.typeKey}</code>{currentType.description ? ` · ${currentType.description}` : ''}</small>}
+                {currentType && <small>
+                  <code>{currentType.typeKey}</code>
+                  {currentType.description ? ` · ${resolveDriverCatalogResource(locale, currentType.descriptionResourceKey, currentType.description)}` : ''}
+                </small>}
                 {unsupported && <small className="eng-editor-error">{copy.unsupportedHint}</small>}
               </Field>
               <Field label={copy.enabled}>
@@ -251,11 +262,20 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
                     field={field}
                     value={(isProtectedReference(field.valueKind) ? draft.secretReferences : draft.settings)?.[field.key] ?? field.defaultValue ?? ''}
                     onChange={value => changeSetting(field, value)}
+                    locale={locale}
+                    copy={copy}
                   />
                 ))}
                 {(currentType.configurationSchema?.dataSourceFields.length ?? 0) === 0 && <span>{copy.noSettings}</span>}
               </div>
             </section>}
+
+            {currentType && <OpcUaDataSourceDiscoveryAssistant
+              draft={draft}
+              definition={currentType}
+              locale={locale}
+              onChange={updateDraft}
+            />}
 
             {hasIncompatible && currentType && (
               <section className="eng-preview-panel" aria-live="polite" data-testid="data-source-incompatible-settings">
@@ -278,7 +298,7 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
                 <div className="eng-preview-issues">
                   {clientIssues.map((issue, index) => (
                     <div className="error" key={`${issue.fieldKey}-${issue.code}-${index}`}>
-                      <strong>{fieldLabel(issue, currentType, copy)}</strong>
+                      <strong>{fieldLabel(issue, currentType, copy, locale)}</strong>
                       <span>{clientIssueMessage(issue, copy)}</span>
                     </div>
                   ))}
@@ -308,25 +328,29 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
   );
 }
 
-function ConfigurationField({ field, value, onChange }: {
+function ConfigurationField({ field, value, onChange, locale, copy }: {
   field: DataSourceConfigurationField;
   value: string;
   onChange: (value: string) => void;
+  locale: EngineeringLocale;
+  copy: EditorText;
 }) {
-  const label = `${field.displayName}${field.required ? ' *' : ''}`;
+  const displayName = resolveDriverCatalogResource(locale, field.displayNameResourceKey, field.displayName);
+  const description = resolveDriverCatalogResource(locale, field.descriptionResourceKey, field.description);
+  const label = `${displayName}${field.required ? ' *' : ''}`;
   const common = {
     value,
     onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => onChange(event.target.value)
   };
   const detail = [
-    field.description,
-    field.expectedFormat ? `Format: ${field.expectedFormat}` : null,
-    field.exampleValue ? `Example: ${field.exampleValue}` : null
+    description || null,
+    field.expectedFormat ? `${copy.format}: ${field.expectedFormat}` : null,
+    field.exampleValue ? `${copy.example}: ${field.exampleValue}` : null
   ].filter(Boolean).join(' · ');
 
   return <Field label={label} hint={detail || undefined}>
     {field.valueKind === 'boolean' ? (
-      <select {...common} data-testid={`data-source-setting-${field.key}`}><option value="">—</option><option value="true">true</option><option value="false">false</option></select>
+      <select {...common} data-testid={`data-source-setting-${field.key}`}><option value="">—</option><option value="true">{copy.yes}</option><option value="false">{copy.no}</option></select>
     ) : field.valueKind === 'enum' ? (
       <select {...common} data-testid={`data-source-setting-${field.key}`}><option value="">—</option>{field.allowedValues.map(option => <option key={option} value={option}>{option}</option>)}</select>
     ) : ['integer', 'port', 'number'].includes(field.valueKind) ? (
@@ -348,7 +372,7 @@ function ConfigurationField({ field, value, onChange }: {
         onChange={event => onChange(event.target.value)}
       />
     )}
-    <small><code>{field.key}</code>{field.advanced ? ' · advanced' : ''}</small>
+    <small><code>{field.key}</code>{field.advanced ? ` · ${copy.advanced}` : ''}</small>
   </Field>;
 }
 
@@ -356,14 +380,22 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   return <label className="eng-editor-field"><span>{label}</span>{children}{hint && <small>{hint}</small>}</label>;
 }
 
-function fieldLabel(issue: DataSourceDraftIssue, type: DataSourceTypeDefinition | null, copy: ReturnType<typeof text>): string {
+function fieldLabel(
+  issue: DataSourceDraftIssue,
+  type: DataSourceTypeDefinition | null,
+  copy: EditorText,
+  locale: EngineeringLocale
+): string {
   if (issue.fieldKey === '$name') return copy.name;
   if (issue.fieldKey === '$key') return copy.key;
   if (issue.fieldKey === '$type') return copy.type;
-  return type?.configurationSchema?.dataSourceFields.find(field => field.key === issue.fieldKey)?.displayName ?? issue.fieldKey;
+  const field = type?.configurationSchema?.dataSourceFields.find(candidate => candidate.key === issue.fieldKey);
+  return field
+    ? resolveDriverCatalogResource(locale, field.displayNameResourceKey, field.displayName)
+    : issue.fieldKey;
 }
 
-function clientIssueMessage(issue: DataSourceDraftIssue, copy: ReturnType<typeof text>): string {
+function clientIssueMessage(issue: DataSourceDraftIssue, copy: EditorText): string {
   const expectation = issue.expected ? ` ${copy.expected}: ${issue.expected}.` : '';
   if (issue.code === 'required') return `${copy.required}.${expectation}`;
   if (issue.code === 'integer') return `${copy.integer}.${expectation}`;
@@ -385,7 +417,8 @@ function text(locale: EngineeringLocale) {
     incompatibleTitle: 'Incompatible persisted settings', incompatibleHint: 'These keys are not valid for the selected source type. They are not reinterpreted automatically.', removeIncompatible: 'Remove incompatible settings', incompatibleField: 'This persisted setting does not belong to the selected source type.',
     preview: 'Validate draft', apply: 'Apply', valid: 'Valid candidate', invalid: 'Invalid candidate', errors: 'Errors', discard: 'Discard unsaved Data Source changes?',
     workspaceChanged: 'Engineering Workspace changed during validation. Reload and validate the draft again.', fixClientIssues: 'Correct the highlighted Data Source fields before backend validation.',
-    clientValidation: 'Fields to correct', expected: 'Expected', required: 'This field is required', integer: 'Enter a whole number', number: 'Enter a valid number', duration: 'Enter a valid duration', enumValue: 'Choose one of the supported values', minimum: 'Value is below the allowed minimum', maximum: 'Value is above the allowed maximum'
+    clientValidation: 'Fields to correct', expected: 'Expected', required: 'This field is required', integer: 'Enter a whole number', number: 'Enter a valid number', duration: 'Enter a valid duration', enumValue: 'Choose one of the supported values', minimum: 'Value is below the allowed minimum', maximum: 'Value is above the allowed maximum',
+    format: 'Format', example: 'Example', advanced: 'advanced'
   };
   if (locale === 'es') return {
     title: 'Editor de Data Source', description: 'Seleccione un tipo del catálogo backend. Los campos provienen del schema de ese tipo.',
@@ -396,7 +429,8 @@ function text(locale: EngineeringLocale) {
     incompatibleTitle: 'Configuraciones persistidas incompatibles', incompatibleHint: 'Estas claves no son válidas para el tipo seleccionado. No se reinterpretan automáticamente.', removeIncompatible: 'Eliminar configuraciones incompatibles', incompatibleField: 'Esta configuración persistida no pertenece al tipo seleccionado.',
     preview: 'Validar borrador', apply: 'Aplicar', valid: 'Candidato válido', invalid: 'Candidato inválido', errors: 'Errores', discard: '¿Descartar los cambios no guardados?',
     workspaceChanged: 'El Engineering Workspace cambió durante la validación. Recargue y valide el borrador nuevamente.', fixClientIssues: 'Corrija los campos indicados antes de la validación backend.',
-    clientValidation: 'Campos a corregir', expected: 'Esperado', required: 'Este campo es obligatorio', integer: 'Ingrese un número entero', number: 'Ingrese un número válido', duration: 'Ingrese una duración válida', enumValue: 'Seleccione uno de los valores permitidos', minimum: 'El valor está por debajo del mínimo permitido', maximum: 'El valor supera el máximo permitido'
+    clientValidation: 'Campos a corregir', expected: 'Esperado', required: 'Este campo es obligatorio', integer: 'Ingrese un número entero', number: 'Ingrese un número válido', duration: 'Ingrese una duración válida', enumValue: 'Seleccione uno de los valores permitidos', minimum: 'El valor está por debajo del mínimo permitido', maximum: 'El valor supera el máximo permitido',
+    format: 'Formato', example: 'Ejemplo', advanced: 'avanzado'
   };
   return {
     title: 'Editor de Data Source', description: 'Escolha um tipo no catálogo do backend. Os campos de configuração vêm do schema desse tipo.',
@@ -407,6 +441,7 @@ function text(locale: EngineeringLocale) {
     incompatibleTitle: 'Configurações persistidas incompatíveis', incompatibleHint: 'Estas chaves não pertencem ao tipo selecionado. Elas não são reinterpretadas automaticamente.', removeIncompatible: 'Remover configurações incompatíveis', incompatibleField: 'Esta configuração persistida não pertence ao tipo selecionado.',
     preview: 'Validar rascunho', apply: 'Aplicar', valid: 'Candidato válido', invalid: 'Candidato inválido', errors: 'Erros', discard: 'Descartar alterações não salvas da Data Source?',
     workspaceChanged: 'O Engineering Workspace mudou durante a validação. Recarregue e valide o rascunho novamente.', fixClientIssues: 'Corrija os campos indicados da Data Source antes da validação no backend.',
-    clientValidation: 'Campos a corrigir', expected: 'Esperado', required: 'Este campo é obrigatório', integer: 'Informe um número inteiro', number: 'Informe um número válido', duration: 'Informe uma duração válida', enumValue: 'Escolha um dos valores permitidos', minimum: 'O valor está abaixo do mínimo permitido', maximum: 'O valor está acima do máximo permitido'
+    clientValidation: 'Campos a corrigir', expected: 'Esperado', required: 'Este campo é obrigatório', integer: 'Informe um número inteiro', number: 'Informe um número válido', duration: 'Informe uma duração válida', enumValue: 'Escolha um dos valores permitidos', minimum: 'O valor está abaixo do mínimo permitido', maximum: 'O valor está acima do máximo permitido',
+    format: 'Formato', example: 'Exemplo', advanced: 'avançado'
   };
 }

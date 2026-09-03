@@ -40,7 +40,7 @@ public static class CommunicationDriverRuntimeComposition
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new Iec104CommunicationRuntimePlanner(),
             new Iec104CommunicationRuntimeFactory(iec104AdapterFactory),
-            new Iec104EngineeringProvider(iec104AdapterFactory).Descriptor));
+            Iec104DriverDescriptorProvider.Enrich(new Iec104EngineeringProvider(iec104AdapterFactory).Descriptor)));
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new AllenBradleyLogixCommunicationRuntimePlanner(),
             new AllenBradleyLogixCommunicationRuntimeFactory(logixClientFactory),

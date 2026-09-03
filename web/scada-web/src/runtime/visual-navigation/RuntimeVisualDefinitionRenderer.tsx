@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import { createPortal } from 'react-dom';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
+import { c07VisualEditorText } from '../../engineering/visual-editor/c07VisualEditorI18n';
 import {
   CanonicalVisualRenderer,
   type CanonicalVisualEvent,
@@ -80,6 +81,8 @@ export function RuntimeVisualDefinitionRenderer({
   onTagWrite = writeRuntimeTagValue,
   visualAssetUrl
 }: RuntimeVisualDefinitionRendererProps) {
+  const runtimeLocale = locale ?? 'pt-BR';
+  const runtimeText = c07VisualEditorText(runtimeLocale).runtimeState;
   const [revision, setRevision] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const [dynamoStateHosts, setDynamoStateHosts] = useState<ReadonlyMap<string, HTMLElement>>(
@@ -112,8 +115,8 @@ export function RuntimeVisualDefinitionRenderer({
   );
   const dynamoStateSamples = useVisualBindingSamples(dynamoStateBindingElements);
   const dynamoStateIndicators = useMemo(
-    () => resolveRuntimeDynamoStateIndicators(expandedDynamoElements, dynamoStateSamples),
-    [expandedDynamoElements, dynamoStateSamples]
+    () => resolveRuntimeDynamoStateIndicators(expandedDynamoElements, dynamoStateSamples, runtimeLocale),
+    [expandedDynamoElements, dynamoStateSamples, runtimeLocale]
   );
 
   useLayoutEffect(() => {
@@ -163,7 +166,7 @@ export function RuntimeVisualDefinitionRenderer({
     <CanonicalVisualRenderer
       elements={expandedDynamoElements}
       emptyLabel={emptyLabel}
-      locale={locale}
+      locale={runtimeLocale}
       onVisualEvent={onVisualEvent}
       onTagWrite={onTagWrite}
       visualAssetUrl={visualAssetUrl}
@@ -171,16 +174,19 @@ export function RuntimeVisualDefinitionRenderer({
     <RuntimeDynamoStateLayer
       indicators={dynamoStateIndicators}
       hosts={dynamoStateHosts}
+      feedbackMismatchLabel={runtimeText.feedbackMismatch}
     />
   </div>;
 }
 
 function RuntimeDynamoStateLayer({
   indicators,
-  hosts
+  hosts,
+  feedbackMismatchLabel
 }: {
   indicators: readonly RuntimeDynamoStateIndicator[];
   hosts: ReadonlyMap<string, HTMLElement>;
+  feedbackMismatchLabel: string;
 }) {
   return <>
     {indicators.map(indicator => {
@@ -197,7 +203,7 @@ function RuntimeDynamoStateLayer({
         data-dynamo-state-priority={indicator.priority}
         data-dynamo-quality={indicator.quality}
         data-dynamo-feedback-mismatch={indicator.feedbackMismatch || undefined}
-        title={`${indicator.dynamoKey} · ${indicator.label}${indicator.feedbackMismatch ? ' · feedback mismatch' : ''}`}
+        title={`${indicator.dynamoKey} · ${indicator.label}${indicator.feedbackMismatch ? ` · ${feedbackMismatchLabel}` : ''}`}
         style={{
           position: 'absolute',
           left: 2,

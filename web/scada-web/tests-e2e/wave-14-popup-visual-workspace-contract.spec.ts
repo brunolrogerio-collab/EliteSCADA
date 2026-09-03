@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 const appSource = readFileSync(join(process.cwd(), 'src/engineering/EngineeringApp.tsx'), 'utf8');
 const workspaceSource = readFileSync(
-  join(process.cwd(), 'src/engineering/visual-editor/PopupVisualEditorWorkspace.tsx'),
+  join(process.cwd(), 'src/engineering/visual-editor/PopupVisualEditorWorkspaceImpl.tsx'),
   'utf8'
 );
 

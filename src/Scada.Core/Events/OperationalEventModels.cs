@@ -94,7 +94,7 @@ public static class OperationalEventContract
 
         var commandId = emission.CommandId == Guid.Empty ? null : emission.CommandId;
         return new OperationalEventOccurred(
-            id.Value,
+            id,
             normalized.Id,
             normalized.Key,
             normalized.Type,

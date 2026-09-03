@@ -6,6 +6,57 @@ public sealed class ModbusTcpDriverDescriptorProvider : ICommunicationDriverDesc
 {
     public const string DriverTypeId = "modbus.tcp";
 
+    private static readonly IReadOnlyCollection<DriverConfigurationFieldDescriptor> TagBindingFields =
+        new DriverConfigurationFieldDescriptor[]
+        {
+            new(
+                "modbus.unitId",
+                DriverConfigurationValueKind.Integer,
+                DisplayName: "Unit ID override",
+                Description: "Optional TAG-level Modbus Unit ID override. When omitted, the Data Source unitId is used.",
+                Minimum: 0,
+                Maximum: 255),
+            new(
+                "modbus.valueType",
+                DriverConfigurationValueKind.Enum,
+                DisplayName: "Value type",
+                Description: "Optional wire value type. When omitted, Runtime infers the compatible Modbus value type from the canonical TAG data type.",
+                AllowedValues: new[]
+                {
+                    "Boolean",
+                    "Int16",
+                    "UInt16",
+                    "Int32",
+                    "UInt32",
+                    "Float32",
+                    "Int64",
+                    "UInt64",
+                    "Float64"
+                }),
+            new(
+                "modbus.wordOrder",
+                DriverConfigurationValueKind.Enum,
+                DisplayName: "Word order",
+                Description: "Word order for multi-register values.",
+                DefaultValue: "HighWordFirst",
+                AllowedValues: new[] { "HighWordFirst", "LowWordFirst" },
+                Advanced: true),
+            new(
+                "modbus.scale",
+                DriverConfigurationValueKind.Number,
+                DisplayName: "Scale",
+                Description: "Finite non-zero multiplier applied by the Modbus point adapter.",
+                DefaultValue: "1",
+                Advanced: true),
+            new(
+                "modbus.offset",
+                DriverConfigurationValueKind.Number,
+                DisplayName: "Offset",
+                Description: "Finite additive offset applied by the Modbus point adapter.",
+                DefaultValue: "0",
+                Advanced: true)
+        };
+
     public static CommunicationDriverTypeDescriptor SharedDescriptor { get; } = new(
         DriverType: DriverTypeId,
         DisplayName: "Modbus TCP",
@@ -25,7 +76,7 @@ public sealed class ModbusTcpDriverDescriptorProvider : ICommunicationDriverDesc
                 new("maxGapElements", DriverConfigurationValueKind.Integer, DisplayName: "Maximum block gap", Description: "Maximum address gap merged into one polling block.", DefaultValue: "8", Minimum: 0, Maximum: 125, Advanced: true),
                 new("unitId", DriverConfigurationValueKind.Integer, DisplayName: "Unit ID", Description: "Default Modbus unit identifier.", DefaultValue: "1", Minimum: 0, Maximum: 255)
             },
-            TagBindingFields: Array.Empty<DriverConfigurationFieldDescriptor>()),
+            TagBindingFields: TagBindingFields),
         Description: "Modbus TCP client driver using cyclic polling.");
 
     public CommunicationDriverTypeDescriptor Descriptor => SharedDescriptor;

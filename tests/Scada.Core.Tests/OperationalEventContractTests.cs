@@ -47,7 +47,7 @@ public sealed class OperationalEventContractTests
         Assert.Equal("running", occurrence.Context["to"]);
         Assert.Equal(timestamp, occurrence.OccurredAt);
         Assert.IsAssignableFrom<IScadaEvent>(occurrence);
-        Assert.False(occurrence is AlarmStateChanged);
+        Assert.NotEqual(typeof(AlarmStateChanged), occurrence.GetType());
     }
 
     [Fact]

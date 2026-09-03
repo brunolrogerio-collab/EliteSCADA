@@ -110,7 +110,7 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
         var defaultUnitId = ParseInt(settings, "unitId", 1, 0, 255, dataSource.Key, issues);
 
         var sourceTags = package.Tags
-            .Where(x => string.Equals(x.Source, dataSource.Key, StringComparison.OrdinalIgnoreCase))
+            .Where(tag => IsAssociatedWithDataSource(tag, dataSource))
             .OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
@@ -146,13 +146,20 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
             points));
     }
 
+    private static bool IsAssociatedWithDataSource(TagEngineeringDto tag, DataSourceEngineeringDto dataSource)
+    {
+        if (tag.DataSourceId.HasValue)
+            return dataSource.Id.HasValue && tag.DataSourceId.Value == dataSource.Id.Value;
+        return string.Equals(tag.Source, dataSource.Key, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static ModbusPoint? CompilePoint(
         string dataSourceKey,
         TagEngineeringDto dto,
         int defaultUnitId,
         List<EngineeringDriverIssue> issues)
     {
-        if (!TryParseAddress(dto.Address, dto.Metadata, out var area, out var address, out var addressError))
+        if (!ModbusTagAddressCodec.TryParse(dto.Address, dto.Metadata, out var area, out var address, out var addressError))
         {
             issues.Add(Error("MODBUS_TAG_ADDRESS_INVALID", addressError!, dataSourceKey, dto.Path));
             return null;
@@ -225,74 +232,9 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
             dto.ReadOnly,
             metadata,
             access,
-            dto.AddressSelector);
-    }
-
-    private static bool TryParseAddress(
-        string? raw,
-        IReadOnlyDictionary<string, string>? metadata,
-        out ModbusDataArea area,
-        out ushort address,
-        out string? error)
-    {
-        area = default;
-        address = default;
-        error = null;
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            error = "Modbus TAG address is required. Use canonical 0-based syntax such as 'holding:0'.";
-            return false;
-        }
-
-        var value = raw.Trim();
-        var separator = value.IndexOf(':');
-        string addressPart;
-        if (separator > 0)
-        {
-            var areaPart = value[..separator].Trim();
-            addressPart = value[(separator + 1)..].Trim();
-            if (!TryParseArea(areaPart, out area))
-            {
-                error = $"Unknown Modbus area '{areaPart}'. Use coil, discrete, holding or input.";
-                return false;
-            }
-        }
-        else
-        {
-            addressPart = value;
-            var areaText = Meta(metadata, "modbus.area");
-            if (string.IsNullOrWhiteSpace(areaText) || !TryParseArea(areaText, out area))
-            {
-                error = "Numeric Modbus addresses require metadata 'modbus.area' with coil, discrete, holding or input.";
-                return false;
-            }
-        }
-
-        if (!ushort.TryParse(addressPart, NumberStyles.None, CultureInfo.InvariantCulture, out address))
-        {
-            error = $"Modbus address '{addressPart}' must be a decimal 0-based value from 0 to 65535.";
-            return false;
-        }
-        return true;
-    }
-
-    private static bool TryParseArea(string raw, out ModbusDataArea area)
-    {
-        switch (raw.Trim().Replace("_", string.Empty, StringComparison.Ordinal).Replace("-", string.Empty, StringComparison.Ordinal).ToLowerInvariant())
-        {
-            case "coil":
-            case "coils": area = ModbusDataArea.Coil; return true;
-            case "discrete":
-            case "discreteinput":
-            case "di": area = ModbusDataArea.DiscreteInput; return true;
-            case "holding":
-            case "holdingregister":
-            case "hr": area = ModbusDataArea.HoldingRegister; return true;
-            case "input":
-            case "inputregister":
-            case "ir": area = ModbusDataArea.InputRegister; return true;
-            default: area = default; return false;
-        }
+            dto.AddressSelector,
+            dto.CommunicationBinding,
+            dto.DataSourceId);
     }
 
     private static ModbusValueType? ParseValueType(

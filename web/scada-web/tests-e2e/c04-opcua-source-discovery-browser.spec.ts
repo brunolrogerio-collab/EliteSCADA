@@ -46,7 +46,8 @@ const catalog = {
         field('securityPolicyUri', 'string', true, 'Security policy URI'),
         field('serverApplicationUri', 'string', false, 'Approved server ApplicationUri'),
         field('serverCertificateSha256', 'string', false, 'Approved server certificate SHA-256'),
-        field('authenticationMode', 'enum', true, 'Authentication mode', 'Anonymous', ['Anonymous', 'UserName', 'Certificate'])
+        field('authenticationMode', 'enum', true, 'Authentication mode', 'Anonymous', ['Anonymous', 'UserName', 'Certificate']),
+        field('passwordSecretReference', 'secretReference', false, 'Password secret reference')
       ],
       tagBindingFields: []
     },
@@ -77,7 +78,9 @@ test('new OPC UA Source can discover, choose security settings and test the draf
           securityPolicyUri: 'http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256',
           serverApplicationUri: 'urn:example:server',
           serverCertificateSha256: 'AABBCCDDEEFF',
-          authenticationMode: 'Anonymous'
+          authenticationMode: 'Anonymous',
+          passwordSecretReference: 'must-not-cross-discovery-boundary',
+          unknownSetting: 'must-be-ignored'
         },
         metadata: {}, issues: []
       }]
@@ -148,8 +151,11 @@ test('new OPC UA Source can discover, choose security settings and test the draf
       securityPolicyUri: 'http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256',
       serverCertificateSha256: 'AABBCCDDEEFF',
       authenticationMode: 'Anonymous'
-    }
+    },
+    secretReferences: {}
   });
+  expect(connectionRequest.settings.passwordSecretReference).toBeUndefined();
+  expect(connectionRequest.settings.unknownSetting).toBeUndefined();
 
   await page.getByTestId('data-source-preview').click();
   expect(previewCandidate).not.toBeNull();
@@ -164,5 +170,7 @@ test('new OPC UA Source can discover, choose security settings and test the draf
       authenticationMode: 'Anonymous'
     }
   });
+  expect(previewCandidate.dataSources[0].settings.passwordSecretReference).toBeUndefined();
+  expect(previewCandidate.dataSources[0].settings.unknownSetting).toBeUndefined();
   expect(applyCalls).toBe(0);
 });

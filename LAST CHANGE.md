@@ -1,344 +1,268 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-03 (BRT)  
-**Operational state:** **WAVE 14 #211 ACTIVE / C01-C10 CONVERGED AND COMBINED GREEN / C11 PASS 2 PRODUCT-GAP AUDIT ACTIVELY WRITING EVIDENCE / C11 IMPLEMENTATION LOCKED / WAVE 13 #205/#207 PAUSED**
+**Operational state:** **WAVE 14 #211 ACTIVE / C01-C10 CONVERGED GREEN / C11 PASS 2 CONSOLIDATED / C11 IMPLEMENTATION LOCKED / C12-C17 PRE-DEMO PRODUCT CORRECTIONS RELEASED FOR PARALLEL DEV / C18 DEFINED BUT IMPLEMENTATION-BLOCKED / WAVE 13 #205/#207 PAUSED**
 
-> Mutable coordinator resume point. `PROJECT GOAL.md` governs permanent product intent. GitHub is the development memory. Revalidate live refs, PR state and exact-SHA CI before acting. Documentation-only `[skip ci]` commits may advance branches without superseding the frozen product-code SHA.
+> Mutable coordinator resume point. `PROJECT GOAL.md` governs permanent product intent. GitHub is the development memory. Revalidate live refs, PR state and exact-SHA CI before acting. Documentation-only `[skip ci]` commits may advance branches without superseding the last validated product-code SHA.
 
-## 1. Current Wave 14 integration state
-
-`main` remains intentionally untouched by Wave 14 correction packages.
+## 1. Current Wave 14 product authority
 
 Coordinator integration surface:
 
-- branch: `wave14/corrections-integration`;
-- draft PR: #212;
-- PR #212 remains DRAFT and is not authorized to merge to `main`;
-- frozen C10 converged **product-code** SHA:
+- branch `wave14/corrections-integration`;
+- draft PR #212;
+- #212 remains DRAFT, open and not authorized to merge to `main`.
+
+Frozen C10 converged product-code SHA audited by C11 Pass 2:
 
 `97eefd8f4377ff583d1ba20bc89203f4a82b584d`
 
-A later documentation-only commit may be the integration branch HEAD. Do not mistake docs-only movement for a new product baseline.
+Exact post-C10 validation on that SHA:
 
-Exact post-merge validation on `97eefd8...`:
+- EliteSCADA CI #1273 / `33795337274`: SUCCESS;
+- Wave 11 Active HMI Runtime #203 / `33795337288`: SUCCESS;
+- Preview Licensing CI #225 / `33795337280`: SUCCESS;
+- L3 Seven-Driver Lab #180 / `33795337252`: SUCCESS;
+- Interop Lab Smoke #102 / `33795337270`: SUCCESS.
 
-- EliteSCADA CI #1273 / run `33795337274`: **SUCCESS**;
-- Wave 11 Active HMI Runtime #203 / run `33795337288`: **SUCCESS**;
-- Preview Licensing CI #225 / run `33795337280`: **SUCCESS**;
-- L3 Seven-Driver Lab #180 / run `33795337252`: **SUCCESS**;
-- Interop Lab Smoke #102 / run `33795337270`: **SUCCESS**.
+Documentation-only coordinator commits after `97eefd8...` do not redefine the product audited by C11.
 
-Detailed convergence evidence and the formal C11 Pass 2 release are recorded in:
-
-`docs/WAVE14-C10-CONVERGENCE-C11-PASS2-RELEASE.md`
-
-## 2. Accepted package authorities C01-C10
+## 2. Accepted C01-C10 authority
 
 The converged product contains:
 
 - C01 — Identity / secure first-run / password policy;
 - C02 — backend-authoritative Driver catalog / Data Source forms;
-- C03 — unrestricted OpenDNP3 production adapter / commercial dependency removal;
+- C03 — unrestricted OpenDNP3 production adapter;
 - C04 — TAG Source identity / address assistants / OPC UA discovery-browse;
 - C05 — canonical visual properties / schema-driven Property Inspector;
 - C06 — Engineering Diagnostics / TAG Monitor boundary;
-- C07 — Screen Engineering / Popup / Dynamo authoring and Runtime contracts;
-- C08 — Python Script Assistant / Project Object Browser / mediated TAG-write capability;
+- C07 — Screen Engineering / Popup / Dynamo authoring/runtime contracts;
+- C08 — Python Script Assistant / Project Object Browser / mediated TAG writes;
 - C09 — capability-driven application shell + operator Runtime presentation;
-- C10 — coordinator convergence, combined regression and multilingual corrections.
+- C10 — combined regression, multilingual convergence and exact-SHA freeze.
 
-Accepted lifecycle remains:
-
-`Working -> saved Revision -> Published -> Active -> HMI Runtime`
-
-Historical DEMO behavior is not product authority. Real persisted-data compatibility remains mandatory where it is part of a supported product contract.
-
-Permanent architecture gates remain:
+Permanent gates remain:
 
 - backend canonical authority;
 - backend-side authorization;
 - host-owned fail-closed licensing;
-- no Preview-only bypass;
+- no Preview-only product bypass;
 - no Driver-to-Driver coupling;
-- canonical TAG/Data Source contracts;
-- universal CI plus impact-specific validation on exact candidate heads;
+- canonical TAG/Data Source identity;
+- lifecycle `Working -> saved Revision -> Published -> Active -> HMI Runtime`;
+- exact-head universal CI plus impact-specific validation;
 - diagnose failures before rerun;
-- never weaken security, tests or product contracts merely to obtain green.
+- never weaken meaningful tests/security/contracts merely to obtain green.
 
-## 3. C09/C10 convergence checkpoint
+## 3. C11 Pass 2 is consolidated
 
-Accepted C09 DEV head:
-
-`55c23851cbed0039f8dc82b75ef833a33393f8ed`
-
-C09 was integrated through PR #230. Post-C09 product SHA:
-
-`ea0d05bd29404c25e97b4d857b20912ed08059f6`
-
-Accepted C09 authority includes capability-driven shell/navigation, operator-focused Runtime, semantic Dark/Light shell themes without recoloring authored HMI content, `pt-BR`/`en`/`es`, native fullscreen, fixed logical HMI scaling with letterbox/pillarbox, no responsive HMI reflow/document-scroll composition, shared Screen/Popup transform and alarm-overlay behavior.
-
-C10 branch:
-
-`wave14/c10-multilingual-convergence`
-
-Actual integration PR: #231.  
-Validation-only draft PR: #232, **DO NOT MERGE TO MAIN**.
-
-Final validated C10 branch head:
-
-`be32dd4aac39afd6158a82a66b37d670b18c78ab`
-
-After exact-head five-gate validation, PR #231 merged with expected-head protection. Integrated SHA `97eefd8...` then passed all five workflows again and is the frozen product authority for C11 Pass 2.
-
-Known product concern carried into C11 audit: canonical persisted authorable Popup X/Y placement was not proven in the accepted C07/C09 contract. C11 must decide this from evidence rather than invent ad-hoc CSS persistence.
-
-## 4. C11 Pass 2 is now actively in progress
-
-C11 status:
-
-**PASS 2 PRODUCT-GAP AUDIT ACTIVE / IMPLEMENTATION LOCKED.**
-
-Audit branch:
+C11 audit branch:
 
 `wave14/c11-pass2-product-gap-audit`
 
-Canonical Pass 2 output workspace:
+Canonical result:
 
 `docs/WAVE14-C11-PASS2-PRODUCT-GAP-AUDIT.md`
 
-Canonical DEMO requirements authority:
+Current state on the C11 branch:
 
-`docs/WAVE14-C11-CANONICAL-DEMO-REQUIREMENTS.md`
+**PASS 2 CONSOLIDATED / IMPLEMENTATION LOCKED**
 
-C11 is auditing only exact converged product SHA:
+C11 recommendation:
 
-`97eefd8f4377ff583d1ba20bc89203f4a82b584d`
+`KEEP C11 IMPLEMENTATION LOCKED`
 
-The C11 audit document is no longer an empty template. C11 has begun progressively recording evidence, revalidating Pass 1 findings and classifying requirements. This progressive matrix is **not yet the final C11 disposition** and must not be used to release implementation early.
+The product is substantially closer to the intended canonical EEE than Pass 1 suggested. Confirmed supported foundations include Internal Memory, Analog Fill, reusable Dynamos, Popup open/context, alarms, historian, alarm history, operator shell, project assets and logical Source/TAG separation suitable for later Modbus remapping.
 
-Current evidence already recorded by C11 includes, among other items:
+However, confirmed product gaps remain and must be corrected before the DEMO may conceal them with authoring workarounds.
 
-### Structurally supported so far
+## 4. Confirmed pre-DEMO correction areas
 
-- backend-authoritative typed Data Source configuration;
-- protocol-aware TAG address assistance;
-- canonical Server Memory / Client Memory concepts;
-- numeric `% Full` process presentation;
-- canonical Analog Fill capable of driving the suction-well liquid level from an analog process value;
-- reusable Dynamo definitions with typed public properties/TAG references;
-- canonical Popup open/close/context action model;
-- project PNG/background asset import/use through Engineering;
-- Active Engineering Runtime remains the accepted authority rather than a legacy/fallback DEMO page.
+Blocking/required correction areas include:
 
-### Confirmed product gap already recorded
+- active Server Runtime automation / Server Script host, scheduler and timer lifecycle;
+- generic normal-product capability sufficient to author a living deterministic Simulation;
+- canonical deliberate bad/stale/unavailable quality origin for Simulation/internal sources;
+- first-class operational Event model/history/query distinct from Alarm/Audit;
+- operator/authored Trend exposure;
+- embeddable configurable Multi-Pen Trend HMI object;
+- canonical authored HMI invocation of Operational Command entities;
+- embeddable Alarm Browser and Event Browser HMI objects;
+- Internal Memory authoring UX cleanup and complete authoring lifecycle proof;
+- explicit authorable Startup/Home Runtime Screen;
+- Historical Browser multilingual convergence;
+- persisted authorable Popup X/Y placement.
 
-C11 has confirmed an Engineering UX inconsistency for Internal Memory TAG authoring: the memory-specific model states that no network address exists, while the generic TAG authoring path still exposes network-style `Address` semantics.
+## 5. Binding Product Owner decisions after Pass 2
 
-C11 currently recommends this as a bounded **fix before C11 implementation** rather than a DEMO workaround.
+### Popup X/Y
 
-This finding still requires Coordinator/Development Lead disposition after the consolidated Pass 2 result. C11 does not own release authority.
+Popup X/Y is **not** an accepted limitation or mitigation. It must be implemented as a normal canonical product capability before C11 implementation release.
 
-### Partial support currently recorded
+Required path:
 
-- pump/Dynamo semantic running/fault/bad-quality state vocabulary exists, but final authorability/operator clarity and non-color-only bad-quality representation still require proof;
-- fixed logical HMI composition/scaling exists, but required real-browser multi-resolution behavior remains to validate.
+`Engineering authoring -> persisted canonical position -> Save -> Publish -> Activate -> Active Runtime logical coordinate transform`
 
-### High-priority open validation items
+No DEMO-specific CSS/DOM positioning or hidden package editing is acceptable.
 
-C11 is still closing important questions including:
+### EEE Simulation must be buildable from normal product tools
 
-- normal UI creation of both Server Memory and Client Memory Sources;
-- complete end-to-end Internal Memory Source + TAG authoring;
-- actual Server Script/Timer Runtime host, executor, scheduler and activation lifecycle for a continuously living Simulation;
-- official Simulation path for deliberate bad/stale/unavailable quality generation;
-- canonical persisted authorable Popup X/Y placement;
-- explicit authorable startup/home Runtime Screen;
-- real-browser fullscreen/no-scroll behavior across target resolutions;
-- preservation of conceptual Screens/Dynamos/Popups/TAG identity when changing Simulation mapping to real Modbus PLC mapping.
+EliteSCADA must provide generic product mechanisms sufficient for an integrator to build the future EEE Simulation normally.
 
-Server Script/Timer runtime execution and canonical simulated bad-quality generation are potentially blocking requirements for the intended DEMO Simulation and must be closed before implementation release.
+The product must **not** receive an EEE-specific simulator service merely to satisfy the DEMO.
 
-## 5. C11 classification and release rule
+The future C11 project itself must be able to author, using supported public mechanisms, a process with:
 
-Every canonical C11 requirement must finish as exactly one of:
+- inflow raising level;
+- pumps lowering level;
+- thresholds and sequencing;
+- duty/standby alternation;
+- two-pump demand;
+- faults/trips;
+- bad/stale/unavailable quality scenarios;
+- coherent process analogs;
+- alarms/events/history/trends driven by the same evolving canonical state.
 
-- `SUPPORTED`;
-- `PARTIALLY SUPPORTED`;
-- `PRODUCT GAP`;
-- `NEEDS VALIDATION`.
+If normal Server Memory/Server Runtime automation/quality/event contracts cannot express that class of model, that is a product gap and must be corrected before C11.
 
-Every non-SUPPORTED item must record:
+Forbidden substitutes include a new `EeeSimulatorService`, historical Demo/Simulation internals, hard-coded DEMO pages, direct DOM/React mutation, hidden `.escadapkg` JSON and security/licensing bypasses.
 
-1. exact requirement;
-2. product evidence/code/API/test/Runtime behavior;
-3. limitation;
-4. impact on the canonical EEE DEMO;
-5. Simulation impact;
-6. PLC/Modbus impact;
-7. recommended owner/action;
-8. whether bounded product correction is recommended before DEMO implementation;
-9. any safe mitigation, explicitly separated from a real fix.
+## 6. Pre-DEMO correction package authority
 
-Pass 1 findings solved by convergence must be marked `RESOLVED/SUPERSEDED` with evidence. They must not silently disappear.
+Canonical package plan:
 
-C11 does **not** release implementation. At the end of Pass 2 it returns one consolidated matrix and one recommendation to Coordinator/Development Lead:
+`docs/WAVE14-C11-PRE-DEMO-CORRECTION-PACKAGES.md`
 
-- `RELEASE C11 IMPLEMENTATION`; or
-- `KEEP C11 IMPLEMENTATION LOCKED`.
+Immediate parallel packages:
 
-The Coordinator/Development Lead then decides each confirmed gap.
+- **C12 — Server Runtime Automation / Generic Simulation Authoring**;
+- **C13 — Canonical Simulation Quality Contract**;
+- **C14 — First-Class Operational Events**;
+- **C15 — Embeddable Multi-Pen Trend HMI Object**;
+- **C16 — HMI Operational Command + Startup Screen + mandatory Popup X/Y**;
+- **C17 — Internal Memory Authoring UX + Full Lifecycle E2E**.
 
-## 6. Canonical EEE DEMO intent remains unchanged
+Dependent package:
 
-The future canonical application is a realistic **Estação Elevatória de Esgoto (EEE)** built through normal EliteSCADA Engineering/Runtime workflows, not a hand-built DEV webpage and not a resurrection of the historical DEMO.
+- **C18 — Embeddable Alarm + Event Browser HMI Objects + related history i18n**.
 
-It must serve simultaneously as:
+C18 is defined but **implementation-blocked** until Coordinator accepts the upstream C14 Event contract and the needed common embeddable-object contracts from C15/common visual baseline, then publishes an exact implementation base.
 
-- commercial/product demonstration;
-- Engineering authoring example;
+## 7. Package branches
+
+Coordinator creates/releases these immediate branches from one common documentation checkpoint over the unchanged frozen C10 product code:
+
+- `wave14/c12-server-runtime-automation`;
+- `wave14/c13-simulation-quality-contract`;
+- `wave14/c14-operational-events`;
+- `wave14/c15-hmi-trend-multipen`;
+- `wave14/c16-hmi-command-navigation-popup`;
+- `wave14/c17-memory-authoring-e2e`.
+
+Planned later branch after prerequisite integration:
+
+- `wave14/c18-hmi-alarm-event-browsers`.
+
+No package branch merges directly to `main`.
+
+## 8. Intended dependency/integration route
+
+Development C12-C17 may run in parallel. Initial intended integration order is:
+
+1. C13 quality contract;
+2. C17 Memory authoring/E2E;
+3. C14 Operational Events;
+4. C16 Command/Home/Popup positioning;
+5. C15 Trend Multi-Pen;
+6. C12 Server Runtime Automation aligned to accepted C13 quality contract;
+7. publish exact C18 base;
+8. C18 Alarm/Event Browser objects;
+9. C10 convergence cycle 2.
+
+Coordinator may adjust ordering when actual diffs show a safer dependency route.
+
+## 9. C11 remains implementation-locked
+
+C12-C18 correct the product. They do not authorize building the canonical EEE DEMO.
+
+After all approved corrections:
+
+1. integrate into `wave14/corrections-integration`;
+2. run universal and impacted specialized workflows;
+3. execute C10 convergence cycle 2;
+4. freeze a new exact product-code SHA;
+5. revalidate every affected C11 finding against that SHA;
+6. execute remaining real-browser acceptance checks;
+7. only after blocking gaps are cleared issue explicit `RELEASE C11 IMPLEMENTATION`.
+
+At release create/finalize:
+
+`docs/WAVE14-C11-CANONICAL-DEMO-IMPLEMENTATION-PREMISE.md`
+
+Then implement the canonical EEE DEMO Simulation through normal product contracts.
+
+## 10. Future C11 implementation target
+
+The canonical EEE application remains:
+
+- realistic commercial/product DEMO;
+- Engineering example;
 - operator Runtime demonstration;
 - regression/acceptance application;
-- Product Owner homologation application;
-- canonical EliteSCADA project example;
-- later proof against a physical PLC using Modbus.
+- Product Owner browser homologation application;
+- later physical PLC/Modbus proof.
 
-The planned Runtime experience includes:
+Expected Screens include at least:
 
 - `Visão Geral / EEE Principal`;
 - `Instrumentação`;
 - `Sistema Elétrico`;
-- `Operação`;
-- two pumps/motors with stopped/running/fault/trip/unavailable/bad-quality states;
-- suction-well analog level;
-- numeric `% Full`;
-- visibly animated liquid rising/falling with process state;
-- coherent level, flow, pressure, frequency, current and related values;
-- contextual equipment Popups;
-- reusable Dynamos/public properties/TAG bindings;
-- alarms, events, trends and history;
-- project PNG/background/assets through canonical project contracts;
-- proper operator versus Engineering/Diagnostics separation;
-- `pt-BR`, `en`, `es` user experience;
-- scripts/animations only through canonical EliteSCADA APIs and boundaries.
+- `Operação`.
 
-Critical states must not rely only on color.
+Required experience includes two pumps, full state projection including bad quality, animated wet-well level and `% Full`, coherent process values, reusable Dynamos, contextual positioned Popups, commands, alarms, events, Multi-Pen Trends, history, project assets and `pt-BR`/`en`/`es`.
 
-## 7. DEMO Simulation target
+Simulation and later PLC/Modbus variants should preserve the same conceptual Screens/Dynamos/Popups/TAG identities as far as product contracts permit, with the later transition primarily changing Source/address mapping.
 
-The first executable canonical application will be **DEMO Simulation**.
+## 11. Preview and Wave 13 boundaries
 
-It must be visibly alive rather than a static fixture. Intended behavior includes:
+Issue #208 / PR #210 remains Preview infrastructure/history, not product authority. Preview should only be updated for the new canonical DEMO after C11 implementation exists through normal product flow.
 
-- process inflow raises well level;
-- running pump(s) lower level;
-- automatic start/stop thresholds;
-- duty/standby alternation between pump 1 and pump 2;
-- second-pump demand under higher process load;
-- pump fault/trip injection;
-- unavailable/bad-quality scenario;
-- coherent current/frequency/flow/pressure response;
-- alarms triggered by simulated process conditions;
-- evolving historian/trend data;
-- deterministic/reproducible enough behavior for browser homologation and regression.
+Wave 13 issue #205 / PR #207 remains paused. Future Windows packaging/signing must consume the final accepted Wave 14 product bytes, not a stale pre-Wave14 snapshot.
 
-Shared/authoritative process state should use product-supported shared mechanisms. Client-local memory is reserved for client UI state where appropriate. The exact simulation implementation mechanism remains subject to Pass 2 and the later approved implementation premise.
+## 12. Mandatory resume reading
 
-No DEMO-only Driver, direct DOM/React manipulation, hidden package JSON, security bypass or private host memory shortcut is acceptable.
-
-## 8. DEMO PLC / Modbus target
-
-After Simulation is accepted, a second stage will validate the canonical application against a physical PLC using Product Owner supplied Modbus addresses.
-
-The architectural goal is to preserve as much as technically possible:
-
-- Screens;
-- Dynamos;
-- Popups;
-- conceptual TAG identities;
-- alarms;
-- trends/history;
-- visual logic;
-- operator experience.
-
-The intended change is primarily Source/address mapping:
-
-`Simulation/internal source -> real Modbus Source -> Product Owner supplied PLC addresses`
-
-Do not design a Simulation-only visual/TAG architecture that must be rebuilt for PLC validation.
-
-Simulation success does not prove PLC/Modbus integration. PLC connectivity does not excuse a non-reproducible Simulation project. They are separate acceptance proofs of one conceptual HMI architecture.
-
-## 9. Binding future route
-
-The official sequence from the current checkpoint is:
-
-`97eefd8... C10 converged product freeze`
-`-> C11 Pass 2 progressive audit`
-`-> consolidated evidence-backed C11 gap matrix`
-`-> Coordinator/Development Lead disposition of every gap`
-`-> bounded pre-DEMO product correction lane(s), if required`
-`-> integrate approved corrections into wave14/corrections-integration`
-`-> rerun C10 convergence and freeze a new exact product SHA if product code changed`
-`-> revalidate affected C11 findings`
-`-> explicit C11 implementation release`
-`-> create/finalize docs/WAVE14-C11-CANONICAL-DEMO-IMPLEMENTATION-PREMISE.md`
-`-> record full DEMO premise + functional architecture + Product Owner decisions in GitHub`
-`-> implement canonical EEE DEMO Simulation through normal Engineering contracts`
-`-> Save -> Publish -> Activate -> HMI Runtime validation`
-`-> validate living process, alarms, events, trends/history, Dynamos, Popups, assets and multilingual behavior`
-`-> establish PLC/Modbus-compatible mapping model`
-`-> validate against physical PLC when hardware is available`
-`-> run full exact-head EliteSCADA CI + impact-specific workflows`
-`-> update Preview harness to load the new canonical DEMO through normal product flow`
-`-> validate from a clean Codespace`
-`-> real-browser Product Owner homologation`
-`-> accept final Wave 14 product baseline`
-`-> only then resume Wave 13 Windows release/signing on the accepted Wave 14 bytes`
-
-Do not reorder the critical gates by building the DEMO before gap disposition or by signing a stale pre-Wave14 product.
-
-## 10. Preview and Wave 13 boundaries
-
-Issue #208 / PR #210 remains Preview infrastructure/history, not product authority. Operational procedure remains in:
-
-`docs/CODESPACES-PREVIEW-RUNBOOK.md`
-
-The historical Preview launcher that reconstructs the old Wave11 DEMO is not the final Wave14 acceptance fixture. Preview should be updated only after the canonical C11 DEMO exists and is accepted for that stage.
-
-Wave 13 issue #205 / PR #207 remains paused.
-
-Do not resume release/signing against stale product bytes. Future Windows packaging/signing must consume the accepted Wave14 product baseline and preserve the already-proven Wave13 release machinery, recording exact product and packaging/signing SHAs.
-
-## 11. Mandatory resume reading
-
-Read in order:
+Read/revalidate in order:
 
 1. `PROJECT GOAL.md`;
 2. this file;
 3. `docs/CURRENT-COORDINATOR-HANDOFF.md`;
-4. `docs/WAVE14-C10-CONVERGENCE-C11-PASS2-RELEASE.md`;
-5. `docs/WAVE14-C11-CANONICAL-DEMO-REQUIREMENTS.md`;
-6. C11 active output: `docs/WAVE14-C11-PASS2-PRODUCT-GAP-AUDIT.md` on `wave14/c11-pass2-product-gap-audit`;
-7. `docs/WAVE14-CORRECTION-PACKAGES.md`;
-8. `docs/CI-VALIDATION-POLICY.md`;
-9. `docs/CODESPACES-PREVIEW-RUNBOOK.md`;
-10. live issue #211 and draft PR #212;
-11. issue #208 / PR #210 only for Preview history;
-12. issue #205 / PR #207 only for paused Wave13 context.
+4. `docs/WAVE14-C11-PRE-DEMO-CORRECTION-PACKAGES.md`;
+5. `docs/WAVE14-C10-CONVERGENCE-C11-PASS2-RELEASE.md`;
+6. `docs/WAVE14-C11-CANONICAL-DEMO-REQUIREMENTS.md`;
+7. C11 consolidated audit on `wave14/c11-pass2-product-gap-audit`;
+8. C11 HMI-object Product Owner clarification on that branch;
+9. `docs/WAVE14-CORRECTION-PACKAGES.md` for historical C01-C10 intake;
+10. `docs/CI-VALIDATION-POLICY.md`;
+11. live issue #211 and draft PR #212;
+12. issue #208 / PR #210 only for Preview history;
+13. issue #205 / PR #207 only for paused Wave13 context.
 
 Then revalidate live GitHub before acting.
 
-## 12. Exact next actions
+## 13. Exact next coordinator actions
 
-1. C11 continues Pass 2 only against frozen product SHA `97eefd8...` and writes evidence into `docs/WAVE14-C11-PASS2-PRODUCT-GAP-AUDIT.md` on `wave14/c11-pass2-product-gap-audit`;
-2. C11 closes the high-priority Runtime/Simulation/quality/authoring questions and re-tests all Pass 1 findings;
-3. C11 returns the consolidated matrix, blocking/non-blocking gap list and final recommendation;
-4. Coordinator/Development Lead dispositions every confirmed gap;
-5. approved product fixes, if any, are dispatched as bounded correction lanes rather than implemented inside C11;
-6. any product-code change is reintegrated and causes a new C10 exact-SHA convergence freeze plus affected C11 revalidation;
-7. only after blocking gaps are cleared or explicitly accepted does the Coordinator release C11 implementation;
-8. at implementation release, write the full canonical DEMO implementation premise/architecture into the repository before or alongside implementation;
-9. build and validate DEMO Simulation first while preserving PLC/Modbus reuse by design;
-10. later validate the same conceptual application against the physical Modbus PLC;
-11. finish Wave14 with exact-head CI, updated Preview, clean Codespace and real-browser Product Owner homologation;
-12. only after Wave14 acceptance resume Wave13 Windows packaging/signing against the accepted Wave14 product bytes.
+1. release C12-C17 DEV chats against the common published base;
+2. keep C18 implementation blocked pending its prerequisites;
+3. review each DEV candidate against exact branch ancestry, scope and CI;
+4. integrate accepted corrections with expected-head protection;
+5. run affected exact-head workflows after every product integration step as required by policy;
+6. establish the C18 base only after accepted prerequisite contracts exist;
+7. integrate C18;
+8. run C10 convergence cycle 2 and freeze the new exact product SHA;
+9. re-audit affected C11 rows and execute remaining browser acceptance;
+10. if all blocking product gaps are cleared, explicitly release C11 implementation;
+11. build the EEE Simulation only through the corrected normal product tools;
+12. later validate the same conceptual application against the physical Modbus PLC;
+13. complete full CI, Preview/Codespaces and Product Owner homologation;
+14. only after Wave 14 acceptance resume Wave 13 packaging/signing.

@@ -21,6 +21,7 @@ import {
 } from './DataSourceCatalogEditor.logic';
 import { resolveDriverCatalogResource } from './driverCatalogI18n';
 import type { EngineeringLocale } from './i18n';
+import { OpcUaDataSourceDiscoveryAssistant } from './OpcUaDataSourceDiscoveryAssistant';
 import type { DataSourceEngineering, EngineeringPackageView } from './types';
 import './structured-editors.css';
 
@@ -268,6 +269,13 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
                 {(currentType.configurationSchema?.dataSourceFields.length ?? 0) === 0 && <span>{copy.noSettings}</span>}
               </div>
             </section>}
+
+            {currentType && <OpcUaDataSourceDiscoveryAssistant
+              draft={draft}
+              definition={currentType}
+              locale={locale}
+              onChange={updateDraft}
+            />}
 
             {hasIncompatible && currentType && (
               <section className="eng-preview-panel" aria-live="polite" data-testid="data-source-incompatible-settings">

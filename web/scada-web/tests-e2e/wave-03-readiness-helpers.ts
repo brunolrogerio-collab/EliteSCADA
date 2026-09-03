@@ -4,7 +4,7 @@ export type ReadinessIssueClass = 'BLOCKER' | 'MAJOR UX' | 'MINOR UX' | 'TEST GA
 
 export const E2E_BASE_URL = 'http://127.0.0.1:5173';
 export const LOCAL_DEVELOPER_USERNAME = 'local-developer';
-export const LOCAL_DEVELOPER_PASSWORD = 'E2E-local-password-123!';
+export const LOCAL_DEVELOPER_PASSWORD = 'E2Epass8';
 
 export function annotateReadinessIssue(
   testInfo: TestInfo,

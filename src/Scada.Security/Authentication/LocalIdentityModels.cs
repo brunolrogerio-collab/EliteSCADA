@@ -54,6 +54,8 @@ public static class LocalIdentityNormalization
 public static class LocalPasswordHasher
 {
     public const int DefaultIterations = 210_000;
+    public const int MinimumPasswordLength = 8;
+    public const int MaximumPasswordLength = 1024;
     private const int SaltSize = 32;
     private const int HashSize = 32;
 
@@ -90,9 +92,9 @@ public static class LocalPasswordHasher
 
     public static void ValidatePassword(string password)
     {
-        if (string.IsNullOrWhiteSpace(password) || password.Length < 12)
-            throw new ArgumentException("Password must contain at least 12 characters.", nameof(password));
-        if (password.Length > 1024)
+        if (string.IsNullOrWhiteSpace(password) || password.Length < MinimumPasswordLength)
+            throw new ArgumentException($"Password must contain at least {MinimumPasswordLength} characters.", nameof(password));
+        if (password.Length > MaximumPasswordLength)
             throw new ArgumentOutOfRangeException(nameof(password), "Password is too long.");
     }
 }

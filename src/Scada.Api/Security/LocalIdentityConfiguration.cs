@@ -1,3 +1,4 @@
+using Scada.Engineering.Persistence;
 using Scada.Persistence.PostgreSql;
 using Scada.Security.Authentication;
 
@@ -7,7 +8,8 @@ public sealed record LocalIdentityRuntimeOptions(
     bool AuthenticationEnabled,
     bool Enabled,
     bool SecureCookie,
-    string CookieName);
+    string CookieName,
+    bool DurableStore = false);
 
 public sealed class LocalLoginAttemptLimiter
 {
@@ -109,7 +111,8 @@ public static class LocalIdentityConfiguration
                 authenticationEnabled,
                 false,
                 true,
-                DefaultCookieName));
+                DefaultCookieName,
+                false));
             return false;
         }
 
@@ -121,22 +124,22 @@ public static class LocalIdentityConfiguration
         if (cookieName.Any(char.IsWhiteSpace) || cookieName.Contains(';'))
             throw new InvalidOperationException("Authentication:Local:CookieName contains invalid characters.");
 
+        var connectionString = builder.Configuration.GetConnectionString("EliteScada");
+        var durableStore = !string.IsNullOrWhiteSpace(connectionString);
         var secureCookie = local.GetValue<bool?>("SecureCookie") ?? true;
         builder.Services.AddSingleton(new LocalIdentityRuntimeOptions(
             true,
             true,
             secureCookie,
-            cookieName));
+            cookieName,
+            durableStore));
         builder.Services.AddSingleton<JwtTokenIssuer>();
         builder.Services.AddSingleton<LocalLoginAttemptLimiter>();
-        builder.Services.AddSingleton<ILocalIdentityStore>(sp =>
-        {
-            var configuration = sp.GetRequiredService<IConfiguration>();
-            var connectionString = configuration.GetConnectionString("EliteScada");
-            return string.IsNullOrWhiteSpace(connectionString)
-                ? new InMemoryLocalIdentityStore()
-                : new PostgreSqlLocalIdentityStore(connectionString);
-        });
+        builder.Services.AddSingleton<ILocalIdentityStore>(_ =>
+            durableStore
+                ? new PostgreSqlLocalIdentityStore(connectionString!)
+                : new InMemoryLocalIdentityStore());
+        builder.Services.AddSingleton<LocalIdentityBootstrapService>();
 
         return true;
     }
@@ -161,10 +164,37 @@ public static class LocalIdentityConfiguration
             .Select(value => value!)
             .ToArray();
 
+        var hasAnyConfiguredBootstrapValue =
+            !string.IsNullOrWhiteSpace(username) ||
+            !string.IsNullOrWhiteSpace(displayName) ||
+            !string.IsNullOrWhiteSpace(password) ||
+            roles.Length > 0;
+
+        if (!hasAnyConfiguredBootstrapValue)
+        {
+            if (!runtime.DurableStore)
+            {
+                throw new InvalidOperationException(
+                    "Secure anonymous first-run requires a durable local identity store. Configure ConnectionStrings:EliteScada, or provide the explicit Authentication:Local:Bootstrap configuration for a non-persistent development host.");
+            }
+
+            var catalog = app.Services.GetService<IEngineeringProjectCatalog>();
+            if (catalog is null || await catalog.HasAnyAsync())
+            {
+                app.Logger.LogWarning(
+                    "Local identity store is empty, but anonymous first-run is blocked because the server cannot prove that the installation is empty. Restore an Administrator or provide explicit secured bootstrap configuration.");
+                return;
+            }
+
+            app.Logger.LogInformation(
+                "Local identity and Engineering project stores are empty. Secure first-run setup is available until the first Administrator is created.");
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password) || roles.Length == 0)
         {
             throw new InvalidOperationException(
-                "Local identity store is empty. Configure Authentication:Local:Bootstrap:Username, Password and at least one Roles entry for first startup.");
+                "Authentication:Local:Bootstrap is incomplete. Configure Username, Password and at least one Roles entry, or remove the Bootstrap section to use secure first-run setup with durable persistence.");
         }
 
         LocalPasswordHasher.ValidatePassword(password);

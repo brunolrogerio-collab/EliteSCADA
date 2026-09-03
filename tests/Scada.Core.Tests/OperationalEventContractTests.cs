@@ -3,13 +3,14 @@ using Scada.Core.Events;
 using Scada.Core.HistoricalQueries;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
+using Scada.Security.Audit;
 
 namespace Scada.Core.Tests;
 
 public sealed class OperationalEventContractTests
 {
     [Fact]
-    public void Occurrence_PreservesDefinitionIdentityAndDynamicContext()
+    public void Occurrence_PreservesDefinitionIdentityAndStructuredContext()
     {
         var definitionId = Guid.NewGuid();
         var tagId = Guid.NewGuid();
@@ -26,7 +27,12 @@ public sealed class OperationalEventContractTests
             "LiftStation/Pump01",
             tagId,
             "LiftStation/Pump01/Running",
-            "Pump state changed");
+            "Pump state changed",
+            new Dictionary<string, string>
+            {
+                ["equipment.class"] = "pump",
+                ["transition"] = "authored-default"
+            });
 
         var occurrence = OperationalEventContract.CreateOccurrence(
             definition,
@@ -35,7 +41,12 @@ public sealed class OperationalEventContractTests
                 Operation: "start",
                 CommandId: commandId,
                 CommandKey: "pump01.start",
-                Context: new Dictionary<string, string> { ["from"] = "stopped", ["to"] = "running" }),
+                Context: new Dictionary<string, string>
+                {
+                    ["from"] = "stopped",
+                    ["to"] = "running",
+                    ["transition"] = "runtime-value"
+                }),
             timestamp,
             Guid.Parse("20000000-0000-0000-0000-000000000001"));
 
@@ -44,10 +55,13 @@ public sealed class OperationalEventContractTests
         Assert.Equal(commandId, occurrence.CommandId);
         Assert.Equal("operator-7", occurrence.Operator);
         Assert.Equal("start", occurrence.Operation);
+        Assert.Equal("pump", occurrence.Context["equipment.class"]);
         Assert.Equal("running", occurrence.Context["to"]);
+        Assert.Equal("runtime-value", occurrence.Context["transition"]);
         Assert.Equal(timestamp, occurrence.OccurredAt);
         Assert.IsAssignableFrom<IScadaEvent>(occurrence);
         Assert.NotEqual(typeof(AlarmStateChanged), occurrence.GetType());
+        Assert.NotEqual(typeof(AuditEvent), occurrence.GetType());
     }
 
     [Fact]

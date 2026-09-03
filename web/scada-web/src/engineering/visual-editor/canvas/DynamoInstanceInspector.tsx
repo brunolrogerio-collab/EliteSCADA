@@ -17,6 +17,12 @@ import {
   listDynamoPublicParameterValues,
   resolveDynamoParameterEditorKind
 } from '../dynamo/dynamoPublicInterfaceModel';
+import {
+  resolveDynamoVisualState,
+  type DynamoCommandIntent,
+  type DynamoQualityState,
+  type DynamoSettledState
+} from '../dynamo/dynamoStateModel';
 import './DynamoInstanceInspector.css';
 
 export function DynamoInstanceInspector({
@@ -97,6 +103,7 @@ function DynamoInspectorBody({
       <div className="visual-editor-dynamo-inspector__identity">
         <span>Instance</span><code>{instance.key}</code>
       </div>
+      <DynamoStatePreview />
       {parameters.length === 0 ? <p className="visual-editor-dynamo-inspector__empty">No public parameters.</p> : parameters.map(parameter => {
         const value = values.get(normalizeKey(parameter.key));
         return <ParameterEditor
@@ -112,6 +119,35 @@ function DynamoInspectorBody({
       })}
     </div>
   </details>;
+}
+
+function DynamoStatePreview() {
+  const [quality, setQuality] = useState<DynamoQualityState>('good');
+  const [fault, setFault] = useState(false);
+  const [alarm, setAlarm] = useState(false);
+  const [commandIntent, setCommandIntent] = useState<DynamoCommandIntent>(null);
+  const [settledState, setSettledState] = useState<DynamoSettledState>('inactive');
+  const resolved = resolveDynamoVisualState({ quality, fault, alarm, commandIntent, settledState });
+
+  return <section className="visual-editor-dynamo-state-preview" data-testid="dynamo-engineering-state-preview">
+    <header><strong>Engineering state preview</strong><span data-state={resolved.kind}>{resolved.kind}</span></header>
+    <div className="visual-editor-dynamo-state-preview__grid">
+      <label><span>Quality</span><select value={quality} onChange={event => setQuality(event.currentTarget.value as DynamoQualityState)}>
+        <option value="good">Good</option><option value="uncertain">Uncertain</option><option value="bad">Bad</option><option value="stale">Stale</option><option value="unknown">Unknown</option>
+      </select></label>
+      <label><span>Settled</span><select value={settledState} onChange={event => setSettledState(event.currentTarget.value as DynamoSettledState)}>
+        <option value="inactive">Inactive</option><option value="active">Active</option><option value="transitioning">Transitioning</option><option value="unknown">Unknown</option>
+      </select></label>
+      <label><span>Command</span><select value={commandIntent ?? ''} onChange={event => setCommandIntent((event.currentTarget.value || null) as DynamoCommandIntent)}>
+        <option value="">None</option><option value="start">Start</option><option value="stop">Stop</option><option value="open">Open</option><option value="close">Close</option><option value="increase">Increase</option><option value="decrease">Decrease</option><option value="setpoint">Setpoint</option>
+      </select></label>
+      <div className="visual-editor-dynamo-state-preview__checks">
+        <label><input type="checkbox" checked={fault} onChange={event => setFault(event.currentTarget.checked)} />Fault</label>
+        <label><input type="checkbox" checked={alarm} onChange={event => setAlarm(event.currentTarget.checked)} />Alarm</label>
+      </div>
+    </div>
+    <footer><span>Resolved priority</span><strong>{resolved.priority}</strong><small>Preview only. Nothing is persisted.</small></footer>
+  </section>;
 }
 
 function ParameterEditor({

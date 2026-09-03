@@ -1,10 +1,7 @@
 import type {
-  BindingEngineering,
   EngineeringPackageView,
   PopupEngineering,
-  ScreenEngineering,
-  ScriptLinkEngineering,
-  VisualEventEngineering
+  ScreenEngineering
 } from '../types';
 import { cloneEngineeringValue } from './visualEditorCanonicalModel';
 
@@ -17,9 +14,6 @@ export const NEW_POPUP_IDENTITY = 'draft:new-popup';
  */
 export type PopupVisualFrame = Readonly<{
   templateKey: string | null;
-  bindings: readonly BindingEngineering[];
-  events: readonly VisualEventEngineering[];
-  scriptLinks: readonly ScriptLinkEngineering[];
 }>;
 
 export function popupIdentity(popup: PopupEngineering): string {
@@ -46,10 +40,7 @@ export function popupToVisualScreen(popup: PopupEngineering): ScreenEngineering 
 
 export function popupFrame(popup: PopupEngineering): PopupVisualFrame {
   return Object.freeze({
-    templateKey: popup.templateKey ?? null,
-    bindings: Object.freeze(cloneEngineeringValue(popup.bindings ?? [])),
-    events: Object.freeze(cloneEngineeringValue(popup.events ?? [])),
-    scriptLinks: Object.freeze(cloneEngineeringValue(popup.scriptLinks ?? []))
+    templateKey: popup.templateKey ?? null
   });
 }
 
@@ -62,9 +53,6 @@ export function visualScreenToPopup(
     key: screen.key,
     name: screen.name,
     templateKey: frame.templateKey,
-    bindings: cloneEngineeringValue([...frame.bindings]),
-    events: cloneEngineeringValue([...frame.events]),
-    scriptLinks: cloneEngineeringValue([...frame.scriptLinks]),
     properties: cloneEngineeringValue(screen.properties ?? {}),
     context: cloneEngineeringValue(screen.context ?? {}),
     metadata: cloneEngineeringValue(screen.metadata ?? {}),
@@ -85,9 +73,6 @@ export function createPopupDraft(
     key,
     name,
     templateKey: null,
-    bindings: [],
-    events: [],
-    scriptLinks: [],
     properties: {},
     context: {},
     metadata: {},

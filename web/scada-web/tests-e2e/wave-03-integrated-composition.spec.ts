@@ -132,7 +132,16 @@ test('Wave 03 integrated composition publishes, activates and operates through m
 
   await page.goto('/');
   await expect(page.getByRole('region', { name: 'Central de alarmes' })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Inspector de TAGs' })).toBeVisible();
-  await expect(page.getByRole('listbox', { name: 'Inspector de TAGs' }).getByText(runtimeTagPath, { exact: true })).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText('42', { exact: true }).first()).toBeVisible();
+  await expect(page.locator('.runtime-tag-inspector')).toHaveCount(0);
+
+  await page.goto('/engineering/diagnostics/tag-monitor');
+  const tagMonitor = page.getByTestId('engineering-tag-monitor');
+  await expect(tagMonitor).toBeVisible();
+  await expect(tagMonitor).toHaveAttribute('data-active-runtime-project', projectKey);
+  await expect(tagMonitor).toHaveAttribute('data-active-runtime-revision', String(runtime.live.revision));
+
+  const inspector = tagMonitor.locator('.runtime-tag-inspector');
+  await expect(inspector).toBeVisible();
+  await expect(inspector.getByRole('listbox', { name: 'Inspector de TAGs' }).getByText(runtimeTagPath, { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(inspector.getByText('42', { exact: true }).first()).toBeVisible();
 });

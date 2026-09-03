@@ -1,13 +1,12 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { AppNavigation } from './AppNavigation';
-import { appShellText, resolveAppShellLocale } from './appShellI18n';
+import { appShellText, useAppShellLocale } from './appShellI18n';
 import { initializeAppTheme } from './appTheme';
 import { AuditApp } from './audit';
 import { AuthGate } from './auth/AuthGate';
 import {
-  hasRuntimeCapability,
-  hasWorkspaceCapability,
+  resolveAppSurfaceAccess,
   useEffectiveCapabilities
 } from './auth/effectiveCapabilities';
 import { EngineeringApp } from './engineering/EngineeringApp';
@@ -29,7 +28,7 @@ function RuntimeHistoricalBrowserApp() {
 }
 
 function ApplicationSurface() {
-  const locale = resolveAppShellLocale();
+  const locale = useAppShellLocale();
   const text = appShellText(locale);
   const { capabilities, loading, error } = useEffectiveCapabilities();
   const path = window.location.pathname;
@@ -39,31 +38,28 @@ function ApplicationSurface() {
     return <main className="shell app-route-state" role="alert">{text.capabilitiesUnavailable}</main>;
   }
 
-  const canRuntime = hasRuntimeCapability(capabilities, 'View');
-  const canEngineering = hasWorkspaceCapability(capabilities, 'EngineeringModify');
-  const canSystemAdmin = hasRuntimeCapability(capabilities, 'SystemAdmin');
-  const canHistory = hasRuntimeCapability(capabilities, 'TrendUse') || canEngineering || canSystemAdmin;
+  const access = resolveAppSurfaceAccess(capabilities);
 
-  let allowed = canRuntime;
+  let allowed = access.runtime;
   let Surface: React.ComponentType = RuntimeApplicationMount;
   if (path.startsWith('/audit')) {
-    allowed = canSystemAdmin;
+    allowed = access.audit;
     Surface = AuditApp;
   } else if (path.startsWith('/engineering')) {
-    allowed = canEngineering;
+    allowed = access.engineering;
     Surface = EngineeringApp;
   } else if (path.startsWith('/licensing')) {
-    allowed = canSystemAdmin;
+    allowed = access.licensing;
     Surface = LicensingApp;
   } else if (path.startsWith('/runtime/history')) {
-    allowed = canRuntime && canHistory;
+    allowed = access.runtime && access.history;
     Surface = RuntimeHistoricalBrowserApp;
   }
 
   if (!allowed) {
     return <main className="shell app-route-state" role="alert">
       <strong>{text.accessDenied}</strong>
-      {canRuntime ? <a href="/">{text.runtime}</a> : null}
+      {access.runtime ? <a href="/">{text.runtime}</a> : null}
     </main>;
   }
 

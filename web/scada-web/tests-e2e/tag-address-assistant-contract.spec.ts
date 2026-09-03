@@ -2,11 +2,12 @@ import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import {
   applyModbusAddressBuild,
+  metadataValue,
   parseCanonicalModbusAddress
 } from '../src/engineering/TagAddressAssistant.logic';
 import type { TagSourceAwareEngineering } from '../src/engineering/TagSourceSelector.logic';
 
-test('Modbus assistant output converges to canonical TAG address fields', () => {
+test('Modbus assistant output converges legacy compatibility fields and canonical CommunicationBinding', () => {
   const tag: TagSourceAwareEngineering = {
     name: 'Status',
     path: 'Plant.Status',
@@ -28,7 +29,11 @@ test('Modbus assistant output converges to canonical TAG address fields', () => 
     },
     addressSelector: { kind: 'bit', index: 3 },
     writableArea: true,
-    canonicalReferenceBase: 'zeroBased'
+    canonicalReferenceBase: 'zeroBased',
+    bindingSchema: {
+      schemaId: 'modbus.tcp.engineering',
+      schemaVersion: 1
+    }
   });
 
   expect(next.address).toBe('holding:0');
@@ -37,6 +42,32 @@ test('Modbus assistant output converges to canonical TAG address fields', () => 
   expect(next.metadata?.['modbus.valueType']).toBe('Boolean');
   expect(next.metadata?.['modbus.wordOrder']).toBeUndefined();
   expect(next.metadata?.['project.note']).toBe('keep-me');
+  expect(next.communicationBinding).toEqual({
+    contractVersion: 1,
+    schemaId: 'modbus.tcp.engineering',
+    schemaVersion: 1,
+    portableAddress: 'holding:0',
+    settings: {
+      'modbus.unitId': '2',
+      'modbus.valueType': 'Boolean'
+    }
+  });
+});
+
+test('Modbus assistant reads canonical binding settings before legacy metadata', () => {
+  const tag: TagSourceAwareEngineering = {
+    name: 'Pressure', path: 'Plant.Pressure', dataType: 'double', readOnly: true,
+    metadata: { 'modbus.unitId': '1' },
+    communicationBinding: {
+      contractVersion: 1,
+      schemaId: 'modbus.tcp.engineering',
+      schemaVersion: 1,
+      portableAddress: 'holding:10',
+      settings: { 'modbus.unitId': '9' }
+    }
+  };
+
+  expect(metadataValue(tag, 'modbus.unitId')).toBe('9');
 });
 
 test('manual canonical Modbus syntax is parseable without guessing reference conventions', () => {
@@ -68,6 +99,7 @@ test('TAG editor routes specialized assistants through one registry and keeps sc
   expect(generic).toContain('tagBindingSchemaIdentity');
   expect(generic).toContain('data-testid="generic-tag-binding-assistant"');
   expect(api).toContain('/api/engineering/tag-address/modbus/build');
+  expect(api).toContain("loadTagBindingSchema('modbus.tcp')");
 });
 
 test('DNP3 and IEC-104 specialized assistants validate against the backend TAG binding definition', async () => {

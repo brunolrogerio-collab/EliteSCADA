@@ -36,10 +36,8 @@ test('16:10 viewport letterboxes a 16:9 Screen without distortion', () => {
   expect(result.width / result.height).toBeCloseTo(16 / 9, 8);
 });
 
-test('logical size is authored per Screen with deterministic 1920x1080 fallback', () => {
-  expect(resolveRuntimeLogicalSize({ designWidth: '1600', designHeight: '900' })).toEqual({ width: 1600, height: 900 });
-  expect(resolveRuntimeLogicalSize({})).toEqual(DESIGN);
-  expect(resolveRuntimeLogicalSize({ designWidth: '-1', designHeight: 'NaN' })).toEqual(DESIGN);
+test('logical size uses deterministic 1920x1080 fallback without undeclared Screen schema keys', () => {
+  expect(resolveRuntimeLogicalSize()).toEqual(DESIGN);
 });
 
 test('pointer coordinates invert the exact visual scale and letterbox offset', () => {

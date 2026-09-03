@@ -17,6 +17,11 @@ export type DataSourceConfigurationField = {
   exampleValue?: string | null;
 };
 
+export type TagBindingSchemaIdentity = Readonly<{
+  schemaId: string;
+  schemaVersion: number;
+}>;
+
 export type DataSourceTypeDefinition = {
   typeKey: string;
   displayName: string;
@@ -36,6 +41,8 @@ export type DataSourceTypeDefinition = {
     dataSourceFields: DataSourceConfigurationField[];
     tagBindingFields: DataSourceConfigurationField[];
   } | null;
+  tagBindingSchemaId?: string | null;
+  tagBindingSchemaVersion?: number | null;
 };
 
 export type DataSourceDraftIssue = {
@@ -48,6 +55,18 @@ export type IncompatibleDataSourceConfiguration = {
   settings: string[];
   secretReferences: string[];
 };
+
+export function tagBindingSchemaIdentity(
+  type: DataSourceTypeDefinition | null | undefined
+): TagBindingSchemaIdentity | null {
+  const configurationSchema = type?.configurationSchema;
+  if (!configurationSchema) return null;
+
+  const schemaId = type?.tagBindingSchemaId?.trim() || configurationSchema.schemaId;
+  const schemaVersion = type?.tagBindingSchemaVersion ?? configurationSchema.schemaVersion;
+  if (!schemaId || !Number.isInteger(schemaVersion) || schemaVersion <= 0) return null;
+  return { schemaId, schemaVersion };
+}
 
 export function isProtectedReference(kind: string): boolean {
   return kind === 'secretReference' || kind === 'certificateReference';

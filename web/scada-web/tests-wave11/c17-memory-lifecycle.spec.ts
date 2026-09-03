@@ -115,6 +115,7 @@ test('Internal Memory is authored through normal Engineering UI and survives Sav
 
     const firstWrite = await first.evaluate(async ({ path }) => {
       const module = await import('/src/runtime/clientMemory.ts');
+      await module.clientMemory.ensureInitialized();
       module.clientMemory.write(path, 'client-one');
       return module.clientMemory.read(path);
     }, { path: clientTagPath });
@@ -224,6 +225,7 @@ async function readClientMemory(page: Page, path: string): Promise<unknown> {
   return await page.evaluate(async ({ memoryPath }) => {
     const module = await import('/src/runtime/clientMemory.ts');
     try {
+      await module.clientMemory.ensureInitialized();
       return module.clientMemory.read(memoryPath);
     } catch {
       return null;

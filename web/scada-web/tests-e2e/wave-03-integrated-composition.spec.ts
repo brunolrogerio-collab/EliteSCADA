@@ -23,10 +23,12 @@ test('Wave 03 integrated composition publishes, activates and operates through m
     ...engineering,
     exportedAt: new Date().toISOString(),
     dataSources: [
-      ...(engineering.dataSources ?? []).map((source: any) => ({
-        ...source,
-        enabled: false
-      })),
+      ...(engineering.dataSources ?? [])
+        .filter((source: any) => source.id !== runtimeSourceId && source.key !== runtimeSourceKey)
+        .map((source: any) => ({
+          ...source,
+          enabled: false
+        })),
       {
         id: runtimeSourceId,
         key: runtimeSourceKey,
@@ -36,7 +38,8 @@ test('Wave 03 integrated composition publishes, activates and operates through m
       }
     ],
     tags: [
-      ...(engineering.tags ?? []),
+      ...(engineering.tags ?? [])
+        .filter((tag: any) => tag.id !== runtimeTagId && tag.path !== runtimeTagPath),
       {
         id: runtimeTagId,
         name: 'RuntimeValue',
@@ -131,7 +134,11 @@ test('Wave 03 integrated composition publishes, activates and operates through m
   expect(activeTags[0]).toMatchObject({ id: runtimeTagId, path: runtimeTagPath });
 
   await page.goto('/');
-  await expect(page.getByRole('region', { name: 'Central de alarmes' })).toBeVisible();
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await page.getByRole('button', { name: 'Alarmes', exact: true }).click();
+  const alarmOverlay = page.locator('.runtime-operator-overlay');
+  await expect(alarmOverlay).toBeVisible();
+  await expect(alarmOverlay.getByRole('heading', { name: 'Central de alarmes' })).toBeVisible();
   await expect(page.locator('.runtime-tag-inspector')).toHaveCount(0);
 
   await page.goto('/engineering/diagnostics/tag-monitor');

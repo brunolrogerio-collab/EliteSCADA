@@ -1,4 +1,5 @@
 import type { ModbusAddressBuildResult } from './TagAddressAssistant.logic';
+import { loadTagBindingSchema } from './TagBindingSchema';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
@@ -17,6 +18,7 @@ export type ModbusAddressBuildRequest = Readonly<{
 export async function buildModbusTagAddress(
   request: ModbusAddressBuildRequest
 ): Promise<ModbusAddressBuildResult> {
+  const schemaPromise = loadTagBindingSchema('modbus.tcp');
   const response = await fetch(`${API}/api/engineering/tag-address/modbus/build`, {
     method: 'POST',
     headers: {
@@ -31,5 +33,9 @@ export async function buildModbusTagAddress(
     throw new Error(body || `${response.status} ${response.statusText}`);
   }
 
-  return await response.json() as ModbusAddressBuildResult;
+  const [result, bindingSchema] = await Promise.all([
+    response.json() as Promise<ModbusAddressBuildResult>,
+    schemaPromise
+  ]);
+  return { ...result, bindingSchema };
 }

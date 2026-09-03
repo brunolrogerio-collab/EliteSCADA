@@ -256,10 +256,10 @@ public static class EngineeringDriverCatalogApi
             error = $"Driver '{driverType}' does not support Engineering capability '{capability}'."
         });
 
-    private static IResult DriverToolFailure(Exception exception) =>
+    private static IResult DriverToolFailure(Exception _) =>
         Results.Problem(
             title: "Driver Engineering operation failed.",
-            detail: exception.Message,
+            detail: "The driver operation failed before producing a safe Engineering result. Working and Runtime state were not changed.",
             statusCode: StatusCodes.Status502BadGateway);
 
     private static string NormalizeEnumToken(string value) =>

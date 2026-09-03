@@ -6,6 +6,7 @@ import {
   type DataSourceTypeDefinition
 } from './DataSourceCatalogEditor.logic';
 import type { EngineeringLocale } from './i18n';
+import { c04Text, type C04Text } from './c04I18n';
 import type { TagSourceAwareEngineering } from './TagSourceSelector.logic';
 
 type Props = {
@@ -16,7 +17,7 @@ type Props = {
 };
 
 export function GenericTagBindingAssistant({ tag, driverType, locale, onChange }: Props) {
-  const text = useMemo(() => copy(locale), [locale]);
+  const text = useMemo(() => c04Text(locale).generic, [locale]);
   const [definition, setDefinition] = useState<DataSourceTypeDefinition | null>(null);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -34,17 +35,17 @@ export function GenericTagBindingAssistant({ tag, driverType, locale, onChange }
         setDefinition(next);
         setSettings(initialSettings(next, tag));
       })
-      .catch(reason => {
+      .catch(() => {
         if (!alive) return;
         setDefinition(null);
         setSettings({});
-        setError(reason instanceof Error ? reason.message : String(reason));
+        setError(text.schemaUnavailable);
       })
       .finally(() => {
         if (alive) setLoading(false);
       });
     return () => { alive = false; };
-  }, [driverType, tag.communicationBinding]);
+  }, [driverType, tag.communicationBinding, text.schemaUnavailable]);
 
   const fields = definition?.configurationSchema?.tagBindingFields ?? [];
   if (loading) return <small data-testid="generic-tag-binding-loading">{text.loading}</small>;
@@ -101,6 +102,7 @@ export function GenericTagBindingAssistant({ tag, driverType, locale, onChange }
             key={field.key}
             field={field}
             value={settings[field.key] ?? ''}
+            protectedMaterialHint={text.protectedMaterialHint}
             onChange={value => setSettings(current => ({ ...current, [field.key]: value }))}
           />
         ))}
@@ -115,9 +117,10 @@ export function GenericTagBindingAssistant({ tag, driverType, locale, onChange }
   );
 }
 
-function GenericField({ field, value, onChange }: {
+function GenericField({ field, value, protectedMaterialHint, onChange }: {
   field: DataSourceConfigurationField;
   value: string;
+  protectedMaterialHint: string;
   onChange: (value: string) => void;
 }) {
   const testId = `generic-tag-binding-${field.key.replace(/[^A-Za-z0-9_-]+/g, '-')}`;
@@ -150,7 +153,7 @@ function GenericField({ field, value, onChange }: {
         />
       )}
       {field.description && <small>{field.description}</small>}
-      {unsupportedProtected && <small>Protected material must remain on the Data Source secretReferences boundary.</small>}
+      {unsupportedProtected && <small>{protectedMaterialHint}</small>}
     </label>
   );
 }
@@ -176,7 +179,7 @@ function initialSettings(
 function validateSettings(
   fields: readonly DataSourceConfigurationField[],
   settings: Readonly<Record<string, string>>,
-  text: ReturnType<typeof copy>
+  text: C04Text['generic']
 ): string | null {
   for (const field of fields) {
     const value = settings[field.key]?.trim() ?? '';
@@ -206,37 +209,4 @@ function validateSettings(
   }
 
   return null;
-}
-
-function copy(locale: EngineeringLocale) {
-  if (locale === 'en') return {
-    title: 'Driver binding settings',
-    help: 'Fields come from the backend Driver catalog. The manual portable Address remains the identity boundary.',
-    loading: 'Loading Driver binding schema…',
-    apply: 'Use binding settings',
-    addressRequired: 'Enter a portable Address before applying Driver binding settings.',
-    schemaUnavailable: 'The backend TAG binding schema is unavailable.',
-    required: 'required value', integer: 'invalid integer', number: 'invalid number', enumValue: 'unsupported value',
-    protectedMaterial: 'protected material belongs to Data Source secretReferences'
-  };
-  if (locale === 'es') return {
-    title: 'Configuración del binding del Driver',
-    help: 'Los campos provienen del catálogo backend del Driver. La dirección portátil manual sigue siendo la identidad.',
-    loading: 'Cargando schema de binding del Driver…',
-    apply: 'Usar configuración de binding',
-    addressRequired: 'Ingrese una dirección portátil antes de aplicar el binding.',
-    schemaUnavailable: 'El schema backend de TAG binding no está disponible.',
-    required: 'valor requerido', integer: 'entero inválido', number: 'número inválido', enumValue: 'valor no soportado',
-    protectedMaterial: 'el material protegido pertenece a secretReferences del Data Source'
-  };
-  return {
-    title: 'Configuração do binding do Driver',
-    help: 'Os campos vêm do catálogo backend do Driver. O Endereço portátil manual continua sendo a identidade.',
-    loading: 'Carregando schema de binding do Driver…',
-    apply: 'Usar configurações de binding',
-    addressRequired: 'Informe um Endereço portátil antes de aplicar as configurações do binding.',
-    schemaUnavailable: 'O schema backend de TAG binding não está disponível.',
-    required: 'valor obrigatório', integer: 'inteiro inválido', number: 'número inválido', enumValue: 'valor não suportado',
-    protectedMaterial: 'material protegido pertence a secretReferences da Data Source'
-  };
 }

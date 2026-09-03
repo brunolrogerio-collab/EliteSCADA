@@ -1,6 +1,7 @@
 import type { ScreenEngineering, VisualElementEngineering } from '../types';
 import {
   applyVisualEditorAuthoringOperation,
+  assertVisualElementsAuthoringEditable,
   type VisualEditorAuthoringOperation
 } from './visualEditorAuthoringModel';
 import {
@@ -11,6 +12,11 @@ import {
   pasteVisualEditorElements,
   type VisualEditorClipboardPayload
 } from './visualEditorClipboardModel';
+import { updateScreenElement } from './visualEditorCanonicalModel';
+import {
+  removeDynamoPublicParameterValue,
+  setDynamoPublicParameterValue
+} from './dynamo/dynamoPublicInterfaceModel';
 import {
   canRedoVisualEditorHistory,
   canUndoVisualEditorHistory,
@@ -218,6 +224,18 @@ export function applyVisualEditorSessionKeyboardCommand(
         objectIds: state.selectedObjectIds,
         locked: command.locked
       });
+    case 'dynamoParameter.set': {
+      assertVisualElementsAuthoringEditable(state.history.present, [command.objectId]);
+      const nextScreen = updateScreenElement(state.history.present, command.objectId, instance =>
+        setDynamoPublicParameterValue(instance, command.definition, command.value));
+      return commitVisualEditorSessionDraft(state, nextScreen);
+    }
+    case 'dynamoParameter.remove': {
+      assertVisualElementsAuthoringEditable(state.history.present, [command.objectId]);
+      const nextScreen = updateScreenElement(state.history.present, command.objectId, instance =>
+        removeDynamoPublicParameterValue(instance, command.definition, command.parameterKey));
+      return commitVisualEditorSessionDraft(state, nextScreen);
+    }
     case 'selectAll':
       return Object.freeze({
         ...state,

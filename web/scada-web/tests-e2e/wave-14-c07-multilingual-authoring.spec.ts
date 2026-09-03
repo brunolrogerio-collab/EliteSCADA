@@ -31,14 +31,14 @@ test('C07 visual authoring surfaces follow live pt-BR, en and es locale changes'
   await expect(library.getByText('Biblioteca de dínamos', { exact: true })).toBeVisible();
 });
 
-test('C07 Runtime Dynamo semantic labels are localized without changing state keys', () => {
+test('C07 Runtime Dynamo semantic and error labels are localized without changing state keys', () => {
   expect(c07VisualEditorText('pt-BR').runtimeState).toMatchObject({
-    fault: 'FALHA', active: 'ATIVO', transition: 'TRANSIÇÃO'
+    fault: 'FALHA', active: 'ATIVO', transition: 'TRANSIÇÃO', dynamoError: 'ERRO DE DÍNAMO'
   });
   expect(c07VisualEditorText('en').runtimeState).toMatchObject({
-    fault: 'FAULT', active: 'ACTIVE', transition: 'TRANSITION'
+    fault: 'FAULT', active: 'ACTIVE', transition: 'TRANSITION', dynamoError: 'DYNAMO ERROR'
   });
   expect(c07VisualEditorText('es').runtimeState).toMatchObject({
-    fault: 'FALLA', active: 'ACTIVO', transition: 'TRANSICIÓN'
+    fault: 'FALLA', active: 'ACTIVO', transition: 'TRANSICIÓN', dynamoError: 'ERROR DE DÍNAMO'
   });
 });

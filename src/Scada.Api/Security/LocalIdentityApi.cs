@@ -18,9 +18,16 @@ public sealed record AuthProfileResponse(
 
 public static class LocalIdentityApi
 {
+    private static int _mapInvocationCount;
+
     public static IEndpointRouteBuilder MapLocalIdentityEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var runtime = endpoints.ServiceProvider.GetRequiredService<LocalIdentityRuntimeOptions>();
+        var invocation = Interlocked.Increment(ref _mapInvocationCount);
+        endpoints.ServiceProvider
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("Scada.Api.Security.LocalIdentityApi")
+            .LogWarning("Mapping Local Identity endpoints invocation {Invocation}.", invocation);
 
         endpoints.MapGet("/api/auth/config", async (HttpContext context, CancellationToken ct) =>
         {
@@ -56,7 +63,7 @@ public static class LocalIdentityApi
                     maximumLength = LocalPasswordHasher.MaximumPasswordLength
                 }
             });
-        });
+        }).WithDisplayName("C01 Local Identity auth config");
 
         if (!runtime.Enabled) return endpoints;
 

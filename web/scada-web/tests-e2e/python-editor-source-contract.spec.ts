@@ -41,7 +41,7 @@ test('Script workspace compiles the exact Client Visual draft before canonical P
   expect(api).toContain('/api/engineering/import/json/apply');
 });
 
-test('controlled Engineering handler preview uses the sandbox host and mediated TAG writer without gaining direct process authority', async () => {
+test('normal Runtime provider owns mediated TAG write while Engineering handler preview explicitly disables process writes', async () => {
   const workspace = await source('../src/engineering/scripts/ScriptEngineeringWorkspace.tsx');
   const previewHost = await source('../src/python-runtime/engineeringPythonPreview.ts');
   const provider = await source('../src/python-runtime/createClientVisualPythonCapabilityProvider.ts');
@@ -51,9 +51,11 @@ test('controlled Engineering handler preview uses the sandbox host and mediated 
   expect(workspace).toContain('data-testid="python-sandbox-preview"');
   expect(previewHost).toContain('createClientVisualPythonCapabilityProvider');
   expect(previewHost).toContain("`engineering-preview:${request.handlerName}`");
+  expect(previewHost).toContain('tagWriter: null');
   expect(provider).toContain('readTag(reference)');
-  expect(provider).toContain('writeTag(reference, value)');
+  expect(provider).toContain('writeTag: tagWriter');
   expect(provider).toContain('writeRuntimeTagValue');
+  expect(provider).toContain('options.tagWriter === undefined ? writeRuntimeTagValue : options.tagWriter');
   expect(provider).toContain('readClientMemory(reference)');
   expect(provider).toContain('writeClientMemory(reference, value)');
   expect(tagWriteApi).toContain("/api/tags/${encodeURIComponent(normalizedTagId)}/write");

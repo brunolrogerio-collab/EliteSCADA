@@ -295,8 +295,8 @@ function VisualObjectCard({
       </div>
       <div className="script-assistant__meta">
         <span>{copy.canonicalReference}: <code>{object.canonicalReference}</code></span>
-        {object.equipmentPath && <span>Equipment: <code>{object.equipmentPath}</code></span>}
-        {object.dynamoKey && <span>Dynamo: <code>{object.dynamoKey}</code></span>}
+        {object.equipmentPath && <span>{copy.equipment}: <code>{object.equipmentPath}</code></span>}
+        {object.dynamoKey && <span>{copy.dynamo}: <code>{object.dynamoKey}</code></span>}
       </div>
 
       {object.events.length > 0 && (
@@ -330,7 +330,7 @@ function VisualObjectCard({
             <div className="script-assistant__property" key={parameter.key}>
               <strong>{parameter.key}</strong>
               <code>{parameter.parameterKind}</code>
-              {parameter.tagReference && <span>TAG: <code>{parameter.tagReference}</code></span>}
+              {parameter.tagReference && <span>{copy.tag}: <code>{parameter.tagReference}</code></span>}
               <span>{formatValue(parameter.value)}</span>
             </div>
           ))}
@@ -389,12 +389,12 @@ function VisualPropertyRow({
         {property.category && <span>{property.category}</span>}
       </div>
       <div className="script-assistant__meta">
-        <span>Runtime read: {property.runtimeReadable ? copy.yes : copy.no}</span>
-        <span>Runtime write: {property.runtimeWritable ? copy.yes : copy.no}</span>
-        <span>Binding: {property.supportsBinding ? copy.yes : copy.no}</span>
-        <span>Animation: {property.animatable ? copy.yes : copy.no}</span>
-        <span>Current: <code>{formatValue(property.currentValue)}</code></span>
-        {property.allowedValues.length > 0 && <span>Enum: <code>{property.allowedValues.join(' | ')}</code></span>}
+        <span>{copy.runtimeRead}: {property.runtimeReadable ? copy.yes : copy.no}</span>
+        <span>{copy.runtimeWrite}: {property.runtimeWritable ? copy.yes : copy.no}</span>
+        <span>{copy.binding}: {property.supportsBinding ? copy.yes : copy.no}</span>
+        <span>{copy.animation}: {property.animatable ? copy.yes : copy.no}</span>
+        <span>{copy.current}: <code>{formatValue(property.currentValue)}</code></span>
+        {property.allowedValues.length > 0 && <span>{copy.enum}: <code>{property.allowedValues.join(' | ')}</code></span>}
       </div>
       {!context.allowed && <p className="script-assistant__hint">{context.reason}</p>}
       <SnippetActions

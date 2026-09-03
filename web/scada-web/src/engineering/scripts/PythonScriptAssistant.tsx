@@ -23,10 +23,9 @@ export function PythonScriptAssistant({
   const [visualEventReferences, setVisualEventReferences] = useState<readonly ScriptVisualEventReference[]>([]);
 
   useEffect(() => {
-    const cancellation = new AbortController();
     let active = true;
 
-    void loadScriptEngineeringContext(cancellation.signal)
+    void loadScriptEngineeringContext()
       .then(context => {
         if (!active) return;
         setVisualEventReferences(Object.freeze(
@@ -47,7 +46,6 @@ export function PythonScriptAssistant({
 
     return () => {
       active = false;
-      cancellation.abort();
     };
   }, [scriptId]);
 

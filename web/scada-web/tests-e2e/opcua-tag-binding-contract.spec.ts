@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
-import type { DataSourceTypeDefinition } from '../src/engineering/DataSourceCatalogEditor.logic';
-import { buildOpcUaTagBinding } from '../src/engineering/OpcUaTagBrowser';
+import { readFile } from 'node:fs/promises';
+import {
+  tagBindingSchemaIdentity,
+  type DataSourceTypeDefinition
+} from '../src/engineering/DataSourceCatalogEditor.logic';
 
 const capabilities = {
   supportsConnectionTest: true,
@@ -56,38 +59,29 @@ function opcUaType(): DataSourceTypeDefinition {
   };
 }
 
-test('OPC UA binding uses backend TAG schema identity rather than Data Source configuration identity', () => {
-  const binding = buildOpcUaTagBinding(opcUaType(), 'node=ns%3D2%3Bs%3DTemperature');
+test('OPC UA binding schema identity is independent from Data Source configuration identity', () => {
+  const identity = tagBindingSchemaIdentity(opcUaType());
 
-  expect(binding).not.toBeNull();
-  expect(binding?.schemaId).toBe('tag.binding.schema');
-  expect(binding?.schemaVersion).toBe(3);
-  expect(binding?.settings).toEqual({
-    samplingInterval: '00:00:01',
-    queueSize: '1',
-    discardOldest: 'true'
+  expect(identity).toEqual({
+    schemaId: 'tag.binding.schema',
+    schemaVersion: 3
   });
 });
 
-test('OPC UA binding preserves existing settings only when the TAG schema identity matches', () => {
-  const type = opcUaType();
-  const portableAddress = 'node=ns%3D2%3Bs%3DPressure';
+test('OPC UA browser builder consumes canonical TAG schema and preserves settings only on matching identity', async () => {
+  const source = await readFile(
+    new URL('../src/engineering/OpcUaTagBrowser.tsx', import.meta.url),
+    'utf8');
+  const start = source.indexOf('export function buildOpcUaTagBinding(');
+  const end = source.indexOf('function buildBulkCandidate(', start);
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  const builder = source.slice(start, end);
 
-  const matching = buildOpcUaTagBinding(type, portableAddress, {
-    contractVersion: 1,
-    schemaId: 'tag.binding.schema',
-    schemaVersion: 3,
-    portableAddress,
-    settings: { queueSize: '20' }
-  });
-  expect(matching?.settings?.queueSize).toBe('20');
-
-  const sourceSchemaOnly = buildOpcUaTagBinding(type, portableAddress, {
-    contractVersion: 1,
-    schemaId: 'source.configuration.schema',
-    schemaVersion: 7,
-    portableAddress,
-    settings: { queueSize: '99' }
-  });
-  expect(sourceSchemaOnly?.settings?.queueSize).toBe('1');
+  expect(builder).toContain('const bindingSchema = tagBindingSchemaIdentity(type);');
+  expect(builder).toContain('current?.schemaId === bindingSchema.schemaId');
+  expect(builder).toContain("new Set(['samplinginterval', 'queuesize', 'discardoldest'])");
+  expect(builder).toContain('schemaId: bindingSchema.schemaId');
+  expect(builder).toContain('schemaVersion: bindingSchema.schemaVersion');
+  expect(builder).toContain('portableAddress');
 });

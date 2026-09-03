@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { appShellText, resolveAppShellLocale } from '../../appShellI18n';
+import { UserSessionMenu } from '../../auth/UserSessionMenu';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
+import { RuntimeAlarmCenter } from '../RuntimeAlarmCenter';
 import { RuntimeVisualNavigator } from '../visual-navigation/RuntimeVisualNavigator';
 import {
   loadRuntimeApplicationProjection,
@@ -79,6 +81,7 @@ function EngineeringRuntimeApplication({ projection }: { projection: RuntimeAppl
   const text = appShellText(locale);
   const fullscreenRoot = useRef<HTMLElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
+  const [alarmsOpen, setAlarmsOpen] = useState(false);
   const engineeringPackage = projection.package!;
   const initialScreenKey = useMemo(() => {
     const keys = (engineeringPackage.screens ?? [])
@@ -133,9 +136,15 @@ function EngineeringRuntimeApplication({ projection }: { projection: RuntimeAppl
         <strong>{projection.projectName || projection.projectKey}</strong>
         <span>rev {projection.revision}</span>
       </div>
-      <button type="button" className="runtime-fullscreen-button" onClick={() => void toggleFullscreen()}>
-        {isFullscreen ? text.exitFullscreen : text.fullscreen}
-      </button>
+      <div className="runtime-operator-actions">
+        <button type="button" className="runtime-operator-button" aria-expanded={alarmsOpen} onClick={() => setAlarmsOpen(value => !value)}>
+          {text.alarms}
+        </button>
+        <button type="button" className="runtime-operator-button" onClick={() => void toggleFullscreen()}>
+          {isFullscreen ? text.exitFullscreen : text.fullscreen}
+        </button>
+        {isFullscreen ? <UserSessionMenu locale={locale} /> : null}
+      </div>
     </header>
 
     <section className="runtime-engineering-canvas" data-testid="runtime-engineering-canvas">
@@ -148,6 +157,16 @@ function EngineeringRuntimeApplication({ projection }: { projection: RuntimeAppl
         visualAssetUrl={runtimeVisualAssetContentUrl}
       />
     </section>
+
+    {alarmsOpen ? <aside className="runtime-operator-overlay" aria-label={text.alarms}>
+      <div className="runtime-operator-overlay-header">
+        <strong>{text.alarms}</strong>
+        <button type="button" className="runtime-operator-button" onClick={() => setAlarmsOpen(false)}>{text.closeAlarms}</button>
+      </div>
+      <div className="runtime-operator-overlay-content">
+        <RuntimeAlarmCenter locale={locale} />
+      </div>
+    </aside> : null}
   </main>;
 }
 

@@ -112,14 +112,15 @@ test('new OPC UA Source can discover, choose security settings and test the draf
 
   await page.goto('/engineering');
   await page.getByRole('button', { name: /Data Sources/ }).click();
-  await page.getByRole('button', { name: 'Nova Data Source' }).click();
-  await page.getByLabel('Nome').fill('OPC UA Principal');
-  await page.getByLabel('Chave').fill('opc-main');
-  await page.getByTestId('data-source-type').selectOption('opc-ua');
+  const sourceEditor = page.getByTestId('schema-data-source-editor');
+  await sourceEditor.getByRole('button', { name: 'Nova Data Source' }).click();
+  await sourceEditor.getByRole('textbox', { name: 'Nome' }).fill('OPC UA Principal');
+  await sourceEditor.getByRole('textbox', { name: 'Chave' }).fill('opc-main');
+  await sourceEditor.getByTestId('data-source-type').selectOption('opc-ua');
 
-  await expect(page.getByTestId('opcua-source-discovery-assistant')).toBeVisible();
-  await page.getByTestId('opcua-source-discovery-url').fill('opc.tcp://discovery.example:4840');
-  await page.getByTestId('opcua-source-discover').click();
+  await expect(sourceEditor.getByTestId('opcua-source-discovery-assistant')).toBeVisible();
+  await sourceEditor.getByTestId('opcua-source-discovery-url').fill('opc.tcp://discovery.example:4840');
+  await sourceEditor.getByTestId('opcua-source-discover').click();
 
   expect(discoveryRequest).toMatchObject({
     dataSource: {
@@ -130,19 +131,19 @@ test('new OPC UA Source can discover, choose security settings and test the draf
   });
   expect(discoveryRequest.dataSource.settings.endpointUrl).toBeUndefined();
 
-  await expect(page.getByTestId('opcua-source-discovery-results')).toContainText('Example Secure OPC UA Server');
-  await expect(page.getByTestId('opcua-source-discovery-results')).toContainText('SignAndEncrypt');
-  await expect(page.getByTestId('opcua-source-discovery-results')).toContainText('AABBCCDDEEFF');
-  await page.getByTestId('opcua-source-use-endpoint-1').click();
+  await expect(sourceEditor.getByTestId('opcua-source-discovery-results')).toContainText('Example Secure OPC UA Server');
+  await expect(sourceEditor.getByTestId('opcua-source-discovery-results')).toContainText('SignAndEncrypt');
+  await expect(sourceEditor.getByTestId('opcua-source-discovery-results')).toContainText('AABBCCDDEEFF');
+  await sourceEditor.getByTestId('opcua-source-use-endpoint-1').click();
 
-  await expect(page.getByTestId('data-source-setting-endpointUrl')).toHaveValue('opc.tcp://plc.example:4840');
-  await expect(page.getByTestId('data-source-setting-securityMode')).toHaveValue('SignAndEncrypt');
-  await expect(page.getByTestId('data-source-setting-securityPolicyUri')).toHaveValue('http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256');
-  await expect(page.getByTestId('data-source-setting-serverCertificateSha256')).toHaveValue('AABBCCDDEEFF');
-  await expect(page.getByTestId('data-source-setting-authenticationMode')).toHaveValue('Anonymous');
+  await expect(sourceEditor.getByTestId('data-source-setting-endpointUrl')).toHaveValue('opc.tcp://plc.example:4840');
+  await expect(sourceEditor.getByTestId('data-source-setting-securityMode')).toHaveValue('SignAndEncrypt');
+  await expect(sourceEditor.getByTestId('data-source-setting-securityPolicyUri')).toHaveValue('http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256');
+  await expect(sourceEditor.getByTestId('data-source-setting-serverCertificateSha256')).toHaveValue('AABBCCDDEEFF');
+  await expect(sourceEditor.getByTestId('data-source-setting-authenticationMode')).toHaveValue('Anonymous');
 
-  await page.getByTestId('opcua-source-test').click();
-  await expect(page.getByTestId('opcua-source-test-result')).toContainText('opc.tcp://plc.example:4840');
+  await sourceEditor.getByTestId('opcua-source-test').click();
+  await expect(sourceEditor.getByTestId('opcua-source-test-result')).toContainText('opc.tcp://plc.example:4840');
   expect(connectionRequest).toMatchObject({
     sourceKey: 'opc-main', sourceName: 'OPC UA Principal', driverType: 'opc-ua',
     settings: {
@@ -157,7 +158,7 @@ test('new OPC UA Source can discover, choose security settings and test the draf
   expect(connectionRequest.settings.passwordSecretReference).toBeUndefined();
   expect(connectionRequest.settings.unknownSetting).toBeUndefined();
 
-  await page.getByTestId('data-source-preview').click();
+  await sourceEditor.getByTestId('data-source-preview').click();
   expect(previewCandidate).not.toBeNull();
   expect(previewCandidate.dataSources).toHaveLength(1);
   expect(previewCandidate.dataSources[0]).toMatchObject({

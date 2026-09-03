@@ -1,5 +1,8 @@
 import { expect, test } from '@playwright/test';
-import type { VisualElementEngineering } from '../src/engineering/types';
+import type {
+  VisualElementEngineering,
+  VisualEngineeringPropertyValue
+} from '../src/engineering/types';
 import { BUILTIN_VISUAL_OBJECT_TYPES } from '../src/visual-runtime';
 import {
   normalizeVisualEditorMarquee,
@@ -13,7 +16,7 @@ function rectangle(
   y: number,
   width: number,
   height: number,
-  properties: Record<string, unknown> = {}
+  properties: Record<string, VisualEngineeringPropertyValue> = {}
 ): VisualElementEngineering {
   return {
     id,

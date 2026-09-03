@@ -23,28 +23,13 @@ public sealed class Iec104DriverDescriptorProvider : ICommunicationDriverDescrip
                 Required: true,
                 DisplayName: "Monitored Type ID",
                 Description: "IEC 60870-5-104 monitored information Type ID used to decode this point.",
-                AllowedValues: new[]
-                {
-                    "M_SP_NA_1",
-                    "M_DP_NA_1",
-                    "M_ME_NA_1",
-                    "M_ME_NB_1",
-                    "M_ME_NC_1",
-                    "M_IT_NA_1"
-                }),
+                AllowedValues: Iec104TypeIdCodec.MonitoredCanonicalNames),
             new(
                 "iec104.commandTypeId",
                 DriverConfigurationValueKind.Enum,
                 DisplayName: "Command Type ID",
                 Description: "Optional IEC 60870-5-104 command Type ID used when the TAG is writable.",
-                AllowedValues: new[]
-                {
-                    "C_SC_NA_1",
-                    "C_DC_NA_1",
-                    "C_SE_NA_1",
-                    "C_SE_NB_1",
-                    "C_SE_NC_1"
-                },
+                AllowedValues: Iec104TypeIdCodec.CommandCanonicalNames,
                 Advanced: true),
             new(
                 "iec104.commandMode",

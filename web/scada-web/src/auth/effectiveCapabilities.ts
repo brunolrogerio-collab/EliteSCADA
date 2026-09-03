@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
+const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
 export type SecurityCapability =
   | 'View'

@@ -5,7 +5,7 @@ async function source(relativePath: string): Promise<string> {
   return await readFile(new URL(relativePath, import.meta.url), 'utf8');
 }
 
-test('Monaco editor provides Python editing, markers and canonical entry-point completion without runtime execution authority', async () => {
+test('Monaco editor provides Python editing, markers, Script Assistant insertion and canonical entry-point completion without runtime execution authority', async () => {
   const editor = await source('../src/engineering/python-editor/PythonMonacoEditor.tsx');
 
   expect(editor).toContain("createModel(sourceRef.current, 'python'");
@@ -13,6 +13,9 @@ test('Monaco editor provides Python editing, markers and canonical entry-point c
   expect(editor).toContain('registerCompletionItemProvider');
   expect(editor).toContain('setModelMarkers');
   expect(editor).toContain('buildEntryPointCompletions');
+  expect(editor).toContain('PythonScriptAssistant');
+  expect(editor).toContain("executeEdits('elitescada-script-assistant'");
+  expect(editor).toContain('pushUndoStop()');
   expect(editor).not.toMatch(/from ['\"]pyodide['\"]/);
   expect(editor).not.toContain('dispatch-event');
   expect(editor).not.toContain('initialize-script');
@@ -38,29 +41,34 @@ test('Script workspace compiles the exact Client Visual draft before canonical P
   expect(api).toContain('/api/engineering/import/json/apply');
 });
 
-test('controlled Engineering handler preview uses the sandbox host without gaining direct process authority', async () => {
+test('controlled Engineering handler preview uses the sandbox host and mediated TAG writer without gaining direct process authority', async () => {
   const workspace = await source('../src/engineering/scripts/ScriptEngineeringWorkspace.tsx');
   const previewHost = await source('../src/python-runtime/engineeringPythonPreview.ts');
   const provider = await source('../src/python-runtime/createClientVisualPythonCapabilityProvider.ts');
+  const tagWriteApi = await source('../src/runtime/runtimeTagWriteApi.ts');
 
   expect(workspace).toContain('runEngineeringClientVisualPythonHandler');
   expect(workspace).toContain('data-testid="python-sandbox-preview"');
   expect(previewHost).toContain('createClientVisualPythonCapabilityProvider');
   expect(previewHost).toContain("`engineering-preview:${request.handlerName}`");
   expect(provider).toContain('readTag(reference)');
+  expect(provider).toContain('writeTag(reference, value)');
+  expect(provider).toContain('writeRuntimeTagValue');
   expect(provider).toContain('readClientMemory(reference)');
   expect(provider).toContain('writeClientMemory(reference, value)');
-  expect(provider).not.toContain('writeTag');
+  expect(tagWriteApi).toContain("/api/tags/${encodeURIComponent(normalizedTagId)}/write");
+  expect(tagWriteApi).toContain("credentials: 'same-origin'");
   expect(provider).not.toContain('serverMemory');
   expect(provider).not.toContain('requestBackendOperation');
 });
 
-test('editor API help derives from the reserved bridge capability contract instead of inventing a Python module authority', async () => {
+test('editor API help and Script Assistant derive from the reserved bridge capability contract', async () => {
   const descriptors = await source('../src/engineering/python-editor/pythonEditorDescriptors.ts');
-  const editorCopy = await source('../src/engineering/python-editor/pythonEditorCopy.ts');
+  const assistantModel = await source('../src/engineering/scripts/scriptAssistantModel.ts');
+  const worker = await source('../src/python-runtime/clientVisualPythonWorker.ts');
 
   expect(descriptors).toContain('CLIENT_VISUAL_PYTHON_CAPABILITIES');
-  expect(editorCopy).toContain('não é inventado pelo editor');
-  expect(editorCopy).toContain('does not invent the final Python module name');
-  expect(editorCopy).toContain('no inventa el nombre final del módulo Python');
+  expect(assistantModel).toContain('CLIENT_VISUAL_PYTHON_CAPABILITIES');
+  expect(assistantModel).toContain("case 'tag.write': return 'elite_scada.tag_write'");
+  expect(worker).toContain("tag_write: (reference: unknown, value: unknown) => requestCapability('tag.write', 'write'");
 });

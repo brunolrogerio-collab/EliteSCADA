@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react';
 import { resolveInitialLocale, type EngineeringLocale } from './engineering/i18n';
 
 export type AppShellLocale = EngineeringLocale;
@@ -92,6 +93,35 @@ export function resolveAppShellLocale(): AppShellLocale {
   return resolveInitialLocale();
 }
 
+/**
+ * The Engineering locale selector is the canonical locale owner. It stores the
+ * preference and updates document.documentElement.lang in the same turn. Listen
+ * to that existing DOM contract for same-tab updates and to storage for updates
+ * coming from another tab, without introducing a second locale store.
+ */
+export function useAppShellLocale(): AppShellLocale {
+  return useSyncExternalStore(subscribeLocale, resolveAppShellLocale, () => 'pt-BR');
+}
+
 export function appShellText(locale: AppShellLocale) {
   return resources[locale];
+}
+
+function subscribeLocale(onStoreChange: () => void) {
+  const observer = new MutationObserver(mutations => {
+    if (mutations.some(mutation => mutation.type === 'attributes' && mutation.attributeName === 'lang')) {
+      onStoreChange();
+    }
+  });
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === 'elitescada.engineering.locale') onStoreChange();
+  };
+  window.addEventListener('storage', onStorage);
+
+  return () => {
+    observer.disconnect();
+    window.removeEventListener('storage', onStorage);
+  };
 }

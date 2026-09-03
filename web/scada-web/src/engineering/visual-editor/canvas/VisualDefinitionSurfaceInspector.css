@@ -13,10 +13,10 @@
 .visual-editor-surface-inspector footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #64748b; }
 .visual-editor-surface-inspector footer span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* C07 surface composition: authored background < grid overlay < objects/adorners. */
+/* C07 surface composition: authored logical canvas < grid overlay < objects/adorners. */
 .visual-editor-canvas__surface { isolation: isolate; }
 .visual-editor-canvas__surface.has-grid { background-image: none; }
-.visual-editor-canvas__authored-background { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.visual-editor-canvas__authored-background { position: absolute; left: var(--visual-editor-grid-pan-x); top: var(--visual-editor-grid-pan-y); width: calc(var(--visual-editor-grid-size) * 600); height: calc(var(--visual-editor-grid-size) * 400); z-index: 0; pointer-events: none; transform-origin: 0 0; }
 .visual-editor-canvas__surface.has-grid::after { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background-image: linear-gradient(to right, rgba(99,116,139,.18) 1px, transparent 1px), linear-gradient(to bottom, rgba(99,116,139,.18) 1px, transparent 1px); background-size: var(--visual-editor-grid-size) var(--visual-editor-grid-size); background-position: var(--visual-editor-grid-pan-x) var(--visual-editor-grid-pan-y); }
 .visual-editor-canvas__viewport { z-index: 2; }
 

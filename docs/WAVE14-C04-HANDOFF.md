@@ -4,82 +4,92 @@
 **Branch:** `wave14/c04-tag-address-assistants`  
 **Integration target:** `wave14/corrections-integration`  
 **Required dependency/base:** C02 final SHA `7a0515289bdabba157fb1f645b32647746c83371` / PR #217  
-**Code-candidate SHA:** `6bb6480445e420aecf94d87a8c6594dafe67d0cc`  
+**Code-candidate SHA before this documentation commit:** `ed95008176e1bb242f165efb987f16ece03c381c`  
 **Draft PR:** #221
 
-This document is a DEV handoff, not an acceptance declaration. GitHub refs and exact-SHA validation remain authoritative.
+This is a DEV handoff, not an acceptance declaration. GitHub refs and exact-SHA validation remain authoritative.
 
-## 1. Dependency lineage
+## 1. Coordinator directive applied
 
-Live comparison before handoff confirmed:
+The final review follows the binding Wave 14 decision recorded in issue #211 comment `5520438147` and PR #221 comment `5520438393`.
 
-- merge-base: exactly `7a0515289bdabba157fb1f645b32647746c83371`;
-- C04 is ahead of that base and not behind it;
-- no Stage-A base substitution was used.
+C04 is the Wave 14 authority for:
 
-The PR targets the Wave 14 correction integration branch as required. Until prerequisite work is present in that target, the PR comparison may contain prerequisite lineage as well as C04 changes; integration must judge the exact live diff, not commit-count appearance alone.
+- TAG Source selection;
+- stable Source identity/reference semantics;
+- Driver communication/configuration contracts relevant to TAG authoring;
+- address assistants;
+- discovery/browse tooling.
 
-## 2. Stable TAG -> Data Source identity
+The implementation preserves backend authority, backend-side authorization, canonical Working -> Preview/Apply lifecycle, shared contracts and Driver isolation. It does not add compatibility shims merely to keep the historical DEMO fixture working.
 
-C04 adds stable Data Source identity to the TAG contract while retaining the legacy Source key for compatibility and human-readable portability.
+## 2. Dependency lineage
+
+Live comparison at code-candidate SHA `ed95008176e1bb242f165efb987f16ece03c381c` confirmed:
+
+- merge-base exactly `7a0515289bdabba157fb1f645b32647746c83371`;
+- C04 `90` commits ahead of that base;
+- C04 `0` commits behind that base.
+
+The PR remains targeted at `wave14/corrections-integration`.
+
+## 3. Stable TAG -> Data Source identity
+
+C04 adds stable Data Source identity to the TAG contract while retaining the legacy Source key as a compatibility/human-readable projection.
 
 Rules implemented:
 
-- `DataSourceId` is the authoritative durable reference when present;
-- an unresolved stable GUID fails closed and is never silently redirected to a different Source that happens to reuse the old key;
+- `DataSourceId` is authoritative when present;
+- unresolved stable GUIDs fail closed and never fall back to a coincident legacy key;
 - key-only legacy TAGs remain resolvable for migration;
-- Apply can enrich a resolvable legacy TAG with the stable Data Source ID;
-- Source rename is reconciled by GUID and keeps the compatibility key current;
-- reselecting the same renamed Source preserves address, selector and binding;
-- selecting a genuinely different Source clears protocol address/binding state;
-- selecting no Source also clears stale address, selector and binding state.
+- Apply enriches resolvable legacy TAGs with stable Source ID;
+- Source rename is reconciled by GUID and refreshes the compatibility key;
+- reselecting the same renamed Source preserves Address, AddressSelector and CommunicationBinding;
+- selecting a genuinely different Source clears stale protocol address/binding state;
+- selecting no Source clears stale Address, AddressSelector and CommunicationBinding;
+- deleted/unresolved references are shown explicitly as invalid.
 
-The browser Source editor is a searchable selector populated only from configured Working Data Sources. Deleted/unresolved references are presented explicitly as invalid rather than converted into free text.
+The browser Source field is a searchable selector populated only from configured Working Data Sources. Ordinary UI interaction cannot create an arbitrary Source reference.
 
-## 3. Driver-owned TAG binding contract
+## 4. Driver-owned TAG binding contract
 
-The backend Driver catalog now projects TAG binding schema identity independently from Data Source configuration schema identity:
+The Driver catalog projects TAG binding schema identity separately from Data Source configuration schema identity:
 
 - `tagBindingSchemaId`;
 - `tagBindingSchemaVersion`;
-- existing driver-owned `configurationSchema.tagBindingFields`.
+- `configurationSchema.tagBindingFields`.
 
-When a Driver does not declare a distinct TAG binding schema, the catalog uses the configuration schema identity as the compatibility fallback. IEC-104 deliberately uses a distinct point-binding contract.
+Drivers without a distinct TAG binding contract fall back to their configuration schema identity. IEC-104 deliberately retains a distinct point schema.
 
-Frontend schema resolution is centralized in `TagBindingSchema.ts`. Generic and specialized assistants consume the backend catalog rather than duplicating schema IDs. DNP3 and IEC-104 additionally validate specialized choices against the live field definition before creating a binding.
+Frontend schema resolution is centralized in `TagBindingSchema.ts`. Specialized assistants validate choices against backend `tagBindingFields`; generic Drivers use `GenericTagBindingAssistant` instead of protocol switches or duplicated React catalogs.
 
-## 4. Address authoring architecture
+Protected material remains on the Data Source `secretReferences` boundary and is not authored into TAG binding settings.
 
-Manual portable Address remains available for compatibility and expert authoring.
+## 5. Address authoring
 
-When a TAG already has a canonical `CommunicationBinding`, editing the manual Address keeps `Address` and `CommunicationBinding.PortableAddress` synchronized. Clearing the Address removes the binding instead of leaving an invalid envelope.
+Manual portable Address remains available for expert authoring and real-data migration.
 
-Specialized UX is registered centrally only where protocol identity or discovery benefits from it:
+When a canonical `CommunicationBinding` exists:
+
+- manual Address edits keep `Address` and `CommunicationBinding.PortableAddress` synchronized;
+- clearing Address removes the binding rather than leaving an invalid envelope.
+
+Specialized UX is centrally registered only where useful:
 
 - Modbus TCP;
 - OPC UA;
 - DNP3 Master;
 - IEC 60870-5-104.
 
-Other Drivers with published `tagBindingFields` use `GenericTagBindingAssistant`, which is schema-driven and validates required values, enum values and numeric bounds. Protected-material fields are not authored into TAG bindings; they remain on the Data Source `secretReferences` boundary.
+Other Drivers with published `tagBindingFields` use the schema-driven generic assistant.
 
-## 5. Modbus
+## 6. Modbus
 
-C04 introduces one driver-owned canonical address codec used by both Engineering and Runtime. The assistant makes the reference convention explicit instead of guessing 4xxxx-style notation.
+C04 introduces a Driver-owned canonical Modbus address codec shared by Engineering and Runtime. Canonical persistence remains zero-based `area:offset`; the assistant makes zero-based vs one-based user input explicit and never guesses 4xxxx notation.
 
-The backend-authoritative builder validates:
+The backend builder validates area, reference, Unit ID, value type, word order, scale/offset and bit selector rules.
 
-- area;
-- zero-based vs one-based reference input;
-- Unit ID;
-- value type;
-- word order;
-- scale/offset;
-- bit selector bounds and applicable register areas.
-
-Canonical runtime Address remains the zero-based `area:offset` representation.
-
-The Modbus descriptor now publishes runtime-backed TAG binding fields for:
+The Modbus descriptor publishes runtime-backed TAG binding fields:
 
 - `modbus.unitId`;
 - `modbus.valueType`;
@@ -87,115 +97,160 @@ The Modbus descriptor now publishes runtime-backed TAG binding fields for:
 - `modbus.scale`;
 - `modbus.offset`.
 
-New Modbus assistant output also carries a canonical `CommunicationBinding` using the catalog-projected TAG schema identity. The same settings remain mirrored in legacy TAG metadata because the current Modbus runtime compiler still consumes that compatibility representation; this keeps existing packages/runtime behavior intact while moving Engineering authoring onto the common envelope.
+New assistant output carries canonical `CommunicationBinding`. The same settings remain mirrored in legacy metadata because the current Modbus runtime compiler still consumes that representation. This is real product-data/runtime compatibility, not a historical DEMO shim.
 
-Bit selection is intentionally not represented as Driver metadata because it is the canonical TAG `AddressSelector` contract.
+Bit selection remains the canonical `AddressSelector`, not Driver metadata.
 
-## 6. DNP3
+## 7. DNP3
 
-The specialized DNP3 assistant authors canonical `dnp3:<pointKind>:<index>` identity plus the binding settings required by Runtime.
+The DNP3 assistant authors canonical `dnp3:<pointKind>:<index>` identity plus Runtime-backed settings.
 
-Before producing a binding it checks its selected point kind, index bounds, writable field and command mode against the live backend TAG binding definition. The UI therefore fails visibly if the Driver descriptor and specialized assistant drift apart.
+Before creating a binding it validates point kind, index bounds, writable semantics and command mode against the current backend catalog. Display labels for DNP3 point families are localized while canonical tokens remain unchanged in persisted data.
 
-Manual canonical DNP3 Address remains available as a migration/expert path.
+## 8. IEC 60870-5-104
 
-## 7. IEC 60870-5-104
+IEC-104 retains TAG binding schema:
 
-IEC-104 retains a distinct TAG point schema:
+- `elite.iec60870.5.104.point`;
+- version `1`.
 
-- schema ID `elite.iec60870.5.104.point`;
-- schema version `1`.
+The runtime composition registers the enriched descriptor. The Type-ID codec preserves the established Runtime binding vocabulary while accepting standard underscore IEC names and numeric IDs at compatibility/protocol edges.
 
-The runtime composition registers the enriched IEC-104 descriptor, so the product catalog exposes the actual point-binding contract rather than the raw Data Source schema.
+The descriptor advertises only monitored Type IDs actually supported by the decoder and command Type IDs actually implemented. The assistant validates Type ID, command Type ID, command mode and qualifier bounds against the backend catalog. Command mode display labels are localized without changing canonical persisted values.
 
-The Type-ID codec keeps the established runtime enum-style binding vocabulary while accepting standard underscore IEC names and numeric IDs at protocol/import compatibility boundaries. The descriptor advertises only monitored Type IDs the current decoder actually supports and only command Type IDs implemented by Runtime.
+## 9. OPC UA Engineering tooling
 
-The specialized assistant validates monitored Type ID, command Type ID, command mode and qualifier bounds against the backend TAG binding definition before creating the binding.
-
-## 8. OPC UA Engineering tooling
-
-C04 exposes capability-driven Engineering tooling for a configured OPC UA Data Source:
+C04 exposes capability-driven Engineering tooling for configured OPC UA Data Sources:
 
 - connection test;
 - endpoint discovery;
 - browse/browse-next;
 - loaded-node search;
 - current-TAG selection;
-- multi-select and bulk TAG candidate creation.
+- multi-selection;
+- bulk TAG candidate creation.
 
-The backend tooling:
+Backend boundaries:
 
-- resolves the configured Data Source by stable GUID;
-- requires Engineering Read authorization;
-- creates Engineering-only driver providers;
-- reuses the OPC UA protected-material/security boundary;
-- does not mutate active Runtime;
-- sanitizes unexpected provider failures instead of returning raw transport/security exception messages to the browser.
+- configured Data Source resolved by stable GUID;
+- Engineering Read authorization required;
+- Engineering-only Driver providers;
+- protected-material/security seams reused;
+- no mutation of active Runtime;
+- unexpected provider failures sanitized instead of echoing raw transport/security exception messages.
 
-Discovery/browse results remain transient. They become canonical TAGs only through normal Engineering Preview/Apply.
+Discovery/browse results remain transient. They become canonical TAGs only through Engineering Preview/Apply.
 
-Bulk OPC UA TAG creation preserves:
+Bulk TAG candidates preserve Source key + stable DataSourceId, portable Address, canonical CommunicationBinding, backend TAG binding schema identity, suggested data type/unit/access and stable discovery identity metadata.
 
-- Source compatibility key;
-- stable `DataSourceId`;
-- portable Address;
-- canonical `CommunicationBinding`;
-- backend TAG binding schema identity;
-- suggested data type;
-- engineering unit;
-- read/write access where reported;
-- stable discovery identity as metadata evidence.
+## 10. Multilingual audit required by coordinator
 
-The OPC UA binding builder deliberately uses `tagBindingSchemaId/tagBindingSchemaVersion`, even when those differ from Data Source configuration schema identity.
+C04 user-facing copy is centralized in:
 
-## 9. Coverage added
+- `web/scada-web/src/engineering/c04I18n.ts`;
+- `web/scada-web/src/engineering/c04ProtocolLabels.ts`.
 
-Backend/contract tests cover, among other cases:
+The new/modified C04 surfaces no longer keep independent `copy(locale)` tables:
 
-- key-only Source migration to stable ID;
-- Source rename by stable ID;
-- orphaned stable ID without key fallback;
-- runtime Source normalization;
+- `TagSourceSelector`;
+- `TagAddressEditor` / Modbus assistant;
+- `GenericTagBindingAssistant`;
+- DNP3 assistant;
+- IEC-104 assistant;
+- OPC UA tooling.
+
+`pt-BR`, `en` and `es` cover C04 labels, help, validation errors, schema/catalog failures, empty/unresolved states, actions, OPC UA bulk errors and confirmation text. Protocol display labels are localized for Modbus areas, DNP3 point families and IEC-104 command modes while canonical protocol values remain invariant.
+
+Browser coverage `c04-i18n-browser.spec.ts` verifies `pt-BR -> en -> es` switching on Source and Address surfaces while stable Source identity remains unchanged. `c04-i18n-contract.spec.ts` prevents reintroduction of per-component copy tables and checks all three locales plus protocol label resources.
+
+### Known combined-audit gap
+
+The C02 Data Source catalog contract already exposes `DisplayNameResourceKey` / `DescriptionResourceKey`, but the current shared `DataSourceCatalogEditor` renders backend fallback `displayName` / `description` and does not yet resolve those resource keys. The generic C04 binding assistant intentionally does **not** create a second React Driver-field translation catalog because that would violate backend catalog authority.
+
+Therefore full locale resolution of arbitrary backend Driver field names/descriptions belongs in the combined Wave 14 multilingual audit/shared catalog infrastructure. C04 records the gap instead of hiding it with duplicated protocol metadata.
+
+Backend Driver problem details may likewise remain in the backend-provided language when no localized message resource is supplied; C04 localizes its own frontend errors but does not rewrite backend diagnostics speculatively.
+
+## 11. Historical DEMO compatibility decision
+
+Per coordinator decision, the old DEMO is not C04's acceptance authority.
+
+C04 did **not** add model adapters to preserve historical fixture assumptions.
+
+The C04 Source browser acceptance previously depended on a historical `builtin.simulation` / `Demo.*` fixture. That test was classified as an obsolete fixture dependency, not a product-contract requirement, and was replaced with an isolated canonical schema-v15 project fixture. The replacement still proves the stronger C04 contract:
+
+- searchable configured Source;
+- stable GUID selection;
+- compatibility Source key;
+- Preview payload round-trip;
+- no Workspace mutation during Preview.
+
+No test assertion was weakened to obtain green.
+
+Real compatibility intentionally preserved includes legacy key-only Source migration, existing canonical Addresses and the Modbus metadata bridge required by the current Runtime compiler.
+
+## 12. Coverage
+
+Backend/contract tests cover:
+
+- legacy Source migration to stable ID;
+- rename by stable ID;
+- orphaned ID without key fallback;
+- Runtime Source normalization;
 - canonical Modbus parse/build round trips;
 - Modbus TAG binding descriptor fields;
 - Driver catalog TAG schema projection;
-- IEC-104 TAG binding vocabulary/compatibility.
+- IEC-104 binding vocabulary/compatibility.
 
 Browser/TypeScript coverage includes:
 
-- Source selector GUID + compatibility key through an actual Preview request;
-- no Workspace mutation during Preview;
-- rename/reselection preservation and true Source-change cleanup;
+- Source GUID + compatibility key through Preview;
+- Source rename/reselection and true Source-change cleanup;
 - unresolved/deleted Source behavior;
-- manual Address / canonical binding convergence;
-- Modbus legacy metadata plus canonical binding convergence;
-- centralized specialized-assistant registry and schema-driven generic fallback;
-- OPC UA binding identity with deliberately different Data Source and TAG schema IDs;
-- OPC UA connection-test and discovery UI boundaries with sanitized results;
-- OPC UA browse with two selected nodes, bulk candidate generation, Preview and Apply version boundary.
+- manual Address / binding convergence;
+- Modbus legacy metadata + canonical binding convergence;
+- specialized-assistant registry + generic schema fallback;
+- OPC UA binding identity when Data Source and TAG schema IDs intentionally differ;
+- OPC UA connection-test/discovery UI boundaries;
+- OPC UA browse, two-node multi-select, bulk candidate generation, Preview and Apply version boundary;
+- pt-BR/en/es locale switching on C04 surface;
+- static guard against C04 localization regression.
 
-Some browser cases use route-level mocks for external OPC UA responses so they validate EliteSCADA UI/contract behavior without claiming a real external server interoperability run.
+Route-level mocks are used where the test is proving EliteSCADA browser behavior rather than claiming external protocol interoperability.
 
-## 10. Validation status at handoff
+## 13. Validation evidence
 
-At code-candidate SHA `6bb6480445e420aecf94d87a8c6594dafe67d0cc`:
+The DEV environment could not clone GitHub locally, so validation relied on repository Actions that were triggered by C04's DNP3-touched paths.
 
-- PR #221 remained open, draft and mergeable at the last live inspection;
-- no PR discussion/review findings were present at inspection time;
-- no GitHub commit statuses/checks were registered for the preceding candidate inspection;
-- no local build/test was executed by this DEV environment because the local runtime could not resolve GitHub for a repository clone.
+A real build defect in C04 was found and corrected twice before the green smoke:
 
-The absence of Actions on this PR is consistent with repository workflow routing: the universal `EliteSCADA CI` is configured for pull requests targeting `main`, while this package correctly targets `wave14/corrections-integration`.
+1. `EngineeringDataSourceTypeCatalog.cs` nullable conditional inference (`CS0173`);
+2. `EngineeringDriverTooling.cs` provider disposal array inferred as `object[]` (`CS0266`).
 
-Per `docs/CI-VALIDATION-POLICY.md`, coordinator/integration acceptance still requires exact-head execution of the universal gate plus affected specialized communication validation. Because C04 changes DriverHost/Driver contracts and communication Engineering behavior, L3 Seven-Driver Lab belongs in final evidence. Runtime and Licensing checks must follow the conservative-override/release rules selected by the coordinator for the integrated candidate.
+Exact smoke evidence:
 
-Do not convert authored tests into claimed green evidence until the corresponding exact-SHA runs exist.
+- SHA `0a80e83cf4cb5f70507ac84e8d7c8a078dc5ff1e`;
+- workflow `Wave 14 C03 DNP3 Adapter` run #49 / `33716369828`;
+- conclusion: **SUCCESS**;
+- managed build/tests: SUCCESS;
+- DNP3 convergence tests: SUCCESS;
+- Linux native host build: SUCCESS;
+- Windows native host build: SUCCESS;
+- OpenDNP3 <-> dnp3py L3 interop: SUCCESS.
 
-## 11. Integration notes
+That run proves a useful C# / DriverHost / API build smoke and DNP3 convergence on that SHA. It is **not** the universal EliteSCADA CI, is **not** the complete Seven-Driver L3 workflow, and does not execute the newly authored browser suite.
+
+The current code-candidate SHA `ed95008176e1bb242f165efb987f16ece03c381c` contains later frontend-only localization/test changes and has no exact-SHA universal CI evidence at handoff.
+
+Per `docs/CI-VALIDATION-POLICY.md`, coordinator/integration acceptance still requires exact-head universal CI and affected communication validation. The final C10 sequence must follow the coordinator decision: converged corrections -> multilingual audit -> new canonical DEMO -> full CI -> clean Codespace -> real browser homologation.
+
+## 14. Integration notes
 
 1. Re-fetch PR #221 and branch HEAD before integration.
-2. Confirm C02 dependency is present in the integration target or preserve the exact dependency lineage when merging/cherry-picking.
-3. Re-run the full C04 browser/contract surface after any conflict resolution in shared Engineering editor/catalog files.
-4. Pay special attention to overlapping C02 catalog changes and other Wave 14 work touching `SecuredEngineeringEditors`, shared Driver descriptors or canonical TAG contracts.
-5. Run exact-head CI/L3 according to policy before marking C04 accepted.
-6. Keep PR #221 draft until coordinator acceptance evidence exists or until the coordinator explicitly changes that state.
+2. Preserve the exact C02 lineage or ensure that dependency is already present in integration.
+3. Treat C04 as authority for Source/communication/address/discovery conflicts with older consumers.
+4. Do not restore historical DEMO assumptions during conflict resolution.
+5. Re-run the full C04 browser/contract surface after conflicts in shared Engineering/catalog files.
+6. Resolve the shared catalog resource-key localization gap in the combined multilingual audit rather than duplicating Driver metadata in C04.
+7. Run exact-head universal CI + applicable L3/Runtime/Licensing gates before acceptance.
+8. Keep PR #221 draft until coordinator acceptance evidence exists or the coordinator explicitly changes state.

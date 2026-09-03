@@ -151,9 +151,9 @@ const copy = {
     dynamoHint: 'Solo se muestran parámetros públicos. Los elementos internos permanecen encapsulados.',
     customInserted: 'Comentario de acción Python insertado en el cursor.'
   }
-} as const;
+} as const satisfies Record<EngineeringLocale, Record<string, string>>;
 
-export type ScriptAssistantCopy = typeof copy['en'];
+export type ScriptAssistantCopy = Readonly<Record<keyof typeof copy.en, string>>;
 
 export function scriptAssistantCopy(locale: EngineeringLocale): ScriptAssistantCopy {
   return copy[locale] ?? copy.en;

@@ -3,6 +3,7 @@ import type { DataSourceEngineering } from './types';
 import type { EngineeringLocale } from './i18n';
 import { c04Text, type C04Text } from './c04I18n';
 import { c04ProtocolLabels } from './c04ProtocolLabels';
+import { loadDataSourceTypeCatalog } from './DataSourceCatalogEditor';
 import { applyModbusAddressBuild, metadataValue, parseCanonicalModbusAddress } from './TagAddressAssistant.logic';
 import {
   resolveTagDataSource,
@@ -53,6 +54,38 @@ export function TagAddressEditor({ tag, sources, locale, onChange }: Props) {
   const text = useMemo(() => c04Text(locale).address, [locale]);
   const source = resolveTagDataSource(tag, sources).source;
   const driverType = source?.driver.trim().toLowerCase() ?? null;
+  const [sourceKind, setSourceKind] = useState<string | null>(null);
+  const [sourceTypeResolved, setSourceTypeResolved] = useState(source === null);
+
+  useEffect(() => {
+    let alive = true;
+    if (!source || !driverType) {
+      setSourceKind(null);
+      setSourceTypeResolved(true);
+      return () => { alive = false; };
+    }
+
+    setSourceKind(null);
+    setSourceTypeResolved(false);
+    void loadDataSourceTypeCatalog()
+      .then(types => {
+        if (!alive) return;
+        const type = types.find(candidate => candidate.typeKey.trim().toLowerCase() === driverType);
+        setSourceKind(type?.kind ?? null);
+        setSourceTypeResolved(true);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setSourceKind(null);
+        setSourceTypeResolved(true);
+      });
+
+    return () => { alive = false; };
+  }, [source?.id, source?.key, driverType]);
+
+  if (source && !sourceTypeResolved) return null;
+  if (sourceKind?.toLowerCase() === 'sourceprovider') return null;
+
   const specialized = driverType ? specializedAssistants[driverType] : undefined;
   const manualHelp = driverType ? manualHelpForDriver(driverType, text) : text.manualHelp;
 

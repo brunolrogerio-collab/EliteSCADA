@@ -11,6 +11,7 @@ import { buildModbusTagAddress } from './tagAddressApi';
 import { OpcUaTagBrowser } from './OpcUaTagBrowser';
 import { Dnp3TagAddressAssistant } from './Dnp3TagAddressAssistant';
 import { Iec104TagAddressAssistant } from './Iec104TagAddressAssistant';
+import { GenericTagBindingAssistant } from './GenericTagBindingAssistant';
 
 type Props = {
   tag: TagSourceAwareEngineering;
@@ -19,17 +20,39 @@ type Props = {
   onChange: (tag: TagSourceAwareEngineering) => void;
 };
 
+type AssistantContext = Readonly<{
+  tag: TagSourceAwareEngineering;
+  source: DataSourceEngineering;
+  locale: EngineeringLocale;
+  onChange: (tag: TagSourceAwareEngineering) => void;
+}>;
+
+type AssistantRenderer = (context: AssistantContext) => React.ReactNode;
+
 const valueTypes = ['', 'Boolean', 'Int16', 'UInt16', 'Int32', 'UInt32', 'Float32', 'Int64', 'UInt64', 'Float64'];
 const wordOrders = ['', 'HighWordFirst', 'LowWordFirst'];
+
+const specializedAssistants: Readonly<Record<string, AssistantRenderer>> = {
+  'modbus.tcp': ({ tag, locale, onChange }) => (
+    <ModbusAssistant tag={tag} locale={locale} onChange={onChange} />
+  ),
+  'opc-ua': ({ tag, source, locale, onChange }) => (
+    <OpcUaTagBrowser tag={tag} source={source} locale={locale} onChange={onChange} />
+  ),
+  'dnp3.master': ({ tag, locale, onChange }) => (
+    <Dnp3TagAddressAssistant tag={tag} locale={locale} onChange={onChange} />
+  ),
+  'iec60870.5.104': ({ tag, locale, onChange }) => (
+    <Iec104TagAddressAssistant tag={tag} locale={locale} onChange={onChange} />
+  )
+};
 
 export function TagAddressEditor({ tag, sources, locale, onChange }: Props) {
   const text = useMemo(() => copy(locale), [locale]);
   const source = resolveTagDataSource(tag, sources).source;
-  const driverType = source?.driver.toLowerCase();
-  const isModbus = driverType === 'modbus.tcp';
-  const isOpcUa = driverType === 'opc-ua';
-  const isDnp3 = driverType === 'dnp3.master';
-  const isIec104 = driverType === 'iec60870.5.104';
+  const driverType = source?.driver.trim().toLowerCase() ?? null;
+  const specialized = driverType ? specializedAssistants[driverType] : undefined;
+  const manualHelp = driverType ? manualHelpForDriver(driverType, text) : text.manualHelp;
 
   return (
     <>
@@ -41,14 +64,29 @@ export function TagAddressEditor({ tag, sources, locale, onChange }: Props) {
           onChange={event => onChange(updateManualTagAddress(tag, emptyToNull(event.target.value)))}
           data-testid="tag-address-manual"
         />
-        <small>{isModbus ? text.modbusManualHelp : isOpcUa ? text.opcUaManualHelp : isDnp3 ? text.dnp3ManualHelp : isIec104 ? text.iec104ManualHelp : text.manualHelp}</small>
+        <small>{manualHelp}</small>
       </label>
-      {isModbus && <ModbusAssistant tag={tag} locale={locale} onChange={onChange} />}
-      {isOpcUa && source && <OpcUaTagBrowser tag={tag} source={source} locale={locale} onChange={onChange} />}
-      {isDnp3 && <Dnp3TagAddressAssistant tag={tag} locale={locale} onChange={onChange} />}
-      {isIec104 && <Iec104TagAddressAssistant tag={tag} locale={locale} onChange={onChange} />}
+      {source && specialized?.({ tag, source, locale, onChange })}
+      {source && driverType && !specialized && (
+        <GenericTagBindingAssistant
+          tag={tag}
+          driverType={driverType}
+          locale={locale}
+          onChange={onChange}
+        />
+      )}
     </>
   );
+}
+
+function manualHelpForDriver(driverType: string, text: ReturnType<typeof copy>): string {
+  const byDriver: Readonly<Record<string, string>> = {
+    'modbus.tcp': text.modbusManualHelp,
+    'opc-ua': text.opcUaManualHelp,
+    'dnp3.master': text.dnp3ManualHelp,
+    'iec60870.5.104': text.iec104ManualHelp
+  };
+  return byDriver[driverType] ?? text.manualHelp;
 }
 
 function ModbusAssistant({ tag, locale, onChange }: {

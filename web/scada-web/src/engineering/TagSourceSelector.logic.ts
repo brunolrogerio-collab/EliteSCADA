@@ -58,6 +58,8 @@ export function assignTagDataSource(
       ...tag,
       dataSourceId: null,
       source: null,
+      address: null,
+      addressSelector: null,
       communicationBinding: null
     };
   }

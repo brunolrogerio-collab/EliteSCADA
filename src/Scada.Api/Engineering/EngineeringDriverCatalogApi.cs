@@ -1,8 +1,14 @@
 using System.Globalization;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
+using Scada.DriverHost.Runtime;
+using Scada.Drivers.Abstractions;
 using Scada.Drivers.Modbus;
+using Scada.Engineering.Contracts;
+using Scada.Engineering.DataSources;
 using Scada.Engineering.Validation;
 
 namespace Scada.Api.Engineering;
@@ -22,12 +28,17 @@ public static class EngineeringDriverCatalogApi
 {
     public static void AddEngineeringDriverCatalog(this WebApplicationBuilder builder)
     {
-        builder.Services.AddSingleton(_ => CommunicationDriverRuntimeComposition.BuildForCurrentSchema());
+        builder.Services.TryAddSingleton<ICommunicationDriverProtectedMaterialResolver>(_ =>
+            EnvironmentCommunicationDriverProtectedMaterialResolver.CreateDeterministicScopedEnvironment());
+        builder.Services.AddSingleton(sp => CommunicationDriverRuntimeComposition.BuildForCurrentSchema(
+            hostProtectedMaterialResolver: sp.GetRequiredService<ICommunicationDriverProtectedMaterialResolver>()));
         builder.Services.AddSingleton<EngineeringDataSourceTypeCatalog>(sp =>
             EngineeringDataSourceTypeCatalog.BuildForCurrentSchema(
                 sp.GetRequiredService<CommunicationDriverRuntimeComponentRegistry>()));
         builder.Services.AddSingleton<IDataSourceConfigurationValidator>(sp =>
             sp.GetRequiredService<EngineeringDataSourceTypeCatalog>());
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, OpcUaEngineeringDriverToolProviderFactory>();
+        builder.Services.AddSingleton<EngineeringDriverToolProviderFactoryRegistry>();
     }
 
     public static void MapEngineeringDriverCatalogEndpoints(this WebApplication app)
@@ -99,7 +110,157 @@ public static class EngineeringDriverCatalogApi
             });
         })
         .RequireWorkspaceEngineeringRead();
+
+        app.MapPost("/api/engineering/data-sources/{id:guid}/driver-tools/connection-test", async (
+            Guid id,
+            EngineeringWorkspace workspace,
+            IDataSourceEngineeringRegistry dataSources,
+            EngineeringDriverToolProviderFactoryRegistry factories,
+            CancellationToken cancellationToken) =>
+        {
+            var dataSource = dataSources.Find(id);
+            if (dataSource is null)
+                return Results.NotFound(new { error = $"Engineering Data Source '{id}' was not found." });
+            if (!factories.TryGet(dataSource.Driver, out var factory) || factory is null)
+                return UnsupportedTooling(dataSource.Driver);
+
+            try
+            {
+                await using var lease = await factory.CreateAsync(
+                    workspace.Describe().ProjectKey,
+                    dataSource,
+                    cancellationToken);
+                var tester = lease.Registration.ConnectionTester;
+                if (tester is null)
+                    return UnsupportedCapability(dataSource.Driver, DriverEngineeringCapabilities.ConnectionTest);
+
+                var result = await tester.TestConnectionAsync(ToDriverContext(dataSource), cancellationToken);
+                return Results.Ok(result);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                return DriverToolFailure(ex);
+            }
+        })
+        .RequireWorkspaceEngineeringRead();
+
+        app.MapPost("/api/engineering/data-sources/{id:guid}/driver-tools/discover", async (
+            Guid id,
+            DriverEngineeringDiscoveryApiRequest request,
+            EngineeringWorkspace workspace,
+            IDataSourceEngineeringRegistry dataSources,
+            EngineeringDriverToolProviderFactoryRegistry factories,
+            CancellationToken cancellationToken) =>
+        {
+            var dataSource = dataSources.Find(id);
+            if (dataSource is null)
+                return Results.NotFound(new { error = $"Engineering Data Source '{id}' was not found." });
+            if (!factories.TryGet(dataSource.Driver, out var factory) || factory is null)
+                return UnsupportedTooling(dataSource.Driver);
+
+            try
+            {
+                await using var lease = await factory.CreateAsync(
+                    workspace.Describe().ProjectKey,
+                    dataSource,
+                    cancellationToken);
+                var discovery = lease.Registration.DiscoverySource;
+                if (discovery is null)
+                    return UnsupportedCapability(dataSource.Driver, DriverEngineeringCapabilities.Discover);
+
+                var candidates = new List<DriverDiscoveryCandidate>();
+                await foreach (var candidate in discovery.DiscoverAsync(
+                                   new DriverDiscoveryRequest(
+                                       ToDriverContext(dataSource),
+                                       request.Parameters,
+                                       request.MaximumResults),
+                                   cancellationToken))
+                {
+                    candidates.Add(candidate);
+                }
+
+                return Results.Ok(candidates);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                return DriverToolFailure(ex);
+            }
+        })
+        .RequireWorkspaceEngineeringRead();
+
+        app.MapPost("/api/engineering/data-sources/{id:guid}/driver-tools/browse", async (
+            Guid id,
+            DriverEngineeringBrowseApiRequest request,
+            EngineeringWorkspace workspace,
+            IDataSourceEngineeringRegistry dataSources,
+            EngineeringDriverToolProviderFactoryRegistry factories,
+            CancellationToken cancellationToken) =>
+        {
+            var dataSource = dataSources.Find(id);
+            if (dataSource is null)
+                return Results.NotFound(new { error = $"Engineering Data Source '{id}' was not found." });
+            if (!factories.TryGet(dataSource.Driver, out var factory) || factory is null)
+                return UnsupportedTooling(dataSource.Driver);
+
+            try
+            {
+                await using var lease = await factory.CreateAsync(
+                    workspace.Describe().ProjectKey,
+                    dataSource,
+                    cancellationToken);
+                var browser = lease.Registration.Browser;
+                if (browser is null)
+                    return UnsupportedCapability(dataSource.Driver, DriverEngineeringCapabilities.Browse);
+
+                var page = await browser.BrowseAsync(
+                    new DriverBrowseRequest(
+                        ToDriverContext(dataSource),
+                        request.ParentNodeId,
+                        request.ContinuationToken,
+                        request.PageSize,
+                        request.Parameters),
+                    cancellationToken);
+                return Results.Ok(page);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                return DriverToolFailure(ex);
+            }
+        })
+        .RequireWorkspaceEngineeringRead();
     }
+
+    private static DriverEngineeringDataSourceContext ToDriverContext(DataSourceEngineeringDto dataSource) =>
+        new(
+            dataSource.Key,
+            dataSource.Name,
+            dataSource.Driver,
+            dataSource.Settings is null
+                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, string>(dataSource.Settings, StringComparer.OrdinalIgnoreCase),
+            dataSource.SecretReferences is null
+                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, string>(dataSource.SecretReferences, StringComparer.OrdinalIgnoreCase));
+
+    private static IResult UnsupportedTooling(string driverType) =>
+        Results.BadRequest(new
+        {
+            error = $"Driver '{driverType}' does not expose a registered Engineering tooling provider in this build."
+        });
+
+    private static IResult UnsupportedCapability(
+        string driverType,
+        DriverEngineeringCapabilities capability) =>
+        Results.BadRequest(new
+        {
+            error = $"Driver '{driverType}' does not support Engineering capability '{capability}'."
+        });
+
+    private static IResult DriverToolFailure(Exception exception) =>
+        Results.Problem(
+            title: "Driver Engineering operation failed.",
+            detail: exception.Message,
+            statusCode: StatusCodes.Status502BadGateway);
 
     private static string NormalizeEnumToken(string value) =>
         value.Trim().Replace("_", string.Empty, StringComparison.Ordinal).Replace("-", string.Empty, StringComparison.Ordinal);

@@ -18,6 +18,7 @@ import {
   resolveVisualEditorKeyboardCommand,
   type VisualEditorKeyboardCommand
 } from '../visualEditorKeyboardModel';
+import { DynamoInstanceInspector } from './DynamoInstanceInspector';
 import { VisualEditorAuthoringToolbar } from './VisualEditorAuthoringToolbar';
 import { VisualEditorCanvas as LegacyVisualEditorCanvas } from './VisualEditorCanvas';
 import { VisualEditorOutliner } from './VisualEditorOutliner';
@@ -69,9 +70,9 @@ type GuideDrag = Readonly<{
 
 /**
  * C07 interaction wrapper around the established Canvas renderer. It adds
- * logical marquee selection, hierarchy Outliner, smart alignment guides and
- * authoring-lock interception without duplicating canonical rendering or
- * geometry mutation code.
+ * logical marquee selection, hierarchy Outliner, typed Dynamo inspection,
+ * smart alignment guides and authoring-lock interception without duplicating
+ * canonical rendering or geometry mutation code.
  */
 export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -308,6 +309,11 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
         objectIds: [objectId],
         mode
       })}
+    />
+    <DynamoInstanceInspector
+      screen={props.screen}
+      selectedObjectIds={props.selectedObjectIds}
+      onCommand={props.onKeyboardCommand}
     />
     {verticalGuideStyle ? <div
       className="visual-editor-smart-guide is-vertical"

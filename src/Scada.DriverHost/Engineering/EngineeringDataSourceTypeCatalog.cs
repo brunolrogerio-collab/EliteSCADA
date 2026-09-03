@@ -231,7 +231,7 @@ public sealed class EngineeringDataSourceTypeCatalog : IDataSourceConfigurationV
             ? null
             : descriptor.TagBindingSchemaId ?? descriptor.ConfigurationSchema.SchemaId;
         var tagBindingSchemaVersion = descriptor is null
-            ? null
+            ? (int?)null
             : descriptor.TagBindingSchemaVersion ?? descriptor.ConfigurationSchema.SchemaVersion;
         return new EngineeringDataSourceTypeView(
             definition.TypeKey,

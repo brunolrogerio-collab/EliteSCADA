@@ -1,4 +1,12 @@
-import React, { useEffect, useMemo, useState, type CSSProperties, type MouseEvent } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent
+} from 'react';
+import { createPortal } from 'react-dom';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
 import {
   CanonicalVisualRenderer,
@@ -53,9 +61,9 @@ export type RuntimeVisualDefinitionRendererProps = Readonly<{
  * CanonicalVisualRenderer remains the only process-artwork renderer. C07 expands
  * Dynamo instances only in this transient projection so public parameter
  * bindings are resolved before the renderer subscribes to TAGs. Semantic Dynamo
- * state is rendered as a separate read-only overlay, keeping the canonical visual
- * element tree stable while live values change. Python receives no DOM, React or
- * browser authority.
+ * state is rendered as a separate read-only overlay anchored to the rendered
+ * Dynamo root, keeping the canonical visual element tree stable while live
+ * values change. Python receives no DOM, React or browser authority.
  */
 export function RuntimeVisualDefinitionRenderer({
   visualDefinitionId,
@@ -73,6 +81,10 @@ export function RuntimeVisualDefinitionRenderer({
   visualAssetUrl
 }: RuntimeVisualDefinitionRendererProps) {
   const [revision, setRevision] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [dynamoStateHosts, setDynamoStateHosts] = useState<ReadonlyMap<string, HTMLElement>>(
+    () => new Map()
+  );
   const instances = useMemo(
     () => createRuntimeVisualInstances(elements, runtimeContextId),
     [elements, runtimeContextId]
@@ -104,6 +116,21 @@ export function RuntimeVisualDefinitionRenderer({
     [expandedDynamoElements, dynamoStateSamples]
   );
 
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root) {
+      setDynamoStateHosts(new Map());
+      return;
+    }
+
+    const next = new Map<string, HTMLElement>();
+    for (const node of root.querySelectorAll<HTMLElement>('[data-object-id]')) {
+      const objectId = node.dataset.objectId?.trim();
+      if (objectId && !next.has(objectId)) next.set(objectId, node);
+    }
+    setDynamoStateHosts(next);
+  }, [expandedDynamoElements]);
+
   const captureObjectInteraction = (event: MouseEvent<HTMLDivElement>) => {
     if (!scriptContext || !visualDefinitionId.trim()) return;
     const target = event.target;
@@ -127,11 +154,11 @@ export function RuntimeVisualDefinitionRenderer({
   };
 
   return <div
+    ref={rootRef}
     className="runtime-visual-definition"
     data-runtime-visual-definition-id={visualDefinitionId || undefined}
     data-runtime-visual-context-id={runtimeContextId}
     onClickCapture={captureObjectInteraction}
-    style={{ position: 'relative' }}
   >
     <CanonicalVisualRenderer
       elements={expandedDynamoElements}
@@ -141,62 +168,59 @@ export function RuntimeVisualDefinitionRenderer({
       onTagWrite={onTagWrite}
       visualAssetUrl={visualAssetUrl}
     />
-    <RuntimeDynamoStateLayer indicators={dynamoStateIndicators} />
+    <RuntimeDynamoStateLayer
+      indicators={dynamoStateIndicators}
+      hosts={dynamoStateHosts}
+    />
   </div>;
 }
 
 function RuntimeDynamoStateLayer({
-  indicators
+  indicators,
+  hosts
 }: {
   indicators: readonly RuntimeDynamoStateIndicator[];
+  hosts: ReadonlyMap<string, HTMLElement>;
 }) {
-  if (indicators.length === 0) return null;
-  return <div
-    className="runtime-dynamo-state-layer"
-    data-testid="runtime-dynamo-state-layer"
-    aria-hidden="false"
-    style={STATE_LAYER_STYLE}
-  >
-    {indicators.map(indicator => <span
-      key={indicator.instanceId}
-      role="status"
-      className="runtime-dynamo-state-indicator"
-      data-dynamo-instance-id={indicator.instanceId}
-      data-dynamo-key={indicator.dynamoKey}
-      data-dynamo-state={indicator.state}
-      data-dynamo-state-priority={indicator.priority}
-      data-dynamo-quality={indicator.quality}
-      data-dynamo-feedback-mismatch={indicator.feedbackMismatch || undefined}
-      title={`${indicator.dynamoKey} · ${indicator.label}${indicator.feedbackMismatch ? ' · feedback mismatch' : ''}`}
-      style={{
-        position: 'absolute',
-        left: indicator.x,
-        top: indicator.y,
-        minWidth: 78,
-        height: 18,
-        boxSizing: 'border-box',
-        display: 'grid',
-        placeItems: 'center',
-        padding: '0 4px',
-        border: `1px solid ${indicator.foreground}`,
-        borderRadius: 3,
-        background: indicator.background,
-        color: indicator.foreground,
-        fontFamily: 'system-ui, sans-serif',
-        fontSize: 9,
-        fontWeight: 700,
-        lineHeight: 1,
-        whiteSpace: 'nowrap',
-        pointerEvents: 'none'
-      }}
-    >{indicator.label}</span>)}
-  </div>;
+  return <>
+    {indicators.map(indicator => {
+      const host = hosts.get(indicator.objectId);
+      if (!host) return null;
+      return createPortal(<span
+        key={indicator.instanceId}
+        role="status"
+        data-testid="runtime-dynamo-state-indicator"
+        className="runtime-dynamo-state-indicator"
+        data-dynamo-instance-id={indicator.instanceId}
+        data-dynamo-key={indicator.dynamoKey}
+        data-dynamo-state={indicator.state}
+        data-dynamo-state-priority={indicator.priority}
+        data-dynamo-quality={indicator.quality}
+        data-dynamo-feedback-mismatch={indicator.feedbackMismatch || undefined}
+        title={`${indicator.dynamoKey} · ${indicator.label}${indicator.feedbackMismatch ? ' · feedback mismatch' : ''}`}
+        style={{
+          position: 'absolute',
+          left: 2,
+          top: 2,
+          zIndex: 2147480000,
+          minWidth: 78,
+          height: 18,
+          boxSizing: 'border-box',
+          display: 'grid',
+          placeItems: 'center',
+          padding: '0 4px',
+          border: `1px solid ${indicator.foreground}`,
+          borderRadius: 3,
+          background: indicator.background,
+          color: indicator.foreground,
+          fontFamily: 'system-ui, sans-serif',
+          fontSize: 9,
+          fontWeight: 700,
+          lineHeight: 1,
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none'
+        }}
+      >{indicator.label}</span>, host);
+    })}
+  </>;
 }
-
-const STATE_LAYER_STYLE: CSSProperties = Object.freeze({
-  position: 'absolute',
-  inset: 0,
-  zIndex: 2147480000,
-  pointerEvents: 'none',
-  overflow: 'visible'
-});

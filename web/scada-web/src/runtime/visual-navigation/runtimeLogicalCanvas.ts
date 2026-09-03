@@ -14,12 +14,16 @@ export type RuntimeLogicalTransform = RuntimeLogicalSize & Readonly<{
   offsetY: number;
 }>;
 
-export function resolveRuntimeLogicalSize(
-  properties: Readonly<Record<string, string>> | null | undefined
-): RuntimeLogicalSize {
+/**
+ * C09 owns the Runtime presentation transform, not the C07 Screen schema.
+ * Until C07 defines a canonical authored logical resolution, Runtime uses one
+ * deterministic 1920x1080 logical canvas and does not inspect Screen properties
+ * for undeclared sizing keys.
+ */
+export function resolveRuntimeLogicalSize(): RuntimeLogicalSize {
   return Object.freeze({
-    width: positiveDimension(properties?.designWidth, DEFAULT_RUNTIME_DESIGN_WIDTH),
-    height: positiveDimension(properties?.designHeight, DEFAULT_RUNTIME_DESIGN_HEIGHT)
+    width: DEFAULT_RUNTIME_DESIGN_WIDTH,
+    height: DEFAULT_RUNTIME_DESIGN_HEIGHT
   });
 }
 
@@ -60,11 +64,6 @@ export function viewportPointToLogical(
     x: (clientX - viewportLeft - transform.offsetX) / transform.scale,
     y: (clientY - viewportTop - transform.offsetY) / transform.scale
   });
-}
-
-function positiveDimension(value: string | null | undefined, fallback: number): number {
-  if (!value?.trim()) return fallback;
-  return positiveFinite(Number(value), fallback);
 }
 
 function positiveFinite(value: number, fallback: number): number {

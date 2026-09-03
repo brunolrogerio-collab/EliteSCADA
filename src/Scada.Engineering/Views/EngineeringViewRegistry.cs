@@ -7,6 +7,7 @@ public interface IEngineeringViewRegistry
 {
     IReadOnlyCollection<ScreenEngineeringDto> SnapshotScreens();
     IReadOnlyCollection<PopupEngineeringDto> SnapshotPopups();
+    Guid? StartupScreenId { get; }
 
     ScreenEngineeringDto? FindScreen(Guid id);
     ScreenEngineeringDto? FindScreenByKey(string key);
@@ -15,6 +16,7 @@ public interface IEngineeringViewRegistry
 
     void UpsertScreen(ScreenEngineeringDto screen);
     void UpsertPopup(PopupEngineeringDto popup);
+    void SetStartupScreen(Guid? screenId);
 }
 
 public sealed class InMemoryEngineeringViewRegistry : IEngineeringViewRegistry
@@ -25,10 +27,16 @@ public sealed class InMemoryEngineeringViewRegistry : IEngineeringViewRegistry
     private readonly Dictionary<Guid, PopupEngineeringDto> _popupsById = new();
     private readonly Dictionary<string, Guid> _popupsByKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly Action? _changed;
+    private Guid? _startupScreenId;
 
     public InMemoryEngineeringViewRegistry(Action? changed = null)
     {
         _changed = changed;
+    }
+
+    public Guid? StartupScreenId
+    {
+        get { lock (_sync) return _startupScreenId; }
     }
 
     public IReadOnlyCollection<ScreenEngineeringDto> SnapshotScreens()
@@ -63,6 +71,14 @@ public sealed class InMemoryEngineeringViewRegistry : IEngineeringViewRegistry
         lock (_sync) return _popupsByKey.TryGetValue(key, out var id) ? _popupsById.GetValueOrDefault(id) : null;
     }
 
+    public void SetStartupScreen(Guid? screenId)
+    {
+        if (screenId == Guid.Empty)
+            throw new ArgumentException("Startup Screen Id cannot be empty.", nameof(screenId));
+        lock (_sync) _startupScreenId = screenId;
+        _changed?.Invoke();
+    }
+
     public void UpsertScreen(ScreenEngineeringDto screen)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(screen.Key);
@@ -91,6 +107,8 @@ public sealed class InMemoryEngineeringViewRegistry : IEngineeringViewRegistry
         ArgumentException.ThrowIfNullOrWhiteSpace(popup.Key);
         if (popup.Id == Guid.Empty)
             throw new ArgumentException("Popup Id cannot be empty.", nameof(popup));
+        if (!double.IsFinite(popup.X) || !double.IsFinite(popup.Y))
+            throw new ArgumentException("Popup X/Y must be finite logical HMI coordinates.", nameof(popup));
 
         lock (_sync)
         {
@@ -117,6 +135,7 @@ public sealed class InMemoryEngineeringViewRegistry : IEngineeringViewRegistry
             _screensByKey.Clear();
             _popupsById.Clear();
             _popupsByKey.Clear();
+            _startupScreenId = null;
         }
         _changed?.Invoke();
     }

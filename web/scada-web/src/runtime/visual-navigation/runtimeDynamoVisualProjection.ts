@@ -1,4 +1,6 @@
+import type { EngineeringLocale } from '../../engineering/i18n';
 import type { DynamoEngineering, VisualElementEngineering } from '../../engineering/types';
+import { c07VisualEditorText } from '../../engineering/visual-editor/c07VisualEditorI18n';
 import { resolveDynamoRuntimeState } from '../../engineering/visual-editor/dynamo/dynamoRuntimeStateModel';
 import type { VisualLiveScalarSample } from '../../engineering/visual-editor/visualEditorLiveValues';
 import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../visual-runtime';
@@ -72,10 +74,11 @@ export function collectRuntimeDynamoStateBindingElements(
  */
 export function resolveRuntimeDynamoStateIndicators(
   elements: readonly VisualElementEngineering[],
-  liveSamples: ReadonlyMap<string, VisualLiveScalarSample>
+  liveSamples: ReadonlyMap<string, VisualLiveScalarSample>,
+  locale: EngineeringLocale = 'pt-BR'
 ): readonly RuntimeDynamoStateIndicator[] {
   const result: RuntimeDynamoStateIndicator[] = [];
-  for (const element of elements) collectIndicators(element, liveSamples, result);
+  for (const element of elements) collectIndicators(element, liveSamples, result, locale);
   return Object.freeze(result);
 }
 
@@ -161,13 +164,14 @@ function scopeDefinitionElement(
 function collectIndicators(
   element: VisualElementEngineering,
   liveSamples: ReadonlyMap<string, VisualLiveScalarSample>,
-  result: RuntimeDynamoStateIndicator[]
+  result: RuntimeDynamoStateIndicator[],
+  locale: EngineeringLocale
 ): void {
   if (isExpandedRuntimeDynamo(element)) {
     const resolution = resolveDynamoRuntimeState(element.children ?? [], liveSamples);
     const instanceId = element.metadata?.[RUNTIME_DYNAMO_INSTANCE_ID] ?? element.id ?? element.key;
     const dynamoKey = element.metadata?.[RUNTIME_DYNAMO_KEY] ?? 'unknown';
-    const presentation = statePresentation(resolution.state.kind);
+    const presentation = statePresentation(resolution.state.kind, locale);
     result.push(Object.freeze({
       objectId: element.id ?? instanceId,
       instanceId,
@@ -184,7 +188,7 @@ function collectIndicators(
   }
 
   for (const child of element.children ?? []) {
-    collectIndicators(child, liveSamples, result);
+    collectIndicators(child, liveSamples, result, locale);
   }
 }
 
@@ -229,21 +233,22 @@ function runtimeDynamoDiagnosticElement(
   });
 }
 
-function statePresentation(kind: string): Readonly<{
+function statePresentation(kind: string, locale: EngineeringLocale): Readonly<{
   label: string;
   background: string;
   foreground: string;
 }> {
+  const text = c07VisualEditorText(locale).runtimeState;
   switch (kind) {
-    case 'bad-quality': return Object.freeze({ label: 'BAD QUALITY', background: '#334155', foreground: '#FFFFFF' });
-    case 'fault': return Object.freeze({ label: 'FAULT', background: '#7F1D1D', foreground: '#FFFFFF' });
-    case 'alarm': return Object.freeze({ label: 'ALARM', background: '#92400E', foreground: '#FFFFFF' });
-    case 'uncertain-quality': return Object.freeze({ label: 'UNCERTAIN', background: '#854D0E', foreground: '#FFFFFF' });
-    case 'command-intent': return Object.freeze({ label: 'COMMAND', background: '#1D4ED8', foreground: '#FFFFFF' });
-    case 'transitioning': return Object.freeze({ label: 'TRANSITION', background: '#6D28D9', foreground: '#FFFFFF' });
-    case 'active': return Object.freeze({ label: 'ACTIVE', background: '#166534', foreground: '#FFFFFF' });
-    case 'inactive': return Object.freeze({ label: 'INACTIVE', background: '#475569', foreground: '#FFFFFF' });
-    default: return Object.freeze({ label: 'UNKNOWN', background: '#52525B', foreground: '#FFFFFF' });
+    case 'bad-quality': return Object.freeze({ label: text.badQuality, background: '#334155', foreground: '#FFFFFF' });
+    case 'fault': return Object.freeze({ label: text.fault, background: '#7F1D1D', foreground: '#FFFFFF' });
+    case 'alarm': return Object.freeze({ label: text.alarm, background: '#92400E', foreground: '#FFFFFF' });
+    case 'uncertain-quality': return Object.freeze({ label: text.uncertain, background: '#854D0E', foreground: '#FFFFFF' });
+    case 'command-intent': return Object.freeze({ label: text.command, background: '#1D4ED8', foreground: '#FFFFFF' });
+    case 'transitioning': return Object.freeze({ label: text.transition, background: '#6D28D9', foreground: '#FFFFFF' });
+    case 'active': return Object.freeze({ label: text.active, background: '#166534', foreground: '#FFFFFF' });
+    case 'inactive': return Object.freeze({ label: text.inactive, background: '#475569', foreground: '#FFFFFF' });
+    default: return Object.freeze({ label: text.unknown, background: '#52525B', foreground: '#FFFFFF' });
   }
 }
 

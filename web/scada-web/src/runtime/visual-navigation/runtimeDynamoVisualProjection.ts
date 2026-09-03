@@ -17,6 +17,21 @@ const RUNTIME_DYNAMO_INSTANCE_ID = 'runtime.dynamo.instanceId';
 const RUNTIME_DYNAMO_DEFINITION_ID = 'runtime.dynamo.definitionId';
 const RUNTIME_DYNAMO_EXPANDED = 'runtime.dynamo.expanded';
 
+export type RuntimeDynamoStateIndicator = Readonly<{
+  objectId: string;
+  instanceId: string;
+  dynamoKey: string;
+  state: string;
+  priority: number;
+  quality: string;
+  feedbackMismatch: boolean;
+  label: string;
+  background: string;
+  foreground: string;
+  x: number;
+  y: number;
+}>;
+
 /**
  * Expands Dynamo instances only in transient Runtime projection. The persisted
  * Engineering instance stays a single canonical object carrying `dynamoKey` and
@@ -31,16 +46,33 @@ export function expandRuntimeDynamoVisuals(
     expandElementFailClosed(element, definitions, `root.${index}`)));
 }
 
+/** Only projected Dynamo internals are sampled by the C07 state overlay. */
+export function collectRuntimeDynamoStateBindingElements(
+  elements: readonly VisualElementEngineering[]
+): readonly VisualElementEngineering[] {
+  const result: VisualElementEngineering[] = [];
+  const visit = (element: VisualElementEngineering) => {
+    if (isExpandedRuntimeDynamo(element)) {
+      result.push(...(element.children ?? []));
+      return;
+    }
+    for (const child of element.children ?? []) visit(child);
+  };
+  for (const element of elements) visit(element);
+  return Object.freeze(result);
+}
+
 /**
- * Adds a transient semantic state indicator after live samples have been
- * collected from the exact projected public bindings. The indicator is text +
- * color; color is supportive, never the only state signal.
+ * Resolves semantic state indicators without changing the visual element tree.
+ * This keeps CanonicalVisualRenderer input stable while live samples change.
  */
-export function decorateRuntimeDynamoVisualStates(
+export function resolveRuntimeDynamoStateIndicators(
   elements: readonly VisualElementEngineering[],
   liveSamples: ReadonlyMap<string, VisualLiveScalarSample>
-): readonly VisualElementEngineering[] {
-  return Object.freeze(elements.map(element => decorateElement(element, liveSamples)));
+): readonly RuntimeDynamoStateIndicator[] {
+  const result: RuntimeDynamoStateIndicator[] = [];
+  for (const element of elements) collectIndicators(element, liveSamples, 0, 0, 1, 1, result);
+  return Object.freeze(result);
 }
 
 export function isExpandedRuntimeDynamo(element: VisualElementEngineering): boolean {
@@ -119,78 +151,45 @@ function scopeDefinitionElement(
   });
 }
 
-function decorateElement(
+function collectIndicators(
   element: VisualElementEngineering,
-  liveSamples: ReadonlyMap<string, VisualLiveScalarSample>
-): VisualElementEngineering {
-  const originalChildren = element.children ?? [];
-  const children = originalChildren.map(child => decorateElement(child, liveSamples));
-  if (!isExpandedRuntimeDynamo(element)) {
-    if (children.length === 0 && originalChildren.length === 0) return element;
-    return Object.freeze({ ...element, children: Object.freeze(children) });
+  liveSamples: ReadonlyMap<string, VisualLiveScalarSample>,
+  parentX: number,
+  parentY: number,
+  parentScaleX: number,
+  parentScaleY: number,
+  result: RuntimeDynamoStateIndicator[]
+): void {
+  const x = parentX + finiteOr(element.properties?.x, 0) * parentScaleX;
+  const y = parentY + finiteOr(element.properties?.y, 0) * parentScaleY;
+  const scaleX = parentScaleX * finiteOr(element.properties?.scaleX, 1);
+  const scaleY = parentScaleY * finiteOr(element.properties?.scaleY, 1);
+
+  if (isExpandedRuntimeDynamo(element)) {
+    const resolution = resolveDynamoRuntimeState(element.children ?? [], liveSamples);
+    const instanceId = element.metadata?.[RUNTIME_DYNAMO_INSTANCE_ID] ?? element.id ?? element.key;
+    const dynamoKey = element.metadata?.[RUNTIME_DYNAMO_KEY] ?? 'unknown';
+    const presentation = statePresentation(resolution.state.kind);
+    result.push(Object.freeze({
+      objectId: element.id ?? instanceId,
+      instanceId,
+      dynamoKey,
+      state: resolution.state.kind,
+      priority: resolution.state.priority,
+      quality: resolution.state.quality,
+      feedbackMismatch: resolution.feedbackMismatch,
+      label: presentation.label,
+      background: presentation.background,
+      foreground: presentation.foreground,
+      x: x + 2 * scaleX,
+      y: y + 2 * scaleY
+    }));
+    return;
   }
 
-  const resolution = resolveDynamoRuntimeState(children, liveSamples);
-  const instanceId = element.metadata?.[RUNTIME_DYNAMO_INSTANCE_ID] ?? element.id ?? element.key;
-  const presentation = statePresentation(resolution.state.kind);
-  const tooltip = mergeTooltip(
-    element.properties?.tooltip,
-    `Dynamo state: ${presentation.label}${resolution.feedbackMismatch ? ' · feedback mismatch' : ''}`
-  );
-  const badge = createStateBadge(instanceId, presentation.label, presentation.background, presentation.foreground);
-
-  return Object.freeze({
-    ...element,
-    properties: Object.freeze({
-      ...(element.properties ?? {}),
-      tooltip
-    }),
-    children: Object.freeze([...children, badge]),
-    metadata: Object.freeze({
-      ...(element.metadata ?? {}),
-      'runtime.dynamo.state': resolution.state.kind,
-      'runtime.dynamo.statePriority': String(resolution.state.priority),
-      'runtime.dynamo.quality': resolution.state.quality,
-      'runtime.dynamo.feedbackMismatch': resolution.feedbackMismatch ? 'true' : 'false'
-    })
-  });
-}
-
-function createStateBadge(
-  instanceId: string,
-  label: string,
-  background: string,
-  foreground: string
-): VisualElementEngineering {
-  return Object.freeze({
-    id: `${instanceId}/__state`,
-    key: '__dynamo-state',
-    type: BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay,
-    properties: Object.freeze({
-      x: 2,
-      y: 2,
-      width: 78,
-      height: 18,
-      zIndex: 2147480000,
-      opacity: 0.94,
-      backgroundColor: background,
-      strokeColor: foreground,
-      strokeWidth: 1,
-      strokeStyle: 'solid',
-      cornerRadius: 3,
-      text: label,
-      textColor: foreground,
-      fontSize: 9,
-      fontWeight: 700,
-      horizontalAlignment: 'center',
-      verticalAlignment: 'middle',
-      tooltip: `Dynamo state: ${label}`,
-      enabled: false
-    }),
-    metadata: Object.freeze({
-      'runtime.dynamo.stateIndicator': 'true'
-    })
-  });
+  for (const child of element.children ?? []) {
+    collectIndicators(child, liveSamples, x, y, scaleX, scaleY, result);
+  }
 }
 
 function runtimeDynamoDiagnosticElement(
@@ -250,11 +249,6 @@ function statePresentation(kind: string): Readonly<{
     case 'inactive': return Object.freeze({ label: 'INACTIVE', background: '#475569', foreground: '#FFFFFF' });
     default: return Object.freeze({ label: 'UNKNOWN', background: '#52525B', foreground: '#FFFFFF' });
   }
-}
-
-function mergeTooltip(existing: unknown, state: string): string {
-  const current = typeof existing === 'string' ? existing.trim() : '';
-  return current ? `${current}\n${state}` : state;
 }
 
 function finiteOr(value: unknown, fallback: number): number {

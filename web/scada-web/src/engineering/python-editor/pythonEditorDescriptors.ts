@@ -15,6 +15,10 @@ const capabilityHelp: Record<ClientVisualPythonCapability, Omit<PythonApiHelpDes
     title: 'TAG read',
     summary: 'Read an authorized shared TAG snapshot through the trusted Client Visual bridge.'
   },
+  'tag.write': {
+    title: 'TAG write',
+    summary: 'Request an authorized writable TAG change through the normal Runtime/backend command path.'
+  },
   'clientMemory.read': {
     title: 'Client Memory read',
     summary: 'Read a builtin.memory.client value owned by the current Runtime Client.'

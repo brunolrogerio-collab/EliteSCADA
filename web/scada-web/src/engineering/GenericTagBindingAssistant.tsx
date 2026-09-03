@@ -5,6 +5,7 @@ import {
   type DataSourceConfigurationField,
   type DataSourceTypeDefinition
 } from './DataSourceCatalogEditor.logic';
+import { resolveDriverCatalogResource } from './driverCatalogI18n';
 import type { EngineeringLocale } from './i18n';
 import { c04Text, type C04Text } from './c04I18n';
 import type { TagSourceAwareEngineering } from './TagSourceSelector.logic';
@@ -65,7 +66,7 @@ export function GenericTagBindingAssistant({ tag, driverType, locale, onChange }
       return;
     }
 
-    const validationError = validateSettings(fields, settings, text);
+    const validationError = validateSettings(fields, settings, text, locale);
     if (validationError) {
       setError(validationError);
       return;
@@ -102,6 +103,7 @@ export function GenericTagBindingAssistant({ tag, driverType, locale, onChange }
             key={field.key}
             field={field}
             value={settings[field.key] ?? ''}
+            locale={locale}
             protectedMaterialHint={text.protectedMaterialHint}
             onChange={value => setSettings(current => ({ ...current, [field.key]: value }))}
           />
@@ -117,18 +119,26 @@ export function GenericTagBindingAssistant({ tag, driverType, locale, onChange }
   );
 }
 
-function GenericField({ field, value, protectedMaterialHint, onChange }: {
+function GenericField({ field, value, locale, protectedMaterialHint, onChange }: {
   field: DataSourceConfigurationField;
   value: string;
+  locale: EngineeringLocale;
   protectedMaterialHint: string;
   onChange: (value: string) => void;
 }) {
   const testId = `generic-tag-binding-${field.key.replace(/[^A-Za-z0-9_-]+/g, '-')}`;
   const unsupportedProtected = field.valueKind === 'secretReference' || field.valueKind === 'certificateReference';
+  const displayName = localizedFieldName(field, locale);
+  const description = resolveDriverCatalogResource(locale, field.descriptionResourceKey, field.description);
+  const booleanLabels = locale === 'en'
+    ? { yes: 'Yes', no: 'No' }
+    : locale === 'es'
+      ? { yes: 'Sí', no: 'No' }
+      : { yes: 'Sim', no: 'Não' };
 
   return (
     <label className="eng-editor-field">
-      <span>{field.displayName || field.key}{field.required ? ' *' : ''}</span>
+      <span>{displayName}{field.required ? ' *' : ''}</span>
       {field.valueKind === 'enum' ? (
         <select value={value} onChange={event => onChange(event.target.value)} data-testid={testId}>
           {!field.required && <option value="" />}
@@ -137,8 +147,8 @@ function GenericField({ field, value, protectedMaterialHint, onChange }: {
       ) : field.valueKind === 'boolean' ? (
         <select value={value} onChange={event => onChange(event.target.value)} data-testid={testId}>
           {!field.required && <option value="" />}
-          <option value="true">true</option>
-          <option value="false">false</option>
+          <option value="true">{booleanLabels.yes}</option>
+          <option value="false">{booleanLabels.no}</option>
         </select>
       ) : (
         <input
@@ -152,7 +162,7 @@ function GenericField({ field, value, protectedMaterialHint, onChange }: {
           data-testid={testId}
         />
       )}
-      {field.description && <small>{field.description}</small>}
+      {description && <small>{description}</small>}
       {unsupportedProtected && <small>{protectedMaterialHint}</small>}
     </label>
   );
@@ -179,34 +189,40 @@ function initialSettings(
 function validateSettings(
   fields: readonly DataSourceConfigurationField[],
   settings: Readonly<Record<string, string>>,
-  text: C04Text['generic']
+  text: C04Text['generic'],
+  locale: EngineeringLocale
 ): string | null {
   for (const field of fields) {
+    const label = localizedFieldName(field, locale);
     const value = settings[field.key]?.trim() ?? '';
-    if (field.required && !value) return `${field.displayName || field.key}: ${text.required}`;
+    if (field.required && !value) return `${label}: ${text.required}`;
     if (!value) continue;
 
     if (field.valueKind === 'integer') {
-      if (!/^[+-]?\d+$/.test(value)) return `${field.displayName || field.key}: ${text.integer}`;
+      if (!/^[+-]?\d+$/.test(value)) return `${label}: ${text.integer}`;
       const parsed = Number(value);
-      if (!Number.isSafeInteger(parsed)) return `${field.displayName || field.key}: ${text.integer}`;
-      if (field.minimum != null && parsed < field.minimum) return `${field.displayName || field.key}: >= ${field.minimum}`;
-      if (field.maximum != null && parsed > field.maximum) return `${field.displayName || field.key}: <= ${field.maximum}`;
+      if (!Number.isSafeInteger(parsed)) return `${label}: ${text.integer}`;
+      if (field.minimum != null && parsed < field.minimum) return `${label}: >= ${field.minimum}`;
+      if (field.maximum != null && parsed > field.maximum) return `${label}: <= ${field.maximum}`;
     }
 
     if (field.valueKind === 'number') {
       const parsed = Number(value);
-      if (!Number.isFinite(parsed)) return `${field.displayName || field.key}: ${text.number}`;
-      if (field.minimum != null && parsed < field.minimum) return `${field.displayName || field.key}: >= ${field.minimum}`;
-      if (field.maximum != null && parsed > field.maximum) return `${field.displayName || field.key}: <= ${field.maximum}`;
+      if (!Number.isFinite(parsed)) return `${label}: ${text.number}`;
+      if (field.minimum != null && parsed < field.minimum) return `${label}: >= ${field.minimum}`;
+      if (field.maximum != null && parsed > field.maximum) return `${label}: <= ${field.maximum}`;
     }
 
     if (field.valueKind === 'enum' && field.allowedValues.length > 0 && !field.allowedValues.includes(value))
-      return `${field.displayName || field.key}: ${text.enumValue}`;
+      return `${label}: ${text.enumValue}`;
 
     if ((field.valueKind === 'secretReference' || field.valueKind === 'certificateReference') && value)
-      return `${field.displayName || field.key}: ${text.protectedMaterial}`;
+      return `${label}: ${text.protectedMaterial}`;
   }
 
   return null;
+}
+
+function localizedFieldName(field: DataSourceConfigurationField, locale: EngineeringLocale): string {
+  return resolveDriverCatalogResource(locale, field.displayNameResourceKey, field.displayName || field.key) || field.key;
 }

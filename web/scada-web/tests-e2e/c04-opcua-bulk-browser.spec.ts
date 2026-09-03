@@ -224,8 +224,10 @@ test('OPC UA browser multi-select creates canonical TAG candidates through Previ
     expect(dialog.type()).toBe('confirm');
     await dialog.accept();
   });
+  const applyResponse = page.waitForResponse(response =>
+    response.url().includes('/api/engineering/import/json/apply') && response.request().method() === 'POST');
   await page.getByTestId('opcua-import-apply').click();
-  await page.waitForLoadState('domcontentloaded');
+  await applyResponse;
 
   expect(appliedCandidate).not.toBeNull();
   expect(appliedCandidate).toEqual(previewCandidate);

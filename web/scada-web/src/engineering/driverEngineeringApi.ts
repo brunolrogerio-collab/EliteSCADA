@@ -47,12 +47,28 @@ export type DriverBrowsePageView = Readonly<{
   issues?: readonly DriverEngineeringIssueView[] | null;
 }>;
 
+export type DriverDraftDataSourceView = Readonly<{
+  sourceKey: string;
+  sourceName: string;
+  driverType: string;
+  settings?: Record<string, string> | null;
+  secretReferences?: Record<string, string> | null;
+}>;
+
 export async function testEngineeringDataSourceConnection(
   dataSourceId: string
 ): Promise<DriverConnectionTestResultView> {
   return await postJson<DriverConnectionTestResultView>(
     `/api/engineering/data-sources/${encodeURIComponent(dataSourceId)}/driver-tools/connection-test`,
     {});
+}
+
+export async function testEngineeringDataSourceDraftConnection(
+  dataSource: DriverDraftDataSourceView
+): Promise<DriverConnectionTestResultView> {
+  return await postJson<DriverConnectionTestResultView>(
+    '/api/engineering/driver-tools/connection-test',
+    dataSource);
 }
 
 export async function discoverEngineeringDataSource(
@@ -65,6 +81,22 @@ export async function discoverEngineeringDataSource(
   return await postJson<DriverDiscoveryCandidateView[]>(
     `/api/engineering/data-sources/${encodeURIComponent(dataSourceId)}/driver-tools/discover`,
     request);
+}
+
+export async function discoverEngineeringDataSourceDraft(
+  dataSource: DriverDraftDataSourceView,
+  request: Readonly<{
+    parameters?: Record<string, string> | null;
+    maximumResults?: number | null;
+  }> = {}
+): Promise<DriverDiscoveryCandidateView[]> {
+  return await postJson<DriverDiscoveryCandidateView[]>(
+    '/api/engineering/driver-tools/discover',
+    {
+      dataSource,
+      parameters: request.parameters ?? null,
+      maximumResults: request.maximumResults ?? null
+    });
 }
 
 export async function browseEngineeringDataSource(

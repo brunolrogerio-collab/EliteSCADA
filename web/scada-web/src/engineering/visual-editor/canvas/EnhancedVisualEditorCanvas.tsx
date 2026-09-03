@@ -19,6 +19,7 @@ import {
   type VisualEditorKeyboardCommand
 } from '../visualEditorKeyboardModel';
 import { DynamoInstanceInspector } from './DynamoInstanceInspector';
+import { VisualDefinitionSurfaceInspector } from './VisualDefinitionSurfaceInspector';
 import { VisualEditorAuthoringToolbar } from './VisualEditorAuthoringToolbar';
 import { VisualEditorCanvas as LegacyVisualEditorCanvas } from './VisualEditorCanvas';
 import { VisualEditorOutliner } from './VisualEditorOutliner';
@@ -71,8 +72,8 @@ type GuideDrag = Readonly<{
 /**
  * C07 interaction wrapper around the established Canvas renderer. It adds
  * logical marquee selection, hierarchy Outliner, typed Dynamo inspection,
- * smart alignment guides and authoring-lock interception without duplicating
- * canonical rendering or geometry mutation code.
+ * Screen surface authoring, smart alignment guides and authoring-lock
+ * interception without duplicating canonical rendering or geometry mutation code.
  */
 export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -310,6 +311,7 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
         mode
       })}
     />
+    <VisualDefinitionSurfaceInspector screen={props.screen} onCommand={props.onKeyboardCommand} />
     <DynamoInstanceInspector
       screen={props.screen}
       selectedObjectIds={props.selectedObjectIds}

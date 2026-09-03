@@ -23,13 +23,13 @@ public sealed class Iec104DriverDescriptorProvider : ICommunicationDriverDescrip
                 Required: true,
                 DisplayName: "Monitored Type ID",
                 Description: "IEC 60870-5-104 monitored information Type ID used to decode this point.",
-                AllowedValues: Iec104TypeIdCodec.MonitoredCanonicalNames),
+                AllowedValues: Iec104TypeIdCodec.MonitoredBindingNames),
             new(
                 "iec104.commandTypeId",
                 DriverConfigurationValueKind.Enum,
                 DisplayName: "Command Type ID",
                 Description: "Optional IEC 60870-5-104 command Type ID used when the TAG is writable.",
-                AllowedValues: Iec104TypeIdCodec.CommandCanonicalNames,
+                AllowedValues: Iec104TypeIdCodec.CommandBindingNames,
                 Advanced: true),
             new(
                 "iec104.commandMode",

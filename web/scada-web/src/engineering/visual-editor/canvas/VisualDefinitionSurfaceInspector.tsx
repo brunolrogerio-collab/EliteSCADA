@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { visualAssetContentUrl } from '../../api';
 import type { ScreenEngineering } from '../../types';
+import { useC07VisualEditorText } from '../c07VisualEditorI18n';
 import { useDynamoAuthoringCatalog } from '../DynamoAuthoringCatalogContext';
 import type { VisualEditorKeyboardCommand } from '../visualEditorKeyboardModel';
 import {
@@ -22,6 +23,7 @@ export function VisualDefinitionSurfaceInspector({
   screen: ScreenEngineering;
   onCommand?: (command: VisualEditorKeyboardCommand) => void;
 }) {
+  const text = useC07VisualEditorText().surface;
   const hostRef = useRef<HTMLDetailsElement | null>(null);
   const [canvasSurface, setCanvasSurface] = useState<HTMLElement | null>(null);
   const catalog = useDynamoAuthoringCatalog();
@@ -49,14 +51,14 @@ export function VisualDefinitionSurfaceInspector({
   return <>
     <details ref={hostRef} className="visual-editor-surface-inspector" data-testid="visual-definition-surface-inspector">
       <summary>
-        <strong>Background</strong>
-        <small>{config.backgroundImageAssetId ? 'image' : config.backgroundColor ? 'color' : 'default'}</small>
+        <strong>{text.background}</strong>
+        <small>{config.backgroundImageAssetId ? text.image : config.backgroundColor ? text.color : text.default}</small>
       </summary>
       <div className="visual-editor-surface-inspector__body">
         <div className="visual-editor-surface-inspector__preview" style={previewStyle} aria-hidden="true" />
 
         <label className="visual-editor-surface-inspector__field">
-          <span>Color</span>
+          <span>{text.colorLabel}</span>
           <div className="visual-editor-surface-inspector__color-row">
             <input
               type="color"
@@ -71,7 +73,7 @@ export function VisualDefinitionSurfaceInspector({
             <input
               type="text"
               value={colorDraft}
-              placeholder="#FFFFFF or transparent"
+              placeholder="#FFFFFF / transparent"
               disabled={!onCommand}
               onChange={event => setColorDraft(event.currentTarget.value)}
               onBlur={commitColor}
@@ -85,18 +87,18 @@ export function VisualDefinitionSurfaceInspector({
             <button type="button" disabled={!onCommand || !config.backgroundColor} onClick={() => {
               setColorDraft('');
               setSurface({ backgroundColor: null });
-            }}>Clear</button>
+            }}>{text.clear}</button>
           </div>
         </label>
 
         <label className="visual-editor-surface-inspector__field">
-          <span>Image asset</span>
+          <span>{text.imageAsset}</span>
           <select
             value={config.backgroundImageAssetId ?? ''}
             disabled={!onCommand}
             onChange={event => setSurface({ backgroundImageAssetId: event.currentTarget.value || null })}
           >
-            <option value="">No background image</option>
+            <option value="">{text.noBackgroundImage}</option>
             {catalog.visualAssets
               .filter(asset => Boolean(asset.id?.trim()))
               .map(asset => <option key={asset.id!} value={asset.id!}>
@@ -106,18 +108,18 @@ export function VisualDefinitionSurfaceInspector({
         </label>
 
         <label className="visual-editor-surface-inspector__field">
-          <span>Image fit</span>
+          <span>{text.imageFit}</span>
           <select
             value={config.backgroundImageFit}
             disabled={!onCommand || !config.backgroundImageAssetId}
             onChange={event => setSurface({ backgroundImageFit: event.currentTarget.value as VisualDefinitionBackgroundFit })}
           >
-            {FIT_OPTIONS.map(fit => <option key={fit} value={fit}>{fit}</option>)}
+            {FIT_OPTIONS.map(fit => <option key={fit} value={fit}>{text.fit[fit]}</option>)}
           </select>
         </label>
 
         <footer>
-          <span>{selectedAsset ? `${selectedAsset.originalFileName} · ${selectedAsset.byteLength} bytes` : 'Canonical project asset identity only.'}</span>
+          <span>{selectedAsset ? `${selectedAsset.originalFileName} · ${selectedAsset.byteLength} bytes` : text.assetIdentityOnly}</span>
           <button
             type="button"
             disabled={!onCommand || (!config.backgroundColor && !config.backgroundImageAssetId)}
@@ -125,7 +127,7 @@ export function VisualDefinitionSurfaceInspector({
               setColorDraft('');
               setSurface({ backgroundColor: null, backgroundImageAssetId: null, backgroundImageFit: null });
             }}
-          >Reset background</button>
+          >{text.resetBackground}</button>
         </footer>
       </div>
     </details>

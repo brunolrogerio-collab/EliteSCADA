@@ -15,6 +15,8 @@ export type DataSourceConfigurationField = {
   advanced: boolean;
   expectedFormat?: string | null;
   exampleValue?: string | null;
+  displayNameResourceKey?: string | null;
+  descriptionResourceKey?: string | null;
 };
 
 export type TagBindingSchemaIdentity = Readonly<{
@@ -25,8 +27,10 @@ export type TagBindingSchemaIdentity = Readonly<{
 export type DataSourceTypeDefinition = {
   typeKey: string;
   displayName: string;
+  displayNameResourceKey?: string | null;
   kind: string;
   description?: string | null;
+  descriptionResourceKey?: string | null;
   capabilities: {
     supportsConnectionTest: boolean;
     supportsDiscovery: boolean;

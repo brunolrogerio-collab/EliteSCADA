@@ -97,7 +97,7 @@ Its canonical persisted configuration must support practical filtering/presentat
 - column ordering and sort;
 - row/page/result limit or equivalent bounded-query behavior.
 
-If the object exposes operator actions such as acknowledgement or shelving, those actions must use existing backend capability/authorization contracts. Rendering a button is not authorization, because apparently software still needs reminders about this in 2026.
+If the object exposes operator actions such as acknowledgement or shelving, those actions must use existing backend capability/authorization contracts. Rendering a control in the HMI does not replace backend authorization.
 
 ## 5. Configurable Event Browser object
 

@@ -90,11 +90,11 @@ body { background: var(--app-bg); color: var(--app-text-primary); }
 }
 .app-route-state a { color: var(--app-accent); }
 
-/* Shell/Engineering chrome only. Authored HMI surfaces and visual elements are deliberately excluded. */
+/* Shell/application chrome only. Authored HMI surfaces and visual elements are deliberately excluded. */
 .auth-page,
 .eng-shell,
 .audit-shell,
-.licensing-shell,
+.licensing-page,
 .runtime-history-page { background: var(--app-bg); color: var(--app-text-primary); }
 
 /* Engineering legacy selectors consume the application semantic palette. This deliberately
@@ -147,6 +147,91 @@ body { background: var(--app-bg); color: var(--app-text-primary); }
 .eng-locale select:focus-visible,
 .eng-nav button:focus-visible { outline: 2px solid var(--app-focus); outline-offset: 2px; }
 .eng-spinner { border-color: var(--app-divider); border-top-color: var(--app-accent); }
+
+/* Audit and Licensing are application administration surfaces, not authored HMI content. */
+.audit-panel,
+.audit-event-detail,
+.audit-diagnostic-card,
+.licensing-card,
+.licensing-message { background: var(--app-surface); border-color: var(--app-border); color: var(--app-text-primary); }
+.audit-filter-field input,
+.audit-filter-field select,
+.licensing-request,
+.licensing-card form textarea { background: var(--app-input-bg); border-color: var(--app-border); color: var(--app-text-primary); }
+.audit-header p,
+.audit-section-heading p,
+.audit-diagnostics-disclosure p,
+.audit-muted,
+.audit-section-heading > span,
+.audit-pagination > span,
+.audit-filter-field > span,
+.audit-advanced-filters summary,
+.audit-diagnostics-disclosure summary,
+.audit-active-filters,
+.audit-event-topline time,
+.audit-event-summary small,
+.audit-event-detail-empty,
+.audit-detail-grid dt,
+.audit-detail-grid dd small,
+.audit-detail-section h4,
+.audit-diagnostic-card > span,
+.audit-diagnostic-card > small,
+.licensing-heading p,
+.licensing-card dt,
+.licensing-card form label,
+.licensing-help { color: var(--app-text-secondary); }
+.audit-kicker,
+.audit-detail-kicker,
+.audit-filter-chips b,
+.audit-event-item code,
+.audit-detail-heading code { color: var(--app-accent); }
+.audit-secondary,
+.licensing-heading button,
+.licensing-actions button { background: var(--app-surface-elevated); border-color: var(--app-border); color: var(--app-text-primary); }
+.audit-primary { background: var(--app-accent); border-color: var(--app-accent); color: #fff; }
+.audit-advanced-filters,
+.audit-active-filters,
+.audit-detail-heading,
+.audit-detail-section { border-color: var(--app-divider); }
+.audit-filter-chips > span { background: var(--app-surface-elevated); border-color: var(--app-border); color: var(--app-text-primary); }
+.audit-state { border-color: var(--app-border); color: var(--app-text-secondary); }
+.audit-event-item { background: var(--app-surface-elevated); border-color: var(--app-border); color: var(--app-text-primary); }
+.audit-event-item:hover { background: var(--app-hover); border-color: var(--app-border); }
+.audit-event-selected { background: var(--app-selected); border-color: var(--app-accent); box-shadow: inset 3px 0 0 var(--app-accent); }
+.audit-event-summary b,
+.audit-detail-grid dd,
+.audit-diagnostic-card > strong { color: var(--app-text-primary); }
+.audit-error,
+.licensing-message.error { background: color-mix(in srgb, var(--app-error) 10%, var(--app-surface)); border-color: var(--app-error); color: var(--app-error); }
+.audit-error-forbidden,
+.audit-error-unauthenticated,
+.audit-health-warning,
+.audit-diagnostic-warning { background: color-mix(in srgb, var(--app-warning) 10%, var(--app-surface)); border-color: var(--app-warning); color: var(--app-warning); }
+.audit-health-pill,
+.audit-outcome-succeeded,
+.licensing-message.success { background: color-mix(in srgb, var(--app-success) 10%, var(--app-surface)); border-color: var(--app-success); color: var(--app-success); }
+.audit-outcome-denied { background: color-mix(in srgb, var(--app-warning) 10%, var(--app-surface)); color: var(--app-warning); }
+.audit-outcome-failed,
+.audit-outcome-unknown { background: color-mix(in srgb, var(--app-error) 10%, var(--app-surface)); color: var(--app-error); }
+.audit-diagnostics-disclosure > summary::marker { color: var(--app-text-secondary); }
+.audit-diagnostics-attention { box-shadow: inset 3px 0 0 var(--app-warning); }
+.licensing-actions .licensing-danger { background: color-mix(in srgb, var(--app-error) 10%, var(--app-surface)); border-color: var(--app-error); color: var(--app-error); }
+
+/* Runtime History is application UI. Its controls may follow the shell theme; HMI visuals are not descendants. */
+.runtime-history-page { --border: var(--app-border); }
+.runtime-history-page input,
+.runtime-history-page select,
+.runtime-history-page textarea,
+.runtime-history-page button {
+  border: 1px solid var(--app-border);
+  background: var(--app-input-bg);
+  color: var(--app-text-primary);
+}
+.runtime-history-page button:hover:not(:disabled) { background: var(--app-hover); }
+.runtime-history-page button:focus-visible,
+.runtime-history-page input:focus-visible,
+.runtime-history-page select:focus-visible,
+.runtime-history-page textarea:focus-visible { outline: 2px solid var(--app-focus); outline-offset: 2px; }
 
 .app-bar--runtime-only { min-height: 44px; grid-template-columns: auto 1fr auto; }
 .app-bar--runtime-only .app-brand { padding-block: 5px; }

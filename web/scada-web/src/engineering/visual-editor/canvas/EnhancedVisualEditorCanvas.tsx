@@ -12,6 +12,7 @@ import {
   type VisualEditorKeyboardCommand
 } from '../visualEditorKeyboardModel';
 import { VisualEditorCanvas as LegacyVisualEditorCanvas } from './VisualEditorCanvas';
+import { VisualEditorOutliner } from './VisualEditorOutliner';
 import {
   normalizeViewport,
   selectionModeFromModifiers
@@ -42,8 +43,8 @@ type MarqueeDraft = Readonly<{
 
 /**
  * C07 interaction wrapper around the established Canvas renderer. It adds
- * logical marquee selection and authoring-lock interception without duplicating
- * canonical rendering or geometry mutation code.
+ * logical marquee selection, hierarchy Outliner and authoring-lock interception
+ * without duplicating canonical rendering or geometry mutation code.
  */
 export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -193,6 +194,15 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
     onKeyDownCapture={keyCapture}
   >
     <LegacyVisualEditorCanvas {...props} />
+    <VisualEditorOutliner
+      screen={props.screen}
+      selectedObjectIds={props.selectedObjectIds}
+      onSelection={(objectId, mode) => props.onUiIntent({
+        kind: 'selection.change',
+        objectIds: [objectId],
+        mode
+      })}
+    />
     {marquee ? <div
       data-testid="visual-editor-marquee"
       data-marquee-mode={visualEditorMarqueeModeForDrag(marquee.startLogical, marquee.endLogical)}

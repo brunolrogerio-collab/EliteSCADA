@@ -41,7 +41,7 @@ export function VisualDefinitionSurfaceInspector({
 
   return <details className="visual-editor-surface-inspector" data-testid="visual-definition-surface-inspector">
     <summary>
-      <strong>Screen background</strong>
+      <strong>Background</strong>
       <small>{config.backgroundImageAssetId ? 'image' : config.backgroundColor ? 'color' : 'default'}</small>
     </summary>
     <div className="visual-editor-surface-inspector__body">

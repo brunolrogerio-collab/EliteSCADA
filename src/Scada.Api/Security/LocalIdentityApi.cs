@@ -24,10 +24,13 @@ public static class LocalIdentityApi
     {
         var runtime = endpoints.ServiceProvider.GetRequiredService<LocalIdentityRuntimeOptions>();
         var invocation = Interlocked.Increment(ref _mapInvocationCount);
-        endpoints.ServiceProvider
+        var logger = endpoints.ServiceProvider
             .GetRequiredService<ILoggerFactory>()
-            .CreateLogger("Scada.Api.Security.LocalIdentityApi")
-            .LogWarning("Mapping Local Identity endpoints invocation {Invocation}.", invocation);
+            .CreateLogger("Scada.Api.Security.LocalIdentityApi");
+        logger.LogWarning(
+            "Mapping Local Identity endpoints invocation {Invocation}. Call stack: {CallStack}",
+            invocation,
+            Environment.StackTrace);
 
         endpoints.MapGet("/api/auth/config", async (HttpContext context, CancellationToken ct) =>
         {

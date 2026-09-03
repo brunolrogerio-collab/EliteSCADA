@@ -13,24 +13,21 @@ const localeExpectations = [
     locale: 'pt-BR' as const,
     subtitle: 'Plataforma industrial',
     currentArea: 'Área atual',
-    operations: 'Visão operacional',
-    alarms: 'Central de alarmes',
+    overview: 'Visão geral',
     audit: 'Auditoria'
   },
   {
     locale: 'en' as const,
     subtitle: 'Industrial platform',
     currentArea: 'Current area',
-    operations: 'Operational overview',
-    alarms: 'Alarm center',
+    overview: 'Overview',
     audit: 'Audit'
   },
   {
     locale: 'es' as const,
     subtitle: 'Plataforma industrial',
     currentArea: 'Área actual',
-    operations: 'Vista operacional',
-    alarms: 'Centro de alarmas',
+    overview: 'Vista general',
     audit: 'Auditoría'
   }
 ];
@@ -46,8 +43,9 @@ test('Wave 03 readiness: local session survives Runtime -> Engineering -> Audit 
 
     const navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
     await expect(navigation.getByRole('link', { name: /Runtime/ })).toHaveAttribute('aria-current', 'page');
-    await expect(page.getByRole('region', { name: 'Visão operacional' })).toBeVisible();
-    await expect(page.getByRole('region', { name: 'Central de alarmes' })).toBeVisible();
+    await expect(page.getByTestId('runtime-simulation-fallback')).toBeVisible();
+    await expect(page.locator('.eng-shell')).toHaveCount(0);
+    await expect(page.locator('.runtime-tag-inspector')).toHaveCount(0);
 
     const account = page.locator('.user-session-menu');
     await expect(account).toBeVisible();
@@ -75,8 +73,7 @@ test('Wave 03 readiness: local session survives Runtime -> Engineering -> Audit 
 test('Wave 03 readiness: Runtime stays operational while TAG/history diagnostics live in Engineering', async ({ page, request }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('region', { name: 'Visão operacional' })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Central de alarmes' })).toBeVisible();
+  await expect(page.getByTestId('runtime-simulation-fallback')).toBeVisible();
   await expect(page.locator('.runtime-tag-inspector')).toHaveCount(0);
   await expect(page.getByText(/ONLINE · 7 TAGs/)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('Reservatório TK01')).toBeVisible();
@@ -208,8 +205,8 @@ for (const expected of localeExpectations) {
     const runtimeNavigation = page.getByRole('navigation', { name: 'EliteSCADA' });
     await expect(page.getByText(expected.subtitle, { exact: true })).toBeVisible();
     await expect(page.locator('.app-context')).toContainText(expected.currentArea);
-    await expect(page.getByRole('region', { name: expected.operations })).toBeVisible();
-    await expect(page.getByRole('region', { name: expected.alarms })).toBeVisible();
+    await expect(page.getByTestId('runtime-simulation-fallback')).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Runtime views' }).getByRole('link', { name: expected.overview, exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(page.locator('.user-session-menu')).toBeVisible();
 
     const engineeringLink = runtimeNavigation.getByRole('link', { name: /Engineering/ });

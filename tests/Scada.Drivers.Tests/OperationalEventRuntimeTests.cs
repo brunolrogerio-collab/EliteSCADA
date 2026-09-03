@@ -84,6 +84,8 @@ public sealed class OperationalEventRuntimeTests
         Assert.NotEqual(Guid.Empty, emitted.EventId);
 
         await Assert.ThrowsAsync<KeyNotFoundException>(async () =>
-            await runtime.EmitOperationalEventAsync(Guid.NewGuid()));
+        {
+            _ = await runtime.EmitOperationalEventAsync(Guid.NewGuid());
+        });
     }
 }

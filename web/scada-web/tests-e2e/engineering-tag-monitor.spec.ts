@@ -65,7 +65,7 @@ test('operator-only cannot obtain Engineering TAG Monitor through its direct URL
     const page = await context.newPage();
     await page.goto('/engineering/diagnostics/tag-monitor');
 
-    await expect(page.getByText('403 Forbidden', { exact: true })).toBeVisible();
+    await expect(page.getByRole('alert')).toContainText('Acesso negado');
     await expect(page.getByRole('button', { name: /TAG Monitor/ })).toHaveCount(0);
     await expect(page.getByTestId('engineering-tag-monitor')).toHaveCount(0);
     await expect(page.locator('.runtime-tag-inspector')).toHaveCount(0);

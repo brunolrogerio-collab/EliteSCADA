@@ -12,8 +12,8 @@ public sealed class ModbusTagBindingDescriptorTests
             .ToDictionary(field => field.Key, StringComparer.OrdinalIgnoreCase);
 
         Assert.Equal(5, fields.Count);
-        Assert.Equal(0, fields["modbus.unitId"].Minimum);
-        Assert.Equal(255, fields["modbus.unitId"].Maximum);
+        Assert.Equal(0d, fields["modbus.unitId"].Minimum);
+        Assert.Equal(255d, fields["modbus.unitId"].Maximum);
         Assert.Contains("Float64", fields["modbus.valueType"].AllowedValues ?? Array.Empty<string>());
         Assert.Equal(
             new[] { "HighWordFirst", "LowWordFirst" },

@@ -3,6 +3,10 @@ import type {
   VisualElementEngineering,
   VisualEngineeringPropertyMap
 } from '../types';
+import {
+  assertVisualElementsAuthoringEditable,
+  isVisualElementEffectivelyAuthoringLocked
+} from './visualEditorAuthoringModel';
 
 export type VisualEditorClipboardPayload = Readonly<{
   sourceParentId: string | null;
@@ -47,6 +51,9 @@ export function pasteVisualEditorElements(
   targetParentId: string | null = payload.sourceParentId,
   options: VisualEditorClipboardOptions = {}
 ): VisualEditorClipboardMutationResult {
+  if (targetParentId && isVisualElementEffectivelyAuthoringLocked(screen, targetParentId)) {
+    throw new Error(`Visual parent '${targetParentId}' is locked for Engineering authoring.`);
+  }
   const createObjectId = options.createObjectId ?? createRandomObjectId;
   const createObjectKey = options.createObjectKey ?? defaultCopyKey;
   const offsetX = options.offsetX ?? 10;
@@ -81,6 +88,7 @@ export function deleteVisualEditorElements(
   objectIds: readonly string[]
 ): VisualEditorClipboardMutationResult {
   if (objectIds.length === 0) return Object.freeze({ screen, objectIds: Object.freeze([]) });
+  assertVisualElementsAuthoringEditable(screen, objectIds);
   const selection = resolveSiblingSelection(screen, objectIds);
   const ids = new Set(selection.selected.map(element => element.id!));
   const next = selection.siblings.filter(element => !element.id || !ids.has(element.id));
@@ -99,6 +107,7 @@ export function nudgeVisualEditorElements(
   if (!Number.isFinite(deltaX) || !Number.isFinite(deltaY)) {
     throw new Error('Visual editor nudge delta must be finite.');
   }
+  assertVisualElementsAuthoringEditable(screen, objectIds);
   const selection = resolveSiblingSelection(screen, objectIds);
   const ids = new Set(selection.selected.map(element => element.id!));
   const next = selection.siblings.map(element => {

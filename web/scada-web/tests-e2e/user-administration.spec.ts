@@ -55,10 +55,12 @@ test('Engineering administers local users without exposing credentials and inval
     const beforeChange = await localPage.evaluate(async () => (await fetch('/api/auth/me')).status);
     expect(beforeChange).toBe(200);
 
-    // Move away from Runtime so its own reconnect loop is not part of this focused revocation probe.
-    // The explicit socket below still uses the same authenticated HttpOnly cookie/session.
+    // Prove the operator cannot enter Engineering, while keeping this page away from the
+    // Runtime reconnect loop. The explicit socket below still uses the same authenticated
+    // HttpOnly cookie/session and remains the revocation signal under test.
     await localPage.goto('/engineering');
-    await expect(localPage.locator('.eng-shell')).toBeVisible();
+    await expect(localPage.getByRole('alert')).toBeVisible();
+    await expect(localPage.locator('.eng-shell')).toHaveCount(0);
 
     const socketClosed = localPage.evaluate(async () => {
       return await new Promise<number>((resolve, reject) => {

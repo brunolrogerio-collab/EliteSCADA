@@ -29,6 +29,8 @@ export const CLIENT_VISUAL_PYTHON_CAPABILITIES = [
   'visualTween.request'
 ] as const;
 
+export type ClientVisualPythonProductCapability = typeof CLIENT_VISUAL_PYTHON_CAPABILITIES[number];
+
 /**
  * Complete bridge protocol vocabulary. `backendOperation.request` remains a
  * reserved host-composition hook and therefore stays type-safe and fail-closed

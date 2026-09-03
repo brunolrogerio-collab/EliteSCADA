@@ -114,7 +114,7 @@ function expandElement(
     return Object.freeze({
       ...element,
       dynamoKey: null,
-      children: Object.freeze(children),
+      children: [...children],
       metadata: Object.freeze({
         ...(element.metadata ?? {}),
         [RUNTIME_DYNAMO_KEY]: composition.definitionKey,
@@ -128,8 +128,8 @@ function expandElement(
   if (!element.children?.length) return element;
   return Object.freeze({
     ...element,
-    children: Object.freeze(element.children.map((child, index) =>
-      expandElementFailClosed(child, definitions, `${path}.${index}`)))
+    children: element.children.map((child, index) =>
+      expandElementFailClosed(child, definitions, `${path}.${index}`))
   });
 }
 
@@ -145,8 +145,8 @@ function scopeDefinitionElement(
     ...element,
     id: scopedId,
     children: element.children?.length
-      ? Object.freeze(element.children.map((child, index) =>
-          scopeDefinitionElement(child, instanceId, `${path}.${index}`)))
+      ? element.children.map((child, index) =>
+          scopeDefinitionElement(child, instanceId, `${path}.${index}`))
       : element.children
   });
 }

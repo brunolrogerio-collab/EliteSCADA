@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import type { ScreenEngineering } from '../../types';
+import { useC07VisualEditorText } from '../c07VisualEditorI18n';
 import type {
   VisualEditorAuthoringOperation,
   VisualEditorAlignmentOperation,
@@ -25,6 +26,7 @@ export function VisualEditorAuthoringToolbar({
   canUndo?: boolean;
   canRedo?: boolean;
 }) {
+  const text = useC07VisualEditorText().toolbar;
   const state = useMemo(
     () => buildVisualEditorAuthoringToolbarState(screen, selectedObjectIds),
     [screen, selectedObjectIds]
@@ -73,44 +75,44 @@ export function VisualEditorAuthoringToolbar({
     });
   };
 
-  return <div className="visual-editor-authoring-toolbar" role="toolbar" aria-label="Visual authoring operations" data-testid="visual-editor-authoring-toolbar">
-    <ToolbarGroup label="History">
-      <Tool label="Undo" disabled={!onKeyboardCommand || canUndo === false} onClick={() => onKeyboardCommand?.({ kind: 'undo' })}>↶</Tool>
-      <Tool label="Redo" disabled={!onKeyboardCommand || canRedo === false} onClick={() => onKeyboardCommand?.({ kind: 'redo' })}>↷</Tool>
-      <Tool label="Copy" disabled={!onKeyboardCommand || state.selectionCount === 0} onClick={() => onKeyboardCommand?.({ kind: 'copy' })}>Copy</Tool>
-      <Tool label="Paste" disabled={!onKeyboardCommand} onClick={() => onKeyboardCommand?.({ kind: 'paste' })}>Paste</Tool>
+  return <div className="visual-editor-authoring-toolbar" role="toolbar" aria-label={text.aria} data-testid="visual-editor-authoring-toolbar">
+    <ToolbarGroup label={text.history}>
+      <Tool label={text.undo} disabled={!onKeyboardCommand || canUndo === false} onClick={() => onKeyboardCommand?.({ kind: 'undo' })}>↶</Tool>
+      <Tool label={text.redo} disabled={!onKeyboardCommand || canRedo === false} onClick={() => onKeyboardCommand?.({ kind: 'redo' })}>↷</Tool>
+      <Tool label={text.copy} disabled={!onKeyboardCommand || state.selectionCount === 0} onClick={() => onKeyboardCommand?.({ kind: 'copy' })}>{text.copy}</Tool>
+      <Tool label={text.paste} disabled={!onKeyboardCommand} onClick={() => onKeyboardCommand?.({ kind: 'paste' })}>{text.paste}</Tool>
     </ToolbarGroup>
 
-    <ToolbarGroup label="Align">
-      <Tool label="Align left" disabled={!authoringAvailable || !state.canAlign} onClick={() => align('left')}>L</Tool>
-      <Tool label="Align horizontal centers" disabled={!authoringAvailable || !state.canAlign} onClick={() => align('horizontalCenter')}>HC</Tool>
-      <Tool label="Align right" disabled={!authoringAvailable || !state.canAlign} onClick={() => align('right')}>R</Tool>
-      <Tool label="Align top" disabled={!authoringAvailable || !state.canAlign} onClick={() => align('top')}>T</Tool>
-      <Tool label="Align vertical middles" disabled={!authoringAvailable || !state.canAlign} onClick={() => align('verticalMiddle')}>VM</Tool>
-      <Tool label="Align bottom" disabled={!authoringAvailable || !state.canAlign} onClick={() => align('bottom')}>B</Tool>
+    <ToolbarGroup label={text.align}>
+      <Tool label={text.alignLeft} disabled={!authoringAvailable || !state.canAlign} onClick={() => align('left')}>L</Tool>
+      <Tool label={text.alignHorizontalCenters} disabled={!authoringAvailable || !state.canAlign} onClick={() => align('horizontalCenter')}>HC</Tool>
+      <Tool label={text.alignRight} disabled={!authoringAvailable || !state.canAlign} onClick={() => align('right')}>R</Tool>
+      <Tool label={text.alignTop} disabled={!authoringAvailable || !state.canAlign} onClick={() => align('top')}>T</Tool>
+      <Tool label={text.alignVerticalMiddles} disabled={!authoringAvailable || !state.canAlign} onClick={() => align('verticalMiddle')}>VM</Tool>
+      <Tool label={text.alignBottom} disabled={!authoringAvailable || !state.canAlign} onClick={() => align('bottom')}>B</Tool>
     </ToolbarGroup>
 
-    <ToolbarGroup label="Distribute">
-      <Tool label="Distribute horizontal centers" disabled={!authoringAvailable || !state.canDistribute} onClick={() => distribute('horizontalCenters')}>H·</Tool>
-      <Tool label="Distribute horizontal spacing" disabled={!authoringAvailable || !state.canDistribute} onClick={() => distribute('horizontalSpacing')}>H↔</Tool>
-      <Tool label="Distribute vertical centers" disabled={!authoringAvailable || !state.canDistribute} onClick={() => distribute('verticalCenters')}>V·</Tool>
-      <Tool label="Distribute vertical spacing" disabled={!authoringAvailable || !state.canDistribute} onClick={() => distribute('verticalSpacing')}>V↕</Tool>
+    <ToolbarGroup label={text.distribute}>
+      <Tool label={text.distributeHorizontalCenters} disabled={!authoringAvailable || !state.canDistribute} onClick={() => distribute('horizontalCenters')}>H·</Tool>
+      <Tool label={text.distributeHorizontalSpacing} disabled={!authoringAvailable || !state.canDistribute} onClick={() => distribute('horizontalSpacing')}>H↔</Tool>
+      <Tool label={text.distributeVerticalCenters} disabled={!authoringAvailable || !state.canDistribute} onClick={() => distribute('verticalCenters')}>V·</Tool>
+      <Tool label={text.distributeVerticalSpacing} disabled={!authoringAvailable || !state.canDistribute} onClick={() => distribute('verticalSpacing')}>V↕</Tool>
     </ToolbarGroup>
 
-    <ToolbarGroup label="Size">
-      <Tool label="Same width" disabled={!authoringAvailable || !state.canSize} onClick={() => size('sameWidth')}>W</Tool>
-      <Tool label="Same height" disabled={!authoringAvailable || !state.canSize} onClick={() => size('sameHeight')}>H</Tool>
-      <Tool label="Same size" disabled={!authoringAvailable || !state.canSize} onClick={() => size('sameSize')}>WH</Tool>
+    <ToolbarGroup label={text.size}>
+      <Tool label={text.sameWidth} disabled={!authoringAvailable || !state.canSize} onClick={() => size('sameWidth')}>W</Tool>
+      <Tool label={text.sameHeight} disabled={!authoringAvailable || !state.canSize} onClick={() => size('sameHeight')}>H</Tool>
+      <Tool label={text.sameSize} disabled={!authoringAvailable || !state.canSize} onClick={() => size('sameSize')}>WH</Tool>
     </ToolbarGroup>
 
-    <ToolbarGroup label="Structure">
-      <Tool label="Group" disabled={!authoringAvailable || !state.canGroup} onClick={() => dispatchOperation({ kind: 'group', objectIds: state.selectedObjectIds })}>Group</Tool>
-      <Tool label="Ungroup" disabled={!authoringAvailable || !state.canUngroup} onClick={() => dispatchOperation({ kind: 'ungroup', objectIds: state.selectedObjectIds })}>Ungroup</Tool>
+    <ToolbarGroup label={text.structure}>
+      <Tool label={text.group} disabled={!authoringAvailable || !state.canGroup} onClick={() => dispatchOperation({ kind: 'group', objectIds: state.selectedObjectIds })}>{text.group}</Tool>
+      <Tool label={text.ungroup} disabled={!authoringAvailable || !state.canUngroup} onClick={() => dispatchOperation({ kind: 'ungroup', objectIds: state.selectedObjectIds })}>{text.ungroup}</Tool>
       <Tool
-        label={state.nextLockedValue ? 'Lock selection' : 'Unlock selection'}
+        label={state.nextLockedValue ? text.lockSelection : text.unlockSelection}
         disabled={!authoringAvailable || !state.canToggleLock}
         onClick={() => dispatchOperation({ kind: 'lock', objectIds: state.selectedObjectIds, locked: state.nextLockedValue })}
-      >{state.nextLockedValue ? 'Lock' : 'Unlock'}</Tool>
+      >{state.nextLockedValue ? text.lock : text.unlock}</Tool>
     </ToolbarGroup>
   </div>;
 }

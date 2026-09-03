@@ -1,3 +1,9 @@
+import type {
+  VisualEditorAlignmentOperation,
+  VisualEditorDistributionOperation,
+  VisualEditorSizeOperation
+} from './visualEditorAuthoringModel';
+
 export type VisualEditorKeyboardCommand =
   | Readonly<{ kind: 'undo' }>
   | Readonly<{ kind: 'redo' }>
@@ -7,6 +13,10 @@ export type VisualEditorKeyboardCommand =
   | Readonly<{ kind: 'delete' }>
   | Readonly<{ kind: 'group' }>
   | Readonly<{ kind: 'ungroup' }>
+  | Readonly<{ kind: 'align'; operation: VisualEditorAlignmentOperation }>
+  | Readonly<{ kind: 'distribute'; operation: VisualEditorDistributionOperation }>
+  | Readonly<{ kind: 'size'; operation: VisualEditorSizeOperation }>
+  | Readonly<{ kind: 'lock'; locked: boolean }>
   | Readonly<{ kind: 'selectAll' }>
   | Readonly<{ kind: 'nudge'; deltaX: number; deltaY: number }>;
 

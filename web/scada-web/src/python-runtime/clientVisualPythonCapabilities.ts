@@ -8,8 +8,11 @@ export type ClientVisualPythonCapabilityContext = PythonRuntimeIdentity & {
   executionId: string;
 };
 
+export type ClientVisualPythonTagWriteValue = string | number | boolean;
+
 export interface ClientVisualPythonCapabilityProvider {
   readTag?(reference: string, context: ClientVisualPythonCapabilityContext): Promise<unknown> | unknown;
+  writeTag?(reference: string, value: ClientVisualPythonTagWriteValue, context: ClientVisualPythonCapabilityContext): Promise<unknown> | unknown;
   readClientMemory?(reference: string, context: ClientVisualPythonCapabilityContext): Promise<unknown> | unknown;
   writeClientMemory?(reference: string, value: unknown, context: ClientVisualPythonCapabilityContext): Promise<unknown> | unknown;
   readVisualProperty?(targetReference: string, propertyKey: string, context: ClientVisualPythonCapabilityContext): Promise<unknown> | unknown;
@@ -43,6 +46,13 @@ export async function dispatchClientVisualPythonCapability(
       requireOperation(operation, 'read', capability);
       const reference = requireStringArgument(argumentsValue, 'reference');
       return normalizeProviderResult(await requireProvider(provider.readTag, capability)(reference, context));
+    }
+
+    case 'tag.write': {
+      requireOperation(operation, 'write', capability);
+      const reference = requireStringArgument(argumentsValue, 'reference');
+      const value = requireTagWriteValue(requireOwnArgument(argumentsValue, 'value'));
+      return normalizeProviderResult(await requireProvider(provider.writeTag, capability)(reference, value, context));
     }
 
     case 'clientMemory.read': {
@@ -140,6 +150,15 @@ function requireStringArgument(value: unknown, key: string): string {
     );
   }
   return candidate;
+}
+
+function requireTagWriteValue(value: unknown): ClientVisualPythonTagWriteValue {
+  if (typeof value === 'boolean' || typeof value === 'string') return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  throw new ClientVisualPythonCapabilityError(
+    'PYTHON_CAPABILITY_ARGUMENT_INVALID',
+    'TAG write value must be a boolean, finite number, or string.'
+  );
 }
 
 function requireOwnArgument(value: unknown, key: string): unknown {

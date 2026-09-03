@@ -155,7 +155,7 @@ public sealed class OpcUaEngineeringDriverToolProviderFactory :
             _disposed = true;
             providers = _active.Values.Select(x => x.Provider)
                 .Concat(_retired)
-                .Distinct(ReferenceEqualityComparer.Instance)
+                .Distinct<OpcUaFoundationEngineeringProvider>(ReferenceEqualityComparer.Instance)
                 .ToArray();
             _active.Clear();
             _retired.Clear();

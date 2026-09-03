@@ -2,6 +2,11 @@ import type {
   DynamoEngineering,
   VisualElementEngineering
 } from '../../types';
+import {
+  normalizeDynamoParameterDefinition,
+  normalizeDynamoParameterKind,
+  normalizeDynamoParameterValue
+} from '../../../runtime/visual-navigation/dynamoParameterWireContract';
 import type {
   DynamoParameterDefinitionEngineering,
   DynamoParameterKindEngineering,
@@ -28,7 +33,7 @@ export class DynamoPublicInterfaceError extends Error {
 export function listDynamoPublicParameters(
   definition: DynamoEngineering
 ): readonly DynamoParameterDefinitionEngineering[] {
-  return Object.freeze([...(definition.parameters ?? [])]);
+  return Object.freeze((definition.parameters ?? []).map(normalizeDynamoParameterDefinition));
 }
 
 /**
@@ -45,9 +50,10 @@ export function listDynamoPublicParameterValues(
   const result = new Map<string, DynamoParameterValueEngineering>();
 
   for (const value of instance.dynamoParameters ?? []) {
-    const key = normalizeKey(value.key);
+    const normalizedValue = normalizeDynamoParameterValue(value);
+    const key = normalizeKey(normalizedValue.key);
     if (!definitions.has(key)) continue;
-    result.set(key, cloneValue(value));
+    result.set(key, cloneValue(normalizedValue));
   }
 
   const equipmentDefinition = definitions.get('equipmentpath');
@@ -70,17 +76,12 @@ export function listDynamoPublicParameterValues(
 export function resolveDynamoParameterEditorKind(
   kind: DynamoParameterKindEngineering
 ): DynamoParameterEditorKind {
-  switch (kind) {
+  switch (normalizeDynamoParameterKind(kind as unknown)) {
     case 'Boolean': return 'boolean';
     case 'Number': return 'number';
     case 'String': return 'text';
     case 'EquipmentPath': return 'equipment-path';
     case 'TagReference': return 'tag-reference';
-    default:
-      throw new DynamoPublicInterfaceError(
-        'DYNAMO_PUBLIC_PARAMETER_KIND_UNSUPPORTED',
-        `Unsupported Dynamo public parameter kind '${String(kind)}'.`
-      );
   }
 }
 
@@ -98,20 +99,23 @@ export function setDynamoPublicParameterValue(
       `Dynamo '${definition.key}' does not expose public parameter '${nextValue.key}'.`
     );
   }
-  if (definitionParameter.kind !== nextValue.kind) {
+
+  const normalizedNextValue = normalizeDynamoParameterValue(nextValue);
+  if (definitionParameter.kind !== normalizedNextValue.kind) {
     throw new DynamoPublicInterfaceError(
       'DYNAMO_PUBLIC_PARAMETER_KIND_MISMATCH',
-      `Dynamo parameter '${definitionParameter.key}' expects ${definitionParameter.kind} but received ${nextValue.kind}.`
+      `Dynamo parameter '${definitionParameter.key}' expects ${definitionParameter.kind} but received ${normalizedNextValue.kind}.`
     );
   }
 
-  validateParameterValue(nextValue);
+  validateParameterValue(normalizedNextValue);
   const normalizedKey = normalizeKey(definitionParameter.key);
   const values = [...(instance.dynamoParameters ?? [])]
+    .map(normalizeDynamoParameterValue)
     .filter(value => normalizeKey(value.key) !== normalizedKey);
   const canonicalValue: DynamoParameterValueEngineering = definitionParameter.kind === 'EquipmentPath'
-    ? { ...nextValue, key: definitionParameter.key, value: String(nextValue.value).trim() }
-    : { ...nextValue, key: definitionParameter.key };
+    ? { ...normalizedNextValue, key: definitionParameter.key, value: String(normalizedNextValue.value).trim() }
+    : { ...normalizedNextValue, key: definitionParameter.key };
   values.push(cloneValue(canonicalValue));
 
   const equipmentPath = definitionParameter.kind === 'EquipmentPath'
@@ -148,6 +152,7 @@ export function removeDynamoPublicParameterValue(
 
   const normalizedKey = normalizeKey(definitionParameter.key);
   const values = (instance.dynamoParameters ?? [])
+    .map(normalizeDynamoParameterValue)
     .filter(value => normalizeKey(value.key) !== normalizedKey)
     .map(cloneValue);
 
@@ -174,7 +179,8 @@ function indexDefinitions(
   definition: DynamoEngineering
 ): Map<string, DynamoParameterDefinitionEngineering> {
   const result = new Map<string, DynamoParameterDefinitionEngineering>();
-  for (const parameter of definition.parameters ?? []) {
+  for (const sourceParameter of definition.parameters ?? []) {
+    const parameter = normalizeDynamoParameterDefinition(sourceParameter);
     const key = normalizeKey(parameter.key);
     if (!key) {
       throw new DynamoPublicInterfaceError(

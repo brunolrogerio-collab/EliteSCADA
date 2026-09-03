@@ -31,9 +31,15 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] }
     },
     {
+      name: 'chromium-wave11-c17-memory',
+      testMatch: /c17-memory-lifecycle\.spec\.ts/,
+      dependencies: ['chromium-wave11-lifecycle'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
       name: 'chromium-wave11-owner-package',
       testMatch: /owner-test-artifact\.spec\.ts/,
-      dependencies: ['chromium-wave11-lifecycle'],
+      dependencies: ['chromium-wave11-c17-memory'],
       use: { ...devices['Desktop Chrome'] }
     }
   ],

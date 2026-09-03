@@ -6,6 +6,8 @@ import {
 } from './api';
 import { editorTranslator } from './editorI18n';
 import type { EngineeringLocale } from './i18n';
+import { TagSourceSelector } from './TagSourceSelector';
+import { assignTagDataSource, type TagSourceAwareEngineering } from './TagSourceSelector.logic';
 import type {
   AlarmEngineering,
   DataSourceEngineering,
@@ -135,7 +137,12 @@ export function TagEditor({ model, locale }: EditorProps) {
                 <TextField label={text('editor.field.name')} value={draft.name} onChange={value => updateTag(setDraft, tag => ({ ...tag, name: value }))} />
                 <TextField label={text('editor.field.path')} value={draft.path} mono onChange={value => updateTag(setDraft, tag => ({ ...tag, path: value }))} />
                 <SelectField label={text('editor.field.type')} value={draft.dataType} options={tagDataTypes} onChange={value => updateTag(setDraft, tag => ({ ...tag, dataType: value }))} />
-                <TextField label={text('editor.field.source')} value={draft.source ?? ''} mono onChange={value => updateTag(setDraft, tag => ({ ...tag, source: emptyToNull(value) }))} />
+                <TagSourceSelector
+                  tag={draft as TagSourceAwareEngineering}
+                  sources={model.dataSources ?? []}
+                  locale={locale}
+                  onChange={source => updateTag(setDraft, tag => assignTagDataSource(tag as TagSourceAwareEngineering, source))}
+                />
                 <TextField label={text('editor.field.address')} value={draft.address ?? ''} mono onChange={value => updateTag(setDraft, tag => ({ ...tag, address: emptyToNull(value) }))} />
                 <TextField label={text('editor.field.unit')} value={draft.engineeringUnit ?? ''} onChange={value => updateTag(setDraft, tag => ({ ...tag, engineeringUnit: emptyToNull(value) }))} />
                 <NumberField label={text('editor.field.scaleMinimum')} value={draft.scaleMinimum} onChange={value => updateTag(setDraft, tag => ({ ...tag, scaleMinimum: value }))} />

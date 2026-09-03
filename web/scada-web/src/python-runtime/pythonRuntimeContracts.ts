@@ -85,7 +85,6 @@ export type PythonWorkerRequest =
 export type PythonWorkerResponse =
   | { kind: 'ready'; requestId: string; identity: PythonRuntimeIdentity }
   | { kind: 'compile-result'; requestId: string; identity: PythonRuntimeIdentity; diagnostics: PythonSourceDiagnostic[] }
-  | { kind: 'execution-result'; requestId: string; executionId: string; identity: PythonRuntimeIdentity; handlerName: string; eventKey: string; payload: unknown; deadlineEpochMs: number }
   | { kind: 'execution-result'; requestId: string; executionId: string; identity: PythonRuntimeIdentity; status: 'completed' | 'cancelled' | 'timed-out' | 'faulted' | 'throttled'; durationMs: number; sanitizedError?: string }
   | { kind: 'api-request'; requestId: string; executionId: string; identity: PythonRuntimeIdentity; capability: ClientVisualPythonCapability; operation: string; arguments: unknown }
   | { kind: 'diagnostic'; requestId: string; identity: PythonRuntimeIdentity; diagnostic: PythonSourceDiagnostic }

@@ -45,18 +45,28 @@ test('manual canonical Modbus syntax is parseable without guessing reference con
   expect(parseCanonicalModbusAddress('40001')).toBeNull();
 });
 
-test('TAG editor mounts protocol-aware address assistant while preserving manual entry', async () => {
+test('TAG editor routes specialized assistants through one registry and keeps schema-driven fallback', async () => {
   const editor = await readFile(new URL('../src/engineering/SecuredEngineeringEditors.tsx', import.meta.url), 'utf8');
   const assistant = await readFile(new URL('../src/engineering/TagAddressEditor.tsx', import.meta.url), 'utf8');
+  const generic = await readFile(new URL('../src/engineering/GenericTagBindingAssistant.tsx', import.meta.url), 'utf8');
   const api = await readFile(new URL('../src/engineering/tagAddressApi.ts', import.meta.url), 'utf8');
   const tagSection = editor.slice(editor.indexOf('export function TagEditor'), editor.indexOf('export function DataSourceEditor'));
 
   expect(tagSection).toContain('<TagAddressEditor');
-  expect(assistant).toContain("source?.driver.toLowerCase() === 'modbus.tcp'");
+  expect(assistant).toContain('specializedAssistants');
+  expect(assistant).toContain("'modbus.tcp':");
+  expect(assistant).toContain("'opc-ua':");
+  expect(assistant).toContain("'dnp3.master':");
+  expect(assistant).toContain("'iec60870.5.104':");
+  expect(assistant).toContain('<GenericTagBindingAssistant');
+  expect(assistant).not.toContain("source?.driver.toLowerCase() === 'modbus.tcp'");
   expect(assistant).toContain('data-testid="tag-address-manual"');
   expect(assistant).toContain('data-testid="modbus-address-assistant"');
   expect(assistant).toContain('data-testid="modbus-reference-base"');
   expect(assistant).toContain('data-testid="modbus-address-build"');
+  expect(generic).toContain('configurationSchema?.tagBindingFields');
+  expect(generic).toContain('tagBindingSchemaIdentity');
+  expect(generic).toContain('data-testid="generic-tag-binding-assistant"');
   expect(api).toContain('/api/engineering/tag-address/modbus/build');
 });
 

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import type { DataSourceEngineering } from './types';
 import type { EngineeringLocale } from './i18n';
 import { c04Text, type C04Text } from './c04I18n';
+import { c04ProtocolLabels } from './c04ProtocolLabels';
 import { applyModbusAddressBuild, metadataValue, parseCanonicalModbusAddress } from './TagAddressAssistant.logic';
 import {
   resolveTagDataSource,
@@ -96,6 +97,7 @@ function ModbusAssistant({ tag, locale, onChange }: {
   onChange: (tag: TagSourceAwareEngineering) => void;
 }) {
   const text = useMemo(() => c04Text(locale).address, [locale]);
+  const areaLabels = useMemo(() => c04ProtocolLabels(locale).modbusArea, [locale]);
   const canonical = parseCanonicalModbusAddress(tag.address);
   const [area, setArea] = useState(canonical?.area ?? 'holding');
   const [reference, setReference] = useState(canonical?.reference ?? '0');
@@ -166,10 +168,10 @@ function ModbusAssistant({ tag, locale, onChange }: {
         <label className="eng-editor-field">
           <span>{text.area}</span>
           <select value={area} onChange={event => setArea(event.target.value as typeof area)} data-testid="modbus-area">
-            <option value="coil">Coil</option>
-            <option value="discrete">Discrete Input</option>
-            <option value="holding">Holding Register</option>
-            <option value="input">Input Register</option>
+            <option value="coil">{areaLabels.coil}</option>
+            <option value="discrete">{areaLabels.discrete}</option>
+            <option value="holding">{areaLabels.holding}</option>
+            <option value="input">{areaLabels.input}</option>
           </select>
         </label>
         <label className="eng-editor-field">

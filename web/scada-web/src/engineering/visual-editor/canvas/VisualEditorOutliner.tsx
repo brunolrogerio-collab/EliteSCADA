@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import type { ScreenEngineering } from '../../types';
+import { useC07VisualEditorText } from '../c07VisualEditorI18n';
 import type { VisualEditorSelectionMode } from '../visualEditorContracts';
 import { selectionModeFromModifiers } from './canvasInteractionModel';
 import {
@@ -18,6 +19,7 @@ export function VisualEditorOutliner({
   selectedObjectIds: readonly string[];
   onSelection: (objectId: string, mode: VisualEditorSelectionMode) => void;
 }) {
+  const text = useC07VisualEditorText().outliner;
   const nodes = useMemo(() => buildVisualEditorOutliner(screen), [screen]);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set<string>());
   const selected = useMemo(() => new Set(selectedObjectIds), [selectedObjectIds]);
@@ -30,8 +32,8 @@ export function VisualEditorOutliner({
   });
 
   return <details className="visual-editor-outliner" open data-testid="visual-editor-outliner">
-    <summary><strong>Outliner</strong><span>{countVisualEditorOutlinerNodes(nodes)}</span></summary>
-    <div className="visual-editor-outliner__tree" role="tree" aria-label="Visual object hierarchy">
+    <summary><strong>{text.title}</strong><span>{countVisualEditorOutlinerNodes(nodes)}</span></summary>
+    <div className="visual-editor-outliner__tree" role="tree" aria-label={text.hierarchy}>
       {nodes.map(node => <OutlinerNode
         key={node.objectId}
         node={node}
@@ -40,6 +42,7 @@ export function VisualEditorOutliner({
         collapsed={collapsed}
         onToggle={toggle}
         onSelection={onSelection}
+        text={text}
       />)}
       {nodes.length === 0 ? <small className="visual-editor-outliner__empty">∅</small> : null}
     </div>
@@ -52,7 +55,8 @@ function OutlinerNode({
   selected,
   collapsed,
   onToggle,
-  onSelection
+  onSelection,
+  text
 }: {
   node: VisualEditorOutlinerNode;
   depth: number;
@@ -60,6 +64,7 @@ function OutlinerNode({
   collapsed: ReadonlySet<string>;
   onToggle: (objectId: string) => void;
   onSelection: (objectId: string, mode: VisualEditorSelectionMode) => void;
+  text: ReturnType<typeof useC07VisualEditorText>['outliner'];
 }) {
   const hasChildren = node.children.length > 0;
   const isCollapsed = collapsed.has(node.objectId);
@@ -68,7 +73,7 @@ function OutlinerNode({
       {hasChildren ? <button
         type="button"
         className="visual-editor-outliner__toggle"
-        aria-label={isCollapsed ? 'Expand' : 'Collapse'}
+        aria-label={isCollapsed ? text.expand : text.collapse}
         onClick={() => onToggle(node.objectId)}
       >{isCollapsed ? '›' : '⌄'}</button> : <span className="visual-editor-outliner__spacer" />}
       <button
@@ -79,7 +84,10 @@ function OutlinerNode({
       >
         <span className="visual-editor-outliner__name">{node.key}</span>
         <code>{node.dynamoKey ? 'DYN' : shortType(node.type)}</code>
-        {node.effectiveLocked ? <span className={`visual-editor-outliner__lock${node.directLocked ? ' is-direct' : ''}`} title={node.directLocked ? 'Locked' : 'Locked by parent'}>L</span> : null}
+        {node.effectiveLocked ? <span
+          className={`visual-editor-outliner__lock${node.directLocked ? ' is-direct' : ''}`}
+          title={node.directLocked ? text.locked : text.lockedByParent}
+        >L</span> : null}
       </button>
     </div>
     {hasChildren && !isCollapsed ? <div role="group">
@@ -91,6 +99,7 @@ function OutlinerNode({
         collapsed={collapsed}
         onToggle={onToggle}
         onSelection={onSelection}
+        text={text}
       />)}
     </div> : null}
   </div>;

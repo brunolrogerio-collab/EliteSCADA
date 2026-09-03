@@ -325,9 +325,9 @@ function TagParameterEditor({
 function findElement(
   elements: readonly VisualElementEngineering[],
   objectId: string
-): VisualElementEngineering | null {
+): (VisualElementEngineering & { id: string }) | null {
   for (const element of elements) {
-    if (element.id === objectId) return element;
+    if (element.id === objectId) return element as VisualElementEngineering & { id: string };
     const nested = findElement(element.children ?? [], objectId);
     if (nested) return nested;
   }

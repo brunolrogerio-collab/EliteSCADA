@@ -15,6 +15,7 @@ export const CLIENT_VISUAL_PYTHON_POLICY = {
 
 export const CLIENT_VISUAL_PYTHON_CAPABILITIES = [
   'tag.read',
+  'tag.write',
   'clientMemory.read',
   'clientMemory.write',
   'visualProperty.read',

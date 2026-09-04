@@ -1,4 +1,8 @@
-import type { ScreenEngineering, VisualElementEngineering } from '../types';
+import type {
+  ScreenEngineering,
+  VisualElementEngineering,
+  VisualEngineeringPropertyValue
+} from '../types';
 import {
   BROWSER_CONFIG_PROPERTY,
   BUILTIN_VISUAL_OBJECT_TYPES,
@@ -40,7 +44,7 @@ function updateCanonicalBrowserConfig(
   screen: ScreenEngineering,
   objectId: string,
   expectedType: string,
-  value: unknown
+  value: VisualEngineeringPropertyValue
 ): ScreenEngineering {
   if (!objectId.trim()) throw new Error('Browser objectId must be a stable non-empty identity.');
   let found = false;

@@ -99,7 +99,7 @@ function normalizeTrendPen(candidate: unknown, index: number): TrendVisualPen {
   const label = typeof candidate.label === 'string' ? candidate.label.trim() : '';
   const unit = typeof candidate.unit === 'string' ? candidate.unit.trim() : '';
   const visible = candidate.visible === undefined ? true : boolean(candidate.visible, `Trend Pen ${index + 1} visible`);
-  const color = color(candidate.color, `Trend Pen ${index + 1} color`);
+  const color = normalizeColor(candidate.color, `Trend Pen ${index + 1} color`);
   const lineWidth = finite(candidate.lineWidth, `Trend Pen ${index + 1} lineWidth`, 1, 12);
   const lineStyle = enumValue(candidate.lineStyle, ['solid', 'dashed', 'dotted'] as const, `Trend Pen ${index + 1} lineStyle`);
   const axis = enumValue(candidate.axis, ['left', 'right'] as const, `Trend Pen ${index + 1} axis`);
@@ -142,7 +142,7 @@ function stableText(value: unknown, label: string): string {
   return value;
 }
 
-function color(value: unknown, label: string): string {
+function normalizeColor(value: unknown, label: string): string {
   if (typeof value !== 'string' || !/^#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?$/.test(value)) {
     throw new Error(`${label} must use #RRGGBB or #RRGGBBAA.`);
   }

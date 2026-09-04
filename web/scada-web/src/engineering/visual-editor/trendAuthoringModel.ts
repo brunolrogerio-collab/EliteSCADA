@@ -65,7 +65,7 @@ const TREND_CONTROL_COPY: Readonly<Record<EngineeringLocale, TrendInspectorContr
     falseLabel: 'Falso',
     defaultState: 'Padrão',
     engineeringState: 'Configurado',
-    mixedState: (explicitCount, selectionCount) => `Misto · ${explicitCount}/${selectionCount} explícitos`
+    mixedState: (explicitCount: number, selectionCount: number) => `Misto · ${explicitCount}/${selectionCount} explícitos`
   }),
   en: Object.freeze({
     useDefault: 'Use default',
@@ -74,7 +74,7 @@ const TREND_CONTROL_COPY: Readonly<Record<EngineeringLocale, TrendInspectorContr
     falseLabel: 'False',
     defaultState: 'Default',
     engineeringState: 'Configured',
-    mixedState: (explicitCount, selectionCount) => `Mixed · ${explicitCount}/${selectionCount} explicit`
+    mixedState: (explicitCount: number, selectionCount: number) => `Mixed · ${explicitCount}/${selectionCount} explicit`
   }),
   es: Object.freeze({
     useDefault: 'Usar predeterminado',
@@ -83,7 +83,7 @@ const TREND_CONTROL_COPY: Readonly<Record<EngineeringLocale, TrendInspectorContr
     falseLabel: 'Falso',
     defaultState: 'Predeterminado',
     engineeringState: 'Configurado',
-    mixedState: (explicitCount, selectionCount) => `Mixto · ${explicitCount}/${selectionCount} explícitos`
+    mixedState: (explicitCount: number, selectionCount: number) => `Mixto · ${explicitCount}/${selectionCount} explícitos`
   })
 });
 

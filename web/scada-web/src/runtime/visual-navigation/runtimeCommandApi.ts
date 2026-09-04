@@ -10,11 +10,19 @@ export class RuntimeCommandExecutionError extends Error {
   }
 }
 
-export async function executeRuntimeCommand(commandId: string): Promise<void> {
+export type RuntimeCommandFetch = (
+  input: RequestInfo | URL,
+  init?: RequestInit
+) => Promise<Response>;
+
+export async function executeRuntimeCommand(
+  commandId: string,
+  fetcher: RuntimeCommandFetch = fetch
+): Promise<void> {
   const normalized = commandId.trim();
   if (!normalized) throw new RuntimeCommandExecutionError(400, 'Operational Command identity is required.');
 
-  const response = await fetch(`${API}/api/commands/${encodeURIComponent(normalized)}/execute`, {
+  const response = await fetcher(`${API}/api/commands/${encodeURIComponent(normalized)}/execute`, {
     method: 'POST',
     headers: { accept: 'application/json' }
   });

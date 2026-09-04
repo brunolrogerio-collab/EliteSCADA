@@ -10,10 +10,10 @@ async function source(relativePath: string): Promise<string> {
 }
 
 test('C16 Engineering exposes canonical Startup Screen, Popup X/Y and ExecuteCommand identity', async () => {
-  const contracts = await source('../../src/Scada.Engineering/Contracts/EngineeringContracts.cs');
-  const visualContracts = await source('../../src/Scada.Engineering/Contracts/VisualCompositionEngineeringContracts.cs');
-  const exchange = await source('../../src/Scada.Engineering/ImportExport/EngineeringExchangeService.cs');
-  const registry = await source('../../src/Scada.Engineering/Views/EngineeringViewRegistry.cs');
+  const contracts = await source('../../../src/Scada.Engineering/Contracts/EngineeringContracts.cs');
+  const visualContracts = await source('../../../src/Scada.Engineering/Contracts/VisualCompositionEngineeringContracts.cs');
+  const exchange = await source('../../../src/Scada.Engineering/ImportExport/EngineeringExchangeService.cs');
+  const registry = await source('../../../src/Scada.Engineering/Views/EngineeringViewRegistry.cs');
 
   expect(contracts).toContain('Guid? StartupScreenId = null');
   expect(contracts).toContain('double X = 0');
@@ -43,7 +43,7 @@ test('C16 Runtime resolves Startup Screen by persisted identity and never by lex
 test('C16 visual ExecuteCommand dispatch delegates to the canonical backend authority', async () => {
   const navigator = await source('../src/runtime/visual-navigation/RuntimeVisualNavigator.tsx');
   const commandApi = await source('../src/runtime/visual-navigation/runtimeCommandApi.ts');
-  const exchange = await source('../../src/Scada.Engineering/ImportExport/EngineeringExchangeService.cs');
+  const exchange = await source('../../../src/Scada.Engineering/ImportExport/EngineeringExchangeService.cs');
 
   expect(navigator).toContain("action.kind === 'ExecuteCommand'");
   expect(navigator).toContain('VISUAL_RUNTIME_COMMAND_REFERENCE_REQUIRED');

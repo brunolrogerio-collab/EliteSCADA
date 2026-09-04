@@ -9,6 +9,7 @@ import {
   buildDataSourceCandidate,
   cloneDataSourceValue,
   dataSourceIdentity,
+  draftForDataSourceSelection,
   incompatibleDataSourceConfiguration,
   isProtectedReference,
   newDataSourceDraft,
@@ -78,13 +79,7 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
   }, []);
 
   useEffect(() => {
-    if (selectedIdentity === NEW_DATA_SOURCE_IDENTITY) {
-      setDraft(newDataSourceDraft());
-      setPreview(null);
-      setValidatedCandidate(null);
-      setValidatedChangeVersion(null);
-      return;
-    }
+    if (selectedIdentity === NEW_DATA_SOURCE_IDENTITY) return;
 
     const current = selectedIdentity
       ? sources.find(source => dataSourceIdentity(source) === selectedIdentity) ?? null
@@ -124,7 +119,9 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
   const choose = (next: string) => {
     if (next === selectedIdentity) return;
     if (changed && !window.confirm(copy.discard)) return;
+    setDraft(draftForDataSourceSelection(next, sources));
     setSelectedIdentity(next);
+    invalidateValidation();
     setError(null);
   };
 

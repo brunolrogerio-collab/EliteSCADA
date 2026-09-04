@@ -13,12 +13,18 @@ public sealed class CanonicalSimulationQualityContractTests
     [InlineData(TagQuality.Bad)]
     [InlineData(TagQuality.Stale)]
     [InlineData(TagQuality.Unavailable)]
-    public async Task ServerPublisher_PropagatesExplicitQuality_ToCacheAlarmAndHistorian(TagQuality quality)
+    public async Task ServerPublisher_PropagatesExplicitQuality_ToCacheAlarmHistorianAndRealtimeEvent(TagQuality quality)
     {
         var eventBus = new InMemoryScadaEventBus();
         var cache = new CurrentTagCache(eventBus);
         using var alarms = new InMemoryAlarmEngine(eventBus);
         await using var historian = new BufferedInMemoryHistorian(eventBus);
+        TagValueChanged? publishedEvent = null;
+        using var realtimeSubscription = eventBus.Subscribe<TagValueChanged>(evt =>
+        {
+            publishedEvent = evt;
+            return ValueTask.CompletedTask;
+        });
 
         var tag = TagDefinition.Create(
             "ProcessValue",
@@ -50,6 +56,11 @@ public sealed class CanonicalSimulationQualityContractTests
         Assert.Equal(sourceTimestamp, current.SourceTimestamp);
         Assert.True(cache.TryGet(tag.Id, out var cached));
         Assert.Equal(quality, cached!.Quality);
+
+        Assert.NotNull(publishedEvent);
+        Assert.Equal(tag.Id, publishedEvent!.Tag.Id);
+        Assert.Equal(quality, publishedEvent.Current.Quality);
+        Assert.Equal(sourceTimestamp, publishedEvent.Current.SourceTimestamp);
 
         var alarm = Assert.Single(alarms.Snapshot(activeOnly: true));
         Assert.Equal(AlarmState.Active, alarm.State);
@@ -110,6 +121,25 @@ public sealed class CanonicalSimulationQualityContractTests
                 new QualifiedSourceSample(1, TagQuality.Bad)));
     }
 
+    [Theory]
+    [InlineData(SourceProviderOwnerScope.RuntimeClient, true)]
+    [InlineData(SourceProviderOwnerScope.Server, false)]
+    public void ServerPublisher_RejectsQualifiedSourceWithoutServerAuthority(
+        SourceProviderOwnerScope ownerScope,
+        bool hasSingleServerAuthoritativeValue)
+    {
+        var source = new TestQualifiedSourceProvider(new SourceProviderDescriptor(
+            "test.qualified",
+            ownerScope,
+            Retentive: false,
+            HasNetworkTransport: false,
+            HasSingleServerAuthoritativeValue: hasSingleServerAuthoritativeValue));
+
+        Assert.Throws<InvalidOperationException>(() => new ServerAuthoritativeSamplePublisher(
+            source,
+            new CurrentTagCache(new InMemoryScadaEventBus())));
+    }
+
     private static async Task WaitForHistorianAsync(BufferedInMemoryHistorian historian)
     {
         var deadline = DateTimeOffset.UtcNow.AddSeconds(2);
@@ -117,5 +147,24 @@ public sealed class CanonicalSimulationQualityContractTests
             await Task.Delay(10);
 
         Assert.True(historian.WrittenSamples > 0);
+    }
+
+    private sealed class TestQualifiedSourceProvider(SourceProviderDescriptor descriptor) : IQualifiedSourceProvider
+    {
+        public SourceProviderDescriptor Descriptor { get; } = descriptor;
+        public string InstanceKey => "test.qualified";
+        public IReadOnlyCollection<TagDefinition> Tags { get; } = Array.Empty<TagDefinition>();
+
+        public ValueTask<TagValue?> ReadAsync(Guid tagId, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<TagValue?>(null);
+
+        public ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default) =>
+            ValueTask.CompletedTask;
+
+        public ValueTask PublishSampleAsync(
+            Guid tagId,
+            QualifiedSourceSample sample,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.CompletedTask;
     }
 }

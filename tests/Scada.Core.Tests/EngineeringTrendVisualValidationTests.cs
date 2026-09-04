@@ -23,7 +23,7 @@ public sealed class EngineeringTrendVisualValidationTests
     }
 
     [Fact]
-    public void Validation_AcceptsNativeTrendPensAndRejectsInvalidScalarValues()
+    public void ValidationAndMigration_PreserveNativeTrendPensAndRejectInvalidScalarValues()
     {
         var valid = new VisualElementEngineeringDto(
             "trend",
@@ -67,6 +67,13 @@ public sealed class EngineeringTrendVisualValidationTests
             schemaVersion: int.MaxValue);
 
         Assert.DoesNotContain(validIssues, issue => issue.IsError);
+
+        var normalized = VisualEngineeringPropertyMigration.NormalizeCurrentElements([valid])!.Single();
+        Assert.True(normalized.Properties!.TryGetValue(BuiltinVisualObjectSchemas.TrendPensProperty, out var normalizedPens));
+        Assert.Equal(JsonValueKind.Array, normalizedPens.ValueKind);
+        Assert.Single(normalizedPens.EnumerateArray());
+        Assert.Equal("pressure", normalizedPens[0].GetProperty("id").GetString());
+        Assert.Equal("history", normalized.Properties["trendMode"].GetString());
 
         var invalidProperties = new Dictionary<string, JsonElement>(valid.Properties!, StringComparer.Ordinal)
         {

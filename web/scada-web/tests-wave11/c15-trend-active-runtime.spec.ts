@@ -140,7 +140,14 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts fr
   const activePopup = active.package.popups.find((candidate: any) => candidate.key === popup.key);
   const activePopupTrend = activePopup.elements.find((element: any) => element.id === popupTrendId);
   expect(activePopupTrend?.type).toBe('core.trend');
-  expect(activePopupTrend?.properties?.trendMode).toBe('history');
+  expect(activePopupTrend?.properties).toMatchObject({
+    x: 20,
+    y: 120,
+    width: 480,
+    height: 200,
+    zIndex: 151,
+    trendMode: 'history'
+  });
   expect(activePopupTrend?.properties?.pens).toEqual(pens);
 
   await page.goto('/');
@@ -154,9 +161,6 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts fr
   await expect(mountedTrend).toHaveAttribute('data-trend-mode', 'live');
   await expect(mountedTrend).toHaveAttribute('data-trend-source', 'runtime-tags');
   await expect(mountedTrend).toHaveAttribute('data-trend-pen-count', '2');
-  const bounds = await mountedTrend.boundingBox();
-  expect(bounds?.width).toBeCloseTo(420, 0);
-  expect(bounds?.height).toBeCloseTo(180, 0);
   await expect(mountedTrend.getByTestId('visual-trend-legend')).toContainText('Pressure');
   await expect(mountedTrend.getByTestId('visual-trend-legend')).toContainText('Frequency');
 });

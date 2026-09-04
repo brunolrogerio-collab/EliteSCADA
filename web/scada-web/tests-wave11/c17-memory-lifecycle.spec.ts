@@ -195,7 +195,7 @@ async function createMemoryTag(page: Page, options: {
   await expect(page.getByTestId('tag-address-manual')).toHaveCount(0);
   await expect(page.getByTestId('modbus-address-assistant')).toHaveCount(0);
 
-  const readOnly = page.getByLabel('Somente leitura');
+  const readOnly = page.getByRole('checkbox', { name: 'Somente leitura' });
   if (options.writable) await readOnly.uncheck();
   if (options.historian) await page.getByLabel('Histórico habilitado').check();
 

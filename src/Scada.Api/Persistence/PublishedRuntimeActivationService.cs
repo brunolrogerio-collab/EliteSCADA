@@ -33,7 +33,8 @@ public sealed class PublishedRuntimeActivationService(
     IEngineeringRuntimeCoordinator runtime,
     SimulationDriver simulationFallback,
     IScadaEventBus? eventBus = null,
-    IConfiguration? configuration = null) : IPublishedRuntimeActivationService
+    IConfiguration? configuration = null,
+    GatewayEngineeringRuntimeCoordinator? operationalEvents = null) : IPublishedRuntimeActivationService
 {
     public async Task<PublishedRuntimeActivationOutcome> ActivateAsync(
         string projectKey,
@@ -93,12 +94,32 @@ public sealed class PublishedRuntimeActivationService(
                 runtime,
                 eventBus,
                 configuration);
-            runtimeResult = await scripts.ActivateRuntimeAsync(
-                snapshot.ProjectKey,
-                snapshot.Revision,
-                package,
-                CommitAsync,
-                cancellationToken);
+
+            if (operationalEvents is not null)
+            {
+                await using var operationalEventGate =
+                    await ServerScriptOperationalEventBridge.BindForActivationAsync(
+                        scripts,
+                        runtime,
+                        operationalEvents,
+                        cancellationToken);
+
+                runtimeResult = await scripts.ActivateRuntimeAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    package,
+                    CommitAsync,
+                    cancellationToken);
+            }
+            else
+            {
+                runtimeResult = await scripts.ActivateRuntimeAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    package,
+                    CommitAsync,
+                    cancellationToken);
+            }
         }
         else
         {

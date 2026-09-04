@@ -88,12 +88,29 @@ function EngineeringRuntimeApplication({
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [alarmsOpen, setAlarmsOpen] = useState(false);
   const engineeringPackage = projection.package!;
-  const initialScreenKey = useMemo(() => {
-    const keys = (engineeringPackage.screens ?? [])
-      .map(screen => screen.key?.trim())
-      .filter((key): key is string => Boolean(key))
-      .sort((left, right) => left.localeCompare(right, 'en', { sensitivity: 'base' }));
-    return keys[0] ?? '';
+  const startup = useMemo(() => {
+    const startupScreenId = engineeringPackage.startupScreenId?.trim() ?? '';
+    if (!startupScreenId) {
+      return Object.freeze({
+        screenKey: '',
+        diagnosticCode: 'HMI_RUNTIME_STARTUP_SCREEN_REQUIRED',
+        detail: 'Active project does not define a Startup/Home Screen.'
+      });
+    }
+    const screen = (engineeringPackage.screens ?? []).find(candidate =>
+      candidate.id?.toLocaleLowerCase('en-US') === startupScreenId.toLocaleLowerCase('en-US'));
+    if (!screen?.key?.trim()) {
+      return Object.freeze({
+        screenKey: '',
+        diagnosticCode: 'HMI_RUNTIME_STARTUP_SCREEN_UNRESOLVED',
+        detail: `Configured Startup/Home Screen '${startupScreenId}' is not present in the Active project.`
+      });
+    }
+    return Object.freeze({
+      screenKey: screen.key,
+      diagnosticCode: null,
+      detail: null
+    });
   }, [engineeringPackage]);
 
   useEffect(() => {
@@ -119,11 +136,11 @@ function EngineeringRuntimeApplication({
     else await fullscreenRoot.current?.requestFullscreen();
   };
 
-  if (!initialScreenKey) {
+  if (!startup.screenKey) {
     return <main className="shell" data-testid="runtime-engineering-application">
-      <section className="runtime-visual-diagnostic" role="alert" data-diagnostic-code="HMI_RUNTIME_SCREEN_REQUIRED">
-        <strong>HMI_RUNTIME_SCREEN_REQUIRED</strong>
-        <span>{text.runtimeUnavailable}</span>
+      <section className="runtime-visual-diagnostic" role="alert" data-diagnostic-code={startup.diagnosticCode ?? undefined}>
+        <strong>{startup.diagnosticCode}</strong>
+        <span>{text.runtimeUnavailable} {startup.detail}</span>
       </section>
     </main>;
   }
@@ -155,7 +172,7 @@ function EngineeringRuntimeApplication({
     <section className="runtime-engineering-canvas" data-testid="runtime-engineering-canvas">
       <RuntimeVisualNavigator
         engineeringPackage={engineeringPackage}
-        initialScreenKey={initialScreenKey}
+        initialScreenKey={startup.screenKey}
         locale={locale}
         scriptContext={scriptContext}
         emptyLabel={text.emptyVisual}

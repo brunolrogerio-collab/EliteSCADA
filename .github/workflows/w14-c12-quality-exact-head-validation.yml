@@ -1,0 +1,242 @@
+name: W14 C12 Quality Exact Head Validation
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/w14-c12-quality-exact-head-validation.yml'
+
+permissions:
+  contents: read
+
+env:
+  CANDIDATE_SHA: aa0fb1700cb805cfdbb6072ce7ce6bccda687067
+
+jobs:
+  backend:
+    name: Exact-head backend build, test and smoke
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ELITESCADA_TEST_POSTGRES: 'Host=127.0.0.1;Port=5432;Database=elitescada_test;Username=postgres;Password=postgres;Pooling=false'
+      ConnectionStrings__EliteScada: 'Host=127.0.0.1;Port=5432;Database=elitescada_test;Username=postgres;Password=postgres;Pooling=false'
+      Historian__Provider: 'timescaledb'
+      HistoricalQuery__Enabled: 'true'
+      HistoricalQuery__CursorKeyBase64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+    steps:
+      - name: Checkout exact C12 candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 1
+      - name: Assert exact candidate SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTUAL=$(git rev-parse HEAD)
+          echo "candidate=${CANDIDATE_SHA}"
+          echo "checked_out=${ACTUAL}"
+          test "${ACTUAL}" = "${CANDIDATE_SHA}"
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Restore
+        run: dotnet restore ScadaPlatform.sln
+      - name: Build
+        run: dotnet build ScadaPlatform.sln --no-restore --configuration Release
+      - name: Test full solution
+        run: dotnet test ScadaPlatform.sln --no-build --configuration Release --verbosity normal
+      - name: Prove C12 qualified quality contract
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          --no-build --configuration Release --verbosity normal
+          --filter FullyQualifiedName~ServerScriptQualifiedQualityIntegrationTests
+      - name: Runtime smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ASPNETCORE_URLS=http://127.0.0.1:5080
+          dotnet run --project src/Scada.Api/Scada.Api.csproj --no-build --configuration Release --no-launch-profile > /tmp/scada-api.log 2>&1 &
+          API_PID=$!
+          trap 'kill "$API_PID" 2>/dev/null || true' EXIT
+          ready=false
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5080/health > /tmp/health.json; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != "true" ]; then
+            cat /tmp/scada-api.log
+            exit 1
+          fi
+          python3 - <<'PY'
+          import json
+          with open('/tmp/health.json') as f:
+              health = json.load(f)
+          assert health == {'status': 'ok', 'service': 'scada-api'}
+          PY
+          historian_ready=false
+          for _ in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:5080/api/diagnostics/runtime > /tmp/runtime-diagnostics.json
+            if python3 - <<'PY'
+          import json, sys
+          with open('/tmp/runtime-diagnostics.json') as f:
+              diagnostics = json.load(f)
+          ok = diagnostics['historian']['provider'] == 'timescaledb' and diagnostics['historian']['writtenSamples'] >= 1
+          sys.exit(0 if ok else 1)
+          PY
+            then
+              historian_ready=true
+              break
+            fi
+            sleep 1
+          done
+          test "$historian_ready" = "true"
+          curl -fsS http://127.0.0.1:5080/api/tags > /tmp/tags.json
+          TAG_COUNT=$(python3 -c 'import json; print(len(json.load(open("/tmp/tags.json"))))')
+          test "$TAG_COUNT" -ge 7
+
+  frontend:
+    name: Exact-head web build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact C12 candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 1
+      - name: Assert exact candidate SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "checked_out=$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD)" = "${CANDIDATE_SHA}"
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Install dependencies
+        working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+      - name: Build React/Vite
+        working-directory: web/scada-web
+        run: npm run build
+
+  e2e:
+    name: Exact-head Chromium end-to-end
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_e2e
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ConnectionStrings__EliteScada: 'Host=127.0.0.1;Port=5432;Database=elitescada_e2e;Username=postgres;Password=postgres;Pooling=false'
+    steps:
+      - name: Checkout exact C12 candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 1
+      - name: Assert exact candidate SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "checked_out=$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD)" = "${CANDIDATE_SHA}"
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Restore backend
+        run: dotnet restore ScadaPlatform.sln
+      - name: Install frontend dependencies
+        working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+      - name: Install Chromium
+        working-directory: web/scada-web
+        run: npx playwright install --with-deps chromium
+      - name: Run browser E2E tests
+        working-directory: web/scada-web
+        run: npm run test:e2e
+
+  wave11:
+    name: Exact-head Wave 11 Active Runtime browser lifecycle
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_wave11
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_wave11"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ConnectionStrings__EliteScada: 'Host=127.0.0.1;Port=5432;Database=elitescada_wave11;Username=postgres;Password=postgres;Pooling=false'
+    steps:
+      - name: Checkout exact C12 candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 1
+      - name: Assert exact candidate SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "checked_out=$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD)" = "${CANDIDATE_SHA}"
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Restore backend
+        run: dotnet restore ScadaPlatform.sln
+      - name: Install frontend dependencies
+        working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+      - name: Install Chromium
+        working-directory: web/scada-web
+        run: npx playwright install --with-deps chromium
+      - name: Run Wave 11 Active Runtime browser lifecycle
+        working-directory: web/scada-web
+        run: npx playwright test --config=playwright.wave11.config.ts

@@ -122,14 +122,24 @@ test('C19 authors an Operational Event normally and Server Script Initialize emi
   await activateButton.click();
   await confirmLifecycleAction(lifecycle);
 
-  // The C19 bridge deliberately exercises an Initialize handler. If activation
-  // still held a non-reentrant Operational Event gate, this poll would never reach
-  // the new revision because generation.StartAsync would deadlock on its own emit.
   await expect.poll(async () => {
     const response = await request.get('/api/runtime/application');
     if (!response.ok()) return null;
     return (await response.json() as { revision: number }).revision;
   }, { timeout: 15_000 }).toBe(savedRevision);
+
+  // Server Script faults are intentionally isolated from Runtime activation. Surface
+  // their canonical host diagnostics here so a missing event is never diagnosed as
+  // a generic browser/history timeout.
+  const runtimeDiagnostics = await loadRuntimeDiagnostics(request);
+  const c19Script = runtimeDiagnostics.runtime?.serverScripts?.scripts?.find((script: any) => script.path === scriptPath);
+  const diagnosticContext = JSON.stringify(runtimeDiagnostics.runtime?.serverScripts ?? null);
+  expect(c19Script, `C19 Server Script is absent from the Active runtime diagnostics: ${diagnosticContext}`).toBeTruthy();
+  expect(c19Script.diagnostics.executionCount, `C19 Initialize never executed: ${diagnosticContext}`).toBeGreaterThan(0);
+  expect(c19Script.diagnostics.faultedCount, `C19 Initialize faulted: ${diagnosticContext}`).toBe(0);
+  expect(c19Script.diagnostics.timeoutCount, `C19 Initialize timed out: ${diagnosticContext}`).toBe(0);
+  expect(c19Script.diagnostics.cancelledCount, `C19 Initialize was cancelled: ${diagnosticContext}`).toBe(0);
+  expect(c19Script.diagnostics.completedCount, `C19 Initialize did not complete: ${diagnosticContext}`).toBeGreaterThan(0);
 
   await expect.poll(async () => await historicalEventExists(request), { timeout: 15_000 }).toBe(true);
 
@@ -200,6 +210,12 @@ async function installServerScript(request: APIRequestContext, eventDefinitionId
     const refreshed = await loadWorking(request);
     return refreshed.scripts?.some((item: any) => item.id === scriptId && item.path === scriptPath) ?? false;
   }).toBe(true);
+}
+
+async function loadRuntimeDiagnostics(request: APIRequestContext): Promise<any> {
+  const response = await request.get('/api/diagnostics/runtime');
+  expect(response.ok(), `Runtime diagnostics failed: HTTP ${response.status()} ${await response.text()}`).toBeTruthy();
+  return await response.json();
 }
 
 async function historicalEventExists(request: APIRequestContext): Promise<boolean> {

@@ -113,8 +113,7 @@ public sealed class InMemoryEngineeringViewRegistry : IEngineeringViewRegistry
         ArgumentException.ThrowIfNullOrWhiteSpace(popup.Key);
         if (popup.Id == Guid.Empty)
             throw new ArgumentException("Popup Id cannot be empty.", nameof(popup));
-        if ((popup.X.HasValue && !double.IsFinite(popup.X.Value)) ||
-            (popup.Y.HasValue && !double.IsFinite(popup.Y.Value)))
+        if (!double.IsFinite(popup.X) || !double.IsFinite(popup.Y))
             throw new ArgumentException("Popup X/Y must be finite logical HMI coordinates.", nameof(popup));
 
         lock (_sync)

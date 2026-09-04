@@ -1,7 +1,7 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-04 (BRT)  
-**Operational state:** **WAVE 14 #211 ACTIVE / C11 IMPLEMENTATION LOCKED / C12+C13+C14+C15+C17 HISTORICALLY ACCEPTED+INTEGRATED / C16 ISOLATED ACCEPTED BUT COMBINED WAVE11 RED / C17 CONVERGENCE FIX ACTIVE / C18 HOLD UNTIL C12–C17 COMBINED GREEN / WAVE13 PAUSED**
+**Operational state:** **WAVE 14 #211 ACTIVE / C11 IMPLEMENTATION LOCKED / C12+C13+C14+C15+C17 HISTORICALLY ACCEPTED+INTEGRATED / C16 ISOLATED ACCEPTED / C17 INTERMITTENT DATASOURCE RACE CORRECTION ACTIVE / C18 HOLD UNTIL C12–C17 COMBINED GREEN / WAVE13 PAUSED**
 
 > GitHub is the development memory. Revalidate live refs, PR state and exact-SHA CI before acting. DEV delivery is not Coordinator acceptance. Diagnose a red gate before rerun. Documentation-only commits do not redefine product-code authority.
 
@@ -31,7 +31,7 @@ That product checkpoint contains accepted C12+C13+C14+C15+C17 and passed all fiv
 - L3 Seven-Driver Lab #242 / `33838725850` — SUCCESS;
 - Interop Lab Smoke #164 / `33838725805` — SUCCESS.
 
-No new Wave14 product freeze has been declared. C12–C17 must first converge on one new exact combined-green SHA; only then may C18 be explicitly released. After C18 convergence, C10 convergence cycle 2 must establish a new exact product-code freeze before C11 can be reconsidered.
+No new Wave14 product freeze has been declared. C12–C17 must first converge on one new exact combined-green product SHA after the C17 race is corrected; only then may C18 be explicitly released. After C18 convergence, C10 convergence cycle 2 must establish a new exact product-code freeze before C11 can be reconsidered.
 
 ## 2. C11 remains locked
 
@@ -59,7 +59,7 @@ C17's earlier rerun completed successfully. The old C15 false-green candidate `2
 
 The fully green combined authority for those packages remains `1dcd80a4...`.
 
-## 4. C16 — isolated accepted, composed product NOT accepted yet
+## 4. C16 — isolated accepted, composition exposed C17 race
 
 C16 package:
 
@@ -91,7 +91,7 @@ Coordinator composition product-code SHA:
 
 `607a60d0e930fc7080e09c0689c306c040c4ace6`
 
-Combined result:
+Original combined result:
 
 - EliteSCADA CI #1338 / `33869678384` — SUCCESS;
 - Preview Licensing CI #288 / `33869678597` — SUCCESS;
@@ -107,7 +107,7 @@ Therefore `main` drift is excluded.
 
 ## 5. Root cause isolated — latent C17 Data Source new-mode race
 
-Wave11 #266 fails in `tests-wave11/c17-memory-lifecycle.spec.ts` because the later TAG editor cannot find `memory.server.c17`.
+Wave11 #266 failed in `tests-wave11/c17-memory-lifecycle.spec.ts` because the later TAG editor could not find `memory.server.c17`.
 
 Retained Playwright trace proves canonical Working state genuinely lost that Source before the lookup:
 
@@ -124,6 +124,26 @@ Retained Playwright trace proves canonical Working state genuinely lost that Sou
 
 The same frontend race exists on historical accepted C17 HEAD `6db4fb33...`. C16 changed the Wave11 sequence/timing and exposed the latent C17 authoring defect; C16 contracts are not being reopened.
 
+### Intermittency confirmed, not excused
+
+A later documentation-only integration HEAD:
+
+`147756ac65b452e95085a4c21bec976545d29bb7`
+
+contained no product-code correction after `607a60d0...`, yet automatically triggered all five PR #212 workflows against synthetic merge ref `7a1134a8a9c93b276e615541d182e8646017b27f` and all completed successfully:
+
+- EliteSCADA CI #1344 / `33878949767` — SUCCESS, including Chromium E2E;
+- Wave 11 Active HMI Runtime #272 / `33878949817` — SUCCESS, **11/11 tests actually executed** including C16 bootstrap, C17 Memory, C15 Trend and C16 Operational Runtime;
+- Preview Licensing CI #294 / `33878949850` — SUCCESS;
+- L3 Seven-Driver Lab #249 / `33878949788` — SUCCESS;
+- Interop Lab Smoke #171 / `33878949680` — SUCCESS.
+
+Because product code was unchanged, this later green run confirms the race is timing-dependent. It does **not** erase the concrete corrupted Working state captured in Wave11 #266 and does **not** establish a new accepted product checkpoint. Classification is binding:
+
+**REAL PRODUCT RACE / INTERMITTENT TRIGGER / NOT AN ACCEPTABLE CI FLAKE.**
+
+Issue #211 evidence record: comment `5541337330`.
+
 ## 6. C17 convergence correction — DEV active on bounded branch
 
 Ownership decision: **return bounded post-integration correction to C17 Memory/Data Source authoring**.
@@ -138,7 +158,7 @@ Exact correction product base:
 
 `607a60d0e930fc7080e09c0689c306c040c4ace6`
 
-Current correction-branch HEAD at coordinator handoff:
+Current correction-branch HEAD:
 
 `23da99aebbb93d51b84462d8568c7281642c9c39`
 
@@ -154,7 +174,7 @@ Required correction invariants:
 - no prior stable id/system metadata/settings/secrets may leak into a new entity except explicit defaults of the selected type;
 - existing Source editing must still preserve its intended identity/metadata;
 - solution remains generic/catalog-driven, with no Memory/DEMO/fixed-GUID special case;
-- deterministic regression must cover immediate `New Data Source -> choose type` interaction;
+- deterministic regression must cover immediate `New Data Source -> choose type` interaction so scheduler timing cannot hide the defect;
 - existing real C17 normal-Engineering lifecycle coverage remains intact;
 - no sleeps, hidden package JSON or weakened backend identity semantics.
 
@@ -165,9 +185,32 @@ Coordination records:
 - issue #211 C18 HOLD / initial blocker: comment `5541091621`;
 - issue #211 root-cause ownership: comment `5541152530`;
 - historical C17 PR #249 CHANGES REQUIRED: comment `5541149386`;
-- issue #211 correction branch record: comment `5541167404`.
+- issue #211 correction branch record: comment `5541167404`;
+- issue #211 intermittent-race five-gate evidence: comment `5541337330`.
 
-## 7. C18 — HOLD / NOT RELEASED
+## 7. Repository hygiene completed for historical Wave14 validation surfaces
+
+Per `docs/CI-VALIDATION-POLICY.md`, completed validation-only PRs were closed **without merge** after their integration/evidence lineage was recorded. Commits, workflow runs, artifacts and comments remain historical evidence.
+
+Closed validation-only surfaces in this synchronization:
+
+- #216 — C05;
+- #228 — C08;
+- #227 — C09;
+- #232 — C10 historical convergence validation;
+- #239 — C13;
+- #240 — C14;
+- #243 — C15;
+- #244 — C17.
+
+For Wave14, the intentionally active PR surfaces now remain:
+
+- #212 — Coordinator correction integration, OPEN/DRAFT;
+- #210 — temporary Test Preview infrastructure.
+
+C10 Convergence Cycle 2 is a future **new cycle** after C18 convergence and must not reuse the historical C10 validation PR as product authority.
+
+## 8. C18 — HOLD / NOT RELEASED
 
 Product Owner decision:
 
@@ -193,23 +236,24 @@ Binding handoff:
 
 Current marker: **HOLD / IMPLEMENTATION NOT AUTHORIZED**.
 
-## 8. Immediate route
+## 9. Immediate route
 
 1. keep C18 HOLD and PR #212 DRAFT;
 2. wait for C17 DEV to publish a product-code candidate on `wave14/c17-convergence-datasource-new-race`;
 3. revalidate the exact candidate diff/architecture and five workflow runs;
-4. reject any test/security/identity weakening or timing-only workaround;
-5. compose accepted C17 correction into integration without rewriting history;
-6. require all five combined gates green on one exact product-code head;
-7. declare C12–C17 converged only then;
-8. explicitly release C18 with a newly declared exact base only after convergence;
-9. after C18 acceptance/integration, run full combined validation;
-10. execute C10 convergence cycle 2 and freeze a new exact product SHA;
-11. revalidate affected C11 findings;
-12. only then consider explicit `RELEASE C11 IMPLEMENTATION`;
-13. Wave13 issue #205 / PR #207 remain paused until final Wave14 acceptance.
+4. require deterministic coverage of the previously timing-dependent transition and reject scheduler-luck acceptance;
+5. reject any test/security/identity weakening or timing-only workaround;
+6. compose accepted C17 correction into integration without rewriting history;
+7. require all five combined gates green on one exact product-code head;
+8. declare C12–C17 converged only then;
+9. explicitly release C18 with a newly declared exact base only after convergence;
+10. after C18 acceptance/integration, run full combined validation;
+11. execute C10 convergence cycle 2 and freeze a new exact product SHA;
+12. revalidate affected C11 findings;
+13. only then consider explicit `RELEASE C11 IMPLEMENTATION`;
+14. Wave13 issue #205 / PR #207 remain paused until final Wave14 acceptance.
 
-## 9. Boundaries still in force
+## 10. Boundaries still in force
 
 - PR #212 remains DRAFT and must not be merged to `main` without later Product Owner authorization.
 - C11 implementation remains LOCKED.

@@ -31,13 +31,15 @@ test('C16 Engineering exposes canonical Startup Screen, Popup X/Y and ExecuteCom
 
 test('C16 Runtime resolves Startup Screen by persisted identity and never by lexical key convention', async () => {
   const mount = await source('../src/runtime/application/RuntimeApplicationMount.tsx');
+  const resolver = await source('../src/runtime/application/runtimeStartupScreen.ts');
 
-  expect(mount).toContain('startupScreenId');
-  expect(mount).toContain('HMI_RUNTIME_STARTUP_SCREEN_REQUIRED');
-  expect(mount).toContain('HMI_RUNTIME_STARTUP_SCREEN_UNRESOLVED');
-  expect(mount).toContain('screen.id === startupScreenId');
-  expect(mount).not.toContain("startsWith('00_')");
-  expect(mount).not.toContain('localeCompare');
+  expect(mount).toContain('resolveRuntimeStartupScreen(engineeringPackage)');
+  expect(resolver).toContain('startupScreenId');
+  expect(resolver).toContain('HMI_RUNTIME_STARTUP_SCREEN_REQUIRED');
+  expect(resolver).toContain('HMI_RUNTIME_STARTUP_SCREEN_UNRESOLVED');
+  expect(resolver).toContain("candidate.id?.toLocaleLowerCase('en-US') === normalizedStartupId");
+  expect(resolver).not.toContain("startsWith('00_')");
+  expect(resolver).not.toContain('localeCompare');
 });
 
 test('C16 visual ExecuteCommand dispatch delegates to the canonical backend authority', async () => {
@@ -83,6 +85,7 @@ test('C16 Popup coordinates remain logical across 720p, 1080p, 1440p and 4K view
 
 test('C16 Popup runtime stays inside the C09 logical stage and preserves stacking plus operator alarm overlay', async () => {
   const navigator = await source('../src/runtime/visual-navigation/RuntimeVisualNavigator.tsx');
+  const popupPosition = await source('../src/runtime/visual-navigation/runtimePopupPosition.ts');
   const mount = await source('../src/runtime/application/RuntimeApplicationMount.tsx');
 
   expect(navigator).toContain('resolvePopupLogicalPosition');
@@ -91,6 +94,7 @@ test('C16 Popup runtime stays inside the C09 logical stage and preserves stackin
   expect(navigator).toContain('data-popup-stack-index={index}');
   expect(navigator).toContain('zIndex: index + 1');
   expect(navigator).toContain("pointerEvents: 'auto'");
+  expect(popupPosition).toContain('POPUP_MIN_VISIBLE_LOGICAL_PX = 48');
   expect(mount).toContain('runtime-operator-overlay');
   expect(mount).toContain('<RuntimeAlarmCenter');
 });

@@ -18,11 +18,13 @@ function popup(): PopupEngineering {
     properties: { 'engineering.surface.backgroundColor': '#101820' },
     context: { area: 'A' },
     metadata: { owner: 'ops' },
-    elements: [{ id: 'shape', key: 'shape', type: 'core.rectangle', properties: { x: 10, y: 20 } }]
+    elements: [{ id: 'shape', key: 'shape', type: 'core.rectangle', properties: { x: 10, y: 20 } }],
+    x: 320,
+    y: 180
   };
 }
 
-test('Popup visual adapter round-trips canonical composition without inventing a Screen route', () => {
+test('Popup visual adapter round-trips canonical composition and logical position without inventing a Screen route', () => {
   const source = popup();
   const screen = popupToVisualScreen(source);
   expect(screen.route).toBeNull();
@@ -35,6 +37,8 @@ test('Popup visual adapter round-trips canonical composition without inventing a
   expect(restored.properties).toEqual(source.properties);
   expect(restored.context).toEqual(source.context);
   expect(restored.metadata).toEqual(source.metadata);
+  expect(restored.x).toBe(320);
+  expect(restored.y).toBe(180);
 });
 
 test('Popup adapter does not create frontend-only dimension or version fields', () => {
@@ -59,6 +63,8 @@ test('new Popup defaults are unique and stay inside the canonical Popup DTO', ()
   expect(draft.key).toBe('popup-2');
   expect(draft.templateKey).toBeNull();
   expect(draft.elements).toEqual([]);
+  expect(draft.x).toBe(0);
+  expect(draft.y).toBe(0);
   expect('width' in draft).toBe(false);
   expect('height' in draft).toBe(false);
 });

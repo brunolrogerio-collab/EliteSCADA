@@ -5,6 +5,20 @@ namespace Scada.Engineering.VisualScripting;
 
 public static class BuiltinVisualEngineeringValidation
 {
+    private static readonly string[] AlarmBrowserColumns =
+    [
+        "timestamp", "state", "priority", "name", "area", "tag.path", "message", "acknowledgedBy"
+    ];
+
+    private static readonly string[] EventBrowserColumns =
+    [
+        "timestamp", "type", "category", "source", "area", "equipment.path", "tag.path",
+        "operator", "operation", "command.key", "message"
+    ];
+
+    private static readonly string[] AlarmBrowserSortFields = ["timestamp", "state", "priority", "tag.path"];
+    private static readonly string[] EventBrowserSortFields = ["timestamp", "type", "category", "source", "area", "tag.path"];
+
     public static IReadOnlyCollection<ImportIssue> Validate(
         VisualElementEngineeringDto element,
         ImportEntityKind entityKind,
@@ -141,44 +155,204 @@ public static class BuiltinVisualEngineeringValidation
 
         if (configuration.ValueKind != JsonValueKind.Object)
         {
-            yield return Error(
+            yield return BrowserError(
                 "VISUAL_BROWSER_CONFIG_INVALID",
-                $"Browser '{element.Key}' requires browserConfig to be a JSON object.",
+                element,
+                "browserConfig must be a JSON object.",
                 entityKind,
                 entityKey);
             yield break;
         }
 
+        var isAlarm = element.Type.Equals(BuiltinVisualObjectSchemas.AlarmBrowserType, StringComparison.Ordinal);
+        var allowedColumns = isAlarm ? AlarmBrowserColumns : EventBrowserColumns;
+        var allowedSortFields = isAlarm ? AlarmBrowserSortFields : EventBrowserSortFields;
+
         if (configuration.TryGetProperty("version", out var version) &&
-            (version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out var number) || number != 1))
+            (version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out var versionNumber) || versionNumber != 1))
         {
-            yield return Error(
+            yield return BrowserError(
                 "VISUAL_BROWSER_CONFIG_VERSION_UNSUPPORTED",
-                $"Browser '{element.Key}' has an unsupported browserConfig version.",
+                element,
+                "browserConfig version must be 1.",
                 entityKind,
                 entityKey);
         }
 
-        if (configuration.TryGetProperty("columns", out var columns) &&
-            (columns.ValueKind != JsonValueKind.Array || columns.GetArrayLength() == 0))
+        if (configuration.TryGetProperty("columns", out var columns))
         {
-            yield return Error(
-                "VISUAL_BROWSER_COLUMNS_INVALID",
-                $"Browser '{element.Key}' must display at least one configured column.",
-                entityKind,
-                entityKey);
+            if (columns.ValueKind != JsonValueKind.Array || columns.GetArrayLength() == 0)
+            {
+                yield return BrowserError(
+                    "VISUAL_BROWSER_COLUMNS_INVALID",
+                    element,
+                    "at least one visible column is required.",
+                    entityKind,
+                    entityKey);
+            }
+            else
+            {
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var column in columns.EnumerateArray())
+                {
+                    var value = column.ValueKind == JsonValueKind.String ? column.GetString() : null;
+                    if (value is null || !allowedColumns.Contains(value, StringComparer.Ordinal))
+                    {
+                        yield return BrowserError(
+                            "VISUAL_BROWSER_COLUMNS_INVALID",
+                            element,
+                            $"column '{value ?? column.ToString()}' is not supported by '{element.Type}'.",
+                            entityKind,
+                            entityKey);
+                        break;
+                    }
+                    if (!seen.Add(value))
+                    {
+                        yield return BrowserError(
+                            "VISUAL_BROWSER_COLUMNS_INVALID",
+                            element,
+                            $"column '{value}' is duplicated.",
+                            entityKind,
+                            entityKey);
+                        break;
+                    }
+                }
+            }
         }
 
         if (configuration.TryGetProperty("pageSize", out var pageSize) &&
-            (pageSize.ValueKind != JsonValueKind.Number || !pageSize.TryGetInt32(out var page) || page is < 10 or > 200))
+            !IsIntegerInRange(pageSize, 10, 200))
         {
-            yield return Error(
+            yield return BrowserError(
                 "VISUAL_BROWSER_PAGE_SIZE_INVALID",
-                $"Browser '{element.Key}' pageSize must be between 10 and 200.",
+                element,
+                "pageSize must be an integer between 10 and 200.",
                 entityKind,
                 entityKey);
         }
+
+        if (configuration.TryGetProperty("lookbackSeconds", out var lookback) &&
+            !IsIntegerInRange(lookback, 60, 2_678_400))
+        {
+            yield return BrowserError(
+                "VISUAL_BROWSER_LOOKBACK_INVALID",
+                element,
+                "lookbackSeconds must be an integer between 60 and 2678400.",
+                entityKind,
+                entityKey);
+        }
+
+        if (configuration.TryGetProperty("sortField", out var sortField) &&
+            !IsAllowedString(sortField, allowedSortFields))
+        {
+            yield return BrowserError(
+                "VISUAL_BROWSER_SORT_INVALID",
+                element,
+                "sortField is not supported by this Browser type.",
+                entityKind,
+                entityKey);
+        }
+
+        if (configuration.TryGetProperty("sortDirection", out var sortDirection) &&
+            !IsAllowedString(sortDirection, ["ascending", "descending"]))
+        {
+            yield return BrowserError(
+                "VISUAL_BROWSER_SORT_INVALID",
+                element,
+                "sortDirection must be ascending or descending.",
+                entityKind,
+                entityKey);
+        }
+
+        if (isAlarm)
+        {
+            if (configuration.TryGetProperty("mode", out var mode) &&
+                !IsAllowedString(mode, ["current", "history"]))
+                yield return BrowserError("VISUAL_BROWSER_MODE_INVALID", element, "mode must be current or history.", entityKind, entityKey);
+
+            if (configuration.TryGetProperty("lifecycle", out var lifecycle) &&
+                !IsAllowedString(lifecycle, ["all", "active", "returned"]))
+                yield return BrowserError("VISUAL_BROWSER_FILTER_INVALID", element, "lifecycle is invalid.", entityKind, entityKey);
+
+            if (configuration.TryGetProperty("acknowledgement", out var acknowledgement) &&
+                !IsAllowedString(acknowledgement, ["all", "acknowledged", "unacknowledged"]))
+                yield return BrowserError("VISUAL_BROWSER_FILTER_INVALID", element, "acknowledgement is invalid.", entityKind, entityKey);
+
+            if (configuration.TryGetProperty("minimumPriority", out var priority) &&
+                priority.ValueKind != JsonValueKind.Null &&
+                !IsIntegerInRange(priority, 1, 4))
+                yield return BrowserError("VISUAL_BROWSER_FILTER_INVALID", element, "minimumPriority must be null or an integer from 1 to 4.", entityKind, entityKey);
+
+            if (configuration.TryGetProperty("acknowledgeEnabled", out var acknowledgeEnabled) &&
+                acknowledgeEnabled.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                yield return BrowserError("VISUAL_BROWSER_CONFIG_INVALID", element, "acknowledgeEnabled must be boolean.", entityKind, entityKey);
+
+            foreach (var issue in ValidateBrowserText(configuration, element, entityKind, entityKey,
+                         ("area", 240), ("tagPath", 500), ("text", 500)))
+                yield return issue;
+        }
+        else
+        {
+            foreach (var issue in ValidateBrowserText(configuration, element, entityKind, entityKey,
+                         ("type", 120), ("category", 120), ("source", 240), ("area", 240),
+                         ("equipmentPath", 500), ("tagPath", 500), ("operator", 240),
+                         ("operation", 240), ("commandKey", 240), ("text", 500)))
+                yield return issue;
+        }
     }
+
+    private static IEnumerable<ImportIssue> ValidateBrowserText(
+        JsonElement configuration,
+        VisualElementEngineeringDto element,
+        ImportEntityKind entityKind,
+        string entityKey,
+        params (string Key, int MaximumLength)[] fields)
+    {
+        foreach (var field in fields)
+        {
+            if (!configuration.TryGetProperty(field.Key, out var value)) continue;
+            if (value.ValueKind != JsonValueKind.String)
+            {
+                yield return BrowserError(
+                    "VISUAL_BROWSER_FILTER_INVALID",
+                    element,
+                    $"{field.Key} must be text.",
+                    entityKind,
+                    entityKey);
+                continue;
+            }
+
+            var text = value.GetString() ?? string.Empty;
+            if (text.Trim().Length > field.MaximumLength || text.Any(char.IsControl))
+            {
+                yield return BrowserError(
+                    "VISUAL_BROWSER_FILTER_INVALID",
+                    element,
+                    $"{field.Key} exceeds its supported text contract or contains control characters.",
+                    entityKind,
+                    entityKey);
+            }
+        }
+    }
+
+    private static bool IsIntegerInRange(JsonElement value, int minimum, int maximum) =>
+        value.ValueKind == JsonValueKind.Number &&
+        value.TryGetInt32(out var number) &&
+        number >= minimum &&
+        number <= maximum;
+
+    private static bool IsAllowedString(JsonElement value, IReadOnlyCollection<string> allowed) =>
+        value.ValueKind == JsonValueKind.String &&
+        value.GetString() is { } text &&
+        allowed.Contains(text, StringComparer.Ordinal);
+
+    private static ImportIssue BrowserError(
+        string code,
+        VisualElementEngineeringDto element,
+        string detail,
+        ImportEntityKind kind,
+        string key) =>
+        Error(code, $"Browser '{element.Key}' {detail}", kind, key);
 
     private static double ReadNumber(
         VisualElementEngineeringDto element,

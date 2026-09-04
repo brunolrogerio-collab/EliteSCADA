@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import type { EngineeringLocale } from '../../i18n';
+import { useC07VisualEditorText } from '../c07VisualEditorI18n';
 import type { VisualEditorObjectPaletteContractProps } from '../visualEditorContracts';
 import {
   createObjectAddIntent,
@@ -16,7 +16,6 @@ export type ObjectPaletteCopy = Readonly<{
 
 export type ObjectPaletteProps = VisualEditorObjectPaletteContractProps & Readonly<{
   copy?: Partial<ObjectPaletteCopy>;
-  locale?: EngineeringLocale;
   parentObjectId?: string | null;
 }>;
 
@@ -36,21 +35,15 @@ const DEFAULT_LABELS: Readonly<Record<string, string>> = Object.freeze({
   slider: 'Slider'
 });
 
-const BROWSER_LABELS: Readonly<Record<EngineeringLocale, Readonly<Record<string, string>>>> = Object.freeze({
-  'pt-BR': Object.freeze({ alarmBrowser: 'Browser de Alarmes', eventBrowser: 'Browser de Eventos' }),
-  en: Object.freeze({ alarmBrowser: 'Alarm Browser', eventBrowser: 'Event Browser' }),
-  es: Object.freeze({ alarmBrowser: 'Browser de Alarmas', eventBrowser: 'Browser de Eventos' })
-});
-
 export function ObjectPalette({
   onMutationIntent,
   copy,
-  locale = 'en',
   parentObjectId
 }: ObjectPaletteProps) {
   const items = useMemo(() => listVisualObjectPaletteItems(), []);
   const [error, setError] = useState<string | null>(null);
-  const labels = { ...DEFAULT_LABELS, ...BROWSER_LABELS[locale], ...(copy?.labels ?? {}) };
+  const editorText = useC07VisualEditorText();
+  const labels = { ...DEFAULT_LABELS, ...editorText.palette, ...(copy?.labels ?? {}) };
   const title = copy?.title ?? 'Object palette';
   const hint = copy?.hint ?? 'Add a registered visual object to the current Screen.';
   const addLabel = copy?.addLabel ?? 'Add';

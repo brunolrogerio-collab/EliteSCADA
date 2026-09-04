@@ -69,7 +69,14 @@ export const VISUAL_PROPERTY_KEYS = {
   interactionEnabled: 'interactionEnabled',
   reverseDirection: 'reverseDirection',
   trackColor: 'trackColor',
-  thumbColor: 'thumbColor'
+  thumbColor: 'thumbColor',
+  trendMode: 'trendMode',
+  trendWindowSeconds: 'trendWindowSeconds',
+  trendRefreshSeconds: 'trendRefreshSeconds',
+  trendLegendVisible: 'trendLegendVisible',
+  trendGridVisible: 'trendGridVisible',
+  trendAxesVisible: 'trendAxesVisible',
+  trendQualityVisible: 'trendQualityVisible'
 } as const;
 
 export type CommonVisualPropertyKey = typeof VISUAL_PROPERTY_KEYS[keyof typeof VISUAL_PROPERTY_KEYS];
@@ -384,7 +391,14 @@ const COMMON_VISUAL_PROPERTY_DEFINITIONS: readonly VisualPropertyDefinition[] = 
   booleanProperty(VISUAL_PROPERTY_KEYS.interactionEnabled, false, 'control'),
   booleanProperty(VISUAL_PROPERTY_KEYS.reverseDirection, false, 'control'),
   colorProperty(VISUAL_PROPERTY_KEYS.trackColor, '#6B7280', 'control'),
-  colorProperty(VISUAL_PROPERTY_KEYS.thumbColor, '#E5E7EB', 'control')
+  colorProperty(VISUAL_PROPERTY_KEYS.thumbColor, '#E5E7EB', 'control'),
+  enumProperty(VISUAL_PROPERTY_KEYS.trendMode, 'history', ['history', 'live'], 'trend'),
+  numberProperty(VISUAL_PROPERTY_KEYS.trendWindowSeconds, 3600, { minimum: 60, maximum: 604800, integer: true, unit: 's', category: 'trend' }),
+  numberProperty(VISUAL_PROPERTY_KEYS.trendRefreshSeconds, 5, { minimum: 1, maximum: 3600, integer: true, unit: 's', category: 'trend' }),
+  booleanProperty(VISUAL_PROPERTY_KEYS.trendLegendVisible, true, 'trend'),
+  booleanProperty(VISUAL_PROPERTY_KEYS.trendGridVisible, true, 'trend'),
+  booleanProperty(VISUAL_PROPERTY_KEYS.trendAxesVisible, true, 'trend'),
+  booleanProperty(VISUAL_PROPERTY_KEYS.trendQualityVisible, true, 'trend')
 ];
 
 export const COMMON_VISUAL_PROPERTY_REGISTRY = new VisualPropertyRegistry(

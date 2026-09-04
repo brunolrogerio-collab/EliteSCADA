@@ -31,6 +31,7 @@ import {
 } from './visualEditorLiveValues';
 import { resolveVisualDynamicState } from './visualDynamicRuntime';
 import { SliderVisualElement, type SliderTagWrite } from './SliderVisualElement';
+import { TrendVisualElement } from './TrendVisualElement';
 import {
   cssStrokeStyle,
   effectiveStrokeWidth,
@@ -247,6 +248,19 @@ function CanonicalElement({
           />
         </svg>
       </div>;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.trend) {
+      return <TrendVisualElement
+        element={element}
+        values={values}
+        style={style}
+        runtimeObjectId={runtimeObjectId}
+        title={elementTitle}
+        locale={locale}
+        enabled={enabled}
+        onClick={onClick}
+      />;
     }
 
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.slider) {

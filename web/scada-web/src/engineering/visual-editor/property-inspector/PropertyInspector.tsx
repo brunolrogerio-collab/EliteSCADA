@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import type { VisualEditorPropertyInspectorContractProps } from '../visualEditorContracts';
 import type { VisualAssetEngineering, VisualEngineeringPropertyValue } from '../../types';
+import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../../visual-runtime';
 import { EventsEditor } from '../events-editor/EventsEditor';
+import { TrendPenEditor } from '../TrendPenEditor';
 import { PropertyEditorControl } from './PropertyEditorControl';
 import {
   buildPropertyInspectorModel,
@@ -60,7 +62,8 @@ const DEFAULT_COPY: PropertyInspectorCopy = {
     appearance: 'Appearance',
     text: 'Text',
     image: 'Image',
-    control: 'Control'
+    control: 'Control',
+    trend: 'Trend'
   }
 };
 
@@ -102,6 +105,10 @@ export function PropertyInspector({
     );
   }
 
+  const selectedTrend = selectedElements.length === 1 && selectedElements[0].type === BUILTIN_VISUAL_OBJECT_TYPES.trend
+    ? selectedElements[0]
+    : null;
+
   return (
     <aside className="property-inspector" data-testid="visual-property-inspector">
       <header className="property-inspector__header">
@@ -124,6 +131,8 @@ export function PropertyInspector({
           ))}
         </section>
       ))}
+
+      {selectedTrend ? <TrendPenEditor element={selectedTrend} onMutationIntent={onMutationIntent} /> : null}
 
       {selectedElements.length === 1 && selectedElements[0].id ? (
         <EventsEditor visualObjectId={selectedElements[0].id} />

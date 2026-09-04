@@ -293,6 +293,8 @@ public static class VisualEngineeringPropertyMigration
     {
         BuiltinVisualObjectSchemas.PolygonType => "points",
         BuiltinVisualObjectSchemas.TrendType => BuiltinVisualObjectSchemas.TrendPensProperty,
+        BuiltinVisualObjectSchemas.AlarmBrowserType => BuiltinVisualObjectSchemas.BrowserConfigProperty,
+        BuiltinVisualObjectSchemas.EventBrowserType => BuiltinVisualObjectSchemas.BrowserConfigProperty,
         _ => null
     };
 }

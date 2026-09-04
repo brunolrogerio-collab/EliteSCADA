@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using Scada.Core.Events;
 using Scada.DriverHost.Runtime;
+using Scada.Engineering.VisualScripting;
 
 namespace Scada.Api.Runtime;
 

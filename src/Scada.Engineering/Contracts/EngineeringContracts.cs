@@ -141,6 +141,13 @@ public sealed record DataSourceEngineeringDto(
     Dictionary<string, string>? SecretReferences = null,
     Dictionary<string, string>? Metadata = null);
 
+/// <summary>
+/// Generic Engineering binding. In a visual-element binding, <see cref="Key"/>
+/// is the destination visual-property/slot key. <see cref="Target"/> remains the
+/// friendly/portable authoring text, while <see cref="TagReference"/> is the
+/// canonical stable identity for concrete TAG bindings when available. This keeps
+/// path rename and bit selection out of editor-private metadata.
+/// </summary>
 public sealed record EngineeringBindingDto(
     string Key,
     EngineeringBindingKind Kind,
@@ -180,6 +187,18 @@ public sealed record DynamoEngineeringDto(
     IReadOnlyCollection<DynamoParameterDefinitionEngineeringDto>? Parameters = null,
     IReadOnlyCollection<VisualElementEngineeringDto>? Elements = null);
 
+/// <summary>
+/// Canonical Engineering node for a visual-object tree. Id is the stable object
+/// identity used by Runtime/script references. It remains optional on input so
+/// legacy schema-v10/v11 packages can still be parsed; view registries assign and
+/// then preserve an identity when such legacy elements are first materialized.
+/// Properties are JSON-native from schema v12 onward; legacy string-valued bags
+/// remain readable only through the explicit schema migration boundary.
+/// Key remains the developer-facing sibling-local name and is not identity.
+/// FOLLOW-B dynamic behavior is optional and additive so schema-v13 payloads that
+/// predate it remain readable without manufacturing state.
+/// Wave 09 composition/navigation fields are likewise optional and versioned.
+/// </summary>
 public sealed record VisualElementEngineeringDto(
     string Key,
     string Type,
@@ -223,6 +242,12 @@ public sealed record PopupEngineeringDto(
     double X = 0,
     double Y = 0);
 
+/// <summary>
+/// First-class Wave 08 project image asset metadata. Raw raster bytes are not
+/// embedded in canonical Engineering JSON; Sha256 identifies the exact immutable
+/// content stored in the project/revision asset blob boundary. Id is the stable
+/// project reference used by visual assetRef values.
+/// </summary>
 public sealed record VisualAssetEngineeringDto(
     Guid? Id,
     string Key,
@@ -270,6 +295,11 @@ public sealed record CommandEngineeringDto(
     bool Enabled = true,
     Dictionary<string, string>? Metadata = null);
 
+/// <summary>
+/// Public, versioned TAG-to-TAG gateway route. Stable TAG IDs are the runtime
+/// identity while paths are retained as portable reconciliation context.
+/// Mutable runtime counters/state do not belong in this Engineering contract.
+/// </summary>
 public sealed record GatewayRouteEngineeringDto(
     Guid? Id,
     string Key,

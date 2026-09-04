@@ -4,6 +4,7 @@ const projectKey = 'e2e-wave11';
 const runtimeSourceKey = 'memory.server.wave11.c15';
 const screenTrendId = '00000000-0000-0000-0000-00000000c150';
 const popupTrendId = '00000000-0000-0000-0000-00000000c151';
+const historyTrendId = '00000000-0000-0000-0000-00000000c152';
 
 function pen(id: string, tagId: string, tagPath: string, label: string, unit: string, color: string, axis: 'left' | 'right') {
   return {
@@ -21,7 +22,7 @@ function pen(id: string, tagId: string, tagPath: string, label: string, unit: st
   };
 }
 
-test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts from Active Runtime', async ({ page, request }) => {
+test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts live plus real history from Active Runtime', async ({ page, request }) => {
   const workingResponse = await request.get('/api/engineering/export/json');
   expect(workingResponse.ok()).toBeTruthy();
   const working = await workingResponse.json() as any;
@@ -35,10 +36,14 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts fr
   const frequencyTag = working.tags.find((tag: any) => tag.path === 'Demo.P01.Frequency');
   expect(pressureTag?.id).toBeTruthy();
   expect(frequencyTag?.id).toBeTruthy();
+  expect(frequencyTag?.readOnly).toBeFalsy();
 
   const pens = [
     pen('c15-pressure', pressureTag.id, pressureTag.path, 'Pressure', 'bar', '#38BDF8', 'left'),
     pen('c15-frequency', frequencyTag.id, frequencyTag.path, 'Frequency', 'Hz', '#F59E0B', 'right')
+  ];
+  const historyPens = [
+    pen('c15-frequency-history', frequencyTag.id, frequencyTag.path, 'Frequency history', 'Hz', '#22C55E', 'left')
   ];
 
   working.dataSources = [{
@@ -49,7 +54,9 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts fr
   }];
   working.tags = working.tags.map((tag: any) => ({ ...tag, source: runtimeSourceKey, address: null }));
 
-  screen.elements = screen.elements.filter((element: any) => element.id !== screenTrendId && element.key !== 'c15-trend-active');
+  screen.elements = screen.elements.filter((element: any) =>
+    ![screenTrendId, historyTrendId].includes(element.id)
+    && !['c15-trend-active', 'c15-trend-history-active'].includes(element.key));
   screen.elements.push({
     id: screenTrendId,
     key: 'c15-trend-active',
@@ -70,6 +77,28 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts fr
       trendAxesVisible: true,
       trendQualityVisible: true,
       pens
+    }
+  });
+  screen.elements.push({
+    id: historyTrendId,
+    key: 'c15-trend-history-active',
+    type: 'core.trend',
+    properties: {
+      x: 900,
+      y: 320,
+      width: 420,
+      height: 180,
+      zIndex: 152,
+      visible: true,
+      opacity: 1,
+      trendMode: 'history',
+      trendWindowSeconds: 3600,
+      trendRefreshSeconds: 30,
+      trendLegendVisible: true,
+      trendGridVisible: true,
+      trendAxesVisible: true,
+      trendQualityVisible: true,
+      pens: historyPens
     }
   });
 
@@ -137,6 +166,18 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts fr
   expect(activeScreenTrend?.properties?.pens).toEqual(pens);
   expect(typeof activeScreenTrend?.properties?.pens).not.toBe('string');
 
+  const activeHistoryTrend = activeScreen.elements.find((element: any) => element.id === historyTrendId);
+  expect(activeHistoryTrend?.type).toBe('core.trend');
+  expect(activeHistoryTrend?.properties).toMatchObject({
+    x: 900,
+    y: 320,
+    width: 420,
+    height: 180,
+    zIndex: 152,
+    trendMode: 'history'
+  });
+  expect(activeHistoryTrend?.properties?.pens).toEqual(historyPens);
+
   const activePopup = active.package.popups.find((candidate: any) => candidate.key === popup.key);
   const activePopupTrend = activePopup.elements.find((element: any) => element.id === popupTrendId);
   expect(activePopupTrend?.type).toBe('core.trend');
@@ -150,17 +191,61 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts fr
   });
   expect(activePopupTrend?.properties?.pens).toEqual(pens);
 
+  const runtimeTagsResponse = await request.get('/api/tags');
+  expect(runtimeTagsResponse.ok()).toBeTruthy();
+  const runtimeTags = await runtimeTagsResponse.json() as Array<{ id: string; path: string; readOnly: boolean }>;
+  const activeFrequency = runtimeTags.find(tag => tag.path === frequencyTag.path);
+  expect(activeFrequency).toBeTruthy();
+  expect(activeFrequency!.id).toBe(frequencyTag.id);
+  expect(activeFrequency!.readOnly).toBeFalsy();
+
+  const historicalValue = 47.125;
+  const writeResponse = await request.post(`/api/tags/${activeFrequency!.id}/write`, {
+    data: { value: historicalValue }
+  });
+  expect(writeResponse.status(), `C15 historian seed write failed: HTTP ${writeResponse.status()} ${await writeResponse.text()}`).toBe(202);
+
+  await expect.poll(async () => {
+    const historyResponse = await request.post('/api/historical/query', {
+      data: {
+        version: 1,
+        datasetKey: 'historian.samples',
+        timeRange: { kind: 'relative', durationSeconds: 3600, anchor: 'now' },
+        filters: [{
+          field: 'tag.id',
+          operator: 'in',
+          values: [{ kind: 'guid', value: activeFrequency!.id }]
+        }],
+        orderBy: [{ field: 'timestamp', direction: 'ascending' }],
+        page: { limit: 100 }
+      }
+    });
+    if (!historyResponse.ok()) return false;
+    const payload = await historyResponse.json() as any;
+    return (payload.rows ?? []).some((row: any) => Number(row.cells?.value?.value) === historicalValue);
+  }, { timeout: 15_000 }).toBe(true);
+
   await page.goto('/');
   const activeApplication = page.getByTestId('runtime-engineering-application');
   await expect(activeApplication).toBeVisible();
   await expect(activeApplication).toHaveAttribute('data-runtime-project-key', projectKey);
   await expect(activeApplication).toHaveAttribute('data-runtime-revision', String(saved.revision));
 
-  const mountedTrend = page.locator(`[data-testid="visual-trend"][data-object-id="${screenTrendId}"]`);
-  await expect(mountedTrend).toBeVisible();
-  await expect(mountedTrend).toHaveAttribute('data-trend-mode', 'live');
-  await expect(mountedTrend).toHaveAttribute('data-trend-source', 'runtime-tags');
-  await expect(mountedTrend).toHaveAttribute('data-trend-pen-count', '2');
-  await expect(mountedTrend.getByTestId('visual-trend-legend')).toContainText('Pressure');
-  await expect(mountedTrend.getByTestId('visual-trend-legend')).toContainText('Frequency');
+  const mountedLiveTrend = page.locator(`[data-testid="visual-trend"][data-object-id="${screenTrendId}"]`);
+  await expect(mountedLiveTrend).toBeVisible();
+  await expect(mountedLiveTrend).toHaveAttribute('data-trend-mode', 'live');
+  await expect(mountedLiveTrend).toHaveAttribute('data-trend-source', 'runtime-tags');
+  await expect(mountedLiveTrend).toHaveAttribute('data-trend-pen-count', '2');
+  await expect(mountedLiveTrend.getByTestId('visual-trend-legend')).toContainText('Pressure');
+  await expect(mountedLiveTrend.getByTestId('visual-trend-legend')).toContainText('Frequency');
+
+  const mountedHistoryTrend = page.locator(`[data-testid="visual-trend"][data-object-id="${historyTrendId}"]`);
+  await expect(mountedHistoryTrend).toBeVisible();
+  await expect(mountedHistoryTrend).toHaveAttribute('data-trend-mode', 'history');
+  await expect(mountedHistoryTrend).toHaveAttribute('data-trend-source', 'historian');
+  await expect(mountedHistoryTrend).toHaveAttribute('data-trend-state', 'ready');
+  await expect(mountedHistoryTrend).toHaveAttribute('data-trend-pen-count', '1');
+  await expect(mountedHistoryTrend.getByTestId('visual-trend-legend')).toContainText('Frequency history');
+  await expect(mountedHistoryTrend.getByTestId('visual-trend-series')).toHaveCount(1);
+  await expect(mountedHistoryTrend.getByTestId('visual-trend-empty')).toHaveCount(0);
 });

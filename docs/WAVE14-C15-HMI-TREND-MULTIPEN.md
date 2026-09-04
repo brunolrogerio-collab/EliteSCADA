@@ -50,7 +50,9 @@ The Object Palette exposes Trend as registered content. Selecting a single Trend
 
 The Pen editor consumes the existing canonical Engineering TAG catalog. TAG identity is persisted from `TagValueReferenceEngineering.tagId` / `TagEngineering.id`, not inferred from a display name or path. Path and unit remain authoring/presentation metadata.
 
-Editor copy for the C15 Pen controls is available in `pt-BR`, `en` and `es` through the locale already selected by the visual editor provider.
+When an existing Pen is rebound to another TAG, catalog-derived label and engineering unit follow the new TAG automatically. Explicit user overrides for label or unit are preserved. This avoids silently carrying stale process metadata such as the old TAG unit into the new reference.
+
+All C15-specific visible Engineering chrome is localized in `pt-BR`, `en` and `es`: Pen controls, Trend scalar-property labels, `history/live` option labels, boolean state text and reset/default state text. Canonical property keys and enum values remain stable and untranslated in persistence.
 
 Popup Engineering uses the existing `Popup -> visual Screen session -> Popup` adapter. C15 does not introduce a Popup-specific Trend schema or renderer.
 
@@ -118,7 +120,7 @@ No C15-only persistence path is introduced. Trend objects and their native `pens
 
 Runtime consumes the Active public visual definition. Save/Publish/Activate authority is unchanged.
 
-Wave11 acceptance coverage adds a Trend to both a Screen and Popup, applies the Engineering package, saves a revision, publishes it, activates it, verifies the native Pen array in `/api/runtime/application`, and verifies the Screen Trend mounts through `CanonicalVisualRenderer` from the Active revision.
+Wave11 acceptance coverage adds live and historical Trend instances to a Screen and a Trend to a Popup, applies the Engineering package, saves a revision, publishes it, activates it and verifies the native Pen arrays in `/api/runtime/application`. The same acceptance then writes a real writable Server Memory TAG, waits until that value is returned by protected `historian.samples`, opens the Active HMI and verifies that the historical `core.trend` renders that backend history through the shared canonical renderer. This supplements the existing legacy `BasicTrendViewer` regression without changing its `/api/history/{tagId}` contract.
 
 ## Tests
 
@@ -128,16 +130,20 @@ C15 adds/updates browser-contract coverage for:
 - separation of scalar schema from native `pens` payload;
 - Pen JSON round-trip and validation;
 - canonical Pen mutation;
+- TAG rebind semantics for catalog defaults versus explicit label/unit overrides;
 - ordinary add/move/resize behavior and two independent Trend instances;
 - Popup adapter round-trip using the same canonical Trend object;
 - one protected multipen Historical Query request per Trend instance;
 - grouping historian rows by canonical TAG id and retaining quality;
 - mounted historian multipen rendering;
-- mounted no-data localization;
+- mounted Runtime no-data localization in `pt-BR`, `en` and `es` coverage;
+- mounted Property Inspector localization for C15 scalar chrome in `pt-BR`, `en` and `es`;
 - fail-safe quality gaps even when quality chrome is hidden;
 - two mounted independent Trend instances;
 - mounted live snapshot plus WebSocket update with no Historian polling;
-- Save -> Publish -> Activate -> Active Runtime persistence for Screen and Popup.
+- Save -> Publish -> Activate -> Active Runtime persistence for Screen and Popup;
+- real Active Runtime Server Memory write -> protected Historian query -> historical `core.trend` rendering;
+- existing `BasicTrendViewer` regression remains untouched.
 
 ## Validation policy / handoff
 

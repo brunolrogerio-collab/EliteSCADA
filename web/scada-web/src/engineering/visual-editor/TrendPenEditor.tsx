@@ -9,6 +9,7 @@ import {
 } from '../../visual-runtime';
 import { useDynamoAuthoringCatalog } from './DynamoAuthoringCatalogContext';
 import { c07VisualEditorText, useC07VisualEditorText } from './c07VisualEditorI18n';
+import { rebindTrendPenToTag } from './trendAuthoringModel';
 import type { VisualEditorMutationIntent } from './visualEditorContracts';
 
 const COPY = {
@@ -61,12 +62,8 @@ export function TrendPenEditor({ element, onMutationIntent }: Readonly<{
     const tag = selectableTags.find(candidate => candidate.id === tagId);
     if (!tag) return;
     const previous = pens[index];
-    updatePen(index, {
-      tagId: tag.id,
-      tagPath: tag.path,
-      label: previous.label === previous.tagPath ? tag.path : previous.label,
-      unit: previous.unit || tag.engineeringUnit || ''
-    });
+    const previousTag = selectableTags.find(candidate => candidate.id === previous.tagId);
+    updatePen(index, rebindTrendPenToTag(previous, previousTag, tag));
   };
 
   return <section data-testid="trend-pen-editor" style={sectionStyle}>

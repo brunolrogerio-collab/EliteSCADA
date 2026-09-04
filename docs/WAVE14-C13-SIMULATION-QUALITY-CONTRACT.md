@@ -33,6 +33,8 @@ Physical communication Drivers remain the authority for their own quality. `Serv
 
 Client Memory remains value-only and client-local.
 
+The publication boundary also checks the provider descriptor. A provider that implements `IQualifiedSourceProvider` but is `RuntimeClient`-owned, or does not declare one server-authoritative value, is rejected before publication.
+
 ## Retention semantics
 
 Server Memory retention stores the typed process value, not transient runtime communication quality. After activation/restart a retained value begins `Good` until the server-side Source/automation publishes a new explicit sample. This prevents stale runtime communication state from silently surviving a process restart while retaining the engineered process value.
@@ -40,6 +42,8 @@ Server Memory retention stores the typed process value, not transient runtime co
 ## Downstream propagation
 
 Qualified publication writes the Source sample, reads back the canonical `TagValue`, then updates `ICurrentTagCache`. This uses the existing `TagValueChanged` event stream. Existing alarm communication semantics already treat every non-`Good` quality as a Communication alarm condition, and historian implementations receive the same `TagValue`, including quality.
+
+`TagRealtimeHub` serializes the same `TagValueChanged.Current.Quality` using its enum name. The Web realtime parser preserves the quality as received, and the visual runtime treats only `Good`/`0` as usable. Therefore `Bad`, `Stale` and `Unavailable` cannot silently drive a visual binding as healthy values.
 
 The contract therefore supports:
 
@@ -55,10 +59,22 @@ without a second simulation-only data plane.
 - explicit `Stale` publication;
 - explicit `Unavailable` publication;
 - `CurrentTagCache` preservation of quality;
+- `TagValueChanged` preservation of quality and source timestamp for realtime consumers;
 - Communication alarm activation from the same sample;
 - historian capture preserving the same quality/value;
 - regression that ordinary Server Memory writes remain `Good`;
-- rejection of publication to a TAG not owned by the Server Memory Source.
+- rejection of publication to a TAG not owned by the Server Memory Source;
+- rejection of qualified providers without server-authoritative ownership semantics.
+
+`wave-14-c13-quality-propagation.spec.ts` covers the browser side of the same path:
+
+- realtime JSON parsing preserves `Unavailable`;
+- a visual binding receiving that sample keeps its Engineering fallback value;
+- the binding emits an `Unavailable` diagnostic instead of treating the sample as `Good`.
+
+## Validation note
+
+The repository `EliteSCADA CI` workflow supports `workflow_dispatch`, but automatic push execution is scoped to `main` and pull-request execution is scoped to PRs targeting `main`. Consequently, commits made only on `wave14/c13-simulation-quality-contract` do not create an automatic Actions run. Validation evidence must therefore come from an explicit workflow dispatch or from the integration/main-targeted CI stage; the absence of a branch run must not be reported as a passing CI result.
 
 ## C12 integration
 

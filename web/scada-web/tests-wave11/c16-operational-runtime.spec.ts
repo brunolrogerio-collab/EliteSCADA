@@ -153,8 +153,24 @@ test('C16 Screen Dynamo and Popup execute canonical Commands in the Active HMI R
   await page.goto('/');
   await expect(page.getByTestId('runtime-engineering-application')).toHaveAttribute('data-runtime-revision', String(saved.revision));
   await expect(page.getByTestId('runtime-visual-navigator')).toHaveAttribute('data-active-screen-key', 'demo.overview');
-  await expect.poll(async () => Number(await page.getByTestId('runtime-logical-viewport').getAttribute('data-runtime-scale')))
-    .toBeCloseTo(2 / 3, 3);
+  const logicalViewport = page.getByTestId('runtime-logical-viewport');
+  await expect.poll(async () => Number(await logicalViewport.getAttribute('data-runtime-scale'))).toBeGreaterThan(0);
+  const viewportGeometry = await logicalViewport.evaluate(element => {
+    const viewport = element as HTMLElement;
+    return {
+      width: viewport.clientWidth,
+      height: viewport.clientHeight,
+      designWidth: Number(viewport.dataset.designWidth),
+      designHeight: Number(viewport.dataset.designHeight),
+      scale: Number(viewport.dataset.runtimeScale)
+    };
+  });
+  expect(viewportGeometry.designWidth).toBe(1920);
+  expect(viewportGeometry.designHeight).toBe(1080);
+  expect(viewportGeometry.scale).toBeCloseTo(Math.min(
+    viewportGeometry.width / viewportGeometry.designWidth,
+    viewportGeometry.height / viewportGeometry.designHeight
+  ), 5);
 
   await executeCommand(request, stop.id);
   await expect.poll(() => runningValue(request)).toBe(false);

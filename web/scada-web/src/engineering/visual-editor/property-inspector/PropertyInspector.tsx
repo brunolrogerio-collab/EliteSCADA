@@ -3,6 +3,7 @@ import type { EngineeringLocale } from '../../i18n';
 import type { VisualEditorPropertyInspectorContractProps } from '../visualEditorContracts';
 import type { VisualAssetEngineering, VisualEngineeringPropertyValue } from '../../types';
 import { BUILTIN_VISUAL_OBJECT_TYPES, VISUAL_PROPERTY_KEYS } from '../../../visual-runtime';
+import { BrowserConfigurationEditor } from '../BrowserConfigurationEditor';
 import { EventsEditor } from '../events-editor/EventsEditor';
 import { TrendPenEditor } from '../TrendPenEditor';
 import { c07VisualEditorText, useC07VisualEditorText } from '../c07VisualEditorI18n';
@@ -117,6 +118,10 @@ export function PropertyInspector({
   const selectedTrend = selectedElements.length === 1 && selectedElements[0].type === BUILTIN_VISUAL_OBJECT_TYPES.trend
     ? selectedElements[0]
     : null;
+  const selectedBrowser = selectedElements.length === 1 && (
+    selectedElements[0].type === BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser ||
+    selectedElements[0].type === BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser
+  ) ? selectedElements[0] : null;
 
   return (
     <aside className="property-inspector" data-testid="visual-property-inspector">
@@ -143,6 +148,7 @@ export function PropertyInspector({
       ))}
 
       {selectedTrend ? <TrendPenEditor element={selectedTrend} onMutationIntent={onMutationIntent} /> : null}
+      {selectedBrowser ? <BrowserConfigurationEditor element={selectedBrowser} locale={locale} onMutationIntent={onMutationIntent} /> : null}
 
       {selectedElements.length === 1 && selectedElements[0].id ? (
         <EventsEditor visualObjectId={selectedElements[0].id} />

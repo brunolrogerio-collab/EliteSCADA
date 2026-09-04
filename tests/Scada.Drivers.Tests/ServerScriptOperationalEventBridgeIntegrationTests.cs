@@ -83,7 +83,9 @@ public sealed class ServerScriptOperationalEventBridgeIntegrationTests
             "c19-script-event-negative",
             1,
             EventOnlyPackage(enabledDefinitionId, enabled: true));
-        Assert.True(first.Activated);
+        Assert.True(
+            first.Activated,
+            string.Join("; ", first.RuntimeIssues.Select(issue => issue.Message)));
 
         await Assert.ThrowsAsync<ScriptExecutionDiagnosticException>(async () =>
             _ = await ServerScriptOperationalEventBridge.EmitAsync(
@@ -98,7 +100,9 @@ public sealed class ServerScriptOperationalEventBridgeIntegrationTests
             "c19-script-event-negative",
             2,
             EventOnlyPackage(disabledDefinitionId, enabled: false));
-        Assert.True(second.Activated);
+        Assert.True(
+            second.Activated,
+            string.Join("; ", second.RuntimeIssues.Select(issue => issue.Message)));
 
         await Assert.ThrowsAsync<ScriptExecutionDiagnosticException>(async () =>
             _ = await ServerScriptOperationalEventBridge.EmitAsync(
@@ -203,17 +207,37 @@ def initialize(event):
             });
     }
 
-    private static EngineeringPackage EventOnlyPackage(Guid definitionId, bool enabled) =>
-        new(
+    private static EngineeringPackage EventOnlyPackage(Guid definitionId, bool enabled)
+    {
+        var fixtureTagId = Guid.Parse("c1900000-0000-0000-0000-000000000020");
+        return new EngineeringPackage(
             EngineeringExchangeService.CurrentSchema,
             EngineeringExchangeService.CurrentSchemaVersion,
             DateTimeOffset.UtcNow,
-            Array.Empty<TagEngineeringDto>(),
+            new[]
+            {
+                new TagEngineeringDto(
+                    fixtureTagId,
+                    "Fixture state",
+                    "Fixture.State",
+                    TagDataType.Int32,
+                    Source: "memory.client",
+                    ReadOnly: false)
+            },
             Array.Empty<AlarmEngineeringDto>(),
+            DataSources: new[]
+            {
+                new DataSourceEngineeringDto(
+                    Guid.Parse("c1900000-0000-0000-0000-000000000021"),
+                    "memory.client",
+                    "Client Memory",
+                    InternalMemoryRuntimePlanner.ClientMemoryDriverKey)
+            },
             OperationalEvents: new[]
             {
                 OperationalEvent(definitionId, enabled)
             });
+    }
 
     private static OperationalEventEngineeringDto OperationalEvent(Guid definitionId, bool enabled) =>
         new(

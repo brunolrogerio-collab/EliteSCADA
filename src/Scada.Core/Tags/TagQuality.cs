@@ -9,5 +9,6 @@ public enum TagQuality
     BadConfiguration,
     BadDevice,
     Stale,
-    Disabled
+    Disabled,
+    Unavailable
 }

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import type { EngineeringLocale } from '../i18n';
 import type { VisualElementEngineering } from '../types';
 import {
@@ -72,22 +72,26 @@ export function BrowserConfigurationEditor({ element, locale, onMutationIntent }
   const text = COPY[locale];
   const isAlarm = element.type === BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser;
   const isEvent = element.type === BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser;
-  const [error, setError] = useState<string | null>(null);
-  const config = useMemo(() => {
+  const parsed = useMemo(() => {
     try {
-      return isAlarm ? readAlarmBrowserConfig(element) : isEvent ? readEventBrowserConfig(element) : null;
+      return Object.freeze({
+        config: isAlarm ? readAlarmBrowserConfig(element) : isEvent ? readEventBrowserConfig(element) : null,
+        error: null as string | null
+      });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-      return null;
+      return Object.freeze({
+        config: null,
+        error: cause instanceof Error ? cause.message : String(cause)
+      });
     }
   }, [element, isAlarm, isEvent]);
+  const { config, error } = parsed;
 
   if (!config || !element.id || (!isAlarm && !isEvent)) {
     return error ? <p className="browser-config-editor__error" role="alert">{text.invalid}: {error}</p> : null;
   }
 
   const commit = (next: AlarmBrowserConfig | EventBrowserConfig) => {
-    setError(null);
     onMutationIntent({
       kind: 'property.set',
       objectIds: [element.id!],
@@ -101,7 +105,6 @@ export function BrowserConfigurationEditor({ element, locale, onMutationIntent }
     {isAlarm
       ? <AlarmFields config={config as AlarmBrowserConfig} text={text} commit={commit} />
       : <EventFields config={config as EventBrowserConfig} text={text} commit={commit} />}
-    {error ? <p className="browser-config-editor__error" role="alert">{error}</p> : null}
   </section>;
 }
 

@@ -11,6 +11,10 @@ import {
   type HistoricalBrowserDatasetKey,
   type HistoricalScalarType
 } from './historicalBrowserPresentation';
+import {
+  historicalBrowserCopy,
+  type HistoricalBrowserLocale
+} from './historicalBrowserI18n';
 import './historical-data-browser.css';
 
 export type HistoricalBrowserViewState = 'idle' | 'loading' | 'ready' | 'empty' | 'error' | 'unauthorized';
@@ -33,6 +37,7 @@ export type HistoricalBrowserDetailFact = Readonly<{
 }>;
 
 export type HistoricalDataBrowserProps = Readonly<{
+  locale?: HistoricalBrowserLocale;
   columns?: readonly HistoricalBrowserColumn[];
   rows?: readonly HistoricalBrowserRow[];
   state?: HistoricalBrowserViewState;
@@ -44,14 +49,11 @@ export type HistoricalDataBrowserProps = Readonly<{
 }>;
 
 /**
- * Presentation shell for Wave 09 Historical Data Browser.
- *
- * The component intentionally owns only transient Runtime view state. The draft
- * emitted by callbacks is not a Historical Query DTO. Once DEV 1's shared API is
- * integrated, an adapter must project this view state into that canonical
- * contract. No endpoint, cursor or filter authority is defined here.
+ * Presentation shell for the Historical Data Browser. It owns only transient
+ * view state; the shared Historical Query v1 contract remains API authority.
  */
 export function HistoricalDataBrowser({
+  locale = 'en',
   columns = [],
   rows = [],
   state = 'idle',
@@ -61,9 +63,10 @@ export function HistoricalDataBrowser({
   onQueryRequested,
   onRefreshRequested
 }: HistoricalDataBrowserProps) {
+  const text = historicalBrowserCopy(locale);
   const [draft, setDraft] = useState<HistoricalBrowserDraft>(() => createHistoricalBrowserDraft());
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
-  const validation = useMemo(() => validateHistoricalBrowserDraft(draft), [draft]);
+  const validation = useMemo(() => validateHistoricalBrowserDraft(draft, locale), [draft, locale]);
   const selectedRow = rows.find(row => row.id === selectedRowId) ?? null;
 
   function updateDraft(next: HistoricalBrowserDraft) {
@@ -80,30 +83,30 @@ export function HistoricalDataBrowser({
     <section className="historical-browser" data-testid="historical-data-browser">
       <header className="historical-browser__header">
         <div>
-          <h2>Historical Data Browser</h2>
-          <p>Read-only exploration of persisted historian samples and alarm events.</p>
+          <h2>{text.title}</h2>
+          <p>{text.description}</p>
         </div>
         <button type="button" onClick={() => onRefreshRequested?.()} disabled={state === 'loading'}>
-          Refresh
+          {text.refresh}
         </button>
       </header>
 
       <div className="historical-browser__controls">
         <label>
-          Dataset
+          {text.dataset}
           <select
-            aria-label="Historical dataset"
+            aria-label={text.dataset}
             value={draft.datasetKey}
             onChange={event => updateDataset(event.target.value as HistoricalBrowserDatasetKey)}
           >
             {HISTORICAL_BROWSER_DATASET_KEYS.map(key => (
-              <option key={key} value={key}>{historicalDatasetLabel(key)}</option>
+              <option key={key} value={key}>{historicalDatasetLabel(key, locale)}</option>
             ))}
           </select>
         </label>
 
         <fieldset>
-          <legend>Period</legend>
+          <legend>{text.period}</legend>
           <label>
             <input
               type="radio"
@@ -111,7 +114,7 @@ export function HistoricalDataBrowser({
               checked={draft.timeMode === 'relative'}
               onChange={() => updateDraft(Object.freeze({ ...draft, timeMode: 'relative' }))}
             />
-            Relative
+            {text.relative}
           </label>
           <label>
             <input
@@ -120,15 +123,15 @@ export function HistoricalDataBrowser({
               checked={draft.timeMode === 'absolute'}
               onChange={() => updateDraft(Object.freeze({ ...draft, timeMode: 'absolute' }))}
             />
-            Absolute
+            {text.absolute}
           </label>
         </fieldset>
 
         {draft.timeMode === 'relative' ? (
           <label>
-            Relative period
+            {text.relativePeriod}
             <select
-              aria-label="Relative period"
+              aria-label={text.relativePeriod}
               value={draft.relativeDurationSeconds}
               onChange={event => updateDraft(Object.freeze({ ...draft, relativeDurationSeconds: Number(event.target.value) }))}
             >
@@ -140,18 +143,18 @@ export function HistoricalDataBrowser({
         ) : (
           <div className="historical-browser__absolute-period">
             <label>
-              Start
+              {text.start}
               <input
-                aria-label="Absolute start"
+                aria-label={text.start}
                 type="datetime-local"
                 value={draft.absoluteFromLocal}
                 onChange={event => updateDraft(Object.freeze({ ...draft, absoluteFromLocal: event.target.value }))}
               />
             </label>
             <label>
-              End
+              {text.end}
               <input
-                aria-label="Absolute end"
+                aria-label={text.end}
                 type="datetime-local"
                 value={draft.absoluteToLocal}
                 onChange={event => updateDraft(Object.freeze({ ...draft, absoluteToLocal: event.target.value }))}
@@ -165,13 +168,13 @@ export function HistoricalDataBrowser({
           onClick={() => onQueryRequested?.(draft)}
           disabled={!validation.ok || state === 'loading'}
         >
-          Query
+          {text.query}
         </button>
       </div>
 
       <div className="historical-browser__summary" aria-live="polite">
-        <strong>{historicalDatasetLabel(draft.datasetKey)}</strong>
-        <span>{historicalTimeSummary(draft)}</span>
+        <strong>{historicalDatasetLabel(draft.datasetKey, locale)}</strong>
+        <span>{historicalTimeSummary(draft, locale)}</span>
         {filterSummary.length > 0 && <span>{filterSummary.join(' · ')}</span>}
       </div>
 
@@ -181,7 +184,12 @@ export function HistoricalDataBrowser({
         </div>
       )}
 
-      <HistoricalBrowserResultState state={state} errorMessage={errorMessage} rowCount={rows.length} />
+      <HistoricalBrowserResultState
+        state={state}
+        errorMessage={errorMessage}
+        rowCount={rows.length}
+        locale={locale}
+      />
 
       {(state === 'ready' || (state === 'idle' && rows.length > 0)) && rows.length > 0 && (
         <div className="historical-browser__content">
@@ -204,7 +212,7 @@ export function HistoricalDataBrowser({
                     }}
                   >
                     {columns.map(column => (
-                      <td key={column.key}>{formatHistoricalScalar(row.cells[column.key], column.scalarType)}</td>
+                      <td key={column.key}>{formatHistoricalScalar(row.cells[column.key], column.scalarType, locale)}</td>
                     ))}
                   </tr>
                 ))}
@@ -214,8 +222,8 @@ export function HistoricalDataBrowser({
 
           {selectedRow?.detail && selectedRow.detail.length > 0 && (
             <aside className="historical-browser__detail" data-testid="historical-row-detail">
-              <h3>Historical record</h3>
-              <p className="historical-browser__readonly-note">Read-only context. Operational alarm commands are not available here.</p>
+              <h3>{text.historicalRecord}</h3>
+              <p className="historical-browser__readonly-note">{text.readonlyNote}</p>
               <dl>
                 {selectedRow.detail.map((fact, index) => (
                   <div key={`${fact.label}-${index}`}>
@@ -235,12 +243,19 @@ export function HistoricalDataBrowser({
 function HistoricalBrowserResultState({
   state,
   errorMessage,
-  rowCount
-}: Readonly<{ state: HistoricalBrowserViewState; errorMessage: string | null; rowCount: number }>) {
-  if (state === 'loading') return <p role="status">Loading historical data…</p>;
-  if (state === 'unauthorized') return <p role="alert">Not authorized to query this historical dataset.</p>;
-  if (state === 'error') return <p role="alert">{errorMessage?.trim() || 'Historical query failed.'}</p>;
-  if (state === 'empty' || (state === 'ready' && rowCount === 0)) return <p role="status">No historical records matched the current view.</p>;
-  if (state === 'idle' && rowCount === 0) return <p role="status">Choose a dataset and period, then run a query.</p>;
+  rowCount,
+  locale
+}: Readonly<{
+  state: HistoricalBrowserViewState;
+  errorMessage: string | null;
+  rowCount: number;
+  locale: HistoricalBrowserLocale;
+}>) {
+  const text = historicalBrowserCopy(locale);
+  if (state === 'loading') return <p role="status">{text.loading}</p>;
+  if (state === 'unauthorized') return <p role="alert">{text.unauthorized}</p>;
+  if (state === 'error') return <p role="alert">{errorMessage?.trim() || text.queryFailed}</p>;
+  if (state === 'empty' || (state === 'ready' && rowCount === 0)) return <p role="status">{text.empty}</p>;
+  if (state === 'idle' && rowCount === 0) return <p role="status">{text.idle}</p>;
   return null;
 }

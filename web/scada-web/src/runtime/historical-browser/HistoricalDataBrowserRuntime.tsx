@@ -88,7 +88,7 @@ export function HistoricalDataBrowserRuntime({
       const response = await queryLoader(request, controller.signal);
       if (controller.signal.aborted) return;
 
-      const projected = projectHistoricalQueryResponse(response);
+      const projected = projectHistoricalQueryResponse(response, locale);
       setResponseColumns(response.columns);
       setColumns(projected.columns.map(column => Object.freeze({
         key: column.key,
@@ -120,7 +120,7 @@ export function HistoricalDataBrowserRuntime({
       setState('error');
       setErrorMessage(error instanceof Error ? error.message : text.queryFailed);
     }
-  }, [filters, queryLoader, search, searchable, sortDirection, sortField, text.queryFailed]);
+  }, [filters, locale, queryLoader, search, searchable, sortDirection, sortField, text.queryFailed]);
 
   function runFirstPage(queryDraft = draft) {
     setPageCursors(Object.freeze([null]));

@@ -381,6 +381,7 @@ export type ScreenEngineering = {
   metadata?: Record<string, string> | null;
 };
 
+/** Popup X/Y live in the same fixed logical HMI coordinate space as Screens. */
 export type PopupEngineering = {
   id?: string;
   key: string;
@@ -390,6 +391,8 @@ export type PopupEngineering = {
   properties?: Record<string, string> | null;
   context?: Record<string, string> | null;
   metadata?: Record<string, string> | null;
+  x?: number;
+  y?: number;
 };
 
 export type SecurityRoleEngineering = {
@@ -398,6 +401,21 @@ export type SecurityRoleEngineering = {
   name: string;
   description?: string;
   grants?: Array<{ capability: string; scope?: Record<string, string> }>;
+};
+
+export type CommandEngineering = {
+  id?: string | null;
+  key: string;
+  name: string;
+  kind: string;
+  value: string;
+  targetTagId?: string | null;
+  targetTagPath?: string | null;
+  description?: string | null;
+  area?: string | null;
+  equipmentPath?: string | null;
+  enabled?: boolean;
+  metadata?: Record<string, string> | null;
 };
 
 export type EngineeringPackageView = {
@@ -413,8 +431,10 @@ export type EngineeringPackageView = {
   screens?: ScreenEngineering[];
   popups?: PopupEngineering[];
   securityRoles?: SecurityRoleEngineering[];
+  commands?: CommandEngineering[];
   gateways?: GatewayEngineering[];
   visualAssets?: VisualAssetEngineering[];
+  startupScreenId?: string | null;
   [key: string]: unknown;
 };
 

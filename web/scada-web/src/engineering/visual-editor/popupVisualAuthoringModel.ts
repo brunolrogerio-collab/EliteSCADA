@@ -14,6 +14,8 @@ export const NEW_POPUP_IDENTITY = 'draft:new-popup';
  */
 export type PopupVisualFrame = Readonly<{
   templateKey: string | null;
+  x: number;
+  y: number;
 }>;
 
 export function popupIdentity(popup: PopupEngineering): string {
@@ -40,7 +42,9 @@ export function popupToVisualScreen(popup: PopupEngineering): ScreenEngineering 
 
 export function popupFrame(popup: PopupEngineering): PopupVisualFrame {
   return Object.freeze({
-    templateKey: popup.templateKey ?? null
+    templateKey: popup.templateKey ?? null,
+    x: popup.x ?? 0,
+    y: popup.y ?? 0
   });
 }
 
@@ -56,7 +60,9 @@ export function visualScreenToPopup(
     properties: cloneEngineeringValue(screen.properties ?? {}),
     context: cloneEngineeringValue(screen.context ?? {}),
     metadata: cloneEngineeringValue(screen.metadata ?? {}),
-    elements: cloneEngineeringValue(screen.elements ?? [])
+    elements: cloneEngineeringValue(screen.elements ?? []),
+    x: frame.x,
+    y: frame.y
   };
 }
 
@@ -76,7 +82,9 @@ export function createPopupDraft(
     properties: {},
     context: {},
     metadata: {},
-    elements: []
+    elements: [],
+    x: 0,
+    y: 0
   };
 }
 

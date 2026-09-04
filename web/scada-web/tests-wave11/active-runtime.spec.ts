@@ -4,6 +4,7 @@ import { createE2eJwt } from '../tests-e2e/jwt';
 const projectKey = 'e2e-wave11';
 const operatorToken = createE2eJwt('wave11-operator', ['operator'], 'Wave 11 Operator');
 const runtimeSourceKey = 'memory.server.wave11';
+const runtimeSourceId = '00000000-0000-0000-0000-00000000b511';
 const tinyPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl2sAAAAASUVORK5CYII=',
   'base64'
@@ -75,6 +76,7 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
   // Server Memory so the lifecycle test exercises a real Active Runtime without
   // depending on external PLCs, brokers or network timing.
   workingA.dataSources = [{
+    id: runtimeSourceId,
     key: runtimeSourceKey,
     name: 'Wave 11 Server Memory',
     driver: 'builtin.memory.server',
@@ -83,7 +85,8 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
   workingA.tags = workingA.tags.map((tag: any) => ({
     ...tag,
     source: runtimeSourceKey,
-    address: null
+    address: null,
+    dataSourceId: runtimeSourceId
   }));
 
   const activatableWorkingResponse = await request.post('/api/engineering/import/json/apply', {

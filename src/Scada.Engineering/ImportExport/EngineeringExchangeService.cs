@@ -227,7 +227,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             _scripts.SnapshotVisualEventReferences(),
             _visualAssets.SnapshotAssets(),
             _reports.SnapshotReports(),
-            _operationalEvents.SnapshotOperationalEvents());
+            _operationalEvents.SnapshotOperationalEvents(),
+            _views.StartupScreenId);
     }
 
     public string ExportJson(bool indented = true)
@@ -305,6 +306,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _operationalEventHandler.Preview(package, mode, items);
         _reportHandler.Preview(package, mode, items);
         _securityPolicyHandler.Preview(package, mode, items);
+        PreviewOperationalHmiReferences(package, items);
 
         return new ImportPreview(
             mode,
@@ -342,6 +344,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _assetHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _visualAssetHandler.Apply(package, mode, ref created, ref updated, ref skipped, context);
         _viewHandler.Apply(package, mode, ref created, ref updated, ref skipped);
+        if ((package.Screens?.Count ?? 0) > 0 || package.StartupScreenId.HasValue)
+            _views.SetStartupScreen(package.StartupScreenId);
         _commandHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _gatewayHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _scriptHandler.Apply(package, mode, ref created, ref updated, ref skipped);
@@ -350,6 +354,143 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _securityPolicyHandler.Apply(package, mode, ref created, ref updated, ref skipped);
 
         return new ImportResult(mode, created, updated, skipped, Array.Empty<ImportIssue>());
+    }
+
+    private void PreviewOperationalHmiReferences(
+        EngineeringPackage package,
+        List<ImportPreviewItem> items)
+    {
+        if (package.StartupScreenId.HasValue)
+        {
+            var startupId = package.StartupScreenId.Value;
+            var exists = startupId != Guid.Empty &&
+                (_views.FindScreen(startupId) is not null ||
+                 (package.Screens ?? Array.Empty<ScreenEngineeringDto>())
+                     .Any(screen => screen is not null && screen.Id == startupId));
+            if (!exists)
+            {
+                var issue = new ImportIssue(
+                    "STARTUP_SCREEN_NOT_FOUND",
+                    $"Startup/Home Screen identity '{startupId:D}' does not resolve in the prospective Engineering model.",
+                    ImportEntityKind.Screen,
+                    startupId.ToString("D"),
+                    true);
+                items.Add(new ImportPreviewItem(
+                    ImportEntityKind.Screen,
+                    startupId.ToString("D"),
+                    ImportOperation.Error,
+                    [issue]));
+            }
+        }
+
+        foreach (var screen in package.Screens ?? Array.Empty<ScreenEngineeringDto>())
+        {
+            if (screen is null) continue;
+            PreviewOperationalActions(screen.Elements, ImportEntityKind.Screen, screen.Key, package, items);
+        }
+
+        foreach (var popup in package.Popups ?? Array.Empty<PopupEngineeringDto>())
+        {
+            if (popup is null) continue;
+            PreviewOperationalActions(popup.Elements, ImportEntityKind.Popup, popup.Key, package, items);
+        }
+
+        foreach (var dynamo in package.Dynamos ?? Array.Empty<DynamoEngineeringDto>())
+        {
+            if (dynamo is null) continue;
+            PreviewOperationalActions(dynamo.Elements, ImportEntityKind.Dynamo, dynamo.Key, package, items);
+        }
+    }
+
+    private void PreviewOperationalActions(
+        IReadOnlyCollection<VisualElementEngineeringDto>? elements,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportPreviewItem> items)
+    {
+        var issues = new List<ImportIssue>();
+        ValidateOperationalActions(elements, kind, entityKey, package, issues);
+        if (issues.Count == 0) return;
+
+        items.Add(new ImportPreviewItem(kind, entityKey, ImportOperation.Error, issues));
+    }
+
+    private void ValidateOperationalActions(
+        IReadOnlyCollection<VisualElementEngineeringDto>? elements,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
+        {
+            if (element is null) continue;
+
+            foreach (var action in element.Actions ?? Array.Empty<VisualNavigationActionEngineeringDto>())
+            {
+                if (action is null) continue;
+
+                if (action.Kind == VisualNavigationActionKind.ExecuteCommand)
+                {
+                    if (!action.CommandId.HasValue || action.CommandId == Guid.Empty)
+                    {
+                        issues.Add(new ImportIssue(
+                            "VISUAL_ACTION_COMMAND_REQUIRED",
+                            $"ExecuteCommand action '{action.EventKey}' on visual element '{element.Key}' requires a stable Command identity.",
+                            kind,
+                            entityKey,
+                            true));
+                        continue;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(action.TargetKey))
+                    {
+                        issues.Add(new ImportIssue(
+                            "VISUAL_ACTION_COMMAND_TARGET_NOT_ALLOWED",
+                            $"ExecuteCommand action '{action.EventKey}' cannot declare a navigation target key.",
+                            kind,
+                            entityKey,
+                            true));
+                    }
+
+                    if (action.Parameters is { Count: > 0 })
+                    {
+                        issues.Add(new ImportIssue(
+                            "VISUAL_ACTION_COMMAND_PARAMETERS_NOT_ALLOWED",
+                            $"ExecuteCommand action '{action.EventKey}' cannot override canonical Command parameters or value.",
+                            kind,
+                            entityKey,
+                            true));
+                    }
+
+                    var commandId = action.CommandId.Value;
+                    var commandExists = _commands.Find(commandId) is not null ||
+                        (package.Commands ?? Array.Empty<CommandEngineeringDto>())
+                            .Any(command => command is not null && command.Id == commandId);
+                    if (!commandExists)
+                    {
+                        issues.Add(new ImportIssue(
+                            "VISUAL_ACTION_COMMAND_NOT_FOUND",
+                            $"ExecuteCommand action '{action.EventKey}' references Command identity '{commandId:D}', which was not found in the prospective Engineering model.",
+                            kind,
+                            entityKey,
+                            true));
+                    }
+                }
+                else if (action.CommandId.HasValue)
+                {
+                    issues.Add(new ImportIssue(
+                        "VISUAL_ACTION_COMMAND_NOT_ALLOWED",
+                        $"Visual action '{action.EventKey}' of kind {action.Kind} cannot carry a Command identity.",
+                        kind,
+                        entityKey,
+                        true));
+                }
+            }
+
+            ValidateOperationalActions(element.Children, kind, entityKey, package, issues);
+        }
     }
 
     private static EngineeringPackage Empty() => new(
@@ -371,5 +512,6 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         Array.Empty<ScriptVisualEventReference>(),
         Array.Empty<VisualAssetEngineeringDto>(),
         Array.Empty<ReportEngineeringDto>(),
-        Array.Empty<OperationalEventEngineeringDto>());
+        Array.Empty<OperationalEventEngineeringDto>(),
+        null);
 }

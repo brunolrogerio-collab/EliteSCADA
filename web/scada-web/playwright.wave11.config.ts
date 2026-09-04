@@ -26,8 +26,14 @@ export default defineConfig({
   },
   projects: [
     {
+      name: 'chromium-wave11-c16-startup-bootstrap',
+      testMatch: /c16-startup-bootstrap\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
       name: 'chromium-wave11-lifecycle',
       testMatch: /(?:^|[\\/])active-runtime\.spec\.ts$/,
+      dependencies: ['chromium-wave11-c16-startup-bootstrap'],
       use: { ...devices['Desktop Chrome'] }
     },
     {
@@ -43,9 +49,15 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] }
     },
     {
+      name: 'chromium-wave11-c16-operational-runtime',
+      testMatch: /c16-operational-runtime\.spec\.ts/,
+      dependencies: ['chromium-wave11-c15-trend'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
       name: 'chromium-wave11-owner-package',
       testMatch: /owner-test-artifact\.spec\.ts/,
-      dependencies: ['chromium-wave11-c15-trend'],
+      dependencies: ['chromium-wave11-c16-operational-runtime'],
       use: { ...devices['Desktop Chrome'] }
     }
   ],

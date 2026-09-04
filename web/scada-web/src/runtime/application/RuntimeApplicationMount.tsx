@@ -10,6 +10,7 @@ import {
   runtimeVisualAssetContentUrl,
   type RuntimeApplicationProjection
 } from './runtimeApplicationApi';
+import { resolveRuntimeStartupScreen } from './runtimeStartupScreen';
 import { SimulationRuntimeApp } from './SimulationRuntimeApp';
 
 const REFRESH_INTERVAL_MS = 1500;
@@ -88,13 +89,10 @@ function EngineeringRuntimeApplication({
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [alarmsOpen, setAlarmsOpen] = useState(false);
   const engineeringPackage = projection.package!;
-  const initialScreenKey = useMemo(() => {
-    const keys = (engineeringPackage.screens ?? [])
-      .map(screen => screen.key?.trim())
-      .filter((key): key is string => Boolean(key))
-      .sort((left, right) => left.localeCompare(right, 'en', { sensitivity: 'base' }));
-    return keys[0] ?? '';
-  }, [engineeringPackage]);
+  const startup = useMemo(
+    () => resolveRuntimeStartupScreen(engineeringPackage),
+    [engineeringPackage]
+  );
 
   useEffect(() => {
     const changed = () => setIsFullscreen(document.fullscreenElement === fullscreenRoot.current);
@@ -119,11 +117,11 @@ function EngineeringRuntimeApplication({
     else await fullscreenRoot.current?.requestFullscreen();
   };
 
-  if (!initialScreenKey) {
+  if (!startup.screenKey) {
     return <main className="shell" data-testid="runtime-engineering-application">
-      <section className="runtime-visual-diagnostic" role="alert" data-diagnostic-code="HMI_RUNTIME_SCREEN_REQUIRED">
-        <strong>HMI_RUNTIME_SCREEN_REQUIRED</strong>
-        <span>{text.runtimeUnavailable}</span>
+      <section className="runtime-visual-diagnostic" role="alert" data-diagnostic-code={startup.diagnosticCode ?? undefined}>
+        <strong>{startup.diagnosticCode}</strong>
+        <span>{text.runtimeUnavailable} {startup.detail}</span>
       </section>
     </main>;
   }
@@ -155,7 +153,7 @@ function EngineeringRuntimeApplication({
     <section className="runtime-engineering-canvas" data-testid="runtime-engineering-canvas">
       <RuntimeVisualNavigator
         engineeringPackage={engineeringPackage}
-        initialScreenKey={initialScreenKey}
+        initialScreenKey={startup.screenKey}
         locale={locale}
         scriptContext={scriptContext}
         emptyLabel={text.emptyVisual}

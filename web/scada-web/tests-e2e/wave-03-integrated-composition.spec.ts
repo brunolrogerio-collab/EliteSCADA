@@ -18,10 +18,14 @@ test('Wave 03 integrated composition publishes, activates and operates through m
   const exportResponse = await request.get('/api/engineering/export/json');
   expect(exportResponse.ok()).toBeTruthy();
   const engineering = await exportResponse.json() as any;
+  const runtimeStartupScreen = engineering.screens?.find((screen: any) => screen.key === 'demo.overview' && screen.id)
+    ?? engineering.screens?.find((screen: any) => screen.id);
+  expect(runtimeStartupScreen?.id).toBeTruthy();
 
   const activatableEngineering = {
     ...engineering,
     exportedAt: new Date().toISOString(),
+    startupScreenId: runtimeStartupScreen.id,
     dataSources: [
       ...(engineering.dataSources ?? [])
         .filter((source: any) => source.id !== runtimeSourceId && source.key !== runtimeSourceKey)

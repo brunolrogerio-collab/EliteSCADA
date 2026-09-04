@@ -247,6 +247,10 @@ public sealed record ScreenEngineeringDto(
     Dictionary<string, string>? Context = null,
     Dictionary<string, string>? Metadata = null);
 
+/// <summary>
+/// X/Y are persisted authoring coordinates in the same fixed logical HMI space
+/// used by Screens. Runtime viewport scaling is applied to the whole logical stage.
+/// </summary>
 public sealed record PopupEngineeringDto(
     Guid? Id,
     string Key,
@@ -255,7 +259,9 @@ public sealed record PopupEngineeringDto(
     IReadOnlyCollection<VisualElementEngineeringDto>? Elements = null,
     Dictionary<string, string>? Properties = null,
     Dictionary<string, string>? Context = null,
-    Dictionary<string, string>? Metadata = null);
+    Dictionary<string, string>? Metadata = null,
+    double X = 0,
+    double Y = 0);
 
 /// <summary>
 /// First-class Wave 08 project image asset metadata. Raw raster bytes are not
@@ -355,7 +361,8 @@ public sealed record EngineeringPackage(
     IReadOnlyCollection<ScriptVisualEventReference>? ScriptVisualEventReferences = null,
     IReadOnlyCollection<VisualAssetEngineeringDto>? VisualAssets = null,
     IReadOnlyCollection<ReportEngineeringDto>? Reports = null,
-    IReadOnlyCollection<OperationalEventEngineeringDto>? OperationalEvents = null);
+    IReadOnlyCollection<OperationalEventEngineeringDto>? OperationalEvents = null,
+    Guid? StartupScreenId = null);
 
 public sealed record ImportIssue(
     string Code,

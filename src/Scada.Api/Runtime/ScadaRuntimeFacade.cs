@@ -22,8 +22,11 @@ public sealed class ScadaRuntimeFacade(
     DemoRuntimeServices fallback,
     SimulationDriver fallbackDriver,
     IEngineeringRuntimeCoordinator engineeringRuntime,
-    GatewayEngineeringRuntimeCoordinator operationalEvents)
+    GatewayEngineeringRuntimeCoordinator? operationalEvents = null)
 {
+    private IOperationalEventRuntime? EventRuntime =>
+        operationalEvents ?? engineeringRuntime as IOperationalEventRuntime;
+
     public bool IsEngineeringActive => engineeringRuntime.Describe().Revision.HasValue;
 
     public ScadaRuntimeDescriptor Describe()
@@ -69,8 +72,8 @@ public sealed class ScadaRuntimeFacade(
         IsEngineeringActive ? engineeringRuntime.Commands() : fallback.Commands.Snapshot();
 
     public IReadOnlyCollection<OperationalEventDefinition> OperationalEventDefinitions() =>
-        IsEngineeringActive
-            ? operationalEvents.OperationalEventDefinitions()
+        IsEngineeringActive && EventRuntime is { } events
+            ? events.OperationalEventDefinitions()
             : Array.Empty<OperationalEventDefinition>();
 
     public IReadOnlyCollection<ClientMemoryRuntimeSource> ClientMemorySources() =>
@@ -115,8 +118,8 @@ public sealed class ScadaRuntimeFacade(
 
     public bool TryGetOperationalEvent(Guid definitionId, out OperationalEventDefinition? definition)
     {
-        if (IsEngineeringActive)
-            return operationalEvents.TryGetOperationalEvent(definitionId, out definition);
+        if (IsEngineeringActive && EventRuntime is { } events)
+            return events.TryGetOperationalEvent(definitionId, out definition);
 
         definition = null;
         return false;
@@ -189,6 +192,8 @@ public sealed class ScadaRuntimeFacade(
     {
         if (!IsEngineeringActive)
             throw new InvalidOperationException("Operational Events can only be emitted by an active Engineering runtime.");
-        return operationalEvents.EmitOperationalEventAsync(definitionId, context, cancellationToken);
+        if (EventRuntime is not { } events)
+            throw new InvalidOperationException("The active Engineering runtime does not expose Operational Event support.");
+        return events.EmitOperationalEventAsync(definitionId, context, cancellationToken);
     }
 }

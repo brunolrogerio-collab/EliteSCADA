@@ -1,54 +1,60 @@
 # W14-C18 — DEV Handoff — Embeddable Alarm + Event Browser HMI Objects
 
-**State:** **HOLD / IMPLEMENTATION NOT AUTHORIZED**  
+**State:** **RELEASED / IMPLEMENTATION AUTHORIZED**  
+**Release date:** 2026-09-04 BRT  
 **Coordinator branch:** `wave14/corrections-integration`  
 **Integration PR:** `#212` — DRAFT / DO NOT MERGE TO `main`  
 **Package branch:** `wave14/c18-hmi-alarm-event-browsers`  
-**Parked branch base:** `1dcd80a4df448ced3a228d3f5b9057fa26ef547c`  
+**AUTHORIZED C18 PRODUCT BASE:** `568e93eb4dc4ba1fdc41455cfd6935e8831f09a4`  
 **C11 implementation:** **LOCKED**
 
 GitHub is the official development memory. Revalidate live refs before changing code.
 
-## 1. Binding HOLD rule
+## 1. Release authority
 
-Product Owner / Coordinator decision on 2026-09-04 BRT:
+The previous HOLD is closed. C12–C17 have converged on one exact combined-green integration product SHA:
 
-**C18 must not be released for full implementation until C12–C17 are converged on one exact combined-green integration checkpoint.**
+`568e93eb4dc4ba1fdc41455cfd6935e8831f09a4`
 
-The earlier administrative release of C18 from `1dcd80a4...` is revoked.
+Exact combined gates on that product SHA:
 
-Therefore:
+- EliteSCADA CI #1347 / `33882503111` — **SUCCESS**;
+- Wave 11 Active HMI Runtime #275 / `33882503088` — **SUCCESS**;
+- Preview Licensing CI #297 / `33882503272` — **SUCCESS**;
+- L3 Seven-Driver Lab #252 / `33882503050` — **SUCCESS**;
+- Interop Lab Smoke #174 / `33882503053` — **SUCCESS**.
 
-- do not begin C18 implementation while this document says HOLD;
-- do not advance the C18 branch merely because it already exists;
-- do not rebase onto `607a60d0...` or later coordinator/documentation commits;
-- keep the existing C18 branch parked unless the Coordinator explicitly changes this state;
-- a new exact authorized development base will be declared only after C12–C17 convergence;
-- the parallel C18 DEV chat may retain context/read the package, but implementation authorization is not active.
+EliteSCADA CI #1347 initially hit the known IEC-104 T2 timing test once. The affected backend job was rerun once only after diagnosis: unchanged IEC-104 test/product lineage plus prior identical transient evidence. The rerun passed Backend build/test/smoke and the downstream Chromium end-to-end job passed. No product code was changed to obtain green.
 
-Issue #211 comment `5541091621` records this binding override.
+The accepted C17 convergence correction candidate is:
 
-## 2. Why C18 is currently held
+`705ac0a689d6ec4b3462f85e2082410f1d8b3baa`
 
-The last combined-green product authority before C16 is:
+It also passed all five exact-candidate gates before composition:
+
+- EliteSCADA CI #1346 / `33881471883`;
+- Wave 11 Active HMI Runtime #274 / `33881471880`;
+- Preview Licensing CI #296 / `33881471818`;
+- L3 Seven-Driver Lab #251 / `33881471893`;
+- Interop Lab Smoke #173 / `33881471846`.
+
+C17's latent New Data Source stale-draft identity race is therefore corrected and the C16 contracts remain accepted.
+
+## 2. Branch start rule
+
+The existing C18 branch was intentionally parked at historical checkpoint:
 
 `1dcd80a4df448ced3a228d3f5b9057fa26ef547c`
 
-It contains accepted C12+C13+C14+C15+C17 and passed all five combined gates.
+That parked SHA is no longer the development authority.
 
-C16 isolated candidate `6d9f971eb469d931ca56becff4d240088725f37a` passed its isolated gates and was composed into integration at:
+Before C18 product work, the C18 DEV must make the package branch start from the exact authorized product base:
 
-`607a60d0e930fc7080e09c0689c306c040c4ace6`
+`568e93eb4dc4ba1fdc41455cfd6935e8831f09a4`
 
-The composition is not accepted because Wave11 #266 / run `33869678407` failed in the C17 Memory authoring lifecycle while the other four gates passed.
+Do not base C18 on later documentation-only Coordinator commits. Do not use `main` or the old parked `1dcd80...` as product authority.
 
-The last green Wave11 and the red C16 composition were both validated against the same `main` base `edbdf446ea657713bdc487be91bf10bfcd03c684`, so main drift is excluded.
-
-Artifact/trace analysis shows a real composition-level authoring-state/identity defect: sequential normal Data Source creation can reuse an existing stable GUID and replace the previous Source. This is under root-cause isolation and must be resolved before the C12–C17 convergence gate can close.
-
-C18 is intentionally held so another large visual package is not developed against a moving or unstable composition authority.
-
-## 3. Package purpose once released
+## 3. Package purpose
 
 C18 closes:
 
@@ -62,21 +68,9 @@ Normal Engineering must allow:
 
 No hidden package editing, DEMO-only React page, global Runtime route substitute, DOM/CSS injection, private runtime wiring or historical DEMO path counts as acceptance.
 
-## 4. Dependencies and release gate
+## 4. Mandatory reading
 
-Functional dependencies remain:
-
-1. C14 First-Class Operational Events;
-2. C15 first-class visual-object pattern;
-3. now additionally, by Product Owner coordination decision, **complete C12–C17 convergence on one exact combined-green SHA**.
-
-C14 and C15 are individually accepted, but that is no longer sufficient to release C18 while C12–C17 composition is unstable.
-
-The Coordinator will explicitly replace `HOLD / IMPLEMENTATION NOT AUTHORIZED` with a release marker and exact base SHA when the convergence condition is satisfied.
-
-## 5. Mandatory reading when release occurs
-
-Before changing code, revalidate:
+Before changing product code, revalidate:
 
 1. `PROJECT GOAL.md`;
 2. `LAST CHANGE.md`;
@@ -90,11 +84,11 @@ Before changing code, revalidate:
 10. `docs/CI-VALIDATION-POLICY.md`;
 11. live issue #211 and draft PR #212.
 
-If copied text conflicts with live GitHub, GitHub wins.
+If copied context conflicts with live GitHub, GitHub wins.
 
-## 6. Architecture authority
+## 5. Architecture authority
 
-When released, preserve:
+Preserve:
 
 - backend canonical authority and backend-side authorization;
 - host-owned fail-closed licensing;
@@ -105,17 +99,18 @@ When released, preserve:
 - lifecycle `Working -> saved Revision -> Published -> Active -> HMI Runtime`;
 - accepted canonical visual-object schema / Property Inspector / Runtime rendering pattern from C05/C07/C15;
 - C14 Operational Event semantics distinct from Alarm and Audit;
+- C16 persisted Startup/Home and Popup X/Y contracts;
 - pt-BR / en / es for affected visible chrome.
 
-Do not hard-code DEMO behavior or EEE-specific browsing logic.
+Do not hard-code DEMO behavior, EEE-specific browsing logic, fixed project identities or private product paths.
 
-## 7. Alarm Browser required surface
+## 6. Alarm Browser required surface
 
 Alarm Browser must be a first-class visual object insertable into Screen and Popup, with persisted practical configuration such as current/historical view, active/returned, acknowledged state, severity, Area/Equipment/TAG, text/time filters, visible columns, sort and bounded result controls where supported by canonical contracts.
 
 ACK/shelve/unshelve or other alarm mutations must use backend-authorized product endpoints. Client rendering never substitutes backend authorization.
 
-## 8. Event Browser required surface
+## 7. Event Browser required surface
 
 Event Browser must be a first-class Screen/Popup visual object consuming the accepted C14 Operational Event model and protected query path.
 
@@ -123,7 +118,7 @@ It must not reinterpret operational events as alarms merely to reuse alarm UI. P
 
 Operational Event remains distinct from Audit history.
 
-## 9. Common visual-object contract
+## 8. Common visual-object contract
 
 Both objects require:
 
@@ -139,7 +134,7 @@ Both objects require:
 
 Reuse C15 infrastructure only where genuinely common. Do not copy Trend-specific semantics into browser objects.
 
-## 10. Historical / i18n ownership
+## 9. Historical / i18n ownership
 
 Affected visible Historical/Browser strings must exist in:
 
@@ -149,26 +144,26 @@ Affected visible Historical/Browser strings must exist in:
 
 Do not translate persisted technical identifiers, TAG paths, canonical enum wire values, IDs or backend keys.
 
-## 11. Backend/query rules
+## 10. Backend/query rules
 
 Reuse protected backend query APIs and extend them only when a real generic product capability is missing. Do not fetch unbounded history and disguise the gap with client-side filtering.
 
 Authorization remains backend-side for protected history and alarm state-changing actions.
 
-## 12. Explicit non-scope
+## 11. Explicit non-scope
 
 C18 does not own:
 
 - redesign of C14 Event model/storage except a narrow proven integration defect;
 - C15 Trend behavior/Multi-Pen;
 - C16 Operational Command, Startup/Home or Popup X/Y;
-- the current C16×C17 convergence defect;
+- reopening the now-corrected C17 Data Source race;
 - EEE Simulation physics or DEMO process screens;
 - physical Modbus PLC mapping;
 - Preview/Codespaces infrastructure;
 - Wave13 packaging/signing.
 
-## 13. Acceptance after future release
+## 12. Acceptance
 
 Exact C18 candidate HEAD must pass:
 
@@ -183,7 +178,7 @@ Acceptance must prove real Save/Publish/Activate/Active Runtime lifecycle, indep
 
 Diagnose failures before rerunning. Do not weaken tests, authorization, event/alarm semantics or visual-object contracts to manufacture green.
 
-## 14. Delivery boundary after future release
+## 13. Delivery boundary
 
 Package PR must target `wave14/corrections-integration`, never `main`.
 
@@ -191,12 +186,12 @@ PR #212 remains Coordinator-owned and DRAFT.
 
 At delivery report branch/base/candidate SHA, changed subsystems, exact workflow run IDs, architecture decisions and known limitations.
 
-## 15. Current marker
+## 14. Current marker
 
-**C18 HOLD / IMPLEMENTATION NOT AUTHORIZED**
+**C18 RELEASED / IMPLEMENTATION AUTHORIZED**
 
-Release prerequisite:
+**Exact authorized product base:**
 
-**C12–C17 converged on one exact combined-green integration SHA, followed by explicit Coordinator release with a newly declared exact C18 base.**
+`568e93eb4dc4ba1fdc41455cfd6935e8831f09a4`
 
-C11 remains locked until all pre-DEMO corrections converge, C10 convergence cycle 2 establishes a new exact product freeze, affected C11 findings are revalidated, and the Coordinator explicitly releases C11 implementation.
+C11 remains locked until C18 converges, C10 convergence cycle 2 establishes a new exact product freeze, affected C11 findings are revalidated, and the Coordinator explicitly releases C11 implementation.

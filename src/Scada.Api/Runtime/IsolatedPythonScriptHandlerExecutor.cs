@@ -9,8 +9,8 @@ namespace Scada.Api.Runtime;
 /// <summary>
 /// Runs the deterministic Server Script Python subset in an isolated process.
 /// The child receives only declared TAG values and normalized event metadata.
-/// Reads and requested writes are revision-bound by ServerScriptRuntimeManager and
-/// replayed through the official runtime coordinator rather than any Driver internals.
+/// Requested TAG writes and Operational Event emissions are replayed by the host
+/// through canonical Active Runtime authorities rather than Driver/history internals.
 /// </summary>
 public sealed class IsolatedPythonScriptHandlerExecutor(
     ServerScriptRuntimeManager host,
@@ -119,6 +119,9 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
         if (!response.Succeeded)
             throw new ScriptExecutionDiagnosticException(response.Error ?? "Python handler failed.");
 
+        // Replay TAG/Memory mutations before Operational Event occurrences. This keeps
+        // the established deferred-write behavior intact and gives an emitted event a
+        // deterministic post-write view of the same successful handler invocation.
         foreach (var write in response.Writes ?? Array.Empty<PythonWriteRequest>())
         {
             lease.CancellationToken.ThrowIfCancellationRequested();
@@ -164,6 +167,26 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
                     tagId,
                     runtimeValue,
                     write.ServerMemoryOnly,
+                    lease.CancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        foreach (var requestedEvent in response.OperationalEvents ?? Array.Empty<PythonOperationalEventRequest>())
+        {
+            lease.CancellationToken.ThrowIfCancellationRequested();
+            if (!Guid.TryParse(requestedEvent.DefinitionId, out var definitionId) || definitionId == Guid.Empty)
+            {
+                throw new ScriptExecutionDiagnosticException(
+                    "Python handler attempted to emit an Operational Event with an invalid stable definition ID.");
+            }
+
+            await ServerScriptOperationalEventBridge.EmitAsync(
+                    host,
+                    projectKey,
+                    revision,
+                    definitionId,
+                    requestedEvent.Message,
+                    requestedEvent.Context,
                     lease.CancellationToken)
                 .ConfigureAwait(false);
         }
@@ -247,8 +270,14 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
         bool ServerMemoryOnly,
         string? Quality = null);
 
+    private sealed record PythonOperationalEventRequest(
+        string DefinitionId,
+        string? Message = null,
+        IReadOnlyDictionary<string, string>? Context = null);
+
     private sealed record PythonExecutionResponse(
         bool Succeeded,
         string? Error,
-        IReadOnlyCollection<PythonWriteRequest>? Writes);
+        IReadOnlyCollection<PythonWriteRequest>? Writes,
+        IReadOnlyCollection<PythonOperationalEventRequest>? OperationalEvents = null);
 }

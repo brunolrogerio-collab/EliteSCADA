@@ -10,6 +10,7 @@ import {
   runtimeVisualAssetContentUrl,
   type RuntimeApplicationProjection
 } from './runtimeApplicationApi';
+import { resolveRuntimeStartupScreen } from './runtimeStartupScreen';
 import { SimulationRuntimeApp } from './SimulationRuntimeApp';
 
 const REFRESH_INTERVAL_MS = 1500;
@@ -88,30 +89,10 @@ function EngineeringRuntimeApplication({
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [alarmsOpen, setAlarmsOpen] = useState(false);
   const engineeringPackage = projection.package!;
-  const startup = useMemo(() => {
-    const startupScreenId = engineeringPackage.startupScreenId?.trim() ?? '';
-    if (!startupScreenId) {
-      return Object.freeze({
-        screenKey: '',
-        diagnosticCode: 'HMI_RUNTIME_STARTUP_SCREEN_REQUIRED',
-        detail: 'Active project does not define a Startup/Home Screen.'
-      });
-    }
-    const screen = (engineeringPackage.screens ?? []).find(candidate =>
-      candidate.id?.toLocaleLowerCase('en-US') === startupScreenId.toLocaleLowerCase('en-US'));
-    if (!screen?.key?.trim()) {
-      return Object.freeze({
-        screenKey: '',
-        diagnosticCode: 'HMI_RUNTIME_STARTUP_SCREEN_UNRESOLVED',
-        detail: `Configured Startup/Home Screen '${startupScreenId}' is not present in the Active project.`
-      });
-    }
-    return Object.freeze({
-      screenKey: screen.key,
-      diagnosticCode: null,
-      detail: null
-    });
-  }, [engineeringPackage]);
+  const startup = useMemo(
+    () => resolveRuntimeStartupScreen(engineeringPackage),
+    [engineeringPackage]
+  );
 
   useEffect(() => {
     const changed = () => setIsFullscreen(document.fullscreenElement === fullscreenRoot.current);

@@ -17,6 +17,8 @@ const expectedTypes = [
   'core.image',
   'core.valueDisplay',
   'core.trend',
+  'core.alarmBrowser',
+  'core.eventBrowser',
   'core.button',
   'core.slider'
 ];

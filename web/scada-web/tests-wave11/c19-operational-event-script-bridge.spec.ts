@@ -1,0 +1,224 @@
+import { randomUUID } from 'node:crypto';
+import { expect, test, type APIRequestContext, type Locator } from '@playwright/test';
+
+const projectKey = 'e2e-wave11';
+const eventKey = 'c19.runtime.initialize';
+const eventName = 'C19 Runtime Initialize';
+const eventMessage = 'C19 SCRIPT EVENT';
+const eventSource = 'runtime.hmi';
+const eventArea = 'Screen-Event-Area';
+const scriptPath = 'scripts/c19-operational-event.py';
+
+test('C19 authors an Operational Event normally and Server Script Initialize emits it through C14 into the C18 Event Browser', async ({ page, request }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('elitescada.engineering.locale', 'pt-BR');
+  });
+
+  await page.goto('/engineering');
+  const nav = page.locator('.eng-nav');
+  await nav.getByRole('button', { name: /Eventos Operacionais/ }).click();
+
+  const editor = page.getByTestId('operational-event-engineering');
+  await expect(editor).toBeVisible();
+  await expect(editor.getByRole('heading', { name: 'Eventos Operacionais' })).toBeVisible();
+
+  const locale = page.locator('#engineering-locale');
+  await locale.selectOption('en');
+  await expect(editor.getByRole('heading', { name: 'Operational Events' })).toBeVisible();
+  await locale.selectOption('es');
+  await expect(editor.getByRole('heading', { name: 'Eventos Operacionales' })).toBeVisible();
+  await locale.selectOption('pt-BR');
+  await expect(editor.getByRole('heading', { name: 'Eventos Operacionais' })).toBeVisible();
+
+  await editor.getByTestId('operational-event-new').click();
+  await editor.getByLabel('Nome', { exact: true }).fill(eventName);
+  await editor.getByLabel('Chave', { exact: true }).fill(eventKey);
+  await editor.getByLabel('Tipo', { exact: true }).fill('state-change');
+  await editor.getByLabel('Categoria', { exact: true }).fill('operation');
+  await editor.getByLabel('Origem', { exact: true }).fill(eventSource);
+  await editor.getByLabel('Área', { exact: true }).fill(eventArea);
+  await editor.getByLabel('Mensagem padrão', { exact: true }).fill('C19 authored default');
+
+  await editor.getByTestId('operational-event-preview').click();
+  await expect(editor.getByText('Candidato de Engineering válido', { exact: true })).toBeVisible();
+  await expect(editor.getByTestId('operational-event-apply')).toBeEnabled();
+  await editor.getByTestId('operational-event-apply').click();
+
+  const eventDefinition = await expect.poll(async () => {
+    const working = await loadWorking(request);
+    const definition = (working.operationalEvents ?? []).find((item: any) => item.key === eventKey);
+    return definition?.id ? definition : null;
+  }, { timeout: 15_000 }).not.toBeNull().then(async () => {
+    const working = await loadWorking(request);
+    return (working.operationalEvents ?? []).find((item: any) => item.key === eventKey) as any;
+  });
+
+  expect(eventDefinition.id).toBeTruthy();
+  expect(eventDefinition.name).toBe(eventName);
+  expect(eventDefinition.source).toBe(eventSource);
+  expect(eventDefinition.area).toBe(eventArea);
+
+  await installServerScript(request, eventDefinition.id);
+
+  const workspaceBeforeSave = await loadWorkspace(request);
+  expect(workspaceBeforeSave.isDirty).toBe(true);
+
+  await nav.getByRole('button').first().click();
+  const lifecycle = page.locator('.eng-lifecycle-workspace');
+  await expect(lifecycle).toBeVisible();
+
+  const actions = lifecycle.locator('.eng-lifecycle-workspace__action-buttons');
+  const saveButton = actions.getByRole('button').first();
+  await expect(saveButton).toBeEnabled();
+  await saveButton.click();
+
+  await expect.poll(async () => (await loadWorkspace(request)).isDirty).toBe(false);
+  const savedWorkspace = await loadWorkspace(request);
+  expect(savedWorkspace.baseRevision).toBeTruthy();
+  const savedRevision = savedWorkspace.baseRevision!;
+
+  const revisionRow = lifecycle.locator('.eng-lifecycle-workspace__revision-row').filter({ hasText: `r${savedRevision}` }).first();
+  await expect(revisionRow).toBeVisible();
+  const publishButton = revisionRow.locator('.eng-lifecycle-workspace__row-actions').getByRole('button').nth(1);
+  await expect(publishButton).toBeEnabled();
+  await publishButton.click();
+  await confirmLifecycleAction(lifecycle);
+
+  await expect.poll(async () => {
+    const response = await request.get(`/api/engineering/persistence/${projectKey}/lifecycle`);
+    if (!response.ok()) return null;
+    return (await response.json() as { publishedRevision: number | null }).publishedRevision;
+  }).toBe(savedRevision);
+
+  const activateButton = actions.getByRole('button').nth(1);
+  await expect(activateButton).toBeEnabled();
+  await activateButton.click();
+  await confirmLifecycleAction(lifecycle);
+
+  // The C19 bridge deliberately exercises an Initialize handler. If activation
+  // still held a non-reentrant Operational Event gate, this poll would never reach
+  // the new revision because generation.StartAsync would deadlock on its own emit.
+  await expect.poll(async () => {
+    const response = await request.get('/api/runtime/application');
+    if (!response.ok()) return null;
+    return (await response.json() as { revision: number }).revision;
+  }, { timeout: 15_000 }).toBe(savedRevision);
+
+  await expect.poll(async () => await historicalEventExists(request), { timeout: 15_000 }).toBe(true);
+
+  const working = await loadWorking(request);
+  const overview = working.screens?.find((screen: any) => screen.key === 'demo.overview');
+  const c18EventBrowser = flatten(overview?.elements ?? []).find((element: any) =>
+    element.type === 'core.eventBrowser' &&
+    element.properties?.browserConfig?.area === eventArea &&
+    element.properties?.browserConfig?.source === eventSource
+  );
+  expect(c18EventBrowser?.id, 'C18 must leave a canonical Event Browser for C19 consumption').toBeTruthy();
+
+  await page.goto('/');
+  const browser = page.locator(`[data-runtime-object-id="${c18EventBrowser.id}"]`);
+  await expect(browser).toBeVisible();
+  await expect(browser).toHaveAttribute('data-browser-state', 'ready');
+  await expect(browser).toContainText(eventMessage);
+});
+
+async function installServerScript(request: APIRequestContext, eventDefinitionId: string) {
+  const before = await loadWorkspace(request);
+  const working = await loadWorking(request);
+  const scriptId = randomUUID();
+  const script = {
+    id: scriptId,
+    path: scriptPath,
+    name: 'C19 Operational Event bridge',
+    scope: 'server',
+    source: [
+      'def on_initialize():',
+      `    emit_operational_event("${eventDefinitionId}", "${eventMessage}", {"origin": "c19", "phase": "initialize"})`,
+      ''
+    ].join('\n'),
+    enabled: true,
+    language: 'python',
+    languageVersion: '3',
+    entryPoints: [{
+      eventKind: 'initialize',
+      handlerName: 'on_initialize',
+      targetReference: null,
+      tagReference: null,
+      timerIntervalMs: null
+    }],
+    dependencies: [],
+    description: 'Generic C19 proof: canonical C14 Operational Event emission from Server Script.',
+    metadata: { c19: 'true' }
+  };
+
+  const candidate = structuredClone(working);
+  candidate.scripts = [...(candidate.scripts ?? []).filter((item: any) => item.path !== scriptPath), script];
+
+  const previewResponse = await request.post('/api/engineering/import/json/preview', { data: candidate });
+  expect(previewResponse.ok(), `C19 Script preview failed: HTTP ${previewResponse.status()} ${await previewResponse.text()}`).toBeTruthy();
+  const preview = await previewResponse.json() as { canApply: boolean; errorCount: number };
+  expect(preview.canApply).toBe(true);
+  expect(preview.errorCount).toBe(0);
+
+  const afterPreview = await loadWorkspace(request);
+  expect(afterPreview.changeVersion).toBe(before.changeVersion);
+
+  const applyResponse = await request.post('/api/engineering/import/json/apply', {
+    headers: { 'x-elitescada-workspace-version': String(afterPreview.changeVersion) },
+    data: candidate
+  });
+  expect(applyResponse.ok(), `C19 Script Apply failed: HTTP ${applyResponse.status()} ${await applyResponse.text()}`).toBeTruthy();
+
+  await expect.poll(async () => {
+    const refreshed = await loadWorking(request);
+    return refreshed.scripts?.some((item: any) => item.id === scriptId && item.path === scriptPath) ?? false;
+  }).toBe(true);
+}
+
+async function historicalEventExists(request: APIRequestContext): Promise<boolean> {
+  const response = await request.post('/api/historical/query', {
+    data: {
+      version: 1,
+      datasetKey: 'operational.events',
+      timeRange: { kind: 'relative', durationSeconds: 300, anchor: 'now' },
+      filters: [
+        { field: 'source', operator: 'contains', values: [{ kind: 'string', value: eventSource }] },
+        { field: 'area', operator: 'contains', values: [{ kind: 'string', value: eventArea }] }
+      ],
+      orderBy: [{ field: 'timestamp', direction: 'descending' }],
+      page: { limit: 20 }
+    }
+  });
+  if (!response.ok()) return false;
+  const body = await response.json() as { rows?: Array<{ cells?: Record<string, { value?: string | null }> }> };
+  return (body.rows ?? []).some(row =>
+    Object.values(row.cells ?? {}).some(value => value?.value === eventMessage)
+  );
+}
+
+async function loadWorking(request: APIRequestContext): Promise<any> {
+  const response = await request.get('/api/engineering/export/json');
+  expect(response.ok()).toBeTruthy();
+  return await response.json();
+}
+
+async function loadWorkspace(request: APIRequestContext): Promise<{ changeVersion: number; baseRevision: number | null; isDirty: boolean }> {
+  const response = await request.get('/api/engineering/workspace');
+  expect(response.ok()).toBeTruthy();
+  return await response.json();
+}
+
+async function confirmLifecycleAction(lifecycle: Locator) {
+  const confirmation = lifecycle.locator('.eng-lifecycle-workspace__confirmation');
+  await expect(confirmation).toBeVisible();
+  await confirmation.locator('.eng-lifecycle-workspace__critical').click();
+}
+
+function flatten(elements: readonly any[]): any[] {
+  const result: any[] = [];
+  for (const element of elements) {
+    result.push(element);
+    result.push(...flatten(element.children ?? []));
+  }
+  return result;
+}

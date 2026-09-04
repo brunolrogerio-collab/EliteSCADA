@@ -31,9 +31,15 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] }
     },
     {
+      name: 'chromium-wave11-c15-trend',
+      testMatch: /c15-trend-active-runtime\.spec\.ts/,
+      dependencies: ['chromium-wave11-lifecycle'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
       name: 'chromium-wave11-owner-package',
       testMatch: /owner-test-artifact\.spec\.ts/,
-      dependencies: ['chromium-wave11-lifecycle'],
+      dependencies: ['chromium-wave11-c15-trend'],
       use: { ...devices['Desktop Chrome'] }
     }
   ],

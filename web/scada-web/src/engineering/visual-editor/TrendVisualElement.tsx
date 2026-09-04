@@ -10,6 +10,20 @@ import {
 } from '../../visual-runtime';
 import { executeHistoricalQuery } from '../../runtime/historical-browser/historicalQueryApi';
 import {
+  loadReadableRuntimeTags,
+  openRuntimeTagSocket,
+  parseRuntimeTagRealtimeMessage
+} from '../../runtime/liveTagTransport';
+import {
+  appendTrendLiveSample,
+  buildTrendLiveSeries,
+  isUsableTrendQuality,
+  pruneTrendLiveBuffers,
+  trendSampleFromRuntimeMessage,
+  trendSampleFromRuntimeSnapshot,
+  type TrendLiveBuffers
+} from '../../runtime/trendLiveSeriesModel';
+import {
   buildTrendHistoricalQuery,
   buildTrendSeries,
   trendQueryRange,
@@ -33,9 +47,33 @@ type LoadState =
   | Readonly<{ kind: 'error'; series: readonly TrendSeries[]; message: string }>;
 
 const COPY = {
-  'pt-BR': { noData: 'Sem dados', loading: 'Carregando histórico…', error: 'Histórico indisponível', left: 'Esquerda', right: 'Direita' },
-  en: { noData: 'No data', loading: 'Loading history…', error: 'History unavailable', left: 'Left', right: 'Right' },
-  es: { noData: 'Sin datos', loading: 'Cargando histórico…', error: 'Histórico no disponible', left: 'Izquierda', right: 'Derecha' }
+  'pt-BR': {
+    noData: 'Sem dados',
+    loadingHistory: 'Carregando histórico…',
+    loadingLive: 'Conectando dados ao vivo…',
+    historyError: 'Histórico indisponível',
+    liveError: 'Dados ao vivo indisponíveis',
+    left: 'Esquerda',
+    right: 'Direita'
+  },
+  en: {
+    noData: 'No data',
+    loadingHistory: 'Loading history…',
+    loadingLive: 'Connecting live data…',
+    historyError: 'History unavailable',
+    liveError: 'Live data unavailable',
+    left: 'Left',
+    right: 'Right'
+  },
+  es: {
+    noData: 'Sin datos',
+    loadingHistory: 'Cargando histórico…',
+    loadingLive: 'Conectando datos en vivo…',
+    historyError: 'Histórico no disponible',
+    liveError: 'Datos en vivo no disponibles',
+    left: 'Izquierda',
+    right: 'Derecha'
+  }
 } as const;
 
 export function TrendVisualElement({
@@ -65,10 +103,81 @@ export function TrendVisualElement({
       setState({ kind: 'idle', series: Object.freeze([]) });
       return;
     }
+
+    if (mode === 'live') {
+      let disposed = false;
+      let buffers: TrendLiveBuffers = new Map();
+      const controller = new AbortController();
+      let socket: WebSocket | null = null;
+
+      const publish = (now = Date.now()) => {
+        if (disposed) return;
+        buffers = pruneTrendLiveBuffers(buffers, visiblePens, windowSeconds, now);
+        setState({
+          kind: 'ready',
+          series: buildTrendLiveSeries(visiblePens, buffers),
+          from: now - windowSeconds * 1000,
+          to: now
+        });
+      };
+
+      const refreshSnapshots = async () => {
+        try {
+          const tags = await loadReadableRuntimeTags(controller.signal);
+          if (disposed || controller.signal.aborted) return;
+          const byId = new Map(tags.map(tag => [normalizeId(tag.id), tag]));
+          const now = Date.now();
+          buffers = pruneTrendLiveBuffers(buffers, visiblePens, windowSeconds, now);
+          for (const pen of visiblePens) {
+            const tag = byId.get(normalizeId(pen.tagId));
+            if (!tag) continue;
+            const sample = trendSampleFromRuntimeSnapshot(pen, tag);
+            if (sample) buffers = appendTrendLiveSample(buffers, pen, sample, windowSeconds, now);
+          }
+          publish(now);
+        } catch (reason) {
+          if (disposed || controller.signal.aborted) return;
+          setState(previous => ({
+            kind: 'error',
+            series: previous.series,
+            message: reason instanceof Error ? reason.message : String(reason)
+          }));
+        }
+      };
+
+      setState(previous => ({ kind: 'loading', series: previous.series }));
+      void refreshSnapshots();
+      const interval = window.setInterval(() => { void refreshSnapshots(); }, Math.max(1, refreshSeconds) * 1000);
+
+      try {
+        socket = openRuntimeTagSocket();
+        socket.addEventListener('message', event => {
+          const message = parseRuntimeTagRealtimeMessage(String(event.data));
+          if (!message) return;
+          const pen = visiblePens.find(candidate => normalizeId(candidate.tagId) === normalizeId(message.tag.id));
+          if (!pen) return;
+          const sample = trendSampleFromRuntimeMessage(pen, message);
+          if (!sample) return;
+          const now = Date.now();
+          buffers = appendTrendLiveSample(buffers, pen, sample, windowSeconds, now);
+          publish(now);
+        });
+      } catch {
+        socket = null;
+      }
+
+      return () => {
+        disposed = true;
+        controller.abort();
+        window.clearInterval(interval);
+        socket?.close();
+      };
+    }
+
     let disposed = false;
     let active: AbortController | null = null;
 
-    const load = async () => {
+    const loadHistory = async () => {
       active?.abort();
       const controller = new AbortController();
       active = controller;
@@ -80,7 +189,12 @@ export function TrendVisualElement({
         );
         if (disposed || controller.signal.aborted || active !== controller) return;
         const range = trendQueryRange(response);
-        setState({ kind: 'ready', series: buildTrendSeries(response, visiblePens), from: range.from, to: range.to });
+        setState({
+          kind: 'ready',
+          series: buildTrendSeries(response, visiblePens),
+          from: range.from,
+          to: range.to
+        });
       } catch (reason) {
         if (disposed || controller.signal.aborted || active !== controller) return;
         setState(previous => ({
@@ -91,22 +205,21 @@ export function TrendVisualElement({
       }
     };
 
-    void load();
-    const interval = mode === 'live'
-      ? window.setInterval(() => { void load(); }, Math.max(1, refreshSeconds) * 1000)
-      : null;
+    void loadHistory();
+    const interval = window.setInterval(() => { void loadHistory(); }, Math.max(1, refreshSeconds) * 1000);
     return () => {
       disposed = true;
       active?.abort();
-      if (interval !== null) window.clearInterval(interval);
+      window.clearInterval(interval);
     };
   }, [mode, refreshSeconds, visiblePens, windowSeconds]);
 
   const series = state.series;
-  const hasSamples = series.some(item => item.samples.length > 0);
+  const hasSamples = series.some(item => item.samples.some(sample => isUsableTrendQuality(sample.quality)));
   const range = state.kind === 'ready'
     ? { from: state.from, to: state.to }
     : inferRange(series, windowSeconds);
+  const isLive = mode === 'live';
 
   return <div
     className="visual-editor-object visual-editor-trend"
@@ -116,6 +229,8 @@ export function TrendVisualElement({
     data-runtime-object-id={runtimeObjectId}
     data-enabled={enabled}
     data-trend-mode={mode}
+    data-trend-source={isLive ? 'runtime-tags' : 'historian'}
+    data-trend-quality-policy="good-only"
     data-trend-pen-count={visiblePens.length}
     data-trend-state={state.kind}
     title={combineTitle(title, state.kind === 'error' ? state.message : undefined)}
@@ -125,20 +240,25 @@ export function TrendVisualElement({
       <rect x="0" y="0" width="1000" height="400" fill="transparent" />
       {showGrid ? <TrendGrid /> : null}
       {showAxes ? <TrendAxes /> : null}
-      {range ? series.map(item => <TrendSeriesPath key={item.pen.id} series={item} range={range} showQuality={showQuality} />) : null}
+      {range ? series.map(item => <TrendSeriesPath key={item.pen.id} series={item} range={range} />) : null}
     </svg>
 
     {!hasSamples ? <div style={overlayStyle} data-testid="visual-trend-empty">
-      {state.kind === 'loading' ? text.loading : state.kind === 'error' ? text.error : text.noData}
+      {state.kind === 'loading'
+        ? (isLive ? text.loadingLive : text.loadingHistory)
+        : state.kind === 'error'
+          ? (isLive ? text.liveError : text.historyError)
+          : text.noData}
     </div> : null}
 
     {showLegend && visiblePens.length > 0 ? <div style={legendStyle} data-testid="visual-trend-legend">
       {seriesWithEmpty(visiblePens, series).map(item => {
         const latest = item.samples[item.samples.length - 1];
+        const latestUsable = latest ? isUsableTrendQuality(latest.quality) : false;
         return <span key={item.pen.id} style={legendItemStyle} data-pen-id={item.pen.id}>
           <i aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 2, background: item.pen.color, display: 'inline-block' }} />
           <strong>{item.pen.label}</strong>
-          <span>{latest ? formatNumber(latest.value, locale) : '—'}{item.pen.unit ? ` ${item.pen.unit}` : ''}</span>
+          <span>{latest && latestUsable ? formatNumber(latest.value, locale) : '—'}{item.pen.unit ? ` ${item.pen.unit}` : ''}</span>
           {showQuality && latest ? <small>{latest.quality}</small> : null}
           <small>{item.pen.axis === 'left' ? text.left : text.right}</small>
         </span>;
@@ -165,16 +285,17 @@ function TrendAxes() {
 
 function TrendSeriesPath({
   series,
-  range,
-  showQuality
-}: Readonly<{ series: TrendSeries; range: Readonly<{ from: number; to: number }>; showQuality: boolean }>) {
-  const domain = valueDomain(series.pen, series.samples.map(sample => sample.value));
+  range
+}: Readonly<{ series: TrendSeries; range: Readonly<{ from: number; to: number }> }>) {
+  const usableValues = series.samples
+    .filter(sample => isUsableTrendQuality(sample.quality))
+    .map(sample => sample.value);
+  const domain = valueDomain(series.pen, usableValues);
   if (!domain) return null;
   let drawing = false;
   const commands: string[] = [];
   for (const sample of series.samples) {
-    const bad = showQuality && isBadQuality(sample.quality);
-    if (bad) {
+    if (!isUsableTrendQuality(sample.quality)) {
       drawing = false;
       continue;
     }
@@ -229,15 +350,13 @@ function dasharray(style: TrendVisualPen['lineStyle']): string | undefined {
   return style === 'dashed' ? '10 6' : style === 'dotted' ? '2 5' : undefined;
 }
 
-function isBadQuality(value: string): boolean {
-  const quality = value.trim().toLowerCase();
-  return quality.startsWith('bad') || quality === 'invalid';
-}
-
 function formatNumber(value: number, locale: EngineeringLocale): string {
   return new Intl.NumberFormat(locale, { maximumFractionDigits: 3 }).format(value);
 }
 
+function normalizeId(value: string): string {
+  return value.trim().toLocaleLowerCase('en-US');
+}
 function stringValue(value: VisualPropertyValue | undefined, fallback: string): string {
   return typeof value === 'string' ? value : fallback;
 }

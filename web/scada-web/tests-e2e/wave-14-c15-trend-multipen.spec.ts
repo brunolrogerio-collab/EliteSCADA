@@ -8,9 +8,21 @@ import {
   VISUAL_PROPERTY_KEYS
 } from '../src/visual-runtime';
 import { applyVisualEditorMutationIntent } from '../src/engineering/visual-editor/visualEditorCanonicalModel';
+import {
+  popupFrame,
+  popupToVisualScreen,
+  visualScreenToPopup
+} from '../src/engineering/visual-editor/popupVisualAuthoringModel';
+import {
+  appendTrendLiveSample,
+  buildTrendLiveSeries,
+  isUsableTrendQuality,
+  trendSampleFromRuntimeMessage,
+  trendSampleFromRuntimeSnapshot
+} from '../src/runtime/trendLiveSeriesModel';
 import { buildTrendHistoricalQuery, buildTrendSeries } from '../src/runtime/trendVisualQueryModel';
 import type { HistoricalQueryResponse } from '../src/runtime/historical-browser/historicalQueryApi';
-import type { ScreenEngineering } from '../src/engineering/types';
+import type { PopupEngineering, ScreenEngineering } from '../src/engineering/types';
 
 const tagOne = '11111111-1111-1111-1111-111111111111';
 const tagTwo = '22222222-2222-2222-2222-222222222222';
@@ -20,6 +32,16 @@ function fixturePens() {
     createTrendPen({ id: tagOne, path: 'Area/Pump/Pressure', label: 'Pressure', unit: 'bar' }, 0),
     createTrendPen({ id: tagTwo, path: 'Area/Pump/Flow', label: 'Flow', unit: 'm3/h' }, 1)
   ] as const;
+}
+
+function idGenerator(...ids: string[]): () => string {
+  let index = 0;
+  return () => {
+    const value = ids[index];
+    if (!value) throw new Error('test identity generator exhausted');
+    index += 1;
+    return value;
+  };
 }
 
 test('C15 keeps Pens as native JSON structural data outside the scalar registry', () => {
@@ -49,6 +71,71 @@ test('C15 canonical mutation seam persists Pens without passing them through sca
   });
   expect(readTrendPens(next.elements![0])).toEqual(pens);
   expect(next.elements![0].properties?.[VISUAL_PROPERTY_KEYS.trendMode]).toBeUndefined();
+});
+
+test('C15 Trend uses ordinary canonical add move resize and keeps two instances independent', () => {
+  let screen: ScreenEngineering = { key: 'screen', name: 'Screen', route: '/screen', elements: [] };
+  screen = applyVisualEditorMutationIntent(screen, {
+    kind: 'object.add',
+    objectType: BUILTIN_VISUAL_OBJECT_TYPES.trend,
+    at: { x: 20, y: 30 }
+  }, { createObjectId: idGenerator('trend-a') });
+  screen = applyVisualEditorMutationIntent(screen, {
+    kind: 'property.set',
+    objectIds: ['trend-a'],
+    propertyKey: TREND_PENS_PROPERTY,
+    value: trendPensEngineeringValue(fixturePens())
+  });
+  screen = applyVisualEditorMutationIntent(screen, {
+    kind: 'object.add',
+    objectType: BUILTIN_VISUAL_OBJECT_TYPES.trend,
+    at: { x: 400, y: 50 }
+  }, { createObjectId: idGenerator('trend-b') });
+  screen = applyVisualEditorMutationIntent(screen, {
+    kind: 'property.set',
+    objectIds: ['trend-b'],
+    propertyKey: TREND_PENS_PROPERTY,
+    value: trendPensEngineeringValue([fixturePens()[1]])
+  });
+  screen = applyVisualEditorMutationIntent(screen, {
+    kind: 'object.move', objectIds: ['trend-a'], delta: { x: 5, y: 7 }
+  });
+  screen = applyVisualEditorMutationIntent(screen, {
+    kind: 'object.resize', objectId: 'trend-a', bounds: { x: 25, y: 37, width: 640, height: 280 }
+  });
+
+  expect(screen.elements).toHaveLength(2);
+  expect(screen.elements![0].properties).toMatchObject({ x: 25, y: 37, width: 640, height: 280 });
+  expect(readTrendPens(screen.elements![0])).toHaveLength(2);
+  expect(screen.elements![1].properties).toMatchObject({ x: 400, y: 50 });
+  expect(readTrendPens(screen.elements![1])).toHaveLength(1);
+  expect(readTrendPens(screen.elements![1])[0].tagId).toBe(tagTwo);
+});
+
+test('C15 Popup authoring round-trip uses the same canonical Trend object and native Pens', () => {
+  const popup: PopupEngineering = {
+    id: 'popup-id', key: 'popup.pump', name: 'Pump popup', templateKey: 'pump.standard', elements: []
+  };
+  let visualScreen = popupToVisualScreen(popup);
+  visualScreen = applyVisualEditorMutationIntent(visualScreen, {
+    kind: 'object.add', objectType: BUILTIN_VISUAL_OBJECT_TYPES.trend, at: { x: 12, y: 16 }
+  }, { createObjectId: idGenerator('popup-trend') });
+  visualScreen = applyVisualEditorMutationIntent(visualScreen, {
+    kind: 'property.set',
+    objectIds: ['popup-trend'],
+    propertyKey: TREND_PENS_PROPERTY,
+    value: trendPensEngineeringValue(fixturePens())
+  });
+  visualScreen = applyVisualEditorMutationIntent(visualScreen, {
+    kind: 'object.resize', objectId: 'popup-trend', bounds: { x: 12, y: 16, width: 520, height: 220 }
+  });
+  const persisted = visualScreenToPopup(visualScreen, popupFrame(popup));
+
+  expect(persisted.templateKey).toBe('pump.standard');
+  expect(persisted.elements).toHaveLength(1);
+  expect(persisted.elements![0].type).toBe(BUILTIN_VISUAL_OBJECT_TYPES.trend);
+  expect(persisted.elements![0].properties).toMatchObject({ x: 12, y: 16, width: 520, height: 220 });
+  expect(readTrendPens(persisted.elements![0])).toEqual(fixturePens());
 });
 
 test('C15 builds one protected historian.samples query for all visible Pens', () => {
@@ -85,6 +172,42 @@ test('C15 groups historian rows by canonical tag id and preserves quality', () =
   expect(series[0].samples.map(sample => sample.value)).toEqual([7.2, 7.3]);
   expect(series[0].samples[1].quality).toBe('Bad');
   expect(series[1].samples[0].value).toBe(20.5);
+});
+
+test('C15 live series consumes canonical runtime TAG snapshots and realtime messages', () => {
+  const pen = fixturePens()[0];
+  const initial = trendSampleFromRuntimeSnapshot(pen, {
+    id: tagOne,
+    name: 'Pressure',
+    path: 'Area/Pump/Pressure',
+    dataType: 'double',
+    readOnly: true,
+    current: {
+      tagId: tagOne,
+      value: 7.2,
+      timestamp: '2026-09-03T12:00:00Z',
+      quality: 'Good'
+    }
+  });
+  expect(initial).not.toBeNull();
+
+  const realtime = trendSampleFromRuntimeMessage(pen, {
+    type: 'tagValueChanged',
+    tag: { id: tagOne, name: 'Pressure', path: 'Area/Pump/Pressure' },
+    value: 7.4,
+    quality: 'Good',
+    timestamp: '2026-09-03T12:00:01Z'
+  });
+  expect(realtime).not.toBeNull();
+
+  let buffers = appendTrendLiveSample(new Map(), pen, initial!, 3600, Date.parse('2026-09-03T12:00:01Z'));
+  buffers = appendTrendLiveSample(buffers, pen, realtime!, 3600, Date.parse('2026-09-03T12:00:01Z'));
+  const series = buildTrendLiveSeries([pen], buffers);
+  expect(series[0].samples.map(sample => sample.value)).toEqual([7.2, 7.4]);
+  expect(isUsableTrendQuality('Good')).toBe(true);
+  expect(isUsableTrendQuality(0)).toBe(true);
+  expect(isUsableTrendQuality('Uncertain')).toBe(false);
+  expect(isUsableTrendQuality('Bad')).toBe(false);
 });
 
 function row(tagId: string, tagPath: string, timestamp: string, value: string, quality: string) {

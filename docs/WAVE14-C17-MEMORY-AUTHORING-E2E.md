@@ -3,11 +3,26 @@
 **Package:** `W14-C17`  
 **Branch:** `wave14/c17-memory-authoring-e2e`  
 **Required base:** `2607e03d5445eefe1f434495d0ee81136c6cd220`  
-**Implementation/test HEAD before this handoff update:** `82d8c9d7dfd2646302c0ddab67159d6a4b8210cf`  
+**Corrected E2E commit:** `94529de2a3857403453bbc8858afa6ec2d5f11d5`  
 **Integration target:** `wave14/corrections-integration`  
-**State:** **IMPLEMENTATION COMPLETE / EXACT-HEAD CI AND WAVE 11 EXECUTION STILL REQUIRED**
+**State:** **CORRECTED CANDIDATE / EXACT-HEAD CI AND WAVE 11 REVALIDATION REQUIRED**
 
-GitHub is the official memory. This handoff records the bounded C17 implementation and versioned validation. It does not claim that GitHub Actions executed successfully on this package branch.
+GitHub is the official memory. This handoff records the bounded C17 implementation and versioned validation. It does not claim a green exact-head validation until GitHub records successful gates for the final branch HEAD.
+
+## Validation history
+
+Coordinator exact-head validation of candidate `15dda2845370d71a0b2cff3fce0303be57259b07` failed in **Wave 11 Active HMI Runtime #225 / run `33827655527`**.
+
+The official diagnosis in validation PR #244, comment `5534613449`, classified the failure as deterministic test ambiguity rather than evidence of an Internal Memory product defect. Playwright artifact `9920620171` confirms that `page.getByLabel('Somente leitura')` matched both the intended checkbox and an unrelated select under strict mode, causing the C17 scenario to stop before Save/Publish/Activate/Runtime assertions.
+
+C17 corrects only that locator in `web/scada-web/tests-wave11/c17-memory-lifecycle.spec.ts`:
+
+- previous: `page.getByLabel('Somente leitura')`;
+- corrected: `page.getByRole('checkbox', { name: 'Somente leitura' })`.
+
+The correction does not change product code, UI text, authoring semantics or C17 acceptance scope. The lifecycle continues to require normal UI creation of Server Memory and Client Memory, TAG creation, source-provider Address absence, initial values, Save, Publish, Activate, Runtime, Server Memory read/write/retention/Historian and Client Memory session isolation.
+
+The final candidate is the branch HEAD containing this handoff update. Exact-head gate IDs are reported in PR #244 / DEV delivery after GitHub Actions completes, without adding a post-validation commit that would invalidate the tested SHA.
 
 ## Scope
 
@@ -107,7 +122,7 @@ C17 does not duplicate backend tests that already exercise the canonical Interna
 
 `tests/Scada.Core.Tests/EngineeringClientMemoryCommandValidationTests.cs` verifies that server-side Commands cannot target Client Memory TAGs and that a Data Source cannot be transitioned to Client Memory while an existing server Command still targets its TAG.
 
-These backend tests remain part of the normal Core test suite and are validation dependencies for C17; this document does not claim they were executed on the final C17 HEAD during this DEV session.
+These backend tests remain part of the normal Core test suite and are validation dependencies for C17; this document does not claim they passed on the corrected final C17 HEAD until the exact-head gates complete.
 
 ## Explicitly not used as acceptance shortcuts
 
@@ -129,16 +144,16 @@ The provider type keys are selected through the public Data Source catalog UI, w
 
 ## Required acceptance execution
 
-Before Coordinator acceptance/integration, the final C17 HEAD still requires actual execution of:
+Before Coordinator acceptance/integration, the corrected final C17 HEAD requires actual execution of:
 
 1. normal frontend/Playwright regressions including the focused C17 policy test;
 2. backend Core regressions, including the existing Internal Memory suites above;
 3. `EliteSCADA CI`;
 4. `Wave 11 Active HMI Runtime`, including `chromium-wave11-c17-memory-lifecycle`.
 
-Do not broaden workflow triggers, merge to `main`, or create an artificial PR to `main` merely to manufacture a branch run. If the package branch does not trigger Actions automatically, the Coordinator should use the repository's authorized existing validation path/manual workflow dispatch or validate the accepted exact head through the integration surface.
+PR #244 is the validation-only pull request used for exact-head gating against `main`. It must remain DRAFT/validation-only and must not be merged. Integration remains Coordinator-owned through `wave14/corrections-integration` / draft PR #212.
 
-No green CI claim is made until GitHub records successful runs for the accepted exact head.
+No green CI claim is made until GitHub records successful runs for the corrected exact head.
 
 ## Integration notes
 

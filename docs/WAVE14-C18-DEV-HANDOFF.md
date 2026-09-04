@@ -1,13 +1,13 @@
 # W14-C18 — DEV Handoff — Embeddable Alarm + Event Browser HMI Objects
 
-**State:** **PREPARED / NOT RELEASED FOR IMPLEMENTATION**  
+**State:** **RELEASED / IMPLEMENTATION AUTHORIZED**  
 **Coordinator branch:** `wave14/corrections-integration`  
 **Integration PR:** `#212` — DRAFT / DO NOT MERGE TO `main`  
-**Package branch when released:** `wave14/c18-hmi-alarm-event-browsers`  
-**Development base:** **TO BE PUBLISHED BY COORDINATOR AFTER C15 IS ACCEPTED + INTEGRATED**  
+**Package branch:** `wave14/c18-hmi-alarm-event-browsers`  
+**Exact development base:** `1dcd80a4df448ced3a228d3f5b9057fa26ef547c`  
 **C11 implementation:** **LOCKED**
 
-GitHub is the official development memory. This handoff is deliberately prepared before release so the next DEV can start from an exact, bounded contract once the Coordinator publishes the post-C15 base. **Do not create implementation commits for C18 until the Coordinator changes this document/state or explicitly publishes the exact C18 base.**
+GitHub is the official development memory. Revalidate live refs before changing code. The C18 branch was created by the Coordinator from the exact validated base above before later documentation-only commits advanced the integration branch. Do not rebase C18 onto a newer coordinator documentation SHA merely to make numbers look recent.
 
 ## 1. Why C18 exists
 
@@ -17,35 +17,54 @@ C18 closes:
 
 - `C11-P2-BROWSER-01` — configurable embeddable Alarm Browser;
 - `C11-P2-BROWSER-02` — configurable embeddable Event Browser;
-- `C11-P2-I18N-HIST-01` — related Historical/Browser visible chrome that is still English-only within the affected surfaces.
+- `C11-P2-I18N-HIST-01` — affected Historical/Browser visible chrome that remains English-only.
 
 The product must allow a normal Engineering user to place these objects inside authored Screens and Popups, configure them through canonical persisted properties, move them through `Save -> Publish -> Activate`, and render/use them in Active HMI Runtime.
 
-## 2. Release prerequisites
+## 2. Release prerequisites satisfied
 
-C18 implementation remains blocked until both prerequisites below are satisfied:
+C18 required both:
 
-1. **C14 — First-Class Operational Events** is accepted and integrated. This prerequisite is already satisfied. C18 must consume the accepted C14 Event model/query contract rather than creating a frontend-only event schema.
-2. **C15 — Embeddable Multi-Pen Trend HMI Object** must be corrected, accepted and integrated. C18 must reuse the accepted first-class visual-object authoring/persistence/runtime pattern rather than inventing a parallel object system.
+1. **C14 — First-Class Operational Events** accepted/integrated;
+2. **C15 — Embeddable Multi-Pen Trend HMI Object** accepted/integrated so C18 can reuse the canonical first-class visual-object authoring/persistence/runtime pattern.
 
-At the time this handoff was prepared, C15 candidate `2abee30a25577368999f16d52a0802e6eea473ca` remained under Coordinator `CHANGES REQUIRED` because its EliteSCADA CI Chromium lane was red. Therefore **no exact C18 development base is published yet**.
+Both are satisfied.
 
-## 3. Mandatory reading when released
+Accepted corrected C15 package candidate:
+
+`3a182b1963177e1c2c3bb5994fd87fa7cf2512f9`
+
+Final combined post-C15 authority used as C18 base:
+
+`1dcd80a4df448ced3a228d3f5b9057fa26ef547c`
+
+Exact-head combined validation:
+
+- EliteSCADA CI #1337 / `33838725814` — SUCCESS;
+- Wave 11 Active HMI Runtime #265 / `33838725796` — SUCCESS;
+- Preview Licensing CI #287 / `33838725824` — SUCCESS;
+- L3 Seven-Driver Lab #242 / `33838725850` — SUCCESS;
+- Interop Lab Smoke #164 / `33838725805` — SUCCESS.
+
+The preceding Wave11 composition failure was diagnosed as a Coordinator test-project selector collision. The corrected selector ensures the generic lifecycle project matches only `active-runtime.spec.ts`, then C17 Memory, C15 Trend and the owner package execute in the intended dependency chain. Do not undo that isolation.
+
+## 3. Mandatory reading
 
 Before changing code, revalidate live GitHub and read:
 
 1. `PROJECT GOAL.md`;
 2. `LAST CHANGE.md`;
 3. `docs/CURRENT-COORDINATOR-HANDOFF.md`;
-4. `docs/WAVE14-C11-PRE-DEMO-CORRECTION-PACKAGES.md`;
-5. `docs/WAVE14-C11-CANONICAL-DEMO-REQUIREMENTS.md`;
-6. `docs/WAVE14-C11-PASS2-HMI-OBJECTS-PRODUCT-OWNER-CLARIFICATION.md` from the C11 audit branch if not yet intaken verbatim;
-7. C14 handoff and accepted operational Event contracts;
-8. final accepted C15 handoff/contracts;
-9. `docs/CI-VALIDATION-POLICY.md`;
-10. live issue #211 and draft PR #212.
+4. this file;
+5. `docs/WAVE14-C11-PRE-DEMO-CORRECTION-PACKAGES.md`;
+6. `docs/WAVE14-C11-CANONICAL-DEMO-REQUIREMENTS.md`;
+7. C11 consolidated audit and HMI-object clarification on `wave14/c11-pass2-product-gap-audit`;
+8. `docs/WAVE14-C14-OPERATIONAL-EVENTS.md`;
+9. `docs/WAVE14-C15-HMI-TREND-MULTIPEN.md`;
+10. `docs/CI-VALIDATION-POLICY.md`;
+11. live issue #211 and draft PR #212.
 
-If any copied SHA conflicts with live GitHub, live GitHub wins.
+If copied text conflicts with live GitHub, live GitHub wins.
 
 ## 4. Architecture authority
 
@@ -59,23 +78,20 @@ C18 must preserve:
 - canonical TAG/Data Source identities;
 - Active revision as Runtime project authority;
 - lifecycle `Working -> saved Revision -> Published -> Active -> HMI Runtime`;
-- canonical visual-object schema/Property Inspector/runtime rendering patterns accepted through C05/C07 and final C15;
-- C14 first-class Event semantics distinct from Alarm and Audit;
-- pt-BR / en / es for affected user-visible chrome.
+- accepted canonical visual-object schema / Property Inspector / Runtime rendering pattern from C05/C07/C15;
+- C14 Operational Event semantics distinct from Alarm and Audit;
+- pt-BR / en / es for affected visible chrome.
 
 Do not hard-code DEMO behavior or EEE-specific browsing logic.
 
 ## 5. Alarm Browser required product surface
 
-Alarm Browser must be a first-class visual object insertable in:
+Alarm Browser must be a first-class visual object insertable in both Screen and Popup.
 
-- Screen;
-- Popup.
+It must support normal Engineering placement/sizing and persist practical configuration where canonical backend data exists, including at minimum:
 
-It must support normal Engineering placement and sizing using the accepted canonical visual composition model and persist practical configuration where backend data exists, including at minimum:
-
-- current vs historical mode/source;
-- active / inactive / returned state filtering as supported by the canonical alarm lifecycle;
+- current versus historical view/source;
+- active / inactive / returned state filtering where supported by alarm lifecycle;
 - acknowledged / unacknowledged filtering;
 - severity filtering;
 - Area / Equipment / TAG filtering where canonical identities are available;
@@ -83,11 +99,9 @@ It must support normal Engineering placement and sizing using the accepted canon
 - time range where applicable;
 - visible columns;
 - sort configuration;
-- result limit/page size or equivalent bounded query control.
+- bounded result limit/page size or equivalent query control.
 
-Interactive alarm operations such as acknowledgement or shelving must use existing backend-authorized product endpoints/contracts. Rendering a button in HMI does not replace backend authorization.
-
-No direct client mutation of alarm state is allowed.
+Interactive alarm operations such as ACK, shelve or unshelve must use backend-authorized product endpoints/contracts. A visible HMI control never substitutes backend authorization. No direct client mutation of alarm state is allowed.
 
 ## 6. Event Browser required product surface
 
@@ -106,19 +120,19 @@ Persisted configurable filtering/presentation should include, where available in
 - text search;
 - visible columns;
 - sort configuration;
-- result limit/page size or equivalent bounded query control.
+- bounded result limit/page size or equivalent query control.
 
-The browser must remain semantically distinct from Audit history. Audit is security/administrative evidence; Operational Event is process/operation history.
+Operational Event remains semantically distinct from Audit history.
 
 ## 7. Common first-class HMI-object contract
 
-Alarm Browser and Event Browser must follow the same canonical authoring contract expected by C11:
+Both objects must follow:
 
 `Engineering palette/object -> configure canonical properties -> Save -> Publish -> Activate -> render inside Screen or Popup`
 
 Required characteristics:
 
-- first-class canonical visual object identities;
+- canonical visual object identities;
 - insertion from normal Engineering UI;
 - X/Y/width/height composition through accepted visual contracts;
 - persisted canonical configuration;
@@ -126,16 +140,18 @@ Required characteristics:
 - deterministic multiple independent instances;
 - stable reusable configuration without private runtime IDs;
 - Active Runtime rendering from persisted Active revision;
-- loading, empty, no-data and backend-failure states that remain visible and diagnosable;
-- no hidden JSON/package editing required for normal use;
+- visible loading, empty, no-data and backend-failure states;
+- no hidden JSON/package editing for normal use;
 - no DOM/CSS injection workaround;
 - no DEMO-only React page counted as acceptance.
 
-## 8. Historical/i18n scope
+Reuse the accepted C15 visual-object pattern where it is genuinely common. Do not copy Trend-specific semantics into browsers.
+
+## 8. Historical/i18n ownership
 
 C18 owns the related visible Historical/Browser chrome gap identified by C11.
 
-Any user-visible browser/table/filter/action strings touched by this package must be available in:
+Any affected user-visible browser/table/filter/action strings must exist in:
 
 - `pt-BR`;
 - `en`;
@@ -145,21 +161,21 @@ Do not translate persisted technical identifiers, TAG paths, canonical enum wire
 
 ## 9. Backend/query rules
 
-C18 should reuse protected backend query APIs and extend them only when a real generic product capability is missing.
+Reuse protected backend query APIs and extend them only when a real generic product capability is missing.
 
-If backend filtering/pagination needed by normal Alarm/Event Browser use is genuinely absent, implement the missing **generic** backend capability in the bounded package and document the contract. Do not fetch unbounded history into the browser and pretend client-side filtering is a product architecture.
+If filtering/pagination needed for normal Alarm/Event Browser use is absent, implement the missing generic backend capability within this bounded package and document it. Do not fetch unbounded history and pretend client-side filtering is a scalable architecture.
 
 Authorization remains backend-side for:
 
-- viewing protected historical/process information;
-- alarm ACK/shelve/unshelve or equivalent state-changing actions;
+- protected historical/process information;
+- alarm ACK/shelve/unshelve or equivalent state changes;
 - any future interactive Event operation if one exists.
 
 ## 10. Explicit non-scope
 
 C18 does not own:
 
-- C14 operational Event storage/model redesign unless a proven integration defect requires a narrow compatibility correction;
+- redesign of the accepted C14 Event model/storage except for a narrow proven integration defect;
 - C15 Trend behavior or Multi-Pen implementation;
 - C16 Operational Command, Startup/Home or Popup X/Y;
 - EEE Simulation physics;
@@ -168,20 +184,20 @@ C18 does not own:
 - Preview/Codespaces infrastructure;
 - Wave13 packaging/signing.
 
-Do not use C18 as an excuse to refactor unrelated historical pages or shell navigation.
+Do not use C18 as an excuse to refactor unrelated shell/history surfaces.
 
-## 11. Validation required before Coordinator acceptance
+## 11. Required acceptance coverage
 
-Exact candidate HEAD must pass, at minimum:
+Exact candidate HEAD must pass:
 
 - EliteSCADA CI;
 - Wave 11 Active HMI Runtime;
-- Preview Licensing CI when affected authorization/capability paths require it;
+- Preview Licensing CI;
 - L3 Seven-Driver Lab;
 - Interop Lab Smoke;
 - package-specific browser tests proving authored Screen and Popup instances.
 
-Acceptance coverage must prove real product lifecycle, not only source-level assertions:
+Acceptance must prove real product lifecycle:
 
 1. insert Alarm Browser through normal Engineering;
 2. insert Event Browser through normal Engineering;
@@ -194,13 +210,13 @@ Acceptance coverage must prove real product lifecycle, not only source-level ass
 9. prove at least two independent instances can hold different persisted configurations;
 10. exercise authorized alarm interaction and denied interaction where applicable;
 11. prove pt-BR/en/es visible chrome;
-12. restore test project state if the shared Wave11 fixture is modified.
+12. restore shared Wave11 fixture state if modified.
 
-Diagnose failures before rerunning. Do not weaken meaningful tests, authorization, data semantics or visual-object contracts to manufacture green.
+Diagnose failures before rerunning. Do not weaken tests, authorization, event/alarm semantics or visual-object contracts to manufacture green.
 
 ## 12. Integration boundary
 
-Package PR, when created, must target:
+Package PR must target:
 
 `wave14/corrections-integration`
 
@@ -208,18 +224,22 @@ It must not merge directly to `main`.
 
 PR #212 remains Coordinator-owned and DRAFT.
 
-The Coordinator will provide the **exact post-C15 base SHA** when releasing C18. The DEV must branch from that exact SHA and report:
+At delivery, report:
 
-- branch name;
-- base SHA;
+- branch `wave14/c18-hmi-alarm-event-browsers`;
+- base `1dcd80a4df448ced3a228d3f5b9057fa26ef547c`;
 - candidate SHA;
-- changed subsystem/files;
+- changed subsystems/files;
 - exact workflow run IDs;
 - architecture decisions;
 - known limitations.
 
 ## 13. Release marker
 
-Until a Coordinator update replaces this section, the binding state is:
+**C18 RELEASED / IMPLEMENTATION AUTHORIZED**
 
-**C18 PREPARED BUT NOT RELEASED. NO IMPLEMENTATION AUTHORIZED.**
+Exact authorized development base:
+
+`1dcd80a4df448ced3a228d3f5b9057fa26ef547c`
+
+C11 remains locked until all pre-DEMO corrections converge, a new exact product freeze is established, affected C11 findings are revalidated, and the Coordinator explicitly releases C11 implementation.

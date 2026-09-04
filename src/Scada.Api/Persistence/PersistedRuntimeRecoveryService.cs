@@ -71,28 +71,13 @@ public sealed class PersistedRuntimeRecoveryService(
                 configuration);
 
             if (operationalEvents is not null)
-            {
-                await using var operationalEventGate =
-                    await ServerScriptOperationalEventBridge.BindForActivationAsync(
-                        scripts,
-                        runtime,
-                        operationalEvents,
-                        cancellationToken);
+                ServerScriptOperationalEventBridge.Bind(scripts, operationalEvents);
 
-                result = await scripts.ActivateRuntimeAsync(
-                    snapshot.ProjectKey,
-                    snapshot.Revision,
-                    package,
-                    cancellationToken);
-            }
-            else
-            {
-                result = await scripts.ActivateRuntimeAsync(
-                    snapshot.ProjectKey,
-                    snapshot.Revision,
-                    package,
-                    cancellationToken);
-            }
+            result = await scripts.ActivateRuntimeAsync(
+                snapshot.ProjectKey,
+                snapshot.Revision,
+                package,
+                cancellationToken);
         }
         else
         {

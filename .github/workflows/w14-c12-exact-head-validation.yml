@@ -1,0 +1,355 @@
+name: W14 C12 Exact Head Validation
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/w14-c12-exact-head-validation.yml'
+
+permissions:
+  contents: read
+
+env:
+  CANDIDATE_SHA: 739c21f97f74ae9c72894590cf818f07e9b7481a
+
+jobs:
+  backend:
+    name: Exact-head backend build, test and smoke
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ELITESCADA_TEST_POSTGRES: 'Host=127.0.0.1;Port=5432;Database=elitescada_test;Username=postgres;Password=postgres;Pooling=false'
+      ConnectionStrings__EliteScada: 'Host=127.0.0.1;Port=5432;Database=elitescada_test;Username=postgres;Password=postgres;Pooling=false'
+      Historian__Provider: 'timescaledb'
+      HistoricalQuery__Enabled: 'true'
+      HistoricalQuery__CursorKeyBase64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+    steps:
+      - name: Checkout exact C12 candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 1
+
+      - name: Assert exact candidate SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTUAL=$(git rev-parse HEAD)
+          echo "candidate=${CANDIDATE_SHA}"
+          echo "checked_out=${ACTUAL}"
+          test "${ACTUAL}" = "${CANDIDATE_SHA}"
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+
+      - name: Restore
+        run: dotnet restore ScadaPlatform.sln
+
+      - name: Build
+        run: dotnet build ScadaPlatform.sln --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test ScadaPlatform.sln --no-build --configuration Release --verbosity normal
+
+      - name: Runtime smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ASPNETCORE_URLS=http://127.0.0.1:5080
+          dotnet run --project src/Scada.Api/Scada.Api.csproj --no-build --configuration Release --no-launch-profile > /tmp/scada-api.log 2>&1 &
+          API_PID=$!
+          trap 'kill "$API_PID" 2>/dev/null || true' EXIT
+
+          ready=false
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5080/health > /tmp/health.json; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$ready" != "true" ]; then
+            cat /tmp/scada-api.log
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          import json
+          with open('/tmp/health.json') as f:
+              health = json.load(f)
+          assert health == {'status': 'ok', 'service': 'scada-api'}
+          PY
+
+          historian_ready=false
+          for _ in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:5080/api/diagnostics/runtime > /tmp/runtime-diagnostics.json
+            if python3 - <<'PY'
+          import json, sys
+          with open('/tmp/runtime-diagnostics.json') as f:
+              diagnostics = json.load(f)
+          ok = diagnostics['historian']['provider'] == 'timescaledb' and diagnostics['historian']['writtenSamples'] >= 1
+          sys.exit(0 if ok else 1)
+          PY
+            then
+              historian_ready=true
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$historian_ready" != "true" ]; then
+            cat /tmp/runtime-diagnostics.json
+            cat /tmp/scada-api.log
+            exit 1
+          fi
+
+          curl -fsS http://127.0.0.1:5080/api/tags > /tmp/tags.json
+          TAG_COUNT=$(python3 -c 'import json; print(len(json.load(open("/tmp/tags.json"))))')
+          test "$TAG_COUNT" -ge 7
+
+          TANK_ID=$(python3 - <<'PY'
+          import json
+          with open('/tmp/tags.json') as f:
+              tags = json.load(f)
+          print(next(tag['id'] for tag in tags if tag['path'] == 'Demo.Tank01.Level'))
+          PY
+          )
+          curl -fsS "http://127.0.0.1:5080/api/history/${TANK_ID}?limit=100" > /tmp/history.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/history.json') as f:
+              history = json.load(f)
+          assert len(history) >= 1
+          assert all(sample['quality'] == 0 for sample in history)
+          PY
+
+          curl -fsS -X POST http://127.0.0.1:5080/api/historical/query \
+            -H 'content-type: application/json' \
+            -d '{"datasetKey":"historian.samples","timeRange":{"kind":"relative","durationSeconds":300,"anchor":"now"},"page":{"limit":5}}' \
+            > /tmp/historical-query.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/historical-query.json') as f:
+              result = json.load(f)
+          assert result['version'] == 1
+          assert result['datasetKey'] == 'historian.samples'
+          assert result['pageSize'] == 5
+          assert result['fromUtc'] < result['toUtc']
+          assert len(result['rows']) >= 1
+          assert {column['field'] for column in result['columns']} >= {'tag.id', 'tag.path', 'timestamp', 'value', 'quality'}
+          PY
+
+          curl -fsS http://127.0.0.1:5080/api/engineering/security-roles > /tmp/security-roles.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/security-roles.json') as f:
+              roles = json.load(f)
+          assert {role['key'] for role in roles} == {'operator', 'developer'}
+          operator = next(role for role in roles if role['key'] == 'operator')
+          capabilities = {grant['capability'] for grant in operator['grants']}
+          assert 2 in capabilities
+          assert 3 not in capabilities
+          PY
+
+          curl -fsS http://127.0.0.1:5080/api/engineering/commands > /tmp/commands.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/commands.json') as f:
+              commands = json.load(f)
+          assert {command['key'] for command in commands} == {'demo.p01.start', 'demo.p01.stop'}
+          assert all(command['targetTagPath'] == 'Demo.P01.Running' for command in commands)
+          PY
+
+          curl -fsS http://127.0.0.1:5080/api/engineering/persistence/status > /tmp/persistence-status.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/persistence-status.json') as f:
+              status = json.load(f)
+          assert status['enabled'] is True
+          assert status['provider'] == 'postgresql'
+          PY
+
+          curl -fsS http://127.0.0.1:5080/api/engineering/export/json > /tmp/current-engineering.json
+          curl -fsS -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/save \
+            -H 'content-type: application/json' \
+            -d '{"projectName":"CI Demo","savedBy":"github-actions"}' > /tmp/persistence-save.json
+          REVISION=$(python3 -c 'import json; print(json.load(open("/tmp/persistence-save.json"))["revision"])')
+          test "$REVISION" -ge 1
+
+          curl -fsS http://127.0.0.1:5080/api/engineering/workspace > /tmp/workspace-after-save.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/workspace-after-save.json') as f:
+              workspace = json.load(f)
+          with open('/tmp/persistence-save.json') as f:
+              saved = json.load(f)
+          assert workspace['projectKey'] == 'ci-demo'
+          assert workspace['baseRevision'] == saved['revision']
+          assert workspace['isDirty'] is False
+          PY
+
+          curl -fsS -X POST "http://127.0.0.1:5080/api/engineering/persistence/ci-demo/revisions/${REVISION}/publish" \
+            -H 'content-type: application/json' \
+            -d '{"publishedBy":"github-actions"}' > /tmp/persistence-publish.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/persistence-publish.json') as f:
+              result = json.load(f)
+          assert result['publication']['publishedRevision'] == result['revision']['revision']
+          assert result['lifecycle']['status'] == 2
+          PY
+
+          curl -fsS -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/save \
+            -H 'content-type: application/json' \
+            -d '{"projectName":"CI Demo","savedBy":"github-actions-after-publish"}' > /tmp/persistence-save-2.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/persistence-save.json') as f:
+              first = json.load(f)
+          with open('/tmp/persistence-save-2.json') as f:
+              second = json.load(f)
+          assert second['revision'] > first['revision']
+          assert second['basedOnRevision'] == first['revision']
+          PY
+
+          curl -fsS http://127.0.0.1:5080/api/engineering/persistence/ci-demo/lifecycle > /tmp/lifecycle-pending.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/lifecycle-pending.json') as f:
+              lifecycle = json.load(f)
+          assert lifecycle['status'] == 3
+          assert lifecycle['workingRevision'] > lifecycle['publishedRevision']
+          PY
+
+  frontend:
+    name: Exact-head web build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact C12 candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 1
+      - name: Assert exact candidate SHA
+        run: test "$(git rev-parse HEAD)" = "${CANDIDATE_SHA}"
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Install dependencies
+        working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+      - name: Build React/Vite
+        working-directory: web/scada-web
+        run: npm run build
+
+  e2e:
+    name: Exact-head Chromium end-to-end
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_e2e
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ConnectionStrings__EliteScada: 'Host=127.0.0.1;Port=5432;Database=elitescada_e2e;Username=postgres;Password=postgres;Pooling=false'
+    steps:
+      - name: Checkout exact C12 candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 1
+      - name: Assert exact candidate SHA
+        run: test "$(git rev-parse HEAD)" = "${CANDIDATE_SHA}"
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Restore backend
+        run: dotnet restore ScadaPlatform.sln
+      - name: Install frontend dependencies
+        working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+      - name: Install Chromium
+        working-directory: web/scada-web
+        run: npx playwright install --with-deps chromium
+      - name: Run browser E2E tests
+        working-directory: web/scada-web
+        run: npm run test:e2e
+
+  wave11:
+    name: Exact-head Wave 11 Active Runtime browser lifecycle
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_wave11
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_wave11"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ConnectionStrings__EliteScada: 'Host=127.0.0.1;Port=5432;Database=elitescada_wave11;Username=postgres;Password=postgres;Pooling=false'
+    steps:
+      - name: Checkout exact C12 candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 1
+      - name: Assert exact candidate SHA
+        run: test "$(git rev-parse HEAD)" = "${CANDIDATE_SHA}"
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Restore backend
+        run: dotnet restore ScadaPlatform.sln
+      - name: Install frontend dependencies
+        working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+      - name: Install Chromium
+        working-directory: web/scada-web
+        run: npx playwright install --with-deps chromium
+      - name: Run Wave 11 Active Runtime browser lifecycle
+        working-directory: web/scada-web
+        run: npx playwright test --config=playwright.wave11.config.ts

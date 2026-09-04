@@ -8,6 +8,11 @@ import {
   normalizeEventBrowserConfig
 } from '../src/visual-runtime/browserVisualModel';
 import {
+  buildAlarmHistoricalRequest,
+  buildEventHistoricalRequest,
+  historicalAlarmStates
+} from '../src/engineering/visual-editor/BrowserVisualElement';
+import {
   createObjectAddIntent,
   listVisualObjectPaletteItems
 } from '../src/engineering/visual-editor/object-palette/objectPaletteModel';
@@ -77,6 +82,65 @@ test('browser configurations remain structured, independent and kind-specific', 
   expect(alarm.columns).not.toEqual(event.columns);
   expect(() => normalizeAlarmBrowserConfig({ ...DEFAULT_ALARM_BROWSER_CONFIG, columns: ['type'] })).toThrow();
   expect(() => normalizeEventBrowserConfig({ ...DEFAULT_EVENT_BROWSER_CONFIG, columns: ['state'] })).toThrow();
+});
+
+test('Alarm history maps lifecycle and acknowledgement into one honest state filter', () => {
+  expect(historicalAlarmStates({ ...DEFAULT_ALARM_BROWSER_CONFIG, lifecycle: 'active', acknowledgement: 'all' })).toEqual(['Active', 'Acknowledged']);
+  expect(historicalAlarmStates({ ...DEFAULT_ALARM_BROWSER_CONFIG, lifecycle: 'active', acknowledgement: 'acknowledged' })).toEqual(['Acknowledged']);
+  expect(historicalAlarmStates({ ...DEFAULT_ALARM_BROWSER_CONFIG, lifecycle: 'active', acknowledgement: 'unacknowledged' })).toEqual(['Active']);
+  expect(historicalAlarmStates({ ...DEFAULT_ALARM_BROWSER_CONFIG, lifecycle: 'returned', acknowledgement: 'acknowledged' })).toEqual(['Returned']);
+
+  const request = buildAlarmHistoricalRequest({
+    ...DEFAULT_ALARM_BROWSER_CONFIG,
+    mode: 'history',
+    lifecycle: 'active',
+    acknowledgement: 'all',
+    minimumPriority: 3,
+    tagPath: 'Plant.P01'
+  }, null);
+
+  expect(request.datasetKey).toBe('alarm.events');
+  expect(request.filters).toEqual(expect.arrayContaining([
+    expect.objectContaining({ field: 'state', operator: 'in', values: [
+      { kind: 'enum', value: 'Active' },
+      { kind: 'enum', value: 'Acknowledged' }
+    ] }),
+    expect.objectContaining({ field: 'priority', operator: 'gte', values: [{ kind: 'number', value: '3' }] }),
+    expect.objectContaining({ field: 'tag.path', operator: 'contains', values: [{ kind: 'string', value: 'Plant.P01' }] })
+  ]));
+});
+
+test('Event Browser queries canonical operational.events without Alarm or Audit semantics', () => {
+  const request = buildEventHistoricalRequest({
+    ...DEFAULT_EVENT_BROWSER_CONFIG,
+    type: 'OperatorAction',
+    category: 'operation',
+    source: 'runtime.hmi',
+    area: 'Process',
+    equipmentPath: 'Plant.P01',
+    tagPath: 'Plant.P01.Running',
+    operator: 'operator-a',
+    operation: 'start',
+    commandKey: 'pump.start',
+    text: 'started',
+    pageSize: 40
+  }, null);
+
+  expect(request.datasetKey).toBe('operational.events');
+  expect(request.page.limit).toBe(40);
+  expect(request.search).toBe('started');
+  expect(request.filters).toEqual(expect.arrayContaining([
+    expect.objectContaining({ field: 'type', operator: 'contains' }),
+    expect.objectContaining({ field: 'category', operator: 'contains' }),
+    expect.objectContaining({ field: 'source', operator: 'contains' }),
+    expect.objectContaining({ field: 'area', operator: 'contains' }),
+    expect.objectContaining({ field: 'equipment.path', operator: 'contains' }),
+    expect.objectContaining({ field: 'tag.path', operator: 'contains' }),
+    expect.objectContaining({ field: 'operator', operator: 'contains' }),
+    expect.objectContaining({ field: 'operation', operator: 'contains' }),
+    expect.objectContaining({ field: 'command.key', operator: 'contains' })
+  ]));
+  expect(request.filters?.some(filter => filter.field === 'state' || filter.field === 'priority' || filter.field === 'audit')).toBe(false);
 });
 
 test('canonical property mutation changes only the selected Browser instance', () => {

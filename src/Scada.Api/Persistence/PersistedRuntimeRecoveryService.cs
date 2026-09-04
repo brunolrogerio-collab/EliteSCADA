@@ -27,8 +27,8 @@ public sealed class PersistedRuntimeRecoveryService(
     IEngineeringProjectPersistenceService persistence,
     IEngineeringExchangeService exchange,
     IEngineeringRuntimeCoordinator runtime,
-    IScadaEventBus eventBus,
-    IConfiguration configuration) : IPersistedRuntimeRecoveryService
+    IScadaEventBus? eventBus = null,
+    IConfiguration? configuration = null) : IPersistedRuntimeRecoveryService
 {
     public async Task<PersistedRuntimeRecoveryResult> RecoverAsync(
         string projectKey,
@@ -37,11 +37,19 @@ public sealed class PersistedRuntimeRecoveryService(
         if (string.IsNullOrWhiteSpace(projectKey))
             throw new ArgumentException("Project key is required.", nameof(projectKey));
 
-        var activation = await persistence.GetActivationAsync(projectKey, cancellationToken);
+        var activation = await persistence.GetActivationAsync(
+            projectKey,
+            cancellationToken);
         if (activation is null)
-            return new PersistedRuntimeRecoveryResult(projectKey.Trim(), null, false, null);
+            return new PersistedRuntimeRecoveryResult(
+                projectKey.Trim(),
+                null,
+                false,
+                null);
 
-        var snapshot = await persistence.LoadActiveAsync(projectKey, cancellationToken);
+        var snapshot = await persistence.LoadActiveAsync(
+            projectKey,
+            cancellationToken);
         if (snapshot is null)
         {
             return new PersistedRuntimeRecoveryResult(
@@ -52,17 +60,28 @@ public sealed class PersistedRuntimeRecoveryService(
         }
 
         var package = ParseAndValidate(snapshot);
-        var result = await runtime.ActivateAsync(
-            snapshot.ProjectKey,
-            snapshot.Revision,
-            package,
-            cancellationToken);
 
-        if (result.Activated)
+        RuntimeActivationResult result;
+        if (eventBus is not null && configuration is not null)
         {
-            await ServerScriptRuntimeManager
-                .GetShared(runtime, eventBus, configuration)
-                .ActivateAsync(snapshot.ProjectKey, snapshot.Revision, package.Scripts, cancellationToken);
+            var scripts = ServerScriptRuntimeManager.GetShared(
+                runtime,
+                eventBus,
+                configuration);
+            result = await scripts.ActivateRuntimeAsync(
+                snapshot.ProjectKey,
+                snapshot.Revision,
+                package,
+                cancellationToken);
+        }
+        else
+        {
+            EnsureNoServerScriptsWithoutHost(package);
+            result = await runtime.ActivateAsync(
+                snapshot.ProjectKey,
+                snapshot.Revision,
+                package,
+                cancellationToken);
         }
 
         return new PersistedRuntimeRecoveryResult(
@@ -76,14 +95,31 @@ public sealed class PersistedRuntimeRecoveryService(
     {
         var package = exchange.ParseJson(snapshot.EngineeringJson);
 
-        if (!snapshot.EngineeringSchema.Equals(package.Schema, StringComparison.OrdinalIgnoreCase))
+        if (!snapshot.EngineeringSchema.Equals(
+                package.Schema,
+                StringComparison.OrdinalIgnoreCase))
+        {
             throw new InvalidDataException(
                 $"Stored engineering schema '{snapshot.EngineeringSchema}' does not match payload schema '{package.Schema}'.");
+        }
 
         if (snapshot.EngineeringSchemaVersion != package.SchemaVersion)
+        {
             throw new InvalidDataException(
                 $"Stored engineering schema version {snapshot.EngineeringSchemaVersion} does not match payload version {package.SchemaVersion}.");
+        }
 
         return package;
+    }
+
+    private static void EnsureNoServerScriptsWithoutHost(EngineeringPackage package)
+    {
+        if (package.Scripts?.Any(script =>
+                script.Enabled &&
+                script.Scope == Scada.Engineering.Scripts.ScriptEngineeringScope.Server) == true)
+        {
+            throw new InvalidOperationException(
+                "Server Script runtime host dependencies are unavailable for this recovery.");
+        }
     }
 }

@@ -22,15 +22,15 @@ export type TrendSeries = Readonly<{
 export function buildTrendHistoricalQuery(
   pens: readonly TrendVisualPen[],
   windowSeconds: number,
-  limit = 1000
+  limit = 200
 ): HistoricalQueryRequest {
   const tagIds = [...new Set(pens.filter(pen => pen.visible).map(pen => pen.tagId))];
   if (tagIds.length === 0) throw new Error('Trend requires at least one visible Pen before querying history.');
   if (!Number.isSafeInteger(windowSeconds) || windowSeconds < 60 || windowSeconds > 604800) {
     throw new Error('Trend windowSeconds must be an integer between 60 and 604800.');
   }
-  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1000) {
-    throw new Error('Trend query limit must be an integer between 1 and 1000.');
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200) {
+    throw new Error('Trend query limit must be an integer between 1 and 200.');
   }
   return Object.freeze({
     datasetKey: 'historian.samples',

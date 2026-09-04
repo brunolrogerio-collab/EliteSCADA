@@ -2,6 +2,8 @@ import { expect, test } from '@playwright/test';
 import {
   DEFAULT_ALARM_BROWSER_CONFIG,
   DEFAULT_EVENT_BROWSER_CONFIG,
+  readAlarmBrowserConfig,
+  readEventBrowserConfig,
   normalizeAlarmBrowserConfig,
   normalizeEventBrowserConfig
 } from '../src/visual-runtime/browserVisualModel';
@@ -9,6 +11,7 @@ import {
   createObjectAddIntent,
   listVisualObjectPaletteItems
 } from '../src/engineering/visual-editor/object-palette/objectPaletteModel';
+import { applyVisualEditorMutationIntent } from '../src/engineering/visual-editor/visualEditorCanonicalModel';
 import { historicalBrowserCopy } from '../src/runtime/historical-browser/historicalBrowserI18n';
 
 test('Alarm Browser and Event Browser are first-class authoring palette objects', () => {
@@ -57,6 +60,36 @@ test('browser configurations remain structured, independent and kind-specific', 
   expect(alarm.columns).not.toEqual(event.columns);
   expect(() => normalizeAlarmBrowserConfig({ ...DEFAULT_ALARM_BROWSER_CONFIG, columns: ['type'] })).toThrow();
   expect(() => normalizeEventBrowserConfig({ ...DEFAULT_EVENT_BROWSER_CONFIG, columns: ['state'] })).toThrow();
+});
+
+test('canonical property mutation changes only the selected Browser instance', () => {
+  const screen: any = {
+    id: 'screen-c18',
+    key: 'c18.screen',
+    name: 'C18 Screen',
+    elements: [
+      { id: 'alarm-a', key: 'alarm-a', type: 'core.alarmBrowser', properties: { x: 0, y: 0, width: 720, height: 320 } },
+      { id: 'alarm-b', key: 'alarm-b', type: 'core.alarmBrowser', properties: { x: 740, y: 0, width: 720, height: 320 } },
+      { id: 'event-a', key: 'event-a', type: 'core.eventBrowser', properties: { x: 0, y: 340, width: 720, height: 320 } }
+    ]
+  };
+
+  const updated = applyVisualEditorMutationIntent(screen, {
+    kind: 'property.set',
+    objectIds: ['alarm-a'],
+    propertyKey: 'browserConfig',
+    value: { ...DEFAULT_ALARM_BROWSER_CONFIG, area: 'Only-A', pageSize: 25 }
+  });
+
+  const alarmA = updated.elements!.find((element: any) => element.id === 'alarm-a')!;
+  const alarmB = updated.elements!.find((element: any) => element.id === 'alarm-b')!;
+  const eventA = updated.elements!.find((element: any) => element.id === 'event-a')!;
+
+  expect(readAlarmBrowserConfig(alarmA)).toMatchObject({ area: 'Only-A', pageSize: 25 });
+  expect(readAlarmBrowserConfig(alarmB)).toMatchObject({ area: '', pageSize: 50 });
+  expect(readEventBrowserConfig(eventA)).toMatchObject({ area: '', pageSize: 50 });
+  expect(alarmB.properties).not.toHaveProperty('browserConfig');
+  expect(eventA.properties).not.toHaveProperty('browserConfig');
 });
 
 test('historical browser visible chrome is covered in pt-BR, en and es without translating dataset identities', () => {

@@ -223,7 +223,18 @@ async function setMemoryInitialValue(page: Page, path: string, value: string) {
   await page.getByTestId('memory-initial-preview').click();
   await expect(page.getByTestId('memory-initial-apply')).toBeEnabled();
   await page.getByTestId('memory-initial-apply').click();
-  await page.waitForLoadState('domcontentloaded');
+
+  // The Apply handler persists asynchronously and only then triggers a page reload.
+  // Waiting for the current document's load state can resolve before that request
+  // finishes, so observe canonical Working state before the next UI navigation.
+  await expect.poll(async () => {
+    const response = await page.request.get('/api/engineering/export/json');
+    if (!response.ok()) return null;
+    const model = await response.json() as any;
+    const tag = model.tags.find((candidate: any) => candidate.path === path);
+    const initialValue = tag?.initialValue?.value;
+    return initialValue === undefined || initialValue === null ? null : String(initialValue);
+  }).toBe(value);
 }
 
 async function savePublishActivate(request: any, projectName: string): Promise<{ revision: number }> {

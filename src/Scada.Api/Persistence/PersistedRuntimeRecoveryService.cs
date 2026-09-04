@@ -28,7 +28,8 @@ public sealed class PersistedRuntimeRecoveryService(
     IEngineeringExchangeService exchange,
     IEngineeringRuntimeCoordinator runtime,
     IScadaEventBus? eventBus = null,
-    IConfiguration? configuration = null) : IPersistedRuntimeRecoveryService
+    IConfiguration? configuration = null,
+    GatewayEngineeringRuntimeCoordinator? operationalEvents = null) : IPersistedRuntimeRecoveryService
 {
     public async Task<PersistedRuntimeRecoveryResult> RecoverAsync(
         string projectKey,
@@ -68,11 +69,30 @@ public sealed class PersistedRuntimeRecoveryService(
                 runtime,
                 eventBus,
                 configuration);
-            result = await scripts.ActivateRuntimeAsync(
-                snapshot.ProjectKey,
-                snapshot.Revision,
-                package,
-                cancellationToken);
+
+            if (operationalEvents is not null)
+            {
+                await using var operationalEventGate =
+                    await ServerScriptOperationalEventBridge.BindForActivationAsync(
+                        scripts,
+                        runtime,
+                        operationalEvents,
+                        cancellationToken);
+
+                result = await scripts.ActivateRuntimeAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    package,
+                    cancellationToken);
+            }
+            else
+            {
+                result = await scripts.ActivateRuntimeAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    package,
+                    cancellationToken);
+            }
         }
         else
         {

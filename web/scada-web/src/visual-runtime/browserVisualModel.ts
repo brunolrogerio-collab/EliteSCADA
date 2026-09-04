@@ -68,7 +68,9 @@ export const DEFAULT_ALARM_BROWSER_CONFIG: AlarmBrowserConfig = Object.freeze({
   tagPath: '',
   text: '',
   lookbackSeconds: 86400,
-  columns: Object.freeze(['timestamp', 'state', 'priority', 'name', 'area', 'tag.path', 'message']),
+  columns: Object.freeze([
+    'timestamp', 'state', 'priority', 'name', 'area', 'tag.path', 'message'
+  ] as const),
   sortField: 'timestamp',
   sortDirection: 'descending',
   pageSize: 50,
@@ -88,7 +90,10 @@ export const DEFAULT_EVENT_BROWSER_CONFIG: EventBrowserConfig = Object.freeze({
   commandKey: '',
   text: '',
   lookbackSeconds: 86400,
-  columns: Object.freeze(['timestamp', 'type', 'category', 'source', 'area', 'equipment.path', 'tag.path', 'operator', 'operation', 'message']),
+  columns: Object.freeze([
+    'timestamp', 'type', 'category', 'source', 'area', 'equipment.path', 'tag.path',
+    'operator', 'operation', 'message'
+  ] as const),
   sortField: 'timestamp',
   sortDirection: 'descending',
   pageSize: 50

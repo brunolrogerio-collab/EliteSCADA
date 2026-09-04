@@ -53,8 +53,8 @@ export function HistoricalFilterBuilder({
       onFiltersChange(Object.freeze([...filters, filter]));
       setDraft(current => Object.freeze({ ...current, valueText: '' }));
       setDiagnostic(null);
-    } catch (error) {
-      setDiagnostic(error instanceof Error ? error.message : text.invalidFilter);
+    } catch {
+      setDiagnostic(text.invalidFilter);
     }
   }
 

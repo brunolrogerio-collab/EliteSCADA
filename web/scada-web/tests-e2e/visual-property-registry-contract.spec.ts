@@ -61,7 +61,14 @@ const expectedCommonKeys = [
   'interactionEnabled',
   'reverseDirection',
   'trackColor',
-  'thumbColor'
+  'thumbColor',
+  'trendMode',
+  'trendWindowSeconds',
+  'trendRefreshSeconds',
+  'trendLegendVisible',
+  'trendGridVisible',
+  'trendAxesVisible',
+  'trendQualityVisible'
 ];
 
 test('common registry exposes the converged visual property family and image fit enum', () => {
@@ -121,6 +128,12 @@ test('common registry exposes the converged visual property family and image fit
     .toMatchObject({ type: 'enum', defaultValue: 'middle' });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.imagePositionX))
     .toMatchObject({ type: 'number', defaultValue: 0, minimum: 0, maximum: 1, animatable: true });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.trendMode))
+    .toMatchObject({ type: 'enum', defaultValue: 'history', allowedValues: ['history', 'live'] });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.trendWindowSeconds))
+    .toMatchObject({ type: 'number', defaultValue: 3600, integer: true, minimum: 60, maximum: 604800 });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.trendRefreshSeconds))
+    .toMatchObject({ type: 'number', defaultValue: 5, integer: true, minimum: 1, maximum: 3600 });
 });
 
 test('numeric constraints reject non-finite, fractional integer-only and out-of-range values without coercion', () => {

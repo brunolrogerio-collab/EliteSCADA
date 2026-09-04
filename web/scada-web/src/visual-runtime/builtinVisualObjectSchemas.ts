@@ -13,6 +13,7 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   text: 'core.text',
   image: 'core.image',
   valueDisplay: 'core.valueDisplay',
+  trend: 'core.trend',
   button: 'core.button',
   slider: 'core.slider'
 } as const;
@@ -83,6 +84,20 @@ const TEXT: readonly CommonVisualPropertyKey[] = [
   VISUAL_PROPERTY_KEYS.verticalAlignment
 ];
 
+const TREND: readonly CommonVisualPropertyKey[] = [
+  VISUAL_PROPERTY_KEYS.backgroundColor,
+  VISUAL_PROPERTY_KEYS.strokeColor,
+  VISUAL_PROPERTY_KEYS.strokeWidth,
+  VISUAL_PROPERTY_KEYS.cornerRadius,
+  VISUAL_PROPERTY_KEYS.trendMode,
+  VISUAL_PROPERTY_KEYS.trendWindowSeconds,
+  VISUAL_PROPERTY_KEYS.trendRefreshSeconds,
+  VISUAL_PROPERTY_KEYS.trendLegendVisible,
+  VISUAL_PROPERTY_KEYS.trendGridVisible,
+  VISUAL_PROPERTY_KEYS.trendAxesVisible,
+  VISUAL_PROPERTY_KEYS.trendQualityVisible
+];
+
 const BASE = [...GEOMETRY, ...TRANSFORM, ...VISIBILITY, ...EFFECTS] as const;
 
 const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
@@ -124,6 +139,10 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     ...STROKE,
     VISUAL_PROPERTY_KEYS.cornerRadius,
     ...TEXT
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.trend, schema(BUILTIN_VISUAL_OBJECT_TYPES.trend, [
+    ...BASE,
+    ...TREND
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.button, schema(BUILTIN_VISUAL_OBJECT_TYPES.button, [
     ...BASE,

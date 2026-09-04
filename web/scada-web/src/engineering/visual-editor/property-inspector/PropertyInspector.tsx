@@ -1,7 +1,16 @@
 import { useMemo, useState } from 'react';
+import type { EngineeringLocale } from '../../i18n';
 import type { VisualEditorPropertyInspectorContractProps } from '../visualEditorContracts';
 import type { VisualAssetEngineering, VisualEngineeringPropertyValue } from '../../types';
+import { BUILTIN_VISUAL_OBJECT_TYPES, VISUAL_PROPERTY_KEYS } from '../../../visual-runtime';
 import { EventsEditor } from '../events-editor/EventsEditor';
+import { TrendPenEditor } from '../TrendPenEditor';
+import { c07VisualEditorText, useC07VisualEditorText } from '../c07VisualEditorI18n';
+import {
+  trendInspectorControlCopy,
+  trendPropertyLabel,
+  trendPropertyOptionLabel
+} from '../trendAuthoringModel';
 import { PropertyEditorControl } from './PropertyEditorControl';
 import {
   buildPropertyInspectorModel,
@@ -60,7 +69,8 @@ const DEFAULT_COPY: PropertyInspectorCopy = {
     appearance: 'Appearance',
     text: 'Text',
     image: 'Image',
-    control: 'Control'
+    control: 'Control',
+    trend: 'Trend'
   }
 };
 
@@ -70,6 +80,8 @@ export function PropertyInspector({
   visualAssets = [],
   copy
 }: PropertyInspectorProps) {
+  const currentVisualText = useC07VisualEditorText();
+  const locale = localeForVisualText(currentVisualText);
   const text: PropertyInspectorCopy = {
     ...DEFAULT_COPY,
     ...copy,
@@ -102,6 +114,10 @@ export function PropertyInspector({
     );
   }
 
+  const selectedTrend = selectedElements.length === 1 && selectedElements[0].type === BUILTIN_VISUAL_OBJECT_TYPES.trend
+    ? selectedElements[0]
+    : null;
+
   return (
     <aside className="property-inspector" data-testid="visual-property-inspector">
       <header className="property-inspector__header">
@@ -118,12 +134,15 @@ export function PropertyInspector({
               model={model}
               row={row}
               text={text}
+              locale={locale}
               visualAssets={visualAssets}
               onMutationIntent={onMutationIntent}
             />
           ))}
         </section>
       ))}
+
+      {selectedTrend ? <TrendPenEditor element={selectedTrend} onMutationIntent={onMutationIntent} /> : null}
 
       {selectedElements.length === 1 && selectedElements[0].id ? (
         <EventsEditor visualObjectId={selectedElements[0].id} />
@@ -136,13 +155,18 @@ type PropertyFieldProps = Readonly<{
   model: PropertyInspectorModel;
   row: PropertyInspectorRow;
   text: PropertyInspectorCopy;
+  locale: EngineeringLocale;
   visualAssets: readonly VisualAssetEngineering[];
   onMutationIntent: VisualEditorPropertyInspectorContractProps['onMutationIntent'];
 }>;
 
-function PropertyField({ model, row, text, visualAssets, onMutationIntent }: PropertyFieldProps) {
+function PropertyField({ model, row, text, locale, visualAssets, onMutationIntent }: PropertyFieldProps) {
   const [error, setError] = useState<string | null>(null);
   const definition = row.definition;
+  const localizedTrendLabel = trendPropertyLabel(locale, definition.key);
+  const rowText: PropertyInspectorCopy = localizedTrendLabel
+    ? { ...text, ...trendInspectorControlCopy(locale) }
+    : text;
 
   const commit = (value: VisualEngineeringPropertyValue) => {
     const result = buildPropertyInspectorSetIntent(model, definition.key, value);
@@ -165,6 +189,9 @@ function PropertyField({ model, row, text, visualAssets, onMutationIntent }: Pro
     onMutationIntent(result.intent);
   };
 
+  const trendModeControl = definition.key === VISUAL_PROPERTY_KEYS.trendMode && definition.type === 'enum';
+  const trendModeValue = row.state === 'mixed' ? '__mixed__' : String(row.value);
+
   return (
     <div
       className="property-inspector__field"
@@ -174,20 +201,36 @@ function PropertyField({ model, row, text, visualAssets, onMutationIntent }: Pro
     >
       <div className="property-inspector__field-heading">
         <div className="property-inspector__field-label">
-          <label htmlFor={`visual-property-${definition.key}`}>{humanizeVisualPropertyKey(definition.key)}</label>
+          <label htmlFor={`visual-property-${definition.key}`}>
+            {localizedTrendLabel ?? humanizeVisualPropertyKey(definition.key)}
+          </label>
           <code title="Canonical property key">{definition.key}</code>
         </div>
-        <span className={`property-inspector__state property-inspector__state--${row.state}`}>{stateLabel(row, text)}</span>
+        <span className={`property-inspector__state property-inspector__state--${row.state}`}>{stateLabel(row, rowText)}</span>
       </div>
 
-      <PropertyEditorControl
-        definition={definition}
-        row={row}
-        text={text}
-        visualAssets={visualAssets}
-        commit={commit}
-        setError={setError}
-      />
+      {trendModeControl ? (
+        <select
+          id={`visual-property-${definition.key}`}
+          value={trendModeValue}
+          disabled={!definition.engineeringEditable}
+          onChange={event => commit(event.currentTarget.value)}
+        >
+          {row.state === 'mixed' ? <option value="__mixed__" disabled>{rowText.mixed}</option> : null}
+          {definition.allowedValues.map(option => (
+            <option key={option} value={option}>{trendPropertyOptionLabel(locale, definition.key, option)}</option>
+          ))}
+        </select>
+      ) : (
+        <PropertyEditorControl
+          definition={definition}
+          row={row}
+          text={rowText}
+          visualAssets={visualAssets}
+          commit={commit}
+          setError={setError}
+        />
+      )}
 
       <div className="property-inspector__field-meta">
         <span>{definition.type}{definition.unit ? ` · ${definition.unit}` : ''}</span>
@@ -197,7 +240,7 @@ function PropertyField({ model, row, text, visualAssets, onMutationIntent }: Pro
           disabled={row.state === 'default' || !definition.engineeringEditable}
           onClick={remove}
         >
-          {text.useDefault}
+          {rowText.useDefault}
         </button>
       </div>
 
@@ -229,6 +272,12 @@ function stateLabel(row: PropertyInspectorRow, text: PropertyInspectorCopy): str
     case 'engineered': return text.engineeringState;
     case 'mixed': return text.mixedState(row.explicitCount, row.selectionCount);
   }
+}
+
+function localeForVisualText(text: ReturnType<typeof useC07VisualEditorText>): EngineeringLocale {
+  if (text === c07VisualEditorText('en')) return 'en';
+  if (text === c07VisualEditorText('es')) return 'es';
+  return 'pt-BR';
 }
 
 export default PropertyInspector;

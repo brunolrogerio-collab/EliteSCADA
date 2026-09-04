@@ -1,193 +1,202 @@
 # EliteSCADA — Current Coordinator Handoff
 
 **Last operational synchronization:** 2026-09-04 BRT  
-**Status:** **WAVE 14 ACTIVE / C12–C18 CONVERGED / C10 CYCLE 2 GREEN / C19 ACTIVE / C11 IMPLEMENTATION LOCKED / WAVE13 PAUSED**
+**Status:** **WAVE 14 ACTIVE / C12–C18 CONVERGED / C19 5-of-6 GREEN BUT BLOCKED / C11 IMPLEMENTATION LOCKED / WAVE13 PAUSED**
 
-> GitHub is the official development memory. Revalidate live refs before acting. `PROJECT GOAL.md` governs permanent intent. `LAST CHANGE.md` is the fastest current-state summary. `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md` is the explicit resume document for a new Coordinator chat.
+> GitHub is the official development memory. Revalidate live refs and exact-SHA workflows before acting. Documentation-only commits do not redefine product authority.
 
-## 1. Permanent Coordinator gates
-
-The Coordinator owns integration, architecture preservation, exact-head validation sequencing and acceptance.
-
-Permanent rules:
+## 1. Permanent gates
 
 - backend is canonical authority;
 - authorization is backend-enforced;
 - licensing is host-owned and fail-closed;
-- no Preview-only bypass;
-- no Driver-to-Driver coupling;
-- canonical TAG/Data Source identity remains authoritative;
 - lifecycle remains `Working -> saved Revision -> Published -> Active -> HMI Runtime`;
 - diagnose a red before rerun;
-- never weaken tests/security/contracts/lifecycle merely to obtain green;
+- never weaken tests/security/contracts/identity/lifecycle for green;
 - package delivery is not Coordinator acceptance;
-- PR #212 remains DRAFT and must not merge to `main` without later Product Owner authorization;
-- C11 remains locked until explicit Coordinator release after every product blocker is cleared.
+- PR #212 stays OPEN/DRAFT and must not merge to `main` without later explicit Product Owner authorization;
+- C11 stays IMPLEMENTATION LOCKED until explicit release;
+- Wave13 #205/#207 stays paused until final accepted Wave14 bytes.
 
-## 2. Current accepted product checkpoint before C19
+## 2. Accepted product authority before C19
 
-Repository:
-
-`brunolrogerio-collab/EliteSCADA`
-
-Coordinator branch:
-
-`wave14/corrections-integration`
-
-Integration PR:
-
-`#212` — **OPEN / DRAFT / DO NOT MERGE TO main WITHOUT LATER PRODUCT OWNER AUTHORIZATION**
-
-Exact C12–C18 combined accepted product checkpoint:
+Integration branch: `wave14/corrections-integration`  
+Integration PR: #212 OPEN/DRAFT  
+Exact accepted C12–C18 product checkpoint:
 
 `2e284606b605a26bb9632eae5264de30bea0acde`
 
-C18 isolated accepted candidate:
+Exact evidence:
 
-`c6d7601d17737deeaf196fac9c4c00190089df6b`
+- EliteSCADA CI #1360 / `33920467689` — SUCCESS;
+- Wave11 #288 / `33920467682` — SUCCESS;
+- Preview Licensing #310 / `33920467789` — SUCCESS;
+- L3 #265 / `33920467676` — SUCCESS;
+- Interop #187 / `33920467665` — SUCCESS;
+- C03 DNP3 #91 / `33921310281` — SUCCESS;
+- Test Preview #16 / `33921526826` — SUCCESS on disposable overlay directly based on `2e284606...`; PR #256 closed without merge.
 
-Five combined gates on exact `2e284606...`, all SUCCESS:
+C18 isolated accepted SHA: `c6d7601d17737deeaf196fac9c4c00190089df6b`.
 
-- EliteSCADA CI #1360 / `33920467689`;
-- Wave11 Active HMI Runtime #288 / `33920467682`;
-- Preview Licensing CI #310 / `33920467789`;
-- L3 Seven-Driver Lab #265 / `33920467676`;
-- Interop Lab Smoke #187 / `33920467665`.
+## 3. Why C19 exists
 
-Additional C10 Convergence Cycle 2 evidence:
+C11 Pass-2 revalidation left one functional blocker, `C11-P2-EVT-01`.
 
-- Wave 14 C03 DNP3 Adapter #91 / `33921310281` — SUCCESS on exact product SHA;
-- Test Preview #16 / `33921526826` — SUCCESS with disposable Preview infrastructure overlay based directly on exact product SHA;
-- overlay PR #256 closed without merge.
+C14 already provides canonical Operational Event definition/runtime/history/query. C18 already provides Event Browser consumption. Missing ordinary product mechanisms were:
 
-**C18 = ACCEPTED / CONVERGED.**  
-**C12–C18 = CONVERGED.**
+1. human Engineering authoring of Operational Event definitions;
+2. generic Server Script emission through canonical C14 Active Runtime.
 
-Later docs-only integration commits do not redefine these product bytes.
+C19 closes only that gap.
 
-## 3. C11 revalidation after C12–C18
+Required generic chain:
 
-C11 Pass 2 remains **IMPLEMENTATION LOCKED**.
+`Engineering -> Preview/Apply -> Save/Publish/Activate -> Server Script emit -> C14 Active Runtime -> event bus/history -> C18 Event Browser`
 
-The post-C18 revalidation confirmed support for the major correction packages:
+No EEE-specific code is allowed.
 
-- C12 Server Runtime automation / generic simulation authoring;
-- C13 canonical non-Good simulation quality + propagation;
-- C15 first-class Multi-Pen Trend in Screen/Popup;
-- C16 Operational Command HMI + Startup/Home + persisted Popup X/Y;
-- C17 Internal Memory ordinary authoring/lifecycle;
-- C18 first-class Alarm Browser and Event Browser + affected i18n.
+## 4. Live C19 package
 
-One functional blocker remains before the EEE Simulation can be constructed entirely with ordinary product mechanisms:
+Branch: `wave14/c19-operational-event-authoring-script-bridge`  
+PR: #257 OPEN/DRAFT -> `wave14/corrections-integration`  
+Exact base: `2e284606b605a26bb9632eae5264de30bea0acde`  
+Latest validated PRODUCT SHA before its docs-only handoff:
 
-`C11-P2-EVT-01`
+`537ce074466aaf34d98142309ed4fd71036cf050`
 
-C14 already has canonical Operational Event model/runtime/history/query. C18 already consumes it. The remaining missing normal product surfaces are:
+C19 is **NOT ACCEPTED**.
 
-1. human Engineering authoring for Operational Event definitions;
-2. generic Server Script emission through canonical C14 Active Runtime authority.
+The live branch has a detailed operational record at:
 
-That gap is C19.
+`docs/WAVE14-C19-PROGRESS.md`
 
-## 4. C19 active correction
+The C19 docs-only handoff commit after product SHA 537ce is `fb29ea0712695216aef2f538da2fb1c0f17ef2ef`; it does not redefine product bytes.
 
-Package:
+## 5. C19 implementation already present
 
-**W14-C19 — Operational Event Authoring + Server Script Emission Bridge**
+### Engineering
 
-Exact product base:
+- normal Operational Events navigation/editor;
+- create/edit via protected Working package Preview -> CAS -> Apply;
+- normal authoring of stable ID, key/name/type/category/source, area/equipment/TAG, message/enabled;
+- pt-BR/en/es chrome;
+- backend Apply errors preserved;
+- C17-class NEW-selection stale-draft race discovered and corrected atomically;
+- deterministic regression proves a pristine NEW Operational Event draft is installed before new-mode identity.
 
-`2e284606b605a26bb9632eae5264de30bea0acde`
+### Server Script / C14
 
-Branch:
+- deterministic `emit_operational_event(definition_id, message=None, context=None)`;
+- bounded message/context;
+- Python child has no event bus or history authority;
+- C# host validates stable definition ID and routes through canonical C14 Active Runtime;
+- unknown/disabled/stale definition behavior fails closed;
+- no new Script dependency kind;
+- Alarm / Operational Event / Audit remain separate.
 
-`wave14/c19-operational-event-authoring-script-bridge`
+## 6. Important bridge architecture correction
 
-PR:
+Do not restore the former C19 separate gate/`AsyncLocal` activation-lease design.
 
-`#257` — **OPEN / DRAFT / target wave14/corrections-integration / DO NOT RETARGET main**
+Wave11 #291 demonstrated that `AsyncLocal` set inside `BindForActivationAsync` did not become the caller's context after method return. New-generation `Initialize` therefore waited on its own bridge gate until Script timeout.
 
-First C19 commit:
+Current intended design reuses `ServerScriptRuntimeManager._revisionGate`, the existing canonical gate for Active revision swap and Script TAG/Server Memory access.
 
-`68ac7ed1c019954f88671a983ee328dc9a7ceb47`
+Correction sequence:
 
-Binding implementation handoff on the C19 branch:
+- `075904ff82b425ed20aed2d8ced83ab33b4a608e` — revision-gated host helper;
+- `48202f29a9f6ac2e52109c6a5421f7472c04a8c3` — bridge simplified, no `AsyncLocal`/parallel gate;
+- `33313f5d56c343d98c80c9fd790fb82e18db3384` — published activation binding;
+- `d989003efd9be364b8c333e749fbe3c033c47fb2` — persisted recovery binding;
+- `537ce074466aaf34d98142309ed4fd71036cf050` — diagnostic E2E assertions.
 
-`docs/WAVE14-C19-IMPLEMENTATION-HANDOFF.md`
+This ensures an old generation cannot cross a revision swap, while new-generation Initialize runs after the canonical swap gate is released.
 
-C19 target chain:
+## 7. Exact current validation on 537ce
 
-`Engineering authoring -> Preview/Apply -> Save/Publish/Activate -> Server Script emit -> C14 Active Runtime -> event bus/history -> C18 Event Browser`
+On exact product SHA `537ce074466aaf34d98142309ed4fd71036cf050`:
 
-No EEE-specific code is accepted.
+- EliteSCADA CI #1365 / `33928660073` — SUCCESS;
+- Preview Licensing #315 / `33928660187` — SUCCESS;
+- L3 #271 / `33928659951` — SUCCESS;
+- Interop #192 / `33928660008` — SUCCESS;
+- C03 DNP3 #108 / `33928648375` — SUCCESS;
+- Wave11 #293 / `33928659977` — FAILURE.
 
-### Confirmed existing architecture to preserve
+So current status is **5/6 green, C19 NOT ACCEPTED**.
 
-- `OperationalEventEngineeringDto` already exists;
-- `EngineeringExchangeService` already exports `operationalEvents`;
-- `EngineeringWorkspace.Scripts` is `InMemoryScriptEngineeringRegistry`, which also implements `IOperationalEventEngineeringRegistry`, so Working lifecycle/persistence already exists;
-- `ScadaRuntimeFacade.EmitOperationalEventAsync(...)` already delegates to Active `IOperationalEventRuntime`;
-- `OperationalEventContract.CreateOccurrence(...)` is canonical;
-- Alarm / Operational Event / Audit remain distinct;
-- Command execution must not be changed to implicitly generate Operational Events.
+Wave11 #293 proves the NEW Operational Event transition regression is green and reaches the C19 integrated flow. The Server Script executes once, but canonical diagnostics report a real runtime fault, not timeout/deadlock:
 
-## 5. C19 implementation route
+`python3: can't open file '/home/runner/work/EliteSCADA/EliteSCADA/src/Scada.Api/bin/Debug/net10.0/ServerScriptRunner.py': [Errno 2] No such file or directory`
 
-1. add `OperationalEventEngineering` to web types and `operationalEvents` package view;
-2. add normal Engineering navigation/authoring surface in pt-BR/en/es;
-3. reuse protected package Preview -> Apply/CAS, not an unprotected direct mutation shortcut;
-4. add generic deterministic Server Script API `emit_operational_event(...)`;
-5. Python child returns bounded emission requests, never publishes/writes history itself;
-6. C# host validates/replays emission under existing Active Revision lifecycle protection through C14 authority;
-7. add focused backend tests for success, unknown definition, stale revision, disabled/unresolved definitions and bounded payloads;
-8. add integrated browser E2E proving ordinary authoring -> Save/Publish/Activate -> Script emit -> Event Browser observation;
-9. exact C19 candidate: five required gates + focused tests;
-10. diagnose red before rerun;
-11. compose only accepted C19 into integration preserving history;
-12. five combined gates again;
-13. dedicated C03 DNP3 again on exact combined SHA;
-14. real Preview/browser carry-forward again;
-15. only then freeze new product bytes.
+This is the current blocker.
 
-## 6. C11 work after C19
+## 8. First mandatory next action
 
-Even after C19 converges, close remaining browser evidence before C11 release:
+Inspect `src/Scada.Api/Scada.Api.csproj` and the existing `ServerScriptRunner.py` content/copy rules. Fix normal product output packaging so the runner is present in Debug output and publish/runtime output consistently.
 
-- Analog Fill visibly live;
-- Dynamo operational/bad-quality visual states;
-- two independent Dynamo instances;
-- four canonical Runtime resolution/scaling behaviors;
-- fullscreen/no-scroll/overlay without reflow;
-- one integrated living chain:
-  `automation -> TAG/quality -> alarm/event/history -> HMI objects -> command`.
+Do not:
 
-Only after every blocker is cleared may the Coordinator explicitly record:
+- hardcode repository paths;
+- bypass the Python runner in tests;
+- increase timeout to hide the failure;
+- create EEE-specific handling;
+- weaken isolation/revision authority.
 
-`RELEASE C11 IMPLEMENTATION`
+Any product fix creates a new candidate SHA. Revalidate the new exact SHA.
 
-## 7. Preview / Wave13 boundaries
+## 9. C19 acceptance sequence after packaging fix
 
-- Issue #208 / PR #210 are Preview infrastructure/history only, never product authority.
-- Wave13 issue #205 / PR #207 remains paused until final Wave14 accepted bytes.
-- do not package/sign stale pre-Wave14 product bytes.
+1. inspect exact diff/output behavior;
+2. Wave11 including both C19 tests;
+3. EliteSCADA CI;
+4. Preview Licensing;
+5. L3 Seven-Driver Lab;
+6. Interop Lab Smoke;
+7. C03 DNP3 on the same exact candidate SHA;
+8. diagnose every red before rerun;
+9. architecture review;
+10. only then isolated C19 acceptance.
 
-## 8. Mandatory next-chat resume protocol
+## 10. After C19 acceptance
 
-Read/revalidate in this order:
+1. compose C19 into integration preserving history;
+2. five combined gates on exact C12–C19 integration SHA;
+3. C03 DNP3 on the same SHA;
+4. real Preview/browser carry-forward;
+5. declare new exact product freeze only after coherent green evidence;
+6. finish C11 browser evidence: Analog Fill live behavior, Dynamo operational/bad-quality states, two independent Dynamo instances, four canonical Runtime resolutions/scaling, fullscreen/no-scroll/overlay without reflow, integrated living chain;
+7. only when every blocker is clear, explicitly record `RELEASE C11 IMPLEMENTATION`;
+8. construct living deterministic EEE Simulation exclusively through ordinary generic EliteSCADA mechanisms;
+9. final Wave14 acceptance;
+10. resume Wave13 packaging/signing only on final accepted Wave14 bytes.
+
+## 11. Hard boundaries
+
+- #212 never merges to `main` without later explicit Product Owner authorization;
+- #257 stays DRAFT until accepted and never targets main;
+- #259 is a validation-only DRAFT PR/CI trigger and must never merge;
+- C11 remains locked;
+- Wave13 remains paused;
+- no EEE-specific simulator service/Driver/hidden DEMO package/private host bypass;
+- no direct history insert;
+- no Alarm/Event/Audit conflation;
+- backend Active revision remains authority;
+- no weakening security/tests/licensing/identity/lifecycle.
+
+## 12. Mandatory resume order
 
 1. `PROJECT GOAL.md`;
 2. `LAST CHANGE.md`;
 3. this file;
 4. `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`;
-5. live `docs/WAVE14-C19-IMPLEMENTATION-HANDOFF.md` from C19 branch;
-6. `docs/WAVE14-C11-PRE-DEMO-CORRECTION-PACKAGES.md`;
-7. `docs/WAVE14-C11-CANONICAL-DEMO-REQUIREMENTS.md`;
-8. C11 Pass-2 audit + HMI clarification;
-9. `docs/CI-VALIDATION-POLICY.md`;
-10. live issue #211;
-11. live PR #212;
-12. live PR #257;
-13. inspect exact C19 HEAD and its workflow runs;
-14. continue from the first unfinished C19 checklist item.
+5. live C19 `docs/WAVE14-C19-IMPLEMENTATION-HANDOFF.md`;
+6. live C19 `docs/WAVE14-C19-PROGRESS.md`;
+7. C11 pre-DEMO requirements/audit/HMI clarification;
+8. `docs/CI-VALIDATION-POLICY.md`;
+9. live issue #211;
+10. live PRs #212, #257, #259;
+11. revalidate exact refs/workflows;
+12. start with the missing `ServerScriptRunner.py` output/publish defect.
 
-Do not ask the Product Owner to repeat decisions that are already unambiguously recorded in GitHub.
+Do not ask the Product Owner to repeat decisions already recorded unambiguously in GitHub.

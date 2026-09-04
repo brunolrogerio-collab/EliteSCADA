@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { expect, test, type APIRequestContext, type Locator } from '@playwright/test';
 
 const projectKey = 'e2e-wave11';
@@ -8,6 +10,31 @@ const eventMessage = 'C19 SCRIPT EVENT';
 const eventSource = 'runtime.hmi';
 const eventArea = 'Screen-Event-Area';
 const scriptPath = 'scripts/c19-operational-event.py';
+
+test('C19 new Operational Event transition installs a pristine draft atomically before new-mode identity', async () => {
+  const source = await readFile(
+    path.resolve(process.cwd(), 'src/engineering/OperationalEventEditor.tsx'),
+    'utf8'
+  );
+
+  const chooseStart = source.indexOf('function choose(identity: string)');
+  const patchStart = source.indexOf('function patch(', chooseStart);
+  expect(chooseStart).toBeGreaterThanOrEqual(0);
+  expect(patchStart).toBeGreaterThan(chooseStart);
+  const chooseBlock = source.slice(chooseStart, patchStart);
+
+  const freshDraft = chooseBlock.indexOf('setDraft(newOperationalEventDraft());');
+  const identitySwap = chooseBlock.indexOf('setSelectedIdentity(identity);');
+  expect(freshDraft).toBeGreaterThanOrEqual(0);
+  expect(identitySwap).toBeGreaterThan(freshDraft);
+
+  const newEffectStart = source.indexOf('if (selectedIdentity === NEW_IDENTITY)');
+  const currentLookup = source.indexOf('const current = selectedIdentity', newEffectStart);
+  expect(newEffectStart).toBeGreaterThanOrEqual(0);
+  expect(currentLookup).toBeGreaterThan(newEffectStart);
+  const newEffectBranch = source.slice(newEffectStart, currentLookup);
+  expect(newEffectBranch).not.toContain('setDraft(newOperationalEventDraft());');
+});
 
 test('C19 authors an Operational Event normally and Server Script Initialize emits it through C14 into the C18 Event Browser', async ({ page, request }) => {
   await page.addInitScript(() => {

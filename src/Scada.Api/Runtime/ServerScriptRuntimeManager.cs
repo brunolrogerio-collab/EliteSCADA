@@ -1,7 +1,10 @@
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using Scada.Core.Abstractions;
 using Scada.Core.Events;
+using Scada.Core.Tags;
 using Scada.DriverHost.Runtime;
+using Scada.Engineering.Contracts;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.VisualScripting;
 
@@ -19,21 +22,30 @@ public sealed record ServerScriptInstanceSnapshot(
     string RuntimeInstanceId,
     ScriptRuntimeDiagnosticsSnapshot Diagnostics);
 
+internal sealed record ServerScriptTagSnapshot(
+    Guid TagId,
+    string Path,
+    TagDataType DataType,
+    object? Value,
+    bool IsServerMemory);
+
 /// <summary>
-/// Active-revision-only host for Server Engineering Scripts. The host owns one
-/// bounded execution coordinator per script, lifecycle events, canonical timers,
-/// TAG-change subscriptions and cancellation of the previous Active generation.
+/// Active-revision-only host for Server Engineering Scripts. Runtime activation and
+/// script TAG access share a revision gate, so an execution from an obsolete Active
+/// generation can never replay a write into a newer revision with the same stable TAG ID.
 /// </summary>
 public sealed class ServerScriptRuntimeManager : IAsyncDisposable
 {
-    private static readonly object SharedGate = new();
-    private static ServerScriptRuntimeManager? _shared;
+    private static readonly ConditionalWeakTable<IEngineeringRuntimeCoordinator, ServerScriptRuntimeManager> SharedHosts = new();
 
     private readonly IEngineeringRuntimeCoordinator _runtime;
     private readonly IScadaEventBus _eventBus;
     private readonly ScriptExecutionPolicy _policy;
-    private readonly IPythonScriptHandlerExecutor _executor;
-    private readonly SemaphoreSlim _activationGate = new(1, 1);
+    private readonly string _pythonExecutable;
+    private readonly string _runnerPath;
+    private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
+    private readonly SemaphoreSlim _revisionGate = new(1, 1);
+    private readonly EventHandler _processExitHandler;
     private ActiveGeneration? _active;
     private bool _disposed;
 
@@ -42,16 +54,18 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
         IScadaEventBus eventBus,
         IConfiguration configuration)
     {
-        _runtime = runtime;
-        _eventBus = eventBus;
-        _policy = BuildPolicy(configuration);
-        var executable = configuration["ServerScripts:PythonExecutable"];
-        if (string.IsNullOrWhiteSpace(executable))
-            executable = OperatingSystem.IsWindows() ? "python" : "python3";
-        var runnerPath = Path.Combine(AppContext.BaseDirectory, "ServerScriptRunner.py");
-        _executor = new IsolatedPythonScriptHandlerExecutor(runtime, executable, runnerPath);
+        _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
+        _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
+        ArgumentNullException.ThrowIfNull(configuration);
 
-        AppDomain.CurrentDomain.ProcessExit += (_, _) => DisposeFromProcessExit();
+        _policy = BuildPolicy(configuration);
+        _pythonExecutable = configuration["ServerScripts:PythonExecutable"] ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(_pythonExecutable))
+            _pythonExecutable = OperatingSystem.IsWindows() ? "python" : "python3";
+        _runnerPath = Path.Combine(AppContext.BaseDirectory, "ServerScriptRunner.py");
+
+        _processExitHandler = (_, _) => DisposeFromProcessExit();
+        AppDomain.CurrentDomain.ProcessExit += _processExitHandler;
     }
 
     public static ServerScriptRuntimeManager GetShared(
@@ -59,14 +73,14 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
         IScadaEventBus eventBus,
         IConfiguration configuration)
     {
-        lock (SharedGate)
-        {
-            if (_shared is null)
-                _shared = new ServerScriptRuntimeManager(runtime, eventBus, configuration);
-            else if (!ReferenceEquals(_shared._runtime, runtime) || !ReferenceEquals(_shared._eventBus, eventBus))
-                throw new InvalidOperationException("Server Script runtime host is already bound to another runtime instance.");
-            return _shared;
-        }
+        var host = SharedHosts.GetValue(
+            runtime,
+            _ => new ServerScriptRuntimeManager(runtime, eventBus, configuration));
+
+        if (!ReferenceEquals(host._eventBus, eventBus))
+            throw new InvalidOperationException("Server Script runtime host is already bound to another event bus.");
+
+        return host;
     }
 
     public ServerScriptRuntimeSnapshot Snapshot()
@@ -86,41 +100,97 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
                 instance.Coordinator.GetDiagnostics(instance.SubscriptionCount))).ToArray());
     }
 
+    /// <summary>
+    /// Canonical persisted-Active activation boundary. The Runtime transition and
+    /// Server Script generation replacement are serialized against all script TAG access.
+    /// </summary>
+    public Task<RuntimeActivationResult> ActivateRuntimeAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(package);
+        return ActivateRuntimeCoreAsync(
+            projectKey,
+            revision,
+            package.Scripts,
+            ct => _runtime.ActivateAsync(projectKey, revision, package, ct),
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Canonical persisted-Active activation boundary with the commit callback used by
+    /// published activation persistence.
+    /// </summary>
+    public Task<RuntimeActivationResult> ActivateRuntimeAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(package);
+        ArgumentNullException.ThrowIfNull(commitAsync);
+        return ActivateRuntimeCoreAsync(
+            projectKey,
+            revision,
+            package.Scripts,
+            ct => _runtime.ActivateAsync(projectKey, revision, package, commitAsync, ct),
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Attaches Server Scripts to an already Active revision. Persisted production activation
+    /// uses ActivateRuntimeAsync so the Runtime swap and script generation share the revision gate.
+    /// </summary>
     public async Task ActivateAsync(
         string projectKey,
         long revision,
         IReadOnlyCollection<ScriptEngineeringDefinition>? scripts,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(projectKey))
-            throw new ArgumentException("Project key is required.", nameof(projectKey));
-        if (revision <= 0)
-            throw new ArgumentOutOfRangeException(nameof(revision));
+        ValidateIdentity(projectKey, revision);
+        var definitions = BuildDefinitions(scripts);
 
-        await _activationGate.WaitAsync(cancellationToken);
+        await _lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             ThrowIfDisposed();
-            var descriptor = _runtime.Describe();
-            if (!string.Equals(descriptor.ProjectKey, projectKey, StringComparison.Ordinal) || descriptor.Revision != revision)
-                throw new InvalidOperationException("Server Scripts may only activate for the currently Active runtime revision.");
 
-            var old = Interlocked.Exchange(ref _active, null);
-            if (old is not null)
-                await old.DisposeAsync(runDisposeHandlers: false);
+            ActiveGeneration? previous;
+            ActiveGeneration generation;
+            await _revisionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                EnsureRuntimeIdentity(projectKey, revision);
+                generation = new ActiveGeneration(this, projectKey.Trim(), revision, definitions);
+                previous = Interlocked.Exchange(ref _active, generation);
+                previous?.Cancel();
+            }
+            finally
+            {
+                _revisionGate.Release();
+            }
 
-            var definitions = (scripts ?? Array.Empty<ScriptEngineeringDefinition>())
-                .Where(script => script.Enabled && script.Scope == ScriptEngineeringScope.Server)
-                .Select(ToPythonDefinition)
-                .ToArray();
+            if (previous is not null)
+                await previous.DisposeAsync(runDisposeHandlers: false).ConfigureAwait(false);
 
-            var generation = new ActiveGeneration(this, projectKey.Trim(), revision, definitions);
-            Volatile.Write(ref _active, generation);
-            await generation.StartAsync(cancellationToken);
+            try
+            {
+                await generation.StartAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                generation.Cancel();
+                Interlocked.CompareExchange(ref _active, null, generation);
+                await generation.DisposeAsync(runDisposeHandlers: false).ConfigureAwait(false);
+                throw;
+            }
         }
         finally
         {
-            _activationGate.Release();
+            _lifecycleGate.Release();
         }
     }
 
@@ -130,25 +200,195 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
     {
         var active = Volatile.Read(ref _active);
         if (active is null || !active.MatchesCurrentRuntime()) return;
-        await active.DispatchRuntimeEventAsync(targetReference, cancellationToken);
+        await active.DispatchRuntimeEventAsync(targetReference, cancellationToken).ConfigureAwait(false);
+    }
+
+    internal async Task<IReadOnlyDictionary<Guid, ServerScriptTagSnapshot>> ReadDependenciesAsync(
+        string projectKey,
+        long revision,
+        IReadOnlyDictionary<Guid, string> dependencies,
+        CancellationToken cancellationToken)
+    {
+        await _revisionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ThrowIfDisposed();
+            EnsureRuntimeIdentity(projectKey, revision);
+
+            var values = new Dictionary<Guid, ServerScriptTagSnapshot>();
+            foreach (var dependency in dependencies)
+            {
+                if (!_runtime.TryGetTag(dependency.Key, out var tag) || tag is null)
+                    throw new ScriptExecutionDiagnosticException("Server Script TAG dependency is not active.");
+
+                var isServerMemory = _runtime.IsServerMemoryTag(dependency.Key);
+                if (dependency.Value.Equals("ServerMemoryTag", StringComparison.OrdinalIgnoreCase) && !isServerMemory)
+                    throw new ScriptExecutionDiagnosticException("ServerMemoryTag dependency does not resolve to Server Memory.");
+
+                _runtime.TryGetCurrent(dependency.Key, out var current);
+                values[dependency.Key] = new ServerScriptTagSnapshot(
+                    dependency.Key,
+                    tag.Path,
+                    tag.DataType,
+                    current?.Value,
+                    isServerMemory);
+            }
+
+            return values;
+        }
+        finally
+        {
+            _revisionGate.Release();
+        }
+    }
+
+    internal async ValueTask WriteTagAsync(
+        string projectKey,
+        long revision,
+        Guid tagId,
+        object? value,
+        bool serverMemoryOnly,
+        CancellationToken cancellationToken)
+    {
+        await _revisionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ThrowIfDisposed();
+            EnsureRuntimeIdentity(projectKey, revision);
+
+            if (!_runtime.TryGetTag(tagId, out var tag) || tag is null)
+                throw new ScriptExecutionDiagnosticException("Python handler referenced a TAG that is not active.");
+            if (tag.ReadOnly)
+                throw new ScriptExecutionDiagnosticException($"TAG '{tag.Path}' is read-only.");
+            if (serverMemoryOnly && !_runtime.IsServerMemoryTag(tagId))
+                throw new ScriptExecutionDiagnosticException("write_server_memory may only target Server Memory TAGs.");
+
+            await _runtime.WriteAsync(tagId, value, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _revisionGate.Release();
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
-        await _activationGate.WaitAsync();
+        await _lifecycleGate.WaitAsync().ConfigureAwait(false);
         try
         {
             if (_disposed) return;
-            _disposed = true;
+
             var active = Interlocked.Exchange(ref _active, null);
             if (active is not null)
-                await active.DisposeAsync(runDisposeHandlers: true);
+                await active.DisposeAsync(runDisposeHandlers: true).ConfigureAwait(false);
+
+            _disposed = true;
+            AppDomain.CurrentDomain.ProcessExit -= _processExitHandler;
+            SharedHosts.Remove(_runtime);
         }
         finally
         {
-            _activationGate.Release();
-            _activationGate.Dispose();
+            _lifecycleGate.Release();
         }
+    }
+
+    private async Task<RuntimeActivationResult> ActivateRuntimeCoreAsync(
+        string projectKey,
+        long revision,
+        IReadOnlyCollection<ScriptEngineeringDefinition>? scripts,
+        Func<CancellationToken, Task<RuntimeActivationResult>> activateRuntime,
+        CancellationToken cancellationToken)
+    {
+        ValidateIdentity(projectKey, revision);
+        ArgumentNullException.ThrowIfNull(activateRuntime);
+        var definitions = BuildDefinitions(scripts);
+
+        await _lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ThrowIfDisposed();
+
+            RuntimeActivationResult result;
+            ActiveGeneration? previous = null;
+            ActiveGeneration? generation = null;
+
+            await _revisionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                result = await activateRuntime(cancellationToken).ConfigureAwait(false);
+                if (!result.Activated)
+                    return result;
+
+                EnsureRuntimeIdentity(projectKey, revision);
+                generation = new ActiveGeneration(this, projectKey.Trim(), revision, definitions);
+                previous = Interlocked.Exchange(ref _active, generation);
+                previous?.Cancel();
+            }
+            finally
+            {
+                _revisionGate.Release();
+            }
+
+            if (previous is not null)
+                await previous.DisposeAsync(runDisposeHandlers: false).ConfigureAwait(false);
+
+            try
+            {
+                await generation!.StartAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                generation!.Cancel();
+                Interlocked.CompareExchange(ref _active, null, generation);
+                await generation.DisposeAsync(runDisposeHandlers: false).ConfigureAwait(false);
+                throw;
+            }
+
+            return result;
+        }
+        finally
+        {
+            _lifecycleGate.Release();
+        }
+    }
+
+    private IReadOnlyCollection<PythonScriptDefinition> BuildDefinitions(
+        IReadOnlyCollection<ScriptEngineeringDefinition>? scripts)
+    {
+        var definitions = (scripts ?? Array.Empty<ScriptEngineeringDefinition>())
+            .Where(script => script.Enabled && script.Scope == ScriptEngineeringScope.Server)
+            .Select(ToPythonDefinition)
+            .ToArray();
+
+        foreach (var definition in definitions)
+        foreach (var entry in definition.EntryPoints.Where(x => x.EventKind == PythonScriptEventKind.Timer))
+        {
+            var intervalMs = entry.TimerIntervalMs
+                ?? throw new InvalidOperationException($"Timer entry point '{entry.HandlerName}' requires TimerIntervalMs.");
+            var interval = TimeSpan.FromMilliseconds(intervalMs);
+            if (interval < _policy.MinimumTimerInterval)
+                throw new InvalidOperationException($"Timer entry point '{entry.HandlerName}' interval is below the configured minimum.");
+        }
+
+        return definitions;
+    }
+
+    private void EnsureRuntimeIdentity(string projectKey, long revision)
+    {
+        var descriptor = _runtime.Describe();
+        if (!string.Equals(descriptor.ProjectKey, projectKey, StringComparison.Ordinal) || descriptor.Revision != revision)
+        {
+            throw new ScriptExecutionDiagnosticException(
+                "Server Script execution belongs to an obsolete Active runtime revision.");
+        }
+    }
+
+    private static void ValidateIdentity(string projectKey, long revision)
+    {
+        if (string.IsNullOrWhiteSpace(projectKey))
+            throw new ArgumentException("Project key is required.", nameof(projectKey));
+        if (revision <= 0)
+            throw new ArgumentOutOfRangeException(nameof(revision));
     }
 
     private void DisposeFromProcessExit()
@@ -159,13 +399,23 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
 
     private static ScriptExecutionPolicy BuildPolicy(IConfiguration configuration)
     {
-        var handlerTimeout = TimeSpan.FromMilliseconds(Math.Max(10,
+        var handlerTimeout = TimeSpan.FromMilliseconds(Math.Max(
+            10,
             configuration.GetValue<int?>("ServerScripts:HandlerTimeoutMs") ?? 250));
-        var minimumTimer = TimeSpan.FromMilliseconds(Math.Max(10,
+        var minimumTimer = TimeSpan.FromMilliseconds(Math.Max(
+            10,
             configuration.GetValue<int?>("ServerScripts:MinimumTimerIntervalMs") ?? 50));
-        var maxQueued = Math.Max(1, configuration.GetValue<int?>("ServerScripts:MaxQueuedEvents") ?? 128);
-        var maxFailures = Math.Max(1, configuration.GetValue<int?>("ServerScripts:MaxConsecutiveFailuresBeforeThrottle") ?? 5);
-        return new ScriptExecutionPolicy(handlerTimeout, maxQueued, minimumTimer, maxFailures);
+        var maxQueued = Math.Max(
+            1,
+            configuration.GetValue<int?>("ServerScripts:MaxQueuedEvents") ?? 128);
+        var maxFailures = Math.Max(
+            1,
+            configuration.GetValue<int?>("ServerScripts:MaxConsecutiveFailuresBeforeThrottle") ?? 5);
+        return new ScriptExecutionPolicy(
+            handlerTimeout,
+            maxQueued,
+            minimumTimer,
+            maxFailures);
     }
 
     private static PythonScriptDefinition ToPythonDefinition(ScriptEngineeringDefinition script) => new(
@@ -204,7 +454,8 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
 
     private void ThrowIfDisposed()
     {
-        if (_disposed) throw new ObjectDisposedException(nameof(ServerScriptRuntimeManager));
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(ServerScriptRuntimeManager));
     }
 
     private sealed class ActiveGeneration : IAsyncDisposable
@@ -212,7 +463,8 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
         private readonly ServerScriptRuntimeManager _owner;
         private readonly CancellationTokenSource _cancellation = new();
         private readonly ConcurrentBag<Task> _backgroundTasks = new();
-        private readonly IDisposable _tagSubscription;
+        private IDisposable? _tagSubscription;
+        private int _started;
 
         public ActiveGeneration(
             ServerScriptRuntimeManager owner,
@@ -224,14 +476,21 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
             ProjectKey = projectKey;
             Revision = revision;
             ActivatedAtUtc = DateTimeOffset.UtcNow;
+
+            var executor = new IsolatedPythonScriptHandlerExecutor(
+                owner,
+                projectKey,
+                revision,
+                owner._pythonExecutable,
+                owner._runnerPath);
+
             Instances = definitions.Select(definition => new ScriptInstance(
                 definition,
                 new ScriptRuntimeExecutionCoordinator(
                     definition,
                     $"{projectKey}@{revision}:{definition.Id:D}",
                     owner._policy,
-                    owner._executor))).ToArray();
-            _tagSubscription = owner._eventBus.Subscribe<TagValueChanged>(OnTagChangedAsync);
+                    executor))).ToArray();
         }
 
         public string ProjectKey { get; }
@@ -241,43 +500,60 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
 
         public bool MatchesCurrentRuntime()
         {
+            if (_cancellation.IsCancellationRequested) return false;
             var descriptor = _owner._runtime.Describe();
-            return string.Equals(descriptor.ProjectKey, ProjectKey, StringComparison.Ordinal) && descriptor.Revision == Revision;
+            return string.Equals(descriptor.ProjectKey, ProjectKey, StringComparison.Ordinal) &&
+                   descriptor.Revision == Revision;
+        }
+
+        public void Cancel()
+        {
+            if (!_cancellation.IsCancellationRequested)
+                _cancellation.Cancel();
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             foreach (var instance in Instances)
+            foreach (var entry in instance.Definition.EntryPoints.Where(
+                         x => x.EventKind == PythonScriptEventKind.Initialize))
             {
-                foreach (var entry in instance.Definition.EntryPoints.Where(x => x.EventKind == PythonScriptEventKind.Initialize))
-                    await TriggerAndDrainAsync(instance, entry, null, cancellationToken);
+                await TriggerAndDrainAsync(instance, entry, null, cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
-                foreach (var entry in instance.Definition.EntryPoints.Where(x => x.EventKind == PythonScriptEventKind.Timer))
-                {
-                    var intervalMs = entry.TimerIntervalMs
-                        ?? throw new InvalidOperationException($"Timer entry point '{entry.HandlerName}' requires TimerIntervalMs.");
-                    var interval = TimeSpan.FromMilliseconds(intervalMs);
-                    if (interval < _owner._policy.MinimumTimerInterval)
-                        throw new InvalidOperationException(
-                            $"Timer entry point '{entry.HandlerName}' interval is below the configured minimum.");
-                    Track(Task.Run(() => TimerLoopAsync(instance, entry, interval, _cancellation.Token), _cancellation.Token));
-                }
+            _tagSubscription = _owner._eventBus.Subscribe<TagValueChanged>(OnTagChangedAsync);
+            Volatile.Write(ref _started, 1);
+
+            foreach (var instance in Instances)
+            foreach (var entry in instance.Definition.EntryPoints.Where(
+                         x => x.EventKind == PythonScriptEventKind.Timer))
+            {
+                var interval = TimeSpan.FromMilliseconds(entry.TimerIntervalMs!.Value);
+                Track(Task.Run(
+                    () => TimerLoopAsync(instance, entry, interval, _cancellation.Token),
+                    _cancellation.Token));
             }
         }
 
-        public async Task DispatchRuntimeEventAsync(string? targetReference, CancellationToken cancellationToken)
+        public async Task DispatchRuntimeEventAsync(
+            string? targetReference,
+            CancellationToken cancellationToken)
         {
             foreach (var instance in Instances)
             foreach (var entry in instance.Definition.EntryPoints.Where(x =>
                          x.EventKind == PythonScriptEventKind.ServerRuntimeEvent &&
                          (string.IsNullOrWhiteSpace(x.TargetReference) ||
                           string.Equals(x.TargetReference, targetReference, StringComparison.Ordinal))))
-                await TriggerAndDrainAsync(instance, entry, targetReference, cancellationToken);
+            {
+                await TriggerAndDrainAsync(instance, entry, targetReference, cancellationToken)
+                    .ConfigureAwait(false);
+            }
         }
 
         private ValueTask OnTagChangedAsync(TagValueChanged change)
         {
-            if (_cancellation.IsCancellationRequested || !MatchesCurrentRuntime())
+            if (Volatile.Read(ref _started) == 0 || !MatchesCurrentRuntime())
                 return ValueTask.CompletedTask;
 
             foreach (var instance in Instances)
@@ -285,13 +561,13 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
                          x.EventKind == PythonScriptEventKind.TagChanged &&
                          x.TagReference?.TagId == change.Tag.Id))
             {
-                var task = TriggerAndDrainAsync(
+                Track(TriggerAndDrainAsync(
                     instance,
                     entry,
                     change.Tag.Id.ToString("D"),
-                    _cancellation.Token);
-                Track(task);
+                    _cancellation.Token));
             }
+
             return ValueTask.CompletedTask;
         }
 
@@ -304,13 +580,20 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
             using var timer = new PeriodicTimer(interval);
             try
             {
-                while (await timer.WaitForNextTickAsync(cancellationToken))
+                while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
                 {
                     if (!MatchesCurrentRuntime()) break;
-                    await TriggerAndDrainAsync(instance, entry, entry.TargetReference, cancellationToken);
+                    await TriggerAndDrainAsync(
+                            instance,
+                            entry,
+                            entry.TargetReference,
+                            cancellationToken)
+                        .ConfigureAwait(false);
                 }
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+            }
         }
 
         private async Task TriggerAndDrainAsync(
@@ -319,7 +602,8 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
             string? targetReference,
             CancellationToken cancellationToken)
         {
-            if (_cancellation.IsCancellationRequested || !MatchesCurrentRuntime()) return;
+            if (!MatchesCurrentRuntime()) return;
+
             instance.Coordinator.Enqueue(new ScriptEventIdentity(
                 entry.EventKind,
                 entry.HandlerName,
@@ -327,10 +611,15 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
 
             while (!cancellationToken.IsCancellationRequested && MatchesCurrentRuntime())
             {
-                var result = await instance.Coordinator.ProcessNextAsync(cancellationToken);
+                var result = await instance.Coordinator.ProcessNextAsync(cancellationToken)
+                    .ConfigureAwait(false);
                 if (result.Status != ScriptRuntimeDispatchStatus.Executed) break;
-                if (result.Execution?.Status is ScriptExecutionStatus.TimedOut or ScriptExecutionStatus.Cancelled)
+                if (result.Execution?.Status is
+                    ScriptExecutionStatus.TimedOut or
+                    ScriptExecutionStatus.Cancelled)
+                {
                     break;
+                }
             }
         }
 
@@ -344,33 +633,53 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
                 TaskScheduler.Default);
         }
 
-        public async ValueTask DisposeAsync() => await DisposeAsync(runDisposeHandlers: true);
+        public async ValueTask DisposeAsync() =>
+            await DisposeAsync(runDisposeHandlers: true).ConfigureAwait(false);
 
         public async Task DisposeAsync(bool runDisposeHandlers)
         {
-            _tagSubscription.Dispose();
+            _tagSubscription?.Dispose();
+            Volatile.Write(ref _started, 0);
 
             if (runDisposeHandlers && MatchesCurrentRuntime())
             {
-                using var disposeBudget = new CancellationTokenSource(_owner._policy.HandlerTimeout);
+                using var disposeBudget =
+                    new CancellationTokenSource(_owner._policy.HandlerTimeout);
                 foreach (var instance in Instances)
-                foreach (var entry in instance.Definition.EntryPoints.Where(x => x.EventKind == PythonScriptEventKind.Dispose))
+                foreach (var entry in instance.Definition.EntryPoints.Where(
+                             x => x.EventKind == PythonScriptEventKind.Dispose))
                 {
-                    try { await TriggerAndDrainAsync(instance, entry, null, disposeBudget.Token); }
-                    catch (OperationCanceledException) { }
+                    try
+                    {
+                        await TriggerAndDrainAsync(
+                                instance,
+                                entry,
+                                null,
+                                disposeBudget.Token)
+                            .ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                    }
                 }
             }
 
-            _cancellation.Cancel();
+            Cancel();
             var tasks = _backgroundTasks.ToArray();
             if (tasks.Length > 0)
             {
-                try { await Task.WhenAll(tasks); }
-                catch (OperationCanceledException) { }
+                try
+                {
+                    await Task.WhenAll(tasks).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                }
             }
 
             foreach (var instance in Instances)
-                await instance.Coordinator.DisposeAsync();
+                await instance.Coordinator.DisposeAsync().ConfigureAwait(false);
+
             _cancellation.Dispose();
         }
     }
@@ -380,7 +689,8 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
         ScriptRuntimeExecutionCoordinator Coordinator)
     {
         public int SubscriptionCount => Definition.EntryPoints.Count(entry =>
-            entry.EventKind is PythonScriptEventKind.Timer or
+            entry.EventKind is
+                PythonScriptEventKind.Timer or
                 PythonScriptEventKind.TagChanged or
                 PythonScriptEventKind.ServerRuntimeEvent);
     }

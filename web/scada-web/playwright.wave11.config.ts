@@ -63,7 +63,10 @@ export default defineConfig({
         Authentication__Local__Bootstrap__DisplayName: 'Wave 11 Local Developer',
         Authentication__Local__Bootstrap__Password: 'Wave11-local-password-123!',
         Authentication__Local__Bootstrap__Roles__0: 'developer',
-        EngineeringRuntime__ProjectKey: 'e2e-wave11'
+        EngineeringRuntime__ProjectKey: 'e2e-wave11',
+        Historian__Provider: 'timescaledb',
+        HistoricalQuery__Enabled: 'true',
+        HistoricalQuery__CursorKeyBase64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
       }
     },
     {

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type APIRequestContext } from '@playwright/test';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -53,13 +53,13 @@ function findElement(elements: VisualElement[]): VisualElement | null {
   return null;
 }
 
-async function exportPackage(request: Parameters<typeof test>[0] extends never ? never : any): Promise<C16Package> {
+async function exportPackage(request: APIRequestContext): Promise<C16Package> {
   const response = await request.get('/api/engineering/export/json');
   expect(response.ok()).toBeTruthy();
   return await response.json() as C16Package;
 }
 
-async function previewPackage(request: any, candidate: C16Package): Promise<Preview> {
+async function previewPackage(request: APIRequestContext, candidate: C16Package): Promise<Preview> {
   const response = await request.post('/api/engineering/import/json/preview', {
     headers: { 'content-type': 'application/json; charset=utf-8' },
     data: candidate
@@ -68,7 +68,7 @@ async function previewPackage(request: any, candidate: C16Package): Promise<Prev
   return await response.json() as Preview;
 }
 
-async function applyPackage(request: any, candidate: C16Package) {
+async function applyPackage(request: APIRequestContext, candidate: C16Package) {
   const workspaceResponse = await request.get('/api/engineering/workspace');
   expect(workspaceResponse.ok()).toBeTruthy();
   const workspace = await workspaceResponse.json() as { changeVersion: number };

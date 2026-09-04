@@ -10,6 +10,7 @@ const requested = params.get('locale');
 const locale: EngineeringLocale = requested === 'en' || requested === 'es' ? requested : 'pt-BR';
 
 const trend: VisualElementEngineering = {
+  id: 'c15-property-inspector-trend-id',
   key: 'c15-property-inspector-trend',
   type: 'core.trend',
   properties: {

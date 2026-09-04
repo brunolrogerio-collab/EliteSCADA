@@ -18,6 +18,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Update="Runtime/ServerScriptRunner.py"
+          TargetPath="ServerScriptRunner.py"
           CopyToOutputDirectory="PreserveNewest"
           CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

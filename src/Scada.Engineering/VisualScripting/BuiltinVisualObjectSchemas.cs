@@ -16,9 +16,12 @@ public static class BuiltinVisualObjectSchemas
     public const string ImageType = "core.image";
     public const string ValueDisplayType = "core.valueDisplay";
     public const string TrendType = "core.trend";
+    public const string AlarmBrowserType = "core.alarmBrowser";
+    public const string EventBrowserType = "core.eventBrowser";
     public const string ButtonType = "core.button";
     public const string SliderType = "core.slider";
     public const string TrendPensProperty = "pens";
+    public const string BrowserConfigProperty = "browserConfig";
 
     private const string TrendModeProperty = "trendMode";
     private const string TrendWindowSecondsProperty = "trendWindowSeconds";
@@ -128,6 +131,14 @@ public static class BuiltinVisualObjectSchemas
         VisualPropertyKeys.VerticalAlignment
     ];
 
+    private static readonly string[] BrowserProperties =
+    [
+        VisualPropertyKeys.BackgroundColor,
+        VisualPropertyKeys.StrokeColor,
+        VisualPropertyKeys.StrokeWidth,
+        VisualPropertyKeys.CornerRadius
+    ];
+
     public static VisualObjectPropertySchema Group { get; } = Create(GroupType, Base);
 
     public static VisualObjectPropertySchema Rectangle { get; } = Create(
@@ -202,6 +213,19 @@ public static class BuiltinVisualObjectSchemas
             TrendQualityVisibleProperty
         ]));
 
+    /// <summary>
+    /// Alarm/Event Browser configuration is structural JSON owned by each Browser
+    /// object. Only common geometry/appearance properties participate in the
+    /// scalar Visual Property Registry.
+    /// </summary>
+    public static VisualObjectPropertySchema AlarmBrowser { get; } = Create(
+        AlarmBrowserType,
+        Base.Concat(BrowserProperties));
+
+    public static VisualObjectPropertySchema EventBrowser { get; } = Create(
+        EventBrowserType,
+        Base.Concat(BrowserProperties));
+
     public static VisualObjectPropertySchema Button { get; } = Create(
         ButtonType,
         Base
@@ -239,6 +263,8 @@ public static class BuiltinVisualObjectSchemas
         Image,
         ValueDisplay,
         Trend,
+        AlarmBrowser,
+        EventBrowser,
         Button,
         Slider
     ];

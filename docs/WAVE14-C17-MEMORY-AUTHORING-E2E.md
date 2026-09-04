@@ -4,10 +4,11 @@
 **Branch:** `wave14/c17-memory-authoring-e2e`  
 **Required base:** `2607e03d5445eefe1f434495d0ee81136c6cd220`  
 **Latest E2E correction commit:** `a184a754ee614321df96c533ba28ae7c4059da7b`  
+**Validated product/test candidate:** `ecc3bc5e081bdaa1d6d1faffa4bb6c00f4159fa0`  
 **Integration target:** `wave14/corrections-integration`  
-**State:** **CORRECTED CANDIDATE / EXACT-HEAD CI AND WAVE 11 REVALIDATION REQUIRED**
+**State:** **VALIDATED CANDIDATE / EXACT-HEAD PRODUCT AND LIFECYCLE GATES GREEN**
 
-GitHub is the official memory. This handoff records the bounded C17 implementation and versioned validation. It does not claim a green exact-head validation until GitHub records successful gates for the final branch HEAD.
+GitHub is the official memory. This handoff records the bounded C17 implementation, deterministic test corrections, and exact-head validation evidence. The package does not merge directly into `wave14/corrections-integration` or `main`.
 
 ## Validation history
 
@@ -44,7 +45,21 @@ C17 now waits for canonical Working state instead of relying on the current docu
 
 This correction strengthens the acceptance test: it proves that the normal UI Apply actually reached canonical Working state. It does not change product code, UI text, authoring semantics or C17 acceptance scope.
 
-The final candidate is the branch HEAD containing this handoff update. Exact-head gate IDs are reported in PR #244 / DEV delivery after GitHub Actions completes, without adding a post-validation commit that would invalidate the tested SHA.
+### Successful exact-head validation
+
+The corrected candidate was published and validated at:
+
+`ecc3bc5e081bdaa1d6d1faffa4bb6c00f4159fa0`
+
+Exact-head GitHub Actions evidence:
+
+- `EliteSCADA CI` #1307 / run `33830323621`: **SUCCESS**, including Web build, Backend build/test/runtime smoke, and Chromium end-to-end;
+- `Wave 11 Active HMI Runtime` #236 / run `33830323638`: **SUCCESS**, including the full C17 memory lifecycle lane;
+- `Preview Licensing CI` #258 / run `33830323718`: **SUCCESS**;
+- `Interop Lab Smoke` #135 / run `33830323711`: **SUCCESS**;
+- `L3 Seven-Driver Lab` #213 / run `33830323667`: **SUCCESS**.
+
+After those successful runs, accidental post-validation commits unrelated to C17 were created while attempting to update metadata. They were not accepted as part of the package. The branch ref was force-restored to the validated candidate `ecc3bc5e081bdaa1d6d1faffa4bb6c00f4159fa0` before this handoff-only status update. No integration or main merge occurred.
 
 ## Scope
 
@@ -144,7 +159,7 @@ C17 does not duplicate backend tests that already exercise the canonical Interna
 
 `tests/Scada.Core.Tests/EngineeringClientMemoryCommandValidationTests.cs` verifies that server-side Commands cannot target Client Memory TAGs and that a Data Source cannot be transitioned to Client Memory while an existing server Command still targets its TAG.
 
-These backend tests remain part of the normal Core test suite and are validation dependencies for C17; this document does not claim they passed on the corrected final C17 HEAD until the exact-head gates complete.
+These backend tests are part of the normal Core test suite and were exercised successfully by `EliteSCADA CI` #1307 / run `33830323621` on validated candidate `ecc3bc5e081bdaa1d6d1faffa4bb6c00f4159fa0`.
 
 ## Explicitly not used as acceptance shortcuts
 
@@ -164,18 +179,18 @@ The provider type keys are selected through the public Data Source catalog UI, w
 - `web/scada-web/tests-wave11/c17-memory-lifecycle.spec.ts` - real Engineering -> Save -> Publish -> Activate -> Runtime lifecycle acceptance;
 - `web/scada-web/playwright.wave11.config.ts` - C17 Wave11 project/dependency ordering.
 
-## Required acceptance execution
+## Acceptance execution result
 
-Before Coordinator acceptance/integration, the corrected final C17 HEAD requires actual execution of:
+The required C17 acceptance execution completed successfully on candidate `ecc3bc5e081bdaa1d6d1faffa4bb6c00f4159fa0`:
 
-1. normal frontend/Playwright regressions including the focused C17 policy test;
-2. backend Core regressions, including the existing Internal Memory suites above;
-3. `EliteSCADA CI`;
-4. `Wave 11 Active HMI Runtime`, including `chromium-wave11-c17-memory-lifecycle`.
+1. normal frontend/Playwright regressions including the focused C17 policy test: **PASS through EliteSCADA CI #1307**;
+2. backend Core regressions, including the existing Internal Memory suites above: **PASS through EliteSCADA CI #1307**;
+3. `EliteSCADA CI`: **PASS — run `33830323621`**;
+4. `Wave 11 Active HMI Runtime`, including `chromium-wave11-c17-memory-lifecycle`: **PASS — run `33830323638`**.
 
 PR #244 is the validation-only pull request used for exact-head gating against `main`. It must remain DRAFT/validation-only and must not be merged. Integration remains Coordinator-owned through `wave14/corrections-integration` / draft PR #212.
 
-No green CI claim is made until GitHub records successful runs for the corrected exact head.
+This documentation status update is the only intended branch change after the validated product/test candidate. Its resulting HEAD must also receive the repository-required exact-head validation before being presented as the final branch tip.
 
 ## Integration notes
 

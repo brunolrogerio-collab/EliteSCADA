@@ -48,9 +48,6 @@ public static class BuiltinVisualEngineeringValidation
 
         foreach (var binding in element.Bindings ?? Array.Empty<EngineeringBindingDto>())
         {
-            // Generic Engineering validation owns malformed/null binding diagnostics.
-            // Built-in schema validation must never turn the same untrusted input
-            // into an exception while Preview is collecting issues.
             if (binding is null || string.IsNullOrWhiteSpace(binding.Key))
                 continue;
 
@@ -77,6 +74,9 @@ public static class BuiltinVisualEngineeringValidation
         issues.AddRange(VisualDynamicEngineeringValidation.Validate(element, schema, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.SliderType, StringComparison.Ordinal))
             issues.AddRange(ValidateSlider(element, entityKind, entityKey));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.AlarmBrowserType, StringComparison.Ordinal) ||
+            element.Type.Equals(BuiltinVisualObjectSchemas.EventBrowserType, StringComparison.Ordinal))
+            issues.AddRange(ValidateBrowserConfiguration(element, entityKind, entityKey));
         return issues;
     }
 
@@ -130,6 +130,56 @@ public static class BuiltinVisualEngineeringValidation
         }
     }
 
+    private static IEnumerable<ImportIssue> ValidateBrowserConfiguration(
+        VisualElementEngineeringDto element,
+        ImportEntityKind entityKind,
+        string entityKey)
+    {
+        if (element.Properties is null ||
+            !element.Properties.TryGetValue(BuiltinVisualObjectSchemas.BrowserConfigProperty, out var configuration))
+            yield break;
+
+        if (configuration.ValueKind != JsonValueKind.Object)
+        {
+            yield return Error(
+                "VISUAL_BROWSER_CONFIG_INVALID",
+                $"Browser '{element.Key}' requires browserConfig to be a JSON object.",
+                entityKind,
+                entityKey);
+            yield break;
+        }
+
+        if (configuration.TryGetProperty("version", out var version) &&
+            (version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out var number) || number != 1))
+        {
+            yield return Error(
+                "VISUAL_BROWSER_CONFIG_VERSION_UNSUPPORTED",
+                $"Browser '{element.Key}' has an unsupported browserConfig version.",
+                entityKind,
+                entityKey);
+        }
+
+        if (configuration.TryGetProperty("columns", out var columns) &&
+            (columns.ValueKind != JsonValueKind.Array || columns.GetArrayLength() == 0))
+        {
+            yield return Error(
+                "VISUAL_BROWSER_COLUMNS_INVALID",
+                $"Browser '{element.Key}' must display at least one configured column.",
+                entityKind,
+                entityKey);
+        }
+
+        if (configuration.TryGetProperty("pageSize", out var pageSize) &&
+            (pageSize.ValueKind != JsonValueKind.Number || !pageSize.TryGetInt32(out var page) || page is < 10 or > 200))
+        {
+            yield return Error(
+                "VISUAL_BROWSER_PAGE_SIZE_INVALID",
+                $"Browser '{element.Key}' pageSize must be between 10 and 200.",
+                entityKind,
+                entityKey);
+        }
+    }
+
     private static double ReadNumber(
         VisualElementEngineeringDto element,
         string key,
@@ -164,6 +214,8 @@ public static class BuiltinVisualEngineeringValidation
         {
             BuiltinVisualObjectSchemas.PolygonType => "points",
             BuiltinVisualObjectSchemas.TrendType => BuiltinVisualObjectSchemas.TrendPensProperty,
+            BuiltinVisualObjectSchemas.AlarmBrowserType => BuiltinVisualObjectSchemas.BrowserConfigProperty,
+            BuiltinVisualObjectSchemas.EventBrowserType => BuiltinVisualObjectSchemas.BrowserConfigProperty,
             _ => null
         };
 

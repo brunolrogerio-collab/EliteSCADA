@@ -229,14 +229,14 @@ function ModbusAssistant({ tag, locale, onChange }: {
             {valueTypes.map(value => <option key={value || 'auto'} value={value}>{value || text.auto}</option>)}
           </select>
         </label>
-        <OptionalNumber label={text.scale} value={scale} onChange={setScale} />
-        <OptionalNumber label={text.offset} value={offset} onChange={setOffset} />
         <label className="eng-editor-field">
           <span>{text.wordOrder}</span>
           <select value={wordOrder} onChange={event => setWordOrder(event.target.value)} data-testid="modbus-word-order">
             {wordOrders.map(value => <option key={value || 'default'} value={value}>{value || text.defaultValue}</option>)}
           </select>
         </label>
+        <OptionalNumber label={text.scale} value={scale} onChange={setScale} />
+        <OptionalNumber label={text.offset} value={offset} onChange={setOffset} />
         {bitAllowed && <OptionalNumber label={text.bit} value={bitIndex} onChange={setBitIndex} integer />}
       </div>
       <div className="eng-editor-actions">

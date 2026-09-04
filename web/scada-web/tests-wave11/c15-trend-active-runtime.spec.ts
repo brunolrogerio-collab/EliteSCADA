@@ -52,7 +52,14 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts li
     driver: 'builtin.memory.server',
     enabled: true
   }];
-  working.tags = working.tags.map((tag: any) => ({ ...tag, source: runtimeSourceKey, address: null }));
+  working.tags = working.tags.map((tag: any) => ({
+    ...tag,
+    source: runtimeSourceKey,
+    address: null,
+    ...(tag.id === frequencyTag.id
+      ? { historian: { enabled: true, strategy: 'change' } }
+      : {})
+  }));
 
   screen.elements = screen.elements.filter((element: any) =>
     ![screenTrendId, historyTrendId].includes(element.id)
@@ -190,6 +197,9 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts li
     trendMode: 'history'
   });
   expect(activePopupTrend?.properties?.pens).toEqual(pens);
+
+  const activeHistorizedFrequency = active.package.tags.find((tag: any) => tag.id === frequencyTag.id);
+  expect(activeHistorizedFrequency?.historian).toMatchObject({ enabled: true, strategy: 'change' });
 
   const runtimeTagsResponse = await request.get('/api/tags');
   expect(runtimeTagsResponse.ok()).toBeTruthy();

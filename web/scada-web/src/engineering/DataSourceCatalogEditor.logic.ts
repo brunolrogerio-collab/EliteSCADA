@@ -117,6 +117,16 @@ export function newDataSourceDraft(type?: DataSourceTypeDefinition): DataSourceE
   };
 }
 
+export function draftForDataSourceSelection(
+  selectedIdentity: string | null,
+  sources: readonly DataSourceEngineering[]
+): DataSourceEngineering | null {
+  if (selectedIdentity === NEW_DATA_SOURCE_IDENTITY) return newDataSourceDraft();
+  if (!selectedIdentity) return null;
+  const current = sources.find(source => dataSourceIdentity(source) === selectedIdentity) ?? null;
+  return current ? cloneDataSourceValue(current) : null;
+}
+
 export function incompatibleDataSourceConfiguration(
   source: DataSourceEngineering,
   type: DataSourceTypeDefinition

@@ -1,15 +1,17 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { createE2eJwt } from '../tests-e2e/jwt';
 
 const projectKey = 'e2e-wave11';
 const serverSourceKey = 'memory.server.c17';
 const clientSourceKey = 'memory.client.c17';
 const serverTagPath = 'C17.Server.Value';
 const clientTagPath = 'C17.Client.Value';
+const runtimeClientToken = createE2eJwt('wave11-c17-runtime-client', ['developer'], 'Wave 11 C17 Runtime Client');
 
 test.use({ locale: 'pt-BR' });
 test.describe.configure({ mode: 'serial' });
 
-test('Internal Memory is authored through normal Engineering UI and survives Save Publish Activate', async ({ page, request, context }) => {
+test('Internal Memory is authored through normal Engineering UI and survives Save Publish Activate', async ({ page, request, browser }) => {
   const originalResponse = await request.get('/api/engineering/export/json');
   expect(originalResponse.ok()).toBeTruthy();
   const originalPackage = await originalResponse.json() as any;
@@ -106,27 +108,43 @@ test('Internal Memory is authored through normal Engineering UI and survives Sav
     expect(clientDefinitions.some(source => source.dataSourceKey === serverSourceKey)).toBeFalsy();
     expect(clientDefinitions.flatMap(source => source.tags).find(tag => tag.path === clientTagPath)?.initialValue).toBe('client-default');
 
-    const first = await context.newPage();
-    const second = await context.newPage();
-    await Promise.all([first.goto('/'), second.goto('/')]);
+    const firstContext = await createRuntimeClientContext(browser);
+    const secondContext = await createRuntimeClientContext(browser);
+    try {
+      const first = await firstContext.newPage();
+      const second = await secondContext.newPage();
+      await Promise.all([first.goto('/'), second.goto('/')]);
 
-    await expect.poll(() => readClientMemory(first, clientTagPath)).toBe('client-default');
-    await expect.poll(() => readClientMemory(second, clientTagPath)).toBe('client-default');
+      await expect.poll(() => readClientMemory(first, clientTagPath)).toBe('client-default');
+      await expect.poll(() => readClientMemory(second, clientTagPath)).toBe('client-default');
 
-    const firstWrite = await first.evaluate(async ({ path }) => {
-      const module = await import('/src/runtime/clientMemory.ts');
-      await module.clientMemory.ensureInitialized();
-      module.clientMemory.write(path, 'client-one');
-      return module.clientMemory.read(path);
-    }, { path: clientTagPath });
-    expect(firstWrite).toBe('client-one');
-    expect(await readClientMemory(second, clientTagPath)).toBe('client-default');
+      const firstWrite = await first.evaluate(async ({ path }) => {
+        const module = await import('/src/runtime/clientMemory.ts');
+        await module.clientMemory.ensureInitialized();
+        module.clientMemory.write(path, 'client-one');
+        return module.clientMemory.read(path);
+      }, { path: clientTagPath });
+      expect(firstWrite).toBe('client-one');
+      expect(await readClientMemory(second, clientTagPath)).toBe('client-default');
+    } finally {
+      await Promise.allSettled([firstContext.close(), secondContext.close()]);
+    }
   } finally {
     const restore = await request.post('/api/engineering/import/json/apply', { data: originalPackage });
     expect(restore.ok(), `Restore apply failed: ${restore.status()} ${await restore.text()}`).toBeTruthy();
     await savePublishActivate(request, 'Wave 14 C17 cleanup');
   }
 });
+
+async function createRuntimeClientContext(browser: Browser): Promise<BrowserContext> {
+  return await browser.newContext({
+    baseURL: 'http://127.0.0.1:5174',
+    locale: 'pt-BR',
+    extraHTTPHeaders: {
+      Authorization: `Bearer ${runtimeClientToken}`
+    }
+  });
+}
 
 async function createDataSource(page: Page, name: string, key: string, typeKey: string) {
   await page.goto('/engineering');

@@ -20,7 +20,8 @@ import {
   resolveVisualNavigationAction,
   RuntimeVisualCompositionError,
   type RuntimeVisualCatalog,
-  type RuntimeVisualNavigationState
+  type RuntimeVisualNavigationState,
+  type VisualNavigationActionEngineering
 } from './runtimeVisualNavigationModel';
 import { RuntimeVisualDefinitionRenderer } from './RuntimeVisualDefinitionRenderer';
 
@@ -40,9 +41,7 @@ type NavigationResolution = Readonly<{
   diagnostic: RuntimeVisualCompositionError | null;
 }>;
 
-type OperationalVisualAction = Readonly<{
-  eventKey: string;
-  kind: string;
+type OperationalVisualAction = VisualNavigationActionEngineering & Readonly<{
   commandId?: string | null;
 }>;
 
@@ -93,15 +92,15 @@ export function RuntimeVisualNavigator({
 
   const dispatch = async (event: CanonicalVisualEvent, popupRuntimeInstanceId?: string) => {
     try {
-      const action = resolveVisualNavigationAction(event.element, event.eventKey);
-      if (!action) return;
-      const operational = action as unknown as OperationalVisualAction;
-      if (operational.kind === 'ExecuteCommand') {
-        const commandId = operational.commandId?.trim();
+      const rawAction = resolveVisualNavigationAction(event.element, event.eventKey);
+      if (!rawAction) return;
+      const action = normalizeVisualActionWireKind(rawAction) as OperationalVisualAction;
+      if (action.kind === 'ExecuteCommand') {
+        const commandId = action.commandId?.trim();
         if (!commandId) {
           throw new RuntimeVisualCompositionError(
             'VISUAL_RUNTIME_COMMAND_REFERENCE_REQUIRED',
-            `ExecuteCommand action '${operational.eventKey}' does not contain a canonical Command identity.`
+            `ExecuteCommand action '${action.eventKey}' does not contain a canonical Command identity.`
           );
         }
         await executeRuntimeCommand(commandId);
@@ -206,6 +205,28 @@ export function RuntimeVisualNavigator({
 
     {diagnostic ? <RuntimeDiagnostic diagnostic={diagnostic} /> : null}
   </div>;
+}
+
+function normalizeVisualActionWireKind(action: VisualNavigationActionEngineering): VisualNavigationActionEngineering {
+  const wireKind = String((action as VisualNavigationActionEngineering & Readonly<{ kind: unknown }>).kind).trim();
+  const kind = (() => {
+    switch (wireKind) {
+      case 'NavigateScreen':
+      case 'navigateScreen': return 'NavigateScreen';
+      case 'OpenPopup':
+      case 'openPopup': return 'OpenPopup';
+      case 'ClosePopup':
+      case 'closePopup': return 'ClosePopup';
+      case 'ExecuteCommand':
+      case 'executeCommand': return 'ExecuteCommand' as VisualNavigationActionEngineering['kind'];
+      default:
+        throw new RuntimeVisualCompositionError(
+          'VISUAL_RUNTIME_ACTION_KIND_UNSUPPORTED',
+          `Visual action '${action.eventKey}' has unsupported wire kind '${wireKind}'.`
+        );
+    }
+  })();
+  return Object.freeze({ ...action, kind });
 }
 
 function resolvePopupLogicalPosition(

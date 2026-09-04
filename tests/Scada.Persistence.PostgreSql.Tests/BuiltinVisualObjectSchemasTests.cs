@@ -17,7 +17,6 @@ public sealed class BuiltinVisualObjectSchemasTests
             "core.text",
             "core.image",
             "core.valueDisplay",
-            "core.trend",
             "core.button",
             "core.slider"
         ], BuiltinVisualObjectSchemas.All.Select(schema => schema.ObjectTypeKey).ToArray());
@@ -37,10 +36,6 @@ public sealed class BuiltinVisualObjectSchemasTests
 
         Assert.True(BuiltinVisualObjectSchemas.Text.Declares(VisualPropertyKeys.FontFamily));
         Assert.True(BuiltinVisualObjectSchemas.Text.Declares(VisualPropertyKeys.HorizontalAlignment));
-
-        Assert.True(BuiltinVisualObjectSchemas.Trend.Declares(VisualPropertyKeys.BackgroundColor));
-        Assert.True(BuiltinVisualObjectSchemas.Trend.Declares(VisualPropertyKeys.StrokeColor));
-        Assert.False(BuiltinVisualObjectSchemas.Trend.Declares(BuiltinVisualObjectSchemas.TrendPensProperty));
 
         Assert.True(BuiltinVisualObjectSchemas.Button.Declares(VisualPropertyKeys.BackgroundColor));
         Assert.True(BuiltinVisualObjectSchemas.Button.Declares(VisualPropertyKeys.CornerRadius));

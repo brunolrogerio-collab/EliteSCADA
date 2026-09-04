@@ -242,16 +242,15 @@ public static class VisualEngineeringPropertyMigration
         if (schema is not null)
         {
             var scalarProperties = element.Properties;
-            var structuralProperty = StructuralPropertyFor(element.Type);
-            JsonElement? structuralValue = null;
+            JsonElement? polygonPoints = null;
 
-            if (structuralProperty is not null &&
+            if (element.Type.Equals(BuiltinVisualObjectSchemas.PolygonType, StringComparison.Ordinal) &&
                 element.Properties is not null &&
-                element.Properties.TryGetValue(structuralProperty, out var structural))
+                element.Properties.TryGetValue("points", out var points))
             {
-                structuralValue = structural.Clone();
+                polygonPoints = points.Clone();
                 scalarProperties = element.Properties
-                    .Where(property => !property.Key.Equals(structuralProperty, StringComparison.Ordinal))
+                    .Where(property => !property.Key.Equals("points", StringComparison.Ordinal))
                     .ToDictionary(
                         property => property.Key,
                         property => property.Value.Clone(),
@@ -263,14 +262,14 @@ public static class VisualEngineeringPropertyMigration
                 scalarProperties,
                 sourceSchemaVersion);
 
-            if (structuralProperty is not null && structuralValue.HasValue)
+            if (polygonPoints.HasValue)
             {
-                var withStructuralPayload = normalizedScalars.ToDictionary(
+                var withStructuralGeometry = normalizedScalars.ToDictionary(
                     pair => pair.Key,
                     pair => pair.Value.Clone(),
                     StringComparer.Ordinal);
-                withStructuralPayload[structuralProperty] = structuralValue.Value.Clone();
-                properties = new ReadOnlyDictionary<string, JsonElement>(withStructuralPayload);
+                withStructuralGeometry["points"] = polygonPoints.Value.Clone();
+                properties = new ReadOnlyDictionary<string, JsonElement>(withStructuralGeometry);
             }
             else
             {
@@ -288,11 +287,4 @@ public static class VisualEngineeringPropertyMigration
             Children = NormalizeElements(element.Children, sourceSchemaVersion)
         };
     }
-
-    private static string? StructuralPropertyFor(string objectType) => objectType switch
-    {
-        BuiltinVisualObjectSchemas.PolygonType => "points",
-        BuiltinVisualObjectSchemas.TrendType => BuiltinVisualObjectSchemas.TrendPensProperty,
-        _ => null
-    };
 }

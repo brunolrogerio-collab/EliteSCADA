@@ -7,4 +7,3 @@ export * from './builtinVisualObjectSchemas';
 export * from './runtimeVisualInstance';
 export * from './runtimeVisualTween';
 export * from './visualPythonPropertyCapabilityProvider';
-export * from './trendVisualModel';

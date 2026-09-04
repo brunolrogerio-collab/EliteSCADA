@@ -16,7 +16,6 @@ const expectedTypes = [
   'core.text',
   'core.image',
   'core.valueDisplay',
-  'core.trend',
   'core.button',
   'core.slider'
 ];
@@ -55,16 +54,6 @@ test('built-in schemas expose only relevant shared visual properties', () => {
   expect(text.declares(VISUAL_PROPERTY_KEYS.enabled)).toBeTruthy();
   expect(text.declares(VISUAL_PROPERTY_KEYS.assetRef)).toBeFalsy();
 
-  const trend = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.trend);
-  expect(trend.declares(VISUAL_PROPERTY_KEYS.trendMode)).toBeTruthy();
-  expect(trend.declares(VISUAL_PROPERTY_KEYS.trendWindowSeconds)).toBeTruthy();
-  expect(trend.declares(VISUAL_PROPERTY_KEYS.trendRefreshSeconds)).toBeTruthy();
-  expect(trend.declares(VISUAL_PROPERTY_KEYS.trendLegendVisible)).toBeTruthy();
-  expect(trend.declares(VISUAL_PROPERTY_KEYS.trendGridVisible)).toBeTruthy();
-  expect(trend.declares(VISUAL_PROPERTY_KEYS.trendAxesVisible)).toBeTruthy();
-  expect(trend.declares(VISUAL_PROPERTY_KEYS.trendQualityVisible)).toBeTruthy();
-  expect(trend.declares('pens')).toBeFalsy();
-
   const button = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.button);
   expect(button.declares(VISUAL_PROPERTY_KEYS.backgroundColor)).toBeTruthy();
   expect(button.declares(VISUAL_PROPERTY_KEYS.cornerRadius)).toBeTruthy();
@@ -86,7 +75,6 @@ test('Analog Fill eligibility is explicit in the shared object capability contra
   expect(supportsAnalogFill(BUILTIN_VISUAL_OBJECT_TYPES.rectangle)).toBe(true);
   expect(supportsAnalogFill(BUILTIN_VISUAL_OBJECT_TYPES.ellipse)).toBe(true);
   expect(supportsAnalogFill(BUILTIN_VISUAL_OBJECT_TYPES.polygon)).toBe(false);
-  expect(supportsAnalogFill(BUILTIN_VISUAL_OBJECT_TYPES.trend)).toBe(false);
   expect(supportsAnalogFill(BUILTIN_VISUAL_OBJECT_TYPES.line)).toBe(false);
   expect(supportsAnalogFill(BUILTIN_VISUAL_OBJECT_TYPES.text)).toBe(false);
   expect(supportsAnalogFill('core.unknown')).toBe(false);

@@ -21,7 +21,6 @@ test('palette is derived from the complete registered built-in set', () => {
     BUILTIN_VISUAL_OBJECT_TYPES.text,
     BUILTIN_VISUAL_OBJECT_TYPES.image,
     BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay,
-    BUILTIN_VISUAL_OBJECT_TYPES.trend,
     BUILTIN_VISUAL_OBJECT_TYPES.button,
     BUILTIN_VISUAL_OBJECT_TYPES.slider
   ]);
@@ -45,14 +44,6 @@ test('Image palette entry consumes the registered assetRef contract without inve
   for (const item of items.filter(item => item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.image)) {
     expect(item.supportsAssetReference).toBe(false);
   }
-});
-
-test('Trend palette entry is first-class content backed by the registered scalar schema', () => {
-  const trend = listVisualObjectPaletteItems().find(item => item.objectType === BUILTIN_VISUAL_OBJECT_TYPES.trend);
-  expect(trend).toBeDefined();
-  expect(trend?.category).toBe('content');
-  expect(trend?.propertyKeys).toContain(VISUAL_PROPERTY_KEYS.trendWindowSeconds);
-  expect(trend?.propertyKeys).not.toContain('pens');
 });
 
 test('object add intent delegates defaults and identity to canonical coordinator composition', () => {

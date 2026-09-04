@@ -27,7 +27,6 @@ const DEFAULT_LABELS: Readonly<Record<string, string>> = Object.freeze({
   text: 'Text',
   image: 'Image',
   valueDisplay: 'Value display',
-  trend: 'Trend',
   button: 'Button',
   slider: 'Slider'
 });
@@ -39,7 +38,7 @@ export function ObjectPalette({
 }: ObjectPaletteProps) {
   const items = useMemo(() => listVisualObjectPaletteItems(), []);
   const [error, setError] = useState<string | null>(null);
-  const labels = { ...DEFAULT_LABELS, ...(copy?.labels ?? {}) };
+  const labels = copy?.labels ?? DEFAULT_LABELS;
   const title = copy?.title ?? 'Object palette';
   const hint = copy?.hint ?? 'Add a registered visual object to the current Screen.';
   const addLabel = copy?.addLabel ?? 'Add';
@@ -96,7 +95,6 @@ function paletteGlyph(item: VisualObjectPaletteItem): string {
     case 'text': return 'T';
     case 'image': return '▧';
     case 'valueDisplay': return '#';
-    case 'trend': return '⌁';
     case 'button': return '▰';
     case 'slider': return '↔';
     default: return '□';

@@ -159,19 +159,12 @@ public static class BuiltinVisualEngineeringValidation
     private static Dictionary<string, JsonElement>? ScalarProperties(VisualElementEngineeringDto element)
     {
         if (element.Properties is null) return null;
-
-        var structuralProperty = element.Type switch
-        {
-            BuiltinVisualObjectSchemas.PolygonType => "points",
-            BuiltinVisualObjectSchemas.TrendType => BuiltinVisualObjectSchemas.TrendPensProperty,
-            _ => null
-        };
-
-        if (structuralProperty is null || !element.Properties.ContainsKey(structuralProperty))
+        if (!element.Type.Equals(BuiltinVisualObjectSchemas.PolygonType, StringComparison.Ordinal) ||
+            !element.Properties.ContainsKey("points"))
             return element.Properties;
 
         return element.Properties
-            .Where(property => !property.Key.Equals(structuralProperty, StringComparison.Ordinal))
+            .Where(property => !property.Key.Equals("points", StringComparison.Ordinal))
             .ToDictionary(property => property.Key, property => property.Value, StringComparer.Ordinal);
     }
 

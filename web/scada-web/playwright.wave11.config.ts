@@ -37,15 +37,9 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] }
     },
     {
-      name: 'chromium-wave11-c15-trend',
-      testMatch: /c15-trend-active-runtime\.spec\.ts/,
-      dependencies: ['chromium-wave11-c17-memory'],
-      use: { ...devices['Desktop Chrome'] }
-    },
-    {
       name: 'chromium-wave11-owner-package',
       testMatch: /owner-test-artifact\.spec\.ts/,
-      dependencies: ['chromium-wave11-c15-trend'],
+      dependencies: ['chromium-wave11-c17-memory'],
       use: { ...devices['Desktop Chrome'] }
     }
   ],
@@ -69,10 +63,7 @@ export default defineConfig({
         Authentication__Local__Bootstrap__DisplayName: 'Wave 11 Local Developer',
         Authentication__Local__Bootstrap__Password: 'Wave11-local-password-123!',
         Authentication__Local__Bootstrap__Roles__0: 'developer',
-        EngineeringRuntime__ProjectKey: 'e2e-wave11',
-        Historian__Provider: 'timescaledb',
-        HistoricalQuery__Enabled: 'true',
-        HistoricalQuery__CursorKeyBase64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+        EngineeringRuntime__ProjectKey: 'e2e-wave11'
       }
     },
     {

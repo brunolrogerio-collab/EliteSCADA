@@ -6,6 +6,8 @@ import {
   BROWSER_CONFIG_PROPERTY,
   BUILTIN_VISUAL_OBJECT_TYPES,
   EVENT_BROWSER_COLUMNS,
+  alarmBrowserEngineeringValue,
+  eventBrowserEngineeringValue,
   readAlarmBrowserConfig,
   readEventBrowserConfig,
   type AlarmBrowserColumn,
@@ -96,7 +98,9 @@ export function BrowserConfigurationEditor({ element, locale, onMutationIntent }
       kind: 'property.set',
       objectIds: [element.id!],
       propertyKey: BROWSER_CONFIG_PROPERTY,
-      value: next
+      value: isAlarm
+        ? alarmBrowserEngineeringValue(next as AlarmBrowserConfig)
+        : eventBrowserEngineeringValue(next as EventBrowserConfig)
     });
   };
 

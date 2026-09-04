@@ -14,6 +14,8 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   image: 'core.image',
   valueDisplay: 'core.valueDisplay',
   trend: 'core.trend',
+  alarmBrowser: 'core.alarmBrowser',
+  eventBrowser: 'core.eventBrowser',
   button: 'core.button',
   slider: 'core.slider'
 } as const;
@@ -98,6 +100,13 @@ const TREND: readonly CommonVisualPropertyKey[] = [
   VISUAL_PROPERTY_KEYS.trendQualityVisible
 ];
 
+const BROWSER: readonly CommonVisualPropertyKey[] = [
+  VISUAL_PROPERTY_KEYS.backgroundColor,
+  VISUAL_PROPERTY_KEYS.strokeColor,
+  VISUAL_PROPERTY_KEYS.strokeWidth,
+  VISUAL_PROPERTY_KEYS.cornerRadius
+];
+
 const BASE = [...GEOMETRY, ...TRANSFORM, ...VISIBILITY, ...EFFECTS] as const;
 
 const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
@@ -143,6 +152,14 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
   [BUILTIN_VISUAL_OBJECT_TYPES.trend, schema(BUILTIN_VISUAL_OBJECT_TYPES.trend, [
     ...BASE,
     ...TREND
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser, schema(BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser, [
+    ...BASE,
+    ...BROWSER
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser, schema(BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser, [
+    ...BASE,
+    ...BROWSER
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.button, schema(BUILTIN_VISUAL_OBJECT_TYPES.button, [
     ...BASE,

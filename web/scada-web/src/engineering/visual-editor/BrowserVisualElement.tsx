@@ -8,8 +8,15 @@ import {
   type AlarmBrowserConfig,
   type EventBrowserConfig
 } from '../../visual-runtime';
-import { acknowledgeRuntimeAlarm, loadRuntimeAlarms } from '../../runtime/alarmCenterApi';
-import type { RuntimeAlarmCenterItem } from '../../runtime/alarmCenterTypes';
+import {
+  acknowledgeRuntimeAlarm,
+  loadRuntimeAlarmDefinitions,
+  loadRuntimeAlarms
+} from '../../runtime/alarmCenterApi';
+import type {
+  RuntimeAlarmCenterItem,
+  RuntimeAlarmDefinition
+} from '../../runtime/alarmCenterTypes';
 import {
   HISTORICAL_QUERY_VERSION,
   executeHistoricalQuery,
@@ -121,7 +128,7 @@ function AlarmBrowserVisual(props: BrowserVisualElementProps & { config: AlarmBr
     columns={config.columns}
     pageNumber={config.mode === 'history' ? cursorStack.length + 1 : pageIndex + 1}
     canPrevious={config.mode === 'history' ? cursorStack.length > 0 : pageIndex > 0}
-    canNext={config.mode === 'history' ? Boolean(state.page?.nextCursor) : Boolean(state.page?.nextCursor)}
+    canNext={Boolean(state.page?.nextCursor)}
     onPrevious={() => {
       if (config.mode === 'history') {
         const stack = [...cursorStack];
@@ -134,7 +141,7 @@ function AlarmBrowserVisual(props: BrowserVisualElementProps & { config: AlarmBr
       if (!state.page?.nextCursor) return;
       if (config.mode === 'history') {
         setCursorStack(stack => Object.freeze([...stack, cursor]));
-        setCursor(state.page!.nextCursor);
+        setCursor(state.page.nextCursor);
       } else setPageIndex(value => value + 1);
     }}
     renderAction={config.mode === 'current' && config.acknowledgeEnabled
@@ -177,7 +184,7 @@ function EventBrowserVisual(props: BrowserVisualElementProps & { config: EventBr
     onNext={() => {
       if (!state.page?.nextCursor) return;
       setCursorStack(stack => Object.freeze([...stack, cursor]));
-      setCursor(state.page!.nextCursor);
+      setCursor(state.page.nextCursor);
     }}
   />;
 }
@@ -265,8 +272,24 @@ async function loadCurrentAlarms(config: AlarmBrowserConfig, pageIndex: number, 
 }
 
 async function loadAlarmHistory(config: AlarmBrowserConfig, cursor: string | null, signal: AbortSignal): Promise<LoadedPage> {
-  const response = await executeHistoricalQuery(buildAlarmHistoricalRequest(config, cursor), signal);
-  return projectHistoricalRows(response);
+  const definitionsResult = await loadRuntimeAlarmDefinitions(signal);
+  const definitions = definitionsResult.available ? definitionsResult.value : Object.freeze([] as RuntimeAlarmDefinition[]);
+  let allowedAlarmIds: readonly string[] | undefined;
+
+  if (config.area) {
+    if (!definitionsResult.available) throw new Error(definitionsResult.error);
+    const wanted = config.area.toLocaleLowerCase();
+    allowedAlarmIds = Object.freeze(definitions
+      .filter(definition => (definition.area ?? '').toLocaleLowerCase().includes(wanted))
+      .map(definition => definition.id));
+    if (allowedAlarmIds.length === 0) return Object.freeze({ rows: Object.freeze([]), nextCursor: null });
+  }
+
+  const response = await executeHistoricalQuery(
+    buildAlarmHistoricalRequest(config, cursor, allowedAlarmIds),
+    signal
+  );
+  return projectHistoricalRows(response, definitions);
 }
 
 async function loadEventHistory(config: EventBrowserConfig, cursor: string | null, signal: AbortSignal): Promise<LoadedPage> {
@@ -274,12 +297,28 @@ async function loadEventHistory(config: EventBrowserConfig, cursor: string | nul
   return projectHistoricalRows(response);
 }
 
-function buildAlarmHistoricalRequest(config: AlarmBrowserConfig, cursor: string | null): HistoricalQueryRequest {
+export function buildAlarmHistoricalRequest(
+  config: AlarmBrowserConfig,
+  cursor: string | null,
+  allowedAlarmIds?: readonly string[]
+): HistoricalQueryRequest {
   const filters: HistoricalFilter[] = [];
-  if (config.lifecycle === 'returned') filters.push(enumFilter('state', 'Returned'));
-  else if (config.lifecycle === 'active') filters.push(enumFilter('state', 'Active'));
-  if (config.acknowledgement === 'acknowledged') filters.push(enumFilter('state', 'Acknowledged'));
-  else if (config.acknowledgement === 'unacknowledged') filters.push({ field: 'state', operator: 'notEq', values: [enumValue('Acknowledged')] });
+  const states = historicalAlarmStates(config);
+  if (states?.length === 1) filters.push(enumFilter('state', states[0]));
+  else if (states && states.length > 1) {
+    filters.push(Object.freeze({
+      field: 'state',
+      operator: 'in',
+      values: Object.freeze(states.map(enumValue))
+    }));
+  }
+  if (allowedAlarmIds?.length) {
+    filters.push(Object.freeze({
+      field: 'alarm.id',
+      operator: 'in',
+      values: Object.freeze(allowedAlarmIds.map(guidValue))
+    }));
+  }
   if (config.minimumPriority !== null) filters.push({ field: 'priority', operator: 'gte', values: [numberValue(config.minimumPriority)] });
   if (config.tagPath) filters.push(stringFilter('tag.path', config.tagPath));
   return Object.freeze({
@@ -293,7 +332,25 @@ function buildAlarmHistoricalRequest(config: AlarmBrowserConfig, cursor: string 
   });
 }
 
-function buildEventHistoricalRequest(config: EventBrowserConfig, cursor: string | null): HistoricalQueryRequest {
+/**
+ * Alarm history persists the state transition, not a separate acknowledgement
+ * flag for returned rows. Keep historical filtering honest: Active means an
+ * unacknowledged active transition, Acknowledged means an acknowledged active
+ * transition, and Returned is never guessed to be acknowledged/unacknowledged.
+ */
+export function historicalAlarmStates(config: AlarmBrowserConfig): readonly string[] | null {
+  if (config.lifecycle === 'returned') return Object.freeze(['Returned']);
+  if (config.lifecycle === 'active') {
+    if (config.acknowledgement === 'acknowledged') return Object.freeze(['Acknowledged']);
+    if (config.acknowledgement === 'unacknowledged') return Object.freeze(['Active']);
+    return Object.freeze(['Active', 'Acknowledged']);
+  }
+  if (config.acknowledgement === 'acknowledged') return Object.freeze(['Acknowledged']);
+  if (config.acknowledgement === 'unacknowledged') return Object.freeze(['Active']);
+  return null;
+}
+
+export function buildEventHistoricalRequest(config: EventBrowserConfig, cursor: string | null): HistoricalQueryRequest {
   const filters: HistoricalFilter[] = [];
   const entries: readonly [string, string][] = [
     ['type', config.type], ['category', config.category], ['source', config.source], ['area', config.area],
@@ -312,11 +369,23 @@ function buildEventHistoricalRequest(config: EventBrowserConfig, cursor: string 
   });
 }
 
-function projectHistoricalRows(response: HistoricalQueryResponse): LoadedPage {
+function projectHistoricalRows(
+  response: HistoricalQueryResponse,
+  alarmDefinitions: readonly RuntimeAlarmDefinition[] = []
+): LoadedPage {
+  const definitions = new Map(alarmDefinitions.map(definition => [definition.id.toLocaleLowerCase(), definition]));
   const rows = response.rows.map((row, index) => {
     const cells: Record<string, string> = {};
     for (const [field, value] of Object.entries(row.cells)) cells[field] = displayHistoricalValue(value);
-    const identity = row.cells['event.id']?.value ?? row.cells['alarm.id']?.value ?? row.cells['tag.id']?.value ?? `${index}`;
+    const alarmId = row.cells['alarm.id']?.value ?? null;
+    if (alarmId) {
+      const definition = definitions.get(alarmId.toLocaleLowerCase());
+      if (definition) {
+        cells.name = definition.name;
+        cells.area = definition.area?.trim() || '—';
+      }
+    }
+    const identity = row.cells['event.id']?.value ?? alarmId ?? row.cells['tag.id']?.value ?? `${index}`;
     return Object.freeze({ id: `${identity}:${row.cells.timestamp?.value ?? index}`, cells: Object.freeze(cells) });
   });
   return Object.freeze({ rows: Object.freeze(rows), nextCursor: response.nextCursor });
@@ -369,7 +438,7 @@ function currentAlarmRow(alarm: RuntimeAlarmCenterItem, tagPath: string): Displa
     id: `${alarm.definitionId}:${alarm.lastTransition}`,
     cells,
     alarmDefinitionId: alarm.definitionId,
-    canAcknowledge: state === 'active' || state === 'returned'
+    canAcknowledge: state === 'active'
   });
 }
 
@@ -400,6 +469,7 @@ function enumFilter(field: string, value: string): HistoricalFilter { return Obj
 function stringFilter(field: string, value: string): HistoricalFilter { return Object.freeze({ field, operator: 'contains', values: Object.freeze([stringValue(value)]) }); }
 function enumValue(value: string): HistoricalQueryValue { return Object.freeze({ kind: 'enum', value }); }
 function stringValue(value: string): HistoricalQueryValue { return Object.freeze({ kind: 'string', value }); }
+function guidValue(value: string): HistoricalQueryValue { return Object.freeze({ kind: 'guid', value }); }
 function numberValue(value: number): HistoricalQueryValue { return Object.freeze({ kind: 'number', value: String(value) }); }
 
 function columnLabel(column: string, locale: EngineeringLocale): string {

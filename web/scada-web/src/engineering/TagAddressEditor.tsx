@@ -11,6 +11,7 @@ import {
   type TagSourceAwareEngineering
 } from './TagSourceSelector.logic';
 import { buildModbusTagAddress } from './tagAddressApi';
+import { shouldShowTagAddressEditor } from './tagAddressPolicy';
 import { OpcUaTagBrowser } from './OpcUaTagBrowser';
 import { Dnp3TagAddressAssistant } from './Dnp3TagAddressAssistant';
 import { Iec104TagAddressAssistant } from './Iec104TagAddressAssistant';
@@ -83,8 +84,11 @@ export function TagAddressEditor({ tag, sources, locale, onChange }: Props) {
     return () => { alive = false; };
   }, [source?.id, source?.key, driverType]);
 
-  if (source && !sourceTypeResolved) return null;
-  if (sourceKind?.toLowerCase() === 'sourceprovider') return null;
+  if (!shouldShowTagAddressEditor({
+    hasDataSource: source !== null,
+    sourceTypeResolved,
+    sourceKind
+  })) return null;
 
   const specialized = driverType ? specializedAssistants[driverType] : undefined;
   const manualHelp = driverType ? manualHelpForDriver(driverType, text) : text.manualHelp;
@@ -225,14 +229,14 @@ function ModbusAssistant({ tag, locale, onChange }: {
             {valueTypes.map(value => <option key={value || 'auto'} value={value}>{value || text.auto}</option>)}
           </select>
         </label>
+        <OptionalNumber label={text.scale} value={scale} onChange={setScale} />
+        <OptionalNumber label={text.offset} value={offset} onChange={setOffset} />
         <label className="eng-editor-field">
           <span>{text.wordOrder}</span>
           <select value={wordOrder} onChange={event => setWordOrder(event.target.value)} data-testid="modbus-word-order">
             {wordOrders.map(value => <option key={value || 'default'} value={value}>{value || text.defaultValue}</option>)}
           </select>
         </label>
-        <OptionalNumber label={text.scale} value={scale} onChange={setScale} />
-        <OptionalNumber label={text.offset} value={offset} onChange={setOffset} />
         {bitAllowed && <OptionalNumber label={text.bit} value={bitIndex} onChange={setBitIndex} integer />}
       </div>
       <div className="eng-editor-actions">

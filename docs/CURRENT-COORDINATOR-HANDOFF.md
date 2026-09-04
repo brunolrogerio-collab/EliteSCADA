@@ -1,13 +1,13 @@
 # EliteSCADA — Current Coordinator Handoff
 
-**Last operational synchronization:** 2026-09-03 BRT  
-**Status:** **WAVE 14 ACTIVE / C01-C10 CONVERGED GREEN / C11 PASS 2 AUTHORIZED WITH IMPLEMENTATION LOCKED / WAVE 13 PAUSED**
+**Last operational synchronization:** 2026-09-04 BRT  
+**Status:** **WAVE 14 ACTIVE / C11 IMPLEMENTATION LOCKED / C12+C13+C14+C17 ACCEPTED+INTEGRATED / C16 ACCEPTED CANDIDATE WITH COMPOSITION DEFERRED / C15 CHANGES REQUIRED / C18 BLOCKED UNTIL C15 ACCEPTED / WAVE13 PAUSED**
 
-> GitHub is the official development memory. `PROJECT GOAL.md` governs permanent product intent. `LAST CHANGE.md` is the fastest mutable resume point. Do not resume from conversation history alone.
+> GitHub is the official development memory. `PROJECT GOAL.md` governs permanent product intent. `LAST CHANGE.md` is the fastest mutable resume point. Revalidate live GitHub before acting; do not resume from conversation history alone.
 
-## 1. Coordinator role and permanent gates
+## 1. Permanent coordinator gates
 
-The coordinator owns integration, architecture preservation, validation sequencing and acceptance. Package DEVs do not merge directly to `main` and do not decide the accepted product baseline.
+The Coordinator owns integration, architecture preservation, validation sequencing and acceptance. Package DEVs do not merge directly to `main` and do not decide the accepted product baseline.
 
 Permanent gates:
 
@@ -17,217 +17,233 @@ Permanent gates:
 - no Preview-only auth/licensing/runtime bypass;
 - no Driver-to-Driver coupling;
 - canonical TAG/Data Source identity remains authoritative;
-- accepted lifecycle is `Working -> saved Revision -> Published -> Active -> HMI Runtime`;
-- product-code changes require universal EliteSCADA CI plus impact-specific validation;
+- lifecycle is `Working -> saved Revision -> Published -> Active -> HMI Runtime`;
+- product changes require universal EliteSCADA CI plus impact-specific exact-head validation;
 - diagnose failures before rerunning;
-- do not weaken tests/security/contracts merely to obtain green.
+- do not weaken tests/security/contracts merely to obtain green;
+- DEV delivery is not Coordinator acceptance;
+- PR #212 stays DRAFT until final Wave14 acceptance.
 
-## 2. Current exact product freeze
+## 2. Product authority and integration
 
-Wave 14 remains isolated from `main` on:
+Coordinator branch:
 
-- branch `wave14/corrections-integration`;
-- draft PR #212.
+`wave14/corrections-integration`
 
-Frozen C10 converged **product-code** SHA:
+Draft PR:
 
-`97eefd8f4377ff583d1ba20bc89203f4a82b584d`
+`#212`
 
-Exact post-merge evidence:
-
-- EliteSCADA CI #1273 / run `33795337274` — SUCCESS;
-- Wave 11 Active HMI Runtime #203 / run `33795337288` — SUCCESS;
-- Preview Licensing CI #225 / run `33795337280` — SUCCESS;
-- L3 Seven-Driver Lab #180 / run `33795337252` — SUCCESS;
-- Interop Lab Smoke #102 / run `33795337270` — SUCCESS.
-
-Documentation-only `[skip ci]` commits may advance the branch after this SHA. They do not supersede `97eefd8...` as the current product freeze.
-
-Full C10 freeze and C11 Pass 2 release evidence:
-
-`docs/WAVE14-C10-CONVERGENCE-C11-PASS2-RELEASE.md`
-
-## 3. Accepted package authorities
-
-C01-C10 are now included in the converged candidate.
-
-- C01 — Identity / secure first-run / password policy.
-- C02 — backend-authoritative Driver catalog / Data Source forms.
-- C03 — OpenDNP3 production adapter / Step Function commercial dependency removal.
-- C04 — TAG Source identity, address assistants and OPC UA discovery/browse.
-- C05 — canonical visual properties / schema-driven Property Inspector.
-- C06 — Engineering Diagnostics / TAG Monitor product boundary.
-- C07 — Screen Engineering / Popup / Dynamo authoring and Runtime contracts.
-- C08 — Python Script Assistant / Project Object Browser / mediated TAG-write capability.
-- C09 — capability-driven application shell and operator Runtime presentation.
-- C10 — combined regression, multilingual convergence and exact-SHA freeze.
-
-Cross-package precedence remains: C04 owns TAG Source/communication/address/discovery; C05 owns canonical visual-property schemas; C06 owns TAG Monitor placement; C07 owns Screen/Popup/Dynamo graphical contracts; C08 consumes those contracts; C09 shell/Runtime consumes the resulting product model.
-
-The historical DEMO is not a compatibility authority.
-
-## 4. C09 accepted state
-
-Accepted C09 DEV head:
-
-`55c23851cbed0039f8dc82b75ef833a33393f8ed`
-
-Coordinator intake PR #230 merged C09 into integration. Post-C09 product SHA:
-
-`ea0d05bd29404c25e97b4d857b20912ed08059f6`
-
-It passed the five combined workflows before C10.
-
-Accepted C09 direction:
-
-- effective-capability-driven shell/navigation;
-- operator-focused Runtime for Runtime-only users;
-- semantic Dark/Light shell themes;
-- authored HMI colors are not recolored by shell theme;
-- `pt-BR`, `en`, `es` shell/operator UI;
-- native fullscreen;
-- fixed logical HMI composition with uniform scaling and letterbox/pillarbox;
-- no responsive object reflow or document-scroll-based HMI composition;
-- Screen/Popup/hit targets share the logical transform;
-- alarm UI is an operator overlay that does not reflow the authored HMI.
-
-Known unresolved product gap remains: canonical persisted authorable Popup X/Y placement is not represented in the accepted Popup mount contract. Do not invent ad-hoc persisted CSS coordinates merely for DEMO cosmetics.
-
-## 5. C10 convergence history
-
-C10 branch:
-
-`wave14/c10-multilingual-convergence`
-
-Base:
-
-`ea0d05bd29404c25e97b4d857b20912ed08059f6`
-
-Actual integration PR: #231.  
-Validation-only draft PR: #232, **DO NOT MERGE TO MAIN**.
-
-Final validated C10 branch head:
-
-`be32dd4aac39afd6158a82a66b37d670b18c78ab`
-
-C10 corrected narrow user-facing multilingual defects in TAG Monitor, Script Engineering and Script Assistant while preserving canonical persisted identifiers and existing product/security contracts.
-
-The first C10 universal CI failure was isolated to an obsolete E2E expectation: with `locale: 'pt-BR'`, the test still required English `Engineering / Diagnostics` after the UI was correctly localized to `Engenharia / Diagnósticos`. The fixture alone was corrected, the product was not rolled back, and no assertion was weakened.
-
-`be32dd4...` passed all five gates, PR #231 merged with expected-head protection, and integrated SHA `97eefd8...` passed all five again.
-
-## 6. C11 current status
-
-**PASS 2 PRODUCT-GAP AUDIT AUTHORIZED. IMPLEMENTATION REMAINS LOCKED.**
-
-Canonical requirements:
-
-`docs/WAVE14-C11-CANONICAL-DEMO-REQUIREMENTS.md`
-
-Pass 2 exact target:
+Last full C10 converged freeze before the C11 correction round:
 
 `97eefd8f4377ff583d1ba20bc89203f4a82b584d`
 
-C11 must re-test every Pass 1 finding against the converged C01-C10 product and return one consolidated gap list using exactly:
+Accepted C12+C13+C14 combined checkpoint:
 
-- `SUPPORTED`;
-- `PARTIALLY SUPPORTED`;
-- `PRODUCT GAP`;
-- `NEEDS VALIDATION`.
+`59a338d67dc956af0aa7907a54d59aaf8e80d764`
 
-Every non-SUPPORTED finding needs product evidence, impact, Simulation/PLC applicability, recommended owner/action, pre-DEMO-fix recommendation and any mitigation clearly separated from a real fix.
+C17 integration merge:
 
-Do not narrow requirements to hide gaps. Resolved Pass 1 findings must be explicitly marked superseded/resolved with Pass 2 evidence.
+`74cf4713ce70d19516acce0f475561a95af2c737`
 
-## 7. Canonical EEE requirements that remain binding
+A premature C15 composition was explicitly reverted, without history rewrite, at:
 
-The future canonical application remains a modern realistic **Estação Elevatória de Esgoto** based on real process reference rather than historical-demo compatibility.
+`c4d2ad7ddcef1c4c69108f43dbcf684746e8303c`
 
-Required experience includes:
+The product tree after that revert contains accepted C12+C13+C14+C17 and excludes unaccepted C15 code. Documentation-only `[skip ci]` commits may advance the branch without changing that product-tree authority.
 
-- two pumps/motors with stopped/running/fault/bad-quality states;
-- suction well level with analog `% Full` and animated liquid fill;
-- coherent process level/flow/pressure/current/frequency values;
-- contextual equipment Popups;
-- reusable Dynamos/public properties/TAG bindings;
-- alarms/events/trends/history;
-- instrumentation/electrical/operation support Screens;
-- correct operator versus Engineering/Diagnostics separation;
-- project PNG/assets/background support through normal project contracts;
-- scripts/animations through canonical APIs without direct DOM/Driver/security bypass;
-- `pt-BR`, `en`, `es` user-facing surfaces;
-- living Simulation process behavior;
-- later real PLC/Modbus validation with the same conceptual HMI/TAG architecture and Product Owner supplied addresses.
+A new product freeze is not declared until C12-C18 converge and C10 convergence cycle 2 passes.
 
-## 8. C11 implementation lock
+## 3. C11 status and binding Product Owner decisions
 
-Pass 2 authorization is not DEMO implementation authorization.
+C11 Pass 2 is consolidated. **C11 implementation remains LOCKED.**
 
-Until explicit later Coordinator/Development Lead release, C11 must not:
+Read on `wave14/c11-pass2-product-gap-audit`:
 
-- create the authoritative implementation branch;
-- implement product or DEMO code;
-- create the canonical `.escadapkg`;
-- alter Preview/Codespaces for the future DEMO;
-- introduce one-off HTML/CSS/JavaScript bypasses;
-- silently workaround a product gap so the DEMO stops being canonical.
+- `docs/WAVE14-C11-PASS2-PRODUCT-GAP-AUDIT.md`;
+- `docs/WAVE14-C11-PASS2-HMI-OBJECTS-PRODUCT-OWNER-CLARIFICATION.md`.
 
-After Pass 2, every confirmed gap must be dispositioned. Approved pre-DEMO fixes go to bounded correction work, are integrated through the coordinator, and force a new exact C10 validation/freeze before affected C11 conclusions are accepted.
+Binding decisions:
 
-When C11 implementation is eventually explicitly released, document the full premise, functional architecture, approved requirements, Simulation vs PLC variants, process model, validation goals, known gaps/limitations and Product Owner decisions in the repository before or alongside implementation.
+1. Popup X/Y is mandatory product functionality before C11 release. Centered-only Popup is not accepted mitigation.
+2. The future EEE Simulation must be buildable solely through normal generic EliteSCADA Engineering/Runtime tools. No EEE-specific simulator service, hidden package manipulation, historical DEMO internals or private runtime bypass is acceptable.
+3. Trend, Alarm Browser and Event Browser must be first-class visual objects insertable/configurable in authored Screens and Popups and persisted through Save/Publish/Activate/Runtime.
+4. Trend must support persisted Multi-Pen configuration.
+5. The later PLC variant should preserve the same conceptual HMI/TAG architecture and primarily change Source/address mapping.
 
-## 9. Binding route from here
+Canonical pre-DEMO correction plan:
 
-`97eefd8... C10 converged freeze`
-`-> C11 Pass 2`
-`-> consolidated final gap matrix`
-`-> explicit gap disposition`
-`-> bounded corrections if required`
-`-> C10 rerun/new freeze if product changes`
-`-> explicit C11 implementation release`
-`-> repository premise/architecture record`
-`-> canonical EEE DEMO Simulation`
-`-> PLC/Modbus-compatible mapping and real-PLC validation`
-`-> full CI`
-`-> Preview harness update`
-`-> clean Codespace`
-`-> real-browser Product Owner homologation`
-`-> accepted Wave14 baseline`
+`docs/WAVE14-C11-PRE-DEMO-CORRECTION-PACKAGES.md`
 
-No later step is automatically authorized.
+## 4. Accepted pre-DEMO corrections
 
-## 10. Preview and release boundaries
+### C13 — Canonical Simulation Quality
 
-Issue #208 / PR #210 remains historical Preview infrastructure, not product authority. Use `docs/CODESPACES-PREVIEW-RUNBOOK.md` for the proven temporary browser environment. The historical Wave11 DEMO launcher is not the final Wave14 acceptance fixture.
+Accepted candidate:
 
-Wave13 issue #205 / PR #207 remains paused. Do not sign stale pre-Wave14 product bytes. When release work resumes, product bytes must come from the accepted Wave14 baseline and packaging/signing from the proven Wave13 machinery, with exact product and packaging SHAs recorded.
+`b9ce08b7466ffe4cb4b01a64d4fe16921f2c9cf8`
 
-## 11. Mandatory resume protocol
+Integrated at:
+
+`84b12f7795b6ab5c63a4433ee7818ed418c442a1`
+
+Server-authoritative qualified samples, Source/TAG ownership enforcement, ordinary writes remain Good, no Client Visual Driver-quality spoofing, canonical Bad/Stale/Unavailable propagation.
+
+### C14 — First-Class Operational Events
+
+Accepted candidate:
+
+`70e311d3a359e7b00e8f0ed035478d51bb6ee001`
+
+Integrated at:
+
+`3d6389069015996a5a68fbb055f620560da9e839`
+
+First-class Event remains separate from Alarm/Audit, is Active-revision authoritative, durable and queryable through `operational.events`. Engineering schema authority is v16. C14 backend prerequisite for C18 is satisfied.
+
+### C12 — Server Runtime Automation / Generic Simulation Authoring
+
+Accepted candidate:
+
+`aa0fb1700cb805cfdbb6072ce7ce6bccda687067`
+
+C12 consumes C13. Server Scripts can execute Active lifecycle/Timer/event automation and publish qualified Server Memory samples through public, server-authoritative contracts. No EEE-specific simulator was introduced.
+
+C12+C13+C14 combined checkpoint `59a338d...` passed all five gates:
+
+- EliteSCADA CI `33832217232`;
+- Wave11 Runtime `33832217225`;
+- Licensing `33832217213`;
+- L3 `33832217277`;
+- Interop `33832217221`.
+
+### C17 — Internal Memory Authoring UX + Full Lifecycle E2E
+
+Accepted candidate:
+
+`6db4fb33f06159f108ca17ceca23a35ee158b228`
+
+Merged by coordinator intake PR #249 at:
+
+`74cf4713ce70d19516acce0f475561a95af2c737`
+
+A first combined CI attempt exposed only an unrelated IEC-104 T2 timing race. After diagnosis, a failed-jobs-only rerun was authorized. Backend, Web and Chromium all passed on the rerun. Other exact composition gates were already green:
+
+- Wave11 Runtime `33832895152`;
+- Licensing `33832895127`;
+- L3 `33832895193`;
+- Interop `33832895118`.
+
+C17 is ACCEPTED + INTEGRATED. Validation-only PR #244 is closed without merge to `main`.
+
+## 5. C16 — accepted candidate, integration intentionally deferred
+
+Package:
+
+**HMI Operational Command + Startup/Home Screen + Persisted Popup X/Y**
+
+Accepted exact candidate:
+
+`6d9f971eb469d931ca56becff4d240088725f37a`
+
+Five exact-candidate gates are green:
+
+- EliteSCADA CI `33834427366`;
+- Wave11 Runtime `33834427376`;
+- Licensing `33834427368`;
+- L3 `33834427362`;
+- Interop `33834427361`.
+
+Accepted architecture:
+
+- `ExecuteCommand` sends only stable Command identity to canonical `/api/commands/{id}/execute`;
+- backend remains authority for command existence, authorization, execution and audit;
+- denial/failure is propagated, with no fallback to client TAG writes;
+- Screen, Dynamo and Popup command execution is validated in Active Runtime;
+- Startup/Home is persisted by Screen identity and fails closed when missing/unresolved;
+- Popup X/Y is persisted in canonical logical HMI coordinates and respects Runtime scaling/stacking/pointer behavior.
+
+Validation PR #238 is closed / DO NOT MERGE TO MAIN.
+
+Coordinator intake PR #245 remains open only as a composition/tracking surface. It must not be automatically merged.
+
+C16 will be composed once against the accepted integration authority after C15 is corrected/accepted so schema v16, Events, Server Runtime, quality, Memory and final visual-object contracts are preserved together.
+
+## 6. C15 — CHANGES REQUIRED
+
+Package:
+
+**Embeddable Multi-Pen Trend HMI Object**
+
+Current candidate at this synchronization:
+
+`2abee30a25577368999f16d52a0802e6eea473ca`
+
+This candidate is RED in EliteSCADA CI run `33832058712` Chromium.
+
+Confirmed defects:
+
+1. frontend Trend scalar property registry conflicts with canonical common-property authority;
+2. frontend/backend cross-stack property parity is inconsistent for seven Trend scalar properties;
+3. mounted Engineering Property Inspector does not expose persisted `trendMode`;
+4. runtime Trend SVG may have a path element but no visibly drawable segment around quality/no-data discontinuity.
+
+Coordinator CHANGES REQUIRED comment on PR #243:
+
+`5535439463`
+
+Do not weaken parity or visibility assertions. Correct the product/authoring contract and publish a new exact candidate.
+
+No corrected C15 head had been published at this synchronization.
+
+## 7. C18 — not released yet
+
+Package:
+
+**Embeddable Alarm + Event Browser HMI Objects + related history i18n**
+
+C14 backend Event prerequisite is ready. C18 remains blocked until C15 is corrected, accepted and integrated, because C18 must consume the accepted embeddable visual-object authoring/persistence/runtime pattern rather than invent a parallel frontend contract.
+
+When released, C18 must provide first-class Alarm Browser and Event Browser objects insertable into Screen/Popup, persisted through normal lifecycle, multilingual pt-BR/en/es, with backend-authorized interactive alarm actions and C14 `operational.events` consumption.
+
+## 8. Immediate coordination route
+
+1. receive/revalidate corrected C15 head;
+2. require full exact-head gates and architecture acceptance for C15;
+3. integrate corrected C15 and run combined gates;
+4. publish exact C18 base and release C18 DEV;
+5. compose already accepted C16 once against the accepted post-C15 integration authority and rerun combined gates;
+6. implement/accept/integrate C18;
+7. run complete combined exact-head regression;
+8. execute C10 convergence cycle 2;
+9. freeze new exact product-code SHA;
+10. revalidate affected C11 findings plus remaining real-browser Memory/visual/resolution items;
+11. only then issue explicit `RELEASE C11 IMPLEMENTATION`;
+12. finalize `docs/WAVE14-C11-CANONICAL-DEMO-IMPLEMENTATION-PREMISE.md`;
+13. build canonical living EEE Simulation through corrected normal Engineering tools;
+14. later validate conceptual application against physical Modbus PLC;
+15. after final Wave14 acceptance resume Wave13 packaging/signing.
+
+## 9. Preview and release boundaries
+
+Issue #208 / PR #210 remains Preview infrastructure/history, not product authority.
+
+Wave13 issue #205 / PR #207 remains paused. Do not sign stale pre-Wave14 product bytes.
+
+## 10. Mandatory resume protocol
 
 Read and revalidate in this order:
 
 1. `PROJECT GOAL.md`;
 2. `LAST CHANGE.md`;
 3. this file;
-4. `docs/WAVE14-C10-CONVERGENCE-C11-PASS2-RELEASE.md`;
+4. `docs/WAVE14-C11-PRE-DEMO-CORRECTION-PACKAGES.md`;
 5. `docs/WAVE14-C11-CANONICAL-DEMO-REQUIREMENTS.md`;
-6. `docs/WAVE14-CORRECTION-PACKAGES.md`;
-7. `docs/CI-VALIDATION-POLICY.md`;
-8. `docs/CODESPACES-PREVIEW-RUNBOOK.md`;
+6. C11 consolidated audit + HMI clarification on `wave14/c11-pass2-product-gap-audit`;
+7. package handoff doc for the package being reviewed;
+8. `docs/CI-VALIDATION-POLICY.md`;
 9. live issue #211 and draft PR #212;
-10. issue #208 / PR #210 only for Preview infrastructure history;
+10. issue #208 / PR #210 only for Preview history;
 11. issue #205 / PR #207 only for paused Wave13 context.
 
 Live GitHub wins over copied SHAs or conversation history.
-
-## 12. Immediate next actions
-
-1. C11 executes Pass 2 against `97eefd8...` only.
-2. C11 returns the consolidated gap matrix with evidence and recommended disposition.
-3. Coordinator/Development Lead decides every confirmed gap.
-4. If product fixes are approved, dispatch bounded correction lanes, integrate and rerun C10.
-5. If the product is acceptable for the canonical DEMO, explicitly release C11 implementation.
-6. Record the complete C11 premise/architecture before or alongside implementation.
-7. Build Simulation first while preserving PLC/Modbus reuse by design.
-8. Update Preview only after the new canonical DEMO exists.
-9. Finish with full exact-head CI plus clean Codespace and real-browser Product Owner acceptance.

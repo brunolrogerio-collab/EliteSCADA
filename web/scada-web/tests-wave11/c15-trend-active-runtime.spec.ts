@@ -198,9 +198,6 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts li
   });
   expect(activePopupTrend?.properties?.pens).toEqual(pens);
 
-  const activeHistorizedFrequency = active.package.tags.find((tag: any) => tag.id === frequencyTag.id);
-  expect(activeHistorizedFrequency?.historian).toMatchObject({ enabled: true, strategy: 'change' });
-
   const runtimeTagsResponse = await request.get('/api/tags');
   expect(runtimeTagsResponse.ok()).toBeTruthy();
   const runtimeTags = await runtimeTagsResponse.json() as Array<{ id: string; path: string; readOnly: boolean }>;

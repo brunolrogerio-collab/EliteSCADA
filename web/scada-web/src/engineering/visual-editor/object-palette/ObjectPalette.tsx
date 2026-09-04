@@ -28,6 +28,8 @@ const DEFAULT_LABELS: Readonly<Record<string, string>> = Object.freeze({
   image: 'Image',
   valueDisplay: 'Value display',
   trend: 'Trend',
+  alarmBrowser: 'Alarm Browser',
+  eventBrowser: 'Event Browser',
   button: 'Button',
   slider: 'Slider'
 });
@@ -97,6 +99,8 @@ function paletteGlyph(item: VisualObjectPaletteItem): string {
     case 'image': return '▧';
     case 'valueDisplay': return '#';
     case 'trend': return '⌁';
+    case 'alarmBrowser': return '⚠';
+    case 'eventBrowser': return '≣';
     case 'button': return '▰';
     case 'slider': return '↔';
     default: return '□';

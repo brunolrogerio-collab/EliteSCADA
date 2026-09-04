@@ -16,23 +16,6 @@ import type {
 import type { EngineeringLocale } from '../i18n';
 import { cloneEngineeringValue } from './visualEditorCanonicalModel';
 
-type CommandEngineeringView = Readonly<{
-  id?: string | null;
-  key: string;
-  name: string;
-  enabled?: boolean;
-}>;
-
-type C16EngineeringPackage = EngineeringPackageView & {
-  startupScreenId?: string | null;
-  commands?: CommandEngineeringView[] | null;
-};
-
-type PositionedPopup = PopupEngineering & {
-  x?: number | null;
-  y?: number | null;
-};
-
 type OperationalAction = Readonly<{
   eventKey: string;
   kind: 'ExecuteCommand';
@@ -45,7 +28,7 @@ type OperationalAction = Readonly<{
 type DefinitionKind = 'screen' | 'dynamo' | 'popup';
 
 type Candidate = Readonly<{
-  package: C16EngineeringPackage;
+  package: EngineeringPackageView;
   changeVersion: number;
   label: string;
 }>;
@@ -62,9 +45,9 @@ export function HmiOperationalConfigurationPanel({
   locale: EngineeringLocale;
   onApplied: () => Promise<void>;
 }>) {
-  const model = snapshot.package as C16EngineeringPackage;
+  const model = snapshot.package;
   const screens = model.screens ?? [];
-  const popups = (model.popups ?? []) as PositionedPopup[];
+  const popups = model.popups ?? [];
   const dynamos = model.dynamos ?? [];
   const commands = useMemo(
     () => (model.commands ?? []).filter(command => command.enabled !== false && Boolean(command.id)),
@@ -98,7 +81,7 @@ export function HmiOperationalConfigurationPanel({
     setError(null);
   };
 
-  const previewCandidate = async (nextPackage: C16EngineeringPackage, label: string) => {
+  const previewCandidate = async (nextPackage: EngineeringPackageView, label: string) => {
     setBusy(true);
     setPreview(null);
     setCandidate(null);
@@ -141,16 +124,18 @@ export function HmiOperationalConfigurationPanel({
   };
 
   const previewStartup = () => {
+    const next = cloneEngineeringValue(model);
     if (!startupScreenId) {
-      setError(copy.startupRequired);
+      next.startupScreenId = null;
+      void previewCandidate(next, copy.startupClearLabel);
       return;
     }
+
     const screen = screens.find(item => item.id === startupScreenId);
     if (!screen?.id) {
       setError(copy.startupUnresolved);
       return;
     }
-    const next = cloneEngineeringValue(model);
     next.startupScreenId = screen.id;
     void previewCandidate(next, copy.startupLabel);
   };
@@ -262,7 +247,7 @@ export function HmiOperationalConfigurationPanel({
             value={startupScreenId}
             onChange={event => { setStartupScreenId(event.currentTarget.value); invalidate(); }}
           >
-            <option value="">{copy.select}</option>
+            <option value="">{copy.noStartup}</option>
             {screens.filter(screen => Boolean(screen.id)).map(screen =>
               <option key={screen.id} value={screen.id}>{screen.name || screen.key} · {screen.key}</option>
             )}
@@ -330,9 +315,9 @@ function definitionChoices(
   kind: DefinitionKind,
   screens: readonly ScreenEngineering[],
   dynamos: readonly DynamoEngineering[],
-  popups: readonly PositionedPopup[]
+  popups: readonly PopupEngineering[]
 ): ReadonlyArray<{ identity: string; label: string; elements: readonly VisualElementEngineering[] }> {
-  const values: ReadonlyArray<ScreenEngineering | DynamoEngineering | PositionedPopup> =
+  const values: ReadonlyArray<ScreenEngineering | DynamoEngineering | PopupEngineering> =
     kind === 'screen' ? screens : kind === 'popup' ? popups : dynamos;
   return values.map(value => ({
     identity: identity(value),
@@ -385,12 +370,12 @@ function replaceElementAction(
 
 function text(locale: EngineeringLocale) {
   if (locale === 'en') return {
-    title: 'HMI operational configuration', description: 'Canonical Startup Screen, Popup logical position and Operational Command actions.', startupTitle: 'Startup / Home', startupScreen: 'Startup Screen', startupHint: 'Runtime resolves this stable Screen identity. Missing or unresolved references are explicit errors, never lexical fallback.', popupTitle: 'Popup position', popup: 'Popup', popupHint: 'X/Y are persisted logical HMI coordinates. Finite off-canvas values are clamped by Runtime to the logical stage', commandTitle: 'Operational Command action', definitionKind: 'Definition type', definition: 'Definition', visualObject: 'Visual object', event: 'Event key', commandHint: 'The visual layer stores only a stable Command reference. Active existence, authorization, scope, execution and audit remain backend authority.', select: 'Select…', preview: 'Preview change', apply: 'Apply to Workspace', working: 'Working…', valid: 'Valid Engineering candidate', invalid: 'Invalid Engineering candidate', creates: 'creates', updates: 'updates', errors: 'errors', startupRequired: 'Select a Startup Screen.', startupUnresolved: 'Selected Startup Screen does not resolve to a stable Engineering identity.', popupRequired: 'Select a Popup.', popupFinite: 'Popup X/Y must be finite numbers.', visualObjectRequired: 'Select a visual definition and object.', visualObjectUnresolved: 'Selected visual object could not be resolved.', eventRequired: 'Event key is required.', commandRequired: 'Select a canonical enabled Command.', workspaceChanged: 'Engineering Workspace changed during validation. Reload and preview again.', startupLabel: 'Startup Screen', popupLabel: 'Popup X/Y', commandLabel: 'ExecuteCommand action'
+    title: 'HMI operational configuration', description: 'Canonical Startup Screen, Popup logical position and Operational Command actions.', startupTitle: 'Startup / Home', startupScreen: 'Startup Screen', startupHint: 'Runtime resolves this stable Screen identity. Clearing it is explicit and leaves Runtime unavailable until another Home is configured; there is never lexical fallback.', popupTitle: 'Popup position', popup: 'Popup', popupHint: 'X/Y are persisted logical HMI coordinates. Finite off-canvas values are clamped by Runtime to keep the Popup reachable inside the logical stage', commandTitle: 'Operational Command action', definitionKind: 'Definition type', definition: 'Definition', visualObject: 'Visual object', event: 'Event key', commandHint: 'The visual layer stores only a stable Command reference. Active existence, authorization, scope, execution and audit remain backend authority.', select: 'Select…', noStartup: 'No Startup Screen (Runtime unavailable)', preview: 'Preview change', apply: 'Apply to Workspace', working: 'Working…', valid: 'Valid Engineering candidate', invalid: 'Invalid Engineering candidate', creates: 'creates', updates: 'updates', errors: 'errors', startupUnresolved: 'Selected Startup Screen does not resolve to a stable Engineering identity.', popupRequired: 'Select a Popup.', popupFinite: 'Popup X/Y must be finite numbers.', visualObjectRequired: 'Select a visual definition and object.', visualObjectUnresolved: 'Selected visual object could not be resolved.', eventRequired: 'Event key is required.', commandRequired: 'Select a canonical enabled Command.', workspaceChanged: 'Engineering Workspace changed during validation. Reload and preview again.', startupLabel: 'Startup Screen', startupClearLabel: 'Clear Startup Screen', popupLabel: 'Popup X/Y', commandLabel: 'ExecuteCommand action'
   };
   if (locale === 'es') return {
-    title: 'Configuración operativa HMI', description: 'Pantalla inicial, posición lógica de Popup y acciones de Comando Operativo canónicas.', startupTitle: 'Inicio / Home', startupScreen: 'Pantalla inicial', startupHint: 'Runtime resuelve esta identidad estable. Las referencias ausentes o no resueltas son errores explícitos, nunca fallback léxico.', popupTitle: 'Posición del Popup', popup: 'Popup', popupHint: 'X/Y son coordenadas lógicas HMI persistidas. Runtime limita valores finitos fuera del canvas al escenario lógico', commandTitle: 'Acción de Comando Operativo', definitionKind: 'Tipo de definición', definition: 'Definición', visualObject: 'Objeto visual', event: 'Evento', commandHint: 'La capa visual guarda solamente una referencia estable de Command. Existencia activa, autorización, alcance, ejecución y auditoría siguen bajo autoridad del backend.', select: 'Seleccionar…', preview: 'Preview del cambio', apply: 'Aplicar al Workspace', working: 'Procesando…', valid: 'Candidato Engineering válido', invalid: 'Candidato Engineering inválido', creates: 'creaciones', updates: 'actualizaciones', errors: 'errores', startupRequired: 'Seleccione una Pantalla inicial.', startupUnresolved: 'La Pantalla inicial no resuelve a una identidad estable.', popupRequired: 'Seleccione un Popup.', popupFinite: 'X/Y del Popup deben ser números finitos.', visualObjectRequired: 'Seleccione una definición y un objeto visual.', visualObjectUnresolved: 'No se pudo resolver el objeto visual.', eventRequired: 'El evento es obligatorio.', commandRequired: 'Seleccione una Command canónica habilitada.', workspaceChanged: 'Engineering Workspace cambió durante la validación. Recargue y valide de nuevo.', startupLabel: 'Pantalla inicial', popupLabel: 'Popup X/Y', commandLabel: 'Acción ExecuteCommand'
+    title: 'Configuración operativa HMI', description: 'Pantalla inicial, posición lógica de Popup y acciones de Comando Operativo canónicas.', startupTitle: 'Inicio / Home', startupScreen: 'Pantalla inicial', startupHint: 'Runtime resuelve esta identidad estable. Eliminarla es explícito y deja Runtime no disponible hasta configurar otra Home; nunca hay fallback léxico.', popupTitle: 'Posición del Popup', popup: 'Popup', popupHint: 'X/Y son coordenadas lógicas HMI persistidas. Runtime limita valores finitos fuera del canvas para mantener el Popup accesible dentro del escenario lógico', commandTitle: 'Acción de Comando Operativo', definitionKind: 'Tipo de definición', definition: 'Definición', visualObject: 'Objeto visual', event: 'Evento', commandHint: 'La capa visual guarda solamente una referencia estable de Command. Existencia activa, autorización, alcance, ejecución y auditoría siguen bajo autoridad del backend.', select: 'Seleccionar…', noStartup: 'Sin Pantalla inicial (Runtime no disponible)', preview: 'Preview del cambio', apply: 'Aplicar al Workspace', working: 'Procesando…', valid: 'Candidato Engineering válido', invalid: 'Candidato Engineering inválido', creates: 'creaciones', updates: 'actualizaciones', errors: 'errores', startupUnresolved: 'La Pantalla inicial no resuelve a una identidad estable.', popupRequired: 'Seleccione un Popup.', popupFinite: 'X/Y del Popup deben ser números finitos.', visualObjectRequired: 'Seleccione una definición y un objeto visual.', visualObjectUnresolved: 'No se pudo resolver el objeto visual.', eventRequired: 'El evento es obligatorio.', commandRequired: 'Seleccione una Command canónica habilitada.', workspaceChanged: 'Engineering Workspace cambió durante la validación. Recargue y valide de nuevo.', startupLabel: 'Pantalla inicial', startupClearLabel: 'Eliminar Pantalla inicial', popupLabel: 'Popup X/Y', commandLabel: 'Acción ExecuteCommand'
   };
   return {
-    title: 'Configuração operacional da HMI', description: 'Tela inicial, posição lógica de Popup e ações de Comando Operacional como contratos canônicos.', startupTitle: 'Inicial / Home', startupScreen: 'Tela inicial', startupHint: 'O Runtime resolve esta identidade estável. Referência ausente ou não resolvida é erro explícito, nunca fallback lexical.', popupTitle: 'Posição do Popup', popup: 'Popup', popupHint: 'X/Y são coordenadas lógicas HMI persistidas. Valores finitos fora do canvas são limitados pelo Runtime ao stage lógico', commandTitle: 'Ação de Comando Operacional', definitionKind: 'Tipo de definição', definition: 'Definição', visualObject: 'Objeto visual', event: 'Evento', commandHint: 'A camada visual persiste apenas a referência estável da Command. Existência ativa, autorização, escopo, execução e audit continuam autoridade do backend.', select: 'Selecione…', preview: 'Preview da mudança', apply: 'Aplicar ao Workspace', working: 'Processando…', valid: 'Candidato Engineering válido', invalid: 'Candidato Engineering inválido', creates: 'criações', updates: 'atualizações', errors: 'erros', startupRequired: 'Selecione uma Tela inicial.', startupUnresolved: 'A Tela inicial selecionada não resolve para uma identidade estável.', popupRequired: 'Selecione um Popup.', popupFinite: 'X/Y do Popup precisam ser números finitos.', visualObjectRequired: 'Selecione uma definição e um objeto visual.', visualObjectUnresolved: 'O objeto visual selecionado não pôde ser resolvido.', eventRequired: 'O evento é obrigatório.', commandRequired: 'Selecione uma Command canônica habilitada.', workspaceChanged: 'O Engineering Workspace mudou durante a validação. Recarregue e faça Preview novamente.', startupLabel: 'Tela inicial', popupLabel: 'Popup X/Y', commandLabel: 'Ação ExecuteCommand'
+    title: 'Configuração operacional da HMI', description: 'Tela inicial, posição lógica de Popup e ações de Comando Operacional como contratos canônicos.', startupTitle: 'Inicial / Home', startupScreen: 'Tela inicial', startupHint: 'O Runtime resolve esta identidade estável. Limpar a Home é explícito e deixa o Runtime indisponível até outra Home ser configurada; nunca há fallback lexical.', popupTitle: 'Posição do Popup', popup: 'Popup', popupHint: 'X/Y são coordenadas lógicas HMI persistidas. Valores finitos fora do canvas são limitados pelo Runtime para manter o Popup acessível dentro do stage lógico', commandTitle: 'Ação de Comando Operacional', definitionKind: 'Tipo de definição', definition: 'Definição', visualObject: 'Objeto visual', event: 'Evento', commandHint: 'A camada visual persiste apenas a referência estável da Command. Existência ativa, autorização, escopo, execução e audit continuam autoridade do backend.', select: 'Selecione…', noStartup: 'Sem Tela inicial (Runtime indisponível)', preview: 'Preview da mudança', apply: 'Aplicar ao Workspace', working: 'Processando…', valid: 'Candidato Engineering válido', invalid: 'Candidato Engineering inválido', creates: 'criações', updates: 'atualizações', errors: 'erros', startupUnresolved: 'A Tela inicial selecionada não resolve para uma identidade estável.', popupRequired: 'Selecione um Popup.', popupFinite: 'X/Y do Popup precisam ser números finitos.', visualObjectRequired: 'Selecione uma definição e um objeto visual.', visualObjectUnresolved: 'O objeto visual selecionado não pôde ser resolvido.', eventRequired: 'O evento é obrigatório.', commandRequired: 'Selecione uma Command canônica habilitada.', workspaceChanged: 'O Engineering Workspace mudou durante a validação. Recarregue e faça Preview novamente.', startupLabel: 'Tela inicial', startupClearLabel: 'Limpar Tela inicial', popupLabel: 'Popup X/Y', commandLabel: 'Ação ExecuteCommand'
   };
 }

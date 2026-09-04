@@ -11,6 +11,7 @@ import {
   createObjectAddIntent,
   listVisualObjectPaletteItems
 } from '../src/engineering/visual-editor/object-palette/objectPaletteModel';
+import { c07VisualEditorText } from '../src/engineering/visual-editor/c07VisualEditorI18n';
 import { applyVisualEditorMutationIntent } from '../src/engineering/visual-editor/visualEditorCanonicalModel';
 import { historicalBrowserCopy } from '../src/runtime/historical-browser/historicalBrowserI18n';
 
@@ -33,6 +34,21 @@ test('Alarm Browser and Event Browser are first-class authoring palette objects'
     objectType: 'core.eventBrowser',
     at: { x: 480, y: 140 },
     initialProperties: { width: 720, height: 320 }
+  });
+});
+
+test('browser insertion labels follow the shared Screen and Popup visual-editor locale', () => {
+  expect(c07VisualEditorText('pt-BR').palette).toEqual({
+    alarmBrowser: 'Browser de Alarmes',
+    eventBrowser: 'Browser de Eventos'
+  });
+  expect(c07VisualEditorText('en').palette).toEqual({
+    alarmBrowser: 'Alarm Browser',
+    eventBrowser: 'Event Browser'
+  });
+  expect(c07VisualEditorText('es').palette).toEqual({
+    alarmBrowser: 'Browser de Alarmas',
+    eventBrowser: 'Browser de Eventos'
   });
 });
 

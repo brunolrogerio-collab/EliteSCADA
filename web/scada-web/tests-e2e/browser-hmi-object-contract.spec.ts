@@ -14,6 +14,7 @@ import {
 import { c07VisualEditorText } from '../src/engineering/visual-editor/c07VisualEditorI18n';
 import { applyVisualEditorMutationIntent } from '../src/engineering/visual-editor/visualEditorCanonicalModel';
 import { historicalBrowserCopy } from '../src/runtime/historical-browser/historicalBrowserI18n';
+import { formatHistoricalQueryValue } from '../src/runtime/historical-browser/historicalBrowserQueryAdapter';
 
 test('Alarm Browser and Event Browser are first-class authoring palette objects', () => {
   const items = listVisualObjectPaletteItems();
@@ -108,7 +109,7 @@ test('canonical property mutation changes only the selected Browser instance', (
   expect(eventA.properties).not.toHaveProperty('browserConfig');
 });
 
-test('historical browser visible chrome is covered in pt-BR, en and es without translating dataset identities', () => {
+test('historical browser visible chrome and scalar presentation are covered in pt-BR, en and es', () => {
   const pt = historicalBrowserCopy('pt-BR');
   const en = historicalBrowserCopy('en');
   const es = historicalBrowserCopy('es');
@@ -120,8 +121,13 @@ test('historical browser visible chrome is covered in pt-BR, en and es without t
   expect(en.datasetOperationalEvents).toBe('Operational events');
   expect(es.datasetOperationalEvents).toBe('Eventos operacionales');
 
-  // Persisted/wire identities are not localized. These are deliberately asserted
-  // as technical contract values next to the localized presentation copy.
+  expect(formatHistoricalQueryValue({ kind: 'boolean', value: 'true' }, 'pt-BR')).toBe('Verdadeiro');
+  expect(formatHistoricalQueryValue({ kind: 'boolean', value: 'false' }, 'en')).toBe('False');
+  expect(formatHistoricalQueryValue({ kind: 'boolean', value: 'true' }, 'es')).toBe('Verdadero');
+  expect(formatHistoricalQueryValue({ kind: 'number', value: 'not-a-number' }, 'pt-BR')).toBe('Indisponível');
+  expect(formatHistoricalQueryValue({ kind: 'enum', value: 'Active' }, 'es')).toBe('Active');
+
+  // Persisted/wire identities and enum values are deliberately not localized.
   expect(['historian.samples', 'alarm.events', 'operational.events']).toEqual([
     'historian.samples', 'alarm.events', 'operational.events'
   ]);

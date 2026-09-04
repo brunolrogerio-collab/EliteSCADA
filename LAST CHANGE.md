@@ -1,7 +1,7 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-04 (BRT)  
-**Operational state:** **WAVE 14 #211 ACTIVE / C01-C10 LAST FULL FREEZE GREEN / C11 PASS 2 CONSOLIDATED + IMPLEMENTATION LOCKED / C12+C13+C14 ACCEPTED+INTEGRATED AND COMBINED GREEN / C17 COMPOSED — COMBINED CI RERUN AFTER DIAGNOSED IEC104 TIMING FLAKE / C15 CHANGES REQUIRED — EXACT CANDIDATE RED / C16 CHANGES REQUIRED — 4/5 GREEN / C18 BLOCKED UNTIL C15 ACCEPTED / WAVE13 PAUSED**
+**Operational state:** **WAVE 14 #211 ACTIVE / C01-C10 LAST FULL FREEZE GREEN / C11 PASS 2 CONSOLIDATED + IMPLEMENTATION LOCKED / C12+C13+C14+C17 ACCEPTED+INTEGRATED / C16 EXACT CANDIDATE ACCEPTED — COMPOSITION DEFERRED / C15 CHANGES REQUIRED / C18 BLOCKED UNTIL C15 ACCEPTED / WAVE13 PAUSED**
 
 > GitHub is the development memory. Revalidate live refs, PR state and exact-SHA CI before acting. A DEV delivery is not a Coordinator acceptance. Documentation-only `[skip ci]` commits may move coordinator branches without redefining product-code validation authority.
 
@@ -21,25 +21,19 @@ Last fully converged/frozen pre-correction product-code SHA:
 
 `97eefd8f4377ff583d1ba20bc89203f4a82b584d`
 
-Accepted pre-DEMO correction checkpoint with C12+C13+C14:
+Accepted C12+C13+C14 combined checkpoint:
 
 `59a338d67dc956af0aa7907a54d59aaf8e80d764`
 
-Five combined gates were green on that checkpoint:
+C17 integration/composition merge:
 
-- EliteSCADA CI #1325 / `33832217232`;
-- Wave 11 Active HMI Runtime #253 / `33832217225`;
-- Preview Licensing CI #275 / `33832217213`;
-- L3 Seven-Driver Lab #230 / `33832217277`;
-- Interop Lab Smoke #152 / `33832217221`.
+`74cf4713ce70d19516acce0f475561a95af2c737`
 
-C17 was subsequently composed. A premature C15 composition was explicitly reverted after live exact-candidate revalidation proved C15 red.
-
-Product-tree checkpoint immediately after that C15 revert:
+A premature C15 composition was explicitly reverted without rewriting history. Product-tree checkpoint after the revert:
 
 `c4d2ad7ddcef1c4c69108f43dbcf684746e8303c`
 
-The revert did not rewrite history. It restores the functional product tree to C12+C13+C14+C17 while preserving the audit trail.
+That product tree contains the accepted C12+C13+C14+C17 capabilities and excludes the unaccepted C15 candidate.
 
 A new Wave14 product freeze will be declared only after C12-C18 convergence, full combined validation and C10 convergence cycle 2.
 
@@ -73,13 +67,11 @@ Accepted candidate:
 
 `b9ce08b7466ffe4cb4b01a64d4fe16921f2c9cf8`
 
-Accepted server-authoritative qualified-sample contract includes Source/TAG ownership enforcement, ordinary writes remaining `Good`, no Client Visual physical-Driver quality spoofing, and canonical `Bad` / `Stale` / `Unavailable` propagation.
-
-Integration PR #242 merged. Integration SHA:
+Integration SHA:
 
 `84b12f7795b6ab5c63a4433ee7818ed418c442a1`
 
-Validation PR #239 is DO NOT MERGE TO MAIN.
+Accepted server-authoritative qualified samples preserve Source/TAG ownership, ordinary writes remain `Good`, Client Visual cannot spoof physical Driver quality, and `Bad` / `Stale` / `Unavailable` propagate canonically.
 
 ## 4. C14 — ACCEPTED + INTEGRATED
 
@@ -89,11 +81,11 @@ Accepted candidate:
 
 `70e311d3a359e7b00e8f0ed035478d51bb6ee001`
 
-Accepted first-class Event model remains distinct from Alarm/Audit, is Active-revision authoritative, persists durably in PostgreSQL, exposes protected Historical Query dataset `operational.events`, and advances Engineering schema authority to v16.
-
-Integration PR #235 merged. Integration SHA:
+Integration SHA:
 
 `3d6389069015996a5a68fbb055f620560da9e839`
+
+Accepted Event model is distinct from Alarm/Audit, Active-revision authoritative, durably persisted, queryable through `operational.events`, and advances Engineering schema authority to v16.
 
 C14 backend Event prerequisite for C18 is satisfied.
 
@@ -105,125 +97,115 @@ Final accepted candidate:
 
 `aa0fb1700cb805cfdbb6072ce7ce6bccda687067`
 
-The corrected C12 consumes C13 rather than creating a parallel quality model. Server Scripts can publish qualified Server Memory samples only through declared `ServerMemoryTag` dependencies and .NET-side Active revision/capability/ownership/read-only validation.
+C12 consumes the accepted C13 quality contract. Server Scripts can publish qualified Server Memory samples only through declared `ServerMemoryTag` dependencies with Active revision/capability/ownership/read-only validation.
 
-Accepted capability includes:
+Accepted capabilities include Initialize / Timer / TagChanged / ServerRuntimeEvent / Dispose lifecycle, stateful server automation, canonical qualified Server Memory publishing, and downstream cache/realtime/alarm/historian propagation. No EEE-specific simulator/service was introduced.
 
-- Initialize / Timer / TagChanged / ServerRuntimeEvent / Dispose lifecycle;
-- stateful Active Runtime server automation;
-- `publish_server_memory_sample(stable_tag_id, value, quality)`;
-- canonical `TagQuality`;
-- `Bad` / `Stale` / `Unavailable` propagation through cache/realtime, Communication alarm semantics and historian/query;
-- no Client Visual quality-authoring authority;
-- no physical Driver quality spoofing;
-- no EEE-specific simulator/service.
+Combined C12+C13+C14 checkpoint `59a338d...` passed:
 
-C12+C13+C14 combined checkpoint `59a338d...` passed all five required gates listed in section 1.
+- EliteSCADA CI #1325 / `33832217232`;
+- Wave 11 Active HMI Runtime #253 / `33832217225`;
+- Preview Licensing CI #275 / `33832217213`;
+- L3 Seven-Driver Lab #230 / `33832217277`;
+- Interop Lab Smoke #152 / `33832217221`.
 
-## 6. C17 — CANDIDATE DELIVERED + COMPOSED / COMBINED CI RERUN UNDERWAY
+## 6. C17 — ACCEPTED + INTEGRATED / COMBINED GREEN
 
 **C17 — Internal Memory Authoring UX + Full Lifecycle E2E**
 
-Corrected DEV candidate:
+Accepted candidate:
 
 `6db4fb33f06159f108ca17ceca23a35ee158b228`
 
-C17 isolated candidate evidence is green and the Coordinator review found the production change capability/catalog-based rather than a hidden Memory provider-ID workaround.
-
-Coordinator composition commit:
+Coordinator intake PR #249 merged into `wave14/corrections-integration` with merge SHA:
 
 `74cf4713ce70d19516acce0f475561a95af2c737`
 
-The combined EliteSCADA CI run `33832895123` initially failed only in:
+The production change is Source capability/catalog-based rather than hard-coded to private Memory provider IDs. The accepted scenario covers normal Server Memory and Client Memory authoring plus Save/Publish/Activate/Active Runtime lifecycle, Server Memory read/write/retention/historian behavior and Client Memory session isolation.
 
-`Scada.Drivers.Tests.Iec104TcpFaultInjectionTests.Adapter_T2FlushesPendingReceiveAcknowledgementWithoutFaultingSession`
+The first combined EliteSCADA CI run `33832895123` failed only in an unrelated IEC-104 T2 timing assertion. Coordinator diagnosed the failure before rerun:
 
-Observed assertion:
+- C17 does not modify IEC-104 code/tests;
+- the same IEC-104 test passed on accepted checkpoint `59a338d...`;
+- the test uses a 150 ms T2 and sampled transport diagnostics immediately after peer-side S-frame observation, leaving a scheduler/state-update race.
 
-- expected `PendingReceiveAcknowledgementCount = 0`;
-- observed `1` immediately after the peer had already received the S-frame.
+A failed-jobs-only rerun was therefore authorized. The rerun passed:
 
-Coordinator diagnosis before rerun:
+- Backend build/test/smoke: SUCCESS;
+- Web build: SUCCESS;
+- Chromium end-to-end: SUCCESS.
 
-- C17 does not modify IEC-104 product/test code;
-- the same IEC-104 test passed on accepted checkpoint `59a338d...` in EliteSCADA CI run `33832217232`;
-- the test uses a 150 ms T2 and samples transport diagnostics immediately after a peer-side `TaskCompletionSource` reports the S-frame, leaving a plausible scheduler/state-update race;
-- there is no evidence connecting the failure to Memory authoring/lifecycle behavior.
+Other exact composition workflows were already green:
 
-Therefore a **failed-jobs-only rerun of `33832895123` was authorized after diagnosis**. This is not an unchanged blind rerun.
+- Wave 11 Active HMI Runtime `33832895152`: SUCCESS;
+- Preview Licensing `33832895127`: SUCCESS;
+- L3 Seven-Driver Lab `33832895193`: SUCCESS;
+- Interop Lab Smoke `33832895118`: SUCCESS.
 
-C17 must not be promoted to combined-accepted until the rerun closes green and dependent Chromium executes successfully.
+C17 is **ACCEPTED + INTEGRATED / COMBINED GREEN**. Validation-only PR #244 is closed without merge to `main`.
 
 ## 7. C15 — CHANGES REQUIRED / EXACT CANDIDATE RED
 
 **C15 — Embeddable Multi-Pen Trend HMI Object**
 
-Current candidate:
+Current branch candidate at this checkpoint:
 
 `2abee30a25577368999f16d52a0802e6eea473ca`
 
-Live exact-candidate revalidation superseded an earlier incorrect coordinator note that described this head as 5/5 green.
+EliteSCADA CI run `33832058712` failed Chromium end-to-end. Four deterministic issues were identified:
 
-EliteSCADA CI run:
+1. frontend common Trend scalar property registry conflicts with the canonical common-registry contract;
+2. frontend/backend cross-stack visual property authority is inconsistent for the seven Trend scalar properties;
+3. mounted Engineering Property Inspector does not expose `trendMode` as required;
+4. Trend SVG series may exist without a visibly drawable segment around quality/no-data discontinuity.
 
-`33832058712` — **FAILURE in Chromium end-to-end**.
-
-Four deterministic defects were identified from the Playwright artifact:
-
-1. `visual-property-registry-contract.spec.ts`: frontend common registry contains seven new Trend scalar keys while the canonical common-registry contract still expects the prior set;
-2. `visual-property-cross-stack-parity.spec.ts`: backend canonical `VisualPropertyFoundation` does not contain those seven frontend Trend keys, while C15 declares Trend definitions privately in `BuiltinVisualObjectSchemas.TrendDefinitions`; cross-stack property authority is inconsistent;
-3. `wave-14-c15-trend-i18n-mounted.spec.ts`: mounted Engineering Property Inspector does not expose `[data-property-key="trendMode"]` as required;
-4. `wave-14-c15-trend-multipen-mounted.spec.ts`: Trend series SVG path exists but is not visibly rendered; captured path data around the quality/no-data discontinuity contains move operations without a drawable segment.
-
-Do not weaken parity tests or visibility assertions to obtain green.
+Do not weaken property parity or visibility tests.
 
 Coordinator `CHANGES REQUIRED` comment on PR #243:
 
 `5535439463`
 
-The premature C15 composition was reverted explicitly at:
-
-`c4d2ad7ddcef1c4c69108f43dbcf684746e8303c`
+The premature C15 integration was reverted explicitly at `c4d2ad7ddcef1c4c69108f43dbcf684746e8303c`. History was preserved.
 
 C18 remains blocked until a corrected C15 candidate is accepted and integrated.
 
-## 8. C16 — CHANGES REQUIRED / 4 OF 5 GREEN
+## 8. C16 — EXACT CANDIDATE ACCEPTED / COMPOSITION DEFERRED
 
 **C16 — HMI Operational Command + Startup Screen + Persisted Popup X/Y**
 
-Current candidate:
+Accepted exact candidate:
 
-`2a4377cfa93c6020bc89882f6d2b3088cefd030b`
+`6d9f971eb469d931ca56becff4d240088725f37a`
 
-Current results:
+The three previously diagnosed Chromium failures were corrected without weakening C16 contracts.
 
-- EliteSCADA CI #1294 / `33827619323`: FAILURE in Chromium end-to-end;
-- Wave 11 Active HMI Runtime #223 / `33827619319`: SUCCESS;
-- Preview Licensing #245 / `33827619337`: SUCCESS;
-- L3 Seven-Driver Lab #200 / `33827619326`: SUCCESS;
-- Interop Lab Smoke #122 / `33827619361`: SUCCESS.
+Five exact-candidate gates are green:
 
-The Chromium artifact produced three deterministic failures:
+- EliteSCADA CI `33834427366`: SUCCESS;
+- Wave 11 Active HMI Runtime `33834427376`: SUCCESS;
+- Preview Licensing `33834427368`: SUCCESS;
+- L3 Seven-Driver Lab `33834427362`: SUCCESS;
+- Interop Lab Smoke `33834427361`: SUCCESS.
 
-1. `wave-03-integrated-composition.spec.ts`: historical fixture enters Runtime without the new canonical Startup/Home Screen and correctly receives `HMI_RUNTIME_STARTUP_SCREEN_REQUIRED`; update the historical E2E fixture, do not weaken fail-closed Startup/Home behavior;
-2. `wave-09-popup-dynamo-runtime-web.spec.ts`: brittle exact source-format assertion no longer matches a multiline/cast form of the same `executeVisualNavigationAction` call; update the test semantically, not production formatting;
-3. `wave-14-c16-engineering-contract.spec.ts`: acceptance test assumes default workspace already contains an enabled Operational Command; it must create/provide a canonical Command through normal setup before proving Screen/Popup/Dynamo `ExecuteCommand` stable-ID resolution.
+Coordinator architecture review confirmed:
 
-Coordinator `CHANGES REQUIRED` comment on PR #238:
+- `ExecuteCommand` sends only canonical stable Command identity to `/api/commands/{id}/execute`;
+- backend denial/failure is propagated and no fallback to client TAG writes exists;
+- backend Operational Command authorization/audit remains the canonical authority already accepted by C11;
+- Screen, Dynamo and Popup command execution is exercised through Active Runtime;
+- Startup/Home Screen is persisted by canonical Screen identity and Runtime fails closed when missing/unresolved;
+- Popup X/Y is persisted and projected in the C09 logical HMI coordinate system with stacking/pointer behavior preserved;
+- no DEMO-specific workaround was introduced.
 
-`5535440996`
+Coordinator acceptance comment on validation PR #238:
 
-C16 must preserve:
+`5535491120`
 
-- C14 schema v16 and Operational Events;
-- C12 Server Runtime + C13 quality;
-- accepted C17 and later accepted C15;
-- `ExecuteCommand` with backend authorization/audit authority;
-- persisted Startup/Home Screen;
-- persisted Popup X/Y in canonical logical HMI coordinates;
-- Runtime scaling and hit-target correctness.
+PR #238 is closed / validation only / DO NOT MERGE TO MAIN.
 
-Coordinator intake PR #245 remains a composition surface only and is not authorized to merge while candidate/integration requirements are unresolved.
+Coordinator intake PR #245 remains open as a composition/tracking surface and is intentionally not mergeable automatically. Its body has been updated to the accepted candidate.
+
+**C16 is accepted as a candidate but intentionally not integrated yet.** Compose it once against the accepted integration authority after C15 is corrected/accepted, preserving C14 schema v16/events, C12+C13 runtime/quality, C17, final C15 visual contracts and all Wave11 lanes.
 
 ## 9. C18 — BLOCKED UNTIL C15 ACCEPTANCE/INTEGRATION
 
@@ -236,7 +218,7 @@ No C18 implementation branch has been released yet.
 C18 must consume:
 
 - C14 `operational.events` backend/query contract;
-- accepted canonical visual-object authoring/persistence/runtime lifecycle from the corrected C15 pattern;
+- accepted canonical visual-object authoring/persistence/runtime lifecycle from corrected C15;
 - normal Screen/Popup placement and Property Inspector contracts;
 - pt-BR/en/es chrome;
 - backend authority for ACK/shelve/interactive operations.
@@ -245,15 +227,15 @@ No frontend-only parallel Event schema and no process-event-as-alarm workaround 
 
 ## 10. Current coordination order
 
-1. close the diagnosed C17 combined CI rerun and accept C17 only if the composed checkpoint is green;
-2. receive corrected C15 candidate, validate exact head, integrate only after all required gates are green;
-3. only after C15 acceptance publish the exact C18 base and release C18 implementation;
-4. receive corrected C16 candidate, validate exact head and compose once against the then-current accepted integration authority;
+1. receive corrected C15 candidate;
+2. validate C15 exact head and integrate only after required gates are green;
+3. after C15 acceptance publish exact C18 base and release C18 implementation;
+4. compose already accepted C16 once against the then-current accepted integration authority and rerun combined gates;
 5. implement/accept/integrate C18;
 6. run complete combined exact-head integration regression;
 7. execute C10 convergence cycle 2;
 8. freeze a new exact product-code SHA;
-9. revalidate affected C11 findings plus remaining real-browser Memory/visual/resolution acceptance;
+9. revalidate affected C11 findings and remaining real-browser Memory/visual/resolution acceptance;
 10. only then issue explicit `RELEASE C11 IMPLEMENTATION`;
 11. finalize `docs/WAVE14-C11-CANONICAL-DEMO-IMPLEMENTATION-PREMISE.md`;
 12. build the canonical living EEE Simulation solely through corrected normal Engineering tools;
@@ -263,9 +245,10 @@ No frontend-only parallel Event schema and no process-event-as-alarm workaround 
 ## 11. Official tracker references
 
 - issue #211 is the Wave14 owner/coordinator tracker;
+- latest C17/C16 coordinator checkpoint comment: `5535505898`;
 - draft integration PR #212 remains the sole Wave14 integration surface toward `main` and stays DRAFT;
 - C15 validation PR #243 has Coordinator CHANGES REQUIRED comment `5535439463`;
-- C16 validation PR #238 has Coordinator CHANGES REQUIRED comment `5535440996`;
+- C16 intake/composition PR #245 tracks the accepted candidate but must not be auto-merged;
 - Preview issue #208 / PR #210 remains infrastructure/history, not product authority;
 - Wave13 issue #205 / PR #207 remains paused.
 

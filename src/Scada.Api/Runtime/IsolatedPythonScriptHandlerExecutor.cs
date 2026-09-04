@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Scada.Core.Sources;
 using Scada.Core.Tags;
 using Scada.Engineering.VisualScripting;
 
@@ -136,11 +137,32 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
                     "write_server_memory requires an explicit ServerMemoryTag dependency.");
             }
 
+            var convertedValue = ConvertValue(write.Value, snapshot.DataType);
+            object? runtimeValue = convertedValue;
+            if (write.Quality is not null)
+            {
+                if (!write.ServerMemoryOnly ||
+                    !dependencyKind.Equals("ServerMemoryTag", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new ScriptExecutionDiagnosticException(
+                        "Qualified samples require an explicit ServerMemoryTag dependency.");
+                }
+
+                if (!Enum.TryParse<TagQuality>(write.Quality, ignoreCase: false, out var quality) ||
+                    !Enum.IsDefined(typeof(TagQuality), quality))
+                {
+                    throw new ScriptExecutionDiagnosticException(
+                        $"Quality '{write.Quality}' is not a canonical TagQuality value.");
+                }
+
+                runtimeValue = new QualifiedSourceSample(convertedValue, quality);
+            }
+
             await host.WriteTagAsync(
                     projectKey,
                     revision,
                     tagId,
-                    ConvertValue(write.Value, snapshot.DataType),
+                    runtimeValue,
                     write.ServerMemoryOnly,
                     lease.CancellationToken)
                 .ConfigureAwait(false);
@@ -222,7 +244,8 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
     private sealed record PythonWriteRequest(
         string TagId,
         JsonElement Value,
-        bool ServerMemoryOnly);
+        bool ServerMemoryOnly,
+        string? Quality = null);
 
     private sealed record PythonExecutionResponse(
         bool Succeeded,

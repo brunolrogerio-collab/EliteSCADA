@@ -1,3 +1,4 @@
+using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
 using Scada.Core.Commands;
 using Scada.Core.Events;
@@ -16,13 +17,16 @@ public sealed record ScadaRuntimeDescriptor(
     IReadOnlyCollection<DriverStatus> Drivers,
     IReadOnlyCollection<CommunicationDriverDiagnosticSnapshot> CommunicationDrivers,
     int TagCount,
-    int ActiveAlarmCount);
+    int ActiveAlarmCount,
+    ServerScriptRuntimeSnapshot? ServerScripts = null);
 
 public sealed class ScadaRuntimeFacade(
     DemoRuntimeServices fallback,
     SimulationDriver fallbackDriver,
     IEngineeringRuntimeCoordinator engineeringRuntime,
-    GatewayEngineeringRuntimeCoordinator? operationalEvents = null)
+    GatewayEngineeringRuntimeCoordinator? operationalEvents = null,
+    IScadaEventBus? eventBus = null,
+    IConfiguration? configuration = null)
 {
     private IOperationalEventRuntime? EventRuntime =>
         operationalEvents ?? engineeringRuntime as IOperationalEventRuntime;
@@ -34,6 +38,13 @@ public sealed class ScadaRuntimeFacade(
         var engineering = engineeringRuntime.Describe();
         if (engineering.Revision.HasValue)
         {
+            var serverScripts = eventBus is not null && configuration is not null
+                ? ServerScriptRuntimeManager.GetShared(
+                    engineeringRuntime,
+                    eventBus,
+                    configuration).Snapshot()
+                : null;
+
             return new ScadaRuntimeDescriptor(
                 "engineering",
                 engineering.ProjectKey,
@@ -42,7 +53,8 @@ public sealed class ScadaRuntimeFacade(
                 engineering.Drivers,
                 engineering.CommunicationDrivers,
                 engineering.TagCount,
-                engineering.ActiveAlarmCount);
+                engineering.ActiveAlarmCount,
+                serverScripts);
         }
 
         return new ScadaRuntimeDescriptor(

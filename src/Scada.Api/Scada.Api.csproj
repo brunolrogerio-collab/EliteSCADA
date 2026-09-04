@@ -16,6 +16,11 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Scada.Drivers.Tests" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="Runtime/ServerScriptRunner.py"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 
   <Target Name="IncludeEliteScadaDnp3DistributionFiles" AfterTargets="ComputeFilesToPublish"
           Condition="'$(EliteScadaDnp3HostPath)' != '' or '$(EliteScadaDnp3NoticesPath)' != '' or '$(EliteScadaRequireDnp3NativeHost)' == 'true'">

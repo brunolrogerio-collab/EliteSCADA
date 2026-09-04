@@ -17,6 +17,10 @@ import {
 } from './historicalBrowserQueryAdapter';
 import { summarizeHistoricalFilter } from './historicalBrowserFilters';
 import { createHistoricalBrowserDraft, type HistoricalBrowserDraft } from './historicalBrowserPresentation';
+import {
+  historicalBrowserCopy,
+  type HistoricalBrowserLocale
+} from './historicalBrowserI18n';
 
 export type HistoricalQueryLoader = (
   request: ReturnType<typeof buildHistoricalQueryRequest>,
@@ -24,6 +28,7 @@ export type HistoricalQueryLoader = (
 ) => Promise<HistoricalQueryResponse>;
 
 export type HistoricalDataBrowserRuntimeProps = Readonly<{
+  locale?: HistoricalBrowserLocale;
   queryLoader?: HistoricalQueryLoader;
 }>;
 
@@ -33,8 +38,10 @@ export type HistoricalDataBrowserRuntimeProps = Readonly<{
  * in browser state; no query settings are persisted to Engineering here.
  */
 export function HistoricalDataBrowserRuntime({
+  locale = 'en',
   queryLoader = executeHistoricalQuery
 }: HistoricalDataBrowserRuntimeProps) {
+  const text = historicalBrowserCopy(locale);
   const [draft, setDraft] = useState<HistoricalBrowserDraft>(() => createHistoricalBrowserDraft());
   const [state, setState] = useState<HistoricalBrowserViewState>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -111,9 +118,9 @@ export function HistoricalDataBrowserRuntime({
         return;
       }
       setState('error');
-      setErrorMessage(error instanceof Error ? error.message : 'Historical query failed.');
+      setErrorMessage(error instanceof Error ? error.message : text.queryFailed);
     }
-  }, [filters, queryLoader, search, searchable, sortDirection, sortField]);
+  }, [filters, queryLoader, search, searchable, sortDirection, sortField, text.queryFailed]);
 
   function runFirstPage(queryDraft = draft) {
     setPageCursors(Object.freeze([null]));
@@ -167,55 +174,56 @@ export function HistoricalDataBrowserRuntime({
 
   const filterSummary = useMemo(() => {
     const summary: string[] = filters.map(summarizeHistoricalFilter);
-    if (searchable && search.trim()) summary.push(`Search: ${search.trim()}`);
-    if (sortField) summary.push(`Sort: ${sortField} ${sortDirection}`);
+    if (searchable && search.trim()) summary.push(`${text.search}: ${search.trim()}`);
+    if (sortField) summary.push(`${text.sortField}: ${sortField} ${sortDirection === 'ascending' ? text.ascending : text.descending}`);
     if (resolvedRange) summary.push(`${resolvedRange.fromUtc} → ${resolvedRange.toUtc}`);
-    summary.push(`Page ${pageIndex + 1}`);
+    summary.push(`${text.page} ${pageIndex + 1}`);
     return Object.freeze(summary);
-  }, [filters, pageIndex, resolvedRange, search, searchable, sortDirection, sortField]);
+  }, [filters, pageIndex, resolvedRange, search, searchable, sortDirection, sortField, text]);
 
   return (
     <div data-testid="historical-data-browser-runtime">
       <div className="historical-browser__query-tools">
         <label>
-          Search
+          {text.search}
           <input
-            aria-label="Historical search"
+            aria-label={text.search}
             value={search}
             maxLength={200}
             disabled={!searchable || state === 'loading'}
-            placeholder={searchable ? 'Search allowlisted historical text fields' : 'Run a query to discover searchable fields'}
+            placeholder={searchable ? text.searchPlaceholder : text.searchDiscovery}
             onChange={event => setSearch(event.target.value)}
           />
         </label>
         <label>
-          Sort field
+          {text.sortField}
           <select
-            aria-label="Historical sort field"
+            aria-label={text.sortField}
             value={sortField}
             disabled={sortableColumns.length === 0 || state === 'loading'}
             onChange={event => setSortField(event.target.value)}
           >
-            <option value="">Server default</option>
+            <option value="">{text.serverDefault}</option>
             {sortableColumns.map(column => <option key={column.field} value={column.field}>{column.field}</option>)}
           </select>
         </label>
         <label>
-          Direction
+          {text.direction}
           <select
-            aria-label="Historical sort direction"
+            aria-label={text.direction}
             value={sortDirection}
             disabled={!sortField || state === 'loading'}
             onChange={event => setSortDirection(event.target.value as HistoricalSortDirection)}
           >
-            <option value="descending">Descending</option>
-            <option value="ascending">Ascending</option>
+            <option value="descending">{text.descending}</option>
+            <option value="ascending">{text.ascending}</option>
           </select>
         </label>
-        <button type="button" disabled={state === 'loading'} onClick={() => runFirstPage()}>Apply query</button>
+        <button type="button" disabled={state === 'loading'} onClick={() => runFirstPage()}>{text.applyQuery}</button>
       </div>
 
       <HistoricalFilterBuilder
+        locale={locale}
         columns={responseColumns}
         filters={filters}
         disabled={state === 'loading'}
@@ -223,6 +231,7 @@ export function HistoricalDataBrowserRuntime({
       />
 
       <HistoricalDataBrowser
+        locale={locale}
         columns={columns}
         rows={rows}
         state={state}
@@ -236,10 +245,10 @@ export function HistoricalDataBrowserRuntime({
         onRefreshRequested={() => runFirstPage()}
       />
 
-      <nav className="historical-browser__paging" aria-label="Historical result pages">
-        <button type="button" onClick={goPrevious} disabled={pageIndex === 0 || state === 'loading'}>Previous page</button>
-        <span>Page {pageIndex + 1}</span>
-        <button type="button" onClick={goNext} disabled={!nextCursor || state === 'loading'}>Next page</button>
+      <nav className="historical-browser__paging" aria-label={`${text.title} · ${text.page}`}>
+        <button type="button" onClick={goPrevious} disabled={pageIndex === 0 || state === 'loading'}>{text.previousPage}</button>
+        <span>{text.page} {pageIndex + 1}</span>
+        <button type="button" onClick={goNext} disabled={!nextCursor || state === 'loading'}>{text.nextPage}</button>
       </nav>
     </div>
   );

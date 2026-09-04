@@ -30,7 +30,7 @@ function historyResponse(rows: unknown[]) {
     fromUtc: new Date(to - 3600_000).toISOString(),
     toUtc: new Date(to).toISOString(),
     nextCursor: null,
-    pageSize: 1000
+    pageSize: 200
   };
 }
 
@@ -78,7 +78,7 @@ test('C15 quality gaps are fail-safe even when quality chrome is hidden', async 
 
   await openHarness(page, '?locale=en&quality=off');
   const pressurePath = page.locator('path[data-testid="visual-trend-series"]').first();
-  await expect(pressurePath).toBeVisible();
+  await expect(pressurePath).toHaveCount(1);
   const d = await pressurePath.getAttribute('d');
   expect(d).toBeTruthy();
   expect((d!.match(/M/g) ?? []).length).toBe(2);

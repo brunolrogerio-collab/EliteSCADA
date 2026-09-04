@@ -94,7 +94,7 @@ test('Engineering Preview rejects an unresolved persisted Startup/Home Screen id
 
 test('Engineering Preview resolves ExecuteCommand by stable Command ID for Screen, Popup and Dynamo', async ({ request }) => {
   const original = await exportPackage(request);
-  const commandId = original.commands?.find(command => command.enabled !== false && command.id)?.id;
+  const commandId = original.commands?.find(command => command.id)?.id;
   expect(commandId).toBeTruthy();
 
   for (const section of ['screens', 'popups', 'dynamos'] as const) {

@@ -19,6 +19,7 @@ public enum ImportEntityKind
 {
     Tag,
     Alarm,
+    OperationalEvent,
     DataSource,
     Template,
     Equipment,
@@ -128,6 +129,26 @@ public sealed record AlarmEngineeringDto(
     int? ActivationDelayMilliseconds = null,
     bool RequiresAcknowledgement = true,
     bool ShelvingAllowed = true,
+    bool Enabled = true,
+    Dictionary<string, string>? Metadata = null);
+
+/// <summary>
+/// First-class, protocol-neutral operational process Event definition. This is
+/// intentionally not an Alarm definition and not a security Audit record.
+/// Dynamic operator/operation/command context belongs to the Runtime occurrence.
+/// </summary>
+public sealed record OperationalEventEngineeringDto(
+    Guid? Id,
+    string Key,
+    string Name,
+    string Type,
+    string Category,
+    string Source,
+    string? Area = null,
+    string? EquipmentPath = null,
+    Guid? TagId = null,
+    string? TagPath = null,
+    string? Message = null,
     bool Enabled = true,
     Dictionary<string, string>? Metadata = null);
 
@@ -333,7 +354,8 @@ public sealed record EngineeringPackage(
     IReadOnlyCollection<ScriptEngineeringDefinition>? Scripts = null,
     IReadOnlyCollection<ScriptVisualEventReference>? ScriptVisualEventReferences = null,
     IReadOnlyCollection<VisualAssetEngineeringDto>? VisualAssets = null,
-    IReadOnlyCollection<ReportEngineeringDto>? Reports = null);
+    IReadOnlyCollection<ReportEngineeringDto>? Reports = null,
+    IReadOnlyCollection<OperationalEventEngineeringDto>? OperationalEvents = null);
 
 public sealed record ImportIssue(
     string Code,

@@ -1,18 +1,20 @@
 using System.Diagnostics;
 using System.Text.Json;
 using Scada.Core.Tags;
-using Scada.DriverHost.Runtime;
 using Scada.Engineering.VisualScripting;
 
 namespace Scada.Api.Runtime;
 
 /// <summary>
 /// Runs the deterministic Server Script Python subset in an isolated process.
-/// The child receives only declared TAG values and a normalized event payload;
-/// requested writes are replayed through the official runtime coordinator.
+/// The child receives only declared TAG values and normalized event metadata.
+/// Reads and requested writes are revision-bound by ServerScriptRuntimeManager and
+/// replayed through the official runtime coordinator rather than any Driver internals.
 /// </summary>
 public sealed class IsolatedPythonScriptHandlerExecutor(
-    IEngineeringRuntimeCoordinator runtime,
+    ServerScriptRuntimeManager host,
+    string projectKey,
+    long revision,
     string pythonExecutable,
     string runnerPath) : IPythonScriptHandlerExecutor
 {
@@ -27,13 +29,21 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
             throw new ScriptExecutionDiagnosticException("Only Server scripts may execute in the server runtime host.");
 
         var allowedTags = ResolveAllowedTags(script);
-        var values = new Dictionary<string, object?>(StringComparer.Ordinal);
-        foreach (var tagId in allowedTags.Keys)
-        {
-            lease.CancellationToken.ThrowIfCancellationRequested();
-            runtime.TryGetCurrent(tagId, out var current);
-            values[tagId.ToString("D")] = current?.Value;
-        }
+        var snapshots = await host.ReadDependenciesAsync(
+                projectKey,
+                revision,
+                allowedTags,
+                lease.CancellationToken)
+            .ConfigureAwait(false);
+
+        var values = snapshots.ToDictionary(
+            pair => pair.Key.ToString("D"),
+            pair => pair.Value.Value,
+            StringComparer.Ordinal);
+        var serverMemoryTags = allowedTags
+            .Where(pair => pair.Value.Equals("ServerMemoryTag", StringComparison.OrdinalIgnoreCase))
+            .Select(pair => pair.Key.ToString("D"))
+            .ToArray();
 
         var request = new PythonExecutionRequest(
             script.Source,
@@ -43,7 +53,8 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
                 scriptEvent.Identity.TargetReference,
                 scriptEvent.Sequence,
                 scriptEvent.EnqueuedAt),
-            values);
+            values,
+            serverMemoryTags);
 
         using var process = new Process
         {
@@ -80,7 +91,7 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
         var stderrTask = process.StandardError.ReadToEndAsync(lease.CancellationToken);
         try
         {
-            await process.WaitForExitAsync(lease.CancellationToken);
+            await process.WaitForExitAsync(lease.CancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -88,8 +99,8 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
             throw;
         }
 
-        var stdout = await stdoutTask;
-        var stderr = await stderrTask;
+        var stdout = await stdoutTask.ConfigureAwait(false);
+        var stderr = await stderrTask.ConfigureAwait(false);
         if (process.ExitCode != 0)
             throw new ScriptExecutionDiagnosticException(Sanitize(stderr));
 
@@ -110,38 +121,52 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
         foreach (var write in response.Writes ?? Array.Empty<PythonWriteRequest>())
         {
             lease.CancellationToken.ThrowIfCancellationRequested();
-            if (!Guid.TryParse(write.TagId, out var tagId) || !allowedTags.ContainsKey(tagId))
-                throw new ScriptExecutionDiagnosticException("Python handler attempted to write an undeclared TAG dependency.");
-            if (!runtime.TryGetTag(tagId, out var tag) || tag is null)
-                throw new ScriptExecutionDiagnosticException("Python handler referenced a TAG that is not active.");
-            if (tag.ReadOnly)
-                throw new ScriptExecutionDiagnosticException($"TAG '{tag.Path}' is read-only.");
-            if (write.ServerMemoryOnly && !runtime.IsServerMemoryTag(tagId))
-                throw new ScriptExecutionDiagnosticException("write_server_memory may only target Server Memory TAGs.");
+            if (!Guid.TryParse(write.TagId, out var tagId) ||
+                !allowedTags.TryGetValue(tagId, out var dependencyKind) ||
+                !snapshots.TryGetValue(tagId, out var snapshot))
+            {
+                throw new ScriptExecutionDiagnosticException(
+                    "Python handler attempted to write an undeclared TAG dependency.");
+            }
 
-            await runtime.WriteAsync(tagId, ConvertValue(write.Value, tag.DataType), lease.CancellationToken);
+            if (write.ServerMemoryOnly &&
+                !dependencyKind.Equals("ServerMemoryTag", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ScriptExecutionDiagnosticException(
+                    "write_server_memory requires an explicit ServerMemoryTag dependency.");
+            }
+
+            await host.WriteTagAsync(
+                    projectKey,
+                    revision,
+                    tagId,
+                    ConvertValue(write.Value, snapshot.DataType),
+                    write.ServerMemoryOnly,
+                    lease.CancellationToken)
+                .ConfigureAwait(false);
         }
     }
 
-    private Dictionary<Guid, string> ResolveAllowedTags(PythonScriptDefinition script)
+    private static Dictionary<Guid, string> ResolveAllowedTags(PythonScriptDefinition script)
     {
         var result = new Dictionary<Guid, string>();
         foreach (var dependency in script.Dependencies)
         {
             if (!dependency.Kind.Equals("Tag", StringComparison.OrdinalIgnoreCase) &&
                 !dependency.Kind.Equals("ServerMemoryTag", StringComparison.OrdinalIgnoreCase))
+            {
                 continue;
+            }
 
             if (!Guid.TryParse(dependency.StableReference, out var tagId) || tagId == Guid.Empty)
-                throw new ScriptExecutionDiagnosticException("Server Script contains an invalid stable TAG dependency.");
-            if (!runtime.TryGetTag(tagId, out var tag) || tag is null)
-                throw new ScriptExecutionDiagnosticException("Server Script TAG dependency is not active.");
-            if (dependency.Kind.Equals("ServerMemoryTag", StringComparison.OrdinalIgnoreCase) &&
-                !runtime.IsServerMemoryTag(tagId))
-                throw new ScriptExecutionDiagnosticException("ServerMemoryTag dependency does not resolve to Server Memory.");
+            {
+                throw new ScriptExecutionDiagnosticException(
+                    "Server Script contains an invalid stable TAG dependency.");
+            }
 
             result[tagId] = dependency.Kind;
         }
+
         return result;
     }
 
@@ -163,18 +188,21 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
     {
         try
         {
-            if (!process.HasExited) process.Kill(entireProcessTree: true);
+            if (!process.HasExited)
+                process.Kill(entireProcessTree: true);
         }
         catch
         {
-            // Best effort after cancellation. The coordinator already records cancellation/timeout.
+            // Best effort after cancellation. The coordinator records cancellation/timeout.
         }
     }
 
     private static string Sanitize(string error)
     {
-        var line = error.Split('\n', StringSplitOptions.RemoveEmptyEntries).LastOrDefault()?.Trim();
-        if (string.IsNullOrWhiteSpace(line)) return "Python handler failed.";
+        var line = error.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .LastOrDefault()?.Trim();
+        if (string.IsNullOrWhiteSpace(line))
+            return "Python handler failed.";
         return line.Length <= 240 ? line : line[..240];
     }
 
@@ -182,7 +210,8 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
         string Source,
         string Handler,
         PythonEventPayload Event,
-        IReadOnlyDictionary<string, object?> Values);
+        IReadOnlyDictionary<string, object?> Values,
+        IReadOnlyCollection<string> ServerMemoryTagIds);
 
     private sealed record PythonEventPayload(
         string Kind,
@@ -190,6 +219,13 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
         long Sequence,
         DateTimeOffset EnqueuedAt);
 
-    private sealed record PythonWriteRequest(string TagId, JsonElement Value, bool ServerMemoryOnly);
-    private sealed record PythonExecutionResponse(bool Succeeded, string? Error, IReadOnlyCollection<PythonWriteRequest>? Writes);
+    private sealed record PythonWriteRequest(
+        string TagId,
+        JsonElement Value,
+        bool ServerMemoryOnly);
+
+    private sealed record PythonExecutionResponse(
+        bool Succeeded,
+        string? Error,
+        IReadOnlyCollection<PythonWriteRequest>? Writes);
 }

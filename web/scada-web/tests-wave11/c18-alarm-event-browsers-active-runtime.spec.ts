@@ -20,7 +20,11 @@ const popupEventArea = 'Popup-Event-Area';
 type BrowserType = 'core.alarmBrowser' | 'core.eventBrowser';
 
 test('C18 authors Alarm and Event Browser in Screen and Popup, then Save Publish Activate reaches Active Runtime', async ({ page, request }) => {
-  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('elitescada.engineering.locale')) {
+      localStorage.setItem('elitescada.engineering.locale', 'pt-BR');
+    }
+  });
 
   const initialWorking = await loadWorking(request);
   const overview = initialWorking.screens?.find((screen: any) => screen.key === overviewKey);

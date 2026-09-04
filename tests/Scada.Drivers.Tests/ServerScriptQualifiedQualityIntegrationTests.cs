@@ -133,13 +133,51 @@ public sealed class ServerScriptQualifiedQualityIntegrationTests
                     ScriptEngineeringDependencyKind.Tag));
             Assert.True(activated.Activated);
 
-            await Task.Delay(250);
+            await WaitUntilAsync(
+                () => Assert.Single(manager.Snapshot().Scripts).Diagnostics.FaultedCount > 0,
+                TimeSpan.FromSeconds(2));
+
             Assert.True(runtime.TryGetCurrent(tagId, out var current));
             Assert.Equal(TagQuality.Good, current!.Quality);
             Assert.Equal(0, Convert.ToInt32(current.Value));
+            Assert.Contains(
+                "ServerMemoryTag",
+                Assert.Single(manager.Snapshot().Scripts).Diagnostics.LastSanitizedError ?? string.Empty,
+                StringComparison.Ordinal);
+        }
+        finally
+        {
+            await manager.DisposeAsync();
+        }
+    }
 
-            var diagnostics = Assert.Single(manager.Snapshot().Scripts).Diagnostics;
-            Assert.True(diagnostics.TotalFailures > 0);
+    [Fact]
+    public async Task QualifiedPublish_RejectsUnknownCanonicalQuality()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        var tagId = Guid.NewGuid();
+        await using var runtime = CreateRuntime(eventBus);
+        var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration());
+
+        try
+        {
+            var activated = await manager.ActivateRuntimeAsync(
+                "server-script-quality-vocabulary",
+                1,
+                QualityPackage(tagId, "DefinitelyNotAQuality", value: 99));
+            Assert.True(activated.Activated);
+
+            await WaitUntilAsync(
+                () => Assert.Single(manager.Snapshot().Scripts).Diagnostics.FaultedCount > 0,
+                TimeSpan.FromSeconds(2));
+
+            Assert.True(runtime.TryGetCurrent(tagId, out var current));
+            Assert.Equal(TagQuality.Good, current!.Quality);
+            Assert.Equal(0, Convert.ToInt32(current.Value));
+            Assert.Contains(
+                "canonical TagQuality",
+                Assert.Single(manager.Snapshot().Scripts).Diagnostics.LastSanitizedError ?? string.Empty,
+                StringComparison.Ordinal);
         }
         finally
         {

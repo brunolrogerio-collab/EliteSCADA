@@ -1,7 +1,7 @@
 # EliteSCADA — Current Coordinator Handoff
 
 **Last operational synchronization:** 2026-09-04 BRT  
-**Status:** **WAVE 14 ACTIVE / C11 IMPLEMENTATION LOCKED / LAST COMBINED GREEN = C12+C13+C14+C15+C17 / C16 ISOLATED ACCEPTED BUT COMBINED WAVE11 RED / C17 CONVERGENCE FIX ACTIVE / C18 HOLD UNTIL C12–C17 COMBINED GREEN / WAVE13 PAUSED**
+**Status:** **WAVE 14 ACTIVE / C11 IMPLEMENTATION LOCKED / LAST ACCEPTED COMBINED GREEN = C12+C13+C14+C15+C17 AT 1dcd80a4 / C16 ISOLATED ACCEPTED / C17 INTERMITTENT DATASOURCE RACE CORRECTION ACTIVE / C18 HOLD UNTIL C12–C17 COMBINED GREEN / WAVE13 PAUSED**
 
 > GitHub is the official development memory. `PROJECT GOAL.md` governs permanent intent. `LAST CHANGE.md` is the fastest resume point. Revalidate live GitHub before acting; copied chat context is never product authority.
 
@@ -22,6 +22,7 @@ Permanent gates:
 - diagnose failures before rerunning;
 - do not weaken tests/security/contracts merely to obtain green;
 - DEV delivery is not Coordinator acceptance;
+- a later green run does not erase a concrete product defect proven on the same code;
 - PR #212 stays DRAFT and must not be merged to `main` without later Product Owner authorization.
 
 ## 2. Product authority and integration
@@ -42,11 +43,11 @@ Last full C10 converged freeze before the C11 correction round:
 
 `97eefd8f4377ff583d1ba20bc89203f4a82b584d`
 
-Last fully combined-green pre-DEMO correction checkpoint:
+Last accepted fully combined-green pre-DEMO correction checkpoint:
 
 `1dcd80a4df448ced3a228d3f5b9057fa26ef547c`
 
-This exact product checkpoint contains accepted C12+C13+C14+C15+C17 and passed:
+It contains accepted C12+C13+C14+C15+C17 and passed:
 
 - EliteSCADA CI #1337 / `33838725814`;
 - Wave11 Runtime #265 / `33838725796`;
@@ -106,11 +107,7 @@ Corrected accepted candidate `3a182b1963177e1c2c3bb5994fd87fa7cf2512f9`.
 
 The old false-green C15 candidate `2abee30a...` remains rejected historical evidence.
 
-## 5. C16 — isolated accepted, combined composition blocked
-
-Package:
-
-**HMI Operational Command + Startup/Home Screen + Persisted Popup X/Y**
+## 5. C16 — isolated accepted; composition exposed C17 defect
 
 Accepted isolated candidate:
 
@@ -139,7 +136,7 @@ Coordinator composed C16 at product-code SHA:
 
 `607a60d0e930fc7080e09c0689c306c040c4ace6`
 
-Combined exact product-code result:
+Original combined exact product-code result:
 
 - EliteSCADA CI #1338 / `33869678384` — SUCCESS;
 - Licensing #288 / `33869678597` — SUCCESS;
@@ -147,36 +144,44 @@ Combined exact product-code result:
 - Interop #165 / `33869678547` — SUCCESS;
 - Wave11 Runtime #266 / `33869678407` — **FAILURE**.
 
-The green checkpoint `1dcd80a4...` and red C16 composition `607a60d0...` were both tested through PR #212 against the exact same `main` base:
+The green checkpoint `1dcd80a4...` and red C16 composition `607a60d0...` were both tested through PR #212 against the exact same `main` base `edbdf446ea657713bdc487be91bf10bfcd03c684`; `main` drift is excluded.
 
-`edbdf446ea657713bdc487be91bf10bfcd03c684`
+## 6. Root cause — C17 new Data Source frontend state race
 
-Therefore `main` drift is excluded.
-
-## 6. Root cause isolated — C17 new Data Source state race
-
-Wave11 #266 fails in:
-
-`web/scada-web/tests-wave11/c17-memory-lifecycle.spec.ts`
-
-The later TAG Source selector cannot find `memory.server.c17` because Working state genuinely lost it.
+Wave11 #266 failed in `web/scada-web/tests-wave11/c17-memory-lifecycle.spec.ts` because the later TAG Source selector could not find `memory.server.c17` after canonical Working state had already lost it.
 
 Retained Playwright trace proves:
 
 1. Built-in Simulation exists with id `40000000-0000-0000-0000-000000000001` and `metadata.system=true`.
 2. `Nova Data Source` changes `selectedIdentity` into new mode immediately.
 3. Fresh `draft = newDataSourceDraft()` is installed only later by `useEffect`.
-4. In that window, `isNew === true` while `draft` may still represent the previously selected persisted Source.
-5. Immediate type selection invokes `switchDataSourceType(draft, type)`, whose spread correctly preserves fields for normal editing but here preserves stale `id`/metadata into a supposedly new Source.
+4. In that render/effect window, `isNew === true` while `draft` may still represent the previously selected persisted Source.
+5. Immediate type selection invokes `switchDataSourceType(draft, type)` and preserves stale entity-owned fields through the normal spread.
 6. New `Server Memory C17` inherits id `40000000-...0001` and replaces Built-in Simulation on Apply.
 7. New `Client Memory C17` inherits the same id and replaces Server Memory C17.
-8. TAG authoring later cannot list `memory.server.c17` because canonical Working state no longer contains it.
+8. TAG authoring later cannot list `memory.server.c17` because it is genuinely gone.
 
 `newDataSourceDraft()` itself has no id. Backend `DataSourceEngineeringHandler` correctly resolves explicit stable ids and must not be weakened to compensate for a frontend race.
 
 The same race exists on historical accepted C17 HEAD `6db4fb33...`. C16 changed sequence/timing and exposed the latent defect; C16's accepted command/startup/popup contracts are not reopened.
 
 Ownership decision: **bounded corrective package belongs to C17 Memory/Data Source authoring.**
+
+### Intermittency proven by later full green run
+
+Documentation-only integration HEAD `147756ac65b452e95085a4c21bec976545d29bb7` contained no product-code fix after `607a60d0...` but automatically triggered the five PR #212 workflows against synthetic merge ref `7a1134a8a9c93b276e615541d182e8646017b27f`:
+
+- EliteSCADA CI #1344 / `33878949767` — SUCCESS, including Chromium E2E;
+- Wave11 Runtime #272 / `33878949817` — SUCCESS, with **11/11 tests actually executed** including C16 startup bootstrap, C17 Memory lifecycle, C15 Trend and C16 Operational Runtime;
+- Preview Licensing #294 / `33878949850` — SUCCESS;
+- L3 #249 / `33878949788` — SUCCESS;
+- Interop #171 / `33878949680` — SUCCESS.
+
+This later green result does not establish product convergence. The product code is unchanged from the run that produced a retained, concrete corrupted Working state. It confirms scheduler/timing dependence and strengthens the classification:
+
+**REAL PRODUCT RACE / INTERMITTENT TRIGGER / NOT AN ACCEPTABLE CI FLAKE.**
+
+Binding evidence record: issue #211 comment `5541337330`.
 
 ## 7. C17 convergence correction — bounded DEV package
 
@@ -194,9 +199,7 @@ Current branch HEAD at this synchronization:
 
 `23da99aebbb93d51b84462d8568c7281642c9c39`
 
-Its parent is exact red product SHA `607a60d0...` and it currently adds only the coordinator handoff:
-
-`docs/WAVE14-C17-CONVERGENCE-DATASOURCE-NEW-RACE-HANDOFF.md`
+Its parent is exact red product SHA `607a60d0...` and it currently adds only coordinator handoff `docs/WAVE14-C17-CONVERGENCE-DATASOURCE-NEW-RACE-HANDOFF.md`.
 
 No product-code correction has been published yet as of this synchronization.
 
@@ -206,19 +209,11 @@ Required invariants:
 - a new draft must not inherit prior canonical id, system metadata, settings or secret references except explicit defaults of its selected type;
 - existing Source editing must preserve intended stable identity/metadata;
 - implementation must remain generic/catalog-driven, with no Memory, C17, DEMO or fixed-GUID special case;
-- deterministic regression must reproduce immediate `New Data Source -> choose type` without relying on scheduler luck;
+- deterministic regression must force/immediately exercise `New Data Source -> choose type`, not rely on scheduler luck;
 - existing real C17 normal-Engineering Save/Publish/Activate/Runtime lifecycle coverage remains;
 - no sleeps, hidden package JSON, test weakening or relaxed backend identity semantics.
 
-Corrected exact candidate must pass:
-
-- EliteSCADA CI;
-- Wave11 Active HMI Runtime;
-- Preview Licensing CI;
-- L3 Seven-Driver Lab;
-- Interop Lab Smoke.
-
-Because the correction branch starts from exact red product `607a60d0...`, the Wave11 candidate run must prove the previously failing C16 -> C17 sequence passes.
+Corrected exact candidate must pass EliteSCADA CI, Wave11 Runtime, Preview Licensing, L3 and Interop. Because the correction branch starts from exact product `607a60d0...`, Wave11 candidate validation must prove the previously failing C16 -> C17 sequence passes with the deterministic race regression present.
 
 After exact-candidate review, Coordinator composes without rewriting history and requires all five combined gates green on one new integration product-code SHA. Only then declare C12–C17 converged.
 
@@ -227,19 +222,38 @@ Coordination records:
 - issue #211 `5541091621` — C18 HOLD + initial blocker;
 - issue #211 `5541152530` — root cause/ownership;
 - PR #249 `5541149386` — post-integration CHANGES REQUIRED;
-- issue #211 `5541167404` — correction branch/handoff.
+- issue #211 `5541167404` — correction branch/handoff;
+- issue #211 `5541337330` — later five-gate green confirms intermittency but does not clear defect.
 
-## 8. C18 — HOLD / implementation not authorized
+## 8. Repository hygiene
+
+Per `docs/CI-VALIDATION-POLICY.md`, completed validation-only PRs were closed **without merge** once integration/evidence lineage was recorded. Historical commits, runs, artifacts and comments remain preserved.
+
+Closed validation-only Wave14 surfaces in this synchronization:
+
+- #216 — C05;
+- #228 — C08;
+- #227 — C09;
+- #232 — historical C10 convergence validation;
+- #239 — C13;
+- #240 — C14;
+- #243 — C15;
+- #244 — C17.
+
+The intentionally active Wave14 PR surfaces are now:
+
+- #212 — Coordinator integration, OPEN/DRAFT;
+- #210 — temporary Test Preview infrastructure.
+
+C10 Convergence Cycle 2 will be a new post-C18 convergence cycle, not reuse historical PR #232 as product authority.
+
+## 9. C18 — HOLD / implementation not authorized
 
 Product Owner decision supersedes the earlier administrative release:
 
 **Do not release C18 for full implementation until C12–C17 are converged on one exact combined-green integration checkpoint.**
 
-Existing branch:
-
-`wave14/c18-hmi-alarm-event-browsers`
-
-Live branch remains parked at:
+Existing branch `wave14/c18-hmi-alarm-event-browsers` remains parked at historical green SHA:
 
 `1dcd80a4df448ced3a228d3f5b9057fa26ef547c`
 
@@ -247,17 +261,15 @@ That SHA is historical parked state, not active implementation authorization.
 
 Do not advance or rebase C18 until the Coordinator explicitly declares a new exact C18 base after C12–C17 convergence.
 
-Binding handoff:
-
-`docs/WAVE14-C18-DEV-HANDOFF.md`
+Binding handoff: `docs/WAVE14-C18-DEV-HANDOFF.md`.
 
 Current marker: **HOLD / IMPLEMENTATION NOT AUTHORIZED**.
 
-## 9. Immediate next-coordinator route
+## 10. Immediate next-coordinator route
 
 1. keep C18 HOLD and PR #212 DRAFT;
 2. revalidate `wave14/c17-convergence-datasource-new-race` when DEV reports a candidate;
-3. review exact diff for atomic new-draft state, generic behavior and regression coverage;
+3. review exact diff for atomic new-draft state, generic behavior and deterministic regression coverage;
 4. verify all five exact-candidate workflow runs;
 5. reject timing-only/test-security-identity workarounds;
 6. compose accepted correction into integration without rewriting history;
@@ -271,7 +283,7 @@ Current marker: **HOLD / IMPLEMENTATION NOT AUTHORIZED**.
 14. only then consider explicit C11 implementation release;
 15. Wave13 packaging/signing remains paused until final Wave14 acceptance.
 
-## 10. Preview and release boundaries
+## 11. Preview and release boundaries
 
 Issue #208 / PR #210 remain Preview infrastructure/history, not product authority.
 
@@ -279,7 +291,7 @@ Wave13 issue #205 / PR #207 remains paused. Do not sign stale pre-Wave14 product
 
 PR #212 remains DRAFT and must not be merged to `main` without later Product Owner authorization.
 
-## 11. Mandatory resume protocol
+## 12. Mandatory resume protocol
 
 Read/revalidate in this order:
 

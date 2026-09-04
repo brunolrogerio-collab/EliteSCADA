@@ -274,6 +274,7 @@ public static class RuntimeEngineeringPackageApi
         schema = RequiredString(root, "schema"),
         schemaVersion = RequiredInt32(root, "schemaVersion"),
         exportedAt = OptionalString(root, "exportedAt"),
+        startupScreenId = OptionalString(root, "startupScreenId"),
         screens = ArrayProperty(root, "screens"),
         popups = ArrayProperty(root, "popups"),
         dynamos = ArrayProperty(root, "dynamos"),

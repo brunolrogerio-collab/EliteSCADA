@@ -48,22 +48,102 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly ReportEngineeringHandler _reportHandler;
 
     public EngineeringExchangeService(ITagRegistry tags, IAlarmEngine alarms)
-        : this(tags, alarms, new InMemoryDataSourceEngineeringRegistry(), new InMemoryEngineeringAssetRegistry(), new InMemoryEngineeringViewRegistry(), new InMemorySecurityPolicyEngineeringRegistry(), new InMemoryCommandEngineeringRegistry()) { }
+        : this(
+            tags,
+            alarms,
+            new InMemoryDataSourceEngineeringRegistry(),
+            new InMemoryEngineeringAssetRegistry(),
+            new InMemoryEngineeringViewRegistry(),
+            new InMemorySecurityPolicyEngineeringRegistry(),
+            new InMemoryCommandEngineeringRegistry())
+    {
+    }
 
-    public EngineeringExchangeService(ITagRegistry tags, IAlarmEngine alarms, IDataSourceEngineeringRegistry dataSources)
-        : this(tags, alarms, dataSources, new InMemoryEngineeringAssetRegistry(), new InMemoryEngineeringViewRegistry(), new InMemorySecurityPolicyEngineeringRegistry(), new InMemoryCommandEngineeringRegistry()) { }
+    public EngineeringExchangeService(
+        ITagRegistry tags,
+        IAlarmEngine alarms,
+        IDataSourceEngineeringRegistry dataSources)
+        : this(
+            tags,
+            alarms,
+            dataSources,
+            new InMemoryEngineeringAssetRegistry(),
+            new InMemoryEngineeringViewRegistry(),
+            new InMemorySecurityPolicyEngineeringRegistry(),
+            new InMemoryCommandEngineeringRegistry())
+    {
+    }
 
-    public EngineeringExchangeService(ITagRegistry tags, IAlarmEngine alarms, IDataSourceEngineeringRegistry dataSources, IEngineeringAssetRegistry assets)
-        : this(tags, alarms, dataSources, assets, new InMemoryEngineeringViewRegistry(), new InMemorySecurityPolicyEngineeringRegistry(), new InMemoryCommandEngineeringRegistry()) { }
+    public EngineeringExchangeService(
+        ITagRegistry tags,
+        IAlarmEngine alarms,
+        IDataSourceEngineeringRegistry dataSources,
+        IEngineeringAssetRegistry assets)
+        : this(
+            tags,
+            alarms,
+            dataSources,
+            assets,
+            new InMemoryEngineeringViewRegistry(),
+            new InMemorySecurityPolicyEngineeringRegistry(),
+            new InMemoryCommandEngineeringRegistry())
+    {
+    }
 
-    public EngineeringExchangeService(ITagRegistry tags, IAlarmEngine alarms, IDataSourceEngineeringRegistry dataSources, IEngineeringAssetRegistry assets, IEngineeringViewRegistry views)
-        : this(tags, alarms, dataSources, assets, views, new InMemorySecurityPolicyEngineeringRegistry(), new InMemoryCommandEngineeringRegistry()) { }
+    public EngineeringExchangeService(
+        ITagRegistry tags,
+        IAlarmEngine alarms,
+        IDataSourceEngineeringRegistry dataSources,
+        IEngineeringAssetRegistry assets,
+        IEngineeringViewRegistry views)
+        : this(
+            tags,
+            alarms,
+            dataSources,
+            assets,
+            views,
+            new InMemorySecurityPolicyEngineeringRegistry(),
+            new InMemoryCommandEngineeringRegistry())
+    {
+    }
 
-    public EngineeringExchangeService(ITagRegistry tags, IAlarmEngine alarms, IDataSourceEngineeringRegistry dataSources, IEngineeringAssetRegistry assets, IEngineeringViewRegistry views, ISecurityPolicyEngineeringRegistry securityPolicies)
-        : this(tags, alarms, dataSources, assets, views, securityPolicies, new InMemoryCommandEngineeringRegistry()) { }
+    public EngineeringExchangeService(
+        ITagRegistry tags,
+        IAlarmEngine alarms,
+        IDataSourceEngineeringRegistry dataSources,
+        IEngineeringAssetRegistry assets,
+        IEngineeringViewRegistry views,
+        ISecurityPolicyEngineeringRegistry securityPolicies)
+        : this(
+            tags,
+            alarms,
+            dataSources,
+            assets,
+            views,
+            securityPolicies,
+            new InMemoryCommandEngineeringRegistry())
+    {
+    }
 
-    public EngineeringExchangeService(ITagRegistry tags, IAlarmEngine alarms, IDataSourceEngineeringRegistry dataSources, IEngineeringAssetRegistry assets, IEngineeringViewRegistry views, ISecurityPolicyEngineeringRegistry securityPolicies, ICommandEngineeringRegistry commands)
-        : this(tags, alarms, dataSources, assets, views, securityPolicies, commands, new InMemoryGatewayEngineeringRegistry()) { }
+    public EngineeringExchangeService(
+        ITagRegistry tags,
+        IAlarmEngine alarms,
+        IDataSourceEngineeringRegistry dataSources,
+        IEngineeringAssetRegistry assets,
+        IEngineeringViewRegistry views,
+        ISecurityPolicyEngineeringRegistry securityPolicies,
+        ICommandEngineeringRegistry commands)
+        : this(
+            tags,
+            alarms,
+            dataSources,
+            assets,
+            views,
+            securityPolicies,
+            commands,
+            new InMemoryGatewayEngineeringRegistry())
+    {
+    }
 
     public EngineeringExchangeService(
         ITagRegistry tags,
@@ -149,8 +229,11 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     }
 
     public string ExportTagsCsv() => _csv.ExportTags(ExportPackage().Tags);
+
     public string ExportAlarmsCsv() => _csv.ExportAlarms(ExportPackage().Alarms);
-    public string ExportDataSourcesCsv() => _csv.ExportDataSources(ExportPackage().DataSources ?? Array.Empty<DataSourceEngineeringDto>());
+
+    public string ExportDataSourcesCsv() =>
+        _csv.ExportDataSources(ExportPackage().DataSources ?? Array.Empty<DataSourceEngineeringDto>());
 
     public EngineeringPackage ParseJson(string json)
     {
@@ -162,7 +245,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         if (package.SchemaVersion < 1)
             throw new InvalidDataException($"Schema version {package.SchemaVersion} is invalid.");
         if (package.SchemaVersion > CurrentSchemaVersion)
-            throw new InvalidDataException($"Schema version {package.SchemaVersion} is newer than supported version {CurrentSchemaVersion}.");
+            throw new InvalidDataException(
+                $"Schema version {package.SchemaVersion} is newer than supported version {CurrentSchemaVersion}.");
 
         return package with
         {
@@ -182,13 +266,22 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         };
     }
 
-    public EngineeringPackage ParseTagsCsv(string csv) => Empty() with { Tags = _csv.ParseTags(csv) };
-    public EngineeringPackage ParseAlarmsCsv(string csv) => Empty() with { Alarms = _csv.ParseAlarms(csv) };
-    public EngineeringPackage ParseDataSourcesCsv(string csv) => Empty() with { DataSources = _csv.ParseDataSources(csv) };
+    public EngineeringPackage ParseTagsCsv(string csv) =>
+        Empty() with { Tags = _csv.ParseTags(csv) };
 
-    public ImportPreview Preview(EngineeringPackage package, ImportMode mode) => Preview(package, mode, null);
+    public EngineeringPackage ParseAlarmsCsv(string csv) =>
+        Empty() with { Alarms = _csv.ParseAlarms(csv) };
 
-    public ImportPreview Preview(EngineeringPackage package, ImportMode mode, EngineeringImportContext? context)
+    public EngineeringPackage ParseDataSourcesCsv(string csv) =>
+        Empty() with { DataSources = _csv.ParseDataSources(csv) };
+
+    public ImportPreview Preview(EngineeringPackage package, ImportMode mode) =>
+        Preview(package, mode, null);
+
+    public ImportPreview Preview(
+        EngineeringPackage package,
+        ImportMode mode,
+        EngineeringImportContext? context)
     {
         var items = new List<ImportPreviewItem>();
         _dataSourceHandler.Preview(package, mode, items);
@@ -213,13 +306,22 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             items);
     }
 
-    public ImportResult Apply(EngineeringPackage package, ImportMode mode) => Apply(package, mode, null);
+    public ImportResult Apply(EngineeringPackage package, ImportMode mode) =>
+        Apply(package, mode, null);
 
-    public ImportResult Apply(EngineeringPackage package, ImportMode mode, EngineeringImportContext? context)
+    public ImportResult Apply(
+        EngineeringPackage package,
+        ImportMode mode,
+        EngineeringImportContext? context)
     {
         var preview = Preview(package, mode, context);
         if (!preview.CanApply)
-            return new ImportResult(mode, 0, 0, preview.SkipCount, preview.Items.SelectMany(x => x.Issues).ToArray());
+            return new ImportResult(
+                mode,
+                0,
+                0,
+                preview.SkipCount,
+                preview.Items.SelectMany(x => x.Issues).ToArray());
 
         var created = 0;
         var updated = 0;
@@ -231,7 +333,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _assetHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _visualAssetHandler.Apply(package, mode, ref created, ref updated, ref skipped, context);
         _viewHandler.Apply(package, mode, ref created, ref updated, ref skipped);
-        if (package.StartupScreenId.HasValue)
+        if ((package.Screens?.Count ?? 0) > 0 || package.StartupScreenId.HasValue)
             _views.SetStartupScreen(package.StartupScreenId);
         _commandHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _gatewayHandler.Apply(package, mode, ref created, ref updated, ref skipped);
@@ -242,14 +344,17 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         return new ImportResult(mode, created, updated, skipped, Array.Empty<ImportIssue>());
     }
 
-    private void PreviewOperationalHmiReferences(EngineeringPackage package, List<ImportPreviewItem> items)
+    private void PreviewOperationalHmiReferences(
+        EngineeringPackage package,
+        List<ImportPreviewItem> items)
     {
         if (package.StartupScreenId.HasValue)
         {
             var startupId = package.StartupScreenId.Value;
             var exists = startupId != Guid.Empty &&
                 (_views.FindScreen(startupId) is not null ||
-                 (package.Screens ?? Array.Empty<ScreenEngineeringDto>()).Any(screen => screen is not null && screen.Id == startupId));
+                 (package.Screens ?? Array.Empty<ScreenEngineeringDto>())
+                     .Any(screen => screen is not null && screen.Id == startupId));
             if (!exists)
             {
                 var issue = new ImportIssue(
@@ -271,11 +376,13 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             if (screen is null) continue;
             PreviewOperationalActions(screen.Elements, ImportEntityKind.Screen, screen.Key, package, items);
         }
+
         foreach (var popup in package.Popups ?? Array.Empty<PopupEngineeringDto>())
         {
             if (popup is null) continue;
             PreviewOperationalActions(popup.Elements, ImportEntityKind.Popup, popup.Key, package, items);
         }
+
         foreach (var dynamo in package.Dynamos ?? Array.Empty<DynamoEngineeringDto>())
         {
             if (dynamo is null) continue;
@@ -293,6 +400,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         var issues = new List<ImportIssue>();
         ValidateOperationalActions(elements, kind, entityKey, package, issues);
         if (issues.Count == 0) return;
+
         items.Add(new ImportPreviewItem(kind, entityKey, ImportOperation.Error, issues));
     }
 
@@ -306,9 +414,11 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
         {
             if (element is null) continue;
+
             foreach (var action in element.Actions ?? Array.Empty<VisualNavigationActionEngineeringDto>())
             {
                 if (action is null) continue;
+
                 if (action.Kind == VisualNavigationActionKind.ExecuteCommand)
                 {
                     if (!action.CommandId.HasValue || action.CommandId == Guid.Empty)
@@ -321,6 +431,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
                             true));
                         continue;
                     }
+
                     if (!string.IsNullOrWhiteSpace(action.TargetKey))
                     {
                         issues.Add(new ImportIssue(
@@ -330,6 +441,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
                             entityKey,
                             true));
                     }
+
                     if (action.Parameters is { Count: > 0 })
                     {
                         issues.Add(new ImportIssue(
@@ -364,6 +476,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
                         true));
                 }
             }
+
             ValidateOperationalActions(element.Children, kind, entityKey, package, issues);
         }
     }

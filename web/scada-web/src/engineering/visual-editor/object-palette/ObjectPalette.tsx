@@ -43,7 +43,11 @@ export function ObjectPalette({
   const items = useMemo(() => listVisualObjectPaletteItems(), []);
   const [error, setError] = useState<string | null>(null);
   const editorText = useC07VisualEditorText();
-  const labels = { ...DEFAULT_LABELS, ...editorText.palette, ...(copy?.labels ?? {}) };
+  const labels: Readonly<Record<string, string>> = {
+    ...DEFAULT_LABELS,
+    ...editorText.palette,
+    ...(copy?.labels ?? {})
+  };
   const title = copy?.title ?? 'Object palette';
   const hint = copy?.hint ?? 'Add a registered visual object to the current Screen.';
   const addLabel = copy?.addLabel ?? 'Add';

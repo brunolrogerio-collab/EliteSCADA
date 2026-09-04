@@ -41,9 +41,12 @@ type NavigationResolution = Readonly<{
   diagnostic: RuntimeVisualCompositionError | null;
 }>;
 
-type OperationalVisualAction = VisualNavigationActionEngineering & Readonly<{
-  commandId?: string | null;
-}>;
+type OperationalVisualAction = Readonly<
+  Omit<VisualNavigationActionEngineering, 'kind'> & {
+    kind: 'NavigateScreen' | 'OpenPopup' | 'ClosePopup' | 'ExecuteCommand';
+    commandId?: string | null;
+  }
+>;
 
 type PositionedPopupEngineering = PopupEngineering & Readonly<{
   x?: number | null;
@@ -94,7 +97,7 @@ export function RuntimeVisualNavigator({
     try {
       const rawAction = resolveVisualNavigationAction(event.element, event.eventKey);
       if (!rawAction) return;
-      const action = normalizeVisualActionWireKind(rawAction) as OperationalVisualAction;
+      const action = normalizeVisualActionWireKind(rawAction);
       if (action.kind === 'ExecuteCommand') {
         const commandId = action.commandId?.trim();
         if (!commandId) {
@@ -108,10 +111,15 @@ export function RuntimeVisualNavigator({
         return;
       }
 
-      const next = executeVisualNavigationAction(catalog, state, action, {
-        popupRuntimeInstanceId,
-        popupIdFactory
-      });
+      const next = executeVisualNavigationAction(
+        catalog,
+        state,
+        action as VisualNavigationActionEngineering,
+        {
+          popupRuntimeInstanceId,
+          popupIdFactory
+        }
+      );
       setState(next);
       setDiagnostic(null);
     } catch (reason) {
@@ -207,26 +215,25 @@ export function RuntimeVisualNavigator({
   </div>;
 }
 
-function normalizeVisualActionWireKind(action: VisualNavigationActionEngineering): VisualNavigationActionEngineering {
+function normalizeVisualActionWireKind(action: VisualNavigationActionEngineering): OperationalVisualAction {
   const wireKind = String((action as VisualNavigationActionEngineering & Readonly<{ kind: unknown }>).kind).trim();
-  const kind = (() => {
-    switch (wireKind) {
-      case 'NavigateScreen':
-      case 'navigateScreen': return 'NavigateScreen';
-      case 'OpenPopup':
-      case 'openPopup': return 'OpenPopup';
-      case 'ClosePopup':
-      case 'closePopup': return 'ClosePopup';
-      case 'ExecuteCommand':
-      case 'executeCommand': return 'ExecuteCommand' as VisualNavigationActionEngineering['kind'];
-      default:
-        throw new RuntimeVisualCompositionError(
-          'VISUAL_RUNTIME_ACTION_KIND_UNSUPPORTED',
-          `Visual action '${action.eventKey}' has unsupported wire kind '${wireKind}'.`
-        );
-    }
-  })();
-  return Object.freeze({ ...action, kind });
+  let kind: OperationalVisualAction['kind'];
+  switch (wireKind) {
+    case 'NavigateScreen':
+    case 'navigateScreen': kind = 'NavigateScreen'; break;
+    case 'OpenPopup':
+    case 'openPopup': kind = 'OpenPopup'; break;
+    case 'ClosePopup':
+    case 'closePopup': kind = 'ClosePopup'; break;
+    case 'ExecuteCommand':
+    case 'executeCommand': kind = 'ExecuteCommand'; break;
+    default:
+      throw new RuntimeVisualCompositionError(
+        'VISUAL_RUNTIME_ACTION_KIND_UNSUPPORTED',
+        `Visual action '${action.eventKey}' has unsupported wire kind '${wireKind}'.`
+      );
+  }
+  return Object.freeze({ ...(action as unknown as OperationalVisualAction), kind });
 }
 
 function resolvePopupLogicalPosition(

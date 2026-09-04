@@ -18,7 +18,11 @@ const LEGACY_BACKEND_ONLY_KEYS = new Set(['imageResourceId']);
 
 test('frontend and backend canonical visual property keys remain in lockstep', async () => {
   const backendFoundation = await readFile(backendFoundationUrl, 'utf8');
-  const backendKeys = [...backendFoundation.matchAll(/public const string \w+ = "([^"]+)";/g)]
+  const backendSchemas = await readFile(backendSchemasUrl, 'utf8');
+  const backendKeys = [
+    ...backendFoundation.matchAll(/public const string \w+ = "([^"]+)";/g),
+    ...backendSchemas.matchAll(/private const string \w+Property = "([^"]+)";/g)
+  ]
     .map(match => match[1])
     .filter(key => !LEGACY_BACKEND_ONLY_KEYS.has(key))
     .sort();

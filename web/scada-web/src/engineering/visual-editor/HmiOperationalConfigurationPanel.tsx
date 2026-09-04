@@ -35,16 +35,12 @@ type PositionedPopup = PopupEngineering & {
 
 type OperationalAction = Readonly<{
   eventKey: string;
-  kind: string;
+  kind: 'ExecuteCommand';
   targetKey?: string | null;
   commandId?: string | null;
   parameters?: Readonly<Record<string, unknown>> | null;
   version?: number;
 }>;
-
-type ActionElement = VisualElementEngineering & {
-  actions?: readonly OperationalAction[] | null;
-};
 
 type DefinitionKind = 'screen' | 'dynamo' | 'popup';
 
@@ -336,7 +332,8 @@ function definitionChoices(
   dynamos: readonly DynamoEngineering[],
   popups: readonly PositionedPopup[]
 ): ReadonlyArray<{ identity: string; label: string; elements: readonly VisualElementEngineering[] }> {
-  const values = kind === 'screen' ? screens : kind === 'popup' ? popups : dynamos;
+  const values: ReadonlyArray<ScreenEngineering | DynamoEngineering | PositionedPopup> =
+    kind === 'screen' ? screens : kind === 'popup' ? popups : dynamos;
   return values.map(value => ({
     identity: identity(value),
     label: `${value.name || value.key} · ${value.key}`,
@@ -344,10 +341,10 @@ function definitionChoices(
   }));
 }
 
-function flattenElements(elements: readonly VisualElementEngineering[]): ActionElement[] {
-  const result: ActionElement[] = [];
+function flattenElements(elements: readonly VisualElementEngineering[]): VisualElementEngineering[] {
+  const result: VisualElementEngineering[] = [];
   for (const element of elements) {
-    result.push(element as ActionElement);
+    result.push(element);
     result.push(...flattenElements(element.children ?? []));
   }
   return result;
@@ -360,12 +357,18 @@ function replaceElementAction(
 ): Readonly<{ elements: VisualElementEngineering[]; changed: boolean }> {
   let changed = false;
   const next = elements.map(element => {
-    let current = element as ActionElement;
+    let current = element;
     if (current.id === objectId) {
       const actions = (current.actions ?? []).filter(existing =>
         existing.eventKey.trim().toLocaleLowerCase('en-US') !== action.eventKey.trim().toLocaleLowerCase('en-US')
       );
-      current = { ...current, actions: [...actions, action] };
+      current = {
+        ...current,
+        actions: [
+          ...actions,
+          action as unknown as NonNullable<VisualElementEngineering['actions']>[number]
+        ]
+      };
       changed = true;
     }
     if (current.children?.length) {

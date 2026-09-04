@@ -126,6 +126,13 @@ function expandElement(
 
     return Object.freeze({
       ...element,
+      // The persisted instance type remains `dynamo`. Once the definition has
+      // been expanded into transient Runtime children, however, the canonical
+      // renderer must receive a real container type so those children are
+      // reachable for rendering and interaction. Keeping `type: dynamo` here
+      // makes the renderer take its legacy-placeholder path and discards the
+      // expanded child tree, including authored C16 actions.
+      type: BUILTIN_VISUAL_OBJECT_TYPES.group,
       dynamoKey: null,
       children: [...children],
       metadata: Object.freeze({

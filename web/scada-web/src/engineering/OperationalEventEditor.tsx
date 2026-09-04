@@ -60,8 +60,10 @@ export function OperationalEventEditor({ model, locale, onApplied }: Props) {
   const [applying, setApplying] = useState(false);
 
   useEffect(() => {
+    // NEW mode installs its pristine draft synchronously in choose(). Do not replace
+    // that draft here: doing so reintroduces the C17-class transition window where
+    // new-mode identity and the previous persisted entity draft briefly disagree.
     if (selectedIdentity === NEW_IDENTITY) {
-      setDraft(newOperationalEventDraft());
       invalidatePreview();
       return;
     }
@@ -75,8 +77,15 @@ export function OperationalEventEditor({ model, locale, onApplied }: Props) {
       return;
     }
 
-    if (events[0]) setSelectedIdentity(operationalEventIdentity(events[0]));
-    else setDraft(null);
+    if (events[0]) {
+      const fallback = events[0];
+      setDraft(clone(fallback));
+      setSelectedIdentity(operationalEventIdentity(fallback));
+    } else {
+      setDraft(null);
+      setSelectedIdentity(null);
+    }
+    invalidatePreview();
   }, [selectedIdentity, model]);
 
   const changed = draft
@@ -99,6 +108,16 @@ export function OperationalEventEditor({ model, locale, onApplied }: Props) {
   function choose(identity: string) {
     if (identity === selectedIdentity) return;
     if (changed && !window.confirm(copy.discardConfirm)) return;
+
+    // Selection and draft move together in one React event/batch. In particular,
+    // entering NEW mode never renders with the stable ID/metadata of the previously
+    // selected persisted Operational Event.
+    if (identity === NEW_IDENTITY) {
+      setDraft(newOperationalEventDraft());
+    } else {
+      const next = events.find(item => operationalEventIdentity(item) === identity) ?? null;
+      setDraft(next ? clone(next) : null);
+    }
     setSelectedIdentity(identity);
     invalidatePreview();
   }

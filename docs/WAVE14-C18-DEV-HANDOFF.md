@@ -8,7 +8,7 @@
 **AUTHORIZED C18 PRODUCT BASE:** `568e93eb4dc4ba1fdc41455cfd6935e8831f09a4`  
 **C11 implementation:** **LOCKED**
 
-GitHub is the official development memory. Revalidate live refs before changing code.
+GitHub is the official development memory. Revalidate live refs before changing product code.
 
 ## 1. Release authority
 
@@ -48,11 +48,13 @@ The existing C18 branch was intentionally parked at historical checkpoint:
 
 That parked SHA is no longer the development authority.
 
-Before C18 product work, the C18 DEV must make the package branch start from the exact authorized product base:
+C18 product work is authorized from the exact product base:
 
 `568e93eb4dc4ba1fdc41455cfd6935e8831f09a4`
 
-Do not base C18 on later documentation-only Coordinator commits. Do not use `main` or the old parked `1dcd80...` as product authority.
+The package branch may of course advance with C18 implementation commits after this base. Later documentation-only commits do not redefine the authorized product base.
+
+Do not use `main` or the old parked `1dcd80...` as product authority.
 
 ## 3. Package purpose
 
@@ -117,6 +119,14 @@ Event Browser must be a first-class Screen/Popup visual object consuming the acc
 It must not reinterpret operational events as alarms merely to reuse alarm UI. Persisted filtering/presentation should support relevant C14 dimensions including type/category, source, Area/Equipment/TAG, user/operator, operation/command, time/text filters, visible columns, sort and bounded result controls.
 
 Operational Event remains distinct from Audit history.
+
+C14 does **not** define `/api/commands/{id}/execute` as an automatic Operational Event emitter. `CommandId` / `CommandKey` are optional occurrence context. C18 must not add Command -> Operational Event coupling merely to create E2E fixture data.
+
+For Event Browser acceptance, create/query Operational Events through the canonical C14 flow:
+
+`Engineering definition -> Active Runtime emission -> IScadaEventBus -> durable history -> protected operational.events query`.
+
+Use an existing generic runtime emission path where appropriate, or a test harness/fixture that exercises the accepted C14 runtime contract without adding product-only bypasses. The Event Browser itself remains only a consumer of the canonical dataset.
 
 ## 8. Common visual-object contract
 
@@ -193,5 +203,9 @@ At delivery report branch/base/candidate SHA, changed subsystems, exact workflow
 **Exact authorized product base:**
 
 `568e93eb4dc4ba1fdc41455cfd6935e8831f09a4`
+
+**Current package PR:** `#254`
+
+**Current package branch:** `wave14/c18-hmi-alarm-event-browsers`
 
 C11 remains locked until C18 converges, C10 convergence cycle 2 establishes a new exact product freeze, affected C11 findings are revalidated, and the Coordinator explicitly releases C11 implementation.

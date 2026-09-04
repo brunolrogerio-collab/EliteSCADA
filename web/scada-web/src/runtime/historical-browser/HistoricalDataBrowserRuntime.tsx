@@ -107,20 +107,15 @@ export function HistoricalDataBrowserRuntime({
       setState(projected.rows.length === 0 ? 'empty' : 'ready');
     } catch (error) {
       if (controller.signal.aborted) return;
-      if (error instanceof HistoricalQueryApiError) {
-        if (error.issue === 'unauthenticated' || error.issue === 'forbidden') {
-          setState('unauthorized');
-          setErrorMessage(error.message);
-          return;
-        }
-        setState('error');
-        setErrorMessage(error.message);
+      if (error instanceof HistoricalQueryApiError && (error.issue === 'unauthenticated' || error.issue === 'forbidden')) {
+        setState('unauthorized');
+        setErrorMessage(text.unauthorized);
         return;
       }
       setState('error');
-      setErrorMessage(error instanceof Error ? error.message : text.queryFailed);
+      setErrorMessage(text.queryFailed);
     }
-  }, [filters, locale, queryLoader, search, searchable, sortDirection, sortField, text.queryFailed]);
+  }, [filters, locale, queryLoader, search, searchable, sortDirection, sortField, text.queryFailed, text.unauthorized]);
 
   function runFirstPage(queryDraft = draft) {
     setPageCursors(Object.freeze([null]));

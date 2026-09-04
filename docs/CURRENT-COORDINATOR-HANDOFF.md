@@ -1,7 +1,7 @@
 # EliteSCADA — Current Coordinator Handoff
 
 **Last operational synchronization:** 2026-09-04 BRT  
-**Status:** **WAVE 14 ACTIVE / C11 IMPLEMENTATION LOCKED / C12+C13+C14+C17 ACCEPTED+INTEGRATED / C16 ACCEPTED CANDIDATE WITH COMPOSITION DEFERRED / C15 CHANGES REQUIRED / C18 BLOCKED UNTIL C15 ACCEPTED / WAVE13 PAUSED**
+**Status:** **WAVE 14 ACTIVE / C11 IMPLEMENTATION LOCKED / C12+C13+C14+C15+C17 ACCEPTED+INTEGRATED / C16 ACCEPTED CANDIDATE — COMPOSITION NEXT / C18 RELEASED FOR IMPLEMENTATION / WAVE13 PAUSED**
 
 > GitHub is the official development memory. `PROJECT GOAL.md` governs permanent product intent. `LAST CHANGE.md` is the fastest mutable resume point. Revalidate live GitHub before acting; do not resume from conversation history alone.
 
@@ -38,19 +38,11 @@ Last full C10 converged freeze before the C11 correction round:
 
 `97eefd8f4377ff583d1ba20bc89203f4a82b584d`
 
-Accepted C12+C13+C14 combined checkpoint:
+Current accepted post-C15 product-code checkpoint:
 
-`59a338d67dc956af0aa7907a54d59aaf8e80d764`
+`1dcd80a4df448ced3a228d3f5b9057fa26ef547c`
 
-C17 integration merge:
-
-`74cf4713ce70d19516acce0f475561a95af2c737`
-
-A premature C15 composition was explicitly reverted, without history rewrite, at:
-
-`c4d2ad7ddcef1c4c69108f43dbcf684746e8303c`
-
-The product tree after that revert contains accepted C12+C13+C14+C17 and excludes unaccepted C15 code. Documentation-only `[skip ci]` commits may advance the branch without changing that product-tree authority.
+Later `[skip ci]` documentation commits may advance the branch but do not supersede that product-code validation authority.
 
 A new product freeze is not declared until C12-C18 converge and C10 convergence cycle 2 passes.
 
@@ -75,41 +67,27 @@ Canonical pre-DEMO correction plan:
 
 `docs/WAVE14-C11-PRE-DEMO-CORRECTION-PACKAGES.md`
 
-## 4. Accepted pre-DEMO corrections
+## 4. Accepted correction packages
 
 ### C13 — Canonical Simulation Quality
 
-Accepted candidate:
+Accepted candidate `b9ce08b7466ffe4cb4b01a64d4fe16921f2c9cf8`, integrated at `84b12f7795b6ab5c63a4433ee7818ed418c442a1`.
 
-`b9ce08b7466ffe4cb4b01a64d4fe16921f2c9cf8`
-
-Integrated at:
-
-`84b12f7795b6ab5c63a4433ee7818ed418c442a1`
-
-Server-authoritative qualified samples, Source/TAG ownership enforcement, ordinary writes remain Good, no Client Visual Driver-quality spoofing, canonical Bad/Stale/Unavailable propagation.
+Server-authoritative qualified samples preserve Source/TAG ownership. Ordinary writes remain Good, Client Visual cannot spoof physical Driver quality, and Bad/Stale/Unavailable propagate canonically.
 
 ### C14 — First-Class Operational Events
 
-Accepted candidate:
+Accepted candidate `70e311d3a359e7b00e8f0ed035478d51bb6ee001`, integrated at `3d6389069015996a5a68fbb055f620560da9e839`.
 
-`70e311d3a359e7b00e8f0ed035478d51bb6ee001`
-
-Integrated at:
-
-`3d6389069015996a5a68fbb055f620560da9e839`
-
-First-class Event remains separate from Alarm/Audit, is Active-revision authoritative, durable and queryable through `operational.events`. Engineering schema authority is v16. C14 backend prerequisite for C18 is satisfied.
+Event remains separate from Alarm/Audit, Active-revision authoritative, durable and queryable through `operational.events`. Engineering schema authority is v16.
 
 ### C12 — Server Runtime Automation / Generic Simulation Authoring
 
-Accepted candidate:
+Accepted candidate `aa0fb1700cb805cfdbb6072ce7ce6bccda687067`.
 
-`aa0fb1700cb805cfdbb6072ce7ce6bccda687067`
+C12 consumes C13 and provides Active server script lifecycle/Timer/event automation plus qualified Server Memory publication through public generic contracts. No EEE-specific simulator was introduced.
 
-C12 consumes C13. Server Scripts can execute Active lifecycle/Timer/event automation and publish qualified Server Memory samples through public, server-authoritative contracts. No EEE-specific simulator was introduced.
-
-C12+C13+C14 combined checkpoint `59a338d...` passed all five gates:
+C12+C13+C14 combined checkpoint `59a338d67dc956af0aa7907a54d59aaf8e80d764` passed:
 
 - EliteSCADA CI `33832217232`;
 - Wave11 Runtime `33832217225`;
@@ -119,24 +97,73 @@ C12+C13+C14 combined checkpoint `59a338d...` passed all five gates:
 
 ### C17 — Internal Memory Authoring UX + Full Lifecycle E2E
 
-Accepted candidate:
+Accepted candidate `6db4fb33f06159f108ca17ceca23a35ee158b228`, integrated at `74cf4713ce70d19516acce0f475561a95af2c737`.
 
-`6db4fb33f06159f108ca17ceca23a35ee158b228`
+Normal Server/Client Memory authoring plus Save/Publish/Activate/Runtime is covered. An initial combined CI failure was diagnosed as an unrelated IEC-104 timing race and passed a justified failed-job rerun; the other composition gates were green.
 
-Merged by coordinator intake PR #249 at:
+### C15 — Embeddable Multi-Pen Trend HMI Object
 
-`74cf4713ce70d19516acce0f475561a95af2c737`
+Superseded rejected candidate:
 
-A first combined CI attempt exposed only an unrelated IEC-104 T2 timing race. After diagnosis, a failed-jobs-only rerun was authorized. Backend, Web and Chromium all passed on the rerun. Other exact composition gates were already green:
+`2abee30a25577368999f16d52a0802e6eea473ca`
 
-- Wave11 Runtime `33832895152`;
-- Licensing `33832895127`;
-- L3 `33832895193`;
-- Interop `33832895118`.
+Corrected accepted candidate:
 
-C17 is ACCEPTED + INTEGRATED. Validation-only PR #244 is closed without merge to `main`.
+`3a182b1963177e1c2c3bb5994fd87fa7cf2512f9`
 
-## 5. C16 — accepted candidate, integration intentionally deferred
+Corrected exact-candidate validation:
+
+- EliteSCADA CI `33836884357`;
+- Wave11 Runtime `33836884243`;
+- Licensing `33836884240`;
+- L3 `33836884464`;
+- Interop `33836884239`.
+
+C15 provides first-class `core.trend`, Screen/Popup authoring, native structured Multi-Pen configuration, canonical live/history data paths, quality-aware gaps, shared visual rendering and pt-BR/en/es.
+
+The earlier rejected intake was explicitly reverted at `c4d2ad7ddcef1c4c69108f43dbcf684746e8303c`. Corrected C15 was recomposed at `a0087901f408ae61293d9058af48adaa379b60b2` without rewriting history.
+
+The first combined Wave11 run then exposed a Coordinator selector collision: `/active-runtime\.spec\.ts/` also matched the C15 filename and executed Trend before C17 on the shared test project. Coordinator corrected only the selector isolation.
+
+Final accepted combined product-code checkpoint:
+
+`1dcd80a4df448ced3a228d3f5b9057fa26ef547c`
+
+Five exact-head combined gates are green:
+
+- EliteSCADA CI #1337 / `33838725814`;
+- Wave11 Runtime #265 / `33838725796`;
+- Licensing #287 / `33838725824`;
+- L3 #242 / `33838725850`;
+- Interop #164 / `33838725805`.
+
+C15 is **ACCEPTED + INTEGRATED / COMBINED GREEN**.
+
+## 5. C18 — released for implementation
+
+Package:
+
+**Embeddable Alarm + Event Browser HMI Objects + related history i18n**
+
+C14 Event and C15 visual-object prerequisites are satisfied.
+
+Exact C18 development base:
+
+`1dcd80a4df448ced3a228d3f5b9057fa26ef547c`
+
+Branch created from that exact SHA:
+
+`wave14/c18-hmi-alarm-event-browsers`
+
+Binding handoff:
+
+`docs/WAVE14-C18-DEV-HANDOFF.md`
+
+C18 must provide first-class Alarm Browser and Event Browser objects insertable into Screen/Popup, persisted through normal lifecycle, pt-BR/en/es, backend-authorized alarm actions, C14 `operational.events` consumption, bounded generic query behavior and independent configured instances.
+
+C18 implementation is **AUTHORIZED**. It must target `wave14/corrections-integration`, never `main`.
+
+## 6. C16 — accepted candidate, composition next
 
 Package:
 
@@ -156,81 +183,50 @@ Five exact-candidate gates are green:
 
 Accepted architecture:
 
-- `ExecuteCommand` sends only stable Command identity to canonical `/api/commands/{id}/execute`;
+- `ExecuteCommand` sends only stable Command identity to `/api/commands/{id}/execute`;
 - backend remains authority for command existence, authorization, execution and audit;
 - denial/failure is propagated, with no fallback to client TAG writes;
 - Screen, Dynamo and Popup command execution is validated in Active Runtime;
 - Startup/Home is persisted by Screen identity and fails closed when missing/unresolved;
 - Popup X/Y is persisted in canonical logical HMI coordinates and respects Runtime scaling/stacking/pointer behavior.
 
-Validation PR #238 is closed / DO NOT MERGE TO MAIN.
+C16 must not be blindly overlaid from its older schema-v15 branch. Compose it as a union against current authority, preserving C14 schema v16/Operational Events plus C15/C17.
 
-Coordinator intake PR #245 remains open only as a composition/tracking surface. It must not be automatically merged.
+Shared conflict surfaces:
 
-C16 will be composed once against the accepted integration authority after C15 is corrected/accepted so schema v16, Events, Server Runtime, quality, Memory and final visual-object contracts are preserved together.
+1. `src/Scada.Engineering/Contracts/EngineeringContracts.cs`;
+2. `src/Scada.Engineering/ImportExport/EngineeringExchangeService.cs`;
+3. `web/scada-web/playwright.wave11.config.ts`.
 
-## 6. C15 — CHANGES REQUIRED
+Desired combined Wave11 dependency chain:
 
-Package:
+`C16 startup bootstrap -> generic lifecycle -> C17 Memory -> C15 Trend -> C16 operational runtime -> owner package`
 
-**Embeddable Multi-Pen Trend HMI Object**
+Validation PR #238 remains closed / DO NOT MERGE MAIN. Intake PR #245 is only a composition/tracking surface.
 
-Current candidate at this synchronization:
+## 7. Immediate coordination route
 
-`2abee30a25577368999f16d52a0802e6eea473ca`
+1. compose accepted C16 against current accepted product authority;
+2. run all five combined exact-head gates;
+3. in parallel receive/review C18 from frozen base `1dcd80a4...`;
+4. accept/integrate C18 after exact-candidate gates and architecture review;
+5. resolve combined C16/C18 composition and rerun exact-head regression;
+6. execute C10 convergence cycle 2;
+7. freeze a new exact product-code SHA;
+8. revalidate affected C11 findings and remaining browser validation;
+9. only then explicitly release C11 implementation;
+10. finalize `docs/WAVE14-C11-CANONICAL-DEMO-IMPLEMENTATION-PREMISE.md`;
+11. build the canonical living EEE Simulation through normal corrected product tools;
+12. later validate conceptual mapping against physical Modbus PLC;
+13. after final Wave14 acceptance resume Wave13 packaging/signing.
 
-This candidate is RED in EliteSCADA CI run `33832058712` Chromium.
-
-Confirmed defects:
-
-1. frontend Trend scalar property registry conflicts with canonical common-property authority;
-2. frontend/backend cross-stack property parity is inconsistent for seven Trend scalar properties;
-3. mounted Engineering Property Inspector does not expose persisted `trendMode`;
-4. runtime Trend SVG may have a path element but no visibly drawable segment around quality/no-data discontinuity.
-
-Coordinator CHANGES REQUIRED comment on PR #243:
-
-`5535439463`
-
-Do not weaken parity or visibility assertions. Correct the product/authoring contract and publish a new exact candidate.
-
-No corrected C15 head had been published at this synchronization.
-
-## 7. C18 — not released yet
-
-Package:
-
-**Embeddable Alarm + Event Browser HMI Objects + related history i18n**
-
-C14 backend Event prerequisite is ready. C18 remains blocked until C15 is corrected, accepted and integrated, because C18 must consume the accepted embeddable visual-object authoring/persistence/runtime pattern rather than invent a parallel frontend contract.
-
-When released, C18 must provide first-class Alarm Browser and Event Browser objects insertable into Screen/Popup, persisted through normal lifecycle, multilingual pt-BR/en/es, with backend-authorized interactive alarm actions and C14 `operational.events` consumption.
-
-## 8. Immediate coordination route
-
-1. receive/revalidate corrected C15 head;
-2. require full exact-head gates and architecture acceptance for C15;
-3. integrate corrected C15 and run combined gates;
-4. publish exact C18 base and release C18 DEV;
-5. compose already accepted C16 once against the accepted post-C15 integration authority and rerun combined gates;
-6. implement/accept/integrate C18;
-7. run complete combined exact-head regression;
-8. execute C10 convergence cycle 2;
-9. freeze new exact product-code SHA;
-10. revalidate affected C11 findings plus remaining real-browser Memory/visual/resolution items;
-11. only then issue explicit `RELEASE C11 IMPLEMENTATION`;
-12. finalize `docs/WAVE14-C11-CANONICAL-DEMO-IMPLEMENTATION-PREMISE.md`;
-13. build canonical living EEE Simulation through corrected normal Engineering tools;
-14. later validate conceptual application against physical Modbus PLC;
-15. after final Wave14 acceptance resume Wave13 packaging/signing.
-
-## 9. Preview and release boundaries
+## 8. Preview and release boundaries
 
 Issue #208 / PR #210 remains Preview infrastructure/history, not product authority.
 
 Wave13 issue #205 / PR #207 remains paused. Do not sign stale pre-Wave14 product bytes.
 
-## 10. Mandatory resume protocol
+## 9. Mandatory resume protocol
 
 Read and revalidate in this order:
 

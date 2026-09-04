@@ -81,12 +81,20 @@ export function createObjectAddIntent(
 
   const parentObjectId = normalizeOptionalIdentity(options.parentObjectId, 'parentObjectId');
   const at = normalizeOptionalPoint(options.at);
+  const initialProperties = objectType === BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser ||
+    objectType === BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser
+    ? Object.freeze({
+        [VISUAL_PROPERTY_KEYS.width]: 720,
+        [VISUAL_PROPERTY_KEYS.height]: 320
+      })
+    : undefined;
 
   return Object.freeze({
     kind: 'object.add',
     objectType,
     ...(parentObjectId !== undefined ? { parentObjectId } : {}),
-    ...(at !== undefined ? { at } : {})
+    ...(at !== undefined ? { at } : {}),
+    ...(initialProperties ? { initialProperties } : {})
   });
 }
 

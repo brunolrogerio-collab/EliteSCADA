@@ -27,7 +27,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium-wave11-lifecycle',
-      testMatch: /active-runtime\.spec\.ts/,
+      testMatch: /(?:^|[\\/])active-runtime\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'] }
     },
     {

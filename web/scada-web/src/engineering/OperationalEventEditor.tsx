@@ -169,8 +169,11 @@ export function OperationalEventEditor({ model, locale, onApplied }: Props) {
       await onApplied?.();
       if (!onApplied) window.location.reload();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
-      invalidatePreview();
+      const message = reason instanceof Error ? reason.message : String(reason);
+      setPreview(null);
+      setCandidate(null);
+      setValidatedChangeVersion(null);
+      setError(message);
     } finally {
       setApplying(false);
     }

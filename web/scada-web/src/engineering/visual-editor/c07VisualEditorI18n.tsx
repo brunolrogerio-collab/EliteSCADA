@@ -16,6 +16,9 @@ const ptBR = {
     background: 'Fundo', image: 'imagem', color: 'cor', default: 'padrão', colorLabel: 'Cor', clear: 'Limpar', imageAsset: 'Asset de imagem', noBackgroundImage: 'Sem imagem de fundo', imageFit: 'Ajuste da imagem', assetIdentityOnly: 'Somente identidade canônica do asset do projeto.', resetBackground: 'Restaurar fundo',
     fit: { cover: 'Cobrir', contain: 'Conter', stretch: 'Esticar', center: 'Centralizar', tile: 'Repetir' }
   },
+  palette: {
+    alarmBrowser: 'Browser de Alarmes', eventBrowser: 'Browser de Eventos'
+  },
   dynamo: {
     name: 'Dínamo', definitionNotFound: 'Definição não encontrada no snapshot canônico de Engineering.', locked: 'Bloqueado', publicSuffix: 'públicos', instance: 'Instância', noPublicParameters: 'Nenhum parâmetro público.',
     statePreview: 'Preview do estado de Engineering', quality: 'Qualidade', settled: 'Estado', command: 'Comando', none: 'Nenhum', fault: 'Falha', alarm: 'Alarme', resolvedPriority: 'Prioridade resolvida', previewOnly: 'Somente preview. Nada é persistido.',
@@ -46,6 +49,9 @@ const en: C07VisualEditorText = {
     background: 'Background', image: 'image', color: 'color', default: 'default', colorLabel: 'Color', clear: 'Clear', imageAsset: 'Image asset', noBackgroundImage: 'No background image', imageFit: 'Image fit', assetIdentityOnly: 'Canonical project asset identity only.', resetBackground: 'Reset background',
     fit: { cover: 'Cover', contain: 'Contain', stretch: 'Stretch', center: 'Center', tile: 'Tile' }
   },
+  palette: {
+    alarmBrowser: 'Alarm Browser', eventBrowser: 'Event Browser'
+  },
   dynamo: {
     name: 'Dynamo', definitionNotFound: 'Definition not found in the canonical Engineering snapshot.', locked: 'Locked', publicSuffix: 'public', instance: 'Instance', noPublicParameters: 'No public parameters.',
     statePreview: 'Engineering state preview', quality: 'Quality', settled: 'Settled state', command: 'Command', none: 'None', fault: 'Fault', alarm: 'Alarm', resolvedPriority: 'Resolved priority', previewOnly: 'Preview only. Nothing is persisted.',
@@ -72,6 +78,9 @@ const es: C07VisualEditorText = {
   surface: {
     background: 'Fondo', image: 'imagen', color: 'color', default: 'predeterminado', colorLabel: 'Color', clear: 'Limpiar', imageAsset: 'Recurso de imagen', noBackgroundImage: 'Sin imagen de fondo', imageFit: 'Ajuste de imagen', assetIdentityOnly: 'Solo identidad canónica del recurso del proyecto.', resetBackground: 'Restablecer fondo',
     fit: { cover: 'Cubrir', contain: 'Contener', stretch: 'Estirar', center: 'Centrar', tile: 'Repetir' }
+  },
+  palette: {
+    alarmBrowser: 'Browser de Alarmas', eventBrowser: 'Browser de Eventos'
   },
   dynamo: {
     name: 'Dínamo', definitionNotFound: 'Definición no encontrada en el snapshot canónico de Engineering.', locked: 'Bloqueado', publicSuffix: 'públicos', instance: 'Instancia', noPublicParameters: 'Sin parámetros públicos.',

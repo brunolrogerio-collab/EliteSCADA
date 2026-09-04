@@ -23,6 +23,7 @@ import {
   resolveDynamoDefinition,
   runtimeDynamoElementIdentity
 } from '../../runtime/visual-navigation/runtimeVisualNavigationModel';
+import { BrowserVisualElement } from './BrowserVisualElement';
 import { polygonBounds, polygonPointsAttribute, readPolygonPoints } from './polygonGeometry';
 import {
   formatVisualScalarText,
@@ -254,6 +255,19 @@ function CanonicalElement({
       return <TrendVisualElement
         element={element}
         values={values}
+        style={style}
+        runtimeObjectId={runtimeObjectId}
+        title={elementTitle}
+        locale={locale}
+        enabled={enabled}
+        onClick={onClick}
+      />;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser ||
+        element.type === BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser) {
+      return <BrowserVisualElement
+        element={element}
         style={style}
         runtimeObjectId={runtimeObjectId}
         title={elementTitle}

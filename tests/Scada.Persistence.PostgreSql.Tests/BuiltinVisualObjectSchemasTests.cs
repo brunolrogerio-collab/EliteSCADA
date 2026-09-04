@@ -18,6 +18,8 @@ public sealed class BuiltinVisualObjectSchemasTests
             "core.image",
             "core.valueDisplay",
             "core.trend",
+            "core.alarmBrowser",
+            "core.eventBrowser",
             "core.button",
             "core.slider"
         ], BuiltinVisualObjectSchemas.All.Select(schema => schema.ObjectTypeKey).ToArray());

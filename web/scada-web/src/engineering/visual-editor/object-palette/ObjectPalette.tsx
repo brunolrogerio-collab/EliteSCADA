@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useC07VisualEditorText } from '../c07VisualEditorI18n';
 import type { VisualEditorObjectPaletteContractProps } from '../visualEditorContracts';
 import {
   createObjectAddIntent,
@@ -28,6 +29,8 @@ const DEFAULT_LABELS: Readonly<Record<string, string>> = Object.freeze({
   image: 'Image',
   valueDisplay: 'Value display',
   trend: 'Trend',
+  alarmBrowser: 'Alarm Browser',
+  eventBrowser: 'Event Browser',
   button: 'Button',
   slider: 'Slider'
 });
@@ -39,7 +42,12 @@ export function ObjectPalette({
 }: ObjectPaletteProps) {
   const items = useMemo(() => listVisualObjectPaletteItems(), []);
   const [error, setError] = useState<string | null>(null);
-  const labels = { ...DEFAULT_LABELS, ...(copy?.labels ?? {}) };
+  const editorText = useC07VisualEditorText();
+  const labels: Readonly<Record<string, string>> = {
+    ...DEFAULT_LABELS,
+    ...editorText.palette,
+    ...(copy?.labels ?? {})
+  };
   const title = copy?.title ?? 'Object palette';
   const hint = copy?.hint ?? 'Add a registered visual object to the current Screen.';
   const addLabel = copy?.addLabel ?? 'Add';
@@ -97,6 +105,8 @@ function paletteGlyph(item: VisualObjectPaletteItem): string {
     case 'image': return '▧';
     case 'valueDisplay': return '#';
     case 'trend': return '⌁';
+    case 'alarmBrowser': return '⚠';
+    case 'eventBrowser': return '≣';
     case 'button': return '▰';
     case 'slider': return '↔';
     default: return '□';

@@ -22,6 +22,8 @@ test('palette is derived from the complete registered built-in set', () => {
     BUILTIN_VISUAL_OBJECT_TYPES.image,
     BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay,
     BUILTIN_VISUAL_OBJECT_TYPES.trend,
+    BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser,
+    BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser,
     BUILTIN_VISUAL_OBJECT_TYPES.button,
     BUILTIN_VISUAL_OBJECT_TYPES.slider
   ]);

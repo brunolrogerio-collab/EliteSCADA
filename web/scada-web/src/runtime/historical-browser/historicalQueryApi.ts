@@ -1,7 +1,7 @@
 export const HISTORICAL_QUERY_VERSION = 1 as const;
 export const HISTORICAL_QUERY_ROUTE = '/api/historical/query' as const;
 
-export type HistoricalDatasetKey = 'historian.samples' | 'alarm.events';
+export type HistoricalDatasetKey = 'historian.samples' | 'alarm.events' | 'operational.events';
 export type HistoricalFieldType = 'guid' | 'string' | 'enum' | 'number' | 'boolean' | 'dateTime' | 'int64' | 'scalar';
 export type HistoricalValueKind =
   | 'guid'
@@ -114,7 +114,7 @@ export async function executeHistoricalQuery(
 export function normalizeHistoricalQueryResponse(payload: unknown): HistoricalQueryResponse {
   if (!isRecord(payload)) throw new HistoricalQueryApiError('unavailable', 'Historical query response is malformed.');
   if (payload.version !== HISTORICAL_QUERY_VERSION) throw new HistoricalQueryApiError('unavailable', 'Historical query response version is unsupported.');
-  if (payload.datasetKey !== 'historian.samples' && payload.datasetKey !== 'alarm.events') {
+  if (payload.datasetKey !== 'historian.samples' && payload.datasetKey !== 'alarm.events' && payload.datasetKey !== 'operational.events') {
     throw new HistoricalQueryApiError('unavailable', 'Historical query response dataset is not allowlisted.');
   }
   if (!Array.isArray(payload.columns) || !Array.isArray(payload.rows)) {

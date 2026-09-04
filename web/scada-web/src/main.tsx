@@ -20,9 +20,10 @@ import './runtime/application/runtime-operator.css';
 initializeAppTheme();
 
 function RuntimeHistoricalBrowserApp() {
+  const locale = useAppShellLocale();
   return (
     <main className="shell runtime-history-page">
-      <HistoricalDataBrowserRuntime />
+      <HistoricalDataBrowserRuntime locale={locale} />
     </main>
   );
 }

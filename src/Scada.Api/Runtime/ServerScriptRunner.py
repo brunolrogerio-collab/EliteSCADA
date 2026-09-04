@@ -15,15 +15,30 @@ class ReturnSignal(Exception):
 
 
 class SafeInterpreter:
-    def __init__(self, source, values, event):
+    def __init__(self, source, values, event, server_memory_tag_ids):
         self.tree = ast.parse(source, mode="exec")
+        self._validate_module()
         self.values = {str(key).lower(): value for key, value in values.items()}
+        self.server_memory_tag_ids = {
+            str(key).lower() for key in (server_memory_tag_ids or [])
+        }
         self.event = event or {}
         self.writes = []
         self.functions = {
             node.name: node for node in self.tree.body if isinstance(node, ast.FunctionDef)
         }
         self.steps = 0
+
+    def _validate_module(self):
+        for node in self.tree.body:
+            if not isinstance(node, ast.FunctionDef):
+                raise ScriptError(
+                    "Server Script top level may contain function declarations only."
+                )
+            if node.decorator_list:
+                raise ScriptError("Function decorators are not supported.")
+            if node.args.defaults or node.args.kw_defaults:
+                raise ScriptError("Default function arguments are not supported.")
 
     def tick(self):
         self.steps += 1
@@ -38,10 +53,19 @@ class SafeInterpreter:
         return self.call_function(function, args)
 
     def call_function(self, function, args):
-        if function.args.vararg or function.args.kwarg or function.args.kwonlyargs:
-            raise ScriptError("Variadic and keyword-only arguments are not supported.")
+        if (
+            function.args.vararg
+            or function.args.kwarg
+            or function.args.kwonlyargs
+            or function.args.posonlyargs
+        ):
+            raise ScriptError(
+                "Variadic, positional-only and keyword-only arguments are not supported."
+            )
         if len(args) != len(function.args.args):
-            raise ScriptError("Handler argument count does not match the runtime event contract.")
+            raise ScriptError(
+                "Handler argument count does not match the runtime event contract."
+            )
         env = {arg.arg: value for arg, value in zip(function.args.args, args)}
         try:
             self.exec_statements(function.body, env)
@@ -53,25 +77,43 @@ class SafeInterpreter:
         for statement in statements:
             self.tick()
             if isinstance(statement, ast.Assign):
-                if len(statement.targets) != 1 or not isinstance(statement.targets[0], ast.Name):
+                if len(statement.targets) != 1 or not isinstance(
+                    statement.targets[0], ast.Name
+                ):
                     raise ScriptError("Only simple local assignments are supported.")
                 env[statement.targets[0].id] = self.eval_expr(statement.value, env)
             elif isinstance(statement, ast.AugAssign):
                 if not isinstance(statement.target, ast.Name):
-                    raise ScriptError("Only simple augmented assignments are supported.")
+                    raise ScriptError(
+                        "Only simple augmented assignments are supported."
+                    )
                 current = env.get(statement.target.id)
-                env[statement.target.id] = self.apply_binary(statement.op, current, self.eval_expr(statement.value, env))
+                env[statement.target.id] = self.apply_binary(
+                    statement.op,
+                    current,
+                    self.eval_expr(statement.value, env),
+                )
             elif isinstance(statement, ast.Expr):
                 self.eval_expr(statement.value, env)
             elif isinstance(statement, ast.If):
-                branch = statement.body if self.eval_expr(statement.test, env) else statement.orelse
+                branch = (
+                    statement.body
+                    if self.eval_expr(statement.test, env)
+                    else statement.orelse
+                )
                 self.exec_statements(branch, env)
             elif isinstance(statement, ast.Return):
-                raise ReturnSignal(None if statement.value is None else self.eval_expr(statement.value, env))
+                raise ReturnSignal(
+                    None
+                    if statement.value is None
+                    else self.eval_expr(statement.value, env)
+                )
             elif isinstance(statement, ast.Pass):
                 continue
             else:
-                raise ScriptError("Python statement is outside the deterministic Server Script subset.")
+                raise ScriptError(
+                    "Python statement is outside the deterministic Server Script subset."
+                )
 
     def eval_expr(self, node, env):
         self.tick()
@@ -88,7 +130,10 @@ class SafeInterpreter:
                 return None
             raise ScriptError("Unknown local name in Server Script.")
         if isinstance(node, ast.Dict):
-            return {self.eval_expr(key, env): self.eval_expr(value, env) for key, value in zip(node.keys, node.values)}
+            return {
+                self.eval_expr(key, env): self.eval_expr(value, env)
+                for key, value in zip(node.keys, node.values)
+            }
         if isinstance(node, ast.List):
             return [self.eval_expr(item, env) for item in node.elts]
         if isinstance(node, ast.Tuple):
@@ -107,7 +152,11 @@ class SafeInterpreter:
                 return not value
             raise ScriptError("Unsupported unary operator.")
         if isinstance(node, ast.BinOp):
-            return self.apply_binary(node.op, self.eval_expr(node.left, env), self.eval_expr(node.right, env))
+            return self.apply_binary(
+                node.op,
+                self.eval_expr(node.left, env),
+                self.eval_expr(node.right, env),
+            )
         if isinstance(node, ast.BoolOp):
             values = [self.eval_expr(item, env) for item in node.values]
             return all(values) if isinstance(node.op, ast.And) else any(values)
@@ -120,37 +169,51 @@ class SafeInterpreter:
                 left = right
             return True
         if isinstance(node, ast.IfExp):
-            return self.eval_expr(node.body if self.eval_expr(node.test, env) else node.orelse, env)
+            return self.eval_expr(
+                node.body if self.eval_expr(node.test, env) else node.orelse,
+                env,
+            )
         if isinstance(node, ast.Call):
             if not isinstance(node.func, ast.Name) or node.keywords:
-                raise ScriptError("Only approved positional function calls are supported.")
+                raise ScriptError(
+                    "Only approved positional function calls are supported."
+                )
             args = [self.eval_expr(arg, env) for arg in node.args]
-            return self.call(node.func.id, args, env)
-        raise ScriptError("Python expression is outside the deterministic Server Script subset.")
+            return self.call(node.func.id, args)
+        raise ScriptError(
+            "Python expression is outside the deterministic Server Script subset."
+        )
 
-    def call(self, name, args, env):
+    def call(self, name, args):
         if name in self.functions:
             return self.call_function(self.functions[name], args)
-        if name == "read_tag" or name == "read_server_memory":
-            if len(args) != 1:
-                raise ScriptError("TAG read requires one stable TAG ID.")
-            key = str(args[0]).lower()
-            if key not in self.values:
-                raise ScriptError("TAG is not an active declared dependency.")
+
+        if name == "read_tag":
+            key = self._require_tag_argument(args, "TAG read")
             return self.values[key]
-        if name == "write_tag" or name == "write_server_memory":
-            if len(args) != 2:
-                raise ScriptError("TAG write requires stable TAG ID and value.")
-            key = str(args[0]).lower()
-            if key not in self.values:
-                raise ScriptError("TAG is not an active declared dependency.")
-            self.values[key] = args[1]
-            self.writes.append({
-                "tagId": key,
-                "value": args[1],
-                "serverMemoryOnly": name == "write_server_memory",
-            })
+
+        if name == "read_server_memory":
+            key = self._require_tag_argument(args, "Server Memory read")
+            self._require_server_memory_capability(key)
+            return self.values[key]
+
+        if name == "write_tag":
+            key, value = self._require_write_arguments(args, "TAG write")
+            self.values[key] = value
+            self.writes.append(
+                {"tagId": key, "value": value, "serverMemoryOnly": False}
+            )
             return None
+
+        if name == "write_server_memory":
+            key, value = self._require_write_arguments(args, "Server Memory write")
+            self._require_server_memory_capability(key)
+            self.values[key] = value
+            self.writes.append(
+                {"tagId": key, "value": value, "serverMemoryOnly": True}
+            )
+            return None
+
         builtins = {
             "min": min,
             "max": max,
@@ -166,6 +229,28 @@ class SafeInterpreter:
         if function is None:
             raise ScriptError("Function call is not part of the Server Script API surface.")
         return function(*args)
+
+    def _require_tag_argument(self, args, operation):
+        if len(args) != 1:
+            raise ScriptError(f"{operation} requires one stable TAG ID.")
+        key = str(args[0]).lower()
+        if key not in self.values:
+            raise ScriptError("TAG is not an active declared dependency.")
+        return key
+
+    def _require_write_arguments(self, args, operation):
+        if len(args) != 2:
+            raise ScriptError(f"{operation} requires stable TAG ID and value.")
+        key = str(args[0]).lower()
+        if key not in self.values:
+            raise ScriptError("TAG is not an active declared dependency.")
+        return key, args[1]
+
+    def _require_server_memory_capability(self, key):
+        if key not in self.server_memory_tag_ids:
+            raise ScriptError(
+                "Server Memory API requires an explicit ServerMemoryTag dependency."
+            )
 
     @staticmethod
     def apply_binary(operator, left, right):
@@ -213,10 +298,20 @@ def main():
             payload.get("source", ""),
             payload.get("values") or {},
             payload.get("event") or {},
+            payload.get("serverMemoryTagIds") or [],
         )
         interpreter.run(payload.get("handler", ""))
         result = {"succeeded": True, "error": None, "writes": interpreter.writes}
-    except (ScriptError, SyntaxError, TypeError, ValueError, KeyError, ZeroDivisionError, OverflowError) as error:
+    except (
+        ScriptError,
+        SyntaxError,
+        TypeError,
+        ValueError,
+        KeyError,
+        IndexError,
+        ZeroDivisionError,
+        OverflowError,
+    ) as error:
         result = {"succeeded": False, "error": str(error)[:240], "writes": []}
     print(json.dumps(result, separators=(",", ":")))
 

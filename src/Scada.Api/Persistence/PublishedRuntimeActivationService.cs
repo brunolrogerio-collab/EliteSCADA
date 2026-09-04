@@ -96,30 +96,14 @@ public sealed class PublishedRuntimeActivationService(
                 configuration);
 
             if (operationalEvents is not null)
-            {
-                await using var operationalEventGate =
-                    await ServerScriptOperationalEventBridge.BindForActivationAsync(
-                        scripts,
-                        runtime,
-                        operationalEvents,
-                        cancellationToken);
+                ServerScriptOperationalEventBridge.Bind(scripts, operationalEvents);
 
-                runtimeResult = await scripts.ActivateRuntimeAsync(
-                    snapshot.ProjectKey,
-                    snapshot.Revision,
-                    package,
-                    CommitAsync,
-                    cancellationToken);
-            }
-            else
-            {
-                runtimeResult = await scripts.ActivateRuntimeAsync(
-                    snapshot.ProjectKey,
-                    snapshot.Revision,
-                    package,
-                    CommitAsync,
-                    cancellationToken);
-            }
+            runtimeResult = await scripts.ActivateRuntimeAsync(
+                snapshot.ProjectKey,
+                snapshot.Revision,
+                package,
+                CommitAsync,
+                cancellationToken);
         }
         else
         {

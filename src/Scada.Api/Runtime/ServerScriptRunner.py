@@ -214,6 +214,30 @@ class SafeInterpreter:
             )
             return None
 
+        if name == "publish_server_memory_sample":
+            if len(args) != 3:
+                raise ScriptError(
+                    "Qualified Server Memory publish requires stable TAG ID, value and canonical quality."
+                )
+            key = str(args[0]).lower()
+            if key not in self.values:
+                raise ScriptError("TAG is not an active declared dependency.")
+            self._require_server_memory_capability(key)
+            quality = args[2]
+            if not isinstance(quality, str):
+                raise ScriptError("Qualified Server Memory quality must be a canonical TagQuality name.")
+            value = args[1]
+            self.values[key] = value
+            self.writes.append(
+                {
+                    "tagId": key,
+                    "value": value,
+                    "serverMemoryOnly": True,
+                    "quality": quality,
+                }
+            )
+            return None
+
         builtins = {
             "min": min,
             "max": max,

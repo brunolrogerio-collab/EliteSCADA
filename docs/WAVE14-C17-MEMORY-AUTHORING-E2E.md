@@ -3,7 +3,7 @@
 **Package:** `W14-C17`  
 **Branch:** `wave14/c17-memory-authoring-e2e`  
 **Required base:** `2607e03d5445eefe1f434495d0ee81136c6cd220`  
-**Corrected E2E commit:** `94529de2a3857403453bbc8858afa6ec2d5f11d5`  
+**Latest E2E correction commit:** `a184a754ee614321df96c533ba28ae7c4059da7b`  
 **Integration target:** `wave14/corrections-integration`  
 **State:** **CORRECTED CANDIDATE / EXACT-HEAD CI AND WAVE 11 REVALIDATION REQUIRED**
 
@@ -11,16 +11,38 @@ GitHub is the official memory. This handoff records the bounded C17 implementati
 
 ## Validation history
 
+### First validation failure: ambiguous checkbox locator
+
 Coordinator exact-head validation of candidate `15dda2845370d71a0b2cff3fce0303be57259b07` failed in **Wave 11 Active HMI Runtime #225 / run `33827655527`**.
 
 The official diagnosis in validation PR #244, comment `5534613449`, classified the failure as deterministic test ambiguity rather than evidence of an Internal Memory product defect. Playwright artifact `9920620171` confirms that `page.getByLabel('Somente leitura')` matched both the intended checkbox and an unrelated select under strict mode, causing the C17 scenario to stop before Save/Publish/Activate/Runtime assertions.
 
-C17 corrects only that locator in `web/scada-web/tests-wave11/c17-memory-lifecycle.spec.ts`:
+C17 corrected only that locator in `web/scada-web/tests-wave11/c17-memory-lifecycle.spec.ts`:
 
 - previous: `page.getByLabel('Somente leitura')`;
 - corrected: `page.getByRole('checkbox', { name: 'Somente leitura' })`.
 
-The correction does not change product code, UI text, authoring semantics or C17 acceptance scope. The lifecycle continues to require normal UI creation of Server Memory and Client Memory, TAG creation, source-provider Address absence, initial values, Save, Publish, Activate, Runtime, Server Memory read/write/retention/Historian and Client Memory session isolation.
+### Second validation failure: test navigated before asynchronous Apply completed
+
+The corrected locator candidate was published as branch HEAD `6f162e579d44721a4e7b0397ceb943413958fa05`. Exact-head validation started automatically from PR #244.
+
+- `Preview Licensing CI` #251 / run `33829863374`: **SUCCESS**;
+- `EliteSCADA CI` #1300 / run `33829863402`: Web build and Backend build/test/runtime-smoke passed before the second C17 correction made that head historical;
+- `Wave 11 Active HMI Runtime` #229 / run `33829863365`: **FAILURE** in the C17 lifecycle;
+- Playwright report artifact: `9921329270`.
+
+The locator fix worked: Wave11 passed the three base lifecycle tests and entered C17 without the previous strict-mode collision. The new failure occurred later because the consolidated Working export still showed `Server Memory initialValue = null`.
+
+Trace inspection demonstrates a deterministic synchronization defect in the test helper, not a product persistence failure:
+
+1. the first `MemoryTagSettingsPanel` candidate payload correctly contained `C17.Server.Value.initialValue = { dataType: "double", value: 12.5 }`;
+2. its `POST /api/engineering/import/json/apply` was aborted with trace status `-1` when the test immediately navigated to configure Client Memory;
+3. the helper had used `page.waitForLoadState('domcontentloaded')` after clicking Apply, but that wait could resolve against the already-loaded current document before the component's asynchronous Apply completed and triggered its reload;
+4. the subsequent Client Memory candidate therefore started from the prior Working model, with Server Memory initial value still null, and successfully applied that stale Server field alongside the Client default.
+
+C17 now waits for canonical Working state instead of relying on the current document load state. After clicking the normal `memory-initial-apply` UI button, the helper polls `/api/engineering/export/json` until the target TAG exposes the exact configured initial value. Only then can the next UI navigation begin.
+
+This correction strengthens the acceptance test: it proves that the normal UI Apply actually reached canonical Working state. It does not change product code, UI text, authoring semantics or C17 acceptance scope.
 
 The final candidate is the branch HEAD containing this handoff update. Exact-head gate IDs are reported in PR #244 / DEV delivery after GitHub Actions completes, without adding a post-validation commit that would invalidate the tested SHA.
 

@@ -90,7 +90,7 @@ export function BrowserConfigurationEditor({ element, locale, onMutationIntent }
   const { config, error } = parsed;
 
   if (!config || !element.id || (!isAlarm && !isEvent)) {
-    return error ? <p className="browser-config-editor__error" role="alert">{text.invalid}: {error}</p> : null;
+    return error ? <p className="browser-config-editor__error" role="alert">{text.invalid}</p> : null;
   }
 
   const commit = (next: AlarmBrowserConfig | EventBrowserConfig) => {
@@ -114,16 +114,16 @@ export function BrowserConfigurationEditor({ element, locale, onMutationIntent }
 
 function AlarmFields({ config, text, commit }: { config: AlarmBrowserConfig; text: Copy; commit: (value: AlarmBrowserConfig) => void }) {
   return <>
-    <Field label={text.mode}><select value={config.mode} onChange={event => commit({ ...config, mode: event.currentTarget.value as AlarmBrowserConfig['mode'] })}><option value="current">{text.current}</option><option value="history">{text.history}</option></select></Field>
-    <Field label={text.lifecycle}><select value={config.lifecycle} onChange={event => commit({ ...config, lifecycle: event.currentTarget.value as AlarmBrowserConfig['lifecycle'] })}><option value="all">{text.all}</option><option value="active">{text.active}</option><option value="returned">{text.returned}</option></select></Field>
-    <Field label={text.acknowledgement}><select value={config.acknowledgement} onChange={event => commit({ ...config, acknowledgement: event.currentTarget.value as AlarmBrowserConfig['acknowledgement'] })}><option value="all">{text.all}</option><option value="acknowledged">{text.acknowledged}</option><option value="unacknowledged">{text.unacknowledged}</option></select></Field>
-    <Field label={text.minimumPriority}><select value={config.minimumPriority ?? ''} onChange={event => commit({ ...config, minimumPriority: event.currentTarget.value ? Number(event.currentTarget.value) : null })}><option value="">{text.anyPriority}</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></Field>
+    <Field label={text.mode}><select aria-label={text.mode} value={config.mode} onChange={event => commit({ ...config, mode: event.currentTarget.value as AlarmBrowserConfig['mode'] })}><option value="current">{text.current}</option><option value="history">{text.history}</option></select></Field>
+    <Field label={text.lifecycle}><select aria-label={text.lifecycle} value={config.lifecycle} onChange={event => commit({ ...config, lifecycle: event.currentTarget.value as AlarmBrowserConfig['lifecycle'] })}><option value="all">{text.all}</option><option value="active">{text.active}</option><option value="returned">{text.returned}</option></select></Field>
+    <Field label={text.acknowledgement}><select aria-label={text.acknowledgement} value={config.acknowledgement} onChange={event => commit({ ...config, acknowledgement: event.currentTarget.value as AlarmBrowserConfig['acknowledgement'] })}><option value="all">{text.all}</option><option value="acknowledged">{text.acknowledged}</option><option value="unacknowledged">{text.unacknowledged}</option></select></Field>
+    <Field label={text.minimumPriority}><select aria-label={text.minimumPriority} value={config.minimumPriority ?? ''} onChange={event => commit({ ...config, minimumPriority: event.currentTarget.value ? Number(event.currentTarget.value) : null })}><option value="">{text.anyPriority}</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></Field>
     <TextField label={text.area} value={config.area} onChange={value => commit({ ...config, area: value })} />
     <TextField label={text.tagPath} value={config.tagPath} onChange={value => commit({ ...config, tagPath: value })} />
     <TextField label={text.text} value={config.text} onChange={value => commit({ ...config, text: value })} />
     {config.mode === 'history' ? <NumberField label={text.lookback} value={config.lookbackSeconds} min={60} max={2678400} onChange={value => commit({ ...config, lookbackSeconds: value })} /> : null}
     <NumberField label={text.pageSize} value={config.pageSize} min={10} max={200} onChange={value => commit({ ...config, pageSize: value })} />
-    <label className="browser-config-editor__check"><input type="checkbox" checked={config.acknowledgeEnabled} onChange={event => commit({ ...config, acknowledgeEnabled: event.currentTarget.checked })} />{text.acknowledgeEnabled}</label>
+    <label className="browser-config-editor__check"><input aria-label={text.acknowledgeEnabled} type="checkbox" checked={config.acknowledgeEnabled} onChange={event => commit({ ...config, acknowledgeEnabled: event.currentTarget.checked })} />{text.acknowledgeEnabled}</label>
     <Columns label={text.columns} allowed={ALARM_BROWSER_COLUMNS} selected={config.columns} onChange={columns => commit({ ...config, columns: columns as readonly AlarmBrowserColumn[] })} />
     <Sort label={text.sorting} fields={['timestamp', 'state', 'priority', 'tag.path']} field={config.sortField} direction={config.sortDirection} text={text} onChange={(sortField, sortDirection) => commit({ ...config, sortField: sortField as AlarmBrowserConfig['sortField'], sortDirection })} />
   </>;
@@ -149,13 +149,13 @@ function EventFields({ config, text, commit }: { config: EventBrowserConfig; tex
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="browser-config-editor__field"><span>{label}</span>{children}</label>; }
-function TextField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <Field label={label}><input value={value} onChange={event => onChange(event.currentTarget.value)} /></Field>; }
-function NumberField({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (value: number) => void }) { return <Field label={label}><input type="number" min={min} max={max} value={value} onChange={event => { const next = Number(event.currentTarget.value); if (Number.isSafeInteger(next) && next >= min && next <= max) onChange(next); }} /></Field>; }
+function TextField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <Field label={label}><input aria-label={label} value={value} onChange={event => onChange(event.currentTarget.value)} /></Field>; }
+function NumberField({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (value: number) => void }) { return <Field label={label}><input aria-label={label} type="number" min={min} max={max} value={value} onChange={event => { const next = Number(event.currentTarget.value); if (Number.isSafeInteger(next) && next >= min && next <= max) onChange(next); }} /></Field>; }
 
 function Columns({ label, allowed, selected, onChange }: { label: string; allowed: readonly string[]; selected: readonly string[]; onChange: (value: readonly string[]) => void }) {
-  return <fieldset className="browser-config-editor__columns"><legend>{label}</legend>{allowed.map(column => <label key={column}><input type="checkbox" checked={selected.includes(column)} onChange={event => { const next = event.currentTarget.checked ? [...selected, column] : selected.filter(item => item !== column); if (next.length > 0) onChange(next); }} /><code>{column}</code></label>)}</fieldset>;
+  return <fieldset className="browser-config-editor__columns"><legend>{label}</legend>{allowed.map(column => <label key={column}><input aria-label={`${label}: ${column}`} type="checkbox" checked={selected.includes(column)} onChange={event => { const next = event.currentTarget.checked ? [...selected, column] : selected.filter(item => item !== column); if (next.length > 0) onChange(next); }} /><code>{column}</code></label>)}</fieldset>;
 }
 
 function Sort({ label, fields, field, direction, text, onChange }: { label: string; fields: readonly string[]; field: string; direction: 'ascending' | 'descending'; text: Copy; onChange: (field: string, direction: 'ascending' | 'descending') => void }) {
-  return <div className="browser-config-editor__sort"><span>{label}</span><select value={field} onChange={event => onChange(event.currentTarget.value, direction)}>{fields.map(item => <option key={item} value={item}>{item}</option>)}</select><select value={direction} onChange={event => onChange(field, event.currentTarget.value as 'ascending' | 'descending')}><option value="ascending">{text.ascending}</option><option value="descending">{text.descending}</option></select></div>;
+  return <div className="browser-config-editor__sort"><span>{label}</span><select aria-label={label} value={field} onChange={event => onChange(event.currentTarget.value, direction)}>{fields.map(item => <option key={item} value={item}>{item}</option>)}</select><select aria-label={`${label}: ${text.ascending}/${text.descending}`} value={direction} onChange={event => onChange(field, event.currentTarget.value as 'ascending' | 'descending')}><option value="ascending">{text.ascending}</option><option value="descending">{text.descending}</option></select></div>;
 }

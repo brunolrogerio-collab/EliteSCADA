@@ -6,11 +6,12 @@ import type {
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
-export async function loadActiveRuntimeAlarms(
+export async function loadRuntimeAlarms(
+  activeOnly: boolean,
   signal?: AbortSignal
 ): Promise<RuntimeAlarmCenterEndpoint<RuntimeAlarmCenterItem[]>> {
   try {
-    const response = await fetch(`${API}/api/alarms?activeOnly=true`, {
+    const response = await fetch(`${API}/api/alarms?activeOnly=${activeOnly ? 'true' : 'false'}`, {
       headers: { accept: 'application/json' },
       signal
     });
@@ -34,6 +35,12 @@ export async function loadActiveRuntimeAlarms(
       error: error instanceof Error ? error.message : String(error)
     };
   }
+}
+
+export async function loadActiveRuntimeAlarms(
+  signal?: AbortSignal
+): Promise<RuntimeAlarmCenterEndpoint<RuntimeAlarmCenterItem[]>> {
+  return loadRuntimeAlarms(true, signal);
 }
 
 export async function acknowledgeRuntimeAlarm(

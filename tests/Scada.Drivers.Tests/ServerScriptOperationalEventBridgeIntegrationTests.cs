@@ -145,10 +145,10 @@ public sealed class ServerScriptOperationalEventBridgeIntegrationTests
     {
         var tagReference = stateTagId.ToString("D");
         var definitionReference = definitionId.ToString("D");
-        var source = $"""
+        var source = $$"""
 def initialize(event):
-    write_server_memory("{tagReference}", 42)
-    emit_operational_event("{definitionReference}", "Script override", {{"mode": "auto", "type": "forged-type", "category": "forged-category", "source": "forged-source", "definitionId": "forged-definition"}})
+    write_server_memory("{{tagReference}}", 42)
+    emit_operational_event("{{definitionReference}}", "Script override", {"mode": "auto", "type": "forged-type", "category": "forged-category", "source": "forged-source", "definitionId": "forged-definition"})
 """;
 
         var script = new ScriptEngineeringDefinition(

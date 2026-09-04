@@ -55,9 +55,15 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] }
     },
     {
+      name: 'chromium-wave11-c18-browsers',
+      testMatch: /c18-alarm-event-browsers-active-runtime\.spec\.ts/,
+      dependencies: ['chromium-wave11-c16-operational-runtime'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
       name: 'chromium-wave11-owner-package',
       testMatch: /owner-test-artifact\.spec\.ts/,
-      dependencies: ['chromium-wave11-c16-operational-runtime'],
+      dependencies: ['chromium-wave11-c18-browsers'],
       use: { ...devices['Desktop Chrome'] }
     }
   ],

@@ -37,9 +37,15 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] }
     },
     {
+      name: 'chromium-wave11-c16-operational-runtime',
+      testMatch: /c16-operational-runtime\.spec\.ts/,
+      dependencies: ['chromium-wave11-lifecycle'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
       name: 'chromium-wave11-owner-package',
       testMatch: /owner-test-artifact\.spec\.ts/,
-      dependencies: ['chromium-wave11-lifecycle'],
+      dependencies: ['chromium-wave11-c16-operational-runtime'],
       use: { ...devices['Desktop Chrome'] }
     }
   ],

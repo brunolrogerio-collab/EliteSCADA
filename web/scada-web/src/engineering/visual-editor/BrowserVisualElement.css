@@ -1,0 +1,97 @@
+.hmi-browser {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+  background: var(--surface-raised, #111827);
+  color: var(--text-primary, #e5e7eb);
+}
+
+.hmi-browser__header,
+.hmi-browser__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  background: rgba(15, 23, 42, 0.65);
+}
+
+.hmi-browser__header {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.hmi-browser__header strong {
+  font-size: 0.82rem;
+}
+
+.hmi-browser__header span,
+.hmi-browser__footer button,
+.hmi-browser__ack {
+  font-size: 0.72rem;
+}
+
+.hmi-browser__body {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.hmi-browser__table-wrap {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+}
+
+.hmi-browser table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+}
+
+.hmi-browser th,
+.hmi-browser td {
+  padding: 0.35rem 0.45rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  white-space: nowrap;
+}
+
+.hmi-browser th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-raised, #111827);
+  font-weight: 600;
+}
+
+.hmi-browser__message {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  min-height: 3rem;
+  padding: 0.75rem;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+.hmi-browser__message--error,
+.hmi-browser__action-error {
+  color: var(--danger, #ef4444);
+}
+
+.hmi-browser__action-error {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.72rem;
+}
+
+.hmi-browser__footer {
+  justify-content: flex-end;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.hmi-browser__footer button,
+.hmi-browser__ack {
+  padding: 0.3rem 0.5rem;
+}

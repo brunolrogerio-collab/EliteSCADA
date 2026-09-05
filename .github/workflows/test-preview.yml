@@ -1,0 +1,171 @@
+name: Test Preview
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '.devcontainer/**'
+      - '.vscode/tasks.json'
+      - 'preview/fixtures/**'
+      - 'scripts/preview/**'
+      - 'src/Scada.Api/**'
+      - 'src/Scada.Persistence.PostgreSql/**'
+      - 'src/Scada.Engineering/**'
+      - 'web/scada-web/**'
+      - '.github/workflows/test-preview.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - '.devcontainer/**'
+      - '.vscode/tasks.json'
+      - 'preview/fixtures/**'
+      - 'scripts/preview/**'
+      - 'src/Scada.Api/**'
+      - 'src/Scada.Persistence.PostgreSql/**'
+      - 'src/Scada.Engineering/**'
+      - 'web/scada-web/**'
+      - '.github/workflows/test-preview.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  launch-test-preview:
+    name: Launch real browser Preview
+    runs-on: ubuntu-latest
+    services:
+      timescaledb:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_preview
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: elitescada-preview-db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_preview"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+
+      - name: Prepare disposable Codespaces machine identity
+        run: bash .devcontainer/initialize-preview-machine-id.sh
+
+      - name: Validate devcontainer Compose
+        run: docker compose -f .devcontainer/docker-compose.yml config >/dev/null
+
+      - name: Verify Codespaces devcontainer SDK
+        shell: bash
+        run: |
+          APP_IMAGE="$(docker compose -f .devcontainer/docker-compose.yml config --images | grep '^mcr.microsoft.com/devcontainers/dotnet:' | head -n 1)"
+          [[ -n "$APP_IMAGE" ]] || { echo 'Could not resolve the app devcontainer image.' >&2; exit 1; }
+          ACTUAL_SDK="$(docker run --rm "$APP_IMAGE" dotnet --version)"
+          echo "Codespaces app image: $APP_IMAGE"
+          echo "Codespaces .NET SDK: $ACTUAL_SDK"
+          [[ "$ACTUAL_SDK" == '10.0.400' ]] || {
+            echo "Expected exact SDK 10.0.400 because global.json has rollForward=disable." >&2
+            exit 1
+          }
+
+      - name: Verify Codespaces machine identity mount
+        shell: bash
+        run: |
+          set -euo pipefail
+          cleanup() {
+            docker compose -f .devcontainer/docker-compose.yml down -v >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker compose -f .devcontainer/docker-compose.yml up -d app
+          docker compose -f .devcontainer/docker-compose.yml exec -T app sh -lc '
+            set -eu
+            test -s /etc/machine-id
+            machine_id="$(tr -d "[:space:]-" < /etc/machine-id | tr "[:upper:]" "[:lower:]")"
+            printf "%s" "$machine_id" | grep -Eq "^[0-9a-f]{32}$"
+            test "$machine_id" != "00000000000000000000000000000000"
+          '
+
+      - name: Verify Codespaces automatic Preview launch contract
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const config = JSON.parse(fs.readFileSync('.devcontainer/devcontainer.json', 'utf8'));
+          const expectedInitializer = 'bash .devcontainer/initialize-preview-machine-id.sh';
+          const expectedLauncher = 'bash scripts/preview/launch-test-preview.sh';
+          if (config.initializeCommand !== expectedInitializer) {
+            throw new Error(`initializeCommand must be exactly: ${expectedInitializer}`);
+          }
+          if (config.postAttachCommand !== expectedLauncher) {
+            throw new Error(`postAttachCommand must be exactly: ${expectedLauncher}`);
+          }
+          if (!Array.isArray(config.forwardPorts) || !config.forwardPorts.includes(5173)) {
+            throw new Error('Web port 5173 must be forwarded by the Codespaces configuration.');
+          }
+          if (config.portsAttributes?.['5173']?.onAutoForward !== 'openPreview') {
+            throw new Error('Web port 5173 must open the Preview after the server starts.');
+          }
+          if (config.portsAttributes?.['5080']?.onAutoForward !== 'ignore') {
+            throw new Error('Internal API port 5080 must remain excluded from auto-forwarding.');
+          }
+          NODE
+
+      - name: Restore backend
+        run: dotnet restore ScadaPlatform.sln
+
+      - name: Install frontend dependencies
+        working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+
+      - name: Resolve Codespaces database service name in CI
+        run: echo '127.0.0.1 timescaledb' | sudo tee -a /etc/hosts >/dev/null
+
+      - name: Generate ephemeral Preview administrator password
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          import secrets
+
+          password = secrets.token_urlsafe(48)
+          print(f'::add-mask::{password}')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env:
+              env.write('ELITESCADA_PREVIEW_ADMIN_PASSWORD=' + password + '\n')
+          PY
+
+      - name: Launch Test Preview
+        run: bash scripts/preview/launch-test-preview.sh
+
+      - name: API diagnostics on Preview launch failure
+        if: failure()
+        shell: bash
+        run: |
+          echo '--- EliteSCADA API diagnostic tail ---'
+          if [[ -f .preview/api.log ]]; then
+            tail -n 160 .preview/api.log
+          else
+            echo '.preview/api.log was not created.'
+          fi
+          echo '--- End diagnostic tail ---'
+
+      - name: Verify browser entry and Pyodide asset
+        run: |
+          curl --fail --silent --show-error http://127.0.0.1:5173/ | grep -q '<div id="root"'
+          curl --fail --silent --show-error http://127.0.0.1:5173/pyodide/pyodide.js >/dev/null

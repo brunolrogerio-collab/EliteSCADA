@@ -1,201 +1,214 @@
-# Wave 14 Coordinator Handoff — 2026-09-05 — C24 and post-demo sequencing
+# Wave 14 Coordinator Handoff — 2026-09-05 — C24 post-merge closeout and post-demo sequence
 
-> **Authority:** GitHub is the official project memory. This handoff is a coordination snapshot only. Revalidate every branch, PR, SHA and CI state live before acting. Live GitHub always wins.
+> **Authority:** GitHub is the official project memory. Revalidate every branch, PR, SHA and CI state live before acting. Documentation-only commits after the accepted product merge do not redefine product bytes.
 
 ## 1. Non-negotiable governance
 
 - Repository: `brunolrogerio-collab/EliteSCADA`.
 - Integration branch: `wave14/corrections-integration`.
-- Integration PR: #212. It must remain **OPEN/DRAFT** and must **NOT** be merged to `main` without later explicit Product Owner authorization.
-- Do not alter `main` directly.
-- Wave13 PRs #205/#207 remain paused.
+- Integration PR #212 must remain **OPEN/DRAFT** and must **NOT** merge to `main` without later explicit Product Owner authorization.
+- Never alter `main` directly.
 - No force push, destructive rebase, branch deletion or unrelated cleanup.
-- Diagnose red CI before rerunning. Never weaken tests, contracts, security, identity, lifecycle or validation to obtain green CI.
-- C11 must not be declared ACCEPTED, INTEGRATED, FROZEN or DEMO-READY until canonical package, final CI and Product Owner visual homologation are complete.
-- #266 is C11 validation-only to `main`: **NEVER MERGE**. Close without merge when appropriate.
-- #263 may merge C11 into integration only after full C11 acceptance.
-- Generic product defects must remain generic fixes. Do not create EEE-specific workarounds or reimplement EEE as a special service/driver.
+- Diagnose every red before rerun. Never weaken tests, validation, security, identity, lifecycle or contracts to obtain green.
+- #266 is C11 validation-only to `main`: **NEVER MERGE**.
+- #263 may integrate C11 only after full final C11 acceptance.
+- Wave13 #205/#207 remains paused.
 
-At the time this handoff was written, integration was revalidated at `35b3bf7984b8c5753710409295ea9bd5e3ad9b25`, whose product parent is the accepted Wave14 product SHA `5962bee401fadd700041e7c61cd430d4b4f28e27`. Revalidate before any mutation.
+## 2. C24 — formally accepted and closed
 
-## 2. C24 — implementation exists, acceptance is BLOCKED
+### Problem corrected
 
-### Purpose
+A clean First Project installed built-in `dynamo.pump.standard` with a dependency on `pump.standard`, but that equipment template existed only in historical DEMO seeding. The clean project could Save, while Publish correctly failed with `DYNAMO_TEMPLATE_NOT_FOUND`.
 
-C24 fixes the clean First Project bootstrap defect exposed by the C11 canonical package gate. `BuiltinDynamoLibrary.Create()` installed `dynamo.pump.standard` with an external `TemplateKey` dependency on `pump.standard`, while that template existed only in historical Demo seeding. A clean First Project therefore correctly failed normal Publish validation with `DYNAMO_TEMPLATE_NOT_FOUND`.
+The accepted generic correction:
 
-Derived invariant:
+- removes the DEMO-only template dependency from the built-in Dynamo;
+- adds no DEMO content to First Project;
+- preserves normal Dynamo behavior and bindings;
+- keeps Publish/import validators strict;
+- adds a real clean First Project Save -> Publish regression;
+- aligns the legacy E2E with the actual serialized contract, `templateKey: null`.
 
-> A built-in library installed into a clean First Project must be internally dependency-closed, or any external dependency must itself be a generic built-in installed by the same bootstrap.
+### Accepted candidate
 
-### Branch and commits
+Exact C24 candidate SHA:
 
-- Branch: `wave14/c24-first-project-builtin-consistency`.
-- Base: exact accepted product SHA `5962bee401fadd700041e7c61cd430d4b4f28e27`.
-- Product fix commit: `2f9388b6053880db0e3258ddd17591343950540e` — `fix(c24): keep builtin dynamo library self-contained`.
-- Candidate/regression commit: `42513edbfc4a8093c7aa99bb2ca09e405b987e7a` — `test(c24): prove fresh first project can save and publish`.
-- Implementation PR: #278, C24 -> `wave14/corrections-integration`, OPEN/DRAFT at handoff time.
-- Validation-only PR: #279, C24 -> `main`, OPEN/DRAFT at handoff time, **NEVER MERGE**.
+`ff5eac6ad12865b174b6ca602a13d01165e57b36`
 
-The product change removes only the Demo-only `pump.standard` template dependency from the built-in pump Dynamo. It does not weaken the validator and does not touch security, identity, lifecycle or EEE-specific code.
+Pre-merge exact-SHA evidence:
 
-Regression coverage in `tests/Scada.Drivers.Tests/EngineeringFirstProjectBootstrapTests.cs` proves both:
+- Preview Licensing CI #365 / `33996011571` — SUCCESS;
+- Wave 11 Active HMI Runtime #343 / `33996011620` — SUCCESS;
+- Interop Lab Smoke #242 / `33996011614` — SUCCESS;
+- EliteSCADA CI #1415 / `33996011599` — SUCCESS, including Chromium E2E;
+- L3 Seven-Driver Lab #321 / `33996011595` — SUCCESS;
+- Wave 14 C03 DNP3 Adapter #120 / `33996011523` — SUCCESS additional evidence.
 
-1. the built-in Dynamo library has exactly 8 built-ins and no external equipment-template dependency;
-2. a real clean First Project can Save and Publish through the normal persistence/publication path with built-in bootstrap content only.
+PR #278 merged normally **only** into `wave14/corrections-integration`.
 
-### Exact-SHA CI evidence for `42513edbfc4a8093c7aa99bb2ca09e405b987e7a`
+Exact integration product merge:
 
-Required matrix observed:
+`40a491c2de2403f2934b8bae647c35072d5c2496`
 
-- Wave11 Gate #340: SUCCESS.
-- Wave14 Preview Licensing CI #362: SUCCESS.
-- Wave14 Interop CI #239: SUCCESS.
-- Wave11 L3 Lab #318: SUCCESS.
-- EliteSCADA CI #1412: **FAILURE**.
-- Additional C03 #118: SUCCESS, not part of the required five.
+Parents:
 
-EliteSCADA CI run id: `33985793295`.
+- `0380b188c5fa7aefac69db1cf7350e8ebebb8395`;
+- `ff5eac6ad12865b174b6ca602a13d01165e57b36`.
 
-Backend/build/runtime-smoke portion is green and includes the new C24 regression. The failure is in Chromium integration/E2E; Firefox is skipped after Chromium fails.
+PR #279 was validation-only and is CLOSED WITHOUT MERGE. It must never be reopened as a route to `main`.
 
-Original Chromium failing job: `101359092828`.
-Latest rerun Chromium failing job: `101378014398`.
+### Post-merge exact-SHA evidence
 
-### Important process note
+On exact product merge `40a491c2de2403f2934b8bae647c35072d5c2496`:
 
-A Chromium rerun was accidentally triggered before the original red had been fully diagnosed. That was contrary to Wave14 governance and must **not** be used to wave the failure away. The rerun also failed at the same candidate SHA. Therefore there is no evidence supporting a transient/flaky classification.
+- Preview Licensing CI #366 / `33996473101` — SUCCESS;
+- Wave 11 Active HMI Runtime #344 / `33996473099` — SUCCESS;
+- Interop Lab Smoke #243 / `33996473102` — SUCCESS;
+- L3 Seven-Driver Lab #322 / `33996473180` — SUCCESS;
+- EliteSCADA CI #1416 / `33996473170` — SUCCESS on attempt 2.
 
-The exact Playwright spec/assertion from the failed Chromium log was not durably recovered before this handoff. The next coordinator must fetch and diagnose job `101378014398`, and compare `101359092828` if useful, **before another rerun**.
+EliteSCADA CI attempt 2 job results:
 
-### C24 status at handoff
+- Backend build, test and smoke `101392980721` — SUCCESS;
+- Web build `101392980963` — SUCCESS;
+- Chromium end-to-end `101392980619` — SUCCESS.
 
-**NOT ACCEPTED. NOT INTEGRATED. DO NOT MERGE #278 YET. DO NOT CLOSE #279 AS SUCCESS YET.**
+Live GitHub returns five workflow runs associated with exact merge SHA `40a491...`; it does not associate a C03 workflow run with this merge SHA. C03 #120 is therefore retained only as additional pre-merge evidence on `ff5eac6...`.
 
-Next C24 action:
+### Cancellation diagnosis and rerun justification
 
-1. Diagnose the repeated Chromium failure from job `101378014398`.
-2. If deterministic product/test defect, make the smallest valid fix on the C24 branch, producing a new candidate SHA, then run the entire required five-gate matrix from scratch.
-3. Do not weaken or skip E2E to make it green.
-4. Only when the exact candidate is 5/5:
-   - close #279 **without merge**;
-   - merge #278 only into `wave14/corrections-integration`, preserving history;
-   - capture the resulting integration SHA;
-   - keep #212 DRAFT and unmerged;
-   - require the post-merge exact integration SHA to pass the required product CI before marking C24 accepted.
+At exact SHA `40a491...`, `.github/workflows/dotnet-ci.yml` uses:
 
-## 3. Product Owner decision — reorder post-demo work BEFORE final EEE canonicalization
+- `group: elitescada-ci-${{ github.event.pull_request.number || github.ref }}`;
+- `cancel-in-progress: true`.
 
-This decision supersedes the previous sequencing that would immediately finish/freeze the canonical EEE `.escadapkg` after C24.
+For PR #212 the concurrency group is therefore `elitescada-ci-212`.
 
-Reason: the post-demo corrections below may change application/package/bootstrap contracts. Freezing the EEE package first could deliberately produce a canonical demo file that becomes incompatible one correction later.
+Timeline:
 
-New order:
+1. EliteSCADA CI #1416 attempt 1 started at `2026-09-05T22:38:05Z` on exact product SHA `40a491...`.
+2. Documentation-only commit `6c3e7ee1dbb9117f4b5bc55971cd2c3dd2d4ece1` was created at `22:42:42Z` on the same integration branch/PR.
+3. That commit triggered EliteSCADA CI #1417 / `33996692983` at `22:42:48Z` in the same PR concurrency group.
+4. #1416 attempt 1 was cancelled at `22:43:06Z`.
+5. Attempt 1 had Backend and Web SUCCESS; Chromium was cancelled while running the E2E step, with no failing step.
+6. #1417 on the later documentation SHA completed SUCCESS.
+7. The cancelled #1416 job was rerun without creating any new product SHA. Run `33996473170` remained pinned to exact head SHA `40a491...` and attempt 2 completed SUCCESS.
 
-1. **Finish and accept C24.**
-2. **Implement and accept the post-demo product corrections that can affect application/package/bootstrap compatibility.**
-3. **Only then sync/adapt the EEE demo to the newly accepted product contracts.**
-4. Export/version the final canonical EEE `.escadapkg` from that final contract.
-5. Run final C11 exact-SHA gates, Preview validation and Product Owner visual homologation.
-6. Only after all acceptance conditions are met may #263 merge C11 to integration; #266 remains validation-only and must close without merge.
+The cancellation is therefore confirmed as branch supersession/concurrency, not a product red.
 
-C11 therefore remains deliberately **not accepted, not frozen and not demo-ready** while post-demo compatibility-affecting corrections are developed.
+Formal C24 status:
 
-## 4. Post-demo decision — Application Engineering Lock for IP protection
+**C24 ACCEPTED / INTEGRATED / POST-MERGE REVALIDATED.**
 
-The old idea of an optional password required to Import/Export an `.escadapkg` is **superseded**. Do not implement Import/Export password gating.
+## 3. Product versus documentation authority
 
-The intended feature is an optional **Application Engineering Lock** whose sole purpose is intellectual-property protection for the developer/integrator, especially in OEM/serialized-machine scenarios.
+Accepted product authority remains:
 
-Required semantics:
+`40a491c2de2403f2934b8bae647c35072d5c2496`
 
-- The feature is optional. Most projects may never use it.
-- The password is **not** required to Export the application.
-- The password is **not** required to Import the application.
-- It is not an Authority/user credential.
-- An unlocked application exposes normal/full Engineering functions.
-- A locked running application exposes a restricted Engineering surface that still permits customer/system administration without exposing or allowing editing of application engineering.
-- The restricted surface must retain at least:
-  - Authority login/password/profile administration;
-  - licensing administration;
-  - application Import/Export;
-  - importing another solution;
-  - ability to unlock the currently running application with that application's Engineering Lock password.
-- Presence of a stored password and the current lock flag are separate state:
-  - an application may contain a configured password while `locked=false`;
-  - a configured password does not automatically mean the application is currently locked;
-  - if no lock password exists, there is no password-based application lock to authenticate against;
-  - Engineering UI must support the legitimate lock/unlock lifecycle according to the active state and authorization rules.
-- The exported application carries the protected password verifier/secret metadata, but **the entire `.escadapkg` is not encrypted**. This is an IP-access barrier, not whole-package confidentiality.
+The following known descendant before this closeout is documentation-only:
 
-### Cryptography is intentionally NOT frozen yet
+`6c3e7ee1dbb9117f4b5bc55971cd2c3dd2d4ece1`
 
-The Product Owner suggested storing the Engineering Lock secret encrypted in the export with a key available to the EliteSCADA build. Treat that as the desired product behavior, **not as approval of a fixed/compiled symmetric key architecture**.
+Later closeout/documentation descendants remain documentation state only. Always distinguish current integration HEAD from the exact accepted product SHA above.
 
-A previous fixed/embedded-key idea was explicitly not accepted as a closed cryptographic design. Before implementation is considered complete, define and security-review a mechanism that does not pretend a client-shipped static decryption key is strong secret protection. Preserve the required user-facing semantics while choosing the actual storage/verifier/key architecture deliberately.
+## 4. C11 remains intentionally unsynchronized
 
-Do not conflate this application-lock secret with Authority credentials or the Security Authority backup encryption model.
+Branch:
 
-Canonical tracking issue: #280.
+`wave14/c11-canonical-eee-demo`
 
-## 5. Post-demo decision — Restore Backup directly from fresh-install bootstrap
+Preserved exact head:
 
-On a fresh or cleaned installation, the user should not be forced to create a throwaway local user and empty project before restoring an existing system.
+`41d24d89c3b9d2b881215255e44023fabde262f3`
 
-Add a **Restaurar backup** path to the initial bootstrap screen where the product currently offers creation of the first user/project.
+Live state at C24 closeout:
 
-The restore flow must support, in one recovery surface:
+- #263 — OPEN/DRAFT, C11 -> integration;
+- #266 — OPEN/DRAFT validation-only -> `main`, **NEVER MERGE**;
+- #281 — CLOSED WITHOUT MERGE.
 
-- import/restore of the application;
-- import/restore of Authority, including the Authority-import password/credential required by that backup mechanism;
-- optional attachment/import of an already available license file;
-- license file is not mandatory to perform the restore.
+Do not sync C24 into C11 now.
 
-Goal: restore a complete existing system directly from clean installation without first creating disposable application/user state.
+## 5. Binding Product Owner sequence
 
-This modifies/extends the earlier recovery design in PR #273. PR #273 is DESIGN ONLY, was based on older C11 state and must not be merged blindly. Revalidate its assumptions against the accepted product before implementation.
+Issue #280 and Product Owner comment `5554918787` supersede the older sequence that would have synchronized/frozen C11 immediately after C24.
 
-Existing recovery concepts worth preserving/revalidating include application `.escadapkg`, native DB/Historian backup, separately protected Security Authority backup, and clean-install recovery bootstrap. The new Product Owner decision changes the entry UX by making restore a first-class option before creation of a new user/project.
+Required order:
 
-Canonical tracking issue: #280.
+1. finish and accept C24 — **DONE**;
+2. implement and accept compatibility-affecting post-DEMO product corrections;
+3. only then sync/adapt C11 to the final accepted application/package/bootstrap contracts;
+4. export/version/freeze the canonical `EliteSCADA-EEE-Demo.escadapkg`;
+5. run final C11 exact-SHA matrix;
+6. validate Preview;
+7. Product Owner performs real visual homologation;
+8. only after all acceptance conditions may C11 become ACCEPTED/FROZEN/DEMO-READY and #263 integrate.
 
-## 6. Other pending post-demo design work
+C11 remains deliberately **NOT ACCEPTED / NOT FROZEN / NOT DEMO-READY** during the post-DEMO compatibility phase.
 
-PR #274 remains DESIGN ONLY and was based on older C11 state. Revalidate before implementation.
+## 6. Application Engineering Lock — binding semantics
 
-Current intended direction includes:
+The earlier idea of requiring a password for `.escadapkg` Import/Export is cancelled.
 
-- Runtime identity UX with discrete current username and actions `Trocar usuário` / `Sair`;
-- Runtime-only users must never gain Engineering;
-- switch-user flow invalidates the old session first, blocks stale UI, then reloads backend identity/capabilities;
-- detailed contextual Help/Manual with stable Help IDs, especially Drivers/Sources/TAG/addressing/Scripts/Reports/HMI;
-- manual follows active language, Help IDs remain stable, and a versioned local/offline manual is preferred.
+The intended feature is an optional **Application Engineering Lock** for application engineering/IP protection:
 
-## 7. C11 state to preserve while post-demo work proceeds
+- password is optional;
+- Import does **not** request the Engineering Lock password;
+- Export does **not** request the Engineering Lock password;
+- it is not an Authority/login credential;
+- unlocked application exposes normal Engineering according to normal Authority authorization;
+- locked application must not expose/permit application engineering editing;
+- restricted locked Engineering must retain Authority user/login/password/profile administration, licensing, Import, Export, solution replacement/restore and explicit unlock of the currently running application;
+- configured secret and `locked` flag are independent state;
+- a project may have a configured secret with `locked=false`;
+- no configured secret means there is no Engineering-Lock password authentication;
+- package preserves lock metadata/state;
+- the entire `.escadapkg` is not encrypted merely to implement the Lock;
+- correct password unlocks the running application; wrong password remains locked without leaking protected Engineering content.
 
-Historical C11 branch: `wave14/c11-canonical-eee-demo`.
-Historical C11 head before C24 sync: `41d24d89c3b9d2b881215255e44023fabde262f3`. Revalidate live.
+### Cryptographic architecture remains OPEN
 
-- #263: C11 -> integration, OPEN/DRAFT historically; do not merge until full final acceptance.
-- #266: C11 -> main validation-only; NEVER MERGE.
-- At `41d24...`, Preview #360, Interop #237, Elite #1410 and L3 #316 were green; Wave11 #338 failed only at the new clean canonical package portability/bootstrap gate that exposed the generic C24 defect.
+No fixed/compiled symmetric-key architecture has been accepted as the security design. Define and security-review the verifier/secret/key mechanism before acceptance. Engineering Lock secret remains distinct from Authority login credentials and Authority-backup encryption/passwords.
 
-After C24 and the compatibility-affecting post-demo corrections are accepted into integration:
+## 7. Restore-first bootstrap — binding semantics
 
-1. sync accepted integration into C11 normally, preserving both histories, no rebase;
-2. adapt the EEE application to the final accepted package/recovery/Engineering-Lock contracts;
-3. run #266 validation-only gates on the exact C11 SHA;
-4. require the full five-gate matrix green, especially canonical Wave11;
-5. fetch the exact `EliteSCADA-EEE-Demo` artifact from that Wave11 run;
-6. validate `.escadapkg`, `.sha256` and provenance, including `projectKey=eee-demo`, `activeProjectKey=eee-demo`, exact generator SHA and exact source-product SHA;
-7. version the exact exported bytes/checksum/provenance without manually editing the package;
-8. update Preview to the canonical EEE app;
-9. run final gates;
-10. perform real Product Owner visual homologation in Codespaces;
-11. only then may C11 be called accepted/frozen/demo-ready and #263 be merged to integration. Close #266 without merge.
+Fresh/clean installation must offer `Restaurar backup` at the initial bootstrap surface before requiring creation of a disposable user/project.
 
-## 8. Expected coordinator operating mode
+Restore supports:
 
-When the Product Owner says **`siga`**, continue autonomously through the next safe tasks instead of stopping after each small step. Pause only for a real technical/governance blocker, an action requiring Product Owner authorization by policy, or an explicit request to pause.
+- application import/restore;
+- Authority import/restore with the Authority backup's own password/credential mechanism;
+- optional license-file attachment/import;
+- license is not required to execute restore.
 
-Do not rely on this document as authority over live GitHub. Its purpose is to make the next revalidation fast and unambiguous.
+Engineering Lock password is not the Authority restore password.
+
+PR #273 remains DESIGN ONLY and must be revalidated/adapted to this newer restore-first decision. Do not merge it blindly.
+
+## 8. PR #274 remains DESIGN ONLY
+
+Current product direction to preserve:
+
+- current Runtime user remains visible;
+- `Trocar usuário` and `Sair` are explicit actions;
+- Runtime-only users never gain Engineering;
+- switch-user invalidates the previous session first and reloads backend capabilities;
+- Help uses stable language-neutral IDs;
+- manual follows active UI locale and should preferably be versioned/local/offline;
+- detailed Drivers/Sources/TAG/addressing/Scripts/Reports/HMI documentation must derive from real product contracts.
+
+## 9. Next correction package coordination
+
+Revalidate numbering live immediately before branch creation. If C25/C26 remain unused then, the current sensible split is:
+
+- C25 — Application Engineering Lock;
+- C26 — Restore-first bootstrap / recovery.
+
+This is coordination guidance only. GitHub live state remains authoritative.
+
+## 10. Operating mode
+
+When the Product Owner says `siga`, continue autonomously across the next safe tasks. Pause only for a real technical/governance blocker or an action requiring explicit Product Owner authorization.
+
+#212 remains OPEN/DRAFT throughout and is not authorized for merge to `main`.

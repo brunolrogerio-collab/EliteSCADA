@@ -76,6 +76,27 @@ jobs:
         working-directory: web/scada-web
         run: npx playwright test --config=playwright.wave11.config.ts
 
+      - name: Create isolated C11 canonical database
+        env:
+          PGPASSWORD: postgres
+        run: >-
+          psql -h 127.0.0.1 -p 5432 -U postgres -d postgres
+          -v ON_ERROR_STOP=1
+          -c "CREATE DATABASE elitescada_c11;"
+
+      - name: Run C11 canonical EEE package portability gate
+        working-directory: web/scada-web
+        run: npx playwright test --config=playwright.c11-package.config.ts
+
+      - name: Upload C11 canonical EEE application package
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: EliteSCADA-EEE-Demo
+          path: web/scada-web/c11-eee-demo-artifacts
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Upload Wave 11 owner-test application package
         if: success()
         uses: actions/upload-artifact@v4
@@ -84,6 +105,15 @@ jobs:
           path: web/scada-web/owner-test-artifacts
           if-no-files-found: error
           retention-days: 90
+
+      - name: Upload C11 package Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-c11-package
+          path: web/scada-web/playwright-report-c11-package
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload Wave 11 Playwright report
         if: always()

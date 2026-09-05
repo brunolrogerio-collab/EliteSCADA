@@ -1,91 +1,99 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-05 BRT  
-**Operational state:** **WAVE 14 ACTIVE / C11 CANONICAL PACKAGE GATE BLOCKED BY GENERIC FIRST-PROJECT BOOTSTRAP INCONSISTENCY / C23 INTEGRATED / WAVE13 PAUSED**
+**Operational state:** **WAVE 14 ACTIVE / C24 ACCEPTED + INTEGRATED / POST-DEMO COMPATIBILITY CORRECTIONS NEXT / C11 PRESERVED / WAVE13 PAUSED**
 
-> GitHub is the official development memory. Revalidate live refs, PR state and exact-SHA CI before acting. Documentation-only commits do not redefine product-code authority.
+> GitHub is the official development memory. Revalidate live refs, PR state and exact-SHA CI before acting. Documentation-only commits after an accepted product SHA do not redefine accepted product bytes.
 
-## Accepted integration product authority
+## Current accepted product authority
 
-Last accepted product-code integration commit:
+Wave 14 integration branch:
 
-`5962bee401fadd700041e7c61cd430d4b4f28e27`
+`wave14/corrections-integration`
 
-It integrates C23, which embeds the production licensing public verification key in EliteSCADA and makes `elite-prod-2026-01` the License Generator default. The private signing key remains outside the product/repository.
+Accepted integration product merge:
 
-Post-merge exact-SHA evidence on `5962bee...` is 5/5 SUCCESS:
+`40a491c2de2403f2934b8bae647c35072d5c2496`
 
-- EliteSCADA CI #1408 / `33975104580`;
-- Wave11 Active HMI Runtime #336 / `33975104596`;
-- Preview Licensing CI #358 / `33975104578`;
-- L3 Seven-Driver Lab #314 / `33975104579`;
-- Interop Lab Smoke #235 / `33975104582`.
+Accepted C24 exact product/test SHA:
 
-## Current C11 head
+`ff5eac6ad12865b174b6ca602a13d01165e57b36`
 
-`wave14/c11-canonical-eee-demo`
+C24 exact-SHA evidence is fully green:
 
-Exact head:
+- Preview Licensing CI #365 / `33996011571` — SUCCESS;
+- Interop Lab Smoke #242 / `33996011614` — SUCCESS;
+- Wave 14 C03 DNP3 Adapter #120 / `33996011523` — SUCCESS;
+- EliteSCADA CI #1415 / `33996011599` — SUCCESS, including Chromium E2E;
+- L3 Seven-Driver Lab #321 / `33996011595` — SUCCESS;
+- Wave 11 Active HMI Runtime #343 / `33996011620` — SUCCESS additional compatibility evidence.
+
+Implementation PR #278 merged **only** into `wave14/corrections-integration`. Validation-only PR #279 was closed **without merge**.
+
+## C24 correction
+
+C24 fixed the generic clean First Project inconsistency exposed by C11:
+
+- built-in `dynamo.pump.standard` no longer depends on historical DEMO-only template `pump.standard`;
+- built-in Dynamo library remains 8 generic built-ins;
+- clean First Project Save/Publish is regression-tested through normal product paths;
+- Publish/import validation was not weakened;
+- legacy Chromium E2E now asserts serialized `templateKey: null`, the actual JSON representation of no external template dependency.
+
+A previous C24 SHA failed Chromium only because the test incorrectly expected JavaScript `undefined` instead of serialized JSON `null`. The failure was diagnosed from the Playwright artifact before correction; the complete matrix was then rerun on `ff5eac6...` and passed.
+
+## Binding Product Owner sequence after C24
+
+Issue #280 and its Product Owner clarification supersede the older sequence that would immediately sync/freeze C11 after C24.
+
+Current sequence:
+
+1. C24 accepted — **DONE**;
+2. implement and exact-SHA accept compatibility-affecting post-DEMO corrections;
+3. only then sync/adapt the EEE C11 branch to the accepted product contracts;
+4. export/version/freeze the canonical `EliteSCADA-EEE-Demo.escadapkg`;
+5. run final C11 gates, Preview and Product Owner fresh-Codespace visual homologation;
+6. only after final Wave14 acceptance resume Wave13 #205/#207.
+
+C11 therefore remains intentionally **NOT ACCEPTED / NOT FROZEN / NOT DEMO-READY** during these corrections.
+
+A premature C24->C11 sync PR #281 was closed without merge after this newer sequence was revalidated. C11 remains at pre-sync SHA:
 
 `41d24d89c3b9d2b881215255e44023fabde262f3`
 
-This C11 head already contains accepted C23 through normal sync merge `3c38d5c603e9d8226b338c516644c331edb71ccd` and updates the canonical package gate so `eee-demo` is created in an isolated database through the supported First Project endpoint.
+## Next correction packages
 
-Exact-SHA gate state:
+Package numbering is live-revalidated and C25 is free.
 
-- Preview Licensing CI #360 — SUCCESS;
-- Interop Lab Smoke #237 — SUCCESS;
-- EliteSCADA CI #1410 — SUCCESS;
-- L3 Seven-Driver Lab #316 — SUCCESS;
-- Wave11 Active HMI Runtime #338 — **FAILURE**.
+Coordinator split:
 
-The historical Wave11 lifecycle passed 22/22. The red is isolated to the new C11 package portability gate.
+- **C25 — Application Engineering Lock**: generic optional application/IP protection affecting Engineering visibility and package metadata/state;
+- **C26 — Restore-first bootstrap**: generic clean-install `Restaurar backup` path combining application restore, Authority restore and optional license attachment without disposable user/project creation.
 
-## Diagnosed red — generic product gap
+Both derive from issue #280 and must remain generic product corrections.
 
-The fresh First Project bootstrap is internally inconsistent.
+### C25 binding semantics
 
-`SaveFirstProjectAsync` clears the legacy workspace and seeds the built-in Dynamo library plus initial Developer role. Built-in Dynamo `dynamo.pump.standard` references template `pump.standard`, but First Project bootstrap does not seed that template.
+- optional lock; no password means normal Engineering;
+- Import and Export do **not** require the Engineering Lock password;
+- lock secret is not an Authority credential;
+- password presence and `locked` state are distinct;
+- locked application exposes restricted Engineering administration only, retaining Authority administration, licensing, Import/Export, solution replacement and explicit unlock;
+- wrong password stays locked and leaks no protected Engineering content;
+- package carries lock metadata/state, but the whole `.escadapkg` is not encrypted;
+- cryptographic/storage architecture must be deliberately security-reviewed; do not ship a pretend-secure fixed symmetric key merely because it is convenient.
 
-At C11 Publish, normal validation therefore returns:
+## Permanent governance
 
-`DYNAMO_TEMPLATE_NOT_FOUND`
-
-This is a **generic First Project / built-in library product defect**, not an EEE Demo defect.
-
-Do not rerun Wave11 #338 blindly and do not patch C11 by adding historical/demo entities merely to satisfy the validator.
-
-## Immediate route
-
-1. revalidate live state and package numbering;
-2. open a narrow generic correction package from current accepted integration product bytes, provisionally C24;
-3. make a newly created First Project self-consistent with its built-in Dynamo/template dependencies;
-4. add regression coverage for normal First Project Save/Publish;
-5. run exact-SHA product gates;
-6. integrate only into `wave14/corrections-integration` after acceptance;
-7. sync accepted correction into C11 by normal merge;
-8. rerun C11 package portability;
-9. after green, verify/export/version canonical `EliteSCADA-EEE-Demo.escadapkg`, checksum and provenance;
-10. update Preview to consume the canonical package;
-11. perform Product Owner fresh-Codespace visual homologation;
-12. only after final Wave14 acceptance resume Wave13 #205/#207.
-
-## Post-DEMO Product Owner notes preserved
-
-- System Recovery / Backup & Restore design is in DRAFT PR #273.
-- Runtime session UX + contextual manual design is in DRAFT PR #274.
-- Runtime must keep the current user name visible beside the discreet session icon/control.
-- Help/manual must be multilingual and follow the active EliteSCADA UI locale. The same stable Help ID resolves to the equivalent localized topic, e.g. pt-BR UI -> pt-BR help, English UI -> English help.
-- Optional password protection for application `.escadapkg` remains a deferred concept. **Before implementing it, ask the Product Owner about the flaw he explicitly identified in the proposed design.** Do not lock or code the crypto architecture before that discussion.
-
-See `docs/WAVE14-PRODUCT-OWNER-PENDING-DESIGN-NOTES.md` and `docs/CURRENT-COORDINATOR-HANDOFF.md` for the complete continuation state.
-
-## Hard boundaries
-
-- PR #212 remains OPEN/DRAFT and must NEVER merge to `main` without later explicit Product Owner authorization;
-- PR #263 remains DRAFT and must not merge until C11 exact acceptance;
-- PR #266 is validation-only and must NEVER MERGE;
-- Wave13 remains PAUSED;
+- #212 remains OPEN/DRAFT and must not merge to `main` without later explicit Product Owner authorization;
+- #263 remains C11 implementation DRAFT -> integration only;
+- #266 remains C11 validation-only -> `main` and **MUST NEVER MERGE**;
+- #273/#274 remain design-only and must not be merged blindly onto moving product state;
 - no force-push/rebase/destructive cleanup;
-- diagnose red before rerun;
-- no EEE-specific workaround for a generic product defect.
+- diagnose every red before rerun;
+- no EEE-specific workaround for a generic product requirement;
+- backend Active revision remains Runtime authority;
+- authorization/security/licensing remain backend/host-owned and fail closed;
+- Alarm / Operational Event / Audit remain distinct.
+
+Read next: `docs/CURRENT-COORDINATOR-HANDOFF.md`, issue #280 and `docs/WAVE14-COORDINATOR-HANDOFF-2026-09-05-C24-POST-DEMO-SEQUENCE.md`.

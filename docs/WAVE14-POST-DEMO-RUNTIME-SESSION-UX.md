@@ -9,7 +9,7 @@
 
 An operator using Runtime must have a discreet, always-reachable way to understand the current authenticated identity and to end or change the user session without exposing Engineering/development surfaces.
 
-The intended operator experience is a small system-owned session/user icon in the Runtime shell. Activating it opens a **system popup/overlay** with session actions.
+The intended operator experience is a small system-owned session/user icon in the Runtime shell. **The current authenticated user's display name or username must remain visibly presented beside this icon while a user is authenticated.** Activating the control opens a **system popup/overlay** with session actions.
 
 This popup is EliteSCADA system UI. It is not an authored HMI Popup, is not stored in `.escadapkg`, and cannot be hidden or replaced by project content.
 
@@ -28,13 +28,22 @@ Current product already provides:
 - `/api/auth/logout` session termination through `AuthGate`;
 - capability-derived shell links, so a Runtime-only identity does not receive Engineering, Audit or Licensing navigation merely because those product areas exist.
 
-Therefore **logout is not a missing backend capability**.
+Therefore **logout and presentation of the current identity are not missing backend capabilities**.
 
-The missing/refinement requirement is the dedicated operator-oriented session UX, especially an explicit **Trocar usuário / Switch user** flow suitable for Runtime stations.
+The missing/refinement requirement is the dedicated operator-oriented session UX, especially an explicit **Trocar usuário / Switch user** flow suitable for Runtime stations, while preserving the current-user name as a persistent shell cue.
 
 ## 3. Runtime-only session affordance
 
-For a Runtime-only user, the normal shell should expose a compact session control, preferably an icon/avatar rather than a large Engineering-style identity menu.
+For a Runtime-only user, the normal shell should expose a compact session control with a small icon/avatar **and the current user's name beside it**, rather than a large Engineering-style identity menu.
+
+Visible identity rules:
+
+- prefer `displayName` when available;
+- otherwise show `username`;
+- the visible name must update immediately after a successful user switch;
+- it must never continue showing the previous identity while commands are already attributed to the new identity;
+- long names may be visually truncated to protect Runtime space, provided the full identity remains available through accessible text/tooltip and inside the system popup;
+- the identity cue must remain readable without becoming dominant HMI chrome.
 
 The control must remain:
 
@@ -77,7 +86,8 @@ The safe contract is:
 2. immediately lock interaction with the Runtime behind a system-owned authentication overlay;
 3. request credentials for the next identity through the normal supported authentication mechanism;
 4. after successful authentication, reload the authenticated profile and effective capabilities from the backend;
-5. resume only surfaces authorized for the new identity.
+5. update the visible current-user name in the Runtime shell;
+6. resume only surfaces authorized for the new identity.
 
 While the switch-user authentication overlay is active:
 
@@ -106,13 +116,15 @@ Native/product fullscreen cannot remove the operator's ability to change identit
 
 The implementation must provide a system-owned route to the session control in fullscreen. The exact visual treatment may evolve, but the session affordance cannot depend on an Engineering header that is intentionally absent for Runtime-only operation.
 
-The control must not materially obstruct HMI operation or become a large permanent chrome element.
+The current-user identity should remain available with the fullscreen session affordance without materially obstructing HMI operation or becoming a large permanent chrome element.
 
 ## 8. Audit / operational attribution
 
 Where the existing security/audit model records authenticated actions, commands executed after a user switch must be attributable to the newly authenticated identity.
 
 No command after successful switch may continue to carry the previous identity due to stale client/session state.
+
+The identity shown beside the Runtime session icon must agree with the identity used for authorization and audit attribution.
 
 Session change/logout events should be auditable where the existing audit architecture supports authentication/session events. This requirement does not merge Audit with Alarm or Operational Event.
 
@@ -125,30 +137,34 @@ Examples:
 - if logout/session invalidation fails, display the failure and do not claim that switch-user completed;
 - if authentication of the next user fails, Runtime remains locked from operator interaction;
 - if capability retrieval fails after login, do not optimistically restore privileged controls;
-- if the new user has no Runtime capability, route to the normal authorized product outcome rather than retaining the previous Runtime authorization.
+- if the new user has no Runtime capability, route to the normal authorized product outcome rather than retaining the previous Runtime authorization;
+- if identity refresh fails, do not display a stale previous-user name as if it represented the active session.
 
 ## 10. Acceptance tests required when implemented
 
 At minimum prove:
 
 1. Runtime-only user sees the discreet system session control;
-2. Runtime-only user does not see Engineering/Audit/Licensing navigation;
-3. `Sair` invalidates the server session and returns to authentication;
-4. `Trocar usuário` invalidates the first identity before the second becomes active;
-5. Runtime is non-interactive during the switch authentication state;
-6. successful switch reloads profile and effective capabilities;
-7. old-user authorization cannot be reused after switch;
-8. new-user restrictions take effect immediately;
-9. direct navigation to unauthorized Engineering endpoints/routes still fails server-side;
-10. session control remains usable in Runtime fullscreen;
-11. the session popup is system-owned and does not depend on `.escadapkg` content;
-12. keyboard/Escape/focus handling is deterministic and accessible without creating an authorization bypass.
+2. current authenticated display name/username is visible beside the session icon;
+3. Runtime-only user does not see Engineering/Audit/Licensing navigation;
+4. `Sair` invalidates the server session and returns to authentication;
+5. `Trocar usuário` invalidates the first identity before the second becomes active;
+6. Runtime is non-interactive during the switch authentication state;
+7. successful switch reloads profile and effective capabilities;
+8. the visible current-user name changes to the new identity immediately after successful switch;
+9. old-user authorization cannot be reused after switch;
+10. new-user restrictions take effect immediately;
+11. direct navigation to unauthorized Engineering endpoints/routes still fails server-side;
+12. session control and current identity remain usable/visible in Runtime fullscreen;
+13. the session popup is system-owned and does not depend on `.escadapkg` content;
+14. keyboard/Escape/focus handling is deterministic and accessible without creating an authorization bypass.
 
 ## 11. Implementation classification
 
 As of this design lock:
 
 - Logout capability: **IMPLEMENTED** in the current product shell/auth flow;
+- current-user identity presentation: **IMPLEMENTED** and must be preserved beside the compact Runtime session icon;
 - Runtime-only capability isolation: **IMPLEMENTED** as the current generic shell model and still requires preservation;
 - dedicated compact Runtime session popup: **NOT IMPLEMENTED / UX REFINEMENT REQUIRED**;
 - explicit `Trocar usuário` flow: **NOT IMPLEMENTED**;

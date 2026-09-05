@@ -317,7 +317,7 @@ function navElements(activeKey: string) {
     [EEE_HMI.screens.alarmsEvents.key, 'ALARMES / EVENTOS']
   ] as const;
   return [
-    rect(vid(9, 2000 + navHash(activeKey)), `nav-bg-${activeKey}`, 0, 0, 1920, 82, '#08101D', { borderWidth: 0, radius: 0, z: 90 }),
+    rect(vid(9, 2000 + navHash(activeKey)), `nav-bg-${activeKey}`, 0, 0, 1920, 82, '#08101D', { borderWidth: 0, radius: 0, z: 20 }),
     text(vid(9, 2100 + navHash(activeKey)), `nav-title-${activeKey}`, 'EliteSCADA  ·  ESTAÇÃO ELEVATÓRIA DE ESGOTO', 36, 18, 560, 46,
       { fontSize: 24, weight: 800, color: C.text, z: 95 }),
     ...items.map(([key, label], index) => button(

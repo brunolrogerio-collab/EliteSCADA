@@ -67,9 +67,15 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] }
     },
     {
+      name: 'chromium-wave11-c11-eee-foundation',
+      testMatch: /c11-eee-demo-foundation\.spec\.ts/,
+      dependencies: ['chromium-wave11-c19-operational-events'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
       name: 'chromium-wave11-owner-package',
       testMatch: /owner-test-artifact\.spec\.ts/,
-      dependencies: ['chromium-wave11-c19-operational-events'],
+      dependencies: ['chromium-wave11-c11-eee-foundation'],
       use: { ...devices['Desktop Chrome'] }
     }
   ],

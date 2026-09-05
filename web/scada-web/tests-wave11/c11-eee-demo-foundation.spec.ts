@@ -4,7 +4,7 @@ import {
   EEE_IDS,
   EEE_PATHS,
   EEE_PROJECT_NAME
-} from './c11-eee-demo-foundation';
+} from './c11-eee-demo-foundation-canonical';
 import { EEE_SECURITY_ROLES } from './c11-eee-demo-security';
 
 // The shared Wave11 host is deliberately bound to this CI project key. The
@@ -76,15 +76,21 @@ test('C11 canonical EEE foundation lives through normal Engineering, Script, Ala
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.highDemand)).value), { timeout: 10_000 })
       .toBe(false);
     await expectRequestConsumed(request, EEE_PATHS.cmdHighDemandDisable);
+    const cycleBeforeStop = Number((await readCurrent(request, EEE_PATHS.cycleCount)).value);
+    const dutyBeforeStop = Number((await readCurrent(request, EEE_PATHS.dutyPump)).value);
+    expect([1, 2]).toContain(dutyBeforeStop);
     await driveLevelUntil(request, 34, async () => {
       const p01 = Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value);
       const p02 = Boolean((await readCurrent(request, EEE_PATHS.p02Running)).value);
       return !p01 && !p02;
     });
-    await expect.poll(async () => Number((await readCurrent(request, EEE_PATHS.cycleCount)).value), { timeout: 10_000 })
-      .toBeGreaterThanOrEqual(1);
-    await expect.poll(async () => Number((await readCurrent(request, EEE_PATHS.dutyPump)).value), { timeout: 10_000 })
-      .toBe(2);
+    const executionAfterStop = (await loadEeeScriptDiagnostics(request))?.diagnostics?.executionCount ?? 0;
+    await expect.poll(async () => {
+      const script = await loadEeeScriptDiagnostics(request);
+      return script?.diagnostics?.executionCount ?? 0;
+    }, { timeout: 10_000 }).toBeGreaterThan(executionAfterStop + 1);
+    expect(Number((await readCurrent(request, EEE_PATHS.cycleCount)).value)).toBe(cycleBeforeStop + 1);
+    expect(Number((await readCurrent(request, EEE_PATHS.dutyPump)).value)).toBe(dutyBeforeStop === 1 ? 2 : 1);
 
     // Manual operation still goes through canonical Commands -> request TAG -> Script.
     await executeCommand(request, EEE_IDS.commands.autoDisable);

@@ -383,7 +383,7 @@ function pumpDynamo() {
 }
 
 function dynamoParameter(key: string, spec: TagSpec) {
-  return { key, kind: 'tagReference', value: null, tagReference: { tagId: spec.id, selector: null }, version: 1 };
+  return { key, kind: 'tagReference', tagReference: { tagId: spec.id, selector: null }, version: 1 };
 }
 
 function pumpInstance(

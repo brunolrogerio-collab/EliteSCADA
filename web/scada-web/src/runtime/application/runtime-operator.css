@@ -9,7 +9,9 @@
   background: var(--app-runtime-letterbox);
   color: var(--app-text-primary);
 }
+.runtime-view-navigation + .runtime-operator-application { height: calc(100dvh - 100px); }
 .app-bar--runtime-only ~ .runtime-operator-application { height: calc(100dvh - 44px); }
+.app-bar--runtime-only + .runtime-view-navigation + .runtime-operator-application { height: calc(100dvh - 90px); }
 .runtime-operator-application:fullscreen { width: 100vw; height: 100vh; }
 .runtime-operator-bar {
   min-width: 0;

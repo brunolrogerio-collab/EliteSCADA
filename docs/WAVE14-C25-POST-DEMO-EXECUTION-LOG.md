@@ -3,7 +3,8 @@
 **Status:** ACTIVE / NOT ACCEPTED / NOT INTEGRATED  
 **Coordinator package:** C25  
 **Tracking issue:** #282  
-**Product-direction authority:** #280, especially comment `5554918787`  
+**Current consolidated product contract:** `docs/WAVE14-C25-CONSOLIDATED-POST-DEMO-CONTRACT.md`  
+**Historical Product Owner decision provenance:** #280, especially comment `5554918787`  
 **Implementation branch:** `wave14/c25-post-demo`  
 **Integration target:** `wave14/corrections-integration`
 
@@ -43,9 +44,15 @@ Do not sync C25/C24 into C11 until C25 is accepted, integrated and post-merge re
 
 ## 3. C25 binding scope
 
+Detailed current product semantics are consolidated in:
+
+`docs/WAVE14-C25-CONSOLIDATED-POST-DEMO-CONTRACT.md`
+
+Historical design/decision provenance remains #273, #274 and #280, but those items are no longer active execution routes.
+
 ### 3.1 Application Engineering Lock
 
-Required semantics from #280:
+Required semantics:
 
 - optional application/IP lock;
 - no password configured means no password-based Engineering Lock exists;
@@ -89,11 +96,13 @@ Required restore surface:
 - Engineering Lock password is not Authority restore password;
 - canonical import validation and Authority authorization must not be weakened.
 
-PR #273 is historical design input only and must be revalidated/adapted.
+Historical PR #273 was audited and closed without merge after its surviving requirements were transferred into the consolidated C25 contract. Its provisional-Recovery-Administrator/project-first bootstrap is superseded by restore-first sequencing. Its separation of application, Authority and Database/Historian recovery authorities remains preserved for C25 revalidation/implementation.
 
 ### 3.4 Runtime session UX
 
-Review/adapt #274 against live product state:
+Historical PR #274 was audited and closed without merge after its surviving requirements were transferred into the consolidated C25 contract.
+
+Binding direction includes:
 
 - current user remains visible;
 - `Trocar usuário`;
@@ -101,17 +110,21 @@ Review/adapt #274 against live product state:
 - switching invalidates old session first;
 - stale privileged UI cannot remain authoritative during switch;
 - identity/capabilities are reloaded from backend Authority;
-- Runtime-only user never gains Engineering.
+- Runtime-only user never gains Engineering;
+- session affordance remains system-owned, outside authored `.escadapkg` HMI content and available in fullscreen;
+- post-switch displayed identity, authorization and audit attribution must agree.
 
 ### 3.5 Contextual/manual integration
 
-Review/adapt #274 against live product state:
+Historical PR #274 and Product Owner refinement comment `5553626108` were audited and transferred into the consolidated C25 contract.
+
+Binding direction includes:
 
 - stable language-neutral Help IDs;
 - contextual help for major Engineering surfaces/complex fields;
 - detailed coverage especially Drivers/Sources/TAG addressing/Scripts/Reports/HMI;
-- help follows active UI language;
-- prefer local/offline versioned manual;
+- manual is version-compatible and local/offline where practical;
+- manual is **mandatorily multilingual for shipped UI languages** and follows the active UI locale while preserving semantic Help-ID identity;
 - shipped help documents actual product contracts, not internal Wave/ADR/handoff process.
 
 ## 4. Execution checkpoint protocol
@@ -136,14 +149,20 @@ Focused/local green does not mean package acceptance. Final acceptance is exact-
 
 Status: **IN PROGRESS**
 
-Goals:
+Completed within C25.0:
 
-- establish issue/branch/PR/execution ledger;
+- issue/branch/PR/execution ledger established;
+- live open issue/PR convergence inventory completed;
+- #273/#274/#280 preparation audited and consolidated;
+- durable consolidated product contract created;
+- obsolete duplicate execution surfaces closed without merge.
+
+Remaining C25.0 goals:
+
 - inspect current Engineering package/persistence/bootstrap contracts;
 - inspect Authority authentication/backup APIs and capability projection;
 - inspect frontend Engineering/Runtime routing/session authority;
 - inspect help/localization infrastructure;
-- review #273/#274 diffs against current accepted baseline;
 - derive concrete implementation slices before product mutation.
 
 ### C25.1 — Engineering Lock domain/package/security contract
@@ -185,8 +204,12 @@ Status: NOT STARTED
 - C25 may integrate only into `wave14/corrections-integration` after exact-SHA acceptance;
 - C11 #263 remains preserved until C25 completes;
 - #266 remains validation-only and MUST NEVER MERGE;
-- #273/#274 remain design-only inputs and are not merge shortcuts;
+- #273 is CLOSED WITHOUT MERGE after C25 convergence;
+- #274 is CLOSED WITHOUT MERGE after C25 convergence;
+- #280 is CLOSED/COMPLETED as a decision record after transfer into C25;
 - Wave13 #205/#207 remains paused;
+- Preview #208/#210 remains available for later Product Owner homologation;
+- Wave14 owner-validation #211 remains open;
 - no force-push, destructive rebase, branch deletion or unrelated cleanup;
 - diagnose every red before rerun;
 - never weaken tests, validation, security, identity, lifecycle, licensing, package or Runtime contracts for green CI;
@@ -199,11 +222,86 @@ Status: NOT STARTED
 On any new coordination session:
 
 1. fetch issue #282;
-2. fetch the live C25 PR;
-3. fetch this file from live C25 HEAD;
-4. revalidate `wave14/c25-post-demo`, `wave14/corrections-integration`, #212, #263 and #266;
-5. inspect the most recent checkpoint and exact SHA;
-6. revalidate any CI referenced by that checkpoint;
-7. continue only from live GitHub state.
+2. fetch the live C25 PR #283;
+3. fetch `docs/WAVE14-C25-CONSOLIDATED-POST-DEMO-CONTRACT.md` from live C25 HEAD;
+4. fetch this execution ledger from live C25 HEAD;
+5. revalidate `wave14/c25-post-demo`, `wave14/corrections-integration`, #212, #263 and #266;
+6. inspect the most recent checkpoint and exact SHA;
+7. revalidate any CI referenced by that checkpoint;
+8. continue only from live GitHub state.
 
 Never infer unfinished C25 work from chat history when GitHub can be checked directly.
+
+## 8. C25.0 preparation convergence checkpoint — 2026-09-05
+
+### Starting exact C25 SHA
+
+`b4b53350a447d48d747c2512297ea0809f8bf61b`
+
+### Live inventory reviewed
+
+Open issues before cleanup:
+
+- #282 C25 active;
+- #280 post-DEMO decision input;
+- #211 Wave14 Product Owner validation;
+- #208 Preview harness;
+- #205 Wave13 signing/release pause;
+- #178 deferred Siemens L4 validation.
+
+Open PRs before cleanup:
+
+- #283 C25 active;
+- #212 Wave14 integration;
+- #266 C11 validation-only;
+- #263 C11 implementation;
+- #274 Runtime session/manual design-only;
+- #273 System Recovery design-only;
+- #210 Preview harness;
+- #207 Wave13 release/signing checkpoint.
+
+### Convergence decision
+
+Close only items whose active purpose is fully absorbed by C25 without losing required execution authority:
+
+- #273 -> CLOSED WITHOUT MERGE;
+- #274 -> CLOSED WITHOUT MERGE;
+- #280 -> CLOSED/COMPLETED as decision record.
+
+Keep open because they still have distinct future or current operational purpose:
+
+- #282/#283 C25;
+- #211 Wave14 validation;
+- #212 integration;
+- #263 C11 implementation;
+- #266 C11 validation-only / NEVER MERGE;
+- #208/#210 Preview harness;
+- #205/#207 Wave13 paused release/signing;
+- #178 deferred external L4 validation.
+
+### Durable consolidation
+
+Created:
+
+`docs/WAVE14-C25-CONSOLIDATED-POST-DEMO-CONTRACT.md`
+
+Consolidation commit:
+
+`b32ee0778d646bc65972ac16401c67f78ad8bc2b`
+
+The contract records explicit preserve/supersede treatment for #273, preserves/adapts #274 including mandatory multilingual Help, and moves #280 from active authority surface to historical Product Owner provenance.
+
+### Closure evidence
+
+- #273 closed without merge; branch preserved;
+- #274 closed without merge; branch preserved;
+- #280 closed with state reason `completed`; implementation explicitly remains active in #282/#283;
+- no `main` mutation;
+- no C11 mutation;
+- no branch deletion;
+- no force push/rebase;
+- no product bytes changed by this convergence checkpoint.
+
+### Remaining C25.0 work
+
+Continue the live architecture audit before functional implementation. The next code-bearing checkpoint remains C25.1 only after package/security/bootstrap/session/help authority surfaces are mapped against the current accepted integration product.

@@ -22,7 +22,7 @@
 .app-shell-actions { justify-self: end; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 8px; }
 .app-context { min-width: 96px; display: grid; align-content: center; justify-items: end; gap: 2px; padding-right: 10px; border-right: 1px solid #26313b; }
 .app-context strong { font-size: 12px; font-weight: 650; color: #dbe4eb; }
-.runtime-view-navigation { display: flex; gap: 4px; padding: 7px 16px; border-bottom: 1px solid #26313b; background: #0f161d; }
+.runtime-view-navigation { height: 46px; display: flex; align-items: center; gap: 4px; padding: 7px 16px; border-bottom: 1px solid #26313b; background: #0f161d; }
 .runtime-view-navigation a { padding: 6px 11px; border: 1px solid transparent; border-radius: 6px; color: #93a2af; font-size: 12px; font-weight: 650; text-decoration: none; }
 .runtime-view-navigation a:hover, .runtime-view-navigation a:focus-visible { color: #e7edf3; border-color: #304252; outline: none; }
 .runtime-view-navigation a.active { color: #eef6fb; border-color: #3c5b70; background: #16232d; }

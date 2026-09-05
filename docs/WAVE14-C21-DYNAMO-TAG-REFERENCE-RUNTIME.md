@@ -1,8 +1,9 @@
 # W14-C21 — Dynamo TagReference Runtime Parameter Convergence
 
 **Date:** 2026-09-05 BRT  
-**State:** PRODUCT CORRECTION ACTIVE / C11 BLOCKER  
+**State:** PRODUCT CORRECTION ACCEPTED / READY FOR INTEGRATION  
 **Exact base:** `9cbbd8465e75b34d69199df6c865cc2233868c5b`  
+**Accepted product SHA:** `6d0d71bc91b08114f4c3d3238b56e4ca225b76bd`  
 **Target:** `wave14/corrections-integration`
 
 ## 1. Trigger
@@ -74,29 +75,54 @@ Preserve:
 
 ## 4. Contract discovery gate
 
-Before implementation, verify the existing intended authoring convention that connects a Dynamo parameter definition to a child binding.
+The discovery gate established that the intended public contract already exists and does not need replacement:
 
-C11 currently marks child bindings with metadata identifying the parameter. This is evidence from the DEMO builder, not automatic authority for the generic product contract.
+- Dynamo instance values expose first-class `TagReference` parameter data;
+- child bindings opt into a Dynamo parameter through `metadata.dynamoParameter`;
+- `dynamoRuntimeBindingProjection.ts` projects the per-instance TAG reference into the effective child binding;
+- `runtimeDynamoVisualProjection.ts` performs definition normalization, instance normalization, composition, binding projection and instance-scoped child identity;
+- the normal Active Runtime expands Dynamos before live-value subscription collection.
 
-C21 must inspect existing Engineering types, validators, authoring UI and Wave09 tests before adopting or changing that convention. If no canonical convention exists, C21 must define one generically and prove it through normal Engineering/package persistence rather than adding a C11-only interpretation.
+Therefore C21 does not introduce a new EEE-specific or alternate Dynamo contract. The defect is at the existing API/browser wire seam: definition defaults already converge JSON `null` to absent scalar data, while instance parameter values did not.
 
-## 5. Validation
+## 5. Implemented correction
 
-Required generic evidence includes:
+`normalizeDynamoParameterValue()` now treats canonical JSON `value: null` as an absent scalar value while preserving the `TagReference` and selector.
 
-1. `TagReference` parameter round-trip through Engineering/package persistence;
-2. Active wire null/absence convergence;
-3. malformed scalar + TAG-reference mixtures rejected;
-4. one Dynamo definition used by two instances with distinct TAG references;
-5. independent effective child bindings for both instances;
-6. independent live subscriptions and rendered state/value changes;
-7. existing Wave09 Dynamo composition tests remain green;
-8. existing `EquipmentPath` behavior remains green;
-9. normal Web build and affected browser lifecycle remain green.
+A genuine non-null scalar value remains present. Consequently the existing Runtime compositor continues to reject mixed scalar + `TagReference` shapes with `VISUAL_RUNTIME_DYNAMO_PARAMETER_SHAPE_INVALID`.
 
-After exact C21 bytes are accepted and merged into integration, C11 must consume that integrated fix and resume its two-pump HMI proof. C11 must additionally prove P01-only and P02-only operation independently, not merely count two rendered Dynamo containers.
+Generic C21 evidence was added to the Wave11 chain. It uses:
 
-## 6. Hard boundaries
+- one ordinary `builtin.memory.server` Source;
+- two generic Boolean TAGs;
+- one reusable Dynamo definition;
+- two instances of that definition, each parameterized with a different TAG reference;
+- a child binding using the public `metadata.dynamoParameter` contract;
+- normal Engineering Preview/Apply, Save, Publish and Activate;
+- `/api/runtime/application` evidence that the Active wire contains `value: null`;
+- live TAG writes proving instance A and instance B render independently in both directions.
+
+The same test also proves stable instance-scoped child identities and continued fail-closed behavior for a genuine non-null scalar mixed with a `TagReference`.
+
+## 6. Accepted validation evidence
+
+Accepted product SHA:
+
+`6d0d71bc91b08114f4c3d3238b56e4ca225b76bd`
+
+Exact-SHA CI evidence, all **SUCCESS**:
+
+- EliteSCADA CI #1387 — run `33947947184`;
+- Wave 11 Active HMI Runtime #315 — run `33947947199`;
+- Preview Licensing CI #337 — run `33947947182`;
+- L3 Seven-Driver Lab #293 — run `33947947188`;
+- Interop Lab Smoke #214 — run `33947947253`.
+
+The validation-only PR used to trigger the main-targeted workflows is #268. It is evidence only, must be closed without merge, and is not an integration path.
+
+C21 acceptance means the generic product blocker exposed by C11 is resolved at the accepted product SHA. After C21 is merged only into `wave14/corrections-integration`, C11 must consume that integrated correction and resume its HMI proof. C11 must still prove P01-only and P02-only behavior independently rather than merely count two rendered Dynamo containers.
+
+## 7. Hard boundaries
 
 - no EEE-, P01- or P02-specific product behavior;
 - no duplicate hand-authored pump symbols as a workaround;

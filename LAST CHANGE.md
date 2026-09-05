@@ -1,27 +1,21 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-04 BRT  
-**Operational state:** **WAVE 14 #211 ACTIVE / C12–C19 AUTOMATED-GREEN PRE-DEMO BASELINE / C11 REVALIDATION RESUMES / CODESPACE PRODUCT OWNER HOMOLOGATION DEFERRED UNTIL AFTER CANONICAL DEMO / WAVE13 PAUSED**
+**Operational state:** **WAVE 14 #211 ACTIVE / C11 IMPLEMENTATION RELEASED / CANONICAL EEE DEMO BUILD ACTIVE / PRODUCT OWNER CODESPACE HOMOLOGATION AFTER DEMO / WAVE13 PAUSED**
 
-> GitHub is the official development memory. Revalidate live refs, PR state and exact-SHA CI before acting. Documentation-only and validation-overlay commits do not redefine product-code authority.
+> GitHub is the official development memory. Revalidate live refs, PR state and exact-SHA CI before acting. Documentation-only commits do not redefine product-code authority.
 
-## Product Owner sequencing decision
+## C11 release
 
-Product Owner clarified on 2026-09-04 BRT that the real fresh-Codespace visual homologation will be performed **after creation of the new canonical EEE DEMO**.
+Coordinator completed C11 revalidation after C12–C19 convergence and records:
 
-Therefore fresh Codespace homologation is no longer a pre-DEMO blocking gate. It remains mandatory before final Wave14 Product Owner acceptance, but it must validate the completed product together with the new canonical DEMO rather than the historical/current Preview fixture.
+`RELEASE C11 IMPLEMENTATION`
 
-Do not claim that this homologation has already occurred.
+Binding release record:
 
-## Current pre-DEMO product baseline
+`docs/WAVE14-C11-IMPLEMENTATION-RELEASE.md`
 
-C19 isolated accepted PRODUCT SHA:
-
-`43d2734b18dc8b78caaa917b9bf6a381ca47b202`
-
-C19 was composed into `wave14/corrections-integration` through history-preserving merge of PR #257.
-
-Exact combined C12–C19 PRODUCT SHA used as the current **pre-DEMO engineering baseline**:
+Exact C11 implementation product base:
 
 `3fda88061df35ad14755d22881e5d3a9216d1ff5`
 
@@ -29,74 +23,60 @@ Tree:
 
 `da6b406ac111cb40b99e5b13031601eb71606ddd`
 
-This SHA has coherent automated acceptance evidence and is frozen as the baseline for C11 revalidation / canonical DEMO preparation. It is **not final Wave14 Product Owner acceptance**.
+Implementation branch created directly from that exact product SHA:
 
-## Combined automated validation
+`wave14/c11-canonical-eee-demo`
 
-Direct on exact product SHA `3fda880...`, all SUCCESS:
+The combined pre-DEMO baseline has SUCCESS evidence from EliteSCADA CI #1370, Wave11 #298, Preview Licensing #320, L3 #276, Interop #197, dedicated C03 #113 and automated Test Preview `33935493882`.
 
-- EliteSCADA CI #1370 / `33934982242`;
-- Wave11 Active HMI Runtime #298 / `33934982300`;
-- Preview Licensing CI #320 / `33934982254`;
-- L3 Seven-Driver Lab #276 / `33934982215`;
-- Interop Lab Smoke #197 / `33934982216`.
+## Why C11 can now build the DEMO
 
-Dedicated C03 carry-forward:
+The Pass-2 `fix before C11` product gaps are closed through generic product mechanisms:
 
-- Wave 14 C03 DNP3 Adapter #113 / `33935067545` — SUCCESS;
-- documentation-only validation PR #260 had direct product parent `3fda880...` and was closed without merge.
+- C12: Active Server Script runtime + deterministic shared-state automation;
+- C13: canonical server-authoritative Bad/Stale/Unavailable quality publication;
+- C14: first-class Operational Event runtime/history contract;
+- C15: embeddable Multi-Pen Trend for Screen/Popup;
+- C16: canonical HMI Command action, explicit Startup/Home and persisted Popup X/Y;
+- C17: normal Internal Memory Source/TAG authoring and full lifecycle proof;
+- C18: embeddable Alarm Browser + Event Browser and affected historical/browser i18n;
+- C19: normal Operational Event Engineering authoring + generic Server Script emission bridge through C14 Active Runtime.
 
-Automated Preview harness carry-forward:
+No EEE-specific product code is required to start building the application.
 
-- harness SHA `086b5d6c92ccfa4f5dc7e947c787ffd953acc5e2`;
-- Test Preview run `33935493882` — SUCCESS;
-- validation-only PR #262 closed without merge.
+## Product Owner sequencing decision
 
-The Test Preview result proves the harness/startup path, not the deferred final visual homologation.
+The Product Owner will perform the real fresh-Codespace visual homologation **after the new canonical EEE DEMO has been created**.
 
-## C19 architecture state
+This does not waive that homologation. It moves visual/use acceptance to the point where the actual completed application exists.
 
-Preserve:
+Remaining final-browser evidence includes live Analog Fill, final Dynamo operational/fault/bad-quality semantics, two independent Dynamo instances, Runtime scaling/resolution behavior, no-scroll/reflow behavior, contextual Popups and the complete living chain from automation through TAG/quality/alarm/event/history/HMI/command.
 
-- Operational Event Engineering authoring through protected Preview/CAS/Apply;
-- generic `emit_operational_event(definition_id, message=None, context=None)`;
-- C14 Active Runtime as canonical event authority;
-- `ServerScriptRuntimeManager._revisionGate` as the single revision-serialization gate for Script TAG/Server Memory/Operational Event access;
-- `ServerScriptRunner.py` as a normal Debug/publish output asset.
+## C11 implementation contract
 
-Never restore the obsolete separate bridge gate/`AsyncLocal` design.
+Build the living deterministic EEE Simulation only through ordinary generic EliteSCADA mechanisms:
+
+Drivers/Data Sources, TAGs, Server Memory, Server Scripts, Operational Events, Alarms, Historian, Trend, Alarm Browser, Event Browser, Commands, Screens, Popups, Dynamos, project assets and Startup/Home.
+
+Forbidden: EEE-specific service/Driver/private runtime/hidden DEMO package or route, direct history insertion, Alarm/Event/Audit conflation, auth/licensing/lifecycle bypass, frontend-only fake runtime behavior.
+
+If implementation exposes a missing generic product capability, stop the workaround, classify a new product gap, fix it generically on a separate branch and revalidate exact bytes.
 
 ## Immediate route
 
-1. Resume C11 revalidation now against the frozen pre-DEMO baseline `3fda880...`.
-2. Reconcile remaining C11 evidence with the Product Owner sequencing decision. Do not treat fresh Codespace homologation itself as a pre-DEMO blocker.
-3. C11 remains `IMPLEMENTATION LOCKED` until the Coordinator explicitly determines that the implementation-release conditions are satisfied and records `RELEASE C11 IMPLEMENTATION`.
-4. After C11 release, construct the living deterministic canonical EEE DEMO exclusively with ordinary generic EliteSCADA mechanisms.
-5. Then Product Owner performs the fresh Codespace visual homologation on the product **with the canonical DEMO present**.
-6. Any defect found in that homologation creates the appropriate correction/revalidation loop before final Wave14 acceptance.
-7. Only after final Wave14 acceptance resume Wave13 #205/#207 packaging/signing.
+1. implement the canonical deterministic EEE DEMO on `wave14/c11-canonical-eee-demo` from exact base `3fda880...`;
+2. prove repository-side lifecycle and deterministic behavior;
+3. update the Preview harness to consume the new canonical DEMO without product bypasses;
+4. Product Owner performs fresh Codespace visual homologation on product + canonical DEMO;
+5. classify/fix/revalidate any discovered product defect;
+6. final Wave14 acceptance;
+7. only then resume Wave13 #205/#207 packaging/signing.
 
 ## Hard boundaries
 
 - PR #212 remains OPEN/DRAFT and must NEVER merge to `main` without later explicit Product Owner authorization;
-- C11 is not implicitly released by this sequencing change;
 - Wave13 #205/#207 remains PAUSED;
-- no weakening tests/security/identity/authorization/licensing/lifecycle;
-- diagnose any red before rerun;
-- no EEE-specific service/Driver/package/private runtime/DEMO-only bypass;
+- backend Active revision remains canonical authority;
+- authorization/backend security and host-owned fail-closed licensing remain unchanged;
 - Alarm / Operational Event / Audit remain distinct;
-- backend Active revision remains canonical authority.
-
-## Mandatory references
-
-Read in order:
-
-1. `PROJECT GOAL.md`;
-2. this file;
-3. `docs/CURRENT-COORDINATOR-HANDOFF.md`;
-4. `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`;
-5. C11 pre-DEMO / Pass-2 / HMI clarification / canonical DEMO requirements;
-6. C19 implementation/progress docs;
-7. `docs/CI-VALIDATION-POLICY.md`;
-8. `docs/CODESPACES-PREVIEW-RUNBOOK.md`;
-9. live issue #211 and PR #212.
+- diagnose every red before rerun.

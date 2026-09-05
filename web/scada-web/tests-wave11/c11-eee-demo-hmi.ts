@@ -400,7 +400,6 @@ function pumpInstance(
     key,
     type: 'dynamo',
     dynamoKey: EEE_HMI.dynamoKey,
-    equipmentPath: label,
     properties: { x, y, width: 360, height: 430, zIndex: 20, visible: true },
     dynamoParameters: Object.entries(specs).map(([parameter, spec]) => dynamoParameter(parameter, spec)),
     actions: [{ eventKey: 'click', kind: 'openPopup', targetKey: popupKey, version: 1 }],
@@ -629,7 +628,6 @@ function trendsScreen() {
       backgroundColor: C.panel,
       strokeColor: C.border,
       strokeWidth: 1,
-      strokeStyle: 'solid',
       cornerRadius: 14,
       trendMode: 'live',
       trendWindowSeconds: 900,
@@ -721,7 +719,7 @@ function pumpPopup(
       button(vid(9, p01 ? 6021 : 6121), `${key}-stop`, 'PARAR', 590, 314, 220, { kind: 'executeCommand', targetKey: null, commandId: commands.stop, parameters: null }, '#7C2D12'),
       button(vid(9, p01 ? 6022 : 6122), `${key}-fault`, 'INJETAR FALHA (DEMO)', 50, 430, 350, { kind: 'executeCommand', targetKey: null, commandId: commands.fault, parameters: null }, '#7F1D1D'),
       button(vid(9, p01 ? 6023 : 6123), `${key}-reset`, 'RESETAR FALHAS', 430, 430, 350, { kind: 'executeCommand', targetKey: null, commandId: EEE_IDS.commands.resetFaults, parameters: null }, '#14532D'),
-      button(vid(9, p01 ? 6024 : 6124), `${key}-close`, 'FECHAR', 650, 522, 160, { kind: 'closePopup', targetKey: key }, '#334155')
+      button(vid(9, p01 ? 6024 : 6124), `${key}-close`, 'FECHAR', 650, 522, 160, { kind: 'closePopup' }, '#334155')
     ]
   };
 }

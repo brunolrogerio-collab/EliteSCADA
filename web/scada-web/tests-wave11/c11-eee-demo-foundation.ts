@@ -1,0 +1,618 @@
+export const EEE_PROJECT_KEY = 'eee-demo';
+export const EEE_PROJECT_NAME = 'EliteSCADA — EEE Demo';
+
+export const EEE_IDS = {
+  source: 'c1100000-0000-0000-0000-000000000001',
+  script: 'c1100000-0000-0000-0000-000000000002',
+  tags: {
+    levelPct: 'c1110000-0000-0000-0000-000000000001',
+    inflowM3h: 'c1110000-0000-0000-0000-000000000002',
+    totalFlowM3h: 'c1110000-0000-0000-0000-000000000003',
+    dischargePressureBar: 'c1110000-0000-0000-0000-000000000004',
+    autoMode: 'c1110000-0000-0000-0000-000000000005',
+    highDemand: 'c1110000-0000-0000-0000-000000000006',
+    dutyPump: 'c1110000-0000-0000-0000-000000000007',
+    cycleCount: 'c1110000-0000-0000-0000-000000000008',
+    badQualityScenario: 'c1110000-0000-0000-0000-000000000009',
+    p01Running: 'c1110000-0000-0000-0000-000000000101',
+    p01Available: 'c1110000-0000-0000-0000-000000000102',
+    p01Fault: 'c1110000-0000-0000-0000-000000000103',
+    p01Trip: 'c1110000-0000-0000-0000-000000000104',
+    p01FrequencyHz: 'c1110000-0000-0000-0000-000000000105',
+    p01CurrentA: 'c1110000-0000-0000-0000-000000000106',
+    p01FlowM3h: 'c1110000-0000-0000-0000-000000000107',
+    p01PressureBar: 'c1110000-0000-0000-0000-000000000108',
+    p02Running: 'c1110000-0000-0000-0000-000000000201',
+    p02Available: 'c1110000-0000-0000-0000-000000000202',
+    p02Fault: 'c1110000-0000-0000-0000-000000000203',
+    p02Trip: 'c1110000-0000-0000-0000-000000000204',
+    p02FrequencyHz: 'c1110000-0000-0000-0000-000000000205',
+    p02CurrentA: 'c1110000-0000-0000-0000-000000000206',
+    p02FlowM3h: 'c1110000-0000-0000-0000-000000000207',
+    p02PressureBar: 'c1110000-0000-0000-0000-000000000208',
+    cmdAutoEnable: 'c1110000-0000-0000-0000-000000000301',
+    cmdAutoDisable: 'c1110000-0000-0000-0000-000000000302',
+    cmdP01Start: 'c1110000-0000-0000-0000-000000000303',
+    cmdP01Stop: 'c1110000-0000-0000-0000-000000000304',
+    cmdP02Start: 'c1110000-0000-0000-0000-000000000305',
+    cmdP02Stop: 'c1110000-0000-0000-0000-000000000306',
+    cmdResetFaults: 'c1110000-0000-0000-0000-000000000307',
+    cmdInjectP01Fault: 'c1110000-0000-0000-0000-000000000308',
+    cmdInjectP02Fault: 'c1110000-0000-0000-0000-000000000309',
+    cmdHighDemandEnable: 'c1110000-0000-0000-0000-000000000310',
+    cmdHighDemandDisable: 'c1110000-0000-0000-0000-000000000311',
+    cmdBadQualityEnable: 'c1110000-0000-0000-0000-000000000312',
+    cmdBadQualityDisable: 'c1110000-0000-0000-0000-000000000313'
+  },
+  alarms: {
+    levelHigh: 'c1130000-0000-0000-0000-000000000001',
+    levelHighHigh: 'c1130000-0000-0000-0000-000000000002',
+    levelLow: 'c1130000-0000-0000-0000-000000000003',
+    p01Fault: 'c1130000-0000-0000-0000-000000000101',
+    p01Trip: 'c1130000-0000-0000-0000-000000000102',
+    p02Fault: 'c1130000-0000-0000-0000-000000000201',
+    p02Trip: 'c1130000-0000-0000-0000-000000000202',
+    p01Communication: 'c1130000-0000-0000-0000-000000000301'
+  },
+  events: {
+    pumpStarted: 'c1140000-0000-0000-0000-000000000001',
+    pumpStopped: 'c1140000-0000-0000-0000-000000000002',
+    faultInjected: 'c1140000-0000-0000-0000-000000000003',
+    faultReset: 'c1140000-0000-0000-0000-000000000004',
+    dutyChanged: 'c1140000-0000-0000-0000-000000000005',
+    modeChanged: 'c1140000-0000-0000-0000-000000000006',
+    highDemandChanged: 'c1140000-0000-0000-0000-000000000007',
+    qualityScenarioChanged: 'c1140000-0000-0000-0000-000000000008'
+  },
+  commands: {
+    autoEnable: 'c1150000-0000-0000-0000-000000000001',
+    autoDisable: 'c1150000-0000-0000-0000-000000000002',
+    p01Start: 'c1150000-0000-0000-0000-000000000003',
+    p01Stop: 'c1150000-0000-0000-0000-000000000004',
+    p02Start: 'c1150000-0000-0000-0000-000000000005',
+    p02Stop: 'c1150000-0000-0000-0000-000000000006',
+    resetFaults: 'c1150000-0000-0000-0000-000000000007',
+    injectP01Fault: 'c1150000-0000-0000-0000-000000000008',
+    injectP02Fault: 'c1150000-0000-0000-0000-000000000009',
+    highDemandEnable: 'c1150000-0000-0000-0000-000000000010',
+    highDemandDisable: 'c1150000-0000-0000-0000-000000000011',
+    badQualityEnable: 'c1150000-0000-0000-0000-000000000012',
+    badQualityDisable: 'c1150000-0000-0000-0000-000000000013'
+  }
+} as const;
+
+export const EEE_PATHS = {
+  levelPct: 'EEE.Process.LevelPct',
+  inflowM3h: 'EEE.Process.InflowM3h',
+  totalFlowM3h: 'EEE.Process.TotalFlowM3h',
+  dischargePressureBar: 'EEE.Process.DischargePressureBar',
+  autoMode: 'EEE.Process.AutoMode',
+  highDemand: 'EEE.Process.HighDemand',
+  dutyPump: 'EEE.Process.DutyPump',
+  cycleCount: 'EEE.Process.CycleCount',
+  badQualityScenario: 'EEE.Process.BadQualityScenario',
+  p01Running: 'EEE.P01.Running',
+  p01Available: 'EEE.P01.Available',
+  p01Fault: 'EEE.P01.Fault',
+  p01Trip: 'EEE.P01.Trip',
+  p01FrequencyHz: 'EEE.P01.FrequencyHz',
+  p01CurrentA: 'EEE.P01.CurrentA',
+  p01FlowM3h: 'EEE.P01.FlowM3h',
+  p01PressureBar: 'EEE.P01.PressureBar',
+  p02Running: 'EEE.P02.Running',
+  p02Available: 'EEE.P02.Available',
+  p02Fault: 'EEE.P02.Fault',
+  p02Trip: 'EEE.P02.Trip',
+  p02FrequencyHz: 'EEE.P02.FrequencyHz',
+  p02CurrentA: 'EEE.P02.CurrentA',
+  p02FlowM3h: 'EEE.P02.FlowM3h',
+  p02PressureBar: 'EEE.P02.PressureBar',
+  cmdAutoEnable: 'EEE.Command.AutoEnable',
+  cmdAutoDisable: 'EEE.Command.AutoDisable',
+  cmdP01Start: 'EEE.Command.P01Start',
+  cmdP01Stop: 'EEE.Command.P01Stop',
+  cmdP02Start: 'EEE.Command.P02Start',
+  cmdP02Stop: 'EEE.Command.P02Stop',
+  cmdResetFaults: 'EEE.Command.ResetFaults',
+  cmdInjectP01Fault: 'EEE.Command.InjectP01Fault',
+  cmdInjectP02Fault: 'EEE.Command.InjectP02Fault',
+  cmdHighDemandEnable: 'EEE.Command.HighDemandEnable',
+  cmdHighDemandDisable: 'EEE.Command.HighDemandDisable',
+  cmdBadQualityEnable: 'EEE.Command.BadQualityEnable',
+  cmdBadQualityDisable: 'EEE.Command.BadQualityDisable'
+} as const;
+
+const serverMemorySource = {
+  id: EEE_IDS.source,
+  key: 'eee.sim.server-memory',
+  name: 'EEE Simulation — Server Memory',
+  driver: 'builtin.memory.server',
+  enabled: true,
+  settings: {},
+  secretReferences: {},
+  metadata: { application: 'eee-demo', role: 'process-truth' }
+};
+
+function memoryTag(
+  id: string,
+  name: string,
+  path: string,
+  dataType: 'boolean' | 'int32' | 'double',
+  initialValue: boolean | number,
+  options: { unit?: string; historian?: boolean; min?: number; max?: number } = {}
+) {
+  return {
+    id,
+    name,
+    path,
+    dataType,
+    source: serverMemorySource.key,
+    dataSourceId: serverMemorySource.id,
+    address: null,
+    engineeringUnit: options.unit ?? null,
+    description: `Canonical EEE simulation state: ${name}`,
+    readOnly: false,
+    scaleMinimum: options.min ?? null,
+    scaleMaximum: options.max ?? null,
+    historian: options.historian
+      ? { enabled: true, strategy: 'onChange', deadband: 0.01, periodMilliseconds: null, maximumPeriodMilliseconds: 5000 }
+      : { enabled: false, strategy: 'none', deadband: null, periodMilliseconds: null, maximumPeriodMilliseconds: null },
+    metadata: { application: 'eee-demo' },
+    accessPolicy: null,
+    initialValue: { dataType, value: initialValue },
+    addressSelector: null,
+    communicationBinding: null
+  };
+}
+
+function command(id: string, key: string, name: string, targetTagId: string, targetTagPath: string, equipmentPath?: string) {
+  return {
+    id,
+    key,
+    name,
+    kind: 'writeTagValue',
+    value: 'true',
+    targetTagId,
+    targetTagPath,
+    description: `${name} through canonical Command -> Server Memory request TAG.`,
+    area: 'EEE',
+    equipmentPath: equipmentPath ?? null,
+    enabled: true,
+    metadata: { application: 'eee-demo', request: 'one-shot' }
+  };
+}
+
+function operationalEvent(
+  id: string,
+  key: string,
+  name: string,
+  equipmentPath: string | null = null
+) {
+  return {
+    id,
+    key,
+    name,
+    type: 'state-change',
+    category: 'operation',
+    source: 'server-script',
+    area: 'EEE',
+    equipmentPath,
+    tagId: null,
+    tagPath: null,
+    message: name,
+    enabled: true,
+    metadata: { application: 'eee-demo' }
+  };
+}
+
+function alarm(
+  id: string,
+  name: string,
+  tagId: string,
+  tagPath: string,
+  type: string,
+  priority: string,
+  options: {
+    setpoint?: number;
+    message: string;
+    alarmClass: string;
+    activeValue?: boolean;
+    acknowledgement?: boolean;
+  }
+) {
+  return {
+    id,
+    name,
+    tagId,
+    tagPath,
+    type,
+    priority,
+    setpoint: options.setpoint ?? null,
+    digitalActiveValue: options.activeValue ?? true,
+    alarmClass: options.alarmClass,
+    area: 'EEE',
+    message: options.message,
+    activationDelayMilliseconds: 0,
+    requiresAcknowledgement: options.acknowledgement ?? true,
+    shelvingAllowed: true,
+    enabled: true,
+    metadata: { application: 'eee-demo' }
+  };
+}
+
+export function buildEeeFoundationPackage(base: any): any {
+  const t = EEE_IDS.tags;
+  const p = EEE_PATHS;
+
+  const tags = [
+    memoryTag(t.levelPct, 'Nível do Poço', p.levelPct, 'double', 45.0, { unit: '%', historian: true, min: 0, max: 100 }),
+    memoryTag(t.inflowM3h, 'Vazão Afluente', p.inflowM3h, 'double', 20.0, { unit: 'm³/h', historian: true, min: 0, max: 100 }),
+    memoryTag(t.totalFlowM3h, 'Vazão Recalcada Total', p.totalFlowM3h, 'double', 0.0, { unit: 'm³/h', historian: true, min: 0, max: 100 }),
+    memoryTag(t.dischargePressureBar, 'Pressão de Recalque', p.dischargePressureBar, 'double', 0.0, { unit: 'bar', historian: true, min: 0, max: 6 }),
+    memoryTag(t.autoMode, 'Modo Automático', p.autoMode, 'boolean', true),
+    memoryTag(t.highDemand, 'Cenário Alta Demanda', p.highDemand, 'boolean', false),
+    memoryTag(t.dutyPump, 'Bomba de Vez', p.dutyPump, 'int32', 1),
+    memoryTag(t.cycleCount, 'Contador de Ciclos', p.cycleCount, 'int32', 0),
+    memoryTag(t.badQualityScenario, 'Cenário Qualidade Ruim', p.badQualityScenario, 'boolean', false),
+
+    memoryTag(t.p01Running, 'P01 Em Operação', p.p01Running, 'boolean', false),
+    memoryTag(t.p01Available, 'P01 Disponível', p.p01Available, 'boolean', true),
+    memoryTag(t.p01Fault, 'P01 Falha', p.p01Fault, 'boolean', false),
+    memoryTag(t.p01Trip, 'P01 Trip', p.p01Trip, 'boolean', false),
+    memoryTag(t.p01FrequencyHz, 'P01 Frequência', p.p01FrequencyHz, 'double', 0.0, { unit: 'Hz', historian: true, min: 0, max: 60 }),
+    memoryTag(t.p01CurrentA, 'P01 Corrente', p.p01CurrentA, 'double', 0.0, { unit: 'A', historian: true, min: 0, max: 40 }),
+    memoryTag(t.p01FlowM3h, 'P01 Vazão', p.p01FlowM3h, 'double', 0.0, { unit: 'm³/h', historian: true, min: 0, max: 50 }),
+    memoryTag(t.p01PressureBar, 'P01 Pressão', p.p01PressureBar, 'double', 0.0, { unit: 'bar', historian: true, min: 0, max: 6 }),
+
+    memoryTag(t.p02Running, 'P02 Em Operação', p.p02Running, 'boolean', false),
+    memoryTag(t.p02Available, 'P02 Disponível', p.p02Available, 'boolean', true),
+    memoryTag(t.p02Fault, 'P02 Falha', p.p02Fault, 'boolean', false),
+    memoryTag(t.p02Trip, 'P02 Trip', p.p02Trip, 'boolean', false),
+    memoryTag(t.p02FrequencyHz, 'P02 Frequência', p.p02FrequencyHz, 'double', 0.0, { unit: 'Hz', historian: true, min: 0, max: 60 }),
+    memoryTag(t.p02CurrentA, 'P02 Corrente', p.p02CurrentA, 'double', 0.0, { unit: 'A', historian: true, min: 0, max: 40 }),
+    memoryTag(t.p02FlowM3h, 'P02 Vazão', p.p02FlowM3h, 'double', 0.0, { unit: 'm³/h', historian: true, min: 0, max: 50 }),
+    memoryTag(t.p02PressureBar, 'P02 Pressão', p.p02PressureBar, 'double', 0.0, { unit: 'bar', historian: true, min: 0, max: 6 }),
+
+    memoryTag(t.cmdAutoEnable, 'Comando Habilitar Automático', p.cmdAutoEnable, 'boolean', false),
+    memoryTag(t.cmdAutoDisable, 'Comando Desabilitar Automático', p.cmdAutoDisable, 'boolean', false),
+    memoryTag(t.cmdP01Start, 'Comando Partir P01', p.cmdP01Start, 'boolean', false),
+    memoryTag(t.cmdP01Stop, 'Comando Parar P01', p.cmdP01Stop, 'boolean', false),
+    memoryTag(t.cmdP02Start, 'Comando Partir P02', p.cmdP02Start, 'boolean', false),
+    memoryTag(t.cmdP02Stop, 'Comando Parar P02', p.cmdP02Stop, 'boolean', false),
+    memoryTag(t.cmdResetFaults, 'Comando Reset Falhas', p.cmdResetFaults, 'boolean', false),
+    memoryTag(t.cmdInjectP01Fault, 'Comando Injetar Falha P01', p.cmdInjectP01Fault, 'boolean', false),
+    memoryTag(t.cmdInjectP02Fault, 'Comando Injetar Falha P02', p.cmdInjectP02Fault, 'boolean', false),
+    memoryTag(t.cmdHighDemandEnable, 'Comando Habilitar Alta Demanda', p.cmdHighDemandEnable, 'boolean', false),
+    memoryTag(t.cmdHighDemandDisable, 'Comando Desabilitar Alta Demanda', p.cmdHighDemandDisable, 'boolean', false),
+    memoryTag(t.cmdBadQualityEnable, 'Comando Habilitar Qualidade Ruim', p.cmdBadQualityEnable, 'boolean', false),
+    memoryTag(t.cmdBadQualityDisable, 'Comando Desabilitar Qualidade Ruim', p.cmdBadQualityDisable, 'boolean', false)
+  ];
+
+  const commands = [
+    command(EEE_IDS.commands.autoEnable, 'eee.auto.enable', 'Habilitar Automático', t.cmdAutoEnable, p.cmdAutoEnable),
+    command(EEE_IDS.commands.autoDisable, 'eee.auto.disable', 'Desabilitar Automático', t.cmdAutoDisable, p.cmdAutoDisable),
+    command(EEE_IDS.commands.p01Start, 'eee.p01.start', 'Partir P01', t.cmdP01Start, p.cmdP01Start, 'EEE.P01'),
+    command(EEE_IDS.commands.p01Stop, 'eee.p01.stop', 'Parar P01', t.cmdP01Stop, p.cmdP01Stop, 'EEE.P01'),
+    command(EEE_IDS.commands.p02Start, 'eee.p02.start', 'Partir P02', t.cmdP02Start, p.cmdP02Start, 'EEE.P02'),
+    command(EEE_IDS.commands.p02Stop, 'eee.p02.stop', 'Parar P02', t.cmdP02Stop, p.cmdP02Stop, 'EEE.P02'),
+    command(EEE_IDS.commands.resetFaults, 'eee.faults.reset', 'Resetar Falhas', t.cmdResetFaults, p.cmdResetFaults),
+    command(EEE_IDS.commands.injectP01Fault, 'eee.p01.fault.inject', 'Injetar Falha P01', t.cmdInjectP01Fault, p.cmdInjectP01Fault, 'EEE.P01'),
+    command(EEE_IDS.commands.injectP02Fault, 'eee.p02.fault.inject', 'Injetar Falha P02', t.cmdInjectP02Fault, p.cmdInjectP02Fault, 'EEE.P02'),
+    command(EEE_IDS.commands.highDemandEnable, 'eee.high-demand.enable', 'Habilitar Alta Demanda', t.cmdHighDemandEnable, p.cmdHighDemandEnable),
+    command(EEE_IDS.commands.highDemandDisable, 'eee.high-demand.disable', 'Desabilitar Alta Demanda', t.cmdHighDemandDisable, p.cmdHighDemandDisable),
+    command(EEE_IDS.commands.badQualityEnable, 'eee.quality.bad.enable', 'Habilitar Qualidade Ruim', t.cmdBadQualityEnable, p.cmdBadQualityEnable),
+    command(EEE_IDS.commands.badQualityDisable, 'eee.quality.bad.disable', 'Desabilitar Qualidade Ruim', t.cmdBadQualityDisable, p.cmdBadQualityDisable)
+  ];
+
+  const operationalEvents = [
+    operationalEvent(EEE_IDS.events.pumpStarted, 'eee.pump.started', 'Bomba iniciada'),
+    operationalEvent(EEE_IDS.events.pumpStopped, 'eee.pump.stopped', 'Bomba parada'),
+    operationalEvent(EEE_IDS.events.faultInjected, 'eee.pump.fault-injected', 'Falha de bomba injetada'),
+    operationalEvent(EEE_IDS.events.faultReset, 'eee.pump.fault-reset', 'Falha de bomba resetada'),
+    operationalEvent(EEE_IDS.events.dutyChanged, 'eee.duty.changed', 'Bomba de vez alterada'),
+    operationalEvent(EEE_IDS.events.modeChanged, 'eee.mode.changed', 'Modo de operação alterado'),
+    operationalEvent(EEE_IDS.events.highDemandChanged, 'eee.high-demand.changed', 'Cenário de alta demanda alterado'),
+    operationalEvent(EEE_IDS.events.qualityScenarioChanged, 'eee.quality-scenario.changed', 'Cenário de qualidade alterado')
+  ];
+
+  const alarms = [
+    alarm(EEE_IDS.alarms.levelHigh, 'Nível Alto', t.levelPct, p.levelPct, 'high', 'high', {
+      setpoint: 75,
+      alarmClass: 'Process',
+      message: 'Nível alto no poço de sucção.'
+    }),
+    alarm(EEE_IDS.alarms.levelHighHigh, 'Nível Alto-Alto', t.levelPct, p.levelPct, 'highHigh', 'critical', {
+      setpoint: 90,
+      alarmClass: 'Process',
+      message: 'Nível crítico no poço de sucção.'
+    }),
+    alarm(EEE_IDS.alarms.levelLow, 'Nível Baixo', t.levelPct, p.levelPct, 'low', 'medium', {
+      setpoint: 20,
+      alarmClass: 'Process',
+      message: 'Nível baixo no poço de sucção.'
+    }),
+    alarm(EEE_IDS.alarms.p01Fault, 'Falha P01', t.p01Fault, p.p01Fault, 'digital', 'high', {
+      alarmClass: 'Electrical',
+      message: 'Bomba P01 em falha.'
+    }),
+    alarm(EEE_IDS.alarms.p01Trip, 'Trip P01', t.p01Trip, p.p01Trip, 'digital', 'high', {
+      alarmClass: 'Electrical',
+      message: 'Bomba P01 em trip.'
+    }),
+    alarm(EEE_IDS.alarms.p02Fault, 'Falha P02', t.p02Fault, p.p02Fault, 'digital', 'high', {
+      alarmClass: 'Electrical',
+      message: 'Bomba P02 em falha.'
+    }),
+    alarm(EEE_IDS.alarms.p02Trip, 'Trip P02', t.p02Trip, p.p02Trip, 'digital', 'high', {
+      alarmClass: 'Electrical',
+      message: 'Bomba P02 em trip.'
+    }),
+    alarm(EEE_IDS.alarms.p01Communication, 'Qualidade P01 Pressão', t.p01PressureBar, p.p01PressureBar, 'communication', 'high', {
+      alarmClass: 'Communication',
+      message: 'Medição de pressão P01 indisponível ou com qualidade não-Good.'
+    })
+  ];
+
+  const dependencies = tags.map(tag => ({ kind: 'serverMemoryTag', stableReference: tag.id }));
+
+  const script = {
+    id: EEE_IDS.script,
+    path: 'scripts/eee-process.py',
+    name: 'EEE Deterministic Process',
+    scope: 'server',
+    source: buildServerScriptSource(),
+    enabled: true,
+    language: 'python',
+    languageVersion: '3',
+    entryPoints: [
+      { eventKind: 'initialize', handlerName: 'on_initialize', targetReference: null, tagReference: null, timerIntervalMs: null },
+      { eventKind: 'timer', handlerName: 'on_tick', targetReference: null, tagReference: null, timerIntervalMs: 1000 }
+    ],
+    dependencies,
+    description: 'Canonical generic Server Memory process model for the EliteSCADA EEE Demo.',
+    metadata: { application: 'eee-demo', deterministicTickMs: '1000' }
+  };
+
+  return {
+    schema: base.schema,
+    schemaVersion: base.schemaVersion,
+    exportedAt: '2026-09-04T00:00:00.000Z',
+    tags,
+    alarms,
+    dataSources: [serverMemorySource],
+    templates: [],
+    equipment: [],
+    dynamos: [],
+    screens: [],
+    popups: [],
+    securityRoles: [],
+    commands,
+    gateways: [],
+    scripts: [script],
+    scriptVisualEventReferences: [],
+    visualAssets: [],
+    reports: [],
+    operationalEvents,
+    startupScreenId: null
+  };
+}
+
+function buildServerScriptSource(): string {
+  const t = EEE_IDS.tags;
+  const e = EEE_IDS.events;
+  const line = (value: string) => value;
+
+  return [
+    line('def on_initialize():'),
+    line(`    write_server_memory("${t.cmdAutoEnable}", False)`),
+    line(`    write_server_memory("${t.cmdAutoDisable}", False)`),
+    line(`    write_server_memory("${t.cmdP01Start}", False)`),
+    line(`    write_server_memory("${t.cmdP01Stop}", False)`),
+    line(`    write_server_memory("${t.cmdP02Start}", False)`),
+    line(`    write_server_memory("${t.cmdP02Stop}", False)`),
+    line(`    write_server_memory("${t.cmdResetFaults}", False)`),
+    line(`    write_server_memory("${t.cmdInjectP01Fault}", False)`),
+    line(`    write_server_memory("${t.cmdInjectP02Fault}", False)`),
+    line(`    write_server_memory("${t.cmdHighDemandEnable}", False)`),
+    line(`    write_server_memory("${t.cmdHighDemandDisable}", False)`),
+    line(`    write_server_memory("${t.cmdBadQualityEnable}", False)`),
+    line(`    write_server_memory("${t.cmdBadQualityDisable}", False)`),
+    line(''),
+    line('def on_tick():'),
+    line(`    level = read_server_memory("${t.levelPct}")`),
+    line(`    auto_mode = read_server_memory("${t.autoMode}")`),
+    line(`    high_demand = read_server_memory("${t.highDemand}")`),
+    line(`    bad_quality = read_server_memory("${t.badQualityScenario}")`),
+    line(`    duty = read_server_memory("${t.dutyPump}")`),
+    line(`    cycles = read_server_memory("${t.cycleCount}")`),
+    line(`    p01_running = read_server_memory("${t.p01Running}")`),
+    line(`    p02_running = read_server_memory("${t.p02Running}")`),
+    line(`    p01_available = read_server_memory("${t.p01Available}")`),
+    line(`    p02_available = read_server_memory("${t.p02Available}")`),
+    line(`    p01_fault = read_server_memory("${t.p01Fault}")`),
+    line(`    p02_fault = read_server_memory("${t.p02Fault}")`),
+    line(`    p01_trip = read_server_memory("${t.p01Trip}")`),
+    line(`    p02_trip = read_server_memory("${t.p02Trip}")`),
+    line(''),
+    line('    old_auto_mode = auto_mode'),
+    line('    old_high_demand = high_demand'),
+    line('    old_bad_quality = bad_quality'),
+    line('    old_duty = duty'),
+    line('    old_p01_running = p01_running'),
+    line('    old_p02_running = p02_running'),
+    line('    old_p01_fault = p01_fault'),
+    line('    old_p02_fault = p02_fault'),
+    line(''),
+    line(`    if read_server_memory("${t.cmdAutoEnable}"):`),
+    line('        auto_mode = True'),
+    line(`    if read_server_memory("${t.cmdAutoDisable}"):`),
+    line('        auto_mode = False'),
+    line(`    if read_server_memory("${t.cmdHighDemandEnable}"):`),
+    line('        high_demand = True'),
+    line(`    if read_server_memory("${t.cmdHighDemandDisable}"):`),
+    line('        high_demand = False'),
+    line(`    if read_server_memory("${t.cmdBadQualityEnable}"):`),
+    line('        bad_quality = True'),
+    line(`    if read_server_memory("${t.cmdBadQualityDisable}"):`),
+    line('        bad_quality = False'),
+    line(`    if read_server_memory("${t.cmdInjectP01Fault}"):`),
+    line('        p01_fault = True'),
+    line('        p01_trip = True'),
+    line(`    if read_server_memory("${t.cmdInjectP02Fault}"):`),
+    line('        p02_fault = True'),
+    line('        p02_trip = True'),
+    line(`    if read_server_memory("${t.cmdResetFaults}"):`),
+    line('        p01_fault = False'),
+    line('        p02_fault = False'),
+    line('        p01_trip = False'),
+    line('        p02_trip = False'),
+    line(''),
+    line('    if auto_mode:'),
+    line('        if level >= 65.0 and not p01_running and not p02_running:'),
+    line('            if duty == 1:'),
+    line('                if p01_available and not p01_fault and not p01_trip:'),
+    line('                    p01_running = True'),
+    line('                else:'),
+    line('                    if p02_available and not p02_fault and not p02_trip:'),
+    line('                        p02_running = True'),
+    line('            else:'),
+    line('                if p02_available and not p02_fault and not p02_trip:'),
+    line('                    p02_running = True'),
+    line('                else:'),
+    line('                    if p01_available and not p01_fault and not p01_trip:'),
+    line('                        p01_running = True'),
+    line('        if level >= 80.0 or high_demand:'),
+    line('            if p01_running and not p02_running and p02_available and not p02_fault and not p02_trip:'),
+    line('                p02_running = True'),
+    line('            if p02_running and not p01_running and p01_available and not p01_fault and not p01_trip:'),
+    line('                p01_running = True'),
+    line('        if level <= 35.0 and (p01_running or p02_running):'),
+    line('            p01_running = False'),
+    line('            p02_running = False'),
+    line('            cycles = cycles + 1'),
+    line('            if duty == 1:'),
+    line('                duty = 2'),
+    line('            else:'),
+    line('                duty = 1'),
+    line('    else:'),
+    line(`        if read_server_memory("${t.cmdP01Start}") and p01_available and not p01_fault and not p01_trip:`),
+    line('            p01_running = True'),
+    line(`        if read_server_memory("${t.cmdP01Stop}"):`),
+    line('            p01_running = False'),
+    line(`        if read_server_memory("${t.cmdP02Start}") and p02_available and not p02_fault and not p02_trip:`),
+    line('            p02_running = True'),
+    line(`        if read_server_memory("${t.cmdP02Stop}"):`),
+    line('            p02_running = False'),
+    line(''),
+    line('    if p01_fault or p01_trip or not p01_available:'),
+    line('        p01_running = False'),
+    line('    if p02_fault or p02_trip or not p02_available:'),
+    line('        p02_running = False'),
+    line(''),
+    line('    p01_flow = 0.0'),
+    line('    p02_flow = 0.0'),
+    line('    p01_frequency = 0.0'),
+    line('    p02_frequency = 0.0'),
+    line('    p01_current = 0.0'),
+    line('    p02_current = 0.0'),
+    line('    station_pressure = 0.0'),
+    line('    if p01_running and p02_running:'),
+    line('        p01_flow = 35.0'),
+    line('        p02_flow = 35.0'),
+    line('        p01_frequency = 45.0'),
+    line('        p02_frequency = 45.0'),
+    line('        p01_current = 20.0'),
+    line('        p02_current = 20.0'),
+    line('        station_pressure = 3.0'),
+    line('    else:'),
+    line('        if p01_running:'),
+    line('            p01_flow = 38.0'),
+    line('            p01_frequency = 48.0'),
+    line('            p01_current = 22.0'),
+    line('            station_pressure = 2.6'),
+    line('        if p02_running:'),
+    line('            p02_flow = 38.0'),
+    line('            p02_frequency = 48.0'),
+    line('            p02_current = 22.0'),
+    line('            station_pressure = 2.6'),
+    line(''),
+    line('    total_flow = p01_flow + p02_flow'),
+    line('    inflow = 20.0'),
+    line('    if high_demand:'),
+    line('        inflow = 55.0'),
+    line('    level = level + ((inflow - total_flow) * 0.03)'),
+    line('    if level < 0.0:'),
+    line('        level = 0.0'),
+    line('    if level > 100.0:'),
+    line('        level = 100.0'),
+    line(''),
+    line(`    write_server_memory("${t.levelPct}", level)`),
+    line(`    write_server_memory("${t.inflowM3h}", inflow)`),
+    line(`    write_server_memory("${t.totalFlowM3h}", total_flow)`),
+    line(`    write_server_memory("${t.dischargePressureBar}", station_pressure)`),
+    line(`    write_server_memory("${t.autoMode}", auto_mode)`),
+    line(`    write_server_memory("${t.highDemand}", high_demand)`),
+    line(`    write_server_memory("${t.badQualityScenario}", bad_quality)`),
+    line(`    write_server_memory("${t.dutyPump}", duty)`),
+    line(`    write_server_memory("${t.cycleCount}", cycles)`),
+    line(`    write_server_memory("${t.p01Running}", p01_running)`),
+    line(`    write_server_memory("${t.p01Fault}", p01_fault)`),
+    line(`    write_server_memory("${t.p01Trip}", p01_trip)`),
+    line(`    write_server_memory("${t.p01FrequencyHz}", p01_frequency)`),
+    line(`    write_server_memory("${t.p01CurrentA}", p01_current)`),
+    line(`    write_server_memory("${t.p01FlowM3h}", p01_flow)`),
+    line(`    write_server_memory("${t.p02Running}", p02_running)`),
+    line(`    write_server_memory("${t.p02Fault}", p02_fault)`),
+    line(`    write_server_memory("${t.p02Trip}", p02_trip)`),
+    line(`    write_server_memory("${t.p02FrequencyHz}", p02_frequency)`),
+    line(`    write_server_memory("${t.p02CurrentA}", p02_current)`),
+    line(`    write_server_memory("${t.p02FlowM3h}", p02_flow)`),
+    line(`    write_server_memory("${t.p02PressureBar}", station_pressure if p02_running else 0.0)`),
+    line(`    if bad_quality:`),
+    line(`        publish_server_memory_sample("${t.p01PressureBar}", station_pressure if p01_running else 0.0, "Unavailable")`),
+    line('    else:'),
+    line(`        write_server_memory("${t.p01PressureBar}", station_pressure if p01_running else 0.0)`),
+    line(''),
+    line('    if old_p01_running != p01_running:'),
+    line('        if p01_running:'),
+    line(`            emit_operational_event("${e.pumpStarted}", "P01 iniciada", {"pump": "P01"})`),
+    line('        else:'),
+    line(`            emit_operational_event("${e.pumpStopped}", "P01 parada", {"pump": "P01"})`),
+    line('    if old_p02_running != p02_running:'),
+    line('        if p02_running:'),
+    line(`            emit_operational_event("${e.pumpStarted}", "P02 iniciada", {"pump": "P02"})`),
+    line('        else:'),
+    line(`            emit_operational_event("${e.pumpStopped}", "P02 parada", {"pump": "P02"})`),
+    line('    if not old_p01_fault and p01_fault:'),
+    line(`        emit_operational_event("${e.faultInjected}", "Falha P01 injetada", {"pump": "P01"})`),
+    line('    if not old_p02_fault and p02_fault:'),
+    line(`        emit_operational_event("${e.faultInjected}", "Falha P02 injetada", {"pump": "P02"})`),
+    line('    if old_p01_fault and not p01_fault:'),
+    line(`        emit_operational_event("${e.faultReset}", "Falha P01 resetada", {"pump": "P01"})`),
+    line('    if old_p02_fault and not p02_fault:'),
+    line(`        emit_operational_event("${e.faultReset}", "Falha P02 resetada", {"pump": "P02"})`),
+    line('    if old_duty != duty:'),
+    line(`        emit_operational_event("${e.dutyChanged}", "Bomba de vez alterada", {"duty": duty})`),
+    line('    if old_auto_mode != auto_mode:'),
+    line(`        emit_operational_event("${e.modeChanged}", "Modo de operação alterado", {"auto": auto_mode})`),
+    line('    if old_high_demand != high_demand:'),
+    line(`        emit_operational_event("${e.highDemandChanged}", "Cenário de alta demanda alterado", {"enabled": high_demand})`),
+    line('    if old_bad_quality != bad_quality:'),
+    line(`        emit_operational_event("${e.qualityScenarioChanged}", "Cenário de qualidade alterado", {"enabled": bad_quality})`),
+    line(''),
+    line(`    write_server_memory("${t.cmdAutoEnable}", False)`),
+    line(`    write_server_memory("${t.cmdAutoDisable}", False)`),
+    line(`    write_server_memory("${t.cmdP01Start}", False)`),
+    line(`    write_server_memory("${t.cmdP01Stop}", False)`),
+    line(`    write_server_memory("${t.cmdP02Start}", False)`),
+    line(`    write_server_memory("${t.cmdP02Stop}", False)`),
+    line(`    write_server_memory("${t.cmdResetFaults}", False)`),
+    line(`    write_server_memory("${t.cmdInjectP01Fault}", False)`),
+    line(`    write_server_memory("${t.cmdInjectP02Fault}", False)`),
+    line(`    write_server_memory("${t.cmdHighDemandEnable}", False)`),
+    line(`    write_server_memory("${t.cmdHighDemandDisable}", False)`),
+    line(`    write_server_memory("${t.cmdBadQualityEnable}", False)`),
+    line(`    write_server_memory("${t.cmdBadQualityDisable}", False)`),
+    line('')
+  ].join('\n');
+}

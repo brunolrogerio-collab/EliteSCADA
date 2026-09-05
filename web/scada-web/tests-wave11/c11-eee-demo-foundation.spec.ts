@@ -12,6 +12,14 @@ import { EEE_SECURITY_ROLES } from './c11-eee-demo-security';
 // uses the canonical eee-demo key recorded by the C11 implementation contract.
 const runtimeProjectKey = 'e2e-wave11';
 
+// TagQuality is serialized by the canonical HTTP contract as its enum ordinal.
+// Keep these names beside the assertions so the proof documents semantics rather
+// than scattering unexplained wire integers through the scenario.
+const TAG_QUALITY = {
+  Good: 0,
+  Unavailable: 8
+} as const;
+
 test('C11 canonical EEE foundation lives through normal Engineering, Script, Alarm, Event, Historian and Command contracts', async ({ request }) => {
   const original = await loadWorking(request);
 
@@ -118,12 +126,12 @@ test('C11 canonical EEE foundation lives through normal Engineering, Script, Ala
 
     // C13 canonical quality path: retain a meaningful value but publish Unavailable.
     await executeCommand(request, EEE_IDS.commands.badQualityEnable);
-    await expect.poll(async () => String((await readCurrent(request, EEE_PATHS.p01PressureBar)).quality ?? '').toLowerCase(), { timeout: 10_000 })
-      .toBe('unavailable');
+    await expect.poll(async () => Number((await readCurrent(request, EEE_PATHS.p01PressureBar)).quality), { timeout: 10_000 })
+      .toBe(TAG_QUALITY.Unavailable);
     await expectRequestConsumed(request, EEE_PATHS.cmdBadQualityEnable);
     await executeCommand(request, EEE_IDS.commands.badQualityDisable);
-    await expect.poll(async () => String((await readCurrent(request, EEE_PATHS.p01PressureBar)).quality ?? '').toLowerCase(), { timeout: 10_000 })
-      .toBe('good');
+    await expect.poll(async () => Number((await readCurrent(request, EEE_PATHS.p01PressureBar)).quality), { timeout: 10_000 })
+      .toBe(TAG_QUALITY.Good);
     await expectRequestConsumed(request, EEE_PATHS.cmdBadQualityDisable);
 
     const history = await request.get(`/api/history/${EEE_IDS.tags.levelPct}?limit=50`);

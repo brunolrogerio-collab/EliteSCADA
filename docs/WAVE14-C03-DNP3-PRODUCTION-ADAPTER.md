@@ -78,3 +78,7 @@ Do not mark W14-C03 complete or the commercial blocker removed until all of the 
 8. Windows package contents and third-party LICENSE/NOTICE material are inspected and recorded.
 
 This document records the implementation choice and evidence boundary; it is not itself completion evidence.
+
+## Validation-only carry-forward trigger
+
+This branch is a disposable CI overlay whose direct product parent is combined C12–C19 candidate `3fda88061df35ad14755d22881e5d3a9216d1ff5`. This documentation-only note exists solely to trigger the dedicated C03 workflow against byte-identical executable/product code. The overlay must never be merged and must never become product authority.

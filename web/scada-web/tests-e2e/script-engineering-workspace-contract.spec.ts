@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { expect, request as playwrightRequest, test } from '@playwright/test';
 import type { APIRequestContext } from '@playwright/test';
 import {
@@ -21,6 +22,19 @@ const baseURL = 'http://127.0.0.1:5173';
 const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
 
 test.describe.configure({ mode: 'serial' });
+
+test('Script workspace consumes Engineering dark-theme tokens without light surface fallbacks', async () => {
+  const css = await readFile(new URL('../src/engineering/scripts/script-engineering-workspace.css', import.meta.url), 'utf8');
+
+  expect(css).toContain('--script-surface: var(--eng-panel, #121922)');
+  expect(css).toContain('--script-border: var(--eng-border, #283544)');
+  expect(css).toContain('--script-text: var(--eng-text, #e8edf3)');
+  expect(css).toContain('background: var(--script-control-surface)');
+  expect(css).toContain('color: var(--script-text)');
+  expect(css).not.toContain('var(--surface, #fff)');
+  expect(css).not.toContain('var(--border, #d6dae2)');
+  expect(css).not.toContain('var(--border, #c9ced8)');
+});
 
 test('wire enums normalize and minimal package preserves owned visual references only', () => {
   const id = '11111111-1111-4111-8111-111111111111';

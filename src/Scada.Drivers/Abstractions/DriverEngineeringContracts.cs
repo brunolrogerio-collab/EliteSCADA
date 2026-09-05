@@ -97,7 +97,10 @@ public sealed record DriverConfigurationSchemaDescriptor(
 /// <summary>
 /// Stable public identity/capability declaration for one Driver type. The
 /// descriptor is owned by EliteSCADA contracts, not by MQTTnet, OPC Foundation,
-/// libplctag, S7.NetPlus or another implementation library.
+/// libplctag, S7.NetPlus or another implementation library. Tag bindings normally
+/// share ConfigurationSchema identity; drivers with an established distinct
+/// point-binding contract may override that identity without changing the Data
+/// Source configuration schema or breaking existing Engineering packages.
 /// </summary>
 public sealed record CommunicationDriverTypeDescriptor(
     string DriverType,
@@ -110,7 +113,9 @@ public sealed record CommunicationDriverTypeDescriptor(
     bool SupportsSharedTransportInfrastructure = false,
     string? Description = null,
     string? DisplayNameResourceKey = null,
-    string? DescriptionResourceKey = null);
+    string? DescriptionResourceKey = null,
+    string? TagBindingSchemaId = null,
+    int? TagBindingSchemaVersion = null);
 
 /// <summary>
 /// Non-authoritative snapshot passed to protected Engineering tooling. Settings

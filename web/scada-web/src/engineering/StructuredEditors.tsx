@@ -1,48 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import {
-  DataSourceEditor as BaseDataSourceEditor,
-  TagEditor as BaseTagEditor
-} from './EngineeringMutationPanels';
+import { TagEditor as BaseTagEditor } from './EngineeringMutationPanels';
+import { DataSourceCatalogEditor } from './DataSourceCatalogEditor';
+import { DataSourceMutationPanel } from './DataSourceMutationPanel';
 import { EngineeringEntityBrowser, type EngineeringEntityBrowserMessages } from './EngineeringEntityBrowser';
 import { GatewayEngineeringPanel } from './GatewayEngineeringPanel';
 import { MemoryTagSettingsPanel } from './MemoryTagSettingsPanel';
 import type { EngineeringLocale } from './i18n';
-import type { DataSourceEngineering, EngineeringPackageView } from './types';
+import type { EngineeringPackageView } from './types';
 
 export function DataSourceEditor({ model, locale }: { model: EngineeringPackageView; locale: EngineeringLocale }) {
-  const sources = model.dataSources ?? [];
-  const [selectedKey, setSelectedKey] = useState<string | null>(() => sources[0]?.key ?? null);
-
-  useEffect(() => {
-    if (selectedKey && sources.some(source => source.key === selectedKey)) return;
-    setSelectedKey(sources[0]?.key ?? null);
-  }, [selectedKey, sources]);
-
   return (
     <>
-      <EngineeringEntityBrowser
-        items={sources}
-        selectedKey={selectedKey}
-        onSelectionChange={key => setSelectedKey(key)}
-        getKey={source => source.key}
-        getLabel={source => source.name || source.key}
-        getDescription={source => `${source.driver} · ${source.key}`}
-        getSearchText={source => [source.key, source.name, source.driver, dataSourceEndpoint(source)]}
-        renderItemMeta={source => source.enabled === false ? browserCopy(locale).disabled : browserCopy(locale).enabled}
-        renderDetail={source => (
-          <EntityBrowserDetail
-            title={source.name || source.key}
-            rows={[
-              [browserCopy(locale).key, source.key],
-              [browserCopy(locale).driver, source.driver],
-              [browserCopy(locale).endpoint, dataSourceEndpoint(source) || '—'],
-              [browserCopy(locale).status, source.enabled === false ? browserCopy(locale).disabled : browserCopy(locale).enabled]
-            ]}
-          />
-        )}
-        messages={browserMessages(locale, browserCopy(locale).dataSources)}
-      />
-      <BaseDataSourceEditor model={model} locale={locale} />
+      <DataSourceCatalogEditor model={model} locale={locale} />
+      <DataSourceMutationPanel model={model} locale={locale} />
       <GatewayEngineeringPanel model={model} locale={locale} />
     </>
   );
@@ -86,13 +56,6 @@ export function TagEditor({ model, locale }: { model: EngineeringPackageView; lo
       {hasMemoryTags(model) && <MemoryTagSettingsPanel model={model} locale={locale} />}
     </>
   );
-}
-
-function dataSourceEndpoint(source: DataSourceEngineering): string {
-  const settings = source.settings ?? {};
-  const host = settings.host ?? settings.hostname ?? settings.endpoint ?? settings.url ?? '';
-  const port = settings.port ?? '';
-  return host && port ? `${host}:${port}` : host;
 }
 
 function EntityBrowserDetail({ title, rows }: { title: string; rows: Array<[string, React.ReactNode]> }) {

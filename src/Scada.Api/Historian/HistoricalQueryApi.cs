@@ -113,6 +113,7 @@ public static class HistoricalQueryApi
     {
         HistoricalDatasets.HistorianSamples => SecurityCapability.TrendUse,
         HistoricalDatasets.AlarmEvents => SecurityCapability.View,
+        HistoricalDatasets.OperationalEvents => SecurityCapability.View,
         _ => throw new ArgumentException(
             "Historical dataset is not allowlisted for API authorization.",
             nameof(dataset))

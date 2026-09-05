@@ -10,13 +10,16 @@ import {
 import { AlarmEditor } from './AlarmEditor';
 import { CommunicationDiagnosticsPanel } from './CommunicationDiagnosticsPanel';
 import { DevelopmentMonitorWorkspace } from './development-monitor/DevelopmentMonitorWorkspace';
+import { EngineeringTagMonitorWorkspace } from './diagnostics/EngineeringTagMonitorWorkspace';
 import { EngineeringLifecycleWorkspace } from './EngineeringLifecycleWorkspace';
 import { EngineeringProjectManagementWorkspace } from './EngineeringProjectManagementWorkspace';
+import { OperationalEventEditor, operationalEventCount } from './OperationalEventEditor';
 import { ReportDesignerWorkspace } from './reports/ReportDesignerWorkspace';
 import { reportCollection } from './reports/reportDesignerModel';
 import { ScriptEngineeringWorkspace } from './scripts/ScriptEngineeringWorkspace';
 import { DataSourceEditor, TagEditor } from './StructuredEditors';
 import { UserAdministration } from './UserAdministration';
+import { PopupVisualEditorWorkspace } from './visual-editor/PopupVisualEditorWorkspace';
 import { VisualEditorWorkspace } from './visual-editor/VisualEditorWorkspace';
 import type { EngineeringPackageView, EngineeringSnapshot } from './types';
 import './engineering.css';
@@ -27,6 +30,7 @@ type SectionId =
   | 'dataSources'
   | 'tags'
   | 'alarms'
+  | 'operationalEvents'
   | 'templates'
   | 'equipment'
   | 'dynamos'
@@ -36,14 +40,22 @@ type SectionId =
   | 'reports'
   | 'security'
   | 'monitor'
+  | 'tagMonitor'
   | 'diagnostics';
 
 type NavItem = { id: SectionId; label?: TranslationKey; literalLabel?: Record<EngineeringLocale, string> };
 type NavGroup = { label: TranslationKey; items: NavItem[] };
 
+const tagMonitorPath = '/engineering/diagnostics/tag-monitor';
+
 const navigation: NavGroup[] = [
   { label: 'nav.project', items: [{ id: 'overview', label: 'nav.overview' }, { id: 'scripts' }] },
-  { label: 'nav.communication', items: [{ id: 'dataSources', label: 'nav.dataSources' }, { id: 'tags', label: 'nav.tags' }, { id: 'alarms', label: 'nav.alarms' }] },
+  { label: 'nav.communication', items: [
+    { id: 'dataSources', label: 'nav.dataSources' },
+    { id: 'tags', label: 'nav.tags' },
+    { id: 'alarms', label: 'nav.alarms' },
+    { id: 'operationalEvents', literalLabel: { 'pt-BR': 'Eventos Operacionais', en: 'Operational Events', es: 'Eventos Operacionales' } }
+  ] },
   { label: 'nav.assets', items: [{ id: 'templates', label: 'nav.templates' }, { id: 'equipment', label: 'nav.equipment' }, { id: 'dynamos', label: 'nav.dynamos' }] },
   { label: 'nav.visualization', items: [{ id: 'screens', label: 'nav.screens' }, { id: 'popups', label: 'nav.popups' }] },
   { label: 'nav.historian', items: [
@@ -53,13 +65,14 @@ const navigation: NavGroup[] = [
   { label: 'nav.security', items: [{ id: 'security', label: 'nav.security' }] },
   { label: 'nav.diagnostics', items: [
     { id: 'monitor', literalLabel: { 'pt-BR': 'Monitoramento', en: 'Development Monitor', es: 'Monitor de Desarrollo' } },
+    { id: 'tagMonitor', literalLabel: { 'pt-BR': 'TAG Monitor', en: 'TAG Monitor', es: 'TAG Monitor' } },
     { id: 'diagnostics', label: 'nav.diagnostics' }
   ] }
 ];
 
 export function EngineeringApp() {
   const [locale, setLocale] = useState<EngineeringLocale>(() => resolveInitialLocale());
-  const [section, setSection] = useState<SectionId>('overview');
+  const [section, setSection] = useState<SectionId>(() => resolveInitialSection());
   const [snapshot, setSnapshot] = useState<EngineeringSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +84,7 @@ export function EngineeringApp() {
     try {
       setSnapshot(await loadEngineeringSnapshot());
     } catch (reason) {
+      setSnapshot(null);
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
       setLoading(false);
@@ -83,6 +97,12 @@ export function EngineeringApp() {
     setLocale(next);
     setStoredLocale(next);
     document.documentElement.lang = next;
+  };
+
+  const selectSection = (next: SectionId) => {
+    setSection(next);
+    const nextPath = next === 'tagMonitor' ? tagMonitorPath : '/engineering';
+    if (window.location.pathname !== nextPath) window.history.replaceState(null, '', nextPath);
   };
 
   return (
@@ -115,13 +135,15 @@ export function EngineeringApp() {
             {navigation.map(group => (
               <div className="eng-nav-group" key={group.label}>
                 <span className="eng-nav-label">{t(group.label)}</span>
-                {group.items.map(item => (
-                  <button key={item.id} type="button" className={section === item.id ? 'active' : ''} onClick={() => setSection(item.id)}>
-                    <NavIcon section={item.id}/>
-                    <span>{item.literalLabel ? item.literalLabel[locale] : item.label ? t(item.label) : scriptNavLabel(locale)}</span>
-                    {snapshot && <small>{sectionCount(snapshot.package, item.id)}</small>}
-                  </button>
-                ))}
+                {group.items
+                  .filter(item => item.id !== 'tagMonitor' || snapshot !== null)
+                  .map(item => (
+                    <button key={item.id} type="button" className={section === item.id ? 'active' : ''} onClick={() => selectSection(item.id)}>
+                      <NavIcon section={item.id}/>
+                      <span>{item.literalLabel ? item.literalLabel[locale] : item.label ? t(item.label) : scriptNavLabel(locale)}</span>
+                      {snapshot && <small>{sectionCount(snapshot.package, item.id)}</small>}
+                    </button>
+                  ))}
               </div>
             ))}
           </nav>
@@ -165,12 +187,14 @@ function EngineeringSection({ section, snapshot, t, locale, onReload }: {
   if (section === 'reports') return <ReportDesignerWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
   if (section === 'security') return <SecuritySection model={model} t={t} locale={locale}/>;
   if (section === 'monitor') return <DevelopmentMonitorWorkspace snapshot={snapshot} locale={locale}/>;
+  if (section === 'tagMonitor') return <EngineeringTagMonitorWorkspace snapshot={snapshot} locale={locale}/>;
   if (section === 'diagnostics') return <DiagnosticsSection model={model} t={t} locale={locale}/>;
 
   switch (section) {
     case 'dataSources': return <DataSourceEditor model={model} locale={locale}/>;
     case 'tags': return <TagEditor model={model} locale={locale}/>;
     case 'alarms': return <AlarmEditor model={model} locale={locale}/>;
+    case 'operationalEvents': return <OperationalEventEditor model={model} locale={locale} onApplied={onReload}/>;
     case 'templates': return <EntitySection title={t('nav.templates')} items={model.templates ?? []} t={t} columns={[
       { key: 'key', title: t('table.key'), render: item => <Code>{item.key}</Code> },
       { key: 'name', title: t('table.name'), render: item => item.name },
@@ -189,12 +213,7 @@ function EngineeringSection({ section, snapshot, t, locale, onReload }: {
       { key: 'bindings', title: t('table.bindings'), render: item => item.bindings?.length ?? 0 }
     ]}/>;
     case 'screens': return <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
-    case 'popups': return <EntitySection title={t('nav.popups')} items={model.popups ?? []} t={t} columns={[
-      { key: 'key', title: t('table.key'), render: item => <Code>{item.key}</Code> },
-      { key: 'name', title: t('table.name'), render: item => item.name },
-      { key: 'template', title: t('table.template'), render: item => item.templateKey ? <Code>{item.templateKey}</Code> : '—' },
-      { key: 'elements', title: t('section.count'), render: item => item.elements?.length ?? 0 }
-    ]}/>;
+    case 'popups': return <PopupVisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
     default: return null;
   }
 }
@@ -248,7 +267,7 @@ function SecuritySection({ model, t, locale }: { model: EngineeringPackageView; 
 }
 
 function DiagnosticsSection({ model, t, locale }: { model: EngineeringPackageView; t: ReturnType<typeof translator>; locale: EngineeringLocale }) {
-  const total = model.tags.length + model.alarms.length + (model.dataSources?.length ?? 0) + (model.templates?.length ?? 0) + (model.equipment?.length ?? 0) + (model.dynamos?.length ?? 0) + (model.screens?.length ?? 0) + (model.popups?.length ?? 0) + (model.securityRoles?.length ?? 0);
+  const total = model.tags.length + model.alarms.length + operationalEventCount(model) + (model.dataSources?.length ?? 0) + (model.templates?.length ?? 0) + (model.equipment?.length ?? 0) + (model.dynamos?.length ?? 0) + (model.screens?.length ?? 0) + (model.popups?.length ?? 0) + (model.securityRoles?.length ?? 0);
   return (
     <div className="eng-section">
       <SectionHeader title={t('diagnostics.title')} description={t('diagnostics.description')} t={t}/>
@@ -292,6 +311,7 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'dataSources': return model.dataSources?.length ?? 0;
     case 'tags': return model.tags.length;
     case 'alarms': return model.alarms.length;
+    case 'operationalEvents': return operationalEventCount(model);
     case 'templates': return model.templates?.length ?? 0;
     case 'equipment': return model.equipment?.length ?? 0;
     case 'dynamos': return model.dynamos?.length ?? 0;
@@ -303,6 +323,7 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'scripts':
     case 'overview':
     case 'monitor':
+    case 'tagMonitor':
     case 'diagnostics': return '•';
   }
 }
@@ -312,6 +333,10 @@ function formatDate(value: string, locale: EngineeringLocale) {
 }
 function scriptNavLabel(_locale: EngineeringLocale) { return 'Scripts'; }
 function NavIcon({ section }: { section: SectionId }) {
-  const symbols: Record<SectionId, string> = { overview: '⌂', scripts: '</>', dataSources: '⇄', tags: '#', alarms: '!', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', monitor: '◉', diagnostics: '⋯' };
+  const symbols: Record<SectionId, string> = { overview: '⌂', scripts: '</>', dataSources: '⇄', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯' };
   return <i aria-hidden="true">{symbols[section]}</i>;
+}
+
+function resolveInitialSection(): SectionId {
+  return window.location.pathname.startsWith(tagMonitorPath) ? 'tagMonitor' : 'overview';
 }

@@ -232,7 +232,7 @@ test('RuntimeVisualNavigator consumes canonical actions and Popup context withou
   const navigator = await source('../src/runtime/visual-navigation/RuntimeVisualNavigator.tsx');
   const model = await source('../src/runtime/visual-navigation/runtimeVisualNavigationModel.ts');
 
-  expect(navigator).toContain('executeVisualNavigationAction(catalog, state, action');
+  expect(navigator).toMatch(/executeVisualNavigationAction\(\s*catalog,\s*state,\s*action(?:\s+as\s+VisualNavigationActionEngineering)?/);
   expect(navigator).toContain('popupRuntimeInstanceId');
   expect(navigator).toContain('dynamoDefinitions={engineeringPackage.dynamos}');
   expect(navigator).toContain('data-diagnostic-code={diagnostic.code}');

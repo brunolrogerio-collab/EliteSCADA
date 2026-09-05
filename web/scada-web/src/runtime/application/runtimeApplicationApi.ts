@@ -15,6 +15,7 @@ export type RuntimeHmiEngineeringPackage = Readonly<{
   schema: string;
   schemaVersion: number;
   exportedAt?: string | null;
+  startupScreenId?: string | null;
   screens: ScreenEngineering[];
   popups: PopupEngineering[];
   dynamos: DynamoEngineering[];

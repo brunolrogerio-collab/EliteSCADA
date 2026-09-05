@@ -18,13 +18,48 @@ public sealed class LocalIdentityTests
         Assert.False(first.Hash.SequenceEqual(second.Hash));
     }
 
+    [Fact]
+    public void PasswordHasher_RejectsSevenCharacters()
+    {
+        Assert.ThrowsAny<ArgumentException>(() => LocalPasswordHasher.Hash("1234567"));
+    }
+
+    [Fact]
+    public void PasswordHasher_AcceptsEightCharacters()
+    {
+        var credential = LocalPasswordHasher.Hash("12345678", 100_000);
+        Assert.True(LocalPasswordHasher.Verify("12345678", credential));
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("short")]
-    [InlineData("elevenchars")]
     public void PasswordHasher_RejectsWeakLengthBaseline(string password)
     {
         Assert.ThrowsAny<ArgumentException>(() => LocalPasswordHasher.Hash(password));
+    }
+
+    [Fact]
+    public async Task FirstAdministratorBootstrap_IsSingleUseAndRaceSafe()
+    {
+        var store = new InMemoryLocalIdentityStore();
+        var bootstrap = new LocalIdentityBootstrapService(store);
+        Assert.True(await bootstrap.IsInitialAdministratorRequiredAsync());
+
+        var first = bootstrap.CreateInitialAdministratorAsync("admin-one", "Admin One", "12345678");
+        var second = bootstrap.CreateInitialAdministratorAsync("admin-two", "Admin Two", "abcdefgh");
+        var results = await Task.WhenAll(first, second);
+
+        var created = Assert.Single(results, result => result.Created);
+        Assert.NotNull(created.Account);
+        Assert.Contains(LocalIdentityBootstrapService.InitialAdministratorRole, created.Account!.Roles);
+        Assert.False(await bootstrap.IsInitialAdministratorRequiredAsync());
+        Assert.Single(await store.ListAsync());
+
+        var retry = await bootstrap.CreateInitialAdministratorAsync("admin-three", "Admin Three", "87654321");
+        Assert.False(retry.Created);
+        Assert.Null(retry.Account);
+        Assert.Single(await store.ListAsync());
     }
 
     [Fact]

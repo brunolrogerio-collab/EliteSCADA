@@ -52,7 +52,7 @@ public sealed class PostgreSqlEngineeringSchemaV15CommunicationBindingTests
         var loaded = await store.LoadRevisionAsync(projectKey, snapshot.Revision);
 
         Assert.NotNull(loaded);
-        Assert.Equal(15, loaded!.EngineeringSchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, loaded!.EngineeringSchemaVersion);
         var storedPackage = sourceExchange.ParseJson(loaded.EngineeringJson);
         var storedTag = Assert.Single(storedPackage.Tags);
         Assert.NotNull(storedTag.CommunicationBinding);

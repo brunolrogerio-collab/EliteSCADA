@@ -81,13 +81,15 @@ def sandbox_probe(event):
         raise RuntimeError("Denied JavaScript authority is visible")
 
     denied_bridge = (
-        "server_memory_read", "server_memory_write", "tag_write",
+        "server_memory_read", "server_memory_write",
         "shared_tag_write", "filesystem", "shell", "database", "driver",
         "credential", "fetch"
     )
     exposed_bridge = [name for name in denied_bridge if hasattr(elite_scada, name)]
     if exposed_bridge:
         raise RuntimeError("Denied EliteSCADA capability is visible")
+    if not hasattr(elite_scada, "tag_write"):
+        raise RuntimeError("Official TAG write capability is not visible")
 
     try:
         import micropip

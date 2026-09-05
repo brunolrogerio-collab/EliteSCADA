@@ -6,6 +6,9 @@ import {
 } from './api';
 import { editorTranslator } from './editorI18n';
 import type { EngineeringLocale } from './i18n';
+import { TagAddressEditor } from './TagAddressEditor';
+import { TagSourceSelector } from './TagSourceSelector';
+import { assignTagDataSource, type TagSourceAwareEngineering } from './TagSourceSelector.logic';
 import type {
   AlarmEngineering,
   DataSourceEngineering,
@@ -135,8 +138,18 @@ export function TagEditor({ model, locale }: EditorProps) {
                 <TextField label={text('editor.field.name')} value={draft.name} onChange={value => updateTag(setDraft, tag => ({ ...tag, name: value }))} />
                 <TextField label={text('editor.field.path')} value={draft.path} mono onChange={value => updateTag(setDraft, tag => ({ ...tag, path: value }))} />
                 <SelectField label={text('editor.field.type')} value={draft.dataType} options={tagDataTypes} onChange={value => updateTag(setDraft, tag => ({ ...tag, dataType: value }))} />
-                <TextField label={text('editor.field.source')} value={draft.source ?? ''} mono onChange={value => updateTag(setDraft, tag => ({ ...tag, source: emptyToNull(value) }))} />
-                <TextField label={text('editor.field.address')} value={draft.address ?? ''} mono onChange={value => updateTag(setDraft, tag => ({ ...tag, address: emptyToNull(value) }))} />
+                <TagSourceSelector
+                  tag={draft as TagSourceAwareEngineering}
+                  sources={model.dataSources ?? []}
+                  locale={locale}
+                  onChange={source => updateTag(setDraft, tag => assignTagDataSource(tag as TagSourceAwareEngineering, source))}
+                />
+                <TagAddressEditor
+                  tag={draft as TagSourceAwareEngineering}
+                  sources={model.dataSources ?? []}
+                  locale={locale}
+                  onChange={next => setDraft(next)}
+                />
                 <TextField label={text('editor.field.unit')} value={draft.engineeringUnit ?? ''} onChange={value => updateTag(setDraft, tag => ({ ...tag, engineeringUnit: emptyToNull(value) }))} />
                 <NumberField label={text('editor.field.scaleMinimum')} value={draft.scaleMinimum} onChange={value => updateTag(setDraft, tag => ({ ...tag, scaleMinimum: value }))} />
                 <NumberField label={text('editor.field.scaleMaximum')} value={draft.scaleMaximum} onChange={value => updateTag(setDraft, tag => ({ ...tag, scaleMaximum: value }))} />
@@ -340,7 +353,8 @@ export function AlarmEditor({ model, locale }: EditorProps) {
 
   const filtered = alarms.filter(alarm =>
     `${alarm.name} ${alarm.tagPath ?? alarm.tagId ?? ''} ${alarm.type} ${alarm.priority} ${alarm.area ?? ''} ${alarm.alarmClass ?? ''}`
-      .toLowerCase().includes(query.trim().toLowerCase()));
+      .toLowerCase()
+      .includes(query.trim().toLowerCase()));
 
   return (
     <EditorShell title={text('editor.alarmsTitle')} description={text('editor.alarmsDescription')} locale={locale}>

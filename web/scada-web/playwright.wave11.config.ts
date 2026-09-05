@@ -26,14 +26,68 @@ export default defineConfig({
   },
   projects: [
     {
+      name: 'chromium-wave11-c16-startup-bootstrap',
+      testMatch: /c16-startup-bootstrap\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
       name: 'chromium-wave11-lifecycle',
-      testMatch: /active-runtime\.spec\.ts/,
+      testMatch: /(?:^|[\\/])active-runtime\.spec\.ts$/,
+      dependencies: ['chromium-wave11-c16-startup-bootstrap'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
+      name: 'chromium-wave11-c22-runtime-shell-viewport-fit',
+      testMatch: /c22-runtime-shell-viewport-fit\.spec\.ts/,
+      dependencies: ['chromium-wave11-lifecycle'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
+      name: 'chromium-wave11-c17-memory',
+      testMatch: /(?:c17-memory-lifecycle|c17-datasource-new-transition)\.spec\.ts/,
+      dependencies: ['chromium-wave11-c22-runtime-shell-viewport-fit'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
+      name: 'chromium-wave11-c15-trend',
+      testMatch: /c15-trend-active-runtime\.spec\.ts/,
+      dependencies: ['chromium-wave11-c17-memory'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
+      name: 'chromium-wave11-c16-operational-runtime',
+      testMatch: /c16-operational-runtime\.spec\.ts/,
+      dependencies: ['chromium-wave11-c15-trend'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
+      name: 'chromium-wave11-c18-browsers',
+      testMatch: /c18-alarm-event-browsers-active-runtime\.spec\.ts/,
+      dependencies: ['chromium-wave11-c16-operational-runtime'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
+      name: 'chromium-wave11-c19-operational-events',
+      testMatch: /c19-operational-event-script-bridge\.spec\.ts/,
+      dependencies: ['chromium-wave11-c18-browsers'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
+      name: 'chromium-wave11-c20-visual-dynamic-wire',
+      testMatch: /c20-visual-dynamic-wire-contract\.spec\.ts/,
+      dependencies: ['chromium-wave11-c19-operational-events'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
+      name: 'chromium-wave11-c21-dynamo-tag-reference',
+      testMatch: /c21-dynamo-tag-reference-runtime\.spec\.ts/,
+      dependencies: ['chromium-wave11-c20-visual-dynamic-wire'],
       use: { ...devices['Desktop Chrome'] }
     },
     {
       name: 'chromium-wave11-owner-package',
       testMatch: /owner-test-artifact\.spec\.ts/,
-      dependencies: ['chromium-wave11-lifecycle'],
+      dependencies: ['chromium-wave11-c21-dynamo-tag-reference'],
       use: { ...devices['Desktop Chrome'] }
     }
   ],
@@ -57,7 +111,10 @@ export default defineConfig({
         Authentication__Local__Bootstrap__DisplayName: 'Wave 11 Local Developer',
         Authentication__Local__Bootstrap__Password: 'Wave11-local-password-123!',
         Authentication__Local__Bootstrap__Roles__0: 'developer',
-        EngineeringRuntime__ProjectKey: 'e2e-wave11'
+        EngineeringRuntime__ProjectKey: 'e2e-wave11',
+        Historian__Provider: 'timescaledb',
+        HistoricalQuery__Enabled: 'true',
+        HistoricalQuery__CursorKeyBase64: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
       }
     },
     {

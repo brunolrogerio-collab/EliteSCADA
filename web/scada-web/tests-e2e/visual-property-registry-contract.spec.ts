@@ -16,21 +16,37 @@ const expectedCommonKeys = [
   'rotation',
   'scaleX',
   'scaleY',
+  'horizontalFlip',
+  'verticalFlip',
   'zIndex',
   'visible',
   'opacity',
+  'tooltip',
+  'enabled',
+  'fillStyle',
   'fillColor',
+  'fillSecondaryColor',
+  'gradientDirection',
   'backgroundColor',
   'strokeColor',
   'strokeWidth',
   'strokeStyle',
   'cornerRadius',
+  'shadowEnabled',
+  'shadowColor',
+  'shadowOffsetX',
+  'shadowOffsetY',
+  'shadowBlur',
   'text',
   'textColor',
   'fontFamily',
   'fontSize',
   'fontWeight',
   'fontStyle',
+  'underline',
+  'textWrap',
+  'lineHeight',
+  'textOverflow',
   'horizontalAlignment',
   'verticalAlignment',
   'assetRef',
@@ -45,7 +61,14 @@ const expectedCommonKeys = [
   'interactionEnabled',
   'reverseDirection',
   'trackColor',
-  'thumbColor'
+  'thumbColor',
+  'trendMode',
+  'trendWindowSeconds',
+  'trendRefreshSeconds',
+  'trendLegendVisible',
+  'trendGridVisible',
+  'trendAxesVisible',
+  'trendQualityVisible'
 ];
 
 test('common registry exposes the converged visual property family and image fit enum', () => {
@@ -58,9 +81,45 @@ test('common registry exposes the converged visual property family and image fit
   expect(assetDefinition.runtimeReadable).toBeTruthy();
   expect(assetDefinition.runtimeWritable).toBeFalsy();
   expect(assetDefinition.supportsBinding).toBeFalsy();
+  expect(assetDefinition.presentationHint).toBe('project-asset');
 
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.strokeStyle))
-    .toMatchObject({ type: 'enum', defaultValue: 'solid', allowedValues: ['solid', 'dashed', 'dotted'] });
+    .toMatchObject({
+      type: 'enum',
+      defaultValue: 'solid',
+      allowedValues: ['none', 'solid', 'dashed', 'dotted', 'dash-dot', 'dash-dot-dot'],
+      presentationHint: 'stroke-style'
+    });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.fontFamily))
+    .toMatchObject({ type: 'string', defaultValue: 'system', presentationHint: 'font-family' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.horizontalFlip))
+    .toMatchObject({ type: 'boolean', defaultValue: false, runtimeWritable: true });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.verticalFlip))
+    .toMatchObject({ type: 'boolean', defaultValue: false, runtimeWritable: true });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.tooltip))
+    .toMatchObject({ type: 'string', defaultValue: '', runtimeReadable: true });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.enabled))
+    .toMatchObject({ type: 'boolean', defaultValue: true, runtimeWritable: true, supportsBinding: true });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.fillStyle))
+    .toMatchObject({ type: 'enum', defaultValue: 'solid', allowedValues: ['none', 'solid', 'gradient'] });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.fillSecondaryColor))
+    .toMatchObject({ type: 'color', defaultValue: '#00000000', animatable: true });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.gradientDirection))
+    .toMatchObject({ type: 'enum', defaultValue: 'vertical', allowedValues: ['horizontal', 'vertical', 'diagonal-down', 'diagonal-up'] });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.shadowEnabled))
+    .toMatchObject({ type: 'boolean', defaultValue: false });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.shadowColor))
+    .toMatchObject({ type: 'color', defaultValue: '#00000066', animatable: true });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.shadowBlur))
+    .toMatchObject({ type: 'number', defaultValue: 0, minimum: 0, animatable: true });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.underline))
+    .toMatchObject({ type: 'boolean', defaultValue: false });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.textWrap))
+    .toMatchObject({ type: 'boolean', defaultValue: true });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.lineHeight))
+    .toMatchObject({ type: 'number', defaultValue: 1.2, minimum: 0.1, maximum: 10 });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.textOverflow))
+    .toMatchObject({ type: 'enum', defaultValue: 'clip', allowedValues: ['clip', 'ellipsis'] });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.fontWeight))
     .toMatchObject({ type: 'number', defaultValue: 400, integer: true, minimum: 100, maximum: 900 });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.horizontalAlignment))
@@ -69,6 +128,12 @@ test('common registry exposes the converged visual property family and image fit
     .toMatchObject({ type: 'enum', defaultValue: 'middle' });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.imagePositionX))
     .toMatchObject({ type: 'number', defaultValue: 0, minimum: 0, maximum: 1, animatable: true });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.trendMode))
+    .toMatchObject({ type: 'enum', defaultValue: 'history', allowedValues: ['history', 'live'] });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.trendWindowSeconds))
+    .toMatchObject({ type: 'number', defaultValue: 3600, integer: true, minimum: 60, maximum: 604800 });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.trendRefreshSeconds))
+    .toMatchObject({ type: 'number', defaultValue: 5, integer: true, minimum: 1, maximum: 3600 });
 });
 
 test('numeric constraints reject non-finite, fractional integer-only and out-of-range values without coercion', () => {
@@ -90,6 +155,14 @@ test('numeric constraints reject non-finite, fractional integer-only and out-of-
     .toMatchObject({ ok: false, code: 'number.integer' });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.fontWeight, 450.5))
     .toMatchObject({ ok: false, code: 'number.integer' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.lineHeight, 0))
+    .toMatchObject({ ok: false, code: 'number.minimum' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.lineHeight, 1.5))
+    .toMatchObject({ ok: true, value: 1.5 });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.shadowBlur, -0.1))
+    .toMatchObject({ ok: false, code: 'number.minimum' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.shadowBlur, 8))
+    .toMatchObject({ ok: true, value: 8 });
 });
 
 test('color, enum and AssetReference values fail closed', () => {
@@ -98,9 +171,27 @@ test('color, enum and AssetReference values fail closed', () => {
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.fillColor, 'rgba(1,2,3,.5)'))
     .toMatchObject({ ok: false, code: 'color.format' });
 
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.fillStyle, 'gradient'))
+    .toMatchObject({ ok: true, value: 'gradient' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.fillStyle, 'pattern'))
+    .toMatchObject({ ok: false, code: 'enum.value' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.gradientDirection, 'diagonal-up'))
+    .toMatchObject({ ok: true, value: 'diagonal-up' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.gradientDirection, 'radial'))
+    .toMatchObject({ ok: false, code: 'enum.value' });
+
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.imageFit, 'native'))
     .toMatchObject({ ok: true, value: 'native' });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.imageFit, 'none'))
+    .toMatchObject({ ok: false, code: 'enum.value' });
+
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.strokeStyle, 'none'))
+    .toMatchObject({ ok: true, value: 'none' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.strokeStyle, 'dash-dot-dot'))
+    .toMatchObject({ ok: true, value: 'dash-dot-dot' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.textOverflow, 'ellipsis'))
+    .toMatchObject({ ok: true, value: 'ellipsis' });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.textOverflow, 'scroll'))
     .toMatchObject({ ok: false, code: 'enum.value' });
 
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.validate(VISUAL_PROPERTY_KEYS.assetRef, null))

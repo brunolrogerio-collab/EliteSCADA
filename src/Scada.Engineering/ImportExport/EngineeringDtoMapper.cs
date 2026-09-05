@@ -47,7 +47,8 @@ internal static class EngineeringDtoMapper
             accessPolicy,
             initialValue,
             tag.AddressSelector,
-            tag.CommunicationBinding);
+            tag.CommunicationBinding,
+            tag.DataSourceId);
     }
 
     public static AlarmEngineeringDto ToDto(AlarmDefinition alarm, string? tagPath) =>

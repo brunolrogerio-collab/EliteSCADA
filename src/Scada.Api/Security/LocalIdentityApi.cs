@@ -1,3 +1,4 @@
+using Scada.Engineering.Persistence;
 using Scada.Security.Audit;
 using Scada.Security.Authentication;
 using Scada.Security.Authorization;
@@ -5,13 +6,15 @@ using Scada.Security.Authorization;
 namespace Scada.Api.Security;
 
 public sealed record LocalLoginRequest(string Username, string Password);
+public sealed record InitialAdministratorRequest(string Username, string? DisplayName, string Password);
 
 public sealed record AuthProfileResponse(
     string SubjectId,
     string? Username,
     string? DisplayName,
     IReadOnlyCollection<string> Roles,
-    DateTimeOffset? ExpiresAtUtc = null);
+    DateTimeOffset? ExpiresAtUtc = null,
+    string IdentityProvider = JwtTokenIssuer.LocalIdentityProvider);
 
 public static class LocalIdentityApi
 {
@@ -19,13 +22,132 @@ public static class LocalIdentityApi
     {
         var runtime = endpoints.ServiceProvider.GetRequiredService<LocalIdentityRuntimeOptions>();
 
-        endpoints.MapGet("/api/auth/config", () => Results.Ok(new
+        endpoints.MapGet("/api/auth/config", async (HttpContext context, CancellationToken ct) =>
         {
-            authenticationEnabled = runtime.AuthenticationEnabled,
-            localLoginEnabled = runtime.Enabled
-        }));
+            if (!runtime.Enabled)
+            {
+                return Results.Ok(new
+                {
+                    authenticationEnabled = runtime.AuthenticationEnabled,
+                    localLoginEnabled = false,
+                    initialAdministratorRequired = false,
+                    initialAdministratorSetupAvailable = false,
+                    initialAdministratorBlockedReason = (string?)null,
+                    passwordPolicy = new
+                    {
+                        minimumLength = LocalPasswordHasher.MinimumPasswordLength,
+                        maximumLength = LocalPasswordHasher.MaximumPasswordLength
+                    }
+                });
+            }
+
+            var bootstrap = context.RequestServices.GetRequiredService<LocalIdentityBootstrapService>();
+            var status = await ResolveBootstrapStatusAsync(context, runtime, bootstrap, ct);
+            return Results.Ok(new
+            {
+                authenticationEnabled = runtime.AuthenticationEnabled,
+                localLoginEnabled = true,
+                initialAdministratorRequired = status.Required,
+                initialAdministratorSetupAvailable = status.Available,
+                initialAdministratorBlockedReason = status.BlockedReason,
+                passwordPolicy = new
+                {
+                    minimumLength = LocalPasswordHasher.MinimumPasswordLength,
+                    maximumLength = LocalPasswordHasher.MaximumPasswordLength
+                }
+            });
+        });
 
         if (!runtime.Enabled) return endpoints;
+
+        endpoints.MapGet("/api/auth/local-session", (HttpContext context) =>
+        {
+            var isLocal = string.Equals(
+                context.User.FindFirst(JwtTokenIssuer.IdentityProviderClaim)?.Value,
+                JwtTokenIssuer.LocalIdentityProvider,
+                StringComparison.Ordinal);
+            return Results.Ok(new
+            {
+                authenticated = isLocal,
+                username = isLocal ? context.User.FindFirst("unique_name")?.Value : null
+            });
+        });
+
+        endpoints.MapPost("/api/auth/bootstrap", async (
+            InitialAdministratorRequest request,
+            HttpContext context,
+            LocalIdentityBootstrapService bootstrap,
+            JwtTokenIssuer issuer,
+            LocalLoginAttemptLimiter limiter,
+            ApiAuditService audit,
+            CancellationToken ct) =>
+        {
+            var bootstrapStatus = await ResolveBootstrapStatusAsync(context, runtime, bootstrap, ct);
+            if (!bootstrapStatus.Required)
+            {
+                return Results.Conflict(new
+                {
+                    error = "Initial Administrator bootstrap is already closed. Sign in with an existing account."
+                });
+            }
+            if (!bootstrapStatus.Available)
+            {
+                return Results.Conflict(new
+                {
+                    error = "Anonymous initial Administrator setup is not available because this server cannot prove that the installation is empty. Restore an Administrator or use explicit secured bootstrap configuration.",
+                    reason = bootstrapStatus.BlockedReason
+                });
+            }
+
+            var remoteKey = $"bootstrap:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+            if (!limiter.TryAcquire(remoteKey))
+                return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+
+            try
+            {
+                var result = await bootstrap.CreateInitialAdministratorAsync(
+                    request.Username,
+                    request.DisplayName,
+                    request.Password,
+                    ct);
+                if (!result.Created || result.Account is null)
+                {
+                    return Results.Conflict(new
+                    {
+                        error = "Initial Administrator bootstrap is already closed. Sign in with an existing account."
+                    });
+                }
+
+                var account = result.Account;
+                var issued = issuer.Issue(account);
+                context.Response.Cookies.Append(runtime.CookieName, issued.Token, CookieOptions(runtime, issued.ExpiresAtUtc));
+
+                var principal = new SecurityPrincipal(
+                    account.Id.ToString(),
+                    account.DisplayName,
+                    account.Roles,
+                    true);
+                await audit.RecordAsync(
+                    context,
+                    principal,
+                    "auth.bootstrap",
+                    AuditOutcome.Succeeded,
+                    "user",
+                    account.Id.ToString(),
+                    new Dictionary<string, string> { ["username"] = account.Username });
+
+                return Results.Ok(new AuthProfileResponse(
+                    account.Id.ToString(),
+                    account.Username,
+                    account.DisplayName,
+                    account.Roles,
+                    issued.ExpiresAtUtc));
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+        });
 
         endpoints.MapPost("/api/auth/login", async (
             LocalLoginRequest request,
@@ -130,6 +252,26 @@ public static class LocalIdentityApi
         return endpoints;
     }
 
+    private static async Task<InitialAdministratorBootstrapStatus> ResolveBootstrapStatusAsync(
+        HttpContext context,
+        LocalIdentityRuntimeOptions runtime,
+        LocalIdentityBootstrapService bootstrap,
+        CancellationToken cancellationToken)
+    {
+        var required = await bootstrap.IsInitialAdministratorRequiredAsync(cancellationToken);
+        if (!required) return new InitialAdministratorBootstrapStatus(false, false, null);
+        if (!runtime.DurableStore)
+            return new InitialAdministratorBootstrapStatus(true, false, "durable-local-identity-store-required");
+
+        var catalog = context.RequestServices.GetService<IEngineeringProjectCatalog>();
+        if (catalog is null)
+            return new InitialAdministratorBootstrapStatus(true, false, "engineering-project-catalog-unavailable");
+        if (await catalog.HasAnyAsync(cancellationToken))
+            return new InitialAdministratorBootstrapStatus(true, false, "installation-contains-persisted-projects");
+
+        return new InitialAdministratorBootstrapStatus(true, true, null);
+    }
+
     private static CookieOptions CookieOptions(LocalIdentityRuntimeOptions runtime, DateTimeOffset expiresAtUtc) => new()
     {
         HttpOnly = true,
@@ -139,4 +281,9 @@ public static class LocalIdentityApi
         Expires = expiresAtUtc,
         IsEssential = true
     };
+
+    private sealed record InitialAdministratorBootstrapStatus(
+        bool Required,
+        bool Available,
+        string? BlockedReason);
 }

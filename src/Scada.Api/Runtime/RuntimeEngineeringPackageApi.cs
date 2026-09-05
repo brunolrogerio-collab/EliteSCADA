@@ -10,6 +10,55 @@ public static class RuntimeEngineeringPackageApi
 {
     public static IEndpointRouteBuilder MapRuntimeEngineeringPackageEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet("/api/auth/effective-capabilities", async (
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            CancellationToken cancellationToken) =>
+        {
+            var principal = security.GetPrincipal(context);
+            if (security.AuthenticationEnabled &&
+                (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId)))
+            {
+                return Results.Unauthorized();
+            }
+
+            var all = Enum.GetValues<SecurityCapability>();
+            if (!security.AuthenticationEnabled)
+            {
+                var unrestricted = all.Select(capability => capability.ToString()).ToArray();
+                return Results.Ok(new
+                {
+                    authenticationEnabled = false,
+                    runtime = unrestricted,
+                    workspace = unrestricted
+                });
+            }
+
+            var runtimeCapabilities = new List<string>();
+            foreach (var capability in all)
+            {
+                var check = await security.CheckRuntimeAsync(
+                    principal,
+                    runtime,
+                    capability,
+                    cancellationToken: cancellationToken);
+                if (check.Allowed) runtimeCapabilities.Add(capability.ToString());
+            }
+
+            var workspaceCapabilities = all
+                .Where(capability => security.CheckWorkspace(context, capability).Allowed)
+                .Select(capability => capability.ToString())
+                .ToArray();
+
+            return Results.Ok(new
+            {
+                authenticationEnabled = true,
+                runtime = runtimeCapabilities,
+                workspace = workspaceCapabilities
+            });
+        });
+
         endpoints.MapGet("/api/runtime/application", async (
             HttpContext context,
             ScadaRuntimeFacade runtime,
@@ -225,6 +274,7 @@ public static class RuntimeEngineeringPackageApi
         schema = RequiredString(root, "schema"),
         schemaVersion = RequiredInt32(root, "schemaVersion"),
         exportedAt = OptionalString(root, "exportedAt"),
+        startupScreenId = OptionalString(root, "startupScreenId"),
         screens = ArrayProperty(root, "screens"),
         popups = ArrayProperty(root, "popups"),
         dynamos = ArrayProperty(root, "dynamos"),

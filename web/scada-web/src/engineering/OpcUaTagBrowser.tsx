@@ -1,0 +1,374 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { loadDataSourceTypeCatalog } from './DataSourceCatalogEditor';
+import {
+  tagBindingSchemaIdentity,
+  type DataSourceTypeDefinition
+} from './DataSourceCatalogEditor.logic';
+import {
+  applyEngineeringPackage,
+  loadEngineeringSnapshot,
+  previewEngineeringPackage
+} from './api';
+import {
+  browseEngineeringDataSource,
+  discoverEngineeringDataSource,
+  testEngineeringDataSourceConnection,
+  type DriverBrowseNodeView,
+  type DriverBrowsePageView,
+  type DriverConnectionTestResultView,
+  type DriverDiscoveryCandidateView
+} from './driverEngineeringApi';
+import type { EngineeringLocale } from './i18n';
+import { c04Text, type C04Text } from './c04I18n';
+import type { DataSourceEngineering, EngineeringPackageView } from './types';
+import type {
+  CommunicationTagBindingEngineering,
+  TagSourceAwareEngineering
+} from './TagSourceSelector.logic';
+
+type Props = {
+  tag: TagSourceAwareEngineering;
+  source: DataSourceEngineering;
+  locale: EngineeringLocale;
+  onChange: (tag: TagSourceAwareEngineering) => void;
+};
+
+type BrowseLocation = Readonly<{ parentNodeId: string | null; label: string }>;
+
+export function OpcUaTagBrowser({ tag, source, locale, onChange }: Props) {
+  const text = useMemo(() => c04Text(locale).opcUa, [locale]);
+  const [schema, setSchema] = useState<DataSourceTypeDefinition | null>(null);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [connection, setConnection] = useState<DriverConnectionTestResultView | null>(null);
+  const [discovery, setDiscovery] = useState<DriverDiscoveryCandidateView[]>([]);
+  const [nodes, setNodes] = useState<DriverBrowseNodeView[]>([]);
+  const [continuationToken, setContinuationToken] = useState<string | null>(null);
+  const [location, setLocation] = useState<BrowseLocation>({ parentNodeId: null, label: text.objects });
+  const [history, setHistory] = useState<BrowseLocation[]>([]);
+  const [selected, setSelected] = useState<Record<string, DriverBrowseNodeView>>({});
+  const [query, setQuery] = useState('');
+  const [pathPrefix, setPathPrefix] = useState(() => `${sanitizeSegment(source.key)}.OPCUA`);
+  const [busy, setBusy] = useState<'test' | 'discover' | 'browse' | 'preview' | 'apply' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [bulkPreview, setBulkPreview] = useState<Awaited<ReturnType<typeof previewEngineeringPackage>> | null>(null);
+  const [bulkCandidate, setBulkCandidate] = useState<EngineeringPackageView | null>(null);
+  const [bulkChangeVersion, setBulkChangeVersion] = useState<number | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void loadDataSourceTypeCatalog()
+      .then(types => {
+        if (!alive) return;
+        const definition = types.find(type => type.typeKey.toLowerCase() === source.driver.toLowerCase()) ?? null;
+        setSchema(definition);
+        setCatalogError(definition ? null : text.schemaMissing);
+      })
+      .catch(() => {
+        if (alive) setCatalogError(text.schemaMissing);
+      });
+    return () => { alive = false; };
+  }, [source.driver, text.schemaMissing]);
+
+  useEffect(() => {
+    setConnection(null);
+    setDiscovery([]);
+    setNodes([]);
+    setContinuationToken(null);
+    setLocation({ parentNodeId: null, label: text.objects });
+    setHistory([]);
+    setSelected({});
+    setBulkPreview(null);
+    setBulkCandidate(null);
+    setBulkChangeVersion(null);
+    setError(null);
+    setPathPrefix(`${sanitizeSegment(source.key)}.OPCUA`);
+  }, [source.id, source.key, text.objects]);
+
+  if (!source.id) return <small role="alert">{text.stableIdRequired}</small>;
+
+  const visibleNodes = nodes.filter(node => {
+    const needle = query.trim().toLowerCase();
+    return !needle || `${node.displayName} ${node.nodeId} ${node.portableAddress ?? ''} ${node.stableIdentity}`
+      .toLowerCase().includes(needle);
+  });
+  const selectedNodes = Object.values(selected);
+
+  const runTest = async () => run('test', async () => {
+    setConnection(await testEngineeringDataSourceConnection(source.id!));
+  });
+
+  const runDiscover = async () => run('discover', async () => {
+    setDiscovery(await discoverEngineeringDataSource(source.id!, { maximumResults: 100 }));
+  });
+
+  const browse = async (next: BrowseLocation, append = false, token?: string | null) => run('browse', async () => {
+    const page = await browseEngineeringDataSource(source.id!, {
+      parentNodeId: next.parentNodeId,
+      continuationToken: token ?? null,
+      pageSize: 200
+    });
+    setLocation(next);
+    setNodes(current => append ? mergeNodes(current, page) : [...page.nodes]);
+    setContinuationToken(page.continuationToken ?? null);
+  });
+
+  const openContainer = (node: DriverBrowseNodeView) => {
+    setHistory(current => [...current, location]);
+    void browse({ parentNodeId: node.portableAddress ?? node.nodeId, label: node.displayName });
+  };
+
+  const goBack = () => {
+    const previous = history.at(-1);
+    if (!previous) return;
+    setHistory(current => current.slice(0, -1));
+    void browse(previous);
+  };
+
+  const toggleNode = (node: DriverBrowseNodeView) => {
+    if (node.isContainer || !node.portableAddress) return;
+    setSelected(current => {
+      const next = { ...current };
+      if (next[node.stableIdentity]) delete next[node.stableIdentity];
+      else next[node.stableIdentity] = node;
+      return next;
+    });
+    invalidateBulk();
+  };
+
+  const useNode = (node: DriverBrowseNodeView) => {
+    if (!node.portableAddress) return;
+    const binding = buildOpcUaTagBinding(schema, node.portableAddress, tag.communicationBinding);
+    if (!binding) {
+      setError(text.schemaMissing);
+      return;
+    }
+    onChange({
+      ...tag,
+      address: node.portableAddress,
+      communicationBinding: binding,
+      dataType: normalizeDataType(node.suggestedDataType, tag.dataType),
+      engineeringUnit: node.engineeringUnit ?? tag.engineeringUnit ?? null,
+      readOnly: !node.isWritable
+    });
+  };
+
+  const previewBulk = async () => run('preview', async () => {
+    if (selectedNodes.length === 0) return;
+    const snapshot = await loadEngineeringSnapshot();
+    const candidate = buildBulkCandidate(snapshot.package, source, schema, selectedNodes, pathPrefix, text);
+    const preview = await previewEngineeringPackage(candidate);
+    setBulkCandidate(candidate);
+    setBulkChangeVersion(snapshot.workspace.changeVersion);
+    setBulkPreview(preview);
+  });
+
+  const applyBulk = async () => {
+    if (!bulkCandidate || bulkChangeVersion == null || !bulkPreview?.canApply) return;
+    if (!window.confirm(text.applyConfirm)) return;
+    await run('apply', async () => {
+      await applyEngineeringPackage(bulkCandidate, bulkChangeVersion);
+      window.location.reload();
+    });
+  };
+
+  async function run(kind: NonNullable<typeof busy>, action: () => Promise<void>) {
+    setBusy(kind);
+    setError(null);
+    try {
+      await action();
+    } catch (reason) {
+      if (kind === 'test') setConnection(null);
+      if (kind === 'discover') setDiscovery([]);
+      if (kind === 'preview' || kind === 'apply') {
+        setBulkPreview(null);
+        setBulkCandidate(null);
+        setBulkChangeVersion(null);
+      }
+      setError(asMessage(reason));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function invalidateBulk() {
+    setBulkPreview(null);
+    setBulkCandidate(null);
+    setBulkChangeVersion(null);
+  }
+
+  return (
+    <section className="eng-dictionary-editor eng-editor-field-wide" data-testid="opcua-tag-browser">
+      <header><strong>{text.title}</strong><span>{text.help}</span></header>
+      <div className="eng-editor-actions">
+        <button type="button" className="secondary" disabled={busy !== null} onClick={() => void runTest()} data-testid="opcua-test-connection">{busy === 'test' ? text.testing : text.test}</button>
+        <button type="button" className="secondary" disabled={busy !== null} onClick={() => void runDiscover()} data-testid="opcua-discover">{busy === 'discover' ? text.discovering : text.discover}</button>
+        <button type="button" className="secondary" disabled={busy !== null} onClick={() => void browse({ parentNodeId: null, label: text.objects })} data-testid="opcua-browse-root">{busy === 'browse' ? text.browsing : text.browse}</button>
+      </div>
+
+      {connection && <div className="eng-mutation-detail" data-testid="opcua-connection-result">
+        <strong>{connection.succeeded ? text.connectionOk : text.connectionFailed}</strong>
+        {connection.sanitizedEndpoint && <code>{connection.sanitizedEndpoint}</code>}
+        {connection.observedIdentity && <span>{connection.observedIdentity}</span>}
+      </div>}
+
+      {discovery.length > 0 && <div className="eng-bulk-entities" data-testid="opcua-discovery-results">
+        {discovery.map(candidate => <div key={candidate.candidateId}>
+          <strong>{candidate.displayName}</strong><code>{candidate.sanitizedEndpoint ?? candidate.stableIdentity}</code>
+        </div>)}
+      </div>}
+
+      {(nodes.length > 0 || history.length > 0) && <>
+        <div className="eng-editor-actions">
+          <button type="button" className="secondary" disabled={history.length === 0 || busy !== null} onClick={goBack}>{text.back}</button>
+          <strong>{location.label}</strong><span>{nodes.length} {text.nodes}</span>
+        </div>
+        <label className="eng-editor-field eng-editor-field-wide">
+          <span>{text.search}</span>
+          <input value={query} onChange={event => setQuery(event.target.value)} placeholder={text.searchPlaceholder} data-testid="opcua-browse-search" />
+        </label>
+        <div className="eng-bulk-entities" data-testid="opcua-browse-results">
+          {visibleNodes.map(node => <div key={node.stableIdentity}>
+            {node.isContainer ? <button type="button" className="secondary" disabled={busy !== null} onClick={() => openContainer(node)}>{text.open} {node.displayName}</button> :
+              <label>
+                <input type="checkbox" checked={Boolean(selected[node.stableIdentity])} disabled={!node.portableAddress} onChange={() => toggleNode(node)} />
+                <span><strong>{node.displayName}</strong><code>{node.portableAddress ?? node.nodeId}</code><small>{formatNodeMeta(node, text)}</small></span>
+                <button type="button" className="secondary" disabled={!node.portableAddress} onClick={() => useNode(node)}>{text.useCurrent}</button>
+              </label>}
+          </div>)}
+        </div>
+        {continuationToken && <div className="eng-editor-actions">
+          <button type="button" className="secondary" disabled={busy !== null} onClick={() => void browse(location, true, continuationToken)} data-testid="opcua-load-more">{text.loadMore}</button>
+        </div>}
+      </>}
+
+      {selectedNodes.length > 0 && <section className="eng-mutation-card" data-testid="opcua-bulk-import">
+        <header><strong>{text.bulkTitle}</strong><span>{selectedNodes.length} {text.selected}</span></header>
+        <label className="eng-editor-field"><span>{text.pathPrefix}</span><input className="mono" value={pathPrefix} onChange={event => { setPathPrefix(event.target.value); invalidateBulk(); }} data-testid="opcua-import-prefix" /></label>
+        <div className="eng-editor-actions">
+          <button type="button" className="secondary" disabled={busy !== null} onClick={() => void previewBulk()} data-testid="opcua-import-preview">{busy === 'preview' ? text.previewing : text.preview}</button>
+          <button type="button" disabled={busy !== null || !bulkPreview?.canApply} onClick={() => void applyBulk()} data-testid="opcua-import-apply">{busy === 'apply' ? text.applying : text.apply}</button>
+        </div>
+        {bulkPreview && <small data-testid="opcua-import-preview-result">{text.previewResult}: {bulkPreview.createCount} {text.create}, {bulkPreview.updateCount} {text.update}, {bulkPreview.errorCount} {text.errors}.</small>}
+      </section>}
+
+      {catalogError && <pre className="eng-preview-error" role="alert">{catalogError}</pre>}
+      {error && <pre className="eng-preview-error" role="alert">{error}</pre>}
+    </section>
+  );
+}
+
+export function buildOpcUaTagBinding(
+  type: DataSourceTypeDefinition | null,
+  portableAddress: string,
+  current?: CommunicationTagBindingEngineering | null
+): CommunicationTagBindingEngineering | null {
+  const configurationSchema = type?.configurationSchema;
+  const bindingSchema = tagBindingSchemaIdentity(type);
+  if (!configurationSchema || !bindingSchema) return null;
+
+  const settings: Record<string, string> = {};
+  const settingKeys = new Set(['samplinginterval', 'queuesize', 'discardoldest']);
+  for (const field of configurationSchema.tagBindingFields) {
+    if (!settingKeys.has(field.key.toLowerCase())) continue;
+    const existing = current?.schemaId === bindingSchema.schemaId
+      ? current.settings?.[field.key]
+      : undefined;
+    const value = existing ?? field.defaultValue;
+    if (value != null && value !== '') settings[field.key] = value;
+  }
+
+  return {
+    contractVersion: 1,
+    schemaId: bindingSchema.schemaId,
+    schemaVersion: bindingSchema.schemaVersion,
+    portableAddress,
+    settings
+  };
+}
+
+function buildBulkCandidate(
+  model: EngineeringPackageView,
+  source: DataSourceEngineering,
+  type: DataSourceTypeDefinition | null,
+  nodes: readonly DriverBrowseNodeView[],
+  prefix: string,
+  text: C04Text['opcUa']
+): EngineeringPackageView {
+  if (!source.id) throw new Error(text.bulkStableIdRequired);
+  if (!type?.configurationSchema || !tagBindingSchemaIdentity(type))
+    throw new Error(text.bulkSchemaUnavailable);
+
+  const normalizedPrefix = normalizePathPrefix(prefix, text);
+  const candidate = JSON.parse(JSON.stringify(model)) as EngineeringPackageView;
+  const usedPaths = new Set(candidate.tags.map(tag => tag.path.toLowerCase()));
+  const newTags: TagSourceAwareEngineering[] = [];
+
+  nodes.forEach((node, index) => {
+    if (!node.portableAddress || node.isContainer) return;
+    const baseName = sanitizeSegment(node.displayName) || `Node${index + 1}`;
+    const path = uniquePath(`${normalizedPrefix}.${baseName}`, usedPaths, text);
+    usedPaths.add(path.toLowerCase());
+    const binding = buildOpcUaTagBinding(type, node.portableAddress);
+    if (!binding) throw new Error(text.bulkSchemaUnavailable);
+    newTags.push({
+      name: baseName,
+      path,
+      dataType: normalizeDataType(node.suggestedDataType, 'string'),
+      source: source.key,
+      dataSourceId: source.id,
+      address: node.portableAddress,
+      engineeringUnit: node.engineeringUnit ?? null,
+      description: node.metadata?.['opcUa.description'] ?? null,
+      readOnly: !node.isWritable,
+      metadata: { ...(node.metadata ?? {}), 'opcUa.stableIdentity': node.stableIdentity },
+      communicationBinding: binding
+    });
+  });
+  if (newTags.length === 0) throw new Error(text.bulkSelectionRequired);
+  candidate.tags = [...candidate.tags, ...newTags];
+  return candidate;
+}
+
+function normalizeDataType(value: string | number | null | undefined, fallback: string): string {
+  const byNumber = ['boolean', 'int16', 'int32', 'int64', 'float', 'double', 'string', 'dateTime', 'enum'];
+  if (typeof value === 'number') return byNumber[value] ?? fallback;
+  if (typeof value !== 'string' || !value.trim()) return fallback;
+  const normalized = value.trim().toLowerCase();
+  const map: Record<string, string> = { boolean: 'boolean', int16: 'int16', int32: 'int32', int64: 'int64', float: 'float', double: 'double', string: 'string', datetime: 'dateTime', enum: 'enum' };
+  return map[normalized] ?? fallback;
+}
+
+function mergeNodes(current: readonly DriverBrowseNodeView[], page: DriverBrowsePageView): DriverBrowseNodeView[] {
+  const map = new Map(current.map(node => [node.stableIdentity, node]));
+  for (const node of page.nodes) map.set(node.stableIdentity, node);
+  return [...map.values()];
+}
+
+function uniquePath(base: string, used: ReadonlySet<string>, text: C04Text['opcUa']): string {
+  if (!used.has(base.toLowerCase())) return base;
+  for (let index = 2; index < 10000; index++) {
+    const candidate = `${base}_${index}`;
+    if (!used.has(candidate.toLowerCase())) return candidate;
+  }
+  throw new Error(`${text.uniquePathFailed} '${base}'.`);
+}
+
+function normalizePathPrefix(value: string, text: C04Text['opcUa']): string {
+  const segments = value.split('.').map(sanitizeSegment).filter(Boolean);
+  if (segments.length === 0) throw new Error(text.pathPrefixRequired);
+  return segments.join('.');
+}
+
+function sanitizeSegment(value: string): string {
+  return value.trim().replace(/[^A-Za-z0-9_]+/g, '_').replace(/^_+|_+$/g, '') || 'Node';
+}
+
+function formatNodeMeta(node: DriverBrowseNodeView, text: C04Text['opcUa']): string {
+  const access = node.isWritable ? text.readWrite : node.isReadable ? text.readOnly : text.noAccess;
+  const type = node.suggestedDataType == null ? text.unknownType : String(node.suggestedDataType);
+  return `${type} · ${access}${node.engineeringUnit ? ` · ${node.engineeringUnit}` : ''}`;
+}
+
+function asMessage(reason: unknown): string {
+  return reason instanceof Error ? reason.message : String(reason);
+}

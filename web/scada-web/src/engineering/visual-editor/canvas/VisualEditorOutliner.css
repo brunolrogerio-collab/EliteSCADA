@@ -1,0 +1,16 @@
+.visual-editor-outliner { position: absolute; top: 54px; right: 10px; z-index: 9000; width: min(230px,38%); max-height: 58%; overflow: hidden; border: 1px solid #cbd5e1; border-radius: 7px; background: rgba(255,255,255,.96); box-shadow: 0 8px 20px rgba(15,23,42,.12); font-size: 11px; }
+.visual-editor-outliner > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 8px; cursor: pointer; border-bottom: 1px solid #e2e8f0; user-select: none; }
+.visual-editor-outliner > summary span { min-width: 20px; padding: 1px 5px; border-radius: 999px; background: #e8eef5; color: #475569; text-align: center; }
+.visual-editor-outliner__tree { max-height: 320px; overflow: auto; padding: 4px; }
+.visual-editor-outliner__row { display: flex; min-width: 0; align-items: center; border-radius: 4px; }
+.visual-editor-outliner__row:hover { background: #f1f5f9; }
+.visual-editor-outliner__row.is-selected { background: #e6f0fa; }
+.visual-editor-outliner__toggle { flex: 0 0 20px; width: 20px; height: 24px; padding: 0; border: 0; background: transparent; color: #475569; cursor: pointer; }
+.visual-editor-outliner__spacer { flex: 0 0 20px; width: 20px; }
+.visual-editor-outliner__select { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 5px; min-width: 0; flex: 1; padding: 4px 5px; border: 0; background: transparent; color: #172033; cursor: pointer; text-align: left; }
+.visual-editor-outliner__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.visual-editor-outliner__select code { color: #64748b; font-size: 8px; }
+.visual-editor-outliner__lock { display: grid; place-items: center; width: 14px; height: 14px; border-radius: 3px; background: #e2e8f0; color: #475569; font-size: 8px; font-weight: 800; }
+.visual-editor-outliner__lock.is-direct { background: #cbd5e1; color: #1e293b; }
+.visual-editor-outliner__empty { display: block; padding: 10px; color: #94a3b8; text-align: center; }
+@media (max-width: 900px) { .visual-editor-outliner { width: min(200px,46%); } }

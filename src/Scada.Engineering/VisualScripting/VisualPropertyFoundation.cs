@@ -312,21 +312,37 @@ public static class VisualPropertyKeys
     public const string Rotation = "rotation";
     public const string ScaleX = "scaleX";
     public const string ScaleY = "scaleY";
+    public const string HorizontalFlip = "horizontalFlip";
+    public const string VerticalFlip = "verticalFlip";
     public const string ZIndex = "zIndex";
     public const string Visible = "visible";
     public const string Opacity = "opacity";
+    public const string Tooltip = "tooltip";
+    public const string Enabled = "enabled";
+    public const string FillStyle = "fillStyle";
     public const string FillColor = "fillColor";
+    public const string FillSecondaryColor = "fillSecondaryColor";
+    public const string GradientDirection = "gradientDirection";
     public const string BackgroundColor = "backgroundColor";
     public const string StrokeColor = "strokeColor";
     public const string StrokeWidth = "strokeWidth";
     public const string StrokeStyle = "strokeStyle";
     public const string CornerRadius = "cornerRadius";
+    public const string ShadowEnabled = "shadowEnabled";
+    public const string ShadowColor = "shadowColor";
+    public const string ShadowOffsetX = "shadowOffsetX";
+    public const string ShadowOffsetY = "shadowOffsetY";
+    public const string ShadowBlur = "shadowBlur";
     public const string Text = "text";
     public const string TextColor = "textColor";
     public const string FontFamily = "fontFamily";
     public const string FontSize = "fontSize";
     public const string FontWeight = "fontWeight";
     public const string FontStyle = "fontStyle";
+    public const string Underline = "underline";
+    public const string TextWrap = "textWrap";
+    public const string LineHeight = "lineHeight";
+    public const string TextOverflow = "textOverflow";
     public const string HorizontalAlignment = "horizontalAlignment";
     public const string VerticalAlignment = "verticalAlignment";
     public const string AssetRef = "assetRef";
@@ -362,18 +378,25 @@ public static class CommonVisualPropertyDefinitions
     [
         Number(VisualPropertyKeys.Rotation, 0, animatable: true, unit: "deg"),
         Number(VisualPropertyKeys.ScaleX, 1, minimum: 0, animatable: true),
-        Number(VisualPropertyKeys.ScaleY, 1, minimum: 0, animatable: true)
+        Number(VisualPropertyKeys.ScaleY, 1, minimum: 0, animatable: true),
+        Boolean(VisualPropertyKeys.HorizontalFlip, false),
+        Boolean(VisualPropertyKeys.VerticalFlip, false)
     ];
 
     public static IReadOnlyList<VisualPropertyDefinition> Visibility { get; } =
     [
-        new VisualPropertyDefinition(VisualPropertyKeys.Visible, new VisualBooleanValue(true), animatable: false),
-        Number(VisualPropertyKeys.Opacity, 1, minimum: 0, maximum: 1, animatable: true)
+        Boolean(VisualPropertyKeys.Visible, true),
+        Number(VisualPropertyKeys.Opacity, 1, minimum: 0, maximum: 1, animatable: true),
+        String(VisualPropertyKeys.Tooltip, string.Empty),
+        Boolean(VisualPropertyKeys.Enabled, true)
     ];
 
     public static IReadOnlyList<VisualPropertyDefinition> Fill { get; } =
     [
+        EnumString(VisualPropertyKeys.FillStyle, "solid", ["none", "solid", "gradient"]),
         Color(VisualPropertyKeys.FillColor, "#00000000", animatable: true),
+        Color(VisualPropertyKeys.FillSecondaryColor, "#00000000", animatable: true),
+        EnumString(VisualPropertyKeys.GradientDirection, "vertical", ["horizontal", "vertical", "diagonal-down", "diagonal-up"]),
         Color(VisualPropertyKeys.BackgroundColor, "#00000000", animatable: true)
     ];
 
@@ -381,18 +404,31 @@ public static class CommonVisualPropertyDefinitions
     [
         Color(VisualPropertyKeys.StrokeColor, "#000000", animatable: true),
         Number(VisualPropertyKeys.StrokeWidth, 1, minimum: 0, animatable: true, unit: "px"),
-        EnumString(VisualPropertyKeys.StrokeStyle, "solid", ["solid", "dashed", "dotted"]),
+        EnumString(VisualPropertyKeys.StrokeStyle, "solid", ["none", "solid", "dashed", "dotted", "dash-dot", "dash-dot-dot"]),
         Number(VisualPropertyKeys.CornerRadius, 0, minimum: 0, animatable: true, unit: "px")
+    ];
+
+    public static IReadOnlyList<VisualPropertyDefinition> Effects { get; } =
+    [
+        Boolean(VisualPropertyKeys.ShadowEnabled, false),
+        Color(VisualPropertyKeys.ShadowColor, "#00000066", animatable: true),
+        Number(VisualPropertyKeys.ShadowOffsetX, 0, animatable: true, unit: "px"),
+        Number(VisualPropertyKeys.ShadowOffsetY, 0, animatable: true, unit: "px"),
+        Number(VisualPropertyKeys.ShadowBlur, 0, minimum: 0, animatable: true, unit: "px")
     ];
 
     public static IReadOnlyList<VisualPropertyDefinition> Text { get; } =
     [
         String(VisualPropertyKeys.Text, string.Empty),
         Color(VisualPropertyKeys.TextColor, "#000000", animatable: true),
-        String(VisualPropertyKeys.FontFamily, "system"),
+        String(VisualPropertyKeys.FontFamily, "system", presentationHint: "font-family"),
         Number(VisualPropertyKeys.FontSize, 14, minimum: 1, animatable: true, unit: "px"),
         Integer(VisualPropertyKeys.FontWeight, 400, minimum: 100, maximum: 900),
         EnumString(VisualPropertyKeys.FontStyle, "normal", ["normal", "italic"]),
+        Boolean(VisualPropertyKeys.Underline, false),
+        Boolean(VisualPropertyKeys.TextWrap, true),
+        Number(VisualPropertyKeys.LineHeight, 1.2, minimum: 0.1, maximum: 10),
+        EnumString(VisualPropertyKeys.TextOverflow, "clip", ["clip", "ellipsis"]),
         EnumString(VisualPropertyKeys.HorizontalAlignment, "left", ["left", "center", "right"]),
         EnumString(VisualPropertyKeys.VerticalAlignment, "middle", ["top", "middle", "bottom"])
     ];
@@ -420,11 +456,14 @@ public static class CommonVisualPropertyDefinitions
         Number(VisualPropertyKeys.Maximum, 100),
         Number(VisualPropertyKeys.Step, 1, minimum: double.Epsilon),
         EnumString(VisualPropertyKeys.Orientation, "horizontal", ["horizontal", "vertical"]),
-        new VisualPropertyDefinition(VisualPropertyKeys.InteractionEnabled, new VisualBooleanValue(false), animatable: false),
-        new VisualPropertyDefinition(VisualPropertyKeys.ReverseDirection, new VisualBooleanValue(false), animatable: false),
+        Boolean(VisualPropertyKeys.InteractionEnabled, false),
+        Boolean(VisualPropertyKeys.ReverseDirection, false),
         Color(VisualPropertyKeys.TrackColor, "#6B7280", animatable: true),
         Color(VisualPropertyKeys.ThumbColor, "#E5E7EB", animatable: true)
     ];
+
+    private static VisualPropertyDefinition Boolean(string key, bool value) =>
+        new(key, new VisualBooleanValue(value), animatable: false);
 
     private static VisualPropertyDefinition Number(
         string key,
@@ -450,8 +489,11 @@ public static class CommonVisualPropertyDefinitions
             new VisualIntegerValue(value),
             constraints: new VisualPropertyConstraints { Minimum = minimum, Maximum = maximum });
 
-    private static VisualPropertyDefinition String(string key, string value) =>
-        new(key, new VisualStringValue(value));
+    private static VisualPropertyDefinition String(
+        string key,
+        string value,
+        string? presentationHint = null) =>
+        new(key, new VisualStringValue(value), presentationHint: presentationHint);
 
     private static VisualPropertyDefinition EnumString(
         string key,

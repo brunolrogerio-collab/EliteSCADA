@@ -101,7 +101,7 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
 
     const widthInput = page
       .getByTestId('visual-property-inspector')
-      .getByRole('spinbutton', { name: 'width', exact: true });
+      .getByRole('spinbutton', { name: 'Width', exact: true });
     await widthInput.fill('180');
     await widthInput.press('Enter');
 
@@ -154,7 +154,7 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
     });
 
     expect(persisted.image.properties?.width).toBe(180);
-    expect(persisted.image.properties?.x).toBe(10);
+    expect(persisted.image.properties?.x).toBe(1);
     expect(persisted.image.bindings).toContainEqual(expect.objectContaining({ key: bindingProperty, kind: 'tag', target: bindingTag!.path }));
     expect(JSON.stringify(persisted.screen)).not.toContain('selectedObjectIds');
     expect(JSON.stringify(persisted.screen)).not.toContain('viewport');

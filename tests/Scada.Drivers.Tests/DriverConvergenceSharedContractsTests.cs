@@ -65,23 +65,33 @@ public sealed class DriverConvergenceSharedContractsTests
     }
 
     [Fact]
-    public void RuntimeComponentRegistry_RejectsPlannerFactoryTypeMismatchAndDuplicates()
+    public void RuntimeComponentRegistry_RejectsPlannerFactoryDescriptorMismatchAndDuplicates()
     {
         var mismatch = new CommunicationDriverRuntimeComponentRegistration(
             new StubPlanner("mqtt.raw"),
-            new StubFactory("opcua"));
+            new StubFactory("opcua"),
+            Descriptor("mqtt.raw"));
 
         Assert.Throws<InvalidOperationException>(mismatch.Validate);
+
+        var descriptorMismatch = new CommunicationDriverRuntimeComponentRegistration(
+            new StubPlanner("mqtt.raw"),
+            new StubFactory("MQTT.RAW"),
+            Descriptor("opcua"));
+
+        Assert.Throws<InvalidOperationException>(descriptorMismatch.Validate);
 
         var registry = new CommunicationDriverRuntimeComponentRegistry();
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new StubPlanner("mqtt.raw"),
-            new StubFactory("MQTT.RAW")));
+            new StubFactory("MQTT.RAW"),
+            Descriptor("mqtt.raw")));
 
         Assert.Throws<InvalidOperationException>(() =>
             registry.Register(new CommunicationDriverRuntimeComponentRegistration(
                 new StubPlanner("MQTT.RAW"),
-                new StubFactory("mqtt.raw"))));
+                new StubFactory("mqtt.raw"),
+                Descriptor("MQTT.RAW"))));
     }
 
     [Fact]
@@ -99,6 +109,9 @@ public sealed class DriverConvergenceSharedContractsTests
         Assert.False(withError.CanActivate);
         Assert.False(new CommunicationDriverRuntimePlanningResult(null, []).CanActivate);
     }
+
+    private static CommunicationDriverTypeDescriptor Descriptor(string driverType) =>
+        new DescriptorProvider(driverType).Descriptor;
 
     private sealed class DescriptorProvider : ICommunicationDriverDescriptorProvider
     {

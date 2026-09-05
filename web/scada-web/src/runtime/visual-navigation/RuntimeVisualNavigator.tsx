@@ -6,7 +6,12 @@ import type {
   CanonicalVisualEvent,
   VisualAssetUrlResolver
 } from '../../engineering/visual-editor/CanonicalVisualRenderer';
+import { resolveVisualDefinitionSurfaceStyle } from '../../engineering/visual-editor/visualDefinitionSurfaceModel';
 import type { ClientVisualEventDispatchRecord } from '../../python-runtime/clientVisualEventDispatcher';
+import { RuntimeLogicalViewport } from './RuntimeLogicalViewport';
+import { resolveRuntimeLogicalSize } from './runtimeLogicalCanvas';
+import { executeRuntimeCommand, RuntimeCommandExecutionError } from './runtimeCommandApi';
+import { resolvePopupLogicalPosition } from './runtimePopupPosition';
 import {
   createRuntimeVisualCatalog,
   createRuntimeVisualNavigationState,
@@ -16,7 +21,8 @@ import {
   resolveVisualNavigationAction,
   RuntimeVisualCompositionError,
   type RuntimeVisualCatalog,
-  type RuntimeVisualNavigationState
+  type RuntimeVisualNavigationState,
+  type VisualNavigationActionEngineering
 } from './runtimeVisualNavigationModel';
 import { RuntimeVisualDefinitionRenderer } from './RuntimeVisualDefinitionRenderer';
 
@@ -35,6 +41,13 @@ type NavigationResolution = Readonly<{
   state: RuntimeVisualNavigationState | null;
   diagnostic: RuntimeVisualCompositionError | null;
 }>;
+
+type OperationalVisualAction = Readonly<
+  Omit<VisualNavigationActionEngineering, 'kind'> & {
+    kind: 'NavigateScreen' | 'OpenPopup' | 'ClosePopup' | 'ExecuteCommand';
+    commandId?: string | null;
+  }
+>;
 
 export function RuntimeVisualNavigator({
   engineeringPackage,
@@ -74,14 +87,35 @@ export function RuntimeVisualNavigator({
     return <RuntimeDiagnostic diagnostic={asRuntimeDiagnostic(reason)} />;
   }
 
-  const dispatch = (event: CanonicalVisualEvent, popupRuntimeInstanceId?: string) => {
+  const designSize = resolveRuntimeLogicalSize();
+
+  const dispatch = async (event: CanonicalVisualEvent, popupRuntimeInstanceId?: string) => {
     try {
-      const action = resolveVisualNavigationAction(event.element, event.eventKey);
-      if (!action) return;
-      const next = executeVisualNavigationAction(catalog, state, action, {
-        popupRuntimeInstanceId,
-        popupIdFactory
-      });
+      const rawAction = resolveVisualNavigationAction(event.element, event.eventKey);
+      if (!rawAction) return;
+      const action = normalizeVisualActionWireKind(rawAction);
+      if (action.kind === 'ExecuteCommand') {
+        const commandId = action.commandId?.trim();
+        if (!commandId) {
+          throw new RuntimeVisualCompositionError(
+            'VISUAL_RUNTIME_COMMAND_REFERENCE_REQUIRED',
+            `ExecuteCommand action '${action.eventKey}' does not contain a canonical Command identity.`
+          );
+        }
+        await executeRuntimeCommand(commandId);
+        setDiagnostic(null);
+        return;
+      }
+
+      const next = executeVisualNavigationAction(
+        catalog,
+        state,
+        action as VisualNavigationActionEngineering,
+        {
+          popupRuntimeInstanceId,
+          popupIdFactory
+        }
+      );
       setState(next);
       setDiagnostic(null);
     } catch (reason) {
@@ -94,62 +128,108 @@ export function RuntimeVisualNavigator({
     data-testid="runtime-visual-navigator"
     data-active-screen-key={state.activeScreenKey}
   >
-    <section className="runtime-visual-screen" data-screen-key={activeScreen.key}>
-      <RuntimeVisualDefinitionRenderer
-        visualDefinitionId={activeScreen.id ?? ''}
-        runtimeContextId={`screen:${activeScreen.id ?? activeScreen.key}`}
-        elements={activeScreen.elements}
-        emptyLabel={emptyLabel}
-        locale={locale}
-        dynamoDefinitions={engineeringPackage.dynamos}
-        scriptContext={scriptContext}
-        onScriptDispatch={onScriptDispatch}
-        onVisualEvent={event => dispatch(event)}
-        visualAssetUrl={visualAssetUrl}
-      />
-    </section>
+    <RuntimeLogicalViewport designSize={designSize}>
+      <div className="runtime-logical-composition">
+        <section
+          className="runtime-visual-screen"
+          data-screen-key={activeScreen.key}
+          style={resolveVisualDefinitionSurfaceStyle(activeScreen.properties, visualAssetUrl)}
+        >
+          <RuntimeVisualDefinitionRenderer
+            visualDefinitionId={activeScreen.id ?? ''}
+            runtimeContextId={`screen:${activeScreen.id ?? activeScreen.key}`}
+            elements={activeScreen.elements}
+            emptyLabel={emptyLabel}
+            locale={locale}
+            dynamoDefinitions={engineeringPackage.dynamos}
+            scriptContext={scriptContext}
+            onScriptDispatch={onScriptDispatch}
+            onVisualEvent={event => { void dispatch(event); }}
+            visualAssetUrl={visualAssetUrl}
+          />
+        </section>
 
-    <div className="runtime-visual-popup-layer" data-popup-count={state.popups.length}>
-      {state.popups.map((mount, index) => {
-        try {
-          const popup = resolveMountedPopup(catalog, mount);
-          return <section
-            className="runtime-visual-popup"
-            key={mount.runtimeInstanceId}
-            data-popup-key={popup.key}
-            data-popup-runtime-instance-id={mount.runtimeInstanceId}
-            data-popup-stack-index={index}
-          >
-            <header className="runtime-visual-popup-header">
-              <strong>{popup.name || popup.key}</strong>
-              <code>{popup.key}</code>
-            </header>
-            <div className="runtime-visual-popup-content">
-              <RuntimeVisualDefinitionRenderer
-                visualDefinitionId={popup.id ?? ''}
-                runtimeContextId={`popup:${mount.runtimeInstanceId}`}
-                elements={popup.elements}
-                emptyLabel={emptyLabel}
-                locale={locale}
-                dynamoDefinitions={engineeringPackage.dynamos}
-                scriptContext={scriptContext}
-                onScriptDispatch={onScriptDispatch}
-                onVisualEvent={event => dispatch(event, mount.runtimeInstanceId)}
-                visualAssetUrl={visualAssetUrl}
-              />
-            </div>
-          </section>;
-        } catch (reason) {
-          return <RuntimeDiagnostic
-            key={mount.runtimeInstanceId}
-            diagnostic={asRuntimeDiagnostic(reason)}
-          />;
-        }
-      })}
-    </div>
+        <div
+          className="runtime-visual-popup-layer"
+          data-popup-count={state.popups.length}
+          style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
+        >
+          {state.popups.map((mount, index) => {
+            try {
+              const popup = resolveMountedPopup(catalog, mount);
+              const position = resolvePopupLogicalPosition(popup, designSize);
+              return <section
+                className="runtime-visual-popup"
+                key={mount.runtimeInstanceId}
+                data-popup-key={popup.key}
+                data-popup-runtime-instance-id={mount.runtimeInstanceId}
+                data-popup-stack-index={index}
+                data-popup-logical-x={position.x}
+                data-popup-logical-y={position.y}
+                style={{
+                  position: 'absolute',
+                  left: position.x,
+                  top: position.y,
+                  zIndex: index + 1,
+                  pointerEvents: 'auto'
+                }}
+              >
+                <header className="runtime-visual-popup-header">
+                  <strong>{popup.name || popup.key}</strong>
+                  <code>{popup.key}</code>
+                </header>
+                <div
+                  className="runtime-visual-popup-content"
+                  style={resolveVisualDefinitionSurfaceStyle(popup.properties, visualAssetUrl)}
+                >
+                  <RuntimeVisualDefinitionRenderer
+                    visualDefinitionId={popup.id ?? ''}
+                    runtimeContextId={`popup:${mount.runtimeInstanceId}`}
+                    elements={popup.elements}
+                    emptyLabel={emptyLabel}
+                    locale={locale}
+                    dynamoDefinitions={engineeringPackage.dynamos}
+                    scriptContext={scriptContext}
+                    onScriptDispatch={onScriptDispatch}
+                    onVisualEvent={event => { void dispatch(event, mount.runtimeInstanceId); }}
+                    visualAssetUrl={visualAssetUrl}
+                  />
+                </div>
+              </section>;
+            } catch (reason) {
+              return <RuntimeDiagnostic
+                key={mount.runtimeInstanceId}
+                diagnostic={asRuntimeDiagnostic(reason)}
+              />;
+            }
+          })}
+        </div>
+      </div>
+    </RuntimeLogicalViewport>
 
     {diagnostic ? <RuntimeDiagnostic diagnostic={diagnostic} /> : null}
   </div>;
+}
+
+function normalizeVisualActionWireKind(action: VisualNavigationActionEngineering): OperationalVisualAction {
+  const wireKind = String((action as VisualNavigationActionEngineering & Readonly<{ kind: unknown }>).kind).trim();
+  let kind: OperationalVisualAction['kind'];
+  switch (wireKind) {
+    case 'NavigateScreen':
+    case 'navigateScreen': kind = 'NavigateScreen'; break;
+    case 'OpenPopup':
+    case 'openPopup': kind = 'OpenPopup'; break;
+    case 'ClosePopup':
+    case 'closePopup': kind = 'ClosePopup'; break;
+    case 'ExecuteCommand':
+    case 'executeCommand': kind = 'ExecuteCommand'; break;
+    default:
+      throw new RuntimeVisualCompositionError(
+        'VISUAL_RUNTIME_ACTION_KIND_UNSUPPORTED',
+        `Visual action '${action.eventKey}' has unsupported wire kind '${wireKind}'.`
+      );
+  }
+  return Object.freeze({ ...(action as unknown as OperationalVisualAction), kind });
 }
 
 function resolveInitialNavigation(
@@ -180,6 +260,12 @@ function RuntimeDiagnostic({ diagnostic }: { diagnostic: RuntimeVisualCompositio
 
 function asRuntimeDiagnostic(reason: unknown): RuntimeVisualCompositionError {
   if (reason instanceof RuntimeVisualCompositionError) return reason;
+  if (reason instanceof RuntimeCommandExecutionError) {
+    return new RuntimeVisualCompositionError(
+      'VISUAL_RUNTIME_COMMAND_EXECUTION_FAILED',
+      `Operational Command request failed (${reason.status}): ${reason.message}`
+    );
+  }
   return new RuntimeVisualCompositionError(
     'VISUAL_RUNTIME_COMPOSITION_FAILED',
     reason instanceof Error ? reason.message : String(reason)

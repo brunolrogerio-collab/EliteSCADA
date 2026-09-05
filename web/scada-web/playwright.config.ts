@@ -25,7 +25,15 @@ export default defineConfig({
   },
   projects: [
     {
+      name: 'chromium-local-auth',
+      testMatch: /local-auth\.spec\.ts/,
+      retries: 0,
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
       name: 'chromium',
+      testIgnore: /local-auth\.spec\.ts/,
+      dependencies: ['chromium-local-auth'],
       use: { ...devices['Desktop Chrome'] }
     }
   ],
@@ -35,6 +43,7 @@ export default defineConfig({
       url: 'http://127.0.0.1:5080/health',
       timeout: 60_000,
       reuseExistingServer: false,
+      stdout: 'pipe',
       env: {
         ASPNETCORE_URLS: 'http://127.0.0.1:5080',
         DOTNET_NOLOGO: 'true',
@@ -45,10 +54,6 @@ export default defineConfig({
         Authentication__Jwt__SigningKey: E2E_AUTH_SIGNING_KEY,
         Authentication__Local__Enabled: 'true',
         Authentication__Local__SecureCookie: 'false',
-        Authentication__Local__Bootstrap__Username: 'local-developer',
-        Authentication__Local__Bootstrap__DisplayName: 'Local Developer',
-        Authentication__Local__Bootstrap__Password: 'E2E-local-password-123!',
-        Authentication__Local__Bootstrap__Roles__0: 'developer',
         EngineeringRuntime__ProjectKey: 'e2e-wave03'
       }
     },

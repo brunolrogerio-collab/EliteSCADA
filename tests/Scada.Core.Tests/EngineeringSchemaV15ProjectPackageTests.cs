@@ -43,7 +43,7 @@ public sealed class EngineeringSchemaV15ProjectPackageTests
         var bytes = source.Export("plant-v15", "Plant v15");
         var inspection = source.Inspect(bytes);
 
-        Assert.Equal(15, inspection.Manifest.EngineeringSchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, inspection.Manifest.EngineeringSchemaVersion);
         var inspectedTag = Assert.Single(inspection.Engineering.Tags);
         Assert.NotNull(inspectedTag.CommunicationBinding);
         Assert.Equal("40001", inspectedTag.Address);

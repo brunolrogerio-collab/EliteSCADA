@@ -146,7 +146,7 @@ test('Engineering TAG view previews and applies typed Internal Memory initial va
   });
 
   await page.goto('/engineering');
-  await page.locator('.eng-nav button').filter({ hasText: 'TAG' }).click();
+  await page.getByRole('button', { name: /^TAGs\b/ }).click();
 
   const panel = page.getByTestId('memory-engineering-panel');
   await expect(panel).toBeVisible();

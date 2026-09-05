@@ -3,6 +3,7 @@ import type { VisualElementEngineering } from '../src/engineering/types';
 import {
   buildPropertyInspectorModel,
   buildPropertyInspectorSetIntent,
+  normalizePropertyInspectorColor,
   parsePropertyInspectorInput
 } from '../src/engineering/visual-editor/property-inspector/propertyInspectorModel';
 
@@ -34,6 +35,24 @@ test('parses boolean and enum controls through registered property definitions',
   if (unsupported.ok) {
     expect(buildPropertyInspectorSetIntent(rectangle, 'strokeStyle', unsupported.value).ok).toBeFalsy();
   }
+});
+
+test('friendly color entry normalizes to canonical hex before shared validation', () => {
+  const rectangle = modelFor('core.rectangle');
+  const fillColor = rectangle.rows.find(row => row.definition.key === 'fillColor')!.definition;
+
+  expect(normalizePropertyInspectorColor('#123')).toBe('#112233');
+  expect(normalizePropertyInspectorColor('#1238')).toBe('#11223388');
+  expect(normalizePropertyInspectorColor('rgb(17, 34, 51)')).toBe('#112233');
+  expect(normalizePropertyInspectorColor('rgba(17, 34, 51, 0.5)')).toBe('#11223380');
+  expect(normalizePropertyInspectorColor('rgba(17, 34, 51, 50%)')).toBe('#11223380');
+  expect(normalizePropertyInspectorColor('rgb(256, 0, 0)')).toBeNull();
+  expect(normalizePropertyInspectorColor('rgba(0, 0, 0, 1.1)')).toBeNull();
+  expect(normalizePropertyInspectorColor('red')).toBeNull();
+
+  const rgba = parsePropertyInspectorInput(fillColor, 'rgba(17, 34, 51, 0.5)');
+  expect(rgba).toEqual({ ok: true, value: '#11223380' });
+  expect(rgba.ok && buildPropertyInspectorSetIntent(rectangle, 'fillColor', rgba.value).ok).toBeTruthy();
 });
 
 test('color and asset input remain subject to shared registry validation', () => {

@@ -62,7 +62,7 @@ export function buildPropertyInspectorModel(
         objectIds: [],
         objectTypes: [],
         rows: [],
-        error: `Visual object type '${element.type}' is not registered for Wave 08 property editing.`
+        error: `Visual object type '${element.type}' is not registered for property editing.`
       };
     }
 
@@ -71,9 +71,10 @@ export function buildPropertyInspectorModel(
   }
 
   const firstSchema = schemas[0];
-  const commonKeys = firstSchema.propertyKeys.filter(propertyKey =>
-    schemas.every(schema => schema.declares(propertyKey))
-  );
+  const commonKeys = firstSchema.propertyKeys.filter(propertyKey => {
+    const definition = firstSchema.getRequired(propertyKey);
+    return definition.engineeringEditable && schemas.every(schema => schema.declares(propertyKey));
+  });
 
   const rows = commonKeys.map(propertyKey => {
     const definition = firstSchema.getRequired(propertyKey);
@@ -136,7 +137,7 @@ export function buildPropertyInspectorSetIntent(
 
   const row = model.rows.find(candidate => candidate.definition.key === propertyKey);
   if (!row) {
-    return { ok: false, error: `Property '${propertyKey}' is not common to the current registered selection.` };
+    return { ok: false, error: `Property '${propertyKey}' is not common and Engineering-editable for the current registered selection.` };
   }
   if (!row.definition.engineeringEditable) {
     return { ok: false, error: `Property '${propertyKey}' is not Engineering-editable.` };
@@ -173,7 +174,10 @@ export function buildPropertyInspectorRemoveIntent(
 
   const row = model.rows.find(candidate => candidate.definition.key === propertyKey);
   if (!row) {
-    return { ok: false, error: `Property '${propertyKey}' is not common to the current registered selection.` };
+    return { ok: false, error: `Property '${propertyKey}' is not common and Engineering-editable for the current registered selection.` };
+  }
+  if (!row.definition.engineeringEditable) {
+    return { ok: false, error: `Property '${propertyKey}' is not Engineering-editable.` };
   }
 
   return {
@@ -205,11 +209,46 @@ export function parsePropertyInspectorInput(
       if (rawValue === 'true') return { ok: true, value: true };
       if (rawValue === 'false') return { ok: true, value: false };
       return { ok: false, error: 'Expected true or false.' };
+    case 'color': {
+      const color = normalizePropertyInspectorColor(rawValue);
+      return color
+        ? { ok: true, value: color }
+        : { ok: false, error: 'Expected HEX (#RGB, #RGBA, #RRGGBB, #RRGGBBAA) or rgb()/rgba() color.' };
+    }
     case 'string':
-    case 'color':
     case 'enum':
       return { ok: true, value: rawValue };
   }
+}
+
+export function normalizePropertyInspectorColor(rawValue: string): string | null {
+  const value = rawValue.trim();
+  const hex = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/.exec(value);
+  if (hex) {
+    const digits = hex[1];
+    if (digits.length === 3 || digits.length === 4) {
+      return `#${[...digits].map(character => `${character}${character}`).join('')}`;
+    }
+    return value;
+  }
+
+  const functional = /^(rgb|rgba)\((.*)\)$/i.exec(value);
+  if (!functional) return null;
+  const components = functional[2].split(',').map(component => component.trim());
+  const hasAlpha = functional[1].toLowerCase() === 'rgba';
+  if (components.length !== (hasAlpha ? 4 : 3)) return null;
+
+  const channels = components.slice(0, 3).map(parseRgbChannel);
+  if (channels.some(channel => channel === null)) return null;
+  const colorHex = channels
+    .map(channel => (channel as number).toString(16).padStart(2, '0').toUpperCase())
+    .join('');
+  if (!hasAlpha) return `#${colorHex}`;
+
+  const alpha = parseAlphaChannel(components[3]);
+  if (alpha === null) return null;
+  const alphaHex = Math.round(alpha * 255).toString(16).padStart(2, '0').toUpperCase();
+  return `#${colorHex}${alphaHex}`;
 }
 
 export function formatPropertyInspectorValue(value: VisualEngineeringPropertyValue): string {
@@ -217,6 +256,21 @@ export function formatPropertyInspectorValue(value: VisualEngineeringPropertyVal
   if (isAssetReference(value)) return value.assetId;
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
+}
+
+function parseRgbChannel(value: string): number | null {
+  if (!/^\d{1,3}$/.test(value)) return null;
+  const result = Number(value);
+  return Number.isInteger(result) && result >= 0 && result <= 255 ? result : null;
+}
+
+function parseAlphaChannel(value: string): number | null {
+  if (value.endsWith('%')) {
+    const percent = Number(value.slice(0, -1));
+    return Number.isFinite(percent) && percent >= 0 && percent <= 100 ? percent / 100 : null;
+  }
+  const result = Number(value);
+  return Number.isFinite(result) && result >= 0 && result <= 1 ? result : null;
 }
 
 function hasOwn(

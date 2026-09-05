@@ -8,6 +8,7 @@ using Scada.Engineering.DataSources;
 using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
+using Scada.Engineering.Reports;
 using Scada.Engineering.Views;
 using Scada.Engineering.VisualAssets;
 
@@ -34,7 +35,8 @@ public sealed class EngineeringWorkspaceCheckoutService(
     IEngineeringProjectStore store,
     IEngineeringExchangeService exchange,
     EngineeringWorkspace workspace,
-    IGatewayEngineeringRegistry? gateways = null) : IEngineeringWorkspaceCheckoutService
+    IGatewayEngineeringRegistry? gateways = null,
+    IReportEngineeringRegistry? reports = null) : IEngineeringWorkspaceCheckoutService
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
 
@@ -213,5 +215,6 @@ public sealed class EngineeringWorkspaceCheckoutService(
     {
         workspace.Clear();
         gateways?.Clear();
+        reports?.Clear();
     }
 }

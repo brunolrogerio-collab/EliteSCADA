@@ -1,0 +1,205 @@
+.script-assistant {
+  display: grid;
+  gap: .75rem;
+  min-width: 0;
+  padding: .85rem;
+  border: 1px solid var(--script-border, #283544);
+  border-radius: 10px;
+  background: var(--script-surface-soft, #17212c);
+  color: var(--script-text, #e8edf3);
+}
+
+.script-assistant__header,
+.script-assistant__card-heading,
+.script-assistant__event,
+.script-assistant__actions,
+.script-assistant__tabs,
+.script-assistant__meta {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+}
+
+.script-assistant__header,
+.script-assistant__card-heading,
+.script-assistant__event {
+  justify-content: space-between;
+}
+
+.script-assistant__header {
+  align-items: flex-start;
+}
+
+.script-assistant__header > div {
+  display: grid;
+  gap: .2rem;
+}
+
+.script-assistant__header span,
+.script-assistant__hint,
+.script-assistant__meta,
+.script-assistant__definition summary > span {
+  color: var(--script-muted, #8e9baa);
+  font-size: .8rem;
+}
+
+.script-assistant__search input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: .55rem .65rem;
+  border: 1px solid var(--script-border, #283544);
+  border-radius: 7px;
+  background: var(--script-control-surface, #0f161e);
+  color: var(--script-text, #e8edf3);
+}
+
+.script-assistant__search input:focus {
+  outline: 1px solid var(--script-accent, #58a6d6);
+  outline-offset: 1px;
+  border-color: var(--script-accent, #58a6d6);
+}
+
+.script-assistant__tabs,
+.script-assistant__actions,
+.script-assistant__meta {
+  flex-wrap: wrap;
+}
+
+.script-assistant__tabs {
+  padding-bottom: .55rem;
+  border-bottom: 1px solid var(--script-border-soft, #202c39);
+}
+
+.script-assistant__tabs button.is-selected {
+  border-color: var(--script-accent, #58a6d6);
+  box-shadow: inset 0 -2px 0 var(--script-accent, #58a6d6);
+}
+
+.script-assistant__body,
+.script-assistant__cards,
+.script-assistant__objects,
+.script-assistant__properties,
+.script-assistant__events,
+.script-assistant__wizard {
+  display: grid;
+  gap: .6rem;
+}
+
+.script-assistant__body {
+  max-height: 34rem;
+  overflow: auto;
+  padding-right: .15rem;
+}
+
+.script-assistant__card,
+.script-assistant__object,
+.script-assistant__property,
+.script-assistant__wizard,
+.script-assistant__message,
+.script-assistant__state {
+  padding: .7rem;
+  border: 1px solid var(--script-border, #283544);
+  border-radius: 8px;
+  background: var(--script-control-surface, #0f161e);
+}
+
+.script-assistant__card,
+.script-assistant__object,
+.script-assistant__property {
+  display: grid;
+  gap: .5rem;
+}
+
+.script-assistant__card--compact {
+  grid-template-columns: minmax(10rem, .7fr) minmax(12rem, 1.3fr);
+  align-items: center;
+}
+
+.script-assistant__card-heading {
+  min-width: 0;
+}
+
+.script-assistant__card-heading strong,
+.script-assistant__card-heading code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.script-assistant code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: .78rem;
+  overflow-wrap: anywhere;
+}
+
+.script-assistant__definition {
+  border: 1px solid var(--script-border, #283544);
+  border-radius: 8px;
+  background: var(--script-surface, #121922);
+}
+
+.script-assistant__definition > summary,
+.script-assistant__properties > summary,
+.script-assistant__events > summary {
+  cursor: pointer;
+  user-select: none;
+}
+
+.script-assistant__definition > summary {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  padding: .7rem;
+}
+
+.script-assistant__objects {
+  padding: 0 .7rem .7rem;
+}
+
+.script-assistant__object {
+  background: var(--script-control-surface, #0f161e);
+}
+
+.script-assistant__properties,
+.script-assistant__events {
+  padding-top: .35rem;
+  border-top: 1px solid var(--script-border-soft, #202c39);
+}
+
+.script-assistant__property > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+
+.script-assistant__actions button {
+  min-height: 2rem;
+  padding: .35rem .55rem;
+  font-size: .78rem;
+}
+
+.script-assistant__message--error {
+  border-style: dashed;
+}
+
+.script-assistant__hint {
+  margin: 0;
+  line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+  .script-assistant__header,
+  .script-assistant__card-heading,
+  .script-assistant__event {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .script-assistant__card--compact {
+    grid-template-columns: 1fr;
+  }
+
+  .script-assistant__body {
+    max-height: none;
+  }
+}

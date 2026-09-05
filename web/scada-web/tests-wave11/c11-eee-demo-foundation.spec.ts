@@ -19,6 +19,16 @@ test('C11 canonical EEE foundation lives through normal Engineering, Script, Ala
     const candidate = buildEeeFoundationPackage(original);
     candidate.securityRoles = structuredClone(EEE_SECURITY_ROLES);
 
+    // Engineering owns the authored project graph. The Runtime HMI projection
+    // intentionally does not expose Sources, TAGs, Events or Commands, so prove
+    // those canonical entities here and exercise their Runtime authorities below.
+    expect(candidate.dataSources).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: EEE_IDS.source, key: 'eee.sim.server-memory', driver: 'builtin.memory.server' })
+    ]));
+    expect(candidate.tags).toHaveLength(Object.keys(EEE_IDS.tags).length);
+    expect(candidate.operationalEvents).toHaveLength(Object.keys(EEE_IDS.events).length);
+    expect(candidate.commands).toHaveLength(Object.keys(EEE_IDS.commands).length);
+
     await previewAndApply(request, candidate, 'C11 EEE foundation');
     const saved = await savePublishActivate(request, `${EEE_PROJECT_NAME} — Wave11 foundation harness`);
 
@@ -27,15 +37,9 @@ test('C11 canonical EEE foundation lives through normal Engineering, Script, Ala
     const active = await activeResponse.json() as any;
     expect(active.projectKey).toBe(runtimeProjectKey);
     expect(active.revision).toBe(saved.revision);
-    expect(active.package.dataSources).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: EEE_IDS.source, key: 'eee.sim.server-memory', driver: 'builtin.memory.server' })
-    ]));
-    expect(active.package.tags).toHaveLength(Object.keys(EEE_IDS.tags).length);
     expect(active.package.scripts).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: EEE_IDS.script, path: 'scripts/eee-process.py', scope: 'server', enabled: true })
     ]));
-    expect(active.package.operationalEvents).toHaveLength(Object.keys(EEE_IDS.events).length);
-    expect(active.package.commands).toHaveLength(Object.keys(EEE_IDS.commands).length);
 
     await expect.poll(async () => {
       const script = await loadEeeScriptDiagnostics(request);

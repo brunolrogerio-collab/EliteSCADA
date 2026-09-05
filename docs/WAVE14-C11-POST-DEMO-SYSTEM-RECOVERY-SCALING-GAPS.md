@@ -6,6 +6,25 @@
 
 > These are product/system requirements. Do not hide them inside the EEE fixture, an EEE-only Script, a visual expression, or a private package format.
 
+### Product Owner closure update — System Recovery / Backup & Restore
+
+The broad backup/restore gap recorded below has now been refined into a locked product design.
+
+Read:
+
+`docs/WAVE14-POST-DEMO-SYSTEM-RECOVERY-BACKUP-RESTORE.md`
+
+That document is authoritative for future Backup/Restore implementation and fixes the recovery architecture as separate authorities:
+
+- application/project portability remains the existing `.escadapkg` mechanism;
+- database/Historian recovery uses the supported native database backup/restore facilities;
+- Security Authority receives a dedicated encrypted Export / Preview / Import protected by a user-supplied master export password;
+- a fresh installation enters a controlled System Recovery Bootstrap with a provisional Recovery Administrator and provisional workspace;
+- if an imported authority user collides with the newly created Recovery Administrator, the new local recovery user has priority and is not overwritten;
+- System Recovery can be finalized only after a usable administrator and Active production application are verified.
+
+Do not reinterpret sections 2–3 below as requiring one monolithic EliteSCADA system-backup file. They remain the gap history/context; the dedicated System Recovery document is the implementation contract.
+
 ## 1. `.escadapkg` responsibility
 
 Product Owner direction is that `.escadapkg` should remain an **application/project package**.

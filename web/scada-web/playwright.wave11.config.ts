@@ -67,9 +67,15 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] }
     },
     {
+      name: 'chromium-wave11-c20-visual-dynamic-wire',
+      testMatch: /c20-visual-dynamic-wire-contract\.spec\.ts/,
+      dependencies: ['chromium-wave11-c19-operational-events'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
       name: 'chromium-wave11-owner-package',
       testMatch: /owner-test-artifact\.spec\.ts/,
-      dependencies: ['chromium-wave11-c19-operational-events'],
+      dependencies: ['chromium-wave11-c20-visual-dynamic-wire'],
       use: { ...devices['Desktop Chrome'] }
     }
   ],

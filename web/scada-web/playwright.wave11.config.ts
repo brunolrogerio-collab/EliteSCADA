@@ -37,9 +37,15 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] }
     },
     {
+      name: 'chromium-wave11-c22-runtime-shell-viewport-fit',
+      testMatch: /c22-runtime-shell-viewport-fit\.spec\.ts/,
+      dependencies: ['chromium-wave11-lifecycle'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
       name: 'chromium-wave11-c17-memory',
       testMatch: /(?:c17-memory-lifecycle|c17-datasource-new-transition)\.spec\.ts/,
-      dependencies: ['chromium-wave11-lifecycle'],
+      dependencies: ['chromium-wave11-c22-runtime-shell-viewport-fit'],
       use: { ...devices['Desktop Chrome'] }
     },
     {

@@ -128,9 +128,18 @@ test('C19 authors an Operational Event normally and Server Script Initialize emi
     return (await response.json() as { revision: number }).revision;
   }, { timeout: 15_000 }).toBe(savedRevision);
 
-  // Server Script faults are intentionally isolated from Runtime activation. Surface
-  // their canonical host diagnostics here so a missing event is never diagnosed as
-  // a generic browser/history timeout.
+  // Runtime projection activation and Server Script Initialize are asynchronous. Wait
+  // for the canonical host diagnostics to reach a terminal Initialize state before
+  // classifying success/fault/timeout/cancellation. This preserves fail-closed
+  // diagnostics without racing the executor immediately after revision activation.
+  await expect.poll(async () => {
+    const diagnostics = await loadRuntimeDiagnostics(request);
+    const script = diagnostics.runtime?.serverScripts?.scripts?.find((item: any) => item.path === scriptPath);
+    if (!script) return 0;
+    const state = script.diagnostics;
+    return state.completedCount + state.faultedCount + state.timeoutCount + state.cancelledCount;
+  }, { timeout: 15_000, message: 'C19 Initialize did not reach a terminal runtime diagnostic state' }).toBeGreaterThan(0);
+
   const runtimeDiagnostics = await loadRuntimeDiagnostics(request);
   const c19Script = runtimeDiagnostics.runtime?.serverScripts?.scripts?.find((script: any) => script.path === scriptPath);
   const diagnosticContext = JSON.stringify(runtimeDiagnostics.runtime?.serverScripts ?? null);

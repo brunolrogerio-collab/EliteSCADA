@@ -50,18 +50,20 @@ test('C11 canonical EEE foundation lives through normal Engineering, Script, Ala
     await expect.poll(async () => Number((await readCurrent(request, EEE_PATHS.levelPct)).value), { timeout: 10_000 })
       .toBeGreaterThan(45);
 
-    // Boundary setup uses the normal protected TAG write API only. The Script is
-    // still the sole authority deciding which pump starts and how process values evolve.
-    await writeTag(request, EEE_IDS.tags.levelPct, 66);
-    await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value), { timeout: 10_000 })
-      .toBe(true);
+    // The test injects threshold conditions through the protected TAG write API.
+    // Because the Active Script also owns LevelPct each tick, repeat the boundary
+    // write until the Script has observed it; after the transition the Script is
+    // again the sole process-state authority. This removes scheduler timing from
+    // the proof without adding a DEMO-only runtime path.
+    await driveLevelUntil(request, 66, async () =>
+      Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value));
     await expect.poll(async () => Number((await readCurrent(request, EEE_PATHS.p01FlowM3h)).value), { timeout: 10_000 })
       .toBeGreaterThan(30);
 
     await executeCommand(request, EEE_IDS.commands.highDemandEnable);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.highDemand)).value), { timeout: 10_000 })
       .toBe(true);
-    await writeTag(request, EEE_IDS.tags.levelPct, 82);
+    await expectRequestConsumed(request, EEE_PATHS.cmdHighDemandEnable);
     await expect.poll(async () => {
       const p01 = Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value);
       const p02 = Boolean((await readCurrent(request, EEE_PATHS.p02Running)).value);
@@ -73,12 +75,12 @@ test('C11 canonical EEE foundation lives through normal Engineering, Script, Ala
     await executeCommand(request, EEE_IDS.commands.highDemandDisable);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.highDemand)).value), { timeout: 10_000 })
       .toBe(false);
-    await writeTag(request, EEE_IDS.tags.levelPct, 34);
-    await expect.poll(async () => {
+    await expectRequestConsumed(request, EEE_PATHS.cmdHighDemandDisable);
+    await driveLevelUntil(request, 34, async () => {
       const p01 = Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value);
       const p02 = Boolean((await readCurrent(request, EEE_PATHS.p02Running)).value);
       return !p01 && !p02;
-    }, { timeout: 10_000 }).toBe(true);
+    });
     await expect.poll(async () => Number((await readCurrent(request, EEE_PATHS.cycleCount)).value), { timeout: 10_000 })
       .toBeGreaterThanOrEqual(1);
     await expect.poll(async () => Number((await readCurrent(request, EEE_PATHS.dutyPump)).value), { timeout: 10_000 })
@@ -88,13 +90,16 @@ test('C11 canonical EEE foundation lives through normal Engineering, Script, Ala
     await executeCommand(request, EEE_IDS.commands.autoDisable);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.autoMode)).value), { timeout: 10_000 })
       .toBe(false);
+    await expectRequestConsumed(request, EEE_PATHS.cmdAutoDisable);
     await executeCommand(request, EEE_IDS.commands.p01Start);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value), { timeout: 10_000 })
       .toBe(true);
+    await expectRequestConsumed(request, EEE_PATHS.cmdP01Start);
 
     await executeCommand(request, EEE_IDS.commands.injectP01Fault);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Fault)).value), { timeout: 10_000 })
       .toBe(true);
+    await expectRequestConsumed(request, EEE_PATHS.cmdInjectP01Fault);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value), { timeout: 10_000 })
       .toBe(false);
     await expect.poll(async () => await activeAlarmExists(request, EEE_IDS.alarms.p01Fault), { timeout: 10_000 })
@@ -103,14 +108,17 @@ test('C11 canonical EEE foundation lives through normal Engineering, Script, Ala
     await executeCommand(request, EEE_IDS.commands.resetFaults);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Fault)).value), { timeout: 10_000 })
       .toBe(false);
+    await expectRequestConsumed(request, EEE_PATHS.cmdResetFaults);
 
     // C13 canonical quality path: retain a meaningful value but publish Unavailable.
     await executeCommand(request, EEE_IDS.commands.badQualityEnable);
     await expect.poll(async () => String((await readCurrent(request, EEE_PATHS.p01PressureBar)).quality ?? '').toLowerCase(), { timeout: 10_000 })
       .toBe('unavailable');
+    await expectRequestConsumed(request, EEE_PATHS.cmdBadQualityEnable);
     await executeCommand(request, EEE_IDS.commands.badQualityDisable);
     await expect.poll(async () => String((await readCurrent(request, EEE_PATHS.p01PressureBar)).quality ?? '').toLowerCase(), { timeout: 10_000 })
       .toBe('good');
+    await expectRequestConsumed(request, EEE_PATHS.cmdBadQualityDisable);
 
     const history = await request.get(`/api/history/${EEE_IDS.tags.levelPct}?limit=50`);
     expect(history.ok(), `Historian query failed: HTTP ${history.status()} ${await history.text()}`).toBeTruthy();
@@ -132,6 +140,22 @@ test('C11 canonical EEE foundation lives through normal Engineering, Script, Ala
     await savePublishActivate(request, 'Wave 11 E2E — restored after C11 foundation');
   }
 });
+
+async function driveLevelUntil(
+  request: APIRequestContext,
+  level: number,
+  observed: () => Promise<boolean>
+) {
+  await expect.poll(async () => {
+    await writeTag(request, EEE_IDS.tags.levelPct, level);
+    return await observed();
+  }, { timeout: 15_000, intervals: [250, 500, 750, 1000] }).toBe(true);
+}
+
+async function expectRequestConsumed(request: APIRequestContext, path: string) {
+  await expect.poll(async () => Boolean((await readCurrent(request, path)).value), { timeout: 10_000 })
+    .toBe(false);
+}
 
 async function previewAndApply(request: APIRequestContext, candidate: any, label: string) {
   const before = await loadWorkspace(request);

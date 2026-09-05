@@ -19,8 +19,7 @@ public static class BuiltinDynamoLibrary
             StateLamp(4, "running", 4, 4, "#22C55E", "running", "{equipmentPath}.Running"),
             StateLamp(5, "fault", 104, 4, "#EF4444", "fault", "{equipmentPath}.Fault")
         ],
-        "pump.standard",
-        Parameters(
+        parameters: Parameters(
             EquipmentPathParameter(),
             TagParameter("running"),
             TagParameter("fault"),

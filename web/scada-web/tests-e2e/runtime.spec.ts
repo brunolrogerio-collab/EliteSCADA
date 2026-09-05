@@ -37,7 +37,7 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
     dataSources: Array<{ key: string; driver: string }>;
     templates: Array<{ key: string; bindings: Array<{ key: string; target: string }> }>;
     equipment: Array<{ path: string; templateKey?: string; bindings: Array<{ key: string; target: string }> }>;
-    dynamos: Array<{ key: string; templateKey?: string }>;
+    dynamos: Array<{ key: string; templateKey?: string | null }>;
     screens: Array<{
       key: string;
       route?: string;
@@ -90,7 +90,7 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   ]);
   const standardPumpDynamo = engineering.dynamos.find(dynamo => dynamo.key === 'dynamo.pump.standard');
   expect(standardPumpDynamo).toBeTruthy();
-  expect(standardPumpDynamo!.templateKey).toBeUndefined();
+  expect(standardPumpDynamo!.templateKey).toBeNull();
 
   expect(engineering.screens).toHaveLength(1);
   expect(engineering.screens[0].key).toBe('demo.overview');

@@ -75,11 +75,20 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     await expect(p01).toHaveAttribute('data-dynamic-state', 'available');
     await expect(p02).toHaveAttribute('data-dynamic-state', 'available');
 
+    // Commands write one-shot request TAGs. Sequence setup by acknowledged
+    // request consumption, not by process feedback that may already equal the
+    // desired state before the Script has observed the request.
     await executeCommand(request, EEE_IDS.commands.autoDisable);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.autoMode)).value)).toBe(false);
+    await expectRequestConsumed(request, EEE_PATHS.cmdAutoDisable);
+
     await executeCommand(request, EEE_IDS.commands.resetFaults);
+    await expectRequestConsumed(request, EEE_PATHS.cmdResetFaults);
+
     await executeCommand(request, EEE_IDS.commands.p01Stop);
+    await expectRequestConsumed(request, EEE_PATHS.cmdP01Stop);
     await executeCommand(request, EEE_IDS.commands.p02Stop);
+    await expectRequestConsumed(request, EEE_PATHS.cmdP02Stop);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value)).toBe(false);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p02Running)).value)).toBe(false);
 
@@ -87,6 +96,7 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     // instance. Prove P01-only operation first and confirm P02 stays stopped.
     await executeCommand(request, EEE_IDS.commands.p01Start);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value)).toBe(true);
+    await expectRequestConsumed(request, EEE_PATHS.cmdP01Start);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p02Running)).value)).toBe(false);
     await expect(p01.getByText('OPERANDO')).toBeVisible();
     await expect(p02.getByText('OPERANDO')).toBeHidden();
@@ -100,6 +110,7 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     await expect(popup).toHaveAttribute('data-popup-logical-y', '210');
     await popup.getByRole('button', { name: 'PARAR' }).click();
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value)).toBe(false);
+    await expectRequestConsumed(request, EEE_PATHS.cmdP01Stop);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p02Running)).value)).toBe(false);
     await popup.getByRole('button', { name: 'FECHAR' }).click();
 
@@ -107,24 +118,30 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     // run alone while P01 remains stopped, using the same Dynamo definition.
     await executeCommand(request, EEE_IDS.commands.p02Start);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p02Running)).value)).toBe(true);
+    await expectRequestConsumed(request, EEE_PATHS.cmdP02Start);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value)).toBe(false);
     await expect(p02.getByText('OPERANDO')).toBeVisible();
     await expect(p01.getByText('OPERANDO')).toBeHidden();
     await executeCommand(request, EEE_IDS.commands.p02Stop);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p02Running)).value)).toBe(false);
+    await expectRequestConsumed(request, EEE_PATHS.cmdP02Stop);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value)).toBe(false);
 
     await executeCommand(request, EEE_IDS.commands.injectP01Fault);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Fault)).value)).toBe(true);
+    await expectRequestConsumed(request, EEE_PATHS.cmdInjectP01Fault);
     await expect(p01.getByText('FALHA')).toBeVisible();
     await executeCommand(request, EEE_IDS.commands.resetFaults);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Fault)).value)).toBe(false);
+    await expectRequestConsumed(request, EEE_PATHS.cmdResetFaults);
 
     await executeCommand(request, EEE_IDS.commands.badQualityEnable);
     await expect.poll(async () => Number((await readCurrent(request, EEE_PATHS.p01PressureBar)).quality)).toBe(TAG_QUALITY.Unavailable);
+    await expectRequestConsumed(request, EEE_PATHS.cmdBadQualityEnable);
     await expect.poll(async () => p01.locator('.visual-editor-dynamic-unavailable').count(), { timeout: 10_000 }).toBeGreaterThan(0);
     await executeCommand(request, EEE_IDS.commands.badQualityDisable);
     await expect.poll(async () => Number((await readCurrent(request, EEE_PATHS.p01PressureBar)).quality)).toBe(TAG_QUALITY.Good);
+    await expectRequestConsumed(request, EEE_PATHS.cmdBadQualityDisable);
 
     await page.getByRole('button', { name: 'TENDÊNCIAS' }).click();
     await expect(page.getByTestId('runtime-visual-navigator')).toHaveAttribute('data-active-screen-key', EEE_HMI.screens.trends.key);
@@ -178,6 +195,11 @@ async function assertNoDocumentOverflow(page: Page) {
   }));
   expect(overflow.width).toBeLessThanOrEqual(1);
   expect(overflow.height).toBeLessThanOrEqual(1);
+}
+
+async function expectRequestConsumed(request: APIRequestContext, path: string) {
+  await expect.poll(async () => Boolean((await readCurrent(request, path)).value), { timeout: 10_000 })
+    .toBe(false);
 }
 
 async function previewAndApply(request: APIRequestContext, candidate: any, label: string) {

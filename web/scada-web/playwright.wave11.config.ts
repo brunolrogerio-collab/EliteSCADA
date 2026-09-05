@@ -79,9 +79,15 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] }
     },
     {
+      name: 'chromium-wave11-c11-eee-hmi',
+      testMatch: /c11-eee-demo-hmi\.spec\.ts/,
+      dependencies: ['chromium-wave11-c11-eee-foundation'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
       name: 'chromium-wave11-owner-package',
       testMatch: /owner-test-artifact\.spec\.ts/,
-      dependencies: ['chromium-wave11-c11-eee-foundation'],
+      dependencies: ['chromium-wave11-c11-eee-hmi'],
       use: { ...devices['Desktop Chrome'] }
     }
   ],

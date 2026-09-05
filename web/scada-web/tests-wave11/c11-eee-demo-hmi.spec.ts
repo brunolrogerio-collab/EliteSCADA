@@ -66,8 +66,12 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     await expect(pumpDynamos).toHaveCount(2);
     const p01 = page.locator(`[data-object-id="${EEE_HMI.elements.p01}"]`);
     const p02 = page.locator(`[data-object-id="${EEE_HMI.elements.p02}"]`);
-    await expect(p01).toHaveAttribute('data-dynamo-instance-id', EEE_HMI.elements.p01);
-    await expect(p02).toHaveAttribute('data-dynamo-instance-id', EEE_HMI.elements.p02);
+    // Active Runtime expands persisted Dynamo instances into transient group
+    // roots. Their stable instance identity is therefore the canonical runtime
+    // object identity, while data-dynamo-instance-id belongs to the direct
+    // authoring renderer's unexpanded Dynamo path.
+    await expect(p01).toHaveAttribute('data-runtime-object-id', EEE_HMI.elements.p01);
+    await expect(p02).toHaveAttribute('data-runtime-object-id', EEE_HMI.elements.p02);
     await expect(p01).toHaveAttribute('data-dynamic-state', 'available');
     await expect(p02).toHaveAttribute('data-dynamic-state', 'available');
 

@@ -74,6 +74,12 @@ export function normalizeDynamoParameterDefinition(
   });
 }
 
+/**
+ * Instance values cross the same nullable JsonElement boundary as definition
+ * defaults. A persisted JSON null therefore represents an absent scalar value;
+ * genuine non-null mixed scalar + TagReference payloads remain intact so the
+ * compositor can reject them fail-closed.
+ */
 export function normalizeDynamoParameterValue(
   parameter: DynamoParameterValueEngineering
 ): DynamoParameterValueEngineering {
@@ -81,6 +87,7 @@ export function normalizeDynamoParameterValue(
   return Object.freeze({
     ...parameter,
     kind: normalizeDynamoParameterKind(wire.kind),
+    value: parameter.value === null ? undefined : parameter.value,
     tagReference: parameter.tagReference
       ? Object.freeze({
           ...parameter.tagReference,

@@ -73,9 +73,15 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] }
     },
     {
+      name: 'chromium-wave11-c21-dynamo-tag-reference',
+      testMatch: /c21-dynamo-tag-reference-runtime\.spec\.ts/,
+      dependencies: ['chromium-wave11-c20-visual-dynamic-wire'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
       name: 'chromium-wave11-c11-eee-foundation',
       testMatch: /c11-eee-demo-foundation\.spec\.ts/,
-      dependencies: ['chromium-wave11-c20-visual-dynamic-wire'],
+      dependencies: ['chromium-wave11-c21-dynamo-tag-reference'],
       use: { ...devices['Desktop Chrome'] }
     },
     {

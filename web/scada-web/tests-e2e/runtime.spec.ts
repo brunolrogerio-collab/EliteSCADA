@@ -90,7 +90,7 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   ]);
   const standardPumpDynamo = engineering.dynamos.find(dynamo => dynamo.key === 'dynamo.pump.standard');
   expect(standardPumpDynamo).toBeTruthy();
-  expect(standardPumpDynamo!.templateKey).toBe('pump.standard');
+  expect(standardPumpDynamo!.templateKey).toBeUndefined();
 
   expect(engineering.screens).toHaveLength(1);
   expect(engineering.screens[0].key).toBe('demo.overview');

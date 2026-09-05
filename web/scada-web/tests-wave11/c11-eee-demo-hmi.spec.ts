@@ -74,9 +74,18 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     await executeCommand(request, EEE_IDS.commands.autoDisable);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.autoMode)).value)).toBe(false);
     await executeCommand(request, EEE_IDS.commands.resetFaults);
+    await executeCommand(request, EEE_IDS.commands.p01Stop);
+    await executeCommand(request, EEE_IDS.commands.p02Stop);
+    await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value)).toBe(false);
+    await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p02Running)).value)).toBe(false);
+
+    // One reusable Dynamo definition must remain independently bound per
+    // instance. Prove P01-only operation first and confirm P02 stays stopped.
     await executeCommand(request, EEE_IDS.commands.p01Start);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value)).toBe(true);
+    await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p02Running)).value)).toBe(false);
     await expect(p01.getByText('OPERANDO')).toBeVisible();
+    await expect(p02.getByText('OPERANDO')).toBeHidden();
 
     await page.getByRole('button', { name: 'DETALHES P01' }).click();
     const popupLayer = page.locator('.runtime-visual-popup-layer');
@@ -87,7 +96,19 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     await expect(popup).toHaveAttribute('data-popup-logical-y', '210');
     await popup.getByRole('button', { name: 'PARAR' }).click();
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value)).toBe(false);
+    await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p02Running)).value)).toBe(false);
     await popup.getByRole('button', { name: 'FECHAR' }).click();
+
+    // Then prove the second instance is not merely a duplicated visual: P02 can
+    // run alone while P01 remains stopped, using the same Dynamo definition.
+    await executeCommand(request, EEE_IDS.commands.p02Start);
+    await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p02Running)).value)).toBe(true);
+    await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value)).toBe(false);
+    await expect(p02.getByText('OPERANDO')).toBeVisible();
+    await expect(p01.getByText('OPERANDO')).toBeHidden();
+    await executeCommand(request, EEE_IDS.commands.p02Stop);
+    await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p02Running)).value)).toBe(false);
+    await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value)).toBe(false);
 
     await executeCommand(request, EEE_IDS.commands.injectP01Fault);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Fault)).value)).toBe(true);

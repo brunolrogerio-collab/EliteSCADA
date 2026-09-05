@@ -1,105 +1,135 @@
 # LAST CHANGE — EliteSCADA
 
-**Date:** 2026-09-04 BRT  
-**Operational state:** **WAVE 14 #211 ACTIVE / C12–C18 CONVERGED / C19 5-of-6 GREEN BUT NOT ACCEPTED / C11 IMPLEMENTATION LOCKED / WAVE13 PAUSED**
+**Date:** 2026-09-05 BRT  
+**Operational state:** **WAVE 14 #211 ACTIVE / C11 IMPLEMENTATION ACTIVE / C20+C21 INTEGRATED / C11 HMI NEAR-GREEN / POST-DEMO PRODUCT GAPS RECORDED / WAVE13 PAUSED**
 
-> GitHub is the official development memory. Revalidate live refs, PR state and exact-SHA CI before acting. Documentation-only commits do not redefine product-code authority.
+> GitHub is the official development memory. Revalidate live refs, PR state and exact-SHA CI before acting. Documentation-only commits after the product/test head do not redefine product bytes.
 
-## Accepted authority before C19
+## Current branches / PRs
 
-Exact accepted C12–C18 product checkpoint:
+- integration: `wave14/corrections-integration` @ `cac8b6d58a4969a4aa6369590f6bd32fc2fae3d2`;
+- integration PR #212: **OPEN/DRAFT**, base `main`, **DO NOT MERGE without later explicit Product Owner authorization**;
+- C11 branch: `wave14/c11-canonical-eee-demo`;
+- C11 implementation PR #263: **OPEN/DRAFT** -> integration only;
+- validation-only PR #266: **OPEN/DRAFT / NEVER MERGE**, exists only to trigger main-scoped workflows;
+- `main` remains `edbdf446ea657713bdc487be91bf10bfcd03c684` at the last live revalidation;
+- Wave13 #205 / PR #207 remain paused.
 
-`2e284606b605a26bb9632eae5264de30bea0acde`
+## Product authority carried into C11
 
-C10 Cycle 2 evidence on that exact product was green across EliteSCADA CI, Wave11, Preview Licensing, L3, Interop, dedicated C03 DNP3 and real Preview/browser validation.
+Pre-DEMO exact combined C12–C19 product authority:
 
-PR #212 remains OPEN/DRAFT and must not merge to `main` without later explicit Product Owner authorization.
+`3fda88061df35ad14755d22881e5d3a9216d1ff5`
 
-## C19
+C20 visual dynamic wire contract was accepted and integrated. C21 Dynamo TagReference runtime was later accepted on exact PRODUCT SHA:
 
-Package: **W14-C19 — Operational Event Authoring + Server Script Emission Bridge**  
-Branch: `wave14/c19-operational-event-authoring-script-bridge`  
-PR #257: OPEN/DRAFT -> `wave14/corrections-integration`  
-Exact base: `2e284606...`  
-Latest C19 PRODUCT SHA before docs-only handoff:
+`6d0d71bc91b08114f4c3d3238b56e4ca225b76bd`
 
-`537ce074466aaf34d98142309ed4fd71036cf050`
+C21 integrated into `wave14/corrections-integration` through merge commit:
 
-C19 has implemented:
+`cac8b6d58a4969a4aa6369590f6bd32fc2fae3d2`
 
-- normal Operational Event Engineering authoring via protected Preview/CAS/Apply;
-- pt-BR/en/es affected UI;
-- atomic pristine NEW-event transition regression, avoiding a C17-class stale-ID race;
-- deterministic `emit_operational_event(definition_id, message=None, context=None)`;
-- bounded Python request shape with no direct event-bus/history authority;
-- C# replay through canonical C14 Active Runtime;
-- exact Active revision protection using the existing `ServerScriptRuntimeManager._revisionGate`.
+C11 consumed C21 through a real two-parent merge and now builds/tests against that product.
 
-The former separate bridge gate/`AsyncLocal` reentrancy design is obsolete and must not be restored.
+## Current C11 product/test head before this documentation handoff
 
-## Exact current validation on 537ce
+Exact C11 product/test head:
+
+`043ee86dd4815a253978b032750a1498a6c89df9`
+
+Commit message:
+
+`test(c11): sequence one-shot HMI command acknowledgements`
+
+The branch may now be ahead by documentation-only handoff commits. Do not treat those later docs SHAs as new product authority.
+
+## Exact validation on 043ee86
 
 SUCCESS:
 
-- EliteSCADA CI #1365 / `33928660073`;
-- Preview Licensing #315 / `33928660187`;
-- L3 #271 / `33928659951`;
-- Interop #192 / `33928660008`;
-- C03 DNP3 #108 / `33928648375`.
+- EliteSCADA CI #1392 / `33949584309`;
+- Preview Licensing #342 / `33949584221`;
+- L3 Seven-Driver Lab #298 / `33949584220`;
+- Interop Lab Smoke #219 / `33949584204`.
 
 FAILURE:
 
-- Wave11 #293 / `33928659977`.
+- Wave11 Active HMI Runtime #320 / `33949584209`.
 
-Status: **5/6 green. C19 is NOT ACCEPTED.**
+Wave11 #320 is **diagnosed**. Do not rerun it unchanged and do not classify it as a PRODUCT GAP.
 
-Wave11 diagnostics identify the exact current blocker:
+Result before failure:
 
-`python3: can't open file '/home/runner/work/EliteSCADA/EliteSCADA/src/Scada.Api/bin/Debug/net10.0/ServerScriptRunner.py': [Errno 2] No such file or directory`
+- C16/C17/C15/C18/C19/C20 passed;
+- C21 pure + Active two-instance TagReference tests passed;
+- C11 canonical EEE foundation passed;
+- C11 HMI reached the navigation phase after exercising lifecycle, Analog Fill, Dynamo instances, Commands, faults and quality scenario;
+- 16 tests passed; 1 failed; 4 downstream tests did not run due project dependency.
 
-This is not the previous activation deadlock. The Script executes once and faults because `ServerScriptRunner.py` is not present in normal Debug output.
+Exact failure:
 
-## Immediate next action
+`getByRole('button', { name: 'TENDÊNCIAS' })` resolved to two legitimate buttons named `TENDÊNCIAS` on the overview (top navigation + quick-access button).
 
-Inspect `src/Scada.Api/Scada.Api.csproj` and the runner content/copy rules. Fix normal product packaging so `ServerScriptRunner.py` is copied to Debug/build output and publish/runtime output consistently.
+First mandatory action for the next coordinator:
 
-Do not hardcode repository paths, bypass Python in tests, increase timeouts, weaken isolation/security/lifecycle, or add EEE-specific behavior.
+1. inspect `web/scada-web/tests-wave11/c11-eee-demo-hmi.spec.ts` around line 146;
+2. replace the ambiguous role/name selector with a deterministic selector/scoped locator for the intended Trends navigation control;
+3. do not change product code for this failure;
+4. create a new exact C11 candidate SHA and run the normal five-gate validation through #266;
+5. diagnose any new red before rerun.
 
-After the product fix, validate one new exact candidate SHA through:
+## C11 DEMO state
 
-1. Wave11;
-2. EliteSCADA CI;
-3. Preview Licensing;
-4. L3 Seven-Driver Lab;
-5. Interop Lab Smoke;
-6. C03 DNP3;
-7. exact-diff architecture review.
+The canonical EEE Simulation is already constructed through normal generic product surfaces:
 
-Diagnose any red before rerun.
+- `builtin.memory.server` process authority;
+- deterministic Server Script;
+- conceptual EEE TAG model;
+- Alarm + Operational Event separation;
+- Historian/Trend;
+- Commands using one-shot request TAGs;
+- live Analog Fill;
+- one reusable pump Dynamo with two independent P01/P02 instances;
+- Screens, pump Popups, Trend, Alarm Browser and Event Browser;
+- `eee.overview` startup;
+- normal `Preview -> Apply -> Save -> Publish -> Activate -> HMI Runtime` lifecycle.
 
-## Route after C19 acceptance
+Real EEE references are captured in `docs/WAVE14-C11-EEE-REAL-REFERENCE-MAPPING.md`. Original material supplied by Product Owner included `tags(1).csv`, `alarm.csv` and 14 unique HMI screens. Do not ask for this material again unless a specific raw artifact is genuinely unavailable after Library/repository search.
 
-1. compose C19 into integration preserving history;
-2. five combined gates on exact C12–C19 integration SHA;
-3. C03 DNP3 on same SHA;
-4. real Preview/browser carry-forward;
-5. new exact product freeze;
-6. close remaining C11 browser evidence;
-7. only then explicitly `RELEASE C11 IMPLEMENTATION` if all blockers are clear;
-8. build living deterministic EEE Simulation using only ordinary generic EliteSCADA mechanisms;
-9. final Wave14 acceptance;
-10. resume Wave13 #205/#207 packaging/signing only on final accepted Wave14 bytes.
-
-## Mandatory references
+## Newly fixed post-DEMO gate
 
 Read:
 
-- `docs/CURRENT-COORDINATOR-HANDOFF.md`;
-- `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`;
-- live C19 `docs/WAVE14-C19-IMPLEMENTATION-HANDOFF.md`;
-- live C19 `docs/WAVE14-C19-PROGRESS.md`;
-- C11 pre-DEMO/audit/HMI clarification docs;
-- `docs/CI-VALIDATION-POLICY.md`;
-- live issue #211 and PRs #212/#257/#259.
+`docs/WAVE14-C11-POST-DEMO-SYSTEM-RECOVERY-SCALING-GAPS.md`
 
-C11 remains IMPLEMENTATION LOCKED. Wave13 remains paused. #259 is validation-only and must never merge.
+Product Owner sequence is binding:
+
+1. finish canonical Simulation DEMO;
+2. close application-level repository validation and canonical `eee-demo` package exportability;
+3. resolve generic system backup/restore and Historian administration/recovery requirements;
+4. resolve generic TAG engineering scaling;
+5. resolve analog display decimal-place authoring/runtime persistence;
+6. only then update/test Preview in fresh Codespace;
+7. after Codespace findings are resolved, build the second EEE package using real Modbus addresses for the existing PLC.
+
+The `.escadapkg` remains an application package, not a container for local users/passwords/history/system secrets.
+
+Scaling/decimals are confirmed PRODUCT GAP items but do not need to stop finishing the current Simulation DEMO unless the current DEMO itself cannot proceed without them. They **do block** Codespace homologation and the real Modbus/PLC variant.
+
+## Mandatory references
+
+1. `PROJECT GOAL.md`;
+2. this file;
+3. `docs/CURRENT-COORDINATOR-HANDOFF.md`;
+4. `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`;
+5. `docs/WAVE14-C11-CANONICAL-DEMO-REQUIREMENTS.md`;
+6. `docs/WAVE14-C11-CANONICAL-DEMO-IMPLEMENTATION-HANDOFF.md`;
+7. `docs/WAVE14-C11-EEE-REAL-REFERENCE-MAPPING.md`;
+8. `docs/WAVE14-C11-POST-DEMO-SYSTEM-RECOVERY-SCALING-GAPS.md`;
+9. `docs/CI-VALIDATION-POLICY.md`;
+10. `docs/CODESPACES-PREVIEW-RUNBOOK.md`;
+11. live issue #211;
+12. live PRs #212, #263 and #266;
+13. exact workflow history for current C11 head.
+
+Do not merge #212 to `main`. Do not resume Wave13 yet.

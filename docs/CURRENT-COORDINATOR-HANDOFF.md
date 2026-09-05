@@ -1,7 +1,7 @@
 # EliteSCADA — Current Coordinator Handoff
 
 **Last operational synchronization:** 2026-09-04 BRT  
-**Status:** **WAVE 14 ACTIVE / C12–C19 COMBINED AUTOMATED VALIDATION GREEN / REAL FRESH-CODESPACE VISUAL HOMOLOGATION PENDING / C11 IMPLEMENTATION LOCKED / WAVE13 PAUSED**
+**Status:** **WAVE 14 ACTIVE / C12–C19 AUTOMATED-GREEN PRE-DEMO BASELINE / C11 REVALIDATION RESUMES / PRODUCT OWNER CODESPACE HOMOLOGATION AFTER CANONICAL DEMO / WAVE13 PAUSED**
 
 > GitHub is the official development memory. Revalidate live refs and exact-SHA workflows before acting. Documentation-only and validation-overlay commits do not redefine product authority.
 
@@ -13,16 +13,23 @@
 - lifecycle remains `Working -> saved Revision -> Published -> Active -> HMI Runtime`;
 - diagnose a red before rerun;
 - never weaken tests/security/contracts/identity/lifecycle for green;
-- package delivery and CI green are not, by themselves, Product Owner browser acceptance;
 - PR #212 stays OPEN/DRAFT and must not merge to `main` without later explicit Product Owner authorization;
-- C11 stays `IMPLEMENTATION LOCKED` until explicit release;
+- C11 stays `IMPLEMENTATION LOCKED` until explicit Coordinator release;
 - Wave13 #205/#207 stays paused until final accepted Wave14 bytes.
 
-## 2. C19 accepted and composed
+## 2. Product Owner sequencing decision
 
-C19 package: **W14-C19 Operational Event Authoring + Server Script Emission Bridge**.
+Product Owner clarified on 2026-09-04 BRT:
 
-Isolated accepted C19 PRODUCT SHA:
+**the real fresh-Codespace visual homologation will be performed after the new canonical EEE DEMO has been created.**
+
+This supersedes the prior ordering that treated fresh Codespace visual homologation as a pre-DEMO blocker.
+
+The deferred Codespace pass remains mandatory before final Wave14 Product Owner acceptance and must exercise the completed product with the canonical DEMO. Do not claim that it has already occurred.
+
+## 3. C19 accepted and composed
+
+C19 isolated accepted PRODUCT SHA:
 
 `43d2734b18dc8b78caaa917b9bf6a381ca47b202`
 
@@ -30,32 +37,23 @@ Accepted isolated tree:
 
 `6a20ad793fdd9f3b66b62a954a6d79a5923ac24f`
 
-C19 isolated evidence:
+Isolated evidence was green across EliteSCADA CI #1369, Wave11 #297, Preview Licensing #319, L3 #275, Interop #196 and C03 #112.
 
-- EliteSCADA CI #1369 / `33930751824` — SUCCESS;
-- Wave11 #297 / `33930751831` — SUCCESS;
-- Preview Licensing #319 / `33930751817` — SUCCESS;
-- L3 #275 / `33930751839` — SUCCESS;
-- Interop #196 / `33930751819` — SUCCESS;
-- C03 DNP3 #112 / `33930740869` — SUCCESS.
-
-Architecture review accepted the current design:
+Architecture accepted:
 
 - Operational Event authoring uses protected Working -> Preview -> CAS -> Apply;
-- Python `emit_operational_event` returns requests only and has no event-bus/history authority;
+- Python `emit_operational_event` has no event-bus/history authority;
 - C# routes through canonical C14 Active Runtime;
 - unknown/disabled/stale definitions fail closed;
-- Server Script TAG/Server Memory/Operational Event revision serialization uses the single existing `ServerScriptRuntimeManager._revisionGate`;
-- the obsolete separate C19 gate/`AsyncLocal` design must never be restored;
-- `ServerScriptRunner.py` is packaged as a normal Debug/publish output asset.
+- `ServerScriptRuntimeManager._revisionGate` is the single canonical Script/Active revision gate;
+- obsolete separate C19 gate/`AsyncLocal` design must never be restored;
+- `ServerScriptRunner.py` is a normal Debug/publish output asset.
 
-PR #257 was merged into `wave14/corrections-integration` with a history-preserving merge commit, never into main.
+PR #257 was merged only into `wave14/corrections-integration`, preserving history.
 
-## 3. Exact current combined product candidate
+## 4. Current pre-DEMO product authority
 
-Integration branch: `wave14/corrections-integration`  
-Integration PR: #212 OPEN/DRAFT  
-Exact combined C12–C19 PRODUCT CANDIDATE:
+Exact combined C12–C19 PRODUCT SHA:
 
 `3fda88061df35ad14755d22881e5d3a9216d1ff5`
 
@@ -63,130 +61,84 @@ Tree:
 
 `da6b406ac111cb40b99e5b13031601eb71606ddd`
 
-Merge parents:
+This SHA is now the frozen **pre-DEMO engineering baseline** for C11 revalidation and canonical DEMO preparation. Later branch HEADs may be documentation-only and must not replace this product authority.
 
-- previous integration docs head `402ff1f879bf311a1903f1c677dad928eab0c094`;
-- C19 docs head `49693517a55ebd8041c6244455b8d6aaac7586a5`, whose product parent is isolated accepted C19 `43d2734...`.
+This is not final Wave14 Product Owner acceptance.
 
-The current integration branch may be ahead of `3fda880...` by documentation-only synchronization commits. Do not promote those docs SHAs to product authority.
+## 5. Combined automated validation on 3fda880
 
-## 4. Combined automated evidence on 3fda880
+Direct SUCCESS:
 
-Direct on the exact combined product candidate:
+- EliteSCADA CI #1370 / `33934982242`;
+- Wave11 Active HMI Runtime #298 / `33934982300`;
+- Preview Licensing CI #320 / `33934982254`;
+- L3 Seven-Driver Lab #276 / `33934982215`;
+- Interop Lab Smoke #197 / `33934982216`.
 
-- EliteSCADA CI #1370 / `33934982242` — SUCCESS;
-- Wave11 Active HMI Runtime #298 / `33934982300` — SUCCESS;
-- Preview Licensing CI #320 / `33934982254` — SUCCESS;
-- L3 Seven-Driver Lab #276 / `33934982215` — SUCCESS;
-- Interop Lab Smoke #197 / `33934982216` — SUCCESS.
+Dedicated C03:
 
-Dedicated C03 carry-forward was required because its PR trigger targets the integration branch, not PR #212 to main and the active connector exposes no workflow-dispatch action.
+- C03 DNP3 #113 / `33935067545` — SUCCESS;
+- validation-only PR #260 was documentation-only, based directly on `3fda880...`, and closed without merge.
 
-Validation-only PR #260:
+Automated Preview harness:
 
-- direct product parent `3fda880...`;
-- overlay head `80a4bc7255ca46a0a52c401abed09dc4da0b4e2f`;
-- one documentation-only C03 trigger change;
-- C03 #113 / `33935067545` — SUCCESS across managed tests, Linux/Windows native builds, real dnp3py interop and Windows commercial publish dependency gate;
-- #260 closed without merge.
+- harness SHA `086b5d6c92ccfa4f5dc7e947c787ffd953acc5e2`;
+- Test Preview `33935493882` — SUCCESS;
+- validation-only PR #262 closed without merge.
 
-Therefore combined automated carry-forward is coherent across the six required gates.
+The automated Preview result proves startup/harness viability, not the deferred Product Owner visual homologation.
 
-## 5. Test Preview automated carry-forward
+## 6. Immediate task: resume C11 revalidation
 
-Historical proven Preview overlay commit `38fce9f72f032f648c6ccda7cc86d00278a7eee6` was a single infrastructure-only commit based on the previous accepted C12–C18 product.
+Fresh Codespace is no longer the immediate blocker.
 
-A disposable validation branch was created from `3fda880...` and that exact infrastructure commit was reapplied with history preserved.
+Resume C11 against product baseline `3fda880...` using the binding C11 documents and current automated/browser-test evidence.
 
-Validation harness SHA:
+Re-evaluate the remaining evidence list in light of the new sequencing. Distinguish carefully between:
 
-`086b5d6c92ccfa4f5dc7e947c787ffd953acc5e2`
+1. evidence needed to decide whether C11 implementation can be released so the canonical DEMO can be built; and
+2. visual Product Owner acceptance that is intentionally deferred until the DEMO exists.
 
-Compare from `3fda880...` contains only seven Preview infrastructure files:
+Do not implicitly release C11 merely because Codespace moved later. Explicitly record `RELEASE C11 IMPLEMENTATION` only if the implementation-release conditions are actually satisfied.
 
-- `.devcontainer/devcontainer.json`;
-- `.devcontainer/docker-compose.yml`;
-- `.devcontainer/initialize-preview-machine-id.sh`;
-- `.github/workflows/test-preview.yml`;
-- two historical Preview fixture files;
-- `scripts/preview/launch-test-preview.sh`.
+## 7. Canonical DEMO after C11 release
 
-No historical Preview product correction was imported.
+Build the living deterministic EEE Simulation exclusively through ordinary generic EliteSCADA mechanisms:
 
-Validation-only PR #262 targeted `main` solely to trigger the existing `Test Preview` workflow and was then closed without merge.
+- Drivers;
+- TAGs;
+- Internal Memory;
+- Server Scripts;
+- Operational Events;
+- Alarms;
+- Historian;
+- Trend;
+- Alarm Browser;
+- Event Browser;
+- Commands;
+- Screens;
+- Popups;
+- Dynamo;
+- Startup/Home.
 
-- Test Preview / `33935493882` — SUCCESS.
+No EEE-specific service, Driver, hidden package, private runtime or DEMO-only wiring.
 
-The job proved:
+## 8. Deferred final Product Owner homologation
 
-- exact .NET SDK/devcontainer contract;
-- disposable `/etc/machine-id` with fail-closed licensing preserved;
-- Compose/TimescaleDB contract;
-- automatic Preview launch configuration;
-- backend/frontend setup;
-- ephemeral Preview administrator password;
-- normal Preview launcher execution;
-- browser entry HTTP surface;
-- Pyodide asset availability.
+After the canonical DEMO exists, perform the fresh Codespace / real browser Product Owner pass using `docs/CODESPACES-PREVIEW-RUNBOOK.md`.
 
-## 6. Current blocking boundary: real browser homologation
+That pass should validate the actual completed demonstration chain and visual behavior, including Engineering usability, languages, Save -> Publish -> Activate, operator Runtime, scaling/no-scroll/reflow, Screen/Popup/Dynamo behavior, and live alarm/event/trend/history/command behavior.
 
-Automated Test Preview is not final browser homologation.
-
-The runbook requires a fresh Codespace and real visual/Product Owner validation. The current chat tool surface does not expose Codespaces creation/browser interaction, so this evidence cannot be truthfully produced here.
-
-Before declaring the new product freeze, record fresh-Codespace evidence against the current product + Preview harness composition, including at minimum:
-
-- fresh Codespace exact SHA/provenance;
-- automatic startup with Web 5173 Private and API/DB internal;
-- real login/first-run behavior;
-- Engineering readability/usability in Dark/Light;
-- representative pt-BR/en/es affected surfaces;
-- Save -> Publish -> Activate -> real Active Runtime;
-- operator shell/capabilities;
-- representative Runtime scaling at canonical resolutions plus mismatched aspect ratio;
-- no document scroll/reflow and aligned hit targets;
-- Screen navigation, Popups and Dynamos under the same transform;
-- representative alarm/event/trend/history behavior;
-- visible live simulation behavior appropriate to the current validation fixture.
-
-If the real browser finds a product defect, create new product bytes, diagnose/fix narrowly, rerun the required gates, and repeat the failed browser evidence. Do not freeze `3fda880...` merely because CI is green.
-
-## 7. C11 remains locked
-
-Do not release C11 yet.
-
-After the new exact product freeze, remaining C11 browser evidence still includes:
-
-- Analog Fill visibly live;
-- Dynamo operational/bad-quality states;
-- two independent Dynamo instances;
-- canonical Runtime resolutions/scaling;
-- fullscreen/no-scroll/overlay without reflow;
-- one integrated living chain `automation -> TAG/quality -> alarm/event/history -> HMI objects -> command`.
-
-Only after every blocker is cleared may the repository explicitly record:
-
-`RELEASE C11 IMPLEMENTATION`
-
-## 8. After C11 release
-
-Build the living deterministic EEE Simulation exclusively using ordinary generic EliteSCADA mechanisms:
-
-Drivers, TAGs, Internal Memory, Server Scripts, Operational Events, Alarms, Historian, Trend, Alarm Browser, Event Browser, Commands, Screens, Popups, Dynamo and Startup/Home.
-
-No EEE-specific service/Driver/private runtime/hidden package/DEMO-only wiring is allowed.
-
-Then perform final Wave14 acceptance. Only after final accepted Wave14 bytes may Wave13 #205/#207 packaging/signing resume.
+Any real defect found there must be classified and corrected before final Wave14 acceptance.
 
 ## 9. PR hygiene
 
 - #212: OPEN/DRAFT, NEVER merge to main without later explicit Product Owner authorization;
-- #257: merged only into integration; C19 history now composed;
-- #259: historical validation-only DRAFT/CI trigger, NEVER MERGE;
-- #260: closed without merge after C03 #113 SUCCESS;
-- #262: closed without merge after Test Preview `33935493882` SUCCESS;
-- #208/#210: historical/current Preview harness authority, not product authority.
+- #257: merged only into integration;
+- #259: closed without merge;
+- #260: closed without merge after C03 #113;
+- #262: closed without merge after Test Preview;
+- #208/#210: Preview harness/history, not product authority.
 
 ## 10. Mandatory resume order
 
@@ -194,13 +146,11 @@ Then perform final Wave14 acceptance. Only after final accepted Wave14 bytes may
 2. `LAST CHANGE.md`;
 3. this file;
 4. `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`;
-5. C19 implementation/progress docs;
-6. C11 pre-DEMO / Pass-2 audit / HMI clarification / canonical requirements;
+5. C11 pre-DEMO / Pass-2 audit / HMI clarification / canonical DEMO requirements;
+6. C19 implementation/progress docs;
 7. `docs/CI-VALIDATION-POLICY.md`;
-8. `docs/CODESPACES-PREVIEW-RUNBOOK.md`;
-9. live issue #211;
-10. live PR #212 and relevant validation PR history;
-11. revalidate exact refs/workflows;
-12. continue from **fresh Codespace / real browser homologation**, not from an already completed packaging fix.
+8. live issue #211 and PR #212;
+9. revalidate exact refs/workflows;
+10. continue with **C11 revalidation**, not fresh Codespace creation.
 
-Do not ask the Product Owner to reconstruct decisions already recorded unambiguously in GitHub.
+Do not ask the Product Owner to reconstruct decisions already committed to GitHub.

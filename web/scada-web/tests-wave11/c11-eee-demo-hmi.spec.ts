@@ -143,7 +143,9 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     await expect.poll(async () => Number((await readCurrent(request, EEE_PATHS.p01PressureBar)).quality)).toBe(TAG_QUALITY.Good);
     await expectRequestConsumed(request, EEE_PATHS.cmdBadQualityDisable);
 
-    await page.getByRole('button', { name: 'TENDÊNCIAS' }).click();
+    // The overview intentionally exposes Trends in both the top navigation and
+    // quick access. Select the canonical top-nav action explicitly.
+    await page.getByRole('button', { name: 'TENDÊNCIAS' }).first().click();
     await expect(page.getByTestId('runtime-visual-navigator')).toHaveAttribute('data-active-screen-key', EEE_HMI.screens.trends.key);
     const trend = page.getByTestId('visual-trend');
     await expect(trend).toBeVisible();

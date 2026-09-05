@@ -7,6 +7,7 @@ import {
 } from './tests-e2e/jwt';
 
 const developerToken = createE2eJwt('c11-eee-package-developer', ['developer'], 'C11 EEE Package Developer');
+const c11ConnectionString = 'Host=127.0.0.1;Port=5432;Database=elitescada_c11;Username=postgres;Password=postgres;Pooling=false';
 
 export default defineConfig({
   testDir: './tests-wave11',
@@ -41,6 +42,7 @@ export default defineConfig({
         ASPNETCORE_URLS: 'http://127.0.0.1:5081',
         DOTNET_NOLOGO: 'true',
         DOTNET_CLI_TELEMETRY_OPTOUT: '1',
+        ConnectionStrings__EliteScada: c11ConnectionString,
         Authentication__Enabled: 'true',
         Authentication__Jwt__Issuer: E2E_AUTH_ISSUER,
         Authentication__Jwt__Audience: E2E_AUTH_AUDIENCE,

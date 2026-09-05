@@ -8,31 +8,42 @@ import { buildEeeDemoPackage } from './c11-eee-demo-hmi';
 
 const canonicalProjectKey = 'eee-demo';
 const canonicalProjectName = 'EliteSCADA — EEE Demo';
-const sourceProductSha = '255397ed9c800396b4f6ad6417a108bab65caa37';
+const sourceProductSha = '5962bee401fadd700041e7c61cd430d4b4f28e27';
 const packageFileName = 'EliteSCADA-EEE-Demo.escadapkg';
 const packageMediaType = 'application/vnd.elitescada.project-package';
+const builtinDynamoCount = 8;
+const applicationDynamoKey = 'eee.dynamo.pump';
 
 test('C11 canonical eee-demo Active project exports, inspects and re-previews as a portable package', async ({ request }) => {
+  await createFreshProject(request);
   const original = await loadWorking(request);
+  expect(builtinDynamos(original.dynamos)).toHaveLength(builtinDynamoCount);
+  expect(applicationDynamos(original.dynamos)).toHaveLength(0);
+
   const candidate = buildEeeDemoPackage(original);
 
   expect(candidate.startupScreenId).toBe(EEE_HMI.screens.overview.id);
   expect(candidate.screens).toHaveLength(6);
   expect(candidate.popups).toHaveLength(2);
   expect(candidate.dynamos).toHaveLength(1);
+  expect(candidate.dynamos[0].key).toBe(applicationDynamoKey);
 
   await previewAndApply(request, candidate);
   const saved = await savePublishActivate(request);
 
-  const active = await expect.poll(async () => {
+  await expect.poll(async () => {
     const response = await request.get('/api/runtime/application');
     if (!response.ok()) return null;
     const body = await response.json() as any;
     return body.projectKey === canonicalProjectKey && body.revision === saved.revision ? body : null;
-  }, { timeout: 15_000 }).not.toBeNull().then(async () => {
-    const response = await request.get('/api/runtime/application');
-    return await response.json() as any;
-  });
+  }, { timeout: 15_000 }).not.toBeNull();
+
+  const activeResponse = await request.get('/api/runtime/application');
+  expect(
+    activeResponse.ok(),
+    `C11 Active Runtime application read failed: HTTP ${activeResponse.status()} ${await activeResponse.text()}`
+  ).toBeTruthy();
+  const active = await activeResponse.json() as any;
 
   expect(active.mode).toBe('engineering');
   expect(active.projectKey).toBe(canonicalProjectKey);
@@ -40,7 +51,8 @@ test('C11 canonical eee-demo Active project exports, inspects and re-previews as
   expect(active.package.startupScreenId).toBe(EEE_HMI.screens.overview.id);
   expect(active.package.screens).toHaveLength(6);
   expect(active.package.popups).toHaveLength(2);
-  expect(active.package.dynamos).toHaveLength(1);
+  expect(builtinDynamos(active.package.dynamos)).toHaveLength(builtinDynamoCount);
+  expect(applicationDynamos(active.package.dynamos).map((x: any) => x.key)).toEqual([applicationDynamoKey]);
 
   await expect.poll(async () => Number((await readCurrent(request, EEE_PATHS.levelPct)).value), { timeout: 15_000 })
     .toBeGreaterThan(0);
@@ -74,7 +86,7 @@ test('C11 canonical eee-demo Active project exports, inspects and re-previews as
   expect(inspection.manifest.engineeringSchema).toBe('scada.engineering');
   expect(inspection.engineering.screens).toBe(6);
   expect(inspection.engineering.popups).toBe(2);
-  expect(inspection.engineering.dynamos).toBe(1);
+  expect(inspection.engineering.dynamos).toBe(builtinDynamoCount + 1);
   expect(inspection.engineering.tags).toBeGreaterThan(0);
   expect(inspection.engineering.alarms).toBeGreaterThan(0);
   expect(inspection.engineering.dataSources).toBeGreaterThan(0);
@@ -126,7 +138,11 @@ test('C11 canonical eee-demo Active project exports, inspects and re-previews as
     packageFormatVersion: inspection.manifest.formatVersion,
     engineeringSchema: inspection.manifest.engineeringSchema,
     engineeringSchemaVersion: inspection.manifest.engineeringSchemaVersion,
+    applicationDynamoCount: applicationDynamos(active.package.dynamos).length,
+    builtinLibraryDynamoCount: builtinDynamos(active.package.dynamos).length,
     constructionMethod: [
+      'Fresh isolated Engineering persistence database',
+      'First Project Setup',
       'Engineering JSON Import Preview',
       'Engineering JSON Import Apply',
       'Save',
@@ -138,6 +154,7 @@ test('C11 canonical eee-demo Active project exports, inspects and re-previews as
       'Project Package Import Preview'
     ],
     validationBoundaries: [
+      '/api/engineering/persistence/projects/first',
       '/api/engineering/import/json/preview',
       '/api/engineering/import/json/apply',
       `/api/engineering/persistence/${canonicalProjectKey}/save`,
@@ -158,6 +175,36 @@ test('C11 canonical eee-demo Active project exports, inspects and re-previews as
     'utf8'
   );
 });
+
+async function createFreshProject(request: APIRequestContext) {
+  const statusBefore = await request.get('/api/engineering/persistence/status');
+  expect(
+    statusBefore.ok(),
+    `C11 persistence status failed: HTTP ${statusBefore.status()} ${await statusBefore.text()}`
+  ).toBeTruthy();
+  const before = await statusBefore.json() as { enabled?: boolean; hasProjects?: boolean | null };
+  expect(before.enabled).toBe(true);
+  expect(before.hasProjects).toBe(false);
+
+  const create = await request.post('/api/engineering/persistence/projects/first', {
+    data: {
+      projectKey: canonicalProjectKey,
+      projectName: canonicalProjectName
+    }
+  });
+  expect(
+    create.status(),
+    `C11 First Project failed: HTTP ${create.status()} ${await create.text()}`
+  ).toBe(201);
+  const created = await create.json() as any;
+  expect(created.revision.projectKey).toBe(canonicalProjectKey);
+  expect(created.revision.projectName).toBe(canonicalProjectName);
+
+  const statusAfter = await request.get('/api/engineering/persistence/status');
+  expect(statusAfter.ok()).toBeTruthy();
+  const after = await statusAfter.json() as { hasProjects?: boolean | null };
+  expect(after.hasProjects).toBe(true);
+}
 
 async function previewAndApply(request: APIRequestContext, candidate: any) {
   const before = await loadWorkspace(request);
@@ -213,6 +260,14 @@ async function loadWorkspace(request: APIRequestContext): Promise<{ changeVersio
   const response = await request.get('/api/engineering/workspace');
   expect(response.ok()).toBeTruthy();
   return await response.json();
+}
+
+function builtinDynamos(dynamos: any[] | undefined | null): any[] {
+  return (dynamos ?? []).filter(dynamo => dynamo?.metadata?.builtinLibrary === 'true');
+}
+
+function applicationDynamos(dynamos: any[] | undefined | null): any[] {
+  return (dynamos ?? []).filter(dynamo => dynamo?.metadata?.builtinLibrary !== 'true');
 }
 
 async function readCurrent(request: APIRequestContext, tagPath: string): Promise<{ value?: unknown; quality?: unknown }> {

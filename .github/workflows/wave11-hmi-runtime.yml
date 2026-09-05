@@ -76,6 +76,14 @@ jobs:
         working-directory: web/scada-web
         run: npx playwright test --config=playwright.wave11.config.ts
 
+      - name: Create isolated C11 canonical database
+        env:
+          PGPASSWORD: postgres
+        run: >-
+          psql -h 127.0.0.1 -p 5432 -U postgres -d postgres
+          -v ON_ERROR_STOP=1
+          -c "CREATE DATABASE elitescada_c11;"
+
       - name: Run C11 canonical EEE package portability gate
         working-directory: web/scada-web
         run: npx playwright test --config=playwright.c11-package.config.ts

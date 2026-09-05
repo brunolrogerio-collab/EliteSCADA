@@ -33,6 +33,7 @@ internal sealed record ServerScriptTagSnapshot(
 /// Active-revision-only host for Server Engineering Scripts. Runtime activation and
 /// script TAG access share a revision gate, so an execution from an obsolete Active
 /// generation can never replay a write into a newer revision with the same stable TAG ID.
+/// Operational Event emission uses that same gate so it has identical revision safety.
 /// </summary>
 public sealed class ServerScriptRuntimeManager : IAsyncDisposable
 {
@@ -264,6 +265,27 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
                 throw new ScriptExecutionDiagnosticException("write_server_memory may only target Server Memory TAGs.");
 
             await _runtime.WriteAsync(tagId, value, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _revisionGate.Release();
+        }
+    }
+
+    internal async ValueTask<T> ExecuteAgainstActiveRevisionAsync<T>(
+        string projectKey,
+        long revision,
+        Func<CancellationToken, ValueTask<T>> operation,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+
+        await _revisionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ThrowIfDisposed();
+            EnsureRuntimeIdentity(projectKey, revision);
+            return await operation(cancellationToken).ConfigureAwait(false);
         }
         finally
         {

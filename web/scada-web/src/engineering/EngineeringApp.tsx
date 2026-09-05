@@ -13,6 +13,7 @@ import { DevelopmentMonitorWorkspace } from './development-monitor/DevelopmentMo
 import { EngineeringTagMonitorWorkspace } from './diagnostics/EngineeringTagMonitorWorkspace';
 import { EngineeringLifecycleWorkspace } from './EngineeringLifecycleWorkspace';
 import { EngineeringProjectManagementWorkspace } from './EngineeringProjectManagementWorkspace';
+import { OperationalEventEditor, operationalEventCount } from './OperationalEventEditor';
 import { ReportDesignerWorkspace } from './reports/ReportDesignerWorkspace';
 import { reportCollection } from './reports/reportDesignerModel';
 import { ScriptEngineeringWorkspace } from './scripts/ScriptEngineeringWorkspace';
@@ -29,6 +30,7 @@ type SectionId =
   | 'dataSources'
   | 'tags'
   | 'alarms'
+  | 'operationalEvents'
   | 'templates'
   | 'equipment'
   | 'dynamos'
@@ -48,7 +50,12 @@ const tagMonitorPath = '/engineering/diagnostics/tag-monitor';
 
 const navigation: NavGroup[] = [
   { label: 'nav.project', items: [{ id: 'overview', label: 'nav.overview' }, { id: 'scripts' }] },
-  { label: 'nav.communication', items: [{ id: 'dataSources', label: 'nav.dataSources' }, { id: 'tags', label: 'nav.tags' }, { id: 'alarms', label: 'nav.alarms' }] },
+  { label: 'nav.communication', items: [
+    { id: 'dataSources', label: 'nav.dataSources' },
+    { id: 'tags', label: 'nav.tags' },
+    { id: 'alarms', label: 'nav.alarms' },
+    { id: 'operationalEvents', literalLabel: { 'pt-BR': 'Eventos Operacionais', en: 'Operational Events', es: 'Eventos Operacionales' } }
+  ] },
   { label: 'nav.assets', items: [{ id: 'templates', label: 'nav.templates' }, { id: 'equipment', label: 'nav.equipment' }, { id: 'dynamos', label: 'nav.dynamos' }] },
   { label: 'nav.visualization', items: [{ id: 'screens', label: 'nav.screens' }, { id: 'popups', label: 'nav.popups' }] },
   { label: 'nav.historian', items: [
@@ -187,6 +194,7 @@ function EngineeringSection({ section, snapshot, t, locale, onReload }: {
     case 'dataSources': return <DataSourceEditor model={model} locale={locale}/>;
     case 'tags': return <TagEditor model={model} locale={locale}/>;
     case 'alarms': return <AlarmEditor model={model} locale={locale}/>;
+    case 'operationalEvents': return <OperationalEventEditor model={model} locale={locale} onApplied={onReload}/>;
     case 'templates': return <EntitySection title={t('nav.templates')} items={model.templates ?? []} t={t} columns={[
       { key: 'key', title: t('table.key'), render: item => <Code>{item.key}</Code> },
       { key: 'name', title: t('table.name'), render: item => item.name },
@@ -259,7 +267,7 @@ function SecuritySection({ model, t, locale }: { model: EngineeringPackageView; 
 }
 
 function DiagnosticsSection({ model, t, locale }: { model: EngineeringPackageView; t: ReturnType<typeof translator>; locale: EngineeringLocale }) {
-  const total = model.tags.length + model.alarms.length + (model.dataSources?.length ?? 0) + (model.templates?.length ?? 0) + (model.equipment?.length ?? 0) + (model.dynamos?.length ?? 0) + (model.screens?.length ?? 0) + (model.popups?.length ?? 0) + (model.securityRoles?.length ?? 0);
+  const total = model.tags.length + model.alarms.length + operationalEventCount(model) + (model.dataSources?.length ?? 0) + (model.templates?.length ?? 0) + (model.equipment?.length ?? 0) + (model.dynamos?.length ?? 0) + (model.screens?.length ?? 0) + (model.popups?.length ?? 0) + (model.securityRoles?.length ?? 0);
   return (
     <div className="eng-section">
       <SectionHeader title={t('diagnostics.title')} description={t('diagnostics.description')} t={t}/>
@@ -303,6 +311,7 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'dataSources': return model.dataSources?.length ?? 0;
     case 'tags': return model.tags.length;
     case 'alarms': return model.alarms.length;
+    case 'operationalEvents': return operationalEventCount(model);
     case 'templates': return model.templates?.length ?? 0;
     case 'equipment': return model.equipment?.length ?? 0;
     case 'dynamos': return model.dynamos?.length ?? 0;
@@ -324,7 +333,7 @@ function formatDate(value: string, locale: EngineeringLocale) {
 }
 function scriptNavLabel(_locale: EngineeringLocale) { return 'Scripts'; }
 function NavIcon({ section }: { section: SectionId }) {
-  const symbols: Record<SectionId, string> = { overview: '⌂', scripts: '</>', dataSources: '⇄', tags: '#', alarms: '!', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯' };
+  const symbols: Record<SectionId, string> = { overview: '⌂', scripts: '</>', dataSources: '⇄', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯' };
   return <i aria-hidden="true">{symbols[section]}</i>;
 }
 

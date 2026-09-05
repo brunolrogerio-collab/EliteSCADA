@@ -3,6 +3,10 @@ import json
 import sys
 
 MAX_STEPS = 10000
+MAX_EVENT_CONTEXT_ENTRIES = 128
+MAX_EVENT_CONTEXT_KEY_LENGTH = 160
+MAX_EVENT_CONTEXT_VALUE_LENGTH = 4000
+MAX_EVENT_MESSAGE_LENGTH = 4000
 
 
 class ScriptError(Exception):
@@ -24,6 +28,7 @@ class SafeInterpreter:
         }
         self.event = event or {}
         self.writes = []
+        self.operational_events = []
         self.functions = {
             node.name: node for node in self.tree.body if isinstance(node, ast.FunctionDef)
         }
@@ -238,6 +243,52 @@ class SafeInterpreter:
             )
             return None
 
+        if name == "emit_operational_event":
+            if len(args) < 1 or len(args) > 3:
+                raise ScriptError(
+                    "Operational Event emission requires definition ID and optional message/context."
+                )
+
+            definition_id = str(args[0]).strip()
+            if not definition_id:
+                raise ScriptError("Operational Event definition ID is required.")
+
+            message = args[1] if len(args) >= 2 else None
+            if message is not None:
+                if not isinstance(message, str):
+                    raise ScriptError("Operational Event message must be a string or None.")
+                if len(message) > MAX_EVENT_MESSAGE_LENGTH:
+                    raise ScriptError("Operational Event message exceeds 4000 characters.")
+
+            context = args[2] if len(args) >= 3 else None
+            normalized_context = None
+            if context is not None:
+                if not isinstance(context, dict):
+                    raise ScriptError("Operational Event context must be a dictionary or None.")
+                if len(context) > MAX_EVENT_CONTEXT_ENTRIES:
+                    raise ScriptError("Operational Event context supports at most 128 entries.")
+
+                normalized_context = {}
+                for raw_key, raw_value in context.items():
+                    if not isinstance(raw_key, str) or not raw_key.strip():
+                        raise ScriptError("Operational Event context keys must be non-empty strings.")
+                    if len(raw_key.strip()) > MAX_EVENT_CONTEXT_KEY_LENGTH:
+                        raise ScriptError("Operational Event context key exceeds 160 characters.")
+                    if not isinstance(raw_value, str):
+                        raise ScriptError("Operational Event context values must be strings.")
+                    if len(raw_value) > MAX_EVENT_CONTEXT_VALUE_LENGTH:
+                        raise ScriptError("Operational Event context value exceeds 4000 characters.")
+                    normalized_context[raw_key.strip()] = raw_value
+
+            self.operational_events.append(
+                {
+                    "definitionId": definition_id,
+                    "message": message,
+                    "context": normalized_context,
+                }
+            )
+            return None
+
         builtins = {
             "min": min,
             "max": max,
@@ -325,7 +376,12 @@ def main():
             payload.get("serverMemoryTagIds") or [],
         )
         interpreter.run(payload.get("handler", ""))
-        result = {"succeeded": True, "error": None, "writes": interpreter.writes}
+        result = {
+            "succeeded": True,
+            "error": None,
+            "writes": interpreter.writes,
+            "operationalEvents": interpreter.operational_events,
+        }
     except (
         ScriptError,
         SyntaxError,
@@ -336,7 +392,12 @@ def main():
         ZeroDivisionError,
         OverflowError,
     ) as error:
-        result = {"succeeded": False, "error": str(error)[:240], "writes": []}
+        result = {
+            "succeeded": False,
+            "error": str(error)[:240],
+            "writes": [],
+            "operationalEvents": [],
+        }
     print(json.dumps(result, separators=(",", ":")))
 
 

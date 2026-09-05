@@ -61,9 +61,15 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] }
     },
     {
+      name: 'chromium-wave11-c19-operational-events',
+      testMatch: /c19-operational-event-script-bridge\.spec\.ts/,
+      dependencies: ['chromium-wave11-c18-browsers'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
       name: 'chromium-wave11-owner-package',
       testMatch: /owner-test-artifact\.spec\.ts/,
-      dependencies: ['chromium-wave11-c18-browsers'],
+      dependencies: ['chromium-wave11-c19-operational-events'],
       use: { ...devices['Desktop Chrome'] }
     }
   ],

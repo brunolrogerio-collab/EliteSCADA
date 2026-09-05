@@ -28,7 +28,8 @@ public sealed class PersistedRuntimeRecoveryService(
     IEngineeringExchangeService exchange,
     IEngineeringRuntimeCoordinator runtime,
     IScadaEventBus? eventBus = null,
-    IConfiguration? configuration = null) : IPersistedRuntimeRecoveryService
+    IConfiguration? configuration = null,
+    GatewayEngineeringRuntimeCoordinator? operationalEvents = null) : IPersistedRuntimeRecoveryService
 {
     public async Task<PersistedRuntimeRecoveryResult> RecoverAsync(
         string projectKey,
@@ -68,6 +69,10 @@ public sealed class PersistedRuntimeRecoveryService(
                 runtime,
                 eventBus,
                 configuration);
+
+            if (operationalEvents is not null)
+                ServerScriptOperationalEventBridge.Bind(scripts, operationalEvents);
+
             result = await scripts.ActivateRuntimeAsync(
                 snapshot.ProjectKey,
                 snapshot.Revision,

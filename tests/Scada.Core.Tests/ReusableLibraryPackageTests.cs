@@ -180,12 +180,100 @@ public sealed class ReusableLibraryPackageTests
     }
 
     [Fact]
-    public void Export_FailsExplicitlyForResourceKindWhoseDependencyClosureIsNotEnabledYet()
+    public void Export_DynamoAutomaticallyIncludesReusableDependencyClosure()
+    {
+        var assets = new InMemoryEngineeringAssetRegistry();
+        var visualAssets = new InMemoryVisualAssetEngineeringRegistry();
+        var templateId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        var rootId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+
+        assets.UpsertTemplate(new EquipmentTemplateEngineeringDto(
+            templateId,
+            "template.pump",
+            "Pump Template"));
+        assets.UpsertDynamo(new DynamoEngineeringDto(
+            childId,
+            "dynamo.child",
+            "Child Dynamo",
+            Elements: [new VisualElementEngineeringDto("body", "core.rectangle")]));
+
+        var payload = VisualAssetPayload.Create("image/svg+xml", "<svg/>"u8);
+        visualAssets.PutPayload(payload);
+        visualAssets.UpsertAsset(new VisualAssetEngineeringDto(
+            assetId,
+            "asset.symbol",
+            "Symbol",
+            "symbol.svg",
+            payload.MediaType,
+            payload.ByteLength,
+            payload.Sha256));
+
+        assets.UpsertDynamo(new DynamoEngineeringDto(
+            rootId,
+            "dynamo.root",
+            "Root Dynamo",
+            TemplateKey: "template.pump",
+            Elements:
+            [
+                new VisualElementEngineeringDto(
+                    "child",
+                    "dynamo",
+                    DynamoKey: "dynamo.child"),
+                new VisualElementEngineeringDto(
+                    "symbol",
+                    "core.image",
+                    Properties: new Dictionary<string, JsonElement>
+                    {
+                        ["assetRef"] = JsonSerializer.SerializeToElement(new { assetId = $"asset:{assetId:D}" })
+                    })
+            ]));
+
+        var service = new ReusableLibraryPackageService(assets, visualAssets);
+        var bytes = service.Export(new ReusableLibraryExportRequest(
+            Guid.NewGuid(),
+            "Dynamo Library",
+            "1.0.0",
+            [new(ReusableLibraryResourceKinds.Dynamo, rootId)]));
+
+        var inspection = service.Inspect(bytes);
+        var root = Assert.Single(inspection.Manifest.Resources.Where(resource => resource.ResourceId == rootId));
+
+        Assert.Equal(4, inspection.Manifest.Resources.Count);
+        Assert.Equal(5, inspection.Manifest.Files.Count);
+        Assert.Equal(3, root.Dependencies.Count);
+        Assert.Contains(root.Dependencies, dependency =>
+            dependency.Kind == ReusableLibraryResourceKinds.EquipmentTemplate && dependency.ResourceId == templateId);
+        Assert.Contains(root.Dependencies, dependency =>
+            dependency.Kind == ReusableLibraryResourceKinds.Dynamo && dependency.ResourceId == childId);
+        Assert.Contains(root.Dependencies, dependency =>
+            dependency.Kind == ReusableLibraryResourceKinds.VisualAsset && dependency.ResourceId == assetId);
+        Assert.Contains(inspection.Manifest.Resources, resource =>
+            resource.Kind == ReusableLibraryResourceKinds.EquipmentTemplate && resource.ResourceId == templateId);
+        Assert.Contains(inspection.Manifest.Resources, resource =>
+            resource.Kind == ReusableLibraryResourceKinds.Dynamo && resource.ResourceId == childId);
+        Assert.Contains(inspection.Manifest.Resources, resource =>
+            resource.Kind == ReusableLibraryResourceKinds.VisualAsset && resource.ResourceId == assetId);
+    }
+
+    [Fact]
+    public void Export_DynamoRejectsConcreteProjectBindingBeforePackaging()
     {
         var assets = new InMemoryEngineeringAssetRegistry();
         var visualAssets = new InMemoryVisualAssetEngineeringRegistry();
         var id = Guid.NewGuid();
-        assets.UpsertDynamo(new DynamoEngineeringDto(id, "dynamo.pump", "Pump Dynamo"));
+        assets.UpsertDynamo(new DynamoEngineeringDto(
+            id,
+            "dynamo.bound",
+            "Project Bound Dynamo",
+            Bindings:
+            [
+                new EngineeringBindingDto(
+                    "value",
+                    EngineeringBindingKind.Tag,
+                    "Plant.P01.Speed")
+            ]));
         var service = new ReusableLibraryPackageService(assets, visualAssets);
 
         var exception = Assert.Throws<InvalidDataException>(() => service.Export(new ReusableLibraryExportRequest(
@@ -194,7 +282,7 @@ public sealed class ReusableLibraryPackageTests
             "1",
             [new(ReusableLibraryResourceKinds.Dynamo, id)])));
 
-        Assert.Contains("not export-enabled yet", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("concrete project data", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private static (ReusableLibraryPackageService Service, byte[] Bytes) CreateTemplateLibrary()

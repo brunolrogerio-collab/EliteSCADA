@@ -99,6 +99,9 @@ jobs:
       - name: Run atomic Authority store replacement tests
         run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~LocalIdentityStoreReplaceTests" --verbosity normal
 
+      - name: Run C25.7 distributed Runtime foundation backend contract tests
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~DistributedRuntimeFoundationTests" --verbosity normal
+
   engineering-lock-web:
     name: Engineering Lock web contract
     runs-on: ubuntu-latest

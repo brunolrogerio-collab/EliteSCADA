@@ -51,6 +51,8 @@ public sealed class ApiAuthorizationService(
     IEngineeringExchangeService exchange,
     IConfiguration configuration)
 {
+    public const string RuntimeSessionHeaderName = "X-EliteSCADA-Runtime-Session";
+
     private readonly object _activeCacheGate = new();
     private readonly bool _authenticationEnabled = configuration.GetValue<bool>("Authentication:Enabled");
     private string? _cachedProjectKey;
@@ -58,6 +60,7 @@ public sealed class ApiAuthorizationService(
     private InMemoryCapabilityAuthorizationService? _cachedActivePolicies;
 
     public bool AuthenticationEnabled => _authenticationEnabled;
+    public RuntimeSessionLeaseRegistry RuntimeSessions { get; } = new();
 
     public SecurityPrincipal GetPrincipal(HttpContext context) =>
         ClaimsPrincipalMapper.Map(context.User);
@@ -76,13 +79,21 @@ public sealed class ApiAuthorizationService(
         return new ApiAuthorizationCheck(principal, policies.Evaluate(principal, capability, resource));
     }
 
-    public Task<ApiAuthorizationCheck> CheckRuntimeAsync(
+    public async Task<ApiAuthorizationCheck> CheckRuntimeAsync(
         HttpContext context,
         ScadaRuntimeFacade runtime,
         SecurityCapability capability,
         AuthorizationResource? resource = null,
-        CancellationToken cancellationToken = default) =>
-        CheckRuntimeAsync(GetPrincipal(context), runtime, capability, resource, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        var baseline = await CheckRuntimeAsync(
+            GetPrincipal(context),
+            runtime,
+            capability,
+            resource,
+            cancellationToken);
+        return ApplyRuntimeSessionDownscope(context, runtime, baseline);
+    }
 
     public async Task<ApiAuthorizationCheck> CheckRuntimeAsync(
         SecurityPrincipal principal,
@@ -109,13 +120,21 @@ public sealed class ApiAuthorizationService(
         return new ApiAuthorizationCheck(principal, policies.Evaluate(principal, capability, resource));
     }
 
-    public Task<ApiAuthorizationCheck> CheckRuntimeTagAsync(
+    public async Task<ApiAuthorizationCheck> CheckRuntimeTagAsync(
         HttpContext context,
         ScadaRuntimeFacade runtime,
         TagDefinition tag,
         TagAccessOperation operation,
-        CancellationToken cancellationToken = default) =>
-        CheckRuntimeTagAsync(GetPrincipal(context), runtime, tag, operation, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        var baseline = await CheckRuntimeTagAsync(
+            GetPrincipal(context),
+            runtime,
+            tag,
+            operation,
+            cancellationToken);
+        return ApplyRuntimeSessionDownscope(context, runtime, baseline);
+    }
 
     public async Task<ApiAuthorizationCheck> CheckRuntimeTagAsync(
         SecurityPrincipal principal,
@@ -205,6 +224,25 @@ public sealed class ApiAuthorizationService(
                 Array.Empty<TagDefinition>());
         }
 
+        var tagReadLeaseCheck = ApplyRuntimeSessionDownscope(
+            context,
+            runtime,
+            new ApiAuthorizationCheck(
+                principal,
+                new AuthorizationDecision(
+                    true,
+                    SecurityCapability.TagRead,
+                    "Baseline Runtime TAG read authority will be evaluated per TAG.",
+                    Array.Empty<string>())));
+        if (!tagReadLeaseCheck.Allowed)
+        {
+            return new RuntimeReadableTagsResult(
+                principal,
+                true,
+                false,
+                Array.Empty<TagDefinition>());
+        }
+
         var access = new TagAccessAuthorization(policies);
         var readable = tags
             .Where(tag => access.Evaluate(principal, tag, TagAccessOperation.Read).Allowed)
@@ -241,6 +279,49 @@ public sealed class ApiAuthorizationService(
             TagAccessOperation.Read,
             cancellationToken);
         return check.Allowed;
+    }
+
+    public RuntimeSessionLeaseValidation ValidateRuntimeSession(
+        SecurityPrincipal principal,
+        ScadaRuntimeFacade runtime,
+        Guid sessionId,
+        string? clientInstanceId = null)
+    {
+        if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
+            return RuntimeSessionLeaseValidation.Invalid("unauthenticated");
+
+        return RuntimeSessions.Validate(
+            sessionId,
+            principal.SubjectId,
+            runtime.Describe(),
+            clientInstanceId);
+    }
+
+    private ApiAuthorizationCheck ApplyRuntimeSessionDownscope(
+        HttpContext context,
+        ScadaRuntimeFacade runtime,
+        ApiAuthorizationCheck baseline)
+    {
+        if (!baseline.Allowed || baseline.Decision is null) return baseline;
+        if (!context.Request.Headers.TryGetValue(RuntimeSessionHeaderName, out var values))
+            return baseline;
+
+        if (values.Count != 1 || !Guid.TryParse(values.ToString(), out var sessionId) || sessionId == Guid.Empty)
+        {
+            return new ApiAuthorizationCheck(
+                baseline.Principal,
+                AuthorizationDecision.Denied(
+                    baseline.Decision.Capability,
+                    "The Runtime session header is invalid."));
+        }
+
+        var decision = RuntimeSessionAccessEvaluator.Apply(
+            RuntimeSessions,
+            sessionId,
+            baseline.Principal.SubjectId,
+            runtime.Describe(),
+            baseline.Decision);
+        return new ApiAuthorizationCheck(baseline.Principal, decision);
     }
 
     private async Task<InMemoryCapabilityAuthorizationService?> ResolveRuntimePoliciesAsync(

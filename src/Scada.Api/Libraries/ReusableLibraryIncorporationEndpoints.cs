@@ -101,6 +101,9 @@ public static class ReusableLibraryIncorporationEndpoints
 
                 if (!plan.RequiresMutation)
                 {
+                    await using var consistencyLease = await workspace.AcquireMutationAsync(
+                        expectedChangeVersion,
+                        context.RequestAborted);
                     var unchangedVersion = workspace.CaptureChangeVersion();
                     await audit.RecordAsync(
                         context,
@@ -115,6 +118,7 @@ public static class ReusableLibraryIncorporationEndpoints
                             ["kind"] = selection.Kind,
                             ["closureCount"] = plan.DependencyClosure.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
                             ["deduplicated"] = plan.DeduplicatedCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                            ["expectedChangeVersion"] = expectedChangeVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
                             ["resultingChangeVersion"] = unchangedVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
                             ["workingChanged"] = bool.FalseString
                         });

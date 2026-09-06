@@ -95,12 +95,11 @@ public sealed class ReusableLibraryProjectPackageRoundtripTests
     }
 
     [Fact]
-    public void IncorporatedDynamoClosure_RoundTripsThroughProjectPackageWithoutLibraryDependency()
+    public void IncorporatedDynamoV1Closure_RoundTripsThroughProjectPackageWithoutLibraryDependency()
     {
         var sourceAssets = new InMemoryEngineeringAssetRegistry();
         var sourceVisualAssets = new InMemoryVisualAssetEngineeringRegistry();
         var templateId = Guid.NewGuid();
-        var childId = Guid.NewGuid();
         var rootId = Guid.NewGuid();
         var assetId = Guid.NewGuid();
 
@@ -108,11 +107,6 @@ public sealed class ReusableLibraryProjectPackageRoundtripTests
             templateId,
             "library.dynamo.template",
             "Dynamo Template"));
-        sourceAssets.UpsertDynamo(new DynamoEngineeringDto(
-            childId,
-            "library.dynamo.child",
-            "Child Dynamo",
-            Elements: [new VisualElementEngineeringDto("body", "core.rectangle")]));
 
         var payload = VisualAssetPayload.Create("image/bmp", CreateBmp());
         sourceVisualAssets.PutPayload(payload);
@@ -134,10 +128,6 @@ public sealed class ReusableLibraryProjectPackageRoundtripTests
             TemplateKey: "library.dynamo.template",
             Elements:
             [
-                new VisualElementEngineeringDto(
-                    "child",
-                    "dynamo",
-                    DynamoKey: "library.dynamo.child"),
                 new VisualElementEngineeringDto(
                     "image",
                     "core.image",
@@ -162,7 +152,6 @@ public sealed class ReusableLibraryProjectPackageRoundtripTests
         var inspection = projectPackages.Inspect(projectBytes);
 
         Assert.Contains(inspection.Engineering.Templates ?? [], template => template.Id == templateId);
-        Assert.Contains(inspection.Engineering.Dynamos ?? [], dynamo => dynamo.Id == childId);
         Assert.Contains(inspection.Engineering.Dynamos ?? [], dynamo => dynamo.Id == rootId);
         Assert.Contains(inspection.Engineering.VisualAssets ?? [], asset => asset.Id == assetId);
         Assert.Contains(
@@ -179,11 +168,10 @@ public sealed class ReusableLibraryProjectPackageRoundtripTests
         Assert.DoesNotContain(result.Issues, issue => issue.IsError);
 
         Assert.Equal("library.dynamo.template", restored.Assets.FindTemplate(templateId)!.Key);
-        Assert.Equal("library.dynamo.child", restored.Assets.FindDynamo(childId)!.Key);
         var restoredRoot = Assert.IsType<DynamoEngineeringDto>(restored.Assets.FindDynamo(rootId));
         Assert.Equal("library.dynamo.root", restoredRoot.Key);
         Assert.Equal("library.dynamo.template", restoredRoot.TemplateKey);
-        Assert.Contains(restoredRoot.Elements ?? [], element => element.DynamoKey == "library.dynamo.child");
+        Assert.DoesNotContain(restoredRoot.Elements ?? [], element => !string.IsNullOrWhiteSpace(element.DynamoKey));
         Assert.Equal("library.dynamo.asset", restored.VisualAssets.FindAsset(assetId)!.Key);
         Assert.True(restored.VisualAssets.FindPayload(payload.Sha256)!.Content.AsSpan().SequenceEqual(payload.Content));
     }

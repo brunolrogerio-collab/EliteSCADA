@@ -24,6 +24,10 @@ public static class AuditActions
     public const string EngineeringPublish = "engineering.publish";
     public const string EngineeringActivate = "engineering.activate";
     public const string EngineeringAssetImport = "engineering.asset.import";
+    public const string EngineeringLockConfigure = "engineering.lock.configure";
+    public const string EngineeringLockLock = "engineering.lock.lock";
+    public const string EngineeringLockUnlock = "engineering.lock.unlock";
+    public const string EngineeringLockClear = "engineering.lock.clear";
     public const string ServerMemoryRetentionReset = "server-memory.retention.reset";
     public const string AuditRead = "audit.read";
     public const string UserRoleManage = "user-role.manage";

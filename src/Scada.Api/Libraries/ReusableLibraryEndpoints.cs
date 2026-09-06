@@ -25,23 +25,25 @@ public static class ReusableLibraryEndpoints
     {
         endpoints.MapGet(CatalogRoute, (
             HttpContext context,
+            EngineeringWorkspace workspace,
             IEngineeringExchangeService exchange,
             ApiAuthorizationService security) =>
         {
             var access = CheckAccess(context, security, exchange);
-            return access.Failure ?? Results.Ok(Catalog.Snapshot());
+            return access.Failure ?? Results.Ok(Catalog.Snapshot(CatalogScope(workspace)));
         });
 
         endpoints.MapGet("/api/engineering/libraries/{libraryId:guid}/resources", (
             Guid libraryId,
             HttpContext context,
+            EngineeringWorkspace workspace,
             IEngineeringExchangeService exchange,
             ApiAuthorizationService security) =>
         {
             var access = CheckAccess(context, security, exchange);
             if (access.Failure is not null) return access.Failure;
 
-            var entry = Catalog.Find(libraryId);
+            var entry = Catalog.Find(CatalogScope(workspace), libraryId);
             if (entry is null) return Results.NotFound();
 
             return Results.Ok(new
@@ -84,7 +86,7 @@ public static class ReusableLibraryEndpoints
                 var bytes = await ReadLibraryAsync(request, cancellationToken);
                 var service = new ReusableLibraryPackageService(workspace.Assets, workspace.VisualAssets);
                 var inspection = service.Inspect(bytes);
-                var result = Catalog.Associate(bytes, inspection);
+                var result = Catalog.Associate(CatalogScope(workspace), bytes, inspection);
 
                 await audit.RecordAsync(
                     context,
@@ -142,6 +144,7 @@ public static class ReusableLibraryEndpoints
         endpoints.MapDelete("/api/engineering/libraries/{libraryId:guid}", async (
             Guid libraryId,
             HttpContext context,
+            EngineeringWorkspace workspace,
             IEngineeringExchangeService exchange,
             ApiAuthorizationService security,
             ApiAuditService audit) =>
@@ -159,7 +162,7 @@ public static class ReusableLibraryEndpoints
                 return access.Failure;
             }
 
-            if (!Catalog.Disassociate(libraryId)) return Results.NotFound();
+            if (!Catalog.Disassociate(CatalogScope(workspace), libraryId)) return Results.NotFound();
 
             await audit.RecordAsync(
                 context,
@@ -311,6 +314,15 @@ public static class ReusableLibraryEndpoints
         return lockFailure is null
             ? new ReusableLibraryAccessDecision(authorization, null, null)
             : new ReusableLibraryAccessDecision(authorization, lockFailure, "engineering-lock");
+    }
+
+    internal static string CatalogScope(EngineeringWorkspace workspace)
+    {
+        ArgumentNullException.ThrowIfNull(workspace);
+        var projectKey = workspace.Describe().ProjectKey;
+        return string.IsNullOrWhiteSpace(projectKey)
+            ? $"working:{workspace.SessionId:D}"
+            : $"project:{projectKey.Trim()}";
     }
 
     private static ValueTask RecordDeniedAsync(

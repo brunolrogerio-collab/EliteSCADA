@@ -36,7 +36,7 @@ concurrency:
 
 jobs:
   engineering-lock:
-    name: Engineering Lock backend contract
+    name: C25 security backend contract
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -65,6 +65,9 @@ jobs:
 
       - name: Run Engineering Lock backend and lifecycle tests
         run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~EngineeringLockAccessTests|FullyQualifiedName~PublishedRuntimeActivationServiceTests|FullyQualifiedName~PersistedRuntimeRecoveryServiceTests" --verbosity normal
+
+      - name: Run Authority backup crypto and validation tests
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~AuthorityBackupServiceTests" --verbosity normal
 
   engineering-lock-web:
     name: Engineering Lock web contract

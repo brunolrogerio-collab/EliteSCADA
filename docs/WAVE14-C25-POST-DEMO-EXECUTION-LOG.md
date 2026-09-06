@@ -9,6 +9,7 @@
 **Binding product contract:** `docs/WAVE14-C25-CONSOLIDATED-POST-DEMO-CONTRACT.md`  
 **Full code audit:** `docs/WAVE14-C25-FULL-CODE-AUDIT.md`  
 **Restore-first architecture:** `docs/WAVE14-C25-RESTORE-FIRST-ARCHITECTURE.md`  
+**Reusable libraries architecture:** `docs/WAVE14-C25-REUSABLE-LIBRARIES-ARCHITECTURE.md`  
 **Coordinator handoff:** `docs/WAVE14-C25-COORDINATOR-HANDOFF-2026-09-06.md`  
 **Historical Product Owner provenance:** #280, especially comment `5554918787`
 
@@ -297,61 +298,147 @@ C25.4 is therefore COMPLETE. This is checkpoint evidence, not final C25 acceptan
 
 ### C25.5 — Runtime session UX
 
-**Status: IN PROGRESS / ARCHITECTURE REVALIDATION NEXT**
+**Status: COMPLETE / REAL AUTHGATE + SYSTEM SESSION + RUNTIME FULLSCREEN CHROMIUM CONTRACT GREEN / FINAL C25 MATRIX STILL PENDING**
 
-C25.5 begins only after the exact C25.4 evidence above. No C25.5 product behavior is claimed complete by this ledger update.
+Exact validated product/test SHA:
 
-Binding requirements remain:
+`8235dbec5c8af56961032a2770fd41de87a64bf5`
 
-- current authenticated identity visible through the existing system-owned session control;
-- `Trocar usuário` and `Sair` remain outside authored `.escadapkg` HMI content;
-- logout must invalidate the server session before clearing client authority and must fail visibly if invalidation fails;
-- switch-user invalidates the old server session first, removes old client authority immediately and keeps Runtime non-interactive while the next identity is unresolved;
-- authentication then reloads backend profile/effective capabilities;
-- stale cached frontend authority must not survive switch;
-- displayed identity, backend authorization and audit attribution must agree;
-- Runtime-only users never gain Engineering/Diagnostics/Licensing/Audit;
-- session control remains reachable in Runtime fullscreen.
+Principal C25.5 commits include:
 
-First C25.5 action is live inspection of `AuthGate`, `UserSessionMenu`, `UserSessionMenuView`, AppNavigation/auth capability projection and Runtime fullscreen integration before mutation.
+- `ca6afc6bd09e30d5d6987aa8c7c3276fe21a7055` — localized Runtime session switch labels;
+- `b81bdb8f9bf32e043d55d31926ebeb14ac57f8e6` — fail-closed session action presentation;
+- `4cd5276f4391342e5eb3b241de96d96201c7fe3b` — connect system-owned switch-user action;
+- `df3afbc1f573333e0c6351c5243441f6b80a8632` — shared Runtime session action styling;
+- `d6a859bbf4b2384977bb8e0c78ccb70c561c86ff` — fail-closed AuthGate session transitions;
+- `0c5e7d5e` — focused Runtime session browser contract;
+- `46193e01` — include Runtime session browser contract in the existing C25 Chromium gate without removing Engineering Lock or Restore-first coverage;
+- `8235dbec5c8af56961032a2770fd41de87a64bf5` — add real Runtime fullscreen system-session evidence.
 
-### C25.6 — Contextual/manual product integration
+Implemented behavior:
+
+- system-owned current identity remains outside authored `.escadapkg` HMI content;
+- display name is preferred, with username fallback;
+- `Trocar usuário` is exposed only where the current identity/provider supports the real local switch path;
+- server session invalidation must succeed before old client authority is removed;
+- failed logout/switch remains visibly failed and does not pretend the old server session was invalidated;
+- successful switch clears the old client profile immediately after server invalidation and unmounts protected shell/Runtime content;
+- mandatory new authentication cannot be dismissed to resurrect the invalidated old identity;
+- the next authenticated profile/capability consumers remount and reload backend-effective capability authority;
+- newly displayed identity and authorized surfaces therefore track the new backend session;
+- Runtime-only identity does not gain Engineering/Diagnostics/Licensing/Audit from stale frontend navigation;
+- the session affordance remains reachable in real Runtime fullscreen.
+
+Focused browser proof includes:
+
+1. identity display and `displayName -> username` fallback;
+2. external JWT identity does not receive the unsupported local `Trocar usuário` action;
+3. failed logout preserves current identity/UI and exposes localized error;
+4. failed switch preserves current identity/UI and exposes localized error;
+5. successful local switch invalidates old session, removes old interactive UI, requires new login, reloads backend-effective capabilities and remounts only authorized surfaces;
+6. real Runtime fullscreen exposes the system session menu with `Trocar usuário` and `Sair`.
+
+#### Exact C25.5 closing evidence
+
+Wave 14 C25 Post-Demo #115 / run `34033504818` — **SUCCESS** on exact SHA `8235dbec5c8af56961032a2770fd41de87a64bf5`.
+
+Wave 14 C03 DNP3 Adapter #200 / run `34033504822` — **SUCCESS** on the same exact SHA, including managed validation, Linux/Windows native host, real OpenDNP3↔dnp3py interoperability and Windows commercial publish dependency gate.
+
+No blind rerun or test weakening was used to obtain this evidence.
+
+C25.5 is therefore COMPLETE. This remains checkpoint evidence, not final C25 acceptance.
+
+### C25.6 — Reusable Resource Libraries
+
+**Status: IN PROGRESS / PRODUCT OWNER SEQUENCE APPROVED / BINDING ARCHITECTURE RECORDED / LIVE CODE AUDIT NEXT**
+
+Product Owner sequencing decision:
+
+- reusable libraries move ahead of contextual Help/manual so the manual is written against the shipped library behavior rather than becoming stale immediately;
+- checkpoints that had not started are renumbered only; C25.0 through C25.5 retain their historical identity.
+
+Binding architecture:
+
+`docs/WAVE14-C25-REUSABLE-LIBRARIES-ARCHITECTURE.md`
+
+Architecture bootstrap commit:
+
+`e51c276305b5e58318cb174098aa57e0a665acfc`
+
+Core contract:
+
+- new reusable-library artifact, intended extension `.escadalib`, distinct from `.escadapkg`;
+- **association != import**: association exposes a reusable Engineering catalog and does not incorporate resources merely because the library is present;
+- use/import incorporates only the selected resource plus its validated transitive dependency closure;
+- incorporated resources become project-owned canonical Working content and retain provenance only as informational origin metadata;
+- no automatic replacement/update of incorporated resources when the source library changes;
+- safe deterministic ID/name collision handling; never silently overwrite unrelated project content;
+- disassociation removes the external catalog relationship while every incorporated screen/object/image/vector/script/resource remains valid;
+- Runtime/Active never opens or depends on `.escadalib`, source paths, network shares or external repositories;
+- final `.escadapkg` remains self-contained after all libraries are disassociated;
+- library operations must preserve Working dirty/changeVersion, Save/Publish/Activate, capability, Engineering Lock, audit and package validation authority;
+- first implementation derives supported resource classes from existing canonical product models rather than inventing parallel shadow representations.
+
+Next action before C25.6 product mutation is live code audit of canonical `.escadapkg`, Working resources, HMI objects/screens/assets/scripts, import/export utilities, dependency references, capability/Lock/audit gates and existing UI patterns.
+
+### C25.7 — Contextual multilingual Help/manual
 
 **Status: NOT STARTED**
 
-### C25.7 — Integrated regression/audit pass
+Help/manual follows C25.6 deliberately so reusable-library behavior and `.escadalib` semantics are documented in the first complete manual pass.
+
+Existing binding Help requirements remain unchanged: stable language-neutral Help IDs, active UI locale authority, mandatory pt-BR/en/es shipped content, local/offline availability where practical, and Driver/Script documentation derived from actual shipped registries/APIs.
+
+### C25.8 — Integrated regression/audit pass
 
 **Status: NOT STARTED**
 
-### C25.8 — Exact final candidate matrix and acceptance
+### C25.9 — Exact final candidate matrix and acceptance
 
 **Status: NOT STARTED**
 
 Final acceptance requires one exact final candidate SHA, the required product matrix, diagnosed reds before rerun, then merge only into `wave14/corrections-integration` and post-merge exact-SHA revalidation.
 
-## 5. Current governance at C25.4 closure
+## 5. Current governance at C25.5 closure / C25.6 opening
 
-Immediately before this documentation-only checkpoint update:
+Immediately before the reusable-library architecture documentation mutation:
 
-- #283 remained OPEN / DRAFT / merged=false / base `wave14/corrections-integration`, with exact validated product head `06948450c365009531d584b8b9d1d45e05c1aec8`;
+- #283 remained OPEN / DRAFT / merged=false / base `wave14/corrections-integration`;
+- exact validated C25.5 product/test SHA was `8235dbec5c8af56961032a2770fd41de87a64bf5`;
+- C25 #115 / `34033504818` and C03 #200 / `34033504822` were both SUCCESS on that exact SHA;
 - C25 remains ACTIVE / NOT ACCEPTED / NOT INTEGRATED;
 - #212 remains OPEN/DRAFT and has no authorization to merge into `main`;
 - C11 remains preserved at `41d24d89c3b9d2b881215255e44023fabde262f3`;
 - #266 remains validation-only / NEVER MERGE;
-- no `main`, integration or C11 mutation occurred while closing C25.4.
+- no `main`, integration or C11 mutation occurred while closing C25.5 or opening C25.6.
 
-This ledger update is coordination documentation only and does not redefine the exact validated C25.4 product SHA above.
+The C25.6 architecture/ledger commits are coordination documentation and do not redefine the exact validated C25.5 product/test SHA above. Their own CI must be inspected before the first C25.6 product mutation.
 
-## 6. Resume protocol
+## 6. Current checkpoint order
+
+1. C25.0 — durable bootstrap + full audit — COMPLETE;
+2. C25.1 — Engineering Lock domain/package/security — COMPLETE;
+3. C25.2 — Engineering Lock backend enforcement — COMPLETE;
+4. C25.3 — Engineering Lock UI/lifecycle/package — COMPLETE;
+5. C25.4 — Restore-first / System Recovery — COMPLETE;
+6. C25.5 — Runtime session UX — COMPLETE;
+7. C25.6 — Reusable Resource Libraries — IN PROGRESS;
+8. C25.7 — Contextual multilingual Help/manual — NOT STARTED;
+9. C25.8 — integrated regression/audit pass — NOT STARTED;
+10. C25.9 — exact final candidate matrix and acceptance — NOT STARTED;
+11. after explicit C25 acceptance only, merge C25 into `wave14/corrections-integration` and perform post-merge exact-SHA revalidation before any C11 synchronization.
+
+## 7. Resume protocol
 
 On a new coordinator/chat session:
 
 1. fetch issue #282 and PR #283;
 2. revalidate #212, #263 and #266;
-3. fetch current C25 branch HEAD and distinguish documentation-only HEAD from the latest validated product SHA;
-4. read `docs/WAVE14-C25-COORDINATOR-HANDOFF-2026-09-06.md` and this execution ledger;
+3. fetch current C25 branch HEAD and distinguish documentation-only HEAD from the latest validated product/test SHA;
+4. read `docs/WAVE14-C25-COORDINATOR-HANDOFF-2026-09-06.md`, this execution ledger and `docs/WAVE14-C25-REUSABLE-LIBRARIES-ARCHITECTURE.md`;
 5. inspect current exact-SHA workflows and any later durable checkpoint;
-6. continue C25.5 Runtime session UX unless a later checkpoint supersedes this record;
-7. do not sync C11 until C25 is fully accepted, integrated into `wave14/corrections-integration` and post-merge revalidated.
+6. continue C25.6 reusable-library live architecture/code audit and implementation unless a later checkpoint supersedes this record;
+7. do not begin Help/manual as C25.7 until reusable-library shipped behavior is stable enough to document accurately;
+8. do not sync C11 until C25 is fully accepted, integrated into `wave14/corrections-integration` and post-merge revalidated.
 
 Never reconstruct project state from chat memory when live GitHub can be checked directly.

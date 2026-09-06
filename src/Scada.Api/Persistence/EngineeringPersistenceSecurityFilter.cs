@@ -1,5 +1,5 @@
 using Scada.Api.Security;
-using Scada.Engineering.Security;
+using Scada.Engineering.ImportExport;
 using Scada.Security.Audit;
 using Scada.Security.Authorization;
 
@@ -9,7 +9,7 @@ public sealed class EngineeringPersistenceSecurityFilter(
     ApiAuthorizationService security,
     ApiAuditService audit,
     IConfiguration configuration,
-    IEngineeringLockRegistry engineeringLock) : IEndpointFilter
+    IEngineeringExchangeService exchange) : IEndpointFilter
 {
     public async ValueTask<object?> InvokeAsync(
         EndpointFilterInvocationContext invocationContext,
@@ -48,7 +48,7 @@ public sealed class EngineeringPersistenceSecurityFilter(
         // pass normal Authority authorization, validation, concurrency and audit gates.
         if (!EngineeringLockAccess.IsPersistenceRecoveryExempt(context.Request))
         {
-            var lockFailure = EngineeringLockAccess.ProtectedEngineeringFailure(engineeringLock);
+            var lockFailure = EngineeringLockAccess.ProtectedEngineeringFailure(exchange);
             if (lockFailure is not null)
             {
                 if (operation is not null && authorization is not null)

@@ -47,7 +47,7 @@ test('bootstrap recovery restores Authority then requires real restored login be
     await route.fulfill({ json: { userCount: 1, enabledAdministratorCount: 1 } });
   });
   await page.route('**/api/system-recovery/bootstrap/application/preview', async route => {
-    expect(await route.request().body()).toBeTruthy();
+    expect(route.request().postDataBuffer()?.length ?? 0).toBeGreaterThan(0);
     await route.fulfill({ json: { canApply: true, blockers: [] } });
   });
   await page.route('**/api/auth/bootstrap/authority-backup/apply', async route => {

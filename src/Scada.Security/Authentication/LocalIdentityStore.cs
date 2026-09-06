@@ -21,6 +21,15 @@ public interface ILocalIdentityStore
     Task ReplaceAllAsync(
         IReadOnlyCollection<LocalUserAccount> accounts,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Atomically installs a complete local Authority only if the identity store is still empty
+    /// under the same serialization/transaction boundary. Returns false without mutation when
+    /// another bootstrap/restore operation already created an identity.
+    /// </summary>
+    Task<bool> TryReplaceAllIfEmptyAsync(
+        IReadOnlyCollection<LocalUserAccount> accounts,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class InMemoryLocalIdentityStore : ILocalIdentityStore
@@ -119,19 +128,43 @@ public sealed class InMemoryLocalIdentityStore : ILocalIdentityStore
         try
         {
             lock (_gate)
+                InstallReplacement(replacement);
+        }
+        finally
+        {
+            _mutationGate.Release();
+        }
+    }
+
+    public async Task<bool> TryReplaceAllIfEmptyAsync(
+        IReadOnlyCollection<LocalUserAccount> accounts,
+        CancellationToken cancellationToken = default)
+    {
+        var replacement = PrepareReplacement(accounts);
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            lock (_gate)
             {
-                _byId.Clear();
-                _byUsername.Clear();
-                foreach (var account in replacement)
-                {
-                    _byId.Add(account.Id, account.DeepCopy());
-                    _byUsername.Add(account.NormalizedUsername, account.Id);
-                }
+                if (_byId.Count != 0) return false;
+                InstallReplacement(replacement);
+                return true;
             }
         }
         finally
         {
             _mutationGate.Release();
+        }
+    }
+
+    private void InstallReplacement(IReadOnlyCollection<LocalUserAccount> replacement)
+    {
+        _byId.Clear();
+        _byUsername.Clear();
+        foreach (var account in replacement)
+        {
+            _byId.Add(account.Id, account.DeepCopy());
+            _byUsername.Add(account.NormalizedUsername, account.Id);
         }
     }
 

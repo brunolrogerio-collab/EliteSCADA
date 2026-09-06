@@ -1,7 +1,7 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-06 BRT  
-**Operational state:** **WAVE 14 ACTIVE / C25.0-C25.6 COMPLETE / C25.7 DISTRIBUTED RUNTIME FOUNDATION ACTIVE / C11 FROZEN / WAVE13 PAUSED**
+**Operational state:** **WAVE 14 ACTIVE / C25.0-C25.6 COMPLETE / C25.7 ARCHITECTURE EXACT-SHA GREEN / C25.7 PRODUCT IMPLEMENTATION NOT STARTED / C11 FROZEN / WAVE13 PAUSED**
 
 > GitHub is the official development memory. Revalidate live refs, PR state and exact-SHA CI before acting.
 
@@ -23,12 +23,16 @@ Tracking issue:
 
 #282
 
-Latest exact-SHA green documentation authority before C25.7 resequencing:
+Current exact handoff HEAD:
 
-`78c3370d9943c4ba71cd8fb8a38da1025d3672ce`
+`c84882d578cb891797a80faf6073d422c4fe55ed`
 
-- Wave 14 C25 Post-Demo #283 — SUCCESS;
-- Wave 14 C03 DNP3 Adapter #284 — SUCCESS.
+This SHA contains the frozen C25.7 architecture/coordination state and no C25.7 product mutation.
+
+Exact-SHA validation:
+
+- Wave 14 C25 Post-Demo #292 / `34055739682` — **SUCCESS**;
+- Wave 14 C03 DNP3 Adapter #290 / `34055739696` — **SUCCESS**.
 
 ## Completed through C25.6
 
@@ -45,13 +49,14 @@ The feature includes `.escadalib`, safe non-mutating association, selective depe
 
 ## Current checkpoint — C25.7 Distributed Runtime Foundation
 
-The Product Owner approved moving a small distributed-runtime foundation ahead of Help.
-
 Binding documents:
 
 - `docs/WAVE14-C25-DISTRIBUTED-RUNTIME-FOUNDATION.md`
-- `docs/ELITESCADA-DISTRIBUTED-RUNTIME-HA-ROADMAP.md`
 - `docs/WAVE14-C25-POST-DEMO-EXECUTION-LOG.md`
+- `docs/ELITESCADA-DISTRIBUTED-RUNTIME-HA-ROADMAP.md`
+- `docs/CURRENT-COORDINATOR-HANDOFF.md`
+
+Architecture is frozen and exact-SHA green. Product implementation has not started.
 
 Current C25.7 scope:
 
@@ -65,16 +70,18 @@ Current C25.7 scope:
 
 HA orchestration/replication/failover and advanced commercial connection tiers remain future-Wave work.
 
+The next code action is a live audit of the existing Runtime/Active application/realtime TAG/Authority/session/command-write paths before defining the smallest new canonical boundary.
+
 ## Remaining C25
 
-- C25.7 Distributed Runtime Foundation;
+- C25.7 Distributed Runtime Foundation — implementation not started;
 - C25.8 contextual multilingual Help/manual;
 - C25.9 integrated regression/audit;
-- C25.10 exact final candidate / Product Owner acceptance.
+- C25.10 exact final candidate / explicit Product Owner acceptance.
 
 ## C11 / EEE sequence after C25
 
-C11 remains preserved now at:
+C11 remains preserved at:
 
 `41d24d89c3b9d2b881215255e44023fabde262f3`
 
@@ -88,15 +95,25 @@ After C25 is explicitly accepted:
 6. run Preview Codespace with that canonical package;
 7. **keep the Preview Codespace active** through Product Owner visual homologation and the later authorized main transition;
 8. #212 may merge into `main` only after explicit Product Owner authorization;
-9. validate the new `main` while the Preview remains available.
+9. validate the new `main` while Preview remains available.
 
 ## Return to Wave 13 / Windows installable
 
-Wave 13 #205/#207 remains paused now.
+Issue #205 and PR #207 remain paused and preserve the prior Windows release/signing implementation.
 
-After the approved Wave 14/C25 -> EEE/C11 -> Preview -> `main` sequence, Wave 13 resumes using the **new `main` containing accepted C25** as release authority.
+After the approved Wave 14/C25 -> EEE/C11 -> Preview -> `main` sequence, Wave 13 resumes using the **new `main` containing accepted Wave 14/C25** as release authority.
+
+The preserved Wave 13 branch is input to that resumption, not permission to ship the stale pre-C25 product. Re-audit and adapt its packaging/signing work against the new mainline, then rerun all release gates before producing the Windows-installable build.
 
 The Windows-installable/signing/release work must be based on that new mainline, not the older pre-C25 `main`.
+
+## Revalidated guard rails at coordinator handoff
+
+- #212 — OPEN/DRAFT; no merge authorization to `main`.
+- #263 — OPEN/DRAFT; C11 frozen.
+- #266 — OPEN/DRAFT validation-only; MUST NEVER MERGE.
+- issue #205 — OPEN / Wave 13 paused.
+- #207 — OPEN/DRAFT / Wave 13 paused.
 
 ## Permanent governance
 

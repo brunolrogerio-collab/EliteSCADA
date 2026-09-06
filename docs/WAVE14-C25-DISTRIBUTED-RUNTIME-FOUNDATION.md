@@ -1,10 +1,21 @@
 # Wave 14 C25.7 — Distributed Runtime Foundation
 
-**Status:** BINDING C25.7 ARCHITECTURE / IMPLEMENTATION NOT YET STARTED  
+**Status:** BINDING C25.7 ARCHITECTURE / EXACT-SHA GREEN / IMPLEMENTATION NOT YET STARTED  
 **Tracking issue:** #282  
 **Implementation PR:** #283  
 **Branch:** `wave14/c25-post-demo`  
 **Target:** `wave14/corrections-integration`
+
+Exact clean architecture-handoff SHA:
+
+`c84882d578cb891797a80faf6073d422c4fe55ed`
+
+Exact-SHA validation:
+
+- Wave 14 C25 Post-Demo #292 / `34055739682` — **SUCCESS**;
+- Wave 14 C03 DNP3 Adapter #290 / `34055739696` — **SUCCESS**.
+
+This SHA contains architecture/coordination mutations only. C25.7 product implementation has not started. Revalidate the live PR #283 head before using this as implementation authority.
 
 > C25.7 exists to establish architectural foundations for future EliteGO/Server Runtime without turning C25 into a production distributed/HA implementation.
 
@@ -158,7 +169,22 @@ Do not implement in C25.7:
 
 Those belong to the future Waves recorded in the product roadmap.
 
-## 5. Validation requirements
+## 5. Required first implementation action
+
+Before creating or editing product code, the coordinator must perform a live audit of the current implementation and record the concrete authorities to reuse. At minimum inspect:
+
+- local Runtime application projection and Active Revision resolution;
+- Runtime visual payload/asset serving;
+- realtime TAG current-value/quality/timestamp transport;
+- authentication, session identity and capability projection;
+- process command and process-value-write backend authorization paths;
+- existing WebSocket/reconnect/session assumptions;
+- Historian/Trend, Alarm and Operational Event public boundaries already used by Runtime;
+- `.escadapkg` schema and deployment/topology separation.
+
+The audit exists to prevent a parallel Runtime stack. Reuse existing canonical authorities; introduce only the smallest boundary/adapters necessary for the C25.7 contract.
+
+## 6. Validation requirements
 
 Before C25.7 can close:
 
@@ -172,7 +198,7 @@ Before C25.7 can close:
 - any browser proof added for EliteGO/remote Runtime must use the canonical product paths rather than fabricated process truth;
 - no red CI may be rerun without diagnosis.
 
-## 6. Checkpoint sequence after C25.7
+## 7. Checkpoint sequence after C25.7
 
 - C25.8 — Contextual multilingual Help/manual;
 - C25.9 — Integrated regression/audit;
@@ -180,11 +206,26 @@ Before C25.7 can close:
 
 After C25 acceptance, follow the post-C25 sequence in `docs/ELITESCADA-DISTRIBUTED-RUNTIME-HA-ROADMAP.md`: integration revalidation -> C11/EEE compatibility -> canonical EEE package -> Preview Codespace kept active -> authorized main transition -> Wave 13 Windows installable from the new main.
 
-## 7. Governance
+## 8. Post-C25 release authority clarification
+
+The Windows-installable product must not be produced from the preserved pre-C25 Wave 13 snapshot once this sequence is complete.
+
+Required order is:
+
+1. accepted C25 -> integration -> exact-SHA validation;
+2. C11/EEE compatibility and canonical package freeze;
+3. Preview Codespace with the canonical EEE package, kept active through visual homologation and the approved `main` transition;
+4. explicit Product Owner authorization before #212 merges to `main`;
+5. validation of the resulting new `main` containing accepted Wave 14/C25;
+6. only then resume issue #205 / PR #207 and adapt/revalidate the preserved Windows release/signing work against that new mainline;
+7. produce/sign/validate the Windows installable from the new mainline authority.
+
+## 9. Governance
 
 - PR #283 remains OPEN/DRAFT and targets only `wave14/corrections-integration`.
 - PR #212 remains OPEN/DRAFT and is not authorized to merge to `main`.
 - Never modify `main` directly.
 - C11 remains frozen until C25 is accepted, integrated only into integration and post-merge exact-SHA revalidated.
 - PR #266 remains validation-only and MUST NEVER MERGE.
-- Wave 13 #205/#207 remains paused until the post-C25/main sequence explicitly reaches it.
+- Wave 13 issue #205 / PR #207 remain paused until the post-C25/main sequence explicitly reaches them.
+- no force push, destructive rebase, branch deletion or unrelated cleanup.

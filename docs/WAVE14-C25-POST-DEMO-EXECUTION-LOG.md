@@ -1,6 +1,6 @@
 # Wave 14 C25 — Post-Demo Consolidated Corrections — Execution Log
 
-**Status:** ACTIVE / C25.0-C25.6 COMPLETE / C25.7 DISTRIBUTED RUNTIME FOUNDATION ACTIVE / NOT ACCEPTED / NOT INTEGRATED  
+**Status:** ACTIVE / C25.0-C25.6 COMPLETE / C25.7 ARCHITECTURE EXACT-SHA GREEN / C25.7 PRODUCT IMPLEMENTATION NOT STARTED / NOT ACCEPTED / NOT INTEGRATED  
 **Coordinator package:** C25  
 **Tracking issue:** #282  
 **Implementation PR:** #283  
@@ -16,7 +16,8 @@
 3. this execution log;
 4. `docs/WAVE14-C25-CONSOLIDATED-POST-DEMO-CONTRACT.md`;
 5. `docs/WAVE14-C25-REUSABLE-LIBRARIES-IMPLEMENTATION-STATUS-2026-09-06.md`;
-6. issue #282 and PR #283.
+6. `docs/CURRENT-COORDINATOR-HANDOFF.md`;
+7. issue #282 and PR #283.
 
 ## 2. Permanent governance
 
@@ -32,7 +33,7 @@
 - C11 remains frozen at `41d24d89c3b9d2b881215255e44023fabde262f3` until C25 is accepted, merged only into integration and post-merge exact-SHA revalidated.
 - #263 remains the preserved C11 OPEN/DRAFT PR.
 - #266 remains validation-only and MUST NEVER MERGE.
-- Wave 13 #205/#207 remains paused until the post-C25/main sequence explicitly reaches it.
+- Wave 13 issue #205 and PR #207 remain paused until the post-C25/main sequence explicitly reaches them.
 
 ## 3. Accepted baseline beneath C25
 
@@ -97,18 +98,24 @@ Documentation closure `c820665a9dc526e39dd7596825f01e21b345ffba` also closed gre
 
 C25.6 proves `.escadalib`, non-mutating association, selective dependency-aware incorporation, deterministic collision/deduplication, informational provenance, self-contained `.escadapkg`, safe disassociation, no Runtime dependency on libraries, and the Engineering Libraries UI/browser flow under existing Authority and Engineering Lock.
 
-### Documentation authority immediately before C25.7 resequencing
+### C25.7 architecture handoff authority
 
-HEAD `78c3370d9943c4ba71cd8fb8a38da1025d3672ce` was exact-SHA green before the Product Owner moved Distributed Runtime foundation ahead of Help:
+Exact clean coordinator-handoff SHA:
 
-- C25 #283 — SUCCESS;
-- C03 #284 — SUCCESS.
+`c84882d578cb891797a80faf6073d422c4fe55ed`
 
-No product mutation was made for contextual Help before this resequencing.
+This SHA contains architecture/coordination mutations only. No C25.7 product mutation has started.
+
+Exact-SHA validation on the same SHA:
+
+- Wave 14 C25 Post-Demo #292 / `34055739682` — **SUCCESS**;
+- Wave 14 C03 DNP3 Adapter #290 / `34055739696` — **SUCCESS**.
+
+This is the clean implementation boundary for the next coordinator, provided PR #283 still points to this SHA when work resumes. If HEAD has moved, inspect and revalidate the newer state instead.
 
 ### C25.7 — Distributed Runtime Foundation
 
-**ACTIVE / ARCHITECTURE FROZEN / PRODUCT MUTATION NOT YET STARTED**
+**ACTIVE / ARCHITECTURE FROZEN + EXACT-SHA GREEN / PRODUCT IMPLEMENTATION NOT YET STARTED**
 
 Binding architecture:
 
@@ -148,17 +155,18 @@ Overall C25 acceptance requires one exact final candidate SHA, required regressi
 
 ## 5. C25.7 execution order
 
-1. revalidate #283/#212/#263/#266 and current HEAD;
-2. perform live code audit of local Runtime, Active application projection, realtime TAG transport, Authority/capabilities, Runtime session state and command/write paths;
-3. define the smallest canonical Server Runtime Contract from existing authorities;
-4. identify and remove only the local-host coupling that blocks a future remote consumer;
-5. implement Runtime Session Lease domain and admission/renew/expiry authority;
-6. implement Viewer/Interactive session downscope server-side, including voluntary View Only;
-7. add backend proofs that Viewer cannot execute process command/write through direct calls;
-8. add topology-neutral `.escadapkg` gates;
-9. add a thin EliteGO architectural proof only if it remains small and reuses canonical Runtime rendering;
-10. exact-SHA validate C25 + C03 before closing C25.7;
-11. proceed to C25.8 Help only after C25.7 closure.
+1. revalidate #283/#212/#263/#266 plus issue #205/#207 state and current HEAD;
+2. confirm exact-SHA C25 + C03 results for the current HEAD before product mutation;
+3. perform live code audit of local Runtime, Active application projection, realtime TAG transport, Authority/capabilities, Runtime session state and command/write paths;
+4. define the smallest canonical Server Runtime Contract from existing authorities;
+5. identify and remove only the local-host coupling that blocks a future remote consumer;
+6. implement Runtime Session Lease domain and admission/renew/expiry authority;
+7. implement Viewer/Interactive session downscope server-side, including voluntary View Only;
+8. add backend proofs that Viewer cannot execute process command/write through direct calls;
+9. add topology-neutral `.escadapkg` gates;
+10. add a thin EliteGO architectural proof only if it remains small and reuses canonical Runtime rendering;
+11. exact-SHA validate C25 + C03 before closing C25.7;
+12. proceed to C25.8 Help only after C25.7 closure.
 
 ## 6. Required post-C25 sequence
 
@@ -173,9 +181,10 @@ After C25.7, C25.8, C25.9 and C25.10:
 7. launch that canonical EEE package in Preview Codespace;
 8. **keep the Preview Codespace active** during Product Owner visual homologation and through the subsequent approved main transition for comparison/revalidation;
 9. only after explicit Product Owner authorization may PR #212 merge into `main`;
-10. verify the resulting new `main` while keeping the Preview environment available as requested;
-11. resume paused Wave 13 #205/#207 from the **new `main` containing accepted Wave 14/C25**;
-12. produce/sign/validate the Windows-installable EliteSCADA from that new mainline authority.
+10. verify the resulting **new `main` containing accepted Wave 14/C25** while keeping Preview available;
+11. resume paused Wave 13 issue #205 / PR #207 from that new mainline authority, incorporating the preserved release work through normal history-preserving integration/adaptation rather than releasing its stale pre-C25 product snapshot;
+12. re-audit packaging, signing, dependency/commercial-distribution and final release gates against the new mainline;
+13. produce/sign/validate the Windows-installable EliteSCADA from that new mainline authority.
 
 Do not build the final Windows installable from the older pre-C25 `main` after this sequence.
 
@@ -191,14 +200,23 @@ The product roadmap deliberately separates later distributed/HA work:
 
 See `docs/ELITESCADA-DISTRIBUTED-RUNTIME-HA-ROADMAP.md` for binding invariants and phase boundaries.
 
-## 8. Resume protocol
+## 8. Revalidated guard rails at handoff
+
+- #212 — OPEN/DRAFT; not merged; no `main` authorization.
+- #263 — OPEN/DRAFT; C11 head remains `41d24d89c3b9d2b881215255e44023fabde262f3`.
+- #266 — OPEN/DRAFT validation-only; MUST NEVER MERGE.
+- issue #205 — OPEN; Wave 13 paused.
+- #207 — OPEN/DRAFT; Wave 13 preserved branch head `fda87ba4445127c174f6ea533a6bcabaabc7bb20`.
+
+## 9. Resume protocol
 
 On a new coordinator/chat session:
 
 1. fetch issue #282 and PR #283;
-2. revalidate #212, #263 and #266;
-3. fetch current C25 HEAD and exact-SHA workflows;
-4. read `docs/WAVE14-C25-DISTRIBUTED-RUNTIME-FOUNDATION.md`, this ledger and the product roadmap;
-5. distinguish the latest validated product/test SHA from later documentation-only HEADs;
-6. do not mutate C25.7 product code unless the latest architecture/documentation HEAD is exact-SHA green;
-7. never reconstruct authority from chat memory when GitHub live can be queried.
+2. capture the live PR #283 head SHA and do not assume this document's SHA is still current;
+3. fetch exact-SHA C25 and C03 workflows for that live SHA;
+4. revalidate #212, #263, #266, issue #205 and PR #207;
+5. read `docs/WAVE14-C25-DISTRIBUTED-RUNTIME-FOUNDATION.md`, this ledger and the product roadmap;
+6. if the live head is still `c84882d578cb891797a80faf6073d422c4fe55ed`, begin the live C25.7 code audit: architecture is already frozen and product mutation has not started;
+7. if HEAD moved, inspect and validate the newer state instead of reconstructing authority from chat memory;
+8. never mutate `main` directly and never merge #212 without explicit Product Owner authorization.

@@ -1,28 +1,62 @@
+using Scada.Engineering.Contracts;
+using Scada.Engineering.ImportExport;
 using Scada.Engineering.Security;
 
 namespace Scada.Api.Security;
 
 public static class EngineeringLockAccess
 {
-    public static bool IsLocked(IEngineeringLockRegistry registry)
+    public static EngineeringLockEngineeringDto Current(IEngineeringExchangeService exchange)
     {
         try
         {
-            return EngineeringLockContract.Normalize(registry.Snapshot()).Locked;
+            return EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock);
         }
         catch (InvalidDataException)
         {
-            // Malformed protection metadata must never fail open.
-            return true;
+            // Callers must treat malformed protection metadata as locked/fail-closed.
+            return new EngineeringLockEngineeringDto(
+                Locked: true,
+                Verifier: new EngineeringLockVerifierDto(
+                    EngineeringLockContract.Algorithm,
+                    EngineeringLockContract.VerifierVersion,
+                    EngineeringLockContract.CurrentIterations,
+                    Convert.ToBase64String(new byte[EngineeringLockContract.SaltByteLength]),
+                    Convert.ToBase64String(new byte[EngineeringLockContract.HashByteLength])));
         }
     }
 
-    public static IResult? ProtectedEngineeringFailure(IEngineeringLockRegistry registry) =>
-        IsLocked(registry)
+    public static bool IsLocked(IEngineeringExchangeService exchange) => Current(exchange).Locked;
+
+    public static IResult? ProtectedEngineeringFailure(IEngineeringExchangeService exchange) =>
+        IsLocked(exchange)
             ? Results.Json(
                 new { error = "Engineering is locked." },
                 statusCode: StatusCodes.Status403Forbidden)
             : null;
+
+    public static void Replace(
+        IEngineeringExchangeService exchange,
+        EngineeringLockEngineeringDto? state)
+    {
+        var current = exchange.ExportPackage();
+        var normalized = EngineeringLockContract.Normalize(state);
+        var lockOnly = new EngineeringPackage(
+            current.Schema,
+            current.SchemaVersion,
+            DateTimeOffset.UtcNow,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>(),
+            EngineeringLock: normalized);
+
+        var preview = exchange.Preview(lockOnly, ImportMode.UpdateExisting);
+        if (!preview.CanApply)
+            throw new InvalidOperationException("Engineering Lock state could not pass canonical Engineering validation.");
+
+        var result = exchange.Apply(lockOnly, ImportMode.UpdateExisting);
+        if (result.Issues.Any(issue => issue.IsError))
+            throw new InvalidOperationException("Engineering Lock state could not be applied to canonical Engineering state.");
+    }
 
     public static bool IsWorkspaceReadExempt(HttpRequest request)
     {

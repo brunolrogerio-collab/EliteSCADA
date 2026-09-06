@@ -11,6 +11,7 @@ public static class RuntimeEngineeringPackageApi
     public static IEndpointRouteBuilder MapRuntimeEngineeringPackageEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapDistributedRuntimeFoundationEndpoints();
+        endpoints.MapContextualHelpEndpoints();
 
         endpoints.MapGet("/api/auth/effective-capabilities", async (
             HttpContext context,

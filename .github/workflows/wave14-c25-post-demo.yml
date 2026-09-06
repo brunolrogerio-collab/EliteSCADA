@@ -102,6 +102,9 @@ jobs:
       - name: Run C25.7 distributed Runtime foundation backend contract tests
         run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~DistributedRuntimeFoundationTests" --verbosity normal
 
+      - name: Run C25.8 contextual multilingual Help contract tests
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~ContextualHelpTests" --verbosity normal
+
   engineering-lock-web:
     name: Engineering Lock web contract
     runs-on: ubuntu-latest
@@ -152,9 +155,9 @@ jobs:
         working-directory: web/scada-web
         run: npx playwright install --with-deps chromium
 
-      - name: Run C25 Engineering Lock, Restore-first, Runtime session and reusable library browser tests
+      - name: Run C25 Engineering Lock, Restore-first, Runtime session, reusable library and Help browser tests
         working-directory: web/scada-web
-        run: npx playwright test tests-e2e/wave-14-c25-engineering-lock.spec.ts tests-e2e/wave-14-c25-restore-first.spec.ts tests-e2e/wave-14-c25-runtime-session.spec.ts tests-e2e/wave-14-c25-reusable-libraries.spec.ts --project=chromium --no-deps
+        run: npx playwright test tests-e2e/wave-14-c25-engineering-lock.spec.ts tests-e2e/wave-14-c25-restore-first.spec.ts tests-e2e/wave-14-c25-runtime-session.spec.ts tests-e2e/wave-14-c25-reusable-libraries.spec.ts tests-e2e/wave-14-c25-contextual-help.spec.ts --project=chromium --no-deps
 
       - name: Upload C25 Playwright report
         if: always()

@@ -7,6 +7,7 @@ namespace Scada.Api.ProjectPackages;
 
 public sealed record SystemRecoveryAuthorityAdmission(
     bool Allowed,
+    bool BootstrapAuthority,
     bool EngineeringModify,
     bool Administration,
     string Reason);
@@ -26,7 +27,23 @@ public static class SystemRecoveryAuthorityAdmissionEvaluator
                 false,
                 false,
                 false,
+                false,
                 "The restored local identity is disabled.");
+        }
+
+        var bootstrapAuthority = account.Roles.Any(role =>
+            string.Equals(
+                role,
+                LocalIdentityBootstrapService.InitialAdministratorRole,
+                StringComparison.OrdinalIgnoreCase));
+        if (!bootstrapAuthority)
+        {
+            return new SystemRecoveryAuthorityAdmission(
+                false,
+                false,
+                false,
+                false,
+                $"The restored identity is not assigned the Authority bootstrap administrator role '{LocalIdentityBootstrapService.InitialAdministratorRole}'.");
         }
 
         IReadOnlyCollection<RolePolicy> policies;
@@ -39,6 +56,7 @@ public static class SystemRecoveryAuthorityAdmissionEvaluator
         {
             return new SystemRecoveryAuthorityAdmission(
                 false,
+                true,
                 false,
                 false,
                 "The project package security policy is invalid.");
@@ -66,9 +84,10 @@ public static class SystemRecoveryAuthorityAdmissionEvaluator
         {
             return new SystemRecoveryAuthorityAdmission(
                 false,
+                true,
                 false,
                 administration,
-                "The restored identity is not granted EngineeringModify by the project package policy.");
+                "The restored bootstrap Administrator is not granted EngineeringModify by the project package policy.");
         }
 
         if (!administration)
@@ -76,14 +95,16 @@ public static class SystemRecoveryAuthorityAdmissionEvaluator
             return new SystemRecoveryAuthorityAdmission(
                 false,
                 true,
+                true,
                 false,
-                "The restored identity is not granted UserRoleAdmin or SystemAdmin by the project package policy.");
+                "The restored bootstrap Administrator is not granted UserRoleAdmin or SystemAdmin by the project package policy.");
         }
 
         return new SystemRecoveryAuthorityAdmission(
             true,
             true,
             true,
-            "The restored identity is authorized by the prospective project package policy.");
+            true,
+            "The restored Authority bootstrap Administrator is authorized by the prospective project package policy.");
     }
 }

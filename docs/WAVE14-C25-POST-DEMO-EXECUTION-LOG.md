@@ -174,65 +174,49 @@ Exact C25.3 validation:
 
 ### C25.4 — Restore-first bootstrap / System Recovery
 
-**Status: IN PROGRESS / BACKEND IMPLEMENTED AND FOCUSED GREEN / FRONTEND FLOW NOT YET WIRED OR CI-PROVEN**
+**Status: COMPLETE / BACKEND + REAL AUTHGATE FLOW + CHROMIUM CONTRACT GREEN / FINAL C25 MATRIX STILL PENDING**
 
 Binding architecture:
 
 `docs/WAVE14-C25-RESTORE-FIRST-ARCHITECTURE.md`
 
-Product HEAD revalidated before coordinator handoff documentation:
+Pre-frontend product authority:
 
 `a7ac6a8a008749e8224e24a59d7f7b1752d02fe2`
 
-Exact-head workflow evidence:
+Pre-frontend evidence:
 
 - Wave 14 C25 Post-Demo #89 / run `34013048034` — SUCCESS;
 - Wave 14 C03 DNP3 Adapter #187 / run `34013048107` — SUCCESS.
 
-#### Implemented Authority backup domain
+#### Authority backup and atomic replacement
 
-`AuthorityBackupService` now implements:
+Implemented domain remains:
 
-- format `elitescada.authority-backup`, version 1;
-- payload schema `elitescada.authority`, version 1;
+- `elitescada.authority-backup` v1 / `elitescada.authority` v1;
 - PBKDF2-SHA256 backup KDF at 310,000 iterations;
-- AES-256-GCM authenticated encryption;
-- random salt/nonce;
-- user-supplied Authority backup password, minimum 12 characters;
-- password verifier metadata only for restored login credentials;
-- no plaintext passwords, sessions, JWTs, cookies, realtime grants, license/trust or application content;
-- wrong password/corruption/malformed envelope fails before mutation.
+- AES-256-GCM authenticated encryption with random salt/nonce;
+- user-supplied Authority backup password, separate from login and Engineering Lock;
+- no plaintext user passwords;
+- preserved password verifier metadata only;
+- no sessions/JWTs/cookies/realtime grants/license/trust/application content in Authority backup;
+- malformed/corrupt/wrong-password backup fails before Authority mutation;
+- `ReplaceAllAsync` / `TryReplaceAllIfEmptyAsync` complete-replacement semantics;
+- PostgreSQL replacement under one transaction/serialization boundary;
+- anonymous bootstrap restore constrained by `InitialInstallationGate` true-empty admission.
 
-Authority backup/restore files include:
+Relevant files include:
 
 - `src/Scada.Security/Authentication/AuthorityBackupService.cs`;
 - `src/Scada.Security/Authentication/AuthorityRestoreSecurity.cs`;
-- `src/Scada.Api/Security/AuthorityBackupApi.cs`.
-
-#### Atomic Authority replacement
-
-Store contract now contains complete replacement primitives:
-
-- `ReplaceAllAsync`;
-- `TryReplaceAllIfEmptyAsync`.
-
-Implementations:
-
-- in-memory replacement validates/builds complete replacement before state swap;
-- PostgreSQL replacement uses one transactional/serialization boundary;
-- secure true-empty restore uses `InitialInstallationGate` and rechecks first-run eligibility.
-
-Relevant files:
-
+- `src/Scada.Api/Security/AuthorityBackupApi.cs`;
 - `src/Scada.Security/Authentication/LocalIdentityStore.cs`;
 - `src/Scada.Persistence.PostgreSql/PostgreSqlLocalIdentityStore.cs`;
-- `src/Scada.Api/Security/InitialInstallationGate.cs`;
-- `src/Scada.Api/Security/LocalIdentityConfiguration.cs`;
-- `src/Scada.Api/Security/LocalIdentityApi.cs`.
+- `src/Scada.Api/Security/InitialInstallationGate.cs`.
 
-#### Prospective Authority admission
+#### Prospective restored-Administrator admission
 
-`src/Scada.Api/ProjectPackages/SystemRecoveryAuthorityAdmission.cs` evaluates the restored Administrator against the package being recovered.
+`src/Scada.Api/ProjectPackages/SystemRecoveryAuthorityAdmission.cs` evaluates the restored identity against the SecurityRoles of the application package that will become authoritative.
 
 Admission requires:
 
@@ -241,94 +225,95 @@ Admission requires:
 - `EngineeringModify` granted by prospective package `SecurityRoles`;
 - `UserRoleAdmin` or `SystemAdmin` granted by prospective package `SecurityRoles`.
 
-Do not regress this to role-name-only authorization.
+This remains deliberately stronger than role-name-only admission.
 
 #### Application recovery coordinator
 
-Files:
+`SystemRecoveryApplicationService` / endpoints retain the canonical sequence:
 
-- `src/Scada.Api/ProjectPackages/SystemRecoveryApplicationService.cs`;
-- `src/Scada.Api/ProjectPackages/SystemRecoveryApplicationEndpoints.cs`;
-- mapping through `ProjectPackageEndpoints.cs`;
-- `tests/Scada.Drivers.Tests/SystemRecoveryApplicationServiceTests.cs`.
-
-Implemented sequence:
-
-1. canonical package Inspect/Preview reuse;
+1. Inspect/Preview canonical `.escadapkg`;
 2. require empty persisted project catalog for first-project recovery;
-3. require configured `EngineeringRuntime:ProjectKey` and package-key match before recovery can be declared complete;
-4. prospectively validate restored/current Administrator against package policy;
-5. acquire installation/workspace mutation gates;
-6. snapshot current Working and visual asset payloads;
-7. clear Working and re-preview as true replacement so references cannot resolve through old/demo state;
-8. Apply canonical package;
-9. before durable Save, any failure restores previous Working state;
-10. Save restored package as root Engineering revision;
-11. Publish through normal validation;
-12. Activate through existing published-runtime authority;
-13. after durable Save, later failure is reported as explicit partial state instead of pretending rollback to an empty installation.
+3. validate configured `EngineeringRuntime:ProjectKey` against package key;
+4. prospectively validate current/restored Administrator against package policy;
+5. acquire mutation gates and snapshot current Working/assets;
+6. replace Working and re-preview as true replacement;
+7. Apply canonical package;
+8. restore previous Working on any pre-durable failure;
+9. Save restored package as root revision;
+10. Publish;
+11. Activate through normal Active authority;
+12. report post-Save Publish/Activate failures as explicit partial recovery rather than fake rollback to an empty installation.
 
-#### Restore-first component and intended browser contract
+#### Restore-first frontend closure
 
-Frontend component exists:
+C25.4 frontend commits:
 
-`web/scada-web/src/auth/RestoreFirstPanel.tsx`
+- `e1efb31cad6ef5e0bb4a5e76cff5d4906378bf94` — wire `RestoreFirstPanel` into the real `AuthGate` state machine;
+- `a2a32c6227d1231d7b71230076a2b54ecef0f3f6` — add Restore-first Playwright to the existing C25 Chromium gate without removing Engineering Lock coverage;
+- `06948450c365009531d584b8b9d1d45e05c1aec8` — correct the Restore-first test to use Playwright's real `postDataBuffer()` request-body API while retaining the package-body assertion.
 
-It supports:
+The real frontend state machine now provides:
 
-- bootstrap Authority + application package validation;
-- Authority restore first;
-- application-only recovery after real login;
-- optional license file and existing `/api/licensing/install` endpoint;
-- non-blocking optional-license failure;
-- pt-BR/en/es;
-- explicit DB/Historian separation.
-
-Playwright spec exists:
-
-`web/scada-web/tests-e2e/wave-14-c25-restore-first.spec.ts`
-
-It specifies:
-
-- Restore backup before disposable Administrator creation;
+- true-empty first-run: `Restaurar backup` OR `Criar Administrador`;
+- Authority restore before application mutation;
 - no anonymous application Apply after Authority restore;
-- restored real Administrator login before application recovery;
-- no disposable project required;
-- optional license failure does not invalidate core recovery.
+- application/license `File` selections retained only in React memory across Authority restore -> real login -> application step;
+- Authority backup password and Authority file are not retained by the parent AuthGate and are cleared by the Restore panel before handoff;
+- restored user must authenticate through the normal login path before application recovery continues;
+- authenticated local Administrator with empty persisted catalog: `Restaurar backup` OR `Criar novo projeto`;
+- optional license failure remains explicit and non-blocking for an otherwise successful core application recovery;
+- DB/Historian recovery remains separate.
 
-#### Critical C25.4 gap discovered during coordinator handoff audit
+#### Diagnosed browser red before closure
 
-C25.4 MUST NOT be marked complete yet.
+First combined browser candidate at product SHA `a2a32c6227d1231d7b71230076a2b54ecef0f3f6` produced:
 
-Exact `a7ac6a8a...` static revalidation found:
+- Wave 14 C25 Post-Demo #95 / `34016167369`;
+- backend job `101440204541` — SUCCESS;
+- web job `101440204615` — FAILURE;
+- browser result: 6/7 tests passed; only the bootstrap Restore-first test failed.
 
-1. `web/scada-web/src/auth/AuthGate.tsx` does not currently import/render `RestoreFirstPanel`, does not expose `Restaurar backup` on true-empty first-run, and still forces the old first-project form for authenticated users with no persisted project.
-2. `.github/workflows/wave14-c25-post-demo.yml` builds React/Vite but runs only `wave-14-c25-engineering-lock.spec.ts`; it does not execute `wave-14-c25-restore-first.spec.ts`.
+The failure was diagnosed before any rerun. The route mock used nonexistent Playwright API `route.request().body()`, throwing `TypeError: ...body is not a function` before the mocked Preview response could be fulfilled. This was a test-harness defect, not a product failure. No blind rerun occurred and no product assertion was weakened.
 
-Therefore:
+Commit `06948450...` replaced only that invalid body read with a positive-length `postDataBuffer()` assertion.
 
-- current green run `34013048034` proves backend System Recovery focused tests and frontend build compatibility;
-- it does **not** prove the Restore-first browser UX;
-- the existing Restore-first Playwright file would not be considered current CI evidence until wired into the workflow;
-- do not weaken/skip the browser test to obtain green.
+#### Exact C25.4 closing evidence
 
-#### Exact next C25.4 work
+Exact validated product SHA:
 
-1. revalidate live #283 HEAD before mutation;
-2. wire `RestoreFirstPanel` into the real `AuthGate` state machine;
-3. true-empty first-run must offer `Restaurar backup` OR `Criar Administrador`;
-4. after Authority restore, require real restored login before application Apply;
-5. preserve selected application/license files across Authority restore -> login -> application step without persisting backup password or other secret material;
-6. authenticated local Administrator with empty catalog must see `Restaurar backup` OR `Criar novo projeto`;
-7. extend C25 workflow to run `wave-14-c25-restore-first.spec.ts` in Chromium in addition to Engineering Lock web tests;
-8. inspect exact-SHA C25 + C03 results, diagnose any red before rerun;
-9. only then close C25.4 in ledger/#282/#283.
+`06948450c365009531d584b8b9d1d45e05c1aec8`
+
+Wave 14 C25 Post-Demo #97 / run `34016347754` — **SUCCESS**:
+
+- C25 security backend contract job `101440680405` — SUCCESS;
+- Engineering Lock web contract job `101440680322` — SUCCESS;
+- React/Vite build — SUCCESS;
+- combined Chromium Engineering Lock + Restore-first browser tests — SUCCESS;
+- Authority backup, System Recovery and atomic Authority replacement focused tests — SUCCESS.
+
+Wave 14 C03 DNP3 Adapter #191 / run `34016347737` — **SUCCESS** across managed tests, Linux/Windows native host, real OpenDNP3↔dnp3py L3 interop and Windows commercial publish dependency gate.
+
+C25.4 is therefore COMPLETE. This is checkpoint evidence, not final C25 acceptance.
 
 ### C25.5 — Runtime session UX
 
-**Status: NOT STARTED**
+**Status: IN PROGRESS / ARCHITECTURE REVALIDATION NEXT**
 
-Do not start until C25.4 is genuinely browser-wired and checkpointed.
+C25.5 begins only after the exact C25.4 evidence above. No C25.5 product behavior is claimed complete by this ledger update.
+
+Binding requirements remain:
+
+- current authenticated identity visible through the existing system-owned session control;
+- `Trocar usuário` and `Sair` remain outside authored `.escadapkg` HMI content;
+- logout must invalidate the server session before clearing client authority and must fail visibly if invalidation fails;
+- switch-user invalidates the old server session first, removes old client authority immediately and keeps Runtime non-interactive while the next identity is unresolved;
+- authentication then reloads backend profile/effective capabilities;
+- stale cached frontend authority must not survive switch;
+- displayed identity, backend authorization and audit attribution must agree;
+- Runtime-only users never gain Engineering/Diagnostics/Licensing/Audit;
+- session control remains reachable in Runtime fullscreen.
+
+First C25.5 action is live inspection of `AuthGate`, `UserSessionMenu`, `UserSessionMenuView`, AppNavigation/auth capability projection and Runtime fullscreen integration before mutation.
 
 ### C25.6 — Contextual/manual product integration
 
@@ -344,17 +329,18 @@ Do not start until C25.4 is genuinely browser-wired and checkpointed.
 
 Final acceptance requires one exact final candidate SHA, the required product matrix, diagnosed reds before rerun, then merge only into `wave14/corrections-integration` and post-merge exact-SHA revalidation.
 
-## 5. Current governance revalidation at coordinator handoff
+## 5. Current governance at C25.4 closure
 
-Revalidated immediately before the handoff-only documentation commit:
+Immediately before this documentation-only checkpoint update:
 
-- #282: OPEN;
-- #283: OPEN / DRAFT / merged=false / base `wave14/corrections-integration` / product head `a7ac6a8a008749e8224e24a59d7f7b1752d02fe2`;
-- #212: OPEN / DRAFT / merged=false / no authorization to merge into `main`;
-- #263: OPEN / DRAFT / C11 head `41d24d89c3b9d2b881215255e44023fabde262f3`;
-- #266: OPEN / DRAFT / validation-only / NEVER MERGE / C11 head `41d24d89...`.
+- #283 remained OPEN / DRAFT / merged=false / base `wave14/corrections-integration`, with exact validated product head `06948450c365009531d584b8b9d1d45e05c1aec8`;
+- C25 remains ACTIVE / NOT ACCEPTED / NOT INTEGRATED;
+- #212 remains OPEN/DRAFT and has no authorization to merge into `main`;
+- C11 remains preserved at `41d24d89c3b9d2b881215255e44023fabde262f3`;
+- #266 remains validation-only / NEVER MERGE;
+- no `main`, integration or C11 mutation occurred while closing C25.4.
 
-No C25 integration, `main` mutation, C11 synchronization or #266 merge occurred during this handoff.
+This ledger update is coordination documentation only and does not redefine the exact validated C25.4 product SHA above.
 
 ## 6. Resume protocol
 
@@ -362,13 +348,10 @@ On a new coordinator/chat session:
 
 1. fetch issue #282 and PR #283;
 2. revalidate #212, #263 and #266;
-3. fetch current C25 branch HEAD;
-4. read `docs/WAVE14-C25-COORDINATOR-HANDOFF-2026-09-06.md`;
-5. read `docs/WAVE14-C25-CONSOLIDATED-POST-DEMO-CONTRACT.md`;
-6. read `docs/WAVE14-C25-FULL-CODE-AUDIT.md`;
-7. read `docs/WAVE14-C25-RESTORE-FIRST-ARCHITECTURE.md`;
-8. read this execution ledger;
-9. inspect current exact-SHA workflow evidence;
-10. continue C25.4 from the AuthGate/workflow wiring gap unless a later durable checkpoint supersedes this record.
+3. fetch current C25 branch HEAD and distinguish documentation-only HEAD from the latest validated product SHA;
+4. read `docs/WAVE14-C25-COORDINATOR-HANDOFF-2026-09-06.md` and this execution ledger;
+5. inspect current exact-SHA workflows and any later durable checkpoint;
+6. continue C25.5 Runtime session UX unless a later checkpoint supersedes this record;
+7. do not sync C11 until C25 is fully accepted, integrated into `wave14/corrections-integration` and post-merge revalidated.
 
 Never reconstruct project state from chat memory when live GitHub can be checked directly.

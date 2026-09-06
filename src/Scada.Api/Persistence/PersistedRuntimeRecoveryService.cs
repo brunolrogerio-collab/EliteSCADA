@@ -1,4 +1,5 @@
 using Scada.Api.Runtime;
+using Scada.Api.Security;
 using Scada.Core.Abstractions;
 using Scada.DriverHost.Runtime;
 using Scada.Engineering.Contracts;
@@ -88,6 +89,12 @@ public sealed class PersistedRuntimeRecoveryService(
                 package,
                 cancellationToken);
         }
+
+        // Restart/recovery must restore the protection state carried by the durable
+        // Active revision. A failed runtime recovery must not overwrite the current
+        // in-memory protection state.
+        if (result.Activated)
+            EngineeringLockAccess.Replace(exchange, package.EngineeringLock);
 
         return new PersistedRuntimeRecoveryResult(
             snapshot.ProjectKey,

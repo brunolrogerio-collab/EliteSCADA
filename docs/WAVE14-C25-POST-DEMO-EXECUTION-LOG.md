@@ -3,305 +3,210 @@
 **Status:** ACTIVE / NOT ACCEPTED / NOT INTEGRATED  
 **Coordinator package:** C25  
 **Tracking issue:** #282  
-**Current consolidated product contract:** `docs/WAVE14-C25-CONSOLIDATED-POST-DEMO-CONTRACT.md`  
-**Historical Product Owner decision provenance:** #280, especially comment `5554918787`  
+**Implementation PR:** #283  
 **Implementation branch:** `wave14/c25-post-demo`  
-**Integration target:** `wave14/corrections-integration`
+**Integration target:** `wave14/corrections-integration`  
+**Binding product contract:** `docs/WAVE14-C25-CONSOLIDATED-POST-DEMO-CONTRACT.md`  
+**Full code audit:** `docs/WAVE14-C25-FULL-CODE-AUDIT.md`  
+**Historical Product Owner provenance:** #280, especially comment `5554918787`
 
-> GitHub is the sole project authority. Revalidate live refs, PR state and exact-SHA CI before every decision or mutation. This file is a durable execution ledger so coordination can resume safely from another chat/session without relying on conversational memory.
+> GitHub is the sole project authority. Revalidate live refs, PR state and exact-SHA CI before every decision or mutation. This ledger records the current resumable checkpoint; earlier preparation detail remains preserved in Git history.
 
-## 1. C25 start authority
+## 1. Permanent governance
 
-C25 was opened after C24 was formally:
+- #212 remains OPEN/DRAFT and must not merge to `main` without later explicit Product Owner authorization.
+- Never alter `main` directly.
+- C25 may integrate only into `wave14/corrections-integration` after exact-SHA acceptance.
+- C11 #263 remains preserved until C25 is accepted, integrated and post-merge revalidated.
+- #266 remains validation-only and MUST NEVER MERGE.
+- No force-push, destructive rebase, branch deletion or unrelated cleanup.
+- Diagnose every CI red before rerun; no blind reruns.
+- Never weaken tests, validation, authentication, authorization, licensing, lifecycle, package or Runtime authority for green CI.
+- Backend Active revision remains Runtime application authority.
+- Alarm / Operational Event / Audit remain distinct.
+- No EEE-specific workaround for a generic product gap.
+- Wave13 #205/#207 remains paused.
 
-**ACCEPTED / INTEGRATED / POST-MERGE REVALIDATED**.
+## 2. Accepted baseline beneath C25
 
-Exact C25 branch base:
+C25 branch base:
 
 `c2fc96eacc168ea092c2e4d4dcbc79b00faa3155`
 
-That base is documentation-only coordination state above accepted product authority:
+Accepted C24 product authority beneath that documentation state:
 
 `40a491c2de2403f2934b8bae647c35072d5c2496`
-
-Accepted C24 candidate beneath it:
-
-`ff5eac6ad12865b174b6ca602a13d01165e57b36`
-
-No C25 product bytes existed at package creation.
-
-## 2. Why C25 is one consolidated package
-
-The Product Owner explicitly moved post-DEMO compatibility-affecting work before final C11 canonicalization. These changes can affect application package, clean bootstrap, Engineering access, Runtime session and contextual documentation contracts.
-
-Rather than splitting the work into C25/C26, the coordinator is deliberately keeping the complete post-DEMO correction set under one C25 branch/PR with internal checkpoints.
 
 C11 remains intentionally preserved at:
 
 `41d24d89c3b9d2b881215255e44023fabde262f3`
 
-Do not sync C25/C24 into C11 until C25 is accepted, integrated and post-merge revalidated.
+Do not synchronize C25 into C11 yet.
 
-## 3. C25 binding scope
+## 3. Preparation convergence
 
-Detailed current product semantics are consolidated in:
+The asynchronous post-DEMO preparation was centralized into C25 before product mutation:
 
-`docs/WAVE14-C25-CONSOLIDATED-POST-DEMO-CONTRACT.md`
+- #273 System Recovery design: CLOSED WITHOUT MERGE; branch preserved.
+- #274 Runtime session/manual design: CLOSED WITHOUT MERGE; branch preserved.
+- #280 Product Owner decision issue: CLOSED/COMPLETED as decision record only.
 
-Historical design/decision provenance remains #273, #274 and #280, but those items are no longer active execution routes.
+Durable preparation commits:
 
-### 3.1 Application Engineering Lock
+- `b4b53350a447d48d747c2512297ea0809f8bf61b` — establish execution ledger;
+- `b32ee0778d646bc65972ac16401c67f78ad8bc2b` — consolidated post-DEMO product contract;
+- `3657826b01717553024d0115c10305cf548f5433` — preparation convergence record.
 
-Required semantics:
+No product bytes were changed by those preparation commits.
 
-- optional application/IP lock;
-- no password configured means no password-based Engineering Lock exists;
-- configured-secret presence and `locked` state are independent;
-- Import never requires the Engineering Lock password;
-- Export never requires the Engineering Lock password;
-- secret is not an Authority/login credential;
-- secret is not the Authority backup/restore credential;
-- unlocked application exposes normal/full Engineering according to Authority permissions;
-- locked application hides application engineering/view/edit capability;
-- locked Engineering retains installation administration: Authority users/passwords/profiles, licensing, Import/Export, solution replacement/restore and explicit unlock;
-- correct secret unlocks the currently running application;
-- wrong secret remains locked and leaks no protected Engineering content;
-- package preserves lock metadata/state;
-- whole `.escadapkg` is not encrypted.
+## 4. Checkpoint matrix
 
-### 3.2 Engineering Lock cryptographic/security architecture
+### C25.0 — Durable bootstrap + full architecture/code audit
 
-Architecture is intentionally not frozen at C25 start.
+**Status: COMPLETE**
 
-Required gate:
+Exact audited product starting SHA:
 
-- do not implement a fixed/compiled symmetric key and call it secure;
-- define actual verifier/secret/key/storage behavior;
-- review it against the declared IP-barrier/deterrence threat model;
-- do not claim package confidentiality or DRM-grade resistance;
-- preserve secret-domain separation from Authority authentication and Authority backup encryption.
+`3657826b01717553024d0115c10305cf548f5433`
 
-C25 cannot be accepted until this is explicitly documented and tested.
+Audit commit:
 
-### 3.3 Restore-first bootstrap / System Recovery
+`063a826f551e840f21ccd1c96d2d4ff2960322c3`
 
-Fresh/clean system must allow `Restaurar backup` before disposable user/project creation.
+Durable audit:
 
-Required restore surface:
+`docs/WAVE14-C25-FULL-CODE-AUDIT.md`
 
-- application restore/import;
-- Authority restore/import using the Authority backup's own password/credential mechanism;
-- optional license file import/attachment;
-- license is not required to perform restore;
-- Engineering Lock password is not Authority restore password;
-- canonical import validation and Authority authorization must not be weakened.
+The audit maps all C25 correction domains to current code and records REUSE / MODIFY / ADD / DO NOT TOUCH boundaries, security decisions, required tests, dependency order and risk register.
 
-Historical PR #273 was audited and closed without merge after its surviving requirements were transferred into the consolidated C25 contract. Its provisional-Recovery-Administrator/project-first bootstrap is superseded by restore-first sequencing. Its separation of application, Authority and Database/Historian recovery authorities remains preserved for C25 revalidation/implementation.
+Key architecture decisions:
 
-### 3.4 Runtime session UX
-
-Historical PR #274 was audited and closed without merge after its surviving requirements were transferred into the consolidated C25 contract.
-
-Binding direction includes:
-
-- current user remains visible;
-- `Trocar usuário`;
-- `Sair`;
-- switching invalidates old session first;
-- stale privileged UI cannot remain authoritative during switch;
-- identity/capabilities are reloaded from backend Authority;
-- Runtime-only user never gains Engineering;
-- session affordance remains system-owned, outside authored `.escadapkg` HMI content and available in fullscreen;
-- post-switch displayed identity, authorization and audit attribution must agree.
-
-### 3.5 Contextual/manual integration
-
-Historical PR #274 and Product Owner refinement comment `5553626108` were audited and transferred into the consolidated C25 contract.
-
-Binding direction includes:
-
-- stable language-neutral Help IDs;
-- contextual help for major Engineering surfaces/complex fields;
-- detailed coverage especially Drivers/Sources/TAG addressing/Scripts/Reports/HMI;
-- manual is version-compatible and local/offline where practical;
-- manual is **mandatorily multilingual for shipped UI languages** and follows the active UI locale while preserving semantic Help-ID identity;
-- shipped help documents actual product contracts, not internal Wave/ADR/handoff process.
-
-## 4. Execution checkpoint protocol
-
-Every material C25 checkpoint records:
-
-1. exact starting SHA;
-2. live refs/PRs revalidated;
-3. product contracts/files inspected;
-4. derived invariant/decision;
-5. files changed;
-6. tests added/changed;
-7. exact resulting SHA;
-8. CI evidence or diagnosed blocker;
-9. remaining work.
-
-Focused/local green does not mean package acceptance. Final acceptance is exact-SHA and matrix-based.
-
-## 5. Planned checkpoints
-
-### C25.0 — Durable bootstrap + live architecture audit
-
-Status: **IN PROGRESS**
-
-Completed within C25.0:
-
-- issue/branch/PR/execution ledger established;
-- live open issue/PR convergence inventory completed;
-- #273/#274/#280 preparation audited and consolidated;
-- durable consolidated product contract created;
-- obsolete duplicate execution surfaces closed without merge.
-
-Remaining C25.0 goals:
-
-- inspect current Engineering package/persistence/bootstrap contracts;
-- inspect Authority authentication/backup APIs and capability projection;
-- inspect frontend Engineering/Runtime routing/session authority;
-- inspect help/localization infrastructure;
-- derive concrete implementation slices before product mutation.
+- Engineering Lock rides in canonical Engineering JSON and therefore follows revision/package lifecycle naturally.
+- `.escadapkg` remains a portable application package, not whole-system encrypted DRM.
+- Engineering Lock is a dedicated secret domain, separate from Authority login and Authority backup credentials.
+- Existing Authority password hashing is the reviewed cryptographic precedent: PBKDF2-SHA256, random salt, deliberate iteration count and constant-time comparison.
+- Backend Authority remains primary identity/capability authority; Engineering Lock is an additional application-content admission boundary.
+- Runtime remains Active-revision authoritative.
+- clean-install recovery must become restore-first rather than force a disposable project first.
+- existing Runtime session UI is reusable rather than replaced.
+- contextual Help requires a new centralized language-neutral Help-ID resolver.
 
 ### C25.1 — Engineering Lock domain/package/security contract
 
-Status: NOT STARTED
+**Status: CODE IMPLEMENTED / VALIDATION EVIDENCE PENDING**
+
+Code/test commits:
+
+1. `bc9d1de154fa40ba855847c6e6cc0ac9c145b0cb` — add canonical Engineering Lock package contract.
+2. `f6aa2df9d12301bd0a2c41eb670521620f542520` — add dedicated Engineering Lock verifier/registry service.
+3. `2140921e7f12f609aa5799eb97d8a59eadcf443f` — focused verifier/security tests.
+4. `8ad05422ab68fd5bcc30d67e0e26c791cc2c9b77` — persist Engineering Lock through canonical Engineering exchange.
+5. `14bceb8c64569d9479494044d2205dfb55aae436` — package/lifecycle/legacy/partial-import roundtrip tests.
+
+Implemented contract:
+
+- `EngineeringLockVerifierDto` contains algorithm/version/iterations/salt/hash only.
+- `EngineeringLockEngineeringDto` keeps `Locked` independent from verifier presence.
+- optional `EngineeringLock` field added to `EngineeringPackage` without increasing schema v16 merely for an additive optional field.
+- verifier v1 uses PBKDF2-SHA256, 210,000 iterations, 16-byte random salt and 32-byte hash.
+- verification uses `CryptographicOperations.FixedTimeEquals`.
+- no plaintext or reversibly encrypted Engineering Lock secret is persisted.
+- malformed/unsupported/weakened verifier metadata fails closed.
+- legacy v16 payload without lock metadata normalizes to unlocked/unconfigured.
+- canonical JSON export/import carries lock state.
+- `.escadapkg` carries lock state through the canonical payload without encrypting the whole package.
+- partial CSV package operations preserve current Engineering Lock state rather than implicitly clearing it.
+- full application package replacement may replace/clear lock state without asking for the existing Engineering Lock password, consistent with the Product Owner contract that Import is an allowed locked-state recovery/administrative operation.
+- Working/Published/Active revision persistence stores immutable canonical lock metadata with each revision.
+
+Focused tests added cover:
+
+- configured-but-unlocked state;
+- correct/wrong secret;
+- invalid verifier rejection;
+- absence of plaintext secret in serialized state;
+- legacy v16 package compatibility;
+- canonical JSON roundtrip;
+- partial CSV preservation;
+- `.escadapkg` Export -> Inspect -> Preview -> Apply roundtrip;
+- malformed lock fail-before-mutation;
+- Save -> Publish -> Activate -> LoadActive immutable lock preservation.
+
+Validation caveat:
+
+The normal EliteSCADA CI workflow in `.github/workflows/dotnet-ci.yml` is scoped to pushes/PRs targeting `main`. PR #283 targets `wave14/corrections-integration`, so GitHub associated no normal EliteSCADA CI run with the above C25.1 commits. **Do not infer green from absence of a run.** C25.1 is implemented but not yet accepted/validated by the final required matrix.
 
 ### C25.2 — Engineering Lock backend enforcement and restricted authority
 
-Status: NOT STARTED
+**Status: IN PROGRESS**
+
+Live backend inspection at exact C25.1 head `14bceb8c64569d9479494044d2205dfb55aae436` confirmed:
+
+- `src/Scada.Api/Security/EngineeringReadSecurityExtensions.cs` already centralizes Authority admission for Engineering reads.
+- `src/Scada.Api/Security/ApiAuthorizationService.cs` remains the backend identity/capability authority.
+- `src/Scada.Api/Security/ApiMutationAuditAdmissionMiddleware.cs` durably admits protected POST/PUT/PATCH/DELETE operations through Audit before execution.
+- `src/Scada.Api/Security/ApiAuditService.cs` sanitizes password/secret/token fields from audit details.
+- Licensing/Audit/Diagnostics have explicit capability boundaries and are not to be folded behind Engineering Lock.
+
+Implementation direction:
+
+- register one shared `IEngineeringLockRegistry` in API composition so package exchange, filters and lock endpoints observe the same application lock authority;
+- extend centralized backend admission rather than sprinkling route-local lock checks;
+- Authority authentication/capability decision occurs first; Engineering Lock is additional admission afterward;
+- locked protected Engineering reads/mutations must fail without protected payload leakage;
+- FullAccess does not bypass Engineering Lock;
+- locked-state exemptions remain Authority administration, Licensing, Import, Export, application replacement/restore/recovery and explicit unlock;
+- explicit lock/configure/unlock/clear operations remain Authority-authenticated and auditable;
+- no client-side state is security authority.
 
 ### C25.3 — Engineering Lock UI/lifecycle/package roundtrip
 
-Status: NOT STARTED
+**Status: NOT STARTED**
 
 ### C25.4 — Restore-first bootstrap / recovery
 
-Status: NOT STARTED
+**Status: NOT STARTED**
 
 ### C25.5 — Runtime session UX
 
-Status: NOT STARTED
+**Status: NOT STARTED**
 
 ### C25.6 — Contextual/manual product integration
 
-Status: NOT STARTED
+**Status: NOT STARTED**
 
 ### C25.7 — Integrated regression/audit pass
 
-Status: NOT STARTED
+**Status: NOT STARTED**
 
 ### C25.8 — Exact final candidate matrix and acceptance
 
-Status: NOT STARTED
+**Status: NOT STARTED**
 
-## 6. Permanent governance during C25
+Final acceptance requires one exact candidate SHA, the required Wave14 product matrix on that SHA, diagnosed reds before any rerun, then merge only into `wave14/corrections-integration` and exact post-merge revalidation. Only after that may C11 synchronization begin.
 
-- #212 remains OPEN/DRAFT and must not merge to `main` without later explicit Product Owner authorization;
-- never alter `main` directly;
-- C25 may integrate only into `wave14/corrections-integration` after exact-SHA acceptance;
-- C11 #263 remains preserved until C25 completes;
-- #266 remains validation-only and MUST NEVER MERGE;
-- #273 is CLOSED WITHOUT MERGE after C25 convergence;
-- #274 is CLOSED WITHOUT MERGE after C25 convergence;
-- #280 is CLOSED/COMPLETED as a decision record after transfer into C25;
-- Wave13 #205/#207 remains paused;
-- Preview #208/#210 remains available for later Product Owner homologation;
-- Wave14 owner-validation #211 remains open;
-- no force-push, destructive rebase, branch deletion or unrelated cleanup;
-- diagnose every red before rerun;
-- never weaken tests, validation, security, identity, lifecycle, licensing, package or Runtime contracts for green CI;
-- no EEE-specific workaround for generic product behavior;
-- backend Active revision remains Runtime application authority;
-- Alarm / Operational Event / Audit remain distinct.
+## 5. Current live governance revalidation before C25.2
 
-## 7. Resume protocol after coordinator/chat loss
+Revalidated immediately before this ledger update:
 
-On any new coordination session:
+- #283: OPEN / DRAFT / merged=false / base `wave14/corrections-integration` / head `14bceb8c64569d9479494044d2205dfb55aae436` before this documentation commit.
+- #212: OPEN / DRAFT / merged=false / head `wave14/corrections-integration` at `c2fc96eacc168ea092c2e4d4dcbc79b00faa3155`.
+- #263: OPEN / DRAFT / merged=false / C11 head still `41d24d89c3b9d2b881215255e44023fabde262f3`.
+- #266: OPEN / DRAFT / merged=false / validation-only / C11 head still `41d24d89c3b9d2b881215255e44023fabde262f3` / MUST NEVER MERGE.
 
-1. fetch issue #282;
-2. fetch the live C25 PR #283;
-3. fetch `docs/WAVE14-C25-CONSOLIDATED-POST-DEMO-CONTRACT.md` from live C25 HEAD;
-4. fetch this execution ledger from live C25 HEAD;
-5. revalidate `wave14/c25-post-demo`, `wave14/corrections-integration`, #212, #263 and #266;
-6. inspect the most recent checkpoint and exact SHA;
-7. revalidate any CI referenced by that checkpoint;
-8. continue only from live GitHub state.
+No integration, main or C11 mutation occurred during C25.0/C25.1.
+
+## 6. Resume protocol
+
+On a new coordinator/chat session:
+
+1. fetch issue #282 and PR #283;
+2. revalidate #212, #263 and #266;
+3. fetch the current C25 branch HEAD;
+4. read `docs/WAVE14-C25-CONSOLIDATED-POST-DEMO-CONTRACT.md`;
+5. read `docs/WAVE14-C25-FULL-CODE-AUDIT.md`;
+6. read this execution ledger;
+7. inspect the latest checkpoint exact SHA and any workflow evidence;
+8. continue C25.2 from live GitHub state unless a later durable checkpoint supersedes it.
 
 Never infer unfinished C25 work from chat history when GitHub can be checked directly.
-
-## 8. C25.0 preparation convergence checkpoint — 2026-09-05
-
-### Starting exact C25 SHA
-
-`b4b53350a447d48d747c2512297ea0809f8bf61b`
-
-### Live inventory reviewed
-
-Open issues before cleanup:
-
-- #282 C25 active;
-- #280 post-DEMO decision input;
-- #211 Wave14 Product Owner validation;
-- #208 Preview harness;
-- #205 Wave13 signing/release pause;
-- #178 deferred Siemens L4 validation.
-
-Open PRs before cleanup:
-
-- #283 C25 active;
-- #212 Wave14 integration;
-- #266 C11 validation-only;
-- #263 C11 implementation;
-- #274 Runtime session/manual design-only;
-- #273 System Recovery design-only;
-- #210 Preview harness;
-- #207 Wave13 release/signing checkpoint.
-
-### Convergence decision
-
-Close only items whose active purpose is fully absorbed by C25 without losing required execution authority:
-
-- #273 -> CLOSED WITHOUT MERGE;
-- #274 -> CLOSED WITHOUT MERGE;
-- #280 -> CLOSED/COMPLETED as decision record.
-
-Keep open because they still have distinct future or current operational purpose:
-
-- #282/#283 C25;
-- #211 Wave14 validation;
-- #212 integration;
-- #263 C11 implementation;
-- #266 C11 validation-only / NEVER MERGE;
-- #208/#210 Preview harness;
-- #205/#207 Wave13 paused release/signing;
-- #178 deferred external L4 validation.
-
-### Durable consolidation
-
-Created:
-
-`docs/WAVE14-C25-CONSOLIDATED-POST-DEMO-CONTRACT.md`
-
-Consolidation commit:
-
-`b32ee0778d646bc65972ac16401c67f78ad8bc2b`
-
-The contract records explicit preserve/supersede treatment for #273, preserves/adapts #274 including mandatory multilingual Help, and moves #280 from active authority surface to historical Product Owner provenance.
-
-### Closure evidence
-
-- #273 closed without merge; branch preserved;
-- #274 closed without merge; branch preserved;
-- #280 closed with state reason `completed`; implementation explicitly remains active in #282/#283;
-- no `main` mutation;
-- no C11 mutation;
-- no branch deletion;
-- no force push/rebase;
-- no product bytes changed by this convergence checkpoint.
-
-### Remaining C25.0 work
-
-Continue the live architecture audit before functional implementation. The next code-bearing checkpoint remains C25.1 only after package/security/bootstrap/session/help authority surfaces are mapped against the current accepted integration product.

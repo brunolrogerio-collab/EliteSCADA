@@ -1,4 +1,5 @@
 using Scada.Engineering.Contracts;
+using Scada.Engineering.ImportExport;
 using Scada.Engineering.Security;
 using Scada.Security.Audit;
 using Scada.Security.Authorization;
@@ -10,18 +11,20 @@ public sealed record EngineeringLockSecretRequest(string Secret);
 
 public static class EngineeringLockEndpointExtensions
 {
+    private static readonly EngineeringLockSecretService Secrets = new();
+
     public static void MapEngineeringLockEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGet("/api/engineering/lock/status", (
             HttpContext context,
             ApiAuthorizationService security,
-            IEngineeringLockRegistry registry) =>
+            IEngineeringExchangeService exchange) =>
         {
             var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
             var failure = authorization.FailureResult();
             if (failure is not null) return failure;
 
-            return Results.Ok(ToStatus(registry.Snapshot()));
+            return Results.Ok(ToStatus(exchange));
         });
 
         endpoints.MapPost("/api/engineering/lock/configure", async (
@@ -29,8 +32,7 @@ public static class EngineeringLockEndpointExtensions
             HttpContext context,
             ApiAuthorizationService security,
             ApiAuditService audit,
-            IEngineeringLockRegistry registry,
-            EngineeringLockSecretService secrets) =>
+            IEngineeringExchangeService exchange) =>
         {
             var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
             var failure = authorization.FailureResult();
@@ -45,7 +47,7 @@ public static class EngineeringLockEndpointExtensions
                 return failure;
             }
 
-            if (EngineeringLockAccess.IsLocked(registry))
+            if (EngineeringLockAccess.IsLocked(exchange))
             {
                 await RecordDeniedByLockAsync(context, audit, authorization, AuditActions.EngineeringLockConfigure);
                 return LockedFailure();
@@ -54,7 +56,8 @@ public static class EngineeringLockEndpointExtensions
             EngineeringLockEngineeringDto configured;
             try
             {
-                configured = secrets.Configure(request.Secret, request.LockImmediately);
+                configured = Secrets.Configure(request.Secret, request.LockImmediately);
+                EngineeringLockAccess.Replace(exchange, configured);
             }
             catch (ArgumentException exception)
             {
@@ -69,7 +72,6 @@ public static class EngineeringLockEndpointExtensions
                 return Results.BadRequest(new { error = exception.Message });
             }
 
-            registry.Replace(configured);
             await audit.RecordAsync(
                 context,
                 authorization.Principal,
@@ -88,8 +90,7 @@ public static class EngineeringLockEndpointExtensions
             HttpContext context,
             ApiAuthorizationService security,
             ApiAuditService audit,
-            IEngineeringLockRegistry registry,
-            EngineeringLockSecretService secrets) =>
+            IEngineeringExchangeService exchange) =>
         {
             var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
             var failure = authorization.FailureResult();
@@ -106,8 +107,8 @@ public static class EngineeringLockEndpointExtensions
 
             try
             {
-                var locked = secrets.Lock(registry.Snapshot());
-                registry.Replace(locked);
+                var locked = Secrets.Lock(EngineeringLockAccess.Current(exchange));
+                EngineeringLockAccess.Replace(exchange, locked);
                 await audit.RecordAsync(
                     context,
                     authorization.Principal,
@@ -136,8 +137,7 @@ public static class EngineeringLockEndpointExtensions
             HttpContext context,
             ApiAuthorizationService security,
             ApiAuditService audit,
-            IEngineeringLockRegistry registry,
-            EngineeringLockSecretService secrets) =>
+            IEngineeringExchangeService exchange) =>
         {
             var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
             var failure = authorization.FailureResult();
@@ -154,8 +154,8 @@ public static class EngineeringLockEndpointExtensions
 
             try
             {
-                var unlocked = secrets.Unlock(registry.Snapshot(), request.Secret);
-                registry.Replace(unlocked);
+                var unlocked = Secrets.Unlock(EngineeringLockAccess.Current(exchange), request.Secret);
+                EngineeringLockAccess.Replace(exchange, unlocked);
                 await audit.RecordAsync(
                     context,
                     authorization.Principal,
@@ -185,8 +185,7 @@ public static class EngineeringLockEndpointExtensions
             HttpContext context,
             ApiAuthorizationService security,
             ApiAuditService audit,
-            IEngineeringLockRegistry registry,
-            EngineeringLockSecretService secrets) =>
+            IEngineeringExchangeService exchange) =>
         {
             var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
             var failure = authorization.FailureResult();
@@ -201,14 +200,14 @@ public static class EngineeringLockEndpointExtensions
                 return failure;
             }
 
-            if (EngineeringLockAccess.IsLocked(registry))
+            if (EngineeringLockAccess.IsLocked(exchange))
             {
                 await RecordDeniedByLockAsync(context, audit, authorization, AuditActions.EngineeringLockClear);
                 return LockedFailure();
             }
 
-            var cleared = secrets.Clear();
-            registry.Replace(cleared);
+            var cleared = Secrets.Clear();
+            EngineeringLockAccess.Replace(exchange, cleared);
             await audit.RecordAsync(
                 context,
                 authorization.Principal,
@@ -218,6 +217,18 @@ public static class EngineeringLockEndpointExtensions
                 "current");
             return Results.Ok(ToStatus(cleared));
         });
+    }
+
+    private static object ToStatus(IEngineeringExchangeService exchange)
+    {
+        try
+        {
+            return ToStatus(EngineeringLockAccess.Current(exchange));
+        }
+        catch (InvalidDataException)
+        {
+            return new { configured = true, locked = true };
+        }
     }
 
     private static object ToStatus(EngineeringLockEngineeringDto state)

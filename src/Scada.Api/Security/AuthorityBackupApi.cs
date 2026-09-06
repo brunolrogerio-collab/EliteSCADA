@@ -139,7 +139,7 @@ public static class AuthorityBackupApi
             IReadOnlyCollection<LocalUserAccount> replacement;
             try
             {
-                replacement = RefreshSecurityVersions(opened.Accounts, currentUsers);
+                replacement = AuthorityRestoreSecurity.RefreshSecurityVersions(opened.Accounts, currentUsers);
             }
             catch (InvalidDataException)
             {
@@ -260,7 +260,9 @@ public static class AuthorityBackupApi
             IReadOnlyCollection<LocalUserAccount> replacement;
             try
             {
-                replacement = RefreshSecurityVersions(opened.Accounts, Array.Empty<LocalUserAccount>());
+                replacement = AuthorityRestoreSecurity.RefreshSecurityVersions(
+                    opened.Accounts,
+                    Array.Empty<LocalUserAccount>());
             }
             catch (InvalidDataException)
             {
@@ -304,34 +306,6 @@ public static class AuthorityBackupApi
         });
 
         return endpoints;
-    }
-
-    internal static IReadOnlyCollection<LocalUserAccount> RefreshSecurityVersions(
-        IReadOnlyCollection<LocalUserAccount> restored,
-        IReadOnlyCollection<LocalUserAccount> current,
-        DateTimeOffset? nowUtc = null)
-    {
-        ArgumentNullException.ThrowIfNull(restored);
-        ArgumentNullException.ThrowIfNull(current);
-
-        var currentById = current.ToDictionary(user => user.Id);
-        var nowMs = (nowUtc ?? DateTimeOffset.UtcNow).ToUnixTimeMilliseconds();
-        var maximumMs = DateTimeOffset.MaxValue.ToUnixTimeMilliseconds();
-        var refreshed = new List<LocalUserAccount>(restored.Count);
-
-        foreach (var account in restored)
-        {
-            var previousMs = account.UpdatedAtUtc.ToUnixTimeMilliseconds();
-            if (currentById.TryGetValue(account.Id, out var existing))
-                previousMs = Math.Max(previousMs, existing.UpdatedAtUtc.ToUnixTimeMilliseconds());
-            if (previousMs >= maximumMs)
-                throw new InvalidDataException("Authority backup contains a security version that cannot be advanced safely.");
-
-            var nextMs = Math.Max(nowMs, previousMs + 1);
-            refreshed.Add(account with { UpdatedAtUtc = DateTimeOffset.FromUnixTimeMilliseconds(nextMs) });
-        }
-
-        return refreshed;
     }
 
     private static async Task<(ApiAuthorizationCheck? Check, IResult? Failure)> AuthorizeAdministrationAsync(

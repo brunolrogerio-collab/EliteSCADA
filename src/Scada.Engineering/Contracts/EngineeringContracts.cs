@@ -342,6 +342,27 @@ public sealed record GatewayRouteEngineeringDto(
     bool Enabled = true,
     Dictionary<string, string>? Metadata = null);
 
+/// <summary>
+/// One-way verifier metadata for the application Engineering Lock. This is not an
+/// Authority credential and not an Authority backup password. No plaintext or
+/// reversibly encrypted Engineering Lock secret belongs in the canonical package.
+/// </summary>
+public sealed record EngineeringLockVerifierDto(
+    string Algorithm,
+    int Version,
+    int Iterations,
+    string Salt,
+    string Hash);
+
+/// <summary>
+/// Canonical application-level Engineering Lock state. A configured verifier and
+/// the current locked state are intentionally independent so an application may
+/// retain its secret while temporarily unlocked.
+/// </summary>
+public sealed record EngineeringLockEngineeringDto(
+    bool Locked = false,
+    EngineeringLockVerifierDto? Verifier = null);
+
 public sealed record EngineeringPackage(
     string Schema,
     int SchemaVersion,
@@ -362,7 +383,8 @@ public sealed record EngineeringPackage(
     IReadOnlyCollection<VisualAssetEngineeringDto>? VisualAssets = null,
     IReadOnlyCollection<ReportEngineeringDto>? Reports = null,
     IReadOnlyCollection<OperationalEventEngineeringDto>? OperationalEvents = null,
-    Guid? StartupScreenId = null);
+    Guid? StartupScreenId = null,
+    EngineeringLockEngineeringDto? EngineeringLock = null);
 
 public sealed record ImportIssue(
     string Code,

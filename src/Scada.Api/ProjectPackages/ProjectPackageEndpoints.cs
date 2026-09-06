@@ -16,6 +16,7 @@ public static class ProjectPackageEndpoints
     public static IEndpointRouteBuilder MapProjectPackageEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapReusableLibraryEndpoints();
+        endpoints.MapReusableLibraryIncorporationEndpoints();
         endpoints.MapVisualAssetEndpoints();
         endpoints.MapSystemRecoveryApplicationEndpoints();
 

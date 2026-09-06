@@ -94,13 +94,15 @@ public static class ReusableLibraryIncorporationEndpoints
                 var packages = new ReusableLibraryPackageService(
                     workspace.Assets,
                     workspace.VisualAssets,
-                    workspace.Scripts);
+                    workspace.Scripts,
+                    workspace.Views);
                 var incorporation = new ReusableLibraryIncorporationService(
                     packages,
                     workspace.Assets,
                     workspace.VisualAssets,
                     exchange,
-                    workspace.Scripts);
+                    workspace.Scripts,
+                    workspace.Views);
                 plan = incorporation.Plan(catalogEntry.Content, selection);
 
                 if (!plan.RequiresMutation)

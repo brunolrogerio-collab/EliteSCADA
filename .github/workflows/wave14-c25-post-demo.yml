@@ -85,10 +85,10 @@ jobs:
       - name: Run Engineering Lock backend and lifecycle tests
         run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~EngineeringLockAccessTests|FullyQualifiedName~PublishedRuntimeActivationServiceTests|FullyQualifiedName~PersistedRuntimeRecoveryServiceTests" --verbosity normal
 
-      - name: Run reusable library package, catalog and backend access tests
+      - name: Run reusable library package, catalog, incorporation and backend lifecycle tests
         run: |
           dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~ReusableLibrary" --verbosity normal
-          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~ReusableLibraryEndpointAccessTests" --verbosity normal
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~ReusableLibrary" --verbosity normal
 
       - name: Run Authority backup crypto and validation tests
         run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~AuthorityBackupServiceTests" --verbosity normal

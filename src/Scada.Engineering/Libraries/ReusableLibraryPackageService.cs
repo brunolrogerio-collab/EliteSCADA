@@ -32,6 +32,7 @@ public static class ReusableLibraryResourceKinds
     public static IReadOnlySet<string> ExportEnabled { get; } = new HashSet<string>(StringComparer.Ordinal)
     {
         EquipmentTemplate,
+        Dynamo,
         VisualAsset
     };
 }
@@ -117,13 +118,40 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
         ValidateExportRequest(request);
 
         var files = new Dictionary<string, (ReusableLibraryFileEntry Entry, byte[] Bytes)>(StringComparer.Ordinal);
-        var resources = new List<ReusableLibraryResourceEntry>();
+        var resources = new Dictionary<(string Kind, Guid ResourceId), ReusableLibraryResourceEntry>();
+        var visiting = new HashSet<(string Kind, Guid ResourceId)>();
+
+        void AddResource(ReusableLibraryResourceSelection selection)
+        {
+            var identity = (selection.Kind, selection.ResourceId);
+            if (resources.ContainsKey(identity)) return;
+            if (!visiting.Add(identity))
+                throw new InvalidDataException(
+                    $"Reusable library export dependency cycle detected at '{selection.Kind}:{selection.ResourceId:D}'.");
+
+            try
+            {
+                var resource = BuildExportResource(selection, files);
+                foreach (var dependency in resource.Dependencies
+                             .OrderBy(x => x.Kind, StringComparer.Ordinal)
+                             .ThenBy(x => x.ResourceId))
+                {
+                    AddResource(new ReusableLibraryResourceSelection(dependency.Kind, dependency.ResourceId));
+                }
+
+                resources.Add(identity, resource);
+            }
+            finally
+            {
+                visiting.Remove(identity);
+            }
+        }
 
         foreach (var selection in request.Resources
                      .OrderBy(x => x.Kind, StringComparer.Ordinal)
                      .ThenBy(x => x.ResourceId))
         {
-            resources.Add(BuildExportResource(selection, files));
+            AddResource(selection);
         }
 
         if (files.Count == 0 || files.Count > MaximumPayloadFiles)
@@ -139,7 +167,10 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
             request.Version.Trim(),
             EngineeringExchangeService.CurrentSchema,
             EngineeringExchangeService.CurrentSchemaVersion,
-            resources,
+            resources.Values
+                .OrderBy(x => x.Kind, StringComparer.Ordinal)
+                .ThenBy(x => x.ResourceId)
+                .ToArray(),
             files.Values.Select(x => x.Entry).OrderBy(x => x.Path, StringComparer.Ordinal).ToArray());
 
         ValidateManifest(manifest);
@@ -221,6 +252,7 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
         return selection.Kind switch
         {
             ReusableLibraryResourceKinds.EquipmentTemplate => ExportTemplate(selection.ResourceId, files),
+            ReusableLibraryResourceKinds.Dynamo => ExportDynamo(selection.ResourceId, files),
             ReusableLibraryResourceKinds.VisualAsset => ExportVisualAsset(selection.ResourceId, files),
             _ => throw new InvalidDataException($"Unsupported reusable resource kind '{selection.Kind}'.")
         };
@@ -243,6 +275,213 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
             template,
             Array.Empty<ReusableLibraryDependency>(),
             files);
+    }
+
+    private ReusableLibraryResourceEntry ExportDynamo(
+        Guid resourceId,
+        IDictionary<string, (ReusableLibraryFileEntry Entry, byte[] Bytes)> files)
+    {
+        var dynamo = _assets.FindDynamo(resourceId)
+            ?? throw new InvalidDataException($"Dynamo '{resourceId:D}' was not found in Working.");
+        if (dynamo.Id != resourceId)
+            throw new InvalidDataException("Dynamo stable identity is inconsistent.");
+
+        var dependencies = new Dictionary<(string Kind, Guid ResourceId), ReusableLibraryDependency>();
+        ValidatePortableBindings(dynamo.Bindings, $"Dynamo '{dynamo.Key}'");
+
+        if (!string.IsNullOrWhiteSpace(dynamo.TemplateKey))
+        {
+            var template = _assets.FindTemplateByKey(dynamo.TemplateKey)
+                ?? throw new InvalidDataException(
+                    $"Dynamo '{dynamo.Key}' references template '{dynamo.TemplateKey}', which was not found in Working.");
+            if (!template.Id.HasValue || template.Id == Guid.Empty)
+                throw new InvalidDataException(
+                    $"Dynamo '{dynamo.Key}' template dependency does not have stable identity.");
+            AddDependency(dependencies, ReusableLibraryResourceKinds.EquipmentTemplate, template.Id.Value);
+        }
+
+        foreach (var parameter in dynamo.Parameters ?? Array.Empty<DynamoParameterDefinitionEngineeringDto>())
+        {
+            if (parameter?.DefaultTagReference is { TagId: var tagId } && tagId != Guid.Empty)
+                throw new InvalidDataException(
+                    $"Dynamo '{dynamo.Key}' parameter '{parameter.Key}' has a concrete TAG default. Reusable Dynamos must keep project TAG references parameterized.");
+        }
+
+        CollectDynamoElementDependencies(dynamo.Key, dynamo.Elements, dependencies);
+
+        return AddJsonResource(
+            ReusableLibraryResourceKinds.Dynamo,
+            resourceId,
+            dynamo.Key,
+            dynamo.Name,
+            dynamo,
+            dependencies.Values
+                .OrderBy(x => x.Kind, StringComparer.Ordinal)
+                .ThenBy(x => x.ResourceId)
+                .ToArray(),
+            files);
+    }
+
+    private void CollectDynamoElementDependencies(
+        string ownerKey,
+        IReadOnlyCollection<VisualElementEngineeringDto>? elements,
+        IDictionary<(string Kind, Guid ResourceId), ReusableLibraryDependency> dependencies)
+    {
+        foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
+        {
+            if (element is null)
+                throw new InvalidDataException($"Dynamo '{ownerKey}' contains a null visual element.");
+
+            if (!string.IsNullOrWhiteSpace(element.EquipmentPath) && !ContainsPlaceholder(element.EquipmentPath))
+                throw new InvalidDataException(
+                    $"Dynamo '{ownerKey}' element '{element.Key}' has concrete equipment path '{element.EquipmentPath}'. Reusable Dynamos must keep project equipment context parameterized.");
+
+            ValidatePortableBindings(element.Bindings, $"Dynamo '{ownerKey}' element '{element.Key}'");
+            ValidatePortableDynamicSources(element, ownerKey);
+
+            foreach (var parameter in element.DynamoParameters ?? Array.Empty<DynamoParameterValueEngineeringDto>())
+            {
+                if (parameter?.TagReference is { TagId: var tagId } && tagId != Guid.Empty)
+                    throw new InvalidDataException(
+                        $"Dynamo '{ownerKey}' element '{element.Key}' parameter '{parameter.Key}' carries a concrete TAG reference. Reusable Dynamos must keep project TAG references parameterized.");
+            }
+
+            if ((element.Actions?.Count ?? 0) > 0)
+                throw new InvalidDataException(
+                    $"Dynamo '{ownerKey}' element '{element.Key}' contains navigation/command actions. Action target dependencies are not reusable-library enabled in the Dynamo slice yet.");
+
+            if (!string.IsNullOrWhiteSpace(element.DynamoKey))
+            {
+                var nested = _assets.FindDynamoByKey(element.DynamoKey)
+                    ?? throw new InvalidDataException(
+                        $"Dynamo '{ownerKey}' element '{element.Key}' references Dynamo '{element.DynamoKey}', which was not found in Working.");
+                if (!nested.Id.HasValue || nested.Id == Guid.Empty)
+                    throw new InvalidDataException(
+                        $"Dynamo '{ownerKey}' nested Dynamo dependency '{element.DynamoKey}' does not have stable identity.");
+                AddDependency(dependencies, ReusableLibraryResourceKinds.Dynamo, nested.Id.Value);
+            }
+
+            if (string.Equals(element.Type, "core.image", StringComparison.Ordinal) &&
+                element.Properties is not null &&
+                element.Properties.TryGetValue("assetRef", out var assetReference) &&
+                assetReference.ValueKind != JsonValueKind.Null)
+            {
+                var assetId = ParseVisualAssetReference(assetReference, ownerKey, element.Key);
+                var asset = _visualAssets.FindAsset(assetId)
+                    ?? throw new InvalidDataException(
+                        $"Dynamo '{ownerKey}' element '{element.Key}' references visual asset '{assetId:D}', which was not found in Working.");
+                AddDependency(dependencies, ReusableLibraryResourceKinds.VisualAsset, assetId);
+            }
+
+            CollectDynamoElementDependencies(ownerKey, element.Children, dependencies);
+        }
+    }
+
+    private static void ValidatePortableBindings(
+        IReadOnlyCollection<EngineeringBindingDto>? bindings,
+        string owner)
+    {
+        foreach (var binding in bindings ?? Array.Empty<EngineeringBindingDto>())
+        {
+            if (binding is null) continue;
+            if (binding.Kind is not (EngineeringBindingKind.Tag or EngineeringBindingKind.ClientMemory))
+                continue;
+
+            if (binding.TagReference is { TagId: var tagId } && tagId != Guid.Empty)
+                throw new InvalidDataException(
+                    $"{owner} binding '{binding.Key}' carries a concrete project data identity. Reusable Dynamos must use placeholders/parameters instead.");
+            if (!ContainsPlaceholder(binding.Target))
+                throw new InvalidDataException(
+                    $"{owner} binding '{binding.Key}' targets concrete project data '{binding.Target}'. Reusable Dynamos must use placeholders/parameters instead.");
+        }
+    }
+
+    private static void ValidatePortableDynamicSources(VisualElementEngineeringDto element, string ownerKey)
+    {
+        foreach (var expression in element.PropertyExpressions ?? Array.Empty<VisualPropertyExpressionEngineeringDto>())
+            ValidatePortableExpression(expression?.Expression, ownerKey, element.Key);
+
+        foreach (var condition in element.BooleanConditions ?? Array.Empty<VisualBooleanConditionEngineeringDto>())
+            ValidatePortableSource(condition?.Source, ownerKey, element.Key);
+
+        if (element.AnalogFill is not null)
+            ValidatePortableSource(element.AnalogFill.Source, ownerKey, element.Key);
+    }
+
+    private static void ValidatePortableSource(
+        VisualValueSourceEngineeringDto? source,
+        string ownerKey,
+        string elementKey)
+    {
+        if (source is null) return;
+
+        if (source.TagReference is { TagId: var tagId } && tagId != Guid.Empty)
+            throw new InvalidDataException(
+                $"Dynamo '{ownerKey}' element '{elementKey}' contains a concrete project data reference in dynamic behavior.");
+
+        if (source.Kind is VisualValueSourceKind.Tag or VisualValueSourceKind.ClientMemory)
+        {
+            if (!ContainsPlaceholder(source.Target))
+                throw new InvalidDataException(
+                    $"Dynamo '{ownerKey}' element '{elementKey}' contains concrete dynamic source '{source.Target}'. Reusable Dynamos must keep project data parameterized.");
+        }
+
+        ValidatePortableExpression(source.Expression, ownerKey, elementKey);
+    }
+
+    private static void ValidatePortableExpression(
+        VisualExpressionEngineeringDto? expression,
+        string ownerKey,
+        string elementKey)
+    {
+        foreach (var dependency in expression?.Dependencies ?? Array.Empty<VisualExpressionDependencyEngineeringDto>())
+        {
+            if (dependency is null) continue;
+            throw new InvalidDataException(
+                $"Dynamo '{ownerKey}' element '{elementKey}' expression dependency '{dependency.Symbol}' is bound to project data. Reusable Dynamo expression dependencies are not enabled until a parameterized canonical representation exists.");
+        }
+    }
+
+    private static Guid ParseVisualAssetReference(
+        JsonElement reference,
+        string ownerKey,
+        string elementKey)
+    {
+        if (reference.ValueKind != JsonValueKind.Object)
+            throw new InvalidDataException(
+                $"Dynamo '{ownerKey}' element '{elementKey}' assetRef must be the canonical object form.");
+
+        var properties = reference.EnumerateObject().ToArray();
+        if (properties.Length != 1 ||
+            !properties[0].NameEquals("assetId") ||
+            properties[0].Value.ValueKind != JsonValueKind.String)
+            throw new InvalidDataException(
+                $"Dynamo '{ownerKey}' element '{elementKey}' assetRef must contain only the canonical assetId field.");
+
+        var value = properties[0].Value.GetString();
+        if (string.IsNullOrWhiteSpace(value))
+            throw new InvalidDataException(
+                $"Dynamo '{ownerKey}' element '{elementKey}' assetRef requires a stable asset identity.");
+
+        var candidate = value.StartsWith("asset:", StringComparison.Ordinal)
+            ? value["asset:".Length..]
+            : value;
+        if (!Guid.TryParse(candidate, out var assetId) || assetId == Guid.Empty)
+            throw new InvalidDataException(
+                $"Dynamo '{ownerKey}' element '{elementKey}' assetRef '{value}' is not a stable project asset GUID.");
+        return assetId;
+    }
+
+    private static bool ContainsPlaceholder(string? value) =>
+        value?.Contains('{', StringComparison.Ordinal) == true ||
+        value?.Contains('}', StringComparison.Ordinal) == true;
+
+    private static void AddDependency(
+        IDictionary<(string Kind, Guid ResourceId), ReusableLibraryDependency> dependencies,
+        string kind,
+        Guid resourceId)
+    {
+        dependencies.TryAdd((kind, resourceId), new ReusableLibraryDependency(kind, resourceId));
     }
 
     private ReusableLibraryResourceEntry ExportVisualAsset(

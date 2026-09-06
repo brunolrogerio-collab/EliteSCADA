@@ -84,7 +84,10 @@ public static class ReusableLibraryEndpoints
             try
             {
                 var bytes = await ReadLibraryAsync(request, cancellationToken);
-                var service = new ReusableLibraryPackageService(workspace.Assets, workspace.VisualAssets);
+                var service = new ReusableLibraryPackageService(
+                    workspace.Assets,
+                    workspace.VisualAssets,
+                    workspace.Scripts);
                 var inspection = service.Inspect(bytes);
                 var result = Catalog.Associate(CatalogScope(workspace), bytes, inspection);
 
@@ -198,7 +201,10 @@ public static class ReusableLibraryEndpoints
 
             try
             {
-                var service = new ReusableLibraryPackageService(workspace.Assets, workspace.VisualAssets);
+                var service = new ReusableLibraryPackageService(
+                    workspace.Assets,
+                    workspace.VisualAssets,
+                    workspace.Scripts);
                 var content = service.Export(request);
                 await audit.RecordAsync(
                     context,
@@ -262,7 +268,10 @@ public static class ReusableLibraryEndpoints
             try
             {
                 var bytes = await ReadLibraryAsync(request, cancellationToken);
-                var service = new ReusableLibraryPackageService(workspace.Assets, workspace.VisualAssets);
+                var service = new ReusableLibraryPackageService(
+                    workspace.Assets,
+                    workspace.VisualAssets,
+                    workspace.Scripts);
                 var inspection = service.Inspect(bytes);
                 await audit.RecordAsync(
                     context,

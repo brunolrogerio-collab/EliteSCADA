@@ -14,11 +14,164 @@ public sealed record ReusableLibraryAccessDecision(
 
 public static class ReusableLibraryEndpoints
 {
+    public const string CatalogRoute = "/api/engineering/libraries";
+    public const string AssociateRoute = "/api/engineering/libraries/associate";
     public const string ExportRoute = "/api/engineering/libraries/export";
     public const string InspectRoute = "/api/engineering/libraries/inspect";
 
+    private static ReusableLibraryCatalogStore Catalog => ReusableLibraryCatalogStore.Shared;
+
     public static IEndpointRouteBuilder MapReusableLibraryEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet(CatalogRoute, (
+            HttpContext context,
+            IEngineeringExchangeService exchange,
+            ApiAuthorizationService security) =>
+        {
+            var access = CheckAccess(context, security, exchange);
+            return access.Failure ?? Results.Ok(Catalog.Snapshot());
+        });
+
+        endpoints.MapGet("/api/engineering/libraries/{libraryId:guid}/resources", (
+            Guid libraryId,
+            HttpContext context,
+            IEngineeringExchangeService exchange,
+            ApiAuthorizationService security) =>
+        {
+            var access = CheckAccess(context, security, exchange);
+            if (access.Failure is not null) return access.Failure;
+
+            var entry = Catalog.Find(libraryId);
+            if (entry is null) return Results.NotFound();
+
+            return Results.Ok(new
+            {
+                library = new ReusableLibraryCatalogDescriptor(
+                    entry.LibraryId,
+                    entry.Name,
+                    entry.Version,
+                    entry.ContentSha256,
+                    entry.ResourceCount,
+                    entry.ByteLength),
+                resources = entry.Inspection.Manifest.Resources
+            });
+        });
+
+        endpoints.MapPost(AssociateRoute, async (
+            HttpRequest request,
+            HttpContext context,
+            EngineeringWorkspace workspace,
+            IEngineeringExchangeService exchange,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            CancellationToken cancellationToken) =>
+        {
+            var access = CheckAccess(context, security, exchange);
+            if (access.Failure is not null)
+            {
+                await RecordDeniedAsync(
+                    context,
+                    audit,
+                    access,
+                    AuditActions.EngineeringLibraryAssociate,
+                    "reusable-library",
+                    "unresolved");
+                return access.Failure;
+            }
+
+            try
+            {
+                var bytes = await ReadLibraryAsync(request, cancellationToken);
+                var service = new ReusableLibraryPackageService(workspace.Assets, workspace.VisualAssets);
+                var inspection = service.Inspect(bytes);
+                var result = Catalog.Associate(bytes, inspection);
+
+                await audit.RecordAsync(
+                    context,
+                    access.Authorization.Principal,
+                    AuditActions.EngineeringLibraryAssociate,
+                    AuditOutcome.Succeeded,
+                    "reusable-library",
+                    result.Library.LibraryId.ToString("D"),
+                    new Dictionary<string, string>
+                    {
+                        ["name"] = result.Library.Name,
+                        ["version"] = result.Library.Version,
+                        ["contentSha256"] = result.Library.ContentSha256,
+                        ["resourceCount"] = result.Library.ResourceCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["added"] = result.Added.ToString()
+                    });
+
+                return Results.Ok(new
+                {
+                    association = result.Library,
+                    added = result.Added,
+                    workingChanged = false
+                });
+            }
+            catch (ReusableLibraryAssociationConflictException ex)
+            {
+                await audit.RecordAsync(
+                    context,
+                    access.Authorization.Principal,
+                    AuditActions.EngineeringLibraryAssociate,
+                    AuditOutcome.Failed,
+                    "reusable-library",
+                    ex.LibraryId.ToString("D"),
+                    new Dictionary<string, string> { ["reason"] = "different-content-already-associated" });
+                return Results.Conflict(new { error = ex.Message });
+            }
+            catch (InvalidDataException ex)
+            {
+                await audit.RecordAsync(
+                    context,
+                    access.Authorization.Principal,
+                    AuditActions.EngineeringLibraryAssociate,
+                    AuditOutcome.Failed,
+                    "reusable-library",
+                    "unresolved",
+                    new Dictionary<string, string>
+                    {
+                        ["reason"] = "invalid-library",
+                        ["errorType"] = ex.GetType().Name
+                    });
+                return Results.BadRequest(new { error = ex.Message });
+            }
+        });
+
+        endpoints.MapDelete("/api/engineering/libraries/{libraryId:guid}", async (
+            Guid libraryId,
+            HttpContext context,
+            IEngineeringExchangeService exchange,
+            ApiAuthorizationService security,
+            ApiAuditService audit) =>
+        {
+            var access = CheckAccess(context, security, exchange);
+            if (access.Failure is not null)
+            {
+                await RecordDeniedAsync(
+                    context,
+                    audit,
+                    access,
+                    AuditActions.EngineeringLibraryDisassociate,
+                    "reusable-library",
+                    libraryId.ToString("D"));
+                return access.Failure;
+            }
+
+            if (!Catalog.Disassociate(libraryId)) return Results.NotFound();
+
+            await audit.RecordAsync(
+                context,
+                access.Authorization.Principal,
+                AuditActions.EngineeringLibraryDisassociate,
+                AuditOutcome.Succeeded,
+                "reusable-library",
+                libraryId.ToString("D"),
+                new Dictionary<string, string> { ["workingChanged"] = bool.FalseString });
+            return Results.Ok(new { libraryId, workingChanged = false });
+        });
+
         endpoints.MapPost(ExportRoute, async (
             ReusableLibraryExportRequest request,
             HttpContext context,

@@ -71,6 +71,7 @@ builder.Services.AddSingleton<IGatewayRuntimeDiagnosticsProvider>(sp =>
 builder.AddProductLicensedRuntimeCoordinator();
 
 builder.Services.AddSingleton<IEngineeringExchangeService, EngineeringExchangeService>();
+builder.Services.AddSingleton<EngineeringLockSecretService>();
 builder.Services.AddSingleton<IProjectPackageService, ProjectPackageService>();
 builder.Services.AddSingleton<ApiAuthorizationService>();
 builder.AddOptionalEngineeringPersistence();
@@ -107,6 +108,7 @@ app.MapOpenApi();
 app.MapProjectPackageEndpoints();
 app.MapEngineeringPersistenceEndpoints();
 app.MapEngineeringMutationEndpoints();
+app.MapEngineeringLockEndpoints();
 app.MapAuditEndpoints();
 app.MapAlarmShelvingEndpoints();
 app.MapCommandEndpoints();
@@ -239,180 +241,162 @@ app.MapPost("/api/tags/{id:guid}/write", async (
             authorization,
             AuditActions.TagWrite,
             "tag",
-            tag.Path,
-            new Dictionary<string, string> { ["tagId"] = tag.Id.ToString() });
+            id.ToString());
         return failure;
     }
 
-    try
-    {
-        await runtime.WriteAsync(id, request.Value, ct);
-        await audit.RecordAsync(
-            context,
-            authorization.Principal,
-            AuditActions.TagWrite,
-            AuditOutcome.Succeeded,
-            "tag",
-            tag.Path,
-            new Dictionary<string, string> { ["tagId"] = tag.Id.ToString() });
-        return Results.Accepted();
-    }
-    catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
-    {
-        await audit.RecordAsync(
-            context,
-            authorization.Principal,
-            AuditActions.TagWrite,
-            AuditOutcome.Failed,
-            "tag",
-            tag.Path,
-            new Dictionary<string, string>
-            {
-                ["tagId"] = tag.Id.ToString(),
-                ["errorType"] = ex.GetType().Name
-            });
-        throw;
-    }
-});
+    if (!RuntimeTagValueCoercion.TryCoerce(request.Value, tag, out var coerced, out var error))
+        return Results.BadRequest(new { error });
 
-app.MapGet("/api/history/{tagId:guid}", async (
-    Guid tagId,
-    DateTimeOffset? from,
-    DateTimeOffset? to,
-    int? limit,
-    HttpContext context,
-    ScadaRuntimeFacade runtime,
-    ApiAuthorizationService security,
-    IHistorian historian,
-    CancellationToken ct) =>
-{
-    if (!runtime.TryGetTag(tagId, out var tag) || tag is null) return Results.NotFound();
-
-    var authorization = await security.CheckRuntimeTagReadAsync(context, runtime, tag, ct);
-    var failure = authorization?.FailureResult();
-    if (failure is not null) return failure;
-
-    var end = to ?? DateTimeOffset.UtcNow;
-    var start = from ?? end.AddMinutes(-15);
-    return Results.Ok(historian.Query(tagId, start, end, limit ?? 5000));
-});
-
-app.MapGet("/api/alarms", async (
-    bool? activeOnly,
-    HttpContext context,
-    ScadaRuntimeFacade runtime,
-    ApiAuthorizationService security,
-    CancellationToken ct) =>
-{
-    var tagAccess = await security.GetReadableRuntimeTagsAsync(context, runtime, ct);
-    var failure = tagAccess.FailureResult();
-    if (failure is not null) return failure;
-
-    var readableTagIds = tagAccess.Tags.Select(tag => tag.Id).ToHashSet();
-    var visible = new List<AlarmInstance>();
-    foreach (var alarm in runtime.Alarms(activeOnly ?? false))
-    {
-        if (!readableTagIds.Contains(alarm.TagId)) continue;
-        if (await security.CanViewRuntimeResourceAsync(
-                tagAccess.Principal,
-                runtime,
-                new AuthorizationResource(Area: alarm.Area),
-                ct))
-            visible.Add(alarm);
-    }
-
-    return Results.Ok(visible);
-});
-
-app.MapGet("/api/alarms/definitions", async (
-    HttpContext context,
-    ScadaRuntimeFacade runtime,
-    ApiAuthorizationService security,
-    CancellationToken ct) =>
-{
-    var tagAccess = await security.GetReadableRuntimeTagsAsync(context, runtime, ct);
-    var failure = tagAccess.FailureResult();
-    if (failure is not null) return failure;
-
-    var readableTagIds = tagAccess.Tags.Select(tag => tag.Id).ToHashSet();
-    var visible = new List<AlarmDefinition>();
-    foreach (var alarm in runtime.AlarmDefinitions())
-    {
-        if (!readableTagIds.Contains(alarm.TagId)) continue;
-        if (await security.CanViewRuntimeResourceAsync(
-                tagAccess.Principal,
-                runtime,
-                new AuthorizationResource(Area: alarm.Area),
-                ct))
-            visible.Add(alarm);
-    }
-
-    return Results.Ok(visible);
-});
-
-app.MapPost("/api/alarms/{id:guid}/ack", async (
-    Guid id,
-    AlarmAckRequest request,
-    HttpContext context,
-    ScadaRuntimeFacade runtime,
-    ApiAuthorizationService security,
-    ApiAuditService audit,
-    CancellationToken ct) =>
-{
-    var definition = runtime.AlarmDefinitions().FirstOrDefault(alarm => alarm.Id == id);
-    if (definition is null) return Results.NotFound();
-
-    var authorization = await security.CheckRuntimeAsync(
-        context,
-        runtime,
-        SecurityCapability.AlarmAcknowledge,
-        new AuthorizationResource(Area: definition.Area),
+    var write = await runtime.WriteTagAsync(
+        tag,
+        coerced,
+        new TagWriteContext(
+            authorization.Principal.SubjectId!,
+            authorization.Principal.DisplayName,
+            authorization.Principal.Roles),
         ct);
-    var failure = authorization.FailureResult();
-    if (failure is not null)
-    {
-        await audit.RecordAuthorizationDeniedAsync(
-            context,
-            authorization,
-            AuditActions.AlarmAcknowledge,
-            "alarm",
-            id.ToString(),
-            new Dictionary<string, string> { ["alarmName"] = definition.Name });
-        return failure;
-    }
 
-    var acknowledgedBy = authorization.Principal.DisplayName ?? authorization.Principal.SubjectId;
-    _ = request;
+    await audit.RecordAsync(
+        context,
+        authorization.Principal,
+        AuditActions.TagWrite,
+        write.Accepted ? AuditOutcome.Succeeded : AuditOutcome.Failed,
+        "tag",
+        id.ToString(),
+        new Dictionary<string, string>
+        {
+            ["status"] = write.Status.ToString(),
+            ["message"] = write.Message ?? string.Empty
+        });
 
-    try
-    {
-        var acknowledged = await runtime.AcknowledgeAlarmAsync(id, acknowledgedBy, ct);
-        await audit.RecordAsync(
-            context,
-            authorization.Principal,
-            AuditActions.AlarmAcknowledge,
-            acknowledged ? AuditOutcome.Succeeded : AuditOutcome.Failed,
-            "alarm",
-            id.ToString(),
-            new Dictionary<string, string> { ["alarmName"] = definition.Name });
-        return acknowledged ? Results.Ok() : Results.NotFound();
-    }
-    catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
-    {
-        await audit.RecordAsync(
-            context,
-            authorization.Principal,
-            AuditActions.AlarmAcknowledge,
-            AuditOutcome.Failed,
-            "alarm",
-            id.ToString(),
-            new Dictionary<string, string>
-            {
-                ["alarmName"] = definition.Name,
-                ["errorType"] = ex.GetType().Name
-            });
-        throw;
-    }
+    return write.Accepted
+        ? Results.Ok(write)
+        : Results.BadRequest(write);
+});
+
+app.MapPost("/api/engineering/import/json/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
+    await PreviewEngineeringImportAsync(
+        request,
+        mode,
+        exchange,
+        EngineeringImportBodyReader.ReadJsonAsync,
+        exchange.ParseJson))
+    .RequireWorkspaceEngineeringRead();
+
+app.MapPost("/api/engineering/import/json/apply", async (
+    HttpRequest request,
+    HttpContext context,
+    ImportMode? mode,
+    IEngineeringExchangeService exchange,
+    ApiAuthorizationService security,
+    ApiAuditService audit) =>
+{
+    return await ApplyEngineeringImportAsync(
+        request,
+        context,
+        mode,
+        exchange,
+        security,
+        audit,
+        async () =>
+        {
+            var body = await EngineeringImportBodyReader.ReadJsonAsync(request, context.RequestAborted);
+            return exchange.ParseJson(body);
+        });
+});
+
+app.MapPost("/api/engineering/import/tags.csv/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
+    await PreviewEngineeringImportAsync(
+        request,
+        mode,
+        exchange,
+        EngineeringImportBodyReader.ReadCsvAsync,
+        exchange.ParseTagsCsv))
+    .RequireWorkspaceEngineeringRead();
+
+app.MapPost("/api/engineering/import/tags.csv/apply", async (
+    HttpRequest request,
+    HttpContext context,
+    ImportMode? mode,
+    IEngineeringExchangeService exchange,
+    ApiAuthorizationService security,
+    ApiAuditService audit) =>
+{
+    return await ApplyEngineeringImportAsync(
+        request,
+        context,
+        mode,
+        exchange,
+        security,
+        audit,
+        async () =>
+        {
+            var body = await EngineeringImportBodyReader.ReadCsvAsync(request, context.RequestAborted);
+            return exchange.ParseTagsCsv(body);
+        });
+});
+
+app.MapPost("/api/engineering/import/alarms.csv/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
+    await PreviewEngineeringImportAsync(
+        request,
+        mode,
+        exchange,
+        EngineeringImportBodyReader.ReadCsvAsync,
+        exchange.ParseAlarmsCsv))
+    .RequireWorkspaceEngineeringRead();
+
+app.MapPost("/api/engineering/import/alarms.csv/apply", async (
+    HttpRequest request,
+    HttpContext context,
+    ImportMode? mode,
+    IEngineeringExchangeService exchange,
+    ApiAuthorizationService security,
+    ApiAuditService audit) =>
+{
+    return await ApplyEngineeringImportAsync(
+        request,
+        context,
+        mode,
+        exchange,
+        security,
+        audit,
+        async () =>
+        {
+            var body = await EngineeringImportBodyReader.ReadCsvAsync(request, context.RequestAborted);
+            return exchange.ParseAlarmsCsv(body);
+        });
+});
+
+app.MapPost("/api/engineering/import/datasources.csv/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
+    await PreviewEngineeringImportAsync(
+        request,
+        mode,
+        exchange,
+        EngineeringImportBodyReader.ReadCsvAsync,
+        exchange.ParseDataSourcesCsv))
+    .RequireWorkspaceEngineeringRead();
+
+app.MapPost("/api/engineering/import/datasources.csv/apply", async (
+    HttpRequest request,
+    HttpContext context,
+    ImportMode? mode,
+    IEngineeringExchangeService exchange,
+    ApiAuthorizationService security,
+    ApiAuditService audit) =>
+{
+    return await ApplyEngineeringImportAsync(
+        request,
+        context,
+        mode,
+        exchange,
+        security,
+        audit,
+        async () =>
+        {
+            var body = await EngineeringImportBodyReader.ReadCsvAsync(request, context.RequestAborted);
+            return exchange.ParseDataSourcesCsv(body);
+        });
 });
 
 app.MapGet("/api/drivers", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.Drivers()))
@@ -459,210 +443,31 @@ app.MapGet("/api/engineering/export/datasources.csv", (IEngineeringExchangeServi
     Results.File(Encoding.UTF8.GetBytes(exchange.ExportDataSourcesCsv()), "text/csv; charset=utf-8", "scada-datasources.csv"))
     .RequireWorkspaceEngineeringRead();
 
-app.MapPost("/api/engineering/import/json/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
-    await PreviewEngineeringImportAsync(
-        request,
-        mode,
-        exchange,
-        EngineeringImportBodyReader.ReadJsonAsync,
-        exchange.ParseJson))
-    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/gateway/configuration", (IGatewayEngineeringRegistry registry) => Results.Ok(registry.Snapshot()))
+    .RequireRuntimeEngineeringRead();
 
-app.MapPost("/api/engineering/import/json/apply", async (
-    HttpRequest request,
-    HttpContext context,
-    ImportMode? mode,
-    IEngineeringExchangeService exchange,
-    ApiAuthorizationService security,
-    ApiAuditService audit) =>
-{
-    return await ApplyEngineeringImportAsync(
-        request,
-        context,
-        mode,
-        exchange,
-        security,
-        audit,
-        "json",
-        async () =>
-        {
-            var body = await EngineeringImportBodyReader.ReadJsonAsync(request, context.RequestAborted);
-            return exchange.ParseJson(body);
-        });
-});
-
-app.MapPost("/api/engineering/import/tags.csv/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
-    await PreviewEngineeringImportAsync(
-        request,
-        mode,
-        exchange,
-        EngineeringImportBodyReader.ReadCsvAsync,
-        exchange.ParseTagsCsv))
-    .RequireWorkspaceEngineeringRead();
-
-app.MapPost("/api/engineering/import/tags.csv/apply", async (
-    HttpRequest request,
-    HttpContext context,
-    ImportMode? mode,
-    IEngineeringExchangeService exchange,
-    ApiAuthorizationService security,
-    ApiAuditService audit) =>
-{
-    return await ApplyEngineeringImportAsync(
-        request,
-        context,
-        mode,
-        exchange,
-        security,
-        audit,
-        "tags.csv",
-        async () =>
-        {
-            var body = await EngineeringImportBodyReader.ReadCsvAsync(request, context.RequestAborted);
-            return exchange.ParseTagsCsv(body);
-        });
-});
-
-app.MapPost("/api/engineering/import/alarms.csv/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
-    await PreviewEngineeringImportAsync(
-        request,
-        mode,
-        exchange,
-        EngineeringImportBodyReader.ReadCsvAsync,
-        exchange.ParseAlarmsCsv))
-    .RequireWorkspaceEngineeringRead();
-
-app.MapPost("/api/engineering/import/alarms.csv/apply", async (
-    HttpRequest request,
-    HttpContext context,
-    ImportMode? mode,
-    IEngineeringExchangeService exchange,
-    ApiAuthorizationService security,
-    ApiAuditService audit) =>
-{
-    return await ApplyEngineeringImportAsync(
-        request,
-        context,
-        mode,
-        exchange,
-        security,
-        audit,
-        "alarms.csv",
-        async () =>
-        {
-            var body = await EngineeringImportBodyReader.ReadCsvAsync(request, context.RequestAborted);
-            return exchange.ParseAlarmsCsv(body);
-        });
-});
-
-app.MapPost("/api/engineering/import/datasources.csv/preview", async (HttpRequest request, ImportMode? mode, IEngineeringExchangeService exchange) =>
-    await PreviewEngineeringImportAsync(
-        request,
-        mode,
-        exchange,
-        EngineeringImportBodyReader.ReadCsvAsync,
-        exchange.ParseDataSourcesCsv))
-    .RequireWorkspaceEngineeringRead();
-
-app.MapPost("/api/engineering/import/datasources.csv/apply", async (
-    HttpRequest request,
-    HttpContext context,
-    ImportMode? mode,
-    IEngineeringExchangeService exchange,
-    ApiAuthorizationService security,
-    ApiAuditService audit) =>
-{
-    return await ApplyEngineeringImportAsync(
-        request,
-        context,
-        mode,
-        exchange,
-        security,
-        audit,
-        "datasources.csv",
-        async () =>
-        {
-            var body = await EngineeringImportBodyReader.ReadCsvAsync(request, context.RequestAborted);
-            return exchange.ParseDataSourcesCsv(body);
-        });
-});
-
-app.Map("/ws/tags", async (
-    HttpContext context,
-    TagRealtimeHub hub,
-    ApiAuthorizationService security) =>
-{
-    if (!context.WebSockets.IsWebSocketRequest)
-    {
-        context.Response.StatusCode = StatusCodes.Status400BadRequest;
-        return;
-    }
-
-    var principal = security.GetPrincipal(context);
-    if (security.AuthenticationEnabled &&
-        (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId)))
-    {
-        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-        return;
-    }
-
-    DateTimeOffset? expiresAtUtc = null;
-    if (security.AuthenticationEnabled)
-    {
-        if (!long.TryParse(context.User.FindFirst("exp")?.Value, out var expiresAtUnix))
-        {
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            return;
-        }
-
-        try
-        {
-            expiresAtUtc = DateTimeOffset.FromUnixTimeSeconds(expiresAtUnix);
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            return;
-        }
-    }
-
-    var socket = await context.WebSockets.AcceptWebSocketAsync();
-    await hub.HandleAsync(
-        socket,
-        principal,
-        security.AuthenticationEnabled,
-        expiresAtUtc,
-        context.RequestAborted);
-});
-
-app.Run();
+await app.RunAsync();
 
 static async Task<IResult> PreviewEngineeringImportAsync(
     HttpRequest request,
     ImportMode? mode,
     IEngineeringExchangeService exchange,
-    Func<HttpRequest, CancellationToken, Task<string>> readAsync,
+    Func<HttpRequest, CancellationToken, Task<string>> readBody,
     Func<string, EngineeringPackage> parse)
 {
     try
     {
-        var body = await readAsync(request, request.HttpContext.RequestAborted);
+        var body = await readBody(request, request.HttpContext.RequestAborted);
         var package = parse(body);
         return Results.Ok(exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate));
     }
-    catch (EngineeringImportBodyTooLargeException exception)
+    catch (InvalidDataException ex)
     {
-        return Results.Json(
-            new
-            {
-                error = "Engineering import payload exceeds its safety limit.",
-                limitBytes = exception.LimitBytes
-            },
-            statusCode: StatusCodes.Status413PayloadTooLarge);
+        return Results.BadRequest(new { error = ex.Message });
     }
-    catch (EngineeringImportBodyEncodingException)
+    catch (IOException ex)
     {
-        return Results.BadRequest(new { error = "Engineering import payload must be valid UTF-8." });
+        return Results.BadRequest(new { error = ex.Message });
     }
 }
 
@@ -673,8 +478,7 @@ static async Task<IResult> ApplyEngineeringImportAsync(
     IEngineeringExchangeService exchange,
     ApiAuthorizationService security,
     ApiAuditService audit,
-    string format,
-    Func<Task<EngineeringPackage>> parseAsync)
+    Func<Task<EngineeringPackage>> parse)
 {
     var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
     var failure = authorization.FailureResult();
@@ -684,51 +488,36 @@ static async Task<IResult> ApplyEngineeringImportAsync(
             context,
             authorization,
             AuditActions.EngineeringImportApply,
-            "engineering-workspace",
-            "current",
-            new Dictionary<string, string> { ["format"] = format });
+            "engineering-revision",
+            "working");
         return failure;
     }
 
-    long? expectedChangeVersion = null;
-    if (request.Headers.TryGetValue("x-elitescada-workspace-version", out var expectedHeader))
+    if (!TryReadWorkspaceVersion(request, out var expectedChangeVersion))
     {
-        if (expectedHeader.Count != 1 ||
-            !long.TryParse(
-                expectedHeader.ToString(),
-                System.Globalization.NumberStyles.None,
-                System.Globalization.CultureInfo.InvariantCulture,
-                out var parsedExpectedVersion) ||
-            parsedExpectedVersion < 0)
+        await audit.RecordAsync(
+            context,
+            authorization.Principal,
+            AuditActions.EngineeringImportApply,
+            AuditOutcome.Failed,
+            "engineering-revision",
+            "working",
+            new Dictionary<string, string> { ["reason"] = "missing-or-invalid-workspace-version" });
+        return Results.BadRequest(new
         {
-            await audit.RecordAsync(
-                context,
-                authorization.Principal,
-                AuditActions.EngineeringImportApply,
-                AuditOutcome.Failed,
-                "engineering-workspace",
-                "current",
-                new Dictionary<string, string>
-                {
-                    ["format"] = format,
-                    ["reason"] = "invalid-workspace-version"
-                });
-            return Results.BadRequest(new { error = "Invalid Engineering Workspace version header." });
-        }
-
-        expectedChangeVersion = parsedExpectedVersion;
+            error = "Header 'x-elitescada-workspace-version' with a non-negative integer Workspace version is required."
+        });
     }
 
     try
     {
-        var importMode = mode ?? ImportMode.CreateAndUpdate;
-        var package = await parseAsync();
+        var package = await parse();
         var workspace = context.RequestServices.GetRequiredService<EngineeringWorkspace>();
         await using var mutation = await workspace.AcquireMutationAsync(
             expectedChangeVersion,
             context.RequestAborted);
 
-        var preview = exchange.Preview(package, importMode);
+        var preview = exchange.Preview(package, mode ?? ImportMode.CreateAndUpdate);
         if (!preview.CanApply)
         {
             await audit.RecordAsync(
@@ -736,76 +525,29 @@ static async Task<IResult> ApplyEngineeringImportAsync(
                 authorization.Principal,
                 AuditActions.EngineeringImportApply,
                 AuditOutcome.Failed,
-                "engineering-workspace",
-                "current",
-                new Dictionary<string, string>
-                {
-                    ["format"] = format,
-                    ["reason"] = "preview-errors",
-                    ["errorCount"] = preview.ErrorCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                });
+                "engineering-revision",
+                "working",
+                new Dictionary<string, string> { ["reason"] = "preview-errors" });
             return Results.BadRequest(preview);
         }
 
-        var result = exchange.Apply(package, importMode);
-        var hasErrors = result.Issues.Any(x => x.IsError);
+        var result = exchange.Apply(package, mode ?? ImportMode.CreateAndUpdate);
+        var hasErrors = result.Issues.Any(issue => issue.IsError);
+        var resultingChangeVersion = workspace.CaptureChangeVersion();
         await audit.RecordAsync(
             context,
             authorization.Principal,
             AuditActions.EngineeringImportApply,
             hasErrors ? AuditOutcome.Failed : AuditOutcome.Succeeded,
-            "engineering-workspace",
-            "current",
+            "engineering-revision",
+            "working",
             new Dictionary<string, string>
             {
-                ["format"] = format,
-                ["mode"] = importMode.ToString(),
-                ["created"] = result.Created.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                ["updated"] = result.Updated.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                ["skipped"] = result.Skipped.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                ["expectedChangeVersion"] = expectedChangeVersion?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "none",
-                ["resultingChangeVersion"] = workspace.CaptureChangeVersion().ToString(System.Globalization.CultureInfo.InvariantCulture)
+                ["expectedChangeVersion"] = expectedChangeVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["resultingChangeVersion"] = resultingChangeVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)
             });
+
         return hasErrors ? Results.BadRequest(result) : Results.Ok(result);
-    }
-    catch (EngineeringImportBodyTooLargeException exception)
-    {
-        await audit.RecordAsync(
-            context,
-            authorization.Principal,
-            AuditActions.EngineeringImportApply,
-            AuditOutcome.Failed,
-            "engineering-workspace",
-            "current",
-            new Dictionary<string, string>
-            {
-                ["format"] = format,
-                ["reason"] = "request-too-large",
-                ["limitBytes"] = exception.LimitBytes.ToString(System.Globalization.CultureInfo.InvariantCulture)
-            });
-        return Results.Json(
-            new
-            {
-                error = "Engineering import payload exceeds its safety limit.",
-                limitBytes = exception.LimitBytes
-            },
-            statusCode: StatusCodes.Status413PayloadTooLarge);
-    }
-    catch (EngineeringImportBodyEncodingException)
-    {
-        await audit.RecordAsync(
-            context,
-            authorization.Principal,
-            AuditActions.EngineeringImportApply,
-            AuditOutcome.Failed,
-            "engineering-workspace",
-            "current",
-            new Dictionary<string, string>
-            {
-                ["format"] = format,
-                ["reason"] = "invalid-utf8"
-            });
-        return Results.BadRequest(new { error = "Engineering import payload must be valid UTF-8." });
     }
     catch (EngineeringWorkspaceVersionConflictException conflict)
     {
@@ -814,39 +556,58 @@ static async Task<IResult> ApplyEngineeringImportAsync(
             authorization.Principal,
             AuditActions.EngineeringImportApply,
             AuditOutcome.Failed,
-            "engineering-workspace",
-            "current",
+            "engineering-revision",
+            "working",
             new Dictionary<string, string>
             {
-                ["format"] = format,
                 ["reason"] = "workspace-version-conflict",
                 ["expectedChangeVersion"] = conflict.ExpectedChangeVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["currentChangeVersion"] = conflict.CurrentChangeVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)
             });
         return Results.Conflict(new
         {
-            error = "Engineering Workspace changed after preview. Reload and validate the draft again.",
+            error = "Engineering Workspace changed after import preview. Reload and preview again before applying.",
             expectedChangeVersion = conflict.ExpectedChangeVersion,
             currentChangeVersion = conflict.CurrentChangeVersion
         });
     }
-    catch (Exception ex)
+    catch (InvalidDataException ex)
     {
         await audit.RecordAsync(
             context,
             authorization.Principal,
             AuditActions.EngineeringImportApply,
             AuditOutcome.Failed,
-            "engineering-workspace",
-            "current",
-            new Dictionary<string, string>
-            {
-                ["format"] = format,
-                ["errorType"] = ex.GetType().Name
-            });
-        throw;
+            "engineering-revision",
+            "working",
+            new Dictionary<string, string> { ["reason"] = "invalid-payload" });
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (IOException ex)
+    {
+        await audit.RecordAsync(
+            context,
+            authorization.Principal,
+            AuditActions.EngineeringImportApply,
+            AuditOutcome.Failed,
+            "engineering-revision",
+            "working",
+            new Dictionary<string, string> { ["reason"] = "invalid-body" });
+        return Results.BadRequest(new { error = ex.Message });
     }
 }
 
+static bool TryReadWorkspaceVersion(HttpRequest request, out long expectedChangeVersion)
+{
+    expectedChangeVersion = default;
+    return request.Headers.TryGetValue("x-elitescada-workspace-version", out var header) &&
+           header.Count == 1 &&
+           long.TryParse(
+               header.ToString(),
+               System.Globalization.NumberStyles.None,
+               System.Globalization.CultureInfo.InvariantCulture,
+               out expectedChangeVersion) &&
+           expectedChangeVersion >= 0;
+}
+
 public sealed record TagWriteRequest(object? Value);
-public sealed record AlarmAckRequest(string? User = null);

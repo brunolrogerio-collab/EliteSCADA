@@ -1,3 +1,4 @@
+using Scada.Engineering.Contracts;
 using Scada.Engineering.Security;
 using Scada.Security.Audit;
 using Scada.Security.Authorization;

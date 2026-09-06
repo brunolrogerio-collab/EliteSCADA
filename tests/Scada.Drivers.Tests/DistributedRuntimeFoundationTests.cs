@@ -269,7 +269,7 @@ public sealed class DistributedRuntimeFoundationTests
         ZipArchive archive,
         string path)
     {
-        var entry = Assert.Single(archive.Entries.Where(candidate => candidate.FullName == path));
+        var entry = Assert.Single(archive.Entries, candidate => candidate.FullName == path);
         using var stream = entry.Open();
         using var document = JsonDocument.Parse(stream);
         AssertNoForbiddenProperties(document.RootElement);

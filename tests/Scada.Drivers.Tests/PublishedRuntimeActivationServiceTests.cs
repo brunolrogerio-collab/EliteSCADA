@@ -12,23 +12,27 @@ using Scada.Drivers.Simulation;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
+using Scada.Engineering.Security;
 
 namespace Scada.Drivers.Tests;
 
 public sealed class PublishedRuntimeActivationServiceTests
 {
     [Fact]
-    public async Task ActivateAsync_CommitsPublishedRevisionStopsFallbackAndSwitchesFacade()
+    public async Task ActivateAsync_CommitsPublishedRevisionStopsFallbackSwitchesFacadeAndRehydratesEngineeringLock()
     {
         await using var server = new TestModbusTcpServer();
         server.HoldingRegisters[10] = 321;
         server.Start();
 
         var runtimeTagId = Guid.NewGuid();
-        var package = CreatePackage(server.Port, runtimeTagId);
+        var locked = new EngineeringLockSecretService().Configure("published-lock-secret", locked: true);
+        var package = CreatePackage(server.Port, runtimeTagId) with { EngineeringLock = locked };
         var snapshot = CreateSnapshot(package);
         var store = new FakeEngineeringProjectStore(snapshot, allowActivation: true);
         var persistence = CreatePersistence(store, out var exchange);
+
+        Assert.False(EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock).Locked);
 
         var externalBus = new InMemoryScadaEventBus();
         using var fallback = new DemoRuntimeServices(externalBus);
@@ -69,19 +73,26 @@ public sealed class PublishedRuntimeActivationServiceTests
         Assert.False(facade.TryGetTag(fallbackTag.Id, out _));
         Assert.True(facade.TryGetCurrent(runtimeTagId, out var current));
         Assert.Equal(321d, Convert.ToDouble(current!.Value));
+
+        var currentLock = EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock);
+        Assert.True(currentLock.Locked);
+        Assert.NotNull(currentLock.Verifier);
+        Assert.Equal(locked.Verifier, currentLock.Verifier);
     }
 
     [Fact]
-    public async Task ActivateAsync_PersistenceRejectionRestartsSimulationAndKeepsFacadeOnFallback()
+    public async Task ActivateAsync_PersistenceRejectionRestartsSimulationKeepsFacadeOnFallbackAndDoesNotChangeLock()
     {
         await using var server = new TestModbusTcpServer();
         server.HoldingRegisters[10] = 222;
         server.Start();
 
-        var package = CreatePackage(server.Port, Guid.NewGuid());
+        var incomingLock = new EngineeringLockSecretService().Configure("rejected-lock-secret", locked: true);
+        var package = CreatePackage(server.Port, Guid.NewGuid()) with { EngineeringLock = incomingLock };
         var snapshot = CreateSnapshot(package);
         var store = new FakeEngineeringProjectStore(snapshot, allowActivation: false);
         var persistence = CreatePersistence(store, out var exchange);
+        var currentBefore = EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock);
 
         var externalBus = new InMemoryScadaEventBus();
         using var fallback = new DemoRuntimeServices(externalBus);
@@ -121,6 +132,11 @@ public sealed class PublishedRuntimeActivationServiceTests
         Assert.False(facade.IsEngineeringActive);
         Assert.Equal("simulation", facade.Describe().Mode);
         Assert.True(facade.TryGetTag(fallbackTag.Id, out _));
+
+        var currentAfter = EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock);
+        Assert.Equal(currentBefore, currentAfter);
+        Assert.False(currentAfter.Locked);
+        Assert.Null(currentAfter.Verifier);
     }
 
     private static EngineeringProjectPersistenceService CreatePersistence(

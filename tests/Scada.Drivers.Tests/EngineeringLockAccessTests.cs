@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
@@ -44,6 +45,46 @@ public sealed class EngineeringLockAccessTests
     }
 
     [Fact]
+    public async Task MutateWorkingStateAsync_MarksWorkspaceDirtyAndAdvancesVersionOnlyForARealLockChange()
+    {
+        using var workspace = new EngineeringWorkspace();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var exchange = new EngineeringExchangeService(new InMemoryTagRegistry(), alarms);
+        var secrets = new EngineeringLockSecretService();
+        var before = workspace.Describe();
+
+        var configured = await EngineeringLockEndpointExtensions.MutateWorkingStateAsync(
+            workspace,
+            exchange,
+            _ => secrets.Configure("working-lock-secret"));
+
+        var afterConfigure = workspace.Describe();
+        Assert.True(afterConfigure.IsDirty);
+        Assert.Equal(before.ChangeVersion + 1, afterConfigure.ChangeVersion);
+        Assert.NotNull(configured.Verifier);
+        Assert.False(configured.Locked);
+
+        var unchanged = await EngineeringLockEndpointExtensions.MutateWorkingStateAsync(
+            workspace,
+            exchange,
+            current => current);
+
+        var afterNoOp = workspace.Describe();
+        Assert.Equal(afterConfigure.ChangeVersion, afterNoOp.ChangeVersion);
+        Assert.Equal(configured, unchanged);
+
+        var locked = await EngineeringLockEndpointExtensions.MutateWorkingStateAsync(
+            workspace,
+            exchange,
+            secrets.Lock);
+
+        var afterLock = workspace.Describe();
+        Assert.True(locked.Locked);
+        Assert.Equal(afterConfigure.ChangeVersion + 1, afterLock.ChangeVersion);
+    }
+
+    [Fact]
     public void ProtectedEngineeringFailure_IsForbiddenOnlyWhenLocked()
     {
         var bus = new InMemoryScadaEventBus();
@@ -72,6 +113,7 @@ public sealed class EngineeringLockAccessTests
     [InlineData("/api/engineering/import/json/apply")]
     [InlineData("/api/engineering/lock/status")]
     [InlineData("/api/engineering/lock/unlock")]
+    [InlineData("/api/engineering/lock/administration-context")]
     public void WorkspaceReadExemptions_AreRestrictedToRecoveryExportImportAndLock(string path)
     {
         var context = new DefaultHttpContext();

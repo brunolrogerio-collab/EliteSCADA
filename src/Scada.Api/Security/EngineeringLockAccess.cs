@@ -6,27 +6,20 @@ namespace Scada.Api.Security;
 
 public static class EngineeringLockAccess
 {
-    public static EngineeringLockEngineeringDto Current(IEngineeringExchangeService exchange)
+    public static EngineeringLockEngineeringDto Current(IEngineeringExchangeService exchange) =>
+        EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock);
+
+    public static bool IsLocked(IEngineeringExchangeService exchange)
     {
         try
         {
-            return EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock);
+            return Current(exchange).Locked;
         }
         catch (InvalidDataException)
         {
-            // Callers must treat malformed protection metadata as locked/fail-closed.
-            return new EngineeringLockEngineeringDto(
-                Locked: true,
-                Verifier: new EngineeringLockVerifierDto(
-                    EngineeringLockContract.Algorithm,
-                    EngineeringLockContract.VerifierVersion,
-                    EngineeringLockContract.CurrentIterations,
-                    Convert.ToBase64String(new byte[EngineeringLockContract.SaltByteLength]),
-                    Convert.ToBase64String(new byte[EngineeringLockContract.HashByteLength])));
+            return true;
         }
     }
-
-    public static bool IsLocked(IEngineeringExchangeService exchange) => Current(exchange).Locked;
 
     public static IResult? ProtectedEngineeringFailure(IEngineeringExchangeService exchange) =>
         IsLocked(exchange)

@@ -176,7 +176,7 @@ Binding requirements remain:
 - product-facing content contains no internal Wave/handoff prose;
 - reusable-library creation/export, association, browse/use, dependency closure, provenance and safe disassociation are documented from the now-stable product behavior.
 
-Live locale audit has already identified one debt for C25.7: the global shell uses `elitescada.locale`, while Engineering currently also maintains `elitescada.engineering.locale`. Libraries introduced no third state. C25.7 must resolve the existing duplication before Help becomes another locale authority.
+A live C25.7 locale audit corrected an earlier assumption: the product already has one canonical persisted locale owner. `engineering/i18n.ts` owns `elitescada.engineering.locale`; `appShellI18n.ts` explicitly delegates to that same owner and subscribes to the same key/document language. C25.6 Libraries introduced no additional locale state. C25.7 Help must reuse this existing authority and must not create another persisted language state.
 
 ## 11. Permanent governance
 

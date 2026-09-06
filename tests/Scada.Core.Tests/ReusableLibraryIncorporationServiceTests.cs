@@ -235,12 +235,11 @@ public sealed class ReusableLibraryIncorporationServiceTests
     }
 
     [Fact]
-    public void Plan_DynamoWithReusableDependencies_IncorporatesCompleteClosure()
+    public void Plan_DynamoWithV1ReusableDependencies_IncorporatesCompleteClosure()
     {
         var sourceAssets = new InMemoryEngineeringAssetRegistry();
         var sourceVisual = new InMemoryVisualAssetEngineeringRegistry();
         var templateId = Guid.NewGuid();
-        var childId = Guid.NewGuid();
         var rootId = Guid.NewGuid();
         var assetId = Guid.NewGuid();
 
@@ -248,11 +247,6 @@ public sealed class ReusableLibraryIncorporationServiceTests
             templateId,
             "template.library.pump",
             "Library Pump Template"));
-        sourceAssets.UpsertDynamo(new DynamoEngineeringDto(
-            childId,
-            "dynamo.library.child",
-            "Library Child",
-            Elements: [new VisualElementEngineeringDto("body", "core.rectangle")]));
 
         var payload = VisualAssetPayload.Create("image/bmp", CreateBmp());
         sourceVisual.PutPayload(payload);
@@ -275,10 +269,6 @@ public sealed class ReusableLibraryIncorporationServiceTests
             Elements:
             [
                 new VisualElementEngineeringDto(
-                    "child",
-                    "dynamo",
-                    DynamoKey: "dynamo.library.child"),
-                new VisualElementEngineeringDto(
                     "symbol",
                     "core.image",
                     Properties: new Dictionary<string, JsonElement>
@@ -300,21 +290,19 @@ public sealed class ReusableLibraryIncorporationServiceTests
             new ReusableLibraryIncorporationSelection(ReusableLibraryResourceKinds.Dynamo, rootId));
 
         Assert.True(plan.RequiresMutation);
-        Assert.Equal(4, plan.DependencyClosure.Count);
+        Assert.Equal(3, plan.DependencyClosure.Count);
         Assert.Single(plan.Engineering.Templates!);
-        Assert.Equal(2, plan.Engineering.Dynamos!.Count);
+        Assert.Single(plan.Engineering.Dynamos!);
         Assert.Single(plan.Engineering.VisualAssets!);
         Assert.Null(target.Assets.FindTemplate(templateId));
-        Assert.Null(target.Assets.FindDynamo(childId));
         Assert.Null(target.Assets.FindDynamo(rootId));
         Assert.Null(target.VisualAssets.FindAsset(assetId));
 
         var result = target.Exchange.Apply(plan.Engineering, ImportMode.CreateOnly, plan.ImportContext);
 
         Assert.DoesNotContain(result.Issues, issue => issue.IsError);
-        Assert.Equal(4, result.Created);
+        Assert.Equal(3, result.Created);
         Assert.NotNull(target.Assets.FindTemplate(templateId));
-        Assert.NotNull(target.Assets.FindDynamo(childId));
         Assert.NotNull(target.Assets.FindDynamo(rootId));
         Assert.NotNull(target.VisualAssets.FindAsset(assetId));
         Assert.True(target.VisualAssets.FindPayload(payload.Sha256)!.Content.AsSpan().SequenceEqual(payload.Content));

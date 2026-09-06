@@ -1,6 +1,6 @@
 # Wave 14 C25.6 — Reusable Resource Libraries — Implementation Status
 
-**Status:** ACTIVE / BACKEND-PACKAGE-LIFECYCLE EXACT-SHA GREEN / UI PENDING / NOT COMPLETE / NOT ACCEPTED / NOT INTEGRATED  
+**Status:** COMPLETE / EXACT-SHA GREEN / NOT YET INTEGRATED / C25 NOT YET ACCEPTED  
 **Coordinator package:** C25  
 **Checkpoint:** C25.6  
 **Tracking issue:** #282  
@@ -8,28 +8,30 @@
 **Branch:** `wave14/c25-post-demo`  
 **Integration target:** `wave14/corrections-integration`
 
-> GitHub live state remains the sole project authority. This document records the latest resumable C25.6 implementation checkpoint. It does not authorize merge, integration, C11 synchronization or any `main` mutation.
+> GitHub live state remains the sole project authority. This document records the exact C25.6 closure candidate and does not authorize merge, C11 synchronization or any `main` mutation.
 
-## 1. Latest exact validated product checkpoint
+## 1. Exact closing authority
 
 Validated product/test SHA:
 
-`b65a433054b971bdd7c1815bf448a4da2dc7a397`
+`1f17367defa03f903e68f585d068b4f23f82bef9`
 
 Exact-SHA CI:
 
-- Wave 14 C25 Post-Demo #259 / run `34050831077` — **SUCCESS**;
-- Wave 14 C03 DNP3 Adapter #272 / run `34050831076` — **SUCCESS**, including Managed validation, Linux/Windows native host, real OpenDNP3↔dnp3py L3 interoperability and Windows commercial publish dependency gate.
+- Wave 14 C25 Post-Demo #275 / run `34052101709` — **SUCCESS**;
+- Wave 14 C03 DNP3 Adapter #280 / run `34052101702` — **SUCCESS**.
 
-This SHA closes the backend/package/lifecycle Screen/Popup v1 slice on top of the previously green Template, Dynamo, VisualAsset, provenance and Script slices. It is not final C25.6 or C25 acceptance.
+The C25 run includes backend/package/lifecycle validation, React/Vite build and the combined Chromium Engineering Lock + Restore-first + Runtime session + reusable-library browser contract.
 
-## 2. `.escadalib` package kernel and association
+The C03 run includes Managed validation, Linux and Windows native OpenDNP3 hosts, real OpenDNP3↔dnp3py L3 interoperability and the Windows commercial publish dependency gate.
 
-`.escadalib` remains distinct from `.escadapkg` and uses `elitescada.resource-library` format version 1.
+No blind rerun or validation weakening was used for this closure.
 
-Package validation includes stable library/resource identities, deterministic payload paths, SHA-256/length validation, visual-asset sidecars, archive traversal/path rejection, undeclared/orphan payload rejection and canonical Engineering schema compatibility.
+## 2. Shipped `.escadalib` contract
 
-Current export/incorporation-enabled resource kinds are:
+`.escadalib` is a versioned reusable Engineering resource artifact distinct from `.escadapkg`.
+
+Enabled reusable resource kinds are:
 
 - `equipment-template`;
 - `dynamo`;
@@ -38,165 +40,143 @@ Current export/incorporation-enabled resource kinds are:
 - `screen`;
 - `popup`.
 
-Association remains catalog availability only:
+The package kernel validates stable identities, deterministic payload locations, schema compatibility, declared length and SHA-256, archive traversal/path safety, visual-asset sidecars, undeclared/orphan payloads and supported dependency closure before Working mutation.
 
-- `association != import`;
-- association does not mutate Working;
-- catalog is process-local and project/session scoped;
-- no source path, network share, repository or catalog handle becomes Runtime/application authority;
-- identical same-ID association is idempotent;
+## 3. Association is not import
+
+Association remains backend Engineering-time catalog state only:
+
+- associating a library does not copy resources into canonical Working;
+- association does not mark Working dirty or advance ChangeVersion;
+- the catalog is process-local and scoped to the current Engineering project/session;
+- no source path, network share, repository, catalog handle or library byte stream becomes project/Runtime authority;
+- exact same-ID/content association is idempotent;
 - same library ID with different content fails explicitly;
-- disassociation cannot invalidate already-incorporated project-owned content.
+- disassociation cannot delete or invalidate project-owned resources already incorporated.
 
-## 3. Common selective-incorporation authority
+## 4. Selective incorporation and dependency closure
 
-All enabled reusable resources follow the same canonical flow:
+Using a resource follows the canonical flow:
 
-1. inspect and verify `.escadalib`;
-2. resolve exact transitive dependency closure;
-3. reject missing/cyclic/unsupported edges;
-4. perform stable ID/key/path/content collision checks;
+1. inspect and verify the `.escadalib`;
+2. resolve the selected transitive dependency closure;
+3. reject missing, cyclic or unsupported edges;
+4. resolve stable ID/key/path/content collisions before mutation;
 5. build a canonical `EngineeringPackage` subset;
 6. run canonical Engineering Preview;
 7. require `x-elitescada-workspace-version` optimistic concurrency;
-8. acquire the Workspace mutation lease;
+8. acquire one Workspace mutation lease;
 9. re-preview under the lease;
 10. apply with canonical `EngineeringExchangeService` CreateOnly behavior;
-11. rely on canonical registry dirty/ChangeVersion callbacks;
-12. audit success, denial, conflict and failure.
+11. let canonical registries mark Working dirty/advance ChangeVersion;
+12. audit success, denial, collision, concurrency and failure.
 
-Identical project-owned content deduplicates. Same identity with different canonical content never silently overwrites unrelated project content.
+Identical project-owned content deduplicates. Unrelated differing content is never silently overwritten.
 
-## 4. Reusable Dynamo v1
+## 5. Resource-specific portability authorities
 
-`ReusableDynamoDependencyAnalyzer` remains the Dynamo portability authority.
+### Dynamo v1
+
+`ReusableDynamoDependencyAnalyzer` supports Dynamo -> EquipmentTemplate and Dynamo -> VisualAsset closure. It rejects concrete TAG/ClientMemory state, concrete EquipmentPath, project-bound dynamics/expressions, navigation/commands and nested Dynamos.
+
+### Script v1
+
+`ReusableScriptDependencyAnalyzer` supports same-scope Script -> Script closure. It rejects missing/self/cyclic/cross-scope closure and project-owned dependency kinds, concrete TagChanged/ClientMemoryChanged coupling and existing Script/HMI visual-event association.
+
+### Screen/Popup v1
+
+`ReusableViewDependencyAnalyzer` is the single Screen/Popup portability authority.
 
 Supported closure:
 
-- Dynamo -> EquipmentTemplate through `TemplateKey`;
-- Dynamo -> VisualAsset through canonical `core.image` `assetRef`.
+- Screen -> Dynamo / VisualAsset;
+- Popup -> EquipmentTemplate / Dynamo / VisualAsset.
 
-It rejects concrete TAG/ClientMemory data, concrete equipment context, project-bound dynamic/expression dependencies, navigation/command actions and nested Dynamos. Reusable libraries do not weaken the canonical no-nested-Dynamo v1 contract.
+Parameterized authoring such as `{equipmentPath}` remains portable. Concrete TAG/ClientMemory identities, concrete EquipmentPath, concrete Dynamo TAG-reference parameters, project-bound dynamic/expression dependencies, navigation/command actions and Script/HMI coupling fail closed rather than being silently copied or omitted.
 
-## 5. Portable Script v1
+## 6. Provenance and self-contained ownership
 
-`ReusableScriptDependencyAnalyzer` remains the Script portability authority.
-
-Supported closure:
-
-- Script -> Script transitively, same scope only.
-
-It rejects missing/self/cyclic/cross-scope Script closure and project-owned dependency kinds including VisualDefinition, VisualObject, Tag, ClientMemoryTag, ServerMemoryTag and Resource. `TagChanged`, `ClientMemoryChanged` and existing `ScriptVisualEventReference` coupling are rejected rather than silently detached.
-
-Canonical Script validation and Python preflight remain authoritative.
-
-## 6. Screen/Popup reusable v1
-
-`ReusableViewDependencyAnalyzer` is now the single Screen/Popup portability authority used by export and incorporation validation.
-
-### Supported closure
-
-Reusable Screen v1 may depend on:
-
-- Dynamo;
-- VisualAsset.
-
-Reusable Popup v1 may depend on:
-
-- EquipmentTemplate through `TemplateKey`;
-- Dynamo;
-- VisualAsset.
-
-Parameterized authoring such as `{equipmentPath}` bindings remains portable.
-
-### Fail-closed project-bound behavior
-
-Screen/Popup v1 rejects rather than silently omits:
-
-- concrete TAG/ClientMemory identities or targets;
-- concrete `EquipmentPath`;
-- concrete Dynamo TAG-reference parameters;
-- project-bound dynamic sources and expression dependencies;
-- navigation/command actions, including screen/popup navigation and command execution;
-- existing Script/HMI event associations to the view;
-- Script dependencies on the view/visual objects.
-
-Navigation/command target closure is deliberately deferred instead of implicitly copying arbitrary project content.
-
-### Validated behavior
-
-Exact-SHA tests prove:
-
-- Screen dependency closure through Dynamo and VisualAsset;
-- Popup dependency closure through EquipmentTemplate, Dynamo and VisualAsset;
-- declared manifest dependency sets must exactly match canonical payload content;
-- selective Screen and Popup incorporation through canonical Preview/Apply;
-- explicit stable ID/key collision failure;
-- informational provenance on incorporated Screen/Popup;
-- repeat incorporation deduplicates;
-- `.escadapkg` roundtrip restores Screen, Popup and their incorporated dependencies with no `.escadalib` or catalog present;
-- real `EngineeringWorkspace` Screen→Dynamo incorporation marks Working dirty and advances ChangeVersion;
-- re-deduplication does not advance ChangeVersion.
-
-## 7. Informational provenance and self-contained ownership
-
-Incorporated reusable resources receive informational origin metadata under:
+Incorporated resources become ordinary project-owned canonical content and may retain informational metadata under:
 
 `elitescada.reusable.origin.*`
 
-It records source library/resource identity/version/kind and source payload SHA-256 only. It stores no source path, catalog handle or Runtime dependency.
+Recorded origin includes source library/resource identity, library version, resource kind and source payload SHA-256. It contains no source path or live library dependency.
 
-Validated semantics:
+Validated behavior proves:
 
 - provenance survives `.escadapkg` roundtrip;
-- functional collision comparison ignores only the reserved origin namespace;
 - repeat incorporation remains idempotent;
-- re-export into a new `.escadalib` strips old origin metadata while keeping ordinary authored metadata;
-- final `.escadapkg` remains self-contained;
+- re-export into a new `.escadalib` strips previous origin genealogy while retaining ordinary authored metadata;
+- disassociation preserves all incorporated content;
+- final `.escadapkg` is self-contained with no `.escadalib` present;
 - Runtime/Active never opens or resolves `.escadalib`.
 
-## 8. Security and lifecycle boundaries
+## 7. Engineering Libraries UI/browser closure
 
-Reusable-library operations preserve:
+The Engineering shell now exposes a coherent `/engineering/libraries` surface inside the existing `AuthGate -> effectiveCapabilities -> EngineeringLockGate -> EngineeringApp` authority chain.
+
+The UI provides:
+
+- `.escadalib` association;
+- associated-library catalog selection;
+- resource browse/search;
+- resource kind, stable identity and dependency visibility;
+- selective `Usar` using the current Workspace ChangeVersion;
+- `.escadalib` creation/export from selected canonical Working resources;
+- informational provenance visibility;
+- safe library disassociation;
+- pt-BR/en/es presentation using the current Engineering locale state;
+- no localStorage/browser-side catalog authority.
+
+Browser proof on exact SHA `1f17367d...` demonstrates:
+
+1. association returns `workingChanged=false` and Working remains clean at the same ChangeVersion;
+2. the selected Screen exposes its Dynamo dependency before use;
+3. `Usar` sends the exact current `x-elitescada-workspace-version` and advances Working only after successful incorporation;
+4. the reloaded project shows dirty state, new ChangeVersion and origin provenance;
+5. the UI exports a new `.escadalib` from the selected canonical Screen identity;
+6. disassociation removes the external catalog while project-owned provenance/content remains visible;
+7. direct `/engineering/libraries` access while Engineering Lock is active never mounts the Libraries workspace and makes zero library API calls.
+
+The architecture requires visual preview only where a safe canonical preview exists. C25.6 does not invent a shadow renderer for reusable resources; compatibility and closure remain backend canonical authority.
+
+## 8. Security/lifecycle authority preserved
+
+C25.6 preserves:
 
 - backend `EngineeringModify` authority;
 - fail-closed Engineering Lock;
-- Audit attribution distinct from Alarm/Operational Event;
+- Audit distinct from Alarm and Operational Event;
 - Workspace optimistic concurrency;
 - Working-only mutation;
-- canonical Save/Publish/Activate boundaries;
+- Save/Publish/Activate authority;
+- Script safety/preflight;
+- package/archive safety;
 - existing Engineering Lock, Restore-first and Runtime session regressions.
 
-## 9. Remaining C25.6 work — Engineering Libraries UI/browser
+## 9. C25.6 closure decision
 
-Backend/package/resource semantics are now stable enough for the Engineering UI projection.
+All minimum closure items in the binding C25.6 architecture are now represented by product behavior and exact-SHA tests. No unresolved C25.6 audit gap remains.
 
-The remaining C25.6 product slice must provide coherent Engineering UI for:
+**C25.6 is COMPLETE.**
 
-- associate `.escadalib` without dirtying Working;
-- browse/search associated libraries and resources;
-- inspect resource kind, identity and dependency closure;
-- create/export `.escadalib` from selected canonical Working resources;
-- selectively `Usar` / incorporate a resource using the current Workspace ChangeVersion;
-- show informational provenance for project-owned resources where practical;
-- disassociate a library without deleting incorporated project content;
-- surface explicit collision/invalid-library/concurrency errors;
-- remain unavailable while Engineering Lock is locked;
-- inherit existing backend capability authority;
-- avoid localStorage or another browser-side catalog authority.
+This is checkpoint closure only. It does not mean C25 is accepted or integrated.
 
-### Locale audit note
+## 10. Next checkpoint — C25.7
 
-The live Engineering shell currently maintains `elitescada.engineering.locale`, while the application shell uses `elitescada.locale`. C25.6 Libraries UI must not introduce a third locale state. C25.7 contextual Help/manual must resolve the existing locale-authority duplication so Help follows the same active application UI locale.
+C25.7 contextual multilingual Help/manual is next.
 
-## 10. Next execution order
+Binding requirements remain:
 
-1. implement the Engineering Libraries UI as a projection of the current backend catalog/export/incorporation APIs;
-2. add focused browser contract coverage for association-without-dirty, catalog/resource visibility, selective incorporation with ChangeVersion and disassociation;
-3. prove locked Engineering does not mount/expose the Libraries surface;
-4. run exact-SHA C25 + C03 regression matrix;
-5. record C25.6 backend/package/UI exact authority and close C25.6 only if no unresolved audit gap remains;
-6. begin C25.7 contextual multilingual Help/manual only after C25.6 is stable.
+- stable language-neutral Help IDs;
+- pt-BR/en/es content for shipped UI languages;
+- Help follows the active application UI locale authority;
+- local/offline availability where practical;
+- Driver and Script documentation derived from actual shipped registries/APIs;
+- product-facing content contains no internal Wave/handoff prose;
+- reusable-library creation/export, association, browse/use, dependency closure, provenance and safe disassociation are documented from the now-stable product behavior.
+
+Live locale audit has already identified one debt for C25.7: the global shell uses `elitescada.locale`, while Engineering currently also maintains `elitescada.engineering.locale`. Libraries introduced no third state. C25.7 must resolve the existing duplication before Help becomes another locale authority.
 
 ## 11. Permanent governance
 

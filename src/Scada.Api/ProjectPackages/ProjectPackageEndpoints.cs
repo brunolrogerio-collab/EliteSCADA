@@ -1,3 +1,4 @@
+using Scada.Api.Libraries;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Api.VisualAssets;
@@ -14,6 +15,7 @@ public static class ProjectPackageEndpoints
 
     public static IEndpointRouteBuilder MapProjectPackageEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapReusableLibraryEndpoints();
         endpoints.MapVisualAssetEndpoints();
         endpoints.MapSystemRecoveryApplicationEndpoints();
 

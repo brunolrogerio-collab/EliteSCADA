@@ -238,7 +238,7 @@ public sealed class ReusableLibraryPackageTests
             [new(ReusableLibraryResourceKinds.Dynamo, rootId)]));
 
         var inspection = service.Inspect(bytes);
-        var root = Assert.Single(inspection.Manifest.Resources.Where(resource => resource.ResourceId == rootId));
+        var root = Assert.Single(inspection.Manifest.Resources, resource => resource.ResourceId == rootId);
 
         Assert.Equal(4, inspection.Manifest.Resources.Count);
         Assert.Equal(5, inspection.Manifest.Files.Count);

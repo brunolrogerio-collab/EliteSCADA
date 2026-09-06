@@ -35,6 +35,8 @@ export type AuthProfile = {
 
 type AuthContextValue = {
   profile: AuthProfile | null;
+  canSwitchUser: boolean;
+  switchUser: () => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -42,6 +44,8 @@ type RecoveryMode = 'bootstrap' | 'application' | null;
 
 const AuthContext = createContext<AuthContextValue>({
   profile: null,
+  canSwitchUser: false,
+  switchUser: async () => undefined,
   logout: async () => undefined
 });
 
@@ -64,6 +68,7 @@ const messages = {
     passwordMismatch: 'As senhas não conferem.',
     restoreBackup: 'Restaurar backup',
     recoverySignInRequired: 'Authority restaurada. Entre com um Administrador restaurado para continuar a recuperação da aplicação.',
+    switchUserSignInRequired: 'Sessão anterior encerrada. Entre com o próximo usuário para continuar.',
     createAdministrator: 'Criar Administrador',
     creatingAdministrator: 'Criando Administrador…',
     bootstrapClosed: 'O Administrador inicial já foi criado ou o bootstrap seguro não está mais disponível.',
@@ -96,6 +101,7 @@ const messages = {
     passwordMismatch: 'Passwords do not match.',
     restoreBackup: 'Restore backup',
     recoverySignInRequired: 'Authority restored. Sign in with a restored Administrator to continue application recovery.',
+    switchUserSignInRequired: 'The previous session has ended. Sign in as the next user to continue.',
     createAdministrator: 'Create Administrator',
     creatingAdministrator: 'Creating Administrator…',
     bootstrapClosed: 'The initial Administrator already exists or secure bootstrap is no longer available.',
@@ -128,6 +134,7 @@ const messages = {
     passwordMismatch: 'Las contraseñas no coinciden.',
     restoreBackup: 'Restaurar backup',
     recoverySignInRequired: 'Authority restaurada. Ingrese con un Administrador restaurado para continuar la recuperación de la aplicación.',
+    switchUserSignInRequired: 'La sesión anterior terminó. Ingrese con el próximo usuario para continuar.',
     createAdministrator: 'Crear Administrador',
     creatingAdministrator: 'Creando Administrador…',
     bootstrapClosed: 'El Administrador inicial ya existe o el bootstrap seguro ya no está disponible.',
@@ -228,6 +235,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [recoveryMode, setRecoveryMode] = useState<RecoveryMode>(null);
   const [recoverySelection, setRecoverySelection] = useState<RecoverySelection | null>(null);
   const [recoverySignInRequired, setRecoverySignInRequired] = useState(false);
+  const [switchUserSignInRequired, setSwitchUserSignInRequired] = useState(false);
 
   const acceptAuthenticatedProfile = useCallback(async (nextProfile: AuthProfile | null) => {
     setProfile(nextProfile);
@@ -334,6 +342,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
       setPassword('');
       await acceptAuthenticatedProfile(await response.json() as AuthProfile);
+      setSwitchUserSignInRequired(false);
       if (recoverySelection) {
         setRecoverySignInRequired(false);
         setRecoveryMode('application');
@@ -398,6 +407,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     setRecoverySelection(selection);
     setRecoveryMode(null);
     setRecoverySignInRequired(true);
+    setSwitchUserSignInRequired(false);
     setProfile(null);
     setProjectSetupRequired(false);
     setUsername('');
@@ -413,11 +423,45 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     setProjectSetupRequired(false);
   };
 
+  const invalidateServerSession = useCallback(async () => {
+    const response = await fetch(`${API}/api/auth/logout`, { method: 'POST' });
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  }, []);
+
   const logout = useCallback(async () => {
-    await fetch(`${API}/api/auth/logout`, { method: 'POST' });
+    await invalidateServerSession();
     setProfile(null);
     setProjectSetupRequired(false);
-  }, []);
+    setRecoverySignInRequired(false);
+    setSwitchUserSignInRequired(false);
+    setUsername('');
+    setPassword('');
+    setInvalid(false);
+  }, [invalidateServerSession]);
+
+  const switchUser = useCallback(async () => {
+    if (!configuration?.localLoginEnabled || profile?.identityProvider !== 'local') {
+      throw new Error('Local switch-user is not available for the current identity provider.');
+    }
+
+    await invalidateServerSession();
+    setProfile(null);
+    setProjectSetupRequired(false);
+    setRecoverySignInRequired(false);
+    setSwitchUserSignInRequired(true);
+    setUsername('');
+    setPassword('');
+    setInvalid(false);
+    setUnavailable(false);
+  }, [configuration?.localLoginEnabled, invalidateServerSession, profile?.identityProvider]);
+
+  const canSwitchUser = Boolean(configuration?.localLoginEnabled && profile?.identityProvider === 'local');
+  const authContextValue = useMemo<AuthContextValue>(() => ({
+    profile,
+    canSwitchUser,
+    switchUser,
+    logout
+  }), [canSwitchUser, logout, profile, switchUser]);
 
   if (checking || checkingProject) {
     return <div className="auth-page"><div className="auth-card auth-loading"><strong>{t.title}</strong></div></div>;
@@ -437,7 +481,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }
 
   if (!configuration?.authenticationEnabled) {
-    return <AuthContext.Provider value={{ profile, logout }}>{children}</AuthContext.Provider>;
+    return <AuthContext.Provider value={authContextValue}>{children}</AuthContext.Provider>;
   }
 
   if (recoveryMode === 'bootstrap') {
@@ -509,7 +553,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }
 
   if (profile) {
-    return <AuthContext.Provider value={{ profile, logout }}>{children}</AuthContext.Provider>;
+    return <AuthContext.Provider value={authContextValue}>{children}</AuthContext.Provider>;
   }
 
   if (!configuration.localLoginEnabled) {
@@ -613,6 +657,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         <h1>{t.title}</h1>
         <p>{t.subtitle}</p>
         {recoverySignInRequired && <div className="auth-status" role="status">{t.recoverySignInRequired}</div>}
+        {switchUserSignInRequired && <div className="auth-status" role="status">{t.switchUserSignInRequired}</div>}
         <label>
           <span>{t.username}</span>
           <input

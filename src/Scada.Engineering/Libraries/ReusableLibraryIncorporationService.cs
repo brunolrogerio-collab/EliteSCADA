@@ -117,9 +117,19 @@ public sealed class ReusableLibraryIncorporationService
                     RequireNoDependencies(resource);
                     var template = Deserialize<EquipmentTemplateEngineeringDto>(payloadBytes, resource);
                     if (ShouldCreateTemplate(resource, template))
-                        templates.Add(template);
+                    {
+                        templates.Add(template with
+                        {
+                            Metadata = ReusableLibraryProvenance.Stamp(
+                                template.Metadata,
+                                inspection.Manifest,
+                                resource)
+                        });
+                    }
                     else
+                    {
                         deduplicated++;
+                    }
                     break;
                 }
                 case ReusableLibraryResourceKinds.Dynamo:
@@ -130,9 +140,19 @@ public sealed class ReusableLibraryIncorporationService
                         resource,
                         inspection.Manifest);
                     if (ShouldCreateDynamo(resource, dynamo))
-                        dynamos.Add(dynamo);
+                    {
+                        dynamos.Add(dynamo with
+                        {
+                            Metadata = ReusableLibraryProvenance.Stamp(
+                                dynamo.Metadata,
+                                inspection.Manifest,
+                                resource)
+                        });
+                    }
                     else
+                    {
                         deduplicated++;
+                    }
                     break;
                 }
                 case ReusableLibraryResourceKinds.VisualAsset:
@@ -153,7 +173,14 @@ public sealed class ReusableLibraryIncorporationService
 
                     if (ShouldCreateVisualAsset(resource, asset, visualPayload))
                     {
-                        visualAssets.Add(asset with { Sha256 = asset.Sha256.ToLowerInvariant() });
+                        visualAssets.Add(asset with
+                        {
+                            Sha256 = asset.Sha256.ToLowerInvariant(),
+                            Metadata = ReusableLibraryProvenance.Stamp(
+                                asset.Metadata,
+                                inspection.Manifest,
+                                resource)
+                        });
                         visualPayloads[visualPayload.Sha256] = visualPayload;
                     }
                     else
@@ -257,7 +284,9 @@ public sealed class ReusableLibraryIncorporationService
 
         if (byId is null || byKey is null || byId.Id != incoming.Id || byKey.Id != incoming.Id)
             throw Conflict(resource, "stable ID/key collision");
-        if (!SemanticEquals(byId, incoming))
+        if (!SemanticEquals(
+                byId with { Metadata = ReusableLibraryProvenance.WithoutOrigin(byId.Metadata) },
+                incoming with { Metadata = ReusableLibraryProvenance.WithoutOrigin(incoming.Metadata) }))
             throw Conflict(resource, "same identity has different canonical content");
         return false;
     }
@@ -272,7 +301,9 @@ public sealed class ReusableLibraryIncorporationService
 
         if (byId is null || byKey is null || byId.Id != incoming.Id || byKey.Id != incoming.Id)
             throw Conflict(resource, "stable ID/key collision");
-        if (!SemanticEquals(byId, incoming))
+        if (!SemanticEquals(
+                byId with { Metadata = ReusableLibraryProvenance.WithoutOrigin(byId.Metadata) },
+                incoming with { Metadata = ReusableLibraryProvenance.WithoutOrigin(incoming.Metadata) }))
             throw Conflict(resource, "same identity has different canonical content");
         return false;
     }
@@ -288,7 +319,9 @@ public sealed class ReusableLibraryIncorporationService
 
         if (byId is null || byKey is null || byId.Id != incoming.Id || byKey.Id != incoming.Id)
             throw Conflict(resource, "stable ID/key collision");
-        if (!SemanticEquals(byId, incoming))
+        if (!SemanticEquals(
+                byId with { Metadata = ReusableLibraryProvenance.WithoutOrigin(byId.Metadata) },
+                incoming with { Metadata = ReusableLibraryProvenance.WithoutOrigin(incoming.Metadata) }))
             throw Conflict(resource, "same identity has different canonical metadata");
 
         var existingPayload = _visualAssets.FindPayload(incoming.Sha256);

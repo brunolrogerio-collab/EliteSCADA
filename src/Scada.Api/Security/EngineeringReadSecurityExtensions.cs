@@ -1,5 +1,5 @@
 using Scada.Api.Runtime;
-using Scada.Engineering.Security;
+using Scada.Engineering.ImportExport;
 using Scada.Security.Authorization;
 
 namespace Scada.Api.Security;
@@ -15,7 +15,7 @@ public static class EngineeringReadSecurityExtensions
 
 public sealed class WorkspaceEngineeringReadFilter(
     ApiAuthorizationService security,
-    IEngineeringLockRegistry engineeringLock) : IEndpointFilter
+    IEngineeringExchangeService exchange) : IEndpointFilter
 {
     public ValueTask<object?> InvokeAsync(
         EndpointFilterInvocationContext invocationContext,
@@ -34,7 +34,7 @@ public sealed class WorkspaceEngineeringReadFilter(
 
         if (!EngineeringLockAccess.IsWorkspaceReadExempt(context.Request))
         {
-            var lockFailure = EngineeringLockAccess.ProtectedEngineeringFailure(engineeringLock);
+            var lockFailure = EngineeringLockAccess.ProtectedEngineeringFailure(exchange);
             if (lockFailure is not null)
                 return ValueTask.FromResult<object?>(lockFailure);
         }

@@ -149,9 +149,9 @@ jobs:
         working-directory: web/scada-web
         run: npx playwright install --with-deps chromium
 
-      - name: Run C25 Engineering Lock, Restore-first and Runtime session browser tests
+      - name: Run C25 Engineering Lock, Restore-first, Runtime session and reusable library browser tests
         working-directory: web/scada-web
-        run: npx playwright test tests-e2e/wave-14-c25-engineering-lock.spec.ts tests-e2e/wave-14-c25-restore-first.spec.ts tests-e2e/wave-14-c25-runtime-session.spec.ts --project=chromium --no-deps
+        run: npx playwright test tests-e2e/wave-14-c25-engineering-lock.spec.ts tests-e2e/wave-14-c25-restore-first.spec.ts tests-e2e/wave-14-c25-runtime-session.spec.ts tests-e2e/wave-14-c25-reusable-libraries.spec.ts --project=chromium --no-deps
 
       - name: Upload C25 Playwright report
         if: always()

@@ -289,7 +289,7 @@ public sealed class ReusableLibraryIncorporationServiceTests
             assets,
             visualAssets,
             exchange);
-        return new TargetHarness(eventBus, alarms, assets, visualAssets, exchange, incorporation);
+        return new TargetHarness(alarms, assets, visualAssets, exchange, incorporation);
     }
 
     private static byte[] CreateBmp()
@@ -310,7 +310,6 @@ public sealed class ReusableLibraryIncorporationServiceTests
     }
 
     private sealed class TargetHarness(
-        InMemoryScadaEventBus eventBus,
         InMemoryAlarmEngine alarms,
         InMemoryEngineeringAssetRegistry assets,
         InMemoryVisualAssetEngineeringRegistry visualAssets,
@@ -322,10 +321,6 @@ public sealed class ReusableLibraryIncorporationServiceTests
         public EngineeringExchangeService Exchange { get; } = exchange;
         public ReusableLibraryIncorporationService Incorporation { get; } = incorporation;
 
-        public void Dispose()
-        {
-            alarms.Dispose();
-            eventBus.Dispose();
-        }
+        public void Dispose() => alarms.Dispose();
     }
 }

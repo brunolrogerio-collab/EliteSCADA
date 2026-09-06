@@ -36,9 +36,7 @@ public static class ReusableLibraryResourceKinds
     };
 }
 
-public sealed record ReusableLibraryResourceSelection(
-    string Kind,
-    Guid ResourceId);
+public sealed record ReusableLibraryResourceSelection(string Kind, Guid ResourceId);
 
 public sealed record ReusableLibraryExportRequest(
     Guid LibraryId,
@@ -46,9 +44,7 @@ public sealed record ReusableLibraryExportRequest(
     string Version,
     IReadOnlyCollection<ReusableLibraryResourceSelection> Resources);
 
-public sealed record ReusableLibraryDependency(
-    string Kind,
-    Guid ResourceId);
+public sealed record ReusableLibraryDependency(string Kind, Guid ResourceId);
 
 public sealed record ReusableLibraryFileEntry(
     string Path,
@@ -77,8 +73,7 @@ public sealed record ReusableLibraryManifest(
     IReadOnlyCollection<ReusableLibraryResourceEntry> Resources,
     IReadOnlyCollection<ReusableLibraryFileEntry> Files);
 
-public sealed record ReusableLibraryInspection(
-    ReusableLibraryManifest Manifest);
+public sealed record ReusableLibraryInspection(ReusableLibraryManifest Manifest);
 
 public interface IReusableLibraryPackageService
 {
@@ -128,8 +123,7 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
                      .OrderBy(x => x.Kind, StringComparer.Ordinal)
                      .ThenBy(x => x.ResourceId))
         {
-            var resource = BuildExportResource(selection, files);
-            resources.Add(resource);
+            resources.Add(BuildExportResource(selection, files));
         }
 
         if (files.Count == 0 || files.Count > MaximumPayloadFiles)
@@ -146,10 +140,7 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
             EngineeringExchangeService.CurrentSchema,
             EngineeringExchangeService.CurrentSchemaVersion,
             resources,
-            files.Values
-                .Select(x => x.Entry)
-                .OrderBy(x => x.Path, StringComparer.Ordinal)
-                .ToArray());
+            files.Values.Select(x => x.Entry).OrderBy(x => x.Path, StringComparer.Ordinal).ToArray());
 
         ValidateManifest(manifest);
         var manifestBytes = JsonSerializer.SerializeToUtf8Bytes(manifest, _json);
@@ -157,8 +148,8 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
             throw new InvalidDataException("Reusable library manifest exceeds its safety limit.");
 
         var totalUncompressed = manifestBytes.LongLength;
-        foreach (var (_, bytes) in files.Values)
-            totalUncompressed = checked(totalUncompressed + bytes.LongLength);
+        foreach (var file in files.Values)
+            totalUncompressed = checked(totalUncompressed + file.Bytes.LongLength);
         if (totalUncompressed > MaximumPackageBytes)
             throw new InvalidDataException("Reusable library uncompressed content exceeds its safety limit.");
 
@@ -201,10 +192,10 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
             var verifiedFiles = new Dictionary<string, byte[]>(StringComparer.Ordinal);
             foreach (var file in manifest.Files)
             {
-                var limit = file.Path.StartsWith("assets/", StringComparison.Ordinal)
+                var maximumBytes = file.Path.StartsWith("assets/", StringComparison.Ordinal)
                     ? MaximumAssetBytes
                     : MaximumResourceBytes;
-                verifiedFiles[file.Path] = ReadAndVerifyFile(archive, file, limit);
+                verifiedFiles[file.Path] = ReadAndVerifyFile(archive, file, maximumBytes);
             }
 
             ValidateResourcePayloads(manifest, verifiedFiles);
@@ -437,9 +428,8 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
         var referencedFiles = new HashSet<string>(StringComparer.Ordinal);
         foreach (var resource in manifest.Resources)
         {
-            var bytes = verifiedFiles[resource.PayloadPath];
             referencedFiles.Add(resource.PayloadPath);
-            ValidateCanonicalResource(resource, bytes, manifest, verifiedFiles, referencedFiles);
+            ValidateCanonicalResource(resource, verifiedFiles[resource.PayloadPath], manifest, verifiedFiles, referencedFiles);
         }
 
         var orphan = manifest.Files.FirstOrDefault(x => !referencedFiles.Contains(x.Path));
@@ -570,7 +560,7 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
         foreach (var entry in archive.Entries)
         {
             ValidateArchivePath(entry.FullName);
-            if (entry.FullName.EndsWith('/', StringComparison.Ordinal))
+            if (entry.FullName.EndsWith("/", StringComparison.Ordinal))
                 throw new InvalidDataException("Reusable library cannot contain directory-only archive entries.");
             if (!seen.Add(entry.FullName))
                 throw new InvalidDataException($"Duplicate reusable library archive path '{entry.FullName}'.");
@@ -588,10 +578,7 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
             throw new InvalidDataException("Reusable library archive entries do not match the manifest.");
     }
 
-    private static byte[] ReadAndVerifyFile(
-        ZipArchive archive,
-        ReusableLibraryFileEntry file,
-        int maximumBytes)
+    private static byte[] ReadAndVerifyFile(ZipArchive archive, ReusableLibraryFileEntry file, int maximumBytes)
     {
         var entry = archive.GetEntry(file.Path)
             ?? throw new InvalidDataException($"Reusable library file '{file.Path}' is missing.");
@@ -612,7 +599,7 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
         using var source = entry.Open();
         using var output = new MemoryStream();
         var buffer = new byte[81920];
-        var total = 0;
+        long total = 0;
         int read;
         while ((read = source.Read(buffer, 0, buffer.Length)) > 0)
         {
@@ -628,7 +615,7 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
     {
         if (string.IsNullOrWhiteSpace(path) ||
             path.Contains('\\') ||
-            path.StartsWith('/', StringComparison.Ordinal) ||
+            path.StartsWith("/", StringComparison.Ordinal) ||
             Path.IsPathRooted(path) ||
             path.Contains(':'))
             throw new InvalidDataException($"Reusable library archive path '{path}' is invalid.");

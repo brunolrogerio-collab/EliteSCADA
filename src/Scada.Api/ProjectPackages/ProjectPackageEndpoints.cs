@@ -15,6 +15,7 @@ public static class ProjectPackageEndpoints
     public static IEndpointRouteBuilder MapProjectPackageEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapVisualAssetEndpoints();
+        endpoints.MapSystemRecoveryApplicationEndpoints();
 
         endpoints.MapGet("/api/project-package/export", (
             string? projectKey,

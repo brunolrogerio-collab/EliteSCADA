@@ -40,6 +40,7 @@ public sealed class ReusableLibraryAssociationConflictException : InvalidOperati
 
 /// <summary>
 /// Process-local Engineering catalog for associated .escadalib content.
+/// Catalog entries are partitioned by the current Engineering project/session scope.
 /// This is deliberately not canonical project/Runtime authority: no source path is stored,
 /// association does not mutate Working, and the catalog can disappear on process restart
 /// without invalidating project-owned content already incorporated through later flows.
@@ -50,15 +51,20 @@ public sealed class ReusableLibraryCatalogStore
     public const long MaximumCatalogBytes = 256L * 1024 * 1024;
 
     private readonly object _sync = new();
-    private readonly Dictionary<Guid, ReusableLibraryCatalogEntry> _byId = new();
+    private readonly Dictionary<string, Dictionary<Guid, ReusableLibraryCatalogEntry>> _byScope =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public static ReusableLibraryCatalogStore Shared { get; } = new();
 
-    public IReadOnlyCollection<ReusableLibraryCatalogDescriptor> Snapshot()
+    public IReadOnlyCollection<ReusableLibraryCatalogDescriptor> Snapshot(string scopeKey)
     {
+        var scope = NormalizeScope(scopeKey);
         lock (_sync)
         {
-            return _byId.Values
+            if (!_byScope.TryGetValue(scope, out var entries))
+                return Array.Empty<ReusableLibraryCatalogDescriptor>();
+
+            return entries.Values
                 .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(x => x.LibraryId)
                 .Select(ToDescriptor)
@@ -66,18 +72,25 @@ public sealed class ReusableLibraryCatalogStore
         }
     }
 
-    public ReusableLibraryCatalogEntry? Find(Guid libraryId)
+    public ReusableLibraryCatalogEntry? Find(string scopeKey, Guid libraryId)
     {
         if (libraryId == Guid.Empty) return null;
+        var scope = NormalizeScope(scopeKey);
         lock (_sync)
-            return _byId.TryGetValue(libraryId, out var entry) ? entry.Copy() : null;
+        {
+            return _byScope.TryGetValue(scope, out var entries) && entries.TryGetValue(libraryId, out var entry)
+                ? entry.Copy()
+                : null;
+        }
     }
 
     public ReusableLibraryAssociationResult Associate(
+        string scopeKey,
         ReadOnlyMemory<byte> libraryBytes,
         ReusableLibraryInspection inspection)
     {
         ArgumentNullException.ThrowIfNull(inspection);
+        var scope = NormalizeScope(scopeKey);
         if (libraryBytes.IsEmpty)
             throw new InvalidDataException("Reusable library is empty.");
         if (libraryBytes.Length > ReusableLibraryPackageService.MaximumPackageBytes)
@@ -101,7 +114,8 @@ public sealed class ReusableLibraryCatalogStore
 
         lock (_sync)
         {
-            if (_byId.TryGetValue(manifest.LibraryId, out var existing))
+            if (_byScope.TryGetValue(scope, out var existingScope) &&
+                existingScope.TryGetValue(manifest.LibraryId, out var existing))
             {
                 if (!existing.ContentSha256.Equals(hash, StringComparison.OrdinalIgnoreCase))
                     throw new ReusableLibraryAssociationConflictException(manifest.LibraryId);
@@ -109,13 +123,16 @@ public sealed class ReusableLibraryCatalogStore
                 return new ReusableLibraryAssociationResult(ToDescriptor(existing), Added: false);
             }
 
-            if (_byId.Count >= MaximumAssociatedLibraries)
+            var totalCount = _byScope.Values.Sum(entries => entries.Count);
+            if (totalCount >= MaximumAssociatedLibraries)
                 throw new InvalidDataException("Reusable library catalog contains too many associated libraries.");
 
             long projectedBytes;
             try
             {
-                projectedBytes = checked(_byId.Values.Sum(x => x.ByteLength) + bytes.LongLength);
+                projectedBytes = checked(
+                    _byScope.Values.SelectMany(entries => entries.Values).Sum(x => x.ByteLength) +
+                    bytes.LongLength);
             }
             catch (OverflowException ex)
             {
@@ -125,22 +142,47 @@ public sealed class ReusableLibraryCatalogStore
             if (projectedBytes > MaximumCatalogBytes)
                 throw new InvalidDataException("Reusable library catalog exceeds its memory safety limit.");
 
-            _byId.Add(manifest.LibraryId, entry);
+            if (!_byScope.TryGetValue(scope, out var scopedEntries))
+            {
+                scopedEntries = new Dictionary<Guid, ReusableLibraryCatalogEntry>();
+                _byScope.Add(scope, scopedEntries);
+            }
+
+            scopedEntries.Add(manifest.LibraryId, entry);
             return new ReusableLibraryAssociationResult(ToDescriptor(entry), Added: true);
         }
     }
 
-    public bool Disassociate(Guid libraryId)
+    public bool Disassociate(string scopeKey, Guid libraryId)
     {
         if (libraryId == Guid.Empty) return false;
+        var scope = NormalizeScope(scopeKey);
         lock (_sync)
-            return _byId.Remove(libraryId);
+        {
+            if (!_byScope.TryGetValue(scope, out var entries) || !entries.Remove(libraryId))
+                return false;
+
+            if (entries.Count == 0)
+                _byScope.Remove(scope);
+            return true;
+        }
     }
 
     internal void Clear()
     {
         lock (_sync)
-            _byId.Clear();
+            _byScope.Clear();
+    }
+
+    private static string NormalizeScope(string scopeKey)
+    {
+        if (string.IsNullOrWhiteSpace(scopeKey))
+            throw new ArgumentException("Reusable library catalog scope is required.", nameof(scopeKey));
+
+        var normalized = scopeKey.Trim();
+        if (normalized.Length > 256)
+            throw new ArgumentException("Reusable library catalog scope is too long.", nameof(scopeKey));
+        return normalized;
     }
 
     private static ReusableLibraryCatalogDescriptor ToDescriptor(ReusableLibraryCatalogEntry entry) =>

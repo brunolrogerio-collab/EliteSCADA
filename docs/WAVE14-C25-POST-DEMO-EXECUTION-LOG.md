@@ -77,8 +77,6 @@ Durable audit:
 
 `docs/WAVE14-C25-FULL-CODE-AUDIT.md`
 
-The audit maps all C25 correction domains to current code and records REUSE / MODIFY / ADD / DO NOT TOUCH boundaries, security decisions, required tests, dependency order and risk register.
-
 Key architecture decisions:
 
 - Engineering Lock rides in canonical Engineering JSON and therefore follows revision/package lifecycle naturally.
@@ -93,7 +91,7 @@ Key architecture decisions:
 
 ### C25.1 — Engineering Lock domain/package/security contract
 
-**Status: CODE IMPLEMENTED / VALIDATION EVIDENCE PENDING**
+**Status: IMPLEMENTED / FOCUSED VALIDATION GREEN / FINAL C25 MATRIX STILL PENDING**
 
 Code/test commits:
 
@@ -113,55 +111,91 @@ Implemented contract:
 - no plaintext or reversibly encrypted Engineering Lock secret is persisted.
 - malformed/unsupported/weakened verifier metadata fails closed.
 - legacy v16 payload without lock metadata normalizes to unlocked/unconfigured.
-- canonical JSON export/import carries lock state.
-- `.escadapkg` carries lock state through the canonical payload without encrypting the whole package.
-- partial CSV package operations preserve current Engineering Lock state rather than implicitly clearing it.
-- full application package replacement may replace/clear lock state without asking for the existing Engineering Lock password, consistent with the Product Owner contract that Import is an allowed locked-state recovery/administrative operation.
-- Working/Published/Active revision persistence stores immutable canonical lock metadata with each revision.
+- canonical JSON and `.escadapkg` round-trip lock state without encrypting the whole package.
+- partial CSV operations preserve current Engineering Lock state.
+- full application replacement may replace/clear lock state without asking for the old Lock password, per binding Import contract.
+- Working/Published/Active revision persistence stores immutable canonical lock metadata.
 
-Focused tests added cover:
-
-- configured-but-unlocked state;
-- correct/wrong secret;
-- invalid verifier rejection;
-- absence of plaintext secret in serialized state;
-- legacy v16 package compatibility;
-- canonical JSON roundtrip;
-- partial CSV preservation;
-- `.escadapkg` Export -> Inspect -> Preview -> Apply roundtrip;
-- malformed lock fail-before-mutation;
-- Save -> Publish -> Activate -> LoadActive immutable lock preservation.
-
-Validation caveat:
-
-The normal EliteSCADA CI workflow in `.github/workflows/dotnet-ci.yml` is scoped to pushes/PRs targeting `main`. PR #283 targets `wave14/corrections-integration`, so GitHub associated no normal EliteSCADA CI run with the above C25.1 commits. **Do not infer green from absence of a run.** C25.1 is implemented but not yet accepted/validated by the final required matrix.
+Focused Core tests now run durably in the dedicated C25 workflow described under C25.2.
 
 ### C25.2 — Engineering Lock backend enforcement and restricted authority
 
-**Status: IN PROGRESS**
+**Status: COMPLETE / FOCUSED VALIDATION GREEN / NOT FINAL C25 ACCEPTANCE**
 
-Live backend inspection at exact C25.1 head `14bceb8c64569d9479494044d2205dfb55aae436` confirmed:
+Validated code SHA:
 
-- `src/Scada.Api/Security/EngineeringReadSecurityExtensions.cs` already centralizes Authority admission for Engineering reads.
-- `src/Scada.Api/Security/ApiAuthorizationService.cs` remains the backend identity/capability authority.
-- `src/Scada.Api/Security/ApiMutationAuditAdmissionMiddleware.cs` durably admits protected POST/PUT/PATCH/DELETE operations through Audit before execution.
-- `src/Scada.Api/Security/ApiAuditService.cs` sanitizes password/secret/token fields from audit details.
-- Licensing/Audit/Diagnostics have explicit capability boundaries and are not to be folded behind Engineering Lock.
+`493acedc12079b73c02312a2d8355291664226b4`
 
-Implementation direction:
+Focused C25 workflow introduced by that SHA:
 
-- register one shared `IEngineeringLockRegistry` in API composition so package exchange, filters and lock endpoints observe the same application lock authority;
-- extend centralized backend admission rather than sprinkling route-local lock checks;
-- Authority authentication/capability decision occurs first; Engineering Lock is additional admission afterward;
-- locked protected Engineering reads/mutations must fail without protected payload leakage;
-- FullAccess does not bypass Engineering Lock;
-- locked-state exemptions remain Authority administration, Licensing, Import, Export, application replacement/restore/recovery and explicit unlock;
-- explicit lock/configure/unlock/clear operations remain Authority-authenticated and auditable;
-- no client-side state is security authority.
+`.github/workflows/wave14-c25-post-demo.yml`
+
+Exact focused validation:
+
+- Wave 14 C25 Post-Demo #2 / run `34005944316` — **SUCCESS**;
+- job `Engineering Lock backend contract` / `101413008823` — **SUCCESS**;
+- Core restore/build — SUCCESS;
+- API/Driver restore/build — SUCCESS;
+- `EngineeringLock*` package/crypto tests — SUCCESS;
+- `EngineeringLockAccessTests`, `PublishedRuntimeActivationServiceTests`, `PersistedRuntimeRecoveryServiceTests` — SUCCESS.
+
+Backend implementation now establishes:
+
+- Authority authentication/capability remains the first admission boundary.
+- Engineering Lock is a separate application-content policy; `EngineeringModify` is not stripped or rewritten.
+- FullAccess therefore does not bypass a locked application.
+- protected Workspace Engineering reads return fail-closed 403 while locked.
+- Engineering Delete and Bulk Apply are blocked and audited while locked.
+- persistence Save/Publish/Activate and protected lifecycle content are blocked while locked.
+- application Import/Export, `.escadapkg` Inspect/Preview/Apply, solution replacement/recovery paths and explicit Lock management remain reachable subject to normal Authority/validation/audit boundaries.
+- Authority administration, Licensing, Audit and Diagnostics retain their independent capability/security authorities and are not folded into Engineering Lock.
+- management API exposes only `configured` + `locked`, never verifier salt/hash.
+- wrong unlock secret remains locked and is audited without secret disclosure.
+- malformed lock metadata fails closed.
+- one canonical lock authority is observed through the singleton `IEngineeringExchangeService`; no second global lock truth is introduced.
+- Published activation rehydrates Lock from the revision only after successful committed activation.
+- restart recovery rehydrates Lock from the durable **Active** revision, not a newer Published revision.
+- failed activation does not replace the currently running application's Lock state.
+
+Important defect discovered and fixed during C25.2:
+
+- Bulk partial packages initially omitted `EngineeringLock`; because canonical Apply replaces lock state from the incoming package, a configured-but-unlocked verifier could have been silently cleared by Bulk Apply. `PartialPackage` now carries `source.EngineeringLock` explicitly and the lock boundary tests protect the invariant.
+
+Important CI diagnostic preserved:
+
+- Wave 14 C03 DNP3 Adapter #140 / run `34005773590` failed at `Managed adapter build and tests` before tests.
+- Exact errors were unrelated API-host symbol references in `Program.cs`: `RuntimeTagValueCoercion`, `TagWriteContext`, and `ScadaRuntimeFacade.WriteTagAsync`.
+- The failure was traced to an unintended whole-file `Program.cs` replacement while attempting to register the Lock API, not to the Lock domain itself.
+- No blind rerun occurred.
+- `Program.cs` was restored by exact original blob `1496bcf7af7e5203f2260508bf0986e74a2d13a9` in commit `992d6fb0e9a83d3ddbd30f7d549958412280e48f`.
+- The Lock API remains correctly mapped through `MapEngineeringMutationEndpoints()` and uses its stateless `EngineeringLockSecretService` locally, so `Program.cs` has **no net C25 diff**.
+- Subsequent C25 focused workflow on `493acedc...` compiled the API/Driver graph and passed the Lock tests.
+
+C25.2 supporting commits after the initial backend-policy work include:
+
+- `e1b1a6ddb57a618941136b3ad22f8794e2e70449` — Active activation Lock rehydration;
+- `aae5a3e5ac1eec72daf9acfde6bbe6b7e5078dd1` — persisted Active restart Lock recovery;
+- `a4913c1b84811509241a074dfc731fe41d7f4f36` — Bulk enforcement + verifier preservation;
+- `e2735c515e0c2e78aaf7d0e8736029d0ad10f435` — activation Lock tests;
+- `9a720118868cf69b19dff162de64876627dc43a5` — Active/restart Lock tests;
+- `62096fe8d65511d175fd6fae5573855af8a87532` — backend boundary tests;
+- `d923d97841a6a11c1dca6d7a1e2c6d9beee67964` — preserve independent Diagnostics authority;
+- `992d6fb0e9a83d3ddbd30f7d549958412280e48f` — restore canonical API host after diagnosed CI red;
+- `493acedc12079b73c02312a2d8355291664226b4` — dedicated C25 focused validation workflow.
 
 ### C25.3 — Engineering Lock UI/lifecycle/package roundtrip
 
-**Status: NOT STARTED**
+**Status: NEXT / NOT YET COMPLETE**
+
+Next implementation must preserve the now-validated backend authority and add product lifecycle/UI behavior without making React security authority. At minimum revalidate:
+
+- Lock status/manage UX in Engineering/System Administration;
+- protected Engineering navigation/content hidden while locked;
+- restricted Authority/Licensing/Import/Export/recovery/unlock surfaces remain reachable;
+- lock configuration/state changes participate correctly in Working dirty/version/save lifecycle;
+- package Export/Import remains password-free and preserves metadata/state;
+- unlock of the current application does not mutate Authority identity or credential state;
+- browser tests exercise correct/wrong unlock and navigation projection against backend state.
 
 ### C25.4 — Restore-first bootstrap / recovery
 
@@ -185,16 +219,16 @@ Implementation direction:
 
 Final acceptance requires one exact candidate SHA, the required Wave14 product matrix on that SHA, diagnosed reds before any rerun, then merge only into `wave14/corrections-integration` and exact post-merge revalidation. Only after that may C11 synchronization begin.
 
-## 5. Current live governance revalidation before C25.2
+## 5. Current governance revalidation after C25.2 focused validation
 
-Revalidated immediately before this ledger update:
+Revalidated before this checkpoint record:
 
-- #283: OPEN / DRAFT / merged=false / base `wave14/corrections-integration` / head `14bceb8c64569d9479494044d2205dfb55aae436` before this documentation commit.
-- #212: OPEN / DRAFT / merged=false / head `wave14/corrections-integration` at `c2fc96eacc168ea092c2e4d4dcbc79b00faa3155`.
+- #283: OPEN / DRAFT / merged=false / base `wave14/corrections-integration` / exact validated code head `493acedc12079b73c02312a2d8355291664226b4` before this documentation commit.
+- #212: OPEN / DRAFT / merged=false / integration head still `c2fc96eacc168ea092c2e4d4dcbc79b00faa3155`.
 - #263: OPEN / DRAFT / merged=false / C11 head still `41d24d89c3b9d2b881215255e44023fabde262f3`.
 - #266: OPEN / DRAFT / merged=false / validation-only / C11 head still `41d24d89c3b9d2b881215255e44023fabde262f3` / MUST NEVER MERGE.
 
-No integration, main or C11 mutation occurred during C25.0/C25.1.
+No integration, `main` or C11 mutation occurred during C25.0 through C25.2.
 
 ## 6. Resume protocol
 
@@ -207,6 +241,6 @@ On a new coordinator/chat session:
 5. read `docs/WAVE14-C25-FULL-CODE-AUDIT.md`;
 6. read this execution ledger;
 7. inspect the latest checkpoint exact SHA and any workflow evidence;
-8. continue C25.2 from live GitHub state unless a later durable checkpoint supersedes it.
+8. continue C25.3 from live GitHub state unless a later durable checkpoint supersedes it.
 
 Never infer unfinished C25 work from chat history when GitHub can be checked directly.

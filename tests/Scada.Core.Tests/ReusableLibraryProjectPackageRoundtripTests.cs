@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Text.Json;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
 using Scada.Core.Tags;
@@ -91,6 +92,100 @@ public sealed class ReusableLibraryProjectPackageRoundtripTests
         var restoredPayload = Assert.IsType<VisualAssetPayload>(
             restored.VisualAssets.FindPayload(payload.Sha256));
         Assert.True(restoredPayload.Content.AsSpan().SequenceEqual(payload.Content));
+    }
+
+    [Fact]
+    public void IncorporatedDynamoClosure_RoundTripsThroughProjectPackageWithoutLibraryDependency()
+    {
+        var sourceAssets = new InMemoryEngineeringAssetRegistry();
+        var sourceVisualAssets = new InMemoryVisualAssetEngineeringRegistry();
+        var templateId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        var rootId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+
+        sourceAssets.UpsertTemplate(new EquipmentTemplateEngineeringDto(
+            templateId,
+            "library.dynamo.template",
+            "Dynamo Template"));
+        sourceAssets.UpsertDynamo(new DynamoEngineeringDto(
+            childId,
+            "library.dynamo.child",
+            "Child Dynamo",
+            Elements: [new VisualElementEngineeringDto("body", "core.rectangle")]));
+
+        var payload = VisualAssetPayload.Create("image/bmp", CreateBmp());
+        sourceVisualAssets.PutPayload(payload);
+        sourceVisualAssets.UpsertAsset(new VisualAssetEngineeringDto(
+            assetId,
+            "library.dynamo.asset",
+            "Dynamo Asset",
+            "dynamo.bmp",
+            payload.MediaType,
+            payload.ByteLength,
+            payload.Sha256,
+            1,
+            1));
+
+        sourceAssets.UpsertDynamo(new DynamoEngineeringDto(
+            rootId,
+            "library.dynamo.root",
+            "Root Dynamo",
+            TemplateKey: "library.dynamo.template",
+            Elements:
+            [
+                new VisualElementEngineeringDto(
+                    "child",
+                    "dynamo",
+                    DynamoKey: "library.dynamo.child"),
+                new VisualElementEngineeringDto(
+                    "image",
+                    "core.image",
+                    Properties: new Dictionary<string, JsonElement>
+                    {
+                        ["assetRef"] = JsonSerializer.SerializeToElement(new { assetId = $"asset:{assetId:D}" })
+                    })
+            ]));
+
+        var libraryPackages = new ReusableLibraryPackageService(sourceAssets, sourceVisualAssets);
+        var libraryBytes = libraryPackages.Export(new ReusableLibraryExportRequest(
+            Guid.NewGuid(),
+            "Dynamo Roundtrip Library",
+            "1.0.0",
+            [new(ReusableLibraryResourceKinds.Dynamo, rootId)]));
+
+        using var working = CreateTarget();
+        Incorporate(working, libraryBytes, ReusableLibraryResourceKinds.Dynamo, rootId);
+
+        var projectPackages = new ProjectPackageService(working.Exchange, working.VisualAssets);
+        var projectBytes = projectPackages.Export("dynamo-roundtrip", "Dynamo Roundtrip");
+        var inspection = projectPackages.Inspect(projectBytes);
+
+        Assert.Contains(inspection.Engineering.Templates ?? [], template => template.Id == templateId);
+        Assert.Contains(inspection.Engineering.Dynamos ?? [], dynamo => dynamo.Id == childId);
+        Assert.Contains(inspection.Engineering.Dynamos ?? [], dynamo => dynamo.Id == rootId);
+        Assert.Contains(inspection.Engineering.VisualAssets ?? [], asset => asset.Id == assetId);
+        Assert.Contains(
+            inspection.Manifest.Files,
+            file => file.Path == $"assets/{payload.Sha256}" && file.Sha256 == payload.Sha256);
+
+        // Deliberately restore with no reusable-library package or catalog present.
+        using var restored = CreateTarget();
+        var restoredPackages = new ProjectPackageService(restored.Exchange, restored.VisualAssets);
+        var preview = restoredPackages.Preview(projectBytes, ImportMode.CreateOnly);
+        Assert.True(preview.CanApply);
+
+        var result = restoredPackages.Apply(projectBytes, ImportMode.CreateOnly);
+        Assert.DoesNotContain(result.Issues, issue => issue.IsError);
+
+        Assert.Equal("library.dynamo.template", restored.Assets.FindTemplate(templateId)!.Key);
+        Assert.Equal("library.dynamo.child", restored.Assets.FindDynamo(childId)!.Key);
+        var restoredRoot = Assert.IsType<DynamoEngineeringDto>(restored.Assets.FindDynamo(rootId));
+        Assert.Equal("library.dynamo.root", restoredRoot.Key);
+        Assert.Equal("library.dynamo.template", restoredRoot.TemplateKey);
+        Assert.Contains(restoredRoot.Elements ?? [], element => element.DynamoKey == "library.dynamo.child");
+        Assert.Equal("library.dynamo.asset", restored.VisualAssets.FindAsset(assetId)!.Key);
+        Assert.True(restored.VisualAssets.FindPayload(payload.Sha256)!.Content.AsSpan().SequenceEqual(payload.Content));
     }
 
     private static void Incorporate(

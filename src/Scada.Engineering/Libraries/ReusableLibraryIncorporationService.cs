@@ -5,6 +5,7 @@ using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Scripts;
+using Scada.Engineering.Views;
 using Scada.Engineering.VisualAssets;
 
 namespace Scada.Engineering.Libraries;
@@ -52,6 +53,8 @@ public sealed class ReusableLibraryIncorporationService
     {
         ReusableLibraryResourceKinds.EquipmentTemplate,
         ReusableLibraryResourceKinds.Dynamo,
+        ReusableLibraryResourceKinds.Screen,
+        ReusableLibraryResourceKinds.Popup,
         ReusableLibraryResourceKinds.Script,
         ReusableLibraryResourceKinds.VisualAsset
     };
@@ -61,6 +64,7 @@ public sealed class ReusableLibraryIncorporationService
     private readonly IVisualAssetEngineeringRegistry _visualAssets;
     private readonly IEngineeringExchangeService _exchange;
     private readonly IScriptEngineeringRegistry? _scripts;
+    private readonly IEngineeringViewRegistry? _views;
     private readonly JsonSerializerOptions _json = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -73,13 +77,15 @@ public sealed class ReusableLibraryIncorporationService
         IEngineeringAssetRegistry assets,
         IVisualAssetEngineeringRegistry visualAssets,
         IEngineeringExchangeService exchange,
-        IScriptEngineeringRegistry? scripts = null)
+        IScriptEngineeringRegistry? scripts = null,
+        IEngineeringViewRegistry? views = null)
     {
         _packages = packages;
         _assets = assets;
         _visualAssets = visualAssets;
         _exchange = exchange;
         _scripts = scripts;
+        _views = views;
     }
 
     public ReusableLibraryIncorporationPlan Plan(
@@ -100,6 +106,8 @@ public sealed class ReusableLibraryIncorporationService
 
         var templates = new List<EquipmentTemplateEngineeringDto>();
         var dynamos = new List<DynamoEngineeringDto>();
+        var screens = new List<ScreenEngineeringDto>();
+        var popups = new List<PopupEngineeringDto>();
         var scripts = new List<ScriptEngineeringDefinition>();
         var visualAssets = new List<VisualAssetEngineeringDto>();
         var visualPayloads = new Dictionary<string, VisualAssetPayload>(StringComparer.OrdinalIgnoreCase);
@@ -151,6 +159,58 @@ public sealed class ReusableLibraryIncorporationService
                         {
                             Metadata = ReusableLibraryProvenance.Stamp(
                                 dynamo.Metadata,
+                                inspection.Manifest,
+                                resource)
+                        });
+                    }
+                    else
+                    {
+                        deduplicated++;
+                    }
+                    break;
+                }
+                case ReusableLibraryResourceKinds.Screen:
+                {
+                    _ = _views
+                        ?? throw new InvalidDataException(
+                            "Reusable Screen incorporation requires the canonical Working view registry.");
+                    var screen = Deserialize<ScreenEngineeringDto>(payloadBytes, resource);
+                    ReusableViewDependencyAnalyzer.ValidateDeclaredDependencies(
+                        screen,
+                        resource,
+                        inspection.Manifest);
+                    if (ShouldCreateScreen(resource, screen))
+                    {
+                        screens.Add(screen with
+                        {
+                            Metadata = ReusableLibraryProvenance.Stamp(
+                                screen.Metadata,
+                                inspection.Manifest,
+                                resource)
+                        });
+                    }
+                    else
+                    {
+                        deduplicated++;
+                    }
+                    break;
+                }
+                case ReusableLibraryResourceKinds.Popup:
+                {
+                    _ = _views
+                        ?? throw new InvalidDataException(
+                            "Reusable Popup incorporation requires the canonical Working view registry.");
+                    var popup = Deserialize<PopupEngineeringDto>(payloadBytes, resource);
+                    ReusableViewDependencyAnalyzer.ValidateDeclaredDependencies(
+                        popup,
+                        resource,
+                        inspection.Manifest);
+                    if (ShouldCreatePopup(resource, popup))
+                    {
+                        popups.Add(popup with
+                        {
+                            Metadata = ReusableLibraryProvenance.Stamp(
+                                popup.Metadata,
                                 inspection.Manifest,
                                 resource)
                         });
@@ -233,6 +293,8 @@ public sealed class ReusableLibraryIncorporationService
             Array.Empty<AlarmEngineeringDto>(),
             Templates: templates,
             Dynamos: dynamos,
+            Screens: screens,
+            Popups: popups,
             Scripts: scripts,
             VisualAssets: visualAssets);
         var context = new EngineeringImportContext(visualPayloads);
@@ -329,6 +391,46 @@ public sealed class ReusableLibraryIncorporationService
     {
         var byId = _assets.FindDynamo(resource.ResourceId);
         var byKey = _assets.FindDynamoByKey(incoming.Key);
+        if (byId is null && byKey is null) return true;
+
+        if (byId is null || byKey is null || byId.Id != incoming.Id || byKey.Id != incoming.Id)
+            throw Conflict(resource, "stable ID/key collision");
+        if (!SemanticEquals(
+                byId with { Metadata = ReusableLibraryProvenance.WithoutOrigin(byId.Metadata) },
+                incoming with { Metadata = ReusableLibraryProvenance.WithoutOrigin(incoming.Metadata) }))
+            throw Conflict(resource, "same identity has different canonical content");
+        return false;
+    }
+
+    private bool ShouldCreateScreen(
+        ReusableLibraryResourceEntry resource,
+        ScreenEngineeringDto incoming)
+    {
+        var registry = _views
+            ?? throw new InvalidDataException(
+                "Reusable Screen incorporation requires the canonical Working view registry.");
+        var byId = registry.FindScreen(resource.ResourceId);
+        var byKey = registry.FindScreenByKey(incoming.Key);
+        if (byId is null && byKey is null) return true;
+
+        if (byId is null || byKey is null || byId.Id != incoming.Id || byKey.Id != incoming.Id)
+            throw Conflict(resource, "stable ID/key collision");
+        if (!SemanticEquals(
+                byId with { Metadata = ReusableLibraryProvenance.WithoutOrigin(byId.Metadata) },
+                incoming with { Metadata = ReusableLibraryProvenance.WithoutOrigin(incoming.Metadata) }))
+            throw Conflict(resource, "same identity has different canonical content");
+        return false;
+    }
+
+    private bool ShouldCreatePopup(
+        ReusableLibraryResourceEntry resource,
+        PopupEngineeringDto incoming)
+    {
+        var registry = _views
+            ?? throw new InvalidDataException(
+                "Reusable Popup incorporation requires the canonical Working view registry.");
+        var byId = registry.FindPopup(resource.ResourceId);
+        var byKey = registry.FindPopupByKey(incoming.Key);
         if (byId is null && byKey is null) return true;
 
         if (byId is null || byKey is null || byId.Id != incoming.Id || byKey.Id != incoming.Id)

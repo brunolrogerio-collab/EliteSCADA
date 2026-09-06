@@ -1,13 +1,13 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-06 BRT  
-**Operational state:** **WAVE 14 ACTIVE / C25 ACTIVE / C25.0-C25.3 COMPLETE / C25.4 IN PROGRESS / C11 PRESERVED / WAVE13 PAUSED**
+**Operational state:** **WAVE 14 ACTIVE / C25.0-C25.6 COMPLETE / C25.7 DISTRIBUTED RUNTIME FOUNDATION ACTIVE / C11 FROZEN / WAVE13 PAUSED**
 
 > GitHub is the official development memory. Revalidate live refs, PR state and exact-SHA CI before acting.
 
 ## Current correction authority
 
-Active correction package:
+Active package:
 
 `W14-C25 — Post-Demo consolidated corrections`
 
@@ -19,110 +19,95 @@ PR:
 
 #283 -> `wave14/corrections-integration`
 
-Tracking:
+Tracking issue:
 
 #282
 
-Product HEAD immediately before the handoff-only documentation commit:
+Latest exact-SHA green documentation authority before C25.7 resequencing:
 
-`a7ac6a8a008749e8224e24a59d7f7b1752d02fe2`
+`78c3370d9943c4ba71cd8fb8a38da1025d3672ce`
 
-Exact-head evidence:
+- Wave 14 C25 Post-Demo #283 — SUCCESS;
+- Wave 14 C03 DNP3 Adapter #284 — SUCCESS.
 
-- Wave 14 C25 Post-Demo #89 / `34013048034` — SUCCESS
-- Wave 14 C03 DNP3 Adapter #187 / `34013048107` — SUCCESS
+## Completed through C25.6
 
-## Current checkpoint
+C25.0 through C25.5 are complete.
 
-C25.0 through C25.3 are complete with focused validation recorded in:
+C25.6 Reusable Resource Libraries is complete on exact validated product/test SHA:
 
-`docs/WAVE14-C25-POST-DEMO-EXECUTION-LOG.md`
+`1f17367defa03f903e68f585d068b4f23f82bef9`
 
-C25.4 Restore-first/System Recovery is **IN PROGRESS**.
+- C25 #275 / `34052101709` — SUCCESS;
+- C03 #280 / `34052101702` — SUCCESS.
 
-Backend/system-recovery implementation now includes:
+The feature includes `.escadalib`, safe non-mutating association, selective dependency-aware incorporation, project-owned provenance, self-contained `.escadapkg`, safe disassociation, no Runtime library dependency and Engineering Libraries UI/browser validation under existing Authority/Engineering Lock.
 
-- encrypted/authenticated Authority backup v1;
-- atomic Authority replace/restore;
-- secure true-empty bootstrap restore boundary;
-- prospective recovered-Administrator authorization against the package SecurityRoles;
-- application recovery coordinator using canonical package Inspect/Preview/Apply -> root Save -> Publish -> Activate;
-- explicit partial-state reporting after durable Save;
-- `RestoreFirstPanel.tsx` component and a dedicated Restore-first Playwright specification;
-- optional license handling kept separate and non-blocking for core application recovery.
+## Current checkpoint — C25.7 Distributed Runtime Foundation
 
-However C25.4 is not closed because the coordinator handoff audit found two concrete gaps on exact product HEAD `a7ac6a8a...`:
+The Product Owner approved moving a small distributed-runtime foundation ahead of Help.
 
-1. `web/scada-web/src/auth/AuthGate.tsx` does not yet render/wire `RestoreFirstPanel` into the real bootstrap / first-project state machine.
-2. `.github/workflows/wave14-c25-post-demo.yml` does not execute `web/scada-web/tests-e2e/wave-14-c25-restore-first.spec.ts`.
+Binding documents:
 
-Therefore the current green C25 workflow is backend/build evidence, not browser proof of Restore-first. Do not mark C25.4 complete until the UI is wired and the Restore-first browser contract runs green on the exact SHA.
+- `docs/WAVE14-C25-DISTRIBUTED-RUNTIME-FOUNDATION.md`
+- `docs/ELITESCADA-DISTRIBUTED-RUNTIME-HA-ROADMAP.md`
+- `docs/WAVE14-C25-POST-DEMO-EXECUTION-LOG.md`
 
-## Current coordinator handoff
+Current C25.7 scope:
 
-Authoritative resume document:
+- Server Runtime Contract;
+- transport-independent canonical Runtime boundary;
+- Runtime Session Lease foundation;
+- Viewer / Interactive server-side capability downscope;
+- voluntary View Only;
+- topology-neutral `.escadapkg` proofs;
+- optional thin EliteGO proof only if it remains small and reuses canonical Runtime code.
 
-`docs/WAVE14-C25-COORDINATOR-HANDOFF-2026-09-06.md`
+HA orchestration/replication/failover and advanced commercial connection tiers remain future-Wave work.
 
-Also read:
+## Remaining C25
 
-- `docs/CURRENT-COORDINATOR-HANDOFF.md`
-- `docs/WAVE14-C25-CONSOLIDATED-POST-DEMO-CONTRACT.md`
-- `docs/WAVE14-C25-FULL-CODE-AUDIT.md`
-- `docs/WAVE14-C25-RESTORE-FIRST-ARCHITECTURE.md`
-- issue #282
-- PR #283
+- C25.7 Distributed Runtime Foundation;
+- C25.8 contextual multilingual Help/manual;
+- C25.9 integrated regression/audit;
+- C25.10 exact final candidate / Product Owner acceptance.
 
-## Accepted baseline beneath C25
+## C11 / EEE sequence after C25
 
-C24 is:
-
-**ACCEPTED / INTEGRATED / POST-MERGE REVALIDATED**
-
-Accepted C24 product merge:
-
-`40a491c2de2403f2934b8bae647c35072d5c2496`
-
-Wave 14 integration branch remains:
-
-`wave14/corrections-integration`
-
-Integration PR #212 remains OPEN/DRAFT and is not authorized to merge into `main`.
-
-## C11 remains preserved
-
-Canonical C11 branch:
-
-`wave14/c11-canonical-eee-demo`
-
-Preserved head:
+C11 remains preserved now at:
 
 `41d24d89c3b9d2b881215255e44023fabde262f3`
 
-- #263 remains OPEN/DRAFT -> integration.
-- #266 remains validation-only -> main and MUST NEVER MERGE.
-- Do not sync/adapt C11 until C25 is accepted, integrated and post-merge revalidated.
+After C25 is explicitly accepted:
 
-## Next exact action
+1. merge C25 only into `wave14/corrections-integration`;
+2. exact-SHA validate the integration merge;
+3. synchronize/adapt C11 to the accepted C25 contracts;
+4. revalidate the canonical EEE Demo using normal generic product paths;
+5. export/version/freeze `EliteSCADA-EEE-Demo.escadapkg`, checksum and provenance;
+6. run Preview Codespace with that canonical package;
+7. **keep the Preview Codespace active** through Product Owner visual homologation and the later authorized main transition;
+8. #212 may merge into `main` only after explicit Product Owner authorization;
+9. validate the new `main` while the Preview remains available.
 
-Resume C25.4 by revalidating live #283, then:
+## Return to Wave 13 / Windows installable
 
-1. wire `RestoreFirstPanel` into `AuthGate`;
-2. preserve application/license selection across Authority restore -> real login -> application recovery without persisting secrets;
-3. expose Restore backup alongside Create Administrator on true-empty bootstrap;
-4. expose Restore backup alongside Create New Project for authenticated local Administrator with empty catalog;
-5. add `wave-14-c25-restore-first.spec.ts` to the C25 Chromium workflow;
-6. inspect exact-SHA C25 + C03 CI and diagnose any red before rerun;
-7. only then close C25.4 and proceed to C25.5.
+Wave 13 #205/#207 remains paused now.
+
+After the approved Wave 14/C25 -> EEE/C11 -> Preview -> `main` sequence, Wave 13 resumes using the **new `main` containing accepted C25** as release authority.
+
+The Windows-installable/signing/release work must be based on that new mainline, not the older pre-C25 `main`.
 
 ## Permanent governance
 
 - #212 remains OPEN/DRAFT; no merge to `main` without explicit Product Owner authorization.
 - Never modify `main` directly.
+- #283 remains OPEN/DRAFT -> integration.
+- #263 remains the C11 implementation PR.
+- #266 is validation-only and MUST NEVER MERGE.
 - No force push, destructive rebase, branch deletion or unrelated cleanup.
 - Diagnose red CI before rerun.
 - Never weaken validation, security, identity, lifecycle, licensing, package or Runtime authority to obtain green.
-- Backend Active revision remains Runtime application authority.
+- Backend Active Revision remains Runtime application authority.
 - Alarm / Operational Event / Audit remain distinct.
 - No EEE-specific workaround for generic product deficiencies.
-- Wave13 #205/#207 remains paused.

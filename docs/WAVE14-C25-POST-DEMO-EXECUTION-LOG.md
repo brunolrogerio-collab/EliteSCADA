@@ -1,6 +1,6 @@
 # Wave 14 C25 — Post-Demo Consolidated Corrections — Execution Log
 
-**Status:** ACTIVE / C25.6 COMPLETE / C25.7 NEXT / NOT ACCEPTED / NOT INTEGRATED  
+**Status:** ACTIVE / C25.6 COMPLETE / C25.7 ARCHITECTURE AUDIT ACTIVE / NOT ACCEPTED / NOT INTEGRATED  
 **Coordinator package:** C25  
 **Tracking issue:** #282  
 **Implementation PR:** #283  
@@ -11,6 +11,7 @@
 **Restore-first architecture:** `docs/WAVE14-C25-RESTORE-FIRST-ARCHITECTURE.md`  
 **Reusable libraries architecture:** `docs/WAVE14-C25-REUSABLE-LIBRARIES-ARCHITECTURE.md`  
 **Reusable libraries closure:** `docs/WAVE14-C25-REUSABLE-LIBRARIES-IMPLEMENTATION-STATUS-2026-09-06.md`  
+**Contextual Help architecture:** `docs/WAVE14-C25-CONTEXTUAL-HELP-ARCHITECTURE.md`  
 **Coordinator handoff:** `docs/WAVE14-C25-COORDINATOR-HANDOFF-2026-09-06.md`
 
 > GitHub live state is the sole project authority. Revalidate live refs, PR state and exact-SHA CI before every decision or mutation. Historical detailed ledger revisions remain preserved in Git history; this file is the current resumable authority.
@@ -119,52 +120,76 @@ Exact-SHA CI:
 - Wave 14 C25 Post-Demo #275 / run `34052101709` — **SUCCESS**;
 - Wave 14 C03 DNP3 Adapter #280 / run `34052101702` — **SUCCESS**.
 
-C25.6 now proves the complete reusable-library product contract:
+Documentation-only closure HEAD `c820665a9dc526e39dd7596825f01e21b345ffba` was also exact-SHA validated:
 
-- `.escadalib` is distinct from `.escadapkg`;
-- association is catalog availability and does not mutate Working;
-- enabled reusable kinds are EquipmentTemplate, Dynamo, VisualAsset, Script, Screen and Popup;
-- only selected resources plus validated transitive dependency closure are incorporated;
-- malformed/missing/cyclic/unsupported dependency closure fails before mutation;
-- stable identity/content collisions never silently overwrite unrelated project content;
-- identical project-owned content deduplicates;
-- incorporation uses canonical Engineering Preview/Apply, current Workspace ChangeVersion and one logical mutation lease;
-- successful incorporation becomes ordinary project-owned Working content and advances dirty/ChangeVersion;
-- provenance under `elitescada.reusable.origin.*` is informational only;
-- `.escadapkg` roundtrip is self-contained without any library/catalog available;
-- disassociation removes only catalog availability and never breaks incorporated content;
-- Runtime/Active never opens or resolves `.escadalib` or external source locations;
-- Engineering Libraries UI at `/engineering/libraries` supports association, browse/search, dependency visibility, selective `Usar`, `.escadalib` creation/export, provenance and disassociation;
-- Libraries remains inside the existing AuthGate/effective-capability/Engineering-Lock chain;
-- locked direct-route browser proof shows the Libraries workspace does not mount and no library API call occurs;
-- existing Engineering Lock, Restore-first and Runtime session browser contracts remain green;
-- C03 Managed/Linux/Windows/real L3 interop/commercial publish compatibility gates are green on the exact same SHA.
+- C25 #279 / `34052472926` — **SUCCESS**;
+- C03 #282 / `34052472951` — **SUCCESS**.
+
+C25.6 proves `.escadalib` package/inspection, non-mutating association, selective dependency-aware incorporation, deterministic collision/deduplication, project-owned informational provenance, self-contained `.escadapkg` roundtrip, safe disassociation, no Runtime library dependency and the complete Engineering Libraries browser flow under the existing Authority/Engineering Lock chain.
 
 No unresolved C25.6 audit gap remains. C25.6 closure does not authorize integration or overall C25 acceptance.
 
 ### C25.7 — Contextual multilingual Help/manual
 
-**NEXT / PRODUCT MUTATION NOT YET STARTED**
+**ARCHITECTURE / CODE AUDIT ACTIVE / PRODUCT MUTATION NOT YET STARTED**
 
-Binding requirements:
+Binding architecture is being frozen in:
+
+`docs/WAVE14-C25-CONTEXTUAL-HELP-ARCHITECTURE.md`
+
+Binding requirements remain:
 
 - stable language-neutral Help IDs;
-- Help follows one active UI locale authority;
+- centralized resolver from Help ID to installed topic;
 - pt-BR/en/es mandatory for shipped UI languages;
-- local/offline installed content where practical;
-- Driver documentation derived from actual shipped driver/registry behavior;
-- Script API documentation derived from actual shipped Script contracts;
-- reusable-library behavior documented from completed C25.6 product semantics;
-- product-facing manual contains no internal Wave/handoff/coordinator prose;
-- Alarm / Operational Event / Audit distinctions remain explicit.
+- local/offline normal use where practical;
+- locale changes preserve topic identity;
+- missing/broken Help IDs fail gracefully and are test-detectable;
+- Driver documentation derives from actual shipped driver registry/contracts;
+- Script API documentation derives from actual shipped Script contracts and public allow-lists;
+- reusable-library behavior is documented from completed C25.6 semantics;
+- product-facing content contains no internal Wave/handoff/coordinator prose;
+- Alarm / Operational Event / Audit remain explicitly distinct.
 
-Read-only audit already identified locale duplication that must be resolved before Help becomes another authority:
+#### Locale audit result
 
-- application shell currently uses `elitescada.locale` through `appShellI18n.ts`;
-- Engineering currently also persists `elitescada.engineering.locale` through `engineering/i18n.ts`;
-- C25.6 Libraries correctly introduced no third locale state.
+An earlier documentation assumption of two locale stores was incorrect. Live code establishes one canonical persisted locale authority already:
 
-C25.7 must first establish one locale authority for shell/Engineering/Help before adding contextual Help content.
+- `engineering/i18n.ts` owns `elitescada.engineering.locale` and pt-BR/en/es;
+- `appShellI18n.ts` explicitly delegates to the Engineering locale owner and subscribes to the same storage key/document language;
+- C25.6 Libraries introduced no additional locale state.
+
+Therefore C25.7 must **reuse** the existing locale authority. It must not create a Help-specific persisted locale state. No locale migration product slice is required.
+
+#### Help surface audit result
+
+No existing centralized stable Help-ID registry/resolver was found in the current product audit. C25.7 therefore needs one product-owned registry/resolver rather than scattered route strings.
+
+#### Driver documentation authority audit
+
+The shipped Data Source inventory already has a canonical build-specific path:
+
+`CommunicationDriverModuleRegistry` -> `EngineeringDataSourceTypeCatalog.BuildForCurrentSchema(...)` -> `/api/engineering/data-source-types`.
+
+The catalog already projects driver/source identity, Engineering capabilities, Data Source and TAG-binding configuration fields, expected formats and examples. It must remain the inventory authority; the manual must not contain a second handwritten Driver list.
+
+Live audit also identified a contract gap: `CommunicationDriverTypeDescriptor` already owns `DriverContractVersion`, Runtime capabilities and acquisition modes, but the current `EngineeringDataSourceTypeView` does not project all of them. The descriptor/catalog also does not yet encode every user-facing documentation semantic required by the product contract, such as applicable quality/timestamp behavior, reconnect/timeouts, security/certificates and interoperability limits. C25.7 must enrich the canonical driver-owned documentation contract/projection rather than fabricating these facts in frontend copy.
+
+#### Script documentation authority audit
+
+The official Client Visual Script product API allow-list is `CLIENT_VISUAL_PYTHON_CAPABILITIES`. It currently exposes:
+
+- `tag.read`;
+- `tag.write`;
+- `clientMemory.read`;
+- `clientMemory.write`;
+- `visualProperty.read`;
+- `visualProperty.write`;
+- `visualTween.request`.
+
+`backendOperation.request` is explicitly a reserved host-composition protocol hook and is not an ordinary Script product API. The existing Script Assistant already builds its capability catalog from the official allow-list. Help/API reference must consume the same authority and must not advertise the reserved hook.
+
+Script safety/lifecycle reference must also reflect actual shipped sandbox denied boundaries and execution policy from the Script contracts/runtime constants.
 
 ### C25.8 — Integrated regression/audit pass
 
@@ -178,15 +203,17 @@ Overall C25 acceptance will require one exact final candidate SHA, required regr
 
 ## 4. Current execution order
 
-1. validate this C25.6 documentation-only closure HEAD with exact-SHA C25 + C03;
-2. only after that HEAD is green, begin C25.7 read-only architecture/code audit and the smallest safe Help/manual implementation slice;
-3. resolve locale authority before Help UI/content creates another language state;
-4. implement stable Help IDs + local multilingual content + contextual entry points;
-5. derive Driver and Script reference documentation from shipped implementation;
-6. run C25.7 exact-SHA backend/web/C03 matrix and record closure;
-7. proceed to C25.8 integrated audit/regression;
-8. proceed to C25.9 exact final candidate and explicit acceptance;
-9. only after acceptance, merge into integration and revalidate before any C11 synchronization.
+1. commit/freeze the C25.7 Help architecture plus the corrected locale audit;
+2. exact-SHA validate that documentation-only HEAD with C25 + C03;
+3. implement the Help registry/resolver, local multilingual general topics and Help surface using the existing canonical locale authority;
+4. add contextual entry points and structural/browser validation for topic identity, locale preservation and missing IDs;
+5. generate/project Client Visual Script API reference from the official Script capability authority and document sandbox/lifecycle semantics from shipped contracts;
+6. enrich the canonical driver-owned documentation descriptor/catalog/API so all production Driver reference pages derive from the installed build rather than a handwritten inventory;
+7. add Driver-reference coverage proving the Help Driver inventory equals the build catalog and field-specific Help IDs remain stable across locales;
+8. run C25.7 exact-SHA backend/web/C03 matrix and record closure;
+9. proceed to C25.8 integrated audit/regression;
+10. proceed to C25.9 exact final candidate and explicit acceptance;
+11. only after acceptance, merge into integration and revalidate before any C11 synchronization.
 
 ## 5. Resume protocol
 
@@ -195,7 +222,7 @@ On a new coordinator/chat session:
 1. fetch #282 and PR #283;
 2. revalidate #212, #263 and #266;
 3. fetch current C25 HEAD and exact-SHA workflows;
-4. read this ledger plus the C25.6 closure status;
+4. read this ledger plus the C25.6 closure status and C25.7 Help architecture;
 5. distinguish the latest validated product/test SHA from any later documentation-only HEAD;
-6. continue C25.7 only if the latest documentation closure HEAD is exact-SHA green;
+6. continue C25.7 product mutation only if the latest architecture/documentation HEAD is exact-SHA green;
 7. never reconstruct authority from chat memory when GitHub live can be queried.

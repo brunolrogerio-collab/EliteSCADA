@@ -1,4 +1,6 @@
 using System.Buffers.Binary;
+using System.IO.Compression;
+using System.Text.Json;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
 using Scada.Core.Tags;
@@ -18,6 +20,13 @@ namespace Scada.Core.Tests;
 
 public sealed class ReusableLibraryIncorporationServiceTests
 {
+    private static readonly JsonSerializerOptions Json = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+        WriteIndented = true
+    };
+
     [Fact]
     public void Plan_NewTemplate_ProducesCanonicalCreateWithoutMutatingTarget()
     {
@@ -226,6 +235,169 @@ public sealed class ReusableLibraryIncorporationServiceTests
     }
 
     [Fact]
+    public void Plan_DynamoWithReusableDependencies_IncorporatesCompleteClosure()
+    {
+        var sourceAssets = new InMemoryEngineeringAssetRegistry();
+        var sourceVisual = new InMemoryVisualAssetEngineeringRegistry();
+        var templateId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        var rootId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+
+        sourceAssets.UpsertTemplate(new EquipmentTemplateEngineeringDto(
+            templateId,
+            "template.library.pump",
+            "Library Pump Template"));
+        sourceAssets.UpsertDynamo(new DynamoEngineeringDto(
+            childId,
+            "dynamo.library.child",
+            "Library Child",
+            Elements: [new VisualElementEngineeringDto("body", "core.rectangle")]));
+
+        var payload = VisualAssetPayload.Create("image/bmp", CreateBmp());
+        sourceVisual.PutPayload(payload);
+        sourceVisual.UpsertAsset(new VisualAssetEngineeringDto(
+            assetId,
+            "asset.library.symbol",
+            "Library Symbol",
+            "symbol.bmp",
+            payload.MediaType,
+            payload.ByteLength,
+            payload.Sha256,
+            1,
+            1));
+
+        sourceAssets.UpsertDynamo(new DynamoEngineeringDto(
+            rootId,
+            "dynamo.library.root",
+            "Library Root",
+            TemplateKey: "template.library.pump",
+            Elements:
+            [
+                new VisualElementEngineeringDto(
+                    "child",
+                    "dynamo",
+                    DynamoKey: "dynamo.library.child"),
+                new VisualElementEngineeringDto(
+                    "symbol",
+                    "core.image",
+                    Properties: new Dictionary<string, JsonElement>
+                    {
+                        ["assetRef"] = JsonSerializer.SerializeToElement(new { assetId = $"asset:{assetId:D}" })
+                    })
+            ]));
+
+        var packages = new ReusableLibraryPackageService(sourceAssets, sourceVisual);
+        var bytes = packages.Export(new ReusableLibraryExportRequest(
+            Guid.NewGuid(),
+            "Dynamo Library",
+            "1.0.0",
+            [new(ReusableLibraryResourceKinds.Dynamo, rootId)]));
+        using var target = CreateTarget();
+
+        var plan = target.Incorporation.Plan(
+            bytes,
+            new ReusableLibraryIncorporationSelection(ReusableLibraryResourceKinds.Dynamo, rootId));
+
+        Assert.True(plan.RequiresMutation);
+        Assert.Equal(4, plan.DependencyClosure.Count);
+        Assert.Single(plan.Engineering.Templates!);
+        Assert.Equal(2, plan.Engineering.Dynamos!.Count);
+        Assert.Single(plan.Engineering.VisualAssets!);
+        Assert.Null(target.Assets.FindTemplate(templateId));
+        Assert.Null(target.Assets.FindDynamo(childId));
+        Assert.Null(target.Assets.FindDynamo(rootId));
+        Assert.Null(target.VisualAssets.FindAsset(assetId));
+
+        var result = target.Exchange.Apply(plan.Engineering, ImportMode.CreateOnly, plan.ImportContext);
+
+        Assert.DoesNotContain(result.Issues, issue => issue.IsError);
+        Assert.Equal(4, result.Created);
+        Assert.NotNull(target.Assets.FindTemplate(templateId));
+        Assert.NotNull(target.Assets.FindDynamo(childId));
+        Assert.NotNull(target.Assets.FindDynamo(rootId));
+        Assert.NotNull(target.VisualAssets.FindAsset(assetId));
+        Assert.True(target.VisualAssets.FindPayload(payload.Sha256)!.Content.AsSpan().SequenceEqual(payload.Content));
+    }
+
+    [Fact]
+    public void Plan_DynamoManifestOmittingDerivedDependency_FailsBeforeMutation()
+    {
+        var sourceAssets = new InMemoryEngineeringAssetRegistry();
+        var sourceVisual = new InMemoryVisualAssetEngineeringRegistry();
+        var templateId = Guid.NewGuid();
+        var dynamoId = Guid.NewGuid();
+        sourceAssets.UpsertTemplate(new EquipmentTemplateEngineeringDto(
+            templateId,
+            "template.required",
+            "Required Template"));
+        sourceAssets.UpsertDynamo(new DynamoEngineeringDto(
+            dynamoId,
+            "dynamo.requires-template",
+            "Requires Template",
+            TemplateKey: "template.required"));
+        var packages = new ReusableLibraryPackageService(sourceAssets, sourceVisual);
+        var bytes = packages.Export(new ReusableLibraryExportRequest(
+            Guid.NewGuid(),
+            "Tamper Test",
+            "1.0.0",
+            [new(ReusableLibraryResourceKinds.Dynamo, dynamoId)]));
+        var tampered = RewriteManifest(bytes, manifest => manifest with
+        {
+            Resources = manifest.Resources
+                .Select(resource => resource.ResourceId == dynamoId
+                    ? resource with { Dependencies = Array.Empty<ReusableLibraryDependency>() }
+                    : resource)
+                .ToArray()
+        });
+        using var target = CreateTarget();
+
+        var exception = Assert.Throws<InvalidDataException>(() =>
+            target.Incorporation.Plan(
+                tampered,
+                new ReusableLibraryIncorporationSelection(ReusableLibraryResourceKinds.Dynamo, dynamoId)));
+
+        Assert.Contains("declared reusable dependencies", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(target.Assets.SnapshotTemplates());
+        Assert.Empty(target.Assets.SnapshotDynamos());
+        Assert.Empty(target.VisualAssets.SnapshotAssets());
+    }
+
+    [Fact]
+    public void Plan_DynamoKeyCollisionWithDifferentIdentity_FailsBeforeMutation()
+    {
+        var sourceAssets = new InMemoryEngineeringAssetRegistry();
+        var sourceVisual = new InMemoryVisualAssetEngineeringRegistry();
+        var incomingId = Guid.NewGuid();
+        sourceAssets.UpsertDynamo(new DynamoEngineeringDto(
+            incomingId,
+            "dynamo.collision",
+            "Library Dynamo"));
+        var packages = new ReusableLibraryPackageService(sourceAssets, sourceVisual);
+        var bytes = packages.Export(new ReusableLibraryExportRequest(
+            Guid.NewGuid(),
+            "Collision Library",
+            "1.0.0",
+            [new(ReusableLibraryResourceKinds.Dynamo, incomingId)]));
+        using var target = CreateTarget();
+        var existingId = Guid.NewGuid();
+        target.Assets.UpsertDynamo(new DynamoEngineeringDto(
+            existingId,
+            "dynamo.collision",
+            "Project Dynamo"));
+
+        var exception = Assert.Throws<ReusableLibraryIncorporationConflictException>(() =>
+            target.Incorporation.Plan(
+                bytes,
+                new ReusableLibraryIncorporationSelection(ReusableLibraryResourceKinds.Dynamo, incomingId)));
+
+        Assert.Equal(incomingId, exception.ResourceId);
+        Assert.Equal("stable ID/key collision", exception.Reason);
+        Assert.Equal(existingId, target.Assets.FindDynamoByKey("dynamo.collision")!.Id);
+        Assert.Null(target.Assets.FindDynamo(incomingId));
+    }
+
+    [Fact]
     public void Plan_UnknownSelectedResource_FailsWithoutProjectMutation()
     {
         var templateId = Guid.NewGuid();
@@ -257,6 +429,36 @@ public sealed class ReusableLibraryIncorporationServiceTests
             "1.0.0",
             [new(ReusableLibraryResourceKinds.EquipmentTemplate, template.Id!.Value)]));
         return (bytes, package.Inspect(bytes));
+    }
+
+    private static byte[] RewriteManifest(
+        byte[] packageBytes,
+        Func<ReusableLibraryManifest, ReusableLibraryManifest> transform)
+    {
+        using var input = new MemoryStream(packageBytes);
+        using var source = new ZipArchive(input, ZipArchiveMode.Read, leaveOpen: true);
+        using var output = new MemoryStream();
+        using (var target = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var entry in source.Entries)
+            {
+                using var sourceStream = entry.Open();
+                using var buffer = new MemoryStream();
+                sourceStream.CopyTo(buffer);
+                var content = buffer.ToArray();
+                if (entry.FullName == ReusableLibraryPackageService.ManifestPath)
+                {
+                    var manifest = JsonSerializer.Deserialize<ReusableLibraryManifest>(content, Json)!;
+                    content = JsonSerializer.SerializeToUtf8Bytes(transform(manifest), Json);
+                }
+
+                var targetEntry = target.CreateEntry(entry.FullName);
+                using var targetStream = targetEntry.Open();
+                targetStream.Write(content, 0, content.Length);
+            }
+        }
+
+        return output.ToArray();
     }
 
     private static TargetHarness CreateTarget()

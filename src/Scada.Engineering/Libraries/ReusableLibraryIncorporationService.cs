@@ -4,6 +4,7 @@ using System.Text.Json;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.Scripts;
 using Scada.Engineering.VisualAssets;
 
 namespace Scada.Engineering.Libraries;
@@ -51,6 +52,7 @@ public sealed class ReusableLibraryIncorporationService
     {
         ReusableLibraryResourceKinds.EquipmentTemplate,
         ReusableLibraryResourceKinds.Dynamo,
+        ReusableLibraryResourceKinds.Script,
         ReusableLibraryResourceKinds.VisualAsset
     };
 
@@ -58,6 +60,7 @@ public sealed class ReusableLibraryIncorporationService
     private readonly IEngineeringAssetRegistry _assets;
     private readonly IVisualAssetEngineeringRegistry _visualAssets;
     private readonly IEngineeringExchangeService _exchange;
+    private readonly IScriptEngineeringRegistry? _scripts;
     private readonly JsonSerializerOptions _json = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -69,12 +72,14 @@ public sealed class ReusableLibraryIncorporationService
         IReusableLibraryPackageService packages,
         IEngineeringAssetRegistry assets,
         IVisualAssetEngineeringRegistry visualAssets,
-        IEngineeringExchangeService exchange)
+        IEngineeringExchangeService exchange,
+        IScriptEngineeringRegistry? scripts = null)
     {
         _packages = packages;
         _assets = assets;
         _visualAssets = visualAssets;
         _exchange = exchange;
+        _scripts = scripts;
     }
 
     public ReusableLibraryIncorporationPlan Plan(
@@ -95,6 +100,7 @@ public sealed class ReusableLibraryIncorporationService
 
         var templates = new List<EquipmentTemplateEngineeringDto>();
         var dynamos = new List<DynamoEngineeringDto>();
+        var scripts = new List<ScriptEngineeringDefinition>();
         var visualAssets = new List<VisualAssetEngineeringDto>();
         var visualPayloads = new Dictionary<string, VisualAssetPayload>(StringComparer.OrdinalIgnoreCase);
         var deduplicated = 0;
@@ -155,6 +161,31 @@ public sealed class ReusableLibraryIncorporationService
                     }
                     break;
                 }
+                case ReusableLibraryResourceKinds.Script:
+                {
+                    _ = _scripts
+                        ?? throw new InvalidDataException(
+                            "Reusable Script incorporation requires the canonical Working Script registry.");
+                    var script = Deserialize<ScriptEngineeringDefinition>(payloadBytes, resource);
+                    ReusableScriptDependencyAnalyzer.ValidateDeclaredDependencies(
+                        script,
+                        resource,
+                        inspection.Manifest);
+                    if (ShouldCreateScript(resource, script))
+                    {
+                        scripts.Add(ReusableScriptDependencyAnalyzer.WithMetadata(
+                            script,
+                            ReusableLibraryProvenance.Stamp(
+                                script.Metadata,
+                                inspection.Manifest,
+                                resource)));
+                    }
+                    else
+                    {
+                        deduplicated++;
+                    }
+                    break;
+                }
                 case ReusableLibraryResourceKinds.VisualAsset:
                 {
                     RequireNoDependencies(resource);
@@ -202,6 +233,7 @@ public sealed class ReusableLibraryIncorporationService
             Array.Empty<AlarmEngineeringDto>(),
             Templates: templates,
             Dynamos: dynamos,
+            Scripts: scripts,
             VisualAssets: visualAssets);
         var context = new EngineeringImportContext(visualPayloads);
         var preview = _exchange.Preview(package, ImportMode.CreateOnly, context);
@@ -304,6 +336,31 @@ public sealed class ReusableLibraryIncorporationService
         if (!SemanticEquals(
                 byId with { Metadata = ReusableLibraryProvenance.WithoutOrigin(byId.Metadata) },
                 incoming with { Metadata = ReusableLibraryProvenance.WithoutOrigin(incoming.Metadata) }))
+            throw Conflict(resource, "same identity has different canonical content");
+        return false;
+    }
+
+    private bool ShouldCreateScript(
+        ReusableLibraryResourceEntry resource,
+        ScriptEngineeringDefinition incoming)
+    {
+        var registry = _scripts
+            ?? throw new InvalidDataException(
+                "Reusable Script incorporation requires the canonical Working Script registry.");
+        var byId = registry.Find(resource.ResourceId);
+        var byPath = registry.FindByPath(incoming.Path);
+        if (byId is null && byPath is null) return true;
+
+        if (byId is null || byPath is null || byId.Id != incoming.Id || byPath.Id != incoming.Id)
+            throw Conflict(resource, "stable ID/path collision");
+
+        var existingComparable = ReusableScriptDependencyAnalyzer.WithMetadata(
+            byId,
+            ReusableLibraryProvenance.WithoutOrigin(byId.Metadata));
+        var incomingComparable = ReusableScriptDependencyAnalyzer.WithMetadata(
+            incoming,
+            ReusableLibraryProvenance.WithoutOrigin(incoming.Metadata));
+        if (!SemanticEquals(existingComparable, incomingComparable))
             throw Conflict(resource, "same identity has different canonical content");
         return false;
     }

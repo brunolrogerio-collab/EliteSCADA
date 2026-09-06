@@ -89,6 +89,15 @@ public sealed class ReusableLibraryIncorporationService
         var inspection = _packages.Inspect(libraryBytes);
         var closure = ResolveClosure(inspection.Manifest, selection);
 
+        // C25.6's first mutating slice is intentionally limited to the two canonical
+        // resource kinds that currently export with no declared library dependencies.
+        // The generic resolver above remains ready for later dynamos/views/scripts, but
+        // accepting synthetic dependency edges here would enlarge one logical mutation
+        // before atomic closure application has been proven for those richer kinds.
+        if (closure.Any(resource => (resource.Dependencies?.Count ?? 0) != 0))
+            throw new InvalidDataException(
+                "Declared reusable-resource dependencies are not incorporation-enabled in the initial template/raster slice.");
+
         using var input = new MemoryStream(libraryBytes.ToArray(), writable: false);
         using var archive = new ZipArchive(input, ZipArchiveMode.Read, leaveOpen: false);
 

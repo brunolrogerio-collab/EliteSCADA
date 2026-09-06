@@ -265,8 +265,9 @@ public sealed class ReusableLibraryScriptTests
 
         using var input = new MemoryStream(bytes);
         using var archive = new ZipArchive(input, ZipArchiveMode.Read);
-        var entry = Assert.NotNull(archive.GetEntry(resource.PayloadPath));
-        using var stream = entry.Open();
+        var entry = archive.GetEntry(resource.PayloadPath);
+        Assert.NotNull(entry);
+        using var stream = entry!.Open();
         var exported = JsonSerializer.Deserialize<ScriptEngineeringDefinition>(stream, Json);
         Assert.NotNull(exported);
         Assert.Equal("engineering", exported!.Metadata["owner"]);

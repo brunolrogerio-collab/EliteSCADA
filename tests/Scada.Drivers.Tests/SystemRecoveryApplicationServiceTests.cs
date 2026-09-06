@@ -9,7 +9,6 @@ using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.ProjectPackages;
 using Scada.Engineering.Reports;
-using Scada.Engineering.Security;
 using Scada.Security.Authentication;
 using Scada.Security.Authorization;
 
@@ -57,6 +56,7 @@ public sealed class SystemRecoveryApplicationServiceTests
         Assert.False(preview.CanApply);
         Assert.NotNull(preview.CurrentUserAdmission);
         Assert.False(preview.CurrentUserAdmission!.Allowed);
+        Assert.False(preview.CurrentUserAdmission.BootstrapAuthority);
         Assert.Contains("bootstrap", preview.CurrentUserAdmission.Reason, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -239,12 +239,11 @@ public sealed class SystemRecoveryApplicationServiceTests
                 new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringModify),
                 new CapabilityGrantEngineeringDto(SecurityCapability.UserRoleAdmin)
             ]));
-        source.Tags.Register(new Scada.Core.Tags.TagDefinition(
-            Guid.Parse("94000000-0000-0000-0000-000000000003"),
+        source.Tags.Register(Scada.Core.Tags.TagDefinition.Create(
             "Orphan",
             "Plant.Orphan",
             Scada.Core.Tags.TagDataType.Double,
-            Source: "missing.datasource"));
+            "missing.datasource"));
         var exchange = CreateExchange(source, gateways, reports);
         return new ProjectPackageService(exchange, source.VisualAssets).Export(projectKey, projectName);
     }
@@ -298,11 +297,12 @@ public sealed class SystemRecoveryApplicationServiceTests
                 cancellationToken);
             var lifecycle = await persistence.GetLifecycleAsync(projectKey, cancellationToken);
             var runtime = new Scada.DriverHost.Runtime.RuntimeActivationResult(
-                true,
                 snapshot.ProjectKey,
                 snapshot.Revision,
+                true,
+                Array.Empty<Scada.DriverHost.Engineering.EngineeringDriverIssue>(),
                 Array.Empty<Scada.DriverHost.Runtime.RuntimeActivationIssue>(),
-                Array.Empty<Scada.DriverHost.Runtime.RuntimeActivationIssue>());
+                DateTimeOffset.UtcNow);
             return new PublishedRuntimeActivationOutcome(snapshot, runtime, activation, lifecycle);
         }
     }

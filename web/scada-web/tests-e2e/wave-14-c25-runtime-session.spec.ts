@@ -126,6 +126,34 @@ async function installSessionContract(
   };
 }
 
+async function installEngineeringRuntimeProjection(page: Page) {
+  await page.route('**/api/runtime/application', route => route.fulfill({
+    json: {
+      mode: 'engineering',
+      projectKey: 'c25-session-runtime',
+      projectName: 'C25 Session Runtime',
+      revision: 7,
+      activatedAtUtc: '2026-09-06T12:00:00Z',
+      package: {
+        schema: 'elitescada.hmi',
+        schemaVersion: 1,
+        startupScreenId: 'screen-home-id',
+        screens: [{
+          id: 'screen-home-id',
+          key: 'home',
+          name: 'Home',
+          elements: []
+        }],
+        popups: [],
+        dynamos: [],
+        scripts: [],
+        scriptVisualEventReferences: [],
+        visualAssets: []
+      }
+    }
+  }));
+}
+
 test('external identity does not expose local switch-user even when local login is enabled', async ({ page }) => {
   await installSessionContract(page, externalDeveloper);
 
@@ -195,6 +223,25 @@ test('switch-user invalidates first, blocks the shell until login, then reloads 
   expect(contract.runtimeCapabilityRequests).toBeGreaterThanOrEqual(2);
 });
 
+test('fullscreen Runtime keeps the system-owned session controls reachable', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+
+  await page.goto('/');
+  const runtime = page.getByTestId('runtime-engineering-application');
+  await expect(runtime).toBeVisible();
+
+  await runtime.getByRole('button', { name: 'Tela cheia' }).click();
+  await expect(runtime).toHaveAttribute('data-runtime-fullscreen', 'true');
+
+  const runtimeSession = runtime.getByTestId('session-menu-toggle');
+  await expect(runtimeSession).toBeVisible();
+  await expect(runtimeSession).toContainText('Administrador Local');
+  await runtimeSession.click();
+  await expect(runtime.getByTestId('session-switch-user')).toBeVisible();
+  await expect(runtime.getByTestId('session-logout')).toBeVisible();
+});
+
 test('successful sign-out removes the current client authority only after server invalidation succeeds', async ({ page }) => {
   const contract = await installSessionContract(page, administrator);
 
@@ -206,4 +253,4 @@ test('successful sign-out removes the current client authority only after server
   await expect(page.getByTestId('session-menu-toggle')).toHaveCount(0);
   await expect(page.locator('input[name="username"]')).toBeVisible();
   expect(contract.logoutRequests).toBe(1);
-} );
+});

@@ -141,14 +141,16 @@ public sealed class AuthorityBackupService
         var envelope = ParseEnvelope(envelopeJson);
         ValidateEnvelopeContract(envelope);
 
-        var salt = DecodeBase64(envelope.Kdf.SaltBase64, KdfSaltSize, "Authority backup KDF salt");
-        var nonce = DecodeBase64(envelope.Encryption.NonceBase64, NonceSize, "Authority backup nonce");
-        var tag = DecodeBase64(envelope.Encryption.TagBase64, TagSize, "Authority backup authentication tag");
+        var kdf = envelope.Kdf!;
+        var encryption = envelope.Encryption!;
+        var salt = DecodeBase64(kdf.SaltBase64, KdfSaltSize, "Authority backup KDF salt");
+        var nonce = DecodeBase64(encryption.NonceBase64, NonceSize, "Authority backup nonce");
+        var tag = DecodeBase64(encryption.TagBase64, TagSize, "Authority backup authentication tag");
         var ciphertext = DecodeBase64(envelope.CiphertextBase64, expectedLength: null, "Authority backup ciphertext");
         if (ciphertext.Length == 0)
             throw new InvalidDataException("Authority backup ciphertext is empty.");
 
-        var key = DeriveBackupKey(backupPassword, salt, envelope.Kdf.Iterations);
+        var key = DeriveBackupKey(backupPassword, salt, kdf.Iterations);
         var plaintext = new byte[ciphertext.Length];
         try
         {
@@ -156,8 +158,8 @@ public sealed class AuthorityBackupService
                 envelope.Format,
                 envelope.FormatVersion,
                 envelope.CreatedAtUtc,
-                envelope.Kdf,
-                envelope.Encryption with { TagBase64 = string.Empty });
+                kdf,
+                encryption with { TagBase64 = string.Empty });
 
             try
             {
@@ -183,7 +185,7 @@ public sealed class AuthorityBackupService
             }
 
             ValidatePayloadContract(payload, envelope);
-            var accounts = ValidateAndCopyAccounts(payload.Users.Select(FromPayloadUser));
+            var accounts = ValidateAndCopyAccounts(payload.Users!.Select(FromPayloadUser));
             var summaries = accounts.Select(account => new AuthorityBackupUserSummary(
                 account.Id,
                 account.Username,
@@ -227,7 +229,8 @@ public sealed class AuthorityBackupService
         ArgumentNullException.ThrowIfNull(accounts);
         var result = accounts.Select(account =>
         {
-            ArgumentNullException.ThrowIfNull(account);
+            if (account is null)
+                throw new InvalidDataException("Authority backup contains a null local identity.");
             return ValidateAndCopyAccount(account);
         }).ToArray();
 
@@ -270,9 +273,21 @@ public sealed class AuthorityBackupService
             throw new InvalidDataException("Authority backup display name is invalid.");
         if (account.CreatedAtUtc == default || account.UpdatedAtUtc == default || account.UpdatedAtUtc < account.CreatedAtUtc)
             throw new InvalidDataException("Authority backup local user timestamps are invalid.");
+        if (account.Credential is null)
+            throw new InvalidDataException("Authority backup password credential is missing.");
 
-        var roles = LocalIdentityNormalization.NormalizeRoles(account.Roles);
-        if (account.Credential.Iterations < 100_000 || account.Credential.Salt.Length < 16 || account.Credential.Hash.Length != 32)
+        IReadOnlyCollection<string> roles;
+        try
+        {
+            roles = LocalIdentityNormalization.NormalizeRoles(account.Roles ?? Array.Empty<string>());
+        }
+        catch (ArgumentException exception)
+        {
+            throw new InvalidDataException("Authority backup role assignments are invalid.", exception);
+        }
+
+        if (account.Credential.Iterations < 100_000 || account.Credential.Salt is null ||
+            account.Credential.Hash is null || account.Credential.Salt.Length < 16 || account.Credential.Hash.Length != 32)
             throw new InvalidDataException("Authority backup password credential metadata is invalid.");
 
         return account with
@@ -315,11 +330,15 @@ public sealed class AuthorityBackupService
             throw new InvalidDataException($"Unsupported Authority backup format version {envelope.FormatVersion}.");
         if (envelope.CreatedAtUtc == default)
             throw new InvalidDataException("Authority backup creation timestamp is required.");
+        if (envelope.Kdf is null)
+            throw new InvalidDataException("Authority backup password KDF metadata is missing.");
+        if (envelope.Encryption is null)
+            throw new InvalidDataException("Authority backup encryption metadata is missing.");
         if (!string.Equals(envelope.Kdf.Algorithm, PasswordKdfAlgorithm, StringComparison.Ordinal) ||
             envelope.Kdf.Version != PasswordKdfVersion)
             throw new InvalidDataException("Unsupported Authority backup password KDF.");
-        if (envelope.Kdf.Iterations < PasswordKdfIterations)
-            throw new InvalidDataException("Authority backup password KDF parameters are below the supported security floor.");
+        if (envelope.Kdf.Iterations != PasswordKdfIterations)
+            throw new InvalidDataException("Unsupported Authority backup password KDF parameters for format v1.");
         if (!string.Equals(envelope.Encryption.Algorithm, EncryptionAlgorithm, StringComparison.Ordinal) ||
             envelope.Encryption.Version != EncryptionVersion)
             throw new InvalidDataException("Unsupported Authority backup encryption algorithm.");
@@ -353,8 +372,12 @@ public sealed class AuthorityBackupService
         account.CreatedAtUtc,
         account.UpdatedAtUtc);
 
-    private static LocalUserAccount FromPayloadUser(AuthorityBackupUserPayload user)
+    private static LocalUserAccount FromPayloadUser(AuthorityBackupUserPayload? user)
     {
+        if (user is null)
+            throw new InvalidDataException("Authority backup payload contains a null local identity.");
+        if (user.Credential is null)
+            throw new InvalidDataException("Authority backup payload password credential is missing.");
         if (!string.Equals(user.Credential.Algorithm, PasswordCredentialAlgorithm, StringComparison.Ordinal) ||
             user.Credential.Version != PasswordCredentialAlgorithmVersion)
             throw new InvalidDataException("Unsupported local password credential algorithm in Authority backup.");
@@ -400,7 +423,7 @@ public sealed class AuthorityBackupService
             encryption.Version.ToString(System.Globalization.CultureInfo.InvariantCulture),
             encryption.NonceBase64));
 
-    private static byte[] DecodeBase64(string value, int? expectedLength, string field)
+    private static byte[] DecodeBase64(string? value, int? expectedLength, string field)
     {
         if (string.IsNullOrWhiteSpace(value))
             throw new InvalidDataException($"{field} is required.");
@@ -424,7 +447,7 @@ public sealed class AuthorityBackupService
         string Schema,
         int SchemaVersion,
         DateTimeOffset ExportedAtUtc,
-        IReadOnlyCollection<AuthorityBackupUserPayload> Users);
+        IReadOnlyCollection<AuthorityBackupUserPayload?>? Users);
 
     private sealed record AuthorityBackupUserPayload(
         Guid Id,
@@ -432,8 +455,8 @@ public sealed class AuthorityBackupService
         string NormalizedUsername,
         string DisplayName,
         bool IsEnabled,
-        IReadOnlyCollection<string> Roles,
-        AuthorityBackupPasswordCredentialPayload Credential,
+        IReadOnlyCollection<string>? Roles,
+        AuthorityBackupPasswordCredentialPayload? Credential,
         DateTimeOffset CreatedAtUtc,
         DateTimeOffset UpdatedAtUtc);
 

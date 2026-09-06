@@ -6,9 +6,10 @@ using Scada.Engineering.VisualAssets;
 namespace Scada.Engineering.Libraries;
 
 /// <summary>
-/// One reusable-Dynamo dependency authority shared by export and incorporation.
-/// It derives only reusable-resource dependencies and rejects project-bound state
-/// that would otherwise create an invisible dependency on the source project.
+/// Reusable-Dynamo dependency authority for canonical Dynamo composition v1.
+/// It derives only resource dependencies that are already valid in the shipped
+/// Engineering contract and rejects project-bound or unsupported composition
+/// instead of weakening canonical validation for library reuse.
 /// </summary>
 public static class ReusableDynamoDependencyAnalyzer
 {
@@ -34,18 +35,6 @@ public static class ReusableDynamoDependencyAnalyzer
                 return new ReusableLibraryDependency(
                     ReusableLibraryResourceKinds.EquipmentTemplate,
                     template.Id.Value);
-            },
-            dynamoKey =>
-            {
-                var nested = assets.FindDynamoByKey(dynamoKey)
-                    ?? throw new InvalidDataException(
-                        $"Dynamo '{dynamo.Key}' references nested Dynamo '{dynamoKey}', which was not found in Working.");
-                if (!nested.Id.HasValue || nested.Id == Guid.Empty)
-                    throw new InvalidDataException(
-                        $"Dynamo '{dynamo.Key}' nested Dynamo dependency '{dynamoKey}' does not have stable identity.");
-                return new ReusableLibraryDependency(
-                    ReusableLibraryResourceKinds.Dynamo,
-                    nested.Id.Value);
             },
             assetId =>
             {
@@ -109,11 +98,6 @@ public static class ReusableDynamoDependencyAnalyzer
                 var resource = ResolveByKey(ReusableLibraryResourceKinds.EquipmentTemplate, templateKey);
                 return new ReusableLibraryDependency(resource.Kind, resource.ResourceId);
             },
-            dynamoKey =>
-            {
-                var resource = ResolveByKey(ReusableLibraryResourceKinds.Dynamo, dynamoKey);
-                return new ReusableLibraryDependency(resource.Kind, resource.ResourceId);
-            },
             assetId =>
             {
                 var resource = ResolveById(ReusableLibraryResourceKinds.VisualAsset, assetId);
@@ -141,7 +125,6 @@ public static class ReusableDynamoDependencyAnalyzer
     private static IReadOnlyCollection<ReusableLibraryDependency> Analyze(
         DynamoEngineeringDto dynamo,
         Func<string, ReusableLibraryDependency> resolveTemplate,
-        Func<string, ReusableLibraryDependency> resolveDynamo,
         Func<Guid, ReusableLibraryDependency> resolveAsset)
     {
         var dependencies = new Dictionary<(string Kind, Guid ResourceId), ReusableLibraryDependency>();
@@ -161,7 +144,6 @@ public static class ReusableDynamoDependencyAnalyzer
             dynamo.Key,
             dynamo.Elements,
             dependencies,
-            resolveDynamo,
             resolveAsset);
 
         return dependencies.Values
@@ -174,7 +156,6 @@ public static class ReusableDynamoDependencyAnalyzer
         string ownerKey,
         IReadOnlyCollection<VisualElementEngineeringDto>? elements,
         IDictionary<(string Kind, Guid ResourceId), ReusableLibraryDependency> dependencies,
-        Func<string, ReusableLibraryDependency> resolveDynamo,
         Func<Guid, ReusableLibraryDependency> resolveAsset)
     {
         foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
@@ -201,7 +182,8 @@ public static class ReusableDynamoDependencyAnalyzer
                     $"Dynamo '{ownerKey}' element '{element.Key}' contains navigation/command actions. Action target dependencies are not reusable-library enabled in the Dynamo slice yet.");
 
             if (!string.IsNullOrWhiteSpace(element.DynamoKey))
-                Add(dependencies, resolveDynamo(element.DynamoKey));
+                throw new InvalidDataException(
+                    $"Dynamo '{ownerKey}' element '{element.Key}' nests Dynamo '{element.DynamoKey}'. Canonical Dynamo composition version 1 does not support nested Dynamos, so reusable libraries cannot enable that composition implicitly.");
 
             if (string.Equals(element.Type, "core.image", StringComparison.Ordinal) &&
                 element.Properties is not null &&
@@ -211,7 +193,7 @@ public static class ReusableDynamoDependencyAnalyzer
                 Add(dependencies, resolveAsset(ParseVisualAssetReference(assetReference, ownerKey, element.Key)));
             }
 
-            AnalyzeElements(ownerKey, element.Children, dependencies, resolveDynamo, resolveAsset);
+            AnalyzeElements(ownerKey, element.Children, dependencies, resolveAsset);
         }
     }
 
@@ -292,7 +274,7 @@ public static class ReusableDynamoDependencyAnalyzer
             !properties[0].NameEquals("assetId") ||
             properties[0].Value.ValueKind != JsonValueKind.String)
             throw new InvalidDataException(
-                $"Dynamo '{ownerKey}' element '{elementKey}' assetRef must contain only the canonical assetId field.");
+                $"Dynamo '{ownerKey}' element '{element.Key}' assetRef must contain only the canonical assetId field.");
 
         var value = properties[0].Value.GetString();
         if (string.IsNullOrWhiteSpace(value))

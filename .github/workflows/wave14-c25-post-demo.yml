@@ -9,6 +9,7 @@ on:
       - "src/Scada.Api/**"
       - "src/Scada.Engineering/**"
       - "src/Scada.Security/**"
+      - "src/Scada.Persistence.PostgreSql/**"
       - "tests/Scada.Core.Tests/**"
       - "tests/Scada.Drivers.Tests/**"
       - "web/scada-web/**"
@@ -21,6 +22,7 @@ on:
       - "src/Scada.Api/**"
       - "src/Scada.Engineering/**"
       - "src/Scada.Security/**"
+      - "src/Scada.Persistence.PostgreSql/**"
       - "tests/Scada.Core.Tests/**"
       - "tests/Scada.Drivers.Tests/**"
       - "web/scada-web/**"
@@ -39,6 +41,23 @@ jobs:
     name: C25 security backend contract
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_c25_security
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_c25_security"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ELITESCADA_C25_POSTGRES: 'Host=127.0.0.1;Port=5432;Database=elitescada_c25_security;Username=postgres;Password=postgres;Pooling=false'
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -68,6 +87,9 @@ jobs:
 
       - name: Run Authority backup crypto and validation tests
         run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~AuthorityBackupServiceTests" --verbosity normal
+
+      - name: Run atomic Authority store replacement tests
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~LocalIdentityStoreReplaceTests" --verbosity normal
 
   engineering-lock-web:
     name: Engineering Lock web contract

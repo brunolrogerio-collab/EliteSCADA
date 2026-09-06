@@ -23,23 +23,11 @@ export class ProjectPortabilityApiError extends Error {
 }
 
 export async function loadProjectPortabilityContext(): Promise<ProjectPortabilityContext> {
-  const [workspace, canonical] = await Promise.all([
-    requestJson<ProjectPortabilityWorkspace>('/api/engineering/workspace'),
-    requestJson<{ schema: string; schemaVersion: number; exportedAt?: string | null }>('/api/engineering/export/json')
-  ]);
-
-  return {
-    workspace,
-    canonical: {
-      schema: canonical.schema,
-      schemaVersion: canonical.schemaVersion,
-      exportedAt: canonical.exportedAt ?? null
-    }
-  };
+  return await requestJson<ProjectPortabilityContext>('/api/engineering/lock/administration-context');
 }
 
 export async function loadProjectPortabilityWorkspace(): Promise<ProjectPortabilityWorkspace> {
-  return await requestJson<ProjectPortabilityWorkspace>('/api/engineering/workspace');
+  return (await loadProjectPortabilityContext()).workspace;
 }
 
 export async function exportCanonicalEngineeringJson(): Promise<ProjectPortabilityDownload> {

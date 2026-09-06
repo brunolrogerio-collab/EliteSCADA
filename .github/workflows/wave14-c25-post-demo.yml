@@ -144,9 +144,9 @@ jobs:
         working-directory: web/scada-web
         run: npx playwright install --with-deps chromium
 
-      - name: Run C25 Engineering Lock browser tests
+      - name: Run C25 Engineering Lock and Restore-first browser tests
         working-directory: web/scada-web
-        run: npx playwright test tests-e2e/wave-14-c25-engineering-lock.spec.ts --project=chromium --no-deps
+        run: npx playwright test tests-e2e/wave-14-c25-engineering-lock.spec.ts tests-e2e/wave-14-c25-restore-first.spec.ts --project=chromium --no-deps
 
       - name: Upload C25 Playwright report
         if: always()

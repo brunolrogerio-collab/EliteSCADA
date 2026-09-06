@@ -33,6 +33,7 @@ public static class ReusableLibraryResourceKinds
     {
         EquipmentTemplate,
         Dynamo,
+        Script,
         VisualAsset
     };
 }
@@ -97,6 +98,7 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     private readonly IEngineeringAssetRegistry _assets;
     private readonly IVisualAssetEngineeringRegistry _visualAssets;
+    private readonly IScriptEngineeringRegistry? _scripts;
     private readonly JsonSerializerOptions _json = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -106,10 +108,12 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
 
     public ReusableLibraryPackageService(
         IEngineeringAssetRegistry assets,
-        IVisualAssetEngineeringRegistry visualAssets)
+        IVisualAssetEngineeringRegistry visualAssets,
+        IScriptEngineeringRegistry? scripts = null)
     {
         _assets = assets;
         _visualAssets = visualAssets;
+        _scripts = scripts;
     }
 
     public byte[] Export(ReusableLibraryExportRequest request)
@@ -253,6 +257,7 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
         {
             ReusableLibraryResourceKinds.EquipmentTemplate => ExportTemplate(selection.ResourceId, files),
             ReusableLibraryResourceKinds.Dynamo => ExportDynamo(selection.ResourceId, files),
+            ReusableLibraryResourceKinds.Script => ExportScript(selection.ResourceId, files),
             ReusableLibraryResourceKinds.VisualAsset => ExportVisualAsset(selection.ResourceId, files),
             _ => throw new InvalidDataException($"Unsupported reusable resource kind '{selection.Kind}'.")
         };
@@ -272,7 +277,7 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
             resourceId,
             template.Key,
             template.Name,
-            template,
+            template with { Metadata = ReusableLibraryProvenance.WithoutOrigin(template.Metadata) },
             Array.Empty<ReusableLibraryDependency>(),
             files);
     }
@@ -296,11 +301,37 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
             resourceId,
             dynamo.Key,
             dynamo.Name,
-            dynamo,
+            dynamo with { Metadata = ReusableLibraryProvenance.WithoutOrigin(dynamo.Metadata) },
             dependencies
                 .OrderBy(x => x.Kind, StringComparer.Ordinal)
                 .ThenBy(x => x.ResourceId)
                 .ToArray(),
+            files);
+    }
+
+    private ReusableLibraryResourceEntry ExportScript(
+        Guid resourceId,
+        IDictionary<string, (ReusableLibraryFileEntry Entry, byte[] Bytes)> files)
+    {
+        var scripts = _scripts
+            ?? throw new InvalidDataException("Reusable Script export requires the canonical Working Script registry.");
+        var script = scripts.Find(resourceId)
+            ?? throw new InvalidDataException($"Script '{resourceId:D}' was not found in Working.");
+        if (script.Id != resourceId)
+            throw new InvalidDataException("Script stable identity is inconsistent.");
+
+        var dependencies = ReusableScriptDependencyAnalyzer.AnalyzeWorking(script, scripts);
+        var exportValue = ReusableScriptDependencyAnalyzer.WithMetadata(
+            script,
+            ReusableLibraryProvenance.WithoutOrigin(script.Metadata));
+
+        return AddJsonResource(
+            ReusableLibraryResourceKinds.Script,
+            resourceId,
+            script.Path,
+            script.Name,
+            exportValue,
+            dependencies,
             files);
     }
 
@@ -331,7 +362,7 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
             resourceId,
             asset.Key,
             asset.Name,
-            asset,
+            asset with { Metadata = ReusableLibraryProvenance.WithoutOrigin(asset.Metadata) },
             Array.Empty<ReusableLibraryDependency>(),
             files);
     }
@@ -491,6 +522,12 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
             ValidateCanonicalResource(resource, verifiedFiles[resource.PayloadPath], manifest, verifiedFiles, referencedFiles);
         }
 
+        var reusableScripts = manifest.Resources
+            .Where(resource => resource.Kind == ReusableLibraryResourceKinds.Script)
+            .Select(resource => Deserialize<ScriptEngineeringDefinition>(verifiedFiles[resource.PayloadPath], resource))
+            .ToArray();
+        ReusableScriptDependencyAnalyzer.ValidateLibraryModel(reusableScripts);
+
         var orphan = manifest.Files.FirstOrDefault(x => !referencedFiles.Contains(x.Path));
         if (orphan is not null)
             throw new InvalidDataException($"Reusable library file '{orphan.Path}' is not owned by any declared resource.");
@@ -535,6 +572,7 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
                 {
                     var value = Deserialize<ScriptEngineeringDefinition>(bytes, resource);
                     ValidateIdentity(resource, value.Id, value.Path, value.Name);
+                    ReusableScriptDependencyAnalyzer.ValidateDeclaredDependencies(value, resource, manifest);
                     break;
                 }
                 case ReusableLibraryResourceKinds.VisualAsset:

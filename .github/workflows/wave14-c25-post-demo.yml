@@ -88,6 +88,9 @@ jobs:
       - name: Run Authority backup crypto and validation tests
         run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~AuthorityBackupServiceTests" --verbosity normal
 
+      - name: Run System Recovery backend contract tests
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~SystemRecovery" --verbosity normal
+
       - name: Run atomic Authority store replacement tests
         run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~LocalIdentityStoreReplaceTests" --verbosity normal
 

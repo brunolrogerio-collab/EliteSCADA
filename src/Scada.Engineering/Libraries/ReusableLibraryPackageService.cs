@@ -6,6 +6,7 @@ using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Scripts;
+using Scada.Engineering.Views;
 using Scada.Engineering.VisualAssets;
 
 namespace Scada.Engineering.Libraries;
@@ -33,6 +34,8 @@ public static class ReusableLibraryResourceKinds
     {
         EquipmentTemplate,
         Dynamo,
+        Screen,
+        Popup,
         Script,
         VisualAsset
     };
@@ -99,6 +102,7 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
     private readonly IEngineeringAssetRegistry _assets;
     private readonly IVisualAssetEngineeringRegistry _visualAssets;
     private readonly IScriptEngineeringRegistry? _scripts;
+    private readonly IEngineeringViewRegistry? _views;
     private readonly JsonSerializerOptions _json = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -109,11 +113,13 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
     public ReusableLibraryPackageService(
         IEngineeringAssetRegistry assets,
         IVisualAssetEngineeringRegistry visualAssets,
-        IScriptEngineeringRegistry? scripts = null)
+        IScriptEngineeringRegistry? scripts = null,
+        IEngineeringViewRegistry? views = null)
     {
         _assets = assets;
         _visualAssets = visualAssets;
         _scripts = scripts;
+        _views = views;
     }
 
     public byte[] Export(ReusableLibraryExportRequest request)
@@ -257,6 +263,8 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
         {
             ReusableLibraryResourceKinds.EquipmentTemplate => ExportTemplate(selection.ResourceId, files),
             ReusableLibraryResourceKinds.Dynamo => ExportDynamo(selection.ResourceId, files),
+            ReusableLibraryResourceKinds.Screen => ExportScreen(selection.ResourceId, files),
+            ReusableLibraryResourceKinds.Popup => ExportPopup(selection.ResourceId, files),
             ReusableLibraryResourceKinds.Script => ExportScript(selection.ResourceId, files),
             ReusableLibraryResourceKinds.VisualAsset => ExportVisualAsset(selection.ResourceId, files),
             _ => throw new InvalidDataException($"Unsupported reusable resource kind '{selection.Kind}'.")
@@ -306,6 +314,60 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
                 .OrderBy(x => x.Kind, StringComparer.Ordinal)
                 .ThenBy(x => x.ResourceId)
                 .ToArray(),
+            files);
+    }
+
+    private ReusableLibraryResourceEntry ExportScreen(
+        Guid resourceId,
+        IDictionary<string, (ReusableLibraryFileEntry Entry, byte[] Bytes)> files)
+    {
+        var views = _views
+            ?? throw new InvalidDataException("Reusable Screen export requires the canonical Working view registry.");
+        var screen = views.FindScreen(resourceId)
+            ?? throw new InvalidDataException($"Screen '{resourceId:D}' was not found in Working.");
+        if (screen.Id != resourceId)
+            throw new InvalidDataException("Screen stable identity is inconsistent.");
+
+        var dependencies = ReusableViewDependencyAnalyzer.AnalyzeWorking(
+            screen,
+            _assets,
+            _visualAssets,
+            _scripts);
+
+        return AddJsonResource(
+            ReusableLibraryResourceKinds.Screen,
+            resourceId,
+            screen.Key,
+            screen.Name,
+            screen with { Metadata = ReusableLibraryProvenance.WithoutOrigin(screen.Metadata) },
+            dependencies,
+            files);
+    }
+
+    private ReusableLibraryResourceEntry ExportPopup(
+        Guid resourceId,
+        IDictionary<string, (ReusableLibraryFileEntry Entry, byte[] Bytes)> files)
+    {
+        var views = _views
+            ?? throw new InvalidDataException("Reusable Popup export requires the canonical Working view registry.");
+        var popup = views.FindPopup(resourceId)
+            ?? throw new InvalidDataException($"Popup '{resourceId:D}' was not found in Working.");
+        if (popup.Id != resourceId)
+            throw new InvalidDataException("Popup stable identity is inconsistent.");
+
+        var dependencies = ReusableViewDependencyAnalyzer.AnalyzeWorking(
+            popup,
+            _assets,
+            _visualAssets,
+            _scripts);
+
+        return AddJsonResource(
+            ReusableLibraryResourceKinds.Popup,
+            resourceId,
+            popup.Key,
+            popup.Name,
+            popup with { Metadata = ReusableLibraryProvenance.WithoutOrigin(popup.Metadata) },
+            dependencies,
             files);
     }
 
@@ -554,18 +616,21 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
                 {
                     var value = Deserialize<DynamoEngineeringDto>(bytes, resource);
                     ValidateIdentity(resource, value.Id, value.Key, value.Name);
+                    ReusableDynamoDependencyAnalyzer.ValidateDeclaredDependencies(value, resource, manifest);
                     break;
                 }
                 case ReusableLibraryResourceKinds.Screen:
                 {
                     var value = Deserialize<ScreenEngineeringDto>(bytes, resource);
                     ValidateIdentity(resource, value.Id, value.Key, value.Name);
+                    ReusableViewDependencyAnalyzer.ValidateDeclaredDependencies(value, resource, manifest);
                     break;
                 }
                 case ReusableLibraryResourceKinds.Popup:
                 {
                     var value = Deserialize<PopupEngineeringDto>(bytes, resource);
                     ValidateIdentity(resource, value.Id, value.Key, value.Name);
+                    ReusableViewDependencyAnalyzer.ValidateDeclaredDependencies(value, resource, manifest);
                     break;
                 }
                 case ReusableLibraryResourceKinds.Script:

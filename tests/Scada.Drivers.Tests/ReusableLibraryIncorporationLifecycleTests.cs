@@ -42,7 +42,7 @@ public sealed class ReusableLibraryIncorporationLifecycleTests
             var finalPreview = exchange.Preview(plan.Engineering, ImportMode.CreateOnly, plan.ImportContext);
             Assert.True(finalPreview.CanApply);
             var result = exchange.Apply(plan.Engineering, ImportMode.CreateOnly, plan.ImportContext);
-            Assert.Empty(result.Issues.Where(issue => issue.IsError));
+            Assert.DoesNotContain(result.Issues, issue => issue.IsError);
             Assert.Equal(1, result.Created);
         }
 

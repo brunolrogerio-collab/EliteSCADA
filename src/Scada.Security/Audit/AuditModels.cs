@@ -23,6 +23,7 @@ public static class AuditActions
     public const string EngineeringLibraryInspect = "engineering.library.inspect";
     public const string EngineeringLibraryAssociate = "engineering.library.associate";
     public const string EngineeringLibraryDisassociate = "engineering.library.disassociate";
+    public const string EngineeringLibraryIncorporate = "engineering.library.incorporate";
     public const string EngineeringCheckout = "engineering.checkout";
     public const string EngineeringSave = "engineering.save";
     public const string EngineeringPublish = "engineering.publish";

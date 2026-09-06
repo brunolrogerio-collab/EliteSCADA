@@ -1,6 +1,7 @@
 using Scada.Api.Security;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.ImportExport;
 using Scada.Engineering.Scripts;
 using Scada.Security.Audit;
 using Scada.Security.Authorization;
@@ -19,6 +20,8 @@ public static class EngineeringMutationEndpoints
 
     public static void MapEngineeringMutationEndpoints(this WebApplication app)
     {
+        app.MapEngineeringLockEndpoints();
+
         app.MapDelete("/api/engineering/tags/{id:guid}", (
             Guid id,
             HttpContext context,
@@ -102,6 +105,21 @@ public static class EngineeringMutationEndpoints
                 targetKind,
                 id.ToString());
             return failure;
+        }
+
+        var exchange = context.RequestServices.GetRequiredService<IEngineeringExchangeService>();
+        var lockFailure = EngineeringLockAccess.ProtectedEngineeringFailure(exchange);
+        if (lockFailure is not null)
+        {
+            await audit.RecordAsync(
+                context,
+                authorization.Principal,
+                AuditActions.EngineeringDelete,
+                AuditOutcome.Denied,
+                targetKind,
+                id.ToString(),
+                new Dictionary<string, string> { ["reason"] = "engineering-lock" });
+            return lockFailure;
         }
 
         if (!TryReadExpectedVersion(context.Request, out var expectedChangeVersion))

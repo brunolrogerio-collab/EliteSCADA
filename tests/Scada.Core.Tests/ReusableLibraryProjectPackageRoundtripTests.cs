@@ -77,7 +77,7 @@ public sealed class ReusableLibraryProjectPackageRoundtripTests
         Assert.True(preview.CanApply);
 
         var result = restoredPackages.Apply(projectBytes, ImportMode.CreateOnly);
-        Assert.Empty(result.Issues.Where(issue => issue.IsError));
+        Assert.DoesNotContain(result.Issues, issue => issue.IsError);
 
         var restoredTemplate = Assert.IsType<EquipmentTemplateEngineeringDto>(
             restored.Assets.FindTemplate(templateId));
@@ -104,7 +104,7 @@ public sealed class ReusableLibraryProjectPackageRoundtripTests
             new ReusableLibraryIncorporationSelection(kind, resourceId));
         Assert.True(plan.RequiresMutation);
         var result = target.Exchange.Apply(plan.Engineering, ImportMode.CreateOnly, plan.ImportContext);
-        Assert.Empty(result.Issues.Where(issue => issue.IsError));
+        Assert.DoesNotContain(result.Issues, issue => issue.IsError);
         Assert.True(result.Created > 0);
     }
 

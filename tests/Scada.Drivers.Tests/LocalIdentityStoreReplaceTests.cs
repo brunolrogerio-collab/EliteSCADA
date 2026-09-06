@@ -1,3 +1,4 @@
+using Npgsql;
 using Scada.Persistence.PostgreSql;
 using Scada.Security.Authentication;
 
@@ -51,6 +52,24 @@ public sealed class LocalIdentityStoreReplaceTests
     }
 
     [Fact]
+    public async Task InMemoryTryReplaceAllIfEmpty_AllowsExactlyOneBootstrapAuthority()
+    {
+        var store = new InMemoryLocalIdentityStore();
+        var first = CreateAccount("first-bootstrap", "First Bootstrap", ["developer"]);
+        var second = CreateAccount("second-bootstrap", "Second Bootstrap", ["developer"]);
+
+        var outcomes = await Task.WhenAll(
+            store.TryReplaceAllIfEmptyAsync([first]),
+            store.TryReplaceAllIfEmptyAsync([second]));
+
+        Assert.Equal(1, outcomes.Count(result => result));
+        Assert.Equal(1, outcomes.Count(result => !result));
+
+        var durable = Assert.Single(await store.ListAsync());
+        Assert.True(durable.Id == first.Id || durable.Id == second.Id);
+    }
+
+    [Fact]
     public async Task PostgreSqlReplaceAll_CommitsCompleteReplacementAndRollsBackMidTransactionFailure()
     {
         var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
@@ -84,6 +103,34 @@ public sealed class LocalIdentityStoreReplaceTests
         Assert.Contains(afterRollback, user => user.Id == restoredOperator.Id);
         Assert.DoesNotContain(afterRollback, user => user.Id == insertedBeforeFailure.Id);
         Assert.DoesNotContain(afterRollback, user => user.Id == postgresInvalid.Id);
+    }
+
+    [Fact]
+    public async Task PostgreSqlTryReplaceAllIfEmpty_AllowsExactlyOneConcurrentBootstrapAuthority()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        await using var store = new PostgreSqlLocalIdentityStore(connectionString);
+        await store.InitializeAsync();
+
+        await using (var dataSource = NpgsqlDataSource.Create(connectionString))
+        await using (var clear = dataSource.CreateCommand("DELETE FROM elitescada.local_users;"))
+            await clear.ExecuteNonQueryAsync();
+
+        var first = CreateAccount("first-pg-bootstrap", "First PostgreSQL Bootstrap", ["developer"]);
+        var second = CreateAccount("second-pg-bootstrap", "Second PostgreSQL Bootstrap", ["developer"]);
+
+        var outcomes = await Task.WhenAll(
+            store.TryReplaceAllIfEmptyAsync([first]),
+            store.TryReplaceAllIfEmptyAsync([second]));
+
+        Assert.Equal(1, outcomes.Count(result => result));
+        Assert.Equal(1, outcomes.Count(result => !result));
+
+        var durable = Assert.Single(await store.ListAsync());
+        Assert.True(durable.Id == first.Id || durable.Id == second.Id);
+        Assert.True(LocalPasswordHasher.Verify(TestPassword, durable.Credential));
     }
 
     private static LocalUserAccount CreateAccount(

@@ -274,7 +274,7 @@ public static class ReusableDynamoDependencyAnalyzer
             !properties[0].NameEquals("assetId") ||
             properties[0].Value.ValueKind != JsonValueKind.String)
             throw new InvalidDataException(
-                $"Dynamo '{ownerKey}' element '{element.Key}' assetRef must contain only the canonical assetId field.");
+                $"Dynamo '{ownerKey}' element '{elementKey}' assetRef must contain only the canonical assetId field.");
 
         var value = properties[0].Value.GetString();
         if (string.IsNullOrWhiteSpace(value))

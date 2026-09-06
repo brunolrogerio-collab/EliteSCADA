@@ -45,26 +45,21 @@ public sealed class WorkspaceEngineeringReadFilter(
 
 public sealed class RuntimeEngineeringReadFilter(
     ApiAuthorizationService security,
-    ScadaRuntimeFacade runtime,
-    IEngineeringExchangeService exchange) : IEndpointFilter
+    ScadaRuntimeFacade runtime) : IEndpointFilter
 {
     public async ValueTask<object?> InvokeAsync(
         EndpointFilterInvocationContext invocationContext,
         EndpointFilterDelegate next)
     {
-        if (security.AuthenticationEnabled)
-        {
-            var authorization = await security.CheckRuntimeAsync(
-                invocationContext.HttpContext,
-                runtime,
-                SecurityCapability.EngineeringModify,
-                cancellationToken: invocationContext.HttpContext.RequestAborted);
-            var failure = authorization.FailureResult();
-            if (failure is not null)
-                return failure;
-        }
+        if (!security.AuthenticationEnabled)
+            return await next(invocationContext);
 
-        var lockFailure = EngineeringLockAccess.ProtectedEngineeringFailure(exchange);
-        return lockFailure ?? await next(invocationContext);
+        var authorization = await security.CheckRuntimeAsync(
+            invocationContext.HttpContext,
+            runtime,
+            SecurityCapability.EngineeringModify,
+            cancellationToken: invocationContext.HttpContext.RequestAborted);
+        var failure = authorization.FailureResult();
+        return failure ?? await next(invocationContext);
     }
 }

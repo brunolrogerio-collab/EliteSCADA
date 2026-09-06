@@ -180,12 +180,11 @@ public sealed class ReusableLibraryPackageTests
     }
 
     [Fact]
-    public void Export_DynamoAutomaticallyIncludesReusableDependencyClosure()
+    public void Export_DynamoAutomaticallyIncludesV1ReusableDependencyClosure()
     {
         var assets = new InMemoryEngineeringAssetRegistry();
         var visualAssets = new InMemoryVisualAssetEngineeringRegistry();
         var templateId = Guid.NewGuid();
-        var childId = Guid.NewGuid();
         var rootId = Guid.NewGuid();
         var assetId = Guid.NewGuid();
 
@@ -193,11 +192,6 @@ public sealed class ReusableLibraryPackageTests
             templateId,
             "template.pump",
             "Pump Template"));
-        assets.UpsertDynamo(new DynamoEngineeringDto(
-            childId,
-            "dynamo.child",
-            "Child Dynamo",
-            Elements: [new VisualElementEngineeringDto("body", "core.rectangle")]));
 
         var payload = VisualAssetPayload.Create("image/svg+xml", "<svg/>"u8);
         visualAssets.PutPayload(payload);
@@ -218,10 +212,6 @@ public sealed class ReusableLibraryPackageTests
             Elements:
             [
                 new VisualElementEngineeringDto(
-                    "child",
-                    "dynamo",
-                    DynamoKey: "dynamo.child"),
-                new VisualElementEngineeringDto(
                     "symbol",
                     "core.image",
                     Properties: new Dictionary<string, JsonElement>
@@ -240,21 +230,38 @@ public sealed class ReusableLibraryPackageTests
         var inspection = service.Inspect(bytes);
         var root = Assert.Single(inspection.Manifest.Resources, resource => resource.ResourceId == rootId);
 
-        Assert.Equal(4, inspection.Manifest.Resources.Count);
-        Assert.Equal(5, inspection.Manifest.Files.Count);
-        Assert.Equal(3, root.Dependencies.Count);
+        Assert.Equal(3, inspection.Manifest.Resources.Count);
+        Assert.Equal(4, inspection.Manifest.Files.Count);
+        Assert.Equal(2, root.Dependencies.Count);
         Assert.Contains(root.Dependencies, dependency =>
             dependency.Kind == ReusableLibraryResourceKinds.EquipmentTemplate && dependency.ResourceId == templateId);
-        Assert.Contains(root.Dependencies, dependency =>
-            dependency.Kind == ReusableLibraryResourceKinds.Dynamo && dependency.ResourceId == childId);
         Assert.Contains(root.Dependencies, dependency =>
             dependency.Kind == ReusableLibraryResourceKinds.VisualAsset && dependency.ResourceId == assetId);
         Assert.Contains(inspection.Manifest.Resources, resource =>
             resource.Kind == ReusableLibraryResourceKinds.EquipmentTemplate && resource.ResourceId == templateId);
         Assert.Contains(inspection.Manifest.Resources, resource =>
-            resource.Kind == ReusableLibraryResourceKinds.Dynamo && resource.ResourceId == childId);
-        Assert.Contains(inspection.Manifest.Resources, resource =>
             resource.Kind == ReusableLibraryResourceKinds.VisualAsset && resource.ResourceId == assetId);
+    }
+
+    [Fact]
+    public void Analyzer_DynamoV1RejectsNestedDynamoInsteadOfExpandingProductContract()
+    {
+        var assets = new InMemoryEngineeringAssetRegistry();
+        var visualAssets = new InMemoryVisualAssetEngineeringRegistry();
+        var childId = Guid.NewGuid();
+        var rootId = Guid.NewGuid();
+        assets.UpsertDynamo(new DynamoEngineeringDto(childId, "dynamo.child", "Child"));
+        var root = new DynamoEngineeringDto(
+            rootId,
+            "dynamo.root",
+            "Root",
+            Elements: [new VisualElementEngineeringDto("child", "dynamo", DynamoKey: "dynamo.child")]);
+        assets.UpsertDynamo(root);
+
+        var exception = Assert.Throws<InvalidDataException>(() =>
+            ReusableDynamoDependencyAnalyzer.AnalyzeWorking(root, assets, visualAssets));
+
+        Assert.Contains("does not support nested Dynamos", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

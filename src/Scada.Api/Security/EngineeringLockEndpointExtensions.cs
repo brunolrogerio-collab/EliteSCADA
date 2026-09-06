@@ -331,5 +331,7 @@ public static class EngineeringLockEndpointExtensions
             "current",
             new Dictionary<string, string> { ["reason"] = "engineering-lock" }).AsTask();
 
-    private sealed class EngineeringLockedMutationException : InvalidOperationException;
+    private sealed class EngineeringLockedMutationException : InvalidOperationException
+    {
+    }
 }

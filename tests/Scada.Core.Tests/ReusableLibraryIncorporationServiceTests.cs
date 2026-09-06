@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
 using Scada.Core.Tags;
@@ -47,7 +48,11 @@ public sealed class ReusableLibraryIncorporationServiceTests
         var result = target.Exchange.Apply(plan.Engineering, ImportMode.CreateOnly, plan.ImportContext);
         Assert.Empty(result.Issues);
         Assert.Equal(1, result.Created);
-        Assert.Equal(template, target.Assets.FindTemplate(templateId));
+        var incorporated = Assert.IsType<EquipmentTemplateEngineeringDto>(target.Assets.FindTemplate(templateId));
+        Assert.Equal(templateId, incorporated.Id);
+        Assert.Equal("library.template", incorporated.Key);
+        Assert.Equal("Library Template", incorporated.Name);
+        Assert.Equal("pump", incorporated.Properties!["family"]);
     }
 
     [Fact]
@@ -136,18 +141,18 @@ public sealed class ReusableLibraryIncorporationServiceTests
         var assetId = Guid.NewGuid();
         var sourceAssets = new InMemoryEngineeringAssetRegistry();
         var sourceVisual = new InMemoryVisualAssetEngineeringRegistry();
-        var payload = VisualAssetPayload.Create("image/png", new byte[] { 1, 3, 3, 7, 9 });
+        var payload = VisualAssetPayload.Create("image/bmp", CreateBmp());
         sourceVisual.PutPayload(payload);
         var asset = new VisualAssetEngineeringDto(
             assetId,
             "library.image",
             "Library Image",
-            "image.png",
+            "image.bmp",
             payload.MediaType,
             payload.ByteLength,
             payload.Sha256,
-            16,
-            16);
+            1,
+            1);
         sourceVisual.UpsertAsset(asset);
         var package = new ReusableLibraryPackageService(sourceAssets, sourceVisual);
         var bytes = package.Export(new ReusableLibraryExportRequest(
@@ -172,7 +177,10 @@ public sealed class ReusableLibraryIncorporationServiceTests
         var result = target.Exchange.Apply(plan.Engineering, ImportMode.CreateOnly, plan.ImportContext);
         Assert.Empty(result.Issues);
         Assert.Equal(1, result.Created);
-        Assert.Equal(asset with { Sha256 = asset.Sha256.ToLowerInvariant() }, target.VisualAssets.FindAsset(assetId));
+        var incorporated = Assert.IsType<VisualAssetEngineeringDto>(target.VisualAssets.FindAsset(assetId));
+        Assert.Equal(assetId, incorporated.Id);
+        Assert.Equal("library.image", incorporated.Key);
+        Assert.Equal(payload.Sha256, incorporated.Sha256);
         Assert.True(target.VisualAssets.FindPayload(payload.Sha256)!.Content.AsSpan().SequenceEqual(payload.Content));
     }
 
@@ -182,21 +190,23 @@ public sealed class ReusableLibraryIncorporationServiceTests
         var assetId = Guid.NewGuid();
         var sourceAssets = new InMemoryEngineeringAssetRegistry();
         var sourceVisual = new InMemoryVisualAssetEngineeringRegistry();
-        var payload = VisualAssetPayload.Create("image/svg+xml", "<svg/>"u8.ToArray());
+        var payload = VisualAssetPayload.Create("image/bmp", CreateBmp());
         sourceVisual.PutPayload(payload);
         var asset = new VisualAssetEngineeringDto(
             assetId,
-            "library.vector",
-            "Library Vector",
-            "vector.svg",
+            "library.raster",
+            "Library Raster",
+            "raster.bmp",
             payload.MediaType,
             payload.ByteLength,
-            payload.Sha256);
+            payload.Sha256,
+            1,
+            1);
         sourceVisual.UpsertAsset(asset);
         var package = new ReusableLibraryPackageService(sourceAssets, sourceVisual);
         var bytes = package.Export(new ReusableLibraryExportRequest(
             Guid.NewGuid(),
-            "Vector Library",
+            "Raster Library",
             "1.0.0",
             [new(ReusableLibraryResourceKinds.VisualAsset, assetId)]));
         using var target = CreateTarget();
@@ -280,6 +290,23 @@ public sealed class ReusableLibraryIncorporationServiceTests
             visualAssets,
             exchange);
         return new TargetHarness(eventBus, alarms, assets, visualAssets, exchange, incorporation);
+    }
+
+    private static byte[] CreateBmp()
+    {
+        const int fileSize = 58;
+        var bytes = new byte[fileSize];
+        bytes[0] = (byte)'B';
+        bytes[1] = (byte)'M';
+        BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(2, 4), fileSize);
+        BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(10, 4), 54);
+        BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(14, 4), 40);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(18, 4), 1);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(22, 4), 1);
+        BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(26, 2), 1);
+        BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(28, 2), 24);
+        BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(34, 4), 4);
+        return bytes;
     }
 
     private sealed class TargetHarness(

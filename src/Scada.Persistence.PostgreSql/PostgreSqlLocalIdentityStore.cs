@@ -213,6 +213,55 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
         }
     }
 
+    public async Task<bool> TryReplaceAllIfEmptyAsync(
+        IReadOnlyCollection<LocalUserAccount> accounts,
+        CancellationToken cancellationToken = default)
+    {
+        var replacement = PrepareReplacement(accounts);
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            await AcquireMutationLockAsync(connection, transaction, cancellationToken);
+
+            await using (var count = new NpgsqlCommand(
+                "SELECT count(*)::integer FROM elitescada.local_users;",
+                connection,
+                transaction))
+            {
+                var existing = (int)(await count.ExecuteScalarAsync(cancellationToken) ?? 0);
+                if (existing != 0)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                    return false;
+                }
+            }
+
+            foreach (var account in replacement)
+            {
+                await using var insert = new NpgsqlCommand(InsertSql, connection, transaction);
+                Bind(insert, account);
+                await insert.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            return true;
+        }
+        catch
+        {
+            try
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+            }
+            catch
+            {
+                // Preserve the original failure. Disposing the uncommitted transaction is still fail-closed.
+            }
+            throw;
+        }
+    }
+
     private static async Task AcquireMutationLockAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,

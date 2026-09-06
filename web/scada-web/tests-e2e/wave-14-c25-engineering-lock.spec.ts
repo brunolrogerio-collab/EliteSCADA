@@ -19,7 +19,7 @@ test('locked Engineering never mounts protected workspace and keeps restricted a
   await expect(page.getByRole('heading', { name: 'Engineering bloqueado' })).toBeVisible();
   await expect(page.getByTestId('project-json-portability')).toBeVisible();
   await expect(page.getByTestId('project-package-portability')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Administração' })).toBeVisible();
+  await expect(page.getByTestId('user-administration').getByRole('heading', { name: 'Administração', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Licenciamento' }).last()).toHaveAttribute('href', '/licensing');
   await expect(page.getByRole('heading', { name: 'Visão geral do projeto' })).toHaveCount(0);
   expect(protectedWorkspaceRequests).toBe(0);

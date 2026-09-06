@@ -1,0 +1,67 @@
+name: Wave 14 C25 Post-Demo
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - wave14/c25-post-demo
+    paths:
+      - "src/Scada.Api/**"
+      - "src/Scada.Engineering/**"
+      - "src/Scada.Security/**"
+      - "tests/Scada.Core.Tests/**"
+      - "tests/Scada.Drivers.Tests/**"
+      - "web/scada-web/**"
+      - "docs/WAVE14-C25-*.md"
+      - ".github/workflows/wave14-c25-post-demo.yml"
+  pull_request:
+    branches:
+      - wave14/corrections-integration
+    paths:
+      - "src/Scada.Api/**"
+      - "src/Scada.Engineering/**"
+      - "src/Scada.Security/**"
+      - "tests/Scada.Core.Tests/**"
+      - "tests/Scada.Drivers.Tests/**"
+      - "web/scada-web/**"
+      - "docs/WAVE14-C25-*.md"
+      - ".github/workflows/wave14-c25-post-demo.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wave14-c25-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  engineering-lock:
+    name: Engineering Lock backend contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+
+      - name: Restore Core tests
+        run: dotnet restore tests/Scada.Core.Tests/Scada.Core.Tests.csproj
+
+      - name: Restore API/Driver tests
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+
+      - name: Build Core tests
+        run: dotnet build tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-restore --configuration Release
+
+      - name: Build API/Driver tests
+        run: dotnet build tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release
+
+      - name: Run Engineering Lock package and crypto tests
+        run: dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~EngineeringLock" --verbosity normal
+
+      - name: Run Engineering Lock backend and lifecycle tests
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~EngineeringLockAccessTests|FullyQualifiedName~PublishedRuntimeActivationServiceTests|FullyQualifiedName~PersistedRuntimeRecoveryServiceTests" --verbosity normal

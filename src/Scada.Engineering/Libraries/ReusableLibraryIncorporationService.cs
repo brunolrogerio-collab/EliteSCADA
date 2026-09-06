@@ -50,6 +50,7 @@ public sealed class ReusableLibraryIncorporationService
     private static readonly IReadOnlySet<string> IncorporationEnabled = new HashSet<string>(StringComparer.Ordinal)
     {
         ReusableLibraryResourceKinds.EquipmentTemplate,
+        ReusableLibraryResourceKinds.Dynamo,
         ReusableLibraryResourceKinds.VisualAsset
     };
 
@@ -89,19 +90,11 @@ public sealed class ReusableLibraryIncorporationService
         var inspection = _packages.Inspect(libraryBytes);
         var closure = ResolveClosure(inspection.Manifest, selection);
 
-        // C25.6's first mutating slice is intentionally limited to the two canonical
-        // resource kinds that currently export with no declared library dependencies.
-        // The generic resolver above remains ready for later dynamos/views/scripts, but
-        // accepting synthetic dependency edges here would enlarge one logical mutation
-        // before atomic closure application has been proven for those richer kinds.
-        if (closure.Any(resource => (resource.Dependencies?.Count ?? 0) != 0))
-            throw new InvalidDataException(
-                "Declared reusable-resource dependencies are not incorporation-enabled in the initial template/raster slice.");
-
         using var input = new MemoryStream(libraryBytes.ToArray(), writable: false);
         using var archive = new ZipArchive(input, ZipArchiveMode.Read, leaveOpen: false);
 
         var templates = new List<EquipmentTemplateEngineeringDto>();
+        var dynamos = new List<DynamoEngineeringDto>();
         var visualAssets = new List<VisualAssetEngineeringDto>();
         var visualPayloads = new Dictionary<string, VisualAssetPayload>(StringComparer.OrdinalIgnoreCase);
         var deduplicated = 0;
@@ -121,6 +114,7 @@ public sealed class ReusableLibraryIncorporationService
             {
                 case ReusableLibraryResourceKinds.EquipmentTemplate:
                 {
+                    RequireNoDependencies(resource);
                     var template = Deserialize<EquipmentTemplateEngineeringDto>(payloadBytes, resource);
                     if (ShouldCreateTemplate(resource, template))
                         templates.Add(template);
@@ -128,8 +122,22 @@ public sealed class ReusableLibraryIncorporationService
                         deduplicated++;
                     break;
                 }
+                case ReusableLibraryResourceKinds.Dynamo:
+                {
+                    var dynamo = Deserialize<DynamoEngineeringDto>(payloadBytes, resource);
+                    ReusableDynamoDependencyAnalyzer.ValidateDeclaredDependencies(
+                        dynamo,
+                        resource,
+                        inspection.Manifest);
+                    if (ShouldCreateDynamo(resource, dynamo))
+                        dynamos.Add(dynamo);
+                    else
+                        deduplicated++;
+                    break;
+                }
                 case ReusableLibraryResourceKinds.VisualAsset:
                 {
+                    RequireNoDependencies(resource);
                     var asset = Deserialize<VisualAssetEngineeringDto>(payloadBytes, resource);
                     var sidecarPath = $"assets/{asset.Sha256.ToLowerInvariant()}";
                     var sidecarFile = inspection.Manifest.Files.SingleOrDefault(file => file.Path == sidecarPath)
@@ -166,6 +174,7 @@ public sealed class ReusableLibraryIncorporationService
             Array.Empty<TagEngineeringDto>(),
             Array.Empty<AlarmEngineeringDto>(),
             Templates: templates,
+            Dynamos: dynamos,
             VisualAssets: visualAssets);
         var context = new EngineeringImportContext(visualPayloads);
         var preview = _exchange.Preview(package, ImportMode.CreateOnly, context);
@@ -188,6 +197,13 @@ public sealed class ReusableLibraryIncorporationService
             context,
             preview,
             deduplicated);
+    }
+
+    private static void RequireNoDependencies(ReusableLibraryResourceEntry resource)
+    {
+        if ((resource.Dependencies?.Count ?? 0) != 0)
+            throw new InvalidDataException(
+                $"Reusable resource '{resource.Kind}:{resource.ResourceId:D}' cannot declare dependencies in its canonical library model.");
     }
 
     private IReadOnlyCollection<ReusableLibraryResourceEntry> ResolveClosure(
@@ -237,6 +253,21 @@ public sealed class ReusableLibraryIncorporationService
     {
         var byId = _assets.FindTemplate(resource.ResourceId);
         var byKey = _assets.FindTemplateByKey(incoming.Key);
+        if (byId is null && byKey is null) return true;
+
+        if (byId is null || byKey is null || byId.Id != incoming.Id || byKey.Id != incoming.Id)
+            throw Conflict(resource, "stable ID/key collision");
+        if (!SemanticEquals(byId, incoming))
+            throw Conflict(resource, "same identity has different canonical content");
+        return false;
+    }
+
+    private bool ShouldCreateDynamo(
+        ReusableLibraryResourceEntry resource,
+        DynamoEngineeringDto incoming)
+    {
+        var byId = _assets.FindDynamo(resource.ResourceId);
+        var byKey = _assets.FindDynamoByKey(incoming.Key);
         if (byId is null && byKey is null) return true;
 
         if (byId is null || byKey is null || byId.Id != incoming.Id || byKey.Id != incoming.Id)

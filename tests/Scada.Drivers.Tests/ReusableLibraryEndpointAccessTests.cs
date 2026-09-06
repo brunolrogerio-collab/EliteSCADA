@@ -57,9 +57,33 @@ public sealed class ReusableLibraryEndpointAccessTests
         Assert.Equal(StatusCodes.Status403Forbidden, failure.StatusCode);
     }
 
+    [Fact]
+    public void CheckAccess_AllowsEngineeringPrincipalWhenUnlocked()
+    {
+        using var workspace = new EngineeringWorkspace();
+        workspace.SecurityPolicies.UpsertRole(new SecurityRoleEngineeringDto(
+            Guid.NewGuid(),
+            "engineer",
+            "Engineer",
+            Grants: [new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringModify)]));
+        var exchange = CreateExchange(workspace);
+        var security = CreateSecurity(workspace, exchange);
+        var context = AuthenticatedContext("engineer");
+
+        var access = ReusableLibraryEndpoints.CheckAccess(context, security, exchange);
+
+        Assert.True(access.Authorization.Allowed);
+        Assert.Null(access.Failure);
+        Assert.Null(access.Reason);
+    }
+
     [Theory]
+    [InlineData(ReusableLibraryEndpoints.CatalogRoute)]
+    [InlineData(ReusableLibraryEndpoints.AssociateRoute)]
     [InlineData(ReusableLibraryEndpoints.ExportRoute)]
     [InlineData(ReusableLibraryEndpoints.InspectRoute)]
+    [InlineData("/api/engineering/libraries/00000000-0000-0000-0000-000000000001/resources")]
+    [InlineData("/api/engineering/libraries/00000000-0000-0000-0000-000000000001")]
     public void LibraryRoutes_AreNotEngineeringLockWorkspaceReadExemptions(string path)
     {
         var context = new DefaultHttpContext();

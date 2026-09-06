@@ -62,7 +62,7 @@ export class ReusableLibraryApiError extends Error {
     public readonly responseBody: string,
     public readonly responseData?: unknown
   ) {
-    super(extractErrorMessage(responseData) ?? responseBody || `HTTP ${status}`);
+    super(extractErrorMessage(responseData) ?? (responseBody || `HTTP ${status}`));
     this.name = 'ReusableLibraryApiError';
   }
 }

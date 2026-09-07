@@ -9,6 +9,7 @@ on:
       - 'src/Scada.Engineering/**'
       - 'src/Scada.DriverHost/**'
       - 'web/scada-web/**'
+      - 'preview/fixtures/**'
       - '.github/workflows/wave11-hmi-runtime.yml'
   push:
     branches: [ main ]
@@ -17,6 +18,7 @@ on:
       - 'src/Scada.Engineering/**'
       - 'src/Scada.DriverHost/**'
       - 'web/scada-web/**'
+      - 'preview/fixtures/**'
       - '.github/workflows/wave11-hmi-runtime.yml'
 
 permissions:
@@ -71,6 +73,17 @@ jobs:
       - name: Install Chromium
         working-directory: web/scada-web
         run: npx playwright install --with-deps chromium
+
+      - name: Verify frozen C11 canonical package bytes
+        working-directory: preview/fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum --check EliteSCADA-EEE-Demo.escadapkg.sha256
+          if unzip -Z1 EliteSCADA-EEE-Demo.escadapkg | grep -E '\.escadalib$'; then
+            echo 'Frozen C11 package must remain self-contained and cannot depend on .escadalib files.' >&2
+            exit 1
+          fi
 
       - name: Run Wave 11 Active Runtime browser lifecycle
         working-directory: web/scada-web

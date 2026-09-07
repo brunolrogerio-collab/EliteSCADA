@@ -1,131 +1,113 @@
-# EliteSCADA — Current Coordinator Handoff
+# CURRENT COORDINATOR HANDOFF — Wave 14 / C25
 
 **Date:** 2026-09-06 BRT  
-**Status:** **WAVE 14 ACTIVE / C25.0-C25.7 COMPLETE / C25.8 GREEN INTERMEDIATE INFRASTRUCTURE BUT FINAL COVERAGE REMEDIATION REQUIRED / C25.9 AUDIT OPEN-BLOCKED / C11 FROZEN / WAVE13 PAUSED**
+**State:** **C25.0-C25.9 COMPLETE / C25 ACTIVE / NOT ACCEPTED / NOT INTEGRATED / C25.10 NEXT**
 
-> GitHub live state is the sole authority. Revalidate refs, PR state and exact-SHA workflows before every decision or mutation. If anything here differs from live GitHub, live GitHub wins.
+## Rule zero
 
-## 1. Read first
+GitHub live state is the official and sole project authority. Revalidate live branch heads, PR state, issue #282 latest comments and exact-SHA CI before any decision or mutation.
 
-1. `docs/WAVE14-C25-COORDINATOR-HANDOFF-2026-09-06.md`
-2. `docs/WAVE14-C25-POST-DEMO-EXECUTION-LOG.md`
-3. `docs/WAVE14-C25-CONSOLIDATED-POST-DEMO-CONTRACT.md`
-4. `docs/WAVE14-C25-DISTRIBUTED-RUNTIME-FOUNDATION.md`
-5. `docs/WAVE14-C25-REUSABLE-LIBRARIES-IMPLEMENTATION-STATUS-2026-09-06.md`
-6. `docs/ELITESCADA-DISTRIBUTED-RUNTIME-HA-ROADMAP.md`
-7. issue #282, latest comments first
-8. PR #283
+## Active package
 
-## 2. Exact current product authority before this handoff-only documentation commit
+Repository:
 
-Active branch:
+`brunolrogerio-collab/EliteSCADA`
+
+C25 branch:
 
 `wave14/c25-post-demo`
 
-Implementation PR:
+C25 PR:
 
 #283 -> `wave14/corrections-integration`
 
-Exact green product/test HEAD:
+Tracking issue:
 
-`c5cf2dca1090acc6ebb278d31276d508304a6381`
+#282
 
-Exact-SHA validation:
+Integration branch current audited base:
 
-- Wave 14 C25 Post-Demo #304 / `34068529435` — **SUCCESS**;
-- Wave 14 C03 DNP3 Adapter #296 / `34068529398` — **SUCCESS**.
+`c2fc96eacc168ea092c2e4d4dcbc79b00faa3155`
 
-This SHA is a valid green C25.8 infrastructure checkpoint, but the later C25.9 audit found mandatory installed-manual coverage gaps. Therefore it is **not** the final C25.8 acceptance candidate.
+## Exact product/test authority beneath this coordination closeout
 
-## 3. Checkpoint state
+`5193b81220f499cb2039dc1146c6dd1a7f7b3dbd`
 
-- C25.0 through C25.6 — COMPLETE.
-- C25.7 Distributed Runtime Foundation — COMPLETE / exact-SHA green.
-- C25.8 Contextual multilingual Help/manual — infrastructure implemented and exact-SHA green at `c5cf2dca...`, but final acceptance coverage remediation is required.
-- C25.9 Integrated regression/audit — opened and currently blocked on the C25.8 manual coverage gap it discovered.
-- C25.10 Exact final candidate matrix / explicit Product Owner acceptance — NOT STARTED.
+Evidence:
 
-C25.7 exact validated SHA:
+- Wave 14 C25 Post-Demo #314 / `34072225644` — **SUCCESS**;
+- Wave 14 C03 DNP3 Adapter #301 / `34072225635` — **SUCCESS**.
 
-`233002ded306c971858b356e1d2a50a89921da37`
+Treat any later coordination-only documentation commit as documentation authority only. It does not replace `5193b812...` as exact product/test evidence unless another code-bearing candidate is explicitly validated.
 
-- C25 #300 / `34062152621` — SUCCESS;
-- C03 #294 / `34062152648` — SUCCESS.
+## What is complete
 
-## 4. What C25.8 already has
+C25.0 through C25.7 remain complete.
 
-`c5cf2dca...` contains:
+C25.8 Help/manual is now **COMPLETE / exact-SHA green** after the C25.9 audit-required remediation. The installed manual now satisfies the binding topic matrix, preserves pt-BR/en/es Topic-ID/structure parity, derives Driver detail from canonical descriptors/config schemas, exposes exactly 8 production communication Drivers including Modbus, excludes `builtin.simulation` from that production count, keeps Internal Memory and TAG Gateway separate, documents only shipped Server Script APIs/triggers/contracts and preserves C25.6 reusable-library semantics including creation/export/Inspect.
 
-- local/offline contextual Help;
-- stable language-neutral Topic IDs;
-- pt-BR, en and es;
-- canonical locale persistence;
-- same-origin `/api/help`;
-- contextual Help navigation;
-- Driver/source topics derived from the canonical Engineering Data Source catalog;
-- actual Server Script API allow-list;
-- backend Help contract tests;
-- Playwright contextual topic/language coverage.
+C25.9 integrated regression/audit is **COMPLETE**. The exact `5193b812...` candidate passed C25 and C03, including backend/web integration, System Recovery, Authority replacement, reusable libraries, Distributed Runtime, Help, OpenDNP3 Linux/Windows, real dnp3py interoperability and Windows commercial publish dependency proof. No remaining C25 product-code blocker was found.
 
-Production communication inventory must be presented as **8 Drivers total including Modbus**. Internal Memory and TAG Gateway are separate product concepts. Simulation must not be presented as a ninth production communication Driver merely because it participates in the Engineering source catalog.
+C25.9 did find stale coordination prose. This handoff, the execution log and `LAST CHANGE.md` are the repository-side repair. PR #283 / #212 metadata and issue #282 latest comment must reflect the same status.
 
-## 5. Blocking gap to solve next
+## Immediate next work — C25.10
 
-The consolidated contract requires a substantially broader installed manual than the current C25.8 infrastructure provides.
+C25.10 is an exact final candidate/evidence checkpoint plus **explicit Product Owner acceptance**.
 
-The replacement C25.8 acceptance candidate must add coverage for lifecycle/package flow, TAGs, Alarms, Operational Events, Historian/Trends, Reports, Screens/Popups/Dynamos, Authority/security, System Recovery, diagnostics/troubleshooting and the reusable-library semantics stabilized in C25.6.
+Proceed autonomously only through preparation and verification:
 
-For reusable libraries the manual must make these facts explicit:
+1. revalidate current C25 branch / #283 / #282 / integration base;
+2. prepare the final candidate matrix anchored to product/test SHA `5193b812...` unless live GitHub shows a newer validated product SHA;
+3. list checkpoint evidence C25.0-C25.9 and permanent guard rails;
+4. clearly distinguish current C25 product acceptance from later integration/C11/main/release work;
+5. stop before claiming Product Owner acceptance unless the Product Owner explicitly grants it.
 
-- association != import;
-- association alone does not mutate Working;
-- `Usar` incorporates selected resources and validated dependencies;
-- disassociation does not remove already incorporated project content;
-- final `.escadapkg` is self-contained;
-- Runtime never depends on `.escadalib`.
+No merge to integration is authorized merely because C25.9 is complete.
 
-Driver details must come from canonical descriptor/configuration schemas wherever possible rather than handwritten protocol claims.
+## Permanent governance
 
-## 6. Immediate resume protocol
-
-1. Fetch live #283 and record its current head SHA.
-2. Fetch C25 and C03 workflows for that exact SHA.
-3. Read the latest #282 comments because they supersede stale PR-body/checkpoint prose.
-4. Revalidate #212, #263, #266, #205 and #207.
-5. Use `c5cf2dca...` only as the green intermediate Help infrastructure baseline.
-6. Complete the missing mandatory installed-manual topic matrix.
-7. Add regression gates for mandatory topic coverage, locale parity and reusable-library semantics.
-8. Keep Driver inventory/schema and Script API derived from actual shipped contracts.
-9. Exact-SHA validate C25 + C03 on the replacement candidate.
-10. Only then close final C25.8 acceptance and continue/close C25.9.
-11. C25.10 follows only after C25.9 is complete.
-
-## 7. Guard rails
-
-- #212 — OPEN/DRAFT -> `main`; no merge authorization.
-- Integration head at this handoff remains `c2fc96eacc168ea092c2e4d4dcbc79b00faa3155`.
-- #263 — OPEN/DRAFT; C11 remains frozen at `41d24d89c3b9d2b881215255e44023fabde262f3`.
-- #266 — OPEN/DRAFT validation-only -> `main`; MUST NEVER MERGE.
-- issue #205 — OPEN; Wave 13 remains paused.
-- #207 — OPEN/DRAFT; preserved Wave 13 head `fda87ba4445127c174f6ea533a6bcabaabc7bb20`.
-- Never modify `main` directly.
+- #283 stays OPEN/DRAFT and targets only `wave14/corrections-integration` until explicit C25 acceptance.
+- #212 stays OPEN/DRAFT and MUST NOT merge to `main` without later explicit Product Owner authorization.
+- Never alter `main` directly.
 - No force push, destructive rebase, branch deletion or unrelated cleanup.
-- Diagnose CI red before rerun; no blind rerun.
-- Never weaken tests, security, identity, lifecycle, licensing, package or Runtime authority for green.
-- Backend Active Revision remains Runtime application authority.
+- Diagnose every CI red before rerun; no blind reruns.
+- Never weaken tests, validation, security, authentication, authorization, Authority, Engineering Lock, licensing, lifecycle, package or Runtime contracts for green.
+- Backend Active Revision remains canonical Runtime application authority.
 - Alarm / Operational Event / Audit remain distinct.
-- No EEE-specific workaround for a generic product gap.
+- No EEE-specific workaround for generic product deficiencies.
 
-## 8. Post-C25 sequence
+## Frozen/paused parallel work
 
-After explicit Product Owner acceptance of one exact C25 candidate:
+C11 canonical EEE Demo:
 
-1. merge C25 only into `wave14/corrections-integration`;
-2. exact-SHA validate integration;
-3. only then synchronize/adapt C11 canonical EEE Demo;
-4. revalidate EEE and package portability;
-5. freeze canonical EEE `.escadapkg`, checksum and provenance;
-6. launch/keep Preview Codespace active through homologation and approved `main` transition;
-7. only explicit Product Owner authorization permits #212 -> `main`;
-8. validate the new `main` containing accepted Wave 14/C25;
-9. only then resume Wave 13 Windows release/signing work.
+- PR #263 remains OPEN/DRAFT;
+- preserved head `41d24d89c3b9d2b881215255e44023fabde262f3`;
+- do not synchronize/adapt it until C25 is explicitly accepted, merged only to integration and post-merge exact-SHA revalidated.
+
+Validation-only C11 PR:
+
+- #266 remains OPEN/DRAFT;
+- **MUST NEVER MERGE**.
+
+Wave 13:
+
+- issue #205 remains OPEN/paused;
+- PR #207 remains OPEN/DRAFT;
+- preserved branch head `fda87ba4445127c174f6ea533a6bcabaabc7bb20`;
+- resume only from the later approved new mainline after C25 -> integration -> C11 -> Preview -> authorized main sequence.
+
+## Required post-C25 sequence
+
+Only after explicit Product Owner acceptance of one exact C25 candidate:
+
+1. merge accepted C25 only into `wave14/corrections-integration`;
+2. exact-SHA validate the resulting integration head;
+3. synchronize/adapt frozen C11 to accepted C25 contracts using normal history-preserving integration;
+4. revalidate the canonical EEE Demo through generic product paths;
+5. export/version/freeze `EliteSCADA-EEE-Demo.escadapkg`, checksum and provenance;
+6. run exact C11 gates;
+7. launch the canonical package in Preview Codespace and keep it active through Product Owner homologation and the later authorized main transition;
+8. close #266 without merge when validation-only work is done;
+9. #212 may merge to `main` only after explicit Product Owner authorization;
+10. validate the resulting new `main`;
+11. only then resume Wave 13 release/signing work against that new mainline.

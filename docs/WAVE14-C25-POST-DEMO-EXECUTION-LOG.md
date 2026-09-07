@@ -1,6 +1,7 @@
 # Wave 14 C25 — Post-Demo Consolidated Corrections — Execution Log
 
-**Status:** ACTIVE / NOT ACCEPTED / NOT INTEGRATED / C25.0-C25.7 COMPLETE / C25.8 GREEN INTERMEDIATE INFRASTRUCTURE BUT FINAL ACCEPTANCE REMEDIATION REQUIRED / C25.9 AUDIT OPEN-BLOCKED  
+**Date:** 2026-09-06 BRT  
+**Status:** **ACTIVE / NOT ACCEPTED / NOT INTEGRATED / C25.0-C25.9 COMPLETE / C25.10 NEXT**  
 **Coordinator package:** C25  
 **Tracking issue:** #282  
 **Implementation PR:** #283  
@@ -16,17 +17,17 @@
 - Never alter `main` directly.
 - No force push, destructive rebase, branch deletion or unrelated cleanup.
 - Diagnose every CI red before rerun; no blind reruns.
-- Never weaken tests, validation, authentication, authorization, licensing, lifecycle, package or Runtime authority for green CI.
+- Never weaken tests, validation, authentication, authorization, Authority, Engineering Lock, licensing, lifecycle, package or Runtime authority for green CI.
 - Backend Active Revision remains Runtime application authority.
 - Alarm / Operational Event / Audit remain distinct.
 - No EEE-specific workaround for a generic product gap.
-- C11 remains frozen at `41d24d89c3b9d2b881215255e44023fabde262f3` until C25 is accepted, integrated only into integration and post-merge exact-SHA revalidated.
+- C11 remains frozen at `41d24d89c3b9d2b881215255e44023fabde262f3` until C25 is explicitly accepted, integrated only into integration and post-merge exact-SHA revalidated.
 - #266 remains validation-only and MUST NEVER MERGE.
 - Wave 13 issue #205 and PR #207 remain paused until the approved post-C25/main sequence reaches them.
 
-## 2. Accepted baseline beneath C25
+## 2. C25 base and current exact product/test authority
 
-C25 branch base:
+C25 branch base / current integration head:
 
 `c2fc96eacc168ea092c2e4d4dcbc79b00faa3155`
 
@@ -34,191 +35,141 @@ Accepted C24 product authority beneath C25:
 
 `40a491c2de2403f2934b8bae647c35072d5c2496`
 
-C24 remains ACCEPTED / INTEGRATED / POST-MERGE REVALIDATED.
+Current exact C25 product/test authority after C25.8 remediation and C25.9 integrated audit:
+
+`5193b81220f499cb2039dc1146c6dd1a7f7b3dbd`
+
+Exact-SHA evidence:
+
+- Wave 14 C25 Post-Demo #314 / run `34072225644` — **SUCCESS**;
+- Wave 14 C03 DNP3 Adapter #301 / run `34072225635` — **SUCCESS**.
+
+The coordination-only documentation commit above this product SHA, if present, is not a replacement product/test candidate. Product/test evidence remains anchored to `5193b812...` until another code-bearing exact SHA is explicitly validated.
 
 ## 3. Checkpoint matrix
 
-### C25.0 — Bootstrap + full architecture/code audit
+- **C25.0 — Bootstrap + full architecture/code audit:** COMPLETE.
+- **C25.1 — Engineering Lock domain/package/security:** COMPLETE.
+- **C25.2 — Engineering Lock backend enforcement:** COMPLETE.
+- **C25.3 — Engineering Lock UI/lifecycle/package:** COMPLETE.
+- **C25.4 — Restore-first / System Recovery:** COMPLETE.
+- **C25.5 — Runtime session UX:** COMPLETE.
+- **C25.6 — Reusable Resource Libraries:** COMPLETE / exact-SHA green.
+- **C25.7 — Distributed Runtime Foundation:** COMPLETE / exact-SHA green.
+- **C25.8 — Contextual multilingual Help/manual:** COMPLETE / exact-SHA green after acceptance remediation.
+- **C25.9 — Integrated regression/audit:** COMPLETE.
+- **C25.10 — Exact final candidate matrix / explicit Product Owner acceptance:** NEXT / NOT ACCEPTED.
 
-**COMPLETE**
+### C25.6 retained checkpoint
 
-### C25.1 — Engineering Lock domain/package/security
-
-**COMPLETE**
-
-### C25.2 — Engineering Lock backend enforcement
-
-**COMPLETE**
-
-### C25.3 — Engineering Lock UI/lifecycle/package
-
-**COMPLETE**
-
-### C25.4 — Restore-first / System Recovery
-
-**COMPLETE**
-
-### C25.5 — Runtime session UX
-
-**COMPLETE**
-
-### C25.6 — Reusable Resource Libraries
-
-**COMPLETE / EXACT-SHA GREEN / NOT INTEGRATED**
-
-Exact validated product/test SHA:
+Exact validated SHA:
 
 `1f17367defa03f903e68f585d068b4f23f82bef9`
 
 - C25 #275 / `34052101709` — SUCCESS;
 - C03 #280 / `34052101702` — SUCCESS.
 
-C25.6 closed `.escadalib` semantics including association without Working mutation, selective dependency-aware use, project-owned incorporated content, safe disassociation and self-contained `.escadapkg` with no Runtime library dependency.
+C25.6 established `.escadalib` association without Working mutation, selective dependency-aware `Usar`, project-owned incorporated content, safe disassociation, self-contained `.escadapkg` and no Runtime dependency on `.escadalib`.
 
-### C25.7 — Distributed Runtime Foundation
+### C25.7 retained checkpoint
 
-**COMPLETE / EXACT-SHA GREEN / NOT INTEGRATED**
-
-Exact validated product/test SHA:
+Exact validated SHA:
 
 `233002ded306c971858b356e1d2a50a89921da37`
 
 - C25 #300 / `34062152621` — SUCCESS;
 - C03 #294 / `34062152648` — SUCCESS.
 
-C25.7 proves the canonical Server Runtime foundation, Runtime Session Lease, Viewer/Interactive effective-capability reduction, voluntary View Only server-side enforcement and topology-neutral `.escadapkg` behavior. Production HA/replication/failover remains future-Wave work.
+C25.7 established the canonical Server Runtime boundary, Runtime Session Lease, Viewer/Interactive capability downscope, voluntary View Only server-side enforcement and topology-neutral `.escadapkg`. Production HA/replication/failover remains future-Wave work.
 
-### C25.8 — Contextual multilingual Help/manual
+## 4. C25.8 — final Help/manual acceptance
 
-**GREEN INTERMEDIATE INFRASTRUCTURE / FINAL ACCEPTANCE REMEDIATION REQUIRED**
+The earlier green Help infrastructure SHA `c5cf2dca1090acc6ebb278d31276d508304a6381` remains historical evidence only. C25.9 correctly discovered that it did not satisfy the complete binding installed-manual contract.
 
-Initial implementation:
+The replacement implementation was completed and exact-SHA validated at:
 
-`9ab78d00ea908636e1d2f05f7df716ee15f197f7` — `feat(w14-c25): add contextual multilingual help`
+`5193b81220f499cb2039dc1146c6dd1a7f7b3dbd`
 
-Diagnosed correction:
+Acceptance coverage now includes:
 
-`c5cf2dca1090acc6ebb278d31276d508304a6381` — `fix(w14-c25): align contextual help translation contract`
-
-Exact-SHA validation on corrected intermediate SHA:
-
-- C25 #304 / `34068529435` — SUCCESS;
-- C03 #296 / `34068529398` — SUCCESS.
-
-Delivered at this green intermediate checkpoint:
-
-- local/offline contextual Help;
+- local/offline Help with same-origin `/api/help`;
 - stable language-neutral Topic IDs;
-- pt-BR / en / es;
-- canonical locale persistence;
-- same-origin `/api/help`;
-- contextual UI navigation;
-- canonical Engineering Data Source catalog-derived Driver/source topics;
-- actual Server Script API allow-list;
-- backend Help contract tests;
-- Playwright locale/topic tests.
+- pt-BR / en / es semantic and structural parity;
+- all 30 mandatory manual topic IDs;
+- lifecycle and `.escadapkg` flow;
+- Data Sources and TAG semantics including quality, timestamps, writeability, addressing and scaling versus presentation formatting;
+- Alarms, Operational Events and Audit as separate concepts;
+- Historian, Trends, Reports, Screens, Popups, Dynamos, bindings and commands;
+- users/roles/capabilities/security, Licensing, Backup/System Recovery and diagnostics/troubleshooting;
+- reusable-library creation/export/Inspect plus C25.6 association/use/disassociation/self-contained Runtime semantics;
+- exactly 8 production communication Drivers including Modbus;
+- Simulation excluded from production Driver presentation by its canonical TypeKey `builtin.simulation`;
+- Internal Memory and TAG Gateway documented as separate concepts;
+- Driver topics derived from canonical Engineering descriptors/configuration schemas, including configuration, TAG binding/addressing, datatype/mapping cues, bit/endianness cues where declared, read/write restrictions, polling/subscription, reconnect/timeouts, protected material, examples, diagnostics and interoperability limits;
+- Server Script documentation restricted to the shipped six-function API and actual Runtime triggers/lifecycle/failure/sandbox contracts.
 
-The first implementation SHA failed due one C# translation-record constructor mismatch. The failure was diagnosed before correction; no blind rerun or test weakening occurred. `c5cf2dca...` corrected that contract mismatch and closed exact-SHA green.
+Diagnosed remediation trail is preserved in Git history. Red CI was diagnosed before each correction; no blind rerun and no test weakening occurred.
 
-#### Driver/source inventory rule
+## 5. C25.9 — integrated regression/audit result
 
-Manual/user-facing communication Driver count is **8 total including Modbus**.
+**COMPLETE / NO REMAINING PRODUCT-CODE BLOCKER FOUND**
 
-Canonical modern runtime composition includes:
+The audit revalidated the replacement C25.8 product SHA against cross-checkpoint contracts and the current integration base.
 
-1. MQTT;
-2. IEC 60870-5-104;
-3. Allen-Bradley Logix / EtherNet/IP;
-4. OPC UA;
-5. DNP3;
-6. Siemens S7 ISO;
-7. BACnet.
+### Exact-SHA integrated evidence
 
-Modbus is the eighth production communication Driver.
+C25 #314 / `34072225644` — SUCCESS:
 
-Internal Memory and TAG Gateway are separate product concepts. Simulation is not to be presented as a ninth production communication Driver merely because it appears in the Engineering source catalog.
+- Core and API/Driver restore/build;
+- Engineering Lock package/crypto and backend/lifecycle gates;
+- reusable-library package/catalog/incorporation/backend lifecycle;
+- Authority backup crypto/validation;
+- System Recovery;
+- atomic Authority-store replacement;
+- C25.7 Distributed Runtime foundation;
+- C25.8 contextual multilingual Help contract;
+- React/Vite build;
+- Chromium integrated flows for Engineering Lock, Restore-first, Runtime session, reusable libraries and Help.
 
-### C25.9 — Integrated regression/audit
+C03 #301 / `34072225635` — SUCCESS:
 
-**OPEN / BLOCKED BY MANUAL COVERAGE GAP DISCOVERED DURING AUDIT**
+- managed OpenDNP3 adapter build/tests;
+- native OpenDNP3 Linux host;
+- native OpenDNP3 Windows x64 host and dependency inspection;
+- real OpenDNP3 ↔ dnp3py L3 interoperability;
+- Windows commercial publish dependency gate proving the required OpenDNP3 helper is packaged and restricted Step Function / `dnp3` 1.6.0 bytes and dependency graph are absent.
 
-The C25.9 audit compared the green C25.8 infrastructure checkpoint against the higher-priority binding consolidated product contract and found that installed-manual topic depth remained incomplete.
+### Integration and governance audit
 
-Therefore the earlier issue comment stating `C25.8 COMPLETE` is superseded **for final acceptance purposes**. `c5cf2dca...` remains a valid green intermediate infrastructure SHA, but it is not the final C25.8 acceptance candidate.
+At the audited product SHA:
 
-Missing/insufficient coverage includes the mandatory product manual matrix:
+- C25 is 191 commits ahead and 0 behind `wave14/corrections-integration`; merge base is the current integration head `c2fc96e...`;
+- no integration-base drift blocker was found;
+- #283 remains OPEN/DRAFT and not merged;
+- #212 remains OPEN/DRAFT and not merged;
+- C11 #263 remains OPEN/DRAFT at preserved head `41d24d89...`;
+- #266 remains OPEN/DRAFT validation-only and MUST NEVER MERGE;
+- Wave 13 #205 remains OPEN/paused;
+- Wave 13 #207 remains OPEN/DRAFT at preserved head `fda87ba...`.
 
-- Getting Started / first startup / authentication;
-- Runtime operator/session behavior;
-- Working -> Save -> Revision -> Publish -> Activate;
-- `.escadapkg` Import/Export/Inspect/Preview/Apply;
-- Data Sources;
-- TAGs, quality, timestamps, writeability, addressing, scaling vs presentation formatting;
-- every production Driver with real configuration/address syntax/limitations derived from shipped contracts;
-- Internal Memory and TAG Gateway;
-- Scripts including actual APIs, triggers/lifecycle, failure/safety semantics and validated examples;
-- Alarms;
-- Operational Events;
-- Audit as a distinct concept;
-- Historian and Trends;
-- Reports;
-- Screens, Popups, Dynamos, bindings, commands and visual Runtime behavior;
-- users/roles/capabilities/security;
-- Licensing;
-- Backup/System Recovery;
-- diagnostics/troubleshooting.
+### Documentation/coordination drift found and repaired
 
-Reusable-library manual coverage is also required:
+C25.9 found stale coordination prose in the execution ledger, `CURRENT-COORDINATOR-HANDOFF.md`, `LAST CHANGE.md`, PR #283 and PR #212. The repository documents are repaired by the coordination-only closeout commit following `5193b812...`; PR metadata/issue record are synchronized separately without changing product code.
 
-- `.escadalib` creation/export;
-- association != import;
-- association alone does not mutate Working;
-- selective `Usar` incorporates selected resources plus validated dependency closure;
-- disassociation removes catalog availability only;
-- incorporated resources become ordinary project-owned canonical content;
-- final `.escadapkg` is self-contained;
-- Runtime never depends on `.escadalib`.
+No product mutation was required to close the C25.9 audit after the exact green replacement candidate.
 
-### C25.10 — Exact final candidate matrix / acceptance
+## 6. Immediate next checkpoint — C25.10
 
-**NOT STARTED**
+C25.10 may now prepare the exact final candidate matrix using `5193b81220f499cb2039dc1146c6dd1a7f7b3dbd` as the current product/test authority.
 
-C25.10 must not begin until the C25.8 remediation is exact-SHA green and C25.9 integrated audit closes.
+C25.10 must not claim acceptance automatically. Required boundary:
 
-## 4. Immediate execution order for the next coordinator
+1. assemble the exact candidate/evidence matrix;
+2. revalidate live refs and any relevant exact-SHA evidence;
+3. record all remaining non-C25 blockers separately rather than smuggling them into acceptance;
+4. obtain explicit Product Owner acceptance of one exact C25 product candidate;
+5. only after that explicit acceptance may C25 merge into `wave14/corrections-integration`;
+6. post-merge exact-SHA validate integration;
+7. only then resume/synchronize C11 according to the established sequence.
 
-1. Revalidate live PR #283 HEAD and exact-SHA C25/C03 workflow results.
-2. Read latest issue #282 comments first; they contain the superseding C25.9 finding.
-3. Use `c5cf2dca1090acc6ebb278d31276d508304a6381` as the green intermediate Help infrastructure baseline only.
-4. Expand the installed manual to cover the complete mandatory topic matrix from `docs/WAVE14-C25-CONSOLIDATED-POST-DEMO-CONTRACT.md`.
-5. Enrich Driver topics from canonical descriptor/configuration schema rather than handwritten unsupported claims.
-6. Preserve the explicit 8-Driver count; keep Internal Memory and TAG Gateway separate.
-7. Add regression tests/gates for mandatory topic presence and reusable-library semantics.
-8. Preserve stable Topic IDs and pt-BR/en/es semantic parity.
-9. Keep Script documentation bound to APIs actually supported by the build.
-10. Run C25 + C03 on one exact replacement SHA; diagnose any red before rerun.
-11. Only after that SHA is green and the manual coverage audit is satisfied may C25.8 be finally accepted.
-12. Resume/finish C25.9 integrated regression/audit on that replacement SHA.
-13. Prepare C25.10 only after C25.9 closes.
-
-## 5. Revalidated guard rails at this handoff
-
-- #212 — OPEN/DRAFT; merged=false; integration head `c2fc96eacc168ea092c2e4d4dcbc79b00faa3155`; no `main` authorization.
-- #263 — OPEN/DRAFT; C11 head remains `41d24d89c3b9d2b881215255e44023fabde262f3`.
-- #266 — OPEN/DRAFT validation-only; MUST NEVER MERGE.
-- issue #205 — OPEN; Wave 13 paused.
-- #207 — OPEN/DRAFT; Wave 13 preserved branch head `fda87ba4445127c174f6ea533a6bcabaabc7bb20`.
-
-## 6. Required post-C25 sequence
-
-After explicit Product Owner acceptance of one exact C25 candidate:
-
-1. merge accepted C25 only into `wave14/corrections-integration`;
-2. exact-SHA post-merge validate integration;
-3. only then synchronize/adapt C11 canonical EEE Demo;
-4. revalidate generic product lifecycle/package behavior;
-5. export/version/freeze canonical `EliteSCADA-EEE-Demo.escadapkg`, checksum and provenance;
-6. launch and keep Preview Codespace active through visual homologation and the later approved main transition;
-7. only explicit Product Owner authorization permits #212 -> `main`;
-8. validate the resulting new `main` containing accepted Wave 14/C25;
-9. only then resume Wave 13 Windows release/signing from that new mainline authority.
+There is still **no authorization to merge #212 into `main`**.

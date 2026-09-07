@@ -195,7 +195,6 @@ function EngineeringLockManagement({ locale, copy, status, onStatus }: {
       <div className="eng-lock-management__actions">
         <button type="button" disabled={Boolean(busy) || !status.configured} onClick={() => void perform('lock', lockEngineering, copy.lockedNotice)}>{copy.lockNow}</button>
         <button type="button" disabled={Boolean(busy) || !status.configured} onClick={() => void perform('clear', clearEngineeringLock, copy.clearedNotice)}>{copy.clear}</button>
-        <LocalePicker locale={locale} copy={copy} />
       </div>
       <p className="eng-lock-management__hint">{copy.lifecycleHint}</p>
       {notice && <p className="eng-lock-notice" role="status">{notice}</p>}

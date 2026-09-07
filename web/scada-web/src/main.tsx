@@ -9,7 +9,8 @@ import {
   resolveAppSurfaceAccess,
   useEffectiveCapabilities
 } from './auth/effectiveCapabilities';
-import { EngineeringApp } from './engineering/EngineeringApp';
+import { EngineeringLockGate } from './engineering/EngineeringLockGate';
+import { ContextualHelpApp } from './help/ContextualHelpApp';
 import { LicensingApp } from './licensing/LicensingApp';
 import { RuntimeApplicationMount } from './runtime/application/RuntimeApplicationMount';
 import { HistoricalDataBrowserRuntime } from './runtime/historical-browser/HistoricalDataBrowserRuntime';
@@ -40,15 +41,21 @@ function ApplicationSurface() {
   }
 
   const access = resolveAppSurfaceAccess(capabilities);
+  const anySurface = access.runtime || access.engineering || access.audit || access.licensing;
 
   let allowed = access.runtime;
   let Surface: React.ComponentType = RuntimeApplicationMount;
-  if (path.startsWith('/audit')) {
+  if (path.startsWith('/help')) {
+    allowed = anySurface;
+    Surface = ContextualHelpApp;
+  } else if (path.startsWith('/audit')) {
     allowed = access.audit;
     Surface = AuditApp;
   } else if (path.startsWith('/engineering')) {
+    // Authority decides whether the user may enter the Engineering route. The backend
+    // Engineering Lock then decides whether protected application editors may mount.
     allowed = access.engineering;
-    Surface = EngineeringApp;
+    Surface = EngineeringLockGate;
   } else if (path.startsWith('/licensing')) {
     allowed = access.licensing;
     Surface = LicensingApp;

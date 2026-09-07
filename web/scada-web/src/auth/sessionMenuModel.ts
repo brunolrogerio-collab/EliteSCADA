@@ -6,6 +6,9 @@ export type UserSessionMenuLabels = {
   account: string;
   roles: string;
   noRoles: string;
+  switchUser: string;
+  switchingUser: string;
+  switchUserFailed: string;
   logout: string;
   loggingOut: string;
   logoutFailed: string;
@@ -23,6 +26,9 @@ const labelsByLocale: Record<SessionLocale, UserSessionMenuLabels> = {
     account: 'Conta',
     roles: 'Funções',
     noRoles: 'Nenhuma função atribuída',
+    switchUser: 'Trocar usuário',
+    switchingUser: 'Trocando usuário…',
+    switchUserFailed: 'Não foi possível invalidar a sessão atual para trocar de usuário.',
     logout: 'Sair',
     loggingOut: 'Saindo…',
     logoutFailed: 'Não foi possível encerrar a sessão.'
@@ -31,6 +37,9 @@ const labelsByLocale: Record<SessionLocale, UserSessionMenuLabels> = {
     account: 'Account',
     roles: 'Roles',
     noRoles: 'No roles assigned',
+    switchUser: 'Switch user',
+    switchingUser: 'Switching user…',
+    switchUserFailed: 'The current session could not be invalidated to switch user.',
     logout: 'Sign out',
     loggingOut: 'Signing out…',
     logoutFailed: 'The session could not be ended.'
@@ -39,6 +48,9 @@ const labelsByLocale: Record<SessionLocale, UserSessionMenuLabels> = {
     account: 'Cuenta',
     roles: 'Roles',
     noRoles: 'No hay roles asignados',
+    switchUser: 'Cambiar usuario',
+    switchingUser: 'Cambiando usuario…',
+    switchUserFailed: 'No fue posible invalidar la sesión actual para cambiar de usuario.',
     logout: 'Salir',
     loggingOut: 'Saliendo…',
     logoutFailed: 'No fue posible cerrar la sesión.'

@@ -103,6 +103,8 @@ public static class LocalIdentityConfiguration
 
     public static bool AddLocalIdentity(this WebApplicationBuilder builder, bool authenticationEnabled)
     {
+        builder.Services.AddSingleton<InitialInstallationGate>();
+
         var local = builder.Configuration.GetSection("Authentication:Local");
         var enabled = local.GetValue<bool>("Enabled");
         if (!enabled)
@@ -135,6 +137,7 @@ public static class LocalIdentityConfiguration
             durableStore));
         builder.Services.AddSingleton<JwtTokenIssuer>();
         builder.Services.AddSingleton<LocalLoginAttemptLimiter>();
+        builder.Services.AddSingleton<AuthorityBackupService>();
         builder.Services.AddSingleton<ILocalIdentityStore>(_ =>
             durableStore
                 ? new PostgreSqlLocalIdentityStore(connectionString!)

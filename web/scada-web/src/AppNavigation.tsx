@@ -14,6 +14,20 @@ type ShellLink = Readonly<{
   description: string;
 }>;
 
+const helpText = {
+  'pt-BR': { label: 'Ajuda', description: 'Manual local' },
+  en: { label: 'Help', description: 'Local manual' },
+  es: { label: 'Ayuda', description: 'Manual local' }
+} as const;
+
+function contextualHelpTopic(path: string) {
+  if (path.startsWith('/engineering')) return 'engineering.overview';
+  if (path.startsWith('/audit')) return 'audit.overview';
+  if (path.startsWith('/licensing')) return 'licensing.overview';
+  if (path.startsWith('/runtime/history')) return 'runtime.history';
+  return 'runtime.overview';
+}
+
 export function AppNavigation() {
   const locale = useAppShellLocale();
   const text = appShellText(locale);
@@ -27,16 +41,27 @@ export function AppNavigation() {
   if (access.engineering) links.push({ href: '/engineering', label: text.engineering, description: text.engineeringDescription });
   if (access.audit) links.push({ href: '/audit', label: text.audit, description: text.auditDescription });
   if (access.licensing) links.push({ href: '/licensing', label: text.licensing, description: text.licensingDescription });
+  if (access.runtime || access.engineering || access.audit || access.licensing) {
+    links.push({
+      href: `/help?topic=${contextualHelpTopic(path)}`,
+      label: helpText[locale].label,
+      description: helpText[locale].description
+    });
+  }
 
-  const activeHref = path.startsWith('/licensing')
-    ? '/licensing'
-    : path.startsWith('/audit')
-      ? '/audit'
-      : path.startsWith('/engineering')
-        ? '/engineering'
-        : '/';
+  const activeHref = path.startsWith('/help')
+    ? '/help'
+    : path.startsWith('/licensing')
+      ? '/licensing'
+      : path.startsWith('/audit')
+        ? '/audit'
+        : path.startsWith('/engineering')
+          ? '/engineering'
+          : '/';
   const activeRuntimeHref = path.startsWith('/runtime/history') ? '/runtime/history' : '/';
-  const active = links.find(link => link.href === activeHref) ?? links[0];
+  const active = activeHref === '/help'
+    ? { href: '/help', label: helpText[locale].label, description: helpText[locale].description }
+    : links.find(link => link.href === activeHref) ?? links[0];
   const privilegedShell = access.engineering || access.audit || access.licensing;
   const runtimeOnly = access.runtime && !privilegedShell;
 
@@ -52,7 +77,8 @@ export function AppNavigation() {
         </a>
         <nav className="app-navigation" aria-label="EliteSCADA">
           {links.map(link => {
-            const isActive = activeHref === link.href;
+            const normalizedHref = link.href.startsWith('/help') ? '/help' : link.href;
+            const isActive = activeHref === normalizedHref;
             return <a
               key={link.href}
               href={link.href}

@@ -1,335 +1,303 @@
-# EliteSCADA — Current Coordinator Handoff
+# CURRENT COORDINATOR HANDOFF — Wave 14
 
-**Last operational synchronization:** 2026-09-05 BRT  
-**Status:** **WAVE 14 ACTIVE / C11 IMPLEMENTATION ACTIVE / C20+C21 INTEGRATED / C11 HMI NEAR-GREEN / POST-DEMO PRODUCT GAPS RECORDED / WAVE13 PAUSED**
+**Date:** 2026-09-07 BRT  
+**State:** **C25 PRODUCT OWNER ACCEPTED / INTEGRATION EXACT-SHA GREEN / C11 HISTORY-PRESERVING SYNCHRONIZATION ACTIVE / PRE-SYNC C11 PACKAGE PORTABILITY RED DIAGNOSED / #212 OPEN-DRAFT NOT AUTHORIZED / WAVE13 PAUSED**
 
-> GitHub is the official development memory. Revalidate live refs and exact-SHA workflows before acting. Documentation-only commits do not redefine product authority.
+## 1. Rule zero
 
-## 1. Permanent gates
+GitHub live state is the official and sole project authority. Before every decision, diagnosis or mutation, revalidate branch heads, PR states, relevant issue comments and exact-SHA CI. If this handoff differs from live GitHub, GitHub wins.
 
-- backend Active revision is canonical Runtime authority;
-- authorization is backend-enforced;
-- licensing is host-owned and fail-closed;
-- lifecycle remains `Working -> saved Revision -> Published -> Active -> HMI Runtime`;
-- diagnose any red before rerun;
-- never weaken tests/security/contracts/identity/licensing/lifecycle for green;
-- Alarm / Operational Event / Audit remain semantically separate;
-- no EEE-specific Driver/service/private runtime/hidden package/DEMO-only bypass;
-- no direct history insertion;
-- PR #212 remains OPEN/DRAFT and must **never merge to `main` without later explicit Product Owner authorization**;
-- Wave13 issue #205 / PR #207 remain paused until final accepted Wave14 bytes.
+Do not treat documentation-only changes as new product authority.
 
-## 2. Live repository state at handoff
+## 2. Repository and protected route
 
 Repository: `brunolrogerio-collab/EliteSCADA`
 
-Integration:
+Integration branch:
 
-- branch `wave14/corrections-integration`;
-- exact HEAD `cac8b6d58a4969a4aa6369590f6bd32fc2fae3d2`;
-- PR #212 OPEN/DRAFT -> `main`;
-- `main` was `edbdf446ea657713bdc487be91bf10bfcd03c684` at last live revalidation.
+`wave14/corrections-integration`
 
-C11:
+Integration PR:
 
-- branch `wave14/c11-canonical-eee-demo`;
-- implementation PR #263 OPEN/DRAFT -> `wave14/corrections-integration` only;
-- validation-only PR #266 OPEN/DRAFT -> `main`, **NEVER MERGE**, used solely because repository workflows are main-scoped;
-- exact C11 product/test head before this documentation handoff: `043ee86dd4815a253978b032750a1498a6c89df9`.
+#212 -> `main`
 
-The branch is now ahead by documentation-only handoff commits. Do not reinterpret those docs commits as a newly validated product SHA.
+**#212 MUST remain OPEN/DRAFT and MUST NOT merge to `main` without a later, separate and explicit Product Owner authorization.**
 
-## 3. Pre-DEMO product authority and C20/C21
+Neither `siga`, green CI, mergeability, C25 acceptance, C11 acceptance nor Product Owner Preview success is authorization for #212 -> `main`.
 
-Exact combined C12–C19 pre-DEMO product authority:
+Never mutate `main` directly. No force push, destructive rebase, branch deletion or unrelated cleanup.
 
-`3fda88061df35ad14755d22881e5d3a9216d1ff5`
+## 3. C25 accepted and integrated
 
-C20 was opened because C11 exposed a generic visual dynamic wire mismatch: Engineering authoring used PascalCase enum values while persisted Active wire used camelCase. C20 fixed the frontend visual-dynamic boundary generically and proved persisted Analog Fill behavior.
+C25 PR: #283  
+C25 issue: #282
 
-C21 was later opened because C11 exposed a generic Dynamo `TagReference` wire/runtime issue. Active serialization materialized `value: null`, while runtime validation rejected the shape. C21 also proved that one Dynamo definition can serve two instances with distinct TagReferences/subscriptions/rendered state.
+Explicit Product Owner acceptance applies to exact product/test candidate:
 
-Accepted C21 PRODUCT SHA:
+`5193b81220f499cb2039dc1146c6dd1a7f7b3dbd`
 
-`6d0d71bc91b08114f4c3d3238b56e4ca225b76bd`
+Retained exact evidence:
 
-Exact C21 gates were green:
+- Wave 14 C25 Post-Demo #314 / run `34072225644` — SUCCESS;
+- Wave 14 C03 DNP3 Adapter #301 / run `34072225635` — SUCCESS.
 
-- EliteSCADA CI #1387;
-- Wave11 #315;
-- Preview Licensing #337;
-- L3 #293;
-- Interop #214.
+Validated C25.10 coordination head:
 
-C21 was integrated only into integration, merge commit:
+`a781294ed2996888a8147c6f5fcaeb4eaddcf3c1`
 
-`cac8b6d58a4969a4aa6369590f6bd32fc2fae3d2`
+#283 merged only into integration with merge commit:
 
-C11 then consumed the integrated C21 with a real two-parent merge. Do not reintroduce local divergent C20/C21 copies.
+`f282758d47c0419f3534f948658701467807758b`
 
-## 4. Canonical EEE DEMO architecture already built
+C25 acceptance/integration does not authorize any merge to `main`.
 
-The canonical application is a new real EliteSCADA project, not the historical Demo Runtime.
+## 4. Integration regression diagnosed, corrected and exact-SHA green
 
-Stable application identity:
+Post-C25 integration initially exposed six Chromium failures. They were diagnosed rather than blindly rerun.
 
-- project key: `eee-demo`;
-- project name: `EliteSCADA — EEE Demo`;
-- startup/main Screen: `eee.overview`;
-- logical design: 1920×1080.
+Five failures shared one UI cause: when Engineering was unlocked, the C25 Engineering Lock management surface mounted its own locale picker while normal `EngineeringApp` also mounted the canonical Engineering locale picker. Tests correctly using `getByLabel('Idioma')` therefore found two controls.
 
-Simulation process authority:
+The sixth failure was independent: `report-designer-workspace.spec.ts` used a broad `**/api/** -> 404` fallback and had not declared the newly required `/api/engineering/lock/status`; the Engineering Lock gate therefore failed before `EngineeringApp` mounted.
 
-- Source key `eee.sim.server-memory`;
+Generic correction commit:
+
+`ff185ffd67fe4abc597af9184c21f86376ba6e17`
+
+Message:
+
+`fix(w14): restore Engineering E2E after lock integration`
+
+Correction scope:
+
+- remove only the redundant locale picker from **unlocked** Engineering Lock management;
+- preserve the Lock-specific locale picker on the **locked** restricted surface;
+- provide `{ configured: false, locked: false }` for `/api/engineering/lock/status` in the isolated Report Designer harness;
+- no assertion, authorization, Authority or Engineering Lock contract weakened.
+
+Exact-SHA validation on `ff185ffd...`:
+
+- EliteSCADA CI #1425 / `34079800458` — SUCCESS, including Backend/Web/Chromium;
+- Preview Licensing CI #373 — SUCCESS;
+- Interop Lab Smoke #250 — SUCCESS;
+- L3 Seven-Driver Lab #329 — SUCCESS;
+- Wave 11 Active HMI Runtime #351 — SUCCESS.
+
+This exact green integration parent is the authority consumed by the C11 synchronization.
+
+## 5. C11 canonical branch and synchronization
+
+Canonical EEE Demo branch:
+
+`wave14/c11-canonical-eee-demo`
+
+Implementation PR:
+
+#263 -> `wave14/corrections-integration`, OPEN/DRAFT.
+
+Validation-only PR:
+
+#266 -> `main`, OPEN/DRAFT, **MUST NEVER MERGE**.
+
+Pre-sync C11 head:
+
+`41d24d89c3b9d2b881215255e44023fabde262f3`
+
+Pre-sync C11 tree:
+
+`967e982090a075760f57e8035c7a557d2c5f5bdd`
+
+Green integration parent:
+
+`ff185ffd67fe4abc597af9184c21f86376ba6e17`
+
+Green integration tree:
+
+`34a3036b8cc1746c016fc815736884095272f35f`
+
+The two branches diverged from merge-base:
+
+`5962bee401fadd700041e7c61cd430d4b4f28e27`
+
+C11 was 38 commits ahead and 207 behind integration. Only 16 files differed on the C11 side; only two overlapped with integration changes:
+
+- `LAST CHANGE.md`;
+- `docs/CURRENT-COORDINATOR-HANDOFF.md`.
+
+Therefore the synchronization uses a normal two-parent merge preserving both histories. The 14 non-conflicting C11 blobs are retained byte-for-byte; only the two documentation conflicts are reconciled to this current state.
+
+Parents of the synchronization merge:
+
+1. C11 first parent `41d24d89c3b9d2b881215255e44023fabde262f3`;
+2. integration second parent `ff185ffd67fe4abc597af9184c21f86376ba6e17`.
+
+Revalidate the live C11 branch after this commit to obtain the resulting merge SHA. This document intentionally does not guess its own commit SHA.
+
+Temporary PR #284 was opened solely as a GitHub conflict probe (`integration -> C11`). It is not an integration path. Once this manual history-preserving merge is confirmed on the C11 branch, close #284 **without merge**.
+
+## 6. C11 application architecture preserved
+
+The canonical application is a real EliteSCADA project, not the historical Demo Runtime.
+
+Identity:
+
+- project key `eee-demo`;
+- project name `EliteSCADA — EEE Demo`;
+- startup Screen `eee.overview`;
+- logical HMI coordinate space 1920×1080.
+
+Construction/lifecycle authority:
+
+`Engineering definition -> Import Preview -> Apply -> Save -> Publish -> Activate -> Active HMI Runtime -> project-package export`
+
+Simulation authority uses generic product surfaces:
+
+- Source `eee.sim.server-memory`;
 - Driver `builtin.memory.server`;
-- one server-authoritative deterministic Server Script;
-- no Client Memory as process truth;
-- no EEE-specific simulator Driver/service.
+- deterministic server-side process Script;
+- no EEE-specific backend, Driver or private Runtime engine.
 
-The current package includes conceptual process/P01/P02 TAGs, Commands, Alarms, Operational Events, Historian points and quality scenario.
+The C11 project includes conceptual EEE process/P01/P02 TAGs, Commands, Alarms, Operational Events, Historian/Trend, quality scenario, one reusable pump Dynamo with independent P01/P02 instances, Screens, Popups and operator navigation.
 
-Important deterministic behaviors already proven in foundation tests include:
+Alarm, Operational Event and Audit remain distinct concepts.
 
-- level/inflow hydraulic evolution;
-- automatic duty pump start;
-- high demand and both pumps;
-- low-level cycle completion + duty alternation;
-- manual P01/P02 Commands;
-- fault injection/reset;
-- server-authoritative `Unavailable` quality scenario;
-- Historian samples;
-- Operational Event emission;
-- one-shot Command request acknowledgement.
-
-## 5. HMI currently built
-
-Current HMI builder/spec files:
-
-- `web/scada-web/tests-wave11/c11-eee-demo-hmi.ts`;
-- `web/scada-web/tests-wave11/c11-eee-demo-hmi.spec.ts`.
-
-The HMI already assembles:
-
-- `eee.overview` startup/operator overview;
-- live suction-well Analog Fill;
-- P01/P02 using one reusable `eee.dynamo.pump` definition with independent TagReference parameters;
-- pump Popups;
-- process/instrumentation/electrical/operation support Screens;
-- Trend Screen with Multi-Pen `core.trend`;
-- Alarm Browser;
-- Event Browser;
-- normal Runtime navigation/actions;
-- Command execution;
-- bad-quality visualization;
-- logical viewport/scaling checks.
-
-The HMI builder was corrected to use canonical visual properties (`textColor`, `strokeColor`, `cornerRadius`, etc.) and now composes on the canonical C11 foundation, not the obsolete early foundation variant.
-
-## 6. Real EEE reference material
-
-Product Owner supplied original FvDesigner material from an actual EEE:
-
-- `tags(1).csv`;
-- `alarm.csv`;
-- 15 PNG captures representing 14 unique screens because `ESCALAS` was duplicated.
-
-The durable repository mapping is:
+Real EEE reference material and canonical-to-Modbus mapping remain governed by:
 
 `docs/WAVE14-C11-EEE-REAL-REFERENCE-MAPPING.md`
 
-Do not ask the Product Owner to resend this material before searching repository/Library.
+The later real Modbus/PLC variant must reuse generic product mechanisms and the supplied real addresses. Do not build it before the binding post-DEMO generic gates are resolved.
 
-Critical interpretation:
+## 7. Pre-sync C11 exact validation and diagnosed blocker
 
-- EliteSCADA canonical TAG names may be normalized and hierarchical;
-- **real Modbus addresses from the supplied material are the primary authority for the later PLC-backed variant**;
-- retain canonical semantic TAG -> original Modbus address/type/comment mapping;
-- historical `alarm.csv` mixes true alarms and ordinary operational/status events;
-- canonical application must separate Alarm from Operational Event; Audit remains separate again.
+Exact pre-sync C11 SHA:
 
-Two intended C11 deliverables:
+`41d24d89c3b9d2b881215255e44023fabde262f3`
 
-1. canonical self-contained Simulation application/package;
-2. later derived EEE package using real Modbus addresses for communication with the existing PLC logic while reusing the HMI/semantic architecture.
+Normal gates:
 
-The second deliverable must not be built until the post-DEMO product gates below are resolved.
+- EliteSCADA CI #1410 / `33977314325` — SUCCESS;
+- Preview Licensing CI #360 / `33977314302` — SUCCESS;
+- Interop Lab Smoke #237 / `33977314294` — SUCCESS;
+- L3 Seven-Driver Lab #316 / `33977314306` — SUCCESS;
+- Wave 11 Active HMI Runtime #338 / `33977314297` — FAILURE.
 
-## 7. Exact current C11 validation
+Wave11 #338 is diagnosed. The normal Wave11 Active Runtime browser sequence passed **22/22**. The only failure occurred in the separate C11 canonical package portability gate using an isolated fresh `eee-demo` database/project.
 
-Exact product/test SHA under latest completed validation:
+Failure point:
 
-`043ee86dd4815a253978b032750a1498a6c89df9`
+`tests-wave11/c11-eee-demo-package.spec.ts`
 
-SUCCESS:
+During `Save -> Publish -> Activate`, Publish returned HTTP 400 because validation reported:
 
-- EliteSCADA CI #1392 / `33949584309`;
-- Preview Licensing #342 / `33949584221`;
-- L3 Seven-Driver Lab #298 / `33949584220`;
-- Interop Lab Smoke #219 / `33949584204`.
+- code `DYNAMO_TEMPLATE_NOT_FOUND`;
+- dynamo `dynamo.pump.standard`;
+- referenced template `pump.standard` was not present in the fresh project.
 
-FAILURE:
+Consequently the package could not reach Export -> Inspect -> Import Preview in that run.
 
-- Wave11 Active HMI Runtime #320 / `33949584209`.
+Do not blind-rerun the old head. After synchronization, let the new exact C11 head validate against accepted integration bytes. If the same issue remains, determine why a fresh canonical project contains or receives `dynamo.pump.standard` without its template and correct the generic package/project/fixture source without deleting legitimate validation or adding EEE-only exceptions.
 
-Wave11 #320 is fully diagnosed and is **not a product defect**.
+## 8. C11 package authority
 
-It ran 21 tests in the serial Wave11 chain. Before the failure:
+The final canonical artifact must come from the actual `eee-demo` application through normal product endpoints and lifecycle.
 
-- C16 startup/lifecycle passed;
-- C17 memory tests passed;
-- C15 Trend passed;
-- C16 operational runtime passed;
-- C18 Browser passed;
-- C19 operational events passed;
-- C20 tests passed;
-- C21 generic two-instance Dynamo tests passed;
-- C11 foundation passed;
-- C11 HMI progressed deep into the operator flow.
+Required proof:
 
-Final result:
+1. create/use actual project key `eee-demo`;
+2. Save;
+3. Publish;
+4. Activate;
+5. `GET /api/project-package/export`;
+6. inspect exported package;
+7. Preview-import the package through normal product import preview (`CreateAndUpdate` where applicable);
+8. verify portability/self-containment;
+9. version/freeze `EliteSCADA-EEE-Demo.escadapkg`;
+10. record SHA-256 and provenance.
 
-- 16 passed;
-- 1 failed;
-- 4 downstream tests did not run because of dependency.
+Do not use the historical `owner-test-artifact.spec.ts` (`e2e-wave11` / `demo.overview`) as final C11 package authority.
 
-Exact failure in `c11-eee-demo-hmi.spec.ts` around line 146:
+## 9. Binding post-DEMO Product Owner decisions
 
-`page.getByRole('button', { name: 'TENDÊNCIAS' }).click()`
-
-Strict mode found two legitimate controls with the same accessible name:
-
-1. top navigation `TENDÊNCIAS`;
-2. overview quick-access `TENDÊNCIAS`.
-
-This is a test-selector ambiguity. Do not modify product code and do not rerun #320 unchanged.
-
-## 8. FIRST TASK for next coordinator
-
-1. revalidate C11 branch/PRs/workflows live;
-2. inspect `c11-eee-demo-hmi.spec.ts` around the `TENDÊNCIAS` click;
-3. replace the ambiguous selector with a deterministic locator scoped to the intended navigation control or stable object identity;
-4. do not remove either real UI button merely to make the test unique;
-5. commit one new exact C11 candidate SHA;
-6. let validation-only PR #266 trigger the normal five gates;
-7. diagnose any red before rerun;
-8. if Wave11 becomes green, continue application-level C11 acceptance rather than declaring Wave14 finished.
-
-## 9. Required work after C11 HMI becomes green
-
-C11 acceptance still needs the final application artifact path:
-
-1. create/prove the final canonical project with actual key `eee-demo`, not only the Wave11 harness key `e2e-wave11`;
-2. `Save -> Publish -> Activate` normally;
-3. export through `/api/project-package/export`;
-4. inspect exported package;
-5. Preview-import it through normal product package import preview (`CreateAndUpdate` where applicable);
-6. record provenance and SHA-256;
-7. version the accepted `.escadapkg` only after Active application acceptance.
-
-The existing Wave11 `owner-test-artifact.spec.ts` is historical and exports `e2e-wave11` / `demo.overview`. It is not the final C11 artifact authority.
-
-## 10. Product Owner decisions: package vs system state
-
-Product Owner agrees that `.escadapkg` should remain application-specific.
-
-It should **not** become a container for:
-
-- local user passwords;
-- Historian samples;
-- host secrets;
-- unrelated system state.
-
-Application portability and whole-system recovery are distinct concerns.
-
-A separate system backup/restore capability/Administration workflow must be designed so migration/disaster recovery can restore installation state without corrupting the application-package contract.
-
-Read the binding record:
+Read:
 
 `docs/WAVE14-C11-POST-DEMO-SYSTEM-RECOVERY-SCALING-GAPS.md`
 
-## 11. Post-DEMO PRODUCT GAPS now fixed in sequence
+### Application package boundary
 
-The Product Owner has classified the following as product/system gaps to handle **after the Simulation DEMO is assembled, but before fresh Codespace homologation and before the real Modbus/PLC variant**.
+`.escadapkg` remains an application/project package. It must not silently contain local user passwords, Historian samples, host secrets or unrelated host/system state.
 
-### 11.1 System backup / restore
+Runtime/Active must not depend on external `.escadalib`; final `.escadapkg` remains self-contained according to accepted C25 Reusable Libraries contracts.
 
-Audit and define a protected recovery workflow covering, as applicable:
+### Whole-system backup / restore
 
-- applications/revisions;
-- local identities/users/roles without plaintext password exposure;
-- external Historian data;
-- Alarm/Event/Audit persistent stores where outside the project package;
-- host configuration;
-- protected secrets/configuration;
-- explicit handling/exclusion of machine-bound licensing/trust material;
-- compatibility/restore validation.
+Application portability is distinct from disaster recovery. A separate protected system backup/restore capability and Administration workflow must cover appropriate application/revision state, local identity/roles, Historian and other persistent stores, host configuration/secrets and explicit machine-bound licensing/trust exclusions.
 
-### 11.2 Historian administration
+### Historian administration
 
-Historian remains external to `.escadapkg`. Product Owner wants a normal Administration/workflow for export/backup and import/restore of historical data with identity/compatibility safety.
+Historian remains outside `.escadapkg`. Provide/audit a safe Administration workflow for backup/export and import/restore with project/TAG identity compatibility rather than blind database copying.
 
-### 11.3 TAG engineering scaling
+### TAG raw-to-engineering scaling
 
-Confirmed generic gap, especially for the real Modbus EEE.
+Confirmed generic product gap. Example: raw Modbus register `100` may represent `1.00 m`. Engineering needs first-class TAG-level raw -> engineering scaling so HMI, Alarm, Historian and Trend consume one canonical engineering value. Write inverse semantics must be explicit and fail-closed.
 
-Example from the real PLC pattern:
+Do not implement this as an EEE-only Script or repeated visual expression.
 
-- raw Holding Register = `100`;
-- intended engineering value = `1.00 m`.
+### Decimal-place authoring
 
-Required design must provide first-class TAG-level raw -> engineering scaling, preferably affine or equivalent raw-range/engineering-range semantics, and ensure normal HMI/Alarm/Historian/Trend consumers use the engineering value consistently. Write-enabled inverse scaling must be explicit/fail-closed.
+Confirmed generic presentation gap. Human Engineering must allow configured numeric display precision to persist through Save/Publish/Activate and package round-trip. Formatting is separate from scaling.
 
-Do not implement the conversion as an EEE-only Script or repeated visual expression.
+These generic gaps do not block finishing the current Simulation application unless needed by it, but they **do block fresh Product Owner Codespace homologation and the real Modbus/PLC variant**.
 
-### 11.4 Analog decimal-place display
+## 10. Permanent technical boundaries
 
-Confirmed presentation gap. Engineering must allow ordinary configuration/persistence of decimal places for analog/numeric visual presentation after Save/Publish/Activate and package round-trip.
+Never obtain green by weakening:
 
-Scaling and formatting are different concepts:
+- tests or validation;
+- authentication/authorization/identity;
+- backend Authority;
+- Engineering Lock;
+- licensing;
+- lifecycle and Save/Publish/Activate;
+- package or System Recovery semantics;
+- Runtime authority or Active Revision;
+- Drivers or security/distribution contracts.
 
-- scaling changes raw transport value into engineering value;
-- decimal places change only presentation.
+Backend Active Revision remains canonical Runtime application authority.
 
-C11 fixture currently uses formatting metadata programmatically in places; this does not satisfy the Product Owner requirement for normal human authoring.
+Reusable Libraries retain accepted C25 semantics: Engineering-only; Engineering Lock; Association != Import; selective incorporation; incorporated content becomes project-owned canonical; association/disassociation does not destroy incorporated content; Runtime/Active does not depend on `.escadalib`; final `.escadapkg` is self-contained.
 
-## 12. Binding sequence from Product Owner
+Installed Help keeps pt-BR/en/es and stable Topic IDs.
 
-The sequence is now:
+OpenDNP3/commercial dependency boundary remains valid.
 
-1. finish canonical EEE Simulation DEMO;
-2. make the Simulation application-level C11 tests green;
-3. export/re-preview canonical `eee-demo` package and record provenance/checksum;
-4. resolve/audit system backup/restore + Historian administration requirements;
-5. implement/resolve generic TAG scaling;
-6. implement/resolve analog decimal-place authoring/runtime persistence;
-7. run exact-SHA product validation for those generic corrections;
-8. update Preview harness to consume the canonical EEE DEMO;
-9. Product Owner performs fresh Codespace product/visual homologation;
-10. correct and revalidate any finding;
-11. only then build the second EEE package using the real Modbus addresses and test against the existing PLC logic;
-12. final Wave14 acceptance;
-13. resume Wave13 packaging/signing only on final accepted Wave14 bytes.
+No generic product defect may be hidden behind an EEE-specific workaround.
 
-Scaling/decimal gaps are **not current blockers for finishing the Simulation DEMO** unless a generic mechanism becomes necessary to complete the present application. They **are blockers before Codespace homologation and before the Modbus variant**.
+## 11. Immediate sequence after synchronization
 
-## 13. Mandatory resume order
+1. revalidate live C11 branch, #263, #266, #284 and all workflows on the exact new C11 SHA;
+2. close temporary #284 without merge after confirming the history-preserving synchronization;
+3. diagnose every red before any rerun/correction;
+4. finish canonical Simulation C11 application validation;
+5. prove `Save -> Publish -> Activate`;
+6. prove `Export -> Inspect -> Import Preview` and package portability;
+7. freeze/version `EliteSCADA-EEE-Demo.escadapkg`, SHA-256 and provenance;
+8. run exact C11 gates, using #266 only as a validation trigger and never as an integration route;
+9. then resolve/audit whole-system backup/restore + Historian administration;
+10. implement/resolve generic TAG scaling;
+11. implement/resolve normal decimal-place human authoring/runtime/package persistence;
+12. exact-SHA validate those generic corrections;
+13. update Preview harness to consume canonical EEE DEMO;
+14. perform fresh Product Owner Codespace/product/visual homologation;
+15. correct/revalidate findings;
+16. only then build and validate the real Modbus/PLC EEE variant;
+17. obtain final Wave14 acceptance;
+18. only after a later separate explicit Product Owner authorization may #212 merge to `main`;
+19. validate the resulting exact new `main`;
+20. only then resume Wave13 release/signing.
 
-1. `PROJECT GOAL.md`;
-2. `LAST CHANGE.md`;
-3. this file;
-4. `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`;
-5. `docs/WAVE14-C11-IMPLEMENTATION-RELEASE.md`;
-6. `docs/WAVE14-C11-CANONICAL-DEMO-REQUIREMENTS.md`;
-7. `docs/WAVE14-C11-CANONICAL-DEMO-IMPLEMENTATION-HANDOFF.md`;
-8. `docs/WAVE14-C11-EEE-REAL-REFERENCE-MAPPING.md`;
-9. `docs/WAVE14-C11-POST-DEMO-SYSTEM-RECOVERY-SCALING-GAPS.md`;
-10. historical C11 Pass-2 audit/clarification docs;
-11. C20 and C21 contract docs;
-12. `docs/CI-VALIDATION-POLICY.md`;
-13. `docs/CODESPACES-PREVIEW-RUNBOOK.md`;
-14. live issue #211;
-15. live PRs #212, #263, #266;
-16. exact workflows on live C11 head;
-17. start with the diagnosed ambiguous `TENDÊNCIAS` locator, not with product changes.
+## 12. Wave13 pause
 
-Do not ask the Product Owner to repeat decisions already recorded unambiguously in GitHub.
+Wave13 issue #205 and PR #207 remain paused. PR #207 stays OPEN/DRAFT with preserved pre-Wave14-validation head:
+
+`fda87ba4445127c174f6ea533a6bcabaabc7bb20`
+
+Do not resume signing/release from that stale snapshot. Resume only from the approved and validated new mainline after the Wave14 sequence above.

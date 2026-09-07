@@ -79,9 +79,15 @@ public static class LocalIdentityApi
             LocalIdentityBootstrapService bootstrap,
             JwtTokenIssuer issuer,
             LocalLoginAttemptLimiter limiter,
+            InitialInstallationGate installationGate,
             ApiAuditService audit,
             CancellationToken ct) =>
         {
+            var remoteKey = $"bootstrap:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+            if (!limiter.TryAcquire(remoteKey))
+                return Results.StatusCode(StatusCodes.Status429TooManyRequests);
+
+            await using var installationLease = await installationGate.EnterAsync(ct);
             var bootstrapStatus = await ResolveBootstrapStatusAsync(context, runtime, bootstrap, ct);
             if (!bootstrapStatus.Required)
             {
@@ -98,10 +104,6 @@ public static class LocalIdentityApi
                     reason = bootstrapStatus.BlockedReason
                 });
             }
-
-            var remoteKey = $"bootstrap:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
-            if (!limiter.TryAcquire(remoteKey))
-                return Results.StatusCode(StatusCodes.Status429TooManyRequests);
 
             try
             {
@@ -227,14 +229,7 @@ public static class LocalIdentityApi
             ApiAuditService audit) =>
         {
             var principal = security.GetPrincipal(context);
-            context.Response.Cookies.Delete(runtime.CookieName, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = runtime.SecureCookie,
-                SameSite = SameSiteMode.Strict,
-                Path = "/",
-                IsEssential = true
-            });
+            DeleteLocalCookie(context, runtime);
 
             await audit.RecordAsync(
                 context,
@@ -249,10 +244,11 @@ public static class LocalIdentityApi
         });
 
         endpoints.MapLocalUserAdministrationEndpoints();
+        endpoints.MapAuthorityBackupEndpoints();
         return endpoints;
     }
 
-    private static async Task<InitialAdministratorBootstrapStatus> ResolveBootstrapStatusAsync(
+    internal static async Task<InitialAdministratorBootstrapStatus> ResolveBootstrapStatusAsync(
         HttpContext context,
         LocalIdentityRuntimeOptions runtime,
         LocalIdentityBootstrapService bootstrap,
@@ -272,6 +268,18 @@ public static class LocalIdentityApi
         return new InitialAdministratorBootstrapStatus(true, true, null);
     }
 
+    internal static void DeleteLocalCookie(HttpContext context, LocalIdentityRuntimeOptions runtime)
+    {
+        context.Response.Cookies.Delete(runtime.CookieName, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = runtime.SecureCookie,
+            SameSite = SameSiteMode.Strict,
+            Path = "/",
+            IsEssential = true
+        });
+    }
+
     private static CookieOptions CookieOptions(LocalIdentityRuntimeOptions runtime, DateTimeOffset expiresAtUtc) => new()
     {
         HttpOnly = true,
@@ -282,7 +290,7 @@ public static class LocalIdentityApi
         IsEssential = true
     };
 
-    private sealed record InitialAdministratorBootstrapStatus(
+    internal sealed record InitialAdministratorBootstrapStatus(
         bool Required,
         bool Available,
         string? BlockedReason);

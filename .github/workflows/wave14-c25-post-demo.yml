@@ -1,0 +1,169 @@
+name: Wave 14 C25 Post-Demo
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - wave14/c25-post-demo
+    paths:
+      - "src/Scada.Api/**"
+      - "src/Scada.Engineering/**"
+      - "src/Scada.Security/**"
+      - "src/Scada.Persistence.PostgreSql/**"
+      - "tests/Scada.Core.Tests/**"
+      - "tests/Scada.Drivers.Tests/**"
+      - "web/scada-web/**"
+      - "docs/WAVE14-C25-*.md"
+      - ".github/workflows/wave14-c25-post-demo.yml"
+  pull_request:
+    branches:
+      - wave14/corrections-integration
+    paths:
+      - "src/Scada.Api/**"
+      - "src/Scada.Engineering/**"
+      - "src/Scada.Security/**"
+      - "src/Scada.Persistence.PostgreSql/**"
+      - "tests/Scada.Core.Tests/**"
+      - "tests/Scada.Drivers.Tests/**"
+      - "web/scada-web/**"
+      - "docs/WAVE14-C25-*.md"
+      - ".github/workflows/wave14-c25-post-demo.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wave14-c25-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  engineering-lock:
+    name: C25 security backend contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_c25_security
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_c25_security"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ELITESCADA_C25_POSTGRES: 'Host=127.0.0.1;Port=5432;Database=elitescada_c25_security;Username=postgres;Password=postgres;Pooling=false'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+
+      - name: Restore Core tests
+        run: dotnet restore tests/Scada.Core.Tests/Scada.Core.Tests.csproj
+
+      - name: Restore API/Driver tests
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+
+      - name: Build Core tests
+        run: dotnet build tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-restore --configuration Release
+
+      - name: Build API/Driver tests
+        run: dotnet build tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release
+
+      - name: Run Engineering Lock package and crypto tests
+        run: dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~EngineeringLock" --verbosity normal
+
+      - name: Run Engineering Lock backend and lifecycle tests
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~EngineeringLockAccessTests|FullyQualifiedName~PublishedRuntimeActivationServiceTests|FullyQualifiedName~PersistedRuntimeRecoveryServiceTests" --verbosity normal
+
+      - name: Run reusable library package, catalog, incorporation and backend lifecycle tests
+        run: |
+          dotnet test tests/Scada.Core.Tests/Scada.Core.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~ReusableLibrary" --verbosity normal
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~ReusableLibrary" --verbosity normal
+
+      - name: Run Authority backup crypto and validation tests
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~AuthorityBackupServiceTests" --verbosity normal
+
+      - name: Run System Recovery backend contract tests
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~SystemRecovery" --verbosity normal
+
+      - name: Run atomic Authority store replacement tests
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~LocalIdentityStoreReplaceTests" --verbosity normal
+
+      - name: Run C25.7 distributed Runtime foundation backend contract tests
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~DistributedRuntimeFoundationTests" --verbosity normal
+
+      - name: Run C25.8 contextual multilingual Help contract tests
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter "FullyQualifiedName~ContextualHelpTests" --verbosity normal
+
+  engineering-lock-web:
+    name: Engineering Lock web contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_c25_web
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_c25_web"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ConnectionStrings__EliteScada: 'Host=127.0.0.1;Port=5432;Database=elitescada_c25_web;Username=postgres;Password=postgres;Pooling=false'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+
+      - name: Restore API
+        run: dotnet restore src/Scada.Api/Scada.Api.csproj
+
+      - name: Install frontend dependencies
+        working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+
+      - name: Build React/Vite
+        working-directory: web/scada-web
+        run: npm run build
+
+      - name: Install Chromium
+        working-directory: web/scada-web
+        run: npx playwright install --with-deps chromium
+
+      - name: Run C25 Engineering Lock, Restore-first, Runtime session, reusable library and Help browser tests
+        working-directory: web/scada-web
+        run: npx playwright test tests-e2e/wave-14-c25-engineering-lock.spec.ts tests-e2e/wave-14-c25-restore-first.spec.ts tests-e2e/wave-14-c25-runtime-session.spec.ts tests-e2e/wave-14-c25-reusable-libraries.spec.ts tests-e2e/wave-14-c25-contextual-help.spec.ts --project=chromium --no-deps
+
+      - name: Upload C25 Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c25-engineering-lock-playwright-${{ github.sha }}
+          path: web/scada-web/playwright-report
+          if-no-files-found: ignore
+          retention-days: 14

@@ -16,6 +16,7 @@ import { EngineeringProjectManagementWorkspace } from './EngineeringProjectManag
 import { OperationalEventEditor, operationalEventCount } from './OperationalEventEditor';
 import { ReportDesignerWorkspace } from './reports/ReportDesignerWorkspace';
 import { reportCollection } from './reports/reportDesignerModel';
+import { ReusableLibraryWorkspace } from './ReusableLibraryWorkspace';
 import { ScriptEngineeringWorkspace } from './scripts/ScriptEngineeringWorkspace';
 import { DataSourceEditor, TagEditor } from './StructuredEditors';
 import { UserAdministration } from './UserAdministration';
@@ -27,6 +28,7 @@ import './engineering.css';
 type SectionId =
   | 'overview'
   | 'scripts'
+  | 'libraries'
   | 'dataSources'
   | 'tags'
   | 'alarms'
@@ -47,9 +49,14 @@ type NavItem = { id: SectionId; label?: TranslationKey; literalLabel?: Record<En
 type NavGroup = { label: TranslationKey; items: NavItem[] };
 
 const tagMonitorPath = '/engineering/diagnostics/tag-monitor';
+const librariesPath = '/engineering/libraries';
 
 const navigation: NavGroup[] = [
-  { label: 'nav.project', items: [{ id: 'overview', label: 'nav.overview' }, { id: 'scripts' }] },
+  { label: 'nav.project', items: [
+    { id: 'overview', label: 'nav.overview' },
+    { id: 'scripts' },
+    { id: 'libraries', literalLabel: { 'pt-BR': 'Bibliotecas', en: 'Libraries', es: 'Bibliotecas' } }
+  ] },
   { label: 'nav.communication', items: [
     { id: 'dataSources', label: 'nav.dataSources' },
     { id: 'tags', label: 'nav.tags' },
@@ -101,7 +108,11 @@ export function EngineeringApp() {
 
   const selectSection = (next: SectionId) => {
     setSection(next);
-    const nextPath = next === 'tagMonitor' ? tagMonitorPath : '/engineering';
+    const nextPath = next === 'tagMonitor'
+      ? tagMonitorPath
+      : next === 'libraries'
+        ? librariesPath
+        : '/engineering';
     if (window.location.pathname !== nextPath) window.history.replaceState(null, '', nextPath);
   };
 
@@ -183,6 +194,7 @@ function EngineeringSection({ section, snapshot, t, locale, onReload }: {
   const model = snapshot.package;
   if (section === 'overview') return <><Overview snapshot={snapshot} t={t}/><EngineeringLifecycleWorkspace locale={locale}/><EngineeringProjectManagementWorkspace locale={locale}/></>;
   if (section === 'scripts') return <ScriptEngineeringWorkspace locale={locale}/>;
+  if (section === 'libraries') return <ReusableLibraryWorkspace locale={locale} snapshot={snapshot} onReload={onReload}/>;
   if (section === 'historian') return <HistorianSection model={model} t={t}/>;
   if (section === 'reports') return <ReportDesignerWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
   if (section === 'security') return <SecuritySection model={model} t={t} locale={locale}/>;
@@ -321,6 +333,7 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'reports': return reportCollection(model).length;
     case 'security': return model.securityRoles?.length ?? 0;
     case 'scripts':
+    case 'libraries':
     case 'overview':
     case 'monitor':
     case 'tagMonitor':
@@ -333,10 +346,12 @@ function formatDate(value: string, locale: EngineeringLocale) {
 }
 function scriptNavLabel(_locale: EngineeringLocale) { return 'Scripts'; }
 function NavIcon({ section }: { section: SectionId }) {
-  const symbols: Record<SectionId, string> = { overview: '⌂', scripts: '</>', dataSources: '⇄', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯' };
+  const symbols: Record<SectionId, string> = { overview: '⌂', scripts: '</>', libraries: '▱', dataSources: '⇄', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯' };
   return <i aria-hidden="true">{symbols[section]}</i>;
 }
 
 function resolveInitialSection(): SectionId {
-  return window.location.pathname.startsWith(tagMonitorPath) ? 'tagMonitor' : 'overview';
+  if (window.location.pathname.startsWith(tagMonitorPath)) return 'tagMonitor';
+  if (window.location.pathname.startsWith(librariesPath)) return 'libraries';
+  return 'overview';
 }

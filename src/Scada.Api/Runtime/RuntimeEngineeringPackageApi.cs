@@ -10,6 +10,9 @@ public static class RuntimeEngineeringPackageApi
 {
     public static IEndpointRouteBuilder MapRuntimeEngineeringPackageEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapDistributedRuntimeFoundationEndpoints();
+        endpoints.MapContextualHelpEndpoints();
+
         endpoints.MapGet("/api/auth/effective-capabilities", async (
             HttpContext context,
             ScadaRuntimeFacade runtime,
@@ -39,7 +42,7 @@ public static class RuntimeEngineeringPackageApi
             foreach (var capability in all)
             {
                 var check = await security.CheckRuntimeAsync(
-                    principal,
+                    context,
                     runtime,
                     capability,
                     cancellationToken: cancellationToken);

@@ -62,6 +62,7 @@ public sealed class EngineeringWorkspace : IDisposable
 
     public EngineeringWorkspace()
     {
+        SessionId = Guid.NewGuid();
         Tags = new InMemoryTagRegistry(MarkDirty);
         Alarms = new InMemoryAlarmEngine(_eventBus, MarkDirty);
         DataSources = new InMemoryDataSourceEngineeringRegistry(MarkDirty);
@@ -74,6 +75,7 @@ public sealed class EngineeringWorkspace : IDisposable
         SeedDemo();
     }
 
+    public Guid SessionId { get; }
     public InMemoryTagRegistry Tags { get; }
     public InMemoryAlarmEngine Alarms { get; }
     public InMemoryDataSourceEngineeringRegistry DataSources { get; }

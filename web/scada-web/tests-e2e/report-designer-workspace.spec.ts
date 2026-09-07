@@ -58,6 +58,9 @@ test('Report Designer creates, previews and applies one canonical report', async
       }
     });
   });
+  await page.route('**/api/engineering/lock/status', async route => {
+    await route.fulfill({ json: { configured: false, locked: false } });
+  });
   await page.route('**/api/engineering/workspace', async route => {
     await route.fulfill({ json: workspace });
   });

@@ -13,13 +13,14 @@ using Scada.Drivers.Simulation;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
+using Scada.Engineering.Security;
 
 namespace Scada.Drivers.Tests;
 
 public sealed class PersistedRuntimeRecoveryServiceTests
 {
     [Fact]
-    public async Task Recovery_UsesPersistedActiveRevisionEvenWhenNewerRevisionIsPublished()
+    public async Task Recovery_UsesPersistedActiveRevisionAndRehydratesItsLockEvenWhenNewerRevisionIsPublished()
     {
         await using var activeServer = new TestModbusTcpServer();
         activeServer.HoldingRegisters[10] = 111;
@@ -31,8 +32,16 @@ public sealed class PersistedRuntimeRecoveryServiceTests
 
         var activeTagId = Guid.NewGuid();
         var publishedTagId = Guid.NewGuid();
-        var activePackage = CreatePackage(activeServer.Port, activeTagId, "Plant.Active.Value", "holding:10");
-        var publishedPackage = CreatePackage(publishedServer.Port, publishedTagId, "Plant.Published.Value", "holding:20");
+        var activeLock = new EngineeringLockSecretService().Configure("active-recovery-secret", locked: true);
+        var publishedLock = new EngineeringLockSecretService().Configure("newer-published-secret", locked: false);
+        var activePackage = CreatePackage(activeServer.Port, activeTagId, "Plant.Active.Value", "holding:10") with
+        {
+            EngineeringLock = activeLock
+        };
+        var publishedPackage = CreatePackage(publishedServer.Port, publishedTagId, "Plant.Published.Value", "holding:20") with
+        {
+            EngineeringLock = publishedLock
+        };
         var activeSnapshot = CreateSnapshot(1, activePackage);
         var publishedSnapshot = CreateSnapshot(2, publishedPackage);
         var store = new RecoveryStore(activeSnapshot, publishedSnapshot);
@@ -41,6 +50,8 @@ public sealed class PersistedRuntimeRecoveryServiceTests
         using var exchangeAlarms = new InMemoryAlarmEngine(exchangeBus);
         var exchange = new EngineeringExchangeService(new InMemoryTagRegistry(), exchangeAlarms);
         var persistence = new EngineeringProjectPersistenceService(exchange, store);
+
+        Assert.False(EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock).Locked);
 
         var runtimeBus = new InMemoryScadaEventBus();
         await using var runtime = new EngineeringRuntimeCoordinator(
@@ -60,6 +71,11 @@ public sealed class PersistedRuntimeRecoveryServiceTests
         Assert.False(runtime.TryGetTag(publishedTagId, out _));
         Assert.True(runtime.TryGetCurrent(activeTagId, out var current));
         Assert.Equal(111d, Convert.ToDouble(current!.Value));
+
+        var currentLock = EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock);
+        Assert.True(currentLock.Locked);
+        Assert.Equal(activeLock.Verifier, currentLock.Verifier);
+        Assert.NotEqual(publishedLock.Verifier, currentLock.Verifier);
 
         var loadedActive = await persistence.LoadActiveAsync("plant-a");
         var loadedPublished = await persistence.LoadPublishedAsync("plant-a");

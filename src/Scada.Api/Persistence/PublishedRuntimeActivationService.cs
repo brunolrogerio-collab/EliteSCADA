@@ -1,4 +1,5 @@
 using Scada.Api.Runtime;
+using Scada.Api.Security;
 using Scada.Core.Abstractions;
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Abstractions;
@@ -115,6 +116,12 @@ public sealed class PublishedRuntimeActivationService(
                 CommitAsync,
                 cancellationToken);
         }
+
+        // The Active revision is the Runtime application authority. Only after a
+        // successful committed activation may its Engineering Lock state replace the
+        // protection state of the currently running application.
+        if (runtimeResult.Activated && recordedActivation is not null)
+            EngineeringLockAccess.Replace(exchange, package.EngineeringLock);
 
         var lifecycle = await persistence.GetLifecycleAsync(
             snapshot.ProjectKey,

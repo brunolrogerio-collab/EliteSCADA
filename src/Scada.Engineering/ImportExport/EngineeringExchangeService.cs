@@ -35,6 +35,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly IVisualAssetEngineeringRegistry _visualAssets;
     private readonly IReportEngineeringRegistry _reports;
     private readonly IOperationalEventEngineeringRegistry _operationalEvents;
+    private readonly IEngineeringLockRegistry _engineeringLock;
     private readonly JsonSerializerOptions _json;
     private readonly EngineeringCsvExchange _csv;
     private readonly DataSourceEngineeringHandler _dataSourceHandler;
@@ -161,7 +162,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         IVisualAssetEngineeringRegistry? visualAssets = null,
         IReportEngineeringRegistry? reports = null,
         IDataSourceConfigurationValidator? dataSourceConfigurationValidator = null,
-        IOperationalEventEngineeringRegistry? operationalEvents = null)
+        IOperationalEventEngineeringRegistry? operationalEvents = null,
+        IEngineeringLockRegistry? engineeringLock = null)
     {
         _tags = tags;
         _alarms = alarms;
@@ -177,6 +179,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _operationalEvents = operationalEvents
             ?? (_scripts as IOperationalEventEngineeringRegistry)
             ?? new InMemoryOperationalEventEngineeringRegistry();
+        _engineeringLock = engineeringLock ?? new InMemoryEngineeringLockRegistry();
         _json = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -228,7 +231,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             _visualAssets.SnapshotAssets(),
             _reports.SnapshotReports(),
             _operationalEvents.SnapshotOperationalEvents(),
-            _views.StartupScreenId);
+            _views.StartupScreenId,
+            _engineeringLock.Snapshot());
     }
 
     public string ExportJson(bool indented = true)
@@ -272,7 +276,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             ScriptVisualEventReferences = package.ScriptVisualEventReferences ?? Array.Empty<ScriptVisualEventReference>(),
             VisualAssets = package.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>(),
             Reports = package.Reports ?? Array.Empty<ReportEngineeringDto>(),
-            OperationalEvents = package.OperationalEvents ?? Array.Empty<OperationalEventEngineeringDto>()
+            OperationalEvents = package.OperationalEvents ?? Array.Empty<OperationalEventEngineeringDto>(),
+            EngineeringLock = EngineeringLockContract.Normalize(package.EngineeringLock)
         };
     }
 
@@ -293,6 +298,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         ImportMode mode,
         EngineeringImportContext? context)
     {
+        _ = EngineeringLockContract.Normalize(package.EngineeringLock);
         var items = new List<ImportPreviewItem>();
         _dataSourceHandler.Preview(package, mode, items);
         _tagHandler.Preview(package, mode, items);
@@ -352,6 +358,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _operationalEventHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _reportHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _securityPolicyHandler.Apply(package, mode, ref created, ref updated, ref skipped);
+        _engineeringLock.Replace(package.EngineeringLock);
 
         return new ImportResult(mode, created, updated, skipped, Array.Empty<ImportIssue>());
     }
@@ -493,7 +500,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         }
     }
 
-    private static EngineeringPackage Empty() => new(
+    private EngineeringPackage Empty() => new(
         CurrentSchema,
         CurrentSchemaVersion,
         DateTimeOffset.UtcNow,
@@ -513,5 +520,6 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         Array.Empty<VisualAssetEngineeringDto>(),
         Array.Empty<ReportEngineeringDto>(),
         Array.Empty<OperationalEventEngineeringDto>(),
-        null);
+        null,
+        _engineeringLock.Snapshot());
 }

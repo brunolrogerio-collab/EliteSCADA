@@ -9,20 +9,31 @@ import {
 export type UserSessionMenuViewProps = {
   profile: AuthProfile | null;
   labels: UserSessionMenuLabels;
+  canSwitchUser: boolean;
+  onSwitchUser: () => Promise<void>;
   onLogout: () => Promise<void>;
 };
 
-export function UserSessionMenuView({ profile, labels, onLogout }: UserSessionMenuViewProps) {
+type SessionAction = 'switch' | 'logout' | null;
+
+export function UserSessionMenuView({
+  profile,
+  labels,
+  canSwitchUser,
+  onSwitchUser,
+  onLogout
+}: UserSessionMenuViewProps) {
   const detailsRef = useRef<HTMLDetailsElement | null>(null);
   const summaryRef = useRef<HTMLElement | null>(null);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [logoutFailed, setLogoutFailed] = useState(false);
+  const [activeAction, setActiveAction] = useState<SessionAction>(null);
+  const [failedAction, setFailedAction] = useState<SessionAction>(null);
   const rolesHeadingId = useId();
   const presentation = buildUserSessionPresentation(profile);
 
   if (!presentation) return null;
 
   const { displayName, secondaryIdentity, initials, roles } = presentation;
+  const busy = activeAction !== null;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDetailsElement>) => {
     if (event.key !== 'Escape' || !detailsRef.current?.open) return;
@@ -32,18 +43,18 @@ export function UserSessionMenuView({ profile, labels, onLogout }: UserSessionMe
     event.stopPropagation();
   };
 
-  const handleLogout = async () => {
-    if (loggingOut) return;
+  const runAction = async (action: Exclude<SessionAction, null>, operation: () => Promise<void>) => {
+    if (busy) return;
 
-    setLoggingOut(true);
-    setLogoutFailed(false);
+    setActiveAction(action);
+    setFailedAction(null);
     try {
-      await onLogout();
+      await operation();
       if (detailsRef.current) detailsRef.current.open = false;
     } catch {
-      setLogoutFailed(true);
+      setFailedAction(action);
     } finally {
-      setLoggingOut(false);
+      setActiveAction(null);
     }
   };
 
@@ -53,6 +64,7 @@ export function UserSessionMenuView({ profile, labels, onLogout }: UserSessionMe
         ref={summaryRef}
         className="user-session-menu__trigger"
         aria-label={`${labels.account}: ${displayName}`}
+        data-testid="session-menu-toggle"
       >
         <span className="user-session-menu__avatar" aria-hidden="true">{initials}</span>
         <span className="user-session-menu__trigger-copy">
@@ -62,7 +74,12 @@ export function UserSessionMenuView({ profile, labels, onLogout }: UserSessionMe
         <span className="user-session-menu__chevron" aria-hidden="true">⌄</span>
       </summary>
 
-      <div className="user-session-menu__panel" aria-label={labels.account} aria-busy={loggingOut}>
+      <div
+        className="user-session-menu__panel"
+        aria-label={labels.account}
+        aria-busy={busy}
+        data-testid="session-menu-popup"
+      >
         <div className="user-session-menu__identity">
           <span className="user-session-menu__avatar user-session-menu__avatar--large" aria-hidden="true">
             {initials}
@@ -84,18 +101,35 @@ export function UserSessionMenuView({ profile, labels, onLogout }: UserSessionMe
           )}
         </div>
 
-        {logoutFailed && (
+        {failedAction === 'switch' && (
+          <p className="user-session-menu__error" role="alert">{labels.switchUserFailed}</p>
+        )}
+        {failedAction === 'logout' && (
           <p className="user-session-menu__error" role="alert">{labels.logoutFailed}</p>
         )}
 
-        <button
-          type="button"
-          className="user-session-menu__logout"
-          disabled={loggingOut}
-          onClick={() => void handleLogout()}
-        >
-          {loggingOut ? labels.loggingOut : labels.logout}
-        </button>
+        <div className="user-session-menu__actions">
+          {canSwitchUser && (
+            <button
+              type="button"
+              className="user-session-menu__action"
+              disabled={busy}
+              onClick={() => void runAction('switch', onSwitchUser)}
+              data-testid="session-switch-user"
+            >
+              {activeAction === 'switch' ? labels.switchingUser : labels.switchUser}
+            </button>
+          )}
+          <button
+            type="button"
+            className="user-session-menu__action"
+            disabled={busy}
+            onClick={() => void runAction('logout', onLogout)}
+            data-testid="session-logout"
+          >
+            {activeAction === 'logout' ? labels.loggingOut : labels.logout}
+          </button>
+        </div>
       </div>
     </details>
   );

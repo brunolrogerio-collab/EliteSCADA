@@ -3,7 +3,7 @@ name: EliteSCADA CI
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, wave14/corrections-integration ]
     paths:
       - '**/*.sln'
       - '**/*.csproj'

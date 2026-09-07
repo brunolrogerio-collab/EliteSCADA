@@ -45,6 +45,15 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
         ON CONFLICT (migration_key) DO NOTHING;
         """;
 
+    private const string InsertSql = """
+        INSERT INTO elitescada.local_users (
+            id, username, normalized_username, display_name, is_enabled, roles,
+            password_salt, password_hash, password_iterations, created_at_utc, updated_at_utc)
+        VALUES (
+            @id, @username, @normalized_username, @display_name, @is_enabled, @roles,
+            @password_salt, @password_hash, @password_iterations, @created_at_utc, @updated_at_utc);
+        """;
+
     private readonly NpgsqlDataSource _dataSource;
 
     public PostgreSqlLocalIdentityStore(string connectionString)
@@ -70,12 +79,7 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
         try
         {
             transaction = await connection.BeginTransactionAsync(cancellationToken);
-            await using var command = new NpgsqlCommand(
-                "SELECT pg_advisory_xact_lock(@lock_key);",
-                connection,
-                transaction);
-            command.Parameters.AddWithValue("lock_key", NpgsqlDbType.Bigint, MutationAdvisoryLockKey);
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            await AcquireMutationLockAsync(connection, transaction, cancellationToken);
             return new MutationLease(connection, transaction);
         }
         catch
@@ -139,15 +143,7 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
     public async Task CreateAsync(LocalUserAccount account, CancellationToken cancellationToken = default)
     {
         Validate(account);
-        const string sql = """
-            INSERT INTO elitescada.local_users (
-                id, username, normalized_username, display_name, is_enabled, roles,
-                password_salt, password_hash, password_iterations, created_at_utc, updated_at_utc)
-            VALUES (
-                @id, @username, @normalized_username, @display_name, @is_enabled, @roles,
-                @password_salt, @password_hash, @password_iterations, @created_at_utc, @updated_at_utc);
-            """;
-        await using var command = _dataSource.CreateCommand(sql);
+        await using var command = _dataSource.CreateCommand(InsertSql);
         Bind(command, account);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
@@ -172,6 +168,134 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
         Bind(command, account);
         var affected = await command.ExecuteNonQueryAsync(cancellationToken);
         if (affected != 1) throw new KeyNotFoundException($"Local user '{account.Id}' was not found.");
+    }
+
+    public async Task ReplaceAllAsync(
+        IReadOnlyCollection<LocalUserAccount> accounts,
+        CancellationToken cancellationToken = default)
+    {
+        var replacement = PrepareReplacement(accounts);
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            await AcquireMutationLockAsync(connection, transaction, cancellationToken);
+
+            await using (var delete = new NpgsqlCommand(
+                "DELETE FROM elitescada.local_users;",
+                connection,
+                transaction))
+            {
+                await delete.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            foreach (var account in replacement)
+            {
+                await using var insert = new NpgsqlCommand(InsertSql, connection, transaction);
+                Bind(insert, account);
+                await insert.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            try
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+            }
+            catch
+            {
+                // Preserve the original failure. Disposing the uncommitted transaction is still fail-closed.
+            }
+            throw;
+        }
+    }
+
+    public async Task<bool> TryReplaceAllIfEmptyAsync(
+        IReadOnlyCollection<LocalUserAccount> accounts,
+        CancellationToken cancellationToken = default)
+    {
+        var replacement = PrepareReplacement(accounts);
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            await AcquireMutationLockAsync(connection, transaction, cancellationToken);
+
+            await using (var count = new NpgsqlCommand(
+                "SELECT count(*)::integer FROM elitescada.local_users;",
+                connection,
+                transaction))
+            {
+                var existing = (int)(await count.ExecuteScalarAsync(cancellationToken) ?? 0);
+                if (existing != 0)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                    return false;
+                }
+            }
+
+            foreach (var account in replacement)
+            {
+                await using var insert = new NpgsqlCommand(InsertSql, connection, transaction);
+                Bind(insert, account);
+                await insert.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            return true;
+        }
+        catch
+        {
+            try
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+            }
+            catch
+            {
+                // Preserve the original failure. Disposing the uncommitted transaction is still fail-closed.
+            }
+            throw;
+        }
+    }
+
+    private static async Task AcquireMutationLockAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand(
+            "SELECT pg_advisory_xact_lock(@lock_key);",
+            connection,
+            transaction);
+        command.Parameters.AddWithValue("lock_key", NpgsqlDbType.Bigint, MutationAdvisoryLockKey);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static IReadOnlyCollection<LocalUserAccount> PrepareReplacement(
+        IReadOnlyCollection<LocalUserAccount> accounts)
+    {
+        ArgumentNullException.ThrowIfNull(accounts);
+        if (accounts.Count == 0)
+            throw new ArgumentException("Local Authority replacement must contain at least one identity.", nameof(accounts));
+
+        var copies = new List<LocalUserAccount>(accounts.Count);
+        var ids = new HashSet<Guid>();
+        var usernames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var account in accounts)
+        {
+            Validate(account);
+            if (!ids.Add(account.Id))
+                throw new ArgumentException($"Duplicate local user ID '{account.Id}' in Authority replacement.", nameof(accounts));
+            if (!usernames.Add(account.NormalizedUsername))
+                throw new ArgumentException($"Duplicate local username '{account.Username}' in Authority replacement.", nameof(accounts));
+            copies.Add(account.DeepCopy());
+        }
+
+        return copies;
     }
 
     private static void Bind(NpgsqlCommand command, LocalUserAccount account)
@@ -214,8 +338,13 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
             throw new ArgumentException("Normalized username does not match username.", nameof(account));
         if (string.IsNullOrWhiteSpace(account.DisplayName) || account.DisplayName.Trim().Length > 300)
             throw new ArgumentException("Display name is required and must not exceed 300 characters.", nameof(account));
-        if (account.Credential.Iterations < 100_000 || account.Credential.Salt.Length < 16 || account.Credential.Hash.Length < 16)
+        if (account.Roles is null)
+            throw new ArgumentException("Roles collection is required.", nameof(account));
+        if (account.Credential is null || account.Credential.Salt is null || account.Credential.Hash is null ||
+            account.Credential.Iterations < 100_000 || account.Credential.Salt.Length < 16 || account.Credential.Hash.Length < 16)
             throw new ArgumentException("Password credential is invalid.", nameof(account));
+        if (account.CreatedAtUtc == default || account.UpdatedAtUtc == default || account.UpdatedAtUtc < account.CreatedAtUtc)
+            throw new ArgumentException("User timestamps are invalid.", nameof(account));
     }
 
     public ValueTask DisposeAsync() => _dataSource.DisposeAsync();

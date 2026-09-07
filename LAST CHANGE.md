@@ -1,135 +1,107 @@
 # LAST CHANGE — EliteSCADA
 
-**Date:** 2026-09-05 BRT  
-**Operational state:** **WAVE 14 #211 ACTIVE / C11 IMPLEMENTATION ACTIVE / C20+C21 INTEGRATED / C11 HMI NEAR-GREEN / POST-DEMO PRODUCT GAPS RECORDED / WAVE13 PAUSED**
+**Date:** 2026-09-07 BRT  
+**Operational state:** **WAVE 14 ACTIVE / C25 ACCEPTED + INTEGRATION GREEN / C11 SYNCHRONIZING TO GREEN INTEGRATION / C11 PACKAGE PORTABILITY RED DIAGNOSED / #212 OPEN-DRAFT NOT AUTHORIZED / WAVE13 PAUSED**
 
-> GitHub is the official development memory. Revalidate live refs, PR state and exact-SHA CI before acting. Documentation-only commits after the product/test head do not redefine product bytes.
+> GitHub live is the official and sole development memory. Revalidate refs, PR state and exact-SHA workflows before every decision or mutation. If this file differs from live GitHub, GitHub wins.
 
-## Current branches / PRs
+## Integration authority
 
-- integration: `wave14/corrections-integration` @ `cac8b6d58a4969a4aa6369590f6bd32fc2fae3d2`;
-- integration PR #212: **OPEN/DRAFT**, base `main`, **DO NOT MERGE without later explicit Product Owner authorization**;
-- C11 branch: `wave14/c11-canonical-eee-demo`;
-- C11 implementation PR #263: **OPEN/DRAFT** -> integration only;
-- validation-only PR #266: **OPEN/DRAFT / NEVER MERGE**, exists only to trigger main-scoped workflows;
-- `main` remains `edbdf446ea657713bdc487be91bf10bfcd03c684` at the last live revalidation;
-- Wave13 #205 / PR #207 remain paused.
+C25 was explicitly accepted by the Product Owner on exact product/test candidate:
 
-## Product authority carried into C11
+`5193b81220f499cb2039dc1146c6dd1a7f7b3dbd`
 
-Pre-DEMO exact combined C12–C19 product authority:
+Retained evidence:
 
-`3fda88061df35ad14755d22881e5d3a9216d1ff5`
+- Wave 14 C25 Post-Demo #314 / `34072225644` — SUCCESS;
+- Wave 14 C03 DNP3 Adapter #301 / `34072225635` — SUCCESS.
 
-C20 visual dynamic wire contract was accepted and integrated. C21 Dynamo TagReference runtime was later accepted on exact PRODUCT SHA:
+C25.10 coordination head:
 
-`6d0d71bc91b08114f4c3d3238b56e4ca225b76bd`
+`a781294ed2996888a8147c6f5fcaeb4eaddcf3c1`
 
-C21 integrated into `wave14/corrections-integration` through merge commit:
+C25 PR #283 merged only into `wave14/corrections-integration` with merge commit:
 
-`cac8b6d58a4969a4aa6369590f6bd32fc2fae3d2`
+`f282758d47c0419f3534f948658701467807758b`
 
-C11 consumed C21 through a real two-parent merge and now builds/tests against that product.
+The post-C25 Chromium regression was diagnosed and corrected without weakening tests/contracts. Exact green integration head consumed by this C11 synchronization:
 
-## Current C11 product/test head before this documentation handoff
+`ff185ffd67fe4abc597af9184c21f86376ba6e17`
 
-Exact C11 product/test head:
+Commit:
 
-`043ee86dd4815a253978b032750a1498a6c89df9`
+`fix(w14): restore Engineering E2E after lock integration`
 
-Commit message:
+Exact-SHA validation on `ff185ffd...`:
 
-`test(c11): sequence one-shot HMI command acknowledgements`
+- EliteSCADA CI #1425 / `34079800458` — SUCCESS;
+- Preview Licensing CI #373 — SUCCESS;
+- Interop Lab Smoke #250 — SUCCESS;
+- L3 Seven-Driver Lab #329 — SUCCESS;
+- Wave 11 Active HMI Runtime #351 — SUCCESS.
 
-The branch may now be ahead by documentation-only handoff commits. Do not treat those later docs SHAs as new product authority.
+The Chromium root causes were: a duplicate locale selector in unlocked Engineering Lock management plus an incomplete Report Designer test harness for `/api/engineering/lock/status`. The correction removed only the redundant unlocked selector and supplied the legitimate unlocked backend status in the isolated Report Designer scenario.
 
-## Exact validation on 043ee86
+## C11 synchronization
 
-SUCCESS:
+Canonical branch:
 
-- EliteSCADA CI #1392 / `33949584309`;
-- Preview Licensing #342 / `33949584221`;
-- L3 Seven-Driver Lab #298 / `33949584220`;
-- Interop Lab Smoke #219 / `33949584204`.
+`wave14/c11-canonical-eee-demo`
 
-FAILURE:
+Pre-sync C11 head:
 
-- Wave11 Active HMI Runtime #320 / `33949584209`.
+`41d24d89c3b9d2b881215255e44023fabde262f3`
 
-Wave11 #320 is **diagnosed**. Do not rerun it unchanged and do not classify it as a PRODUCT GAP.
+This synchronization is a normal two-parent history-preserving merge of:
 
-Result before failure:
+1. C11 parent `41d24d89c3b9d2b881215255e44023fabde262f3`;
+2. green integration parent `ff185ffd67fe4abc597af9184c21f86376ba6e17`.
 
-- C16/C17/C15/C18/C19/C20 passed;
-- C21 pure + Active two-instance TagReference tests passed;
-- C11 canonical EEE foundation passed;
-- C11 HMI reached the navigation phase after exercising lifecycle, Analog Fill, Dynamo instances, Commands, faults and quality scenario;
-- 16 tests passed; 1 failed; 4 downstream tests did not run due project dependency.
+Revalidate the live C11 branch head after this commit; do not infer the merge SHA from this file.
 
-Exact failure:
+C11 product/application work preserved in the merge includes the canonical `eee-demo` Simulation project, generic Engineering lifecycle, HMI, package portability tests, real-EEE mapping and post-DEMO generic product-gap records.
 
-`getByRole('button', { name: 'TENDÊNCIAS' })` resolved to two legitimate buttons named `TENDÊNCIAS` on the overview (top navigation + quick-access button).
+## Diagnosed C11 pre-sync red
 
-First mandatory action for the next coordinator:
+Exact pre-sync C11 head `41d24d...` had four normal gates green and Wave11 #338 / `33977314297` red.
 
-1. inspect `web/scada-web/tests-wave11/c11-eee-demo-hmi.spec.ts` around line 146;
-2. replace the ambiguous role/name selector with a deterministic selector/scoped locator for the intended Trends navigation control;
-3. do not change product code for this failure;
-4. create a new exact C11 candidate SHA and run the normal five-gate validation through #266;
-5. diagnose any new red before rerun.
+The normal Wave11 browser lifecycle itself passed **22/22**. The sole failure was the isolated C11 canonical package portability gate when publishing a fresh `eee-demo` project.
 
-## C11 DEMO state
+Exact backend validation issue:
 
-The canonical EEE Simulation is already constructed through normal generic product surfaces:
+- `DYNAMO_TEMPLATE_NOT_FOUND`;
+- entity `dynamo.pump.standard`;
+- referenced template `pump.standard` was absent in the fresh project;
+- Publish returned HTTP 400, so Export/Inspect/Re-preview could not proceed.
 
-- `builtin.memory.server` process authority;
-- deterministic Server Script;
-- conceptual EEE TAG model;
-- Alarm + Operational Event separation;
-- Historian/Trend;
-- Commands using one-shot request TAGs;
-- live Analog Fill;
-- one reusable pump Dynamo with two independent P01/P02 instances;
-- Screens, pump Popups, Trend, Alarm Browser and Event Browser;
-- `eee.overview` startup;
-- normal `Preview -> Apply -> Save -> Publish -> Activate -> HMI Runtime` lifecycle.
+This failure is diagnosed. Do not blind-rerun unchanged. After synchronization, validate whether the accepted integration product resolves or changes this package behavior; if still red, correct the generic/package or fixture cause without hiding it behind EEE-specific behavior.
 
-Real EEE references are captured in `docs/WAVE14-C11-EEE-REAL-REFERENCE-MAPPING.md`. Original material supplied by Product Owner included `tags(1).csv`, `alarm.csv` and 14 unique HMI screens. Do not ask for this material again unless a specific raw artifact is genuinely unavailable after Library/repository search.
+## Permanent governance
 
-## Newly fixed post-DEMO gate
+- PR #212 remains OPEN/DRAFT -> `main` and MUST NOT merge without a later, separate, explicit Product Owner authorization;
+- `siga`, green CI, mergeability, C25 acceptance, C11 acceptance or Preview success do not authorize #212 -> `main`;
+- PR #263 remains the C11 implementation route -> `wave14/corrections-integration` only;
+- PR #266 remains validation-only -> `main` and **MUST NEVER MERGE**;
+- temporary synchronization PR #284 is not an integration route and must be closed without merge after the manual history-preserving synchronization is confirmed;
+- Wave 13 issue #205 / PR #207 remain paused; preserved Wave13 head is `fda87ba4445127c174f6ea533a6bcabaabc7bb20`;
+- no direct `main` mutation, force push, destructive rebase, blind CI rerun, contract weakening or EEE-specific workaround.
 
-Read:
+## C11 binding product sequence
 
-`docs/WAVE14-C11-POST-DEMO-SYSTEM-RECOVERY-SCALING-GAPS.md`
+1. validate the synchronized exact C11 head;
+2. finish canonical Simulation application-level validation;
+3. prove `Save -> Publish -> Activate`;
+4. prove canonical `eee-demo` package `Export -> Inspect -> Import Preview` and portability;
+5. version/freeze `EliteSCADA-EEE-Demo.escadapkg` with checksum and provenance;
+6. then resolve/audit whole-system backup/restore + Historian administration requirements;
+7. implement/resolve generic TAG raw-to-engineering scaling;
+8. implement/resolve normal human decimal-place authoring/runtime/package persistence;
+9. exact-SHA validate those generic corrections;
+10. update Preview harness and perform fresh Product Owner Codespace homologation;
+11. only later build the real Modbus/PLC EEE variant;
+12. final Wave14 acceptance;
+13. only after separately authorized #212 -> `main` and validated new main may Wave13 release/signing resume.
 
-Product Owner sequence is binding:
+Canonical detailed handoff:
 
-1. finish canonical Simulation DEMO;
-2. close application-level repository validation and canonical `eee-demo` package exportability;
-3. resolve generic system backup/restore and Historian administration/recovery requirements;
-4. resolve generic TAG engineering scaling;
-5. resolve analog display decimal-place authoring/runtime persistence;
-6. only then update/test Preview in fresh Codespace;
-7. after Codespace findings are resolved, build the second EEE package using real Modbus addresses for the existing PLC.
-
-The `.escadapkg` remains an application package, not a container for local users/passwords/history/system secrets.
-
-Scaling/decimals are confirmed PRODUCT GAP items but do not need to stop finishing the current Simulation DEMO unless the current DEMO itself cannot proceed without them. They **do block** Codespace homologation and the real Modbus/PLC variant.
-
-## Mandatory references
-
-1. `PROJECT GOAL.md`;
-2. this file;
-3. `docs/CURRENT-COORDINATOR-HANDOFF.md`;
-4. `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`;
-5. `docs/WAVE14-C11-CANONICAL-DEMO-REQUIREMENTS.md`;
-6. `docs/WAVE14-C11-CANONICAL-DEMO-IMPLEMENTATION-HANDOFF.md`;
-7. `docs/WAVE14-C11-EEE-REAL-REFERENCE-MAPPING.md`;
-8. `docs/WAVE14-C11-POST-DEMO-SYSTEM-RECOVERY-SCALING-GAPS.md`;
-9. `docs/CI-VALIDATION-POLICY.md`;
-10. `docs/CODESPACES-PREVIEW-RUNBOOK.md`;
-11. live issue #211;
-12. live PRs #212, #263 and #266;
-13. exact workflow history for current C11 head.
-
-Do not merge #212 to `main`. Do not resume Wave13 yet.
+`docs/CURRENT-COORDINATOR-HANDOFF.md`

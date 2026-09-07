@@ -3,10 +3,7 @@ using Scada.DriverHost.Engineering;
 
 namespace Scada.Api.Runtime;
 
-public sealed record ContextualHelpSection(
-    string Heading,
-    string Body,
-    string? Code = null);
+public sealed record ContextualHelpSection(string Heading, string Body, string? Code = null);
 
 public sealed record ContextualHelpTopic(
     string Id,
@@ -23,6 +20,8 @@ public sealed record ContextualHelpCatalogView(
 
 public static class ContextualHelpCatalog
 {
+    public const string ExcludedSimulationDriverTypeKey = "builtin.simulation";
+
     public static readonly IReadOnlyCollection<string> SupportedLocales = new[] { "pt-BR", "en", "es" };
 
     public static readonly IReadOnlyCollection<string> ServerScriptApiFunctions = new[]
@@ -33,6 +32,15 @@ public static class ContextualHelpCatalog
         "write_server_memory",
         "publish_server_memory_sample",
         "emit_operational_event"
+    };
+
+    public static readonly IReadOnlyCollection<string> ServerScriptRuntimeTriggers = new[]
+    {
+        "Initialize",
+        "Dispose",
+        "TagChanged",
+        "Timer",
+        "ServerRuntimeEvent"
     };
 
     public static readonly IReadOnlyCollection<string> RequiredManualTopicIds = new[]
@@ -69,382 +77,7 @@ public static class ContextualHelpCatalog
         "libraries.reusable-resources"
     };
 
-    private static readonly IReadOnlyCollection<TopicDefinition> ManualTopics = new[]
-    {
-        Manual(
-            "getting-started.startup-authentication", "getting-started",
-            Tx("Primeiro startup e autenticação", "First startup and authentication", "Primer inicio y autenticación"),
-            Tx("Entrada segura no EliteSCADA e preparação da primeira sessão.", "Secure entry into EliteSCADA and preparation of the first session.", "Entrada segura en EliteSCADA y preparación de la primera sesión."),
-            Sec(Tx("Primeiro startup", "First startup", "Primer inicio"), Tx(
-                "Inicie o backend e a interface do produto, conclua qualquer bootstrap administrativo solicitado pelo próprio sistema e confirme que os serviços necessários estão saudáveis antes de abrir Engineering ou Runtime. Não contorne o fluxo de bootstrap por arquivos ou chamadas privadas.",
-                "Start the product backend and UI, complete any administrative bootstrap requested by the product itself, and confirm the required services are healthy before opening Engineering or Runtime. Do not bypass bootstrap through files or private calls.",
-                "Inicie el backend y la interfaz del producto, complete cualquier bootstrap administrativo solicitado por el propio sistema y confirme que los servicios necesarios están saludables antes de abrir Engineering o Runtime. No evite el bootstrap mediante archivos o llamadas privadas.")),
-            Sec(Tx("Autenticação", "Authentication", "Autenticación"), Tx(
-                "Quando autenticação estiver habilitada, use uma identidade válida. Roles e capabilities efetivas são resolvidas pelo backend; ocultar ou mostrar controles na UI não substitui autorização server-side.",
-                "When authentication is enabled, use a valid identity. Effective roles and capabilities are resolved by the backend; hiding or showing UI controls does not replace server-side authorization.",
-                "Cuando la autenticación esté habilitada, use una identidad válida. Los roles y capabilities efectivos son resueltos por el backend; ocultar o mostrar controles en la UI no sustituye la autorización server-side."))),
-
-        Manual(
-            "runtime.overview", "runtime",
-            Tx("Runtime para o operador", "Runtime operator guide", "Guía de Runtime para el operador"),
-            Tx("Operação da revisão Active sob a autoridade do backend.", "Operation of the Active revision under backend authority.", "Operación de la revisión Active bajo la autoridad del backend."),
-            Sec(Tx("Autoridade", "Authority", "Autoridad"), Tx(
-                "O backend e a revisão Active são a autoridade canônica do Runtime. A interface apresenta esse estado e não cria um segundo motor de processo nem ativa alterações de Engineering por conta própria.",
-                "The backend and the Active revision are the canonical Runtime authority. The UI presents that state and does not create a second process engine or activate Engineering changes on its own.",
-                "El backend y la revisión Active son la autoridad canónica del Runtime. La interfaz presenta ese estado y no crea un segundo motor de proceso ni activa cambios de Engineering por sí misma.")),
-            Sec(Tx("Sessão e capabilities", "Session and capabilities", "Sesión y capabilities"), Tx(
-                "A sessão recebe capabilities efetivas do servidor. Viewer/Interactive e View Only reduzem o que a sessão pode fazer; comandos e escritas continuam bloqueados no servidor quando a capability correspondente não existe. A perda ou expiração de lease deve ser tratada como perda de autoridade interativa, não como permissão implícita.",
-                "The session receives effective capabilities from the server. Viewer/Interactive and View Only reduce what the session may do; commands and writes remain server-blocked when the corresponding capability is absent. Lease loss or expiry must be treated as loss of interactive authority, not as implicit permission.",
-                "La sesión recibe capabilities efectivas del servidor. Viewer/Interactive y View Only reducen lo que la sesión puede hacer; comandos y escrituras siguen bloqueados en el servidor cuando falta la capability correspondiente. La pérdida o expiración del lease debe tratarse como pérdida de autoridad interactiva, no como permiso implícito."))),
-
-        Manual(
-            "runtime.history", "runtime",
-            Tx("Histórico no Runtime", "Runtime history", "Histórico en Runtime"),
-            Tx("Consulta de histórico dentro da visibilidade autorizada da sessão.", "Historical query within the session's authorized visibility.", "Consulta histórica dentro de la visibilidad autorizada de la sesión."),
-            Sec(Tx("Consulta", "Query", "Consulta"), Tx(
-                "Consultas de histórico usam os serviços canônicos do produto e respeitam a visibilidade de TAGs e capabilities da sessão. Uma tela de histórico não concede acesso a dados que a sessão não está autorizada a ler.",
-                "Historical queries use canonical product services and respect the session's TAG visibility and capabilities. A history screen does not grant access to data the session is not authorized to read.",
-                "Las consultas históricas usan los servicios canónicos del producto y respetan la visibilidad de TAGs y capabilities de la sesión. Una pantalla histórica no concede acceso a datos que la sesión no está autorizada a leer."))),
-
-        Manual(
-            "engineering.overview", "engineering",
-            Tx("Engineering", "Engineering", "Engineering"),
-            Tx("Configuração do projeto sem confundir edição, publicação e ativação.", "Project configuration without confusing editing, publishing and activation.", "Configuración del proyecto sin confundir edición, publicación y activación."),
-            Sec(Tx("Estados", "States", "Estados"), Tx(
-                "Working, Revision, Published e Active são estados distintos. A UI deve projetar o estado fornecido pelo backend e não inferir que Save, Publish ou Activate aconteceram apenas porque uma edição foi aceita localmente.",
-                "Working, Revision, Published and Active are distinct states. The UI must project backend-provided state and must not infer that Save, Publish or Activate happened merely because an edit was accepted locally.",
-                "Working, Revision, Published y Active son estados distintos. La UI debe proyectar el estado proporcionado por el backend y no inferir que Save, Publish o Activate ocurrieron solo porque una edición fue aceptada localmente."))),
-
-        Manual(
-            "engineering.lifecycle", "engineering",
-            Tx("Working -> Save -> Revision -> Publish -> Activate", "Working -> Save -> Revision -> Publish -> Activate", "Working -> Save -> Revision -> Publish -> Activate"),
-            Tx("Fluxo canônico de ciclo de vida de uma aplicação.", "Canonical application lifecycle flow.", "Flujo canónico del ciclo de vida de una aplicación."),
-            Sec(Tx("Working e Save", "Working and Save", "Working y Save"), Tx(
-                "Working é o estado editável. Save persiste o trabalho conforme o contrato de Engineering, mas não transforma silenciosamente esse estado em Published ou Active.",
-                "Working is the editable state. Save persists work according to the Engineering contract, but does not silently turn that state into Published or Active.",
-                "Working es el estado editable. Save persiste el trabajo según el contrato de Engineering, pero no convierte silenciosamente ese estado en Published o Active.")),
-            Sec(Tx("Revision e Publish", "Revision and Publish", "Revision y Publish"), Tx(
-                "Crie uma Revision identificável a partir do Working validado. Publish torna a revisão elegível ao fluxo publicado sem alterar por si só a revisão Active que o Runtime executa.",
-                "Create an identifiable Revision from validated Working state. Publish makes the revision eligible for the published flow without by itself changing the Active revision executed by Runtime.",
-                "Cree una Revision identificable a partir del Working validado. Publish vuelve la revisión elegible para el flujo publicado sin cambiar por sí solo la revisión Active ejecutada por Runtime.")),
-            Sec(Tx("Activate", "Activate", "Activate"), Tx(
-                "Activate é a transição explícita que muda a autoridade Active do backend. Validação, autorização e contratos de lifecycle continuam sendo obrigatórios; não use atalhos de UI, banco ou package para simular ativação.",
-                "Activate is the explicit transition that changes backend Active authority. Validation, authorization and lifecycle contracts remain mandatory; do not use UI, database or package shortcuts to simulate activation.",
-                "Activate es la transición explícita que cambia la autoridad Active del backend. Validación, autorización y contratos de lifecycle siguen siendo obligatorios; no use atajos de UI, base de datos o package para simular activación."))),
-
-        Manual(
-            "packages.escadapkg", "packages",
-            Tx("Pacotes .escadapkg", ".escadapkg packages", "Paquetes .escadapkg"),
-            Tx("Portabilidade da aplicação com inspeção e aplicação explícitas.", "Application portability with explicit inspection and apply steps.", "Portabilidad de la aplicación con inspección y aplicación explícitas."),
-            Sec(Tx("Export e Import", "Export and Import", "Export e Import"), Tx(
-                "Export produz um .escadapkg portátil e self-contained conforme o contrato do projeto. Import recebe o pacote como entrada de Engenharia; receber o arquivo não deve contornar validação, identidade, segurança ou lifecycle.",
-                "Export produces a portable, self-contained .escadapkg according to the project contract. Import receives the package as Engineering input; receiving the file must not bypass validation, identity, security or lifecycle.",
-                "Export produce un .escadapkg portátil y self-contained según el contrato del proyecto. Import recibe el paquete como entrada de Engineering; recibir el archivo no debe evitar validación, identidad, seguridad ni lifecycle.")),
-            Sec(Tx("Inspect e Preview", "Inspect and Preview", "Inspect y Preview"), Tx(
-                "Inspect examina conteúdo e metadados antes de mutação. Preview apresenta o resultado previsto sem tornar o conteúdo Active. Use essas etapas para entender impacto e problemas antes de Apply.",
-                "Inspect examines content and metadata before mutation. Preview presents the expected result without making content Active. Use these steps to understand impact and issues before Apply.",
-                "Inspect examina contenido y metadatos antes de la mutación. Preview presenta el resultado previsto sin volver el contenido Active. Use estas etapas para comprender impacto y problemas antes de Apply.")),
-            Sec(Tx("Apply", "Apply", "Apply"), Tx(
-                "Apply incorpora o conteúdo validado ao fluxo de Engineering definido pelo produto. Apply não equivale a Activate; a revisão Active continua sob autoridade explícita do backend.",
-                "Apply incorporates validated content into the product-defined Engineering flow. Apply is not Activate; the Active revision remains under explicit backend authority.",
-                "Apply incorpora el contenido validado al flujo de Engineering definido por el producto. Apply no equivale a Activate; la revisión Active sigue bajo autoridad explícita del backend."))),
-
-        Manual(
-            "sources.data-sources", "sources",
-            Tx("Data Sources", "Data Sources", "Data Sources"),
-            Tx("Fontes declaradas pelo catálogo canônico desta compilação.", "Sources declared by this build's canonical catalog.", "Fuentes declaradas por el catálogo canónico de esta compilación."),
-            Sec(Tx("Catálogo", "Catalog", "Catálogo"), Tx(
-                "Crie Data Sources apenas com tipos disponíveis no catálogo de Engineering desta compilação. Drivers de comunicação e source providers são conceitos distintos; Simulation não é apresentado como driver de comunicação de produção.",
-                "Create Data Sources only with types available in this build's Engineering catalog. Communication drivers and source providers are distinct concepts; Simulation is not presented as a production communication driver.",
-                "Cree Data Sources solo con tipos disponibles en el catálogo de Engineering de esta compilación. Drivers de comunicación y source providers son conceptos distintos; Simulation no se presenta como driver de comunicación de producción.")),
-            Sec(Tx("Configuração", "Configuration", "Configuración"), Tx(
-                "Os campos válidos, obrigatoriedade, formatos, limites e referências protegidas vêm do configuration schema canônico do tipo selecionado. Não copie configurações de outro protocolo nem invente chaves privadas.",
-                "Valid fields, requiredness, formats, limits and protected references come from the selected type's canonical configuration schema. Do not copy settings from another protocol or invent private keys.",
-                "Los campos válidos, obligatoriedad, formatos, límites y referencias protegidas provienen del configuration schema canónico del tipo seleccionado. No copie configuraciones de otro protocolo ni invente claves privadas."))),
-
-        Manual(
-            "tags.overview", "tags",
-            Tx("TAGs", "TAGs", "TAGs"),
-            Tx("Identidade, associação a fonte e valor operacional dentro do TAG Engine.", "Identity, source association and operational value inside the TAG Engine.", "Identidad, asociación a fuente y valor operacional dentro del TAG Engine."),
-            Sec(Tx("Identidade e binding", "Identity and binding", "Identidad y binding"), Tx(
-                "Use a identidade estável do TAG e associe-o ao Data Source por meio do binding suportado pelo tipo. A configuração de apresentação não substitui addressing nem altera a identidade canônica.",
-                "Use the TAG's stable identity and associate it with the Data Source through the binding supported by that type. Presentation configuration does not replace addressing or change canonical identity.",
-                "Use la identidad estable del TAG y asócielo al Data Source mediante el binding soportado por ese tipo. La configuración de presentación no sustituye addressing ni cambia la identidad canónica.")),
-            Sec(Tx("Runtime", "Runtime", "Runtime"), Tx(
-                "Leituras, escritas, quality e timestamps são projetados pelo Runtime sob a autoridade do backend. Consumidores devem usar os contratos do TAG Engine/cache/eventos em vez de acessar drivers por caminhos privados.",
-                "Reads, writes, quality and timestamps are projected by Runtime under backend authority. Consumers must use TAG Engine/cache/event contracts instead of accessing drivers through private paths.",
-                "Lecturas, escrituras, quality y timestamps son proyectados por Runtime bajo la autoridad del backend. Los consumidores deben usar los contratos de TAG Engine/cache/eventos en lugar de acceder a drivers por rutas privadas."))),
-
-        Manual(
-            "tags.quality", "tags",
-            Tx("Quality", "Quality", "Quality"),
-            Tx("Estado de confiança que acompanha uma amostra de TAG.", "Trust state that accompanies a TAG sample.", "Estado de confianza que acompaña una muestra de TAG."),
-            Sec(Tx("Origem", "Origin", "Origen"), Tx(
-                "Quality deve vir do pipeline canônico da fonte/TAG. A UI pode apresentar esse estado, mas não deve transformar falha, ausência ou dado stale em qualidade boa apenas para manter uma tela visualmente estável.",
-                "Quality must come from the canonical source/TAG pipeline. The UI may present that state, but must not turn failure, absence or stale data into good quality merely to keep a screen visually stable.",
-                "Quality debe provenir del pipeline canónico de la fuente/TAG. La UI puede presentar ese estado, pero no debe convertir falla, ausencia o dato stale en buena calidad solo para mantener una pantalla visualmente estable.")),
-            Sec(Tx("Diagnóstico", "Diagnostics", "Diagnóstico"), Tx(
-                "Ao investigar quality degradada, verifique primeiro Data Source, conexão, binding/addressing e diagnóstico do driver antes de alterar telas, trends ou relatórios.",
-                "When investigating degraded quality, verify Data Source, connection, binding/addressing and driver diagnostics before changing screens, trends or reports.",
-                "Al investigar quality degradada, verifique primero Data Source, conexión, binding/addressing y diagnóstico del driver antes de cambiar pantallas, trends o informes."))),
-
-        Manual(
-            "tags.timestamps", "tags",
-            Tx("Timestamps", "Timestamps", "Timestamps"),
-            Tx("Tempo associado às amostras sem substituir autoridade da fonte por horário de tela.", "Sample time without replacing source authority with screen time.", "Tiempo asociado a las muestras sin sustituir autoridad de la fuente por horario de pantalla."),
-            Sec(Tx("Semântica", "Semantics", "Semántica"), Tx(
-                "Preserve o timestamp fornecido pelo pipeline canônico conforme o contrato da fonte. Não substitua timestamps de protocolo ou Runtime pelo relógio do navegador apenas para exibição ou persistência.",
-                "Preserve the timestamp supplied by the canonical pipeline according to the source contract. Do not replace protocol or Runtime timestamps with browser time merely for display or persistence.",
-                "Preserve el timestamp entregado por el pipeline canónico según el contrato de la fuente. No sustituya timestamps de protocolo o Runtime por la hora del navegador solo para visualización o persistencia."))),
-
-        Manual(
-            "tags.writeability", "tags",
-            Tx("Writeability", "Writeability", "Writeability"),
-            Tx("Escrita somente quando TAG, sessão e backend permitem.", "Write only when TAG, session and backend allow it.", "Escritura solo cuando TAG, sesión y backend lo permiten."),
-            Sec(Tx("Autoridade de escrita", "Write authority", "Autoridad de escritura"), Tx(
-                "Um controle visível ou um binding de comando não torna um TAG gravável. A escrita depende do contrato do TAG/fonte e das capabilities efetivas da sessão, com enforcement server-side.",
-                "A visible control or command binding does not make a TAG writable. Writing depends on the TAG/source contract and the session's effective capabilities, with server-side enforcement.",
-                "Un control visible o un command binding no vuelve un TAG escribible. La escritura depende del contrato del TAG/fuente y de las capabilities efectivas de la sesión, con enforcement server-side.")),
-            Sec(Tx("View Only", "View Only", "View Only"), Tx(
-                "View Only e sessões sem capability de comando devem permanecer incapazes de escrever mesmo se uma tela antiga ainda contiver um controle interativo.",
-                "View Only and sessions without command capability must remain unable to write even if an older screen still contains an interactive control.",
-                "View Only y sesiones sin capability de comando deben seguir sin poder escribir aunque una pantalla antigua todavía contenga un control interactivo."))),
-
-        Manual(
-            "tags.addressing", "tags",
-            Tx("Addressing", "Addressing", "Addressing"),
-            Tx("Endereçamento de TAG conforme o binding schema real do driver.", "TAG addressing according to the driver's real binding schema.", "Direccionamiento de TAG según el binding schema real del driver."),
-            Sec(Tx("Binding schema", "Binding schema", "Binding schema"), Tx(
-                "Use somente campos expostos pelo TagBinding schema do driver selecionado. Nome, tipo, formato e obrigatoriedade desses campos são parte do contrato do build e aparecem também no tópico específico de cada driver.",
-                "Use only fields exposed by the selected driver's TagBinding schema. Field name, type, format and requiredness are part of the build contract and also appear in each driver's specific topic.",
-                "Use solo campos expuestos por el TagBinding schema del driver seleccionado. Nombre, tipo, formato y obligatoriedad de esos campos forman parte del contrato del build y también aparecen en el tema específico de cada driver.")),
-            Sec(Tx("Validação", "Validation", "Validación"), Tx(
-                "Não invente sintaxe de endereço a partir de outro SCADA ou de outro protocolo. Corrija o binding na origem quando o backend rejeitar campos ou formatos inválidos.",
-                "Do not invent address syntax from another SCADA or another protocol. Correct the binding at its source when the backend rejects invalid fields or formats.",
-                "No invente sintaxis de dirección a partir de otro SCADA u otro protocolo. Corrija el binding en su origen cuando el backend rechace campos o formatos inválidos."))),
-
-        Manual(
-            "tags.scaling-formatting", "tags",
-            Tx("Scaling versus formatação", "Scaling versus presentation formatting", "Scaling versus formato de presentación"),
-            Tx("Conversão de valor e aparência visual são responsabilidades diferentes.", "Value conversion and visual appearance are different responsibilities.", "La conversión de valor y la apariencia visual son responsabilidades diferentes."),
-            Sec(Tx("Scaling", "Scaling", "Scaling"), Tx(
-                "Scaling transforma o valor conforme o contrato de engenharia do TAG antes do consumo operacional. Alterar scaling pode alterar o valor de engenharia usado por lógica, alarmes, histórico e telas.",
-                "Scaling transforms the value according to the TAG engineering contract before operational consumption. Changing scaling may change the engineering value used by logic, alarms, history and screens.",
-                "Scaling transforma el valor según el contrato de ingeniería del TAG antes del consumo operacional. Cambiar scaling puede cambiar el valor de ingeniería usado por lógica, alarmas, histórico y pantallas.")),
-            Sec(Tx("Formatação", "Formatting", "Formato"), Tx(
-                "Formatação de apresentação controla como um valor é exibido, por exemplo precisão ou texto visual, sem reescrever o valor canônico do Runtime. Não use formatação como substituto de scaling.",
-                "Presentation formatting controls how a value is displayed, for example precision or visual text, without rewriting the canonical Runtime value. Do not use formatting as a substitute for scaling.",
-                "El formato de presentación controla cómo se muestra un valor, por ejemplo precisión o texto visual, sin reescribir el valor canónico de Runtime. No use formato como sustituto de scaling."))),
-
-        Manual(
-            "sources.internal-memory", "sources",
-            Tx("Internal Memory", "Internal Memory", "Internal Memory"),
-            Tx("Memória interna é source provider, não driver de comunicação.", "Internal memory is a source provider, not a communication driver.", "La memoria interna es un source provider, no un driver de comunicación."),
-            Sec(Tx("Server Memory", "Server Memory", "Server Memory"), Tx(
-                "Server Memory é memória retentiva pertencente ao servidor e aparece no catálogo canônico como source provider. Use-a quando o estado precisa pertencer à autoridade do servidor.",
-                "Server Memory is retentive server-owned memory and appears in the canonical catalog as a source provider. Use it when state must belong to server authority.",
-                "Server Memory es memoria retentiva perteneciente al servidor y aparece en el catálogo canónico como source provider. Úsela cuando el estado deba pertenecer a la autoridad del servidor.")),
-            Sec(Tx("Client Memory", "Client Memory", "Client Memory"), Tx(
-                "Client Memory é memória não retentiva pertencente ao cliente Runtime e também é source provider. Nenhuma das duas entra na contagem dos drivers de comunicação de produção.",
-                "Client Memory is non-retentive Runtime-client-owned memory and is also a source provider. Neither memory source counts as a production communication driver.",
-                "Client Memory es memoria no retentiva perteneciente al cliente Runtime y también es source provider. Ninguna de las dos cuenta como driver de comunicación de producción."))),
-
-        Manual(
-            "gateway.overview", "gateway",
-            Tx("TAG Gateway", "TAG Gateway", "TAG Gateway"),
-            Tx("Coordenação de fluxo de TAGs sem se apresentar como driver de comunicação.", "TAG flow coordination without pretending to be a communication driver.", "Coordinación del flujo de TAGs sin presentarse como driver de comunicación."),
-            Sec(Tx("Papel", "Role", "Rol"), Tx(
-                "TAG Gateway participa da composição e distribuição do fluxo de TAGs conforme os contratos do Runtime. Ele é um conceito separado dos drivers de comunicação e não entra na contagem dos oito drivers de produção.",
-                "TAG Gateway participates in TAG-flow composition and distribution according to Runtime contracts. It is distinct from communication drivers and does not count among the eight production drivers.",
-                "TAG Gateway participa en la composición y distribución del flujo de TAGs según los contratos de Runtime. Es un concepto separado de los drivers de comunicación y no cuenta entre los ocho drivers de producción.")),
-            Sec(Tx("Consumidores", "Consumers", "Consumidores"), Tx(
-                "Consumidores usam TAG Engine, cache e eventos públicos do produto. Não crie acesso privado direto ao driver para contornar Gateway, authority ou lifecycle.",
-                "Consumers use the product's TAG Engine, cache and public events. Do not create private direct driver access to bypass Gateway, authority or lifecycle.",
-                "Los consumidores usan TAG Engine, cache y eventos públicos del producto. No cree acceso privado directo al driver para evitar Gateway, authority o lifecycle."))),
-
-        Manual(
-            "scripts.server", "scripts",
-            Tx("Server Scripts", "Server Scripts", "Server Scripts"),
-            Tx("Subset determinístico de Python com superfície específica limitada ao build.", "Deterministic Python subset with a build-limited specific surface.", "Subconjunto determinístico de Python con una superficie específica limitada al build."),
-            Sec(Tx("API suportada", "Supported API", "API soportada"), Tx(
-                "Somente as funções listadas pelo próprio catálogo deste build pertencem à API específica de Server Script. Não use convenience functions históricas, planejadas ou imaginadas. TAGs usados pelo script devem ser dependências declaradas.",
-                "Only functions listed by this build's own catalog belong to the Server Script-specific API. Do not use historical, planned or imagined convenience functions. TAGs used by the script must be declared dependencies.",
-                "Solo las funciones listadas por el propio catálogo de este build pertenecen a la API específica de Server Script. No use convenience functions históricas, planificadas o imaginadas. Los TAGs usados por el script deben ser dependencias declaradas."),
-                "value = read_tag(\"<stable-tag-id>\")\nwrite_tag(\"<stable-tag-id>\", value)\nemit_operational_event(\"<definition-id>\", \"message\", {\"source\": \"script\"})"),
-            Sec(Tx("Server Memory", "Server Memory", "Server Memory"), Tx(
-                "As funções específicas de Server Memory exigem dependência explícita ServerMemoryTag. O script não deve criar um caminho privado que faça Runtime depender de estado externo ao projeto.",
-                "Server Memory-specific functions require an explicit ServerMemoryTag dependency. A script must not create a private path that makes Runtime depend on state outside the project.",
-                "Las funciones específicas de Server Memory requieren una dependencia explícita ServerMemoryTag. Un script no debe crear una ruta privada que haga que Runtime dependa de estado externo al proyecto."),
-                "value = read_server_memory(\"<stable-tag-id>\")\nwrite_server_memory(\"<stable-tag-id>\", value)\npublish_server_memory_sample(\"<stable-tag-id>\", value, \"Good\")")),
-
-        Manual(
-            "alarms.overview", "alarms",
-            Tx("Alarmes", "Alarms", "Alarmas"),
-            Tx("Condições operacionais de alarme permanecem um domínio próprio.", "Operational alarm conditions remain their own domain.", "Las condiciones operacionales de alarma siguen siendo un dominio propio."),
-            Sec(Tx("Separação semântica", "Semantic separation", "Separación semántica"), Tx(
-                "Alarm é diferente de Operational Event e de Audit. Use Alarm para o contrato de condição operacional configurada; não registre toda ocorrência operacional ou ação de segurança como alarme apenas para reutilizar uma lista.",
-                "Alarm is distinct from Operational Event and Audit. Use Alarm for the configured operational-condition contract; do not record every operational occurrence or security action as an alarm merely to reuse a list.",
-                "Alarm es distinto de Operational Event y Audit. Use Alarm para el contrato de condición operacional configurada; no registre cada ocurrencia operacional o acción de seguridad como alarma solo para reutilizar una lista."))),
-
-        Manual(
-            "operational-events.overview", "operational-events",
-            Tx("Eventos Operacionais", "Operational Events", "Eventos Operacionales"),
-            Tx("Ocorrências operacionais registradas sem serem confundidas com Alarm ou Audit.", "Operational occurrences recorded without being confused with Alarm or Audit.", "Ocurrencias operacionales registradas sin confundirse con Alarm o Audit."),
-            Sec(Tx("Uso", "Use", "Uso"), Tx(
-                "Operational Event registra uma ocorrência operacional prevista pelo contrato do produto. Ele não substitui o estado de Alarm e não é o ledger de Audit para ações de segurança e engenharia.",
-                "Operational Event records an operational occurrence defined by the product contract. It does not replace Alarm state and is not the Audit ledger for security and engineering actions.",
-                "Operational Event registra una ocurrencia operacional definida por el contrato del producto. No sustituye el estado de Alarm y no es el ledger de Audit para acciones de seguridad e ingeniería."))),
-
-        Manual(
-            "audit.overview", "audit",
-            Tx("Auditoria", "Audit", "Auditoría"),
-            Tx("Rastreabilidade de ações de segurança e engenharia.", "Traceability for security and engineering actions.", "Trazabilidad de acciones de seguridad e ingeniería."),
-            Sec(Tx("Domínio", "Domain", "Dominio"), Tx(
-                "Audit é semanticamente distinto de Alarm e Operational Event. Use-o para rastreabilidade das ações que o contrato de segurança/engenharia exige, preservando ator, ação e contexto fornecidos pela autoridade canônica.",
-                "Audit is semantically distinct from Alarm and Operational Event. Use it for traceability of actions required by the security/engineering contract, preserving actor, action and context supplied by canonical authority.",
-                "Audit es semánticamente distinto de Alarm y Operational Event. Úselo para trazabilidad de las acciones exigidas por el contrato de seguridad/ingeniería, preservando actor, acción y contexto suministrados por la autoridad canónica."))),
-
-        Manual(
-            "historian.overview", "historian",
-            Tx("Historian", "Historian", "Historian"),
-            Tx("Persistência e consulta histórica de amostras autorizadas.", "Persistence and historical query of authorized samples.", "Persistencia y consulta histórica de muestras autorizadas."),
-            Sec(Tx("Dados", "Data", "Datos"), Tx(
-                "Historian recebe valores, quality e timestamps pelo pipeline canônico. Não corrija histórico reescrevendo dados na UI; diagnostique fonte, TAG e persistência responsáveis pela amostra.",
-                "Historian receives values, quality and timestamps through the canonical pipeline. Do not correct history by rewriting data in the UI; diagnose the source, TAG and persistence responsible for the sample.",
-                "Historian recibe valores, quality y timestamps mediante el pipeline canónico. No corrija el histórico reescribiendo datos en la UI; diagnostique fuente, TAG y persistencia responsables de la muestra."))),
-
-        Manual(
-            "trends.overview", "trends",
-            Tx("Trends", "Trends", "Trends"),
-            Tx("Visualização temporal de TAGs sem criar uma fonte paralela de dados.", "Time visualization of TAGs without creating a parallel data source.", "Visualización temporal de TAGs sin crear una fuente de datos paralela."),
-            Sec(Tx("Origem", "Source", "Origen"), Tx(
-                "Configure séries a partir de TAGs autorizados e use dados atuais ou históricos fornecidos pelos serviços canônicos. Trend apresenta os dados; não deve substituir quality, timestamp, scaling ou autoridade do Historian.",
-                "Configure series from authorized TAGs and use current or historical data supplied by canonical services. Trend presents the data; it must not replace quality, timestamp, scaling or Historian authority.",
-                "Configure series a partir de TAGs autorizados y use datos actuales o históricos suministrados por servicios canónicos. Trend presenta los datos; no debe sustituir quality, timestamp, scaling ni autoridad de Historian."))),
-
-        Manual(
-            "reports.overview", "reports",
-            Tx("Reports", "Reports", "Reports"),
-            Tx("Relatórios derivados de dados e permissões canônicas.", "Reports derived from canonical data and permissions.", "Informes derivados de datos y permisos canónicos."),
-            Sec(Tx("Execução", "Execution", "Ejecución"), Tx(
-                "Um relatório consulta apenas dados que seu contrato e a sessão permitem. Filtros e formatação de relatório não concedem acesso adicional nem mudam o valor canônico dos TAGs.",
-                "A report queries only data allowed by its contract and the session. Report filters and formatting do not grant additional access or change canonical TAG values.",
-                "Un informe consulta solo datos permitidos por su contrato y la sesión. Los filtros y el formato del informe no conceden acceso adicional ni cambian los valores canónicos de TAGs."))),
-
-        Manual(
-            "screens.overview", "screens",
-            Tx("Screens", "Screens", "Screens"),
-            Tx("Telas operacionais vinculadas a recursos canônicos do projeto.", "Operational screens bound to canonical project resources.", "Pantallas operacionales vinculadas a recursos canónicos del proyecto."),
-            Sec(Tx("Conteúdo", "Content", "Contenido"), Tx(
-                "Screens pertencem ao projeto e devem referenciar TAGs, dynamos, popups, bindings e commands por contratos válidos. Uma tela não deve incorporar conexão privada de driver nem autoridade própria de Runtime.",
-                "Screens belong to the project and must reference TAGs, dynamos, popups, bindings and commands through valid contracts. A screen must not embed a private driver connection or its own Runtime authority.",
-                "Screens pertenecen al proyecto y deben referenciar TAGs, dynamos, popups, bindings y commands mediante contratos válidos. Una pantalla no debe incorporar una conexión privada de driver ni autoridad propia de Runtime."))),
-
-        Manual(
-            "popups.overview", "popups",
-            Tx("Popups", "Popups", "Popups"),
-            Tx("Conteúdo reutilizável de interface aberto dentro do contexto operacional.", "Reusable UI content opened within operational context.", "Contenido reutilizable de interfaz abierto dentro del contexto operacional."),
-            Sec(Tx("Contexto", "Context", "Contexto"), Tx(
-                "Passe contexto e parâmetros por contratos suportados. Abrir um Popup não aumenta capabilities da sessão; qualquer comando ou escrita continua sujeito à mesma autorização server-side do Runtime.",
-                "Pass context and parameters through supported contracts. Opening a Popup does not increase session capabilities; any command or write remains subject to the same Runtime server-side authorization.",
-                "Pase contexto y parámetros mediante contratos soportados. Abrir un Popup no aumenta las capabilities de la sesión; cualquier comando o escritura sigue sujeto a la misma autorización server-side de Runtime."))),
-
-        Manual(
-            "dynamos.overview", "dynamos",
-            Tx("Dynamos", "Dynamos", "Dynamos"),
-            Tx("Recursos visuais reutilizáveis com dependências explícitas.", "Reusable visual resources with explicit dependencies.", "Recursos visuales reutilizables con dependencias explícitas."),
-            Sec(Tx("Reuso", "Reuse", "Reutilización"), Tx(
-                "Dynamos encapsulam comportamento visual reutilizável e devem declarar as dependências necessárias. Instâncias usam bindings do projeto; não copie conexões privadas ou IDs acidentais de outro projeto.",
-                "Dynamos encapsulate reusable visual behavior and must declare required dependencies. Instances use project bindings; do not copy private connections or accidental IDs from another project.",
-                "Dynamos encapsulan comportamiento visual reutilizable y deben declarar las dependencias necesarias. Las instancias usan bindings del proyecto; no copie conexiones privadas ni IDs accidentales de otro proyecto."))),
-
-        Manual(
-            "bindings-commands.overview", "bindings-commands",
-            Tx("Bindings e Commands", "Bindings and Commands", "Bindings y Commands"),
-            Tx("Ligação visual e ações operacionais preservando autoridade do servidor.", "Visual binding and operational actions while preserving server authority.", "Vinculación visual y acciones operacionales preservando autoridad del servidor."),
-            Sec(Tx("Bindings", "Bindings", "Bindings"), Tx(
-                "Bindings conectam propriedades da interface a recursos canônicos do projeto. Eles não devem duplicar TAG Engine, scaling ou lógica de autoridade no navegador.",
-                "Bindings connect UI properties to canonical project resources. They must not duplicate TAG Engine, scaling or authority logic in the browser.",
-                "Bindings conectan propiedades de la interfaz con recursos canónicos del proyecto. No deben duplicar TAG Engine, scaling ni lógica de autoridad en el navegador.")),
-            Sec(Tx("Commands", "Commands", "Commands"), Tx(
-                "Commands representam intenção do operador e precisam passar pela autorização e validação server-side. Estado Viewer/View Only ou ausência de capability deve bloquear a ação mesmo que o controle visual exista.",
-                "Commands represent operator intent and must pass server-side authorization and validation. Viewer/View Only state or missing capability must block the action even when the visual control exists.",
-                "Commands representan la intención del operador y deben pasar por autorización y validación server-side. El estado Viewer/View Only o la falta de capability debe bloquear la acción aunque exista el control visual."))),
-
-        Manual(
-            "security.users-roles-capabilities", "security",
-            Tx("Usuários, roles, capabilities e segurança", "Users, roles, capabilities and security", "Usuarios, roles, capabilities y seguridad"),
-            Tx("Identidade e autorização permanecem sob autoridade do backend.", "Identity and authorization remain under backend authority.", "Identidad y autorización permanecen bajo autoridad del backend."),
-            Sec(Tx("Usuários e roles", "Users and roles", "Usuarios y roles"), Tx(
-                "Administre identidades e roles pelos fluxos suportados do produto. Role é entrada para autorização, não permissão automática para toda ação existente na interface.",
-                "Manage identities and roles through supported product flows. A role is an authorization input, not automatic permission for every action present in the UI.",
-                "Administre identidades y roles mediante los flujos soportados del producto. Un role es una entrada de autorización, no permiso automático para toda acción presente en la UI.")),
-            Sec(Tx("Capabilities", "Capabilities", "Capabilities"), Tx(
-                "Capabilities efetivas são calculadas e aplicadas pelo servidor. A UI usa essas capabilities para apresentação e UX, mas o backend continua responsável por negar operações não autorizadas.",
-                "Effective capabilities are calculated and enforced by the server. The UI uses them for presentation and UX, but the backend remains responsible for denying unauthorized operations.",
-                "Las capabilities efectivas son calculadas y aplicadas por el servidor. La UI las usa para presentación y UX, pero el backend sigue siendo responsable de negar operaciones no autorizadas."))),
-
-        Manual(
-            "licensing.overview", "licensing",
-            Tx("Licensing", "Licensing", "Licensing"),
-            Tx("Recursos comerciais sem substituir segurança ou autoridade de Runtime.", "Commercial feature control without replacing security or Runtime authority.", "Control de funciones comerciales sin sustituir seguridad ni autoridad de Runtime."),
-            Sec(Tx("Contrato", "Contract", "Contrato"), Tx(
-                "Licensing pode limitar recursos e capacidades comerciais do produto. Ele não substitui autenticação, autorização, Engineering Lock, lifecycle, package validation ou Runtime authority.",
-                "Licensing may limit product features and commercial capabilities. It does not replace authentication, authorization, Engineering Lock, lifecycle, package validation or Runtime authority.",
-                "Licensing puede limitar funciones y capacidades comerciales del producto. No sustituye autenticación, autorización, Engineering Lock, lifecycle, validación de package ni Runtime authority."))),
-
-        Manual(
-            "recovery.backup-system-recovery", "recovery",
-            Tx("Backup e System Recovery", "Backup and System Recovery", "Backup y System Recovery"),
-            Tx("Proteção e recuperação da Authority sem atalhos destrutivos.", "Authority protection and recovery without destructive shortcuts.", "Protección y recuperación de Authority sin atajos destructivos."),
-            Sec(Tx("Backup", "Backup", "Backup"), Tx(
-                "Use o fluxo de backup suportado para preservar os dados e metadados previstos pelo contrato. Trate o backup como artefato sensível e mantenha validação criptográfica e de formato quando exigida pelo produto.",
-                "Use the supported backup flow to preserve data and metadata defined by the contract. Treat backup as a sensitive artifact and retain cryptographic and format validation when required by the product.",
-                "Use el flujo de backup soportado para preservar datos y metadatos definidos por el contrato. Trate el backup como un artefacto sensible y mantenga validación criptográfica y de formato cuando el producto la requiera.")),
-            Sec(Tx("System Recovery", "System Recovery", "System Recovery"), Tx(
-                "Recovery substitui estado apenas pelo contrato atômico e validado do produto. Não edite stores manualmente, não pule restore-first quando aplicável e não use recovery para contornar identidade, lifecycle ou Authority.",
-                "Recovery replaces state only through the product's validated atomic contract. Do not edit stores manually, skip restore-first when applicable, or use recovery to bypass identity, lifecycle or Authority.",
-                "Recovery sustituye estado solo mediante el contrato atómico y validado del producto. No edite stores manualmente, omita restore-first cuando corresponda ni use recovery para evitar identidad, lifecycle o Authority."))),
-
-        Manual(
-            "diagnostics.overview", "diagnostics",
-            Tx("Diagnostics", "Diagnostics", "Diagnostics"),
-            Tx("Diagnóstico por camadas sem mascarar a causa raiz.", "Layered diagnostics without masking the root cause.", "Diagnóstico por capas sin ocultar la causa raíz."),
-            Sec(Tx("Ordem de verificação", "Verification order", "Orden de verificación"), Tx(
-                "Verifique saúde do backend, autenticação/capabilities, estado Active, Data Source, configuração do driver, conexão, binding do TAG, quality/timestamp e só então a apresentação na tela. Use capacidades de Connection Test, Discover, Browse, Import ou Reconcile apenas quando o descriptor real do driver as declarar.",
-                "Verify backend health, authentication/capabilities, Active state, Data Source, driver configuration, connection, TAG binding, quality/timestamp and only then screen presentation. Use Connection Test, Discover, Browse, Import or Reconcile only when the real driver descriptor declares those capabilities.",
-                "Verifique salud del backend, autenticación/capabilities, estado Active, Data Source, configuración del driver, conexión, binding del TAG, quality/timestamp y solo entonces presentación en pantalla. Use Connection Test, Discover, Browse, Import o Reconcile solo cuando el descriptor real del driver declare esas capabilities."))),
-
-        Manual(
-            "troubleshooting.overview", "troubleshooting",
-            Tx("Troubleshooting", "Troubleshooting", "Troubleshooting"),
-            Tx("Investigação de falhas preservando os contratos do produto.", "Failure investigation while preserving product contracts.", "Investigación de fallas preservando los contratos del producto."),
-            Sec(Tx("Princípio", "Principle", "Principio"), Tx(
-                "Reproduza o problema, identifique a camada que divergiu da autoridade canônica e corrija a causa genérica. Não crie workaround específico de demo, não enfraqueça testes e não bypass Authority, Engineering Lock, licensing, lifecycle, packages ou Runtime para obter um resultado visualmente aceitável.",
-                "Reproduce the problem, identify the layer that diverged from canonical authority and fix the generic cause. Do not create demo-specific workarounds, weaken tests, or bypass Authority, Engineering Lock, licensing, lifecycle, packages or Runtime to obtain a visually acceptable result.",
-                "Reproduzca el problema, identifique la capa que divergió de la autoridad canónica y corrija la causa genérica. No cree workarounds específicos de demo, debilite tests ni evite Authority, Engineering Lock, licensing, lifecycle, packages o Runtime para obtener un resultado visualmente aceptable.")),
-            Sec(Tx("CI", "CI", "CI"), Tx(
-                "Se um gate falhar, diagnostique logs e causa antes de rerun. Um rerun não é correção e um teste removido não é evidência de conformidade.",
-                "If a gate fails, diagnose logs and cause before rerun. A rerun is not a fix and a removed test is not evidence of compliance.",
-                "Si un gate falla, diagnostique logs y causa antes de rerun. Un rerun no es una corrección y un test eliminado no es evidencia de conformidad."))),
-
-        Manual(
-            "libraries.reusable-resources", "libraries",
-            Tx("Reusable Resource Libraries", "Reusable Resource Libraries", "Reusable Resource Libraries"),
-            Tx("Reuso seletivo em Engineering sem criar dependência de Runtime em biblioteca externa.", "Selective Engineering reuse without creating Runtime dependency on an external library.", "Reutilización selectiva en Engineering sin crear dependencia de Runtime en una biblioteca externa."),
-            Sec(Tx(".escadalib versus .escadapkg", ".escadalib versus .escadapkg", ".escadalib versus .escadapkg"), Tx(
-                ".escadalib é uma biblioteca reutilizável e é diferente de .escadapkg. Associar uma Library não importa conteúdo e, sozinho, não altera Working; a associação apenas torna recursos compatíveis disponíveis no catálogo de Engineering.",
-                ".escadalib is a reusable library and is different from .escadapkg. Associating a Library does not import content and, by itself, does not change Working; association only makes compatible resources available in the Engineering catalog.",
-                ".escadalib es una biblioteca reutilizable y es diferente de .escadapkg. Asociar una Library no importa contenido y, por sí solo, no cambia Working; la asociación solo vuelve disponibles recursos compatibles en el catálogo de Engineering.")),
-            Sec(Tx("Usar", "Use", "Usar"), Tx(
-                "Usar incorpora seletivamente o recurso escolhido e o closure validado de suas dependências. O conteúdo incorporado passa a ser conteúdo canônico pertencente ao projeto, sujeito às mesmas validações e ao mesmo lifecycle do restante do Working.",
-                "Use selectively incorporates the chosen resource and its validated dependency closure. Incorporated content becomes canonical project-owned content, subject to the same validations and lifecycle as the rest of Working.",
-                "Usar incorpora selectivamente el recurso elegido y el closure validado de sus dependencias. El contenido incorporado pasa a ser contenido canónico perteneciente al proyecto, sujeto a las mismas validaciones y al mismo lifecycle que el resto de Working.")),
-            Sec(Tx("Desassociar e Runtime", "Detach and Runtime", "Desasociar y Runtime"), Tx(
-                "Desassociar remove a disponibilidade da Library no catálogo, mas não apaga conteúdo já incorporado. O .escadapkg final permanece self-contained; Runtime e Active nunca dependem de .escadalib para executar o conteúdo incorporado.",
-                "Detaching removes Library availability from the catalog but does not delete already incorporated content. The final .escadapkg remains self-contained; Runtime and Active never depend on .escadalib to execute incorporated content.",
-                "Desasociar elimina la disponibilidad de la Library del catálogo, pero no borra contenido ya incorporado. El .escadapkg final permanece self-contained; Runtime y Active nunca dependen de .escadalib para ejecutar contenido incorporado.")))
-    };
+    private static readonly IReadOnlyCollection<TopicDefinition> ManualTopics = BuildManualTopics();
 
     public static ContextualHelpCatalogView Build(string? requestedLocale)
     {
@@ -485,55 +118,382 @@ public static class ContextualHelpCatalog
 
     private static bool IsProductionCommunicationDriver(EngineeringDataSourceTypeView source) =>
         string.Equals(source.Kind, "communicationDriver", StringComparison.Ordinal) &&
-        !string.Equals(source.TypeKey, "simulation", StringComparison.OrdinalIgnoreCase);
+        !string.Equals(source.TypeKey, ExcludedSimulationDriverTypeKey, StringComparison.OrdinalIgnoreCase);
 
-    private static ContextualHelpTopic BuildSourceProviderTopic(EngineeringDataSourceTypeView source, string locale) =>
-        new(
-            $"source.{source.TypeKey}",
-            "sources",
-            source.DisplayName,
-            Pick(locale,
-                "Source provider disponível nesta compilação.",
-                "Source provider available in this build.",
-                "Source provider disponible en esta compilación."),
-            new[]
-            {
-                new ContextualHelpSection(
-                    Pick(locale, "Identidade", "Identity", "Identidad"),
-                    $"{Pick(locale, "Type key", "Type key", "Type key")}: {source.TypeKey}"),
-                new ContextualHelpSection(
-                    Pick(locale, "Contrato", "Contract", "Contrato"),
-                    string.IsNullOrWhiteSpace(source.Description)
-                        ? Pick(locale,
-                            "A fonte vem do catálogo canônico e não é um driver de comunicação.",
-                            "The source comes from the canonical catalog and is not a communication driver.",
-                            "La fuente proviene del catálogo canónico y no es un driver de comunicación.")
-                        : source.Description)
-            });
+    private static IReadOnlyCollection<TopicDefinition> BuildManualTopics() => new[]
+    {
+        Basic(
+            "getting-started.startup-authentication", "getting-started",
+            Tx("Primeiro startup e autenticação", "First startup and authentication", "Primer inicio y autenticación"),
+            Tx("Entrada segura no produto.", "Secure product entry.", "Entrada segura al producto."),
+            Tx(
+                "Inicie backend e UI, conclua o bootstrap administrativo solicitado pelo próprio produto e confirme saúde dos serviços. Quando autenticação estiver habilitada, use identidade válida. Roles e capabilities são resolvidas pelo backend; visibilidade de controles não substitui autorização server-side.",
+                "Start backend and UI, complete the administrative bootstrap requested by the product, and confirm service health. When authentication is enabled, use a valid identity. Roles and capabilities are resolved by the backend; control visibility does not replace server-side authorization.",
+                "Inicie backend e interfaz, complete el bootstrap administrativo solicitado por el producto y confirme la salud de los servicios. Cuando la autenticación esté habilitada, use una identidad válida. Roles y capabilities son resueltos por el backend; la visibilidad de controles no sustituye autorización server-side.")),
+
+        Basic(
+            "runtime.overview", "runtime",
+            Tx("Runtime para o operador", "Runtime operator guide", "Guía de Runtime para el operador"),
+            Tx("Operação da revisão Active sob autoridade do backend.", "Operation of the Active revision under backend authority.", "Operación de la revisión Active bajo autoridad del backend."),
+            Tx(
+                "O backend e a revisão Active são autoridade canônica. A sessão recebe capabilities efetivas e lease do servidor. Viewer e View Only reduzem capacidades; comandos e escritas continuam bloqueados server-side quando não autorizados. Perda ou expiração do lease significa perda de autoridade interativa, nunca permissão implícita.",
+                "The backend and Active revision are canonical authority. The session receives effective capabilities and a server lease. Viewer and View Only reduce capabilities; commands and writes remain server-blocked when unauthorized. Lease loss or expiry means loss of interactive authority, never implicit permission.",
+                "El backend y la revisión Active son autoridad canónica. La sesión recibe capabilities efectivas y lease del servidor. Viewer y View Only reducen capacidades; comandos y escrituras siguen bloqueados server-side cuando no están autorizados. La pérdida o expiración del lease significa pérdida de autoridad interactiva, nunca permiso implícito.")),
+
+        Basic(
+            "runtime.history", "runtime",
+            Tx("Histórico no Runtime", "Runtime history", "Histórico en Runtime"),
+            Tx("Consulta histórica autorizada.", "Authorized historical query.", "Consulta histórica autorizada."),
+            Tx(
+                "Use os serviços canônicos de histórico. A visibilidade de TAGs e as capabilities da sessão continuam válidas; abrir uma tela histórica não concede acesso adicional.",
+                "Use canonical history services. TAG visibility and session capabilities still apply; opening a history screen grants no additional access.",
+                "Use los servicios canónicos de histórico. La visibilidad de TAGs y las capabilities de la sesión siguen vigentes; abrir una pantalla histórica no concede acceso adicional.")),
+
+        Basic(
+            "engineering.overview", "engineering",
+            Tx("Engineering", "Engineering", "Engineering"),
+            Tx("Edição sem confundir estados do lifecycle.", "Editing without confusing lifecycle states.", "Edición sin confundir estados del lifecycle."),
+            Tx(
+                "Working, Revision, Published e Active são estados distintos. A UI projeta o estado informado pelo backend e não presume Save, Publish ou Activate por causa de uma edição local.",
+                "Working, Revision, Published and Active are distinct states. The UI projects backend state and does not assume Save, Publish or Activate because of a local edit.",
+                "Working, Revision, Published y Active son estados distintos. La UI proyecta el estado del backend y no presume Save, Publish o Activate por una edición local.")),
+
+        Detailed(
+            "engineering.lifecycle", "engineering",
+            Tx("Working -> Save -> Revision -> Publish -> Activate", "Working -> Save -> Revision -> Publish -> Activate", "Working -> Save -> Revision -> Publish -> Activate"),
+            Tx("Fluxo canônico de lifecycle.", "Canonical lifecycle flow.", "Flujo canónico de lifecycle."),
+            S(Tx("Working e Save", "Working and Save", "Working y Save"), Tx(
+                "Working é editável. Save persiste o trabalho conforme o contrato de Engineering, sem convertê-lo silenciosamente em Published ou Active.",
+                "Working is editable. Save persists work according to the Engineering contract without silently turning it into Published or Active.",
+                "Working es editable. Save persiste el trabajo según el contrato de Engineering sin convertirlo silenciosamente en Published o Active.")),
+            S(Tx("Revision e Publish", "Revision and Publish", "Revision y Publish"), Tx(
+                "Crie uma Revision identificável a partir de Working validado. Publish torna a revisão publicada, mas não muda por si só a revisão Active executada pelo Runtime.",
+                "Create an identifiable Revision from validated Working. Publish makes the revision published but does not by itself change the Active revision executed by Runtime.",
+                "Cree una Revision identificable desde Working validado. Publish vuelve publicada la revisión, pero no cambia por sí solo la revisión Active ejecutada por Runtime.")),
+            S(Tx("Activate", "Activate", "Activate"), Tx(
+                "Activate é a transição explícita que muda a autoridade Active do backend. Validação, autorização e lifecycle permanecem obrigatórios; não simule ativação por UI, store ou package.",
+                "Activate is the explicit transition that changes backend Active authority. Validation, authorization and lifecycle remain mandatory; do not simulate activation through UI, store or package.",
+                "Activate es la transición explícita que cambia la autoridad Active del backend. Validación, autorización y lifecycle siguen siendo obligatorios; no simule activación mediante UI, store o package."))),
+
+        Detailed(
+            "packages.escadapkg", "packages",
+            Tx("Pacotes .escadapkg", ".escadapkg packages", "Paquetes .escadapkg"),
+            Tx("Portabilidade self-contained da aplicação.", "Self-contained application portability.", "Portabilidad self-contained de la aplicación."),
+            S(Tx("Import e Export", "Import and Export", "Import y Export"), Tx(
+                "Export produz um .escadapkg portátil e self-contained. Import recebe o pacote como entrada de Engineering e não contorna identidade, validação, segurança ou lifecycle.",
+                "Export produces a portable, self-contained .escadapkg. Import receives the package as Engineering input and does not bypass identity, validation, security or lifecycle.",
+                "Export produce un .escadapkg portátil y self-contained. Import recibe el paquete como entrada de Engineering y no evita identidad, validación, seguridad ni lifecycle.")),
+            S(Tx("Inspect, Preview e Apply", "Inspect, Preview and Apply", "Inspect, Preview y Apply"), Tx(
+                "Inspect examina conteúdo e metadados sem mutação; Preview mostra o resultado previsto; Apply incorpora conteúdo validado ao fluxo de Engineering. Apply não equivale a Activate.",
+                "Inspect examines content and metadata without mutation; Preview shows the expected result; Apply incorporates validated content into Engineering. Apply is not Activate.",
+                "Inspect examina contenido y metadatos sin mutación; Preview muestra el resultado previsto; Apply incorpora contenido validado a Engineering. Apply no equivale a Activate."))),
+
+        Basic(
+            "sources.data-sources", "sources",
+            Tx("Data Sources", "Data Sources", "Data Sources"),
+            Tx("Fontes registradas no build.", "Sources registered in the build.", "Fuentes registradas en el build."),
+            Tx(
+                "Crie Data Sources somente com tipos do catálogo canônico. Campos, formatos, limites, defaults e referências protegidas vêm do configuration schema registrado. Drivers de comunicação e source providers são conceitos distintos; Simulation é ferramenta de desenvolvimento/teste e não é apresentada como driver de produção.",
+                "Create Data Sources only with types from the canonical catalog. Fields, formats, limits, defaults and protected references come from the registered configuration schema. Communication drivers and source providers are distinct concepts; Simulation is a development/test tool and is not presented as a production driver.",
+                "Cree Data Sources solo con tipos del catálogo canónico. Campos, formatos, límites, defaults y referencias protegidas provienen del configuration schema registrado. Drivers de comunicación y source providers son conceptos distintos; Simulation es una herramienta de desarrollo/prueba y no se presenta como driver de producción.")),
+
+        Basic(
+            "tags.overview", "tags",
+            Tx("TAGs", "TAGs", "TAGs"),
+            Tx("Identidade e valor no TAG Engine.", "Identity and value in the TAG Engine.", "Identidad y valor en TAG Engine."),
+            Tx(
+                "Use a identidade estável do TAG e o binding suportado pelo Data Source. Leituras, escritas, quality e timestamps são projetados pelo Runtime sob autoridade do backend; consumidores usam TAG Engine/cache/eventos públicos, não acesso privado a drivers.",
+                "Use the TAG stable identity and the binding supported by the Data Source. Reads, writes, quality and timestamps are projected by Runtime under backend authority; consumers use public TAG Engine/cache/events, not private driver access.",
+                "Use la identidad estable del TAG y el binding soportado por el Data Source. Lecturas, escrituras, quality y timestamps son proyectados por Runtime bajo autoridad del backend; consumidores usan TAG Engine/cache/eventos públicos, no acceso privado a drivers.")),
+
+        Basic(
+            "tags.quality", "tags",
+            Tx("Quality", "Quality", "Quality"),
+            Tx("Confiança da amostra.", "Sample trust state.", "Estado de confianza de la muestra."),
+            Tx(
+                "Quality vem do pipeline canônico da fonte/TAG. Não transforme falha, ausência ou dado stale em Good para estabilizar a UI. Para diagnóstico, verifique Data Source, conexão, addressing/binding e driver antes da apresentação.",
+                "Quality comes from the canonical source/TAG pipeline. Do not turn failure, absence or stale data into Good to stabilize the UI. For diagnostics, check Data Source, connection, addressing/binding and driver before presentation.",
+                "Quality proviene del pipeline canónico de fuente/TAG. No convierta falla, ausencia o dato stale en Good para estabilizar la UI. Para diagnóstico, verifique Data Source, conexión, addressing/binding y driver antes de la presentación.")),
+
+        Basic(
+            "tags.timestamps", "tags",
+            Tx("Timestamps", "Timestamps", "Timestamps"),
+            Tx("Tempo associado à amostra.", "Time associated with a sample.", "Tiempo asociado a la muestra."),
+            Tx(
+                "Preserve o timestamp fornecido pelo pipeline canônico conforme o contrato da fonte. Não substitua timestamps de protocolo ou Runtime pelo relógio do navegador para exibição ou persistência.",
+                "Preserve the timestamp supplied by the canonical pipeline according to the source contract. Do not replace protocol or Runtime timestamps with browser time for display or persistence.",
+                "Preserve el timestamp suministrado por el pipeline canónico según el contrato de la fuente. No sustituya timestamps de protocolo o Runtime por la hora del navegador para visualización o persistencia.")),
+
+        Basic(
+            "tags.writeability", "tags",
+            Tx("Writeability", "Writeability", "Writeability"),
+            Tx("Autoridade de escrita.", "Write authority.", "Autoridad de escritura."),
+            Tx(
+                "Um controle visível não torna um TAG gravável. A escrita depende do contrato do TAG/fonte e das capabilities efetivas, com enforcement server-side. Viewer, View Only ou ausência da capability correspondente permanecem incapazes de escrever.",
+                "A visible control does not make a TAG writable. Writing depends on the TAG/source contract and effective capabilities, with server-side enforcement. Viewer, View Only or a missing capability remain unable to write.",
+                "Un control visible no vuelve un TAG escribible. La escritura depende del contrato TAG/fuente y de las capabilities efectivas, con enforcement server-side. Viewer, View Only o falta de capability siguen sin poder escribir.")),
+
+        Basic(
+            "tags.addressing", "tags",
+            Tx("Addressing", "Addressing", "Addressing"),
+            Tx("Endereçamento pelo binding schema real.", "Addressing through the real binding schema.", "Direccionamiento mediante el binding schema real."),
+            Tx(
+                "Use somente campos, formatos e valores expostos pelo TagBinding schema do driver selecionado. Não transplante sintaxe de outro protocolo ou SCADA; quando o backend rejeitar o binding, corrija a configuração na origem.",
+                "Use only fields, formats and values exposed by the selected driver's TagBinding schema. Do not transplant syntax from another protocol or SCADA; when the backend rejects the binding, correct the source configuration.",
+                "Use solo campos, formatos y valores expuestos por el TagBinding schema del driver seleccionado. No trasplante sintaxis de otro protocolo o SCADA; cuando el backend rechace el binding, corrija la configuración en origen.")),
+
+        Detailed(
+            "tags.scaling-formatting", "tags",
+            Tx("Scaling versus formatação", "Scaling versus presentation formatting", "Scaling versus formato de presentación"),
+            Tx("Valor de engenharia e aparência são responsabilidades diferentes.", "Engineering value and appearance are different responsibilities.", "Valor de ingeniería y apariencia son responsabilidades diferentes."),
+            S(Tx("Scaling", "Scaling", "Scaling"), Tx(
+                "Scaling transforma o valor de engenharia antes do consumo operacional e pode afetar lógica, alarmes, histórico e telas.",
+                "Scaling transforms the engineering value before operational consumption and can affect logic, alarms, history and screens.",
+                "Scaling transforma el valor de ingeniería antes del consumo operacional y puede afectar lógica, alarmas, histórico y pantallas.")),
+            S(Tx("Formatação", "Formatting", "Formato"), Tx(
+                "Formatação controla somente a apresentação, como precisão ou texto. Não reescreve o valor canônico e não substitui scaling.",
+                "Formatting controls presentation only, such as precision or text. It does not rewrite the canonical value and does not replace scaling.",
+                "El formato controla solo la presentación, como precisión o texto. No reescribe el valor canónico ni sustituye scaling."))),
+
+        Detailed(
+            "sources.internal-memory", "sources",
+            Tx("Internal Memory", "Internal Memory", "Internal Memory"),
+            Tx("Source providers internos, não drivers de comunicação.", "Internal source providers, not communication drivers.", "Source providers internos, no drivers de comunicación."),
+            S(Tx("Server Memory", "Server Memory", "Server Memory"), Tx(
+                "Server Memory é memória retentiva pertencente ao servidor e aparece como source provider canônico.",
+                "Server Memory is retentive server-owned memory and appears as a canonical source provider.",
+                "Server Memory es memoria retentiva perteneciente al servidor y aparece como source provider canónico.")),
+            S(Tx("Client Memory", "Client Memory", "Client Memory"), Tx(
+                "Client Memory é memória não retentiva pertencente ao cliente Runtime. Nenhuma das duas entra na contagem dos drivers de comunicação de produção.",
+                "Client Memory is non-retentive Runtime-client-owned memory. Neither memory provider counts as a production communication driver.",
+                "Client Memory es memoria no retentiva perteneciente al cliente Runtime. Ninguna de las dos cuenta como driver de comunicación de producción."))),
+
+        Basic(
+            "gateway.overview", "gateway",
+            Tx("TAG Gateway", "TAG Gateway", "TAG Gateway"),
+            Tx("Coordenação do fluxo de TAGs.", "TAG-flow coordination.", "Coordinación del flujo de TAGs."),
+            Tx(
+                "TAG Gateway é conceito separado dos drivers de comunicação e não entra na contagem dos oito drivers de produção. Consumidores usam TAG Engine, cache e eventos públicos; não crie acesso privado ao driver para contornar Gateway, Authority ou lifecycle.",
+                "TAG Gateway is distinct from communication drivers and does not count among the eight production drivers. Consumers use public TAG Engine, cache and events; do not create private driver access to bypass Gateway, Authority or lifecycle.",
+                "TAG Gateway es distinto de los drivers de comunicación y no cuenta entre los ocho drivers de producción. Consumidores usan TAG Engine, cache y eventos públicos; no cree acceso privado al driver para evitar Gateway, Authority o lifecycle.")),
+
+        BuildServerScriptsTopic(),
+
+        Basic(
+            "alarms.overview", "alarms",
+            Tx("Alarmes", "Alarms", "Alarmas"),
+            Tx("Condições operacionais de alarme.", "Operational alarm conditions.", "Condiciones operacionales de alarma."),
+            Tx(
+                "Alarm é domínio próprio para condições de alarme configuradas. Não use Alarm como substituto de Operational Event ou Audit.",
+                "Alarm is its own domain for configured alarm conditions. Do not use Alarm as a substitute for Operational Event or Audit.",
+                "Alarm es un dominio propio para condiciones de alarma configuradas. No use Alarm como sustituto de Operational Event o Audit.")),
+
+        Basic(
+            "operational-events.overview", "operational-events",
+            Tx("Eventos Operacionais", "Operational Events", "Eventos Operacionales"),
+            Tx("Ocorrências operacionais explícitas.", "Explicit operational occurrences.", "Ocurrencias operacionales explícitas."),
+            Tx(
+                "Operational Event registra uma ocorrência operacional prevista pelo contrato do produto. Não substitui estado de Alarm e não é o ledger de Audit.",
+                "Operational Event records an operational occurrence defined by the product contract. It does not replace Alarm state and is not the Audit ledger.",
+                "Operational Event registra una ocurrencia operacional definida por el contrato del producto. No sustituye el estado de Alarm ni es el ledger de Audit.")),
+
+        Basic(
+            "audit.overview", "audit",
+            Tx("Auditoria", "Audit", "Auditoría"),
+            Tx("Rastreabilidade de ações.", "Action traceability.", "Trazabilidad de acciones."),
+            Tx(
+                "Audit é semanticamente distinto de Alarm e Operational Event. Use-o para rastreabilidade exigida por segurança e Engineering, preservando ator, ação e contexto fornecidos pela autoridade canônica.",
+                "Audit is semantically distinct from Alarm and Operational Event. Use it for traceability required by security and Engineering, preserving actor, action and context supplied by canonical authority.",
+                "Audit es semánticamente distinto de Alarm y Operational Event. Úselo para trazabilidad exigida por seguridad y Engineering, preservando actor, acción y contexto suministrados por la autoridad canónica.")),
+
+        Basic(
+            "historian.overview", "historian",
+            Tx("Historian", "Historian", "Historian"),
+            Tx("Persistência histórica canônica.", "Canonical historical persistence.", "Persistencia histórica canónica."),
+            Tx(
+                "Historian recebe valores, quality e timestamps pelo pipeline canônico. Corrija problemas na fonte, TAG ou persistência; não reescreva histórico na UI.",
+                "Historian receives values, quality and timestamps through the canonical pipeline. Fix problems in the source, TAG or persistence; do not rewrite history in the UI.",
+                "Historian recibe valores, quality y timestamps mediante el pipeline canónico. Corrija problemas en fuente, TAG o persistencia; no reescriba histórico en la UI.")),
+
+        Basic(
+            "trends.overview", "trends",
+            Tx("Trends", "Trends", "Trends"),
+            Tx("Visualização temporal de TAGs.", "Time visualization of TAGs.", "Visualización temporal de TAGs."),
+            Tx(
+                "Configure séries com TAGs autorizados e dados atuais ou históricos canônicos. Trend apresenta dados; não substitui quality, timestamp, scaling ou Historian.",
+                "Configure series with authorized TAGs and canonical current or historical data. Trend presents data; it does not replace quality, timestamp, scaling or Historian.",
+                "Configure series con TAGs autorizados y datos actuales o históricos canónicos. Trend presenta datos; no sustituye quality, timestamp, scaling ni Historian.")),
+
+        Basic(
+            "reports.overview", "reports",
+            Tx("Reports", "Reports", "Reports"),
+            Tx("Relatórios sobre dados autorizados.", "Reports over authorized data.", "Informes sobre datos autorizados."),
+            Tx(
+                "Reports consultam somente dados permitidos pelo contrato e pela sessão. Filtros e formatação não concedem acesso adicional nem alteram valores canônicos.",
+                "Reports query only data allowed by the contract and session. Filters and formatting grant no additional access and do not change canonical values.",
+                "Reports consultan solo datos permitidos por el contrato y la sesión. Filtros y formato no conceden acceso adicional ni cambian valores canónicos.")),
+
+        Basic(
+            "screens.overview", "screens",
+            Tx("Screens", "Screens", "Screens"),
+            Tx("Telas operacionais do projeto.", "Project operational screens.", "Pantallas operacionales del proyecto."),
+            Tx(
+                "Screens referenciam TAGs, dynamos, popups, bindings e commands por contratos válidos. Uma tela não incorpora conexão privada de driver nem autoridade própria de Runtime.",
+                "Screens reference TAGs, dynamos, popups, bindings and commands through valid contracts. A screen does not embed a private driver connection or its own Runtime authority.",
+                "Screens referencian TAGs, dynamos, popups, bindings y commands mediante contratos válidos. Una pantalla no incorpora conexión privada de driver ni autoridad propia de Runtime.")),
+
+        Basic(
+            "popups.overview", "popups",
+            Tx("Popups", "Popups", "Popups"),
+            Tx("Conteúdo reutilizável no contexto operacional.", "Reusable content in operational context.", "Contenido reutilizable en contexto operacional."),
+            Tx(
+                "Passe contexto por contratos suportados. Abrir um Popup não aumenta capabilities; commands e escritas continuam sob a mesma autorização server-side.",
+                "Pass context through supported contracts. Opening a Popup does not increase capabilities; commands and writes remain under the same server-side authorization.",
+                "Pase contexto mediante contratos soportados. Abrir un Popup no aumenta capabilities; commands y escrituras siguen bajo la misma autorización server-side.")),
+
+        Basic(
+            "dynamos.overview", "dynamos",
+            Tx("Dynamos", "Dynamos", "Dynamos"),
+            Tx("Recursos visuais reutilizáveis.", "Reusable visual resources.", "Recursos visuales reutilizables."),
+            Tx(
+                "Dynamos encapsulam comportamento visual reutilizável e dependências explícitas. Instâncias usam bindings do projeto; não copie conexões privadas ou identidades acidentais de outro projeto.",
+                "Dynamos encapsulate reusable visual behavior and explicit dependencies. Instances use project bindings; do not copy private connections or accidental identities from another project.",
+                "Dynamos encapsulan comportamiento visual reutilizable y dependencias explícitas. Las instancias usan bindings del proyecto; no copie conexiones privadas ni identidades accidentales de otro proyecto.")),
+
+        Detailed(
+            "bindings-commands.overview", "bindings-commands",
+            Tx("Bindings e Commands", "Bindings and Commands", "Bindings y Commands"),
+            Tx("Ligação visual e intenção operacional.", "Visual binding and operational intent.", "Vinculación visual e intención operacional."),
+            S(Tx("Bindings", "Bindings", "Bindings"), Tx(
+                "Bindings conectam propriedades da UI a recursos canônicos; não duplicam TAG Engine, scaling ou lógica de Authority no navegador.",
+                "Bindings connect UI properties to canonical resources; they do not duplicate TAG Engine, scaling or Authority logic in the browser.",
+                "Bindings conectan propiedades de UI con recursos canónicos; no duplican TAG Engine, scaling ni lógica de Authority en el navegador.")),
+            S(Tx("Commands", "Commands", "Commands"), Tx(
+                "Commands representam intenção do operador e passam por validação/autorização server-side. Viewer, View Only ou ausência de capability bloqueiam a ação mesmo quando existe controle visual.",
+                "Commands represent operator intent and pass server-side validation/authorization. Viewer, View Only or a missing capability block the action even when a visual control exists.",
+                "Commands representan intención del operador y pasan por validación/autorización server-side. Viewer, View Only o falta de capability bloquean la acción aunque exista control visual."))),
+
+        Basic(
+            "security.users-roles-capabilities", "security",
+            Tx("Usuários, roles, capabilities e segurança", "Users, roles, capabilities and security", "Usuarios, roles, capabilities y seguridad"),
+            Tx("Identidade e autorização no backend.", "Backend identity and authorization.", "Identidad y autorización en backend."),
+            Tx(
+                "Administre identidades e roles pelos fluxos suportados. Roles alimentam a autorização; capabilities efetivas são calculadas e aplicadas pelo servidor. A UI usa capabilities para UX, nunca como único enforcement.",
+                "Manage identities and roles through supported flows. Roles feed authorization; effective capabilities are calculated and enforced by the server. The UI uses capabilities for UX, never as the only enforcement.",
+                "Administre identidades y roles mediante flujos soportados. Roles alimentan autorización; capabilities efectivas son calculadas y aplicadas por el servidor. La UI usa capabilities para UX, nunca como único enforcement.")),
+
+        Basic(
+            "licensing.overview", "licensing",
+            Tx("Licensing", "Licensing", "Licensing"),
+            Tx("Controle comercial sem substituir segurança.", "Commercial control without replacing security.", "Control comercial sin sustituir seguridad."),
+            Tx(
+                "Licensing pode limitar recursos comerciais, mas não substitui autenticação, autorização, Engineering Lock, lifecycle, package validation ou Runtime authority.",
+                "Licensing may limit commercial features but does not replace authentication, authorization, Engineering Lock, lifecycle, package validation or Runtime authority.",
+                "Licensing puede limitar funciones comerciales, pero no sustituye autenticación, autorización, Engineering Lock, lifecycle, validación de package ni Runtime authority.")),
+
+        Detailed(
+            "recovery.backup-system-recovery", "recovery",
+            Tx("Backup e System Recovery", "Backup and System Recovery", "Backup y System Recovery"),
+            Tx("Proteção e recuperação da Authority.", "Authority protection and recovery.", "Protección y recuperación de Authority."),
+            S(Tx("Backup", "Backup", "Backup"), Tx(
+                "Use o fluxo suportado para preservar dados e metadados previstos pelo contrato. Trate backup como artefato sensível e mantenha validação de formato e criptográfica quando exigida.",
+                "Use the supported flow to preserve contract-defined data and metadata. Treat backup as sensitive and retain format and cryptographic validation when required.",
+                "Use el flujo soportado para preservar datos y metadatos definidos por contrato. Trate backup como sensible y mantenga validación de formato y criptográfica cuando sea exigida.")),
+            S(Tx("System Recovery", "System Recovery", "System Recovery"), Tx(
+                "Recovery substitui estado somente pelo contrato atômico e validado. Não edite stores manualmente nem use recovery para contornar identidade, lifecycle ou Authority.",
+                "Recovery replaces state only through the validated atomic contract. Do not edit stores manually or use recovery to bypass identity, lifecycle or Authority.",
+                "Recovery sustituye estado solo mediante el contrato atómico validado. No edite stores manualmente ni use recovery para evitar identidad, lifecycle o Authority."))),
+
+        Basic(
+            "diagnostics.overview", "diagnostics",
+            Tx("Diagnostics", "Diagnostics", "Diagnostics"),
+            Tx("Diagnóstico por camadas.", "Layered diagnostics.", "Diagnóstico por capas."),
+            Tx(
+                "Verifique backend, autenticação/capabilities, Active, Data Source, configuração do driver, conexão, binding, quality/timestamp e só então a apresentação. Use Connection Test, Discover, Browse, Import ou Reconcile somente quando o descriptor real declarar a capability.",
+                "Check backend, authentication/capabilities, Active, Data Source, driver configuration, connection, binding, quality/timestamp and only then presentation. Use Connection Test, Discover, Browse, Import or Reconcile only when the real descriptor declares the capability.",
+                "Verifique backend, autenticación/capabilities, Active, Data Source, configuración del driver, conexión, binding, quality/timestamp y solo entonces presentación. Use Connection Test, Discover, Browse, Import o Reconcile solo cuando el descriptor real declare la capability.")),
+
+        Basic(
+            "troubleshooting.overview", "troubleshooting",
+            Tx("Troubleshooting", "Troubleshooting", "Troubleshooting"),
+            Tx("Correção da causa genérica.", "Fixing the generic cause.", "Corrección de la causa genérica."),
+            Tx(
+                "Reproduza o problema, identifique a camada que divergiu da autoridade canônica e corrija a causa. Não crie workaround de demo, não enfraqueça testes e não bypass Authority, Engineering Lock, licensing, lifecycle, packages ou Runtime. Em CI vermelho, diagnostique antes de rerun.",
+                "Reproduce the problem, identify the layer that diverged from canonical authority and fix the cause. Do not create demo workarounds, weaken tests, or bypass Authority, Engineering Lock, licensing, lifecycle, packages or Runtime. For red CI, diagnose before rerun.",
+                "Reproduzca el problema, identifique la capa que divergió de la autoridad canónica y corrija la causa. No cree workarounds de demo, debilite tests ni evite Authority, Engineering Lock, licensing, lifecycle, packages o Runtime. Con CI rojo, diagnostique antes de rerun.")),
+
+        BuildReusableLibrariesTopic()
+    };
+
+    private static TopicDefinition BuildServerScriptsTopic() => Detailed(
+        "scripts.server", "scripts",
+        Tx("Server Scripts", "Server Scripts", "Server Scripts"),
+        Tx("Python isolado, revision-bound e limitado à superfície real do build.", "Isolated, revision-bound Python limited to the build's real surface.", "Python aislado, revision-bound y limitado a la superficie real del build."),
+        S(Tx("API suportada", "Supported API", "API soportada"), Tx(
+            "A API específica deste build contém somente read_tag, read_server_memory, write_tag, write_server_memory, publish_server_memory_sample e emit_operational_event. TAGs acessados precisam ser dependências declaradas; funções de Server Memory exigem ServerMemoryTag.",
+            "This build-specific API contains only read_tag, read_server_memory, write_tag, write_server_memory, publish_server_memory_sample and emit_operational_event. Accessed TAGs must be declared dependencies; Server Memory functions require ServerMemoryTag.",
+            "La API específica de este build contiene solo read_tag, read_server_memory, write_tag, write_server_memory, publish_server_memory_sample y emit_operational_event. Los TAGs accedidos deben ser dependencias declaradas; funciones de Server Memory requieren ServerMemoryTag."),
+            "value = read_tag(\"<stable-tag-id>\")\nwrite_tag(\"<stable-tag-id>\", value)\nemit_operational_event(\"<definition-id>\", \"message\", {\"source\": \"script\"})"),
+        S(Tx("Lifecycle e triggers", "Lifecycle and triggers", "Lifecycle y triggers"), Tx(
+            "Somente scripts habilitados de scope Server são hospedados na revisão Active. O host atual despacha Initialize, Dispose, TagChanged, Timer e ServerRuntimeEvent. Ao trocar Active, a geração anterior é cancelada; acesso de TAG e emissão de Operational Event usam revision gate para impedir execução obsoleta sobre uma revisão nova.",
+            "Only enabled Server-scope scripts are hosted on the Active revision. The current host dispatches Initialize, Dispose, TagChanged, Timer and ServerRuntimeEvent. When Active changes, the previous generation is cancelled; TAG access and Operational Event emission use a revision gate to prevent obsolete execution against a new revision.",
+            "Solo scripts habilitados de scope Server se hospedan en la revisión Active. El host actual despacha Initialize, Dispose, TagChanged, Timer y ServerRuntimeEvent. Al cambiar Active, la generación anterior se cancela; acceso TAG y emisión de Operational Event usan revision gate para impedir ejecución obsoleta sobre una revisión nueva.")),
+        S(Tx("Execução e falhas", "Execution and failures", "Ejecución y fallas"), Tx(
+            "A política padrão usa timeout de handler de 250 ms, fila limitada a 128 eventos, Timer mínimo de 50 ms e throttle após 5 falhas consecutivas; esses valores podem ser ajustados pela configuração ServerScripts. Fila, timeout, cancelamento, fault isolation e diagnósticos pertencem à instância do script e não concedem fallback de Authority.",
+            "The default policy uses a 250 ms handler timeout, a queue bounded to 128 events, a 50 ms minimum Timer and throttling after 5 consecutive failures; ServerScripts configuration can adjust these values. Queue, timeout, cancellation, fault isolation and diagnostics belong to the script instance and grant no Authority fallback.",
+            "La política por defecto usa timeout de handler de 250 ms, cola limitada a 128 eventos, Timer mínimo de 50 ms y throttle después de 5 fallas consecutivas; configuración ServerScripts puede ajustar estos valores. Cola, timeout, cancelación, fault isolation y diagnósticos pertenecen a la instancia y no conceden fallback de Authority.")),
+        S(Tx("Sandbox e segurança", "Sandbox and security", "Sandbox y seguridad"), Tx(
+            "A superfície de Server Script permite leitura de TAGs compartilhados, leitura/escrita de Server Memory e escrita de TAGs conforme o contrato. O sandbox nega filesystem, sistema operacional, shell/process execution, rede arbitrária, database, acesso direto a industrial drivers, secrets, browser DOM e browser storage. O preflight rejeita imports/calls obviamente proibidos, mas é feedback de editor; enforcement de sandbox não deve depender de scan de texto.",
+            "The Server Script surface allows shared TAG reads, Server Memory reads/writes and TAG writes according to contract. The sandbox denies filesystem, operating system, shell/process execution, arbitrary network, database, direct industrial-driver access, secrets, browser DOM and browser storage. Preflight rejects obviously prohibited imports/calls but is editor feedback; sandbox enforcement must not depend on text scanning.",
+            "La superficie Server Script permite lectura de TAGs compartidos, lectura/escritura de Server Memory y escritura de TAGs según contrato. El sandbox niega filesystem, sistema operativo, shell/process execution, red arbitraria, database, acceso directo a industrial drivers, secrets, browser DOM y browser storage. Preflight rechaza imports/calls claramente prohibidos, pero es feedback del editor; enforcement del sandbox no debe depender de escaneo de texto.")),
+        S(Tx("Exemplo Server Memory", "Server Memory example", "Ejemplo Server Memory"), Tx(
+            "Use somente funções expostas pelo build e referências estáveis declaradas. Não documente convenience functions históricas ou planejadas como se existissem.",
+            "Use only functions exposed by the build and declared stable references. Do not document historical or planned convenience functions as if they existed.",
+            "Use solo funciones expuestas por el build y referencias estables declaradas. No documente convenience functions históricas o planificadas como si existieran."),
+            "value = read_server_memory(\"<stable-tag-id>\")\nwrite_server_memory(\"<stable-tag-id>\", value)\npublish_server_memory_sample(\"<stable-tag-id>\", value, \"Good\")"));
+
+    private static TopicDefinition BuildReusableLibrariesTopic() => Detailed(
+        "libraries.reusable-resources", "libraries",
+        Tx("Reusable Resource Libraries", "Reusable Resource Libraries", "Reusable Resource Libraries"),
+        Tx("Reuso seletivo em Engineering sem dependência externa de Runtime.", "Selective Engineering reuse without external Runtime dependency.", "Reutilización selectiva en Engineering sin dependencia externa de Runtime."),
+        S(Tx("Criar e exportar .escadalib", "Create and export .escadalib", "Crear y exportar .escadalib"), Tx(
+            "A exportação cria .escadalib a partir de recursos selecionados do Working e inclui automaticamente o closure de dependências. O build exporta Equipment Template, Dynamo, Screen, Popup, Script e Visual Asset. O pacote contém manifest, hashes SHA-256 e limites de segurança; Inspect valida formato, manifest, arquivos, hashes e payloads antes do uso.",
+            "Export creates .escadalib from selected Working resources and automatically includes the dependency closure. The build exports Equipment Template, Dynamo, Screen, Popup, Script and Visual Asset. The package contains a manifest, SHA-256 hashes and safety limits; Inspect validates format, manifest, files, hashes and payloads before use.",
+            "Export crea .escadalib desde recursos seleccionados de Working e incluye automáticamente el closure de dependencias. El build exporta Equipment Template, Dynamo, Screen, Popup, Script y Visual Asset. El paquete contiene manifest, hashes SHA-256 y límites de seguridad; Inspect valida formato, manifest, archivos, hashes y payloads antes del uso.")),
+        S(Tx("Associar não é importar", "Association is not import", "Asociar no es importar"), Tx(
+            ".escadalib é diferente de .escadapkg. Associar uma Library não importa conteúdo e, sozinho, não altera Working; apenas disponibiliza recursos compatíveis no catálogo de Engineering.",
+            ".escadalib is different from .escadapkg. Associating a Library does not import content and, by itself, does not change Working; it only makes compatible resources available in the Engineering catalog.",
+            ".escadalib es diferente de .escadapkg. Asociar una Library no importa contenido y, por sí solo, no cambia Working; solo vuelve disponibles recursos compatibles en el catálogo de Engineering.")),
+        S(Tx("Usar", "Use", "Usar"), Tx(
+            "Usar incorpora seletivamente o recurso escolhido e o closure validado de dependências. O conteúdo incorporado torna-se conteúdo canônico pertencente ao projeto e segue validação e lifecycle normais de Working.",
+            "Use selectively incorporates the chosen resource and its validated dependency closure. Incorporated content becomes canonical project-owned content and follows normal Working validation and lifecycle.",
+            "Usar incorpora selectivamente el recurso elegido y el closure validado de dependencias. El contenido incorporado pasa a ser contenido canónico del proyecto y sigue validación y lifecycle normales de Working.")),
+        S(Tx("Desassociar e Runtime", "Detach and Runtime", "Desasociar y Runtime"), Tx(
+            "Desassociar remove disponibilidade do catálogo, não apaga conteúdo já incorporado. O .escadapkg final permanece self-contained; Runtime e Active nunca dependem de .escadalib para executar conteúdo incorporado.",
+            "Detaching removes catalog availability and does not delete already incorporated content. The final .escadapkg remains self-contained; Runtime and Active never depend on .escadalib to execute incorporated content.",
+            "Desasociar elimina disponibilidad del catálogo y no borra contenido ya incorporado. El .escadapkg final permanece self-contained; Runtime y Active nunca dependen de .escadalib para ejecutar contenido incorporado."));
+
+    private static ContextualHelpTopic BuildSourceProviderTopic(EngineeringDataSourceTypeView source, string locale) => new(
+        $"source.{source.TypeKey}",
+        "sources",
+        source.DisplayName,
+        Pick(locale, "Source provider disponível neste build.", "Source provider available in this build.", "Source provider disponible en este build."),
+        new[]
+        {
+            new ContextualHelpSection(Pick(locale, "Identidade", "Identity", "Identidad"), $"Type key: {source.TypeKey}"),
+            new ContextualHelpSection(
+                Pick(locale, "Contrato", "Contract", "Contrato"),
+                string.IsNullOrWhiteSpace(source.Description)
+                    ? Pick(locale, "Fonte do catálogo canônico; não é driver de comunicação.", "Canonical-catalog source; it is not a communication driver.", "Fuente del catálogo canónico; no es driver de comunicación.")
+                    : source.Description)
+        });
 
     private static ContextualHelpTopic BuildDriverTopic(EngineeringDataSourceTypeView driver, string locale)
     {
         var schema = driver.ConfigurationSchema;
-        var capabilities = new[]
-        {
-            driver.Capabilities.SupportsConnectionTest ? Pick(locale, "Teste de conexão", "Connection test", "Prueba de conexión") : null,
-            driver.Capabilities.SupportsDiscovery ? Pick(locale, "Descoberta", "Discovery", "Descubrimiento") : null,
-            driver.Capabilities.SupportsBrowse ? "Browse" : null,
-            driver.Capabilities.SupportsFileImport ? Pick(locale, "Importação de arquivo", "File import", "Importación de archivo") : null,
-            driver.Capabilities.SupportsReconcile ? Pick(locale, "Reconciliação", "Reconcile", "Reconciliación") : null,
-            driver.Capabilities.SupportsSharedTransportInfrastructure ? Pick(locale, "Transporte compartilhado", "Shared transport", "Transporte compartido") : null
-        }.Where(value => value is not null).Cast<string>().ToArray();
-
-        var sourceFields = FormatFields(schema?.DataSourceFields ?? Array.Empty<EngineeringDriverConfigurationFieldView>(), locale);
-        var bindingFields = FormatFields(schema?.TagBindingFields ?? Array.Empty<EngineeringDriverConfigurationFieldView>(), locale);
-        var protectedFields = (schema?.DataSourceFields ?? Array.Empty<EngineeringDriverConfigurationFieldView>())
-            .Concat(schema?.TagBindingFields ?? Array.Empty<EngineeringDriverConfigurationFieldView>())
-            .Where(field => field.ValueKind is "secretReference" or "certificateReference")
-            .Select(field => field.Key)
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(key => key, StringComparer.Ordinal)
-            .ToArray();
-
+        var sourceFields = schema?.DataSourceFields ?? Array.Empty<EngineeringDriverConfigurationFieldView>();
+        var bindingFields = schema?.TagBindingFields ?? Array.Empty<EngineeringDriverConfigurationFieldView>();
+        var allFields = sourceFields.Concat(bindingFields).ToArray();
         var schemaIdentity = schema is null
             ? Pick(locale, "Nenhum configuration schema declarado.", "No configuration schema declared.", "No hay configuration schema declarado.")
             : $"{schema.SchemaId} v{schema.SchemaVersion}; TagBinding: {driver.TagBindingSchemaId ?? schema.SchemaId} v{driver.TagBindingSchemaVersion ?? schema.SchemaVersion}";
@@ -543,84 +503,171 @@ public static class ContextualHelpCatalog
             "drivers",
             driver.DisplayName,
             Pick(locale,
-                "Driver de comunicação de produção registrado nesta compilação do EliteSCADA.",
-                "Production communication driver registered in this EliteSCADA build.",
-                "Driver de comunicación de producción registrado en esta compilación de EliteSCADA."),
+                "Driver de comunicação de produção registrado neste build.",
+                "Production communication driver registered in this build.",
+                "Driver de comunicación de producción registrado en este build."),
             new[]
             {
                 new ContextualHelpSection(
-                    Pick(locale, "Identidade canônica", "Canonical identity", "Identidad canónica"),
-                    $"Type key: {driver.TypeKey}{(string.IsNullOrWhiteSpace(driver.Description) ? string.Empty : $"\n{driver.Description}")}"),
-                new ContextualHelpSection(
-                    Pick(locale, "Schemas registrados", "Registered schemas", "Schemas registrados"),
-                    schemaIdentity),
+                    Pick(locale, "Finalidade e perfil comprovado", "Proven purpose and profile", "Finalidad y perfil comprobado"),
+                    $"Type key: {driver.TypeKey}\n{(string.IsNullOrWhiteSpace(driver.Description) ? Pick(locale, "Sem descrição adicional no descriptor.", "No additional descriptor description.", "Sin descripción adicional en el descriptor.") : driver.Description)}\n{schemaIdentity}"),
                 new ContextualHelpSection(
                     Pick(locale, "Configuração do Data Source", "Data Source configuration", "Configuración del Data Source"),
-                    sourceFields),
+                    FormatFields(sourceFields, locale)),
                 new ContextualHelpSection(
                     Pick(locale, "Addressing / binding do TAG", "TAG addressing / binding", "Addressing / binding del TAG"),
-                    bindingFields),
+                    FormatFields(bindingFields, locale)),
+                new ContextualHelpSection(
+                    Pick(locale, "Data types e mapping", "Data types and mapping", "Data types y mapping"),
+                    DescribeMatchingFields(allFields, locale, "type", "datatype", "dataType", "encoding", "format", "representation")),
+                new ContextualHelpSection(
+                    Pick(locale, "Acesso a bit", "Bit access", "Acceso a bit"),
+                    DescribeMatchingFields(allFields, locale, "bit", "mask", "offset")),
+                new ContextualHelpSection(
+                    Pick(locale, "Byte/word order", "Byte/word order", "Byte/word order"),
+                    DescribeMatchingFields(allFields, locale, "endian", "byteorder", "byteOrder", "wordorder", "wordOrder", "swap")),
+                new ContextualHelpSection(
+                    Pick(locale, "Read/write e restrições", "Read/write and restrictions", "Read/write y restricciones"),
+                    $"{DescribeMatchingFields(allFields, locale, "read", "write", "access", "readonly", "readOnly")}\n{Pick(locale, "Não infira writeability além do contrato do driver/TAG. Escritas continuam sujeitas às capabilities efetivas e ao enforcement server-side.", "Do not infer writeability beyond the driver/TAG contract. Writes remain subject to effective capabilities and server-side enforcement.", "No infiera writeability más allá del contrato driver/TAG. Las escrituras siguen sujetas a capabilities efectivas y enforcement server-side.")}"),
+                new ContextualHelpSection(
+                    Pick(locale, "Polling/subscription", "Polling/subscription", "Polling/subscription"),
+                    DescribeMatchingFields(allFields, locale, "poll", "scan", "interval", "subscription", "sample", "publish", "report")),
+                new ContextualHelpSection(
+                    Pick(locale, "Reconnect e timeouts", "Reconnect and timeouts", "Reconnect y timeouts"),
+                    DescribeMatchingFields(allFields, locale, "timeout", "retry", "reconnect", "keepalive", "keepAlive", "session")),
+                new ContextualHelpSection(
+                    Pick(locale, "Segurança e certificados", "Security and certificates", "Seguridad y certificados"),
+                    DescribeSecurityFields(allFields, locale)),
                 new ContextualHelpSection(
                     Pick(locale, "Capabilities de Engineering", "Engineering capabilities", "Capabilities de Engineering"),
-                    capabilities.Length == 0
-                        ? Pick(locale, "Nenhuma capability opcional declarada pelo descriptor.", "No optional capability declared by the descriptor.", "Ninguna capability opcional declarada por el descriptor.")
-                        : string.Join("\n", capabilities.Select(item => $"• {item}"))),
+                    DescribeEngineeringCapabilities(driver, locale)),
+                new ContextualHelpSection(
+                    Pick(locale, "Exemplos válidos e inválidos", "Valid and invalid examples", "Ejemplos válidos e inválidos"),
+                    BuildValidationExamples(allFields, locale)),
                 new ContextualHelpSection(
                     Pick(locale, "Quality, timestamps e writeability", "Quality, timestamps and writeability", "Quality, timestamps y writeability"),
                     Pick(locale,
-                        "O driver alimenta o pipeline canônico de TAGs. Preserve quality e timestamps recebidos pelo Runtime e trate writeability como contrato do TAG/fonte mais capabilities efetivas; a UI não deve inventar qualidade, horário ou permissão de escrita.",
-                        "The driver feeds the canonical TAG pipeline. Preserve quality and timestamps received by Runtime and treat writeability as the TAG/source contract plus effective capabilities; the UI must not invent quality, time or write permission.",
-                        "El driver alimenta el pipeline canónico de TAGs. Preserve quality y timestamps recibidos por Runtime y trate writeability como contrato del TAG/fuente más capabilities efectivas; la UI no debe inventar quality, tiempo ni permiso de escritura.")),
+                        "Preserve quality e timestamps recebidos pelo pipeline canônico. A UI não inventa Good, horário ou permissão de escrita para mascarar falha de fonte ou sessão.",
+                        "Preserve quality and timestamps received through the canonical pipeline. The UI does not invent Good, time or write permission to mask a source or session failure.",
+                        "Preserve quality y timestamps recibidos por el pipeline canónico. La UI no inventa Good, tiempo ni permiso de escritura para ocultar falla de fuente o sesión.")),
                 new ContextualHelpSection(
-                    Pick(locale, "Diagnóstico", "Diagnostics", "Diagnóstico"),
+                    Pick(locale, "Diagnóstico e troubleshooting", "Diagnostics and troubleshooting", "Diagnóstico y troubleshooting"),
                     Pick(locale,
-                        "Comece pelos campos obrigatórios e formatos abaixo, depois use somente as capabilities declaradas pelo descriptor. Falhas de conexão, discovery ou binding devem ser corrigidas no Data Source/driver, não escondidas por fallback visual.",
-                        "Start with the required fields and formats below, then use only capabilities declared by the descriptor. Connection, discovery or binding failures must be corrected in the Data Source/driver, not hidden by visual fallback.",
-                        "Comience por los campos obligatorios y formatos indicados, luego use solo las capabilities declaradas por el descriptor. Fallas de conexión, discovery o binding deben corregirse en Data Source/driver, no ocultarse con fallback visual.")),
+                        "Valide primeiro campos obrigatórios, formatos, limites e referências protegidas; depois use somente capabilities declaradas pelo descriptor. Corrija conexão, discovery ou binding na fonte, nunca por fallback visual.",
+                        "Validate required fields, formats, limits and protected references first; then use only capabilities declared by the descriptor. Fix connection, discovery or binding at the source, never through visual fallback.",
+                        "Valide primero campos obligatorios, formatos, límites y referencias protegidas; luego use solo capabilities declaradas por el descriptor. Corrija conexión, discovery o binding en la fuente, nunca mediante fallback visual.")),
                 new ContextualHelpSection(
-                    Pick(locale, "Material protegido", "Protected material", "Material protegido"),
-                    protectedFields.Length == 0
-                        ? Pick(locale,
-                            "O schema não declara campos de secret/certificate reference. Isso não reduz autenticação, autorização ou demais controles do produto.",
-                            "The schema declares no secret/certificate reference fields. This does not reduce authentication, authorization or other product controls.",
-                            "El schema no declara campos de secret/certificate reference. Esto no reduce autenticación, autorización ni otros controles del producto.")
-                        : $"{Pick(locale, "Referências protegidas declaradas pelo schema", "Protected references declared by the schema", "Referencias protegidas declaradas por el schema")}: {string.Join(", ", protectedFields)}")
+                    Pick(locale, "Limites de interoperabilidade", "Interoperability limits", "Límites de interoperabilidad"),
+                    Pick(locale,
+                        "Este manual afirma somente o TypeKey, descrição, schemas, campos, formatos e capabilities registrados neste build. Perfil, extensão ou comportamento não declarado pelo descriptor/schema não deve ser inferido como suportado.",
+                        "This manual claims only the TypeKey, description, schemas, fields, formats and capabilities registered in this build. A profile, extension or behavior not declared by the descriptor/schema must not be inferred as supported.",
+                        "Este manual afirma solo TypeKey, descripción, schemas, campos, formatos y capabilities registrados en este build. Perfil, extensión o comportamiento no declarado por descriptor/schema no debe inferirse como soportado."))
             });
+    }
+
+    private static string DescribeEngineeringCapabilities(EngineeringDataSourceTypeView driver, string locale)
+    {
+        var items = new[]
+        {
+            driver.Capabilities.SupportsConnectionTest ? Pick(locale, "Teste de conexão", "Connection test", "Prueba de conexión") : null,
+            driver.Capabilities.SupportsDiscovery ? Pick(locale, "Descoberta", "Discovery", "Descubrimiento") : null,
+            driver.Capabilities.SupportsBrowse ? "Browse" : null,
+            driver.Capabilities.SupportsFileImport ? Pick(locale, "Importação de arquivo", "File import", "Importación de archivo") : null,
+            driver.Capabilities.SupportsReconcile ? Pick(locale, "Reconciliação", "Reconcile", "Reconciliación") : null,
+            driver.Capabilities.SupportsSharedTransportInfrastructure ? Pick(locale, "Transporte compartilhado", "Shared transport", "Transporte compartido") : null
+        }.Where(value => value is not null).Cast<string>().ToArray();
+
+        return items.Length == 0
+            ? Pick(locale, "Nenhuma capability opcional de Engineering declarada pelo descriptor.", "No optional Engineering capability declared by the descriptor.", "Ninguna capability opcional de Engineering declarada por el descriptor.")
+            : string.Join("\n", items.Select(item => $"• {item}"));
+    }
+
+    private static string DescribeSecurityFields(IReadOnlyCollection<EngineeringDriverConfigurationFieldView> fields, string locale)
+    {
+        var selected = fields.Where(field =>
+            field.ValueKind is "secretReference" or "certificateReference" ||
+            Matches(field, "security", "certificate", "cert", "tls", "secret", "password", "username", "userName", "auth", "credential"))
+            .ToArray();
+
+        if (selected.Length == 0)
+            return Pick(locale,
+                "O schema não declara configuração específica de segurança/certificado. Isso não reduz autenticação, autorização ou demais controles do produto.",
+                "The schema declares no specific security/certificate configuration. This does not reduce authentication, authorization or other product controls.",
+                "El schema no declara configuración específica de seguridad/certificado. Esto no reduce autenticación, autorización ni otros controles del producto.");
+
+        return FormatFields(selected, locale);
+    }
+
+    private static string DescribeMatchingFields(
+        IReadOnlyCollection<EngineeringDriverConfigurationFieldView> fields,
+        string locale,
+        params string[] keywords)
+    {
+        var selected = fields.Where(field => Matches(field, keywords)).ToArray();
+        return selected.Length == 0
+            ? Pick(locale,
+                "O descriptor/schema deste build não declara campos específicos para este aspecto; não inferir comportamento adicional.",
+                "This build's descriptor/schema declares no specific fields for this aspect; do not infer additional behavior.",
+                "El descriptor/schema de este build no declara campos específicos para este aspecto; no infiera comportamiento adicional.")
+            : FormatFields(selected, locale);
+    }
+
+    private static bool Matches(EngineeringDriverConfigurationFieldView field, params string[] keywords)
+    {
+        var haystack = $"{field.Key} {field.DisplayName} {field.Description} {field.ExpectedFormat}";
+        return keywords.Any(keyword => haystack.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string BuildValidationExamples(IReadOnlyCollection<EngineeringDriverConfigurationFieldView> fields, string locale)
+    {
+        var valid = fields
+            .Where(field => !string.IsNullOrWhiteSpace(field.ExampleValue) && !IsExternalHttpValue(field.ExampleValue!))
+            .Take(6)
+            .Select(field => $"{field.Key}={field.ExampleValue}")
+            .ToArray();
+
+        var invalid = new List<string>();
+        foreach (var field in fields)
+        {
+            if (invalid.Count >= 6) break;
+            if (field.Required && string.IsNullOrWhiteSpace(field.DefaultValue))
+                invalid.Add($"{field.Key}=<missing>");
+            else if (field.AllowedValues.Count > 0)
+                invalid.Add($"{field.Key}=<outside: {string.Join(" | ", field.AllowedValues)}>");
+            else if (field.Minimum.HasValue || field.Maximum.HasValue)
+                invalid.Add($"{field.Key}=<outside {field.Minimum?.ToString() ?? "-∞"}..{field.Maximum?.ToString() ?? "+∞"}>");
+            else if (!string.IsNullOrWhiteSpace(field.ExpectedFormat))
+                invalid.Add($"{field.Key}=<malformed; expected {field.ExpectedFormat}>");
+        }
+
+        var validText = valid.Length == 0
+            ? Pick(locale, "Nenhum exemplo de valor não sensível declarado pelo schema.", "No non-sensitive value example declared by the schema.", "Ningún ejemplo de valor no sensible declarado por el schema.")
+            : string.Join("; ", valid);
+        var invalidText = invalid.Count == 0
+            ? Pick(locale, "Use o validator canônico para rejeitar campos desconhecidos e formatos incompatíveis.", "Use the canonical validator to reject unknown fields and incompatible formats.", "Use el validator canónico para rechazar campos desconocidos y formatos incompatibles.")
+            : string.Join("; ", invalid);
+
+        return $"{Pick(locale, "Válidos derivados do schema", "Valid, derived from schema", "Válidos derivados del schema")}: {validText}\n{Pick(locale, "Inválidos derivados das regras", "Invalid, derived from rules", "Inválidos derivados de las reglas")}: {invalidText}";
     }
 
     private static string FormatFields(IReadOnlyCollection<EngineeringDriverConfigurationFieldView> fields, string locale)
     {
         if (fields.Count == 0)
             return Pick(locale, "Nenhum campo declarado neste schema.", "No fields declared in this schema.", "No hay campos declarados en este schema.");
-
         return string.Join("\n", fields.Select(field => FormatField(field, locale)));
     }
 
     private static string FormatField(EngineeringDriverConfigurationFieldView field, string locale)
     {
-        var required = field.Required
-            ? Pick(locale, "obrigatório", "required", "obligatorio")
-            : Pick(locale, "opcional", "optional", "opcional");
-        var parts = new List<string>
-        {
-            $"{field.Key} - {field.DisplayName} [{field.ValueKind}, {required}]"
-        };
-
-        if (!string.IsNullOrWhiteSpace(field.Description))
-            parts.Add(field.Description);
-        if (!string.IsNullOrWhiteSpace(field.ExpectedFormat))
-            parts.Add($"{Pick(locale, "Formato", "Format", "Formato")}: {field.ExpectedFormat}");
-        if (!string.IsNullOrWhiteSpace(field.DefaultValue))
-            parts.Add($"{Pick(locale, "Default", "Default", "Default")}: {field.DefaultValue}");
-        if (field.AllowedValues.Count > 0)
-            parts.Add($"{Pick(locale, "Valores", "Values", "Valores")}: {string.Join(" | ", field.AllowedValues)}");
-        if (field.Minimum.HasValue || field.Maximum.HasValue)
-            parts.Add($"{Pick(locale, "Limites", "Limits", "Límites")}: {field.Minimum?.ToString() ?? "-∞"} .. {field.Maximum?.ToString() ?? "+∞"}");
-        if (!string.IsNullOrWhiteSpace(field.ExampleValue) && !IsExternalHttpValue(field.ExampleValue))
-            parts.Add($"{Pick(locale, "Exemplo", "Example", "Ejemplo")}: {field.ExampleValue}");
-        if (field.Advanced)
-            parts.Add(Pick(locale, "campo avançado", "advanced field", "campo avanzado"));
-
+        var required = field.Required ? Pick(locale, "obrigatório", "required", "obligatorio") : Pick(locale, "opcional", "optional", "opcional");
+        var parts = new List<string> { $"{field.Key} - {field.DisplayName} [{field.ValueKind}, {required}]" };
+        if (!string.IsNullOrWhiteSpace(field.Description)) parts.Add(field.Description);
+        if (!string.IsNullOrWhiteSpace(field.ExpectedFormat)) parts.Add($"{Pick(locale, "Formato", "Format", "Formato")}: {field.ExpectedFormat}");
+        if (!string.IsNullOrWhiteSpace(field.DefaultValue)) parts.Add($"Default: {field.DefaultValue}");
+        if (field.AllowedValues.Count > 0) parts.Add($"{Pick(locale, "Valores", "Values", "Valores")}: {string.Join(" | ", field.AllowedValues)}");
+        if (field.Minimum.HasValue || field.Maximum.HasValue) parts.Add($"{Pick(locale, "Limites", "Limits", "Límites")}: {field.Minimum?.ToString() ?? "-∞"} .. {field.Maximum?.ToString() ?? "+∞"}");
+        if (!string.IsNullOrWhiteSpace(field.ExampleValue) && !IsExternalHttpValue(field.ExampleValue)) parts.Add($"{Pick(locale, "Exemplo", "Example", "Ejemplo")}: {field.ExampleValue}");
+        if (field.Advanced) parts.Add(Pick(locale, "campo avançado", "advanced field", "campo avanzado"));
         return string.Join("; ", parts);
     }
 
@@ -628,17 +675,13 @@ public static class ContextualHelpCatalog
         value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
         value.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
 
-    private static TopicDefinition Manual(
-        string id,
-        string category,
-        LocalizedText title,
-        LocalizedText summary,
-        params SectionDefinition[] sections) =>
+    private static TopicDefinition Basic(string id, string category, LocalizedText title, LocalizedText summary, LocalizedText body) =>
+        Detailed(id, category, title, summary, S(Tx("Guia", "Guide", "Guía"), body));
+
+    private static TopicDefinition Detailed(string id, string category, LocalizedText title, LocalizedText summary, params SectionDefinition[] sections) =>
         new(id, category, title, summary, sections);
 
-    private static SectionDefinition Sec(LocalizedText heading, LocalizedText body, string? code = null) =>
-        new(heading, body, code);
-
+    private static SectionDefinition S(LocalizedText heading, LocalizedText body, string? code = null) => new(heading, body, code);
     private static LocalizedText Tx(string pt, string en, string es) => new(pt, en, es);
 
     private static string Pick(string locale, string pt, string en, string es) => locale switch
@@ -650,12 +693,7 @@ public static class ContextualHelpCatalog
 
     private sealed record LocalizedText(string Portuguese, string English, string Spanish)
     {
-        public string For(string locale) => locale switch
-        {
-            "en" => English,
-            "es" => Spanish,
-            _ => Portuguese
-        };
+        public string For(string locale) => locale switch { "en" => English, "es" => Spanish, _ => Portuguese };
     }
 
     private sealed record SectionDefinition(LocalizedText Heading, LocalizedText Body, string? Code)
@@ -697,11 +735,9 @@ public static class ContextualHelpApi
             }
 
             var catalog = ContextualHelpCatalog.Build(locale);
-            if (string.IsNullOrWhiteSpace(topic))
-                return Results.Ok(catalog);
+            if (string.IsNullOrWhiteSpace(topic)) return Results.Ok(catalog);
 
-            var selected = catalog.Topics.FirstOrDefault(item =>
-                item.Id.Equals(topic, StringComparison.Ordinal));
+            var selected = catalog.Topics.FirstOrDefault(item => item.Id.Equals(topic, StringComparison.Ordinal));
             return selected is null
                 ? Results.NotFound(new { error = "Help topic not found.", topic })
                 : Results.Ok(new

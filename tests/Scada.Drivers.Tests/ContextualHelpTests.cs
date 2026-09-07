@@ -69,15 +69,7 @@ public sealed class ContextualHelpTests
     [Fact]
     public void DriverHelpInventory_MatchesCanonicalProductionCatalogAndExcludesSimulation()
     {
-        var canonicalProductionDrivers = EngineeringDataSourceTypeCatalog
-            .BuildForCurrentSchema(CommunicationDriverRuntimeComposition.BuildForCurrentSchema())
-            .Describe()
-            .DataSourceTypes
-            .Where(source => source.Kind == "communicationDriver")
-            .Where(source => !source.TypeKey.Equals("simulation", StringComparison.OrdinalIgnoreCase))
-            .OrderBy(source => source.TypeKey, StringComparer.Ordinal)
-            .ToArray();
-
+        var canonicalProductionDrivers = ProductionDrivers();
         var expected = canonicalProductionDrivers
             .Select(source => $"driver.{source.TypeKey}")
             .ToArray();
@@ -87,24 +79,51 @@ public sealed class ContextualHelpTests
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToArray();
 
+        Assert.Equal("builtin.simulation", ContextualHelpCatalog.ExcludedSimulationDriverTypeKey);
         Assert.Equal(8, canonicalProductionDrivers.Length);
         Assert.Equal(expected, actual);
-        Assert.DoesNotContain("driver.simulation", actual);
+        Assert.DoesNotContain($"driver.{ContextualHelpCatalog.ExcludedSimulationDriverTypeKey}", actual);
+    }
+
+    [Fact]
+    public void DriverHelp_FollowsTheBindingUserFacingTemplate()
+    {
+        var requiredHeadings = new[]
+        {
+            "Proven purpose and profile",
+            "Data Source configuration",
+            "TAG addressing / binding",
+            "Data types and mapping",
+            "Bit access",
+            "Byte/word order",
+            "Read/write and restrictions",
+            "Polling/subscription",
+            "Reconnect and timeouts",
+            "Security and certificates",
+            "Engineering capabilities",
+            "Valid and invalid examples",
+            "Quality, timestamps and writeability",
+            "Diagnostics and troubleshooting",
+            "Interoperability limits"
+        };
+        var catalog = ContextualHelpCatalog.Build("en");
+
+        foreach (var driver in ProductionDrivers())
+        {
+            var topic = Assert.Single(catalog.Topics, item => item.Id == $"driver.{driver.TypeKey}");
+            var headings = topic.Sections.Select(section => section.Heading).ToArray();
+
+            foreach (var heading in requiredHeadings)
+                Assert.Contains(heading, headings);
+        }
     }
 
     [Fact]
     public void DriverHelp_DerivesConfigurationAddressingAndCapabilitiesFromCanonicalDescriptors()
     {
-        var drivers = EngineeringDataSourceTypeCatalog
-            .BuildForCurrentSchema(CommunicationDriverRuntimeComposition.BuildForCurrentSchema())
-            .Describe()
-            .DataSourceTypes
-            .Where(source => source.Kind == "communicationDriver")
-            .Where(source => !source.TypeKey.Equals("simulation", StringComparison.OrdinalIgnoreCase))
-            .ToArray();
         var catalog = ContextualHelpCatalog.Build("en");
 
-        foreach (var driver in drivers)
+        foreach (var driver in ProductionDrivers())
         {
             var topic = Assert.Single(catalog.Topics, item => item.Id == $"driver.{driver.TypeKey}");
             var text = string.Join("\n", topic.Sections.Select(section => section.Body));
@@ -168,11 +187,11 @@ public sealed class ContextualHelpTests
             ["en"] = "Associating a Library does not import content and, by itself, does not change Working",
             ["es"] = "Asociar una Library no importa contenido y, por sí solo, no cambia Working"
         };
-        var expectedUseSentence = new Dictionary<string, string>(StringComparer.Ordinal)
+        var expectedUsePrefix = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["pt-BR"] = "Usar incorpora seletivamente o recurso escolhido e o closure validado de suas dependências",
-            ["en"] = "Use selectively incorporates the chosen resource and its validated dependency closure",
-            ["es"] = "Usar incorpora selectivamente el recurso elegido y el closure validado de sus dependencias"
+            ["pt-BR"] = "Usar incorpora seletivamente o recurso escolhido",
+            ["en"] = "Use selectively incorporates the chosen resource",
+            ["es"] = "Usar incorpora selectivamente el recurso elegido"
         };
 
         foreach (var locale in ContextualHelpCatalog.SupportedLocales)
@@ -183,11 +202,32 @@ public sealed class ContextualHelpTests
             Assert.Contains(".escadalib", text, StringComparison.Ordinal);
             Assert.Contains(".escadapkg", text, StringComparison.Ordinal);
             Assert.Contains(expectedAssociationSentence[locale], text, StringComparison.Ordinal);
-            Assert.Contains(expectedUseSentence[locale], text, StringComparison.Ordinal);
+            Assert.Contains(expectedUsePrefix[locale], text, StringComparison.Ordinal);
+            Assert.Contains("closure", text, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Working", text, StringComparison.Ordinal);
             Assert.Contains("self-contained", text, StringComparison.Ordinal);
             Assert.Contains("Runtime", text, StringComparison.Ordinal);
             Assert.Contains("Active", text, StringComparison.Ordinal);
         }
+    }
+
+    [Fact]
+    public void ReusableLibraryHelp_DocumentsCreationExportInspectionAndDependencyClosure()
+    {
+        var topic = Assert.Single(ContextualHelpCatalog.Build("en").Topics, item => item.Id == "libraries.reusable-resources");
+        var text = string.Join("\n", topic.Sections.Select(section => $"{section.Heading}\n{section.Body}"));
+
+        Assert.Contains("Create and export .escadalib", text, StringComparison.Ordinal);
+        Assert.Contains("selected Working resources", text, StringComparison.Ordinal);
+        Assert.Contains("dependency closure", text, StringComparison.Ordinal);
+        Assert.Contains("Equipment Template", text, StringComparison.Ordinal);
+        Assert.Contains("Dynamo", text, StringComparison.Ordinal);
+        Assert.Contains("Screen", text, StringComparison.Ordinal);
+        Assert.Contains("Popup", text, StringComparison.Ordinal);
+        Assert.Contains("Script", text, StringComparison.Ordinal);
+        Assert.Contains("Visual Asset", text, StringComparison.Ordinal);
+        Assert.Contains("SHA-256", text, StringComparison.Ordinal);
+        Assert.Contains("Inspect validates", text, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -246,6 +286,33 @@ public sealed class ContextualHelpTests
     }
 
     [Fact]
+    public void ServerScriptHelp_DocumentsRuntimeTriggersLifecycleFailurePolicyAndSandbox()
+    {
+        var expectedTriggers = new[] { "Initialize", "Dispose", "TagChanged", "Timer", "ServerRuntimeEvent" };
+        Assert.Equal(expectedTriggers, ContextualHelpCatalog.ServerScriptRuntimeTriggers);
+
+        var topic = Assert.Single(ContextualHelpCatalog.Build("en").Topics, item => item.Id == "scripts.server");
+        var text = string.Join("\n", topic.Sections.Select(section => $"{section.Heading}\n{section.Body}"));
+
+        foreach (var trigger in expectedTriggers)
+            Assert.Contains(trigger, text, StringComparison.Ordinal);
+
+        Assert.Contains("Active revision", text, StringComparison.Ordinal);
+        Assert.Contains("previous generation is cancelled", text, StringComparison.Ordinal);
+        Assert.Contains("250 ms", text, StringComparison.Ordinal);
+        Assert.Contains("128 events", text, StringComparison.Ordinal);
+        Assert.Contains("50 ms", text, StringComparison.Ordinal);
+        Assert.Contains("5 consecutive failures", text, StringComparison.Ordinal);
+        Assert.Contains("filesystem", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("shell/process execution", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("arbitrary network", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("database", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("industrial-driver", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("secrets", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("sandbox enforcement must not depend on text scanning", text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void HelpCatalog_IsEntirelyLocalAndHasNoExternalDocumentationContract()
     {
         foreach (var locale in ContextualHelpCatalog.SupportedLocales)
@@ -258,4 +325,13 @@ public sealed class ContextualHelpTests
             Assert.DoesNotContain("externalDocumentation", json, StringComparison.OrdinalIgnoreCase);
         }
     }
+
+    private static EngineeringDataSourceTypeView[] ProductionDrivers() => EngineeringDataSourceTypeCatalog
+        .BuildForCurrentSchema(CommunicationDriverRuntimeComposition.BuildForCurrentSchema())
+        .Describe()
+        .DataSourceTypes
+        .Where(source => source.Kind == "communicationDriver")
+        .Where(source => !source.TypeKey.Equals(ContextualHelpCatalog.ExcludedSimulationDriverTypeKey, StringComparison.OrdinalIgnoreCase))
+        .OrderBy(source => source.TypeKey, StringComparer.Ordinal)
+        .ToArray();
 }

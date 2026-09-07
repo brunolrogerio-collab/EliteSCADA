@@ -1,7 +1,7 @@
 # Wave 14 C25 — Post-Demo Consolidated Corrections — Execution Log
 
 **Date:** 2026-09-06 BRT  
-**Status:** **ACTIVE / NOT ACCEPTED / NOT INTEGRATED / C25.0-C25.9 COMPLETE / C25.10 NEXT**  
+**Status:** **ACTIVE / NOT ACCEPTED / NOT INTEGRATED / C25.0-C25.9 COMPLETE / C25.10 MATRIX PREPARED / AWAITING EXPLICIT PRODUCT OWNER ACCEPTANCE**  
 **Coordinator package:** C25  
 **Tracking issue:** #282  
 **Implementation PR:** #283  
@@ -25,9 +25,9 @@
 - #266 remains validation-only and MUST NEVER MERGE.
 - Wave 13 issue #205 and PR #207 remain paused until the approved post-C25/main sequence reaches them.
 
-## 2. C25 base and current exact product/test authority
+## 2. Base and exact product/test authority
 
-C25 branch base / current integration head:
+C25 branch base / audited integration head:
 
 `c2fc96eacc168ea092c2e4d4dcbc79b00faa3155`
 
@@ -35,16 +35,27 @@ Accepted C24 product authority beneath C25:
 
 `40a491c2de2403f2934b8bae647c35072d5c2496`
 
-Current exact C25 product/test authority after C25.8 remediation and C25.9 integrated audit:
+Current exact C25 product/test authority:
 
 `5193b81220f499cb2039dc1146c6dd1a7f7b3dbd`
 
-Exact-SHA evidence:
+Exact candidate evidence:
 
-- Wave 14 C25 Post-Demo #314 / run `34072225644` — **SUCCESS**;
-- Wave 14 C03 DNP3 Adapter #301 / run `34072225635` — **SUCCESS**.
+- Wave 14 C25 Post-Demo #314 / `34072225644` — **SUCCESS**;
+- Wave 14 C03 DNP3 Adapter #301 / `34072225635` — **SUCCESS**.
 
-The coordination-only documentation commit above this product SHA, if present, is not a replacement product/test candidate. Product/test evidence remains anchored to `5193b812...` until another code-bearing exact SHA is explicitly validated.
+Coordination-only C25.9 closeout above that product candidate:
+
+`e2441382e589350bd9b13476fd359d70a7c4b1ac`
+
+The compare from `5193b812...` to `e2441382...` changes only this execution ledger, `docs/CURRENT-COORDINATOR-HANDOFF.md` and `LAST CHANGE.md`.
+
+Fresh validation of the documentation-only closeout:
+
+- Wave 14 C25 Post-Demo #316 / `34072728643` — **SUCCESS**;
+- Wave 14 C03 DNP3 Adapter #302 / `34072728640` — **SUCCESS**.
+
+Documentation-only commits do not replace `5193b812...` as product/test authority unless a newer code-bearing candidate is explicitly exact-SHA validated.
 
 ## 3. Checkpoint matrix
 
@@ -58,118 +69,77 @@ The coordination-only documentation commit above this product SHA, if present, i
 - **C25.7 — Distributed Runtime Foundation:** COMPLETE / exact-SHA green.
 - **C25.8 — Contextual multilingual Help/manual:** COMPLETE / exact-SHA green after acceptance remediation.
 - **C25.9 — Integrated regression/audit:** COMPLETE.
-- **C25.10 — Exact final candidate matrix / explicit Product Owner acceptance:** NEXT / NOT ACCEPTED.
+- **C25.10 — Exact final candidate matrix / explicit Product Owner acceptance:** MATRIX PREPARED / AWAITING EXPLICIT ACCEPTANCE.
 
-### C25.6 retained checkpoint
+Final candidate matrix:
 
-Exact validated SHA:
+`docs/WAVE14-C25-FINAL-CANDIDATE-MATRIX-2026-09-06.md`
 
-`1f17367defa03f903e68f585d068b4f23f82bef9`
+## 4. C25.8 final Help/manual acceptance
 
-- C25 #275 / `34052101709` — SUCCESS;
-- C03 #280 / `34052101702` — SUCCESS.
+The earlier green Help infrastructure SHA `c5cf2dca1090acc6ebb278d31276d508304a6381` remains historical intermediate evidence only. C25.9 correctly found that it did not satisfy the complete binding installed-manual contract.
 
-C25.6 established `.escadalib` association without Working mutation, selective dependency-aware `Usar`, project-owned incorporated content, safe disassociation, self-contained `.escadapkg` and no Runtime dependency on `.escadalib`.
+The replacement implementation at `5193b812...` closes:
 
-### C25.7 retained checkpoint
-
-Exact validated SHA:
-
-`233002ded306c971858b356e1d2a50a89921da37`
-
-- C25 #300 / `34062152621` — SUCCESS;
-- C03 #294 / `34062152648` — SUCCESS.
-
-C25.7 established the canonical Server Runtime boundary, Runtime Session Lease, Viewer/Interactive capability downscope, voluntary View Only server-side enforcement and topology-neutral `.escadapkg`. Production HA/replication/failover remains future-Wave work.
-
-## 4. C25.8 — final Help/manual acceptance
-
-The earlier green Help infrastructure SHA `c5cf2dca1090acc6ebb278d31276d508304a6381` remains historical evidence only. C25.9 correctly discovered that it did not satisfy the complete binding installed-manual contract.
-
-The replacement implementation was completed and exact-SHA validated at:
-
-`5193b81220f499cb2039dc1146c6dd1a7f7b3dbd`
-
-Acceptance coverage now includes:
-
-- local/offline Help with same-origin `/api/help`;
+- local/offline same-origin Help;
 - stable language-neutral Topic IDs;
 - pt-BR / en / es semantic and structural parity;
-- all 30 mandatory manual topic IDs;
-- lifecycle and `.escadapkg` flow;
-- Data Sources and TAG semantics including quality, timestamps, writeability, addressing and scaling versus presentation formatting;
-- Alarms, Operational Events and Audit as separate concepts;
+- complete mandatory installed-manual matrix;
+- lifecycle, `.escadapkg`, Data Source and TAG semantics;
+- Alarms / Operational Events / Audit separation;
 - Historian, Trends, Reports, Screens, Popups, Dynamos, bindings and commands;
 - users/roles/capabilities/security, Licensing, Backup/System Recovery and diagnostics/troubleshooting;
 - reusable-library creation/export/Inspect plus C25.6 association/use/disassociation/self-contained Runtime semantics;
 - exactly 8 production communication Drivers including Modbus;
-- Simulation excluded from production Driver presentation by its canonical TypeKey `builtin.simulation`;
-- Internal Memory and TAG Gateway documented as separate concepts;
-- Driver topics derived from canonical Engineering descriptors/configuration schemas, including configuration, TAG binding/addressing, datatype/mapping cues, bit/endianness cues where declared, read/write restrictions, polling/subscription, reconnect/timeouts, protected material, examples, diagnostics and interoperability limits;
-- Server Script documentation restricted to the shipped six-function API and actual Runtime triggers/lifecycle/failure/sandbox contracts.
+- Simulation excluded from production Driver presentation by canonical TypeKey `builtin.simulation`;
+- Internal Memory and TAG Gateway as separate concepts;
+- Driver detail derived from canonical Engineering descriptors/configuration schemas;
+- Server Script documentation restricted to shipped APIs and actual Runtime lifecycle/failure/sandbox contracts.
 
-Diagnosed remediation trail is preserved in Git history. Red CI was diagnosed before each correction; no blind rerun and no test weakening occurred.
+Red intermediate attempts were diagnosed before correction; no blind rerun or test weakening occurred.
 
-## 5. C25.9 — integrated regression/audit result
+## 5. C25.9 integrated regression/audit
 
-**COMPLETE / NO REMAINING PRODUCT-CODE BLOCKER FOUND**
+**COMPLETE / NO REMAINING C25 PRODUCT-CODE BLOCKER FOUND**
 
-The audit revalidated the replacement C25.8 product SHA against cross-checkpoint contracts and the current integration base.
+C25 #314 / `34072225644` passed Core/API/Driver build, Engineering Lock, reusable libraries, Authority backup, System Recovery, atomic replacement, Distributed Runtime, Help and integrated React/Chromium flows.
 
-### Exact-SHA integrated evidence
+C03 #301 / `34072225635` passed all five jobs: managed OpenDNP3, native Linux, native Windows x64/dependency inspection, real OpenDNP3 ↔ dnp3py L3 interoperability and Windows commercial publish dependency proof.
 
-C25 #314 / `34072225644` — SUCCESS:
+C25.9 also revalidated live governance: C25 remained directly based on integration with no behind drift; #283 and #212 remained OPEN/DRAFT and not merged; C11 stayed frozen; #266 stayed validation-only/NEVER MERGE; Wave 13 stayed paused.
 
-- Core and API/Driver restore/build;
-- Engineering Lock package/crypto and backend/lifecycle gates;
-- reusable-library package/catalog/incorporation/backend lifecycle;
-- Authority backup crypto/validation;
-- System Recovery;
-- atomic Authority-store replacement;
-- C25.7 Distributed Runtime foundation;
-- C25.8 contextual multilingual Help contract;
-- React/Vite build;
-- Chromium integrated flows for Engineering Lock, Restore-first, Runtime session, reusable libraries and Help.
+Coordination drift discovered during the audit was repaired without product mutation and the resulting documentation-only head `e2441382...` itself passed C25 #316 and C03 #302.
 
-C03 #301 / `34072225635` — SUCCESS:
+## 6. C25.10 final candidate matrix
 
-- managed OpenDNP3 adapter build/tests;
-- native OpenDNP3 Linux host;
-- native OpenDNP3 Windows x64 host and dependency inspection;
-- real OpenDNP3 ↔ dnp3py L3 interoperability;
-- Windows commercial publish dependency gate proving the required OpenDNP3 helper is packaged and restricted Step Function / `dnp3` 1.6.0 bytes and dependency graph are absent.
+The final candidate matrix is prepared at:
 
-### Integration and governance audit
+`docs/WAVE14-C25-FINAL-CANDIDATE-MATRIX-2026-09-06.md`
 
-At the audited product SHA:
+Technical candidate presented for decision:
 
-- C25 is 191 commits ahead and 0 behind `wave14/corrections-integration`; merge base is the current integration head `c2fc96e...`;
-- no integration-base drift blocker was found;
-- #283 remains OPEN/DRAFT and not merged;
-- #212 remains OPEN/DRAFT and not merged;
-- C11 #263 remains OPEN/DRAFT at preserved head `41d24d89...`;
-- #266 remains OPEN/DRAFT validation-only and MUST NEVER MERGE;
-- Wave 13 #205 remains OPEN/paused;
-- Wave 13 #207 remains OPEN/DRAFT at preserved head `fda87ba...`.
+`5193b81220f499cb2039dc1146c6dd1a7f7b3dbd`
 
-### Documentation/coordination drift found and repaired
+Current decision state:
 
-C25.9 found stale coordination prose in the execution ledger, `CURRENT-COORDINATOR-HANDOFF.md`, `LAST CHANGE.md`, PR #283 and PR #212. The repository documents are repaired by the coordination-only closeout commit following `5193b812...`; PR metadata/issue record are synchronized separately without changing product code.
+**AWAITING EXPLICIT PRODUCT OWNER ACCEPTANCE.**
 
-No product mutation was required to close the C25.9 audit after the exact green replacement candidate.
+Do not infer acceptance from green CI, mergeability, this matrix, coordinator comments or absence of objections.
 
-## 6. Immediate next checkpoint — C25.10
+The coordinator must not merge C25 or claim C25 ACCEPTED until the Product Owner explicitly accepts one exact product candidate.
 
-C25.10 may now prepare the exact final candidate matrix using `5193b81220f499cb2039dc1146c6dd1a7f7b3dbd` as the current product/test authority.
+## 7. Sequence only after explicit Product Owner acceptance
 
-C25.10 must not claim acceptance automatically. Required boundary:
+1. merge the explicitly accepted C25 only into `wave14/corrections-integration`;
+2. exact-SHA validate the resulting integration head;
+3. synchronize/adapt frozen C11 to accepted C25 contracts using normal history-preserving integration;
+4. revalidate canonical EEE application behavior through generic product paths;
+5. export/version/freeze `EliteSCADA-EEE-Demo.escadapkg`, checksum and provenance;
+6. run exact C11 gates;
+7. launch/keep the canonical package in Preview Codespace for Product Owner homologation;
+8. close #266 without merge after its validation-only role is complete;
+9. #212 may merge to `main` only after a later explicit Product Owner authorization;
+10. validate resulting `main`;
+11. only then resume Wave 13 release/signing work from that new mainline.
 
-1. assemble the exact candidate/evidence matrix;
-2. revalidate live refs and any relevant exact-SHA evidence;
-3. record all remaining non-C25 blockers separately rather than smuggling them into acceptance;
-4. obtain explicit Product Owner acceptance of one exact C25 product candidate;
-5. only after that explicit acceptance may C25 merge into `wave14/corrections-integration`;
-6. post-merge exact-SHA validate integration;
-7. only then resume/synchronize C11 according to the established sequence.
-
-There is still **no authorization to merge #212 into `main`**.
+No step above is authorized early by C25.10 matrix preparation.

@@ -1,7 +1,7 @@
 # CURRENT COORDINATOR HANDOFF — Wave 14 / C25
 
 **Date:** 2026-09-06 BRT  
-**State:** **C25.0-C25.9 COMPLETE / C25 ACTIVE / NOT ACCEPTED / NOT INTEGRATED / C25.10 NEXT**
+**State:** **C25.0-C25.9 COMPLETE / C25.10 MATRIX PREPARED / AWAITING EXPLICIT PRODUCT OWNER ACCEPTANCE / NOT INTEGRATED**
 
 ## Rule zero
 
@@ -9,60 +9,63 @@ GitHub live state is the official and sole project authority. Revalidate live br
 
 ## Active package
 
-Repository:
+Repository: `brunolrogerio-collab/EliteSCADA`  
+C25 branch: `wave14/c25-post-demo`  
+C25 PR: #283 -> `wave14/corrections-integration`  
+Tracking issue: #282  
+Integration audited base: `c2fc96eacc168ea092c2e4d4dcbc79b00faa3155`
 
-`brunolrogerio-collab/EliteSCADA`
-
-C25 branch:
-
-`wave14/c25-post-demo`
-
-C25 PR:
-
-#283 -> `wave14/corrections-integration`
-
-Tracking issue:
-
-#282
-
-Integration branch current audited base:
-
-`c2fc96eacc168ea092c2e4d4dcbc79b00faa3155`
-
-## Exact product/test authority beneath this coordination closeout
+## Exact product/test authority
 
 `5193b81220f499cb2039dc1146c6dd1a7f7b3dbd`
 
-Evidence:
+Candidate evidence:
 
 - Wave 14 C25 Post-Demo #314 / `34072225644` — **SUCCESS**;
 - Wave 14 C03 DNP3 Adapter #301 / `34072225635` — **SUCCESS**.
 
-Treat any later coordination-only documentation commit as documentation authority only. It does not replace `5193b812...` as exact product/test evidence unless another code-bearing candidate is explicitly validated.
+Coordination-only C25.9 closeout above the product candidate:
 
-## What is complete
+`e2441382e589350bd9b13476fd359d70a7c4b1ac`
 
-C25.0 through C25.7 remain complete.
+Fresh validation of that documentation-only closeout:
 
-C25.8 Help/manual is now **COMPLETE / exact-SHA green** after the C25.9 audit-required remediation. The installed manual now satisfies the binding topic matrix, preserves pt-BR/en/es Topic-ID/structure parity, derives Driver detail from canonical descriptors/config schemas, exposes exactly 8 production communication Drivers including Modbus, excludes `builtin.simulation` from that production count, keeps Internal Memory and TAG Gateway separate, documents only shipped Server Script APIs/triggers/contracts and preserves C25.6 reusable-library semantics including creation/export/Inspect.
+- Wave 14 C25 Post-Demo #316 / `34072728643` — **SUCCESS**;
+- Wave 14 C03 DNP3 Adapter #302 / `34072728640` — **SUCCESS**.
 
-C25.9 integrated regression/audit is **COMPLETE**. The exact `5193b812...` candidate passed C25 and C03, including backend/web integration, System Recovery, Authority replacement, reusable libraries, Distributed Runtime, Help, OpenDNP3 Linux/Windows, real dnp3py interoperability and Windows commercial publish dependency proof. No remaining C25 product-code blocker was found.
+Treat later documentation-only commits as coordination authority only. They do not replace `5193b812...` as product/test evidence unless a newer code-bearing candidate is explicitly exact-SHA validated.
 
-C25.9 did find stale coordination prose. This handoff, the execution log and `LAST CHANGE.md` are the repository-side repair. PR #283 / #212 metadata and issue #282 latest comment must reflect the same status.
+## Completed work
 
-## Immediate next work — C25.10
+C25.0 through C25.9 are COMPLETE.
 
-C25.10 is an exact final candidate/evidence checkpoint plus **explicit Product Owner acceptance**.
+C25.8 Help/manual is complete after acceptance remediation. It satisfies the binding installed-manual matrix, pt-BR/en/es Topic-ID/structure parity, descriptor/schema-driven Driver details, exactly 8 production communication Drivers including Modbus while excluding `builtin.simulation`, separate Internal Memory/TAG Gateway concepts, shipped-only Server Script APIs/triggers/contracts and C25.6 reusable-library creation/export/Inspect plus association/use/disassociation/self-contained Runtime semantics.
 
-Proceed autonomously only through preparation and verification:
+C25.9 integrated regression/audit is complete. The exact `5193b812...` candidate passed C25 and C03, including backend/web integration, System Recovery, Authority replacement, reusable libraries, Distributed Runtime, Help, OpenDNP3 Linux/Windows, real dnp3py interoperability and Windows commercial publish dependency proof. No remaining C25 product-code blocker was found.
 
-1. revalidate current C25 branch / #283 / #282 / integration base;
-2. prepare the final candidate matrix anchored to product/test SHA `5193b812...` unless live GitHub shows a newer validated product SHA;
-3. list checkpoint evidence C25.0-C25.9 and permanent guard rails;
-4. clearly distinguish current C25 product acceptance from later integration/C11/main/release work;
-5. stop before claiming Product Owner acceptance unless the Product Owner explicitly grants it.
+Coordination drift found during C25.9 was repaired in repository docs and PR descriptions without product mutation, and the resulting coordination-only head `e2441382...` passed C25 #316 and C03 #302.
 
-No merge to integration is authorized merely because C25.9 is complete.
+## C25.10 — current gate
+
+Final candidate matrix:
+
+`docs/WAVE14-C25-FINAL-CANDIDATE-MATRIX-2026-09-06.md`
+
+Technical product candidate presented for decision:
+
+`5193b81220f499cb2039dc1146c6dd1a7f7b3dbd`
+
+Current state:
+
+**AWAITING EXPLICIT PRODUCT OWNER ACCEPTANCE.**
+
+The coordinator may revalidate and explain the matrix but MUST NOT:
+
+- infer acceptance from green CI;
+- mark C25 ACCEPTED without an explicit Product Owner decision;
+- merge #283 into integration before that acceptance;
+- synchronize C11 early;
+- merge #212 into `main`.
 
 ## Permanent governance
 
@@ -81,7 +84,7 @@ No merge to integration is authorized merely because C25.9 is complete.
 C11 canonical EEE Demo:
 
 - PR #263 remains OPEN/DRAFT;
-- preserved head `41d24d89c3b9d2b881215255e44023fabde262f3`;
+- preserved exact head `41d24d89c3b9d2b881215255e44023fabde262f3`;
 - do not synchronize/adapt it until C25 is explicitly accepted, merged only to integration and post-merge exact-SHA revalidated.
 
 Validation-only C11 PR:
@@ -96,18 +99,16 @@ Wave 13:
 - preserved branch head `fda87ba4445127c174f6ea533a6bcabaabc7bb20`;
 - resume only from the later approved new mainline after C25 -> integration -> C11 -> Preview -> authorized main sequence.
 
-## Required post-C25 sequence
-
-Only after explicit Product Owner acceptance of one exact C25 candidate:
+## Sequence only after explicit C25 acceptance
 
 1. merge accepted C25 only into `wave14/corrections-integration`;
-2. exact-SHA validate the resulting integration head;
-3. synchronize/adapt frozen C11 to accepted C25 contracts using normal history-preserving integration;
-4. revalidate the canonical EEE Demo through generic product paths;
+2. exact-SHA validate resulting integration;
+3. synchronize/adapt frozen C11 normally to accepted C25 contracts;
+4. revalidate canonical EEE application and package portability through generic product paths;
 5. export/version/freeze `EliteSCADA-EEE-Demo.escadapkg`, checksum and provenance;
 6. run exact C11 gates;
-7. launch the canonical package in Preview Codespace and keep it active through Product Owner homologation and the later authorized main transition;
-8. close #266 without merge when validation-only work is done;
-9. #212 may merge to `main` only after explicit Product Owner authorization;
-10. validate the resulting new `main`;
-11. only then resume Wave 13 release/signing work against that new mainline.
+7. launch/keep Preview Codespace active through Product Owner homologation and later authorized `main` transition;
+8. close #266 without merge when its validation-only role is complete;
+9. #212 may merge to `main` only after later explicit Product Owner authorization;
+10. validate resulting new `main`;
+11. only then resume Wave 13 release/signing work.

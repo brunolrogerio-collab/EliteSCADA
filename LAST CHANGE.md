@@ -1,33 +1,47 @@
 # LAST CHANGE
 
-**Wave 14 / C25 status after integrated audit — 2026-09-06 BRT**
+**Wave 14 / C25 status after final-candidate matrix preparation — 2026-09-06 BRT**
 
 C25 remains **ACTIVE / NOT ACCEPTED / NOT INTEGRATED**.
 
 Completed checkpoints:
 
-- C25.0 through C25.7 — COMPLETE;
-- C25.8 Contextual multilingual Help/manual — **COMPLETE / exact-SHA green after acceptance remediation**;
-- C25.9 Integrated regression/audit — **COMPLETE**.
+- C25.0 through C25.9 — COMPLETE;
+- C25.10 — **FINAL CANDIDATE MATRIX PREPARED / AWAITING EXPLICIT PRODUCT OWNER ACCEPTANCE**.
 
 Current exact product/test authority:
 
 `5193b81220f499cb2039dc1146c6dd1a7f7b3dbd`
 
-Exact evidence:
+Exact candidate evidence:
 
 - Wave 14 C25 Post-Demo #314 / `34072225644` — SUCCESS;
 - Wave 14 C03 DNP3 Adapter #301 / `34072225635` — SUCCESS.
 
-The C25.8 remediation closed the installed-manual coverage gap discovered by the earlier C25.9 audit. The Help now covers the mandatory product matrix in pt-BR/en/es, uses canonical Driver/source descriptors and schemas, preserves exactly 8 production communication Drivers including Modbus while excluding `builtin.simulation`, documents only shipped Server Script APIs/contracts, and preserves C25.6 `.escadalib` semantics including creation/export/Inspect and no Runtime dependency on external libraries.
+Coordination-only C25.9 closeout:
 
-C25.9 revalidated Engineering Lock, lifecycle/Active authority, reusable libraries, Authority backup, System Recovery, atomic replacement, Distributed Runtime, Help, browser flows, OpenDNP3 Linux/Windows, real OpenDNP3↔dnp3py interoperability and the Windows commercial publish dependency gate. No remaining C25 product-code blocker was found.
+`e2441382e589350bd9b13476fd359d70a7c4b1ac`
 
-The audit also found stale coordination documentation/PR prose. The current execution log and `CURRENT-COORDINATOR-HANDOFF.md` supersede those stale records; PR #283/#212 metadata and issue #282 must be kept synchronized with the live state.
+Fresh validation of that documentation-only closeout:
 
-## Next
+- Wave 14 C25 Post-Demo #316 / `34072728643` — SUCCESS;
+- Wave 14 C03 DNP3 Adapter #302 / `34072728640` — SUCCESS.
 
-C25.10 — prepare the exact final candidate/evidence matrix and obtain **explicit Product Owner acceptance**.
+Final candidate matrix:
+
+`docs/WAVE14-C25-FINAL-CANDIDATE-MATRIX-2026-09-06.md`
+
+Technical candidate presented for Product Owner decision:
+
+`5193b81220f499cb2039dc1146c6dd1a7f7b3dbd`
+
+No remaining C25 product-code blocker was found by C25.9. The candidate preserves Engineering Lock, lifecycle/Active authority, Restore-first/System Recovery, reusable-library semantics, Runtime session/Distributed Runtime contracts, complete contextual multilingual Help and the OpenDNP3 commercial dependency boundary.
+
+## Current gate
+
+**AWAITING EXPLICIT PRODUCT OWNER ACCEPTANCE OF THE EXACT C25 PRODUCT CANDIDATE.**
+
+Do not infer acceptance from green CI, mergeability, coordinator comments, the matrix being committed or absence of objections.
 
 No merge is authorized yet.
 

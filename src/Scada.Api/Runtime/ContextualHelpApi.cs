@@ -168,6 +168,7 @@ public static class ContextualHelpCatalog
         string ScriptApiBody,
         string ScriptMemoryHeading,
         string ScriptMemoryBody,
+        string DriverAvailabilityHeading,
         string DriverSummary,
         string DriverIdentityHeading,
         string DriverTypeKey,

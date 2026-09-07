@@ -270,9 +270,9 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts li
   await expect(failedHistoryTrend).toBeVisible();
   await expect(failedHistoryTrend).toHaveAttribute('data-trend-state', 'error');
   await expect(failedHistoryTrend).toHaveAttribute('title', /Historical query failed with HTTP 404/i);
-  await expect(failedHistoryTrend.getByTestId('visual-trend-empty')).toHaveText('Histórico indisponível');
+  await expect(failedHistoryTrend.getByTestId('visual-trend-empty')).toHaveText('History unavailable');
   await expect(failedHistoryTrend.getByTestId('visual-trend-empty')).not.toContainText('404');
-  await expect(failedHistoryTrend.getByTestId('visual-trend-empty')).not.toHaveText('Sem dados');
+  await expect(failedHistoryTrend.getByTestId('visual-trend-empty')).not.toHaveText('No data');
   await page.unroute(historicalRoute);
 
   await page.route(historicalRoute, async route => {
@@ -296,8 +296,8 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts li
   const emptyHistoryTrend = page.locator(`[data-testid="visual-trend"][data-object-id="${historyTrendId}"]`);
   await expect(emptyHistoryTrend).toBeVisible();
   await expect(emptyHistoryTrend).toHaveAttribute('data-trend-state', 'ready');
-  await expect(emptyHistoryTrend.getByTestId('visual-trend-empty')).toHaveText('Sem dados');
-  await expect(emptyHistoryTrend.getByTestId('visual-trend-empty')).not.toContainText('Histórico indisponível');
+  await expect(emptyHistoryTrend.getByTestId('visual-trend-empty')).toHaveText('No data');
+  await expect(emptyHistoryTrend.getByTestId('visual-trend-empty')).not.toContainText('History unavailable');
   await expect(emptyHistoryTrend).not.toHaveAttribute('title', /HTTP 404/i);
   await page.unroute(historicalRoute);
 });

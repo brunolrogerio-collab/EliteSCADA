@@ -109,10 +109,6 @@ export function RuntimeVisualDefinitionRenderer({
     () => expandRuntimeDynamoVisuals(projectedElements, dynamoDefinitions, runtimeLocale),
     [projectedElements, dynamoDefinitions, runtimeLocale]
   );
-  const operatorElements = useMemo(
-    () => suppressOperatorTechnicalFallbackKeys(expandedDynamoElements),
-    [expandedDynamoElements]
-  );
   const dynamoStateBindingElements = useMemo(
     () => collectRuntimeDynamoStateBindingElements(expandedDynamoElements),
     [expandedDynamoElements]
@@ -136,7 +132,7 @@ export function RuntimeVisualDefinitionRenderer({
       if (objectId && !next.has(objectId)) next.set(objectId, node);
     }
     setDynamoStateHosts(next);
-  }, [operatorElements]);
+  }, [expandedDynamoElements]);
 
   const captureObjectInteraction = (event: MouseEvent<HTMLDivElement>) => {
     if (!scriptContext || !visualDefinitionId.trim()) return;
@@ -168,12 +164,13 @@ export function RuntimeVisualDefinitionRenderer({
     onClickCapture={captureObjectInteraction}
   >
     <CanonicalVisualRenderer
-      elements={operatorElements}
+      elements={expandedDynamoElements}
       emptyLabel={emptyLabel}
       locale={runtimeLocale}
       onVisualEvent={onVisualEvent}
       onTagWrite={onTagWrite}
       visualAssetUrl={visualAssetUrl}
+      showTechnicalFallbackText={false}
     />
     <RuntimeDynamoStateLayer
       indicators={dynamoStateIndicators}
@@ -181,18 +178,6 @@ export function RuntimeVisualDefinitionRenderer({
       feedbackMismatchLabel={runtimeText.feedbackMismatch}
     />
   </div>;
-}
-
-function suppressOperatorTechnicalFallbackKeys(
-  elements: readonly VisualElementEngineering[]
-): readonly VisualElementEngineering[] {
-  return Object.freeze(elements.map(element => Object.freeze({
-    ...element,
-    key: '',
-    children: element.children
-      ? suppressOperatorTechnicalFallbackKeys(element.children)
-      : element.children
-  }) as VisualElementEngineering));
 }
 
 function RuntimeDynamoStateLayer({

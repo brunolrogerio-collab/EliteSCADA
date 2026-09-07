@@ -106,7 +106,7 @@ public sealed class ContextualHelpTests
 
         foreach (var driver in drivers)
         {
-            var topic = Assert.Single(catalog.Topics.Where(item => item.Id == $"driver.{driver.TypeKey}"));
+            var topic = Assert.Single(catalog.Topics, item => item.Id == $"driver.{driver.TypeKey}");
             var text = string.Join("\n", topic.Sections.Select(section => section.Body));
             var schema = Assert.IsType<EngineeringDriverConfigurationSchemaView>(driver.ConfigurationSchema);
 
@@ -177,7 +177,7 @@ public sealed class ContextualHelpTests
 
         foreach (var locale in ContextualHelpCatalog.SupportedLocales)
         {
-            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics.Where(item => item.Id == "libraries.reusable-resources"));
+            var topic = Assert.Single(ContextualHelpCatalog.Build(locale).Topics, item => item.Id == "libraries.reusable-resources");
             var text = string.Join("\n", topic.Sections.Select(section => section.Body));
 
             Assert.Contains(".escadalib", text, StringComparison.Ordinal);
@@ -196,9 +196,9 @@ public sealed class ContextualHelpTests
         foreach (var locale in ContextualHelpCatalog.SupportedLocales)
         {
             var catalog = ContextualHelpCatalog.Build(locale);
-            var alarms = Assert.Single(catalog.Topics.Where(topic => topic.Id == "alarms.overview"));
-            var operationalEvents = Assert.Single(catalog.Topics.Where(topic => topic.Id == "operational-events.overview"));
-            var audit = Assert.Single(catalog.Topics.Where(topic => topic.Id == "audit.overview"));
+            var alarms = Assert.Single(catalog.Topics, topic => topic.Id == "alarms.overview");
+            var operationalEvents = Assert.Single(catalog.Topics, topic => topic.Id == "operational-events.overview");
+            var audit = Assert.Single(catalog.Topics, topic => topic.Id == "audit.overview");
 
             Assert.NotEqual(alarms.Category, operationalEvents.Category);
             Assert.NotEqual(alarms.Category, audit.Category);
@@ -238,7 +238,7 @@ public sealed class ContextualHelpTests
         foreach (var locale in ContextualHelpCatalog.SupportedLocales)
         {
             var catalog = ContextualHelpCatalog.Build(locale);
-            var scriptTopic = Assert.Single(catalog.Topics.Where(topic => topic.Id == "scripts.server"));
+            var scriptTopic = Assert.Single(catalog.Topics, topic => topic.Id == "scripts.server");
             var documentedCode = string.Join("\n", scriptTopic.Sections.Select(section => section.Code ?? string.Empty));
             foreach (var apiFunction in runtimeApi)
                 Assert.Contains($"{apiFunction}(", documentedCode, StringComparison.Ordinal);

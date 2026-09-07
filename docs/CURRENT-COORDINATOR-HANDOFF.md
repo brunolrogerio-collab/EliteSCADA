@@ -1,114 +1,128 @@
-# CURRENT COORDINATOR HANDOFF — Wave 14 / C25
+# CURRENT COORDINATOR HANDOFF — Wave 14
 
-**Date:** 2026-09-06 BRT  
-**State:** **C25.0-C25.9 COMPLETE / C25.10 MATRIX PREPARED / AWAITING EXPLICIT PRODUCT OWNER ACCEPTANCE / NOT INTEGRATED**
+**Date:** 2026-09-07  
+**State:** **C25 PRODUCT OWNER ACCEPTED / #283 MERGED TO INTEGRATION / POST-MERGE INTEGRATION CI RED / C11 FROZEN / #212 OPEN-DRAFT AND NOT AUTHORIZED FOR `main`**
 
 ## Rule zero
 
-GitHub live state is the official and sole project authority. Revalidate live branch heads, PR state, issue #282 latest comments and exact-SHA CI before any decision or mutation.
+GitHub live state is the official and sole project authority. Before any decision or mutation, revalidate branch heads, PR states, relevant issue comments and exact-SHA CI. If this handoff diverges from GitHub live, GitHub wins.
 
-## Active package
+## Repository and protected route
 
 Repository: `brunolrogerio-collab/EliteSCADA`  
+Integration branch: `wave14/corrections-integration`  
+Integration PR: #212 -> `main`
+
+#212 MUST remain OPEN/DRAFT and MUST NOT merge to `main` without a separate later explicit Product Owner authorization. C25 acceptance or integration does not grant that authorization.
+
+Never mutate `main` directly. No force push, destructive rebase, branch deletion or unrelated cleanup.
+
+## C25 accepted and integrated
+
 C25 branch: `wave14/c25-post-demo`  
-C25 PR: #283 -> `wave14/corrections-integration`  
-Tracking issue: #282  
-Integration audited base: `c2fc96eacc168ea092c2e4d4dcbc79b00faa3155`
+C25 PR: #283  
+C25 tracking issue: #282
 
-## Exact product/test authority
-
-`5193b81220f499cb2039dc1146c6dd1a7f7b3dbd`
-
-Candidate evidence:
-
-- Wave 14 C25 Post-Demo #314 / `34072225644` — **SUCCESS**;
-- Wave 14 C03 DNP3 Adapter #301 / `34072225635` — **SUCCESS**.
-
-Coordination-only C25.9 closeout above the product candidate:
-
-`e2441382e589350bd9b13476fd359d70a7c4b1ac`
-
-Fresh validation of that documentation-only closeout:
-
-- Wave 14 C25 Post-Demo #316 / `34072728643` — **SUCCESS**;
-- Wave 14 C03 DNP3 Adapter #302 / `34072728640` — **SUCCESS**.
-
-Treat later documentation-only commits as coordination authority only. They do not replace `5193b812...` as product/test evidence unless a newer code-bearing candidate is explicitly exact-SHA validated.
-
-## Completed work
-
-C25.0 through C25.9 are COMPLETE.
-
-C25.8 Help/manual is complete after acceptance remediation. It satisfies the binding installed-manual matrix, pt-BR/en/es Topic-ID/structure parity, descriptor/schema-driven Driver details, exactly 8 production communication Drivers including Modbus while excluding `builtin.simulation`, separate Internal Memory/TAG Gateway concepts, shipped-only Server Script APIs/triggers/contracts and C25.6 reusable-library creation/export/Inspect plus association/use/disassociation/self-contained Runtime semantics.
-
-C25.9 integrated regression/audit is complete. The exact `5193b812...` candidate passed C25 and C03, including backend/web integration, System Recovery, Authority replacement, reusable libraries, Distributed Runtime, Help, OpenDNP3 Linux/Windows, real dnp3py interoperability and Windows commercial publish dependency proof. No remaining C25 product-code blocker was found.
-
-Coordination drift found during C25.9 was repaired in repository docs and PR descriptions without product mutation, and the resulting coordination-only head `e2441382...` passed C25 #316 and C03 #302.
-
-## C25.10 — current gate
-
-Final candidate matrix:
-
-`docs/WAVE14-C25-FINAL-CANDIDATE-MATRIX-2026-09-06.md`
-
-Technical product candidate presented for decision:
+Explicit Product Owner acceptance was recorded for the exact product/test candidate:
 
 `5193b81220f499cb2039dc1146c6dd1a7f7b3dbd`
 
-Current state:
+Exact candidate evidence:
 
-**AWAITING EXPLICIT PRODUCT OWNER ACCEPTANCE.**
+- Wave 14 C25 Post-Demo #314 / run `34072225644` — **SUCCESS**;
+- Wave 14 C03 DNP3 Adapter #301 / run `34072225635` — **SUCCESS**.
 
-The coordinator may revalidate and explain the matrix but MUST NOT:
+Validated C25.10 coordination head:
 
-- infer acceptance from green CI;
-- mark C25 ACCEPTED without an explicit Product Owner decision;
-- merge #283 into integration before that acceptance;
-- synchronize C11 early;
-- merge #212 into `main`.
+`a781294ed2996888a8147c6f5fcaeb4eaddcf3c1`
 
-## Permanent governance
+#283 was merged only into `wave14/corrections-integration` with merge commit:
 
-- #283 stays OPEN/DRAFT and targets only `wave14/corrections-integration` until explicit C25 acceptance.
-- #212 stays OPEN/DRAFT and MUST NOT merge to `main` without later explicit Product Owner authorization.
-- Never alter `main` directly.
-- No force push, destructive rebase, branch deletion or unrelated cleanup.
-- Diagnose every CI red before rerun; no blind reruns.
-- Never weaken tests, validation, security, authentication, authorization, Authority, Engineering Lock, licensing, lifecycle, package or Runtime contracts for green.
-- Backend Active Revision remains canonical Runtime application authority.
-- Alarm / Operational Event / Audit remain distinct.
-- No EEE-specific workaround for generic product deficiencies.
+`f282758d47c0419f3534f948658701467807758b`
 
-## Frozen/paused parallel work
+C25.0 through C25.10 are therefore closed as product-candidate work: accepted and integrated into the Wave 14 integration branch. This does not mean Wave 14 is ready for `main`.
 
-C11 canonical EEE Demo:
+## Current integration head and active blocker
 
-- PR #263 remains OPEN/DRAFT;
-- preserved exact head `41d24d89c3b9d2b881215255e44023fabde262f3`;
-- do not synchronize/adapt it until C25 is explicitly accepted, merged only to integration and post-merge exact-SHA revalidated.
+Live integration head immediately before this handoff refresh:
 
-Validation-only C11 PR:
+`3e2f69447419a0852d8eaf9358969c0adc1da9ae`
 
-- #266 remains OPEN/DRAFT;
-- **MUST NEVER MERGE**.
+Two commits exist after the C25 merge commit:
 
-Wave 13:
+- `f7f7a92163486c9a2157a5958b160b21b964a4ac` — `test(realtime): harden async scheduling watchdogs`;
+- `3e2f69447419a0852d8eaf9358969c0adc1da9ae` — `ci(w14): validate integration head on push`.
 
-- issue #205 remains OPEN/paused;
-- PR #207 remains OPEN/DRAFT;
-- preserved branch head `fda87ba4445127c174f6ea533a6bcabaabc7bb20`;
-- resume only from the later approved new mainline after C25 -> integration -> C11 -> Preview -> authorized main sequence.
+Compare `f282758...` -> `3e2f694...` changes only:
 
-## Sequence only after explicit C25 acceptance
+- `.github/workflows/dotnet-ci.yml`;
+- `tests/Scada.Drivers.Tests/TagRealtimeHubTests.cs`.
 
-1. merge accepted C25 only into `wave14/corrections-integration`;
-2. exact-SHA validate resulting integration;
-3. synchronize/adapt frozen C11 normally to accepted C25 contracts;
-4. revalidate canonical EEE application and package portability through generic product paths;
-5. export/version/freeze `EliteSCADA-EEE-Demo.escadapkg`, checksum and provenance;
-6. run exact C11 gates;
-7. launch/keep Preview Codespace active through Product Owner homologation and later authorized `main` transition;
-8. close #266 without merge when its validation-only role is complete;
-9. #212 may merge to `main` only after later explicit Product Owner authorization;
-10. validate resulting new `main`;
-11. only then resume Wave 13 release/signing work.
+Latest completed PR #212 CI on `3e2f694...`:
+
+- EliteSCADA CI #1422 / run `34074801046` — **FAILURE**;
+- Backend build, test and smoke — **SUCCESS**;
+- Web build — **SUCCESS**;
+- Chromium end-to-end — **FAILURE** at `Run browser E2E tests`;
+- 605 browser tests passed and 6 failed.
+
+Failing Chromium specs reported by the run:
+
+1. `tests-e2e/c04-i18n-browser.spec.ts:85:1` — Source/Address locale switching;
+2. `tests-e2e/c04-i18n-browser.spec.ts:106:1` — Driver resource-key localization;
+3. `tests-e2e/communication-diagnostics.spec.ts:8:1` — Engineering communication diagnostics;
+4. `tests-e2e/engineering.spec.ts:16:1` — Engineering workspace/public model + locale switching;
+5. `tests-e2e/report-designer-workspace.spec.ts:37:1` — Report Designer canonical report flow;
+6. `tests-e2e/wave-14-c07-multilingual-authoring.spec.ts:6:1` — multilingual visual-authoring live locale changes.
+
+The exact shared root cause has **not yet been established from the detailed Playwright failure output**. Do not guess and do not rerun blindly. The next coordinator must inspect the exact failure messages/traces/report, identify whether there is one shared regression or multiple causes, then correct the source without weakening assertions or contracts.
+
+Other workflows associated with `3e2f694...` were green: Preview Licensing CI, Wave 11 Active HMI Runtime, Interop Lab Smoke and L3 Seven-Driver Lab.
+
+## C11 remains frozen
+
+Canonical EEE Demo branch:
+
+`wave14/c11-canonical-eee-demo`
+
+Preserved exact head:
+
+`41d24d89c3b9d2b881215255e44023fabde262f3`
+
+PR #263 remains OPEN/DRAFT -> integration. It must remain frozen until the post-C25 integration head is exact-SHA green. Do not synchronize/adapt C11 while the current integration validation is red.
+
+Validation-only PR #266 remains OPEN/DRAFT against `main` and **MUST NEVER MERGE**.
+
+No EEE-specific workaround is allowed for a generic product deficiency.
+
+## Wave 13 remains paused
+
+Wave 13 issue #205 and PR #207 remain paused. PR #207 remains OPEN/DRAFT with preserved head:
+
+`fda87ba4445127c174f6ea533a6bcabaabc7bb20`
+
+Do not resume release/signing from this stale pre-Wave-14 snapshot. Resume only from the later approved new mainline after Wave 14 integration, C11/EEE homologation and an explicitly authorized #212 transition.
+
+## Permanent technical boundaries
+
+- diagnose any CI red before correction or rerun;
+- never weaken tests or validation to obtain green;
+- never bypass authentication, authorization, Authority, Engineering Lock, licensing, lifecycle, package or Runtime authority;
+- backend Active Revision remains canonical Runtime application authority;
+- Alarm / Operational Event / Audit remain distinct;
+- preserve package and recovery semantics;
+- preserve C03/OpenDNP3 commercial dependency boundary;
+- no generic product defect may be hidden behind an EEE-specific workaround.
+
+## Immediate next sequence
+
+1. Revalidate GitHub live before acting.
+2. Inspect the exact Playwright output/traces for EliteSCADA CI #1422 / `34074801046`; diagnose all six failures before any rerun.
+3. Correct the generic cause(s) at source without contract/test weakening.
+4. Exact-SHA validate the resulting `wave14/corrections-integration` head. Do not treat partial green as acceptance.
+5. Only after integration is green, synchronize/adapt frozen C11 to the accepted C25 contracts using normal history-preserving integration.
+6. Revalidate canonical EEE behavior and package portability via generic product paths; export/version/freeze `EliteSCADA-EEE-Demo.escadapkg`, checksum and provenance.
+7. Run exact C11 gates and use #266 only as a validation trigger; close #266 without merge when its role is complete.
+8. Perform Product Owner Preview/Codespace homologation.
+9. #212 may merge to `main` only after a separate explicit Product Owner authorization given after the required validation/homologation. Do not interpret `siga` as that authorization.
+10. Validate the resulting `main`; only then resume Wave 13 release/signing.

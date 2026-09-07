@@ -1,55 +1,48 @@
 # LAST CHANGE
 
-**Wave 14 / C25 status after final-candidate matrix preparation — 2026-09-06 BRT**
+**Wave 14 coordinator handoff refresh — 2026-09-07**
 
-C25 remains **ACTIVE / NOT ACCEPTED / NOT INTEGRATED**.
+C25 is **PRODUCT OWNER ACCEPTED AND MERGED ONLY INTO `wave14/corrections-integration`**.
 
-Completed checkpoints:
-
-- C25.0 through C25.9 — COMPLETE;
-- C25.10 — **FINAL CANDIDATE MATRIX PREPARED / AWAITING EXPLICIT PRODUCT OWNER ACCEPTANCE**.
-
-Current exact product/test authority:
+Accepted exact product/test authority:
 
 `5193b81220f499cb2039dc1146c6dd1a7f7b3dbd`
 
-Exact candidate evidence:
+Exact retained evidence:
 
-- Wave 14 C25 Post-Demo #314 / `34072225644` — SUCCESS;
-- Wave 14 C03 DNP3 Adapter #301 / `34072225635` — SUCCESS.
+- C25 #314 / `34072225644` — SUCCESS;
+- C03 #301 / `34072225635` — SUCCESS.
 
-Coordination-only C25.9 closeout:
+Validated C25.10 coordination head:
 
-`e2441382e589350bd9b13476fd359d70a7c4b1ac`
+`a781294ed2996888a8147c6f5fcaeb4eaddcf3c1`
 
-Fresh validation of that documentation-only closeout:
+C25 PR #283 merge commit into integration:
 
-- Wave 14 C25 Post-Demo #316 / `34072728643` — SUCCESS;
-- Wave 14 C03 DNP3 Adapter #302 / `34072728640` — SUCCESS.
+`f282758d47c0419f3534f948658701467807758b`
 
-Final candidate matrix:
+Live integration head immediately before this handoff refresh:
 
-`docs/WAVE14-C25-FINAL-CANDIDATE-MATRIX-2026-09-06.md`
+`3e2f69447419a0852d8eaf9358969c0adc1da9ae`
 
-Technical candidate presented for Product Owner decision:
+Post-merge integration validation is currently **RED**:
 
-`5193b81220f499cb2039dc1146c6dd1a7f7b3dbd`
+- EliteSCADA CI #1422 / `34074801046` — FAILURE;
+- Backend — SUCCESS;
+- Web build — SUCCESS;
+- Chromium end-to-end — FAILURE;
+- browser result: **605 passed / 6 failed** across multilingual Engineering/Driver surfaces, communication diagnostics and Report Designer.
 
-No remaining C25 product-code blocker was found by C25.9. The candidate preserves Engineering Lock, lifecycle/Active authority, Restore-first/System Recovery, reusable-library semantics, Runtime session/Distributed Runtime contracts, complete contextual multilingual Help and the OpenDNP3 commercial dependency boundary.
+The shared root cause has not yet been established from detailed Playwright output. No blind rerun is authorized. Diagnose first, then correct the generic source without weakening tests or contracts.
 
-## Current gate
+Current governance:
 
-**AWAITING EXPLICIT PRODUCT OWNER ACCEPTANCE OF THE EXACT C25 PRODUCT CANDIDATE.**
-
-Do not infer acceptance from green CI, mergeability, coordinator comments, the matrix being committed or absence of objections.
-
-No merge is authorized yet.
-
-Permanent boundaries remain unchanged:
-
-- #283 stays OPEN/DRAFT -> `wave14/corrections-integration`;
-- #212 stays OPEN/DRAFT and MUST NOT merge to `main` without later explicit Product Owner authorization;
-- C11 remains frozen at `41d24d89c3b9d2b881215255e44023fabde262f3`;
+- #212 remains OPEN/DRAFT -> `main` and MUST NOT merge without a separate later explicit Product Owner authorization;
+- C11 #263 remains frozen at `41d24d89c3b9d2b881215255e44023fabde262f3` until integration is exact-SHA green;
 - #266 remains validation-only and MUST NEVER MERGE;
-- Wave 13 #205/#207 remains paused;
-- no direct `main` mutation, force push, destructive rebase, blind CI rerun or contract weakening.
+- Wave 13 #205/#207 remains paused; #207 head preserved at `fda87ba4445127c174f6ea533a6bcabaabc7bb20`;
+- no direct `main` mutation, force push, destructive rebase, blind CI rerun, contract weakening or EEE-specific workaround.
+
+Current authoritative resumable handoff:
+
+`docs/CURRENT-COORDINATOR-HANDOFF.md`

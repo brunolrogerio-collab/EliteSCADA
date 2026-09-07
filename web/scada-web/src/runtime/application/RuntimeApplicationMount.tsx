@@ -7,6 +7,7 @@ import { RuntimeVisualNavigator } from '../visual-navigation/RuntimeVisualNaviga
 import {
   loadRuntimeApplicationProjection,
   RuntimeApplicationProjectionError,
+  RuntimeApplicationTransportError,
   runtimeVisualAssetContentUrl,
   type RuntimeApplicationProjection
 } from './runtimeApplicationApi';
@@ -19,6 +20,7 @@ export function RuntimeApplicationMount() {
   const locale = useAppShellLocale();
   const text = appShellText(locale);
   const [projection, setProjection] = useState<RuntimeApplicationProjection | null>(null);
+  const lastSuccessfulProjection = useRef<RuntimeApplicationProjection | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
@@ -34,12 +36,19 @@ export function RuntimeApplicationMount() {
       try {
         const next = await loadRuntimeApplicationProjection(controller.signal);
         if (disposed) return;
+        lastSuccessfulProjection.current = next;
         setProjection(current => sameRuntimeProjection(current, next) ? current : next);
         setError(null);
       } catch (reason) {
         if (disposed || controller.signal.aborted) return;
+        const failure = reason instanceof Error ? reason : new Error(String(reason));
+        if (lastSuccessfulProjection.current && failure instanceof RuntimeApplicationTransportError) {
+          setError(null);
+          return;
+        }
+        lastSuccessfulProjection.current = null;
         setProjection(null);
-        setError(reason instanceof Error ? reason : new Error(String(reason)));
+        setError(failure);
       } finally {
         if (activeController === controller) activeController = null;
         inFlight = false;

@@ -52,6 +52,30 @@
   border: 0;
   overflow: hidden;
 }
+.runtime-visual-definition {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.runtime-visual-definition > .visual-editor-renderer-stage {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+  background-image: none;
+  box-shadow: none;
+}
+.runtime-visual-definition > .visual-editor-renderer-empty {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+}
 .runtime-operator-overlay {
   position: absolute;
   top: 42px;

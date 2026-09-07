@@ -11,7 +11,7 @@ import type { ClientVisualEventDispatchRecord } from '../../python-runtime/clien
 import { RuntimeLogicalViewport } from './RuntimeLogicalViewport';
 import { resolveRuntimeLogicalSize } from './runtimeLogicalCanvas';
 import { executeRuntimeCommand, RuntimeCommandExecutionError } from './runtimeCommandApi';
-import { resolvePopupLogicalPosition } from './runtimePopupPosition';
+import { resolvePopupLogicalBounds, resolvePopupLogicalPosition } from './runtimePopupPosition';
 import {
   createRuntimeVisualCatalog,
   createRuntimeVisualNavigationState,
@@ -163,7 +163,8 @@ export function RuntimeVisualNavigator({
           {state.popups.map((mount, index) => {
             try {
               const popup = resolveMountedPopup(catalog, mount);
-              const position = resolvePopupLogicalPosition(popup, designSize);
+              const bounds = resolvePopupLogicalBounds(popup);
+              const position = resolvePopupLogicalPosition(popup, designSize, bounds);
               return <section
                 className="runtime-visual-popup"
                 key={mount.runtimeInstanceId}
@@ -172,10 +173,13 @@ export function RuntimeVisualNavigator({
                 data-popup-stack-index={index}
                 data-popup-logical-x={position.x}
                 data-popup-logical-y={position.y}
+                data-popup-logical-width={bounds.width}
+                data-popup-logical-height={bounds.height}
                 style={{
                   position: 'absolute',
                   left: position.x,
                   top: position.y,
+                  width: bounds.width,
                   zIndex: index + 1,
                   pointerEvents: 'auto'
                 }}
@@ -185,7 +189,11 @@ export function RuntimeVisualNavigator({
                 </header>
                 <div
                   className="runtime-visual-popup-content"
-                  style={resolveVisualDefinitionSurfaceStyle(popup.properties, visualAssetUrl)}
+                  style={{
+                    ...resolveVisualDefinitionSurfaceStyle(popup.properties, visualAssetUrl),
+                    width: bounds.width,
+                    height: bounds.height
+                  }}
                 >
                   <RuntimeVisualDefinitionRenderer
                     visualDefinitionId={popup.id ?? ''}

@@ -471,7 +471,7 @@ public static class ContextualHelpCatalog
         S(Tx("Desassociar e Runtime", "Detach and Runtime", "Desasociar y Runtime"), Tx(
             "Desassociar remove disponibilidade do catálogo, não apaga conteúdo já incorporado. O .escadapkg final permanece self-contained; Runtime e Active nunca dependem de .escadalib para executar conteúdo incorporado.",
             "Detaching removes catalog availability and does not delete already incorporated content. The final .escadapkg remains self-contained; Runtime and Active never depend on .escadalib to execute incorporated content.",
-            "Desasociar elimina disponibilidad del catálogo y no borra contenido ya incorporado. El .escadapkg final permanece self-contained; Runtime y Active nunca dependen de .escadalib para ejecutar contenido incorporado."));
+            "Desasociar elimina disponibilidad del catálogo y no borra contenido ya incorporado. El .escadapkg final permanece self-contained; Runtime y Active nunca dependen de .escadalib para ejecutar contenido incorporado.")));
 
     private static ContextualHelpTopic BuildSourceProviderTopic(EngineeringDataSourceTypeView source, string locale) => new(
         $"source.{source.TypeKey}",
@@ -573,7 +573,7 @@ public static class ContextualHelpCatalog
             driver.Capabilities.SupportsDiscovery ? Pick(locale, "Descoberta", "Discovery", "Descubrimiento") : null,
             driver.Capabilities.SupportsBrowse ? "Browse" : null,
             driver.Capabilities.SupportsFileImport ? Pick(locale, "Importação de arquivo", "File import", "Importación de archivo") : null,
-            driver.Capabilities.SupportsReconcile ? Pick(locale, "Reconciliação", "Reconcile", "Reconciliación") : null,
+            driver.Capabilities.SupportsReconcile ? Pick(locale, "Reconciliação", "Reconcile", "Reconcilación") : null,
             driver.Capabilities.SupportsSharedTransportInfrastructure ? Pick(locale, "Transporte compartilhado", "Shared transport", "Transporte compartido") : null
         }.Where(value => value is not null).Cast<string>().ToArray();
 

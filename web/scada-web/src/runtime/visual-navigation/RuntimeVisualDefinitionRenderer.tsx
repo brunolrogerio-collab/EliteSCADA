@@ -109,6 +109,10 @@ export function RuntimeVisualDefinitionRenderer({
     () => expandRuntimeDynamoVisuals(projectedElements, dynamoDefinitions, runtimeLocale),
     [projectedElements, dynamoDefinitions, runtimeLocale]
   );
+  const operatorElements = useMemo(
+    () => suppressOperatorTechnicalFallbackKeys(expandedDynamoElements),
+    [expandedDynamoElements]
+  );
   const dynamoStateBindingElements = useMemo(
     () => collectRuntimeDynamoStateBindingElements(expandedDynamoElements),
     [expandedDynamoElements]
@@ -132,7 +136,7 @@ export function RuntimeVisualDefinitionRenderer({
       if (objectId && !next.has(objectId)) next.set(objectId, node);
     }
     setDynamoStateHosts(next);
-  }, [expandedDynamoElements]);
+  }, [operatorElements]);
 
   const captureObjectInteraction = (event: MouseEvent<HTMLDivElement>) => {
     if (!scriptContext || !visualDefinitionId.trim()) return;
@@ -164,7 +168,7 @@ export function RuntimeVisualDefinitionRenderer({
     onClickCapture={captureObjectInteraction}
   >
     <CanonicalVisualRenderer
-      elements={expandedDynamoElements}
+      elements={operatorElements}
       emptyLabel={emptyLabel}
       locale={runtimeLocale}
       onVisualEvent={onVisualEvent}
@@ -177,6 +181,18 @@ export function RuntimeVisualDefinitionRenderer({
       feedbackMismatchLabel={runtimeText.feedbackMismatch}
     />
   </div>;
+}
+
+function suppressOperatorTechnicalFallbackKeys(
+  elements: readonly VisualElementEngineering[]
+): readonly VisualElementEngineering[] {
+  return Object.freeze(elements.map(element => Object.freeze({
+    ...element,
+    key: '',
+    children: element.children
+      ? suppressOperatorTechnicalFallbackKeys(element.children)
+      : element.children
+  }) as VisualElementEngineering));
 }
 
 function RuntimeDynamoStateLayer({
@@ -203,7 +219,7 @@ function RuntimeDynamoStateLayer({
         data-dynamo-state-priority={indicator.priority}
         data-dynamo-quality={indicator.quality}
         data-dynamo-feedback-mismatch={indicator.feedbackMismatch || undefined}
-        title={`${indicator.dynamoKey} · ${indicator.label}${indicator.feedbackMismatch ? ` · ${feedbackMismatchLabel}` : ''}`}
+        title={`${indicator.label}${indicator.feedbackMismatch ? ` · ${feedbackMismatchLabel}` : ''}`}
         style={{
           position: 'absolute',
           left: 2,

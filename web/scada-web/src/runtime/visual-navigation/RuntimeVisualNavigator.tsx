@@ -49,6 +49,12 @@ type OperationalVisualAction = Readonly<
   }
 >;
 
+const POPUP_FALLBACK_TITLE: Readonly<Record<EngineeringLocale, string>> = Object.freeze({
+  'pt-BR': 'Janela',
+  en: 'Popup',
+  es: 'Ventana'
+});
+
 export function RuntimeVisualNavigator({
   engineeringPackage,
   initialScreenKey,
@@ -175,8 +181,7 @@ export function RuntimeVisualNavigator({
                 }}
               >
                 <header className="runtime-visual-popup-header">
-                  <strong>{popup.name || popup.key}</strong>
-                  <code>{popup.key}</code>
+                  <strong>{popup.name?.trim() || POPUP_FALLBACK_TITLE[locale]}</strong>
                 </header>
                 <div
                   className="runtime-visual-popup-content"

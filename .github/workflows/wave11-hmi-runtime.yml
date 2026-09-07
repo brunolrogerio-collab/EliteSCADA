@@ -86,6 +86,8 @@ jobs:
 
       - name: Run C11 canonical EEE package portability gate
         working-directory: web/scada-web
+        env:
+          C11_DEMO_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: npx playwright test --config=playwright.c11-package.config.ts
 
       - name: Upload C11 canonical EEE application package

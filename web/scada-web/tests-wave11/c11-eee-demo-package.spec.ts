@@ -8,7 +8,7 @@ import { buildEeeDemoPackage } from './c11-eee-demo-hmi';
 
 const canonicalProjectKey = 'eee-demo';
 const canonicalProjectName = 'EliteSCADA — EEE Demo';
-const sourceProductSha = '5962bee401fadd700041e7c61cd430d4b4f28e27';
+const sourceProductSha = 'ff185ffd67fe4abc597af9184c21f86376ba6e17';
 const packageFileName = 'EliteSCADA-EEE-Demo.escadapkg';
 const packageMediaType = 'application/vnd.elitescada.project-package';
 const builtinDynamoCount = 8;
@@ -108,7 +108,7 @@ test('C11 canonical eee-demo Active project exports, inspects and re-previews as
   expect(preview.canApply, `C11 package re-preview issues: ${JSON.stringify(preview.items ?? [], null, 2)}`).toBe(true);
   expect(preview.errorCount).toBe(0);
 
-  const c11DemoCommitSha = process.env.GITHUB_SHA ?? 'local-worktree';
+  const c11DemoCommitSha = process.env.C11_DEMO_COMMIT_SHA ?? 'local-worktree';
   if (process.env.CI) expect(c11DemoCommitSha).toMatch(/^[0-9a-f]{40}$/i);
 
   const outputDirectory = path.resolve(process.cwd(), 'c11-eee-demo-artifacts');

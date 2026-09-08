@@ -57,6 +57,10 @@
   display: none;
 }
 
+.eng-body--navigation-collapsed > .eng-workspace {
+  grid-column: 2;
+}
+
 .visual-editor-layout--screens-collapsed .visual-editor-shell {
   grid-template-columns: 0 minmax(0, 1fr);
 }

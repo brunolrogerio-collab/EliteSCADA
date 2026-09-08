@@ -6,7 +6,15 @@ Base authority at C26 start: `a724ece64a292aa1d1dedd886a72fb28ff8d90fe`
 
 ## Status
 
-**EXECUTION ACTIVE — C26.1–C26.6 IMPLEMENTED / VALIDATED — C26.7 ACTIVE — NEW PREVIEW ONLY AFTER ACCEPTED C26 PRODUCT — POST-C26 WORK AUDIT #289 REQUIRED BEFORE FINAL PO HOMOLOGATION**
+**EXECUTION ACTIVE — C26.1–C26.6 IMPLEMENTED / VALIDATED — C26.7 IMPLEMENTED BUT CI-BLOCKED — C26.8 NOT STARTED — NEW PREVIEW ONLY AFTER ACCEPTED C26 PRODUCT — POST-C26 WORK AUDIT #289 REQUIRED BEFORE FINAL PO HOMOLOGATION**
+
+Current C26 product/test candidate:
+
+`642e33c83d17e3c53beb588841626551e6ea305f`
+
+`fix(w14-c26): let readonly Engineering styles win cascade`
+
+The branch contains documentation/coordination commits above this product SHA. Revalidate the live branch HEAD before any action and keep branch-head evidence separate from exact product/test validation evidence.
 
 Pre-C26 Preview #285 / `d92e81f821c1a9c376b39bc3684eead54b3f570e` remains preserved as Product Owner homologation evidence and must not be reused as the post-C26 Preview.
 
@@ -25,8 +33,8 @@ New binding post-C26 quality gate:
 4. C26.4 Runtime popup layout — **IMPLEMENTED / VALIDATED**
 5. C26.5 Alarm/Event/Historian Runtime surface — **DIAGNOSED / REGRESSION LOCKED / VALIDATED**
 6. C26.6 Engineering shell workspace usability — **IMPLEMENTED / VALIDATED**
-7. C26.7 Engineering theme/contrast — **ACTIVE**
-8. C26.8 Screen editor functionality audit/fixes — **PENDING**
+7. C26.7 Engineering theme/contrast — **IMPLEMENTED BUT NOT VALIDATED / CURRENT CI BLOCKER**
+8. C26.8 Screen editor functionality audit/fixes — **NOT STARTED / BLOCKED BY C26.7**
 9. C26.9 Popup editor functionality audit/fixes — **PENDING**
 10. C26.10 Canonical EEE residual cleanup — **PENDING**
 11. exact-SHA full validation — **PENDING**
@@ -113,27 +121,93 @@ all five normal gates completed SUCCESS:
 
 C26.6 is therefore **IMPLEMENTED / VALIDATED**.
 
-## C26.7 — active
+## C26.7 — implemented but CI-blocked
 
 Live issue #286 defines C26.7 as Engineering theme/contrast.
 
-Observed class of defect:
-
-- white/light fields with light text have insufficient readability;
-- readonly/disabled/editable states can be visually ambiguous in Screens and Script Engineering.
-
-Acceptance:
+Acceptance remains:
 
 - explicit readable foreground/background tokens for editable, readonly, disabled and placeholder states;
-- regression coverage for affected Engineering surfaces.
+- regression coverage for affected Engineering surfaces;
+- presentation-only correction with no capability/security/lifecycle authority change.
 
-Implementation must remain presentation-only. Do not change capability projection, authentication, authorization, Engineering Lock, lifecycle, package semantics or backend authority to solve contrast.
+### Initial implementation
 
-Before writing, fetch the exact current Screens and Script Engineering components/CSS and extend the closest canonical regression instead of creating parallel behavior.
+SHA:
+
+`a05d349a37a41629ee13b47b4652df74d287273d`
+
+`fix(w14-c26): make Engineering field states readable`
+
+Primary paths:
+
+- `web/scada-web/src/engineering/engineering-control-states.css`;
+- `web/scada-web/src/main.tsx`;
+- `web/scada-web/tests-e2e/wave-14-c26-engineering-contrast.spec.ts`.
+
+At `a05d349...`:
+
+- Preview Licensing CI #394 / run `34241442573` — SUCCESS;
+- Interop Lab Smoke #271 / run `34241442611` — SUCCESS;
+- Wave 11 Active HMI Runtime #372 / run `34241442718` — SUCCESS;
+- L3 Seven-Driver Lab #350 / run `34241442633` — SUCCESS;
+- EliteSCADA CI #1446 / run `34241442557` — FAILURE.
+
+The Chromium regression proved the Screens route field could remain visually identical after `readonly` was applied.
+
+### Diagnosed specificity defect and generic correction
+
+Diagnosis: the editable input selector in `engineering-control-states.css` accumulated higher specificity through repeated `:not([type=...])` clauses than the `[readonly]` selector. Therefore editable styling could win the cascade despite the intended readonly rule.
+
+Correction SHA:
+
+`642e33c83d17e3c53beb588841626551e6ea305f`
+
+`fix(w14-c26): let readonly Engineering styles win cascade`
+
+The correction wraps the type-exclusion filters in `:where(...)` so they do not add specificity. It is intentionally minimal and generic. No `!important` was introduced. The strict C26.7 Playwright regression was not changed or weakened.
+
+### Exact CI state for current product/test candidate
+
+At `642e33c83d17e3c53beb588841626551e6ea305f`:
+
+- Preview Licensing CI #402 / run `34255187708` — SUCCESS;
+- Interop Lab Smoke #279 / run `34255187740` — SUCCESS;
+- Wave 11 Active HMI Runtime #380 / run `34255187706` — SUCCESS;
+- L3 Seven-Driver Lab #358 / run `34255187748` — SUCCESS;
+- EliteSCADA CI #1454 / run `34255187823` — **FAILURE**.
+
+EliteSCADA CI #1454:
+
+- Backend build, test and smoke — SUCCESS;
+- Web build — SUCCESS;
+- Chromium end-to-end job `102159657922` — **FAILURE** at `Run browser E2E tests`.
+
+No blind rerun was performed.
+
+### Transfer blocker
+
+The current assertion-level Chromium failure at `642e33c...` was **not conclusively extracted into the outgoing chat context** before coordinator rotation. Repeated decoded-log fetch attempts did not surface the full log text through the connector response visible to the chat.
+
+Therefore:
+
+- do **not** assume the `642e33c...` failure is the same assertion as the earlier `a05d349...` failure;
+- do **not** rerun unchanged merely to seek green;
+- do **not** weaken `wave-14-c26-engineering-contrast.spec.ts`;
+- re-fetch job `102159657922` evidence, including Playwright report/artifact if needed;
+- compare the actual failure with exact `642e33c...` CSS and DOM/component sources;
+- make only the smallest generic correction supported by evidence;
+- require a fresh exact product/test SHA with all five normal gates green before C26.7 can be marked VALIDATED.
+
+C26.8 remains **NOT STARTED** until that gate is satisfied.
+
+### Coordination-only cleanup note
+
+During GitHub write-tool discovery in the outgoing coordinator chat, a temporary file `dummy` was accidentally created and then removed immediately by a normal follow-up commit. No force push or destructive rebase was used and no intended product file remains from that incident. Those commits and subsequent handoff documentation commits are coordination-only and are not product/test validation evidence.
 
 ## Remaining C26 and post-C26 sequence
 
-After C26.7, continue in the live #286 order:
+After C26.7 is genuinely validated, continue in the live #286 order:
 
 - C26.8 Screen editor basic authoring functionality audit/fixes;
 - C26.9 Popup editor basic authoring;
@@ -165,13 +239,15 @@ Still mandatory outside this immediate C26 checkpoint sequence:
 
 - #212 remains OPEN/DRAFT and has no authorization to merge to `main`;
 - #266 and #288 MUST NEVER MERGE;
+- #287 remains C26 -> canonical C11 only;
 - #263 remains C11 -> integration only;
 - #285 remains preserved as pre-C26 Preview evidence;
 - issue #289 is a post-C26 audit gate and must not be executed early;
 - never modify `main` directly;
 - no force push, destructive rebase, branch deletion or unrelated cleanup;
 - diagnose CI red before rerun;
-- no validation/test/security/Identity/authorization/Engineering Lock/licensing/lifecycle/package/Runtime authority weakening;
+- no validation/test/security/authentication/authorization/Identity/Engineering Lock/licensing/lifecycle/package/Runtime authority weakening;
 - Runtime/Active must not depend on `.escadalib`;
+- no EEE-specific workaround for a generic product defect;
 - Alarm / Operational Event / Audit remain separate;
 - Wave13 #205/#207 remains paused.

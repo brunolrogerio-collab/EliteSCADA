@@ -6,6 +6,7 @@ import type {
   WheelEvent as ReactWheelEvent
 } from 'react';
 import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../../visual-runtime';
+import { isVisualElementEffectivelyAuthoringLocked } from '../visualEditorAuthoringModel';
 import type {
   VisualEditorBounds,
   VisualEditorCanvasContractProps,
@@ -33,6 +34,7 @@ import {
   type CanvasElementProjection,
   type CanvasResizeHandle
 } from './canvasInteractionModel';
+import { buildVisualEditorAuthoringToolbarState } from './visualEditorAuthoringToolbarModel';
 import './visual-editor-canvas.css';
 
 type MoveInteraction = Readonly<{
@@ -85,6 +87,18 @@ export function VisualEditorCanvas({
   const selection = useMemo(() => normalizeSelection(selectedObjectIds), [selectedObjectIds]);
   const effectiveViewport = interaction?.kind === 'pan' ? interaction.viewport : normalizeViewport(viewport);
   const selectionSet = useMemo(() => new Set(selection), [selection]);
+  const selectionAuthoringLocked = useMemo(
+    () => selection.some(objectId => isVisualElementEffectivelyAuthoringLocked(screen, objectId)),
+    [screen, selection]
+  );
+  const selectionAuthoringState = useMemo(
+    () => buildVisualEditorAuthoringToolbarState(screen, selection),
+    [screen, selection]
+  );
+  const siblingMutationUnavailable = selection.length === 0
+    || !selectionAuthoringState.sameParent
+    || selectionAuthoringLocked
+    || polygonToolActive;
   const selectedProjection = selection.length === 1 ? findProjection(projectedElements, selection[0]) : null;
   const selectedPolygonPoints = selectedProjection?.element.type === BUILTIN_VISUAL_OBJECT_TYPES.polygon
     ? readPolygonPoints(selectedProjection.element)
@@ -126,11 +140,13 @@ export function VisualEditorCanvas({
 
   const beginMove = (event: ReactPointerEvent<HTMLElement>, projection: CanvasElementProjection): void => {
     if (polygonToolActive || event.button !== 0 || projection.objectId === null) return;
+    if (isVisualElementEffectivelyAuthoringLocked(screen, projection.objectId)) return;
     event.stopPropagation();
     const mode = selectionModeFromModifiers(event);
     const preserveExistingSelection = mode === 'replace' && selectionSet.has(projection.objectId);
     const requestedSelection = preserveExistingSelection ? selection : nextSelection(selection, projection.objectId, mode);
     const dragObjectIds = collapseHierarchySelection(screen.elements ?? [], requestedSelection);
+    if (dragObjectIds.some(objectId => isVisualElementEffectivelyAuthoringLocked(screen, objectId))) return;
     if (!preserveExistingSelection) emitSelection([projection.objectId], mode);
     event.currentTarget.setPointerCapture(event.pointerId);
     setInteraction({ kind: 'move', pointerId: event.pointerId, startClient: pointFromPointer(event), objectIds: dragObjectIds, delta: Object.freeze({ x: 0, y: 0 }) });
@@ -138,6 +154,7 @@ export function VisualEditorCanvas({
 
   const beginResize = (event: ReactPointerEvent<HTMLButtonElement>, projection: CanvasElementProjection, handle: CanvasResizeHandle): void => {
     if (polygonToolActive || event.button !== 0 || projection.objectId === null || selection.length !== 1) return;
+    if (isVisualElementEffectivelyAuthoringLocked(screen, projection.objectId)) return;
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
     const startBounds = Object.freeze({ x: projection.geometry.x, y: projection.geometry.y, width: projection.geometry.width, height: projection.geometry.height });
@@ -146,6 +163,7 @@ export function VisualEditorCanvas({
 
   const beginRotate = (event: ReactPointerEvent<HTMLButtonElement>, projection: CanvasElementProjection): void => {
     if (polygonToolActive || event.button !== 0 || projection.objectId === null) return;
+    if (isVisualElementEffectivelyAuthoringLocked(screen, projection.objectId)) return;
     event.stopPropagation();
     const objectNode = event.currentTarget.closest<HTMLElement>('[data-canvas-object-id]');
     if (!objectNode) return;
@@ -164,6 +182,7 @@ export function VisualEditorCanvas({
     points: readonly VisualEditorPoint[]
   ): void => {
     if (event.button !== 0 || !projection.objectId || points.length < 3) return;
+    if (isVisualElementEffectivelyAuthoringLocked(screen, projection.objectId)) return;
     event.stopPropagation();
     const bounds = polygonBounds(points);
     const pointScaleX = projection.geometry.width / Math.max(bounds.width, 1);
@@ -278,6 +297,7 @@ export function VisualEditorCanvas({
       }
       return;
     }
+    if (selectionAuthoringLocked) return;
     if (selection.length === 0) return;
     if (event.key === 'Delete' || event.key === 'Backspace') {
       event.preventDefault(); onMutationIntent({ kind: 'object.delete', objectIds: selection }); return;
@@ -324,6 +344,7 @@ export function VisualEditorCanvas({
 
   const renderProjection = (projection: CanvasElementProjection, ancestorMovesWithSelection: boolean): React.ReactNode => {
     const objectId = projection.objectId;
+    const authoringLocked = objectId !== null && isVisualElementEffectivelyAuthoringLocked(screen, objectId);
     const selected = objectId !== null && selectionSet.has(objectId);
     const hovered = objectId !== null && hoveredObjectId === objectId;
     const moveTargeted = interaction?.kind === 'move' && objectId !== null && interaction.objectIds.includes(objectId);
@@ -348,7 +369,7 @@ export function VisualEditorCanvas({
 
     return <div
       key={objectId ?? `${projection.element.type}:${projection.element.key}`}
-      className={`visual-editor-canvas__object${selected ? ' is-selected' : ''}${hovered ? ' is-hovered' : ''}${projection.identityIssue ? ' has-identity-issue' : ''}`}
+      className={`visual-editor-canvas__object${selected ? ' is-selected' : ''}${hovered ? ' is-hovered' : ''}${authoringLocked ? ' is-authoring-locked' : ''}${projection.identityIssue ? ' has-identity-issue' : ''}`}
       style={style}
       data-canvas-object-id={objectId ?? undefined}
       data-canvas-object-key={projection.element.key}
@@ -363,12 +384,12 @@ export function VisualEditorCanvas({
       </svg> : null}
       <span className="visual-editor-canvas__object-label" aria-hidden="true">{projection.element.key}</span>
 
-      {selected && objectId !== null ? <div className="visual-editor-canvas__adorners" aria-hidden="true">
+      {selected && objectId !== null && !authoringLocked ? <div className="visual-editor-canvas__adorners" aria-hidden="true">
         {selection.length === 1 ? <>{(['northWest', 'northEast', 'southEast', 'southWest'] as const).map(handle => <button key={handle} type="button" tabIndex={-1} className={`visual-editor-canvas__resize-handle handle-${handle}`} data-canvas-resize-handle={handle} onPointerDown={event => beginResize(event, projection, handle)} aria-label={`Resize ${handle}`} />)}</> : null}
         <button type="button" tabIndex={-1} className="visual-editor-canvas__rotate-handle" data-canvas-rotate-handle="true" onPointerDown={event => beginRotate(event, projection)} aria-label="Rotate selection" />
       </div> : null}
 
-      {selected && objectId !== null && projection.element.type === BUILTIN_VISUAL_OBJECT_TYPES.polygon ? polygonPoints.map((point, index) => <button
+      {selected && objectId !== null && !authoringLocked && projection.element.type === BUILTIN_VISUAL_OBJECT_TYPES.polygon ? polygonPoints.map((point, index) => <button
         key={`vertex-${index}`}
         type="button"
         className={`visual-editor-canvas__polygon-vertex${selectedVertex?.objectId === objectId && selectedVertex.index === index ? ' is-selected' : ''}`}
@@ -403,12 +424,12 @@ export function VisualEditorCanvas({
         <button type="button" disabled={!selectedVertex || selectedPolygonPoints.length <= 3} onClick={removePolygonVertex}>− Vertex</button>
       </> : null}
       <span className="visual-editor-canvas__toolbar-spacer" />
-      <button type="button" disabled={selection.length === 0 || polygonToolActive} onClick={() => emitMutationForSelection({ kind: 'object.duplicate', objectIds: selection })}>Duplicate</button>
-      <button type="button" disabled={selection.length === 0 || polygonToolActive} onClick={() => emitMutationForSelection({ kind: 'object.delete', objectIds: selection })}>Delete</button>
-      <button type="button" disabled={selection.length === 0 || polygonToolActive} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'sendToBack' })} aria-label="Send to back">⇤</button>
-      <button type="button" disabled={selection.length === 0 || polygonToolActive} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'sendBackward' })} aria-label="Send backward">←</button>
-      <button type="button" disabled={selection.length === 0 || polygonToolActive} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'bringForward' })} aria-label="Bring forward">→</button>
-      <button type="button" disabled={selection.length === 0 || polygonToolActive} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'bringToFront' })} aria-label="Bring to front">⇥</button>
+      <button type="button" disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.duplicate', objectIds: selection })}>Duplicate</button>
+      <button type="button" disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.delete', objectIds: selection })}>Delete</button>
+      <button type="button" disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'sendToBack' })} aria-label="Send to back">⇤</button>
+      <button type="button" disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'sendBackward' })} aria-label="Send backward">←</button>
+      <button type="button" disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'bringForward' })} aria-label="Bring forward">→</button>
+      <button type="button" disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'bringToFront' })} aria-label="Bring to front">⇥</button>
     </div>
 
     <div ref={surfaceRef} className={`visual-editor-canvas__surface${gridEnabled ? ' has-grid' : ''}`} style={surfaceStyle} tabIndex={0} role="application" aria-label={`Visual editor canvas for ${screen.name}`} onPointerDown={handleSurfacePointerDown} onPointerMove={handlePointerMove} onPointerUp={finishInteraction} onPointerCancel={() => setInteraction(null)} onDoubleClick={() => { if (polygonToolActive && polygonDraftPoints.length >= 3) finishPolygon(); }} onWheel={handleWheel} onKeyDown={handleKeyDown}>

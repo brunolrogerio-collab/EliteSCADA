@@ -50,6 +50,9 @@ import {
 import type { VisualEditorKeyboardCommand } from './visualEditorKeyboardModel';
 import {
   applyVisualEditorSessionKeyboardCommand,
+  canPasteVisualEditorSession,
+  canRedoVisualEditorSession,
+  canUndoVisualEditorSession,
   commitVisualEditorSessionDraft,
   createVisualEditorSession,
   currentVisualEditorSessionScreen,
@@ -398,6 +401,9 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
               onUiIntent={handleUiIntent}
               onMutationIntent={handleMutationIntent}
               onKeyboardCommand={handleKeyboardCommand}
+              canUndo={canUndoVisualEditorSession(session)}
+              canRedo={canRedoVisualEditorSession(session)}
+              canPaste={canPasteVisualEditorSession(session)}
               polygonToolActive={polygonToolActive}
               onPolygonToolCancel={() => setPolygonToolActive(false)}
             />

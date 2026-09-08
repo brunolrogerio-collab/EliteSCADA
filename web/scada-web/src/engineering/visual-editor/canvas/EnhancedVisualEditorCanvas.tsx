@@ -52,6 +52,7 @@ export type EnhancedVisualEditorCanvasProps = VisualEditorCanvasContractProps & 
   onAuthoringOperation?: (operation: VisualEditorAuthoringOperation) => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  canPaste?: boolean;
 }>;
 
 type MarqueeDraft = Readonly<{
@@ -300,6 +301,7 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
       onKeyboardCommand={props.onKeyboardCommand}
       canUndo={props.canUndo}
       canRedo={props.canRedo}
+      canPaste={props.canPaste}
     />
     <LegacyVisualEditorCanvas {...props} onMutationIntent={handleMutationIntent} />
     <VisualEditorOutliner

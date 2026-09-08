@@ -21,6 +21,7 @@ Repositório: `brunolrogerio-collab/EliteSCADA`
 - PR #288: C26 -> main, **VALIDATION ONLY / MUST NEVER MERGE**.
 - PR #266: **MUST NEVER MERGE**.
 - Preview #285: preservar intocado como evidência pré-C26.
+- Gate pós-C26 de auditoria real via ChatGPT Work: issue #289.
 - Wave13 #205/#207: pausada.
 
 ## Leitura obrigatória
@@ -31,12 +32,13 @@ Leia no branch C26, nesta ordem:
 2. `docs/CURRENT-COORDINATOR-HANDOFF.md`
 3. `LAST CHANGE.md`
 4. `docs/WAVE14-C26-PO-HOMOLOGATION-EXECUTION-LOG.md`
-5. `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
-6. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-07.md`
-7. `docs/WAVE14-C25-POST-DEMO-EXECUTION-LOG.md`
-8. `docs/WAVE14-C25-FINAL-CANDIDATE-MATRIX-2026-09-06.md`
+5. `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md`
+6. `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
+7. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-07.md`
+8. `docs/WAVE14-C25-POST-DEMO-EXECUTION-LOG.md`
+9. `docs/WAVE14-C25-FINAL-CANDIDATE-MATRIX-2026-09-06.md`
 
-Depois revalide HEAD, issue #286, PRs #287/#288/#212 e workflows do SHA exato.
+Depois revalide HEAD, issue #286, issue #289, PRs #287/#288/#212, C11 canônico, Preview vigente e workflows do SHA exato.
 
 ## Estado de transferência
 
@@ -76,12 +78,29 @@ Portanto:
 
 C26.8 ainda não deve começar enquanto C26.7 estiver vermelha.
 
+## Gate obrigatório após C26
+
+Issue #289 e `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md` estabelecem um gate adicional deliberado antes da próxima homologação final do Product Owner.
+
+Não executar agora.
+
+Somente depois de C26 concluído/aceito e integrado ao C11 canônico, novo package/checksum/provenance e **novo** Preview pós-C26 tecnicamente verde, o coordenador deve preparar um SCADA realmente vivo e declarar `READY FOR WORK AUDIT` somente quando Runtime, Engineering, EEE Active, simulação dinâmica, Historian/HistoricalQuery, Alarm/Event, usuários de auditoria e URLs explícitas estiverem prontos.
+
+Então:
+
+`READY FOR WORK AUDIT -> ChatGPT Work audit-only de uso real no navegador (~40 min) -> relatório/evidências -> triagem e reprodução pelo coordenador -> correções genéricas + regressões -> novo candidato -> recheck dirigido se justificar -> homologação final do Product Owner`.
+
+Na primeira passagem Work não desenvolve: não altera código, não cria patch/commit/merge e não deve desperdiçar a janela preparando dependências, banco, package ou descoberta de portas/credenciais.
+
+Quando houver candidato real, criar `docs/WORK-UI-AUDIT-HANDOFF.md` curto e candidate-specific; nunca versionar segredo.
+
 ## Guardrails permanentes
 
 - nunca alterar `main` diretamente;
 - #212 não possui autorização de merge;
 - #288 e #266 nunca mergear;
 - preservar #285;
+- #289 não autoriza execução antecipada nem merge protegido;
 - sem force push, rebase destrutivo, exclusão de branch ou limpeza fora do escopo;
 - diagnosticar CI vermelho antes de rerun;
 - nunca enfraquecer teste, segurança, Identity, autorização, Engineering Lock, licensing, lifecycle, package, drivers ou Runtime Active Revision authority;

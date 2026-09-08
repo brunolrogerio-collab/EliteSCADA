@@ -6,9 +6,16 @@ Base authority at C26 start: `a724ece64a292aa1d1dedd886a72fb28ff8d90fe`
 
 ## Status
 
-**EXECUTION ACTIVE — C26.1–C26.6 IMPLEMENTED / VALIDATED — C26.7 ACTIVE — NEW PREVIEW ONLY AFTER ACCEPTED C26 PRODUCT**
+**EXECUTION ACTIVE — C26.1–C26.6 IMPLEMENTED / VALIDATED — C26.7 ACTIVE — NEW PREVIEW ONLY AFTER ACCEPTED C26 PRODUCT — POST-C26 WORK AUDIT #289 REQUIRED BEFORE FINAL PO HOMOLOGATION**
 
 Pre-C26 Preview #285 / `d92e81f821c1a9c376b39bc3684eead54b3f570e` remains preserved as Product Owner homologation evidence and must not be reused as the post-C26 Preview.
+
+New binding post-C26 quality gate:
+
+- issue #289;
+- canonical directive: `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md`;
+- do not execute during C26;
+- after the new post-C26 Preview is technically green and fully prepared, ChatGPT Work must perform a real browser UI/functional audit before final Product Owner homologation.
 
 ## Work order and current progress
 
@@ -26,7 +33,12 @@ Pre-C26 Preview #285 / `d92e81f821c1a9c376b39bc3684eead54b3f570e` remains preser
 12. integrate only into canonical C11 when accepted — **PENDING**
 13. regenerate canonical package/checksum/provenance — **PENDING**
 14. create a new post-C26 Preview branch/PR — **PENDING**
-15. new real Codespace/Product Owner homologation — **PENDING**
+15. make post-C26 Preview technically green and establish `READY FOR WORK AUDIT` prerequisites — **PENDING**
+16. create the short candidate-specific `docs/WORK-UI-AUDIT-HANDOFF.md` and final Work prompt — **PENDING**
+17. ChatGPT Work real browser UI/functional audit under #289 — **PENDING**
+18. coordinator triage/reproduction/corrections + deterministic regressions + new exact candidate — **PENDING**
+19. optional targeted Work recheck when justified — **PENDING**
+20. final real Codespace/Product Owner homologation — **PENDING**
 
 ## C26.1–C26.5 retained validated authority
 
@@ -119,7 +131,7 @@ Implementation must remain presentation-only. Do not change capability projectio
 
 Before writing, fetch the exact current Screens and Script Engineering components/CSS and extend the closest canonical regression instead of creating parallel behavior.
 
-## Remaining C26 sequence
+## Remaining C26 and post-C26 sequence
 
 After C26.7, continue in the live #286 order:
 
@@ -130,7 +142,14 @@ After C26.7, continue in the live #286 order:
 - integrate only into canonical C11 when accepted;
 - regenerate package/checksum/provenance;
 - create a **new** post-C26 Preview, preserving #285;
-- fresh real Codespace/Product Owner homologation.
+- bring the Preview to full technical readiness, including HistoricalQuery, Active EEE and dynamic simulation;
+- satisfy the explicit `READY FOR WORK AUDIT` checklist from `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md`;
+- execute ChatGPT Work issue #289 as an audit-only real browser pass;
+- preserve/triage/reproduce findings and correct confirmed generic defects with deterministic regressions;
+- prepare a new exact candidate and perform targeted Work recheck only when justified;
+- only then perform fresh real Codespace/Product Owner final homologation.
+
+The first Work pass is not a development pass: no code changes, patches, commits or merges. The coordinator must prepare the environment before consuming the approximately 40-minute Work window.
 
 ## Binding follow-on Wave14 backlog
 
@@ -148,6 +167,7 @@ Still mandatory outside this immediate C26 checkpoint sequence:
 - #266 and #288 MUST NEVER MERGE;
 - #263 remains C11 -> integration only;
 - #285 remains preserved as pre-C26 Preview evidence;
+- issue #289 is a post-C26 audit gate and must not be executed early;
 - never modify `main` directly;
 - no force push, destructive rebase, branch deletion or unrelated cleanup;
 - diagnose CI red before rerun;

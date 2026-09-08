@@ -1,160 +1,95 @@
 # Current Coordinator Handoff
 
-> GitHub live is the official memory and the sole authority for this project. This file is a transfer snapshot only. Revalidate the repository before every decision, diagnosis, write, PR action, rerun or merge. If this file diverges from GitHub live, GitHub wins.
+> GitHub live is the official memory and sole authority for EliteSCADA. Revalidate live before every decision, diagnosis, code/documentation write, PR action, workflow rerun or merge. Any divergence here is resolved in favor of GitHub.
 
-## Current Wave 14 coordination state
+## Current Wave 14 topology
 
 - Repository: `brunolrogerio-collab/EliteSCADA`
-- Integration branch: `wave14/corrections-integration`
-- Integration PR: `#212 -> main` — **OPEN/DRAFT; DO NOT MERGE without later, explicit Product Owner authorization**
-- Active correction branch: `wave14/c26-po-homologation-corrections`
-- C26 coordinator issue: `#286`
-- C26 implementation PR: `#287` (`C26 -> C11`)
-- C26 validation PR: `#288` (`C26 -> main`) — **VALIDATION ONLY; MUST NEVER MERGE**
-- C11 branch: `wave14/c11-remaining-corrections`
-- C11 PR: `#263`
-- C11 validation PR: `#266` — **VALIDATION ONLY; MUST NEVER MERGE**
-- Preserved pre-C26 Preview PR: `#285` — keep untouched as pre-C26 homologation evidence.
+- Integration: `wave14/corrections-integration`, PR #212 -> `main` — **OPEN/DRAFT; NO MERGE without later explicit Product Owner authorization**
+- Active C26 branch: `wave14/c26-po-homologation-corrections`
+- Coordinator issue: #286
+- Implementation PR: #287 C26 -> C11, DRAFT
+- Validation PR: #288 C26 -> `main` — **VALIDATION ONLY / MUST NEVER MERGE**
+- C11 validation PR #266 — **MUST NEVER MERGE**
+- Pre-C26 Preview #285 — preserve untouched as historical homologation evidence
+- Wave13 #205/#207 — paused
 
-## Exact transfer boundary
+## Exact current product/test authority
 
-At the moment of this handoff, the live C26 branch HEAD is:
+Last exact C26 product/test SHA validated across all five normal gates:
 
-`ba901cbec8efece22ad9f2c0aa39330f98a5262e`
+`7d9d97797f8e19a874a6958f2fbaec9cfb3b2b11`
 
-Commit message:
+At that SHA:
 
-`docs(w14-c26): record C26.4 and C26.5 validation`
+- EliteSCADA CI #1444 / `34237046911` — SUCCESS
+- Preview Licensing CI #392 / `34237046935` — SUCCESS
+- Interop Lab Smoke #269 / `34237046897` — SUCCESS
+- Wave 11 Active HMI Runtime #370 / `34237046873` — SUCCESS
+- L3 Seven-Driver Lab #348 / `34237046980` — SUCCESS
 
-This HEAD is documentation-only. The last exact product/test SHA with all five normal gates green is:
-
-`2a69605b746f8035a99cb7202e44329993272409`
-
-C26 status:
+## C26 progress
 
 - C26.1 Runtime transient-failure resilience — **IMPLEMENTED / VALIDATED**
 - C26.2 Runtime logical viewport/layout — **IMPLEMENTED / VALIDATED**
 - C26.3 Runtime renderer technical-id leakage — **IMPLEMENTED / VALIDATED**
-- C26.4 Runtime popup layout/composition — **IMPLEMENTED / VALIDATED**
+- C26.4 Runtime popup composition — **IMPLEMENTED / VALIDATED**
 - C26.5 Alarm/Event/Historian Runtime surface — **DIAGNOSED / REGRESSION LOCKED / VALIDATED**
-- C26.6 Engineering shell/workspace usability — **ACTIVE; NO C26.6 PRODUCT COMMIT YET**
-- C26.7+ — pending in the order defined by live issue `#286`.
+- C26.6 Engineering shell/workspace usability — **IMPLEMENTED / VALIDATED**
+- C26.7 Engineering theme/contrast — **ACTIVE**
+- C26.8 Screen editor functionality audit/fixes — pending
+- C26.9 Popup editor functionality audit/fixes — pending
+- C26.10 canonical EEE residual cleanup — pending
+- C26.11 repackage/new Preview/homologation sequence — pending according to live issue #286
 
-## CI state of transfer HEAD
+## C26.6 validated correction
 
-For exact HEAD `ba901cbe...`, the latest live workflow state at transfer is:
+Commits:
 
-- EliteSCADA CI #1439 / run `34167675250` — **SUCCESS**
-- Preview Licensing CI #387 / run `34167675246` — **SUCCESS**
-- Wave 11 Active HMI Runtime #365 / run `34167675231` — **SUCCESS**
-- L3 Seven-Driver Lab #343 / run `34167675235` — **SUCCESS**
-- Interop Lab Smoke #264 / run `34167675264` — **FAILURE**
+- `4286f2409f30492387f764b192acede6d26bd3aa` — user-controlled collapse/restore model and constrained-viewport browser regression;
+- `4b0e46d96510c6a637e12dc83c6d56dd8b9cc592` — mobile collapsed-Properties behavior;
+- `c1ae4bd311334835961bf4bbdcd6bd46b4acfa36` — explicit outer workspace grid placement after navigation collapse;
+- `7d9d97797f8e19a874a6958f2fbaec9cfb3b2b11` — explicit inner Visual Editor main grid placement after Screens-list collapse with mobile reset.
 
-Interop #264 failed in job `101881863012` (`common-peer-stack`), specifically step 17:
+The regression intentionally exercises a 1024x720 viewport, collapses Engineering navigation, Screens and Palette, verifies canvas recovery/dominance, and proves Properties can collapse and be restored. The first two validation attempts found real zero-width canvas defects caused by CSS Grid auto-placement after hidden side panels. Their assertions were not relaxed; product CSS was corrected.
 
-`MQTT round-trip smoke`
+C26.6 preserves all capabilities and backend authority. Long panels retain independent scrolling and no feature was removed merely to gain canvas width.
 
-The exact log-level root cause has **not yet been extracted and classified**. Therefore:
+## C26.7 immediate scope
 
-- do not call the failure transient yet;
-- do not blind-rerun the workflow;
-- do not start a C26.6 product write while this red remains unexplained, because that would destroy CI causality on a docs-only HEAD.
+Live issue #286 acceptance:
 
-The next coordinator's first technical action is to fetch and inspect the exact failed-job log, establish the cause, and only then decide whether a targeted rerun of job `101881863012` is justified. If evidence proves an environmental/transient failure unrelated to the docs-only commit, rerun **only that failed job**, then revalidate the exact outcome live.
+- explicit readable foreground/background tokens for Engineering fields;
+- editable, readonly, disabled and placeholder states must be visually distinguishable;
+- regression coverage for affected Engineering surfaces;
+- scope includes Screens and Script Engineering;
+- presentation only: no authentication, authorization, Engineering Lock, lifecycle or capability changes.
 
-## C26.4 / C26.5 validated facts
+Before any C26.7 write, locate/fetch the exact live Screens and Script Engineering components/CSS and closest canonical tests. Prefer shared generic form-state styling over one-off screen-specific colors.
 
-C26.4 commits:
+## Preserved C26.5 Preview diagnosis
 
-- `2a6f742d87e84e5dbe7fd04e48b2b4c708f6652d` — generic Runtime Popup authored-bounds/composition correction;
-- `fb0a6c21740d5be0ea322bad9fe77dcff2de5725` — regression locking canonical Runtime Popup composition.
+`/api/historical/query` exists but is feature-gated. Preview #285 starts Historian without enabling the HistoricalQuery/cursor-key configuration. The PO-observed 404 was a pre-C26 Preview harness configuration gap, not a missing backend route and not a valid empty result. Keep #285 untouched. A new post-C26 Preview must configure HistoricalQuery safely for Preview/development.
 
-C26.5 commits:
+## Mandatory follow-on Wave14 obligations
 
-- `cd2ace19004601430b49f922ca0a1be785a400f2` — regression locking Historian error-vs-empty semantics;
-- `2a69605b746f8035a99cb7202e44329993272409` — locale-aligned assertions without weakening semantics.
+Still binding after C26:
 
-C26.5 diagnosis: the historical query backend route exists, but is feature-gated. Preserved Preview #285 starts the Timescale Historian without enabling the HistoricalQuery route/cursor-key configuration. The observed homologation HTTP 404 is therefore a **pre-C26 Preview harness configuration gap**, not a missing backend route and not a legitimate no-data result. Keep #285 untouched. The new post-C26 Preview must enable HistoricalQuery with safe preview/development configuration.
+- protected whole-system backup/restore distinct from `.escadapkg`;
+- Historian Administration backup/export/import/restore;
+- generic TAG raw -> engineering scaling with explicit inverse-write semantics;
+- human decimal-place authoring persisted through Save -> Publish -> Activate -> Runtime -> package export/import;
+- real EEE Modbus/PLC variant only after generic gates, corrected package and fresh homologation.
 
-Exact product/test SHA `2a69605...` completed all normal gates green:
+## Guardrails
 
-- EliteSCADA CI #1438 / run `34166715032`
-- Preview Licensing CI #386 / run `34166715046`
-- Interop Lab Smoke #263 / run `34166715034`
-- Wave 11 Active HMI Runtime #364 / run `34166715044`
-- L3 Seven-Driver Lab #342 / run `34166715029`
+- never modify `main` directly;
+- never merge #288 or #266;
+- never merge #212 without later separate explicit Product Owner authorization;
+- no force push, destructive rebase, branch deletion or unrelated cleanup;
+- diagnose every CI red before rerun; no blind rerun;
+- never weaken tests, validation, security, authentication, authorization, Identity, Engineering Lock, licensing, lifecycle, package, drivers or Runtime Active Revision authority;
+- Runtime/Active remains self-contained and cannot depend on `.escadalib`;
+- Alarm / Operational Event / Audit remain separate.
 
-## C26.6 current diagnosis and acceptance
-
-Product Owner acceptance requires:
-
-- Engineering shell/workspace remains usable in a constrained viewport;
-- navigation/editor panels can collapse and expand;
-- long panels scroll independently where appropriate;
-- canvas remains the dominant work area;
-- Properties remains reachable;
-- no capability or authority loss.
-
-Relevant source paths already identified, but they must be fetched again from the live branch before editing:
-
-- `web/scada-web/src/engineering/EngineeringApp.tsx`
-- `web/scada-web/src/engineering/engineering.css`
-- `web/scada-web/src/engineering/visual-editor/VisualEditorWorkspace.tsx`
-- `web/scada-web/src/engineering/visual-editor/VisualEditorWorkspaceLegacy.tsx`
-- `web/scada-web/src/engineering/visual-editor/VisualEditorWorkspace.css`
-
-Preliminary diagnosis found cumulative horizontal pressure from the global Engineering sidebar plus Screen/Popup list, palette and inspector/Properties. Existing responsive rearrangement does not provide a complete user-controlled collapse/restore model. Do not solve this by merely shrinking widths, hiding Properties, or deleting capabilities.
-
-Required generic direction:
-
-- collapsible/expandable global Engineering navigation;
-- collapsible/expandable editor-side panels with an obvious restore path;
-- independent vertical scrolling for long navigation/list/palette/Properties surfaces;
-- canvas prioritization without capability loss;
-- meaningful constrained-viewport regression/E2E.
-
-## Mandatory sequence after C26 product corrections
-
-After the C26 sequence defined by live issue #286 is accepted:
-
-1. integrate C26 only into C11 through `#287` when the sequence authorizes it;
-2. regenerate package/checksum/provenance;
-3. create a **NEW post-C26 Preview**;
-4. do not reuse Preview `#285`;
-5. run real Product Owner homologation in Codespace;
-6. solve any remaining generic gaps;
-7. only then proceed to the real EEE Modbus/PLC variant;
-8. complete final Wave 14 acceptance.
-
-Still mandatory in the overall Wave 14 backlog:
-
-- protected full-system backup/restore separate from `.escadapkg`;
-- secure Historian backup/export/import/restore administration;
-- generic TAG raw -> engineering scaling, with HMI/Alarm/Historian/Trend consuming canonical engineering value and writes applying explicit inverse transform fail-closed;
-- human decimal-place configuration persisted through Save -> Publish -> Activate -> Runtime -> package export/import;
-- real EEE Modbus/PLC variant only after generic mechanisms, corrected package and fresh homologation.
-
-## Non-negotiable guardrails
-
-- do not modify `main` directly;
-- do not merge `#212` without later, explicit Product Owner authorization;
-- never merge validation PRs `#266` or `#288`;
-- no force push, destructive rebase, branch deletion or cleanup outside scope;
-- never weaken tests, validation, security, authentication, authorization, identity, Engineering Lock, licensing, lifecycle, package, drivers or Runtime Active Revision authority to obtain green CI;
-- Runtime/Active must not depend on `.escadalib`;
-- Alarm, Operational Event and Audit remain distinct concepts/authorities;
-- diagnose every red CI before any rerun.
-
-## Canonical reading order for the next coordinator
-
-Read live from the C26 branch before acting:
-
-1. `docs/CURRENT-COORDINATOR-HANDOFF.md`
-2. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-07.md`
-3. `docs/WAVE14-C26-PO-HOMOLOGATION-EXECUTION-LOG.md`
-4. `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
-5. `LAST CHANGE.md`
-6. `docs/WAVE14-C25-POST-DEMO-EXECUTION-LOG.md`
-7. `docs/WAVE14-C25-FINAL-CANDIDATE-MATRIX-2026-09-06.md`
-
-When the Product Owner says `siga`, continue autonomously across the next tasks. It never authorizes merge of `#212` or any validation-only PR.
+When the Product Owner says `siga`, continue autonomously through subsequent safe work. It never authorizes protected merges.

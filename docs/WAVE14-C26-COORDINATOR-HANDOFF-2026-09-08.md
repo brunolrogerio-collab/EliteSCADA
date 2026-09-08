@@ -17,6 +17,7 @@ Repository: `brunolrogerio-collab/EliteSCADA`
 - Validation PR #288: C26 -> `main` — **VALIDATION ONLY / MUST NEVER MERGE**.
 - C11 validation PR #266 — **MUST NEVER MERGE**.
 - Pre-C26 Preview #285 — preserve untouched as historical PO homologation evidence.
+- Post-C26 real browser audit gate: issue #289 — **SPECIFIED / BLOCKED UNTIL C26 AND NEW POST-C26 PREVIEW ARE READY**.
 - Wave13 #205/#207 — paused.
 
 ## Exact transfer boundary
@@ -57,7 +58,9 @@ At `7d9d977...`:
 - C26.8 Screen editor functionality audit/fixes — **PENDING / DO NOT START UNTIL C26.7 IS GREEN**
 - C26.9 Popup editor functionality audit/fixes — pending
 - C26.10 canonical EEE residual cleanup — pending
-- C26.11 package/new Preview/new PO homologation — pending per live issue #286
+- C26.11 package/new Preview — pending per live issue #286
+- Post-C26 Work audit #289 — **MANDATORY LATER / DO NOT EXECUTE DURING C26**
+- Final Product Owner homologation — only after the #289 route and resulting coordinator triage/corrections.
 
 ## C26.7 current implementation
 
@@ -120,6 +123,8 @@ Do not weaken the assertion merely to obtain green CI. The acceptance explicitly
 7. Wait for natural workflows on the new exact SHA and require all five normal gates green.
 8. Only then mark C26.7 VALIDATED and start C26.8.
 
+The new #289 Work audit requirement does not change this immediate C26 sequence.
+
 ## C26.6 retained authority
 
 C26.6 final validated SHA is `7d9d97797f8e19a874a6958f2fbaec9cfb3b2b11`.
@@ -131,6 +136,28 @@ Its user-controlled Engineering collapse/restore regression found and caused cor
 `/api/historical/query` exists and is feature-gated. Preserved Preview #285 did not enable the HistoricalQuery/cursor-key configuration. The PO-observed 404 was a pre-C26 Preview harness configuration gap, not a missing backend route and not a valid no-data result. Keep #285 untouched. A new post-C26 Preview must enable safe Preview/development HistoricalQuery configuration.
 
 Alarm / Operational Event / Audit remain distinct.
+
+## Binding post-C26 ChatGPT Work audit gate
+
+The new mandatory quality gate is tracked by issue #289 and fully defined in:
+
+`docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md`
+
+It must **not** be executed during C26.
+
+After accepted C26 is integrated into corrected canonical C11 and a new post-C26 canonical EEE package/Preview exists, the coordinator must prepare the environment before using ChatGPT Work. Work should receive a live product with backend/frontend/PostgreSQL/TimescaleDB/Historian/HistoricalQuery operational, canonical EEE loaded and Active, simulation running with dynamic TAG state, Alarm/Event/Historian useful, Runtime/Engineering/editor routes explicit and audit users prepared securely.
+
+Only then may the coordinator declare `READY FOR WORK AUDIT` and create the intentionally short candidate-specific:
+
+`docs/WORK-UI-AUDIT-HANDOFF.md`
+
+That handoff must contain real exact SHA, real Preview/Runtime/Engineering URLs, package SHA-256 and non-secret authentication instructions. Do not create placeholder readiness evidence early.
+
+The first Work pass is audit-only and should spend the approximately 40-minute budget using the actual browser product, not building/configuring it. It must not modify code, create patches, commits or merges.
+
+Required route before final Product Owner homologation:
+
+`technical Preview green -> READY FOR WORK AUDIT -> Work exploratory real-use audit -> coordinator preserves/triages/reproduces findings -> generic corrections + deterministic regressions -> new exact candidate -> optional targeted Work recheck -> Product Owner final homologation`.
 
 ## Binding Wave14 follow-on obligations
 
@@ -149,6 +176,7 @@ Still mandatory after the immediate C26 sequence:
 - never merge #212 without later separate explicit Product Owner authorization;
 - #287 targets canonical C11 only;
 - preserve #285;
+- #289 is an additional post-C26 validation gate and does not authorize protected merges or early execution;
 - no force push, destructive rebase, branch deletion or unrelated cleanup;
 - diagnose every CI red before rerun; no blind rerun;
 - never weaken tests, validation, security, authentication, authorization, Identity, Engineering Lock, licensing, lifecycle, package, drivers or Runtime Active Revision authority;
@@ -164,11 +192,12 @@ Read live from `wave14/c26-po-homologation-corrections`:
 2. `docs/CURRENT-COORDINATOR-HANDOFF.md`
 3. `LAST CHANGE.md`
 4. `docs/WAVE14-C26-PO-HOMOLOGATION-EXECUTION-LOG.md`
-5. `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
-6. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-07.md` for historical context
-7. `docs/WAVE14-C25-POST-DEMO-EXECUTION-LOG.md`
-8. `docs/WAVE14-C25-FINAL-CANDIDATE-MATRIX-2026-09-06.md`
+5. `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md`
+6. `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
+7. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-07.md` for historical context
+8. `docs/WAVE14-C25-POST-DEMO-EXECUTION-LOG.md`
+9. `docs/WAVE14-C25-FINAL-CANDIDATE-MATRIX-2026-09-06.md`
 
-Then revalidate branch HEAD, issue #286, PRs #287/#288/#212 and workflows for the exact HEAD.
+Then revalidate branch HEAD, issue #286, issue #289, PRs #287/#288/#212, canonical C11, Preview state and workflows for the exact HEAD.
 
 When the Product Owner says `siga`, continue autonomously through safe subsequent work. `siga` never authorizes protected merges.

@@ -13,14 +13,14 @@
 
 /* C26.7: field-state authority is visual only. These rules intentionally stay
    inside the Engineering shell and do not alter capability or form behavior. */
-.eng-shell .visual-editor-workspace input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+.eng-shell .visual-editor-workspace input:not(:where([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"])),
 .eng-shell .visual-editor-workspace select,
 .eng-shell .visual-editor-workspace textarea,
 .eng-shell .script-workspace__toolbar > input,
-.eng-shell .script-grid input:not([type="checkbox"]):not([type="radio"]),
+.eng-shell .script-grid input:not(:where([type="checkbox"], [type="radio"])),
 .eng-shell .script-grid select,
 .eng-shell .script-editor > label > textarea,
-.eng-shell .script-row input:not([type="checkbox"]):not([type="radio"]),
+.eng-shell .script-row input:not(:where([type="checkbox"], [type="radio"])),
 .eng-shell .script-row select,
 .eng-shell .script-preserved .script-actions select {
   background: var(--eng-control-editable-bg);

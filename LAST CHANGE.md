@@ -7,48 +7,78 @@
 
 ## Current product boundary
 
-Branch:
+Active branch:
 
 `wave14/c26-po-homologation-corrections`
 
-Current C26 product/test commit below the coordination-only documentation:
+Current C26 **product/test** candidate:
 
-`a05d349a37a41629ee13b47b4652df74d287273d`
+`642e33c83d17e3c53beb588841626551e6ea305f`
 
-`fix(w14-c26): make Engineering field states readable`
+`fix(w14-c26): let readonly Engineering styles win cascade`
+
+The branch contains coordination-only commits above that product/test SHA. Revalidate the live branch HEAD before every action. Those coordination commits do **not** validate C26.7 and do not authorize C26.8.
+
+A temporary placeholder file was accidentally created during coordinator metadata tooling discovery and then removed by a normal follow-up commit. There is no intended product change from that incident and no force push/rebase was used.
 
 Last exact product/test SHA fully green across all five normal gates:
 
 `7d9d97797f8e19a874a6958f2fbaec9cfb3b2b11`
 
-The subsequent commits that introduce issue #289 references and the post-C26 Work audit directive are documentation/coordination-only. They do **not** validate C26.7 or authorize C26.8.
-
 ## Current C26 status
 
 - C26.1–C26.6 — IMPLEMENTED / VALIDATED;
-- C26.7 Engineering theme/contrast — IMPLEMENTED BUT NOT VALIDATED;
+- C26.7 Engineering theme/contrast — IMPLEMENTED BUT NOT VALIDATED / CURRENT BLOCKER;
 - C26.8 Screen editor functionality audit/fixes — NOT STARTED / BLOCKED BY C26.7;
-- C26.9–C26.11 pending per live issue #286.
+- C26.9–C26.11 — pending per live issue #286.
 
-## C26.7 exact product/test CI evidence
+## C26.7 implementation and CI evidence
 
-At `a05d349...`:
+Original C26.7 implementation SHA:
 
-- Preview Licensing CI #394 / `34241442573` — SUCCESS;
-- Interop Lab Smoke #271 / `34241442611` — SUCCESS;
-- Wave 11 Active HMI Runtime #372 / `34241442718` — SUCCESS;
-- L3 Seven-Driver Lab #350 / `34241442633` — SUCCESS;
-- EliteSCADA CI #1446 / `34241442557` — FAILURE.
+`a05d349a37a41629ee13b47b4652df74d287273d`
 
-Failed job `102112833905`, Chromium end-to-end.
+At `a05d349...`, four normal gates were green and EliteSCADA CI #1446 failed in the Chromium C26.7 contrast regression because the Screens route field remained visually identical after `readonly` was applied.
 
-The failing regression is `web/scada-web/tests-e2e/wave-14-c26-engineering-contrast.spec.ts`. In Screens, after the route input is marked `readonly`, its computed background remains equal to editable (`rgb(16, 25, 35)`). This is a deterministic C26.7 acceptance failure, not a rerun candidate.
+The deterministic cause was diagnosed in `web/scada-web/src/engineering/engineering-control-states.css`: the editable input selector accumulated more CSS specificity through repeated `:not([type=...])` clauses than the `[readonly]` selector, so editable styling won the cascade.
 
-Next product action remains: diagnose the readonly selector/scope/specificity on Screens, correct it generically without weakening the regression, and require fresh exact-SHA 5/5 green. Only then start C26.8.
+Minimal generic correction:
 
-## Newly specified post-C26 quality gate — NOT YET EXECUTABLE
+`642e33c83d17e3c53beb588841626551e6ea305f`
 
-Product Owner direction on 2026-09-08 adds a mandatory real-use ChatGPT Work audit after C26/canonical C11/new Preview technical readiness and before final Product Owner homologation.
+The fix uses `:where(...)` around the type-exclusion filters so those filters no longer increase specificity. No `!important` was introduced and the strict Playwright regression was not weakened.
+
+At exact product/test SHA `642e33c...`:
+
+- Preview Licensing CI #402 / run `34255187708` — SUCCESS;
+- Interop Lab Smoke #279 / run `34255187740` — SUCCESS;
+- Wave 11 Active HMI Runtime #380 / run `34255187706` — SUCCESS;
+- L3 Seven-Driver Lab #358 / run `34255187748` — SUCCESS;
+- EliteSCADA CI #1454 / run `34255187823` — **FAILURE**.
+
+EliteSCADA CI subjobs:
+
+- Backend build, test and smoke — SUCCESS;
+- Web build — SUCCESS;
+- Chromium end-to-end, job `102159657922` — **FAILURE**, step `Run browser E2E tests`.
+
+No blind rerun was performed.
+
+**Important transfer note:** the exact current failing Playwright assertion from job `102159657922` must be fetched/revalidated from GitHub before the next diagnosis. Do not assume it is identical to the earlier `a05d349...` failure and do not modify code from memory.
+
+Immediate next product action:
+
+1. revalidate live branch HEAD, #286, #287/#288/#212 and exact product-SHA workflows;
+2. fetch the full Chromium evidence for job `102159657922`;
+3. compare that failure against the exact `642e33c...` CSS, DOM/component and strict C26.7 regression;
+4. implement only the smallest generic product correction justified by that evidence;
+5. preserve the test and all authority/security/lifecycle contracts;
+6. let fresh workflows run naturally and require all five normal gates green on one exact product/test SHA;
+7. only then mark C26.7 VALIDATED and start C26.8.
+
+## Post-C26 quality gate — NOT YET EXECUTABLE
+
+Product Owner direction adds a mandatory real-use ChatGPT Work audit after C26/canonical C11/new Preview technical readiness and before final Product Owner homologation.
 
 Authority:
 
@@ -63,22 +93,23 @@ Required route:
 
 `C26 complete + exact-SHA green + accepted -> authorized C26->C11 integration -> corrected canonical EEE package/checksum/provenance -> NEW post-C26 Preview -> technical green + live environment fully prepared -> READY FOR WORK AUDIT -> ChatGPT Work browser audit-only pass -> coordinator triage/reproduction -> generic corrections + deterministic regressions -> new exact candidate -> optional targeted Work recheck -> Product Owner final homologation`.
 
-The approximately 40-minute Work window must be spent primarily using the real product, not building/configuring it. Before declaring readiness, the coordinator must prepare explicit Preview/Runtime/Engineering URLs, Active canonical EEE, dynamic simulation, Historian/HistoricalQuery, Alarm/Event useful state and secure audit users.
+The approximately 40-minute Work window must be spent primarily using the real product, not building/configuring it. Only at that future ready candidate should `docs/WORK-UI-AUDIT-HANDOFF.md` be created with real exact SHA, URLs, package SHA-256 and non-secret authentication instructions.
 
-Only at that future ready candidate should `docs/WORK-UI-AUDIT-HANDOFF.md` be created with real exact SHA, URLs, package SHA-256 and non-secret authentication instructions.
-
-This new gate does not alter the current C26 blocker and does not authorize any merge.
+This gate does not alter the current C26 blocker and does not authorize any merge.
 
 ## Protected governance
 
+- canonical C11 branch: `wave14/c11-canonical-eee-demo`; revalidate its exact HEAD live before use;
 - PR #287: C26 -> C11 only;
 - PR #288: validation-only -> `main`, **NEVER MERGE**;
 - PR #266: validation-only -> `main`, **NEVER MERGE**;
 - PR #212: integration -> `main`, OPEN/DRAFT, **MUST NOT MERGE without later separate explicit Product Owner authorization**;
-- Preview #285 remains preserved;
+- PR #263: C11 -> integration only;
+- Preview #285 remains preserved as pre-C26 historical evidence;
 - #289 must not be executed prematurely during C26;
-- no direct `main` mutation, force push, destructive rebase, blind CI rerun or contract weakening;
+- no direct `main` mutation, force push, destructive rebase, branch deletion, blind CI rerun or contract weakening;
 - Runtime/Active cannot depend on `.escadalib`;
+- no EEE-specific workaround for a generic product defect;
 - Alarm / Operational Event / Audit remain distinct;
 - Wave13 #205/#207 remains paused.
 

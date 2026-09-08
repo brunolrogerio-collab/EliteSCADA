@@ -126,7 +126,7 @@
 
   .visual-editor-layout--screens-collapsed .visual-editor-shell,
   .visual-editor-layout--palette-collapsed .visual-editor-composition,
-  .visual-editor-layout--properties-collapsed .visual-editor-composition,
+  .visual-editor-layout.visual-editor-layout--properties-collapsed .visual-editor-composition,
   .visual-editor-layout--palette-collapsed.visual-editor-layout--properties-collapsed .visual-editor-composition {
     grid-template-columns: minmax(0, 1fr);
   }

@@ -8,20 +8,23 @@
 - Integration: `wave14/corrections-integration`, PR #212 -> `main` — OPEN/DRAFT; **NO MERGE without later separate explicit Product Owner authorization**
 - Active branch: `wave14/c26-po-homologation-corrections`
 - Coordinator issue: #286
-- Implementation PR #287: C26 -> C11, DRAFT
+- Implementation PR #287: C26 -> canonical C11, DRAFT
 - Validation PR #288: C26 -> `main` — **VALIDATION ONLY / MUST NEVER MERGE**
 - C11 validation PR #266 — **MUST NEVER MERGE**
-- Pre-C26 Preview #285 — preserve untouched
+- C11 -> integration PR #263 — integration route only
+- Pre-C26 Preview #285 — preserve untouched as historical evidence
 - Post-C26 real-use audit gate: issue #289 — **SPECIFIED / DO NOT EXECUTE UNTIL C26 + corrected C11 + new Preview are ready**
 - Wave13 #205/#207 — paused
 
 ## Current execution boundary
 
-Current C26 product HEAD before the latest docs-only coordinator transfer:
+Current C26 **product/test** candidate:
 
-`a05d349a37a41629ee13b47b4652df74d287273d`
+`642e33c83d17e3c53beb588841626551e6ea305f`
 
-`fix(w14-c26): make Engineering field states readable`
+`fix(w14-c26): let readonly Engineering styles win cascade`
+
+The branch has coordination-only commits above this SHA. Revalidate the live branch HEAD before every action; do not mistake a docs-only HEAD for a validated product SHA.
 
 Last exact product/test SHA fully green across all five normal gates:
 
@@ -31,29 +34,55 @@ C26 status:
 
 - C26.1–C26.6 — **IMPLEMENTED / VALIDATED**
 - C26.7 Engineering theme/contrast — **IMPLEMENTED BUT NOT VALIDATED / CURRENT BLOCKER**
-- C26.8–C26.11 — pending per live issue #286
+- C26.8 Screen editor functionality audit/fixes — **NOT STARTED / BLOCKED BY C26.7**
+- C26.9–C26.11 — pending per live issue #286
 
-## Current blocker
+## C26.7 history and current blocker
 
-At exact SHA `a05d349...`:
+Original C26.7 SHA `a05d349a37a41629ee13b47b4652df74d287273d` failed Chromium because a Screens route input marked `readonly` kept the editable background.
 
-- Preview Licensing #394 — SUCCESS
-- Interop #271 — SUCCESS
-- Wave11 #372 — SUCCESS
-- L3 #350 — SUCCESS
-- EliteSCADA CI #1446 / run `34241442557` — **FAILURE**
+The cause was diagnosed as CSS specificity: the generic editable selector accumulated specificity through repeated `:not([type=...])` clauses and overrode `[readonly]`.
 
-Failed Chromium job `102112833905` in `Run browser E2E tests`.
+The smallest generic correction was committed as:
 
-The Playwright C26.7 regression shows a deterministic acceptance defect: in Screens, applying `readonly` to the route field leaves its computed background equal to the editable background (`rgb(16, 25, 35)`). Readonly and editable are therefore not visually distinct as required by #286.
+`642e33c83d17e3c53beb588841626551e6ea305f`
 
-**Do not rerun unchanged. Do not weaken the assertion.** Fix the generic readonly styling/scope/specificity cause, then require fresh exact-SHA 5/5 green before starting C26.8.
+It replaces the specificity-producing type filters with `:where(...)`; no `!important` was introduced and the C26.7 Playwright regression was not weakened.
+
+At exact `642e33c...`:
+
+- Preview Licensing #402 / run `34255187708` — SUCCESS
+- Interop #279 / run `34255187740` — SUCCESS
+- Wave11 #380 / run `34255187706` — SUCCESS
+- L3 #358 / run `34255187748` — SUCCESS
+- EliteSCADA CI #1454 / run `34255187823` — **FAILURE**
+
+EliteSCADA CI details:
+
+- Backend build, test and smoke — SUCCESS
+- Web build — SUCCESS
+- Chromium end-to-end job `102159657922` — **FAILURE**, step `Run browser E2E tests`
+
+No rerun was performed.
+
+**Do not assume the `642e33c...` Chromium failure is identical to the earlier `a05d349...` assertion.** The next coordinator must fetch/revalidate the complete failure evidence for job `102159657922` before diagnosing or editing.
 
 ## Immediate next task
 
-Read `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-08.md` first. Then revalidate all live refs and diagnose the exact Screens readonly selector path from current branch sources before editing.
+1. Read `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-08.md` first, then the remaining mandatory coordination files.
+2. Revalidate live branch HEAD, issue #286, #287/#288/#212/#266/#263, canonical C11, #285, #289 and workflows for the exact candidate SHA.
+3. Fetch the complete Chromium failure evidence for job `102159657922`.
+4. Compare the actual failing assertion with the exact `642e33c...` CSS, affected DOM/component and `wave-14-c26-engineering-contrast.spec.ts`.
+5. Implement only the smallest **generic** C26.7 correction supported by the evidence.
+6. Do not weaken the regression or any security/authority/lifecycle contract.
+7. Let fresh workflows run naturally and require all five normal gates green on the same exact product/test SHA.
+8. Only then mark C26.7 VALIDATED and begin C26.8.
 
-The new Work audit requirement does **not** change this immediate next task and must not be executed during C26.
+The post-C26 Work audit requirement does **not** change this immediate next task and must not be executed during C26.
+
+## Coordination-only cleanup note
+
+During metadata-tool discovery in the outgoing coordinator chat, a temporary placeholder file named `dummy` was accidentally created on the C26 branch and then removed immediately through a normal follow-up commit. No force push/rebase was used and no intended product file remains from that incident. Treat those commits as coordination-only, not as product validation evidence.
 
 ## Binding post-C26 Work audit gate
 
@@ -77,12 +106,16 @@ When the real candidate is ready, create the intentionally short candidate-speci
 - no direct `main` mutation;
 - #212 not authorized to merge;
 - #288 and #266 never merge;
+- #287 targets canonical C11 only;
+- #263 is C11 -> integration only;
 - preserve #285;
 - #289 does not authorize early execution or any protected merge;
 - no force push, destructive rebase, branch deletion or unrelated cleanup;
 - diagnose CI red before rerun;
-- never weaken tests, security, Identity, authorization, Engineering Lock, licensing, lifecycle, package, drivers or Runtime Active Revision authority;
+- never weaken tests, validation, security, authentication, authorization, Identity, Engineering Lock, licensing, lifecycle, package, drivers or Runtime Active Revision authority;
 - Runtime/Active cannot depend on `.escadalib`;
-- Alarm / Operational Event / Audit remain separate.
+- no EEE-specific workaround for a generic product defect;
+- Alarm / Operational Event / Audit remain separate;
+- Wave13 remains paused.
 
 When Product Owner says `siga`, continue autonomously through subsequent safe work. It does not authorize protected merges.

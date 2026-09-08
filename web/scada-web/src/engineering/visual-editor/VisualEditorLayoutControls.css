@@ -65,6 +65,10 @@
   grid-template-columns: 0 minmax(0, 1fr);
 }
 
+.visual-editor-layout--screens-collapsed .visual-editor-main {
+  grid-column: 2;
+}
+
 .visual-editor-layout--screens-collapsed .visual-editor-screens,
 .visual-editor-layout--palette-collapsed .visual-editor-palette-slot,
 .visual-editor-layout--properties-collapsed .visual-editor-inspector-slot {
@@ -133,5 +137,9 @@
   .visual-editor-layout.visual-editor-layout--properties-collapsed .visual-editor-composition,
   .visual-editor-layout--palette-collapsed.visual-editor-layout--properties-collapsed .visual-editor-composition {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .visual-editor-layout--screens-collapsed .visual-editor-main {
+    grid-column: 1;
   }
 }

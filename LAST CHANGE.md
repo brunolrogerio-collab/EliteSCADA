@@ -1,76 +1,61 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-08 BRT  
-**Operational state:** **WAVE14 C26 ACTIVE / C26.1–C26.6 IMPLEMENTED + VALIDATED / C26.7 ACTIVE / #212 NOT AUTHORIZED / #266+#288 NEVER MERGE / WAVE13 PAUSED**
+**Operational state:** **WAVE14 C26 ACTIVE / C26.1–C26.6 VALIDATED / C26.7 IMPLEMENTED BUT CI-BLOCKED / C26.8 NOT STARTED / #212 NOT AUTHORIZED / #266+#288 NEVER MERGE / WAVE13 PAUSED**
 
 > GitHub live is the official and sole project memory. Revalidate refs, PR state and exact-SHA workflows before every decision or mutation.
 
-## Current exact product/test authority
+## Current product boundary
 
 Branch:
 
 `wave14/c26-po-homologation-corrections`
 
-Exact product/test head validated green across all five normal gates:
+Current C26 product HEAD before latest coordinator handoff documentation:
+
+`a05d349a37a41629ee13b47b4652df74d287273d`
+
+`fix(w14-c26): make Engineering field states readable`
+
+Last exact product/test SHA fully green across all five normal gates:
 
 `7d9d97797f8e19a874a6958f2fbaec9cfb3b2b11`
 
-C26 progress:
+## Current C26 status
 
-- C26.1 Runtime resilience — IMPLEMENTED / VALIDATED;
-- C26.2 Runtime viewport — IMPLEMENTED / VALIDATED;
-- C26.3 Runtime technical-id fallback suppression — IMPLEMENTED / VALIDATED;
-- C26.4 Runtime Popup composition — IMPLEMENTED / VALIDATED;
-- C26.5 Alarm/Event/Historian surface — DIAGNOSED / REGRESSION LOCKED / VALIDATED;
-- C26.6 Engineering shell/workspace usability — IMPLEMENTED / VALIDATED;
-- C26.7 Engineering theme/contrast — ACTIVE;
-- C26.8–C26.11 pending per live issue #286.
+- C26.1–C26.6 — IMPLEMENTED / VALIDATED;
+- C26.7 Engineering theme/contrast — IMPLEMENTED BUT NOT VALIDATED;
+- C26.8 Screen editor functionality audit/fixes — NOT STARTED / BLOCKED BY C26.7;
+- C26.9–C26.11 pending per live issue #286.
 
-## C26.6 exact evidence
+## C26.7 exact CI evidence
 
-C26.6 commits after coordinator handoff `11ef0f7...`:
+At `a05d349...`:
 
-- `4286f2409f30492387f764b192acede6d26bd3aa` — collapsible Engineering workspace and constrained-viewport regression;
-- `4b0e46d96510c6a637e12dc83c6d56dd8b9cc592` — responsive collapsed Properties behavior;
-- `c1ae4bd311334835961bf4bbdcd6bd46b4acfa36` — keep outer Engineering workspace explicitly placed after navigation collapse;
-- `7d9d97797f8e19a874a6958f2fbaec9cfb3b2b11` — keep Visual Editor main explicitly placed after Screens-list collapse, with mobile single-column reset.
+- Preview Licensing CI #394 / `34241442573` — SUCCESS;
+- Interop Lab Smoke #271 / `34241442611` — SUCCESS;
+- Wave 11 Active HMI Runtime #372 / `34241442718` — SUCCESS;
+- L3 Seven-Driver Lab #350 / `34241442633` — SUCCESS;
+- EliteSCADA CI #1446 / `34241442557` — FAILURE.
 
-The Playwright regression was not weakened. It exposed two real CSS Grid auto-placement defects that collapsed the canvas to zero width after user-controlled panel collapse; both were fixed causally.
+Failed job `102112833905`, Chromium end-to-end.
 
-At exact SHA `7d9d977...` all five normal gates completed SUCCESS:
+The failing regression is `web/scada-web/tests-e2e/wave-14-c26-engineering-contrast.spec.ts`. In Screens, after the route input is marked `readonly`, its computed background remains equal to editable (`rgb(16, 25, 35)`). This is a deterministic C26.7 acceptance failure, not a rerun candidate.
 
-- EliteSCADA CI #1444 / run `34237046911`;
-- Preview Licensing CI #392 / run `34237046935`;
-- Interop Lab Smoke #269 / run `34237046897`;
-- Wave 11 Active HMI Runtime #370 / run `34237046873`;
-- L3 Seven-Driver Lab #348 / run `34237046980`.
+Next product action: diagnose the readonly selector/scope/specificity on Screens, correct it generically without weakening the regression, and require fresh exact-SHA 5/5 green. Only then start C26.8.
 
-## C26.7 active scope
+## Protected governance
 
-Per live issue #286, C26.7 is Engineering theme/contrast. Acceptance requires readable explicit foreground/background treatment and visually distinct editable, readonly, disabled and placeholder states, with regression coverage for affected Engineering surfaces including Screens and Script Engineering.
-
-No security, authorization, lifecycle or capability behavior may change as part of this presentation correction.
-
-## Preserved authorities
-
-Canonical C11 base remains:
-
-`a724ece64a292aa1d1dedd886a72fb28ff8d90fe`
-
-Pre-C26 Preview #285 remains preserved and untouched as historical evidence. Its HistoricalQuery HTTP 404 was diagnosed as a pre-C26 Preview harness configuration gap, not a missing backend route or valid no-data state.
-
-## Permanent governance
-
-- PR #287: C26 -> C11 only, DRAFT while C26 is active;
+- PR #287: C26 -> C11 only;
 - PR #288: validation-only -> `main`, **NEVER MERGE**;
-- PR #263: C11 -> integration only;
 - PR #266: validation-only -> `main`, **NEVER MERGE**;
 - PR #212: integration -> `main`, OPEN/DRAFT, **MUST NOT MERGE without later separate explicit Product Owner authorization**;
+- Preview #285 remains preserved;
 - no direct `main` mutation, force push, destructive rebase, blind CI rerun or contract weakening;
-- Runtime/Active must not depend on `.escadalib`;
+- Runtime/Active cannot depend on `.escadalib`;
 - Alarm / Operational Event / Audit remain distinct;
 - Wave13 #205/#207 remains paused.
 
-Canonical detailed ledger:
+Current coordinator handoff:
 
-`docs/WAVE14-C26-PO-HOMOLOGATION-EXECUTION-LOG.md`
+`docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-08.md`

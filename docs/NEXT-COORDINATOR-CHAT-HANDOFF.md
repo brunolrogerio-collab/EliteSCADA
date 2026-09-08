@@ -10,94 +10,85 @@ Assuma a coordenação da Wave 14 do EliteSCADA a partir deste ponto.
 
 **GitHub é a memória oficial e a única autoridade sobre o estado do projeto.**
 
-Revalide ao vivo antes de toda decisão, diagnóstico, alteração de código/documentação, ação em PR, rerun ou merge. Havendo divergência, GitHub live prevalece.
+Revalide todo o estado ao vivo antes de qualquer decisão, diagnóstico, alteração de código/documentação, ação em PR, rerun ou merge. Havendo divergência, GitHub live prevalece.
 
-Repository: `brunolrogerio-collab/EliteSCADA`
+Repositório: `brunolrogerio-collab/EliteSCADA`
 
-- Integration: `wave14/corrections-integration`, PR #212 -> main — OPEN/DRAFT, **NÃO MERGEAR sem autorização posterior, específica e explícita do Product Owner**.
-- Active C26 branch: `wave14/c26-po-homologation-corrections`.
-- Coordinator issue: #286.
-- Implementation PR #287: C26 -> C11, DRAFT.
-- Validation PR #288: C26 -> main, **VALIDATION ONLY / MUST NEVER MERGE**.
-- C11 validation PR #266: **MUST NEVER MERGE**.
-- Pre-C26 Preview #285: preservar intocado como evidência histórica.
-- Wave13 #205/#207: paused.
+- Integração: `wave14/corrections-integration`, PR #212 -> main — OPEN/DRAFT, **NÃO MERGEAR sem autorização posterior, separada e explícita do Product Owner**.
+- Branch ativa: `wave14/c26-po-homologation-corrections`.
+- Issue coordenadora: #286.
+- PR #287: C26 -> C11, DRAFT.
+- PR #288: C26 -> main, **VALIDATION ONLY / MUST NEVER MERGE**.
+- PR #266: **MUST NEVER MERGE**.
+- Preview #285: preservar intocado como evidência pré-C26.
+- Wave13 #205/#207: pausada.
 
-## Mandatory reading
+## Leitura obrigatória
 
-Read live from C26 branch:
+Leia no branch C26, nesta ordem:
 
-1. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-07.md`
+1. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-08.md`
 2. `docs/CURRENT-COORDINATOR-HANDOFF.md`
 3. `LAST CHANGE.md`
 4. `docs/WAVE14-C26-PO-HOMOLOGATION-EXECUTION-LOG.md`
 5. `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
-6. `docs/WAVE14-C25-POST-DEMO-EXECUTION-LOG.md`
-7. `docs/WAVE14-C25-FINAL-CANDIDATE-MATRIX-2026-09-06.md`
+6. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-07.md`
+7. `docs/WAVE14-C25-POST-DEMO-EXECUTION-LOG.md`
+8. `docs/WAVE14-C25-FINAL-CANDIDATE-MATRIX-2026-09-06.md`
 
-Then revalidate branch HEAD, issue #286, PRs #287/#288/#212 and workflows for the exact HEAD.
+Depois revalide HEAD, issue #286, PRs #287/#288/#212 e workflows do SHA exato.
 
-## Current validated C26 product/test boundary
+## Estado de transferência
 
-Exact product/test SHA:
+Último SHA de produto C26 antes do handoff documental:
+
+`a05d349a37a41629ee13b47b4652df74d287273d`
+
+`fix(w14-c26): make Engineering field states readable`
+
+Último SHA de produto/teste comprovadamente 5/5 verde:
 
 `7d9d97797f8e19a874a6958f2fbaec9cfb3b2b11`
 
-Five normal gates at this exact SHA are SUCCESS:
+C26.1–C26.6 estão **IMPLEMENTADAS / VALIDADAS**.
 
-- EliteSCADA CI #1444 / run `34237046911`
-- Preview Licensing CI #392 / run `34237046935`
-- Interop Lab Smoke #269 / run `34237046897`
-- Wave 11 Active HMI Runtime #370 / run `34237046873`
-- L3 Seven-Driver Lab #348 / run `34237046980`
+C26.7 Engineering theme/contrast está **IMPLEMENTADA, MAS NÃO VALIDADA** e é o bloqueio atual.
 
-C26 status:
+No SHA `a05d349...`, quatro gates estão verdes:
 
-- C26.1–C26.6 — **IMPLEMENTED / VALIDATED**
-- C26.7 Engineering theme/contrast — **ACTIVE**
-- C26.8–C26.10 — pending per live issue #286
-- package/new Preview/new real PO homologation follows only after accepted product sequence
+- Preview Licensing #394 — SUCCESS
+- Interop #271 — SUCCESS
+- Wave11 #372 — SUCCESS
+- L3 #350 — SUCCESS
 
-## C26.6 important implementation history
+EliteSCADA CI #1446 / run `34241442557` está vermelho.
 
-Commits:
+O job Chromium `102112833905` falhou no novo teste C26.7. O relatório Playwright prova que, em Screens, o campo de rota com `readonly` continua usando o mesmo background do estado editável (`rgb(16, 25, 35)`). Isso viola diretamente a aceitação de #286, que exige estados editável/readonly/disabled visualmente distintos.
 
-- `4286f2409f30492387f764b192acede6d26bd3aa` — collapsible Engineering workspace + constrained viewport E2E;
-- `4b0e46d96510c6a637e12dc83c6d56dd8b9cc592` — collapsed Properties mobile correction;
-- `c1ae4bd311334835961bf4bbdcd6bd46b4acfa36` — outer Engineering grid placement fix;
-- `7d9d97797f8e19a874a6958f2fbaec9cfb3b2b11` — inner Visual Editor grid placement fix.
+Portanto:
 
-The Chromium regression found two real zero-width canvas bugs caused by CSS Grid auto-placement after hidden side panels. Do not weaken that regression. Final exact SHA is fully green.
+- não faça rerun cego de #1446;
+- não afrouxe a regressão;
+- revalide e busque a causa real de selector/specificity/scope do readonly em Screens;
+- faça a menor correção genérica necessária;
+- aguarde workflows naturais no novo SHA e exija 5/5 verde;
+- somente depois marque C26.7 VALIDADA e avance para C26.8.
 
-## Immediate task: C26.7
+C26.8 ainda não deve começar enquanto C26.7 estiver vermelha.
 
-Live issue #286 acceptance:
+## Guardrails permanentes
 
-- readable explicit foreground/background tokens;
-- editable, readonly, disabled and placeholder states visually distinct;
-- regression coverage;
-- affected Engineering surfaces include Screens and Script Engineering.
+- nunca alterar `main` diretamente;
+- #212 não possui autorização de merge;
+- #288 e #266 nunca mergear;
+- preservar #285;
+- sem force push, rebase destrutivo, exclusão de branch ou limpeza fora do escopo;
+- diagnosticar CI vermelho antes de rerun;
+- nunca enfraquecer teste, segurança, Identity, autorização, Engineering Lock, licensing, lifecycle, package, drivers ou Runtime Active Revision authority;
+- Runtime/Active não pode depender de `.escadalib`;
+- Alarm / Operational Event / Audit continuam separados;
+- Wave13 segue pausada.
 
-Keep this presentation-only. Do not change or weaken authentication, authorization, capability projection, Engineering Lock, lifecycle, package or backend authority.
-
-Before writing, locate/fetch the exact live Screens and Script Engineering components/CSS and closest existing tests. Prefer a generic Engineering form-state treatment rather than one-off component hacks.
-
-## Preserved Historian/Preview boundary
-
-The backend HistoricalQuery route exists and is feature-gated. Preview #285 did not enable HistoricalQuery/cursor-key configuration, producing the PO-observed 404. Keep #285 unchanged. A new post-C26 Preview must enable safe Preview/dev HistoricalQuery configuration. Alarm / Operational Event / Audit remain separate.
-
-## Permanent guardrails
-
-- no direct main mutation;
-- #212 not authorized to merge;
-- #288 and #266 never merge;
-- no force push, destructive rebase, branch deletion or unrelated cleanup;
-- diagnose every CI red before rerun;
-- never weaken tests, security, Identity, authorization, Engineering Lock, licensing, lifecycle, package, drivers or Runtime Active Revision authority;
-- Runtime/Active cannot depend on `.escadalib`;
-- preserve #285;
-- Wave13 remains paused.
-
-When Product Owner says `siga`, advance autonomously through safe subsequent work. `siga` does not authorize protected merges.
+Quando o Product Owner disser `siga`, avance autonomamente pelas próximas tarefas seguras. `siga` nunca autoriza os merges protegidos.
 
 ---

@@ -84,7 +84,11 @@ done
 port_is_open 5173 && fail "Web port 5173 is still occupied after controlled Preview cleanup"
 port_is_open 5080 && fail "internal API port 5080 is still occupied after controlled Preview cleanup"
 
-bash "$ROOT/scripts/preview/launch-post-c26-preview.sh"
+# Keep the lock in this wrapper while the canonical launcher runs, but explicitly
+# close descriptor 9 for the launcher process. Otherwise the long-lived API/Web
+# descendants inherit the flock and make every later Codespaces attach look like
+# another recovery is permanently running.
+bash "$ROOT/scripts/preview/launch-post-c26-preview.sh" 9>&-
 
 port_is_open 5080 || fail "EliteSCADA API did not remain listening on fixed internal port 5080"
 port_is_open 5173 || fail "EliteSCADA Web did not remain listening on fixed port 5173"

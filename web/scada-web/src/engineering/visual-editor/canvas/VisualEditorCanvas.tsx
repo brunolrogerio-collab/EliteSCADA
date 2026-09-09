@@ -72,7 +72,8 @@ export function VisualEditorCanvas({
   onUiIntent,
   onMutationIntent,
   polygonToolActive = false,
-  onPolygonToolCancel
+  onPolygonToolCancel,
+  logicalBoundary
 }: VisualEditorCanvasContractProps) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const [gridEnabled, setGridEnabled] = useState(true);
@@ -434,6 +435,13 @@ export function VisualEditorCanvas({
 
     <div ref={surfaceRef} className={`visual-editor-canvas__surface${gridEnabled ? ' has-grid' : ''}`} style={surfaceStyle} tabIndex={0} role="application" aria-label={`Visual editor canvas for ${screen.name}`} onPointerDown={handleSurfacePointerDown} onPointerMove={handlePointerMove} onPointerUp={finishInteraction} onPointerCancel={() => setInteraction(null)} onDoubleClick={() => { if (polygonToolActive && polygonDraftPoints.length >= 3) finishPolygon(); }} onWheel={handleWheel} onKeyDown={handleKeyDown}>
       <div className="visual-editor-canvas__viewport" style={viewportStyle}>
+        {logicalBoundary ? <div
+          className="visual-editor-canvas__logical-boundary"
+          data-testid="visual-editor-logical-boundary"
+          data-logical-width={logicalBoundary.width}
+          data-logical-height={logicalBoundary.height}
+          style={{ width: logicalBoundary.width, height: logicalBoundary.height }}
+        ><span>{logicalBoundary.label}</span></div> : null}
         {projectedElements.map(projection => renderProjection(projection, false))}
         {polygonToolActive && draftPreviewPoints.length > 0 ? <svg className="visual-editor-canvas__polygon-draft" width={CANVAS_CONTENT_WIDTH} height={CANVAS_CONTENT_HEIGHT} aria-hidden="true">
           <polyline points={polygonPointsAttribute(draftPreviewPoints)} />

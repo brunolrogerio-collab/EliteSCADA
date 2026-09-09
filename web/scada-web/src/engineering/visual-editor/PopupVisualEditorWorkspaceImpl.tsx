@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   applyEngineeringPackage,
   loadEngineeringWorkspace,
-  previewEngineeringPackage
+  previewEngineeringPackage,
+  visualAssetContentUrl
 } from '../api';
 import type { EngineeringLocale } from '../i18n';
 import {
@@ -16,6 +17,12 @@ import type {
   ScreenEngineering
 } from '../types';
 import { initializeClientMemory } from '../../runtime/clientMemory';
+import { RuntimeLogicalViewport } from '../../runtime/visual-navigation/RuntimeLogicalViewport';
+import { resolveRuntimeLogicalSize } from '../../runtime/visual-navigation/runtimeLogicalCanvas';
+import {
+  resolvePopupLogicalBounds,
+  resolvePopupLogicalPosition
+} from '../../runtime/visual-navigation/runtimePopupPosition';
 import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../visual-runtime';
 import { BindingEditor } from './binding-editor';
 import { VisualEditorCanvas } from './canvas';
@@ -37,6 +44,7 @@ import {
 import { popupEditorText } from './popupVisualEditorText';
 import { createCanonicalPolygon, updateCanonicalPolygonPoints } from './polygonCanonicalMutations';
 import { PropertyInspector } from './property-inspector';
+import { resolveVisualDefinitionSurfaceStyle } from './visualDefinitionSurfaceModel';
 import {
   applyVisualEditorMutationIntent,
   cloneEngineeringValue,
@@ -57,6 +65,7 @@ import {
 import type { VisualEditorKeyboardCommand } from './visualEditorKeyboardModel';
 import {
   applyVisualEditorSessionKeyboardCommand,
+  canPasteVisualEditorSession,
   canRedoVisualEditorSession,
   canUndoVisualEditorSession,
   commitVisualEditorSessionDraft,
@@ -66,8 +75,10 @@ import {
   type VisualEditorSessionState
 } from './visualEditorSessionModel';
 import './VisualEditorWorkspace.css';
+import './PopupVisualEditorWorkspace.css';
 
 const DEFAULT_VIEWPORT: VisualEditorViewport = Object.freeze({ zoom: 1, panX: 0, panY: 0 });
+const RUNTIME_DESIGN_SIZE = resolveRuntimeLogicalSize();
 
 type ValidatedPopupCandidate = Readonly<{
   package: EngineeringPackageView;
@@ -116,6 +127,8 @@ function PopupVisualEditorWorkspaceBody({
   const [frame, setFrame] = useState<PopupVisualFrame>(() => popupFrame(initialPopup));
   const draftScreen = currentVisualEditorSessionScreen(session);
   const draftPopup = visualScreenToPopup(draftScreen, frame);
+  const popupBounds = resolvePopupLogicalBounds(draftPopup);
+  const popupPosition = resolvePopupLogicalPosition(draftPopup, RUNTIME_DESIGN_SIZE, popupBounds);
   const selectedObjectIds = session.selectedObjectIds;
   const [viewport, setViewport] = useState<VisualEditorViewport>(DEFAULT_VIEWPORT);
   const [polygonToolActive, setPolygonToolActive] = useState(false);
@@ -395,7 +408,7 @@ function PopupVisualEditorWorkspaceBody({
           </aside>
 
           <section className="visual-editor-canvas-slot">
-            <header><div><strong>{draftScreen.name || draftScreen.key}</strong><code>{frame.templateKey?.trim() ? `${text.template}: ${frame.templateKey}` : text.standalone}</code></div><span>{polygonToolActive ? text.polygonDrawing : text.interactiveCanvas}</span></header>
+            <header><div><strong>{draftScreen.name || draftScreen.key}</strong><code>{frame.templateKey?.trim() ? `${text.template}: ${frame.templateKey}` : text.standalone}</code></div><span data-testid="popup-authoring-bounds">{polygonToolActive ? text.polygonDrawing : `${text.interactiveCanvas} · ${text.logicalBounds} ${popupBounds.width} × ${popupBounds.height} · ${text.runtimePosition} X ${popupPosition.x}, Y ${popupPosition.y}`}</span></header>
             <VisualEditorCanvas
               screen={draftScreen}
               selectedObjectIds={selectedObjectIds}
@@ -405,12 +418,18 @@ function PopupVisualEditorWorkspaceBody({
               onKeyboardCommand={handleKeyboardCommand}
               canUndo={canUndoVisualEditorSession(session)}
               canRedo={canRedoVisualEditorSession(session)}
+              canPaste={canPasteVisualEditorSession(session)}
+              logicalBoundary={{
+                width: popupBounds.width,
+                height: popupBounds.height,
+                label: `${text.logicalBounds}: ${popupBounds.width} × ${popupBounds.height}`
+              }}
               polygonToolActive={polygonToolActive}
               onPolygonToolCancel={() => setPolygonToolActive(false)}
             />
             <div className="visual-editor-canonical-preview-label"><strong>{text.canonicalPreview}</strong><span>{text.canonicalPreviewHint}</span></div>
-            <CanonicalVisualRenderer
-              elements={draftScreen.elements}
+            <PopupRuntimeCompositionPreview
+              popup={draftPopup}
               emptyLabel={text.emptyCanvas}
               locale={locale}
               dynamoDefinitions={snapshot.package.dynamos}
@@ -460,5 +479,68 @@ function PopupVisualEditorWorkspaceBody({
         </section>
       </section>
     </div>
+  </div>;
+}
+
+function PopupRuntimeCompositionPreview({
+  popup,
+  emptyLabel,
+  locale,
+  dynamoDefinitions
+}: {
+  popup: ReturnType<typeof visualScreenToPopup>;
+  emptyLabel: string;
+  locale: EngineeringLocale;
+  dynamoDefinitions: EngineeringPackageView['dynamos'];
+}) {
+  const bounds = resolvePopupLogicalBounds(popup);
+  const position = resolvePopupLogicalPosition(popup, RUNTIME_DESIGN_SIZE, bounds);
+
+  return <div
+    className="popup-visual-editor-runtime-preview"
+    data-testid="popup-runtime-composition-preview"
+    data-popup-logical-x={position.x}
+    data-popup-logical-y={position.y}
+    data-popup-logical-width={bounds.width}
+    data-popup-logical-height={bounds.height}
+  >
+    <RuntimeLogicalViewport designSize={RUNTIME_DESIGN_SIZE}>
+      <div className="runtime-logical-composition">
+        <div className="runtime-visual-popup-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <section
+            className="runtime-visual-popup"
+            data-testid="popup-runtime-composition-box"
+            data-popup-key={popup.key}
+            style={{
+              position: 'absolute',
+              left: position.x,
+              top: position.y,
+              width: bounds.width,
+              zIndex: 1,
+              pointerEvents: 'auto'
+            }}
+          >
+            <div
+              className="runtime-visual-popup-content"
+              style={{
+                ...resolveVisualDefinitionSurfaceStyle(popup.properties, visualAssetContentUrl),
+                width: bounds.width,
+                height: bounds.height
+              }}
+            >
+              <div className="runtime-visual-definition" data-runtime-visual-context-id="popup:engineering-preview">
+                <CanonicalVisualRenderer
+                  elements={popup.elements}
+                  emptyLabel={emptyLabel}
+                  locale={locale}
+                  dynamoDefinitions={dynamoDefinitions}
+                  showTechnicalFallbackText={false}
+                />
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </RuntimeLogicalViewport>
   </div>;
 }

@@ -103,7 +103,7 @@ jobs:
           const fs = require('fs');
           const config = JSON.parse(fs.readFileSync('.devcontainer/devcontainer.json', 'utf8'));
           const expectedInitializer = 'bash .devcontainer/initialize-preview-machine-id.sh';
-          const expectedLauncher = 'bash scripts/preview/launch-post-c26-preview.sh';
+          const expectedLauncher = 'bash scripts/preview/ensure-post-c26-preview.sh';
           if (config.initializeCommand !== expectedInitializer) throw new Error(`initializeCommand must be exactly: ${expectedInitializer}`);
           if (config.postAttachCommand !== expectedLauncher) throw new Error(`postAttachCommand must be exactly: ${expectedLauncher}`);
           if (!Array.isArray(config.forwardPorts) || config.forwardPorts.length !== 1 || config.forwardPorts[0] !== 5173) {
@@ -114,6 +114,9 @@ jobs:
           }
           if (config.portsAttributes?.['5080']?.onAutoForward !== 'ignore') {
             throw new Error('Internal API port 5080 must remain excluded from auto-forwarding.');
+          }
+          if (config.otherPortsAttributes?.onAutoForward !== 'ignore') {
+            throw new Error('Unexpected ports must never be auto-forwarded by the Preview Codespace.');
           }
           NODE
 
@@ -168,8 +171,8 @@ jobs:
               env.write('ELITESCADA_PREVIEW_ADMIN_PASSWORD=' + password + '\n')
           PY
 
-      - name: Launch post-C26 Preview
-        run: bash scripts/preview/launch-post-c26-preview.sh
+      - name: Launch post-C26 Preview through attach/resume guard
+        run: bash scripts/preview/ensure-post-c26-preview.sh
 
       - name: API diagnostics on Preview launch failure
         if: failure()
@@ -180,6 +183,12 @@ jobs:
             tail -n 200 .preview/api.log
           else
             echo '.preview/api.log was not created.'
+          fi
+          echo '--- EliteSCADA Web diagnostic tail ---'
+          if [[ -f .preview/web.log ]]; then
+            tail -n 120 .preview/web.log
+          else
+            echo '.preview/web.log was not created.'
           fi
           echo '--- End diagnostic tail ---'
 
@@ -207,3 +216,31 @@ jobs:
           const licensing = JSON.parse(fs.readFileSync('.preview/licensing.json', 'utf8'));
           if (licensing.license?.state !== 'Demo') throw new Error('Preview licensing is not Demo');
           NODE
+
+      - name: Simulate Codespace reopen on the same disposable state
+        shell: bash
+        run: |
+          set -euo pipefail
+          BEFORE_REVISION="$(node -e 'const fs=require("fs"); const j=JSON.parse(fs.readFileSync(".preview/runtime-application.json","utf8")); process.stdout.write(String(j.revision));')"
+          BEFORE_PACKAGE="$(cat .preview/active-fixture.sha256)"
+
+          bash scripts/preview/ensure-post-c26-preview.sh
+
+          curl --fail --silent --show-error http://127.0.0.1:5080/health >/dev/null
+          curl --fail --silent --show-error http://127.0.0.1:5173/ | grep -q '<div id="root"'
+          AFTER_REVISION="$(node -e 'const fs=require("fs"); const j=JSON.parse(fs.readFileSync(".preview/runtime-application.json","utf8")); process.stdout.write(String(j.revision));')"
+          AFTER_PACKAGE="$(cat .preview/active-fixture.sha256)"
+
+          [[ "$AFTER_REVISION" == "$BEFORE_REVISION" ]] || {
+            echo "Codespace reopen changed Active revision: $BEFORE_REVISION -> $AFTER_REVISION" >&2
+            exit 1
+          }
+          [[ "$AFTER_PACKAGE" == "$BEFORE_PACKAGE" ]] || {
+            echo 'Codespace reopen changed the frozen package marker.' >&2
+            exit 1
+          }
+          if grep -Eiq 'port 5173 is in use|trying another one|localhost:517[4-9]|0\.0\.0\.0:517[4-9]' .preview/web.log; then
+            echo 'Vite attempted to migrate away from fixed Web port 5173 during reopen.' >&2
+            exit 1
+          fi
+          echo "Codespace reopen regression passed on fixed API/Web ports 5080/5173 with Active revision $AFTER_REVISION."

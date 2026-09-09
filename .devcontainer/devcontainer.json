@@ -23,8 +23,11 @@
       "onAutoForward": "ignore"
     }
   },
+  "otherPortsAttributes": {
+    "onAutoForward": "ignore"
+  },
   "postCreateCommand": "dotnet restore ScadaPlatform.sln && cd web/scada-web && npm ci --no-audit --no-fund",
-  "postAttachCommand": "bash scripts/preview/launch-post-c26-preview.sh",
+  "postAttachCommand": "bash scripts/preview/ensure-post-c26-preview.sh",
   "containerEnv": {
     "DOTNET_NOLOGO": "true",
     "DOTNET_CLI_TELEMETRY_OPTOUT": "1"

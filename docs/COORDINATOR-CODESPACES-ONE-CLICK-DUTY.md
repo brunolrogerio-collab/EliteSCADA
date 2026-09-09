@@ -58,7 +58,15 @@ At the time this duty was recorded, the last technically validated Preview head 
 
 `fbe3f26fb5aa575e1de716b51417efd95ac37d77`
 
-That technical head passed the natural post-C26 Preview and Audit State Readiness workflows. A later documentation-only commit must not be substituted as product/runtime validation evidence merely because it is the branch tip.
+That technical head passed the natural post-C26 Preview and Audit State Readiness workflows.
+
+A later documentation-only commit may sit above that technical head. Therefore a newly created Codespace does **not** need to have `HEAD` numerically equal to the technical-validation SHA when the only later changes are coordinator documentation. The coordinator must instead prove live that:
+
+- the technically validated SHA is an ancestor of the Codespace/branch HEAD;
+- the later commits contain no unvalidated product/runtime/harness mutation;
+- the Codespace worktree is clean.
+
+A documentation-only branch tip must never be substituted as product/runtime validation evidence merely because it is newer.
 
 The current devcontainer contract includes:
 

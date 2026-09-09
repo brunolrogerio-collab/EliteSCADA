@@ -1,0 +1,103 @@
+name: Post-C26 Audit State Readiness
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ wave14/c11-canonical-eee-demo ]
+    paths:
+      - 'scripts/preview/launch-post-c26-preview.sh'
+      - 'scripts/preview/prepare-post-c26-audit-state.sh'
+      - 'preview/fixtures/**'
+      - 'src/Scada.Api/**'
+      - 'src/Scada.Core/HistoricalQueries/**'
+      - 'web/scada-web/tests-wave11/c11-eee-demo-foundation*.ts'
+      - '.github/workflows/post-c26-audit-state.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prove-audit-state:
+    name: Prove useful Alarm and Event audit state
+    runs-on: ubuntu-latest
+    services:
+      timescaledb:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_preview
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: elitescada-preview-db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_preview"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prove exact frozen C11 ancestor
+        run: git merge-base --is-ancestor f18e7cb8e52543b58dd6c23b83bdf21394041598 HEAD
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+
+      - name: Restore backend
+        run: dotnet restore ScadaPlatform.sln
+
+      - name: Install frontend dependencies
+        working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+
+      - name: Resolve Codespaces database service name in CI
+        run: echo '127.0.0.1 timescaledb' | sudo tee -a /etc/hosts >/dev/null
+
+      - name: Generate ephemeral Preview administrator password
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          import secrets
+          password = secrets.token_urlsafe(48)
+          print(f'::add-mask::{password}')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env:
+              env.write('ELITESCADA_PREVIEW_ADMIN_PASSWORD=' + password + '\n')
+          PY
+
+      - name: Launch accepted post-C26 Preview
+        run: bash scripts/preview/launch-post-c26-preview.sh
+
+      - name: Prepare and prove useful Alarm/Event state
+        run: bash scripts/preview/prepare-post-c26-audit-state.sh
+
+      - name: Verify audit-state evidence
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const fault = JSON.parse(fs.readFileSync('.preview/p01-fault.json', 'utf8'));
+          if (fault.current?.value !== true) throw new Error('P01 fault is not active');
+          const operational = JSON.parse(fs.readFileSync('.preview/operational-events.json', 'utf8'));
+          if (operational.datasetKey !== 'operational.events' || !Array.isArray(operational.rows) || operational.rows.length < 1) {
+            throw new Error('Operational Event history is not useful');
+          }
+          const alarms = JSON.parse(fs.readFileSync('.preview/alarm-events.json', 'utf8'));
+          if (alarms.datasetKey !== 'alarm.events' || !Array.isArray(alarms.rows) || alarms.rows.length < 1) {
+            throw new Error('Alarm history is not useful');
+          }
+          NODE

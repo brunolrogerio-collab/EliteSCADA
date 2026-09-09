@@ -93,3 +93,59 @@ test('shell uses shared locale, updates live from Engineering selector, and pres
   await expect(navigation.getByRole('link', { name: /Auditoria/ })).toBeVisible();
   await expect(navigation.getByRole('link', { name: /Licenciamento/ })).toBeVisible();
 });
+
+test('Engineering visual workspace can reclaim constrained viewport without losing panels', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 720 });
+  await page.goto('/engineering');
+
+  const engineeringNavigation = page.locator('.eng-nav');
+  await engineeringNavigation.getByRole('button', { name: /Telas/ }).click();
+  await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
+
+  const canvas = page.locator('.visual-editor-canvas-slot');
+  const screens = page.locator('.visual-editor-screens');
+  const palette = page.locator('.visual-editor-palette-slot');
+  const properties = page.locator('.visual-editor-inspector-slot');
+  const initialCanvas = await canvas.boundingBox();
+  expect(initialCanvas).not.toBeNull();
+
+  const navigationToggle = page.getByTestId('engineering-navigation-toggle');
+  const screensToggle = page.getByTestId('visual-editor-screens-toggle');
+  const paletteToggle = page.getByTestId('visual-editor-palette-toggle');
+  const propertiesToggle = page.getByTestId('visual-editor-properties-toggle');
+
+  await navigationToggle.click();
+  await expect(navigationToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.eng-sidebar')).toBeHidden();
+
+  await screensToggle.click();
+  await expect(screensToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(screens).toBeHidden();
+
+  await paletteToggle.click();
+  await expect(paletteToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(palette).toBeHidden();
+
+  const reclaimedCanvas = await canvas.boundingBox();
+  expect(reclaimedCanvas).not.toBeNull();
+  expect(reclaimedCanvas!.width).toBeGreaterThan(initialCanvas!.width);
+
+  await propertiesToggle.click();
+  await expect(propertiesToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(properties).toBeHidden();
+  await propertiesToggle.click();
+  await expect(propertiesToggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(properties).toBeVisible();
+
+  await paletteToggle.click();
+  await screensToggle.click();
+  await navigationToggle.click();
+  await expect(page.locator('.eng-sidebar')).toBeVisible();
+  await expect(screens).toBeVisible();
+  await expect(palette).toBeVisible();
+  await expect(properties).toBeVisible();
+
+  await expect.poll(() => page.locator('.visual-editor-screen-list').evaluate(element => getComputedStyle(element).overflowY)).toBe('auto');
+  await expect.poll(() => palette.evaluate(element => getComputedStyle(element).overflowY)).toBe('auto');
+  await expect.poll(() => properties.evaluate(element => getComputedStyle(element).overflowY)).toBe('auto');
+});

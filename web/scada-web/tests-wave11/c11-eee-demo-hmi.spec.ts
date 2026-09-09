@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { runtimeDynamoElementIdentity } from '../src/runtime/visual-navigation/runtimeVisualNavigationModel';
 import { EEE_IDS, EEE_PATHS } from './c11-eee-demo-foundation-canonical';
 import { buildEeeDemoPackage, EEE_HMI } from './c11-eee-demo-hmi';
 
@@ -17,6 +18,48 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     expect(candidate.popups).toHaveLength(2);
     expect(candidate.dynamos).toHaveLength(1);
     expect(candidate.dynamos[0]).toMatchObject({ key: EEE_HMI.dynamoKey });
+
+    const pumpElements = candidate.dynamos[0].elements;
+    const pumpStateLabels = Object.fromEntries(pumpElements
+      .filter((element: any) => ['pump-stopped-label', 'pump-running-label', 'pump-fault-label'].includes(element.key))
+      .map((element: any) => [element.key, element]));
+    const pumpStatePlates = Object.fromEntries(pumpElements
+      .filter((element: any) => ['pump-stopped-plate', 'pump-running-plate', 'pump-fault-plate'].includes(element.key))
+      .map((element: any) => [element.key, element]));
+
+    expect(pumpStateLabels['pump-stopped-label']).toMatchObject({ type: 'core.text', properties: { zIndex: 10 } });
+    expect(pumpStateLabels['pump-running-label']).toMatchObject({ type: 'core.text', properties: { zIndex: 12 } });
+    expect(pumpStateLabels['pump-fault-label']).toMatchObject({ type: 'core.text', properties: { zIndex: 14 } });
+    for (const label of Object.values(pumpStateLabels) as any[]) {
+      expect(label.properties).not.toHaveProperty('backgroundColor');
+      expect(label.properties).not.toHaveProperty('cornerRadius');
+    }
+
+    expect(pumpStatePlates['pump-stopped-plate']).toMatchObject({
+      id: EEE_HMI.dynamo.statePlates.stopped,
+      type: 'core.rectangle',
+      properties: { fillStyle: 'solid', fillColor: '#475569', strokeWidth: 0, strokeStyle: 'none', cornerRadius: 8, zIndex: 9 }
+    });
+    expect(pumpStatePlates['pump-running-plate']).toMatchObject({
+      id: EEE_HMI.dynamo.statePlates.running,
+      type: 'core.rectangle',
+      properties: { fillStyle: 'solid', fillColor: '#22C55E', strokeWidth: 0, strokeStyle: 'none', cornerRadius: 8, zIndex: 11 },
+      bindings: [{ key: 'visible', kind: 'tag', metadata: { dynamoParameter: 'running' } }]
+    });
+    expect(pumpStatePlates['pump-fault-plate']).toMatchObject({
+      id: EEE_HMI.dynamo.statePlates.fault,
+      type: 'core.rectangle',
+      properties: { fillStyle: 'solid', fillColor: '#EF4444', strokeWidth: 0, strokeStyle: 'none', cornerRadius: 8, zIndex: 13 },
+      bindings: [{ key: 'visible', kind: 'tag', metadata: { dynamoParameter: 'fault' } }]
+    });
+    expect(containsBounds(pumpStatePlates['pump-stopped-plate'], pumpStateLabels['pump-stopped-label'])).toBe(true);
+    expect(containsBounds(pumpStatePlates['pump-running-plate'], pumpStateLabels['pump-stopped-label'])).toBe(true);
+    expect(containsBounds(pumpStatePlates['pump-running-plate'], pumpStateLabels['pump-running-label'])).toBe(true);
+    expect(containsBounds(pumpStatePlates['pump-fault-plate'], pumpStateLabels['pump-stopped-label'])).toBe(true);
+    expect(containsBounds(pumpStatePlates['pump-fault-plate'], pumpStateLabels['pump-running-label'])).toBe(true);
+    expect(containsBounds(pumpStatePlates['pump-fault-plate'], pumpStateLabels['pump-fault-label'])).toBe(true);
+    expect(pumpStatePlates['pump-running-plate'].properties.zIndex).toBeGreaterThan(pumpStateLabels['pump-stopped-label'].properties.zIndex);
+    expect(pumpStatePlates['pump-fault-plate'].properties.zIndex).toBeGreaterThan(pumpStateLabels['pump-running-label'].properties.zIndex);
 
     const authoredWetWell = overview.elements.find((element: any) => element.id === EEE_HMI.elements.wetWell);
     expect(authoredWetWell?.analogFill).toMatchObject({
@@ -66,6 +109,10 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     await expect(pumpDynamos).toHaveCount(2);
     const p01 = page.locator(`[data-object-id="${EEE_HMI.elements.p01}"]`);
     const p02 = page.locator(`[data-object-id="${EEE_HMI.elements.p02}"]`);
+    const p01StoppedPlate = p01.locator(`[data-object-id="${runtimeDynamoElementIdentity(EEE_HMI.elements.p01, EEE_HMI.dynamo.statePlates.stopped)}"]`);
+    const p01RunningPlate = p01.locator(`[data-object-id="${runtimeDynamoElementIdentity(EEE_HMI.elements.p01, EEE_HMI.dynamo.statePlates.running)}"]`);
+    const p01FaultPlate = p01.locator(`[data-object-id="${runtimeDynamoElementIdentity(EEE_HMI.elements.p01, EEE_HMI.dynamo.statePlates.fault)}"]`);
+    const p02RunningPlate = p02.locator(`[data-object-id="${runtimeDynamoElementIdentity(EEE_HMI.elements.p02, EEE_HMI.dynamo.statePlates.running)}"]`);
     // Active Runtime expands persisted Dynamo instances into transient group
     // roots. Their stable instance identity is therefore the canonical runtime
     // object identity, while data-dynamo-instance-id belongs to the direct
@@ -91,6 +138,10 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     await expectRequestConsumed(request, EEE_PATHS.cmdP02Stop);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value)).toBe(false);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p02Running)).value)).toBe(false);
+    await expect(p01StoppedPlate).toBeVisible();
+    await expect(p01StoppedPlate).toHaveCSS('background-color', 'rgb(71, 85, 105)');
+    await expect(p01RunningPlate).toBeHidden();
+    await expect(p01FaultPlate).toBeHidden();
 
     // One reusable Dynamo definition must remain independently bound per
     // instance. Prove P01-only operation first and confirm P02 stays stopped.
@@ -99,7 +150,10 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     await expectRequestConsumed(request, EEE_PATHS.cmdP01Start);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p02Running)).value)).toBe(false);
     await expect(p01.getByText('OPERANDO')).toBeVisible();
+    await expect(p01RunningPlate).toBeVisible();
+    await expect(p01RunningPlate).toHaveCSS('background-color', 'rgb(34, 197, 94)');
     await expect(p02.getByText('OPERANDO')).toBeHidden();
+    await expect(p02RunningPlate).toBeHidden();
 
     await page.getByRole('button', { name: 'DETALHES P01' }).click();
     const popupLayer = page.locator('.runtime-visual-popup-layer');
@@ -121,7 +175,9 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     await expectRequestConsumed(request, EEE_PATHS.cmdP02Start);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Running)).value)).toBe(false);
     await expect(p02.getByText('OPERANDO')).toBeVisible();
+    await expect(p02RunningPlate).toBeVisible();
     await expect(p01.getByText('OPERANDO')).toBeHidden();
+    await expect(p01RunningPlate).toBeHidden();
     await executeCommand(request, EEE_IDS.commands.p02Stop);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p02Running)).value)).toBe(false);
     await expectRequestConsumed(request, EEE_PATHS.cmdP02Stop);
@@ -131,6 +187,8 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Fault)).value)).toBe(true);
     await expectRequestConsumed(request, EEE_PATHS.cmdInjectP01Fault);
     await expect(p01.getByText('FALHA')).toBeVisible();
+    await expect(p01FaultPlate).toBeVisible();
+    await expect(p01FaultPlate).toHaveCSS('background-color', 'rgb(239, 68, 68)');
     await executeCommand(request, EEE_IDS.commands.resetFaults);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Fault)).value)).toBe(false);
     await expectRequestConsumed(request, EEE_PATHS.cmdResetFaults);
@@ -168,6 +226,15 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     await savePublishActivate(request, 'Wave 11 E2E — restored after C11 HMI');
   }
 });
+
+function containsBounds(cover: any, covered: any): boolean {
+  const outer = cover?.properties ?? {};
+  const inner = covered?.properties ?? {};
+  return outer.x <= inner.x &&
+    outer.y <= inner.y &&
+    outer.x + outer.width >= inner.x + inner.width &&
+    outer.y + outer.height >= inner.y + inner.height;
+}
 
 async function assertLogicalViewport(page: Page) {
   const viewport = page.getByTestId('runtime-logical-viewport');

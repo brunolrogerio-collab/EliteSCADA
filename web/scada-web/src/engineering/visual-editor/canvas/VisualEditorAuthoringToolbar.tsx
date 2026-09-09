@@ -17,7 +17,8 @@ export function VisualEditorAuthoringToolbar({
   onOperation,
   onKeyboardCommand,
   canUndo,
-  canRedo
+  canRedo,
+  canPaste
 }: {
   screen: ScreenEngineering;
   selectedObjectIds: readonly string[];
@@ -25,6 +26,7 @@ export function VisualEditorAuthoringToolbar({
   onKeyboardCommand?: (command: VisualEditorKeyboardCommand) => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  canPaste?: boolean;
 }) {
   const text = useC07VisualEditorText().toolbar;
   const state = useMemo(
@@ -79,8 +81,8 @@ export function VisualEditorAuthoringToolbar({
     <ToolbarGroup label={text.history}>
       <Tool label={text.undo} disabled={!onKeyboardCommand || canUndo === false} onClick={() => onKeyboardCommand?.({ kind: 'undo' })}>↶</Tool>
       <Tool label={text.redo} disabled={!onKeyboardCommand || canRedo === false} onClick={() => onKeyboardCommand?.({ kind: 'redo' })}>↷</Tool>
-      <Tool label={text.copy} disabled={!onKeyboardCommand || state.selectionCount === 0} onClick={() => onKeyboardCommand?.({ kind: 'copy' })}>{text.copy}</Tool>
-      <Tool label={text.paste} disabled={!onKeyboardCommand} onClick={() => onKeyboardCommand?.({ kind: 'paste' })}>{text.paste}</Tool>
+      <Tool label={text.copy} disabled={!onKeyboardCommand || state.selectionCount === 0 || !state.sameParent} onClick={() => onKeyboardCommand?.({ kind: 'copy' })}>{text.copy}</Tool>
+      <Tool label={text.paste} disabled={!onKeyboardCommand || canPaste === false} onClick={() => onKeyboardCommand?.({ kind: 'paste' })}>{text.paste}</Tool>
     </ToolbarGroup>
 
     <ToolbarGroup label={text.align}>

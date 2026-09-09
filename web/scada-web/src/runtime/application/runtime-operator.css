@@ -52,6 +52,90 @@
   border: 0;
   overflow: hidden;
 }
+.runtime-logical-composition {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  isolation: isolate;
+  overflow: visible;
+}
+.runtime-visual-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+.runtime-visual-popup-layer {
+  z-index: 1;
+  overflow: visible;
+}
+.runtime-visual-screen > .runtime-visual-definition {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.runtime-visual-screen > .runtime-visual-definition > .visual-editor-renderer-stage {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+  background-image: none;
+  box-shadow: none;
+}
+.runtime-visual-screen > .runtime-visual-definition > .visual-editor-renderer-empty {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+}
+.runtime-visual-popup {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  overflow: visible;
+}
+.runtime-visual-popup-header {
+  display: none;
+}
+.runtime-visual-popup-content {
+  position: relative;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+.runtime-visual-popup-content > .runtime-visual-definition {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+.runtime-visual-popup-content > .runtime-visual-definition > .visual-editor-renderer-stage {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+  background-image: none;
+  box-shadow: none;
+}
+.runtime-visual-popup-content > .runtime-visual-definition > .visual-editor-renderer-empty {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+}
 .runtime-operator-overlay {
   position: absolute;
   top: 42px;

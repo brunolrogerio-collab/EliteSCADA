@@ -255,4 +255,49 @@ test('C15 Trend survives Save Publish Activate in Screen and Popup and mounts li
   await expect(mountedHistoryTrend.getByTestId('visual-trend-legend')).toContainText('Frequency history');
   await expect(mountedHistoryTrend.getByTestId('visual-trend-series')).toHaveCount(1);
   await expect(mountedHistoryTrend.getByTestId('visual-trend-empty')).toHaveCount(0);
+
+  const historicalRoute = '**/api/historical/query';
+  await page.route(historicalRoute, async route => {
+    await route.fulfill({
+      status: 404,
+      contentType: 'text/plain',
+      body: ''
+    });
+  });
+  await page.reload();
+
+  const failedHistoryTrend = page.locator(`[data-testid="visual-trend"][data-object-id="${historyTrendId}"]`);
+  await expect(failedHistoryTrend).toBeVisible();
+  await expect(failedHistoryTrend).toHaveAttribute('data-trend-state', 'error');
+  await expect(failedHistoryTrend).toHaveAttribute('title', /Historical query failed with HTTP 404/i);
+  await expect(failedHistoryTrend.getByTestId('visual-trend-empty')).toHaveText('History unavailable');
+  await expect(failedHistoryTrend.getByTestId('visual-trend-empty')).not.toContainText('404');
+  await expect(failedHistoryTrend.getByTestId('visual-trend-empty')).not.toHaveText('No data');
+  await page.unroute(historicalRoute);
+
+  await page.route(historicalRoute, async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        version: 1,
+        datasetKey: 'historian.samples',
+        columns: [],
+        rows: [],
+        fromUtc: '2026-09-07T00:00:00.000Z',
+        toUtc: '2026-09-07T01:00:00.000Z',
+        nextCursor: null,
+        pageSize: 0
+      })
+    });
+  });
+  await page.reload();
+
+  const emptyHistoryTrend = page.locator(`[data-testid="visual-trend"][data-object-id="${historyTrendId}"]`);
+  await expect(emptyHistoryTrend).toBeVisible();
+  await expect(emptyHistoryTrend).toHaveAttribute('data-trend-state', 'ready');
+  await expect(emptyHistoryTrend.getByTestId('visual-trend-empty')).toHaveText('No data');
+  await expect(emptyHistoryTrend.getByTestId('visual-trend-empty')).not.toContainText('History unavailable');
+  await expect(emptyHistoryTrend).not.toHaveAttribute('title', /HTTP 404/i);
+  await page.unroute(historicalRoute);
 });

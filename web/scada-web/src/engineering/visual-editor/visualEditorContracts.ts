@@ -32,6 +32,12 @@ export type VisualEditorViewport = Readonly<{
   panY: number;
 }>;
 
+export type VisualEditorLogicalBoundary = Readonly<{
+  width: number;
+  height: number;
+  label: string;
+}>;
+
 export type VisualEditorSelectionMode = 'replace' | 'add' | 'toggle';
 
 export type VisualEditorUiIntent =
@@ -182,6 +188,7 @@ export type VisualEditorCanvasContractProps = Readonly<{
   onMutationIntent: (intent: VisualEditorMutationIntent) => void;
   polygonToolActive?: boolean;
   onPolygonToolCancel?: () => void;
+  logicalBoundary?: VisualEditorLogicalBoundary;
 }>;
 
 export type VisualEditorPropertyInspectorContractProps = Readonly<{

@@ -56,6 +56,7 @@ export type CanonicalVisualRendererProps = {
   onVisualEvent?: (event: CanonicalVisualEvent) => void;
   onTagWrite?: SliderTagWrite;
   visualAssetUrl?: VisualAssetUrlResolver;
+  showTechnicalFallbackText?: boolean;
 };
 
 const builtinVisualTypes = new Set<string>(Object.values(BUILTIN_VISUAL_OBJECT_TYPES));
@@ -68,7 +69,8 @@ export function CanonicalVisualRenderer({
   dynamoDefinitions,
   onVisualEvent,
   onTagWrite,
-  visualAssetUrl = visualAssetContentUrl
+  visualAssetUrl = visualAssetContentUrl,
+  showTechnicalFallbackText = true
 }: CanonicalVisualRendererProps) {
   const rootElements = elements ?? emptyElements;
   const runtimeBindingElements = React.useMemo(
@@ -88,6 +90,7 @@ export function CanonicalVisualRenderer({
       onVisualEvent={onVisualEvent}
       onTagWrite={onTagWrite}
       visualAssetUrl={visualAssetUrl}
+      showTechnicalFallbackText={showTechnicalFallbackText}
     />)}
   </div>;
 }
@@ -100,7 +103,8 @@ function CanonicalElement({
   onVisualEvent,
   runtimeIdentityPrefix,
   onTagWrite,
-  visualAssetUrl
+  visualAssetUrl,
+  showTechnicalFallbackText
 }: {
   element: VisualElementEngineering;
   locale: EngineeringLocale;
@@ -110,6 +114,7 @@ function CanonicalElement({
   runtimeIdentityPrefix?: string;
   onTagWrite?: SliderTagWrite;
   visualAssetUrl: VisualAssetUrlResolver;
+  showTechnicalFallbackText: boolean;
 }) {
   if (element.dynamoKey && dynamoDefinitions) {
     return <CanonicalDynamoElement
@@ -120,6 +125,7 @@ function CanonicalElement({
       onVisualEvent={onVisualEvent}
       onTagWrite={onTagWrite}
       visualAssetUrl={visualAssetUrl}
+      showTechnicalFallbackText={showTechnicalFallbackText}
     />;
   }
 
@@ -131,6 +137,7 @@ function CanonicalElement({
       element={element}
       runtimeObjectId={runtimeObjectId}
       onClick={onClick}
+      showTechnicalFallbackText={showTechnicalFallbackText}
     />;
   }
 
@@ -172,6 +179,7 @@ function CanonicalElement({
           runtimeIdentityPrefix={runtimeIdentityPrefix}
           onTagWrite={onTagWrite}
           visualAssetUrl={visualAssetUrl}
+          showTechnicalFallbackText={showTechnicalFallbackText}
         />)}
       </div>;
     }
@@ -191,7 +199,7 @@ function CanonicalElement({
         {assetId ? <img
           src={visualAssetUrl(assetId)} alt={element.key} draggable={false}
           style={{ width: '100%', height: '100%', objectFit: imageFit(values[VISUAL_PROPERTY_KEYS.imageFit]), objectPosition: `${percent(values[VISUAL_PROPERTY_KEYS.imagePositionX])}% ${percent(values[VISUAL_PROPERTY_KEYS.imagePositionY])}%` }}
-        /> : <span className="visual-editor-image-placeholder">{element.key}</span>}
+        /> : showTechnicalFallbackText ? <span className="visual-editor-image-placeholder">{element.key}</span> : null}
       </div>;
     }
 
@@ -297,7 +305,7 @@ function CanonicalElement({
       ? formatVisualScalarText(textSample, textBinding, locale)
       : null;
     const className = `visual-editor-object visual-editor-${element.type.replace('core.', '')}${dynamicText && !dynamicText.available ? ' visual-editor-dynamic-unavailable' : ''}`;
-    const content = dynamicText?.text || staticText || element.key;
+    const content = dynamicText?.text || staticText || (showTechnicalFallbackText ? element.key : '');
     const sourceTitle = dynamicText ? `${textBinding!.target} · ${dynamicText.state}` : undefined;
     const title = combineTitles(sourceTitle, tooltipTitle, diagnosticTitle);
     const fill = analogFillOverlay(element, dynamic.analogFill);
@@ -345,7 +353,8 @@ function CanonicalDynamoElement({
   dynamoDefinitions,
   onVisualEvent,
   onTagWrite,
-  visualAssetUrl
+  visualAssetUrl,
+  showTechnicalFallbackText
 }: {
   element: VisualElementEngineering;
   locale: EngineeringLocale;
@@ -354,6 +363,7 @@ function CanonicalDynamoElement({
   onVisualEvent?: (event: CanonicalVisualEvent) => void;
   onTagWrite?: SliderTagWrite;
   visualAssetUrl: VisualAssetUrlResolver;
+  showTechnicalFallbackText: boolean;
 }) {
   try {
     const definition = resolveDynamoDefinition(dynamoDefinitions, element.dynamoKey!);
@@ -400,6 +410,7 @@ function CanonicalDynamoElement({
         runtimeIdentityPrefix={composition.instanceId}
         onTagWrite={onTagWrite}
         visualAssetUrl={visualAssetUrl}
+        showTechnicalFallbackText={showTechnicalFallbackText}
       />)}
     </div>;
   } catch (reason) {
@@ -464,15 +475,18 @@ function registeredScalarProperties(element: VisualElementEngineering, schema: V
 function LegacyCompatibilityElement({
   element,
   runtimeObjectId,
-  onClick
+  onClick,
+  showTechnicalFallbackText
 }: {
   element: VisualElementEngineering;
   runtimeObjectId?: string;
   onClick?: (event: React.MouseEvent) => void;
+  showTechnicalFallbackText: boolean;
 }) {
   const x = legacyNumber(element.properties?.x, 18);
   const y = legacyNumber(element.properties?.y, 18);
-  const label = legacyString(element.properties?.label) || element.key || element.type;
+  const authoredLabel = legacyString(element.properties?.label);
+  const label = authoredLabel || (showTechnicalFallbackText ? element.key || element.type : '');
   return <div
     className="visual-editor-object visual-editor-legacy-placeholder"
     style={{ left: x, top: y }}
@@ -482,7 +496,7 @@ function LegacyCompatibilityElement({
     title={`Legacy visual type: ${element.type}`}
     onClick={onClick}
   >
-    <strong>{label}</strong><span>{element.type}</span>
+    {label ? <strong>{label}</strong> : null}{showTechnicalFallbackText ? <span>{element.type}</span> : null}
   </div>;
 }
 

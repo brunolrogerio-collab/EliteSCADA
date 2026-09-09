@@ -52,6 +52,7 @@ export type EnhancedVisualEditorCanvasProps = VisualEditorCanvasContractProps & 
   onAuthoringOperation?: (operation: VisualEditorAuthoringOperation) => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  canPaste?: boolean;
 }>;
 
 type MarqueeDraft = Readonly<{
@@ -300,23 +301,26 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
       onKeyboardCommand={props.onKeyboardCommand}
       canUndo={props.canUndo}
       canRedo={props.canRedo}
+      canPaste={props.canPaste}
     />
-    <LegacyVisualEditorCanvas {...props} onMutationIntent={handleMutationIntent} />
-    <VisualEditorOutliner
-      screen={props.screen}
-      selectedObjectIds={props.selectedObjectIds}
-      onSelection={(objectId, mode) => props.onUiIntent({
-        kind: 'selection.change',
-        objectIds: [objectId],
-        mode
-      })}
-    />
-    <VisualDefinitionSurfaceInspector screen={props.screen} onCommand={props.onKeyboardCommand} />
-    <DynamoInstanceInspector
-      screen={props.screen}
-      selectedObjectIds={props.selectedObjectIds}
-      onCommand={props.onKeyboardCommand}
-    />
+    <div className="visual-editor-canvas-enhanced__canvas">
+      <LegacyVisualEditorCanvas {...props} onMutationIntent={handleMutationIntent} />
+      <VisualEditorOutliner
+        screen={props.screen}
+        selectedObjectIds={props.selectedObjectIds}
+        onSelection={(objectId, mode) => props.onUiIntent({
+          kind: 'selection.change',
+          objectIds: [objectId],
+          mode
+        })}
+      />
+      <VisualDefinitionSurfaceInspector screen={props.screen} onCommand={props.onKeyboardCommand} />
+      <DynamoInstanceInspector
+        screen={props.screen}
+        selectedObjectIds={props.selectedObjectIds}
+        onCommand={props.onKeyboardCommand}
+      />
+    </div>
     {verticalGuideStyle ? <div
       className="visual-editor-smart-guide is-vertical"
       data-testid="visual-editor-smart-guide-vertical"

@@ -92,7 +92,7 @@ export default defineConfig({
     },
     {
       name: 'chromium-wave11-c11-eee-hmi',
-      testMatch: /c11-eee-demo-hmi\.spec\.ts/,
+      testMatch: /(?:c11-eee-demo-hmi|c26-popup-composition)\.spec\.ts/,
       dependencies: ['chromium-wave11-c11-eee-foundation'],
       use: { ...devices['Desktop Chrome'] }
     },

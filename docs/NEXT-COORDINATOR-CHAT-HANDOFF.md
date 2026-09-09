@@ -10,133 +10,199 @@ Assuma a coordenação da Wave 14 do EliteSCADA a partir deste ponto.
 
 **GitHub é a memória oficial e a única autoridade sobre o estado do projeto.**
 
-Revalide todo o estado ao vivo antes de qualquer decisão, diagnóstico, alteração de código/documentação, ação em PR, rerun ou merge. Havendo divergência, GitHub live prevalece.
+Antes de qualquer decisão, diagnóstico, alteração de código/documentação, ação em PR, rerun ou merge, revalide o estado ao vivo. Havendo divergência, GitHub live prevalece.
 
-Repositório: `brunolrogerio-collab/EliteSCADA`
+Repositório:
 
-- Integração: `wave14/corrections-integration`, PR #212 -> `main` — OPEN/DRAFT, **NÃO MERGEAR sem autorização posterior, separada e explícita do Product Owner**.
-- Branch ativa: `wave14/c26-po-homologation-corrections`.
-- Issue coordenadora: #286.
-- PR #287: C26 -> C11, DRAFT.
-- PR #288: C26 -> `main`, **VALIDATION ONLY / MUST NEVER MERGE**.
-- PR #266: C11 validation-only, **MUST NEVER MERGE**.
-- PR #263: C11 -> integração apenas.
-- Preview #285: preservar intocado como evidência pré-C26.
-- Gate pós-C26 de auditoria real via ChatGPT Work: issue #289.
-- Wave13 #205/#207: pausada.
+`brunolrogerio-collab/EliteSCADA`
 
-## Leitura obrigatória
+Branch ativa:
 
-Leia no branch C26, nesta ordem:
+`wave14/c26-po-homologation-corrections`
 
-1. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-08.md`
+Issue coordenadora:
+
+#286
+
+## TOPOLOGIA E PROIBIÇÕES
+
+- PR #287 — C26 -> `wave14/c11-canonical-eee-demo` somente.
+- PR #288 — C26 -> `main` — **VALIDATION ONLY / MUST NEVER MERGE**.
+- PR #266 — C11 -> `main` — **VALIDATION ONLY / MUST NEVER MERGE**.
+- PR #263 — C11 -> `wave14/corrections-integration` somente.
+- PR #212 — integração Wave14 -> `main` — OPEN/DRAFT e **SEM AUTORIZAÇÃO DE MERGE**.
+- Preview #285 — evidência histórica pré-C26; preservar intocado.
+- Issue #289 — gate posterior de auditoria real via ChatGPT Work; não executar durante C26.
+- Wave13 #205/#207 — pausada.
+
+`siga`, CI verde, C26 concluído, Preview, Work audit ou homologação não autorizam #212. O merge em `main` exige autorização futura, separada e explícita do Product Owner.
+
+Não existe autorização atual para integrar #287. Primeiro C26 deve ficar 5/5 verde, ser aceito e receber autorização explícita para C26 -> C11.
+
+## LEITURA OBRIGATÓRIA
+
+Leia ao vivo no branch C26, nesta ordem:
+
+1. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-09.md`
 2. `docs/CURRENT-COORDINATOR-HANDOFF.md`
 3. `LAST CHANGE.md`
 4. `docs/WAVE14-C26-PO-HOMOLOGATION-EXECUTION-LOG.md`
 5. `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md`
 6. `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
-7. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-07.md`
-8. `docs/WAVE14-C25-POST-DEMO-EXECUTION-LOG.md`
-9. `docs/WAVE14-C25-FINAL-CANDIDATE-MATRIX-2026-09-06.md`
+7. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-08.md`
+8. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-07.md`
+9. `docs/WAVE14-C25-POST-DEMO-EXECUTION-LOG.md`
+10. `docs/WAVE14-C25-FINAL-CANDIDATE-MATRIX-2026-09-06.md`
 
-Depois revalide branch HEAD, issue #286, issue #289, PRs #287/#288/#212/#266/#263, C11 canônico, Preview #285 e workflows do SHA exato de produto/teste.
+Depois revalide branch/exact HEAD, #286, #289, PRs #287/#288/#212/#266/#263, C11 canônico, Preview #285 e workflows/logs do exact product/test SHA.
 
-## Estado de transferência
+## ESTADO DE TRANSFERÊNCIA
 
-O SHA de produto/teste C26 atual é:
+O commit documental desta rotação está acima do candidato de produto. Não confunda HEAD documental com SHA validado.
 
-`642e33c83d17e3c53beb588841626551e6ea305f`
+Exact C26 product/test SHA atual:
 
-`fix(w14-c26): let readonly Engineering styles win cascade`
+`e7c8a8bf3954890a1ca841498222bf6094952baf`
 
-A branch contém commits documentais/de coordenação acima desse SHA. Não trate o HEAD documental como candidato de produto validado; revalide ambos ao vivo.
+`fix(w14-c26): serialize shared PostgreSQL schema setup`
 
-Último SHA de produto/teste comprovadamente 5/5 verde:
+Último exact product/test SHA comprovadamente 5/5 verde:
 
-`7d9d97797f8e19a874a6958f2fbaec9cfb3b2b11`
+`55f292359af86f5f28d90cc578d4ac93ccc1f19c`
 
-C26.1–C26.6 estão **IMPLEMENTADAS / VALIDADAS**.
+`fix(w14-c26): align Popup authoring with Runtime`
 
-C26.7 Engineering theme/contrast está **IMPLEMENTADA, MAS NÃO VALIDADA** e é o bloqueio atual.
+Estado:
 
-C26.8 Screen Editor **NÃO FOI INICIADA** e permanece bloqueada até C26.7 ficar 5/5 verde no mesmo exact product/test SHA.
+- C26.1–C26.7 — **IMPLEMENTADAS / VALIDADAS**
+- C26.8 Screen Editor — **IMPLEMENTADA / VALIDADA** em `6de64ed4...`
+- C26.9 Popup Editor — **IMPLEMENTADA / VALIDADA** em `55f29235...`
+- C26.10 EEE cleanup — **IMPLEMENTADA / NÃO VALIDADA / BLOQUEIO ATUAL**
+- C26.11 repackage/new Preview — **NÃO INICIADA / BLOQUEADA**
 
-### Histórico imediato da C26.7
+## EVIDÊNCIA DO EXACT SHA ATUAL
 
-No SHA anterior `a05d349a37a41629ee13b47b4652df74d287273d`, o Chromium provou que um input de rota em Screens continuava visualmente igual ao estado editável depois de receber `readonly`.
+Em `e7c8a8bf3954890a1ca841498222bf6094952baf`:
 
-A causa foi diagnosticada como especificidade CSS: o selector editável acumulava especificidade pelos vários `:not([type=...])` e vencia `[readonly]`.
+- EliteSCADA CI #1471 / run `34347157464` — SUCCESS
+- Preview Licensing CI #419 / run `34347157585` — SUCCESS
+- Interop Lab Smoke #302 / run `34347159685` — SUCCESS
+- L3 Seven-Driver Lab #375 / run `34347157398` — SUCCESS
+- Wave 11 Active HMI Runtime #397 / run `34347157735` — **FAILURE**
+- Interop natural adicional #301 / run `34347157333` — SUCCESS
 
-Foi aplicada correção mínima e genérica no SHA `642e33c...`, usando `:where(...)` nos filtros de tipo para que eles não elevem a especificidade. Não foi adicionado `!important` e o teste Playwright estrito não foi afrouxado.
+Não houve rerun.
 
-No exact product/test SHA `642e33c...`:
+## BLOQUEIO ATUAL — C26.10
 
-- Preview Licensing CI #402 / run `34255187708` — SUCCESS
-- Interop Lab Smoke #279 / run `34255187740` — SUCCESS
-- Wave11 Active HMI Runtime #380 / run `34255187706` — SUCCESS
-- L3 Seven-Driver Lab #358 / run `34255187748` — SUCCESS
-- EliteSCADA CI #1454 / run `34255187823` — **FAILURE**
+Job Wave11:
 
-No EliteSCADA CI #1454:
+`102451385709`
 
-- Backend build/test/smoke — SUCCESS
-- Web build — SUCCESS
-- Chromium end-to-end job `102159657922` — **FAILURE** no passo `Run browser E2E tests`
+Passo:
 
-**Não houve rerun.**
+`Run Wave 11 Active Runtime browser lifecycle`
 
-Muito importante: **não assuma que a falha atual do Chromium em `642e33c...` é a mesma assertion que falhou em `a05d349...`.** Antes de qualquer novo diagnóstico ou edição, refaça ao vivo a leitura completa da evidência do job `102159657922` e confronte-a com os arquivos exatos daquele SHA.
+Resultado Playwright:
 
-Próximo trabalho correto:
+- 17 passaram;
+- 2 falharam;
+- 4 não executaram.
 
-1. revalidar GitHub ao vivo;
-2. obter a falha completa do Chromium `102159657922`;
-3. ler no exact SHA `642e33c...` o CSS, componente/DOM afetado e `web/scada-web/tests-e2e/wave-14-c26-engineering-contrast.spec.ts`;
-4. identificar a causa real atual;
-5. fazer apenas a menor correção **genérica de produto** necessária;
-6. não criar workaround específico da EEE;
-7. não enfraquecer teste, security, Authority, Identity, Engineering Lock, Licensing, lifecycle, package, drivers ou Runtime authority;
-8. deixar os workflows naturais rodarem no novo SHA;
-9. exigir os cinco gates normais verdes no mesmo exact product/test SHA;
-10. somente então registrar C26.7 como VALIDADA e começar C26.8.
+Falharam:
 
-### Nota de coordenação
+- `tests-wave11/c11-eee-demo-hmi.spec.ts`
+- `tests-wave11/c26-popup-composition.spec.ts`
 
-Durante a descoberta de ferramenta de escrita do GitHub no chat anterior, um arquivo placeholder `dummy` foi criado acidentalmente e removido imediatamente por commit normal. Não houve force push/rebase e não deve existir efeito de produto. Os commits envolvidos são apenas coordenação/limpeza e não servem como evidência de validação.
+As duas falhas ocorreram no Preview do package, antes das assertions de Runtime. `preview.canApply` retornou false.
 
-## Gate obrigatório após C26
+Entidade inválida:
 
-Issue #289 e `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md` estabelecem um gate adicional deliberado antes da próxima homologação final do Product Owner.
+`eee.dynamo.pump`
 
-**Não executar agora.**
+Erros `VISUAL_PROPERTY_INVALID`:
 
-Somente depois de C26 concluído/aceito e integrado ao C11 canônico, novo package/checksum/provenance e **novo** Preview pós-C26 tecnicamente verde, o coordenador deve preparar um SCADA realmente vivo e declarar `READY FOR WORK AUDIT` somente quando Runtime, Engineering, EEE Active, simulação dinâmica, Historian/HistoricalQuery, Alarm/Event, usuários de auditoria e URLs explícitas estiverem prontos.
+- `pump-stopped-label`
+- `pump-running-label`
+- `pump-fault-label`
 
-Então:
+Motivo exato:
 
-`READY FOR WORK AUDIT -> ChatGPT Work audit-only de uso real no navegador (~40 min) -> relatório/evidências -> triagem e reprodução pelo coordenador -> correções genéricas + regressões -> novo candidato -> recheck dirigido se justificar -> homologação final do Product Owner`.
+`core.text` não declara `backgroundColor`.
 
-Na primeira passagem Work não desenvolve: não altera código, não cria patch/commit/merge e não deve desperdiçar a janela preparando dependências, banco, package, portas ou credenciais.
+Histórico: o candidate C26.10 `50363bcc50037cc6932a1282e58e3b6d75fda9f2` tentou impedir a sobreposição visual de `PARADA` sob `OPERANDO`/`FALHA`, adicionando `backgroundColor` e `cornerRadius` aos três textos. A intenção visual é correta, mas a representação é inválida: os schemas backend e browser de `core.text` contêm somente Base + Text e não declaram nenhuma dessas propriedades.
 
-Quando houver candidato real, criar `docs/WORK-UI-AUDIT-HANDOFF.md` curto e candidate-specific; nunca versionar segredo.
+Artifact:
 
-## Guardrails permanentes
+- `playwright-report-wave11`
+- ID `10102316731`
+- run `34347157735`
 
+O SHA atual também contém uma correção genérica e válida de PostgreSQL: Operational Event history passou a usar o mesmo advisory lock `4993446713136202561` das demais stores do schema compartilhado, com regressão concorrente. EliteSCADA CI #1471 ficou verde. Não reverta essa correção.
+
+## PRÓXIMA AÇÃO OBRIGATÓRIA
+
+Antes de editar:
+
+1. revalide GitHub ao vivo;
+2. recupere novamente o job `102451385709` e artifact se necessário;
+3. leia no exact SHA:
+   - `web/scada-web/tests-wave11/c11-eee-demo-hmi.ts`
+   - `web/scada-web/tests-wave11/c11-eee-demo-hmi.spec.ts`
+   - `src/Scada.Engineering/VisualScripting/BuiltinVisualObjectSchemas.cs`
+   - `web/scada-web/src/visual-runtime/builtinVisualObjectSchemas.ts`
+   - `web/scada-web/src/engineering/visual-editor/CanonicalVisualRenderer.tsx`
+
+Depois:
+
+1. substitua a representação inválida por uma composição EEE mínima usando somente objetos/propriedades visuais públicos e válidos;
+2. preserve placas opacas, cobertura integral dos bounds e precedência Falha > Operando > Parada;
+3. preserve Preview/package validation e testes estritos;
+4. não crie exceção EEE na validação;
+5. não amplie `core.text` apenas para acomodar a fixture EEE; qualquer expansão genérica exige justificativa independente, paridade backend/browser e regressões completas;
+6. não altere security, authentication, authorization, Identity, Engineering Lock, Licensing, lifecycle, package authority, Drivers ou Runtime Active Revision authority;
+7. publique somente a menor correção sustentada pela evidência;
+8. deixe os workflows normais dispararem naturalmente;
+9. diagnostique qualquer vermelho antes de rerun;
+10. exija os cinco gates normais verdes no mesmo exact SHA.
+
+Somente então C26.10 pode ser registrada como VALIDADA.
+
+Somente depois iniciar C26.11.
+
+## GATE PÓS-C26 — CHATGPT WORK
+
+Issue #289 e `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md` continuam obrigatórios, mas **NÃO executar agora**.
+
+Ordem:
+
+`C26 5/5 verde + aceito -> integração C26->C11 explicitamente autorizada -> C11 corrigido -> novo .escadapkg/checksum/provenance -> NOVO Preview pós-C26 -> técnico verde + ambiente real preparado -> READY FOR WORK AUDIT -> Work audit real no navegador -> triagem/reprodução/correções -> novo candidato -> recheck dirigido se necessário -> homologação final do Product Owner`
+
+O Work deve receber o SCADA vivo, EEE Active, simulação, TAGs dinâmicas, Alarm/Event/Historian/HistoricalQuery, Runtime, Engineering, Screen Editor, Popup Editor e usuários preparados previamente. Não gastar a janela aproximada de 40 minutos fazendo setup.
+
+Criar `docs/WORK-UI-AUDIT-HANDOFF.md` somente quando houver candidato real pronto, com exact SHA, URLs reais, SHA-256 do package e autenticação sem segredo versionado.
+
+## GUARDRAILS PERMANENTES
+
+- GitHub live sempre prevalece;
 - nunca alterar `main` diretamente;
-- #212 não possui autorização de merge;
-- #288 e #266 nunca mergear;
-- #287 é C26 -> C11;
-- #263 é C11 -> integração;
+- nunca mergear #288;
+- nunca mergear #266;
+- nunca mergear #212 sem autorização futura, separada e explícita do Product Owner;
+- #287 é apenas C26 -> C11 e não está autorizado agora;
+- #263 é apenas C11 -> integração;
 - preservar #285;
-- #289 não autoriza execução antecipada nem merge protegido;
+- #289 não autoriza execução antecipada nem merge;
 - sem force push, rebase destrutivo, exclusão de branch ou limpeza fora do escopo;
-- diagnosticar CI vermelho antes de rerun;
-- nunca enfraquecer testes/validação, segurança, autenticação, autorização, Identity, Engineering Lock, Licensing, lifecycle, package, drivers ou Runtime Active Revision authority;
-- Runtime/Active não pode depender de `.escadalib`;
+- sem rerun cego;
+- nunca enfraquecer testes/validação, segurança, autenticação, autorização, Identity, Engineering Lock, Licensing, lifecycle, package, Drivers ou Runtime authority;
+- Runtime/Active deve ser autocontido e não pode depender de `.escadalib`;
 - não mascarar defeito genérico com workaround EEE-specific;
-- Alarm / Operational Event / Audit continuam separados;
-- Wave13 segue pausada.
+- Alarm, Operational Event e Audit continuam distintos;
+- Wave13 permanece pausada.
 
-Quando o Product Owner disser `siga`, avance autonomamente pelas próximas tarefas seguras. `siga` nunca autoriza os merges protegidos.
+Quando o Product Owner disser `siga`, avance autonomamente pelas próximas tarefas seguras. Se workflows estiverem rodando e não houver tarefa paralela, pare para o Product Owner monitorar. `siga` nunca autoriza merges protegidos.
+
+No fim de cada interação, registre as últimas ações no repositório, normalmente em comentário preciso na issue #286.
 
 ---

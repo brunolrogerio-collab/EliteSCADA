@@ -251,3 +251,153 @@ Still mandatory outside this immediate C26 checkpoint sequence:
 - no EEE-specific workaround for a generic product defect;
 - Alarm / Operational Event / Audit remain separate;
 - Wave13 #205/#207 remains paused.
+
+## Continuation checkpoint — 2026-09-09 coordinator rotation
+
+GitHub live was revalidated before this append. The earlier C26.7 transfer blocker in this chronological log was subsequently resolved; the current state is below.
+
+### C26.7 — implemented / validated
+
+Validation SHA:
+
+`b1bd1f664b06684afaecbbff2d27da10760cc1ec`
+
+Five normal gates all succeeded:
+
+- EliteSCADA CI #1466 / run `34286582875`;
+- Preview Licensing CI #414 / run `34286582844`;
+- Interop Lab Smoke #292 / run `34286582814`;
+- Wave 11 Active HMI Runtime #392 / run `34286582873`;
+- L3 Seven-Driver Lab #370 / run `34286582905`.
+
+Additional natural Interop #291 / run `34286580927` also succeeded. No rerun.
+
+### C26.8 — implemented / validated
+
+Validation SHA:
+
+`6de64ed4d11ac1e525f32d7071b9624e428c96ee`
+
+`fix(w14-c26): keep canvas overlays off controls`
+
+Five normal gates all succeeded:
+
+- EliteSCADA CI #1468 / run `34305175515`;
+- Preview Licensing CI #416 / run `34305175507`;
+- Interop Lab Smoke #295 / run `34305175549`;
+- Wave 11 Active HMI Runtime #394 / run `34305175519`;
+- L3 Seven-Driver Lab #372 / run `34305175521`.
+
+Additional natural Interop #296 / run `34305175891` also succeeded. No rerun.
+
+### C26.9 — implemented / validated
+
+Validation SHA:
+
+`55f292359af86f5f28d90cc578d4ac93ccc1f19c`
+
+`fix(w14-c26): align Popup authoring with Runtime`
+
+Five normal gates all succeeded:
+
+- EliteSCADA CI #1469 / run `34309372353`;
+- Preview Licensing CI #417 / run `34309372378`;
+- Interop Lab Smoke #297 / run `34309372338`;
+- Wave 11 Active HMI Runtime #395 / run `34309372309`;
+- L3 Seven-Driver Lab #373 / run `34309372297`.
+
+Additional natural Interop #298 / run `34309372823` also succeeded. No rerun.
+
+This remains the last exact product/test SHA with all five normal gates green.
+
+### C26.10 — initial EEE cleanup candidate
+
+Structural audit scope:
+
+- 38 TAGs;
+- 13 Commands;
+- 6 Screens;
+- 2 Popups;
+- 1 Dynamo;
+- 190 visual IDs.
+
+All references and logical geometry checks passed. The residual project-specific defect was overlapping pump state text: `PARADA` remained visible beneath `OPERANDO` and `FALHA`.
+
+Initial candidate:
+
+`50363bcc50037cc6932a1282e58e3b6d75fda9f2`
+
+`fix(w14-c26): make EEE pump state labels legible`
+
+The candidate added opaque `backgroundColor` and `cornerRadius` properties to the three `core.text` labels and strict Runtime computed-color assertions.
+
+At that SHA, Preview, Interop and L3 succeeded. EliteSCADA CI #1470 failed on a generic PostgreSQL shared-schema race. Wave11 #396 independently failed on one Server Script timeout but recorded recovery and otherwise healthy diagnostics. Neither failure was blindly rerun.
+
+### Generic PostgreSQL concurrency correction
+
+Exact product/test SHA:
+
+`e7c8a8bf3954890a1ca841498222bf6094952baf`
+
+`fix(w14-c26): serialize shared PostgreSQL schema setup`
+
+The correction:
+
+- changed `PostgreSqlOperationalEventHistoryStore` infrastructure advisory lock from `4993446713136202562` to shared-schema lock `4993446713136202561`;
+- added real Operational Event initialization/query to `PostgreSqlConcurrentInitializationTests`.
+
+EliteSCADA CI #1471 passed, including backend build/test/smoke.
+
+### Current exact gate state
+
+At `e7c8a8bf3954890a1ca841498222bf6094952baf`:
+
+- EliteSCADA CI #1471 / run `34347157464` — SUCCESS;
+- Preview Licensing CI #419 / run `34347157585` — SUCCESS;
+- Interop Lab Smoke #302 / run `34347159685` — SUCCESS;
+- L3 Seven-Driver Lab #375 / run `34347157398` — SUCCESS;
+- Wave 11 Active HMI Runtime #397 / run `34347157735` — **FAILURE**;
+- additional natural Interop #301 / run `34347157333` — SUCCESS.
+
+No rerun was requested.
+
+### Current deterministic Wave11 blocker
+
+Failed job:
+
+`102451385709`
+
+The normal browser lifecycle completed with 17 passed, 2 failed and 4 not run. Both failures occurred during package Preview:
+
+- `tests-wave11/c11-eee-demo-hmi.spec.ts`;
+- `tests-wave11/c26-popup-composition.spec.ts`.
+
+`preview.canApply` was false because Dynamo `eee.dynamo.pump` contained three invalid `core.text` elements:
+
+- `pump-stopped-label`;
+- `pump-running-label`;
+- `pump-fault-label`.
+
+Each reported `VISUAL_PROPERTY_INVALID`: `core.text` does not declare `backgroundColor`.
+
+Exact backend/browser schema inspection also confirms `core.text` does not declare `cornerRadius`, although the current EEE helper authors both properties. Renderer tolerance is not package schema authority; Preview correctly rejected the package.
+
+Evidence artifact:
+
+- `playwright-report-wave11`;
+- artifact ID `10102316731`;
+- run `34347157735`.
+
+### Current classification and next step
+
+- C26.1–C26.9 — **IMPLEMENTED / VALIDATED**;
+- C26.10 — **IMPLEMENTED / NOT VALIDATED / CURRENT BLOCKER**;
+- C26.11 — **NOT STARTED / BLOCKED**.
+
+The next product action is not a rerun. Revalidate live, inspect the exact Wave11 evidence and schemas, then replace the invalid text-background representation with the smallest schema-valid EEE state-plate composition. Preserve opaque state coverage, z-order, strict Preview/package validation and Runtime regressions. Do not add an EEE validation exception or widen `core.text` solely for this fixture.
+
+Require all five normal gates green on one new exact product/test SHA before validating C26.10 or starting C26.11.
+
+Canonical detailed transfer:
+
+`docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-09.md`

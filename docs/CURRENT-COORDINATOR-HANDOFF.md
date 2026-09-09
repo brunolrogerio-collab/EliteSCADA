@@ -5,117 +5,122 @@
 ## Current topology
 
 - Repository: `brunolrogerio-collab/EliteSCADA`
-- Integration: `wave14/corrections-integration`, PR #212 -> `main` — OPEN/DRAFT; **NO MERGE without later separate explicit Product Owner authorization**
 - Active branch: `wave14/c26-po-homologation-corrections`
 - Coordinator issue: #286
-- Implementation PR #287: C26 -> canonical C11, DRAFT
-- Validation PR #288: C26 -> `main` — **VALIDATION ONLY / MUST NEVER MERGE**
-- C11 validation PR #266 — **MUST NEVER MERGE**
-- C11 -> integration PR #263 — integration route only
-- Pre-C26 Preview #285 — preserve untouched as historical evidence
-- Post-C26 real-use audit gate: issue #289 — **SPECIFIED / DO NOT EXECUTE UNTIL C26 + corrected C11 + new Preview are ready**
-- Wave13 #205/#207 — paused
+- PR #287: C26 -> `wave14/c11-canonical-eee-demo`, OPEN/DRAFT
+- PR #288: C26 -> `main`, **VALIDATION ONLY / MUST NEVER MERGE**
+- canonical C11 head at last revalidation: `a724ece64a292aa1d1dedd886a72fb28ff8d90fe`
+- PR #266: C11 -> `main`, **VALIDATION ONLY / MUST NEVER MERGE**
+- PR #263: C11 -> `wave14/corrections-integration` only
+- PR #212: integration -> `main`, OPEN/DRAFT, **NO MERGE without later separate explicit Product Owner authorization**
+- Preview #285: preserve untouched as historical pre-C26 evidence
+- issue #289: mandatory post-C26 ChatGPT Work audit gate; **do not execute now**
+- Wave13 #205/#207: paused
 
-## Current execution boundary
+## Exact execution boundary
 
-Current C26 **product/test** candidate:
+Current C26 product/test SHA:
 
-`642e33c83d17e3c53beb588841626551e6ea305f`
+`e7c8a8bf3954890a1ca841498222bf6094952baf`
 
-`fix(w14-c26): let readonly Engineering styles win cascade`
+`fix(w14-c26): serialize shared PostgreSQL schema setup`
 
-The branch has coordination-only commits above this SHA. Revalidate the live branch HEAD before every action; do not mistake a docs-only HEAD for a validated product SHA.
+The live branch HEAD after this rotation is a documentation-only commit above the product SHA. Revalidate it; never use the docs-only SHA as product validation evidence.
 
-Last exact product/test SHA fully green across all five normal gates:
+Last exact product/test SHA with all five normal gates green:
 
-`7d9d97797f8e19a874a6958f2fbaec9cfb3b2b11`
+`55f292359af86f5f28d90cc578d4ac93ccc1f19c`
 
-C26 status:
+`fix(w14-c26): align Popup authoring with Runtime`
 
-- C26.1–C26.6 — **IMPLEMENTED / VALIDATED**
-- C26.7 Engineering theme/contrast — **IMPLEMENTED BUT NOT VALIDATED / CURRENT BLOCKER**
-- C26.8 Screen editor functionality audit/fixes — **NOT STARTED / BLOCKED BY C26.7**
-- C26.9–C26.11 — pending per live issue #286
+Status:
 
-## C26.7 history and current blocker
+- C26.1–C26.7 — **IMPLEMENTED / VALIDATED**
+- C26.8 Screen editor — **IMPLEMENTED / VALIDATED** at `6de64ed4...`
+- C26.9 Popup editor — **IMPLEMENTED / VALIDATED** at `55f29235...`
+- C26.10 canonical EEE cleanup — **IMPLEMENTED / NOT VALIDATED / CURRENT BLOCKER**
+- C26.11 package/new Preview — **NOT STARTED / BLOCKED**
 
-Original C26.7 SHA `a05d349a37a41629ee13b47b4652df74d287273d` failed Chromium because a Screens route input marked `readonly` kept the editable background.
+## Current exact-SHA gates
 
-The cause was diagnosed as CSS specificity: the generic editable selector accumulated specificity through repeated `:not([type=...])` clauses and overrode `[readonly]`.
+At `e7c8a8bf3954890a1ca841498222bf6094952baf`:
 
-The smallest generic correction was committed as:
+- EliteSCADA CI #1471 / run `34347157464` — SUCCESS
+- Preview Licensing CI #419 / run `34347157585` — SUCCESS
+- Interop Lab Smoke #302 / run `34347159685` — SUCCESS
+- L3 Seven-Driver Lab #375 / run `34347157398` — SUCCESS
+- Wave 11 Active HMI Runtime #397 / run `34347157735` — **FAILURE**
+- additional natural Interop #301 / run `34347157333` — SUCCESS
 
-`642e33c83d17e3c53beb588841626551e6ea305f`
+No rerun was requested.
 
-It replaces the specificity-producing type filters with `:where(...)`; no `!important` was introduced and the C26.7 Playwright regression was not weakened.
+## Current blocker — C26.10 package schema
 
-At exact `642e33c...`:
+Wave11 job `102451385709`, step `Run Wave 11 Active Runtime browser lifecycle`, finished with 17 passed, 2 failed and 4 not run.
 
-- Preview Licensing #402 / run `34255187708` — SUCCESS
-- Interop #279 / run `34255187740` — SUCCESS
-- Wave11 #380 / run `34255187706` — SUCCESS
-- L3 #358 / run `34255187748` — SUCCESS
-- EliteSCADA CI #1454 / run `34255187823` — **FAILURE**
+Both failures occurred during Preview/Apply setup:
 
-EliteSCADA CI details:
+- `tests-wave11/c11-eee-demo-hmi.spec.ts`
+- `tests-wave11/c26-popup-composition.spec.ts`
 
-- Backend build, test and smoke — SUCCESS
-- Web build — SUCCESS
-- Chromium end-to-end job `102159657922` — **FAILURE**, step `Run browser E2E tests`
+The preview rejected Dynamo `eee.dynamo.pump` with `VISUAL_PROPERTY_INVALID` for:
 
-No rerun was performed.
+- `pump-stopped-label`
+- `pump-running-label`
+- `pump-fault-label`
 
-**Do not assume the `642e33c...` Chromium failure is identical to the earlier `a05d349...` assertion.** The next coordinator must fetch/revalidate the complete failure evidence for job `102159657922` before diagnosing or editing.
+The exact error says `core.text` does not declare `backgroundColor`.
+
+The C26.10 candidate `50363bcc...` had added `backgroundColor` and `cornerRadius` to these three text elements to prevent `PARADA` from showing through `OPERANDO`/`FALHA`. Exact backend and browser schemas define `core.text` as base + text properties and do not declare either property. The visual intent is valid, but the authored representation is package-invalid.
+
+The uploaded Wave11 evidence is artifact `playwright-report-wave11`, ID `10102316731`, attached to run `34347157735`.
+
+## Independent PostgreSQL correction now green
+
+At `50363bcc...`, EliteSCADA CI exposed concurrent `CREATE SCHEMA IF NOT EXISTS elitescada` under mismatched advisory locks. Commit `e7c8a8...` changed Operational Event history to shared lock `4993446713136202561` and added it to the shared-schema concurrency regression.
+
+EliteSCADA CI #1471 passed. Do not revert this fix while correcting the C26.10 visual schema error.
 
 ## Immediate next task
 
-1. Read `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-08.md` first, then the remaining mandatory coordination files.
-2. Revalidate live branch HEAD, issue #286, #287/#288/#212/#266/#263, canonical C11, #285, #289 and workflows for the exact candidate SHA.
-3. Fetch the complete Chromium failure evidence for job `102159657922`.
-4. Compare the actual failing assertion with the exact `642e33c...` CSS, affected DOM/component and `wave-14-c26-engineering-contrast.spec.ts`.
-5. Implement only the smallest **generic** C26.7 correction supported by the evidence.
-6. Do not weaken the regression or any security/authority/lifecycle contract.
-7. Let fresh workflows run naturally and require all five normal gates green on the same exact product/test SHA.
-8. Only then mark C26.7 VALIDATED and begin C26.8.
+1. Read `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-09.md` first and revalidate all live refs/gates.
+2. Re-read Wave11 #397/job `102451385709` plus exact C26.10 helper, regression and backend/browser visual schemas.
+3. Replace the invalid text-background authoring with the smallest schema-valid EEE composition that keeps state labels opaque and legible.
+4. Preserve strict package Preview and Runtime assertions.
+5. Do not widen `core.text` solely for EEE; a generic contract change requires independent platform justification and synchronized backend/browser coverage.
+6. Let workflows run naturally on the new exact product/test SHA; no blind rerun.
+7. Require the five normal gates green on one SHA before declaring C26.10 VALIDATED.
+8. Do not begin C26.11 or integrate #287 before C26 is validated, accepted and the integration is explicitly authorized.
 
-The post-C26 Work audit requirement does **not** change this immediate next task and must not be executed during C26.
+## Validated recent milestones
 
-## Coordination-only cleanup note
+- C26.7: `b1bd1f664b06684afaecbbff2d27da10760cc1ec` — 5/5 normal gates SUCCESS
+- C26.8: `6de64ed4d11ac1e525f32d7071b9624e428c96ee` — 5/5 normal gates SUCCESS
+- C26.9: `55f292359af86f5f28d90cc578d4ac93ccc1f19c` — 5/5 normal gates SUCCESS
 
-During metadata-tool discovery in the outgoing coordinator chat, a temporary placeholder file named `dummy` was accidentally created on the C26 branch and then removed immediately through a normal follow-up commit. No force push/rebase was used and no intended product file remains from that incident. Treat those commits as coordination-only, not as product validation evidence.
+## Binding post-C26 route
 
-## Binding post-C26 Work audit gate
+Issue #289 and `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md` remain mandatory only after C26 completion/acceptance, authorized C26->C11 integration, corrected canonical C11, regenerated package/checksum/provenance and a new technically ready Preview.
 
-After C26 is complete, exact-SHA green, accepted and integrated through the authorized route into corrected canonical C11, the quality path must include the real-use ChatGPT Work audit before final Product Owner homologation.
-
-Authority:
-
-- issue #289;
-- `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md`.
-
-Required high-level route:
-
-`accepted C26 -> corrected canonical C11 -> package/checksum/provenance -> NEW post-C26 Preview -> technical green + fully prepared live environment -> READY FOR WORK AUDIT -> ChatGPT Work audit-only browser pass -> coordinator triage/corrections/regressions -> new exact candidate -> optional targeted Work recheck -> Product Owner final homologation`.
-
-The coordinator must prepare the Preview, EEE Active Revision, simulation, Historian/HistoricalQuery, Alarm/Event state, audit users and explicit Runtime/Engineering URLs before consuming the approximately 40-minute Work window.
-
-When the real candidate is ready, create the intentionally short candidate-specific `docs/WORK-UI-AUDIT-HANDOFF.md` with exact SHA, URLs, package SHA-256 and non-secret authentication instructions. Do not create a false READY handoff early.
+Prepare the live application, EEE Active Revision, simulation, TAG dynamics, Alarm/Event/Historian/HistoricalQuery, Runtime, Engineering, Screen Editor, Popup Editor and users before declaring `READY FOR WORK AUDIT`. Do not consume the approximately 40-minute Work window on setup.
 
 ## Permanent guardrails
 
-- no direct `main` mutation;
-- #212 not authorized to merge;
-- #288 and #266 never merge;
-- #287 targets canonical C11 only;
+- GitHub live wins over every handoff;
+- never modify `main` directly;
+- #212 has no merge authorization; `siga` never authorizes it;
+- #288 and #266 must never merge;
+- #287 targets canonical C11 only and is not authorized now;
 - #263 is C11 -> integration only;
 - preserve #285;
-- #289 does not authorize early execution or any protected merge;
-- no force push, destructive rebase, branch deletion or unrelated cleanup;
-- diagnose CI red before rerun;
-- never weaken tests, validation, security, authentication, authorization, Identity, Engineering Lock, licensing, lifecycle, package, drivers or Runtime Active Revision authority;
+- #289 does not authorize early execution or protected merges;
+- no force push, destructive rebase, branch deletion, blind rerun or unrelated cleanup;
+- never weaken tests, validation, security, authentication, authorization, Identity, Engineering Lock, Licensing, lifecycle, package, Drivers or Runtime Active Revision authority;
 - Runtime/Active cannot depend on `.escadalib`;
 - no EEE-specific workaround for a generic product defect;
-- Alarm / Operational Event / Audit remain separate;
+- Alarm, Operational Event and Audit remain separate;
 - Wave13 remains paused.
 
-When Product Owner says `siga`, continue autonomously through subsequent safe work. It does not authorize protected merges.
+Canonical detailed handoff:
+
+`docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-09.md`

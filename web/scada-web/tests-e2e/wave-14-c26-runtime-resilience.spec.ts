@@ -124,6 +124,50 @@ test('C26 Runtime preserves the selected Screen across one transient projection 
   await expect(navigator).toHaveAttribute('data-active-screen-key', 'secondary');
 });
 
+test('C26 Runtime preserves the selected Screen across the real transient proxy HTTP 500 signature and recovery', async ({ page }) => {
+  await installRuntimeShellContract(page);
+
+  let projectionRequests = 0;
+  let proxyFailures = 0;
+  let failNextProxyRequest = false;
+  await page.route('**/api/runtime/application', route => {
+    projectionRequests++;
+    if (failNextProxyRequest) {
+      failNextProxyRequest = false;
+      proxyFailures++;
+      return route.fulfill({
+        status: 500,
+        contentType: 'text/plain',
+        body: 'Content-Length header of network response exceeds response Body'
+      });
+    }
+    return route.fulfill({ json: runtimeProjection });
+  });
+
+  await page.goto('/');
+  const runtime = page.getByTestId('runtime-engineering-application');
+  const navigator = page.getByTestId('runtime-visual-navigator');
+  await expect(runtime).toBeVisible();
+  await expect(navigator).toHaveAttribute('data-active-screen-key', 'home');
+
+  await page.getByRole('button', { name: 'Abrir secundária' }).click();
+  await expect(navigator).toHaveAttribute('data-active-screen-key', 'secondary');
+  await expect(page.getByText('Tela secundária ativa')).toBeVisible();
+
+  failNextProxyRequest = true;
+  await expect.poll(() => proxyFailures, { timeout: 5_000 }).toBe(1);
+
+  await expect(page.getByTestId('runtime-application-error')).toHaveCount(0);
+  await expect(runtime).toBeVisible();
+  await expect(navigator).toHaveAttribute('data-active-screen-key', 'secondary');
+  await expect(page.getByText('Tela secundária ativa')).toBeVisible();
+
+  const requestsAfterFailure = projectionRequests;
+  await expect.poll(() => projectionRequests, { timeout: 5_000 }).toBeGreaterThan(requestsAfterFailure);
+  await expect(page.getByTestId('runtime-application-error')).toHaveCount(0);
+  await expect(navigator).toHaveAttribute('data-active-screen-key', 'secondary');
+});
+
 test('C26 Runtime still blocks when the first Active projection load has no valid transport result', async ({ page }) => {
   await installRuntimeShellContract(page);
   await page.route('**/api/runtime/application', route => route.abort('failed'));
@@ -163,5 +207,36 @@ test('C26 Runtime does not retain a stale projection across an authoritative HTT
   const unavailable = page.getByTestId('runtime-application-error');
   await expect(unavailable).toBeVisible();
   await expect(unavailable).toContainText('(409)');
+  await expect(page.getByTestId('runtime-visual-navigator')).toHaveCount(0);
+});
+
+test('C26 Runtime does not hide a genuine Active package HTTP 500 behind the last valid projection', async ({ page }) => {
+  await installRuntimeShellContract(page);
+
+  let invalidPackage = false;
+  let invalidResponses = 0;
+  await page.route('**/api/runtime/application', route => {
+    if (invalidPackage) {
+      invalidResponses++;
+      return route.fulfill({
+        status: 500,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({ detail: 'Active canonical Engineering payload is invalid: schema mismatch.' })
+      });
+    }
+    return route.fulfill({ json: runtimeProjection });
+  });
+
+  await page.goto('/');
+  const navigator = page.getByTestId('runtime-visual-navigator');
+  await expect(navigator).toHaveAttribute('data-active-screen-key', 'home');
+
+  invalidPackage = true;
+  await expect.poll(() => invalidResponses, { timeout: 5_000 }).toBeGreaterThan(0);
+
+  const unavailable = page.getByTestId('runtime-application-error');
+  await expect(unavailable).toBeVisible();
+  await expect(unavailable).toContainText('(500)');
+  await expect(unavailable).toContainText('Active canonical Engineering payload is invalid');
   await expect(page.getByTestId('runtime-visual-navigator')).toHaveCount(0);
 });

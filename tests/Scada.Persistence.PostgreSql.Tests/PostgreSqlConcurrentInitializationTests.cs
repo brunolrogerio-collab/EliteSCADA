@@ -1,3 +1,4 @@
+using Scada.Core.HistoricalQueries;
 using Scada.Persistence.PostgreSql;
 
 namespace Scada.Persistence.PostgreSql.Tests;
@@ -15,12 +16,26 @@ public sealed class PostgreSqlConcurrentInitializationTests
         await using var identity = new PostgreSqlLocalIdentityStore(connectionString);
         await using var serverMemory = new PostgreSqlServerMemoryRetentionStore(connectionString);
 
+        var operationalEventQuery = new HistoricalQueryExecution(
+            HistoricalQueryCatalog.Require(HistoricalDatasets.OperationalEvents),
+            new HistoricalResolvedRange(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow),
+            [],
+            null,
+            new HistoricalSort(),
+            1,
+            null);
+
         var initializers = new Func<Task>[]
         {
             () => engineering.InitializeAsync(),
             () => audit.InitializeAsync(),
             () => identity.InitializeAsync(),
-            () => serverMemory.InitializeAsync()
+            () => serverMemory.InitializeAsync(),
+            async () =>
+            {
+                await using var operationalEvents = new PostgreSqlOperationalEventHistoryStore(connectionString);
+                _ = await operationalEvents.QueryAsync(operationalEventQuery);
+            }
         };
 
         var tasks = Enumerable.Range(0, 4)

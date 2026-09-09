@@ -1,14 +1,14 @@
 {
   "projectKey": "eee-demo",
   "projectName": "EliteSCADA — EEE Demo",
-  "sourceProductSha": "ff185ffd67fe4abc597af9184c21f86376ba6e17",
-  "c11DemoCommitSha": "5e2c1f9f49ecf5d6519b1627e87a4249546fdb9b",
+  "sourceProductSha": "08e2530671de10d48933c4b712a1a1abc9e41dce",
+  "c11DemoCommitSha": "fc687bedea5a1a8480eb7682f0632684bf6b2374",
   "activeProjectKey": "eee-demo",
   "activeRevision": 2,
   "packageFileName": "EliteSCADA-EEE-Demo.escadapkg",
-  "packageSha256": "4be1ca2338094799a8bf3c989322e5488a2381ce65d92cac3871188639e215c6",
-  "packageId": "a6f4d3e0-36c9-43e4-a697-0b74235474bd",
-  "packageCreatedAtUtc": "2026-09-07T14:13:11.6483094+00:00",
+  "packageSha256": "d60ae4729530e10fb50e0c0b076dd810c8da8333465b79129fa062a7666932aa",
+  "packageId": "f8e7778e-aaf0-4297-891a-8c0a8975f116",
+  "packageCreatedAtUtc": "2026-09-09T13:42:01.8455516+00:00",
   "packageFormat": "elitescada.project-package",
   "packageFormatVersion": 2,
   "engineeringSchema": "scada.engineering",
@@ -40,6 +40,6 @@
     "/api/project-package/import/preview"
   ],
   "workflow": "Wave 11 Active HMI Runtime",
-  "workflowRunId": "34131261561",
-  "workflowRunNumber": "353"
+  "workflowRunId": "34357383930",
+  "workflowRunNumber": "402"
 }

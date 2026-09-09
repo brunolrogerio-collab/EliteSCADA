@@ -15,6 +15,8 @@ import { resolveRuntimeStartupScreen } from './runtimeStartupScreen';
 import { SimulationRuntimeApp } from './SimulationRuntimeApp';
 
 const REFRESH_INTERVAL_MS = 1500;
+const RETRYABLE_RUNTIME_PROJECTION_STATUSES = new Set([502, 503, 504]);
+const TRUNCATED_RESPONSE_SIGNATURE = 'content-length header of network response exceeds response body';
 
 export function RuntimeApplicationMount() {
   const locale = useAppShellLocale();
@@ -42,7 +44,7 @@ export function RuntimeApplicationMount() {
       } catch (reason) {
         if (disposed || controller.signal.aborted) return;
         const failure = reason instanceof Error ? reason : new Error(String(reason));
-        if (lastSuccessfulProjection.current && failure instanceof RuntimeApplicationTransportError) {
+        if (lastSuccessfulProjection.current && isRetryableRuntimeProjectionFailure(failure)) {
           setError(null);
           return;
         }
@@ -180,6 +182,14 @@ function EngineeringRuntimeApplication({
       </div>
     </aside> : null}
   </main>;
+}
+
+function isRetryableRuntimeProjectionFailure(failure: Error): boolean {
+  if (failure instanceof RuntimeApplicationTransportError) return true;
+  if (!(failure instanceof RuntimeApplicationProjectionError)) return false;
+  if (RETRYABLE_RUNTIME_PROJECTION_STATUSES.has(failure.status)) return true;
+  return failure.status === 500 &&
+    failure.message.toLowerCase().includes(TRUNCATED_RESPONSE_SIGNATURE);
 }
 
 function sameRuntimeProjection(

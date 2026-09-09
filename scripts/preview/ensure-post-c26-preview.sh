@@ -20,9 +20,15 @@ require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "required command '$1' is unavailable in the devcontainer"
 }
 
-for command_name in bash curl flock pgrep pkill; do
+for command_name in bash curl flock pgrep pkill python3; do
   require_command "$command_name"
 done
+
+PYTHON_EXECUTABLE="$(command -v python3)"
+if ! "$PYTHON_EXECUTABLE" -I -S -c 'import ast, json, sys' >/dev/null 2>&1; then
+  fail "python3 is present but its standard library is incomplete under EliteSCADA isolation flags (-I -S); rebuild the Codespace from the current Preview branch"
+fi
+printf 'Validated isolated Server Script Python runtime: %s (%s)\n' "$PYTHON_EXECUTABLE" "$("$PYTHON_EXECUTABLE" --version 2>&1)"
 
 # postAttach can be invoked more than once when Codespaces reconnects or when more
 # than one VS Code client attaches. Serialize the recovery so two launchers cannot
@@ -87,8 +93,11 @@ port_is_open 5080 && fail "internal API port 5080 is still occupied after contro
 # Keep the lock in this wrapper while the canonical launcher runs, but explicitly
 # close descriptor 9 for the launcher process. Otherwise the long-lived API/Web
 # descendants inherit the flock and make every later Codespaces attach look like
-# another recovery is permanently running.
-bash "$ROOT/scripts/preview/launch-post-c26-preview.sh" 9>&-
+# another recovery is permanently running. Bind the backend to the exact Python
+# interpreter that passed the same -I -S standard-library preflight used by the
+# product's isolated Server Script executor.
+ServerScripts__PythonExecutable="$PYTHON_EXECUTABLE" \
+  bash "$ROOT/scripts/preview/launch-post-c26-preview.sh" 9>&-
 
 port_is_open 5080 || fail "EliteSCADA API did not remain listening on fixed internal port 5080"
 port_is_open 5173 || fail "EliteSCADA Web did not remain listening on fixed port 5173"

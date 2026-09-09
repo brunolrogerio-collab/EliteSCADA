@@ -1,3 +1,8 @@
+.visual-editor-canvas-enhanced__canvas {
+  position: relative;
+  min-width: 0;
+}
+
 .visual-editor-canvas {
   display: grid;
   grid-template-rows: auto minmax(360px, 1fr) auto;

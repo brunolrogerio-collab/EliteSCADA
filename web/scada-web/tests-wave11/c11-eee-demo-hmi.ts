@@ -84,7 +84,15 @@ function text(
   y: number,
   width: number,
   height: number,
-  options: { fontSize?: number; color?: string; weight?: number; align?: Align; z?: number } = {}
+  options: {
+    fontSize?: number;
+    color?: string;
+    weight?: number;
+    align?: Align;
+    z?: number;
+    background?: string;
+    radius?: number;
+  } = {}
 ) {
   return {
     id,
@@ -99,6 +107,8 @@ function text(
       fontSize: options.fontSize ?? 22,
       fontWeight: options.weight ?? 500,
       textColor: options.color ?? C.text,
+      ...(options.background ? { backgroundColor: options.background } : {}),
+      ...(options.radius === undefined ? {} : { cornerRadius: options.radius }),
       horizontalAlignment: options.align ?? 'left',
       verticalAlignment: 'middle',
       zIndex: options.z ?? 10,
@@ -367,9 +377,9 @@ function pumpDynamo() {
       ellipse(vid(9, 3004), 'pump-running', 90, 72, 180, 144, C.running, '#BBF7D0', 4, 5, false, [visibleBinding(defaults.running, 'running')]),
       ellipse(vid(9, 3005), 'pump-fault', 90, 72, 180, 144, C.fault, '#FECACA', 5, 7, false, [visibleBinding(defaults.fault, 'fault')]),
       ellipse(vid(9, 3006), 'pump-trip-ring', 76, 58, 208, 172, '#00000000', C.warning, 8, 8, false, [visibleBinding(defaults.trip, 'trip')]),
-      text(vid(9, 3007), 'pump-stopped-label', 'PARADA', 115, 122, 130, 38, { fontSize: 22, weight: 900, align: 'center', z: 10 }),
-      { ...text(vid(9, 3008), 'pump-running-label', 'OPERANDO', 105, 122, 150, 38, { fontSize: 22, weight: 900, align: 'center', color: '#052E16', z: 11 }), bindings: [visibleBinding(defaults.running, 'running')] },
-      { ...text(vid(9, 3009), 'pump-fault-label', 'FALHA', 115, 122, 130, 38, { fontSize: 24, weight: 900, align: 'center', color: '#FFFFFF', z: 12 }), bindings: [visibleBinding(defaults.fault, 'fault')] },
+      text(vid(9, 3007), 'pump-stopped-label', 'PARADA', 115, 122, 130, 38, { fontSize: 22, weight: 900, align: 'center', z: 10, background: C.off, radius: 8 }),
+      { ...text(vid(9, 3008), 'pump-running-label', 'OPERANDO', 105, 122, 150, 38, { fontSize: 22, weight: 900, align: 'center', color: '#052E16', z: 11, background: C.running, radius: 8 }), bindings: [visibleBinding(defaults.running, 'running')] },
+      { ...text(vid(9, 3009), 'pump-fault-label', 'FALHA', 115, 122, 130, 38, { fontSize: 24, weight: 900, align: 'center', color: '#FFFFFF', z: 12, background: C.fault, radius: 8 }), bindings: [visibleBinding(defaults.fault, 'fault')] },
       text(vid(9, 3010), 'pump-current-label', 'CORRENTE', 18, 238, 128, 24, { fontSize: 13, color: C.muted, weight: 700, z: 10 }),
       valueDisplay(vid(9, 3011), 'pump-current', 'Corrente da bomba', defaults.current, 18, 266, 145, 1, 'current'),
       text(vid(9, 3012), 'pump-frequency-label', 'FREQUÊNCIA', 196, 238, 146, 24, { fontSize: 13, color: C.muted, weight: 700, z: 10 }),

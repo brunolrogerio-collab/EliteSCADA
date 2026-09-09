@@ -18,6 +18,15 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     expect(candidate.dynamos).toHaveLength(1);
     expect(candidate.dynamos[0]).toMatchObject({ key: EEE_HMI.dynamoKey });
 
+    const pumpStateLabels = Object.fromEntries(candidate.dynamos[0].elements
+      .filter((element: any) => ['pump-stopped-label', 'pump-running-label', 'pump-fault-label'].includes(element.key))
+      .map((element: any) => [element.key, element]));
+    expect(pumpStateLabels['pump-stopped-label']?.properties).toMatchObject({ backgroundColor: '#475569', cornerRadius: 8, zIndex: 10 });
+    expect(pumpStateLabels['pump-running-label']?.properties).toMatchObject({ backgroundColor: '#22C55E', cornerRadius: 8, zIndex: 11 });
+    expect(pumpStateLabels['pump-fault-label']?.properties).toMatchObject({ backgroundColor: '#EF4444', cornerRadius: 8, zIndex: 12 });
+    expect(containsBounds(pumpStateLabels['pump-running-label'], pumpStateLabels['pump-stopped-label'])).toBe(true);
+    expect(containsBounds(pumpStateLabels['pump-fault-label'], pumpStateLabels['pump-stopped-label'])).toBe(true);
+
     const authoredWetWell = overview.elements.find((element: any) => element.id === EEE_HMI.elements.wetWell);
     expect(authoredWetWell?.analogFill).toMatchObject({
       direction: 'BottomToTop',
@@ -99,6 +108,7 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     await expectRequestConsumed(request, EEE_PATHS.cmdP01Start);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p02Running)).value)).toBe(false);
     await expect(p01.getByText('OPERANDO')).toBeVisible();
+    await expect(p01.getByText('OPERANDO')).toHaveCSS('background-color', 'rgb(34, 197, 94)');
     await expect(p02.getByText('OPERANDO')).toBeHidden();
 
     await page.getByRole('button', { name: 'DETALHES P01' }).click();
@@ -131,6 +141,7 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Fault)).value)).toBe(true);
     await expectRequestConsumed(request, EEE_PATHS.cmdInjectP01Fault);
     await expect(p01.getByText('FALHA')).toBeVisible();
+    await expect(p01.getByText('FALHA')).toHaveCSS('background-color', 'rgb(239, 68, 68)');
     await executeCommand(request, EEE_IDS.commands.resetFaults);
     await expect.poll(async () => Boolean((await readCurrent(request, EEE_PATHS.p01Fault)).value)).toBe(false);
     await expectRequestConsumed(request, EEE_PATHS.cmdResetFaults);
@@ -168,6 +179,15 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     await savePublishActivate(request, 'Wave 11 E2E — restored after C11 HMI');
   }
 });
+
+function containsBounds(cover: any, covered: any): boolean {
+  const outer = cover?.properties ?? {};
+  const inner = covered?.properties ?? {};
+  return outer.x <= inner.x &&
+    outer.y <= inner.y &&
+    outer.x + outer.width >= inner.x + inner.width &&
+    outer.y + outer.height >= inner.y + inner.height;
+}
 
 async function assertLogicalViewport(page: Page) {
   const viewport = page.getByTestId('runtime-logical-viewport');

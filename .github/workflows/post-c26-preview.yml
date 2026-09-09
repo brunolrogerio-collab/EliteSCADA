@@ -48,8 +48,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Prove Preview descends from exact post-C26 frozen C11
-        run: git merge-base --is-ancestor f18e7cb8e52543b58dd6c23b83bdf21394041598 HEAD
+      - name: Prove Preview descends from exact corrected canonical C11
+        run: git merge-base --is-ancestor 19d5257d970f53ae798c5fa53946fce07c586452 HEAD
 
       - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
@@ -131,13 +131,13 @@ jobs:
           const provenance = JSON.parse(fs.readFileSync('EliteSCADA-EEE-Demo.provenance.json', 'utf8'));
           if (provenance.projectKey !== 'eee-demo') throw new Error('Unexpected canonical project key');
           if (provenance.packageFileName !== 'EliteSCADA-EEE-Demo.escadapkg') throw new Error('Unexpected package filename');
-          if (provenance.packageSha256 !== 'd60ae4729530e10fb50e0c0b076dd810c8da8333465b79129fa062a7666932aa') {
+          if (provenance.packageSha256 !== 'e995051b4744f904663350102683c886af9674aaae8fff1dbc76f294ff2d774d') {
             throw new Error('Unexpected frozen post-C26 package SHA-256');
           }
           if (provenance.sourceProductSha !== '08e2530671de10d48933c4b712a1a1abc9e41dce') {
             throw new Error('Frozen package is not derived from the accepted C26 product');
           }
-          if (provenance.c11DemoCommitSha !== 'fc687bedea5a1a8480eb7682f0632684bf6b2374') {
+          if (provenance.c11DemoCommitSha !== '38c4de56affd0e36edd7682d61aad0a53e11213e') {
             throw new Error('Frozen package provenance is not bound to its exact C11 generator SHA');
           }
           if (provenance.applicationDynamoCount !== 1 || provenance.builtinLibraryDynamoCount !== 8) {

@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { runtimeDynamoElementIdentity } from '../src/runtime/visual-navigation/runtimeVisualNavigationModel';
 import { EEE_IDS, EEE_PATHS } from './c11-eee-demo-foundation-canonical';
 import { buildEeeDemoPackage, EEE_HMI } from './c11-eee-demo-hmi';
 
@@ -108,10 +109,10 @@ test('C11 canonical EEE HMI survives lifecycle and exercises operator-facing gen
     await expect(pumpDynamos).toHaveCount(2);
     const p01 = page.locator(`[data-object-id="${EEE_HMI.elements.p01}"]`);
     const p02 = page.locator(`[data-object-id="${EEE_HMI.elements.p02}"]`);
-    const p01StoppedPlate = p01.locator(`[data-object-id="${EEE_HMI.dynamo.statePlates.stopped}"]`);
-    const p01RunningPlate = p01.locator(`[data-object-id="${EEE_HMI.dynamo.statePlates.running}"]`);
-    const p01FaultPlate = p01.locator(`[data-object-id="${EEE_HMI.dynamo.statePlates.fault}"]`);
-    const p02RunningPlate = p02.locator(`[data-object-id="${EEE_HMI.dynamo.statePlates.running}"]`);
+    const p01StoppedPlate = p01.locator(`[data-object-id="${runtimeDynamoElementIdentity(EEE_HMI.elements.p01, EEE_HMI.dynamo.statePlates.stopped)}"]`);
+    const p01RunningPlate = p01.locator(`[data-object-id="${runtimeDynamoElementIdentity(EEE_HMI.elements.p01, EEE_HMI.dynamo.statePlates.running)}"]`);
+    const p01FaultPlate = p01.locator(`[data-object-id="${runtimeDynamoElementIdentity(EEE_HMI.elements.p01, EEE_HMI.dynamo.statePlates.fault)}"]`);
+    const p02RunningPlate = p02.locator(`[data-object-id="${runtimeDynamoElementIdentity(EEE_HMI.elements.p02, EEE_HMI.dynamo.statePlates.running)}"]`);
     // Active Runtime expands persisted Dynamo instances into transient group
     // roots. Their stable instance identity is therefore the canonical runtime
     // object identity, while data-dynamo-instance-id belongs to the direct

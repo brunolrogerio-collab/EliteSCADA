@@ -46,6 +46,7 @@ logs/
 *.db-wal
 *.sqlite
 *.sqlite3
+.preview/
 
 # Secrets and machine-local configuration
 .env

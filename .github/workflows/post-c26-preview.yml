@@ -1,0 +1,209 @@
+name: Post-C26 Canonical Preview
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ wave14/c11-canonical-eee-demo ]
+    paths:
+      - '.devcontainer/**'
+      - 'preview/fixtures/**'
+      - 'scripts/preview/**'
+      - 'src/Scada.Api/**'
+      - 'src/Scada.Persistence.PostgreSql/**'
+      - 'src/Scada.Engineering/**'
+      - 'src/Scada.Core/HistoricalQueries/**'
+      - 'web/scada-web/**'
+      - '.github/workflows/post-c26-preview.yml'
+      - '.gitignore'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  launch-post-c26-preview:
+    name: Launch post-C26 browser Preview
+    runs-on: ubuntu-latest
+    services:
+      timescaledb:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_preview
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: elitescada-preview-db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_preview"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prove Preview descends from exact post-C26 frozen C11
+        run: git merge-base --is-ancestor f18e7cb8e52543b58dd6c23b83bdf21394041598 HEAD
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+
+      - name: Prepare disposable Codespaces machine identity
+        run: bash .devcontainer/initialize-preview-machine-id.sh
+
+      - name: Validate devcontainer Compose
+        run: docker compose -f .devcontainer/docker-compose.yml config >/dev/null
+
+      - name: Verify Codespaces devcontainer SDK
+        shell: bash
+        run: |
+          APP_IMAGE="$(docker compose -f .devcontainer/docker-compose.yml config --images | grep '^mcr.microsoft.com/devcontainers/dotnet:' | head -n 1)"
+          [[ -n "$APP_IMAGE" ]] || { echo 'Could not resolve the app devcontainer image.' >&2; exit 1; }
+          ACTUAL_SDK="$(docker run --rm "$APP_IMAGE" dotnet --version)"
+          echo "Codespaces app image: $APP_IMAGE"
+          echo "Codespaces .NET SDK: $ACTUAL_SDK"
+          [[ "$ACTUAL_SDK" == '10.0.400' ]] || {
+            echo 'Expected exact SDK 10.0.400 because global.json has rollForward=disable.' >&2
+            exit 1
+          }
+
+      - name: Verify Codespaces machine identity mount
+        shell: bash
+        run: |
+          set -euo pipefail
+          cleanup() {
+            docker compose -f .devcontainer/docker-compose.yml down -v >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker compose -f .devcontainer/docker-compose.yml up -d app
+          docker compose -f .devcontainer/docker-compose.yml exec -T app sh -lc '
+            set -eu
+            test -s /etc/machine-id
+            machine_id="$(tr -d "[:space:]-" < /etc/machine-id | tr "[:upper:]" "[:lower:]")"
+            printf "%s" "$machine_id" | grep -Eq "^[0-9a-f]{32}$"
+            test "$machine_id" != "00000000000000000000000000000000"
+          '
+
+      - name: Verify Codespaces automatic Preview launch contract
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const config = JSON.parse(fs.readFileSync('.devcontainer/devcontainer.json', 'utf8'));
+          const expectedInitializer = 'bash .devcontainer/initialize-preview-machine-id.sh';
+          const expectedLauncher = 'bash scripts/preview/launch-post-c26-preview.sh';
+          if (config.initializeCommand !== expectedInitializer) throw new Error(`initializeCommand must be exactly: ${expectedInitializer}`);
+          if (config.postAttachCommand !== expectedLauncher) throw new Error(`postAttachCommand must be exactly: ${expectedLauncher}`);
+          if (!Array.isArray(config.forwardPorts) || config.forwardPorts.length !== 1 || config.forwardPorts[0] !== 5173) {
+            throw new Error('Only Web port 5173 may be forwarded by the Codespaces configuration.');
+          }
+          if (config.portsAttributes?.['5173']?.onAutoForward !== 'openPreview') {
+            throw new Error('Web port 5173 must open the Preview after the server starts.');
+          }
+          if (config.portsAttributes?.['5080']?.onAutoForward !== 'ignore') {
+            throw new Error('Internal API port 5080 must remain excluded from auto-forwarding.');
+          }
+          NODE
+
+      - name: Verify frozen post-C26 package contract
+        working-directory: preview/fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum --check EliteSCADA-EEE-Demo.escadapkg.sha256
+          node <<'NODE'
+          const fs = require('fs');
+          const provenance = JSON.parse(fs.readFileSync('EliteSCADA-EEE-Demo.provenance.json', 'utf8'));
+          if (provenance.projectKey !== 'eee-demo') throw new Error('Unexpected canonical project key');
+          if (provenance.packageFileName !== 'EliteSCADA-EEE-Demo.escadapkg') throw new Error('Unexpected package filename');
+          if (provenance.packageSha256 !== 'd60ae4729530e10fb50e0c0b076dd810c8da8333465b79129fa062a7666932aa') {
+            throw new Error('Unexpected frozen post-C26 package SHA-256');
+          }
+          if (provenance.sourceProductSha !== '08e2530671de10d48933c4b712a1a1abc9e41dce') {
+            throw new Error('Frozen package is not derived from the accepted C26 product');
+          }
+          if (provenance.c11DemoCommitSha !== 'fc687bedea5a1a8480eb7682f0632684bf6b2374') {
+            throw new Error('Frozen package provenance is not bound to its exact C11 generator SHA');
+          }
+          if (provenance.applicationDynamoCount !== 1 || provenance.builtinLibraryDynamoCount !== 8) {
+            throw new Error('Unexpected canonical Dynamo provenance');
+          }
+          NODE
+          if unzip -Z1 EliteSCADA-EEE-Demo.escadapkg | grep -E '\.escadalib$'; then
+            echo 'Frozen post-C26 package must remain self-contained and cannot depend on .escadalib files.' >&2
+            exit 1
+          fi
+
+      - name: Restore backend
+        run: dotnet restore ScadaPlatform.sln
+
+      - name: Install frontend dependencies
+        working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+
+      - name: Resolve Codespaces database service name in CI
+        run: echo '127.0.0.1 timescaledb' | sudo tee -a /etc/hosts >/dev/null
+
+      - name: Generate ephemeral Preview administrator password
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          import secrets
+          password = secrets.token_urlsafe(48)
+          print(f'::add-mask::{password}')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env:
+              env.write('ELITESCADA_PREVIEW_ADMIN_PASSWORD=' + password + '\n')
+          PY
+
+      - name: Launch post-C26 Preview
+        run: bash scripts/preview/launch-post-c26-preview.sh
+
+      - name: API diagnostics on Preview launch failure
+        if: failure()
+        shell: bash
+        run: |
+          echo '--- EliteSCADA API diagnostic tail ---'
+          if [[ -f .preview/api.log ]]; then
+            tail -n 200 .preview/api.log
+          else
+            echo '.preview/api.log was not created.'
+          fi
+          echo '--- End diagnostic tail ---'
+
+      - name: Verify browser entry and Pyodide asset
+        run: |
+          curl --fail --silent --show-error http://127.0.0.1:5173/ | grep -q '<div id="root"'
+          curl --fail --silent --show-error http://127.0.0.1:5173/pyodide/pyodide.js >/dev/null
+
+      - name: Verify post-C26 Runtime and historical evidence
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const runtime = JSON.parse(fs.readFileSync('.preview/runtime-application.json', 'utf8'));
+          if (runtime.projectKey !== 'eee-demo') throw new Error('Runtime project key mismatch');
+          if (runtime.package?.startupScreenId !== 'c1170000-0000-4000-8000-000000000001') {
+            throw new Error('Runtime startup screen mismatch');
+          }
+          if (!Array.isArray(runtime.package?.screens) || runtime.package.screens.length !== 6) {
+            throw new Error('Runtime screen count mismatch');
+          }
+          const historical = JSON.parse(fs.readFileSync('.preview/historical-query.json', 'utf8'));
+          if (historical.datasetKey !== 'historian.samples' || !Array.isArray(historical.rows) || historical.rows.length < 1) {
+            throw new Error('Historical Query evidence is missing historian.samples rows');
+          }
+          const licensing = JSON.parse(fs.readFileSync('.preview/licensing.json', 'utf8'));
+          if (licensing.license?.state !== 'Demo') throw new Error('Preview licensing is not Demo');
+          NODE

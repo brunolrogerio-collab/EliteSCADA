@@ -8,7 +8,7 @@ import { buildEeeDemoPackage } from './c11-eee-demo-hmi';
 
 const canonicalProjectKey = 'eee-demo';
 const canonicalProjectName = 'EliteSCADA — EEE Demo';
-const sourceProductSha = 'ff185ffd67fe4abc597af9184c21f86376ba6e17';
+const sourceProductSha = '08e2530671de10d48933c4b712a1a1abc9e41dce';
 const packageFileName = 'EliteSCADA-EEE-Demo.escadapkg';
 const packageMediaType = 'application/vnd.elitescada.project-package';
 const builtinDynamoCount = 8;

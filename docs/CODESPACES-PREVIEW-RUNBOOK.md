@@ -23,6 +23,44 @@ The Preview must exercise the normal product lifecycle:
 
 There is no Preview-only auth/licensing/runtime bypass.
 
+## 1.1 Current observed Codespace candidate — 2026-09-09
+
+A real Codespaces browser session was visually confirmed and is now associated with this runbook as the candidate environment reference for the post-C26 Preview preparation.
+
+Observed from the Codespaces/VS Code Web screen:
+
+- Codespace display name: `reimagined-garbanzo`;
+- the **Ports** panel shows forwarded Web port `5173`;
+- the embedded Simple Browser opened the forwarded address beginning with `https://reimagined-garbanzo...`;
+- port `5173` was serving the real EliteSCADA login page (`Acesso ao Runtime e Engineering`) at capture time, so the observed state was not an HTTP 502/empty forward;
+- only one forwarded port is visible in the captured Ports panel, consistent with the intended Web-only forwarding contract.
+
+Limits of this visual evidence:
+
+- the full forwarded hostname is truncated by the VS Code UI and **must not be reconstructed or guessed from the screenshot**;
+- the screenshot does not prove the Codespace's exact Git branch/HEAD;
+- the screenshot alone does not prove the port visibility is Private, nor does it prove that no additional hidden/internal forwarding exists.
+
+Repository target at the time this association was recorded:
+
+- active post-C26 Preview branch: `preview/wave14-post-c26-work-audit`;
+- repository head: `996fa88a668fbac4737b7d245f813423ea59e18d`;
+- active Preview PR: `#290`;
+- current post-C26 launcher family: `scripts/preview/launch-post-c26-preview.sh`, not the historical `launch-test-preview.sh`.
+
+Before this existing Codespace can be used for the Work real-browser audit, verify inside it:
+
+```bash
+git rev-parse HEAD
+git status --short
+```
+
+The resulting HEAD must match the exact accepted Preview candidate after any pending Preview-harness changes are finalized. If it does not, use the controlled update procedure in section 9 or a fresh Level D Codespace when reproducibility requires it.
+
+Before creating `docs/WORK-UI-AUDIT-HANDOFF.md`, copy the **exact** forwarded 5173 URL from the Codespaces Ports panel and verify the real browser routes for Preview, Runtime and Engineering. The candidate-specific Work handoff must contain those exact URLs; the truncated screenshot address is evidence of the environment identity, not an acceptable substitute for the final URL.
+
+This association does **not** by itself declare `READY FOR WORK AUDIT`.
+
 ## 2. Historical Preview baseline
 
 Historical Preview PR #210 is open/draft and uses:

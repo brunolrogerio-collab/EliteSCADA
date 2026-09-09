@@ -45,8 +45,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Prove exact frozen C11 ancestor
-        run: git merge-base --is-ancestor f18e7cb8e52543b58dd6c23b83bdf21394041598 HEAD
+      - name: Prove exact corrected canonical C11 ancestor
+        run: git merge-base --is-ancestor 19d5257d970f53ae798c5fa53946fce07c586452 HEAD
 
       - name: Setup .NET 10
         uses: actions/setup-dotnet@v4

@@ -1,6 +1,6 @@
 # Next Coordinator Chat Handoff
 
-Copy the text below into a new coordinator chat if rotation is required.
+Copy the text below into the next coordinator chat.
 
 ---
 
@@ -10,199 +10,192 @@ Assuma a coordenação da Wave 14 do EliteSCADA a partir deste ponto.
 
 **GitHub é a memória oficial e a única autoridade sobre o estado do projeto.**
 
-Antes de qualquer decisão, diagnóstico, alteração de código/documentação, ação em PR, rerun ou merge, revalide o estado ao vivo. Havendo divergência, GitHub live prevalece.
+Antes de qualquer decisão, diagnóstico, alteração de código/documentação, ação em PR, rerun ou merge, revalide o estado ao vivo. Havendo divergência com este handoff, GitHub live prevalece.
 
 Repositório:
 
 `brunolrogerio-collab/EliteSCADA`
 
-Branch ativa:
-
-`wave14/c26-po-homologation-corrections`
-
 Issue coordenadora:
 
 #286
 
-## TOPOLOGIA E PROIBIÇÕES
+Issue de auditoria pós-C26:
 
-- PR #287 — C26 -> `wave14/c11-canonical-eee-demo` somente.
-- PR #288 — C26 -> `main` — **VALIDATION ONLY / MUST NEVER MERGE**.
-- PR #266 — C11 -> `main` — **VALIDATION ONLY / MUST NEVER MERGE**.
-- PR #263 — C11 -> `wave14/corrections-integration` somente.
-- PR #212 — integração Wave14 -> `main` — OPEN/DRAFT e **SEM AUTORIZAÇÃO DE MERGE**.
-- Preview #285 — evidência histórica pré-C26; preservar intocado.
-- Issue #289 — gate posterior de auditoria real via ChatGPT Work; não executar durante C26.
-- Wave13 #205/#207 — pausada.
+#289
 
-`siga`, CI verde, C26 concluído, Preview, Work audit ou homologação não autorizam #212. O merge em `main` exige autorização futura, separada e explícita do Product Owner.
+Preview pós-C26:
 
-Não existe autorização atual para integrar #287. Primeiro C26 deve ficar 5/5 verde, ser aceito e receber autorização explícita para C26 -> C11.
+PR #290
+
+Linha diagnóstica atual:
+
+PR #296 — **DIAGNOSTIC ONLY / MUST NEVER MERGE**
+
+## CONTEXTO DA TROCA
+
+Você está sendo escolhido como próximo coordenador porque esta sessão Codex tem acesso direto ao Codespace real e à aplicação EliteSCADA. Use essa vantagem para fazer diagnóstico dinâmico no ambiente vivo, especialmente onde o coordenador anterior ficou limitado pela autenticação privada do Codespace e pelo browser audit.
+
+Isso não altera governança: não assuma causa sem evidência e revalide GitHub ao vivo antes de agir.
 
 ## LEITURA OBRIGATÓRIA
 
-Leia ao vivo no branch C26, nesta ordem:
+Leia ao vivo, nesta ordem:
 
-1. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-09.md`
+1. `docs/WAVE14-CODEX-COORDINATOR-HANDOFF-2026-09-10.md`
 2. `docs/CURRENT-COORDINATOR-HANDOFF.md`
 3. `LAST CHANGE.md`
-4. `docs/WAVE14-C26-PO-HOMOLOGATION-EXECUTION-LOG.md`
-5. `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md`
-6. `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
-7. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-08.md`
-8. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-07.md`
-9. `docs/WAVE14-C25-POST-DEMO-EXECUTION-LOG.md`
-10. `docs/WAVE14-C25-FINAL-CANDIDATE-MATRIX-2026-09-06.md`
+4. issue #289 comment `5619800919`
+5. issue #286 comment `5619803479`
+6. PR #290, incluindo body, commits, branch/head e estado
+7. PR #296, incluindo body, commits, branch/head e último workflow
+8. `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md`
+9. `docs/WORK-UI-AUDIT-HANDOFF.md` no Preview branch
 
-Depois revalide branch/exact HEAD, #286, #289, PRs #287/#288/#212/#266/#263, C11 canônico, Preview #285 e workflows/logs do exact product/test SHA.
+Depois revalide #286, #289, #290, #296, branches, SHAs e workflows ao vivo antes de qualquer decisão.
 
-## ESTADO DE TRANSFERÊNCIA
+## ESTADO TÉCNICO NO MOMENTO DA TRANSFERÊNCIA
 
-O commit documental desta rotação está acima do candidato de produto. Não confunda HEAD documental com SHA validado.
+Accepted C26 product SHA:
 
-Exact C26 product/test SHA atual:
+`08e2530671de10d48933c4b712a1a1abc9e41dce`
 
-`e7c8a8bf3954890a1ca841498222bf6094952baf`
+Corrected canonical C11 SHA:
 
-`fix(w14-c26): serialize shared PostgreSQL schema setup`
+`19d5257d970f53ae798c5fa53946fce07c586452`
 
-Último exact product/test SHA comprovadamente 5/5 verde:
+Technically validated/audited Preview candidate:
 
-`55f292359af86f5f28d90cc578d4ac93ccc1f19c`
+`59e815eae524b9ff043ea6bf3f797f4c01ba9143`
 
-`fix(w14-c26): align Popup authoring with Runtime`
+Preview docs-only HEAD no último recheck:
 
-Estado:
+`f6196dfc113322ec7c11471071508314d70cd900`
 
-- C26.1–C26.7 — **IMPLEMENTADAS / VALIDADAS**
-- C26.8 Screen Editor — **IMPLEMENTADA / VALIDADA** em `6de64ed4...`
-- C26.9 Popup Editor — **IMPLEMENTADA / VALIDADA** em `55f29235...`
-- C26.10 EEE cleanup — **IMPLEMENTADA / NÃO VALIDADA / BLOQUEIO ATUAL**
-- C26.11 repackage/new Preview — **NÃO INICIADA / BLOQUEADA**
+Frozen package SHA-256:
 
-## EVIDÊNCIA DO EXACT SHA ATUAL
+`e995051b4744f904663350102683c886af9674aaae8fff1dbc76f294ff2d774d`
 
-Em `e7c8a8bf3954890a1ca841498222bf6094952baf`:
+Second Work recheck artifact:
 
-- EliteSCADA CI #1471 / run `34347157464` — SUCCESS
-- Preview Licensing CI #419 / run `34347157585` — SUCCESS
-- Interop Lab Smoke #302 / run `34347159685` — SUCCESS
-- L3 Seven-Driver Lab #375 / run `34347157398` — SUCCESS
-- Wave 11 Active HMI Runtime #397 / run `34347157735` — **FAILURE**
-- Interop natural adicional #301 / run `34347157333` — SUCCESS
+`ELITESCADA-RECHECK-UI-POST-C26-2026-09-10.zip`
 
-Não houve rerun.
+83 arquivos
 
-## BLOQUEIO ATUAL — C26.10
+SHA-256:
 
-Job Wave11:
+`10c1e495d74a85f1f9b8571065e98220cd1baf3b163382536ef31f2176437a14`
 
-`102451385709`
+Estado de coordenação:
 
-Passo:
+`SECOND AUDIT ACCEPTED AS EVIDENCE -> P1s REPRODUCIBLE -> NEW RUNTIME/SIMULATION P1 CANDIDATE -> TECHNICAL REPRODUCTION/DIAGNOSIS REQUIRED -> NOT READY FOR FINAL PO HOMOLOGATION`
 
-`Run Wave 11 Active Runtime browser lifecycle`
+## SEGUNDO WORK RECHECK
 
-Resultado Playwright:
+Reproduzidos:
 
-- 17 passaram;
-- 2 falharam;
-- 4 não executaram.
+- `UIAUD-289-001`
+- `UIAUD-289-002`
+- `UIAUD-289-003`
+- `UIAUD-289-007`
+- `UIAUD-289-011`
+- `UIAUD-289-017`
 
-Falharam:
+Parcialmente reproduzido:
 
-- `tests-wave11/c11-eee-demo-hmi.spec.ts`
-- `tests-wave11/c26-popup-composition.spec.ts`
+- `UIAUD-289-004`
 
-As duas falhas ocorreram no Preview do package, antes das assertions de Runtime. `preview.canApply` retornou false.
+Dados insuficientes:
 
-Entidade inválida:
+- `UIAUD-289-016`
 
-`eee.dynamo.pump`
+Novo candidato P1 provisório:
 
-Erros `VISUAL_PROPERTY_INVALID`:
+`RECHECK-SIM-PUMP-LEVEL`
 
-- `pump-stopped-label`
-- `pump-running-label`
-- `pump-fault-label`
+Durante o recheck, P01 ficou visualmente RUNNING enquanto o snapshot completo do processo permaneceu congelado por mais de 15 minutos; depois os valores degradaram para qualidade ruim/indisponível. A tentativa do auditor de acessar `/api/diagnostics/runtime` foi bloqueada por `net::ERR_BLOCKED_BY_CLIENT`.
 
-Motivo exato:
+**Não existe causa raiz confirmada.** Não conclua Server Script throttle, timer failure, cache freeze, realtime, WebSocket, UI, proxy ou Codespaces sem correlação técnica.
 
-`core.text` não declara `backgroundColor`.
+## PR #296
 
-Histórico: o candidate C26.10 `50363bcc50037cc6932a1282e58e3b6d75fda9f2` tentou impedir a sobreposição visual de `PARADA` sob `OPERANDO`/`FALHA`, adicionando `backgroundColor` e `cornerRadius` aos três textos. A intenção visual é correta, mas a representação é inválida: os schemas backend e browser de `core.text` contêm somente Base + Text e não declaram nenhuma dessas propriedades.
+Branch:
 
-Artifact:
+`diagnostic/w14-post-c26-long-run-stability`
 
-- `playwright-report-wave11`
-- ID `10102316731`
-- run `34347157735`
+HEAD no último recheck:
 
-O SHA atual também contém uma correção genérica e válida de PostgreSQL: Operational Event history passou a usar o mesmo advisory lock `4993446713136202561` das demais stores do schema compartilhado, com regressão concorrente. EliteSCADA CI #1471 ficou verde. Não reverta essa correção.
+`7738b568a5dd4259e958a2c5023c2bf6ca7e5acb`
 
-## PRÓXIMA AÇÃO OBRIGATÓRIA
+Último commit:
 
-Antes de editar:
+`ci(w14): pass ephemeral preview auth before diagnostic devcontainer attach`
 
-1. revalide GitHub ao vivo;
-2. recupere novamente o job `102451385709` e artifact se necessário;
-3. leia no exact SHA:
-   - `web/scada-web/tests-wave11/c11-eee-demo-hmi.ts`
-   - `web/scada-web/tests-wave11/c11-eee-demo-hmi.spec.ts`
-   - `src/Scada.Engineering/VisualScripting/BuiltinVisualObjectSchemas.cs`
-   - `web/scada-web/src/visual-runtime/builtinVisualObjectSchemas.ts`
-   - `web/scada-web/src/engineering/visual-editor/CanonicalVisualRenderer.tsx`
+Último workflow:
 
-Depois:
+- run `34505442984`
+- job `102966371728`
+- conclusion: FAILURE
+- classification: `INFRASTRUCTURE_OR_BOOTSTRAP_FAILURE`
+- observed duration: `0s`
+- direct/proxy LevelPct: unknown
+- direct/proxy realtime: unknown
 
-1. substitua a representação inválida por uma composição EEE mínima usando somente objetos/propriedades visuais públicos e válidos;
-2. preserve placas opacas, cobertura integral dos bounds e precedência Falha > Operando > Parada;
-3. preserve Preview/package validation e testes estritos;
-4. não crie exceção EEE na validação;
-5. não amplie `core.text` apenas para acomodar a fixture EEE; qualquer expansão genérica exige justificativa independente, paridade backend/browser e regressões completas;
-6. não altere security, authentication, authorization, Identity, Engineering Lock, Licensing, lifecycle, package authority, Drivers ou Runtime Active Revision authority;
-7. publique somente a menor correção sustentada pela evidência;
-8. deixe os workflows normais dispararem naturalmente;
-9. diagnostique qualquer vermelho antes de rerun;
-10. exija os cinco gates normais verdes no mesmo exact SHA.
+O workflow falhou antes da coleta >15 min e **não reproduziu o freeze**. Não faça blind rerun. #296 é apenas diagnóstica e **MUST NEVER MERGE**.
 
-Somente então C26.10 pode ser registrada como VALIDADA.
+## SUA PRIMEIRA MISSÃO
 
-Somente depois iniciar C26.11.
+**Diagnostique `RECHECK-SIM-PUMP-LEVEL` diretamente no Codespace real antes de corrigir produto ou gastar mais tempo no harness do #296.**
 
-## GATE PÓS-C26 — CHATGPT WORK
+Durante um freeze, antes de restart/reopen, capture evidência read-only de:
 
-Issue #289 e `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md` continuam obrigatórios, mas **NÃO executar agora**.
+- `runtime.serverScripts.executionCount` / `completedCount`;
+- `faultedCount` / `timeoutCount` / `consecutiveFailures` / `isThrottled`;
+- `lastStatus` / `lastCompletedAt` / `lastSanitizedError`;
+- valor, timestamp e quality de `EEE.Process.LevelPct`, inflow, total flow, P01 running/flow/current/frequency/pressure;
+- progressão de Operational Events no mesmo intervalo;
+- API interna direta versus browser/Vite/porta encaminhada;
+- realtime/WebSocket direto e via proxy quando possível.
 
-Ordem:
+Use a seguinte árvore de diagnóstico somente como discriminante, não como conclusão:
 
-`C26 5/5 verde + aceito -> integração C26->C11 explicitamente autorizada -> C11 corrigido -> novo .escadapkg/checksum/provenance -> NOVO Preview pós-C26 -> técnico verde + ambiente real preparado -> READY FOR WORK AUDIT -> Work audit real no navegador -> triagem/reprodução/correções -> novo candidato -> recheck dirigido se necessário -> homologação final do Product Owner`
+- counters/`lastCompletedAt` pararam -> investigar timer/Server Script/sandbox;
+- diagnostics continuam mas `/api/tags` parou -> investigar bridge/cache/event publication;
+- `/api/tags` continua mudando e browser congela -> investigar realtime/WebSocket/proxy/projection/UI;
+- API interna saudável e apenas forwarded browser falha -> Codespaces/Vite/proxy ganha peso.
 
-O Work deve receber o SCADA vivo, EEE Active, simulação, TAGs dinâmicas, Alarm/Event/Historian/HistoricalQuery, Runtime, Engineering, Screen Editor, Popup Editor e usuários preparados previamente. Não gastar a janela aproximada de 40 minutos fazendo setup.
+Não reinicie o ambiente antes de capturar a evidência que diferencia essas hipóteses.
 
-Criar `docs/WORK-UI-AUDIT-HANDOFF.md` somente quando houver candidato real pronto, com exact SHA, URLs reais, SHA-256 do package e autenticação sem segredo versionado.
+## ORDEM DE TRABALHO APÓS O FREEZE
+
+1. `RECHECK-SIM-PUMP-LEVEL` primeiro.
+2. Correlacionar `UIAUD-289-003` com API interna 5080 versus Vite/forwarded 5173. Preserve a diferença entre texto de UI `(500) Failed to fetch` e HTTP 500 realmente provado pelo backend.
+3. Diagnosticar e corrigir `UIAUD-289-001` genericamente, cobrindo Screen Editor `pump01 · DYN` e Popup Editor `current · VALU`. Não enfraquecer validação de tipo visual desconhecido.
+4. Resolver semantics de project selection/checkout/workspace para `UIAUD-289-002` antes de tocar lifecycle/Active authority.
+5. Separar tecnicamente os subproblemas de `UIAUD-289-007` sem renumerar o finding.
+6. Depois tratar 011 e 017.
+7. Reavaliar 004 somente após saúde da simulação.
+8. Deixar 016 sem correção até existir evidência suficiente.
+9. Para todo defeito confirmado: correção genérica, regressão determinística, novo exact SHA validado, targeted Work recheck somente quando justificado.
+10. Não iniciar homologação final do Product Owner antes de concluir essa sequência.
 
 ## GUARDRAILS PERMANENTES
 
-- GitHub live sempre prevalece;
-- nunca alterar `main` diretamente;
-- nunca mergear #288;
-- nunca mergear #266;
-- nunca mergear #212 sem autorização futura, separada e explícita do Product Owner;
-- #287 é apenas C26 -> C11 e não está autorizado agora;
-- #263 é apenas C11 -> integração;
-- preservar #285;
-- #289 não autoriza execução antecipada nem merge;
-- sem force push, rebase destrutivo, exclusão de branch ou limpeza fora do escopo;
-- sem rerun cego;
-- nunca enfraquecer testes/validação, segurança, autenticação, autorização, Identity, Engineering Lock, Licensing, lifecycle, package, Drivers ou Runtime authority;
-- Runtime/Active deve ser autocontido e não pode depender de `.escadalib`;
-- não mascarar defeito genérico com workaround EEE-specific;
-- Alarm, Operational Event e Audit continuam distintos;
-- Wave13 permanece pausada.
+- GitHub live sempre prevalece.
+- Nunca alterar `main` diretamente.
+- PR #212 permanece OPEN/DRAFT e **não pode mergear em `main` sem autorização futura, separada e explícita do Product Owner**.
+- `siga`, CI verde, Work audit, Preview ou homologação não autorizam #212.
+- PRs #266, #288, #292 e #293 são validation-only / **MUST NEVER MERGE** onde aplicável.
+- PR #296 é diagnostic-only / **MUST NEVER MERGE**.
+- Preservar #285 como evidência histórica PRE-C26.
+- PR #290 é Preview-only, não é rota para `main`.
+- Sem force push, rebase destrutivo, exclusão de branch, blind rerun ou limpeza fora de escopo.
+- Nunca enfraquecer testes/validação, segurança, autenticação, autorização, Identity, Engineering Lock, Licensing, lifecycle, package, Drivers, Historian semantics ou backend Active Runtime authority.
+- Runtime/Active deve ser autocontido e não pode depender de `.escadalib`.
+- Alarm, Operational Event e Audit continuam autoridades distintas.
+- Não mascarar defeito genérico com workaround EEE-specific.
+- Wave13 #205/#207 permanece pausada.
 
-Quando o Product Owner disser `siga`, avance autonomamente pelas próximas tarefas seguras. Se workflows estiverem rodando e não houver tarefa paralela, pare para o Product Owner monitorar. `siga` nunca autoriza merges protegidos.
-
-No fim de cada interação, registre as últimas ações no repositório, normalmente em comentário preciso na issue #286.
+Ao assumir, não faça apenas um resumo. Revalide tudo ao vivo e continue o diagnóstico técnico a partir do Codespace real.
 
 ---

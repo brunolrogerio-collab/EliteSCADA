@@ -201,3 +201,10 @@ A reprodução foi estendida ao Popup Editor após a confirmação no Screen Edi
 
 - **PO-PRE-03 — TAGs e Data Sources:** refutado quanto a uma seleção conflitante. Em `TAGs`, a seleção na lista de leitura foi propagada corretamente para o detalhe e rascunho (Flow → Tank Level, 1/1). Há duas representações da entidade — lista de consulta e lista de seleção do editor — que aumentam a densidade vertical, mas não houve dois estados ativos discordantes. A ausência de navegação com rolagem própria já permanece registrada em UIAUD-289-006. Em `Data Sources`, o único source pôde ser inspecionado com schema, intervalo, edição individual e ações explícitas de lote/remoção; nenhuma mutação foi realizada.
 - **PO-PRE-05 — Segurança:** refutado para este passe. A tela apresenta os papéis `developer` e `operator` com permissões legíveis, distingue conta atual, explica a consequência de sessão, separa redefinição de senha e mantém salvar desabilitado até mudança. Nenhuma alteração de conta, papel ou senha foi realizada.
+
+
+## Rechecagem de conectividade pública — PO-PRE-09 e UIAUD-289-005
+
+Em 10/09/2026, após o crash do Popup Editor, a abertura de uma nova aba direta do produto pelo cliente de auditoria falhou com `ERR_BLOCKED_BY_CLIENT`; isso foi classificado como limitação do cliente de auditoria, não como defeito do produto. Em seguida, o serviço local do Codespace respondeu `HTTP 200` em `0.002499 s` para `http://localhost:5173/`, enquanto o endereço público informado respondeu `HTTP 404` em `0.052637 s` para uma requisição sem a sessão autenticada de navegador.
+
+Este resultado reforça a classificação **UNCERTAIN** de UIAUD-289-005: existe uma diferença real entre serviço local saudável e acesso público mediado por proxy/autenticação, mas a evidência atual não isola se o 404 é regra de acesso do Codespaces, perda de encaminhamento ou defeito da aplicação. Não promover para defeito GENERIC PRODUCT nem EEE-SPECIFIC sem reprodução técnica autenticada fora deste cliente.

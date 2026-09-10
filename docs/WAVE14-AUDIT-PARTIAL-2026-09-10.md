@@ -68,3 +68,47 @@ Combinado com a ausência de `dynamo` e `value` no catálogo atual e com a exce�
 - **Classificação:** UNCERTAIN. Não há evidência atual de defeito de produto; a diferença anterior pode ter ocorrido antes do checkout/bootstrap do pacote ou durante reinicialização do Codespace.
 - **Evidência:** '.preview/workspace.json', '.preview/persistence-status.json', '.preview/lifecycle.json', '.preview/runtime-application.json'; 'scripts/preview/launch-post-c26-preview.sh' configura 'EngineeringRuntime__ProjectKey=eee-demo'; 'EngineeringLifecycleWorkspace.tsx', 'EngineeringLifecycleWorkspace.logic.ts' e 'EngineeringPersistenceApi.cs' contêm aviso e bloqueio por chave divergente.
 - **Notas:** o 'EngineeringWorkspace' nasce em memória com 'SeedDemo()', mas o bootstrap auditado faz checkout do pacote EEE e substitui seu descritor pelo projeto canônico. Se a divergência reaparecer, capturar visualmente o cabeçalho do Engineering e os quatro endpoints autenticados antes de reiniciar o preview.
+
+
+## Complemento — UIAUD-289-002 / identidade Working × Runtime
+
+A revalidação visual posterior não altera a conclusão sobre os artefatos: Runtime, workspace persistido, lifecycle e aplicação ativa permanecem alinhados em `eee-demo`. Contudo, ao retornar do Runtime para `/engineering`, a carga do modelo público falhou e o shell exibiu `Demo Project`, schema `—`, revisão-base `Ainda não salvo` e snapshot `—`. Esse nome é um valor de fallback da interface quando o snapshot não existe; portanto, não constitui evidência de que o Working real tenha mudado para outro projeto. A observação anterior de divergência visual deve ser lida em conjunto com UIAUD-289-004.
+
+## UIAUD-289-004 — Engineering aparenta projeto alternativo durante falha de carga
+
+- **Severidade:** P2
+- **Área:** Engineering / navegação / UX de erros
+- **Título:** Falha ao carregar o modelo público mantém shell com “Demo Project” e bloqueia os módulos
+- **Passos de reprodução:** (1) Com sessão autenticada, abrir o Runtime; (2) acionar `Engineering`; (3) aguardar a montagem completa do shell; (4) observar cabeçalho, contexto do projeto e painel central; (5) acionar `Tentar novamente`; (6) tentar abrir `Scripts` pela navegação lateral.
+- **Esperado:** a interface deve indicar estado de carregamento ou indisponibilidade sem apresentar uma identidade de projeto que possa ser confundida com o Working real; a repetição deve recuperar a carga quando o serviço voltar ou fornecer diagnóstico acionável. Os módulos dependentes devem ficar explicitamente indisponíveis.
+- **Observado:** o shell autenticado apareceu com `Demo Project`, schema `—`, revisão-base `Ainda não salvo` e snapshot `—`, ao mesmo tempo em que o painel central informou `Não foi possível carregar o modelo público de Engenharia.` e `Failed to fetch`. `Tentar novamente` não recuperou a carga. O acionamento de `Scripts` não abriu o workspace; a tela de erro permaneceu.
+- **Reprodutibilidade:** 2/2 para a falha e para a ausência de recuperação no mesmo ciclo autenticado.
+- **Classificação:** GENERIC PRODUCT. A causa inicial da requisição pode envolver o proxy privado do Codespaces, mas o fallback enganoso, o bloqueio silencioso dos módulos e a ausência de orientação são comportamentos da interface aplicáveis a qualquer falha de rede.
+- **Evidência:** inspeção visual e árvore de acessibilidade do navegador direto autenticado em 2026-09-10, URL `/engineering`; textos visíveis acima; conta de preview exibida no shell. A captura visual foi observada durante a sessão, mas não foi anexada porque a transferência para o repositório foi interrompida e o arquivo parcial foi removido.
+- **Notas:** os artefatos locais de preview continuam identificando `eee-demo`; `Demo Project` é fallback do shell quando o snapshot público não foi obtido. Este finding também bloqueou a tentativa prática de PO-PRE-07 nesta rodada.
+
+## UIAUD-289-005 — transição Runtime ↔ Engineering excede tempo de resposta aceitável
+
+- **Severidade:** P2
+- **Área:** Runtime / Engineering / navegação
+- **Título:** Troca entre Runtime e Engineering levou aproximadamente 16–21 segundos
+- **Passos de reprodução:** (1) No Engineering autenticado, acionar `Runtime`; (2) medir até o Runtime completo e interativo; (3) acionar `Engineering`; (4) medir até o shell final e observar o resultado da carga.
+- **Esperado:** a troca deve concluir em poucos segundos, com indicador contínuo e estado final utilizável ou erro claro.
+- **Observado:** Engineering → Runtime mostrou apenas `EliteSCADA` após cerca de 6 s e completou em aproximadamente 16 s. Runtime → Engineering consumiu cerca de 11 s na navegação e aproximadamente 21 s até o estado final; esse estado terminou em UIAUD-289-004 (`Failed to fetch`).
+- **Reprodutibilidade:** 1/1 ciclo completo medido nesta rodada; o sintoma é coerente com PO-PRE-10.
+- **Classificação:** UNCERTAIN. As APIs locais responderam em cerca de 2–4 ms e a porta pública estava sujeita ao proxy/autenticação privada do Codespaces. Há sintoma real para o usuário, mas ainda não há separação causal suficiente entre produto, proxy e ambiente.
+- **Evidência:** cronometragem observacional no navegador direto autenticado em 2026-09-10; Runtime final exibiu `EliteSCADA — EEE Demo`, revisão 2 e valores dinâmicos; retorno terminou no erro de carga do Engineering.
+- **Notas:** PO-PRE-09 não foi reproduzido como HTTP 404 de rota nesta tentativa: o shell de `/engineering` carregou, mas uma requisição interna do modelo público terminou em `Failed to fetch`. Investigar logs de proxy/servidor em reprodução técnica posterior.
+
+## Estado de PO-PRE-07 — tentativa prática de Scripts
+
+A tentativa prática solicitada pelo Product Owner foi iniciada no produto real: após a falha de carga do Engineering, foi acionado `Scripts` para procurar um fluxo de comparação entre dois TAGs e alteração de cor/estado de objeto. O workspace de Scripts não abriu e permaneceu a tela de erro de UIAUD-289-004. Assim, nesta rodada, a capacidade de descobrir sintaxe, objetos, TAGs, propriedades e APIs pela interface fica **BLOQUEADA**, não confirmada nem refutada. A inspeção documental/estrutural pode complementar o diagnóstico, mas não substitui a tentativa prática exigida.
+
+
+### Complemento estrutural de PO-PRE-07
+
+Sem substituir a reprodução prática, a leitura somente leitura da implementação mostra que `PythonMonacoEditor` monta `PythonScriptAssistant`. O painel se apresenta como `Assistente de Script / Objetos do Projeto`, oferece pesquisa por `TAG, tela, objeto, propriedade, Dynamo ou API`, separa TAGs, telas, popups, Client Memory e APIs disponíveis e permite inserir snippets no cursor. O catálogo gera, entre outros, `tag_read`, `tag_write`, `visual_property_read`, `visual_property_write`, limpeza de override e tween usando referências canônicas. O provedor de autocomplete do Monaco localizado em `PythonMonacoEditor.tsx` produz sugestões de entry points; não foram localizadas sugestões de API/TAG nesse provedor. Também não foi localizado exemplo composto que compare dois `tag_read` e condicione uma chamada `visual_property_write`. Portanto, há mecanismos explícitos para descobrir e inserir as operações elementares, mas a composição solicitada ainda depende de conhecimento de Python e precisa ser validada na UI funcional.
+
+### Nota de governança do registro
+
+A frase histórica da seção `Integridade do trabalho` descrevia o estado no momento em que o primeiro registro foi criado. Por solicitação posterior do usuário, este relatório passou a ser versionado no branch vivo de auditoria por commits exclusivamente documentais. Nenhum arquivo de produto, configuração de runtime ou código-fonte foi alterado; não houve patch de produto, pull request ou merge.

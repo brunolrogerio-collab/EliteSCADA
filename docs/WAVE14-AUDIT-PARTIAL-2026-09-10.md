@@ -180,3 +180,24 @@ A conclusão anterior baseada apenas nos artefatos de `.preview` foi refutada pe
 - **Classificação:** GENERIC PRODUCT.
 - **Evidência:** inspeção visual nas páginas Visão geral, Scripts, Bibliotecas, Templates, Equipamentos, Dínamos e Telas.
 - **Notas:** a faixa desaparece ao rolar a página, mas contribui diretamente para UIAUD-289-006 e não se adapta ao estado sem segredo configurado/desbloqueado.
+
+
+## Complemento de reprodução visual — UIAUD-289-001 no Popup Editor
+
+A reprodução foi estendida ao Popup Editor após a confirmação no Screen Editor.
+
+- **Severidade:** P1
+- **Área:** Engineering / Popup Editor / Properties / compatibilidade de tipos legados
+- **Título:** Selecionar objeto legado na árvore do Popup Editor derruba toda a aplicação para tela vazia
+- **Passos de reprodução:** (1) Abrir Engineering; (2) abrir `Popups`; (3) manter `Standard Pump Popup`; (4) na árvore `Estrutura`, selecionar `current · value`.
+- **Esperado:** o objeto deve ser selecionado e o painel Properties deve abrir; se o tipo legado não for editável, a UI deve manter o workspace e expor diagnóstico localizado.
+- **Observado:** imediatamente após o clique, shell, navegação e editor somem. Permanece apenas o fundo escuro; a árvore de acessibilidade fica somente na raiz da página, sem mensagem, recuperação ou conteúdo acessível.
+- **Reprodutibilidade:** 1/1 no Popup Editor, além de 2/2 já confirmados no Screen Editor.
+- **Classificação:** GENERIC PRODUCT. O comportamento transversal confirma que o caminho genérico de seleção/inspeção de visual legado não contém a falha.
+- **Evidência:** `evidencias/UIAUD-289-001-popup-editor-blank-after-selection.jpg`, SHA-256 `79a64b94019d2ebf0ce84e69ddb6e5f59c5afcfe24b0dff7c6b8812c0a15a99a`; a tela imediatamente anterior listava `current · value`, `frequency · value` e `fault · status` na árvore.
+- **Notas:** o Popup Editor expunha antes do clique paleta, biblioteca de dínamos, preview, controles de grid/snap/zoom, barra de edição e Properties. O crash impede testar tais controles nos objetos persistidos do popup.
+
+## Rechecagens deliberadas PO-PRE-03 e PO-PRE-05
+
+- **PO-PRE-03 — TAGs e Data Sources:** refutado quanto a uma seleção conflitante. Em `TAGs`, a seleção na lista de leitura foi propagada corretamente para o detalhe e rascunho (Flow → Tank Level, 1/1). Há duas representações da entidade — lista de consulta e lista de seleção do editor — que aumentam a densidade vertical, mas não houve dois estados ativos discordantes. A ausência de navegação com rolagem própria já permanece registrada em UIAUD-289-006. Em `Data Sources`, o único source pôde ser inspecionado com schema, intervalo, edição individual e ações explícitas de lote/remoção; nenhuma mutação foi realizada.
+- **PO-PRE-05 — Segurança:** refutado para este passe. A tela apresenta os papéis `developer` e `operator` com permissões legíveis, distingue conta atual, explica a consequência de sessão, separa redefinição de senha e mantém salvar desabilitado até mudança. Nenhuma alteração de conta, papel ou senha foi realizada.

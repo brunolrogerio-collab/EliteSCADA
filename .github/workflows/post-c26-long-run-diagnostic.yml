@@ -38,11 +38,24 @@ jobs:
           diff -u /tmp/allowed-paths.txt /tmp/actual-paths.txt
           printf 'Diagnostic branch is isolated from exact candidate %s.\n' "$BASE"
 
+      - name: Generate ephemeral diagnostic Preview password
+        id: preview-auth
+        shell: bash
+        run: |
+          set -euo pipefail
+          PASSWORD="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(36).toString("base64url"))')"
+          [[ -n "$PASSWORD" ]]
+          printf '::add-mask::%s\n' "$PASSWORD"
+          printf 'password=%s\n' "$PASSWORD" >> "$GITHUB_OUTPUT"
+          PASSWORD=''
+
       - name: Run correlated long-run probe in canonical devcontainer
         id: probe
         uses: devcontainers/ci@v0.3
         with:
           push: never
+          env: |
+            ELITESCADA_PREVIEW_ADMIN_PASSWORD=${{ steps.preview-auth.outputs.password }}
           runCmd: >-
             ELITESCADA_DIAGNOSTIC_DURATION_SECONDS=1200
             ELITESCADA_DIAGNOSTIC_INTERVAL_SECONDS=5

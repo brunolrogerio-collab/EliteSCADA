@@ -47,3 +47,9 @@ Hipótese de diagnóstico a confirmar: o fluxo de autoria dinâmica recebe tipos
 ## Integridade do trabalho
 
 Nenhum arquivo de produto foi alterado. Não foram criados patches, commits, pull requests ou merges. Este registro não contém senhas, cookies, tokens ou outros segredos.
+
+## Complemento — confirmação do caminho UIAUD-289-001
+
+A leitura do código confirmou que `listDynamicPropertyDestinations(element)` chama `getBuiltinVisualObjectSchema(element.type)` diretamente. `DynamicPropertyEditor` memoriza e executa essa função com dependência de `element.type`, sem uma camada local de normalização ou recuperação para tipo desconhecido.
+
+Combinado com a ausência de `dynamo` e `value` no catálogo atual e com a exceção já registrada na issue, isso confirma o mecanismo: objetos persistidos com esses identificadores legados alcançam a busca atual de schema sem compatibilidade. A origem dos identificadores persistidos e a correção adequada continuam fora do escopo desta auditoria.

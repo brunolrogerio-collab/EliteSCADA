@@ -2,125 +2,91 @@
 
 > GitHub live is the official memory and sole authority for EliteSCADA. Revalidate live before every decision, diagnosis, code/documentation write, PR action, workflow rerun or merge. Any divergence here is resolved in favor of GitHub.
 
-## Current topology
+## Coordinator transfer — 2026-09-10
 
-- Repository: `brunolrogerio-collab/EliteSCADA`
-- Active branch: `wave14/c26-po-homologation-corrections`
-- Coordinator issue: #286
-- PR #287: C26 -> `wave14/c11-canonical-eee-demo`, OPEN/DRAFT
-- PR #288: C26 -> `main`, **VALIDATION ONLY / MUST NEVER MERGE**
-- canonical C11 head at last revalidation: `a724ece64a292aa1d1dedd886a72fb28ff8d90fe`
-- PR #266: C11 -> `main`, **VALIDATION ONLY / MUST NEVER MERGE**
-- PR #263: C11 -> `wave14/corrections-integration` only
-- PR #212: integration -> `main`, OPEN/DRAFT, **NO MERGE without later separate explicit Product Owner authorization**
-- Preview #285: preserve untouched as historical pre-C26 evidence
-- issue #289: mandatory post-C26 ChatGPT Work audit gate; **do not execute now**
-- Wave13 #205/#207: paused
+The Product Owner intends to continue Wave 14 coordination in a ChatGPT Codex session with direct access to the real Codespace and running application.
 
-## Exact execution boundary
+Canonical detailed transfer document:
 
-Current C26 product/test SHA:
+`docs/WAVE14-CODEX-COORDINATOR-HANDOFF-2026-09-10.md`
 
-`e7c8a8bf3954890a1ca841498222bf6094952baf`
+Use that capability to obtain live dynamic evidence. It does not authorize assumptions, fixes or protected merges.
 
-`fix(w14-c26): serialize shared PostgreSQL schema setup`
+## Current live technical boundary at last revalidation
 
-The live branch HEAD after this rotation is a documentation-only commit above the product SHA. Revalidate it; never use the docs-only SHA as product validation evidence.
+- repository: `brunolrogerio-collab/EliteSCADA`
+- coordinator issue: #286 — OPEN
+- Work audit issue: #289 — OPEN
+- Preview PR #290 — OPEN/DRAFT/not merged
+- diagnostic PR #296 — OPEN/DRAFT, **DIAGNOSTIC ONLY / MUST NEVER MERGE**
+- accepted C26 product SHA: `08e2530671de10d48933c4b712a1a1abc9e41dce`
+- corrected canonical C11 SHA: `19d5257d970f53ae798c5fa53946fce07c586452`
+- technically validated/audited Preview candidate: `59e815eae524b9ff043ea6bf3f797f4c01ba9143`
+- Preview docs-only HEAD: `f6196dfc113322ec7c11471071508314d70cd900`
+- frozen package SHA-256: `e995051b4744f904663350102683c886af9674aaae8fff1dbc76f294ff2d774d`
 
-Last exact product/test SHA with all five normal gates green:
+Second Work recheck authority:
 
-`55f292359af86f5f28d90cc578d4ac93ccc1f19c`
+- #289 comment `5619800919`
+- #286 comment `5619803479`
 
-`fix(w14-c26): align Popup authoring with Runtime`
+Current decision:
 
-Status:
+`SECOND AUDIT ACCEPTED AS EVIDENCE -> P1s REPRODUCIBLE -> NEW RUNTIME/SIMULATION P1 CANDIDATE -> TECHNICAL REPRODUCTION/DIAGNOSIS REQUIRED -> NOT READY FOR FINAL PO HOMOLOGATION`
 
-- C26.1–C26.7 — **IMPLEMENTED / VALIDATED**
-- C26.8 Screen editor — **IMPLEMENTED / VALIDATED** at `6de64ed4...`
-- C26.9 Popup editor — **IMPLEMENTED / VALIDATED** at `55f29235...`
-- C26.10 canonical EEE cleanup — **IMPLEMENTED / NOT VALIDATED / CURRENT BLOCKER**
-- C26.11 package/new Preview — **NOT STARTED / BLOCKED**
+## Highest-priority blocker
 
-## Current exact-SHA gates
+`RECHECK-SIM-PUMP-LEVEL` remains provisional P1 / UNCERTAIN.
 
-At `e7c8a8bf3954890a1ca841498222bf6094952baf`:
+Observed in the second real-browser audit: P01 remained visually RUNNING while the full process snapshot stayed frozen for >15 minutes, then values degraded to bad/unavailable quality. Browser-side `/api/diagnostics/runtime` was blocked by `net::ERR_BLOCKED_BY_CLIENT`, so no Server Script stop/throttle root cause was established.
 
-- EliteSCADA CI #1471 / run `34347157464` — SUCCESS
-- Preview Licensing CI #419 / run `34347157585` — SUCCESS
-- Interop Lab Smoke #302 / run `34347159685` — SUCCESS
-- L3 Seven-Driver Lab #375 / run `34347157398` — SUCCESS
-- Wave 11 Active HMI Runtime #397 / run `34347157735` — **FAILURE**
-- additional natural Interop #301 / run `34347157333` — SUCCESS
+Do not assign a final UIAUD ID or product root cause yet.
 
-No rerun was requested.
+## Diagnostic PR #296
 
-## Current blocker — C26.10 package schema
+Current diagnostic branch HEAD at last revalidation:
 
-Wave11 job `102451385709`, step `Run Wave 11 Active Runtime browser lifecycle`, finished with 17 passed, 2 failed and 4 not run.
+`7738b568a5dd4259e958a2c5023c2bf6ca7e5acb`
 
-Both failures occurred during Preview/Apply setup:
+Latest run:
 
-- `tests-wave11/c11-eee-demo-hmi.spec.ts`
-- `tests-wave11/c26-popup-composition.spec.ts`
+- workflow run `34505442984`
+- job `102966371728`
+- conclusion: FAILURE
+- classification: `INFRASTRUCTURE_OR_BOOTSTRAP_FAILURE`
+- observed duration: `0s`
+- simulation/realtime evidence: unknown
 
-The preview rejected Dynamo `eee.dynamo.pump` with `VISUAL_PROPERTY_INVALID` for:
+This run failed before the intended >15-minute probe and therefore **does not reproduce the simulation freeze**. Do not blind-rerun unchanged. PR #296 remains evidence-only / MUST NEVER MERGE.
 
-- `pump-stopped-label`
-- `pump-running-label`
-- `pump-fault-label`
+## Immediate next task for the Codex coordinator
 
-The exact error says `core.text` does not declare `backgroundColor`.
+1. Revalidate #286, #289, #290, #296, relevant branch heads and latest workflow/comments live.
+2. Use direct Codespace/application access to diagnose `RECHECK-SIM-PUMP-LEVEL` first.
+3. During a freeze, before restart/reopen, capture Server Script counters/status/timestamps/errors, current TAG values/timestamps/quality, event progression, direct internal API behavior and browser/Vite/realtime behavior.
+4. Correlate `UIAUD-289-003` using direct API 5080 versus forwarded/Vite 5173. Do not equate browser text `(500) Failed to fetch` with a proven backend HTTP 500.
+5. Then diagnose/correct `UIAUD-289-001` generically with Screen + Popup regressions.
+6. Continue the ordered triage in #289 comment `5619800919`.
 
-The C26.10 candidate `50363bcc...` had added `backgroundColor` and `cornerRadius` to these three text elements to prevent `PARADA` from showing through `OPERANDO`/`FALHA`. Exact backend and browser schemas define `core.text` as base + text properties and do not declare either property. The visual intent is valid, but the authored representation is package-invalid.
+Useful static diagnostic split, not a root-cause conclusion:
 
-The uploaded Wave11 evidence is artifact `playwright-report-wave11`, ID `10102316731`, attached to run `34347157735`.
-
-## Independent PostgreSQL correction now green
-
-At `50363bcc...`, EliteSCADA CI exposed concurrent `CREATE SCHEMA IF NOT EXISTS elitescada` under mismatched advisory locks. Commit `e7c8a8...` changed Operational Event history to shared lock `4993446713136202561` and added it to the shared-schema concurrency regression.
-
-EliteSCADA CI #1471 passed. Do not revert this fix while correcting the C26.10 visual schema error.
-
-## Immediate next task
-
-1. Read `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-09.md` first and revalidate all live refs/gates.
-2. Re-read Wave11 #397/job `102451385709` plus exact C26.10 helper, regression and backend/browser visual schemas.
-3. Replace the invalid text-background authoring with the smallest schema-valid EEE composition that keeps state labels opaque and legible.
-4. Preserve strict package Preview and Runtime assertions.
-5. Do not widen `core.text` solely for EEE; a generic contract change requires independent platform justification and synchronized backend/browser coverage.
-6. Let workflows run naturally on the new exact product/test SHA; no blind rerun.
-7. Require the five normal gates green on one SHA before declaring C26.10 VALIDATED.
-8. Do not begin C26.11 or integrate #287 before C26 is validated, accepted and the integration is explicitly authorized.
-
-## Validated recent milestones
-
-- C26.7: `b1bd1f664b06684afaecbbff2d27da10760cc1ec` — 5/5 normal gates SUCCESS
-- C26.8: `6de64ed4d11ac1e525f32d7071b9624e428c96ee` — 5/5 normal gates SUCCESS
-- C26.9: `55f292359af86f5f28d90cc578d4ac93ccc1f19c` — 5/5 normal gates SUCCESS
-
-## Binding post-C26 route
-
-Issue #289 and `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md` remain mandatory only after C26 completion/acceptance, authorized C26->C11 integration, corrected canonical C11, regenerated package/checksum/provenance and a new technically ready Preview.
-
-Prepare the live application, EEE Active Revision, simulation, TAG dynamics, Alarm/Event/Historian/HistoricalQuery, Runtime, Engineering, Screen Editor, Popup Editor and users before declaring `READY FOR WORK AUDIT`. Do not consume the approximately 40-minute Work window on setup.
+- Server Script counters/`lastCompletedAt` stop -> investigate timer/script/sandbox;
+- diagnostics advance but `/api/tags` stops -> investigate bridge/cache/event publication;
+- `/api/tags` advances but browser freezes -> investigate realtime/WebSocket/proxy/projection/UI;
+- internal API healthy while forwarded browser path fails -> Codespaces/Vite/proxy transport gains weight.
 
 ## Permanent guardrails
 
-- GitHub live wins over every handoff;
 - never modify `main` directly;
-- #212 has no merge authorization; `siga` never authorizes it;
-- #288 and #266 must never merge;
-- #287 targets canonical C11 only and is not authorized now;
-- #263 is C11 -> integration only;
-- preserve #285;
-- #289 does not authorize early execution or protected merges;
+- #212 remains OPEN/DRAFT and requires later, separate and explicit Product Owner authorization before merge;
+- `siga`, green CI, Work completion, Preview or homologation do not authorize #212;
+- #266, #288, #292 and #293 are validation-only / MUST NEVER MERGE where applicable;
+- #296 is diagnostic-only / MUST NEVER MERGE;
+- preserve #285 as historical pre-C26 evidence;
+- #290 is Preview-only and not a route to `main`;
 - no force push, destructive rebase, branch deletion, blind rerun or unrelated cleanup;
-- never weaken tests, validation, security, authentication, authorization, Identity, Engineering Lock, Licensing, lifecycle, package, Drivers or Runtime Active Revision authority;
+- never weaken tests, security, Identity, authentication, authorization, Engineering Lock, Licensing, lifecycle, package, Drivers, Historian semantics or backend Active Runtime authority;
 - Runtime/Active cannot depend on `.escadalib`;
-- no EEE-specific workaround for a generic product defect;
-- Alarm, Operational Event and Audit remain separate;
-- Wave13 remains paused.
-
-Canonical detailed handoff:
-
-`docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-09.md`
+- Alarm, Operational Event and Audit remain distinct;
+- no EEE-specific workaround for a generic platform defect;
+- Wave13 #205/#207 remains paused.

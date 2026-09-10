@@ -53,3 +53,18 @@ Nenhum arquivo de produto foi alterado. Não foram criados patches, commits, pul
 A leitura do código confirmou que `listDynamicPropertyDestinations(element)` chama `getBuiltinVisualObjectSchema(element.type)` diretamente. `DynamicPropertyEditor` memoriza e executa essa função com dependência de `element.type`, sem uma camada local de normalização ou recuperação para tipo desconhecido.
 
 Combinado com a ausência de `dynamo` e `value` no catálogo atual e com a exceção já registrada na issue, isso confirma o mecanismo: objetos persistidos com esses identificadores legados alcançam a busca atual de schema sem compatibilidade. A origem dos identificadores persistidos e a correção adequada continuam fora do escopo desta auditoria.
+
+
+## UIAUD-289-002 — divergência Runtime × Working não reproduzida no estado atual
+
+- **Status:** REFUTADO para o candidato e o preview atuais; permanece como observação histórica a revalidar se reaparecer.
+- **Severidade:** P2 pelo impacto potencial de editar o contexto errado; sem defeito ativo confirmado nesta captura.
+- **Área:** Engineering / Runtime / ciclo Working–Published–Active.
+- **Título:** Runtime e Engineering apresentam o mesmo projeto 'eee-demo' após o bootstrap pós-C26.
+- **Passos de reprodução:** (1) iniciar o preview pós-C26; (2) conferir o descritor do Working, o estado de persistência, o ciclo e a aplicação ativa; (3) comparar as chaves e nomes; (4) revisar a regra de ativação quando as chaves divergem.
+- **Esperado:** Runtime configurado, Working, Published e Active devem apontar para o mesmo projeto, ou a interface deve avisar e impedir ativação cruzada.
+- **Observado:** os artefatos reais do preview registram Working 'projectKey=eee-demo', 'projectName=EliteSCADA — EEE Demo', persistência configurada para 'eee-demo', Published/Active na revisão 2 e Runtime ativo em 'eee-demo'. A tentativa sem sessão contra os endpoints protegidos respondeu 401, comportamento coerente com segurança habilitada. No frontend, uma divergência aciona o banner “O projeto Runtime não corresponde ao Working”; 'canActivate' e o backend comparam as chaves e bloqueiam ativação de outro projeto.
+- **Reprodutibilidade:** 0/1 no estado atual. A observação anterior do Product Owner não foi repetida nesta revalidação.
+- **Classificação:** UNCERTAIN. Não há evidência atual de defeito de produto; a diferença anterior pode ter ocorrido antes do checkout/bootstrap do pacote ou durante reinicialização do Codespace.
+- **Evidência:** '.preview/workspace.json', '.preview/persistence-status.json', '.preview/lifecycle.json', '.preview/runtime-application.json'; 'scripts/preview/launch-post-c26-preview.sh' configura 'EngineeringRuntime__ProjectKey=eee-demo'; 'EngineeringLifecycleWorkspace.tsx', 'EngineeringLifecycleWorkspace.logic.ts' e 'EngineeringPersistenceApi.cs' contêm aviso e bloqueio por chave divergente.
+- **Notas:** o 'EngineeringWorkspace' nasce em memória com 'SeedDemo()', mas o bootstrap auditado faz checkout do pacote EEE e substitui seu descritor pelo projeto canônico. Se a divergência reaparecer, capturar visualmente o cabeçalho do Engineering e os quatro endpoints autenticados antes de reiniciar o preview.

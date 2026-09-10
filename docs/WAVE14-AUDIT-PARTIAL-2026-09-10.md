@@ -112,3 +112,71 @@ Sem substituir a reprodução prática, a leitura somente leitura da implementa�
 ### Nota de governança do registro
 
 A frase histórica da seção `Integridade do trabalho` descrevia o estado no momento em que o primeiro registro foi criado. Por solicitação posterior do usuário, este relatório passou a ser versionado no branch vivo de auditoria por commits exclusivamente documentais. Nenhum arquivo de produto, configuração de runtime ou código-fonte foi alterado; não houve patch de produto, pull request ou merge.
+
+
+## Complemento corretivo — UIAUD-289-002 confirmado no produto real
+
+A conclusão anterior baseada apenas nos artefatos de `.preview` foi refutada pela autoridade observável do produto após a recuperação da requisição pública. O Engineering carregou um snapshot válido de `Demo Project` (chave `demo`, versão de mudança 0, sem revisão-base, Published ou Active), enquanto o Runtime continuou em `eee-demo`, revisão 2. O próprio Ciclo do Engineering exibiu: `O projeto Runtime não corresponde ao Working` e `Projeto Runtime configurado: eee-demo. A ativação fica bloqueada porque o backend rejeitará outra chave.`
+
+- **Severidade:** P1
+- **Área:** Engineering / Runtime / ciclo autoritativo / bootstrap
+- **Título:** Working real abre em Demo Project enquanto Runtime executa eee-demo
+- **Passos de reprodução:** (1) Abrir o Runtime autenticado e confirmar `EliteSCADA — EEE Demo`, revisão 2; (2) abrir `/engineering`; (3) se ocorrer `Failed to fetch`, usar `Tentar novamente`; (4) na visão geral, ler Projeto, Working, revisões e Runtime ao vivo.
+- **Esperado:** o Working disponível para edição deve corresponder ao projeto Runtime configurado e ao candidato EEE carregado, ou o Engineering deve oferecer fluxo explícito e seguro de checkout do mesmo projeto antes de permitir trabalho.
+- **Observado:** Working `Demo Project` / `demo`, versão 0, ciclo vazio e sem revisões; Runtime configurado `eee-demo`, ao vivo r2; ativação explicitamente bloqueada por divergência.
+- **Reprodutibilidade:** 2/2 carregamentos públicos bem-sucedidos em abas novas na mesma sessão autenticada.
+- **Classificação:** EEE-SPECIFIC. O mecanismo de bloqueio está correto, mas o estado entregue para esta auditoria pós-C26 não corresponde ao pacote EEE candidato.
+- **Evidência:** `evidencias/UIAUD-289-002-runtime-working-mismatch.jpg`, SHA-256 `aa849f19c56263bef8efa15dd0cbe817ea20f2c7a4243ef2b71803302911374e`; árvore de acessibilidade do produto real com os mesmos valores. Os artefatos de `.preview` que indicavam `eee-demo` ficam registrados como evidência contraditória de bootstrap/persistência, não como autoridade superior à UI/API viva.
+- **Notas:** a tela de erro anterior realmente usa `Demo Project` como fallback, mas a recuperação posterior provou que o snapshot público carregado também é `demo`. Portanto, UIAUD-289-004 permanece válido como UX de falha, e UIAUD-289-002 volta ao estado confirmado.
+
+## Complemento de reprodução visual — UIAUD-289-001
+
+- **Severidade:** P1
+- **Área:** Engineering / Screen Editor / Properties / compatibilidade de tipos legados
+- **Título:** Selecionar objeto legado na árvore derruba toda a aplicação para tela vazia
+- **Passos de reprodução:** (1) Abrir Engineering; (2) abrir `Telas`; (3) manter `Demo Overview`; (4) na árvore `Estrutura`, selecionar `tank01 · tank`.
+- **Esperado:** o objeto deve ser selecionado e o painel Properties deve abrir; se o tipo legado não for editável, a UI deve preservar o workspace e apresentar diagnóstico localizado.
+- **Observado:** imediatamente após o clique, todo o shell, a navegação e o editor desaparecem. Resta somente o fundo escuro, sem mensagem, ação de recuperação ou conteúdo acessível além da raiz da página.
+- **Reprodutibilidade:** 2/2, incluindo nova aba e nova carga completa do Engineering.
+- **Classificação:** GENERIC PRODUCT. O crash decorre do caminho genérico de inspeção/schema para objeto persistido com tipo legado, independentemente do projeto EEE.
+- **Evidência:** `evidencias/UIAUD-289-001-screen-editor-blank-after-selection.jpg`, SHA-256 `9de07e850c721c9e2efea07a27153bd7ca4f942c30ab9bfe2ffb9813239d1a20`; antes do clique, o preview identificava `Legacy visual type: tank` e a árvore listava `tank01 · tank`.
+- **Notas:** este crash bloqueia o teste prático de Properties, bindings, texto, mover/redimensionar, copiar/colar, undo/redo, grupo, lock, alinhamento e z-order sobre os quatro objetos já persistidos. Controles de zoom, grid e snap eram visíveis antes do crash.
+
+## UIAUD-289-006 — navegação do Engineering depende da rolagem global
+
+- **Severidade:** P2
+- **Área:** Engineering / navegação / responsividade
+- **Título:** Menu lateral não possui rolagem independente e perde itens/seleção durante páginas longas
+- **Passos de reprodução:** (1) Abrir Engineering em viewport 1265 × 712; (2) abrir Scripts ou a visão geral; (3) usar Page Down para alcançar itens inferiores da navegação.
+- **Esperado:** a navegação deve permanecer utilizável por rolagem própria ou modo recolhido, preservando acesso ao módulo atual e ao conteúdo principal.
+- **Observado:** a rolagem é global. Cabeçalho superior e itens iniciais do menu somem juntos; em Scripts, o conteúdo principal ficou fora da viewport enquanto o usuário rolava apenas para alcançar Templates, Telas, Segurança e Diagnósticos. Não havia controle de recolhimento no shell geral.
+- **Reprodutibilidade:** 1/1 fluxo deliberado; coerente com PO-PRE-01.
+- **Classificação:** GENERIC PRODUCT.
+- **Evidência:** inspeção visual no navegador real; scrollbar única na borda direita e ausência de scrollbar/controle próprio da navegação. O Screen Editor possui controles locais de recolhimento, mas eles não resolvem o shell geral.
+- **Notas:** o problema cresce com a faixa persistente de proteção e com páginas longas.
+
+## UIAUD-289-007 — catálogos de objetos e bibliotecas não oferecem preview útil
+
+- **Severidade:** P2
+- **Área:** Engineering / Templates / Equipamentos / Dínamos / Bibliotecas
+- **Título:** Listagens apresentam metadados textuais sem representação visual do recurso
+- **Passos de reprodução:** (1) Abrir Templates, Equipamentos e Dínamos; (2) observar as linhas; (3) abrir Bibliotecas; (4) observar os recursos disponíveis para exportação.
+- **Esperado:** componentes visuais reutilizáveis devem ter miniatura ou preview acionável, dimensões e interface relevantes para permitir escolha segura.
+- **Observado:** Templates, Equipamentos e Dínamos são tabelas somente leitura com chave, nome e contagens/valores; as linhas não expõem preview visual. Bibliotecas lista recursos por checkbox, nome, tipo e chave; não há miniatura nem ação de preview do recurso antes da seleção/exportação.
+- **Reprodutibilidade:** 1/1 visita a cada módulo; confirma PO-PRE-02 e PO-PRE-06.
+- **Classificação:** GENERIC PRODUCT.
+- **Evidência:** UI real: `Templates` mostrou `pump.standard / Standard Pump / 4`; `Equipamentos`, `Demo.P01 / Pump P01 / pump.standard`; `Dínamos`, oito linhas textuais; `Bibliotecas`, recursos selecionáveis por checkbox.
+- **Notas:** a paleta interna do Screen Editor exibe dimensões e um painel denominado `Preview do dínamo selecionado`, mas isso não corrige a ausência de preview nos catálogos próprios nem na exportação de biblioteca.
+
+## UIAUD-289-008 — faixa de proteção domina a abertura do Engineering
+
+- **Severidade:** P2
+- **Área:** Engineering / segurança / responsividade
+- **Título:** Engineering Lock ocupa grande parte da viewport em todas as páginas
+- **Passos de reprodução:** abrir qualquer módulo do Engineering em viewport 1265 × 712.
+- **Esperado:** o estado de proteção deve permanecer acessível sem deslocar continuamente o contexto principal, principalmente quando nenhuma ação está disponível.
+- **Observado:** a faixa `PROTEÇÃO DA APLICAÇÃO / Engineering Lock` aparece antes do cabeçalho do workspace, com campo de segredo, quatro botões desabilitados e texto explicativo. Na viewport auditada ocupa aproximadamente 140 px e empurra conteúdo e navegação para baixo.
+- **Reprodutibilidade:** presente em todos os módulos abertos nesta sessão; confirma PO-PRE-08.
+- **Classificação:** GENERIC PRODUCT.
+- **Evidência:** inspeção visual nas páginas Visão geral, Scripts, Bibliotecas, Templates, Equipamentos, Dínamos e Telas.
+- **Notas:** a faixa desaparece ao rolar a página, mas contribui diretamente para UIAUD-289-006 e não se adapta ao estado sem segredo configurado/desbloqueado.

@@ -1,0 +1,118 @@
+name: Post-C26 Long-Run Diagnostic — MUST NEVER MERGE
+
+on:
+  push:
+    branches:
+      - diagnostic/w14-post-c26-long-run-stability
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  long-run-diagnostic:
+    name: Diagnostic only — correlated >15m stability probe
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+
+    steps:
+      - name: Checkout diagnostic branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prove diagnostic-only diff and exact technical ancestor
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='59e815eae524b9ff043ea6bf3f797f4c01ba9143'
+          git merge-base --is-ancestor "$BASE" HEAD
+          git diff --name-only "$BASE"...HEAD | sort > /tmp/actual-paths.txt
+          cat > /tmp/allowed-paths.txt <<'EOF'
+          .github/workflows/post-c26-long-run-diagnostic.yml
+          scripts/preview/diagnose-post-c26-long-run.sh
+          scripts/preview/ws-byte-probe.mjs
+          EOF
+          sort -o /tmp/allowed-paths.txt /tmp/allowed-paths.txt
+          diff -u /tmp/allowed-paths.txt /tmp/actual-paths.txt
+          printf 'Diagnostic branch is isolated from exact candidate %s.\n' "$BASE"
+
+      - name: Run correlated long-run probe in canonical devcontainer
+        id: probe
+        uses: devcontainers/ci@v0.3
+        with:
+          push: never
+          runCmd: >-
+            ELITESCADA_DIAGNOSTIC_DURATION_SECONDS=1200
+            ELITESCADA_DIAGNOSTIC_INTERVAL_SECONDS=5
+            ELITESCADA_DIAGNOSTIC_STALE_THRESHOLD_SECONDS=90
+            bash scripts/preview/diagnose-post-c26-long-run.sh
+
+      - name: Make diagnostic evidence readable by runner
+        if: always()
+        shell: bash
+        run: sudo chmod -R a+rX .preview/diagnostics 2>/dev/null || true
+
+      - name: Print diagnostic summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f .preview/diagnostics/post-c26-long-run/summary.json ]]; then
+            cat .preview/diagnostics/post-c26-long-run/summary.json
+          else
+            printf 'No summary.json was produced; bootstrap/devcontainer failure occurred before the long-run classifier.\n'
+          fi
+
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-c26-long-run-diagnostic-${{ github.sha }}
+          path: .preview/diagnostics/post-c26-long-run
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Record diagnostic result on coordinator issue
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          SUMMARY='.preview/diagnostics/post-c26-long-run/summary.json'
+          if [[ -f "$SUMMARY" ]]; then
+            CLASSIFICATION="$(node -e 'const s=require(process.argv[1]); process.stdout.write(String(s.classification ?? "UNKNOWN"))' "$SUMMARY")"
+            OBSERVED="$(node -e 'const s=require(process.argv[1]); process.stdout.write(String(s.durationObservedSeconds ?? "unknown"))' "$SUMMARY")"
+            DIRECT_STALE="$(node -e 'const s=require(process.argv[1]); process.stdout.write(String(s.directLevel?.staleAtEndSeconds ?? "unknown"))' "$SUMMARY")"
+            PROXY_STALE="$(node -e 'const s=require(process.argv[1]); process.stdout.write(String(s.proxyLevel?.staleAtEndSeconds ?? "unknown"))' "$SUMMARY")"
+            WS_DIRECT_BYTES="$(node -e 'const s=require(process.argv[1]); process.stdout.write(String(s.websocketDirect?.bytesReceived ?? "unknown"))' "$SUMMARY")"
+            WS_PROXY_BYTES="$(node -e 'const s=require(process.argv[1]); process.stdout.write(String(s.websocketProxy?.bytesReceived ?? "unknown"))' "$SUMMARY")"
+          else
+            CLASSIFICATION='INFRASTRUCTURE_OR_BOOTSTRAP_FAILURE'
+            OBSERVED='0'
+            DIRECT_STALE='unknown'
+            PROXY_STALE='unknown'
+            WS_DIRECT_BYTES='unknown'
+            WS_PROXY_BYTES='unknown'
+          fi
+
+          BODY="$(cat <<EOF
+          ### Post-C26 long-run diagnostic evidence
+
+          **DIAGNOSTIC ONLY / MUST NEVER MERGE**
+
+          - candidate under test: \`59e815eae524b9ff043ea6bf3f797f4c01ba9143\`
+          - diagnostic head: \`${GITHUB_SHA}\`
+          - classification: **${CLASSIFICATION}**
+          - observed duration: ${OBSERVED}s
+          - direct LevelPct stale-at-end: ${DIRECT_STALE}s
+          - proxy LevelPct stale-at-end: ${PROXY_STALE}s
+          - direct realtime bytes: ${WS_DIRECT_BYTES}
+          - proxy realtime bytes: ${WS_PROXY_BYTES}
+          - workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+
+          This run changes no product source and is evidence for \`RECHECK-SIM-PUMP-LEVEL\` only. A non-green classification is not authorization for a product correction; root cause must be narrowed from the correlated evidence first.
+          EOF
+          )"
+          gh api "repos/${GITHUB_REPOSITORY}/issues/286/comments" -f body="$BODY" >/dev/null

@@ -19,13 +19,23 @@ A finding may exit Wave 14 as either:
 
 ### Current closure progress checkpoint
 
-Completed without direct Codespace dependency:
+Closed at diagnostic-transfer level:
 
-- A3 persisted legacy visual schema crash is closed as `CONFIRMED_GENERIC_PRODUCT` in `docs/WAVE14-DIAGNOSTIC-LEGACY-VISUAL-TYPE-COMPATIBILITY.md`;
-- initial Wave 15 transfer backlog exists in `docs/WAVE15-INITIAL-CORRECTION-BACKLOG.md` and will be refined, not replaced, when remaining Codex-dependent diagnostics arrive;
+- **A1 transport root:** `UNCERTAIN — BOUNDED`; correlated Codespace evidence excludes local API/Vite outage in the captured window and identifies the exact missing browser/forwarder/Vite request telemetry needed for future root attribution;
+- **A1 product error UX:** `CONFIRMED_GENERIC_PRODUCT`; indefinite blank SPA bootstrap and rejected fetch presented as fictitious HTTP 500 are transferred to Wave 15;
+- **A2 Working `demo` vs Active `eee-demo`:** `CONFIRMED_GENERIC_PRODUCT`; unconditional `EngineeringWorkspace.SeedDemo()` and separate persisted Active recovery are the exact mechanism;
+- **A3 persisted legacy visual schema crash:** `CONFIRMED_GENERIC_PRODUCT` in `docs/WAVE14-DIAGNOSTIC-LEGACY-VISUAL-TYPE-COMPATIBILITY.md`;
+- **A6 recovery/fallback UX:** `CONFIRMED_GENERIC_PRODUCT` at product UX/state level;
+- initial Wave 15 transfer backlog exists in `docs/WAVE15-INITIAL-CORRECTION-BACKLOG.md` and now incorporates A1/A2;
 - known deterministic P2 and preserved future requirements have been transferred/preserved.
 
-A1, A2, A4, A5 and the real-UI portions of A7/A8 remain dependent on direct Codespace evidence. This checkpoint does not relabel them solved.
+Accepted A1/A2 direct-Codespace authority:
+
+- issue #286 comment `5629630825`;
+- commit `f05589f8afc4a0f658868416ee5b38d1c3681d60` on `docs/w14-codex-a1-a2-20260911`;
+- `docs/WAVE14-CODEX-A1-A2-DIAGNOSTIC-2026-09-11.md` plus raw evidence transcript on that branch.
+
+A4, A5 and the real-UI portions of A7/A8 remain open. This checkpoint does not relabel them solved.
 
 ---
 
@@ -35,22 +45,26 @@ For each material finding below, preserve at minimum:
 
 `reproduction/evidence -> classification -> responsible layer/subsystem -> concrete technical path when determinable -> causal mechanism or bounded hypothesis -> Wave 15 correction contract -> deterministic regression -> dependencies/boundaries`
 
-### A1 — Engineering `Failed to fetch` / route latency
+### A1 — Engineering `Failed to fetch` / route latency — `UNCERTAIN — BOUNDED` at transport root; product UX confirmed
 
-- [ ] Correlate forwarded browser, local Vite `5173`, local API `5080`, authentication/proxy/forwarding, process health and logs in the same reproduction window.
-- [ ] Determine where the divergence first appears.
-- [ ] Separate product recovery behavior from Codespaces/private-forwarding/environment behavior.
-- [ ] Record exact evidence and timing.
-- [ ] If still uncertain, record exactly what future observation is missing and how to capture it.
-- [ ] Define Wave 15 correction scope only for product-owned behavior.
+- [x] Correlate forwarded browser, local Vite `5173`, local API `5080`, authentication/proxy/forwarding, process health and logs in the same reproduction window.
+- [x] Determine where the divergence first appears to the available telemetry: forwarded browser/static-module path while local Vite/API remain healthy.
+- [x] Separate product recovery behavior from Codespaces/private-forwarding/environment behavior.
+- [x] Record exact evidence and timing.
+- [x] Record the exact missing future observation: browser network waterfall + Codespaces forwarding/edge trace + Vite request-level telemetry under shared request/timestamp identity.
+- [x] Define Wave 15 correction scope only for product-owned behavior: bounded blank-state recovery and truthful transport-vs-HTTP error presentation.
 
-### A2 — Engineering Working `demo` vs Runtime Active `eee-demo`
+Canonical accepted evidence: #286 comment `5629630825`, commit `f05589f8afc4a0f658868416ee5b38d1c3681d60`.
 
-- [ ] Identify bootstrap/checkout/persistence/public-model path responsible for the Working identity.
-- [ ] Determine when and why Engineering can open the wrong Working project.
-- [ ] Preserve evidence that lifecycle correctly rejects cross-project activation.
-- [ ] Do **not** use Active mutation or activation of `demo` as a correction.
-- [ ] Define exact Wave 15 correction contract and regression for bootstrap/reopen/persistence identity.
+### A2 — Engineering Working `demo` vs Runtime Active `eee-demo` — `CONFIRMED_GENERIC_PRODUCT`
+
+- [x] Identify bootstrap/checkout/persistence/public-model path responsible for the Working identity.
+- [x] Determine when and why Engineering can open the wrong Working project: `EngineeringWorkspace` unconditionally seeds `demo` while persistence startup separately recovers configured `eee-demo` only into Active Runtime.
+- [x] Preserve evidence that lifecycle correctly rejects cross-project activation.
+- [x] Do **not** use Active mutation or activation of `demo` as a correction.
+- [x] Define exact Wave 15 correction contract and regression for bootstrap/reopen/persistence identity.
+
+Diagnosed paths include `src/Scada.Api/Runtime/EngineeringWorkspace.cs:63-75,448-456`, `src/Scada.Api/Persistence/EngineeringPersistenceApi.cs:47-78`, `src/Scada.Api/Persistence/EngineeringWorkspaceCheckoutService.cs:43-108`, and `scripts/preview/launch-post-c26-preview.sh:8,145,224-230`.
 
 ### A3 — persisted legacy visual schema crash — `CONFIRMED_GENERIC_PRODUCT`
 
@@ -81,7 +95,7 @@ Canonical closure: `docs/WAVE14-DIAGNOSTIC-LEGACY-VISUAL-TYPE-COMPATIBILITY.md`
 ### A6 — Engineering fallback/recovery UX
 
 - [x] Preserve the `Demo Project` / missing-snapshot behavior observed during model-load failure.
-- [x] Separate initial transport cause from product-owned fallback/error UX at the classification level; exact transport root cause remains A1.
+- [x] Separate initial transport cause from product-owned fallback/error UX at the classification level; exact transport root cause remains bounded A1.
 - [x] Define correct loading/unavailable/retry behavior without fictitious authoritative Working identity in the Wave 15 backlog.
 - [x] Define Wave 15 recovery/error-state regression direction.
 
@@ -128,6 +142,8 @@ Each item must end as `WORKS`, `DEFECT`, `ABSENT/UNSUPPORTED`, or `NOT VALIDATED
 
 Static existence of Monaco, Python, snippets or APIs does not satisfy the developer-functional bar by itself.
 
+Confirmed A8 subfinding already transferred: `docs/WAVE14-DIAGNOSTIC-SCRIPT-EVENT-AUTHORING-GAP.md` — surfaced `timer`/`tagChanged` entry points are not fully authorable because required event-specific fields are not exposed, and stale event-specific fields can become hidden validation blockers after event-kind changes.
+
 ---
 
 ## B. Additional backlog that must not be lost
@@ -162,14 +178,16 @@ Every transferred item must contain:
 
 Current transfer acceptance:
 
-- [x] material P1 findings have initial entries; Codex-dependent fields remain explicitly pending rather than guessed;
+- [x] material P1 findings have initial entries; remaining Codex-dependent fields remain explicitly pending rather than guessed;
+- [x] A1 transport root is bounded and its independent product-owned error UX is transferred;
+- [x] A2 Working bootstrap/lifecycle defect is confirmed with exact mechanism and regression contract;
 - [x] relevant P2 findings transferred;
 - [x] uncertain findings explicitly marked and bounded;
 - [x] no hypothesis presented as proven fact;
 - [x] no EEE-specific workaround proposed for a generic defect;
 - [x] Screen/Popup Editor and Script Engineering explicitly prioritized as **developer-functional product correctness**.
 
-The backlog is not final until A1/A2/A4/A5 and the real-UI A7/A8 evidence are reconciled.
+The backlog is not final until A4/A5 and the real-UI A7/A8 evidence are reconciled.
 
 ---
 

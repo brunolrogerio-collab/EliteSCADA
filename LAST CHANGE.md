@@ -1,164 +1,126 @@
 # LAST CHANGE — EliteSCADA
 
-**Date:** 2026-09-09 BRT
-**Operational state:** **WAVE14 C26 ACTIVE / C26.1–C26.9 VALIDATED / C26.10 IMPLEMENTED BUT NOT VALIDATED — CURRENT WAVE11 PACKAGE-SCHEMA BLOCKER / C26.11 NOT STARTED / #212 NOT AUTHORIZED / #266+#288 NEVER MERGE / POST-C26 WORK #289 NOT YET EXECUTABLE / WAVE13 PAUSED**
+**Date:** 2026-09-10 BRT
 
-> GitHub live is the official and sole project memory. Revalidate refs, PR/issue state, exact files and exact-SHA workflows before every decision, diagnosis, code/documentation write, PR action, rerun or merge. If this file differs from GitHub live, GitHub wins.
+**Operational state:** **WAVE14 POST-C26 / REAL AUDIT EVIDENCE PRESERVED / CODEX DIRECT-CODESPACE COORDINATION PREFERRED / P1 DIAGNOSIS + CORRECTIONS REQUIRED / FINAL PO HOMOLOGATION BLOCKED / #212 NOT AUTHORIZED / VALIDATION-ONLY PRs MUST NEVER MERGE / WAVE13 PAUSED**
 
-## Current execution boundary
+> GitHub live is the official and sole project memory. Revalidate refs, PR/issue state, exact files and workflows before every decision, diagnosis, code/documentation write, PR action, rerun or merge. If this file differs from GitHub live, GitHub wins.
+
+## What changed in this rotation
+
+Coordination is being transferred preferably to the Codex chat/session that performed the real browser audit and has direct access to the Codespace and application. This is intended to improve diagnosis of findings where the browser, private Codespaces forwarding, local Vite/API, realtime and product state must be correlated in the same instant.
+
+A new canonical handoff was added:
+
+`docs/WAVE14-POST-C26-CODEX-COORDINATOR-HANDOFF-2026-09-10.md`
+
+`docs/CURRENT-COORDINATOR-HANDOFF.md` and `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md` were refreshed from their stale pre-C26 state.
+
+No product code, package, Runtime configuration, security/lifecycle authority or `main` state was changed by this coordinator rotation.
+
+## Current topology
 
 - Repository: `brunolrogerio-collab/EliteSCADA`
-- Active branch: `wave14/c26-po-homologation-corrections`
+- Audit/coordination surface: `preview/wave14-post-c26-work-audit`
 - Coordinator issue: #286
-- Implementation PR #287: C26 -> `wave14/c11-canonical-eee-demo`, OPEN/DRAFT
-- Validation PR #288: C26 -> `main`, OPEN/DRAFT, **VALIDATION ONLY / MUST NEVER MERGE**
+- Post-C26 audit gate: #289
+- PR #290: post-C26 Preview — OPEN/DRAFT / Preview only
+- PR #296: diagnostic-only long-run probe — OPEN/DRAFT / **MUST NEVER MERGE**
+- PR #212: Wave14 integration -> `main` — **NO MERGE without later, separate and explicit Product Owner authorization**
+- #266 / #288 / #292 / #293: validation-only / **MUST NEVER MERGE** where applicable
+- #285: preserve as historical pre-C26 Preview evidence
+- Wave13 #205/#207: paused
 
-Current exact C26 **product/test** candidate:
+## Technical baseline preserved
 
-`e7c8a8bf3954890a1ca841498222bf6094952baf`
+- corrected canonical C11: `19d5257d970f53ae798c5fa53946fce07c586452`;
+- accepted C26 product: `08e2530671de10d48933c4b712a1a1abc9e41dce`;
+- exact technically validated post-C26 Preview candidate: `59e815eae524b9ff043ea6bf3f797f4c01ba9143`;
+- frozen package SHA-256: `e995051b4744f904663350102683c886af9674aaae8fff1dbc76f294ff2d774d`;
+- Post-C26 Canonical Preview run `34403903462` — SUCCESS;
+- Post-C26 Audit State Readiness run `34403903471` — SUCCESS.
 
-`fix(w14-c26): serialize shared PostgreSQL schema setup`
+Later commits on the Preview branch preserve audit documentation/evidence. Do not treat the documentation HEAD as a newly validated product SHA.
 
-The coordinator-rotation commit containing this document is documentation-only and sits above that product/test SHA. Revalidate the live branch HEAD and do not treat a docs-only HEAD as a validated product candidate.
+## Important evidence update
 
-Last exact C26 product/test SHA proven green across all five normal gates:
+Earlier checkpoint `#289 / 5619800919` classified `RECHECK-SIM-PUMP-LEVEL` as a provisional P1 candidate because the browser audit saw a process snapshot frozen for >15 minutes.
 
-`55f292359af86f5f28d90cc578d4ac93ccc1f19c`
+Later direct Codespace evidence recorded in `docs/WAVE14-AUDIT-PARTIAL-2026-09-10.md` showed authenticated local API values continuing to change, including `EEE.P01.LevelPct`, while local API/Vite stayed healthy and the public browser path encountered Codespaces forwarding/authentication failures.
 
-`fix(w14-c26): align Popup authoring with Runtime`
+Therefore **simulation/Server Script freeze is not currently a confirmed product defect**. Reopen that hypothesis only if reproduced again with correlated local diagnostics.
 
-## Current C26 status
+PR #296 remains diagnostic-only. Latest recorded head at handoff: `7738b568a5dd4259e958a2c5023c2bf6ca7e5acb`. Latest recorded run `34505442984` / check `102966371728` failed `INFRASTRUCTURE_OR_BOOTSTRAP_FAILURE` with `0s` effective product observation. Do not blind-rerun.
 
-- C26.1–C26.7 — **IMPLEMENTED / VALIDATED**
-- C26.8 Screen editor basic authoring — **IMPLEMENTED / VALIDATED** at `6de64ed4d11ac1e525f32d7071b9624e428c96ee`
-- C26.9 Popup editor basic authoring — **IMPLEMENTED / VALIDATED** at `55f292359af86f5f28d90cc578d4ac93ccc1f19c`
-- C26.10 Canonical EEE cleanup — **IMPLEMENTED / NOT VALIDATED / CURRENT BLOCKER**
-- C26.11 Repackage + new Preview — **NOT STARTED / BLOCKED**
+## Current high-priority diagnostic/correction map
 
-## C26.10 candidate chain
+### P1 — legacy visual schema crash — confirmed generic defect
 
-Initial C26.10 visual candidate:
+Screen Editor and Popup Editor can blank the entire application when persisted legacy visual types are selected. Reproductions include legacy `tank`, `value` and `dynamo` paths.
 
-`50363bcc50037cc6932a1282e58e3b6d75fda9f2`
+The audited path reaches `getBuiltinVisualObjectSchema(element.type)` without adequate compatibility/recovery for those persisted identifiers. Diagnose a generic compatibility/migration/degradation contract and require deterministic Screen + Popup regressions. Do not weaken unknown-type validation as a workaround.
 
-`fix(w14-c26): make EEE pump state labels legible`
+### P1 — Working `demo` vs Runtime `eee-demo` — confirmed in later live evidence
 
-The structural audit found one residual EEE-authoring defect: `PARADA` remained mounted beneath the dynamic `OPERANDO` and `FALHA` texts in the canonical pump Dynamo. The candidate added opaque backgrounds and corner radii directly to those three `core.text` elements and added strict Runtime assertions.
+Later direct UI evidence superseded the earlier artifact-only impression of alignment. Engineering Working can load `Demo Project` / `demo` while Runtime remains `eee-demo`, Active revision 2, with lifecycle correctly blocking cross-project activation.
 
-At `50363bcc...`, EliteSCADA CI exposed an independent generic PostgreSQL startup race: `PostgreSqlOperationalEventHistoryStore` used advisory lock `4993446713136202562`, while the other stores creating shared schema `elitescada` use `4993446713136202561`. Concurrent `CREATE SCHEMA IF NOT EXISTS` caused PostgreSQL `23505` on `pg_namespace_nspname_index`.
+Diagnose bootstrap/checkout/persistence. Do not change Active or activate `demo` merely to make the surfaces match.
 
-Minimal generic database correction:
+### Engineering fetch/recovery and route latency
 
-`e7c8a8bf3954890a1ca841498222bf6094952baf`
+Transient `Failed to fetch`, fallback project identity, blocked modules and long route transitions were reproduced. Local API endpoints were much faster than the forwarded browser path, so initiating cause remains partly UNCERTAIN.
 
-- Operational Event history now uses shared infrastructure lock `4993446713136202561`;
-- `PostgreSqlConcurrentInitializationTests` now includes real concurrent Operational Event initialization/query;
-- no security, authority, lifecycle, package, Driver or Runtime contract was weakened.
+Preferred next diagnosis is direct correlation from the Codespace: API 5080 vs local Vite 5173 vs forwarded browser, captured before restart/reopen.
 
-EliteSCADA CI #1471 passed on `e7c8a8...`, confirming the backend correction in the normal gate.
+### Runtime Trends / Popups
 
-## Exact gate state at current product/test SHA
+Current audit records Runtime Trends returning silently to the operational screen after `Conectando dados ao vivo…`, and pump popups showing `—` despite Good values elsewhere and sometimes auto-returning to the screen.
 
-At `e7c8a8bf3954890a1ca841498222bf6094952baf`:
+Correlate TAG/realtime/projection/navigation state before correction.
 
-- EliteSCADA CI #1471 / run `34347157464` — **SUCCESS**
-- Preview Licensing CI #419 / run `34347157585` — **SUCCESS**
-- Interop Lab Smoke #302 / run `34347159685` — **SUCCESS**
-- L3 Seven-Driver Lab #375 / run `34347157398` — **SUCCESS**
-- Wave 11 Active HMI Runtime #397 / run `34347157735` — **FAILURE**
-- additional natural Interop #301 / run `34347157333` — **SUCCESS**
+### Deterministic generic P2 backlog
 
-No rerun was requested.
+The latest audit also preserves generic UI findings around Engineering navigation scrolling/collapse, missing catalog previews, excessive Engineering Lock footprint, shared responsive header overlap, account-menu accessible names and misleading Engineering fallback/error UX.
 
-### Current Wave11 blocker
+Practical script-authoring/PO-PRE-07 remains to be completed after Engineering is stable.
 
-Failed job:
+Alarm / Operational Event / Audit remain distinct. Do not manufacture a Historian defect from zero data where the loaded Working reports zero historian policies.
 
-`102451385709` — `Active revision browser lifecycle`
+## Finding chronology rule
 
-Failed step:
+The audit file evolved after issue checkpoint `5619800919`, and some numeric UIAUD mappings changed during the audit. Before creating a correction task, reconcile **ID + current title + evidence + latest chronological section**. Later revalidated evidence wins over an older narrative when they conflict.
 
-`Run Wave 11 Active Runtime browser lifecycle`
+## Immediate next safe sequence
 
-Result:
+1. New Codex coordinator revalidates live #286, #289, #290, #296 and branch SHAs.
+2. Reads `docs/WAVE14-AUDIT-PARTIAL-2026-09-10.md` and `docs/WAVE14-POST-C26-CODEX-COORDINATOR-HANDOFF-2026-09-10.md`.
+3. Uses direct Codespace access to correlate Engineering transport/latency and confirm bootstrap/Working state before restarting anything.
+4. Diagnoses/corrects confirmed P1 legacy-schema crash with deterministic regressions.
+5. Diagnoses Runtime Trends/Popup behavior with local TAG/realtime/projection evidence.
+6. Handles deterministic generic P2 findings after P1s and uncertain transport-dependent diagnoses.
+7. Produces a new exact candidate only through the live-authorized correction route, with regression coverage and exact-head validation.
+8. Uses targeted Work recheck only where justified.
+9. Final Product Owner homologation remains blocked until correction/revalidation is complete.
 
-- 17 passed;
-- 2 failed;
-- 4 did not run.
-
-The two failing tests were:
-
-- `tests-wave11/c11-eee-demo-hmi.spec.ts`
-- `tests-wave11/c26-popup-composition.spec.ts`
-
-Both failed during package Preview because `preview.canApply` was false. The single invalid entity was Dynamo `eee.dynamo.pump`, operation 3. The backend returned `VISUAL_PROPERTY_INVALID` for:
-
-- `pump-stopped-label`
-- `pump-running-label`
-- `pump-fault-label`
-
-Exact reported reason:
-
-`core.text` does not declare property `backgroundColor`.
-
-The exact backend and browser built-in schemas define `core.text` as base + text properties; neither `backgroundColor` nor `cornerRadius` belongs to that object contract. The canonical EEE helper currently authors both properties on these text elements. Therefore C26.10 is not package-valid and is not validated.
-
-Playwright artifact:
-
-- `playwright-report-wave11`
-- artifact ID `10102316731`
-- run `34347157735`
-
-## Immediate next safe action
-
-1. Revalidate GitHub live, including the docs-only branch HEAD and exact product/test SHA `e7c8a8...`.
-2. Re-read Wave11 #397 / job `102451385709` and the exact C26.10 package/schema files before editing.
-3. Correct the EEE state-plate composition using only schema-valid public visual objects/properties, with deterministic package and Runtime regressions.
-4. Do not weaken Preview validation or the strict tests.
-5. Do not widen `core.text` solely to accommodate EEE. Any generic schema expansion would require a genuine platform requirement, synchronized backend/browser contracts and full regressions.
-6. Publish only the smallest evidence-supported correction and let all workflows start naturally.
-7. Require all five normal gates green on the same new exact product/test SHA.
-8. Only then mark C26.10 VALIDATED and begin C26.11.
-
-Do not rerun the unchanged `e7c8a8...` candidate: the failure is deterministic and diagnosed.
-
-## C26.7–C26.9 retained validation authority
-
-- C26.7 validated at `b1bd1f664b06684afaecbbff2d27da10760cc1ec`: Elite #1466, Preview #414, Interop #292, Wave11 #392 and L3 #370 — all SUCCESS.
-- C26.8 validated at `6de64ed4d11ac1e525f32d7071b9624e428c96ee`: Elite #1468, Preview #416, Interop #295, Wave11 #394 and L3 #372 — all SUCCESS.
-- C26.9 validated at `55f292359af86f5f28d90cc578d4ac93ccc1f19c`: Elite #1469, Preview #417, Interop #297, Wave11 #395 and L3 #373 — all SUCCESS.
-
-## Post-C26 quality route — not yet executable
-
-Issue #289 and `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md` remain binding, but must not be executed now.
-
-Required order:
-
-`C26 exact-SHA green + accepted -> separately authorized C26->C11 integration -> corrected canonical C11 -> new package/checksum/provenance -> NEW post-C26 Preview -> technical green + fully prepared live environment -> READY FOR WORK AUDIT -> ChatGPT Work real browser audit -> coordinator triage/reproduction/corrections -> new exact candidate -> targeted Work recheck if justified -> final Product Owner homologation`
-
-Do not spend the approximately 40-minute Work window preparing database, package, ports, application or users. Create `docs/WORK-UI-AUDIT-HANDOFF.md` only when a real candidate is ready, with exact SHA, real URLs, package SHA-256 and non-secret authentication instructions.
-
-## Protected governance
+## Permanent governance
 
 - never modify `main` directly;
-- PR #287 is only C26 -> canonical C11 and must not merge before C26 is validated, accepted and its integration is explicitly authorized;
-- PR #288 and PR #266 are validation-only and **MUST NEVER MERGE**;
-- PR #263 is only canonical C11 -> `wave14/corrections-integration`;
-- PR #212 remains OPEN/DRAFT and **MUST NOT MERGE** without later, separate and explicit Product Owner authorization;
-- neither `siga`, green CI, C26 completion, Preview, Work audit nor homologation authorizes #212;
-- preserve Preview #285 untouched as pre-C26 evidence;
-- do not execute issue #289 early;
+- #212 must not merge without later separate explicit Product Owner authorization;
+- validation-only PRs stay validation-only / MUST NEVER MERGE;
+- #296 MUST NEVER MERGE;
+- preserve #285;
+- #290 is Preview-only and not a route to `main`;
 - no force push, destructive rebase, branch deletion, blind rerun or unrelated cleanup;
-- never weaken tests, validation, security, authentication, authorization, Identity, Engineering Lock, Licensing, lifecycle, package, Drivers or Runtime Active Revision authority;
-- Runtime/Active must remain self-contained and cannot depend on `.escadalib`;
+- never weaken tests, validation, security, Identity, authentication, authorization, Engineering Lock, Licensing, lifecycle, package, Drivers, Historian semantics or Runtime Active authority;
+- Runtime/Active remains independent of `.escadalib`;
 - no EEE-specific workaround for a generic product defect;
-- Alarm, Operational Event and Audit remain distinct;
-- Wave13 #205/#207 remains paused.
+- Alarm / Operational Event / Audit remain distinct;
+- Wave13 remains paused.
 
-Canonical rotation handoff:
+Canonical current handoff:
 
-`docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-09.md`
+`docs/WAVE14-POST-C26-CODEX-COORDINATOR-HANDOFF-2026-09-10.md`
 
-Copy-ready next-chat handoff:
+Copy-ready next coordinator prompt:
 
 `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`

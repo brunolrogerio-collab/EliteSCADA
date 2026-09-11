@@ -1,97 +1,107 @@
-# Wave 14 - Main Coordinator Workstream Matrix
+# Wave 14 — Diagnostic Closure Workstream Matrix
 
-Checkpoint established: 2026-09-10 BRT
+**Strategic pivot:** 2026-09-10 BRT
 
-> **GitHub live is the official memory and sole authority.** Revalidate the relevant live issue/PR/branch before every decision, diagnosis conclusion, write, rerun, integration or merge. This matrix is a coordination checkpoint, not a replacement for live state.
+> GitHub live is the official memory and sole authority. Revalidate the relevant issue, PR, branch and SHA before every decision, write, rerun, integration or merge.
 
-Main Coordinator: ChatGPT coordination session designated by the Product Owner.
+Main Coordinator: ChatGPT coordination session designated by the Product Owner.  
+Diagnostic co-coordinator: GPT Codex with direct Codespace/application/browser/local-port access.  
+Coordination ledger: #286.  
+Closure plan: `docs/WAVE14-DIAGNOSTIC-CLOSURE-AND-WAVE15-TRANSFER.md`.
 
-Diagnostic co-coordinator: GPT Codex with direct Codespace/application/browser/local-port access.
+## New scope rule
 
-Coordination ledger: #286.
+Wave 14 no longer owns implementation of newly diagnosed corrections. Its remaining responsibility is to close the diagnostic package and transfer deterministic correction contracts to Wave 15.
 
-Current technical candidate checkpoint: `59e815eae524b9ff043ea6bf3f797f4c01ba9143`.
-
-Canonical C11: `19d5257d970f53ae798c5fa53946fce07c586452`.
-
-Accepted C26: `08e2530671de10d48933c4b712a1a1abc9e41dce`.
-
-Frozen package SHA-256: `e995051b4744f904663350102683c886af9674aaae8fff1dbc76f294ff2d774d`.
+A finding is ready for transfer only when the record contains, as far as evidence allows: reproduction authority, classification, responsible layer/path, causal mechanism, proposed correction contract, deterministic regression, dependencies and protected boundaries.
 
 ## State matrix
 
-| Workstream | State | Owner | Base / evidence authority | Branch / route | Dependencies | Can correct now? | Required regression / proof | CI / validation | Integrated? |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| A - Transport / Failed to fetch / latency | DIAGNOSING | GPT Codex | post-C26 Preview + live Codespace | diagnostic evidence on Preview/#286 | same-window browser -> Vite 5173 -> API 5080 -> WS/process/log correlation | **NO** - cause still uncertain | correlated timeline; authoritative vs transient failure separation; recovery behavior | N/A until mechanism/classification permits a fix | No |
-| B - Working `demo` vs Runtime `eee-demo` | REPRODUCED / DIAGNOSING | GPT Codex | live UI evidence + lifecycle state | diagnostic evidence on Preview/#286 | bootstrap/checkout/persistence/public-model correlation; preserve Active authority | **NO** until origin is demonstrated and correction route revalidated | clean/rebuilt Working identity; restart/reopen persistence; cross-project activation remains rejected | exact-SHA after authorized fix | No |
-| C - persisted legacy visual schema crash | CLASSIFIED / MECHANISM PARTIAL | Main Coordinator; Codex diagnostic support | current audit evidence; legacy `tank`/`value`/`dynamo`; schema lookup path | correction route to be explicitly authorized after live revalidation | distinguish legacy-known aliases/migration from truly unknown types | **NOT YET** - first establish exact minimal generic contract/route | Screen legacy selection; Popup legacy selection; truly-unknown negative test; zero shell blank/crash | local + pertinent exact-SHA gates after fix | No |
-| D - Runtime/Engineering recovery UX | BLOCKED | Main Coordinator after Codex diagnosis | audit evidence | route depends on A classification | A | **NO** | retain valid Runtime navigation/subview on transient failure; invalidate on authoritative failure; Engineering load/error no fictitious Working identity | exact-SHA after fix | No |
-| E - Runtime Trends silent return | BLOCKED | GPT Codex diagnosis | audit reproduction | diagnostic evidence first | A; Historian/policies/realtime/projection/navigation | **NO** | data / no-data / controlled-error scenarios must remain in Trends with explicit state | exact-SHA after authorized fix | No |
-| F - Runtime Popup `-` / auto-return | BLOCKED | GPT Codex diagnosis | audit reproduction | diagnostic evidence first | A; realtime/projection stable; ideally B | **NO** | stopped/running states; zero vs missing data; no silent auto-close; bindings/quality coherence | exact-SHA after authorized fix | No |
-| G - Data Source legacy/canonical mapping | QUEUED / REPRODUCED | Main Coordinator | audit evidence | isolated correction route later | B / Engineering stability | **NO**, not priority yet | legacy fixture + save/reopen roundtrip + invalid-type diagnostic | later exact-SHA | No |
-| H - Script Engineering / PO-PRE-07 | BLOCKED | GPT Codex real-use recheck + Main Coordinator | partial audit/static evidence | after Engineering stable | B + A/Engineering stability + domain editors | **NO** | complete user-discoverable two-TAG -> visual-state flow; insertion/discovery/runtime separately proven | later exact-SHA + targeted real-use recheck | No |
-| I1 - shared responsive header | READY_FOR_ROUTE | Main Coordinator | deterministic UI evidence (notebook/1024 class) | isolated UI correction route may run in parallel | avoid conflict with concurrent shared-shell edits | **YES only after live route revalidation** | Runtime + Engineering at 1024, ~1080, 1366 and wide; zero overlap | local + exact-SHA | No |
-| I2 - account-menu accessibility | READY_FOR_ROUTE | Main Coordinator | deterministic audit evidence | isolated accessibility route may run in parallel | minimal; avoid overlapping shared component edits | **YES only after live route revalidation** | accessible names, keyboard, focus and understandable action | local + exact-SHA | No |
-| I3/I4 - Engineering navigation + Lock footprint | QUEUED | Main Coordinator | deterministic audit evidence | preferably one coordinated shell/layout line | A/B stabilization; coordinate shared shell/CSS | **NO**, defer behind P1 lanes | own scroll/collapse; canvas dominance; Lock semantics/security unchanged | later exact-SHA | No |
-| I5/I6 - resource previews + residual theme | QUEUED | Main Coordinator | deterministic audit evidence + historical C26 theme work | later isolated lines | shell stability; revalidate existing theme regressions first | **NO**, defer | useful preview/fallback; editable/readonly/disabled/placeholder only where still reproducing | later exact-SHA | No |
-| J - TAGs / Sources UX identity coherence | QUEUED | Main Coordinator | audit evidence | later Engineering-domain route | B + shell stability | **NO** | selected TAG identity consistent across summary/editor/context and reopen | later exact-SHA | No |
-| K - custom roles/capability sets | PARKED / SCOPE DECISION | Main Coordinator | PROJECT GOAL + live requirements + current auth contract | no implementation route yet | determine whether v0.1 requires custom roles | **NO** | only if in-scope: create/assign/persist/enforce/deny correctly | security suites required if implemented | No |
-| L - P01/P02 accessible-name residue | QUEUED / NEEDS CLASSIFICATION | Main Coordinator | audit evidence | generic component or EEE package only after classification | prove generic vs project-specific | **NO** | parametrized P01/P02 labels with no cross-reference | later exact-SHA | No |
-| M - language/polish | PARKED P3 | Main Coordinator | audit evidence | late polish route | functional stabilization | **NO** | deliberate pt-BR/technical-term policy | later | No |
-| N - Alarm timestamp vs ledger | PARKED / UNCERTAIN | GPT Codex opportunistic evidence only | insufficient audit evidence | evidence-only | same occurrence identity across Alarm Center/ledger/timezone/window | **NO** | same-event occurrence/timestamps/UTC/local/emission/restore/ACK/persistence windows | none until classification | No |
-| RECHECK-SIM-PUMP-LEVEL | PARKED / NOT CONFIRMED | GPT Codex only if symptom returns naturally | local dynamic LevelPct evidence; #296 failed before effective observation | #296 evidence-only / MUST NEVER MERGE | new correlated natural reproduction before restart/reopen | **NO** | API/Vite/browser/WS/TAG value+timestamp+quality/process/Server Script capture | **NO blind rerun of #296** | No |
+| Workstream | Wave 14 state | Owner | Wave 14 deliverable | Correction owner | Closure blocker? |
+| --- | --- | --- | --- | --- | --- |
+| A — Engineering transport / `Failed to fetch` / latency | DIAGNOSING | Codex | same-window browser/Vite/API/auth-proxy/process/log correlation; identify first divergent layer; separate environment transport from product recovery | Wave 15 only if product mechanism confirmed | **YES** for high-value mechanism/classification |
+| B — Working `demo` vs Runtime `eee-demo` | REPRODUCED / DIAGNOSING | Codex | exact bootstrap/checkout/persistence/public-model origin; preserve correct Active/lifecycle rejection semantics | Wave 15 | **YES** |
+| C — persisted legacy visual schema crash | CONFIRMED / MECHANISM TO CLOSE | Main + Codex support | exact known-legacy lookup/migration/recovery path vs truly unknown types; Screen + Popup + unknown regression contract | Wave 15 | **YES** |
+| D — Engineering recovery/fallback identity | REPRODUCED / DIAGNOSING | Main + Codex | separate initiating transport from product fallback-state responsibility; exact state path and future UX contract | Wave 15 | YES if not covered by A |
+| E — Runtime Trends silent return | REPRODUCED / DIAGNOSING | Codex | locate Historian/no-data/realtime/projection/navigation/error path; future data/no-data/error regressions | Wave 15 | **YES** |
+| F — Runtime Popup `—` / auto-return | REPRODUCED / DIAGNOSING | Codex | locate binding/realtime/projection/navigation cause; stopped/running/zero/missing/quality/navigation regressions | Wave 15 | **YES** |
+| G — Data Source / legacy-canonical mapping | REPRODUCED / TRANSFER PREP | Main | exact mapping/persistence path and round-trip regression contract | Wave 15 | No after contract is documented |
+| H — Script Engineering / PO-PRE-07 | DIAGNOSTIC CLOSURE REQUIRED | Codex real-use + Main static | identify concrete gaps in discovery, authoring, validation/errors, binding/trigger/lifecycle, persistence and observable/debuggable runtime flow | Wave 15 | **YES** because developer usability is a primary maturity gap |
+| I1 — shared responsive header | DETERMINISTIC / TRANSFER READY | Main | component/CSS location + 1024/~1080/1366/wide regression contract | Wave 15 | No |
+| I2 — account-menu accessibility | DETERMINISTIC / TRANSFER READY | Main | component location + accessible-name/keyboard/focus regression contract | Wave 15 | No |
+| I3/I4 — Engineering navigation + Lock footprint | DETERMINISTIC / TRANSFER PREP | Main | shell/layout location + scroll/collapse/canvas/Lock-preservation contract | Wave 15 | No after location/contract recorded |
+| I5/I6 — resource previews + residual theme | DETERMINISTIC / TRANSFER PREP | Main | component locations and preview/state regressions | Wave 15 | No |
+| J — TAGs / Sources identity coherence | REPRODUCED / TRANSFER PREP | Main | selected-identity state path + save/reopen regression | Wave 15 | No |
+| K — custom roles/capability sets | SCOPE DECISION / PARKED | Main | decide whether required for near-term product maturity; do not mix with diagnostic fixes | Later Wave 15+ if authorized | No |
+| L — P01/P02 accessible-name residue | NEEDS GENERIC-vs-PROJECT CLASSIFICATION | Main | identify component ownership and generic/project-specific scope | Wave 15 if generic/required | No |
+| M — language/polish | PARKED | Main | transfer only if still material after functional corrections | Later | No |
+| N — Alarm timestamp vs ledger | UNCERTAIN / EVIDENCE ONLY | Codex opportunistic | preserve same-occurrence comparison contract; do not manufacture defect | Wave 15 only if confirmed | No unless naturally reproduced |
+| RECHECK-SIM-PUMP-LEVEL | PARKED / NOT CONFIRMED | Codex only on natural return | correlated API/Vite/browser/WS/TAG/process evidence before restart/reopen | Wave 15 only if confirmed product defect | No; **no blind #296 rerun** |
 
-## Parallel execution decision
+## Diagnostic dependency graph
 
-### Lane 1 - Codex live diagnostics - ACTIVE
+`A TRANSPORT CORRELATION -> D RECOVERY CLASSIFICATION + better confidence for E/F`
 
-Current assignment remains #286 comment `5628511409`.
+`B WORKING/RUNTIME ORIGIN -> G/J/H Engineering-domain correction planning`
 
-Primary live-access objective: transport/Failed-to-fetch/latency correlation. Working `demo` vs Runtime `eee-demo` must be captured in the same live window where useful because the bootstrap/lifecycle evidence overlaps, but transport findings remain unpatchable while uncertain.
+`C LEGACY SCHEMA MECHANISM -> Wave 15 editor compatibility correction`
 
-### Lane 2 - legacy editor compatibility - PREPARED, NOT YET FIXING
+`H SCRIPT ENGINEERING GAP ANALYSIS -> Wave 15 developer-functional script plan`
 
-The product finding is confirmed generic and the likely lookup path is known. Before product code changes, the Main Coordinator must revalidate and define an isolated correction route plus exact regression contract. This lane may proceed in parallel with Codex live diagnosis once that route is explicitly opened.
+Deterministic I/J items can be transferred without blocking the live A/B/E/F diagnostics once their component/path and regression contracts are explicit.
 
-### Lane 3 - deterministic UI - ELIGIBLE BUT NOT STARTED
+## Wave 14 exit gates
 
-Responsive header and account-menu accessibility are sufficiently isolated to be candidates for early parallel work after live route revalidation. Do not start concurrent changes in shared shell/CSS if they would conflict with Navigation/Engineering Lock work.
+Wave 14 may move to integration/closure when:
 
-### Lane 4 - Engineering domain editors - BLOCKED
+1. A/B/C/E/F/H have a usable mechanism/path/correction-contract record or an explicitly justified remaining uncertainty that cannot be resolved without new external evidence;
+2. deterministic UI/editor findings have concrete component/location + regression contracts;
+3. the transfer package is internally reconciled with the latest audit chronology;
+4. newly diagnosed fixes have not been mixed into Wave 14 branches merely to reduce the backlog;
+5. canonical C11 and integration topology are revalidated;
+6. selected closure documentation is ready to propagate to the integration route.
 
-Data Source, TAG/Sources and Scripts depend on authoritative/stable Engineering Working state. Scripts remains last in this lane.
+## Integration sequence after diagnostic closure
 
-### Lane 5 - backlog / scope - PARKED
+1. revalidate #263 and integrate canonical C11 into `wave14/corrections-integration` through the authorized PR route;
+2. propagate selected final diagnostic/roadmap/handoff documentation to the integration branch without merging Preview harness content;
+3. exact-SHA run universal and impact-required validation;
+4. diagnose any red result before rerun;
+5. revalidate #212 head/base/mergeability and expected head SHA;
+6. use the Product Owner's conditional 2026-09-10 authorization to merge #212 -> `main` only when closure and validation gates are satisfied;
+7. validate exact new `main`;
+8. close Wave 14 issues and obsolete audit/diagnostic/validation PRs without merging MUST-NEVER-MERGE routes and without deleting preserved branches;
+9. create Wave 15 issue/branch from exact validated new `main`.
 
-Custom roles, language and residual EEE/accessibility items must not distract from current P1 diagnostic/correction gates.
+## Wave 15 priority transfer
 
-## Dependency DAG
+Wave 15 becomes the correction wave. Highest product-maturity priorities include:
 
-`LIVE BASELINE -> A TRANSPORT CORRELATION -> D RECOVERY + E TRENDS + F POPUPS`
+1. developer-functional Screen/Popup Editor;
+2. developer-functional Script Engineering;
+3. confirmed Working/project identity lifecycle defect;
+4. confirmed Runtime Trends/Popup/recovery mechanisms;
+5. deterministic Engineering shell/responsive/accessibility defects;
+6. remaining confirmed defects in dependency order.
 
-`LIVE BASELINE -> B WORKING/RUNTIME DIAGNOSIS -> G/J ENGINEERING DOMAIN -> H SCRIPTS`
+A normal developer must be able to author Screens/Popups and Scripts end-to-end through the UI without repository/database/manual API intervention. Supported visible controls must work. Unsupported controls must not masquerade as functional. Script flow must include discoverability, understandable validation/errors, binding/trigger/lifecycle integration, persistence and observable/debuggable runtime behavior.
 
-`C LEGACY SCHEMA MECHANISM -> GENERIC COMPATIBILITY FIX -> SCREEN + POPUP + UNKNOWN-TYPE REGRESSIONS`
+## Post-Wave 15 validation
 
-`I1 RESPONSIVE HEADER + I2 ACCOUNT ACCESSIBILITY` may run independently after route revalidation.
+`Wave 15 corrections -> exact-SHA green -> fresh Codespace Preview -> technical readiness -> real browser audit -> diagnostic/log reading -> targeted correction/recheck -> Product Owner maturity decision`
 
-`P1/SYSTEMIC STABILITY -> I3/I4/I5/I6/J -> integrated exact SHA -> full regression -> fresh Preview evidence -> targeted Work recheck where justified -> Product Owner final homologation`.
+Wave 13 remains preserved and paused until that later Product Owner maturity decision explicitly resumes it.
 
-## Candidate declaration rule
+## Permanent boundaries
 
-Parallel branches or commits never become a candidate automatically. The Main Coordinator must know the exact parent/diff of each line, integrate deliberately, run combined regressions, and declare exactly one product SHA. Documentation/evidence HEADs are not product candidates.
-
-## Current protected boundaries
-
-- #212 remains OPEN/DRAFT and requires a later separate explicit Product Owner authorization before merge to `main`;
-- `siga`, green CI, audit completion, coordinator agreement or homologation preparation do not authorize that merge;
-- no direct `main` mutation, force push, destructive rebase, branch deletion or blind workflow rerun;
-- #266/#288/#292/#293 remain validation-only / MUST NEVER MERGE where applicable;
-- #296 MUST NEVER MERGE;
-- #290 remains Preview-only and not a route to `main`;
-- preserve #285 as historical pre-C26 evidence;
-- never weaken tests, security, Identity, authentication, authorization, Engineering Lock, Licensing, lifecycle, package, Active Runtime authority, Historian semantics or drivers;
+- GitHub live wins over stale docs/chat for current state;
+- #290 is Preview/evidence only and not a route to `main`;
+- #296 is diagnostic-only / MUST NEVER MERGE / no blind rerun;
+- validation-only/MUST-NEVER-MERGE PRs remain non-merge routes;
+- no direct `main` mutation; use the authorized PR route;
+- no force push, destructive rebase or branch deletion;
+- never weaken tests, security, Identity, authentication, authorization, Engineering Lock, Licensing, lifecycle, package, Active Runtime authority, Historian semantics or Drivers;
 - Runtime/Active remains independent of `.escadalib`;
-- Alarm, Operational Event and Audit remain distinct;
-- no EEE-specific workaround for a generic platform defect;
-- Wave13 #205/#207 remains paused.
+- Alarm / Operational Event / Audit remain distinct;
+- no EEE-specific workaround for a generic product defect;
+- Wave 15 completion does not automatically resume Wave 13.

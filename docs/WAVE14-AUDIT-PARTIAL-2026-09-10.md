@@ -239,3 +239,18 @@ No Histórico, as consultas somente leitura de uma hora para `Amostras do histor
 - **Alarmes/Eventos da tela operacional:** na primeira abertura, a interface permaneceu em “Carregando…” e retornou à visão principal; na repetição, concluiu e exibiu a tabela de eventos operacionais paginada, enquanto a seção de alarmes informou corretamente ausência de dados para os filtros. A primeira ocorrência é tratada como atraso transitório, sem novo finding independente nesta etapa.
 - **Tela cheia:** o controle foi acionado e encerrado com Escape. Este ambiente de automação não expôs uma mudança verificável de área/estado de fullscreen; portanto, não há classificação de defeito a partir desse teste.
 - **Diagnóstico de navegador:** nenhuma mensagem de erro ou aviso foi exposta no console no instante da revalidação.
+
+
+## UIAUD-289-010 — P2 — Runtime — Cabeçalho global se sobrepõe em largura de notebook
+
+- **Classificação:** GENERIC PRODUCT.
+- **Área:** Runtime / layout responsivo / contraste.
+- **Reprodução:**
+  1. Abrir o Runtime em viewport de aproximadamente 1080 px de largura.
+  2. Selecionar o tema **Claro** no seletor global.
+  3. Observar a faixa superior com navegação global, contexto da área e Ajuda.
+- **Esperado:** navegação e contexto devem manter texto separado, legível e acionável em uma largura comum de notebook, usando quebra, colapso ou outro comportamento responsivo quando necessário.
+- **Observado:** os rótulos da navegação global “Ajuda” e do contexto “ÁREA ATUAL / Runtime” ocupam a mesma região visual e se sobrepõem. O conteúdo fica parcialmente ilegível no tema claro. O tema em si preservou contraste adequado no painel operacional; o defeito está na composição do cabeçalho.
+- **Reprodutibilidade:** 1/1 na viewport usada nesta auditoria; requer matriz de larguras para delimitar o breakpoint.
+- **Evidência visual:** `evidencias/UIAUD-289-010-runtime-header-responsive.jpg` — SHA-256 `4d460930c3c86f44c8fb6d0e6465320149ce49c53d2bef24a4560614063c4ba9`.
+- **Notas:** não foram alterados dados, preferências persistentes de projeto ou sessão de operação; o tema original foi restaurado após a observação.

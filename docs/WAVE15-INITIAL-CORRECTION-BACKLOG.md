@@ -19,45 +19,79 @@ Each item carries a Wave 14 closure state:
 
 Developer usability in Screen/Popup Editor and Script Engineering is a product-correctness priority, not cosmetic polish.
 
+Latest accepted direct-Codespace diagnostic authority:
+
+- issue #286 comment `5629630825` (`CODEX -> MAIN COORDINATOR`);
+- diagnostic/evidence commit `f05589f8afc4a0f658868416ee5b38d1c3681d60` on `docs/w14-codex-a1-a2-20260911`;
+- A1 transport root: `UNCERTAIN — BOUNDED` with API/Vite outage excluded in the correlated window;
+- A1 product transport/error UX: `CONFIRMED / GENERIC PRODUCT`;
+- A2 Working `demo` vs Active `eee-demo`: `CONFIRMED / GENERIC PRODUCT` with exact bootstrap mechanism identified.
+
 ## 2. Initial ordered backlog
 
 | ID | Priority | Area | Wave 14 closure state | Wave 15 objective | Dependencies |
 |---|---|---|---|---|---|
-| W15-P0-01 | P0/P1 | Engineering lifecycle / Working identity | PARTIAL — PENDING CODEX | Make Engineering Working bootstrap/checkout/persistence identity coherent with intended project context while preserving Published/Active authority and cross-project activation protection. | Final A2 handoff |
+| W15-P0-01 | P0/P1 | Engineering lifecycle / Working identity | CONFIRMED | Replace unconditional in-memory `demo` bootstrap with explicit persisted Working project selection/checkout semantics while preserving Published/Active authority and cross-project activation protection. | Define project-selection semantics before implementation |
 | W15-P1-01 | P1 | Screen/Popup visual schema compatibility | CONFIRMED | Add version-aware compatibility/migration/recovery for known persisted legacy visual types without weakening truly unknown-type validation. | None after new main |
 | W15-P1-02 | P1 | Screen/Popup Editor functional maturity | PARTIAL — UI INVENTORY PENDING | Make the graphical editor practically usable for a developer; every visible supported control must work and persist through canonical Engineering. | Working/Engineering stability; legacy compatibility |
-| W15-P1-03 | P1 | Script Engineering functional maturity | PARTIAL — UI FLOW PENDING | Deliver a discoverable end-to-end script authoring, validation, trigger/binding, persistence and runtime-debug workflow. | Working/Engineering stability |
-| W15-P1-04 | P1 | Runtime Trends | PARTIAL — PENDING CODEX | Eliminate silent return and provide deterministic live/historical/no-data/error behavior. | A1 transport separation + A4 handoff |
-| W15-P1-05 | P1 | Runtime Popup live values/navigation | PARTIAL — PENDING CODEX | Keep popup bindings/live values/navigation deterministic; fix `—` despite Good source and disappearance/return mechanism once diagnosed. | A1; A5 handoff; ideally A2 |
-| W15-P1-06 | P1/P2 | Engineering recovery/error UX | CONFIRMED PRODUCT UX / TRANSPORT CAUSE PENDING | Never present fallback `Demo Project` as authoritative Working identity during model-load failure; provide truthful loading/unavailable/retry diagnostics. | A1 determines any transport-owned correction |
+| W15-P1-03 | P1 | Script Engineering functional maturity | PARTIAL — UI FLOW PENDING; EVENT-AUTHORING GAP CONFIRMED | Deliver a discoverable end-to-end script authoring, validation, trigger/binding, persistence and runtime-debug workflow, including valid authoring for every surfaced event kind. | Working/Engineering stability |
+| W15-P1-04 | P1 | Runtime Trends | PARTIAL — PENDING CODEX | Eliminate silent return and provide deterministic live/historical/no-data/error behavior. | A4 handoff; A1 transport root may remain external/bounded |
+| W15-P1-05 | P1 | Runtime Popup live values/navigation | PARTIAL — PENDING CODEX | Keep popup bindings/live values/navigation deterministic; fix `—` despite Good source and disappearance/return mechanism once diagnosed. | A5 handoff; ideally A2 correction first if shared project state matters |
+| W15-P1-06 | P1/P2 | Engineering recovery/error UX | CONFIRMED GENERIC PRODUCT | Never present missing/unloaded public model as authoritative Working identity; provide truthful loading/unavailable/retry diagnostics. | None for UX contract; transport root remains separate |
+| W15-P1-07 | P1/P2 | SPA / Runtime transport error UX | CONFIRMED GENERIC PRODUCT | Bound indefinite blank SPA bootstrap, distinguish rejected fetch/transport failure from actual HTTP 500, expose endpoint/timestamp/retry context, and recover without fictitious server status. | Root A1 transport attribution remains bounded; UX fix does not depend on proving external edge cause |
 | W15-P2-01 | P2 | Shared responsive shell/header | CONFIRMED UI | Prevent common notebook-width overlap while preserving Runtime/Engineering navigation and account controls. | Coordinate with shell CSS work |
 | W15-P2-02 | P2 | Account menu accessibility | CONFIRMED UI | Give interactive account/menu controls accessible names and regression coverage. | None after route revalidation |
 | W15-P2-03 | P2 | Engineering navigation | CONFIRMED UI | Remove harmful dependence on global scroll; provide coherent collapse/independent scroll behavior. | Editor/shell layout coordination |
 | W15-P2-04 | P2 | Engineering Lock footprint | CONFIRMED UI | Reduce excessive vertical footprint without weakening lock authority or diagnostics. | Shared Engineering shell |
 | W15-P2-05 | P2 | Templates / Equipment / Dynamos / Libraries | CONFIRMED USABILITY | Provide useful preview/inspection so reusable assets can be selected and understood before insertion/use. | Editor maturity |
-| W15-U-01 | — | Engineering transport / route latency | UNCERTAIN — BOUNDED / PENDING CODEX | Patch only product-owned layer after browser↔Vite↔API correlation identifies divergence. | A1 handoff |
+| W15-U-01 | — | Codespaces/browser forwarding / route latency root | UNCERTAIN — BOUNDED | Do not patch product transport root unless browser waterfall + Codespaces forwarding trace + Vite request telemetry identify a product-owned divergence. | New correlated transport telemetry only |
 | W15-U-02 | — | Alarm timestamp interpretation | UNCERTAIN — BOUNDED | Reopen only with same-occurrence comparable timestamps/authorities; keep Alarm/Operational Event/Audit distinct. | Comparable event evidence |
 | W15-U-03 | — | Simulation / Server Script freeze | NOT CONFIRMED PRODUCT DEFECT | Do not patch unless freeze recurs naturally with correlated API/Vite/browser/realtime/process evidence captured before restart. | New reproduction only |
 
 ## 3. W15-P0-01 — Working identity / bootstrap / lifecycle
 
-### Wave 14 evidence
+Canonical Wave 14 direct-Codespace diagnosis:
 
-Real product observation has shown Engineering Working as `demo` / Demo Project while Runtime remains Active on `eee-demo`, revision 2. The lifecycle correctly prevents cross-project activation.
+- #286 comment `5629630825`;
+- commit `f05589f8afc4a0f658868416ee5b38d1c3681d60`;
+- `docs/WAVE14-CODEX-A1-A2-DIAGNOSTIC-2026-09-11.md` on branch `docs/w14-codex-a1-a2-20260911`.
+
+### Confirmed Wave 14 mechanism
+
+Authenticated API evidence proved:
+
+- Working: `projectKey=demo`, `projectName=Demo Project`, `baseRevision=null`, `changeVersion=0`, clean;
+- Active Runtime: `projectKey=eee-demo`, revision 2;
+- persistence configured project: `eee-demo`;
+- `demo` lifecycle empty;
+- `eee-demo` working/published/active revision 2;
+- cross-project activation protection remains correct.
+
+The visible `Demo Project` was not merely the frontend fallback. `EngineeringWorkspace` constructs Working by unconditionally calling `SeedDemo()` and assigning `demo`, while persistence startup separately recovers configured `eee-demo` into Runtime Active. No startup checkout replaces the in-memory Working workspace.
+
+Relevant diagnosed paths:
+
+- `src/Scada.Api/Runtime/EngineeringWorkspace.cs:63-75,448-456`;
+- `src/Scada.Api/Persistence/EngineeringPersistenceApi.cs:47-78`;
+- `src/Scada.Api/Persistence/EngineeringWorkspaceCheckoutService.cs:43-108`;
+- `scripts/preview/launch-post-c26-preview.sh:8,145,224-230`.
 
 ### Wave 15 contract
 
-- fix the origin of the wrong Working identity, not Active Runtime;
-- preserve `Working -> Revision -> Published -> Active` authority;
+- introduce explicit Working bootstrap/selection after persistence initialization;
+- resolve configured/current project deterministically and checkout the intended revision into Working;
+- reserve `SeedDemo()` for explicit new/no-persistence/demo mode rather than unconditional construction;
+- keep Working separate from Published/Active;
+- never auto-activate or rewrite Active as a side effect of Working bootstrap;
 - preserve fail-closed cross-project activation checks;
-- explicitly distinguish loading/fallback UI state from a real Working project;
-- cover fresh bootstrap, reopen/recovery and explicit checkout/import paths.
+- expose selected/recovered Working identity truthfully in UI.
 
 ### Required regression
 
-A deterministic lifecycle test must prove the intended project identity across Working, saved revision, Published and Active, and a negative test must prove cross-project activation remains blocked.
-
-**Final root cause/path remains pending the Wave 14 direct-Codespace A2 diagnostic.**
+- PostgreSQL contains Active `eee-demo` r2 and no persisted `demo` -> startup keeps Active `eee-demo` r2 and establishes Working according to explicit bootstrap contract with coherent base revision/clean state;
+- deliberate alternate Working project may coexist with Active and must be displayed as an explicit selection, not fallback;
+- cross-project activation remains rejected;
+- restart/reopen/persistence recovery preserves the contract.
 
 ## 4. W15-P1-01 — persisted legacy visual type compatibility
 
@@ -115,7 +149,13 @@ Acceptance requires at least one representative Screen and Popup built/edited en
 
 ## 6. W15-P1-03 — Script Engineering developer-functional maturity
 
-Wave 14 static inspection already indicates building blocks such as project-object discovery and snippets for TAG/visual-property operations, but practical discoverability/composition was not proven.
+Wave 14 static inspection established that major building blocks exist: Monaco editor, diagnostics, entry points, dependencies, project-object discovery, snippets and sandbox Preview/Apply. Practical end-to-end developer usability remains unproven.
+
+Confirmed generic defect already diagnosed in Wave 14:
+
+`docs/WAVE14-DIAGNOSTIC-SCRIPT-EVENT-AUTHORING-GAP.md`
+
+The workspace surfaces event kinds including `timer` and `tagChanged`, while the visible Entry Point editor does not expose the required event-specific fields (`timerIntervalMs` and `tagReference`). Switching event kind can also leave old event-specific values hidden and later rejected as unexpected. Wave 15 must make every surfaced event kind fully authorable or stop surfacing unsupported combinations.
 
 Wave 15 minimum bar:
 
@@ -123,7 +163,7 @@ Wave 15 minimum bar:
 - discover TAGs, screens, popups, objects, properties, Client Memory and permitted APIs;
 - useful autocomplete/snippets where practical;
 - understandable syntax/semantic diagnostics with line/column context;
-- associate the script with intended scope/event/trigger;
+- associate the script with intended scope/event/trigger, including required event-specific parameters;
 - validate/test within sandbox boundaries;
 - persist through canonical Engineering/revision/package semantics;
 - publish/activate where applicable;
@@ -162,16 +202,32 @@ Regression should cover:
 - underlying screen remains stable;
 - popup selection/navigation survives unrelated projection polling where authority remains valid.
 
-## 9. W15-P1-06 — Engineering recovery and fallback identity
+## 9. W15-P1-06 / W15-P1-07 — recovery and transport/error UX
 
-Even if the initial request failure is caused by Codespaces/proxy/environment, product-owned UX is already bounded:
+### Engineering recovery/fallback identity
+
+Even if an initiating request failure is caused by Codespaces/proxy/environment, product-owned UX is confirmed:
 
 - missing public model must not be represented as a real authoritative `Demo Project` Working state;
 - loading, unavailable and retry states must be explicit;
 - dependent modules must clearly state why they are unavailable;
 - recovery must not imply project/lifecycle changes that did not occur.
 
-A1 decides whether an additional transport/client-fetch correction belongs to the product.
+### SPA / Runtime transport error presentation
+
+The A1 correlated window confirmed a separate product-owned presentation defect:
+
+- forwarded SPA may stay blank indefinitely while local Vite/API remain healthy;
+- Runtime may render `(500) Failed to fetch` without a corresponding server HTTP 500;
+- rejected fetch/transport error and real HTTP response status must be distinct;
+- transport errors need bounded timeout, endpoint/timestamp context and retry/recovery behavior.
+
+Required regressions:
+
+- rejected fetch versus genuine server 500 produce distinct diagnostic codes/messages;
+- delayed/failed SPA bootstrap exits blank state into an actionable transport error;
+- retry recovers without fictitious project or server status;
+- real HTTP response status is preserved when one exists.
 
 ## 10. Deterministic P2 backlog
 
@@ -197,9 +253,11 @@ Templates/Equipment/Dynamos/Libraries need useful preview/metadata/inspection be
 
 ## 11. Bounded uncertain/evidence-only items
 
-### W15-U-01 — transport/route latency
+### W15-U-01 — forwarding/route-latency root
 
-No product performance patch until same-window evidence identifies where latency/failure first appears among forwarded browser, local Vite, local API, auth/proxy and process state. Local API/Vite millisecond response evidence means public-path delay alone is insufficient to assign product cause.
+A1 is closed for Wave 14 as `UNCERTAIN — BOUNDED`, not as a product transport defect. In the correlated blank-page interval local Vite `/engineering` returned 200 in about 151 ms, API `/health` in about 2.7 ms, processes/listeners stayed healthy and Runtime projection API requests were 200 in roughly 63–115 ms. This excludes local API/Vite outage for that observation window and bounds the unresolved root to the forwarded browser/static-module path.
+
+Exact attribution requires a future reproduction with browser network waterfall, Codespaces forwarding/edge trace and Vite request-level telemetry under a shared timestamp/request identity. Do not patch transport internals merely from public-path slowness.
 
 ### W15-U-02 — Alarm timestamp
 
@@ -240,12 +298,12 @@ Wave 13 remains paused unless the Product Owner separately resumes it.
 
 Recommended dependency-aware order:
 
-1. W15-P0-01 Working/bootstrap identity if the final A2 diagnosis confirms a product defect needing first correction;
+1. W15-P0-01 Working/bootstrap identity;
 2. W15-P1-01 legacy visual compatibility;
 3. W15-P1-02 Screen/Popup Editor functional maturity;
 4. W15-P1-03 Script Engineering functional maturity, parallel where it does not collide with Working lifecycle/editor shared state;
 5. W15-P1-04 Trends and W15-P1-05 Popup runtime behavior after their direct-Codespace diagnoses are complete;
-6. W15-P1-06 Engineering recovery/fallback UX and any product-owned A1 correction;
+6. W15-P1-06 / W15-P1-07 recovery and transport/error UX;
 7. deterministic P2 shell/navigation/accessibility/resource-preview backlog;
 8. integrated exact-SHA validation;
 9. fresh Wave 15 Codespace Preview -> technical readiness -> real browser audit -> diagnostic/log reading -> targeted follow-up corrections/recheck -> Product Owner maturity decision.

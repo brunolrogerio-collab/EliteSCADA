@@ -1,0 +1,82 @@
+EliteSCADA Wave 14 A1/A2 correlated evidence — 2026-09-11 UTC
+Authority: issue #286 comment 5629189357
+Live Preview documentation head: e1e0602e7ed60104650594624ab467e6a0cec61b
+Validated product candidate: 59e815eae524b9ff043ea6bf3f797f4c01ba9143
+
+[processes and listeners @ 04:31:59]
+2675 dotnet run --project src/Scada.Api/Scada.Api.csproj --no-launch-profile
+2776 /workspaces/EliteSCADA/src/Scada.Api/bin/Debug/net10.0/Scada.Api
+3013 sh -c vite --host 0.0.0.0 --port 5173
+3014 node .../vite --host 0.0.0.0 --port 5173
+LISTEN 0.0.0.0:5173 pid=3014
+LISTEN 127.0.0.1:5080 pid=2776
+
+[unauthenticated local timing @ 04:31]
+127.0.0.1:5173/ HTTP=200 total=0.007189 connect=0.000170
+127.0.0.1:5173/api/runtime/application HTTP=401 total=0.015717 connect=0.000505
+127.0.0.1:5080/health HTTP=200 total=0.002881 connect=0.000199
+127.0.0.1:5080/api/runtime/application HTTP=401 total=0.001251 connect=0.000157
+
+[authenticated API timing and identity]
+login HTTP=200 total=0.146833 (credentials and session material omitted)
+runtime/application HTTP=200 total=0.133204
+  projectKey=eee-demo
+  projectName=EliteSCADA — EEE Demo
+  revision=2
+  activatedAtUtc=2026-09-11T04:02:50.5928172+00:00
+  mode=engineering
+engineering/workspace HTTP=200 total=0.061837
+  projectKey=demo
+  projectName=Demo Project
+  baseRevision=null
+  changeVersion=0
+  isDirty=false
+engineering/persistence/status HTTP=200 total=0.053164
+  enabled=true
+  provider=postgresql
+  configuredProjectKey=eee-demo
+  hasProjects=true
+demo lifecycle HTTP=200 total=0.271643
+  workingRevision=null publishedRevision=null activeRevision=null
+eee-demo lifecycle HTTP=200 total=0.200555
+  workingRevision=2 publishedRevision=2 activeRevision=2
+  publishedAtUtc=2026-09-09T21:17:26.020449+00:00
+  activatedAtUtc=2026-09-09T21:17:27.905488+00:00
+
+[forwarded browser sequence]
+1) /engineering: navigation wait exceeded 10 s; full Engineering usable around 25 s.
+2) /: navigation wait exceeded 10 s; Runtime usable around 28 s.
+3) /engineering: navigation returned at 6.942 s; page remained completely blank for >2 min.
+Browser console for blank load:
+  04:37:43.158Z [vite] connecting...
+  04:37:43.770Z [vite] connected.
+  no later React/module completion line through correlated check at 04:39:52Z
+Prior successful loads:
+  04:36:08.017Z Vite connected -> 04:36:21.357Z React module info
+  04:37:03.275Z Vite connected -> 04:37:19.224Z React module info
+
+[local services while forwarded /engineering was blank @ 04:39:52]
+127.0.0.1:5173/engineering HTTP=200 total=0.150986
+127.0.0.1:5080/health HTTP=200 total=0.002692
+API log: health 200, server execution 0.8704 ms
+
+[logs]
+.preview/api.log size=1371407, mtime=04:35:58Z at first correlation; active and recording 200.
+Runtime application requests in tail: 200 in 115.0358, 63.8598, 100.3935, 73.3253 and 103.0055 ms.
+.preview/web.log size=295, mtime=04:03:02Z; only Vite startup, no request-level telemetry.
+
+[source mechanism]
+scripts/preview/launch-post-c26-preview.sh:8 PROJECT_KEY="eee-demo"
+scripts/preview/launch-post-c26-preview.sh:145 exports EngineeringRuntime__ProjectKey
+scripts/preview/launch-post-c26-preview.sh:224-230 creates First Project only when persistence has no projects
+src/Scada.Api/Runtime/EngineeringWorkspace.cs:63-75 constructor calls SeedDemo()
+src/Scada.Api/Runtime/EngineeringWorkspace.cs:448-456 sets demo/Demo Project/null base/clean version 0
+src/Scada.Api/Persistence/EngineeringPersistenceApi.cs:47-78 recovers configured project into Runtime
+src/Scada.Api/Persistence/EngineeringWorkspaceCheckoutService.cs:43-108 is only invoked by explicit checkout endpoint; no startup call observed
+
+[ephemeral UI evidence]
+Embedded Runtime twice displayed HMI_RUNTIME_ACTIVE_PROJECTION_UNAVAILABLE with `(500) Failed to fetch`, then recovered to EEE Demo r2 without restart.
+Existing repository visual evidence for A2: evidencias/UIAUD-289-002-runtime-working-mismatch.jpg
+
+[non-actions]
+No restart, activation, checkout, save, publish, persistence reset, deletion, product edit, package change, workflow rerun, merge or protected-authority change.

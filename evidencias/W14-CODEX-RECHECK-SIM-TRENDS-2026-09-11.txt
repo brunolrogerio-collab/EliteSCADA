@@ -1,0 +1,544 @@
+EliteSCADA Wave 14 Codex correlated evidence — RECHECK-SIM-PUMP-LEVEL + Trends
+Captured UTC: 2026-09-11T05:14:05.279583+00:00
+No restart/reopen/activation/product mutation performed.
+
+LOCAL ENDPOINTS
+5080 /api/tags status=200 total=0.051617
+5173 proxy /api/tags status=200 total=0.050368
+5080 /health status=200 total=0.308916 body={"status":"ok","service":"scada-api"}
+5080 /api/runtime/application status=200 total=0.120698
+5080 /api/diagnostics/runtime status=200 total=0.080065
+5080 level history status=200 total=0.308916
+
+ACTIVE RUNTIME IDENTITY
+{
+  "mode": "engineering",
+  "projectKey": "eee-demo",
+  "projectName": "EliteSCADA — EEE Demo",
+  "revision": 2,
+  "activatedAtUtc": "2026-09-11T04:02:50.5928172+00:00"
+}
+
+LEVEL VIA DIRECT API
+{
+  "id": "c1110000-0000-4000-8000-000000000001",
+  "name": "Nível do Poço",
+  "path": "EEE.Process.LevelPct",
+  "dataType": "Double",
+  "engineeringUnit": "%",
+  "description": "Canonical EEE simulation state: Nível do Poço",
+  "readOnly": false,
+  "current": {
+    "tagId": "c1110000-0000-4000-8000-000000000001",
+    "value": 39.060000000009474,
+    "timestamp": "2026-09-11T04:04:33.0182221+00:00",
+    "quality": 0,
+    "source": "eee.sim.server-memory",
+    "sourceTimestamp": null,
+    "serverTimestamp": null
+  }
+}
+
+LEVEL VIA VITE PROXY
+{
+  "id": "c1110000-0000-4000-8000-000000000001",
+  "name": "Nível do Poço",
+  "path": "EEE.Process.LevelPct",
+  "dataType": "Double",
+  "engineeringUnit": "%",
+  "description": "Canonical EEE simulation state: Nível do Poço",
+  "readOnly": false,
+  "current": {
+    "tagId": "c1110000-0000-4000-8000-000000000001",
+    "value": 39.060000000009474,
+    "timestamp": "2026-09-11T04:04:33.0182221+00:00",
+    "quality": 0,
+    "source": "eee.sim.server-memory",
+    "sourceTimestamp": null,
+    "serverTimestamp": null
+  }
+}
+
+HISTORIAN LEVEL
+count=104
+first=[{"tagId": "c1110000-0000-4000-8000-000000000001", "value": 41.10000000000939, "timestamp": "2026-09-11T04:02:37.732744+00:00", "quality": 0, "source": "eee.sim.server-memory", "sourceTimestamp": null, "serverTimestamp": null}, {"tagId": "c1110000-0000-4000-8000-000000000001", "value": 41.70000000000939, "timestamp": "2026-09-11T04:02:38.789918+00:00", "quality": 0, "source": "eee.sim.server-memory", "sourceTimestamp": null, "serverTimestamp": null}]
+last=[{"tagId": "c1110000-0000-4000-8000-000000000001", "value": 37.86000000000947, "timestamp": "2026-09-11T04:04:30.9888+00:00", "quality": 0, "source": "eee.sim.server-memory", "sourceTimestamp": null, "serverTimestamp": null}, {"tagId": "c1110000-0000-4000-8000-000000000001", "value": 38.46000000000947, "timestamp": "2026-09-11T04:04:31.987642+00:00", "quality": 0, "source": "eee.sim.server-memory", "sourceTimestamp": null, "serverTimestamp": null}, {"tagId": "c1110000-0000-4000-8000-000000000001", "value": 39.060000000009474, "timestamp": "2026-09-11T04:04:33.018222+00:00", "quality": 0, "source": "eee.sim.server-memory", "sourceTimestamp": null, "serverTimestamp": null}]
+
+SERVER SCRIPT META
+{
+  "id": "c1100000-0000-4000-8000-000000000002",
+  "name": "EEE Deterministic Process",
+  "path": "scripts/eee-process.py",
+  "scope": "server",
+  "enabled": true,
+  "language": "python",
+  "metadata": {
+    "application": "eee-demo",
+    "writeStrategy": "bounded-on-change",
+    "derivedTelemetry": "deterministic-convergence",
+    "deterministicTickMs": "1000"
+  },
+  "description": "Canonical generic Server Memory process model for the EliteSCADA EEE Demo.",
+  "entryPoints": [
+    {
+      "eventKind": "initialize",
+      "handlerName": "on_initialize",
+      "tagReference": null,
+      "targetReference": null,
+      "timerIntervalMs": null
+    },
+    {
+      "eventKind": "timer",
+      "handlerName": "on_tick",
+      "tagReference": null,
+      "targetReference": null,
+      "timerIntervalMs": 1000
+    }
+  ],
+  "languageVersion": "3"
+}
+dependencies=38
+sourceLines=301
+read_server_memory occurrences=52
+write_server_memory occurrences=51
+
+SERVER SCRIPT DIAGNOSTICS PATH /runtime/serverScripts/scripts/0/diagnostics
+{
+  "scriptId": "c1100000-0000-4000-8000-000000000002",
+  "runtimeInstanceId": "eee-demo@2:c1100000-0000-4000-8000-000000000002",
+  "executionCount": 108,
+  "completedCount": 102,
+  "faultedCount": 0,
+  "timeoutCount": 6,
+  "cancelledCount": 0,
+  "queueRejectedCount": 0,
+  "queueCoalescedCount": 4167,
+  "queueDroppedOldestCount": 0,
+  "lastStatus": 2,
+  "lastDuration": "00:00:00.4515763",
+  "lastCompletedAt": "2026-09-11T04:04:38.3925189+00:00",
+  "lastSanitizedError": null,
+  "consecutiveFailures": 5,
+  "isThrottled": true,
+  "activeSubscriptions": 1,
+  "queuedEvents": 1
+}
+
+PROCESS HEALTH
+   2675 Fri Sep 11 04:02:38 2026    01:11:27 Sl    0.1  1.7 dotnet run --project src/Scada.Api/Scada.Api.csproj --no-launch-profile
+   2776 Fri Sep 11 04:02:45 2026    01:11:20 Sl    2.7  1.7 /workspaces/EliteSCADA/src/Scada.Api/bin/Debug/net10.0/Scada.Api
+   3013 Fri Sep 11 04:02:58 2026    01:11:06 S     0.0  0.0 sh -c vite --host 0.0.0.0 --port 5173
+   3014 Fri Sep 11 04:02:58 2026    01:11:06 Sl    0.5  2.1 node /workspaces/EliteSCADA/web/scada-web/node_modules/.bin/vite --host 0.0.0.0 --port 5173
+
+
+REALTIME-RELATED API LOG TAIL (empty means no matching server telemetry)
+
+
+SOURCE: ScadaRuntimeFacade diagnostics projection lines 35-57
+35:
+36:     public ScadaRuntimeDescriptor Describe()
+37:     {
+38:         var engineering = engineeringRuntime.Describe();
+39:         if (engineering.Revision.HasValue)
+40:         {
+41:             var serverScripts = eventBus is not null && configuration is not null
+42:                 ? ServerScriptRuntimeManager.GetShared(
+43:                     engineeringRuntime,
+44:                     eventBus,
+45:                     configuration).Snapshot()
+46:                 : null;
+47:
+48:             return new ScadaRuntimeDescriptor(
+49:                 "engineering",
+50:                 engineering.ProjectKey,
+51:                 engineering.Revision,
+52:                 engineering.ActivatedAtUtc,
+53:                 engineering.Drivers,
+54:                 engineering.CommunicationDrivers,
+55:                 engineering.TagCount,
+56:                 engineering.ActiveAlarmCount,
+57:                 serverScripts);
+
+SOURCE: ServerScriptRuntimeManager policy lines 420-441
+420:     }
+421:
+422:     private static ScriptExecutionPolicy BuildPolicy(IConfiguration configuration)
+423:     {
+424:         var handlerTimeout = TimeSpan.FromMilliseconds(Math.Max(
+425:             10,
+426:             configuration.GetValue<int?>("ServerScripts:HandlerTimeoutMs") ?? 250));
+427:         var minimumTimer = TimeSpan.FromMilliseconds(Math.Max(
+428:             10,
+429:             configuration.GetValue<int?>("ServerScripts:MinimumTimerIntervalMs") ?? 50));
+430:         var maxQueued = Math.Max(
+431:             1,
+432:             configuration.GetValue<int?>("ServerScripts:MaxQueuedEvents") ?? 128);
+433:         var maxFailures = Math.Max(
+434:             1,
+435:             configuration.GetValue<int?>("ServerScripts:MaxConsecutiveFailuresBeforeThrottle") ?? 5);
+436:         return new ScriptExecutionPolicy(
+437:             handlerTimeout,
+438:             maxQueued,
+439:             minimumTimer,
+440:             maxFailures);
+441:     }
+
+SOURCE: ServerScriptRuntimeManager timer/queue lines 545-559,596-645
+545:             }
+546:
+547:             _tagSubscription = _owner._eventBus.Subscribe<TagValueChanged>(OnTagChangedAsync);
+548:             Volatile.Write(ref _started, 1);
+549:
+550:             foreach (var instance in Instances)
+551:             foreach (var entry in instance.Definition.EntryPoints.Where(
+552:                          x => x.EventKind == PythonScriptEventKind.Timer))
+553:             {
+554:                 var interval = TimeSpan.FromMilliseconds(entry.TimerIntervalMs!.Value);
+555:                 Track(Task.Run(
+556:                     () => TimerLoopAsync(instance, entry, interval, _cancellation.Token),
+557:                     _cancellation.Token));
+558:             }
+559:         }
+596:         private async Task TimerLoopAsync(
+597:             ScriptInstance instance,
+598:             PythonScriptEntryPoint entry,
+599:             TimeSpan interval,
+600:             CancellationToken cancellationToken)
+601:         {
+602:             using var timer = new PeriodicTimer(interval);
+603:             try
+604:             {
+605:                 while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+606:                 {
+607:                     if (!MatchesCurrentRuntime()) break;
+608:                     await TriggerAndDrainAsync(
+609:                             instance,
+610:                             entry,
+611:                             entry.TargetReference,
+612:                             cancellationToken)
+613:                         .ConfigureAwait(false);
+614:                 }
+615:             }
+616:             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+617:             {
+618:             }
+619:         }
+620:
+621:         private async Task TriggerAndDrainAsync(
+622:             ScriptInstance instance,
+623:             PythonScriptEntryPoint entry,
+624:             string? targetReference,
+625:             CancellationToken cancellationToken)
+626:         {
+627:             if (!MatchesCurrentRuntime()) return;
+628:
+629:             instance.Coordinator.Enqueue(new ScriptEventIdentity(
+630:                 entry.EventKind,
+631:                 entry.HandlerName,
+632:                 targetReference ?? entry.TargetReference));
+633:
+634:             while (!cancellationToken.IsCancellationRequested && MatchesCurrentRuntime())
+635:             {
+636:                 var result = await instance.Coordinator.ProcessNextAsync(cancellationToken)
+637:                     .ConfigureAwait(false);
+638:                 if (result.Status != ScriptRuntimeDispatchStatus.Executed) break;
+639:                 if (result.Execution?.Status is
+640:                     ScriptExecutionStatus.TimedOut or
+641:                     ScriptExecutionStatus.Cancelled)
+642:                 {
+643:                     break;
+644:                 }
+645:             }
+
+SOURCE: isolated Python process-per-dispatch lines 24-120
+24:     public async ValueTask ExecuteAsync(
+25:         PythonScriptDefinition script,
+26:         ScriptEventEnvelope scriptEvent,
+27:         ScriptExecutionLease lease)
+28:     {
+29:         if (script.Scope != PythonScriptScope.Server)
+30:             throw new ScriptExecutionDiagnosticException("Only Server scripts may execute in the server runtime host.");
+31:
+32:         var allowedTags = ResolveAllowedTags(script);
+33:         var snapshots = await host.ReadDependenciesAsync(
+34:                 projectKey,
+35:                 revision,
+36:                 allowedTags,
+37:                 lease.CancellationToken)
+38:             .ConfigureAwait(false);
+39:
+40:         var values = snapshots.ToDictionary(
+41:             pair => pair.Key.ToString("D"),
+42:             pair => pair.Value.Value,
+43:             StringComparer.Ordinal);
+44:         var serverMemoryTags = allowedTags
+45:             .Where(pair => pair.Value.Equals("ServerMemoryTag", StringComparison.OrdinalIgnoreCase))
+46:             .Select(pair => pair.Key.ToString("D"))
+47:             .ToArray();
+48:
+49:         var request = new PythonExecutionRequest(
+50:             script.Source,
+51:             scriptEvent.Identity.HandlerName,
+52:             new PythonEventPayload(
+53:                 scriptEvent.Identity.EventKind.ToString(),
+54:                 scriptEvent.Identity.TargetReference,
+55:                 scriptEvent.Sequence,
+56:                 scriptEvent.EnqueuedAt),
+57:             values,
+58:             serverMemoryTags);
+59:
+60:         using var process = new Process
+61:         {
+62:             StartInfo = new ProcessStartInfo
+63:             {
+64:                 FileName = pythonExecutable,
+65:                 RedirectStandardInput = true,
+66:                 RedirectStandardOutput = true,
+67:                 RedirectStandardError = true,
+68:                 UseShellExecute = false,
+69:                 CreateNoWindow = true
+70:             }
+71:         };
+72:         process.StartInfo.ArgumentList.Add("-I");
+73:         process.StartInfo.ArgumentList.Add("-S");
+74:         process.StartInfo.ArgumentList.Add(runnerPath);
+75:
+76:         try
+77:         {
+78:             if (!process.Start())
+79:                 throw new ScriptExecutionDiagnosticException("Python runtime could not be started.");
+80:         }
+81:         catch (Exception ex) when (ex is not ScriptExecutionDiagnosticException)
+82:         {
+83:             throw new ScriptExecutionDiagnosticException($"Python runtime is unavailable ({ex.GetType().Name}).");
+84:         }
+85:
+86:         await process.StandardInput.WriteAsync(
+87:             JsonSerializer.Serialize(request, JsonOptions).AsMemory(),
+88:             lease.CancellationToken);
+89:         process.StandardInput.Close();
+90:
+91:         var stdoutTask = process.StandardOutput.ReadToEndAsync(lease.CancellationToken);
+92:         var stderrTask = process.StandardError.ReadToEndAsync(lease.CancellationToken);
+93:         try
+94:         {
+95:             await process.WaitForExitAsync(lease.CancellationToken).ConfigureAwait(false);
+96:         }
+97:         catch (OperationCanceledException)
+98:         {
+99:             TryKill(process);
+100:             throw;
+101:         }
+102:
+103:         var stdout = await stdoutTask.ConfigureAwait(false);
+104:         var stderr = await stderrTask.ConfigureAwait(false);
+105:         if (process.ExitCode != 0)
+106:             throw new ScriptExecutionDiagnosticException(Sanitize(stderr));
+107:
+108:         PythonExecutionResponse response;
+109:         try
+110:         {
+111:             response = JsonSerializer.Deserialize<PythonExecutionResponse>(stdout, JsonOptions)
+112:                 ?? throw new InvalidDataException();
+113:         }
+114:         catch
+115:         {
+116:             throw new ScriptExecutionDiagnosticException("Python handler returned an invalid result payload.");
+117:         }
+118:
+119:         if (!response.Succeeded)
+120:             throw new ScriptExecutionDiagnosticException(response.Error ?? "Python handler failed.");
+
+SOURCE: coordinator throttle guard/timeout lines 120-162,189-271
+120:         using var waitCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+121:             cancellationToken,
+122:             _disposeCancellation.Token);
+123:
+124:         await _processingGate.WaitAsync(waitCancellation.Token).ConfigureAwait(false);
+125:         try
+126:         {
+127:             ThrowIfDisposed();
+128:
+129:             var current = _diagnostics.Snapshot(
+130:                 activeSubscriptions: 0,
+131:                 queuedEvents: _queue.Count);
+132:
+133:             if (current.IsThrottled)
+134:                 return new(ScriptRuntimeDispatchStatus.Throttled);
+135:
+136:             if (!_queue.TryDequeue(out var scriptEvent) || scriptEvent is null)
+137:                 return new(ScriptRuntimeDispatchStatus.NoEvent);
+138:
+139:             var execution = await ExecuteEventAsync(
+140:                     scriptEvent,
+141:                     cancellationToken)
+142:                 .ConfigureAwait(false);
+143:
+144:             _diagnostics.RecordExecution(execution);
+145:
+146:             return new(
+147:                 ScriptRuntimeDispatchStatus.Executed,
+148:                 scriptEvent,
+149:                 execution);
+150:         }
+151:         finally
+152:         {
+153:             _processingGate.Release();
+154:         }
+155:     }
+156:
+157:     public ScriptRuntimeDiagnosticsSnapshot GetDiagnostics(
+158:         int activeSubscriptions = 0) =>
+159:         _diagnostics.Snapshot(
+160:             activeSubscriptions,
+161:             _queue.Count);
+162:
+189:     private async ValueTask<ScriptExecutionResult> ExecuteEventAsync(
+190:         ScriptEventEnvelope scriptEvent,
+191:         CancellationToken callerCancellation)
+192:     {
+193:         using var timeoutCancellation = new CancellationTokenSource(_policy.HandlerTimeout);
+194:         using var executionCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+195:             callerCancellation,
+196:             _disposeCancellation.Token,
+197:             timeoutCancellation.Token);
+198:
+199:         var lease = ScriptExecutionLease.Create(
+200:             _script.Id,
+201:             _runtimeInstanceId,
+202:             scriptEvent.Identity.HandlerName,
+203:             _policy,
+204:             executionCancellation.Token);
+205:
+206:         var timestamp = Stopwatch.GetTimestamp();
+207:         ScriptExecutionStatus status;
+208:         string? sanitizedError = null;
+209:
+210:         try
+211:         {
+212:             await _executor.ExecuteAsync(
+213:                     _script,
+214:                     scriptEvent,
+215:                     lease)
+216:                 .ConfigureAwait(false);
+217:
+218:             status = ResolveCompletionStatus(
+219:                 callerCancellation,
+220:                 timeoutCancellation.Token);
+221:         }
+222:         catch (OperationCanceledException)
+223:         {
+224:             status = ResolveCancellationStatus(
+225:                 callerCancellation,
+226:                 timeoutCancellation.Token);
+227:         }
+228:         catch (Exception exception)
+229:         {
+230:             status = ScriptExecutionStatus.Faulted;
+231:             sanitizedError = SanitizeException(exception);
+232:         }
+233:
+234:         return new(
+235:             _script.Id,
+236:             _runtimeInstanceId,
+237:             scriptEvent.Identity.HandlerName,
+238:             status,
+239:             Stopwatch.GetElapsedTime(timestamp),
+240:             DateTimeOffset.UtcNow,
+241:             sanitizedError);
+242:     }
+243:
+244:     private ScriptExecutionStatus ResolveCompletionStatus(
+245:         CancellationToken callerCancellation,
+246:         CancellationToken timeoutCancellation)
+247:     {
+248:         if (callerCancellation.IsCancellationRequested ||
+249:             _disposeCancellation.IsCancellationRequested)
+250:         {
+251:             return ScriptExecutionStatus.Cancelled;
+252:         }
+253:
+254:         return timeoutCancellation.IsCancellationRequested
+255:             ? ScriptExecutionStatus.TimedOut
+256:             : ScriptExecutionStatus.Completed;
+257:     }
+258:
+259:     private ScriptExecutionStatus ResolveCancellationStatus(
+260:         CancellationToken callerCancellation,
+261:         CancellationToken timeoutCancellation)
+262:     {
+263:         if (callerCancellation.IsCancellationRequested ||
+264:             _disposeCancellation.IsCancellationRequested)
+265:         {
+266:             return ScriptExecutionStatus.Cancelled;
+267:         }
+268:
+269:         return timeoutCancellation.IsCancellationRequested
+270:             ? ScriptExecutionStatus.TimedOut
+271:             : ScriptExecutionStatus.Cancelled;
+
+SOURCE: failure throttle state lines 425-484
+425: }
+426:
+427: public sealed class ScriptFailureThrottle
+428: {
+429:     private readonly object _sync = new();
+430:     private readonly ScriptExecutionPolicy _policy;
+431:     private int _consecutiveFailures;
+432:     private bool _isThrottled;
+433:
+434:     public ScriptFailureThrottle(ScriptExecutionPolicy policy)
+435:     {
+436:         ArgumentNullException.ThrowIfNull(policy);
+437:         _policy = policy;
+438:     }
+439:
+440:     public int ConsecutiveFailures
+441:     {
+442:         get
+443:         {
+444:             lock (_sync)
+445:                 return _consecutiveFailures;
+446:         }
+447:     }
+448:
+449:     public bool IsThrottled
+450:     {
+451:         get
+452:         {
+453:             lock (_sync)
+454:                 return _isThrottled;
+455:         }
+456:     }
+457:
+458:     public void Record(ScriptExecutionStatus status)
+459:     {
+460:         lock (_sync)
+461:         {
+462:             if (status == ScriptExecutionStatus.Completed)
+463:             {
+464:                 _consecutiveFailures = 0;
+465:                 return;
+466:             }
+467:
+468:             if (status is not (ScriptExecutionStatus.Faulted or ScriptExecutionStatus.TimedOut))
+469:                 return;
+470:
+471:             _consecutiveFailures++;
+472:             if (_consecutiveFailures >= _policy.MaxConsecutiveFailuresBeforeThrottle)
+473:                 _isThrottled = true;
+474:         }
+475:     }
+476:
+477:     public void Reset()
+478:     {
+479:         lock (_sync)
+480:         {
+481:             _consecutiveFailures = 0;
+482:             _isThrottled = false;
+483:         }
+484:     }
+
+VISUAL EVIDENCE
+evidencias/W14-CODEX-RECHECK-SIM-FROZEN-RUNTIME-2026-09-11.jpg
+Screenshot shows Active eee-demo rev 2 with all process values as em dash and both pumps marked FALHA/QUALIDADE RUIM.

@@ -2,125 +2,108 @@
 
 **Date:** 2026-09-10 BRT
 
-**Operational state:** **WAVE14 POST-C26 / REAL AUDIT EVIDENCE PRESERVED / CODEX DIRECT-CODESPACE COORDINATION PREFERRED / P1 DIAGNOSIS + CORRECTIONS REQUIRED / FINAL PO HOMOLOGATION BLOCKED / #212 NOT AUTHORIZED / VALIDATION-ONLY PRs MUST NEVER MERGE / WAVE13 PAUSED**
+**Operational state:** **WAVE 14 DIAGNOSTIC CLOSURE ACTIVE / NO NEW BROAD PRODUCT CORRECTIONS IN W14 / W15 WILL OWN CORRECTIONS / W13 PRESERVED AND PAUSED UNTIL PRODUCT MATURITY / #212 CONDITIONALLY AUTHORIZED ONLY AFTER W14 CLOSURE PACKAGE + EXACT-SHA GREEN**
 
-> GitHub live is the official and sole project memory. Revalidate refs, PR/issue state, exact files and workflows before every decision, diagnosis, code/documentation write, PR action, rerun or merge. If this file differs from GitHub live, GitHub wins.
+> GitHub live is the official and sole project memory. Revalidate refs, PR/issue state, exact files and workflows before every decision, diagnosis, code/documentation write, PR action, rerun, integration or merge. If this file differs from GitHub live, GitHub wins.
 
-## What changed in this rotation
+## Product Owner strategic decision — 2026-09-10 BRT
 
-Coordination is being transferred preferably to the Codex chat/session that performed the real browser audit and has direct access to the Codespace and application. This is intended to improve diagnosis of findings where the browser, private Codespaces forwarding, local Vite/API, realtime and product state must be correlated in the same instant.
+Wave 14 grew beyond a useful execution boundary. Its remaining goal is now deliberately narrowed:
 
-A new canonical handoff was added:
+**finish diagnostics, identify what/where/why/how each material defect should be corrected, preserve the evidence and correction contract, then close Wave 14 and integrate the accepted Wave 14 baseline into `main`.**
 
-`docs/WAVE14-POST-C26-CODEX-COORDINATOR-HANDOFF-2026-09-10.md`
+Newly diagnosed product corrections move to **Wave 15** rather than continuing to expand Wave 14.
 
-`docs/CURRENT-COORDINATOR-HANDOFF.md` and `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md` were refreshed from their stale pre-C26 state.
+After Wave 15 corrections are complete, EliteSCADA will receive a fresh Codespace Preview, technical readiness checks, real browser audit and diagnostic/log review. That validation may produce targeted follow-up corrections before a new maturity decision.
 
-No product code, package, Runtime configuration, security/lifecycle authority or `main` state was changed by this coordinator rotation.
+Wave 13 #205/#207 remains preserved and paused. It will resume only when the SCADA is materially more mature and the Product Owner explicitly decides release/signing is worthwhile. Wave 15 completion does not automatically resume Wave 13.
 
-## Current topology
+Canonical new closure plan:
+
+`docs/WAVE14-DIAGNOSTIC-CLOSURE-AND-WAVE15-TRANSFER.md`
+
+## Current live topology at decision checkpoint
 
 - Repository: `brunolrogerio-collab/EliteSCADA`
-- Audit/coordination surface: `preview/wave14-post-c26-work-audit`
-- Coordinator issue: #286
-- Post-C26 audit gate: #289
-- PR #290: post-C26 Preview — OPEN/DRAFT / Preview only
-- PR #296: diagnostic-only long-run probe — OPEN/DRAFT / **MUST NEVER MERGE**
-- PR #212: Wave14 integration -> `main` — **NO MERGE without later, separate and explicit Product Owner authorization**
-- #266 / #288 / #292 / #293: validation-only / **MUST NEVER MERGE** where applicable
-- #285: preserve as historical pre-C26 Preview evidence
-- Wave13 #205/#207: paused
+- `main`: `edbdf446ea657713bdc487be91bf10bfcd03c684`
+- Wave 14 integration PR #212: OPEN/DRAFT, `wave14/corrections-integration` -> `main`, head `ff185ffd67fe4abc597af9184c21f86376ba6e17`
+- Canonical C11 PR #263: OPEN/DRAFT, `wave14/c11-canonical-eee-demo` -> `wave14/corrections-integration`, head `19d5257d970f53ae798c5fa53946fce07c586452`
+- C26 PR #287: MERGED into canonical C11; accepted C26 product head `08e2530671de10d48933c4b712a1a1abc9e41dce`
+- Post-C26 audit/coordination PR #290: OPEN/DRAFT / Preview-only; current documentation head after the strategic decision begins with `d18cea9c2a955a63adb917febcd0914d7ca5b62f`
+- Exact technically validated post-C26 Preview candidate remains `59e815eae524b9ff043ea6bf3f797f4c01ba9143`; later Preview commits are documentation/evidence and do not become product candidates automatically
+- Frozen package SHA-256 remains `e995051b4744f904663350102683c886af9674aaae8fff1dbc76f294ff2d774d`
+- PR #296 remains OPEN/DRAFT / DIAGNOSTIC ONLY / MUST NEVER MERGE; no blind rerun
+- validation-only PRs remain validation-only / MUST NEVER MERGE where marked
+- #285 remains preserved historical pre-C26 Preview evidence
 
-## Technical baseline preserved
+## Important branch-content distinction
 
-- corrected canonical C11: `19d5257d970f53ae798c5fa53946fce07c586452`;
-- accepted C26 product: `08e2530671de10d48933c4b712a1a1abc9e41dce`;
-- exact technically validated post-C26 Preview candidate: `59e815eae524b9ff043ea6bf3f797f4c01ba9143`;
-- frozen package SHA-256: `e995051b4744f904663350102683c886af9674aaae8fff1dbc76f294ff2d774d`;
-- Post-C26 Canonical Preview run `34403903462` — SUCCESS;
-- Post-C26 Audit State Readiness run `34403903471` — SUCCESS.
+Comparison of canonical C11 `19d5257...` to validated Preview candidate `59e815e...` shows the Preview candidate adds Preview/devcontainer/workflow/audit-harness material, not a new product correction baseline. Therefore Wave 14 closure must not merge PR #290 as a route to `main`.
 
-Later commits on the Preview branch preserve audit documentation/evidence. Do not treat the documentation HEAD as a newly validated product SHA.
+The intended product route remains canonical C11 -> Wave 14 integration -> `main`, with selected final diagnostic/roadmap/handoff documentation propagated separately onto the integration route before the final merge.
 
-## Important evidence update
+## Current Wave 14 diagnostic closure work
 
-Earlier checkpoint `#289 / 5619800919` classified `RECHECK-SIM-PUMP-LEVEL` as a provisional P1 candidate because the browser audit saw a process snapshot frozen for >15 minutes.
+The direct-Codespace Codex assignment remains useful but its purpose is now **diagnosis and documentation only**, not product correction.
 
-Later direct Codespace evidence recorded in `docs/WAVE14-AUDIT-PARTIAL-2026-09-10.md` showed authenticated local API values continuing to change, including `EEE.P01.LevelPct`, while local API/Vite stayed healthy and the public browser path encountered Codespaces forwarding/authentication failures.
+Priority diagnostic package:
 
-Therefore **simulation/Server Script freeze is not currently a confirmed product defect**. Reopen that hypothesis only if reproduced again with correlated local diagnostics.
+1. Engineering `Failed to fetch` / route latency: correlate forwarded browser vs Vite 5173 vs API 5080 vs auth/proxy/process/log evidence and distinguish environment transport from product recovery behavior.
+2. Working `demo` vs Runtime Active `eee-demo`: identify exact bootstrap/checkout/persistence/public-model origin while preserving correct lifecycle/Active authority.
+3. persisted legacy visual schema crash: identify exact compatibility/migration/recovery path for known legacy types and preserve Screen + Popup + truly-unknown future regression contract.
+4. Runtime Trends silent return: identify Historian/no-data/realtime/projection/navigation/error-recovery mechanism.
+5. Runtime Popup `—` / auto-return: identify binding/realtime/projection/navigation mechanism and future stopped/running/zero/missing/quality regressions.
+6. Engineering fetch/recovery UX: separate external transport cause from product responsibility not to present fictitious Working identity.
+7. deterministic UI/authoring backlog: preserve component/code location and future regression contract.
+8. Script Engineering / PO-PRE-07: finish diagnosis of the gap between existing implementation and a discoverable developer-complete authoring/debugging workflow.
 
-PR #296 remains diagnostic-only. Latest recorded head at handoff: `7738b568a5dd4259e958a2c5023c2bf6ca7e5acb`. Latest recorded run `34505442984` / check `102966371728` failed `INFRASTRUCTURE_OR_BOOTSTRAP_FAILURE` with `0s` effective product observation. Do not blind-rerun.
+`RECHECK-SIM-PUMP-LEVEL` remains not confirmed as a product freeze. Reopen only on a natural reproduction with correlated local evidence before restart/reopen.
 
-## Current high-priority diagnostic/correction map
+## Developer-functional priority transferred to Wave 15
 
-### P1 — legacy visual schema crash — confirmed generic defect
+The Product Owner explicitly considers the current Screen Editor and Script Engineering too far from functional for a developer.
 
-Screen Editor and Popup Editor can blank the entire application when persisted legacy visual types are selected. Reproductions include legacy `tank`, `value` and `dynamo` paths.
+Wave 15 must therefore treat developer usability as product correctness, not cosmetic polish.
 
-The audited path reaches `getBuiltinVisualObjectSchema(element.type)` without adequate compatibility/recovery for those persisted identifiers. Diagnose a generic compatibility/migration/degradation contract and require deterministic Screen + Popup regressions. Do not weaken unknown-type validation as a workaround.
+A representative developer must be able to complete Screen/Popup authoring and Script Engineering end-to-end through the product UI without repository/database/manual API intervention. Visible supported controls must work; unsupported actions must not masquerade as functional. Script development must include discoverability, object/TAG selection, understandable validation/errors, binding/trigger/lifecycle integration, persistence and observable/debuggable runtime behavior.
 
-### P1 — Working `demo` vs Runtime `eee-demo` — confirmed in later live evidence
+## Wave 14 integration authorization
 
-Later direct UI evidence superseded the earlier artifact-only impression of alignment. Engineering Working can load `Demo Project` / `demo` while Runtime remains `eee-demo`, Active revision 2, with lifecycle correctly blocking cross-project activation.
+The Product Owner decision of 2026-09-10 supplies the previously required separate authorization for PR #212 -> `main`, but **only after** all of the following are true:
 
-Diagnose bootstrap/checkout/persistence. Do not change Active or activate `demo` merely to make the surfaces match.
+- the Wave 14 diagnostic closure package is complete enough to transfer work without rediscovery;
+- canonical C11 is correctly integrated through #263 into `wave14/corrections-integration`;
+- final Wave 14 diagnostic/roadmap/handoff documentation is propagated onto the integration route;
+- the exact integration head is validated by universal and impact-required gates;
+- any red gate is diagnosed rather than blindly rerun;
+- the expected PR head is revalidated immediately before merge.
 
-### Engineering fetch/recovery and route latency
-
-Transient `Failed to fetch`, fallback project identity, blocked modules and long route transitions were reproduced. Local API endpoints were much faster than the forwarded browser path, so initiating cause remains partly UNCERTAIN.
-
-Preferred next diagnosis is direct correlation from the Codespace: API 5080 vs local Vite 5173 vs forwarded browser, captured before restart/reopen.
-
-### Runtime Trends / Popups
-
-Current audit records Runtime Trends returning silently to the operational screen after `Conectando dados ao vivo…`, and pump popups showing `—` despite Good values elsewhere and sometimes auto-returning to the screen.
-
-Correlate TAG/realtime/projection/navigation state before correction.
-
-### Deterministic generic P2 backlog
-
-The latest audit also preserves generic UI findings around Engineering navigation scrolling/collapse, missing catalog previews, excessive Engineering Lock footprint, shared responsive header overlap, account-menu accessible names and misleading Engineering fallback/error UX.
-
-Practical script-authoring/PO-PRE-07 remains to be completed after Engineering is stable.
-
-Alarm / Operational Event / Audit remain distinct. Do not manufacture a Historian defect from zero data where the loaded Working reports zero historian policies.
-
-## Finding chronology rule
-
-The audit file evolved after issue checkpoint `5619800919`, and some numeric UIAUD mappings changed during the audit. Before creating a correction task, reconcile **ID + current title + evidence + latest chronological section**. Later revalidated evidence wins over an older narrative when they conflict.
+This is not authorization to merge #212 early, merge Preview #290, merge diagnostic #296, merge validation-only PRs, bypass CI, or mutate `main` directly.
 
 ## Immediate next safe sequence
 
-1. New Codex coordinator revalidates live #286, #289, #290, #296 and branch SHAs.
-2. Reads `docs/WAVE14-AUDIT-PARTIAL-2026-09-10.md` and `docs/WAVE14-POST-C26-CODEX-COORDINATOR-HANDOFF-2026-09-10.md`.
-3. Uses direct Codespace access to correlate Engineering transport/latency and confirm bootstrap/Working state before restarting anything.
-4. Diagnoses/corrects confirmed P1 legacy-schema crash with deterministic regressions.
-5. Diagnoses Runtime Trends/Popup behavior with local TAG/realtime/projection evidence.
-6. Handles deterministic generic P2 findings after P1s and uncertain transport-dependent diagnoses.
-7. Produces a new exact candidate only through the live-authorized correction route, with regression coverage and exact-head validation.
-8. Uses targeted Work recheck only where justified.
-9. Final Product Owner homologation remains blocked until correction/revalidation is complete.
+1. keep Codex focused on diagnosis/evidence; supersede any assumption that Wave 14 should implement the newly diagnosed fixes;
+2. complete a Wave 14 diagnostic transfer table with finding -> mechanism -> responsible layer/path -> correction contract -> deterministic regression -> dependency;
+3. reconcile the latest audit chronology and close remaining high-value diagnostic gaps;
+4. revalidate #263 and integrate canonical C11 into `wave14/corrections-integration` when the diagnostic closure is ready for final packaging;
+5. propagate selected Wave 14 closure documentation from Preview/coordination into the integration route without merging Preview harness content;
+6. exact-SHA validate the integration head;
+7. merge #212 to `main` only if the conditional authorization contract above is satisfied;
+8. validate exact new `main`;
+9. close Wave 14 coordination/audit/obsolete diagnostic surfaces without merging MUST-NEVER-MERGE PRs and without deleting preserved branches;
+10. only then open Wave 15 from exact validated new `main` and execute the corrections backlog;
+11. after Wave 15 corrections, create a fresh Codespace Preview and repeat audit/diagnostic reading against the corrected baseline;
+12. keep Wave 13 paused until a later explicit product-maturity decision.
 
 ## Permanent governance
 
-- never modify `main` directly;
-- #212 must not merge without later separate explicit Product Owner authorization;
-- validation-only PRs stay validation-only / MUST NEVER MERGE;
-- #296 MUST NEVER MERGE;
-- preserve #285;
-- #290 is Preview-only and not a route to `main`;
-- no force push, destructive rebase, branch deletion, blind rerun or unrelated cleanup;
+- GitHub live wins over chat or stale docs for implemented/current state;
+- no direct mutation of `main`; use the authorized PR route;
+- no force push, destructive rebase or branch deletion;
+- no blind workflow rerun;
 - never weaken tests, validation, security, Identity, authentication, authorization, Engineering Lock, Licensing, lifecycle, package, Drivers, Historian semantics or Runtime Active authority;
 - Runtime/Active remains independent of `.escadalib`;
 - no EEE-specific workaround for a generic product defect;
 - Alarm / Operational Event / Audit remain distinct;
-- Wave13 remains paused.
-
-Canonical current handoff:
-
-`docs/WAVE14-POST-C26-CODEX-COORDINATOR-HANDOFF-2026-09-10.md`
-
-Copy-ready next coordinator prompt:
-
-`docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
+- uncertain diagnostics remain explicitly uncertain rather than being relabeled solved;
+- Wave 15 correction completion does not automatically resume Wave 13.

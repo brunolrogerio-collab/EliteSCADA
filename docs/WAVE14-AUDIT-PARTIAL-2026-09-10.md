@@ -208,3 +208,26 @@ A reprodução foi estendida ao Popup Editor após a confirmação no Screen Edi
 Em 10/09/2026, após o crash do Popup Editor, a abertura de uma nova aba direta do produto pelo cliente de auditoria falhou com `ERR_BLOCKED_BY_CLIENT`; isso foi classificado como limitação do cliente de auditoria, não como defeito do produto. Em seguida, o serviço local do Codespace respondeu `HTTP 200` em `0.002499 s` para `http://localhost:5173/`, enquanto o endereço público informado respondeu `HTTP 404` em `0.052637 s` para uma requisição sem a sessão autenticada de navegador.
 
 Este resultado reforça a classificação **UNCERTAIN** de UIAUD-289-005: existe uma diferença real entre serviço local saudável e acesso público mediado por proxy/autenticação, mas a evidência atual não isola se o 404 é regra de acesso do Codespaces, perda de encaminhamento ou defeito da aplicação. Não promover para defeito GENERIC PRODUCT nem EEE-SPECIFIC sem reprodução técnica autenticada fora deste cliente.
+
+
+## Complemento de medição — UIAUD-289-005
+
+A rechecagem no produto real confirmou que a lentidão é recorrente e ultrapassa a faixa inicialmente observada: Engineering → Runtime levou aproximadamente 27 s até a visão operacional ficar utilizável; Runtime → Histórico excedeu 30 s até interromper a sessão de automação, embora a rota posteriormente tenha carregado e permitido consultas. Como contraprova, o serviço local do Codespace continuou respondendo Runtime em ~2 ms e Engineering em ~21 ms.
+
+A classificação permanece **P2 / UNCERTAIN**: há degradação relevante para o operador na rota pública, mas as medições locais e a intermitência de acesso da porta apontam proxy/autenticação/Codespaces como fator ainda não separado do produto.
+
+No Histórico, as consultas somente leitura de uma hora para `Amostras do historian` e `Eventos de alarme` retornaram zero registros de maneira clara, sem erro de UI. Isso é coerente com o Working carregado, que informa zero políticas de histórico; não foi aberto finding para ausência de dados.
+
+
+## UIAUD-289-009 — painel de Tendências não permanece disponível
+
+- **Severidade:** P2
+- **Área:** Runtime / Trends
+- **Título:** TENDÊNCIAS entra em “Conectando dados ao vivo…” e retorna à visão operacional sem diagnóstico
+- **Passos de reprodução:** (1) Abrir Runtime autenticado; (2) clicar `TENDÊNCIAS`; (3) aguardar cerca de 3–4 s.
+- **Esperado:** o painel deve mostrar o gráfico com as séries configuradas ou um erro explícito com opção de recuperar.
+- **Observado:** o gráfico vazio aparece com cinco séries na legenda e `Conectando dados ao vivo…`; em seguida, o produto retorna sozinho à visão operacional. Em uma repetição, a tela de retorno exibiu valores `—` e `QUALIDADE RUIM`, sem explicar a falha da tendência.
+- **Reprodutibilidade:** 2/2 na mesma sessão autenticada.
+- **Classificação:** GENERIC PRODUCT. O comportamento é do painel Runtime e não depende do descompasso Working/EEE.
+- **Evidência:** captura visual durante o estado `Conectando dados ao vivo…` e árvore de acessibilidade do produto real; persistência da imagem será concluída no próximo registro.
+- **Notas:** o Historian separado oferece consulta somente leitura e informou zero registros para a janela de uma hora, coerente com zero políticas de histórico no Working, mas o Runtime deveria comunicar essa indisponibilidade em vez de abandonar o painel.

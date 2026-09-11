@@ -298,3 +298,7 @@ A mesma sobreposição entre **Ajuda** e **ÁREA ATUAL / Engineering** foi obser
 ### Complemento de evidência — UIAUD-289-011
 
 - O TAG Monitor da Engenharia informou Realtime conectado, 38 TAGs Good e leituras Good para P01/P02 correspondentes aos valores numéricos dos cartões do Runtime, incluindo corrente, frequência, pressão e vazão. Isso torna menos provável que os travessões no popup resultem de indisponibilidade geral da ponte de dados; permanece necessária reprodução técnica para separar binding/configuração de re-render do popup.
+
+### Complemento de evidência — UIAUD-289-004
+
+- Nova abertura da Engenharia em 10/09/2026: após mais de 40 segundos de shell, a página exibiu Não foi possível carregar o modelo público de Engenharia / Failed to fetch. Uma única ação Tentar novamente recuperou o snapshot e os módulos após cerca de 20 segundos. O padrão confirma falha transitória com recuperação manual e preserva a classificação GENERIC PRODUCT já registrada para a experiência de erro/carga.

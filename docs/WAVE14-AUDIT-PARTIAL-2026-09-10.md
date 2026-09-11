@@ -294,3 +294,7 @@ A mesma sobreposição entre **Ajuda** e **ÁREA ATUAL / Engineering** foi obser
 **Reprodutibilidade:** 1/1 no Runtime.
 **Evidência:** árvore de acessibilidade do navegador em 10/09/2026: após expandir Conta, foram expostos dois elementos do tipo button sem rótulo.
 **Notas:** não houve clique nesses controles, pois poderiam corresponder a ação de conta/sessão. Impacta descoberta e operação assistiva em área sensível.
+
+### Complemento de evidência — UIAUD-289-011
+
+- O TAG Monitor da Engenharia informou Realtime conectado, 38 TAGs Good e leituras Good para P01/P02 correspondentes aos valores numéricos dos cartões do Runtime, incluindo corrente, frequência, pressão e vazão. Isso torna menos provável que os travessões no popup resultem de indisponibilidade geral da ponte de dados; permanece necessária reprodução técnica para separar binding/configuração de re-render do popup.

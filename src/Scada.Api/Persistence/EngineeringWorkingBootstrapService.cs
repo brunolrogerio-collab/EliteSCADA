@@ -79,6 +79,7 @@ public sealed class EngineeringWorkingBootstrapService(
             selected = projects
                 .OrderByDescending(entry => entry.LastSavedAtUtc)
                 .ThenBy(entry => entry.ProjectKey, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(entry => entry.ProjectKey, StringComparer.Ordinal)
                 .First();
         }
 

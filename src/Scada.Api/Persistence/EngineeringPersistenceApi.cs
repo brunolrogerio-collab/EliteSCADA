@@ -279,49 +279,12 @@ public static class EngineeringPersistenceApi
             string projectKey,
             EngineeringActivateRequest request,
             HttpContext context,
-            CancellationToken cancellationToken) =>
-        {
-            var activationService = ResolveActivation(context);
-            if (activationService is null) return Disabled();
-
-            var configuredProjectKey = ResolveConfiguredProjectKey(context);
-            if (string.IsNullOrWhiteSpace(configuredProjectKey))
-            {
-                return Results.Conflict(new
-                {
-                    error = "EngineeringRuntime:ProjectKey must be configured before activating a persisted runtime."
-                });
-            }
-
-            if (!configuredProjectKey.Equals(projectKey, StringComparison.OrdinalIgnoreCase))
-            {
-                return Results.Conflict(new
-                {
-                    error = $"This runtime instance is bound to project '{configuredProjectKey}', not '{projectKey}'."
-                });
-            }
-
-            var outcome = await activationService.ActivateAsync(
+            CancellationToken cancellationToken) => ActivatePublishedAsync(
                 projectKey,
-                request.ActivatedBy,
-                cancellationToken);
-
-            if (!outcome.Found || outcome.Snapshot is null)
-                return Results.NotFound(new { error = "Project has no published revision." });
-
-            var response = new
-            {
-                revision = ToMetadata(outcome.Snapshot),
-                activated = outcome.Activated,
-                runtime = outcome.Runtime,
-                activation = outcome.Activation,
-                lifecycle = outcome.Lifecycle
-            };
-
-            return outcome.Activated
-                ? Results.Ok(response)
-                : Results.Json(response, statusCode: StatusCodes.Status422UnprocessableEntity);
-        });
+                request,
+                ResolveConfiguredProjectKey(context),
+                ResolveActivation(context),
+                cancellationToken));
 
         group.MapGet("/{projectKey}/revisions", async (
             string projectKey,
@@ -576,6 +539,53 @@ public static class EngineeringPersistenceApi
 
     private static IPublishedRuntimeActivationService? ResolveActivation(HttpContext context) =>
         context.RequestServices.GetService<IPublishedRuntimeActivationService>();
+
+    internal static async Task<IResult> ActivatePublishedAsync(
+        string projectKey,
+        EngineeringActivateRequest request,
+        string? configuredProjectKey,
+        IPublishedRuntimeActivationService? activationService,
+        CancellationToken cancellationToken = default)
+    {
+        if (activationService is null) return Disabled();
+
+        if (string.IsNullOrWhiteSpace(configuredProjectKey))
+        {
+            return Results.Conflict(new
+            {
+                error = "EngineeringRuntime:ProjectKey must be configured before activating a persisted runtime."
+            });
+        }
+
+        if (!configuredProjectKey.Equals(projectKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.Conflict(new
+            {
+                error = $"This runtime instance is bound to project '{configuredProjectKey}', not '{projectKey}'."
+            });
+        }
+
+        var outcome = await activationService.ActivateAsync(
+            projectKey,
+            request.ActivatedBy,
+            cancellationToken);
+
+        if (!outcome.Found || outcome.Snapshot is null)
+            return Results.NotFound(new { error = "Project has no published revision." });
+
+        var response = new
+        {
+            revision = ToMetadata(outcome.Snapshot),
+            activated = outcome.Activated,
+            runtime = outcome.Runtime,
+            activation = outcome.Activation,
+            lifecycle = outcome.Lifecycle
+        };
+
+        return outcome.Activated
+            ? Results.Ok(response)
+            : Results.Json(response, statusCode: StatusCodes.Status422UnprocessableEntity);
+    }
 
     private static string? ResolveConfiguredProjectKey(HttpContext context) =>
         context.RequestServices.GetRequiredService<IConfiguration>()["EngineeringRuntime:ProjectKey"];

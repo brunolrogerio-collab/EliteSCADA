@@ -72,6 +72,32 @@ public sealed class EngineeringWorkingBootstrapServiceTests
     }
 
     [Fact]
+    public async Task CaseCollidingFallbackKeysSelectTheSameOrdinalKeyRegardlessOfCatalogOrder()
+    {
+        static async Task<string?> SelectAsync(params EngineeringProjectCatalogEntry[] entries)
+        {
+            using var workspace = new EngineeringWorkspace(seedDemo: false);
+            var checkout = new RecordingCheckout(workspace);
+            var result = await new EngineeringWorkingBootstrapService(
+                    new Catalog(entries),
+                    checkout,
+                    workspace)
+                .BootstrapAsync(null, null, null);
+            return result.ProjectKey;
+        }
+
+        var first = await SelectAsync(
+            Entry("plant", 2, T0),
+            Entry("Plant", 1, T0));
+        var reversed = await SelectAsync(
+            Entry("Plant", 1, T0),
+            Entry("plant", 2, T0));
+
+        Assert.Equal("Plant", first);
+        Assert.Equal(first, reversed);
+    }
+
+    [Fact]
     public async Task EmptyPersistedCatalogLeavesTruthfulNeutralWorkingWorkspace()
     {
         using var workspace = new EngineeringWorkspace(seedDemo: false);
@@ -103,6 +129,60 @@ public sealed class EngineeringWorkingBootstrapServiceTests
 
         Assert.Contains("EngineeringWorking:ProjectKey", error.Message);
         Assert.Null(checkout.LastRequest);
+        Assert.Null(workspace.Describe().ProjectKey);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task NonPositiveExplicitWorkingRevisionFailsClosed(long revision)
+    {
+        using var workspace = new EngineeringWorkspace(seedDemo: false);
+        var checkout = new RecordingCheckout(workspace);
+        var service = new EngineeringWorkingBootstrapService(
+            new Catalog(Entry("persisted", 2, T0)),
+            checkout,
+            workspace);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.BootstrapAsync("persisted", revision, null));
+
+        Assert.Contains("greater than zero", error.Message);
+        Assert.Null(checkout.LastRequest);
+    }
+
+    [Fact]
+    public async Task ExplicitWorkingRevisionWithoutProjectFailsClosed()
+    {
+        using var workspace = new EngineeringWorkspace(seedDemo: false);
+        var checkout = new RecordingCheckout(workspace);
+        var service = new EngineeringWorkingBootstrapService(
+            new Catalog(Entry("persisted", 2, T0)),
+            checkout,
+            workspace);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.BootstrapAsync(null, 2, null));
+
+        Assert.Contains("requires EngineeringWorking:ProjectKey", error.Message);
+        Assert.Null(checkout.LastRequest);
+    }
+
+    [Fact]
+    public async Task MissingExplicitWorkingRevisionFailsClosedWithoutLatestFallback()
+    {
+        using var workspace = new EngineeringWorkspace(seedDemo: false);
+        var checkout = new MissingCheckout();
+        var service = new EngineeringWorkingBootstrapService(
+            new Catalog(Entry("persisted", 5, T0)),
+            checkout,
+            workspace);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.BootstrapAsync("persisted", 3, null));
+
+        Assert.Contains("revision 3 was not found", error.Message);
+        Assert.Equal(("persisted", 3L), checkout.LastRequest);
         Assert.Null(workspace.Describe().ProjectKey);
     }
 
@@ -185,6 +265,20 @@ public sealed class EngineeringWorkingBootstrapServiceTests
                 Array.Empty<ImportIssue>());
             return Task.FromResult<EngineeringWorkspaceCheckoutOutcome?>(
                 new EngineeringWorkspaceCheckoutOutcome(snapshot, preview, apply, workspace.Describe()));
+        }
+    }
+
+    private sealed class MissingCheckout : IEngineeringWorkspaceCheckoutService
+    {
+        public (string ProjectKey, long Revision)? LastRequest { get; private set; }
+
+        public Task<EngineeringWorkspaceCheckoutOutcome?> CheckoutAsync(
+            string projectKey,
+            long revision,
+            CancellationToken cancellationToken = default)
+        {
+            LastRequest = (projectKey, revision);
+            return Task.FromResult<EngineeringWorkspaceCheckoutOutcome?>(null);
         }
     }
 }

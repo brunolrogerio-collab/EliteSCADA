@@ -1,0 +1,49 @@
+Wave 14 Codex A7/A8 live evidence - 2026-09-11
+
+Authority
+- Issue #286 reloaded live after reproduction.
+- Latest MAIN COORDINATOR -> CODEX: 5629941076.
+- Prior CODEX -> MAIN COORDINATOR: 5634220264.
+- Candidate: 59e815eae524b9ff043ea6bf3f797f4c01ba9143.
+
+A7 reproduction matrix
+1. Screen / Demo Overview / pump01 DYN -> immediate blank SPA; URL /engineering; title SCADA.
+2. Fresh Screen tab / Demo Overview / pump01 DYN -> immediate blank SPA.
+3. Fresh Screen tab / Demo Overview / tank01 TANK -> immediate blank SPA.
+4. Fresh Popup tab / Standard Pump Popup / current VALU -> immediate blank SPA.
+5. Fresh Popup tab / Standard Pump Popup / current VALU -> immediate blank SPA; accessibility DOM length after click: 0.
+
+Popup state before selection at 2026-09-11 09:24-09:27 America/Sao_Paulo
+- Working project Demo Project / demo; Workspace Sem alteracoes; changeVersion 0.
+- Standard Pump Popup, template pump.standard, 3 objects: current VALU, frequency VALU, fault STAT.
+- Full toolbar present: undo/redo/copy/paste, align, distribute, same size, group/ungroup/lock, zoom, grid/snap, duplicate/delete/z-order.
+- Properties displayed No selection and binding editor requested a selection.
+- Apply disabled; no Apply/Save/Publish/Activate performed.
+
+Source anchors captured read-only
+- VisualEditorCanvas.tsx:109 selection.change.
+- VisualEditorWorkspaceLegacy.tsx:206 selection state replacement; selected panels around 420-428.
+- PopupVisualEditorWorkspaceImpl.tsx:191-195 selected element derivation; 245 selection.change; 440-452 PropertyInspector/DynamicPropertyEditor.
+- PropertyInspector.tsx:91-92 selected property model.
+- DynamicPropertyEditor.tsx:57+ dynamic destination model.
+
+A8 exact attempt
+- Working contained 7 TAGs, 1 Screen, 1 Popup, 0 scripts.
+- New client draft only; no backend change.
+- Insert Read Flow followed by Insert Read Discharge Pressure produced:
+  from elite_scada import tag_read
+  value = await tag_read("00000000-0000-0000-0000-000000000007")from elite_scada import tag_read
+  value = await tag_read("00000000-0000-0000-0000-000000000006")pass
+- initialize entry point selected.
+- Validate/Preview result: Python compilation errors; connected diagnostics 1 error, 0 warnings; Apply disabled.
+- Screens assistant objects: tank01 tank, pump01 dynamo, pressure value, flow value; all Propriedades (0).
+- APIs listed names only: tag_read/write, client_memory_read/write, visual_property_read, visual_property_write/clear, visual_tween_request.
+- No signatures, examples, property keys, object targeting guidance or API insert actions.
+- Scope Cliente -> Servidor retained client source, Client Visual API v1 label and client event list while removing assistant/controlled preview.
+
+Transport separation note
+- One fresh Engineering load independently showed Failed to fetch and recovered through Tentar novamente.
+- This is retained under accepted A1 transport UNCERTAIN - BOUNDED and product error UX CONFIRMED; it was not used as the explanation for the deterministic selection-triggered crash.
+
+Non-actions
+- No product code change, Apply, Save, Publish, Activate, checkout, restart, persistence reset/delete, package change, test change, workflow rerun, merge, force push or protected-base mutation.

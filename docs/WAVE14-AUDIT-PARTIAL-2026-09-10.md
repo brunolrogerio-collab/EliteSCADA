@@ -282,3 +282,15 @@ A mesma sobreposição entre **Ajuda** e **ÁREA ATUAL / Engineering** foi obser
 **Reprodutibilidade:** 2/2 popups (P01 e P02) abriram com travessões; retorno automático confirmado novamente em P01 (1/1).
 **Evidência:** inspeção visual e semântica do Runtime, 10/09/2026; não foram acionados PARTIR, PARAR, INJETAR FALHA ou RESETAR FALHAS.
 **Notas:** pode ser configuração específica dos bindings dos popups, re-render do Runtime ou indisponibilidade da ponte de dados. A auditoria não separou essas hipóteses e por isso mantém UNCERTAIN.
+
+
+## UIAUD-289-012 — P2 — Navegação global / Acessibilidade
+
+**Título:** Menu de conta expõe controles sem nome acessível.
+**Classificação:** GENERIC PRODUCT
+**Passos de reprodução:** (1) abrir Runtime autenticado; (2) abrir o menu Conta no cabeçalho global.
+**Esperado:** cada controle de sessão deve informar um nome acessível e, idealmente, a ação que executará, para permitir uso seguro por teclado e leitor de tela.
+**Observado:** o menu expandiu dois botões adicionais sem nome, descrição, ajuda ou texto na árvore de acessibilidade.
+**Reprodutibilidade:** 1/1 no Runtime.
+**Evidência:** árvore de acessibilidade do navegador em 10/09/2026: após expandir Conta, foram expostos dois elementos do tipo button sem rótulo.
+**Notas:** não houve clique nesses controles, pois poderiam corresponder a ação de conta/sessão. Impacta descoberta e operação assistiva em área sensível.

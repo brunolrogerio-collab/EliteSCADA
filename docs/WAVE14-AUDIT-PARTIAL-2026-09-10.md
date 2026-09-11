@@ -270,3 +270,15 @@ A mesma sobreposição entre **Ajuda** e **ÁREA ATUAL / Engineering** foi obser
 - A mesma documentação não apresenta uma API de objeto visual ou exemplo composto para comparar dois TAGs e alterar cor/estado de objeto; portanto, não elimina a lacuna de descoberta prática observada no editor para o cenário solicitado pelo PO.
 - A troca do Manual de Auditoria para Server Scripts também ficou em shell por mais de um minuto antes de apresentar o conteúdo, reforçando somente a evidência de latência da UIAUD-289-005 (UNCERTAIN).
 - Licenciamento respondeu em modo Demo e deixou ações de instalação/remoção visíveis, mas nenhuma delas foi acionada por se tratar de auditoria somente-leitura. Não foi aberto finding nessa tela.
+
+
+## UIAUD-289-011 — P2 — Runtime / Popups
+
+**Título:** Popup de detalhe de bomba abre com leituras indisponíveis e retorna silenciosamente à tela.
+**Classificação:** UNCERTAIN
+**Passos de reprodução:** (1) abrir Runtime autenticado, tela EEE Principal; (2) observar que os cartões P01/P02 exibem leituras numéricas, por exemplo corrente 0,0 A, frequência 0,0 Hz, pressão 0,00 bar e vazão 0,0 m³/h; (3) selecionar DETALHES P01 ou DETALHES P02; (4) aguardar cerca de 6 segundos sem acionar comando.
+**Esperado:** o popup deve permanecer aberto até fechamento explícito e apresentar uma indicação consistente das leituras do ativo ou uma mensagem de qualidade/erro contextual.
+**Observado:** em P01 e P02 o popup inicialmente mostra CORRENTE, FREQUÊNCIA, PRESSÃO e VAZÃO como travessão, embora os cartões correspondentes exponham números. Após aproximadamente seis segundos o popup desaparece e o Runtime retorna à tela sem aviso.
+**Reprodutibilidade:** 2/2 popups (P01 e P02) abriram com travessões; retorno automático confirmado novamente em P01 (1/1).
+**Evidência:** inspeção visual e semântica do Runtime, 10/09/2026; não foram acionados PARTIR, PARAR, INJETAR FALHA ou RESETAR FALHAS.
+**Notas:** pode ser configuração específica dos bindings dos popups, re-render do Runtime ou indisponibilidade da ponte de dados. A auditoria não separou essas hipóteses e por isso mantém UNCERTAIN.

@@ -17,6 +17,16 @@ A finding may exit Wave 14 as either:
 
 `UNCERTAIN` is not acceptable when it only means “investigate more”.
 
+### Current closure progress checkpoint
+
+Completed without direct Codespace dependency:
+
+- A3 persisted legacy visual schema crash is closed as `CONFIRMED_GENERIC_PRODUCT` in `docs/WAVE14-DIAGNOSTIC-LEGACY-VISUAL-TYPE-COMPATIBILITY.md`;
+- initial Wave 15 transfer backlog exists in `docs/WAVE15-INITIAL-CORRECTION-BACKLOG.md` and will be refined, not replaced, when remaining Codex-dependent diagnostics arrive;
+- known deterministic P2 and preserved future requirements have been transferred/preserved.
+
+A1, A2, A4, A5 and the real-UI portions of A7/A8 remain dependent on direct Codespace evidence. This checkpoint does not relabel them solved.
+
 ---
 
 ## A. Minimum mandatory diagnostics
@@ -42,15 +52,17 @@ For each material finding below, preserve at minimum:
 - [ ] Do **not** use Active mutation or activation of `demo` as a correction.
 - [ ] Define exact Wave 15 correction contract and regression for bootstrap/reopen/persistence identity.
 
-### A3 — persisted legacy visual schema crash
+### A3 — persisted legacy visual schema crash — `CONFIRMED_GENERIC_PRODUCT`
 
-- [ ] Confirm persisted legacy identifiers involved, including `tank`, `value`, `dynamo` where applicable.
-- [ ] Preserve the call path reaching `getBuiltinVisualObjectSchema(element.type)` through dynamic-property authoring.
-- [ ] Identify where compatibility/normalization/migration/fallback belongs.
-- [ ] Distinguish **known legacy type** from **truly unknown type**.
-- [ ] Define generic Wave 15 compatibility/migration/degradation behavior.
-- [ ] Require deterministic regressions for Screen Editor, Popup Editor, and a negative unknown-type case.
-- [ ] Do not weaken validation for arbitrary unknown types.
+Canonical closure: `docs/WAVE14-DIAGNOSTIC-LEGACY-VISUAL-TYPE-COMPATIBILITY.md`
+
+- [x] Confirm persisted legacy identifiers involved, including `tank`, `value`, `dynamo` where applicable.
+- [x] Preserve the call path reaching `getBuiltinVisualObjectSchema(element.type)` through dynamic-property authoring.
+- [x] Identify where compatibility/normalization/migration/fallback belongs at the Visual Engineering compatibility boundary.
+- [x] Distinguish **known legacy type** from **truly unknown type**.
+- [x] Define generic Wave 15 compatibility/migration/degradation behavior.
+- [x] Require deterministic regressions for Screen Editor, Popup Editor, and a negative unknown-type case.
+- [x] Preserve strict validation for arbitrary unknown types.
 
 ### A4 — Runtime Trends silent return
 
@@ -68,10 +80,10 @@ For each material finding below, preserve at minimum:
 
 ### A6 — Engineering fallback/recovery UX
 
-- [ ] Preserve the `Demo Project` / missing-snapshot behavior observed during model-load failure.
-- [ ] Separate initial transport cause from product-owned fallback/error UX.
-- [ ] Define correct loading/unavailable/retry behavior without fictitious authoritative Working identity.
-- [ ] Define Wave 15 recovery/error-state regression.
+- [x] Preserve the `Demo Project` / missing-snapshot behavior observed during model-load failure.
+- [x] Separate initial transport cause from product-owned fallback/error UX at the classification level; exact transport root cause remains A1.
+- [x] Define correct loading/unavailable/retry behavior without fictitious authoritative Working identity in the Wave 15 backlog.
+- [x] Define Wave 15 recovery/error-state regression direction.
 
 ### A7 — Screen/Popup Editor functional inventory
 
@@ -122,25 +134,25 @@ Static existence of Monaco, Python, snippets or APIs does not satisfy the develo
 
 Before Wave 14 closes, explicitly preserve or transfer:
 
-- [ ] responsive shared header overlap;
-- [ ] account-menu accessible names;
-- [ ] Engineering navigation / scrolling / collapse behavior;
-- [ ] Engineering Lock footprint;
-- [ ] Templates / Equipment / Dynamos / Libraries useful-preview gaps;
-- [ ] residual theme/readability/state issues;
-- [ ] Alarm timestamp issue, if still uncertain, as a bounded future diagnostic;
-- [ ] `RECHECK-SIM-PUMP-LEVEL` as **not currently confirmed as a product defect**, unless new correlated evidence supersedes that classification;
-- [ ] protected whole-system backup/restore distinct from `.escadapkg`;
-- [ ] Historian Administration backup/export/import/restore;
-- [ ] generic TAG raw -> engineering scaling with explicit inverse-write semantics;
-- [ ] human decimal-place authoring persisted through lifecycle/package;
-- [ ] real Modbus/PLC EEE variant for its later appropriate stage.
+- [x] responsive shared header overlap;
+- [x] account-menu accessible names;
+- [x] Engineering navigation / scrolling / collapse behavior;
+- [x] Engineering Lock footprint;
+- [x] Templates / Equipment / Dynamos / Libraries useful-preview gaps;
+- [x] residual theme/readability/state issues remain preserved in audit history/transfer context;
+- [x] Alarm timestamp issue, if still uncertain, as a bounded future diagnostic;
+- [x] `RECHECK-SIM-PUMP-LEVEL` as **not currently confirmed as a product defect**, unless new correlated evidence supersedes that classification;
+- [x] protected whole-system backup/restore distinct from `.escadapkg`;
+- [x] Historian Administration backup/export/import/restore;
+- [x] generic TAG raw -> engineering scaling with explicit inverse-write semantics;
+- [x] human decimal-place authoring persisted through lifecycle/package;
+- [x] real Modbus/PLC EEE variant for its later appropriate stage.
 
 ---
 
 ## C. Canonical Wave 14 -> Wave 15 transfer backlog
 
-Create and finalize:
+Created and under refinement:
 
 `docs/WAVE15-INITIAL-CORRECTION-BACKLOG.md`
 
@@ -148,14 +160,16 @@ Every transferred item must contain:
 
 `ID | priority | area | symptom | reproduction | evidence | classification | responsible subsystem/layer | concrete code/API/schema/lifecycle path | cause/mechanism | Wave 15 correction contract | deterministic regression | dependencies | protected boundaries`
 
-Acceptance:
+Current transfer acceptance:
 
-- [ ] all material P1 findings transferred;
-- [ ] relevant P2 findings transferred;
-- [ ] uncertain findings explicitly marked and bounded;
-- [ ] no hypothesis presented as proven fact;
-- [ ] no EEE-specific workaround proposed for a generic defect;
-- [ ] Screen/Popup Editor and Script Engineering explicitly prioritized as **developer-functional product correctness**.
+- [x] material P1 findings have initial entries; Codex-dependent fields remain explicitly pending rather than guessed;
+- [x] relevant P2 findings transferred;
+- [x] uncertain findings explicitly marked and bounded;
+- [x] no hypothesis presented as proven fact;
+- [x] no EEE-specific workaround proposed for a generic defect;
+- [x] Screen/Popup Editor and Script Engineering explicitly prioritized as **developer-functional product correctness**.
+
+The backlog is not final until A1/A2/A4/A5 and the real-UI A7/A8 evidence are reconciled.
 
 ---
 
@@ -163,15 +177,15 @@ Acceptance:
 
 - [ ] Finalize `docs/WAVE14-DIAGNOSTIC-CLOSURE-AND-WAVE15-TRANSFER.md`.
 - [ ] Maintain/finalize the post-C26 audit record with the latest chronological evidence.
-- [ ] Create/finalize `docs/WAVE15-INITIAL-CORRECTION-BACKLOG.md`.
-- [ ] Keep this `docs/WAVE14-CLOSURE-CHECKLIST.md` synchronized with the actual exit state.
-- [ ] Update `docs/CURRENT-COORDINATOR-HANDOFF.md`.
-- [ ] Update `LAST CHANGE.md`.
-- [ ] Update `docs/ROADMAP.md`.
+- [ ] Finalize `docs/WAVE15-INITIAL-CORRECTION-BACKLOG.md` after remaining diagnostic handoffs.
+- [x] Keep this `docs/WAVE14-CLOSURE-CHECKLIST.md` synchronized with the actual exit state at this checkpoint.
+- [ ] Update/finalize `docs/CURRENT-COORDINATOR-HANDOFF.md` for closure.
+- [ ] Update/finalize `LAST CHANGE.md` for closure.
+- [x] Update `docs/ROADMAP.md` to the new Wave 14/Wave 15 strategy; final post-merge update remains later.
 - [ ] Synchronize the obsolete Wave14/Wave13 sequencing statement in `PROJECT GOAL.md` while preserving stable architectural intent.
-- [ ] Record a Wave 14 diagnostic-closure checkpoint in issue #286.
-- [ ] Record conclusion/transfer state in issue #211.
-- [ ] Preserve Wave 13 #205 / PR #207 as paused; no automatic resumption after Wave 15.
+- [x] Record the Wave 14 closure strategy/checklist checkpoints in issue #286; final closure checkpoint remains later.
+- [x] Record current conclusion/transfer direction in issue #211; final close remains later.
+- [x] Preserve Wave 13 #205 / PR #207 as paused; no automatic resumption after Wave 15.
 
 ---
 
@@ -179,14 +193,14 @@ Acceptance:
 
 This is **not** destructive branch cleanup. Historical evidence remains preserved.
 
-- [ ] PR #263 is confirmed as the canonical C11 -> `wave14/corrections-integration` route.
-- [ ] PR #212 is confirmed as the only Wave 14 integration -> `main` route.
+- [x] PR #263 is confirmed as the canonical C11 -> `wave14/corrections-integration` route.
+- [x] PR #212 is confirmed as the only Wave 14 integration -> `main` route.
 - [ ] PR #290 is closed/preserved as Preview/audit evidence and **not merged**.
 - [ ] PR #296 is closed/preserved as diagnostic evidence and **MUST NEVER MERGE**.
-- [ ] PR #285 remains preserved as pre-C26 historical evidence.
-- [ ] #266 / #288 / #292 / #293 remain validation-only / MUST NEVER MERGE where marked.
-- [ ] No preserved evidence branch is deleted as routine cleanup.
-- [ ] No force push or destructive rebase is used.
+- [x] PR #285 remains designated for preservation as pre-C26 historical evidence.
+- [x] #266 / #288 / #292 / #293 remain validation-only / MUST NEVER MERGE where marked.
+- [x] No preserved evidence branch is to be deleted as routine cleanup.
+- [x] No force push or destructive rebase is to be used.
 
 Checkpoint topology at checklist creation, subject to live revalidation:
 
@@ -258,7 +272,7 @@ Wave 15 must **not** be opened as an active correction wave until all of the fol
 - [ ] Wave 14 is formally marked closed.
 - [ ] No material P1 exists only in chat memory.
 - [ ] Every material transferred finding has an objective correction/test contract.
-- [ ] Wave 13 remains formally paused/preserved.
+- [x] Wave 13 remains formally paused/preserved at this checkpoint.
 
 Then:
 

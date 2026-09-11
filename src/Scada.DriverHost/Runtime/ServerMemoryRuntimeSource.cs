@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Scada.Core.InternalMemory;
+using Scada.Core.Sources;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 
@@ -8,6 +9,7 @@ namespace Scada.DriverHost.Runtime;
 internal sealed class ServerMemoryRuntimeSource
 {
     private readonly ServerMemorySourceProvider _provider;
+    private readonly ServerAuthoritativeSamplePublisher _qualifiedPublisher;
     private readonly CurrentTagCache _cache;
     private readonly InMemoryTagRegistry _registry;
     private readonly IReadOnlyCollection<MemoryTagDefinition> _definitions;
@@ -27,6 +29,7 @@ internal sealed class ServerMemoryRuntimeSource
 
         _definitions = plan.Tags;
         _provider = new ServerMemorySourceProvider(plan.DataSourceKey, retentionStore);
+        _qualifiedPublisher = new ServerAuthoritativeSamplePublisher(_provider, cache);
         _cache = cache;
         _registry = registry;
     }
@@ -50,6 +53,16 @@ internal sealed class ServerMemoryRuntimeSource
     {
         var definition = _definitions.FirstOrDefault(x => x.Tag.Id == tagId)
             ?? throw new KeyNotFoundException($"Server Memory TAG '{tagId}' is not active in source '{InstanceKey}'.");
+
+        if (value is QualifiedSourceSample qualifiedSample)
+        {
+            var normalizedSample = qualifiedSample with
+            {
+                Value = NormalizeJsonValue(definition.Tag.DataType, qualifiedSample.Value)
+            };
+            await _qualifiedPublisher.PublishAsync(definition.Tag, normalizedSample, cancellationToken);
+            return;
+        }
 
         await _provider.WriteAsync(tagId, NormalizeJsonValue(definition.Tag.DataType, value), cancellationToken);
         var current = await _provider.ReadAsync(tagId, cancellationToken)

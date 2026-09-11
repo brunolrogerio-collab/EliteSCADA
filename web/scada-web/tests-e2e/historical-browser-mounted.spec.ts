@@ -96,9 +96,9 @@ test('mounted Historical Browser queries historian data and preserves exact Int6
     timeRange: { kind: 'relative', durationSeconds: 3600, anchor: 'now' },
     page: { limit: 100 }
   });
-  await expect(page.getByLabel('Historical search')).toBeEnabled();
-  await expect(page.getByLabel('Historical sort field')).toContainText('timestamp');
-  await expect(page.getByLabel('Historical filter field')).toContainText('tag.path');
+  await expect(page.getByRole('textbox', { name: 'Search' })).toBeEnabled();
+  await expect(page.getByRole('combobox', { name: 'Sort field' })).toContainText('timestamp');
+  await expect(page.getByRole('combobox', { name: 'Filter field' })).toContainText('tag.path');
   await expect(page.getByText('2026-08-30T00:00:00Z → 2026-08-30T01:00:00Z')).toBeVisible();
 });
 
@@ -110,16 +110,16 @@ test('mounted Historical Browser builds typed filters only from returned schema 
   });
 
   await openHarness(page);
-  await page.getByLabel('Historical dataset').selectOption('alarm.events');
+  await page.getByRole('combobox', { name: 'Dataset' }).selectOption('alarm.events');
   await page.getByRole('button', { name: 'Query', exact: true }).click();
-  await expect(page.getByLabel('Historical filter field')).toBeEnabled();
+  await expect(page.getByRole('combobox', { name: 'Filter field' })).toBeEnabled();
 
-  await page.getByLabel('Historical filter field').selectOption('priority');
-  await expect(page.getByLabel('Historical filter operator')).toHaveValue('eq');
-  await expect(page.getByLabel('Historical filter operator')).toContainText('gte');
-  await expect(page.getByLabel('Historical filter operator')).not.toContainText('contains');
-  await page.getByLabel('Historical filter operator').selectOption('gte');
-  await page.getByLabel('Historical filter value').fill('800');
+  await page.getByRole('combobox', { name: 'Filter field' }).selectOption('priority');
+  await expect(page.getByRole('combobox', { name: 'Operator' })).toHaveValue('eq');
+  await expect(page.getByRole('combobox', { name: 'Operator' })).toContainText('gte');
+  await expect(page.getByRole('combobox', { name: 'Operator' })).not.toContainText('contains');
+  await page.getByRole('combobox', { name: 'Operator' }).selectOption('gte');
+  await page.getByRole('textbox', { name: 'Value' }).fill('800');
   await page.getByRole('button', { name: 'Add filter' }).click();
   await expect(page.getByText('priority gte 800', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Apply query' }).click();
@@ -136,7 +136,7 @@ test('mounted Historical Browser alarm history remains read-only with no operati
   });
 
   await openHarness(page);
-  await page.getByLabel('Historical dataset').selectOption('alarm.events');
+  await page.getByRole('combobox', { name: 'Dataset' }).selectOption('alarm.events');
   await page.getByRole('button', { name: 'Query', exact: true }).click();
   await expect(page.getByRole('cell', { name: 'High level' })).toBeVisible();
 

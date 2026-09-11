@@ -25,7 +25,6 @@ internal sealed class TagEngineeringHandler
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
     {
-        var dataSources = package.DataSources ?? Array.Empty<DataSourceEngineeringDto>();
         var duplicatePaths = EngineeringHandlerSupport.Duplicates(package.Tags.Select(x => x.Path));
 
         foreach (var dto in package.Tags)
@@ -34,9 +33,10 @@ internal sealed class TagEngineeringHandler
             ValidateAccessPolicy(dto, issues);
             issues.AddRange(CommunicationTagBindingEngineeringValidator.Validate(dto, package.SchemaVersion));
 
-            var dataSource = ResolveDataSource(dto.Source, package);
+            var dataSource = ResolveDataSource(dto, package);
             issues.AddRange(MemoryEngineeringValidator.ValidateTag(dto, dataSource));
             ValidateClientMemoryTransition(dto, dataSource, issues);
+            ValidateDataSourceReference(dto, package, dataSource, issues);
 
             if (duplicatePaths.Contains(dto.Path))
                 issues.Add(new(
@@ -45,19 +45,6 @@ internal sealed class TagEngineeringHandler
                     ImportEntityKind.Tag,
                     dto.Path,
                     true));
-
-            if (package.SchemaVersion >= 2 &&
-                !string.IsNullOrWhiteSpace(dto.Source) &&
-                _dataSources.FindByKey(dto.Source) is null &&
-                !dataSources.Any(x => x.Key.Equals(dto.Source, StringComparison.OrdinalIgnoreCase)))
-            {
-                issues.Add(new(
-                    "TAG_DATASOURCE_NOT_FOUND",
-                    $"Data source '{dto.Source}' referenced by tag '{dto.Path}' was not found.",
-                    ImportEntityKind.Tag,
-                    dto.Path,
-                    true));
-            }
 
             EngineeringHandlerSupport.AddPreview(
                 items,
@@ -81,19 +68,24 @@ internal sealed class TagEngineeringHandler
                 continue;
             }
 
+            var resolvedDataSource = ResolveDataSource(dto, package);
+            if (resolvedDataSource is not null && !resolvedDataSource.Id.HasValue)
+                resolvedDataSource = _dataSources.FindByKey(resolvedDataSource.Key) ?? resolvedDataSource;
+
             var tag = new TagDefinition(
                 existing?.Id ?? dto.Id ?? Guid.NewGuid(),
                 dto.Name,
                 dto.Path,
                 dto.DataType,
-                dto.Source,
+                resolvedDataSource?.Key ?? dto.Source,
                 dto.EngineeringUnit,
                 dto.Description,
                 dto.ReadOnly,
                 BuildMetadata(dto),
                 BuildAccessPolicy(dto.AccessPolicy),
                 dto.AddressSelector,
-                dto.CommunicationBinding);
+                dto.CommunicationBinding,
+                resolvedDataSource?.Id ?? dto.DataSourceId);
 
             if (existing is null)
             {
@@ -135,14 +127,19 @@ internal sealed class TagEngineeringHandler
             BuildMetadata(imported),
             BuildAccessPolicy(imported.AccessPolicy),
             imported.AddressSelector,
-            imported.CommunicationBinding);
+            imported.CommunicationBinding,
+            imported.DataSourceId);
     }
 
     public bool IsClientMemoryAlarmTarget(AlarmEngineeringDto dto, EngineeringPackage package)
     {
         var imported = ResolveImportedAlarmTag(dto, package);
-        var source = imported?.Source ?? ResolveAlarmTag(dto)?.Source;
-        return MemoryEngineeringValidator.IsClientMemoryDriver(ResolveDataSource(source, package)?.Driver);
+        if (imported is not null)
+            return MemoryEngineeringValidator.IsClientMemoryDriver(ResolveDataSource(imported, package)?.Driver);
+
+        var existing = ResolveAlarmTag(dto);
+        return MemoryEngineeringValidator.IsClientMemoryDriver(
+            ResolveDataSource(existing?.DataSourceId, existing?.Source, package)?.Driver);
     }
 
     private void ValidateClientMemoryTransition(
@@ -165,6 +162,52 @@ internal sealed class TagEngineeringHandler
             true));
     }
 
+    private void ValidateDataSourceReference(
+        TagEngineeringDto dto,
+        EngineeringPackage package,
+        DataSourceEngineeringDto? dataSource,
+        List<ImportIssue> issues)
+    {
+        if (dto.DataSourceId.HasValue)
+        {
+            if (dataSource is null)
+            {
+                issues.Add(new(
+                    "TAG_DATASOURCE_ID_NOT_FOUND",
+                    $"Data source id '{dto.DataSourceId}' referenced by tag '{dto.Path}' was not found. The reference will not be remapped by key.",
+                    ImportEntityKind.Tag,
+                    dto.Path,
+                    true));
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.Source) &&
+                !dataSource.Key.Equals(dto.Source, StringComparison.OrdinalIgnoreCase))
+            {
+                issues.Add(new(
+                    "TAG_DATASOURCE_KEY_STALE",
+                    $"Tag '{dto.Path}' still carries legacy source key '{dto.Source}', but stable data source id '{dto.DataSourceId}' resolves to '{dataSource.Key}'. The key will be reconciled on apply.",
+                    ImportEntityKind.Tag,
+                    dto.Path,
+                    false));
+            }
+
+            return;
+        }
+
+        if (package.SchemaVersion >= 2 &&
+            !string.IsNullOrWhiteSpace(dto.Source) &&
+            dataSource is null)
+        {
+            issues.Add(new(
+                "TAG_DATASOURCE_NOT_FOUND",
+                $"Data source '{dto.Source}' referenced by tag '{dto.Path}' was not found.",
+                ImportEntityKind.Tag,
+                dto.Path,
+                true));
+        }
+    }
+
     private TagEngineeringDto? ResolveImportedAlarmTag(AlarmEngineeringDto dto, EngineeringPackage package)
     {
         TagEngineeringDto? imported = null;
@@ -174,11 +217,22 @@ internal sealed class TagEngineeringHandler
         return imported;
     }
 
-    private DataSourceEngineeringDto? ResolveDataSource(string? source, EngineeringPackage package)
+    private DataSourceEngineeringDto? ResolveDataSource(TagEngineeringDto dto, EngineeringPackage package) =>
+        ResolveDataSource(dto.DataSourceId, dto.Source, package);
+
+    private DataSourceEngineeringDto? ResolveDataSource(
+        Guid? dataSourceId,
+        string? source,
+        EngineeringPackage package)
     {
+        var packageDataSources = package.DataSources ?? Array.Empty<DataSourceEngineeringDto>();
+
+        if (dataSourceId.HasValue)
+            return packageDataSources.FirstOrDefault(x => x.Id == dataSourceId)
+                   ?? _dataSources.Find(dataSourceId.Value);
+
         if (string.IsNullOrWhiteSpace(source)) return null;
-        return (package.DataSources ?? Array.Empty<DataSourceEngineeringDto>())
-                   .FirstOrDefault(x => x.Key.Equals(source, StringComparison.OrdinalIgnoreCase))
+        return packageDataSources.FirstOrDefault(x => x.Key.Equals(source, StringComparison.OrdinalIgnoreCase))
                ?? _dataSources.FindByKey(source);
     }
 

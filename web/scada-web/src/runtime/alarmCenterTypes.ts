@@ -20,6 +20,24 @@ export type RuntimeAlarmCenterItem = {
   shelvedBy?: string | null;
 };
 
+/**
+ * Narrow Runtime projection of the backend AlarmDefinition contract. C18 uses
+ * this protected endpoint to enrich historical rows and translate authored Area
+ * filters into stable alarm identities without inventing historical fields that
+ * are not persisted by the alarm-history provider.
+ */
+export type RuntimeAlarmDefinition = {
+  id: string;
+  name: string;
+  tagId: string;
+  type: string | number;
+  priority: string | number;
+  area?: string | null;
+  message?: string | null;
+  enabled?: boolean;
+  shelvingAllowed?: boolean;
+};
+
 export type RuntimeAlarmCenterEndpoint<T> =
   | { available: true; value: T }
   | { available: false; status?: number; error: string };

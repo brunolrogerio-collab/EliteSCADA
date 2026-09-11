@@ -1,0 +1,131 @@
+import { expect, test } from '@playwright/test';
+
+test.use({ locale: 'pt-BR' });
+
+test('schema-driven Property Inspector mounts type-appropriate editors without private UI property state', async ({ page }) => {
+  await page.goto('/engineering');
+  await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
+  await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
+
+  const firstScreen = page.locator('.visual-editor-screen-list').getByRole('button').first();
+  await firstScreen.click();
+
+  await page.locator('[data-object-type="core.rectangle"]').click();
+  const rectangle = page.locator('[data-canvas-object-type="core.rectangle"]').last();
+  await expect(rectangle).toBeVisible();
+  await rectangle.click();
+
+  const inspector = page.getByTestId('visual-property-inspector');
+  const width = inspector.locator('[data-property-key="width"]');
+  await expect(width).toHaveAttribute('data-editor-type', 'number');
+  await expect(width.getByText('Width', { exact: true })).toBeVisible();
+  await expect(width.locator('code')).toHaveText('width');
+  await expect(width.getByRole('spinbutton', { name: 'Width' })).toBeVisible();
+
+  const visible = inspector.locator('[data-property-key="visible"]');
+  await expect(visible).toHaveAttribute('data-editor-type', 'boolean');
+  await expect(visible.getByRole('checkbox', { name: 'Visible' })).toBeVisible();
+
+  const enabled = inspector.locator('[data-property-key="enabled"]');
+  await expect(enabled).toHaveAttribute('data-editor-type', 'boolean');
+  await expect(enabled.getByText('Enabled', { exact: true })).toBeVisible();
+  await expect(enabled.getByRole('checkbox', { name: 'Enabled' })).toBeChecked();
+
+  const horizontalFlip = inspector.locator('[data-property-key="horizontalFlip"]');
+  await expect(horizontalFlip).toHaveAttribute('data-editor-type', 'boolean');
+  await expect(horizontalFlip.getByText('Horizontal Flip', { exact: true })).toBeVisible();
+  await horizontalFlip.getByRole('checkbox', { name: 'Horizontal Flip' }).check();
+
+  const verticalFlip = inspector.locator('[data-property-key="verticalFlip"]');
+  await expect(verticalFlip).toHaveAttribute('data-editor-type', 'boolean');
+  await verticalFlip.getByRole('checkbox', { name: 'Vertical Flip' }).check();
+
+  const tooltip = inspector.locator('[data-property-key="tooltip"]');
+  await expect(tooltip).toHaveAttribute('data-editor-type', 'string');
+  await tooltip.getByRole('textbox', { name: 'Tooltip' }).fill('Pump station visual');
+  await tooltip.getByRole('textbox', { name: 'Tooltip' }).press('Enter');
+
+  const fillStyle = inspector.locator('[data-property-key="fillStyle"]');
+  await expect(fillStyle).toHaveAttribute('data-editor-type', 'enum');
+  await expect(fillStyle.getByRole('combobox', { name: 'Fill Style' }).locator('option'))
+    .toHaveText(['none', 'solid', 'gradient']);
+  await fillStyle.getByRole('combobox', { name: 'Fill Style' }).selectOption('gradient');
+
+  const gradientDirection = inspector.locator('[data-property-key="gradientDirection"]');
+  await expect(gradientDirection).toHaveAttribute('data-editor-type', 'enum');
+  await expect(gradientDirection.getByRole('combobox', { name: 'Gradient Direction' }).locator('option'))
+    .toHaveText(['horizontal', 'vertical', 'diagonal-down', 'diagonal-up']);
+  await gradientDirection.getByRole('combobox', { name: 'Gradient Direction' }).selectOption('diagonal-up');
+
+  const shadowEnabled = inspector.locator('[data-property-key="shadowEnabled"]');
+  await expect(shadowEnabled).toHaveAttribute('data-editor-type', 'boolean');
+  await shadowEnabled.getByRole('checkbox', { name: 'Shadow Enabled' }).check();
+
+  const shadowBlur = inspector.locator('[data-property-key="shadowBlur"]');
+  await expect(shadowBlur).toHaveAttribute('data-editor-type', 'number');
+  await shadowBlur.getByRole('spinbutton', { name: 'Shadow Blur' }).fill('8');
+  await shadowBlur.getByRole('spinbutton', { name: 'Shadow Blur' }).press('Enter');
+
+  const strokeStyle = inspector.locator('[data-property-key="strokeStyle"]');
+  await expect(strokeStyle).toHaveAttribute('data-editor-type', 'enum');
+  await expect(strokeStyle).toHaveAttribute('data-editor-hint', 'stroke-style');
+  const strokeSelector = strokeStyle.locator('[data-property-editor="stroke-style"]');
+  await expect(strokeSelector.getByRole('radio')).toHaveCount(6);
+  await expect(strokeSelector.getByRole('radio', { name: 'solid' })).toHaveAttribute('aria-checked', 'true');
+  await strokeSelector.getByRole('radio', { name: 'none' }).click();
+  await expect(strokeSelector.getByRole('radio', { name: 'none' })).toHaveAttribute('aria-checked', 'true');
+
+  const fillColor = inspector.locator('[data-property-key="fillColor"]');
+  await expect(fillColor).toHaveAttribute('data-editor-type', 'color');
+  await expect(fillColor.locator('input[type="color"]')).toBeVisible();
+  await expect(fillColor.locator('input[type="range"]')).toBeVisible();
+  await expect(fillColor.getByRole('button', { name: 'Transparent' })).toBeVisible();
+  const manualColor = fillColor.locator('.property-inspector__color-text');
+  await manualColor.fill('rgba(17, 34, 51, 0.5)');
+  await manualColor.press('Enter');
+  await expect(manualColor).toHaveValue('#11223380');
+  await expect(fillColor.getByRole('button', { name: 'Use default' })).toBeEnabled();
+  await fillColor.getByRole('button', { name: 'Use default' }).click();
+
+  const secondaryColor = inspector.locator('[data-property-key="fillSecondaryColor"]');
+  await expect(secondaryColor).toHaveAttribute('data-editor-type', 'color');
+  await expect(secondaryColor.locator('input[type="color"]')).toBeVisible();
+
+  await page.locator('[data-object-type="core.text"]').click();
+  const textObject = page.locator('[data-canvas-object-type="core.text"]').last();
+  await expect(textObject).toBeVisible();
+  await textObject.click();
+
+  const fontFamily = inspector.locator('[data-property-key="fontFamily"]');
+  await expect(fontFamily).toHaveAttribute('data-editor-hint', 'font-family');
+  const fontInput = fontFamily.getByRole('combobox', { name: 'Font Family' });
+  await expect(fontInput).toHaveAttribute('list', /-fonts$/);
+
+  const underline = inspector.locator('[data-property-key="underline"]');
+  await expect(underline).toHaveAttribute('data-editor-type', 'boolean');
+  await expect(underline.getByRole('checkbox', { name: 'Underline' })).toBeVisible();
+
+  const textWrap = inspector.locator('[data-property-key="textWrap"]');
+  await expect(textWrap).toHaveAttribute('data-editor-type', 'boolean');
+  await expect(textWrap.getByRole('checkbox', { name: 'Text Wrap' })).toBeChecked();
+
+  const lineHeight = inspector.locator('[data-property-key="lineHeight"]');
+  await expect(lineHeight).toHaveAttribute('data-editor-type', 'number');
+  await expect(lineHeight.getByRole('spinbutton', { name: 'Line Height' })).toHaveValue('1.2');
+
+  const textOverflow = inspector.locator('[data-property-key="textOverflow"]');
+  await expect(textOverflow).toHaveAttribute('data-editor-type', 'enum');
+  await expect(textOverflow.getByRole('combobox', { name: 'Text Overflow' }).locator('option')).toHaveText(['clip', 'ellipsis']);
+
+  await page.locator('[data-object-type="core.image"]').click();
+  const imageObject = page.locator('[data-canvas-object-type="core.image"]').last();
+  await expect(imageObject).toBeVisible();
+  await imageObject.click();
+
+  const assetRef = inspector.locator('[data-property-key="assetRef"]');
+  await expect(assetRef).toHaveAttribute('data-editor-type', 'assetRef');
+  await expect(assetRef).toHaveAttribute('data-editor-hint', 'project-asset');
+  const assetBrowser = assetRef.getByTestId('visual-editor-image-asset-picker');
+  await expect(assetBrowser.getByRole('combobox', { name: 'Asset Ref' })).toBeVisible();
+  await expect(assetRef.locator('input[type="text"]')).toHaveCount(0);
+});

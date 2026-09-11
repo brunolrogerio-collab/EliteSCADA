@@ -108,7 +108,7 @@ const strings: Record<EngineeringLocale, UiStrings> = {
     username: 'Usuário',
     displayName: 'Nome de exibição',
     password: 'Senha inicial',
-    passwordHint: 'Mínimo de 12 caracteres. A senha nunca é retornada pela API.',
+    passwordHint: 'Mínimo de 8 caracteres. A senha nunca é retornada pela API.',
     enabled: 'Habilitado',
     disabled: 'Desabilitado',
     roles: 'Papéis',
@@ -181,7 +181,7 @@ const strings: Record<EngineeringLocale, UiStrings> = {
     username: 'Username',
     displayName: 'Display name',
     password: 'Initial password',
-    passwordHint: 'At least 12 characters. The password is never returned by the API.',
+    passwordHint: 'At least 8 characters. The password is never returned by the API.',
     enabled: 'Enabled',
     disabled: 'Disabled',
     roles: 'Roles',
@@ -254,7 +254,7 @@ const strings: Record<EngineeringLocale, UiStrings> = {
     username: 'Usuario',
     displayName: 'Nombre para mostrar',
     password: 'Contraseña inicial',
-    passwordHint: 'Mínimo de 12 caracteres. La contraseña nunca es devuelta por la API.',
+    passwordHint: 'Mínimo de 8 caracteres. La contraseña nunca es devuelta por la API.',
     enabled: 'Habilitado',
     disabled: 'Deshabilitado',
     roles: 'Roles',
@@ -619,7 +619,7 @@ function CreateUserForm({
       <div className="user-admin-form-grid">
         <label>{s.username}<input name="new-username" value={username} minLength={3} required autoComplete="off" onChange={e => setUsername(e.target.value)} /></label>
         <label>{s.displayName}<input name="new-display-name" value={displayName} maxLength={300} required onChange={e => setDisplayName(e.target.value)} /></label>
-        <label className="user-admin-form-wide">{s.password}<input name="new-password" type="password" value={password} minLength={12} required autoComplete="new-password" onChange={e => setPassword(e.target.value)} /><small>{s.passwordHint}</small></label>
+        <label className="user-admin-form-wide">{s.password}<input name="new-password" type="password" value={password} minLength={8} required autoComplete="new-password" onChange={e => setPassword(e.target.value)} /><small>{s.passwordHint}</small></label>
       </div>
       <label className="user-admin-toggle"><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} />{s.enabled}</label>
       <RolePicker roles={roles} selected={selectedRoles} onChange={setSelectedRoles} label={s.roles} empty={s.noRoles} />
@@ -694,7 +694,7 @@ function EditUserForm({
 
   const reviewReset = (event: FormEvent) => {
     event.preventDefault();
-    if (newPassword.length < 12) return;
+    if (newPassword.length < 8) return;
     setReviewPassword(true);
   };
 
@@ -777,7 +777,7 @@ function EditUserForm({
         <div className="user-admin-form-heading">
           <div><span>{s.sessionPolicyTitle}</span><h3>{s.resetPassword}</h3></div>
         </div>
-        <label>{s.newPassword}<input name="reset-password" type="password" value={newPassword} minLength={12} required autoComplete="new-password" onChange={e => { setNewPassword(e.target.value); setReviewPassword(false); }} /><small>{s.passwordHint}</small></label>
+        <label>{s.newPassword}<input name="reset-password" type="password" value={newPassword} minLength={8} required autoComplete="new-password" onChange={e => { setNewPassword(e.target.value); setReviewPassword(false); }} /><small>{s.passwordHint}</small></label>
         <button className="user-admin-button" type="submit" disabled={resetting}>{resetting ? s.resetting : s.resetAction}</button>
 
         {reviewPassword && (

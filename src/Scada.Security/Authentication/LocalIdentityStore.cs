@@ -10,6 +10,26 @@ public interface ILocalIdentityStore
     Task<IReadOnlyCollection<LocalUserAccount>> ListAsync(CancellationToken cancellationToken = default);
     Task CreateAsync(LocalUserAccount account, CancellationToken cancellationToken = default);
     Task UpdateAsync(LocalUserAccount account, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Atomically replaces the complete durable local Authority identity set.
+    /// Implementations must validate the complete replacement before exposing any mutation
+    /// and must leave the previous Authority unchanged if replacement fails.
+    /// Callers must not wrap this operation in <see cref="AcquireMutationLeaseAsync"/>;
+    /// the replacement owns its serialization/transaction boundary.
+    /// </summary>
+    Task ReplaceAllAsync(
+        IReadOnlyCollection<LocalUserAccount> accounts,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Atomically installs a complete local Authority only if the identity store is still empty
+    /// under the same serialization/transaction boundary. Returns false without mutation when
+    /// another bootstrap/restore operation already created an identity.
+    /// </summary>
+    Task<bool> TryReplaceAllIfEmptyAsync(
+        IReadOnlyCollection<LocalUserAccount> accounts,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class InMemoryLocalIdentityStore : ILocalIdentityStore
@@ -99,6 +119,78 @@ public sealed class InMemoryLocalIdentityStore : ILocalIdentityStore
         return Task.CompletedTask;
     }
 
+    public async Task ReplaceAllAsync(
+        IReadOnlyCollection<LocalUserAccount> accounts,
+        CancellationToken cancellationToken = default)
+    {
+        var replacement = PrepareReplacement(accounts);
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            lock (_gate)
+                InstallReplacement(replacement);
+        }
+        finally
+        {
+            _mutationGate.Release();
+        }
+    }
+
+    public async Task<bool> TryReplaceAllIfEmptyAsync(
+        IReadOnlyCollection<LocalUserAccount> accounts,
+        CancellationToken cancellationToken = default)
+    {
+        var replacement = PrepareReplacement(accounts);
+        await _mutationGate.WaitAsync(cancellationToken);
+        try
+        {
+            lock (_gate)
+            {
+                if (_byId.Count != 0) return false;
+                InstallReplacement(replacement);
+                return true;
+            }
+        }
+        finally
+        {
+            _mutationGate.Release();
+        }
+    }
+
+    private void InstallReplacement(IReadOnlyCollection<LocalUserAccount> replacement)
+    {
+        _byId.Clear();
+        _byUsername.Clear();
+        foreach (var account in replacement)
+        {
+            _byId.Add(account.Id, account.DeepCopy());
+            _byUsername.Add(account.NormalizedUsername, account.Id);
+        }
+    }
+
+    private static IReadOnlyCollection<LocalUserAccount> PrepareReplacement(
+        IReadOnlyCollection<LocalUserAccount> accounts)
+    {
+        ArgumentNullException.ThrowIfNull(accounts);
+        if (accounts.Count == 0)
+            throw new ArgumentException("Local Authority replacement must contain at least one identity.", nameof(accounts));
+
+        var copies = new List<LocalUserAccount>(accounts.Count);
+        var ids = new HashSet<Guid>();
+        var usernames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var account in accounts)
+        {
+            Validate(account);
+            if (!ids.Add(account.Id))
+                throw new ArgumentException($"Duplicate local user ID '{account.Id}' in Authority replacement.", nameof(accounts));
+            if (!usernames.Add(account.NormalizedUsername))
+                throw new ArgumentException($"Duplicate local username '{account.Username}' in Authority replacement.", nameof(accounts));
+            copies.Add(account.DeepCopy());
+        }
+
+        return copies;
+    }
+
     private static void Validate(LocalUserAccount account)
     {
         ArgumentNullException.ThrowIfNull(account);
@@ -108,7 +200,10 @@ public sealed class InMemoryLocalIdentityStore : ILocalIdentityStore
         var normalized = LocalIdentityNormalization.NormalizeUsername(account.Username);
         if (!string.Equals(normalized, account.NormalizedUsername, StringComparison.Ordinal))
             throw new ArgumentException("Normalized username does not match username.", nameof(account));
-        if (account.Credential.Salt.Length < 16 || account.Credential.Hash.Length < 16)
+        if (account.Roles is null)
+            throw new ArgumentException("Roles collection is required.", nameof(account));
+        if (account.Credential is null || account.Credential.Salt is null || account.Credential.Hash is null ||
+            account.Credential.Salt.Length < 16 || account.Credential.Hash.Length < 16 || account.Credential.Iterations < 100_000)
             throw new ArgumentException("Password credential is invalid.", nameof(account));
         if (account.CreatedAtUtc == default || account.UpdatedAtUtc == default || account.UpdatedAtUtc < account.CreatedAtUtc)
             throw new ArgumentException("User timestamps are invalid.", nameof(account));

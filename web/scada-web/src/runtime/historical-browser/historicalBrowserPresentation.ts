@@ -1,6 +1,12 @@
+import {
+  historicalBrowserCopy,
+  type HistoricalBrowserLocale
+} from './historicalBrowserI18n';
+
 export const HISTORICAL_BROWSER_DATASET_KEYS = [
   'historian.samples',
-  'alarm.events'
+  'alarm.events',
+  'operational.events'
 ] as const;
 
 export type HistoricalBrowserDatasetKey = typeof HISTORICAL_BROWSER_DATASET_KEYS[number];
@@ -16,8 +22,8 @@ export const HISTORICAL_BROWSER_RELATIVE_PRESETS = Object.freeze([
 
 /**
  * Transient view state only. It is deliberately not a Historical Query DTO and
- * must not be serialized as query authority. DEV 1's shared contract remains
- * the only future API/query model once that seam is integrated.
+ * must not be serialized as query authority. The shared Historical Query v1
+ * contract remains the only API/query authority.
  */
 export type HistoricalBrowserDraft = Readonly<{
   datasetKey: HistoricalBrowserDatasetKey;
@@ -55,22 +61,26 @@ export function createHistoricalBrowserDraft(): HistoricalBrowserDraft {
 /**
  * UI preflight only. Server-side Historical Query validation remains authoritative.
  */
-export function validateHistoricalBrowserDraft(draft: HistoricalBrowserDraft): HistoricalBrowserDraftValidation {
+export function validateHistoricalBrowserDraft(
+  draft: HistoricalBrowserDraft,
+  locale: HistoricalBrowserLocale = 'en'
+): HistoricalBrowserDraftValidation {
+  const text = historicalBrowserCopy(locale);
   const diagnostics: string[] = [];
 
   if (!HISTORICAL_BROWSER_DATASET_KEYS.includes(draft.datasetKey)) {
-    diagnostics.push('Unknown historical dataset.');
+    diagnostics.push(text.unknownDataset);
   }
 
   if (draft.timeMode === 'relative') {
     if (!Number.isSafeInteger(draft.relativeDurationSeconds) || draft.relativeDurationSeconds <= 0) {
-      diagnostics.push('Relative period must be a positive whole number of seconds.');
+      diagnostics.push(text.relativePositive);
     }
   } else {
     const from = parseLocalDateTime(draft.absoluteFromLocal);
     const to = parseLocalDateTime(draft.absoluteToLocal);
-    if (from === null || to === null) diagnostics.push('Absolute period requires valid start and end date/time values.');
-    else if (from >= to) diagnostics.push('Absolute period start must be before end.');
+    if (from === null || to === null) diagnostics.push(text.absoluteRequired);
+    else if (from >= to) diagnostics.push(text.absoluteOrder);
   }
 
   return Object.freeze({ ok: diagnostics.length === 0, diagnostics: Object.freeze(diagnostics) });
@@ -81,41 +91,60 @@ export function validateHistoricalBrowserDraft(draft: HistoricalBrowserDraft): H
  * through Number(), preserving the exact decimal string supplied by the shared
  * query wire contract.
  */
-export function formatHistoricalScalar(value: unknown, scalarType: HistoricalScalarType): string {
+export function formatHistoricalScalar(
+  value: unknown,
+  scalarType: HistoricalScalarType,
+  locale: HistoricalBrowserLocale = 'en'
+): string {
   if (value === null || value === undefined) return '—';
+  const text = historicalBrowserCopy(locale);
 
   switch (scalarType) {
     case 'Int64':
-      if (typeof value !== 'string' || !/^-?\d+$/.test(value)) return 'Unavailable';
+      if (typeof value !== 'string' || !/^-?\d+$/.test(value)) return text.unavailable;
       return value;
     case 'Boolean':
-      return typeof value === 'boolean' ? (value ? 'True' : 'False') : 'Unavailable';
+      return typeof value === 'boolean'
+        ? (value ? text.trueLabel : text.falseLabel)
+        : text.unavailable;
     case 'Int16':
     case 'Int32':
-      return typeof value === 'number' && Number.isSafeInteger(value) ? String(value) : 'Unavailable';
+      return typeof value === 'number' && Number.isSafeInteger(value) ? String(value) : text.unavailable;
     case 'Float':
     case 'Double':
-      return typeof value === 'number' && Number.isFinite(value) ? String(value) : 'Unavailable';
+      return typeof value === 'number' && Number.isFinite(value) ? String(value) : text.unavailable;
     case 'String':
-      return typeof value === 'string' ? value : 'Unavailable';
+      return typeof value === 'string' ? value : text.unavailable;
     case 'DateTime':
-      return typeof value === 'string' && value.trim() ? value : 'Unavailable';
+      return typeof value === 'string' && value.trim() ? value : text.unavailable;
   }
 }
 
-export function historicalDatasetLabel(datasetKey: HistoricalBrowserDatasetKey): string {
-  return datasetKey === 'historian.samples' ? 'Historian samples' : 'Alarm events';
+export function historicalDatasetLabel(
+  datasetKey: HistoricalBrowserDatasetKey,
+  locale: HistoricalBrowserLocale = 'en'
+): string {
+  const text = historicalBrowserCopy(locale);
+  switch (datasetKey) {
+    case 'historian.samples': return text.datasetHistorian;
+    case 'alarm.events': return text.datasetAlarms;
+    case 'operational.events': return text.datasetOperationalEvents;
+  }
 }
 
-export function historicalTimeSummary(draft: HistoricalBrowserDraft): string {
+export function historicalTimeSummary(
+  draft: HistoricalBrowserDraft,
+  locale: HistoricalBrowserLocale = 'en'
+): string {
+  const text = historicalBrowserCopy(locale);
   if (draft.timeMode === 'relative') {
     const preset = HISTORICAL_BROWSER_RELATIVE_PRESETS.find(item => item.seconds === draft.relativeDurationSeconds);
-    return preset ? `Last ${preset.label}` : `Last ${draft.relativeDurationSeconds} s`;
+    return `${text.last} ${preset?.label ?? `${draft.relativeDurationSeconds} s`}`;
   }
 
   return draft.absoluteFromLocal && draft.absoluteToLocal
     ? `${draft.absoluteFromLocal} → ${draft.absoluteToLocal}`
-    : 'Absolute period not selected';
+    : text.absoluteNotSelected;
 }
 
 function parseLocalDateTime(value: string): number | null {

@@ -13,17 +13,54 @@ export const CLIENT_VISUAL_PYTHON_POLICY = {
   faultIsolationScope: 'script-runtime-instance'
 } as const;
 
-export const CLIENT_VISUAL_PYTHON_CAPABILITIES = [
+export type ClientVisualPythonProductCapability =
+  | 'tag.read'
+  | 'tag.write'
+  | 'clientMemory.read'
+  | 'clientMemory.write'
+  | 'visualProperty.read'
+  | 'visualProperty.write'
+  | 'visualTween.request';
+
+export type ClientVisualPythonCapability =
+  | ClientVisualPythonProductCapability
+  | 'backendOperation.request';
+
+interface ClientVisualPythonProductCapabilityList extends ReadonlyArray<ClientVisualPythonProductCapability> {
+  includes(searchElement: ClientVisualPythonCapability, fromIndex?: number): boolean;
+}
+
+/**
+ * Capabilities exposed by the official EliteSCADA Client Visual Python product
+ * provider. Product surfaces such as the Script Assistant and API Help iterate
+ * this list so they never advertise host-specific protocol reservations as if
+ * those operations were available to ordinary scripts.
+ *
+ * The widened `includes` signature is intentional: the sandbox worker validates
+ * the complete protocol vocabulary against this product allow-list, so reserved
+ * capabilities fail closed there without weakening the element type seen by
+ * product UI consumers.
+ */
+export const CLIENT_VISUAL_PYTHON_CAPABILITIES: ClientVisualPythonProductCapabilityList = [
   'tag.read',
+  'tag.write',
   'clientMemory.read',
   'clientMemory.write',
   'visualProperty.read',
   'visualProperty.write',
-  'visualTween.request',
-  'backendOperation.request'
-] as const;
+  'visualTween.request'
+];
 
-export type ClientVisualPythonCapability = typeof CLIENT_VISUAL_PYTHON_CAPABILITIES[number];
+/**
+ * Complete bridge protocol vocabulary. `backendOperation.request` remains a
+ * reserved host-composition hook and therefore stays type-safe and fail-closed
+ * in the dispatcher, but the official product provider does not compose or
+ * advertise it.
+ */
+export const CLIENT_VISUAL_PYTHON_PROTOCOL_CAPABILITIES = [
+  ...CLIENT_VISUAL_PYTHON_CAPABILITIES,
+  'backendOperation.request'
+] as const satisfies readonly ClientVisualPythonCapability[];
 
 export const CLIENT_VISUAL_PYTHON_DENIED_BOUNDARIES = [
   'filesystem',

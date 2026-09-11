@@ -17,7 +17,8 @@ public sealed record TagDefinition(
     IReadOnlyDictionary<string, string>? Metadata = null,
     TagAccessPolicy? AccessPolicy = null,
     TagValueSelector? AddressSelector = null,
-    CommunicationTagBinding? CommunicationBinding = null)
+    CommunicationTagBinding? CommunicationBinding = null,
+    Guid? DataSourceId = null)
 {
     public static TagDefinition Create(
         string name,
@@ -30,7 +31,8 @@ public sealed record TagDefinition(
         IReadOnlyDictionary<string, string>? metadata = null,
         TagAccessPolicy? accessPolicy = null,
         TagValueSelector? addressSelector = null,
-        CommunicationTagBinding? communicationBinding = null)
+        CommunicationTagBinding? communicationBinding = null,
+        Guid? dataSourceId = null)
         => new(
             Guid.NewGuid(),
             name,
@@ -43,5 +45,6 @@ public sealed record TagDefinition(
             metadata,
             accessPolicy,
             addressSelector,
-            communicationBinding);
+            communicationBinding,
+            dataSourceId);
 }

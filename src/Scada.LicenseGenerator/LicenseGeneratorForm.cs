@@ -7,7 +7,7 @@ internal sealed class LicenseGeneratorForm : Form
     private readonly TextBox _requestCode = new() { Multiline = true, ScrollBars = ScrollBars.Vertical, Height = 78 };
     private readonly ComboBox _tier = new() { DropDownStyle = ComboBoxStyle.DropDownList };
     private readonly TextBox _privateKeyPath = new();
-    private readonly TextBox _keyId = new() { Text = "preview-1" };
+    private readonly TextBox _keyId = new() { Text = ProductLicenseTrustAnchors.ProductionKeyId };
     private readonly TextBox _licenseId = new() { Text = Guid.NewGuid().ToString("D") };
     private readonly DateTimePicker _expires = new() { Format = DateTimePickerFormat.Custom, CustomFormat = "yyyy-MM-dd HH:mm 'UTC'", ShowCheckBox = true, Checked = false };
     private readonly TextBox _outputPath = new();

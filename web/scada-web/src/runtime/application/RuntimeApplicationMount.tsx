@@ -1,27 +1,28 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import type { EngineeringLocale } from '../../engineering/i18n';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { appShellText, useAppShellLocale } from '../../appShellI18n';
+import { UserSessionMenu } from '../../auth/UserSessionMenu';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
-import { BasicTrendViewer } from '../BasicTrendViewer';
-import { RuntimeAlarmCenter } from '../operations';
-import { RuntimeTagInspector } from '../RuntimeTagInspector';
+import { RuntimeAlarmCenter } from '../RuntimeAlarmCenter';
 import { RuntimeVisualNavigator } from '../visual-navigation/RuntimeVisualNavigator';
 import {
   loadRuntimeApplicationProjection,
   RuntimeApplicationProjectionError,
+  RuntimeApplicationTransportError,
   runtimeVisualAssetContentUrl,
   type RuntimeApplicationProjection
 } from './runtimeApplicationApi';
+import { resolveRuntimeStartupScreen } from './runtimeStartupScreen';
 import { SimulationRuntimeApp } from './SimulationRuntimeApp';
 
 const REFRESH_INTERVAL_MS = 1500;
-
-function resolveRuntimeLocale(): EngineeringLocale {
-  const stored = window.localStorage.getItem('elitescada.engineering.locale');
-  return stored === 'en' || stored === 'es' ? stored : 'pt-BR';
-}
+const RETRYABLE_RUNTIME_PROJECTION_STATUSES = new Set([502, 503, 504]);
+const TRUNCATED_RESPONSE_SIGNATURE = 'content-length header of network response exceeds response body';
 
 export function RuntimeApplicationMount() {
+  const locale = useAppShellLocale();
+  const text = appShellText(locale);
   const [projection, setProjection] = useState<RuntimeApplicationProjection | null>(null);
+  const lastSuccessfulProjection = useRef<RuntimeApplicationProjection | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
@@ -37,12 +38,19 @@ export function RuntimeApplicationMount() {
       try {
         const next = await loadRuntimeApplicationProjection(controller.signal);
         if (disposed) return;
+        lastSuccessfulProjection.current = next;
         setProjection(current => sameRuntimeProjection(current, next) ? current : next);
         setError(null);
       } catch (reason) {
         if (disposed || controller.signal.aborted) return;
+        const failure = reason instanceof Error ? reason : new Error(String(reason));
+        if (lastSuccessfulProjection.current && isRetryableRuntimeProjectionFailure(failure)) {
+          setError(null);
+          return;
+        }
+        lastSuccessfulProjection.current = null;
         setProjection(null);
-        setError(reason instanceof Error ? reason : new Error(String(reason)));
+        setError(failure);
       } finally {
         if (activeController === controller) activeController = null;
         inFlight = false;
@@ -63,7 +71,7 @@ export function RuntimeApplicationMount() {
     return <main className="shell" data-testid="runtime-application-error">
       <section className="runtime-visual-diagnostic" role="alert" data-diagnostic-code="HMI_RUNTIME_ACTIVE_PROJECTION_UNAVAILABLE">
         <strong>HMI_RUNTIME_ACTIVE_PROJECTION_UNAVAILABLE</strong>
-        <span>Runtime application projection failed closed ({status}). {error.message}</span>
+        <span>{text.runtimeUnavailable} ({status}) {error.message}</span>
       </section>
     </main>;
   }
@@ -71,25 +79,37 @@ export function RuntimeApplicationMount() {
   if (!projection) {
     return <main className="shell" data-testid="runtime-application-loading">
       <section className="runtime-visual-diagnostic" role="status">
-        <strong>Runtime</strong><span>Loading active application…</span>
+        <strong>Runtime</strong><span>…</span>
       </section>
     </main>;
   }
 
   if (projection.mode === 'simulation') return <SimulationRuntimeApp />;
-  return <EngineeringRuntimeApplication projection={projection} />;
+  return <EngineeringRuntimeApplication projection={projection} locale={locale} />;
 }
 
-function EngineeringRuntimeApplication({ projection }: { projection: RuntimeApplicationProjection }) {
-  const locale = useMemo(resolveRuntimeLocale, []);
+function EngineeringRuntimeApplication({
+  projection,
+  locale
+}: {
+  projection: RuntimeApplicationProjection;
+  locale: ReturnType<typeof useAppShellLocale>;
+}) {
+  const text = appShellText(locale);
+  const fullscreenRoot = useRef<HTMLElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
+  const [alarmsOpen, setAlarmsOpen] = useState(false);
   const engineeringPackage = projection.package!;
-  const initialScreenKey = useMemo(() => {
-    const keys = (engineeringPackage.screens ?? [])
-      .map(screen => screen.key?.trim())
-      .filter((key): key is string => Boolean(key))
-      .sort((left, right) => left.localeCompare(right, 'en', { sensitivity: 'base' }));
-    return keys[0] ?? '';
-  }, [engineeringPackage]);
+  const startup = useMemo(
+    () => resolveRuntimeStartupScreen(engineeringPackage),
+    [engineeringPackage]
+  );
+
+  useEffect(() => {
+    const changed = () => setIsFullscreen(document.fullscreenElement === fullscreenRoot.current);
+    document.addEventListener('fullscreenchange', changed);
+    return () => document.removeEventListener('fullscreenchange', changed);
+  }, []);
 
   const scriptContext = useMemo<ScriptEngineeringContext>(() => ({
     workspace: {
@@ -103,48 +123,73 @@ function EngineeringRuntimeApplication({ projection }: { projection: RuntimeAppl
     visualEventReferences: engineeringPackage.scriptVisualEventReferences ?? []
   }), [engineeringPackage, projection.projectKey, projection.projectName, projection.revision]);
 
-  if (!initialScreenKey) {
+  const toggleFullscreen = async () => {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await fullscreenRoot.current?.requestFullscreen();
+  };
+
+  if (!startup.screenKey) {
     return <main className="shell" data-testid="runtime-engineering-application">
-      <header className="topbar">
-        <div><strong>{projection.projectName || projection.projectKey}</strong><span>Runtime Engineering · rev {projection.revision}</span></div>
-      </header>
-      <section className="runtime-visual-diagnostic" role="alert" data-diagnostic-code="HMI_RUNTIME_SCREEN_REQUIRED">
-        <strong>HMI_RUNTIME_SCREEN_REQUIRED</strong>
-        <span>The Active Engineering revision contains no canonical Screen to mount.</span>
+      <section className="runtime-visual-diagnostic" role="alert" data-diagnostic-code={startup.diagnosticCode ?? undefined}>
+        <strong>{startup.diagnosticCode}</strong>
+        <span>{text.runtimeUnavailable} {startup.detail}</span>
       </section>
     </main>;
   }
 
   return <main
-    className="shell runtime-engineering-application"
+    ref={fullscreenRoot}
+    className="runtime-operator-application"
     data-testid="runtime-engineering-application"
     data-runtime-project-key={projection.projectKey ?? undefined}
     data-runtime-revision={projection.revision ?? undefined}
+    data-runtime-fullscreen={isFullscreen || undefined}
   >
-    <header className="topbar">
-      <div>
+    <header className="runtime-operator-bar">
+      <div className="runtime-operator-context">
         <strong>{projection.projectName || projection.projectKey}</strong>
-        <span>Runtime Engineering · rev {projection.revision}</span>
+        <span>rev {projection.revision}</span>
       </div>
-      <div className="connection online">ACTIVE ENGINEERING</div>
+      <div className="runtime-operator-actions">
+        <button type="button" className="runtime-operator-button" aria-expanded={alarmsOpen} onClick={() => setAlarmsOpen(value => !value)}>
+          {text.alarms}
+        </button>
+        <button type="button" className="runtime-operator-button" onClick={() => void toggleFullscreen()}>
+          {isFullscreen ? text.exitFullscreen : text.fullscreen}
+        </button>
+        {isFullscreen ? <UserSessionMenu locale={locale} /> : null}
+      </div>
     </header>
 
-    <RuntimeAlarmCenter locale={locale} />
-    <RuntimeTagInspector locale={locale} />
-    <BasicTrendViewer locale={locale} />
-
-    <section className="process-card runtime-engineering-canvas" data-testid="runtime-engineering-canvas">
-      <div className="process-title">{initialScreenKey}</div>
+    <section className="runtime-engineering-canvas" data-testid="runtime-engineering-canvas">
       <RuntimeVisualNavigator
         engineeringPackage={engineeringPackage}
-        initialScreenKey={initialScreenKey}
+        initialScreenKey={startup.screenKey}
         locale={locale}
         scriptContext={scriptContext}
-        emptyLabel="Active Screen has no visual objects."
+        emptyLabel={text.emptyVisual}
         visualAssetUrl={runtimeVisualAssetContentUrl}
       />
     </section>
+
+    {alarmsOpen ? <aside className="runtime-operator-overlay" aria-label={text.alarms}>
+      <div className="runtime-operator-overlay-header">
+        <strong>{text.alarms}</strong>
+        <button type="button" className="runtime-operator-button" onClick={() => setAlarmsOpen(false)}>{text.closeAlarms}</button>
+      </div>
+      <div className="runtime-operator-overlay-content">
+        <RuntimeAlarmCenter locale={locale} />
+      </div>
+    </aside> : null}
   </main>;
+}
+
+function isRetryableRuntimeProjectionFailure(failure: Error): boolean {
+  if (failure instanceof RuntimeApplicationTransportError) return true;
+  if (!(failure instanceof RuntimeApplicationProjectionError)) return false;
+  if (RETRYABLE_RUNTIME_PROJECTION_STATUSES.has(failure.status)) return true;
+  return failure.status === 500 &&
+    failure.message.toLowerCase().includes(TRUNCATED_RESPONSE_SIGNATURE);
 }
 
 function sameRuntimeProjection(

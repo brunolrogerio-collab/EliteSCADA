@@ -8,6 +8,10 @@ import {
   type HistoricalSort
 } from './historicalQueryApi';
 import {
+  historicalBrowserCopy,
+  type HistoricalBrowserLocale
+} from './historicalBrowserI18n';
+import {
   validateHistoricalBrowserDraft,
   type HistoricalBrowserDraft
 } from './historicalBrowserPresentation';
@@ -78,7 +82,10 @@ export function buildHistoricalQueryRequest(
   });
 }
 
-export function projectHistoricalQueryResponse(response: HistoricalQueryResponse): HistoricalBrowserProjectedPage {
+export function projectHistoricalQueryResponse(
+  response: HistoricalQueryResponse,
+  locale: HistoricalBrowserLocale = 'en'
+): HistoricalBrowserProjectedPage {
   const columns = response.columns.map(column => Object.freeze({
     key: column.field,
     label: historicalFieldLabel(column),
@@ -91,7 +98,7 @@ export function projectHistoricalQueryResponse(response: HistoricalQueryResponse
     const cells: Record<string, string> = {};
     const detail: Array<Readonly<{ label: string; value: string }>> = [];
     for (const column of response.columns) {
-      const formatted = formatHistoricalQueryValue(row.cells[column.field]);
+      const formatted = formatHistoricalQueryValue(row.cells[column.field], locale);
       cells[column.field] = formatted;
       detail.push(Object.freeze({ label: historicalFieldLabel(column), value: formatted }));
     }
@@ -112,27 +119,31 @@ export function projectHistoricalQueryResponse(response: HistoricalQueryResponse
   });
 }
 
-export function formatHistoricalQueryValue(value: HistoricalQueryValue | undefined): string {
+export function formatHistoricalQueryValue(
+  value: HistoricalQueryValue | undefined,
+  locale: HistoricalBrowserLocale = 'en'
+): string {
   if (!value || value.kind === 'null' || value.value === null) return '—';
+  const text = historicalBrowserCopy(locale);
 
   switch (value.kind) {
     case 'int64':
-      return /^-?\d+$/.test(value.value) ? value.value : 'Unavailable';
+      return /^-?\d+$/.test(value.value) ? value.value : text.unavailable;
     case 'int16':
     case 'int32':
-      return /^-?\d+$/.test(value.value) ? value.value : 'Unavailable';
+      return /^-?\d+$/.test(value.value) ? value.value : text.unavailable;
     case 'float':
     case 'double':
     case 'number': {
       const parsed = Number(value.value);
-      return Number.isFinite(parsed) ? value.value : 'Unavailable';
+      return Number.isFinite(parsed) ? value.value : text.unavailable;
     }
     case 'boolean':
-      if (value.value === 'true') return 'True';
-      if (value.value === 'false') return 'False';
-      return 'Unavailable';
+      if (value.value === 'true') return text.trueLabel;
+      if (value.value === 'false') return text.falseLabel;
+      return text.unavailable;
     case 'dateTime':
-      return value.value.trim() ? value.value : 'Unavailable';
+      return value.value.trim() ? value.value : text.unavailable;
     case 'guid':
     case 'string':
     case 'enum':
@@ -157,7 +168,7 @@ function historicalFieldLabel(column: Pick<HistoricalColumn, 'field'>): string {
 }
 
 function historicalRowIdentity(cells: Readonly<Record<string, HistoricalQueryValue>>, index: number): string {
-  const identity = cells['alarm.id']?.value ?? cells['tag.id']?.value ?? 'row';
+  const identity = cells['event.id']?.value ?? cells['alarm.id']?.value ?? cells['tag.id']?.value ?? 'row';
   const timestamp = cells.timestamp?.value ?? 'no-time';
   return `${identity}:${timestamp}:${index}`;
 }

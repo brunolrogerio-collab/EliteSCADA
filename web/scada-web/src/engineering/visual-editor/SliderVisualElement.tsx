@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { VisualElementEngineering } from '../types';
-import type { VisualPropertyValue } from '../../visual-runtime';
+import { VISUAL_PROPERTY_KEYS, type VisualPropertyValue } from '../../visual-runtime';
 import type { VisualDynamicDiagnostic, VisualDynamicSample } from './visualDynamicRuntime';
 import { quantizeAndClamp, resolveSliderConfiguration } from './sliderVisualModel';
 import './SliderVisualElement.css';
@@ -32,6 +32,7 @@ export function SliderVisualElement({
     () => resolveSliderConfiguration(element, values, diagnostics, liveSamples),
     [element, values, diagnostics, liveSamples]
   );
+  const enabled = values[VISUAL_PROPERTY_KEYS.enabled] !== false;
   const [draftValue, setDraftValue] = useState(config.value);
   const [pending, setPending] = useState(false);
   const [writeError, setWriteError] = useState<string | null>(null);
@@ -41,7 +42,8 @@ export function SliderVisualElement({
     if (!pending) setDraftValue(config.value);
   }, [config.value, pending]);
 
-  const canWrite = config.interactionEnabled &&
+  const canWrite = enabled &&
+    config.interactionEnabled &&
     Boolean(onTagWrite) &&
     Boolean(config.tagId) &&
     config.writeDirection &&
@@ -85,6 +87,7 @@ export function SliderVisualElement({
     style={{ ...style, ...cssVariables }}
     data-object-id={element.id ?? undefined}
     data-runtime-object-id={runtimeObjectId}
+    data-enabled={enabled}
     data-slider-mode={config.interactionEnabled ? 'adjust' : 'passive'}
     data-slider-write-state={writeError ? 'failed' : pending ? 'pending' : canWrite ? 'ready' : 'disabled'}
     data-dynamic-state={unavailable ? 'unavailable' : 'available'}

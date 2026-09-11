@@ -12,6 +12,7 @@ public static class HistoricalDatasets
 {
     public const string HistorianSamples = "historian.samples";
     public const string AlarmEvents = "alarm.events";
+    public const string OperationalEvents = "operational.events";
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<HistoricalFieldType>))]
@@ -316,6 +317,25 @@ public static class HistoricalQueryCatalog
                 new("state", HistoricalFieldType.Enum, IdentityOperators, Sortable: true),
                 new("priority", HistoricalFieldType.Number, OrderedOperators, Sortable: true),
                 new("message", HistoricalFieldType.String, StringOperators, Searchable: true),
+                new("timestamp", HistoricalFieldType.DateTime, OrderedOperators, Sortable: true)),
+            [HistoricalDatasets.OperationalEvents] = Dataset(
+                HistoricalDatasets.OperationalEvents,
+                new("event.id", HistoricalFieldType.Guid, IdentityOperators),
+                new("definition.id", HistoricalFieldType.Guid, IdentityOperators),
+                new("definition.key", HistoricalFieldType.String, StringOperators, Searchable: true),
+                new("type", HistoricalFieldType.String, StringOperators, Searchable: true),
+                new("category", HistoricalFieldType.String, StringOperators, Searchable: true),
+                new("source", HistoricalFieldType.String, StringOperators, Searchable: true),
+                new("area", HistoricalFieldType.String, StringOperators, Searchable: true),
+                new("equipment.path", HistoricalFieldType.String, StringOperators, Searchable: true),
+                new("tag.id", HistoricalFieldType.Guid, IdentityOperators),
+                new("tag.path", HistoricalFieldType.String, StringOperators, Searchable: true),
+                new("operator", HistoricalFieldType.String, StringOperators, Searchable: true),
+                new("operation", HistoricalFieldType.String, StringOperators, Searchable: true),
+                new("command.id", HistoricalFieldType.Guid, IdentityOperators),
+                new("command.key", HistoricalFieldType.String, StringOperators, Searchable: true),
+                new("message", HistoricalFieldType.String, StringOperators, Searchable: true),
+                new("context", HistoricalFieldType.String, StringOperators, Searchable: true),
                 new("timestamp", HistoricalFieldType.DateTime, OrderedOperators, Sortable: true))
         };
 

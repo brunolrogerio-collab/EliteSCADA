@@ -32,7 +32,7 @@
 }
 
 .user-session-menu__trigger:focus-visible,
-.user-session-menu__logout:focus-visible {
+.user-session-menu__action:focus-visible {
   outline: 2px solid #7fa7bf;
   outline-offset: 2px;
 }
@@ -163,7 +163,12 @@
   font-size: 11px;
 }
 
-.user-session-menu__logout {
+.user-session-menu__actions {
+  display: grid;
+  gap: 7px;
+}
+
+.user-session-menu__action {
   width: 100%;
   padding: 8px 10px;
   border: 1px solid #485766;
@@ -173,12 +178,12 @@
   cursor: pointer;
 }
 
-.user-session-menu__logout:hover:not(:disabled) {
+.user-session-menu__action:hover:not(:disabled) {
   border-color: #64788a;
   background: #2a3540;
 }
 
-.user-session-menu__logout:disabled {
+.user-session-menu__action:disabled {
   cursor: wait;
   opacity: .62;
 }

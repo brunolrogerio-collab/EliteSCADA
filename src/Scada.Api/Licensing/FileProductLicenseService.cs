@@ -128,11 +128,17 @@ public static class ProductLicensingConfiguration
                 ? Path.Combine(AppContext.BaseDirectory, "data", "licensing", "EliteSCADA.license")
                 : configuredPath;
 
-            var keys = new Dictionary<string, RSA>(StringComparer.Ordinal);
+            var keys = ProductLicenseTrustAnchors.CreateBuiltInVerificationKeys();
             foreach (var child in builder.Configuration.GetSection("Licensing:VerificationKeys").GetChildren())
             {
                 if (string.IsNullOrWhiteSpace(child.Key) || string.IsNullOrWhiteSpace(child.Value))
                     continue;
+
+                if (keys.ContainsKey(child.Key))
+                {
+                    throw new InvalidOperationException(
+                        $"Configured EliteSCADA licensing public key '{child.Key}' cannot replace a built-in product trust anchor.");
+                }
 
                 var path = Path.GetFullPath(child.Value);
                 if (!File.Exists(path))
@@ -140,8 +146,16 @@ public static class ProductLicensingConfiguration
                         $"Configured EliteSCADA licensing public key '{child.Key}' was not found at '{path}'.");
 
                 var rsa = RSA.Create();
-                rsa.ImportFromPem(File.ReadAllText(path));
-                keys.Add(child.Key, rsa);
+                try
+                {
+                    rsa.ImportFromPem(File.ReadAllText(path));
+                    keys.Add(child.Key, rsa);
+                }
+                catch
+                {
+                    rsa.Dispose();
+                    throw;
+                }
             }
 
             return new FileProductLicenseService(

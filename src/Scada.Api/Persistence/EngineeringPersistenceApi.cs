@@ -1,24 +1,39 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Scada.Api.Engineering;
 using Scada.Api.Runtime;
+using Scada.Api.Security;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Gateways;
 using Scada.Engineering.Persistence;
+using Scada.Engineering.Reports;
 using Scada.Engineering.VisualAssets;
 using Scada.Persistence.PostgreSql;
+using Scada.Security.Audit;
+using Scada.Security.Authorization;
 
 namespace Scada.Api.Persistence;
 
 public static class EngineeringPersistenceApi
 {
+    private static readonly SemaphoreSlim FirstProjectGate = new(1, 1);
+
     public static void AddOptionalEngineeringPersistence(this WebApplicationBuilder builder)
     {
+        builder.AddEngineeringDriverCatalog();
+
         builder.Services.TryAddSingleton<IVisualAssetEngineeringRegistry>(sp =>
             sp.GetRequiredService<EngineeringWorkspace>().VisualAssets);
+        builder.Services.TryAddSingleton<IReportEngineeringRegistry>(sp =>
+            new InMemoryReportEngineeringRegistry(
+                sp.GetRequiredService<EngineeringWorkspace>().MarkDirty));
 
         var connectionString = builder.Configuration.GetConnectionString("EliteScada");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
         builder.Services.TryAddSingleton<IEngineeringProjectStore>(_ =>
             new PostgreSqlEngineeringProjectStore(connectionString));
+        builder.Services.TryAddSingleton<IEngineeringProjectCatalog>(_ =>
+            new PostgreSqlEngineeringProjectCatalog(connectionString));
         builder.Services.TryAddSingleton<IEngineeringProjectPersistenceService, EngineeringProjectPersistenceService>();
         builder.Services.TryAddSingleton<IEngineeringWorkspaceCheckoutService, EngineeringWorkspaceCheckoutService>();
         builder.Services.TryAddSingleton<IPublishedRuntimeActivationService, PublishedRuntimeActivationService>();
@@ -82,14 +97,104 @@ public static class EngineeringPersistenceApi
 
     public static void MapEngineeringPersistenceEndpoints(this WebApplication app)
     {
+        app.MapEngineeringDriverCatalogEndpoints();
+
         var group = app.MapGroup("/api/engineering/persistence");
 
-        group.MapGet("/status", (HttpContext context) => Results.Ok(new
+        group.MapGet("/status", async (HttpContext context, CancellationToken cancellationToken) =>
         {
-            enabled = Resolve(context) is not null,
-            provider = Resolve(context) is null ? null : "postgresql",
-            configuredProjectKey = ResolveConfiguredProjectKey(context)
-        }));
+            var persistence = Resolve(context);
+            var catalog = ResolveCatalog(context);
+            return Results.Ok(new
+            {
+                enabled = persistence is not null,
+                provider = persistence is null ? null : "postgresql",
+                configuredProjectKey = ResolveConfiguredProjectKey(context),
+                hasProjects = catalog is null ? (bool?)null : await catalog.HasAnyAsync(cancellationToken)
+            });
+        });
+
+        group.MapPost("/projects/first", async (
+            EngineeringFirstProjectRequest request,
+            EngineeringWorkspace workspace,
+            IGatewayEngineeringRegistry gateways,
+            IReportEngineeringRegistry reports,
+            HttpContext context,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            CancellationToken cancellationToken) =>
+        {
+            var persistence = Resolve(context);
+            var catalog = ResolveCatalog(context);
+            if (persistence is null || catalog is null) return Disabled();
+
+            var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
+            var failure = authorization.FailureResult();
+            if (failure is not null)
+            {
+                await audit.RecordAuthorizationDeniedAsync(
+                    context,
+                    authorization,
+                    "engineering.project.create_first",
+                    "engineering-project",
+                    request.ProjectKey?.Trim() ?? "new");
+                return failure;
+            }
+
+            var projectKey = request.ProjectKey?.Trim() ?? string.Empty;
+            var projectName = request.ProjectName?.Trim() ?? string.Empty;
+            if (projectKey.Length is < 1 or > 200)
+                return Results.BadRequest(new { error = "Project key must contain between 1 and 200 characters." });
+            if (projectName.Length is < 1 or > 300)
+                return Results.BadRequest(new { error = "Project name must contain between 1 and 300 characters." });
+
+            await FirstProjectGate.WaitAsync(cancellationToken);
+            try
+            {
+                if (await catalog.HasAnyAsync(cancellationToken))
+                {
+                    return Results.Conflict(new
+                    {
+                        error = "A persisted Engineering project already exists. First-project setup is closed."
+                    });
+                }
+
+                var savedBy = authorization.Principal.DisplayName ?? authorization.Principal.SubjectId;
+                var snapshot = await SaveFirstProjectAsync(
+                    projectKey,
+                    new EngineeringSaveRequest(projectName, savedBy),
+                    persistence,
+                    workspace,
+                    gateways,
+                    reports,
+                    cancellationToken);
+
+                await audit.RecordAsync(
+                    context,
+                    authorization.Principal,
+                    "engineering.project.create_first",
+                    AuditOutcome.Succeeded,
+                    "engineering-project",
+                    snapshot.ProjectKey,
+                    new Dictionary<string, string>
+                    {
+                        ["projectName"] = snapshot.ProjectName,
+                        ["revision"] = snapshot.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    });
+
+                return Results.Created(
+                    $"/api/engineering/persistence/{Uri.EscapeDataString(snapshot.ProjectKey)}/latest",
+                    new
+                    {
+                        revision = ToMetadata(snapshot),
+                        workspace = workspace.Describe()
+                    });
+            }
+            finally
+            {
+                FirstProjectGate.Release();
+            }
+        });
 
         group.MapPost("/{projectKey}/save", async (
             string projectKey,
@@ -367,6 +472,9 @@ public static class EngineeringPersistenceApi
     private static IEngineeringProjectPersistenceService? Resolve(HttpContext context) =>
         context.RequestServices.GetService<IEngineeringProjectPersistenceService>();
 
+    private static IEngineeringProjectCatalog? ResolveCatalog(HttpContext context) =>
+        context.RequestServices.GetService<IEngineeringProjectCatalog>();
+
     internal static async Task<EngineeringProjectSnapshot> SaveCurrentAsync(
         string projectKey,
         EngineeringSaveRequest request,
@@ -397,6 +505,51 @@ public static class EngineeringPersistenceApi
             saveVersion);
         return snapshot;
     }
+
+    internal static async Task<EngineeringProjectSnapshot> SaveFirstProjectAsync(
+        string projectKey,
+        EngineeringSaveRequest request,
+        IEngineeringProjectPersistenceService persistence,
+        EngineeringWorkspace workspace,
+        IGatewayEngineeringRegistry gateways,
+        IReportEngineeringRegistry reports,
+        CancellationToken cancellationToken = default)
+    {
+        await using var mutation = await workspace.AcquireMutationAsync(
+            cancellationToken: cancellationToken);
+
+        workspace.Clear();
+        gateways.Clear();
+        reports.Clear();
+        foreach (var dynamo in BuiltinDynamoLibrary.Create())
+            workspace.Assets.UpsertDynamo(dynamo);
+        workspace.SecurityPolicies.UpsertRole(CreateInitialDeveloperRole());
+
+        var saveVersion = workspace.CaptureChangeVersion();
+        var snapshot = await persistence.SaveCurrentDerivedAsync(
+            projectKey,
+            request.ProjectName,
+            basedOnRevision: null,
+            request.SavedBy,
+            cancellationToken);
+
+        workspace.AcceptSave(
+            snapshot.ProjectKey,
+            snapshot.ProjectName,
+            snapshot.Revision,
+            snapshot.SavedAtUtc,
+            saveVersion);
+        return snapshot;
+    }
+
+    private static SecurityRoleEngineeringDto CreateInitialDeveloperRole() => new(
+        Id: Guid.Parse("46000000-0000-0000-0000-000000000002"),
+        Key: "developer",
+        Name: "Developer",
+        Description: "Engineering/development role with all currently defined capabilities granted explicitly.",
+        Grants: Enum.GetValues<SecurityCapability>()
+            .Select(capability => new CapabilityGrantEngineeringDto(capability))
+            .ToArray());
 
     private static IEngineeringWorkspaceCheckoutService? ResolveCheckout(HttpContext context) =>
         context.RequestServices.GetService<IEngineeringWorkspaceCheckoutService>();
@@ -436,3 +589,4 @@ public static class EngineeringPersistenceApi
 public sealed record EngineeringSaveRequest(string ProjectName, string? SavedBy = null);
 public sealed record EngineeringPublishRequest(string? PublishedBy = null);
 public sealed record EngineeringActivateRequest(string? ActivatedBy = null);
+public sealed record EngineeringFirstProjectRequest(string ProjectKey, string ProjectName);

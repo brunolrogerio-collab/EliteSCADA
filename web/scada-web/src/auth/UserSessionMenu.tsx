@@ -15,7 +15,7 @@ export type UserSessionMenuProps = {
 };
 
 export function UserSessionMenu({ locale }: UserSessionMenuProps) {
-  const { profile, logout } = useAuth();
+  const { profile, logout, switchUser, canSwitchUser } = useAuth();
 
   const resolvedLocale = useMemo(
     () => locale ?? resolveSessionLocale(window.localStorage.getItem(localeKey), navigator.language),
@@ -23,5 +23,13 @@ export function UserSessionMenu({ locale }: UserSessionMenuProps) {
   );
   const labels = useMemo(() => getUserSessionMenuLabels(resolvedLocale), [resolvedLocale]);
 
-  return <UserSessionMenuView profile={profile} labels={labels} onLogout={logout} />;
+  return (
+    <UserSessionMenuView
+      profile={profile}
+      labels={labels}
+      canSwitchUser={canSwitchUser}
+      onSwitchUser={switchUser}
+      onLogout={logout}
+    />
+  );
 }

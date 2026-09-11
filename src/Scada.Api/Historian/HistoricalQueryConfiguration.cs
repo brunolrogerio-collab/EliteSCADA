@@ -3,6 +3,7 @@ using Scada.Api.Reports;
 using Scada.Api.Runtime;
 using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
+using Scada.Core.Events;
 using Scada.Core.HistoricalQueries;
 using Scada.Historian.TimescaleDb;
 using Scada.Persistence.PostgreSql;
@@ -70,9 +71,15 @@ public static class HistoricalQueryConfiguration
             new PostgreSqlAlarmHistoryStore(connectionString));
         builder.Services.AddSingleton<IHistoricalDatasetProvider, AlarmHistoryDatasetProviderAdapter>();
 
+        builder.Services.AddSingleton<PostgreSqlOperationalEventHistoryStore>(_ =>
+            new PostgreSqlOperationalEventHistoryStore(connectionString));
+        builder.Services.AddSingleton<IHistoricalDatasetProvider>(sp =>
+            sp.GetRequiredService<PostgreSqlOperationalEventHistoryStore>());
+
         builder.AddHistoricalQueryApiCore();
         builder.AddReportExecutionApiCore();
         builder.Services.AddHostedService<AlarmHistoryPersistenceHostedService>();
+        builder.Services.AddHostedService<OperationalEventHistoryPersistenceHostedService>();
         return true;
     }
 }
@@ -144,6 +151,56 @@ internal sealed class AlarmHistoryPersistenceHostedService(
                 "Alarm history persistence failed for alarm {AlarmId} and TAG {TagId}; operational alarm processing remains authoritative.",
                 stateChanged.Current.DefinitionId,
                 stateChanged.Current.TagId);
+        }
+    }
+}
+
+internal sealed class OperationalEventHistoryPersistenceHostedService(
+    IScadaEventBus eventBus,
+    PostgreSqlOperationalEventHistoryStore store,
+    ILogger<OperationalEventHistoryPersistenceHostedService> logger) : IHostedService, IDisposable
+{
+    private readonly CancellationTokenSource _stopping = new();
+    private IDisposable? _subscription;
+
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _subscription = eventBus.Subscribe<OperationalEventOccurred>(PersistAsync);
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
+        _subscription?.Dispose();
+        _subscription = null;
+        _stopping.Cancel();
+        return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        _subscription?.Dispose();
+        _stopping.Cancel();
+        _stopping.Dispose();
+    }
+
+    private async ValueTask PersistAsync(OperationalEventOccurred occurrence)
+    {
+        try
+        {
+            await store.AppendAsync(occurrence, _stopping.Token);
+        }
+        catch (OperationCanceledException) when (_stopping.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Operational Event history persistence failed for event {EventId} / definition {DefinitionId}; Active Runtime processing remains authoritative.",
+                occurrence.EventId,
+                occurrence.DefinitionId);
         }
     }
 }

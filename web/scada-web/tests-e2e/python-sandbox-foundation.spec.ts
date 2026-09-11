@@ -4,6 +4,7 @@ import {
   CLIENT_VISUAL_PYTHON_CAPABILITIES,
   CLIENT_VISUAL_PYTHON_DENIED_BOUNDARIES,
   CLIENT_VISUAL_PYTHON_POLICY,
+  CLIENT_VISUAL_PYTHON_PROTOCOL_CAPABILITIES,
   hasMatchingPythonRuntimeIdentity
 } from '../src/python-runtime/pythonRuntimeContracts';
 
@@ -56,13 +57,15 @@ test('Client Visual bridge v1 keeps the safe execution policy and capability sur
 
   expect([...CLIENT_VISUAL_PYTHON_CAPABILITIES]).toEqual([
     'tag.read',
+    'tag.write',
     'clientMemory.read',
     'clientMemory.write',
     'visualProperty.read',
     'visualProperty.write',
-    'visualTween.request',
-    'backendOperation.request'
+    'visualTween.request'
   ]);
+  expect(CLIENT_VISUAL_PYTHON_CAPABILITIES).not.toContain('backendOperation.request');
+  expect(CLIENT_VISUAL_PYTHON_PROTOCOL_CAPABILITIES).toContain('backendOperation.request');
   expect(new Set(CLIENT_VISUAL_PYTHON_CAPABILITIES).size).toBe(CLIENT_VISUAL_PYTHON_CAPABILITIES.length);
 
   const forbiddenCapabilities = [

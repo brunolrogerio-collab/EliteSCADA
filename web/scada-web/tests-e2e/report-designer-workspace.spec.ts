@@ -49,6 +49,18 @@ test('Report Designer creates, previews and applies one canonical report', async
   await page.route('**/api/auth/config', async route => {
     await route.fulfill({ json: { authenticationEnabled: false, localLoginEnabled: false } });
   });
+  await page.route('**/api/auth/effective-capabilities', async route => {
+    await route.fulfill({
+      json: {
+        authenticationEnabled: false,
+        runtime: ['View', 'TrendUse', 'SystemAdmin'],
+        workspace: ['EngineeringModify']
+      }
+    });
+  });
+  await page.route('**/api/engineering/lock/status', async route => {
+    await route.fulfill({ json: { configured: false, locked: false } });
+  });
   await page.route('**/api/engineering/workspace', async route => {
     await route.fulfill({ json: workspace });
   });

@@ -40,17 +40,20 @@ public enum VisualNavigationActionKind
 {
     NavigateScreen,
     OpenPopup,
-    ClosePopup
+    ClosePopup,
+    ExecuteCommand
 }
 
 /// <summary>
-/// Canonical visual navigation intent. TargetKey is Engineering identity by key,
-/// never a browser/DOM handle. Parameters are JSON-native authoring values passed
-/// to the target context and are not runtime-calculated state.
+/// Canonical visual action intent. TargetKey is Engineering identity by key for
+/// navigation targets; CommandId is the stable Command entity identity for
+/// ExecuteCommand. Parameters are JSON-native authoring values passed to the
+/// target context and are not runtime-calculated state.
 /// </summary>
 public sealed record VisualNavigationActionEngineeringDto(
     string EventKey,
     VisualNavigationActionKind Kind,
     string? TargetKey = null,
     Dictionary<string, JsonElement>? Parameters = null,
-    int Version = VisualCompositionEngineeringVersions.Current);
+    int Version = VisualCompositionEngineeringVersions.Current,
+    Guid? CommandId = null);

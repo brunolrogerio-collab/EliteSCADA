@@ -9,10 +9,15 @@ import {
   validateHistoricalBrowserDraft
 } from '../src/runtime/historical-browser/historicalBrowserPresentation';
 
-test('Historical Browser exposes only the two canonical Wave 09 dataset keys', () => {
-  expect(HISTORICAL_BROWSER_DATASET_KEYS).toEqual(['historian.samples', 'alarm.events']);
+test('Historical Browser exposes the canonical historian, alarm and operational event dataset keys', () => {
+  expect(HISTORICAL_BROWSER_DATASET_KEYS).toEqual([
+    'historian.samples',
+    'alarm.events',
+    'operational.events'
+  ]);
   expect(historicalDatasetLabel('historian.samples')).toBe('Historian samples');
   expect(historicalDatasetLabel('alarm.events')).toBe('Alarm events');
+  expect(historicalDatasetLabel('operational.events')).toBe('Operational events');
 });
 
 test('Historical Browser transient draft defaults to a bounded relative period without becoming a query DTO', () => {

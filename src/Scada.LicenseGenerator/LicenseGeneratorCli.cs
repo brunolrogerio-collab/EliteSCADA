@@ -19,7 +19,7 @@ internal static class LicenseGeneratorCli
                 Required(args, "--request"),
                 LicenseGenerationService.ParseTier(Required(args, "--tier")),
                 Required(args, "--key"),
-                Optional(args, "--key-id") ?? "preview-1",
+                Optional(args, "--key-id") ?? ProductLicenseTrustAnchors.ProductionKeyId,
                 Optional(args, "--out") ?? "EliteSCADA.license",
                 Optional(args, "--license-id") ?? Guid.NewGuid().ToString("D"),
                 LicenseGenerationService.ParseOptionalDate(Optional(args, "--expires")));
@@ -70,7 +70,7 @@ internal static class LicenseGeneratorCli
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  --gui                 Open the graphical interface");
-        Console.WriteLine("  --key-id <id>         Public verification key identifier. Default: preview-1");
+        Console.WriteLine($"  --key-id <id>         Public verification key identifier. Default: {ProductLicenseTrustAnchors.ProductionKeyId}");
         Console.WriteLine("  --out <file>          Output license file. Default: EliteSCADA.license");
         Console.WriteLine("  --license-id <id>     Explicit license ID. Default: generated UUID");
         Console.WriteLine("  --expires <ISO-8601>  Optional license expiration time in UTC");

@@ -236,6 +236,10 @@ def _elitescada_sandbox_guard():
 function createEliteScadaBridge(): Record<string, unknown> {
   return Object.freeze({
     tag_read: (reference: unknown) => requestCapability('tag.read', 'read', { reference: normalizeBridgeValue(reference) }),
+    tag_write: (reference: unknown, value: unknown) => requestCapability('tag.write', 'write', {
+      reference: normalizeBridgeValue(reference),
+      value: normalizeBridgeValue(value)
+    }),
     client_memory_read: (reference: unknown) => requestCapability('clientMemory.read', 'read', { reference: normalizeBridgeValue(reference) }),
     client_memory_write: (reference: unknown, value: unknown) => requestCapability('clientMemory.write', 'write', {
       reference: normalizeBridgeValue(reference),

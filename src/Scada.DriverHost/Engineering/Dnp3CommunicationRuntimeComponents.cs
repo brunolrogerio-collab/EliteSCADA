@@ -2,7 +2,7 @@ using System.Globalization;
 using Scada.Core.Tags;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.Dnp3;
-using Scada.Drivers.Dnp3.StepFunction;
+using Scada.Drivers.Dnp3.OpenDnp3;
 using Scada.Engineering.Contracts;
 
 namespace Scada.DriverHost.Engineering;
@@ -522,7 +522,7 @@ public sealed class Dnp3CommunicationRuntimeFactory : ICommunicationDriverRuntim
 
     public Dnp3CommunicationRuntimeFactory(IDnp3MasterSessionFactory? sessionFactory = null)
     {
-        _sessionFactory = sessionFactory ?? new StepFunctionDnp3MasterSessionFactory();
+        _sessionFactory = sessionFactory ?? new OpenDnp3MasterSessionFactory();
     }
 
     public string DriverType => Dnp3DriverDescriptorProvider.DriverType;

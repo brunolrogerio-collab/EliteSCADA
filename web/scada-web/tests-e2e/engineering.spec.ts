@@ -57,7 +57,7 @@ test('Engineering navigation exposes current domains and structured preview edit
   await page.goto('/engineering');
 
   const sections = [
-    { button: /Data Sources/, heading: 'Editor estruturado de Data Sources', expected: 'builtin.simulation' },
+    { button: /Data Sources/, heading: 'Editor de Data Source', expected: 'builtin.simulation' },
     { button: /Alarmes/, heading: 'Editor estruturado de Alarmes', expected: 'High discharge pressure' },
     { button: /Templates/, heading: 'Templates', expected: 'pump.standard' },
     { button: /Equipamentos/, heading: 'Equipamentos', expected: 'Demo.P01' },
@@ -164,21 +164,29 @@ test('TAG editor previews a new TAG as a create without applying it', async ({ p
   expect(after.tags.some(tag => tag.path === 'Demo.Preview.CreatedTag')).toBeFalsy();
 });
 
-test('Data Source editor previews public settings without exposing secret values', async ({ page, request }) => {
+test('Data Source editor uses the backend catalog and previews without mutating Engineering Workspace', async ({ page, request }) => {
   const workspaceBeforeResponse = await request.get('/api/engineering/workspace');
   expect(workspaceBeforeResponse.ok()).toBeTruthy();
   const workspaceBefore = await workspaceBeforeResponse.json() as { isDirty: boolean; changeVersion: number };
 
+  const catalogResponse = await request.get('/api/engineering/data-source-types');
+  expect(catalogResponse.ok()).toBeTruthy();
+  const catalog = await catalogResponse.json() as { dataSourceTypes: Array<{ typeKey: string; displayName: string }> };
+  expect(catalog.dataSourceTypes.length).toBeGreaterThan(0);
+
   await page.goto('/engineering');
   await page.getByRole('button', { name: /Data Sources/ }).click();
-  await expect(page.getByRole('heading', { name: 'Editor estruturado de Data Sources' })).toBeVisible();
-  await expect(page.getByText('Referências de segredo', { exact: true })).toBeVisible();
-  await expect(page.getByText('Somente referências são exibidas; nenhum segredo é materializado no editor.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Editor de Data Source' })).toBeVisible();
+
+  const typePicker = page.getByTestId('data-source-type');
+  await expect(typePicker).toBeVisible();
+  const optionValues = await typePicker.locator('option').evaluateAll(options => options.map(option => (option as HTMLOptionElement).value));
+  expect(optionValues).toEqual(expect.arrayContaining(catalog.dataSourceTypes.map(type => type.typeKey)));
 
   const form = page.locator('.eng-editor-form-panel');
   await form.getByLabel('Nome').fill('Simulation preview edit');
-  await page.getByRole('button', { name: 'Validar preview' }).click();
-  await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
+  await page.getByTestId('data-source-preview').click();
+  await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
 
   const workspaceAfterResponse = await request.get('/api/engineering/workspace');
   expect(workspaceAfterResponse.ok()).toBeTruthy();
@@ -186,24 +194,26 @@ test('Data Source editor previews public settings without exposing secret values
   expect(workspaceAfter).toEqual(workspaceBefore);
 });
 
-test('Data Source editor previews a new source as a create without applying it', async ({ page, request }) => {
+test('Data Source editor rebuilds settings when source type changes and previews a new source without applying it', async ({ page, request }) => {
   const beforeResponse = await request.get('/api/engineering/export/json');
   expect(beforeResponse.ok()).toBeTruthy();
   const before = await beforeResponse.json() as { dataSources: Array<{ key: string }> };
 
   await page.goto('/engineering');
   await page.getByRole('button', { name: /Data Sources/ }).click();
-  await page.getByRole('button', { name: 'Novo Data Source' }).click();
-  await expect(page.getByText('Novo', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Nova Data Source' }).click();
 
   const form = page.locator('.eng-editor-form-panel');
   await form.getByLabel('Nome').fill('Preview Simulation Source');
   await form.getByLabel('Chave').fill('preview.simulation');
-  await form.getByLabel('Driver').fill('builtin.simulation');
-  await page.getByRole('button', { name: 'Validar preview' }).click();
+  await page.getByTestId('data-source-type').selectOption('builtin.simulation');
+  await expect(page.getByTestId('data-source-type')).toHaveValue('builtin.simulation');
+  const scanInterval = page.getByTestId('data-source-setting-scanIntervalMilliseconds');
+  await expect(scanInterval).toBeVisible();
+  await expect(scanInterval).toHaveValue('500');
 
-  await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
-  await expect(page.getByTestId('preview-create-count')).toContainText('1 criações');
+  await page.getByTestId('data-source-preview').click();
+  await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
 
   const afterResponse = await request.get('/api/engineering/export/json');
   expect(afterResponse.ok()).toBeTruthy();

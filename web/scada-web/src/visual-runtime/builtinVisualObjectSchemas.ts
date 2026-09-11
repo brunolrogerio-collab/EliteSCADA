@@ -13,6 +13,9 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   text: 'core.text',
   image: 'core.image',
   valueDisplay: 'core.valueDisplay',
+  trend: 'core.trend',
+  alarmBrowser: 'core.alarmBrowser',
+  eventBrowser: 'core.eventBrowser',
   button: 'core.button',
   slider: 'core.slider'
 } as const;
@@ -35,12 +38,31 @@ const GEOMETRY: readonly CommonVisualPropertyKey[] = [
 const TRANSFORM: readonly CommonVisualPropertyKey[] = [
   VISUAL_PROPERTY_KEYS.rotation,
   VISUAL_PROPERTY_KEYS.scaleX,
-  VISUAL_PROPERTY_KEYS.scaleY
+  VISUAL_PROPERTY_KEYS.scaleY,
+  VISUAL_PROPERTY_KEYS.horizontalFlip,
+  VISUAL_PROPERTY_KEYS.verticalFlip
 ];
 
 const VISIBILITY: readonly CommonVisualPropertyKey[] = [
   VISUAL_PROPERTY_KEYS.visible,
-  VISUAL_PROPERTY_KEYS.opacity
+  VISUAL_PROPERTY_KEYS.opacity,
+  VISUAL_PROPERTY_KEYS.tooltip,
+  VISUAL_PROPERTY_KEYS.enabled
+];
+
+const EFFECTS: readonly CommonVisualPropertyKey[] = [
+  VISUAL_PROPERTY_KEYS.shadowEnabled,
+  VISUAL_PROPERTY_KEYS.shadowColor,
+  VISUAL_PROPERTY_KEYS.shadowOffsetX,
+  VISUAL_PROPERTY_KEYS.shadowOffsetY,
+  VISUAL_PROPERTY_KEYS.shadowBlur
+];
+
+const FILL: readonly CommonVisualPropertyKey[] = [
+  VISUAL_PROPERTY_KEYS.fillStyle,
+  VISUAL_PROPERTY_KEYS.fillColor,
+  VISUAL_PROPERTY_KEYS.fillSecondaryColor,
+  VISUAL_PROPERTY_KEYS.gradientDirection
 ];
 
 const STROKE: readonly CommonVisualPropertyKey[] = [
@@ -56,23 +78,48 @@ const TEXT: readonly CommonVisualPropertyKey[] = [
   VISUAL_PROPERTY_KEYS.fontSize,
   VISUAL_PROPERTY_KEYS.fontWeight,
   VISUAL_PROPERTY_KEYS.fontStyle,
+  VISUAL_PROPERTY_KEYS.underline,
+  VISUAL_PROPERTY_KEYS.textWrap,
+  VISUAL_PROPERTY_KEYS.lineHeight,
+  VISUAL_PROPERTY_KEYS.textOverflow,
   VISUAL_PROPERTY_KEYS.horizontalAlignment,
   VISUAL_PROPERTY_KEYS.verticalAlignment
 ];
 
-const BASE = [...GEOMETRY, ...TRANSFORM, ...VISIBILITY] as const;
+const TREND: readonly CommonVisualPropertyKey[] = [
+  VISUAL_PROPERTY_KEYS.backgroundColor,
+  VISUAL_PROPERTY_KEYS.strokeColor,
+  VISUAL_PROPERTY_KEYS.strokeWidth,
+  VISUAL_PROPERTY_KEYS.cornerRadius,
+  VISUAL_PROPERTY_KEYS.trendMode,
+  VISUAL_PROPERTY_KEYS.trendWindowSeconds,
+  VISUAL_PROPERTY_KEYS.trendRefreshSeconds,
+  VISUAL_PROPERTY_KEYS.trendLegendVisible,
+  VISUAL_PROPERTY_KEYS.trendGridVisible,
+  VISUAL_PROPERTY_KEYS.trendAxesVisible,
+  VISUAL_PROPERTY_KEYS.trendQualityVisible
+];
+
+const BROWSER: readonly CommonVisualPropertyKey[] = [
+  VISUAL_PROPERTY_KEYS.backgroundColor,
+  VISUAL_PROPERTY_KEYS.strokeColor,
+  VISUAL_PROPERTY_KEYS.strokeWidth,
+  VISUAL_PROPERTY_KEYS.cornerRadius
+];
+
+const BASE = [...GEOMETRY, ...TRANSFORM, ...VISIBILITY, ...EFFECTS] as const;
 
 const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
   [BUILTIN_VISUAL_OBJECT_TYPES.group, schema(BUILTIN_VISUAL_OBJECT_TYPES.group, BASE)],
   [BUILTIN_VISUAL_OBJECT_TYPES.rectangle, schema(BUILTIN_VISUAL_OBJECT_TYPES.rectangle, [
     ...BASE,
-    VISUAL_PROPERTY_KEYS.fillColor,
+    ...FILL,
     ...STROKE,
     VISUAL_PROPERTY_KEYS.cornerRadius
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.ellipse, schema(BUILTIN_VISUAL_OBJECT_TYPES.ellipse, [
     ...BASE,
-    VISUAL_PROPERTY_KEYS.fillColor,
+    ...FILL,
     ...STROKE
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.line, schema(BUILTIN_VISUAL_OBJECT_TYPES.line, [
@@ -81,7 +128,7 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.polygon, schema(BUILTIN_VISUAL_OBJECT_TYPES.polygon, [
     ...BASE,
-    VISUAL_PROPERTY_KEYS.fillColor,
+    ...FILL,
     ...STROKE
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.text, schema(BUILTIN_VISUAL_OBJECT_TYPES.text, [
@@ -101,6 +148,18 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     ...STROKE,
     VISUAL_PROPERTY_KEYS.cornerRadius,
     ...TEXT
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.trend, schema(BUILTIN_VISUAL_OBJECT_TYPES.trend, [
+    ...BASE,
+    ...TREND
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser, schema(BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser, [
+    ...BASE,
+    ...BROWSER
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser, schema(BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser, [
+    ...BASE,
+    ...BROWSER
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.button, schema(BUILTIN_VISUAL_OBJECT_TYPES.button, [
     ...BASE,

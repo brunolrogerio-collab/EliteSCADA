@@ -18,15 +18,21 @@ test('Wave 03 integrated composition publishes, activates and operates through m
   const exportResponse = await request.get('/api/engineering/export/json');
   expect(exportResponse.ok()).toBeTruthy();
   const engineering = await exportResponse.json() as any;
+  const runtimeStartupScreen = engineering.screens?.find((screen: any) => screen.key === 'demo.overview' && screen.id)
+    ?? engineering.screens?.find((screen: any) => screen.id);
+  expect(runtimeStartupScreen?.id).toBeTruthy();
 
   const activatableEngineering = {
     ...engineering,
     exportedAt: new Date().toISOString(),
+    startupScreenId: runtimeStartupScreen.id,
     dataSources: [
-      ...(engineering.dataSources ?? []).map((source: any) => ({
-        ...source,
-        enabled: false
-      })),
+      ...(engineering.dataSources ?? [])
+        .filter((source: any) => source.id !== runtimeSourceId && source.key !== runtimeSourceKey)
+        .map((source: any) => ({
+          ...source,
+          enabled: false
+        })),
       {
         id: runtimeSourceId,
         key: runtimeSourceKey,
@@ -36,7 +42,8 @@ test('Wave 03 integrated composition publishes, activates and operates through m
       }
     ],
     tags: [
-      ...(engineering.tags ?? []),
+      ...(engineering.tags ?? [])
+        .filter((tag: any) => tag.id !== runtimeTagId && tag.path !== runtimeTagPath),
       {
         id: runtimeTagId,
         name: 'RuntimeValue',
@@ -131,8 +138,21 @@ test('Wave 03 integrated composition publishes, activates and operates through m
   expect(activeTags[0]).toMatchObject({ id: runtimeTagId, path: runtimeTagPath });
 
   await page.goto('/');
-  await expect(page.getByRole('region', { name: 'Central de alarmes' })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Inspector de TAGs' })).toBeVisible();
-  await expect(page.getByRole('listbox', { name: 'Inspector de TAGs' }).getByText(runtimeTagPath, { exact: true })).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText('42', { exact: true }).first()).toBeVisible();
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+  await page.getByRole('button', { name: 'Alarmes', exact: true }).click();
+  const alarmOverlay = page.locator('.runtime-operator-overlay');
+  await expect(alarmOverlay).toBeVisible();
+  await expect(alarmOverlay.getByRole('heading', { name: 'Central de alarmes' })).toBeVisible();
+  await expect(page.locator('.runtime-tag-inspector')).toHaveCount(0);
+
+  await page.goto('/engineering/diagnostics/tag-monitor');
+  const tagMonitor = page.getByTestId('engineering-tag-monitor');
+  await expect(tagMonitor).toBeVisible();
+  await expect(tagMonitor).toHaveAttribute('data-active-runtime-project', projectKey);
+  await expect(tagMonitor).toHaveAttribute('data-active-runtime-revision', String(runtime.live.revision));
+
+  const inspector = tagMonitor.locator('.runtime-tag-inspector');
+  await expect(inspector).toBeVisible();
+  await expect(inspector.getByRole('listbox', { name: 'Inspector de TAGs' }).getByText(runtimeTagPath, { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(inspector.getByText('42', { exact: true }).first()).toBeVisible();
 });

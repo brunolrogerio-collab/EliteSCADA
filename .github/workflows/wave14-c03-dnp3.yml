@@ -1,0 +1,314 @@
+name: Wave 14 C03 DNP3 Adapter
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - wave14/c03-dnp3-unrestricted-adapter
+    paths:
+      - "src/Scada.Drivers.Dnp3.OpenDnp3/**"
+      - "src/Scada.DriverHost/**"
+      - "src/Scada.Api/**"
+      - "src/Scada.Drivers/Dnp3/**"
+      - "tests/Scada.Drivers.Tests/**"
+      - "native/dnp3/**"
+      - "interop-lab/dnp3-dnp3py/**"
+      - "interop-lab/compose.dnp3.yaml"
+      - "docs/WAVE14-C03-DNP3-PRODUCTION-ADAPTER.md"
+      - ".github/workflows/wave14-c03-dnp3.yml"
+  pull_request:
+    branches:
+      - wave14/corrections-integration
+    paths:
+      - "src/Scada.Drivers.Dnp3.OpenDnp3/**"
+      - "src/Scada.DriverHost/**"
+      - "src/Scada.Api/**"
+      - "src/Scada.Drivers/Dnp3/**"
+      - "tests/Scada.Drivers.Tests/**"
+      - "native/dnp3/**"
+      - "interop-lab/dnp3-dnp3py/**"
+      - "interop-lab/compose.dnp3.yaml"
+      - "docs/WAVE14-C03-DNP3-PRODUCTION-ADAPTER.md"
+      - ".github/workflows/wave14-c03-dnp3.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  managed-spike:
+    name: Managed adapter build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+
+      - name: Restore DNP3 tests
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+
+      - name: Build DNP3 tests
+        run: dotnet build tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release
+
+      - name: Run OpenDNP3 managed protocol tests
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter FullyQualifiedName~OpenDnp3HostProtocolTests --verbosity normal
+
+      - name: Run DNP3 convergence tests
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter FullyQualifiedName~Dnp3CoordinatorConvergenceTests --verbosity normal
+
+  native-linux:
+    name: Native OpenDNP3 host build (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure pinned OpenDNP3 host
+        run: cmake -S native/dnp3 -B build/dnp3 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build native host
+        run: cmake --build build/dnp3 --config Release --target EliteScada.Dnp3Host --parallel 2
+
+      - name: Verify native host artifact
+        run: test -x build/dnp3/EliteScada.Dnp3Host
+
+      - name: Upload Linux native host
+        uses: actions/upload-artifact@v4
+        with:
+          name: c03-opendnp3-linux-x64
+          path: build/dnp3/EliteScada.Dnp3Host
+          if-no-files-found: error
+          retention-days: 2
+
+  dnp3py-interop:
+    name: OpenDNP3 to dnp3py L3 interop
+    needs: native-linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      ELITESCADA_L3_DNP3_HOST: 127.0.0.1
+      ELITESCADA_L3_DNP3_PORT: "20000"
+      ELITESCADA_DNP3_HOST_PATH: ${{ github.workspace }}/build/dnp3/EliteScada.Dnp3Host
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+
+      - name: Download Linux native host
+        uses: actions/download-artifact@v4
+        with:
+          name: c03-opendnp3-linux-x64
+          path: build/dnp3
+
+      - name: Prepare native host
+        run: chmod +x build/dnp3/EliteScada.Dnp3Host
+
+      - name: Start independent dnp3py outstation
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml -f compose.dnp3.yaml up -d --build --wait --wait-timeout 180 dnp3-dnp3py
+
+      - name: Verify DNP3 peer endpoint
+        run: timeout 20 bash -c 'until nc -z 127.0.0.1 20000; do sleep 1; done'
+
+      - name: Restore DNP3 tests
+        run: dotnet restore tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+
+      - name: Build DNP3 tests
+        run: dotnet build tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-restore --configuration Release
+
+      - name: Run real OpenDNP3/dnp3py interop
+        run: dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --no-build --configuration Release --filter Category=L3OpenDnp3Integration --logger "console;verbosity=normal" --logger "trx;LogFileName=c03-opendnp3-dnp3py.trx" --results-directory TestResults/C03OpenDnp3
+
+      - name: Show dnp3py logs
+        if: always()
+        run: docker logs elitescada-lab-dnp3-dnp3py || true
+
+      - name: Upload L3 interop evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c03-opendnp3-dnp3py-results-${{ github.sha }}
+          path: TestResults/C03OpenDnp3/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Stop DNP3 peer
+        if: always()
+        working-directory: interop-lab
+        run: docker compose -f compose.yaml -f compose.dnp3.yaml down -v
+
+  native-windows:
+    name: Native OpenDNP3 host build (Windows x64)
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure pinned OpenDNP3 host
+        shell: pwsh
+        run: cmake -S native/dnp3 -B build/dnp3 -A x64
+
+      - name: Build native host
+        shell: pwsh
+        run: cmake --build build/dnp3 --config Release --target EliteScada.Dnp3Host --parallel 2
+
+      - name: Inspect native dependency graph
+        shell: pwsh
+        run: |
+          $exe = Resolve-Path 'build/dnp3/Release/EliteScada.Dnp3Host.exe'
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installation = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $installation) { throw 'Visual Studio C++ toolchain was not found.' }
+          $vcvars = Join-Path $installation 'VC\Auxiliary\Build\vcvars64.bat'
+          $command = '"' + $vcvars + '" && dumpbin /DEPENDENTS "' + $exe.Path + '"'
+          $dependencies = cmd /c $command
+          $dependencies | Tee-Object -FilePath build/dnp3/windows-dependencies.txt
+          if ($LASTEXITCODE -ne 0) { throw 'dumpbin dependency inspection failed.' }
+          if ($dependencies -match '(?i)(libssl|libcrypto|opendnp3\.dll|vcruntime\d*\.dll|msvcp\d*\.dll)') {
+            throw 'Windows DNP3 host unexpectedly depends on OpenSSL, shared OpenDNP3, or the shared MSVC runtime.'
+          }
+          Get-FileHash $exe.Path -Algorithm SHA256 | Format-List | Out-File build/dnp3/windows-sha256.txt
+          Get-Content build/dnp3/windows-sha256.txt
+
+      - name: Stage native host and exact third-party notices
+        shell: pwsh
+        run: |
+          $stage = 'build/dnp3/package-input'
+          New-Item -ItemType Directory -Force "$stage/native/dnp3" | Out-Null
+          Copy-Item 'build/dnp3/Release/EliteScada.Dnp3Host.exe' "$stage/native/dnp3/EliteScada.Dnp3Host.exe"
+          Copy-Item 'build/dnp3/windows-dependencies.txt' "$stage/windows-dependencies.txt"
+          Copy-Item 'build/dnp3/windows-sha256.txt' "$stage/windows-sha256.txt"
+
+          $required = @(
+            'build/dnp3/_deps/opendnp3-src/LICENSE',
+            'build/dnp3/_deps/opendnp3-src/NOTICE',
+            'build/dnp3/_deps/asio-src/asio/LICENSE_1_0.txt',
+            'build/dnp3/_deps/exe4cpp-src/LICENSE',
+            'build/dnp3/_deps/ser4cpp-src/LICENSE'
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) { throw "Required third-party license material is missing: $path" }
+          }
+
+          $notice = "$stage/DNP3-THIRD-PARTY-NOTICES.txt"
+          @(
+            'EliteSCADA DNP3 native host third-party notices',
+            'OpenDNP3 3.1.2 commit 26b4c01e4839bbbda8866655e086471c4917ee53',
+            'TLS disabled; OpenSSL is not linked into this distribution.',
+            '',
+            '===== OpenDNP3 LICENSE ====='
+          ) | Set-Content $notice
+          Get-Content 'build/dnp3/_deps/opendnp3-src/LICENSE' | Add-Content $notice
+          Add-Content $notice "`n===== OpenDNP3 NOTICE ====="
+          Get-Content 'build/dnp3/_deps/opendnp3-src/NOTICE' | Add-Content $notice
+          Add-Content $notice "`n===== ASIO / Boost Software License 1.0 ====="
+          Get-Content 'build/dnp3/_deps/asio-src/asio/LICENSE_1_0.txt' | Add-Content $notice
+          Add-Content $notice "`n===== exe4cpp BSD-3-Clause ====="
+          Get-Content 'build/dnp3/_deps/exe4cpp-src/LICENSE' | Add-Content $notice
+          Add-Content $notice "`n===== ser4cpp BSD-3-Clause ====="
+          Get-Content 'build/dnp3/_deps/ser4cpp-src/LICENSE' | Add-Content $notice
+
+      - name: Upload Windows native host evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: c03-opendnp3-windows-x64
+          path: build/dnp3/package-input/**
+          if-no-files-found: error
+          retention-days: 14
+
+  windows-publish:
+    name: Windows commercial publish dependency gate
+    needs: native-windows
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+
+      - name: Download native distribution inputs
+        uses: actions/download-artifact@v4
+        with:
+          name: c03-opendnp3-windows-x64
+          path: build/dnp3/package-input
+
+      - name: Restore Windows runtime graph
+        shell: pwsh
+        run: dotnet restore src/Scada.Api/Scada.Api.csproj --runtime win-x64
+
+      - name: Publish Windows runtime with required DNP3 helper
+        shell: pwsh
+        run: |
+          $helper = (Resolve-Path 'build/dnp3/package-input/native/dnp3/EliteScada.Dnp3Host.exe').Path
+          $notices = (Resolve-Path 'build/dnp3/package-input/DNP3-THIRD-PARTY-NOTICES.txt').Path
+          dotnet publish src/Scada.Api/Scada.Api.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained false `
+            --no-restore `
+            --output artifacts/win-x64 `
+            /p:EliteScadaRequireDnp3NativeHost=true `
+            /p:EliteScadaDnp3HostPath="$helper" `
+            /p:EliteScadaDnp3NoticesPath="$notices"
+
+      - name: Prove Step Function is absent from commercial graph
+        shell: pwsh
+        run: |
+          $publish = Resolve-Path 'artifacts/win-x64'
+          $helper = Join-Path $publish 'native/dnp3/EliteScada.Dnp3Host.exe'
+          $notices = Join-Path $publish 'third-party/dnp3/DNP3-THIRD-PARTY-NOTICES.txt'
+          $managed = Join-Path $publish 'Scada.Drivers.Dnp3.OpenDnp3.dll'
+          if (-not (Test-Path $helper)) { throw 'Packaged OpenDNP3 native host is missing.' }
+          if (-not (Test-Path $notices)) { throw 'Packaged DNP3 third-party notices are missing.' }
+          if (-not (Test-Path $managed)) { throw 'Managed OpenDNP3 adapter is missing from publish.' }
+
+          $forbiddenFiles = Get-ChildItem $publish -Recurse -File | Where-Object {
+            $_.Name -ieq 'Scada.Drivers.Dnp3.StepFunction.dll' -or $_.Name -ieq 'dnp3.dll'
+          }
+          if ($forbiddenFiles) {
+            $forbiddenFiles | ForEach-Object { Write-Error "Forbidden Step Function distribution file: $($_.FullName)" }
+            throw 'Restricted Step Function bytes remain in Windows publish.'
+          }
+
+          $depsFile = Join-Path $publish 'Scada.Api.deps.json'
+          if (-not (Test-Path $depsFile)) { throw 'Scada.Api.deps.json is missing.' }
+          $deps = Get-Content $depsFile -Raw
+          if ($deps -match '(?i)Scada\.Drivers\.Dnp3\.StepFunction' -or $deps -match '(?i)"dnp3/1\.6\.0"') {
+            throw 'Restricted Step Function dependency remains in Scada.Api.deps.json.'
+          }
+
+          dotnet list src/Scada.Api/Scada.Api.csproj package --include-transitive | Tee-Object -FilePath artifacts/win-x64-package-graph.txt
+          $graph = Get-Content artifacts/win-x64-package-graph.txt -Raw
+          if ($graph -match '(?im)^\s*>\s+dnp3\s+1\.6\.0\b') {
+            throw 'Restricted Step Function NuGet package dnp3 1.6.0 remains in the production package graph.'
+          }
+
+          Get-FileHash $helper -Algorithm SHA256 | Format-List | Out-File artifacts/win-x64-dnp3-sha256.txt
+          Get-ChildItem $publish -Recurse -File | Sort-Object FullName | Select-Object FullName, Length | Format-Table -AutoSize | Out-File artifacts/win-x64-file-manifest.txt
+          Get-Content artifacts/win-x64-dnp3-sha256.txt
+
+      - name: Upload Windows commercial publish evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: c03-windows-commercial-publish-${{ github.sha }}
+          path: |
+            artifacts/win-x64/**
+            artifacts/win-x64-package-graph.txt
+            artifacts/win-x64-dnp3-sha256.txt
+            artifacts/win-x64-file-manifest.txt
+          if-no-files-found: error
+          retention-days: 14

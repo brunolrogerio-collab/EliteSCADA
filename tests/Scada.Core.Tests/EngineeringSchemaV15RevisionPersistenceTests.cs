@@ -44,7 +44,7 @@ public sealed class EngineeringSchemaV15RevisionPersistenceTests
         var snapshot = await sourcePersistence.SaveCurrentAsync("plant-v15", "Plant v15", "engineer");
         var storedPackage = sourceExchange.ParseJson(snapshot.EngineeringJson);
 
-        Assert.Equal(15, snapshot.EngineeringSchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, snapshot.EngineeringSchemaVersion);
         var storedTag = Assert.Single(storedPackage.Tags);
         Assert.NotNull(storedTag.CommunicationBinding);
         Assert.Equal("modbus.tcp.tag", storedTag.CommunicationBinding!.SchemaId);

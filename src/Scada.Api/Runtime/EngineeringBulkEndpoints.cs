@@ -84,6 +84,20 @@ public static class EngineeringBulkEndpoints
                 return failure;
             }
 
+            var lockFailure = EngineeringLockAccess.ProtectedEngineeringFailure(exchange);
+            if (lockFailure is not null)
+            {
+                await audit.RecordAsync(
+                    context,
+                    authorization.Principal,
+                    AuditActions.EngineeringBulkApply,
+                    AuditOutcome.Denied,
+                    "engineering-workspace",
+                    "bulk",
+                    new Dictionary<string, string> { ["reason"] = "engineering-lock" });
+                return lockFailure;
+            }
+
             if (!TryReadExpectedVersion(context.Request, out var expectedChangeVersion))
             {
                 await audit.RecordAsync(
@@ -379,7 +393,8 @@ public static class EngineeringBulkEndpoints
             Array.Empty<ScreenEngineeringDto>(),
             Array.Empty<PopupEngineeringDto>(),
             Array.Empty<SecurityRoleEngineeringDto>(),
-            Array.Empty<CommandEngineeringDto>());
+            Array.Empty<CommandEngineeringDto>(),
+            EngineeringLock: source.EngineeringLock);
 
     private static string NormalizeKind(string value) => value.Trim().ToLowerInvariant() switch
     {

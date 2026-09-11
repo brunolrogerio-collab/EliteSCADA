@@ -1,0 +1,288 @@
+:root,
+:root[data-app-theme="dark"] {
+  --app-bg: #0b0f14;
+  --app-surface: #111820;
+  --app-surface-elevated: #17212b;
+  --app-panel: #10171e;
+  --app-border: #2a3947;
+  --app-divider: #26333e;
+  --app-text-primary: #edf3f7;
+  --app-text-secondary: #9eacb8;
+  --app-text-disabled: #65727d;
+  --app-accent: #64b5e3;
+  --app-selected: #183247;
+  --app-hover: #17232d;
+  --app-focus: #8bd3ff;
+  --app-error: #ff7f8a;
+  --app-warning: #f3c96b;
+  --app-success: #75d69c;
+  --app-input-bg: #0d141a;
+  --app-overlay: rgba(3, 7, 10, .72);
+  --app-runtime-letterbox: #050709;
+}
+
+:root[data-app-theme="light"] {
+  --app-bg: #edf2f6;
+  --app-surface: #ffffff;
+  --app-surface-elevated: #f8fafc;
+  --app-panel: #f5f8fa;
+  --app-border: #bdc9d3;
+  --app-divider: #d4dde5;
+  --app-text-primary: #15212b;
+  --app-text-secondary: #4d5f6d;
+  --app-text-disabled: #8997a2;
+  --app-accent: #066a9f;
+  --app-selected: #d9edf9;
+  --app-hover: #e8f1f7;
+  --app-focus: #005f91;
+  --app-error: #a9222f;
+  --app-warning: #805d00;
+  --app-success: #176b38;
+  --app-input-bg: #ffffff;
+  --app-overlay: rgba(18, 29, 38, .45);
+  --app-runtime-letterbox: #11161a;
+}
+
+html, body, #root { min-height: 100%; }
+body { background: var(--app-bg); color: var(--app-text-primary); }
+
+.app-bar {
+  border-color: var(--app-divider);
+  background: var(--app-surface);
+  color: var(--app-text-primary);
+}
+.app-brand-mark { border-color: var(--app-border); background: var(--app-surface-elevated); color: var(--app-accent); }
+.app-brand-copy small,
+.app-context span,
+.app-navigation a small { color: var(--app-text-secondary); }
+.app-navigation a { color: var(--app-text-secondary); }
+.app-navigation a:hover,
+.app-navigation a:focus-visible { background: var(--app-hover); color: var(--app-text-primary); }
+.app-navigation a:focus-visible,
+.runtime-view-navigation a:focus-visible,
+.app-theme-control select:focus-visible { outline: 2px solid var(--app-focus); outline-offset: -2px; }
+.app-navigation a.active { border-color: var(--app-border); border-bottom-color: var(--app-accent); background: var(--app-selected); color: var(--app-text-primary); }
+.app-navigation a.active small { color: var(--app-text-secondary); }
+.app-context { border-color: var(--app-divider); }
+.app-context strong { color: var(--app-text-primary); }
+.runtime-view-navigation { border-color: var(--app-divider); background: var(--app-panel); }
+.runtime-view-navigation a { color: var(--app-text-secondary); }
+.runtime-view-navigation a:hover,
+.runtime-view-navigation a:focus-visible { color: var(--app-text-primary); border-color: var(--app-border); }
+.runtime-view-navigation a.active { color: var(--app-text-primary); border-color: var(--app-accent); background: var(--app-selected); }
+
+.app-theme-control select {
+  min-height: 32px;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background: var(--app-input-bg);
+  color: var(--app-text-primary);
+  padding: 0 24px 0 8px;
+}
+
+.app-route-state {
+  min-height: 180px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  color: var(--app-text-primary);
+}
+.app-route-state a { color: var(--app-accent); }
+
+/* Shell/application chrome only. Authored HMI surfaces and visual elements are deliberately excluded. */
+.auth-page,
+.eng-shell,
+.audit-shell,
+.licensing-page,
+.runtime-history-page { background: var(--app-bg); color: var(--app-text-primary); }
+
+/* Engineering legacy selectors consume the application semantic palette. This deliberately
+   stops at Engineering chrome; runtime visual/HMI selectors are not included. */
+.eng-shell {
+  --eng-bg: var(--app-bg);
+  --eng-panel: var(--app-surface);
+  --eng-panel-soft: var(--app-surface-elevated);
+  --eng-border: var(--app-border);
+  --eng-border-soft: var(--app-divider);
+  --eng-text: var(--app-text-primary);
+  --eng-muted: var(--app-text-secondary);
+  --eng-accent: var(--app-accent);
+  --eng-accent-soft: var(--app-selected);
+  --eng-warning: var(--app-warning);
+  --eng-danger: var(--app-error);
+}
+.eng-topbar,
+.eng-sidebar { background: var(--app-surface); }
+.eng-mark,
+.eng-entity-card,
+.eng-lifecycle span,
+.eng-flow span { background: var(--app-surface-elevated); border-color: var(--app-border); }
+.eng-runtime-link,
+.eng-panel h2,
+.eng-table td { color: var(--app-text-primary); }
+.eng-runtime-link:hover,
+.eng-nav button:hover { background: var(--app-hover); border-color: var(--app-border); color: var(--app-text-primary); }
+.eng-locale select,
+.eng-state-card button { background: var(--app-input-bg); border-color: var(--app-border); color: var(--app-text-primary); }
+.eng-nav-label,
+.eng-nav button i,
+.eng-nav button small,
+.eng-lifecycle b,
+.eng-flow b,
+.eng-table th,
+.eng-capability-list { color: var(--app-text-secondary); }
+.eng-nav button { color: var(--app-text-secondary); }
+.eng-nav button.active { background: var(--app-selected); color: var(--app-text-primary); }
+.eng-workspace-bar { background: var(--app-panel); border-color: var(--app-divider); }
+.eng-table th { background: var(--app-panel); }
+.eng-table tbody tr:hover { background: var(--app-hover); }
+.eng-code { color: var(--app-accent); }
+.eng-bool { border-color: var(--app-border); color: var(--app-text-secondary); }
+.eng-bool.yes { border-color: var(--app-success); color: var(--app-success); }
+.eng-bool.no,
+.eng-state-card.error { border-color: var(--app-error); color: var(--app-error); }
+.eng-state-card button:focus-visible,
+.eng-runtime-link:focus-visible,
+.eng-locale select:focus-visible,
+.eng-nav button:focus-visible { outline: 2px solid var(--app-focus); outline-offset: 2px; }
+.eng-spinner { border-color: var(--app-divider); border-top-color: var(--app-accent); }
+
+/* Audit and Licensing are application administration surfaces, not authored HMI content. */
+.audit-panel,
+.audit-event-detail,
+.audit-diagnostic-card,
+.licensing-card,
+.licensing-message { background: var(--app-surface); border-color: var(--app-border); color: var(--app-text-primary); }
+.audit-filter-field input,
+.audit-filter-field select,
+.licensing-request,
+.licensing-card form textarea { background: var(--app-input-bg); border-color: var(--app-border); color: var(--app-text-primary); }
+.audit-header p,
+.audit-section-heading p,
+.audit-diagnostics-disclosure p,
+.audit-muted,
+.audit-section-heading > span,
+.audit-pagination > span,
+.audit-filter-field > span,
+.audit-advanced-filters summary,
+.audit-diagnostics-disclosure summary,
+.audit-active-filters,
+.audit-event-topline time,
+.audit-event-summary small,
+.audit-event-detail-empty,
+.audit-detail-grid dt,
+.audit-detail-grid dd small,
+.audit-detail-section h4,
+.audit-diagnostic-card > span,
+.audit-diagnostic-card > small,
+.licensing-heading p,
+.licensing-card dt,
+.licensing-card form label,
+.licensing-help { color: var(--app-text-secondary); }
+.audit-kicker,
+.audit-detail-kicker,
+.audit-filter-chips b,
+.audit-event-item code,
+.audit-detail-heading code { color: var(--app-accent); }
+.audit-secondary,
+.licensing-heading button,
+.licensing-actions button { background: var(--app-surface-elevated); border-color: var(--app-border); color: var(--app-text-primary); }
+.audit-primary { background: var(--app-accent); border-color: var(--app-accent); color: #fff; }
+.audit-advanced-filters,
+.audit-active-filters,
+.audit-detail-heading,
+.audit-detail-section { border-color: var(--app-divider); }
+.audit-filter-chips > span { background: var(--app-surface-elevated); border-color: var(--app-border); color: var(--app-text-primary); }
+.audit-state { border-color: var(--app-border); color: var(--app-text-secondary); }
+.audit-event-item { background: var(--app-surface-elevated); border-color: var(--app-border); color: var(--app-text-primary); }
+.audit-event-item:hover { background: var(--app-hover); border-color: var(--app-border); }
+.audit-event-selected { background: var(--app-selected); border-color: var(--app-accent); box-shadow: inset 3px 0 0 var(--app-accent); }
+.audit-event-summary b,
+.audit-detail-grid dd,
+.audit-diagnostic-card > strong { color: var(--app-text-primary); }
+.audit-error,
+.licensing-message.error { background: color-mix(in srgb, var(--app-error) 10%, var(--app-surface)); border-color: var(--app-error); color: var(--app-error); }
+.audit-error-forbidden,
+.audit-error-unauthenticated,
+.audit-health-warning,
+.audit-diagnostic-warning { background: color-mix(in srgb, var(--app-warning) 10%, var(--app-surface)); border-color: var(--app-warning); color: var(--app-warning); }
+.audit-health-pill,
+.audit-outcome-succeeded,
+.licensing-message.success { background: color-mix(in srgb, var(--app-success) 10%, var(--app-surface)); border-color: var(--app-success); color: var(--app-success); }
+.audit-outcome-denied { background: color-mix(in srgb, var(--app-warning) 10%, var(--app-surface)); color: var(--app-warning); }
+.audit-outcome-failed,
+.audit-outcome-unknown { background: color-mix(in srgb, var(--app-error) 10%, var(--app-surface)); color: var(--app-error); }
+.audit-diagnostics-disclosure > summary::marker { color: var(--app-text-secondary); }
+.audit-diagnostics-attention { box-shadow: inset 3px 0 0 var(--app-warning); }
+.licensing-actions .licensing-danger { background: color-mix(in srgb, var(--app-error) 10%, var(--app-surface)); border-color: var(--app-error); color: var(--app-error); }
+
+/* Runtime History is application UI. Its controls may follow the shell theme; HMI visuals are not descendants. */
+.runtime-history-page { --border: var(--app-border); }
+.runtime-history-page input,
+.runtime-history-page select,
+.runtime-history-page textarea,
+.runtime-history-page button {
+  border: 1px solid var(--app-border);
+  background: var(--app-input-bg);
+  color: var(--app-text-primary);
+}
+.runtime-history-page button:hover:not(:disabled) { background: var(--app-hover); }
+.runtime-history-page button:focus-visible,
+.runtime-history-page input:focus-visible,
+.runtime-history-page select:focus-visible,
+.runtime-history-page textarea:focus-visible { outline: 2px solid var(--app-focus); outline-offset: 2px; }
+
+.app-bar--runtime-only { min-height: 44px; grid-template-columns: auto 1fr auto; }
+.app-bar--runtime-only .app-brand { padding-block: 5px; }
+.app-bar--runtime-only .app-brand-mark { width: 28px; height: 28px; }
+.app-bar--runtime-only .app-navigation { justify-self: start; }
+
+.runtime-logical-viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--app-runtime-letterbox);
+  touch-action: none;
+}
+.runtime-logical-stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: 0 0;
+  overflow: visible;
+}
+.runtime-logical-composition {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.runtime-logical-composition > .runtime-visual-screen {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.runtime-logical-composition > .runtime-visual-popup-layer {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.runtime-logical-composition .runtime-visual-popup { pointer-events: auto; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

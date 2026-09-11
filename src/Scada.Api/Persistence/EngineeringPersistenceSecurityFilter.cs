@@ -1,4 +1,5 @@
 using Scada.Api.Security;
+using Scada.Engineering.ImportExport;
 using Scada.Security.Audit;
 using Scada.Security.Authorization;
 
@@ -7,39 +8,71 @@ namespace Scada.Api.Persistence;
 public sealed class EngineeringPersistenceSecurityFilter(
     ApiAuthorizationService security,
     ApiAuditService audit,
-    IConfiguration configuration) : IEndpointFilter
+    IConfiguration configuration,
+    IEngineeringExchangeService exchange) : IEndpointFilter
 {
     public async ValueTask<object?> InvokeAsync(
         EndpointFilterInvocationContext invocationContext,
         EndpointFilterDelegate next)
     {
         var context = invocationContext.HttpContext;
-        if (!AuthenticationEnabled(configuration))
-            return await next(invocationContext);
-
-        // Every persistence surface exposes Engineering state, revision metadata or
-        // lifecycle behavior. Authorization is therefore group-wide; auditing remains
-        // limited to state-changing lifecycle operations.
         var operation = ResolveOperation(context.Request.Method, context.Request.Path.Value);
-        var authorization = security.CheckWorkspace(
-            context,
-            SecurityCapability.EngineeringModify);
-        var failure = authorization.FailureResult();
-        if (failure is not null)
-        {
-            if (operation is not null)
-            {
-                await audit.RecordAuthorizationDeniedAsync(
-                    context,
-                    authorization,
-                    operation.Action,
-                    operation.TargetKind,
-                    ResolveTargetId(context),
-                    ResolveDetails(context));
-            }
+        ApiAuthorizationCheck? authorization = null;
 
-            return failure;
+        if (AuthenticationEnabled(configuration))
+        {
+            // Every persistence surface exposes Engineering state, revision metadata or
+            // lifecycle behavior. Authority remains the first access boundary.
+            authorization = security.CheckWorkspace(
+                context,
+                SecurityCapability.EngineeringModify);
+            var failure = authorization.FailureResult();
+            if (failure is not null)
+            {
+                if (operation is not null)
+                {
+                    await audit.RecordAuthorizationDeniedAsync(
+                        context,
+                        authorization,
+                        operation.Action,
+                        operation.TargetKind,
+                        ResolveTargetId(context),
+                        ResolveDetails(context));
+                }
+
+                return failure;
+            }
         }
+
+        // Restore/replacement paths deliberately remain reachable while locked. They still
+        // pass normal Authority authorization, validation, concurrency and audit gates.
+        if (!EngineeringLockAccess.IsPersistenceRecoveryExempt(context.Request))
+        {
+            var lockFailure = EngineeringLockAccess.ProtectedEngineeringFailure(exchange);
+            if (lockFailure is not null)
+            {
+                if (operation is not null && authorization is not null)
+                {
+                    var details = new Dictionary<string, string>(ResolveDetails(context))
+                    {
+                        ["reason"] = "engineering-lock"
+                    };
+                    await audit.RecordAsync(
+                        context,
+                        authorization.Principal,
+                        operation.Action,
+                        AuditOutcome.Denied,
+                        operation.TargetKind,
+                        ResolveTargetId(context),
+                        details);
+                }
+
+                return lockFailure;
+            }
+        }
+
+        if (authorization is null)
+            return await next(invocationContext);
 
         // Read/preview operations are authorization-only; they do not mutate process or
         // Engineering state and therefore do not create lifecycle audit entries.

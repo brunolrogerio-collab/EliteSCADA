@@ -13,7 +13,6 @@ import type {
   VisualElementEngineering,
   VisualExpressionDependencyEngineering,
   VisualExpressionEngineering,
-  VisualExpressionValueTypeEngineering,
   VisualValueSourceEngineering
 } from '../types';
 import type { VisualPropertyValue } from '../../visual-runtime';
@@ -21,6 +20,15 @@ import {
   computeAnalogFillPresentation,
   type AnalogFillPresentation
 } from './analogFillPresentation';
+import {
+  normalizeVisualAnalogFillDirection,
+  normalizeVisualBooleanConditionKind,
+  normalizeVisualExpressionDependencyKind,
+  normalizeVisualExpressionValueType,
+  normalizeVisualNumericIntervalMode,
+  normalizeVisualValueSourceKind,
+  type CanonicalVisualExpressionValueType
+} from './visualDynamicWireContract';
 
 export type VisualDynamicSample = Readonly<{
   reference: string;
@@ -50,6 +58,10 @@ export type VisualDynamicResolution = Readonly<{
 
 type SourceResult =
   | Readonly<{ ok: true; value: boolean | number; valueType: 'boolean' | 'number' }>
+  | Readonly<{ ok: false; message: string }>;
+
+type RuntimeDependencyResult =
+  | Readonly<{ ok: true; dependency: VisualExpressionDependency }>
   | Readonly<{ ok: false; message: string }>;
 
 export function visualTagSampleKey(tagId: string): string {
@@ -139,17 +151,16 @@ function resolveBooleanCondition(
   condition: VisualBooleanConditionEngineering,
   samples: ReadonlyMap<string, VisualDynamicSample>
 ): SourceResult {
-  if (condition.kind === 'Direct') {
+  const kind = normalizeVisualBooleanConditionKind(condition.kind);
+  if (!kind.ok) return kind;
+
+  if (kind.value === 'Direct') {
     const source = resolveValueSource(condition.source, samples);
     if (!source.ok) return source;
     if (source.valueType !== 'boolean' || typeof source.value !== 'boolean') {
       return Object.freeze({ ok: false, message: 'Direct Boolean Condition requires a Boolean source.' });
     }
     return Object.freeze({ ok: true, value: condition.negate ? !source.value : source.value, valueType: 'boolean' });
-  }
-
-  if (condition.kind !== 'NumericInterval') {
-    return Object.freeze({ ok: false, message: `Unsupported Boolean Condition kind '${String(condition.kind)}'.` });
   }
 
   const source = resolveValueSource(condition.source, samples);
@@ -166,6 +177,11 @@ function resolveBooleanCondition(
   if (maximum !== null && !Number.isFinite(maximum)) return Object.freeze({ ok: false, message: 'Numeric interval maximum must be finite.' });
   if (minimum !== null && maximum !== null && minimum > maximum) return Object.freeze({ ok: false, message: 'Numeric interval minimum cannot exceed maximum.' });
 
+  const intervalMode = condition.intervalMode === undefined || condition.intervalMode === null
+    ? Object.freeze({ ok: true as const, value: 'Inside' as const })
+    : normalizeVisualNumericIntervalMode(condition.intervalMode);
+  if (!intervalMode.ok) return intervalMode;
+
   const lower = minimum === null
     ? true
     : condition.minimumInclusive === false ? numericValue > minimum : numericValue >= minimum;
@@ -173,7 +189,7 @@ function resolveBooleanCondition(
     ? true
     : condition.maximumInclusive === false ? numericValue < maximum : numericValue <= maximum;
   const inside = lower && upper;
-  const intervalResult = (condition.intervalMode ?? 'Inside') === 'Outside' ? !inside : inside;
+  const intervalResult = intervalMode.value === 'Outside' ? !inside : inside;
   const value = condition.negate ? !intervalResult : intervalResult;
   return Object.freeze({ ok: true, value, valueType: 'boolean' });
 }
@@ -188,12 +204,17 @@ function resolveAnalogFill(
     return Object.freeze({ ok: false, message: 'Analog Fill requires a Number source.' });
   }
 
+  const direction = config.direction === undefined || config.direction === null
+    ? Object.freeze({ ok: true as const, value: 'BottomToTop' as const })
+    : normalizeVisualAnalogFillDirection(config.direction);
+  if (!direction.ok) return direction;
+
   try {
     const presentation = computeAnalogFillPresentation({
       value: source.value,
       inputMinimum: config.inputMinimum,
       inputMaximum: config.inputMaximum,
-      direction: config.direction ?? 'BottomToTop',
+      direction: direction.value,
       clamp: config.clamp ?? true,
       invertScale: config.invertScale ?? false
     });
@@ -210,21 +231,20 @@ function resolveValueSource(
   source: VisualValueSourceEngineering,
   samples: ReadonlyMap<string, VisualDynamicSample>
 ): SourceResult {
-  if (source.kind === 'Expression') {
+  const kind = normalizeVisualValueSourceKind(source.kind);
+  if (!kind.ok) return kind;
+
+  if (kind.value === 'Expression') {
     if (!source.expression) return Object.freeze({ ok: false, message: 'Expression source is missing its expression.' });
     return resolveExpression(source.expression, samples);
   }
 
-  if (source.kind !== 'Tag' && source.kind !== 'ClientMemory') {
-    return Object.freeze({ ok: false, message: `Unsupported value source kind '${String(source.kind)}'.` });
-  }
-
-  const target = source.target ?? source.tagReference?.tagId ?? source.kind;
+  const target = source.target ?? source.tagReference?.tagId ?? kind.value;
   const sample = findSample(source.tagReference, source.target, samples);
   const usable = validateSample(sample, target);
   if (!usable.ok) return usable;
 
-  const projected = source.kind === 'Tag'
+  const projected = kind.value === 'Tag'
     ? projectTagValueReference(source.tagReference, usable.sample.dataType, usable.sample.value)
     : { ok: true, value: usable.sample.value, dataType: usable.sample.dataType };
   if (!projected.ok) return Object.freeze({ ok: false, message: projected.detail ?? `Source '${target}' is unavailable.` });
@@ -236,9 +256,21 @@ function resolveExpression(
   expression: VisualExpressionEngineering,
   samples: ReadonlyMap<string, VisualDynamicSample>
 ): SourceResult {
-  const dependencies = (expression.dependencies ?? []).map(toRuntimeDependency);
-  const resultType = expressionValueType(expression.resultType);
-  const compiled = compileVisualExpression(expression.text, resultType, dependencies);
+  const normalizedResultType = normalizeVisualExpressionValueType(expression.resultType);
+  if (!normalizedResultType.ok) return normalizedResultType;
+
+  const dependencies: VisualExpressionDependency[] = [];
+  for (const dependency of expression.dependencies ?? []) {
+    const runtime = toRuntimeDependency(dependency);
+    if (!runtime.ok) return runtime;
+    dependencies.push(runtime.dependency);
+  }
+
+  const compiled = compileVisualExpression(
+    expression.text,
+    expressionValueType(normalizedResultType.value),
+    dependencies
+  );
   if (!compiled.ok) {
     const first = compiled.diagnostics[0];
     return Object.freeze({ ok: false, message: first ? `${first.code}: ${first.message}` : 'Expression could not be compiled.' });
@@ -253,22 +285,33 @@ function resolveExpression(
   return Object.freeze({ ok: true, value: evaluated.value, valueType: evaluated.valueType });
 }
 
-function toRuntimeDependency(dependency: VisualExpressionDependencyEngineering): VisualExpressionDependency {
+function toRuntimeDependency(dependency: VisualExpressionDependencyEngineering): RuntimeDependencyResult {
+  const kind = normalizeVisualExpressionDependencyKind(dependency.kind);
+  if (!kind.ok) return kind;
+  const valueType = normalizeVisualExpressionValueType(dependency.valueType);
+  if (!valueType.ok) return valueType;
+
   return Object.freeze({
-    symbol: dependency.symbol,
-    kind: dependency.kind === 'ClientMemory' ? 'clientMemory' : 'tag',
-    valueType: expressionValueType(dependency.valueType),
-    tagReference: dependency.tagReference,
-    ...(dependency.target === undefined ? {} : { target: dependency.target })
+    ok: true,
+    dependency: Object.freeze({
+      symbol: dependency.symbol,
+      kind: kind.value === 'ClientMemory' ? 'clientMemory' : 'tag',
+      valueType: expressionValueType(valueType.value),
+      tagReference: dependency.tagReference,
+      ...(dependency.target === undefined ? {} : { target: dependency.target })
+    })
   });
 }
 
-function expressionValueType(valueType: VisualExpressionValueTypeEngineering): 'boolean' | 'number' {
+function expressionValueType(valueType: CanonicalVisualExpressionValueType): 'boolean' | 'number' {
   return valueType === 'Boolean' ? 'boolean' : 'number';
 }
 
-function typedSourceValue(value: unknown, expected: VisualExpressionValueTypeEngineering, target: string): SourceResult {
-  if (expected === 'Boolean') {
+function typedSourceValue(value: unknown, expected: unknown, target: string): SourceResult {
+  const valueType = normalizeVisualExpressionValueType(expected);
+  if (!valueType.ok) return valueType;
+
+  if (valueType.value === 'Boolean') {
     return typeof value === 'boolean'
       ? Object.freeze({ ok: true, value, valueType: 'boolean' })
       : Object.freeze({ ok: false, message: `Source '${target}' did not produce Boolean.` });

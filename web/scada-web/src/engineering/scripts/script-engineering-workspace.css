@@ -1,7 +1,16 @@
 .script-workspace {
+  --script-surface: var(--eng-panel, #121922);
+  --script-surface-soft: var(--eng-panel-soft, #17212c);
+  --script-control-surface: #0f161e;
+  --script-border: var(--eng-border, #283544);
+  --script-border-soft: var(--eng-border-soft, #202c39);
+  --script-text: var(--eng-text, #e8edf3);
+  --script-muted: var(--eng-muted, #8e9baa);
+  --script-accent: var(--eng-accent, #58a6d6);
   display: grid;
   gap: 1rem;
   min-width: 0;
+  color: var(--script-text);
 }
 
 .script-workspace__header,
@@ -25,9 +34,10 @@
 .script-workspace__header {
   align-items: flex-start;
   padding: 1rem;
-  border: 1px solid var(--border, #d6dae2);
+  border: 1px solid var(--script-border);
   border-radius: 12px;
-  background: var(--surface, #fff);
+  background: var(--script-surface);
+  color: var(--script-text);
 }
 
 .script-workspace__header h2,
@@ -60,8 +70,10 @@
   align-items: center;
   min-height: 1.8rem;
   padding: .2rem .55rem;
-  border: 1px solid var(--border, #d6dae2);
+  border: 1px solid var(--script-border);
   border-radius: 999px;
+  background: var(--script-control-surface);
+  color: var(--script-text);
   font-size: .78rem;
   white-space: nowrap;
 }
@@ -80,8 +92,10 @@
 .script-preserved,
 .script-state {
   padding: .8rem 1rem;
-  border: 1px solid var(--border, #d6dae2);
+  border: 1px solid var(--script-border);
   border-radius: 10px;
+  background: var(--script-surface);
+  color: var(--script-text);
 }
 
 .script-message--error,
@@ -113,9 +127,16 @@
 .script-workspace button {
   min-height: 2.35rem;
   padding: .45rem .75rem;
-  border: 1px solid var(--border, #c9ced8);
+  border: 1px solid var(--script-border);
   border-radius: 8px;
+  background: var(--script-surface-soft);
+  color: var(--script-text);
   cursor: pointer;
+}
+
+.script-workspace button:hover:not(:disabled) {
+  border-color: #48657d;
+  background: #1b2935;
 }
 
 .script-workspace button:disabled {
@@ -126,6 +147,7 @@
 .script-workspace button.secondary,
 .script-workspace button.ghost {
   background: transparent;
+  color: var(--script-text);
 }
 
 .script-workspace button.danger {
@@ -141,9 +163,10 @@
 
 .script-list,
 .script-editor {
-  border: 1px solid var(--border, #d6dae2);
+  border: 1px solid var(--script-border);
   border-radius: 12px;
-  background: var(--surface, #fff);
+  background: var(--script-surface);
+  color: var(--script-text);
 }
 
 .script-list {
@@ -161,16 +184,23 @@
   padding: .7rem;
   text-align: left;
   background: transparent;
+  color: var(--script-text);
+}
+
+.script-list__item:hover:not(:disabled) {
+  background: var(--script-surface-soft);
 }
 
 .script-list__item.is-selected {
   border-width: 2px;
+  border-color: var(--script-accent);
+  background: var(--script-surface-soft);
 }
 
 .script-list__item span,
 .script-list__item small,
 .script-muted {
-  opacity: .72;
+  color: var(--script-muted);
 }
 
 .script-editor {
@@ -194,6 +224,7 @@
   display: grid;
   gap: .35rem;
   min-width: 0;
+  color: var(--script-text);
   font-size: .84rem;
   font-weight: 600;
 }
@@ -205,10 +236,26 @@
   width: 100%;
   box-sizing: border-box;
   padding: .55rem .65rem;
-  border: 1px solid var(--border, #c9ced8);
+  border: 1px solid var(--script-border);
   border-radius: 7px;
-  background: var(--surface, #fff);
-  color: inherit;
+  background: var(--script-control-surface);
+  color: var(--script-text);
+}
+
+.script-editor input::placeholder,
+.script-editor textarea::placeholder,
+.script-workspace__toolbar input::placeholder {
+  color: var(--script-muted);
+  opacity: 1;
+}
+
+.script-editor input:focus,
+.script-editor select:focus,
+.script-editor textarea:focus,
+.script-workspace__toolbar input:focus {
+  outline: 1px solid var(--script-accent);
+  outline-offset: 1px;
+  border-color: var(--script-accent);
 }
 
 .script-editor textarea {
@@ -236,7 +283,7 @@
 .script-collection-header {
   align-items: flex-end;
   padding-top: .35rem;
-  border-top: 1px solid var(--border, #d6dae2);
+  border-top: 1px solid var(--script-border-soft);
 }
 
 .script-rows {
@@ -249,8 +296,9 @@
   gap: .6rem;
   align-items: end;
   padding: .7rem;
-  border: 1px solid var(--border, #d6dae2);
+  border: 1px solid var(--script-border);
   border-radius: 9px;
+  background: var(--script-control-surface);
 }
 
 .script-row--entry {
@@ -280,15 +328,16 @@
 .script-actions {
   flex-wrap: wrap;
   padding-top: .35rem;
-  border-top: 1px solid var(--border, #d6dae2);
+  border-top: 1px solid var(--script-border-soft);
 }
 
 .script-delete-confirm {
   flex: 1 1 100%;
   flex-wrap: wrap;
   padding: .65rem;
-  border: 1px dashed var(--border, #c9ced8);
+  border: 1px dashed var(--script-border);
   border-radius: 8px;
+  background: var(--script-control-surface);
 }
 
 .script-delete-confirm span {

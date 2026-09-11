@@ -1,0 +1,70 @@
+.browser-config-editor {
+  display: grid;
+  gap: 0.65rem;
+  border-top: 1px solid var(--border-subtle, #374151);
+  padding-top: 0.85rem;
+}
+
+.browser-config-editor h3 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.browser-config-editor__field,
+.browser-config-editor__sort {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.browser-config-editor__field > span,
+.browser-config-editor__sort > span {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.browser-config-editor input,
+.browser-config-editor select {
+  min-width: 0;
+  width: 100%;
+}
+
+.browser-config-editor__check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+}
+
+.browser-config-editor__check input,
+.browser-config-editor__columns input {
+  width: auto;
+}
+
+.browser-config-editor__columns {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0.55rem;
+}
+
+.browser-config-editor__columns legend {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.browser-config-editor__columns label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+}
+
+.browser-config-editor__sort {
+  grid-template-columns: 1fr;
+}
+
+.browser-config-editor__error {
+  margin: 0;
+  color: var(--danger, #ef4444);
+  font-size: 0.78rem;
+}

@@ -4,6 +4,7 @@ import { createE2eJwt } from '../tests-e2e/jwt';
 const projectKey = 'e2e-wave11';
 const operatorToken = createE2eJwt('wave11-operator', ['operator'], 'Wave 11 Operator');
 const runtimeSourceKey = 'memory.server.wave11';
+const runtimeSourceId = '00000000-0000-0000-0000-00000000b511';
 const tinyPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl2sAAAAASUVORK5CYII=',
   'base64'
@@ -75,6 +76,7 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
   // Server Memory so the lifecycle test exercises a real Active Runtime without
   // depending on external PLCs, brokers or network timing.
   workingA.dataSources = [{
+    id: runtimeSourceId,
     key: runtimeSourceKey,
     name: 'Wave 11 Server Memory',
     driver: 'builtin.memory.server',
@@ -83,7 +85,8 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
   workingA.tags = workingA.tags.map((tag: any) => ({
     ...tag,
     source: runtimeSourceKey,
-    address: null
+    address: null,
+    dataSourceId: runtimeSourceId
   }));
 
   const activatableWorkingResponse = await request.post('/api/engineering/import/json/apply', {
@@ -206,6 +209,173 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
   expect(activeB.revision).toBe(savedB.revision);
   expect(activeB.package.screens.find((screen: any) => screen.key === 'demo.overview')
     .elements.find((element: any) => element.key === 'pressure').properties.label).toBe('REVISION B ACTIVE');
+});
+
+test('C05 canonical visual properties survive Save Publish Activate and drive Active HMI rendering', async ({ page, request }) => {
+  const workingResponse = await request.get('/api/engineering/export/json');
+  expect(workingResponse.ok()).toBeTruthy();
+  const working = await workingResponse.json() as any;
+  const screen = working.screens.find((candidate: any) => candidate.key === 'demo.overview');
+  expect(screen).toBeTruthy();
+
+  const objectId = '00000000-0000-0000-0000-00000000c505';
+  const objectKey = 'c05-property-lifecycle';
+  const textObjectId = '00000000-0000-0000-0000-00000000c506';
+  const textObjectKey = 'c05-text-lifecycle';
+  screen.elements = screen.elements.filter((element: any) =>
+    element.key !== objectKey && element.key !== textObjectKey);
+  screen.elements.push({
+    id: objectId,
+    key: objectKey,
+    type: 'core.rectangle',
+    properties: {
+      x: 84,
+      y: 96,
+      width: 180,
+      height: 90,
+      rotation: 15,
+      scaleX: 0.9,
+      scaleY: 1.1,
+      horizontalFlip: true,
+      verticalFlip: false,
+      zIndex: 99,
+      visible: true,
+      opacity: 0.6,
+      tooltip: 'C05 rectangle tooltip',
+      enabled: false,
+      fillStyle: 'gradient',
+      fillColor: '#12345680',
+      fillSecondaryColor: '#ABCDEF',
+      gradientDirection: 'diagonal-up',
+      strokeColor: '#445566',
+      strokeWidth: 8,
+      strokeStyle: 'none',
+      cornerRadius: 12,
+      shadowEnabled: true,
+      shadowColor: '#01020380',
+      shadowOffsetX: 4,
+      shadowOffsetY: 6,
+      shadowBlur: 10
+    }
+  });
+  screen.elements.push({
+    id: textObjectId,
+    key: textObjectKey,
+    type: 'core.text',
+    properties: {
+      x: 84,
+      y: 200,
+      width: 120,
+      height: 32,
+      zIndex: 100,
+      visible: true,
+      opacity: 1,
+      tooltip: 'C05 text tooltip',
+      text: 'C05 text overflow presentation',
+      textColor: '#112233',
+      fontFamily: 'Arial',
+      fontSize: 16,
+      fontWeight: 700,
+      fontStyle: 'italic',
+      underline: true,
+      textWrap: false,
+      lineHeight: 1.6,
+      textOverflow: 'ellipsis',
+      horizontalAlignment: 'left',
+      verticalAlignment: 'middle'
+    }
+  });
+
+  const applyResponse = await request.post('/api/engineering/import/json/apply', { data: working });
+  expect(applyResponse.ok(), `C05 apply failed: HTTP ${applyResponse.status()} ${await applyResponse.text()}`).toBeTruthy();
+
+  const saveResponse = await request.post(`/api/engineering/persistence/${projectKey}/save`, {
+    data: { projectName: 'Wave 11 E2E' }
+  });
+  expect(saveResponse.ok()).toBeTruthy();
+  const saved = await saveResponse.json() as { revision: number };
+
+  const publishResponse = await request.post(
+    `/api/engineering/persistence/${projectKey}/revisions/${saved.revision}/publish`,
+    { data: {} }
+  );
+  expect(publishResponse.ok()).toBeTruthy();
+
+  const activateResponse = await request.post(
+    `/api/engineering/persistence/${projectKey}/published/activate`,
+    { data: {} }
+  );
+  expect(activateResponse.ok(), `C05 activate failed: HTTP ${activateResponse.status()} ${await activateResponse.text()}`).toBeTruthy();
+
+  const activeResponse = await request.get('/api/runtime/application');
+  expect(activeResponse.ok()).toBeTruthy();
+  const active = await activeResponse.json() as any;
+  expect(active.revision).toBe(saved.revision);
+  const activeScreen = active.package.screens
+    .find((candidate: any) => candidate.key === 'demo.overview');
+  const activeElement = activeScreen.elements.find((element: any) => element.key === objectKey);
+  const activeTextElement = activeScreen.elements.find((element: any) => element.key === textObjectKey);
+  expect(activeElement?.properties).toMatchObject({
+    rotation: 15,
+    scaleX: 0.9,
+    scaleY: 1.1,
+    horizontalFlip: true,
+    verticalFlip: false,
+    zIndex: 99,
+    visible: true,
+    opacity: 0.6,
+    tooltip: 'C05 rectangle tooltip',
+    enabled: false,
+    fillStyle: 'gradient',
+    fillColor: '#12345680',
+    fillSecondaryColor: '#ABCDEF',
+    gradientDirection: 'diagonal-up',
+    strokeColor: '#445566',
+    strokeWidth: 8,
+    strokeStyle: 'none',
+    cornerRadius: 12,
+    shadowEnabled: true,
+    shadowColor: '#01020380',
+    shadowOffsetX: 4,
+    shadowOffsetY: 6,
+    shadowBlur: 10
+  });
+  expect(activeTextElement?.properties).toMatchObject({
+    tooltip: 'C05 text tooltip',
+    text: 'C05 text overflow presentation',
+    underline: true,
+    textWrap: false,
+    lineHeight: 1.6,
+    textOverflow: 'ellipsis'
+  });
+
+  await page.goto('/');
+  const activeApplication = page.getByTestId('runtime-engineering-application');
+  await expect(activeApplication).toHaveAttribute('data-runtime-revision', String(saved.revision));
+  const activeCanvas = page.getByTestId('runtime-engineering-canvas');
+  const rendered = activeCanvas.locator(`[data-object-id="${objectId}"]`);
+  await expect(rendered).toBeVisible();
+  await expect(rendered).toHaveAttribute('title', 'C05 rectangle tooltip');
+  await expect(rendered).toHaveAttribute('data-enabled', 'false');
+  await expect(rendered).toHaveCSS('pointer-events', 'none');
+  const renderedStyle = await rendered.getAttribute('style');
+  expect(renderedStyle).toContain('opacity: 0.6');
+  expect(renderedStyle).toContain('border-width: 0px');
+  expect(renderedStyle).toContain('border-style: none');
+  expect(renderedStyle).toContain('rotate(15deg) scale(-0.9, 1.1)');
+  const renderedBackground = await rendered.evaluate(element => getComputedStyle(element).backgroundImage);
+  expect(renderedBackground).toContain('linear-gradient');
+  const renderedFilter = await rendered.evaluate(element => getComputedStyle(element).filter);
+  expect(renderedFilter).toContain('drop-shadow');
+
+  const renderedText = activeCanvas.locator(`[data-object-id="${textObjectId}"]`);
+  await expect(renderedText).toBeVisible();
+  await expect(renderedText).toHaveAttribute('title', 'C05 text tooltip');
+  const renderedTextStyle = await renderedText.getAttribute('style');
+  expect(renderedTextStyle).toContain('text-decoration-line: underline');
+  expect(renderedTextStyle).toContain('line-height: 1.6');
+  expect(renderedTextStyle).toContain('white-space: pre');
+  expect(renderedTextStyle).toContain('text-overflow: ellipsis');
 });
 
 test('an unavailable Active projection fails closed without reading mutable Working', async ({ page }) => {

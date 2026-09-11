@@ -1,5 +1,7 @@
+using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
 using Scada.Core.Commands;
+using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Abstractions;
@@ -15,13 +17,20 @@ public sealed record ScadaRuntimeDescriptor(
     IReadOnlyCollection<DriverStatus> Drivers,
     IReadOnlyCollection<CommunicationDriverDiagnosticSnapshot> CommunicationDrivers,
     int TagCount,
-    int ActiveAlarmCount);
+    int ActiveAlarmCount,
+    ServerScriptRuntimeSnapshot? ServerScripts = null);
 
 public sealed class ScadaRuntimeFacade(
     DemoRuntimeServices fallback,
     SimulationDriver fallbackDriver,
-    IEngineeringRuntimeCoordinator engineeringRuntime)
+    IEngineeringRuntimeCoordinator engineeringRuntime,
+    GatewayEngineeringRuntimeCoordinator? operationalEvents = null,
+    IScadaEventBus? eventBus = null,
+    IConfiguration? configuration = null)
 {
+    private IOperationalEventRuntime? EventRuntime =>
+        operationalEvents ?? engineeringRuntime as IOperationalEventRuntime;
+
     public bool IsEngineeringActive => engineeringRuntime.Describe().Revision.HasValue;
 
     public ScadaRuntimeDescriptor Describe()
@@ -29,6 +38,13 @@ public sealed class ScadaRuntimeFacade(
         var engineering = engineeringRuntime.Describe();
         if (engineering.Revision.HasValue)
         {
+            var serverScripts = eventBus is not null && configuration is not null
+                ? ServerScriptRuntimeManager.GetShared(
+                    engineeringRuntime,
+                    eventBus,
+                    configuration).Snapshot()
+                : null;
+
             return new ScadaRuntimeDescriptor(
                 "engineering",
                 engineering.ProjectKey,
@@ -37,7 +53,8 @@ public sealed class ScadaRuntimeFacade(
                 engineering.Drivers,
                 engineering.CommunicationDrivers,
                 engineering.TagCount,
-                engineering.ActiveAlarmCount);
+                engineering.ActiveAlarmCount,
+                serverScripts);
         }
 
         return new ScadaRuntimeDescriptor(
@@ -65,6 +82,11 @@ public sealed class ScadaRuntimeFacade(
 
     public IReadOnlyCollection<CommandDefinition> Commands() =>
         IsEngineeringActive ? engineeringRuntime.Commands() : fallback.Commands.Snapshot();
+
+    public IReadOnlyCollection<OperationalEventDefinition> OperationalEventDefinitions() =>
+        IsEngineeringActive && EventRuntime is { } events
+            ? events.OperationalEventDefinitions()
+            : Array.Empty<OperationalEventDefinition>();
 
     public IReadOnlyCollection<ClientMemoryRuntimeSource> ClientMemorySources() =>
         IsEngineeringActive
@@ -104,6 +126,15 @@ public sealed class ScadaRuntimeFacade(
             return engineeringRuntime.TryGetCommand(commandId, out command);
 
         return fallback.Commands.TryGet(commandId, out command);
+    }
+
+    public bool TryGetOperationalEvent(Guid definitionId, out OperationalEventDefinition? definition)
+    {
+        if (IsEngineeringActive && EventRuntime is { } events)
+            return events.TryGetOperationalEvent(definitionId, out definition);
+
+        definition = null;
+        return false;
     }
 
     public bool IsServerMemoryTag(Guid tagId) =>
@@ -164,5 +195,17 @@ public sealed class ScadaRuntimeFacade(
             throw new KeyNotFoundException($"Runtime command '{commandId}' was not found.");
 
         await fallbackDriver.WriteAsync(command.TargetTagId, command.Value, cancellationToken);
+    }
+
+    public ValueTask<OperationalEventOccurred> EmitOperationalEventAsync(
+        Guid definitionId,
+        OperationalEventEmissionContext? context = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsEngineeringActive)
+            throw new InvalidOperationException("Operational Events can only be emitted by an active Engineering runtime.");
+        if (EventRuntime is not { } events)
+            throw new InvalidOperationException("The active Engineering runtime does not expose Operational Event support.");
+        return events.EmitOperationalEventAsync(definitionId, context, cancellationToken);
     }
 }

@@ -1,5 +1,7 @@
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
+export type RuntimeTagWriteValue = string | number | boolean;
+
 export class RuntimeTagWriteError extends Error {
   constructor(
     message: string,
@@ -10,10 +12,12 @@ export class RuntimeTagWriteError extends Error {
   }
 }
 
-export async function writeRuntimeTagValue(tagId: string, value: number): Promise<void> {
+export async function writeRuntimeTagValue(tagId: string, value: RuntimeTagWriteValue): Promise<void> {
   const normalizedTagId = tagId.trim();
   if (!normalizedTagId) throw new RuntimeTagWriteError('A stable TAG identity is required.');
-  if (!Number.isFinite(value)) throw new RuntimeTagWriteError('TAG write value must be finite.');
+  if (!isRuntimeTagWriteValue(value)) {
+    throw new RuntimeTagWriteError('TAG write value must be a boolean, finite number, or string.');
+  }
 
   let response: Response;
   try {
@@ -33,4 +37,10 @@ export async function writeRuntimeTagValue(tagId: string, value: number): Promis
   if (response.ok) return;
   const body = await response.text();
   throw new RuntimeTagWriteError(body || `${response.status} ${response.statusText}`.trim(), response.status);
+}
+
+function isRuntimeTagWriteValue(value: unknown): value is RuntimeTagWriteValue {
+  return typeof value === 'boolean' ||
+    typeof value === 'string' ||
+    (typeof value === 'number' && Number.isFinite(value));
 }

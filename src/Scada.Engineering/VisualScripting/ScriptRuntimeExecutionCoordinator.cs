@@ -282,13 +282,43 @@ public sealed class ScriptRuntimeExecutionCoordinator : IAsyncDisposable
         var declared = _script.EntryPoints.Any(entry =>
             entry.EventKind == identity.EventKind &&
             string.Equals(entry.HandlerName, identity.HandlerName, StringComparison.Ordinal) &&
-            string.Equals(entry.TargetReference, identity.TargetReference, StringComparison.Ordinal));
+            MatchesDeclaredTarget(entry, identity));
 
         if (!declared)
         {
             throw new InvalidOperationException(
                 $"Event '{identity.EventKind}:{identity.HandlerName}:{identity.TargetReference}' is not declared by script '{_script.Path}'.");
         }
+    }
+
+    private static bool MatchesDeclaredTarget(
+        PythonScriptEntryPoint entry,
+        ScriptEventIdentity identity)
+    {
+        if (entry.EventKind != PythonScriptEventKind.TagChanged)
+        {
+            return string.Equals(
+                entry.TargetReference,
+                identity.TargetReference,
+                StringComparison.Ordinal);
+        }
+
+        if (entry.TagReference is null ||
+            entry.TagReference.TagId == Guid.Empty ||
+            !string.IsNullOrWhiteSpace(entry.TargetReference))
+        {
+            return false;
+        }
+
+        // Persisted TAG-change identity belongs to TagReference, never TargetReference.
+        // Runtime hosts may still carry the triggering stable TAG ID in the transient
+        // event envelope so handlers receive useful source metadata. Accept the older
+        // target-less envelope as well, while validating an explicit runtime TAG ID.
+        if (string.IsNullOrWhiteSpace(identity.TargetReference))
+            return true;
+
+        return Guid.TryParse(identity.TargetReference, out var targetTagId) &&
+               targetTagId == entry.TagReference.TagId;
     }
 
     private void ThrowIfDisposed()

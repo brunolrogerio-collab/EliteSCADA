@@ -15,8 +15,47 @@ public static class BuiltinVisualObjectSchemas
     public const string TextType = "core.text";
     public const string ImageType = "core.image";
     public const string ValueDisplayType = "core.valueDisplay";
+    public const string TrendType = "core.trend";
+    public const string AlarmBrowserType = "core.alarmBrowser";
+    public const string EventBrowserType = "core.eventBrowser";
     public const string ButtonType = "core.button";
     public const string SliderType = "core.slider";
+    public const string TrendPensProperty = "pens";
+    public const string BrowserConfigProperty = "browserConfig";
+
+    private const string TrendModeProperty = "trendMode";
+    private const string TrendWindowSecondsProperty = "trendWindowSeconds";
+    private const string TrendRefreshSecondsProperty = "trendRefreshSeconds";
+    private const string TrendLegendVisibleProperty = "trendLegendVisible";
+    private const string TrendGridVisibleProperty = "trendGridVisible";
+    private const string TrendAxesVisibleProperty = "trendAxesVisible";
+    private const string TrendQualityVisibleProperty = "trendQualityVisible";
+
+    private static readonly IReadOnlyList<VisualPropertyDefinition> TrendDefinitions =
+    [
+        new(
+            TrendModeProperty,
+            new VisualStringValue("history"),
+            constraints: new VisualPropertyConstraints
+            {
+                AllowedValues = ["history", "live"],
+                AllowEmptyString = false
+            }),
+        new(
+            TrendWindowSecondsProperty,
+            new VisualIntegerValue(3600),
+            constraints: new VisualPropertyConstraints { Minimum = 60, Maximum = 604800 },
+            unit: "s"),
+        new(
+            TrendRefreshSecondsProperty,
+            new VisualIntegerValue(5),
+            constraints: new VisualPropertyConstraints { Minimum = 1, Maximum = 3600 },
+            unit: "s"),
+        new(TrendLegendVisibleProperty, new VisualBooleanValue(true)),
+        new(TrendGridVisibleProperty, new VisualBooleanValue(true)),
+        new(TrendAxesVisibleProperty, new VisualBooleanValue(true)),
+        new(TrendQualityVisibleProperty, new VisualBooleanValue(true))
+    ];
 
     private static readonly IReadOnlyDictionary<string, VisualPropertyDefinition> CommonByKey =
         CommonVisualPropertyDefinitions.Geometry
@@ -24,9 +63,11 @@ public static class BuiltinVisualObjectSchemas
             .Concat(CommonVisualPropertyDefinitions.Visibility)
             .Concat(CommonVisualPropertyDefinitions.Fill)
             .Concat(CommonVisualPropertyDefinitions.Stroke)
+            .Concat(CommonVisualPropertyDefinitions.Effects)
             .Concat(CommonVisualPropertyDefinitions.Text)
             .Concat(CommonVisualPropertyDefinitions.Image)
             .Concat(CommonVisualPropertyDefinitions.Slider)
+            .Concat(TrendDefinitions)
             .ToDictionary(property => property.Key, StringComparer.Ordinal);
 
     private static readonly HashSet<string> AnalogFillCapableTypes =
@@ -46,8 +87,25 @@ public static class BuiltinVisualObjectSchemas
         VisualPropertyKeys.Rotation,
         VisualPropertyKeys.ScaleX,
         VisualPropertyKeys.ScaleY,
+        VisualPropertyKeys.HorizontalFlip,
+        VisualPropertyKeys.VerticalFlip,
         VisualPropertyKeys.Visible,
-        VisualPropertyKeys.Opacity
+        VisualPropertyKeys.Opacity,
+        VisualPropertyKeys.Tooltip,
+        VisualPropertyKeys.Enabled,
+        VisualPropertyKeys.ShadowEnabled,
+        VisualPropertyKeys.ShadowColor,
+        VisualPropertyKeys.ShadowOffsetX,
+        VisualPropertyKeys.ShadowOffsetY,
+        VisualPropertyKeys.ShadowBlur
+    ];
+
+    private static readonly string[] Fill =
+    [
+        VisualPropertyKeys.FillStyle,
+        VisualPropertyKeys.FillColor,
+        VisualPropertyKeys.FillSecondaryColor,
+        VisualPropertyKeys.GradientDirection
     ];
 
     private static readonly string[] Stroke =
@@ -65,8 +123,20 @@ public static class BuiltinVisualObjectSchemas
         VisualPropertyKeys.FontSize,
         VisualPropertyKeys.FontWeight,
         VisualPropertyKeys.FontStyle,
+        VisualPropertyKeys.Underline,
+        VisualPropertyKeys.TextWrap,
+        VisualPropertyKeys.LineHeight,
+        VisualPropertyKeys.TextOverflow,
         VisualPropertyKeys.HorizontalAlignment,
         VisualPropertyKeys.VerticalAlignment
+    ];
+
+    private static readonly string[] BrowserProperties =
+    [
+        VisualPropertyKeys.BackgroundColor,
+        VisualPropertyKeys.StrokeColor,
+        VisualPropertyKeys.StrokeWidth,
+        VisualPropertyKeys.CornerRadius
     ];
 
     public static VisualObjectPropertySchema Group { get; } = Create(GroupType, Base);
@@ -74,14 +144,14 @@ public static class BuiltinVisualObjectSchemas
     public static VisualObjectPropertySchema Rectangle { get; } = Create(
         RectangleType,
         Base
-            .Concat([VisualPropertyKeys.FillColor])
+            .Concat(Fill)
             .Concat(Stroke)
             .Concat([VisualPropertyKeys.CornerRadius]));
 
     public static VisualObjectPropertySchema Ellipse { get; } = Create(
         EllipseType,
         Base
-            .Concat([VisualPropertyKeys.FillColor])
+            .Concat(Fill)
             .Concat(Stroke));
 
     public static VisualObjectPropertySchema Line { get; } = Create(
@@ -96,7 +166,7 @@ public static class BuiltinVisualObjectSchemas
     public static VisualObjectPropertySchema Polygon { get; } = Create(
         PolygonType,
         Base
-            .Concat([VisualPropertyKeys.FillColor])
+            .Concat(Fill)
             .Concat(Stroke));
 
     public static VisualObjectPropertySchema Text { get; } = Create(
@@ -120,6 +190,41 @@ public static class BuiltinVisualObjectSchemas
             .Concat(Stroke)
             .Concat([VisualPropertyKeys.CornerRadius])
             .Concat(TextProperties));
+
+    /// <summary>
+    /// Trend pens are structural payload owned by core.trend and are deliberately
+    /// excluded from the scalar Visual Property Registry. The scalar contract is
+    /// kept in lockstep with the browser canonical registry.
+    /// </summary>
+    public static VisualObjectPropertySchema Trend { get; } = Create(
+        TrendType,
+        Base.Concat(
+        [
+            VisualPropertyKeys.BackgroundColor,
+            VisualPropertyKeys.StrokeColor,
+            VisualPropertyKeys.StrokeWidth,
+            VisualPropertyKeys.CornerRadius,
+            TrendModeProperty,
+            TrendWindowSecondsProperty,
+            TrendRefreshSecondsProperty,
+            TrendLegendVisibleProperty,
+            TrendGridVisibleProperty,
+            TrendAxesVisibleProperty,
+            TrendQualityVisibleProperty
+        ]));
+
+    /// <summary>
+    /// Alarm/Event Browser configuration is structural JSON owned by each Browser
+    /// object. Only common geometry/appearance properties participate in the
+    /// scalar Visual Property Registry.
+    /// </summary>
+    public static VisualObjectPropertySchema AlarmBrowser { get; } = Create(
+        AlarmBrowserType,
+        Base.Concat(BrowserProperties));
+
+    public static VisualObjectPropertySchema EventBrowser { get; } = Create(
+        EventBrowserType,
+        Base.Concat(BrowserProperties));
 
     public static VisualObjectPropertySchema Button { get; } = Create(
         ButtonType,
@@ -157,6 +262,9 @@ public static class BuiltinVisualObjectSchemas
         Text,
         Image,
         ValueDisplay,
+        Trend,
+        AlarmBrowser,
+        EventBrowser,
         Button,
         Slider
     ];

@@ -9,8 +9,14 @@ import {
   summarizeHistoricalFilter,
   type HistoricalFilterDraft
 } from './historicalBrowserFilters';
+import {
+  historicalBrowserCopy,
+  type HistoricalBrowserCopy,
+  type HistoricalBrowserLocale
+} from './historicalBrowserI18n';
 
 export type HistoricalFilterBuilderProps = Readonly<{
+  locale?: HistoricalBrowserLocale;
   columns: readonly HistoricalColumn[];
   filters: readonly HistoricalFilter[];
   disabled?: boolean;
@@ -18,11 +24,13 @@ export type HistoricalFilterBuilderProps = Readonly<{
 }>;
 
 export function HistoricalFilterBuilder({
+  locale = 'en',
   columns,
   filters,
   disabled = false,
   onFiltersChange
 }: HistoricalFilterBuilderProps) {
+  const text = historicalBrowserCopy(locale);
   const filterableColumns = useMemo(() => filterableHistoricalColumns(columns), [columns]);
   const [draft, setDraft] = useState<HistoricalFilterDraft>(() => createHistoricalFilterDraft(columns));
   const [diagnostic, setDiagnostic] = useState<string | null>(null);
@@ -45,18 +53,18 @@ export function HistoricalFilterBuilder({
       onFiltersChange(Object.freeze([...filters, filter]));
       setDraft(current => Object.freeze({ ...current, valueText: '' }));
       setDiagnostic(null);
-    } catch (error) {
-      setDiagnostic(error instanceof Error ? error.message : 'Historical filter is invalid.');
+    } catch {
+      setDiagnostic(text.invalidFilter);
     }
   }
 
   return (
-    <section className="historical-browser__filters" aria-label="Historical filters">
+    <section className="historical-browser__filters" aria-label={text.filters}>
       <div className="historical-browser__filter-controls">
         <label>
-          Filter field
+          {text.filterField}
           <select
-            aria-label="Historical filter field"
+            aria-label={text.filterField}
             value={draft.field}
             disabled={disabled || filterableColumns.length === 0}
             onChange={event => {
@@ -65,15 +73,15 @@ export function HistoricalFilterBuilder({
               updateDraft({ field, operator: nextOperators[0] ?? '', valueText: '' });
             }}
           >
-            {filterableColumns.length === 0 && <option value="">Run a query to discover filterable fields</option>}
+            {filterableColumns.length === 0 && <option value="">{text.discoverFilterFields}</option>}
             {filterableColumns.map(column => <option key={column.field} value={column.field}>{column.field}</option>)}
           </select>
         </label>
 
         <label>
-          Operator
+          {text.operator}
           <select
-            aria-label="Historical filter operator"
+            aria-label={text.operator}
             value={draft.operator}
             disabled={disabled || operators.length === 0}
             onChange={event => updateDraft({ operator: event.target.value as HistoricalFilterDraft['operator'] })}
@@ -84,9 +92,9 @@ export function HistoricalFilterBuilder({
 
         {selectedColumn?.type === 'scalar' && (
           <label>
-            Value type
+            {text.valueType}
             <select
-              aria-label="Historical scalar filter type"
+              aria-label={text.valueType}
               value={draft.scalarKind}
               disabled={disabled}
               onChange={event => updateDraft({ scalarKind: event.target.value as HistoricalFilterDraft['scalarKind'], valueText: '' })}
@@ -97,6 +105,7 @@ export function HistoricalFilterBuilder({
         )}
 
         <FilterValueInput
+          text={text}
           type={selectedColumn?.type ?? null}
           scalarKind={draft.scalarKind}
           value={draft.valueText}
@@ -105,8 +114,8 @@ export function HistoricalFilterBuilder({
           onChange={valueText => updateDraft({ valueText })}
         />
 
-        <button type="button" disabled={disabled || !selectedColumn || !draft.operator} onClick={addFilter}>Add filter</button>
-        <button type="button" disabled={disabled || filters.length === 0} onClick={() => onFiltersChange(Object.freeze([]))}>Clear filters</button>
+        <button type="button" disabled={disabled || !selectedColumn || !draft.operator} onClick={addFilter}>{text.addFilter}</button>
+        <button type="button" disabled={disabled || filters.length === 0} onClick={() => onFiltersChange(Object.freeze([]))}>{text.clearFilters}</button>
       </div>
 
       {diagnostic && <p role="alert">{diagnostic}</p>}
@@ -119,10 +128,10 @@ export function HistoricalFilterBuilder({
               <button
                 type="button"
                 disabled={disabled}
-                aria-label={`Remove historical filter ${index + 1}`}
+                aria-label={text.removeFilter(index + 1)}
                 onClick={() => onFiltersChange(Object.freeze(filters.filter((_, candidate) => candidate !== index)))}
               >
-                Remove
+                {text.remove}
               </button>
             </li>
           ))}
@@ -133,6 +142,7 @@ export function HistoricalFilterBuilder({
 }
 
 function FilterValueInput({
+  text,
   type,
   scalarKind,
   value,
@@ -140,6 +150,7 @@ function FilterValueInput({
   disabled,
   onChange
 }: Readonly<{
+  text: HistoricalBrowserCopy;
   type: HistoricalColumn['type'] | null;
   scalarKind: HistoricalFilterDraft['scalarKind'];
   value: string;
@@ -148,14 +159,15 @@ function FilterValueInput({
   onChange: (value: string) => void;
 }>) {
   const effectiveType = type === 'scalar' ? scalarKind : type;
+  const label = membership ? text.values : text.value;
   if (effectiveType === 'boolean' && !membership) {
     return (
       <label>
-        Value
-        <select aria-label="Historical filter value" value={value} disabled={disabled} onChange={event => onChange(event.target.value)}>
-          <option value="">Select</option>
-          <option value="true">true</option>
-          <option value="false">false</option>
+        {label}
+        <select aria-label={label} value={value} disabled={disabled} onChange={event => onChange(event.target.value)}>
+          <option value="">{text.select}</option>
+          <option value="true">{text.trueLabel}</option>
+          <option value="false">{text.falseLabel}</option>
         </select>
       </label>
     );
@@ -163,13 +175,13 @@ function FilterValueInput({
 
   return (
     <label>
-      Value{membership ? 's' : ''}
+      {label}
       <input
-        aria-label="Historical filter value"
+        aria-label={label}
         type={effectiveType === 'dateTime' && !membership ? 'datetime-local' : 'text'}
         value={value}
         disabled={disabled}
-        placeholder={membership ? 'Comma-separated values' : undefined}
+        placeholder={membership ? text.commaSeparated : undefined}
         onChange={event => onChange(event.target.value)}
       />
     </label>

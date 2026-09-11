@@ -59,7 +59,8 @@ public interface ICommunicationDriverRuntimeFactory
 
 public sealed record CommunicationDriverRuntimeComponentRegistration(
     ICommunicationDriverRuntimePlanner Planner,
-    ICommunicationDriverRuntimeFactory Factory)
+    ICommunicationDriverRuntimeFactory Factory,
+    CommunicationDriverTypeDescriptor Descriptor)
 {
     public string DriverType => Planner.DriverType;
 
@@ -67,12 +68,17 @@ public sealed record CommunicationDriverRuntimeComponentRegistration(
     {
         ArgumentNullException.ThrowIfNull(Planner);
         ArgumentNullException.ThrowIfNull(Factory);
+        ArgumentNullException.ThrowIfNull(Descriptor);
         ValidateDriverType(Planner.DriverType, nameof(Planner));
         ValidateDriverType(Factory.DriverType, nameof(Factory));
+        ValidateDriverType(Descriptor.DriverType, nameof(Descriptor));
 
         if (!string.Equals(Planner.DriverType, Factory.DriverType, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException(
                 $"Runtime planner type '{Planner.DriverType}' does not match factory type '{Factory.DriverType}'.");
+        if (!string.Equals(Planner.DriverType, Descriptor.DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException(
+                $"Runtime planner type '{Planner.DriverType}' does not match Engineering descriptor type '{Descriptor.DriverType}'.");
     }
 
     private static void ValidateDriverType(string driverType, string componentName)

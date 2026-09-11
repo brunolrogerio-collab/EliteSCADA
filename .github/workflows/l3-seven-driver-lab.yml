@@ -5,8 +5,10 @@ on:
   push:
     branches:
       - main
+      - wave14/c03-dnp3-unrestricted-adapter
     paths:
       - "src/Scada.Drivers/**"
+      - "src/Scada.Drivers.Dnp3.OpenDnp3/**"
       - "src/Scada.DriverHost/**"
       - "src/Scada.Engineering/Gateways/**"
       - "src/Scada.Engineering/DataSources/**"
@@ -14,6 +16,7 @@ on:
       - "src/Scada.Core/Tags/**"
       - "src/Scada.Core/Events/**"
       - "tests/Scada.Drivers.Tests/**"
+      - "native/dnp3/**"
       - "interop-lab/**"
       - ".github/workflows/l3-seven-driver-lab.yml"
   pull_request:
@@ -21,6 +24,7 @@ on:
       - main
     paths:
       - "src/Scada.Drivers/**"
+      - "src/Scada.Drivers.Dnp3.OpenDnp3/**"
       - "src/Scada.DriverHost/**"
       - "src/Scada.Engineering/Gateways/**"
       - "src/Scada.Engineering/DataSources/**"
@@ -28,6 +32,7 @@ on:
       - "src/Scada.Core/Tags/**"
       - "src/Scada.Core/Events/**"
       - "tests/Scada.Drivers.Tests/**"
+      - "native/dnp3/**"
       - "interop-lab/**"
       - ".github/workflows/l3-seven-driver-lab.yml"
 
@@ -49,6 +54,7 @@ jobs:
       ELITESCADA_L3_IEC104_PORT: "2404"
       ELITESCADA_L3_DNP3_HOST: 127.0.0.1
       ELITESCADA_L3_DNP3_PORT: "20000"
+      ELITESCADA_DNP3_HOST_PATH: ${{ github.workspace }}/build/dnp3/EliteScada.Dnp3Host
       ELITESCADA_L3_S7_HOST: 127.0.0.1
       ELITESCADA_L3_S7_PORT: "1102"
       ELITESCADA_L3_DOCKER_FAULTS: "true"
@@ -61,6 +67,14 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.400
+
+      - name: Configure pinned OpenDNP3 helper
+        run: cmake -S native/dnp3 -B build/dnp3 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build OpenDNP3 helper
+        run: |
+          cmake --build build/dnp3 --config Release --target EliteScada.Dnp3Host --parallel 2
+          chmod +x build/dnp3/EliteScada.Dnp3Host
 
       - name: Validate all lab Compose models
         working-directory: interop-lab

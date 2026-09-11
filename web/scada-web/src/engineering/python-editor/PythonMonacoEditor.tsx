@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as monaco from 'monaco-editor';
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker';
 import type { EngineeringLocale } from '../i18n';
 import { PythonPreviewTestPanel } from '../scripts/PythonPreviewTestPanel';
+import { PythonScriptAssistant } from '../scripts/PythonScriptAssistant';
+import { PythonScriptReferenceDiagnostics } from '../scripts/PythonScriptReferenceDiagnostics';
 import type {
   ScriptEngineeringEntryPoint,
   ScriptEngineeringScope
@@ -32,6 +34,11 @@ if (!monacoGlobal.MonacoEnvironment) {
   };
 }
 
+export type PythonEditorInsertion = Readonly<{
+  id: string | number;
+  text: string;
+}>;
+
 export type PythonMonacoEditorProps = {
   scriptId: string;
   path: string;
@@ -41,6 +48,7 @@ export type PythonMonacoEditorProps = {
   locale: EngineeringLocale;
   diagnostics: PythonEditorDiagnosticState;
   onSourceChange(source: string): void;
+  insertion?: PythonEditorInsertion | null;
   readOnly?: boolean;
 };
 
@@ -55,6 +63,7 @@ export function PythonMonacoEditor({
   locale,
   diagnostics,
   onSourceChange,
+  insertion = null,
   readOnly = false
 }: PythonMonacoEditorProps) {
   const copy = useMemo(() => pythonEditorCopy(locale), [locale]);
@@ -64,6 +73,7 @@ export function PythonMonacoEditor({
   const onSourceChangeRef = useRef(onSourceChange);
   const entryPointsRef = useRef(entryPoints);
   const sourceRef = useRef(source);
+  const lastInsertionIdRef = useRef<string | number | null>(null);
   const [cursor, setCursor] = useState({ line: 1, column: 1 });
   const [editorError, setEditorError] = useState<string | null>(null);
   const [previewDiagnostics, setPreviewDiagnostics] = useState<PythonEditorDiagnosticSnapshot | null>(null);
@@ -101,11 +111,36 @@ export function PythonMonacoEditor({
     return handlers;
   }, [entryPoints]);
 
+  const insertAtCursor = useCallback((rawText: string): boolean => {
+    if (readOnly || !rawText) return false;
+    const editor = editorRef.current;
+    const model = modelRef.current;
+    if (!editor || !model) return false;
+
+    const selection = editor.getSelection() ?? new monaco.Selection(1, 1, 1, 1);
+    const linePrefix = model.getLineContent(selection.startLineNumber).slice(0, Math.max(0, selection.startColumn - 1));
+    const indentation = /^\s*/.exec(linePrefix)?.[0] ?? '';
+    const text = indentation && selection.startColumn > 1
+      ? rawText.replace(/\n/g, `\n${indentation}`)
+      : rawText;
+
+    editor.pushUndoStop();
+    editor.executeEdits('elitescada-script-assistant', [{
+      range: selection,
+      text,
+      forceMoveMarkers: true
+    }]);
+    editor.pushUndoStop();
+    editor.focus();
+    return true;
+  }, [readOnly]);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     setEditorError(null);
+    lastInsertionIdRef.current = null;
     const safeScriptId = scriptId.replace(/[^a-zA-Z0-9-]/g, '-') || 'draft';
     const uri = monaco.Uri.parse(`inmemory://elitescada/python/${safeScriptId}.py`);
 
@@ -199,6 +234,11 @@ export function PythonMonacoEditor({
   }, [source]);
 
   useEffect(() => {
+    if (!insertion || lastInsertionIdRef.current === insertion.id) return;
+    if (insertAtCursor(insertion.text)) lastInsertionIdRef.current = insertion.id;
+  }, [insertion, insertAtCursor, scriptId]);
+
+  useEffect(() => {
     editorRef.current?.updateOptions({ readOnly });
   }, [readOnly]);
 
@@ -281,6 +321,21 @@ export function PythonMonacoEditor({
           </strong>
         )}
       </footer>
+
+      {scope === 'clientVisual' && !readOnly && (
+        <PythonScriptReferenceDiagnostics
+          locale={locale}
+          source={source}
+        />
+      )}
+
+      {scope === 'clientVisual' && !readOnly && (
+        <PythonScriptAssistant
+          locale={locale}
+          scriptId={scriptId}
+          onInsert={insertAtCursor}
+        />
+      )}
 
       {scope === 'clientVisual' && !readOnly && (
         <PythonPreviewTestPanel

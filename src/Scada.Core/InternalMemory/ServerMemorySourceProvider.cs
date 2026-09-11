@@ -23,7 +23,7 @@ public sealed class MemoryRetentionTypeMismatchException : InvalidOperationExcep
 /// restores TAGs present in the supplied active definition set; it never
 /// enumerates retained state to construct runtime TAGs.
 /// </summary>
-public sealed class ServerMemorySourceProvider : ISourceProvider
+public sealed class ServerMemorySourceProvider : IQualifiedSourceProvider
 {
     private readonly IServerMemoryRetentionStore _retentionStore;
     private readonly TimeProvider _timeProvider;
@@ -93,8 +93,8 @@ public sealed class ServerMemorySourceProvider : ISourceProvider
                 }
 
                 var current = retained is null
-                    ? CreateGoodValue(definition.Tag.Id, definition.InitialValue.Value, _timeProvider.GetUtcNow())
-                    : CreateGoodValue(definition.Tag.Id, retained.TypedValue.Value, retained.StoredAt);
+                    ? CreateValue(definition.Tag.Id, definition.InitialValue.Value, _timeProvider.GetUtcNow(), TagQuality.Good)
+                    : CreateValue(definition.Tag.Id, retained.TypedValue.Value, retained.StoredAt, TagQuality.Good);
 
                 stagedValues.Add(definition.Tag.Id, current);
             }
@@ -122,7 +122,38 @@ public sealed class ServerMemorySourceProvider : ISourceProvider
         }
     }
 
-    public async ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Ordinary Internal Memory writes intentionally remain Good. Explicit
+    /// quality is available only through IQualifiedSourceProvider.
+    /// </summary>
+    public ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default) =>
+        WriteCoreAsync(tagId, value, TagQuality.Good, null, null, cancellationToken);
+
+    public ValueTask PublishSampleAsync(
+        Guid tagId,
+        QualifiedSourceSample sample,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(sample);
+        if (!Enum.IsDefined(sample.Quality))
+            throw new ArgumentOutOfRangeException(nameof(sample), $"Unknown TAG quality '{sample.Quality}'.");
+
+        return WriteCoreAsync(
+            tagId,
+            sample.Value,
+            sample.Quality,
+            sample.SourceTimestamp,
+            sample.ServerTimestamp,
+            cancellationToken);
+    }
+
+    private async ValueTask WriteCoreAsync(
+        Guid tagId,
+        object? value,
+        TagQuality quality,
+        DateTimeOffset? sourceTimestamp,
+        DateTimeOffset? serverTimestamp,
+        CancellationToken cancellationToken)
     {
         await _mutationGate.WaitAsync(cancellationToken);
         try
@@ -140,13 +171,20 @@ public sealed class ServerMemorySourceProvider : ISourceProvider
             var typedValue = new TypedTagValue(definition.Tag.DataType, value);
             var timestamp = _timeProvider.GetUtcNow();
 
-            // Persist before publishing the new current value. A retention failure
-            // therefore leaves the provider's visible state unchanged.
+            // Retention stores the typed process value, not transient runtime
+            // communication quality. On the next activation the retained value
+            // starts Good until its server-side Source publishes a new sample.
             await _retentionStore.WriteAsync(
                 new RetainedMemoryValue(tagId, typedValue, timestamp),
                 cancellationToken);
 
-            var current = CreateGoodValue(tagId, typedValue.Value, timestamp);
+            var current = CreateValue(
+                tagId,
+                typedValue.Value,
+                timestamp,
+                quality,
+                sourceTimestamp,
+                serverTimestamp);
             lock (_stateGate)
             {
                 _values[tagId] = current;
@@ -180,7 +218,11 @@ public sealed class ServerMemorySourceProvider : ISourceProvider
             }
 
             await _retentionStore.DeleteAsync(tagId, cancellationToken);
-            var current = CreateGoodValue(tagId, definition.InitialValue.Value, _timeProvider.GetUtcNow());
+            var current = CreateValue(
+                tagId,
+                definition.InitialValue.Value,
+                _timeProvider.GetUtcNow(),
+                TagQuality.Good);
             lock (_stateGate)
             {
                 _values[tagId] = current;
@@ -192,6 +234,16 @@ public sealed class ServerMemorySourceProvider : ISourceProvider
         }
     }
 
-    private TagValue CreateGoodValue(Guid tagId, object value, DateTimeOffset timestamp) =>
-        new(tagId, value, timestamp, TagQuality.Good, InstanceKey);
+    private TagValue CreateValue(
+        Guid tagId,
+        object? value,
+        DateTimeOffset timestamp,
+        TagQuality quality,
+        DateTimeOffset? sourceTimestamp = null,
+        DateTimeOffset? serverTimestamp = null) =>
+        new TagValue(tagId, value, timestamp, quality, InstanceKey)
+        {
+            SourceTimestamp = sourceTimestamp,
+            ServerTimestamp = serverTimestamp
+        };
 }

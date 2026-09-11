@@ -1,303 +1,126 @@
-# EliteSCADA — Current Coordinator Handoff
+# Current Coordinator Handoff
 
-**Last operational synchronization:** 2026-09-02 BRT  
-**Status:** **WAVE 12 COMPLETE / ACCEPTED; WAVE 14 #211 ACTIVE WITH FIRST CORRECTION INTAKE CLOSED; TEST PREVIEW #208/#210 ACTIVE AS VALIDATION HARNESS; WAVE 13 #205/#207 PAUSED AT GREEN CHECKPOINT**
+> GitHub live is the official memory and sole authority for EliteSCADA. Revalidate live before every decision, diagnosis, code/documentation write, PR action, workflow rerun or merge. Any divergence here is resolved in favor of GitHub.
 
-> GitHub/main/CI is implementation truth. `PROJECT GOAL.md` governs permanent product intent. `LAST CHANGE.md` is the mutable resume point. Never resume from chat alone.
+## Current topology
 
-## 1. Development Lead direction
+- Repository: `brunolrogerio-collab/EliteSCADA`
+- Active branch: `wave14/c26-po-homologation-corrections`
+- Coordinator issue: #286
+- PR #287: C26 -> `wave14/c11-canonical-eee-demo`, OPEN/DRAFT
+- PR #288: C26 -> `main`, **VALIDATION ONLY / MUST NEVER MERGE**
+- canonical C11 head at last revalidation: `a724ece64a292aa1d1dedd886a72fb28ff8d90fe`
+- PR #266: C11 -> `main`, **VALIDATION ONLY / MUST NEVER MERGE**
+- PR #263: C11 -> `wave14/corrections-integration` only
+- PR #212: integration -> `main`, OPEN/DRAFT, **NO MERGE without later separate explicit Product Owner authorization**
+- Preview #285: preserve untouched as historical pre-C26 evidence
+- issue #289: mandatory post-C26 ChatGPT Work audit gate; **do not execute now**
+- Wave13 #205/#207: paused
 
-Real owner use through the GitHub Codespaces browser Preview exposed material product/usability findings before final Windows signing. The execution order was therefore intentionally changed:
+## Exact execution boundary
 
-- **Wave 14 Product-owner validation #211 is the active product priority**;
-- **Preview #208 / draft PR #210 is the reproducible validation harness**, not the authority for product scope;
-- **Wave 13 #205 / draft PR #207 is paused** at its already-green repository-side checkpoint;
-- the first owner correction intake has now been closed and partitioned into coordinated DEV packages in `docs/WAVE14-CORRECTION-PACKAGES.md`;
-- final Wave 13 signing must target the accepted post-correction Wave 14 product, not the stale pre-validation product snapshot.
+Current C26 product/test SHA:
 
-If a Windows installer is requested before final commercial/signing acceptance, its **product payload must still be the latest corrected/accepted Wave 14 build**, while the proven Windows packaging mechanism comes from Wave 13.
+`e7c8a8bf3954890a1ca841498222bf6094952baf`
 
-## 2. Mandatory resume protocol for the new coordinator
+`fix(w14-c26): serialize shared PostgreSQL schema setup`
 
-Before taking any code, branch, merge, CI or release action, read in this order:
+The live branch HEAD after this rotation is a documentation-only commit above the product SHA. Revalidate it; never use the docs-only SHA as product validation evidence.
 
-1. `PROJECT GOAL.md`;
-2. `LAST CHANGE.md`;
-3. this handoff;
-4. `docs/WAVE14-CORRECTION-PACKAGES.md`;
-5. `docs/ROADMAP.md`;
-6. `docs/CI-VALIDATION-POLICY.md`;
-7. live `main`, all open PRs/issues relevant to the active work and exact Actions state.
+Last exact product/test SHA with all five normal gates green:
 
-Then inspect:
+`55f292359af86f5f28d90cc578d4ac93ccc1f19c`
 
-8. issue #211 — Wave 14 Product-owner validation and its owner-finding comments;
-9. issue #208 — Temporary browser Test Preview;
-10. draft PR #210 / branch `preview/codespaces-test-preview`;
-11. `docs/CODESPACES-PREVIEW-RUNBOOK.md` from the Preview branch while #210 remains unmerged;
-12. issue #205 and draft PR #207 only to understand the **paused** Wave 13 release boundary.
+`fix(w14-c26): align Popup authoring with Runtime`
 
-Never trust SHAs copied into this document without re-checking live GitHub immediately before acting.
+Status:
 
-## 3. Accepted foundation
+- C26.1–C26.7 — **IMPLEMENTED / VALIDATED**
+- C26.8 Screen editor — **IMPLEMENTED / VALIDATED** at `6de64ed4...`
+- C26.9 Popup editor — **IMPLEMENTED / VALIDATED** at `55f29235...`
+- C26.10 canonical EEE cleanup — **IMPLEMENTED / NOT VALIDATED / CURRENT BLOCKER**
+- C26.11 package/new Preview — **NOT STARTED / BLOCKED**
 
-Wave 11 issue #194 is **CLOSED / COMPLETED**.  
-Wave 12 issue #201 is **COMPLETE / ACCEPTED / CLOSED**.
+## Current exact-SHA gates
 
-Accepted Wave 12 product-code baseline:
+At `e7c8a8bf3954890a1ca841498222bf6094952baf`:
 
-`63bced02426fcb84b26028913f6c68feb3457d80`
+- EliteSCADA CI #1471 / run `34347157464` — SUCCESS
+- Preview Licensing CI #419 / run `34347157585` — SUCCESS
+- Interop Lab Smoke #302 / run `34347159685` — SUCCESS
+- L3 Seven-Driver Lab #375 / run `34347157398` — SUCCESS
+- Wave 11 Active HMI Runtime #397 / run `34347157735` — **FAILURE**
+- additional natural Interop #301 / run `34347157333` — SUCCESS
 
-Exact post-merge evidence:
+No rerun was requested.
 
-- EliteSCADA CI #1096 / `33576603185`: **SUCCESS**;
-- L3 Seven-Driver Lab #92 / `33576603158`: **SUCCESS**.
+## Current blocker — C26.10 package schema
 
-Accepted lifecycle authority remains:
+Wave11 job `102451385709`, step `Run Wave 11 Active Runtime browser lifecycle`, finished with 17 passed, 2 failed and 4 not run.
 
-`Working -> saved Revision -> Published -> Active -> HMI Runtime`
+Both failures occurred during Preview/Apply setup:
 
-Runtime uses persisted Active Engineering only. Working edits remain isolated until Save/Publish/Activate. Do not reopen accepted Wave 11/12 architecture without a demonstrated defect.
+- `tests-wave11/c11-eee-demo-hmi.spec.ts`
+- `tests-wave11/c26-popup-composition.spec.ts`
 
-Permanent coordination boundaries remain:
+The preview rejected Dynamo `eee.dynamo.pump` with `VISUAL_PROPERTY_INVALID` for:
 
-- backend is canonical authority;
-- authorization is backend-enforced;
-- licensing is host-owned and fail-closed;
-- no Preview-only auth/licensing/runtime bypass;
-- no Driver-to-Driver coupling;
-- canonical TAG/Data Source identity remains authoritative;
-- product-code PRs to `main` require universal `EliteSCADA CI` plus appropriate impact-specific validation.
+- `pump-stopped-label`
+- `pump-running-label`
+- `pump-fault-label`
 
-## 4. Current GitHub snapshot inspected for this handoff
+The exact error says `core.text` does not declare `backgroundColor`.
 
-Before the documentation-only correction-plan commits in this synchronization, inspected live `main` was:
+The C26.10 candidate `50363bcc...` had added `backgroundColor` and `cornerRadius` to these three text elements to prevent `PARADA` from showing through `OPERANDO`/`FALHA`. Exact backend and browser schemas define `core.text` as base + text properties and do not declare either property. The visual intent is valid, but the authored representation is package-invalid.
 
-`80cb7057cbc2656cf7b39c5d79c8a3adf8993778`
+The uploaded Wave11 evidence is artifact `playwright-report-wave11`, ID `10102316731`, attached to run `34347157735`.
 
-The new correction-package and handoff docs advance `main` with `[skip ci]`; those documentation commits do **not** represent a new validated product-code baseline.
+## Independent PostgreSQL correction now green
 
-Preview draft PR #210 was inspected as:
+At `50363bcc...`, EliteSCADA CI exposed concurrent `CREATE SCHEMA IF NOT EXISTS elitescada` under mismatched advisory locks. Commit `e7c8a8...` changed Operational Event history to shared lock `4993446713136202561` and added it to the shared-schema concurrency regression.
 
-- state: **OPEN / DRAFT**;
-- mergeable: true at the inspected moment;
-- branch: `preview/codespaces-test-preview`;
-- head: `0ab6e80c1c47a78b0bd33b07424d906b5f847faa`;
-- latest product-code correction explicitly validated in that branch: `6304144a1beab6d4f3b4cf41b95fd16b5b82ba25`;
-- exact validation retained on that product correction:
-  - Test Preview #13 / `33652433077`: **SUCCESS**;
-  - EliteSCADA CI #1136 / `33652432886`: **SUCCESS**;
-  - Wave 11 Active HMI Runtime #66 / `33652432755`: **SUCCESS**.
+EliteSCADA CI #1471 passed. Do not revert this fix while correcting the C26.10 visual schema error.
 
-PR #210 later contains runbook/docs commits, so `630414...` is **not** the current PR head. Always distinguish product-code SHA from later documentation head.
+## Immediate next task
 
-## 5. Preview / Codespaces state
+1. Read `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-09.md` first and revalidate all live refs/gates.
+2. Re-read Wave11 #397/job `102451385709` plus exact C26.10 helper, regression and backend/browser visual schemas.
+3. Replace the invalid text-background authoring with the smallest schema-valid EEE composition that keeps state labels opaque and legible.
+4. Preserve strict package Preview and Runtime assertions.
+5. Do not widen `core.text` solely for EEE; a generic contract change requires independent platform justification and synchronized backend/browser coverage.
+6. Let workflows run naturally on the new exact product/test SHA; no blind rerun.
+7. Require the five normal gates green on one SHA before declaring C26.10 VALIDATED.
+8. Do not begin C26.11 or integrate #287 before C26 is validated, accepted and the integration is explicitly authorized.
 
-Tracking:
+## Validated recent milestones
 
-- issue #208;
-- draft PR #210;
-- branch `preview/codespaces-test-preview`;
-- operating procedure: `docs/CODESPACES-PREVIEW-RUNBOOK.md` on that branch.
+- C26.7: `b1bd1f664b06684afaecbbff2d27da10760cc1ec` — 5/5 normal gates SUCCESS
+- C26.8: `6de64ed4d11ac1e525f32d7071b9624e428c96ee` — 5/5 normal gates SUCCESS
+- C26.9: `55f292359af86f5f28d90cc578d4ac93ccc1f19c` — 5/5 normal gates SUCCESS
 
-The real Codespace path has already achieved actual browser entry and successful authentication through the real EliteSCADA login UI.
-
-Repository-controlled Preview requirements learned from real Codespace use:
-
-- exact .NET SDK 10.0.400;
-- Node 24;
-- TimescaleDB/PostgreSQL through Compose;
-- disposable per-Codespace machine identity mounted read-only at `/etc/machine-id`, preserving normal fail-closed licensing;
-- protected Codespaces secret named `ELITESCADA_PREVIEW_ADMIN_PASSWORD`;
-- automatic launcher through `postAttachCommand` -> `bash scripts/preview/launch-test-preview.sh`;
-- Web forwarded on port 5173 and normally kept **Private**;
-- API 5080 and database remain internal;
-- normal product identity/lifecycle/licensing paths are used.
-
-A forwarded 5173 HTTP 502 means forwarding exists but no Web process is listening. It is never an accepted ready state.
-
-Recovery model from the runbook:
-
-- **A — browser reload/HMR:** appropriate frontend-only change;
-- **B — restart Preview launcher:** backend/launcher/process change or dead API/Web;
-- **C — Rebuild Container:** devcontainer/Compose/SDK/environment change;
-- **D — fresh Codespace:** ambiguous persisted/bootstrap state or clean reproducibility proof.
-
-Any manual workaround required to make a real Codespace succeed must be converted to repository-controlled automation before the Preview path is accepted as reproducible.
-
-### Password-policy chronology
-
-Historical Preview evidence correctly states that a real bootstrap previously failed because its secret did not satisfy the **then-current 12-character minimum**.
-
-Development Lead has now explicitly changed the product requirement to **minimum 8 characters**. This is a pending W14-C01 product correction, not yet something to assume exists in the current running Preview branch. Acceptance must include **7 characters rejected / 8 accepted**, with backend authority preserved.
-
-Do not rewrite the historical runbook event as if the policy had always been 8. Never commit, echo or expose the actual protected password.
-
-## 6. Wave 14 first correction intake is closed
-
-Issue #211 remains the product finding/acceptance ledger. The first owner correction intake has been organized into `docs/WAVE14-CORRECTION-PACKAGES.md`.
-
-Coordinator package model:
-
-- **W14-C01 — Identity / secure first-run / password minimum 8**;
-- **W14-C02 — backend-authoritative Driver catalog + Source/Driver forms**;
-- **W14-C03 — DNP3 unrestricted production adapter / commercial unblock**;
-- **W14-C04 — TAG Source selection + protocol-aware address/discovery assistants**;
-- **W14-C05 — canonical visual properties + schema-driven Property Inspector**;
-- **W14-C06 — Engineering Diagnostics / TAG Monitor boundary**;
-- **W14-C07 — Screen Engineering + Dynamo authoring/library maturity**;
-- **W14-C08 — Python Script Assistant / project object browser**;
-- **W14-C09 — application shell + operator Runtime presentation**;
-- **W14-C10 — integration/regression/real Preview acceptance**, owned by the coordinator rather than an unconstrained feature DEV.
-
-Recommended concurrency:
-
-### Stage A — parallel
-
-C01, C02, C03, C05 and C06.
-
-### Stage B — after prerequisite contracts stabilize
-
-- C04 after C02;
-- C07 after C05;
-- C08 after C04/C05 interfaces stabilize enough to consume;
-- C09 after a common Web integration baseline is frozen to reduce broad-shell conflicts.
-
-### Stage C
-
-C10 integration and acceptance.
-
-Nine dedicated DEV chats can therefore own C01-C09 while the coordinator remains the tenth lane/integrator.
-
-Do not let independent DEV agents merge directly to `main`. Each must receive an exact base SHA, bounded subsystem ownership, branch name, acceptance tests and a GitHub evidence obligation.
-
-## 7. Owner findings captured in this first intake
-
-The correction plan consolidates the material owner observations already recorded in #211, including:
-
-- Script Engineering contrast/readability defect, with an already-validated narrow correction on the Preview branch;
-- Driver selection must use the actual available catalog rather than typed internal strings;
-- selecting a Driver must render fields specific to that protocol/transport;
-- TAG Source selection must use configured Sources with searchable human-facing labels and stable canonical identity;
-- protocol-aware TAG address editors and discovery/browse assistants, including OPC UA endpoint/address-space browse/import where supported;
-- graphical Property Inspector must expose canonical object properties with appropriate editors such as a real color picker;
-- visual properties must preserve generic Python read/write parity where permitted;
-- TAG Monitor belongs to Engineering diagnostics while observing actual Active Runtime;
-- Screen/Dynamo authoring and built-in component maturity need product-level correction;
-- Python Script Engineering needs a project object/API assistant rather than memorized identifiers/syntax;
-- Dark/Light shell themes, capability-pruned navigation, no-scroll uniformly scaled operator Runtime, screen navigation/Popups and secure first-run onboarding are binding Wave 14 acceptance requirements;
-- password minimum is now 8 by explicit Development Lead direction.
-
-Non-blocking preference/enhancement findings outside this material correction set should still be transferred to Wave 15 rather than silently growing Wave 14.
-
-## 8. DNP3 correction / commercial blocker
-
-This is now a dedicated P0 technical-risk package, W14-C03.
-
-### Current product implementation
-
-Product adapter project:
-
-`src/Scada.Drivers.Dnp3.StepFunction`
-
-Its project currently references NuGet package:
-
-`dnp3` version `1.6.0`
-
-The adapter README explicitly says the Step Function implementation is optional behind the vendor-neutral EliteSCADA DNP3 master-session contract, and documents the current upstream commercial/production/redistribution restriction. This isolation is valuable because the restricted implementation can potentially be replaced without changing the canonical EliteSCADA DNP3 surface.
-
-### What the L3 lab actually uses
-
-The L3 workflow builds an independent DNP3 peer from:
-
-`interop-lab/dnp3-dnp3py/Dockerfile`
-
-That Dockerfile clones:
-
-`craigpnnl/dnp3py`
-
-at pinned commit:
-
-`8a20d4c276274f2b98800716cd7da963f21da2c1`
-
-The pinned upstream source was inspected and confirms:
-
-- **MIT License**;
-- pure Python DNP3 implementation;
-- no project dependencies declared in its `pyproject.toml`;
-- documented Master and Outstation components;
-- described as a DNP3 Level-2 subset.
-
-Important distinction: in the current lab, `dnp3py` is the **independent peer/outstation used to test EliteSCADA**, not proof that the EliteSCADA production master adapter already uses it.
-
-### Development direction
-
-Investigate `dnp3py` first as the candidate replacement because its pinned source is permissively licensed and already participates in the proven lab. Do not declare the commercial blocker solved until W14-C03 proves:
-
-- usable/maintainable Windows/.NET integration model;
-- master feature parity adequate for EliteSCADA requirements;
-- events/polling/quality/timestamps/reconnect and required commands/writes;
-- explicit handling of unsupported features;
-- DNP3/L3/universal CI green on exact SHA;
-- final distributable dependency graph contains no restricted Step Function bytes/package if the replacement is accepted.
-
-Until that proof exists, continue describing DNP3 commercial distribution as blocked by the current adapter licensing situation.
-
-## 9. Dedicated Wave 14 integration branch boundary
-
-Do not make Preview PR #210 the dumping ground for C01-C09. Preview is the reproduction/validation harness.
-
-The coordinator should, after re-reading live GitHub, establish/confirm a dedicated Wave 14 correction integration workstream from a pinned live base and incorporate the already-proven Script Engineering product correction from #210 as appropriate. Then provide the same pinned integration contract to delegated DEV branches.
-
-Every DEV must report back:
-
-- base SHA;
-- head SHA;
-- files changed;
-- tests/workflows run and exact results;
-- architecture/security implications;
-- unresolved risks/dependencies;
-- whether the package is ready for coordinator integration.
-
-Product-code changes must never use `[skip ci]`.
-
-## 10. Wave 13 paused checkpoint
-
-Issue #205 is **PAUSED BY DEVELOPMENT LEAD**. Draft PR #207 remains open/draft.
-
-Preserved fully validated Wave 13 implementation SHA:
-
-`9f26a2bc02ae77017e266c52ff128dc39eece4b4`
-
-Retained validation:
-
-- Wave 13 Windows Release #27 / `33643546191`: **SUCCESS**;
-- EliteSCADA CI #1134 / `33643546119`: **SUCCESS**;
-- L3 Seven-Driver Lab #102 / `33643546111`: **SUCCESS**;
-- Wave 11 Active HMI Runtime #64 / `33643546139`: **SUCCESS**.
-
-Preserved branch head after its earlier docs synchronization:
-
-`fda87ba4445127c174f6ea533a6bcabaabc7bb20`
-
-Do not advance final Authenticode signing/merge/release from that stale product snapshot while Wave 14 is changing product content.
-
-When Wave 13 resumes:
-
-1. re-fetch live `main` and accepted Wave 14 baseline;
-2. incorporate/rebase the corrected product;
-3. re-run Windows packaging/signing validation on the actual corrected bytes;
-4. preserve external protected signing-authority/timestamp/private-key boundaries;
-5. if W14-C03 has succeeded, verify DNP3 restricted dependency removal as part of release evidence.
-
-## 11. Exact next coordinator action
-
-1. re-fetch live `main`, #211, #208, #210, #205/#207 and current Actions;
-2. read `docs/WAVE14-CORRECTION-PACKAGES.md`;
-3. establish the pinned Wave 14 correction integration base/branch without polluting the Preview harness scope;
-4. assign Stage A packages C01/C02/C03/C05/C06 to separate bounded DEV branches/chats;
-5. require each DEV to work from GitHub state rather than copied chat history;
-6. integrate only exact-head green package candidates in dependency order;
-7. use real Codespace browser validation after integrated corrections;
-8. record accepted evidence in #211;
-9. establish the corrected Wave 14 baseline before any final Wave 13 signing or Windows commercial release action.
+## Binding post-C26 route
+
+Issue #289 and `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md` remain mandatory only after C26 completion/acceptance, authorized C26->C11 integration, corrected canonical C11, regenerated package/checksum/provenance and a new technically ready Preview.
+
+Prepare the live application, EEE Active Revision, simulation, TAG dynamics, Alarm/Event/Historian/HistoricalQuery, Runtime, Engineering, Screen Editor, Popup Editor and users before declaring `READY FOR WORK AUDIT`. Do not consume the approximately 40-minute Work window on setup.
+
+## Permanent guardrails
+
+- GitHub live wins over every handoff;
+- never modify `main` directly;
+- #212 has no merge authorization; `siga` never authorizes it;
+- #288 and #266 must never merge;
+- #287 targets canonical C11 only and is not authorized now;
+- #263 is C11 -> integration only;
+- preserve #285;
+- #289 does not authorize early execution or protected merges;
+- no force push, destructive rebase, branch deletion, blind rerun or unrelated cleanup;
+- never weaken tests, validation, security, authentication, authorization, Identity, Engineering Lock, Licensing, lifecycle, package, Drivers or Runtime Active Revision authority;
+- Runtime/Active cannot depend on `.escadalib`;
+- no EEE-specific workaround for a generic product defect;
+- Alarm, Operational Event and Audit remain separate;
+- Wave13 remains paused.
+
+Canonical detailed handoff:
+
+`docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-09.md`

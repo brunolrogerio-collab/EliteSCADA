@@ -77,6 +77,29 @@ class L3CommandHandler(DefaultCommandHandler):
         self._database.update_binary_output(index, value=value, quality=BinaryQuality.ONLINE)
         return CommandResult.success("L3 binary output directly operated")
 
+    def select_analog_output(self, index: int, value: float) -> CommandResult:
+        del value
+        if index != 5:
+            return CommandResult.not_supported(f"Analog output {index} not supported")
+        return CommandResult.success("L3 analog output selection accepted")
+
+    def operate_analog_output(
+        self,
+        index: int,
+        value: float,
+        select_sequence: int,
+    ) -> CommandResult:
+        del value, select_sequence
+        if index != 5:
+            return CommandResult.not_supported(f"Analog output {index} not supported")
+        return CommandResult.success("L3 analog output operated")
+
+    def direct_operate_analog_output(self, index: int, value: float) -> CommandResult:
+        del value
+        if index != 5:
+            return CommandResult.not_supported(f"Analog output {index} not supported")
+        return CommandResult.success("L3 analog output directly operated")
+
 
 def build_outstation() -> Outstation:
     database = Database()

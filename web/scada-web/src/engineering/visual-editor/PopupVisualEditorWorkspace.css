@@ -1,0 +1,11 @@
+.popup-visual-editor-runtime-preview {
+  position: relative;
+  width: calc(100% - 36px);
+  min-height: 240px;
+  aspect-ratio: 16 / 9;
+  margin: 0 18px 18px;
+  overflow: hidden;
+  border: 1px solid var(--eng-border, #d7dde5);
+  background: var(--app-runtime-letterbox, #0b0f14);
+  box-shadow: 0 3px 14px rgba(19, 35, 52, 0.11);
+}

@@ -24,14 +24,14 @@ public sealed class Iec104EngineeringServices :
         _importer = new Iec104PointListImporter();
         _reconciler = new Iec104EngineeringReconciler(adapterFactory);
 
-        Descriptor = _provider.Descriptor with
+        Descriptor = Iec104DriverDescriptorProvider.Enrich(_provider.Descriptor with
         {
             EngineeringCapabilities =
                 _provider.Descriptor.EngineeringCapabilities |
                 DriverEngineeringCapabilities.FileImport |
                 DriverEngineeringCapabilities.Reconcile,
             Description = "IEC 60870-5-104 Engineering services: connection test, bounded GI observation browse, monitored point-list CSV import and bounded reconciliation. All results remain transient until canonical Engineering validate/preview/apply."
-        };
+        });
     }
 
     public CommunicationDriverTypeDescriptor Descriptor { get; }

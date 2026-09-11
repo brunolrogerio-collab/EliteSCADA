@@ -15,6 +15,7 @@ export type RuntimeHmiEngineeringPackage = Readonly<{
   schema: string;
   schemaVersion: number;
   exportedAt?: string | null;
+  startupScreenId?: string | null;
   screens: ScreenEngineering[];
   popups: PopupEngineering[];
   dynamos: DynamoEngineering[];
@@ -42,13 +43,28 @@ export class RuntimeApplicationProjectionError extends Error {
   }
 }
 
+export class RuntimeApplicationTransportError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RuntimeApplicationTransportError';
+  }
+}
+
 export async function loadRuntimeApplicationProjection(
   signal?: AbortSignal
 ): Promise<RuntimeApplicationProjection> {
-  const response = await fetch(`${API}/api/runtime/application`, {
-    headers: { accept: 'application/json' },
-    signal
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API}/api/runtime/application`, {
+      headers: { accept: 'application/json' },
+      signal
+    });
+  } catch (reason) {
+    if (signal?.aborted) throw reason;
+    throw new RuntimeApplicationTransportError(
+      reason instanceof Error ? reason.message : String(reason)
+    );
+  }
 
   if (!response.ok) {
     const body = await response.text();

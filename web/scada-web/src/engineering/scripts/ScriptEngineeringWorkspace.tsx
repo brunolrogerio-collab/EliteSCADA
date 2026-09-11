@@ -335,7 +335,7 @@ export function ScriptEngineeringWorkspace({
             >
               <strong>{script.name}</strong>
               <span>{script.path}</span>
-              <small>{scopeLabel(script.scope, locale)} · {script.enabled ? copy.enabled : 'Disabled'}</small>
+              <small>{scopeLabel(script.scope, locale)} · {script.enabled ? copy.enabled : copy.disabled}</small>
             </button>
           ))}
         </aside>
@@ -417,7 +417,7 @@ export function ScriptEngineeringWorkspace({
               <div className="script-rows">
                 {draft.entryPoints.map((entry, index) => (
                   <div className="script-row script-row--entry" key={`entry-${index}`}>
-                    <label>{copy.event}<select value={entry.eventKind} onChange={event => patchDraft({ entryPoints: draft.entryPoints.map((item, itemIndex) => itemIndex === index ? { ...item, eventKind: event.target.value as typeof entry.eventKind } : item) })}>{SCRIPT_EVENT_KINDS.map(kind => <option key={kind} value={kind}>{eventKindLabel(kind)}</option>)}</select></label>
+                    <label>{copy.event}<select value={entry.eventKind} onChange={event => patchDraft({ entryPoints: draft.entryPoints.map((item, itemIndex) => itemIndex === index ? { ...item, eventKind: event.target.value as typeof entry.eventKind } : item) })}>{SCRIPT_EVENT_KINDS.map(kind => <option key={kind} value={kind}>{eventKindLabel(kind, locale)}</option>)}</select></label>
                     <label>{copy.handler}<input value={entry.handlerName} onChange={event => patchDraft({ entryPoints: draft.entryPoints.map((item, itemIndex) => itemIndex === index ? { ...item, handlerName: event.target.value } : item) })} /></label>
                     <label>{copy.target}<input value={entry.targetReference ?? ''} onChange={event => patchDraft({ entryPoints: draft.entryPoints.map((item, itemIndex) => itemIndex === index ? { ...item, targetReference: event.target.value || null } : item) })} /></label>
                     <button type="button" className="danger ghost" onClick={() => patchDraft({ entryPoints: draft.entryPoints.filter((_, itemIndex) => itemIndex !== index) })}>{copy.remove}</button>
@@ -429,7 +429,7 @@ export function ScriptEngineeringWorkspace({
               <div className="script-rows">
                 {draft.dependencies.map((dependency, index) => (
                   <div className="script-row script-row--dependency" key={`dependency-${index}`}>
-                    <label>{copy.kind}<select value={dependency.kind} onChange={event => patchDraft({ dependencies: draft.dependencies.map((item, itemIndex) => itemIndex === index ? { ...item, kind: event.target.value as typeof dependency.kind } : item) })}>{SCRIPT_DEPENDENCY_KINDS.map(kind => <option key={kind} value={kind}>{dependencyKindLabel(kind)}</option>)}</select></label>
+                    <label>{copy.kind}<select value={dependency.kind} onChange={event => patchDraft({ dependencies: draft.dependencies.map((item, itemIndex) => itemIndex === index ? { ...item, kind: event.target.value as typeof dependency.kind } : item) })}>{SCRIPT_DEPENDENCY_KINDS.map(kind => <option key={kind} value={kind}>{dependencyKindLabel(kind, locale)}</option>)}</select></label>
                     <label>{copy.stableReference}<input value={dependency.stableReference} onChange={event => patchDraft({ dependencies: draft.dependencies.map((item, itemIndex) => itemIndex === index ? { ...item, stableReference: event.target.value } : item) })} /></label>
                     <button type="button" className="danger ghost" onClick={() => patchDraft({ dependencies: draft.dependencies.filter((_, itemIndex) => itemIndex !== index) })}>{copy.remove}</button>
                   </div>
@@ -451,7 +451,7 @@ export function ScriptEngineeringWorkspace({
               {previewToken && (
                 <div className={`script-preview ${previewCurrent && previewToken.preview.canApply ? 'script-preview--ok' : 'script-preview--stale'}`}>
                   <strong>{previewCurrent ? (previewToken.preview.canApply ? copy.previewReady : copy.previewInvalid) : copy.previewExpired}</strong>
-                  <span>Create {previewToken.preview.createCount} · Update {previewToken.preview.updateCount} · Skip {previewToken.preview.skipCount} · Errors {previewToken.preview.errorCount}</span>
+                  <span>{copy.previewCreate} {previewToken.preview.createCount} · {copy.previewUpdate} {previewToken.preview.updateCount} · {copy.previewSkip} {previewToken.preview.skipCount} · {copy.previewErrors} {previewToken.preview.errorCount}</span>
                   {previewToken.preview.items.flatMap(item => item.issues).length > 0 && (
                     <ul>{previewToken.preview.items.flatMap(item => item.issues).map((issue, index) => <li key={`${issue.code}-${index}`}>{issue.code}: {issue.message}</li>)}</ul>
                   )}

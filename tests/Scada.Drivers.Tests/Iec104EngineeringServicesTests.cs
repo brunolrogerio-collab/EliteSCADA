@@ -15,7 +15,11 @@ public sealed class Iec104EngineeringServicesTests
         Assert.True(services.Descriptor.EngineeringCapabilities.HasFlag(DriverEngineeringCapabilities.Browse));
         Assert.True(services.Descriptor.EngineeringCapabilities.HasFlag(DriverEngineeringCapabilities.FileImport));
         Assert.True(services.Descriptor.EngineeringCapabilities.HasFlag(DriverEngineeringCapabilities.Reconcile));
-        Assert.Empty(services.Descriptor.ConfigurationSchema.TagBindingFields);
+        Assert.Equal(Iec104DriverDescriptorProvider.BindingSchemaId, services.Descriptor.TagBindingSchemaId);
+        Assert.Equal(Iec104DriverDescriptorProvider.BindingSchemaVersion, services.Descriptor.TagBindingSchemaVersion);
+        Assert.Equal(
+            new[] { "iec104.typeId", "iec104.commandTypeId", "iec104.commandMode", "iec104.qualifier" },
+            services.Descriptor.ConfigurationSchema.TagBindingFields.Select(static field => field.Key));
         Assert.IsAssignableFrom<ICommunicationDriverConnectionTester>(services);
         Assert.IsAssignableFrom<ICommunicationDriverBrowser>(services);
         Assert.IsAssignableFrom<ICommunicationDriverFileImporter>(services);

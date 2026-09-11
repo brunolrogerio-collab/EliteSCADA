@@ -53,7 +53,12 @@ export async function runEngineeringClientVisualPythonHandler(
 
   const runtime = createPreviewRuntime(
     request,
-    createClientVisualPythonCapabilityProvider({ memoryStore: clientMemory })
+    createClientVisualPythonCapabilityProvider({
+      memoryStore: clientMemory,
+      // Preview may read authorized Runtime state, but it must not create process
+      // side effects merely because an engineer tests a handler in the editor.
+      tagWriter: null
+    })
   );
 
   try {

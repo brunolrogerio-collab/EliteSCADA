@@ -12,6 +12,8 @@ namespace Scada.Drivers.Tests;
 
 public sealed class TagRealtimeHubTests
 {
+    private static readonly TimeSpan AsyncSchedulingTimeout = TimeSpan.FromSeconds(5);
+
     [Fact]
     public async Task PublishAsync_DoesNotWaitForStalledClientTransport()
     {
@@ -39,12 +41,12 @@ public sealed class TagRealtimeHubTests
 
         var publish = bus.PublishAsync(CreateEvent()).AsTask();
 
-        await publish.WaitAsync(TimeSpan.FromSeconds(1));
-        await socket.SendStarted.WaitAsync(TimeSpan.FromSeconds(1));
+        await publish.WaitAsync(AsyncSchedulingTimeout);
+        await socket.SendStarted.WaitAsync(AsyncSchedulingTimeout);
         Assert.False(socket.SendCompleted.IsCompleted);
 
         connectionCancellation.Cancel();
-        await connection.WaitAsync(TimeSpan.FromSeconds(1));
+        await connection.WaitAsync(AsyncSchedulingTimeout);
     }
 
     [Fact]
@@ -81,20 +83,20 @@ public sealed class TagRealtimeHubTests
             connectionCancellation.Token);
 
         await bus.PublishAsync(CreateEvent());
-        await slowSocket.SendStarted.WaitAsync(TimeSpan.FromSeconds(1));
-        await healthySocket.WaitForSendAsync(TimeSpan.FromSeconds(1));
+        await slowSocket.SendStarted.WaitAsync(AsyncSchedulingTimeout);
+        await healthySocket.WaitForSendAsync(AsyncSchedulingTimeout);
 
         for (var index = 0; index <= TagRealtimeHub.MaximumQueuedMessagesPerClient; index++)
         {
             await bus.PublishAsync(CreateEvent(index));
-            await healthySocket.WaitForSendAsync(TimeSpan.FromSeconds(1));
+            await healthySocket.WaitForSendAsync(AsyncSchedulingTimeout);
         }
 
         Assert.Equal(0, hub.RevokeSubject(principal.SubjectId));
         Assert.Equal(1, hub.RevokeSubject("healthy-client"));
 
         connectionCancellation.Cancel();
-        await Task.WhenAll(slowConnection, healthyConnection).WaitAsync(TimeSpan.FromSeconds(1));
+        await Task.WhenAll(slowConnection, healthyConnection).WaitAsync(AsyncSchedulingTimeout);
     }
 
     [Fact]

@@ -252,7 +252,7 @@ At process startup, Engineering must not present the built-in demo as the Workin
 
 1. `EngineeringWorking:ProjectKey` and optional positive `EngineeringWorking:Revision` select an explicit Working revision.
 2. Otherwise `EngineeringRuntime:ProjectKey` selects that persisted project's latest revision for Working while Active recovery remains a separate operation.
-3. Otherwise the catalog entry with the newest `LastSavedAtUtc` is selected; equal timestamps use case-insensitive `ProjectKey` ordering.
+3. Otherwise the catalog entry with the newest `LastSavedAtUtc` is selected; equal timestamps use `ProjectKey` ordinal-ignore-case ordering, followed by a final ordinal/case-sensitive tie-break.
 4. An empty persisted catalog remains a neutral Working workspace so Create First Project, supported import, and restore flows remain explicit.
 
 A configured project or revision that cannot be resolved fails startup with a concrete configuration error. It must not fall back to demo or another project.

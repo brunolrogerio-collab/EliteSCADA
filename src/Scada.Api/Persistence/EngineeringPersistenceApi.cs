@@ -36,6 +36,7 @@ public static class EngineeringPersistenceApi
             new PostgreSqlEngineeringProjectCatalog(connectionString));
         builder.Services.TryAddSingleton<IEngineeringProjectPersistenceService, EngineeringProjectPersistenceService>();
         builder.Services.TryAddSingleton<IEngineeringWorkspaceCheckoutService, EngineeringWorkspaceCheckoutService>();
+        builder.Services.TryAddSingleton<IEngineeringWorkingBootstrapService, EngineeringWorkingBootstrapService>();
         builder.Services.TryAddSingleton<IPublishedRuntimeActivationService, PublishedRuntimeActivationService>();
         builder.Services.TryAddSingleton<IPersistedRuntimeRecoveryService, PersistedRuntimeRecoveryService>();
     }
@@ -44,20 +45,39 @@ public static class EngineeringPersistenceApi
         this WebApplication app,
         CancellationToken cancellationToken = default)
     {
-        var configuredProjectKey = app.Configuration["EngineeringRuntime:ProjectKey"];
+        var configuredRuntimeProjectKey = app.Configuration["EngineeringRuntime:ProjectKey"];
+        var configuredWorkingProjectKey = app.Configuration["EngineeringWorking:ProjectKey"];
+        var configuredWorkingRevisionValue = app.Configuration["EngineeringWorking:Revision"];
         var persistence = app.Services.GetService<IEngineeringProjectPersistenceService>();
         if (persistence is null)
         {
-            if (!string.IsNullOrWhiteSpace(configuredProjectKey))
+            if (!string.IsNullOrWhiteSpace(configuredRuntimeProjectKey) ||
+                !string.IsNullOrWhiteSpace(configuredWorkingProjectKey) ||
+                !string.IsNullOrWhiteSpace(configuredWorkingRevisionValue))
             {
                 throw new InvalidOperationException(
-                    "EngineeringRuntime:ProjectKey is configured, but engineering persistence is unavailable. Configure ConnectionStrings:EliteScada before starting a persisted runtime.");
+                    "Engineering Working/Runtime persistence is configured, but engineering persistence is unavailable. Configure ConnectionStrings:EliteScada before selecting a persisted project.");
             }
 
+            app.Services.GetRequiredService<EngineeringWorkspace>().InitializeDemo();
             return;
         }
 
+        long? configuredWorkingRevision = null;
+        if (!string.IsNullOrWhiteSpace(configuredWorkingRevisionValue))
+        {
+            if (!long.TryParse(configuredWorkingRevisionValue, out var revision) || revision < 1)
+                throw new InvalidOperationException("EngineeringWorking:Revision must be a positive integer.");
+            configuredWorkingRevision = revision;
+        }
+
         await persistence.InitializeAsync(cancellationToken);
+        var bootstrap = app.Services.GetRequiredService<IEngineeringWorkingBootstrapService>();
+        await bootstrap.BootstrapAsync(
+            configuredWorkingProjectKey,
+            configuredWorkingRevision,
+            configuredRuntimeProjectKey,
+            cancellationToken);
         await app.RecoverConfiguredEngineeringRuntimeAsync(cancellationToken);
     }
 
@@ -259,49 +279,12 @@ public static class EngineeringPersistenceApi
             string projectKey,
             EngineeringActivateRequest request,
             HttpContext context,
-            CancellationToken cancellationToken) =>
-        {
-            var activationService = ResolveActivation(context);
-            if (activationService is null) return Disabled();
-
-            var configuredProjectKey = ResolveConfiguredProjectKey(context);
-            if (string.IsNullOrWhiteSpace(configuredProjectKey))
-            {
-                return Results.Conflict(new
-                {
-                    error = "EngineeringRuntime:ProjectKey must be configured before activating a persisted runtime."
-                });
-            }
-
-            if (!configuredProjectKey.Equals(projectKey, StringComparison.OrdinalIgnoreCase))
-            {
-                return Results.Conflict(new
-                {
-                    error = $"This runtime instance is bound to project '{configuredProjectKey}', not '{projectKey}'."
-                });
-            }
-
-            var outcome = await activationService.ActivateAsync(
+            CancellationToken cancellationToken) => ActivatePublishedAsync(
                 projectKey,
-                request.ActivatedBy,
-                cancellationToken);
-
-            if (!outcome.Found || outcome.Snapshot is null)
-                return Results.NotFound(new { error = "Project has no published revision." });
-
-            var response = new
-            {
-                revision = ToMetadata(outcome.Snapshot),
-                activated = outcome.Activated,
-                runtime = outcome.Runtime,
-                activation = outcome.Activation,
-                lifecycle = outcome.Lifecycle
-            };
-
-            return outcome.Activated
-                ? Results.Ok(response)
-                : Results.Json(response, statusCode: StatusCodes.Status422UnprocessableEntity);
-        });
+                request,
+                ResolveConfiguredProjectKey(context),
+                ResolveActivation(context),
+                cancellationToken));
 
         group.MapGet("/{projectKey}/revisions", async (
             string projectKey,
@@ -556,6 +539,53 @@ public static class EngineeringPersistenceApi
 
     private static IPublishedRuntimeActivationService? ResolveActivation(HttpContext context) =>
         context.RequestServices.GetService<IPublishedRuntimeActivationService>();
+
+    internal static async Task<IResult> ActivatePublishedAsync(
+        string projectKey,
+        EngineeringActivateRequest request,
+        string? configuredProjectKey,
+        IPublishedRuntimeActivationService? activationService,
+        CancellationToken cancellationToken = default)
+    {
+        if (activationService is null) return Disabled();
+
+        if (string.IsNullOrWhiteSpace(configuredProjectKey))
+        {
+            return Results.Conflict(new
+            {
+                error = "EngineeringRuntime:ProjectKey must be configured before activating a persisted runtime."
+            });
+        }
+
+        if (!configuredProjectKey.Equals(projectKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.Conflict(new
+            {
+                error = $"This runtime instance is bound to project '{configuredProjectKey}', not '{projectKey}'."
+            });
+        }
+
+        var outcome = await activationService.ActivateAsync(
+            projectKey,
+            request.ActivatedBy,
+            cancellationToken);
+
+        if (!outcome.Found || outcome.Snapshot is null)
+            return Results.NotFound(new { error = "Project has no published revision." });
+
+        var response = new
+        {
+            revision = ToMetadata(outcome.Snapshot),
+            activated = outcome.Activated,
+            runtime = outcome.Runtime,
+            activation = outcome.Activation,
+            lifecycle = outcome.Lifecycle
+        };
+
+        return outcome.Activated
+            ? Results.Ok(response)
+            : Results.Json(response, statusCode: StatusCodes.Status422UnprocessableEntity);
+    }
 
     private static string? ResolveConfiguredProjectKey(HttpContext context) =>
         context.RequestServices.GetRequiredService<IConfiguration>()["EngineeringRuntime:ProjectKey"];

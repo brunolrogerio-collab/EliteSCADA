@@ -9,7 +9,7 @@ services:
     volumes:
       - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     healthcheck:
-      test: ["CMD-SHELL", "mosquitto_pub -h 127.0.0.1 -p 1883 -t elitescada/lab/health -m ping -q 0 >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "mosquitto_pub -h 127.0.0.1 -p 1883 -t elitescada/health/mosquitto -m ping -q 0 >/dev/null 2>&1"]
       interval: 5s
       timeout: 3s
       retries: 10

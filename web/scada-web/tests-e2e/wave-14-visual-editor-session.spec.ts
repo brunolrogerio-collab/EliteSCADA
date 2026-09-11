@@ -3,6 +3,7 @@ import type { ScreenEngineering, VisualElementEngineering } from '../src/enginee
 import {
   applyVisualEditorSessionKeyboardCommand,
   applyVisualEditorSessionZOrder,
+  canPasteVisualEditorSession,
   canRedoVisualEditorSession,
   canUndoVisualEditorSession,
   createVisualEditorSession,
@@ -55,10 +56,12 @@ test('session groups selected siblings and undo restores the canonical draft', (
 
 test('session copy and paste keep clipboard transient while committing only the Screen draft', () => {
   let session = createVisualEditorSession(screen([rectangle('one', 10)]));
+  expect(canPasteVisualEditorSession(session)).toBe(false);
   session = withVisualEditorSessionSelection(session, ['one']);
   session = applyVisualEditorSessionKeyboardCommand(session, { kind: 'copy' });
 
   expect(canUndoVisualEditorSession(session)).toBe(false);
+  expect(canPasteVisualEditorSession(session)).toBe(true);
   expect(session.clipboard?.elements.map(element => element.id)).toEqual(['one']);
 
   session = applyVisualEditorSessionKeyboardCommand(session, { kind: 'paste' });
@@ -71,6 +74,25 @@ test('session copy and paste keep clipboard transient while committing only the 
   session = applyVisualEditorSessionKeyboardCommand(session, { kind: 'undo' });
   expect(currentVisualEditorSessionScreen(session).elements).toHaveLength(1);
   expect(session.clipboard?.elements.map(element => element.id)).toEqual(['one']);
+});
+
+test('session disables paste when its canonical target container no longer exists', () => {
+  const group: VisualElementEngineering = {
+    id: 'group',
+    key: 'group',
+    type: BUILTIN_VISUAL_OBJECT_TYPES.group,
+    properties: { x: 0, y: 0, width: 100, height: 100 },
+    children: [rectangle('child', 10)]
+  };
+  let session = createVisualEditorSession(screen([group]));
+  session = withVisualEditorSessionSelection(session, ['child']);
+  session = applyVisualEditorSessionKeyboardCommand(session, { kind: 'copy' });
+  expect(canPasteVisualEditorSession(session)).toBe(true);
+
+  session = withVisualEditorSessionSelection(session, ['group']);
+  session = applyVisualEditorSessionKeyboardCommand(session, { kind: 'delete' });
+
+  expect(canPasteVisualEditorSession(session)).toBe(false);
 });
 
 test('session keyboard mutation respects canonical authoring locks', () => {

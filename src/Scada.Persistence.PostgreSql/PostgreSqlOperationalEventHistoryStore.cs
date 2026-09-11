@@ -9,7 +9,7 @@ namespace Scada.Persistence.PostgreSql;
 
 public sealed class PostgreSqlOperationalEventHistoryStore : IHistoricalDatasetProvider, IAsyncDisposable
 {
-    private const long InfrastructureLockKey = 4993446713136202562;
+    private const long InfrastructureLockKey = 4993446713136202561;
     private const string InfrastructureSql = """
         CREATE SCHEMA IF NOT EXISTS elitescada;
 

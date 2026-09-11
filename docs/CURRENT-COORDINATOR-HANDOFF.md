@@ -1,128 +1,126 @@
-# CURRENT COORDINATOR HANDOFF — Wave 14
+# Current Coordinator Handoff
 
-**Date:** 2026-09-07  
-**State:** **C25 PRODUCT OWNER ACCEPTED / #283 MERGED TO INTEGRATION / POST-MERGE INTEGRATION CI RED / C11 FROZEN / #212 OPEN-DRAFT AND NOT AUTHORIZED FOR `main`**
+> GitHub live is the official memory and sole authority for EliteSCADA. Revalidate live before every decision, diagnosis, code/documentation write, PR action, workflow rerun or merge. Any divergence here is resolved in favor of GitHub.
 
-## Rule zero
+## Current topology
 
-GitHub live state is the official and sole project authority. Before any decision or mutation, revalidate branch heads, PR states, relevant issue comments and exact-SHA CI. If this handoff diverges from GitHub live, GitHub wins.
+- Repository: `brunolrogerio-collab/EliteSCADA`
+- Active branch: `wave14/c26-po-homologation-corrections`
+- Coordinator issue: #286
+- PR #287: C26 -> `wave14/c11-canonical-eee-demo`, OPEN/DRAFT
+- PR #288: C26 -> `main`, **VALIDATION ONLY / MUST NEVER MERGE**
+- canonical C11 head at last revalidation: `a724ece64a292aa1d1dedd886a72fb28ff8d90fe`
+- PR #266: C11 -> `main`, **VALIDATION ONLY / MUST NEVER MERGE**
+- PR #263: C11 -> `wave14/corrections-integration` only
+- PR #212: integration -> `main`, OPEN/DRAFT, **NO MERGE without later separate explicit Product Owner authorization**
+- Preview #285: preserve untouched as historical pre-C26 evidence
+- issue #289: mandatory post-C26 ChatGPT Work audit gate; **do not execute now**
+- Wave13 #205/#207: paused
 
-## Repository and protected route
+## Exact execution boundary
 
-Repository: `brunolrogerio-collab/EliteSCADA`  
-Integration branch: `wave14/corrections-integration`  
-Integration PR: #212 -> `main`
+Current C26 product/test SHA:
 
-#212 MUST remain OPEN/DRAFT and MUST NOT merge to `main` without a separate later explicit Product Owner authorization. C25 acceptance or integration does not grant that authorization.
+`e7c8a8bf3954890a1ca841498222bf6094952baf`
 
-Never mutate `main` directly. No force push, destructive rebase, branch deletion or unrelated cleanup.
+`fix(w14-c26): serialize shared PostgreSQL schema setup`
 
-## C25 accepted and integrated
+The live branch HEAD after this rotation is a documentation-only commit above the product SHA. Revalidate it; never use the docs-only SHA as product validation evidence.
 
-C25 branch: `wave14/c25-post-demo`  
-C25 PR: #283  
-C25 tracking issue: #282
+Last exact product/test SHA with all five normal gates green:
 
-Explicit Product Owner acceptance was recorded for the exact product/test candidate:
+`55f292359af86f5f28d90cc578d4ac93ccc1f19c`
 
-`5193b81220f499cb2039dc1146c6dd1a7f7b3dbd`
+`fix(w14-c26): align Popup authoring with Runtime`
 
-Exact candidate evidence:
+Status:
 
-- Wave 14 C25 Post-Demo #314 / run `34072225644` — **SUCCESS**;
-- Wave 14 C03 DNP3 Adapter #301 / run `34072225635` — **SUCCESS**.
+- C26.1–C26.7 — **IMPLEMENTED / VALIDATED**
+- C26.8 Screen editor — **IMPLEMENTED / VALIDATED** at `6de64ed4...`
+- C26.9 Popup editor — **IMPLEMENTED / VALIDATED** at `55f29235...`
+- C26.10 canonical EEE cleanup — **IMPLEMENTED / NOT VALIDATED / CURRENT BLOCKER**
+- C26.11 package/new Preview — **NOT STARTED / BLOCKED**
 
-Validated C25.10 coordination head:
+## Current exact-SHA gates
 
-`a781294ed2996888a8147c6f5fcaeb4eaddcf3c1`
+At `e7c8a8bf3954890a1ca841498222bf6094952baf`:
 
-#283 was merged only into `wave14/corrections-integration` with merge commit:
+- EliteSCADA CI #1471 / run `34347157464` — SUCCESS
+- Preview Licensing CI #419 / run `34347157585` — SUCCESS
+- Interop Lab Smoke #302 / run `34347159685` — SUCCESS
+- L3 Seven-Driver Lab #375 / run `34347157398` — SUCCESS
+- Wave 11 Active HMI Runtime #397 / run `34347157735` — **FAILURE**
+- additional natural Interop #301 / run `34347157333` — SUCCESS
 
-`f282758d47c0419f3534f948658701467807758b`
+No rerun was requested.
 
-C25.0 through C25.10 are therefore closed as product-candidate work: accepted and integrated into the Wave 14 integration branch. This does not mean Wave 14 is ready for `main`.
+## Current blocker — C26.10 package schema
 
-## Current integration head and active blocker
+Wave11 job `102451385709`, step `Run Wave 11 Active Runtime browser lifecycle`, finished with 17 passed, 2 failed and 4 not run.
 
-Live integration head immediately before this handoff refresh:
+Both failures occurred during Preview/Apply setup:
 
-`3e2f69447419a0852d8eaf9358969c0adc1da9ae`
+- `tests-wave11/c11-eee-demo-hmi.spec.ts`
+- `tests-wave11/c26-popup-composition.spec.ts`
 
-Two commits exist after the C25 merge commit:
+The preview rejected Dynamo `eee.dynamo.pump` with `VISUAL_PROPERTY_INVALID` for:
 
-- `f7f7a92163486c9a2157a5958b160b21b964a4ac` — `test(realtime): harden async scheduling watchdogs`;
-- `3e2f69447419a0852d8eaf9358969c0adc1da9ae` — `ci(w14): validate integration head on push`.
+- `pump-stopped-label`
+- `pump-running-label`
+- `pump-fault-label`
 
-Compare `f282758...` -> `3e2f694...` changes only:
+The exact error says `core.text` does not declare `backgroundColor`.
 
-- `.github/workflows/dotnet-ci.yml`;
-- `tests/Scada.Drivers.Tests/TagRealtimeHubTests.cs`.
+The C26.10 candidate `50363bcc...` had added `backgroundColor` and `cornerRadius` to these three text elements to prevent `PARADA` from showing through `OPERANDO`/`FALHA`. Exact backend and browser schemas define `core.text` as base + text properties and do not declare either property. The visual intent is valid, but the authored representation is package-invalid.
 
-Latest completed PR #212 CI on `3e2f694...`:
+The uploaded Wave11 evidence is artifact `playwright-report-wave11`, ID `10102316731`, attached to run `34347157735`.
 
-- EliteSCADA CI #1422 / run `34074801046` — **FAILURE**;
-- Backend build, test and smoke — **SUCCESS**;
-- Web build — **SUCCESS**;
-- Chromium end-to-end — **FAILURE** at `Run browser E2E tests`;
-- 605 browser tests passed and 6 failed.
+## Independent PostgreSQL correction now green
 
-Failing Chromium specs reported by the run:
+At `50363bcc...`, EliteSCADA CI exposed concurrent `CREATE SCHEMA IF NOT EXISTS elitescada` under mismatched advisory locks. Commit `e7c8a8...` changed Operational Event history to shared lock `4993446713136202561` and added it to the shared-schema concurrency regression.
 
-1. `tests-e2e/c04-i18n-browser.spec.ts:85:1` — Source/Address locale switching;
-2. `tests-e2e/c04-i18n-browser.spec.ts:106:1` — Driver resource-key localization;
-3. `tests-e2e/communication-diagnostics.spec.ts:8:1` — Engineering communication diagnostics;
-4. `tests-e2e/engineering.spec.ts:16:1` — Engineering workspace/public model + locale switching;
-5. `tests-e2e/report-designer-workspace.spec.ts:37:1` — Report Designer canonical report flow;
-6. `tests-e2e/wave-14-c07-multilingual-authoring.spec.ts:6:1` — multilingual visual-authoring live locale changes.
+EliteSCADA CI #1471 passed. Do not revert this fix while correcting the C26.10 visual schema error.
 
-The exact shared root cause has **not yet been established from the detailed Playwright failure output**. Do not guess and do not rerun blindly. The next coordinator must inspect the exact failure messages/traces/report, identify whether there is one shared regression or multiple causes, then correct the source without weakening assertions or contracts.
+## Immediate next task
 
-Other workflows associated with `3e2f694...` were green: Preview Licensing CI, Wave 11 Active HMI Runtime, Interop Lab Smoke and L3 Seven-Driver Lab.
+1. Read `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-09.md` first and revalidate all live refs/gates.
+2. Re-read Wave11 #397/job `102451385709` plus exact C26.10 helper, regression and backend/browser visual schemas.
+3. Replace the invalid text-background authoring with the smallest schema-valid EEE composition that keeps state labels opaque and legible.
+4. Preserve strict package Preview and Runtime assertions.
+5. Do not widen `core.text` solely for EEE; a generic contract change requires independent platform justification and synchronized backend/browser coverage.
+6. Let workflows run naturally on the new exact product/test SHA; no blind rerun.
+7. Require the five normal gates green on one SHA before declaring C26.10 VALIDATED.
+8. Do not begin C26.11 or integrate #287 before C26 is validated, accepted and the integration is explicitly authorized.
 
-## C11 remains frozen
+## Validated recent milestones
 
-Canonical EEE Demo branch:
+- C26.7: `b1bd1f664b06684afaecbbff2d27da10760cc1ec` — 5/5 normal gates SUCCESS
+- C26.8: `6de64ed4d11ac1e525f32d7071b9624e428c96ee` — 5/5 normal gates SUCCESS
+- C26.9: `55f292359af86f5f28d90cc578d4ac93ccc1f19c` — 5/5 normal gates SUCCESS
 
-`wave14/c11-canonical-eee-demo`
+## Binding post-C26 route
 
-Preserved exact head:
+Issue #289 and `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md` remain mandatory only after C26 completion/acceptance, authorized C26->C11 integration, corrected canonical C11, regenerated package/checksum/provenance and a new technically ready Preview.
 
-`41d24d89c3b9d2b881215255e44023fabde262f3`
+Prepare the live application, EEE Active Revision, simulation, TAG dynamics, Alarm/Event/Historian/HistoricalQuery, Runtime, Engineering, Screen Editor, Popup Editor and users before declaring `READY FOR WORK AUDIT`. Do not consume the approximately 40-minute Work window on setup.
 
-PR #263 remains OPEN/DRAFT -> integration. It must remain frozen until the post-C25 integration head is exact-SHA green. Do not synchronize/adapt C11 while the current integration validation is red.
+## Permanent guardrails
 
-Validation-only PR #266 remains OPEN/DRAFT against `main` and **MUST NEVER MERGE**.
+- GitHub live wins over every handoff;
+- never modify `main` directly;
+- #212 has no merge authorization; `siga` never authorizes it;
+- #288 and #266 must never merge;
+- #287 targets canonical C11 only and is not authorized now;
+- #263 is C11 -> integration only;
+- preserve #285;
+- #289 does not authorize early execution or protected merges;
+- no force push, destructive rebase, branch deletion, blind rerun or unrelated cleanup;
+- never weaken tests, validation, security, authentication, authorization, Identity, Engineering Lock, Licensing, lifecycle, package, Drivers or Runtime Active Revision authority;
+- Runtime/Active cannot depend on `.escadalib`;
+- no EEE-specific workaround for a generic product defect;
+- Alarm, Operational Event and Audit remain separate;
+- Wave13 remains paused.
 
-No EEE-specific workaround is allowed for a generic product deficiency.
+Canonical detailed handoff:
 
-## Wave 13 remains paused
-
-Wave 13 issue #205 and PR #207 remain paused. PR #207 remains OPEN/DRAFT with preserved head:
-
-`fda87ba4445127c174f6ea533a6bcabaabc7bb20`
-
-Do not resume release/signing from this stale pre-Wave-14 snapshot. Resume only from the later approved new mainline after Wave 14 integration, C11/EEE homologation and an explicitly authorized #212 transition.
-
-## Permanent technical boundaries
-
-- diagnose any CI red before correction or rerun;
-- never weaken tests or validation to obtain green;
-- never bypass authentication, authorization, Authority, Engineering Lock, licensing, lifecycle, package or Runtime authority;
-- backend Active Revision remains canonical Runtime application authority;
-- Alarm / Operational Event / Audit remain distinct;
-- preserve package and recovery semantics;
-- preserve C03/OpenDNP3 commercial dependency boundary;
-- no generic product defect may be hidden behind an EEE-specific workaround.
-
-## Immediate next sequence
-
-1. Revalidate GitHub live before acting.
-2. Inspect the exact Playwright output/traces for EliteSCADA CI #1422 / `34074801046`; diagnose all six failures before any rerun.
-3. Correct the generic cause(s) at source without contract/test weakening.
-4. Exact-SHA validate the resulting `wave14/corrections-integration` head. Do not treat partial green as acceptance.
-5. Only after integration is green, synchronize/adapt frozen C11 to the accepted C25 contracts using normal history-preserving integration.
-6. Revalidate canonical EEE behavior and package portability via generic product paths; export/version/freeze `EliteSCADA-EEE-Demo.escadapkg`, checksum and provenance.
-7. Run exact C11 gates and use #266 only as a validation trigger; close #266 without merge when its role is complete.
-8. Perform Product Owner Preview/Codespace homologation.
-9. #212 may merge to `main` only after a separate explicit Product Owner authorization given after the required validation/homologation. Do not interpret `siga` as that authorization.
-10. Validate the resulting `main`; only then resume Wave 13 release/signing.
+`docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-09.md`

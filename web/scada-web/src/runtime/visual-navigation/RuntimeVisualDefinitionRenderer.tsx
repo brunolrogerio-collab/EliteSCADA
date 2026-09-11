@@ -170,6 +170,7 @@ export function RuntimeVisualDefinitionRenderer({
       onVisualEvent={onVisualEvent}
       onTagWrite={onTagWrite}
       visualAssetUrl={visualAssetUrl}
+      showTechnicalFallbackText={false}
     />
     <RuntimeDynamoStateLayer
       indicators={dynamoStateIndicators}
@@ -203,7 +204,7 @@ function RuntimeDynamoStateLayer({
         data-dynamo-state-priority={indicator.priority}
         data-dynamo-quality={indicator.quality}
         data-dynamo-feedback-mismatch={indicator.feedbackMismatch || undefined}
-        title={`${indicator.dynamoKey} · ${indicator.label}${indicator.feedbackMismatch ? ` · ${feedbackMismatchLabel}` : ''}`}
+        title={`${indicator.label}${indicator.feedbackMismatch ? ` · ${feedbackMismatchLabel}` : ''}`}
         style={{
           position: 'absolute',
           left: 2,

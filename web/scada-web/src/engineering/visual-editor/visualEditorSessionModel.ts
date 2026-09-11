@@ -2,6 +2,7 @@ import type { ScreenEngineering, VisualElementEngineering } from '../types';
 import {
   applyVisualEditorAuthoringOperation,
   assertVisualElementsAuthoringEditable,
+  isVisualElementEffectivelyAuthoringLocked,
   type VisualEditorAuthoringOperation
 } from './visualEditorAuthoringModel';
 import {
@@ -73,6 +74,15 @@ export function canUndoVisualEditorSession(state: VisualEditorSessionState): boo
 
 export function canRedoVisualEditorSession(state: VisualEditorSessionState): boolean {
   return canRedoVisualEditorHistory(state.history);
+}
+
+export function canPasteVisualEditorSession(state: VisualEditorSessionState): boolean {
+  const clipboard = state.clipboard;
+  if (!clipboard || clipboard.elements.length === 0) return false;
+  if (!clipboard.sourceParentId) return true;
+  const existing = collectObjectIds(state.history.present.elements ?? []);
+  return existing.has(clipboard.sourceParentId)
+    && !isVisualElementEffectivelyAuthoringLocked(state.history.present, clipboard.sourceParentId);
 }
 
 export function withVisualEditorSessionSelection(

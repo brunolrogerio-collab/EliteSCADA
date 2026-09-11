@@ -9,6 +9,7 @@ on:
       - 'src/Scada.Engineering/**'
       - 'src/Scada.DriverHost/**'
       - 'web/scada-web/**'
+      - 'preview/fixtures/**'
       - '.github/workflows/wave11-hmi-runtime.yml'
   push:
     branches: [ main ]
@@ -17,6 +18,7 @@ on:
       - 'src/Scada.Engineering/**'
       - 'src/Scada.DriverHost/**'
       - 'web/scada-web/**'
+      - 'preview/fixtures/**'
       - '.github/workflows/wave11-hmi-runtime.yml'
 
 permissions:
@@ -72,9 +74,43 @@ jobs:
         working-directory: web/scada-web
         run: npx playwright install --with-deps chromium
 
+      - name: Verify frozen C11 canonical package bytes
+        working-directory: preview/fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum --check EliteSCADA-EEE-Demo.escadapkg.sha256
+          if unzip -Z1 EliteSCADA-EEE-Demo.escadapkg | grep -E '\.escadalib$'; then
+            echo 'Frozen C11 package must remain self-contained and cannot depend on .escadalib files.' >&2
+            exit 1
+          fi
+
       - name: Run Wave 11 Active Runtime browser lifecycle
         working-directory: web/scada-web
         run: npx playwright test --config=playwright.wave11.config.ts
+
+      - name: Create isolated C11 canonical database
+        env:
+          PGPASSWORD: postgres
+        run: >-
+          psql -h 127.0.0.1 -p 5432 -U postgres -d postgres
+          -v ON_ERROR_STOP=1
+          -c "CREATE DATABASE elitescada_c11;"
+
+      - name: Run C11 canonical EEE package portability gate
+        working-directory: web/scada-web
+        env:
+          C11_DEMO_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: npx playwright test --config=playwright.c11-package.config.ts
+
+      - name: Upload C11 canonical EEE application package
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: EliteSCADA-EEE-Demo
+          path: web/scada-web/c11-eee-demo-artifacts
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Upload Wave 11 owner-test application package
         if: success()
@@ -84,6 +120,15 @@ jobs:
           path: web/scada-web/owner-test-artifacts
           if-no-files-found: error
           retention-days: 90
+
+      - name: Upload C11 package Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-c11-package
+          path: web/scada-web/playwright-report-c11-package
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload Wave 11 Playwright report
         if: always()

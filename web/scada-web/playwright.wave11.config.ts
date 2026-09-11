@@ -85,9 +85,21 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] }
     },
     {
+      name: 'chromium-wave11-c11-eee-foundation',
+      testMatch: /c11-eee-demo-foundation\.spec\.ts/,
+      dependencies: ['chromium-wave11-c21-dynamo-tag-reference'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
+      name: 'chromium-wave11-c11-eee-hmi',
+      testMatch: /(?:c11-eee-demo-hmi|c26-popup-composition)\.spec\.ts/,
+      dependencies: ['chromium-wave11-c11-eee-foundation'],
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
       name: 'chromium-wave11-owner-package',
       testMatch: /owner-test-artifact\.spec\.ts/,
-      dependencies: ['chromium-wave11-c21-dynamo-tag-reference'],
+      dependencies: ['chromium-wave11-c11-eee-hmi'],
       use: { ...devices['Desktop Chrome'] }
     }
   ],

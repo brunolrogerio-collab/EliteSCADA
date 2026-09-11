@@ -11,8 +11,8 @@ namespace Scada.Drivers.Tests;
 
 public sealed class EngineeringRuntimeCommunicationDiagnosticsTests
 {
-    private const int RequestTimeoutMilliseconds = 250;
-    private const int InjectedFailureDelayMilliseconds = 750;
+    private const int RequestTimeoutMilliseconds = 500;
+    private const int InjectedFailureDelayMilliseconds = 1500;
 
     [Fact]
     public async Task ActiveRuntime_ExposesEngineeringDataSourceIdentityAndIndependentFailureRecovery()

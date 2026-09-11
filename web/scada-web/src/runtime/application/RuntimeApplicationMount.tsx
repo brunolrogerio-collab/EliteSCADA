@@ -7,6 +7,7 @@ import { RuntimeVisualNavigator } from '../visual-navigation/RuntimeVisualNaviga
 import {
   loadRuntimeApplicationProjection,
   RuntimeApplicationProjectionError,
+  RuntimeApplicationTransportError,
   runtimeVisualAssetContentUrl,
   type RuntimeApplicationProjection
 } from './runtimeApplicationApi';
@@ -14,11 +15,14 @@ import { resolveRuntimeStartupScreen } from './runtimeStartupScreen';
 import { SimulationRuntimeApp } from './SimulationRuntimeApp';
 
 const REFRESH_INTERVAL_MS = 1500;
+const RETRYABLE_RUNTIME_PROJECTION_STATUSES = new Set([502, 503, 504]);
+const TRUNCATED_RESPONSE_SIGNATURE = 'content-length header of network response exceeds response body';
 
 export function RuntimeApplicationMount() {
   const locale = useAppShellLocale();
   const text = appShellText(locale);
   const [projection, setProjection] = useState<RuntimeApplicationProjection | null>(null);
+  const lastSuccessfulProjection = useRef<RuntimeApplicationProjection | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
@@ -34,12 +38,19 @@ export function RuntimeApplicationMount() {
       try {
         const next = await loadRuntimeApplicationProjection(controller.signal);
         if (disposed) return;
+        lastSuccessfulProjection.current = next;
         setProjection(current => sameRuntimeProjection(current, next) ? current : next);
         setError(null);
       } catch (reason) {
         if (disposed || controller.signal.aborted) return;
+        const failure = reason instanceof Error ? reason : new Error(String(reason));
+        if (lastSuccessfulProjection.current && isRetryableRuntimeProjectionFailure(failure)) {
+          setError(null);
+          return;
+        }
+        lastSuccessfulProjection.current = null;
         setProjection(null);
-        setError(reason instanceof Error ? reason : new Error(String(reason)));
+        setError(failure);
       } finally {
         if (activeController === controller) activeController = null;
         inFlight = false;
@@ -171,6 +182,14 @@ function EngineeringRuntimeApplication({
       </div>
     </aside> : null}
   </main>;
+}
+
+function isRetryableRuntimeProjectionFailure(failure: Error): boolean {
+  if (failure instanceof RuntimeApplicationTransportError) return true;
+  if (!(failure instanceof RuntimeApplicationProjectionError)) return false;
+  if (RETRYABLE_RUNTIME_PROJECTION_STATUSES.has(failure.status)) return true;
+  return failure.status === 500 &&
+    failure.message.toLowerCase().includes(TRUNCATED_RESPONSE_SIGNATURE);
 }
 
 function sameRuntimeProjection(

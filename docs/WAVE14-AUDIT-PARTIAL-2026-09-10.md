@@ -259,3 +259,7 @@ No Histórico, as consultas somente leitura de uma hora para `Amostras do histor
 ### Complemento UIAUD-289-010 — confirmação em Engineering
 
 A mesma sobreposição entre **Ajuda** e **ÁREA ATUAL / Engineering** foi observada no cabeçalho do Engineering, na mesma viewport de aproximadamente 1080 px. O finding passa a cobrir o shell global compartilhado por Runtime e Engineering; a reprodução é 2/2 entre as duas áreas, embora a matriz de breakpoints ainda permaneça pendente.
+
+### Complemento de evidência — UIAUD-289-005
+
+- Na navegação Engineering → Auditoria, a aplicação permaneceu em estado de título/shell por mais de 52 segundos antes de concluir a tela, e somente depois apresentou a tabela de eventos. Isso reforça a latência percebida em rotas, mas preserva a classificação **UNCERTAIN**, pois a causa não pode ser separada entre produto, proxy e Codespaces nesta auditoria.

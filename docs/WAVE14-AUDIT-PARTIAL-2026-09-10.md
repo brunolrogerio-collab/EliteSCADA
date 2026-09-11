@@ -254,3 +254,8 @@ No Histórico, as consultas somente leitura de uma hora para `Amostras do histor
 - **Reprodutibilidade:** 1/1 na viewport usada nesta auditoria; requer matriz de larguras para delimitar o breakpoint.
 - **Evidência visual:** `evidencias/UIAUD-289-010-runtime-header-responsive.jpg` — SHA-256 `4d460930c3c86f44c8fb6d0e6465320149ce49c53d2bef24a4560614063c4ba9`.
 - **Notas:** não foram alterados dados, preferências persistentes de projeto ou sessão de operação; o tema original foi restaurado após a observação.
+
+
+### Complemento UIAUD-289-010 — confirmação em Engineering
+
+A mesma sobreposição entre **Ajuda** e **ÁREA ATUAL / Engineering** foi observada no cabeçalho do Engineering, na mesma viewport de aproximadamente 1080 px. O finding passa a cobrir o shell global compartilhado por Runtime e Engineering; a reprodução é 2/2 entre as duas áreas, embora a matriz de breakpoints ainda permaneça pendente.

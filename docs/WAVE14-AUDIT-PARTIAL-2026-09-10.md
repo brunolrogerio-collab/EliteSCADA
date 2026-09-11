@@ -231,3 +231,11 @@ No Histórico, as consultas somente leitura de uma hora para `Amostras do histor
 - **Classificação:** GENERIC PRODUCT. O comportamento é do painel Runtime e não depende do descompasso Working/EEE.
 - **Evidência:** captura visual durante o estado `Conectando dados ao vivo…` e árvore de acessibilidade do produto real; persistência da imagem será concluída no próximo registro.
 - **Notas:** o Historian separado oferece consulta somente leitura e informou zero registros para a janela de uma hora, coerente com zero políticas de histórico no Working, mas o Runtime deveria comunicar essa indisponibilidade em vez de abandonar o painel.
+
+
+### Revalidação complementar — Runtime Alarmes/Eventos e tela cheia (10/09/2026)
+
+- **Alarmes:** o painel global abriu de forma estável, mostrou contadores explícitos (0 ativos, 0 aguardando ACK, 0 críticos/altos sem ACK e 0 reconhecidos) e a mensagem clara “Nenhum alarme ativo visível.” Nenhuma ação de ACK, shelving ou comando foi executada.
+- **Alarmes/Eventos da tela operacional:** na primeira abertura, a interface permaneceu em “Carregando…” e retornou à visão principal; na repetição, concluiu e exibiu a tabela de eventos operacionais paginada, enquanto a seção de alarmes informou corretamente ausência de dados para os filtros. A primeira ocorrência é tratada como atraso transitório, sem novo finding independente nesta etapa.
+- **Tela cheia:** o controle foi acionado e encerrado com Escape. Este ambiente de automação não expôs uma mudança verificável de área/estado de fullscreen; portanto, não há classificação de defeito a partir desse teste.
+- **Diagnóstico de navegador:** nenhuma mensagem de erro ou aviso foi exposta no console no instante da revalidação.

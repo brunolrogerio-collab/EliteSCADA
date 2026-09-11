@@ -263,3 +263,10 @@ A mesma sobreposição entre **Ajuda** e **ÁREA ATUAL / Engineering** foi obser
 ### Complemento de evidência — UIAUD-289-005
 
 - Na navegação Engineering → Auditoria, a aplicação permaneceu em estado de título/shell por mais de 52 segundos antes de concluir a tela, e somente depois apresentou a tabela de eventos. Isso reforça a latência percebida em rotas, mas preserva a classificação **UNCERTAIN**, pois a causa não pode ser separada entre produto, proxy e Codespaces nesta auditoria.
+
+### Complemento de evidência — PO-PRE-07 e UIAUD-289-005
+
+- O Manual local traz o tópico **Server Scripts**, com API suportada explicitamente delimitada: read_tag, read_server_memory, write_tag, write_server_memory, publish_server_memory_sample e emit_operational_event; há também exemplos de leitura/escrita por id estável. Isso melhora a descoberta de sintaxe de script de servidor.
+- A mesma documentação não apresenta uma API de objeto visual ou exemplo composto para comparar dois TAGs e alterar cor/estado de objeto; portanto, não elimina a lacuna de descoberta prática observada no editor para o cenário solicitado pelo PO.
+- A troca do Manual de Auditoria para Server Scripts também ficou em shell por mais de um minuto antes de apresentar o conteúdo, reforçando somente a evidência de latência da UIAUD-289-005 (UNCERTAIN).
+- Licenciamento respondeu em modo Demo e deixou ações de instalação/remoção visíveis, mas nenhuma delas foi acionada por se tratar de auditoria somente-leitura. Não foi aberto finding nessa tela.

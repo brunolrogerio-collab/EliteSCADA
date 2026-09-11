@@ -60,7 +60,11 @@ public sealed class EngineeringWorkspace : IDisposable
     private bool _isDirty;
     private long _changeVersion;
 
-    public EngineeringWorkspace()
+    public EngineeringWorkspace() : this(seedDemo: true)
+    {
+    }
+
+    public EngineeringWorkspace(bool seedDemo)
     {
         SessionId = Guid.NewGuid();
         Tags = new InMemoryTagRegistry(MarkDirty);
@@ -72,7 +76,7 @@ public sealed class EngineeringWorkspace : IDisposable
         Commands = new InMemoryCommandEngineeringRegistry(MarkDirty);
         Scripts = new InMemoryScriptEngineeringRegistry(MarkDirty);
         VisualAssets = new InMemoryVisualAssetEngineeringRegistry(MarkDirty);
-        SeedDemo();
+        if (seedDemo) SeedDemo();
     }
 
     public Guid SessionId { get; }
@@ -217,6 +221,13 @@ public sealed class EngineeringWorkspace : IDisposable
         Commands.Clear();
         Scripts.Clear();
         VisualAssets.Clear();
+    }
+
+    internal void InitializeDemo()
+    {
+        if (Describe().ChangeVersion != 0)
+            throw new InvalidOperationException("Demo bootstrap requires an empty Engineering Workspace.");
+        SeedDemo();
     }
 
     private void SeedDemo()

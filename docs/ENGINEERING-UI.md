@@ -245,3 +245,18 @@ Maintain browser/API coverage for, as applicable:
 - preservation of canonical Engineering fields not exposed in a particular editor.
 
 Backend and browser failures must be fixed at the source rather than bypassed to make the editor appear functional.
+
+## Wave 15 FND-01 — Working bootstrap and visible identity
+
+At process startup, Engineering must not present the built-in demo as the Working application when persisted projects exist. The server establishes Working after persistence initialization using this deterministic order:
+
+1. `EngineeringWorking:ProjectKey` and optional positive `EngineeringWorking:Revision` select an explicit Working revision.
+2. Otherwise `EngineeringRuntime:ProjectKey` selects that persisted project's latest revision for Working while Active recovery remains a separate operation.
+3. Otherwise the catalog entry with the newest `LastSavedAtUtc` is selected; equal timestamps use case-insensitive `ProjectKey` ordering.
+4. An empty persisted catalog remains a neutral Working workspace so Create First Project, supported import, and restore flows remain explicit.
+
+A configured project or revision that cannot be resolved fails startup with a concrete configuration error. It must not fall back to demo or another project.
+
+The Engineering interface continues to obtain the authoritative Working identity from `GET /api/engineering/workspace`. Project key/name, base revision, dirty state, and change version shown by Project Management must match the selected checkout. Published and Active status remain separate lifecycle projections; Working bootstrap never publishes or activates.
+
+The built-in demo seed is limited to the explicit no-persistence/in-memory path. First-project creation initializes the supported built-in Dynamo library and initial developer role through its existing explicit creation flow.

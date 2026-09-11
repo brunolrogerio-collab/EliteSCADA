@@ -36,6 +36,7 @@ public static class EngineeringPersistenceApi
             new PostgreSqlEngineeringProjectCatalog(connectionString));
         builder.Services.TryAddSingleton<IEngineeringProjectPersistenceService, EngineeringProjectPersistenceService>();
         builder.Services.TryAddSingleton<IEngineeringWorkspaceCheckoutService, EngineeringWorkspaceCheckoutService>();
+        builder.Services.TryAddSingleton<IEngineeringWorkingBootstrapService, EngineeringWorkingBootstrapService>();
         builder.Services.TryAddSingleton<IPublishedRuntimeActivationService, PublishedRuntimeActivationService>();
         builder.Services.TryAddSingleton<IPersistedRuntimeRecoveryService, PersistedRuntimeRecoveryService>();
     }
@@ -44,20 +45,39 @@ public static class EngineeringPersistenceApi
         this WebApplication app,
         CancellationToken cancellationToken = default)
     {
-        var configuredProjectKey = app.Configuration["EngineeringRuntime:ProjectKey"];
+        var configuredRuntimeProjectKey = app.Configuration["EngineeringRuntime:ProjectKey"];
+        var configuredWorkingProjectKey = app.Configuration["EngineeringWorking:ProjectKey"];
+        var configuredWorkingRevisionValue = app.Configuration["EngineeringWorking:Revision"];
         var persistence = app.Services.GetService<IEngineeringProjectPersistenceService>();
         if (persistence is null)
         {
-            if (!string.IsNullOrWhiteSpace(configuredProjectKey))
+            if (!string.IsNullOrWhiteSpace(configuredRuntimeProjectKey) ||
+                !string.IsNullOrWhiteSpace(configuredWorkingProjectKey) ||
+                !string.IsNullOrWhiteSpace(configuredWorkingRevisionValue))
             {
                 throw new InvalidOperationException(
-                    "EngineeringRuntime:ProjectKey is configured, but engineering persistence is unavailable. Configure ConnectionStrings:EliteScada before starting a persisted runtime.");
+                    "Engineering Working/Runtime persistence is configured, but engineering persistence is unavailable. Configure ConnectionStrings:EliteScada before selecting a persisted project.");
             }
 
+            app.Services.GetRequiredService<EngineeringWorkspace>().InitializeDemo();
             return;
         }
 
+        long? configuredWorkingRevision = null;
+        if (!string.IsNullOrWhiteSpace(configuredWorkingRevisionValue))
+        {
+            if (!long.TryParse(configuredWorkingRevisionValue, out var revision) || revision < 1)
+                throw new InvalidOperationException("EngineeringWorking:Revision must be a positive integer.");
+            configuredWorkingRevision = revision;
+        }
+
         await persistence.InitializeAsync(cancellationToken);
+        var bootstrap = app.Services.GetRequiredService<IEngineeringWorkingBootstrapService>();
+        await bootstrap.BootstrapAsync(
+            configuredWorkingProjectKey,
+            configuredWorkingRevision,
+            configuredRuntimeProjectKey,
+            cancellationToken);
         await app.RecoverConfiguredEngineeringRuntimeAsync(cancellationToken);
     }
 

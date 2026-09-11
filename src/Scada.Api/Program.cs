@@ -38,7 +38,7 @@ builder.Services.AddSingleton<TagRealtimeHub>();
 builder.AddConfiguredHistorian();
 builder.AddConfiguredServerMemoryRetention();
 
-builder.Services.AddSingleton<EngineeringWorkspace>();
+builder.Services.AddSingleton(_ => new EngineeringWorkspace(seedDemo: false));
 builder.Services.AddSingleton<ITagRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Tags);
 builder.Services.AddSingleton<IAlarmEngine>(sp => sp.GetRequiredService<EngineeringWorkspace>().Alarms);
 builder.Services.AddSingleton<IDataSourceEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().DataSources);

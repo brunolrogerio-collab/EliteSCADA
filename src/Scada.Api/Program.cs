@@ -7,6 +7,7 @@ using Scada.Api.ProjectPackages;
 using Scada.Api.Realtime;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
+using Scada.Api.Timing;
 using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
@@ -32,6 +33,7 @@ using Scada.Security.Authorization;
 var builder = WebApplication.CreateBuilder(args);
 var authenticationEnabled = builder.AddEliteScadaJwtAuthentication();
 builder.AddConfiguredProductLicensing();
+builder.AddTimingPolicyV1();
 
 builder.Services.AddSingleton<IScadaEventBus, InMemoryScadaEventBus>();
 builder.Services.AddSingleton<TagRealtimeHub>();
@@ -77,7 +79,11 @@ builder.AddOptionalEngineeringPersistence();
 builder.AddConfiguredAudit();
 builder.Services.AddOpenApi();
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
-    policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+    policy
+        .AllowAnyOrigin()
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .WithExposedHeaders(TimingCorrelationMiddleware.CorrelationResponseHeader)));
 
 builder.Services.AddSingleton(sp =>
 {
@@ -100,10 +106,12 @@ await app.InitializeServerMemoryRetentionAsync();
 await app.InitializeEngineeringPersistenceAsync();
 await app.InitializeAuditAsync();
 
+app.UseMiddleware<TimingCorrelationMiddleware>();
 app.UseCors();
 if (authenticationEnabled) app.UseAuthentication();
 app.UseWebSockets();
 app.MapOpenApi();
+app.MapTimingPolicyV1Endpoints();
 app.MapProjectPackageEndpoints();
 app.MapEngineeringPersistenceEndpoints();
 app.MapEngineeringMutationEndpoints();

@@ -1,4 +1,5 @@
 using Scada.Engineering.Persistence;
+using Scada.Engineering.Security;
 using Scada.Persistence.PostgreSql;
 using Scada.Security.Authentication;
 
@@ -143,6 +144,9 @@ public static class LocalIdentityConfiguration
                 ? new PostgreSqlLocalIdentityStore(connectionString!)
                 : new InMemoryLocalIdentityStore());
         builder.Services.AddSingleton<LocalIdentityBootstrapService>();
+        builder.Services.AddSingleton(new AuthorityPolicyBootstrapOptions(
+            builder.Configuration[AuthorityPolicyBootstrapOptions.ConfigurationPath]));
+        builder.Services.AddSingleton<AuthorityPolicyBootstrapService>();
 
         return true;
     }
@@ -154,6 +158,7 @@ public static class LocalIdentityConfiguration
 
         var store = app.Services.GetRequiredService<ILocalIdentityStore>();
         await store.InitializeAsync();
+        await app.Services.GetRequiredService<AuthorityPolicyBootstrapService>().EnsureInitializedAsync();
         if (await store.CountAsync() > 0) return;
 
         var bootstrap = app.Configuration.GetSection("Authentication:Local:Bootstrap");

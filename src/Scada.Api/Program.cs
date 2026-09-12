@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.AspNetCore.Http.Json;
 using Scada.Api.Historian;
 using Scada.Api.HostedServices;
 using Scada.Api.Licensing;
@@ -27,6 +28,7 @@ using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
 using Scada.Engineering.Views;
 using Scada.Historian.Abstractions;
+using Scada.Persistence.PostgreSql;
 using Scada.Security.Audit;
 using Scada.Security.Authorization;
 
@@ -36,6 +38,7 @@ builder.AddConfiguredProductLicensing();
 builder.AddTimingPolicyV1();
 
 builder.Services.AddSingleton<IScadaEventBus, InMemoryScadaEventBus>();
+builder.Services.Configure<JsonOptions>(options => options.SerializerOptions.Converters.Add(new SecurityCapabilityJsonConverter()));
 builder.Services.AddSingleton<TagRealtimeHub>();
 builder.AddConfiguredHistorian();
 builder.AddConfiguredServerMemoryRetention();
@@ -46,7 +49,12 @@ builder.Services.AddSingleton<IAlarmEngine>(sp => sp.GetRequiredService<Engineer
 builder.Services.AddSingleton<IDataSourceEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().DataSources);
 builder.Services.AddSingleton<IEngineeringAssetRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Assets);
 builder.Services.AddSingleton<IEngineeringViewRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Views);
-builder.Services.AddSingleton<ISecurityPolicyEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().SecurityPolicies);
+var authorityConnectionString = builder.Configuration.GetConnectionString("EliteScada");
+builder.Services.AddSingleton<IAuthorityPolicyStore>(_ =>
+    string.IsNullOrWhiteSpace(authorityConnectionString)
+        ? new InMemoryAuthorityPolicyStore([BuiltInSecurityRoleDefaults.CreateInitialDeveloperRole()])
+        : new PostgreSqlAuthorityPolicyStore(authorityConnectionString));
+builder.Services.AddSingleton<ISecurityPolicyEngineeringRegistry, AuthorityPolicyRegistryView>();
 builder.Services.AddSingleton<ICommandEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Commands);
 builder.Services.AddSingleton<IScriptEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Scripts);
 builder.Services.AddSingleton<IGatewayEngineeringRegistry>(sp =>

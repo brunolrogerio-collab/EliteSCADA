@@ -22,7 +22,7 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 18;
+    public const int CurrentSchemaVersion = 19;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
@@ -216,6 +216,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
 
     public EngineeringPackage ExportPackage()
     {
+        var authorityOwnedPolicies = _securityPolicies is IAuthorityPolicyEngineeringRegistryView;
+        var authoritySnapshot = (_securityPolicies as IAuthorityPolicyEngineeringRegistryView)?.AuthoritySnapshot();
         var tagDefinitions = _tags.Snapshot();
         var tagDtos = tagDefinitions.Select(EngineeringDtoMapper.ToDto).ToArray();
         var paths = tagDefinitions.ToDictionary(x => x.Id, x => x.Path);
@@ -235,7 +237,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             _assets.SnapshotDynamos(),
             _views.SnapshotScreens(),
             _views.SnapshotPopups(),
-            _securityPolicies.SnapshotRoles(),
+            authorityOwnedPolicies ? Array.Empty<SecurityRoleEngineeringDto>() : _securityPolicies.SnapshotRoles(),
             _commands.Snapshot(),
             _gateways.Snapshot(),
             _scripts.SnapshotScripts(),
@@ -245,7 +247,13 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             _operationalEvents.SnapshotOperationalEvents(),
             _views.StartupScreenId,
             _engineeringLock.Snapshot(),
-            _securityPolicies.SnapshotScopes());
+            authorityOwnedPolicies ? Array.Empty<SecurityScopeEngineeringDto>() : _securityPolicies.SnapshotScopes(),
+            authoritySnapshot is null ? null : new AuthorityPolicyReferenceEngineeringDto(
+                AuthorityPolicyContract.Schema,
+                AuthorityPolicyContract.SchemaVersion,
+                authoritySnapshot.Version,
+                authoritySnapshot.Roles.Select(role => role.Id!.Value).Order().ToArray(),
+                authoritySnapshot.Scopes.Select(scope => scope.Id).Order().ToArray()));
     }
 
     public string ExportJson(bool indented = true)
@@ -286,6 +294,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
                 package.SecurityRoles,
                 package.SchemaVersion),
             SecurityScopes = package.SecurityScopes ?? Array.Empty<SecurityScopeEngineeringDto>(),
+            AuthorityPolicyReference = package.AuthorityPolicyReference,
             Commands = package.Commands ?? Array.Empty<CommandEngineeringDto>(),
             Gateways = package.Gateways ?? Array.Empty<GatewayRouteEngineeringDto>(),
             Scripts = package.Scripts ?? Array.Empty<ScriptEngineeringDefinition>(),
@@ -317,6 +326,33 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     {
         _ = EngineeringLockContract.Normalize(package.EngineeringLock);
         var items = new List<ImportPreviewItem>();
+        if (_securityPolicies is IAuthorityPolicyEngineeringRegistryView authorityView)
+        {
+            var reference = AuthorityPolicyReferenceValidator.ValidateExact(
+                package.AuthorityPolicyReference,
+                authorityView.AuthoritySnapshot());
+            if (!reference.IsValid)
+            {
+                var issue = new ImportIssue(
+                    reference.ErrorCode!,
+                    reference.Message!,
+                    ImportEntityKind.SecurityRole,
+                    "authority-policy",
+                    true);
+                items.Add(new ImportPreviewItem(ImportEntityKind.SecurityRole, "authority-policy", ImportOperation.Error, [issue]));
+            }
+
+            if ((package.SecurityRoles?.Count ?? 0) > 0 || (package.SecurityScopes?.Count ?? 0) > 0)
+            {
+                var issue = new ImportIssue(
+                    "SECURITY_AUTHORITY_POLICY_IMPORT_BLOCKED",
+                    "Security roles and scope hierarchy are owned by Security Authority. Engineering packages are reference-only and cannot mutate the live Authority.",
+                    ImportEntityKind.SecurityRole,
+                    "authority-policy",
+                    true);
+                items.Add(new ImportPreviewItem(ImportEntityKind.SecurityRole, "authority-policy", ImportOperation.Error, [issue]));
+            }
+        }
         _dataSourceHandler.Preview(package, mode, items);
         _tagHandler.Preview(package, mode, items);
         _alarmHandler.Preview(package, mode, items);

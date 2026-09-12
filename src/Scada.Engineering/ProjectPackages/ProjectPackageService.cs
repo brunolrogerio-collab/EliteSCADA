@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.Security;
 using Scada.Engineering.VisualAssets;
 
 namespace Scada.Engineering.ProjectPackages;
@@ -41,7 +42,8 @@ public interface IProjectPackageService
 public sealed class ProjectPackageService : IProjectPackageService
 {
     public const string CurrentFormat = "elitescada.project-package";
-    public const int CurrentFormatVersion = 2;
+    public const int CurrentFormatVersion = 3;
+    public const int LegacySecurityPolicyFormatVersion = 2;
     public const string ManifestPath = "manifest.json";
     public const string EngineeringPath = "engineering.json";
     public const string AssetDirectory = "assets/";
@@ -82,6 +84,9 @@ public sealed class ProjectPackageService : IProjectPackageService
             throw new InvalidDataException("Engineering payload exceeds its project-package safety limit.");
         var engineeringBytes = Encoding.UTF8.GetBytes(engineeringJson);
         var engineeringPackage = _engineering.ParseJson(engineeringJson);
+        var formatVersion = engineeringPackage.AuthorityPolicyReference is null
+            ? LegacySecurityPolicyFormatVersion
+            : CurrentFormatVersion;
         var fileEntries = new List<ProjectPackageFileEntry>
         {
             new(
@@ -106,7 +111,7 @@ public sealed class ProjectPackageService : IProjectPackageService
 
         var manifest = new ProjectPackageManifest(
             CurrentFormat,
-            CurrentFormatVersion,
+            formatVersion,
             Guid.NewGuid(),
             DateTimeOffset.UtcNow,
             "EliteSCADA",
@@ -230,6 +235,7 @@ public sealed class ProjectPackageService : IProjectPackageService
                 throw new InvalidDataException("Engineering schema does not match the project package manifest.");
             if (manifest.EngineeringSchemaVersion != engineering.SchemaVersion)
                 throw new InvalidDataException("Engineering schema version does not match the project package manifest.");
+            ValidateAuthorityPolicyBoundary(manifest, engineering);
 
             var importContext = BuildImportContext(archive, manifest, engineering);
             return new ParsedProjectPackage(manifest, engineering, importContext);
@@ -376,11 +382,44 @@ public sealed class ProjectPackageService : IProjectPackageService
             throw new InvalidDataException("Project package v1 must contain only manifest.json and engineering.json.");
     }
 
+    private static void ValidateAuthorityPolicyBoundary(
+        ProjectPackageManifest manifest,
+        EngineeringPackage engineering)
+    {
+        if (manifest.FormatVersion < CurrentFormatVersion)
+        {
+            if (engineering.AuthorityPolicyReference is not null)
+            {
+                throw new InvalidDataException(
+                    "Project package Authority reference requires project package format v3.");
+            }
+
+            return;
+        }
+
+        if (engineering.SchemaVersion < 19)
+        {
+            throw new InvalidDataException(
+                "Project package v3 requires Engineering schema 19 or later for the canonical Authority reference.");
+        }
+
+        if ((engineering.SecurityRoles?.Count ?? 0) != 0 ||
+            (engineering.SecurityScopes?.Count ?? 0) != 0)
+        {
+            throw new InvalidDataException(
+                "Project package v3 cannot carry mutable Security roles or scope hierarchy; those belong to Security Authority.");
+        }
+
+        var reference = AuthorityPolicyReferenceValidator.ValidateShape(engineering.AuthorityPolicyReference);
+        if (!reference.IsValid)
+            throw new InvalidDataException(reference.Message);
+    }
+
     private static void ValidateManifest(ProjectPackageManifest manifest)
     {
         if (!string.Equals(manifest.Format, CurrentFormat, StringComparison.Ordinal))
             throw new InvalidDataException($"Unsupported project package format '{manifest.Format}'.");
-        if (manifest.FormatVersion is not (1 or CurrentFormatVersion))
+        if (manifest.FormatVersion is not (1 or LegacySecurityPolicyFormatVersion or CurrentFormatVersion))
             throw new InvalidDataException($"Unsupported project package format version {manifest.FormatVersion}.");
         if (!string.Equals(manifest.Product, "EliteSCADA", StringComparison.Ordinal))
             throw new InvalidDataException($"Unsupported project package product '{manifest.Product}'.");

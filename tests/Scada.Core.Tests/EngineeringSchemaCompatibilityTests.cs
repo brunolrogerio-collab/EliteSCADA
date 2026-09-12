@@ -16,7 +16,6 @@ public sealed class EngineeringSchemaCompatibilityTests
     [InlineData(2, 2, 1, 0, 1, 0, 0, 0, 0, 0)]
     [InlineData(3, 4, 1, 0, 0, 1, 1, 1, 0, 0)]
     [InlineData(4, 6, 1, 0, 0, 1, 1, 1, 1, 1)]
-    [InlineData(5, 1, 1, 0, 0, 0, 0, 0, 0, 0)]
     public void HistoricalSchema_CanBeAppliedAndReExportedAsCurrent(
         int sourceVersion,
         int expectedCreated,
@@ -59,13 +58,20 @@ public sealed class EngineeringSchemaCompatibilityTests
         Assert.Equal(expectedScreens, migrated.Screens!.Count);
         Assert.Equal(expectedPopups, migrated.Popups!.Count);
 
-        if (sourceVersion == 5)
-        {
-            var tag = Assert.Single(migrated.Tags);
-            Assert.Equal(new[] { "Operator" }, tag.AccessPolicy!.ReadRoles);
-            Assert.Empty(tag.AccessPolicy.WriteRoles!);
-            Assert.Equal(new[] { "Engineering" }, tag.AccessPolicy.ConfigureRoles);
-        }
+    }
+
+    [Fact]
+    public void SchemaV5UnknownTagRoleRestrictionsFailClosedDuringMigrationPreview()
+    {
+        var service = CreateService();
+        var historical = service.ParseJson(Fixture(5));
+
+        var preview = service.Preview(historical, ImportMode.CreateAndUpdate);
+        var issues = preview.Items.SelectMany(item => item.Issues).ToArray();
+
+        Assert.False(preview.CanApply);
+        Assert.Contains(issues, issue =>
+            issue.Code == "TAG_ACCESS_ROLE_NOT_FOUND" && issue.EntityKey == "Plant.P01.Setpoint");
     }
 
     [Fact]

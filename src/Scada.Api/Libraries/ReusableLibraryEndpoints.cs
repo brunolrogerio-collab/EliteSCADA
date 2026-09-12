@@ -29,7 +29,7 @@ public static class ReusableLibraryEndpoints
             IEngineeringExchangeService exchange,
             ApiAuthorizationService security) =>
         {
-            var access = CheckAccess(context, security, exchange);
+            var access = CheckAccess(context, security, exchange, SecurityCapability.EngineeringView);
             return access.Failure ?? Results.Ok(Catalog.Snapshot(CatalogScope(workspace)));
         });
 
@@ -40,7 +40,7 @@ public static class ReusableLibraryEndpoints
             IEngineeringExchangeService exchange,
             ApiAuthorizationService security) =>
         {
-            var access = CheckAccess(context, security, exchange);
+            var access = CheckAccess(context, security, exchange, SecurityCapability.EngineeringView);
             if (access.Failure is not null) return access.Failure;
 
             var entry = Catalog.Find(CatalogScope(workspace), libraryId);
@@ -68,7 +68,7 @@ public static class ReusableLibraryEndpoints
             ApiAuditService audit,
             CancellationToken cancellationToken) =>
         {
-            var access = CheckAccess(context, security, exchange);
+            var access = CheckAccess(context, security, exchange, SecurityCapability.EngineeringModify);
             if (access.Failure is not null)
             {
                 await RecordDeniedAsync(
@@ -153,7 +153,7 @@ public static class ReusableLibraryEndpoints
             ApiAuthorizationService security,
             ApiAuditService audit) =>
         {
-            var access = CheckAccess(context, security, exchange);
+            var access = CheckAccess(context, security, exchange, SecurityCapability.EngineeringModify);
             if (access.Failure is not null)
             {
                 await RecordDeniedAsync(
@@ -187,7 +187,7 @@ public static class ReusableLibraryEndpoints
             ApiAuthorizationService security,
             ApiAuditService audit) =>
         {
-            var access = CheckAccess(context, security, exchange);
+            var access = CheckAccess(context, security, exchange, SecurityCapability.EngineeringView);
             if (access.Failure is not null)
             {
                 await RecordDeniedAsync(
@@ -254,7 +254,7 @@ public static class ReusableLibraryEndpoints
             ApiAuditService audit,
             CancellationToken cancellationToken) =>
         {
-            var access = CheckAccess(context, security, exchange);
+            var access = CheckAccess(context, security, exchange, SecurityCapability.EngineeringView);
             if (access.Failure is not null)
             {
                 await RecordDeniedAsync(
@@ -315,9 +315,10 @@ public static class ReusableLibraryEndpoints
     internal static ReusableLibraryAccessDecision CheckAccess(
         HttpContext context,
         ApiAuthorizationService security,
-        IEngineeringExchangeService exchange)
+        IEngineeringExchangeService exchange,
+        SecurityCapability capability = SecurityCapability.EngineeringModify)
     {
-        var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
+        var authorization = security.CheckWorkspace(context, capability);
         var capabilityFailure = authorization.FailureResult();
         if (capabilityFailure is not null)
             return new ReusableLibraryAccessDecision(authorization, capabilityFailure, "capability");

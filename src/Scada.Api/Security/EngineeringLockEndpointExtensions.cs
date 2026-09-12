@@ -21,7 +21,7 @@ public static class EngineeringLockEndpointExtensions
             ApiAuthorizationService security,
             IEngineeringExchangeService exchange) =>
         {
-            var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
+            var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringView);
             var failure = authorization.FailureResult();
             if (failure is not null) return failure;
 
@@ -34,7 +34,7 @@ public static class EngineeringLockEndpointExtensions
             IEngineeringExchangeService exchange,
             EngineeringWorkspace workspace) =>
         {
-            var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
+            var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringView);
             var failure = authorization.FailureResult();
             if (failure is not null) return failure;
 

@@ -40,9 +40,13 @@ public sealed class DistributedRuntimeFoundationTests
     [InlineData(SecurityCapability.AlarmAcknowledge)]
     [InlineData(SecurityCapability.AlarmShelve)]
     [InlineData(SecurityCapability.TrendSave)]
+    [InlineData(SecurityCapability.EngineeringView)]
     [InlineData(SecurityCapability.EngineeringModify)]
     [InlineData(SecurityCapability.UserRoleAdmin)]
     [InlineData(SecurityCapability.SystemAdmin)]
+    [InlineData(SecurityCapability.HighAvailabilityObserve)]
+    [InlineData(SecurityCapability.HighAvailabilityTransfer)]
+    [InlineData(SecurityCapability.HighAvailabilityAdmin)]
     public void VoluntaryViewer_DirectModifiedClientCall_IsDeniedByBackendDownscope(
         SecurityCapability capability)
     {

@@ -21,9 +21,10 @@ async function installHelpContract(page: Page) {
   await page.route('**/api/auth/config', route => route.fulfill({ json: authConfiguration }));
   await page.route('**/api/auth/effective-capabilities', route => route.fulfill({
     json: {
+      authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
       authenticationEnabled: false,
-      runtime: ['View', 'TrendUse', 'AuditRead', 'LicenseManage'],
-      workspace: ['EngineeringModify', 'AuditRead', 'LicenseManage']
+      runtime: ['View', 'TrendUse', 'SystemAdmin'],
+      workspace: ['EngineeringView', 'EngineeringModify', 'UserRoleAdmin', 'SystemAdmin']
     }
   }));
   await page.route('**/api/help?*', route => {

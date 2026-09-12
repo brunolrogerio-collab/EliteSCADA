@@ -79,14 +79,16 @@ async function installSessionContract(
     return route.fulfill({
       json: runtimeOnly
         ? {
+            authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
             authenticationEnabled: true,
             runtime: ['View'],
             workspace: []
           }
         : {
+            authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
             authenticationEnabled: true,
             runtime: ['View', 'TrendUse', 'SystemAdmin'],
-            workspace: ['EngineeringModify', 'UserRoleAdmin', 'SystemAdmin']
+            workspace: ['EngineeringView', 'EngineeringModify', 'UserRoleAdmin', 'SystemAdmin']
           }
     });
   });

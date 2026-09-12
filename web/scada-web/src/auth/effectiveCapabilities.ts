@@ -11,20 +11,55 @@ export type SecurityCapability =
   | 'AlarmShelve'
   | 'TrendUse'
   | 'TrendSave'
+  | 'EngineeringView'
   | 'EngineeringModify'
   | 'UserRoleAdmin'
-  | 'SystemAdmin';
+  | 'SystemAdmin'
+  | 'HighAvailabilityObserve'
+  | 'HighAvailabilityTransfer'
+  | 'HighAvailabilityAdmin';
+
+export const AUTHORITY_POLICY_SCHEMA = 'elitescada.authority-policy';
+export const AUTHORITY_POLICY_SCHEMA_VERSION = 1;
+
+const KNOWN_SECURITY_CAPABILITIES: ReadonlySet<string> = new Set<SecurityCapability>([
+  'View',
+  'TagRead',
+  'CommandExecute',
+  'ProcessValueWrite',
+  'AlarmAcknowledge',
+  'AlarmShelve',
+  'TrendUse',
+  'TrendSave',
+  'EngineeringView',
+  'EngineeringModify',
+  'UserRoleAdmin',
+  'SystemAdmin',
+  'HighAvailabilityObserve',
+  'HighAvailabilityTransfer',
+  'HighAvailabilityAdmin'
+]);
+
+export type AuthorityPolicyContract = Readonly<{
+  schema: typeof AUTHORITY_POLICY_SCHEMA;
+  schemaVersion: typeof AUTHORITY_POLICY_SCHEMA_VERSION;
+}>;
 
 export type EffectiveCapabilities = Readonly<{
+  authorityPolicy: AuthorityPolicyContract;
   authenticationEnabled: boolean;
   runtime: ReadonlySet<SecurityCapability>;
   workspace: ReadonlySet<SecurityCapability>;
 }>;
 
 type EffectiveCapabilitiesWire = Readonly<{
-  authenticationEnabled: boolean;
-  runtime: readonly SecurityCapability[];
-  workspace: readonly SecurityCapability[];
+  authorityPolicy?: Readonly<{
+    schema?: unknown;
+    schemaVersion?: unknown;
+  }>;
+  authenticationEnabled?: unknown;
+  runtime?: unknown;
+  workspace?: unknown;
 }>;
 
 export type EffectiveCapabilitiesState = Readonly<{
@@ -56,6 +91,14 @@ export function hasWorkspaceCapability(
   return capabilities?.workspace.has(capability) === true;
 }
 
+function parseCapabilitySet(value: unknown): ReadonlySet<SecurityCapability> {
+  if (!Array.isArray(value) || value.some(id => typeof id !== 'string' || !KNOWN_SECURITY_CAPABILITIES.has(id))) {
+    throw new Error('Unsupported Authority capability ID.');
+  }
+
+  return new Set(value as SecurityCapability[]);
+}
+
 /**
  * Frontend projection of the backend gates for first-class application surfaces.
  * Keep every grant independent: one capability never implies another here.
@@ -63,9 +106,9 @@ export function hasWorkspaceCapability(
  * Backend authority mirrored here:
  * - Runtime application: Runtime View.
  * - Historian samples: Runtime TrendUse (the route additionally requires Runtime View).
- * - Engineering workspace: Workspace EngineeringModify.
+ * - Engineering workspace: Workspace EngineeringView.
  * - Audit: Runtime SystemAdmin.
- * - Licensing: Workspace EngineeringModify via RequireWorkspaceEngineeringRead.
+ * - Licensing: Workspace EngineeringView via RequireWorkspaceEngineeringRead.
  */
 export function resolveAppSurfaceAccess(
   capabilities: EffectiveCapabilities | null
@@ -73,9 +116,9 @@ export function resolveAppSurfaceAccess(
   return Object.freeze({
     runtime: hasRuntimeCapability(capabilities, 'View'),
     history: hasRuntimeCapability(capabilities, 'TrendUse'),
-    engineering: hasWorkspaceCapability(capabilities, 'EngineeringModify'),
+    engineering: hasWorkspaceCapability(capabilities, 'EngineeringView'),
     audit: hasRuntimeCapability(capabilities, 'SystemAdmin'),
-    licensing: hasWorkspaceCapability(capabilities, 'EngineeringModify')
+    licensing: hasWorkspaceCapability(capabilities, 'EngineeringView')
   });
 }
 
@@ -93,10 +136,21 @@ export function useEffectiveCapabilities(): EffectiveCapabilitiesState {
       });
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
       const payload = await response.json() as EffectiveCapabilitiesWire;
+      if (payload.authorityPolicy?.schema !== AUTHORITY_POLICY_SCHEMA ||
+          payload.authorityPolicy.schemaVersion !== AUTHORITY_POLICY_SCHEMA_VERSION) {
+        throw new Error('Unsupported Authority policy contract.');
+      }
+      if (typeof payload.authenticationEnabled !== 'boolean') {
+        throw new Error('Invalid effective capabilities response.');
+      }
       setCapabilities(Object.freeze({
+        authorityPolicy: Object.freeze({
+          schema: AUTHORITY_POLICY_SCHEMA,
+          schemaVersion: AUTHORITY_POLICY_SCHEMA_VERSION
+        }),
         authenticationEnabled: payload.authenticationEnabled,
-        runtime: new Set(payload.runtime),
-        workspace: new Set(payload.workspace)
+        runtime: parseCapabilitySet(payload.runtime),
+        workspace: parseCapabilitySet(payload.workspace)
       }));
     } catch (reason) {
       setCapabilities(null);

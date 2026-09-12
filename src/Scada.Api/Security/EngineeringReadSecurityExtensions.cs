@@ -26,7 +26,7 @@ public sealed class WorkspaceEngineeringReadFilter(
         {
             var authorization = security.CheckWorkspace(
                 context,
-                SecurityCapability.EngineeringModify);
+                SecurityCapability.EngineeringView);
             var failure = authorization.FailureResult();
             if (failure is not null)
                 return ValueTask.FromResult<object?>(failure);
@@ -57,7 +57,7 @@ public sealed class RuntimeEngineeringReadFilter(
         var authorization = await security.CheckRuntimeAsync(
             invocationContext.HttpContext,
             runtime,
-            SecurityCapability.EngineeringModify,
+            SecurityCapability.EngineeringView,
             cancellationToken: invocationContext.HttpContext.RequestAborted);
         var failure = authorization.FailureResult();
         return failure ?? await next(invocationContext);

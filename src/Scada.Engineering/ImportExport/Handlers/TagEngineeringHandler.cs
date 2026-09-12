@@ -3,6 +3,7 @@ using Scada.Core.Alarms;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
+using Scada.Engineering.Security;
 using Scada.Engineering.Validation;
 
 namespace Scada.Engineering.ImportExport.Handlers;
@@ -12,15 +13,18 @@ internal sealed class TagEngineeringHandler
     private readonly ITagRegistry _tags;
     private readonly IDataSourceEngineeringRegistry _dataSources;
     private readonly IAlarmEngine _alarms;
+    private readonly ISecurityPolicyEngineeringRegistry _securityPolicies;
 
     public TagEngineeringHandler(
         ITagRegistry tags,
         IDataSourceEngineeringRegistry dataSources,
-        IAlarmEngine alarms)
+        IAlarmEngine alarms,
+        ISecurityPolicyEngineeringRegistry securityPolicies)
     {
         _tags = tags;
         _dataSources = dataSources;
         _alarms = alarms;
+        _securityPolicies = securityPolicies;
     }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
@@ -30,7 +34,7 @@ internal sealed class TagEngineeringHandler
         foreach (var dto in package.Tags)
         {
             var issues = EngineeringValidator.ValidateTag(dto).ToList();
-            ValidateAccessPolicy(dto, issues);
+            ValidateAccessPolicy(dto, package, issues);
             issues.AddRange(CommunicationTagBindingEngineeringValidator.Validate(dto, package.SchemaVersion));
 
             var dataSource = ResolveDataSource(dto, package);
@@ -242,18 +246,22 @@ internal sealed class TagEngineeringHandler
         return _tags.TryGetByPath(dto.Path, out var byPath) ? byPath : null;
     }
 
-    private static void ValidateAccessPolicy(TagEngineeringDto dto, List<ImportIssue> issues)
+    private void ValidateAccessPolicy(
+        TagEngineeringDto dto,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
     {
         if (dto.AccessPolicy is null) return;
-        ValidateRoleList(dto.AccessPolicy.ReadRoles, "read", dto.Path, issues);
-        ValidateRoleList(dto.AccessPolicy.WriteRoles, "write", dto.Path, issues);
-        ValidateRoleList(dto.AccessPolicy.ConfigureRoles, "configure", dto.Path, issues);
+        ValidateRoleList(dto.AccessPolicy.ReadRoles, "read", dto.Path, package, issues);
+        ValidateRoleList(dto.AccessPolicy.WriteRoles, "write", dto.Path, package, issues);
+        ValidateRoleList(dto.AccessPolicy.ConfigureRoles, "configure", dto.Path, package, issues);
     }
 
-    private static void ValidateRoleList(
+    private void ValidateRoleList(
         IReadOnlyCollection<string>? roles,
         string operation,
         string tagPath,
+        EngineeringPackage package,
         List<ImportIssue> issues)
     {
         if (roles is null) return;
@@ -276,6 +284,36 @@ internal sealed class TagEngineeringHandler
                 ImportEntityKind.Tag,
                 tagPath,
                 true));
+        }
+
+        foreach (var role in roles
+                     .Where(role => !string.IsNullOrWhiteSpace(role))
+                     .Select(role => role.Trim())
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var packageMatches = (package.SecurityRoles ?? Array.Empty<SecurityRoleEngineeringDto>())
+                .Count(candidate => candidate is not null &&
+                                    string.Equals(candidate.Key, role, StringComparison.OrdinalIgnoreCase));
+            if (packageMatches > 1)
+            {
+                issues.Add(new(
+                    "TAG_ACCESS_ROLE_AMBIGUOUS",
+                    $"TAG '{tagPath}' references role '{role}' more than once in its {operation} access policy.",
+                    ImportEntityKind.Tag,
+                    tagPath,
+                    true));
+                continue;
+            }
+
+            if (packageMatches == 0 && _securityPolicies.FindRoleByKey(role) is null)
+            {
+                issues.Add(new(
+                    "TAG_ACCESS_ROLE_NOT_FOUND",
+                    $"TAG '{tagPath}' references unknown role '{role}' in its {operation} access policy.",
+                    ImportEntityKind.Tag,
+                    tagPath,
+                    true));
+            }
         }
     }
 

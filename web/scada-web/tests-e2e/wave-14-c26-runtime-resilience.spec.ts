@@ -74,9 +74,10 @@ async function installRuntimeShellContract(page: Page) {
   }));
   await page.route('**/api/auth/effective-capabilities', route => route.fulfill({
     json: {
+      authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
       authenticationEnabled: true,
       runtime: ['View', 'TrendUse', 'SystemAdmin'],
-      workspace: ['EngineeringModify', 'UserRoleAdmin', 'SystemAdmin']
+      workspace: ['EngineeringView', 'EngineeringModify', 'UserRoleAdmin', 'SystemAdmin']
     }
   }));
   await page.route('**/api/engineering/persistence/status', route => route.fulfill({

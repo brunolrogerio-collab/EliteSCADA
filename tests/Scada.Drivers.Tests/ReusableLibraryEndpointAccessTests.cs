@@ -77,6 +77,30 @@ public sealed class ReusableLibraryEndpointAccessTests
         Assert.Null(access.Reason);
     }
 
+    [Fact]
+    public void CheckAccess_AllowsReadOnlyEngineeringCapabilityWhenRequested()
+    {
+        using var workspace = new EngineeringWorkspace();
+        workspace.SecurityPolicies.UpsertRole(new SecurityRoleEngineeringDto(
+            Guid.NewGuid(),
+            "engineering-reader",
+            "Engineering Reader",
+            Grants: [new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringView)]));
+        var exchange = CreateExchange(workspace);
+        var security = CreateSecurity(workspace, exchange);
+        var context = AuthenticatedContext("engineering-reader");
+
+        var access = ReusableLibraryEndpoints.CheckAccess(
+            context,
+            security,
+            exchange,
+            SecurityCapability.EngineeringView);
+
+        Assert.True(access.Authorization.Allowed);
+        Assert.False(security.CheckWorkspace(context, SecurityCapability.EngineeringModify).Allowed);
+        Assert.Null(access.Failure);
+    }
+
     [Theory]
     [InlineData(ReusableLibraryEndpoints.CatalogRoute)]
     [InlineData(ReusableLibraryEndpoints.AssociateRoute)]

@@ -22,7 +22,7 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 17;
+    public const int CurrentSchemaVersion = 18;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
@@ -41,6 +41,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly EngineeringCsvExchange _csv;
     private readonly DataSourceEngineeringHandler _dataSourceHandler;
     private readonly TagEngineeringHandler _tagHandler;
+    private readonly SecurityScopeEngineeringHandler _securityScopeHandler;
     private readonly AlarmEngineeringHandler _alarmHandler;
     private readonly AssetEngineeringHandler _assetHandler;
     private readonly VisualAssetEngineeringHandler _visualAssetHandler;
@@ -195,11 +196,17 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _csv = new EngineeringCsvExchange(_json);
         _dataSourceHandler = new DataSourceEngineeringHandler(dataSources, tags, alarms, commands, dataSourceConfigurationValidator);
         _tagHandler = new TagEngineeringHandler(tags, dataSources, alarms, securityPolicies);
+        _securityScopeHandler = new SecurityScopeEngineeringHandler(
+            securityPolicies,
+            tags,
+            assets,
+            views,
+            commands);
         _alarmHandler = new AlarmEngineeringHandler(alarms, _tagHandler);
         _assetHandler = new AssetEngineeringHandler(assets, tags);
         _visualAssetHandler = new VisualAssetEngineeringHandler(_visualAssets);
         _viewHandler = new ViewEngineeringHandler(views, assets, tags, _visualAssets);
-        _securityPolicyHandler = new SecurityPolicyEngineeringHandler(securityPolicies);
+        _securityPolicyHandler = new SecurityPolicyEngineeringHandler(securityPolicies, _securityScopeHandler);
         _commandHandler = new CommandEngineeringHandler(commands, tags, dataSources);
         _gatewayHandler = new GatewayEngineeringHandler(gateways, tags, dataSources);
         _scriptHandler = new ScriptEngineeringHandler(_scripts, tags, dataSources, assets, views);
@@ -237,7 +244,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             _reports.SnapshotReports(),
             _operationalEvents.SnapshotOperationalEvents(),
             _views.StartupScreenId,
-            _engineeringLock.Snapshot());
+            _engineeringLock.Snapshot(),
+            _securityPolicies.SnapshotScopes());
     }
 
     public string ExportJson(bool indented = true)
@@ -266,7 +274,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             throw new InvalidDataException(
                 $"Schema version {package.SchemaVersion} is newer than supported version {CurrentSchemaVersion}.");
 
-        return package with
+        var normalized = package with
         {
             DataSources = package.DataSources ?? Array.Empty<DataSourceEngineeringDto>(),
             Templates = package.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>(),
@@ -277,6 +285,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             SecurityRoles = AuthorityPolicyEngineeringMigration.NormalizeRoles(
                 package.SecurityRoles,
                 package.SchemaVersion),
+            SecurityScopes = package.SecurityScopes ?? Array.Empty<SecurityScopeEngineeringDto>(),
             Commands = package.Commands ?? Array.Empty<CommandEngineeringDto>(),
             Gateways = package.Gateways ?? Array.Empty<GatewayRouteEngineeringDto>(),
             Scripts = package.Scripts ?? Array.Empty<ScriptEngineeringDefinition>(),
@@ -286,6 +295,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             OperationalEvents = package.OperationalEvents ?? Array.Empty<OperationalEventEngineeringDto>(),
             EngineeringLock = EngineeringLockContract.Normalize(package.EngineeringLock)
         };
+        return AuthorityScopeEngineeringMigration.Normalize(normalized);
     }
 
     public EngineeringPackage ParseTagsCsv(string csv) =>
@@ -318,6 +328,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _scriptHandler.Preview(package, mode, items);
         _operationalEventHandler.Preview(package, mode, items);
         _reportHandler.Preview(package, mode, items);
+        _securityScopeHandler.Preview(package, mode, items);
         _securityPolicyHandler.Preview(package, mode, items);
         PreviewOperationalHmiReferences(package, items);
 
@@ -364,6 +375,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _scriptHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _operationalEventHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _reportHandler.Apply(package, mode, ref created, ref updated, ref skipped);
+        _securityScopeHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _securityPolicyHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _engineeringLock.Replace(package.EngineeringLock);
 

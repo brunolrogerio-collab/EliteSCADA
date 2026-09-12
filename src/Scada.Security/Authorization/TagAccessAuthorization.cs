@@ -9,7 +9,9 @@ public enum TagAccessOperation
     Configure
 }
 
-public sealed class TagAccessAuthorization(ICapabilityAuthorizationService capabilities)
+public sealed class TagAccessAuthorization(
+    ICapabilityAuthorizationService capabilities,
+    Func<TagDefinition, AuthorizationResource>? resourceFactory = null)
 {
     public AuthorizationDecision Evaluate(
         SecurityPrincipal principal,
@@ -27,10 +29,14 @@ public sealed class TagAccessAuthorization(ICapabilityAuthorizationService capab
             _ => throw new ArgumentOutOfRangeException(nameof(operation))
         };
 
+        var resource = resourceFactory?.Invoke(tag) ?? new AuthorizationResource(
+            TagPath: tag.Path,
+            ResourceKind: AuthorizationResourceKind.Tag,
+            ResourceId: tag.Id);
         var decision = capabilities.Evaluate(
             principal,
             capability,
-            new AuthorizationResource(TagPath: tag.Path));
+            resource);
         if (!decision.Allowed) return decision;
 
         var explicitRoles = operation switch

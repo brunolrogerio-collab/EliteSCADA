@@ -24,7 +24,9 @@ public static class SecurityPolicyCompiler
                             grant.Scope.EquipmentPath,
                             grant.Scope.ScreenKey,
                             grant.Scope.TagPath,
-                            grant.Scope.CommandKey)))
+                            grant.Scope.CommandKey,
+                            grant.Scope.ScopeNodeId,
+                            grant.Scope.IncludeDescendants)))
                 .ToArray());
     }
 

@@ -126,6 +126,8 @@ Visual date/time elements may use the EliteSCADA server clock or a TAG-provided 
 
 Active synchronization of PLC/RTU clocks is a separate future driver operation that must be explicit, permission controlled and auditable.
 
+Remote Web and future EliteGO network budgets use the bounded, server-advertised `elitescada.timing-policy/v1` contract documented in `docs/TIMING-POLICY-V1.md`. Security-session validity, HA authority/fencing, Driver protocol timing and internal Script/runtime safety budgets remain independent owning contracts and cannot be adapted through that WAN policy.
+
 ## Technology baseline
 - Backend/Core: .NET 10 LTS
 - Frontend: React 19.2 + TypeScript

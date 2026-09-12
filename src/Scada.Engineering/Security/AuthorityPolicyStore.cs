@@ -1,4 +1,5 @@
 using Scada.Engineering.Contracts;
+using Scada.Security.Authorization;
 
 namespace Scada.Engineering.Security;
 
@@ -114,4 +115,82 @@ public sealed class AuthorityPolicyRegistryView(IAuthorityPolicyStore store) : I
     public SecurityScopeEngineeringDto? FindScopeByKey(string key) => SnapshotScopes().FirstOrDefault(scope => string.Equals(scope.Key, key, StringComparison.OrdinalIgnoreCase));
     public void UpsertRole(SecurityRoleEngineeringDto role) => throw new InvalidOperationException("Security Authority is the canonical mutable policy owner.");
     public void UpsertScope(SecurityScopeEngineeringDto scope) => throw new InvalidOperationException("Security Authority is the canonical mutable policy owner.");
+}
+
+internal sealed record AuthorityPolicyReferenceValidation(
+    bool IsValid,
+    string? ErrorCode = null,
+    string? Message = null)
+{
+    public static AuthorityPolicyReferenceValidation Valid { get; } = new(true);
+}
+
+/// <summary>Validates the immutable application-to-Authority binding carried by Engineering packages.</summary>
+internal static class AuthorityPolicyReferenceValidator
+{
+    public static AuthorityPolicyReferenceValidation ValidateShape(
+        AuthorityPolicyReferenceEngineeringDto? reference)
+    {
+        if (reference is null)
+        {
+            return Invalid(
+                "SECURITY_AUTHORITY_POLICY_REFERENCE_REQUIRED",
+                "Engineering package is missing the required canonical Security Authority reference.");
+        }
+
+        if (!string.Equals(reference.Contract, AuthorityPolicyContract.Schema, StringComparison.Ordinal) ||
+            reference.ContractVersion != AuthorityPolicyContract.SchemaVersion)
+        {
+            return Invalid(
+                "SECURITY_AUTHORITY_POLICY_REFERENCE_INVALID",
+                "Engineering package Authority reference has an unsupported contract or contract version.");
+        }
+
+        if (reference.PolicyVersion < 0 ||
+            reference.RoleIds is null ||
+            reference.ScopeIds is null ||
+            reference.RoleIds.Any(id => id == Guid.Empty) ||
+            reference.ScopeIds.Any(id => id == Guid.Empty) ||
+            reference.RoleIds.Distinct().Count() != reference.RoleIds.Count ||
+            reference.ScopeIds.Distinct().Count() != reference.ScopeIds.Count)
+        {
+            return Invalid(
+                "SECURITY_AUTHORITY_POLICY_REFERENCE_INVALID",
+                "Engineering package Authority reference contains invalid stable policy identities.");
+        }
+
+        return AuthorityPolicyReferenceValidation.Valid;
+    }
+
+    public static AuthorityPolicyReferenceValidation ValidateExact(
+        AuthorityPolicyReferenceEngineeringDto? reference,
+        AuthorityPolicySnapshot authority)
+    {
+        var shape = ValidateShape(reference);
+        if (!shape.IsValid) return shape;
+
+        var expectedRoleIds = authority.Roles
+            .Where(role => role.Id.HasValue)
+            .Select(role => role.Id!.Value)
+            .ToHashSet();
+        var expectedScopeIds = authority.Scopes
+            .Select(scope => scope.Id)
+            .ToHashSet();
+        var referenceRoleIds = reference!.RoleIds.ToHashSet();
+        var referenceScopeIds = reference.ScopeIds.ToHashSet();
+
+        if (reference.PolicyVersion != authority.Version ||
+            !referenceRoleIds.SetEquals(expectedRoleIds) ||
+            !referenceScopeIds.SetEquals(expectedScopeIds))
+        {
+            return Invalid(
+                "SECURITY_AUTHORITY_POLICY_REFERENCE_MISMATCH",
+                "Engineering package Authority reference does not match the currently configured canonical Security Authority policy.");
+        }
+
+        return AuthorityPolicyReferenceValidation.Valid;
+    }
+
+    private static AuthorityPolicyReferenceValidation Invalid(string code, string message) =>
+        new(false, code, message);
 }

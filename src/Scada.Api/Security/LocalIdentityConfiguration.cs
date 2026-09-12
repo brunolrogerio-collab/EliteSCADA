@@ -144,6 +144,8 @@ public static class LocalIdentityConfiguration
                 ? new PostgreSqlLocalIdentityStore(connectionString!)
                 : new InMemoryLocalIdentityStore());
         builder.Services.AddSingleton<LocalIdentityBootstrapService>();
+        builder.Services.AddSingleton(new AuthorityPolicyBootstrapOptions(
+            builder.Configuration[AuthorityPolicyBootstrapOptions.ConfigurationPath]));
         builder.Services.AddSingleton<AuthorityPolicyBootstrapService>();
 
         return true;

@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Scada.Api.Security;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.ImportExport;
+using Scada.Engineering.Persistence;
 using Scada.Engineering.Security;
 using Scada.Security.Authentication;
 using Scada.Security.Authorization;
@@ -94,6 +96,82 @@ public sealed class AuthorityBackupServiceTests
         Assert.False(stale.Applied);
         Assert.Equal("AUTHORITY_POLICY_CONCURRENCY_CONFLICT", stale.Error);
         Assert.Equal(1, stale.Snapshot.Version);
+    }
+
+    [Fact]
+    public async Task BootstrapMigration_UsesConfiguredLegacyProjectExactlyOnce()
+    {
+        var now = new DateTimeOffset(2026, 9, 12, 13, 0, 0, TimeSpan.Zero);
+        var sourceA = LegacySnapshot(
+            "plant-a",
+            new SecurityRoleEngineeringDto(
+                Guid.Parse("92000000-0000-0000-0000-000000000001"),
+                "legacy-a",
+                "Legacy A"),
+            now);
+        var sourceBRoleId = Guid.Parse("92000000-0000-0000-0000-000000000002");
+        var sourceB = LegacySnapshot(
+            "plant-b",
+            new SecurityRoleEngineeringDto(sourceBRoleId, "developer", "Legacy Developer"),
+            now);
+        var projects = new LegacyMigrationProjectStore([sourceA, sourceB]);
+        var catalog = new LegacyMigrationProjectCatalog([sourceA, sourceB]);
+        var identities = new InMemoryLocalIdentityStore();
+        await identities.InitializeAsync();
+        await identities.CreateAsync(CreateAdministrator());
+        var authority = new InMemoryAuthorityPolicyStore();
+        var bootstrap = new AuthorityPolicyBootstrapService(
+            authority,
+            identities,
+            catalog,
+            projects,
+            new AuthorityPolicyBootstrapOptions("plant-b"));
+
+        await bootstrap.EnsureInitializedAsync();
+        var first = authority.Snapshot();
+        await bootstrap.EnsureInitializedAsync();
+        var second = authority.Snapshot();
+
+        Assert.Equal(1, first.Version);
+        Assert.Equal(first.Version, second.Version);
+        Assert.Equal(sourceBRoleId, Assert.Single(second.Roles).Id);
+        Assert.Equal(new[] { "plant-b" }, projects.LoadedProjectKeys);
+    }
+
+    [Fact]
+    public async Task BootstrapMigration_AmbiguousLegacyProjectsRequirePreStartSelector()
+    {
+        var now = new DateTimeOffset(2026, 9, 12, 13, 0, 0, TimeSpan.Zero);
+        var sourceA = LegacySnapshot(
+            "plant-a",
+            new SecurityRoleEngineeringDto(
+                Guid.Parse("92000000-0000-0000-0000-000000000011"),
+                "legacy-a",
+                "Legacy A"),
+            now);
+        var sourceB = LegacySnapshot(
+            "plant-b",
+            new SecurityRoleEngineeringDto(
+                Guid.Parse("92000000-0000-0000-0000-000000000012"),
+                "legacy-b",
+                "Legacy B"),
+            now);
+        var identities = new InMemoryLocalIdentityStore();
+        await identities.InitializeAsync();
+        await identities.CreateAsync(CreateAdministrator());
+        var authority = new InMemoryAuthorityPolicyStore();
+        var bootstrap = new AuthorityPolicyBootstrapService(
+            authority,
+            identities,
+            new LegacyMigrationProjectCatalog([sourceA, sourceB]),
+            new LegacyMigrationProjectStore([sourceA, sourceB]),
+            new AuthorityPolicyBootstrapOptions(null));
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            bootstrap.EnsureInitializedAsync());
+
+        Assert.Contains(AuthorityPolicyBootstrapOptions.ConfigurationPath, exception.Message, StringComparison.Ordinal);
+        Assert.Empty(authority.Snapshot().Roles);
     }
 
     [Fact]
@@ -243,4 +321,105 @@ public sealed class AuthorityBackupServiceTests
             LocalPasswordHasher.Hash(LoginPassword),
             timestamp,
             timestamp);
+
+    private static EngineeringProjectSnapshot LegacySnapshot(
+        string projectKey,
+        SecurityRoleEngineeringDto role,
+        DateTimeOffset savedAtUtc)
+    {
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            18,
+            savedAtUtc,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>(),
+            SecurityRoles: [role],
+            SecurityScopes: Array.Empty<SecurityScopeEngineeringDto>());
+        return new EngineeringProjectSnapshot(
+            1,
+            projectKey,
+            projectKey,
+            EngineeringExchangeService.CurrentSchema,
+            18,
+            savedAtUtc,
+            JsonSerializer.Serialize(package));
+    }
+
+    private sealed class LegacyMigrationProjectCatalog(
+        IReadOnlyCollection<EngineeringProjectSnapshot> snapshots) : IEngineeringProjectCatalog
+    {
+        public Task<IReadOnlyCollection<EngineeringProjectCatalogEntry>> ListAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyCollection<EngineeringProjectCatalogEntry>>(
+                snapshots.Select(snapshot => new EngineeringProjectCatalogEntry(
+                    snapshot.ProjectKey,
+                    snapshot.ProjectName,
+                    snapshot.Revision,
+                    snapshot.SavedAtUtc)).ToArray());
+    }
+
+    private sealed class LegacyMigrationProjectStore(
+        IEnumerable<EngineeringProjectSnapshot> snapshots) : IEngineeringProjectStore
+    {
+        private readonly Dictionary<string, EngineeringProjectSnapshot> _snapshots = snapshots
+            .ToDictionary(snapshot => snapshot.ProjectKey, StringComparer.OrdinalIgnoreCase);
+
+        public List<string> LoadedProjectKeys { get; } = [];
+
+        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<EngineeringProjectSnapshot> SaveAsync(
+            string projectKey,
+            string projectName,
+            string engineeringSchema,
+            int engineeringSchemaVersion,
+            string engineeringJson,
+            string? savedBy = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromException<EngineeringProjectSnapshot>(new NotSupportedException());
+
+        public Task<EngineeringProjectSnapshot?> LoadLatestAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default)
+        {
+            LoadedProjectKeys.Add(projectKey);
+            return Task.FromResult(_snapshots.GetValueOrDefault(projectKey));
+        }
+
+        public Task<EngineeringProjectSnapshot?> LoadRevisionAsync(
+            string projectKey,
+            long revision,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<EngineeringProjectSnapshot?>(null);
+
+        public Task<IReadOnlyCollection<EngineeringProjectSnapshot>> ListRevisionsAsync(
+            string projectKey,
+            int limit = 50,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyCollection<EngineeringProjectSnapshot>>(Array.Empty<EngineeringProjectSnapshot>());
+
+        public Task<EngineeringProjectPublication?> GetPublicationAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<EngineeringProjectPublication?>(null);
+
+        public Task<EngineeringProjectPublication?> PublishRevisionAsync(
+            string projectKey,
+            long revision,
+            string? publishedBy = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<EngineeringProjectPublication?>(null);
+
+        public Task<EngineeringProjectActivation?> GetActivationAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<EngineeringProjectActivation?>(null);
+
+        public Task<EngineeringProjectActivation?> RecordActivationAsync(
+            string projectKey,
+            long revision,
+            string? activatedBy = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<EngineeringProjectActivation?>(null);
+    }
 }

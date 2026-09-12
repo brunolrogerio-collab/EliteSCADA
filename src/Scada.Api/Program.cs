@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.AspNetCore.Http.Json;
 using Scada.Api.Historian;
 using Scada.Api.HostedServices;
 using Scada.Api.Licensing;
@@ -37,6 +38,7 @@ builder.AddConfiguredProductLicensing();
 builder.AddTimingPolicyV1();
 
 builder.Services.AddSingleton<IScadaEventBus, InMemoryScadaEventBus>();
+builder.Services.Configure<JsonOptions>(options => options.SerializerOptions.Converters.Add(new SecurityCapabilityJsonConverter()));
 builder.Services.AddSingleton<TagRealtimeHub>();
 builder.AddConfiguredHistorian();
 builder.AddConfiguredServerMemoryRetention();

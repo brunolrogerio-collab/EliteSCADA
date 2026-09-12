@@ -8,12 +8,23 @@ using Scada.Security.Authorization;
 namespace Scada.Api.Security;
 
 public sealed record AuthorityPolicyMutationRequest(
+    string Schema,
+    int SchemaVersion,
     long ExpectedVersion,
     IReadOnlyCollection<SecurityRoleEngineeringDto>? Roles,
     IReadOnlyCollection<SecurityScopeEngineeringDto>? Scopes);
 
+public sealed record AuthorityPolicyDocument(
+    string Schema,
+    int SchemaVersion,
+    long Version,
+    IReadOnlyCollection<SecurityRoleEngineeringDto> Roles,
+    IReadOnlyCollection<SecurityScopeEngineeringDto> Scopes);
+
 public static class AuthorityPolicyAdministrationApi
 {
+    public const string WireSchema = "elitescada.authority-policy";
+    public const int WireSchemaVersion = 1;
     private const string ReadAction = "auth.authority_policy.read";
     private const string PreviewAction = "auth.authority_policy.preview";
     private const string ApplyAction = "auth.authority_policy.apply";
@@ -26,7 +37,7 @@ public static class AuthorityPolicyAdministrationApi
             if (authorization.Failure is not null) return authorization.Failure;
             var snapshot = store.Snapshot();
             await audit.RecordAsync(context, authorization.Check!.Principal, ReadAction, AuditOutcome.Succeeded, "authority-policy", snapshot.Version.ToString(), new Dictionary<string, string> { ["roleCount"] = snapshot.Roles.Count.ToString(), ["scopeCount"] = snapshot.Scopes.Count.ToString() });
-            return Results.Ok(snapshot);
+            return Results.Ok(ToDocument(snapshot));
         });
 
         endpoints.MapPost("/api/auth/authority-policy/preview", async (AuthorityPolicyMutationRequest request, HttpContext context, ScadaRuntimeFacade runtime, ApiAuthorizationService security, ApiAuditService audit, ILocalIdentityStore identities, IAuthorityPolicyStore store, CancellationToken ct) =>
@@ -36,7 +47,7 @@ public static class AuthorityPolicyAdministrationApi
             var validation = await ValidateMutationAsync(request, identities, store, ct);
             if (validation.Error is not null) return Results.BadRequest(new { error = validation.Error });
             await audit.RecordAsync(context, authorization.Check!.Principal, PreviewAction, AuditOutcome.Succeeded, "authority-policy", request.ExpectedVersion.ToString(), AuditDetails(store.Snapshot(), validation.Roles!, validation.Scopes!));
-            return Results.Ok(new { valid = true, expectedVersion = request.ExpectedVersion, roles = validation.Roles, scopes = validation.Scopes });
+            return Results.Ok(new { schema = WireSchema, schemaVersion = WireSchemaVersion, valid = true, expectedVersion = request.ExpectedVersion, policy = ToDocument(new AuthorityPolicySnapshot(request.ExpectedVersion, validation.Roles!, validation.Scopes!)) });
         });
 
         endpoints.MapPut("/api/auth/authority-policy", async (AuthorityPolicyMutationRequest request, HttpContext context, ScadaRuntimeFacade runtime, ApiAuthorizationService security, ApiAuditService audit, ILocalIdentityStore identities, IAuthorityPolicyStore store, CancellationToken ct) =>
@@ -49,13 +60,15 @@ public static class AuthorityPolicyAdministrationApi
             var result = await store.TryReplaceAsync(request.ExpectedVersion, validation.Roles!, validation.Scopes!, ct);
             if (!result.Applied) return Results.Conflict(new { error = result.Error, currentVersion = result.Snapshot.Version });
             await audit.RecordAsync(context, authorization.Check!.Principal, ApplyAction, AuditOutcome.Succeeded, "authority-policy", result.Snapshot.Version.ToString(), AuditDetails(before, result.Snapshot.Roles, result.Snapshot.Scopes));
-            return Results.Ok(result.Snapshot);
+            return Results.Ok(ToDocument(result.Snapshot));
         });
         return endpoints;
     }
 
     private static async Task<(IReadOnlyCollection<SecurityRoleEngineeringDto>? Roles, IReadOnlyCollection<SecurityScopeEngineeringDto>? Scopes, string? Error)> ValidateMutationAsync(AuthorityPolicyMutationRequest request, ILocalIdentityStore identities, IAuthorityPolicyStore store, CancellationToken ct)
     {
+        if (!string.Equals(request.Schema, WireSchema, StringComparison.Ordinal) || request.SchemaVersion != WireSchemaVersion)
+            return (null, null, "AUTHORITY_POLICY_WIRE_SCHEMA_UNSUPPORTED");
         if (request.ExpectedVersion < 0) return (null, null, "ExpectedVersion must be non-negative.");
         var roles = request.Roles?.ToArray() ?? Array.Empty<SecurityRoleEngineeringDto>();
         var scopes = request.Scopes?.ToArray() ?? Array.Empty<SecurityScopeEngineeringDto>();
@@ -94,6 +107,7 @@ public static class AuthorityPolicyAdministrationApi
     private static string StableIds(IEnumerable<Guid?> ids) => string.Join(",", ids.Where(id => id.HasValue).Select(id => id!.Value.ToString("D")).Order());
     private static string StableIds(IEnumerable<Guid> ids) => string.Join(",", ids.Select(id => id.ToString("D")).Order());
     private static string CapabilityIds(IEnumerable<SecurityRoleEngineeringDto> roles) => string.Join(",", roles.SelectMany(role => role.Grants ?? Array.Empty<CapabilityGrantEngineeringDto>()).Select(grant => ((int)grant.Capability).ToString(System.Globalization.CultureInfo.InvariantCulture)).Distinct().Order());
+    private static AuthorityPolicyDocument ToDocument(AuthorityPolicySnapshot snapshot) => new(WireSchema, WireSchemaVersion, snapshot.Version, snapshot.Roles, snapshot.Scopes);
 
     private static async Task<(ApiAuthorizationCheck? Check, IResult? Failure)> AuthorizeReadAsync(HttpContext context, ScadaRuntimeFacade runtime, ApiAuthorizationService security, ApiAuditService audit, string action, CancellationToken ct)
     {

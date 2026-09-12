@@ -1,6 +1,9 @@
 using System.Text.Json;
+using Scada.Api.Security;
+using Scada.Engineering.Contracts;
 using Scada.Engineering.Security;
 using Scada.Security.Authentication;
+using Scada.Security.Authorization;
 
 namespace Scada.Drivers.Tests;
 
@@ -91,6 +94,37 @@ public sealed class AuthorityBackupServiceTests
         Assert.False(stale.Applied);
         Assert.Equal("AUTHORITY_POLICY_CONCURRENCY_CONFLICT", stale.Error);
         Assert.Equal(1, stale.Snapshot.Version);
+    }
+
+    [Fact]
+    public void AuthorityPolicyWire_UsesExplicitSchemaAndStringCapabilityIds()
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        options.Converters.Add(new SecurityCapabilityJsonConverter());
+        var document = new AuthorityPolicyDocument(
+            AuthorityPolicyAdministrationApi.WireSchema,
+            AuthorityPolicyAdministrationApi.WireSchemaVersion,
+            3,
+            [new SecurityRoleEngineeringDto(Guid.NewGuid(), "arbitrary", "Arbitrary", Grants: [new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringView)])],
+            Array.Empty<SecurityScopeEngineeringDto>());
+
+        var json = JsonSerializer.Serialize(document, options);
+
+        Assert.Contains("engineeringView", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"capability\":10", json, StringComparison.Ordinal);
+        Assert.Contains("elitescada.authority-policy", json, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("10")]
+    [InlineData("\"not-a-capability\"")]
+    public void AuthorityPolicyWire_RejectsNumericAndUnknownCapabilities(string capability)
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        options.Converters.Add(new SecurityCapabilityJsonConverter());
+        var json = $$"""{"schema":"elitescada.authority-policy","schemaVersion":1,"expectedVersion":0,"roles":[{"id":"91000000-0000-0000-0000-000000000010","key":"arbitrary","name":"Arbitrary","grants":[{"capability":{{capability}}]} }],"scopes":[]}""";
+
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<AuthorityPolicyMutationRequest>(json, options));
     }
 
     [Fact]

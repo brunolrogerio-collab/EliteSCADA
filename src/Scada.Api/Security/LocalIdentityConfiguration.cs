@@ -144,6 +144,7 @@ public static class LocalIdentityConfiguration
                 ? new PostgreSqlLocalIdentityStore(connectionString!)
                 : new InMemoryLocalIdentityStore());
         builder.Services.AddSingleton<LocalIdentityBootstrapService>();
+        builder.Services.AddSingleton<AuthorityPolicyBootstrapService>();
 
         return true;
     }
@@ -155,7 +156,7 @@ public static class LocalIdentityConfiguration
 
         var store = app.Services.GetRequiredService<ILocalIdentityStore>();
         await store.InitializeAsync();
-        await app.Services.GetRequiredService<IAuthorityPolicyStore>().InitializeAsync();
+        await app.Services.GetRequiredService<AuthorityPolicyBootstrapService>().EnsureInitializedAsync();
         if (await store.CountAsync() > 0) return;
 
         var bootstrap = app.Configuration.GetSection("Authentication:Local:Bootstrap");

@@ -217,6 +217,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     public EngineeringPackage ExportPackage()
     {
         var authorityOwnedPolicies = _securityPolicies is IAuthorityPolicyEngineeringRegistryView;
+        var authoritySnapshot = (_securityPolicies as IAuthorityPolicyEngineeringRegistryView)?.AuthoritySnapshot();
         var tagDefinitions = _tags.Snapshot();
         var tagDtos = tagDefinitions.Select(EngineeringDtoMapper.ToDto).ToArray();
         var paths = tagDefinitions.ToDictionary(x => x.Id, x => x.Path);
@@ -246,7 +247,13 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             _operationalEvents.SnapshotOperationalEvents(),
             _views.StartupScreenId,
             _engineeringLock.Snapshot(),
-            authorityOwnedPolicies ? Array.Empty<SecurityScopeEngineeringDto>() : _securityPolicies.SnapshotScopes());
+            authorityOwnedPolicies ? Array.Empty<SecurityScopeEngineeringDto>() : _securityPolicies.SnapshotScopes(),
+            authoritySnapshot is null ? null : new AuthorityPolicyReferenceEngineeringDto(
+                "elitescada.authority-policy",
+                1,
+                authoritySnapshot.Version,
+                authoritySnapshot.Roles.Select(role => role.Id!.Value).Order().ToArray(),
+                authoritySnapshot.Scopes.Select(scope => scope.Id).Order().ToArray()));
     }
 
     public string ExportJson(bool indented = true)
@@ -287,6 +294,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
                 package.SecurityRoles,
                 package.SchemaVersion),
             SecurityScopes = package.SecurityScopes ?? Array.Empty<SecurityScopeEngineeringDto>(),
+            AuthorityPolicyReference = package.AuthorityPolicyReference,
             Commands = package.Commands ?? Array.Empty<CommandEngineeringDto>(),
             Gateways = package.Gateways ?? Array.Empty<GatewayRouteEngineeringDto>(),
             Scripts = package.Scripts ?? Array.Empty<ScriptEngineeringDefinition>(),

@@ -24,6 +24,7 @@ public interface IAuthorityPolicyStore
 /// <summary>Marks an Engineering registry as a read-only projection of the canonical Authority.</summary>
 public interface IAuthorityPolicyEngineeringRegistryView
 {
+    AuthorityPolicySnapshot AuthoritySnapshot();
 }
 
 public sealed class InMemoryAuthorityPolicyStore : IAuthorityPolicyStore
@@ -104,6 +105,7 @@ public sealed class InMemoryAuthorityPolicyStore : IAuthorityPolicyStore
 /// <summary>Read-only compatibility view for Engineering consumers.</summary>
 public sealed class AuthorityPolicyRegistryView(IAuthorityPolicyStore store) : ISecurityPolicyEngineeringRegistry, IAuthorityPolicyEngineeringRegistryView
 {
+    public AuthorityPolicySnapshot AuthoritySnapshot() => store.Snapshot();
     public IReadOnlyCollection<SecurityRoleEngineeringDto> SnapshotRoles() => store.Snapshot().Roles;
     public IReadOnlyCollection<SecurityScopeEngineeringDto> SnapshotScopes() => store.Snapshot().Scopes;
     public SecurityRoleEngineeringDto? FindRole(Guid id) => SnapshotRoles().FirstOrDefault(role => role.Id == id);

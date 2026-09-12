@@ -1,5 +1,6 @@
 using Scada.Api.Realtime;
 using Scada.Api.Runtime;
+using Scada.Engineering.Security;
 using Scada.Security.Audit;
 using Scada.Security.Authentication;
 using Scada.Security.Authorization;
@@ -73,7 +74,7 @@ public static class LocalUserAdministrationApi
         endpoints.MapGet("/api/auth/roles", async (
             HttpContext context,
             ScadaRuntimeFacade runtime,
-            EngineeringWorkspace workspace,
+            IAuthorityPolicyStore authorityPolicies,
             ApiAuthorizationService security,
             ApiAuditService audit,
             CancellationToken ct) =>
@@ -81,7 +82,7 @@ public static class LocalUserAdministrationApi
             var authorization = await AuthorizeAsync(context, runtime, security, audit, RolesAction, "roles", ct);
             if (authorization.Failure is not null) return authorization.Failure;
 
-            var roles = workspace.SecurityPolicies.SnapshotRoles()
+            var roles = authorityPolicies.Snapshot().Roles
                 .OrderBy(role => role.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(role => new LocalRoleAdminResponse(role.Key, role.Name, role.Description))
                 .ToArray();
@@ -103,7 +104,7 @@ public static class LocalUserAdministrationApi
             CreateLocalUserRequest request,
             HttpContext context,
             ScadaRuntimeFacade runtime,
-            EngineeringWorkspace workspace,
+            IAuthorityPolicyStore authorityPolicies,
             ApiAuthorizationService security,
             ApiAuditService audit,
             ILocalIdentityStore store,
@@ -121,7 +122,7 @@ public static class LocalUserAdministrationApi
 
                 var normalizedUsername = LocalIdentityNormalization.NormalizeUsername(username);
                 LocalPasswordHasher.ValidatePassword(request.Password);
-                var roles = ValidateRoles(request.Roles, workspace);
+                var roles = ValidateRoles(request.Roles, authorityPolicies);
                 if (roles.Unknown.Length > 0)
                     return UnknownRoles(roles.Unknown);
 
@@ -175,7 +176,7 @@ public static class LocalUserAdministrationApi
             UpdateLocalUserRequest request,
             HttpContext context,
             ScadaRuntimeFacade runtime,
-            EngineeringWorkspace workspace,
+            IAuthorityPolicyStore authorityPolicies,
             ApiAuthorizationService security,
             ApiAuditService audit,
             ILocalIdentityStore store,
@@ -189,7 +190,7 @@ public static class LocalUserAdministrationApi
             if (displayName.Length is < 1 or > 300)
                 return Results.BadRequest(new { error = "Display name must contain between 1 and 300 characters." });
 
-            var roles = ValidateRoles(request.Roles, workspace);
+            var roles = ValidateRoles(request.Roles, authorityPolicies);
             if (roles.Unknown.Length > 0)
                 return UnknownRoles(roles.Unknown);
 
@@ -338,10 +339,10 @@ public static class LocalUserAdministrationApi
 
     private static (IReadOnlyCollection<string> Normalized, string[] Unknown) ValidateRoles(
         IReadOnlyCollection<string>? requested,
-        EngineeringWorkspace workspace)
+        IAuthorityPolicyStore authorityPolicies)
     {
         var normalized = LocalIdentityNormalization.NormalizeRoles(requested ?? Array.Empty<string>());
-        var known = workspace.SecurityPolicies.SnapshotRoles()
+        var known = authorityPolicies.Snapshot().Roles
             .Select(role => role.Key)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var unknown = normalized.Where(role => !known.Contains(role)).ToArray();
@@ -351,7 +352,7 @@ public static class LocalUserAdministrationApi
     private static IResult UnknownRoles(IReadOnlyCollection<string> unknown) =>
         Results.BadRequest(new
         {
-            error = "One or more assigned role keys are not defined in the current Engineering workspace.",
+            error = "One or more assigned role keys are not defined in the canonical Security Authority.",
             unknownRoles = unknown
         });
 

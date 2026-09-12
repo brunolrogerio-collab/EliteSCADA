@@ -2,7 +2,7 @@ using Scada.Engineering.Contracts;
 
 namespace Scada.Engineering.Security;
 
-internal static class SecurityPolicyEngineeringValidator
+public static class SecurityPolicyEngineeringValidator
 {
     private static readonly string[] SensitiveMetadataFragments =
     {

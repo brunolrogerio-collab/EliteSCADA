@@ -38,18 +38,24 @@ public sealed record AuthorityBackupPreview(
     int UserCount,
     int EnabledUserCount,
     int EnabledAdministratorCount,
-    IReadOnlyCollection<AuthorityBackupUserSummary> Users);
+    IReadOnlyCollection<AuthorityBackupUserSummary> Users,
+    bool PolicyIncluded = false,
+    string? PolicyStatus = null);
+
+/// <summary>Encrypted v2 Authority policy payload. Values are canonical JSON owned by the Authority store.</summary>
+public sealed record AuthorityBackupPolicyPayload(long Version, string RolesJson, string ScopesJson);
 
 public sealed record AuthorityBackupOpenResult(
     AuthorityBackupPreview Preview,
-    IReadOnlyCollection<LocalUserAccount> Accounts);
+    IReadOnlyCollection<LocalUserAccount> Accounts,
+    AuthorityBackupPolicyPayload? Policy = null);
 
 public sealed class AuthorityBackupService
 {
     public const string CurrentFormat = "elitescada.authority-backup";
-    public const int CurrentFormatVersion = 1;
+    public const int CurrentFormatVersion = 2;
     public const string CurrentPayloadSchema = "elitescada.authority";
-    public const int CurrentPayloadSchemaVersion = 1;
+    public const int CurrentPayloadSchemaVersion = 2;
     public const string PasswordKdfAlgorithm = "PBKDF2-SHA256";
     public const int PasswordKdfVersion = 1;
     public const int PasswordKdfIterations = 310_000;
@@ -74,6 +80,12 @@ public sealed class AuthorityBackupService
     public string Export(
         IEnumerable<LocalUserAccount> accounts,
         string backupPassword,
+        DateTimeOffset? createdAtUtc = null) => ExportLegacyV1(accounts, backupPassword, createdAtUtc);
+
+    public string Export(
+        IEnumerable<LocalUserAccount> accounts,
+        AuthorityBackupPolicyPayload policy,
+        string backupPassword,
         DateTimeOffset? createdAtUtc = null)
     {
         ValidateBackupPassword(backupPassword);
@@ -86,7 +98,8 @@ public sealed class AuthorityBackupService
             CurrentPayloadSchema,
             CurrentPayloadSchemaVersion,
             createdAt,
-            validatedAccounts.Select(ToPayloadUser).ToArray());
+            validatedAccounts.Select(ToPayloadUser).ToArray(),
+            policy);
         var plaintext = JsonSerializer.SerializeToUtf8Bytes(payload, JsonOptions);
         var salt = RandomNumberGenerator.GetBytes(KdfSaltSize);
         var nonce = RandomNumberGenerator.GetBytes(NonceSize);
@@ -130,6 +143,30 @@ public sealed class AuthorityBackupService
             CryptographicOperations.ZeroMemory(key);
             CryptographicOperations.ZeroMemory(plaintext);
         }
+    }
+
+    private string ExportLegacyV1(IEnumerable<LocalUserAccount> accounts, string backupPassword, DateTimeOffset? createdAtUtc)
+    {
+        ValidateBackupPassword(backupPassword);
+        var validatedAccounts = ValidateAndCopyAccounts(accounts);
+        var createdAt = createdAtUtc ?? DateTimeOffset.UtcNow;
+        var payload = new AuthorityBackupPayload(CurrentPayloadSchema, 1, createdAt, validatedAccounts.Select(ToPayloadUser).ToArray(), null);
+        return Encrypt(payload, 1, backupPassword, createdAt);
+    }
+
+    private string Encrypt(AuthorityBackupPayload payload, int formatVersion, string backupPassword, DateTimeOffset createdAt)
+    {
+        var plaintext = JsonSerializer.SerializeToUtf8Bytes(payload, JsonOptions);
+        var salt = RandomNumberGenerator.GetBytes(KdfSaltSize); var nonce = RandomNumberGenerator.GetBytes(NonceSize); var key = DeriveBackupKey(backupPassword, salt, PasswordKdfIterations); var ciphertext = new byte[plaintext.Length]; var tag = new byte[TagSize];
+        try
+        {
+            var kdf = new AuthorityBackupKdfDto(PasswordKdfAlgorithm, PasswordKdfVersion, PasswordKdfIterations, Convert.ToBase64String(salt));
+            var encryption = new AuthorityBackupEncryptionDto(EncryptionAlgorithm, EncryptionVersion, Convert.ToBase64String(nonce), string.Empty);
+            using var aes = new AesGcm(key, TagSize);
+            aes.Encrypt(nonce, plaintext, ciphertext, tag, BuildAssociatedData(CurrentFormat, formatVersion, createdAt, kdf, encryption));
+            return JsonSerializer.Serialize(new AuthorityBackupEnvelope(CurrentFormat, formatVersion, createdAt, kdf, encryption with { TagBase64 = Convert.ToBase64String(tag) }, Convert.ToBase64String(ciphertext)), JsonOptions);
+        }
+        finally { CryptographicOperations.ZeroMemory(key); CryptographicOperations.ZeroMemory(plaintext); }
     }
 
     public AuthorityBackupPreview Preview(string envelopeJson, string backupPassword) =>
@@ -194,6 +231,8 @@ public sealed class AuthorityBackupService
                 account.Roles.ToArray())).ToArray();
             var enabled = accounts.Count(account => account.IsEnabled);
             var enabledAdministrators = accounts.Count(IsEnabledAdministrator);
+            var policyIncluded = envelope.FormatVersion >= 2 && payload.Policy is not null;
+            if (envelope.FormatVersion >= 2 && !policyIncluded) throw new InvalidDataException("Authority backup v2 policy payload is missing.");
             var preview = new AuthorityBackupPreview(
                 envelope.Format,
                 envelope.FormatVersion,
@@ -201,11 +240,14 @@ public sealed class AuthorityBackupService
                 accounts.Count,
                 enabled,
                 enabledAdministrators,
-                summaries);
+                summaries,
+                policyIncluded,
+                policyIncluded ? "complete" : "policy-required");
 
             return new AuthorityBackupOpenResult(
                 preview,
-                accounts.Select(account => account.DeepCopy()).ToArray());
+                accounts.Select(account => account.DeepCopy()).ToArray(),
+                payload.Policy);
         }
         finally
         {
@@ -326,7 +368,7 @@ public sealed class AuthorityBackupService
     {
         if (!string.Equals(envelope.Format, CurrentFormat, StringComparison.Ordinal))
             throw new InvalidDataException($"Unsupported Authority backup format '{envelope.Format}'.");
-        if (envelope.FormatVersion != CurrentFormatVersion)
+        if (envelope.FormatVersion is not (1 or CurrentFormatVersion))
             throw new InvalidDataException($"Unsupported Authority backup format version {envelope.FormatVersion}.");
         if (envelope.CreatedAtUtc == default)
             throw new InvalidDataException("Authority backup creation timestamp is required.");
@@ -348,7 +390,7 @@ public sealed class AuthorityBackupService
     {
         if (!string.Equals(payload.Schema, CurrentPayloadSchema, StringComparison.Ordinal))
             throw new InvalidDataException($"Unsupported Authority backup payload schema '{payload.Schema}'.");
-        if (payload.SchemaVersion != CurrentPayloadSchemaVersion)
+        if (payload.SchemaVersion is not (1 or CurrentPayloadSchemaVersion) || payload.SchemaVersion != envelope.FormatVersion)
             throw new InvalidDataException($"Unsupported Authority backup payload schema version {payload.SchemaVersion}.");
         if (payload.ExportedAtUtc == default || payload.ExportedAtUtc != envelope.CreatedAtUtc)
             throw new InvalidDataException("Authority backup payload timestamp does not match its authenticated envelope.");
@@ -447,7 +489,8 @@ public sealed class AuthorityBackupService
         string Schema,
         int SchemaVersion,
         DateTimeOffset ExportedAtUtc,
-        IReadOnlyCollection<AuthorityBackupUserPayload?>? Users);
+        IReadOnlyCollection<AuthorityBackupUserPayload?>? Users,
+        AuthorityBackupPolicyPayload? Policy);
 
     private sealed record AuthorityBackupUserPayload(
         Guid Id,

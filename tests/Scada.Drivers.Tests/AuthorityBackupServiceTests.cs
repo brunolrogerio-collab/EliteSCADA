@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Scada.Engineering.Security;
 using Scada.Security.Authentication;
 
 namespace Scada.Drivers.Tests;
@@ -60,6 +61,36 @@ public sealed class AuthorityBackupServiceTests
             service.Open(backup, "Definitely-wrong-password"));
 
         Assert.Contains("authentication failed", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ExportOpenV2_RoundTripsEncryptedAuthorityPolicy()
+    {
+        var service = new AuthorityBackupService();
+        var policy = new AuthorityBackupPolicyPayload(7, "[]", "[]");
+
+        var backup = service.Export([CreateAdministrator()], policy, BackupPassword);
+        var opened = service.Open(backup, BackupPassword);
+
+        Assert.Equal(2, opened.Preview.FormatVersion);
+        Assert.True(opened.Preview.PolicyIncluded);
+        Assert.Equal("complete", opened.Preview.PolicyStatus);
+        Assert.NotNull(opened.Policy);
+        Assert.Equal(policy, opened.Policy);
+        Assert.DoesNotContain(policy.RolesJson, backup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task InMemoryPolicyStore_RejectsStaleVersionWithoutLastWriterWins()
+    {
+        var store = new InMemoryAuthorityPolicyStore();
+        var first = await store.TryReplaceAsync(0, [], []);
+        var stale = await store.TryReplaceAsync(0, [], []);
+
+        Assert.True(first.Applied);
+        Assert.False(stale.Applied);
+        Assert.Equal("AUTHORITY_POLICY_CONCURRENCY_CONFLICT", stale.Error);
+        Assert.Equal(1, stale.Snapshot.Version);
     }
 
     [Fact]

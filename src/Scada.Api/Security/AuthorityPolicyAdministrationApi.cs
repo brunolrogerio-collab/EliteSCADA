@@ -106,7 +106,7 @@ public static class AuthorityPolicyAdministrationApi
 
     private static string StableIds(IEnumerable<Guid?> ids) => string.Join(",", ids.Where(id => id.HasValue).Select(id => id!.Value.ToString("D")).Order());
     private static string StableIds(IEnumerable<Guid> ids) => string.Join(",", ids.Select(id => id.ToString("D")).Order());
-    private static string CapabilityIds(IEnumerable<SecurityRoleEngineeringDto> roles) => string.Join(",", roles.SelectMany(role => role.Grants ?? Array.Empty<CapabilityGrantEngineeringDto>()).Select(grant => ((int)grant.Capability).ToString(System.Globalization.CultureInfo.InvariantCulture)).Distinct().Order());
+    private static string CapabilityIds(IEnumerable<SecurityRoleEngineeringDto> roles) => string.Join(",", roles.SelectMany(role => role.Grants ?? Array.Empty<CapabilityGrantEngineeringDto>()).Select(grant => AuthorityPolicyContract.GetCapabilityId(grant.Capability)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal));
     private static AuthorityPolicyDocument ToDocument(AuthorityPolicySnapshot snapshot) => new(WireSchema, WireSchemaVersion, snapshot.Version, snapshot.Roles, snapshot.Scopes);
 
     private static async Task<(ApiAuthorizationCheck? Check, IResult? Failure)> AuthorizeReadAsync(HttpContext context, ScadaRuntimeFacade runtime, ApiAuthorizationService security, ApiAuditService audit, string action, CancellationToken ct)

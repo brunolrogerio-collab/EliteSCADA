@@ -2,6 +2,7 @@ using System.Text.Json;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
 using Scada.Core.Tags;
+using Scada.Api.Security;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
@@ -447,14 +448,7 @@ public sealed class EngineeringWorkspace : IDisposable
                 new CapabilityGrantEngineeringDto(SecurityCapability.TrendUse)
             }));
 
-        SecurityPolicies.UpsertRole(new SecurityRoleEngineeringDto(
-            Id: Guid.Parse("46000000-0000-0000-0000-000000000002"),
-            Key: "developer",
-            Name: "Developer",
-            Description: "Demo engineering/development role with all currently defined capabilities granted explicitly.",
-            Grants: Enum.GetValues<SecurityCapability>()
-                .Select(capability => new CapabilityGrantEngineeringDto(capability))
-                .ToArray()));
+        SecurityPolicies.UpsertRole(BuiltInSecurityRoleDefaults.CreateInitialDeveloperRole());
 
         lock (_stateGate)
         {

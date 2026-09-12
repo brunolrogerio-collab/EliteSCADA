@@ -25,7 +25,9 @@ public sealed class EngineeringPersistenceSecurityFilter(
             // lifecycle behavior. Authority remains the first access boundary.
             authorization = security.CheckWorkspace(
                 context,
-                SecurityCapability.EngineeringModify);
+                operation is null
+                    ? SecurityCapability.EngineeringView
+                    : SecurityCapability.EngineeringModify);
             var failure = authorization.FailureResult();
             if (failure is not null)
             {

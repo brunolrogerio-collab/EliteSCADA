@@ -81,6 +81,7 @@ const runtimeProjection = {
 async function installRuntimeContract(page: Page) {
   await page.route('**/api/auth/config', route => route.fulfill({
     json: {
+      authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
       authenticationEnabled: true,
       localLoginEnabled: true,
       initialAdministratorRequired: false,
@@ -105,7 +106,7 @@ async function installRuntimeContract(page: Page) {
     json: {
       authenticationEnabled: true,
       runtime: ['View', 'TrendUse', 'SystemAdmin'],
-      workspace: ['EngineeringModify', 'UserRoleAdmin', 'SystemAdmin']
+      workspace: ['EngineeringView', 'EngineeringModify', 'UserRoleAdmin', 'SystemAdmin']
     }
   }));
   await page.route('**/api/engineering/persistence/status', route => route.fulfill({

@@ -29,9 +29,14 @@ public static class RuntimeEngineeringPackageApi
             var all = Enum.GetValues<SecurityCapability>();
             if (!security.AuthenticationEnabled)
             {
-                var unrestricted = all.Select(capability => capability.ToString()).ToArray();
+                var unrestricted = all.Select(AuthorityPolicyContract.GetCapabilityId).ToArray();
                 return Results.Ok(new
                 {
+                    authorityPolicy = new
+                    {
+                        schema = AuthorityPolicyContract.Schema,
+                        schemaVersion = AuthorityPolicyContract.SchemaVersion
+                    },
                     authenticationEnabled = false,
                     runtime = unrestricted,
                     workspace = unrestricted
@@ -46,16 +51,22 @@ public static class RuntimeEngineeringPackageApi
                     runtime,
                     capability,
                     cancellationToken: cancellationToken);
-                if (check.Allowed) runtimeCapabilities.Add(capability.ToString());
+                if (check.Allowed)
+                    runtimeCapabilities.Add(AuthorityPolicyContract.GetCapabilityId(capability));
             }
 
             var workspaceCapabilities = all
                 .Where(capability => security.CheckWorkspace(context, capability).Allowed)
-                .Select(capability => capability.ToString())
+                .Select(AuthorityPolicyContract.GetCapabilityId)
                 .ToArray();
 
             return Results.Ok(new
             {
+                authorityPolicy = new
+                {
+                    schema = AuthorityPolicyContract.Schema,
+                    schemaVersion = AuthorityPolicyContract.SchemaVersion
+                },
                 authenticationEnabled = true,
                 runtime = runtimeCapabilities,
                 workspace = workspaceCapabilities

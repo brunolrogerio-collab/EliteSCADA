@@ -15,13 +15,14 @@ using Scada.Engineering.Security;
 using Scada.Engineering.Validation;
 using Scada.Engineering.Views;
 using Scada.Engineering.VisualAssets;
+using Scada.Security.Authorization;
 
 namespace Scada.Engineering.ImportExport;
 
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 16;
+    public const int CurrentSchemaVersion = 17;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
@@ -184,12 +185,16 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             PropertyNameCaseInsensitive = true,
-            Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+            Converters =
+            {
+                new SecurityCapabilityJsonConverter(),
+                new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false)
+            }
         };
 
         _csv = new EngineeringCsvExchange(_json);
         _dataSourceHandler = new DataSourceEngineeringHandler(dataSources, tags, alarms, commands, dataSourceConfigurationValidator);
-        _tagHandler = new TagEngineeringHandler(tags, dataSources, alarms);
+        _tagHandler = new TagEngineeringHandler(tags, dataSources, alarms, securityPolicies);
         _alarmHandler = new AlarmEngineeringHandler(alarms, _tagHandler);
         _assetHandler = new AssetEngineeringHandler(assets, tags);
         _visualAssetHandler = new VisualAssetEngineeringHandler(_visualAssets);
@@ -269,7 +274,9 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             Dynamos = package.Dynamos ?? Array.Empty<DynamoEngineeringDto>(),
             Screens = package.Screens ?? Array.Empty<ScreenEngineeringDto>(),
             Popups = package.Popups ?? Array.Empty<PopupEngineeringDto>(),
-            SecurityRoles = package.SecurityRoles ?? Array.Empty<SecurityRoleEngineeringDto>(),
+            SecurityRoles = AuthorityPolicyEngineeringMigration.NormalizeRoles(
+                package.SecurityRoles,
+                package.SchemaVersion),
             Commands = package.Commands ?? Array.Empty<CommandEngineeringDto>(),
             Gateways = package.Gateways ?? Array.Empty<GatewayRouteEngineeringDto>(),
             Scripts = package.Scripts ?? Array.Empty<ScriptEngineeringDefinition>(),

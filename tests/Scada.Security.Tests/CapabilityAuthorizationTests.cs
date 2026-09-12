@@ -5,8 +5,11 @@ namespace Scada.Security.Tests;
 
 public sealed class CapabilityAuthorizationTests
 {
-    [Fact]
-    public void RoleNamesAreConfigurableAndDoNotImplyCapabilities()
+    [Theory]
+    [InlineData("administrator")]
+    [InlineData("operator")]
+    [InlineData("viewer")]
+    public void RoleNamesAreConfigurableAndDoNotImplyCapabilities(string unprivilegedRole)
     {
         var authorization = new InMemoryCapabilityAuthorizationService(new[]
         {
@@ -15,16 +18,16 @@ public sealed class CapabilityAuthorizationTests
                 "Night Shift",
                 new[] { new CapabilityGrant(SecurityCapability.CommandExecute) }),
             new RolePolicy(
-                "administrator",
-                "Administrator",
+                unprivilegedRole,
+                unprivilegedRole,
                 Array.Empty<CapabilityGrant>())
         });
 
         var nightShift = new SecurityPrincipal("u1", "User 1", new[] { "night-shift" });
-        var administrator = new SecurityPrincipal("u2", "User 2", new[] { "administrator" });
+        var unprivileged = new SecurityPrincipal("u2", "User 2", new[] { unprivilegedRole });
 
         Assert.True(authorization.Evaluate(nightShift, SecurityCapability.CommandExecute).Allowed);
-        Assert.False(authorization.Evaluate(administrator, SecurityCapability.CommandExecute).Allowed);
+        Assert.False(authorization.Evaluate(unprivileged, SecurityCapability.CommandExecute).Allowed);
     }
 
     [Fact]
@@ -115,6 +118,10 @@ public sealed class CapabilityAuthorizationTests
             new RolePolicy(
                 "operator",
                 "Operator",
+                new[] { new CapabilityGrant(SecurityCapability.ProcessValueWrite) }),
+            new RolePolicy(
+                "supervisor",
+                "Supervisor",
                 new[] { new CapabilityGrant(SecurityCapability.ProcessValueWrite) })
         });
         var access = new TagAccessAuthorization(capabilities);
@@ -137,5 +144,99 @@ public sealed class CapabilityAuthorizationTests
             new SecurityPrincipal("u2", null, new[] { "supervisor" }),
             tag,
             TagAccessOperation.Write).Allowed);
+    }
+
+    [Fact]
+    public void ExplicitTagRoleMatchCannotSubstituteForRequiredCapability()
+    {
+        var capabilities = new InMemoryCapabilityAuthorizationService(new[]
+        {
+            new RolePolicy("supervisor", "Supervisor", Array.Empty<CapabilityGrant>())
+        });
+        var access = new TagAccessAuthorization(capabilities);
+        var tag = new TagDefinition(
+            Guid.NewGuid(),
+            "Setpoint",
+            "Plant.P01.Setpoint",
+            TagDataType.Double,
+            null,
+            null,
+            null,
+            false,
+            AccessPolicy: new TagAccessPolicy(WriteRoles: new[] { "supervisor" }));
+
+        var decision = access.Evaluate(
+            new SecurityPrincipal("u1", null, new[] { "supervisor" }),
+            tag,
+            TagAccessOperation.Write);
+
+        Assert.False(decision.Allowed);
+        Assert.Equal(SecurityCapability.ProcessValueWrite, decision.Capability);
+    }
+
+    [Fact]
+    public void TagRestrictionMustMatchTheRoleThatGrantedTheCapability()
+    {
+        var capabilities = new InMemoryCapabilityAuthorizationService(new[]
+        {
+            new RolePolicy(
+                "operator",
+                "Operator",
+                new[] { new CapabilityGrant(SecurityCapability.ProcessValueWrite) }),
+            new RolePolicy("supervisor", "Supervisor", Array.Empty<CapabilityGrant>())
+        });
+        var access = new TagAccessAuthorization(capabilities);
+        var tag = new TagDefinition(
+            Guid.NewGuid(),
+            "Setpoint",
+            "Plant.P01.Setpoint",
+            TagDataType.Double,
+            null,
+            null,
+            null,
+            false,
+            AccessPolicy: new TagAccessPolicy(WriteRoles: new[] { "supervisor" }));
+
+        var decision = access.Evaluate(
+            new SecurityPrincipal("u1", null, new[] { "operator", "supervisor" }),
+            tag,
+            TagAccessOperation.Write);
+
+        Assert.False(decision.Allowed);
+        Assert.Equal(SecurityCapability.ProcessValueWrite, decision.Capability);
+    }
+
+    [Fact]
+    public void HighAvailabilityCapabilitiesAreIndependentAndDenyByDefault()
+    {
+        var authorization = new InMemoryCapabilityAuthorizationService(new[]
+        {
+            new RolePolicy(
+                "ha-observer",
+                "HA Observer",
+                new[] { new CapabilityGrant(SecurityCapability.HighAvailabilityObserve) })
+        });
+        var principal = new SecurityPrincipal("u1", null, new[] { "ha-observer" });
+
+        Assert.True(authorization.Evaluate(principal, SecurityCapability.HighAvailabilityObserve).Allowed);
+        Assert.False(authorization.Evaluate(principal, SecurityCapability.HighAvailabilityTransfer).Allowed);
+        Assert.False(authorization.Evaluate(principal, SecurityCapability.HighAvailabilityAdmin).Allowed);
+    }
+
+    [Fact]
+    public void MultipleRolesComposeAdditivelyWithoutCrossCapabilityImplication()
+    {
+        var authorization = new InMemoryCapabilityAuthorizationService(new[]
+        {
+            new RolePolicy("reader", "Reader", new[] { new CapabilityGrant(SecurityCapability.EngineeringView) }),
+            new RolePolicy("writer", "Writer", new[] { new CapabilityGrant(SecurityCapability.ProcessValueWrite) })
+        });
+        var principal = new SecurityPrincipal("u1", null, new[] { "writer", "reader" });
+
+        Assert.Equal(new[] { "reader" }, authorization
+            .Evaluate(principal, SecurityCapability.EngineeringView).MatchedRoles);
+        Assert.Equal(new[] { "writer" }, authorization
+            .Evaluate(principal, SecurityCapability.ProcessValueWrite).MatchedRoles);
+        Assert.False(authorization.Evaluate(principal, SecurityCapability.CommandExecute).Allowed);
     }
 }

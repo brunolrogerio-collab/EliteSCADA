@@ -6,7 +6,7 @@ namespace Scada.Api.Runtime;
 public static class DistributedRuntimeFoundationApi
 {
     public const string ContractSchema = "elitescada.server-runtime-contract";
-    public const int ContractSchemaVersion = 1;
+    public const int ContractSchemaVersion = 2;
 
     public static IEndpointRouteBuilder MapDistributedRuntimeFoundationEndpoints(
         this IEndpointRouteBuilder endpoints)
@@ -159,7 +159,7 @@ public static class DistributedRuntimeFoundationApi
             {
                 if (!security.AuthenticationEnabled)
                 {
-                    effectiveCapabilities.Add(capability.ToString());
+                    effectiveCapabilities.Add(AuthorityPolicyContract.GetCapabilityId(capability));
                     continue;
                 }
 
@@ -168,7 +168,8 @@ public static class DistributedRuntimeFoundationApi
                     runtime,
                     capability,
                     cancellationToken: cancellationToken);
-                if (check.Allowed) effectiveCapabilities.Add(capability.ToString());
+                if (check.Allowed)
+                    effectiveCapabilities.Add(AuthorityPolicyContract.GetCapabilityId(capability));
             }
 
             var after = runtime.Describe();
@@ -178,6 +179,12 @@ public static class DistributedRuntimeFoundationApi
             {
                 schema = ContractSchema,
                 schemaVersion = ContractSchemaVersion,
+                authorityPolicy = new
+                {
+                    schema = AuthorityPolicyContract.Schema,
+                    schemaVersion = AuthorityPolicyContract.SchemaVersion,
+                    capabilityIds = AuthorityPolicyContract.CapabilityIds
+                },
                 applicationAuthority = "backend-active-revision",
                 runtime = new
                 {

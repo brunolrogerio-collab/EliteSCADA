@@ -111,11 +111,17 @@ public sealed class EngineeringSchemaV5Tests
                         new[] { "Supervisor" },
                         new[] { "Engineering" }))
             },
-            Array.Empty<AlarmEngineeringDto>());
+            Array.Empty<AlarmEngineeringDto>(),
+            SecurityRoles:
+            [
+                new SecurityRoleEngineeringDto(null, "Operator", "Operator"),
+                new SecurityRoleEngineeringDto(null, "Supervisor", "Supervisor"),
+                new SecurityRoleEngineeringDto(null, "Engineering", "Engineering")
+            ]);
 
         var result = service.Apply(package, ImportMode.CreateAndUpdate);
 
-        Assert.Equal(1, result.Created);
+        Assert.Equal(4, result.Created);
         Assert.True(tags.TryGetByPath("Plant.P01.Setpoint", out var created));
         Assert.Equal(new[] { "Operator" }, created!.AccessPolicy!.ReadRoles);
         Assert.Equal(new[] { "Supervisor" }, created.AccessPolicy.WriteRoles);

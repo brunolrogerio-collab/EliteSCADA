@@ -506,7 +506,7 @@ public static class EngineeringPersistenceApi
         reports.Clear();
         foreach (var dynamo in BuiltinDynamoLibrary.Create())
             workspace.Assets.UpsertDynamo(dynamo);
-        workspace.SecurityPolicies.UpsertRole(CreateInitialDeveloperRole());
+        workspace.SecurityPolicies.UpsertRole(BuiltInSecurityRoleDefaults.CreateInitialDeveloperRole());
 
         var saveVersion = workspace.CaptureChangeVersion();
         var snapshot = await persistence.SaveCurrentDerivedAsync(
@@ -524,15 +524,6 @@ public static class EngineeringPersistenceApi
             saveVersion);
         return snapshot;
     }
-
-    private static SecurityRoleEngineeringDto CreateInitialDeveloperRole() => new(
-        Id: Guid.Parse("46000000-0000-0000-0000-000000000002"),
-        Key: "developer",
-        Name: "Developer",
-        Description: "Engineering/development role with all currently defined capabilities granted explicitly.",
-        Grants: Enum.GetValues<SecurityCapability>()
-            .Select(capability => new CapabilityGrantEngineeringDto(capability))
-            .ToArray());
 
     private static IEngineeringWorkspaceCheckoutService? ResolveCheckout(HttpContext context) =>
         context.RequestServices.GetService<IEngineeringWorkspaceCheckoutService>();

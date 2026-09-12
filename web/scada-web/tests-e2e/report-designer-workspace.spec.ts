@@ -52,9 +52,10 @@ test('Report Designer creates, previews and applies one canonical report', async
   await page.route('**/api/auth/effective-capabilities', async route => {
     await route.fulfill({
       json: {
+        authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
         authenticationEnabled: false,
         runtime: ['View', 'TrendUse', 'SystemAdmin'],
-        workspace: ['EngineeringModify']
+        workspace: ['EngineeringView', 'EngineeringModify']
       }
     });
   });

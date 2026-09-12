@@ -11,7 +11,8 @@ internal static class SecurityPolicyEngineeringValidator
 
     public static IReadOnlyCollection<ImportIssue> Validate(
         SecurityRoleEngineeringDto role,
-        SecurityScopeGraph? scopeGraph = null)
+        SecurityScopeGraph? scopeGraph = null,
+        bool requiresStableScopeNode = false)
     {
         var issues = new List<ImportIssue>();
         var key = string.IsNullOrWhiteSpace(role.Key) ? role.Name : role.Key;
@@ -36,7 +37,7 @@ internal static class SecurityPolicyEngineeringValidator
                     $"Capability '{grant.Capability}' contains the same scope more than once.",
                     key));
 
-            ValidateScope(grant.Scope, key, issues, scopeGraph);
+            ValidateScope(grant.Scope, key, issues, scopeGraph, requiresStableScopeNode);
             ValidateMetadata(grant.Metadata, key, $"grant {grant.Capability}", issues);
         }
 
@@ -47,7 +48,8 @@ internal static class SecurityPolicyEngineeringValidator
         AuthorizationScopeEngineeringDto? scope,
         string roleKey,
         List<ImportIssue> issues,
-        SecurityScopeGraph? scopeGraph)
+        SecurityScopeGraph? scopeGraph,
+        bool requiresStableScopeNode)
     {
         if (scope is null) return;
 
@@ -61,6 +63,13 @@ internal static class SecurityPolicyEngineeringValidator
             issues.Add(Error(
                 "SECURITY_LEGACY_SCOPE_MIGRATION_BLOCKED",
                 "Legacy text scope could not be resolved to exactly one stable Authority scope node. Wildcards, areas and ambiguous references must be migrated explicitly.",
+                roleKey));
+        }
+        if (requiresStableScopeNode && (!scope.ScopeNodeId.HasValue || scope.ScopeNodeId == Guid.Empty))
+        {
+            issues.Add(Error(
+                "SECURITY_SCOPE_NODE_REQUIRED",
+                "A schema-18 security scope must reference a non-empty stable scope node id. Use a null scope for an unscoped grant.",
                 roleKey));
         }
         if (scope.ScopeNodeId.HasValue &&

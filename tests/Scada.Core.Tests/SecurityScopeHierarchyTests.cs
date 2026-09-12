@@ -154,6 +154,40 @@ public sealed class SecurityScopeHierarchyTests
     }
 
     [Fact]
+    public void SchemaV18MalformedScopeObjectCannotBecomeGlobalAuthority()
+    {
+        var service = CreateService();
+        var package = service.ExportPackage() with
+        {
+            SecurityRoles = new[]
+            {
+                new SecurityRoleEngineeringDto(
+                    Guid.NewGuid(),
+                    "malformed",
+                    "Malformed",
+                    Grants: new[]
+                    {
+                        new CapabilityGrantEngineeringDto(
+                            SecurityCapability.EngineeringView,
+                            new AuthorizationScopeEngineeringDto(IncludeDescendants: true))
+                    })
+            }
+        };
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+        var authorization = new InMemoryCapabilityAuthorizationService(
+            SecurityPolicyCompiler.Compile(package.SecurityRoles!));
+
+        Assert.False(preview.CanApply);
+        Assert.Contains(preview.Items.SelectMany(item => item.Issues), issue =>
+            issue.Code == "SECURITY_SCOPE_NODE_REQUIRED");
+        Assert.False(authorization.Evaluate(
+            new SecurityPrincipal("malformed-user", null, new[] { "malformed" }),
+            SecurityCapability.EngineeringView,
+            new AuthorizationResource()).Allowed);
+    }
+
+    [Fact]
     public void PartialRoleImportResolvesAStableScopeAlreadyInTheWorkspace()
     {
         var security = new InMemorySecurityPolicyEngineeringRegistry();

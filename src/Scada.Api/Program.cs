@@ -436,8 +436,30 @@ app.MapGet("/api/engineering/equipment", (IEngineeringAssetRegistry registry) =>
     .RequireWorkspaceEngineeringRead();
 app.MapGet("/api/engineering/dynamos", (IEngineeringAssetRegistry registry) => Results.Ok(registry.SnapshotDynamos()))
     .RequireWorkspaceEngineeringRead();
-app.MapGet("/api/engineering/screens", (IEngineeringViewRegistry registry) => Results.Ok(registry.SnapshotScreens()))
-    .RequireWorkspaceEngineeringRead();
+app.MapGet("/api/engineering/screens", (
+    HttpContext context,
+    IEngineeringViewRegistry registry,
+    ApiAuthorizationService security,
+    IEngineeringExchangeService exchange) =>
+{
+    if (security.AuthenticationEnabled)
+    {
+        var principal = security.GetPrincipal(context);
+        if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
+            return Results.Unauthorized();
+    }
+
+    if (!EngineeringLockAccess.IsWorkspaceReadExempt(context.Request))
+    {
+        var lockFailure = EngineeringLockAccess.ProtectedEngineeringFailure(exchange);
+        if (lockFailure is not null) return lockFailure;
+    }
+
+    return Results.Ok(EngineeringScreenAuthorization.FilterReadable(
+        context,
+        security,
+        registry.SnapshotScreens()));
+});
 app.MapGet("/api/engineering/popups", (IEngineeringViewRegistry registry) => Results.Ok(registry.SnapshotPopups()))
     .RequireWorkspaceEngineeringRead();
 app.MapGet("/api/engineering/security-roles", (ISecurityPolicyEngineeringRegistry registry) => Results.Ok(registry.SnapshotRoles()))

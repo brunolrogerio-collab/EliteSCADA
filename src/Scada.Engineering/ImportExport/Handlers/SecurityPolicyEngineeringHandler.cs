@@ -24,7 +24,10 @@ internal sealed class SecurityPolicyEngineeringHandler
 
         foreach (var role in roles)
         {
-            var issues = SecurityPolicyEngineeringValidator.Validate(role, scopeGraph).ToList();
+            var issues = SecurityPolicyEngineeringValidator.Validate(
+                role,
+                scopeGraph,
+                requiresStableScopeNode: package.SchemaVersion >= AuthorityScopeEngineeringMigration.StableScopeSchemaVersion).ToList();
             if (duplicates.Contains(role.Key))
             {
                 issues.Add(new ImportIssue(

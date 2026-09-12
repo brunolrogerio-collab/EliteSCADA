@@ -9,7 +9,10 @@ internal static class SecurityPolicyEngineeringValidator
         "password", "passwordhash", "passwd", "secret", "token", "credential", "privatekey", "apikey"
     };
 
-    public static IReadOnlyCollection<ImportIssue> Validate(SecurityRoleEngineeringDto role)
+    public static IReadOnlyCollection<ImportIssue> Validate(
+        SecurityRoleEngineeringDto role,
+        SecurityScopeGraph? scopeGraph = null,
+        bool requiresStableScopeNode = false)
     {
         var issues = new List<ImportIssue>();
         var key = string.IsNullOrWhiteSpace(role.Key) ? role.Name : role.Key;
@@ -34,7 +37,7 @@ internal static class SecurityPolicyEngineeringValidator
                     $"Capability '{grant.Capability}' contains the same scope more than once.",
                     key));
 
-            ValidateScope(grant.Scope, key, issues);
+            ValidateScope(grant.Scope, key, issues, scopeGraph, requiresStableScopeNode);
             ValidateMetadata(grant.Metadata, key, $"grant {grant.Capability}", issues);
         }
 
@@ -44,7 +47,9 @@ internal static class SecurityPolicyEngineeringValidator
     private static void ValidateScope(
         AuthorizationScopeEngineeringDto? scope,
         string roleKey,
-        List<ImportIssue> issues)
+        List<ImportIssue> issues,
+        SecurityScopeGraph? scopeGraph,
+        bool requiresStableScopeNode)
     {
         if (scope is null) return;
 
@@ -53,6 +58,28 @@ internal static class SecurityPolicyEngineeringValidator
         ValidateScopeField(scope.ScreenKey, "screenKey", roleKey, issues);
         ValidateScopeField(scope.TagPath, "tagPath", roleKey, issues);
         ValidateScopeField(scope.CommandKey, "commandKey", roleKey, issues);
+        if (AuthorityScopeEngineeringMigration.HasUnmigratedLegacyText(scope))
+        {
+            issues.Add(Error(
+                "SECURITY_LEGACY_SCOPE_MIGRATION_BLOCKED",
+                "Legacy text scope could not be resolved to exactly one stable Authority scope node. Wildcards, areas and ambiguous references must be migrated explicitly.",
+                roleKey));
+        }
+        if (requiresStableScopeNode && (!scope.ScopeNodeId.HasValue || scope.ScopeNodeId == Guid.Empty))
+        {
+            issues.Add(Error(
+                "SECURITY_SCOPE_NODE_REQUIRED",
+                "A schema-18 security scope must reference a non-empty stable scope node id. Use a null scope for an unscoped grant.",
+                roleKey));
+        }
+        if (scope.ScopeNodeId.HasValue &&
+            (scope.ScopeNodeId == Guid.Empty || scopeGraph is null || !scopeGraph.Contains(scope.ScopeNodeId.Value)))
+        {
+            issues.Add(Error(
+                "SECURITY_SCOPE_NODE_NOT_FOUND",
+                $"Security grant scope node '{scope.ScopeNodeId}' was not found in the canonical hierarchy.",
+                roleKey));
+        }
     }
 
     private static void ValidateScopeField(
@@ -99,7 +126,9 @@ internal static class SecurityPolicyEngineeringValidator
             scope.EquipmentPath ?? string.Empty,
             scope.ScreenKey ?? string.Empty,
             scope.TagPath ?? string.Empty,
-            scope.CommandKey ?? string.Empty
+            scope.CommandKey ?? string.Empty,
+            scope.ScopeNodeId?.ToString("D") ?? string.Empty,
+            scope.IncludeDescendants.ToString()
         });
 
     private static ImportIssue Error(string code, string message, string key) =>

@@ -31,7 +31,18 @@ public enum ImportEntityKind
     Gateway,
     Script,
     VisualAsset,
-    Report
+    Report,
+    SecurityScope
+}
+
+public enum SecurityScopeNodeKind
+{
+    Plant,
+    Area,
+    Equipment,
+    Tag,
+    Screen,
+    Command
 }
 
 public enum ImportOperation
@@ -287,7 +298,22 @@ public sealed record AuthorizationScopeEngineeringDto(
     string? EquipmentPath = null,
     string? ScreenKey = null,
     string? TagPath = null,
-    string? CommandKey = null);
+    string? CommandKey = null,
+    Guid? ScopeNodeId = null,
+    bool IncludeDescendants = false);
+
+/// <summary>
+/// Canonical Authority hierarchy node. Resource nodes are bound by the immutable
+/// Engineering resource id; Key and Name remain human-facing identifiers only.
+/// </summary>
+public sealed record SecurityScopeEngineeringDto(
+    Guid Id,
+    string Key,
+    string Name,
+    SecurityScopeNodeKind Kind,
+    Guid? ParentId = null,
+    Guid? ResourceId = null,
+    Dictionary<string, string>? Metadata = null);
 
 public sealed record CapabilityGrantEngineeringDto(
     SecurityCapability Capability,
@@ -384,7 +410,8 @@ public sealed record EngineeringPackage(
     IReadOnlyCollection<ReportEngineeringDto>? Reports = null,
     IReadOnlyCollection<OperationalEventEngineeringDto>? OperationalEvents = null,
     Guid? StartupScreenId = null,
-    EngineeringLockEngineeringDto? EngineeringLock = null);
+    EngineeringLockEngineeringDto? EngineeringLock = null,
+    IReadOnlyCollection<SecurityScopeEngineeringDto>? SecurityScopes = null);
 
 public sealed record ImportIssue(
     string Code,

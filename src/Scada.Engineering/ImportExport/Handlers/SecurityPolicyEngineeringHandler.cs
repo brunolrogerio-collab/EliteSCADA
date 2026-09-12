@@ -6,17 +6,28 @@ namespace Scada.Engineering.ImportExport.Handlers;
 internal sealed class SecurityPolicyEngineeringHandler
 {
     private readonly ISecurityPolicyEngineeringRegistry _registry;
+    private readonly SecurityScopeEngineeringHandler _scopes;
 
-    public SecurityPolicyEngineeringHandler(ISecurityPolicyEngineeringRegistry registry) => _registry = registry;
+    public SecurityPolicyEngineeringHandler(
+        ISecurityPolicyEngineeringRegistry registry,
+        SecurityScopeEngineeringHandler scopes)
+    {
+        _registry = registry;
+        _scopes = scopes;
+    }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
     {
         var roles = package.SecurityRoles ?? Array.Empty<SecurityRoleEngineeringDto>();
         var duplicates = EngineeringHandlerSupport.Duplicates(roles.Select(x => x.Key));
+        SecurityScopeGraph.TryCreate(_scopes.EffectiveScopes(package), out var scopeGraph, out _);
 
         foreach (var role in roles)
         {
-            var issues = SecurityPolicyEngineeringValidator.Validate(role).ToList();
+            var issues = SecurityPolicyEngineeringValidator.Validate(
+                role,
+                scopeGraph,
+                requiresStableScopeNode: package.SchemaVersion >= AuthorityScopeEngineeringMigration.StableScopeSchemaVersion).ToList();
             if (duplicates.Contains(role.Key))
             {
                 issues.Add(new ImportIssue(

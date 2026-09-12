@@ -1,5 +1,13 @@
 namespace Scada.Security.Authorization;
 
+public enum AuthorizationResourceKind
+{
+    Tag,
+    Screen,
+    Command,
+    Equipment
+}
+
 public sealed record SecurityPrincipal(
     string SubjectId,
     string? DisplayName,
@@ -11,21 +19,38 @@ public sealed record AuthorizationResource(
     string? EquipmentPath = null,
     string? ScreenKey = null,
     string? TagPath = null,
-    string? CommandKey = null);
+    string? CommandKey = null,
+    AuthorizationResourceKind? ResourceKind = null,
+    Guid? ResourceId = null,
+    Guid? ScopeNodeId = null,
+    IReadOnlyCollection<Guid>? ScopeNodeAncestry = null);
 
 public sealed record AuthorizationScope(
     string? Area = null,
     string? EquipmentPath = null,
     string? ScreenKey = null,
     string? TagPath = null,
-    string? CommandKey = null)
+    string? CommandKey = null,
+    Guid? ScopeNodeId = null,
+    bool IncludeDescendants = false)
 {
     public bool Matches(AuthorizationResource resource) =>
         ScopePattern.Matches(Area, resource.Area) &&
         ScopePattern.Matches(EquipmentPath, resource.EquipmentPath) &&
         ScopePattern.Matches(ScreenKey, resource.ScreenKey) &&
         ScopePattern.Matches(TagPath, resource.TagPath) &&
-        ScopePattern.Matches(CommandKey, resource.CommandKey);
+        ScopePattern.Matches(CommandKey, resource.CommandKey) &&
+        ScopeNodeMatches(resource);
+
+    private bool ScopeNodeMatches(AuthorizationResource resource)
+    {
+        if (!ScopeNodeId.HasValue) return true;
+        if (!resource.ScopeNodeId.HasValue) return false;
+        if (!IncludeDescendants) return resource.ScopeNodeId == ScopeNodeId;
+
+        return (resource.ScopeNodeAncestry ?? new[] { resource.ScopeNodeId.Value })
+            .Contains(ScopeNodeId.Value);
+    }
 }
 
 public sealed record CapabilityGrant(

@@ -57,7 +57,7 @@ public sealed class ApiAuthorizationService(
     private readonly bool _authenticationEnabled = configuration.GetValue<bool>("Authentication:Enabled");
     private string? _cachedProjectKey;
     private long? _cachedRevision;
-    private InMemoryCapabilityAuthorizationService? _cachedActivePolicies;
+    private RuntimeSecurityPolicyContext? _cachedActivePolicies;
 
     public bool AuthenticationEnabled => _authenticationEnabled;
     public RuntimeSessionLeaseRegistry RuntimeSessions { get; } = new();
@@ -74,9 +74,21 @@ public sealed class ApiAuthorizationService(
         if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
             return new ApiAuthorizationCheck(principal, null);
 
-        var policies = new InMemoryCapabilityAuthorizationService(
-            SecurityPolicyCompiler.Compile(workspace.SecurityPolicies.SnapshotRoles()));
-        return new ApiAuthorizationCheck(principal, policies.Evaluate(principal, capability, resource));
+        var roles = workspace.SecurityPolicies.SnapshotRoles();
+        if (AuthorityScopeEngineeringMigration.HasUnmigratedLegacyScopes(roles) ||
+            !SecurityScopeGraph.TryCreate(workspace.SecurityPolicies.SnapshotScopes(), out var scopes, out _))
+        {
+            return new ApiAuthorizationCheck(
+                principal,
+                AuthorizationDecision.Denied(
+                    capability,
+                    "The workspace authorization scope hierarchy is not valid for runtime use."));
+        }
+
+        var policies = new InMemoryCapabilityAuthorizationService(SecurityPolicyCompiler.Compile(roles));
+        return new ApiAuthorizationCheck(
+            principal,
+            policies.Evaluate(principal, capability, scopes!.Enrich(resource ?? new AuthorizationResource())));
     }
 
     public async Task<ApiAuthorizationCheck> CheckRuntimeAsync(
@@ -117,7 +129,9 @@ public sealed class ApiAuthorizationService(
                     "The active runtime authorization policy could not be resolved safely."));
         }
 
-        return new ApiAuthorizationCheck(principal, policies.Evaluate(principal, capability, resource));
+        return new ApiAuthorizationCheck(
+            principal,
+            policies.Capabilities.Evaluate(principal, capability, policies.Enrich(resource)));
     }
 
     public async Task<ApiAuthorizationCheck> CheckRuntimeTagAsync(
@@ -177,7 +191,9 @@ public sealed class ApiAuthorizationService(
                     "The active runtime authorization policy could not be resolved safely."));
         }
 
-        var decision = new TagAccessAuthorization(policies).Evaluate(principal, runtimeTag, operation);
+        var decision = new TagAccessAuthorization(
+            policies.Capabilities,
+            policies.TagResource).Evaluate(principal, runtimeTag, operation);
         return new ApiAuthorizationCheck(principal, decision);
     }
 
@@ -243,7 +259,7 @@ public sealed class ApiAuthorizationService(
                 Array.Empty<TagDefinition>());
         }
 
-        var access = new TagAccessAuthorization(policies);
+        var access = new TagAccessAuthorization(policies.Capabilities, policies.TagResource);
         var readable = tags
             .Where(tag => access.Evaluate(principal, tag, TagAccessOperation.Read).Allowed)
             .ToArray();
@@ -324,15 +340,24 @@ public sealed class ApiAuthorizationService(
         return new ApiAuthorizationCheck(baseline.Principal, decision);
     }
 
-    private async Task<InMemoryCapabilityAuthorizationService?> ResolveRuntimePoliciesAsync(
+    private async Task<RuntimeSecurityPolicyContext?> ResolveRuntimePoliciesAsync(
         ScadaRuntimeFacade runtime,
         CancellationToken cancellationToken)
     {
         var descriptor = runtime.Describe();
         if (!descriptor.Revision.HasValue)
         {
-            return new InMemoryCapabilityAuthorizationService(
-                SecurityPolicyCompiler.Compile(workspace.SecurityPolicies.SnapshotRoles()));
+            var roles = workspace.SecurityPolicies.SnapshotRoles();
+            if (AuthorityScopeEngineeringMigration.HasUnmigratedLegacyScopes(roles) ||
+                !SecurityScopeGraph.TryCreate(workspace.SecurityPolicies.SnapshotScopes(), out var workspaceScopes, out _))
+            {
+                return null;
+            }
+
+            return new RuntimeSecurityPolicyContext(
+                new InMemoryCapabilityAuthorizationService(
+                    SecurityPolicyCompiler.Compile(roles)),
+                workspaceScopes);
         }
 
         if (string.IsNullOrWhiteSpace(descriptor.ProjectKey)) return null;
@@ -354,8 +379,15 @@ public sealed class ApiAuthorizationService(
         if (snapshot is null || snapshot.Revision != descriptor.Revision) return null;
 
         var package = exchange.ParseJson(snapshot.EngineeringJson);
-        var compiled = new InMemoryCapabilityAuthorizationService(
-            SecurityPolicyCompiler.Compile(package.SecurityRoles ?? Array.Empty<SecurityRoleEngineeringDto>()));
+        if (AuthorityScopeEngineeringMigration.HasUnmigratedLegacyScopes(package.SecurityRoles) ||
+            !SecurityScopeGraph.TryCreate(package.SecurityScopes, out var scopes, out _))
+        {
+            return null;
+        }
+        var compiled = new RuntimeSecurityPolicyContext(
+            new InMemoryCapabilityAuthorizationService(
+                SecurityPolicyCompiler.Compile(package.SecurityRoles ?? Array.Empty<SecurityRoleEngineeringDto>())),
+            scopes);
 
         // Fail closed if the live runtime changed while the persisted policy was being resolved.
         var afterLoad = runtime.Describe();
@@ -377,4 +409,22 @@ public sealed class ApiAuthorizationService(
         left.ActivatedAtUtc == right.ActivatedAtUtc &&
         left.Mode.Equals(right.Mode, StringComparison.Ordinal) &&
         string.Equals(left.ProjectKey, right.ProjectKey, StringComparison.OrdinalIgnoreCase);
+
+    private sealed record RuntimeSecurityPolicyContext(
+        InMemoryCapabilityAuthorizationService Capabilities,
+        SecurityScopeGraph? Scopes)
+    {
+        public AuthorizationResource? Enrich(AuthorizationResource? resource) =>
+            resource is null ? null : Scopes?.Enrich(resource) ?? resource;
+
+        public AuthorizationResource TagResource(TagDefinition tag) =>
+            Scopes?.Enrich(new AuthorizationResource(
+                TagPath: tag.Path,
+                ResourceKind: AuthorizationResourceKind.Tag,
+                ResourceId: tag.Id))
+            ?? new AuthorizationResource(
+                TagPath: tag.Path,
+                ResourceKind: AuthorizationResourceKind.Tag,
+                ResourceId: tag.Id);
+    }
 }

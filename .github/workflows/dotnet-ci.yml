@@ -71,6 +71,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          trap 'status=$?; echo "RUNTIME_SMOKE_FAILURE line=${LINENO} command=${BASH_COMMAND} status=${status}"; exit "${status}"' ERR
           export ASPNETCORE_URLS=http://127.0.0.1:5080
           # Keep the runtime boot deterministic: integration tests create
           # disposable persisted projects in elitescada_test, while this

@@ -82,7 +82,11 @@ builder.AddProductLicensedRuntimeCoordinator();
 
 builder.Services.AddSingleton<IEngineeringExchangeService, EngineeringExchangeService>();
 builder.Services.AddSingleton<IProjectPackageService, ProjectPackageService>();
-builder.Services.AddSingleton<ApiAuthorizationService>();
+builder.Services.AddSingleton<ApiAuthorizationService>(sp =>
+    new ApiAuthorizationService(
+        sp,
+        sp.GetRequiredService<IAuthorityPolicyStore>(),
+        sp.GetRequiredService<IConfiguration>()));
 builder.AddOptionalEngineeringPersistence();
 builder.AddConfiguredAudit();
 builder.Services.AddOpenApi();

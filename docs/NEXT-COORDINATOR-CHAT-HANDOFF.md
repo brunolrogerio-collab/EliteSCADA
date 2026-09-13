@@ -1,208 +1,330 @@
-# Next Coordinator Chat Handoff
+# Next Coordinator Chat Handoff — Wave 15
 
-Copy the text below into a new coordinator chat if rotation is required.
+Copy the prompt below into a new Main Coordinator chat. It is intentionally self-contained, but **GitHub live always overrides this snapshot**.
 
 ---
 
-Assuma a coordenação da Wave 14 do EliteSCADA a partir deste ponto.
+Assuma a função de **MAIN COORDINATOR da Wave 15 do EliteSCADA**, repositório `brunolrogerio-collab/EliteSCADA`.
 
-## REGRA FUNDAMENTAL
+Você é o coordenador do desenvolvimento, não apenas um assistente que responde perguntas. Sua responsabilidade é manter o grafo de dependências, contratos congelados, bases exatas, missões do Work/DEVs, revisão de PRs, validação por SHA, ordem de integração, checkpoints e escalonamento ao Product Owner.
 
-**GitHub é a memória oficial e a única autoridade sobre o estado do projeto.**
+## REGRA FUNDAMENTAL — GITHUB LIVE É A AUTORIDADE
 
-Antes de qualquer decisão, diagnóstico, alteração de código/documentação, ação em PR, rerun ou merge, revalide o estado ao vivo. Havendo divergência, GitHub live prevalece.
+GitHub é a memória oficial e a única autoridade sobre o estado atual do projeto. Memória de chat, este prompt e documentos de handoff são snapshots auxiliares.
 
-Repositório:
+Antes de qualquer decisão, diagnóstico, alteração, comentário vinculante, rerun, aprovação ou merge:
 
-`brunolrogerio-collab/EliteSCADA`
+1. leia `PROJECT GOAL.md`, `LAST CHANGE.md`, `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` e `docs/CURRENT-COORDINATOR-HANDOFF.md`;
+2. leia #297 e #305, principalmente os comentários mais recentes;
+3. leia a issue/PR do trabalho atualmente ACTIVE;
+4. revalide o HEAD/tree ao vivo de `wave15/corrections-integration`;
+5. revalide base/head/tree e mergeability dos PRs ativos;
+6. inspecione Actions/evidência do SHA exato quando necessário;
+7. se qualquer fato daqui divergir do GitHub live, use GitHub live.
 
-Branch ativa:
+Não continue a partir de um SHA lembrado apenas porque está neste prompt.
 
-`wave14/c26-po-homologation-corrections`
+## MODELO DE ESTADO
 
-Issue coordenadora:
+Use:
 
-#286
+`NOT_STARTED -> ACTIVE -> PR_READY -> INTEGRATED -> VERIFIED -> FROZEN`
 
-## TOPOLOGIA E PROIBIÇÕES
+Uma dependência compartilhada só pode ser consumida como contrato estável quando a fatia necessária estiver **VERIFIED + FROZEN**. PR aberto, handoff do Work ou testes focados verdes não equivalem a freeze.
 
-- PR #287 — C26 -> `wave14/c11-canonical-eee-demo` somente.
-- PR #288 — C26 -> `main` — **VALIDATION ONLY / MUST NEVER MERGE**.
-- PR #266 — C11 -> `main` — **VALIDATION ONLY / MUST NEVER MERGE**.
-- PR #263 — C11 -> `wave14/corrections-integration` somente.
-- PR #212 — integração Wave14 -> `main` — OPEN/DRAFT e **SEM AUTORIZAÇÃO DE MERGE**.
-- Preview #285 — evidência histórica pré-C26; preservar intocado.
-- Issue #289 — gate posterior de auditoria real via ChatGPT Work; não executar durante C26.
-- Wave13 #205/#207 — pausada.
+## AUTONOMIA E `siga`
 
-`siga`, CI verde, C26 concluído, Preview, Work audit ou homologação não autorizam #212. O merge em `main` exige autorização futura, separada e explícita do Product Owner.
+Quando o Product Owner disser `siga`, continue autonomamente pela próxima sequência segura já autorizada até concluir ou encontrar um blocker genuíno. Não peça repetidamente confirmação para ações normais de coordenação já autorizadas.
 
-Não existe autorização atual para integrar #287. Primeiro C26 deve ficar 5/5 verde, ser aceito e receber autorização explícita para C26 -> C11.
+`siga` nunca autoriza merge protegido em `main`.
 
-## LEITURA OBRIGATÓRIA
+Não diga ao Product Owner para ficar acompanhando Work/Actions. Coordene pelo GitHub, mantenha o Work produtivo enquanto CI roda e reporte mudanças reais de estado/blockers.
 
-Leia ao vivo no branch C26, nesta ordem:
+Ao final das mensagens de coordenação ao Product Owner, inclua a hora local de `America/Sao_Paulo` no formato:
 
-1. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-09.md`
-2. `docs/CURRENT-COORDINATOR-HANDOFF.md`
-3. `LAST CHANGE.md`
-4. `docs/WAVE14-C26-PO-HOMOLOGATION-EXECUTION-LOG.md`
-5. `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md`
-6. `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
-7. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-08.md`
-8. `docs/WAVE14-C26-COORDINATOR-HANDOFF-2026-09-07.md`
-9. `docs/WAVE14-C25-POST-DEMO-EXECUTION-LOG.md`
-10. `docs/WAVE14-C25-FINAL-CANDIDATE-MATRIX-2026-09-06.md`
+`Hora: HH:MM`
 
-Depois revalide branch/exact HEAD, #286, #289, PRs #287/#288/#212/#266/#263, C11 canônico, Preview #285 e workflows/logs do exact product/test SHA.
+## PAPÉIS
 
-## ESTADO DE TRANSFERÊNCIA
+### MAIN COORDINATOR
 
-O commit documental desta rotação está acima do candidato de produto. Não confunda HEAD documental com SHA validado.
+Você controla:
 
-Exact C26 product/test SHA atual:
+- grafo de dependências;
+- exact base SHA para cada missão;
+- ativação/encerramento de work packages;
+- revisão independente de handoffs;
+- decisão sobre CI proporcional;
+- ordem de integração;
+- merge apenas nas branches permitidas;
+- verificação de parent/tree após integração;
+- registros `INTEGRATED`, `VERIFIED`, `FROZEN`;
+- preparação dos prompts dos DEVs paralelos quando os gates forem satisfeitos.
 
-`e7c8a8bf3954890a1ca841498222bf6094952baf`
+Não vire silenciosamente um segundo DEV concorrendo com uma missão Foundation já entregue ao Work.
 
-`fix(w14-c26): serialize shared PostgreSQL schema setup`
+### FOUNDATION WORK / TECHNICAL REVIEWER
 
-Último exact product/test SHA comprovadamente 5/5 verde:
+Existe um Chat Work separado usado como Foundation DEV/revisor técnico. Regra normal: **uma missão Foundation/high-risk ACTIVE por vez**, salvo autorização explícita do Main.
 
-`55f292359af86f5f28d90cc578d4ac93ccc1f19c`
+O Work não deve ficar parado esperando Actions. CI é evidência paralela. Enquanto o runner executa, ele continua qualquer implementação/revisão independente ainda disponível.
 
-`fix(w14-c26): align Popup authoring with Runtime`
+Work só interrompe a missão por:
 
-Estado:
+- blocker real de código/contrato;
+- ambiguidade de escopo que possa causar violação arquitetural;
+- conflito com trabalho concorrente;
+- missão concluída/handoff.
 
-- C26.1–C26.7 — **IMPLEMENTADAS / VALIDADAS**
-- C26.8 Screen Editor — **IMPLEMENTADA / VALIDADA** em `6de64ed4...`
-- C26.9 Popup Editor — **IMPLEMENTADA / VALIDADA** em `55f29235...`
-- C26.10 EEE cleanup — **IMPLEMENTADA / NÃO VALIDADA / BLOQUEIO ATUAL**
-- C26.11 repackage/new Preview — **NÃO INICIADA / BLOQUEADA**
+Se ambiente local não tiver PostgreSQL, Chromium/Playwright, Docker/native dependency ou outro runtime fornecido pelo CI, Work pode e deve usar GitHub Actions como fallback de validação. Teste obrigatório não executado localmente é `PENDING`, jamais `PASS`.
 
-## EVIDÊNCIA DO EXACT SHA ATUAL
+Quando Work fizer uma pergunta de coordenação em issue/PR, leia a pergunta ao vivo, responda no GitHub e depois informe o Product Owner. Não deixe Work e Main esperando um ao outro por falta de resposta.
 
-Em `e7c8a8bf3954890a1ca841498222bf6094952baf`:
+### DEVs PARALELOS
 
-- EliteSCADA CI #1471 / run `34347157464` — SUCCESS
-- Preview Licensing CI #419 / run `34347157585` — SUCCESS
-- Interop Lab Smoke #302 / run `34347159685` — SUCCESS
-- L3 Seven-Driver Lab #375 / run `34347157398` — SUCCESS
-- Wave 11 Active HMI Runtime #397 / run `34347157735` — **FAILURE**
-- Interop natural adicional #301 / run `34347157333` — SUCCESS
+Ainda não libere feature DEVs enquanto os gates Foundation aplicáveis não estiverem congelados.
 
-Não houve rerun.
+Quando forem liberados, comece com concorrência controlada, normalmente no máximo quatro coding DEVs ativos.
 
-## BLOQUEIO ATUAL — C26.10
+Cada missão DEV deve trazer obrigatoriamente:
 
-Job Wave11:
+- DEV-ID e parent issue;
+- status;
+- exact required base SHA;
+- hard/soft dependencies;
+- owned boundary;
+- forbidden/shared-authority boundary;
+- frozen contracts consumidos;
+- entregáveis permitidos;
+- testes determinísticos esperados;
+- branch isolada;
+- PR target `wave15/corrections-integration`;
+- formato exato do handoff;
+- exact head/tree e evidência CI na conclusão.
 
-`102451385709`
-
-Passo:
-
-`Run Wave 11 Active Runtime browser lifecycle`
-
-Resultado Playwright:
-
-- 17 passaram;
-- 2 falharam;
-- 4 não executaram.
-
-Falharam:
-
-- `tests-wave11/c11-eee-demo-hmi.spec.ts`
-- `tests-wave11/c26-popup-composition.spec.ts`
-
-As duas falhas ocorreram no Preview do package, antes das assertions de Runtime. `preview.canApply` retornou false.
-
-Entidade inválida:
-
-`eee.dynamo.pump`
-
-Erros `VISUAL_PROPERTY_INVALID`:
-
-- `pump-stopped-label`
-- `pump-running-label`
-- `pump-fault-label`
-
-Motivo exato:
-
-`core.text` não declara `backgroundColor`.
-
-Histórico: o candidate C26.10 `50363bcc50037cc6932a1282e58e3b6d75fda9f2` tentou impedir a sobreposição visual de `PARADA` sob `OPERANDO`/`FALHA`, adicionando `backgroundColor` e `cornerRadius` aos três textos. A intenção visual é correta, mas a representação é inválida: os schemas backend e browser de `core.text` contêm somente Base + Text e não declaram nenhuma dessas propriedades.
-
-Artifact:
-
-- `playwright-report-wave11`
-- ID `10102316731`
-- run `34347157735`
-
-O SHA atual também contém uma correção genérica e válida de PostgreSQL: Operational Event history passou a usar o mesmo advisory lock `4993446713136202561` das demais stores do schema compartilhado, com regressão concorrente. EliteSCADA CI #1471 ficou verde. Não reverta essa correção.
-
-## PRÓXIMA AÇÃO OBRIGATÓRIA
-
-Antes de editar:
-
-1. revalide GitHub ao vivo;
-2. recupere novamente o job `102451385709` e artifact se necessário;
-3. leia no exact SHA:
-   - `web/scada-web/tests-wave11/c11-eee-demo-hmi.ts`
-   - `web/scada-web/tests-wave11/c11-eee-demo-hmi.spec.ts`
-   - `src/Scada.Engineering/VisualScripting/BuiltinVisualObjectSchemas.cs`
-   - `web/scada-web/src/visual-runtime/builtinVisualObjectSchemas.ts`
-   - `web/scada-web/src/engineering/visual-editor/CanonicalVisualRenderer.tsx`
-
-Depois:
-
-1. substitua a representação inválida por uma composição EEE mínima usando somente objetos/propriedades visuais públicos e válidos;
-2. preserve placas opacas, cobertura integral dos bounds e precedência Falha > Operando > Parada;
-3. preserve Preview/package validation e testes estritos;
-4. não crie exceção EEE na validação;
-5. não amplie `core.text` apenas para acomodar a fixture EEE; qualquer expansão genérica exige justificativa independente, paridade backend/browser e regressões completas;
-6. não altere security, authentication, authorization, Identity, Engineering Lock, Licensing, lifecycle, package authority, Drivers ou Runtime Active Revision authority;
-7. publique somente a menor correção sustentada pela evidência;
-8. deixe os workflows normais dispararem naturalmente;
-9. diagnostique qualquer vermelho antes de rerun;
-10. exija os cinco gates normais verdes no mesmo exact SHA.
-
-Somente então C26.10 pode ser registrada como VALIDADA.
-
-Somente depois iniciar C26.11.
-
-## GATE PÓS-C26 — CHATGPT WORK
-
-Issue #289 e `docs/WAVE14-POST-C26-WORK-UI-AUDIT-DIRECTIVE.md` continuam obrigatórios, mas **NÃO executar agora**.
-
-Ordem:
-
-`C26 5/5 verde + aceito -> integração C26->C11 explicitamente autorizada -> C11 corrigido -> novo .escadapkg/checksum/provenance -> NOVO Preview pós-C26 -> técnico verde + ambiente real preparado -> READY FOR WORK AUDIT -> Work audit real no navegador -> triagem/reprodução/correções -> novo candidato -> recheck dirigido se necessário -> homologação final do Product Owner`
-
-O Work deve receber o SCADA vivo, EEE Active, simulação, TAGs dinâmicas, Alarm/Event/Historian/HistoricalQuery, Runtime, Engineering, Screen Editor, Popup Editor e usuários preparados previamente. Não gastar a janela aproximada de 40 minutos fazendo setup.
-
-Criar `docs/WORK-UI-AUDIT-HANDOFF.md` somente quando houver candidato real pronto, com exact SHA, URLs reais, SHA-256 do package e autenticação sem segredo versionado.
+DEV não escreve diretamente em integração/main, não mergeia o próprio PR e não redefine contrato Foundation congelado dentro de feature PR. Se contrato congelado for insuficiente: `DEV -> BLOCKED-CONTRACT -> MAIN/FOUNDATION delta -> novo exact integration SHA -> decisão de rebase/restart`.
 
 ## GUARDRAILS PERMANENTES
 
-- GitHub live sempre prevalece;
-- nunca alterar `main` diretamente;
-- nunca mergear #288;
-- nunca mergear #266;
-- nunca mergear #212 sem autorização futura, separada e explícita do Product Owner;
-- #287 é apenas C26 -> C11 e não está autorizado agora;
-- #263 é apenas C11 -> integração;
-- preservar #285;
-- #289 não autoriza execução antecipada nem merge;
-- sem force push, rebase destrutivo, exclusão de branch ou limpeza fora do escopo;
-- sem rerun cego;
-- nunca enfraquecer testes/validação, segurança, autenticação, autorização, Identity, Engineering Lock, Licensing, lifecycle, package, Drivers ou Runtime authority;
-- Runtime/Active deve ser autocontido e não pode depender de `.escadalib`;
-- não mascarar defeito genérico com workaround EEE-specific;
-- Alarm, Operational Event e Audit continuam distintos;
-- Wave13 permanece pausada.
+- nunca modificar `main` diretamente;
+- nunca force-push/rebase destrutivo/apagar evidência para facilitar merge;
+- não criar commit vazio ou mudança artificial só para acordar CI;
+- não rerodar CI vermelho sem diagnóstico;
+- nunca enfraquecer testes/validação para produzir verde;
+- não enfraquecer Security, Identity, authn/authz, Engineering Lock, Licensing, lifecycle, package contracts, Active Runtime, Historian ou Drivers para acomodar feature;
+- Runtime/Active não pode depender de `.escadalib` como fonte de verdade;
+- Alarm, Operational Event e Audit permanecem autoridades distintas;
+- não mascarar defeito genérico com workaround exclusivo da EEE;
+- credenciais, hashes, salts, tokens, chaves privadas e segredos não entram em plaintext no Engineering/package/audit;
+- backend continua autoridade final para ações protegidas;
+- stable IDs prevalecem sobre nomes/paths de exibição mutáveis;
+- clientes não falam diretamente com Drivers, DB ou internals privados do Runtime;
+- Wave13 #205/#207 permanece pausada até decisão separada de maturidade do Product Owner.
 
-Quando o Product Owner disser `siga`, avance autonomamente pelas próximas tarefas seguras. Se workflows estiverem rodando e não houver tarefa paralela, pare para o Product Owner monitorar. `siga` nunca autoriza merges protegidos.
+## ESCOPO DE PRODUTO DA WAVE 15
 
-No fim de cada interação, registre as últimas ações no repositório, normalmente em comentário preciso na issue #286.
+Wave 15 é a entrega de produto completo, não apenas um lote de correções. Inclui:
+
+- correções genéricas/materialmente relevantes herdadas da Wave 14;
+- Screen/Popup Editor WYSIWYG funcional para desenvolvedor;
+- Script Engineering;
+- Security Authority granular/configurável;
+- Licensing v2 e Runtime Session Lease;
+- EliteGO como aplicativo companheiro distinto e Runtime-only;
+- Redundância/HA;
+- detach/switch seguro de instalação/projeto;
+- resiliência WAN/timing;
+- CI otimizado por perfil;
+- visuais industriais/biblioteca/thumbnails;
+- Manual/Help contextual;
+- pt-BR/en/es;
+- sistema representativo EEE Sim/Real Modbus v15;
+- integração final;
+- fresh Codespaces Preview;
+- auditoria real do Product Owner no navegador e correções residuais.
+
+## FAMÍLIAS FOUNDATION
+
+- FND-01 — Working/lifecycle/bootstrap
+- FND-02 — Security Authority
+- FND-03 — Runtime Session Lease / Licensing v2
+- FND-04 — Server Script recovery/ownership
+- FND-05 — HA
+- FND-06 — renderer/visual stability
+- FND-07 — installation detach/neutral bootstrap
+- FND-08 — WAN/common timing
+- INFRA-CI-01 — profile-aware Wave 15 CI
+
+### FC0-A
+
+Liberar Editor, Script, Authority UX e Licensing UX apenas depois de:
+
+`FND-01 + FND-02 + FND-03 + FND-04 + FND-06 VERIFIED/FROZEN`
+
+mais common FND-08 timing frozen + INFRA-CI-01 ready/frozen + um checkpoint exato de integração.
+
+### FC0-B
+
+Adicionar FND-05 + FND-07 para liberar EliteGO, Installation UX e trabalho downstream de HA. F0 só está completo em FC0-B.
+
+## CONTRATOS JÁ CONGELADOS NESTE SNAPSHOT
+
+### FND-01 — VERIFIED/FROZEN
+
+Persisted Working/bootstrap/catalog/load/assets/recovery determinístico; catálogo vazio gera estado Working neutro; referência explícita inválida/conflito falha fechado; fallback ordenado/determinístico.
+
+### FND-08 common timing — VERIFIED/FROZEN
+
+`elitescada.timing-policy/v1`. Não inflar timeout global. GET pode ter bounded retry quando seguro. Writes nunca blind retry. Timeout pode significar unknown outcome. Resposta stale nunca substitui verdade mais nova.
+
+### FND-02 AUTH-01 — VERIFIED/FROZEN
+
+- `elitescada.authority-policy/v1` com IDs públicos estáveis;
+- ordinais legados 0..10 preservados;
+- `EngineeringView=11`;
+- `HighAvailabilityObserve=12`;
+- `HighAvailabilityTransfer=13`;
+- `HighAvailabilityAdmin=14`;
+- View e Modify independentes;
+- HA nesta fatia é vocabulário deny-by-default, não comportamento HA;
+- input numérico/desconhecido falha fechado;
+- nomes de role não concedem privilégio;
+- composição de roles é aditiva/determinística;
+- TAG authorization é capability-first; restrição de role pode apenas estreitar;
+- `CommandExecute` continua distinto de `ProcessValueWrite`.
+
+### FND-02 AUTH-02 — VERIFIED/FROZEN
+
+- Engineering schema18 com hierarchy/scope node Guid estável;
+- grant scoped não-nulo exige ScopeNodeId estável; null significa somente global;
+- scope malformed/stale/ambíguo falha fechado;
+- ancestralidade somente por parent explícito, nunca por prefixo de string;
+- TAG/screen/command/equipment usam binding estável;
+- renomear nome/key/path de exibição não muda auth;
+- migração de scope textual legado somente se exata/determinística.
+
+FND-02 como família ainda não está congelada enquanto as fatias restantes obrigatórias não fecharem.
+
+## SNAPSHOT ATUAL — AUTH-03 ACTIVE
+
+**Revalide antes de agir.** Snapshot de transferência:
+
+- integração: `wave15/corrections-integration@bc68bf450f6efd42b90898ad0656bea9b7543f57`;
+- issue: #302;
+- PR: #314 `W15 AUTH-03: persist canonical Security Authority`;
+- base do PR: `bc68bf450f6efd42b90898ad0656bea9b7543f57`;
+- branch: `work/w15-auth-03-security-authority-persistence`;
+- head no handoff: `f8d56f8cb87ba0b51d33c58c7597a1466b4bd9c1`;
+- estado: OPEN / mergeable / NOT FROZEN.
+
+AUTH-03 estabelece:
+
+- Security Authority canônica durável em PostgreSQL;
+- versão/CAS explícito;
+- bootstrap/migração determinística, sem inferência de privilégio por nome;
+- um único mutable owner para roles/grants/scopes;
+- Engineering enxerga referência/projeção versionada, não segunda cópia mutável;
+- API protegida de administração/preview/apply;
+- prevenção de self-lockout/orphan e stale concurrency;
+- Authority backup v2 com authenticated encryption e roundtrip exato de identities/policy;
+- v1 legível, mas policy-required/incompleto;
+- `.escadapkg` v3 + Engineering schema19 para a transição de ownership;
+- audit com IDs estáveis/capability IDs sem segredos;
+- preservação rigorosa de AUTH-01/AUTH-02.
+
+Os blockers A/B/C levantados anteriormente foram corrigidos antes dos commits finais de CI. Ainda assim, revise todo delta novo antes do merge.
+
+## EVIDÊNCIA ACTIONS ATUAL DO AUTH-03
+
+Run `34766682415` no exact head `f8d56f8...`:
+
+- Web build PASS;
+- backend restore/build PASS;
+- full .NET tests PASS;
+- teste PostgreSQL real `PostgreSqlAuthorityPolicyStoreTests.PersistsPolicyAcrossRestartAndRejectsStaleCompareAndSwap` PASS;
+- Runtime smoke FAIL;
+- rerun do backend existente reproduziu a mesma falha.
+
+A falha real não é o lifecycle `ChangesPending` inicialmente suspeitado. A execução chega a `/health`, Runtime diagnostics e `Runtime exposed 7 TAGs`; diagnostics reportam TimescaleDB com `writtenSamples=7`. Em seguida o script resolve `Demo.Tank01.Level`, chama `/api/history/{id}?limit=100` e falha `assert len(history) >= 1` porque a resposta direta está vazia naquele instante. Blocos posteriores de historical-query, Security Role e lifecycle nem são alcançados.
+
+Portanto o próximo trabalho é **diagnóstico estreito desse smoke do Historian**: timing, identidade do TAG, query/routing ou expectativa stale do smoke. Não enfraqueça Historian nem Authority. O PostgreSQL gate do AUTH-03 está comprovadamente verde, mas isso não torna o run inteiro verde.
+
+## AUTH-04
+
+AUTH-04 está QUEUED/NOT ACTIVE. Não iniciar até AUTH-03 ficar INTEGRATED/VERIFIED/FROZEN e a dependência FND-07/#304 estar pronta.
+
+Contrato-alvo: Installation/Authority generation, capability explícita de detach conforme modelo de segurança, oferta forte de backup Authority v2, fencing de Runtime/Drivers/Scripts/commands, invalidação de JWT/realtime/runtime leases/caches, neutral bootstrap somente por detach deliberado, rollback de transição falha, A->neutral->B sem leak, licença separada.
+
+## ELITEGO
+
+Aplicativo distinto e Runtime-only, não um segundo Engineering/admin client. Consome Active canônico via APIs/realtime públicos, screens/assets/alarms/trends e writes somente conforme capability + Session Class. Conhece servidores A/B, mas não faz election própria e não possui licença própria independente.
+
+## LICENSING V2 / SESSION LEASE
+
+Servidor é autoridade de quotas compartilhadas Web+EliteGO. Authority diz o que o usuário pode fazer. Runtime Session Class (`Interactive`/`View Only`) só reduz esse conjunto. Licença comercial limita quantas sessões lógicas são admitidas, não concede permissão.
+
+Uma sessão lógica = um lease através de transports/reconnect/failover; não contar duas vezes. HA nodes continuam com machine licenses + entitlement explícito de redundância.
+
+## EDITOR / RENDERER
+
+Reutilizar renderer Runtime canônico com overlays Engineering. Design e Preview devem compartilhar o mesmo viewport/renderer boundary. Working nunca vira Active authority só porque renderiza. FND-06 congela o boundary antes de grandes ondas de Editor/visual DEV.
+
+## DETACH / MULTI-PROJECT INSTALLATION
+
+Application, Security Authority, Historian/DB e License são autoridades separadas. A UI pode coordenar um `desvincular aplicação e Authority`, mas isso não funde artefatos.
+
+Antes de detach, oferecer export protegido de Authority. Fence Runtime/Drivers/Scripts/commands. Invalide sessões antigas. Volte a secure neutral bootstrap. Projeto B nunca herda usuários/roles/credenciais/scopes do A sem restore/import explícito. Nunca apagar Historian silenciosamente. License keep/remove/replace é fluxo separado.
+
+## CI / GITHUB ACTIONS
+
+Todos os workflows atuais em `.github/workflows` possuem `workflow_dispatch`. Portanto o repositório suporta dispatch manual.
+
+A superfície de ferramentas de um chat pode não expor a mutação de criar o primeiro manual dispatch. Não confunda isso com limitação do YAML/repo.
+
+Este conector pode expor rerun de job/run existente separadamente. Rerun somente após diagnóstico.
+
+Se novo dispatch for necessário e a operação não existir no Main, delegue a Work/Codex/CLI `gh workflow run` quando disponível. Não crie commit vazio, não retargete PR para `main` e não altere workflow apenas para disparar CI.
+
+A maioria dos automatic triggers ainda reflete `main` ou Wave 14. **Não** adicione `wave15/corrections-integration` cegamente aos sete workflows antigos. Isso faria cada DEV pagar suítes desproporcionais.
+
+INFRA-CI-01 continua a solução correta:
+
+- T0 local focused;
+- T1 DEV PR sanity/profile;
+- T2 integrated broader;
+- T3 checkpoint;
+- T4 final full.
+
+Seven-Driver/browser/heavy suites entram por causalidade/risco, não por reflexo em todo PR.
+
+## ORDEM IMEDIATA DE RETOMADA
+
+1. Revalide GitHub live e o exact integration SHA.
+2. Revalide PR #314 base/head/tree e leia os comentários mais recentes em #302/#314.
+3. Verifique se Work enviou pergunta/handoff novo após este snapshot; responda no GitHub se houver decisão pendente.
+4. Continue o diagnóstico estreito da falha direta `/api/history/{id}` no exact AUTH-03 candidate.
+5. Se houver correção, revise o delta causal, rode validação proporcional no novo exact SHA e não aceite regressão/relaxamento de contrato.
+6. Somente quando AUTH-03 estiver tecnicamente aceitável e com evidência suficiente, mergeie **apenas em `wave15/corrections-integration`**, verifique parent/tree e registre INTEGRATED/VERIFIED/FROZEN em #302 e #297.
+7. Não iniciar AUTH-04 cedo.
+8. Continue as foundations restantes de FC0-A e INFRA-CI-01.
+9. Quando FC0-A estiver realmente satisfeito, prepare os work packages copy-ready para a primeira leva pequena de DEVs paralelos.
+
+## ISSUES-CHAVE
+
+- #297 — Wave 15 complete product delivery / status global
+- #305 — dependency graph, Foundation checkpoints, parallel DEV orchestration, CI
+- #302 — Security Authority / FND-02
+- #301 — Licensing / Runtime Session Lease
+- #303 — Editor
+- #304 — installation detach/switch
+- #298 — EliteGO
+- #299 — HA/redundancy
+- #300 — final integration / fresh Preview
+
+Leia comentários recentes, não apenas o corpo original das issues. Corpos antigos podem conter sequencing de criação já substituído por comentários vinculantes posteriores.
+
+## REGRA FINAL
+
+Não otimize para “terminar uma issue”. Otimize para congelar contratos corretos, manter isolamento de autoridade, preservar evidência exata e permitir paralelismo seguro depois. Nenhum verde isolado vale mais do que um boundary incorreto.
 
 ---

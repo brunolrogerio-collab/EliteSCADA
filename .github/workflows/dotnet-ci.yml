@@ -72,6 +72,10 @@ jobs:
         run: |
           set -euo pipefail
           export ASPNETCORE_URLS=http://127.0.0.1:5080
+          # Keep the runtime boot deterministic: integration tests create
+          # disposable persisted projects in elitescada_test, while this
+          # smoke test validates a fresh PostgreSQL-backed application.
+          export ConnectionStrings__EliteScada='Host=127.0.0.1;Port=5432;Database=postgres;Username=postgres;Password=postgres;Pooling=false'
           dotnet run --project src/Scada.Api/Scada.Api.csproj --no-build --configuration Release --no-launch-profile > /tmp/scada-api.log 2>&1 &
           API_PID=$!
           trap 'kill "$API_PID" 2>/dev/null || true' EXIT

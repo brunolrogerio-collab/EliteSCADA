@@ -1,159 +1,212 @@
-# EliteSCADA Roadmap
+# EliteSCADA Roadmap — Wave 15
 
-**Status date:** 2026-09-02 (BRT)  
-**Active direction:** **TEST PREVIEW #208/#210 — ACTIVE VALIDATION HARNESS; WAVE 14 #211 — ACTIVE EARLY PRODUCT-OWNER VALIDATION; WAVE 13 #205/#207 — PAUSED AT GREEN CHECKPOINT**
+**Status date:** 2026-09-13 (BRT)  
+**Active direction:** **WAVE 15 FOUNDATION-FIRST COMPLETE PRODUCT DELIVERY**  
+**Integration:** `wave15/corrections-integration`  
+**Global issue:** #297  
+**Foundation / dependency / parallel DEV orchestration:** #305
 
-Authoritative product intent: `PROJECT GOAL.md`.  
-Mutable resume point: `LAST CHANGE.md`.  
-Operational handoff: `docs/CURRENT-COORDINATOR-HANDOFF.md`.  
-Wave 12 accepted ledger: `docs/WAVE-12-HARDENING-AUDIT.md`.  
-Temporary browser Test Preview: `docs/TEMPORARY-BROWSER-TEST-PREVIEW.md`, issue #208, draft PR #210.  
-Codespaces Preview runbook: `docs/CODESPACES-PREVIEW-RUNBOOK.md` on the Preview branch while PR #210 remains unmerged.  
-Wave 13 preparation: `docs/WAVE-13-WINDOWS-RELEASE-PREPARATION.md`.  
-Wave 13 issue: #205; draft implementation PR: #207.  
-Wave 14 Product-owner validation: issue #211.  
-CI policy: `docs/CI-VALIDATION-POLICY.md`.
+Authoritative stable product intent: root `PROJECT GOAL.md`.  
+Mutable operational snapshot: root `LAST CHANGE.md`.  
+Detailed Main handoff: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.  
+Current pointer: `docs/CURRENT-COORDINATOR-HANDOFF.md`.  
+Copy-ready coordinator rotation prompt: `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`.
 
-## Current validated foundation
+> GitHub live always wins for exact branch/SHA/PR/CI state. Historical Wave 14/Test Preview documents remain evidence, not current sequencing authority.
 
-- Waves 03–10: **COMPLETE / MERGED**.
-- Seven communication Drivers shared convergence + L2 + integrated L3: **COMPLETE / ACCEPTED**.
-- Demo/hardware-bound licensing and offline License Generator: **IMPLEMENTED / ACCEPTED / MERGED**.
-- Pre-Wave-11 owner-usability gate #191: **COMPLETE / ACCEPTED / MERGED**.
-- Wave 11 Active Engineering HMI Runtime + owner-test `.escadapkg`: **COMPLETE / ACCEPTED / CLOSED** under issue #194.
-- Wave 12 Hardening: **COMPLETE / ACCEPTED / CLOSED** under issue #201.
-- Accepted Wave 12 product-code baseline: `63bced02426fcb84b26028913f6c68feb3457d80`.
-- Exact accepted post-merge evidence: EliteSCADA CI #1096 / `33576603185` **SUCCESS** and L3 #92 / `33576603158` **SUCCESS**.
-- Temporary browser Test Preview #208/#210 is active and has already produced successful real browser/login evidence after Codespaces-specific fixes.
-- Wave 13 #205/#207 repository-side implementation checkpoint is green but **PAUSED by Development Lead**.
-- Wave 14 #211 **Product-owner validation** is **ACTIVE EARLY** through the Test Preview.
+## Product objective
 
-## Coordination model
+Wave 15 is the complete-product convergence wave. It must combine the already accepted platform foundation with the remaining developer/operator/customer-visible product work rather than optimize for isolated issue closure.
 
-Development Lead direction on 2026-09-02 intentionally changes the original order of work after real owner use exposed product/usability findings before release signing was complete.
+Target product scope includes:
 
-Current responsibility split:
+- material generic corrections inherited from Wave 14 homologation;
+- developer-functional WYSIWYG Screen/Popup Editor;
+- Script Engineering maturity;
+- configurable granular Security Authority;
+- Runtime Session Lease / Licensing v2;
+- EliteGO companion runtime application;
+- HA/redundancy;
+- safe installation/application/Authority detach and project switching;
+- WAN/timing resilience;
+- profile-aware CI;
+- industrial visuals/library/thumbnails;
+- contextual Manual/Help;
+- pt-BR/en/es product coherence;
+- representative EEE Sim/Real Modbus v15 application;
+- exact integration checkpointing;
+- fresh Codespaces Product Owner audit and residual correction loop.
 
-- Preview infrastructure/reproducibility: issue #208 / PR #210.
-- Product-owner validation and finding ledger: issue #211.
-- Windows release/signing: issue #205 / PR #207, paused until owner-validation baseline stabilizes.
+## Foundation-first execution
 
-The Preview is the test harness, not the product-validation scope itself.
+Wave 15 deliberately freezes cross-cutting contracts before opening many parallel feature lanes.
 
-Before any merge/release decision, live `main`, open PRs/issues and exact-head Actions must be revalidated.
+Foundation families:
 
-## Ordered path to v0.1
+- **FND-01** — Working/lifecycle/bootstrap;
+- **FND-02** — Security Authority;
+- **FND-03** — Runtime Session Lease / Licensing v2;
+- **FND-04** — Server Script recovery/ownership;
+- **FND-05** — HA identity/topology/fencing;
+- **FND-06** — canonical renderer/visual stability;
+- **FND-07** — secure installation detach/neutral bootstrap;
+- **FND-08** — WAN/common timing;
+- **INFRA-CI-01** — profile-aware Wave 15 CI orchestration.
+
+State model:
+
+`NOT_STARTED -> ACTIVE -> PR_READY -> INTEGRATED -> VERIFIED -> FROZEN`
+
+A downstream feature may consume a shared contract only after the required slice is `VERIFIED + FROZEN`.
+
+## Current frozen snapshot
+
+- FND-01 — **VERIFIED/FROZEN**;
+- FND-08 common timing contract — **VERIFIED/FROZEN**;
+- FND-02 AUTH-01 capability vocabulary/enforcement — **VERIFIED/FROZEN**;
+- FND-02 AUTH-02 stable hierarchy/scope identities — **VERIFIED/FROZEN**;
+- FND-02 overall — **NOT FROZEN** while required AUTH-03/remaining slices are incomplete.
+
+Exact evidence/SHA belongs in `LAST CHANGE.md` and live issues, not in this roadmap.
+
+## Current active path — FND-02 Authority
+
+### AUTH-03 — ACTIVE
+
+PR #314 owns durable canonical Authority persistence/admin/portable backup v2 and Engineering/package ownership transition.
+
+Required contract includes PostgreSQL version/CAS, deterministic bootstrap/migration, protected administration, self-lockout/orphan protection, strict stable capability/scope identities, Authority backup v2, `.escadapkg` v3 / Engineering schema19 and no second mutable Engineering policy owner.
+
+At this roadmap snapshot the product/Authority test suite and real PostgreSQL Authority persistence gate pass, while a Runtime smoke still fails in a direct Historian read after samples have reportedly been written. Diagnose that narrow discrepancy before AUTH-03 freeze; do not weaken Historian or Authority contracts.
+
+### AUTH-04 — QUEUED / NOT ACTIVE
+
+Starts only after AUTH-03 is integrated/verified/frozen and FND-07/#304 dependency is ready. Owns coordinated safe Authority detach/switch, generation fencing, old-session invalidation, neutral bootstrap, A->neutral->B isolation and restore semantics.
+
+## FC0 checkpoints
+
+### FC0-A — first parallel feature release
+
+Require:
+
+`FND-01 + FND-02 + FND-03 + FND-04 + FND-06 VERIFIED/FROZEN`
+
+plus:
+
+- common FND-08 timing contract frozen;
+- INFRA-CI-01 ready/frozen;
+- one exact integration checkpoint.
+
+FC0-A releases bounded parallel work for:
+
+- Editor;
+- Script Engineering;
+- Authority UX;
+- Licensing UX.
+
+Start with controlled concurrency, normally no more than four active coding DEVs.
+
+### FC0-B — full foundation release
+
+Add:
+
+- FND-05 HA;
+- FND-07 installation detach.
+
+FC0-B releases:
+
+- EliteGO;
+- Installation UX;
+- downstream HA implementation that consumes frozen HA contracts.
+
+F0 is complete only at FC0-B.
+
+## Parallel DEV model after release
+
+Every DEV mission uses one isolated branch and one PR to `wave15/corrections-integration` with an exact base SHA and explicit owned/forbidden boundaries.
+
+A DEV may not:
+
+- write directly to integration/main;
+- merge its own PR;
+- silently alter a frozen shared contract;
+- borrow green CI from another SHA.
+
+If a frozen contract is insufficient, report `BLOCKED-CONTRACT`; Main/Foundation owns the delta before downstream work resumes.
+
+## CI roadmap — INFRA-CI-01
+
+All current workflows support `workflow_dispatch`, but many automatic triggers still reflect `main` or Wave 14 branches. Do not solve that by wiring every heavy workflow to every Wave 15 PR.
+
+Target tier model:
+
+- **T0** — local focused validation;
+- **T1** — DEV PR sanity/profile;
+- **T2** — integrated broader validation;
+- **T3** — exact integration checkpoint;
+- **T4** — final complete-product validation.
+
+Seven-Driver, browser, Licensing, HMI and other heavy suites run when risk/ownership/profile justifies them and at broader checkpoints.
+
+A ChatGPT connector lacking the operation to create a new `workflow_dispatch` is a tool limitation, not repository limitation. Use Work/Codex/CLI dispatch when available; existing-run reruns are separate operations and require diagnosis before use.
+
+## Product contracts that guide downstream work
+
+### Security Authority
+
+Roles are editable templates/custom roles with explicit capabilities and stable scope hierarchy. Role names never grant privilege. Authority controls what an identity may do; backend enforces it. `CommandExecute` remains distinct from `ProcessValueWrite`.
+
+### Licensing / Runtime Session Class
+
+Authority permissions, Session Class and commercial license quotas are separate layers. Session Class can only restrict Authority. One logical runtime session owns one lease across transports/reconnect/failover; Web and EliteGO share server-owned quotas.
+
+### EliteGO
+
+Separate runtime-focused companion app consuming canonical Active through public APIs/realtime. It does not own HA election or an independent licensing authority.
+
+### Editor
+
+Use the canonical Runtime renderer with Engineering overlays. Design/Preview share renderer semantics; Working design never silently becomes Active Runtime truth.
+
+### Installation switch
+
+Application package, Authority backup, Historian/database and License remain separate authorities even when one UX coordinates a safe detach. Fence process effects, invalidate old sessions and never silently delete Historian or leak project-A identities into project B.
+
+### WAN/timing
+
+No global timeout inflation; GET retry bounded and safe; writes never blind-retry; timeout can be unknown outcome; stale responses cannot overwrite newer state.
+
+## Final Wave 15 acceptance path
 
 ```text
-Wave 03      Operational lifecycle + Runtime TAG Inspector + acceptance foundation       COMPLETE
-Wave 04      Project portability + basic Trends + Administration                        COMPLETE
-Wave 05      Canonical Script Engineering                                                COMPLETE
-Wave 06      Python Editor + Client Visual sandbox                                       COMPLETE
-Wave 07      Visual Runtime Object Model + typed visual Engineering                      COMPLETE
-Wave 08      Graphical Editor + Image + Engineering Development Monitor                  COMPLETE
-08-FOLLOW-A  TAG Bit Access + Driver Bit-Level Boolean Binding                           COMPLETE
-08-FOLLOW-B  Typed Visual Expressions + Boolean Conditions + Analog Fill                 COMPLETE
-Wave 09      Screens + Popups + Dynamos + Historical Data + Reporting                   COMPLETE
-Wave 10      Python visual events + animation + preview                                  COMPLETE
-Driver L3    Seven Drivers concurrently + Gateway + fault/recovery                       PASS / ACCEPTED
-Pre-Wave 11  GUI License Generator + Slider + application file + Dynamo library          COMPLETE
-Wave 11      Active persisted Engineering HMI Runtime + owner-test package                COMPLETE / CLOSED
-Wave 12      Hardening                                                                   COMPLETE / ACCEPTED / CLOSED
-Test Preview Temporary browser Preview via Codespaces                                    ACTIVE HARNESS
-Wave 14      Product-owner validation                                                    ACTIVE EARLY
-Wave 15      Non-blocking feedback/corrections                                           WAITING
-Wave 13      Signed Windows x64 package + Authenticode release verification              PAUSED / CHECKPOINT GREEN
-Preview      EliteSCADA Preview build                                                    FUTURE
-Driver L4    Physical hardware/site validation                                           AFTER PREVIEW BUILD
-FINAL        EliteSCADA v0.1 — Full Product Validation Preview
+Foundation slices frozen
+  -> FC0-A checkpoint
+  -> bounded parallel Editor/Script/Authority UX/Licensing UX
+  -> remaining FND-05/FND-07
+  -> FC0-B checkpoint
+  -> EliteGO + Installation UX + downstream HA
+  -> product convergence / industrial visuals / help / localization / EEE v15
+  -> exact integrated candidate
+  -> T3/T4 validation
+  -> fresh Codespaces Preview
+  -> real Product Owner browser audit
+  -> evidence-correlated residual corrections
+  -> exact revalidation
+  -> final Wave 15 acceptance
 ```
 
-The numerical order is intentionally not the execution order at this moment. Wave 14 is being advanced before Wave 13 final acceptance because signing a product that is still revealing owner-visible defects would create avoidable rework.
+Wave13 #205/#207 remains paused until a separate Product Owner decision. Do not silently reinsert signed-release work into the active path.
 
-## Temporary browser Test Preview direction
+## Permanent execution guards
 
-Issue #208 / PR #210 remains active as the temporary development/homologation environment used to exercise the actual EliteSCADA stack from a browser.
-
-Implemented/validated direction includes:
-
-- .NET backend;
-- React/Pyodide frontend;
-- PostgreSQL/TimescaleDB;
-- validated Wave 11 Demo package;
-- normal persisted Engineering lifecycle bootstrap;
-- Web-only temporary exposure;
-- exact .NET SDK 10.0.400;
-- disposable `/etc/machine-id` required by normal fail-closed licensing;
-- protected `ELITESCADA_PREVIEW_ADMIN_PASSWORD` secret;
-- automatic startup through `postAttachCommand`;
-- successful actual browser login after environment corrections.
-
-Only the required Web port is intended to be forwarded. Database/internal service ports remain private. The environment makes no production availability, durability or security claim.
-
-A dedicated operational runbook records recovery levels and the real failure patterns already seen during homologation. Manual workarounds that are necessary for successful startup must be converted into repository-controlled automation before Preview acceptance.
-
-## Wave 14 active direction
-
-Issue #211 is the active Product-owner validation ledger.
-
-For each product area, validate the real user workflow through a known exact SHA and classify findings:
-
-- **A — Validation blocker:** prevents meaningful testing; fix during Wave 14 so validation can continue;
-- **B — Functional defect:** wrong behavior; fix during Wave 14 when it affects release confidence or later validation;
-- **C — Usability defect:** technically works but materially harms owner validation; fix when blocking/material;
-- **D — Enhancement/preference:** record for Wave 15 or later.
-
-Representative validation includes authentication/Administration, Engineering navigation, Drivers/Data Sources, TAGs, alarms, Templates/Equipment/Dynamos, Screens/Popups, Scripts/Python/Pyodide, Historian/Trends/Reports, Save/Revision/Publish/Activate, Active HMI Runtime, Demo behavior, `.escadapkg`, restart/recovery, licensing UX and visual/readability defects.
-
-The first confirmed owner finding is a pre-existing Script Engineering contrast problem exposed in the real Codespace. Because the surface was effectively unreadable, its narrow correction is treated as a Wave 14 blocker rather than postponed cosmetic feedback.
-
-## Wave 13 paused direction
-
-Issue #205 remains open and PR #207 remains draft, but further Wave 13 execution is paused.
-
-Preserved fully validated implementation SHA:
-
-`9f26a2bc02ae77017e266c52ff128dc39eece4b4`
-
-Retained exact evidence:
-
-- Wave 13 Windows Release #27 / `33643546191`: **SUCCESS**;
-- EliteSCADA CI #1134 / `33643546119`: **SUCCESS**;
-- L3 Seven-Driver Lab #102 / `33643546111`: **SUCCESS**;
-- Wave 11 Active HMI Runtime #64 / `33643546139`: **SUCCESS**.
-
-Wave 13 remains responsible, when resumed, for the controlled Windows x64 package, Authenticode signatures, trusted timestamping and deterministic release verification.
-
-Before resuming, its coordinator must re-audit live `main`, incorporate the accepted Wave 14 product baseline and rerun the packaging/signing validation against the actual post-owner-validation product. Do not sign the stale pre-validation snapshot merely because its old CI was green.
-
-## Wave 15 direction
-
-Wave 15 remains waiting and should receive non-blocking owner feedback, refinements, redesign requests and enhancements discovered during Wave 14.
-
-Do not use Wave 14 as an excuse to implement every improvement noticed during owner use. Only corrections needed for trustworthy validation or release confidence belong in the active Wave 14 path.
-
-## Quality locks
-
-- canonical Engineering/backend authority;
-- Runtime derives from persisted Active Engineering, never mutable Working;
-- security is enforced in the backend;
-- no Driver-to-Driver coupling or canonical TAG/cache/event bypass;
-- licensing remains host-owned and fail-closed;
-- private licensing/signing keys never enter GitHub, normal CI or distributed product builds;
-- no Preview bootstrap password in repository, workflow YAML, images, packages, logs or normal artifacts;
-- temporary Preview exposure is development/homologation only and should expose only the required Web surface;
-- no test weakening to manufacture green evidence;
-- EliteSCADA CI is the universal merge gate even without GitHub branch protection;
-- specialized CI is impact-based and never substitutes for the universal gate;
-- protected unsafe API mutations fail closed before execution when durable append-only audit admission cannot be persisted;
-- post-action audit failures do not masquerade as process-command failures that could trigger unsafe client retries;
-- Wave 13 requires Authenticode + trusted timestamp release verification when resumed;
-- SmartScreen reputation is separate from signature validity;
-- Linux `.deb` remains specified/not started until Development Lead authorization;
-- commercial packaging cannot include/enable DNP3 without an appropriate commercial license or approved/revalidated replacement.
-
-## Future distribution tracks
-
-`docs/LINUX-DEBIAN-DISTRIBUTION.md` remains **SPECIFIED / NOT STARTED**. Debian 12 `amd64` remains the first planned target, followed by Debian 13.
-
-Step Function I/O `dnp3` 1.6.0 remains a commercial-distribution gate because its public licensing is non-commercial/non-production.
+- no direct `main` mutation;
+- no destructive history operations;
+- no blind rerun;
+- no weakened tests/contracts to get green;
+- no generic defect hidden behind EEE-only workaround;
+- Runtime/Active remains independent of `.escadalib`;
+- Alarm, Operational Event and Audit remain distinct;
+- credentials/secrets stay outside plaintext Engineering/package/audit;
+- stable IDs outrank display names/paths;
+- clients do not directly own process truth, DB or Driver internals;
+- exact SHA/tree and evidence are required at integration/freeze boundaries.

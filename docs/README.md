@@ -1,124 +1,76 @@
 # EliteSCADA documentation authority map
 
-This directory contains architecture decisions, historical assignments, laboratory evidence, product policy and live coordination notes. They do **not** have the same authority.
+The repository contains stable architecture, product policy, current coordination records, historical Wave evidence and worker assignments. They do **not** have the same operational authority.
 
-## Stable product authority
+## 1. Live repository and CI
+
+**Highest authority for what is actually implemented now.**
+
+Before a decision, write, rerun or merge, inspect live refs, exact SHA/tree, latest issue/PR comments and exact-head Actions evidence. A static SHA in documentation is always a snapshot.
+
+## 2. Stable product/architecture authority
 
 ### Root `PROJECT GOAL.md`
 
-**Persistent product north and locked product intent.** Read it before planning new EliteSCADA work. It now includes the final Demo/hardware-bound licensing contract at product-goal level.
+Persistent product north and locked architectural intent. Use it for durable product principles, not as the sole source of mutable Wave execution state.
 
-Current repository code/`main` still wins for what is actually implemented. `PROJECT GOAL.md` wins for explicitly locked future product intent.
+If an old release-sequencing sentence inside `PROJECT GOAL.md` conflicts with the live Wave 15 handoffs, use the Wave 15 handoffs/GitHub for current sequencing while preserving the stable architecture/product rules from `PROJECT GOAL.md`.
 
-## Operational source of truth
+### ADRs and locked contract documents
 
-### `CURRENT-COORDINATOR-HANDOFF.md`
+Versioned public-model, licensing, TAG/bit binding, Driver, lifecycle and related architecture decisions take precedence over old worker/handoff prose when they explicitly lock a contract.
 
-**Single operational handoff.** Use it for current branch/PR, last accepted exact-head CI, Driver convergence stage, current-vs-final Preview capacity distinction, blockers and immediate next action.
+## 3. Current Wave 15 operational authority
 
-Static SHAs are snapshots. Live GitHub refs and exact-head Actions evidence always win after a fresh read.
+Read in this order when taking over coordination:
 
-### Root `LAST CHANGE.md`
+1. root `LAST CHANGE.md` — short mutable resume point;
+2. `WAVE15-MAIN-COORDINATOR-HANDOFF.md` — detailed persistent Main Coordinator handoff;
+3. `CURRENT-COORDINATOR-HANDOFF.md` — concise live pointer;
+4. `NEXT-COORDINATOR-CHAT-HANDOFF.md` — copy-ready prompt for a new coordinator chat;
+5. `ROADMAP.md` — current Wave 15 sequencing/checkpoints;
+6. GitHub issues #297 and #305, then the active Foundation/product issue/PR and their latest comments.
 
-Short operational resume point. It must clearly distinguish **MERGED**, **IMPLEMENTED IN PR** and **SPECIFIED / NOT IMPLEMENTED**.
+GitHub live wins over every one of these snapshots.
 
-### `COORDINATOR-TRANSFER-2026-08-31.md`
+## 4. Wave 15 coordination surfaces
 
-Concise replacement-coordinator checkpoint created after the Demo/licensing product decision. Use it together with `PROJECT GOAL.md`, `LAST CHANGE.md` and the canonical handoff when changing coordinator/chat.
+- #297 — complete-product Wave 15 global status;
+- #305 — dependency graph, Foundation checkpoints, parallel DEV orchestration and CI rules;
+- #302 — Security Authority / FND-02;
+- #301 — Runtime Session Lease / Licensing;
+- #303 — Editor;
+- #304 — installation detach/switch;
+- #298 — EliteGO;
+- #299 — HA/redundancy;
+- #300 — final integration and fresh Preview.
 
-### `COORDINATOR-HANDOFF.md`
+Read recent comments, not only issue bodies. Creation-time sequencing can be superseded by later binding comments.
 
-**Legacy path / superseded.** Retained only for old links and redirected to `CURRENT-COORDINATOR-HANDOFF.md`.
+## 5. CI authority
 
-## Preview / licensing product policy
+All current workflows support `workflow_dispatch`, but a particular ChatGPT connector may not expose creation of a new manual dispatch. Repository capability and chat-tool capability are different things.
 
-### `PREVIEW-CAPACITY-POLICY.md`
+Use rerun only after diagnosis. If a new dispatch is required and Main lacks the operation, delegate to Work/Codex/CLI when available. Do not create empty commits or artificial PR retargeting to wake CI.
 
-Owns the distinction between the **current validated transitional code** and the **final desired Demo behavior**.
+INFRA-CI-01 owns the Wave 15 move to profile-aware T0/T1/T2/T3/T4 validation. Old workflow triggers tied to `main` or Wave 14 are transitional infrastructure, not a reason to run every heavy suite on every DEV PR.
 
-Current validated code at `6d340e8...` / CI #982 uses a static 200-TAG project ceiling and rejects creation/import of the 201st TAG.
+## 6. Historical records
 
-That is transitional behavior, not the final licensing contract.
+Wave 14 C25/C26 handoffs, post-C26 audit directives, old Preview evidence, Driver convergence assignments, Wave 11/12 execution logs and older coordinator transfers remain valuable historical evidence.
 
-### `LICENSING-AND-DEMO-MODE.md`
+They are **not current execution authority** after Wave 15 starts unless a current Wave 15 issue explicitly imports one of their contracts/evidence.
 
-Owns the detailed final Demo/licensing specification:
+Do not delete historical files simply because they are old. Version control preserves history; the authority map prevents history from pretending to be the present.
 
-- no license => Demo;
-- Engineering may exceed 200 TAGs;
-- Demo Run gate at 200 TAGs;
-- 300 continuous minutes per explicit Demo Run session;
-- hardware-derived copyable request code;
-- asymmetrically signed machine-bound license;
-- 500 / 1000 / 1500 / 3000 / 5000 / Unlimited tiers;
-- valid licensed/evaluation entitlement removes Demo time limit;
-- installed invalid/wrong-hardware license blocks Run;
-- private signing key never enters GitHub/normal product distribution.
+## 7. Conflict resolution
 
-Status: **SPECIFIED / NOT IMPLEMENTED**. Tracking issue: **#183**.
+When sources disagree:
 
-## Architectural authority
+1. inspect the live branch/PR and exact Actions evidence;
+2. use `PROJECT GOAL.md` and locked ADR/contracts for durable product intent;
+3. use `LAST CHANGE.md` + Wave 15 coordinator handoffs for current operational interpretation;
+4. use #297/#305 and the active issue's latest binding comments for dependency/mission state;
+5. treat older Wave/assignment/status prose as historical evidence.
 
-### `DRIVER-CONVERGENCE-COORDINATION-V1.md`
-
-Shared Driver architecture and convergence semantics: registry composition, readiness, protected material, rich binding, operation boundaries and timestamp policy.
-
-Do not use its observed worker SHAs or old per-Driver milestone prose as current operational status.
-
-### ADRs / locked architecture documents
-
-Architecture semantics take precedence over old handoff prose when they explicitly lock a decision. They do not replace live implementation evidence.
-
-## Laboratory evidence
-
-### `DRIVER-AND-INTEROP-LAB-STATUS.md`
-
-Owns laboratory evidence and terminology:
-
-- common peer lab health;
-- independent-software L2 product acceptance;
-- post-main integrated L3 definition;
-- distinction between peer health and actual Driver product path.
-
-It does not own coordinator implementation progress.
-
-Issue **#180** owns the integrated seven-Driver post-main L3 campaign.
-
-## Assignment / historical records
-
-### `PARALLEL-DRIVER-WORK-ASSIGNMENTS.md`
-
-Historical worker authorization, ownership and isolation boundaries from the parallel-development phase. Not current Driver status.
-
-### `CHAT-WORK-ASSIGNMENTS.md`
-
-Coordination/assignment record. Treat assignment text and embedded SHAs as snapshots, not as the current product state or merge authority.
-
-## Roadmap
-
-### `ROADMAP.md`
-
-Product sequencing and planned scope. It does not override a live convergence gate or exact-head CI result.
-
-## GitHub coordination surfaces
-
-- Issue **#174**: shared Driver convergence/mainline/L3 stage tracking.
-- Issue **#180**: integrated seven-Driver post-main L3 acceptance.
-- Issue **#183**: Demo/hardware licensing implementation track.
-- Draft PR **#175**: actual long-lived coordinator integration line until controlled merge.
-- Worker PRs: protocol implementation/evidence snapshots; descriptions may lag live branch heads.
-
-## Conflict resolution
-
-When two sources disagree:
-
-1. re-read the live branch/PR ref;
-2. inspect Actions for that exact SHA;
-3. use root `PROJECT GOAL.md` for locked product intent;
-4. use `CURRENT-COORDINATOR-HANDOFF.md` + `LAST CHANGE.md` for operational interpretation;
-5. use `PREVIEW-CAPACITY-POLICY.md` and `LICENSING-AND-DEMO-MODE.md` for current-vs-final Preview/licensing semantics;
-6. use ADRs / `DRIVER-CONVERGENCE-COORDINATION-V1.md` for architecture semantics;
-7. use `DRIVER-AND-INTEROP-LAB-STATUS.md` for lab evidence;
-8. treat older status, assignment and worker-PR prose as historical evidence.
-
-Never inherit green CI from another SHA, never turn peer-lab health into a Driver L2 acceptance claim, and never report a specified licensing feature as implemented without code + exact-head CI evidence.
+Never inherit green CI from another SHA, never call an unexecuted required test PASS, never infer security from role display names and never report a specified feature as implemented without code plus exact-head evidence.

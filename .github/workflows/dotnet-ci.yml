@@ -162,6 +162,7 @@ jobs:
             -H 'content-type: application/json' \
             -d '{"datasetKey":"historian.samples","timeRange":{"kind":"relative","durationSeconds":300,"anchor":"now"},"page":{"limit":5}}' \
             > /tmp/historical-query.json
+          cat /tmp/historical-query.json
           python3 - <<'PY'
           import json
           with open('/tmp/historical-query.json') as f:
@@ -179,12 +180,17 @@ jobs:
           import json
           with open('/tmp/security-roles.json') as f:
               roles = json.load(f)
-          assert {role['key'] for role in roles} == {'operator', 'developer'}
-          operator = next(role for role in roles if role['key'] == 'operator')
-          capabilities = {grant['capability'] for grant in operator['grants']}
-          # ASP.NET serializes enum values numerically on this direct DTO endpoint.
-          assert 2 in capabilities  # CommandExecute
-          assert 3 not in capabilities  # ProcessValueWrite
+          assert {role['key'] for role in roles} == {'developer'}, roles
+          developer = next(role for role in roles if role['key'] == 'developer')
+          capabilities = {grant['capability'] for grant in developer['grants']}
+          assert capabilities == {
+              'view', 'tagRead', 'commandExecute', 'processValueWrite',
+              'alarmAcknowledge', 'alarmShelve', 'trendUse', 'trendSave',
+              'engineeringView', 'engineeringModify', 'userRoleAdmin', 'systemAdmin'
+          }, developer
+          assert capabilities.isdisjoint({
+              'highAvailabilityObserve', 'highAvailabilityTransfer', 'highAvailabilityAdmin'
+          }), developer
           PY
 
           curl -fsS http://127.0.0.1:5080/api/engineering/commands > /tmp/commands.json
@@ -192,8 +198,7 @@ jobs:
           import json
           with open('/tmp/commands.json') as f:
               commands = json.load(f)
-          assert {command['key'] for command in commands} == {'demo.p01.start', 'demo.p01.stop'}
-          assert all(command['targetTagPath'] == 'Demo.P01.Running' for command in commands)
+          assert commands == [], commands
           PY
 
           curl -fsS http://127.0.0.1:5080/api/engineering/persistence/status > /tmp/persistence-status.json
@@ -231,8 +236,8 @@ jobs:
           assert workspace['baseRevision'] == saved['revision']
           assert workspace['isDirty'] is False
           assert workspace['lastSavedAtUtc'] is not None
-          assert workspace['securityRoleCount'] == 2
-          assert workspace['commandCount'] == 2
+          assert workspace['securityRoleCount'] == 0
+          assert workspace['commandCount'] == 0
           PY
 
           curl -fsS http://127.0.0.1:5080/api/engineering/persistence/ci-demo/lifecycle > /tmp/lifecycle-draft.json

@@ -138,7 +138,17 @@ jobs:
           print(next(tag['id'] for tag in tags if tag['path'] == 'Demo.Tank01.Level'))
           PY
           )
+          echo "Historian smoke selected TANK_ID=${TANK_ID}"
+          test "$TANK_ID" = "10000000-0000-0000-0000-000000000001"
+          cat /tmp/tags.json
           curl -fsS "http://127.0.0.1:5080/api/history/${TANK_ID}?limit=100" > /tmp/history.json
+          curl -fsS http://127.0.0.1:5080/api/diagnostics/runtime > /tmp/runtime-diagnostics-history.json
+          cat /tmp/history.json
+          cat /tmp/runtime-diagnostics-history.json
+          PGPASSWORD=postgres psql \
+            --host=127.0.0.1 --port=5432 --username=postgres --dbname=postgres \
+            --no-align --tuples-only --pset pager=off \
+            --command="SELECT current_database(), current_schema(), now(), current_setting('TimeZone'); SELECT tag_id, COUNT(*) AS samples, MIN(ts) AS first_ts, MAX(ts) AS last_ts FROM elitescada.tag_history GROUP BY tag_id ORDER BY tag_id; SELECT tag_id, ts, quality, source, value, data_type FROM elitescada.tag_history WHERE tag_id = '10000000-0000-0000-0000-000000000001' AND ts >= now() - interval '15 minutes' ORDER BY ts;" || true
           python3 - <<'PY'
           import json
           with open('/tmp/history.json') as f:

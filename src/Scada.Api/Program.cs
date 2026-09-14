@@ -26,10 +26,12 @@ using Scada.Engineering.ImportExport;
 using Scada.Engineering.ProjectPackages;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
+using Scada.Engineering.Persistence;
 using Scada.Engineering.Views;
 using Scada.Historian.Abstractions;
 using Scada.Persistence.PostgreSql;
 using Scada.Security.Audit;
+using Scada.Security.Authentication;
 using Scada.Security.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);

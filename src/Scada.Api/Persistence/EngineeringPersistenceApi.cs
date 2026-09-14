@@ -73,12 +73,12 @@ public static class EngineeringPersistenceApi
 
         await persistence.InitializeAsync(cancellationToken);
         var bootstrap = app.Services.GetRequiredService<IEngineeringWorkingBootstrapService>();
-        await bootstrap.BootstrapAsync(
+        var bootstrapResult = await bootstrap.BootstrapAsync(
             configuredWorkingProjectKey,
             configuredWorkingRevision,
             configuredRuntimeProjectKey,
             cancellationToken);
-        await app.RecoverConfiguredEngineeringRuntimeAsync(cancellationToken);
+        if (bootstrapResult.Source == EngineeringWorkingBootstrapSource.EmptyCatalog) app.Services.GetRequiredService<EngineeringWorkspace>().InitializeDemo(); await app.RecoverConfiguredEngineeringRuntimeAsync(cancellationToken);
     }
 
     public static async Task<PersistedRuntimeRecoveryResult?> RecoverConfiguredEngineeringRuntimeAsync(

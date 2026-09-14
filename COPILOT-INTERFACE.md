@@ -135,3 +135,17 @@ Baseline canônico já existe em `SeedDemo`. A divergência vem do primeiro proj
 - Container parado pelo bloco de limpeza e porta `5432` confirmada livre.
 
 Nenhum GitHub Actions foi disparado e nenhum commit de código ou workflow foi criado. A publicação final deve conter somente a atualização deste arquivo de interface.
+
+## Próxima ordem
+
+### Ordem 004 — Diagnosticar a causa raiz dos E2E funcionais
+
+**Estado:** `PENDENTE`
+
+**Objetivo:** diagnosticar, sem reexecutar testes, por que os 16 E2E funcionais persistem mesmo com 1 worker. Compare o estado canônico de `SeedDemo`, o export/import e restore de `local-auth`, e os relatórios da execução serializada. Determine se a causa é teste defasado, contrato de API/persistência ou seed aplicado parcialmente. Registre evidências e indique a menor correção de código necessária.
+
+**Limites:** não alterar código/workflow, não executar testes, não disparar GitHub Actions.
+
+**Resultado:**
+
+_Aguardando execução._

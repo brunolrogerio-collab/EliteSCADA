@@ -308,13 +308,13 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     }
 
     public EngineeringPackage ParseTagsCsv(string csv) =>
-        Empty() with { Tags = _csv.ParseTags(csv) };
+        EmptyWithCurrentAuthorityReference() with { Tags = _csv.ParseTags(csv) };
 
     public EngineeringPackage ParseAlarmsCsv(string csv) =>
-        Empty() with { Alarms = _csv.ParseAlarms(csv) };
+        EmptyWithCurrentAuthorityReference() with { Alarms = _csv.ParseAlarms(csv) };
 
     public EngineeringPackage ParseDataSourcesCsv(string csv) =>
-        Empty() with { DataSources = _csv.ParseDataSources(csv) };
+        EmptyWithCurrentAuthorityReference() with { DataSources = _csv.ParseDataSources(csv) };
 
     public ImportPreview Preview(EngineeringPackage package, ImportMode mode) =>
         Preview(package, mode, null);
@@ -554,6 +554,9 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             ValidateOperationalActions(element.Children, kind, entityKey, package, issues);
         }
     }
+
+    private EngineeringPackage EmptyWithCurrentAuthorityReference() =>
+        Empty() with { AuthorityPolicyReference = ExportPackage().AuthorityPolicyReference };
 
     private EngineeringPackage Empty() => new(
         CurrentSchema,

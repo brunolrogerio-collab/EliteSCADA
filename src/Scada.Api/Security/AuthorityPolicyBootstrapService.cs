@@ -26,7 +26,7 @@ public sealed record AuthorityPolicyBootstrapOptions(string? MigrationSourceProj
 /// <summary>One-time, race-safe migration of a pre-AUTH-03 Engineering policy into canonical Authority storage.</summary>
 public sealed class AuthorityPolicyBootstrapService(
     IAuthorityPolicyStore authority,
-    ILocalIdentityStore identities,
+    ILocalIdentityStore? identities,
     IEngineeringProjectCatalog? catalog,
     IEngineeringProjectStore? projects,
     AuthorityPolicyBootstrapOptions options)
@@ -41,8 +41,8 @@ public sealed class AuthorityPolicyBootstrapService(
         await authority.InitializeAsync(cancellationToken);
         if (authority.Snapshot().Roles.Count != 0) return;
 
-        var users = await identities.ListAsync(cancellationToken);
-        if (users.Count == 0)
+        var users = identities is null ? null : await identities.ListAsync(cancellationToken);
+        if (users is null || users.Count == 0)
         {
             var bootstrap = BuiltInSecurityRoleDefaults.CreateInitialDeveloperRole();
             var seeded = await authority.TryReplaceAsync(0, [bootstrap], Array.Empty<SecurityScopeEngineeringDto>(), cancellationToken);

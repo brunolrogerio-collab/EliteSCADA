@@ -117,7 +117,7 @@ var app = builder.Build();
 // Resolve the historian before the hosted driver starts so it subscribes to the event bus.
 _ = app.Services.GetRequiredService<IHistorian>();
 await app.InitializeServerMemoryRetentionAsync();
-await app.InitializeEngineeringPersistenceAsync(); await app.Services.GetRequiredService<AuthorityPolicyBootstrapService>().EnsureInitializedAsync();
+await app.InitializeEngineeringPersistenceAsync();
 await app.InitializeAuditAsync();
 
 app.UseMiddleware<TimingCorrelationMiddleware>();

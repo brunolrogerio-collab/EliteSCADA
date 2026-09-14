@@ -213,3 +213,22 @@ Nenhum GitHub Actions foi disparado e nenhum commit de código ou workflow foi c
 - Configuração Playwright e E2E de autenticação, scripts e visual events.
 
 Nenhuma GitHub Action foi disparada. Este resultado é publicado em commit separado, exclusivamente desta interface, conforme o protocolo.
+
+## Próxima ordem
+
+### Ordem 006 — Revalidar a suíte E2E completa após AUTH-03
+
+**Estado:** `FALHOU`
+
+**Objetivo:** executar localmente a suíte Playwright completa, serializada, com TimescaleDB descartável, para medir as falhas restantes após a Ordem 005 e classificá-las por contrato/área afetada.
+
+**Limites:** não disparar GitHub Actions e não alterar código nesta ordem. Registrar o resultado, parar o container e publicar exclusivamente esta interface.
+
+**Resultado:**
+
+- A execução foi iniciada localmente com TimescaleDB saudável e `workers: 1`, mas foi cancelada após aproximadamente 15 minutos por comportamento anormal; a suíte completa costuma encerrar em poucos minutos.
+- Antes do cancelamento foram produzidos 32 diretórios de artefatos, sem `.last-run.json`; portanto não há uma contagem final válida de aprovados/falhos.
+- As últimas falhas registradas foram timeouts de 30 segundos em `runtime.spec.ts` e `visual-editor-expanded-wave08.spec.ts`. O retry de `security.spec.ts` também recebeu `200` onde o contrato esperava `403`.
+- O worker Playwright foi reiniciado durante a execução e a saída original ficou desacoplada do terminal; o processo foi encerrado por PID exato e o container `elitescada-auth03-db` foi parado. Não restaram processos Playwright nem container ativo.
+
+Nenhum código, teste ou workflow foi alterado nesta ordem e nenhuma GitHub Action foi disparada. Os artefatos parciais permanecem apenas em `web/scada-web/test-results/` para diagnóstico posterior.

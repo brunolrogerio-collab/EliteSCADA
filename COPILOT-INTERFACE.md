@@ -232,3 +232,29 @@ Nenhuma GitHub Action foi disparada. Este resultado é publicado em commit separ
 - O worker Playwright foi reiniciado durante a execução e a saída original ficou desacoplada do terminal; o processo foi encerrado por PID exato e o container `elitescada-auth03-db` foi parado. Não restaram processos Playwright nem container ativo.
 
 Nenhum código, teste ou workflow foi alterado nesta ordem e nenhuma GitHub Action foi disparada. Os artefatos parciais permanecem apenas em `web/scada-web/test-results/` para diagnóstico posterior.
+
+## Próxima ordem
+
+### Ordem 007 — Diagnosticar timeouts E2E e autorização divergente
+
+**Estado:** `CONCLUÍDA`
+
+**Objetivo:** comparar os artefatos parciais de `runtime.spec.ts`, `visual-editor-expanded-wave08.spec.ts` e `security.spec.ts` com os contratos e endpoints atuais. Identificar uma causa concreta para os timeouts e para o `200` recebido onde era esperado `403`, propondo a menor correção separada por área.
+
+**Limites:** análise estática e de artefatos somente; não reexecutar E2E, não alterar código/workflow, não disparar GitHub Actions. Publicar exclusivamente esta interface ao terminar.
+
+**Resultado:**
+
+**Timeouts:**
+
+- O limite global do Playwright é `30_000 ms`. `runtime.spec.ts` realiza navegação, escrita de TAG, waits de telemetria, export de cerca de 71 KB, vários CSV/preview/imports e nova mutação do workspace no mesmo teste. O artefato mostra que o export respondeu `200`; o `Request context disposed` é consequência do timeout global, não a causa inicial.
+- `visual-editor-expanded-wave08.spec.ts` também combina edição UI, preview, apply, polling de export e restore completo no mesmo orçamento de 30 s. O erro `Target page, context or browser has been closed` ocorreu depois do timeout e é igualmente consequência do cancelamento.
+- A correção mínima é dar timeout explícito e justificado a esses cenários de integração longa (ou dividi-los em testes menores com restore próprio); aumentar o timeout global esconderia falhas rápidas em toda a suíte.
+
+**Autorização `403` versus `200`:**
+
+- A falha acontece dentro do loop de `protectedEngineeringGetPaths` para o token `operator`; o artefato não registra qual rota foi a primeira a devolver `200`.
+- As rotas verificadas possuem filtros de Engineering (`RequireRuntimeEngineeringRead` ou `RequireWorkspaceEngineeringRead`). O operador de `SeedDemo` contém `View`, `TagRead`, `CommandExecute`, `AlarmAcknowledge` e `TrendUse`, mas não `EngineeringView`.
+- Há uma migração de compatibilidade (`AuthorityPolicyEngineeringMigration`) que acrescenta `EngineeringView` a grants legados. A hipótese concreta é que esse caminho esteja tratando a policy da Authority como legada e, portanto, ampliando indevidamente o operador. Antes de corrigir autorização, a spec deve registrar a rota no `expect`, permitindo confirmar o endpoint sem ambiguidade.
+
+**Próxima correção indicada:** criar uma ordem separada para tornar a asserção de rota diagnóstica e validar individualmente os três cenários com timeout limitado por teste. Nenhum código, workflow ou GitHub Action foi alterado nesta ordem.

@@ -54,7 +54,7 @@ builder.Services.AddSingleton<IAuthorityPolicyStore>(_ =>
     string.IsNullOrWhiteSpace(authorityConnectionString)
         ? new InMemoryAuthorityPolicyStore([BuiltInSecurityRoleDefaults.CreateInitialDeveloperRole()])
         : new PostgreSqlAuthorityPolicyStore(authorityConnectionString));
-builder.Services.AddSingleton<ISecurityPolicyEngineeringRegistry, AuthorityPolicyRegistryView>(); builder.Services.AddSingleton(new AuthorityPolicyBootstrapOptions(builder.Configuration[AuthorityPolicyBootstrapOptions.ConfigurationPath])); builder.Services.AddSingleton<AuthorityPolicyBootstrapService>();
+builder.Services.AddSingleton<ISecurityPolicyEngineeringRegistry, AuthorityPolicyRegistryView>(); builder.Services.AddSingleton(new AuthorityPolicyBootstrapOptions(builder.Configuration[AuthorityPolicyBootstrapOptions.ConfigurationPath])); builder.Services.AddSingleton(sp => new AuthorityPolicyBootstrapService(sp.GetRequiredService<IAuthorityPolicyStore>(), sp.GetService<ILocalIdentityStore>(), sp.GetService<IEngineeringProjectCatalog>(), sp.GetService<IEngineeringProjectStore>(), sp.GetRequiredService<AuthorityPolicyBootstrapOptions>()));
 builder.Services.AddSingleton<ICommandEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Commands);
 builder.Services.AddSingleton<IScriptEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Scripts);
 builder.Services.AddSingleton<IGatewayEngineeringRegistry>(sp =>

@@ -184,7 +184,7 @@ Nenhum GitHub Actions foi disparado e nenhum commit de código ou workflow foi c
 
 ### Ordem 005 — Corrigir restore de Authority e pacotes de script
 
-**Estado:** `PENDENTE`
+**Estado:** `CONCLUÍDA`
 
 **Objetivo:** implementar a menor correção para que o restore após `SaveFirstProjectAsync` reconcilie a Authority canônica do `SeedDemo`, incluindo `operator`, sem reintroduzir roles Authority-owned no export Engineering. Corrigir também o construtor de pacotes de script para anexar a `AuthorityPolicyReference` atual.
 
@@ -194,4 +194,22 @@ Nenhum GitHub Actions foi disparado e nenhum commit de código ou workflow foi c
 
 **Resultado:**
 
-_Aguardando execução._
+**Correção aplicada:**
+
+- A inicialização da Authority agora adota os roles canônicos do `SeedDemo` quando a Authority ainda está vazia. Assim, `developer` e `operator` passam a pertencer à Authority sem reintroduzir roles/scopes mutáveis no export Engineering.
+- O endpoint do workspace expõe a `AuthorityPolicyReference` exportada e os construtores de pacote de script a propagam para preview/import.
+- Os E2E de `local-auth` e de script foram alinhados ao contrato Authority-owned; a configuração Playwright mantém `workers: 1` para o workspace mutável.
+
+**Validação local:**
+
+- `dotnet build ScadaPlatform.sln --configuration Release --no-restore`: sucesso, 0 erros e 0 avisos.
+- `dotnet test ScadaPlatform.sln --configuration Release --no-build`: 1.152 aprovados e 1 falha transitória não relacionada em `Iec104TcpFaultInjectionTests.Adapter_T2FlushesPendingReceiveAcknowledgementWithoutFaultingSession`; a repetição isolada passou (1/1).
+- E2E com TimescaleDB descartável: a seleção `local-auth`, `administration-workspace`, `user-administration`, `script-engineering-workspace-contract` e `script-engineering-workspace-roundtrip` terminou com `status: passed` e sem testes falhos. O container foi removido e a porta `5432` ficou livre.
+
+**Arquivos publicados no commit de código `4cb74024`:**
+
+- `src/Scada.Api/Program.cs`, `src/Scada.Api/Runtime/EngineeringWorkspace.cs`, `src/Scada.Api/Security/AuthorityPolicyBootstrapService.cs` e `src/Scada.Api/Security/LocalIdentityConfiguration.cs`.
+- Contratos, UI e API de script em `web/scada-web/src/engineering/scripts/`.
+- Configuração Playwright e E2E de autenticação, scripts e visual events.
+
+Nenhuma GitHub Action foi disparada. Este resultado é publicado em commit separado, exclusivamente desta interface, conforme o protocolo.

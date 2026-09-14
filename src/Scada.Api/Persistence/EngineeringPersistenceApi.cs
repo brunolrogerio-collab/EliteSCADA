@@ -78,7 +78,7 @@ public static class EngineeringPersistenceApi
             configuredWorkingRevision,
             configuredRuntimeProjectKey,
             cancellationToken);
-        if (bootstrapResult.Source == EngineeringWorkingBootstrapSource.EmptyCatalog) app.Services.GetRequiredService<EngineeringWorkspace>().InitializeDemo(); await app.RecoverConfiguredEngineeringRuntimeAsync(cancellationToken);
+        if (bootstrapResult.Source == EngineeringWorkingBootstrapSource.EmptyCatalog && app.Configuration.GetValue<bool>("Engineering:InitializeDemoWhenEmpty")) app.Services.GetRequiredService<EngineeringWorkspace>().InitializeDemo(); await app.RecoverConfiguredEngineeringRuntimeAsync(cancellationToken);
     }
 
     public static async Task<PersistedRuntimeRecoveryResult?> RecoverConfiguredEngineeringRuntimeAsync(

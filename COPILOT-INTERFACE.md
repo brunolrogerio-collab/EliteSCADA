@@ -297,3 +297,27 @@ Nenhum código de produto, teste ou workflow foi publicado nesta ordem; nenhuma 
 - Container removido ao final; não há processo Playwright ativo.
 
 **Commit de código:** `69e76a8e` — `fix: require engineering view for screens endpoint` (somente `src/Scada.Api/Program.cs`). Nenhuma GitHub Action foi disparada. Este resultado é publicado em commit separado, exclusivamente desta interface.
+
+## Próxima ordem
+
+### Ordem 010 — Estabilizar E2E longos de runtime e editor visual
+
+**Estado:** `CONCLUÍDA`
+
+**Objetivo:** alinhar `runtime.spec.ts` ao export Authority-owned (roles vazios mais `AuthorityPolicyReference`) e dar timeout explícito somente aos cenários de runtime e editor visual que realizam múltiplos exports/imports e restores.
+
+**Validação:** build web e execução local direcionada de `runtime.spec.ts` e `visual-editor-expanded-wave08.spec.ts`, cada um em banco descartável e sem dependências desnecessárias.
+
+**Limites:** não aumentar o timeout global do Playwright, não disparar GitHub Actions. Se passar, criar commit de código/teste com `--only`, depois commit separado exclusivamente desta interface, publicar ambos e parar.
+
+**Resultado:**
+
+- Os imports CSV parciais de TAGs, Alarmes e Data Sources agora preservam a `AuthorityPolicyReference` atual. Isso mantém o contrato Authority-owned durante Preview/Apply, sem reintroduzir roles mutáveis no pacote.
+- `runtime.spec.ts` agora valida esse contrato: `securityRoles` vazio, referência de Authority com duas roles e pacote de projeto no formato 3. O cenário recebe timeout explícito de 90 s, sem alterar o timeout global.
+- O E2E do editor visual recebeu teto de 90 s e waits de 30 s apenas para persistência e recarga pós-Apply. As verificações API desse cenário usam diretamente o backend autenticado em `5080`; a UI E2E também aponta para essa API, eliminando os `ECONNRESET` intermitentes do proxy Vite local.
+- `dotnet build ScadaPlatform.sln --configuration Release --no-restore`: sucesso, 0 avisos e 0 erros.
+- `npm.cmd run build`: sucesso. Permanece somente o aviso informativo de chunks grandes do Vite.
+- Validação E2E local em TimescaleDB descartável, sem dependências nem retries: `runtime.spec.ts` (**2 aprovados em 1,4 min**) e `visual-editor-expanded-wave08.spec.ts` (**1 aprovado em 1,4 min**).
+- Cada container temporário foi removido ao término; não há processo Playwright ou banco de teste ativo. Nenhuma GitHub Action foi disparada.
+
+**Commit de código/testes:** `c2754e73` — `fix: stabilize authority-owned engineering e2e` (somente os quatro arquivos da ordem). Este resultado é publicado em commit separado, exclusivamente desta interface.

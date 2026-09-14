@@ -258,3 +258,37 @@ Nenhum código, teste ou workflow foi alterado nesta ordem e nenhuma GitHub Acti
 - Há uma migração de compatibilidade (`AuthorityPolicyEngineeringMigration`) que acrescenta `EngineeringView` a grants legados. A hipótese concreta é que esse caminho esteja tratando a policy da Authority como legada e, portanto, ampliando indevidamente o operador. Antes de corrigir autorização, a spec deve registrar a rota no `expect`, permitindo confirmar o endpoint sem ambiguidade.
 
 **Próxima correção indicada:** criar uma ordem separada para tornar a asserção de rota diagnóstica e validar individualmente os três cenários com timeout limitado por teste. Nenhum código, workflow ou GitHub Action foi alterado nesta ordem.
+
+## Próxima ordem
+
+### Ordem 008 — Isolar a rota com autorização indevida do operador
+
+**Estado:** `CONCLUÍDA`
+
+**Objetivo:** executar somente o E2E de segurança em banco local descartável, com mensagem diagnóstica por rota, para identificar qual endpoint de Engineering aceita indevidamente o token `operator`.
+
+**Limites:** não disparar GitHub Actions nem publicar mudança de código/teste. A instrumentação de teste será revertida após a execução; publicar exclusivamente esta interface com o resultado.
+
+**Resultado:**
+
+- A execução direcionada com banco descartável confirmou a primeira rota indevidamente acessível: `GET /api/engineering/screens` respondeu `200` ao token `operator`; as rotas anteriores no mesmo loop responderam `403`.
+- A causa está no handler especial de `Program.cs`: ele exige somente uma identidade autenticada e respeita o lock, então delega a `EngineeringScreenAuthorization.FilterReadable`, que aceita a capability operacional `View` do operador. Diferentemente dos demais endpoints da lista, ele não aplica `RequireWorkspaceEngineeringRead`, que exige `EngineeringView`.
+- A instrumentação temporária em `security.spec.ts` foi restaurada integralmente. O container foi removido; não ficaram processos Playwright ativos.
+
+**Correção mínima indicada:** encadear `RequireWorkspaceEngineeringRead()` ao endpoint de telas, preservando o filtro de screens como filtragem adicional. Validar com a spec de segurança sem dependências e timeout limitado.
+
+Nenhum código de produto, teste ou workflow foi publicado nesta ordem; nenhuma GitHub Action foi disparada.
+
+## Próxima ordem
+
+### Ordem 009 — Proteger o endpoint de telas de Engineering
+
+**Estado:** `PENDENTE`
+
+**Objetivo:** exigir `EngineeringView` em `GET /api/engineering/screens`, preservar a filtragem atual de screens e validar o acesso do operador com o E2E de segurança direcionado.
+
+**Limites:** não disparar GitHub Actions. Se a validação passar, criar commit de código/teste com `--only`, depois commit separado exclusivamente desta interface, publicar ambos e parar.
+
+**Resultado:**
+
+_Aguardando correção._

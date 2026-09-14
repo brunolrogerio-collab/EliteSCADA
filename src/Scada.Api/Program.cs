@@ -54,7 +54,7 @@ builder.Services.AddSingleton<IAuthorityPolicyStore>(_ =>
     string.IsNullOrWhiteSpace(authorityConnectionString)
         ? new InMemoryAuthorityPolicyStore([BuiltInSecurityRoleDefaults.CreateInitialDeveloperRole()])
         : new PostgreSqlAuthorityPolicyStore(authorityConnectionString));
-builder.Services.AddSingleton<ISecurityPolicyEngineeringRegistry, AuthorityPolicyRegistryView>();
+builder.Services.AddSingleton<ISecurityPolicyEngineeringRegistry, AuthorityPolicyRegistryView>(); builder.Services.AddSingleton(new AuthorityPolicyBootstrapOptions(builder.Configuration[AuthorityPolicyBootstrapOptions.ConfigurationPath])); builder.Services.AddSingleton<AuthorityPolicyBootstrapService>();
 builder.Services.AddSingleton<ICommandEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Commands);
 builder.Services.AddSingleton<IScriptEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Scripts);
 builder.Services.AddSingleton<IGatewayEngineeringRegistry>(sp =>
@@ -115,7 +115,7 @@ var app = builder.Build();
 // Resolve the historian before the hosted driver starts so it subscribes to the event bus.
 _ = app.Services.GetRequiredService<IHistorian>();
 await app.InitializeServerMemoryRetentionAsync();
-await app.InitializeEngineeringPersistenceAsync();
+await app.InitializeEngineeringPersistenceAsync(); await app.Services.GetRequiredService<AuthorityPolicyBootstrapService>().EnsureInitializedAsync();
 await app.InitializeAuditAsync();
 
 app.UseMiddleware<TimingCorrelationMiddleware>();

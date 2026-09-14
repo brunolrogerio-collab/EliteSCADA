@@ -115,7 +115,7 @@ Baseline canônico já existe em `SeedDemo`. A divergência vem do primeiro proj
 
 ### Ordem 003 — Executar validação E2E serializada
 
-**Estado:** `PENDENTE`
+**Estado:** `CONCLUÍDA`
 
 **Objetivo:** alterar `web/scada-web/playwright.config.ts` com a menor configuração válida para executar os E2E Chromium em um único worker; depois executar `npm.cmd run test:e2e` localmente com Docker/TimescaleDB, registrar a contagem final e parar.
 
@@ -123,4 +123,15 @@ Baseline canônico já existe em `SeedDemo`. A divergência vem do primeiro proj
 
 **Resultado:**
 
-_Aguardando execução._
+**Alteração aplicada:** `web/scada-web/playwright.config.ts` recebeu somente `workers: 1` no nível superior da configuração Playwright.
+
+**Execução:**
+
+- Container descartável `elitescada-auth03-db` iniciado com `timescale/timescaledb:2.29.2-pg18`, banco `elitescada_e2e` e `pg_isready` saudável.
+- `npm.cmd run test:e2e` executado em `web/scada-web` com `ConnectionStrings__EliteScada` apontando para `127.0.0.1:5432`.
+- Playwright confirmou `Running 624 tests using 1 worker`.
+- Resultado final: **608 passaram; 16 falharam; 0 não executados**. O arquivo `test-results/.last-run.json` confirmou os 16 testes finais com falha.
+- Falhas finais concentradas nos mesmos contratos/seed já classificados; a serialização eliminou a execução concorrente, mas não corrigiu as falhas funcionais.
+- Container parado pelo bloco de limpeza e porta `5432` confirmada livre.
+
+Nenhum GitHub Actions foi disparado e nenhum commit de código ou workflow foi criado. A publicação final deve conter somente a atualização deste arquivo de interface.

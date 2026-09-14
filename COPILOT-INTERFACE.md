@@ -68,4 +68,14 @@ Ao receber `SIGA`:
 
 ## Próxima ordem
 
-`AGUARDANDO DEFINIÇÃO APÓS A ORDEM 001`
+### Ordem 002 — Diagnosticar o baseline de seed Engineering
+
+**Estado:** `PENDENTE`
+
+**Objetivo:** compare o baseline esperado pelos 8 E2E de seed/modelo com os fluxos de inicialização do Engineering. Identifique diferenças concretas de TAGs, roles, Screens e IDs, e proponha a correção mínima.
+
+**Limites:** não reexecute testes; não altere código ou workflow; não crie GitHub Actions.
+
+**Resultado:**
+
+_Aguardando execução._

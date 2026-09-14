@@ -6,9 +6,7 @@ import {
   E2E_AUTH_SIGNING_KEY
 } from './tests-e2e/jwt';
 
-
 const developerToken = createE2eJwt('e2e-developer', ['developer'], 'E2E Developer');
-
 
 export default defineConfig({
   testDir: './tests-e2e',

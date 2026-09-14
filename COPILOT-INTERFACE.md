@@ -70,11 +70,56 @@ Ao receber `SIGA`:
 
 ### Ordem 002 — Diagnosticar o baseline de seed Engineering
 
-**Estado:** `PENDENTE`
+**Estado:** `CONCLUÍDA`
 
 **Objetivo:** compare o baseline esperado pelos 8 E2E de seed/modelo com os fluxos de inicialização do Engineering. Identifique diferenças concretas de TAGs, roles, Screens e IDs, e proponha a correção mínima.
 
 **Limites:** não reexecute testes; não altere código ou workflow; não crie GitHub Actions.
+
+**Resultado:**
+
+Baseline canônico já existe em `SeedDemo`. A divergência vem do primeiro projeto limpar o workspace e os 12 workers compartilharem estado mutável; isso contamina TAGs, roles, Screens, IDs e `changeVersion`. A correção mínima proposta é serializar o projeto `chromium`, mantendo o restore canônico como baseline. Nenhum teste foi reexecutado e nenhum código/workflow foi alterado nesta ordem.
+
+**Comandos/análise (somente leitura):**
+
+- Leitura das 8 specs de seed/modelo: `administration-workspace.spec.ts`, `user-administration.spec.ts`, `engineering.spec.ts`, `engineering-mutation-security.spec.ts`, `interface-wave-03-readiness.spec.ts`, `runtime.spec.ts`, `security.spec.ts` e `wave-10-visual-events-editor.spec.ts`.
+- Leitura de `EngineeringWorkspace`, `DemoProcessModel`, `EngineeringPersistenceApi`, `EngineeringWorkingBootstrapService`, `EngineeringWorkspaceCheckoutService`, `LocalIdentityConfiguration` e `playwright.config.ts`.
+- Busca textual por `InitializeDemo`, `BootstrapAsync`, `Demo.P01`, `securityRoles`, `Operator`, `Screen` e IDs canônicos.
+- Nenhum teste foi reexecutado e nenhum arquivo de código/workflow foi alterado.
+
+**Baseline esperado pelos 8 E2E:**
+
+- 7 TAGs `Demo.Tank01.Level`, `Demo.P01.Running`, `Demo.P01.Fault`, `Demo.P01.Current`, `Demo.P01.Frequency`, `Demo.Discharge.Pressure` e `Demo.Discharge.Flow`, todos com `builtin.simulation`; `Demo.P01.Frequency` deve ser gravável e `Demo.P01.Current` somente leitura.
+- IDs de TAGs `10000000-0000-0000-0000-000000000001` a `...000000000007`, com Frequency no ID `...000000000005`.
+- 2 roles: `operator` (ID `46000000-0000-0000-0000-000000000001`) e `developer`; o primeiro precisa de `commandExecute`, sem `processValueWrite`, e o segundo de `systemAdmin`.
+- 1 Screen `demo.overview` (ID `44000000-0000-0000-0000-000000000001`), rota `/demo`, com elementos `tank01`, `pump01`, `pressure` e `flow`; 1 popup `popup.pump.standard`.
+- Assets/IDs complementares: datasource `builtin.simulation` (`40000000-0000-0000-0000-000000000001`), template `pump.standard` (`41000000-0000-0000-0000-000000000001`), equipamento `Demo.P01` (`42000000-0000-0000-0000-000000000001`), alarms `20000000-...0001/0002` e commands `30000000-...0001/0002`.
+
+**Fluxo de inicialização observado:**
+
+1. `EngineeringWorkspace` começa com `SeedDemo()`, que cria o baseline completo acima.
+2. Com PostgreSQL vazio, `InitializeEngineeringPersistenceAsync` executa `BootstrapAsync`; com `Engineering:InitializeDemoWhenEmpty=true`, chama `InitializeDemo()`, portanto o baseline inicial existe.
+3. O endpoint de primeiro projeto (`SaveFirstProjectAsync`) limpa o workspace e salva deliberadamente um projeto vazio, repovoando apenas dynamos e o role `developer`.
+4. `local-auth.spec.ts` captura o estado inicial, cria o primeiro projeto e depois restaura o pacote pelo endpoint canônico antes de salvá-lo. Esse é o único reset do baseline para os testes dependentes.
+5. `playwright.config.ts` mantém um único `webServer`/workspace para o projeto `chromium`; a execução observada usou 12 workers e os testes mutáveis não têm isolamento por teste. Assim, imports, clears, saves e mudanças de `changeVersion` de specs paralelas contaminam as demais.
+
+**Diferenças concretas observadas:**
+
+- Os TAGs/roles/Screens/IDs esperados existem no `SeedDemo`, mas deixam de existir quando uma spec observa o workspace após o clear do primeiro projeto ou após um import concorrente.
+- O role `operator` e os IDs de TAG/alarm desaparecem quando o estado vazio ou um pacote parcial vence a corrida; isso explica os timeouts de role, IDs ausentes e export sem Screen/TAG.
+- O `changeVersion` observado como `44` versus `45` confirma mutação concorrente, não divergência dos IDs definidos no baseline.
+
+**Correção mínima proposta:** serializar o projeto E2E mutável (`workers: 1` para `chromium`, mantendo o `local-auth` como pré-requisito) e usar o restore canônico do `local-auth` como baseline único antes dos dependentes. A correção não deve alterar `DemoProcessModel` nem duplicar seed em outro fluxo; se a suíte precisar de paralelismo, o passo seguinte é um fixture de reset/import por teste.
+
+## Próxima ordem
+
+### Ordem 003 — Executar validação E2E serializada
+
+**Estado:** `PENDENTE`
+
+**Objetivo:** alterar `web/scada-web/playwright.config.ts` com a menor configuração válida para executar os E2E Chromium em um único worker; depois executar `npm.cmd run test:e2e` localmente com Docker/TimescaleDB, registrar a contagem final e parar.
+
+**Limites:** não disparar GitHub Actions; não criar commit de código ou workflow. Ao terminar, publique somente a atualização do `COPILOT-INTERFACE.md`.
 
 **Resultado:**
 

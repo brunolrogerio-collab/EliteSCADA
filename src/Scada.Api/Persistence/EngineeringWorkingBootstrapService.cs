@@ -53,6 +53,8 @@ public sealed class EngineeringWorkingBootstrapService(
         {
             if (workingProjectKey is not null || runtimeProjectKey is not null)
                 throw new InvalidOperationException("A configured Engineering Working/Runtime project was not found because the persisted project catalog is empty.");
+
+            workspace.InitializeDemo();
             return new EngineeringWorkingBootstrapResult(
                 EngineeringWorkingBootstrapSource.EmptyCatalog,
                 false,

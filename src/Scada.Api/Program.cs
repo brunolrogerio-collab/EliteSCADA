@@ -486,7 +486,7 @@ app.MapGet("/api/engineering/screens", (
         context,
         security,
         registry.SnapshotScreens()));
-});
+}).RequireWorkspaceEngineeringRead();
 app.MapGet("/api/engineering/popups", (IEngineeringViewRegistry registry) => Results.Ok(registry.SnapshotPopups()))
     .RequireWorkspaceEngineeringRead();
 app.MapGet("/api/engineering/security-roles", (ISecurityPolicyEngineeringRegistry registry) => Results.Ok(registry.SnapshotRoles()))

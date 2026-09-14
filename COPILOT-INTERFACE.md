@@ -179,3 +179,19 @@ Nenhum GitHub Actions foi disparado e nenhum commit de código ou workflow foi c
 **Classificação:** a causa principal é **seed aplicado parcialmente por integração incompleta entre Engineering export/restore e Authority**; há também **contratos de API defasados** nos pacotes de script e **testes defasados** de capabilities/worker. A hipótese de concorrência dos 12 workers foi falsificada pela execução serializada.
 
 **Menor correção de código indicada:** centralizar uma operação de restauração do baseline que, após `SaveFirstProjectAsync`/restore, reconcilie a Authority canônica com o seed demo (incluindo `operator`) sem tentar importar roles pelo pacote Engineering; em paralelo, fazer o construtor de pacotes de script carregar/anexar a `AuthorityPolicyReference` atual. Não se deve reintroduzir roles Authority-owned no export Engineering. Os testes de capabilities/worker devem ser alinhados ao contrato vigente separadamente.
+
+## Próxima ordem
+
+### Ordem 005 — Corrigir restore de Authority e pacotes de script
+
+**Estado:** `PENDENTE`
+
+**Objetivo:** implementar a menor correção para que o restore após `SaveFirstProjectAsync` reconcilie a Authority canônica do `SeedDemo`, incluindo `operator`, sem reintroduzir roles Authority-owned no export Engineering. Corrigir também o construtor de pacotes de script para anexar a `AuthorityPolicyReference` atual.
+
+**Validação:** executar testes .NET diretamente relacionados e os E2E `local-auth`, `administration-workspace`, `user-administration` e `script-engineering-workspace`.
+
+**Limites:** não disparar GitHub Actions. Se a validação passar, registrar os arquivos modificados e fazer commits separados com `--only`: um para código/testes e outro exclusivamente para `COPILOT-INTERFACE.md`. Publicar ambos e parar.
+
+**Resultado:**
+
+_Aguardando execução._

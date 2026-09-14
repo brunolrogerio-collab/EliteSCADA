@@ -283,7 +283,7 @@ Nenhum código de produto, teste ou workflow foi publicado nesta ordem; nenhuma 
 
 ### Ordem 009 — Proteger o endpoint de telas de Engineering
 
-**Estado:** `PENDENTE`
+**Estado:** `CONCLUÍDA`
 
 **Objetivo:** exigir `EngineeringView` em `GET /api/engineering/screens`, preservar a filtragem atual de screens e validar o acesso do operador com o E2E de segurança direcionado.
 
@@ -291,4 +291,9 @@ Nenhum código de produto, teste ou workflow foi publicado nesta ordem; nenhuma 
 
 **Resultado:**
 
-_Aguardando correção._
+- `GET /api/engineering/screens` agora encadeia `RequireWorkspaceEngineeringRead()`, preservando a filtragem de screens já existente como uma segunda camada. O operador sem `EngineeringView` recebe `403` antes de alcançar o handler.
+- `dotnet build ScadaPlatform.sln --configuration Release --no-restore`: sucesso, 0 avisos e 0 erros.
+- Validação E2E direcionada em TimescaleDB descartável: `security.spec.ts`, somente o caso `API distinguishes access levels and records protected-operation audit events`, executado sem dependências/retry: **1 aprovado em 16,8 s**.
+- Container removido ao final; não há processo Playwright ativo.
+
+**Commit de código:** `69e76a8e` — `fix: require engineering view for screens endpoint` (somente `src/Scada.Api/Program.cs`). Nenhuma GitHub Action foi disparada. Este resultado é publicado em commit separado, exclusivamente desta interface.

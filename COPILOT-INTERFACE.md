@@ -7,8 +7,20 @@ Ao receber `SIGA`:
 2. Execute somente a ordem marcada como `PENDENTE`.
 3. Registre comandos, resultado, falhas e artefatos no bloco da ordem.
 4. Marque a ordem como `CONCLUÍDA`, `FALHOU` ou `BLOQUEADA`.
-5. Pare. Não prossiga para outra ordem automaticamente.
-6. Não altere código, crie commit, push ou GitHub Actions, exceto se uma ordem disser isso explicitamente.
+5. Antes de parar, publique obrigatoriamente somente `COPILOT-INTERFACE.md`:
+	- execute `git status --short` e registre o estado;
+	- `git add -- COPILOT-INTERFACE.md`;
+	- `git commit --only -m "chore: update Copilot execution interface" -- COPILOT-INTERFACE.md`;
+	- `git push origin work/w15-auth-03-security-authority-persistence`;
+	- execute `git status --short` novamente e registre o hash do commit e o resultado do push.
+6. Pare. Não execute outra ordem automaticamente.
+
+### Regras permanentes
+
+- Nunca use `git add .`, `git commit` sem `--only`, nem inclua arquivos já staged.
+- Nunca publique código, testes ou workflows junto com a interface.
+- Se commit ou push falhar, marque a ordem como `BLOQUEADA`, registre o erro e pare.
+- A ordem só é considerada `CONCLUÍDA` após o push da interface ter confirmado sucesso.
 
 ## Contexto
 
@@ -140,7 +152,7 @@ Nenhum GitHub Actions foi disparado e nenhum commit de código ou workflow foi c
 
 ### Ordem 004 — Diagnosticar a causa raiz dos E2E funcionais
 
-**Estado:** `PENDENTE`
+**Estado:** `CONCLUÍDA`
 
 **Objetivo:** diagnosticar, sem reexecutar testes, por que os 16 E2E funcionais persistem mesmo com 1 worker. Compare o estado canônico de `SeedDemo`, o export/import e restore de `local-auth`, e os relatórios da execução serializada. Determine se a causa é teste defasado, contrato de API/persistência ou seed aplicado parcialmente. Registre evidências e indique a menor correção de código necessária.
 
@@ -148,4 +160,22 @@ Nenhum GitHub Actions foi disparado e nenhum commit de código ou workflow foi c
 
 **Resultado:**
 
-_Aguardando execução._
+**Análise somente leitura:**
+
+- Enumerados os `error-context.md` da execução serializada e lido `test-results/.last-run.json`: 16 contextos originais, 16 IDs finais com falha e `status: failed`; a execução confirmou `624` testes em `1 worker`.
+- Comparados `EngineeringWorkspace`/`SeedDemo`, `DemoProcessModel`, `EngineeringExchangeService`, `SecurityPolicyEngineeringHandler`, `EngineeringPersistenceApi`, `local-auth.spec.ts`, `playwright.config.ts` e os contextos das 16 falhas.
+- Nenhum teste foi reexecutado e nenhum arquivo de código/workflow foi alterado.
+
+**Evidências:**
+
+1. `SeedDemo` contém o baseline canônico completo: 7 TAGs e IDs fixos, 2 roles (`operator` e `developer`), Screen `demo.overview`, popup, comandos, alarmes e assets.
+2. `EngineeringExchangeService.ExportPackage()` retorna `SecurityRoles`/`SecurityScopes` vazios quando a política é Authority-owned e exporta apenas `AuthorityPolicyReference`. Isso explica o `local-auth.spec.ts` exigir `seededEngineering.body.securityRoles` vazio.
+3. `SaveFirstProjectAsync` limpa o workspace e repõe somente dynamos e o role `developer`. O restore posterior do `local-auth` reutiliza o pacote sem roles; o preview/import de Engineering também bloqueia mutação de roles/scopes quando a Authority é dona da política. Portanto, o restore não reconstitui `operator`.
+4. Os timeouts do checkbox `Operator`, a ausência do role na tela e as asserções de dois roles são consequência direta desse baseline parcialmente restaurado. Isso é uma divergência de seed/Authority, não uma corrida de workers.
+5. Os testes de script chamam `buildCanonicalScriptPackage(...)` sem `AuthorityPolicyReference`, enquanto o preview da API valida essa referência em modo Authority-owned; os `canApply: false` são um contrato API/teste incompatível.
+6. `effective-capabilities-contract.spec.ts` falha em expectativas puramente de capabilities e `visual-python-worker-clear-contract.spec.ts` falha por procurar uma implementação textual específica; são contratos/testes defasados independentes do seed.
+7. As falhas de TAGs/IDs, runtime e lifecycle aparecem depois de operações de import/apply e de testes que assumem o baseline restaurado; a serialização removeu a concorrência, mas não criou isolamento/reset por teste. Os relatórios não sustentam atribuir todas essas falhas a uma única causa.
+
+**Classificação:** a causa principal é **seed aplicado parcialmente por integração incompleta entre Engineering export/restore e Authority**; há também **contratos de API defasados** nos pacotes de script e **testes defasados** de capabilities/worker. A hipótese de concorrência dos 12 workers foi falsificada pela execução serializada.
+
+**Menor correção de código indicada:** centralizar uma operação de restauração do baseline que, após `SaveFirstProjectAsync`/restore, reconcilie a Authority canônica com o seed demo (incluindo `operator`) sem tentar importar roles pelo pacote Engineering; em paralelo, fazer o construtor de pacotes de script carregar/anexar a `AuthorityPolicyReference` atual. Não se deve reintroduzir roles Authority-owned no export Engineering. Os testes de capabilities/worker devem ser alinhados ao contrato vigente separadamente.

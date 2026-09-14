@@ -119,6 +119,7 @@ _ = app.Services.GetRequiredService<IHistorian>();
 await app.InitializeServerMemoryRetentionAsync();
 await app.InitializeEngineeringPersistenceAsync();
 await app.InitializeAuditAsync();
+await app.Services.GetRequiredService<AuthorityPolicyBootstrapService>().EnsureInitializedAsync();
 
 app.UseMiddleware<TimingCorrelationMiddleware>();
 app.UseCors();

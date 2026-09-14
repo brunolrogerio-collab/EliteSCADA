@@ -5,6 +5,7 @@ import {
   normalizeVisualEventReference
 } from '../src/engineering/scripts/ScriptEngineeringWorkspace.logic';
 import type {
+  AuthorityPolicyReferenceEngineering,
   CanonicalScriptPackage,
   ScriptEngineeringDefinition,
   ScriptImportPreview,
@@ -83,7 +84,7 @@ test('mounted Events editor persists click and canonical timer/TAG-bit associati
     });
 
     const before = await workspace(request);
-    const createPackage = buildCanonicalScriptPackage(script, []);
+    const createPackage = buildCanonicalScriptPackage(script, [], undefined, before.authorityPolicyReference);
     const createPreview = await preview(request, createPackage, 'CreateOnly');
     expect(createPreview.canApply).toBeTruthy();
     expect((await apply(request, createPackage, 'CreateOnly', before.changeVersion)).ok()).toBeTruthy();
@@ -148,7 +149,11 @@ test('mounted Events editor persists click and canonical timer/TAG-bit associati
     };
 
     const updateVersion = await workspace(request);
-    const updatePackage = buildCanonicalScriptPackage(updatedScript, [clickReference!, timerReference, tagReference]);
+    const updatePackage = buildCanonicalScriptPackage(
+      updatedScript,
+      [clickReference!, timerReference, tagReference],
+      undefined,
+      updateVersion.authorityPolicyReference);
     const updatePreview = await preview(request, updatePackage, 'UpdateExisting');
     expect(updatePreview.canApply).toBeTruthy();
     expect((await apply(request, updatePackage, 'UpdateExisting', updateVersion.changeVersion)).ok()).toBeTruthy();
@@ -240,10 +245,16 @@ function flatten(elements: readonly VisualElement[]): VisualElement[] {
   return elements.flatMap(element => [element, ...flatten(element.children ?? [])]);
 }
 
-async function workspace(request: APIRequestContext): Promise<{ changeVersion: number }> {
+async function workspace(request: APIRequestContext): Promise<{
+  changeVersion: number;
+  authorityPolicyReference: AuthorityPolicyReferenceEngineering;
+}> {
   const response = await request.get('/api/engineering/workspace');
   expect(response.ok()).toBeTruthy();
-  return await response.json() as { changeVersion: number };
+  return await response.json() as {
+    changeVersion: number;
+    authorityPolicyReference: AuthorityPolicyReferenceEngineering;
+  };
 }
 
 async function loadScript(request: APIRequestContext, scriptId: string): Promise<ScriptEngineeringDefinition> {
@@ -290,7 +301,7 @@ async function removeScriptAndOwnedReferences(request: APIRequestContext, script
   const current = await loadScript(request, script.id).catch(() => null);
   if (!current) return;
   const version = await workspace(request);
-  const clearPackage = buildCanonicalScriptPackage(current, []);
+  const clearPackage = buildCanonicalScriptPackage(current, [], undefined, version.authorityPolicyReference);
   const clearPreview = await preview(request, clearPackage, 'UpdateExisting');
   if (clearPreview.canApply) await apply(request, clearPackage, 'UpdateExisting', version.changeVersion);
   const afterClear = await workspace(request);

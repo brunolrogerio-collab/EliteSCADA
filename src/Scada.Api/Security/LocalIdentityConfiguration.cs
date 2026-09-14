@@ -1,5 +1,6 @@
 using Scada.Engineering.Persistence;
 using Scada.Engineering.Security;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Scada.Persistence.PostgreSql;
 using Scada.Security.Authentication;
 
@@ -146,7 +147,7 @@ public static class LocalIdentityConfiguration
         builder.Services.AddSingleton<LocalIdentityBootstrapService>();
         builder.Services.AddSingleton(new AuthorityPolicyBootstrapOptions(
             builder.Configuration[AuthorityPolicyBootstrapOptions.ConfigurationPath]));
-        builder.Services.AddSingleton<AuthorityPolicyBootstrapService>();
+        builder.Services.TryAddSingleton<AuthorityPolicyBootstrapService>();
 
         return true;
     }

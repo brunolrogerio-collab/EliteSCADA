@@ -11,6 +11,7 @@ import {
 } from '../src/engineering/scripts/ScriptEngineeringWorkspace.logic';
 import { packageContainsOnlyScriptMutation } from '../src/engineering/scripts/scriptEngineeringApi';
 import type {
+  AuthorityPolicyReferenceEngineering,
   CanonicalScriptPackage,
   ScriptEngineeringDefinition,
   ScriptImportPreview,
@@ -95,7 +96,7 @@ test('Script create/update uses Preview and rejects stale Workspace CAS without 
 
   try {
     const before = await workspace(request);
-    const createPackage = buildCanonicalScriptPackage(created, []);
+    const createPackage = buildCanonicalScriptPackage(created, [], undefined, before.authorityPolicyReference);
     const createPreview = await preview(request, createPackage, 'CreateOnly');
     expect(createPreview.canApply).toBeTruthy();
     expect(createPreview.createCount).toBe(1);
@@ -108,7 +109,7 @@ test('Script create/update uses Preview and rejects stale Workspace CAS without 
     expect(afterCreate.changeVersion).toBeGreaterThan(before.changeVersion);
 
     const updated = { ...created, description: 'updated through canonical Preview/Apply' };
-    const updatePackage = buildCanonicalScriptPackage(updated, []);
+    const updatePackage = buildCanonicalScriptPackage(updated, [], undefined, afterCreate.authorityPolicyReference);
     const updatePreview = await preview(request, updatePackage, 'UpdateExisting');
     expect(updatePreview.canApply).toBeTruthy();
     expect(updatePreview.updateCount).toBe(1);
@@ -131,8 +132,8 @@ test('Script create/update uses Preview and rejects stale Workspace CAS without 
 
 test('Script mutation preserves backend authorization boundary', async ({ request }) => {
   const script = makeScript(crypto.randomUUID(), `scripts/auth-${Date.now()}.py`);
-  const packageData = buildCanonicalScriptPackage(script, []);
   const current = await workspace(request);
+  const packageData = buildCanonicalScriptPackage(script, [], undefined, current.authorityPolicyReference);
 
   const anonymous = await playwrightRequest.newContext({ baseURL, extraHTTPHeaders: { Authorization: '' } });
   try {
@@ -170,7 +171,7 @@ test('Script delete reports dependent Script and leaves target intact', async ({
 
   try {
     const before = await workspace(request);
-    const packageData = multiScriptPackage([target, dependent]);
+    const packageData = multiScriptPackage([target, dependent], before.authorityPolicyReference);
     const previewResponse = await preview(request, packageData, 'CreateOnly');
     expect(previewResponse.canApply).toBeTruthy();
     expect(previewResponse.createCount).toBe(2);
@@ -218,11 +219,14 @@ function makeScript(id: string, path: string): ScriptEngineeringDefinition {
   };
 }
 
-function multiScriptPackage(scripts: ScriptEngineeringDefinition[]): CanonicalScriptPackage {
-  const first = buildCanonicalScriptPackage(scripts[0]!, []);
+function multiScriptPackage(
+  scripts: ScriptEngineeringDefinition[],
+  authorityPolicyReference: AuthorityPolicyReferenceEngineering
+): CanonicalScriptPackage {
+  const first = buildCanonicalScriptPackage(scripts[0]!, [], undefined, authorityPolicyReference);
   return {
     ...first,
-    scripts: scripts.map(script => buildCanonicalScriptPackage(script, [], first.exportedAt).scripts[0]!)
+    scripts: scripts.map(script => buildCanonicalScriptPackage(script, [], first.exportedAt, authorityPolicyReference).scripts[0]!)
   };
 }
 
@@ -230,10 +234,16 @@ function previewResult(canApply: boolean, createCount: number, updateCount: numb
   return { mode: 0, createCount, updateCount, skipCount: 0, errorCount: canApply ? 0 : 1, items: [], canApply };
 }
 
-async function workspace(request: APIRequestContext): Promise<{ changeVersion: number }> {
+async function workspace(request: APIRequestContext): Promise<{
+  changeVersion: number;
+  authorityPolicyReference: AuthorityPolicyReferenceEngineering;
+}> {
   const response = await request.get('/api/engineering/workspace');
   expect(response.ok()).toBeTruthy();
-  return await response.json() as { changeVersion: number };
+  return await response.json() as {
+    changeVersion: number;
+    authorityPolicyReference: AuthorityPolicyReferenceEngineering;
+  };
 }
 
 async function preview(

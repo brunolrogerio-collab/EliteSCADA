@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.Security;
+using Scada.Api.Runtime;
 using Scada.Security.Authentication;
 using Scada.Security.Authorization;
 
@@ -29,7 +30,8 @@ public sealed class AuthorityPolicyBootstrapService(
     ILocalIdentityStore? identities,
     IEngineeringProjectCatalog? catalog,
     IEngineeringProjectStore? projects,
-    AuthorityPolicyBootstrapOptions options)
+    AuthorityPolicyBootstrapOptions options,
+    EngineeringWorkspace? workspace = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -44,8 +46,13 @@ public sealed class AuthorityPolicyBootstrapService(
         var users = identities is null ? null : await identities.ListAsync(cancellationToken);
         if (users is null || users.Count == 0)
         {
-            var bootstrap = BuiltInSecurityRoleDefaults.CreateInitialDeveloperRole();
-            var seeded = await authority.TryReplaceAsync(0, [bootstrap], Array.Empty<SecurityScopeEngineeringDto>(), cancellationToken);
+            // Engineering's demo is created before the Authority bootstrap.  Its roles must
+            // move together into the Authority when no policy exists yet; Engineering exports
+            // deliberately carry only the immutable Authority reference afterwards.
+            var demoRoles = workspace?.Describe().ProjectKey == "demo"
+                ? workspace.SecurityPolicies.SnapshotRoles()
+                : [BuiltInSecurityRoleDefaults.CreateInitialDeveloperRole()];
+            var seeded = await authority.TryReplaceAsync(0, demoRoles, Array.Empty<SecurityScopeEngineeringDto>(), cancellationToken);
             if (!seeded.Applied && seeded.Snapshot.Roles.Count == 0)
                 throw new InvalidOperationException("Canonical Security Authority initialization conflicted without a policy state.");
             return;

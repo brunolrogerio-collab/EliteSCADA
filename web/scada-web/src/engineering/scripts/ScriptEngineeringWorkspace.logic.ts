@@ -1,4 +1,5 @@
 import type {
+  AuthorityPolicyReferenceEngineering,
   CanonicalScriptPackage,
   ScriptEngineeringDefinition,
   ScriptEngineeringDependency,
@@ -141,7 +142,8 @@ export function scriptMutationMode(
 export function buildCanonicalScriptPackage(
   script: ScriptEngineeringDefinition,
   allVisualReferences: readonly ScriptVisualEventReference[],
-  exportedAt = new Date().toISOString()
+  exportedAt = new Date().toISOString(),
+  authorityPolicyReference?: AuthorityPolicyReferenceEngineering | null
 ): CanonicalScriptPackage {
   const ownedReferences = allVisualReferences
     .filter(reference => reference.scriptId === script.id)
@@ -177,7 +179,8 @@ export function buildCanonicalScriptPackage(
       description: script.description?.trim() ? script.description : null,
       metadata: { ...script.metadata }
     }],
-    scriptVisualEventReferences: ownedReferences
+    scriptVisualEventReferences: ownedReferences,
+    authorityPolicyReference: authorityPolicyReference ?? null
   };
 }
 

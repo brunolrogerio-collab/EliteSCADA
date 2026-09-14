@@ -54,9 +54,17 @@ builder.Services.AddSingleton<IEngineeringViewRegistry>(sp => sp.GetRequiredServ
 var authorityConnectionString = builder.Configuration.GetConnectionString("EliteScada");
 builder.Services.AddSingleton<IAuthorityPolicyStore>(_ =>
     string.IsNullOrWhiteSpace(authorityConnectionString)
-        ? new InMemoryAuthorityPolicyStore([BuiltInSecurityRoleDefaults.CreateInitialDeveloperRole()])
+        ? new InMemoryAuthorityPolicyStore()
         : new PostgreSqlAuthorityPolicyStore(authorityConnectionString));
-builder.Services.AddSingleton<ISecurityPolicyEngineeringRegistry, AuthorityPolicyRegistryView>(); builder.Services.AddSingleton(new AuthorityPolicyBootstrapOptions(builder.Configuration[AuthorityPolicyBootstrapOptions.ConfigurationPath])); builder.Services.AddSingleton(sp => new AuthorityPolicyBootstrapService(sp.GetRequiredService<IAuthorityPolicyStore>(), sp.GetService<ILocalIdentityStore>(), sp.GetService<IEngineeringProjectCatalog>(), sp.GetService<IEngineeringProjectStore>(), sp.GetRequiredService<AuthorityPolicyBootstrapOptions>()));
+builder.Services.AddSingleton<ISecurityPolicyEngineeringRegistry, AuthorityPolicyRegistryView>();
+builder.Services.AddSingleton(new AuthorityPolicyBootstrapOptions(builder.Configuration[AuthorityPolicyBootstrapOptions.ConfigurationPath]));
+builder.Services.AddSingleton(sp => new AuthorityPolicyBootstrapService(
+    sp.GetRequiredService<IAuthorityPolicyStore>(),
+    sp.GetService<ILocalIdentityStore>(),
+    sp.GetService<IEngineeringProjectCatalog>(),
+    sp.GetService<IEngineeringProjectStore>(),
+    sp.GetRequiredService<AuthorityPolicyBootstrapOptions>(),
+    sp.GetService<EngineeringWorkspace>()));
 builder.Services.AddSingleton<ICommandEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Commands);
 builder.Services.AddSingleton<IScriptEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Scripts);
 builder.Services.AddSingleton<IGatewayEngineeringRegistry>(sp =>
@@ -441,7 +449,11 @@ app.MapPost("/api/alarms/{id:guid}/ack", async (
 app.MapGet("/api/drivers", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.Drivers()))
     .RequireRuntimeEngineeringRead();
 
-app.MapGet("/api/engineering/workspace", (EngineeringWorkspace workspace) => Results.Ok(workspace.Describe()))
+app.MapGet("/api/engineering/workspace", (EngineeringWorkspace workspace, IEngineeringExchangeService exchange) =>
+    Results.Ok(workspace.Describe() with
+    {
+        AuthorityPolicyReference = exchange.ExportPackage().AuthorityPolicyReference
+    }))
     .RequireWorkspaceEngineeringRead();
 app.MapGet("/api/engineering/data-sources", (IDataSourceEngineeringRegistry registry) => Results.Ok(registry.Snapshot()))
     .RequireWorkspaceEngineeringRead();

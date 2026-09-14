@@ -114,7 +114,9 @@ export function ScriptEngineeringWorkspace({
     [context, draft]
   );
   const mode = context && draft ? scriptMutationMode(draft, context.scripts) : 'CreateOnly';
-  const currentPackage = draft ? buildCanonicalScriptPackage(draft, context?.visualEventReferences ?? []) : null;
+  const currentPackage = draft
+    ? buildCanonicalScriptPackage(draft, context?.visualEventReferences ?? [], undefined, context?.workspace.authorityPolicyReference)
+    : null;
   const previewCurrent = Boolean(currentPackage && previewToken && previewTokenMatches(previewToken, currentPackage, mode));
   const localIssues = draft ? validateScriptDraft(draft) : [];
   const pythonDiagnosticSnapshot = draft && localPythonDiagnostics?.scriptId === draft.id

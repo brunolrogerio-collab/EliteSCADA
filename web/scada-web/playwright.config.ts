@@ -10,6 +10,7 @@ const developerToken = createE2eJwt('e2e-developer', ['developer'], 'E2E Develop
 
 export default defineConfig({
   testDir: './tests-e2e',
+  workers: 1,
   timeout: 30_000,
   expect: { timeout: 10_000 },
   retries: 1,

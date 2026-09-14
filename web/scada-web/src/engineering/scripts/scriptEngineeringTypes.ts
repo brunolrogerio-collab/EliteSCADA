@@ -67,6 +67,15 @@ export type ScriptEngineeringWorkspaceDescriptor = {
   baseRevision?: number | null;
   isDirty: boolean;
   changeVersion: number;
+  authorityPolicyReference?: AuthorityPolicyReferenceEngineering | null;
+};
+
+export type AuthorityPolicyReferenceEngineering = {
+  contract: string;
+  contractVersion: number;
+  policyVersion: number;
+  roleIds: string[];
+  scopeIds: string[];
 };
 
 export type ScriptImportMode = 'CreateOnly' | 'UpdateExisting';
@@ -140,6 +149,7 @@ export type CanonicalScriptPackage = {
     metadata: Record<string, string>;
   }>;
   scriptVisualEventReferences: ScriptVisualEventReference[];
+  authorityPolicyReference?: AuthorityPolicyReferenceEngineering | null;
 };
 
 export type ScriptMutationPreviewToken = {

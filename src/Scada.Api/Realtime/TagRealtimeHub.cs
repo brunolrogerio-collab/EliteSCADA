@@ -20,7 +20,7 @@ public sealed class TagRealtimeHub : IDisposable
     private readonly IDisposable _subscription;
     private readonly ApiAuthorizationService _security;
     private readonly ScadaRuntimeFacade _runtime;
-    private readonly IAuthorityLifecycleStore _authorityLifecycle;
+    private readonly IAuthorityLifecycleStore? _authorityLifecycle;
     private readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
     private readonly CancellationTokenSource _disposeCancellation = new();
     private int _disposed;
@@ -29,7 +29,7 @@ public sealed class TagRealtimeHub : IDisposable
         Scada.Core.Abstractions.IScadaEventBus eventBus,
         ApiAuthorizationService security,
         ScadaRuntimeFacade runtime,
-        IAuthorityLifecycleStore authorityLifecycle)
+        IAuthorityLifecycleStore? authorityLifecycle = null)
     {
         _security = security;
         _runtime = runtime;
@@ -168,6 +168,14 @@ public sealed class TagRealtimeHub : IDisposable
 
         if (client.LocalAuthorityEpoch.HasValue)
         {
+            if (_authorityLifecycle is null)
+            {
+                // A locally issued JWT must never bypass its durable Authority fence, even if
+                // an unsupported composition omitted the local lifecycle service.
+                RemoveClient(id, client, WebSocketCloseStatus.PolicyViolation, "authority session validation unavailable");
+                return;
+            }
+
             try
             {
                 var lifecycle = await _authorityLifecycle.GetAsync(_disposeCancellation.Token);

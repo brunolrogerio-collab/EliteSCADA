@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Scada.Api.Realtime;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
@@ -187,9 +188,7 @@ public sealed class TagRealtimeHubTests
         var exchange = new EngineeringExchangeService(workspace.Tags, workspace.Alarms);
         var configuration = new ConfigurationManager { ["Authentication:Enabled"] = "true" };
         var security = new ApiAuthorizationService(new NullServiceProvider(), workspace, exchange, configuration);
-        var lifecycle = new InMemoryAuthorityLifecycleStore();
-        await lifecycle.MarkAuthorityPresentAsync();
-        using var hub = new TagRealtimeHub(bus, security, runtime: null!, lifecycle);
+        using var hub = new TagRealtimeHub(bus, security, runtime: null!, authorityLifecycle: null);
         using var socket = new ControlledWebSocket(blockSends: false);
         using var connectionCancellation = new CancellationTokenSource();
 
@@ -202,7 +201,6 @@ public sealed class TagRealtimeHubTests
             connectionCancellation.Token);
         await socket.ReceiveStarted.WaitAsync(AsyncSchedulingTimeout);
 
-        await lifecycle.BeginDetachAsync();
         await bus.PublishAsync(CreateEvent());
 
         Assert.Equal(WebSocketState.Open, socket.State);
@@ -210,6 +208,25 @@ public sealed class TagRealtimeHubTests
 
         connectionCancellation.Cancel();
         await connection.WaitAsync(AsyncSchedulingTimeout);
+    }
+
+    [Fact]
+    public void ExternalAuthComposition_ResolvesRealtimeHubWithoutLocalAuthorityLifecycle()
+    {
+        var bus = new InMemoryScadaEventBus();
+        using var workspace = new EngineeringWorkspace();
+        var exchange = new EngineeringExchangeService(workspace.Tags, workspace.Alarms);
+        var configuration = new ConfigurationManager { ["Authentication:Enabled"] = "true" };
+        var security = new ApiAuthorizationService(new NullServiceProvider(), workspace, exchange, configuration);
+        var services = new ServiceCollection()
+            .AddSingleton<Scada.Core.Abstractions.IScadaEventBus>(bus)
+            .AddSingleton(security)
+            .AddSingleton<ScadaRuntimeFacade>(_ => null!)
+            .AddSingleton<TagRealtimeHub>();
+        using var provider = services.BuildServiceProvider();
+
+        Assert.NotNull(provider.GetRequiredService<TagRealtimeHub>());
+        Assert.Null(provider.GetService<IAuthorityLifecycleStore>());
     }
 
     [Fact]

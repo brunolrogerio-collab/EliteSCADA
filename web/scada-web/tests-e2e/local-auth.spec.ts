@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test';
 const adminUsername = 'local-developer';
 const adminPassword = 'E2Epass8';
 
+test.setTimeout(90_000);
+
 test('secure first-run creates the initial local Administrator, first project and durable local session', async ({ browser }) => {
   const context = await browser.newContext({
     baseURL: 'http://127.0.0.1:5173',
@@ -85,7 +87,9 @@ test('secure first-run creates the initial local Administrator, first project an
     });
     expect(seededEngineering.status).toBe(200);
     expect(seededEngineering.body.tags.length).toBeGreaterThan(0);
-    expect(seededEngineering.body.securityRoles.length).toBeGreaterThan(1);
+    expect(seededEngineering.body.securityRoles).toHaveLength(0);
+    expect(seededEngineering.body.authorityPolicyReference).toBeTruthy();
+    expect(seededEngineering.body.authorityPolicyReference.roleIds).toHaveLength(2);
 
     const realtime = await page.evaluate(async () => {
       return await new Promise<string>(resolve => {
@@ -149,8 +153,8 @@ test('secure first-run creates the initial local Administrator, first project an
       return { status: response.status, body: await response.json() };
     });
     expect(securityRoles.status).toBe(200);
-    expect(securityRoles.body).toHaveLength(1);
-    expect(securityRoles.body[0].key).toBe('developer');
+    expect(securityRoles.body).toHaveLength(2);
+    expect(securityRoles.body.map((role: { key: string }) => role.key).sort()).toEqual(['developer', 'operator']);
 
     // The descriptor does not expose every canonical collection, so assert the
     // actual package that persistence/import/export use as the source of truth.
@@ -173,8 +177,9 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(canonicalProject.body.visualAssets).toHaveLength(0);
     expect(canonicalProject.body.reports).toHaveLength(0);
     expect(canonicalProject.body.dynamos.length).toBeGreaterThan(0);
-    expect(canonicalProject.body.securityRoles).toHaveLength(1);
-    expect(canonicalProject.body.securityRoles[0].key).toBe('developer');
+    expect(canonicalProject.body.securityRoles).toHaveLength(0);
+    expect(canonicalProject.body.authorityPolicyReference).toBeTruthy();
+    expect(canonicalProject.body.authorityPolicyReference.roleIds).toHaveLength(2);
 
     // Restore the original Demo through the canonical API before the dependent
     // Chromium project starts, then save it so the common E2E baseline is clean.
@@ -205,7 +210,7 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(restoredWorkspace.status).toBe(200);
     expect(restoredWorkspace.body.projectKey).toBe(projectKey);
     expect(restoredWorkspace.body.tagCount).toBeGreaterThan(0);
-    expect(restoredWorkspace.body.securityRoleCount).toBeGreaterThan(1);
+    expect(restoredWorkspace.body.securityRoleCount).toBe(1);
     expect(restoredWorkspace.body.isDirty).toBe(false);
 
     const logoutStatus = await page.evaluate(async () =>

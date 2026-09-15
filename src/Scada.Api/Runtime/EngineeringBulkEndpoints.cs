@@ -394,7 +394,8 @@ public static class EngineeringBulkEndpoints
             Array.Empty<PopupEngineeringDto>(),
             Array.Empty<SecurityRoleEngineeringDto>(),
             Array.Empty<CommandEngineeringDto>(),
-            EngineeringLock: source.EngineeringLock);
+            EngineeringLock: source.EngineeringLock,
+            AuthorityPolicyReference: source.AuthorityPolicyReference);
 
     private static string NormalizeKind(string value) => value.Trim().ToLowerInvariant() switch
     {

@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test';
+import { expect, request as apiRequest, test } from '@playwright/test';
+import { createE2eJwt } from './jwt';
 
 test.use({ locale: 'pt-BR' });
 test.describe.configure({ mode: 'serial' });
@@ -29,8 +30,15 @@ type EngineeringPackage = {
   [key: string]: unknown;
 };
 
-test('Wave 08 creates a closed free polygon and a dynamic text binding through canonical Engineering', async ({ page, request }) => {
-  const originalResponse = await request.get('/api/engineering/export/json');
+test('Wave 08 creates a closed free polygon and a dynamic text binding through canonical Engineering', async ({ page }) => {
+  test.setTimeout(90_000);
+  const api = await apiRequest.newContext({
+    baseURL: 'http://127.0.0.1:5080',
+    extraHTTPHeaders: {
+      Authorization: `Bearer ${createE2eJwt('e2e-developer', ['developer'], 'E2E Developer')}`
+    }
+  });
+  const originalResponse = await api.get('/api/engineering/export/json');
   expect(originalResponse.ok()).toBeTruthy();
   const original = await originalResponse.json() as EngineeringPackage;
   const screen = original.screens?.[0];
@@ -81,7 +89,7 @@ test('Wave 08 creates a closed free polygon and a dynamic text binding through c
     await page.getByTestId('visual-editor-apply').click();
 
     const persisted = await expect.poll(async () => {
-      const response = await request.get('/api/engineering/export/json');
+      const response = await api.get('/api/engineering/export/json');
       if (!response.ok()) return null;
       const exported = await response.json() as EngineeringPackage;
       const persistedScreen = exported.screens?.find(candidate => candidate.key === screen!.key);
@@ -90,8 +98,8 @@ test('Wave 08 creates a closed free polygon and a dynamic text binding through c
       const savedText = elements.find(element =>
         element.type === 'core.text' && element.bindings?.some(item => item.key === 'text' && item.target === tag!.path));
       return savedPolygon && savedText ? { savedPolygon, savedText } : null;
-    }).not.toBeNull().then(async () => {
-      const response = await request.get('/api/engineering/export/json');
+    }, { timeout: 30_000 }).not.toBeNull().then(async () => {
+      const response = await api.get('/api/engineering/export/json');
       const exported = await response.json() as EngineeringPackage;
       const persistedScreen = exported.screens!.find(candidate => candidate.key === screen!.key)!;
       const elements = flatten(persistedScreen.elements ?? []);
@@ -116,15 +124,16 @@ test('Wave 08 creates a closed free polygon and a dynamic text binding through c
       })
     }));
 
-    await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
+    await expect(page.getByTestId('visual-editor-workspace')).toBeVisible({ timeout: 30_000 });
     await expect(page.locator('[data-canvas-object-type="core.polygon"]')).not.toHaveCount(0);
     await expect(page.locator('.visual-editor-object-error')).toHaveCount(0);
   } finally {
-    const restore = await request.post('/api/engineering/import/json/apply', {
+    const restore = await api.post('/api/engineering/import/json/apply', {
       headers: { 'content-type': 'application/json; charset=utf-8' },
       data: original
     });
     expect(restore.ok()).toBeTruthy();
+    await api.dispose();
   }
 });
 

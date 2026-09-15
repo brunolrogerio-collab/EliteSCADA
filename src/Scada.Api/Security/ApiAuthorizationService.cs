@@ -47,10 +47,19 @@ public sealed record RuntimeReadableTagsResult(
 
 public sealed class ApiAuthorizationService(
     IServiceProvider services,
-    EngineeringWorkspace workspace,
-    IEngineeringExchangeService exchange,
+    IAuthorityPolicyStore authorityPolicies,
     IConfiguration configuration)
 {
+    // Compatibility constructor for isolated legacy callers. Production DI supplies IAuthorityPolicyStore.
+    public ApiAuthorizationService(
+        IServiceProvider services,
+        EngineeringWorkspace workspace,
+        IEngineeringExchangeService exchange,
+        IConfiguration configuration)
+        : this(services, new WorkspacePolicyReadAdapter(workspace), configuration)
+    {
+    }
+
     public const string RuntimeSessionHeaderName = "X-EliteSCADA-Runtime-Session";
 
     private readonly object _activeCacheGate = new();
@@ -74,9 +83,10 @@ public sealed class ApiAuthorizationService(
         if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
             return new ApiAuthorizationCheck(principal, null);
 
-        var roles = workspace.SecurityPolicies.SnapshotRoles();
+        var authority = authorityPolicies.Snapshot();
+        var roles = authority.Roles;
         if (AuthorityScopeEngineeringMigration.HasUnmigratedLegacyScopes(roles) ||
-            !SecurityScopeGraph.TryCreate(workspace.SecurityPolicies.SnapshotScopes(), out var scopes, out _))
+            !SecurityScopeGraph.TryCreate(authority.Scopes, out var scopes, out _))
         {
             return new ApiAuthorizationCheck(
                 principal,
@@ -347,9 +357,10 @@ public sealed class ApiAuthorizationService(
         var descriptor = runtime.Describe();
         if (!descriptor.Revision.HasValue)
         {
-            var roles = workspace.SecurityPolicies.SnapshotRoles();
+            var authority = authorityPolicies.Snapshot();
+            var roles = authority.Roles;
             if (AuthorityScopeEngineeringMigration.HasUnmigratedLegacyScopes(roles) ||
-                !SecurityScopeGraph.TryCreate(workspace.SecurityPolicies.SnapshotScopes(), out var workspaceScopes, out _))
+                !SecurityScopeGraph.TryCreate(authority.Scopes, out var workspaceScopes, out _))
             {
                 return null;
             }
@@ -378,15 +389,15 @@ public sealed class ApiAuthorizationService(
         var snapshot = await persistence.LoadActiveAsync(descriptor.ProjectKey, cancellationToken);
         if (snapshot is null || snapshot.Revision != descriptor.Revision) return null;
 
-        var package = exchange.ParseJson(snapshot.EngineeringJson);
-        if (AuthorityScopeEngineeringMigration.HasUnmigratedLegacyScopes(package.SecurityRoles) ||
-            !SecurityScopeGraph.TryCreate(package.SecurityScopes, out var scopes, out _))
+        var activeAuthority = authorityPolicies.Snapshot();
+        if (AuthorityScopeEngineeringMigration.HasUnmigratedLegacyScopes(activeAuthority.Roles) ||
+            !SecurityScopeGraph.TryCreate(activeAuthority.Scopes, out var scopes, out _))
         {
             return null;
         }
         var compiled = new RuntimeSecurityPolicyContext(
             new InMemoryCapabilityAuthorizationService(
-                SecurityPolicyCompiler.Compile(package.SecurityRoles ?? Array.Empty<SecurityRoleEngineeringDto>())),
+                SecurityPolicyCompiler.Compile(activeAuthority.Roles)),
             scopes);
 
         // Fail closed if the live runtime changed while the persisted policy was being resolved.
@@ -409,6 +420,23 @@ public sealed class ApiAuthorizationService(
         left.ActivatedAtUtc == right.ActivatedAtUtc &&
         left.Mode.Equals(right.Mode, StringComparison.Ordinal) &&
         string.Equals(left.ProjectKey, right.ProjectKey, StringComparison.OrdinalIgnoreCase);
+
+    private sealed class WorkspacePolicyReadAdapter(EngineeringWorkspace workspace) : IAuthorityPolicyStore
+    {
+        public AuthorityPolicySnapshot Snapshot() => new(
+            0,
+            workspace.SecurityPolicies.SnapshotRoles(),
+            workspace.SecurityPolicies.SnapshotScopes());
+
+        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<AuthorityPolicyWriteResult> TryReplaceAsync(
+            long expectedVersion,
+            IReadOnlyCollection<SecurityRoleEngineeringDto> roles,
+            IReadOnlyCollection<SecurityScopeEngineeringDto> scopes,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Legacy workspace adapter is read-only.");
+    }
 
     private sealed record RuntimeSecurityPolicyContext(
         InMemoryCapabilityAuthorizationService Capabilities,

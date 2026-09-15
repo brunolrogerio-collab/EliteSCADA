@@ -40,7 +40,7 @@ public sealed class ProjectPackageTests
         var inspection = service.Inspect(packageBytes);
 
         Assert.Equal(ProjectPackageService.CurrentFormat, inspection.Manifest.Format);
-        Assert.Equal(ProjectPackageService.CurrentFormatVersion, inspection.Manifest.FormatVersion);
+        Assert.Equal(ProjectPackageService.LegacySecurityPolicyFormatVersion, inspection.Manifest.FormatVersion);
         Assert.Equal("EliteSCADA", inspection.Manifest.Product);
         Assert.Equal("plant-a", inspection.Manifest.ProjectKey);
         Assert.Equal("Plant A", inspection.Manifest.ProjectName);
@@ -225,6 +225,90 @@ public sealed class ProjectPackageTests
                 1,
                 ProjectPackageService.MaximumPackageBytes,
                 1));
+    }
+
+    [Fact]
+    public async Task AuthorityBoundPackageV3_RequiresExactAuthorityReferenceForPreviewAndApply()
+    {
+        var role = new SecurityRoleEngineeringDto(
+            Guid.Parse("93000000-0000-0000-0000-000000000001"),
+            "authority-reader",
+            "Authority Reader");
+        var authority = new InMemoryAuthorityPolicyStore([role]);
+        var tags = new InMemoryTagRegistry();
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var exchange = new EngineeringExchangeService(
+            tags,
+            alarms,
+            new InMemoryDataSourceEngineeringRegistry(),
+            new InMemoryEngineeringAssetRegistry(),
+            new InMemoryEngineeringViewRegistry(),
+            new AuthorityPolicyRegistryView(authority),
+            new InMemoryCommandEngineeringRegistry());
+        var service = new ProjectPackageService(exchange);
+
+        var package = service.Export("plant-a", "Plant A");
+        var inspection = service.Inspect(package);
+        var validPreview = service.Preview(package, ImportMode.CreateAndUpdate);
+
+        Assert.Equal(ProjectPackageService.CurrentFormatVersion, inspection.Manifest.FormatVersion);
+        Assert.NotNull(inspection.Engineering.AuthorityPolicyReference);
+        Assert.Empty(inspection.Engineering.SecurityRoles!);
+        Assert.Empty(inspection.Engineering.SecurityScopes!);
+        Assert.True(validPreview.CanApply);
+
+        var changed = await authority.TryReplaceAsync(0, [role], []);
+        Assert.True(changed.Applied);
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+        var apply = service.Apply(package, ImportMode.CreateAndUpdate);
+
+        Assert.False(preview.CanApply);
+        Assert.Contains(
+            preview.Items.SelectMany(item => item.Issues),
+            issue => issue.Code == "SECURITY_AUTHORITY_POLICY_REFERENCE_MISMATCH");
+        Assert.Contains(
+            apply.Issues,
+            issue => issue.Code == "SECURITY_AUTHORITY_POLICY_REFERENCE_MISMATCH");
+    }
+
+    [Fact]
+    public void LegacyV2Package_IsBlockedByCanonicalAuthorityWithoutReference()
+    {
+        var sourceTags = new InMemoryTagRegistry();
+        using var sourceAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var legacyPackage = new ProjectPackageService(
+            new EngineeringExchangeService(sourceTags, sourceAlarms))
+            .Export("plant-a", "Plant A");
+
+        var role = new SecurityRoleEngineeringDto(
+            Guid.Parse("93000000-0000-0000-0000-000000000011"),
+            "authority-reader",
+            "Authority Reader");
+        var authority = new InMemoryAuthorityPolicyStore([role]);
+        var targetTags = new InMemoryTagRegistry();
+        using var targetAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var target = new ProjectPackageService(new EngineeringExchangeService(
+            targetTags,
+            targetAlarms,
+            new InMemoryDataSourceEngineeringRegistry(),
+            new InMemoryEngineeringAssetRegistry(),
+            new InMemoryEngineeringViewRegistry(),
+            new AuthorityPolicyRegistryView(authority),
+            new InMemoryCommandEngineeringRegistry()));
+
+        var inspection = target.Inspect(legacyPackage);
+        var preview = target.Preview(legacyPackage, ImportMode.CreateAndUpdate);
+        var apply = target.Apply(legacyPackage, ImportMode.CreateAndUpdate);
+
+        Assert.Equal(ProjectPackageService.LegacySecurityPolicyFormatVersion, inspection.Manifest.FormatVersion);
+        Assert.False(preview.CanApply);
+        Assert.Contains(
+            preview.Items.SelectMany(item => item.Issues),
+            issue => issue.Code == "SECURITY_AUTHORITY_POLICY_REFERENCE_REQUIRED");
+        Assert.Contains(
+            apply.Issues,
+            issue => issue.Code == "SECURITY_AUTHORITY_POLICY_REFERENCE_REQUIRED");
     }
 
     private static byte[] TamperEngineeringPayload(byte[] packageBytes)

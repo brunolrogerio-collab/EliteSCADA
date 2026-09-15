@@ -71,7 +71,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          trap 'status=$?; echo "RUNTIME_SMOKE_FAILURE line=${LINENO} command=${BASH_COMMAND} status=${status}"; exit "${status}"' ERR
           export ASPNETCORE_URLS=http://127.0.0.1:5080
+          # Keep the runtime boot deterministic: integration tests create
+          # disposable persisted projects in elitescada_test, while this
+          # smoke test validates a fresh PostgreSQL-backed application.
+          export ConnectionStrings__EliteScada='Host=127.0.0.1;Port=5432;Database=postgres;Username=postgres;Password=postgres;Pooling=false'
           dotnet run --project src/Scada.Api/Scada.Api.csproj --no-build --configuration Release --no-launch-profile > /tmp/scada-api.log 2>&1 &
           API_PID=$!
           trap 'kill "$API_PID" 2>/dev/null || true' EXIT
@@ -134,7 +139,17 @@ jobs:
           print(next(tag['id'] for tag in tags if tag['path'] == 'Demo.Tank01.Level'))
           PY
           )
+          echo "Historian smoke selected TANK_ID=${TANK_ID}"
+          test "$TANK_ID" = "10000000-0000-0000-0000-000000000001"
+          cat /tmp/tags.json
           curl -fsS "http://127.0.0.1:5080/api/history/${TANK_ID}?limit=100" > /tmp/history.json
+          curl -fsS http://127.0.0.1:5080/api/diagnostics/runtime > /tmp/runtime-diagnostics-history.json
+          cat /tmp/history.json
+          cat /tmp/runtime-diagnostics-history.json
+          PGPASSWORD=postgres psql \
+            --host=127.0.0.1 --port=5432 --username=postgres --dbname=postgres \
+            --no-align --tuples-only --pset pager=off \
+            --command="SELECT current_database(), current_schema(), now(), current_setting('TimeZone'); SELECT tag_id, COUNT(*) AS samples, MIN(ts) AS first_ts, MAX(ts) AS last_ts FROM elitescada.tag_history GROUP BY tag_id ORDER BY tag_id; SELECT tag_id, ts, quality, source, value, data_type FROM elitescada.tag_history WHERE tag_id = '10000000-0000-0000-0000-000000000001' AND ts >= now() - interval '15 minutes' ORDER BY ts;" || true
           python3 - <<'PY'
           import json
           with open('/tmp/history.json') as f:
@@ -147,6 +162,7 @@ jobs:
             -H 'content-type: application/json' \
             -d '{"datasetKey":"historian.samples","timeRange":{"kind":"relative","durationSeconds":300,"anchor":"now"},"page":{"limit":5}}' \
             > /tmp/historical-query.json
+          cat /tmp/historical-query.json
           python3 - <<'PY'
           import json
           with open('/tmp/historical-query.json') as f:
@@ -164,12 +180,17 @@ jobs:
           import json
           with open('/tmp/security-roles.json') as f:
               roles = json.load(f)
-          assert {role['key'] for role in roles} == {'operator', 'developer'}
-          operator = next(role for role in roles if role['key'] == 'operator')
-          capabilities = {grant['capability'] for grant in operator['grants']}
-          # ASP.NET serializes enum values numerically on this direct DTO endpoint.
-          assert 2 in capabilities  # CommandExecute
-          assert 3 not in capabilities  # ProcessValueWrite
+          assert {role['key'] for role in roles} == {'developer'}, roles
+          developer = next(role for role in roles if role['key'] == 'developer')
+          capabilities = {grant['capability'] for grant in developer['grants']}
+          assert capabilities == {
+              'view', 'tagRead', 'commandExecute', 'processValueWrite',
+              'alarmAcknowledge', 'alarmShelve', 'trendUse', 'trendSave',
+              'engineeringView', 'engineeringModify', 'userRoleAdmin', 'systemAdmin'
+          }, developer
+          assert capabilities.isdisjoint({
+              'highAvailabilityObserve', 'highAvailabilityTransfer', 'highAvailabilityAdmin'
+          }), developer
           PY
 
           curl -fsS http://127.0.0.1:5080/api/engineering/commands > /tmp/commands.json
@@ -177,8 +198,7 @@ jobs:
           import json
           with open('/tmp/commands.json') as f:
               commands = json.load(f)
-          assert {command['key'] for command in commands} == {'demo.p01.start', 'demo.p01.stop'}
-          assert all(command['targetTagPath'] == 'Demo.P01.Running' for command in commands)
+          assert commands == [], commands
           PY
 
           curl -fsS http://127.0.0.1:5080/api/engineering/persistence/status > /tmp/persistence-status.json
@@ -216,8 +236,8 @@ jobs:
           assert workspace['baseRevision'] == saved['revision']
           assert workspace['isDirty'] is False
           assert workspace['lastSavedAtUtc'] is not None
-          assert workspace['securityRoleCount'] == 2
-          assert workspace['commandCount'] == 2
+          assert workspace['securityRoleCount'] == 0
+          assert workspace['commandCount'] == 0
           PY
 
           curl -fsS http://127.0.0.1:5080/api/engineering/persistence/ci-demo/lifecycle > /tmp/lifecycle-draft.json

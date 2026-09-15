@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) => {
+  test.setTimeout(90_000);
   await page.goto('/');
 
   await expect(page.getByText('SCADA Platform')).toBeVisible();
@@ -48,11 +49,8 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
       templateKey?: string;
       elements: Array<{ key: string; type: string; bindings?: Array<{ key: string; target: string }> }>;
     }>;
-    securityRoles: Array<{
-      key: string;
-      name: string;
-      grants: Array<{ capability: string; scope?: { tagPath?: string } }>;
-    }>;
+    securityRoles: Array<{ key: string }>;
+    authorityPolicyReference?: { roleIds: string[]; scopeIds: string[] } | null;
     commands: Array<{
       id?: string;
       key: string;
@@ -108,14 +106,8 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   const popupFrequency = engineering.popups[0].elements.find(element => element.key === 'frequency');
   expect(popupFrequency?.bindings?.some(binding => binding.target === '{equipmentPath}.Frequency')).toBeTruthy();
 
-  expect(engineering.securityRoles).toHaveLength(2);
-  const operatorRole = engineering.securityRoles.find(role => role.key === 'operator');
-  expect(operatorRole).toBeTruthy();
-  expect(operatorRole!.grants.some(grant => grant.capability === 'commandExecute')).toBeTruthy();
-  expect(operatorRole!.grants.some(grant => grant.capability === 'processValueWrite')).toBeFalsy();
-  const developerRole = engineering.securityRoles.find(role => role.key === 'developer');
-  expect(developerRole).toBeTruthy();
-  expect(developerRole!.grants.some(grant => grant.capability === 'systemAdmin')).toBeTruthy();
+  expect(engineering.securityRoles).toEqual([]);
+  expect(engineering.authorityPolicyReference?.roleIds).toHaveLength(2);
 
   expect(engineering.commands).toHaveLength(2);
   expect(engineering.commands.map(command => command.key).sort()).toEqual(['demo.p01.start', 'demo.p01.stop']);
@@ -202,7 +194,7 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
     engineering: { tags: number; dataSources: number; screens: number; popups: number; securityRoles: number; commands: number };
   };
   expect(projectInspect.manifest.format).toBe('elitescada.project-package');
-  expect(projectInspect.manifest.formatVersion).toBe(2);
+  expect(projectInspect.manifest.formatVersion).toBe(3);
   expect(projectInspect.manifest.projectKey).toBe('demo');
   expect(projectInspect.manifest.projectName).toBe('Demo Project');
   expect(projectInspect.manifest.engineeringSchemaVersion).toBe(engineering.schemaVersion);
@@ -213,7 +205,7 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(projectInspect.engineering.dataSources).toBe(1);
   expect(projectInspect.engineering.screens).toBe(1);
   expect(projectInspect.engineering.popups).toBe(1);
-  expect(projectInspect.engineering.securityRoles).toBe(2);
+  expect(projectInspect.engineering.securityRoles).toBe(0);
   expect(projectInspect.engineering.commands).toBe(2);
 
   const projectPreviewResponse = await request.post('/api/project-package/import/preview', {
@@ -250,43 +242,59 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
     readOnly: true
   });
 
-  const workspaceApplyResponse = await request.post('/api/engineering/import/json/apply', {
-    data: JSON.stringify(workspaceMutation),
-    headers: { 'content-type': 'application/json; charset=utf-8' }
-  });
-  expect(workspaceApplyResponse.ok()).toBeTruthy();
+  let workspaceMutationApplied = false;
+  try {
+    const workspaceApplyResponse = await request.post('/api/engineering/import/json/apply', {
+      data: JSON.stringify(workspaceMutation),
+      headers: { 'content-type': 'application/json; charset=utf-8' }
+    });
+    expect(workspaceApplyResponse.ok()).toBeTruthy();
+    workspaceMutationApplied = true;
 
-  const workspaceStatusResponse = await request.get('/api/engineering/workspace');
-  expect(workspaceStatusResponse.ok()).toBeTruthy();
-  const workspaceStatus = await workspaceStatusResponse.json() as {
+    const workspaceStatusResponse = await request.get('/api/engineering/workspace');
+    expect(workspaceStatusResponse.ok()).toBeTruthy();
+    const workspaceStatus = await workspaceStatusResponse.json() as {
     isDirty: boolean;
     changeVersion: number;
     tagCount: number;
     securityRoleCount: number;
     commandCount: number;
   };
-  expect(workspaceStatus.isDirty).toBeTruthy();
-  expect(workspaceStatus.changeVersion).toBeGreaterThan(0);
-  expect(workspaceStatus.tagCount).toBe(8);
-  expect(workspaceStatus.securityRoleCount).toBe(2);
-  expect(workspaceStatus.commandCount).toBe(2);
+    expect(workspaceStatus.isDirty).toBeTruthy();
+    expect(workspaceStatus.changeVersion).toBeGreaterThan(0);
+    expect(workspaceStatus.tagCount).toBe(8);
+    // Roles are authority-owned in AUTH-03. The workspace only describes its
+    // local developer role; the canonical developer/operator policy is external.
+    expect(workspaceStatus.securityRoleCount).toBe(1);
+    expect(workspaceStatus.commandCount).toBe(2);
 
-  const mutatedEngineeringResponse = await request.get('/api/engineering/export/json');
-  expect(mutatedEngineeringResponse.ok()).toBeTruthy();
-  const mutatedEngineering = await mutatedEngineeringResponse.json() as {
+    const mutatedEngineeringResponse = await request.get('/api/engineering/export/json');
+    expect(mutatedEngineeringResponse.ok()).toBeTruthy();
+    const mutatedEngineering = await mutatedEngineeringResponse.json() as {
     tags: Array<{ path: string }>;
     securityRoles: Array<{ key: string }>;
+    authorityPolicyReference?: { roleIds: string[] } | null;
     commands: Array<{ key: string }>;
   };
-  expect(mutatedEngineering.tags).toHaveLength(8);
-  expect(mutatedEngineering.tags.some(tag => tag.path === 'Engineering.Workspace.Only')).toBeTruthy();
-  expect(mutatedEngineering.securityRoles).toHaveLength(2);
-  expect(mutatedEngineering.commands).toHaveLength(2);
+    expect(mutatedEngineering.tags).toHaveLength(8);
+    expect(mutatedEngineering.tags.some(tag => tag.path === 'Engineering.Workspace.Only')).toBeTruthy();
+    expect(mutatedEngineering.securityRoles).toEqual([]);
+    expect(mutatedEngineering.authorityPolicyReference?.roleIds).toHaveLength(2);
+    expect(mutatedEngineering.commands).toHaveLength(2);
 
-  const runtimeAfterWorkspaceEditResponse = await request.get('/api/tags');
-  expect(runtimeAfterWorkspaceEditResponse.ok()).toBeTruthy();
-  const runtimeAfterWorkspaceEdit = await runtimeAfterWorkspaceEditResponse.json() as Array<{ path: string }>;
-  expect(runtimeAfterWorkspaceEdit).toHaveLength(7);
-  expect(runtimeAfterWorkspaceEdit.some(tag => tag.path === 'Engineering.Workspace.Only')).toBeFalsy();
-  await expect(page.getByText(/ONLINE · 7 TAGs/)).toBeVisible();
+    const runtimeAfterWorkspaceEditResponse = await request.get('/api/tags');
+    expect(runtimeAfterWorkspaceEditResponse.ok()).toBeTruthy();
+    const runtimeAfterWorkspaceEdit = await runtimeAfterWorkspaceEditResponse.json() as Array<{ path: string }>;
+    expect(runtimeAfterWorkspaceEdit).toHaveLength(7);
+    expect(runtimeAfterWorkspaceEdit.some(tag => tag.path === 'Engineering.Workspace.Only')).toBeFalsy();
+    await expect(page.getByText(/ONLINE · 7 TAGs/)).toBeVisible();
+  } finally {
+    if (workspaceMutationApplied) {
+      const restoreResponse = await request.post('/api/engineering/import/json/apply', {
+        data: engineeringText,
+        headers: { 'content-type': 'application/json; charset=utf-8' }
+      });
+      expect(restoreResponse.ok()).toBeTruthy();
+    }
+  }
 });

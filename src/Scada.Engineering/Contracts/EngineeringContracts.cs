@@ -328,6 +328,14 @@ public sealed record SecurityRoleEngineeringDto(
     IReadOnlyCollection<CapabilityGrantEngineeringDto>? Grants = null,
     Dictionary<string, string>? Metadata = null);
 
+/// <summary>Non-mutable application-package reference to the canonical Security Authority policy.</summary>
+public sealed record AuthorityPolicyReferenceEngineeringDto(
+    string Contract,
+    int ContractVersion,
+    long PolicyVersion,
+    IReadOnlyCollection<Guid> RoleIds,
+    IReadOnlyCollection<Guid> ScopeIds);
+
 public sealed record CommandEngineeringDto(
     Guid? Id,
     string Key,
@@ -411,7 +419,8 @@ public sealed record EngineeringPackage(
     IReadOnlyCollection<OperationalEventEngineeringDto>? OperationalEvents = null,
     Guid? StartupScreenId = null,
     EngineeringLockEngineeringDto? EngineeringLock = null,
-    IReadOnlyCollection<SecurityScopeEngineeringDto>? SecurityScopes = null);
+    IReadOnlyCollection<SecurityScopeEngineeringDto>? SecurityScopes = null,
+    AuthorityPolicyReferenceEngineeringDto? AuthorityPolicyReference = null);
 
 public sealed record ImportIssue(
     string Code,

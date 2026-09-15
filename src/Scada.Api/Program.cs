@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.AspNetCore.Http.Json;
 using Scada.Api.Historian;
 using Scada.Api.HostedServices;
 using Scada.Api.Licensing;
@@ -25,9 +26,12 @@ using Scada.Engineering.ImportExport;
 using Scada.Engineering.ProjectPackages;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
+using Scada.Engineering.Persistence;
 using Scada.Engineering.Views;
 using Scada.Historian.Abstractions;
+using Scada.Persistence.PostgreSql;
 using Scada.Security.Audit;
+using Scada.Security.Authentication;
 using Scada.Security.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -36,6 +40,7 @@ builder.AddConfiguredProductLicensing();
 builder.AddTimingPolicyV1();
 
 builder.Services.AddSingleton<IScadaEventBus, InMemoryScadaEventBus>();
+builder.Services.Configure<JsonOptions>(options => options.SerializerOptions.Converters.Add(new SecurityCapabilityJsonConverter()));
 builder.Services.AddSingleton<TagRealtimeHub>();
 builder.AddConfiguredHistorian();
 builder.AddConfiguredServerMemoryRetention();
@@ -46,7 +51,20 @@ builder.Services.AddSingleton<IAlarmEngine>(sp => sp.GetRequiredService<Engineer
 builder.Services.AddSingleton<IDataSourceEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().DataSources);
 builder.Services.AddSingleton<IEngineeringAssetRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Assets);
 builder.Services.AddSingleton<IEngineeringViewRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Views);
-builder.Services.AddSingleton<ISecurityPolicyEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().SecurityPolicies);
+var authorityConnectionString = builder.Configuration.GetConnectionString("EliteScada");
+builder.Services.AddSingleton<IAuthorityPolicyStore>(_ =>
+    string.IsNullOrWhiteSpace(authorityConnectionString)
+        ? new InMemoryAuthorityPolicyStore()
+        : new PostgreSqlAuthorityPolicyStore(authorityConnectionString));
+builder.Services.AddSingleton<ISecurityPolicyEngineeringRegistry, AuthorityPolicyRegistryView>();
+builder.Services.AddSingleton(new AuthorityPolicyBootstrapOptions(builder.Configuration[AuthorityPolicyBootstrapOptions.ConfigurationPath]));
+builder.Services.AddSingleton(sp => new AuthorityPolicyBootstrapService(
+    sp.GetRequiredService<IAuthorityPolicyStore>(),
+    sp.GetService<ILocalIdentityStore>(),
+    sp.GetService<IEngineeringProjectCatalog>(),
+    sp.GetService<IEngineeringProjectStore>(),
+    sp.GetRequiredService<AuthorityPolicyBootstrapOptions>(),
+    sp.GetService<EngineeringWorkspace>()));
 builder.Services.AddSingleton<ICommandEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Commands);
 builder.Services.AddSingleton<IScriptEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Scripts);
 builder.Services.AddSingleton<IGatewayEngineeringRegistry>(sp =>
@@ -74,7 +92,11 @@ builder.AddProductLicensedRuntimeCoordinator();
 
 builder.Services.AddSingleton<IEngineeringExchangeService, EngineeringExchangeService>();
 builder.Services.AddSingleton<IProjectPackageService, ProjectPackageService>();
-builder.Services.AddSingleton<ApiAuthorizationService>();
+builder.Services.AddSingleton<ApiAuthorizationService>(sp =>
+    new ApiAuthorizationService(
+        sp,
+        sp.GetRequiredService<IAuthorityPolicyStore>(),
+        sp.GetRequiredService<IConfiguration>()));
 builder.AddOptionalEngineeringPersistence();
 builder.AddConfiguredAudit();
 builder.Services.AddOpenApi();
@@ -105,6 +127,7 @@ _ = app.Services.GetRequiredService<IHistorian>();
 await app.InitializeServerMemoryRetentionAsync();
 await app.InitializeEngineeringPersistenceAsync();
 await app.InitializeAuditAsync();
+await app.Services.GetRequiredService<AuthorityPolicyBootstrapService>().EnsureInitializedAsync();
 
 app.UseMiddleware<TimingCorrelationMiddleware>();
 app.UseCors();
@@ -426,7 +449,11 @@ app.MapPost("/api/alarms/{id:guid}/ack", async (
 app.MapGet("/api/drivers", (ScadaRuntimeFacade runtime) => Results.Ok(runtime.Drivers()))
     .RequireRuntimeEngineeringRead();
 
-app.MapGet("/api/engineering/workspace", (EngineeringWorkspace workspace) => Results.Ok(workspace.Describe()))
+app.MapGet("/api/engineering/workspace", (EngineeringWorkspace workspace, IEngineeringExchangeService exchange) =>
+    Results.Ok(workspace.Describe() with
+    {
+        AuthorityPolicyReference = exchange.ExportPackage().AuthorityPolicyReference
+    }))
     .RequireWorkspaceEngineeringRead();
 app.MapGet("/api/engineering/data-sources", (IDataSourceEngineeringRegistry registry) => Results.Ok(registry.Snapshot()))
     .RequireWorkspaceEngineeringRead();
@@ -459,7 +486,7 @@ app.MapGet("/api/engineering/screens", (
         context,
         security,
         registry.SnapshotScreens()));
-});
+}).RequireWorkspaceEngineeringRead();
 app.MapGet("/api/engineering/popups", (IEngineeringViewRegistry registry) => Results.Ok(registry.SnapshotPopups()))
     .RequireWorkspaceEngineeringRead();
 app.MapGet("/api/engineering/security-roles", (ISecurityPolicyEngineeringRegistry registry) => Results.Ok(registry.SnapshotRoles()))

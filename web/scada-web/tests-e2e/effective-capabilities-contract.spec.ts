@@ -33,7 +33,7 @@ test('application surfaces mirror independent backend capability gates', () => {
     licensing: false
   });
 
-  expect(resolveAppSurfaceAccess(capabilities([], ['EngineeringModify']))).toEqual({
+  expect(resolveAppSurfaceAccess(capabilities([], ['EngineeringView']))).toEqual({
     runtime: false,
     history: false,
     engineering: true,
@@ -54,8 +54,8 @@ test('Engineering or SystemAdmin never imply historian TrendUse', () => {
   expect(resolveAppSurfaceAccess(capabilities(['View', 'SystemAdmin'], ['EngineeringModify'])).history).toBe(false);
 });
 
-test('licensing remains reachable from workspace EngineeringModify before Runtime grants exist', () => {
-  const access = resolveAppSurfaceAccess(capabilities([], ['EngineeringModify']));
+test('licensing remains reachable from workspace EngineeringView before Runtime grants exist', () => {
+  const access = resolveAppSurfaceAccess(capabilities([], ['EngineeringView']));
   expect(access.licensing).toBe(true);
   expect(access.runtime).toBe(false);
   expect(access.audit).toBe(false);

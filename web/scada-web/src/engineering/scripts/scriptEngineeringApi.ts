@@ -54,7 +54,11 @@ export async function previewScriptMutation(
   mode: ScriptImportMode
 ): Promise<ScriptMutationPreviewToken> {
   const workspace = await loadScriptEngineeringWorkspace();
-  const packageData = buildCanonicalScriptPackage(script, visualEventReferences);
+  const packageData = buildCanonicalScriptPackage(
+    script,
+    visualEventReferences,
+    undefined,
+    workspace.authorityPolicyReference);
   const preview = await requestJson<ScriptImportPreview>(
     `/api/engineering/import/json/preview?mode=${encodeURIComponent(mode)}`,
     {

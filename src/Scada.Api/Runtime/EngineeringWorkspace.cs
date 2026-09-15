@@ -33,7 +33,8 @@ public sealed record EngineeringWorkspaceDescriptor(
     int PopupCount,
     int SecurityRoleCount,
     int CommandCount,
-    int VisualAssetCount = 0);
+    int VisualAssetCount = 0,
+    AuthorityPolicyReferenceEngineeringDto? AuthorityPolicyReference = null);
 
 public sealed class EngineeringWorkspaceVersionConflictException : InvalidOperationException
 {

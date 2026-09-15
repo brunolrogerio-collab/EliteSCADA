@@ -10,6 +10,7 @@ const developerToken = createE2eJwt('e2e-developer', ['developer'], 'E2E Develop
 
 export default defineConfig({
   testDir: './tests-e2e',
+  workers: 1,
   timeout: 30_000,
   expect: { timeout: 10_000 },
   retries: 1,
@@ -53,14 +54,15 @@ export default defineConfig({
         Authentication__Jwt__Audience: E2E_AUTH_AUDIENCE,
         Authentication__Jwt__SigningKey: E2E_AUTH_SIGNING_KEY,
         Authentication__Local__Enabled: 'true',
-        Authentication__Local__SecureCookie: 'false',
-        EngineeringRuntime__ProjectKey: 'e2e-wave03'
+        Authentication__Local__SecureCookie: 'false', Engineering__InitializeDemoWhenEmpty: 'true',
       }
     },
     {
       command: 'npm run dev -- --host 127.0.0.1',
       url: 'http://127.0.0.1:5173',
       timeout: 60_000,
+      // E2E must use Vite's same-origin proxy.  A direct API origin prevents
+      // the first-run endpoint from persisting its Strict HttpOnly cookie.
       reuseExistingServer: false
     }
   ]

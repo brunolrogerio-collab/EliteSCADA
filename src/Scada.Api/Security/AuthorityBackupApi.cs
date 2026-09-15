@@ -1,5 +1,8 @@
 using Scada.Api.Realtime;
 using Scada.Api.Runtime;
+using System.Text.Json;
+using Scada.Engineering.Contracts;
+using Scada.Engineering.Security;
 using Scada.Security.Audit;
 using Scada.Security.Authentication;
 using Scada.Security.Authorization;
@@ -30,6 +33,7 @@ public static class AuthorityBackupApi
             ApiAuthorizationService security,
             ApiAuditService audit,
             ILocalIdentityStore store,
+            IAuthorityPolicyStore policyStore,
             AuthorityBackupService backup,
             CancellationToken ct) =>
         {
@@ -40,7 +44,14 @@ public static class AuthorityBackupApi
             try
             {
                 var users = await store.ListAsync(ct);
-                var payload = backup.Export(users, request.Password);
+                var policy = policyStore.Snapshot();
+                var payload = backup.Export(
+                    users,
+                    new AuthorityBackupPolicyPayload(
+                        policy.Version,
+                        JsonSerializer.Serialize(policy.Roles),
+                        JsonSerializer.Serialize(policy.Scopes)),
+                    request.Password);
                 await audit.RecordAsync(
                     context,
                     authorization.Check!.Principal,
@@ -113,6 +124,7 @@ public static class AuthorityBackupApi
             ApiAuthorizationService security,
             ApiAuditService audit,
             ILocalIdentityStore store,
+            IAuthorityPolicyStore policyStore,
             AuthorityBackupService backup,
             TagRealtimeHub realtime,
             CancellationToken ct) =>
@@ -135,6 +147,11 @@ public static class AuthorityBackupApi
                 return InvalidBackup();
             }
 
+            if (opened.Policy is null)
+                return Results.Conflict(new { error = "AUTHORITY_POLICY_REQUIRED: v1 backups are readable but cannot restore a complete Security Authority." });
+
+            if (!TryReadPolicy(opened.Policy, out var roles, out var scopes)) return InvalidBackup();
+
             var currentUsers = await store.ListAsync(ct);
             IReadOnlyCollection<LocalUserAccount> replacement;
             try
@@ -146,7 +163,7 @@ public static class AuthorityBackupApi
                 return InvalidBackup();
             }
 
-            if (!await HasEnabledLocalAdministratorAsync(replacement, security, runtime, ct))
+            if (!HasPolicyAdministrator(replacement, roles!, scopes!))
             {
                 return Results.BadRequest(new
                 {
@@ -154,7 +171,17 @@ public static class AuthorityBackupApi
                 });
             }
 
-            await store.ReplaceAllAsync(replacement, ct);
+            var previousPolicy = policyStore.Snapshot();
+            var policyRestore = await policyStore.TryReplaceAsync(previousPolicy.Version, roles!, scopes!, ct);
+            if (!policyRestore.Applied)
+                return Results.Conflict(new { error = policyRestore.Error, currentVersion = policyRestore.Snapshot.Version });
+
+            try { await store.ReplaceAllAsync(replacement, ct); }
+            catch
+            {
+                await policyStore.TryReplaceAsync(policyRestore.Snapshot.Version, previousPolicy.Roles, previousPolicy.Scopes, CancellationToken.None);
+                throw;
+            }
             var revokedRealtimeClients = RevokeRealtimeSubjects(realtime, currentUsers, replacement);
             LocalIdentityApi.DeleteLocalCookie(context, localRuntime);
 
@@ -228,6 +255,7 @@ public static class AuthorityBackupApi
             LocalLoginAttemptLimiter limiter,
             InitialInstallationGate installationGate,
             ILocalIdentityStore store,
+            IAuthorityPolicyStore policyStore,
             ApiAuditService audit,
             AuthorityBackupService backup,
             TagRealtimeHub realtime,
@@ -251,6 +279,11 @@ public static class AuthorityBackupApi
                 return InvalidBackup();
             }
 
+            if (opened.Policy is null)
+                return Results.Conflict(new { error = "AUTHORITY_POLICY_REQUIRED: v1 backups are readable but cannot restore a complete Security Authority." });
+
+            if (!TryReadPolicy(opened.Policy, out var roles, out var scopes)) return InvalidBackup();
+
             await using var installationLease = await installationGate.EnterAsync(ct);
             var status = await LocalIdentityApi.ResolveBootstrapStatusAsync(
                 context, localRuntime, bootstrapStatus, ct);
@@ -269,8 +302,14 @@ public static class AuthorityBackupApi
                 return InvalidBackup();
             }
 
+            var previousPolicy = policyStore.Snapshot();
+            var policyRestore = await policyStore.TryReplaceAsync(previousPolicy.Version, roles!, scopes!, ct);
+            if (!policyRestore.Applied)
+                return Results.Conflict(new { error = policyRestore.Error, currentVersion = policyRestore.Snapshot.Version });
+
             if (!await store.TryReplaceAllIfEmptyAsync(replacement, ct))
             {
+                await policyStore.TryReplaceAsync(policyRestore.Snapshot.Version, previousPolicy.Roles, previousPolicy.Scopes, CancellationToken.None);
                 return Results.Conflict(new
                 {
                     error = "Anonymous Authority restore is already closed because another identity initialization won the race."
@@ -396,6 +435,41 @@ public static class AuthorityBackupApi
         foreach (var subjectId in subjectIds)
             revoked += realtime.RevokeSubject(subjectId);
         return revoked;
+    }
+
+    private static bool TryReadPolicy(
+        AuthorityBackupPolicyPayload policy,
+        out SecurityRoleEngineeringDto[]? roles,
+        out SecurityScopeEngineeringDto[]? scopes)
+    {
+        roles = null;
+        scopes = null;
+        try
+        {
+            if (policy.Version < 0) return false;
+            roles = JsonSerializer.Deserialize<SecurityRoleEngineeringDto[]>(policy.RolesJson);
+            scopes = JsonSerializer.Deserialize<SecurityScopeEngineeringDto[]>(policy.ScopesJson);
+            if (roles is null || scopes is null) return false;
+            InMemoryAuthorityPolicyStore.Validate(roles, scopes);
+            return true;
+        }
+        catch (JsonException) { return false; }
+        catch (InvalidDataException) { return false; }
+    }
+
+    private static bool HasPolicyAdministrator(
+        IEnumerable<LocalUserAccount> users,
+        IReadOnlyCollection<SecurityRoleEngineeringDto> roles,
+        IReadOnlyCollection<SecurityScopeEngineeringDto> scopes)
+    {
+        if (!SecurityScopeGraph.TryCreate(scopes, out var graph, out _)) return false;
+        var authorization = new InMemoryCapabilityAuthorizationService(SecurityPolicyCompiler.Compile(roles));
+        return users.Where(user => user.IsEnabled).Any(user =>
+        {
+            var principal = new SecurityPrincipal(user.Id.ToString(), user.DisplayName, LocalIdentityNormalization.NormalizeRoles(user.Roles), true);
+            return authorization.Evaluate(principal, SecurityCapability.UserRoleAdmin, graph!.Enrich(new AuthorizationResource())).Allowed ||
+                authorization.Evaluate(principal, SecurityCapability.SystemAdmin, graph.Enrich(new AuthorizationResource())).Allowed;
+        });
     }
 
     private static Dictionary<string, string> PreviewAuditDetails(AuthorityBackupPreview preview) => new()

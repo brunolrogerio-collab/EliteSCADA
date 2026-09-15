@@ -55,7 +55,7 @@ public sealed class AuthorityAttachService(
         return new AuthorityAttachResult(before, after);
     }
 
-    private static void ValidateTarget(AuthorityAttachTarget target)
+    internal static void ValidateTarget(AuthorityAttachTarget target)
     {
         ArgumentNullException.ThrowIfNull(target);
         if (target.Accounts.Count == 0)

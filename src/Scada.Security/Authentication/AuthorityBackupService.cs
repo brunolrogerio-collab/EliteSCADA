@@ -287,10 +287,6 @@ public sealed class AuthorityBackupService
             .Count() != result.Length)
             throw new InvalidDataException("Authority backup contains duplicate local usernames.");
 
-        if (!result.Any(IsEnabledAdministrator))
-            throw new InvalidDataException(
-                $"Authority backup must contain at least one enabled identity assigned '{LocalIdentityBootstrapService.InitialAdministratorRole}'.");
-
         return result;
     }
 

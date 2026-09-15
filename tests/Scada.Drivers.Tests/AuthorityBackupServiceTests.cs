@@ -256,7 +256,7 @@ public sealed class AuthorityBackupServiceTests
     }
 
     [Fact]
-    public void ValidateAndCopyAccounts_RejectsMissingEnabledAdministrator()
+    public void ValidateAndCopyAccounts_DoesNotAssignAuthoritySemanticsToARoleName()
     {
         var account = CreateAccount(
             Guid.NewGuid(),
@@ -266,10 +266,9 @@ public sealed class AuthorityBackupServiceTests
             ["operator"],
             DateTimeOffset.UtcNow);
 
-        var exception = Assert.Throws<InvalidDataException>(() =>
-            AuthorityBackupService.ValidateAndCopyAccounts([account]));
+        var copied = AuthorityBackupService.ValidateAndCopyAccounts([account]);
 
-        Assert.Contains("developer", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("operator", Assert.Single(copied).Roles.Single());
     }
 
     [Fact]

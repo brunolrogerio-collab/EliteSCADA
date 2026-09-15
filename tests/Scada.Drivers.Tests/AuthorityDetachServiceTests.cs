@@ -172,6 +172,72 @@ public sealed class AuthorityDetachServiceTests
         Assert.Single(policies.Snapshot().Roles);
     }
 
+    [Fact]
+    public async Task Switch_RejectsAnInvalidBackupBeforeTheCurrentAuthorityIsDetached()
+    {
+        var identities = new InMemoryLocalIdentityStore();
+        var lifecycle = new InMemoryAuthorityLifecycleStore();
+        var policies = Policy("current-admin", SecurityCapability.SystemAdmin);
+        var current = Account("current-admin");
+        await identities.CreateAsync(current);
+        await lifecycle.MarkAuthorityPresentAsync();
+        var issued = await lifecycle.GetAsync();
+        var backup = new AuthorityBackupService().Export(
+            [Account("replacement")],
+            new AuthorityBackupPolicyPayload(1, "[]", "[]"),
+            "authority-switch-test-password");
+        var service = new AuthoritySwitchService(
+            new AuthorityDetachService(lifecycle, identities, policies),
+            new AuthorityAttachService(lifecycle, identities, policies),
+            identities,
+            new AuthorityBackupService());
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            service.SwitchAsync(backup, "authority-switch-test-password"));
+
+        Assert.Equal(issued, await lifecycle.GetAsync());
+        Assert.True(AuthorityLifecycleSessionFence.IsCurrent(await lifecycle.GetAsync(), issued.Epoch));
+        Assert.Equal(current.Id, Assert.Single(await identities.ListAsync()).Id);
+        Assert.Single(policies.Snapshot().Roles);
+    }
+
+    [Fact]
+    public async Task Switch_ReplacesAuthority_AndFencesBothPriorAndIntermediateEpochs()
+    {
+        var identities = new InMemoryLocalIdentityStore();
+        var lifecycle = new InMemoryAuthorityLifecycleStore();
+        var policies = Policy("current-admin", SecurityCapability.SystemAdmin);
+        var current = Account("current-admin");
+        await identities.CreateAsync(current);
+        await lifecycle.MarkAuthorityPresentAsync();
+        var issued = await lifecycle.GetAsync();
+        var replacement = Account("replacement-admin");
+        var replacementRoles = new[] { Role("replacement-admin", SecurityCapability.SystemAdmin) };
+        var backup = new AuthorityBackupService().Export(
+            [replacement],
+            new AuthorityBackupPolicyPayload(
+                1,
+                System.Text.Json.JsonSerializer.Serialize(replacementRoles),
+                System.Text.Json.JsonSerializer.Serialize(Array.Empty<SecurityScopeEngineeringDto>())),
+            "authority-switch-test-password");
+        var service = new AuthoritySwitchService(
+            new AuthorityDetachService(lifecycle, identities, policies),
+            new AuthorityAttachService(lifecycle, identities, policies),
+            identities,
+            new AuthorityBackupService());
+
+        var result = await service.SwitchAsync(backup, "authority-switch-test-password");
+
+        Assert.Equal(AuthorityLifecycleState.DeliberatelyDetached, result.Detach.After.State);
+        Assert.Equal(AuthorityLifecycleState.AuthorityPresent, result.Attach.After.State);
+        Assert.Equal(issued.Epoch + 2, result.Attach.After.Epoch);
+        Assert.False(AuthorityLifecycleSessionFence.IsCurrent(result.Attach.After, issued.Epoch));
+        Assert.False(AuthorityLifecycleSessionFence.IsCurrent(result.Attach.After, result.Detach.After.Epoch));
+        Assert.True(AuthorityLifecycleSessionFence.IsCurrent(result.Attach.After, result.Attach.After.Epoch));
+        Assert.Equal(replacement.Id, Assert.Single(await identities.ListAsync()).Id);
+        Assert.Equal("replacement-admin", Assert.Single(policies.Snapshot().Roles).Key);
+    }
+
     private static ApiAuthorizationCheck Check(ApiAuthorizationService service, string role)
     {
         var context = new DefaultHttpContext

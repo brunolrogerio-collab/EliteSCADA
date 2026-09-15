@@ -24,6 +24,22 @@ Antes de qualquer decisão, diagnóstico, alteração, comentário vinculante, r
 
 Não continue a partir de um SHA lembrado apenas porque está neste prompt.
 
+## AUTH-04 CURRENT OVERRIDE — 2026-09-15
+
+Read #297 first and #302 second. Do not follow the historical AUTH-04 “queued” text below.
+
+- Frozen baseline: `wave15/corrections-integration@e7b9b83dbc71764e3eee5b5afe2daf07c45a9377`.
+- Active AUTH-04 product head: `work/w15-auth-04-authority-detach@05460c9b75e893624abaaa85e22b2519df2a7b37`.
+- Exact CI evidence: [run 35013887820](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/35013887820), attempt 2 green.
+- State: **ACTIVE / CI-VERIFIED CANDIDATE / NOT PR_READY / NOT INTEGRATED / NOT FROZEN**. No FC0 or downstream activation follows from it.
+- Architecture already decided: Authority-owned persistent binding and monotonic session epoch; atomic
+  detach/switch under canonical SQL transaction/advisory-lock discipline; old sessions fail closed
+  across nodes. Policy, identities and credentials remain Authority-owned and prohibited from `.escadapkg`.
+
+The separate privileged Codex/Visual Studio Work chat owns heavy implementation. Main Coordinator does
+not compete: it validates GitHub-live evidence, reviews the Work handoff, keeps #302 authoritative and
+enforces the graph.
+
 ## MODELO DE ESTADO
 
 Use:

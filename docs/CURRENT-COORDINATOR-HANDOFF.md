@@ -2,6 +2,14 @@
 
 > **GitHub live is the sole operational authority.** This file is a concise pointer. The detailed persistent state is in `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`. Revalidate live refs, latest issue comments, PR heads/trees and exact-head Actions evidence before acting.
 
+> **2026-09-15 AUTH-04 override:** the historical snapshot below is superseded for AUTH-04.
+> Frozen baseline: `wave15/corrections-integration@e7b9b83dbc71764e3eee5b5afe2daf07c45a9377`.
+> Active branch/product SHA: `work/w15-auth-04-authority-detach@05460c9b75e893624abaaa85e22b2519df2a7b37`.
+> Exact product CI: [run 35013887820](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/35013887820), attempt 2 all green.
+> AUTH-04 is **ACTIVE / CI-VERIFIED CANDIDATE / NOT PR_READY / NOT INTEGRATED / NOT FROZEN**.
+> The separate privileged Codex/Visual Studio Work chat owns heavy implementation; Main only coordinates,
+> reviews evidence and records the authoritative handoff in #302.
+
 ## Current topology snapshot
 
 - Repository: `brunolrogerio-collab/EliteSCADA`

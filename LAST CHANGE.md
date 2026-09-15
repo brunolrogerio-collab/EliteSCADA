@@ -1,13 +1,13 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-15 BRT
-**Operational override:** **AUTH-04 ACTIVE / CI-VERIFIED CANDIDATE / NOT PR_READY / NOT INTEGRATED / NOT FROZEN**
+**Operational override:** **AUTH-04 PR OPEN / REBASED ON CURRENT INTEGRATION / EXACT-HEAD CI PENDING / NOT INTEGRATED / NOT VERIFIED / NOT FROZEN**
 
 This entry supersedes the historical snapshot below for AUTH-04; it does not rewrite its evidence.
 
 - Frozen AUTH-03 / FND-02 baseline: `wave15/corrections-integration@e7b9b83dbc71764e3eee5b5afe2daf07c45a9377`.
-- Active AUTH-04 product branch/SHA: `work/w15-auth-04-authority-detach@05460c9b75e893624abaaa85e22b2519df2a7b37`.
-- Exact product CI: [run 35013887820](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/35013887820), attempt 2 succeeded (backend/smoke, Web and Chromium).
+- Active AUTH-04 PR branch: `work/w15-auth-04-authority-detach`, rebased onto `wave15/corrections-integration@b2eec2dc95da905dab9908246e30bf0f96d05aa3` to preserve the global collaboration protocol.
+- The prior candidate CI must not be reused after this rebase; exact-head CI is pending for the rebased branch.
 - Delivered boundary: persistent Authority binding/session epoch, serialized atomic detach/switch,
   fail-closed cross-node invalidation and secret-safe audit. Policy, local identities and credentials
   remain Authority-owned; `.escadapkg` remains prohibited from carrying them.

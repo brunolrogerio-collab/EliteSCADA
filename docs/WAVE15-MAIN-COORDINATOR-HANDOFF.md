@@ -16,13 +16,13 @@ GitHub-live revalidation; the older text remains only as historical evidence.
 
 - AUTH-03 / FND-02 contract baseline is frozen at
   `wave15/corrections-integration@e7b9b83dbc71764e3eee5b5afe2daf07c45a9377`.
-- AUTH-04 is ACTIVE only on
-  `work/w15-auth-04-authority-detach@05460c9b75e893624abaaa85e22b2519df2a7b37`.
-- Its exact product CI evidence is [run 35013887820](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/35013887820): attempt 2 succeeded for backend/smoke, Web and Chromium.
+- AUTH-04 is open for independent review on
+  `work/w15-auth-04-authority-detach`, rebased onto current integration `b2eec2dc95da905dab9908246e30bf0f96d05aa3`.
+- The previous product CI is not evidence for the rebased branch; exact-head CI is pending.
 - AUTH-04 implements Authority-owned persistent binding/session epoch, atomic detached/attached
   lifecycle and cross-node fail-closed invalidation. Canonical policy and local identities remain
   Authority-owned; package/Engineering ownership and frozen AUTH-03 contracts are unchanged.
-- Status: **ACTIVE / CI-VERIFIED CANDIDATE / NOT PR_READY / NOT INTEGRATED / NOT FROZEN**. Do not
+- Status: **PR OPEN / REBASED / EXACT-HEAD CI PENDING / NOT INTEGRATED / NOT VERIFIED / NOT FROZEN**. Do not
   authorize FC0 or any dependent slice from this state.
 
 ### Role boundary and immediate action

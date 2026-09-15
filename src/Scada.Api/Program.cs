@@ -129,8 +129,12 @@ _ = app.Services.GetRequiredService<IHistorian>();
 await app.InitializeServerMemoryRetentionAsync();
 await app.InitializeEngineeringPersistenceAsync();
 await app.InitializeAuditAsync();
-await app.Services.GetRequiredService<AuthorityDetachService>().RecoverIfInProgressAsync();
-await app.Services.GetRequiredService<AuthorityLifecycleBootstrapService>().EnsureInitializedAsync();
+var localIdentityRuntime = app.Services.GetRequiredService<LocalIdentityRuntimeOptions>();
+if (localIdentityRuntime.Enabled)
+{
+    await app.Services.GetRequiredService<AuthorityDetachService>().RecoverIfInProgressAsync();
+    await app.Services.GetRequiredService<AuthorityLifecycleBootstrapService>().EnsureInitializedAsync();
+}
 
 app.UseMiddleware<TimingCorrelationMiddleware>();
 app.UseCors();

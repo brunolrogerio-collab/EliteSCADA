@@ -135,6 +135,12 @@ if (localIdentityRuntime.Enabled)
     await app.Services.GetRequiredService<AuthorityDetachService>().RecoverIfInProgressAsync();
     await app.Services.GetRequiredService<AuthorityLifecycleBootstrapService>().EnsureInitializedAsync();
 }
+else
+{
+    // Policy remains canonical Authority state even when local authentication is disabled.
+    // Only the local-identity lifecycle is unavailable in this runtime profile.
+    await app.Services.GetRequiredService<AuthorityPolicyBootstrapService>().EnsureInitializedAsync();
+}
 
 app.UseMiddleware<TimingCorrelationMiddleware>();
 app.UseCors();

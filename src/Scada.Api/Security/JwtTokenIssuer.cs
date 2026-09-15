@@ -13,14 +13,17 @@ public sealed class JwtTokenIssuer
     public const string IdentityProviderClaim = "elitescada_identity_provider";
     public const string LocalIdentityProvider = "local";
     public const string LocalUserVersionClaim = "elitescada_local_user_version";
+    public const string AuthorityEpochClaim = "elitescada_authority_epoch";
 
     private readonly string _issuer;
     private readonly string _audience;
     private readonly SigningCredentials _credentials;
     private readonly TimeSpan _lifetime;
+    private readonly IAuthorityLifecycleStore _authorityLifecycle;
 
-    public JwtTokenIssuer(IConfiguration configuration)
+    public JwtTokenIssuer(IConfiguration configuration, IAuthorityLifecycleStore authorityLifecycle)
     {
+        _authorityLifecycle = authorityLifecycle ?? throw new ArgumentNullException(nameof(authorityLifecycle));
         var jwt = configuration.GetSection("Authentication:Jwt");
         _issuer = jwt["Issuer"]?.Trim()
             ?? throw new InvalidOperationException("Authentication:Jwt:Issuer is required for token issuance.");
@@ -40,11 +43,18 @@ public sealed class JwtTokenIssuer
             SecurityAlgorithms.HmacSha256);
     }
 
-    public IssuedAccessToken Issue(LocalUserAccount account, DateTimeOffset? nowUtc = null)
+    public async Task<IssuedAccessToken> IssueAsync(
+        LocalUserAccount account,
+        DateTimeOffset? nowUtc = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(account);
         if (!account.IsEnabled)
             throw new InvalidOperationException("Disabled users cannot receive access tokens.");
+
+        var lifecycle = await _authorityLifecycle.GetAsync(cancellationToken);
+        if (!lifecycle.AllowsAuthorization)
+            throw new InvalidOperationException("Local Authority is not available for token issuance.");
 
         var now = nowUtc ?? DateTimeOffset.UtcNow;
         var expires = now.Add(_lifetime);
@@ -56,7 +66,8 @@ public sealed class JwtTokenIssuer
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
             new(JwtRegisteredClaimNames.Iat, now.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
             new(IdentityProviderClaim, LocalIdentityProvider),
-            new(LocalUserVersionClaim, account.UpdatedAtUtc.ToUnixTimeMilliseconds().ToString(System.Globalization.CultureInfo.InvariantCulture), ClaimValueTypes.Integer64)
+            new(LocalUserVersionClaim, account.UpdatedAtUtc.ToUnixTimeMilliseconds().ToString(System.Globalization.CultureInfo.InvariantCulture), ClaimValueTypes.Integer64),
+            new(AuthorityEpochClaim, lifecycle.Epoch.ToString(System.Globalization.CultureInfo.InvariantCulture), ClaimValueTypes.Integer64)
         };
         claims.AddRange(LocalIdentityNormalization.NormalizeRoles(account.Roles)
             .Select(role => new Claim("role", role)));

@@ -9,6 +9,29 @@
 **Integration branch:** `wave15/corrections-integration`  
 **Snapshot integration SHA:** `bc68bf450f6efd42b90898ad0656bea9b7543f57`
 
+## 0. Superseding AUTH-04 coordination record — 2026-09-15
+
+This record supersedes the historical AUTH-03/AUTH-04 snapshot below. It was written after
+GitHub-live revalidation; the older text remains only as historical evidence.
+
+- AUTH-03 / FND-02 contract baseline is frozen at
+  `wave15/corrections-integration@e7b9b83dbc71764e3eee5b5afe2daf07c45a9377`.
+- AUTH-04 is open for independent review on
+  `work/w15-auth-04-authority-detach`, rebased onto current integration `b2eec2dc95da905dab9908246e30bf0f96d05aa3`.
+- The previous product CI is not evidence for the rebased branch; exact-head CI is pending.
+- AUTH-04 implements Authority-owned persistent binding/session epoch, atomic detached/attached
+  lifecycle and cross-node fail-closed invalidation. Canonical policy and local identities remain
+  Authority-owned; package/Engineering ownership and frozen AUTH-03 contracts are unchanged.
+- Status: **PR OPEN / REBASED / EXACT-HEAD CI PENDING / NOT INTEGRATED / NOT VERIFIED / NOT FROZEN**. Do not
+  authorize FC0 or any dependent slice from this state.
+
+### Role boundary and immediate action
+
+The separate privileged Codex/Visual Studio Work chat owns heavy implementation. Main Coordinator
+does not compete: it reviews handoffs, GitHub-live evidence and the dependency graph in #297, #302
+and #305. A new coordinator must read #297 first, then #302; revalidate branch head and exact CI,
+then await or review the Work handoff.
+
 ## 1. First actions for a new Main Coordinator
 
 Before deciding, assigning, reviewing, rerunning CI or merging anything:
@@ -171,7 +194,7 @@ The current smoke failure is **not** the previously suspected lifecycle `Changes
 
 Therefore the immediate task is a narrow historian-smoke diagnosis: timing/identity/query/routing or a stale smoke assumption. Do not weaken Historian or AUTH contracts. Do not call the entire PR green merely because the Authority PostgreSQL gate passed. If the failure is a stale/non-causal CI fixture, correct it in a bounded, evidence-backed way and revalidate the exact resulting head.
 
-## 7. AUTH-04 is queued, not active
+## 7. Historical snapshot: AUTH-04 was queued, not active
 
 Do not activate AUTH-04 until AUTH-03 is integrated/verified/frozen and its FND-07/#304 dependency is ready.
 

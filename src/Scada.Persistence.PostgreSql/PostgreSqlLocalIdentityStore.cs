@@ -213,6 +213,25 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
         }
     }
 
+    public async Task ClearAllAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            await AcquireMutationLockAsync(connection, transaction, cancellationToken);
+            await using var delete = new NpgsqlCommand("DELETE FROM elitescada.local_users;", connection, transaction);
+            await delete.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            try { await transaction.RollbackAsync(CancellationToken.None); }
+            catch { }
+            throw;
+        }
+    }
+
     public async Task<bool> TryReplaceAllIfEmptyAsync(
         IReadOnlyCollection<LocalUserAccount> accounts,
         CancellationToken cancellationToken = default)

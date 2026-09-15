@@ -137,6 +137,10 @@ public static class LocalIdentityConfiguration
             secureCookie,
             cookieName,
             durableStore));
+        builder.Services.AddSingleton<IAuthorityLifecycleStore>(_ =>
+            durableStore
+                ? new PostgreSqlAuthorityLifecycleStore(connectionString!)
+                : new InMemoryAuthorityLifecycleStore());
         builder.Services.AddSingleton<JwtTokenIssuer>();
         builder.Services.AddSingleton<LocalLoginAttemptLimiter>();
         builder.Services.AddSingleton<AuthorityBackupService>();
@@ -159,7 +163,16 @@ public static class LocalIdentityConfiguration
 
         var store = app.Services.GetRequiredService<ILocalIdentityStore>();
         await store.InitializeAsync();
-        await app.Services.GetRequiredService<AuthorityPolicyBootstrapService>().EnsureInitializedAsync();
+        var lifecycle = app.Services.GetRequiredService<IAuthorityLifecycleStore>();
+        await lifecycle.InitializeAsync();
+        var lifecycleSnapshot = await lifecycle.GetAsync();
+        if (lifecycleSnapshot.State == AuthorityLifecycleState.Invalid)
+            throw new InvalidOperationException(
+                "Authority lifecycle is not authoritatively recoverable. Startup is fail-closed until the durable Authority transition is resolved.");
+        if (lifecycleSnapshot.State is AuthorityLifecycleState.DetachInProgress or AuthorityLifecycleState.AttachInProgress or AuthorityLifecycleState.DeliberatelyDetached)
+            return;
+        if (lifecycleSnapshot.State == AuthorityLifecycleState.AuthorityPresent && await store.CountAsync() == 0)
+            throw new InvalidOperationException("Authority lifecycle says attached but no local Authority identity exists. Startup is fail-closed.");
         if (await store.CountAsync() > 0) return;
 
         var bootstrap = app.Configuration.GetSection("Authentication:Local:Bootstrap");
@@ -224,6 +237,8 @@ public static class LocalIdentityConfiguration
             if (await store.CountAsync() > 0) return;
             await store.CreateAsync(account);
         }
+
+        await lifecycle.MarkAuthorityPresentAsync();
 
         app.Logger.LogWarning(
             "Created first local EliteSCADA identity '{Username}' from bootstrap configuration. Remove the bootstrap password from deployment configuration after successful initialization.",

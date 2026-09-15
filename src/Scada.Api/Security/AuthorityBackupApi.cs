@@ -1,5 +1,7 @@
 using Scada.Api.Realtime;
 using Scada.Api.Runtime;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Security;
@@ -123,88 +125,73 @@ public static class AuthorityBackupApi
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
             ApiAuditService audit,
-            ILocalIdentityStore store,
-            IAuthorityPolicyStore policyStore,
-            AuthorityBackupService backup,
+            AuthoritySwitchService authoritySwitch,
+            IAuthorityLifecycleStore lifecycle,
             TagRealtimeHub realtime,
             CancellationToken ct) =>
         {
-            var authorization = await AuthorizeAdministrationAsync(
+            // This retained route is a compatibility alias, not a second restore implementation.
+            // Replacing an existing Authority must follow the same epoch-fenced journal as /authority/switch.
+            var authorization = await AuthorizeSystemAdministrationAsync(
                 context, runtime, security, audit, ApplyAction, ct);
             if (authorization.Failure is not null) return authorization.Failure;
 
-            AuthorityBackupOpenResult opened;
+            AuthorityLifecycleSnapshot? before = null;
             try
             {
-                opened = backup.Open(request.Backup, request.Password);
+                before = await lifecycle.GetAsync(ct);
+                // Use the same lease-owning service path as /authority/switch. The compatibility
+                // alias must not prepare an Authority target outside the operation boundary.
+                var result = await authoritySwitch.SwitchAsync(request.Backup, request.Password, ct);
+                var revokedRealtimeClients = RevokeRealtimeSubjects(realtime, result.Detach.RevokedSubjects);
+                LocalIdentityApi.DeleteLocalCookie(context, localRuntime);
+
+                await audit.RecordAsync(
+                    context,
+                    authorization.Check!.Principal,
+                    ApplyAction,
+                    AuditOutcome.Succeeded,
+                    "local-authority",
+                    TargetFingerprint(request.Backup),
+                    new Dictionary<string, string>
+                    {
+                        ["origin"] = "authority-backup-apply-compatibility",
+                        ["lifecycleBefore"] = before.State.ToString(),
+                        ["lifecycleAfter"] = result.Attach.After.State.ToString(),
+                        ["epochBefore"] = before.Epoch.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["epochAfter"] = result.Attach.After.Epoch.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["userCount"] = result.Preview.UserCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["revokedRealtimeClients"] = revokedRealtimeClients.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["signInRequired"] = bool.TrueString,
+                        ["result"] = "switched"
+                    });
+
+                return Results.Ok(new
+                {
+                    applied = true,
+                    signInRequired = true,
+                    preview = result.Preview
+                });
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
             catch (ArgumentException)
             {
+                await RecordApplyFailureAsync(audit, context, authorization.Check!.Principal, lifecycle, request.Backup, before);
                 return InvalidBackup();
             }
             catch (InvalidDataException)
             {
+                await RecordApplyFailureAsync(audit, context, authorization.Check!.Principal, lifecycle, request.Backup, before);
                 return InvalidBackup();
             }
-
-            if (opened.Policy is null)
-                return Results.Conflict(new { error = "AUTHORITY_POLICY_REQUIRED: v1 backups are readable but cannot restore a complete Security Authority." });
-
-            if (!TryReadPolicy(opened.Policy, out var roles, out var scopes)) return InvalidBackup();
-
-            var currentUsers = await store.ListAsync(ct);
-            IReadOnlyCollection<LocalUserAccount> replacement;
-            try
+            catch (Exception)
             {
-                replacement = AuthorityRestoreSecurity.RefreshSecurityVersions(opened.Accounts, currentUsers);
-            }
-            catch (InvalidDataException)
-            {
-                return InvalidBackup();
-            }
-
-            if (!HasPolicyAdministrator(replacement, roles!, scopes!))
-            {
-                return Results.BadRequest(new
+                await RecordApplyFailureAsync(audit, context, authorization.Check!.Principal, lifecycle, request.Backup, before);
+                return Results.Conflict(new
                 {
-                    error = "The restored Authority must retain at least one enabled local user with UserRoleAdmin or SystemAdmin in the active runtime policy."
+                    error = "Authority restore could not be completed; any interrupted Authority transition remains fail-closed for recovery."
                 });
             }
-
-            var previousPolicy = policyStore.Snapshot();
-            var policyRestore = await policyStore.TryReplaceAsync(previousPolicy.Version, roles!, scopes!, ct);
-            if (!policyRestore.Applied)
-                return Results.Conflict(new { error = policyRestore.Error, currentVersion = policyRestore.Snapshot.Version });
-
-            try { await store.ReplaceAllAsync(replacement, ct); }
-            catch
-            {
-                await policyStore.TryReplaceAsync(policyRestore.Snapshot.Version, previousPolicy.Roles, previousPolicy.Scopes, CancellationToken.None);
-                throw;
-            }
-            var revokedRealtimeClients = RevokeRealtimeSubjects(realtime, currentUsers, replacement);
-            LocalIdentityApi.DeleteLocalCookie(context, localRuntime);
-
-            await audit.RecordAsync(
-                context,
-                authorization.Check!.Principal,
-                ApplyAction,
-                AuditOutcome.Succeeded,
-                "local-authority",
-                "restore",
-                new Dictionary<string, string>
-                {
-                    ["userCount"] = replacement.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    ["revokedRealtimeClients"] = revokedRealtimeClients.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    ["signInRequired"] = bool.TrueString
-                });
-
-            return Results.Ok(new
-            {
-                applied = true,
-                signInRequired = true,
-                preview = opened.Preview
-            });
         });
 
         endpoints.MapPost("/api/auth/bootstrap/authority-backup/preview", async (
@@ -256,6 +243,7 @@ public static class AuthorityBackupApi
             InitialInstallationGate installationGate,
             ILocalIdentityStore store,
             IAuthorityPolicyStore policyStore,
+            IAuthorityLifecycleStore lifecycle,
             ApiAuditService audit,
             AuthorityBackupService backup,
             TagRealtimeHub realtime,
@@ -302,6 +290,15 @@ public static class AuthorityBackupApi
                 return InvalidBackup();
             }
 
+            try
+            {
+                AuthorityAttachService.ValidateTarget(new AuthorityAttachTarget(replacement, roles!, scopes!));
+            }
+            catch (InvalidDataException)
+            {
+                return InvalidBackup();
+            }
+
             var previousPolicy = policyStore.Snapshot();
             var policyRestore = await policyStore.TryReplaceAsync(previousPolicy.Version, roles!, scopes!, ct);
             if (!policyRestore.Applied)
@@ -315,6 +312,8 @@ public static class AuthorityBackupApi
                     error = "Anonymous Authority restore is already closed because another identity initialization won the race."
                 });
             }
+
+            await lifecycle.MarkAuthorityPresentAsync(ct);
 
             var revokedRealtimeClients = RevokeRealtimeSubjects(
                 realtime,
@@ -388,36 +387,73 @@ public static class AuthorityBackupApi
         return (roleAdmin, failure);
     }
 
-    private static async Task<bool> HasEnabledLocalAdministratorAsync(
-        IEnumerable<LocalUserAccount> users,
-        ApiAuthorizationService security,
+    private static async Task<(ApiAuthorizationCheck? Check, IResult? Failure)> AuthorizeSystemAdministrationAsync(
+        HttpContext context,
         ScadaRuntimeFacade runtime,
+        ApiAuthorizationService security,
+        ApiAuditService audit,
+        string action,
         CancellationToken ct)
     {
-        foreach (var user in users.Where(user => user.IsEnabled))
+        var systemAdmin = await security.CheckRuntimeAsync(
+            context,
+            runtime,
+            SecurityCapability.SystemAdmin,
+            cancellationToken: ct);
+        if (systemAdmin.Allowed) return (systemAdmin, null);
+
+        var failure = systemAdmin.FailureResult() ?? Results.Json(
+            new { error = "Forbidden." },
+            statusCode: StatusCodes.Status403Forbidden);
+        await audit.RecordAuthorizationDeniedAsync(
+            context,
+            systemAdmin,
+            action,
+            "local-authority",
+            "restore",
+            new Dictionary<string, string>
+            {
+                ["requiredCapability"] = nameof(SecurityCapability.SystemAdmin)
+            });
+        return (systemAdmin, failure);
+    }
+
+    private static async Task RecordApplyFailureAsync(
+        ApiAuditService audit,
+        HttpContext context,
+        SecurityPrincipal principal,
+        IAuthorityLifecycleStore lifecycle,
+        string backup,
+        AuthorityLifecycleSnapshot? before)
+    {
+        AuthorityLifecycleSnapshot? observed;
+        try { observed = await lifecycle.GetAsync(CancellationToken.None); }
+        catch { observed = null; }
+
+        var details = new Dictionary<string, string>
         {
-            var candidate = new SecurityPrincipal(
-                user.Id.ToString(),
-                user.DisplayName,
-                LocalIdentityNormalization.NormalizeRoles(user.Roles),
-                true);
-
-            var roleAdmin = await security.CheckRuntimeAsync(
-                candidate,
-                runtime,
-                SecurityCapability.UserRoleAdmin,
-                cancellationToken: ct);
-            if (roleAdmin.Allowed) return true;
-
-            var systemAdmin = await security.CheckRuntimeAsync(
-                candidate,
-                runtime,
-                SecurityCapability.SystemAdmin,
-                cancellationToken: ct);
-            if (systemAdmin.Allowed) return true;
+            ["origin"] = "authority-backup-apply-compatibility",
+            ["result"] = "failed"
+        };
+        if (before is not null)
+        {
+            details["lifecycleBefore"] = before.State.ToString();
+            details["epochBefore"] = before.Epoch.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+        if (observed is not null)
+        {
+            details["lifecycleObserved"] = observed.State.ToString();
+            details["epochObserved"] = observed.Epoch.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
-        return false;
+        await audit.RecordAsync(
+            context,
+            principal,
+            ApplyAction,
+            AuditOutcome.Failed,
+            "local-authority",
+            TargetFingerprint(backup),
+            details);
     }
 
     private static int RevokeRealtimeSubjects(
@@ -433,6 +469,14 @@ public static class AuthorityBackupApi
 
         var revoked = 0;
         foreach (var subjectId in subjectIds)
+            revoked += realtime.RevokeSubject(subjectId);
+        return revoked;
+    }
+
+    private static int RevokeRealtimeSubjects(TagRealtimeHub realtime, IEnumerable<string> subjectIds)
+    {
+        var revoked = 0;
+        foreach (var subjectId in subjectIds.Distinct(StringComparer.Ordinal))
             revoked += realtime.RevokeSubject(subjectId);
         return revoked;
     }
@@ -455,21 +499,6 @@ public static class AuthorityBackupApi
         }
         catch (JsonException) { return false; }
         catch (InvalidDataException) { return false; }
-    }
-
-    private static bool HasPolicyAdministrator(
-        IEnumerable<LocalUserAccount> users,
-        IReadOnlyCollection<SecurityRoleEngineeringDto> roles,
-        IReadOnlyCollection<SecurityScopeEngineeringDto> scopes)
-    {
-        if (!SecurityScopeGraph.TryCreate(scopes, out var graph, out _)) return false;
-        var authorization = new InMemoryCapabilityAuthorizationService(SecurityPolicyCompiler.Compile(roles));
-        return users.Where(user => user.IsEnabled).Any(user =>
-        {
-            var principal = new SecurityPrincipal(user.Id.ToString(), user.DisplayName, LocalIdentityNormalization.NormalizeRoles(user.Roles), true);
-            return authorization.Evaluate(principal, SecurityCapability.UserRoleAdmin, graph!.Enrich(new AuthorizationResource())).Allowed ||
-                authorization.Evaluate(principal, SecurityCapability.SystemAdmin, graph.Enrich(new AuthorizationResource())).Allowed;
-        });
     }
 
     private static Dictionary<string, string> PreviewAuditDetails(AuthorityBackupPreview preview) => new()
@@ -508,4 +537,7 @@ public static class AuthorityBackupApi
 
     private static SecurityPrincipal AnonymousPrincipal() =>
         new("anonymous", null, Array.Empty<string>(), false);
+
+    private static string TargetFingerprint(string backup) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(backup ?? string.Empty)));
 }

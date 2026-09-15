@@ -1,5 +1,24 @@
 # LAST CHANGE — EliteSCADA
 
+**Date:** 2026-09-15 BRT
+**Operational override:** **AUTH-04 PR OPEN / REBASED ON CURRENT INTEGRATION / EXACT-HEAD CI PENDING / NOT INTEGRATED / NOT VERIFIED / NOT FROZEN**
+
+This entry supersedes the historical snapshot below for AUTH-04; it does not rewrite its evidence.
+
+- Frozen AUTH-03 / FND-02 baseline: `wave15/corrections-integration@e7b9b83dbc71764e3eee5b5afe2daf07c45a9377`.
+- Active AUTH-04 PR branch: `work/w15-auth-04-authority-detach`, rebased onto `wave15/corrections-integration@b2eec2dc95da905dab9908246e30bf0f96d05aa3` to preserve the global collaboration protocol.
+- The prior candidate CI must not be reused after this rebase; exact-head CI is pending for the rebased branch.
+- Delivered boundary: persistent Authority binding/session epoch, serialized atomic detach/switch,
+  fail-closed cross-node invalidation and secret-safe audit. Policy, local identities and credentials
+  remain Authority-owned; `.escadapkg` remains prohibited from carrying them.
+- Role boundary: the separate privileged Codex/Visual Studio Work chat owns heavy implementation.
+  Main Coordinator validates evidence, records handoffs and enforces the dependency graph.
+- Next safe action: read #297, then #302; revalidate exact live branch/CI and review the Work handoff.
+
+---
+
+# Historical snapshot — 2026-09-13
+
 **Date:** 2026-09-13 BRT  
 **Operational state:** **WAVE 15 ACTIVE / FOUNDATION-FIRST / AUTH-01+AUTH-02 VERIFIED+FROZEN / AUTH-03 ACTIVE IN PR #314 / INFRA-CI-01 REQUIRED BEFORE FC0-A PARALLEL DEVS / WAVE13 PAUSED**
 

@@ -1,11 +1,13 @@
 using System.Net.WebSockets;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Scada.Api.Realtime;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.Engineering.ImportExport;
+using Scada.Security.Authentication;
 using Scada.Security.Authorization;
 
 namespace Scada.Drivers.Tests;
@@ -29,7 +31,7 @@ public sealed class TagRealtimeHubTests
             workspace,
             exchange,
             configuration);
-        using var hub = new TagRealtimeHub(bus, security, runtime: null!);
+        using var hub = new TagRealtimeHub(bus, security, runtime: null!, new InMemoryAuthorityLifecycleStore());
         using var socket = new ControlledWebSocket(blockSends: true);
         using var connectionCancellation = new CancellationTokenSource();
         var connection = hub.HandleAsync(
@@ -37,6 +39,7 @@ public sealed class TagRealtimeHubTests
             new SecurityPrincipal("slow-client", null, Array.Empty<string>()),
             enforceAuthorization: false,
             expiresAtUtc: null,
+            localAuthorityEpoch: null,
             connectionCancellation.Token);
 
         var publish = bus.PublishAsync(CreateEvent()).AsTask();
@@ -64,7 +67,7 @@ public sealed class TagRealtimeHubTests
             workspace,
             exchange,
             configuration);
-        using var hub = new TagRealtimeHub(bus, security, runtime: null!);
+        using var hub = new TagRealtimeHub(bus, security, runtime: null!, new InMemoryAuthorityLifecycleStore());
         using var slowSocket = new ControlledWebSocket(blockSends: true);
         using var healthySocket = new ControlledWebSocket(blockSends: false);
         using var connectionCancellation = new CancellationTokenSource();
@@ -74,12 +77,14 @@ public sealed class TagRealtimeHubTests
             principal,
             enforceAuthorization: false,
             expiresAtUtc: null,
+            localAuthorityEpoch: null,
             connectionCancellation.Token);
         var healthyConnection = hub.HandleAsync(
             healthySocket,
             new SecurityPrincipal("healthy-client", null, Array.Empty<string>()),
             enforceAuthorization: false,
             expiresAtUtc: null,
+            localAuthorityEpoch: null,
             connectionCancellation.Token);
 
         await bus.PublishAsync(CreateEvent());
@@ -114,7 +119,7 @@ public sealed class TagRealtimeHubTests
             workspace,
             exchange,
             configuration);
-        using var hub = new TagRealtimeHub(bus, security, runtime: null!);
+        using var hub = new TagRealtimeHub(bus, security, runtime: null!, new InMemoryAuthorityLifecycleStore());
         using var socket = new ControlledWebSocket(blockSends: false);
         using var connectionCancellation = new CancellationTokenSource();
         const string subjectId = "revoked-client";
@@ -123,6 +128,7 @@ public sealed class TagRealtimeHubTests
             new SecurityPrincipal(subjectId, null, Array.Empty<string>()),
             enforceAuthorization: false,
             expiresAtUtc: null,
+            localAuthorityEpoch: null,
             connectionCancellation.Token);
 
         Assert.Equal(1, hub.RevokeSubject(subjectId));
@@ -134,6 +140,124 @@ public sealed class TagRealtimeHubTests
 
         connectionCancellation.Cancel();
         await connection.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task LocalAuthorityClient_OnSecondHub_IsFencedByPersistedLifecycleAfterDetach()
+    {
+        var bus = new InMemoryScadaEventBus();
+        using var workspace = new EngineeringWorkspace();
+        var exchange = new EngineeringExchangeService(workspace.Tags, workspace.Alarms);
+        var configuration = new ConfigurationManager { ["Authentication:Enabled"] = "true" };
+        var security = new ApiAuthorizationService(new NullServiceProvider(), workspace, exchange, configuration);
+        var lifecycle = new InMemoryAuthorityLifecycleStore();
+        await lifecycle.MarkAuthorityPresentAsync();
+        var epoch = (await lifecycle.GetAsync()).Epoch;
+        using var firstNode = new TagRealtimeHub(bus, security, runtime: null!, lifecycle);
+        using var secondNode = new TagRealtimeHub(bus, security, runtime: null!, lifecycle);
+        using var socket = new ControlledWebSocket(blockSends: false);
+        using var connectionCancellation = new CancellationTokenSource();
+
+        // The connection belongs to a different hub/node from the one that performs lifecycle work.
+        var connection = secondNode.HandleAsync(
+            socket,
+            new SecurityPrincipal("local-user", null, Array.Empty<string>()),
+            enforceAuthorization: true,
+            expiresAtUtc: DateTimeOffset.UtcNow.AddMinutes(5),
+            localAuthorityEpoch: epoch,
+            connectionCancellation.Token);
+        await socket.ReceiveStarted.WaitAsync(AsyncSchedulingTimeout);
+
+        await lifecycle.BeginDetachAsync();
+        await bus.PublishAsync(CreateEvent());
+        await socket.CloseOutputSent.WaitAsync(AsyncSchedulingTimeout);
+
+        Assert.Equal(WebSocketCloseStatus.PolicyViolation, socket.CloseStatus);
+        Assert.Equal("authority session revoked", socket.CloseStatusDescription);
+        Assert.Equal(0, firstNode.RevokeSubject("local-user"));
+
+        connectionCancellation.Cancel();
+        await connection.WaitAsync(AsyncSchedulingTimeout);
+    }
+
+    [Fact]
+    public async Task ExternalAuthorityClient_IsNotFencedByLocalAuthorityLifecycle()
+    {
+        var bus = new InMemoryScadaEventBus();
+        using var workspace = new EngineeringWorkspace();
+        var exchange = new EngineeringExchangeService(workspace.Tags, workspace.Alarms);
+        var configuration = new ConfigurationManager { ["Authentication:Enabled"] = "true" };
+        var security = new ApiAuthorizationService(new NullServiceProvider(), workspace, exchange, configuration);
+        using var hub = new TagRealtimeHub(bus, security, runtime: null!, authorityLifecycle: null);
+        using var socket = new ControlledWebSocket(blockSends: false);
+        using var connectionCancellation = new CancellationTokenSource();
+
+        var connection = hub.HandleAsync(
+            socket,
+            new SecurityPrincipal("external-user", null, Array.Empty<string>()),
+            enforceAuthorization: true,
+            expiresAtUtc: DateTimeOffset.UtcNow.AddMinutes(5),
+            localAuthorityEpoch: null,
+            connectionCancellation.Token);
+        await socket.ReceiveStarted.WaitAsync(AsyncSchedulingTimeout);
+
+        await bus.PublishAsync(CreateEvent());
+
+        Assert.Equal(WebSocketState.Open, socket.State);
+        Assert.False(socket.CloseOutputSent.IsCompleted);
+
+        connectionCancellation.Cancel();
+        await connection.WaitAsync(AsyncSchedulingTimeout);
+    }
+
+    [Fact]
+    public void ExternalAuthComposition_ResolvesRealtimeHubWithoutLocalAuthorityLifecycle()
+    {
+        var bus = new InMemoryScadaEventBus();
+        using var workspace = new EngineeringWorkspace();
+        var exchange = new EngineeringExchangeService(workspace.Tags, workspace.Alarms);
+        var configuration = new ConfigurationManager { ["Authentication:Enabled"] = "true" };
+        var security = new ApiAuthorizationService(new NullServiceProvider(), workspace, exchange, configuration);
+        var services = new ServiceCollection()
+            .AddSingleton<Scada.Core.Abstractions.IScadaEventBus>(bus)
+            .AddSingleton(security)
+            .AddSingleton<ScadaRuntimeFacade>(_ => null!)
+            .AddSingleton<TagRealtimeHub>();
+        using var provider = services.BuildServiceProvider();
+
+        Assert.NotNull(provider.GetRequiredService<TagRealtimeHub>());
+        Assert.Null(provider.GetService<IAuthorityLifecycleStore>());
+    }
+
+    [Fact]
+    public async Task LocalAuthorityClient_LifecycleReadFailure_ClosesBeforeDelivery()
+    {
+        var bus = new InMemoryScadaEventBus();
+        using var workspace = new EngineeringWorkspace();
+        var exchange = new EngineeringExchangeService(workspace.Tags, workspace.Alarms);
+        var configuration = new ConfigurationManager { ["Authentication:Enabled"] = "true" };
+        var security = new ApiAuthorizationService(new NullServiceProvider(), workspace, exchange, configuration);
+        using var hub = new TagRealtimeHub(bus, security, runtime: null!, new UnavailableLifecycleStore());
+        using var socket = new ControlledWebSocket(blockSends: false);
+        using var connectionCancellation = new CancellationTokenSource();
+
+        var connection = hub.HandleAsync(
+            socket,
+            new SecurityPrincipal("local-user", null, Array.Empty<string>()),
+            enforceAuthorization: true,
+            expiresAtUtc: DateTimeOffset.UtcNow.AddMinutes(5),
+            localAuthorityEpoch: 1,
+            connectionCancellation.Token);
+        await socket.ReceiveStarted.WaitAsync(AsyncSchedulingTimeout);
+
+        await bus.PublishAsync(CreateEvent());
+        await socket.CloseOutputSent.WaitAsync(AsyncSchedulingTimeout);
+
+        Assert.Equal(WebSocketCloseStatus.PolicyViolation, socket.CloseStatus);
+        Assert.Equal("authority session validation unavailable", socket.CloseStatusDescription);
+
+        connectionCancellation.Cancel();
+        await connection.WaitAsync(AsyncSchedulingTimeout);
     }
 
     private static TagValueChanged CreateEvent(int value = 1)
@@ -148,6 +272,24 @@ public sealed class TagRealtimeHubTests
         public object? GetService(Type serviceType) => null;
     }
 
+    private sealed class UnavailableLifecycleStore : IAuthorityLifecycleStore
+    {
+        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public ValueTask<IAsyncDisposable> AcquireOperationLeaseAsync(CancellationToken cancellationToken = default) =>
+            ValueTask.FromException<IAsyncDisposable>(new InvalidOperationException("Lifecycle unavailable."));
+        public Task<AuthorityLifecycleSnapshot> GetAsync(CancellationToken cancellationToken = default) => Failed();
+        public Task<AuthorityLifecycleSnapshot> MarkAuthorityPresentAsync(CancellationToken cancellationToken = default) => Failed();
+        public Task<AuthorityLifecycleSnapshot> MarkInvalidAsync(CancellationToken cancellationToken = default) => Failed();
+        public Task<AuthorityLifecycleSnapshot> BeginDetachAsync(CancellationToken cancellationToken = default) => Failed();
+        public Task<AuthorityLifecycleSnapshot> CompleteDetachAsync(CancellationToken cancellationToken = default) => Failed();
+        public Task<AuthorityLifecycleSnapshot> BeginAttachAsync(CancellationToken cancellationToken = default) => Failed();
+        public Task<AuthorityLifecycleSnapshot> CompleteAttachAsync(CancellationToken cancellationToken = default) => Failed();
+        public Task<AuthorityLifecycleSnapshot> AbortAttachAsync(CancellationToken cancellationToken = default) => Failed();
+
+        private static Task<AuthorityLifecycleSnapshot> Failed() =>
+            Task.FromException<AuthorityLifecycleSnapshot>(new InvalidOperationException("Lifecycle unavailable."));
+    }
+
     private sealed class ControlledWebSocket(bool blockSends) : WebSocket
     {
         private readonly CancellationTokenSource _disposed = new();
@@ -160,12 +302,15 @@ public sealed class TagRealtimeHubTests
         public Task SendStarted => SendStartedSource.Task;
         public Task SendCompleted => SendCompletedSource.Task;
         public Task CloseOutputSent => CloseOutputSentSource.Task;
+        public Task ReceiveStarted => ReceiveStartedSource.Task;
         public bool ReceiveCancellationObservedBeforeClose { get; private set; }
         private TaskCompletionSource SendStartedSource { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         private TaskCompletionSource SendCompletedSource { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         private TaskCompletionSource CloseOutputSentSource { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private TaskCompletionSource ReceiveStartedSource { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public override WebSocketCloseStatus? CloseStatus => _closeStatus;
@@ -262,6 +407,7 @@ public sealed class TagRealtimeHubTests
 
         private async Task WaitForReceiveCancellationAsync(CancellationToken cancellationToken)
         {
+            ReceiveStartedSource.TrySetResult();
             using var registration = cancellationToken.Register(
                 () => Interlocked.Exchange(ref _receiveCancellationObserved, 1));
             await WaitUntilCanceledAsync(cancellationToken);

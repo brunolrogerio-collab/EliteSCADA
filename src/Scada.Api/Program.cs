@@ -65,6 +65,10 @@ builder.Services.AddSingleton(sp => new AuthorityPolicyBootstrapService(
     sp.GetService<IEngineeringProjectStore>(),
     sp.GetRequiredService<AuthorityPolicyBootstrapOptions>(),
     sp.GetService<EngineeringWorkspace>()));
+builder.Services.AddSingleton<AuthorityLifecycleBootstrapService>();
+builder.Services.AddSingleton<AuthorityDetachService>();
+builder.Services.AddSingleton<AuthorityAttachService>();
+builder.Services.AddSingleton<AuthoritySwitchService>();
 builder.Services.AddSingleton<ICommandEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Commands);
 builder.Services.AddSingleton<IScriptEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Scripts);
 builder.Services.AddSingleton<IGatewayEngineeringRegistry>(sp =>
@@ -127,7 +131,18 @@ _ = app.Services.GetRequiredService<IHistorian>();
 await app.InitializeServerMemoryRetentionAsync();
 await app.InitializeEngineeringPersistenceAsync();
 await app.InitializeAuditAsync();
-await app.Services.GetRequiredService<AuthorityPolicyBootstrapService>().EnsureInitializedAsync();
+var localIdentityRuntime = app.Services.GetRequiredService<LocalIdentityRuntimeOptions>();
+if (localIdentityRuntime.Enabled)
+{
+    await app.Services.GetRequiredService<AuthorityDetachService>().RecoverIfInProgressAsync();
+    await app.Services.GetRequiredService<AuthorityLifecycleBootstrapService>().EnsureInitializedAsync();
+}
+else
+{
+    // Policy remains canonical Authority state even when local authentication is disabled.
+    // Only the local-identity lifecycle is unavailable in this runtime profile.
+    await app.Services.GetRequiredService<AuthorityPolicyBootstrapService>().EnsureInitializedAsync();
+}
 
 app.UseMiddleware<TimingCorrelationMiddleware>();
 app.UseCors();
@@ -664,6 +679,7 @@ app.Map("/ws/tags", async (
     }
 
     DateTimeOffset? expiresAtUtc = null;
+    long? localAuthorityEpoch = null;
     if (security.AuthenticationEnabled)
     {
         if (!long.TryParse(context.User.FindFirst("exp")?.Value, out var expiresAtUnix))
@@ -681,6 +697,27 @@ app.Map("/ws/tags", async (
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return;
         }
+
+        // JwtAuthenticationConfiguration has already validated this proof at connection time.
+        // Retain it on the client so every later delivery can re-check the canonical lifecycle.
+        // External JWT providers intentionally have no local Authority epoch.
+        if (string.Equals(
+                context.User.FindFirst(JwtTokenIssuer.IdentityProviderClaim)?.Value,
+                JwtTokenIssuer.LocalIdentityProvider,
+                StringComparison.Ordinal))
+        {
+            if (!long.TryParse(
+                    context.User.FindFirst(JwtTokenIssuer.AuthorityEpochClaim)?.Value,
+                    System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var epoch))
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return;
+            }
+
+            localAuthorityEpoch = epoch;
+        }
     }
 
     var socket = await context.WebSockets.AcceptWebSocketAsync();
@@ -689,6 +726,7 @@ app.Map("/ws/tags", async (
         principal,
         security.AuthenticationEnabled,
         expiresAtUtc,
+        localAuthorityEpoch,
         context.RequestAborted);
 });
 

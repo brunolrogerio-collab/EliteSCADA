@@ -62,6 +62,37 @@ public sealed class PostgreSqlAuthorityLifecycleStoreTests
     }
 
     [Fact]
+    public async Task PersistsAttachIntentAcrossRestart_AndAdvancesEpochOnAbort()
+    {
+        if (string.IsNullOrWhiteSpace(ConnectionString)) return;
+        await ResetAsync();
+
+        long detachedEpoch;
+        await using (var first = new PostgreSqlAuthorityLifecycleStore(ConnectionString))
+        {
+            await first.InitializeAsync();
+            await first.MarkAuthorityPresentAsync();
+            await first.BeginDetachAsync();
+            detachedEpoch = (await first.CompleteDetachAsync()).Epoch;
+            var attaching = await first.BeginAttachAsync();
+            Assert.Equal(AuthorityLifecycleState.AttachInProgress, attaching.State);
+            Assert.False(AuthorityLifecycleSessionFence.IsCurrent(attaching, detachedEpoch));
+        }
+
+        await using (var restarted = new PostgreSqlAuthorityLifecycleStore(ConnectionString))
+        {
+            await restarted.InitializeAsync();
+            Assert.Equal(AuthorityLifecycleState.AttachInProgress, (await restarted.GetAsync()).State);
+
+            var aborted = await restarted.AbortAttachAsync();
+            Assert.Equal(AuthorityLifecycleState.DeliberatelyDetached, aborted.State);
+            Assert.Equal(detachedEpoch + 1, aborted.Epoch);
+        }
+
+        await ResetAsync();
+    }
+
+    [Fact]
     public async Task Initialize_CreatesLifecycleState_WhenAuditMigration007AlreadyExists()
     {
         if (string.IsNullOrWhiteSpace(ConnectionString)) return;

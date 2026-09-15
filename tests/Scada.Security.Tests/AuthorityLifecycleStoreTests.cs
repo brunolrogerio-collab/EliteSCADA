@@ -40,4 +40,33 @@ public sealed class AuthorityLifecycleStoreTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => store.MarkAuthorityPresentAsync());
     }
+
+    [Fact]
+    public async Task AttachIntent_FencesSessions_AndEitherCompletionOrAbortAdvancesEpoch()
+    {
+        var store = new InMemoryAuthorityLifecycleStore();
+        await store.MarkAuthorityPresentAsync();
+        var issued = await store.GetAsync();
+        await store.BeginDetachAsync();
+        var detached = await store.CompleteDetachAsync();
+
+        var attaching = await store.BeginAttachAsync();
+        Assert.Equal(AuthorityLifecycleState.AttachInProgress, attaching.State);
+        Assert.Equal(detached.Epoch, attaching.Epoch);
+        Assert.False(AuthorityLifecycleSessionFence.IsCurrent(attaching, issued.Epoch));
+        Assert.Equal(attaching, await store.BeginAttachAsync());
+
+        var attached = await store.CompleteAttachAsync();
+        Assert.Equal(AuthorityLifecycleState.AuthorityPresent, attached.State);
+        Assert.Equal(detached.Epoch + 1, attached.Epoch);
+        Assert.False(AuthorityLifecycleSessionFence.IsCurrent(attached, issued.Epoch));
+
+        await store.BeginDetachAsync();
+        var detachedAgain = await store.CompleteDetachAsync();
+        await store.BeginAttachAsync();
+        var aborted = await store.AbortAttachAsync();
+        Assert.Equal(AuthorityLifecycleState.DeliberatelyDetached, aborted.State);
+        Assert.Equal(detachedAgain.Epoch + 1, aborted.Epoch);
+        Assert.Equal(aborted, await store.AbortAttachAsync());
+    }
 }

@@ -71,5 +71,11 @@ public sealed class LocalIdentityBootstrapLifecycleTests
             throw new NotSupportedException();
         public Task<AuthorityLifecycleSnapshot> CompleteDetachAsync(CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+        public Task<AuthorityLifecycleSnapshot> BeginAttachAsync(CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+        public Task<AuthorityLifecycleSnapshot> CompleteAttachAsync(CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+        public Task<AuthorityLifecycleSnapshot> AbortAttachAsync(CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 }

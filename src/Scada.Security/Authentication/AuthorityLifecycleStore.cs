@@ -11,6 +11,7 @@ public enum AuthorityLifecycleState
     AuthorityPresent,
     DetachInProgress,
     DeliberatelyDetached,
+    AttachInProgress,
     Invalid
 }
 
@@ -32,6 +33,9 @@ public interface IAuthorityLifecycleStore
     Task<AuthorityLifecycleSnapshot> MarkInvalidAsync(CancellationToken cancellationToken = default);
     Task<AuthorityLifecycleSnapshot> BeginDetachAsync(CancellationToken cancellationToken = default);
     Task<AuthorityLifecycleSnapshot> CompleteDetachAsync(CancellationToken cancellationToken = default);
+    Task<AuthorityLifecycleSnapshot> BeginAttachAsync(CancellationToken cancellationToken = default);
+    Task<AuthorityLifecycleSnapshot> CompleteAttachAsync(CancellationToken cancellationToken = default);
+    Task<AuthorityLifecycleSnapshot> AbortAttachAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>In-memory implementation for non-durable development hosts and focused tests.</summary>
@@ -80,6 +84,30 @@ public sealed class InMemoryAuthorityLifecycleStore : IAuthorityLifecycleStore
     public Task<AuthorityLifecycleSnapshot> CompleteDetachAsync(CancellationToken cancellationToken = default) =>
         TransitionAsync(
             AuthorityLifecycleState.DetachInProgress,
+            AuthorityLifecycleState.DeliberatelyDetached,
+            advanceEpoch: true,
+            idempotentState: AuthorityLifecycleState.DeliberatelyDetached,
+            cancellationToken);
+
+    public Task<AuthorityLifecycleSnapshot> BeginAttachAsync(CancellationToken cancellationToken = default) =>
+        TransitionAsync(
+            AuthorityLifecycleState.DeliberatelyDetached,
+            AuthorityLifecycleState.AttachInProgress,
+            advanceEpoch: false,
+            idempotentState: AuthorityLifecycleState.AttachInProgress,
+            cancellationToken);
+
+    public Task<AuthorityLifecycleSnapshot> CompleteAttachAsync(CancellationToken cancellationToken = default) =>
+        TransitionAsync(
+            AuthorityLifecycleState.AttachInProgress,
+            AuthorityLifecycleState.AuthorityPresent,
+            advanceEpoch: true,
+            idempotentState: AuthorityLifecycleState.AuthorityPresent,
+            cancellationToken);
+
+    public Task<AuthorityLifecycleSnapshot> AbortAttachAsync(CancellationToken cancellationToken = default) =>
+        TransitionAsync(
+            AuthorityLifecycleState.AttachInProgress,
             AuthorityLifecycleState.DeliberatelyDetached,
             advanceEpoch: true,
             idempotentState: AuthorityLifecycleState.DeliberatelyDetached,

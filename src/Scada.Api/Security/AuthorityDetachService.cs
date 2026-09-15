@@ -35,10 +35,17 @@ public sealed class AuthorityDetachService(
     public async Task<bool> RecoverIfInProgressAsync(CancellationToken cancellationToken = default)
     {
         var state = await lifecycle.GetAsync(cancellationToken);
-        if (state.State != AuthorityLifecycleState.DetachInProgress) return false;
-
-        await CompleteJournalAsync(cancellationToken);
-        return true;
+        if (state.State == AuthorityLifecycleState.DetachInProgress)
+        {
+            await CompleteJournalAsync(cancellationToken);
+            return true;
+        }
+        if (state.State == AuthorityLifecycleState.AttachInProgress)
+        {
+            await AbortAttachJournalAsync(cancellationToken);
+            return true;
+        }
+        return false;
     }
 
     private async Task CompleteJournalAsync(CancellationToken cancellationToken)
@@ -76,6 +83,25 @@ public sealed class AuthorityDetachService(
         }
 
         throw new InvalidOperationException("Authority detach policy clear conflicted repeatedly; the journal remains fail-closed for recovery.");
+    }
+
+    private async Task AbortAttachJournalAsync(CancellationToken cancellationToken)
+    {
+        var journal = await lifecycle.GetAsync(cancellationToken);
+        if (journal.State != AuthorityLifecycleState.AttachInProgress)
+            throw new InvalidOperationException("Authority attach journal is not in progress.");
+
+        await identities.ClearAllAsync(cancellationToken);
+        await policies.InitializeAsync(cancellationToken);
+        await ClearCanonicalPolicyAsync(cancellationToken);
+
+        if (await identities.CountAsync(cancellationToken) != 0)
+            throw new InvalidOperationException("Authority attach recovery cannot complete while local identities remain.");
+        var policy = policies.Snapshot();
+        if (policy.Roles.Count != 0 || policy.Scopes.Count != 0)
+            throw new InvalidOperationException("Authority attach recovery cannot complete while canonical policy remains.");
+
+        await lifecycle.AbortAttachAsync(cancellationToken);
     }
 }
 

@@ -28,6 +28,12 @@ public sealed record AuthorityLifecycleSnapshot(AuthorityLifecycleState State, l
 public interface IAuthorityLifecycleStore
 {
     Task InitializeAsync(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Acquires the Authority-wide operation boundary used by a complete replacement. It is
+    /// intentionally separate from identity/policy mutation locks so a switch can hold this
+    /// lease while durable lifecycle transitions take their established locks.
+    /// </summary>
+    ValueTask<IAsyncDisposable> AcquireOperationLeaseAsync(CancellationToken cancellationToken = default);
     Task<AuthorityLifecycleSnapshot> GetAsync(CancellationToken cancellationToken = default);
     Task<AuthorityLifecycleSnapshot> MarkAuthorityPresentAsync(CancellationToken cancellationToken = default);
     Task<AuthorityLifecycleSnapshot> MarkInvalidAsync(CancellationToken cancellationToken = default);
@@ -42,9 +48,16 @@ public interface IAuthorityLifecycleStore
 public sealed class InMemoryAuthorityLifecycleStore : IAuthorityLifecycleStore
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly SemaphoreSlim _operationGate = new(1, 1);
     private AuthorityLifecycleSnapshot _snapshot = new(AuthorityLifecycleState.InitialInstallation, 1);
 
     public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    public async ValueTask<IAsyncDisposable> AcquireOperationLeaseAsync(CancellationToken cancellationToken = default)
+    {
+        await _operationGate.WaitAsync(cancellationToken);
+        return new OperationLease(_operationGate);
+    }
 
     public async Task<AuthorityLifecycleSnapshot> GetAsync(CancellationToken cancellationToken = default)
     {
@@ -133,6 +146,15 @@ public sealed class InMemoryAuthorityLifecycleStore : IAuthorityLifecycleStore
             return _snapshot;
         }
         finally { _gate.Release(); }
+    }
+
+    private sealed class OperationLease(SemaphoreSlim gate) : IAsyncDisposable
+    {
+        public ValueTask DisposeAsync()
+        {
+            gate.Release();
+            return ValueTask.CompletedTask;
+        }
     }
 }
 

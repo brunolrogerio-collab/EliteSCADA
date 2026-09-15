@@ -136,28 +136,13 @@ public static class AuthorityBackupApi
                 context, runtime, security, audit, ApplyAction, ct);
             if (authorization.Failure is not null) return authorization.Failure;
 
-            AuthoritySwitchPreparation prepared;
-            try
-            {
-                prepared = await authoritySwitch.PrepareAsync(request.Backup, request.Password, ct);
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-            catch (ArgumentException)
-            {
-                await RecordApplyFailureAsync(audit, context, authorization.Check!.Principal, lifecycle, request.Backup, null);
-                return InvalidBackup();
-            }
-            catch (InvalidDataException)
-            {
-                await RecordApplyFailureAsync(audit, context, authorization.Check!.Principal, lifecycle, request.Backup, null);
-                return InvalidBackup();
-            }
-
             AuthorityLifecycleSnapshot? before = null;
             try
             {
                 before = await lifecycle.GetAsync(ct);
-                var result = await authoritySwitch.SwitchAsync(prepared, ct);
+                // Use the same lease-owning service path as /authority/switch. The compatibility
+                // alias must not prepare an Authority target outside the operation boundary.
+                var result = await authoritySwitch.SwitchAsync(request.Backup, request.Password, ct);
                 var revokedRealtimeClients = RevokeRealtimeSubjects(realtime, result.Detach.RevokedSubjects);
                 LocalIdentityApi.DeleteLocalCookie(context, localRuntime);
 
@@ -188,9 +173,16 @@ public static class AuthorityBackupApi
                     preview = result.Preview
                 });
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (ArgumentException)
             {
-                throw;
+                await RecordApplyFailureAsync(audit, context, authorization.Check!.Principal, lifecycle, request.Backup, before);
+                return InvalidBackup();
+            }
+            catch (InvalidDataException)
+            {
+                await RecordApplyFailureAsync(audit, context, authorization.Check!.Principal, lifecycle, request.Backup, before);
+                return InvalidBackup();
             }
             catch (Exception)
             {

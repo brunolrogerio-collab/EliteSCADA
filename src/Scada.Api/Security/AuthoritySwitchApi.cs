@@ -49,33 +49,13 @@ public static class AuthoritySwitchApi
                 return failure;
             }
 
-            AuthoritySwitchPreparation prepared;
-            try
-            {
-                // This has no Authority mutation: malformed, ambiguous, or incompatible targets
-                // leave the currently attached Authority untouched.
-                prepared = await authoritySwitch.PrepareAsync(request.Backup, request.Password, ct);
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (ArgumentException)
-            {
-                await RecordFailedAsync(audit, context, authorization.Principal, lifecycle, request.Backup, null);
-                return InvalidTarget();
-            }
-            catch (InvalidDataException)
-            {
-                await RecordFailedAsync(audit, context, authorization.Principal, lifecycle, request.Backup, null);
-                return InvalidTarget();
-            }
-
             AuthorityLifecycleSnapshot? before = null;
             try
             {
                 before = await lifecycle.GetAsync(ct);
-                var result = await authoritySwitch.SwitchAsync(prepared, ct);
+                // The service holds the durable operation lease while it validates the target and
+                // crosses detach/attach, so concurrent switches cannot prepare against stale state.
+                var result = await authoritySwitch.SwitchAsync(request.Backup, request.Password, ct);
                 foreach (var subject in result.Detach.RevokedSubjects)
                     realtime.RevokeSubject(subject);
                 LocalIdentityApi.DeleteLocalCookie(context, localRuntime);
@@ -100,6 +80,16 @@ public static class AuthoritySwitchApi
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 throw;
+            }
+            catch (ArgumentException)
+            {
+                await RecordFailedAsync(audit, context, authorization.Principal, lifecycle, request.Backup, before);
+                return InvalidTarget();
+            }
+            catch (InvalidDataException)
+            {
+                await RecordFailedAsync(audit, context, authorization.Principal, lifecycle, request.Backup, before);
+                return InvalidTarget();
             }
             catch (Exception)
             {

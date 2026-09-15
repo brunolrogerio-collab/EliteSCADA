@@ -9,6 +9,7 @@ namespace Scada.Api.Security;
 /// current Authority is intact; only then does it cross the durable detach/attach journals.
 /// </summary>
 public sealed class AuthoritySwitchService(
+    IAuthorityLifecycleStore lifecycle,
     AuthorityDetachService detach,
     AuthorityAttachService attach,
     ILocalIdentityStore identities,
@@ -19,11 +20,12 @@ public sealed class AuthoritySwitchService(
         string password,
         CancellationToken cancellationToken = default)
     {
+        await using var operation = await lifecycle.AcquireOperationLeaseAsync(cancellationToken);
         var prepared = await PrepareAsync(backup, password, cancellationToken);
-        return await SwitchAsync(prepared, cancellationToken);
+        return await SwitchPreparedAsync(prepared, cancellationToken);
     }
 
-    public async Task<AuthoritySwitchPreparation> PrepareAsync(
+    private async Task<AuthoritySwitchPreparation> PrepareAsync(
         string backup,
         string password,
         CancellationToken cancellationToken = default)
@@ -34,7 +36,7 @@ public sealed class AuthoritySwitchService(
         return new AuthoritySwitchPreparation(target, opened.Preview);
     }
 
-    public async Task<AuthoritySwitchResult> SwitchAsync(
+    private async Task<AuthoritySwitchResult> SwitchPreparedAsync(
         AuthoritySwitchPreparation prepared,
         CancellationToken cancellationToken = default)
     {
@@ -74,13 +76,13 @@ public sealed class AuthoritySwitchService(
         AuthorityAttachService.ValidateTarget(target);
         return target;
     }
+
+    private sealed record AuthoritySwitchPreparation(
+        AuthorityAttachTarget Target,
+        AuthorityBackupPreview Preview);
 }
 
 public sealed record AuthoritySwitchResult(
     AuthorityDetachResult Detach,
     AuthorityAttachResult Attach,
-    AuthorityBackupPreview Preview);
-
-public sealed record AuthoritySwitchPreparation(
-    AuthorityAttachTarget Target,
     AuthorityBackupPreview Preview);

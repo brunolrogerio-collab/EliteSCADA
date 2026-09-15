@@ -10,6 +10,7 @@ public sealed class PostgreSqlAuthorityLifecycleStore : IAuthorityLifecycleStore
     private const long SharedDdlAdvisoryLock = 4993446713136202561;
     private const long IdentityMutationAdvisoryLock = 4993446713136202562;
     private const long PolicyMutationAdvisoryLock = 4993446713136202564;
+    private const long AuthorityOperationAdvisoryLock = 4993446713136202565;
     private const string StateKey = "authority-lifecycle-v1";
     private readonly NpgsqlDataSource _dataSource;
 
@@ -73,6 +74,29 @@ public sealed class PostgreSqlAuthorityLifecycleStore : IAuthorityLifecycleStore
     {
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         return await LoadAsync(connection, null, cancellationToken);
+    }
+
+    public async ValueTask<IAsyncDisposable> AcquireOperationLeaseAsync(CancellationToken cancellationToken = default)
+    {
+        var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        NpgsqlTransaction? transaction = null;
+        try
+        {
+            transaction = await connection.BeginTransactionAsync(cancellationToken);
+            await using var command = new NpgsqlCommand(
+                "SELECT pg_advisory_xact_lock(@operation_key);",
+                connection,
+                transaction);
+            command.Parameters.AddWithValue("operation_key", NpgsqlDbType.Bigint, AuthorityOperationAdvisoryLock);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            return new OperationLease(connection, transaction);
+        }
+        catch
+        {
+            if (transaction is not null) await transaction.DisposeAsync();
+            await connection.DisposeAsync();
+            throw;
+        }
     }
 
     public Task<AuthorityLifecycleSnapshot> MarkAuthorityPresentAsync(CancellationToken cancellationToken = default) =>
@@ -206,6 +230,22 @@ public sealed class PostgreSqlAuthorityLifecycleStore : IAuthorityLifecycleStore
         if (!Enum.TryParse<AuthorityLifecycleState>(stateText, ignoreCase: false, out var state) || epoch <= 0)
             throw new InvalidOperationException("Authority lifecycle state is incompatible; authorization is fail-closed.");
         return new AuthorityLifecycleSnapshot(state, epoch);
+    }
+
+    private sealed class OperationLease(NpgsqlConnection connection, NpgsqlTransaction transaction) : IAsyncDisposable
+    {
+        public async ValueTask DisposeAsync()
+        {
+            try
+            {
+                await transaction.CommitAsync(CancellationToken.None);
+            }
+            finally
+            {
+                await transaction.DisposeAsync();
+                await connection.DisposeAsync();
+            }
+        }
     }
 
     public ValueTask DisposeAsync() => _dataSource.DisposeAsync();

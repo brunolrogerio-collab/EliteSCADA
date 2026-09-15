@@ -61,6 +61,8 @@ public sealed class LocalIdentityBootstrapLifecycleTests
     private sealed class UnavailableLifecycleStore : IAuthorityLifecycleStore
     {
         public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public ValueTask<IAsyncDisposable> AcquireOperationLeaseAsync(CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
         public Task<AuthorityLifecycleSnapshot> GetAsync(CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("corrupt lifecycle state");
         public Task<AuthorityLifecycleSnapshot> MarkAuthorityPresentAsync(CancellationToken cancellationToken = default) =>

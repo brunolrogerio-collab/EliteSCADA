@@ -62,6 +62,27 @@ public sealed class PostgreSqlAuthorityLifecycleStoreTests
     }
 
     [Fact]
+    public async Task OperationLease_SerializesAcrossInstances()
+    {
+        if (string.IsNullOrWhiteSpace(ConnectionString)) return;
+
+        await using var first = new PostgreSqlAuthorityLifecycleStore(ConnectionString);
+        await using var second = new PostgreSqlAuthorityLifecycleStore(ConnectionString);
+        await first.InitializeAsync();
+        await second.InitializeAsync();
+
+        Task<IAsyncDisposable> waiting;
+        await using (var firstLease = await first.AcquireOperationLeaseAsync())
+        {
+            waiting = second.AcquireOperationLeaseAsync().AsTask();
+            await Task.Delay(TimeSpan.FromMilliseconds(100));
+            Assert.False(waiting.IsCompleted);
+        }
+
+        await using var secondLease = await waiting.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
     public async Task PersistsAttachIntentAcrossRestart_AndAdvancesEpochOnAbort()
     {
         if (string.IsNullOrWhiteSpace(ConnectionString)) return;

@@ -166,10 +166,10 @@ public static class LocalIdentityConfiguration
         var lifecycle = app.Services.GetRequiredService<IAuthorityLifecycleStore>();
         await lifecycle.InitializeAsync();
         var lifecycleSnapshot = await lifecycle.GetAsync();
-        if (lifecycleSnapshot.State is AuthorityLifecycleState.DetachInProgress or AuthorityLifecycleState.Invalid)
+        if (lifecycleSnapshot.State == AuthorityLifecycleState.Invalid)
             throw new InvalidOperationException(
                 "Authority lifecycle is not authoritatively recoverable. Startup is fail-closed until the durable Authority transition is resolved.");
-        if (lifecycleSnapshot.State == AuthorityLifecycleState.DeliberatelyDetached)
+        if (lifecycleSnapshot.State is AuthorityLifecycleState.DetachInProgress or AuthorityLifecycleState.DeliberatelyDetached)
             return;
         if (lifecycleSnapshot.State == AuthorityLifecycleState.AuthorityPresent && await store.CountAsync() == 0)
             throw new InvalidOperationException("Authority lifecycle says attached but no local Authority identity exists. Startup is fail-closed.");

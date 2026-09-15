@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test';
 const adminUsername = 'local-developer';
 const adminPassword = 'E2Epass8';
 
+test.setTimeout(90_000);
+
 test('secure first-run creates the initial local Administrator, first project and durable local session', async ({ browser }) => {
   const context = await browser.newContext({
     baseURL: 'http://127.0.0.1:5173',

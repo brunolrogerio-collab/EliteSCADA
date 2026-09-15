@@ -61,10 +61,9 @@ export default defineConfig({
       command: 'npm run dev -- --host 127.0.0.1',
       url: 'http://127.0.0.1:5173',
       timeout: 60_000,
-      reuseExistingServer: false,
-      env: {
-        VITE_SCADA_API: 'http://127.0.0.1:5080'
-      }
+      // E2E must use Vite's same-origin proxy.  A direct API origin prevents
+      // the first-run endpoint from persisting its Strict HttpOnly cookie.
+      reuseExistingServer: false
     }
   ]
 });

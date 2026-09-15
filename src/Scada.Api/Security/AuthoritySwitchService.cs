@@ -19,13 +19,29 @@ public sealed class AuthoritySwitchService(
         string password,
         CancellationToken cancellationToken = default)
     {
+        var prepared = await PrepareAsync(backup, password, cancellationToken);
+        return await SwitchAsync(prepared, cancellationToken);
+    }
+
+    public async Task<AuthoritySwitchPreparation> PrepareAsync(
+        string backup,
+        string password,
+        CancellationToken cancellationToken = default)
+    {
         var opened = backups.Open(backup, password);
         var currentAccounts = await identities.ListAsync(cancellationToken);
         var target = PrepareTarget(opened, currentAccounts);
+        return new AuthoritySwitchPreparation(target, opened.Preview);
+    }
 
+    public async Task<AuthoritySwitchResult> SwitchAsync(
+        AuthoritySwitchPreparation prepared,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(prepared);
         var detached = await detach.DetachAsync(cancellationToken);
-        var attached = await attach.AttachAsync(target, cancellationToken);
-        return new AuthoritySwitchResult(detached, attached, opened.Preview);
+        var attached = await attach.AttachAsync(prepared.Target, cancellationToken);
+        return new AuthoritySwitchResult(detached, attached, prepared.Preview);
     }
 
     internal static AuthorityAttachTarget PrepareTarget(
@@ -63,4 +79,8 @@ public sealed class AuthoritySwitchService(
 public sealed record AuthoritySwitchResult(
     AuthorityDetachResult Detach,
     AuthorityAttachResult Attach,
+    AuthorityBackupPreview Preview);
+
+public sealed record AuthoritySwitchPreparation(
+    AuthorityAttachTarget Target,
     AuthorityBackupPreview Preview);

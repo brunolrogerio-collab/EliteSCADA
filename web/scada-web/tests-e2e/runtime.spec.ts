@@ -242,45 +242,59 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
     readOnly: true
   });
 
-  const workspaceApplyResponse = await request.post('/api/engineering/import/json/apply', {
-    data: JSON.stringify(workspaceMutation),
-    headers: { 'content-type': 'application/json; charset=utf-8' }
-  });
-  expect(workspaceApplyResponse.ok()).toBeTruthy();
+  let workspaceMutationApplied = false;
+  try {
+    const workspaceApplyResponse = await request.post('/api/engineering/import/json/apply', {
+      data: JSON.stringify(workspaceMutation),
+      headers: { 'content-type': 'application/json; charset=utf-8' }
+    });
+    expect(workspaceApplyResponse.ok()).toBeTruthy();
+    workspaceMutationApplied = true;
 
-  const workspaceStatusResponse = await request.get('/api/engineering/workspace');
-  expect(workspaceStatusResponse.ok()).toBeTruthy();
-  const workspaceStatus = await workspaceStatusResponse.json() as {
+    const workspaceStatusResponse = await request.get('/api/engineering/workspace');
+    expect(workspaceStatusResponse.ok()).toBeTruthy();
+    const workspaceStatus = await workspaceStatusResponse.json() as {
     isDirty: boolean;
     changeVersion: number;
     tagCount: number;
     securityRoleCount: number;
     commandCount: number;
   };
-  expect(workspaceStatus.isDirty).toBeTruthy();
-  expect(workspaceStatus.changeVersion).toBeGreaterThan(0);
-  expect(workspaceStatus.tagCount).toBe(8);
-  expect(workspaceStatus.securityRoleCount).toBe(2);
-  expect(workspaceStatus.commandCount).toBe(2);
+    expect(workspaceStatus.isDirty).toBeTruthy();
+    expect(workspaceStatus.changeVersion).toBeGreaterThan(0);
+    expect(workspaceStatus.tagCount).toBe(8);
+    // Roles are authority-owned in AUTH-03. The workspace only describes its
+    // local developer role; the canonical developer/operator policy is external.
+    expect(workspaceStatus.securityRoleCount).toBe(1);
+    expect(workspaceStatus.commandCount).toBe(2);
 
-  const mutatedEngineeringResponse = await request.get('/api/engineering/export/json');
-  expect(mutatedEngineeringResponse.ok()).toBeTruthy();
-  const mutatedEngineering = await mutatedEngineeringResponse.json() as {
+    const mutatedEngineeringResponse = await request.get('/api/engineering/export/json');
+    expect(mutatedEngineeringResponse.ok()).toBeTruthy();
+    const mutatedEngineering = await mutatedEngineeringResponse.json() as {
     tags: Array<{ path: string }>;
     securityRoles: Array<{ key: string }>;
     authorityPolicyReference?: { roleIds: string[] } | null;
     commands: Array<{ key: string }>;
   };
-  expect(mutatedEngineering.tags).toHaveLength(8);
-  expect(mutatedEngineering.tags.some(tag => tag.path === 'Engineering.Workspace.Only')).toBeTruthy();
-  expect(mutatedEngineering.securityRoles).toEqual([]);
-  expect(mutatedEngineering.authorityPolicyReference?.roleIds).toHaveLength(2);
-  expect(mutatedEngineering.commands).toHaveLength(2);
+    expect(mutatedEngineering.tags).toHaveLength(8);
+    expect(mutatedEngineering.tags.some(tag => tag.path === 'Engineering.Workspace.Only')).toBeTruthy();
+    expect(mutatedEngineering.securityRoles).toEqual([]);
+    expect(mutatedEngineering.authorityPolicyReference?.roleIds).toHaveLength(2);
+    expect(mutatedEngineering.commands).toHaveLength(2);
 
-  const runtimeAfterWorkspaceEditResponse = await request.get('/api/tags');
-  expect(runtimeAfterWorkspaceEditResponse.ok()).toBeTruthy();
-  const runtimeAfterWorkspaceEdit = await runtimeAfterWorkspaceEditResponse.json() as Array<{ path: string }>;
-  expect(runtimeAfterWorkspaceEdit).toHaveLength(7);
-  expect(runtimeAfterWorkspaceEdit.some(tag => tag.path === 'Engineering.Workspace.Only')).toBeFalsy();
-  await expect(page.getByText(/ONLINE · 7 TAGs/)).toBeVisible();
+    const runtimeAfterWorkspaceEditResponse = await request.get('/api/tags');
+    expect(runtimeAfterWorkspaceEditResponse.ok()).toBeTruthy();
+    const runtimeAfterWorkspaceEdit = await runtimeAfterWorkspaceEditResponse.json() as Array<{ path: string }>;
+    expect(runtimeAfterWorkspaceEdit).toHaveLength(7);
+    expect(runtimeAfterWorkspaceEdit.some(tag => tag.path === 'Engineering.Workspace.Only')).toBeFalsy();
+    await expect(page.getByText(/ONLINE · 7 TAGs/)).toBeVisible();
+  } finally {
+    if (workspaceMutationApplied) {
+      const restoreResponse = await request.post('/api/engineering/import/json/apply', {
+        data: engineeringText,
+        headers: { 'content-type': 'application/json; charset=utf-8' }
+      });
+      expect(restoreResponse.ok()).toBeTruthy();
+    }
+  }
 });

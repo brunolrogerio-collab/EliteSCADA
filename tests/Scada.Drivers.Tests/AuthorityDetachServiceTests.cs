@@ -127,6 +127,51 @@ public sealed class AuthorityDetachServiceTests
         Assert.True(systemAdmin.Allowed);
     }
 
+    [Fact]
+    public async Task Attach_ValidatesTargetBeforeItLeavesTheClosedNeutralState()
+    {
+        var identities = new InMemoryLocalIdentityStore();
+        var lifecycle = new InMemoryAuthorityLifecycleStore();
+        var policies = new InMemoryAuthorityPolicyStore();
+        await lifecycle.MarkAuthorityPresentAsync();
+        await lifecycle.BeginDetachAsync();
+        var detached = await lifecycle.CompleteDetachAsync();
+
+        var invalidTarget = new AuthorityAttachTarget(
+            [Account("non-admin")],
+            [Role("non-admin", SecurityCapability.View)],
+            Array.Empty<SecurityScopeEngineeringDto>());
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            new AuthorityAttachService(lifecycle, identities, policies).AttachAsync(invalidTarget));
+
+        Assert.Equal(detached, await lifecycle.GetAsync());
+        Assert.Equal(0, await identities.CountAsync());
+        Assert.Empty(policies.Snapshot().Roles);
+    }
+
+    [Fact]
+    public async Task Attach_AppliesAValidatedTarget_AndAdvancesTheEpoch()
+    {
+        var identities = new InMemoryLocalIdentityStore();
+        var lifecycle = new InMemoryAuthorityLifecycleStore();
+        var policies = new InMemoryAuthorityPolicyStore();
+        await lifecycle.MarkAuthorityPresentAsync();
+        await lifecycle.BeginDetachAsync();
+        var detached = await lifecycle.CompleteDetachAsync();
+        var account = Account("authority-admin");
+        var roles = new[] { Role("authority-admin", SecurityCapability.SystemAdmin) };
+
+        var result = await new AuthorityAttachService(lifecycle, identities, policies).AttachAsync(
+            new AuthorityAttachTarget([account], roles, Array.Empty<SecurityScopeEngineeringDto>()));
+
+        Assert.Equal(AuthorityLifecycleState.AuthorityPresent, result.After.State);
+        Assert.Equal(detached.Epoch + 1, result.After.Epoch);
+        Assert.True(AuthorityLifecycleSessionFence.IsCurrent(result.After, result.After.Epoch));
+        Assert.Equal(1, await identities.CountAsync());
+        Assert.Single(policies.Snapshot().Roles);
+    }
+
     private static ApiAuthorizationCheck Check(ApiAuthorizationService service, string role)
     {
         var context = new DefaultHttpContext
@@ -152,6 +197,9 @@ public sealed class AuthorityDetachServiceTests
                 grant.Role,
                 grant.Role,
                 Grants: [new CapabilityGrantEngineeringDto(grant.Capability)])));
+
+    private static SecurityRoleEngineeringDto Role(string key, SecurityCapability capability) =>
+        new(Guid.NewGuid(), key, key, Grants: [new CapabilityGrantEngineeringDto(capability)]);
 
     private static LocalUserAccount Account(string role)
     {

@@ -67,6 +67,7 @@ builder.Services.AddSingleton(sp => new AuthorityPolicyBootstrapService(
     sp.GetService<EngineeringWorkspace>()));
 builder.Services.AddSingleton<AuthorityLifecycleBootstrapService>();
 builder.Services.AddSingleton<AuthorityDetachService>();
+builder.Services.AddSingleton<AuthorityAttachService>();
 builder.Services.AddSingleton<ICommandEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Commands);
 builder.Services.AddSingleton<IScriptEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Scripts);
 builder.Services.AddSingleton<IGatewayEngineeringRegistry>(sp =>

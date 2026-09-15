@@ -54,6 +54,30 @@ public sealed class AuthorityDetachServiceTests
     }
 
     [Fact]
+    public async Task Recovery_AbortsInterruptedAttach_ToAClosedNeutralAuthority()
+    {
+        var identities = new InMemoryLocalIdentityStore();
+        var lifecycle = new InMemoryAuthorityLifecycleStore();
+        var policy = Policy("authority-admin", SecurityCapability.SystemAdmin);
+        await lifecycle.MarkAuthorityPresentAsync();
+        await lifecycle.BeginDetachAsync();
+        var detached = await lifecycle.CompleteDetachAsync();
+        await lifecycle.BeginAttachAsync();
+        await identities.CreateAsync(Account("authority-admin"));
+
+        var service = new AuthorityDetachService(lifecycle, identities, policy);
+
+        Assert.True(await service.RecoverIfInProgressAsync());
+        var recovered = await lifecycle.GetAsync();
+        Assert.Equal(AuthorityLifecycleState.DeliberatelyDetached, recovered.State);
+        Assert.Equal(detached.Epoch + 1, recovered.Epoch);
+        Assert.False(AuthorityLifecycleSessionFence.IsCurrent(recovered, detached.Epoch));
+        Assert.Equal(0, await identities.CountAsync());
+        Assert.Empty(policy.Snapshot().Roles);
+        Assert.Empty(policy.Snapshot().Scopes);
+    }
+
+    [Fact]
     public async Task ConcurrentDetach_ConvergesWithOneEpochAdvance_AndFencesBeforeDataClears()
     {
         var innerIdentities = new InMemoryLocalIdentityStore();

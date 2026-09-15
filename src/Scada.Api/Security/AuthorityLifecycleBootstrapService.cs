@@ -19,8 +19,8 @@ public sealed class AuthorityLifecycleBootstrapService(
     {
         await lifecycle.InitializeAsync(cancellationToken);
         var state = await lifecycle.GetAsync(cancellationToken);
-        if (state.State == AuthorityLifecycleState.DetachInProgress)
-            throw new InvalidOperationException("Authority detach is in progress. Startup is fail-closed until recovery completes the durable Authority transition.");
+        if (state.State is AuthorityLifecycleState.DetachInProgress or AuthorityLifecycleState.AttachInProgress)
+            throw new InvalidOperationException("Authority transition is in progress. Startup is fail-closed until recovery completes the durable Authority transition.");
         if (state.State == AuthorityLifecycleState.Invalid)
             throw new InvalidOperationException("Authority lifecycle evidence is invalid. Startup is fail-closed.");
         if (state.State == AuthorityLifecycleState.DeliberatelyDetached)

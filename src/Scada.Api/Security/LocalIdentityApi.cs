@@ -78,6 +78,7 @@ public static class LocalIdentityApi
             HttpContext context,
             LocalIdentityBootstrapService bootstrap,
             JwtTokenIssuer issuer,
+            IAuthorityLifecycleStore lifecycle,
             LocalLoginAttemptLimiter limiter,
             InitialInstallationGate installationGate,
             ApiAuditService audit,
@@ -121,7 +122,8 @@ public static class LocalIdentityApi
                 }
 
                 var account = result.Account;
-                var issued = issuer.Issue(account);
+                await lifecycle.MarkAuthorityPresentAsync(ct);
+                var issued = await issuer.IssueAsync(account, cancellationToken: ct);
                 context.Response.Cookies.Append(runtime.CookieName, issued.Token, CookieOptions(runtime, issued.ExpiresAtUtc));
 
                 var principal = new SecurityPrincipal(
@@ -198,7 +200,7 @@ public static class LocalIdentityApi
                 return Results.Unauthorized();
             }
 
-            var issued = issuer.Issue(account);
+            var issued = await issuer.IssueAsync(account, cancellationToken: ct);
             context.Response.Cookies.Append(runtime.CookieName, issued.Token, CookieOptions(runtime, issued.ExpiresAtUtc));
 
             var principal = new SecurityPrincipal(
@@ -257,6 +259,14 @@ public static class LocalIdentityApi
     {
         var required = await bootstrap.IsInitialAdministratorRequiredAsync(cancellationToken);
         if (!required) return new InitialAdministratorBootstrapStatus(false, false, null);
+        var lifecycleStore = context.RequestServices.GetService<IAuthorityLifecycleStore>();
+        if (lifecycleStore is null)
+            return new InitialAdministratorBootstrapStatus(true, false, "authority-lifecycle-unavailable");
+        AuthorityLifecycleSnapshot lifecycle;
+        try { lifecycle = await lifecycleStore.GetAsync(cancellationToken); }
+        catch { return new InitialAdministratorBootstrapStatus(true, false, "authority-lifecycle-invalid"); }
+        if (lifecycle.State != AuthorityLifecycleState.InitialInstallation)
+            return new InitialAdministratorBootstrapStatus(true, false, $"authority-lifecycle-{lifecycle.State.ToString().ToLowerInvariant()}");
         if (!runtime.DurableStore)
             return new InitialAdministratorBootstrapStatus(true, false, "durable-local-identity-store-required");
 

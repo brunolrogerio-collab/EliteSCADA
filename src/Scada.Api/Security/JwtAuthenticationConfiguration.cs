@@ -83,15 +83,6 @@ public static class JwtAuthenticationConfiguration
                         if (!string.Equals(provider, JwtTokenIssuer.LocalIdentityProvider, StringComparison.Ordinal))
                             return;
 
-                        var subject = context.Principal?.FindFirst("sub")?.Value;
-                        var versionText = context.Principal?.FindFirst(JwtTokenIssuer.LocalUserVersionClaim)?.Value;
-                        if (!Guid.TryParse(subject, out var userId) ||
-                            !long.TryParse(versionText, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var tokenVersion))
-                        {
-                            context.Fail("Local identity token is missing required version information.");
-                            return;
-                        }
-
                         var store = context.HttpContext.RequestServices.GetService<ILocalIdentityStore>();
                         if (store is null)
                         {
@@ -99,10 +90,18 @@ public static class JwtAuthenticationConfiguration
                             return;
                         }
 
-                        var account = await store.FindByIdAsync(userId, context.HttpContext.RequestAborted);
-                        if (account is null ||
-                            !account.IsEnabled ||
-                            account.UpdatedAtUtc.ToUnixTimeMilliseconds() != tokenVersion)
+                        var lifecycle = context.HttpContext.RequestServices.GetService<IAuthorityLifecycleStore>();
+                        if (lifecycle is null)
+                        {
+                            context.Fail("Authority lifecycle validation is unavailable.");
+                            return;
+                        }
+
+                        if (!await LocalAuthorityJwtSessionValidator.IsCurrentAsync(
+                                context.Principal,
+                                store,
+                                lifecycle,
+                                context.HttpContext.RequestAborted))
                         {
                             context.Fail("Local identity token is no longer current.");
                         }

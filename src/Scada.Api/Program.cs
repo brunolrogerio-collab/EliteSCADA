@@ -65,6 +65,7 @@ builder.Services.AddSingleton(sp => new AuthorityPolicyBootstrapService(
     sp.GetService<IEngineeringProjectStore>(),
     sp.GetRequiredService<AuthorityPolicyBootstrapOptions>(),
     sp.GetService<EngineeringWorkspace>()));
+builder.Services.AddSingleton<AuthorityLifecycleBootstrapService>();
 builder.Services.AddSingleton<ICommandEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Commands);
 builder.Services.AddSingleton<IScriptEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Scripts);
 builder.Services.AddSingleton<IGatewayEngineeringRegistry>(sp =>
@@ -127,7 +128,7 @@ _ = app.Services.GetRequiredService<IHistorian>();
 await app.InitializeServerMemoryRetentionAsync();
 await app.InitializeEngineeringPersistenceAsync();
 await app.InitializeAuditAsync();
-await app.Services.GetRequiredService<AuthorityPolicyBootstrapService>().EnsureInitializedAsync();
+await app.Services.GetRequiredService<AuthorityLifecycleBootstrapService>().EnsureInitializedAsync();
 
 app.UseMiddleware<TimingCorrelationMiddleware>();
 app.UseCors();

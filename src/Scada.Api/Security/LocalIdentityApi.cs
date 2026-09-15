@@ -248,6 +248,7 @@ public static class LocalIdentityApi
         endpoints.MapLocalUserAdministrationEndpoints();
         endpoints.MapAuthorityPolicyAdministrationEndpoints();
         endpoints.MapAuthorityBackupEndpoints();
+        endpoints.MapAuthorityDetachEndpoints();
         return endpoints;
     }
 

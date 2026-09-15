@@ -91,6 +91,37 @@ public sealed class PostgreSqlLocalIdentityStoreTests
         await secondTransaction.RollbackAsync();
     }
 
+    [Fact]
+    public async Task ClearAll_RemovesAuthorityIdentitiesUnderTheMutationBoundary()
+    {
+        if (string.IsNullOrWhiteSpace(ConnectionString)) return;
+
+        await using var store = new PostgreSqlLocalIdentityStore(ConnectionString);
+        await store.InitializeAsync();
+        await store.ClearAllAsync();
+
+        var now = DateTimeOffset.UtcNow;
+        foreach (var suffix in new[] { "one", "two" })
+        {
+            var username = $"detach-{suffix}-{Guid.NewGuid():N}"[..40];
+            await store.CreateAsync(new LocalUserAccount(
+                Guid.NewGuid(),
+                username,
+                LocalIdentityNormalization.NormalizeUsername(username),
+                $"Detach {suffix}",
+                true,
+                ["authority-admin"],
+                LocalPasswordHasher.Hash("postgres-detach-test-password", 100_000),
+                now,
+                now));
+        }
+
+        await store.ClearAllAsync();
+
+        Assert.Equal(0, await store.CountAsync());
+        Assert.Empty(await store.ListAsync());
+    }
+
     private static async Task<bool> TryAcquireMutationLockAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction)

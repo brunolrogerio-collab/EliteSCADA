@@ -2,19 +2,32 @@
 
 Plataforma SCADA / Supervisório Industrial.
 
-## Estado atual e handoff de coordenação
+## Estado atual, colaboração e handoff
 
-O desenvolvimento ativo está na **Wave 15 — complete product delivery**. O ponto de entrada para continuar o projeto sem reconstruir o histórico é:
+O ponto de entrada para continuar o projeto sem reconstruir o histórico é:
 
+- [`PROJECT GOAL.md`](PROJECT%20GOAL.md) — norte estável de produto/arquitetura;
 - [`LAST CHANGE.md`](LAST%20CHANGE.md) — resumo operacional mutável;
-- [`docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`](docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md) — handoff persistente detalhado da Wave 15, modelo Main/Work/DEV, Foundation, CI e snapshot do trabalho ativo;
+- [`docs/CHAT-COLLABORATION-PROTOCOL.md`](docs/CHAT-COLLABORATION-PROTOCOL.md) — **protocolo obrigatório para todos os chats/agentes do projeto**;
 - [`docs/CURRENT-COORDINATOR-HANDOFF.md`](docs/CURRENT-COORDINATOR-HANDOFF.md) — ponteiro operacional conciso;
-- [`docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`](docs/NEXT-COORDINATOR-CHAT-HANDOFF.md) — prompt copy-ready para trocar o chat Main Coordinator;
-- [`docs/README.md`](docs/README.md) — mapa de autoridade documental.
+- [`docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`](docs/NEXT-COORDINATOR-CHAT-HANDOFF.md) — prompt permanente/state-independent para trocar o Main Coordinator;
+- [`docs/README.md`](docs/README.md) — mapa de autoridade documental;
+- handoff específico da Wave/etapa atual, quando existir.
 
-`PROJECT GOAL.md` permanece o norte estável de produto/arquitetura. Para estado de execução, branch, SHA, PR, blocker e CI atuais, use os handoffs Wave 15 acima e **revalide GitHub live**.
+### Regra global dos chats
 
-SHAs escritos em documentos são snapshots. Antes de qualquer mutação, releia o head vivo do GitHub, os comentários mais recentes das issues/PRs e o Actions do SHA exato. Documentos/assignments históricos de Wave 14 ou anteriores não substituem o estado Wave 15 atual.
+Todo chat que trabalhe no EliteSCADA, não apenas o Main Coordinator, deve seguir `docs/CHAT-COLLABORATION-PROTOCOL.md`.
+
+Em especial:
+
+- toda interação visível ao usuário termina com a hora local atual de `America/Sao_Paulo`, no formato `Hora: HH:MM`;
+- todo passo material de projeto deve ser persistido na superfície correta do repositório, issue ou PR;
+- decisões/blockers/CI/integrations não podem existir apenas na memória do chat;
+- chats paralelos trabalham sob coordenação e devem evitar sobrescrever estado compartilhado mais novo.
+
+Para estado de execução, branch, SHA, PR, blocker e CI atuais, use os handoffs operacionais e **revalide GitHub live**.
+
+SHAs escritos em documentos são snapshots. Antes de qualquer mutação, releia o head vivo do GitHub, os comentários mais recentes das issues/PRs e o Actions do SHA exato. Documentos/assignments históricos não substituem o estado atual.
 
 ## Princípios do projeto
 
@@ -88,11 +101,11 @@ Ativação explícita da Published:
 POST /api/engineering/persistence/{projectKey}/published/activate
 ```
 
-## CI na Wave 15
+## CI
 
-Todos os workflows atuais possuem `workflow_dispatch`, mas os gatilhos automáticos de vários workflows ainda refletem `main` ou branches da Wave 14. Um PR para `wave15/corrections-integration` não deve ser assumido como disparador automático de toda a suíte.
+Não assuma que um PR para a branch de integração atual dispara automaticamente toda a suíte disponível. Releia os workflows e a política de CI vigente.
 
-A correção planejada é **INFRA-CI-01**, com validação por perfil/tier:
+A direção arquitetural é validação proporcional por perfil/tier:
 
 - T0 local/focused;
 - T1 DEV PR sanity/profile;
@@ -100,4 +113,4 @@ A correção planejada é **INFRA-CI-01**, com validação por perfil/tier:
 - T3 checkpoint;
 - T4 final full.
 
-Não adicione todos os workflows pesados a todo PR Wave 15 apenas para compensar os triggers antigos. Seven-Driver, browser e suítes especiais são executados por causalidade/risco e nos checkpoints apropriados.
+Não ligue todas as suítes pesadas a todo PR apenas para compensar triggers históricos. Seven-Driver, browser e suítes especiais devem ser executados por causalidade/risco e nos checkpoints apropriados.

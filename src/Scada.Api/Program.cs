@@ -679,6 +679,7 @@ app.Map("/ws/tags", async (
     }
 
     DateTimeOffset? expiresAtUtc = null;
+    long? localAuthorityEpoch = null;
     if (security.AuthenticationEnabled)
     {
         if (!long.TryParse(context.User.FindFirst("exp")?.Value, out var expiresAtUnix))
@@ -696,6 +697,27 @@ app.Map("/ws/tags", async (
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return;
         }
+
+        // JwtAuthenticationConfiguration has already validated this proof at connection time.
+        // Retain it on the client so every later delivery can re-check the canonical lifecycle.
+        // External JWT providers intentionally have no local Authority epoch.
+        if (string.Equals(
+                context.User.FindFirst(JwtTokenIssuer.IdentityProviderClaim)?.Value,
+                JwtTokenIssuer.LocalIdentityProvider,
+                StringComparison.Ordinal))
+        {
+            if (!long.TryParse(
+                    context.User.FindFirst(JwtTokenIssuer.AuthorityEpochClaim)?.Value,
+                    System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var epoch))
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return;
+            }
+
+            localAuthorityEpoch = epoch;
+        }
     }
 
     var socket = await context.WebSockets.AcceptWebSocketAsync();
@@ -704,6 +726,7 @@ app.Map("/ws/tags", async (
         principal,
         security.AuthenticationEnabled,
         expiresAtUtc,
+        localAuthorityEpoch,
         context.RequestAborted);
 });
 

@@ -30,7 +30,7 @@ public sealed class PostgreSqlAuthorityLifecycleStore : IAuthorityLifecycleStore
                 applied_at_utc timestamptz NOT NULL DEFAULT clock_timestamp());
             CREATE TABLE IF NOT EXISTS elitescada.authority_lifecycle_state (
                 state_key text PRIMARY KEY,
-                state text NOT NULL CHECK (state IN ('InitialInstallation', 'AuthorityPresent', 'DetachInProgress', 'DeliberatelyDetached', 'Invalid')),
+                state text NOT NULL CONSTRAINT authority_lifecycle_state_allowed CHECK (state IN ('InitialInstallation', 'AuthorityPresent', 'DetachInProgress', 'DeliberatelyDetached', 'AttachInProgress', 'Invalid')),
                 epoch bigint NOT NULL CHECK (epoch > 0),
                 updated_at_utc timestamptz NOT NULL DEFAULT clock_timestamp());
             WITH migration AS (
@@ -42,6 +42,23 @@ public sealed class PostgreSqlAuthorityLifecycleStore : IAuthorityLifecycleStore
             SELECT 'authority-lifecycle-v1', 'InitialInstallation', 1
             WHERE EXISTS (SELECT 1 FROM migration)
             ON CONFLICT (state_key) DO NOTHING;
+            DO $migration$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM elitescada.schema_migrations
+                    WHERE migration_key = '021_authority_lifecycle_attach') THEN
+                    ALTER TABLE elitescada.authority_lifecycle_state
+                        DROP CONSTRAINT IF EXISTS authority_lifecycle_state_state_check;
+                    ALTER TABLE elitescada.authority_lifecycle_state
+                        DROP CONSTRAINT IF EXISTS authority_lifecycle_state_allowed;
+                    ALTER TABLE elitescada.authority_lifecycle_state
+                        ADD CONSTRAINT authority_lifecycle_state_allowed
+                        CHECK (state IN ('InitialInstallation', 'AuthorityPresent', 'DetachInProgress', 'DeliberatelyDetached', 'AttachInProgress', 'Invalid'));
+                    INSERT INTO elitescada.schema_migrations (migration_key)
+                    VALUES ('021_authority_lifecycle_attach');
+                END IF;
+            END
+            $migration$;
             """;
 
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
@@ -95,6 +112,30 @@ public sealed class PostgreSqlAuthorityLifecycleStore : IAuthorityLifecycleStore
     public Task<AuthorityLifecycleSnapshot> CompleteDetachAsync(CancellationToken cancellationToken = default) =>
         TransitionAsync(
             AuthorityLifecycleState.DetachInProgress,
+            AuthorityLifecycleState.DeliberatelyDetached,
+            advanceEpoch: true,
+            idempotentState: AuthorityLifecycleState.DeliberatelyDetached,
+            cancellationToken);
+
+    public Task<AuthorityLifecycleSnapshot> BeginAttachAsync(CancellationToken cancellationToken = default) =>
+        TransitionAsync(
+            AuthorityLifecycleState.DeliberatelyDetached,
+            AuthorityLifecycleState.AttachInProgress,
+            advanceEpoch: false,
+            idempotentState: AuthorityLifecycleState.AttachInProgress,
+            cancellationToken);
+
+    public Task<AuthorityLifecycleSnapshot> CompleteAttachAsync(CancellationToken cancellationToken = default) =>
+        TransitionAsync(
+            AuthorityLifecycleState.AttachInProgress,
+            AuthorityLifecycleState.AuthorityPresent,
+            advanceEpoch: true,
+            idempotentState: AuthorityLifecycleState.AuthorityPresent,
+            cancellationToken);
+
+    public Task<AuthorityLifecycleSnapshot> AbortAttachAsync(CancellationToken cancellationToken = default) =>
+        TransitionAsync(
+            AuthorityLifecycleState.AttachInProgress,
             AuthorityLifecycleState.DeliberatelyDetached,
             advanceEpoch: true,
             idempotentState: AuthorityLifecycleState.DeliberatelyDetached,

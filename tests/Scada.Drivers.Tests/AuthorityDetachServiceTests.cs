@@ -187,6 +187,7 @@ public sealed class AuthorityDetachServiceTests
             new AuthorityBackupPolicyPayload(1, "[]", "[]"),
             "authority-switch-test-password");
         var service = new AuthoritySwitchService(
+            lifecycle,
             new AuthorityDetachService(lifecycle, identities, policies),
             new AuthorityAttachService(lifecycle, identities, policies),
             identities,
@@ -221,6 +222,7 @@ public sealed class AuthorityDetachServiceTests
                 System.Text.Json.JsonSerializer.Serialize(Array.Empty<SecurityScopeEngineeringDto>())),
             "authority-switch-test-password");
         var service = new AuthoritySwitchService(
+            lifecycle,
             new AuthorityDetachService(lifecycle, identities, policies),
             new AuthorityAttachService(lifecycle, identities, policies),
             identities,
@@ -236,6 +238,45 @@ public sealed class AuthorityDetachServiceTests
         Assert.True(AuthorityLifecycleSessionFence.IsCurrent(result.Attach.After, result.Attach.After.Epoch));
         Assert.Equal(replacement.Id, Assert.Single(await identities.ListAsync()).Id);
         Assert.Equal("replacement-admin", Assert.Single(policies.Snapshot().Roles).Key);
+    }
+
+    [Fact]
+    public async Task ConcurrentSwitches_SerializePreparationAndReplacement_AsDistinctEpochTransitions()
+    {
+        var innerIdentities = new InMemoryLocalIdentityStore();
+        var identities = new FirstClearBarrierLocalIdentityStore(innerIdentities);
+        var lifecycle = new InMemoryAuthorityLifecycleStore();
+        var policies = Policy("current-admin", SecurityCapability.SystemAdmin);
+        var current = Account("current-admin");
+        await innerIdentities.CreateAsync(current);
+        await lifecycle.MarkAuthorityPresentAsync();
+        var issued = await lifecycle.GetAsync();
+        var backupA = Backup(Account("replacement-a"), "replacement-a");
+        var backupB = Backup(Account("replacement-b"), "replacement-b");
+        var service = new AuthoritySwitchService(
+            lifecycle,
+            new AuthorityDetachService(lifecycle, identities, policies),
+            new AuthorityAttachService(lifecycle, identities, policies),
+            identities,
+            new AuthorityBackupService());
+
+        var first = service.SwitchAsync(backupA, "authority-switch-test-password");
+        await identities.FirstClearEntered.WaitAsync(TimeSpan.FromSeconds(5));
+        var second = service.SwitchAsync(backupB, "authority-switch-test-password");
+
+        Assert.False(second.IsCompleted);
+        Assert.Equal(AuthorityLifecycleState.DetachInProgress, (await lifecycle.GetAsync()).State);
+        Assert.False(AuthorityLifecycleSessionFence.IsCurrent(await lifecycle.GetAsync(), issued.Epoch));
+
+        identities.ReleaseFirstClear();
+        var firstResult = await first;
+        var secondResult = await second;
+
+        Assert.Equal(issued.Epoch + 2, firstResult.Attach.After.Epoch);
+        Assert.Equal(issued.Epoch + 4, secondResult.Attach.After.Epoch);
+        Assert.Equal(AuthorityLifecycleState.AuthorityPresent, (await lifecycle.GetAsync()).State);
+        Assert.False(AuthorityLifecycleSessionFence.IsCurrent(await lifecycle.GetAsync(), issued.Epoch));
+        Assert.Equal("replacement-b", Assert.Single(policies.Snapshot().Roles).Key);
     }
 
     private static ApiAuthorizationCheck Check(ApiAuthorizationService service, string role)
@@ -266,6 +307,15 @@ public sealed class AuthorityDetachServiceTests
 
     private static SecurityRoleEngineeringDto Role(string key, SecurityCapability capability) =>
         new(Guid.NewGuid(), key, key, Grants: [new CapabilityGrantEngineeringDto(capability)]);
+
+    private static string Backup(LocalUserAccount account, string role) =>
+        new AuthorityBackupService().Export(
+            [account],
+            new AuthorityBackupPolicyPayload(
+                1,
+                System.Text.Json.JsonSerializer.Serialize(new[] { Role(role, SecurityCapability.SystemAdmin) }),
+                System.Text.Json.JsonSerializer.Serialize(Array.Empty<SecurityScopeEngineeringDto>())),
+            "authority-switch-test-password");
 
     private static LocalUserAccount Account(string role)
     {

@@ -126,6 +126,48 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
         }
     }
 
+    [Fact]
+    public void FileLicenseService_ValidEslic2RetainsExistingTagEntitlementGate()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "elitescada-license-v2-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "EliteSCADA.license");
+        try
+        {
+            using var privateKey = RSA.Create(2048);
+            using var publicKey = RSA.Create();
+            publicKey.ImportSubjectPublicKeyInfo(privateKey.ExportSubjectPublicKeyInfo(), out _);
+            var machine = MachineFingerprint.HashIdentity("runtime-license-v2-test-machine");
+            using var service = new FileProductLicenseService(
+                new FixedMachineIdentityProvider(machine),
+                path,
+                new Dictionary<string, RSA> { ["test-key"] = publicKey });
+            var payload = new EliteScadaLicenseV2Payload(
+                EliteScadaLicenseCodec.LicenseV2SchemaVersion,
+                Guid.NewGuid().ToString("D"),
+                machine,
+                LicenseTier.Tags1000,
+                DateTimeOffset.UtcNow,
+                null,
+                "test-key",
+                ViewOnlySeats: 0,
+                InteractiveSeats: 0,
+                HaRuntime: false);
+
+            service.InstallLicense(EliteScadaLicenseCodec.CreateSignedLicenseV2(payload, privateKey));
+
+            Assert.Equal(LicenseState.Valid, service.CurrentVerification.State);
+            Assert.Equal(new MachineLicenseV2Entitlements(0, 0, false), service.CurrentVerification.SessionEntitlements);
+            Assert.True(service.EvaluateRun(1000).Allowed);
+            Assert.False(service.EvaluateRun(1001).Allowed);
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
     private static EngineeringPackage PackageWithTags(int count) =>
         new(
             "elitescada.engineering",

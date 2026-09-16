@@ -1,87 +1,226 @@
 # Current Coordinator Handoff — Wave 15
 
-> **GitHub live is the sole operational authority.** This file is the concise current pointer. Revalidate exact refs, latest issue comments, PR heads/trees and Actions before acting.
+> **ÚNICO handoff operacional corrente entre MAIN COORDINATOR e CODEX/FOUNDATION WORK.**
+>
+> Este arquivo é o combinador da coordenação ativa: a ordem atual do coordenador, o estado que o Codex deve retomar, o formato do retorno do Codex e a próxima ação segura do coordenador ficam aqui. Não criar um segundo arquivo `*-CURRENT*` ou outro handoff paralelo para o mesmo estado.
+>
+> **GitHub live é a autoridade final.** Antes de agir, revalidar HEAD/tree, issues, PRs e Actions. Este arquivo combina a coordenação; não substitui evidência viva.
 
 **Status date:** 2026-09-16 BRT  
 **Latest verified product-code checkpoint:** `456c66f4966ab5302831f642a39690ae3a3402a5`  
 **Tree at that checkpoint:** `f42d442933ded9bcf4290ae437193f2d1bb3d492`
 
-The live `wave15/corrections-integration` branch may be ahead of that product checkpoint because of documentation/coordination-only merges. Always revalidate the live HEAD and distinguish docs-only movement from product-code movement.
+A branch `wave15/corrections-integration` pode estar à frente desse checkpoint por commits apenas de documentação/coordenação. Sempre distinguir avanço documental de avanço de código de produto.
 
-## Current state
+## 1. Estado corrente
 
-- Wave 15 complete-product delivery remains active.
+- Wave 15 complete-product delivery — ACTIVE.
 - FND-01 — VERIFIED/FROZEN.
-- FND-02 Security Authority, including AUTH-04 — VERIFIED/FROZEN.
+- FND-02 Security Authority, incluindo AUTH-04 — VERIFIED/FROZEN.
 - FND-08 common timing — VERIFIED/FROZEN.
 - FND-03 Runtime Session Lease / Licensing v2 — **ACTIVE / NOT FROZEN**.
-- FND-03 Slice 1 durable Runtime Session Leases — **INTEGRATED / VERIFIED** at product checkpoint `456c66f...`.
-- Exact post-merge run `35110143733` is green for backend build/test/smoke, Web build and Chromium end-to-end.
-- FC0-A remains **BLOCKED**.
-- Parallel feature DEV lanes remain blocked.
+- FND-03 Slice 1 durable Runtime Session Leases — **INTEGRATED / VERIFIED** no checkpoint de produto `456c66f...`.
+- CI pós-merge `35110143733` — backend build/test/smoke PASS, Web build PASS, Chromium end-to-end PASS.
+- FND-04 — ainda não frozen; inclui o critério obrigatório de resolução segura de referências legíveis de TAG registrado em #305 comentário `5701881550`.
+- FC0-A — **BLOCKED**.
+- Parallel feature DEV lanes — **BLOCKED** até registro explícito de FC0-A.
 
-## Active Codex mission
+State machine compartilhada:
 
-The latest Main Coordinator order is #301 comment `5699620231`:
+`NOT_STARTED -> ACTIVE -> PR_READY -> INTEGRATED -> VERIFIED -> FROZEN`
 
-**FND-03 machine-license v2 schema/codec** from exact product base `456c66f4966ab5302831f642a39690ae3a3402a5`.
+Nenhum consumidor downstream pode inferir `FROZEN` de branch, PR ou teste isolado.
 
-Authorized branch when work is published:
+## 2. MAIN COORDINATOR -> CODEX — ordem ativa
 
-`work/w15-fnd-03-machine-license-v2` -> `wave15/corrections-integration`
+A última ordem binding do Main Coordinator está em #301 comentário `5699620231` e continua sendo:
 
-Scope is deliberately narrow:
+**FND-03 — machine-license v2 schema/codec**
 
-- retain signed machine-bound ESLIC1 read/validation compatibility;
-- add the signed machine-bound v2/ESLIC2 representation with explicit `viewOnlySeats`, `interactiveSeats`, `haRuntime`;
-- preserve the existing signature/hardware-binding/expiry trust path;
-- do not infer Interactive entitlement from ESLIC1;
-- no admission enforcement, active quotas, requested/granted-class policy, license lifecycle UX, License Generator UX, Installation UX, EliteGO UX or HA election/fencing in this slice.
+Base de produto autorizada:
 
-Required proof: v1 compatibility, v2 valid decode/verification, tamper/wrong-key/wrong-machine/expiry rejection, invalid seat values, signed-field coverage and `.escadapkg` boundary regression.
+`456c66f4966ab5302831f642a39690ae3a3402a5`
 
-### Interaction-limit resume condition
+Branch autorizada quando o trabalho for publicado:
 
-The Product Owner reports that Codex **started this slice and was interrupted only by the interaction limit**. There is not yet a completed Codex handoff.
+`work/w15-fnd-03-machine-license-v2`
 
-GitHub currently exposes no `work/w15-fnd-03-machine-license-v2` branch/PR. Therefore the next Codex/Work continuation must **inspect the existing local/worktree/session state first**. Do not start a parallel reimplementation merely because the work is not yet pushed.
+Target:
 
-The existing `work/w15-fnd-03-runtime-session-lease` branch belongs to the already integrated Slice 1 and must not be mistaken for the current license-v2 branch.
+`wave15/corrections-integration`
 
-## New queued FND-04 requirement
+### Escopo obrigatório deste slice
 
-#305 comment `5701881550` adds a binding FND-04 exit criterion for W15-P1-05 readable Python TAG references.
+- preservar compatibilidade exata de leitura/validação dos atuais `ESLIC1` assinados e vinculados à máquina;
+- adicionar representação v2/`ESLIC2` assinada e machine-bound com `viewOnlySeats`, `interactiveSeats` e `haRuntime` explícitos;
+- reutilizar o caminho canônico existente de assinatura, fingerprint/hardware binding, expiry e Demo;
+- não criar segundo codec, segundo mecanismo de assinatura ou segundo caminho de hardware verification;
+- não inferir entitlement Interactive a partir de ESLIC1;
+- expor os novos entitlements apenas pelos contratos internos/versionados necessários ao FND-03.
 
-Before FND-04 can freeze for DEV-SCRIPT-ENGINEERING:
+### Fora de escopo deste slice
 
-- generated literal `tag_read` / `tag_write` should use readable canonical TAG paths;
-- read and write must share one stable resolution semantic;
-- `TagId` remains the actual internal identity;
-- enough stable binding evidence must exist to detect path rename/reuse identity drift;
-- missing/ambiguous/stale references fail closed;
-- rename/path reuse must never silently retarget a script to another TAG.
+- enforcement de admissão Runtime;
+- cálculo/consumo de quotas ativas;
+- política `requestedClass -> grantedClass`;
+- install/replace/remove lifecycle da licença;
+- License Generator UX;
+- Installation UX;
+- EliteGO UX;
+- HA election/fencing;
+- FND-04 Script TAG reference resolution.
 
-This is **queued behind the active FND-03 work**. Do not interrupt the current license-v2 slice to implement it.
+### Prova mínima
 
-## Immediate resume
+- ESLIC1 permanece compatível;
+- v2/ESLIC2 válido encode/decode/verify;
+- tamper rejection;
+- wrong-key rejection;
+- wrong-machine rejection;
+- expiry rejection;
+- seat values inválidos/malformados rejeitados;
+- novos campos cobertos pela assinatura;
+- regressão confirmando que licença/chaves/session state não entram em `.escadapkg`.
 
-1. Read `LAST CHANGE.md`.
-2. Revalidate live integration HEAD/tree and newest #301/#305 comments; distinguish docs-only advances from product-code changes.
-3. Resume the existing Codex license-v2 work by inspecting the prior local/worktree/session state.
-4. Continue only the authorized schema/codec slice.
-5. When ready, publish one reviewable PR with exact-head validation and handoff prefix `CODEX -> MAIN COORDINATOR — FND-03 LICENSE V2 SCHEMA HANDOFF`.
-6. Do not self-freeze FND-03 or release FC0-A.
-7. After FND-03 progresses, preserve the queued FND-04 readable-reference freeze criterion before DEV-SCRIPT-ENGINEERING is released.
+## 3. Continuidade da sessão interrompida
 
-## Coordination pointers
+O Product Owner informou que o Codex **já iniciou esse slice e parou apenas porque atingiu o limite de interação**. Não houve handoff concluído.
 
-- detailed current handoff: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-CURRENT.md`
-- prior detailed handoff: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` — **historical snapshot only; do not use its AUTH-03/AUTH-04 active-state text as current**
-- execution/dependency ledger: #305
-- FND-03/licensing ledger: #301
-- global Wave 15 ledger: #297
-- generic rotation protocol: `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
+Na última verificação do GitHub:
 
-Permanent guards: no direct `main`, no destructive history operations, no blind reruns, no weakened tests/security/lifecycle/licensing/Runtime/Historian/Driver contracts, no downstream silent redesign of frozen authorities, and no treatment of unpushed local work as repository-verified evidence.
+- não havia branch remota `work/w15-fnd-03-machine-license-v2`;
+- não havia PR publicado para esse slice;
+- não havia handoff final do Codex.
 
-For Product Owner control, coordinator messages end with America/Sao_Paulo time as `Hora: HH:MM`.
+Portanto, a primeira ação ao Codex voltar é:
+
+1. inspecionar a sessão/worktree/local changes já existentes;
+2. recuperar e continuar o que já foi feito, se disponível;
+3. somente recriar o trabalho a partir da base autorizada se o estado local anterior realmente não puder ser recuperado;
+4. não usar `work/w15-fnd-03-runtime-session-lease` como branch do slice atual: ela pertence ao Slice 1 já integrado.
+
+Ausência de branch no GitHub **não prova ausência de trabalho local**.
+
+## 4. CODEX -> MAIN COORDINATOR — retorno obrigatório
+
+Quando o slice estiver pronto para revisão, o Codex deve publicar branch/PR e registrar o handoff começando exatamente por:
+
+`CODEX -> MAIN COORDINATOR — FND-03 LICENSE V2 SCHEMA HANDOFF`
+
+O retorno deve conter, no mínimo:
+
+- exact base SHA;
+- exact head SHA e tree quando relevante;
+- branch e PR;
+- arquivos/símbolos alterados;
+- descrição do schema/codec e compatibilidade ESLIC1;
+- confirmação de que assinatura/fingerprint existentes foram reutilizados;
+- testes executados com `PASS | FAIL | PENDING`;
+- CI run/jobs exatos;
+- skips/limitações de ambiente;
+- riscos residuais;
+- itens deliberadamente não alterados;
+- recomendação do próximo slice FND-03.
+
+Codex não deve auto-mergear, auto-congelar FND-03 nem liberar FC0-A.
+
+## 5. MAIN COORDINATOR — tratamento do retorno do Codex
+
+Ao receber o handoff:
+
+1. revalidar branch/PR/base/head/tree no GitHub;
+2. revisar diff real e verificar vazamento de escopo;
+3. conferir codec, assinatura, fingerprint, compatibilidade e regressões negativas;
+4. conferir CI no exact head;
+5. diagnosticar qualquer vermelho antes de rerun;
+6. integrar somente se o slice estiver bounded e com evidência suficiente;
+7. verificar merge parent/tree e CI pós-merge quando requerido;
+8. registrar `INTEGRATED/VERIFIED` sem chamar FND-03 inteiro de `FROZEN` antes dos slices restantes;
+9. emitir a próxima ordem ao Codex aqui e nas issues binding adequadas.
+
+Este arquivo deve então ser atualizado para que **a próxima ordem substitua claramente a anterior**, sem abrir um segundo handoff corrente.
+
+## 6. FND-03 ainda pendente depois do schema/codec
+
+Após o slice atual, FND-03 ainda precisa de autorização explícita para os slices restantes, incluindo conforme necessário:
+
+- `requestedClass -> grantedClass` server-side;
+- interseção com Authority e View Only fail-closed;
+- quotas compartilhadas Web + EliteGO para Interactive/View Only;
+- fallback/rejection reasons explícitos;
+- reconnect/REST/WebSocket multiplicity preservando um único logical lease;
+- primitives transacionais de inspect/verify/replace/remove requeridas por installation switching;
+- regressões de compatibilidade, negativas e concorrência.
+
+Não absorver esses itens silenciosamente no slice de schema/codec.
+
+## 7. FND-04 queued — referências legíveis de TAG em Python
+
+O requisito W15-P1-05 de Python legível não é apenas UX. #305 comentário `5701881550` tornou obrigatório, antes do freeze de FND-04 para DEV-SCRIPT-ENGINEERING:
+
+- `tag_read` / `tag_write` gerados usam caminho canônico legível da TAG;
+- leitura e escrita compartilham uma única semântica de resolução;
+- `TagId` continua sendo a identidade interna autoritativa;
+- binding estável permite detectar rename/path-reuse identity drift;
+- missing/ambiguous/stale fail closed;
+- rename/move ou reutilização do caminho antigo nunca retargeta silenciosamente para outra TAG;
+- diagnósticos podem mostrar referência legível e identidade estável esperada/resolvida;
+- selectors preservam a mesma segurança de identidade.
+
+Esse delta fica **queued atrás do FND-03 ativo**. Não interromper o machine-license-v2 slice para implementá-lo.
+
+## 8. FC0-A
+
+FC0-A exige:
+
+`FND-01 + FND-02 + FND-03 + FND-04 + FND-06 VERIFIED/FROZEN`
+
+mais:
+
+- FND-08 frozen;
+- INFRA-CI-01 ready/frozen;
+- um exact integration checkpoint com gates requeridos.
+
+Somente o registro explícito do Main libera:
+
+- DEV-EDITOR;
+- DEV-SCRIPT-ENGINEERING;
+- DEV-AUTHORITY-UX;
+- DEV-LICENSING-UX.
+
+## 9. Superfícies de coordenação
+
+**Handoff operacional corrente e combinador Main <-> Codex:**
+
+`docs/CURRENT-COORDINATOR-HANDOFF.md`
+
+Demais fontes:
+
+- `LAST CHANGE.md` — resumo curto do ponto de retomada;
+- #305 — dependency graph / Foundation checkpoints / sequencing;
+- #301 — FND-03 / Licensing ledger;
+- #297 — Wave 15 global ledger;
+- `docs/ROADMAP.md` — sequencing/checkpoints;
+- `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md` — protocolo genérico para substituir o Main Coordinator;
+- `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` — **snapshot histórico**, não handoff operacional corrente.
+
+Não criar outro arquivo corrente concorrente com `CURRENT-COORDINATOR-HANDOFF.md`.
+
+## 10. Guardas permanentes
+
+- no direct `main`;
+- no destructive history operation;
+- no direct feature write to integration;
+- red CI diagnosed before rerun;
+- exact-head evidence only;
+- required but unexecuted test = `PENDING`, never `PASS`;
+- no weakening Security/Authority/Licensing/lifecycle/Runtime/Historian/Driver contracts;
+- no EEE-only workaround for generic defect;
+- stable IDs outrank mutable names/paths;
+- no downstream silent redesign of frozen contracts;
+- Runtime/Active remains independent of `.escadalib`;
+- Alarm, Operational Event and Audit remain distinct.
+
+For Product Owner control, EliteSCADA coordination messages end with current America/Sao_Paulo time as:
+
+`Hora: HH:MM`

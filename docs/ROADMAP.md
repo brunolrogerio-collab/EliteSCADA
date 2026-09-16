@@ -1,6 +1,6 @@
 # EliteSCADA Roadmap — Wave 15
 
-**Status date:** 2026-09-13 (BRT)  
+**Status date:** 2026-09-16 (BRT)  
 **Active direction:** **WAVE 15 FOUNDATION-FIRST COMPLETE PRODUCT DELIVERY**  
 **Integration:** `wave15/corrections-integration`  
 **Global issue:** #297  
@@ -8,15 +8,15 @@
 
 Authoritative stable product intent: root `PROJECT GOAL.md`.  
 Mutable operational snapshot: root `LAST CHANGE.md`.  
-Detailed Main handoff: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.  
+Detailed current Main handoff: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-CURRENT.md`.  
 Current pointer: `docs/CURRENT-COORDINATOR-HANDOFF.md`.  
-Copy-ready coordinator rotation prompt: `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`.
+Generic coordinator rotation prompt: `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`.
 
-> GitHub live always wins for exact branch/SHA/PR/CI state. Historical Wave 14/Test Preview documents remain evidence, not current sequencing authority.
+> GitHub live always wins for exact branch/SHA/PR/CI state. Historical Wave 14 documents and the prior `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` remain evidence, not current sequencing authority.
 
 ## Product objective
 
-Wave 15 is the complete-product convergence wave. It must combine the already accepted platform foundation with the remaining developer/operator/customer-visible product work rather than optimize for isolated issue closure.
+Wave 15 is the complete-product convergence wave. It combines the accepted platform foundation with the remaining developer/operator/customer-visible product work rather than optimizing for isolated issue closure.
 
 Target product scope includes:
 
@@ -39,14 +39,12 @@ Target product scope includes:
 
 ## Foundation-first execution
 
-Wave 15 deliberately freezes cross-cutting contracts before opening many parallel feature lanes.
-
 Foundation families:
 
 - **FND-01** — Working/lifecycle/bootstrap;
 - **FND-02** — Security Authority;
 - **FND-03** — Runtime Session Lease / Licensing v2;
-- **FND-04** — Server Script recovery/ownership;
+- **FND-04** — Server Script recovery/ownership + frozen Script TAG reference-resolution semantics;
 - **FND-05** — HA identity/topology/fencing;
 - **FND-06** — canonical renderer/visual stability;
 - **FND-07** — secure installation detach/neutral bootstrap;
@@ -59,29 +57,71 @@ State model:
 
 A downstream feature may consume a shared contract only after the required slice is `VERIFIED + FROZEN`.
 
-## Current frozen snapshot
+## Current foundation snapshot
 
-- FND-01 — **VERIFIED/FROZEN**;
-- FND-08 common timing contract — **VERIFIED/FROZEN**;
-- FND-02 AUTH-01 capability vocabulary/enforcement — **VERIFIED/FROZEN**;
-- FND-02 AUTH-02 stable hierarchy/scope identities — **VERIFIED/FROZEN**;
-- FND-02 overall — **NOT FROZEN** while required AUTH-03/remaining slices are incomplete.
+- FND-01 — **VERIFIED/FROZEN**.
+- FND-02 Security Authority, including AUTH-04 — **VERIFIED/FROZEN**.
+- FND-08 common timing — **VERIFIED/FROZEN**.
+- FND-03 — **ACTIVE / NOT FROZEN**.
+- FND-03 Slice 1 durable Runtime Session Lease identity/persistence — **INTEGRATED / VERIFIED** at integration checkpoint `456c66f4966ab5302831f642a39690ae3a3402a5`.
+- FND-04 remains required for FC0-A and has a new binding readable-TAG-reference resolution exit criterion from #305 comment `5701881550`.
+- FC0-A remains blocked.
 
-Exact evidence/SHA belongs in `LAST CHANGE.md` and live issues, not in this roadmap.
+Exact current SHA, branch/PR and CI details belong in `LAST CHANGE.md` and live issues.
 
-## Current active path — FND-02 Authority
+## Current active path — FND-03 Runtime Session Lease / Licensing v2
 
-### AUTH-03 — ACTIVE
+### Slice 1 — durable Runtime Session Lease identity/persistence
 
-PR #314 owns durable canonical Authority persistence/admin/portable backup v2 and Engineering/package ownership transition.
+**INTEGRATED / VERIFIED.**
 
-Required contract includes PostgreSQL version/CAS, deterministic bootstrap/migration, protected administration, self-lockout/orphan protection, strict stable capability/scope identities, Authority backup v2, `.escadapkg` v3 / Engineering schema19 and no second mutable Engineering policy owner.
+The integrated slice establishes durable logical Runtime Session Lease state without treating transport/socket count as licensed seats. Exact post-merge CI is recorded in #301 and `LAST CHANGE.md`.
 
-At this roadmap snapshot the product/Authority test suite and real PostgreSQL Authority persistence gate pass, while a Runtime smoke still fails in a direct Historian read after samples have reportedly been written. Diagnose that narrow discrepancy before AUTH-03 freeze; do not weaken Historian or Authority contracts.
+FND-03 as a whole is not frozen merely because Slice 1 is green.
 
-### AUTH-04 — QUEUED / NOT ACTIVE
+### Current authorized slice — machine-license v2 schema/codec
 
-Starts only after AUTH-03 is integrated/verified/frozen and FND-07/#304 dependency is ready. Owns coordinated safe Authority detach/switch, generation fencing, old-session invalidation, neutral bootstrap, A->neutral->B isolation and restore semantics.
+Latest Main Coordinator authorization: #301 comment `5699620231`.
+
+Required base is the current Slice-1 integration checkpoint. Scope is limited to the signed machine-license schema/codec foundation:
+
+- preserve ESLIC1 compatibility;
+- add a signed machine-bound v2/ESLIC2 representation with explicit `viewOnlySeats`, `interactiveSeats` and `haRuntime` entitlement;
+- preserve the existing signature/hardware-fingerprint/expiry trust path;
+- do not infer Interactive entitlement from ESLIC1;
+- expose the new entitlement information through narrow versioned/internal contracts;
+- do not mix Runtime admission enforcement, quota calculation, license lifecycle, Generator UX, Installation UX, EliteGO UX or HA election/fencing into this slice.
+
+The Product Owner reports Codex started this slice and was interrupted by the interaction limit before a completed handoff. Because unpublished local progress may exist, resume must inspect the prior worktree/session before recreating work. GitHub absence is not proof that the local implementation is empty.
+
+### Remaining FND-03 work after the schema/codec slice
+
+Still requires coordinator-approved slices for the rest of the frozen FND-03 contract, including as applicable:
+
+- common server-side requested-class -> authoritative granted-class admission semantics;
+- Authority intersection and View Only fail-closed enforcement;
+- shared Web + EliteGO Interactive/View Only quota accounting;
+- explicit fallback/rejection reasons;
+- reconnect/REST/WebSocket multiplicity remaining one logical lease;
+- transactional license inspect/verify/replace/remove primitives required by installation switching;
+- deterministic compatibility and negative/concurrency tests.
+
+Do not collapse these into the current schema/codec slice without an explicit scope change.
+
+## FND-04 addition — readable Python TAG references are a Foundation contract
+
+The Product Owner's W15-P1-05 requirement that normal generated Python use readable TAG paths instead of GUIDs exposed a shared contract gap: `tag_read` and `tag_write` do not currently share one frozen reference-resolution semantic, and plain path-only runtime resolution would be unsafe under TAG rename/path reuse.
+
+Therefore #305 comment `5701881550` adds an explicit FND-04 exit criterion. Before FND-04 can freeze for DEV-SCRIPT-ENGINEERING, it must establish and test that:
+
+- readable source references resolve through one supported read/write semantic;
+- stable `TagId` remains the internal identity authority;
+- Script Engineering retains enough stable binding evidence to detect identity drift;
+- missing/ambiguous/stale references fail closed;
+- rename/move or later reuse of an old path can never silently retarget a script to another TAG;
+- selectors preserve the same stable-identity protection.
+
+This does not move the Object Browser/autocomplete/cursor-insertion UX into Foundation. Those remain downstream DEV-SCRIPT-ENGINEERING responsibilities after the contract freezes.
 
 ## FC0 checkpoints
 
@@ -106,6 +146,8 @@ FC0-A releases bounded parallel work for:
 
 Start with controlled concurrency, normally no more than four active coding DEVs.
 
+Until Main explicitly records FC0-A, these DEVs remain blocked even if an individual prerequisite PR happens to exist.
+
 ### FC0-B — full foundation release
 
 Add:
@@ -117,7 +159,7 @@ FC0-B releases:
 
 - EliteGO;
 - Installation UX;
-- downstream HA implementation that consumes frozen HA contracts.
+- explicitly delegated downstream HA implementation consuming frozen HA contracts.
 
 F0 is complete only at FC0-B.
 
@@ -136,19 +178,17 @@ If a frozen contract is insufficient, report `BLOCKED-CONTRACT`; Main/Foundation
 
 ## CI roadmap — INFRA-CI-01
 
-All current workflows support `workflow_dispatch`, but many automatic triggers still reflect `main` or Wave 14 branches. Do not solve that by wiring every heavy workflow to every Wave 15 PR.
+Target validation tiers:
 
-Target tier model:
-
-- **T0** — local focused validation;
+- **T0** — local focused evidence;
 - **T1** — DEV PR sanity/profile;
 - **T2** — integrated broader validation;
 - **T3** — exact integration checkpoint;
 - **T4** — final complete-product validation.
 
-Seven-Driver, browser, Licensing, HMI and other heavy suites run when risk/ownership/profile justifies them and at broader checkpoints.
+Seven-Driver, browser, Licensing, HMI and other heavy suites run when risk/ownership/profile justifies them and at broader checkpoints. Red CI is diagnosed before rerun. Required but unexecuted validation is `PENDING`, never `PASS`.
 
-A ChatGPT connector lacking the operation to create a new `workflow_dispatch` is a tool limitation, not repository limitation. Use Work/Codex/CLI dispatch when available; existing-run reruns are separate operations and require diagnosis before use.
+A connector lacking a `workflow_dispatch` mutation is a tool limitation, not repository capability. Do not mutate workflows, create empty commits or retarget PRs merely to wake CI.
 
 ## Product contracts that guide downstream work
 
@@ -158,7 +198,7 @@ Roles are editable templates/custom roles with explicit capabilities and stable 
 
 ### Licensing / Runtime Session Class
 
-Authority permissions, Session Class and commercial license quotas are separate layers. Session Class can only restrict Authority. One logical runtime session owns one lease across transports/reconnect/failover; Web and EliteGO share server-owned quotas.
+Authority permissions, Runtime Session Class and commercial license quotas are separate layers. Session Class can only restrict Authority. One logical runtime session owns one lease across transports/reconnect/failover; Web and EliteGO share server-owned quotas.
 
 ### EliteGO
 

@@ -1,89 +1,85 @@
 # Current Coordinator Handoff — Wave 15
 
-> **GitHub live is the sole operational authority.** This file is a concise pointer. The detailed persistent state is in `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`. Revalidate live refs, latest issue comments, PR heads/trees and exact-head Actions evidence before acting.
+> **GitHub live is the sole operational authority.** This file is the concise current pointer. Revalidate exact refs, latest issue comments, PR heads/trees and Actions before acting.
 
-> **2026-09-15 AUTH-04 override:** the historical snapshot below is superseded for AUTH-04.
-> Frozen baseline: `wave15/corrections-integration@e7b9b83dbc71764e3eee5b5afe2daf07c45a9377`.
-> Active branch/PR: `work/w15-auth-04-authority-detach`, rebased onto current integration `b2eec2dc95da905dab9908246e30bf0f96d05aa3`.
-> Exact-head CI is pending for the rebased SHA; prior CI is evidence only for the preceding candidate.
-> AUTH-04 is **PR OPEN / REBASED / EXACT-HEAD CI PENDING / NOT INTEGRATED / NOT VERIFIED / NOT FROZEN**.
-> The separate privileged Codex/Visual Studio Work chat owns heavy implementation; Main only coordinates,
-> reviews evidence and records the authoritative handoff in #302.
+**Status date:** 2026-09-16 BRT  
+**Current integration checkpoint:** `wave15/corrections-integration@456c66f4966ab5302831f642a39690ae3a3402a5`  
+**Current tree:** `f42d442933ded9bcf4290ae437193f2d1bb3d492`
 
-## Current topology snapshot
+## Current state
 
-- Repository: `brunolrogerio-collab/EliteSCADA`
-- Wave: **15 — complete product delivery**
-- Integration: `wave15/corrections-integration`
-- Snapshot integration SHA: `bc68bf450f6efd42b90898ad0656bea9b7543f57`
-- Global status: #297
-- Foundation/dependency/parallel-DEV/CI orchestration: #305
-- Active foundation issue: #302 — Security Authority / FND-02
-- Active PR: #314 — `W15 AUTH-03: persist canonical Security Authority`
-- Snapshot AUTH-03 head: `f8d56f8cb87ba0b51d33c58c7597a1466b4bd9c1`
-- AUTH-04: queued/not active
-- Wave13 #205/#207: paused
+- Wave 15 complete-product delivery remains active.
+- FND-01 — VERIFIED/FROZEN.
+- FND-02 Security Authority, including AUTH-04 — VERIFIED/FROZEN.
+- FND-08 common timing — VERIFIED/FROZEN.
+- FND-03 Runtime Session Lease / Licensing v2 — **ACTIVE / NOT FROZEN**.
+- FND-03 Slice 1 durable Runtime Session Leases — **INTEGRATED / VERIFIED** at `456c66f...`.
+- Exact post-merge run `35110143733` is green for backend build/test/smoke, Web build and Chromium end-to-end.
+- FC0-A remains **BLOCKED**.
+- Parallel feature DEV lanes remain blocked.
 
-## State machine
+## Active Codex mission
 
-`NOT_STARTED -> ACTIVE -> PR_READY -> INTEGRATED -> VERIFIED -> FROZEN`
+The latest Main Coordinator order is #301 comment `5699620231`:
 
-A shared contract may be consumed downstream only after the required slice is `VERIFIED + FROZEN`.
+**FND-03 machine-license v2 schema/codec** from exact base `456c66f4966ab5302831f642a39690ae3a3402a5`.
 
-## Frozen foundation snapshot
+Authorized branch when work is published:
 
-- FND-01 Working/lifecycle/bootstrap — VERIFIED/FROZEN.
-- FND-08 common timing contract — VERIFIED/FROZEN.
-- FND-02 AUTH-01 capability vocabulary/enforcement — VERIFIED/FROZEN.
-- FND-02 AUTH-02 stable hierarchy/scope identities — VERIFIED/FROZEN.
-- FND-02 overall — NOT FROZEN while AUTH-03/remaining required slices remain.
+`work/w15-fnd-03-machine-license-v2` -> `wave15/corrections-integration`
 
-## Active mission
+Scope is deliberately narrow:
 
-AUTH-03 establishes the single durable canonical Security Authority owner: PostgreSQL version/CAS, deterministic bootstrap/migration, protected administration, self-lockout/orphan protection, Authority backup v2, Engineering/package ownership transition, `.escadapkg` v3 / Engineering schema19 and stable audit IDs without secrets.
+- retain signed machine-bound ESLIC1 read/validation compatibility;
+- add the signed machine-bound v2/ESLIC2 representation with explicit `viewOnlySeats`, `interactiveSeats`, `haRuntime`;
+- preserve the existing signature/hardware-binding/expiry trust path;
+- do not infer Interactive entitlement from ESLIC1;
+- no admission enforcement, active quotas, requested/granted-class policy, license lifecycle UX, License Generator UX, Installation UX, EliteGO UX or HA election/fencing in this slice.
 
-Earlier contract blockers A/B/C were corrected. Revalidate any current/new head delta before acceptance.
+Required proof: v1 compatibility, v2 valid decode/verification, tamper/wrong-key/wrong-machine/expiry rejection, invalid seat values, signed-field coverage and `.escadapkg` boundary regression.
 
-## Current CI evidence
+### Interaction-limit resume condition
 
-Run `34766682415` on snapshot head `f8d56f8...`:
+The Product Owner reports that Codex **started this slice and was interrupted only by the interaction limit**. There is not yet a completed Codex handoff.
 
-- Web build PASS;
-- backend build PASS;
-- full .NET test stage PASS;
-- real PostgreSQL Authority persistence/CAS PASS;
-- Runtime smoke FAIL;
-- rerun reproduced the same failure.
+GitHub currently exposes no `work/w15-fnd-03-machine-license-v2` branch/PR. Therefore the next Codex/Work continuation must **inspect the existing local/worktree/session state first**. Do not start a parallel reimplementation merely because the work is not yet pushed.
 
-The actual failure occurs before lifecycle/security assertions. Runtime diagnostics show historian `writtenSamples=7` and seven TAGs; the smoke then asks `/api/history/{id}` for `Demo.Tank01.Level`, receives no sample and fails `assert len(history) >= 1`.
+The existing `work/w15-fnd-03-runtime-session-lease` branch belongs to the already integrated Slice 1 and must not be mistaken for the current license-v2 branch.
 
-Immediate job is to diagnose that narrow historian-smoke discrepancy without weakening Historian/AUTH contracts. AUTH-03 is not yet merge/freeze-ready merely because its PostgreSQL test passed.
+## New queued FND-04 requirement
 
-## Main / Work / DEV coordination
+#305 comment `5701881550` adds a binding FND-04 exit criterion for W15-P1-05 readable Python TAG references.
 
-- Main owns dependency graph, exact base SHA, mission activation, review, merge order, CI disposition and freeze records.
-- Work owns one active Foundation/high-risk implementation mission at a time and continues independent work while Actions runs.
-- CI unavailable locally may be delegated to Actions; unexecuted required validation remains PENDING.
-- Parallel feature DEVs remain blocked until FC0 gates/frozen shared contracts permit them.
-- Every DEV works on an isolated branch/PR to `wave15/corrections-integration`; no DEV merges its own PR or silently redesigns frozen shared contracts.
+Before FND-04 can freeze for DEV-SCRIPT-ENGINEERING:
 
-## Actions capability note
+- generated literal `tag_read` / `tag_write` should use readable canonical TAG paths;
+- read and write must share one stable resolution semantic;
+- `TagId` remains the actual internal identity;
+- enough stable binding evidence must exist to detect path rename/reuse identity drift;
+- missing/ambiguous/stale references fail closed;
+- rename/path reuse must never silently retarget a script to another TAG.
 
-All current workflows support `workflow_dispatch`. A ChatGPT connector may still lack the action to create a new manual dispatch. Existing run/job rerun can be separately available. New dispatch may be delegated to Work/Codex/CLI `gh workflow run` when necessary. Never manufacture an empty commit or retarget a PR simply to wake CI.
-
-INFRA-CI-01 remains the intended Wave 15 fix for profile-aware T1/T2/T3/T4 validation. Do not attach every old heavy workflow automatically to every Wave 15 PR.
+This is **queued behind the active FND-03 work**. Do not interrupt the current license-v2 slice to implement it.
 
 ## Immediate resume
 
-1. Read `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` completely.
-2. Revalidate integration and PR #314 exact heads.
-3. Read newest #302 and #314 comments.
-4. Continue narrow historian-smoke diagnosis on exact AUTH-03 candidate.
-5. Review and validate any correction at its exact resulting SHA.
-6. Integrate/freeze AUTH-03 only when evidence is sufficient.
-7. Do not activate AUTH-04 prematurely.
-8. Continue remaining FC0-A Foundation work + INFRA-CI-01 before releasing parallel DEVs.
+1. Read `LAST CHANGE.md`.
+2. Revalidate integration head/tree and newest #301/#305 comments.
+3. Resume the existing Codex license-v2 work by inspecting the prior local/worktree/session state.
+4. Continue only the authorized schema/codec slice.
+5. When ready, publish one reviewable PR with exact-head validation and handoff prefix `CODEX -> MAIN COORDINATOR — FND-03 LICENSE V2 SCHEMA HANDOFF`.
+6. Do not self-freeze FND-03 or release FC0-A.
+7. After FND-03 progresses, preserve the queued FND-04 readable-reference freeze criterion before DEV-SCRIPT-ENGINEERING is released.
 
-Permanent guards: no direct `main`, no destructive history operations, no blind reruns, no weakening tests/security/lifecycle/package/Runtime/Historian/Driver contracts, no EEE-only workaround for generic defects, and Runtime/Active remains independent of `.escadalib`.
+## Coordination pointers
 
-For Product Owner control, coordinator messages end with America/Sao_Paulo local time as `Hora: HH:MM`.
+- detailed current handoff: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-CURRENT.md`
+- prior detailed handoff: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` — **historical snapshot only; do not use its AUTH-03/AUTH-04 active-state text as current**
+- execution/dependency ledger: #305
+- FND-03/licensing ledger: #301
+- global Wave 15 ledger: #297
+- generic rotation protocol: `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
+
+Permanent guards: no direct `main`, no destructive history operations, no blind reruns, no weakened tests/security/lifecycle/licensing/Runtime/Historian/Driver contracts, no downstream silent redesign of frozen authorities, and no treatment of unpushed local work as repository-verified evidence.
+
+For Product Owner control, coordinator messages end with America/Sao_Paulo time as `Hora: HH:MM`.

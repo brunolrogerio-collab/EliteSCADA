@@ -15,63 +15,64 @@
 - Wave 15 — ACTIVE.
 - FND-01 — VERIFIED/FROZEN.
 - FND-02 — VERIFIED/FROZEN.
+- FND-08 — VERIFIED/FROZEN.
 - FND-03 — ACTIVE / NOT FROZEN.
-- PR #325 machine-license-v2 — INTEGRATED, mas ainda não VERIFIED/FROZEN após revisão semântica do Main.
-- integration candidate atual antes do hardening: `ac2b7f49f53734132d88c7d367b88d33383c384a`.
+- Runtime Session Lease v1 contract — VERIFIED/FROZEN.
+- machine-license v2 schema/codec + hardening contract — VERIFIED/FROZEN.
+- exact integration checkpoint validado: `897ae7ca243f0f75d0d8ddf81e4b53a80b37f4f5`.
+- EliteSCADA CI automática #1537 / run `35160493083` nesse SHA: Backend PASS, Web PASS, Chromium E2E PASS.
+- FND-04 — QUEUED / CONTRACT DEFINED / NOT ACTIVE.
 - FC0-A — BLOCKED.
-- FND-04 — QUEUED / NOT ACTIVE.
 
 ## ORDEM ATIVA DO MAIN AO CODEX
 
-**FND-03 — LICENSE V2 HARDENING**
+**FND-03 — COMMON RUNTIME ADMISSION / REQUESTED→GRANTED SESSION CLASS / AUTHORITY ENFORCEMENT**
 
-Binding completo: #301 comentário `5703758565`.  
-Sequencing: #305 comentário `5703760732`.
+Exact authorized product base:
 
-Exact base:
-
-`ac2b7f49f53734132d88c7d367b88d33383c384a`
+`897ae7ca243f0f75d0d8ddf81e4b53a80b37f4f5`
 
 Branch autorizada:
 
-`work/w15-fnd-03-machine-license-v2-hardening`
+`work/w15-fnd-03-runtime-admission-v1`
 
 Target:
 
 `wave15/corrections-integration`
 
-### Importante
+## Fronteiras principais
 
-A autorização anterior para iniciar:
-
-`FND-03 — COMMON RUNTIME ADMISSION / REQUESTED→GRANTED SESSION CLASS / AUTHORITY ENFORCEMENT`
-
-está **SUPERADA E BLOQUEADA** até o hardening ser integrado e verificado pelo Main.
-
-Se o Codex já tiver começado Runtime Admission apenas localmente, deve **parar e preservar o worktree sem push/PR**, então executar o hardening a partir do exact base acima.
-
-Na última verificação do Main não existiam branch remota nem PR para `work/w15-fnd-03-runtime-admission-v1`.
+- `requestedClass` vem do cliente; decisão efetiva é server-side.
+- `Interactive` é teto de classe, nunca concede capability ausente.
+- `ViewOnly` explícito permanece ViewOnly.
+- subject intrinsecamente read-only pela Authority deve ser downscoped para ViewOnly.
+- `CommandExecute` continua separado de `ProcessValueWrite`.
+- ViewOnly deve falhar fechado no backend para mutações.
+- REST, WebSocket e reconnect usam a mesma Runtime Session Lease lógica.
+- Não criar segundo lease registry, segundo licensing path ou segundo Authority pipeline.
+- Shared concurrent seat accounting Web + EliteGO é o próximo slice e **não** deve ser implementado silenciosamente agora.
+- FND-04 permanece bloqueado/queued.
 
 ## Retomada obrigatória
 
 1. Ler `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` por completo.
-2. Revalidar live HEAD/tree da integração.
-3. Ler os comentários mais recentes de #301 e #305, especialmente `5703758565` e `5703760732`.
-4. Não seguir a antiga ordem de Runtime Admission.
-5. Criar/usar `work/w15-fnd-03-machine-license-v2-hardening` partindo exatamente de `ac2b7f49...`.
-6. Executar somente o hardening bounded descrito no handoff vivo.
-
-## Semântica congelada para o hardening
-
-No ESLIC2, `viewOnlySeats` e `interactiveSeats` são **totais efetivos de capacidade comercial remota/cliente**, não adicionais ao Demo 2+2. `0` e `false` explícitos são válidos e devem ser distinguíveis de campo ausente.
+2. Revalidar live HEAD/tree da integração e confirmar que qualquer avanço desde `897ae7ca...` é somente documental; se houver delta de produto/infra, retornar ao Main.
+3. Ler os comentários mais recentes de #301 e #305.
+4. Criar/usar `work/w15-fnd-03-runtime-admission-v1` partindo exatamente do authorized product base.
+5. Executar somente o slice bounded de Runtime Admission.
+6. Usar os gatilhos reais de `.github/workflows/dotnet-ci.yml`: PR/push automático é o caminho normal quando branch/path filters permitirem; `workflow_dispatch` não é requisito genérico.
 
 ## Retorno esperado
 
 Codex -> Main Coordinator deve começar por:
 
-`CODEX -> MAIN COORDINATOR — FND-03 LICENSE V2 HARDENING HANDOFF`
+`CODEX -> MAIN COORDINATOR — FND-03 RUNTIME ADMISSION HANDOFF`
 
-O formato completo, testes obrigatórios e fronteiras estão em `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.
+Se houver blocker de contrato frozen:
+
+`CODEX -> MAIN COORDINATOR — FND-03 RUNTIME ADMISSION BLOCKED-CONTRACT`
+
+O formato completo, critérios, testes e fronteiras estão em `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.
 
 ## Fontes de coordenação
 

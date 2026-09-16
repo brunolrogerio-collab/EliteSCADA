@@ -29,7 +29,7 @@ Every new Work/DEV/coordinator mission must inherit these rules.
 
 Persistent product north and locked architectural intent. Use it for durable product principles, not as the sole source of mutable Wave execution state.
 
-If an old release-sequencing sentence inside `PROJECT GOAL.md` conflicts with the current live handoffs, use the current handoffs/GitHub for execution sequencing while preserving the stable architecture/product rules from `PROJECT GOAL.md`.
+If an old release-sequencing sentence inside `PROJECT GOAL.md` conflicts with the current live handoffs, use the current handoff/GitHub for execution sequencing while preserving the stable architecture/product rules from `PROJECT GOAL.md`.
 
 ### ADRs and locked contract documents
 
@@ -42,19 +42,23 @@ When taking over coordination, read in this order:
 1. root `PROJECT GOAL.md` — durable product/architecture north;
 2. `CHAT-COLLABORATION-PROTOCOL.md` — mandatory behavior for every project chat;
 3. root `LAST CHANGE.md` — short mutable resume point;
-4. `CURRENT-COORDINATOR-HANDOFF.md` — concise live pointer;
+4. `CURRENT-COORDINATOR-HANDOFF.md` — **single current Main Coordinator <-> Codex/Work operational relay/combinator**;
 5. `NEXT-COORDINATOR-CHAT-HANDOFF.md` — **permanent, state-independent copy-ready protocol for replacing the Main Coordinator**;
-6. the handoff document for the currently active Wave/phase, when one exists;
-7. `ROADMAP.md` — current sequencing/checkpoints;
-8. current coordinator/Foundation issues and then every active mission issue/PR with their latest comments.
+6. `ROADMAP.md` — current sequencing/checkpoints;
+7. current coordinator/Foundation issues and then every active mission issue/PR with their latest comments;
+8. historical Wave handoffs only when older evidence/context is specifically needed.
 
 GitHub live wins over every snapshot.
+
+`CURRENT-COORDINATOR-HANDOFF.md` is intentionally the **only current operational handoff file** for the exchange between Main Coordinator and Codex/Foundation Work. Do not create a second `*-CURRENT*` handoff for the same live state.
 
 `NEXT-COORDINATOR-CHAT-HANDOFF.md` intentionally does **not** carry a current SHA/PR snapshot. A replacement coordinator must discover the live state from the sources above rather than inherit stale execution data from the transfer prompt.
 
 ## 5. Coordination surfaces
 
 Current issue numbers and Wave-specific coordination surfaces can change over the lifetime of the project. Discover them from `LAST CHANGE.md`, `CURRENT-COORDINATOR-HANDOFF.md`, `ROADMAP.md` and live GitHub instead of treating an old issue list here as permanent.
+
+The current Main -> Codex order and the expected Codex -> Main return contract belong in `CURRENT-COORDINATOR-HANDOFF.md`. Issues remain the durable ledger for binding decisions, scope, evidence, blockers, integration and freeze records.
 
 Read recent comments, not only issue bodies. Creation-time sequencing can be superseded by later binding comments.
 
@@ -70,7 +74,7 @@ Use the current CI policy/profile documents and live workflow definitions for th
 
 Old Wave handoffs, Preview evidence, Driver convergence assignments, execution logs and prior coordinator transfers remain valuable historical evidence.
 
-They are **not current execution authority** unless a current issue/handoff explicitly imports one of their contracts/evidence.
+They are **not current execution authority** unless `CURRENT-COORDINATOR-HANDOFF.md` or a current binding issue explicitly imports one of their contracts/evidence.
 
 Do not delete historical files simply because they are old. Version control preserves history; this authority map prevents history from pretending to be the present.
 
@@ -81,7 +85,7 @@ When sources disagree:
 1. inspect the live branch/PR and exact Actions evidence;
 2. use `PROJECT GOAL.md` and locked ADR/contracts for durable product intent;
 3. use `CHAT-COLLABORATION-PROTOCOL.md` for project-wide chat/process behavior;
-4. use `LAST CHANGE.md` + current handoffs for operational interpretation;
+4. use `LAST CHANGE.md` + `CURRENT-COORDINATOR-HANDOFF.md` for operational interpretation;
 5. use current coordinator/Foundation issues and active issue latest comments for dependency/mission state;
 6. treat older Wave/assignment/status prose as historical evidence.
 

@@ -5,6 +5,8 @@
 
 > **GitHub live is the official project memory.** Revalidate refs, exact SHA/tree, branches, PRs, issues and Actions before every material decision. Chat-local work that has not been committed/pushed is not repository evidence.
 
+> **Operational relay rule:** `docs/CURRENT-COORDINATOR-HANDOFF.md` is the single current Main Coordinator <-> Codex/Work handoff/combinator. Do not create a competing `*-CURRENT*` handoff file for the same live state.
+
 ## Latest verified product-code checkpoint
 
 - Repository: `brunolrogerio-collab/EliteSCADA`
@@ -67,7 +69,7 @@ Detailed binding criteria and regressions are in #305 comment `5701881550`. This
 ## Immediate resume sequence
 
 1. Revalidate the live `wave15/corrections-integration` HEAD/tree and distinguish docs-only advances from product-code changes.
-2. Read latest #301 and #305 comments.
+2. Read `docs/CURRENT-COORDINATOR-HANDOFF.md` as the single current Main <-> Codex relay, then read latest #301 and #305 comments.
 3. Resume the existing Codex session/worktree for the authorized machine-license-v2 schema/codec slice; inspect local changes before creating/recreating a branch.
 4. Publish only when the slice has a reviewable branch/PR and exact-head evidence; handoff prefix must be `CODEX -> MAIN COORDINATOR — FND-03 LICENSE V2 SCHEMA HANDOFF`.
 5. Do not self-freeze FND-03 and do not release FC0-A.
@@ -76,10 +78,9 @@ Detailed binding criteria and regressions are in #305 comment `5701881550`. This
 
 ## Current documentation pointers
 
-- concise live pointer: `docs/CURRENT-COORDINATOR-HANDOFF.md`
-- detailed current Wave 15 handoff: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-CURRENT.md`
-- historical prior detailed handoff: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`
-- generic next-chat protocol: `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
+- **single current Main Coordinator <-> Codex/Work handoff/combinator:** `docs/CURRENT-COORDINATOR-HANDOFF.md`
+- historical prior Wave 15 handoff: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`
+- generic next-Main protocol: `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
 - sequencing: `docs/ROADMAP.md`
 
 Permanent guards remain: no direct `main` mutation, no direct feature write to integration, no destructive history operation, no blind CI rerun, no weakening Security/Authority/Licensing/lifecycle/Runtime/Historian/Driver contracts, no EEE-only workaround for generic defects, and no claim of PASS/FROZEN without exact evidence.

@@ -47,7 +47,7 @@ public sealed class DistributedRuntimeFoundationTests
     [InlineData(SecurityCapability.HighAvailabilityObserve)]
     [InlineData(SecurityCapability.HighAvailabilityTransfer)]
     [InlineData(SecurityCapability.HighAvailabilityAdmin)]
-    public void VoluntaryViewer_DirectModifiedClientCall_IsDeniedByBackendDownscope(
+    public async Task VoluntaryViewer_DirectModifiedClientCall_IsDeniedByBackendDownscope(
         SecurityCapability capability)
     {
         var now = DateTimeOffset.Parse("2026-09-06T18:00:00Z");
@@ -55,7 +55,7 @@ public sealed class DistributedRuntimeFoundationTests
         var sessions = new RuntimeSessionLeaseRegistry(
             TimeSpan.FromMinutes(1),
             () => now);
-        var lease = sessions.Admit(
+        var lease = await sessions.AdmitAsync(
             "privileged-user",
             "browser-1",
             RuntimeConnectionClass.Viewer,
@@ -64,7 +64,7 @@ public sealed class DistributedRuntimeFoundationTests
         var baselineAuthority = Allowed(capability);
         Assert.True(baselineAuthority.Allowed);
 
-        var effective = RuntimeSessionAccessEvaluator.Apply(
+        var effective = await RuntimeSessionAccessEvaluator.ApplyAsync(
             sessions,
             lease.SessionId,
             "privileged-user",
@@ -79,20 +79,20 @@ public sealed class DistributedRuntimeFoundationTests
     [InlineData(SecurityCapability.View)]
     [InlineData(SecurityCapability.TagRead)]
     [InlineData(SecurityCapability.TrendUse)]
-    public void Viewer_PreservesOnlyReadOnlyRuntimeCapabilities(SecurityCapability capability)
+    public async Task Viewer_PreservesOnlyReadOnlyRuntimeCapabilities(SecurityCapability capability)
     {
         var now = DateTimeOffset.Parse("2026-09-06T18:00:00Z");
         var runtime = RuntimeDescriptor(now);
         var sessions = new RuntimeSessionLeaseRegistry(
             TimeSpan.FromMinutes(1),
             () => now);
-        var lease = sessions.Admit(
+        var lease = await sessions.AdmitAsync(
             "operator",
             "browser-1",
             RuntimeConnectionClass.Viewer,
             runtime);
 
-        var effective = RuntimeSessionAccessEvaluator.Apply(
+        var effective = await RuntimeSessionAccessEvaluator.ApplyAsync(
             sessions,
             lease.SessionId,
             "operator",
@@ -103,14 +103,14 @@ public sealed class DistributedRuntimeFoundationTests
     }
 
     [Fact]
-    public void Interactive_NeverElevatesAuthorityAndPreservesAnAllowedBaseline()
+    public async Task Interactive_NeverElevatesAuthorityAndPreservesAnAllowedBaseline()
     {
         var now = DateTimeOffset.Parse("2026-09-06T18:00:00Z");
         var runtime = RuntimeDescriptor(now);
         var sessions = new RuntimeSessionLeaseRegistry(
             TimeSpan.FromMinutes(1),
             () => now);
-        var lease = sessions.Admit(
+        var lease = await sessions.AdmitAsync(
             "operator",
             "browser-1",
             RuntimeConnectionClass.Interactive,
@@ -119,7 +119,7 @@ public sealed class DistributedRuntimeFoundationTests
         var deniedBaseline = AuthorizationDecision.Denied(
             SecurityCapability.CommandExecute,
             "Authority denied command execution.");
-        var stillDenied = RuntimeSessionAccessEvaluator.Apply(
+        var stillDenied = await RuntimeSessionAccessEvaluator.ApplyAsync(
             sessions,
             lease.SessionId,
             "operator",
@@ -129,7 +129,7 @@ public sealed class DistributedRuntimeFoundationTests
         Assert.Equal("Authority denied command execution.", stillDenied.Reason);
 
         var allowedBaseline = Allowed(SecurityCapability.ProcessValueWrite);
-        var stillAllowed = RuntimeSessionAccessEvaluator.Apply(
+        var stillAllowed = await RuntimeSessionAccessEvaluator.ApplyAsync(
             sessions,
             lease.SessionId,
             "operator",
@@ -139,14 +139,14 @@ public sealed class DistributedRuntimeFoundationTests
     }
 
     [Fact]
-    public void Lease_IsLogicalAcrossHeartbeatAndReconnect_AndFailsClosed()
+    public async Task Lease_IsLogicalAcrossHeartbeatAndReconnect_AndFailsClosed()
     {
         var now = DateTimeOffset.Parse("2026-09-06T18:00:00Z");
         var runtime = RuntimeDescriptor(now);
         var sessions = new RuntimeSessionLeaseRegistry(
             TimeSpan.FromSeconds(60),
             () => now);
-        var lease = sessions.Admit(
+        var lease = await sessions.AdmitAsync(
             "operator",
             "elitego-instance-1",
             RuntimeConnectionClass.Viewer,
@@ -158,7 +158,7 @@ public sealed class DistributedRuntimeFoundationTests
         Assert.Null(lease.ClusterId);
 
         // A reconnect reuses the logical lease. No transport connection identity is stored here.
-        var reconnect = sessions.Validate(
+        var reconnect = await sessions.ValidateAsync(
             lease.SessionId,
             "operator",
             runtime,
@@ -167,7 +167,7 @@ public sealed class DistributedRuntimeFoundationTests
         Assert.Equal(lease.SessionId, reconnect.Lease!.SessionId);
 
         now = now.AddSeconds(45);
-        var heartbeat = sessions.Heartbeat(
+        var heartbeat = await sessions.HeartbeatAsync(
             lease.SessionId,
             "operator",
             "elitego-instance-1",
@@ -176,7 +176,7 @@ public sealed class DistributedRuntimeFoundationTests
         Assert.Equal(lease.SessionId, heartbeat.Lease!.SessionId);
         Assert.True(heartbeat.Lease.ExpiresAtUtc > lease.ExpiresAtUtc);
 
-        var wrongClient = sessions.Validate(
+        var wrongClient = await sessions.ValidateAsync(
             lease.SessionId,
             "operator",
             runtime,
@@ -185,7 +185,7 @@ public sealed class DistributedRuntimeFoundationTests
         Assert.Equal("session-client-mismatch", wrongClient.FailureCode);
 
         now = now.AddSeconds(61);
-        var expired = sessions.Validate(
+        var expired = await sessions.ValidateAsync(
             lease.SessionId,
             "operator",
             runtime,
@@ -195,14 +195,14 @@ public sealed class DistributedRuntimeFoundationTests
     }
 
     [Fact]
-    public void Lease_IsInvalidatedWhenBackendActiveRevisionChanges()
+    public async Task Lease_IsInvalidatedWhenBackendActiveRevisionChanges()
     {
         var now = DateTimeOffset.Parse("2026-09-06T18:00:00Z");
         var runtime = RuntimeDescriptor(now, revision: 7);
         var sessions = new RuntimeSessionLeaseRegistry(
             TimeSpan.FromMinutes(1),
             () => now);
-        var lease = sessions.Admit(
+        var lease = await sessions.AdmitAsync(
             "operator",
             "browser-1",
             RuntimeConnectionClass.Interactive,
@@ -211,7 +211,7 @@ public sealed class DistributedRuntimeFoundationTests
         var nextActiveRevision = RuntimeDescriptor(
             now.AddSeconds(1),
             revision: 8);
-        var validation = sessions.Validate(
+        var validation = await sessions.ValidateAsync(
             lease.SessionId,
             "operator",
             nextActiveRevision,

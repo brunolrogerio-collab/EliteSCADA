@@ -62,7 +62,7 @@ public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
     }
 
     [Fact]
-    public async Task PostgreSqlLeaseStore_ExpiresReAdmits_BindsIdentity_AndRollsBackInvalidAdmission()
+    public async Task PostgreSqlLeaseStore_ExpiresReAdmits_BindsIdentity_AndRollsBackPostMutationFailure()
     {
         var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
@@ -88,16 +88,20 @@ public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
             Assert.Equal("runtime-changed", runtimeMismatch.FailureCode);
 
             var valid = await store.AdmitAsync(Admission(subject, client, runtime, TimeSpan.FromMinutes(1)));
-            var invalid = new RuntimeSessionLeaseAdmission(
+            // The changed runtime makes the store deactivate this logical identity first. The
+            // positive extreme duration overflows only while building the replacement lease,
+            // inside the already-open PostgreSQL transaction. Rollback must restore `valid`.
+            var postMutationFailure = new RuntimeSessionLeaseAdmission(
                 subject,
-                "invalid-client",
-                "invalid-class",
-                runtime,
-                TimeSpan.FromMinutes(1));
-            await Assert.ThrowsAsync<ArgumentException>(() => store.AdmitAsync(invalid));
+                client,
+                "viewer",
+                Runtime("project-b", 9),
+                TimeSpan.MaxValue);
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => store.AdmitAsync(postMutationFailure));
 
             var stillValid = await store.ValidateAsync(valid.SessionId, subject, runtime, client);
             Assert.True(stillValid.IsValid);
+            Assert.Equal(valid.SessionId, stillValid.Lease!.SessionId);
 
             // A second initialization is the migration-compatibility check: the versioned DDL is idempotent.
             await store.InitializeAsync();

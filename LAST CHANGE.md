@@ -5,7 +5,7 @@
 
 > **GitHub live is the official project memory.** Revalidate refs, exact SHA/tree, branches, PRs, issues and Actions before every material decision. Chat-local work that has not been committed/pushed is not repository evidence.
 
-> **Operational relay rule:** `docs/CURRENT-COORDINATOR-HANDOFF.md` is the single current Main Coordinator <-> Codex/Work handoff/combinator. Do not create a competing `*-CURRENT*` handoff file for the same live state.
+> **Handoff rule:** `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` is the live canonical operational handoff for Main Coordinator <-> Codex/Foundation Work during Wave 15. `docs/CURRENT-COORDINATOR-HANDOFF.md` is the short combinator/pointer to that handoff and the active ledgers.
 
 ## Latest verified product-code checkpoint
 
@@ -69,7 +69,7 @@ Detailed binding criteria and regressions are in #305 comment `5701881550`. This
 ## Immediate resume sequence
 
 1. Revalidate the live `wave15/corrections-integration` HEAD/tree and distinguish docs-only advances from product-code changes.
-2. Read `docs/CURRENT-COORDINATOR-HANDOFF.md` as the single current Main <-> Codex relay, then read latest #301 and #305 comments.
+2. Read `docs/CURRENT-COORDINATOR-HANDOFF.md` as the short combinator, then read `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` as the live detailed handoff and read latest #301/#305 comments.
 3. Resume the existing Codex session/worktree for the authorized machine-license-v2 schema/codec slice; inspect local changes before creating/recreating a branch.
 4. Publish only when the slice has a reviewable branch/PR and exact-head evidence; handoff prefix must be `CODEX -> MAIN COORDINATOR — FND-03 LICENSE V2 SCHEMA HANDOFF`.
 5. Do not self-freeze FND-03 and do not release FC0-A.
@@ -78,8 +78,8 @@ Detailed binding criteria and regressions are in #305 comment `5701881550`. This
 
 ## Current documentation pointers
 
-- **single current Main Coordinator <-> Codex/Work handoff/combinator:** `docs/CURRENT-COORDINATOR-HANDOFF.md`
-- historical prior Wave 15 handoff: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`
+- **live canonical Wave 15 operational handoff:** `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`
+- **short current combinator/pointer:** `docs/CURRENT-COORDINATOR-HANDOFF.md`
 - generic next-Main protocol: `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
 - sequencing: `docs/ROADMAP.md`
 

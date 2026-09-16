@@ -8,10 +8,11 @@
 
 Authoritative stable product intent: root `PROJECT GOAL.md`.  
 Mutable operational snapshot: root `LAST CHANGE.md`.  
-**Single current Main Coordinator <-> Codex/Work handoff/combinator:** `docs/CURRENT-COORDINATOR-HANDOFF.md`.  
+**Live canonical Wave 15 Main Coordinator <-> Codex/Work handoff:** `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.  
+**Short current combinator/pointer:** `docs/CURRENT-COORDINATOR-HANDOFF.md`.  
 Generic coordinator rotation prompt: `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`.
 
-> GitHub live always wins for exact branch/SHA/PR/CI state. Historical Wave 14 documents and `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` remain evidence, not current sequencing authority. Do not create another current handoff file competing with `CURRENT-COORDINATOR-HANDOFF.md`.
+> GitHub live always wins for exact branch/SHA/PR/CI state. Historical Wave 14 documents remain evidence, not current sequencing authority. While Wave 15 is active, `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` is a live operational document, not a historical snapshot.
 
 ## Product objective
 
@@ -66,7 +67,7 @@ A downstream feature may consume a shared contract only after the required slice
 - FND-04 remains required for FC0-A and has a new binding readable-TAG-reference resolution exit criterion from #305 comment `5701881550`.
 - FC0-A remains blocked.
 
-Exact current SHA, branch/PR and CI details belong in `LAST CHANGE.md`, `docs/CURRENT-COORDINATOR-HANDOFF.md` and live issues.
+Exact current SHA, branch/PR and CI details belong in `LAST CHANGE.md`, `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`, the short `docs/CURRENT-COORDINATOR-HANDOFF.md` pointer and live issues.
 
 ## Current active path — FND-03 Runtime Session Lease / Licensing v2
 

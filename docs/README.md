@@ -29,7 +29,7 @@ Every new Work/DEV/coordinator mission must inherit these rules.
 
 Persistent product north and locked architectural intent. Use it for durable product principles, not as the sole source of mutable Wave execution state.
 
-If an old release-sequencing sentence inside `PROJECT GOAL.md` conflicts with the current live handoffs, use the current handoff/GitHub for execution sequencing while preserving the stable architecture/product rules from `PROJECT GOAL.md`.
+If an old release-sequencing sentence inside `PROJECT GOAL.md` conflicts with the current live handoff/GitHub, use the live Wave handoff/GitHub for execution sequencing while preserving the stable architecture/product rules from `PROJECT GOAL.md`.
 
 ### ADRs and locked contract documents
 
@@ -37,28 +37,30 @@ Versioned public-model, licensing, TAG/bit binding, Driver, lifecycle and relate
 
 ## 4. Current operational authority
 
-When taking over coordination, read in this order:
+When taking over coordination during Wave 15, read in this order:
 
 1. root `PROJECT GOAL.md` — durable product/architecture north;
 2. `CHAT-COLLABORATION-PROTOCOL.md` — mandatory behavior for every project chat;
 3. root `LAST CHANGE.md` — short mutable resume point;
-4. `CURRENT-COORDINATOR-HANDOFF.md` — **single current Main Coordinator <-> Codex/Work operational relay/combinator**;
-5. `NEXT-COORDINATOR-CHAT-HANDOFF.md` — **permanent, state-independent copy-ready protocol for replacing the Main Coordinator**;
-6. `ROADMAP.md` — current sequencing/checkpoints;
-7. current coordinator/Foundation issues and then every active mission issue/PR with their latest comments;
-8. historical Wave handoffs only when older evidence/context is specifically needed.
+4. `CURRENT-COORDINATOR-HANDOFF.md` — short current combinator/pointer;
+5. `WAVE15-MAIN-COORDINATOR-HANDOFF.md` — **live canonical operational handoff for Main Coordinator <-> Codex/Foundation Work while Wave 15 is active**;
+6. `NEXT-COORDINATOR-CHAT-HANDOFF.md` — permanent, state-independent protocol for replacing the Main Coordinator chat;
+7. `ROADMAP.md` — current sequencing/checkpoints;
+8. current coordinator/Foundation issues and every active mission issue/PR with their latest comments.
 
 GitHub live wins over every snapshot.
 
-`CURRENT-COORDINATOR-HANDOFF.md` is intentionally the **only current operational handoff file** for the exchange between Main Coordinator and Codex/Foundation Work. Do not create a second `*-CURRENT*` handoff for the same live state.
+`WAVE15-MAIN-COORDINATOR-HANDOFF.md` is the detailed living handoff for Wave 15. It must not be classified as historical while Wave 15 is active.
+
+`CURRENT-COORDINATOR-HANDOFF.md` is deliberately smaller: it combines/pivots the current exchange by pointing to the active order, the Wave 15 handoff and live ledgers without maintaining a second full copy of the state.
 
 `NEXT-COORDINATOR-CHAT-HANDOFF.md` intentionally does **not** carry a current SHA/PR snapshot. A replacement coordinator must discover the live state from the sources above rather than inherit stale execution data from the transfer prompt.
 
 ## 5. Coordination surfaces
 
-Current issue numbers and Wave-specific coordination surfaces can change over the lifetime of the project. Discover them from `LAST CHANGE.md`, `CURRENT-COORDINATOR-HANDOFF.md`, `ROADMAP.md` and live GitHub instead of treating an old issue list here as permanent.
+Current issue numbers and Wave-specific coordination surfaces can change over the lifetime of the project. Discover them from `LAST CHANGE.md`, `CURRENT-COORDINATOR-HANDOFF.md`, `WAVE15-MAIN-COORDINATOR-HANDOFF.md`, `ROADMAP.md` and live GitHub instead of treating an old issue list as permanent.
 
-The current Main -> Codex order and the expected Codex -> Main return contract belong in `CURRENT-COORDINATOR-HANDOFF.md`. Issues remain the durable ledger for binding decisions, scope, evidence, blockers, integration and freeze records.
+The detailed current Main -> Codex order and expected Codex -> Main return contract belong in `WAVE15-MAIN-COORDINATOR-HANDOFF.md`. `CURRENT-COORDINATOR-HANDOFF.md` is the short combinator/pointer. Issues remain the durable ledger for binding decisions, scope, evidence, blockers, integration and freeze records.
 
 Read recent comments, not only issue bodies. Creation-time sequencing can be superseded by later binding comments.
 
@@ -72,9 +74,9 @@ Use the current CI policy/profile documents and live workflow definitions for th
 
 ## 7. Historical records
 
-Old Wave handoffs, Preview evidence, Driver convergence assignments, execution logs and prior coordinator transfers remain valuable historical evidence.
+Old completed-Wave handoffs, Preview evidence, Driver convergence assignments, execution logs and prior coordinator transfers remain valuable historical evidence.
 
-They are **not current execution authority** unless `CURRENT-COORDINATOR-HANDOFF.md` or a current binding issue explicitly imports one of their contracts/evidence.
+They are **not current execution authority** unless the active Wave handoff or a current binding issue explicitly imports one of their contracts/evidence.
 
 Do not delete historical files simply because they are old. Version control preserves history; this authority map prevents history from pretending to be the present.
 
@@ -85,8 +87,8 @@ When sources disagree:
 1. inspect the live branch/PR and exact Actions evidence;
 2. use `PROJECT GOAL.md` and locked ADR/contracts for durable product intent;
 3. use `CHAT-COLLABORATION-PROTOCOL.md` for project-wide chat/process behavior;
-4. use `LAST CHANGE.md` + `CURRENT-COORDINATOR-HANDOFF.md` for operational interpretation;
+4. use `LAST CHANGE.md` + `CURRENT-COORDINATOR-HANDOFF.md` + the active Wave handoff for operational interpretation;
 5. use current coordinator/Foundation issues and active issue latest comments for dependency/mission state;
-6. treat older Wave/assignment/status prose as historical evidence.
+6. treat older completed-Wave/assignment/status prose as historical evidence.
 
 Never inherit green CI from another SHA, never call an unexecuted required test PASS, never infer security from role display names and never report a specified feature as implemented without code plus exact-head evidence.

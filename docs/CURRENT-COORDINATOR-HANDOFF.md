@@ -3,8 +3,10 @@
 > **GitHub live is the sole operational authority.** This file is the concise current pointer. Revalidate exact refs, latest issue comments, PR heads/trees and Actions before acting.
 
 **Status date:** 2026-09-16 BRT  
-**Current integration checkpoint:** `wave15/corrections-integration@456c66f4966ab5302831f642a39690ae3a3402a5`  
-**Current tree:** `f42d442933ded9bcf4290ae437193f2d1bb3d492`
+**Latest verified product-code checkpoint:** `456c66f4966ab5302831f642a39690ae3a3402a5`  
+**Tree at that checkpoint:** `f42d442933ded9bcf4290ae437193f2d1bb3d492`
+
+The live `wave15/corrections-integration` branch may be ahead of that product checkpoint because of documentation/coordination-only merges. Always revalidate the live HEAD and distinguish docs-only movement from product-code movement.
 
 ## Current state
 
@@ -13,7 +15,7 @@
 - FND-02 Security Authority, including AUTH-04 — VERIFIED/FROZEN.
 - FND-08 common timing — VERIFIED/FROZEN.
 - FND-03 Runtime Session Lease / Licensing v2 — **ACTIVE / NOT FROZEN**.
-- FND-03 Slice 1 durable Runtime Session Leases — **INTEGRATED / VERIFIED** at `456c66f...`.
+- FND-03 Slice 1 durable Runtime Session Leases — **INTEGRATED / VERIFIED** at product checkpoint `456c66f...`.
 - Exact post-merge run `35110143733` is green for backend build/test/smoke, Web build and Chromium end-to-end.
 - FC0-A remains **BLOCKED**.
 - Parallel feature DEV lanes remain blocked.
@@ -22,7 +24,7 @@
 
 The latest Main Coordinator order is #301 comment `5699620231`:
 
-**FND-03 machine-license v2 schema/codec** from exact base `456c66f4966ab5302831f642a39690ae3a3402a5`.
+**FND-03 machine-license v2 schema/codec** from exact product base `456c66f4966ab5302831f642a39690ae3a3402a5`.
 
 Authorized branch when work is published:
 
@@ -64,7 +66,7 @@ This is **queued behind the active FND-03 work**. Do not interrupt the current l
 ## Immediate resume
 
 1. Read `LAST CHANGE.md`.
-2. Revalidate integration head/tree and newest #301/#305 comments.
+2. Revalidate live integration HEAD/tree and newest #301/#305 comments; distinguish docs-only advances from product-code changes.
 3. Resume the existing Codex license-v2 work by inspecting the prior local/worktree/session state.
 4. Continue only the authorized schema/codec slice.
 5. When ready, publish one reviewable PR with exact-head validation and handoff prefix `CODEX -> MAIN COORDINATOR — FND-03 LICENSE V2 SCHEMA HANDOFF`.

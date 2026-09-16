@@ -4,11 +4,12 @@
 
 > **2026-09-15 AUTH-04 override:** the historical snapshot below is superseded for AUTH-04.
 > Frozen baseline: `wave15/corrections-integration@e7b9b83dbc71764e3eee5b5afe2daf07c45a9377`.
-> Active branch/PR: `work/w15-auth-04-authority-detach`, rebased onto current integration `b2eec2dc95da905dab9908246e30bf0f96d05aa3`.
-> Exact-head CI is pending for the rebased SHA; prior CI is evidence only for the preceding candidate.
-> AUTH-04 is **PR OPEN / REBASED / EXACT-HEAD CI PENDING / NOT INTEGRATED / NOT VERIFIED / NOT FROZEN**.
+> Integrated checkpoint: `wave15/corrections-integration@b534f71ec45f1f93b15a93f8626cfcfe652b56ca` (tree `0c1e30885b7d341ad17fdc1bf200f893df315757`).
+> Exact post-merge CI: [run 35036947168](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/35036947168) / #1527 passed backend build/test/smoke, Web build and Chromium E2E on the merge SHA.
+> AUTH-04 is **INTEGRATED / VERIFIED / FROZEN**; as its remaining gate, FND-02 is **VERIFIED / FROZEN**.
 > The separate privileged Codex/Visual Studio Work chat owns heavy implementation; Main only coordinates,
 > reviews evidence and records the authoritative handoff in #302.
+> FC0-A remains blocked pending FND-03, FND-04 and FND-06 VERIFIED+FROZEN evidence on one checkpoint.
 
 ## Current topology snapshot
 

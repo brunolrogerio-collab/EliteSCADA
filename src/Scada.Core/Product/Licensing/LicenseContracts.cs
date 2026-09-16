@@ -64,14 +64,41 @@ public sealed record EliteScadaLicensePayload(
     DateTimeOffset? NotAfterUtc,
     string KeyId);
 
+/// <summary>
+/// Explicit Runtime-session capacity carried only by ESLIC2. A null value on a
+/// verification result means that a legacy ESLIC1 license has no session-class
+/// entitlement specified; this slice deliberately does not infer one.
+/// </summary>
+public sealed record MachineLicenseV2Entitlements(
+    int ViewOnlySeats,
+    int InteractiveSeats,
+    bool HaRuntime);
+
+/// <summary>Signed ESLIC2 payload. ESLIC1 remains represented by <see cref="EliteScadaLicensePayload"/>.</summary>
+public sealed record EliteScadaLicenseV2Payload(
+    int SchemaVersion,
+    string LicenseId,
+    string MachineFingerprint,
+    LicenseTier Tier,
+    DateTimeOffset IssuedAtUtc,
+    DateTimeOffset? NotAfterUtc,
+    string KeyId,
+    int ViewOnlySeats,
+    int InteractiveSeats,
+    bool HaRuntime);
+
 public sealed record LicenseVerificationResult(
     LicenseState State,
     EliteScadaLicensePayload? License = null,
-    string? Diagnostic = null)
+    string? Diagnostic = null,
+    MachineLicenseV2Entitlements? SessionEntitlements = null)
 {
     public static LicenseVerificationResult Demo() => new(LicenseState.Demo);
     public static LicenseVerificationResult Invalid(string diagnostic) => new(LicenseState.Invalid, Diagnostic: diagnostic);
-    public static LicenseVerificationResult Valid(EliteScadaLicensePayload license) => new(LicenseState.Valid, license);
+    public static LicenseVerificationResult Valid(
+        EliteScadaLicensePayload license,
+        MachineLicenseV2Entitlements? sessionEntitlements = null) =>
+        new(LicenseState.Valid, license, SessionEntitlements: sessionEntitlements);
 }
 
 public sealed record RunEntitlementDecision(
@@ -188,8 +215,10 @@ public sealed class DefaultMachineIdentityProvider : IMachineIdentityProvider
 public static class EliteScadaLicenseCodec
 {
     public const int CurrentSchemaVersion = 1;
+    public const int LicenseV2SchemaVersion = 2;
     public const string RequestPrefix = "ESREQ1";
     public const string LicensePrefix = "ESLIC1";
+    public const string LicenseV2Prefix = "ESLIC2";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -248,6 +277,21 @@ public static class EliteScadaLicenseCodec
         return $"{LicensePrefix}.{Base64UrlEncode(payloadBytes)}.{Base64UrlEncode(signature)}";
     }
 
+    /// <summary>
+    /// Creates a signed, machine-bound ESLIC2 license. It is intentionally a codec-level
+    /// primitive only: session admission and entitlement enforcement are later slices.
+    /// </summary>
+    public static string CreateSignedLicenseV2(EliteScadaLicenseV2Payload payload, RSA privateKey)
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+        ArgumentNullException.ThrowIfNull(privateKey);
+        ValidatePayload(payload);
+
+        var payloadBytes = JsonSerializer.SerializeToUtf8Bytes(payload, JsonOptions);
+        var signature = privateKey.SignData(payloadBytes, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
+        return $"{LicenseV2Prefix}.{Base64UrlEncode(payloadBytes)}.{Base64UrlEncode(signature)}";
+    }
+
     public static LicenseVerificationResult VerifyLicense(
         string? licenseCode,
         string expectedMachineFingerprint,
@@ -263,31 +307,17 @@ public static class EliteScadaLicenseCodec
         try
         {
             var parts = licenseCode.Trim().Split('.', StringSplitOptions.None);
-            if (parts.Length != 3 || !string.Equals(parts[0], LicensePrefix, StringComparison.Ordinal))
+            if (parts.Length != 3)
                 return LicenseVerificationResult.Invalid("Installed license format is invalid.");
 
             var payloadBytes = Base64UrlDecode(parts[1]);
             var signature = Base64UrlDecode(parts[2]);
-            var payload = JsonSerializer.Deserialize<EliteScadaLicensePayload>(payloadBytes, JsonOptions);
-            if (payload is null)
-                return LicenseVerificationResult.Invalid("Installed license payload is missing.");
-
-            ValidatePayload(payload);
-            if (!publicKeys.TryGetValue(payload.KeyId, out var publicKey) || publicKey is null)
-                return LicenseVerificationResult.Invalid($"Installed license uses unknown signing key '{payload.KeyId}'.");
-
-            if (!publicKey.VerifyData(payloadBytes, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pss))
-                return LicenseVerificationResult.Invalid("Installed license signature is invalid or the payload was tampered with.");
-
-            if (!CryptographicOperations.FixedTimeEquals(
-                    Encoding.ASCII.GetBytes(payload.MachineFingerprint),
-                    Encoding.ASCII.GetBytes(expectedMachineFingerprint)))
-                return LicenseVerificationResult.Invalid("Installed license belongs to different hardware.");
-
-            if (payload.NotAfterUtc is not null && nowUtc > payload.NotAfterUtc.Value)
-                return LicenseVerificationResult.Invalid("Installed license has expired.");
-
-            return LicenseVerificationResult.Valid(payload);
+            return parts[0] switch
+            {
+                LicensePrefix => VerifyV1(payloadBytes, signature, expectedMachineFingerprint, publicKeys, nowUtc),
+                LicenseV2Prefix => VerifyV2(payloadBytes, signature, expectedMachineFingerprint, publicKeys, nowUtc),
+                _ => LicenseVerificationResult.Invalid("Installed license format is invalid.")
+            };
         }
         catch (Exception ex) when (ex is FormatException or JsonException or ArgumentException or CryptographicException)
         {
@@ -307,6 +337,112 @@ public static class EliteScadaLicenseCodec
         if (payload.NotAfterUtc is not null && payload.NotAfterUtc.Value <= payload.IssuedAtUtc)
             throw new ArgumentException("License expiry must be later than issue time.", nameof(payload));
         _ = LicensingPolicy.MaximumTags(payload.Tier);
+    }
+
+    private static void ValidatePayload(EliteScadaLicenseV2Payload payload)
+    {
+        if (payload.SchemaVersion != LicenseV2SchemaVersion)
+            throw new ArgumentException("License v2 schema is unsupported.", nameof(payload));
+        if (string.IsNullOrWhiteSpace(payload.LicenseId))
+            throw new ArgumentException("License ID is required.", nameof(payload));
+        ValidateFingerprint(payload.MachineFingerprint);
+        if (string.IsNullOrWhiteSpace(payload.KeyId))
+            throw new ArgumentException("Signing key ID is required.", nameof(payload));
+        if (payload.NotAfterUtc is not null && payload.NotAfterUtc.Value <= payload.IssuedAtUtc)
+            throw new ArgumentException("License expiry must be later than issue time.", nameof(payload));
+        if (payload.ViewOnlySeats < 0)
+            throw new ArgumentOutOfRangeException(nameof(payload), "View Only seat count cannot be negative.");
+        if (payload.InteractiveSeats < 0)
+            throw new ArgumentOutOfRangeException(nameof(payload), "Interactive seat count cannot be negative.");
+        _ = LicensingPolicy.MaximumTags(payload.Tier);
+    }
+
+    private static LicenseVerificationResult VerifyV1(
+        byte[] payloadBytes,
+        byte[] signature,
+        string expectedMachineFingerprint,
+        IReadOnlyDictionary<string, RSA> publicKeys,
+        DateTimeOffset nowUtc)
+    {
+        var payload = JsonSerializer.Deserialize<EliteScadaLicensePayload>(payloadBytes, JsonOptions);
+        if (payload is null)
+            return LicenseVerificationResult.Invalid("Installed license payload is missing.");
+
+        ValidatePayload(payload);
+        var invalid = ValidateSignatureMachineAndExpiry(
+            payload.KeyId,
+            payload.MachineFingerprint,
+            payload.NotAfterUtc,
+            payloadBytes,
+            signature,
+            expectedMachineFingerprint,
+            publicKeys,
+            nowUtc);
+        return invalid ?? LicenseVerificationResult.Valid(payload);
+    }
+
+    private static LicenseVerificationResult VerifyV2(
+        byte[] payloadBytes,
+        byte[] signature,
+        string expectedMachineFingerprint,
+        IReadOnlyDictionary<string, RSA> publicKeys,
+        DateTimeOffset nowUtc)
+    {
+        var payload = JsonSerializer.Deserialize<EliteScadaLicenseV2Payload>(payloadBytes, JsonOptions);
+        if (payload is null)
+            return LicenseVerificationResult.Invalid("Installed license payload is missing.");
+
+        ValidatePayload(payload);
+        var invalid = ValidateSignatureMachineAndExpiry(
+            payload.KeyId,
+            payload.MachineFingerprint,
+            payload.NotAfterUtc,
+            payloadBytes,
+            signature,
+            expectedMachineFingerprint,
+            publicKeys,
+            nowUtc);
+        if (invalid is not null)
+            return invalid;
+
+        // Existing TAG-capacity consumers retain their canonical payload projection. The
+        // non-null v2 entitlement is the only source of the new session-class metadata.
+        return LicenseVerificationResult.Valid(
+            new EliteScadaLicensePayload(
+                payload.SchemaVersion,
+                payload.LicenseId,
+                payload.MachineFingerprint,
+                payload.Tier,
+                payload.IssuedAtUtc,
+                payload.NotAfterUtc,
+                payload.KeyId),
+            new MachineLicenseV2Entitlements(
+                payload.ViewOnlySeats,
+                payload.InteractiveSeats,
+                payload.HaRuntime));
+    }
+
+    private static LicenseVerificationResult? ValidateSignatureMachineAndExpiry(
+        string keyId,
+        string machineFingerprint,
+        DateTimeOffset? notAfterUtc,
+        byte[] payloadBytes,
+        byte[] signature,
+        string expectedMachineFingerprint,
+        IReadOnlyDictionary<string, RSA> publicKeys,
+        DateTimeOffset nowUtc)
+    {
+        if (!publicKeys.TryGetValue(keyId, out var publicKey) || publicKey is null)
+            return LicenseVerificationResult.Invalid($"Installed license uses unknown signing key '{keyId}'.");
+        if (!publicKey.VerifyData(payloadBytes, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pss))
+            return LicenseVerificationResult.Invalid("Installed license signature is invalid or the payload was tampered with.");
+        if (!CryptographicOperations.FixedTimeEquals(
+                Encoding.ASCII.GetBytes(machineFingerprint),
+                Encoding.ASCII.GetBytes(expectedMachineFingerprint)))
+            return LicenseVerificationResult.Invalid("Installed license belongs to different hardware.");
+        if (notAfterUtc is not null && nowUtc > notAfterUtc.Value)
+            return LicenseVerificationResult.Invalid("Installed license has expired.");
+        return null;
     }
 
     private static void ValidateFingerprint(string fingerprint)

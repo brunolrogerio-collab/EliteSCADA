@@ -3,7 +3,7 @@ name: EliteSCADA CI
 on:
   workflow_dispatch:
   push:
-    branches: [ main, wave14/corrections-integration ]
+    branches: [ main, wave14/corrections-integration, wave15/corrections-integration ]
     paths:
       - '**/*.sln'
       - '**/*.csproj'
@@ -15,7 +15,7 @@ on:
       - 'web/scada-web/**'
       - '.github/workflows/dotnet-ci.yml'
   pull_request:
-    branches: [ main ]
+    branches: [ main, wave15/corrections-integration ]
 
 permissions:
   contents: read

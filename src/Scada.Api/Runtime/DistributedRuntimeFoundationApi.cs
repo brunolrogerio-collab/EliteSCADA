@@ -56,19 +56,21 @@ public static class DistributedRuntimeFoundationApi
             if (admissionFailure is not null) return admissionFailure;
 
             var before = runtime.Describe();
-            var lease = security.RuntimeSessions.Admit(
+            var lease = await security.RuntimeSessions.AdmitAsync(
                 principal.SubjectId,
                 request.ClientInstanceId,
                 connectionClass,
-                before);
+                before,
+                cancellationToken: cancellationToken);
             var after = runtime.Describe();
             if (!SameRuntime(before, after))
             {
-                _ = security.RuntimeSessions.Terminate(
+                _ = await security.RuntimeSessions.TerminateAsync(
                     lease.SessionId,
                     lease.UserId,
                     lease.ClientInstanceId,
-                    before);
+                    before,
+                    cancellationToken);
                 return RuntimeChanged();
             }
 
@@ -101,22 +103,24 @@ public static class DistributedRuntimeFoundationApi
             var authorityFailure = currentAuthority.FailureResult();
             if (authorityFailure is not null) return authorityFailure;
 
-            var validation = security.RuntimeSessions.Heartbeat(
+            var validation = await security.RuntimeSessions.HeartbeatAsync(
                 sessionId,
                 principal.SubjectId,
                 request.ClientInstanceId,
-                runtime.Describe());
+                runtime.Describe(),
+                cancellationToken);
             return validation.IsValid && validation.Lease is not null
                 ? Results.Ok(ProjectLease(validation.Lease))
                 : LeaseFailure(validation);
         });
 
-        endpoints.MapPost("/api/runtime/sessions/{sessionId:guid}/terminate", (
+        endpoints.MapPost("/api/runtime/sessions/{sessionId:guid}/terminate", async (
             Guid sessionId,
             RuntimeSessionTerminationRequest request,
             HttpContext context,
             ScadaRuntimeFacade runtime,
-            ApiAuthorizationService security) =>
+            ApiAuthorizationService security,
+            CancellationToken cancellationToken) =>
         {
             var principal = security.GetPrincipal(context);
             if (!security.AuthenticationEnabled ||
@@ -126,11 +130,12 @@ public static class DistributedRuntimeFoundationApi
                 return Results.Unauthorized();
             }
 
-            var validation = security.RuntimeSessions.Terminate(
+            var validation = await security.RuntimeSessions.TerminateAsync(
                 sessionId,
                 principal.SubjectId,
                 request.ClientInstanceId,
-                runtime.Describe());
+                runtime.Describe(),
+                cancellationToken);
             return validation.IsValid
                 ? Results.NoContent()
                 : LeaseFailure(validation);

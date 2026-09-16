@@ -45,11 +45,23 @@ public sealed record RuntimeReadableTagsResult(
     }
 }
 
-public sealed class ApiAuthorizationService(
-    IServiceProvider services,
-    IAuthorityPolicyStore authorityPolicies,
-    IConfiguration configuration)
+public sealed class ApiAuthorizationService
 {
+    private readonly IServiceProvider services;
+    private readonly IAuthorityPolicyStore authorityPolicies;
+
+    public ApiAuthorizationService(
+        IServiceProvider services,
+        IAuthorityPolicyStore authorityPolicies,
+        IConfiguration configuration,
+        IRuntimeSessionLeaseStore? runtimeSessionStore = null)
+    {
+        this.services = services;
+        this.authorityPolicies = authorityPolicies;
+        _authenticationEnabled = configuration.GetValue<bool>("Authentication:Enabled");
+        RuntimeSessions = new RuntimeSessionLeaseRegistry(runtimeSessionStore ?? new InMemoryRuntimeSessionLeaseStore());
+    }
+
     // Compatibility constructor for isolated legacy callers. Production DI supplies IAuthorityPolicyStore.
     public ApiAuthorizationService(
         IServiceProvider services,
@@ -63,13 +75,13 @@ public sealed class ApiAuthorizationService(
     public const string RuntimeSessionHeaderName = "X-EliteSCADA-Runtime-Session";
 
     private readonly object _activeCacheGate = new();
-    private readonly bool _authenticationEnabled = configuration.GetValue<bool>("Authentication:Enabled");
+    private readonly bool _authenticationEnabled;
     private string? _cachedProjectKey;
     private long? _cachedRevision;
     private RuntimeSecurityPolicyContext? _cachedActivePolicies;
 
     public bool AuthenticationEnabled => _authenticationEnabled;
-    public RuntimeSessionLeaseRegistry RuntimeSessions { get; } = new();
+    public RuntimeSessionLeaseRegistry RuntimeSessions { get; }
 
     public SecurityPrincipal GetPrincipal(HttpContext context) =>
         ClaimsPrincipalMapper.Map(context.User);
@@ -114,7 +126,7 @@ public sealed class ApiAuthorizationService(
             capability,
             resource,
             cancellationToken);
-        return ApplyRuntimeSessionDownscope(context, runtime, baseline);
+        return await ApplyRuntimeSessionDownscopeAsync(context, runtime, baseline, cancellationToken);
     }
 
     public async Task<ApiAuthorizationCheck> CheckRuntimeAsync(
@@ -157,7 +169,7 @@ public sealed class ApiAuthorizationService(
             tag,
             operation,
             cancellationToken);
-        return ApplyRuntimeSessionDownscope(context, runtime, baseline);
+        return await ApplyRuntimeSessionDownscopeAsync(context, runtime, baseline, cancellationToken);
     }
 
     public async Task<ApiAuthorizationCheck> CheckRuntimeTagAsync(
@@ -250,7 +262,7 @@ public sealed class ApiAuthorizationService(
                 Array.Empty<TagDefinition>());
         }
 
-        var tagReadLeaseCheck = ApplyRuntimeSessionDownscope(
+        var tagReadLeaseCheck = await ApplyRuntimeSessionDownscopeAsync(
             context,
             runtime,
             new ApiAuthorizationCheck(
@@ -259,7 +271,8 @@ public sealed class ApiAuthorizationService(
                     true,
                     SecurityCapability.TagRead,
                     "Baseline Runtime TAG read authority will be evaluated per TAG.",
-                    Array.Empty<string>())));
+                    Array.Empty<string>())),
+            cancellationToken);
         if (!tagReadLeaseCheck.Allowed)
         {
             return new RuntimeReadableTagsResult(
@@ -307,26 +320,29 @@ public sealed class ApiAuthorizationService(
         return check.Allowed;
     }
 
-    public RuntimeSessionLeaseValidation ValidateRuntimeSession(
+    public async Task<RuntimeSessionLeaseValidation> ValidateRuntimeSessionAsync(
         SecurityPrincipal principal,
         ScadaRuntimeFacade runtime,
         Guid sessionId,
-        string? clientInstanceId = null)
+        string? clientInstanceId = null,
+        CancellationToken cancellationToken = default)
     {
         if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
             return RuntimeSessionLeaseValidation.Invalid("unauthenticated");
 
-        return RuntimeSessions.Validate(
+        return await RuntimeSessions.ValidateAsync(
             sessionId,
             principal.SubjectId,
             runtime.Describe(),
-            clientInstanceId);
+            clientInstanceId,
+            cancellationToken);
     }
 
-    private ApiAuthorizationCheck ApplyRuntimeSessionDownscope(
+    private async Task<ApiAuthorizationCheck> ApplyRuntimeSessionDownscopeAsync(
         HttpContext context,
         ScadaRuntimeFacade runtime,
-        ApiAuthorizationCheck baseline)
+        ApiAuthorizationCheck baseline,
+        CancellationToken cancellationToken)
     {
         if (!baseline.Allowed || baseline.Decision is null) return baseline;
         if (!context.Request.Headers.TryGetValue(RuntimeSessionHeaderName, out var values))
@@ -341,12 +357,13 @@ public sealed class ApiAuthorizationService(
                     "The Runtime session header is invalid."));
         }
 
-        var decision = RuntimeSessionAccessEvaluator.Apply(
+        var decision = await RuntimeSessionAccessEvaluator.ApplyAsync(
             RuntimeSessions,
             sessionId,
             baseline.Principal.SubjectId,
             runtime.Describe(),
-            baseline.Decision);
+            baseline.Decision,
+            cancellationToken: cancellationToken);
         return new ApiAuthorizationCheck(baseline.Principal, decision);
     }
 

@@ -85,7 +85,7 @@ public sealed class DistributedRuntimeFoundationTestsProductionAuthorization
         Assert.True(baselineCommand.Allowed);
         Assert.True(baselineWrite.Allowed);
 
-        var lease = authorization.RuntimeSessions.Admit(
+        var lease = await authorization.RuntimeSessions.AdmitAsync(
             principal.SubjectId,
             "browser-1",
             RuntimeConnectionClass.Viewer,

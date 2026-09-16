@@ -16,21 +16,22 @@ GitHub-live revalidation; the older text remains only as historical evidence.
 
 - AUTH-03 / FND-02 contract baseline is frozen at
   `wave15/corrections-integration@e7b9b83dbc71764e3eee5b5afe2daf07c45a9377`.
-- AUTH-04 is open for independent review on
-  `work/w15-auth-04-authority-detach`, rebased onto current integration `b2eec2dc95da905dab9908246e30bf0f96d05aa3`.
-- The previous product CI is not evidence for the rebased branch; exact-head CI is pending.
+- AUTH-04 was integrated through PR #317 at
+  `wave15/corrections-integration@b534f71ec45f1f93b15a93f8626cfcfe652b56ca`;
+  merge tree: `0c1e30885b7d341ad17fdc1bf200f893df315757`.
+- Exact post-merge CI [run 35036947168](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/35036947168) / #1527 passed backend build/test/smoke, Web build and Chromium E2E on this exact merge SHA.
 - AUTH-04 implements Authority-owned persistent binding/session epoch, atomic detached/attached
   lifecycle and cross-node fail-closed invalidation. Canonical policy and local identities remain
   Authority-owned; package/Engineering ownership and frozen AUTH-03 contracts are unchanged.
-- Status: **PR OPEN / REBASED / EXACT-HEAD CI PENDING / NOT INTEGRATED / NOT VERIFIED / NOT FROZEN**. Do not
-  authorize FC0 or any dependent slice from this state.
+- Status: **AUTH-04 INTEGRATED / VERIFIED / FROZEN; FND-02 VERIFIED / FROZEN**. FC0-A remains blocked:
+  FND-03, FND-04 and FND-06 still require VERIFIED+FROZEN evidence on one checkpoint.
 
 ### Role boundary and immediate action
 
 The separate privileged Codex/Visual Studio Work chat owns heavy implementation. Main Coordinator
 does not compete: it reviews handoffs, GitHub-live evidence and the dependency graph in #297, #302
 and #305. A new coordinator must read #297 first, then #302; revalidate branch head and exact CI,
-then await or review the Work handoff.
+then preserve the FC0-A block until the remaining graph gates are satisfied.
 
 ## 1. First actions for a new Main Coordinator
 

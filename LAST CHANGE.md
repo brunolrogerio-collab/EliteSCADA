@@ -1,19 +1,20 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-15 BRT
-**Operational override:** **AUTH-04 PR OPEN / REBASED ON CURRENT INTEGRATION / EXACT-HEAD CI PENDING / NOT INTEGRATED / NOT VERIFIED / NOT FROZEN**
+**Operational override:** **AUTH-04 INTEGRATED / VERIFIED / FROZEN; FND-02 VERIFIED / FROZEN; FC0-A BLOCKED**
 
 This entry supersedes the historical snapshot below for AUTH-04; it does not rewrite its evidence.
 
 - Frozen AUTH-03 / FND-02 baseline: `wave15/corrections-integration@e7b9b83dbc71764e3eee5b5afe2daf07c45a9377`.
-- Active AUTH-04 PR branch: `work/w15-auth-04-authority-detach`, rebased onto `wave15/corrections-integration@b2eec2dc95da905dab9908246e30bf0f96d05aa3` to preserve the global collaboration protocol.
-- The prior candidate CI must not be reused after this rebase; exact-head CI is pending for the rebased branch.
+- AUTH-04 integrated checkpoint: `wave15/corrections-integration@b534f71ec45f1f93b15a93f8626cfcfe652b56ca` (tree `0c1e30885b7d341ad17fdc1bf200f893df315757`).
+- Exact post-merge CI: [run 35036947168](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/35036947168) / #1527 passed backend build/test/smoke, Web build and Chromium E2E on that exact merge SHA.
 - Delivered boundary: persistent Authority binding/session epoch, serialized atomic detach/switch,
   fail-closed cross-node invalidation and secret-safe audit. Policy, local identities and credentials
   remain Authority-owned; `.escadapkg` remains prohibited from carrying them.
 - Role boundary: the separate privileged Codex/Visual Studio Work chat owns heavy implementation.
   Main Coordinator validates evidence, records handoffs and enforces the dependency graph.
-- Next safe action: read #297, then #302; revalidate exact live branch/CI and review the Work handoff.
+- AUTH-04 is **INTEGRATED / VERIFIED / FROZEN**. Because it was FND-02's remaining gate, FND-02 is also **VERIFIED / FROZEN** at this checkpoint.
+- Next safe action: preserve FC0-A block until FND-03, FND-04 and FND-06 are all VERIFIED+FROZEN on one exact checkpoint; do not release downstream lanes from this record alone.
 
 ---
 

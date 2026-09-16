@@ -65,9 +65,11 @@ public sealed record EliteScadaLicensePayload(
     string KeyId);
 
 /// <summary>
-/// Explicit Runtime-session capacity carried only by ESLIC2. A null value on a
-/// verification result means that a legacy ESLIC1 license has no session-class
-/// entitlement specified; this slice deliberately does not infer one.
+/// Explicit, signed effective totals for concurrent remote/client Runtime Session
+/// Leases carried only by ESLIC2. They are not additions to the separate Demo
+/// baseline. A null value on a verification result means that a legacy ESLIC1
+/// license has no session-class entitlement specified; this slice deliberately
+/// does not infer one.
 /// </summary>
 public sealed record MachineLicenseV2Entitlements(
     int ViewOnlySeats,
@@ -227,6 +229,24 @@ public static class EliteScadaLicenseCodec
         Converters = { new JsonStringEnumConverter() }
     };
 
+    private static readonly HashSet<string> RequiredV2Properties = new(StringComparer.Ordinal)
+    {
+        "schemaVersion",
+        "licenseId",
+        "machineFingerprint",
+        "tier",
+        "issuedAtUtc",
+        "keyId",
+        "viewOnlySeats",
+        "interactiveSeats",
+        "haRuntime"
+    };
+
+    private static readonly HashSet<string> AllowedV2Properties = new(RequiredV2Properties, StringComparer.Ordinal)
+    {
+        "notAfterUtc"
+    };
+
     public static string CreateMachineRequest(string machineFingerprint)
     {
         ValidateFingerprint(machineFingerprint);
@@ -319,7 +339,7 @@ public static class EliteScadaLicenseCodec
                 _ => LicenseVerificationResult.Invalid("Installed license format is invalid.")
             };
         }
-        catch (Exception ex) when (ex is FormatException or JsonException or ArgumentException or CryptographicException)
+        catch (Exception ex) when (ex is FormatException or JsonException or ArgumentException or CryptographicException or OverflowException or InvalidOperationException)
         {
             return LicenseVerificationResult.Invalid($"Installed license is invalid: {ex.Message}");
         }
@@ -388,9 +408,7 @@ public static class EliteScadaLicenseCodec
         IReadOnlyDictionary<string, RSA> publicKeys,
         DateTimeOffset nowUtc)
     {
-        var payload = JsonSerializer.Deserialize<EliteScadaLicenseV2Payload>(payloadBytes, JsonOptions);
-        if (payload is null)
-            return LicenseVerificationResult.Invalid("Installed license payload is missing.");
+        var payload = ParseV2PayloadStrict(payloadBytes);
 
         ValidatePayload(payload);
         var invalid = ValidateSignatureMachineAndExpiry(
@@ -420,6 +438,75 @@ public static class EliteScadaLicenseCodec
                 payload.ViewOnlySeats,
                 payload.InteractiveSeats,
                 payload.HaRuntime));
+    }
+
+    /// <summary>
+    /// ESLIC2 is a versioned signed contract. Validate its raw JSON before materializing
+    /// CLR defaults so omission cannot be mistaken for an explicit zero or false value.
+    /// ESLIC1 intentionally retains its legacy parser for wire compatibility.
+    /// </summary>
+    private static EliteScadaLicenseV2Payload ParseV2PayloadStrict(byte[] payloadBytes)
+    {
+        using var document = JsonDocument.Parse(payloadBytes, new JsonDocumentOptions
+        {
+            AllowTrailingCommas = false,
+            CommentHandling = JsonCommentHandling.Disallow
+        });
+        if (document.RootElement.ValueKind != JsonValueKind.Object)
+            throw new JsonException("ESLIC2 payload must be a JSON object.");
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var property in document.RootElement.EnumerateObject())
+        {
+            if (!AllowedV2Properties.Contains(property.Name))
+                throw new JsonException($"ESLIC2 payload contains unrecognized property '{property.Name}'.");
+            if (!seen.Add(property.Name))
+                throw new JsonException($"ESLIC2 payload repeats property '{property.Name}'.");
+
+            switch (property.Name)
+            {
+                case "schemaVersion":
+                case "viewOnlySeats":
+                case "interactiveSeats":
+                    RequireNumber(property);
+                    _ = property.Value.GetInt32();
+                    break;
+                case "licenseId":
+                case "machineFingerprint":
+                case "tier":
+                case "issuedAtUtc":
+                case "keyId":
+                    RequireString(property);
+                    break;
+                case "haRuntime":
+                    if (property.Value.ValueKind is not JsonValueKind.True and not JsonValueKind.False)
+                        throw new JsonException("ESLIC2 haRuntime must be a JSON boolean.");
+                    break;
+                case "notAfterUtc":
+                    if (property.Value.ValueKind is not JsonValueKind.String and not JsonValueKind.Null)
+                        throw new JsonException("ESLIC2 notAfterUtc must be a JSON string or null.");
+                    break;
+            }
+        }
+
+        var missing = RequiredV2Properties.Where(property => !seen.Contains(property)).ToArray();
+        if (missing.Length > 0)
+            throw new JsonException($"ESLIC2 payload is missing required property '{missing[0]}'.");
+
+        return JsonSerializer.Deserialize<EliteScadaLicenseV2Payload>(payloadBytes, JsonOptions)
+            ?? throw new JsonException("Installed license payload is missing.");
+    }
+
+    private static void RequireNumber(JsonProperty property)
+    {
+        if (property.Value.ValueKind != JsonValueKind.Number)
+            throw new JsonException($"ESLIC2 {property.Name} must be a JSON number.");
+    }
+
+    private static void RequireString(JsonProperty property)
+    {
+        if (property.Value.ValueKind != JsonValueKind.String)
+            throw new JsonException($"ESLIC2 {property.Name} must be a JSON string.");
     }
 
     private static LicenseVerificationResult? ValidateSignatureMachineAndExpiry(

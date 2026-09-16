@@ -83,6 +83,78 @@ public sealed class LicenseContractsTests
     }
 
     [Fact]
+    public void V2RawSignedLicense_ExplicitZeroSeatsAndFalseAreValidEffectiveTotals()
+    {
+        using var key = RSA.Create(2048);
+
+        var result = VerifyRawV2(key, RawV2Json());
+        var atTagLimit = ProductEntitlementEvaluator.Evaluate(result, 1000);
+        var aboveTagLimit = ProductEntitlementEvaluator.Evaluate(result, 1001);
+
+        Assert.Equal(LicenseState.Valid, result.State);
+        Assert.Equal(new MachineLicenseV2Entitlements(0, 0, false), result.SessionEntitlements);
+        Assert.True(atTagLimit.Allowed);
+        Assert.False(aboveTagLimit.Allowed);
+    }
+
+    [Theory]
+    [InlineData("schemaVersion")]
+    [InlineData("licenseId")]
+    [InlineData("machineFingerprint")]
+    [InlineData("tier")]
+    [InlineData("issuedAtUtc")]
+    [InlineData("keyId")]
+    [InlineData("viewOnlySeats")]
+    [InlineData("interactiveSeats")]
+    [InlineData("haRuntime")]
+    public void V2RawSignedLicense_MissingRequiredFieldFailsClosed(string omittedProperty)
+    {
+        using var key = RSA.Create(2048);
+
+        var result = VerifyRawV2(key, RawV2Json(omit: omittedProperty));
+
+        Assert.Equal(LicenseState.Invalid, result.State);
+    }
+
+    [Theory]
+    [InlineData("viewOnlySeats", "-1")]
+    [InlineData("interactiveSeats", "-1")]
+    [InlineData("viewOnlySeats", "\"0\"")]
+    [InlineData("interactiveSeats", "\"0\"")]
+    [InlineData("haRuntime", "\"false\"")]
+    [InlineData("haRuntime", "0")]
+    [InlineData("licenseId", "null")]
+    [InlineData("machineFingerprint", "null")]
+    [InlineData("tier", "null")]
+    [InlineData("issuedAtUtc", "null")]
+    [InlineData("keyId", "null")]
+    [InlineData("schemaVersion", "null")]
+    [InlineData("viewOnlySeats", "null")]
+    [InlineData("haRuntime", "null")]
+    public void V2RawSignedLicense_MalformedRequiredValueFailsClosed(string property, string rawValue)
+    {
+        using var key = RSA.Create(2048);
+
+        var result = VerifyRawV2(key, RawV2Json(replacementProperty: property, replacementValue: rawValue));
+
+        Assert.Equal(LicenseState.Invalid, result.State);
+    }
+
+    [Fact]
+    public void V2RawSignedLicense_DuplicateUnknownAndUnsupportedSchemaFailClosed()
+    {
+        using var key = RSA.Create(2048);
+
+        var duplicate = VerifyRawV2(key, RawV2Json(extraProperty: "\"viewOnlySeats\":0"));
+        var unknown = VerifyRawV2(key, RawV2Json(extraProperty: "\"unrecognized\":true"));
+        var unsupportedSchema = VerifyRawV2(key, RawV2Json(replacementProperty: "schemaVersion", replacementValue: "3"));
+
+        Assert.Equal(LicenseState.Invalid, duplicate.State);
+        Assert.Equal(LicenseState.Invalid, unknown.State);
+        Assert.Equal(LicenseState.Invalid, unsupportedSchema.State);
+    }
+
+    [Fact]
     public void V2SignedLicense_EntitlementMutationInvalidatesSignature()
     {
         using var privateKey = RSA.Create(2048);
@@ -299,6 +371,48 @@ public sealed class LicenseContractsTests
         PropertyNameCaseInsensitive = false,
         Converters = { new JsonStringEnumConverter() }
     };
+
+    private static LicenseVerificationResult VerifyRawV2(RSA key, string payloadJson) =>
+        EliteScadaLicenseCodec.VerifyLicense(
+            SignRawV2(key, payloadJson),
+            MachineA,
+            new Dictionary<string, RSA> { ["v2-key"] = key },
+            DateTimeOffset.Parse("2026-09-16T12:01:00Z"));
+
+    private static string SignRawV2(RSA key, string payloadJson)
+    {
+        var payload = System.Text.Encoding.UTF8.GetBytes(payloadJson);
+        var signature = key.SignData(payload, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
+        return $"ESLIC2.{Base64UrlEncode(payload)}.{Base64UrlEncode(signature)}";
+    }
+
+    private static string RawV2Json(
+        string? omit = null,
+        string? replacementProperty = null,
+        string? replacementValue = null,
+        string? extraProperty = null)
+    {
+        var properties = new (string Name, string Value)[]
+        {
+            ("schemaVersion", "2"),
+            ("licenseId", "\"00000000-0000-0000-0000-000000000002\""),
+            ("machineFingerprint", $"\"{MachineA}\""),
+            ("tier", "\"Tags1000\""),
+            ("issuedAtUtc", "\"2026-09-16T12:00:00Z\""),
+            ("keyId", "\"v2-key\""),
+            ("viewOnlySeats", "0"),
+            ("interactiveSeats", "0"),
+            ("haRuntime", "false")
+        };
+
+        var fields = properties
+            .Where(property => !string.Equals(property.Name, omit, StringComparison.Ordinal))
+            .Select(property => $"\"{property.Name}\":{(string.Equals(property.Name, replacementProperty, StringComparison.Ordinal) ? replacementValue : property.Value)}")
+            .ToList();
+        if (extraProperty is not null)
+            fields.Add(extraProperty);
+        return "{" + string.Join(',', fields) + "}";
+    }
 
     private static string Base64UrlEncode(ReadOnlySpan<byte> value) =>
         Convert.ToBase64String(value).TrimEnd('=').Replace('+', '-').Replace('/', '_');

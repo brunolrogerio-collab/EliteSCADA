@@ -5,14 +5,16 @@
 
 > **GitHub live is the official project memory.** Revalidate refs, exact SHA/tree, branches, PRs, issues and Actions before every material decision. Chat-local work that has not been committed/pushed is not repository evidence.
 
-## Current integration checkpoint
+## Latest verified product-code checkpoint
 
 - Repository: `brunolrogerio-collab/EliteSCADA`
 - Integration branch: `wave15/corrections-integration`
-- Current integration SHA: `456c66f4966ab5302831f642a39690ae3a3402a5`
-- Tree: `f42d442933ded9bcf4290ae437193f2d1bb3d492`
+- Latest verified product-code checkpoint: `456c66f4966ab5302831f642a39690ae3a3402a5`
+- Tree at that checkpoint: `f42d442933ded9bcf4290ae437193f2d1bb3d492`
 - Merge content: **FND-03 Slice 1 — durable Runtime Session Leases**
 - Exact post-merge CI: Actions run `35110143733` / run #1531 — backend build/test/smoke PASS, Web build PASS, Chromium end-to-end PASS.
+
+The live integration branch may be ahead of `456c66f...` because of coordination/documentation-only merges. Do not treat a later docs-only SHA as a newer product-code validation checkpoint, and do not assume `456c66f...` is still the live branch HEAD without revalidation.
 
 ## Foundation state
 
@@ -27,7 +29,7 @@
 
 ## Current Codex mission — FND-03 machine-license v2 schema/codec
 
-The latest Main Coordinator order to Codex is #301 comment `5699620231` / #305 summary: implement the **machine-license v2 schema/codec** from exact base `456c66f4966ab5302831f642a39690ae3a3402a5`.
+The latest Main Coordinator order to Codex is #301 comment `5699620231` / #305 summary: implement the **machine-license v2 schema/codec** from exact product base `456c66f4966ab5302831f642a39690ae3a3402a5`.
 
 Authorized target branch: `work/w15-fnd-03-machine-license-v2` -> `wave15/corrections-integration`.
 
@@ -64,7 +66,7 @@ Detailed binding criteria and regressions are in #305 comment `5701881550`. This
 
 ## Immediate resume sequence
 
-1. Revalidate `wave15/corrections-integration` is still at `456c66f...` or record the new exact head.
+1. Revalidate the live `wave15/corrections-integration` HEAD/tree and distinguish docs-only advances from product-code changes.
 2. Read latest #301 and #305 comments.
 3. Resume the existing Codex session/worktree for the authorized machine-license-v2 schema/codec slice; inspect local changes before creating/recreating a branch.
 4. Publish only when the slice has a reviewable branch/PR and exact-head evidence; handoff prefix must be `CODEX -> MAIN COORDINATOR — FND-03 LICENSE V2 SCHEMA HANDOFF`.

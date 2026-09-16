@@ -26,6 +26,12 @@ public sealed class DistributedRuntimeFoundationTests
         "runtimeSession",
         "runtimeSessionLease",
         "sessionLease",
+        "license",
+        "licenseCode",
+        "licenseKey",
+        "privateKey",
+        "signingKey",
+        "machineFingerprint",
         "readyStandby",
         "haEpoch",
         "epoch",
@@ -222,7 +228,7 @@ public sealed class DistributedRuntimeFoundationTests
     }
 
     [Fact]
-    public void Escadapkg_RemainsTopologyNeutralAndContainsNoRuntimeLeaseState()
+    public void Escadapkg_RemainsTopologyNeutralAndContainsNoRuntimeLeaseOrLicenseState()
     {
         var bus = new InMemoryScadaEventBus();
         using var alarms = new InMemoryAlarmEngine(bus);
@@ -240,6 +246,8 @@ public sealed class DistributedRuntimeFoundationTests
             entry => entry.FullName.Contains("deployment", StringComparison.OrdinalIgnoreCase) ||
                      entry.FullName.Contains("topology", StringComparison.OrdinalIgnoreCase) ||
                      entry.FullName.Contains("session", StringComparison.OrdinalIgnoreCase) ||
+                     entry.FullName.Contains("license", StringComparison.OrdinalIgnoreCase) ||
+                     entry.FullName.Contains("key", StringComparison.OrdinalIgnoreCase) ||
                      entry.FullName.Contains("cluster", StringComparison.OrdinalIgnoreCase));
 
         AssertArchiveJsonHasNoForbiddenProperties(archive, ProjectPackageService.ManifestPath);

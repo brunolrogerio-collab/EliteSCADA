@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Scada.Core.Product.Licensing;
 
 namespace Scada.Core.Tests.Product.Licensing;
@@ -38,6 +40,101 @@ public sealed class LicenseContractsTests
 
         Assert.Equal(LicenseState.Valid, result.State);
         Assert.Equal(LicenseTier.Tags1000, result.License?.Tier);
+        Assert.Null(result.SessionEntitlements);
+    }
+
+    [Fact]
+    public void V1SignedLicense_RemainsEslic1AndHasNoInferredSessionEntitlements()
+    {
+        using var key = RSA.Create(2048);
+        var payload = NewLicense(MachineA, LicenseTier.Tags500, "preview-1");
+
+        var code = EliteScadaLicenseCodec.CreateSignedLicense(payload, key);
+        var result = EliteScadaLicenseCodec.VerifyLicense(
+            code,
+            MachineA,
+            new Dictionary<string, RSA> { ["preview-1"] = key },
+            payload.IssuedAtUtc.AddMinutes(1));
+
+        Assert.StartsWith("ESLIC1.", code, StringComparison.Ordinal);
+        Assert.Equal(LicenseState.Valid, result.State);
+        Assert.Null(result.SessionEntitlements);
+    }
+
+    [Fact]
+    public void V2SignedLicense_ValidatesAndExposesExplicitSessionEntitlements()
+    {
+        using var privateKey = RSA.Create(2048);
+        using var publicKey = RSA.Create();
+        publicKey.ImportSubjectPublicKeyInfo(privateKey.ExportSubjectPublicKeyInfo(), out _);
+        var payload = NewV2License(MachineA, "v2-key", 7, 3, haRuntime: true);
+
+        var code = EliteScadaLicenseCodec.CreateSignedLicenseV2(payload, privateKey);
+        var result = EliteScadaLicenseCodec.VerifyLicense(
+            code,
+            MachineA,
+            new Dictionary<string, RSA> { ["v2-key"] = publicKey },
+            payload.IssuedAtUtc.AddMinutes(1));
+
+        Assert.StartsWith("ESLIC2.", code, StringComparison.Ordinal);
+        Assert.Equal(LicenseState.Valid, result.State);
+        Assert.Equal(LicenseTier.Tags1000, result.License?.Tier);
+        Assert.Equal(new MachineLicenseV2Entitlements(7, 3, true), result.SessionEntitlements);
+    }
+
+    [Fact]
+    public void V2SignedLicense_EntitlementMutationInvalidatesSignature()
+    {
+        using var privateKey = RSA.Create(2048);
+        var payload = NewV2License(MachineA, "v2-key", 2, 1, haRuntime: false);
+        var code = EliteScadaLicenseCodec.CreateSignedLicenseV2(payload, privateKey);
+        var parts = code.Split('.');
+        var decoded = JsonSerializer.Deserialize<EliteScadaLicenseV2Payload>(Base64UrlDecode(parts[1]), JsonOptions)!;
+        parts[1] = Base64UrlEncode(JsonSerializer.SerializeToUtf8Bytes(decoded with { InteractiveSeats = 99 }, JsonOptions));
+
+        var result = EliteScadaLicenseCodec.VerifyLicense(
+            string.Join('.', parts),
+            MachineA,
+            new Dictionary<string, RSA> { ["v2-key"] = privateKey },
+            payload.IssuedAtUtc.AddMinutes(1));
+
+        Assert.Equal(LicenseState.Invalid, result.State);
+        Assert.Contains("signature", result.Diagnostic, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void V2SignedLicense_WrongKeyMachineAndExpiryFailClosed()
+    {
+        using var privateKey = RSA.Create(2048);
+        using var wrongKey = RSA.Create(2048);
+        var issuedAt = DateTimeOffset.Parse("2026-09-16T10:00:00Z");
+        var payload = NewV2License(MachineA, "v2-key", 1, 1, haRuntime: false, issuedAt, issuedAt.AddHours(1));
+        var code = EliteScadaLicenseCodec.CreateSignedLicenseV2(payload, privateKey);
+
+        var wrongKeyResult = EliteScadaLicenseCodec.VerifyLicense(
+            code, MachineA, new Dictionary<string, RSA> { ["v2-key"] = wrongKey }, issuedAt.AddMinutes(1));
+        var wrongMachineResult = EliteScadaLicenseCodec.VerifyLicense(
+            code, MachineB, new Dictionary<string, RSA> { ["v2-key"] = privateKey }, issuedAt.AddMinutes(1));
+        var expiredResult = EliteScadaLicenseCodec.VerifyLicense(
+            code, MachineA, new Dictionary<string, RSA> { ["v2-key"] = privateKey }, issuedAt.AddHours(2));
+
+        Assert.Equal(LicenseState.Invalid, wrongKeyResult.State);
+        Assert.Equal(LicenseState.Invalid, wrongMachineResult.State);
+        Assert.Equal(LicenseState.Invalid, expiredResult.State);
+        Assert.Contains("signature", wrongKeyResult.Diagnostic, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("different hardware", wrongMachineResult.Diagnostic, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("expired", expiredResult.Diagnostic, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(-1, 0)]
+    [InlineData(0, -1)]
+    public void V2SignedLicense_RejectsNegativeSeatValues(int viewOnlySeats, int interactiveSeats)
+    {
+        using var key = RSA.Create(2048);
+        var payload = NewV2License(MachineA, "v2-key", viewOnlySeats, interactiveSeats, haRuntime: false);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => EliteScadaLicenseCodec.CreateSignedLicenseV2(payload, key));
     }
 
     [Fact]
@@ -176,6 +273,48 @@ public sealed class LicenseContractsTests
             issuedAt ?? DateTimeOffset.UtcNow,
             notAfter,
             keyId);
+
+    private static EliteScadaLicenseV2Payload NewV2License(
+        string machine,
+        string keyId,
+        int viewOnlySeats,
+        int interactiveSeats,
+        bool haRuntime,
+        DateTimeOffset? issuedAt = null,
+        DateTimeOffset? notAfter = null) =>
+        new(
+            EliteScadaLicenseCodec.LicenseV2SchemaVersion,
+            Guid.NewGuid().ToString("D"),
+            machine,
+            LicenseTier.Tags1000,
+            issuedAt ?? DateTimeOffset.UtcNow,
+            notAfter,
+            keyId,
+            viewOnlySeats,
+            interactiveSeats,
+            haRuntime);
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNameCaseInsensitive = false,
+        Converters = { new JsonStringEnumConverter() }
+    };
+
+    private static string Base64UrlEncode(ReadOnlySpan<byte> value) =>
+        Convert.ToBase64String(value).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+    private static byte[] Base64UrlDecode(string value)
+    {
+        var base64 = value.Replace('-', '+').Replace('_', '/');
+        base64 = (base64.Length % 4) switch
+        {
+            0 => base64,
+            2 => base64 + "==",
+            3 => base64 + "=",
+            _ => throw new FormatException("Invalid Base64Url length.")
+        };
+        return Convert.FromBase64String(base64);
+    }
 
     private static string MutateBase64Url(string value)
     {

@@ -35,6 +35,7 @@ GitHub live prevalece sobre memória de chat, resumo, comentário isolado ou SHA
 Sempre separar:
 
 - **PRODUCT CHECKPOINT SHA/TREE** — último código/infra de produto integrado e validado;
+- **INTEGRATED CANDIDATE PENDING VERIFICATION** — código já integrado, mas ainda aguardando gate pós-merge no exact integrated SHA;
 - **COORDINATION HEAD** — HEAD live da integração, que pode avançar apenas por documentação de coordenação.
 
 Commit documental não cria automaticamente novo product base. Ao autorizar implementação, declarar exact product base; se houver delta de produto/infra na integração, reavaliar a base.
@@ -110,22 +111,35 @@ State machine:
 
 ## 1. ESTADO LIVE DA FOUNDATION
 
-### Product checkpoint atual
+### Último PRODUCT CHECKPOINT verificado
 
 - `6f02b9e3c1327b34ff33bab22e90aaf24dfc4628`
 - tree `53ffaf05ecd492d06ecf7852bd6e77b48431a1eb`
 - contém PR #330 / Runtime Admission;
 - CI pós-merge #1543: Backend/Web/Chromium PASS.
 
-### Coordination HEAD antes desta ordem
+### INTEGRATED CANDIDATE PENDING VERIFICATION
 
-- `wave15/corrections-integration@973010698d6a883eb31124cf6654a7f73f380c71`
-- comparação `6f02b9e3... -> 97301069...`: 9 commits, somente:
-  - `LAST CHANGE.md`
-  - `docs/CURRENT-COORDINATOR-HANDOFF.md`
-  - `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
-  - `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`
-- não existe delta de produto/infra concorrente desde o authorized product base do PR #331.
+PR #331 / Shared Runtime Seat Accounting foi integrado com sucesso.
+
+- merge / integration HEAD: `a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
+- tree: `eed22a377fea2778d3e78143d706e4de0ef9ce38`
+- parent 1: `11a0f32736def27fbbafb8b718abc428bba62056` — coordination/documentation HEAD anterior
+- parent 2: `6789a989c85e7210c167945665f4ab6c8cef53a0` — approved PR #331 candidate
+- PR #331: CLOSED / MERGED
+
+Natural push CI foi disparada automaticamente pelo workflow existente `.github/workflows/dotnet-ci.yml`, que inclui `push` para `wave15/corrections-integration` quando há mudanças de produto/código.
+
+Post-merge gate:
+
+- EliteSCADA CI #1546
+- run `35269829080`
+- exact head SHA: `a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
+- Backend build, test and smoke `105366045111` — **SUCCESS**
+- Web build `105366045298` — **SUCCESS**
+- Chromium end-to-end `105366583742` — **IN PROGRESS** na última revalidação
+
+Main **não** dispara execução duplicada enquanto o gate natural está rodando.
 
 ### Foundation
 
@@ -135,7 +149,7 @@ State machine:
 - FND-03 durable Runtime Session Lease v1 — **VERIFIED/FROZEN**
 - FND-03 machine-license v2 + hardening — **VERIFIED/FROZEN**
 - FND-03 Runtime Admission — **VERIFIED/FROZEN**
-- FND-03 Shared Runtime Seat Accounting — **PR_READY / APPROVED FOR INTEGRATION**
+- FND-03 Shared Runtime Seat Accounting — **INTEGRATED / POST-MERGE VERIFICATION RUNNING**
 - FND-03 global — **ACTIVE / NOT FROZEN**
 - FND-04 Script TAG Reference Resolution — **QUEUED / CONTRACT DEFINED / NOT ACTIVE / NOT FROZEN**
 - FC0-A — **BLOCKED**
@@ -144,71 +158,24 @@ State machine:
 
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
-**ORDER_STATE: ACTIVE**  
-**Mission:** FND-03 Shared Runtime Seat Accounting — integrate approved PR #331
+**ORDER_STATE: WAIT**  
+**Mission:** FND-03 Shared Runtime Seat Accounting — merged; Main owns post-merge validation
 
-### Approved exact candidate
+CODEX must make **no mutation** now.
 
-- PR: `#331` — `FND-03: enforce shared runtime seat accounting`
-- branch: `work/w15-fnd-03-shared-runtime-seat-accounting-v1`
-- target: `wave15/corrections-integration`
-- authorized product base / merge-base: `6f02b9e3c1327b34ff33bab22e90aaf24dfc4628`
-- approved candidate HEAD: `6789a989c85e7210c167945665f4ab6c8cef53a0`
-- approved candidate tree: `bd6d79490d7fc0630737fb834fa6b8fc95b7b8d9`
-- PR live at Main review: OPEN / `mergeable=true` / `mergeable_state=clean` / not draft / not merged
-- review threads: none.
+On `SIGA`:
 
-### Acceptance-close evidence
+1. reread this handoff live;
+2. confirm `ORDER_STATE: WAIT`;
+3. do not rerun CI, alter PR #331, start another FND-03 slice, start FND-04 or release FC0-A;
+4. wait for Main to finish CI #1546 and publish the next explicit work package.
 
-Delta from previously reviewed production candidate:
+Main Coordinator owns:
 
-`09f81e97369089def481ceb25629779a5aba8aff -> 6789a989c85e7210c167945665f4ab6c8cef53a0`
-
-is exactly one file:
-
-`tests/Scada.Drivers.Tests/DistributedRuntimeFoundationTests.cs`
-
-with +59 test lines and **zero production-file changes**.
-
-Former PENDING criterion is now PASS through:
-
-- `SeatCapacity_WebAndEliteGoLogicalClientsShareTheSameClassPools`
-- `SeatCapacity_HighConcurrencyMixedWebAndEliteGoIdentities_NeverOversubscribesOrDuplicatesLeases`
-
-The second test runs 64 distinct mixed `web-*` / `elitego-*` identities against 2 Interactive + 2 ViewOnly and proves exact class totals, exhaustion, bounded active leases and uniqueness.
-
-### Exact-head CI #1545
-
-Run `35267768938` on `6789a989...`:
-
-- Backend build, test and smoke `105359117658` — **SUCCESS**
-- Web build `105359118013` — **SUCCESS**
-- Chromium end-to-end `105359631809` — **SUCCESS**
-
-### Main decision
-
-**PR #331 is approved for integration of the bounded Shared Runtime Seat Accounting slice.**
-
-### ORDER CODEX-331-MERGE-04
-
-CODEX must:
-
-1. revalidate immediately before merge that PR #331 still points to exact head `6789a989c85e7210c167945665f4ab6c8cef53a0`, remains open/clean/mergeable, and target remains `wave15/corrections-integration`;
-2. merge **only PR #331** through the normal PR route into `wave15/corrections-integration`;
-3. do not alter/rebase/retarget the candidate and do not include any other PR;
-4. do not mutate `main`;
-5. after merge, report exact merge SHA, parents, tree and exact new integration HEAD;
-6. do **not** manually rerun CI — Main Coordinator owns post-merge CI operation/validation under permanent CI authority;
-7. do not self-mark the slice `VERIFIED/FROZEN`;
-8. do not start another FND-03 slice;
-9. do not start FND-04;
-10. do not release FC0-A.
-
-Return beginning exactly:
-
-`CODEX -> MAIN COORDINATOR — FND-03 SHARED RUNTIME SEAT ACCOUNTING MERGE HANDOFF`
-
-Then **STOP**. Main will validate the exact integrated SHA and promote the slice only after post-merge evidence.
+- exact integrated SHA verification;
+- CI #1546 diagnosis/operation if necessary;
+- promotion of Shared Runtime Seat Accounting to `VERIFIED/FROZEN` only after gate completion;
+- definition of the next FND-03 slice.
 
 ---
 

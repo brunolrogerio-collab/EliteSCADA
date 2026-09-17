@@ -322,11 +322,20 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         try
         {
             await AcquireLeaseMutationLockAsync(connection, transaction, cancellationToken);
+            var authorityState = await LoadAuthorityStateForUpdateAsync(connection, transaction, cancellationToken);
+            if (authorityState.TransitionPending)
+                throw new InvalidOperationException("runtime-authority-transition-pending");
             var subjectId = admission.SubjectId.Trim();
             var clientInstanceId = admission.ClientInstanceId.Trim();
             var now = DateTimeOffset.UtcNow;
             await DeactivateExpiredForIdentityAsync(connection, transaction, subjectId, clientInstanceId, now, cancellationToken);
             var active = await LoadActiveByIdentityAsync(connection, transaction, subjectId, clientInstanceId, cancellationToken);
+            if (active is not null && active.AuthorityRevision != authorityState.AuthorityRevision)
+            {
+                if (!await DeactivateAsync(connection, transaction, active.SessionId, active.Generation, cancellationToken))
+                    throw new InvalidOperationException("Runtime session admission changed concurrently.");
+                active = null;
+            }
             if (active is not null && active.Runtime.Matches(admission.Runtime))
             {
                 var retainedClass = MostRestrictiveConnectionClass(
@@ -361,7 +370,8 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
                 admission.Runtime,
                 NormalizeOptional(admission.ServerNode),
                 NormalizeOptional(admission.ClusterId),
-                true);
+                true,
+                authorityState.AuthorityRevision);
             await InsertAsync(connection, transaction, lease, admission.LeaseDuration, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return lease;
@@ -386,11 +396,30 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         try
         {
             await AcquireLeaseMutationLockAsync(connection, transaction, cancellationToken);
+            var authorityState = await LoadAuthorityStateForUpdateAsync(connection, transaction, cancellationToken);
+            if (authorityState.TransitionPending)
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return RuntimeSessionLeaseCapacityAdmissionResult.Rejected(
+                    RuntimeSessionSeatReservationReasonCode.AuthorityTransitionPending);
+            }
+            if (capacityAdmission.ExpectedAuthorityRevision != authorityState.AuthorityRevision)
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return RuntimeSessionLeaseCapacityAdmissionResult.Rejected(
+                    RuntimeSessionSeatReservationReasonCode.AuthorityRevisionChanged);
+            }
             var subjectId = admission.SubjectId.Trim();
             var clientInstanceId = admission.ClientInstanceId.Trim();
             var now = DateTimeOffset.UtcNow;
             await DeactivateExpiredAsync(connection, transaction, now, cancellationToken);
             var active = await LoadActiveByIdentityAsync(connection, transaction, subjectId, clientInstanceId, cancellationToken);
+            if (active is not null && active.AuthorityRevision != authorityState.AuthorityRevision)
+            {
+                if (!await DeactivateAsync(connection, transaction, active.SessionId, active.Generation, cancellationToken))
+                    throw new InvalidOperationException("Runtime session admission changed concurrently.");
+                active = null;
+            }
 
             if (active is not null && active.Runtime.Matches(admission.Runtime))
             {
@@ -463,7 +492,8 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
             var lease = new RuntimeSessionLeaseState(
                 Guid.NewGuid(), subjectId, clientInstanceId, grantedClass, 1, now, now,
                 now.Add(admission.LeaseDuration), admission.Runtime,
-                NormalizeOptional(admission.ServerNode), NormalizeOptional(admission.ClusterId), true);
+                NormalizeOptional(admission.ServerNode), NormalizeOptional(admission.ClusterId), true,
+                authorityState.AuthorityRevision);
             await InsertAsync(connection, transaction, lease, admission.LeaseDuration, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return RuntimeSessionLeaseCapacityAdmissionResult.Admitted(lease, reason);
@@ -487,7 +517,8 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         try
         {
             await AcquireLeaseMutationLockAsync(connection, transaction, cancellationToken);
-            var result = await ValidateForMutationAsync(connection, transaction, sessionId, subjectId, runtime, clientInstanceId, cancellationToken);
+            var authorityState = await LoadAuthorityStateForUpdateAsync(connection, transaction, cancellationToken);
+            var result = await ValidateForMutationAsync(connection, transaction, authorityState, sessionId, subjectId, runtime, clientInstanceId, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return result;
         }
@@ -511,7 +542,8 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         try
         {
             await AcquireLeaseMutationLockAsync(connection, transaction, cancellationToken);
-            var validation = await ValidateForMutationAsync(connection, transaction, sessionId, subjectId, runtime, clientInstanceId, cancellationToken);
+            var authorityState = await LoadAuthorityStateForUpdateAsync(connection, transaction, cancellationToken);
+            var validation = await ValidateForMutationAsync(connection, transaction, authorityState, sessionId, subjectId, runtime, clientInstanceId, cancellationToken);
             if (!validation.IsValid || validation.Lease is null)
             {
                 await transaction.CommitAsync(cancellationToken);
@@ -559,7 +591,8 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         try
         {
             await AcquireLeaseMutationLockAsync(connection, transaction, cancellationToken);
-            var validation = await ValidateForMutationAsync(connection, transaction, sessionId, subjectId, runtime, clientInstanceId, cancellationToken);
+            var authorityState = await LoadAuthorityStateForUpdateAsync(connection, transaction, cancellationToken);
+            var validation = await ValidateForMutationAsync(connection, transaction, authorityState, sessionId, subjectId, runtime, clientInstanceId, cancellationToken);
             if (!validation.IsValid || validation.Lease is null)
             {
                 await transaction.CommitAsync(cancellationToken);
@@ -588,18 +621,23 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
     private static async Task<RuntimeSessionLeaseStoreResult> ValidateForMutationAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction transaction,
+        RuntimeAuthorityState authorityState,
         Guid sessionId,
         string subjectId,
         RuntimeSessionRuntimeIdentity runtime,
         string? clientInstanceId,
         CancellationToken cancellationToken)
     {
+        if (authorityState.TransitionPending)
+            return RuntimeSessionLeaseStoreResult.Invalid("authority-transition-pending");
         if (sessionId == Guid.Empty) return RuntimeSessionLeaseStoreResult.Invalid("invalid-session-id");
         if (string.IsNullOrWhiteSpace(subjectId)) return RuntimeSessionLeaseStoreResult.Invalid("missing-user");
         ArgumentNullException.ThrowIfNull(runtime);
 
         var lease = await LoadByIdForUpdateAsync(connection, transaction, sessionId, cancellationToken);
         if (lease is null || !lease.IsActive) return RuntimeSessionLeaseStoreResult.Invalid("session-not-found");
+        if (lease.AuthorityRevision != authorityState.AuthorityRevision)
+            return RuntimeSessionLeaseStoreResult.Invalid("authority-revision-stale");
 
         if (lease.ExpiresAtUtc <= DateTimeOffset.UtcNow)
         {

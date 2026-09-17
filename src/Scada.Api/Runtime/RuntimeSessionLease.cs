@@ -38,7 +38,8 @@ public sealed record RuntimeSessionLease(
     string? RuntimeProjectKey,
     long? RuntimeRevision,
     DateTimeOffset? RuntimeActivatedAtUtc,
-    long Generation);
+    long Generation,
+    long AuthorityRevision);
 
 public sealed record RuntimeSessionLeaseValidation(
     bool IsValid,
@@ -87,6 +88,9 @@ public sealed class RuntimeSessionLeaseRegistry
 
     public TimeSpan LeaseDuration => _leaseDuration;
 
+    public Task<RuntimeAuthorityState> GetAuthorityStateAsync(CancellationToken cancellationToken = default) =>
+        _store.GetAuthorityStateAsync(cancellationToken);
+
     public async Task<RuntimeSessionLease> AdmitAsync(
         string userId,
         string clientInstanceId,
@@ -130,10 +134,36 @@ public sealed class RuntimeSessionLeaseRegistry
         string? clusterId = null,
         CancellationToken cancellationToken = default)
     {
+        var authority = await _store.GetAuthorityStateAsync(cancellationToken);
+        return await AdmitWithCapacityAsync(
+            userId,
+            clientInstanceId,
+            connectionClass,
+            runtime,
+            capacity,
+            authority.AuthorityRevision,
+            serverNode,
+            clusterId,
+            cancellationToken);
+    }
+
+    public async Task<RuntimeSessionSeatAdmission> AdmitWithCapacityAsync(
+        string userId,
+        string clientInstanceId,
+        RuntimeConnectionClass connectionClass,
+        ScadaRuntimeDescriptor runtime,
+        RuntimeSessionSeatCapacity capacity,
+        long expectedAuthorityRevision,
+        string? serverNode = null,
+        string? clusterId = null,
+        CancellationToken cancellationToken = default)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         ArgumentException.ThrowIfNullOrWhiteSpace(clientInstanceId);
         ArgumentNullException.ThrowIfNull(runtime);
         ArgumentNullException.ThrowIfNull(capacity);
+        if (expectedAuthorityRevision < 1)
+            throw new ArgumentOutOfRangeException(nameof(expectedAuthorityRevision));
         var normalizedClientInstanceId = clientInstanceId.Trim();
         if (normalizedClientInstanceId.Length > MaximumClientInstanceIdLength)
             throw new ArgumentOutOfRangeException(nameof(clientInstanceId));
@@ -148,7 +178,8 @@ public sealed class RuntimeSessionLeaseRegistry
                     _leaseDuration,
                     serverNode,
                     clusterId),
-                capacity),
+                capacity,
+                expectedAuthorityRevision),
             cancellationToken);
         return result.IsAdmitted && result.Lease is not null
             ? new RuntimeSessionSeatAdmission(true, FromStore(result.Lease), result.ReasonCode)
@@ -258,7 +289,8 @@ public sealed class RuntimeSessionLeaseRegistry
             lease.Runtime.ProjectKey,
             lease.Runtime.Revision,
             lease.Runtime.ActivatedAtUtc,
-            lease.Generation);
+            lease.Generation,
+            lease.AuthorityRevision);
     }
 
     // Keep v1's "viewer" database value even though the public Wave 15 wire term is ViewOnly.

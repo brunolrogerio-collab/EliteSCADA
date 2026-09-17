@@ -10,7 +10,8 @@ public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
     [Fact]
     public async Task PostgreSqlLeaseStore_ConvergesLogicalAdmissionAcrossInstances_AndUsesGenerationCas()
     {
-        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??\n            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
         var subject = $"fnd03-session-{Guid.NewGuid():N}";
@@ -65,7 +66,8 @@ public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
     [Fact]
     public async Task PostgreSqlLeaseStore_ExpiresReAdmits_BindsIdentity_AndRollsBackPostMutationFailure()
     {
-        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??\n            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
         var subject = $"fnd03-expiry-{Guid.NewGuid():N}";
@@ -117,7 +119,8 @@ public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
     [Fact]
     public async Task PostgreSqlLeaseStore_ReconnectDownscopesViewOnly_WithoutChangingLogicalIdentity()
     {
-        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??\n            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
         var subject = $"fnd03-downscope-{Guid.NewGuid():N}";
@@ -151,7 +154,8 @@ public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
     [Fact]
     public async Task PostgreSqlLeaseStore_AtomicallyEnforcesSharedSeatCapacityAcrossStoreInstances()
     {
-        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??\n            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
         var subject = $"fnd03-capacity-{Guid.NewGuid():N}";

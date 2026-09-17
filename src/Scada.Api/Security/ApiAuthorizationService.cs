@@ -418,7 +418,18 @@ public sealed class ApiAuthorizationService
     {
         if (!baseline.Allowed || baseline.Decision is null) return baseline;
         if (!context.Request.Headers.TryGetValue(RuntimeSessionHeaderName, out var values))
-            return baseline;
+        {
+            // Read-only Runtime access retains its existing compatibility path. A Runtime
+            // mutation, however, must never recover baseline Authority by deleting the
+            // logical lease headers from a ViewOnly client request.
+            return RuntimeSessionAdmissionPolicy.IsRuntimeMutation(baseline.Decision.Capability)
+                ? new ApiAuthorizationCheck(
+                    baseline.Principal,
+                    AuthorizationDecision.Denied(
+                        baseline.Decision.Capability,
+                        "A Runtime mutation requires a logical Runtime session lease."))
+                : baseline;
+        }
 
         if (values.Count != 1 || !Guid.TryParse(values.ToString(), out var sessionId) || sessionId == Guid.Empty)
         {

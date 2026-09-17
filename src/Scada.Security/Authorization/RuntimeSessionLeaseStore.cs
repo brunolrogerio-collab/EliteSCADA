@@ -122,7 +122,24 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
                 active = null;
             }
 
-            if (active is not null && active.Runtime.Matches(admission.Runtime)) return active;
+            if (active is not null && active.Runtime.Matches(admission.Runtime))
+            {
+                var retainedClass = MostRestrictiveConnectionClass(
+                    active.GrantedConnectionClass,
+                    admission.GrantedConnectionClass);
+                if (!string.Equals(retainedClass, active.GrantedConnectionClass, StringComparison.OrdinalIgnoreCase))
+                {
+                    // The logical identity remains stable, but an explicit ViewOnly request or
+                    // Authority downscope must invalidate stale generation users immediately.
+                    active = active with
+                    {
+                        GrantedConnectionClass = retainedClass,
+                        Generation = checked(active.Generation + 1)
+                    };
+                    _leases[active.SessionId] = active;
+                }
+                return active;
+            }
             if (active is not null) _leases[active.SessionId] = active with { IsActive = false };
 
             var lease = new RuntimeSessionLeaseState(
@@ -246,6 +263,16 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string MostRestrictiveConnectionClass(string existing, string requested) =>
+        IsViewOnlyConnectionClass(existing) || IsViewOnlyConnectionClass(requested)
+            ? "viewer"
+            : "interactive";
+
+    private static bool IsViewOnlyConnectionClass(string value) =>
+        value.Equals("viewer", StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("viewonly", StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("view-only", StringComparison.OrdinalIgnoreCase);
 
     public ValueTask DisposeAsync()
     {

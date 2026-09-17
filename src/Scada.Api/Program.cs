@@ -725,37 +725,23 @@ app.Map("/ws/tags", async (
             localAuthorityEpoch = epoch;
         }
 
-        var hasRuntimeSessionId = context.Request.Query.TryGetValue("runtimeSessionId", out var runtimeSessionValues);
-        var hasRuntimeClient = context.Request.Query.TryGetValue("clientInstanceId", out var runtimeClientValues);
-        if (hasRuntimeSessionId || hasRuntimeClient)
+        // Authenticated Runtime sockets are always bound to the same logical lease used by
+        // REST mutations. Omitting both parameters must not create a transport-only bypass.
+        var lease = await RuntimeSessionWebSocketAdmission.ValidateAsync(
+            security,
+            principal,
+            runtime,
+            context.Request.Query["runtimeSessionId"],
+            context.Request.Query["clientInstanceId"],
+            context.RequestAborted);
+        if (!lease.IsValid)
         {
-            if (!hasRuntimeSessionId || !hasRuntimeClient ||
-                runtimeSessionValues.Count != 1 ||
-                runtimeClientValues.Count != 1 ||
-                !Guid.TryParse(runtimeSessionValues.ToString(), out var parsedSessionId) ||
-                parsedSessionId == Guid.Empty ||
-                string.IsNullOrWhiteSpace(runtimeClientValues.ToString()) ||
-                runtimeClientValues.ToString().Trim().Length > RuntimeSessionLeaseRegistry.MaximumClientInstanceIdLength)
-            {
-                context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                return;
-            }
-
-            var lease = await security.ValidateRuntimeSessionAsync(
-                principal,
-                runtime,
-                parsedSessionId,
-                runtimeClientValues.ToString().Trim(),
-                context.RequestAborted);
-            if (!lease.IsValid)
-            {
-                context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                return;
-            }
-
-            runtimeSessionId = parsedSessionId;
-            runtimeClientInstanceId = runtimeClientValues.ToString().Trim();
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return;
         }
+
+        runtimeSessionId = lease.Lease!.SessionId;
+        runtimeClientInstanceId = lease.Lease.ClientInstanceId;
     }
 
     var socket = await context.WebSockets.AcceptWebSocketAsync();

@@ -137,21 +137,35 @@ public sealed class DistributedRuntimeFoundationTests
     }
 
     [Fact]
-    public void Admission_ReconnectRetainsTheGrantedClassRatherThanAcceptingAChangedRequest()
+    public async Task Admission_ReconnectDownscopesExplicitViewOnly_AndNeverUpgradesByChangedRequest()
     {
-        var initial = RuntimeSessionAdmissionPolicy.Resolve(
-            RuntimeConnectionClass.ViewOnly,
-            new[] { Allowed(SecurityCapability.CommandExecute) });
-        var changedRequest = RuntimeSessionAdmissionPolicy.Resolve(
+        var now = DateTimeOffset.Parse("2026-09-17T00:00:00Z");
+        var runtime = RuntimeDescriptor(now);
+        var sessions = new RuntimeSessionLeaseRegistry(TimeSpan.FromMinutes(1), () => now);
+
+        var interactive = await sessions.AdmitAsync(
+            "operator",
+            "browser-1",
             RuntimeConnectionClass.Interactive,
-            new[] { Allowed(SecurityCapability.CommandExecute) });
+            runtime);
+        var explicitViewOnly = await sessions.AdmitAsync(
+            "operator",
+            "browser-1",
+            RuntimeConnectionClass.ViewOnly,
+            runtime);
 
-        var retained = RuntimeSessionAdmissionPolicy.RetainExistingLease(
-            changedRequest,
-            initial.GrantedClass);
+        Assert.Equal(interactive.SessionId, explicitViewOnly.SessionId);
+        Assert.Equal(RuntimeConnectionClass.ViewOnly, explicitViewOnly.ConnectionClass);
+        Assert.Equal(interactive.Generation + 1, explicitViewOnly.Generation);
 
-        Assert.Equal(RuntimeConnectionClass.ViewOnly, retained.GrantedClass);
-        Assert.Equal(RuntimeSessionAdmissionReasonCode.ExistingLeaseRetained, retained.ReasonCode);
+        var changedBackToInteractive = await sessions.AdmitAsync(
+            "operator",
+            "browser-1",
+            RuntimeConnectionClass.Interactive,
+            runtime);
+        Assert.Equal(explicitViewOnly.SessionId, changedBackToInteractive.SessionId);
+        Assert.Equal(RuntimeConnectionClass.ViewOnly, changedBackToInteractive.ConnectionClass);
+        Assert.Equal(explicitViewOnly.Generation, changedBackToInteractive.Generation);
     }
 
     [Theory]

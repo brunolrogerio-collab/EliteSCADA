@@ -113,12 +113,47 @@ public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
         }
     }
 
+    [Fact]
+    public async Task PostgreSqlLeaseStore_ReconnectDownscopesViewOnly_WithoutChangingLogicalIdentity()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var subject = $"fnd03-downscope-{Guid.NewGuid():N}";
+        const string client = "runtime-admission-client";
+        var runtime = Runtime("project-a", 7);
+        await using var store = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await store.InitializeAsync();
+
+        try
+        {
+            var interactive = await store.AdmitAsync(
+                Admission(subject, client, runtime, TimeSpan.FromMinutes(1), "interactive"));
+            var viewOnly = await store.AdmitAsync(
+                Admission(subject, client, runtime, TimeSpan.FromMinutes(1), "viewer"));
+            var changedBackToInteractive = await store.AdmitAsync(
+                Admission(subject, client, runtime, TimeSpan.FromMinutes(1), "interactive"));
+
+            Assert.Equal(interactive.SessionId, viewOnly.SessionId);
+            Assert.Equal("viewer", viewOnly.GrantedConnectionClass);
+            Assert.Equal(interactive.Generation + 1, viewOnly.Generation);
+            Assert.Equal(viewOnly.SessionId, changedBackToInteractive.SessionId);
+            Assert.Equal("viewer", changedBackToInteractive.GrantedConnectionClass);
+            Assert.Equal(viewOnly.Generation, changedBackToInteractive.Generation);
+        }
+        finally
+        {
+            await DeleteSubjectAsync(connectionString, subject);
+        }
+    }
+
     private static RuntimeSessionLeaseAdmission Admission(
         string subject,
         string client,
         RuntimeSessionRuntimeIdentity runtime,
-        TimeSpan duration) =>
-        new(subject, client, "viewer", runtime, duration);
+        TimeSpan duration,
+        string grantedConnectionClass = "viewer") =>
+        new(subject, client, grantedConnectionClass, runtime, duration);
 
     private static RuntimeSessionRuntimeIdentity Runtime(string project, long revision) =>
         new("engineering", project, revision, DateTimeOffset.Parse("2026-09-15T00:00:00Z"));

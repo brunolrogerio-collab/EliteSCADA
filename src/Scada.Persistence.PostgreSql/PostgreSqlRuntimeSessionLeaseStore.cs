@@ -85,6 +85,20 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
             var active = await LoadActiveByIdentityAsync(connection, transaction, subjectId, clientInstanceId, cancellationToken);
             if (active is not null && active.Runtime.Matches(admission.Runtime))
             {
+                var retainedClass = MostRestrictiveConnectionClass(
+                    active.GrantedConnectionClass,
+                    admission.GrantedConnectionClass);
+                if (!string.Equals(retainedClass, active.GrantedConnectionClass, StringComparison.OrdinalIgnoreCase))
+                {
+                    var downscoped = active with
+                    {
+                        GrantedConnectionClass = retainedClass,
+                        Generation = checked(active.Generation + 1)
+                    };
+                    if (!await DownscopeAsync(connection, transaction, downscoped, active.Generation, cancellationToken))
+                        throw new InvalidOperationException("Runtime session admission changed concurrently.");
+                    active = downscoped;
+                }
                 await transaction.CommitAsync(cancellationToken);
                 return active;
             }
@@ -346,6 +360,21 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 
+    private static async Task<bool> DownscopeAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, RuntimeSessionLeaseState lease, long expectedGeneration, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            UPDATE elitescada.runtime_session_leases
+            SET requested_connection_class = @requested_connection_class, generation = @generation
+            WHERE session_id = @session_id AND is_active AND generation = @expected_generation;
+            """;
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("requested_connection_class", lease.GrantedConnectionClass);
+        command.Parameters.AddWithValue("generation", NpgsqlDbType.Bigint, lease.Generation);
+        command.Parameters.AddWithValue("session_id", lease.SessionId);
+        command.Parameters.AddWithValue("expected_generation", NpgsqlDbType.Bigint, expectedGeneration);
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+    }
+
     private static async Task<bool> DeactivateAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, Guid sessionId, long expectedGeneration, CancellationToken cancellationToken)
     {
         const string sql = """
@@ -416,6 +445,16 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string MostRestrictiveConnectionClass(string existing, string requested) =>
+        IsViewOnlyConnectionClass(existing) || IsViewOnlyConnectionClass(requested)
+            ? "viewer"
+            : "interactive";
+
+    private static bool IsViewOnlyConnectionClass(string value) =>
+        value.Equals("viewer", StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("viewonly", StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("view-only", StringComparison.OrdinalIgnoreCase);
 
     private static async Task RollbackQuietlyAsync(NpgsqlTransaction transaction)
     {

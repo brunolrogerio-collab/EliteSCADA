@@ -20,7 +20,7 @@ public sealed record RuntimeSessionRuntimeIdentity(
 public sealed record RuntimeSessionLeaseAdmission(
     string SubjectId,
     string ClientInstanceId,
-    string RequestedConnectionClass,
+    string GrantedConnectionClass,
     RuntimeSessionRuntimeIdentity Runtime,
     TimeSpan LeaseDuration,
     string? ServerNode = null,
@@ -30,7 +30,7 @@ public sealed record RuntimeSessionLeaseState(
     Guid SessionId,
     string SubjectId,
     string ClientInstanceId,
-    string RequestedConnectionClass,
+    string GrantedConnectionClass,
     long Generation,
     DateTimeOffset IssuedAtUtc,
     DateTimeOffset LastHeartbeatUtc,
@@ -126,7 +126,7 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
             if (active is not null) _leases[active.SessionId] = active with { IsActive = false };
 
             var lease = new RuntimeSessionLeaseState(
-                Guid.NewGuid(), subjectId, clientInstanceId, admission.RequestedConnectionClass.Trim(), 1,
+                Guid.NewGuid(), subjectId, clientInstanceId, admission.GrantedConnectionClass.Trim(), 1,
                 now, now, now.Add(admission.LeaseDuration), admission.Runtime,
                 NormalizeOptional(admission.ServerNode), NormalizeOptional(admission.ClusterId), true);
             _leases.Add(lease.SessionId, lease);
@@ -238,7 +238,7 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
         ArgumentNullException.ThrowIfNull(admission);
         ArgumentException.ThrowIfNullOrWhiteSpace(admission.SubjectId);
         ArgumentException.ThrowIfNullOrWhiteSpace(admission.ClientInstanceId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(admission.RequestedConnectionClass);
+        ArgumentException.ThrowIfNullOrWhiteSpace(admission.GrantedConnectionClass);
         ArgumentNullException.ThrowIfNull(admission.Runtime);
         if (admission.LeaseDuration <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(admission), "Lease duration must be positive.");

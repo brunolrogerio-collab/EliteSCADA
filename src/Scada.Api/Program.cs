@@ -665,6 +665,7 @@ app.MapPost("/api/engineering/import/datasources.csv/apply", async (
 app.Map("/ws/tags", async (
     HttpContext context,
     TagRealtimeHub hub,
+    ScadaRuntimeFacade runtime,
     ApiAuthorizationService security) =>
 {
     if (!context.WebSockets.IsWebSocketRequest)
@@ -683,6 +684,8 @@ app.Map("/ws/tags", async (
 
     DateTimeOffset? expiresAtUtc = null;
     long? localAuthorityEpoch = null;
+    Guid? runtimeSessionId = null;
+    string? runtimeClientInstanceId = null;
     if (security.AuthenticationEnabled)
     {
         if (!long.TryParse(context.User.FindFirst("exp")?.Value, out var expiresAtUnix))
@@ -721,6 +724,38 @@ app.Map("/ws/tags", async (
 
             localAuthorityEpoch = epoch;
         }
+
+        var hasRuntimeSessionId = context.Request.Query.TryGetValue("runtimeSessionId", out var runtimeSessionValues);
+        var hasRuntimeClient = context.Request.Query.TryGetValue("clientInstanceId", out var runtimeClientValues);
+        if (hasRuntimeSessionId || hasRuntimeClient)
+        {
+            if (!hasRuntimeSessionId || !hasRuntimeClient ||
+                runtimeSessionValues.Count != 1 ||
+                runtimeClientValues.Count != 1 ||
+                !Guid.TryParse(runtimeSessionValues.ToString(), out var parsedSessionId) ||
+                parsedSessionId == Guid.Empty ||
+                string.IsNullOrWhiteSpace(runtimeClientValues.ToString()) ||
+                runtimeClientValues.ToString().Trim().Length > RuntimeSessionLeaseRegistry.MaximumClientInstanceIdLength)
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
+
+            var lease = await security.ValidateRuntimeSessionAsync(
+                principal,
+                runtime,
+                parsedSessionId,
+                runtimeClientValues.ToString().Trim(),
+                context.RequestAborted);
+            if (!lease.IsValid)
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
+
+            runtimeSessionId = parsedSessionId;
+            runtimeClientInstanceId = runtimeClientValues.ToString().Trim();
+        }
     }
 
     var socket = await context.WebSockets.AcceptWebSocketAsync();
@@ -730,7 +765,9 @@ app.Map("/ws/tags", async (
         security.AuthenticationEnabled,
         expiresAtUtc,
         localAuthorityEpoch,
-        context.RequestAborted);
+        context.RequestAborted,
+        runtimeSessionId,
+        runtimeClientInstanceId);
 });
 
 app.Run();

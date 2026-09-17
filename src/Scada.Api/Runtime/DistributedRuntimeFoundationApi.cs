@@ -6,7 +6,10 @@ namespace Scada.Api.Runtime;
 public static class DistributedRuntimeFoundationApi
 {
     public const string ContractSchema = "elitescada.server-runtime-contract";
-    public const int ContractSchemaVersion = 2;
+    // v3 introduces server-calculated admission and the public ViewOnly wire term.
+    // v2 clients may still submit the legacy "viewer" request value, but responses
+    // advertise the explicit granted-class semantics through this new schema version.
+    public const int ContractSchemaVersion = 3;
 
     public static IEndpointRouteBuilder MapDistributedRuntimeFoundationEndpoints(
         this IEndpointRouteBuilder endpoints)
@@ -45,23 +48,27 @@ public static class DistributedRuntimeFoundationApi
                 });
             }
 
-            // Admission is evaluated against canonical Runtime Authority before any requested
-            // connection-class reduction. A Runtime lease can never manufacture View authority.
-            var admission = await security.CheckRuntimeAsync(
+            // The requested class is client input. Canonical Authority determines whether it can
+            // remain Interactive; this is eligibility only and does not reserve a license seat.
+            var (admission, decision) = await security.ResolveRuntimeSessionAdmissionAsync(
                 principal,
                 runtime,
-                SecurityCapability.View,
+                connectionClass,
                 cancellationToken: cancellationToken);
             var admissionFailure = admission.FailureResult();
             if (admissionFailure is not null) return admissionFailure;
+            if (decision is null) return Results.Forbid();
 
             var before = runtime.Describe();
             var lease = await security.RuntimeSessions.AdmitAsync(
                 principal.SubjectId,
                 request.ClientInstanceId,
-                connectionClass,
+                decision.GrantedClass,
                 before,
                 cancellationToken: cancellationToken);
+            decision = RuntimeSessionAdmissionPolicy.RetainExistingLease(
+                decision,
+                lease.ConnectionClass);
             var after = runtime.Describe();
             if (!SameRuntime(before, after))
             {
@@ -76,7 +83,7 @@ public static class DistributedRuntimeFoundationApi
 
             return Results.Created(
                 $"/api/runtime/sessions/{lease.SessionId}",
-                ProjectLease(lease));
+                ProjectLease(lease, decision));
         });
 
         endpoints.MapPost("/api/runtime/sessions/{sessionId:guid}/heartbeat", async (
@@ -220,7 +227,13 @@ public static class DistributedRuntimeFoundationApi
                     supported = security.AuthenticationEnabled,
                     header = ApiAuthorizationService.RuntimeSessionHeaderName,
                     leaseDurationSeconds = (int)security.RuntimeSessions.LeaseDuration.TotalSeconds,
-                    connectionClasses = new[] { "viewer", "interactive" }
+                    connectionClasses = new[] { "viewOnly", "interactive" },
+                    admission = new
+                    {
+                        serverCalculated = true,
+                        capacityReservation = false,
+                        reasonCodes = Enum.GetNames<RuntimeSessionAdmissionReasonCode>()
+                    }
                 },
                 effectiveCapabilities
             });
@@ -229,12 +242,19 @@ public static class DistributedRuntimeFoundationApi
         return endpoints;
     }
 
-    private static object ProjectLease(RuntimeSessionLease lease) => new
+    private static object ProjectLease(
+        RuntimeSessionLease lease,
+        RuntimeSessionAdmissionDecision? admission = null) => new
     {
         lease.SessionId,
         lease.UserId,
         lease.ClientInstanceId,
-        connectionClass = lease.ConnectionClass.ToString().ToLowerInvariant(),
+        // connectionClass is retained for v1 clients and is always the granted class.
+        connectionClass = ToWireClass(lease.ConnectionClass),
+        requestedClass = admission is null ? null : ToWireClass(admission.RequestedClass),
+        grantedClass = ToWireClass(lease.ConnectionClass),
+        admissionReasonCode = admission?.ReasonCode.ToString(),
+        capacityReserved = false,
         lease.IssuedAtUtc,
         lease.LastHeartbeatUtc,
         lease.ExpiresAtUtc,
@@ -248,6 +268,9 @@ public static class DistributedRuntimeFoundationApi
             activatedAtUtc = lease.RuntimeActivatedAtUtc
         }
     };
+
+    private static string ToWireClass(RuntimeConnectionClass connectionClass) =>
+        connectionClass == RuntimeConnectionClass.Interactive ? "interactive" : "viewOnly";
 
     private static IResult LeaseFailure(RuntimeSessionLeaseValidation validation)
     {

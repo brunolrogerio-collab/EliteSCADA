@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Scada.Api.Runtime;
+using Scada.Core.Commands;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
@@ -73,6 +74,7 @@ public sealed class ApiAuthorizationService
     }
 
     public const string RuntimeSessionHeaderName = "X-EliteSCADA-Runtime-Session";
+    public const string RuntimeSessionClientInstanceHeaderName = "X-EliteSCADA-Runtime-Client-Instance";
 
     private readonly object _activeCacheGate = new();
     private readonly bool _authenticationEnabled;
@@ -338,6 +340,76 @@ public sealed class ApiAuthorizationService
             cancellationToken);
     }
 
+    /// <summary>
+    /// Resolves the server-owned Runtime session class without creating a second Authority
+    /// pipeline. The result is eligibility only: it never reserves a commercial seat.
+    /// </summary>
+    public async Task<(ApiAuthorizationCheck ViewAuthorization, RuntimeSessionAdmissionDecision? Decision)>
+        ResolveRuntimeSessionAdmissionAsync(
+            SecurityPrincipal principal,
+            ScadaRuntimeFacade runtime,
+            RuntimeConnectionClass requestedClass,
+            CancellationToken cancellationToken = default)
+    {
+        var view = await CheckRuntimeAsync(
+            principal,
+            runtime,
+            SecurityCapability.View,
+            cancellationToken: cancellationToken);
+        if (!view.Allowed) return (view, null);
+
+        var decisions = new List<AuthorizationDecision>();
+
+        // Command and TAG grants may be hierarchy-scoped. Evaluate concrete Runtime resources so
+        // an Operator with a narrow command/write grant is not mistaken for a read-only subject.
+        foreach (var command in runtime.Commands())
+        {
+            var commandCheck = await CheckRuntimeAsync(
+                principal,
+                runtime,
+                SecurityCapability.CommandExecute,
+                ToCommandResource(command),
+                cancellationToken);
+            if (commandCheck.Decision is not null) decisions.Add(commandCheck.Decision);
+        }
+
+        foreach (var tag in runtime.Tags().Where(tag => !tag.ReadOnly))
+        {
+            var writeCheck = await CheckRuntimeTagAsync(
+                principal,
+                runtime,
+                tag,
+                TagAccessOperation.Write,
+                cancellationToken);
+            if (writeCheck.Decision is not null) decisions.Add(writeCheck.Decision);
+        }
+
+        foreach (var capability in new[]
+                 {
+                     SecurityCapability.AlarmAcknowledge,
+                     SecurityCapability.AlarmShelve,
+                     SecurityCapability.TrendSave
+                 })
+        {
+            var check = await CheckRuntimeAsync(
+                principal,
+                runtime,
+                capability,
+                cancellationToken: cancellationToken);
+            if (check.Decision is not null) decisions.Add(check.Decision);
+        }
+
+        return (view, RuntimeSessionAdmissionPolicy.Resolve(requestedClass, decisions));
+    }
+
+    private static AuthorizationResource ToCommandResource(CommandDefinition command) => new(
+        Area: command.Area,
+        EquipmentPath: command.EquipmentPath,
+        TagPath: command.TargetTagPath,
+        CommandKey: command.Key,
+        ResourceKind: AuthorizationResourceKind.Command,
+        ResourceId: command.Id);
+
     private async Task<ApiAuthorizationCheck> ApplyRuntimeSessionDownscopeAsync(
         HttpContext context,
         ScadaRuntimeFacade runtime,
@@ -357,12 +429,25 @@ public sealed class ApiAuthorizationService
                     "The Runtime session header is invalid."));
         }
 
+        if (!context.Request.Headers.TryGetValue(RuntimeSessionClientInstanceHeaderName, out var clientValues) ||
+            clientValues.Count != 1 ||
+            string.IsNullOrWhiteSpace(clientValues.ToString()) ||
+            clientValues.ToString().Trim().Length > RuntimeSessionLeaseRegistry.MaximumClientInstanceIdLength)
+        {
+            return new ApiAuthorizationCheck(
+                baseline.Principal,
+                AuthorizationDecision.Denied(
+                    baseline.Decision.Capability,
+                    "The Runtime session client instance header is invalid."));
+        }
+
         var decision = await RuntimeSessionAccessEvaluator.ApplyAsync(
             RuntimeSessions,
             sessionId,
             baseline.Principal.SubjectId,
             runtime.Describe(),
             baseline.Decision,
+            clientValues.ToString().Trim(),
             cancellationToken: cancellationToken);
         return new ApiAuthorizationCheck(baseline.Principal, decision);
     }

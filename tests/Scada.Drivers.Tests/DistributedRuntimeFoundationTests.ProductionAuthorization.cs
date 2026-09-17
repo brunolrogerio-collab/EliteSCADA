@@ -92,6 +92,8 @@ public sealed class DistributedRuntimeFoundationTestsProductionAuthorization
             runtime.Describe());
         context.Request.Headers[ApiAuthorizationService.RuntimeSessionHeaderName] =
             lease.SessionId.ToString("D");
+        context.Request.Headers[ApiAuthorizationService.RuntimeSessionClientInstanceHeaderName] =
+            lease.ClientInstanceId;
 
         var effectiveCommand = await authorization.CheckRuntimeAsync(
             context,
@@ -107,6 +109,28 @@ public sealed class DistributedRuntimeFoundationTestsProductionAuthorization
         Assert.Equal(SecurityCapability.CommandExecute, effectiveCommand.Decision?.Capability);
         Assert.False(effectiveWrite.Allowed);
         Assert.Equal(SecurityCapability.ProcessValueWrite, effectiveWrite.Decision?.Capability);
+
+        // A lease-bearing request without its logical client identity cannot fall back to
+        // an Interactive session decision.
+        context.Request.Headers.Remove(ApiAuthorizationService.RuntimeSessionClientInstanceHeaderName);
+        var missingClientWrite = await authorization.CheckRuntimeTagAsync(
+            context,
+            runtime,
+            writableTag,
+            TagAccessOperation.Write);
+        Assert.False(missingClientWrite.Allowed);
+        Assert.Equal(SecurityCapability.ProcessValueWrite, missingClientWrite.Decision?.Capability);
+
+        // A modified REST client cannot replay the lease with a different logical client identity.
+        context.Request.Headers[ApiAuthorizationService.RuntimeSessionClientInstanceHeaderName] =
+            "tampered-browser";
+        var tamperedWrite = await authorization.CheckRuntimeTagAsync(
+            context,
+            runtime,
+            writableTag,
+            TagAccessOperation.Write);
+        Assert.False(tamperedWrite.Allowed);
+        Assert.Equal(SecurityCapability.ProcessValueWrite, tamperedWrite.Decision?.Capability);
     }
 
     private sealed class EmptyServiceProvider : IServiceProvider

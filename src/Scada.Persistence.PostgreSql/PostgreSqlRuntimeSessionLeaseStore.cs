@@ -95,7 +95,7 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
                 Guid.NewGuid(),
                 subjectId,
                 clientInstanceId,
-                admission.RequestedConnectionClass.Trim().ToLowerInvariant(),
+                admission.GrantedConnectionClass.Trim().ToLowerInvariant(),
                 1,
                 now,
                 now,
@@ -364,7 +364,9 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         command.Parameters.AddWithValue("session_id", lease.SessionId);
         command.Parameters.AddWithValue("subject_id", lease.SubjectId);
         command.Parameters.AddWithValue("client_instance_id", lease.ClientInstanceId);
-        command.Parameters.AddWithValue("requested_connection_class", lease.RequestedConnectionClass);
+        // The v1 database column name is retained for migration compatibility; its value is the
+        // server-granted class after Runtime Admission, never untrusted client input.
+        command.Parameters.AddWithValue("requested_connection_class", lease.GrantedConnectionClass);
         command.Parameters.AddWithValue("generation", NpgsqlDbType.Bigint, lease.Generation);
         command.Parameters.AddWithValue("issued_at_utc", NpgsqlDbType.TimestampTz, lease.IssuedAtUtc);
         command.Parameters.AddWithValue("last_heartbeat_utc", NpgsqlDbType.TimestampTz, lease.LastHeartbeatUtc);
@@ -402,8 +404,9 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         ArgumentException.ThrowIfNullOrWhiteSpace(admission.ClientInstanceId);
         if (admission.ClientInstanceId.Trim().Length > 128)
             throw new ArgumentOutOfRangeException(nameof(admission), "Client instance id must not exceed 128 characters.");
-        if (!string.Equals(admission.RequestedConnectionClass, "viewer", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(admission.RequestedConnectionClass, "interactive", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(admission.GrantedConnectionClass, "viewer", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(admission.GrantedConnectionClass, "viewonly", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(admission.GrantedConnectionClass, "interactive", StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException("Runtime connection class is invalid.", nameof(admission));
         ArgumentNullException.ThrowIfNull(admission.Runtime);
         ArgumentException.ThrowIfNullOrWhiteSpace(admission.Runtime.Mode);

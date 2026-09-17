@@ -77,11 +77,11 @@ Auditoria arquitetural/contratual e work package pertencem ao Main. CODEX é pri
 
 Quando CODEX tiver limite de uso, o Main pode ativar um **DEV normal em `ARCH_ONLY`** para aprofundar arquitetura, source mapping, concorrência, contratos e desenho de testes sem mutar produto. O Main revisa e congela o desenho; depois pode liberar DEV normal para implementação bounded. CODEX fica reservado para blocker técnico, correção crítica ou implementação que o Main considere materialmente mais segura com CODEX.
 
-`ARCH_ONLY` nunca autoriza código de produção, branch de produto, PR, merge ou CI de implementação. Pode publicar somente o handoff arquitetural no ledger explicitamente indicado pela ordem.
+`ARCH_ONLY` nunca autoriza código de produção, testes, branch de produto, PR, merge ou CI de implementação. **A única mutação GitHub permitida em `ARCH_ONLY` é publicar o handoff arquitetural como comentário no ledger explicitamente indicado pela `CURRENT ORDER`, quando essa ordem trouxer autorização explícita.** Essa escrita de ledger é comunicação de coordenação, não mutação de produto.
 
 ### 0.8 Lições permanentes
 
-Não repetir: ordem só no chat/issue; afirmar ordem sem readback; confundir coordination HEAD com product checkpoint; fixar um coordination HEAD dentro do próprio documento como se fosse product base; delegar auditoria aberta ao Codex; consumir CODEX em trabalho arquitetural que DEV normal + Main podem fechar; rerun cego; tratar `PR_READY`, CI verde, `INTEGRATED`, `VERIFIED`, `FROZEN` como equivalentes; inferir PASS de acceptance PENDING; liberar downstream sem checkpoint exato.
+Não repetir: ordem só no chat/issue; afirmar ordem sem readback; confundir coordination HEAD com product checkpoint; fixar um coordination HEAD dentro do próprio documento como se fosse product base; delegar auditoria aberta ao Codex; consumir CODEX em trabalho arquitetural que DEV normal + Main podem fechar; impedir um agente `ARCH_ONLY` de publicar o próprio handoff por ambiguidade entre "read-only product" e "ledger write"; rerun cego; tratar `PR_READY`, CI verde, `INTEGRATED`, `VERIFIED`, `FROZEN` como equivalentes; inferir PASS de acceptance PENDING; liberar downstream sem checkpoint exato.
 
 State machine:
 
@@ -211,7 +211,10 @@ Scope exclusions: License Generator UI; full #304 Installation detach/switch UX;
 - product tree: `eed22a377fea2778d3e78143d706e4de0ef9ce38`
 - GitHub live is authority;
 - this lane is **READ-ONLY for product/code**;
-- no production/test mutation, no work branch push, no PR, no merge, no Actions rerun.
+- no production/test mutation, no work branch push, no PR, no merge, no Actions rerun;
+- **explicit ledger-write authorization:** this lane is authorized and required to create **exactly one new top-level comment in issue #301** containing the architecture handoff requested below. That comment is the only GitHub write allowed in `ARCH_ONLY` and is not a product/code mutation.
+
+If any local/chat summary shows a product base different from the exact live base above, disregard the stale value and use `a7067ac99f9f88fcd17f740b915d8c4f57c556fc`. If live GitHub shows a real product/infra divergence from that checkpoint, return `BLOCKED-BASE-DIVERGENCE` instead of inventing a new base.
 
 ### Architecture assignment
 
@@ -248,11 +251,15 @@ Do not merely restate requirements. Return concrete source-backed design includi
 
 ### Return
 
-Publish a single architecture handoff in issue #301, comment only, beginning exactly:
+You are **explicitly authorized and required** to publish exactly one new top-level architecture comment in issue #301, beginning exactly:
 
 `FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE ARCHITECTURE HANDOFF`
 
-The comment may contain architecture/specification only. No code/PR/branch mutation is authorized.
+The comment may contain architecture/specification and source-map evidence only. It must contain the complete architecture already developed in this pass, not merely a short summary. No code/test/branch/PR/merge/CI mutation is authorized.
+
+After posting, verify the comment exists live and report its numeric comment ID/receipt. **Do not declare the handoff published without that receipt.**
+
+If the GitHub comment action is genuinely unavailable or denied despite this explicit authorization, return exactly `BLOCKED-LEDGER-WRITE` with the prepared architecture preserved in the chat response so Main can recover it without re-analysis.
 
 Then **STOP**. Main will independently review the architecture, correct/freeze it, and decide whether implementation goes to normal DEV or CODEX.
 

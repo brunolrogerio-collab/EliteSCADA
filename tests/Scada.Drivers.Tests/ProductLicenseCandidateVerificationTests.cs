@@ -90,12 +90,16 @@ public sealed class ProductLicenseCandidateVerificationTests
         RSA signingKey,
         DateTimeOffset? notAfterUtc)
     {
+        var now = DateTimeOffset.UtcNow;
+        var issuedAtUtc = notAfterUtc.HasValue && notAfterUtc.Value <= now
+            ? notAfterUtc.Value.AddMinutes(-1)
+            : now.AddMinutes(-1);
         var payload = new EliteScadaLicenseV2Payload(
             EliteScadaLicenseCodec.LicenseV2SchemaVersion,
             Guid.NewGuid().ToString("D"),
             machine,
             LicenseTier.Tags1000,
-            DateTimeOffset.UtcNow.AddMinutes(-1),
+            issuedAtUtc,
             notAfterUtc,
             keyId,
             ViewOnlySeats: 3,

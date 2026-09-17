@@ -3,6 +3,7 @@ using Scada.Security.Authorization;
 
 namespace Scada.Drivers.Tests;
 
+[Collection("RuntimeSessionPostgreSql")]
 public sealed class RuntimeSessionAuthorityEnforcementTests
 {
     [Fact]

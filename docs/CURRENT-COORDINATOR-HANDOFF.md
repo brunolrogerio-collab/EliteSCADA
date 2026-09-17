@@ -16,7 +16,7 @@
 - FND-03 machine-license v2 + hardening — VERIFIED/FROZEN.
 - FND-03 Runtime Admission — VERIFIED/FROZEN.
 - FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN.
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE REVIEW / CORRECTION REQUIRED / IMPLEMENTATION NOT AUTHORIZED**.
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / IMPLEMENTATION PHASE A ACTIVE / NOT INTEGRATED**.
 - FND-03 global — ACTIVE / NOT FROZEN.
 - FND-04 — QUEUED / CONTRACT DEFINED / WAIT.
 - FC0-A — BLOCKED.
@@ -27,13 +27,9 @@
 
 tree `eed22a377fea2778d3e78143d706e4de0ef9ce38`.
 
-PR #331 is MERGED and exact post-merge CI #1546 / run `35269829080` is green:
+PR #331 is MERGED and exact post-merge CI #1546 / run `35269829080` is green.
 
-- Backend `105366045111` — SUCCESS
-- Web `105366045298` — SUCCESS
-- Chromium `105366583742` — SUCCESS
-
-Coordination/documentation commits after that SHA do not create a new product checkpoint.
+Coordination/documentation commits after that SHA do not create a new product checkpoint. Live compare confirmed only `LAST CHANGE.md`, `docs/CURRENT-COORDINATOR-HANDOFF.md` and `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` changed since the product checkpoint.
 
 ## Current execution lanes
 
@@ -41,43 +37,48 @@ Coordination/documentation commits after that SHA do not create a new product ch
 
 `ORDER_STATE: WAIT`.
 
-Codex is reserve while normal FND-03 DEV/ARCH closes the architecture. No implementation/commit/PR/CI is authorized for Codex now.
+Codex is reserve. No implementation/commit/PR/CI is authorized until Main explicitly activates a bounded task.
 
-### FND-03 DEV/ARCH
+### FND-03 DEV
 
 `ORDER_STATE: ACTIVE`  
-`DEV_MODE: ARCH_ONLY_CORRECTION`
+`DEV_MODE: IMPLEMENT_PHASE_A`
 
-The first architecture handoff was reviewed by Main. Overall direction remains usable, but implementation is blocked until a source-backed amendment closes six corrections:
+Architecture amendment #301 comment `5722165708` was independently reviewed by Main and is frozen for implementation.
 
-1. exact live source map;
-2. canonical `LicenseVerificationResult` candidate-verify seam;
-3. durable short-transaction `transition_pending` protocol around the transaction-scoped PostgreSQL advisory lock;
-4. same-installation/machine-license invariant for shared-ledger multi-instance use; cross-machine HA out of scope;
-5. `EngineeringModify` required but machine-license lifecycle independent from current Application Engineering Lock;
-6. Demo transition/restart behavior mapped against `PersistedRuntimeRecoveryService` without permissive timer reset.
+Work branch:
+
+`work/w15-fnd-03-license-lifecycle-fencing-v1`
+
+must be created from exact product base:
+
+`a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
+
+Phase A only:
+
+1. canonical non-mutating `VerifyCandidate`;
+2. AuthorityRevision / durable transition-state foundation + PostgreSQL migration / in-memory parity / bulk-fence primitives;
+3. admission/validate/heartbeat/terminate epoch enforcement using `ExpectedAuthorityRevision`.
+
+Do not yet implement local Runtime re-evaluation, Demo recovery, lifecycle orchestrator, licensing mutation API/audit cutover, FND-04 or FC0-A.
 
 Required return in #301:
 
-`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE ARCHITECTURE AMENDMENT`
+`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A HANDOFF`
 
-No product/test/branch/PR/CI mutation is authorized in this pass.
+No PR or Actions yet. Main reviews the exact Phase A head before Phase B.
 
 ## FND-04
 
-FND-04 DEV and AUD remain `WAIT`. They begin only after Main activates them with exact product base/candidate and scope.
-
-## Main permanent authority
-
-Main may update canonical orders and operate exact-SHA pre/post-merge CI under the permanent guards. CI green is not merge permission. `main` remains protected.
+FND-04 DEV and AUD remain `WAIT`.
 
 ## Retomada obrigatória
 
-1. Read the canonical handoff in full.
-2. Revalidate product checkpoint and live integration HEAD.
-3. Read the latest #301 DEV/ARCH amendment if present.
-4. Main independently reviews/freezes architecture before any implementation order.
-5. Keep Codex WAIT unless Main explicitly activates a bounded task.
-6. Keep FND-04 WAIT and FC0-A blocked until their gates open.
+1. Read canonical handoff in full.
+2. Revalidate product checkpoint and integration HEAD.
+3. Review latest Phase A DEV handoff/head if present.
+4. Main decides Phase B only after independent Phase A review.
+5. Keep Codex WAIT unless a bounded blocker/correction justifies it.
+6. Keep FND-04 WAIT and FC0-A blocked.
 
 `Hora: HH:MM` in America/Sao_Paulo.

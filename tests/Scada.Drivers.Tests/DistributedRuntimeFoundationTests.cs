@@ -368,6 +368,65 @@ public sealed class DistributedRuntimeFoundationTests
     }
 
     [Fact]
+    public async Task SeatCapacity_WebAndEliteGoLogicalClientsShareTheSameClassPools()
+    {
+        var now = DateTimeOffset.Parse("2026-09-17T00:00:00Z");
+        var runtime = RuntimeDescriptor(now);
+        var sessions = new RuntimeSessionLeaseRegistry(TimeSpan.FromMinutes(1), () => now);
+        var capacity = new RuntimeSessionSeatCapacity(InteractiveSeats: 1, ViewOnlySeats: 1);
+
+        var webInteractive = await AdmitWithCapacity(
+            sessions, "web-operator", "web-runtime-01", RuntimeConnectionClass.Interactive, runtime, capacity);
+        var eliteGoInteractive = await AdmitWithCapacity(
+            sessions, "elitego-operator", "elitego-runtime-01", RuntimeConnectionClass.Interactive, runtime, capacity);
+        var webViewOnly = await AdmitWithCapacity(
+            sessions, "web-viewer", "web-runtime-02", RuntimeConnectionClass.ViewOnly, runtime, capacity);
+
+        Assert.Equal(RuntimeConnectionClass.Interactive, webInteractive.Lease!.ConnectionClass);
+        Assert.Equal(RuntimeConnectionClass.ViewOnly, eliteGoInteractive.Lease!.ConnectionClass);
+        Assert.Equal(RuntimeSessionSeatReservationReasonCode.InteractiveQuotaFallbackViewOnly, eliteGoInteractive.ReasonCode);
+        Assert.False(webViewOnly.IsAdmitted);
+        Assert.Equal(RuntimeSessionSeatReservationReasonCode.ViewOnlyQuotaExhausted, webViewOnly.ReasonCode);
+    }
+
+    [Fact]
+    public async Task SeatCapacity_HighConcurrencyMixedWebAndEliteGoIdentities_NeverOversubscribesOrDuplicatesLeases()
+    {
+        var now = DateTimeOffset.Parse("2026-09-17T00:00:00Z");
+        var runtime = RuntimeDescriptor(now);
+        var sessions = new RuntimeSessionLeaseRegistry(TimeSpan.FromMinutes(1), () => now);
+        var capacity = new RuntimeSessionSeatCapacity(InteractiveSeats: 2, ViewOnlySeats: 2);
+        var attempts = Enumerable.Range(0, 64).Select(index =>
+        {
+            var family = index % 2 == 0 ? "web" : "elitego";
+            return AdmitWithCapacity(
+                sessions,
+                $"{family}-concurrent-user-{index}",
+                $"{family}-concurrent-client-{index}",
+                RuntimeConnectionClass.Interactive,
+                runtime,
+                capacity);
+        });
+
+        var results = await Task.WhenAll(attempts);
+        var admitted = results.Where(result => result.IsAdmitted).ToArray();
+        var interactive = admitted.Where(result => result.Lease!.ConnectionClass == RuntimeConnectionClass.Interactive).ToArray();
+        var viewOnly = admitted.Where(result => result.Lease!.ConnectionClass == RuntimeConnectionClass.ViewOnly).ToArray();
+
+        Assert.Equal(2, interactive.Length);
+        Assert.Equal(2, viewOnly.Length);
+        Assert.Equal(capacity.InteractiveSeats + capacity.ViewOnlySeats, admitted.Length);
+        Assert.All(results.Where(result => !result.IsAdmitted), result =>
+            Assert.Equal(RuntimeSessionSeatReservationReasonCode.EligiblePoolsExhausted, result.ReasonCode));
+        Assert.Equal(admitted.Length, admitted.Select(result => result.Lease!.SessionId).Distinct().Count());
+        Assert.Equal(
+            admitted.Length,
+            admitted.Select(result => (result.Lease!.UserId, result.Lease.ClientInstanceId)).Distinct().Count());
+        Assert.Contains(admitted, result => result.Lease!.ClientInstanceId.StartsWith("web-", StringComparison.Ordinal));
+        Assert.Contains(admitted, result => result.Lease!.ClientInstanceId.StartsWith("elitego-", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task SeatCapacity_ReusesOneLogicalLease_AndFailsClosedWhenAuthorityDownscopeCannotReserveViewOnly()
     {
         var now = DateTimeOffset.Parse("2026-09-17T00:00:00Z");

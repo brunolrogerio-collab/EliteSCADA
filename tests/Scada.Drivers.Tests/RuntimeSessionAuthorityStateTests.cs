@@ -41,6 +41,7 @@ public sealed class RuntimeSessionAuthorityStateTests
         Assert.Equal(1, fenced);
         var stale = await store.ValidateAsync(lease.SessionId, "operator", runtime, "client-a");
         Assert.False(stale.IsValid);
+        Assert.Equal(0, await store.FenceLeasesBeforeAuthorityRevisionAsync(transition.TransitionId, 2));
 
         await store.CompleteAuthorityTransitionAsync(transition.TransitionId, 2);
         var completed = await store.GetAuthorityStateAsync();
@@ -142,4 +143,125 @@ public sealed class RuntimeSessionAuthorityStateTests
                 _ = await store.AbortAuthorityTransitionAsync(transition.TransitionId, transition.BaseAuthorityRevision);
         }
     }
+    [Fact]
+    public async Task PostgreSqlBulkFence_IncrementsGenerationOnce_IsIdempotent_AndGuardsCompletion()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var subject = $"phase-a-fence-generation-{Guid.NewGuid():N}";
+        var client = "phase-a-fence-client";
+        var now = DateTimeOffset.UtcNow;
+        var runtime = new RuntimeSessionRuntimeIdentity("engineering", "project-a", 7, now);
+
+        await using var store = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await store.InitializeAsync();
+        var initial = await store.GetAuthorityStateAsync();
+        if (initial.TransitionPending) return;
+
+        RuntimeAuthorityTransition? transition = null;
+        try
+        {
+            var lease = await store.AdmitAsync(new RuntimeSessionLeaseAdmission(
+                subject,
+                client,
+                "interactive",
+                runtime,
+                TimeSpan.FromMinutes(5)));
+            Assert.Equal(initial.AuthorityRevision, lease.AuthorityRevision);
+
+            var beforeFence = await ReadPersistedLeaseStateAsync(connectionString, lease.SessionId);
+            Assert.True(beforeFence.IsActive);
+            Assert.Equal(lease.Generation, beforeFence.Generation);
+            Assert.Equal(initial.AuthorityRevision, beforeFence.AuthorityRevision);
+
+            transition = await store.BeginAuthorityTransitionAsync("replace", now);
+            var committed = await store.CommitAuthorityChangeAsync(
+                transition.TransitionId,
+                transition.BaseAuthorityRevision,
+                now.AddSeconds(1),
+                demoStartedAtUtc: null);
+            var nextRevision = committed.AuthorityRevision;
+            Assert.Equal(initial.AuthorityRevision + 1, nextRevision);
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                store.CompleteAuthorityTransitionAsync(transition.TransitionId, nextRevision));
+
+            var changed = await store.FenceLeasesBeforeAuthorityRevisionAsync(
+                transition.TransitionId,
+                nextRevision);
+            Assert.True(changed >= 1);
+
+            var afterFence = await ReadPersistedLeaseStateAsync(connectionString, lease.SessionId);
+            Assert.False(afterFence.IsActive);
+            Assert.Equal(beforeFence.Generation + 1, afterFence.Generation);
+            Assert.Equal(initial.AuthorityRevision, afterFence.AuthorityRevision);
+
+            var changedAgain = await store.FenceLeasesBeforeAuthorityRevisionAsync(
+                transition.TransitionId,
+                nextRevision);
+            Assert.Equal(0, changedAgain);
+
+            var afterSecondFence = await ReadPersistedLeaseStateAsync(connectionString, lease.SessionId);
+            Assert.False(afterSecondFence.IsActive);
+            Assert.Equal(afterFence.Generation, afterSecondFence.Generation);
+            Assert.Equal(afterFence.AuthorityRevision, afterSecondFence.AuthorityRevision);
+
+            await store.CompleteAuthorityTransitionAsync(transition.TransitionId, nextRevision);
+            Assert.False((await store.GetAuthorityStateAsync()).TransitionPending);
+        }
+        finally
+        {
+            var current = await store.GetAuthorityStateAsync();
+            if (transition is not null &&
+                current.TransitionPending &&
+                current.TransitionId == transition.TransitionId)
+            {
+                if (current.AuthorityRevision == transition.BaseAuthorityRevision)
+                {
+                    _ = await store.AbortAuthorityTransitionAsync(
+                        transition.TransitionId,
+                        transition.BaseAuthorityRevision);
+                }
+                else
+                {
+                    _ = await store.FenceLeasesBeforeAuthorityRevisionAsync(
+                        transition.TransitionId,
+                        current.AuthorityRevision);
+                    await store.CompleteAuthorityTransitionAsync(
+                        transition.TransitionId,
+                        current.AuthorityRevision);
+                }
+            }
+
+            await DeleteLeaseSubjectAsync(connectionString, subject);
+        }
+    }
+
+    private static async Task<(long Generation, bool IsActive, long AuthorityRevision)> ReadPersistedLeaseStateAsync(
+        string connectionString,
+        Guid sessionId)
+    {
+        await using var dataSource = NpgsqlDataSource.Create(connectionString);
+        await using var command = dataSource.CreateCommand("""
+            SELECT generation, is_active, authority_revision
+            FROM elitescada.runtime_session_leases
+            WHERE session_id = @session_id;
+            """);
+        command.Parameters.AddWithValue("session_id", sessionId);
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        return (reader.GetInt64(0), reader.GetBoolean(1), reader.GetInt64(2));
+    }
+
+    private static async Task DeleteLeaseSubjectAsync(string connectionString, string subject)
+    {
+        await using var dataSource = NpgsqlDataSource.Create(connectionString);
+        await using var command = dataSource.CreateCommand(
+            "DELETE FROM elitescada.runtime_session_leases WHERE subject_id = @subject_id;");
+        command.Parameters.AddWithValue("subject_id", subject);
+        await command.ExecuteNonQueryAsync();
+    }
+
+
 }

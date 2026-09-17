@@ -82,7 +82,7 @@ public sealed record RuntimeSessionSeatCapacity(int InteractiveSeats, int ViewOn
 public sealed record RuntimeSessionLeaseCapacityAdmission(
     RuntimeSessionLeaseAdmission Lease,
     RuntimeSessionSeatCapacity Capacity,
-    long ExpectedAuthorityRevision = 1);
+    long ExpectedAuthorityRevision);
 
 /// <summary>
 /// Stable, host-visible outcome codes for the atomic shared-seat reservation.  Authority

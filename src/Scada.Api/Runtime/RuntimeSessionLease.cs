@@ -130,29 +130,6 @@ public sealed class RuntimeSessionLeaseRegistry
         RuntimeConnectionClass connectionClass,
         ScadaRuntimeDescriptor runtime,
         RuntimeSessionSeatCapacity capacity,
-        string? serverNode = null,
-        string? clusterId = null,
-        CancellationToken cancellationToken = default)
-    {
-        var authority = await _store.GetAuthorityStateAsync(cancellationToken);
-        return await AdmitWithCapacityAsync(
-            userId,
-            clientInstanceId,
-            connectionClass,
-            runtime,
-            capacity,
-            authority.AuthorityRevision,
-            serverNode,
-            clusterId,
-            cancellationToken);
-    }
-
-    public async Task<RuntimeSessionSeatAdmission> AdmitWithCapacityAsync(
-        string userId,
-        string clientInstanceId,
-        RuntimeConnectionClass connectionClass,
-        ScadaRuntimeDescriptor runtime,
-        RuntimeSessionSeatCapacity capacity,
         long expectedAuthorityRevision,
         string? serverNode = null,
         string? clusterId = null,

@@ -1,10 +1,10 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-17 BRT  
-**Operational state:** **WAVE 15 ACTIVE / FND-03 ACTIVE / SHARED RUNTIME SEAT ACCOUNTING PR #331 APPROVED FOR INTEGRATION / EXACT-HEAD CI GREEN / FND-04 WAIT / FC0-A BLOCKED**
+**Operational state:** **WAVE 15 ACTIVE / FND-03 SHARED RUNTIME SEAT ACCOUNTING VERIFIED+FROZEN / LICENSE LIFECYCLE+RUNTIME FENCING ACTIVE / FND-04 WAIT / FC0-A BLOCKED**
 
 > GitHub live é a memória oficial. Revalidar refs, SHA/tree, PRs, issues e Actions antes de decisão material.
-
+>
 > Handoff operacional canônico: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.
 >
 > Prompt genérico de sucessão: `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`.
@@ -13,11 +13,21 @@
 
 ## Latest verified product checkpoint
 
-`wave15/corrections-integration@6f02b9e3c1327b34ff33bab22e90aaf24dfc4628`
+`wave15/corrections-integration@a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
 
-tree `53ffaf05ecd492d06ecf7852bd6e77b48431a1eb`.
+tree `eed22a377fea2778d3e78143d706e4de0ef9ce38`.
 
-Esse checkpoint contém PR #330 / Runtime Admission e foi validado pela CI pós-merge #1543. Commits posteriores até a autorização atual do #331 são somente documentação de coordenação; não são novo product checkpoint.
+Esse checkpoint é o merge do PR #331 — FND-03 Shared Runtime Seat Accounting.
+
+Post-merge EliteSCADA CI #1546 / run `35269829080` no exact merge SHA:
+
+- Backend `105366045111` — SUCCESS
+- Web `105366045298` — SUCCESS
+- Chromium `105366583742` — SUCCESS
+
+Portanto Shared Runtime Seat Accounting está **VERIFIED/FROZEN**.
+
+Commits posteriores somente documentais de coordenação não mudam automaticamente o product checkpoint.
 
 ## Foundation state
 
@@ -27,70 +37,63 @@ Esse checkpoint contém PR #330 / Runtime Admission e foi validado pela CI pós-
 - FND-03 durable Runtime Session Lease v1 — VERIFIED/FROZEN
 - FND-03 machine-license v2 + hardening — VERIFIED/FROZEN
 - FND-03 Runtime Admission — VERIFIED/FROZEN
-- FND-03 Shared Runtime Seat Accounting — **PR_READY / APPROVED FOR INTEGRATION**
+- FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing v1 — **ACTIVE**
 - FND-03 global — ACTIVE / NOT FROZEN
 - FND-04 Script TAG Reference Resolution — QUEUED / CONTRACT DEFINED / WAIT
 - FC0-A — BLOCKED
 
-## Approved candidate — PR #331
+## Current Codex mission
 
-- branch: `work/w15-fnd-03-shared-runtime-seat-accounting-v1`
-- exact head: `6789a989c85e7210c167945665f4ab6c8cef53a0`
-- tree: `bd6d79490d7fc0630737fb834fa6b8fc95b7b8d9`
-- target: `wave15/corrections-integration`
-- PR live at Main review: OPEN / mergeable=true / mergeable_state=clean / no review threads
+Canonical work package: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.
 
-Acceptance-close delta from previous reviewed head `09f81e97369089def481ceb25629779a5aba8aff`:
+Mission:
 
-- exactly one file: `tests/Scada.Drivers.Tests/DistributedRuntimeFoundationTests.cs`
-- +59 lines
-- zero production-file changes
-- explicit Web+EliteGO shared-pool acceptance PASS
-- high-concurrency mixed distinct-identity oversubscription acceptance PASS
+`FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing v1`
 
-Exact-head CI #1545 / run `35267768938`:
+Exact authorized product base:
 
-- Backend `105359117658` — SUCCESS
-- Web `105359118013` — SUCCESS
-- Chromium `105359631809` — SUCCESS
+`a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
 
-## Current Codex order
+tree `eed22a377fea2778d3e78143d706e4de0ef9ce38`.
 
-Canonical order: `ORDER CODEX-331-MERGE-04` in `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.
+Work branch:
 
-CODEX is authorized to merge **only PR #331** into `wave15/corrections-integration` through the normal PR route after exact-head revalidation. No rebase/retarget/candidate changes, no other PR and no `main` mutation.
+`work/w15-fnd-03-license-lifecycle-fencing-v1`
 
-After merge CODEX reports exact merge SHA, parents, tree and new integration HEAD, then STOP.
+Target:
 
-Main Coordinator owns exact post-merge CI validation and state promotion. CI green pre-merge does not itself promote the slice.
+`wave15/corrections-integration`
+
+The Main Coordinator already performed the architectural/source audit. Codex must implement the bounded package rather than repeat an open-ended audit.
+
+Binding objectives include:
+
+- candidate license verification without mutation using canonical verifier;
+- transactional valid install/replace; invalid candidate preserves current valid license;
+- deliberate remove -> Demo, not Invalid;
+- successful license-authority changes fence all existing remote Runtime logical leases;
+- active local Runtime is re-evaluated/fenced against new authority without a temporary entitlement loophole;
+- Demo timing starts from successful transition when applicable;
+- install/replace/remove require canonical EngineeringModify minimum;
+- audit evidence excludes raw license/signing material;
+- concurrency and stale-client regressions required;
+- no second licensing/session/quota/Authority authority.
+
+Product-base rule: product work is anchored to exact verified checkpoint `a7067ac9...`; moving documentation HEADs are not product bases. Any intervening product/infra delta requires `BLOCKED-BASE-DIVERGENCE` before implementation.
+
+## FND-04
+
+FND-04 DEV and AUD remain `WAIT`. They begin only when Main changes their `CURRENT ORDER` to ACTIVE with exact product base/candidate and acceptance package.
 
 ## Main permanent CI authority
 
-Product Owner permanently authorized Main to inspect/trigger/rerun pre-merge and post-merge CI under strict guards: exact SHA/ref, diagnosis before rerun, smallest sufficient rerun, no blind loop, no artificial commits, no weakening code/tests/workflows.
+Product Owner permanently authorized Main to inspect/trigger/rerun pre-merge and post-merge CI under exact-SHA and diagnosis guards. CI authority remains separate from merge authority. `main` remains protected.
 
-CI authority and merge authority remain separate. `main` remains protected.
+## FND-03 remaining
 
-## FND-03 remaining after Shared Seat Accounting
+After lifecycle/fencing is integrated and verified, Main re-evaluates #301 for global close or one final bounded closeout. Expected review areas: final observability/rejection reasons/counters, heartbeat/reuse residuals, #304 contract sufficiency, and remaining negative/concurrency proof.
 
-Mesmo após integração/verificação do #331, FND-03 global não congela automaticamente. Ainda são esperados bounded slices para:
+FND-03 global becomes VERIFIED/FROZEN only when every binding #301 criterion is proven on one exact integration checkpoint.
 
-- license inspect/verify/install/replace/remove lifecycle;
-- entitlement reevaluation/fencing com Runtime ativo;
-- integração com Installation switching #304;
-- observability/rejection reasons finais restantes;
-- regressões negativas/concurrency restantes de #301.
-
-Product Owner binding: produto não lançado; sem base instalada exigindo compatibilidade comercial de quotas ESLIC1. ESLIC2 é o contrato comercial de session entitlement; ESLIC1 não recebe quota remota inferida/ilimitada.
-
-## Resume sequence
-
-1. Ler o handoff canônico integralmente.
-2. Revalidar PR #331 e integration HEAD live.
-3. Se o merge handoff existir, capturar exact integrated SHA/parents/tree.
-4. Validar CI pós-merge no exact integrated SHA; Main pode operar essa CI diretamente.
-5. Só depois promover Shared Seat Accounting para VERIFIED/FROZEN.
-6. Reavaliar o restante de FND-03 antes de liberar novo slice.
-7. FND-04 permanece WAIT até ordem ACTIVE com exact product base.
-8. FC0-A permanece bloqueado.
-
-Permanent guards: no direct feature write to integration, no direct `main` mutation without protected authorization, no destructive history operation, diagnose CI before rerun, no claim of PASS/VERIFIED/FROZEN without exact evidence.
+Permanent guards: no direct feature write to integration; no direct `main` mutation without protected authorization; no destructive history operation; diagnose CI before rerun; no PASS/VERIFIED/FROZEN without exact evidence; no license/session/secrets in `.escadapkg`.

@@ -2,68 +2,76 @@
 
 > **PONTE CURTA da coordenação corrente.**
 >
-> Handoff operacional vivo/canônico:
+> Handoff operacional vivo/canônico: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.
 >
-> `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`
->
-> GitHub live é autoridade final. Este arquivo não substitui o handoff canônico.
+> GitHub live é a autoridade final. Esta ponte não substitui a ordem canônica.
 
 ## Estado rápido
 
 - Wave 15 — ACTIVE.
 - FND-01 — VERIFIED/FROZEN.
-- FND-02 — VERIFIED/FROZEN.
+- FND-02 incl. AUTH-04 — VERIFIED/FROZEN.
 - FND-08 — VERIFIED/FROZEN.
-- FND-03 — ACTIVE / NOT FROZEN.
-- Runtime Session Lease v1 — VERIFIED/FROZEN.
-- machine-license v2 + hardening — VERIFIED/FROZEN.
-- Runtime Admission — VERIFIED/FROZEN.
-- Shared Runtime Seat Accounting — **PR_READY / CORRECTION TEST-ONLY REQUIRED**.
-- FND-04 — QUEUED / CONTRACT DEFINED / NOT ACTIVE.
+- FND-03 durable Runtime Session Lease v1 — VERIFIED/FROZEN.
+- FND-03 machine-license v2 + hardening — VERIFIED/FROZEN.
+- FND-03 Runtime Admission — VERIFIED/FROZEN.
+- FND-03 Shared Runtime Seat Accounting — **PR_READY / APPROVED FOR INTEGRATION**.
+- FND-03 global — ACTIVE / NOT FROZEN.
+- FND-04 — QUEUED / CONTRACT DEFINED / WAIT.
 - FC0-A — BLOCKED.
 
 ## Product checkpoint
+
+Último product checkpoint integrado/validado:
 
 `6f02b9e3c1327b34ff33bab22e90aaf24dfc4628`
 
 tree `53ffaf05ecd492d06ecf7852bd6e77b48431a1eb`.
 
-Coordination-only commits advanced the integration branch after this product checkpoint. Do not confuse coordination HEAD with product base.
+A integração avançou depois disso apenas por documentação de coordenação. O product checkpoint não muda até o PR #331 ser integrado e validado.
 
-## Current candidate
+## PR #331 aprovado
 
-PR #331 — `FND-03: enforce shared runtime seat accounting`
+- branch: `work/w15-fnd-03-shared-runtime-seat-accounting-v1`
+- exact approved head: `6789a989c85e7210c167945665f4ab6c8cef53a0`
+- tree: `bd6d79490d7fc0630737fb834fa6b8fc95b7b8d9`
+- target: `wave15/corrections-integration`
+- live review: OPEN / mergeable=true / mergeable_state=clean / no review threads
+- acceptance-close desde `09f81e97...`: somente `tests/Scada.Drivers.Tests/DistributedRuntimeFoundationTests.cs`, +59, zero produção
+- CI #1545 / run `35267768938`:
+  - Backend `105359117658` SUCCESS
+  - Web `105359118013` SUCCESS
+  - Chromium `105359631809` SUCCESS
 
-Reviewed head:
+O antigo PENDING Web+EliteGO + high concurrency está PASS.
 
-`09f81e97369089def481ceb25629779a5aba8aff`
+## Ordem corrente ao Codex
 
-tree:
+Ler a `CURRENT ORDER` no handoff canônico.
 
-`8a81cb965f754fb4299800333f8a5a5c28d1044e`
+Estado atual: `ORDER CODEX-331-MERGE-04`.
 
-Exact-head CI #1544 / run `35255337014` is green on the reviewed head after the one controlled rerun.
+CODEX deve revalidar o exact head e fazer merge **somente do PR #331** pela rota normal em `wave15/corrections-integration`, sem rebase/retarget/alteração de candidate e sem tocar `main`.
 
-## Current order
+Depois deve retornar merge SHA, parents, tree e novo integration HEAD, e STOP.
 
-Codex must read the canonical handoff live and execute `ORDER CODEX-331-TEST-CLOSE-03`.
+Main Coordinator fará a validação de CI pós-merge e somente então promoverá o slice.
 
-Reason: the final handoff explicitly left one binding acceptance item `PENDING`: explicit mixed Web/EliteGO client identities plus high-concurrency distinct-identity capacity coverage.
+## Autoridade permanente do Main para CI
 
-Required correction is **tests only**. No production code change is authorized unless the new required tests expose a real defect; if that occurs, Codex must STOP before product correction.
+Main pode operar CI pré-merge/pós-merge sem nova autorização a cada execução, sob as guardas do handoff canônico: exact SHA/ref, diagnóstico antes de rerun, menor rerun suficiente, sem loop cego, sem workflow/test/code weakening e sem commit artificial.
 
-After tests-only change, new exact-head CI must validate the new candidate and Codex returns the required `ACCEPTANCE-CLOSE HANDOFF`.
+CI verde não equivale a autorização de merge.
 
-## Main CI authority
+## Retomada obrigatória
 
-Main Coordinator has permanent authority to operate pre-merge/post-merge CI under the canonical guardrails. CI authority is separate from merge authority.
+1. Ler `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` integralmente.
+2. Revalidar PR #331, integration HEAD e Actions live.
+3. Se o merge handoff já existir, Main captura o exact integrated SHA e valida CI pós-merge.
+4. Shared Seat Accounting só vira VERIFIED/FROZEN após evidência pós-merge.
+5. FND-04 permanece WAIT até ordem ACTIVE com exact product base.
+6. FC0-A permanece bloqueado.
 
-## Resume
+Fontes: handoff canônico, #301, #305, #297, PR #331.
 
-1. Read `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` fully.
-2. Revalidate PR #331 exact head/tree and Actions.
-3. If the acceptance-close handoff is present, independently review tests-only diff and exact-head CI.
-4. Do not integrate while required acceptance remains PENDING.
-5. FND-04 remains WAIT until Main explicitly activates it.
-
-Ao Product Owner: `Hora: HH:MM` em `America/Sao_Paulo`.
+`Hora: HH:MM` em America/Sao_Paulo.

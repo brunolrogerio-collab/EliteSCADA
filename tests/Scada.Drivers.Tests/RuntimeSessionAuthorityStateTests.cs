@@ -65,7 +65,7 @@ public sealed class RuntimeSessionAuthorityStateTests
     [Fact]
     public async Task PostgreSqlMigration_InitializesAuthoritySingletonAndLeaseRevision()
     {
-        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??\n            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
         await using var store = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
@@ -105,7 +105,7 @@ public sealed class RuntimeSessionAuthorityStateTests
     [Fact]
     public async Task PostgreSqlAuthorityTransition_FailedCommitRollsBackAndAbortPreservesBaseRevision()
     {
-        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??\n            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
         await using var store = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
@@ -146,7 +146,7 @@ public sealed class RuntimeSessionAuthorityStateTests
     [Fact]
     public async Task PostgreSqlBulkFence_IncrementsGenerationOnce_IsIdempotent_AndGuardsCompletion()
     {
-        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??\n            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
         var subject = $"phase-a-fence-generation-{Guid.NewGuid():N}";

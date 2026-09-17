@@ -60,7 +60,7 @@ public sealed class RuntimeSessionAuthorityEnforcementTests
     [Fact]
     public async Task PostgreSqlTwoStores_TransitionWinsAgainstStaleExpectedRevision()
     {
-        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??\n            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
         await using var first = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
@@ -112,7 +112,7 @@ public sealed class RuntimeSessionAuthorityEnforcementTests
     [Fact]
     public async Task PostgreSqlTwoStores_RacingAdmissionAndTransition_NeverLeavesUsableStaleLease()
     {
-        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??\n            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
         await using var first = new PostgreSqlRuntimeSessionLeaseStore(connectionString);

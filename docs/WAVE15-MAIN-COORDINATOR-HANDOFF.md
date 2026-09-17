@@ -119,7 +119,7 @@ O integration HEAD pode estar à frente por commits de coordenação; isso não 
 - FND-03 machine-license v2 + hardening — **VERIFIED/FROZEN**
 - FND-03 Runtime Admission — **VERIFIED/FROZEN**
 - FND-03 Shared Runtime Seat Accounting — **VERIFIED/FROZEN**
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A PR_READY-PENDING-CI / NOT INTEGRATED**
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A CI-EVIDENCE CORRECTION ACTIVE / NOT INTEGRATED**
 - FND-03 global — **ACTIVE / NOT FROZEN**
 - FND-04 Script TAG Reference Resolution — **QUEUED / CONTRACT DEFINED / NOT ACTIVE / NOT FROZEN**
 - FC0-A — **BLOCKED**
@@ -147,68 +147,111 @@ Do not start FND-04 or release FC0-A.
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**DEV_MODE: OPEN_PHASE_A_PR_ONLY**  
-**Mission:** FND-03 Lifecycle/Fencing — expose reviewed Phase A candidate to CI
+**DEV_MODE: IMPLEMENT_PHASE_A_CI_EVIDENCE_CORRECTION**  
+**Mission:** FND-03 Lifecycle/Fencing — make PostgreSQL Phase A proof actually execute in canonical CI
 
-### Main review result
+### Live diagnosis
 
-Main independently re-reviewed Phase A correction handoff #301 comment `5722547057`.
+PR #332 is OPEN / non-draft / mergeable with reviewed candidate:
 
-Approved exact Phase A candidate for PR/CI:
-
-- product base: `a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
 - branch: `work/w15-fnd-03-license-lifecycle-fencing-v1`
-- head: `509d794e92fd5e6333663020738d2713c73a7e9f`
+- current reviewed head before this correction: `509d794e92fd5e6333663020738d2713c73a7e9f`
 - tree: `ebb607695815197d419d28dd463c47bd0e702284`
 - target: `wave15/corrections-integration`
+- no review threads
 
-CA1 is closed:
-- no registry capacity overload derives a later authority revision after receiving capacity;
-- `RuntimeSessionLeaseCapacityAdmission.ExpectedAuthorityRevision` has no default;
-- the remaining registry capacity API requires explicit revision;
-- production Distributed Runtime admission binds the pre-capacity-read authority snapshot to reservation.
+Natural CI:
+- EliteSCADA CI #1547
+- run `35286946681`
+- Web job `105421270426` — SUCCESS
+- Backend job `105421270595` — SUCCESS
+- Chromium job `105421602673` — was still running when this order was issued
 
-CA2 is closed at source/test-definition level:
-- in-memory second fence proves no repeated state mutation by returning 0;
-- PostgreSQL test records persisted generation, proves completion rejects before fence, fence deactivates and increments generation exactly once, second fence is 0 and generation remains unchanged, then completion succeeds.
+However **Backend SUCCESS is not sufficient Phase A PostgreSQL proof**.
 
-Execution remains PENDING until CI. No Phase B/C scope entered.
+Main inspected the actual backend job log and repository contracts:
 
-### Exact order — open PR only
+- canonical CI injects `ELITESCADA_TEST_POSTGRES`;
+- the Phase A PostgreSQL tests currently read `ELITESCADA_C25_POSTGRES`;
+- the backend job log contains no `ELITESCADA_C25_POSTGRES` environment assignment;
+- these tests use `if (string.IsNullOrWhiteSpace(connectionString)) return;`;
+- therefore xUnit reports them as Passed even when their PostgreSQL body never runs;
+- their ~1–2 ms durations are consistent with that early-return path.
 
-1. Revalidate branch HEAD is still exactly `509d794e92fd5e6333663020738d2713c73a7e9f`.
-2. Revalidate integration delta from product base remains coordination/documentation only. Any product/infra divergence => `BLOCKED-BASE-DIVERGENCE`.
-3. Open exactly one PR:
-   - head: `work/w15-fnd-03-license-lifecycle-fencing-v1`
-   - base: `wave15/corrections-integration`
-   - title: `FND-03: add license authority epoch foundation`
-4. PR body must state:
-   - Phase A only;
-   - exact head/tree;
-   - architecture evidence #301 `5722165708`;
-   - Phase A handoff #301 `5722303131`;
-   - correction handoff #301 `5722547057`;
-   - tests are PENDING until CI;
-   - no Phase B/C, FND-04, FC0-A or main action.
-5. Do **not** change code/tests/commits, rebase, retarget or merge.
-6. Do **not** manually rerun CI. Natural PR CI belongs to Main for diagnosis/decision.
+Observed examples in job `105421270595`:
+- `RuntimeSessionAuthorityStateTests.PostgreSqlMigration_InitializesAuthoritySingletonAndLeaseRevision`
+- `RuntimeSessionAuthorityStateTests.PostgreSqlAuthorityTransition_FailedCommitRollsBackAndAbortPreservesBaseRevision`
+- `RuntimeSessionAuthorityStateTests.PostgreSqlBulkFence_IncrementsGenerationOnce_IsIdempotent_AndGuardsCompletion`
+- `RuntimeSessionAuthorityEnforcementTests.PostgreSqlTwoStores_RacingAdmissionAndTransition_NeverLeavesUsableStaleLease`
+- `RuntimeSessionAuthorityEnforcementTests.PostgreSqlTwoStores_TransitionWinsAgainstStaleExpectedRevision`
+- existing `PostgreSqlRuntimeSessionLeaseStoreTests`
+
+These remain **PENDING**, not PASS.
+
+Do not rerun #1547 unchanged; the same SHA/environment cannot close this evidence gap.
+
+### Exact correction — TESTS ONLY
+
+No production change is authorized.
+
+Update only the FND-03 PostgreSQL tests on the existing work branch so canonical CI actually supplies their connection string.
+
+Required files:
+
+- `tests/Scada.Drivers.Tests/RuntimeSessionAuthorityStateTests.cs`
+- `tests/Scada.Drivers.Tests/RuntimeSessionAuthorityEnforcementTests.cs`
+- `tests/Scada.Drivers.Tests/PostgreSqlRuntimeSessionLeaseStoreTests.cs`
+
+For each PostgreSQL test connection lookup, use:
+
+`ELITESCADA_TEST_POSTGRES` as the **canonical first choice**.
+
+A fallback to legacy `ELITESCADA_C25_POSTGRES` is allowed only to preserve old local/manual C25 execution, for example conceptually:
+
+`ELITESCADA_TEST_POSTGRES ?? ELITESCADA_C25_POSTGRES`
+
+Do not modify unrelated legacy C25 tests outside this FND-03 scope.
+
+### Binding guards
+
+- **zero production-file changes** versus `509d794e92fd5e6333663020738d2713c73a7e9f`;
+- no workflow YAML change;
+- no weakening/skipping/removing assertions;
+- no new test-only product API;
+- preserve RuntimeSessionPostgreSql collection serialization;
+- no Phase B/C;
+- no FND-04 / FC0-A;
+- no rebase/retarget;
+- no merge;
+- no `main`.
+
+### Validation / PR behavior
+
+1. Push bounded test-only correction commit(s) to the existing branch.
+2. PR #332 remains the same PR.
+3. Let the new head trigger **natural PR CI**.
+4. Do not manually rerun #1547.
+5. Do not claim PostgreSQL PASS merely from xUnit test name; Main will verify new backend logs show the canonical env and non-skipped execution on the new exact head.
 
 ### Return
 
-Publish one new top-level #301 comment beginning:
+Publish exactly one new top-level #301 comment beginning:
 
-`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A PR HANDOFF`
+`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A CI-EVIDENCE CORRECTION HANDOFF`
 
 Include:
-- PR number/url;
-- confirmed exact head/tree;
-- base/target;
-- initial CI run ID if GitHub exposes one;
-- confirmation no candidate mutation occurred.
+- old head `509d794e...` -> new head/tree;
+- exact changed files;
+- confirmation zero production changes;
+- exact env resolution used;
+- PR #332 still targets integration;
+- new natural CI run ID if available;
+- tests remain PENDING until Main validates execution;
+- confirmation no Phase B/C entered.
 
-Verify the comment live, report its numeric ID, then **STOP**.
+Verify the comment live, report numeric ID, then **STOP**.
 
-Main owns PR review, CI diagnosis/rerun if needed, and Phase A promotion/next-phase decision.
+Main owns new-head review, CI evidence review, integration decision and next phase.
 
 
 ---

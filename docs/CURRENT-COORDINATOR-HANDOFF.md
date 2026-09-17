@@ -16,7 +16,7 @@
 - FND-03 machine-license v2 + hardening — VERIFIED/FROZEN.
 - FND-03 Runtime Admission — VERIFIED/FROZEN.
 - FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN.
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A CORRECTION ACTIVE / NOT INTEGRATED**.
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A PR_READY-PENDING-CI / NOT INTEGRATED**.
 - FND-03 global — ACTIVE / NOT FROZEN.
 - FND-04 — QUEUED / CONTRACT DEFINED / WAIT.
 - FC0-A — BLOCKED.
@@ -42,7 +42,7 @@ Codex is reserve. No implementation/commit/PR/CI is authorized until Main explic
 ### FND-03 DEV
 
 `ORDER_STATE: ACTIVE`  
-`DEV_MODE: IMPLEMENT_PHASE_A_CORRECTION`
+`DEV_MODE: OPEN_PHASE_A_PR_ONLY`
 
 Architecture amendment #301 comment `5722165708` was independently reviewed by Main and is frozen for implementation.
 
@@ -62,17 +62,15 @@ Phase A only:
 
 Do not yet implement local Runtime re-evaluation, Demo recovery, lifecycle orchestrator, licensing mutation API/audit cutover, FND-04 or FC0-A.
 
-Candidate Phase A head `d1ae56e787989f5fc2e9867c22f3e7d9f31aefb7` was independently reviewed by Main.
+Corrected Phase A head `509d794e92fd5e6333663020738d2713c73a7e9f` / tree `ebb607695815197d419d28dd463c47bd0e702284` was independently re-reviewed by Main. CA1/CA2 are closed at source/test-definition level.
 
-Two corrections are active before PR/CI:
-- remove the unsafe capacity overload/default that can bind stale computed capacity to a later authority revision;
-- add deterministic fence/Generation proof, including PostgreSQL exactly-once generation mutation and complete-before-fence rejection.
+DEV is authorized only to open the Phase A PR from the exact candidate to `wave15/corrections-integration`, without changing candidate/rebase/retarget/merge.
 
 Required return in #301:
 
-`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A CORRECTION HANDOFF`
+`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A PR HANDOFF`
 
-No PR or Actions yet. Main re-reviews the corrected exact head before CI/Phase B.
+Natural PR CI is owned by Main. Execution evidence remains PENDING until CI.
 
 ## FND-04
 

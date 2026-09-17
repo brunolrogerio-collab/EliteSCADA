@@ -15,6 +15,122 @@
 
 ---
 
+## 0. PROTOCOLO OBRIGATÓRIO DE SUCESSÃO DO MAIN COORDINATOR
+
+Esta seção é **binding para qualquer novo chat, modelo ou pessoa que assuma a coordenação principal da Wave 15**.
+
+### 0.1 Antes de coordenar qualquer ação
+
+O novo Main Coordinator deve, nesta ordem:
+
+1. ler **integralmente e no GitHub live** este arquivo `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`;
+2. entender e aceitar que este documento é a memória operacional persistente e o canal primário de ordens da Wave 15;
+3. ler/revalidar, conforme relevantes ao estado corrente, `PROJECT GOAL.md`, `LAST CHANGE.md`, `README.md`, `docs/README.md`, `docs/CURRENT-COORDINATOR-HANDOFF.md`, `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`, `docs/ROADMAP.md`, ADRs aplicáveis e handoffs ativos;
+4. revalidar live `wave15/corrections-integration`, HEAD/tree, PRs abertos, branches de trabalho, issues de coordenação, Actions e blockers/dependencies;
+5. ler pelo menos os ledgers #297, #301 e #305 e a conversa/evidência do PR candidate ativo;
+6. reconstruir explicitamente: Foundation state, missão ativa, agent/lane owner, exact product base, exact candidate head/tree, CI exata, blockers e próximo gate;
+7. comparar essa reconstrução com este arquivo.
+
+**Se GitHub live divergir deste documento, GitHub live prevalece.** O novo Main Coordinator deve corrigir este arquivo imediatamente para remover estado/ordem stale **antes de emitir uma nova ordem operacional**.
+
+Nenhum novo coordenador deve continuar simplesmente a partir de memória do chat anterior, resumo informal, comentário isolado ou suposição.
+
+### 0.2 Separar sempre produto de coordenação documental
+
+Há duas identidades diferentes que nunca devem ser confundidas:
+
+- **PRODUCT CHECKPOINT SHA/TREE** — último checkpoint de código/infra de produto integrado e validado;
+- **COORDINATION HEAD SHA** — HEAD live da branch de integração, que pode avançar apenas por commits documentais deste handoff.
+
+Um commit somente de coordenação/documentação pode avançar `wave15/corrections-integration` **sem alterar o product checkpoint**.
+
+Ao autorizar uma nova implementação, o Main deve declarar o exact product base. Se o HEAD da integração estiver à frente somente por documentação, registrar explicitamente essa diferença. Se existir qualquer delta de produto/infra adicional, reavaliar a base antes de autorizar trabalho.
+
+### 0.3 Autoridade permanente de comunicação do Main
+
+Product Owner autorizou o Main Coordinator a:
+
+- atualizar este handoff canônico para publicar/alterar ordens de coordenação;
+- enviar ou espelhar ordens aos CODEX, DEVs e AUDs nos ledgers/PRs relevantes quando isso melhorar rastreabilidade;
+- confirmar ao Product Owner apenas que a respectiva ordem foi efetivamente dada.
+
+Essa autorização permanente é **somente de coordenação/comunicação**. Ela **não** autoriza automaticamente:
+
+- alterar código de produto;
+- mover branches de produto;
+- fazer merge;
+- rerodar Actions;
+- alterar workflow CI;
+- escrever em `main`;
+- mudar contrato Foundation por implementação;
+- executar qualquer mutação operacional fora do work package autorizado.
+
+Essas ações continuam exigindo autoridade explícita correspondente ou ordem já binding neste arquivo.
+
+### 0.4 Uma ordem só existe depois de persistida e confirmada
+
+O Main **não deve dizer ao Product Owner que “deu a ordem” enquanto a instrução existir apenas na conversa do chat**.
+
+Para uma ordem ser considerada entregue:
+
+1. o Main atualiza a seção `CURRENT ORDER` da lane correta neste arquivo;
+2. a escrita no GitHub precisa retornar sucesso;
+3. o Main faz readback live e confirma que a nova ordem está realmente visível;
+4. comentários em issue/PR, se usados, são apenas espelhos/evidência;
+5. somente então o Main informa ao Product Owner que a ordem foi dada.
+
+Se uma escrita falhar ou for bloqueada, reportar a falha; nunca afirmar que a ordem foi publicada.
+
+### 0.5 `SIGA` — semântica operacional
+
+Para CODEX / DEV / AUD:
+
+- `SIGA` significa **reler este arquivo live agora**;
+- localizar somente a sua seção `CURRENT ORDER`;
+- executar somente a ordem mais recente daquela lane;
+- `ORDER_STATE: WAIT` = nenhuma mutação, revalidar e aguardar;
+- `STOP` = retornar evidência solicitada e parar;
+- nunca inferir uma nova missão a partir de comentários antigos ou memória.
+
+Para o Main Coordinator:
+
+- `SIGA` do Product Owner significa continuar autonomamente o fluxo seguro já autorizado;
+- revalidar GitHub live antes de cada decisão material;
+- atualizar este arquivo quando a ordem ativa mudar;
+- parar apenas por blocker real, decisão de Produto necessária, risco material, autorização protegida ausente ou ausência de trabalho seguro.
+
+### 0.6 Responsabilidade de auditoria e economia de execução
+
+A **auditoria arquitetural/contratual e a definição do work package são responsabilidade do Main Coordinator**.
+
+Regra permanente:
+
+- Main audita estado, contrato, diff, risco, testes e integração;
+- CODEX é usado prioritariamente para implementação bounded, correções bounded e evidência técnica exigida;
+- DEV implementa somente sua lane autorizada;
+- AUD faz revisão/testes independentes do candidate indicado pelo Main;
+- a lane `FND-04 AUD` **não substitui a auditoria arquitetural do Main**;
+- não delegar ao Codex uma auditoria aberta que o Main pode fazer diretamente, salvo subinvestigação técnica estreita explicitamente autorizada.
+
+Quando houver limite de uso do Codex, o Main deve reduzir redescoberta: entregar base, branch, target, invariantes, escopo, acceptance e testes já fechados, preservando a cota do Codex para código/validação.
+
+### 0.7 Disciplina contra stale state e confirmação falsa
+
+Erros que este protocolo existe para impedir:
+
+- usar issue comments como canal primário enquanto o handoff canônico permanece stale;
+- afirmar que uma ordem foi enviada sem confirmar a escrita real no GitHub;
+- confundir HEAD documental com product checkpoint;
+- mandar Codex auditar arquitetura quando a auditoria pertence ao Main;
+- deixar `CURRENT ORDER` apontando para missão já integrada;
+- repetir rerun de CI sem diagnóstico;
+- tratar PR_READY ou CI verde como `VERIFIED/FROZEN`;
+- liberar FND/downstream por memória sem checkpoint exato.
+
+Todo sucessor deve aplicar estas guardas como aprendizado operacional acumulado da Wave 15.
+
+---
+
 ## 1. ESTADO LIVE DA FOUNDATION
 
 State machine:
@@ -27,6 +143,8 @@ State machine:
 - tree do checkpoint: `53ffaf05ecd492d06ecf7852bd6e77b48431a1eb`
 - esse checkpoint contém o merge do PR #330 / Runtime Admission;
 - CI pós-merge #1543 validou o checkpoint com Backend, Web e Chromium verdes.
+
+**Nota:** commits posteriores que alterem apenas este handoff são coordination-only e não mudam automaticamente o product checkpoint acima.
 
 ### Foundation
 
@@ -213,6 +331,8 @@ Product Owner decision already binding: the product has not been released; no in
 - No session state, license private material, credentials or topology state in `.escadapkg`.
 - Stable IDs outrank mutable names/paths.
 - No downstream silent redesign of frozen contracts.
+- Architectural/contract audit remains a Main Coordinator responsibility unless narrowly delegated.
+- A lane agent never chooses its own next mission.
 
 ---
 
@@ -239,6 +359,10 @@ Agents do not choose the next mission. They execute the active order, return evi
 
 Main Coordinator alone promotes mission state, authorizes integration/freeze and writes the next order.
 
+### Product Owner confirmation discipline
+
+Depois de alterar uma ordem, o Main confirma ao Product Owner **somente após readback live bem-sucedido**. A confirmação deve identificar pelo menos a lane afetada e declarar que a ordem está no handoff canônico.
+
 ---
 
 ## 9. MAIN COORDINATOR REVIEW SEQUENCE
@@ -254,7 +378,58 @@ After an agent handoff:
 7. capture exact merge SHA/parents/tree;
 8. validate post-merge CI on the exact integrated SHA;
 9. only then promote state/freeze that bounded slice;
-10. update this file with the next binding order before asking an agent to continue.
+10. update this file with the next binding order before asking an agent to continue;
+11. read back the updated file and only then report to Product Owner that the next order was issued.
+
+---
+
+## 10. MEMÓRIA OPERACIONAL PERSISTENTE — LIÇÕES DE COORDENAÇÃO
+
+Esta seção registra falhas de processo já observadas para impedir repetição por este ou por futuros coordenadores.
+
+### 10.1 Canal de ordem
+
+Falha observada: ordens foram descritas no chat e espelhadas em issue comments enquanto o arquivo canônico continuava stale. Resultado: o agente executando `SIGA` corretamente não viu a nova decisão.
+
+Regra permanente: **atualizar primeiro este arquivo; espelhar depois, se necessário**.
+
+### 10.2 Confirmação de ordem
+
+Falha observada: foi afirmado ao Product Owner que uma ordem seria/encontrava-se publicada antes da confirmação efetiva da escrita.
+
+Regra permanente: **write success + live readback antes de afirmar “ordem dada”**.
+
+### 10.3 Responsabilidade da auditoria
+
+Falha observada: uma auditoria de arquitetura/contrato foi inicialmente atribuída ao Codex, embora o Product Owner espere que o Main Coordinator execute essa auditoria e entregue ao Codex um work package pronto.
+
+Regra permanente: Main audita e especifica; implementadores implementam; AUD verifica candidate, salvo delegação estreita explícita.
+
+### 10.4 Stale handoff
+
+Falha observada: o handoff ainda apontava Runtime Admission como missão ativa depois de o slice já estar integrado/verificado.
+
+Regra permanente: todo merge/checkpoint/decisão que altere a missão ativa exige atualização deste arquivo antes do próximo `SIGA`.
+
+### 10.5 Product checkpoint versus documentation HEAD
+
+Falha potencial observada: commits de coordenação no próprio handoff avançam a branch de integração e podem ser confundidos com novo product base.
+
+Regra permanente: declarar e acompanhar separadamente PRODUCT CHECKPOINT SHA/TREE e coordination/documentation HEAD.
+
+### 10.6 CI
+
+Falha que deve ser evitada: rerun como resposta automática a qualquer vermelho.
+
+Regra permanente: diagnosticar primeiro; rerun somente quando responde a uma hipótese concreta e com candidate SHA preservado. Nenhum segundo rerun cego.
+
+### 10.7 Estado de missão
+
+Regra permanente: `PR_READY != INTEGRATED != VERIFIED != FROZEN`. CI verde pré-merge não substitui validação pós-merge quando o gate exige exact integrated SHA.
+
+### 10.8 Escassez de Codex
+
+Product Owner pode operar sob limite de uso semanal. O Main deve preparar trabalho bounded e usar chats DEV/AUD normais quando seguro, sem baixar o rigor Foundation. Não desperdiçar Codex com redescoberta que o Main já pode resolver.
 
 ---
 

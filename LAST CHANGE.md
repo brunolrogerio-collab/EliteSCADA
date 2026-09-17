@@ -1,86 +1,126 @@
 # LAST CHANGE — EliteSCADA
 
-**Date:** 2026-09-16 BRT  
-**Operational state:** **WAVE 15 ACTIVE / FND-02 VERIFIED+FROZEN / FND-03 ACTIVE / SLICE 1 INTEGRATED+VERIFIED / MACHINE-LICENSE V2 SLICE AUTHORIZED+STARTED IN CODEX SESSION / NO PUBLISHED HANDOFF YET / FC0-A BLOCKED**
+**Date:** 2026-09-17 BRT  
+**Operational state:** **WAVE 15 ACTIVE / FND-03 ACTIVE / RUNTIME ADMISSION VERIFIED+FROZEN / SHARED RUNTIME SEAT ACCOUNTING PR_READY WITH EXACT-HEAD CI GREEN / FND-04 QUEUED / FC0-A BLOCKED**
 
-> **GitHub live is the official project memory.** Revalidate refs, exact SHA/tree, branches, PRs, issues and Actions before every material decision. Chat-local work that has not been committed/pushed is not repository evidence.
+> **GitHub live is the official project memory.** Revalidate refs, exact SHA/tree, branches, PRs, issues and Actions before every material decision.
 
-> **Handoff rule:** `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` is the live canonical operational handoff for Main Coordinator <-> Codex/Foundation Work during Wave 15. `docs/CURRENT-COORDINATOR-HANDOFF.md` is the short combinator/pointer to that handoff and the active ledgers.
+> **Canonical operational handoff:** `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.
+>
+> **Generic successor/bootstrap prompt:** `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`.
+>
+> `docs/CURRENT-COORDINATOR-HANDOFF.md` is only the short bridge.
 
-## Latest verified product-code checkpoint
+## Latest verified product checkpoint
 
-- Repository: `brunolrogerio-collab/EliteSCADA`
-- Integration branch: `wave15/corrections-integration`
-- Latest verified product-code checkpoint: `456c66f4966ab5302831f642a39690ae3a3402a5`
-- Tree at that checkpoint: `f42d442933ded9bcf4290ae437193f2d1bb3d492`
-- Merge content: **FND-03 Slice 1 — durable Runtime Session Leases**
-- Exact post-merge CI: Actions run `35110143733` / run #1531 — backend build/test/smoke PASS, Web build PASS, Chromium end-to-end PASS.
+Repository: `brunolrogerio-collab/EliteSCADA`  
+Integration branch: `wave15/corrections-integration`
 
-The live integration branch may be ahead of `456c66f...` because of coordination/documentation-only merges. Do not treat a later docs-only SHA as a newer product-code validation checkpoint, and do not assume `456c66f...` is still the live branch HEAD without revalidation.
+Latest verified product-code checkpoint:
+
+`6f02b9e3c1327b34ff33bab22e90aaf24dfc4628`
+
+Tree:
+
+`53ffaf05ecd492d06ecf7852bd6e77b48431a1eb`
+
+This checkpoint contains PR #330 / FND-03 Runtime Admission. Exact post-merge CI #1543 validated Backend, Web and Chromium.
+
+The live integration HEAD may be ahead because coordinator documentation was updated. Do not confuse docs-only `COORDINATION HEAD` with `PRODUCT CHECKPOINT`.
 
 ## Foundation state
 
-- FND-01 Working/lifecycle/bootstrap — **VERIFIED/FROZEN**.
-- FND-02 Security Authority, including AUTH-04 — **VERIFIED/FROZEN** at the predecessor checkpoint and consumed by FND-03.
-- FND-08 common timing — **VERIFIED/FROZEN**.
-- FND-03 Runtime Session Lease / Licensing v2 — **ACTIVE / NOT FROZEN**.
-- FND-03 Slice 1 durable Runtime Session Lease persistence/identity — **INTEGRATED / VERIFIED** at `456c66f...`.
-- FND-04 remains a required FC0-A foundation and now has the binding Script TAG reference-resolution exit criterion recorded in #305 comment `5701881550`.
-- FND-05/FND-07 remain later FC0-B foundations.
-- Parallel feature DEVs remain blocked until FC0-A is explicitly recorded.
+- FND-01 — **VERIFIED/FROZEN**
+- FND-02 incl. AUTH-04 — **VERIFIED/FROZEN**
+- FND-08 — **VERIFIED/FROZEN**
+- FND-03 durable Runtime Session Lease v1 — **VERIFIED/FROZEN**
+- FND-03 machine-license v2 + hardening — **VERIFIED/FROZEN**
+- FND-03 Runtime Admission — **VERIFIED/FROZEN**
+- FND-03 Shared Runtime Seat Accounting — **PR_READY / UNDER COORDINATOR VALIDATION**
+- FND-03 global — **ACTIVE / NOT FROZEN**
+- FND-04 Script TAG Reference Resolution — **QUEUED / CONTRACT DEFINED / NOT ACTIVE**
+- FC0-A — **BLOCKED**
 
-## Current Codex mission — FND-03 machine-license v2 schema/codec
+## Current candidate — PR #331
 
-The latest Main Coordinator order to Codex is #301 comment `5699620231` / #305 summary: implement the **machine-license v2 schema/codec** from exact product base `456c66f4966ab5302831f642a39690ae3a3402a5`.
+PR: `#331 — FND-03: enforce shared runtime seat accounting`
 
-Authorized target branch: `work/w15-fnd-03-machine-license-v2` -> `wave15/corrections-integration`.
+- authorized product base: `6f02b9e3c1327b34ff33bab22e90aaf24dfc4628`
+- branch: `work/w15-fnd-03-shared-runtime-seat-accounting-v1`
+- exact candidate head: `09f81e97369089def481ceb25629779a5aba8aff`
+- target: `wave15/corrections-integration`
+- state: OPEN / not merged
 
-Required slice:
+EliteSCADA CI #1544 / run `35255337014`, latest attempt on the same exact candidate:
 
-- preserve exact read/validation compatibility for existing signed machine-bound `ESLIC1` licenses;
-- add the signed machine-bound v2 representation (referred to by the coordinator as `ESLIC2`) with explicit `viewOnlySeats`, `interactiveSeats` and `haRuntime` entitlements;
-- preserve existing signature algorithm, hardware fingerprint verification, expiry and Demo behavior unless a narrow version adapter is required;
-- do **not** infer an Interactive entitlement from ESLIC1;
-- keep this slice schema/codec-only: no Runtime admission enforcement, active quota accounting, requested->granted class calculation, install/replace/remove flow, License Generator UX, Installation UX, EliteGO UX or HA election/fencing.
+- Chromium end-to-end `105348050154` — **SUCCESS**
+- Web build `105348051287` — **SUCCESS**
+- Backend build, test and smoke `105348092685` — **SUCCESS**
 
-Required deterministic proof includes v1 compatibility, valid v2 verification/decode, tamper/wrong-key/wrong-machine/expiry rejection, malformed seat values, signature coverage of v2 fields and package-boundary regression.
+The first attempt had a historical C04 browser-test failure; the coordinator-authorized controlled rerun on the unchanged candidate completed green.
 
-### Important resume note
+## Current Codex order
 
-The Product Owner reports that Codex **started this authorized slice and then stopped only because the interaction limit was reached**. No completed handoff was produced.
+Codex must read `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` live.
 
-GitHub currently shows **no published branch `work/w15-fnd-03-machine-license-v2`, no PR and no new committed evidence for this slice**. Therefore a resumed Codex/Work session must first inspect its existing local/worktree state before recreating work. Do not assume the absence of a GitHub branch means no local progress exists, and do not duplicate implementation blindly.
+Current order is **final handoff only** for Shared Runtime Seat Accounting:
 
-The older branch `work/w15-fnd-03-runtime-session-lease` points to the already-consumed Slice 1 work and is **not** the authorized branch for the current license-v2 slice.
+`CODEX -> MAIN COORDINATOR — FND-03 SHARED RUNTIME SEAT ACCOUNTING HANDOFF`
 
-## Queued Foundation delta — FND-04 Script TAG references
+No further product change, no further rerun, no merge, no new FND-03 slice, no FND-04 and no FC0-A release before Main review.
 
-The readable-Python requirement for W15-P1-05 is not UI-only. Before FND-04 may freeze for DEV-SCRIPT-ENGINEERING, the shared runtime/script contract must ensure:
+## Main Coordinator permanent CI authority
 
-- normal generated Python uses canonical readable TAG paths rather than GUIDs;
-- `tag_read` and `tag_write` share one resolver semantic;
-- stable `TagId` remains the internal identity authority;
-- source/binding metadata detects rename/path-reuse identity drift;
-- missing/ambiguous/stale references fail closed;
-- rename or reuse of an old path can never silently retarget a script to another TAG.
+Product Owner has permanently authorized the Main Coordinator to operate CI/GitHub Actions for **pre-merge and post-merge validation**, without requesting authorization for every execution.
 
-Detailed binding criteria and regressions are in #305 comment `5701881550`. This work is **queued behind the currently active FND-03 slice** and must not interrupt it.
+Allowed, under the canonical handoff guards:
+
+- inspect runs/jobs/steps/logs/artifacts;
+- trigger/rerun exact-candidate CI when justified;
+- rerun a failed job or failed jobs after diagnosis;
+- validate exact merge/integration SHA after merge;
+- operate checkpoint/release CI using existing workflows and correct refs.
+
+Required guards:
+
+- diagnose red CI before rerun;
+- preserve exact SHA/ref;
+- use the smallest sufficient rerun;
+- record run/attempt/job;
+- no blind rerun loops.
+
+This authority does **not** authorize merge, workflow weakening, test weakening, artificial commits, retarget/rebase tricks, force push or writing to `main`.
+
+**CI green never equals merge authorization.**
+
+## FND-03 remaining after seat accounting
+
+Even after PR #331 is integrated/verified, FND-03 global still requires bounded completion of:
+
+- license inspect/verify/install/replace/remove lifecycle;
+- entitlement reevaluation/fencing with Runtime active;
+- integration with Installation switching #304;
+- final observability/rejection reasons where missing;
+- remaining negative/concurrency regressions from #301.
+
+Product Owner decision: product has not launched; no installed customer base requires commercial quota compatibility for ESLIC1. ESLIC2 is the current commercial session-entitlement contract; ESLIC1 does not receive inferred/unlimited remote-session capacity.
 
 ## Immediate resume sequence
 
-1. Revalidate the live `wave15/corrections-integration` HEAD/tree and distinguish docs-only advances from product-code changes.
-2. Read `docs/CURRENT-COORDINATOR-HANDOFF.md` as the short combinator, then read `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` as the live detailed handoff and read latest #301/#305 comments.
-3. Resume the existing Codex session/worktree for the authorized machine-license-v2 schema/codec slice; inspect local changes before creating/recreating a branch.
-4. Publish only when the slice has a reviewable branch/PR and exact-head evidence; handoff prefix must be `CODEX -> MAIN COORDINATOR — FND-03 LICENSE V2 SCHEMA HANDOFF`.
-5. Do not self-freeze FND-03 and do not release FC0-A.
-6. After this slice is reviewed/integrated/verified, continue the remaining FND-03 slices under explicit coordinator authorization.
-7. Keep the new FND-04 Script TAG reference-resolution criterion queued for FND-04 before FC0-A freeze.
+1. Read `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` fully.
+2. Revalidate integration HEAD/tree, PR #331 and current Actions live.
+3. Distinguish product checkpoint from docs-only coordination head.
+4. If Codex final handoff is present, Main independently reviews diff/evidence and decides integration.
+5. If integration is authorized/performed, capture merge SHA/parents/tree and validate exact post-merge CI; Main may operate that CI directly under its permanent authority.
+6. Promote the bounded slice only after exact integrated evidence.
+7. FND-04 remains queued until Main explicitly activates it with an exact product base.
 
-## Current documentation pointers
+## Permanent guards
 
-- **live canonical Wave 15 operational handoff:** `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`
-- **short current combinator/pointer:** `docs/CURRENT-COORDINATOR-HANDOFF.md`
-- generic next-Main protocol: `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
-- sequencing: `docs/ROADMAP.md`
-
-Permanent guards remain: no direct `main` mutation, no direct feature write to integration, no destructive history operation, no blind CI rerun, no weakening Security/Authority/Licensing/lifecycle/Runtime/Historian/Driver contracts, no EEE-only workaround for generic defects, and no claim of PASS/FROZEN without exact evidence.
+- no direct `main` mutation without protected authorization;
+- no direct feature-code write to integration;
+- no destructive history operation;
+- diagnose CI before rerun;
+- no contract/security weakening to get green;
+- no claim of PASS/VERIFIED/FROZEN without exact evidence;
+- canonical orders live in `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.

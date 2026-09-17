@@ -38,7 +38,7 @@ Sempre separar:
 - **INTEGRATED CANDIDATE PENDING VERIFICATION** — código integrado aguardando gate pós-merge no exact integrated SHA;
 - **COORDINATION HEAD** — HEAD live que pode avançar apenas por documentação de coordenação.
 
-Commit documental não cria novo product base.
+Commits apenas documentais **não** criam novo product base. Uma `CURRENT ORDER` deve fixar o **product base**; não deve tentar fixar como base de produto o próprio commit documental que contém a ordem. Ao executar, o agente revalida o integration HEAD live e confirma que qualquer delta desde o product base é somente coordenação/documentação. Se houver delta de produto/infra, STOP e devolve divergência ao Main.
 
 ### 0.3 Autoridade permanente do Main — comunicação e CI
 
@@ -77,7 +77,7 @@ Auditoria arquitetural/contratual e work package pertencem ao Main. CODEX é pri
 
 ### 0.8 Lições permanentes
 
-Não repetir: ordem só no chat/issue; afirmar ordem sem readback; confundir coordination HEAD com product checkpoint; delegar auditoria aberta ao Codex; rerun cego; tratar `PR_READY`, CI verde, `INTEGRATED`, `VERIFIED`, `FROZEN` como equivalentes; inferir PASS de acceptance PENDING; liberar downstream sem checkpoint exato.
+Não repetir: ordem só no chat/issue; afirmar ordem sem readback; confundir coordination HEAD com product checkpoint; fixar um coordination HEAD dentro do próprio documento como se fosse product base; delegar auditoria aberta ao Codex; rerun cego; tratar `PR_READY`, CI verde, `INTEGRATED`, `VERIFIED`, `FROZEN` como equivalentes; inferir PASS de acceptance PENDING; liberar downstream sem checkpoint exato.
 
 State machine:
 
@@ -102,11 +102,7 @@ Shared Runtime Seat Accounting está integrado e verificado.
   - Web build `105366045298` — **SUCCESS**
   - Chromium end-to-end `105366583742` — **SUCCESS**
 
-### COORDINATION HEAD antes desta ordem
-
-- `wave15/corrections-integration@9e3f6770be19523c82b82ae8f5003407287bf324`
-- delta `a7067ac9... -> 9e3f6770...`: apenas `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.
-- portanto o exact product base para o próximo slice permanece `a7067ac9...`.
+O integration HEAD pode estar à frente apenas por commits de coordenação. Esses commits não mudam o product checkpoint. Antes de criar uma work branch, o agente deve comparar live com `a7067ac9...`; se aparecer produto/infra não coordenado, STOP.
 
 ### Foundation
 
@@ -130,13 +126,19 @@ Shared Runtime Seat Accounting está integrado e verificado.
 
 ### Exact authority
 
-- authorized product base: `a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
+- exact authorized **product base**: `a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
 - product tree: `eed22a377fea2778d3e78143d706e4de0ef9ce38`
-- current integration seed HEAD at authorization: `9e3f6770be19523c82b82ae8f5003407287bf324` — docs-only delta from product checkpoint
 - work branch: `work/w15-fnd-03-license-lifecycle-fencing-v1`
 - target: `wave15/corrections-integration`
 
-Create/use the work branch from the live integration HEAD above. Treat `a7067ac9...` as the exact product contract being extended.
+Branch rule:
+
+1. revalidate `wave15/corrections-integration` live before creating/pushing the branch;
+2. compare its product/infra delta against `a7067ac9...`;
+3. if the delta is only coordination/documentation, create/use the work branch from the **exact product base `a7067ac9...`** (or preserve an already-created branch with that same product merge-base); the target remains the live integration branch;
+4. if any intervening product/infra delta exists, STOP and report `BLOCKED-BASE-DIVERGENCE` before implementation.
+
+This avoids making the branch base depend on a moving documentation HEAD while preserving an exact reviewed product contract.
 
 ### Main audit — current source truth
 
@@ -145,8 +147,8 @@ Main already audited the exact product checkpoint. Do not spend a Codex round re
 Current canonical facts:
 
 1. `FileProductLicenseService` is the single installed-license authority. `CurrentVerification` reads the machine-local license file; missing file means Demo; invalid installed file means fail-closed Invalid.
-2. `InstallLicense` validates candidate **before** writing a temp file and atomic-ish overwrite. `RemoveLicense` deletes the installed file. Candidate verification remains private to that service.
-3. `IProductLicenseService` currently exposes `CurrentVerification`, `InstallLicense`, `RemoveLicense`, machine fingerprint/request and Runtime tag entitlement evaluation; there is no public candidate-verify primitive.
+2. `InstallLicense` validates candidate **before** writing a temp file and overwrite. `RemoveLicense` deletes the installed file. Candidate verification remains private to that service.
+3. `IProductLicenseService` exposes `CurrentVerification`, `InstallLicense`, `RemoveLicense`, machine fingerprint/request and Runtime tag entitlement evaluation; there is no public candidate-verify primitive.
 4. `ProductLicensingApi` exposes status/request/install/remove. Today all routes use `RequireWorkspaceEngineeringRead`; mutation must be corrected to canonical `EngineeringModify` authorization rather than EngineeringView-only access.
 5. `ProductLicensedRuntimeCoordinator` evaluates product entitlement on explicit Runtime activation and Demo expiry, but there is **no** license-change re-evaluation path for an already-active Runtime.
 6. Runtime session admission reads current licensing for new admission, but an already-active logical lease is validated only against lease subject/client/runtime identity; there is **no license-authority change fence**.
@@ -155,15 +157,13 @@ Current canonical facts:
 
 ### Binding architecture for this slice
 
-Use the existing `IProductLicenseService` / `FileProductLicenseService` as the **only** license verifier/store. Do not create another license registry, trust anchor, signature path or quota authority.
+Use existing `IProductLicenseService` / `FileProductLicenseService` as the **only** license verifier/store. Do not create another license registry, trust anchor, signature path or quota authority.
 
-Implement the smallest host-owned lifecycle/orchestration boundary needed to make license mutation safe. Exact class names are implementation-defined, but the invariants below are binding.
+Implement the smallest host-owned lifecycle/orchestration boundary needed to make license mutation safe.
 
 #### A. Candidate verification without mutation
 
-Expose a server-owned candidate verification primitive that reuses the exact canonical verifier and returns typed/non-secret result sufficient for UI/downstream lifecycle.
-
-It must not install, remove or alter the current license.
+Expose a server-owned candidate verification primitive that reuses the canonical verifier and returns typed/non-secret result sufficient for UI/downstream lifecycle. It must not alter installed state.
 
 #### B. Transactional replace/install
 
@@ -177,98 +177,75 @@ Invalid/tampered/wrong-machine/expired candidate:
 
 #### C. Deliberate remove
 
-Successful deliberate remove produces the canonical no-file **Demo** state, distinct from Invalid installed license.
+Successful deliberate remove produces canonical no-file **Demo**, distinct from Invalid installed license.
 
 #### D. Runtime/session fencing on successful authority change
 
-For any successful installed-license authority change that changes/removes the authoritative license:
+For any successful installed-license authority change:
 
 - all currently active **remote Runtime logical leases** must be fenced/invalidated deterministically before the lifecycle operation is considered complete;
-- stale REST/WSS clients must not retain command/write authority after the successful operation returns;
-- clients re-admit under the new license/Demo quotas;
-- no selective hidden Web/EliteGO pool is introduced.
+- stale REST/WSS clients must not retain command/write authority after successful return;
+- clients re-admit under new license/Demo quotas;
+- no hidden Web/EliteGO-specific pool.
 
-A simple fail-closed policy of fencing all remote logical leases on successful authority change is acceptable and preferred over inventing a complex seat-preservation policy in this slice.
+A fail-closed fence-all policy for remote logical leases is preferred over complex seat preservation in this slice.
 
 #### E. Active local Runtime entitlement re-evaluation
 
-After a successful license authority change, the active product Runtime must be re-evaluated against the **new** canonical authority:
+After successful authority change:
 
-- if the current Runtime is not allowed by the new tag/product entitlement, stop/fence it deterministically before the lifecycle call completes;
-- if transition is to Demo and the current Runtime remains allowed, Demo continuous-runtime timing begins from the successful authority transition, not from an old unrelated activation timestamp;
-- if a valid replacement continues to allow the active Runtime, status must reflect the new license authority without requiring host reinstall;
-- no temporary unlicensed/expanded-entitlement execution window is allowed.
+- if current Runtime is not allowed by new tag/product entitlement, stop/fence it before lifecycle return;
+- transition to Demo while still allowed starts Demo continuous-runtime timing from the successful authority transition;
+- valid replacement that still allows Runtime may continue, but status must reflect the new authority;
+- no temporary unlicensed/expanded-entitlement execution window.
 
-Implementation must coordinate license mutation, session fencing and active Runtime re-evaluation under one host-owned lifecycle gate/transactional sequence. Do not rely on timing luck between independent HTTP requests.
+License mutation, session fencing and active Runtime re-evaluation must be coordinated under one host-owned lifecycle gate/transactional sequence.
 
 #### F. Authorization / audit
 
-- read-only licensing status/request/candidate inspection may use the established readable authority as appropriate;
-- install/replace/remove are mutations and must require canonical `SecurityCapability.EngineeringModify` at minimum, not EngineeringView-only authorization;
-- preserve Engineering Lock behavior where the existing product mutation model requires it;
-- record audit/system evidence for successful/denied mutation without logging raw license codes, private/signing material or credentials.
+- read-only status/request/candidate inspection may use readable authority as appropriate;
+- install/replace/remove must require canonical `SecurityCapability.EngineeringModify` at minimum, not EngineeringView-only;
+- preserve Engineering Lock behavior where the existing mutation model requires it;
+- record safe audit/system evidence without raw license code, signing material or credentials.
 
 ### Required deterministic acceptance
 
 At minimum prove all as `PASS | FAIL | PENDING`:
 
-1. candidate verify valid ESLIC2 succeeds without changing installed state;
-2. candidate verify tampered/wrong-key/wrong-machine/expired/malformed fails without mutation;
+1. valid ESLIC2 candidate verify succeeds without changing installed state;
+2. tampered/wrong-key/wrong-machine/expired/malformed candidate verify fails without mutation;
 3. valid install from Demo becomes authoritative;
-4. valid A -> valid B replacement commits B only after B verifies;
-5. invalid replacement while A is valid leaves A byte-for-byte/effectively authoritative and does not disrupt Runtime/leases;
+4. valid A -> B replacement commits B only after B verifies;
+5. invalid replacement while A is valid leaves A authoritative and does not disrupt Runtime/leases;
 6. deliberate remove enters Demo, not Invalid;
-7. keep-license/project switch boundary remains independent: no package/Authority operation silently removes machine license;
-8. successful install/replace/remove fences all pre-change remote logical leases; old session IDs fail afterward;
-9. concurrent admission vs license downgrade/remove cannot leave a post-return stale lease or quota expansion window;
-10. after successful change, new admissions use only new ESLIC2/Demo effective totals;
-11. active Runtime exceeding new tag entitlement is stopped/fenced deterministically;
-12. active Runtime allowed after valid replacement continues with status reflecting new authority;
-13. active Runtime transitioning to Demo starts a fresh bounded Demo allowance from authority-change time;
-14. install/replace/remove endpoint denies a principal with EngineeringView but without EngineeringModify;
-15. mutation audit contains operation/result/actor-safe metadata but no raw license code/signing material;
-16. ESLIC2 signature/hardware/expiry/schema and Shared Seat Accounting regressions remain green;
+7. package/Authority/project-switch boundary never silently removes machine license;
+8. successful install/replace/remove fences all pre-change remote logical leases; old IDs fail afterward;
+9. concurrent admission vs downgrade/remove cannot leave post-return stale lease or expansion window;
+10. new admissions after change use only new ESLIC2/Demo effective totals;
+11. active Runtime exceeding new tag entitlement stops/fences deterministically;
+12. active Runtime allowed after replacement continues with status reflecting new authority;
+13. transition to Demo starts fresh bounded Demo allowance from authority-change time;
+14. mutation endpoint denies EngineeringView-only principal without EngineeringModify;
+15. mutation audit has safe metadata and no raw license/signing material;
+16. ESLIC2 and Shared Seat Accounting regressions remain green;
 17. `.escadapkg` remains free of license/key/session state;
 18. exact-head CI green.
 
 ### Scope boundaries
 
-Do **not** implement in this slice:
+Do **not** implement: License Generator UI; full #304 Installation detach/switch UX; Authority A->B transition; Historian switching/cleanup; EliteGO UI; HA election/fencing; FND-04; main merge.
 
-- License Generator UI;
-- full Installation detach/switch UX from #304;
-- Authority A -> B transition;
-- Historian cleanup/switching;
-- EliteGO UI;
-- HA election/fencing;
-- FND-04;
-- main merge.
-
-Do not broadly remove ESLIC1 parser compatibility as cleanup. Product Owner has already ruled that ESLIC1 receives no inferred remote session quota; this slice must not create legacy commercial semantics.
+Do not broadly remove ESLIC1 parser compatibility. Product Owner binding remains: ESLIC1 gets no inferred remote session quota.
 
 ### Handoff
 
-Open a bounded PR targeting `wave15/corrections-integration` and return beginning exactly:
+Open bounded PR targeting `wave15/corrections-integration` and return beginning exactly:
 
 `CODEX -> MAIN COORDINATOR — FND-03 LICENSE LIFECYCLE FENCING HANDOFF`
 
-Include:
+Include exact base/head/tree/PR, files/symbols, lifecycle gate, candidate verify contract, install/replace/remove semantics, Runtime re-evaluation/fencing, session bulk-fence/concurrency proof, authorization/audit evidence, acceptance matrix, local tests, Actions run/jobs, schema/migration impact, residual risks/non-actions, and confirmation no second licensing/session/quota/Authority authority was created.
 
-- exact base/head/tree and PR;
-- files/symbols changed;
-- lifecycle transaction/gate mechanism;
-- candidate verify contract;
-- install/replace/remove semantics;
-- Runtime re-evaluation/fencing path;
-- session bulk-fence mechanism and concurrency proof;
-- authorization/audit evidence;
-- acceptance matrix `PASS | FAIL | PENDING`;
-- local tests and exact Actions run/job IDs;
-- schema/migration impact;
-- residual risks and explicit non-actions;
-- confirmation that no second licensing/session/quota/Authority authority was created.
-
-Do not self-merge or self-freeze FND-03. Then **STOP** for Main review.
+Do not self-merge or self-freeze FND-03. Then **STOP**.
 
 ---
 
@@ -315,12 +292,7 @@ Quando ativado, FND-04 deve garantir:
 
 ## 6. FND-03 REMAINING AFTER CURRENT LIFECYCLE SLICE
 
-Após o lifecycle/fencing ser integrado/verificado, Main deve reavaliar #301 para determinar se FND-03 pode fechar ou se ainda exige um último bounded closeout. Itens esperados para revisão final:
-
-- observability/rejection reasons e counters finais;
-- client/admission heartbeat/reuse residuals;
-- integração contratual suficiente para #304 sem implementar seu UX;
-- regressões negativas/concurrency finais.
+Após lifecycle/fencing integrado/verificado, Main reavalia #301 para determinar se FND-03 fecha ou se exige um último bounded closeout. Revisar: observability/rejection reasons/counters finais; client/admission heartbeat/reuse residuals; integração contratual suficiente para #304 sem implementar seu UX; regressões negativas/concurrency finais.
 
 FND-03 só vira `VERIFIED/FROZEN` global quando todos os critérios de #301 estiverem comprovados no exact integration checkpoint.
 
@@ -350,13 +322,7 @@ FND-03 só vira `VERIFIED/FROZEN` global quando todos os critérios de #301 esti
 
 Canal primário: este arquivo.
 
-Ledgers de evidência:
-
-- #297 — Wave 15 global
-- #301 — FND-03/licensing
-- #305 — dependency/checkpoints
-- #304 — Installation/lifecycle consumer requirements
-- PR conversation — candidate-local evidence
+Ledgers: #297 Wave 15 global; #301 FND-03/licensing; #305 dependency/checkpoints; #304 Installation consumer requirements; PR conversation para evidência local.
 
 Agents executam a ordem, retornam evidência e param quando a ordem diz `STOP`/`WAIT`. Main promove estados e escreve a próxima ordem.
 

@@ -119,7 +119,7 @@ O integration HEAD pode estar à frente por commits de coordenação; isso não 
 - FND-03 machine-license v2 + hardening — **VERIFIED/FROZEN**
 - FND-03 Runtime Admission — **VERIFIED/FROZEN**
 - FND-03 Shared Runtime Seat Accounting — **VERIFIED/FROZEN**
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A CORRECTION ACTIVE / NOT INTEGRATED**
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A PR_READY-PENDING-CI / NOT INTEGRATED**
 - FND-03 global — **ACTIVE / NOT FROZEN**
 - FND-04 Script TAG Reference Resolution — **QUEUED / CONTRACT DEFINED / NOT ACTIVE / NOT FROZEN**
 - FC0-A — **BLOCKED**
@@ -147,88 +147,68 @@ Do not start FND-04 or release FC0-A.
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**DEV_MODE: IMPLEMENT_PHASE_A_CORRECTION**  
-**Mission:** FND-03 Lifecycle/Fencing — close Main review defects on Phase A candidate
+**DEV_MODE: OPEN_PHASE_A_PR_ONLY**  
+**Mission:** FND-03 Lifecycle/Fencing — expose reviewed Phase A candidate to CI
 
-### Candidate under review
+### Main review result
 
-- exact product base: `a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
-- candidate head: `d1ae56e787989f5fc2e9867c22f3e7d9f31aefb7`
-- candidate tree: `79b1b00aa4b8b031b1e225a5a4919b4554423253`
+Main independently re-reviewed Phase A correction handoff #301 comment `5722547057`.
+
+Approved exact Phase A candidate for PR/CI:
+
+- product base: `a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
 - branch: `work/w15-fnd-03-license-lifecycle-fencing-v1`
-- Phase A handoff: #301 comment `5722303131`
-- no PR / no CI yet
+- head: `509d794e92fd5e6333663020738d2713c73a7e9f`
+- tree: `ebb607695815197d419d28dd463c47bd0e702284`
+- target: `wave15/corrections-integration`
 
-Main independently compared base -> candidate and confirmed the changed-file boundary is Phase A only. Architecture remains frozen. Two correction areas are binding before PR/CI.
+CA1 is closed:
+- no registry capacity overload derives a later authority revision after receiving capacity;
+- `RuntimeSessionLeaseCapacityAdmission.ExpectedAuthorityRevision` has no default;
+- the remaining registry capacity API requires explicit revision;
+- production Distributed Runtime admission binds the pre-capacity-read authority snapshot to reservation.
 
-### CA1 — remove stale-capacity convenience path
+CA2 is closed at source/test-definition level:
+- in-memory second fence proves no repeated state mutation by returning 0;
+- PostgreSQL test records persisted generation, proves completion rejects before fence, fence deactivates and increments generation exactly once, second fence is 0 and generation remains unchanged, then completion succeeds.
 
-Current candidate still exposes a public `RuntimeSessionLeaseRegistry.AdmitWithCapacityAsync(... RuntimeSessionSeatCapacity capacity ...)` overload that receives an already-computed capacity and only **afterward** calls `GetAuthorityStateAsync` to obtain the expected revision.
+Execution remains PENDING until CI. No Phase B/C scope entered.
 
-That shape is unsafe by contract: a caller could compute capacity from authority R, an authority change could complete to R+1, then this overload could read R+1 and submit the old R capacity bound to R+1. The store would see a matching revision and could accept stale totals.
+### Exact order — open PR only
 
-Required correction:
-
-1. remove the public convenience overload that derives authority revision after capacity is already supplied;
-2. all capacity reservation paths must explicitly supply the authority revision observed **before / as part of** the canonical license-capacity read;
-3. remove the default `= 1` from `RuntimeSessionLeaseCapacityAdmission.ExpectedAuthorityRevision` so direct store callsites cannot silently omit epoch binding;
-4. update every compile-visible callsite/test to pass an explicit expected revision;
-5. keep the Distributed Runtime admission sequence:
-   - read authority snapshot R;
-   - if pending => fail closed;
-   - read fresh `CurrentVerification` and derive capacity;
-   - reserve with `ExpectedAuthorityRevision = R`;
-   - only revision-changed may bounded-retry from a fresh snapshot/license read.
-
-Do not add another convenience API that can pair stale capacity with a later revision snapshot.
-
-### CA2 — close claimed fence/Generation proof
-
-The Phase A handoff says required test #6 is written, but the submitted focused tests do not actually assert the required durable `Generation` behavior of bulk fencing.
-
-Add deterministic proof without introducing a product test-only authority:
-
-PostgreSQL:
-- admit a lease at revision R and record its persisted generation;
-- begin + commit authority transition to R+1;
-- call `FenceLeasesBeforeAuthorityRevisionAsync`;
-- query the exact row and prove `is_active=false` and `generation == prior + 1`;
-- call fence again and prove changed count is 0 and generation does not increment again;
-- prove `CompleteAuthorityTransitionAsync` refuses completion before stale active leases are fenced and succeeds after fence.
-
-In-memory:
-- preserve the existing invalidation proof;
-- add a second fence call proving it returns 0/no repeated state mutation;
-- do not widen production API merely to expose inactive rows for tests.
-
-Also correct the handoff language: until these tests execute, they remain `PENDING`.
-
-### Scope guard
-
-Correction may change only Phase A files/tests needed for CA1/CA2. No Phase B/C work:
-- no Runtime re-evaluation;
-- no Demo recovery;
-- no lifecycle orchestrator;
-- no licensing mutation route/audit cutover;
-- no FND-04 / FC0-A.
-
-No PR, no merge, no integration mutation, no `main`, no GitHub Actions in this correction round.
+1. Revalidate branch HEAD is still exactly `509d794e92fd5e6333663020738d2713c73a7e9f`.
+2. Revalidate integration delta from product base remains coordination/documentation only. Any product/infra divergence => `BLOCKED-BASE-DIVERGENCE`.
+3. Open exactly one PR:
+   - head: `work/w15-fnd-03-license-lifecycle-fencing-v1`
+   - base: `wave15/corrections-integration`
+   - title: `FND-03: add license authority epoch foundation`
+4. PR body must state:
+   - Phase A only;
+   - exact head/tree;
+   - architecture evidence #301 `5722165708`;
+   - Phase A handoff #301 `5722303131`;
+   - correction handoff #301 `5722547057`;
+   - tests are PENDING until CI;
+   - no Phase B/C, FND-04, FC0-A or main action.
+5. Do **not** change code/tests/commits, rebase, retarget or merge.
+6. Do **not** manually rerun CI. Natural PR CI belongs to Main for diagnosis/decision.
 
 ### Return
 
-Push bounded correction commit(s) to the same branch and publish exactly one new top-level #301 comment beginning:
+Publish one new top-level #301 comment beginning:
 
-`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A CORRECTION HANDOFF`
+`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A PR HANDOFF`
 
 Include:
-- old head -> new head/tree;
-- exact changed files;
-- CA1 callsite inventory and proof no unbound capacity overload/default remains;
-- CA2 exact tests added;
-- test status `PASS|FAIL|PENDING` with no invented execution;
-- confirmation no Phase B/C scope entered.
+- PR number/url;
+- confirmed exact head/tree;
+- base/target;
+- initial CI run ID if GitHub exposes one;
+- confirmation no candidate mutation occurred.
 
-Verify comment live, report its numeric ID, then **STOP**. Main will re-review and, if clean, authorize PR/CI.
+Verify the comment live, report its numeric ID, then **STOP**.
+
+Main owns PR review, CI diagnosis/rerun if needed, and Phase A promotion/next-phase decision.
 
 
 ---

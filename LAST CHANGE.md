@@ -1,7 +1,7 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-17 BRT  
-**Operational state:** **WAVE 15 ACTIVE / FND-03 SHARED SEAT ACCOUNTING VERIFIED+FROZEN / LIFECYCLE+FENCING ARCHITECTURE FROZEN / PHASE A CORRECTION ACTIVE / CODEX WAIT / FND-04 WAIT / FC0-A BLOCKED**
+**Operational state:** **WAVE 15 ACTIVE / FND-03 SHARED SEAT ACCOUNTING VERIFIED+FROZEN / LIFECYCLE+FENCING ARCHITECTURE FROZEN / PHASE A PR_READY-PENDING-CI / CODEX WAIT / FND-04 WAIT / FC0-A BLOCKED**
 
 > GitHub live is the official memory.
 >
@@ -26,7 +26,7 @@ Later coordination-only documentation commits do not change the product checkpoi
 - FND-03 machine-license v2 + hardening — VERIFIED/FROZEN
 - FND-03 Runtime Admission — VERIFIED/FROZEN
 - FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A CORRECTION ACTIVE / NOT INTEGRATED**
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A PR_READY-PENDING-CI / NOT INTEGRATED**
 - FND-03 global — ACTIVE / NOT FROZEN
 - FND-04 — WAIT
 - FC0-A — BLOCKED
@@ -35,7 +35,7 @@ Later coordination-only documentation commits do not change the product checkpoi
 
 CODEX remains `WAIT` to preserve scarce quota.
 
-FND-03 DEV is `ACTIVE / IMPLEMENT_PHASE_A_CORRECTION`.
+FND-03 DEV is `ACTIVE / OPEN_PHASE_A_PR_ONLY`.
 
 Main reviewed and froze architecture amendment #301 comment `5722165708`. The first implementation phase is deliberately bounded to:
 
@@ -55,7 +55,7 @@ Target:
 
 `wave15/corrections-integration`
 
-Phase A candidate `d1ae56e787989f5fc2e9867c22f3e7d9f31aefb7` was reviewed by Main. Scope is correct, but PR/CI remains blocked on two corrections: eliminate the stale-capacity convenience overload/default epoch binding, and add deterministic bulk-fence/Generation exactly-once proof. DEV returns a corrected exact head before Main authorizes CI/Phase B.
+Corrected Phase A candidate `509d794e92fd5e6333663020738d2713c73a7e9f` / tree `ebb607695815197d419d28dd463c47bd0e702284` was re-reviewed by Main. CA1/CA2 are closed at source/test-definition level. DEV may now open the exact Phase A PR only; natural PR CI will be owned and evaluated by Main.
 
 ## Frozen architecture guards
 
@@ -76,7 +76,7 @@ Phase A candidate `d1ae56e787989f5fc2e9867c22f3e7d9f31aefb7` was reviewed by Mai
 
 Wait for:
 
-`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A CORRECTION HANDOFF`
+`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A PR HANDOFF`
 
 Then Main independently reviews exact Phase A head/tests and either:
 - orders corrections,

@@ -15,63 +15,71 @@
 - FND-03 durable Runtime Session Lease v1 — VERIFIED/FROZEN.
 - FND-03 machine-license v2 + hardening — VERIFIED/FROZEN.
 - FND-03 Runtime Admission — VERIFIED/FROZEN.
-- FND-03 Shared Runtime Seat Accounting — **PR_READY / APPROVED FOR INTEGRATION**.
+- FND-03 Shared Runtime Seat Accounting — **VERIFIED/FROZEN**.
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing v1 — **ACTIVE**.
 - FND-03 global — ACTIVE / NOT FROZEN.
-- FND-04 — QUEUED / CONTRACT DEFINED / WAIT.
+- FND-04 Script TAG Reference Resolution — QUEUED / CONTRACT DEFINED / WAIT.
 - FC0-A — BLOCKED.
 
-## Product checkpoint
+## Verified product checkpoint
 
-Último product checkpoint integrado/validado:
+`wave15/corrections-integration@a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
 
-`6f02b9e3c1327b34ff33bab22e90aaf24dfc4628`
+tree `eed22a377fea2778d3e78143d706e4de0ef9ce38`.
 
-tree `53ffaf05ecd492d06ecf7852bd6e77b48431a1eb`.
+Esse checkpoint é o merge do PR #331 e foi validado pela CI pós-merge #1546 / run `35269829080`:
 
-A integração avançou depois disso apenas por documentação de coordenação. O product checkpoint não muda até o PR #331 ser integrado e validado.
+- Backend `105366045111` — SUCCESS
+- Web `105366045298` — SUCCESS
+- Chromium `105366583742` — SUCCESS
 
-## PR #331 aprovado
-
-- branch: `work/w15-fnd-03-shared-runtime-seat-accounting-v1`
-- exact approved head: `6789a989c85e7210c167945665f4ab6c8cef53a0`
-- tree: `bd6d79490d7fc0630737fb834fa6b8fc95b7b8d9`
-- target: `wave15/corrections-integration`
-- live review: OPEN / mergeable=true / mergeable_state=clean / no review threads
-- acceptance-close desde `09f81e97...`: somente `tests/Scada.Drivers.Tests/DistributedRuntimeFoundationTests.cs`, +59, zero produção
-- CI #1545 / run `35267768938`:
-  - Backend `105359117658` SUCCESS
-  - Web `105359118013` SUCCESS
-  - Chromium `105359631809` SUCCESS
-
-O antigo PENDING Web+EliteGO + high concurrency está PASS.
+Commits posteriores somente documentais não mudam o product checkpoint.
 
 ## Ordem corrente ao Codex
 
 Ler a `CURRENT ORDER` no handoff canônico.
 
-Estado atual: `ORDER CODEX-331-MERGE-04`.
+Missão ativa:
 
-CODEX deve revalidar o exact head e fazer merge **somente do PR #331** pela rota normal em `wave15/corrections-integration`, sem rebase/retarget/alteração de candidate e sem tocar `main`.
+`FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing v1`
 
-Depois deve retornar merge SHA, parents, tree e novo integration HEAD, e STOP.
+Exact product base:
 
-Main Coordinator fará a validação de CI pós-merge e somente então promoverá o slice.
+`a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
 
-## Autoridade permanente do Main para CI
+tree `eed22a377fea2778d3e78143d706e4de0ef9ce38`.
 
-Main pode operar CI pré-merge/pós-merge sem nova autorização a cada execução, sob as guardas do handoff canônico: exact SHA/ref, diagnóstico antes de rerun, menor rerun suficiente, sem loop cego, sem workflow/test/code weakening e sem commit artificial.
+Work branch:
 
-CI verde não equivale a autorização de merge.
+`work/w15-fnd-03-license-lifecycle-fencing-v1`
+
+Target:
+
+`wave15/corrections-integration`
+
+Codex não deve repetir auditoria aberta: o Main já fechou o source audit e o work package no handoff canônico.
+
+A missão inclui candidate verify sem mutação, replace/install transacional, remove->Demo, fence de todas as leases remotas após mudança válida de licença, reavaliação/fencing do Runtime ativo, EngineeringModify nas mutações, audit seguro e testes de concorrência/negativos.
+
+A branch deve usar como product merge-base o exact checkpoint `a7067ac9...`; coordination HEADs documentais não devem ser tratados como nova base de produto. Se houver qualquer delta interveniente de produto/infra, Codex deve STOP com `BLOCKED-BASE-DIVERGENCE`.
+
+## FND-04
+
+DEV e AUD permanecem `WAIT`. Main ainda não autorizou implementação FND-04. Em `SIGA`, ambos relêem o handoff canônico e não fazem mutação enquanto WAIT.
+
+## Autoridade permanente do Main
+
+Main pode atualizar handoffs/ordens, espelhar ordens aos agentes e operar CI pré/pós-merge sob guardas. CI verde não equivale a merge. `main` continua protegido.
 
 ## Retomada obrigatória
 
 1. Ler `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` integralmente.
-2. Revalidar PR #331, integration HEAD e Actions live.
-3. Se o merge handoff já existir, Main captura o exact integrated SHA e valida CI pós-merge.
-4. Shared Seat Accounting só vira VERIFIED/FROZEN após evidência pós-merge.
-5. FND-04 permanece WAIT até ordem ACTIVE com exact product base.
+2. Revalidar product checkpoint `a7067ac9...`, integration HEAD live, PRs e Actions.
+3. Acompanhar a entrega do lifecycle/fencing no exact candidate.
+4. FND-03 só congela globalmente após Main fechar todos os critérios #301 no exact integration checkpoint.
+5. FND-04 permanece WAIT até ordem ACTIVE.
 6. FC0-A permanece bloqueado.
 
-Fontes: handoff canônico, #301, #305, #297, PR #331.
+Fontes: handoff canônico, #301, #304, #305, #297.
 
 `Hora: HH:MM` em America/Sao_Paulo.

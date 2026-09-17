@@ -9,20 +9,40 @@ test('Runtime visual Command bridge POSTs only the canonical Command identity to
   const calls: Array<{ input: string; init?: RequestInit }> = [];
   const fetcher: RuntimeCommandFetch = async (input, init) => {
     calls.push({ input: String(input), init });
+    if (String(input) === '/api/runtime/sessions') {
+      return new Response(JSON.stringify({
+        sessionId: '11111111-2222-3333-4444-555555555555',
+        clientInstanceId: JSON.parse(String(init?.body)).clientInstanceId
+      }), { status: 201, headers: { 'content-type': 'application/json' } });
+    }
     return new Response(null, { status: 202 });
   };
 
   await executeRuntimeCommand(' 11111111-2222-3333-4444-555555555555 ', fetcher);
 
-  expect(calls).toHaveLength(1);
-  expect(calls[0].input).toBe('/api/commands/11111111-2222-3333-4444-555555555555/execute');
+  expect(calls).toHaveLength(2);
+  expect(calls[0].input).toBe('/api/runtime/sessions');
   expect(calls[0].init?.method).toBe('POST');
-  expect(calls[0].init?.body).toBeUndefined();
-  expect(calls[0].init?.headers).toEqual({ accept: 'application/json' });
+  expect(calls[1].input).toBe('/api/commands/11111111-2222-3333-4444-555555555555/execute');
+  expect(calls[1].init?.method).toBe('POST');
+  expect(calls[1].init?.body).toBeUndefined();
+  expect(calls[1].init?.headers).toMatchObject({
+    accept: 'application/json',
+    'X-EliteSCADA-Runtime-Session': '11111111-2222-3333-4444-555555555555'
+  });
 });
 
 test('Runtime visual Command bridge preserves backend denial/failure instead of falling back to client TAG writes', async () => {
-  const fetcher: RuntimeCommandFetch = async () => new Response('Command execution denied.', { status: 403 });
+  const fetcher: RuntimeCommandFetch = async (input, init) => {
+    if (String(input) === '/api/runtime/sessions') {
+      return new Response(JSON.stringify({
+        sessionId: '11111111-2222-3333-4444-555555555555',
+        clientInstanceId: JSON.parse(String(init?.body)).clientInstanceId
+      }), { status: 201, headers: { 'content-type': 'application/json' } });
+    }
+
+    return new Response('Command execution denied.', { status: 403 });
+  };
 
   await expect(executeRuntimeCommand('command-id', fetcher)).rejects.toMatchObject({
     name: 'RuntimeCommandExecutionError',

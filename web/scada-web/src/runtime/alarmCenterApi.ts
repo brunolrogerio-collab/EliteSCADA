@@ -4,6 +4,7 @@ import type {
   RuntimeAlarmCenterItem,
   RuntimeAlarmDefinition
 } from './alarmCenterTypes';
+import { admitInteractiveRuntimeSession } from './runtimeSessionAdmissionApi';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
@@ -36,11 +37,14 @@ export async function acknowledgeRuntimeAlarm(
   if (!definitionId.trim()) return { ok: false, error: 'Alarm definition ID is required.' };
 
   try {
+    const leaseHeaders = await admitInteractiveRuntimeSession();
     const response = await fetch(`${API}/api/alarms/${encodeURIComponent(definitionId)}/ack`, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: {
         accept: 'application/json',
-        'content-type': 'application/json'
+        'content-type': 'application/json',
+        ...leaseHeaders
       },
       body: '{}',
       signal

@@ -81,6 +81,93 @@ public sealed class DistributedRuntimeFoundationTests
         Assert.Equal(capability, effective.Capability);
     }
 
+    [Fact]
+    public void Admission_ExplicitViewOnly_RemainsViewOnly_ForBroadAuthority()
+    {
+        var decision = RuntimeSessionAdmissionPolicy.Resolve(
+            RuntimeConnectionClass.ViewOnly,
+            new[]
+            {
+                Allowed(SecurityCapability.CommandExecute),
+                Allowed(SecurityCapability.ProcessValueWrite)
+            });
+
+        Assert.Equal(RuntimeConnectionClass.ViewOnly, decision.RequestedClass);
+        Assert.Equal(RuntimeConnectionClass.ViewOnly, decision.GrantedClass);
+        Assert.Equal(RuntimeSessionAdmissionReasonCode.ExplicitViewOnly, decision.ReasonCode);
+        Assert.False(decision.RequiresCapacityReservation);
+    }
+
+    [Fact]
+    public void Admission_Interactive_ReadOnlyAuthority_IsDownscopedWithoutRoleNamePolicy()
+    {
+        var decision = RuntimeSessionAdmissionPolicy.Resolve(
+            RuntimeConnectionClass.Interactive,
+            new[]
+            {
+                new AuthorizationDecision(true, SecurityCapability.View, "read is allowed", new[] { "arbitrary-profile" }),
+                new AuthorizationDecision(false, SecurityCapability.CommandExecute, "denied", Array.Empty<string>()),
+                new AuthorizationDecision(false, SecurityCapability.ProcessValueWrite, "denied", Array.Empty<string>())
+            });
+
+        Assert.Equal(RuntimeConnectionClass.ViewOnly, decision.GrantedClass);
+        Assert.Equal(RuntimeSessionAdmissionReasonCode.AuthorityReadOnly, decision.ReasonCode);
+    }
+
+    [Fact]
+    public void Admission_Interactive_UsesCapabilityNotRoleName_AndDoesNotGrantOtherCapability()
+    {
+        var decision = RuntimeSessionAdmissionPolicy.Resolve(
+            RuntimeConnectionClass.Interactive,
+            new[]
+            {
+                new AuthorizationDecision(true, SecurityCapability.CommandExecute, "command is allowed", new[] { "plant-shift" }),
+                new AuthorizationDecision(false, SecurityCapability.ProcessValueWrite, "write is denied", Array.Empty<string>())
+            });
+
+        Assert.Equal(RuntimeConnectionClass.Interactive, decision.GrantedClass);
+        Assert.Equal(RuntimeSessionAdmissionReasonCode.InteractiveEligible, decision.ReasonCode);
+
+        var writeBaseline = AuthorizationDecision.Denied(
+            SecurityCapability.ProcessValueWrite,
+            "Authority still denies process write.");
+        var effective = RuntimeSessionCapabilityProjection.Apply(decision.GrantedClass, writeBaseline);
+        Assert.False(effective.Allowed);
+        Assert.Equal("Authority still denies process write.", effective.Reason);
+    }
+
+    [Fact]
+    public async Task Admission_ReconnectDownscopesExplicitViewOnly_AndNeverUpgradesByChangedRequest()
+    {
+        var now = DateTimeOffset.Parse("2026-09-17T00:00:00Z");
+        var runtime = RuntimeDescriptor(now);
+        var sessions = new RuntimeSessionLeaseRegistry(TimeSpan.FromMinutes(1), () => now);
+
+        var interactive = await sessions.AdmitAsync(
+            "operator",
+            "browser-1",
+            RuntimeConnectionClass.Interactive,
+            runtime);
+        var explicitViewOnly = await sessions.AdmitAsync(
+            "operator",
+            "browser-1",
+            RuntimeConnectionClass.ViewOnly,
+            runtime);
+
+        Assert.Equal(interactive.SessionId, explicitViewOnly.SessionId);
+        Assert.Equal(RuntimeConnectionClass.ViewOnly, explicitViewOnly.ConnectionClass);
+        Assert.Equal(interactive.Generation + 1, explicitViewOnly.Generation);
+
+        var changedBackToInteractive = await sessions.AdmitAsync(
+            "operator",
+            "browser-1",
+            RuntimeConnectionClass.Interactive,
+            runtime);
+        Assert.Equal(explicitViewOnly.SessionId, changedBackToInteractive.SessionId);
+        Assert.Equal(RuntimeConnectionClass.ViewOnly, changedBackToInteractive.ConnectionClass);
+        Assert.Equal(explicitViewOnly.Generation, changedBackToInteractive.Generation);
+    }
+
     [Theory]
     [InlineData(SecurityCapability.View)]
     [InlineData(SecurityCapability.TagRead)]

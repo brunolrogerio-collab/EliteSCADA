@@ -665,6 +665,7 @@ app.MapPost("/api/engineering/import/datasources.csv/apply", async (
 app.Map("/ws/tags", async (
     HttpContext context,
     TagRealtimeHub hub,
+    ScadaRuntimeFacade runtime,
     ApiAuthorizationService security) =>
 {
     if (!context.WebSockets.IsWebSocketRequest)
@@ -683,6 +684,8 @@ app.Map("/ws/tags", async (
 
     DateTimeOffset? expiresAtUtc = null;
     long? localAuthorityEpoch = null;
+    Guid? runtimeSessionId = null;
+    string? runtimeClientInstanceId = null;
     if (security.AuthenticationEnabled)
     {
         if (!long.TryParse(context.User.FindFirst("exp")?.Value, out var expiresAtUnix))
@@ -721,6 +724,30 @@ app.Map("/ws/tags", async (
 
             localAuthorityEpoch = epoch;
         }
+
+        var sessionIds = context.Request.Query["runtimeSessionId"];
+        var clientInstanceIds = context.Request.Query["clientInstanceId"];
+        if (!RuntimeSessionWebSocketAdmission.IsLegacyEngineeringSocket(sessionIds, clientInstanceIds))
+        {
+            // A socket opting into Runtime Session identity must use the same logical lease as
+            // REST. The only lease-less path is the explicit server-to-client Engineering
+            // read-only transport, which neither mutates nor participates in seat accounting.
+            var lease = await RuntimeSessionWebSocketAdmission.ValidateAsync(
+                security,
+                principal,
+                runtime,
+                sessionIds,
+                clientInstanceIds,
+                context.RequestAborted);
+            if (!lease.IsValid)
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
+
+            runtimeSessionId = lease.Lease!.SessionId;
+            runtimeClientInstanceId = lease.Lease.ClientInstanceId;
+        }
     }
 
     var socket = await context.WebSockets.AcceptWebSocketAsync();
@@ -730,7 +757,9 @@ app.Map("/ws/tags", async (
         security.AuthenticationEnabled,
         expiresAtUtc,
         localAuthorityEpoch,
-        context.RequestAborted);
+        context.RequestAborted,
+        runtimeSessionId,
+        runtimeClientInstanceId);
 });
 
 app.Run();

@@ -4,7 +4,10 @@ namespace Scada.Api.Runtime;
 
 public enum RuntimeConnectionClass
 {
-    Viewer,
+    // Viewer is retained as the persisted v1 compatibility value. ViewOnly is the public
+    // Wave 15 term and intentionally has the same restrictive semantics.
+    ViewOnly,
+    Viewer = ViewOnly,
     Interactive
 }
 
@@ -100,7 +103,7 @@ public sealed class RuntimeSessionLeaseRegistry
             new RuntimeSessionLeaseAdmission(
                 normalizedUserId,
                 normalizedClientInstanceId,
-                connectionClass.ToString().ToLowerInvariant(),
+                ToPersistedConnectionClass(connectionClass),
                 ToRuntimeIdentity(runtime),
                 _leaseDuration,
                 serverNode,
@@ -166,9 +169,11 @@ public sealed class RuntimeSessionLeaseRegistry
         if (string.IsNullOrWhiteSpace(value)) return false;
 
         var normalized = value.Trim();
-        if (normalized.Equals("viewer", StringComparison.OrdinalIgnoreCase))
+        if (normalized.Equals("viewer", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Equals("viewonly", StringComparison.OrdinalIgnoreCase) ||
+            normalized.Equals("view-only", StringComparison.OrdinalIgnoreCase))
         {
-            connectionClass = RuntimeConnectionClass.Viewer;
+            connectionClass = RuntimeConnectionClass.ViewOnly;
             return true;
         }
 
@@ -194,7 +199,7 @@ public sealed class RuntimeSessionLeaseRegistry
 
     private static RuntimeSessionLease FromStore(RuntimeSessionLeaseState lease)
     {
-        if (!TryParseConnectionClass(lease.RequestedConnectionClass, out var connectionClass))
+        if (!TryParseConnectionClass(lease.GrantedConnectionClass, out var connectionClass))
             throw new InvalidDataException("Persisted Runtime session connection class is incompatible.");
         return new RuntimeSessionLease(
             lease.SessionId,
@@ -212,6 +217,10 @@ public sealed class RuntimeSessionLeaseRegistry
             lease.Runtime.ActivatedAtUtc,
             lease.Generation);
     }
+
+    // Keep v1's "viewer" database value even though the public Wave 15 wire term is ViewOnly.
+    private static string ToPersistedConnectionClass(RuntimeConnectionClass connectionClass) =>
+        connectionClass == RuntimeConnectionClass.Interactive ? "interactive" : "viewer";
 }
 
 public static class RuntimeSessionCapabilityProjection

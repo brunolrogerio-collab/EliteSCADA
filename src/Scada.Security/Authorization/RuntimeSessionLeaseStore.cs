@@ -20,7 +20,7 @@ public sealed record RuntimeSessionRuntimeIdentity(
 public sealed record RuntimeSessionLeaseAdmission(
     string SubjectId,
     string ClientInstanceId,
-    string RequestedConnectionClass,
+    string GrantedConnectionClass,
     RuntimeSessionRuntimeIdentity Runtime,
     TimeSpan LeaseDuration,
     string? ServerNode = null,
@@ -30,7 +30,7 @@ public sealed record RuntimeSessionLeaseState(
     Guid SessionId,
     string SubjectId,
     string ClientInstanceId,
-    string RequestedConnectionClass,
+    string GrantedConnectionClass,
     long Generation,
     DateTimeOffset IssuedAtUtc,
     DateTimeOffset LastHeartbeatUtc,
@@ -122,11 +122,28 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
                 active = null;
             }
 
-            if (active is not null && active.Runtime.Matches(admission.Runtime)) return active;
+            if (active is not null && active.Runtime.Matches(admission.Runtime))
+            {
+                var retainedClass = MostRestrictiveConnectionClass(
+                    active.GrantedConnectionClass,
+                    admission.GrantedConnectionClass);
+                if (!string.Equals(retainedClass, active.GrantedConnectionClass, StringComparison.OrdinalIgnoreCase))
+                {
+                    // The logical identity remains stable, but an explicit ViewOnly request or
+                    // Authority downscope must invalidate stale generation users immediately.
+                    active = active with
+                    {
+                        GrantedConnectionClass = retainedClass,
+                        Generation = checked(active.Generation + 1)
+                    };
+                    _leases[active.SessionId] = active;
+                }
+                return active;
+            }
             if (active is not null) _leases[active.SessionId] = active with { IsActive = false };
 
             var lease = new RuntimeSessionLeaseState(
-                Guid.NewGuid(), subjectId, clientInstanceId, admission.RequestedConnectionClass.Trim(), 1,
+                Guid.NewGuid(), subjectId, clientInstanceId, admission.GrantedConnectionClass.Trim(), 1,
                 now, now, now.Add(admission.LeaseDuration), admission.Runtime,
                 NormalizeOptional(admission.ServerNode), NormalizeOptional(admission.ClusterId), true);
             _leases.Add(lease.SessionId, lease);
@@ -238,7 +255,7 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
         ArgumentNullException.ThrowIfNull(admission);
         ArgumentException.ThrowIfNullOrWhiteSpace(admission.SubjectId);
         ArgumentException.ThrowIfNullOrWhiteSpace(admission.ClientInstanceId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(admission.RequestedConnectionClass);
+        ArgumentException.ThrowIfNullOrWhiteSpace(admission.GrantedConnectionClass);
         ArgumentNullException.ThrowIfNull(admission.Runtime);
         if (admission.LeaseDuration <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(admission), "Lease duration must be positive.");
@@ -246,6 +263,16 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string MostRestrictiveConnectionClass(string existing, string requested) =>
+        IsViewOnlyConnectionClass(existing) || IsViewOnlyConnectionClass(requested)
+            ? "viewer"
+            : "interactive";
+
+    private static bool IsViewOnlyConnectionClass(string value) =>
+        value.Equals("viewer", StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("viewonly", StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("view-only", StringComparison.OrdinalIgnoreCase);
 
     public ValueTask DisposeAsync()
     {

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { admitInteractiveRuntimeSession } from './runtimeSessionLease';
 
 test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) => {
   test.setTimeout(90_000);
@@ -19,7 +20,8 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(frequencyTag!.readOnly).toBeFalsy();
 
   const writeResponse = await request.post(`/api/tags/${frequencyTag!.id}/write`, {
-    data: { value: 50 }
+    data: { value: 50 },
+    headers: await admitInteractiveRuntimeSession(request)
   });
   expect(writeResponse.status()).toBe(202);
   await expect(page.getByText('50.0 Hz')).toBeVisible({ timeout: 10_000 });
@@ -228,7 +230,8 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(activeAlarmId).toBeTruthy();
 
   const ackResponse = await request.post(`/api/alarms/${activeAlarmId!}/ack`, {
-    data: { user: 'e2e-operator' }
+    data: { user: 'e2e-operator' },
+    headers: await admitInteractiveRuntimeSession(request)
   });
   expect(ackResponse.ok()).toBeTruthy();
 

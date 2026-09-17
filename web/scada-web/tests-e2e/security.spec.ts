@@ -1,5 +1,6 @@
 import { expect, request as playwrightRequest, test } from '@playwright/test';
 import { createE2eJwt } from './jwt';
+import { admitInteractiveRuntimeSession } from './runtimeSessionLease';
 
 const baseURL = 'http://127.0.0.1:5173';
 
@@ -212,13 +213,17 @@ test('API distinguishes access levels and records protected-operation audit even
     })).status()).toBe(403);
 
     // The demo operator has CommandExecute, but ProcessValueWrite is deliberately absent.
-    expect((await operator.post(`/api/commands/${startCommand!.id}/execute`)).status()).toBe(202);
+    const operatorLeaseHeaders = await admitInteractiveRuntimeSession(operator);
+    expect((await operator.post(`/api/commands/${startCommand!.id}/execute`, { headers: operatorLeaseHeaders })).status()).toBe(202);
     expect((await operator.post(`/api/tags/${frequency!.id}/write`, {
-      data: { value: 52 }
+      data: { value: 52 },
+      headers: operatorLeaseHeaders
     })).status()).toBe(403);
 
     // AlarmShelve is deliberately separate from acknowledgement and command authority.
-    expect((await operator.post(`/api/alarms/${shelfableAlarm!.id}/shelve`)).status()).toBe(403);
+    expect((await operator.post(`/api/alarms/${shelfableAlarm!.id}/shelve`, {
+      headers: operatorLeaseHeaders
+    })).status()).toBe(403);
 
     // Engineering mutations require EngineeringModify, which the operator also does not have.
     expect((await operator.post('/api/engineering/import/json/apply', {
@@ -236,12 +241,16 @@ test('API distinguishes access levels and records protected-operation audit even
   }
 
   // The developer role explicitly has the protected capabilities used below.
+  const developerLeaseHeaders = await admitInteractiveRuntimeSession(request);
   expect((await request.post(`/api/tags/${frequency!.id}/write`, {
-    data: { value: 54 }
+    data: { value: 54 },
+    headers: developerLeaseHeaders
   })).status()).toBe(202);
-  expect((await request.post(`/api/commands/${startCommand!.id}/execute`)).status()).toBe(202);
+  expect((await request.post(`/api/commands/${startCommand!.id}/execute`, { headers: developerLeaseHeaders })).status()).toBe(202);
 
-  expect((await request.post(`/api/alarms/${shelfableAlarm!.id}/shelve`)).status()).toBe(200);
+  expect((await request.post(`/api/alarms/${shelfableAlarm!.id}/shelve`, {
+    headers: developerLeaseHeaders
+  })).status()).toBe(200);
   const shelvedAlarmsResponse = await request.get('/api/alarms');
   expect(shelvedAlarmsResponse.ok()).toBeTruthy();
   const shelvedAlarms = await shelvedAlarmsResponse.json() as Array<{
@@ -253,7 +262,9 @@ test('API distinguishes access levels and records protected-operation audit even
   expect(shelvedAlarm).toBeTruthy();
   expect(shelvedAlarm!.state).toBe(5);
   expect(shelvedAlarm!.shelvedBy).toBe('E2E Developer');
-  expect((await request.post(`/api/alarms/${shelfableAlarm!.id}/unshelve`)).status()).toBe(200);
+  expect((await request.post(`/api/alarms/${shelfableAlarm!.id}/unshelve`, {
+    headers: developerLeaseHeaders
+  })).status()).toBe(200);
 
   const saveResponse = await request.post('/api/engineering/persistence/e2e-security/save', {
     data: { projectName: 'E2E Security', savedBy: 'spoofed-client' }

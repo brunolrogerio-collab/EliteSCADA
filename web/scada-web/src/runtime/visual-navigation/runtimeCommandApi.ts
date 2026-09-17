@@ -1,3 +1,5 @@
+import { admitInteractiveRuntimeSession } from '../runtimeSessionAdmissionApi';
+
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
 export class RuntimeCommandExecutionError extends Error {
@@ -22,9 +24,11 @@ export async function executeRuntimeCommand(
   const normalized = commandId.trim();
   if (!normalized) throw new RuntimeCommandExecutionError(400, 'Operational Command identity is required.');
 
+  const leaseHeaders = await admitInteractiveRuntimeSession(fetcher);
   const response = await fetcher(`${API}/api/commands/${encodeURIComponent(normalized)}/execute`, {
     method: 'POST',
-    headers: { accept: 'application/json' }
+    credentials: 'same-origin',
+    headers: { accept: 'application/json', ...leaseHeaders }
   });
 
   if (!response.ok) {

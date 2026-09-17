@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Primitives;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Core.Events;
@@ -85,13 +86,73 @@ public sealed class DistributedRuntimeFoundationTestsProductionAuthorization
         Assert.True(baselineCommand.Allowed);
         Assert.True(baselineWrite.Allowed);
 
+        // A modified authenticated REST client cannot discard Runtime session identity to
+        // recover its baseline mutation Authority.
+        var missingSessionCommand = await authorization.CheckRuntimeAsync(
+            context,
+            runtime,
+            SecurityCapability.CommandExecute);
+        var missingSessionWrite = await authorization.CheckRuntimeTagAsync(
+            context,
+            runtime,
+            writableTag,
+            TagAccessOperation.Write);
+        Assert.False(missingSessionCommand.Allowed);
+        Assert.Equal(SecurityCapability.CommandExecute, missingSessionCommand.Decision?.Capability);
+        Assert.False(missingSessionWrite.Allowed);
+        Assert.Equal(SecurityCapability.ProcessValueWrite, missingSessionWrite.Decision?.Capability);
+
         var lease = await authorization.RuntimeSessions.AdmitAsync(
             principal.SubjectId,
             "browser-1",
             RuntimeConnectionClass.Viewer,
             runtime.Describe());
+
+        // WebSocket admission uses the same lease identity as REST and rejects direct or
+        // modified clients before the socket is accepted.
+        var missingSocketLease = await RuntimeSessionWebSocketAdmission.ValidateAsync(
+            authorization,
+            principal,
+            runtime,
+            StringValues.Empty,
+            new StringValues(lease.ClientInstanceId));
+        var partialSocketLease = await RuntimeSessionWebSocketAdmission.ValidateAsync(
+            authorization,
+            principal,
+            runtime,
+            new StringValues(lease.SessionId.ToString("D")),
+            StringValues.Empty);
+        var tamperedSocketLease = await RuntimeSessionWebSocketAdmission.ValidateAsync(
+            authorization,
+            principal,
+            runtime,
+            new StringValues(lease.SessionId.ToString("D")),
+            new StringValues("tampered-browser"));
+        var validSocketLease = await RuntimeSessionWebSocketAdmission.ValidateAsync(
+            authorization,
+            principal,
+            runtime,
+            new StringValues(lease.SessionId.ToString("D")),
+            new StringValues(lease.ClientInstanceId));
+        Assert.False(missingSocketLease.IsValid);
+        Assert.Equal("invalid-runtime-session-identity", missingSocketLease.FailureCode);
+        Assert.False(partialSocketLease.IsValid);
+        Assert.Equal("invalid-runtime-session-identity", partialSocketLease.FailureCode);
+        Assert.False(tamperedSocketLease.IsValid);
+        Assert.Equal("session-client-mismatch", tamperedSocketLease.FailureCode);
+        Assert.True(validSocketLease.IsValid);
+        Assert.Equal(lease.SessionId, validSocketLease.Lease!.SessionId);
+        Assert.True(RuntimeSessionWebSocketAdmission.IsLegacyEngineeringSocket(
+            StringValues.Empty,
+            StringValues.Empty));
+        Assert.False(RuntimeSessionWebSocketAdmission.IsLegacyEngineeringSocket(
+            new StringValues(lease.SessionId.ToString("D")),
+            StringValues.Empty));
+
         context.Request.Headers[ApiAuthorizationService.RuntimeSessionHeaderName] =
             lease.SessionId.ToString("D");
+        context.Request.Headers[ApiAuthorizationService.RuntimeSessionClientInstanceHeaderName] =
+            lease.ClientInstanceId;
 
         var effectiveCommand = await authorization.CheckRuntimeAsync(
             context,
@@ -107,6 +168,28 @@ public sealed class DistributedRuntimeFoundationTestsProductionAuthorization
         Assert.Equal(SecurityCapability.CommandExecute, effectiveCommand.Decision?.Capability);
         Assert.False(effectiveWrite.Allowed);
         Assert.Equal(SecurityCapability.ProcessValueWrite, effectiveWrite.Decision?.Capability);
+
+        // A lease-bearing request without its logical client identity cannot fall back to
+        // an Interactive session decision.
+        context.Request.Headers.Remove(ApiAuthorizationService.RuntimeSessionClientInstanceHeaderName);
+        var missingClientWrite = await authorization.CheckRuntimeTagAsync(
+            context,
+            runtime,
+            writableTag,
+            TagAccessOperation.Write);
+        Assert.False(missingClientWrite.Allowed);
+        Assert.Equal(SecurityCapability.ProcessValueWrite, missingClientWrite.Decision?.Capability);
+
+        // A modified REST client cannot replay the lease with a different logical client identity.
+        context.Request.Headers[ApiAuthorizationService.RuntimeSessionClientInstanceHeaderName] =
+            "tampered-browser";
+        var tamperedWrite = await authorization.CheckRuntimeTagAsync(
+            context,
+            runtime,
+            writableTag,
+            TagAccessOperation.Write);
+        Assert.False(tamperedWrite.Allowed);
+        Assert.Equal(SecurityCapability.ProcessValueWrite, tamperedWrite.Decision?.Capability);
     }
 
     private sealed class EmptyServiceProvider : IServiceProvider

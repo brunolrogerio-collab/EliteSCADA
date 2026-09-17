@@ -38,7 +38,24 @@ public sealed record RuntimeSessionLeaseState(
     RuntimeSessionRuntimeIdentity Runtime,
     string? ServerNode,
     string? ClusterId,
-    bool IsActive);
+    bool IsActive,
+    long AuthorityRevision = 1);
+
+public sealed record RuntimeAuthorityState(
+    long AuthorityRevision,
+    bool TransitionPending,
+    Guid? TransitionId,
+    string? TransitionKind,
+    DateTimeOffset? TransitionStartedAtUtc,
+    DateTimeOffset? AuthorityChangedAtUtc,
+    DateTimeOffset? DemoStartedAtUtc,
+    bool SupportsDurableRecovery);
+
+public sealed record RuntimeAuthorityTransition(
+    Guid TransitionId,
+    long BaseAuthorityRevision,
+    string Kind,
+    DateTimeOffset StartedAtUtc);
 
 public sealed record RuntimeSessionLeaseStoreResult(
     bool IsValid,
@@ -103,6 +120,35 @@ public interface IRuntimeSessionLeaseStore : IAsyncDisposable
 {
     Task InitializeAsync(CancellationToken cancellationToken = default);
 
+    Task<RuntimeAuthorityState> GetAuthorityStateAsync(CancellationToken cancellationToken = default);
+
+    Task<RuntimeAuthorityTransition> BeginAuthorityTransitionAsync(
+        string kind,
+        DateTimeOffset startedAtUtc,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> AbortAuthorityTransitionAsync(
+        Guid transitionId,
+        long expectedBaseAuthorityRevision,
+        CancellationToken cancellationToken = default);
+
+    Task<RuntimeAuthorityState> CommitAuthorityChangeAsync(
+        Guid transitionId,
+        long expectedBaseAuthorityRevision,
+        DateTimeOffset authorityChangedAtUtc,
+        DateTimeOffset? demoStartedAtUtc,
+        CancellationToken cancellationToken = default);
+
+    Task<int> FenceLeasesBeforeAuthorityRevisionAsync(
+        Guid transitionId,
+        long authorityRevision,
+        CancellationToken cancellationToken = default);
+
+    Task CompleteAuthorityTransitionAsync(
+        Guid transitionId,
+        long authorityRevision,
+        CancellationToken cancellationToken = default);
+
     Task<RuntimeSessionLeaseState> AdmitAsync(
         RuntimeSessionLeaseAdmission admission,
         CancellationToken cancellationToken = default);
@@ -141,11 +187,126 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
     private readonly Dictionary<Guid, RuntimeSessionLeaseState> _leases = new();
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Func<DateTimeOffset> _utcNow;
+    private long _authorityRevision = 1;
+    private bool _transitionPending;
+    private Guid? _transitionId;
+    private string? _transitionKind;
+    private DateTimeOffset? _transitionStartedAtUtc;
+    private DateTimeOffset? _authorityChangedAtUtc;
+    private DateTimeOffset? _demoStartedAtUtc;
 
     public InMemoryRuntimeSessionLeaseStore(Func<DateTimeOffset>? utcNow = null) =>
         _utcNow = utcNow ?? (() => DateTimeOffset.UtcNow);
 
     public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    public async Task<RuntimeAuthorityState> GetAuthorityStateAsync(CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try { return AuthorityStateLocked(); }
+        finally { _gate.Release(); }
+    }
+
+    public async Task<RuntimeAuthorityTransition> BeginAuthorityTransitionAsync(
+        string kind,
+        DateTimeOffset startedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_transitionPending)
+                throw new InvalidOperationException("A Runtime authority transition is already pending.");
+
+            var id = Guid.NewGuid();
+            _transitionPending = true;
+            _transitionId = id;
+            _transitionKind = kind.Trim();
+            _transitionStartedAtUtc = startedAtUtc;
+            return new RuntimeAuthorityTransition(id, _authorityRevision, _transitionKind, startedAtUtc);
+        }
+        finally { _gate.Release(); }
+    }
+
+    public async Task<bool> AbortAuthorityTransitionAsync(
+        Guid transitionId,
+        long expectedBaseAuthorityRevision,
+        CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (!_transitionPending ||
+                _transitionId != transitionId ||
+                _authorityRevision != expectedBaseAuthorityRevision)
+                return false;
+
+            ClearTransitionLocked();
+            return true;
+        }
+        finally { _gate.Release(); }
+    }
+
+    public async Task<RuntimeAuthorityState> CommitAuthorityChangeAsync(
+        Guid transitionId,
+        long expectedBaseAuthorityRevision,
+        DateTimeOffset authorityChangedAtUtc,
+        DateTimeOffset? demoStartedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            RequireTransitionLocked(transitionId, expectedBaseAuthorityRevision);
+            _authorityRevision = checked(_authorityRevision + 1);
+            _authorityChangedAtUtc = authorityChangedAtUtc;
+            _demoStartedAtUtc = demoStartedAtUtc;
+            return AuthorityStateLocked();
+        }
+        finally { _gate.Release(); }
+    }
+
+    public async Task<int> FenceLeasesBeforeAuthorityRevisionAsync(
+        Guid transitionId,
+        long authorityRevision,
+        CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            RequireTransitionLocked(transitionId, authorityRevision, revisionAlreadyAdvanced: true);
+            var stale = _leases.Values
+                .Where(lease => lease.IsActive && lease.AuthorityRevision < authorityRevision)
+                .ToArray();
+            foreach (var lease in stale)
+            {
+                _leases[lease.SessionId] = lease with
+                {
+                    Generation = checked(lease.Generation + 1),
+                    IsActive = false
+                };
+            }
+            return stale.Length;
+        }
+        finally { _gate.Release(); }
+    }
+
+    public async Task CompleteAuthorityTransitionAsync(
+        Guid transitionId,
+        long authorityRevision,
+        CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            RequireTransitionLocked(transitionId, authorityRevision, revisionAlreadyAdvanced: true);
+            if (_leases.Values.Any(lease => lease.IsActive && lease.AuthorityRevision < authorityRevision))
+                throw new InvalidOperationException("Cannot complete Runtime authority transition while stale active leases remain.");
+            ClearTransitionLocked();
+        }
+        finally { _gate.Release(); }
+    }
 
     public async Task<RuntimeSessionLeaseState> AdmitAsync(
         RuntimeSessionLeaseAdmission admission,
@@ -386,6 +547,38 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
             return RuntimeSessionLeaseStoreResult.Invalid("runtime-changed");
         }
         return RuntimeSessionLeaseStoreResult.Valid(lease);
+    }
+
+    private RuntimeAuthorityState AuthorityStateLocked() =>
+        new(
+            _authorityRevision,
+            _transitionPending,
+            _transitionId,
+            _transitionKind,
+            _transitionStartedAtUtc,
+            _authorityChangedAtUtc,
+            _demoStartedAtUtc,
+            SupportsDurableRecovery: false);
+
+    private void RequireTransitionLocked(
+        Guid transitionId,
+        long expectedRevision,
+        bool revisionAlreadyAdvanced = false)
+    {
+        if (!_transitionPending || _transitionId != transitionId)
+            throw new InvalidOperationException("Runtime authority transition does not match the pending transition.");
+
+        var expected = revisionAlreadyAdvanced ? expectedRevision : expectedRevision;
+        if (_authorityRevision != expected)
+            throw new InvalidOperationException("Runtime authority revision changed unexpectedly.");
+    }
+
+    private void ClearTransitionLocked()
+    {
+        _transitionPending = false;
+        _transitionId = null;
+        _transitionKind = null;
+        _transitionStartedAtUtc = null;
     }
 
     private void ExpireLocked(DateTimeOffset now)

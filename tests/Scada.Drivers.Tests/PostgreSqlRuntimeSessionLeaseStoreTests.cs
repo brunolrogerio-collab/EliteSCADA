@@ -163,8 +163,13 @@ public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
 
         try
         {
+            var authority = await first.GetAuthorityStateAsync();
+            Assert.False(authority.TransitionPending);
+
             var sameIdentity = new RuntimeSessionLeaseCapacityAdmission(
-                Admission(subject, "logical-client", runtime, TimeSpan.FromMinutes(1), "interactive"), capacity);
+                Admission(subject, "logical-client", runtime, TimeSpan.FromMinutes(1), "interactive"),
+                capacity,
+                authority.AuthorityRevision);
             var concurrent = await Task.WhenAll(
                 first.AdmitWithCapacityAsync(sameIdentity),
                 second.AdmitWithCapacityAsync(sameIdentity));
@@ -172,7 +177,9 @@ public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
             Assert.Single(concurrent.Select(result => result.Lease!.SessionId).Distinct());
 
             var anotherIdentity = new RuntimeSessionLeaseCapacityAdmission(
-                Admission(subject, "other-client", runtime, TimeSpan.FromMinutes(1), "interactive"), capacity);
+                Admission(subject, "other-client", runtime, TimeSpan.FromMinutes(1), "interactive"),
+                capacity,
+                authority.AuthorityRevision);
             var rejected = await second.AdmitWithCapacityAsync(anotherIdentity);
             Assert.False(rejected.IsAdmitted);
             Assert.Equal(RuntimeSessionSeatReservationReasonCode.InteractiveQuotaExhaustedNoEligibleViewOnly, rejected.ReasonCode);

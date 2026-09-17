@@ -129,6 +129,108 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         }
     }
 
+    public async Task<RuntimeSessionLeaseCapacityAdmissionResult> AdmitWithCapacityAsync(
+        RuntimeSessionLeaseCapacityAdmission capacityAdmission,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(capacityAdmission);
+        var admission = capacityAdmission.Lease;
+        ValidateAdmission(admission);
+        capacityAdmission.Capacity.Validate();
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            await AcquireLeaseMutationLockAsync(connection, transaction, cancellationToken);
+            var subjectId = admission.SubjectId.Trim();
+            var clientInstanceId = admission.ClientInstanceId.Trim();
+            var now = DateTimeOffset.UtcNow;
+            await DeactivateExpiredAsync(connection, transaction, now, cancellationToken);
+            var active = await LoadActiveByIdentityAsync(connection, transaction, subjectId, clientInstanceId, cancellationToken);
+
+            if (active is not null && active.Runtime.Matches(admission.Runtime))
+            {
+                if (IsViewOnlyConnectionClass(active.GrantedConnectionClass))
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                    return RuntimeSessionLeaseCapacityAdmissionResult.Admitted(active, RuntimeSessionSeatReservationReasonCode.ExistingLeaseRetained);
+                }
+
+                if (!IsViewOnlyConnectionClass(admission.GrantedConnectionClass))
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                    return RuntimeSessionLeaseCapacityAdmissionResult.Admitted(active, RuntimeSessionSeatReservationReasonCode.InteractiveReserved);
+                }
+
+                if (await CountActiveByClassAsync(connection, transaction, admission.Runtime, "viewer", now, cancellationToken) >= capacityAdmission.Capacity.ViewOnlySeats)
+                {
+                    if (!await DeactivateAsync(connection, transaction, active.SessionId, active.Generation, cancellationToken))
+                        throw new InvalidOperationException("Runtime session admission changed concurrently.");
+                    await transaction.CommitAsync(cancellationToken);
+                    return RuntimeSessionLeaseCapacityAdmissionResult.Rejected(RuntimeSessionSeatReservationReasonCode.ViewOnlyQuotaExhausted);
+                }
+
+                var downscoped = active with { GrantedConnectionClass = "viewer", Generation = checked(active.Generation + 1) };
+                if (!await DownscopeAsync(connection, transaction, downscoped, active.Generation, cancellationToken))
+                    throw new InvalidOperationException("Runtime session admission changed concurrently.");
+                await transaction.CommitAsync(cancellationToken);
+                return RuntimeSessionLeaseCapacityAdmissionResult.Admitted(downscoped, RuntimeSessionSeatReservationReasonCode.AuthorityDownscopeViewOnlyReserved);
+            }
+
+            if (active is not null && !await DeactivateAsync(connection, transaction, active.SessionId, active.Generation, cancellationToken))
+                throw new InvalidOperationException("Runtime session admission changed concurrently.");
+
+            var interactiveInUse = await CountActiveByClassAsync(connection, transaction, admission.Runtime, "interactive", now, cancellationToken);
+            var viewOnlyInUse = await CountActiveByClassAsync(connection, transaction, admission.Runtime, "viewer", now, cancellationToken);
+            var desiredViewOnly = IsViewOnlyConnectionClass(admission.GrantedConnectionClass);
+            string grantedClass;
+            RuntimeSessionSeatReservationReasonCode reason;
+            if (desiredViewOnly)
+            {
+                if (viewOnlyInUse >= capacityAdmission.Capacity.ViewOnlySeats)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                    return RuntimeSessionLeaseCapacityAdmissionResult.Rejected(RuntimeSessionSeatReservationReasonCode.ViewOnlyQuotaExhausted);
+                }
+                grantedClass = "viewer";
+                reason = RuntimeSessionSeatReservationReasonCode.ViewOnlyReserved;
+            }
+            else if (interactiveInUse < capacityAdmission.Capacity.InteractiveSeats)
+            {
+                grantedClass = "interactive";
+                reason = RuntimeSessionSeatReservationReasonCode.InteractiveReserved;
+            }
+            else if (viewOnlyInUse < capacityAdmission.Capacity.ViewOnlySeats)
+            {
+                grantedClass = "viewer";
+                reason = RuntimeSessionSeatReservationReasonCode.InteractiveQuotaFallbackViewOnly;
+            }
+            else if (capacityAdmission.Capacity.ViewOnlySeats == 0)
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return RuntimeSessionLeaseCapacityAdmissionResult.Rejected(RuntimeSessionSeatReservationReasonCode.InteractiveQuotaExhaustedNoEligibleViewOnly);
+            }
+            else
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return RuntimeSessionLeaseCapacityAdmissionResult.Rejected(RuntimeSessionSeatReservationReasonCode.EligiblePoolsExhausted);
+            }
+
+            var lease = new RuntimeSessionLeaseState(
+                Guid.NewGuid(), subjectId, clientInstanceId, grantedClass, 1, now, now,
+                now.Add(admission.LeaseDuration), admission.Runtime,
+                NormalizeOptional(admission.ServerNode), NormalizeOptional(admission.ClusterId), true);
+            await InsertAsync(connection, transaction, lease, admission.LeaseDuration, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return RuntimeSessionLeaseCapacityAdmissionResult.Admitted(lease, reason);
+        }
+        catch
+        {
+            await RollbackQuietlyAsync(transaction);
+            throw;
+        }
+    }
+
     public async Task<RuntimeSessionLeaseStoreResult> ValidateAsync(
         Guid sessionId,
         string subjectId,
@@ -293,6 +395,46 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         command.Parameters.AddWithValue("client_instance_id", clientInstanceId);
         command.Parameters.AddWithValue("now", NpgsqlDbType.TimestampTz, now);
         await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task DeactivateExpiredAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            UPDATE elitescada.runtime_session_leases
+            SET is_active = false, generation = generation + 1
+            WHERE is_active AND expires_at_utc <= @now;
+            """;
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("now", NpgsqlDbType.TimestampTz, now);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task<int> CountActiveByClassAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        RuntimeSessionRuntimeIdentity runtime,
+        string connectionClass,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT count(*)
+            FROM elitescada.runtime_session_leases
+            WHERE is_active AND expires_at_utc > @now
+              AND runtime_mode = @runtime_mode
+              AND runtime_project_key IS NOT DISTINCT FROM @runtime_project_key
+              AND runtime_revision IS NOT DISTINCT FROM @runtime_revision
+              AND runtime_activated_at_utc IS NOT DISTINCT FROM @runtime_activated_at_utc
+              AND requested_connection_class = @connection_class;
+            """;
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("now", NpgsqlDbType.TimestampTz, now);
+        command.Parameters.AddWithValue("runtime_mode", runtime.Mode);
+        command.Parameters.AddWithValue("runtime_project_key", NpgsqlDbType.Text, (object?)runtime.ProjectKey ?? DBNull.Value);
+        command.Parameters.AddWithValue("runtime_revision", NpgsqlDbType.Bigint, (object?)runtime.Revision ?? DBNull.Value);
+        command.Parameters.AddWithValue("runtime_activated_at_utc", NpgsqlDbType.TimestampTz, (object?)runtime.ActivatedAtUtc ?? DBNull.Value);
+        command.Parameters.AddWithValue("connection_class", connectionClass);
+        return checked(Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)));
     }
 
     private static async Task<RuntimeSessionLeaseState?> LoadActiveByIdentityAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string subjectId, string clientInstanceId, CancellationToken cancellationToken)

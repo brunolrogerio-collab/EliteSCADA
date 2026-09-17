@@ -1,4 +1,5 @@
 using Scada.Api.Security;
+using Scada.Core.Product.Licensing;
 using Scada.Security.Authorization;
 
 namespace Scada.Api.Runtime;
@@ -6,10 +7,10 @@ namespace Scada.Api.Runtime;
 public static class DistributedRuntimeFoundationApi
 {
     public const string ContractSchema = "elitescada.server-runtime-contract";
-    // v3 introduces server-calculated admission and the public ViewOnly wire term.
+    // v4 adds atomic signed/demo shared-seat reservation to server-calculated admission.
     // v2 clients may still submit the legacy "viewer" request value, but responses
     // advertise the explicit granted-class semantics through this new schema version.
-    public const int ContractSchemaVersion = 3;
+    public const int ContractSchemaVersion = 4;
 
     public static IEndpointRouteBuilder MapDistributedRuntimeFoundationEndpoints(
         this IEndpointRouteBuilder endpoints)
@@ -19,6 +20,7 @@ public static class DistributedRuntimeFoundationApi
             HttpContext context,
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
+            IProductLicenseService licensing,
             CancellationToken cancellationToken) =>
         {
             var principal = security.GetPrincipal(context);
@@ -59,16 +61,21 @@ public static class DistributedRuntimeFoundationApi
             if (admissionFailure is not null) return admissionFailure;
             if (decision is null) return Results.Forbid();
 
+            var capacity = RuntimeSessionSeatCapacityPolicy.Resolve(licensing.CurrentVerification);
+            if (!capacity.IsAvailable || capacity.Capacity is null)
+                return CapacityFailure(capacity.ReasonCode);
+
             var before = runtime.Describe();
-            var lease = await security.RuntimeSessions.AdmitAsync(
+            var seatAdmission = await security.RuntimeSessions.AdmitWithCapacityAsync(
                 principal.SubjectId,
                 request.ClientInstanceId,
                 decision.GrantedClass,
                 before,
+                capacity.Capacity,
                 cancellationToken: cancellationToken);
-            decision = RuntimeSessionAdmissionPolicy.RetainExistingLease(
-                decision,
-                lease.ConnectionClass);
+            if (!seatAdmission.IsAdmitted || seatAdmission.Lease is null)
+                return CapacityFailure(seatAdmission.ReasonCode);
+            var lease = seatAdmission.Lease;
             var after = runtime.Describe();
             if (!SameRuntime(before, after))
             {
@@ -83,7 +90,7 @@ public static class DistributedRuntimeFoundationApi
 
             return Results.Created(
                 $"/api/runtime/sessions/{lease.SessionId}",
-                ProjectLease(lease, decision));
+                ProjectLease(lease, decision, seatAdmission.ReasonCode));
         });
 
         endpoints.MapPost("/api/runtime/sessions/{sessionId:guid}/heartbeat", async (
@@ -231,8 +238,10 @@ public static class DistributedRuntimeFoundationApi
                     admission = new
                     {
                         serverCalculated = true,
-                        capacityReservation = false,
-                        reasonCodes = Enum.GetNames<RuntimeSessionAdmissionReasonCode>()
+                        capacityReservation = true,
+                        authorityReasonCodes = Enum.GetNames<RuntimeSessionAdmissionReasonCode>(),
+                        capacityReasonCodes = Enum.GetNames<RuntimeSessionCapacityReasonCode>(),
+                        capacityReservationReasonCodes = Enum.GetNames<RuntimeSessionSeatReservationReasonCode>()
                     }
                 },
                 effectiveCapabilities
@@ -244,7 +253,8 @@ public static class DistributedRuntimeFoundationApi
 
     private static object ProjectLease(
         RuntimeSessionLease lease,
-        RuntimeSessionAdmissionDecision? admission = null) => new
+        RuntimeSessionAdmissionDecision? admission = null,
+        RuntimeSessionSeatReservationReasonCode? capacityReasonCode = null) => new
     {
         lease.SessionId,
         lease.UserId,
@@ -254,7 +264,8 @@ public static class DistributedRuntimeFoundationApi
         requestedClass = admission is null ? null : ToWireClass(admission.RequestedClass),
         grantedClass = ToWireClass(lease.ConnectionClass),
         admissionReasonCode = admission?.ReasonCode.ToString(),
-        capacityReserved = false,
+        capacityReasonCode = capacityReasonCode?.ToString(),
+        capacityReserved = true,
         lease.IssuedAtUtc,
         lease.LastHeartbeatUtc,
         lease.ExpiresAtUtc,
@@ -290,6 +301,10 @@ public static class DistributedRuntimeFoundationApi
             },
             statusCode: statusCode);
     }
+
+    private static IResult CapacityFailure(object reasonCode) => Results.Json(
+        new { error = "Runtime session capacity is unavailable.", capacityReasonCode = reasonCode.ToString() },
+        statusCode: StatusCodes.Status409Conflict);
 
     private static bool SameRuntime(ScadaRuntimeDescriptor left, ScadaRuntimeDescriptor right) =>
         left.Revision == right.Revision &&

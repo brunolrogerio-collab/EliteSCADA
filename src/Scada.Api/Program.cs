@@ -725,23 +725,29 @@ app.Map("/ws/tags", async (
             localAuthorityEpoch = epoch;
         }
 
-        // Authenticated Runtime sockets are always bound to the same logical lease used by
-        // REST mutations. Omitting both parameters must not create a transport-only bypass.
-        var lease = await RuntimeSessionWebSocketAdmission.ValidateAsync(
-            security,
-            principal,
-            runtime,
-            context.Request.Query["runtimeSessionId"],
-            context.Request.Query["clientInstanceId"],
-            context.RequestAborted);
-        if (!lease.IsValid)
+        var sessionIds = context.Request.Query["runtimeSessionId"];
+        var clientInstanceIds = context.Request.Query["clientInstanceId"];
+        if (!RuntimeSessionWebSocketAdmission.IsLegacyEngineeringSocket(sessionIds, clientInstanceIds))
         {
-            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            return;
-        }
+            // A socket opting into Runtime Session identity must use the same logical lease as
+            // REST. The only lease-less path is the explicit server-to-client Engineering
+            // read-only transport, which neither mutates nor participates in seat accounting.
+            var lease = await RuntimeSessionWebSocketAdmission.ValidateAsync(
+                security,
+                principal,
+                runtime,
+                sessionIds,
+                clientInstanceIds,
+                context.RequestAborted);
+            if (!lease.IsValid)
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
 
-        runtimeSessionId = lease.Lease!.SessionId;
-        runtimeClientInstanceId = lease.Lease.ClientInstanceId;
+            runtimeSessionId = lease.Lease!.SessionId;
+            runtimeClientInstanceId = lease.Lease.ClientInstanceId;
+        }
     }
 
     var socket = await context.WebSockets.AcceptWebSocketAsync();

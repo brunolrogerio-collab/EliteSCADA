@@ -10,6 +10,16 @@ namespace Scada.Api.Runtime;
 /// </summary>
 public static class RuntimeSessionWebSocketAdmission
 {
+    /// <summary>
+    /// Engineering realtime is an explicit read-only compatibility transport when it carries no
+    /// Runtime Session identity at all. It neither creates nor participates in a lease/seat.
+    /// Supplying either identity value opts a client into strict Runtime Session validation.
+    /// </summary>
+    public static bool IsLegacyEngineeringSocket(
+        StringValues sessionIds,
+        StringValues clientInstanceIds) =>
+        sessionIds.Count == 0 && clientInstanceIds.Count == 0;
+
     public static async Task<RuntimeSessionLeaseValidation> ValidateAsync(
         ApiAuthorizationService security,
         SecurityPrincipal principal,

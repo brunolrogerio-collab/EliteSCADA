@@ -116,6 +116,12 @@ public sealed class DistributedRuntimeFoundationTestsProductionAuthorization
             runtime,
             StringValues.Empty,
             new StringValues(lease.ClientInstanceId));
+        var partialSocketLease = await RuntimeSessionWebSocketAdmission.ValidateAsync(
+            authorization,
+            principal,
+            runtime,
+            new StringValues(lease.SessionId.ToString("D")),
+            StringValues.Empty);
         var tamperedSocketLease = await RuntimeSessionWebSocketAdmission.ValidateAsync(
             authorization,
             principal,
@@ -130,10 +136,18 @@ public sealed class DistributedRuntimeFoundationTestsProductionAuthorization
             new StringValues(lease.ClientInstanceId));
         Assert.False(missingSocketLease.IsValid);
         Assert.Equal("invalid-runtime-session-identity", missingSocketLease.FailureCode);
+        Assert.False(partialSocketLease.IsValid);
+        Assert.Equal("invalid-runtime-session-identity", partialSocketLease.FailureCode);
         Assert.False(tamperedSocketLease.IsValid);
         Assert.Equal("session-client-mismatch", tamperedSocketLease.FailureCode);
         Assert.True(validSocketLease.IsValid);
         Assert.Equal(lease.SessionId, validSocketLease.Lease!.SessionId);
+        Assert.True(RuntimeSessionWebSocketAdmission.IsLegacyEngineeringSocket(
+            StringValues.Empty,
+            StringValues.Empty));
+        Assert.False(RuntimeSessionWebSocketAdmission.IsLegacyEngineeringSocket(
+            new StringValues(lease.SessionId.ToString("D")),
+            StringValues.Empty));
 
         context.Request.Headers[ApiAuthorizationService.RuntimeSessionHeaderName] =
             lease.SessionId.ToString("D");

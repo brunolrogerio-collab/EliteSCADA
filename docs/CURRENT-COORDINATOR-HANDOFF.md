@@ -16,7 +16,7 @@
 - FND-03 machine-license v2 + hardening — VERIFIED/FROZEN.
 - FND-03 Runtime Admission — VERIFIED/FROZEN.
 - FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN.
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A PR_READY-PENDING-CI / NOT INTEGRATED**.
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A CI-EVIDENCE CORRECTION ACTIVE / NOT INTEGRATED**.
 - FND-03 global — ACTIVE / NOT FROZEN.
 - FND-04 — QUEUED / CONTRACT DEFINED / WAIT.
 - FC0-A — BLOCKED.
@@ -42,7 +42,7 @@ Codex is reserve. No implementation/commit/PR/CI is authorized until Main explic
 ### FND-03 DEV
 
 `ORDER_STATE: ACTIVE`  
-`DEV_MODE: OPEN_PHASE_A_PR_ONLY`
+`DEV_MODE: IMPLEMENT_PHASE_A_CI_EVIDENCE_CORRECTION`
 
 Architecture amendment #301 comment `5722165708` was independently reviewed by Main and is frozen for implementation.
 
@@ -86,3 +86,8 @@ FND-04 DEV and AUD remain `WAIT`.
 6. Keep FND-04 WAIT and FC0-A blocked.
 
 `Hora: HH:MM` in America/Sao_Paulo.
+
+
+## Latest Main finding
+
+PR #332 CI #1547 exposed a test-environment evidence gap: canonical CI provides `ELITESCADA_TEST_POSTGRES`, but FND-03 PostgreSQL tests were reading legacy `ELITESCADA_C25_POSTGRES` and returning early. A tests-only correction is active; old CI #1547 cannot prove PostgreSQL acceptance.

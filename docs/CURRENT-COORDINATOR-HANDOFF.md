@@ -16,7 +16,7 @@
 - FND-03 machine-license v2 + hardening — VERIFIED/FROZEN.
 - FND-03 Runtime Admission — VERIFIED/FROZEN.
 - FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN.
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / IMPLEMENTATION PHASE A ACTIVE / NOT INTEGRATED**.
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A CORRECTION ACTIVE / NOT INTEGRATED**.
 - FND-03 global — ACTIVE / NOT FROZEN.
 - FND-04 — QUEUED / CONTRACT DEFINED / WAIT.
 - FC0-A — BLOCKED.
@@ -42,7 +42,7 @@ Codex is reserve. No implementation/commit/PR/CI is authorized until Main explic
 ### FND-03 DEV
 
 `ORDER_STATE: ACTIVE`  
-`DEV_MODE: IMPLEMENT_PHASE_A`
+`DEV_MODE: IMPLEMENT_PHASE_A_CORRECTION`
 
 Architecture amendment #301 comment `5722165708` was independently reviewed by Main and is frozen for implementation.
 
@@ -62,11 +62,17 @@ Phase A only:
 
 Do not yet implement local Runtime re-evaluation, Demo recovery, lifecycle orchestrator, licensing mutation API/audit cutover, FND-04 or FC0-A.
 
+Candidate Phase A head `d1ae56e787989f5fc2e9867c22f3e7d9f31aefb7` was independently reviewed by Main.
+
+Two corrections are active before PR/CI:
+- remove the unsafe capacity overload/default that can bind stale computed capacity to a later authority revision;
+- add deterministic fence/Generation proof, including PostgreSQL exactly-once generation mutation and complete-before-fence rejection.
+
 Required return in #301:
 
-`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A HANDOFF`
+`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A CORRECTION HANDOFF`
 
-No PR or Actions yet. Main reviews the exact Phase A head before Phase B.
+No PR or Actions yet. Main re-reviews the corrected exact head before CI/Phase B.
 
 ## FND-04
 

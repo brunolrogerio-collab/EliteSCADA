@@ -15,10 +15,10 @@
 - FND-03 durable Runtime Session Lease v1 — VERIFIED/FROZEN.
 - FND-03 machine-license v2 + hardening — VERIFIED/FROZEN.
 - FND-03 Runtime Admission — VERIFIED/FROZEN.
-- FND-03 Shared Runtime Seat Accounting — **VERIFIED/FROZEN**.
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing v1 — **ACTIVE**.
+- FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN.
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE REVIEW / CORRECTION REQUIRED / IMPLEMENTATION NOT AUTHORIZED**.
 - FND-03 global — ACTIVE / NOT FROZEN.
-- FND-04 Script TAG Reference Resolution — QUEUED / CONTRACT DEFINED / WAIT.
+- FND-04 — QUEUED / CONTRACT DEFINED / WAIT.
 - FC0-A — BLOCKED.
 
 ## Verified product checkpoint
@@ -27,59 +27,57 @@
 
 tree `eed22a377fea2778d3e78143d706e4de0ef9ce38`.
 
-Esse checkpoint é o merge do PR #331 e foi validado pela CI pós-merge #1546 / run `35269829080`:
+PR #331 is MERGED and exact post-merge CI #1546 / run `35269829080` is green:
 
 - Backend `105366045111` — SUCCESS
 - Web `105366045298` — SUCCESS
 - Chromium `105366583742` — SUCCESS
 
-Commits posteriores somente documentais não mudam o product checkpoint.
+Coordination/documentation commits after that SHA do not create a new product checkpoint.
 
-## Ordem corrente ao Codex
+## Current execution lanes
 
-Ler a `CURRENT ORDER` no handoff canônico.
+### CODEX
 
-Missão ativa:
+`ORDER_STATE: WAIT`.
 
-`FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing v1`
+Codex is reserve while normal FND-03 DEV/ARCH closes the architecture. No implementation/commit/PR/CI is authorized for Codex now.
 
-Exact product base:
+### FND-03 DEV/ARCH
 
-`a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
+`ORDER_STATE: ACTIVE`  
+`DEV_MODE: ARCH_ONLY_CORRECTION`
 
-tree `eed22a377fea2778d3e78143d706e4de0ef9ce38`.
+The first architecture handoff was reviewed by Main. Overall direction remains usable, but implementation is blocked until a source-backed amendment closes six corrections:
 
-Work branch:
+1. exact live source map;
+2. canonical `LicenseVerificationResult` candidate-verify seam;
+3. durable short-transaction `transition_pending` protocol around the transaction-scoped PostgreSQL advisory lock;
+4. same-installation/machine-license invariant for shared-ledger multi-instance use; cross-machine HA out of scope;
+5. `EngineeringModify` required but machine-license lifecycle independent from current Application Engineering Lock;
+6. Demo transition/restart behavior mapped against `PersistedRuntimeRecoveryService` without permissive timer reset.
 
-`work/w15-fnd-03-license-lifecycle-fencing-v1`
+Required return in #301:
 
-Target:
+`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE ARCHITECTURE AMENDMENT`
 
-`wave15/corrections-integration`
-
-Codex não deve repetir auditoria aberta: o Main já fechou o source audit e o work package no handoff canônico.
-
-A missão inclui candidate verify sem mutação, replace/install transacional, remove->Demo, fence de todas as leases remotas após mudança válida de licença, reavaliação/fencing do Runtime ativo, EngineeringModify nas mutações, audit seguro e testes de concorrência/negativos.
-
-A branch deve usar como product merge-base o exact checkpoint `a7067ac9...`; coordination HEADs documentais não devem ser tratados como nova base de produto. Se houver qualquer delta interveniente de produto/infra, Codex deve STOP com `BLOCKED-BASE-DIVERGENCE`.
+No product/test/branch/PR/CI mutation is authorized in this pass.
 
 ## FND-04
 
-DEV e AUD permanecem `WAIT`. Main ainda não autorizou implementação FND-04. Em `SIGA`, ambos relêem o handoff canônico e não fazem mutação enquanto WAIT.
+FND-04 DEV and AUD remain `WAIT`. They begin only after Main activates them with exact product base/candidate and scope.
 
-## Autoridade permanente do Main
+## Main permanent authority
 
-Main pode atualizar handoffs/ordens, espelhar ordens aos agentes e operar CI pré/pós-merge sob guardas. CI verde não equivale a merge. `main` continua protegido.
+Main may update canonical orders and operate exact-SHA pre/post-merge CI under the permanent guards. CI green is not merge permission. `main` remains protected.
 
 ## Retomada obrigatória
 
-1. Ler `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` integralmente.
-2. Revalidar product checkpoint `a7067ac9...`, integration HEAD live, PRs e Actions.
-3. Acompanhar a entrega do lifecycle/fencing no exact candidate.
-4. FND-03 só congela globalmente após Main fechar todos os critérios #301 no exact integration checkpoint.
-5. FND-04 permanece WAIT até ordem ACTIVE.
-6. FC0-A permanece bloqueado.
+1. Read the canonical handoff in full.
+2. Revalidate product checkpoint and live integration HEAD.
+3. Read the latest #301 DEV/ARCH amendment if present.
+4. Main independently reviews/freezes architecture before any implementation order.
+5. Keep Codex WAIT unless Main explicitly activates a bounded task.
+6. Keep FND-04 WAIT and FC0-A blocked until their gates open.
 
-Fontes: handoff canônico, #301, #304, #305, #297.
-
-`Hora: HH:MM` em America/Sao_Paulo.
+`Hora: HH:MM` in America/Sao_Paulo.

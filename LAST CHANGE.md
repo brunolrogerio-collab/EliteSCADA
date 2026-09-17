@@ -1,7 +1,7 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-17 BRT  
-**Operational state:** **WAVE 15 ACTIVE / FND-03 SHARED SEAT ACCOUNTING VERIFIED+FROZEN / LIFECYCLE+FENCING ARCHITECTURE FROZEN / PHASE A IMPLEMENTATION ACTIVE / CODEX WAIT / FND-04 WAIT / FC0-A BLOCKED**
+**Operational state:** **WAVE 15 ACTIVE / FND-03 SHARED SEAT ACCOUNTING VERIFIED+FROZEN / LIFECYCLE+FENCING ARCHITECTURE FROZEN / PHASE A CORRECTION ACTIVE / CODEX WAIT / FND-04 WAIT / FC0-A BLOCKED**
 
 > GitHub live is the official memory.
 >
@@ -26,7 +26,7 @@ Later coordination-only documentation commits do not change the product checkpoi
 - FND-03 machine-license v2 + hardening — VERIFIED/FROZEN
 - FND-03 Runtime Admission — VERIFIED/FROZEN
 - FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / IMPLEMENTATION PHASE A ACTIVE / NOT INTEGRATED**
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A CORRECTION ACTIVE / NOT INTEGRATED**
 - FND-03 global — ACTIVE / NOT FROZEN
 - FND-04 — WAIT
 - FC0-A — BLOCKED
@@ -35,7 +35,7 @@ Later coordination-only documentation commits do not change the product checkpoi
 
 CODEX remains `WAIT` to preserve scarce quota.
 
-FND-03 DEV is `ACTIVE / IMPLEMENT_PHASE_A`.
+FND-03 DEV is `ACTIVE / IMPLEMENT_PHASE_A_CORRECTION`.
 
 Main reviewed and froze architecture amendment #301 comment `5722165708`. The first implementation phase is deliberately bounded to:
 
@@ -55,7 +55,7 @@ Target:
 
 `wave15/corrections-integration`
 
-No PR or GitHub Actions are authorized for Phase A yet. DEV pushes bounded A1/A2/A3 commits and returns an exact-head handoff in #301; Main reviews before Phase B.
+Phase A candidate `d1ae56e787989f5fc2e9867c22f3e7d9f31aefb7` was reviewed by Main. Scope is correct, but PR/CI remains blocked on two corrections: eliminate the stale-capacity convenience overload/default epoch binding, and add deterministic bulk-fence/Generation exactly-once proof. DEV returns a corrected exact head before Main authorizes CI/Phase B.
 
 ## Frozen architecture guards
 
@@ -76,7 +76,7 @@ No PR or GitHub Actions are authorized for Phase A yet. DEV pushes bounded A1/A2
 
 Wait for:
 
-`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A HANDOFF`
+`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A CORRECTION HANDOFF`
 
 Then Main independently reviews exact Phase A head/tests and either:
 - orders corrections,

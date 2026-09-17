@@ -52,6 +52,14 @@ public sealed record RuntimeSessionLeaseValidation(
         new(false, null, failureCode);
 }
 
+public sealed record RuntimeSessionSeatAdmission(
+    bool IsAdmitted,
+    RuntimeSessionLease? Lease,
+    RuntimeSessionSeatReservationReasonCode ReasonCode)
+{
+    public static RuntimeSessionSeatAdmission Rejected(RuntimeSessionSeatReservationReasonCode reasonCode) => new(false, null, reasonCode);
+}
+
 public sealed class RuntimeSessionLeaseRegistry
 {
     public static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromSeconds(60);
@@ -110,6 +118,41 @@ public sealed class RuntimeSessionLeaseRegistry
                 clusterId),
             cancellationToken);
         return FromStore(lease);
+    }
+
+    public async Task<RuntimeSessionSeatAdmission> AdmitWithCapacityAsync(
+        string userId,
+        string clientInstanceId,
+        RuntimeConnectionClass connectionClass,
+        ScadaRuntimeDescriptor runtime,
+        RuntimeSessionSeatCapacity capacity,
+        string? serverNode = null,
+        string? clusterId = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientInstanceId);
+        ArgumentNullException.ThrowIfNull(runtime);
+        ArgumentNullException.ThrowIfNull(capacity);
+        var normalizedClientInstanceId = clientInstanceId.Trim();
+        if (normalizedClientInstanceId.Length > MaximumClientInstanceIdLength)
+            throw new ArgumentOutOfRangeException(nameof(clientInstanceId));
+
+        var result = await _store.AdmitWithCapacityAsync(
+            new RuntimeSessionLeaseCapacityAdmission(
+                new RuntimeSessionLeaseAdmission(
+                    userId.Trim(),
+                    normalizedClientInstanceId,
+                    ToPersistedConnectionClass(connectionClass),
+                    ToRuntimeIdentity(runtime),
+                    _leaseDuration,
+                    serverNode,
+                    clusterId),
+                capacity),
+            cancellationToken);
+        return result.IsAdmitted && result.Lease is not null
+            ? new RuntimeSessionSeatAdmission(true, FromStore(result.Lease), result.ReasonCode)
+            : RuntimeSessionSeatAdmission.Rejected(result.ReasonCode);
     }
 
     public async Task<RuntimeSessionLeaseValidation> ValidateAsync(

@@ -52,6 +52,49 @@ public sealed record RuntimeSessionLeaseStoreResult(
         new(false, null, failureCode);
 }
 
+/// <summary>Signed/effective remote-client totals supplied by the host licensing boundary.</summary>
+public sealed record RuntimeSessionSeatCapacity(int InteractiveSeats, int ViewOnlySeats)
+{
+    public void Validate()
+    {
+        if (InteractiveSeats < 0) throw new ArgumentOutOfRangeException(nameof(InteractiveSeats));
+        if (ViewOnlySeats < 0) throw new ArgumentOutOfRangeException(nameof(ViewOnlySeats));
+    }
+}
+
+public sealed record RuntimeSessionLeaseCapacityAdmission(
+    RuntimeSessionLeaseAdmission Lease,
+    RuntimeSessionSeatCapacity Capacity);
+
+/// <summary>
+/// Stable, host-visible outcome codes for the atomic shared-seat reservation.  Authority
+/// eligibility is reported separately by the Runtime admission policy; these codes only
+/// describe the final capacity mutation performed by the single logical lease ledger.
+/// </summary>
+public enum RuntimeSessionSeatReservationReasonCode
+{
+    ExistingLeaseRetained,
+    InteractiveReserved,
+    AuthorityDownscopeViewOnlyReserved,
+    ViewOnlyReserved,
+    InteractiveQuotaFallbackViewOnly,
+    ViewOnlyQuotaExhausted,
+    InteractiveQuotaExhaustedNoEligibleViewOnly,
+    EligiblePoolsExhausted
+}
+
+public sealed record RuntimeSessionLeaseCapacityAdmissionResult(
+    bool IsAdmitted,
+    RuntimeSessionLeaseState? Lease,
+    RuntimeSessionSeatReservationReasonCode ReasonCode)
+{
+    public static RuntimeSessionLeaseCapacityAdmissionResult Admitted(RuntimeSessionLeaseState lease, RuntimeSessionSeatReservationReasonCode reasonCode) =>
+        new(true, lease, reasonCode);
+
+    public static RuntimeSessionLeaseCapacityAdmissionResult Rejected(RuntimeSessionSeatReservationReasonCode reasonCode) =>
+        new(false, null, reasonCode);
+}
+
 /// <summary>
 /// Durable boundary for logical Runtime leases. Lease identity is subject plus ClientInstanceId;
 /// transports are deliberately not represented here.
@@ -62,6 +105,10 @@ public interface IRuntimeSessionLeaseStore : IAsyncDisposable
 
     Task<RuntimeSessionLeaseState> AdmitAsync(
         RuntimeSessionLeaseAdmission admission,
+        CancellationToken cancellationToken = default);
+
+    Task<RuntimeSessionLeaseCapacityAdmissionResult> AdmitWithCapacityAsync(
+        RuntimeSessionLeaseCapacityAdmission admission,
         CancellationToken cancellationToken = default);
 
     Task<RuntimeSessionLeaseStoreResult> ValidateAsync(
@@ -148,6 +195,97 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
                 NormalizeOptional(admission.ServerNode), NormalizeOptional(admission.ClusterId), true);
             _leases.Add(lease.SessionId, lease);
             return lease;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task<RuntimeSessionLeaseCapacityAdmissionResult> AdmitWithCapacityAsync(
+        RuntimeSessionLeaseCapacityAdmission capacityAdmission,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(capacityAdmission);
+        var admission = capacityAdmission.Lease;
+        ValidateAdmission(admission);
+        capacityAdmission.Capacity.Validate();
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            var now = _utcNow();
+            var subjectId = admission.SubjectId.Trim();
+            var clientInstanceId = admission.ClientInstanceId.Trim();
+            ExpireLocked(now);
+            var active = _leases.Values.FirstOrDefault(lease =>
+                lease.IsActive &&
+                lease.SubjectId.Equals(subjectId, StringComparison.Ordinal) &&
+                lease.ClientInstanceId.Equals(clientInstanceId, StringComparison.Ordinal));
+
+            if (active is not null && active.Runtime.Matches(admission.Runtime))
+            {
+                if (IsViewOnlyConnectionClass(active.GrantedConnectionClass))
+                    return RuntimeSessionLeaseCapacityAdmissionResult.Admitted(active, RuntimeSessionSeatReservationReasonCode.ExistingLeaseRetained);
+
+                if (!IsViewOnlyConnectionClass(admission.GrantedConnectionClass))
+                    return RuntimeSessionLeaseCapacityAdmissionResult.Admitted(active, RuntimeSessionSeatReservationReasonCode.InteractiveReserved);
+
+                // Security/explicit ViewOnly downscope replaces the existing Interactive seat.
+                if (CountActiveLocked(admission.Runtime, "viewer") >= capacityAdmission.Capacity.ViewOnlySeats)
+                {
+                    _leases[active.SessionId] = active with { Generation = checked(active.Generation + 1), IsActive = false };
+                    return RuntimeSessionLeaseCapacityAdmissionResult.Rejected(RuntimeSessionSeatReservationReasonCode.ViewOnlyQuotaExhausted);
+                }
+
+                var downscoped = active with
+                {
+                    GrantedConnectionClass = "viewer",
+                    Generation = checked(active.Generation + 1)
+                };
+                _leases[active.SessionId] = downscoped;
+                return RuntimeSessionLeaseCapacityAdmissionResult.Admitted(downscoped, RuntimeSessionSeatReservationReasonCode.AuthorityDownscopeViewOnlyReserved);
+            }
+
+            if (active is not null)
+                _leases[active.SessionId] = active with { Generation = checked(active.Generation + 1), IsActive = false };
+
+            var desiredViewOnly = IsViewOnlyConnectionClass(admission.GrantedConnectionClass);
+            var interactiveInUse = CountActiveLocked(admission.Runtime, "interactive");
+            var viewOnlyInUse = CountActiveLocked(admission.Runtime, "viewer");
+            string grantedClass;
+            RuntimeSessionSeatReservationReasonCode reason;
+            if (desiredViewOnly)
+            {
+                if (viewOnlyInUse >= capacityAdmission.Capacity.ViewOnlySeats)
+                    return RuntimeSessionLeaseCapacityAdmissionResult.Rejected(RuntimeSessionSeatReservationReasonCode.ViewOnlyQuotaExhausted);
+                grantedClass = "viewer";
+                reason = RuntimeSessionSeatReservationReasonCode.ViewOnlyReserved;
+            }
+            else if (interactiveInUse < capacityAdmission.Capacity.InteractiveSeats)
+            {
+                grantedClass = "interactive";
+                reason = RuntimeSessionSeatReservationReasonCode.InteractiveReserved;
+            }
+            else if (viewOnlyInUse < capacityAdmission.Capacity.ViewOnlySeats)
+            {
+                grantedClass = "viewer";
+                reason = RuntimeSessionSeatReservationReasonCode.InteractiveQuotaFallbackViewOnly;
+            }
+            else if (capacityAdmission.Capacity.ViewOnlySeats == 0)
+            {
+                return RuntimeSessionLeaseCapacityAdmissionResult.Rejected(RuntimeSessionSeatReservationReasonCode.InteractiveQuotaExhaustedNoEligibleViewOnly);
+            }
+            else
+            {
+                return RuntimeSessionLeaseCapacityAdmissionResult.Rejected(RuntimeSessionSeatReservationReasonCode.EligiblePoolsExhausted);
+            }
+
+            var lease = new RuntimeSessionLeaseState(
+                Guid.NewGuid(), subjectId, clientInstanceId, grantedClass, 1,
+                now, now, now.Add(admission.LeaseDuration), admission.Runtime,
+                NormalizeOptional(admission.ServerNode), NormalizeOptional(admission.ClusterId), true);
+            _leases.Add(lease.SessionId, lease);
+            return RuntimeSessionLeaseCapacityAdmissionResult.Admitted(lease, reason);
         }
         finally
         {
@@ -249,6 +387,18 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
         }
         return RuntimeSessionLeaseStoreResult.Valid(lease);
     }
+
+    private void ExpireLocked(DateTimeOffset now)
+    {
+        foreach (var expired in _leases.Values.Where(lease => lease.IsActive && lease.ExpiresAtUtc <= now).ToArray())
+            _leases[expired.SessionId] = expired with { Generation = checked(expired.Generation + 1), IsActive = false };
+    }
+
+    private int CountActiveLocked(RuntimeSessionRuntimeIdentity runtime, string connectionClass) =>
+        _leases.Values.Count(lease => lease.IsActive && lease.Runtime.Matches(runtime) &&
+            (IsViewOnlyConnectionClass(connectionClass)
+                ? IsViewOnlyConnectionClass(lease.GrantedConnectionClass)
+                : lease.GrantedConnectionClass.Equals("interactive", StringComparison.OrdinalIgnoreCase)));
 
     private static void ValidateAdmission(RuntimeSessionLeaseAdmission admission)
     {

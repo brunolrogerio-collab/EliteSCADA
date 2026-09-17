@@ -3,6 +3,7 @@ using System.Text.Json;
 using Scada.Api.Runtime;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
+using Scada.Core.Product.Licensing;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
@@ -315,6 +316,110 @@ public sealed class DistributedRuntimeFoundationTests
     }
 
     [Fact]
+    public void SeatCapacityPolicy_UsesDemoAndSignedTotals_AndRejectsLegacyOrInvalidInstalledLicenses()
+    {
+        var demo = RuntimeSessionSeatCapacityPolicy.Resolve(LicenseVerificationResult.Demo());
+        Assert.True(demo.IsAvailable);
+        Assert.Equal(2, demo.Capacity!.InteractiveSeats);
+        Assert.Equal(2, demo.Capacity.ViewOnlySeats);
+        Assert.Equal(RuntimeSessionCapacityReasonCode.DemoCapacity, demo.ReasonCode);
+
+        var signed = RuntimeSessionSeatCapacityPolicy.Resolve(new LicenseVerificationResult(
+            LicenseState.Valid,
+            SessionEntitlements: new MachineLicenseV2Entitlements(ViewOnlySeats: 0, InteractiveSeats: 0, HaRuntime: false)));
+        Assert.True(signed.IsAvailable);
+        Assert.Equal(0, signed.Capacity!.InteractiveSeats);
+        Assert.Equal(0, signed.Capacity.ViewOnlySeats);
+        Assert.Equal(RuntimeSessionCapacityReasonCode.Eslic2SignedEntitlements, signed.ReasonCode);
+
+        var legacy = RuntimeSessionSeatCapacityPolicy.Resolve(new LicenseVerificationResult(LicenseState.Valid));
+        Assert.False(legacy.IsAvailable);
+        Assert.Equal(RuntimeSessionCapacityReasonCode.LegacySessionEntitlementUnsupported, legacy.ReasonCode);
+
+        var invalid = RuntimeSessionSeatCapacityPolicy.Resolve(LicenseVerificationResult.Invalid("signature failed"));
+        Assert.False(invalid.IsAvailable);
+        Assert.Equal(RuntimeSessionCapacityReasonCode.InvalidInstalledLicense, invalid.ReasonCode);
+    }
+
+    [Fact]
+    public async Task SeatCapacity_DemoPool_ReservesTwoInteractiveAndTwoViewOnly_WithoutCrossPoolStealing()
+    {
+        var now = DateTimeOffset.Parse("2026-09-17T00:00:00Z");
+        var runtime = RuntimeDescriptor(now);
+        var sessions = new RuntimeSessionLeaseRegistry(TimeSpan.FromMinutes(1), () => now);
+        var demo = new RuntimeSessionSeatCapacity(InteractiveSeats: 2, ViewOnlySeats: 2);
+
+        var interactiveOne = await AdmitWithCapacity(sessions, "operator-1", "browser-1", RuntimeConnectionClass.Interactive, runtime, demo);
+        var interactiveTwo = await AdmitWithCapacity(sessions, "operator-2", "browser-2", RuntimeConnectionClass.Interactive, runtime, demo);
+        var interactiveFallback = await AdmitWithCapacity(sessions, "operator-3", "browser-3", RuntimeConnectionClass.Interactive, runtime, demo);
+        var explicitViewOnly = await AdmitWithCapacity(sessions, "viewer-1", "browser-4", RuntimeConnectionClass.ViewOnly, runtime, demo);
+        var rejectedViewOnly = await AdmitWithCapacity(sessions, "viewer-2", "browser-5", RuntimeConnectionClass.ViewOnly, runtime, demo);
+        var rejectedInteractive = await AdmitWithCapacity(sessions, "operator-4", "browser-6", RuntimeConnectionClass.Interactive, runtime, demo);
+
+        Assert.Equal(RuntimeConnectionClass.Interactive, interactiveOne.Lease!.ConnectionClass);
+        Assert.Equal(RuntimeConnectionClass.Interactive, interactiveTwo.Lease!.ConnectionClass);
+        Assert.Equal(RuntimeSessionSeatReservationReasonCode.InteractiveQuotaFallbackViewOnly, interactiveFallback.ReasonCode);
+        Assert.Equal(RuntimeConnectionClass.ViewOnly, interactiveFallback.Lease!.ConnectionClass);
+        Assert.Equal(RuntimeSessionSeatReservationReasonCode.ViewOnlyReserved, explicitViewOnly.ReasonCode);
+        Assert.False(rejectedViewOnly.IsAdmitted);
+        Assert.Equal(RuntimeSessionSeatReservationReasonCode.ViewOnlyQuotaExhausted, rejectedViewOnly.ReasonCode);
+        Assert.False(rejectedInteractive.IsAdmitted);
+        Assert.Equal(RuntimeSessionSeatReservationReasonCode.EligiblePoolsExhausted, rejectedInteractive.ReasonCode);
+    }
+
+    [Fact]
+    public async Task SeatCapacity_ReusesOneLogicalLease_AndFailsClosedWhenAuthorityDownscopeCannotReserveViewOnly()
+    {
+        var now = DateTimeOffset.Parse("2026-09-17T00:00:00Z");
+        var runtime = RuntimeDescriptor(now);
+        var sessions = new RuntimeSessionLeaseRegistry(TimeSpan.FromMinutes(1), () => now);
+        var capacity = new RuntimeSessionSeatCapacity(InteractiveSeats: 1, ViewOnlySeats: 1);
+
+        _ = await AdmitWithCapacity(sessions, "viewer", "viewer-client", RuntimeConnectionClass.ViewOnly, runtime, capacity);
+        var interactive = await AdmitWithCapacity(sessions, "operator", "operator-client", RuntimeConnectionClass.Interactive, runtime, capacity);
+        var downscope = await AdmitWithCapacity(sessions, "operator", "operator-client", RuntimeConnectionClass.ViewOnly, runtime, capacity);
+
+        Assert.True(interactive.IsAdmitted);
+        Assert.False(downscope.IsAdmitted);
+        Assert.Equal(RuntimeSessionSeatReservationReasonCode.ViewOnlyQuotaExhausted, downscope.ReasonCode);
+        var stale = await sessions.ValidateAsync(interactive.Lease!.SessionId, "operator", runtime, "operator-client");
+        Assert.False(stale.IsValid);
+
+        var singleSeat = new RuntimeSessionSeatCapacity(InteractiveSeats: 1, ViewOnlySeats: 0);
+        var concurrent = await Task.WhenAll(Enumerable.Range(0, 32).Select(_ =>
+            AdmitWithCapacity(sessions, "same-user", "same-client", RuntimeConnectionClass.Interactive, RuntimeDescriptor(now, revision: 8), singleSeat)));
+        Assert.All(concurrent, admission => Assert.True(admission.IsAdmitted));
+        Assert.Single(concurrent.Select(admission => admission.Lease!.SessionId).Distinct());
+
+        var otherIdentity = await AdmitWithCapacity(sessions, "same-user", "another-client", RuntimeConnectionClass.Interactive, RuntimeDescriptor(now, revision: 8), singleSeat);
+        Assert.False(otherIdentity.IsAdmitted);
+        Assert.Equal(RuntimeSessionSeatReservationReasonCode.InteractiveQuotaExhaustedNoEligibleViewOnly, otherIdentity.ReasonCode);
+    }
+
+    [Fact]
+    public async Task SeatCapacity_ReclaimsSeatsAfterTerminateAndExpiry()
+    {
+        var now = DateTimeOffset.Parse("2026-09-17T00:00:00Z");
+        var runtime = RuntimeDescriptor(now);
+        var sessions = new RuntimeSessionLeaseRegistry(TimeSpan.FromSeconds(1), () => now);
+        var capacity = new RuntimeSessionSeatCapacity(InteractiveSeats: 1, ViewOnlySeats: 0);
+        var first = await AdmitWithCapacity(sessions, "operator-1", "client-1", RuntimeConnectionClass.Interactive, runtime, capacity);
+        var explicitViewOnly = await AdmitWithCapacity(sessions, "viewer-1", "viewer-client", RuntimeConnectionClass.ViewOnly, runtime, capacity);
+
+        Assert.False(explicitViewOnly.IsAdmitted);
+        Assert.Equal(RuntimeSessionSeatReservationReasonCode.ViewOnlyQuotaExhausted, explicitViewOnly.ReasonCode);
+
+        var terminated = await sessions.TerminateAsync(first.Lease!.SessionId, "operator-1", "client-1", runtime);
+        Assert.True(terminated.IsValid);
+        var afterTerminate = await AdmitWithCapacity(sessions, "operator-2", "client-2", RuntimeConnectionClass.Interactive, runtime, capacity);
+        Assert.True(afterTerminate.IsAdmitted);
+
+        now = now.AddSeconds(2);
+        var afterExpiry = await AdmitWithCapacity(sessions, "operator-3", "client-3", RuntimeConnectionClass.Interactive, runtime, capacity);
+        Assert.True(afterExpiry.IsAdmitted);
+    }
+
+    [Fact]
     public void Escadapkg_RemainsTopologyNeutralAndContainsNoRuntimeLeaseOrLicenseState()
     {
         var bus = new InMemoryScadaEventBus();
@@ -350,6 +455,15 @@ public sealed class DistributedRuntimeFoundationTests
 
     private static AuthorizationDecision Allowed(SecurityCapability capability) =>
         new(true, capability, "Authority granted capability.", new[] { "operator" });
+
+    private static Task<RuntimeSessionSeatAdmission> AdmitWithCapacity(
+        RuntimeSessionLeaseRegistry sessions,
+        string userId,
+        string clientInstanceId,
+        RuntimeConnectionClass connectionClass,
+        ScadaRuntimeDescriptor runtime,
+        RuntimeSessionSeatCapacity capacity) =>
+        sessions.AdmitWithCapacityAsync(userId, clientInstanceId, connectionClass, runtime, capacity);
 
     private static ScadaRuntimeDescriptor RuntimeDescriptor(
         DateTimeOffset activatedAtUtc,

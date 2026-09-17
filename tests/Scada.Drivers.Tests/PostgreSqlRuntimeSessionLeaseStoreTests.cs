@@ -147,6 +147,42 @@ public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
         }
     }
 
+    [Fact]
+    public async Task PostgreSqlLeaseStore_AtomicallyEnforcesSharedSeatCapacityAcrossStoreInstances()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var subject = $"fnd03-capacity-{Guid.NewGuid():N}";
+        var runtime = Runtime("project-a", 7);
+        var capacity = new RuntimeSessionSeatCapacity(InteractiveSeats: 1, ViewOnlySeats: 0);
+        await using var first = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await using var second = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await first.InitializeAsync();
+        await second.InitializeAsync();
+
+        try
+        {
+            var sameIdentity = new RuntimeSessionLeaseCapacityAdmission(
+                Admission(subject, "logical-client", runtime, TimeSpan.FromMinutes(1), "interactive"), capacity);
+            var concurrent = await Task.WhenAll(
+                first.AdmitWithCapacityAsync(sameIdentity),
+                second.AdmitWithCapacityAsync(sameIdentity));
+            Assert.All(concurrent, result => Assert.True(result.IsAdmitted));
+            Assert.Single(concurrent.Select(result => result.Lease!.SessionId).Distinct());
+
+            var anotherIdentity = new RuntimeSessionLeaseCapacityAdmission(
+                Admission(subject, "other-client", runtime, TimeSpan.FromMinutes(1), "interactive"), capacity);
+            var rejected = await second.AdmitWithCapacityAsync(anotherIdentity);
+            Assert.False(rejected.IsAdmitted);
+            Assert.Equal(RuntimeSessionSeatReservationReasonCode.InteractiveQuotaExhaustedNoEligibleViewOnly, rejected.ReasonCode);
+        }
+        finally
+        {
+            await DeleteSubjectAsync(connectionString, subject);
+        }
+    }
+
     private static RuntimeSessionLeaseAdmission Admission(
         string subject,
         string client,

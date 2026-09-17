@@ -4,6 +4,7 @@ using Scada.Security.Authorization;
 
 namespace Scada.Drivers.Tests;
 
+[Collection("RuntimeSessionPostgreSql")]
 public sealed class RuntimeSessionAuthorityStateTests
 {
     [Fact]
@@ -82,5 +83,63 @@ public sealed class RuntimeSessionAuthorityStateTests
               AND column_name = 'authority_revision';
             """);
         Assert.Equal(1L, Convert.ToInt64(await command.ExecuteScalarAsync()));
+
+        await using var invalidRows = dataSource.CreateCommand("""
+            SELECT count(*)
+            FROM elitescada.runtime_session_leases
+            WHERE authority_revision IS NULL OR authority_revision < 1;
+            """);
+        Assert.Equal(0L, Convert.ToInt64(await invalidRows.ExecuteScalarAsync()));
+
+        await using var columnDefault = dataSource.CreateCommand("""
+            SELECT column_default
+            FROM information_schema.columns
+            WHERE table_schema = 'elitescada'
+              AND table_name = 'runtime_session_leases'
+              AND column_name = 'authority_revision';
+            """);
+        Assert.Contains("1", Convert.ToString(await columnDefault.ExecuteScalarAsync()) ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PostgreSqlAuthorityTransition_FailedCommitRollsBackAndAbortPreservesBaseRevision()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        await using var store = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await store.InitializeAsync();
+        var before = await store.GetAuthorityStateAsync();
+        if (before.TransitionPending) return;
+
+        var transition = await store.BeginAuthorityTransitionAsync("replace", DateTimeOffset.UtcNow);
+        try
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                store.CommitAuthorityChangeAsync(
+                    Guid.NewGuid(),
+                    transition.BaseAuthorityRevision,
+                    DateTimeOffset.UtcNow,
+                    null));
+
+            var afterFailedCommit = await store.GetAuthorityStateAsync();
+            Assert.True(afterFailedCommit.TransitionPending);
+            Assert.Equal(transition.TransitionId, afterFailedCommit.TransitionId);
+            Assert.Equal(transition.BaseAuthorityRevision, afterFailedCommit.AuthorityRevision);
+
+            Assert.True(await store.AbortAuthorityTransitionAsync(
+                transition.TransitionId,
+                transition.BaseAuthorityRevision));
+
+            var afterAbort = await store.GetAuthorityStateAsync();
+            Assert.False(afterAbort.TransitionPending);
+            Assert.Equal(transition.BaseAuthorityRevision, afterAbort.AuthorityRevision);
+        }
+        finally
+        {
+            var current = await store.GetAuthorityStateAsync();
+            if (current.TransitionPending && current.TransitionId == transition.TransitionId)
+                _ = await store.AbortAuthorityTransitionAsync(transition.TransitionId, transition.BaseAuthorityRevision);
+        }
     }
 }

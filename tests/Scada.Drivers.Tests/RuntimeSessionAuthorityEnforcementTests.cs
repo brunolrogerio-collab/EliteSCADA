@@ -1,3 +1,4 @@
+using Npgsql;
 using Scada.Persistence.PostgreSql;
 using Scada.Security.Authorization;
 
@@ -106,6 +107,95 @@ public sealed class RuntimeSessionAuthorityEnforcementTests
                 }
             }
         }
+    }
+
+    [Fact]
+    public async Task PostgreSqlTwoStores_RacingAdmissionAndTransition_NeverLeavesUsableStaleLease()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        await using var first = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await using var second = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await first.InitializeAsync();
+        await second.InitializeAsync();
+
+        var initial = await first.GetAuthorityStateAsync();
+        if (initial.TransitionPending) return;
+
+        var now = DateTimeOffset.UtcNow;
+        var subject = $"phase-a-race-{Guid.NewGuid():N}";
+        var runtime = Runtime(now);
+        var admissionTask = second.AdmitWithCapacityAsync(
+            CapacityAdmission(
+                subject,
+                "client",
+                runtime,
+                new RuntimeSessionSeatCapacity(InteractiveSeats: 1, ViewOnlySeats: 0),
+                initial.AuthorityRevision));
+        var transitionTask = first.BeginAuthorityTransitionAsync("replace", now);
+
+        RuntimeSessionLeaseCapacityAdmissionResult admission;
+        RuntimeAuthorityTransition transition;
+        try
+        {
+            await Task.WhenAll(admissionTask, transitionTask);
+            admission = await admissionTask;
+            transition = await transitionTask;
+
+            var committed = await first.CommitAuthorityChangeAsync(
+                transition.TransitionId,
+                transition.BaseAuthorityRevision,
+                now.AddSeconds(1),
+                null);
+            _ = await first.FenceLeasesBeforeAuthorityRevisionAsync(
+                transition.TransitionId,
+                committed.AuthorityRevision);
+            await first.CompleteAuthorityTransitionAsync(
+                transition.TransitionId,
+                committed.AuthorityRevision);
+
+            if (admission.IsAdmitted && admission.Lease is not null)
+            {
+                var validation = await second.ValidateAsync(
+                    admission.Lease.SessionId,
+                    subject,
+                    runtime,
+                    "client");
+                Assert.False(validation.IsValid);
+            }
+            else
+            {
+                Assert.Equal(
+                    RuntimeSessionSeatReservationReasonCode.AuthorityTransitionPending,
+                    admission.ReasonCode);
+            }
+        }
+        finally
+        {
+            var current = await first.GetAuthorityStateAsync();
+            if (current.TransitionPending && current.TransitionId is { } pendingId)
+            {
+                if (current.AuthorityRevision == initial.AuthorityRevision)
+                    _ = await first.AbortAuthorityTransitionAsync(pendingId, initial.AuthorityRevision);
+                else
+                {
+                    _ = await first.FenceLeasesBeforeAuthorityRevisionAsync(pendingId, current.AuthorityRevision);
+                    await first.CompleteAuthorityTransitionAsync(pendingId, current.AuthorityRevision);
+                }
+            }
+
+            await DeleteSubjectAsync(connectionString, subject);
+        }
+    }
+
+    private static async Task DeleteSubjectAsync(string connectionString, string subject)
+    {
+        await using var dataSource = NpgsqlDataSource.Create(connectionString);
+        await using var command = dataSource.CreateCommand(
+            "DELETE FROM elitescada.runtime_session_leases WHERE subject_id = @subject_id;");
+        command.Parameters.AddWithValue("subject_id", subject);
+        await command.ExecuteNonQueryAsync();
     }
 
     private static RuntimeSessionLeaseCapacityAdmission CapacityAdmission(

@@ -119,7 +119,7 @@ O integration HEAD pode estar à frente por commits de coordenação; isso não 
 - FND-03 machine-license v2 + hardening — **VERIFIED/FROZEN**
 - FND-03 Runtime Admission — **VERIFIED/FROZEN**
 - FND-03 Shared Runtime Seat Accounting — **VERIFIED/FROZEN**
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE REVIEW / CORRECTION REQUIRED / IMPLEMENTATION NOT AUTHORIZED**
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / IMPLEMENTATION PHASE A ACTIVE / NOT INTEGRATED**
 - FND-03 global — **ACTIVE / NOT FROZEN**
 - FND-04 Script TAG Reference Resolution — **QUEUED / CONTRACT DEFINED / NOT ACTIVE / NOT FROZEN**
 - FC0-A — **BLOCKED**
@@ -144,104 +144,165 @@ Do not start FND-04 or release FC0-A.
 
 ---
 
-## 2A. MAIN COORDINATOR -> FND-03 DEV/ARCH — CURRENT ORDER
+## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**DEV_MODE: ARCH_ONLY_CORRECTION**  
-**Mission:** FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — amend architecture after Main review
+**DEV_MODE: IMPLEMENT_PHASE_A**  
+**Mission:** FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — Phase A foundations
 
-### Authority
+### Architecture freeze
+
+Main independently reviewed amendment #301 comment `5722165708` against the exact product checkpoint and **freezes the architecture for implementation** with these binding invariants:
+
+- `FileProductLicenseService` remains the single machine-license verifier/store;
+- candidate verification returns canonical `LicenseVerificationResult`;
+- invalid replacement is a true no-op;
+- PostgreSQL advisory locks remain short transaction-scoped `pg_advisory_xact_lock` operations;
+- durable `transition_pending` bridges DB/file/Runtime non-atomicity fail-closed;
+- `AuthorityRevision` is the global fencing epoch; per-lease `Generation` remains CAS;
+- capacity derived from `CurrentVerification` is bound to `ExpectedAuthorityRevision` inside atomic seat reservation;
+- admission/validate/heartbeat/terminate fail closed while transition is pending or lease revision is stale;
+- successful authority change cannot clear pending until Runtime + lease ledger are coherent;
+- transition completion **must** prove no active lease remains below the current authority revision; this is mandatory, not optional;
+- Demo authority-change time is the semantic timer anchor and persisted Runtime recovery cannot mint a fresh full Demo window;
+- machine-license mutation requires `EngineeringModify` but does not depend on current Application Engineering Lock;
+- audit never records raw license/signing/credential material;
+- multi-process sharing is same-installation/same-machine-license-authority only; cross-machine HA convergence is out of scope;
+- no license/session/lifecycle state enters `.escadapkg`, Application or Authority backup.
+
+No `BLOCKED-CONTRACT` remains.
+
+### Exact authority
 
 - exact product base: `a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
 - product tree: `eed22a377fea2778d3e78143d706e4de0ef9ce38`
-- read-only for product/test/branch/PR/merge/CI;
-- authorized write: exactly one new top-level amendment comment in issue #301;
-- do **not** redo unrelated discovery; correct the existing architecture.
+- work branch: `work/w15-fnd-03-license-lifecycle-fencing-v1`
+- target: `wave15/corrections-integration`
+- architecture evidence: #301 comment `5722165708`
 
-### Main independent review findings — binding corrections
+Live comparison already confirmed the integration branch is ahead of the product checkpoint only by coordination/documentation changes in:
+- `LAST CHANGE.md`
+- `docs/CURRENT-COORDINATOR-HANDOFF.md`
+- `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`
 
-#### C1 — exact source map
+The work branch does not currently exist on GitHub. Create it **from the exact product base**, not from the moving documentation HEAD. Revalidate before creation; any intervening product/infra delta => `BLOCKED-BASE-DIVERGENCE`.
 
-Use the actual checkpoint paths:
+### PHASE A — authorized production/test scope
 
-- `src/Scada.Core/Product/Licensing/ProductLicenseServiceContracts.cs` — `IProductLicenseService`;
-- `src/Scada.Api/Licensing/FileProductLicenseService.cs` — `FileProductLicenseService`;
-- `src/Scada.Api/Licensing/ProductLicensingApi.cs`;
-- `src/Scada.Api/Licensing/ProductLicensedRuntimeCoordinator.cs`;
-- `src/Scada.Security/Authorization/RuntimeSessionLeaseStore.cs`;
-- `src/Scada.Persistence.PostgreSql/PostgreSqlRuntimeSessionLeaseStore.cs`;
+Implement only the first three architecture units.
+
+#### A1 — canonical candidate verification seam
+
+Files:
+- `src/Scada.Core/Product/Licensing/ProductLicenseServiceContracts.cs`
+- `src/Scada.Api/Licensing/FileProductLicenseService.cs`
+- focused licensing tests
+
+Add:
+`LicenseVerificationResult VerifyCandidate(string licenseCode)`
+
+Requirements:
+- exact same verifier/key/machine/TimeProvider path as installed verification;
+- no filesystem mutation;
+- `InstallLicense` remains self-verifying;
+- valid + malformed/tampered/wrong-key/wrong-machine/expired proofs;
+- installed state byte-for-byte unchanged by candidate verification.
+
+#### A2 — authority epoch/state foundation
+
+Files:
+- `src/Scada.Security/Authorization/RuntimeSessionLeaseStore.cs`
+- `src/Scada.Persistence.PostgreSql/PostgreSqlRuntimeSessionLeaseStore.cs`
+- focused in-memory/PostgreSQL tests
+
+Add the architecture-frozen authority state/transition records, `AuthorityRevision` lease stamp and store transition/bulk-fence APIs.
+
+PostgreSQL migration:
+- key `023_runtime_session_authority_fencing_v1` unless live base consumes 023 before branch creation;
+- singleton `elitescada.runtime_session_authority_state`;
+- initial revision 1;
+- durable pending transition metadata;
+- authority-change/Demo recovery timestamps;
+- add/backfill `runtime_session_leases.authority_revision = 1`, then NOT NULL/CHECK;
+- active revision index;
+- no ESLIC/license payload or second entitlement table.
+
+All PostgreSQL transition methods use fresh short transactions plus the existing `LeaseMutationAdvisoryLock`.
+
+#### A3 — epoch enforcement in admission/use
+
+Files:
+- stores above;
 - `src/Scada.Api/Runtime/RuntimeSessionLease.cs`;
 - `src/Scada.Api/Runtime/DistributedRuntimeFoundationApi.cs`;
-- `src/Scada.Api/Persistence/PersistedRuntimeRecoveryService.cs`.
+- deterministic concurrency/regression tests.
 
-The original architecture's `src/EliteScada.Core/...` paths are not valid for this checkpoint.
+Required:
+- capacity admission carries `ExpectedAuthorityRevision`;
+- store transaction reloads authority singleton and requires `!TransitionPending` and exact revision before reserving capacity;
+- newly admitted leases are stamped with current `AuthorityRevision`;
+- validate/heartbeat/terminate reject transition-pending and stale-revision leases before normal CAS continuation;
+- bounded API retry on revision mismatch uses fresh authority snapshot + fresh `CurrentVerification`;
+- pending state is fail-closed, never permissive retry with old capacity;
+- existing Shared Runtime Seat Accounting semantics remain unchanged otherwise.
 
-#### C2 — canonical candidate verification type
+### Phase A required tests
 
-Existing canonical type is `LicenseVerificationResult`.
+At minimum:
 
-Conceptual seam:
+1. VerifyCandidate valid ESLIC2 does not mutate installed state;
+2. candidate invalid families do not mutate state;
+3. migration initializes singleton and backfills existing lease rows at revision 1;
+4. Begin/Abort transition transaction rollback and state invariants;
+5. Commit revision while pending; Complete requires coherent ledger;
+6. bulk fence invalidates all older-revision leases and increments Generation only for actual state mutation;
+7. admission with stale expected revision fails without consuming a seat;
+8. admission while pending fails closed;
+9. validation/heartbeat/terminate while pending fail closed;
+10. stale-revision lease cannot be revived by Generation/CAS;
+11. two PostgreSQL store instances racing reservation vs transition cannot leave a usable stale lease;
+12. existing in-memory/PostgreSQL Shared Seat Accounting regressions remain green.
 
-```csharp
-LicenseVerificationResult VerifyCandidate(string licenseCode);
-```
+A required but unexecuted test is `PENDING`, never PASS.
 
-Reuse the same verifier/key/machine/time rules as `CurrentVerification`. No second verification model/type.
+### Phase A stop boundary
 
-#### C3 — distributed transition protocol / advisory-lock reality
+Do **not** yet implement:
 
-Current PostgreSQL `LeaseMutationAdvisoryLock` is a transaction-scoped `pg_advisory_xact_lock` acquired inside individual store operations. Do not pretend one DB transaction/lock spans filesystem I/O + Runtime re-evaluation + later store calls.
+- `ProductLicensedRuntimeCoordinator.ReevaluateForAuthorityChangeAsync`;
+- Demo timer/recovery changes;
+- `PersistedRuntimeRecoveryService` changes;
+- `ProductLicenseLifecycleCoordinator`;
+- license install/remove API route cutover;
+- EngineeringModify/audit changes;
+- full restart reconciliation orchestrator;
+- FND-04 or FC0-A work.
 
-Amended architecture must use short transactions with a durable fail-closed transition marker:
+### Commit / return protocol
 
-1. `BeginAuthorityTransition` acquires the existing advisory xact lock, persists `transition_pending` + start metadata, commits.
-2. Admission/validate/heartbeat/terminate acquire the same store lock and reject while pending.
-3. Canonical file install/remove occurs outside that DB transaction while pending stays true.
-4. File mutation failure clears pending under lock with no authority-revision bump and no fence.
-5. Successful canonical authority change advances authority revision under lock while pending stays true.
-6. Local Runtime re-evaluation + bulk pre-change lease fence complete while admission/stale use remains blocked.
-7. Clear pending under lock only after authority/Runtime/lease ledger are coherent.
-8. Restart with pending reconciles from canonical file; uncertainty => conservative revision/fence/re-evaluation, never permissive rollback.
+- Prefer three bounded logical commits A1/A2/A3.
+- Push only to `work/w15-fnd-03-license-lifecycle-fencing-v1`.
+- Do not open a PR yet unless Main changes this order.
+- Run focused tests available in the execution environment. Do not invent results; unavailable proof = `PENDING`.
+- Do not run/rerun GitHub Actions unless this order is later amended; Main owns CI operation.
+- No merge, no integration mutation, no `main`.
 
-Specify exact singleton/state-row and lease-column migration. `AuthorityRevision` remains fencing epoch only; `Generation` remains per-lease CAS.
+Publish exactly one new top-level #301 handoff beginning:
 
-#### C4 — multi-process/multi-node boundary
+`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A HANDOFF`
 
-For this slice, multiple API/store instances may share one seat ledger only if they belong to the **same installation/machine license authority** and observe the same canonical machine-bound license state. Cross-machine HA authority convergence/election is out of scope. Do not create a second license database.
+Include:
+- exact base/head/tree;
+- commits;
+- changed files/symbols;
+- migration/schema details;
+- test matrix with PASS/FAIL/PENDING;
+- any deviation from the frozen architecture;
+- blockers/risks;
+- explicit confirmation that Phase B/C were not implemented.
 
-#### C5 — Engineering Lock decision frozen by Main
+Verify the comment exists live, report its numeric ID, then **STOP** for Main review.
 
-Machine license is installation-level authority separate from Application + Authority/project detach (#304).
-
-- install/replace/remove require canonical `SecurityCapability.EngineeringModify`;
-- machine-license lifecycle must **not** depend on the current Application Engineering Lock;
-- retain read authorization for status/request unless a narrower correction is necessary;
-- audit safe metadata only.
-
-#### C6 — Demo transition / recovery
-
-Inspect the actual `PersistedRuntimeRecoveryService`. A transition to Demo while current Runtime remains allowed starts bounded Demo allowance from authority-change time. Amendment must state how recovery of that same persisted Active Runtime avoids a permissive timer reset, or prove current recovery semantics already prevent it. Do not move license truth into `.escadapkg`/Application/Authority.
-
-### Amendment return
-
-Publish exactly one new top-level comment in #301 beginning:
-
-`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE ARCHITECTURE AMENDMENT`
-
-Required content:
-
-- corrected source map + real symbols;
-- corrected method/result signatures;
-- exact PostgreSQL/in-memory state schema and transition APIs;
-- transaction/advisory-lock boundaries step by step;
-- restart reconciliation for each crash window;
-- Runtime/Demo recovery semantics;
-- authorization/audit route design;
-- revised file-by-file implementation order;
-- revised deterministic test matrix for acceptance 1–18;
-- any remaining `BLOCKED-CONTRACT` item, if one truly exists.
-
-No code/test/branch/PR/CI mutation. Verify comment live, report numeric comment ID, then **STOP**.
 
 ---
 

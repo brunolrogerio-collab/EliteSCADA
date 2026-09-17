@@ -1,236 +1,134 @@
 # Wave 15 — Main Coordinator Handoff
 
-> **HANDOFF OPERACIONAL VIVO E CANÔNICO para a interação MAIN COORDINATOR <-> CODEX/FOUNDATION WORK durante a Wave 15.**
+> **HANDOFF OPERACIONAL VIVO E CANÔNICO para MAIN COORDINATOR <-> CODEX / DEV / AUD durante a Wave 15.**
 >
-> `docs/CURRENT-COORDINATOR-HANDOFF.md` é apenas o combinador/ponte curta. Este arquivo contém a ordem operacional detalhada.
+> Este arquivo é o **canal primário de ordens do Main Coordinator**. Issues, PR comments e outros documentos podem espelhar decisões/evidências, mas não substituem a ordem ativa deste arquivo.
 >
-> **GitHub live é a autoridade final.** Antes de agir, revalidar HEAD/tree, issues, PRs, Actions e os gatilhos reais dos workflows.
+> **PROTOCOLO `SIGA`:** antes de agir, CODEX, DEV ou AUD deve reler este arquivo no GitHub live e executar somente a ordem mais recente destinada à sua lane. Nunca continuar por memória quando este arquivo trouxer estado diferente.
+>
+> **GitHub live é a autoridade final.** Antes de qualquer mutação, revalidar HEAD/tree, PRs, Actions e o candidate exato.
 
-**Status date:** 2026-09-16 BRT  
+**Status date:** 2026-09-17 BRT  
 **Wave:** 15 — complete product delivery  
-**Integration branch:** `wave15/corrections-integration`
+**Integration branch:** `wave15/corrections-integration`  
+**Main Coordinator:** único emissor das ordens abaixo
 
-## 1. Estado corrente da Foundation
+---
+
+## 1. ESTADO LIVE DA FOUNDATION
 
 State machine:
 
 `NOT_STARTED -> ACTIVE -> PR_READY -> INTEGRATED -> VERIFIED -> FROZEN`
 
-Estado corrente:
+### Integração atual
 
-- FND-01 Working/lifecycle/bootstrap — **VERIFIED/FROZEN**;
-- FND-02 Security Authority, incluindo AUTH-04 — **VERIFIED/FROZEN**;
-- FND-08 common timing — **VERIFIED/FROZEN**;
-- FND-03 Runtime Session Lease / Licensing v2 — **ACTIVE / NOT FROZEN**;
-- FND-03 durable Runtime Session Lease v1 contract — **VERIFIED/FROZEN**;
-- FND-03 machine-license v2 schema/codec + hardening contract — **VERIFIED/FROZEN**;
-- FND-03 Runtime Admission / requested→granted / Authority enforcement — **ACTIVE**;
-- FND-04 Script TAG Reference Resolution — **QUEUED / CONTRACT DEFINED / NOT ACTIVE / NOT FROZEN**;
-- FC0-A — **BLOCKED**;
-- parallel feature DEV lanes — **BLOCKED** até liberação explícita do Main.
+- `wave15/corrections-integration` product checkpoint: `6f02b9e3c1327b34ff33bab22e90aaf24dfc4628`
+- tree do checkpoint: `53ffaf05ecd492d06ecf7852bd6e77b48431a1eb`
+- esse checkpoint contém o merge do PR #330 / Runtime Admission;
+- CI pós-merge #1543 validou o checkpoint com Backend, Web e Chromium verdes.
 
-Um PR, branch, teste isolado ou CI verde anterior não implica `VERIFIED` ou `FROZEN`.
+### Foundation
 
-### Checkpoints que liberaram a missão atual
+- FND-01 Working/lifecycle/bootstrap — **VERIFIED/FROZEN**
+- FND-02 Security Authority, incluindo AUTH-04 — **VERIFIED/FROZEN**
+- FND-08 common timing — **VERIFIED/FROZEN**
+- FND-03 durable Runtime Session Lease v1 — **VERIFIED/FROZEN**
+- FND-03 machine-license v2 schema/codec + hardening — **VERIFIED/FROZEN**
+- FND-03 Runtime Admission / requested->granted / Authority enforcement — **VERIFIED/FROZEN**
+- FND-03 Shared Runtime Seat Accounting — **PR_READY / UNDER COORDINATOR VALIDATION**
+- FND-03 global — **ACTIVE / NOT FROZEN**
+- FND-04 Script TAG Reference Resolution — **QUEUED / CONTRACT DEFINED / NOT ACTIVE / NOT FROZEN**
+- FC0-A — **BLOCKED**
 
-- Slice 1 durable Runtime Session Lease integrado/verificado no checkpoint `456c66f4966ab5302831f642a39690ae3a3402a5` com CI pós-merge #1531;
-- machine-license v2 + hardening integrado pelo PR #327;
-- product head do hardening: `dbcb1b05e84d5883a1dbeb28b31c641e776eadc8`;
-- CI #1534 foi reexecutada como attempt 2 nesse exact product head e concluiu Backend, Web e Chromium E2E com sucesso;
-- comparação `dbcb1b05... -> 7904f98a...` mostrou somente alterações de handoff documental, sem delta adicional de código de produto;
-- PR #328 corrigiu os gatilhos de CI da Wave 15;
-- exact integration checkpoint validado automaticamente por `push`: `897ae7ca243f0f75d0d8ddf81e4b53a80b37f4f5`, tree `2e61d6b0158b3773709088e0f8e6d9247806b4b7`;
-- CI automática `EliteSCADA CI` run #1537 / ID `35160493083` no exact SHA `897ae7ca...`: Backend build/test/smoke **PASS**, Web build **PASS**, Chromium end-to-end **PASS**.
+Um PR ou teste verde isolado não implica `VERIFIED/FROZEN`.
 
-O contrato bounded de machine-license v2 está, portanto, consumível pelo próximo slice. FND-03 como um todo continua ativo e não congelado.
+---
 
-## 2. MAIN COORDINATOR -> CODEX — ORDEM ATIVA E BINDING
+## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
-A única missão Foundation ativa para o Codex é:
+**ORDER_STATE: ACTIVE**  
+**Mission:** FND-03 Shared Runtime Seat Accounting — candidate validation only
 
-**FND-03 — COMMON RUNTIME ADMISSION / REQUESTED→GRANTED SESSION CLASS / AUTHORITY ENFORCEMENT**
+### Exact candidate
 
-### Exact authorized product base
+- PR: `#331` — `FND-03: enforce shared runtime seat accounting`
+- target: `wave15/corrections-integration`
+- authorized product base: `6f02b9e3c1327b34ff33bab22e90aaf24dfc4628`
+- branch: `work/w15-fnd-03-shared-runtime-seat-accounting-v1`
+- exact candidate head: `09f81e97369089def481ceb25629779a5aba8aff`
+- PR state at coordinator validation: OPEN / mergeable / not draft
 
-`897ae7ca243f0f75d0d8ddf81e4b53a80b37f4f5`
+### Current CI evidence
 
-### Branch autorizada
+EliteSCADA CI #1544 / run `35255337014` on the exact candidate:
 
-`work/w15-fnd-03-runtime-admission-v1`
+- Backend build, test and smoke — **SUCCESS**
+- Web build — **SUCCESS**
+- Chromium end-to-end — **FAILURE**
+- failed Chromium job: `105318015702`
+- failing historical test: `web/scada-web/tests-e2e/c04-tag-source-browser.spec.ts`
+- observed assertion: `previewCandidate` unexpectedly `null`
 
-### Target
+The failing test is outside the Runtime seat-accounting surface changed by PR #331. No product correction is authorized from that fact alone.
 
-`wave15/corrections-integration`
+### ORDER CODEX-331-CI-01
 
-O Codex deve revalidar GitHub live antes da primeira mutação. Se a integração estiver à frente apenas por commits documentais deste handoff, o exact authorized product base acima continua válido; se houver qualquer delta de produto/infra adicional, retornar ao Main antes de implementar.
+CODEX must execute **one controlled rerun only** of the failed Chromium job `105318015702`, preserving the exact candidate SHA `09f81e97369089def481ceb25629779a5aba8aff`.
 
-## 3. Objetivo do slice Runtime Admission
+Binding constraints:
 
-Entregar uma única autoridade server-side para composição de Runtime Session Class e Authority, consumida pelos caminhos Runtime relevantes, sem criar um segundo sistema de identidade de sessão, de autorização ou de licença.
+1. do **not** change product code before this rerun;
+2. do **not** change `c04-tag-source-browser.spec.ts`;
+3. do **not** change workflow YAML, filters or CI configuration;
+4. do **not** create an artificial commit to obtain another run;
+5. do **not** rebase or retarget PR #331;
+6. do **not** merge PR #331;
+7. do **not** begin another FND-03 slice;
+8. do **not** begin FND-04;
+9. do **not** release FC0-A.
 
-O resultado deve garantir que:
+### If the controlled rerun succeeds
 
-- `requestedClass` é somente a preferência/solicitação do cliente;
-- `grantedClass` é calculado pelo servidor;
-- `Interactive` é somente um teto de classe de sessão, nunca uma concessão de capability;
-- efetiva permissão de mutação = `grantedClass == Interactive` **e** capability correspondente concedida pela Authority canônica no scope/hierarchy aplicável;
-- pedido explícito de `ViewOnly` sempre resulta em `ViewOnly`, mesmo para usuário com Authority ampla;
-- usuário cuja Authority efetiva é intrinsecamente read-only para Runtime deve ser downscoped para `ViewOnly` mesmo se solicitar `Interactive`;
-- `CommandExecute` permanece independente de `ProcessValueWrite`;
-- `ViewOnly` é fail-closed no backend para comando e process write, inclusive contra cliente direto/modificado;
-- REST, WebSocket e reconnect/resume usam a mesma identidade lógica de lease já congelada, não identidades paralelas por transporte;
-- Web Runtime e futuro EliteGO devem poder consumir o mesmo contrato, sem pools ou políticas divergentes.
+CODEX must publish the complete final handoff beginning exactly:
 
-## 4. Entradas Foundation congeladas que o slice deve reutilizar
+`CODEX -> MAIN COORDINATOR — FND-03 SHARED RUNTIME SEAT ACCOUNTING HANDOFF`
 
-O Codex deve reutilizar, sem redesign silencioso:
+The handoff must include exact base/head/tree, PR, changed surfaces, capacity contract, PostgreSQL/in-memory atomicity mechanism, Demo/ESLIC2 behavior, reason codes, concurrency coverage, acceptance matrix `PASS | FAIL | PENDING`, local evidence, exact Actions run/job IDs, skips, residual risks and explicit confirmation that no second quota/lease/licensing/Authority authority was created.
 
-1. FND-02 Security Authority e AUTH-04 frozen;
-2. Runtime Session Lease v1 frozen, incluindo identidade lógica `(subject, clientInstanceId)`, runtime identity, generation/CAS e expiração;
-3. machine-license v2 frozen, incluindo ESLIC1 compatibility e ESLIC2 `viewOnlySeats`, `interactiveSeats`, `haRuntime`;
-4. semântica ESLIC2: assentos são **totais efetivos de capacidade comercial remota/cliente**, nunca `Demo + capacidade`;
-5. Demo/no-valid-commercial-license permanece política separada `2 Interactive + 2 View Only` conforme #301;
-6. backend authorization canônico já existente;
-7. separação entre Runtime Session Class/licensing e Authority de usuário.
+Then **STOP and wait for Main Coordinator integration decision**.
 
-Se o slice descobrir que precisa alterar semanticamente qualquer contrato acima, deve retornar `BLOCKED-CONTRACT` antes de criar workaround paralelo.
+### If the controlled rerun fails again
 
-## 5. Escopo obrigatório do Runtime Admission
+CODEX must **not rerun again and must not repair C04 autonomously**.
 
-O Codex deve:
+Return to Main with:
 
-1. criar/fechar um serviço/contrato único de decisão de classe de sessão no servidor;
-2. produzir decisão determinística de `requestedClass -> grantedClass` a partir da solicitação e do resultado relevante da Authority;
-3. garantir downscope explícito `ViewOnly -> ViewOnly`;
-4. garantir downscope `Interactive -> ViewOnly` quando a Authority efetiva não permite qualquer mutação Runtime que justifique Interactive;
-5. preservar `Interactive` como teto quando a Authority permitir ação mutável, sem conceder capability ausente;
-6. integrar o enforcement server-side da classe concedida aos pontos mutáveis relevantes, mantendo `CommandExecute` separado de `ProcessValueWrite`;
-7. vincular a decisão à identidade lógica da Runtime Session Lease, incluindo `subject`, `clientInstanceId` e `generation`/equivalente necessário para impedir reaproveitamento indevido;
-8. fazer REST/WebSocket/reconnect convergirem para a mesma decisão e lease lógica;
-9. rejeitar/falhar fechado quando a identificação de sessão necessária estiver ausente, inválida, obsoleta ou inconsistente;
-10. expor reason/result codes determinísticos suficientes para diagnóstico e para o próximo slice de quota, sem depender de texto livre como contrato;
-11. preservar ESLIC1 sem inferir novos entitlements comerciais;
-12. manter ESLIC2 disponível como entrada canônica para o próximo slice de capacity accounting, sem criar contagem paralela nesta implementação.
+- new attempt/job ID;
+- exact failing test/assertion;
+- comparison with the first failure;
+- any deterministic evidence available from logs/artifacts;
+- confirmation that candidate SHA remained unchanged.
 
-### Regra sobre quota neste slice
+Then **STOP**.
 
-Este slice **não deve fingir que capacidade concorrente já foi reservada**.
+---
 
-O contrato de Admission deve separar claramente:
+## 3. MAIN COORDINATOR -> FND-04 DEV — CURRENT ORDER
 
-- resolução/eligibilidade de classe e Authority, entregue neste slice;
-- reserva/consumo concorrente de capacidade Interactive/View Only, que pertence ao slice seguinte de shared quota accounting.
+**ORDER_STATE: WAIT**  
+**Lane:** FND-04 DEV
 
-Se o nome público existente `grantedClass` implicar semanticamente que um assento já foi reservado, o Codex deve ajustar o contrato mínimo para deixar explícita essa fronteira e retornar a decisão ao Main. Não criar uma falsa concessão licenciada só para encaixar nomenclatura.
+Do not implement FND-04 yet.
 
-## 6. Fora de escopo deste slice
+On every `SIGA`:
 
-- implementação de shared concurrent seat accounting Web + EliteGO;
-- contadores finais, overflow e competição por assentos;
-- license install/replace/remove lifecycle;
-- License Generator UX;
-- Installation UX;
-- EliteGO UX;
-- HA election/fencing;
-- FND-04 Script TAG Reference Resolution;
-- redefinir Authority ou criar role-name magic;
-- reabrir FND-01/FND-02;
-- segundo session registry, segundo license resolver ou segundo authorization pipeline.
+1. reread this file live;
+2. revalidate `wave15/corrections-integration`;
+3. if `ORDER_STATE` remains `WAIT`, perform no product mutation and wait;
+4. only begin when Main Coordinator changes this section to `ACTIVE` and supplies exact base SHA/tree, branch, scope and acceptance package.
 
-## 7. Critérios de aceite obrigatórios
-
-No exact candidate, o Codex deve demonstrar pelo menos:
-
-1. `requested ViewOnly` permanece `ViewOnly` para Authority ampla;
-2. `requested Interactive` por subject Runtime intrinsecamente read-only é downscoped a `ViewOnly`;
-3. `requested Interactive` por subject com mutação Runtime aplicável pode manter teto `Interactive`, sem ganhar capability adicional;
-4. Authority com `CommandExecute` e sem `ProcessValueWrite` consegue apenas o primeiro quando a classe permite;
-5. Authority com `ProcessValueWrite` e sem `CommandExecute` não ganha command por estar Interactive;
-6. sessão `ViewOnly` falha fechada para `CommandExecute` e `ProcessValueWrite` mesmo com Authority que permitiria ambos;
-7. chamada REST direta/modificada não consegue ignorar a classe concedida;
-8. caminho WebSocket direto/modificado não consegue ignorar a classe concedida;
-9. REST + WebSocket + reconnect do mesmo `(subject, clientInstanceId)` preservam uma única lease/decisão lógica e geração consistente;
-10. `clientInstanceId`/generation ausente, adulterado, expirado ou stale não recupera Interactive por fallback;
-11. nenhuma decisão usa nomes de role como `Administrator`, `Operator` ou equivalentes como política de licensing;
-12. ESLIC1 continua sem `SessionEntitlements` inferidos;
-13. ESLIC2 continua expondo seus entitlements assinados sem alterar a semântica de totais efetivos;
-14. nenhum estado de sessão/licença/chave privada entra em `.escadapkg`;
-15. regressões existentes de Authority, licensing e Runtime permanecem verdes;
-16. build/test relevantes e EliteSCADA CI no exact PR head ficam `PASS`; requisito não executado = `PENDING`.
-
-## 8. Evidências obrigatórias do Codex
-
-Entregar:
-
-- exact base SHA;
-- exact head SHA/tree;
-- branch + PR;
-- arquivos/símbolos alterados;
-- contrato de decisão de classe e reason codes;
-- pontos REST/WebSocket/reconnect integrados;
-- matriz dos 16 critérios `PASS | FAIL | PENDING` com evidência concreta;
-- testes locais e quantidade/resultados;
-- Actions run ID e job IDs exatos;
-- skips/limitações ambientais;
-- riscos residuais;
-- itens deliberadamente deixados para quota accounting;
-- confirmação explícita de que não criou segundo lease registry, segundo licensing path ou segundo Authority pipeline.
-
-## 9. CODEX -> MAIN COORDINATOR — retorno obrigatório
-
-O retorno normal deve começar exatamente por:
-
-`CODEX -> MAIN COORDINATOR — FND-03 RUNTIME ADMISSION HANDOFF`
-
-Se houver dependência real de mudança em contrato frozen:
-
-`CODEX -> MAIN COORDINATOR — FND-03 RUNTIME ADMISSION BLOCKED-CONTRACT`
-
-Se o bloqueio for somente ambiental:
-
-`CODEX -> MAIN COORDINATOR — FND-03 RUNTIME ADMISSION BLOCKED-ENV`
-
-Codex não deve auto-mergear, auto-verificar, auto-congelar FND-03, iniciar o slice de quotas, iniciar FND-04 nem liberar FC0-A.
-
-## 10. MAIN COORDINATOR — tratamento do retorno
-
-Ao receber o handoff:
-
-1. revalidar live base/head/tree/PR;
-2. revisar diff real e scope leakage;
-3. verificar se há exatamente um admission path sem segunda Authority/licensing/lease authority;
-4. revisar fail-closed de ViewOnly e separação `CommandExecute`/`ProcessValueWrite`;
-5. conferir REST/WebSocket/reconnect e generation/stale behavior;
-6. conferir os testes negativos, não apenas happy path;
-7. validar CI no exact head;
-8. diagnosticar qualquer vermelho antes de rerun;
-9. integrar somente com evidência bounded suficiente;
-10. validar merge SHA/parents/tree e CI pós-merge conforme o workflow vivo;
-11. só então promover este slice e emitir o próximo exact base para shared quota accounting.
-
-## 11. Próximo slice planejado, NÃO ATIVO
-
-Após Runtime Admission integrado/verificado, o próximo slice de FND-03 previsto é:
-
-**FND-03 — SHARED RUNTIME SEAT ACCOUNTING / WEB + ELITEGO INTERACTIVE & VIEW ONLY QUOTAS**
-
-Ele deve implementar reserva/consumo concorrente dos totais ESLIC2/Demo usando a mesma lease lógica. Não deve ser iniciado antecipadamente.
-
-Depois dele ainda permanecem, em slices bounded:
-
-- license inspect/verify/install/replace/remove lifecycle e reavaliação/fencing de leases;
-- integração completa com Installation switching #304;
-- observabilidade/rejection reasons finais;
-- concurrency/negative regressions restantes;
-- demais critérios de #301 antes de FND-03 como um todo ficar `VERIFIED/FROZEN`.
-
-## 12. FND-04 — contrato operacional de Script TAG Reference Resolution
-
-**Status:** `QUEUED / CONTRACT DEFINED / NOT ACTIVE / NOT FROZEN`.
-
-FND-04 não inicia enquanto FND-03 for a missão Foundation ativa, salvo nova ordem explícita do Main.
-
-Branch reservada para quando for ativado:
+Reserved implementation branch when activated:
 
 `work/w15-fnd-04-script-tag-reference-resolution`
 
@@ -238,157 +136,128 @@ Target:
 
 `wave15/corrections-integration`
 
-### 12.1 Objetivo
+FND-04 DEV will be the **single owner of production implementation** for the Script TAG Reference Resolution contract. It must not merge or self-freeze.
 
-Entregar contrato compartilhado, determinístico e versionável para referências de TAG em Server Script / Script Engineering no qual:
+---
 
-- Python visível usa referência canônica humana, normalmente path completo, por exemplo `EEE.Process.LevelPct`;
-- `TagId`/Guid permanece identidade interna autoritativa;
-- `tag_read` e `tag_write` usam a mesma semântica de resolução;
-- backend/runtime prova que a referência textual corresponde ao `TagId` esperado antes de read/write;
-- rename/move/path reuse nunca retargeta silenciosamente script para outra TAG;
-- downstream `DEV-SCRIPT-ENGINEERING` recebe contrato congelado para Object Browser, autocomplete, busca, cursor insertion e diagnóstico.
+## 4. MAIN COORDINATOR -> FND-04 AUD — CURRENT ORDER
 
-### 12.2 Entradas obrigatórias
+**ORDER_STATE: WAIT**  
+**Lane:** FND-04 AUD  
+**Default mode:** `READ_ONLY_REVIEW`
 
-Na ativação, Codex deve revalidar:
+Do not audit a speculative candidate and do not write tests yet.
 
-- exact base SHA/tree emitido pelo Main;
-- #305 comentário binding `5701881550`;
-- W15-P1-05;
-- FND-01/FND-02 frozen;
-- stable `TagId`/Guid e TAG registry atual;
-- `tag_read`, `tag_write`, Script APIs e callers;
-- persistence/bindings/`TagValueReference` equivalentes;
-- save/load/export/import/package;
-- scripts legados com GUID/TagId.
+On every `SIGA`:
 
-Se depender de alteração de contrato frozen externo, retornar `BLOCKED-CONTRACT`.
+1. reread this file live;
+2. if `ORDER_STATE` remains `WAIT`, perform no mutation and wait;
+3. when activated, Main Coordinator will provide exact DEV candidate SHA/tree and explicit `AUD_MODE`;
+4. only if `AUD_MODE: WRITE_TESTS` is explicitly present may AUD create tests, and then only in the isolated branch named by Main;
+5. AUD never modifies DEV production code, integration or `main`;
+6. AUD never merges or declares `VERIFIED/FROZEN`.
 
-### 12.3 Saídas obrigatórias
+AUD must remain independent/adversarial to DEV and report evidence to Main.
 
-- um único resolver compartilhado para read/write;
-- binding persistido/versionável `referência visível <-> TagId esperado`;
-- estados equivalentes a `found/notFound/ambiguous/stale/identityDrift`;
-- no silent retarget;
-- round-trip seguro;
-- política explícita para legacy GUID/TagId;
-- API/diagnóstico consumível pelo DEV;
-- documentação curta das invariantes frozen.
+---
 
-### 12.4 Critérios de aceite FND-04
+## 5. FND-04 BINDING CONTRACT — READY BUT NOT ACTIVE
 
-1. fonte gerada legível, sem GUID como representação normal;
-2. resolver único para read/write;
-3. identidade estável validada;
-4. rename/move não retargeta silenciosamente;
-5. reuse de path por outro TagId falha como drift/stale;
-6. missing/ambiguous fail closed;
-7. comportamento de rename/move definido e testado;
-8. selectors alternativos preservam identidade/fail-closed;
-9. diagnóstico mostra referência e identidade quando útil;
-10. save/load/export/import/package preservam binding pertinente;
-11. legacy GUID/TagId tem política testada;
-12. Authority permanece aplicada;
-13. não surge segundo Tag registry/resolver/pipeline de autorização;
-14. regressão representativa com duas leituras, comparação e ação condicional em source legível;
-15. contrato consumível pelo `DEV-SCRIPT-ENGINEERING` sem redesign Foundation.
+Objective once activated:
 
-### 12.5 Evidências obrigatórias
+- Python-visible TAG references use canonical human-readable references, normally full paths;
+- `TagId`/Guid remains authoritative stable identity;
+- one shared resolver serves `tag_read` and `tag_write`;
+- persisted/versioned binding proves visible reference <-> expected stable TagId;
+- rename/move/path reuse never silently retargets a script;
+- missing/ambiguous/stale/identity-drift states fail closed;
+- legacy GUID/TagId behavior is explicit and tested;
+- Authority remains canonical and no second registry/resolver/authorization pipeline is created;
+- contract must be consumable by Script Engineering downstream without Foundation redesign.
 
-- exact base/head/tree;
-- PR/diff bounded;
-- resolver states;
-- read/write pela referência legível;
-- rename/move/path reuse;
-- round-trip persistence/package pertinente;
-- legacy migration/compatibility;
-- script multi-TAG;
-- prova de Authority preservada;
-- testes/CI com `PASS | FAIL | PENDING`;
-- riscos e itens downstream.
+Expected core acceptance when activated includes readable source, shared read/write resolution, stable identity validation, rename/move/path-reuse negatives, persistence/package round-trip, legacy behavior, Authority preservation and representative multi-TAG scripts.
 
-### 12.6 Retorno Codex FND-04
+Main Coordinator will issue an exact work package after the FND-03 checkpoint allows activation.
 
-Cabeçalho exato:
+---
 
-`CODEX -> MAIN COORDINATOR — FND-04 SCRIPT TAG REFERENCE CONTRACT HANDOFF`
+## 6. FND-03 REMAINING AFTER SHARED SEAT ACCOUNTING
 
-Se bloquear contrato frozen externo:
+Even if PR #331 becomes integrated/verified, FND-03 global is not automatically frozen.
 
-`CODEX -> MAIN COORDINATOR — FND-04 BLOCKED-CONTRACT`
+Remaining bounded work currently expected before global FND-03 `VERIFIED/FROZEN`:
 
-Codex não auto-mergeia, não congela FND-04 e não libera DEV-SCRIPT-ENGINEERING.
+- license inspect/verify/install/replace/remove lifecycle;
+- entitlement reevaluation/fencing when authoritative machine license changes while Runtime is active;
+- integration with Installation switching #304;
+- final observability/rejection reasons where still missing;
+- remaining concurrency/negative regressions required by #301.
 
-## 13. FC0-A
+Product Owner decision already binding: the product has not been released; no installed customer base requires commercial backward-compatibility behavior for legacy ESLIC1 session quotas. ESLIC2 is the current commercial session-entitlement contract; ESLIC1 must not receive inferred/unlimited remote-session capacity.
 
-FC0-A exige:
+---
 
-`FND-01 + FND-02 + FND-03 + FND-04 + FND-06 VERIFIED/FROZEN`
+## 7. PERMANENT GUARDS
 
-mais FND-08 frozen, INFRA-CI-01 ready/frozen e exact integration checkpoint com os gates requeridos.
+- GitHub live is authority.
+- `main` is never mutated without explicit Product Owner final authorization.
+- No direct feature-code write to `wave15/corrections-integration`; normal product integration is by reviewed PR.
+- Coordinator-only documentation in this handoff may be updated by Main to communicate live orders.
+- Red CI must be diagnosed before rerun; no repeated blind reruns.
+- Exact-head evidence only.
+- Required but unexecuted test = `PENDING`.
+- No force push, destructive rebase or evidence deletion.
+- Runtime Session Class/licensing is only a restrictive ceiling; Authority remains the capability authority.
+- `CommandExecute` remains distinct from `ProcessValueWrite`.
+- Web Runtime and EliteGO share the same logical lease/quota authority; no separate pools.
+- No session state, license private material, credentials or topology state in `.escadapkg`.
+- Stable IDs outrank mutable names/paths.
+- No downstream silent redesign of frozen contracts.
 
-Somente a liberação explícita do Main abre os DEVs dependentes.
+---
 
-## 14. Política operacional de GitHub Actions
+## 8. COMMUNICATION / LEDGER RULE
 
-Nunca concluir que uma Action não pode ser executada apenas porque `workflow_dispatch` não está disponível.
+### Primary live orders
 
-Antes de qualquer conclusão sobre execução de CI:
+**This file: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.**
 
-1. ler o workflow real em `.github/workflows/`;
-2. verificar `on:`;
-3. verificar evento (`pull_request`, `push`, `workflow_dispatch` ou outro);
-4. verificar branch/base filters;
-5. verificar `paths`/`paths-ignore`;
-6. provocar preferencialmente o evento automático normal do projeto;
-7. usar rerun somente para o mesmo candidate/run quando isso responde ao objetivo;
-8. lembrar que rerun de um workflow existente continua associado ao SHA original e não valida automaticamente um novo merge SHA.
+CODEX / DEV / AUD must read this file whenever Product Owner says `SIGA`.
 
-Após PR #328, `EliteSCADA CI` passa a aceitar:
+### Evidence / historical ledgers
 
-- `pull_request` para `main` e `wave15/corrections-integration`;
-- `push` relevante para `main`, `wave14/corrections-integration` e `wave15/corrections-integration`;
-- `workflow_dispatch` continua disponível como alternativa manual.
+- #301 — FND-03 / licensing ledger
+- #305 — dependency/checkpoint ledger
+- PR conversations — candidate-local evidence
+- #297 — Wave 15 global ledger
 
-Assim, desenvolvimento e validação Wave 15 devem usar PR/push automáticos como caminho normal sempre que os filtros forem satisfeitos.
+Comments can mirror an order for traceability, but agents must use this file as the canonical active-order source.
 
-## 15. Relação entre documentos
+### Return discipline
 
-### `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`
+Agents do not choose the next mission. They execute the active order, return evidence, and stop when the order says `STOP` or `WAIT`.
 
-Handoff operacional vivo e canônico Main Coordinator <-> Codex/Foundation Work.
+Main Coordinator alone promotes mission state, authorizes integration/freeze and writes the next order.
 
-### `docs/CURRENT-COORDINATOR-HANDOFF.md`
+---
 
-Combinador/ponte curta. Deve apontar para este handoff, ordem ativa e issues/PRs relevantes. Não substitui este documento.
+## 9. MAIN COORDINATOR REVIEW SEQUENCE
 
-### `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
+After an agent handoff:
 
-Protocolo genérico para troca do chat do Main Coordinator.
+1. revalidate exact base/head/tree/PR live;
+2. inspect real diff and scope leakage;
+3. inspect relevant tests and negative/concurrency coverage;
+4. inspect exact-head CI;
+5. diagnose red gates before any rerun;
+6. integrate only with bounded evidence sufficient;
+7. capture exact merge SHA/parents/tree;
+8. validate post-merge CI on the exact integrated SHA;
+9. only then promote state/freeze that bounded slice;
+10. update this file with the next binding order before asking an agent to continue.
 
-### Issues
+---
 
-- #305 — dependency graph / checkpoints / sequencing;
-- #301 — FND-03 / Licensing ledger;
-- #297 — Wave 15 global ledger.
-
-## 16. Guardas permanentes
-
-- GitHub live é autoridade;
-- no direct `main`;
-- no direct feature write to integration;
-- no force push/destructive rebase/evidence deletion;
-- red CI diagnosticado antes de rerun;
-- exact-head evidence only;
-- required but unexecuted test = `PENDING`;
-- no weakening Security/Authority/Licensing/lifecycle/Runtime/Historian/Driver contracts;
-- no EEE-only workaround para defeito genérico;
-- stable IDs outrank mutable names/paths;
-- no downstream silent redesign of frozen contracts;
-- Runtime/Active permanece independente de `.escadalib`;
-- Alarm, Operational Event e Audit permanecem distintos.
-
-For Product Owner control, coordination messages end with current America/Sao_Paulo time as:
+For Product Owner control, Main Coordinator reports current America/Sao_Paulo time as:
 
 `Hora: HH:MM`

@@ -1,7 +1,7 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-17 BRT  
-**Operational state:** **WAVE 15 ACTIVE / FND-03 SHARED SEAT ACCOUNTING VERIFIED+FROZEN / LIFECYCLE+FENCING ARCHITECTURE FROZEN / PHASE A PR_READY-PENDING-CI / CODEX WAIT / FND-04 WAIT / FC0-A BLOCKED**
+**Operational state:** **WAVE 15 ACTIVE / FND-03 SHARED SEAT ACCOUNTING VERIFIED+FROZEN / LIFECYCLE+FENCING ARCHITECTURE FROZEN / PHASE A CI-EVIDENCE CORRECTION ACTIVE / CODEX WAIT / FND-04 WAIT / FC0-A BLOCKED**
 
 > GitHub live is the official memory.
 >
@@ -26,7 +26,7 @@ Later coordination-only documentation commits do not change the product checkpoi
 - FND-03 machine-license v2 + hardening — VERIFIED/FROZEN
 - FND-03 Runtime Admission — VERIFIED/FROZEN
 - FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A PR_READY-PENDING-CI / NOT INTEGRATED**
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A CI-EVIDENCE CORRECTION ACTIVE / NOT INTEGRATED**
 - FND-03 global — ACTIVE / NOT FROZEN
 - FND-04 — WAIT
 - FC0-A — BLOCKED
@@ -35,7 +35,7 @@ Later coordination-only documentation commits do not change the product checkpoi
 
 CODEX remains `WAIT` to preserve scarce quota.
 
-FND-03 DEV is `ACTIVE / OPEN_PHASE_A_PR_ONLY`.
+FND-03 DEV is `ACTIVE / IMPLEMENT_PHASE_A_CI_EVIDENCE_CORRECTION`.
 
 Main reviewed and froze architecture amendment #301 comment `5722165708`. The first implementation phase is deliberately bounded to:
 
@@ -84,3 +84,8 @@ Then Main independently reviews exact Phase A head/tests and either:
 - or uses Codex only for a material blocker/critical correction.
 
 FND-04 stays WAIT. FC0-A stays blocked.
+
+
+## Latest CI evidence correction
+
+PR #332 run #1547 showed backend/web green, but the FND-03 PostgreSQL tests were wired to legacy `ELITESCADA_C25_POSTGRES` while canonical CI injects `ELITESCADA_TEST_POSTGRES`. Their PostgreSQL bodies therefore remained unproven. Main ordered a tests-only env correction on the same PR; no unchanged rerun is accepted as closure.

@@ -119,7 +119,7 @@ O integration HEAD pode estar à frente por commits de coordenação; isso não 
 - FND-03 machine-license v2 + hardening — **VERIFIED/FROZEN**
 - FND-03 Runtime Admission — **VERIFIED/FROZEN**
 - FND-03 Shared Runtime Seat Accounting — **VERIFIED/FROZEN**
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / IMPLEMENTATION PHASE A ACTIVE / NOT INTEGRATED**
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A CORRECTION ACTIVE / NOT INTEGRATED**
 - FND-03 global — **ACTIVE / NOT FROZEN**
 - FND-04 Script TAG Reference Resolution — **QUEUED / CONTRACT DEFINED / NOT ACTIVE / NOT FROZEN**
 - FC0-A — **BLOCKED**
@@ -147,161 +147,88 @@ Do not start FND-04 or release FC0-A.
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**DEV_MODE: IMPLEMENT_PHASE_A**  
-**Mission:** FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — Phase A foundations
+**DEV_MODE: IMPLEMENT_PHASE_A_CORRECTION**  
+**Mission:** FND-03 Lifecycle/Fencing — close Main review defects on Phase A candidate
 
-### Architecture freeze
-
-Main independently reviewed amendment #301 comment `5722165708` against the exact product checkpoint and **freezes the architecture for implementation** with these binding invariants:
-
-- `FileProductLicenseService` remains the single machine-license verifier/store;
-- candidate verification returns canonical `LicenseVerificationResult`;
-- invalid replacement is a true no-op;
-- PostgreSQL advisory locks remain short transaction-scoped `pg_advisory_xact_lock` operations;
-- durable `transition_pending` bridges DB/file/Runtime non-atomicity fail-closed;
-- `AuthorityRevision` is the global fencing epoch; per-lease `Generation` remains CAS;
-- capacity derived from `CurrentVerification` is bound to `ExpectedAuthorityRevision` inside atomic seat reservation;
-- admission/validate/heartbeat/terminate fail closed while transition is pending or lease revision is stale;
-- successful authority change cannot clear pending until Runtime + lease ledger are coherent;
-- transition completion **must** prove no active lease remains below the current authority revision; this is mandatory, not optional;
-- Demo authority-change time is the semantic timer anchor and persisted Runtime recovery cannot mint a fresh full Demo window;
-- machine-license mutation requires `EngineeringModify` but does not depend on current Application Engineering Lock;
-- audit never records raw license/signing/credential material;
-- multi-process sharing is same-installation/same-machine-license-authority only; cross-machine HA convergence is out of scope;
-- no license/session/lifecycle state enters `.escadapkg`, Application or Authority backup.
-
-No `BLOCKED-CONTRACT` remains.
-
-### Exact authority
+### Candidate under review
 
 - exact product base: `a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
-- product tree: `eed22a377fea2778d3e78143d706e4de0ef9ce38`
-- work branch: `work/w15-fnd-03-license-lifecycle-fencing-v1`
-- target: `wave15/corrections-integration`
-- architecture evidence: #301 comment `5722165708`
+- candidate head: `d1ae56e787989f5fc2e9867c22f3e7d9f31aefb7`
+- candidate tree: `79b1b00aa4b8b031b1e225a5a4919b4554423253`
+- branch: `work/w15-fnd-03-license-lifecycle-fencing-v1`
+- Phase A handoff: #301 comment `5722303131`
+- no PR / no CI yet
 
-Live comparison already confirmed the integration branch is ahead of the product checkpoint only by coordination/documentation changes in:
-- `LAST CHANGE.md`
-- `docs/CURRENT-COORDINATOR-HANDOFF.md`
-- `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`
+Main independently compared base -> candidate and confirmed the changed-file boundary is Phase A only. Architecture remains frozen. Two correction areas are binding before PR/CI.
 
-The work branch does not currently exist on GitHub. Create it **from the exact product base**, not from the moving documentation HEAD. Revalidate before creation; any intervening product/infra delta => `BLOCKED-BASE-DIVERGENCE`.
+### CA1 — remove stale-capacity convenience path
 
-### PHASE A — authorized production/test scope
+Current candidate still exposes a public `RuntimeSessionLeaseRegistry.AdmitWithCapacityAsync(... RuntimeSessionSeatCapacity capacity ...)` overload that receives an already-computed capacity and only **afterward** calls `GetAuthorityStateAsync` to obtain the expected revision.
 
-Implement only the first three architecture units.
+That shape is unsafe by contract: a caller could compute capacity from authority R, an authority change could complete to R+1, then this overload could read R+1 and submit the old R capacity bound to R+1. The store would see a matching revision and could accept stale totals.
 
-#### A1 — canonical candidate verification seam
+Required correction:
 
-Files:
-- `src/Scada.Core/Product/Licensing/ProductLicenseServiceContracts.cs`
-- `src/Scada.Api/Licensing/FileProductLicenseService.cs`
-- focused licensing tests
+1. remove the public convenience overload that derives authority revision after capacity is already supplied;
+2. all capacity reservation paths must explicitly supply the authority revision observed **before / as part of** the canonical license-capacity read;
+3. remove the default `= 1` from `RuntimeSessionLeaseCapacityAdmission.ExpectedAuthorityRevision` so direct store callsites cannot silently omit epoch binding;
+4. update every compile-visible callsite/test to pass an explicit expected revision;
+5. keep the Distributed Runtime admission sequence:
+   - read authority snapshot R;
+   - if pending => fail closed;
+   - read fresh `CurrentVerification` and derive capacity;
+   - reserve with `ExpectedAuthorityRevision = R`;
+   - only revision-changed may bounded-retry from a fresh snapshot/license read.
 
-Add:
-`LicenseVerificationResult VerifyCandidate(string licenseCode)`
+Do not add another convenience API that can pair stale capacity with a later revision snapshot.
 
-Requirements:
-- exact same verifier/key/machine/TimeProvider path as installed verification;
-- no filesystem mutation;
-- `InstallLicense` remains self-verifying;
-- valid + malformed/tampered/wrong-key/wrong-machine/expired proofs;
-- installed state byte-for-byte unchanged by candidate verification.
+### CA2 — close claimed fence/Generation proof
 
-#### A2 — authority epoch/state foundation
+The Phase A handoff says required test #6 is written, but the submitted focused tests do not actually assert the required durable `Generation` behavior of bulk fencing.
 
-Files:
-- `src/Scada.Security/Authorization/RuntimeSessionLeaseStore.cs`
-- `src/Scada.Persistence.PostgreSql/PostgreSqlRuntimeSessionLeaseStore.cs`
-- focused in-memory/PostgreSQL tests
+Add deterministic proof without introducing a product test-only authority:
 
-Add the architecture-frozen authority state/transition records, `AuthorityRevision` lease stamp and store transition/bulk-fence APIs.
+PostgreSQL:
+- admit a lease at revision R and record its persisted generation;
+- begin + commit authority transition to R+1;
+- call `FenceLeasesBeforeAuthorityRevisionAsync`;
+- query the exact row and prove `is_active=false` and `generation == prior + 1`;
+- call fence again and prove changed count is 0 and generation does not increment again;
+- prove `CompleteAuthorityTransitionAsync` refuses completion before stale active leases are fenced and succeeds after fence.
 
-PostgreSQL migration:
-- key `023_runtime_session_authority_fencing_v1` unless live base consumes 023 before branch creation;
-- singleton `elitescada.runtime_session_authority_state`;
-- initial revision 1;
-- durable pending transition metadata;
-- authority-change/Demo recovery timestamps;
-- add/backfill `runtime_session_leases.authority_revision = 1`, then NOT NULL/CHECK;
-- active revision index;
-- no ESLIC/license payload or second entitlement table.
+In-memory:
+- preserve the existing invalidation proof;
+- add a second fence call proving it returns 0/no repeated state mutation;
+- do not widen production API merely to expose inactive rows for tests.
 
-All PostgreSQL transition methods use fresh short transactions plus the existing `LeaseMutationAdvisoryLock`.
+Also correct the handoff language: until these tests execute, they remain `PENDING`.
 
-#### A3 — epoch enforcement in admission/use
+### Scope guard
 
-Files:
-- stores above;
-- `src/Scada.Api/Runtime/RuntimeSessionLease.cs`;
-- `src/Scada.Api/Runtime/DistributedRuntimeFoundationApi.cs`;
-- deterministic concurrency/regression tests.
+Correction may change only Phase A files/tests needed for CA1/CA2. No Phase B/C work:
+- no Runtime re-evaluation;
+- no Demo recovery;
+- no lifecycle orchestrator;
+- no licensing mutation route/audit cutover;
+- no FND-04 / FC0-A.
 
-Required:
-- capacity admission carries `ExpectedAuthorityRevision`;
-- store transaction reloads authority singleton and requires `!TransitionPending` and exact revision before reserving capacity;
-- newly admitted leases are stamped with current `AuthorityRevision`;
-- validate/heartbeat/terminate reject transition-pending and stale-revision leases before normal CAS continuation;
-- bounded API retry on revision mismatch uses fresh authority snapshot + fresh `CurrentVerification`;
-- pending state is fail-closed, never permissive retry with old capacity;
-- existing Shared Runtime Seat Accounting semantics remain unchanged otherwise.
+No PR, no merge, no integration mutation, no `main`, no GitHub Actions in this correction round.
 
-### Phase A required tests
+### Return
 
-At minimum:
+Push bounded correction commit(s) to the same branch and publish exactly one new top-level #301 comment beginning:
 
-1. VerifyCandidate valid ESLIC2 does not mutate installed state;
-2. candidate invalid families do not mutate state;
-3. migration initializes singleton and backfills existing lease rows at revision 1;
-4. Begin/Abort transition transaction rollback and state invariants;
-5. Commit revision while pending; Complete requires coherent ledger;
-6. bulk fence invalidates all older-revision leases and increments Generation only for actual state mutation;
-7. admission with stale expected revision fails without consuming a seat;
-8. admission while pending fails closed;
-9. validation/heartbeat/terminate while pending fail closed;
-10. stale-revision lease cannot be revived by Generation/CAS;
-11. two PostgreSQL store instances racing reservation vs transition cannot leave a usable stale lease;
-12. existing in-memory/PostgreSQL Shared Seat Accounting regressions remain green.
-
-A required but unexecuted test is `PENDING`, never PASS.
-
-### Phase A stop boundary
-
-Do **not** yet implement:
-
-- `ProductLicensedRuntimeCoordinator.ReevaluateForAuthorityChangeAsync`;
-- Demo timer/recovery changes;
-- `PersistedRuntimeRecoveryService` changes;
-- `ProductLicenseLifecycleCoordinator`;
-- license install/remove API route cutover;
-- EngineeringModify/audit changes;
-- full restart reconciliation orchestrator;
-- FND-04 or FC0-A work.
-
-### Commit / return protocol
-
-- Prefer three bounded logical commits A1/A2/A3.
-- Push only to `work/w15-fnd-03-license-lifecycle-fencing-v1`.
-- Do not open a PR yet unless Main changes this order.
-- Run focused tests available in the execution environment. Do not invent results; unavailable proof = `PENDING`.
-- Do not run/rerun GitHub Actions unless this order is later amended; Main owns CI operation.
-- No merge, no integration mutation, no `main`.
-
-Publish exactly one new top-level #301 handoff beginning:
-
-`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A HANDOFF`
+`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A CORRECTION HANDOFF`
 
 Include:
-- exact base/head/tree;
-- commits;
-- changed files/symbols;
-- migration/schema details;
-- test matrix with PASS/FAIL/PENDING;
-- any deviation from the frozen architecture;
-- blockers/risks;
-- explicit confirmation that Phase B/C were not implemented.
+- old head -> new head/tree;
+- exact changed files;
+- CA1 callsite inventory and proof no unbound capacity overload/default remains;
+- CA2 exact tests added;
+- test status `PASS|FAIL|PENDING` with no invented execution;
+- confirmation no Phase B/C scope entered.
 
-Verify the comment exists live, report its numeric ID, then **STOP** for Main review.
+Verify comment live, report its numeric ID, then **STOP**. Main will re-review and, if clean, authorize PR/CI.
 
 
 ---

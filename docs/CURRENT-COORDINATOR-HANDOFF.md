@@ -16,64 +16,69 @@
 - FND-03 machine-license v2 + hardening — VERIFIED/FROZEN.
 - FND-03 Runtime Admission — VERIFIED/FROZEN.
 - FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN.
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **PHASE A INTEGRATED / POST-MERGE CI #1551 RUNNING / NOT YET VERIFIED**.
+- FND-03 License Lifecycle/Fencing Phase A — **VERIFIED/FROZEN**.
+- FND-03 License Lifecycle/Fencing Phase B — **ACTIVE / NOT INTEGRATED**.
 - FND-03 global — ACTIVE / NOT FROZEN.
 - FND-04 — QUEUED / CONTRACT DEFINED / WAIT.
 - FC0-A — BLOCKED.
 
-## Current product checkpoint
-
-PR #332 merged into `wave15/corrections-integration`.
-
-Exact merge/product checkpoint:
+## Verified product checkpoint
 
 `20b934f23d8798ffb65cca203b62f8b5c3d8f111`
 
-tree:
+tree `4e227fdde1d8475c23852e142c51946c7a2e1859`.
 
-`4e227fdde1d8475c23852e142c51946c7a2e1859`
+This is PR #332 merged into `wave15/corrections-integration`.
 
-parents:
-- `a3555b3422e0f86ee89d21588e550a33931e71b2`
-- `a07568ea072bf6a095f800dc5443b76b6a6d3a94`
+Exact post-merge CI:
+- EliteSCADA CI #1551 / run `35341475101`
+- Backend `105588126265` — SUCCESS
+- Web `105588126462` — SUCCESS
+- Chromium `105588538108` — SUCCESS
 
-Later coordination/documentation commits do not change the product checkpoint.
+Coordination/documentation commits after this SHA do not change the product checkpoint.
 
-## Exact post-merge CI gate
+## Current FND-03 DEV order
 
-EliteSCADA CI #1551 / run `35341475101`, event `push`, exact head SHA `20b934f23d8798ffb65cca203b62f8b5c3d8f111`.
+`ORDER_STATE: ACTIVE`  
+`DEV_MODE: IMPLEMENT_PHASE_B`
 
-Latest observed jobs:
-- Backend `105588126265` — SUCCESS.
-- Web `105588126462` — SUCCESS.
-- Chromium `105588538108` — RUNNING.
+Mission:
 
-Phase A cannot become VERIFIED/FROZEN until all required exact-merge jobs are green.
+**Active Runtime Re-evaluation + Durable Demo Recovery v1**
 
-## Current execution lanes
+New work branch:
 
-### FND-03 DEV
+`work/w15-fnd-03-runtime-authority-reevaluation-v1`
 
-`ORDER_STATE: WAIT`  
-`DEV_MODE: WAIT_POST_MERGE_CI`
+must be created from exact product base:
 
-No mutation while Main owns the gate.
+`20b934f23d8798ffb65cca203b62f8b5c3d8f111`
 
-### CODEX
+Phase B is bounded to:
+1. `ProductLicensedRuntimeCoordinator.ReevaluateForAuthorityChangeAsync`;
+2. durable Demo semantic start / remaining-duration behavior;
+3. persisted Runtime recovery fail-closed for transition pending and Demo without durable anchor;
+4. deterministic focused tests.
 
-`ORDER_STATE: WAIT`.
+Do not implement Phase C lifecycle mutation orchestration/API/audit yet.
 
-Codex remains reserve.
+Required return in #301:
 
-### FND-04
+`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE B HANDOFF`
 
-DEV/AUD remain WAIT.
+No PR or Actions yet. Main reviews the exact Phase B head first.
 
-## Next Main action
+## Other lanes
 
-1. validate Chromium `105588538108`;
-2. if green, promote Phase A to VERIFIED/FROZEN;
-3. activate the next bounded Phase B work package from exact product checkpoint `20b934f2...`;
-4. keep CODEX reserve unless a material blocker justifies it;
-5. keep FND-04 WAIT and FC0-A blocked until explicitly released.
+- CODEX — WAIT / reserve.
+- FND-04 DEV/AUD — WAIT.
+- FC0-A — BLOCKED.
 
+## Retomada obrigatória
+
+1. Read canonical handoff in full.
+2. Revalidate product checkpoint and integration HEAD.
+3. Review latest Phase B DEV handoff/head if present.
+4. Main decides correction or PR/CI gate.
+5. Keep CODEX reserve unless a material blocker justifies it.

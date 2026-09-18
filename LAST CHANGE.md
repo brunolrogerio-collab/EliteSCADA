@@ -1,7 +1,7 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-18 BRT  
-**Operational state:** **WAVE 15 ACTIVE / FND-03 LIFECYCLE PHASE A VERIFIED+FROZEN / PHASE B ACTIVE / CODEX WAIT / FND-04 WAIT / FC0-A BLOCKED**
+**Operational state:** **WAVE 15 ACTIVE / FND-03 LIFECYCLE PHASE A VERIFIED+FROZEN / PHASE B CI-BUILD CORRECTION ACTIVE / CODEX WAIT / FND-04 WAIT / FC0-A BLOCKED**
 
 > GitHub live is the official memory.
 >
@@ -66,7 +66,7 @@ Explicitly not active yet:
 
 ## Lane state
 
-- FND-03 DEV — ACTIVE / IMPLEMENT_PHASE_B.
+- FND-03 DEV — ACTIVE / IMPLEMENT_PHASE_B_CI_BUILD_CORRECTION.
 - CODEX — WAIT / reserve.
 - FND-04 DEV/AUD — WAIT.
 - FC0-A — BLOCKED.
@@ -78,3 +78,8 @@ Wait for:
 `FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE B HANDOFF`
 
 Then Main independently reviews the exact Phase B candidate, tests and scope before any PR/CI authorization.
+
+
+## Phase B CI #1552 diagnosis
+
+PR #333 exact head `abb1e497c66a8f0888d6cde83331c51623c18979`: Web SUCCESS; Backend build failed before tests on `CS0649` in the new recovery test helper because `RecordingTimeProvider._timestamp` is never assigned. Main ordered a single-test-file compile correction. No production/workflow change and no unchanged rerun are authorized.

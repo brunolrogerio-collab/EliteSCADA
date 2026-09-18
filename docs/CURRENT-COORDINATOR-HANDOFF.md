@@ -16,7 +16,7 @@
 - FND-03 machine-license v2 + hardening — VERIFIED/FROZEN.
 - FND-03 Runtime Admission — VERIFIED/FROZEN.
 - FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN.
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A TEST-DETERMINISM CORRECTION ACTIVE / NOT INTEGRATED**.
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A CI GATE RUNNING / NOT INTEGRATED**.
 - FND-03 global — ACTIVE / NOT FROZEN.
 - FND-04 — QUEUED / CONTRACT DEFINED / WAIT.
 - FC0-A — BLOCKED.
@@ -42,7 +42,7 @@ Codex is reserve. No implementation/commit/PR/CI is authorized until Main explic
 ### FND-03 DEV
 
 `ORDER_STATE: ACTIVE`  
-`DEV_MODE: IMPLEMENT_PHASE_A_TEST_DETERMINISM_CORRECTION`
+`DEV_MODE: WAIT_CI`
 
 Architecture amendment #301 comment `5722165708` was independently reviewed by Main and is frozen for implementation.
 
@@ -95,3 +95,7 @@ PR #332 CI #1547 exposed a test-environment evidence gap: canonical CI provides 
 ## Latest Main diagnosis
 
 PR #332 exact head `1adf8fca1547d8aa76c6f4ab65265d56e0d8518f` ran CI #1549. PostgreSQL FND-03 tests now genuinely execute and PASS. Backend red is isolated to one nondeterministic test construction in `ProductLicenseCandidateVerificationTests`: tail Base64Url mutation can decode to identical signature bytes. DEV is ordered to change that single test file only; no product change is authorized.
+
+## Latest gate
+
+PR #332 is frozen at `a07568ea072bf6a095f800dc5443b76b6a6d3a94` / tree `5033bf5fa255326a8cadb4a9f5e057989c3b17a5`. CI #1550 has Backend+Web SUCCESS and Chromium still running at latest readback. DEV is WAIT_CI; Main owns the gate.

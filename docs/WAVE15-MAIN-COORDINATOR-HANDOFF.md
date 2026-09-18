@@ -119,7 +119,7 @@ O integration HEAD pode estar à frente por commits de coordenação; isso não 
 - FND-03 machine-license v2 + hardening — **VERIFIED/FROZEN**
 - FND-03 Runtime Admission — **VERIFIED/FROZEN**
 - FND-03 Shared Runtime Seat Accounting — **VERIFIED/FROZEN**
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A CI-EVIDENCE CORRECTION ACTIVE / NOT INTEGRATED**
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A TEST-DETERMINISM CORRECTION ACTIVE / NOT INTEGRATED**
 - FND-03 global — **ACTIVE / NOT FROZEN**
 - FND-04 Script TAG Reference Resolution — **QUEUED / CONTRACT DEFINED / NOT ACTIVE / NOT FROZEN**
 - FC0-A — **BLOCKED**
@@ -147,111 +147,134 @@ Do not start FND-04 or release FC0-A.
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**DEV_MODE: IMPLEMENT_PHASE_A_CI_EVIDENCE_CORRECTION**  
-**Mission:** FND-03 Lifecycle/Fencing — make PostgreSQL Phase A proof actually execute in canonical CI
+**DEV_MODE: IMPLEMENT_PHASE_A_TEST_DETERMINISM_CORRECTION**  
+**Mission:** FND-03 Lifecycle/Fencing — remove nondeterministic candidate-tamper test encoding
 
-### Live diagnosis
+### Exact current candidate / PR
 
-PR #332 is OPEN / non-draft / mergeable with reviewed candidate:
-
+- product base: `a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
+- PR: #332
 - branch: `work/w15-fnd-03-license-lifecycle-fencing-v1`
-- current reviewed head before this correction: `509d794e92fd5e6333663020738d2713c73a7e9f`
-- tree: `ebb607695815197d419d28dd463c47bd0e702284`
+- current head: `1adf8fca1547d8aa76c6f4ab65265d56e0d8518f`
+- current tree: `61ce654be6d6c3ddaee9c8d1f5ff114922f08ad7`
 - target: `wave15/corrections-integration`
-- no review threads
 
-Natural CI:
-- EliteSCADA CI #1547
-- run `35286946681`
-- Web job `105421270426` — SUCCESS
-- Backend job `105421270595` — SUCCESS
-- Chromium job `105421602673` — was still running when this order was issued
+The prior CI-evidence correction is valid and bounded:
+- `509d794e... -> 1adf8fca...` = exactly 2 commits;
+- exactly 3 changed files, all FND-03 PostgreSQL tests;
+- zero production/workflow changes;
+- canonical CI PostgreSQL env now resolves from `ELITESCADA_TEST_POSTGRES` first, optional legacy `ELITESCADA_C25_POSTGRES` fallback.
 
-However **Backend SUCCESS is not sufficient Phase A PostgreSQL proof**.
+### CI #1549 diagnosis
 
-Main inspected the actual backend job log and repository contracts:
+Natural EliteSCADA CI #1549 / run `35287516404` on exact head `1adf8fca...`:
 
-- canonical CI injects `ELITESCADA_TEST_POSTGRES`;
-- the Phase A PostgreSQL tests currently read `ELITESCADA_C25_POSTGRES`;
-- the backend job log contains no `ELITESCADA_C25_POSTGRES` environment assignment;
-- these tests use `if (string.IsNullOrWhiteSpace(connectionString)) return;`;
-- therefore xUnit reports them as Passed even when their PostgreSQL body never runs;
-- their ~1–2 ms durations are consistent with that early-return path.
+- Web job `105423050793` — SUCCESS;
+- Backend job `105423050988` — FAILURE in tests;
+- Chromium job `105423388893` — SKIPPED because backend failed.
 
-Observed examples in job `105421270595`:
-- `RuntimeSessionAuthorityStateTests.PostgreSqlMigration_InitializesAuthoritySingletonAndLeaseRevision`
-- `RuntimeSessionAuthorityStateTests.PostgreSqlAuthorityTransition_FailedCommitRollsBackAndAbortPreservesBaseRevision`
-- `RuntimeSessionAuthorityStateTests.PostgreSqlBulkFence_IncrementsGenerationOnce_IsIdempotent_AndGuardsCompletion`
-- `RuntimeSessionAuthorityEnforcementTests.PostgreSqlTwoStores_RacingAdmissionAndTransition_NeverLeavesUsableStaleLease`
-- `RuntimeSessionAuthorityEnforcementTests.PostgreSqlTwoStores_TransitionWinsAgainstStaleExpectedRevision`
-- existing `PostgreSqlRuntimeSessionLeaseStoreTests`
+The PostgreSQL evidence gap is now closed at execution level on this head. The backend log shows real non-trivial execution and PASS for, among others:
 
-These remain **PENDING**, not PASS.
+- `RuntimeSessionAuthorityStateTests.PostgreSqlMigration_InitializesAuthoritySingletonAndLeaseRevision` — ~335 ms;
+- `PostgreSqlAuthorityTransition_FailedCommitRollsBackAndAbortPreservesBaseRevision` — ~200 ms;
+- `PostgreSqlBulkFence_IncrementsGenerationOnce_IsIdempotent_AndGuardsCompletion` — ~623 ms;
+- `RuntimeSessionAuthorityEnforcementTests.PostgreSqlTwoStores_RacingAdmissionAndTransition_NeverLeavesUsableStaleLease` — ~317 ms;
+- `PostgreSqlTwoStores_TransitionWinsAgainstStaleExpectedRevision` — ~228 ms;
+- existing PostgreSQL Runtime Session Lease regressions — executed and PASS.
 
-Do not rerun #1547 unchanged; the same SHA/environment cannot close this evidence gap.
+Do not revert the env correction.
 
-### Exact correction — TESTS ONLY
+### Sole red failure
 
-No production change is authorized.
+Only one Scada.Drivers test failed:
 
-Update only the FND-03 PostgreSQL tests on the existing work branch so canonical CI actually supplies their connection string.
+`ProductLicenseCandidateVerificationTests.VerifyCandidate_InvalidFamilies_DoNotMutateInstalledLicense`
 
-Required files:
+CI evidence:
+- expected `LicenseState.Invalid`;
+- actual `LicenseState.Valid`;
+- failure at line 76 inside the invalid-candidate loop;
+- 655/656 Scada.Drivers tests passed.
 
-- `tests/Scada.Drivers.Tests/RuntimeSessionAuthorityStateTests.cs`
-- `tests/Scada.Drivers.Tests/RuntimeSessionAuthorityEnforcementTests.cs`
-- `tests/Scada.Drivers.Tests/PostgreSqlRuntimeSessionLeaseStoreTests.cs`
+Main source review determined this is a **test construction defect**, not evidence for a product verifier defect.
 
-For each PostgreSQL test connection lookup, use:
+Current test builds:
 
-`ELITESCADA_TEST_POSTGRES` as the **canonical first choice**.
+`tamperedCode = installed[..^1] + (installed[^1] == 'A' ? "B" : "A")`
 
-A fallback to legacy `ELITESCADA_C25_POSTGRES` is allowed only to preserve old local/manual C25 execution, for example conceptually:
+The final ESLIC2 component is an unpadded Base64Url RSA signature. Mutating the **last encoded character** can change only discarded padding bits for some values, producing the same decoded signature bytes. In that case `VerifyCandidate` correctly returns Valid because the cryptographic bytes are unchanged.
 
-`ELITESCADA_TEST_POSTGRES ?? ELITESCADA_C25_POSTGRES`
+The repository already has the correct deterministic test pattern in:
 
-Do not modify unrelated legacy C25 tests outside this FND-03 scope.
+`tests/Scada.Core.Tests/Product/Licensing/LicenseContractsTests.cs`
 
-### Binding guards
+helper:
 
-- **zero production-file changes** versus `509d794e92fd5e6333663020738d2713c73a7e9f`;
-- no workflow YAML change;
-- no weakening/skipping/removing assertions;
-- no new test-only product API;
-- preserve RuntimeSessionPostgreSql collection serialization;
-- no Phase B/C;
-- no FND-04 / FC0-A;
+`MutateBase64Url`
+
+which mutates a character in the middle of the encoded value.
+
+### Exact correction — ONE TEST FILE ONLY
+
+Authorized file:
+
+`tests/Scada.Drivers.Tests/ProductLicenseCandidateVerificationTests.cs`
+
+Required:
+
+1. replace the tail-character tamper construction with deterministic mutation of a **meaningful Base64Url character**, preferably following the existing `MutateBase64Url` helper pattern;
+2. mutate the signature component (`parts[2]`) or payload component at a non-tail/midpoint position so decoded bytes definitely change;
+3. preserve the existing acceptance intent:
+   - malformed => Invalid;
+   - tampered bytes => Invalid;
+   - wrong signing key => Invalid;
+   - wrong machine => Invalid;
+   - expired => Invalid;
+   - installed license bytes remain unchanged after each candidate check;
+   - installed CurrentVerification remains Valid;
+4. no change to `EliteScadaLicenseCodec`, `FileProductLicenseService` or any production file;
+5. do not introduce a new requirement that semantically equivalent non-canonical Base64 text must be rejected; that is outside this Phase A acceptance and is not a cryptographic bypass.
+
+Optional but useful: structure the invalid cases so a future failure identifies the family being tested, without weakening assertions.
+
+### Guards
+
+- only the single test file above may change versus `1adf8fca...`;
+- zero production changes;
+- zero workflow changes;
+- no assertion weakening/skipping;
+- preserve prior PostgreSQL env correction;
 - no rebase/retarget;
 - no merge;
+- no Phase B/C;
+- no FND-04 / FC0-A;
 - no `main`.
 
-### Validation / PR behavior
+### Validation
 
-1. Push bounded test-only correction commit(s) to the existing branch.
-2. PR #332 remains the same PR.
-3. Let the new head trigger **natural PR CI**.
-4. Do not manually rerun #1547.
-5. Do not claim PostgreSQL PASS merely from xUnit test name; Main will verify new backend logs show the canonical env and non-skipped execution on the new exact head.
+Push bounded test-only commit to the same PR #332 and let **natural PR CI** run on the new exact head.
+
+Do not rerun #1549 unchanged.
 
 ### Return
 
-Publish exactly one new top-level #301 comment beginning:
+Publish exactly one top-level #301 comment beginning:
 
-`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A CI-EVIDENCE CORRECTION HANDOFF`
+`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A TEST-DETERMINISM CORRECTION HANDOFF`
 
 Include:
-- old head `509d794e...` -> new head/tree;
-- exact changed files;
-- confirmation zero production changes;
-- exact env resolution used;
-- PR #332 still targets integration;
+- old head `1adf8fca...` -> new head/tree;
+- exact single changed file;
+- exact deterministic tamper method;
+- confirmation zero production/workflow changes;
+- confirmation PostgreSQL env correction preserved;
 - new natural CI run ID if available;
-- tests remain PENDING until Main validates execution;
+- tests remain PENDING for the new exact head until Main validates CI;
 - confirmation no Phase B/C entered.
 
 Verify the comment live, report numeric ID, then **STOP**.
 
-Main owns new-head review, CI evidence review, integration decision and next phase.
+Main owns new-head review, CI diagnosis, integration decision and next phase.
 
 
 ---

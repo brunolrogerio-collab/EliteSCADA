@@ -99,3 +99,11 @@ PR #332 exact head `1adf8fca1547d8aa76c6f4ab65265d56e0d8518f` ran CI #1549. Post
 ## Latest gate
 
 PR #332 is frozen at `a07568ea072bf6a095f800dc5443b76b6a6d3a94` / tree `5033bf5fa255326a8cadb4a9f5e057989c3b17a5`. CI #1550 has Backend+Web SUCCESS and Chromium still running at latest readback. DEV is WAIT_CI; Main owns the gate.
+
+## CI #1550 controlled rerun
+
+Original Chromium job `105455521880` failed only in the historical C04 Preview case (`previewCandidate == null`, 623/624 passed), outside the FND-03 candidate delta. Main diagnosed before rerun and triggered one controlled Chromium rerun on unchanged head `a07568ea072bf6a095f800dc5443b76b6a6d3a94`.
+
+Controlled rerun Chromium job: `105460986304`.
+
+Merge of PR #332 is binding-authorized only if this rerun succeeds and required dependency jobs remain green. No second blind rerun is authorized.

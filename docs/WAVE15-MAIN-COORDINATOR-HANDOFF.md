@@ -119,7 +119,7 @@ O integration HEAD pode estar à frente por commits de coordenação; isso não 
 - FND-03 machine-license v2 + hardening — **VERIFIED/FROZEN**
 - FND-03 Runtime Admission — **VERIFIED/FROZEN**
 - FND-03 Shared Runtime Seat Accounting — **VERIFIED/FROZEN**
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A TEST-DETERMINISM CORRECTION ACTIVE / NOT INTEGRATED**
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A CI GATE RUNNING / NOT INTEGRATED**
 - FND-03 global — **ACTIVE / NOT FROZEN**
 - FND-04 Script TAG Reference Resolution — **QUEUED / CONTRACT DEFINED / NOT ACTIVE / NOT FROZEN**
 - FC0-A — **BLOCKED**
@@ -146,135 +146,58 @@ Do not start FND-04 or release FC0-A.
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
 
-**ORDER_STATE: ACTIVE**  
-**DEV_MODE: IMPLEMENT_PHASE_A_TEST_DETERMINISM_CORRECTION**  
-**Mission:** FND-03 Lifecycle/Fencing — remove nondeterministic candidate-tamper test encoding
+**ORDER_STATE: WAIT**  
+**DEV_MODE: WAIT_CI**  
+**Mission:** FND-03 Lifecycle/Fencing Phase A — Main owns exact-head CI gate
 
-### Exact current candidate / PR
+DEV has completed the ordered deterministic-test correction.
+
+Exact candidate now frozen for CI review:
 
 - product base: `a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
 - PR: #332
 - branch: `work/w15-fnd-03-license-lifecycle-fencing-v1`
-- current head: `1adf8fca1547d8aa76c6f4ab65265d56e0d8518f`
-- current tree: `61ce654be6d6c3ddaee9c8d1f5ff114922f08ad7`
+- candidate head: `a07568ea072bf6a095f800dc5443b76b6a6d3a94`
+- tree: `5033bf5fa255326a8cadb4a9f5e057989c3b17a5`
 - target: `wave15/corrections-integration`
+- determinism handoff: #301 comment `5724035858`
+- natural EliteSCADA CI: #1550 / run `35298261163`
 
-The prior CI-evidence correction is valid and bounded:
-- `509d794e... -> 1adf8fca...` = exactly 2 commits;
-- exactly 3 changed files, all FND-03 PostgreSQL tests;
+Main independently confirmed:
+
+- `1adf8fca... -> a07568ea...` is exactly one commit;
+- exactly one file changed:
+  `tests/Scada.Drivers.Tests/ProductLicenseCandidateVerificationTests.cs`;
 - zero production/workflow changes;
-- canonical CI PostgreSQL env now resolves from `ELITESCADA_TEST_POSTGRES` first, optional legacy `ELITESCADA_C25_POSTGRES` fallback.
+- deterministic midpoint signature mutation replaced unsafe tail-character tamper;
+- no review threads.
 
-### CI #1549 diagnosis
+CI #1550 current evidence:
 
-Natural EliteSCADA CI #1549 / run `35287516404` on exact head `1adf8fca...`:
+- Backend job `105455213597` — SUCCESS;
+- Web job `105455213817` — SUCCESS;
+- Chromium job `105455521880` — RUNNING at latest readback.
 
-- Web job `105423050793` — SUCCESS;
-- Backend job `105423050988` — FAILURE in tests;
-- Chromium job `105423388893` — SKIPPED because backend failed.
+Backend log evidence on exact head:
 
-The PostgreSQL evidence gap is now closed at execution level on this head. The backend log shows real non-trivial execution and PASS for, among others:
+- `VerifyCandidate_InvalidFamilies_DoNotMutateInstalledLicense` — PASS (~1 s);
+- PostgreSQL migration/transition/fence/two-store tests execute with non-trivial durations and PASS;
+- Shared Runtime PostgreSQL regressions execute and PASS;
+- Scada.Drivers.Tests — 656/656 PASS;
+- Runtime smoke — PASS.
 
-- `RuntimeSessionAuthorityStateTests.PostgreSqlMigration_InitializesAuthoritySingletonAndLeaseRevision` — ~335 ms;
-- `PostgreSqlAuthorityTransition_FailedCommitRollsBackAndAbortPreservesBaseRevision` — ~200 ms;
-- `PostgreSqlBulkFence_IncrementsGenerationOnce_IsIdempotent_AndGuardsCompletion` — ~623 ms;
-- `RuntimeSessionAuthorityEnforcementTests.PostgreSqlTwoStores_RacingAdmissionAndTransition_NeverLeavesUsableStaleLease` — ~317 ms;
-- `PostgreSqlTwoStores_TransitionWinsAgainstStaleExpectedRevision` — ~228 ms;
-- existing PostgreSQL Runtime Session Lease regressions — executed and PASS.
+### DEV order
 
-Do not revert the env correction.
+While this order is `WAIT`:
 
-### Sole red failure
+- make no code/test/branch/PR changes;
+- do not rerun CI;
+- do not merge;
+- do not start Phase B/C;
+- do not start FND-04 / FC0-A;
+- on `SIGA`, reread this file, confirm `WAIT_CI`, and stop.
 
-Only one Scada.Drivers test failed:
-
-`ProductLicenseCandidateVerificationTests.VerifyCandidate_InvalidFamilies_DoNotMutateInstalledLicense`
-
-CI evidence:
-- expected `LicenseState.Invalid`;
-- actual `LicenseState.Valid`;
-- failure at line 76 inside the invalid-candidate loop;
-- 655/656 Scada.Drivers tests passed.
-
-Main source review determined this is a **test construction defect**, not evidence for a product verifier defect.
-
-Current test builds:
-
-`tamperedCode = installed[..^1] + (installed[^1] == 'A' ? "B" : "A")`
-
-The final ESLIC2 component is an unpadded Base64Url RSA signature. Mutating the **last encoded character** can change only discarded padding bits for some values, producing the same decoded signature bytes. In that case `VerifyCandidate` correctly returns Valid because the cryptographic bytes are unchanged.
-
-The repository already has the correct deterministic test pattern in:
-
-`tests/Scada.Core.Tests/Product/Licensing/LicenseContractsTests.cs`
-
-helper:
-
-`MutateBase64Url`
-
-which mutates a character in the middle of the encoded value.
-
-### Exact correction — ONE TEST FILE ONLY
-
-Authorized file:
-
-`tests/Scada.Drivers.Tests/ProductLicenseCandidateVerificationTests.cs`
-
-Required:
-
-1. replace the tail-character tamper construction with deterministic mutation of a **meaningful Base64Url character**, preferably following the existing `MutateBase64Url` helper pattern;
-2. mutate the signature component (`parts[2]`) or payload component at a non-tail/midpoint position so decoded bytes definitely change;
-3. preserve the existing acceptance intent:
-   - malformed => Invalid;
-   - tampered bytes => Invalid;
-   - wrong signing key => Invalid;
-   - wrong machine => Invalid;
-   - expired => Invalid;
-   - installed license bytes remain unchanged after each candidate check;
-   - installed CurrentVerification remains Valid;
-4. no change to `EliteScadaLicenseCodec`, `FileProductLicenseService` or any production file;
-5. do not introduce a new requirement that semantically equivalent non-canonical Base64 text must be rejected; that is outside this Phase A acceptance and is not a cryptographic bypass.
-
-Optional but useful: structure the invalid cases so a future failure identifies the family being tested, without weakening assertions.
-
-### Guards
-
-- only the single test file above may change versus `1adf8fca...`;
-- zero production changes;
-- zero workflow changes;
-- no assertion weakening/skipping;
-- preserve prior PostgreSQL env correction;
-- no rebase/retarget;
-- no merge;
-- no Phase B/C;
-- no FND-04 / FC0-A;
-- no `main`.
-
-### Validation
-
-Push bounded test-only commit to the same PR #332 and let **natural PR CI** run on the new exact head.
-
-Do not rerun #1549 unchanged.
-
-### Return
-
-Publish exactly one top-level #301 comment beginning:
-
-`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A TEST-DETERMINISM CORRECTION HANDOFF`
-
-Include:
-- old head `1adf8fca...` -> new head/tree;
-- exact single changed file;
-- exact deterministic tamper method;
-- confirmation zero production/workflow changes;
-- confirmation PostgreSQL env correction preserved;
-- new natural CI run ID if available;
-- tests remain PENDING for the new exact head until Main validates CI;
-- confirmation no Phase B/C entered.
-
-Verify the comment live, report numeric ID, then **STOP**.
-
-Main owns new-head review, CI diagnosis, integration decision and next phase.
+Main owns the remaining Chromium result, PR promotion decision, any diagnosed rerun if needed, and any later merge/Phase B order.
 
 
 ---

@@ -1,7 +1,7 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-17 BRT  
-**Operational state:** **WAVE 15 ACTIVE / FND-03 SHARED SEAT ACCOUNTING VERIFIED+FROZEN / LIFECYCLE+FENCING ARCHITECTURE FROZEN / PHASE A TEST-DETERMINISM CORRECTION ACTIVE / CODEX WAIT / FND-04 WAIT / FC0-A BLOCKED**
+**Operational state:** **WAVE 15 ACTIVE / FND-03 SHARED SEAT ACCOUNTING VERIFIED+FROZEN / LIFECYCLE+FENCING ARCHITECTURE FROZEN / PHASE A CI GATE RUNNING / CODEX WAIT / FND-04 WAIT / FC0-A BLOCKED**
 
 > GitHub live is the official memory.
 >
@@ -26,7 +26,7 @@ Later coordination-only documentation commits do not change the product checkpoi
 - FND-03 machine-license v2 + hardening — VERIFIED/FROZEN
 - FND-03 Runtime Admission — VERIFIED/FROZEN
 - FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A TEST-DETERMINISM CORRECTION ACTIVE / NOT INTEGRATED**
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A CI GATE RUNNING / NOT INTEGRATED**
 - FND-03 global — ACTIVE / NOT FROZEN
 - FND-04 — WAIT
 - FC0-A — BLOCKED
@@ -93,3 +93,7 @@ PR #332 run #1547 showed backend/web green, but the FND-03 PostgreSQL tests were
 ## Latest CI #1549 diagnosis
 
 The prior PostgreSQL environment evidence gap is closed: FND-03 PostgreSQL tests genuinely executed and passed. The only backend failure is a nondeterministic candidate-tamper test that mutates the final Base64Url signature character, which can preserve decoded bytes via padding-bit equivalence. Main ordered a one-test-file deterministic tamper correction on PR #332.
+
+## Latest exact-head gate
+
+PR #332 candidate `a07568ea072bf6a095f800dc5443b76b6a6d3a94` is frozen. CI #1550 backend and web are green; Chromium remained in progress at latest readback. Backend exact-head logs prove deterministic license candidate coverage and real PostgreSQL FND-03 execution PASS.

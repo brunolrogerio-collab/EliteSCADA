@@ -97,3 +97,7 @@ The prior PostgreSQL environment evidence gap is closed: FND-03 PostgreSQL tests
 ## Latest exact-head gate
 
 PR #332 candidate `a07568ea072bf6a095f800dc5443b76b6a6d3a94` is frozen. CI #1550 backend and web are green; Chromium remained in progress at latest readback. Backend exact-head logs prove deterministic license candidate coverage and real PostgreSQL FND-03 execution PASS.
+
+## CI #1550 controlled rerun
+
+Original Chromium `105455521880` failed only on historical C04 Preview (`previewCandidate == null`, 623/624 passed). Main diagnosed the unrelated failure and used standing CI authority for one controlled rerun on the unchanged exact candidate. Rerun Chromium job: `105460986304`. PR #332 may integrate only if this rerun and required dependency jobs are green.

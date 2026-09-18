@@ -522,7 +522,13 @@ public sealed class DistributedRuntimeFoundationTests
         RuntimeConnectionClass connectionClass,
         ScadaRuntimeDescriptor runtime,
         RuntimeSessionSeatCapacity capacity) =>
-        sessions.AdmitWithCapacityAsync(userId, clientInstanceId, connectionClass, runtime, capacity);
+        sessions.AdmitWithCapacityAsync(
+            userId,
+            clientInstanceId,
+            connectionClass,
+            runtime,
+            capacity,
+            expectedAuthorityRevision: 1);
 
     private static ScadaRuntimeDescriptor RuntimeDescriptor(
         DateTimeOffset activatedAtUtc,

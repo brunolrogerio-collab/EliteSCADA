@@ -4,12 +4,14 @@ using Scada.Security.Authorization;
 
 namespace Scada.Drivers.Tests;
 
+[Collection("RuntimeSessionPostgreSql")]
 public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
 {
     [Fact]
     public async Task PostgreSqlLeaseStore_ConvergesLogicalAdmissionAcrossInstances_AndUsesGenerationCas()
     {
-        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
         var subject = $"fnd03-session-{Guid.NewGuid():N}";
@@ -64,7 +66,8 @@ public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
     [Fact]
     public async Task PostgreSqlLeaseStore_ExpiresReAdmits_BindsIdentity_AndRollsBackPostMutationFailure()
     {
-        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
         var subject = $"fnd03-expiry-{Guid.NewGuid():N}";
@@ -116,7 +119,8 @@ public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
     [Fact]
     public async Task PostgreSqlLeaseStore_ReconnectDownscopesViewOnly_WithoutChangingLogicalIdentity()
     {
-        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
         var subject = $"fnd03-downscope-{Guid.NewGuid():N}";
@@ -150,7 +154,8 @@ public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
     [Fact]
     public async Task PostgreSqlLeaseStore_AtomicallyEnforcesSharedSeatCapacityAcrossStoreInstances()
     {
-        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
         var subject = $"fnd03-capacity-{Guid.NewGuid():N}";
@@ -163,8 +168,13 @@ public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
 
         try
         {
+            var authority = await first.GetAuthorityStateAsync();
+            Assert.False(authority.TransitionPending);
+
             var sameIdentity = new RuntimeSessionLeaseCapacityAdmission(
-                Admission(subject, "logical-client", runtime, TimeSpan.FromMinutes(1), "interactive"), capacity);
+                Admission(subject, "logical-client", runtime, TimeSpan.FromMinutes(1), "interactive"),
+                capacity,
+                authority.AuthorityRevision);
             var concurrent = await Task.WhenAll(
                 first.AdmitWithCapacityAsync(sameIdentity),
                 second.AdmitWithCapacityAsync(sameIdentity));
@@ -172,7 +182,9 @@ public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
             Assert.Single(concurrent.Select(result => result.Lease!.SessionId).Distinct());
 
             var anotherIdentity = new RuntimeSessionLeaseCapacityAdmission(
-                Admission(subject, "other-client", runtime, TimeSpan.FromMinutes(1), "interactive"), capacity);
+                Admission(subject, "other-client", runtime, TimeSpan.FromMinutes(1), "interactive"),
+                capacity,
+                authority.AuthorityRevision);
             var rejected = await second.AdmitWithCapacityAsync(anotherIdentity);
             Assert.False(rejected.IsAdmitted);
             Assert.Equal(RuntimeSessionSeatReservationReasonCode.InteractiveQuotaExhaustedNoEligibleViewOnly, rejected.ReasonCode);

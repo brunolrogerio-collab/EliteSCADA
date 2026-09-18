@@ -6,6 +6,7 @@ namespace Scada.Api.Runtime;
 
 public static class DistributedRuntimeFoundationApi
 {
+    private const int MaximumAuthorityAdmissionAttempts = 3;
     public const string ContractSchema = "elitescada.server-runtime-contract";
     // v4 adds atomic signed/demo shared-seat reservation to server-calculated admission.
     // v2 clients may still submit the legacy "viewer" request value, but responses
@@ -61,36 +62,58 @@ public static class DistributedRuntimeFoundationApi
             if (admissionFailure is not null) return admissionFailure;
             if (decision is null) return Results.Forbid();
 
-            var capacity = RuntimeSessionSeatCapacityPolicy.Resolve(licensing.CurrentVerification);
-            if (!capacity.IsAvailable || capacity.Capacity is null)
-                return CapacityFailure(capacity.ReasonCode);
-
-            var before = runtime.Describe();
-            var seatAdmission = await security.RuntimeSessions.AdmitWithCapacityAsync(
-                principal.SubjectId,
-                request.ClientInstanceId,
-                decision.GrantedClass,
-                before,
-                capacity.Capacity,
-                cancellationToken: cancellationToken);
-            if (!seatAdmission.IsAdmitted || seatAdmission.Lease is null)
-                return CapacityFailure(seatAdmission.ReasonCode);
-            var lease = seatAdmission.Lease;
-            var after = runtime.Describe();
-            if (!SameRuntime(before, after))
+            for (var attempt = 0; attempt < MaximumAuthorityAdmissionAttempts; attempt++)
             {
-                _ = await security.RuntimeSessions.TerminateAsync(
-                    lease.SessionId,
-                    lease.UserId,
-                    lease.ClientInstanceId,
+                var authority = await security.RuntimeSessions.GetAuthorityStateAsync(cancellationToken);
+                if (authority.TransitionPending)
+                    return CapacityFailure(RuntimeSessionSeatReservationReasonCode.AuthorityTransitionPending);
+
+                var capacity = RuntimeSessionSeatCapacityPolicy.Resolve(licensing.CurrentVerification);
+                if (!capacity.IsAvailable || capacity.Capacity is null)
+                    return CapacityFailure(capacity.ReasonCode);
+
+                var before = runtime.Describe();
+                var seatAdmission = await security.RuntimeSessions.AdmitWithCapacityAsync(
+                    principal.SubjectId,
+                    request.ClientInstanceId,
+                    decision.GrantedClass,
                     before,
-                    cancellationToken);
-                return RuntimeChanged();
+                    capacity.Capacity,
+                    authority.AuthorityRevision,
+                    cancellationToken: cancellationToken);
+
+                if (!seatAdmission.IsAdmitted)
+                {
+                    if (seatAdmission.ReasonCode == RuntimeSessionSeatReservationReasonCode.AuthorityRevisionChanged &&
+                        attempt + 1 < MaximumAuthorityAdmissionAttempts)
+                    {
+                        continue;
+                    }
+                    return CapacityFailure(seatAdmission.ReasonCode);
+                }
+
+                if (seatAdmission.Lease is null)
+                    return CapacityFailure(seatAdmission.ReasonCode);
+
+                var lease = seatAdmission.Lease;
+                var after = runtime.Describe();
+                if (!SameRuntime(before, after))
+                {
+                    _ = await security.RuntimeSessions.TerminateAsync(
+                        lease.SessionId,
+                        lease.UserId,
+                        lease.ClientInstanceId,
+                        before,
+                        cancellationToken);
+                    return RuntimeChanged();
+                }
+
+                return Results.Created(
+                    $"/api/runtime/sessions/{lease.SessionId}",
+                    ProjectLease(lease, decision, seatAdmission.ReasonCode));
             }
 
-            return Results.Created(
-                $"/api/runtime/sessions/{lease.SessionId}",
-                ProjectLease(lease, decision, seatAdmission.ReasonCode));
+            return CapacityFailure(RuntimeSessionSeatReservationReasonCode.AuthorityRevisionChanged);
         });
 
         endpoints.MapPost("/api/runtime/sessions/{sessionId:guid}/heartbeat", async (

@@ -58,6 +58,15 @@ public sealed class FileProductLicenseService : IProductLicenseService, IDisposa
     public RunEntitlementDecision EvaluateRun(int projectTagCount) =>
         ProductEntitlementEvaluator.Evaluate(CurrentVerification, projectTagCount);
 
+    public LicenseVerificationResult VerifyCandidate(string licenseCode)
+    {
+        if (string.IsNullOrWhiteSpace(licenseCode))
+            return LicenseVerificationResult.Invalid("License code is required.");
+
+        lock (_gate)
+            return Verify(licenseCode.Trim());
+    }
+
     public void InstallLicense(string licenseCode)
     {
         if (string.IsNullOrWhiteSpace(licenseCode))

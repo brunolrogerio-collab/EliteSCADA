@@ -1,0 +1,219 @@
+using Npgsql;
+using Scada.Persistence.PostgreSql;
+using Scada.Security.Authorization;
+
+namespace Scada.Drivers.Tests;
+
+[Collection("RuntimeSessionPostgreSql")]
+public sealed class RuntimeSessionAuthorityEnforcementTests
+{
+    [Fact]
+    public async Task InMemoryCapacityAdmission_RejectsPendingAndStaleExpectedRevisionWithoutConsumingSeat()
+    {
+        var now = DateTimeOffset.Parse("2026-09-17T20:00:00Z");
+        await using var store = new InMemoryRuntimeSessionLeaseStore(() => now);
+        var runtime = Runtime(now);
+        var capacity = new RuntimeSessionSeatCapacity(InteractiveSeats: 1, ViewOnlySeats: 0);
+
+        var transition = await store.BeginAuthorityTransitionAsync("replace", now);
+        var pending = await store.AdmitWithCapacityAsync(CapacityAdmission("user-a", "client-a", runtime, capacity, 1));
+        Assert.False(pending.IsAdmitted);
+        Assert.Equal(RuntimeSessionSeatReservationReasonCode.AuthorityTransitionPending, pending.ReasonCode);
+
+        _ = await store.CommitAuthorityChangeAsync(transition.TransitionId, 1, now.AddSeconds(1), null);
+        _ = await store.FenceLeasesBeforeAuthorityRevisionAsync(transition.TransitionId, 2);
+        await store.CompleteAuthorityTransitionAsync(transition.TransitionId, 2);
+
+        var stale = await store.AdmitWithCapacityAsync(CapacityAdmission("user-a", "client-a", runtime, capacity, 1));
+        Assert.False(stale.IsAdmitted);
+        Assert.Equal(RuntimeSessionSeatReservationReasonCode.AuthorityRevisionChanged, stale.ReasonCode);
+
+        var current = await store.AdmitWithCapacityAsync(CapacityAdmission("user-a", "client-a", runtime, capacity, 2));
+        Assert.True(current.IsAdmitted);
+        Assert.Equal(2, current.Lease!.AuthorityRevision);
+    }
+
+    [Fact]
+    public async Task InMemoryUsePath_FailsClosedWhilePendingAndForStaleAuthorityRevision()
+    {
+        var now = DateTimeOffset.Parse("2026-09-17T20:00:00Z");
+        await using var store = new InMemoryRuntimeSessionLeaseStore(() => now);
+        var runtime = Runtime(now);
+        var lease = await store.AdmitAsync(Admission("user-a", "client-a", runtime));
+
+        var transition = await store.BeginAuthorityTransitionAsync("remove", now);
+        var pendingValidation = await store.ValidateAsync(lease.SessionId, "user-a", runtime, "client-a");
+        var pendingHeartbeat = await store.HeartbeatAsync(lease.SessionId, "user-a", "client-a", runtime);
+        var pendingTerminate = await store.TerminateAsync(lease.SessionId, "user-a", "client-a", runtime);
+        Assert.Equal("authority-transition-pending", pendingValidation.FailureCode);
+        Assert.Equal("authority-transition-pending", pendingHeartbeat.FailureCode);
+        Assert.Equal("authority-transition-pending", pendingTerminate.FailureCode);
+
+        _ = await store.CommitAuthorityChangeAsync(transition.TransitionId, 1, now.AddSeconds(1), now.AddSeconds(1));
+        Assert.Equal(1, await store.FenceLeasesBeforeAuthorityRevisionAsync(transition.TransitionId, 2));
+        await store.CompleteAuthorityTransitionAsync(transition.TransitionId, 2);
+
+        var stale = await store.ValidateAsync(lease.SessionId, "user-a", runtime, "client-a");
+        Assert.False(stale.IsValid);
+    }
+
+    [Fact]
+    public async Task PostgreSqlTwoStores_TransitionWinsAgainstStaleExpectedRevision()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        await using var first = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await using var second = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await first.InitializeAsync();
+        await second.InitializeAsync();
+
+        var state = await first.GetAuthorityStateAsync();
+        if (state.TransitionPending) return;
+
+        var now = DateTimeOffset.UtcNow;
+        var transition = await first.BeginAuthorityTransitionAsync("replace", now);
+        try
+        {
+            var pending = await second.AdmitWithCapacityAsync(
+                CapacityAdmission($"phase-a-{Guid.NewGuid():N}", "client", Runtime(now), new RuntimeSessionSeatCapacity(1, 0), state.AuthorityRevision));
+            Assert.False(pending.IsAdmitted);
+            Assert.Equal(RuntimeSessionSeatReservationReasonCode.AuthorityTransitionPending, pending.ReasonCode);
+
+            var committed = await first.CommitAuthorityChangeAsync(
+                transition.TransitionId,
+                transition.BaseAuthorityRevision,
+                now,
+                null);
+            _ = await first.FenceLeasesBeforeAuthorityRevisionAsync(transition.TransitionId, committed.AuthorityRevision);
+            await first.CompleteAuthorityTransitionAsync(transition.TransitionId, committed.AuthorityRevision);
+
+            var stale = await second.AdmitWithCapacityAsync(
+                CapacityAdmission($"phase-a-{Guid.NewGuid():N}", "client", Runtime(now), new RuntimeSessionSeatCapacity(1, 0), state.AuthorityRevision));
+            Assert.False(stale.IsAdmitted);
+            Assert.Equal(RuntimeSessionSeatReservationReasonCode.AuthorityRevisionChanged, stale.ReasonCode);
+        }
+        finally
+        {
+            var current = await first.GetAuthorityStateAsync();
+            if (current.TransitionPending && current.TransitionId == transition.TransitionId)
+            {
+                if (current.AuthorityRevision == transition.BaseAuthorityRevision)
+                    _ = await first.AbortAuthorityTransitionAsync(transition.TransitionId, transition.BaseAuthorityRevision);
+                else
+                {
+                    _ = await first.FenceLeasesBeforeAuthorityRevisionAsync(transition.TransitionId, current.AuthorityRevision);
+                    await first.CompleteAuthorityTransitionAsync(transition.TransitionId, current.AuthorityRevision);
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public async Task PostgreSqlTwoStores_RacingAdmissionAndTransition_NeverLeavesUsableStaleLease()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        await using var first = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await using var second = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await first.InitializeAsync();
+        await second.InitializeAsync();
+
+        var initial = await first.GetAuthorityStateAsync();
+        if (initial.TransitionPending) return;
+
+        var now = DateTimeOffset.UtcNow;
+        var subject = $"phase-a-race-{Guid.NewGuid():N}";
+        var runtime = Runtime(now);
+        var admissionTask = second.AdmitWithCapacityAsync(
+            CapacityAdmission(
+                subject,
+                "client",
+                runtime,
+                new RuntimeSessionSeatCapacity(InteractiveSeats: 1, ViewOnlySeats: 0),
+                initial.AuthorityRevision));
+        var transitionTask = first.BeginAuthorityTransitionAsync("replace", now);
+
+        RuntimeSessionLeaseCapacityAdmissionResult admission;
+        RuntimeAuthorityTransition transition;
+        try
+        {
+            await Task.WhenAll(admissionTask, transitionTask);
+            admission = await admissionTask;
+            transition = await transitionTask;
+
+            var committed = await first.CommitAuthorityChangeAsync(
+                transition.TransitionId,
+                transition.BaseAuthorityRevision,
+                now.AddSeconds(1),
+                null);
+            _ = await first.FenceLeasesBeforeAuthorityRevisionAsync(
+                transition.TransitionId,
+                committed.AuthorityRevision);
+            await first.CompleteAuthorityTransitionAsync(
+                transition.TransitionId,
+                committed.AuthorityRevision);
+
+            if (admission.IsAdmitted && admission.Lease is not null)
+            {
+                var validation = await second.ValidateAsync(
+                    admission.Lease.SessionId,
+                    subject,
+                    runtime,
+                    "client");
+                Assert.False(validation.IsValid);
+            }
+            else
+            {
+                Assert.Equal(
+                    RuntimeSessionSeatReservationReasonCode.AuthorityTransitionPending,
+                    admission.ReasonCode);
+            }
+        }
+        finally
+        {
+            var current = await first.GetAuthorityStateAsync();
+            if (current.TransitionPending && current.TransitionId is { } pendingId)
+            {
+                if (current.AuthorityRevision == initial.AuthorityRevision)
+                    _ = await first.AbortAuthorityTransitionAsync(pendingId, initial.AuthorityRevision);
+                else
+                {
+                    _ = await first.FenceLeasesBeforeAuthorityRevisionAsync(pendingId, current.AuthorityRevision);
+                    await first.CompleteAuthorityTransitionAsync(pendingId, current.AuthorityRevision);
+                }
+            }
+
+            await DeleteSubjectAsync(connectionString, subject);
+        }
+    }
+
+    private static async Task DeleteSubjectAsync(string connectionString, string subject)
+    {
+        await using var dataSource = NpgsqlDataSource.Create(connectionString);
+        await using var command = dataSource.CreateCommand(
+            "DELETE FROM elitescada.runtime_session_leases WHERE subject_id = @subject_id;");
+        command.Parameters.AddWithValue("subject_id", subject);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static RuntimeSessionLeaseCapacityAdmission CapacityAdmission(
+        string subject,
+        string client,
+        RuntimeSessionRuntimeIdentity runtime,
+        RuntimeSessionSeatCapacity capacity,
+        long expectedRevision) =>
+        new(Admission(subject, client, runtime), capacity, expectedRevision);
+
+    private static RuntimeSessionLeaseAdmission Admission(
+        string subject,
+        string client,
+        RuntimeSessionRuntimeIdentity runtime) =>
+        new(subject, client, "interactive", runtime, TimeSpan.FromMinutes(1));
+
+    private static RuntimeSessionRuntimeIdentity Runtime(DateTimeOffset activatedAt) =>
+        new("engineering", "project-a", 7, activatedAt);
+}

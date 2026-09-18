@@ -159,6 +159,8 @@ Do not start FND-04 or release FC0-A.
 - tree: `5033bf5fa255326a8cadb4a9f5e057989c3b17a5`
 - target: `wave15/corrections-integration`
 - exact-head CI: EliteSCADA CI #1550 / run `35298261163`
+- original Chromium job: `105455521880` — FAILURE, unrelated historical C04 Preview flake (`previewCandidate == null`, 623/624 passed)
+- controlled rerun Chromium job: `105460986304` — QUEUED at latest readback
 - determinism handoff: #301 comment `5724035858`
 
 Main has independently confirmed:
@@ -181,7 +183,7 @@ On next `SIGA`:
 4. revalidate integration changes since product checkpoint are still documentation/coordination only;
 5. read CI #1550 / run `35298261163`.
 
-If **Backend, Web and Chromium are all SUCCESS** on the exact candidate head:
+If Backend/Web remain SUCCESS and **controlled rerun Chromium job `105460986304` is SUCCESS** on the exact candidate head:
 - merge PR #332 into `wave15/corrections-integration`;
 - do not rebase, retarget, amend, squash-away evidence or change candidate first;
 - capture exact merge SHA, parents, tree and new integration HEAD;
@@ -202,14 +204,14 @@ Include:
 
 Verify comment live, report numeric ID, then **STOP**.
 
-If Chromium is still running/pending:
+If controlled rerun Chromium `105460986304` is still queued/running:
 - do not merge;
-- return `WAIT-CI-1550`;
+- return `WAIT-CI-1550-RERUN`;
 - make no repository mutation.
 
-If any required CI job is red/cancelled:
+If controlled rerun Chromium `105460986304` is red/cancelled, or any newly rerun required dependency job is red/cancelled:
 - do not merge;
-- return `BLOCKED-CI-1550` with exact failing job;
+- return `BLOCKED-CI-1550-RERUN` with exact failing job;
 - make no product/test mutation until Main diagnoses.
 
 ### Ownership after merge
@@ -224,6 +226,14 @@ CODEX remains WAIT.
 FND-04 DEV/AUD remain WAIT.
 FC0-A remains BLOCKED.
 
+
+### Main CI diagnosis record
+
+Main diagnosed original Chromium job `105455521880` before rerun. Sole failure was:
+
+`web/scada-web/tests-e2e/c04-tag-source-browser.spec.ts:62`
+
+with `previewCandidate == null`, 623/624 tests passing. This is outside the FND-03 candidate delta and matches the previously observed historical C04 Preview flake. Main used standing CI authority to rerun only the failed Chromium job once; no candidate/workflow/test change was made. No further blind rerun is authorized.
 
 ---
 

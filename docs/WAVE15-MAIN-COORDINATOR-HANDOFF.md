@@ -119,7 +119,7 @@ O integration HEAD pode estar à frente por commits de coordenação; isso não 
 - FND-03 machine-license v2 + hardening — **VERIFIED/FROZEN**
 - FND-03 Runtime Admission — **VERIFIED/FROZEN**
 - FND-03 Shared Runtime Seat Accounting — **VERIFIED/FROZEN**
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A CI GATE RUNNING / NOT INTEGRATED**
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **PHASE A INTEGRATED / POST-MERGE CI PENDING / NOT VERIFIED**
 - FND-03 global — **ACTIVE / NOT FROZEN**
 - FND-04 Script TAG Reference Resolution — **QUEUED / CONTRACT DEFINED / NOT ACTIVE / NOT FROZEN**
 - FC0-A — **BLOCKED**
@@ -147,68 +147,59 @@ Do not start FND-04 or release FC0-A.
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
 
 **ORDER_STATE: WAIT**  
-**DEV_MODE: WAIT_MAIN_MERGE_GATE**  
-**Mission:** FND-03 Lifecycle/Fencing Phase A — Main owns exact-head CI rerun and merge gate
+**DEV_MODE: WAIT_POST_MERGE_CI**  
+**Mission:** FND-03 Lifecycle/Fencing Phase A — integrated; Main owns exact merge-SHA verification
 
-### Exact authority
+### Integrated exact state
 
-- product base: `a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
-- PR: #332
-- branch: `work/w15-fnd-03-license-lifecycle-fencing-v1`
-- candidate head: `a07568ea072bf6a095f800dc5443b76b6a6d3a94`
-- tree: `5033bf5fa255326a8cadb4a9f5e057989c3b17a5`
-- target: `wave15/corrections-integration`
+PR #332 is merged.
+
+- reviewed candidate head: `a07568ea072bf6a095f800dc5443b76b6a6d3a94`
+- candidate tree: `5033bf5fa255326a8cadb4a9f5e057989c3b17a5`
 - exact-head CI: EliteSCADA CI #1550 / run `35298261163`
-- original Chromium job: `105455521880` — FAILURE, unrelated historical C04 Preview flake (`previewCandidate == null`, 623/624 passed)
-- controlled rerun Chromium job: `105460986304` — QUEUED at latest readback
-- determinism handoff: #301 comment `5724035858`
+- controlled Chromium rerun job `105460986304` — SUCCESS
+- merge SHA / integration HEAD: `20b934f23d8798ffb65cca203b62f8b5c3d8f111`
+- merge tree: `4e227fdde1d8475c23852e142c51946c7a2e1859`
+- merge parents:
+  - `a3555b3422e0f86ee89d21588e550a33931e71b2` — integration coordination head
+  - `a07568ea072bf6a095f800dc5443b76b6a6d3a94` — reviewed Phase A candidate
+- target: `wave15/corrections-integration`
 
-Main has independently confirmed:
-- candidate correction delta is exactly one test file;
-- zero production/workflow changes after the reviewed Phase A candidate;
-- deterministic invalid-family candidate test PASS on exact head;
-- PostgreSQL migration/transition/fence/two-store proofs execute and PASS;
-- Scada.Drivers.Tests 656/656 PASS;
-- Runtime smoke PASS;
-- integration branch delta from product checkpoint remains coordination/documentation only;
-- PR has no review threads and is mergeable when GitHub reports it so.
+Main executed the merge only after:
+- Backend SUCCESS;
+- Web SUCCESS;
+- controlled Chromium rerun SUCCESS;
+- exact candidate preservation;
+- PR mergeable=true and no review threads.
 
-### Main merge ownership
+### State discipline
 
-DEV must make no further repository mutation while this order is WAIT.
+Phase A is now **INTEGRATED**, not yet VERIFIED/FROZEN.
 
-Main Coordinator is the owner of the remaining gate:
+The only remaining Phase A gate is CI on the exact merge SHA `20b934f23d8798ffb65cca203b62f8b5c3d8f111`.
 
-1. validate controlled rerun Chromium job `105460986304` on exact candidate `a07568ea072bf6a095f800dc5443b76b6a6d3a94`;
-2. if rerun Chromium + required dependency jobs are SUCCESS, Main may execute the already binding-authorized merge of PR #332 into `wave15/corrections-integration` directly;
-3. Main captures merge SHA/parents/tree/new integration HEAD;
-4. Main validates/operates post-merge CI on the exact merge SHA;
-5. only after post-merge green may Main promote Phase A to VERIFIED/FROZEN and activate the next bounded phase.
+Main owns:
+- discovering/validating the natural post-merge workflow;
+- rerun only after diagnosis if necessary;
+- exact merge-SHA Backend/Web/Chromium evidence;
+- VERIFIED/FROZEN promotion;
+- activation of the next bounded Phase B order.
 
-If rerun is red/cancelled, Main diagnoses; no blind second rerun and no product/test mutation without a new binding order.
+### DEV order
 
-On DEV `SIGA` while WAIT, reread this file and stop.
+While this order is WAIT:
 
-### Ownership after merge
-
-Main Coordinator owns:
-- exact merge-SHA verification;
-- post-merge CI operation/diagnosis;
-- Phase A INTEGRATED -> VERIFIED/FROZEN promotion;
-- Phase B architecture/work package and activation.
+- make no code/test/branch/PR changes;
+- do not rerun CI;
+- do not merge anything else;
+- do not start Phase B/C;
+- do not start FND-04 / FC0-A;
+- on `SIGA`, reread this file, confirm `WAIT_POST_MERGE_CI`, and stop.
 
 CODEX remains WAIT.
 FND-04 DEV/AUD remain WAIT.
 FC0-A remains BLOCKED.
 
-
-### Main CI diagnosis record
-
-Main diagnosed original Chromium job `105455521880` before rerun. Sole failure was:
-
-`web/scada-web/tests-e2e/c04-tag-source-browser.spec.ts:62`
-
-with `previewCandidate == null`, 623/624 tests passing. This is outside the FND-03 candidate delta and matches the previously observed historical C04 Preview flake. Main used standing CI authority to rerun only the failed Chromium job once; no candidate/workflow/test change was made. No further blind rerun is authorized.
 
 ---
 

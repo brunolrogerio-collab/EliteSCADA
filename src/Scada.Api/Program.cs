@@ -131,8 +131,8 @@ var app = builder.Build();
 // Resolve the historian before the hosted driver starts so it subscribes to the event bus.
 _ = app.Services.GetRequiredService<IHistorian>();
 await app.InitializeServerMemoryRetentionAsync();
-await app.InitializeEngineeringPersistenceAsync();
 await app.InitializeRuntimeSessionLeaseStoreAsync();
+await app.InitializeEngineeringPersistenceAsync();
 await app.InitializeAuditAsync();
 var localIdentityRuntime = app.Services.GetRequiredService<LocalIdentityRuntimeOptions>();
 if (localIdentityRuntime.Enabled)

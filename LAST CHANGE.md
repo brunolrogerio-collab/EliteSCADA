@@ -66,7 +66,7 @@ Explicitly not active yet:
 
 ## Lane state
 
-- FND-03 DEV — ACTIVE / IMPLEMENT_PHASE_B_CI_BUILD_CORRECTION.
+- FND-03 DEV — ACTIVE / IMPLEMENT_PHASE_B_TEST_FIXTURE_CORRECTION.
 - CODEX — WAIT / reserve.
 - FND-04 DEV/AUD — WAIT.
 - FC0-A — BLOCKED.
@@ -83,3 +83,14 @@ Then Main independently reviews the exact Phase B candidate, tests and scope bef
 ## Phase B CI #1552 diagnosis
 
 PR #333 exact head `abb1e497c66a8f0888d6cde83331c51623c18979`: Web SUCCESS; Backend build failed before tests on `CS0649` in the new recovery test helper because `RecordingTimeProvider._timestamp` is never assigned. Main ordered a single-test-file compile correction. No production/workflow change and no unchanged rerun are authorized.
+
+
+## Latest Phase B CI correction
+
+EliteSCADA CI #1553 / run `35394388702` on `5ebf533132b217085ff74db8f26ddb16cf95da88`:
+- Web SUCCESS;
+- Backend build SUCCESS;
+- Drivers 669/670 PASS;
+- sole failure is the Demo recovery fixture using a zero-source package rejected by canonical Runtime as `RUNTIME_NO_ACTIVE_SOURCES`.
+
+Main ordered a single-test-file Server Memory fixture correction on PR #333. Production Phase B remains unchanged pending the next exact-head CI.

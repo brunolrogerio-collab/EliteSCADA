@@ -9,6 +9,7 @@ using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Abstractions;
 using Scada.Engineering.Contracts;
+using Scada.Security.Authorization;
 
 namespace Scada.Api.Licensing;
 
@@ -29,6 +30,14 @@ public sealed record ProductRuntimeEntitlementStatus(
     TimeSpan? DemoRemaining,
     string? LastDiagnostic);
 
+public sealed record ProductRuntimeAuthorityReevaluationResult(
+    bool RuntimeExisted,
+    bool RuntimeRetained,
+    bool RuntimeStopped,
+    LicenseState? LicenseState,
+    RunEntitlementDecision? Decision,
+    string? Diagnostic);
+
 public interface IProductRuntimeStatusProvider
 {
     ProductRuntimeEntitlementStatus GetProductRuntimeStatus();
@@ -48,10 +57,12 @@ public sealed class ProductLicensedRuntimeCoordinator :
 {
     public const string EntitlementDeniedIssueCode = "PRODUCT_RUN_ENTITLEMENT_DENIED";
     public const string DemoExpiredDiagnostic = "Demo Run session expired after its continuous runtime allowance.";
+    public const string NoActiveRuntimeDiagnostic = "No active Runtime requires product authority re-evaluation.";
 
     private readonly Func<IEngineeringRuntimeCoordinator> _innerFactory;
     private readonly IProductRunEntitlementProvider _entitlements;
     private readonly TimeProvider _timeProvider;
+    private readonly IRuntimeSessionLeaseStore? _authorityStore;
     private readonly SemaphoreSlim _activationGate = new(1, 1);
     private readonly object _statusGate = new();
     private IEngineeringRuntimeCoordinator _inner;
@@ -63,6 +74,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
     private long? _demoStartedTimestamp;
     private DateTimeOffset? _demoStartedAtUtc;
     private TimeSpan? _demoDuration;
+    private TimeSpan _demoElapsedBeforeCurrentProcess;
     private string? _lastDiagnostic;
     private bool _disposed;
 
@@ -70,12 +82,14 @@ public sealed class ProductLicensedRuntimeCoordinator :
         IEngineeringRuntimeCoordinator initialInner,
         Func<IEngineeringRuntimeCoordinator> innerFactory,
         IProductRunEntitlementProvider entitlements,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        IRuntimeSessionLeaseStore? authorityStore = null)
     {
         _inner = initialInner ?? throw new ArgumentNullException(nameof(initialInner));
         _innerFactory = innerFactory ?? throw new ArgumentNullException(nameof(innerFactory));
         _entitlements = entitlements ?? throw new ArgumentNullException(nameof(entitlements));
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _authorityStore = authorityStore;
     }
 
     private IEngineeringRuntimeCoordinator Current => Volatile.Read(ref _inner);
@@ -126,6 +140,130 @@ public sealed class ProductLicensedRuntimeCoordinator :
 
     public ValueTask ExecuteCommandAsync(Guid commandId, CancellationToken cancellationToken = default) =>
         Current.ExecuteCommandAsync(commandId, cancellationToken);
+
+    public async Task<ProductRuntimeAuthorityReevaluationResult> ReevaluateForAuthorityChangeAsync(
+        DateTimeOffset authorityChangedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        await _activationGate.WaitAsync(cancellationToken);
+        try
+        {
+            ThrowIfDisposed();
+
+            var inner = Current;
+            var descriptor = inner.Describe();
+            if (!descriptor.Revision.HasValue || string.IsNullOrWhiteSpace(descriptor.ProjectKey))
+            {
+                return new ProductRuntimeAuthorityReevaluationResult(
+                    RuntimeExisted: false,
+                    RuntimeRetained: false,
+                    RuntimeStopped: false,
+                    LicenseState: null,
+                    Decision: null,
+                    Diagnostic: NoActiveRuntimeDiagnostic);
+            }
+
+            var decision = _entitlements.EvaluateRun(descriptor.TagCount);
+            if (!decision.Allowed)
+            {
+                var diagnostic = decision.Diagnostic ??
+                    "EliteSCADA product entitlement denied the active Runtime after authority change.";
+                await StopActiveRuntimeLockedAsync(
+                    inner,
+                    decision,
+                    ProductRuntimeLifecycleState.Idle,
+                    diagnostic,
+                    demoStartedAtUtc: null,
+                    demoDuration: null);
+
+                return new ProductRuntimeAuthorityReevaluationResult(
+                    RuntimeExisted: true,
+                    RuntimeRetained: false,
+                    RuntimeStopped: true,
+                    decision.LicenseState,
+                    decision,
+                    diagnostic);
+            }
+
+            if (decision.LicenseState == LicenseState.Demo &&
+                decision.MaximumContinuousRun is { } demoDuration)
+            {
+                var remaining = CalculateDemoRemainingFromAnchor(authorityChangedAtUtc, demoDuration);
+                if (remaining <= TimeSpan.Zero)
+                {
+                    await StopActiveRuntimeLockedAsync(
+                        inner,
+                        decision,
+                        ProductRuntimeLifecycleState.DemoExpired,
+                        DemoExpiredDiagnostic,
+                        authorityChangedAtUtc,
+                        demoDuration);
+
+                    return new ProductRuntimeAuthorityReevaluationResult(
+                        RuntimeExisted: true,
+                        RuntimeRetained: false,
+                        RuntimeStopped: true,
+                        decision.LicenseState,
+                        decision,
+                        DemoExpiredDiagnostic);
+                }
+
+                CancelDemoExpiryLocked();
+                var generation = ++_activationGeneration;
+                var scheduledRemaining = StartActiveStatus(decision, authorityChangedAtUtc);
+                if (scheduledRemaining is null || scheduledRemaining <= TimeSpan.Zero)
+                {
+                    await StopActiveRuntimeLockedAsync(
+                        inner,
+                        decision,
+                        ProductRuntimeLifecycleState.DemoExpired,
+                        DemoExpiredDiagnostic,
+                        authorityChangedAtUtc,
+                        demoDuration);
+
+                    return new ProductRuntimeAuthorityReevaluationResult(
+                        RuntimeExisted: true,
+                        RuntimeRetained: false,
+                        RuntimeStopped: true,
+                        decision.LicenseState,
+                        decision,
+                        DemoExpiredDiagnostic);
+                }
+
+                var cancellation = new CancellationTokenSource();
+                _demoExpiryCancellation = cancellation;
+                _demoExpiryTask = ExpireDemoAsync(
+                    inner,
+                    generation,
+                    scheduledRemaining.Value,
+                    cancellation.Token);
+
+                return new ProductRuntimeAuthorityReevaluationResult(
+                    RuntimeExisted: true,
+                    RuntimeRetained: true,
+                    RuntimeStopped: false,
+                    decision.LicenseState,
+                    decision,
+                    decision.Diagnostic);
+            }
+
+            CancelDemoExpiryLocked();
+            ++_activationGeneration;
+            StartActiveStatus(decision);
+
+            return new ProductRuntimeAuthorityReevaluationResult(
+                RuntimeExisted: true,
+                RuntimeRetained: true,
+                RuntimeStopped: false,
+                decision.LicenseState,
+                decision,
+                decision.Diagnostic);
+        }
+        finally
+        {
+            _activationGate.Release();
+        }
+    }
 
     public Task<RuntimeActivationResult> ActivateAsync(
         string projectKey,
@@ -182,6 +320,41 @@ public sealed class ProductLicensedRuntimeCoordinator :
                     });
             }
 
+            DateTimeOffset? durableDemoStartedAtUtc = null;
+            if (decision.LicenseState == LicenseState.Demo &&
+                decision.MaximumContinuousRun is { } candidateDemoDuration)
+            {
+                durableDemoStartedAtUtc = await GetDurableDemoStartedAtUtcAsync(cancellationToken);
+                if (durableDemoStartedAtUtc.HasValue &&
+                    CalculateDemoRemainingFromAnchor(
+                        durableDemoStartedAtUtc.Value,
+                        candidateDemoDuration) <= TimeSpan.Zero)
+                {
+                    var current = Current;
+                    if (current.Describe().Revision.HasValue)
+                    {
+                        await StopActiveRuntimeLockedAsync(
+                            current,
+                            decision,
+                            ProductRuntimeLifecycleState.DemoExpired,
+                            DemoExpiredDiagnostic,
+                            durableDemoStartedAtUtc.Value,
+                            candidateDemoDuration);
+                    }
+                    else
+                    {
+                        SetStoppedStatus(
+                            decision,
+                            ProductRuntimeLifecycleState.DemoExpired,
+                            DemoExpiredDiagnostic,
+                            durableDemoStartedAtUtc.Value,
+                            candidateDemoDuration);
+                    }
+
+                    return DeniedActivation(projectKey.Trim(), revision, DemoExpiredDiagnostic);
+                }
+            }
+
             var inner = Current;
             RuntimeActivationResult result;
             if (commitAsync is null)
@@ -208,14 +381,30 @@ public sealed class ProductLicensedRuntimeCoordinator :
 
             CancelDemoExpiryLocked();
             var generation = ++_activationGeneration;
-            StartActiveStatus(decision);
+            var remaining = StartActiveStatus(decision, durableDemoStartedAtUtc);
 
             if (decision.LicenseState == LicenseState.Demo &&
                 decision.MaximumContinuousRun is { } demoDuration)
             {
+                if (remaining is null || remaining <= TimeSpan.Zero)
+                {
+                    await StopActiveRuntimeLockedAsync(
+                        inner,
+                        decision,
+                        ProductRuntimeLifecycleState.DemoExpired,
+                        DemoExpiredDiagnostic,
+                        durableDemoStartedAtUtc ?? _timeProvider.GetUtcNow(),
+                        demoDuration);
+                    return DeniedActivation(projectKey.Trim(), revision, DemoExpiredDiagnostic);
+                }
+
                 var cancellation = new CancellationTokenSource();
                 _demoExpiryCancellation = cancellation;
-                _demoExpiryTask = ExpireDemoAsync(inner, generation, demoDuration, cancellation.Token);
+                _demoExpiryTask = ExpireDemoAsync(
+                    inner,
+                    generation,
+                    remaining.Value,
+                    cancellation.Token);
             }
 
             return result;
@@ -234,7 +423,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
     {
         try
         {
-            await Task.Delay(duration, cancellationToken);
+            await Task.Delay(duration, _timeProvider, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -252,6 +441,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
 
             var replacement = _innerFactory();
             Volatile.Write(ref _inner, replacement);
+            ++_activationGeneration;
             _demoExpiryCancellation = null;
             _demoExpiryTask = null;
 
@@ -283,13 +473,13 @@ public sealed class ProductLicensedRuntimeCoordinator :
         {
             TimeSpan? remaining = null;
             DateTimeOffset? expiresAtUtc = null;
-            if (_lifecycleState == ProductRuntimeLifecycleState.Running &&
-                _activeDecision?.LicenseState == LicenseState.Demo &&
+            if (_activeDecision?.LicenseState == LicenseState.Demo &&
                 _demoStartedTimestamp.HasValue &&
                 _demoDuration.HasValue &&
                 _demoStartedAtUtc.HasValue)
             {
-                var elapsed = _timeProvider.GetElapsedTime(_demoStartedTimestamp.Value);
+                var elapsed = _demoElapsedBeforeCurrentProcess +
+                    _timeProvider.GetElapsedTime(_demoStartedTimestamp.Value);
                 remaining = _demoDuration.Value - elapsed;
                 if (remaining < TimeSpan.Zero)
                     remaining = TimeSpan.Zero;
@@ -308,27 +498,157 @@ public sealed class ProductLicensedRuntimeCoordinator :
         }
     }
 
-    private void StartActiveStatus(RunEntitlementDecision decision)
+    private TimeSpan? StartActiveStatus(
+        RunEntitlementDecision decision,
+        DateTimeOffset? demoStartedAtUtc = null)
     {
+        TimeSpan? remaining = null;
         lock (_statusGate)
         {
             _lifecycleState = ProductRuntimeLifecycleState.Running;
             _activeDecision = decision;
-            _lastDiagnostic = null;
-            if (decision.LicenseState == LicenseState.Demo && decision.MaximumContinuousRun.HasValue)
+            _lastDiagnostic = decision.Diagnostic;
+            if (decision.LicenseState == LicenseState.Demo &&
+                decision.MaximumContinuousRun is { } demoDuration)
             {
+                var now = _timeProvider.GetUtcNow();
+                var semanticStart = demoStartedAtUtc ?? now;
+                var initialElapsed = now - semanticStart;
+                if (initialElapsed < TimeSpan.Zero)
+                    initialElapsed = TimeSpan.Zero;
+
                 _demoStartedTimestamp = _timeProvider.GetTimestamp();
-                _demoStartedAtUtc = _timeProvider.GetUtcNow();
-                _demoDuration = decision.MaximumContinuousRun;
+                _demoStartedAtUtc = semanticStart;
+                _demoDuration = demoDuration;
+                _demoElapsedBeforeCurrentProcess = initialElapsed;
+                remaining = demoDuration - initialElapsed;
+                if (remaining < TimeSpan.Zero)
+                    remaining = TimeSpan.Zero;
             }
             else
             {
                 _demoStartedTimestamp = null;
                 _demoStartedAtUtc = null;
                 _demoDuration = null;
+                _demoElapsedBeforeCurrentProcess = TimeSpan.Zero;
+            }
+        }
+
+        return remaining;
+    }
+
+    private async Task<DateTimeOffset?> GetDurableDemoStartedAtUtcAsync(
+        CancellationToken cancellationToken)
+    {
+        if (_authorityStore is null)
+            return null;
+
+        var authority = await _authorityStore.GetAuthorityStateAsync(cancellationToken);
+        return authority.DemoStartedAtUtc;
+    }
+
+    private TimeSpan CalculateDemoRemainingFromAnchor(
+        DateTimeOffset demoStartedAtUtc,
+        TimeSpan demoDuration)
+    {
+        var elapsed = _timeProvider.GetUtcNow() - demoStartedAtUtc;
+        if (elapsed < TimeSpan.Zero)
+            elapsed = TimeSpan.Zero;
+        var remaining = demoDuration - elapsed;
+        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+    }
+
+    private async Task StopActiveRuntimeLockedAsync(
+        IEngineeringRuntimeCoordinator expectedInner,
+        RunEntitlementDecision decision,
+        ProductRuntimeLifecycleState lifecycleState,
+        string diagnostic,
+        DateTimeOffset? demoStartedAtUtc,
+        TimeSpan? demoDuration)
+    {
+        CancelDemoExpiryLocked();
+        ++_activationGeneration;
+
+        var replacement = _innerFactory();
+        Volatile.Write(ref _inner, replacement);
+
+        try
+        {
+            await expectedInner.DisposeAsync();
+        }
+        catch (Exception ex)
+        {
+            const string stopFailure =
+                "Runtime stop failed during product authority re-evaluation.";
+            SetStoppedStatus(
+                decision,
+                lifecycleState,
+                stopFailure,
+                demoStartedAtUtc,
+                demoDuration);
+            throw new InvalidOperationException(stopFailure, ex);
+        }
+
+        SetStoppedStatus(
+            decision,
+            lifecycleState,
+            diagnostic,
+            demoStartedAtUtc,
+            demoDuration);
+    }
+
+    private void SetStoppedStatus(
+        RunEntitlementDecision decision,
+        ProductRuntimeLifecycleState lifecycleState,
+        string diagnostic,
+        DateTimeOffset? demoStartedAtUtc,
+        TimeSpan? demoDuration)
+    {
+        lock (_statusGate)
+        {
+            _lifecycleState = lifecycleState;
+            _activeDecision = decision;
+            _lastDiagnostic = diagnostic;
+
+            if (decision.LicenseState == LicenseState.Demo &&
+                demoStartedAtUtc.HasValue &&
+                demoDuration.HasValue)
+            {
+                var now = _timeProvider.GetUtcNow();
+                var elapsed = now - demoStartedAtUtc.Value;
+                if (elapsed < TimeSpan.Zero)
+                    elapsed = TimeSpan.Zero;
+                _demoStartedTimestamp = _timeProvider.GetTimestamp();
+                _demoStartedAtUtc = demoStartedAtUtc.Value;
+                _demoDuration = demoDuration.Value;
+                _demoElapsedBeforeCurrentProcess = elapsed;
+            }
+            else
+            {
+                _demoStartedTimestamp = null;
+                _demoStartedAtUtc = null;
+                _demoDuration = null;
+                _demoElapsedBeforeCurrentProcess = TimeSpan.Zero;
             }
         }
     }
+
+    private static RuntimeActivationResult DeniedActivation(
+        string projectKey,
+        long revision,
+        string diagnostic) =>
+        new(
+            projectKey,
+            revision,
+            false,
+            Array.Empty<EngineeringDriverIssue>(),
+            new[]
+            {
+                new RuntimeActivationIssue(
+                    EntitlementDeniedIssueCode,
+                    diagnostic,
+                    IsError: true)
+            });
 
     private void SetLastDiagnostic(string? diagnostic)
     {
@@ -371,6 +691,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
                 _demoStartedTimestamp = null;
                 _demoStartedAtUtc = null;
                 _demoDuration = null;
+                _demoElapsedBeforeCurrentProcess = TimeSpan.Zero;
             }
         }
         finally
@@ -420,7 +741,8 @@ public static class ProductLicensedRuntimeConfiguration
                 sp.GetRequiredService<GatewayEngineeringRuntimeCoordinator>(),
                 CreateFresh,
                 sp.GetRequiredService<IProductRunEntitlementProvider>(),
-                sp.GetRequiredService<TimeProvider>());
+                sp.GetRequiredService<TimeProvider>(),
+                sp.GetRequiredService<IRuntimeSessionLeaseStore>());
         });
 
         // These registrations intentionally come after Program's raw runtime registrations.

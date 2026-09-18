@@ -8,6 +8,7 @@ using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Abstractions;
 using Scada.Engineering.Contracts;
+using Scada.Security.Authorization;
 
 namespace Scada.Drivers.Tests;
 
@@ -81,6 +82,262 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
         Assert.Equal(1, created[1].ActivationCount);
         Assert.Equal(2, coordinator.Describe().Revision);
         Assert.Equal(ProductRuntimeLifecycleState.Running, coordinator.GetProductRuntimeStatus().State);
+    }
+
+    [Fact]
+    public async Task AuthorityReevaluation_ValidToValid_RetainsExactRuntimeIdentity()
+    {
+        var initial = new FakeRuntimeCoordinator();
+        var factoryCalls = 0;
+        var verification = ValidVerification(LicenseTier.Unlimited);
+        var entitlement = new DelegateEntitlementProvider(tagCount =>
+            ProductEntitlementEvaluator.Evaluate(verification, tagCount));
+        await using var coordinator = new ProductLicensedRuntimeCoordinator(
+            initial,
+            () =>
+            {
+                factoryCalls++;
+                return new FakeRuntimeCoordinator();
+            },
+            entitlement);
+
+        Assert.True((await coordinator.ActivateAsync("plant", 7, PackageWithTags(300))).Activated);
+        var before = coordinator.Describe();
+
+        verification = ValidVerification(LicenseTier.Tags500);
+        var result = await coordinator.ReevaluateForAuthorityChangeAsync(DateTimeOffset.UtcNow);
+
+        Assert.True(result.RuntimeExisted);
+        Assert.True(result.RuntimeRetained);
+        Assert.False(result.RuntimeStopped);
+        Assert.Equal(LicenseState.Valid, result.LicenseState);
+        Assert.False(initial.Disposed);
+        Assert.Equal(0, factoryCalls);
+        Assert.Equal(before.ProjectKey, coordinator.Describe().ProjectKey);
+        Assert.Equal(before.Revision, coordinator.Describe().Revision);
+        Assert.Equal(before.ActivatedAtUtc, coordinator.Describe().ActivatedAtUtc);
+        Assert.Equal(LicenseTier.Tags500, coordinator.GetProductRuntimeStatus().ActiveTier);
+    }
+
+    [Fact]
+    public async Task AuthorityReevaluation_DowngradeDenyingTagCount_StopsAndDisposesRuntime()
+    {
+        var initial = new FakeRuntimeCoordinator();
+        var fresh = new FakeRuntimeCoordinator();
+        var verification = ValidVerification(LicenseTier.Unlimited);
+        var entitlement = new DelegateEntitlementProvider(tagCount =>
+            ProductEntitlementEvaluator.Evaluate(verification, tagCount));
+        await using var coordinator = new ProductLicensedRuntimeCoordinator(
+            initial,
+            () => fresh,
+            entitlement);
+
+        Assert.True((await coordinator.ActivateAsync("plant", 3, PackageWithTags(300))).Activated);
+        verification = LicenseVerificationResult.Demo();
+
+        var result = await coordinator.ReevaluateForAuthorityChangeAsync(DateTimeOffset.UtcNow);
+
+        Assert.True(result.RuntimeExisted);
+        Assert.False(result.RuntimeRetained);
+        Assert.True(result.RuntimeStopped);
+        Assert.Equal(LicenseState.Demo, result.LicenseState);
+        Assert.True(initial.Disposed);
+        Assert.Null(coordinator.Describe().Revision);
+        Assert.Contains("200", result.Diagnostic);
+        Assert.Equal(ProductRuntimeLifecycleState.Idle, coordinator.GetProductRuntimeStatus().State);
+    }
+
+    [Fact]
+    public async Task AuthorityReevaluation_ValidToDemo_UsesAuthorityChangeAnchorAndSchedulesRemaining()
+    {
+        var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
+        var time = new RecordingTimeProvider(now);
+        var initial = new FakeRuntimeCoordinator();
+        var verification = ValidVerification(LicenseTier.Unlimited);
+        var entitlement = new DelegateEntitlementProvider(tagCount =>
+            ProductEntitlementEvaluator.Evaluate(verification, tagCount));
+        await using var coordinator = new ProductLicensedRuntimeCoordinator(
+            initial,
+            () => new FakeRuntimeCoordinator(),
+            entitlement,
+            time);
+
+        Assert.True((await coordinator.ActivateAsync("plant", 11, PackageWithTags(100))).Activated);
+        verification = LicenseVerificationResult.Demo();
+        var authorityChangedAtUtc = now.AddHours(-2);
+
+        var result = await coordinator.ReevaluateForAuthorityChangeAsync(authorityChangedAtUtc);
+        var status = coordinator.GetProductRuntimeStatus();
+
+        Assert.True(result.RuntimeRetained);
+        Assert.False(initial.Disposed);
+        Assert.Equal(authorityChangedAtUtc, status.DemoStartedAtUtc);
+        Assert.Equal(authorityChangedAtUtc + LicensingPolicy.DemoMaxContinuousRun, status.DemoExpiresAtUtc);
+        Assert.Equal(TimeSpan.FromHours(3), status.DemoRemaining);
+        Assert.Equal(TimeSpan.FromHours(3), time.LastTimerDueTime);
+    }
+
+    [Fact]
+    public async Task AuthorityReevaluation_ExpiredDemoAnchor_StopsImmediately()
+    {
+        var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
+        var time = new RecordingTimeProvider(now);
+        var initial = new FakeRuntimeCoordinator();
+        var verification = ValidVerification(LicenseTier.Unlimited);
+        var entitlement = new DelegateEntitlementProvider(tagCount =>
+            ProductEntitlementEvaluator.Evaluate(verification, tagCount));
+        await using var coordinator = new ProductLicensedRuntimeCoordinator(
+            initial,
+            () => new FakeRuntimeCoordinator(),
+            entitlement,
+            time);
+
+        Assert.True((await coordinator.ActivateAsync("plant", 5, PackageWithTags(100))).Activated);
+        verification = LicenseVerificationResult.Demo();
+        var anchor = now - LicensingPolicy.DemoMaxContinuousRun - TimeSpan.FromMinutes(1);
+
+        var result = await coordinator.ReevaluateForAuthorityChangeAsync(anchor);
+        var status = coordinator.GetProductRuntimeStatus();
+
+        Assert.True(result.RuntimeStopped);
+        Assert.True(initial.Disposed);
+        Assert.Null(coordinator.Describe().Revision);
+        Assert.Equal(ProductRuntimeLifecycleState.DemoExpired, status.State);
+        Assert.Equal(anchor, status.DemoStartedAtUtc);
+        Assert.Equal(TimeSpan.Zero, status.DemoRemaining);
+        Assert.Equal(anchor + LicensingPolicy.DemoMaxContinuousRun, status.DemoExpiresAtUtc);
+    }
+
+    [Fact]
+    public async Task DemoStatus_CombinesDurableElapsedAndCurrentProcessMonotonicElapsed()
+    {
+        var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
+        var time = new RecordingTimeProvider(now);
+        var initial = new FakeRuntimeCoordinator();
+        var verification = ValidVerification(LicenseTier.Unlimited);
+        var entitlement = new DelegateEntitlementProvider(tagCount =>
+            ProductEntitlementEvaluator.Evaluate(verification, tagCount));
+        await using var coordinator = new ProductLicensedRuntimeCoordinator(
+            initial,
+            () => new FakeRuntimeCoordinator(),
+            entitlement,
+            time);
+
+        Assert.True((await coordinator.ActivateAsync("plant", 9, PackageWithTags(100))).Activated);
+        verification = LicenseVerificationResult.Demo();
+        var anchor = now.AddHours(-1);
+        Assert.True((await coordinator.ReevaluateForAuthorityChangeAsync(anchor)).RuntimeRetained);
+
+        time.Advance(TimeSpan.FromMinutes(30));
+        var status = coordinator.GetProductRuntimeStatus();
+
+        Assert.Equal(anchor, status.DemoStartedAtUtc);
+        Assert.Equal(anchor + LicensingPolicy.DemoMaxContinuousRun, status.DemoExpiresAtUtc);
+        Assert.Equal(TimeSpan.FromHours(3.5), status.DemoRemaining);
+    }
+
+    [Fact]
+    public async Task DemoActivation_WithoutDurableAnchor_StartsAtActivationTime()
+    {
+        var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
+        var time = new RecordingTimeProvider(now);
+        await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
+        var initial = new FakeRuntimeCoordinator();
+        var entitlement = new DelegateEntitlementProvider(tagCount =>
+            ProductEntitlementEvaluator.Evaluate(LicenseVerificationResult.Demo(), tagCount));
+        await using var coordinator = new ProductLicensedRuntimeCoordinator(
+            initial,
+            () => new FakeRuntimeCoordinator(),
+            entitlement,
+            time,
+            authorityStore);
+
+        Assert.True((await coordinator.ActivateAsync("plant", 1, PackageWithTags(100))).Activated);
+        var status = coordinator.GetProductRuntimeStatus();
+
+        Assert.Equal(now, status.DemoStartedAtUtc);
+        Assert.Equal(now + LicensingPolicy.DemoMaxContinuousRun, status.DemoExpiresAtUtc);
+        Assert.Equal(LicensingPolicy.DemoMaxContinuousRun, status.DemoRemaining);
+    }
+
+    [Fact]
+    public async Task DemoActivation_WithAuthorityAnchor_DoesNotMintFreshWindow()
+    {
+        var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
+        var anchor = now.AddHours(-1);
+        var time = new RecordingTimeProvider(now);
+        await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
+        await SeedDemoAuthorityAsync(authorityStore, anchor);
+        var initial = new FakeRuntimeCoordinator();
+        var entitlement = new DelegateEntitlementProvider(tagCount =>
+            ProductEntitlementEvaluator.Evaluate(LicenseVerificationResult.Demo(), tagCount));
+        await using var coordinator = new ProductLicensedRuntimeCoordinator(
+            initial,
+            () => new FakeRuntimeCoordinator(),
+            entitlement,
+            time,
+            authorityStore);
+
+        Assert.True((await coordinator.ActivateAsync("plant", 1, PackageWithTags(100))).Activated);
+        var status = coordinator.GetProductRuntimeStatus();
+
+        Assert.Equal(anchor, status.DemoStartedAtUtc);
+        Assert.Equal(TimeSpan.FromHours(4), status.DemoRemaining);
+        Assert.Equal(TimeSpan.FromHours(4), time.LastTimerDueTime);
+    }
+
+    [Fact]
+    public async Task AuthorityReevaluation_NoActiveRuntime_ReturnsDeterministicNoOp()
+    {
+        var initial = new FakeRuntimeCoordinator();
+        var entitlement = new DelegateEntitlementProvider(_ =>
+            ProductEntitlementEvaluator.Evaluate(LicenseVerificationResult.Demo(), 0));
+        await using var coordinator = new ProductLicensedRuntimeCoordinator(
+            initial,
+            () => new FakeRuntimeCoordinator(),
+            entitlement);
+
+        var result = await coordinator.ReevaluateForAuthorityChangeAsync(DateTimeOffset.UtcNow);
+
+        Assert.False(result.RuntimeExisted);
+        Assert.False(result.RuntimeRetained);
+        Assert.False(result.RuntimeStopped);
+        Assert.Equal(ProductLicensedRuntimeCoordinator.NoActiveRuntimeDiagnostic, result.Diagnostic);
+        Assert.False(initial.Disposed);
+    }
+
+    [Fact]
+    public async Task AuthorityReevaluation_SerializesBehindActivation_AndStopsNewlyDeniedRuntime()
+    {
+        var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var initial = new FakeRuntimeCoordinator
+        {
+            ActivationEntered = entered,
+            ActivationRelease = release
+        };
+        var verification = ValidVerification(LicenseTier.Unlimited);
+        var entitlement = new DelegateEntitlementProvider(tagCount =>
+            ProductEntitlementEvaluator.Evaluate(verification, tagCount));
+        await using var coordinator = new ProductLicensedRuntimeCoordinator(
+            initial,
+            () => new FakeRuntimeCoordinator(),
+            entitlement);
+
+        var activation = coordinator.ActivateAsync("plant", 1, PackageWithTags(300));
+        await entered.Task;
+        verification = LicenseVerificationResult.Demo();
+
+        var reevaluation = coordinator.ReevaluateForAuthorityChangeAsync(DateTimeOffset.UtcNow);
+        Assert.False(reevaluation.IsCompleted);
+
+        release.TrySetResult(true);
+        Assert.True((await activation).Activated);
+
+        var result = await reevaluation;
+        Assert.True(result.RuntimeStopped);
+        Assert.True(initial.Disposed);
+        Assert.Null(coordinator.Describe().Revision);
     }
 
     [Fact]
@@ -168,6 +425,33 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
         }
     }
 
+    private static LicenseVerificationResult ValidVerification(
+        LicenseTier tier = LicenseTier.Unlimited) =>
+        LicenseVerificationResult.Valid(
+            new EliteScadaLicensePayload(
+                EliteScadaLicenseCodec.CurrentSchemaVersion,
+                Guid.NewGuid().ToString("D"),
+                new string('a', 64),
+                tier,
+                DateTimeOffset.UnixEpoch,
+                null,
+                "test-key"));
+
+    private static async Task SeedDemoAuthorityAsync(
+        InMemoryRuntimeSessionLeaseStore store,
+        DateTimeOffset anchor)
+    {
+        var transition = await store.BeginAuthorityTransitionAsync("demo-test", anchor);
+        var state = await store.CommitAuthorityChangeAsync(
+            transition.TransitionId,
+            transition.BaseAuthorityRevision,
+            anchor,
+            anchor);
+        await store.CompleteAuthorityTransitionAsync(
+            transition.TransitionId,
+            state.AuthorityRevision);
+    }
+
     private static EngineeringPackage PackageWithTags(int count) =>
         new(
             "elitescada.engineering",
@@ -202,6 +486,41 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
         public RunEntitlementDecision EvaluateRun(int projectTagCount) => evaluate(projectTagCount);
     }
 
+    private sealed class RecordingTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        private DateTimeOffset _utcNow = utcNow;
+        private long _timestamp;
+
+        public TimeSpan? LastTimerDueTime { get; private set; }
+
+        public override DateTimeOffset GetUtcNow() => _utcNow;
+        public override long GetTimestamp() => _timestamp;
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+        public void Advance(TimeSpan amount)
+        {
+            _utcNow += amount;
+            _timestamp = checked(_timestamp + amount.Ticks);
+        }
+
+        public override ITimer CreateTimer(
+            TimerCallback callback,
+            object? state,
+            TimeSpan dueTime,
+            TimeSpan period)
+        {
+            LastTimerDueTime = dueTime;
+            return new PassiveTimer();
+        }
+
+        private sealed class PassiveTimer : ITimer
+        {
+            public bool Change(TimeSpan dueTime, TimeSpan period) => true;
+            public void Dispose() { }
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+    }
+
     private sealed class FixedMachineIdentityProvider(string fingerprint) : IMachineIdentityProvider
     {
         public string GetMachineFingerprint() => fingerprint;
@@ -213,6 +532,8 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
 
         public int ActivationCount { get; private set; }
         public bool Disposed { get; private set; }
+        public TaskCompletionSource<bool>? ActivationEntered { get; init; }
+        public TaskCompletionSource<bool>? ActivationRelease { get; init; }
 
         public RuntimeDescriptor Describe() => _descriptor;
         public IReadOnlyCollection<TagDefinition> Tags() => Array.Empty<TagDefinition>();
@@ -256,6 +577,9 @@ public sealed class ProductLicensedRuntimeCoordinatorTests
             CancellationToken cancellationToken)
         {
             ActivationCount++;
+            ActivationEntered?.TrySetResult(true);
+            if (ActivationRelease is not null)
+                await ActivationRelease.Task.WaitAsync(cancellationToken);
             var activatedAt = DateTimeOffset.UtcNow;
             if (commitAsync is not null)
                 await commitAsync(new RuntimeActivationCommitContext(projectKey, revision, activatedAt), cancellationToken);

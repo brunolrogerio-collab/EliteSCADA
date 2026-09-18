@@ -479,12 +479,11 @@ public sealed class PersistedRuntimeRecoveryServiceTests
     private sealed class RecordingTimeProvider(DateTimeOffset utcNow) : TimeProvider
     {
         private readonly DateTimeOffset _utcNow = utcNow;
-        private long _timestamp;
 
         public TimeSpan? LastTimerDueTime { get; private set; }
 
         public override DateTimeOffset GetUtcNow() => _utcNow;
-        public override long GetTimestamp() => _timestamp;
+        public override long GetTimestamp() => 0;
         public override long TimestampFrequency => TimeSpan.TicksPerSecond;
 
         public override ITimer CreateTimer(

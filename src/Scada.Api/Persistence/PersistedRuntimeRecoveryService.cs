@@ -3,6 +3,7 @@ using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Core.Abstractions;
 using Scada.Core.Product.Licensing;
+using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
